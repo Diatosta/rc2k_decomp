@@ -1,18 +1,16 @@
 //! `input::take_key` (0x407F95): takes the pending key: returns `byte_4F6ADC` and sets it to 0,
 //! in one `xchg`.
 //!
-//! In:  nothing
-//! Out: al = the key, 0 if there was none (the rest of eax is preserved); ZF = (al == 0)
 //! 65 callers. The
 //! other flags of the original's `test al, al` (sign, parity) are not reproduced; carry and
 //! zero are.
 
-use crate::input::store::DEVICES;
+use crate::input::owner::input;
 use std::sync::atomic::{AtomicU8, Ordering};
 
 /// `byte_4F6ADC`: the first byte of `g_keysDown`.
 pub fn pending_key() -> &'static AtomicU8 {
-    DEVICES.keys_down.atomic(0)
+    input().devices.keys_down.atomic(0)
 }
 
 // ---- Rust version ----

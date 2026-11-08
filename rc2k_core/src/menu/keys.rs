@@ -1,10 +1,14 @@
 //! What a key means on a menu (converted 2026-10-21 from `menu::handle_keys` 0x465FCC).
 //! The keys are the game's scan codes as `input::take_key` gives them.
 
-/// What `handle_keys` leaves in eax: nothing for the caller to do, Escape, Enter.
-pub const NOTHING: u32 = 1;
-pub const ESCAPED: u32 = 2;
-pub const ENTERED: u32 = 3;
+/// What a key means to the screen loop (`handle_keys`' eax 1, 2, 3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Pressed {
+    /// Nothing for the caller to do.
+    Nothing = 1,
+    Escape = 2,
+    Enter = 3,
+}
 
 /// `dword_7556A4` on any key looked at, and after Enter.
 pub const NO_SOUND: u32 = 0x6F;
@@ -41,7 +45,7 @@ pub enum Action {
     Ignored,
     /// Escape: `dword_755561`, `dword_755A3C` and `dword_758806` 1; eax 2.
     Escape,
-    /// Enter: the sound 0x14D, the key's time, `dword_7554D4` by ah, the click; eax 3.
+    /// Enter: the sound 0x14D, the key's time, `g_enterSkipsNameEntry` by ah, the click; eax 3.
     Enter,
     /// The key's time, then one of the four highlight moves.
     Move(Move),
@@ -79,8 +83,8 @@ pub fn action(key: u8, cheats: impl FnOnce() -> u32) -> Action {
     }
 }
 
-/// Enter's `dword_7554D4`: 1 when ah (what the caller had there) is 4.
-pub fn entered_with_4(eax: u32) -> u32 {
+/// Enter's `g_enterSkipsNameEntry`: 1 when ah (what the caller had there) is 4.
+pub fn enter_skips_name_entry(eax: u32) -> u32 {
     (eax >> 8 & 0xFF == 4) as u32
 }
 
@@ -101,7 +105,7 @@ mod tests {
         assert_eq!(action(0x14, || 1 << 14), Action::AddTime);
         assert_eq!(action(0x14, || !(1 << 14)), Action::Other);
         assert_eq!(action(0x30, || unreachable!()), Action::Other);
-        assert_eq!(entered_with_4(0x0000_041C), 1);
-        assert_eq!(entered_with_4(0x0004_001C), 0);
+        assert_eq!(enter_skips_name_entry(0x0000_041C), 1);
+        assert_eq!(enter_skips_name_entry(0x0004_001C), 0);
     }
 }

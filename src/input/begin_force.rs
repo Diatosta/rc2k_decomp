@@ -8,80 +8,63 @@
 //! six made (`input::make_effect`, ecx the number, edi the effect) and +0x28 1 (effects
 //! on).
 //!
-//! In:  esi = the device's record (+4 its DirectInput device)
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the device's record (+4 its DirectInput device)
 //!
 //! Caller: `input::acquire_device`. The controller's number is not checked (as the
 //! original's). The effects' functions through `make_effect`'s `part`; the methods the
 //! device's own.
 
-use crate::errors::{BadInput, Refused};
-use crate::field;
-use crate::input::devices::{at, put};
-use crate::input::di_harness::{EFFECT_LEN, EFFECTS_AT, entry_of, fatal, method, slot};
-use crate::input::store::DEVICES;
-use crate::input::types::{Controller, DiPropDword, DiPropHeader, InputDevice};
+use crate::errors::Refused;
+use crate::input::di_harness::entry_of;
+use crate::input::di_objects::{Property, set_property};
+
+use crate::input::di_harness::fatal;
+use crate::input::owner::Input;
+use crate::input::types::{DiPropDword, DiPropHeader, InputDevice};
 use rc2k_core::input::acquire::gain;
 use std::mem::size_of;
 
 const USING_TEXT_RVA: &std::ffi::CStr = c"INP: using force feedback"; // aInpUsingForceF
-const DIPROP_FFGAIN: u32 = 7;
-const DIPROP_AUTOCENTER: u32 = 9;
 
-/// The `DIPROPDWORD` for the whole device with `data`: its address.
-pub fn dword_property(data: u32) -> Result<u32, BadInput> {
-    let prop = DEVICES.dword_property.addr();
-    put(
-        prop,
-        field!(DiPropDword, header.size),
-        size_of::<DiPropDword>() as u32,
-    )?;
-    put(
-        prop,
-        field!(DiPropDword, header.header_size),
-        size_of::<DiPropHeader>() as u32,
-    )?;
-    put(prop, field!(DiPropDword, header.object), 0)?;
-    put(prop, field!(DiPropDword, header.how), 0)?;
-    put(prop, field!(DiPropDword, data), data)?;
-    Ok(prop)
+/// The `DIPROPDWORD` for the whole device with `data`.
+pub fn dword_property(data: u32) -> DiPropDword {
+    DiPropDword {
+        header: DiPropHeader {
+            size: size_of::<DiPropDword>() as u32,
+            header_size: size_of::<DiPropHeader>() as u32,
+            object: 0,
+            how: 0,
+        },
+        data,
+    }
 }
 
 /// The Rust version (see the header).
-pub fn begin_force(record: u32) -> Result<(), Refused> {
-    let entry = entry_of(record)?;
-    if at(entry, field!(Controller, force_feedback))? != 1 {
+pub fn begin_force(input: &Input, record: &InputDevice) -> Result<(), Refused> {
+    if entry_of(&input.devices, record)?.force_feedback.get() != 1 {
         return Ok(());
     }
-    unsafe { crate::logfile::log_write::log_write(USING_TEXT_RVA.as_ptr() as *const u8, true, 2) };
-    let device = at(record, field!(InputDevice, device))?;
+    crate::logfile::log_write::log_nul(&USING_TEXT_RVA, true, 2);
+    let device = record.device.get();
     // Converted: `rc2k_core::input::acquire::gain`.
-    let Some(gain) = gain(at(record, field!(InputDevice, strength))?) else {
-        method(
-            device,
-            slot::SET_PROPERTY,
-            &[DIPROP_AUTOCENTER, dword_property(1)?],
-        );
+    let Some(gain) = gain(record.strength.get()) else {
+        set_property(device, Property::AutoCenter(&dword_property(1)));
         return Ok(());
     };
-    if method(
-        device,
-        slot::SET_PROPERTY,
-        &[DIPROP_AUTOCENTER, dword_property(0)?],
-    ) != 0
-    {
+    if set_property(device, Property::AutoCenter(&dword_property(0))) != 0 {
         return Err(fatal(0x8023_8421).into());
     }
-    let gain = dword_property(gain)?;
-    if method(device, slot::SET_PROPERTY, &[DIPROP_FFGAIN, gain]) != 0 {
+    if set_property(device, Property::FfGain(&dword_property(gain))) != 0 {
         return Err(fatal(0x8023_8422).into());
     }
-    let found = crate::pointers::game_address(crate::input::effect_found::callback as *const ());
-    method(device, slot::ENUM_EFFECTS, &[found, record, 0]);
-    for n in 0..6 {
-        let effect = record.wrapping_add(EFFECTS_AT + n * EFFECT_LEN);
-        crate::input::make_effect::make_effect(record, effect, n)?;
+    crate::input::di_objects::enum_effects(
+        device,
+        |info| crate::input::effect_found::callback(&input.guids, info, record),
+        0,
+    );
+    for (n, effect) in record.effects.iter().enumerate() {
+        crate::input::make_effect::make_effect(&input.devices, record, effect, n as u32)?;
     }
-    put(record, field!(InputDevice, effects_on), 1)?;
+    record.effects_on.set(1);
     Ok(())
 }

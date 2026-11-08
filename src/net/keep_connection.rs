@@ -2,25 +2,23 @@
 //! service provider's GUID (record +0x40, 16 bytes) to `unk_52AC94`, its name (64 bytes)
 //! to `unk_52ACA4`.
 //!
-//! In:  `connection` (eax: the connection's number)
-//! Out: nothing (every register kept, `pusha` .. `popa`)
+//! Takes `connection`.
 //! Callers: `net::start_link`, `net::settings_link`, `net::settings_done`. Refuses what
 //! `net::lobby::connection` refuses (its fatal errors).
 
 use crate::errors::Refused;
-use crate::field;
-use crate::net::lobby::{connection, movsb};
-use crate::net::store::NET;
-use crate::net::types::NetConnection;
+use crate::net::owner::net;
+use crate::net::tables::with_connection;
 
 /// The Rust version.
 pub fn keep_connection(number: u32) -> Result<(), Refused> {
-    let record = connection(number)?;
-    movsb(
-        NET.saved_connection.addr(),
-        record + field!(NetConnection, service_provider),
-        0x10,
-    )?;
-    movsb(NET.saved_name.addr(), record, 0x40)?;
+    let net = net();
+    let (provider, name) = with_connection(number, |c| (c.provider, c.name))?;
+    net.vars
+        .saved_connection
+        .write_at(0, &provider, "the saved connection")?;
+    net.vars
+        .saved_name
+        .write_at(0, &name, "the saved connection")?;
     Ok(())
 }

@@ -1,7 +1,7 @@
 //! The screen mode tables (the pixel kinds' and thirds' bits, the pixel kinds, the sizes,
 //! the modes listed), out of RAL.EXE's image (phase 5; typed in phase 7,
 //! `notes/conversion.md`): IDA 0x4F4E30 .. 0x4F503C. The thirds table (`byte_4F4B30`) that
-//! came before it in the image is `gfx::fill_thirds_table::THIRDS`.
+//! came before it in the image is `THIRDS`.
 //!
 //! The tables are walked by address (`system::find_entry`: the entry whose first dword is
 //! a key; a key not there gives the place past the table, as the original reads it), so
@@ -20,6 +20,7 @@ pub const TABLE_ROOM: usize = 0x20;
 
 /// The screen mode tables.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Modes {
     /// `dword_4F4E30`: the two pixel kinds' bits (the mode flags' 0x1000, 0x2000: the card).
     pub kind_bits: [Dword; 2],
@@ -41,46 +42,54 @@ pub struct Modes {
     pub table: [Dword; 2 * TABLE_ROOM],
 }
 
-/// The tables; the first values are the image's.
-pub static MODES: Modes = Modes {
-    kind_bits: dwords([0x1000, 0x2000]),
-    third_bits: dwords([0x20000, 0x40000]),
-    pixel_kinds: dwords([0x200, 0x10, 0x800, 0x20]),
-    sizes: dwords([
-        0x1, 0x1e00280, 0x2, 0x2580320, 0x4, 0x2d003c0, 0x8, 0x3000400, 0x10, 0x3600480, 0x20,
-        0x4000500, 0x40, 0x4b00640, 0x80, 0x5000780,
-    ]),
-    kinds: dwords([0x10000, 0x0, 0x20000, 0x1, 0x40000, 0x2]),
-    other_tables: dwords([
-        0x200, 0x10, 0x400, 0x18, 0x800, 0x20, 0x100, 0x8, 0x0, 0x0, 0x800, 0x20, 0x400, 0x18,
-        0x200, 0x10, 0x100, 0x8, 0x0, 0x0, 0x400, 0x10, 0x200, 0x18, 0x100, 0x20, 0x800, 0x8,
-        0x4000, 0x1, 0x2000, 0x2, 0x1000, 0x4, 0x0, 0x0,
-    ]),
-    count: Dword::new(0),
-    table: [const { Dword::new(0) }; 2 * TABLE_ROOM],
-};
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x4F4E30).
-pub fn home() -> usize {
-    crate::pointers::game_address(&MODES as *const Modes) as usize
+impl Modes {
+    /// The tables; the first values are the image's.
+    pub const fn new() -> Self {
+        Modes {
+            kind_bits: dwords([0x1000, 0x2000]),
+            third_bits: dwords([0x20000, 0x40000]),
+            pixel_kinds: dwords([0x200, 0x10, 0x800, 0x20]),
+            sizes: dwords([
+                0x1, 0x1e00280, 0x2, 0x2580320, 0x4, 0x2d003c0, 0x8, 0x3000400, 0x10, 0x3600480,
+                0x20, 0x4000500, 0x40, 0x4b00640, 0x80, 0x5000780,
+            ]),
+            kinds: dwords([0x10000, 0x0, 0x20000, 0x1, 0x40000, 0x2]),
+            other_tables: dwords([
+                0x200, 0x10, 0x400, 0x18, 0x800, 0x20, 0x100, 0x8, 0x0, 0x0, 0x800, 0x20, 0x400,
+                0x18, 0x200, 0x10, 0x100, 0x8, 0x0, 0x0, 0x400, 0x10, 0x200, 0x18, 0x100, 0x20,
+                0x800, 0x8, 0x4000, 0x1, 0x2000, 0x2, 0x1000, 0x4, 0x0, 0x0,
+            ]),
+            count: Dword::new(0),
+            table: [const { Dword::new(0) }; 2 * TABLE_ROOM],
+        }
+    }
 }
 
-macro_rules! table_addr {
-    ($name:ident, $field:ident) => {
-        /// Where the table is (an address into the whole block: the tables are walked past
-        /// their ends, as the original's).
-        pub fn $name(&self) -> usize {
-            crate::pointers::game_address(self as *const Self) as usize
-                + core::mem::offset_of!(Self, $field)
-        }
-    };
+#[cfg(test)]
+/// Where the block is (`moved::MOVED`'s home for IDA 0x4F4E30).
+pub fn home() -> usize {
+    crate::pointers::game_address(&raw const crate::gfx::owner::GFX.display.modes) as usize
 }
 
 impl Modes {
-    table_addr!(pixel_kinds_addr, pixel_kinds);
-    table_addr!(sizes_addr, sizes);
-    table_addr!(kinds_addr, kinds);
-    table_addr!(table_addr, table);
+    /// Where a table is, as a pointer bounded by the whole block (the tables are walked
+    /// past their ends).
+    fn table_ptr(offset: usize) -> crate::pointers::GamePtr {
+        crate::pointers::GamePtr::to(&crate::gfx::owner::GFX.display.modes).offset(offset as u32)
+    }
+    pub fn pixel_kinds_ptr() -> crate::pointers::GamePtr {
+        Self::table_ptr(core::mem::offset_of!(Self, pixel_kinds))
+    }
+    pub fn sizes_ptr() -> crate::pointers::GamePtr {
+        Self::table_ptr(core::mem::offset_of!(Self, sizes))
+    }
+    pub fn kinds_ptr() -> crate::pointers::GamePtr {
+        Self::table_ptr(core::mem::offset_of!(Self, kinds))
+    }
+    /// The mode table (walked past its end like the others).
+    pub fn mode_table_ptr() -> crate::pointers::GamePtr {
+        Self::table_ptr(core::mem::offset_of!(Self, table))
+    }
 }
 
 #[cfg(test)]
@@ -90,7 +99,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&MODES, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::GFX.display.modes,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
@@ -101,7 +114,13 @@ mod tests {
         assert_eq!(offset_of!(Modes, count), 0x4F4F38 - START);
         assert_eq!(offset_of!(Modes, table), 0x4F4F3C - START);
         assert_eq!(crate::moved::place(START), home());
-        assert_eq!(crate::moved::place(0x4F4E50), MODES.sizes_addr());
-        assert_eq!(crate::moved::place(0x4F4F3C), MODES.table_addr());
+        assert_eq!(
+            crate::moved::place(0x4F4E50),
+            Modes::sizes_ptr().addr() as usize
+        );
+        assert_eq!(
+            crate::moved::place(0x4F4F3C),
+            Modes::mode_table_ptr().addr() as usize
+        );
     }
 }

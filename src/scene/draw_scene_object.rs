@@ -1,11 +1,6 @@
 //! `scene::draw_scene_object` (0x451E3E): chooses the set of textures for the object
 //! `g_objectNumber` and draws it the way the scene's mode asks for.
 //!
-//! In:  esi, passed on to `scene::draw_described_object`
-//! Out: the registers as its parts leave them; before the drawing eax = what was last
-//!      looked at, ebx = the object's number, edx = the car's remainder if a car was
-//!      looked at
-//!
 //! An object's number of 0x100 or more is fatal error 0x80600A01. `dword_639954` (added to
 //! every face's texture number) = 0; then 0x108 for, outside a race, an object of kind 0x23A,
 //! and in a race for objects 0x50 .. 0xEF (the cars, 0x14 objects each) whose car's block has
@@ -18,14 +13,9 @@
 //! `rc2k_core::scene::shown`.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::physics::ground_store::GROUND_WORK;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::work_store::RACE_WORK;
+use crate::race::owner::Race;
 use crate::scene::draw_object::draw_object_in_game;
 use crate::scene::draw_shown_object::draw_shown_object;
-use crate::scene::light_store::LIGHT_STATE;
-use crate::scene::object_tables_store::OBJECT_TABLES;
 
 // ---- game data ----
 // scene::draw_described_object
@@ -42,19 +32,21 @@ pub use rc2k_core::scene::shown::Way;
 
 /// The texture set for `g_objectNumber`; the object's number.
 // Converted: `rc2k_core::scene::shown::texture_set`
-fn texture_set() -> Result<(u32, u32), Refused> {
+fn texture_set(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(u32, u32), Refused> {
+    let shared = &race.shared;
     use rc2k_core::scene::shown::SetError;
     {
-        let reading = crate::scene::reading::Reading::new();
-        let object: u32 = FRAME_SWITCHES.object_number.bits();
+        let object: u32 = shared.switches.object_number.bits();
         let t = rc2k_core::scene::shown::texture_set(
             object,
-            NUMBERS.in_race.bits() != 0,
-            0,
-            |object| OBJECT_TABLES.object_kind(object),
+            race.course.numbers.in_race.bits() != 0,
+            |object| scene.objects.tables.object_kind(object),
             |car| {
-                let block: u32 = RACE_WORK.car_block(car as usize);
-                (block != 0).then(|| reading.read::<u32>(block.wrapping_add(0x24), "a car's block"))
+                let block: u32 = shared.work.car_block(car as usize);
+                (block != 0).then(|| crate::physics::car_store::Car::at(block).car_kind.bits())
             },
         )
         .map_err(|e| -> Refused {
@@ -63,22 +55,23 @@ fn texture_set() -> Result<(u32, u32), Refused> {
                 SetError::NoBlock => BadInput("a car without its block").into(),
             }
         });
-        reading.finish()?;
-        let t = t?;
-        Ok((t.set, object))
+        Ok((t?, object))
     }
 }
 
 /// `draw`: what stands for the two calls. What the original leaves in the registers (ebx
 /// the object's number among them) none of its callers reads (register liveness,
-/// 2026-10-23: only the unreached `sub_49081A` after `scene::draw_menu_object`).
+/// 2026-10-23: only the unreached 0x49081A after `scene::draw_menu_object`).
 // Converted: `rc2k_core::scene::shown::way`
-pub fn draw_scene_object(draw: &mut dyn FnMut(Way) -> Result<(), Refused>) -> Result<(), Refused> {
-    let (set, object) = texture_set()?;
-    GROUND_WORK.object_texture_set.set_bits(set);
-    let faces: u32 =
-        crate::scene::object_slots_store::OBJECT_SLOTS.face_counts[object as usize].get();
-    match rc2k_core::scene::shown::way(faces, LIGHT_STATE.draw_mode.bits()) {
+pub fn draw_scene_object(
+    race: &crate::race::owner::Race,
+    draw: &mut dyn FnMut(Way) -> Result<(), Refused>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let (set, object) = texture_set(race, scene)?;
+    race.physics.ground.object_texture_set.set_bits(set);
+    let faces: u32 = scene.objects.slots.face_counts[object as usize].get();
+    match rc2k_core::scene::shown::way(faces, scene.lights.state.draw_mode.bits()) {
         Some(way) => draw(way),
         None => Ok(()),
     }
@@ -86,14 +79,27 @@ pub fn draw_scene_object(draw: &mut dyn FnMut(Way) -> Result<(), Refused>) -> Re
 
 /// `draw_scene_object` with the game's parts (`scene::draw_shown_object` and its drawing;
 /// `scene::draw_described_object`, given `description`, esi at the original's entry: the
-/// object's description, read only on that way, the scene's mode 1 or 2).
-pub unsafe fn draw_scene_object_in_game(description: u32) -> Result<(), Refused> {
-    unsafe {
-        draw_scene_object(&mut |way| match way {
-            Way::Shown => draw_shown_object(&mut || draw_object_in_game()).map(|_| ()),
+/// object's description, read only on that way, the scene's mode 1 or 2; `None` where the
+/// original's esi is 0).
+pub fn draw_scene_object_in_game(
+    race: &Race,
+    description: Option<crate::pointers::GamePtr>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let system = crate::system::owner::system();
+    draw_scene_object(
+        race,
+        &mut |way| match way {
+            Way::Shown => draw_shown_object(
+                race,
+                &mut || draw_object_in_game(race, scene, system),
+                scene,
+            )
+            .map(|_| ()),
             Way::Described => {
-                crate::scene::draw_described_object::draw_described_object(description)
+                crate::scene::draw_described_object::draw_described_object(race, description)
             }
-        })
-    }
+        },
+        scene,
+    )
 }

@@ -11,6 +11,7 @@ pub const LEN: usize = 0x4F505C - START;
 
 /// The clip rectangle (all four edges inclusive).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ClipRect {
     /// `g_clipLeft` (`dword_4F503C`).
     pub left: Dword,
@@ -24,6 +25,7 @@ pub struct ClipRect {
 
 /// The blitters' variables.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Blitter {
     /// The clip rectangle.
     pub clip: ClipRect,
@@ -37,43 +39,47 @@ pub struct Blitter {
     pub rows_left: Dword,
 }
 
-/// The blitters' variables; the first values are the image's (a screen of 800 x 600).
-pub static BLIT: Blitter = Blitter {
-    clip: ClipRect {
-        left: Dword::new(0),
-        right: Dword::new(0x31F),
-        top: Dword::new(0),
-        bottom: Dword::new(0x257),
-    },
-    left_skip: Dword::new(0),
-    visible_width: Dword::new(0),
-    top_skip: Dword::new(0),
-    rows_left: Dword::new(0),
-};
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x4F503C).
-pub fn home() -> usize {
-    crate::pointers::game_address(&BLIT as *const Blitter) as usize
+impl Blitter {
+    /// The blitters' variables; the first values are the image's (a screen of 800 x 600).
+    pub const fn new() -> Self {
+        Blitter {
+            clip: ClipRect {
+                left: Dword::new(0),
+                right: Dword::new(0x31F),
+                top: Dword::new(0),
+                bottom: Dword::new(0x257),
+            },
+            left_skip: Dword::new(0),
+            visible_width: Dword::new(0),
+            top_skip: Dword::new(0),
+            rows_left: Dword::new(0),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gfx::owner::gfx;
     use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&BLIT, START, START + LEN);
+        crate::gfx::first_values_are_the_games(&gfx().drawing.blit, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
+        let drawing = &gfx().drawing;
         assert_eq!(offset_of!(Blitter, left_skip), 0x4F504C - START);
         assert_eq!(offset_of!(Blitter, rows_left), 0x4F5058 - START);
-        assert_eq!(crate::moved::place(START), BLIT.clip.left.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            drawing.blit.clip.left.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(0x4F5058),
-            BLIT.rows_left.addr() as usize
+            drawing.blit.rows_left.addr() as usize
         );
     }
 }

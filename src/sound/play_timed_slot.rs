@@ -1,57 +1,52 @@
 //! `sound::play_timed_slot` (0x40E59E): a sound slot of the race's sounds started when
 //! asked, and marked done when its time is up.
 //!
-//! In:  ebp the slot, six dwords: +0 the sound, +4 1 = start it, +8 1 = playing, +0xC
-//!      when it ends (`dword_5124E8` time), +0x10 the volume, +0x14 the rate (-0x6F: the
-//!      sample's own); esi the request (`unk_5124BC`), its place already in it
-//! Out: started: eax the end, ecx the volume, edx the rate (`sound::sample_settings`);
-//!      checked: eax the clock; else nothing changed
 //! +4 at 1 is cleared; then it starts unless it is playing (sound 0xE9 starts even
 //! then): the
 //! request's sound, volume (+8) and rate (+4, floats by `fild`) set, the end = the
 //! clock + `sound::sample_duration`, +8 1, and `sound::play_placed_sound` (a tail jump).
 //! Else, playing: +8 cleared once the clock is at or past the end (`js` on the
 //! difference). 14 callers.
-//! Refuses a null slot or request, and what the two leaves refuse, before writing.
+//! Refuses what the two leaves refuse, before writing.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
+use crate::errors::Refused;
 use crate::sound::sample_duration::sample_duration;
 use crate::sound::sample_settings::sample_settings;
+use crate::sound::sets_store::SoundRequest;
 
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::cars::slot_turn`.
-pub fn play_timed_slot(slot: u32, request: u32) -> Result<(), Refused> {
+pub fn play_timed_slot(
+    slot: &crate::sound::store::SoundSlot,
+    request: &SoundRequest,
+) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{SlotTurn, TimedSlot, from_int, slot_turn};
-    if slot == 0 || request == 0 {
-        return Err(BadInput("no slot or no request").into());
-    }
-    let slot = GamePtr::new(slot);
-    let w: [u32; 6] = slot.read("a timed sound slot")?;
     let mut s = TimedSlot {
-        sound: w[0],
-        start: w[1],
-        playing: w[2],
-        ends: w[3],
-        volume: w[4],
-        rate: w[5],
+        sound: slot.sound.get(),
+        start: slot.start.get(),
+        playing: slot.playing.get(),
+        ends: slot.ends.get(),
+        volume: slot.volume.get(),
+        rate: slot.rate.get(),
     };
-    let clock = crate::sound::store::RACE_CLOCK.last.get();
+    let clock = crate::sound::owner::sound().race.clock.last.get();
     let turn = slot_turn(&mut s, clock, sample_settings, sample_duration)?;
-    slot.write(
-        [s.sound, s.start, s.playing, s.ends, s.volume, s.rate],
-        "a timed sound slot",
-    )?;
+    slot.sound.set(s.sound);
+    slot.start.set(s.start);
+    slot.playing.set(s.playing);
+    slot.ends.set(s.ends);
+    slot.volume.set(s.volume);
+    slot.rate.set(s.rate);
     match turn {
         SlotTurn::Nothing | SlotTurn::Checked => Ok(()),
         SlotTurn::Start { volume, rate, .. } => {
-            crate::sound::turn_parts::put(request, 0, s.sound)?;
-            crate::sound::turn_parts::put(request, 2, from_int(volume as i32))?;
-            crate::sound::turn_parts::put(request, 1, from_int(rate as i32))?;
+            request.sound.set(s.sound);
+            request.volume.set(from_int(volume as i32));
+            request.pitch.set(from_int(rate as i32));
             crate::sound::turn_parts::placed(request)
         }
     }

@@ -105,11 +105,15 @@ impl Entries<'_> {
 }
 
 /// Table A's fields a sort moves, and its name.
+#[cfg(test)]
 pub const A_FIELDS: [usize; 9] = [0xC, 0x14, 4, 0, 8, 0x1C, 0x10, 0x18, 0x4C];
+#[cfg(test)]
 pub const A_NAME: usize = 0x20;
 /// Table B's name; its fields are `b_fields()`.
+#[cfg(test)]
 pub const B_NAME: usize = 0x14;
 
+#[cfg(test)]
 pub fn b_fields() -> Vec<usize> {
     let mut f = vec![0x34, 4, 0, 8, 0x10, 0xC];
     f.extend((0x38..=0x6C).step_by(4));
@@ -119,6 +123,7 @@ pub fn b_fields() -> Vec<usize> {
 /// The first `SORTED` entries sorted by the signed dword at `key` with the original's
 /// exchange sort: for each i < j, entry j and i swapped (j first) when j's key is at most
 /// i's (`down` false) or at least i's (`down`).
+#[cfg(test)]
 pub fn exchange_sort(
     t: &mut Entries,
     key: usize,
@@ -137,74 +142,6 @@ pub fn exchange_sort(
     }
 }
 
-/// The best score's fields a rank moves, and its name.
-pub const BEST_FIELDS: [usize; 6] = [0x38, 0x14, 4, 8, 0x10, 0xC];
-pub const BEST_NAME: usize = 0x18;
-
-/// A group's ten best scores: the last moved up (nine compares from the bottom: a lower
-/// entry not below the one above it moves up).
-pub fn rank_in_group(ten: &mut Entries, kept: &mut [u8; NAME_LEN]) {
-    bubble_up(
-        ten,
-        0x38,
-        &BEST_FIELDS,
-        BEST_NAME,
-        |lower, upper| lower >= upper,
-        kept,
-    );
-}
-
-/// Ten entries' last moved up: nine steps from the bottom, each pair (upper, lower)
-/// exchanged when `exchange(lower's key, upper's key)` (signed); the pair one up is next
-/// either way.
-pub fn bubble_up(
-    ten: &mut Entries,
-    key: usize,
-    fields: &[usize],
-    name: usize,
-    exchange: fn(i32, i32) -> bool,
-    kept: &mut [u8; NAME_LEN],
-) {
-    for lower in (1..10).rev() {
-        let upper = lower - 1;
-        if exchange(ten.get(lower, key) as i32, ten.get(upper, key) as i32) {
-            ten.swap(upper, lower, fields, name, kept);
-        }
-    }
-}
-
-/// The arcade's best times' fields an exchange moves (their key +0x14), and the scores'
-/// (the first eight); the names at +0x20.
-pub const ARCADE_TIME_FIELDS: [usize; 27] = [
-    0xC, 0x14, 4, 8, 0x1C, 0x10, 0x18, 0x40, 0x50, 0x54, 0x58, 0x5C, 0x60, 0x64, 0x68, 0x6C, 0x70,
-    0x74, 0x78, 0x7C, 0x80, 0x84, 0x88, 0x8C, 0x90, 0x94, 0x98,
-];
-pub const ARCADE_NAME: usize = 0x20;
-
-/// The arcade course's ten best times sorted (a lower time at most the upper's moves up).
-pub fn sort_arcade_times(ten: &mut Entries, kept: &mut [u8; NAME_LEN]) {
-    bubble_up(
-        ten,
-        0x14,
-        &ARCADE_TIME_FIELDS,
-        ARCADE_NAME,
-        |l, u| l <= u,
-        kept,
-    );
-}
-
-/// The arcade level's ten best scores sorted (a lower score at least the upper's moves up).
-pub fn sort_arcade_scores(ten: &mut Entries, kept: &mut [u8; NAME_LEN]) {
-    bubble_up(
-        ten,
-        0x14,
-        &ARCADE_TIME_FIELDS[..8],
-        ARCADE_NAME,
-        |l, u| l >= u,
-        kept,
-    );
-}
-
 /// The arcade stage's points for a place: (the places less it, plus 1) x 1000.
 pub fn arcade_points(places: u32, position: u32) -> u32 {
     places
@@ -218,35 +155,9 @@ pub fn remove_at(list: &mut [u32], shown: usize, end: usize) {
     list.copy_within(shown + 1..=end, shown);
 }
 
-/// A best score to enter: the player's number (1 .. 4), score, +4 and +8, group (+0x90),
-/// name pointer and name.
-pub struct Best {
-    pub player: u32,
-    pub score: u32,
-    pub car: u32,
-    pub field_8: u32,
-    pub group: u32,
-    pub name_at: u32,
-    pub name: [u8; NAME_LEN],
-}
-
-/// A best score entered at the bottom of its group's ten (entry 9: +0x38 the score, +4 the
-/// player, +0x14 1, +8 / +0xC / +0x10, +0 the name pointer and +0x18 the name), then moved
-/// up.
-pub fn enter_best(ten: &mut Entries, best: &Best, kept: &mut [u8; NAME_LEN]) {
-    ten.set(9, 0x38, best.score);
-    ten.set(9, 4, best.player);
-    ten.set(9, 0x14, 1);
-    ten.set(9, 8, best.car);
-    ten.set(9, 0xC, best.field_8);
-    ten.set(9, 0x10, best.group);
-    ten.set(9, 0, best.name_at);
-    ten.set_name(9, BEST_NAME, &best.name);
-    rank_in_group(ten, kept);
-}
-
 /// What a first-player search finds: the entry, the computer drivers of the group before
 /// it, its figure.
+#[cfg(test)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct First {
     pub entry: usize,
@@ -257,6 +168,7 @@ pub struct First {
 /// The original's search for the first player (`find1stplayer`): the entries of `group`
 /// (`ANY_GROUP`: any whose group is not 0) whose player (+4) is not 0. None: the game's
 /// fatal error.
+#[cfg(test)]
 pub fn first_player(t: &Entries, group: u32, group_at: usize, figure_at: usize) -> Option<First> {
     let mut computers = 0;
     for n in 0..t.len() {
@@ -316,8 +228,18 @@ pub const ROOM: u32 = 200;
 /// A time beyond any (an emptied table A entry's two times).
 pub const NO_TIME: u32 = 0x36_F272;
 /// Table A's emptied entry: its first eight dwords.
+#[cfg(test)]
 pub const EMPTY_A: [u32; 8] = [u32::MAX, u32::MAX, 0, 0, 0, NO_TIME, NO_TIME, 0];
+/// `EMPTY_A` stored in an entry's bytes (the typed version's test).
+#[cfg(test)]
+pub fn empty_bytes_a(b: &mut [u8]) {
+    for (k, v) in EMPTY_A.into_iter().enumerate() {
+        b[4 * k..4 * k + 4].copy_from_slice(&v.to_le_bytes());
+    }
+}
+
 /// Table B's emptied entry: its first five dwords.
+#[cfg(test)]
 pub const EMPTY_B: [u32; 5] = [u32::MAX; 5];
 
 /// Which entries a numbering counts.
@@ -355,18 +277,10 @@ pub fn number(groups: &[u32], which: Numbering) -> Vec<Option<u32>> {
 
 /// Table A's figure and table B's, each entry's emptied (0) by `menu::clear_standings_a` /
 /// `_b`.
+#[cfg(test)]
 pub const A_FIGURE: usize = 0x44;
+#[cfg(test)]
 pub const B_FIGURE: usize = 0x70;
-
-/// What `menu::clear_score_marks` stores in each of the 50 best scores: the mark (+0x14)
-/// and the player (+4) 0.
-pub const BEST_MARKS: [Store; 2] = [(0x14, 0), (4, 0)];
-
-/// `menu::find_cpu_team`: the first driver whose number (+0) is `number` (none: the game's
-/// fatal error 0x8070A098).
-pub fn find_team(drivers: &Entries, number: u32) -> Option<usize> {
-    (0..drivers.len()).find(|&n| drivers.get(n, 0) == number)
-}
 
 /// What `menu::copy_standing_entry` takes from a player's record for a table A entry.
 pub struct PlayerA {
@@ -388,6 +302,7 @@ pub struct PlayerA {
 /// A table A entry filled from a player: +4 the index + 1, +0x14 the time, +0x1C the
 /// group, +0x18 the total, +0xC the name's pointer and +0x20 the name, +8 the nationality,
 /// +0x10 the car, +0x4C the taking part.
+#[cfg(test)]
 pub fn fill_a(t: &mut Entries, n: usize, p: &PlayerA) {
     t.store(
         n,
@@ -422,6 +337,7 @@ pub struct PlayerB {
 /// A table B entry filled from a player: +4 the index + 1, +0x14 the name, +8 / +0xC /
 /// +0x10 the nationality, car and group, +0x34 the total, +0x38 .. +0x50 its +0xB4 ..,
 /// +0x54 .. +0x6C its +0x98 ...
+#[cfg(test)]
 pub fn fill_b(t: &mut Entries, n: usize, p: &PlayerB) {
     t.set(n, 4, p.index.wrapping_add(1));
     t.set_bytes(n, 0x14, &p.name);
@@ -443,6 +359,7 @@ pub fn fill_b(t: &mut Entries, n: usize, p: &PlayerB) {
 /// Table A's entry `n` filled from driver `d` of `drivers` (`menu::standings_from_drivers`):
 /// +0x14 / +0x1C / +0x18 / +8 / +0x10 / +0 / +0x4C its +0xC / +8 / +0x10 / +0x14 / +0x18 /
 /// +0 / +0x24, +4 0, +0xC its name's string number and +0x20 the text (with its NUL).
+#[cfg(test)]
 pub fn fill_a_from_driver(
     t: &mut Entries,
     n: usize,
@@ -472,6 +389,7 @@ pub fn fill_a_from_driver(
 /// Table B's entry `n` filled from driver `d` (`menu::standings_b_from_all`): +4 0, +0x10 /
 /// +8 / +0xC / +0 / +0x34 its +8 / +0x14 / +0x18 / +0 / +0x10, +0x38 .. +0x6C its +0x5C ..
 /// +0x90, +0x14 the text of its name (with its NUL).
+#[cfg(test)]
 pub fn fill_b_from_driver(t: &mut Entries, n: usize, drivers: &Entries, d: usize, text: &[u8]) {
     let f = |at| drivers.get(d, at);
     t.store(
@@ -514,11 +432,13 @@ pub const A_GROUP_FIRSTS: [usize; 4] = [89, 139, 169, 179];
 pub const B_GROUP_FIRSTS: [usize; 4] = [89, 119, 169, 179];
 
 /// The summary's rows (`menu::copy_standings_summary`).
+#[cfg(test)]
 pub const SUMMARY_ROWS: usize = 0x5A;
 
 /// The summary's rows (+0, +4, +8, +0xC of each: the entry's +0xC, +8, +0x10, +0x14) from
 /// table A's first `SUMMARY_ROWS` entries with a group (+0x1C not 0; `grouped`) or
 /// without. None when the table runs out first (the original walks on past its end).
+#[cfg(test)]
 pub fn summary_rows(t: &Entries, grouped: bool) -> Option<Vec<[u32; 4]>> {
     let rows: Vec<[u32; 4]> = (0..t.len())
         .filter(|&n| (t.get(n, 0x1C) != 0) == grouped)
@@ -534,20 +454,6 @@ mod tests {
 
     #[test]
     fn standings() {
-        let mut bytes = vec![0u8; 10 * 0x3C];
-        let mut t = Entries {
-            bytes: &mut bytes,
-            size: 0x3C,
-        };
-        for n in 0..10 {
-            t.set(n, 0x38, 50 - n as u32);
-            t.bytes[n * 0x3C + BEST_NAME] = b'a' + n as u8;
-        }
-        t.set(9, 0x38, 48);
-        let mut kept = [0; NAME_LEN];
-        rank_in_group(&mut t, &mut kept);
-        assert_eq!((t.get(2, 0x38), t.bytes[2 * 0x3C + BEST_NAME]), (48, b'j'));
-        assert_eq!((t.get(3, 0x38), t.bytes[3 * 0x3C + BEST_NAME]), (48, b'c'));
         let mut bytes = vec![0u8; 4 * 0x20];
         let mut t = Entries {
             bytes: &mut bytes,
@@ -631,8 +537,6 @@ mod tests {
         d.set(1, 0, 7);
         d.set(1, 0x24, 9);
         d.set(1, 0x5C + 4 * 13, 11);
-        assert_eq!(find_team(&d, 7), Some(1));
-        assert_eq!(find_team(&d, 8), None);
         fill_a_from_driver(&mut t, 2, &d, 1, 0x55, b"ab\0");
         assert_eq!((t.get(2, 0), t.get(2, 0x4C), t.get(2, 0xC)), (7, 9, 0x55));
         assert_eq!(t.bytes_at(2, 0x20, 3), b"ab\0");

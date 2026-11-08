@@ -5,49 +5,42 @@
 //! the event's number), +4 the player + 1, +0x40 1, +0x20 the name's 0x1F bytes; the
 //! event's number into `dword_7559EC` first; then moved up (`menu::rank_record_entry`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! Caller: `menu::record_entries_pass`. The steps are their Rust versions. Refuses a record past
 //! the table, no events table, a current player past 3 or missing, or no name, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::cheats_store::CHEAT_VARS;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::event_store::EVENT_STATE;
+use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 // hhmm
-/// The Rust version (see the header).
-pub fn enter_record_entry() -> Result<(), Refused> {
-    let event = current_event()?;
-    let n: u32 = { EVENT_STATE.current_player.get() };
-    if n >= 4 || player(n) == 0 || get(player(n) + 0x18)? == 0 {
+/// The Rust version.
+pub fn enter_record_entry(menus: &Menus) -> Result<(), Refused> {
+    let event = current_event(&menus.screens)?;
+    let n: u32 = menus.screens.event.current_player.get();
+    if n >= 4 || player(n).get().name_player().is_none() {
         return Err(BadInput("a current player past 3, missing or without a name").into());
     }
     let p = player(n);
-    let slot = (event - { EVENTS_RVA.get() }) / 0x618;
-    DRAW_WORK.figure.set(slot);
-    let cheats = { CHEAT_VARS.cheats.get() };
-    let sealed = crate::menu::sealed_player_time::sealed_player_time(slot)?;
-    // Converted: `rc2k_core::menu::bests::enter_tenth`, then `rank_entries`.
+    // The event's place in the table (`current_event`'s).
+    let slot = event as u32;
+    menus.screens.draw_work.figure.set(slot);
+    let cheats = menus.play.cheats.cheats.get();
+    let sealed = crate::menu::sealed_player_time::sealed_player_time(&menus.screens, slot)?;
+    // Converted: `rc2k_core::saves::entries::BestTime::enter`, then `rank_entries`.
     use rc2k_core::menu::bests;
-    let name_at = get(p + 0x18)?;
+    let name_at = name_address_of(&p.get())?;
     let best = bests::NewBest {
-        key: get(p + 0x88)?,
+        key: p.get().time,
         player: n + 1,
-        nationality: get(p + 4)?,
+        nationality: p.get().nationality,
         name_at,
-        car: get(p + 8)?,
-        group: get(p + 0x90)?,
-        name: bytes(name_at)?,
-        entered: Some(get(p + 0xD0)?),
+        car: p.get().car_number,
+        group: p.get().class,
+        name: name_of(menus, &p.get())?,
+        entered: Some(p.get().entry),
         seal: Some(bests::Seal { cheats, sealed }),
         line: None,
     };
-    bests::enter_tenth(
-        &mut crate::menu::rank_record_entry::event_list(event)?,
-        &best,
-    );
-    crate::menu::rank_record_entry::rank_entries(event)?;
+    with_event(event, |list| list[9].enter(&best))?;
+    crate::menu::rank_record_entry::rank_entries(&menus.play, event)?;
     Ok(())
 }

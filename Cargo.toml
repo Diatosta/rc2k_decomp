@@ -1,11 +1,26 @@
 # The game's logic, platform-free (Linux and Windows tests): `rc2k_core/`.
 [workspace]
-members = ["rc2k_core"]
+members = ["rc2k_core", "rc2k_derive"]
+exclude = ["fuzz"]
+
+[workspace.lints.clippy]
+borrow_as_ptr = "warn"
+manual_let_else = "warn"
+ptr_as_ptr = "warn"
+ptr_cast_constness = "warn"
+redundant_closure_for_method_calls = "warn"
+ref_as_ptr = "warn"
+semicolon_if_nothing_returned = "warn"
+uninlined_format_args = "warn"
 
 [package]
-name = "rc2k_hook"
+name = "rc2k_decomp"
 version = "0.1.0"
 edition = "2024"
+
+[features]
+# Remote control for automated test runs (`src/remote.rs`, `tools/remote.py`).
+remote = []
 
 [lib]
 crate-type = ["rlib"]
@@ -16,9 +31,39 @@ name = "rc2k"
 path = "src/bin/rc2k.rs"
 
 [dependencies]
+rc2k_derive = { path = "rc2k_derive" }
 rc2k_core = { path = "rc2k_core" }
-windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_System_SystemServices", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_Console", "Win32_System_Threading", "Win32_System_Diagnostics_Debug", "Win32_Storage", "Win32_Storage_FileSystem", "Win32_Security", "Win32_System_IO", "Win32_System_SystemInformation", "Win32_Globalization", "Win32_System_Environment", "Win32_UI_WindowsAndMessaging", "Win32_System_Registry", "Win32_System_WindowsProgramming", "Win32_System_Memory", "Win32_System_Kernel", "Win32_System_Com", "Win32_UI_Shell"] }
 miniz_oxide = "0.8"
 sdl3-sys = "0.7"
 # The standalone's rasteriser: a big triangle's rows over the processor's threads.
 rayon = "1.10"
+# Short lists of a polygon's vertices kept off the heap: these are made for every polygon.
+smallvec = { version = "1", features = ["const_generics"] }
+
+# The debug UI (`src/debug/`): Dear ImGui (docking branch), its C++ built from source;
+# the SDL glue is ours (`debug::imgui_sdl`). Its crate has no 32-bit Windows target: the
+# 32-bit build has no debug UI.
+[target.'cfg(all(target_pointer_width = "64", not(all(target_os = "linux", target_arch = "aarch64"))))'.dependencies]
+dear-imgui-rs = { version = "0.21", default-features = false }
+dear-imgui-sys = { version = "0.21", default-features = false, features = ["build-from-source"] }
+
+# The system's own facts on Unix (`src/os/unix.rs`): free space, memory, the stack, `_exit`.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+# On Linux SDL is built from its source and linked into the program (as FFmpeg's decoders,
+# `tools/build_ffmpeg.sh linux`): one program for every distribution, nothing to install.
+[target.'cfg(target_os = "linux")'.dependencies]
+sdl3-sys = { version = "0.7", features = ["build-from-source-static"] }
+
+# The handheld has neither X11 nor Wayland: SDL for its audio and joystick, the frames go to
+# the framebuffer (`handheld`).
+[target.'cfg(all(target_os = "linux", target_arch = "aarch64"))'.dependencies]
+sdl3-sys = { version = "0.7", features = ["build-from-source-static", "sdl-unix-console-build"] }
+
+# Windows' own (`src/os/windows.rs`, the fault handler, the profiler, the shortcuts).
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_System_SystemServices", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_Console", "Win32_System_Threading", "Win32_System_Diagnostics_Debug", "Win32_Storage", "Win32_Storage_FileSystem", "Win32_Security", "Win32_System_IO", "Win32_System_SystemInformation", "Win32_Globalization", "Win32_System_Environment", "Win32_UI_WindowsAndMessaging", "Win32_System_Registry", "Win32_System_WindowsProgramming", "Win32_System_Memory", "Win32_System_Kernel", "Win32_System_Com", "Win32_UI_Shell"] }
+
+[lints]
+workspace = true

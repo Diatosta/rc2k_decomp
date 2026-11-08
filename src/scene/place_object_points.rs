@@ -1,25 +1,23 @@
 //! `scene::place_object_points` (0x45BE05): an object's points and normals into the
 //! view, the points onto the screen.
 //!
-//! In:  eax, ecx only matter for an object with normals and no points (refused)
-//! Out: esi = the matrix, ebx = the object's number, ebp = 0 (or the number of normals
-//!      if that is not above 0); eax = the number after the last one placed, ecx = the
-//!      address after the last one read (both as they came if nothing was placed);
-//!      everything else preserved
+//! Takes: only matter for an object with normals and no points (refused)
 //!
 //! The object `g_objectNumber` has `dword_632370[n]` points and then
 //! `dword_632770[n]` normals, numbered from `dword_631F70[n]`, twelve bytes each at
 //! `dword_5C6FA4` + number * 12: a point three whole numbers, a normal three floats.
 //! Each gets the record 0x1000 + (number & 0xFFF) of `g_pointRecords` (its +0 = the
-//! number). A point goes through the matrix `off_5EA40C` points at (`sub_45C18E`, the
+//! number). A point goes through the matrix `off_5EA40C` points at (0x45C18E, the
 //! same arithmetic as `scene::rotate_point`) and onto the screen as
-//! `scene::project_point` does it (`sub_45C237`: not if it is nearer than 4096). With
-//! `dword_623DD0` not 0 the point is first moved (`sub_45C29B`) towards the one that
+//! `scene::project_point` does it (0x45C237: not if it is nearer than 4096). With
+//! `dword_623DD0` not 0 the point is first moved (0x45C29B) towards the one that
 //! many bytes further on in the table, by `flt_623DD4` of the way, rounded to whole
 //! numbers in `unk_5CCE18`; `dword_62400C` = that fraction. A normal goes through
-//! the matrix without its fourth row (`sub_45C1E7`).
-//! One caller, `sub_45BDE1`, which takes this way unless `dword_621A5C` (3DNow) or
-//! `g_useSse` is set; those two ways (`sub_45BF89`, `sub_45C04E`) are not ported.
+//! the matrix without its fourth row (0x45C1E7).
+//! One caller, `scene::place_object_points_any`, which takes this way unless `dword_621A5C` (3DNow)
+//! or
+//! `g_useSse` is set: `place_object_points_sse` is the SSE way (0x45C04E); the 3DNow way
+//! (0x45BF89) is not ported.
 //! Refuses an object's number of 0x100 or more, no records, no points' table, no
 //! matrix, and normals without points (the original goes on from whatever eax and
 //! ecx hold).
@@ -29,32 +27,26 @@
 //! instructions are `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
-use crate::race::course_lists_store::COURSE_LISTS;
-use crate::race::course_store::COURSE;
-use crate::race::matrices_store::MATRICES;
-use crate::race::prefs_store::STAGE_PREFS;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::vars_store::RACE_VARS;
-use crate::scene::draw_store::DRAW;
-use crate::scene::polygon::{dword, put};
+use crate::scene::owner::scene;
+use crate::scene::point_records;
 use crate::scene::project_point::{NEAR, rotate, to_screen};
-use crate::scene::x87_mem::{fild, fistp, fld, fstp};
+use crate::scene::x87_mem::{Base, cells, fild, fistp, fld, fstp};
 
 // ---- game data ----
 const OBJECTS: u32 = 0x100;
 
 // ---- Rust version ----
 
-/// `sub_45C29B`: the point at `from` moved towards the one `by` bytes on, into
+/// 0x45C29B: the point at `from` moved towards the one `by` bytes on, into
 /// `unk_5CCE18`.
-fn moved(from: usize, by: u32) -> Result<(), BadInput> {
+fn moved(race: &crate::race::owner::Race, from: usize, by: u32) -> Result<(), BadInput> {
+    let course = &race.course;
     let other = from.wrapping_add(by as usize);
-    let read = |at: usize| GamePtr::new(at as u32).read::<[u32; 3]>("an object's point");
+    let read = |at: usize| crate::scene::object_points::point(at as u32);
     let (a, b) = (read(from)?, read(other)?);
     // The fraction, the two points, the result, the fraction as it is stored.
     let mut w = [
-        RACE_VARS.move_fraction.bits(),
+        race.shared.vars.move_fraction.bits(),
         a[0],
         a[1],
         a[2],
@@ -66,19 +58,19 @@ fn moved(from: usize, by: u32) -> Result<(), BadInput> {
         0,
         0,
     ];
-    moved_at(w.as_mut_ptr().cast());
+    moved_at(cells(&mut w));
     // The original stores the three from `point_moved`, y and z on over the first two
     // group masks (`notes/bugs.md`).
-    COURSE.point_moved.set(w[7]);
-    COURSE.group_masks[0].set(w[8]);
-    COURSE.group_masks[1].set(w[9]);
-    DRAW.scratch.set_bits(w[10]);
+    course.course.point_moved.set(w[7]);
+    course.course.group_masks[0].set(w[8]);
+    course.course.group_masks[1].set(w[9]);
+    scene().drawing.scene.scratch.set_bits(w[10]);
     Ok(())
 }
 
 /// The block of `moved`: the fraction, the two points, the result (three whole numbers) and the
 /// fraction as it is stored.
-fn moved_at(w: *mut u8) {
+fn moved_at(w: impl Base) {
     let t0 = fld(w, 0x0);
     let t1 = fild(w, 0xC);
     let t2 = fild(w, 0x18);
@@ -101,13 +93,13 @@ fn moved_at(w: *mut u8) {
     fstp(w, 0x28, t0);
 }
 
-/// `sub_45C1E7`: a normal's three floats through the matrix's first three rows, into
+/// 0x45C1E7: a normal's three floats through the matrix's first three rows, into
 /// the record's +0x10, +0x14, +0x18.
-fn turn(normal: *const u32, matrix: *const u32, record: *mut u32) {
-    turn_normal(normal.cast(), matrix.cast(), record.cast())
+fn turn(normal: &[u32], matrix: &[u32], record: &mut [u32]) {
+    turn_normal(normal, matrix, cells(record));
 }
 
-fn turn_normal(p: *const u8, m: *const u8, o: *mut u8) {
+fn turn_normal(p: impl Base, m: impl Base, o: impl Base) {
     let t0 = fld(p, 0x8);
     let t1 = fld(p, 0x4);
     let t2 = fld(p, 0x0);
@@ -146,96 +138,190 @@ struct Object {
     points: i32,
     normals: i32,
     table: u32,
-    records: u32,
-    matrix: u32,
 }
 
-fn object() -> Result<Object, BadInput> {
-    let number: u32 = FRAME_SWITCHES.object_number.bits();
+fn object(race: &crate::race::owner::Race) -> Result<Object, BadInput> {
+    let objects = &scene().objects;
+    let number: u32 = race.shared.switches.object_number.bits();
     if number >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
     }
     let object = Object {
-        first: crate::scene::object_slots_store::OBJECT_SLOTS.first_point[number as usize].get(),
-        points: crate::scene::object_slots_store::OBJECT_SLOTS.point_counts[number as usize].get()
-            as i32,
-        normals: crate::scene::object_slots_store::OBJECT_SLOTS.normal_counts[number as usize].get()
-            as i32,
-        table: COURSE_LISTS.object_points.bits(),
-        records: COURSE_LISTS.point_records.bits(),
-        matrix: MATRICES.object_matrix_ptr.bits(),
+        first: objects.slots.first_point[number as usize].get(),
+        points: objects.slots.point_counts[number as usize].get() as i32,
+        normals: objects.slots.normal_counts[number as usize].get() as i32,
+        table: race.course.lists.object_points.bits(),
     };
     if object.points <= 0 && object.normals > 0 {
         return Err(BadInput("an object of normals and no points"));
     }
-    if object.points > 0 && (object.table == 0 || object.records == 0 || object.matrix == 0) {
-        return Err(BadInput("no points' table, no records or no matrix"));
+    if object.points > 0 && (object.table == 0 || !point_records::held()) {
+        return Err(BadInput("no points' table or no records"));
     }
     Ok(object)
 }
 
-fn record_of(records: u32, number: u32) -> u32 {
-    records.wrapping_add(((number & 0xFFF) + 0x1000) << 5)
-}
-
 /// The object's points placed and projected, its normals turned. What the original
 /// leaves in the registers its one caller's callers never read (`draw_object`).
-pub fn place_object_points() -> Result<(), Refused> {
-    let object = object()?;
+pub fn place_object_points(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let drawing = &scene.drawing;
+    let object = object(race)?;
     if object.points <= 0 {
         return Ok(());
     }
-    let matrix = crate::pointers::host(object.matrix) as *const u32;
-    let move_by: u32 = RACE_VARS.move_by.bits();
+    // A copy: nothing the loop writes is the matrix (`off_5EA40C`'s, the object's own).
+    // (`g_objectMatrix` is only ever `g_madeObjectMatrix`, never written.)
+    let matrix: [u32; 16] =
+        std::array::from_fn(|n| race.frame.matrices.made_object_matrix[n].bits());
+    let move_by: u32 = race.shared.vars.move_by.bits();
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
     for _ in 0..object.points {
-        let record = record_of(object.records, number) as usize;
-        put(record, number);
+        // Made on a copy of the record (`scene::point_records`), then stored.
+        let record = point_records::of_object_point(number);
+        let mut r = point_records::get(record)?;
+        r[0] = number;
         let point = if move_by != 0 {
-            moved(from as usize, move_by)?;
+            moved(race, from as usize, move_by)?;
             // x, y, z read on into `group_masks[0]`, `[1]`, as stored.
-            COURSE.point_moved.addr()
+            [
+                race.course.course.point_moved.get(),
+                race.course.course.group_masks[0].get(),
+                race.course.course.group_masks[1].get(),
+            ]
         } else {
-            from
+            crate::scene::object_points::point(from)?
         };
-        rotate(
-            crate::pointers::host_at(point as usize) as *const i32,
-            matrix,
-            crate::pointers::host_at(record) as *mut u32,
-        );
-        put(record + 0xC, 0);
-        put(record + 0x1C, 0);
-        if f32::from_bits(dword(record + 0x18)) >= NEAR {
+        rotate(&point, &matrix, &mut r);
+        r[3] = 0;
+        r[7] = 0;
+        if f32::from_bits(r[6]) >= NEAR {
             let v = [
-                DRAW.view_scale.bits(),
-                DRAW.view_centre[0].bits(),
-                DRAW.view_centre[1].bits(),
-                COURSE.flat_depth.bits(),
+                drawing.scene.view_scale.bits(),
+                drawing.scene.view_centre[0].bits(),
+                drawing.scene.view_centre[1].bits(),
+                race.course.course.flat_depth.bits(),
             ];
-            let flat = STAGE_PREFS.flat_depth.bits() != 0;
-            to_screen(
-                crate::pointers::host_at(record) as *mut u32,
-                &v,
-                flat,
-                DRAW.scratch.as_ptr(),
-            );
+            let flat = race.course.stage_prefs.flat_depth.bits() != 0;
+            to_screen(&mut r, &v, flat, &drawing.scene.scratch);
         }
+        point_records::set(record, r)?;
         from = from.wrapping_add(12);
         number = number.wrapping_add(1);
     }
     for _ in 0..object.normals.max(0) {
-        let record = record_of(object.records, number) as usize;
-        put(record, number);
-        turn(
-            crate::pointers::host(from) as *const u32,
-            matrix,
-            crate::pointers::host_at(record) as *mut u32,
-        );
+        let record = point_records::of_object_point(number);
+        let mut r = point_records::get(record)?;
+        r[0] = number;
+        let normal = crate::scene::object_points::point(from)?;
+        turn(&normal, &matrix, &mut r);
+        point_records::set(record, r)?;
         from = from.wrapping_add(12);
         number = number.wrapping_add(1);
     }
     Ok(())
+}
+
+/// A point or normal through three rows of the matrix, plus the fourth when `place`: the
+/// four lanes the SSE way stores at a record's +0x10 (`mulps`, `addps`, in its order).
+fn sse_lanes(p: [f32; 3], m: &[f32; 16], place: bool) -> [u32; 4] {
+    std::array::from_fn(|k| {
+        let sum = p[0] * m[k] + p[1] * m[k + 4] + p[2] * m[k + 8];
+        (if place { sum + m[k + 12] } else { sum }).to_bits()
+    })
+}
+
+/// 0x45C04E: the SSE way, reached only with the developers' extensions switch (the debug
+/// UI's Switches tab). Not as the x87 way: the matrix is always `g_madeObjectMatrix`, the
+/// points are never moved, a record's +0x1C holds the fourth lane until the screen's two are
+/// worked out (0x45C237), and the table's point 0 ends as a normal in record 0x1000.
+pub fn place_object_points_sse(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let drawing = &scene.drawing;
+    let object = object(race)?;
+    let m: [f32; 16] = std::array::from_fn(|n| race.frame.matrices.made_object_matrix[n].get());
+    let mut number = object.first;
+    let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
+    for _ in 0..object.points.max(0) {
+        let record = point_records::of_object_point(number);
+        let mut r = point_records::get(record)?;
+        r[0] = number;
+        let point = crate::scene::object_points::point(from)?;
+        // `cvtsi2ss`: the whole numbers rounded to floats.
+        let lanes = sse_lanes(point.map(|v| v as i32 as f32), &m, true);
+        r[4..8].copy_from_slice(&lanes);
+        // 0x45C237.
+        r[3] = 0;
+        r[7] = 0;
+        if f32::from_bits(r[6]) >= NEAR {
+            let v = [
+                drawing.scene.view_scale.bits(),
+                drawing.scene.view_centre[0].bits(),
+                drawing.scene.view_centre[1].bits(),
+                race.course.course.flat_depth.bits(),
+            ];
+            let flat = race.course.stage_prefs.flat_depth.bits() != 0;
+            to_screen(&mut r, &v, flat, &drawing.scene.scratch);
+        }
+        point_records::set(record, r)?;
+        from = from.wrapping_add(12);
+        number = number.wrapping_add(1);
+    }
+    let normal = |from: u32, number: u32| -> Result<(), Refused> {
+        let record = point_records::of_object_point(number);
+        let mut r = point_records::get(record)?;
+        r[0] = number;
+        let n = crate::scene::object_points::point(from)?;
+        let lanes = sse_lanes(n.map(f32::from_bits), &m, false);
+        r[4..8].copy_from_slice(&lanes);
+        point_records::set(record, r)?;
+        Ok(())
+    };
+    for _ in 0..object.normals.max(0) {
+        normal(from, number)?;
+        from = from.wrapping_add(12);
+        number = number.wrapping_add(1);
+    }
+    normal(object.table, 0)
+}
+
+#[cfg(all(test, any(target_arch = "x86", target_arch = "x86_64")))] // x86's instructions
+mod sse_tests {
+    use super::sse_lanes;
+    #[cfg(target_arch = "x86")]
+    use std::arch::x86::*;
+    #[cfg(target_arch = "x86_64")]
+    use std::arch::x86_64::*;
+
+    /// The lanes as the original's instructions make them.
+    #[test]
+    fn lanes_match_the_instructions() {
+        let m: [f32; 16] = std::array::from_fn(|n| (n as f32 * 1.37 - 7.1).powi(3));
+        let p = [123_456.0f32, -9_876_543.0, 0.125];
+        let got = sse_lanes(p, &m, true);
+        // SAFETY: SSE is on every x86 the game builds for; the loads are unaligned ones
+        // of the arrays above.
+        let want: [u32; 4] = unsafe {
+            let row = |k: usize| _mm_loadu_ps(m[k..k + 4].as_ptr());
+            let sum = _mm_add_ps(
+                _mm_add_ps(
+                    _mm_add_ps(
+                        _mm_mul_ps(_mm_set1_ps(p[0]), row(0)),
+                        _mm_mul_ps(_mm_set1_ps(p[1]), row(4)),
+                    ),
+                    _mm_mul_ps(_mm_set1_ps(p[2]), row(8)),
+                ),
+                row(12),
+            );
+            std::mem::transmute(sum)
+        };
+        assert_eq!(got, want);
+    }
 }
 
 #[cfg(all(test, target_arch = "x86"))]

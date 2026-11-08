@@ -1,7 +1,5 @@
 //! `menu::edit_replay_name` (0x46F4E7): one step of typing the name of a replay.
 //!
-//! In:  nothing
-//! Out: carry (the caller skips its end-of-entry checks on it); every register preserved
 //! The name is the highlighted entry of the replay list. One pending key is taken:
 //! none          the cursor is written again;
 //! 1 (Escape)    the name from before comes back, the entry ends, `dword_758806` = 1;
@@ -18,7 +16,7 @@
 //! A slip in the original, reproduced: the clear key, the backspace key and the "too wide"
 //! case act on the highlighted name of the SAVED GAME list, not the replay list, while the
 //! length they change is the replay entry's.
-//! Called from the screen loop `sub_47F77B` while `dword_7556A8` is 1.
+//! Called from the screen loop `menu::save_replay_loop` while `dword_7556A8` is 1.
 //!
 //! Refuses, before the key is taken: a name past either list, a length outside 0 .. 0x1F, no
 //! keyboard layout.
@@ -28,15 +26,11 @@ use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::take_key::take_key;
 use crate::menu::add_text_length::add_text_length;
 use crate::menu::backspace_savegame_name::backspace_savegame_name;
-use crate::menu::captions_store::CAPTIONS;
 use crate::menu::clear_text::clear_text;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::name_lists::{NAME_LEN, replay_name, savegame_name};
-use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::owner::Menus;
 use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::{length, set_length};
-use crate::pointers::GamePtr;
 use crate::strings::append_string_by_id::push_string;
 use crate::text::draw_text::Canvas;
 use crate::text::measure_text::measure_text_at;
@@ -48,12 +42,12 @@ const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 
 // ---- Rust version ----
 
-fn end_name(name: u32) -> Result<(), BadInput> {
-    GamePtr::new(name.wrapping_add(length() as u32)).write::<u8>(0, "a replay's name")
+fn end_name(name: crate::place::Place) -> Result<(), BadInput> {
+    name.add(length() as u32).write(&[0], "a replay's name")
 }
 
 /// Returns the carry flag.
-pub fn edit_replay_name(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn edit_replay_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // Everything that could be refused, before the key is taken.
     let name = replay_name()?;
     let other_name = savegame_name()?;
@@ -71,46 +65,46 @@ pub fn edit_replay_name(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
         Key::None => {}
         Key::Escape => {
             restore_text(name)?;
-            OPTION_WORK.typing.set(0u32);
-            CAPTIONS.screen_left.set(1u32);
+            menus.screens.option_work.typing.set(0u32);
+            menus.tables.captions.screen_left.set(1u32);
             return Ok(true);
         }
         Key::Enter => {
             if length() == 0 {
                 restore_text(name)?;
-                add_text_length(name)?;
+                add_text_length(menus, name)?;
             }
-            OPTION_WORK.typing.set(0u32);
+            menus.screens.option_work.typing.set(0u32);
             end_name(name)?;
             return Ok(false);
         }
         // The saved game's name, not the replay's: the original's slip.
-        Key::Clear => clear_text(other_name)?,
-        Key::Backspace => backspace_savegame_name()?,
+        Key::Clear => clear_text(menus, other_name)?,
+        Key::Backspace => backspace_savegame_name(menus)?,
         Key::Other(key) => {
             let c = key_to_char(key as u32)? as u8;
             let len = length();
-            if entry::appends(c, len, LOOP_FLAGS.text_max.get() as i32) {
-                GamePtr::new(name.wrapping_add(len as u32)).write::<u8>(c, "a replay's name")?;
-                set_length(len.wrapping_add(1));
+            if entry::appends(c, len, menus.screens.loop_flags.text_max.get() as i32) {
+                name.add(len as u32).write(&[c], "a replay's name")?;
+                set_length(menus, len.wrapping_add(1));
                 let measured = measure_text_at(
-                    MEASURING_FONT.as_ptr(),
-                    crate::pointers::host(name) as *const u8,
+                    MEASURING_FONT,
+                    &name.game_ptr().bytes("a replay's name")?,
                     len,
                     canvas,
                 )?;
                 if entry::too_wide(measured.width as i32) {
-                    backspace_savegame_name()?;
+                    backspace_savegame_name(menus)?;
                 }
             }
         }
     }
-    let cursor_on: u32 = DRAW_WORK.cursor_on.get();
+    let cursor_on: u32 = menus.screens.draw_work.cursor_on.get();
     let mut tail = Vec::new();
     if cursor_on == 1 {
         push_string(&mut tail, CURSOR_STRING)?;
     }
     tail.push(0);
-    GamePtr::new(name.wrapping_add(length() as u32)).write_bytes(&tail, "a replay's name")?;
+    name.add(length() as u32).write(&tail, "a replay's name")?;
     Ok(cursor_on == 0)
 }

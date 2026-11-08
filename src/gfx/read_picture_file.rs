@@ -1,8 +1,7 @@
 //! `gfx::read_picture_file` (0x4119F4): reads a picture file, PNG or PCX, into the picture
 //! buffer as 32-bit pixels.
 //!
-//! In:  eax = path, which may be written to (see `files::swap_missing_extension`)
-//! Out: carry = failed; every register preserved
+//! Takes: path, which may be written to (see `files::swap_missing_extension`)
 //! A path ending in `.pcx` goes to `gfx::read_pcx`. Any other first has its ending swapped
 //! if the file is missing, and then goes to `gfx::read_png` and, if that fails, to
 //! `read_pcx` (which is how a `.png` path whose file is missing ends up read as PCX).
@@ -14,52 +13,39 @@
 //! The registers above are the original's, for reference; a call by address goes through
 //! `routes.rs`.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::files::swap_missing_extension::swap_missing_extension;
 use crate::gfx::read_pcx::read_pcx;
 use crate::gfx::read_png::read_png;
-use crate::session::Dword;
-use crate::strings::text_length::text_length;
 
 // ---- game data ----
 
 /// IDA's address of the PNG setting.
 pub const PNG_SETTING_START: usize = 0x51B97C;
 
-/// `g_pngSetting` (`dword_51B97C`, `nopngdecode`, a `var\ral.cfg` setting): 0 = PNG files
-/// are read.
-pub static PNG_SETTING: Dword = Dword::new(0);
-
-/// Where the setting is (`moved::MOVED`'s home for IDA 0x51B97C).
-pub fn png_setting_home() -> usize {
-    PNG_SETTING.addr() as usize
-}
-
 // ---- Rust version ----
 
-/// The path's last four characters. Converted: `rc2k_core::gfx::loading::ending`.
-unsafe fn ending(path: *const u8) -> Result<[u8; 4], BadInput> {
-    let text = unsafe { std::ffi::CStr::from_ptr(path as *const std::ffi::c_char) }.to_bytes();
-    // As the original measures it.
-    text_length(path)?;
-    Ok(rc2k_core::gfx::loading::ending(text)?)
-}
-
-/// Returns whether a picture was read. Converted: `rc2k_core::gfx::loading::reader`.
-pub unsafe fn read_picture_file(path: *mut u8) -> Result<bool, Refused> {
-    use rc2k_core::gfx::loading::{Reader, reader};
-    unsafe {
-        if &ending(path)? == b".pcx" {
-            return Ok(read_pcx(path)?);
-        }
-        swap_missing_extension(path)?;
-        match reader(ending(path)?, PNG_SETTING.get()) {
-            Reader::PngThenPcx => Ok(read_png(path)? || read_pcx(path)?),
-            Reader::Pcx => Ok(read_pcx(path)?),
-            Reader::Nothing => Ok(true),
-            Reader::Chatzone => Ok(read_pcx(crate::pointers::host(crate::gfx::texts::address(
-                &crate::gfx::texts::CHATZONE,
-            )) as *const u8)?),
+/// Returns whether a picture was read. Converted: `rc2k_core::gfx::loading::{ending,
+/// reader}`.
+pub fn read_picture_file(
+    path: &dyn crate::session::TextPlace,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<bool, Refused> {
+    let system = crate::system::owner::system();
+    use rc2k_core::gfx::loading::{Reader, ending, reader};
+    let png = &gfx.png;
+    let text = path.text("a picture's path")?;
+    if &ending(&text)? == b".pcx" {
+        return Ok(read_pcx(&text, gfx)?);
+    }
+    let text = swap_missing_extension(path)?;
+    match reader(ending(&text)?, png.setting.get()) {
+        Reader::PngThenPcx => Ok(read_png(png, &text, gfx, system)? || read_pcx(&text, gfx)?),
+        Reader::Pcx => Ok(read_pcx(&text, gfx)?),
+        Reader::Nothing => Ok(true),
+        Reader::Chatzone => {
+            let chatzone = &crate::gfx::texts::CHATZONE;
+            Ok(read_pcx(&chatzone[..chatzone.len() - 1], gfx)?)
         }
     }
 }
@@ -71,13 +57,13 @@ mod block_tests {
     #[test]
     fn first_value_is_the_games() {
         crate::gfx::first_values_are_the_games(
-            &PNG_SETTING,
+            &crate::gfx::owner::GFX.png.setting,
             PNG_SETTING_START,
             PNG_SETTING_START + 4,
         );
         assert_eq!(
             crate::moved::place(PNG_SETTING_START),
-            PNG_SETTING.addr() as usize
+            crate::gfx::owner::GFX.png.setting.addr() as usize
         );
     }
 }

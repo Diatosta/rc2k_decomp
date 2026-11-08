@@ -6,7 +6,7 @@
 
 use crate::Invalid;
 use crate::screens::best_scores::{car_glyph, flag_glyph};
-use crate::screens::screen::{Buffer, Screen};
+use crate::screens::screen::Screen;
 use crate::strings::format::{Pad, decimal, time};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -98,7 +98,6 @@ pub fn results_page<S: Screen<Font = Font, Work = Work>>(
     }
     s.keep(Work::Row, first_row);
     s.keep(Work::RowEnd, first_row.wrapping_add(10));
-    let line = s.buffer_address(Buffer::Line);
     let mut y = 0xF0i32;
     for (n, r) in rows.iter().enumerate() {
         let (place, name, time_font) = if r.player {
@@ -108,11 +107,9 @@ pub fn results_page<S: Screen<Font = Font, Work = Work>>(
         };
         y = s.line(place, &decimal(r.position, Pad::None), 0xBE, y)?.y;
         y = s.text(name, r.name, 0xFA, y)?.y;
-        let palette = if !r.finished {
+        if !r.finished {
             let id = if r.not_timed { 0x4FB } else { 0x4FA };
-            let o = s.string(name, id, 0x1EF, y)?;
-            y = o.y;
-            o.after
+            y = s.string(name, id, 0x1EF, y)?.y;
         } else {
             s.time_line(time_font, &time(r.time, show_hours), 0x258, y)?;
             if r.position != 1 {
@@ -121,10 +118,9 @@ pub fn results_page<S: Screen<Font = Font, Work = Work>>(
                 y = s.string(place, 0x579, 0x276, y)?.y;
                 s.time_line(time_font, &time(gap, show_hours), 0x2E4, y)?;
             }
-            line
-        };
-        s.sprite(flag_glyph(r.nation), 0xD2, y, palette)?;
-        s.sprite(car_glyph(r.car), 0x1AE, y, palette)?;
+        }
+        s.sprite(flag_glyph(r.nation), 0xD2, y)?;
+        s.sprite(car_glyph(r.car), 0x1AE, y)?;
         y = y.wrapping_add(0x19);
         s.keep(Work::Row, first_row.wrapping_add(n as u32 + 1));
     }
@@ -230,8 +226,7 @@ pub fn class_rows(
 
 /// `screens::draw_class_ranking`: a page of one class's times, the rows found by the
 /// caller; `after` the place `seconds` is left at when the list ended while the next row
-/// was looked for. The sprites' palette is where the last text left ebx (the place's text,
-/// or the line buffer after a gap), the sprites 4 below the row.
+/// was looked for. The sprites 4 below the row.
 pub fn class_ranking<S: Screen<Font = Font, Work = RankingWork>>(
     s: &mut S,
     first: u32,
@@ -240,7 +235,6 @@ pub fn class_ranking<S: Screen<Font = Font, Work = RankingWork>>(
     after: Option<u32>,
 ) -> Result<(), S::Error> {
     s.keep(RankingWork::FirstTime, first);
-    let line = s.buffer_address(Buffer::Line);
     let mut y = 0xF0i32;
     for (k, r) in rows.iter().enumerate() {
         if k > 0 {
@@ -258,20 +252,17 @@ pub fn class_ranking<S: Screen<Font = Font, Work = RankingWork>>(
         }
         .y;
         s.time_line(time_font, &time(r.time, show_hours), 0x258, y)?;
-        let o = s.line(place, &decimal(r.place, Pad::None), 0xBE, y)?;
-        y = o.y;
-        let mut palette = o.after;
+        y = s.line(place, &decimal(r.place, Pad::None), 0xBE, y)?.y;
         if r.place != 1 {
             let gap = r.time.wrapping_sub(first);
             s.keep(RankingWork::Gap, gap);
             y = s.string(place, 0x579, 0x276, y)?.y;
             s.time_line(time_font, &time(gap, show_hours), 0x2E4, y)?;
-            palette = line;
         }
         let sprite_y = y.wrapping_add(4);
         s.keep(RankingWork::SpriteY, sprite_y as u32);
-        s.sprite(flag_glyph(r.nation), 0xD2, sprite_y, palette)?;
-        s.sprite(car_glyph(r.car), 0x1AE, sprite_y, palette)?;
+        s.sprite(flag_glyph(r.nation), 0xD2, sprite_y)?;
+        s.sprite(car_glyph(r.car), 0x1AE, sprite_y)?;
     }
     if let Some(place) = after {
         s.keep(RankingWork::Place, place);
@@ -308,10 +299,10 @@ pub fn championship_standings<S: Screen<Font = Font, Work = Work>>(
 ) -> Result<(), S::Error> {
     s.string(Font::Place, 0x484, 0x73, 0xDC)?;
     s.string(Font::Name, 0x485, 0x9C, 0xDC)?;
-    let o = s.string(Font::Name, 0x4F9, 0x2DE, 0xDC)?;
+    s.string(Font::Name, 0x4F9, 0x2DE, 0xDC)?;
     let first_round = if mode_13 { 0x90 } else { 0x8A };
     for n in 0..6u32 {
-        s.sprite(first_round + n, 0x196 + 0x36 * n as i32, 0x8C, o.after)?;
+        s.sprite(first_round + n, 0x196 + 0x36 * n as i32, 0x8C)?;
     }
     s.keep(Work::Row, first_row);
     s.keep(Work::RowEnd, first_row.wrapping_add(10));
@@ -334,8 +325,8 @@ pub fn championship_standings<S: Screen<Font = Font, Work = Work>>(
             o = s.line(font, &text, 0x19A + 0x36 * k as i32, y)?;
             y = o.y;
         }
-        s.sprite(flag_glyph(r.nation), 0x7E, y, o.after)?;
-        s.sprite(car_glyph(r.car), 0x154, y, o.after)?;
+        s.sprite(flag_glyph(r.nation), 0x7E, y)?;
+        s.sprite(car_glyph(r.car), 0x154, y)?;
         y = y.wrapping_add(0x19);
         s.keep(Work::Row, first_row.wrapping_add(n as u32 + 1));
     }
@@ -346,6 +337,7 @@ pub fn championship_standings<S: Screen<Font = Font, Work = Work>>(
 mod tests {
     use super::*;
     use crate::Invalid;
+    use crate::screens::screen::Buffer;
     use crate::screens::screen::{Bar, Drawn};
 
     #[derive(Default)]
@@ -391,7 +383,6 @@ mod tests {
             self.0.push(format!("{f:?} s{id:x} {x:#x} {y:#x}"));
             Ok(Drawn {
                 y,
-                after: 0x900 + id,
                 ..Drawn::default()
             })
         }
@@ -401,8 +392,8 @@ mod tests {
         fn strings(&mut self, _: u32, _: u32) -> Result<Vec<u8>, Invalid> {
             unreachable!()
         }
-        fn sprite(&mut self, g: u32, x: i32, y: i32, p: u32) -> Result<(), Invalid> {
-            self.0.push(format!("sprite {g:#x} {x:#x} {y:#x} {p:#x}"));
+        fn sprite(&mut self, g: u32, x: i32, y: i32) -> Result<(), Invalid> {
+            self.0.push(format!("sprite {g:#x} {x:#x} {y:#x}"));
             Ok(())
         }
         fn keep(&mut self, w: Work, v: u32) {
@@ -413,9 +404,6 @@ mod tests {
         }
         fn fatal(&mut self, _: u32, m: &'static str) -> Invalid {
             Invalid(m)
-        }
-        fn buffer_address(&mut self, _: Buffer) -> u32 {
-            0x1000
         }
     }
 
@@ -447,9 +435,9 @@ mod tests {
         assert!(s.0.contains(&"keep RowEnd 13".to_string()));
         assert!(s.0.contains(&"PlayerPlace s579 0x276 0x109".to_string()));
         assert!(s.0.contains(&"keep Gap 100".to_string()));
-        assert!(s.0.contains(&"sprite 0x5d 0x1ae 0xf0 0x1000".to_string()));
+        assert!(s.0.contains(&"sprite 0x5d 0x1ae 0xf0".to_string()));
         assert!(s.0.contains(&"Name s4fb 0x1ef 0x122".to_string()));
-        assert!(s.0.contains(&"sprite 0x1e 0xd2 0x122 0xdfb".to_string()));
+        assert!(s.0.contains(&"sprite 0x1e 0xd2 0x122".to_string()));
         assert_eq!(s.0.last().unwrap(), "keep Row 6");
     }
 

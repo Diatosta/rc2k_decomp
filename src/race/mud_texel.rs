@@ -3,26 +3,24 @@
 //! an odd one skips), and halved again unless it is 1 (a reading: how many times the
 //! texture is smaller); then `race::mud_pixel` (0 outside the surface).
 //!
-//! In:  ecx = x, edx = y (0 .. 0xFF), eax
-//! Out: eax = the components, 0 outside, or as it came when the place is skipped; the
-//!      rest kept; no flags read (the callers test eax's top bit)
+//! Takes: x, y (0 .. 0xFF)
 //!
 //! See `race/mud.rs`. Callers: `race::muddy_texel`, `race::splash_mud`.
 
 use crate::errors::BadInput;
 use crate::race::mud::mud_pixel;
-use crate::scene::object_tables_store::OBJECT_TABLES;
+use crate::scene::owner::scene;
 
 /// The texel's place on the texture, or None when it is skipped (an odd place halved).
 pub fn texel_place(x: u32, y: u32) -> Option<(u32, u32)> {
     // Converted: `rc2k_core::race::mud::texel_place`.
-    rc2k_core::race::mud::texel_place(x, y, OBJECT_TABLES.system_levels[256].get())
+    rc2k_core::race::mud::texel_place(x, y, scene().objects.tables.system_levels[256].get())
 }
 
 /// The Rust version (see the header): eax as it leaves it.
-pub unsafe fn mud_texel(eax: u32, x: u32, y: u32) -> Result<u32, BadInput> {
+pub fn mud_texel(eax: u32, x: u32, y: u32) -> Result<u32, BadInput> {
     match texel_place(x, y) {
-        Some((x, y)) => unsafe { mud_pixel(x, y) },
+        Some((x, y)) => mud_pixel(x, y),
         None => Ok(eax),
     }
 }

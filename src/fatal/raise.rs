@@ -1,34 +1,30 @@
 //! Raising a fatal error from Rust: what the original's stubs do before they jump to the
 //! reporter (store the code and the message), followed by the reporter itself.
 //!
-//! This is not a hook: nothing in the original corresponds to it one to one. It calls the
-//! reporter's Rust version directly (`fatal::report::report_now`).
+//! Nothing in the original corresponds to it one to one. It calls the reporter's Rust
+//! version directly (`fatal::report::report_now`).
 //!
 //! It is not identical to an original error in one respect: the registers in the report are
-//! the ones given here (those at the entry of the hooked function that failed), not those at
+//! the ones given here (those at the entry of the function that failed), not those at
 //! the instruction inside it where the original would have noticed.
 
 use crate::errors::{FatalError, Refused};
 use crate::fatal::state::{CODE, MESSAGE};
-use crate::framework::{Regs, log};
-use std::ffi::CString;
+use crate::framework::log;
+use rc2k_core::fatal::Context;
 
 /// Reports `error` with the registers in `regs` and ends the game the way the original
 /// does: on a thread without a thread slot through the exit path (which shows the report in
 /// a message box), on a slot's thread by entering its routine again. It only returns for a
 /// code without the fatal bit, which nothing in this build has.
-pub fn raise(error: FatalError, regs: &Regs) {
-    // The message has to outlive this call: the exit path shows it later. An error is raised
-    // once, so the few bytes are simply never freed.
-    let message = match CString::new(error.message) {
-        Ok(text) if !error.message.is_empty() => {
-            let text = Box::leak(text.into_boxed_c_str()).to_bytes_with_nul();
-            crate::pointers::lend(text.as_ptr(), text.len())
-        }
-        _ => 0,
-    };
-    CODE.store(error.code, std::sync::atomic::Ordering::Relaxed);
-    MESSAGE.store(message, std::sync::atomic::Ordering::Relaxed);
+pub fn raise(error: FatalError, regs: &Context) {
+    // None for an empty one, and for one with a NUL inside (a C string could not hold it).
+    let message =
+        (!error.message.is_empty() && !error.message.contains('\0')).then_some(error.message);
+    CODE.set(error.code);
+    *MESSAGE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = message;
     crate::fatal::report::report_now(regs);
 }
 
@@ -38,7 +34,7 @@ pub fn raise(error: FatalError, regs: &Regs) {
 /// so that it shows: the game ends with the report, and the log says which function raised
 /// it. If that ever happens where the original would have carried on, the Rust version is
 /// wrong.
-pub fn refused_in(name: &str, reason: impl Into<Refused>, r: &Regs) {
+pub fn refused_in(name: &str, reason: impl Into<Refused>, r: &Context) {
     let error = match reason.into() {
         Refused::BadInput(why) => {
             crate::standalone::finish(&format!("{name} refused: {}", why.0), 1)
@@ -63,7 +59,7 @@ pub fn end(name: &str, reason: impl Into<Refused>) -> ! {
     }
     #[cfg(not(test))]
     {
-        refused_in(name, reason, &Regs::default());
+        refused_in(name, reason, &Context::default());
         crate::standalone::finish(
             &format!("{name}: a fatal error came back from its report"),
             1,

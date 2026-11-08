@@ -11,25 +11,29 @@
 //! - 9, 6: nothing;
 //! - any other byte (0): the end. An unbalanced stack is fatal error 0x80AF3011.
 //!
-//! In:  ebx the script
-//! Out: every register kept (`pusha` / `popa`)
+//! Takes the script.
 //! Callers `install::install_files`, `uninstall`, `install_clio`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{fatal, media_mode, rb, wb};
-use crate::install::vars::INSTALLER_PATHS;
+use crate::place::Place;
 use rc2k_core::install::script::{self, Op};
 
-/// The script at `script` (ebx) run.
-pub fn run_script(script: u32) -> Result<(), Refused> {
+/// The script at `script` run.
+pub fn run_script(
+    install: &'static crate::install::owner::Install,
+    script: impl Into<crate::place::Place>,
+) -> Result<(), Refused> {
     use crate::install as i;
-    let mut cursor = script;
-    let mut end = INSTALLER_PATHS.script_path.addr();
+    // Bounded by the script's allocation, not by the field it starts in: the uninstall
+    // script runs on from `INSTALLER_NAMES.script` through `script_mark` into the fields
+    // after it, as the original reads it.
+    let mut cursor = Place::from(script.into().game_ptr().unbounded());
+    let mut end = Place::from(&install.paths.script_path);
     wb(end, 0);
-    let mut stack: Vec<u32> = Vec::new();
+    let mut stack: Vec<Place> = Vec::new();
     let media = media_mode() as u8;
     let mut guard = 0usize;
     // Converted: `rc2k_core::install::script` (`Op`, `skipped`, `skip`).
@@ -39,15 +43,15 @@ pub fn run_script(script: u32) -> Result<(), Refused> {
             return Err(BadInput("a script with no end in 0x10000 bytes").into());
         }
         let op = rb(cursor);
-        cursor = cursor.wrapping_add(1);
+        cursor = cursor.add(1);
         match Op::of(op) {
             Op::Folder => {
                 stack.push(end);
                 (cursor, end) = i::script_name::script_name(cursor, end)?;
-                i::list_folder::list_folder(INSTALLER_PATHS.script_path.addr())?;
+                i::list_folder::list_folder(install, &install.paths.script_path)?;
                 wb(end, b'\\');
-                wb(end + 1, 0);
-                end += 1;
+                wb(end.add(1), 0);
+                end = end.add(1);
             }
             Op::Up => {
                 let Some(level) = stack.pop() else {
@@ -63,23 +67,24 @@ pub fn run_script(script: u32) -> Result<(), Refused> {
                 stack.push(end);
                 (cursor, _) = i::script_name::script_name(cursor, end)?;
                 if op == 3 {
-                    i::list_files::list_files(INSTALLER_PATHS.script_path.addr())?;
+                    i::list_files::list_files(install, &install.paths.script_path)?;
                 } else {
-                    i::list_folder_tree::list_folder_tree(INSTALLER_PATHS.script_path.addr())?;
+                    i::list_folder_tree::list_folder_tree(&install.paths.script_path)?;
                 }
-                end = stack.pop().unwrap_or(INSTALLER_PATHS.script_path.addr()); // pushed just above
+                end = stack
+                    .pop()
+                    .unwrap_or(Place::from(&install.paths.script_path)); // pushed just above
                 wb(end, 0);
             }
             Op::Media => {
                 let n = rb(cursor);
-                cursor = cursor.wrapping_add(1);
+                cursor = cursor.add(1);
                 if !script::skipped(n, media) {
                     continue;
                 }
-                let words =
-                    crate::pointers::GamePtr::new(cursor).bytes("the installer's script")?;
+                let words = cursor.game_ptr().bytes("the installer's script")?;
                 let past = script::skip(&words, 0, &mut guard)?;
-                cursor = cursor.wrapping_add(past as u32);
+                cursor = cursor.add(past as u32);
             }
             Op::Nothing => {}
             Op::End => {

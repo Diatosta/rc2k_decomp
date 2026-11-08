@@ -8,6 +8,7 @@ use crate::session::{Bytes, Dword, with_runs};
 
 /// The players' results figures (IDA 0x758714 .. 0x7587E8).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Results {
     /// `g_round`: The rounds of a multi-player event.
     pub round: Dword,
@@ -36,20 +37,24 @@ pub struct Results {
 }
 
 /// First values the image's (`tests::result_figures_starts_as_the_games`).
-pub static RESULT_FIGURES: Results = Results {
-    round: Dword::new(0x0),
-    group_titles: [Dword::new(0x340), Dword::new(0x341)],
-    order: [const { Dword::new(0x0) }; 4],
-    _gap_758730: Bytes::new(with_runs::<40>(&[(0x14, &[0xf5, 0x11])])),
-    time_bonus: [const { Dword::new(0x0) }; 4],
-    positions: [const { Dword::new(0x0) }; 4],
-    points: [const { Dword::new(0x0) }; 4],
-    extra: [const { Dword::new(0x0) }; 4],
-    sums: [const { Dword::new(0x0) }; 4],
-    before: [const { Dword::new(0x0) }; 4],
-    totals: [const { Dword::new(0x0) }; 4],
-    pairs: [const { Dword::new(0x0) }; 8],
-};
+impl Results {
+    pub const fn new() -> Self {
+        Results {
+            round: Dword::new(0x0),
+            group_titles: [Dword::new(0x340), Dword::new(0x341)],
+            order: [const { Dword::new(0x0) }; 4],
+            _gap_758730: Bytes::new(with_runs::<40>(&[(0x14, &[0xf5, 0x11])])),
+            time_bonus: [const { Dword::new(0x0) }; 4],
+            positions: [const { Dword::new(0x0) }; 4],
+            points: [const { Dword::new(0x0) }; 4],
+            extra: [const { Dword::new(0x0) }; 4],
+            sums: [const { Dword::new(0x0) }; 4],
+            before: [const { Dword::new(0x0) }; 4],
+            totals: [const { Dword::new(0x0) }; 4],
+            pairs: [const { Dword::new(0x0) }; 8],
+        }
+    }
+}
 
 /// IDA 0x758714, the first byte of the piece.
 pub const START: usize = 0x758714;
@@ -57,8 +62,9 @@ pub const START: usize = 0x758714;
 pub const END: usize = 0x7587E8;
 
 /// Where IDA 0x758714 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn results_addr() -> u32 {
-    crate::pointers::game_address(&RESULT_FIGURES as *const Results)
+    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.play.results)
 }
 
 #[cfg(test)]
@@ -75,7 +81,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(results_addr()) as *const u8,
+                crate::pointers::host(results_addr()).cast_const(),
                 END - START,
             )
         };

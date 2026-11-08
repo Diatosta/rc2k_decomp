@@ -2,9 +2,7 @@
 //! course record of the grid cell holding (eax x, ecx z): the key ((z >> 21) << 11) +
 //! (x >> 21), `physics::find_course_record`; nothing when it finds none.
 //!
-//! In:  eax x, ecx z
-//! Out: the registers as `find_course_record` and `record_face_contacts` leave them; no
-//!      flags read (the caller goes on)
+//! Takes: x, z
 //!
 //! Callers: `physics::face_contacts_around` (nine). Refuses what `find_course_record`
 //! (before anything) and `record_face_contacts` refuse (what was written put back).
@@ -14,13 +12,19 @@
 
 use crate::errors::Refused;
 use crate::physics::find_course_record::find_course_record;
+use crate::race::owner::Race;
 
 /// The steps for the cell of (`x`, `z`) (eax, ecx), not guarded.
 // Converted: `rc2k_core::physics::ground_search::cell_key`.
-pub fn steps(x: u32, z: u32) -> Result<(), Refused> {
+pub fn steps(
+    race: &Race,
+    x: u32,
+    z: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let (key, _) = rc2k_core::physics::ground_search::cell_key(x, z);
-    let Some(record) = find_course_record(key)? else {
+    let Some(record) = find_course_record(&race.course, key)? else {
         return Ok(());
     };
-    crate::physics::record_face_contacts::steps(record)
+    crate::physics::record_face_contacts::steps(race, record, scene)
 }

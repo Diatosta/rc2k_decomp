@@ -1,5 +1,5 @@
 //! Phase 5: a region of RAL.EXE's variables kept in one block of Rust-owned memory with the
-//! image's layout (`marks::store` was the first; this is the same pattern for the audio,
+//! image's layout (`effects::store` was the first; this is the same pattern for the audio,
 //! sound and input modules).
 //!
 //! A block (`block!`) is a byte array whose first values are the image's bytes (generated
@@ -15,6 +15,9 @@
 //! Threads: whoever wrote under the original's discipline (the audio thread's turn, the
 //! key thread) still does; the reads and writes are volatile, as the image's were.
 
+#![allow(unsafe_code)]
+
+#[cfg(all(test, target_arch = "x86"))]
 use crate::framework;
 
 /// A block's description: where its first byte now is.
@@ -23,54 +26,27 @@ pub trait Block: Copy {
     fn base() -> usize;
 }
 
-/// What `game_read` and the others take: an RVA of the image, or a typed cell.
+/// What `game_write` takes (the x86 reference tests): an RVA of the image, or a typed cell.
+#[cfg(all(test, target_arch = "x86"))]
 pub trait Where: Copy {
     fn address(self) -> usize;
 }
 
+#[cfg(all(test, target_arch = "x86"))]
 impl Where for usize {
     fn address(self) -> usize {
         framework::game_addr(self) as usize
     }
 }
 
-/// A variable named by IDA's address (a plain `usize`: where it lives now, `moved::place`) or
-/// a typed cell: what the helpers of modules whose variables are named by IDA's addresses
-/// (`g(0x5165F0)`) take.
-pub trait Ida: Copy {
-    fn here(self) -> usize;
-}
-
-impl Ida for usize {
-    fn here(self) -> usize {
-        crate::moved::place(self)
-    }
-}
-
-/// A variable named by IDA's address in the image (a plain `usize`, no lookup: for the hot
-/// helpers of the physics, race and drive modules).
-pub trait At: Copy {
-    fn here(self) -> usize;
-}
-
-impl At for usize {
-    fn here(self) -> usize {
-        (framework::game_addr(framework::rva(self))) as usize
-    }
-}
-
-/// A typed cell (phase 7) is its own place: the helpers that take a variable by `Where`,
-/// `Ida` or `At` (`session.rs`) take the typed field as well, so a module's call sites move to fields one
+/// A typed cell (phase 7) is its own place: the helpers that take a variable by `Where`
+/// or `Ida` (`session.rs`) take the typed field as well, so a module's call sites move to fields one
 /// by one.
 macro_rules! typed_places {
     ($($t:ty),*) => {$(
+        #[cfg(all(test, target_arch = "x86"))]
         impl Where for &'static $t {
             fn address(self) -> usize {
-                self.addr() as usize
-            }
-        }
-        impl Ida for &'static $t {
-            fn here(self) -> usize {
                 self.addr() as usize
             }
         }
@@ -79,71 +55,15 @@ macro_rules! typed_places {
 
 typed_places!(crate::session::Dword, crate::session::Float);
 
-/// Reads the variable named by `at` (an IDA address of the image).
-pub unsafe fn at_read<T: Copy>(at: impl At) -> T {
-    let p = crate::pointers::host_at(at.here()) as *const T;
-    unsafe {
-        if p.is_aligned() {
-            p.read_volatile()
-        } else {
-            p.read_unaligned()
-        }
-    }
-}
-
-/// Writes the variable named by `at` (an IDA address of the image).
-pub unsafe fn at_write<T: Copy>(at: impl At, value: T) {
-    let p = crate::pointers::host_at(at.here()) as *mut T;
-    unsafe {
-        if p.is_aligned() {
-            p.write_volatile(value)
-        } else {
-            p.write_unaligned(value)
-        }
-    }
-}
-
-/// Reads the variable named by `at` (an IDA address, or a typed cell).
-pub unsafe fn ida_read<T: Copy>(at: impl Ida) -> T {
-    let p = crate::pointers::host_at(at.here()) as *const T;
-    unsafe {
-        if p.is_aligned() {
-            p.read_volatile()
-        } else {
-            p.read_unaligned()
-        }
-    }
-}
-
-/// The address of `place`.
-pub fn game_addr(place: impl Where) -> u32 {
-    place.address() as u32
-}
-
 /// Pointer to the game's memory at `place`.
-pub fn game_ptr<T>(place: impl Where) -> *mut T {
-    crate::pointers::host_at(place.address()) as *mut T
+#[cfg(all(test, target_arch = "x86"))]
+fn game_ptr<T>(place: impl Where) -> *mut T {
+    crate::pointers::host_at(place.address()).cast::<T>()
 }
 
-/// Reads a variable (`framework::game_read`, over a block or the image).
-pub fn game_read<T: Copy>(place: impl Where) -> T {
-    let p = game_ptr::<T>(place);
-    crate::pointers::check_or_end(
-        crate::pointers::game_address(p),
-        size_of::<T>(),
-        "a game variable",
-    );
-    // SAFETY: inside one live region (checked above).
-    unsafe {
-        if p.is_aligned() {
-            p.read_volatile()
-        } else {
-            p.read_unaligned()
-        }
-    }
-}
-
-/// Writes a variable (`framework::game_write`, over a block or the image).
+/// Writes a variable (`framework::game_write`, over a block or the image); only the x86
+/// reference tests use it.
+#[cfg(all(test, target_arch = "x86"))]
 pub fn game_write<T: Copy>(place: impl Where, value: T) {
     let p = game_ptr::<T>(place);
     crate::pointers::check_or_end(
@@ -152,12 +72,58 @@ pub fn game_write<T: Copy>(place: impl Where, value: T) {
         "a game variable",
     );
     // SAFETY: inside one live region (checked above).
-    unsafe {
-        if p.is_aligned() {
-            p.write_volatile(value)
-        } else {
-            p.write_unaligned(value)
-        }
+    unsafe { crate::shared_memory::write(p, value) }
+}
+
+/// A range of a block's plain shared bytes as a store (`pointers::Store`): `len` bytes from
+/// `offset` in the block, whose first IDA byte `first` names. Read and written through
+/// `shared_memory`, the discipline of every `Bytes`.
+pub struct BlockRange {
+    first: fn() -> *mut u8,
+    offset: usize,
+    len: usize,
+}
+
+// SAFETY: raw access only, under the original's discipline (as `Place`).
+unsafe impl Sync for BlockRange {}
+
+impl BlockRange {
+    pub const fn new(first: fn() -> *mut u8, offset: usize, len: usize) -> Self {
+        Self { first, offset, len }
+    }
+
+    fn at(&self, offset: usize, len: usize) -> Result<*mut u8, crate::errors::BadInput> {
+        offset
+            .checked_add(len)
+            .filter(|&end| end <= self.len)
+            .ok_or(crate::errors::BadInput("past the end of a block range"))?;
+        Ok((self.first)().wrapping_add(self.offset + offset))
+    }
+}
+
+// SAFETY: `first` and `size` name a range of the block's plain shared bytes.
+unsafe impl crate::pointers::Store for BlockRange {
+    fn size(&self) -> usize {
+        self.len
+    }
+
+    fn first(&self) -> *const u8 {
+        (self.first)().wrapping_add(self.offset).cast_const()
+    }
+
+    fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), crate::errors::BadInput> {
+        let from = self.at(offset, to.len())?;
+        // SAFETY: the run lies inside the block's bytes (`at`, the range lies in the block);
+        // shared bytes read through `shared_memory`; `to` is the caller's.
+        unsafe { crate::shared_memory::load(from, to.as_mut_ptr(), to.len()) };
+        Ok(())
+    }
+
+    fn store(&self, offset: usize, from: &[u8]) -> Result<(), crate::errors::BadInput> {
+        let to = self.at(offset, from.len())?;
+        // SAFETY: as `load`'s.
+        unsafe { crate::shared_memory::store(to, from.as_ptr(), from.len()) };
+        Ok(())
     }
 }
 
@@ -238,5 +204,6 @@ macro_rules! block {
 #[cfg(test)]
 pub fn test_lock() -> std::sync::MutexGuard<'static, ()> {
     static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    LOCK.lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }

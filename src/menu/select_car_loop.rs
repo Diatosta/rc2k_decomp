@@ -1,124 +1,95 @@
 //! `menu::select_car_loop` (0x47AC0C): the car selection screen, which the starters of
-//! every kind of event call.
+//! every kind of event run (the owner called it the car select menu, 2026-10-12; it was
+//! `car_specs_47ac0c_loop` until then).
 //!
-//! In:  nothing
-//! Out: every register preserved
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
-//! as extracted from the disassembly: background `cspecs.png`; leaving is not asked about; it
-//! has steps of its own first on leaving; the steps that are more than a call or a store are
-//! the functions below, generated from the listing.
-//! Screen: the car selection when an event is started (the owner called it the car select
-//! menu, 2026-10-12; it ran in the Rust version under each of the five start screens that
-//! day). Named `car_specs_47ac0c_loop` until then.
-//! Callers: `sub_4182FA`, `sub_482382`, `sub_4824C1`, `sub_4824C1`, `sub_4826A2`, `sub_4826A2`,
-//! `sub_4828B0`, `sub_4828B0`, `sub_4828B0`, `sub_482B7A`, `sub_482B7A`, `sub_482B7A`,
-//! `sub_482B7A`, `sub_487E2C`, `sub_48AE39`, `sub_48AFD0`, `sub_48AFD0`, `sub_48B23D`,
-//! `sub_48B23D`, `sub_48B54B`, `sub_48B54B`, `sub_48B54B`, `sub_48B90F`, `sub_48B90F`,
-//! `sub_48B90F`, `sub_48B90F`, `sub_4A25F4`, `sub_4A26B6`, `sub_4A26B6`, `sub_4A27B5`,
-//! `sub_4A27B5`, `sub_4A28B4`, `sub_4A28B4`, `sub_4A28B4`, `sub_4A29F4`, `sub_4A29F4`,
-//! `sub_4A29F4`, `sub_4A29F4`, `sub_4A9C9B`, `sub_4A9D5C`, `sub_4A9D5C`, `sub_4A9E3D`,
-//! `sub_4A9E3D`, `sub_4A9F1E`, `sub_4A9F1E`, `sub_4A9F1E`, `sub_4AA040`, `sub_4AA040`,
-//! `sub_4AA040`, `sub_4AA040`. Rust callers run its `entry` (`routes.rs`); the registers above are
-//! the original's, for reference.
+//! The loop itself is `menu::screen_loop`; this file says what is this screen's own
+//! (`SCREEN`): background `cspecs.png`; leaving is not asked about; it has steps of its own
+//! first on leaving.
 
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::menus_store::MENUS;
-use crate::menu::players_store::PLAYER_TABLE;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Callee, Carried, Flow, List, Screen, Step, carousel, prepare_scene, quitting, read_at,
+    Callee, Entry, Flow, FrameRoutine, List, Screen, Step, carousel, prepare_scene, quitting,
 };
-use crate::menu::state_store::MENU_STATE;
-use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
+fn set_up_first(entry: &Entry) -> Result<(), Refused> {
+    let drawing = &entry.scene.drawing;
+    let menus = entry.menus;
+    let screens = &menus.screens;
     // The current player's +0x30 (its car).
-    let current: u32 = EVENT_STATE.current_player.get();
-    let player = read_at((PLAYER_TABLE.pointers[0].addr()).wrapping_add(current.wrapping_mul(4)))?;
-    c.arg = read_at(player.wrapping_add(0x30))?;
-    SCREEN_FLOW.shown_gearing.set(c.arg);
-    SCREEN_FLOW.turning.set(0x1u32);
-    MENU_STATE.carousel.menu.set(0xDu32);
-    carousel(c)?;
-    c.arg = SCREEN_ITEMS.current[slot::SELECT_CAR].get();
-    LOOP_FLAGS.item.set(c.arg);
-    c.arg = c.arg.wrapping_sub(1);
-    MENU_STATE.carousel.front.set(c.arg);
-    SCREEN_FLOW.turning.set(0x0u32);
-    MENU_STATE.carousel.front.set(0x0u32);
-    EVENT_STATE.shown_car.set(0x0u32);
-    crate::menu::car_choice::find_player_car()?;
-    DRAW.view_offset[0].set(0x7u32);
-    DRAW.view_offset[1].set(0xFFFFFFCEu32);
-    DRAW.view_zoom.set(0x100u32);
-    prepare_scene(c);
+    let current: u32 = screens.event.current_player.get();
+    let Some(player) = crate::menu::player::player(current) else {
+        return Err(crate::errors::BadInput("a current player past the four").into());
+    };
+    screens.flow.shown_gearing.set(player.get().gearing);
+    screens.flow.turning.set(0x1u32);
+    screens.state.carousel.menu.set(0xDu32);
+    carousel(entry.cars, entry.scene)?;
+    let item = screens.items.current[slot::SELECT_CAR].get();
+    screens.loop_flags.item.set(item);
+    screens.state.carousel.front.set(item.wrapping_sub(1));
+    screens.flow.turning.set(0x0u32);
+    screens.state.carousel.front.set(0x0u32);
+    screens.event.shown_car.set(0x0u32);
+    crate::menu::car_choice::find_player_car(menus)?;
+    drawing.scene.view_offset[0].set(0x7u32);
+    drawing.scene.view_offset[1].set(0xFFFFFFCEu32);
+    drawing.scene.view_zoom.set(0x100u32);
+    prepare_scene(entry.scene);
     Ok(())
 }
 
-fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
+fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
     if quitting() as u32 == 0x1 {
         return Ok(Flow::Leave);
     }
     Ok(Flow::On)
 }
 
-unsafe fn leaving(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        if CAPTIONS.screen_left.get() == 0x1 {
-            Callee::GoBack.run(c)?;
-        }
+fn leaving(entry: &Entry) -> Result<(), Refused> {
+    if entry.menus.tables.captions.screen_left.get() == 0x1 {
+        Callee::GoBack.run(entry)?;
     }
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.select_car.addr() as usize,
-    saved_item: || &SCREEN_ITEMS.current[slot::SELECT_CAR],
+    menu: |m| m.tables.menus.select_car.id(),
+    saved_item: |m| &m.screens.items.current[slot::SELECT_CAR],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.select_car_scene.addr() as usize,
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.select_car_scene.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.select_car_draw.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.select_car_draw.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.select_car_setup.addr() as usize,
+            pointer: |m| &m.screens.flow.setup_list, // dword_755500
+            table: |m| m.tables.draw_lists.select_car_setup.id(),
             run: true,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.select_car_overlay.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.select_car_overlay.id(),
             run: false,
         },
     ],
     first_frame_lists: None,
-    frame_callback: rva(0x474D4B),
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgAddr(|| {
-            (crate::menu::texts_store::MENU_TEXTS
-                .select_car_picture
-                .addr()) as usize
-        }),
-        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.select_car_picture
+    }))],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     confirm: None,
     ask_also_if: None,

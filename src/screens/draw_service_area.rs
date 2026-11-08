@@ -4,8 +4,6 @@
 //! labels and sprites, the setup bars' labels and markers, the repair times and the car
 //! condition bar.
 //!
-//! In:  nothing
-//! Out: every register preserved; carry as `draw_inspection_status` leaves it
 //! The order is the original's: the title ("<string 0x190> <car index + 1> <string 0x486>",
 //! built in the shared text buffer), `draw_service_time`, the `STEPS` list, the string
 //! 0x4B0 + `dword_75AC9C`, `draw_repair_times`, the six setup markers, `draw_inspection_status`.
@@ -25,16 +23,13 @@
 //! Screen: confirmed by the owner on 2026-10-10 with `blank on screens::draw_service_area`: the
 //! service area of a championship. All text and icons disappeared; the boxes that hold them stayed,
 //! so those are drawn by something else (not ported). The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_bar::{Bar, blit_bar};
 use crate::gfx::blit_glyph::BlitCall;
-use crate::gfx::blit_marker_pair::sprite_table;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::state_store::MENU_STATE;
-use crate::race::switches_store::FRAME_SWITCHES;
+use crate::menu::owner::Menus;
+use crate::race::owner::race;
 use crate::screens::draw_inspection_status::draw_inspection_status;
 use crate::screens::draw_repair_times::draw_repair_times;
 use crate::screens::draw_service_time::draw_service_time;
@@ -46,7 +41,7 @@ use crate::screens::{
 };
 use crate::service::state::current_player;
 use crate::strings::append_string_by_id::push_string;
-use crate::strings::text_from_ids::{TEXT_LEN, text};
+use crate::strings::text_from_ids::{TEXT_LEN, text_at};
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::{Canvas, draw_text_at};
 use rc2k_core::screens::service::{
@@ -73,97 +68,84 @@ fn font_of(font: AreaFont) -> crate::gfx::typefaces::FontId {
 
 /// Returns the carry flag of the last text drawn. Refuses a missing player and a title
 /// that does not fit the text buffer.
-pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    unsafe {
-        FRAME_SWITCHES.service_cleared.set_bits(0u32);
+pub fn draw_service_area(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    let screens = &menus.screens;
+    race().shared.switches.service_cleared.set_bits(0u32);
 
-        // Converted: `rc2k_core::screens::service` (`area_title`, `AREA_STEPS`).
-        let fault = crate::menu::event_flow::Fault::default();
-        let string = |id: u32| {
-            let mut bytes = Vec::new();
-            fault.ok(push_string(&mut bytes, id));
-            bytes
-        };
-        let title = area_title(
-            &string(AREA_TITLE.0),
-            EVENT_STATE.current_player.get(),
-            &string(AREA_TITLE.1),
-        );
-        fault.check()?;
-        if title.len() > TEXT_LEN {
-            return Err(BadInput("the title is longer than the text buffer").into());
-        }
-        crate::pointers::GamePtr::new(crate::pointers::game_address(text()))
-            .write_bytes(&title, "the title")?;
-        let (x, y) = AREA_TITLE_AT;
-        draw_text_at(font_of(AreaFont::Title).as_ptr(), text(), x, y, canvas)?;
+    // Converted: `rc2k_core::screens::service` (`area_title`, `AREA_STEPS`).
+    let fault = crate::menu::event_flow::Fault::default();
+    let string = |id: u32| {
+        let mut bytes = Vec::new();
+        fault.ok(push_string(&mut bytes, id));
+        bytes
+    };
+    let title = area_title(
+        &string(AREA_TITLE.0),
+        screens.event.current_player.get(),
+        &string(AREA_TITLE.1),
+    );
+    fault.check()?;
+    if title.len() > TEXT_LEN {
+        return Err(BadInput("the title is longer than the text buffer").into());
+    }
+    text_at().write_bytes(&title, "the title")?;
+    let (x, y) = AREA_TITLE_AT;
+    draw_text_at(font_of(AreaFont::Title), &title, x, y, canvas)?;
 
-        draw_service_time(canvas)?;
+    draw_service_time(screens, canvas)?;
 
-        let Some(player) = current_player() else {
-            return Err(
-                BadInput("no current player object: the original reads through null").into(),
-            );
-        };
-        let field = |at: u32| {
-            crate::pointers::GamePtr::new(player.wrapping_add(at)).read::<i32>("a car field")
-        };
-        // ebx as the original has it: the sprites get it as their palette.
-        let mut ebx = 0u32;
-        let (width, fill_glyph, end_glyph) = DAMAGE_BAR;
-        for step in AREA_STEPS {
-            match step {
-                AreaStep::Label(id, font, x, y) => {
-                    ebx = crate::pointers::game_address(
-                        draw_string_by_id_at(id, font_of(font).as_ptr(), x, y, canvas)?.text,
-                    );
-                }
-                AreaStep::LabelIf(car_offset, id, font, x, y) => {
-                    if field(car_offset)? != 0 {
-                        ebx = crate::pointers::game_address(
-                            draw_string_by_id_at(id, font_of(font).as_ptr(), x, y, canvas)?.text,
-                        );
-                    }
-                }
-                AreaStep::DamageBar(x, y, car_offset) => {
-                    Bar {
-                        x,
-                        y,
-                        width,
-                        fill_glyph,
-                        end_glyph,
-                        percent: field(car_offset)?,
-                    }
-                    .write();
-                    blit_bar(&mut |call| canvas.blit_glyph(call))?;
-                }
-                AreaStep::Sprite(glyph, x, y) => {
-                    canvas.blit_glyph(BlitCall::new(glyph, x, y, ebx, sprite_table()))?;
+    let Some(player) = current_player() else {
+        return Err(BadInput("no current player object: the original reads through null").into());
+    };
+    let car = player.get();
+    let (width, fill_glyph, end_glyph) = DAMAGE_BAR;
+    for step in AREA_STEPS {
+        match step {
+            AreaStep::Label(id, font, x, y) => {
+                draw_string_by_id_at(id, font_of(font), x, y, canvas)?;
+            }
+            AreaStep::LabelIfClass(id, font, x, y) => {
+                if car.class != 0 {
+                    draw_string_by_id_at(id, font_of(font), x, y, canvas)?;
                 }
             }
+            AreaStep::DamageBar(x, y, part) => {
+                Bar {
+                    x,
+                    y,
+                    width,
+                    fill_glyph,
+                    end_glyph,
+                    percent: car.damage[part] as i32,
+                }
+                .write();
+                blit_bar(&mut |call| canvas.blit_glyph(call))?;
+            }
+            AreaStep::Sprite(glyph, x, y) => {
+                canvas.blit_glyph(BlitCall::sprite(glyph, x, y))?;
+            }
         }
-
-        let setting = MENU_STATE.driver_stats.setups[1]
-            .chosen
-            .get()
-            .wrapping_add(SETTING_FIRST_STRING);
-        DRAW_WORK.figure.set(setting);
-        let (x, y) = TYRE_AT;
-        draw_string_by_id_at(setting, font_of(AreaFont::Small).as_ptr(), x, y, canvas)?;
-
-        // The markers get the car in edi and, as their palette, the ebx the repair times leave.
-        let times = draw_repair_times(canvas)?;
-        let palette = crate::pointers::game_address(times.text);
-        for marker in [
-            draw_brake_balance_marker::MARKER,
-            draw_steering_sensitivity_marker::MARKER,
-            draw_ride_height_installed_marker::MARKER,
-            draw_suspension_stiffness_installed_marker::MARKER,
-            draw_ride_height_marker::MARKER,
-            draw_suspension_stiffness_marker::MARKER,
-        ] {
-            draw_marker(marker, palette, player, canvas)?;
-        }
-        draw_inspection_status(palette, canvas)
     }
+
+    let setting = screens.state.driver_stats.setups[1]
+        .chosen
+        .get()
+        .wrapping_add(SETTING_FIRST_STRING);
+    screens.draw_work.figure.set(setting);
+    let (x, y) = TYRE_AT;
+    draw_string_by_id_at(setting, font_of(AreaFont::Small), x, y, canvas)?;
+
+    // The markers get the car in edi.
+    draw_repair_times(screens, canvas)?;
+    for marker in [
+        draw_brake_balance_marker::MARKER,
+        draw_steering_sensitivity_marker::MARKER,
+        draw_ride_height_installed_marker::MARKER,
+        draw_suspension_stiffness_installed_marker::MARKER,
+        draw_ride_height_marker::MARKER,
+        draw_suspension_stiffness_marker::MARKER,
+    ] {
+        draw_marker(menus, marker, player, canvas)?;
+    }
+    draw_inspection_status(menus, screens, canvas)
 }

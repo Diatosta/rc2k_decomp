@@ -8,55 +8,62 @@
 //! stopped, tune 3, and the pending key taken (eax 0). What `finish_race_0` shows is a
 //! reading (the level's ending drive).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //! The callees get eax 5 - level, ebx the level and edi player 0's record at first, then what the
 //! one before left. Refuses (before anything) a missing player 0.
 
-use crate::errors::{BadInput, Refused};
-use crate::menu::arcade_store::ARCADE_GAME;
-use crate::menu::player::player_at;
-use crate::race::state_store::RACE_STATE;
+use crate::errors::Refused;
+use crate::menu::owner::Menus;
+use crate::menu::owner::Play;
 
 /// The Rust version. The original keeps every register of its caller.
-pub unsafe fn arcade_finale() -> Result<(), Refused> {
-    let player0 = player_at(0);
-    if player0 == 0 {
-        return Err(BadInput("no player 0").into());
-    }
-    let f = |o: u32| crate::pointers::GamePtr::new(player0 + o).read::<u32>("a player field");
-    RACE_STATE.results.finish_player.set(f(0x28)?);
-    RACE_STATE.results.finish_kind.set(f(8)?);
-    RACE_STATE.settings.car_kind_current.set(f(8)?);
-    RACE_STATE.settings.kept.set(0);
-    let level = { ARCADE_GAME.level.get() };
+pub fn arcade_finale(
+    menus: &Menus,
+    play: &Play,
+    sound: &crate::sound::owner::Sound,
+    race: &crate::race::owner::Race,
+) -> Result<(), Refused> {
+    let first = play.players.players[0].get();
+    race.shared
+        .state
+        .results
+        .finish_player
+        .set(first.race_number);
+    race.shared.state.results.finish_kind.set(first.car_number);
+    race.shared
+        .state
+        .settings
+        .car_kind_current
+        .set(first.car_number);
+    race.shared.state.settings.kept.set(0);
+    let level = play.arcade.level.get();
     // Converted: `rc2k_core::menu::arcade::levels_left`.
-    RACE_STATE
+    race.shared
+        .state
         .results
         .stage_index
         .set(rc2k_core::menu::arcade::levels_left(level));
-    RACE_STATE.results.finished.set(0);
-    unsafe {
-        crate::race::sound_tables::set_up_race_sound_objects(
-            &crate::race::sound_tables::ObjectVars::game(),
-        )?;
-        crate::sound::set_up_race_sounds::set_up_race_sounds()?;
-        crate::menu::show_loading_picture::show_loading_picture()?;
-        crate::race::stage_free::render3d_tidy()?;
-        crate::race::stage_free::objects_tidy()?;
-        // `nullsub_6`.
-        crate::race::race_end::release_textures();
-        crate::drive::finish_race_0::finish_race_0()?;
-        crate::sound::stop_music::stop_music();
-        crate::platform::set_menu_mode_now();
-        crate::menu::show_loading_picture::show_loading_picture()?;
-        crate::scene::set_up_engine::set_up_engine()?;
-        crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
-        crate::scene::set_up_engine::set_up_engine()?;
-        crate::sound::stop_music::stop_music();
-        crate::sound::play_tune_3::play_tune_3();
-        // The pending key taken (eax 0).
-        crate::input::take_key::take_key();
-    }
+    race.shared.state.results.finished.set(0);
+    crate::race::sound_tables::set_up_race_sound_objects(
+        race,
+        &crate::race::sound_tables::ObjectVars::game(),
+        sound,
+    )?;
+    crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?;
+    crate::menu::show_loading_picture::show_loading_picture(menus)?;
+    crate::race::stage_free::render3d_tidy(race)?;
+    crate::race::stage_free::objects_tidy(race)?;
+    // `nullsub_6`.
+    crate::race::race_end::release_textures();
+    crate::drive::finish_race_0::finish_race_0(race)?;
+    crate::sound::stop_music::stop_music();
+    crate::platform::set_menu_mode_now();
+    crate::menu::show_loading_picture::show_loading_picture(menus)?;
+    crate::scene::set_up_engine::set_up_engine()?;
+    crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
+    crate::scene::set_up_engine::set_up_engine()?;
+    crate::sound::stop_music::stop_music();
+    crate::sound::play_tune_3::play_tune_3();
+    // The pending key taken (eax 0).
+    crate::input::take_key::take_key();
     Ok(())
 }

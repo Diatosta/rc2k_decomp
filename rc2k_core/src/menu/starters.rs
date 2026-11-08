@@ -99,22 +99,13 @@ pub enum Var {
     Done,
 }
 
-/// The car lists the car choice is given.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CarList {
-    /// `off_759CAE`.
-    Championship,
-    /// `off_759D16`.
-    A8,
-}
+pub use super::car_lists::CarList;
 
 /// The callees.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Call {
-    /// `service::repair_car`: `current` with the current player's record (edi).
-    RepairCar {
-        current: bool,
-    },
+    /// `service::repair_car`: the current player's car.
+    RepairCar,
     BeginEvent,
     ResetDrivers,
     ResetDriverCondition,
@@ -154,7 +145,7 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
     };
     match (s.first(), s.a8()) {
         (true, false) => {
-            e.call(Call::RepairCar { current: false })?;
+            e.call(Call::RepairCar)?;
             e.set(Var::CarLeft, 0);
             e.set(Var::EventType, s.event_type());
             e.set(Var::RepairSet, ALL_REPAIRS);
@@ -184,7 +175,7 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
     }
     for k in 0..s.players() {
         e.set(Var::Current, k);
-        e.call(Call::RepairCar { current: true })?;
+        e.call(Call::RepairCar)?;
         e.call(Call::SelectCar(list))?;
         if e.get(Var::CarLeft) == 1 {
             return Ok(());

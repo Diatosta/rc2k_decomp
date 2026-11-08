@@ -4,7 +4,6 @@
 //! was computed from a refused read.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use std::cell::Cell;
 
 /// A refusal in a function whose callers have no way to carry it (a `bool`, an `Option`):
@@ -27,9 +26,9 @@ impl CheckedReads {
         }
     }
 
-    /// The dword at `at`, or 0 with the refusal kept.
-    pub fn dword(&self, at: u32, what: &str) -> u32 {
-        GamePtr::new(at).read::<u32>(what).unwrap_or_else(|e| {
+    /// A read's value, or 0 with the refusal kept.
+    pub fn value(&self, read: Result<u32, BadInput>) -> u32 {
+        read.unwrap_or_else(|e| {
             self.keep(e);
             0
         })

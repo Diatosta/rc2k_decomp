@@ -8,9 +8,6 @@
 //! `hud::add_polygon` on four. (The holds by the compares' C0, an unordered compare
 //! counting as below.)
 //!
-//! In:  nothing
-//! Out: edx the turn, then as `add_polygon` leaves them
-//!
 //! Callers: the needles' set-ups (`hud::needle_*`).
 //!
 //! Converted 2026-10-21: the holds, the choice of the angle's way, the turn's register and
@@ -20,37 +17,34 @@
 //! the value there between, read by nothing).
 
 use crate::errors::Refused;
-use crate::hud::store::HUD;
+use crate::hud::owner::Hud;
 use crate::math::x87;
+use crate::math::x87_float::{ld, to_int};
+use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::extended;
-use crate::scene::x87_mem::{fistp, fld};
+use crate::scene::owner::scene;
 
 /// `fld v [; fsub less]; fdiv over; fadd plus; fmul k0; fmul k1; fistp`.
 fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 {
-    let (a, mut out) = ([v, less.unwrap_or(0), over, plus, k[0], k[1]], 0u32);
+    let a = [v, less.unwrap_or(0), over, plus, k[0], k[1]];
     if less.is_some() {
-        x87_1(
-            (crate::pointers::game_address(a.as_ptr())) as usize,
-            crate::pointers::game_address(&raw mut out) as usize,
-        );
+        turn_less(a)
     } else {
-        x87_2(
-            (crate::pointers::game_address(a.as_ptr())) as usize,
-            crate::pointers::game_address(&raw mut out) as usize,
-        );
+        turn_plain(a)
     }
-    out
 }
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::disc::{needle_turn, needle_edx, needle_corners}`
-pub fn draw_needle() -> Result<(), Refused> {
+pub fn draw_needle(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     use rc2k_core::hud::disc::{needle_corners, needle_edx, needle_turn};
     use rc2k_core::math::extended::to_f64;
-    let kind = HUD.needle_kind.get() != 0;
-    let value = f32::from_bits(x87::from_int(HUD.needle_value.get() as i32));
-    let t = needle_turn(value, kind, HUD.least.get(), |n| HUD.needle_k[n].get());
-    let tk = [HUD.uv_scale_y.bits(), HUD.turn_k.bits()];
+    let kind = hud.block.needle_kind.get() != 0;
+    let value = f32::from_bits(x87::from_int(hud.block.needle_value.get() as i32));
+    let t = needle_turn(value, kind, hud.block.least.get(), |n| {
+        hud.block.needle_k[n].get()
+    });
+    let tk = [hud.block.uv_scale_y.bits(), hud.block.turn_k.bits()];
     // The rounding follows the x87's control word: the x87's.
     let turn = turn_of(
         t.value.to_bits(),
@@ -59,56 +53,56 @@ pub fn draw_needle() -> Result<(), Refused> {
         t.plus.to_bits(),
         tk,
     );
-    HUD.scratch.set(turn);
+    hud.block.scratch.set(turn);
     let angle = needle_edx(turn);
-    for (n, (x, y)) in needle_corners(HUD.needle_corners.each_ref().map(|c| c.bits()))
-        .into_iter()
-        .enumerate()
+    for (n, (x, y)) in needle_corners(
+        hud.block
+            .needle_corners
+            .each_ref()
+            .map(super::super::session::Float::bits),
+    )
+    .into_iter()
+    .enumerate()
     {
-        let vertex = crate::d3d::vertices_store::piece_addr() + 0x20 * n as u32;
+        let vertex = &crate::d3d::vertices_store::VERTICES.vertices[n];
         let point = [extended(y), extended(x)].map(to_f64);
-        crate::hud::turned_vertex::turned_vertex(vertex, angle, point)?;
+        crate::hud::turned_vertex::turned_vertex(hud, vertex, angle, point);
     }
-    crate::scene::draw_store::DRAW
-        .polygon_vertex_count
-        .set_bits(4u32);
-    crate::hud::add_polygon::add_polygon()
+    scene().drawing.scene.polygon_vertex_count.set_bits(4u32);
+    crate::hud::add_polygon::add_polygon(frame, hud)
 }
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [o + 0] = (((([a + 0] - [a + 4]) / [a + 8]) + [a + 0xC]) * [a + 0x10]) * [a + 0x14]`
-fn x87_1(a: usize, o: usize) {
-    let t0 = fld(a, 0);
-    let t1 = fld(a, 4);
-    let t2 = t0 - t1;
-    let t3 = fld(a, 8);
-    let t4 = t2 / t3;
-    let t5 = fld(a, 0xC);
-    let t6 = t4 + t5;
-    let t7 = fld(a, 0x10);
-    let t8 = t6 * t7;
-    let t9 = fld(a, 0x14);
-    let t10 = t8 * t9;
-    fistp(o, 0, t10);
+/// An x87 run of the original, in plain Rust over `X`, on the six floats:
+/// `int = ((((a0 - a1) / a2) + a3) * a4) * a5`
+fn turn_less(a: [u32; 6]) -> u32 {
+    let [v, less, over, plus, k0, k1] = a.map(ld);
+    to_int(((((v - less) / over) + plus) * k0) * k1) as u32
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [o + 0] = ((([a + 0] / [a + 8]) + [a + 0xC]) * [a + 0x10]) * [a + 0x14]`
+/// As `turn_less` without the second: `int = (((a0 / a2) + a3) * a4) * a5`
+fn turn_plain(a: [u32; 6]) -> u32 {
+    let [v, _, over, plus, k0, k1] = a.map(ld);
+    to_int((((v / over) + plus) * k0) * k1) as u32
+}
+
+/// The runs over the test's operand buffers (`[a + 4 k]`, the result at `[o]`).
+#[cfg(all(test, target_arch = "x86"))]
+fn x87_1(a: usize, o: usize) {
+    use crate::scene::x87_mem::Base;
+    o.set_dword(0, turn_less(std::array::from_fn(|k| a.dword(4 * k))));
+}
+
+#[cfg(all(test, target_arch = "x86"))]
 fn x87_2(a: usize, o: usize) {
-    let t0 = fld(a, 0);
-    let t1 = fld(a, 8);
-    let t2 = t0 / t1;
-    let t3 = fld(a, 0xC);
-    let t4 = t2 + t3;
-    let t5 = fld(a, 0x10);
-    let t6 = t4 * t5;
-    let t7 = fld(a, 0x14);
-    let t8 = t6 * t7;
-    fistp(o, 0, t8);
+    use crate::scene::x87_mem::Base;
+    o.set_dword(
+        0,
+        turn_plain(std::array::from_fn(
+            |k| if k == 1 { 0 } else { a.dword(4 * k) },
+        )),
+    );
 }
 
 #[cfg(all(test, target_arch = "x86"))]

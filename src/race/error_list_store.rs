@@ -3,9 +3,12 @@
 //! dwords after them. `#[repr(C)]` with the image's layout, over the race block's bytes
 //! (`ERROR_LIST`). Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ErrorList {
     /// +0x0 (0x637660): `unk_637660`: the error list read from the file named at 0x60AE02 (`race::load_error_list`).
     pub list: Bytes<0x2000>,
@@ -13,19 +16,16 @@ pub struct ErrorList {
     pub unknown_2000: [Dword; 7],
 }
 
-/// The piece: the race block's bytes at IDA 0x637660 seen as `ErrorList`.
-pub struct InBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InBlock {
-    type Target = ErrorList;
-    fn deref(&self) -> &ErrorList {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const ErrorList) }
+/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl ErrorList {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static ERROR_LIST: InBlock = InBlock;
 
 /// IDA 0x637660, the first byte of the piece.
 pub const START: usize = 0x637660;
@@ -35,8 +35,9 @@ pub const END: usize = 0x63967C;
 const _: () = assert!(END - START == core::mem::size_of::<ErrorList>());
 
 /// Where IDA 0x637660 is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.error_list))
 }
 
 #[cfg(test)]
@@ -45,7 +46,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&race().frame.error_list, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             crate::moved::place(END - 1),

@@ -2,31 +2,28 @@
 //! `dword_6140F0`, and `dword_6140EC` 0 (in the gearbox: by the look of it the moment a
 //! gear change began; a reading).
 //!
-//! In:  nothing
-//! Out: eax the word; the rest kept; no flags read
+//! Returns: the word
 //!
-//! Caller: `sub_43C8AC`.
+//! Caller: `physics::pick_start_gear`.
 
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
+use crate::race::owner_shared::Shared;
+use crate::session::Cell32;
 
-unsafe fn core(v: &[u32]) {
-    unsafe {
-        let w = (crate::pointers::host(v[0]) as *const u32).read_unaligned();
-        (crate::pointers::host(v[1]) as *mut u32).write_unaligned(w);
-        (crate::pointers::host(v[2]) as *mut u32).write_unaligned(0);
-    }
+fn core(v: &[&dyn Cell32]) {
+    let w = v[0].bits();
+    v[1].set_bits(w);
+    v[2].set_bits(0);
 }
 
-fn game() -> Vec<u32> {
+fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     vec![
-        CAR.step_clock.addr(),
-        PHYSICS.time_marks[1].addr(),
-        PHYSICS.time_marks[0].addr(),
+        &shared.car.step_clock as &dyn Cell32,
+        &shared.physics_tables.time_marks[1],
+        &shared.physics_tables.time_marks[0],
     ]
 }
 
 /// The Rust version.
-pub unsafe fn copy_car_word_8() {
-    unsafe { core(&game()) }
+pub fn copy_car_word_8(shared: &Shared) {
+    core(&game(shared));
 }

@@ -1,8 +1,5 @@
 //! `menu::disable_item` (0x46B4F6): an item of the current menu greyed out.
 //!
-//! In:  ebx = the item's number (from 1)
-//! Out: every register preserved
-//!
 //! The item (`menu::item_at`): +0x48 = 0xFFFFFC1C (the moves up and down pass over it) and its font
 //! +0x18 = the grey one at 0x51EA04. Its twin `menu::enable_item` (0x46B50F) puts 0xFFFFFC1B and
 //! the font at 0x51E8E4 back. Eight callers each (the player details screens: the controller's item
@@ -10,6 +7,8 @@
 
 use crate::errors::Refused;
 use crate::menu::item_at::item_at;
+use crate::menu::owner::Screens;
+use crate::menu::owner::menus;
 
 use rc2k_core::menu::items::{Font, choosable};
 
@@ -20,22 +19,19 @@ use crate::gfx::typefaces::fonts::{ITEM_GREY as GREY_FONT, ITEM_PLAIN as PLAIN_F
 // Converted: `rc2k_core::menu::items::choosable`.
 
 /// The item's +0x48 and font set: what both twins do.
-pub fn set_item(number: u32, on: bool) -> Result<(), Refused> {
-    let item = item_at(number)?;
+pub fn set_item(screens: &Screens, number: u32, on: bool) -> Result<(), Refused> {
+    let item = item_at(screens, number)?;
     let (state, font) = choosable(on);
     let font = match font {
         Font::Plain => PLAIN_FONT,
         Font::Grey => GREY_FONT,
     };
-    {
-        crate::pointers::GamePtr::new(item + 0x48)
-            .write::<u32>(state, "disable item: a game value")?;
-        crate::pointers::GamePtr::new(item + 0x18)
-            .write::<u32>(font.addr(), "disable item: a game value")?;
-    }
+    item.skip_mark.set(state);
+    item.font.set(font);
     Ok(())
 }
 
 pub fn disable_item(number: u32) -> Result<(), Refused> {
-    set_item(number, false)
+    let screens = &menus().screens;
+    set_item(screens, number, false)
 }

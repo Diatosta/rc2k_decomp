@@ -10,13 +10,6 @@
 pub const HEAD_DWORDS: usize = 7;
 pub const CARS: usize = 4;
 pub const CAR_LEN: usize = 0x28C;
-/// Car 0's two dwords the game keeps outside it.
-pub const CAR0_A: u32 = 0x14;
-pub const CAR0_B: u32 = 0x274;
-/// A car's pointer to its name (copied in at +0x124 when saved, back out when loaded).
-pub const NAME_POINTER: u32 = 0x18;
-pub const NAME_AT: u32 = 0x124;
-pub const NAME_LEN: usize = 0x20;
 pub const RECORDS: usize = 0xB4;
 pub const RECORD_LEN: usize = 0x94;
 pub const RECORDS_LEN: usize = RECORDS * RECORD_LEN;

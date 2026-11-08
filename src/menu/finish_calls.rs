@@ -1,53 +1,88 @@
 use crate::errors::{BadInput, Refused};
-use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_flow::Fault;
-use crate::race::state_store::RACE_STATE;
+use crate::menu::owner::Menus;
+use crate::race::owner::race;
 use crate::session::Dword;
 use rc2k_core::menu::finish::{self, Racer, Step, Var};
 
 /// The game for `rc2k_core::menu::finish`: the variables at their addresses, the finders'
 /// Rust versions, the steps their Rust versions. `racer` is the record (the original's
-/// edi) the racer fields are read and written through.
-#[derive(Default)]
-pub struct Game {
-    pub racer: u32,
+/// edi) the racer fields are read through: a player's.
+pub struct Game<'a> {
+    menus: &'a Menus,
+    pub racer: RacerAt,
     /// A refused read or write of the core's variables (checked at each step and at the end).
     fault: Fault,
 }
 
-impl Game {
+impl<'a> Game<'a> {
     /// Runs a flow on a new game; a refused read or write of its variables ends it.
-    pub fn run(flow: impl FnOnce(&mut Game) -> Result<(), Refused>) -> Result<(), Refused> {
-        let mut game = Game::default();
+    pub fn run(
+        menus: &'a Menus,
+        flow: impl FnOnce(&mut Game<'a>) -> Result<(), Refused>,
+    ) -> Result<(), Refused> {
+        let mut game = Game {
+            menus,
+            racer: RacerAt::None,
+            fault: Fault::default(),
+        };
         let done = flow(&mut game);
         game.fault.check()?;
         done
     }
 }
 
+/// The player the racer's fields are read from (the original's edi). After the leader's
+/// search edi is a standings entry, but the flows read the racer only after choosing a
+/// player (`Racer::Leader`) or finding one done (`find_done`): no entry is read as one.
+#[derive(Clone, Copy)]
+pub enum RacerAt {
+    None,
+    Player(crate::menu::standings::PlayerCell),
+}
+
+const NO_RACER: crate::errors::BadInput = BadInput("a racer's field with no player chosen");
+const RACER_SET: crate::errors::BadInput = BadInput("a racer's field written");
+
+impl Game<'_> {
+    fn racer_get(&self, v: Var) -> u32 {
+        let RacerAt::Player(p) = self.racer else {
+            self.fault.ok::<u32>(Err(NO_RACER));
+            return 0;
+        };
+        let p = p.get();
+        match v {
+            Var::RacerNumber => p.race_number,
+            _ => p.car_number,
+        }
+    }
+}
+
 /// The variables that are in static cells.
-fn cell(v: Var) -> Option<&'static Dword> {
+fn cell(menus: &Menus, v: Var) -> Option<&'_ Dword> {
+    let race = race();
     Some(match v {
-        Var::On => &RACE_STATE.results.finished,
-        Var::Kept => &RACE_STATE.settings.kept,
-        Var::Leader => &RACE_STATE.settings.a8_game,
-        Var::SetUpCar => &RACE_STATE.results.finish_player,
-        Var::SetUpDriver => &RACE_STATE.results.finish_kind,
-        Var::SetUpDriver2 => &RACE_STATE.settings.car_kind_current,
-        Var::SetUpSection => &RACE_STATE.results.stage_index,
-        Var::EventMode => &CHAMP_VIEW.event_mode,
-        Var::Section => &crate::menu::event_store::EVENT_STATE.section,
+        Var::On => &race.shared.state.results.finished,
+        Var::Kept => &race.shared.state.settings.kept,
+        Var::Leader => &race.shared.state.settings.a8_game,
+        Var::SetUpCar => &race.shared.state.results.finish_player,
+        Var::SetUpDriver => &race.shared.state.results.finish_kind,
+        Var::SetUpDriver2 => &race.shared.state.settings.car_kind_current,
+        Var::SetUpSection => &race.shared.state.results.stage_index,
+        Var::EventMode => &menus.play.champ_view.event_mode,
+        Var::Section => &menus.screens.event.section,
         _ => return None,
     })
 }
 
-impl finish::Finish for Game {
+impl finish::Finish for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: Var) -> u32 {
+        let menus = self.menus;
         match v {
-            Var::Racer(offset) => self.fault.get(self.racer + offset),
-            _ => match cell(v) {
+            Var::RacerNumber | Var::RacerCar => self.racer_get(v),
+            _ => match cell(menus, v) {
                 Some(cell) => cell.get(),
                 None => unreachable!("the racer's fields are not at an address"),
             },
@@ -55,9 +90,10 @@ impl finish::Finish for Game {
     }
 
     fn set(&mut self, v: Var, value: u32) {
+        let menus = self.menus;
         match v {
-            Var::Racer(offset) => self.fault.put(self.racer + offset, value),
-            _ => match cell(v) {
+            Var::RacerNumber | Var::RacerCar => self.fault.ok(Err(RACER_SET)),
+            _ => match cell(menus, v) {
                 Some(cell) => cell.set(value),
                 None => unreachable!("the racer's fields are not at an address"),
             },
@@ -65,19 +101,19 @@ impl finish::Finish for Game {
     }
 
     fn find_leader(&mut self, group_b: bool) -> Result<Option<u32>, Refused> {
-        let table = { CHAMP_VIEW.champ_history.get() };
         let found = if group_b {
-            crate::menu::first_player_b::first_player_b(table, 0)?
+            crate::menu::first_player_b::first_player_b(0)?
         } else {
-            crate::menu::first_player_unplaced::first_player_unplaced(table)?
+            crate::menu::first_player_unplaced::first_player_unplaced()?
         };
-        self.racer = found.entry;
+        self.racer = RacerAt::None;
         Ok((found.figure == 1).then_some(found.computers))
     }
 
     fn find_done(&mut self) -> Result<Option<u32>, Refused> {
-        let found = crate::menu::find_section_player::find_section_player()?;
-        self.racer = found.record;
+        let screens = &self.menus.screens;
+        let found = crate::menu::find_section_player::find_section_player(screens)?;
+        self.racer = RacerAt::Player(found.record);
         Ok((found.index != u32::MAX).then_some(found.index))
     }
 
@@ -85,44 +121,47 @@ impl finish::Finish for Game {
         use crate::menu::standings::player;
         match r {
             Racer::Leader(n) => {
-                if player(n) == 0 {
+                if n >= 4 {
                     return Err(BadInput("the leader's ecx past the players").into());
                 }
-                self.racer = player(n);
+                self.racer = RacerAt::Player(player(n));
             }
-            Racer::Done(n) => self.racer = player(n),
+            Racer::Done(n) => self.racer = RacerAt::Player(player(n)),
         }
         Ok(())
     }
 
     /// The original leaves the value in eax for the key taken at the end, which replaces
     /// its low byte and is not read: nothing to keep.
-    fn keep(&mut self, _value: u32) {}
-
     fn step(&mut self, s: Step) -> Result<(), Refused> {
+        let sound = crate::sound::owner::sound();
         self.fault.check()?;
         match s {
             Step::RaceSoundObjects => crate::race::sound_tables::set_up_race_sound_objects(
+                crate::race::owner::race(),
                 &crate::race::sound_tables::ObjectVars::game(),
+                sound,
             )?,
-            Step::RaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds()?,
+            Step::RaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?,
             Step::LoadingPicture => {
-                crate::menu::show_loading_picture::show_loading_picture()?;
+                crate::menu::show_loading_picture::show_loading_picture(self.menus)?;
             }
-            Step::Render3dTidy => unsafe { crate::race::stage_free::render3d_tidy()? },
-            Step::ObjectsTidy => unsafe { crate::race::stage_free::objects_tidy()? },
+            Step::Render3dTidy => {
+                crate::race::stage_free::render3d_tidy(crate::race::owner::race())?;
+            }
+            Step::ObjectsTidy => crate::race::stage_free::objects_tidy(crate::race::owner::race())?,
             // `nullsub_6`.
             Step::Nothing => {}
             Step::ReleaseTextures => crate::race::race_end::release_textures(),
-            Step::FinishRace => unsafe { crate::drive::finish_race_0::finish_race_0()? },
+            Step::FinishRace => {
+                crate::drive::finish_race_0::finish_race_0(crate::race::owner::race())?;
+            }
             Step::StopMusic => crate::sound::stop_music::stop_music(),
             Step::MenuScreenMode => {
                 crate::platform::set_menu_mode_now();
             }
-            Step::SetUpEngine => unsafe { crate::scene::set_up_engine::set_up_engine()? },
-            Step::FrontEndScene => unsafe {
-                crate::scene::set_up_front_end_scene::set_up_front_end_scene()?
-            },
+            Step::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
+            Step::FrontEndScene => crate::scene::set_up_front_end_scene::set_up_front_end_scene()?,
             Step::Tune3 => crate::sound::play_tune_3::play_tune_3(),
             Step::TakeKey => {
                 crate::input::take_key::take_key();

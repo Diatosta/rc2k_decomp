@@ -1,11 +1,13 @@
 //! The checkpoint tables, typed (phase 7): IDA 0x9E3738 .. 0xA12AE4, in the image's zeroed
-//! tail (`race::store::buffers`): for each checkpoint of the stage (up to 5146) its face, its
+//! tail (`race::buffers_store`): for each checkpoint of the stage (up to 5146) its face, its
 //! face count, its angle, its distance, its map place and its nearest replay cameras, then
 //! the two replay camera lists. Names are readings unless IDA's.
 
+use crate::race::owner::race;
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Checkpoints {
     /// +0x0 (0x9E3738): `g_checkpointFaces`: each checkpoint's face number (`race::best_line`, `race::level_init`, `physics::passed_split_point`, `drive::drive_computer_car`).
     pub checkpoint_faces: [Dword; 5146],
@@ -33,14 +35,13 @@ pub struct Checkpoints {
     pub replay_cameras_2: [Dword; 1024],
 }
 
+/// The piece, a field of `crate::race::owner::race().shared.buffers`.
 pub struct InBuffers;
 
 impl core::ops::Deref for InBuffers {
     type Target = Checkpoints;
     fn deref(&self) -> &Checkpoints {
-        // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
-        // test checks); every field is an atomic cell.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const Checkpoints) }
+        &race().shared.buffers.checkpoints
     }
 }
 
@@ -50,24 +51,32 @@ pub static CHECKPOINTS: InBuffers = InBuffers;
 /// tables by a checkpoint number it holds to the count, not to the table's room, and a reading
 /// past a field's end goes on into the next (as in the image).
 pub fn nth(first: &Dword, n: usize) -> &Dword {
-    // SAFETY: the piece is one block of cells; the address is the original's own.
-    unsafe { &*first.as_ptr().wrapping_add(n).cast::<Dword>() }
+    crate::pointers::cell_or_end(
+        first.addr().wrapping_add((n as u32).wrapping_mul(4)),
+        "a cell past a checkpoint table",
+    )
+}
+
+/// Cell `n` of `table`, or past its end as `nth` (by address, into what follows).
+#[inline]
+pub fn cell_in(table: &[Dword], n: usize) -> &Dword {
+    table.get(n).unwrap_or_else(|| nth(&table[0], n))
 }
 
 /// Checkpoint `n`'s face cell (`g_checkpointFaces[n]`).
 pub fn face(n: usize) -> &'static Dword {
-    nth(&CHECKPOINTS.checkpoint_faces[0], n)
+    cell_in(&CHECKPOINTS.checkpoint_faces, n)
 }
 
 /// Checkpoint `n`'s angle cell, as the readers index it: `dword_9ED808[n]`, 8 bytes into
 /// `g_checkpointAngles`.
 pub fn angle(n: usize) -> &'static Dword {
-    nth(&CHECKPOINTS.angles[2], n)
+    cell_in(&CHECKPOINTS.angles[2..], n)
 }
 
 /// Checkpoint `n`'s distance cell (`g_checkpointDistances[n]`).
 pub fn distance(n: usize) -> &'static Dword {
-    nth(&CHECKPOINTS.distances[0], n)
+    cell_in(&CHECKPOINTS.distances, n)
 }
 
 /// IDA 0x9E3738, the first byte of the piece.
@@ -78,6 +87,7 @@ pub const END: usize = 0xA12AE4;
 const _: () = assert!(END - START == core::mem::size_of::<Checkpoints>());
 
 /// Where IDA 0x9E3738 is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::moved::place(START) as u32
 }
@@ -86,6 +96,17 @@ pub fn piece_addr() -> u32 {
 mod tests {
     use super::*;
     use core::mem::offset_of;
+
+    #[test]
+    fn a_cell_past_a_table_is_the_next_by_address() {
+        let table = &CHECKPOINTS.distances;
+        let past = cell_in(table, table.len());
+        assert!(std::ptr::eq(past, nth(&table[0], table.len())));
+        assert!(std::ptr::eq(
+            cell_in(table, 3),
+            std::ptr::from_ref(&table[3])
+        ));
+    }
 
     #[test]
     fn piece_sits_on_the_buffers() {

@@ -1,14 +1,12 @@
 //! `menu::apply_cheats` (0x480AC1): acts on the cheats that are switched on.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The cheats are the bits of `g_cheats` (0x75870C); each that is set writes "Cheat n
 //! (...)" to the game's log (`CHEATS` below, in this order):
 //! - bits 0, 1, 13 .. 16 stay set and do nothing more here (unlock arcade, unlock cars, no
 //!   damage, damage timer, 16, arcade timer): other code looks at them;
 //! - bits 2 .. 9, 11 and 12 are cleared and each adds one secret car to the list of cars
-//!   at `off_75A042`, unless it is there already (the ten functions `sub_470FE9` ..
-//!   `sub_471332`, plain functions here). Bit 6, "Max Power", also adds its car to the
+//!   at `off_75A042`, unless it is there already (the ten functions 0x470FE9 ..
+//!   0x471332, plain functions here). Bit 6, "Max Power", also adds its car to the
 //!   list at `off_759D16`, but only when it was not in the first. The other nine have
 //!   the same code for the second list, which is never reached;
 //! - bit 10 is cleared and does nothing;
@@ -16,20 +14,18 @@
 //!   tracks).
 //!
 //! Callers: `system::load_game_data` with the bits 0x1FBC (when the setting `allsecretcars` is 1)
-//! and `sub_480CBF`, which finds a cheat's name typed as the fourth player's name. Refuses a list
-//! without its end, or without room for a car more.
+//! and `menu::check_cheat_name`, which finds a cheat's name typed as the fourth player's name.
+//! Refuses a list without its end, or without room for a car more.
 
 use crate::errors::BadInput;
-use crate::menu::cars_store::CAR_TABLE;
-use crate::menu::cheats_store::CHEAT_VARS;
+use crate::menu::owner::Menus;
 use crate::menu::remove_secret_cars::{FIRST, List, SECOND, read_list, write_list};
-use crate::race::state_store::RACE_STATE;
 use rc2k_core::menu::car_lists;
 
 // ---- game data ----
 
 /// By bit (what each does: `rc2k_core::menu::car_lists::CHEATS`): the log line's text and
-/// the cheat's car (an index into `CAR_TABLE.descriptions`), if any.
+/// the cheat's car (an index into `CarTable.descriptions`), if any.
 const CHEATS: [(&std::ffi::CStr, Option<usize>); 19] = [
     (c"Cheat 1 (Unlock Arcade)", None),
     (c"Cheat 2 (Unlock Cars)", None),
@@ -54,11 +50,16 @@ const CHEATS: [(&std::ffi::CStr, Option<usize>); 19] = [
 
 // ---- Rust version ----
 
-/// `log` gets the address of each line's text.
-pub fn apply_cheats(log: &mut dyn FnMut(*const u8)) -> Result<(), BadInput> {
+/// `log` gets each line's text.
+pub fn apply_cheats(
+    menus: &Menus,
+    log: &mut dyn FnMut(&[u8]),
+    race: &crate::race::owner::Race,
+) -> Result<(), BadInput> {
+    let play = &menus.play;
     // Converted: `rc2k_core::menu::car_lists::apply_cheats`.
     {
-        let cheats: u32 = CHEAT_VARS.cheats.get();
+        let cheats: u32 = play.cheats.cheats.get();
         let list = |l: List| -> Result<car_lists::List, BadInput> {
             Ok(car_lists::List {
                 cars: read_list(l)?,
@@ -68,12 +69,10 @@ pub fn apply_cheats(log: &mut dyn FnMut(*const u8)) -> Result<(), BadInput> {
         };
         let (mut first, mut second) = (list(FIRST)?, list(SECOND)?);
         let a = car_lists::apply_cheats(cheats, &mut first, &mut second, |bit| {
-            CHEATS[bit]
-                .1
-                .map_or(0, |car| CAR_TABLE.descriptions[car].addr())
+            CHEATS[bit].1.map_or(0, crate::menu::cars_store::car_handle)
         })?;
         // Nothing has been written or logged up to here.
-        CHEAT_VARS.cheats.set(a.cheats);
+        play.cheats.cheats.set(a.cheats);
         if first.changed {
             write_list(FIRST, &first.cars);
         }
@@ -81,10 +80,10 @@ pub fn apply_cheats(log: &mut dyn FnMut(*const u8)) -> Result<(), BadInput> {
             write_list(SECOND, &second.cars);
         }
         if a.stores {
-            RACE_STATE.settings.a8_game.set(1u32);
+            race.shared.state.settings.a8_game.set(1u32);
         }
         for bit in a.logged {
-            log(CHEATS[bit].0.as_ptr().cast());
+            log(CHEATS[bit].0.to_bytes());
         }
         Ok(())
     }

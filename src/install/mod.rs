@@ -7,6 +7,7 @@ pub mod choose_language;
 pub mod end_text_line;
 pub mod normalise_path;
 pub mod outside;
+pub mod owner;
 pub mod portable;
 pub mod read_languages;
 pub mod read_record;
@@ -15,7 +16,7 @@ pub mod read_sku;
 pub mod run_after_exit;
 pub mod runs_from_source;
 
-// The installer (`sub_412DE0` and its tree). Helpers:
+// The installer (`install::run_installer` and its tree). Helpers:
 pub mod installer;
 // The list-menu pages:
 pub mod ask_registration;
@@ -36,6 +37,7 @@ pub mod edit_key;
 pub mod finish_page;
 pub mod folder_key;
 pub mod folder_page;
+pub mod folders;
 pub mod ignore_room;
 pub mod install_clio;
 pub mod install_files;
@@ -60,10 +62,13 @@ pub mod mark_main_page;
 pub mod mark_page;
 pub mod measure_pieces;
 pub mod mode_page;
+pub mod name_tables;
 pub mod next_edit;
 pub mod open_installed;
 pub mod open_installer;
 pub mod page_key;
+pub mod page_links;
+pub mod page_records;
 pub mod place_pieces;
 pub mod place_row;
 pub mod register_lobby;

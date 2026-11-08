@@ -1,8 +1,6 @@
 //! `gfx::picture_as_surface` (0x405FE7): makes the picture buffer the surface that the
 //! blitters draw on, so that sprites can be drawn into a picture.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! From `g_pictureFlags`: the low byte names the size (the table `dword_4F4E50`: 1 = 640 x
 //! 480, 2 = 800 x 600, 4 = 960 x 720, 8 = 1024 x 768, 0x10 = 1152 x 864, 0x20 = 1280 x 1024,
 //! 0x40 = 1600 x 1200, 0x80 = 1920 x 1280; anything else is fatal error 0x80A19091), bits 8
@@ -18,10 +16,6 @@
 //! `routes.rs`.
 
 use crate::errors::{FatalError, Refused};
-use crate::gfx::modes::MODES;
-use crate::gfx::picture_store::PICTURE;
-use crate::gfx::pixel_format::surface_format_addr;
-use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::gfx::set_clip::set_clip;
 use crate::system::find_entry::entries;
 
@@ -42,9 +36,12 @@ pub fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS - 2], 
     // Converted: `rc2k_core::gfx::screen_modes::picture_surface`.
     rc2k_core::gfx::screen_modes::picture_surface(
         flags,
-        entries(MODES.sizes_addr() as u32, SIZE_COUNT),
-        entries(MODES.pixel_kinds_addr() as u32, PIXEL_KIND_COUNT),
-        surface_format_addr(),
+        entries(crate::gfx::modes::Modes::sizes_ptr(), SIZE_COUNT),
+        entries(
+            crate::gfx::modes::Modes::pixel_kinds_ptr(),
+            PIXEL_KIND_COUNT,
+        ),
+        crate::gfx::pixel_format::SCREEN_FORMAT,
         pixels,
     )
     .map_err(|e| {
@@ -56,9 +53,11 @@ pub fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS - 2], 
     })
 }
 
-pub fn picture_as_surface() -> Result<(), Refused> {
-    let block = surface_of(PICTURE.flags.get(), PICTURE.buffer.get())?;
-    let s = &DRAW_SURFACE;
+pub fn picture_as_surface(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
+    // The surface is the picture buffer by its number (`gfx::surface::Target::Picture`),
+    // `g_surface.pixels` 0 (no address).
+    let block = surface_of(gfx.pictures.picture.flags.get(), 0)?;
+    let s = &gfx.drawing.draw_surface;
     s.width.set(block[0]);
     s.height.set(block[1]);
     s.bits_per_pixel.set(block[2]);
@@ -68,6 +67,10 @@ pub fn picture_as_surface() -> Result<(), Refused> {
     s.format.set(block[6]);
     s.pitch.set(block[7]);
     s.pixels.set(block[8]);
+    crate::gfx::surface::ON_PICTURE.store(
+        gfx.pictures.picture.buffer.get(),
+        std::sync::atomic::Ordering::Relaxed,
+    );
     s.row_gap.set(block[9]);
     set_clip([s.x.get(), s.y.get(), s.width.get(), s.height.get()]);
     Ok(())

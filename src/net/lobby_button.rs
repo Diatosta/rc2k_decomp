@@ -4,25 +4,20 @@
 //! moves left past it (its width `dword_5AB4A0` + 0x44, and 8 more). (The code after its
 //! `ret`, 0x41806E .. 0x418082, is reached by nothing.)
 //!
-//! In:  the string, the item, x, y
-//! Out: ebx = the flags, ecx = the width + 0x44, edx = y, edi moved; the rest kept; no
-//!      `pusha`
+//! Takes the string, the item, x and y.
 //! Caller: `net::lobby_frame` (four times).
 
 use crate::errors::Refused;
 use crate::net::draw_button::draw_button;
-use crate::net::store::NET;
+use crate::net::owner::Net;
 use rc2k_core::net::screens;
 
 /// The Rust version: the button `string` for item `item` at (`x`, `y`); returns the next
 /// button's x (the original's edi; its ebx, ecx and edx are read by no caller:
 /// `net::lobby_frame`).
-pub fn lobby_button(string: u32, item: u32, x: u32, y: u32) -> Result<u32, Refused> {
+pub fn lobby_button(net: &Net, string: u32, item: u32, x: u32, y: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens` (`lobby_button_flags`, `next_button_x`).
-    let flags = screens::lobby_button_flags(NET.own.state(), item, NET.after_race.get());
-    draw_button(string, flags, x, y, item)?;
-    Ok(screens::next_button_x(
-        x,
-        crate::net::store::BUTTON.width.get(),
-    ))
+    let flags = screens::lobby_button_flags(net.vars.own.state(), item, net.vars.after_race.get());
+    draw_button(net, string, flags, x, y, item)?;
+    Ok(screens::next_button_x(x, net.button.width.get()))
 }

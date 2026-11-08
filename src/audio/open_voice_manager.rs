@@ -1,8 +1,7 @@
 //! `audio::open_voice_manager` (0x40C6B5): DirectSound's voice manager ("DSV") opened
 //! through a 3D buffer.
 //!
-//! In:  ebx = where the 3D buffer is (a voice's `buffer_3d`)
-//! Out: carry = not opened; every register preserved
+//! Takes: where the 3D buffer is (a voice's `buffer_3d`)
 //!
 //! See `audio/property_sets.rs`: nothing with `g_ignoreDsvSetting` or the set already
 //! there (`g_voiceManager`); its mode set to
@@ -10,9 +9,10 @@
 //! 0x800000.
 
 use crate::audio::property_sets::*;
+use crate::audio::store::AudioState;
 use crate::errors::Refused;
 
 /// True for the carry clear.
-pub unsafe fn open_voice_manager(holder: u32) -> Result<bool, Refused> {
-    unsafe { open_property_set(&Opening::voice_manager(), holder, &mut game_log) }
+pub fn open_voice_manager(state: &AudioState, holder: u32) -> Result<bool, Refused> {
+    open_property_set(state, &Opening::voice_manager(state), holder)
 }

@@ -11,124 +11,150 @@
 //! `dword_635918[]` into `dword_62DB00` / `62DB04`, each added to +0x240 byte by byte
 //! with saturation (four bytes with `g_hasMmx`, else the low three).
 //!
-//! In:  nothing
-//! Out: eax, ebx (the texture's record), ecx, edx, esi (the face) as left; no flags read
-//!
-//! Caller: `sub_43B635` (0x43B990), every physics step. Refuses a light index past 0xFF
-//! (the tables are 256) and no faces; what was written is put back.
+//! Caller: `physics::car_physics_step` (0x43B990), every physics step. Refuses a light index past
+//! 0xFF (the tables are 256) and no faces; what was written is put back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::car_store::CAR;
-use crate::physics::ground_store::GROUND_WORK;
-use crate::race::course_store::COURSE;
-use crate::race::vars_store::RACE_VARS;
-use crate::scene::light_work_store::LIGHT_WORK;
-use crate::session::MACHINE;
+use crate::race::owner::Race;
 use rc2k_core::physics::lighting;
-
-unsafe fn byte(a: u32) -> u32 {
-    unsafe { (crate::pointers::host(a) as *const u8).read() as u32 }
-}
 
 /// The two-way blend of the four corners now in `dword_5CCC90` ..: into `5CCCA4`,
 /// `5CCCA0`, returned.
-fn corners() -> u32 {
-    let c = [0usize, 1, 2, 3].map(|k| COURSE.face_light_bytes[k].get());
-    let ([a, b], v, _) = lighting::corners(c, GROUND_WORK.share_s.get(), GROUND_WORK.share_t.get());
-    COURSE.face_light_a.set(a);
-    COURSE.face_light_b.set(b);
+fn corners(race: &Race) -> u32 {
+    let c = [0usize, 1, 2, 3].map(|k| race.course.course.face_light_bytes[k].get());
+    let ([a, b], v, _) = lighting::corners(
+        c,
+        race.physics.ground.share_s.get(),
+        race.physics.ground.share_t.get(),
+    );
+    race.course.course.face_light_a.set(a);
+    race.course.course.face_light_b.set(b);
     v
 }
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::lighting`.
-pub fn car_lighting() -> Result<(), Refused> {
-    GROUND_WORK.ground_x.set(CAR.position[0].get());
-    GROUND_WORK.ground_z.set(CAR.position[2].get());
-    COURSE.light_kept.set(CAR.light_level.get());
-    LIGHT_WORK.car_light_colour.set(0);
-    LIGHT_WORK.lamp_a_colour.set(0);
-    COURSE.ground_face_last.set(CAR.probe_point_face[4].get());
-    unsafe { crate::physics::find_ground::find_ground() }?;
-    let face = COURSE.ground_slot.get();
+pub fn car_lighting(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    let race_owner = race;
+    race_owner
+        .physics
+        .ground
+        .ground_x
+        .set(race.shared.car.position[0].get());
+    race_owner
+        .physics
+        .ground
+        .ground_z
+        .set(race.shared.car.position[2].get());
+    race_owner
+        .course
+        .course
+        .light_kept
+        .set(race.shared.car.light_level.get());
+    scene.lights.work.car_light_colour.set(0);
+    scene.lights.work.lamp_a_colour.set(0);
+    race_owner
+        .course
+        .course
+        .ground_face_last
+        .set(race.shared.car.probe_point_face[4].get());
+    { crate::physics::find_ground::find_ground(race, scene) }?;
+    let face = race_owner.course.course.ground_slot.get();
     if face == u32::MAX {
         return Ok(());
     }
-    if COURSE.course_faces.get() == 0 {
+    if race_owner.course.course.course_faces.get() == 0 {
         return Err(BadInput("no course faces").into());
     }
-    if COURSE.ground_half.get() == 1 {
-        let (s, t) = lighting::half_shares(1, GROUND_WORK.share_s.get(), GROUND_WORK.share_t.get());
-        GROUND_WORK.share_s.set(s);
-        GROUND_WORK.share_t.set(t);
+    if race_owner.course.course.ground_half.get() == 1 {
+        let (s, t) = lighting::half_shares(
+            1,
+            race_owner.physics.ground.share_s.get(),
+            race_owner.physics.ground.share_t.get(),
+        );
+        race_owner.physics.ground.share_s.set(s);
+        race_owner.physics.ground.share_t.set(t);
     }
-    LIGHT_WORK.ground_texture_s.set(GROUND_WORK.share_s.get());
-    LIGHT_WORK.ground_texture_t.set(GROUND_WORK.share_t.get());
-    let f = (face << 6).wrapping_add(COURSE.course_faces.get());
-    unsafe {
+    scene
+        .lights
+        .work
+        .ground_texture_s
+        .set(race_owner.physics.ground.share_s.get());
+    scene
+        .lights
+        .work
+        .ground_texture_t
+        .set(race_owner.physics.ground.share_t.get());
+    let face_byte = |offset| -> Result<u32, BadInput> {
+        Ok(u32::from(crate::race::course_places::face_field::<u8>(
+            face,
+            offset,
+            "a course face's byte",
+        )?))
+    };
+    for k in 0..4u32 {
+        race_owner.course.course.face_light_bytes[k as usize].set(face_byte(0x14 + k)?);
+    }
+    if crate::scene::polygon::texture_info_byte(face_byte(0x21)?, 0x2C)? == 1 {
         for k in 0..4u32 {
-            COURSE.face_light_bytes[k as usize].set(byte(f + 0x14 + k));
+            let at = &race_owner.course.course.face_light_bytes[k as usize];
+            let (v, _) = lighting::shaded(at.get(), face_byte(0x22 + k)? as u8);
+            at.set(v);
         }
-        let material =
-            (crate::scene::polygon::texture_infos_addr()).wrapping_add(byte(f + 0x21) << 6);
-        if byte(material + 0x2C) == 1 {
-            for k in 0..4u32 {
-                let at = &COURSE.face_light_bytes[k as usize];
-                let (v, _) = lighting::shaded(at.get(), byte(f + 0x22 + k) as u8);
-                at.set(v);
-            }
+    }
+    let light = corners(race);
+    race.shared.car.light_level.set(light);
+    if race.shared.car.light_hold_steps.get() != 0 {
+        let held = lighting::hold_change(
+            light,
+            race_owner.course.course.light_kept.get(),
+            race.shared.vars.scene_switch.get() != 0,
+        );
+        race.shared.car.light_level.set(held.light);
+    }
+    let light = race.shared.car.light_level.get();
+    if light >= lighting::TABLE {
+        return Err(BadInput("a light index past 0xFF").into());
+    }
+    let colour = scene.light_tables.light_table[light as usize].get();
+    scene.lights.work.car_light_colour.set(colour);
+    race.shared.car.light_colour.set(colour);
+    if face_byte(2)? & 4 == 0 {
+        return Ok(());
+    }
+    for (first, table, to) in [
+        (
+            0x28u32,
+            &scene.light_tables.lamp_table_a,
+            &scene.lights.work.lamp_a_colour,
+        ),
+        (
+            0x2C,
+            &scene.light_tables.lamp_table_b,
+            &scene.lights.work.lamp_b_colour,
+        ),
+    ] {
+        for k in 0..4u32 {
+            race_owner.course.course.face_light_bytes[k as usize].set(face_byte(first + k)?);
         }
-        let light = corners();
-        CAR.light_level.set(light);
-        if CAR.light_hold_steps.get() != 0 {
-            let held = lighting::hold_change(
-                light,
-                COURSE.light_kept.get(),
-                RACE_VARS.scene_switch.get() != 0,
-            );
-            CAR.light_level.set(held.light);
+        let i = corners(race);
+        if i >= lighting::TABLE {
+            return Err(BadInput("a colour index past 0xFF").into());
         }
-        let light = CAR.light_level.get();
-        if light >= lighting::TABLE {
-            return Err(BadInput("a light index past 0xFF").into());
-        }
-        let colour =
-            crate::scene::light_tables_store::LIGHT_TABLES.light_table[light as usize].get();
-        LIGHT_WORK.car_light_colour.set(colour);
-        CAR.light_colour.set(colour);
-        if byte(f + 2) & 4 == 0 {
-            return Ok(());
-        }
-        for (first, table, to) in [
-            (
-                0x28u32,
-                &crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_a,
-                &LIGHT_WORK.lamp_a_colour,
-            ),
-            (
-                0x2C,
-                &crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_b,
-                &LIGHT_WORK.lamp_b_colour,
-            ),
-        ] {
-            for k in 0..4u32 {
-                COURSE.face_light_bytes[k as usize].set(byte(f + first + k));
-            }
-            let i = corners();
-            if i >= lighting::TABLE {
-                return Err(BadInput("a colour index past 0xFF").into());
-            }
-            let colour = table[i as usize].get();
-            to.set(colour);
-            CAR.light_colour.set(lighting::add_colour(
-                colour,
-                CAR.light_colour.get(),
-                MACHINE.has_mmx.get() != 0,
-            ));
-        }
+        let colour = table[i as usize].get();
+        to.set(colour);
+        race.shared.car.light_colour.set(lighting::add_colour(
+            colour,
+            race.shared.car.light_colour.get(),
+            system.session.machine.has_mmx.get() != 0,
+        ));
     }
     Ok(())
 }

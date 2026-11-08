@@ -1,8 +1,6 @@
 //! `screens::set_stage_choice_titles` (0x469393): the stage choice's two titles and its
 //! heading text, for the stage chosen.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //!
 //! The menu at 0x748620 (the stage choice's): item 0's string (+0x14) = the group's title
 //! (`dword_758718[group]`); then the table's title (its +0x38) is stored at `[0x748620] + 4 + 0x5C
@@ -11,39 +9,46 @@
 //! the heading "<string 0x482> n/6: name" built in `byte_A8BD54`
 //! (`stage_panel::build_second_heading`). In two entry lists. Refuses a choice without its tables
 //! (the original reads through null), and what the heading refuses. The menus and draw lists run
-//! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
+//! its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::item_at::{ITEM_LEN, MENU_HEAD_LEN};
-use crate::menu::menus_store::MENUS;
+use crate::menu::owner::Menus;
+use crate::menu::owner::Tables;
 use crate::pointers::GamePtr;
 use crate::screens::draw_stage_records::selection;
-use crate::screens::draw_time_trial_stage_info::GROUP_TITLES_RVA;
-use crate::screens::stage_panel::{build_second_heading, dword, table_dword_at};
+use crate::screens::draw_time_trial_stage_info::GROUP_TITLES;
+use crate::screens::stage_panel::{build_second_heading, table_dword_at};
+use rc2k_core::menu::items::{ITEM_LEN, MENU_HEAD_LEN};
 
 /// Where item 0's string goes, and where the original puts "item 1"'s.
-fn places() -> Result<(u32, u32), BadInput> {
-    let menu = MENUS.select_stage.addr();
+fn places(menus: &Menus, tables: &Tables) -> Result<(GamePtr, Option<GamePtr>), BadInput> {
+    // Item 1's place is worked out from the menu's labels' address, as if it were the
+    // menu's (the original's slip, `notes/bugs.md`): it lands in the memory after them.
     Ok((
-        menu + MENU_HEAD_LEN + 0x14,
-        dword(menu)?.wrapping_add(MENU_HEAD_LEN + ITEM_LEN + 0x14),
+        GamePtr::to(&tables.menus.select_stage.items[0].string),
+        crate::menu::menus_store::labels_slot(
+            menus,
+            &tables.menus.select_stage.head,
+            MENU_HEAD_LEN + ITEM_LEN + 0x14,
+        )?,
     ))
 }
 
-pub fn set_stage_choice_titles() -> Result<(), Refused> {
-    let s = selection()?.ok_or(BadInput(
+pub fn set_stage_choice_titles(menus: &Menus) -> Result<(), Refused> {
+    let tables = &menus.tables;
+    let s = selection(menus)?.ok_or(BadInput(
         "no stage tables for the choice: the original reads through null",
     ))?;
-    let (item_0, item_1) = places()?;
-    if item_1 < 0x1_0000 {
+    let (item_0, item_1) = places(menus, tables)?;
+    let Some(item_1) = item_1 else {
         return Err(BadInput("the menu's first dword is no pointer").into());
-    }
+    };
     build_second_heading(s.record)?;
-    GamePtr::new(item_0).write(
-        table_dword_at(GROUP_TITLES_RVA.addr() as usize, s.group)?,
+    item_0.write(
+        table_dword_at(&menus.play.results, GROUP_TITLES, s.group)?,
         "a menu item's string",
     )?;
-    GamePtr::new(item_1).write(dword(s.table.wrapping_add(0x38))?, "a menu item's string")?;
+    item_1.write(s.table.title()?, "a menu item's string")?;
 
     Ok(())
 }

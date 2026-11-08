@@ -1,7 +1,7 @@
 //! `scene::car_icon_number` (0x41F519): a known kind of car's icon number (its place on the HUD's car icon sheets).
 //!
-//! In:  ebx = which of the known kinds (held to 0 .. 0x21, signed)
-//! Out: ebx = the number; everything else preserved
+//! Takes: which of the known kinds (held to 0 .. 0x21, signed)
+//! Returns: the number
 //!
 //! `dword_5C5A38` at the place: 0x22 dwords, one for each known kind of car. Two call sites in
 //! `scene::load_hud_car_icons`.

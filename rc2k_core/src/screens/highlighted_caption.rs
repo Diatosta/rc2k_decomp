@@ -50,7 +50,7 @@ pub fn highlighted_caption<S: Screen<Font = Font, Work = Work>>(
 ) -> Result<bool, S::Error> {
     s.keep(Work::MarkerX, 0x197);
     s.keep(Work::MarkerY, 0x1FE);
-    let (measured, palette) = s.measure_string(Font::Measure, CAPTION_STRING, measured_at)?;
+    let measured = s.measure_string(Font::Measure, CAPTION_STRING, measured_at)?;
     let width = measured.wrapping_add(0x0C);
     let y = 0x1FEu32;
     let mut x = 0x197u32.wrapping_sub((width >> 1) + 0x22);
@@ -59,7 +59,7 @@ pub fn highlighted_caption<S: Screen<Font = Font, Work = Work>>(
     s.keep(Work::Y, y);
     s.keep(Work::Left, 0x0F);
     s.keep(Work::Right, 0x10);
-    s.sprite(0x0F, x as i32, y as i32, palette)?;
+    s.sprite(0x0F, x as i32, y as i32)?;
     s.keep(Work::LeftX, x);
     s.keep(Work::LeftY, y);
     x = x.wrapping_add(0x22);
@@ -72,15 +72,15 @@ pub fn highlighted_caption<S: Screen<Font = Font, Work = Work>>(
         return Err(Invalid("a caption too narrow for one middle piece").into());
     }
     for _ in 0..wholes {
-        s.sprite(0x0B, x as i32, y as i32, palette)?;
+        s.sprite(0x0B, x as i32, y as i32)?;
         x = x.wrapping_add(32);
     }
     if rest != 0 {
         x = x.wrapping_sub(32).wrapping_add(rest);
-        s.sprite(0x0B, x as i32, y as i32, palette)?;
+        s.sprite(0x0B, x as i32, y as i32)?;
         x = x.wrapping_add(32);
     }
-    s.sprite(0x10, x as i32, y as i32, palette)?;
+    s.sprite(0x10, x as i32, y as i32)?;
     s.keep(Work::X, x);
     s.keep(Work::RightX, x);
     s.keep(Work::RightY, y);

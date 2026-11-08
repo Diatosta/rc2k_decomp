@@ -17,60 +17,60 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::input::take_key::take_key;
-use crate::menu::keys_store::KEY_TABLES;
-use crate::menu::option_work_store::OPTION_WORK;
-use crate::menu::player::Player;
-use crate::pointers::GamePtr;
-use rc2k_core::strings::bytes::Bytes;
+use crate::menu::owner::Keys;
+use crate::menu::owner::Menus;
+use crate::pointers::Store;
 
 pub use rc2k_core::menu::player::{KEYS, Redefined};
 pub const NO_PLACE: u32 = 999;
 /// The reserved list's length is not known; the game's has 18 keys.
 const RESERVED_ROOM: usize = 0x100;
 
-const KEYS_OFFSET: u32 = std::mem::offset_of!(Player, keys) as u32;
-
 /// The reserved keys, up to their NUL; `None` if there is none in `RESERVED_ROOM`.
-fn reserved() -> Result<Option<Vec<u8>>, BadInput> {
-    let list = GamePtr::new(KEY_TABLES.reserved_keys.addr()).bytes("the reserved keys")?;
-    Ok((0..RESERVED_ROOM)
-        .map_while(|n| list.byte(n))
-        .position(|b| b == 0)
-        .map(|end| (0..end).filter_map(|n| list.byte(n)).collect()))
+fn reserved(keys: &Keys) -> Result<Option<Vec<u8>>, BadInput> {
+    let store = &keys.tables.reserved_keys;
+    let mut list = vec![0; store.size().min(RESERVED_ROOM)];
+    store.load(0, &mut list)?;
+    Ok(list
+        .iter()
+        .position(|&b| b == 0)
+        .map(|end| list[..end].to_vec()))
 }
 
 /// One frame of redefining a key of `player` (0: refused).
-pub fn redefine_key(player: u32) -> Result<(), Refused> {
-    if OPTION_WORK.redefining_key.get() == 0 {
+pub fn redefine_key(
+    menus: &Menus,
+    player: Option<crate::menu::standings::PlayerCell>,
+) -> Result<(), Refused> {
+    if menus.screens.option_work.redefining_key.get() == 0 {
         return Ok(());
     }
     // Everything that could be refused, before the key is taken.
-    if player == 0 {
+    let Some(player) = player else {
         return Err(BadInput("no player").into());
-    }
-    let place: u32 = OPTION_WORK.redefined_key_place.get();
+    };
+    let place: u32 = menus.screens.option_work.redefined_key_place.get();
     if place as usize >= KEYS {
         return Err(BadInput("a key's place of 12 or more").into());
     }
-    let Some(reserved) = reserved()? else {
+    let Some(reserved) = reserved(&menus.keys)? else {
         return Err(BadInput("a reserved list without its end").into());
     };
     // Converted: `rc2k_core::menu::player::redefine`.
-    let work: [u8; KEYS] = std::array::from_fn(|i| KEY_TABLES.redefined_keys.get(i));
+    let work: [u8; KEYS] = std::array::from_fn(|i| menus.keys.tables.redefined_keys.get(i));
     let Redefined::Done { keys, placed } =
         rc2k_core::menu::player::redefine(work, place as usize, take_key(), &reserved)
     else {
         return Ok(());
     };
     for (i, &key) in keys.iter().enumerate() {
-        KEY_TABLES.redefined_keys.set(i, key);
+        menus.keys.tables.redefined_keys.set(i, key);
     }
     if placed {
-        OPTION_WORK.redefined_key_place.set(NO_PLACE);
+        menus.screens.option_work.redefined_key_place.set(NO_PLACE);
     }
-    crate::pointers::GamePtr::new(player + KEYS_OFFSET)
-        .write::<[u8; KEYS]>(keys, "redefine keys: a game value")?;
-    OPTION_WORK.redefining_key.set(0u32);
+    player.update(|p| p.keys = keys);
+    menus.screens.option_work.redefining_key.set(0u32);
 
     Ok(())
 }

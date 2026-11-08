@@ -1,10 +1,6 @@
 //! `scene::build_texture_catalogue` (0x42274B): gets memory for every texture that is
 //! needed, making the textures smaller group by group until it is had.
 //!
-//! In:  nothing
-//! Out: carry clear. The original leaves eax, ecx and edi changed; its caller sets
-//!      them anew. The Rust version keeps them.
-//!
 //! The listing is one list of 432 steps of a few kinds, which
 //! `scene/texture_steps.rs` holds as a table (made by `tools/texture_catalogue`):
 //! log a text or a number; count a reduction in `dword_5DC97C` (0x100 counters);
@@ -23,10 +19,9 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::logfile::log_int::log_int;
-use crate::logfile::log_write::log_write;
 use crate::scene::count_texture_needs::count_texture_needs_in_game;
+use crate::scene::owner::scene;
 use crate::scene::raise_texture_needs::raise_texture_needs;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::scene::texture_steps::{DONE, FAILED, STEPS};
 use crate::scene::try_allocate_textures::try_allocate_textures_in_game;
 use std::ffi::CStr;
@@ -74,10 +69,11 @@ pub enum Call {
 // ---- Rust version ----
 
 /// True when a try succeeded.
-unsafe fn run(
+fn run(
     steps: &'static [Step],
     call: &mut dyn FnMut(Call) -> Result<bool, Refused>,
 ) -> Result<bool, Refused> {
+    let textures = &scene().textures;
     for step in steps {
         match *step {
             Step::Text(text, newline) => {
@@ -90,8 +86,10 @@ unsafe fn run(
                 call(Call::Raise { level, tag })?;
             }
             Step::Count(index) => {
-                let counter =
-                    crate::scene::texture_places_store::cell_at(&TEXTURE_PLACES.counters[0], index);
+                let counter = crate::scene::texture_places_store::cell_at(
+                    &textures.places.counters[0],
+                    index,
+                );
                 counter.set(counter.get().wrapping_add(1));
             }
             Step::Try => {
@@ -106,7 +104,7 @@ unsafe fn run(
                 call(Call::CountNeeds)?;
             }
             Step::Unless(flag, inner) => {
-                if TEXTURE_PLACES.step_flags[flag].get() == 0 && unsafe { run(inner, call) }? {
+                if textures.places.step_flags[flag].get() == 0 && run(inner, call)? {
                     return Ok(true);
                 }
             }
@@ -115,44 +113,48 @@ unsafe fn run(
     Ok(false)
 }
 
-pub unsafe fn build_texture_catalogue(
+pub fn build_texture_catalogue(
     call: &mut dyn FnMut(Call) -> Result<bool, Refused>,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    unsafe {
-        // The original does this after the first two log lines and the count, which
-        // touch neither.
-        for counter in &TEXTURE_PLACES.counters {
-            counter.set(0);
-        }
-        for (n, flag) in TEXTURE_PLACES.step_flags.iter().enumerate() {
-            flag.set((n == 0) as u32);
-        }
-        if run(&STEPS, call)? {
-            run(&DONE, call)?;
-            return Ok(());
-        }
-        run(&FAILED, call)?;
-        Err(NOT_ENOUGH.into())
+    let textures = &scene.textures;
+    // The original does this after the first two log lines and the count, which
+    // touch neither.
+    for counter in &textures.places.counters {
+        counter.set(0);
     }
+    for (n, flag) in textures.places.step_flags.iter().enumerate() {
+        flag.set((n == 0) as u32);
+    }
+    if run(&STEPS, call)? {
+        run(&DONE, call)?;
+        return Ok(());
+    }
+    run(&FAILED, call)?;
+    Err(NOT_ENOUGH.into())
 }
 
 /// With the game's log, and the Rust versions of what it calls.
-pub unsafe fn build_texture_catalogue_in_game() -> Result<(), Refused> {
-    unsafe {
-        build_texture_catalogue(&mut |call| {
+pub fn build_texture_catalogue_in_game(
+    shared: &crate::race::owner_shared::Shared,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    build_texture_catalogue(
+        &mut |call| {
             match call {
-                Call::Text(text, newline) => log_write(text.as_ptr().cast(), newline, 1),
+                Call::Text(text, newline) => crate::logfile::log_write::log_nul(&text, newline, 1),
                 Call::Number(number, newline) => log_int(number as i32, newline, 1),
                 Call::Raise { level, tag } => {
-                    raise_texture_needs(level, tag);
+                    raise_texture_needs(level, tag, scene);
                 }
-                Call::Try => return Ok(try_allocate_textures_in_game()?),
+                Call::Try => return Ok(try_allocate_textures_in_game(shared)?),
                 Call::Release => crate::platform_3d::release_textures(),
                 Call::CountNeeds => {
-                    count_texture_needs_in_game()?;
+                    count_texture_needs_in_game(scene)?;
                 }
             }
             Ok(false)
-        })
-    }
+        },
+        scene,
+    )
 }

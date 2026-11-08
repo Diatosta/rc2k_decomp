@@ -1,18 +1,14 @@
 //! `install::room_page` (0x4142C7): the not-enough-room page. At the start (ebx 0)
 //! `dword_51BA04` (ignore the room) is set to 0.
 //!
-//! In:  ebx the state
-//! Out: every register kept; the flags of `test ebx, ebx` last
+//! Takes the state.
 //! Caller `install::run_page`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
-use crate::install::vars::INSTALLER_RUN;
-
-/// `state` the list action's (ebx).
-pub fn room_page(state: u32) {
+/// `state` which call of the list action this is (0 the start, negative the end).
+pub fn room_page(install: &'static crate::install::owner::Install, state: u32) {
     if state == 0 {
-        INSTALLER_RUN.ignore_room.set(0);
+        install.run.ignore_room.set(0);
     }
 }

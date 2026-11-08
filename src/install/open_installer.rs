@@ -7,93 +7,88 @@
 //! converted and made the surface; three strings are drawn and the frame shown. A failed
 //! allocation or read is fatal error 0x80AF7121/7122/7022/7444/7445.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`)
 //! Caller `install::run_installer`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
-use crate::gfx::picture_store::PICTURE;
-use crate::gfx::screen_state::SCREEN_MODE;
+use crate::gfx::owner::gfx;
 use crate::install::installer::{components_to_pixels, copy_picture, draw_string, fatal, show};
-use crate::install::vars::INSTALLER_NAMES;
-use crate::install::vars::INSTALLER_PALETTE;
-use crate::install::vars::INSTALLER_RUN;
 
 const FONT_94: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEAD;
 const FONT_1000: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NOTICE;
 const FONT_1002: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::LABEL;
 
-/// `memory::allocate` (0x4028A7) on the installer's list (it never fails with the
-/// original's carry: the fatal error `_code` is the original's for that).
-fn alloc(bytes: u32, _code: u32) -> Result<u32, Refused> {
-    Ok(crate::pointers::game_address({
-        crate::memory::allocate::allocate(
-            crate::pointers::host(INSTALLER_RUN.buffers.addr()) as *mut _,
-            bytes,
-        )
-    }?))
-}
-
 /// `files::read_file` (0x402BB6): `count` bytes of `path` into `buffer`; failing is fatal
 /// error `code`.
-fn read(path: usize, buffer: u32, count: u32, code: u32) -> Result<(), Refused> {
-    let read = crate::files::read_file::read_file(
-        crate::pointers::host_at(path) as *const u8,
-        crate::pointers::host(buffer),
-        count,
-        0,
-    )?;
+/// `count` bytes of the file `path` into `buffer`; the fatal error `code` when it cannot be
+/// read.
+fn read<const N: usize>(
+    path: &[u8],
+    buffer: &crate::session::Bytes<N>,
+    count: usize,
+    code: u32,
+) -> Result<(), Refused> {
+    let mut bytes = vec![0u8; count];
+    let read = crate::files::read_file::read_file_into(path, &mut bytes, 0)?;
+    // What was read goes in (the rest of the buffer is left as it was).
+    let got = read.bytes_read.unwrap_or(0) as usize;
+    buffer.write_at(0, &bytes[..got.min(count)], "a file's bytes")?;
     if !read.ok {
         return Err(fatal(code));
     }
     Ok(())
 }
 
-pub fn open_installer() -> Result<(), Refused> {
-    let dirs = alloc(0x10100, 0x80AF_7121)?;
-    INSTALLER_RUN.dirs.set(dirs);
-    INSTALLER_RUN.dir_scan.set(dirs);
-    INSTALLER_RUN.dir_cursor.set(dirs);
-    let files = alloc(0x40100, 0x80AF_7122)?;
-    INSTALLER_RUN.files.set(files);
-    INSTALLER_RUN.file_cursor.set(files);
-    INSTALLER_RUN.dir_count.set(0);
-    INSTALLER_RUN.file_count.set(0);
-    let glyphs = alloc(0x3000, 0x80AF_7022)?;
-    INSTALLER_RUN.bar_glyphs.set(glyphs);
+pub fn open_installer(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
+    let gfx = gfx();
+    // The names' tables are Rust's (phase 12), counted on the list as the game's blocks
+    // were; the scan and cursors count names and bytes from 0.
+    use crate::install::name_tables::{FILES, FOLDERS, NameTable};
+    let list = &install.run.buffers;
+    FOLDERS.take(list, 0x10100, NameTable::default())?;
+    install.run.dir_scan.set(0);
+    install.run.dir_cursor.set(0);
+    FILES.take(list, 0x40100, NameTable::default())?;
+    install.run.file_cursor.set(0);
+    install.run.dir_count.set(0);
+    install.run.file_count.set(0);
+    // The progress glyphs: a glyph table of Rust's (`gfx::glyph_store`), counted on the
+    // list as the game's block was (its fatal error 0x80AF7022 for none cannot come).
+    let mut bytes = crate::memory::owned::counted(list, 0x3000)?;
+    let glyphs = crate::gfx::glyph_store::new_table(list)?;
+    install.run.bar_glyphs.set(glyphs);
+    let path = install.names.installer_data.text();
+    if !crate::files::read_file::read_file_into(&path[..], &mut bytes[..0x3000], 0)?.ok {
+        return Err(fatal(0x80AF_7444));
+    }
+    crate::gfx::glyph_store::write_bytes(glyphs, 0, &bytes, "the progress glyphs")?;
     read(
-        INSTALLER_NAMES.installer_data.addr() as usize,
-        glyphs,
-        0x3000,
-        0x80AF_7444,
-    )?;
-    read(
-        INSTALLER_NAMES.install_pal.addr() as usize,
-        INSTALLER_PALETTE.palette.addr(),
+        &install.names.install_pal.text(),
+        &install.palette.palette,
         0x300,
         0x80AF_7445,
     )?;
-    unsafe {
-        crate::gfx::palette_to_dwords::palette_to_dwords(
-            INSTALLER_PALETTE.palette.addr(),
-            crate::text::blend_font::BLENDED_PALETTE.addr(),
-        )?;
-        let blended = crate::text::blend_font::BLENDED_PALETTE.addr();
-        components_to_pixels(blended, blended, crate::session::SCREEN.format_addr());
-        // gfx::load_picture: its carry is not read.
-        crate::gfx::load_picture::load_picture(crate::pointers::host(
-            INSTALLER_NAMES.backdrop.addr(),
-        ))?;
-        crate::gfx::convert_picture::convert_picture_now()?;
-    }
-    PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);
-    crate::gfx::picture_as_surface::picture_as_surface()?;
-    draw_string(0x94, FONT_94.addr(), 0x316, 0x2F)?;
-    draw_string(0x1000, FONT_1000.addr(), 0x320, 0x24B)?;
-    draw_string(0x1002, FONT_1002.addr(), 0, 0x24B)?;
+    crate::gfx::palette_to_dwords::palette_to_dwords(
+        &install.palette.palette,
+        0,
+        &crate::text::blend_font::BLENDED_PALETTE,
+    )?;
+    components_to_pixels(
+        &crate::text::blend_font::BLENDED_PALETTE,
+        &crate::text::blend_font::BLENDED_PALETTE,
+    );
+    // gfx::load_picture: its carry is not read.
+    crate::gfx::load_picture::load_picture(&install.names.backdrop)?;
+    crate::gfx::convert_picture::convert_picture_now()?;
+    gfx.pictures
+        .picture
+        .flags
+        .set(gfx.display.mode.mode_flags.get() & 0xFFF);
+    crate::gfx::picture_as_surface::picture_as_surface(gfx)?;
+    draw_string(0x94, FONT_94, 0x316, 0x2F)?;
+    draw_string(0x1000, FONT_1000, 0x320, 0x24B)?;
+    draw_string(0x1002, FONT_1002, 0, 0x24B)?;
     copy_picture()?;
     show();
     Ok(())

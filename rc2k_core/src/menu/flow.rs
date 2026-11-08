@@ -1,5 +1,5 @@
-//! What the event flows run on (2026-10-21): the game's variables, its callees and the
-//! values the originals hand from one callee to the next, through `Game`. The flows
+//! What the event flows run on (2026-10-21): the game's variables, its callees, what the
+//! callees answer and the car list the flows hand on to the car choice, through `Game`. The flows
 //! themselves are `menu::rounds` (the single rally's and the time trial's events),
 //! `menu::championship` (the two championships' driver) and `menu::welcome` (their
 //! welcomes); the starters keep their own (`menu::starters`).
@@ -95,16 +95,7 @@ pub enum Var {
     Quitting,
 }
 
-/// The car lists.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CarList {
-    /// `off_759DCA`, `off_75A042`: the single rally's (by `dword_7554D8`), the second also
-    /// the time trial's.
-    First,
-    Second,
-    /// `off_75A412`: with cheat bit 1.
-    Cheat,
-}
+pub use super::car_lists::CarList;
 
 /// The welcomes' pictures (with the title bar).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -136,8 +127,6 @@ pub enum Call {
         section: u32,
         index: u32,
     },
-    /// `menu::next_record_kind`: the kind in `Reply::eax`.
-    NextRecordKind,
     WelcomeLoop,
     RallyStagesLoop,
     NextStageLoop,
@@ -175,22 +164,17 @@ pub enum Call {
     BestClassScores,
     BestOverallScores,
     Review481429,
-    /// `menu::show_in_game_options`; `from_entry`: with the registers the flow was entered
-    /// with (its last step, whose registers it leaves).
-    ShowInGameOptions {
-        from_entry: bool,
-    },
+    /// `menu::show_in_game_options`.
+    ShowInGameOptions,
     /// `menu::hide_in_game_options` for `players` (eax).
     HideInGameOptions {
         players: u32,
     },
     ResetPlayerTimes,
     ReloadFrontEnd,
-    /// `service::repair_car`; `car` the split screen's (ecx).
-    RepairCar {
-        car: Option<u32>,
-    },
-    /// `menu::cheat_car_list` on the list handed (`Hand::CarList`).
+    /// `service::repair_car`: the current player's car.
+    RepairCar,
+    /// `menu::cheat_car_list` on the list handed (`Game::hand_cars`).
     CheatCarList,
     SelectCarLoop,
     TakeShownCar,
@@ -209,10 +193,8 @@ pub enum Call {
     Results482E9B,
     Screen483163,
     KeepStageBest,
-    /// `menu::time_trial_qualifies`; `players` (ecx) for player 0.
-    TimeTrialQualifies {
-        players: Option<u32>,
-    },
+    /// `menu::time_trial_qualifies` for the current player.
+    TimeTrialQualifies,
     ClearTimeTrialMarks,
     EnterTimeTrialBest,
     TimeTrialBestTimesLoop,
@@ -223,50 +205,10 @@ pub enum Call {
     },
     WaitForCommands,
     StopStream,
-    /// `gfx::load_picture_with_overlay`: `Reply::carry` when it could not be read.
-    LoadPicture(Picture),
     ConvertPicture,
-    /// `input::take_key`: `Reply::zero` without a key, else the key in `Reply::eax`'s low
-    /// byte.
-    TakeKey,
     /// `screens::run_frame` with `menu::picture_frame`.
     RunFrame,
-    /// `system::wait_or_key` (`ms`): as `TakeKey`.
-    WaitOrKey {
-        ms: u32,
-    },
-    /// `sound::stream_playing`: `Reply::zero` while it plays.
-    StreamPlaying,
     ConfirmLeaving,
-}
-
-/// What a callee answered.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Reply {
-    pub eax: u32,
-    pub carry: bool,
-    pub zero: bool,
-}
-
-impl Reply {
-    /// A key's answer (`TakeKey`, `WaitOrKey`).
-    pub fn key(self) -> Option<u8> {
-        (!self.zero).then_some(self.eax as u8)
-    }
-}
-
-/// What the originals leave for the callees after them, outside a call's own arguments.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Hand {
-    /// A car list (esi).
-    CarList(CarList),
-    /// Cheat bit 1 (the carry, the original's `bt`).
-    CheatFlag(bool),
-    /// A value the original keeps (eax: the races' results, a record's field).
-    Kept(u32),
-    /// The chosen stage's record (edi, ebx the sub, eax its number x 0xA4); refused for a
-    /// stage the tables do not hold.
-    Stage,
 }
 
 /// The game a flow runs on.
@@ -274,8 +216,20 @@ pub trait Game {
     type Error: From<Invalid>;
     fn get(&mut self, v: Var) -> u32;
     fn set(&mut self, v: Var, value: u32);
-    fn call(&mut self, c: Call) -> Result<Reply, Self::Error>;
-    fn hand(&mut self, h: Hand) -> Result<(), Self::Error>;
+    /// A callee whose answer the flows do not read.
+    fn run(&mut self, c: Call) -> Result<(), Self::Error>;
+    /// `menu::next_record_kind`: the kind of the record after the found one.
+    fn next_record_kind(&mut self) -> Result<u32, Self::Error>;
+    /// `gfx::load_picture_with_overlay`: false when the picture could not be read.
+    fn load_picture(&mut self, p: Picture) -> Result<bool, Self::Error>;
+    /// `input::take_key`: the key waiting, if any.
+    fn take_key(&mut self) -> Result<Option<u8>, Self::Error>;
+    /// `system::wait_or_key`: a key within `ms` milliseconds, if any.
+    fn wait_or_key(&mut self, ms: u32) -> Result<Option<u8>, Self::Error>;
+    /// `sound::stream_playing`: whether the speech still plays.
+    fn stream_playing(&mut self) -> Result<bool, Self::Error>;
+    /// The car list the next car choice shows (the original's esi).
+    fn hand_cars(&mut self, list: CarList);
     /// The fatal error `code` with `message`.
     fn fatal(&mut self, code: u32, message: &'static str) -> Self::Error;
 
@@ -289,11 +243,6 @@ pub trait Game {
     fn yes(&mut self) -> bool {
         self.get(Var::Answer) == 1
     }
-
-    /// A call whose answer is not looked at.
-    fn run(&mut self, c: Call) -> Result<(), Self::Error> {
-        self.call(c).map(|_| ())
-    }
 }
 
 #[cfg(test)]
@@ -303,20 +252,28 @@ pub(crate) mod log {
     use super::*;
     use std::collections::HashMap;
 
+    /// A scripted answer of a callee that has one.
+    #[derive(Clone, Copy, Debug)]
+    pub enum Said {
+        Key(Option<u8>),
+        Playing(bool),
+        Unreadable,
+        Kind(u32),
+    }
+
     #[derive(Default)]
     pub struct Log {
         pub steps: Vec<String>,
         pub vars: HashMap<String, u32>,
-        /// Per callee (its `Debug` text up to a space or brace): the writes of its calls in
-        /// turn, and the replies.
+        /// Per callee (its `Debug` text up to a space, brace or parenthesis): the writes of
+        /// its calls in turn, and the answers.
         pub writes: HashMap<String, Vec<Vec<(Var, u32)>>>,
-        pub replies: HashMap<String, Vec<Reply>>,
+        pub replies: HashMap<String, Vec<Said>>,
         pub calls: HashMap<String, usize>,
     }
 
-    fn name(c: &Call) -> String {
-        let s = format!("{c:?}");
-        s.split([' ', '(', '{']).next().unwrap().to_string()
+    fn name(step: &str) -> String {
+        step.split([' ', '(', '{']).next().unwrap().to_string()
     }
 
     impl Log {
@@ -325,7 +282,7 @@ pub(crate) mod log {
             self
         }
 
-        pub fn reply(mut self, callee: &str, replies: Vec<Reply>) -> Self {
+        pub fn reply(mut self, callee: &str, replies: Vec<Said>) -> Self {
             self.replies.insert(callee.to_string(), replies);
             self
         }
@@ -342,23 +299,11 @@ pub(crate) mod log {
         pub fn has(&self, step: &str) -> bool {
             self.count(step) > 0
         }
-    }
 
-    impl Game for Log {
-        type Error = Invalid;
-
-        fn get(&mut self, v: Var) -> u32 {
-            *self.vars.get(&format!("{v:?}")).unwrap_or(&0)
-        }
-
-        fn set(&mut self, v: Var, value: u32) {
-            self.steps.push(format!("{v:?}={value}"));
-            self.vars.insert(format!("{v:?}"), value);
-        }
-
-        fn call(&mut self, c: Call) -> Result<Reply, Invalid> {
-            self.steps.push(format!("{c:?}"));
-            let n = name(&c);
+        /// `step` noted, its scripted writes made; its scripted answer, if any.
+        fn note(&mut self, step: String) -> Option<Said> {
+            let n = name(&step);
+            self.steps.push(step);
             let k = *self
                 .calls
                 .entry(n.clone())
@@ -374,20 +319,68 @@ pub(crate) mod log {
             for (v, x) in writes {
                 self.vars.insert(format!("{v:?}"), x);
             }
-            Ok(self
-                .replies
-                .get(&n)
-                .and_then(|r| r.get(k))
-                .copied()
-                .unwrap_or(Reply {
-                    zero: true,
-                    ..Reply::default()
-                }))
+            self.replies.get(&n).and_then(|r| r.get(k)).copied()
         }
 
-        fn hand(&mut self, h: Hand) -> Result<(), Invalid> {
-            self.steps.push(format!("{h:?}"));
+        fn key(&mut self, step: String) -> Option<u8> {
+            match self.note(step) {
+                Some(Said::Key(key)) => key,
+                None => None,
+                Some(other) => panic!("a key's answer scripted as {other:?}"),
+            }
+        }
+    }
+
+    impl Game for Log {
+        type Error = Invalid;
+
+        fn get(&mut self, v: Var) -> u32 {
+            *self.vars.get(&format!("{v:?}")).unwrap_or(&0)
+        }
+
+        fn set(&mut self, v: Var, value: u32) {
+            self.steps.push(format!("{v:?}={value}"));
+            self.vars.insert(format!("{v:?}"), value);
+        }
+
+        fn run(&mut self, c: Call) -> Result<(), Invalid> {
+            self.note(format!("{c:?}"));
             Ok(())
+        }
+
+        fn next_record_kind(&mut self) -> Result<u32, Invalid> {
+            Ok(match self.note("NextRecordKind".into()) {
+                Some(Said::Kind(kind)) => kind,
+                None => 0,
+                Some(other) => panic!("a record kind scripted as {other:?}"),
+            })
+        }
+
+        fn load_picture(&mut self, p: Picture) -> Result<bool, Invalid> {
+            Ok(!matches!(
+                self.note(format!("LoadPicture({p:?})")),
+                Some(Said::Unreadable)
+            ))
+        }
+
+        fn take_key(&mut self) -> Result<Option<u8>, Invalid> {
+            Ok(self.key("TakeKey".into()))
+        }
+
+        fn wait_or_key(&mut self, ms: u32) -> Result<Option<u8>, Invalid> {
+            Ok(self.key(format!("WaitOrKey {{ ms: {ms} }}")))
+        }
+
+        fn stream_playing(&mut self) -> Result<bool, Invalid> {
+            Ok(match self.note("StreamPlaying".into()) {
+                Some(Said::Playing(playing)) => playing,
+                None => true,
+                Some(other) => panic!("the speech's playing scripted as {other:?}"),
+            })
+        }
+
+        fn hand_cars(&mut self, list: CarList) {
+            self.steps.push(format!("CarList({list:?})"));
         }
 
         fn fatal(&mut self, _: u32, message: &'static str) -> Invalid {

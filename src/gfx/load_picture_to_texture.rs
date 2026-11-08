@@ -1,9 +1,5 @@
 //! `gfx::load_picture_to_texture` (0x405313): a picture file into a system texture.
 //!
-//! In:  eax = the picture's path, ecx = the second picture's (for the alpha; 0 for
-//!      none), ebx = the system texture
-//! Out: carry clear; every register preserved
-//!
 //! With the record's +0x5C at 1 the second picture is read and kept 0x40000 bytes on the
 //! picture's start, or +0x5C made 0 if there is none or it cannot be read
 //! (`gfx/texture_upload.rs`); then the picture is read (`gfx::read_texture_picture`, 256 x 256
@@ -20,36 +16,33 @@ use crate::gfx::upload_texture_picture::{GameSurfaces, upload_texture_picture};
 
 /// `upload` gets the texture and what the reading left: the pixels, the width and the
 /// height.
-pub unsafe fn load_picture_to_texture(
-    path: u32,
-    second: u32,
+pub fn load_picture_to_texture(
+    path: crate::pointers::GamePtr,
+    second: Option<crate::pointers::GamePtr>,
     texture: u32,
     upload: &mut dyn FnMut(u32, u32, u32, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let record = Record::of(texture)?;
-    unsafe {
-        keep_second_picture(&record, second)?;
-        let (pixels, width, height, _) = read_texture_picture(crate::pointers::host(path))?;
-        upload(texture, pixels, width, height)
-    }
+    keep_second_picture(&record, second)?;
+    let (pixels, width, height, _) = read_texture_picture(path)?;
+    upload(texture, pixels, width, height)
 }
 
 /// With the Rust upload into the game's textures.
-pub unsafe fn load_picture_to_texture_in_game(
-    path: u32,
-    second: u32,
+pub fn load_picture_to_texture_in_game(
+    path: crate::pointers::GamePtr,
+    second: Option<crate::pointers::GamePtr>,
     texture: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    unsafe {
-        load_picture_to_texture(
-            path,
-            second,
-            texture,
-            &mut |texture, pixels, width, height| {
-                upload_texture_picture(texture, pixels, width, height, &mut GameSurfaces)
-            },
-        )
-    }
+    load_picture_to_texture(
+        path,
+        second,
+        texture,
+        &mut |texture, pixels, width, height| {
+            upload_texture_picture(texture, pixels, width, height, &mut GameSurfaces, gfx)
+        },
+    )
 }
 
 // gfx::upload_texture_picture

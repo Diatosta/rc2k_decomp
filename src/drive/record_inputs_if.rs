@@ -1,26 +1,21 @@
 //! `drive::record_inputs_if` (0x46008D): `drive::record_inputs` while recording a replay
 //! (`dword_5C5CE0` 1) for the cars below `dword_63DB94`.
 //!
-//! In:  nothing
-//! Out: while recording eax `dword_63DB94`, then as `record_inputs` leaves the registers
-//!      when called; no flags read
-//!
-//! Caller: `drive::replay_step` (`sub_460B2F`).
+//! Caller: `drive::replay_step` (0x460B2F).
 
-use crate::race::numbers_store::NUMBERS;
-use crate::race::view_store::RACE_VIEW;
-use crate::race::work_store::RACE_WORK;
+use crate::race::owner::Race;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::records_inputs`.
-pub fn record_inputs_if() -> Result<(), crate::errors::BadInput> {
+pub fn record_inputs_if(race: &Race) -> Result<(), crate::errors::BadInput> {
+    let shared = &race.shared;
     let records = rc2k_core::drive::replay_frames::records_inputs(
-        NUMBERS.replay_mode.get(),
-        RACE_WORK.current_car.get(),
-        || RACE_VIEW.players.get(),
+        race.course.numbers.replay_mode.get(),
+        shared.work.current_car.get(),
+        || shared.view.players.get(),
     );
     if records == Some(true) {
-        crate::drive::record_inputs::record_inputs()?;
+        crate::drive::record_inputs::record_inputs(race)?;
     }
     Ok(())
 }

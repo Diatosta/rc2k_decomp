@@ -78,7 +78,7 @@ pub fn nearest_on_segment(block: &mut [f32; nearest::LEN], low: f32, high: f32) 
     } else {
         let mut t = (numerator / denominator) as f32;
         // Raised to low unless at or above it; lowered to high when at or above it.
-        if t.partial_cmp(&low).is_none_or(|o| o.is_lt()) {
+        if t.partial_cmp(&low).is_none_or(std::cmp::Ordering::is_lt) {
             t = low;
         }
         if t >= high {

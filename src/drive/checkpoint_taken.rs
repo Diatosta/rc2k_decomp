@@ -3,40 +3,29 @@
 //! sign of the differences) or `drive::car_near_checkpoint` finds one of the four cars
 //! near it (blocks 0x70F3EC, 0x7103CC, 0x7113AC, 0x71238C). Inside `pusha` / `popa`.
 //!
-//! In:  eax the checkpoint
-//! Out: CF; every register kept (ZF not read: `jb`)
+//! Takes: the checkpoint
 //!
 //! A `js` is in its first five bytes: `.private_copy` (its four calls relocated) with
 //! `.manual_patch`.
-//! Caller: `sub_43703E` (0x4371A1, 0x437284).
+//! Caller: `drive::start_cars_behind` (0x4371A1, 0x437284).
 
 use crate::drive::car_near_checkpoint::near_at;
-use crate::errors::BadInput;
-use crate::race::vars_store::RACE_VARS;
+use crate::physics::car_store::Car;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner_shared::Shared;
 use rc2k_core::physics::line_places;
 
-/// The Rust core: the four cars at `cars`, the count `count`, the checkpoint
+/// The Rust core: the four cars `cars`, the count `count`, the checkpoint
 /// `checkpoint` (eax): whether it is taken (the CF).
 // Converted: `rc2k_core::physics::line_places::checkpoint_taken`.
-pub fn taken_at(cars: [u32; 4], count: u32, checkpoint: u32) -> Result<bool, BadInput> {
-    let mut refused = None;
-    let taken = line_places::checkpoint_taken(checkpoint, count, || {
-        cars.iter().any(|&car| match near_at(car, checkpoint) {
-            Ok(near) => near,
-            Err(e) => {
-                refused.get_or_insert(e);
-                true
-            }
-        })
-    });
-    match refused {
-        Some(e) => Err(e),
-        None => Ok(taken),
-    }
+pub fn taken_at(cars: [&Car; 4], count: u32, checkpoint: u32) -> bool {
+    line_places::checkpoint_taken(checkpoint, count, || {
+        cars.iter().any(|car| near_at(car, checkpoint))
+    })
 }
 
 /// The Rust version: whether `checkpoint` is taken (the CF; every register kept).
-pub fn checkpoint_taken(checkpoint: u32) -> Result<bool, BadInput> {
-    let cars = [0, 1, 2, 3].map(crate::race::blocks_store::block_addr);
-    taken_at(cars, RACE_VARS.checkpoint_count.bits(), checkpoint)
+pub fn checkpoint_taken(shared: &Shared, checkpoint: u32) -> bool {
+    let cars = [0, 1, 2, 3].map(|n| &CAR_BLOCKS.cars[n]);
+    taken_at(cars, shared.vars.checkpoint_count.bits(), checkpoint)
 }

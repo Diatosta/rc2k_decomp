@@ -1,10 +1,8 @@
 //! `gfx::show_picture_file` (0x41172B): loads a picture and shows it at once, on every
 //! page of the screen: the loading picture.
 //!
-//! In:  eax = the picture's path
-//! Out: eax = what `dword_51B9C4` held (1, unless the file could not be read: then the
-//!      path); the rest as its callees leave them
-//! The window's messages are passed on (`sub_410535`); `dword_51B9C4` = 1; the picture's
+//! Takes: the picture's path
+//! The window's messages are passed on (0x410535); `dword_51B9C4` = 1; the picture's
 //! size is set to 800 x 600 with row length 0xFFFFFFFD and the file is read
 //! (`gfx::read_picture_file`); the size then becomes the screen's, the row length the
 //! screen's width * 4.
@@ -23,13 +21,9 @@
 
 use crate::errors::Refused;
 use crate::gfx::copy_picture_to_surface::{GameSurface, copy_picture_to_surface};
-use crate::gfx::decoder::DECODER;
-use crate::gfx::fonts_store::FONTS;
-use crate::gfx::picture_store::PICTURE;
-use crate::gfx::screen_state::SCREEN_MODE;
+#[cfg(test)]
+use crate::gfx::owner::gfx;
 use crate::platform::{lock_surface, pump_messages_now, show_frame_now, unlock_surface};
-use crate::session::Dword;
-use crate::session::SCREEN;
 use rc2k_core::gfx::picture_size as sizes;
 
 // ---- game data ----
@@ -37,74 +31,72 @@ use rc2k_core::gfx::picture_size as sizes;
 /// IDA's address of the showing switch.
 pub const SHOWING_START: usize = 0x51B9C4;
 
-/// `g_showingPicture` (`dword_51B9C4`): 1 while a picture is being shown.
-pub static SHOWING: Dword = Dword::new(0);
-
-/// Where the switch is (`moved::MOVED`'s home for IDA 0x51B9C4).
-pub fn showing_home() -> usize {
-    SHOWING.addr() as usize
-}
 const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::LOADING;
 
 // ---- Rust version ----
 
-/// The Rust version on the picture at `path`; returns the eax it leaves (see the header).
-pub unsafe fn show_picture_file(path: *mut u8) -> Result<u32, Refused> {
-    unsafe {
-        pump_messages_now();
-        SHOWING.set(1);
-        // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `pages`,
-        // `rescaled`).
-        crate::gfx::picture::set_size(sizes::READ);
-        // A refused picture is not read, as `read_picture_file`'s callers by address see it.
-        let read = match crate::gfx::read_picture_file::read_picture_file(path) {
-            Ok(read) => read,
-            Err(Refused::BadInput(_)) => false,
-            Err(e) => return Err(e),
-        };
-        let (width, height): (u32, u32) = (SCREEN.width.get(), SCREEN.height.get());
-        crate::gfx::picture::set_size(sizes::screen(width, height));
-        let pages = sizes::pages(SCREEN_MODE.mode_flags.get());
-        let mut eax = crate::pointers::game_address(path);
-        if !read {
-            crate::gfx::clear_picture::clear_picture()?;
-        } else {
-            eax = SHOWING.get();
-            SHOWING.set(0);
-            if eax != 0 && FONTS.palettes.get() != 0 {
-                PICTURE.flags.set(0x802u32);
-                crate::gfx::picture_as_surface::picture_as_surface()?;
-                crate::text::draw_string_by_id::draw_string_by_id_at(
-                    0xC0,
-                    LOADING_FONT.as_ptr(),
-                    0x316,
-                    0x2F,
-                    &mut crate::text::draw_text::GameCanvas,
-                )?;
-            }
-            if sizes::rescaled(DECODER.width.get(), width) {
-                for _ in 0..pages {
-                    // `cmp g_surfaceLocked, 1`'s carry: not locked.
-                    if lock_surface() < 1 {
-                        return Ok(eax);
-                    }
-                    crate::gfx::rescale_to_surface::rescale_to_surface(crate::pointers::host_at(
-                        crate::gfx::screen_state::DRAW_SURFACE.x.addr() as usize,
-                    )
-                        as *const u32)?;
-                    unlock_surface();
-                    show_frame_now();
+/// The Rust version on the picture at `path`.
+pub fn show_picture_file(
+    path: &dyn crate::session::TextPlace,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    pump_messages_now();
+    gfx.pictures.showing.set(1);
+    // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `pages`,
+    // `rescaled`).
+    crate::gfx::picture::set_size(sizes::READ);
+    // A refused picture is not read, as `read_picture_file`'s callers by address see it.
+    let read = match crate::gfx::read_picture_file::read_picture_file(path, gfx) {
+        Ok(read) => read,
+        Err(Refused::BadInput(_)) => false,
+        Err(e) => return Err(e),
+    };
+    let (width, height): (u32, u32) = (
+        system.session.screen.width.get(),
+        system.session.screen.height.get(),
+    );
+    crate::gfx::picture::set_size(sizes::screen(width, height));
+    let pages = sizes::pages(gfx.display.mode.mode_flags.get());
+    if !read {
+        crate::gfx::clear_picture::clear_picture()?;
+    } else {
+        let was_showing = gfx.pictures.showing.get();
+        gfx.pictures.showing.set(0);
+        if was_showing != 0 && gfx.fonts.font_block.palettes.get() != 0 {
+            gfx.pictures.picture.flags.set(0x802u32);
+            crate::gfx::picture_as_surface::picture_as_surface(gfx)?;
+            crate::text::draw_string_by_id::draw_string_by_id_at(
+                0xC0,
+                LOADING_FONT,
+                0x316,
+                0x2F,
+                &mut crate::text::draw_text::GameCanvas,
+            )?;
+        }
+        if sizes::rescaled(gfx.pictures.decoder.width.get(), width) {
+            for _ in 0..pages {
+                // `cmp g_surfaceLocked, 1`'s carry: not locked.
+                if lock_surface() < 1 {
+                    return Ok(());
                 }
-                return Ok(eax);
+                crate::gfx::rescale_to_surface::rescale_to_surface(
+                    &gfx.rescale,
+                    crate::pointers::GamePtr::to(&gfx.drawing.draw_surface.x).limited(0x30),
+                    gfx,
+                )?;
+                unlock_surface();
+                show_frame_now();
             }
+            return Ok(());
         }
-        crate::gfx::convert_picture::convert_picture_now()?;
-        for _ in 0..pages {
-            copy_picture_to_surface(&mut GameSurface)?;
-            show_frame_now();
-        }
-        Ok(eax)
     }
+    crate::gfx::convert_picture::convert_picture_now()?;
+    for _ in 0..pages {
+        copy_picture_to_surface(&mut GameSurface)?;
+        show_frame_now();
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -113,7 +105,11 @@ mod block_tests {
 
     #[test]
     fn first_value_is_the_games() {
-        crate::gfx::first_values_are_the_games(&SHOWING, SHOWING_START, SHOWING_START + 4);
-        assert_eq!(crate::moved::place(SHOWING_START), SHOWING.addr() as usize);
+        let pictures = &gfx().pictures;
+        crate::gfx::first_values_are_the_games(&pictures.showing, SHOWING_START, SHOWING_START + 4);
+        assert_eq!(
+            crate::moved::place(SHOWING_START),
+            pictures.showing.addr() as usize
+        );
     }
 }

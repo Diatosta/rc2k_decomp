@@ -5,51 +5,42 @@
 //! below) it goes up, and on reaching 300 (unsigned) the same. A reading: the car has
 //! stood still too long after a start or a finish.
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read (the callers go on with calls)
-//!
-//! Caller: `sub_436790` (four calls).
+//! Caller: `physics::race_timers` (four calls).
 
-use crate::physics::car_store::CAR;
-use crate::race::numbers_store::NUMBERS;
+use crate::race::owner::Race;
+use crate::race::owner_course::Course;
+use crate::race::owner_shared::Shared;
+use crate::session::Cell32;
 use rc2k_core::physics::motion::stop_timers;
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::count_stop_timers's operand")
-}
-
-fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::count_stop_timers's operand")
-}
-
-/// The core on the variables' addresses (a compare of floats only: the same at any
+/// The core on the variables' cells (a compare of floats only: the same at any
 /// precision).
 // Converted: `rc2k_core::physics::motion::stop_timers`.
-pub fn count_stop_timers_at(v: &[u32]) {
-    let one = f32::from_bits(NUMBERS.one.bits());
-    let mut counters = [at(v[0]), at(v[1]), at(v[2])];
-    let result = stop_timers(&mut counters, f32::from_bits(at(v[3])), one);
+pub fn count_stop_timers_at(course: &Course, v: &[&dyn Cell32]) {
+    let one = f32::from_bits(course.numbers.one.bits());
+    let mut counters = [v[0].bits(), v[1].bits(), v[2].bits()];
+    let result = stop_timers(&mut counters, f32::from_bits(v[3].bits()), one);
     for (k, c) in counters.iter().enumerate() {
-        if *c != at(v[k]) {
-            put(v[k], *c);
+        if *c != v[k].bits() {
+            v[k].set_bits(*c);
         }
     }
     if let Some(result) = result {
-        put(v[4], result);
+        v[4].set_bits(result);
     }
 }
 
-fn game() -> Vec<u32> {
+fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     vec![
-        CAR.started_stand_timer.addr(),
-        CAR.go_stand_timer.addr(),
-        CAR.finish_flag.addr(),
-        CAR.speed.addr(),
-        CAR.stop_state.addr(),
+        &shared.car.started_stand_timer as &dyn Cell32,
+        &shared.car.go_stand_timer,
+        &shared.car.finish_flag,
+        &shared.car.speed,
+        &shared.car.stop_state,
     ]
 }
 
 /// The Rust version.
-pub fn count_stop_timers() {
-    count_stop_timers_at(&game())
+pub fn count_stop_timers(race: &Race) {
+    count_stop_timers_at(&race.course, &game(&race.shared));
 }

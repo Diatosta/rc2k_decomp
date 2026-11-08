@@ -3,7 +3,7 @@
 //! rally's, +0x1C the class, +0x44 the position), each ending in the original's fatal error
 //! when it finds nothing:
 //! - `menu::find_ranked_entry` (0x4A2547): from edi on, the entry of class ebx at position
-//!   eax; none: (ebx 1, `sub_4A1F66`, which does nothing) fatal error 0x8070A7F9 "Position in
+//!   eax; none: (ebx 1, which does nothing) fatal error 0x8070A7F9 "Position in
 //!   GB_TimedHST Not Found (see Log)";
 //! - `menu::find_ranked_position` (0x4A2584): from edi on, the entry at position eax; none:
 //!   fatal error 0x8070A7FF "Position in GB_TimedHST Not Found";
@@ -14,19 +14,15 @@
 //!   class (+0x1C not 0; none: fatal error 0x8070A982 "Seriously buggered"), else the entry
 //!   at edi; its rally time (ebx 1) or its stage time.
 //!
-//! In:  edi = the entry to start from, eax = the position (the kind for `first_overall_time`),
-//! ebx = the class (`find_ranked_entry`) or 1 for the rally's time
-//! Out: the two finds: edi = the entry, the rest kept, zero set and carry clear (the last
-//! compare's); `first_overall_time`: eax = the time, the rest kept (edi pushed and
-//! popped), the flags of `cmp ebx, 1`
-//!
 //! Callers: the results pages (`screens::results_pages`). Every entry is compared before the end
 //! mark is looked at (the first one too, as the original). Refuses (before anything) a search that
 //! runs 0x400 entries without the end mark.
 
 use crate::errors::{BadInput, FatalError, Refused};
+use crate::menu::standings::{with_a, with_b};
+use rc2k_core::saves::entries::BestTime;
+use rc2k_core::saves::rankings::{HistoryEntry, Table, Walked};
 
-pub const ENTRY_LEN: u32 = 0x9C;
 const LIMIT: u32 = 0x400;
 
 const NOT_FOUND_LOGGED: FatalError = FatalError {
@@ -41,74 +37,58 @@ const NOT_IN_CHAMP: FatalError = FatalError {
     code: 0x8070_A7FC,
     message: "Position in GB_ChampHST Not Found (see Log)",
 };
-pub const CHAMP_ENTRY_LEN: u32 = 0x78;
 const NO_CLASS: FatalError = FatalError {
     code: 0x8070_A982,
     message: "Seriously buggered",
 };
 
-fn get(at: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
-}
-
-/// From `e` on, the first entry `wanted` takes; at the end mark `none`.
-fn search(
-    e: u32,
-    wanted: impl Fn(u32) -> Result<bool, BadInput>,
+/// From a table's first entry on, the first entry `wanted` takes (a copy); at the end mark
+/// `none` (converted: `rc2k_core::menu::standings::search`).
+fn search<T: Walked + Copy + Default>(
+    t: &Table<T>,
+    wanted: impl Fn(&T) -> bool,
     none: FatalError,
-) -> Result<u32, Refused> {
-    search_by(e, ENTRY_LEN, wanted, none)
-}
-
-/// `search` in entries of `len` bytes (converted: `rc2k_core::menu::standings::search`).
-fn search_by(
-    e: u32,
-    len: u32,
-    wanted: impl Fn(u32) -> Result<bool, BadInput>,
-    none: FatalError,
-) -> Result<u32, Refused> {
+) -> Result<T, Refused> {
     use rc2k_core::menu::standings::{Found, search};
-    let at = |n: u32| e.wrapping_add(n.wrapping_mul(len));
-    let fault = crate::menu::event_flow::Fault::default();
-    let found = search(|n| fault.get(at(n)), |n| fault.ok(wanted(at(n))), LIMIT);
-    fault.check()?;
+    let found = search(
+        |n| t.first_at(n as usize).unwrap_or(u32::MAX),
+        |n| t.entries.get(n as usize).is_some_and(&wanted),
+        LIMIT,
+    );
     match found {
-        Found::At(n) => Ok(at(n)),
+        Found::At(n) => Ok(t.entries[n as usize]),
         Found::End => Err(none.into()),
         Found::NoEnd => Err(BadInput("a ranked list without its end in 0x400 entries").into()),
     }
 }
 
-/// `find_ranked_entry`'s Rust version: the entry of `class` at `position`.
-pub fn find_ranked_entry(list: u32, position: u32, class: u32) -> Result<u32, Refused> {
-    search(
-        list,
-        |e| Ok(get(e + 0x1C)? == class && get(e + 0x44)? == position),
-        NOT_FOUND_LOGGED,
-    )
+/// `find_ranked_entry`'s Rust version: table A's entry of `class` at `position`.
+pub fn find_ranked_entry(position: u32, class: u32) -> Result<BestTime, Refused> {
+    with_a(|t| {
+        search(
+            t,
+            |e| e.head.group == class && e.head.figure == position,
+            NOT_FOUND_LOGGED,
+        )
+    })?
 }
 
-/// `find_ranked_position`'s Rust version: the entry at `position`.
-pub fn find_ranked_position(list: u32, position: u32) -> Result<u32, Refused> {
-    search(list, |e| Ok(get(e + 0x44)? == position), NOT_FOUND)
+/// `find_ranked_position`'s Rust version: table A's entry at `position`.
+pub fn find_ranked_position(position: u32) -> Result<BestTime, Refused> {
+    with_a(|t| search(t, |e| e.head.figure == position, NOT_FOUND))?
 }
 
 /// `find_champ_position`'s Rust version: the history's entry at `position`.
-pub fn find_champ_position(list: u32, position: u32) -> Result<u32, Refused> {
-    search_by(
-        list,
-        CHAMP_ENTRY_LEN,
-        |e| Ok(get(e + 0x70)? == position),
-        NOT_IN_CHAMP,
-    )
+pub fn find_champ_position(position: u32) -> Result<HistoryEntry, Refused> {
+    with_b(|t| search(t, |e| e.position == position, NOT_IN_CHAMP))?
 }
 
-/// `first_overall_time`'s Rust version: the time (`rally` the +0x18, else the +0x14).
-pub fn first_overall_time(list: u32, kind: u32, rally: bool) -> Result<u32, Refused> {
+/// `first_overall_time`'s Rust version: table A's time (`rally` the total, else the time).
+pub fn first_overall_time(kind: u32, rally: bool) -> Result<u32, Refused> {
     let e = if kind == 2 {
-        search(list, |e| Ok(get(e + 0x1C)? != 0), NO_CLASS)?
+        with_a(|t| search(t, |e| e.head.group != 0, NO_CLASS))??
     } else {
-        list
+        with_a(|t| t.entries[0])?
     };
-    Ok(get(e + if rally { 0x18 } else { 0x14 })?)
+    Ok(if rally { e.head.rally_time } else { e.head.key })
 }

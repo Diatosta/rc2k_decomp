@@ -11,6 +11,7 @@ use crate::session::{Bytes, Dword};
 
 /// The screen mode chosen (IDA 0x4F492C .. 0x4F494C, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct ScreenMode {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<12>,
@@ -28,30 +29,40 @@ pub struct ScreenMode {
     pub menu_mode: Dword,
     /// 0x4F4948: `g_raceScreenMode`: the race's screen mode.
     pub race_mode: Dword,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<4>,
 }
 
-pub static SCREEN_MODE: ScreenMode = ScreenMode {
-    _lead: Bytes::new([0; 12]),
-    depth_bits: Dword::new(0x0),
-    depth_extra: Dword::new(0x0),
-    mode_flags: Dword::new(0x0),
-    mode_set: Dword::new(0x0),
-    _gap_4f493c: Bytes::new([0; 8]),
-    menu_mode: Dword::new(0x0),
-    race_mode: Dword::new(0x0),
-};
+impl ScreenMode {
+    pub const fn new() -> Self {
+        ScreenMode {
+            _lead: Bytes::new([0; 12]),
+            depth_bits: Dword::new(0x0),
+            depth_extra: Dword::new(0x0),
+            mode_flags: Dword::new(0x0),
+            mode_set: Dword::new(0x0),
+            _gap_4f493c: Bytes::new([0; 8]),
+            menu_mode: Dword::new(0x0),
+            race_mode: Dword::new(0x0),
+            _tail: Bytes::new([0; 4]),
+        }
+    }
+}
 
 impl ScreenMode {
     pub const START: usize = 0x4F492C;
     pub const LEN: usize = 0x20;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&SCREEN_MODE as *const ScreenMode) + 12) as usize
+        (crate::pointers::game_address(&raw const crate::gfx::owner::GFX.display.mode) + 12)
+            as usize
     }
 }
 
 /// The surface the screen is drawn on (IDA 0x4F4984 .. 0x4F49C8, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct DrawSurface {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<4>,
@@ -81,7 +92,8 @@ pub struct DrawSurface {
     pub row_bytes: Dword,
     /// 0x4F49B4: `g_surface.row_dwords`: dwords a row.
     pub row_dwords: Dword,
-    /// 0x4F49B8: `g_surface.format`: the pixel format record (a pointer).
+    /// 0x4F49B8: `g_surface.format`: the pixel format record, by handle
+    /// (`gfx::pixel_format::layout`; the original keeps its address).
     pub format: Dword,
     /// 0x4F49BC: `g_surface.pitch`: the row pitch.
     pub pitch: Dword,
@@ -89,35 +101,45 @@ pub struct DrawSurface {
     pub pixels: Dword,
     /// 0x4F49C4: `g_surface.row_gap`: the bytes after a row's pixels.
     pub row_gap: Dword,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<8>,
 }
 
-pub static DRAW_SURFACE: DrawSurface = DrawSurface {
-    _lead: Bytes::new([0; 4]),
-    present_pitch: Dword::new(0x0),
-    present_pixels: Dword::new(0x0),
-    present_gap: Dword::new(0x0),
-    flipped: Dword::new(0x0),
-    frames: Dword::new(0x0),
-    x: Dword::new(0x0),
-    y: Dword::new(0x0),
-    width: Dword::new(0x0),
-    height: Dword::new(0x0),
-    bits_per_pixel: Dword::new(0x0),
-    bytes_per_pixel: Dword::new(0x0),
-    row_bytes: Dword::new(0x0),
-    row_dwords: Dword::new(0x0),
-    format: Dword::new(0x4f496c),
-    pitch: Dword::new(0x0),
-    pixels: Dword::new(0x0),
-    row_gap: Dword::new(0x0),
-};
+impl DrawSurface {
+    /// The first values are the image's.
+    pub const fn new() -> Self {
+        DrawSurface {
+            _lead: Bytes::new([0; 4]),
+            present_pitch: Dword::new(0x0),
+            present_pixels: Dword::new(0x0),
+            present_gap: Dword::new(0x0),
+            flipped: Dword::new(0x0),
+            frames: Dword::new(0x0),
+            x: Dword::new(0x0),
+            y: Dword::new(0x0),
+            width: Dword::new(0x0),
+            height: Dword::new(0x0),
+            bits_per_pixel: Dword::new(0x0),
+            bytes_per_pixel: Dword::new(0x0),
+            row_bytes: Dword::new(0x0),
+            row_dwords: Dword::new(0x0),
+            format: Dword::new(0x4f496c),
+            pitch: Dword::new(0x0),
+            pixels: Dword::new(0x0),
+            row_gap: Dword::new(0x0),
+            _tail: Bytes::new([0; 8]),
+        }
+    }
+}
 
 impl DrawSurface {
     pub const START: usize = 0x4F4984;
     pub const LEN: usize = 0x44;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&DRAW_SURFACE as *const DrawSurface) + 4) as usize
+        (crate::pointers::game_address(&raw const crate::gfx::owner::gfx().drawing.draw_surface)
+            + 4) as usize
     }
 }
 
@@ -134,7 +156,7 @@ mod tests {
         let image = crate::moved::image_bytes(ScreenMode::START, ScreenMode::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(ScreenMode::home()) as *const u8,
+                crate::pointers::host_at(ScreenMode::home()).cast_const(),
                 ScreenMode::LEN,
             )
         };
@@ -150,7 +172,7 @@ mod tests {
         let image = crate::moved::image_bytes(DrawSurface::START, DrawSurface::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(DrawSurface::home()) as *const u8,
+                crate::pointers::host_at(DrawSurface::home()).cast_const(),
                 DrawSurface::LEN,
             )
         };

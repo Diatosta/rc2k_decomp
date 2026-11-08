@@ -6,35 +6,37 @@
 //! `dword_5C2550`, `dword_5C2554` 1 (keys held), the block shown held to the last
 //! (`dword_5BECD0` at most, unsigned; then frame 0), `dword_5BEC98` 1 (stopped).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`); no flags read
-//!
 //! Caller: `race::play_marked`.
 
 use crate::errors::Refused;
-use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::owner::Race;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
-use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// The Rust version (every register kept).
-pub fn play_replay_range() -> Result<(), Refused> {
+pub fn play_replay_range(
+    race: &Race,
+    sound: &crate::sound::owner::Sound,
+    input: &crate::input::owner::Input,
+) -> Result<(), Refused> {
+    let replay = &race.replay;
     use crate::race::race_end;
-    crate::drive::replay_frame_marks::replay_frame_marks()?;
+    crate::drive::replay_frame_marks::replay_frame_marks(race)?;
     if VIEWER_PANEL.replay_recording.get() != 1 {
-        crate::race::sounds::start_race_sounds()?;
+        crate::race::sounds::start_race_sounds(sound)?;
     }
-    crate::race::play_movie::play_movie()?;
-    race_end::reset_race_sounds(&race_end::SoundVars::game())?;
+    crate::race::play_movie::play_movie(race, input)?;
+    race_end::reset_race_sounds(&race_end::SoundVars::game(), sound)?;
     // The key taken: al, the rest of eax cleared (`and eax, 0FFh`).
     let key = crate::input::take_key::take_key() as u32 & 0xFF;
-    REPLAY_VIEW.key_after_play.set(key);
-    REPLAY_VIEW.wait_key_release.set(1);
-    if REPLAY_FILE.index_block_count.get() <= REPLAY_VIEW.replay_block.get() {
-        REPLAY_VIEW
+    replay.replay_view.key_after_play.set(key);
+    replay.replay_view.wait_key_release.set(1);
+    if race.shared.replay_file.index_block_count.get() <= replay.replay_view.replay_block.get() {
+        replay
+            .replay_view
             .replay_block
-            .set(REPLAY_FILE.index_block_count.get());
-        REPLAY_VIEW.replay_frame.set(0);
+            .set(race.shared.replay_file.index_block_count.get());
+        replay.replay_view.replay_frame.set(0);
     }
-    REPLAY_FILE.viewer_stopped.set(1);
+    race.shared.replay_file.viewer_stopped.set(1);
     Ok(())
 }

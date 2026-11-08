@@ -2,6 +2,8 @@
 //! default best times use them, and the table their names come from.
 
 use crate::errors::BadInput;
+use crate::menu::owner::Menus;
+use crate::menu::owner::menus;
 use crate::strings::append_string_by_id::push_string;
 
 pub const DRIVERS: u32 = 180;
@@ -18,9 +20,7 @@ impl Driver {
         if number >= DRIVERS {
             return Err(BadInput("a driver past the 180"));
         }
-        Ok(Self(
-            &crate::menu::drivers_store::DRIVERS.drivers[number as usize],
-        ))
+        Ok(Self(&menus().cars.drivers.drivers[number as usize]))
     }
 
     /// The dword at `offset` of the record.
@@ -40,17 +40,17 @@ impl Driver {
     }
 
     /// The id of the string that is the driver's name.
-    pub fn name_id(&self) -> Result<u32, BadInput> {
+    pub fn name_id(&self, menus: &Menus) -> Result<u32, BadInput> {
         let entry = self.0.name_entry.get();
         if entry >= MOST_NAME_ENTRIES {
             return Err(BadInput("a driver whose name entry is far past the table"));
         }
-        Ok(crate::menu::drivers_store::name_string(entry))
+        crate::menu::drivers_store::name_string(menus, entry)
     }
 
     /// The name's bytes, without a NUL, as `strings::append_string_by_id` writes them.
-    pub fn name(&self) -> Result<(u32, Vec<u8>), BadInput> {
-        let id = self.name_id()?;
+    pub fn name(&self, menus: &Menus) -> Result<(u32, Vec<u8>), BadInput> {
+        let id = self.name_id(menus)?;
         let mut name = Vec::new();
         push_string(&mut name, id)?;
         if name.len() > NAME_ROOM {

@@ -1,16 +1,9 @@
 //! `system::check_developer_machine` (0x416292): whether the computer is called "andrew".
 //!
-//! In:  nothing
-//! Out: ebx = the text buffer; ax = the last two characters looked at, in lower case; the
-//!      rest preserved
-//! `dword_529D94` = 0; the computer's name is asked for into the text buffer
-//! (`GetComputerNameA`, through `sub_410848`; if that fails the buffer is looked at as it
-//! is); if its first six characters are "andrew" in any case, `dword_529D94` = 1.
-//! (`race::tyre_change_gauge` reads it.) One caller, `start`, which calls it directly
-//! (2026-10-23); the registers above are the original's, for reference.
-
-use crate::strings::text_from_ids::text;
-use windows_sys::Win32::System::WindowsProgramming::GetComputerNameA;
+//! `dword_529D94` = 0; the computer's name is asked for into the text buffer (`GetComputerNameA`,
+//! through `system::computer_name`; if that fails the buffer is looked at as it is); if its first
+//! six characters are "andrew" in any case, `dword_529D94` = 1. (`race::tyre_change_gauge` reads
+//! it.) One caller, `start`, which calls it directly (2026-10-23).
 
 /// IDA's address of the switch.
 pub const DEVELOPER_START: usize = 0x529D94;
@@ -18,32 +11,30 @@ pub const DEVELOPER_START: usize = 0x529D94;
 /// `g_developerMachine` (`dword_529D94`): 1 on a computer called "andrew".
 pub static DEVELOPER: crate::session::Dword = crate::session::Dword::new(0);
 
-/// Where the switch is (`moved::MOVED`'s home for IDA 0x529D94).
-pub fn developer_home() -> usize {
-    DEVELOPER.addr() as usize
-}
-
 const NAME_ROOM: u32 = 0x40;
 
 // ---- Rust version ----
 
-/// `sub_410848`: the computer's name at `to` (0x40 bytes), if it can be had.
-pub unsafe fn computer_name(to: *mut u8) -> bool {
-    let mut room = NAME_ROOM;
-    unsafe { GetComputerNameA(to, &mut room) != 0 }
+/// `system::computer_name`: the computer's name with its NUL (room for 0x40 bytes), if it can be
+/// had; the callers store it where the original did.
+pub fn computer_name() -> Option<Vec<u8>> {
+    let mut name = crate::os::computer_name(NAME_ROOM)?;
+    name.push(0);
+    Some(name)
 }
 
 /// The Rust version (see the header).
 pub fn check_developer_machine() {
-    unsafe {
-        DEVELOPER.set(0);
-        computer_name(text());
-        // Converted: `rc2k_core::system::machine::developer`.
-        let (yes, _) =
-            rc2k_core::system::machine::developer((text() as *const [u8; 6]).read_unaligned());
-        if yes {
-            DEVELOPER.set(1);
-        }
+    DEVELOPER.set(0);
+    let text = &crate::strings::owner::strings().text.buffer.text;
+    if let Some(name) = computer_name() {
+        text.write_at(0, &name, "the computer's name")
+            .unwrap_or_else(|e| crate::fatal::raise::end("system::computer_name", e));
+    }
+    // Converted: `rc2k_core::system::machine::developer`.
+    let (yes, _) = rc2k_core::system::machine::developer(core::array::from_fn(|n| text.get(n)));
+    if yes {
+        DEVELOPER.set(1);
     }
 }
 

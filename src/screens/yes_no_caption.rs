@@ -1,17 +1,14 @@
 //! `screens::yes_no_caption` (0x46FA5A): the "leave?" question's button shows the
 //! answer.
 //!
-//! In:  nothing
-//! Out: eax as `strings::append_string_by_id` leaves it, ebx = after the NUL
 //!
 //! String 0x56B + `g_yesNoAnswer` (0x56B "não", 0x56C "sim", by the language file) and a NUL into
 //! `g_captionText`, from which `screens::draw_highlighted_caption` draws the button. In the
 //! question screen's draw list (0x758C9E). IDA has not made it a function. Refuses a caption longer
-//! than its place. The menus and draw lists run its `entry` (`menu::table_calls`); the registers
-//! above are the original's, for reference.
+//! than its place. The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::pages_store::MENU_PAGES;
+use crate::menu::owner::Tables;
 use crate::strings::append_string_by_id::append_string_by_id;
 
 // ---- game data ----
@@ -21,27 +18,23 @@ const FIRST: u32 = 0x56B;
 
 // ---- Rust version ----
 
-/// Returns eax and ebx as the original leaves them.
-pub unsafe fn yes_no_caption() -> Result<(u32, u32), Refused> {
-    unsafe {
-        let id = MENU_PAGES.yes_no_answer.get().wrapping_add(FIRST);
-        let mut text = Vec::new();
-        let eax = append_string_by_id(id, &mut |p, n| {
-            text.extend_from_slice(std::slice::from_raw_parts(p, n))
-        })?;
-        // Converted: `rc2k_core::screens::captions::fit`.
-        let text = rc2k_core::screens::captions::fit(text, CAPTION_LEN)?;
-        let caption = crate::screens::text_buffers_store::TEXT_BUFFERS
-            .caption
-            .addr();
-        crate::pointers::GamePtr::new(caption).write_bytes(&text, "the caption")?;
-        Ok((eax, caption + text.len() as u32))
-    }
+/// Puts the answer's caption in the caption buffer.
+pub fn yes_no_caption(tables: &Tables) -> Result<(), Refused> {
+    let id = tables.pages.yes_no_answer.get().wrapping_add(FIRST);
+    let mut text = Vec::new();
+    append_string_by_id(id, &mut |bytes| text.extend_from_slice(bytes))?;
+    // Converted: `rc2k_core::screens::captions::fit`.
+    let text = rc2k_core::screens::captions::fit(text, CAPTION_LEN)?;
+    crate::screens::text_buffers_store::TEXT_BUFFERS
+        .caption
+        .write_at(0, &text, "the caption")?;
+    Ok(())
 }
 
 /// The Rust version the typed tables run (what it leaves in registers is read by
 /// none of its callers).
-pub fn run() -> Result<(), Refused> {
-    let (_eax, _ebx) = unsafe { yes_no_caption() }?;
+pub fn run(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
+    let tables = &menus.tables;
+    yes_no_caption(tables)?;
     Ok(())
 }

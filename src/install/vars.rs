@@ -10,10 +10,12 @@
 //! at start (`moved::point_into_homes`). The pages' lists are walked by pointer
 //! (`install::installer`'s `rd`/`rb`), so their tables stay byte buffers.
 
+use crate::install::page_links::PageLink;
 use crate::session::{Byte, Bytes, Dword, Loose, Word, with_runs};
 
 /// The installer's flags, counters and lists (IDA 0x51B9C8 .. 0x51BB60, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct InstallerRun {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<8>,
@@ -65,71 +67,79 @@ pub struct InstallerRun {
     pub buffers: Bytes<64>,
     /// 0x51BB3C: `g_installBarGlyphs`: the progress bar's glyph table.
     pub bar_glyphs: Dword,
-    /// 0x51BB40: `g_dirNames`: the folders' names (a 0x10000-byte buffer).
+    /// 0x51BB40: `g_dirNames`: the folders' names (a 0x10000-byte buffer; 0 since phase 12:
+    /// `install::name_tables::FOLDERS`).
     pub dirs: Dword,
-    /// 0x51BB44: `g_fileNames`: the files' names (a 0x40000-byte buffer).
+    /// 0x51BB44: `g_fileNames`: the files' names (a 0x40000-byte buffer; 0 since phase 12:
+    /// `install::name_tables::FILES`).
     pub files: Dword,
     /// 0x51BB48: `g_dirCount`: the folders listed.
     pub dir_count: Dword,
     /// 0x51BB4C: `g_fileCount`: the files listed.
     pub file_count: Dword,
-    /// 0x51BB50: `g_dirScan`: the next folder to search.
+    /// 0x51BB50: `g_dirScan`: the next folder to search (since phase 12 its number).
     pub dir_scan: Dword,
-    /// 0x51BB54: `g_dirCursor`: the folder being copied.
+    /// 0x51BB54: `g_dirCursor`: the folders' table's end (since phase 12 its bytes).
     pub dir_cursor: Dword,
-    /// 0x51BB58: `g_fileCursor`: the file being copied.
+    /// 0x51BB58: `g_fileCursor`: the files' table's end (since phase 12 its bytes).
     pub file_cursor: Dword,
     /// 0x51BB5C: `phkResult`: the open registry key.
     pub reg_key: Dword,
 }
 
-pub static INSTALLER_RUN: InstallerRun = InstallerRun {
-    _lead: Bytes::new([0; 8]),
-    same_version: Dword::new(0x0),
-    updating: Dword::new(0x0),
-    from_command: Dword::new(0x0),
-    add_items: Dword::new(0x0),
-    remove_items: Dword::new(0x0),
-    run_dxsetup: Dword::new(0x0),
-    installing: Dword::new(0x0),
-    offer_registration: Dword::new(0x0),
-    run_registration: Dword::new(0x0),
-    ereg: Bytes::new(with_runs::<20>(&[(0, b";4ereg\\eregip.exe")])),
-    path_problem: Dword::new(0x0),
-    ignore_room: Dword::new(0x0),
-    given_mode: Dword::new(0x2),
-    given_language: Dword::new(0x0),
-    drives: [const { Dword::new(0x0) }; 52],
-    drive_count: Dword::new(0x0),
-    first_drive: Dword::new(0x63),
-    files_copied: Dword::new(0x0),
-    files_to_copy: Dword::new(0x0),
-    copy_spare: Dword::new(0x0),
-    _gap_51baf4: Bytes::new([0; 4]),
-    room_needed: Dword::new(0x0),
-    buffers: Bytes::new([0; 64]),
-    bar_glyphs: Dword::new(0x0),
-    dirs: Dword::new(0x0),
-    files: Dword::new(0x0),
-    dir_count: Dword::new(0x0),
-    file_count: Dword::new(0x0),
-    dir_scan: Dword::new(0x0),
-    dir_cursor: Dword::new(0x0),
-    file_cursor: Dword::new(0x0),
-    reg_key: Dword::new(0x0),
-};
+impl InstallerRun {
+    pub const fn new() -> Self {
+        InstallerRun {
+            _lead: Bytes::new([0; 8]),
+            same_version: Dword::new(0x0),
+            updating: Dword::new(0x0),
+            from_command: Dword::new(0x0),
+            add_items: Dword::new(0x0),
+            remove_items: Dword::new(0x0),
+            run_dxsetup: Dword::new(0x0),
+            installing: Dword::new(0x0),
+            offer_registration: Dword::new(0x0),
+            run_registration: Dword::new(0x0),
+            ereg: Bytes::new(with_runs::<20>(&[(0, b";4ereg\\eregip.exe")])),
+            path_problem: Dword::new(0x0),
+            ignore_room: Dword::new(0x0),
+            given_mode: Dword::new(0x2),
+            given_language: Dword::new(0x0),
+            drives: [const { Dword::new(0x0) }; 52],
+            drive_count: Dword::new(0x0),
+            first_drive: Dword::new(0x63),
+            files_copied: Dword::new(0x0),
+            files_to_copy: Dword::new(0x0),
+            copy_spare: Dword::new(0x0),
+            _gap_51baf4: Bytes::new([0; 4]),
+            room_needed: Dword::new(0x0),
+            buffers: Bytes::new([0; 64]),
+            bar_glyphs: Dword::new(0x0),
+            dirs: Dword::new(0x0),
+            files: Dword::new(0x0),
+            dir_count: Dword::new(0x0),
+            file_count: Dword::new(0x0),
+            dir_scan: Dword::new(0x0),
+            dir_cursor: Dword::new(0x0),
+            file_cursor: Dword::new(0x0),
+            reg_key: Dword::new(0x0),
+        }
+    }
+}
 
 impl InstallerRun {
     pub const START: usize = 0x51B9C8;
     pub const LEN: usize = 0x198;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&INSTALLER_RUN as *const InstallerRun) + 8) as usize
+        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.run) + 8) as usize
     }
 }
 
 /// The registry names, the installed record, the scripts and file names, the languages (IDA 0x51BB60 .. 0x51C407, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct InstallerNames {
     /// 0x51BB60: `aSoftwareMagnet`: "SOFTWARE\Magnetic Fields\RC99".
     pub key_name: Bytes<30>,
@@ -185,9 +195,13 @@ pub struct InstallerNames {
     pub _gap_51c378: Bytes<127>,
     /// 0x51C3F7: `g_roomByMode`: KB needed by installation mode.
     pub room_by_mode: Bytes<16>,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<9>,
 }
 
-pub static INSTALLER_NAMES: InstallerNames = InstallerNames {
+impl InstallerNames {
+    pub const fn new() -> Self {
+        InstallerNames {
     key_name: Bytes::new(with_runs::<30>(&[(0, b"SOFTWARE\\Magnetic Fields\\RC99")])),
     status_name: Bytes::new(with_runs::<7>(&[(0, b"status")])),
     source_name: Bytes::new(with_runs::<7>(&[(0, b"source")])),
@@ -215,19 +229,24 @@ pub static INSTALLER_NAMES: InstallerNames = InstallerNames {
     lang_cfg: Bytes::new(with_runs::<10>(&[(0, b"lang.cfg")])),
     _gap_51c378: Bytes::new(with_runs::<127>(&[(0, b"lang1\x00\xee\xbeQ\x00\x7f\x00\x00\x00lang2\x00n\xbfQ\x00\x7f\x00\x00\x00lang3\x00\xee\xbfQ\x00\x7f\x00\x00\x00lang4\x00n\xc0Q\x00\x7f\x00\x00\x00lang5\x00\xee\xc0Q\x00\x7f\x00\x00\x00lang6\x00n\xc1Q\x00\x7f\x00\x00\x00lang7\x00\xee\xc1Q\x00\x7f\x00\x00\x00lang8\x00n\xc2Q\x00\x7f\x00\x00\x00lang9\x00\xee\xc2Q\x00\x7f")])),
     room_by_mode: Bytes::new(with_runs::<16>(&[(5, b"("), (10, b"\x05\x00\x00(\n")])),
-};
+    _tail: Bytes::new([0; 9]),
+        }
+    }
+}
 
 impl InstallerNames {
     pub const START: usize = 0x51BB60;
     pub const LEN: usize = 0x8A7;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&INSTALLER_NAMES as *const InstallerNames) as usize
+        crate::pointers::game_address(&raw const crate::install::owner::INSTALL.names) as usize
     }
 }
 
 /// The page: its pieces, the list menu's state, the fonts and the pages' tables (IDA 0x51C407 .. 0x51DE2C, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct InstallerPages {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<7>,
@@ -311,8 +330,9 @@ pub struct InstallerPages {
     pub menu_16: Bytes<312>,
     /// 0x51D9E8: `off_51D9E8`: the longer list menu.
     pub menu_more: Bytes<440>,
-    /// 0x51DBA0: Not named: 424 bytes (a gap, or data nothing reads here).
-    pub _gap_51dba0: Bytes<424>,
+    /// 0x51DBA0: the folder page's items (424 bytes, not split further): its edit item at
+    /// 0x51DBC8, whose text link at +8 (0x51DBD0) `run_installer` sets on Unix.
+    pub folder_page: Bytes<424>,
     /// 0x51DD48: `off_51DD48`: the third page's action.
     pub step: Bytes<16>,
     /// 0x51DD58: Not named: 32 bytes (a gap, or data nothing reads here).
@@ -327,9 +347,34 @@ pub struct InstallerPages {
     pub _gap_51dda8: Bytes<112>,
     /// 0x51DE18: `g_badFolderChars`: the characters a folder name may not hold.
     pub bad_folder_chars: Bytes<20>,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<4>,
 }
 
-pub static INSTALLER_PAGES: InstallerPages = InstallerPages {
+/// `bytes`, the installer pages' field that starts at IDA's address `start`, with each link
+/// it holds turned from the original's address to its handle (`page_links::PageLink`), once,
+/// where the data is built.
+const fn linked<const N: usize>(start: u32, mut bytes: [u8; N]) -> [u8; N] {
+    let mut k = 0;
+    while k < PAGE_LINKS.len() {
+        let at = PAGE_LINKS[k];
+        if at >= start && at + 4 <= start + N as u32 {
+            let i = (at - start) as usize;
+            let ida = u32::from_le_bytes([bytes[i], bytes[i + 1], bytes[i + 2], bytes[i + 3]]);
+            let link = PageLink::of_ida(ida).raw().to_le_bytes();
+            bytes[i] = link[0];
+            bytes[i + 1] = link[1];
+            bytes[i + 2] = link[2];
+            bytes[i + 3] = link[3];
+        }
+        k += 1;
+    }
+    bytes
+}
+
+impl InstallerPages {
+    pub const fn new() -> Self {
+        InstallerPages {
     _lead: Bytes::new([0; 7]),
     layout: Bytes::new([0; 4096]),
     choice: Loose::new(0x0),
@@ -344,21 +389,21 @@ pub static INSTALLER_PAGES: InstallerPages = InstallerPages {
     frame_clock: Loose::new(0x0),
     move_clock: Loose::new(0x0),
     _gap_51d427: Bytes::new([0; 12]),
-    texts: Bytes::new(with_runs::<32>(&[(0, b"\xa9\x01\x00\x00\xaf\x00\x00\x00\xa4\xe8Q\x00\xaf\x00\x00\x00\xa9\x01\x00\x00\xfa\x00\x00\x00d\xe9Q\x00\xb0")])),
-    msg_error: Bytes::new(with_runs::<16>(&[(0, b"\xa9\x01\x00\x00^\x01\x00\x00\xa4\xe8Q\x00\xb1")])),
-    msg_cancel: Bytes::new(with_runs::<16>(&[(0, b"\xa9\x01\x00\x00\x90\x01\x00\x00\xa4\xe8Q\x00\xb3")])),
-    remove_strings: Bytes::new(with_runs::<16>(&[(0, b"\xa9\x01\x00\x00,\x01\x00\x00\xa4\xe8Q\x00\xba")])),
-    bar_glyphs_list: Bytes::new(with_runs::<32>(&[(0, b"\xe1\x00\x00\x00,\x01"), (12, b"t;O\x00\xa9\x01\x00\x00,\x01\x00\x00\x01\x00\x00\x00t;O")])),
+    texts: Bytes::new(linked::<32>(0x51D433, with_runs::<32>(&[(0, b"\xa9\x01\x00\x00\xaf\x00\x00\x00\xa4\xe8Q\x00\xaf\x00\x00\x00\xa9\x01\x00\x00\xfa\x00\x00\x00d\xe9Q\x00\xb0")]))),
+    msg_error: Bytes::new(linked::<16>(0x51D453, with_runs::<16>(&[(0, b"\xa9\x01\x00\x00^\x01\x00\x00\xa4\xe8Q\x00\xb1")]))),
+    msg_cancel: Bytes::new(linked::<16>(0x51D463, with_runs::<16>(&[(0, b"\xa9\x01\x00\x00\x90\x01\x00\x00\xa4\xe8Q\x00\xb3")]))),
+    remove_strings: Bytes::new(linked::<16>(0x51D473, with_runs::<16>(&[(0, b"\xa9\x01\x00\x00,\x01\x00\x00\xa4\xe8Q\x00\xba")]))),
+    bar_glyphs_list: Bytes::new(linked::<32>(0x51D483, with_runs::<32>(&[(0, b"\xe1\x00\x00\x00,\x01"), (12, b"t;O\x00\xa9\x01\x00\x00,\x01\x00\x00\x01\x00\x00\x00t;O")]))),
     bar: Bytes::new(with_runs::<16>(&[(0, b"\xe0\x00\x00\x00+\x01\x00\x00\x92\x01\x00\x00\x1f")])),
     frame: Bytes::new(with_runs::<17>(&[(0, b"\xdf\x00\x00\x00*\x01\x00\x00\x94\x01\x00\x00!")])),
     fonts: [Dword::new(0x0), Dword::new(0x51e624), Dword::new(0x51e824), Dword::new(0x51e824), Dword::new(0x51ea44), Dword::new(0x51ea64), Dword::new(0x51ea24), Dword::new(0x51e9e4), Dword::new(0x51ea04), Dword::new(0x51e9c4), Dword::new(0x51e864), Dword::new(0x51e884), Dword::new(0x51e844), Dword::new(0x51e6c4), Dword::new(0x51e6e4), Dword::new(0x51e6a4), Dword::new(0x51e8c4), Dword::new(0x51e8e4), Dword::new(0x51e8a4), Dword::new(0x51e8c4), Dword::new(0x51e8e4), Dword::new(0x51e8a4), Dword::new(0x51e984), Dword::new(0x51e9a4), Dword::new(0x51e964)],
     kind_fonts: Bytes::new(with_runs::<108>(&[(0, b"\x12\x00\t\x0c\x00\x02\x00\x1e\x17\x00\x08\x0b\x01\x02\x00\x1e\n\x00\x07\x10\x02\x02\x00\x1e"), (32, b"\x12\x00\t\x0c\x00\x02\x00\x1e"), (64, b"\x0c\x00\t\x12\x00\x02\x00\x1e\x15\x00\x15\x15\x00\x03\x00,\x0c\x00\x0c\x0c\x00\x02\x00\x1e\x12\x00\x12\x12\x00\x02\x00\x1e\x18\x00\x18\x18\x00\x02\x00\x1e\t")])),
-    normal_pages: Bytes::new(with_runs::<44>(&[(0, b"p\xd6Q"), (8, b"\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q")])),
-    _gap_51d5c0: Bytes::new(with_runs::<24>(&[(0, b"(\xd7Q"), (8, b"\xe4\xd5Q\x00T\xd6Q\x00\x10\xd6Q\x00`\xd6Q")])),
-    update_pages: Bytes::new(with_runs::<12>(&[(0, b"\xb8\xdcQ"), (8, b"H\xd6Q")])),
-    _gap_51d5e4: Bytes::new(with_runs::<20>(&[(0, b"\x90\xd7Q\x00\xc0\xd5Q\x00\xf8\xd5Q\x00\xf8\xd5Q\x00\xf8\xd5Q")])),
-    chosen_menu: Bytes::new(with_runs::<12>(&[(0, b"\xf8\xd7Q\x00\xe4\xd5Q\x00\x04\xd6Q")])),
-    _gap_51d604: Bytes::new(with_runs::<292>(&[(0, b"\xa0\xdbQ\x00\xf8\xd5Q\x00\x1c\xd6Q\x00\xb8\xdcQ\x00\xc0\xd5Q\x00H\xd6Q\x00\x10\xddQ\x00\x04\xd6Q"), (40, b"0\xd6Q\x00\x18\xdcQ\x00\xf8\xd5Q\x00\x1c\xd6Q\x00`\xdcQ"), (68, b"(\xddQ"), (80, b"@\xddQ"), (92, b"X\xddQ"), (104, b"\t"), (109, b"\n\x9b"), (116, b"\x99AA"), (132, b"\x01\x01+\x10"), (148, b"\x01\x02,\x10"), (164, b"\x01\x03-\x10"), (180, b"\x01\x04.\x10"), (196, b"\x01\x05/\x10"), (212, b"\x01\x060\x10"), (228, b"\x01\x071\x10"), (244, b"\x01\x082\x10"), (260, b"\x01\t3\x10"), (276, b"\x01\x00\x99")])),
+    normal_pages: Bytes::new(linked::<44>(0x51D594, with_runs::<44>(&[(0, b"p\xd6Q"), (8, b"\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q")]))),
+    _gap_51d5c0: Bytes::new(linked::<24>(0x51D5C0, with_runs::<24>(&[(0, b"(\xd7Q"), (8, b"\xe4\xd5Q\x00T\xd6Q\x00\x10\xd6Q\x00`\xd6Q")]))),
+    update_pages: Bytes::new(linked::<12>(0x51D5D8, with_runs::<12>(&[(0, b"\xb8\xdcQ"), (8, b"H\xd6Q")]))),
+    _gap_51d5e4: Bytes::new(linked::<20>(0x51D5E4, with_runs::<20>(&[(0, b"\x90\xd7Q\x00\xc0\xd5Q\x00\xf8\xd5Q\x00\xf8\xd5Q\x00\xf8\xd5Q")]))),
+    chosen_menu: Bytes::new(linked::<12>(0x51D5F8, with_runs::<12>(&[(0, b"\xf8\xd7Q\x00\xe4\xd5Q\x00\x04\xd6Q")]))),
+    _gap_51d604: Bytes::new(linked::<292>(0x51D604, with_runs::<292>(&[(0, b"\xa0\xdbQ\x00\xf8\xd5Q\x00\x1c\xd6Q\x00\xb8\xdcQ\x00\xc0\xd5Q\x00H\xd6Q\x00\x10\xddQ\x00\x04\xd6Q"), (40, b"0\xd6Q\x00\x18\xdcQ\x00\xf8\xd5Q\x00\x1c\xd6Q\x00`\xdcQ"), (68, b"(\xddQ"), (80, b"@\xddQ"), (92, b"X\xddQ"), (104, b"\t"), (109, b"\n\x9b"), (116, b"\x99AA"), (132, b"\x01\x01+\x10"), (148, b"\x01\x02,\x10"), (164, b"\x01\x03-\x10"), (180, b"\x01\x04.\x10"), (196, b"\x01\x05/\x10"), (212, b"\x01\x060\x10"), (228, b"\x01\x071\x10"), (244, b"\x01\x082\x10"), (260, b"\x01\t3\x10"), (276, b"\x01\x00\x99")]))),
     script_entry: Dword::new(0x950500),
     record_flag: Dword::new(0x0),
     _gap_51d730: Bytes::new(with_runs::<16>(&[(0, b"\xefAA")])),
@@ -368,30 +413,66 @@ pub static INSTALLER_PAGES: InstallerPages = InstallerPages {
     _gap_51d744: Bytes::new(with_runs::<14>(&[(12, b"\x01\x02")])),
     script_set_up: Word::new(0x97),
     _gap_51d754: Bytes::new(with_runs::<164>(&[(12, b"\x01\x03\x98"), (28, b"\x01\x04|\x05"), (44, b"\x01\x00\x99"), (61, b"\x05\x9a\x00\x02\x00\x00\x00+BA"), (84, b"\x05\x0c\xa1"), (96, b"\x04SA\x00\x01\x01\xa2"), (116, b"\x01\x02\xa3"), (132, b"\x01\x03\xa4"), (148, b"\x01\x00\xbf")])),
-    menu_8: Bytes::new(with_runs::<184>(&[(1, b"\n\x9a\x00\x02\x00\x00\x00^BA"), (24, b"\x05\x0c\x9d\x00\xf8\xddQ"), (40, b"\x01\x00\xbf\x00\x08\xdeQ"), (56, b"\x01\x01\x11\x10\xb8\xddQ"), (72, b"\x01\x01\x12\x10\xb8\xddQ"), (88, b"\x01\x01\x13\x10\xb8\xddQ"), (104, b"\x01\x01\x14\x10\xb8\xddQ"), (120, b"\x01\x01\x15\x10\xb8\xddQ"), (136, b"\x01\x01\x16\x10\xb8\xddQ"), (152, b"\x01\x01\x17\x10\xb8\xddQ"), (168, b"\x01\x01\x18\x10\xb8\xddQ")])),
-    menu_16: Bytes::new(with_runs::<312>(&[(1, b"\x12\x9a\x00\x02\x00\x00\x00^BA"), (24, b"\x05\x0c\x9d\x00\xf8\xddQ"), (40, b"\x01\x00\xbf\x00\x08\xdeQ"), (56, b"\x01\x01\x11\x10\xd8\xddQ"), (72, b"\x01\x01\x12\x10\xd8\xddQ"), (88, b"\x01\x01\x13\x10\xd8\xddQ"), (104, b"\x01\x01\x14\x10\xd8\xddQ"), (120, b"\x01\x01\x15\x10\xd8\xddQ"), (136, b"\x01\x01\x16\x10\xd8\xddQ"), (152, b"\x01\x01\x17\x10\xd8\xddQ"), (168, b"\x01\x01\x18\x10\xd8\xddQ"), (184, b"\x01\x01\x19\x10\xe8\xddQ"), (200, b"\x01\x01\x1a\x10\xe8\xddQ"), (216, b"\x01\x01\x1b\x10\xe8\xddQ"), (232, b"\x01\x01\x1c\x10\xe8\xddQ"), (248, b"\x01\x01\x1d\x10\xe8\xddQ"), (264, b"\x01\x01\x1e\x10\xe8\xddQ"), (280, b"\x01\x01\x1f\x10\xe8\xddQ"), (296, b"\x01\x01 \x10\xe8\xddQ")])),
-    menu_more: Bytes::new(with_runs::<440>(&[(1, b"\x1a\x9a\x00\x02\x00\x00\x00^BA"), (24, b"\x05\x0c\x9d\x00\xf8\xddQ"), (40, b"\x01\x00\xbf\x00\x08\xdeQ"), (56, b"\x01\x01\x11\x10\xa8\xddQ"), (72, b"\x01\x01\x12\x10\xa8\xddQ"), (88, b"\x01\x01\x13\x10\xa8\xddQ"), (104, b"\x01\x01\x14\x10\xa8\xddQ"), (120, b"\x01\x01\x15\x10\xa8\xddQ"), (136, b"\x01\x01\x16\x10\xa8\xddQ"), (152, b"\x01\x01\x17\x10\xa8\xddQ"), (168, b"\x01\x01\x18\x10\xa8\xddQ"), (184, b"\x01\x01\x19\x10\xb8\xddQ"), (200, b"\x01\x01\x1a\x10\xb8\xddQ"), (216, b"\x01\x01\x1b\x10\xb8\xddQ"), (232, b"\x01\x01\x1c\x10\xb8\xddQ"), (248, b"\x01\x01\x1d\x10\xb8\xddQ"), (264, b"\x01\x01\x1e\x10\xb8\xddQ"), (280, b"\x01\x01\x1f\x10\xb8\xddQ"), (296, b"\x01\x01 \x10\xb8\xddQ"), (312, b"\x01\x01!\x10\xc8\xddQ"), (328, b"\x01\x01\"\x10\xc8\xddQ"), (344, b"\x01\x01#\x10\xc8\xddQ"), (360, b"\x01\x01$\x10\xc8\xddQ"), (376, b"\x01\x01%\x10\xc8\xddQ"), (392, b"\x01\x01&\x10\xc8\xddQ"), (408, b"\x01\x01'\x10\xc8\xddQ"), (424, b"\x01\x01(\x10\xc8\xddQ")])),
-    _gap_51dba0: Bytes::new(with_runs::<424>(&[(1, b"\x06\x9a"), (8, b"\xf5BA"), (20, b"NSA\x00\x05\x0c\x9e"), (40, b"$\x01"), (48, b"\xfa\xeb\x95\x00p\xddQ\x00\x05\n\xaa"), (72, b"\x05\n\xac"), (88, b"\x05\n\xad"), (104, b"\x05\n\xab"), (121, b"\x03\x9a"), (128, b"\xc7BA"), (144, b"\x05\n\xad"), (156, b"\x04SA\x00\x01\x01\xae"), (168, b"\xdaBA"), (176, b"\x01\x00\xbf"), (193, b"\x04\x9a"), (200, b"/CA"), (216, b"\x05\x0b\xb2"), (228, b"\x04SA\x00\x05\x0c\xb4"), (244, b"\x04SA\x00\x01\x01l\x05"), (264, b"\x01\x00k\x05"), (281, b"\x04\xb6\x00\x02\x00\x00\x00GCA"), (304, b"\x05\n\xb7"), (316, b"\x04SA\x00\x01\x01\xb8"), (336, b"\x01\x02\xb9"), (352, b"\x01\x00\xbf"), (368, b"@"), (376, b"\xcd0A"), (392, b"@"), (400, b"\xdf4A"), (416, b"@")])),
+    menu_8: Bytes::new(linked::<184>(0x51D7F8, with_runs::<184>(&[(1, b"\n\x9a\x00\x02\x00\x00\x00^BA"), (24, b"\x05\x0c\x9d\x00\xf8\xddQ"), (40, b"\x01\x00\xbf\x00\x08\xdeQ"), (56, b"\x01\x01\x11\x10\xb8\xddQ"), (72, b"\x01\x01\x12\x10\xb8\xddQ"), (88, b"\x01\x01\x13\x10\xb8\xddQ"), (104, b"\x01\x01\x14\x10\xb8\xddQ"), (120, b"\x01\x01\x15\x10\xb8\xddQ"), (136, b"\x01\x01\x16\x10\xb8\xddQ"), (152, b"\x01\x01\x17\x10\xb8\xddQ"), (168, b"\x01\x01\x18\x10\xb8\xddQ")]))),
+    menu_16: Bytes::new(linked::<312>(0x51D8B0, with_runs::<312>(&[(1, b"\x12\x9a\x00\x02\x00\x00\x00^BA"), (24, b"\x05\x0c\x9d\x00\xf8\xddQ"), (40, b"\x01\x00\xbf\x00\x08\xdeQ"), (56, b"\x01\x01\x11\x10\xd8\xddQ"), (72, b"\x01\x01\x12\x10\xd8\xddQ"), (88, b"\x01\x01\x13\x10\xd8\xddQ"), (104, b"\x01\x01\x14\x10\xd8\xddQ"), (120, b"\x01\x01\x15\x10\xd8\xddQ"), (136, b"\x01\x01\x16\x10\xd8\xddQ"), (152, b"\x01\x01\x17\x10\xd8\xddQ"), (168, b"\x01\x01\x18\x10\xd8\xddQ"), (184, b"\x01\x01\x19\x10\xe8\xddQ"), (200, b"\x01\x01\x1a\x10\xe8\xddQ"), (216, b"\x01\x01\x1b\x10\xe8\xddQ"), (232, b"\x01\x01\x1c\x10\xe8\xddQ"), (248, b"\x01\x01\x1d\x10\xe8\xddQ"), (264, b"\x01\x01\x1e\x10\xe8\xddQ"), (280, b"\x01\x01\x1f\x10\xe8\xddQ"), (296, b"\x01\x01 \x10\xe8\xddQ")]))),
+    menu_more: Bytes::new(linked::<440>(0x51D9E8, with_runs::<440>(&[(1, b"\x1a\x9a\x00\x02\x00\x00\x00^BA"), (24, b"\x05\x0c\x9d\x00\xf8\xddQ"), (40, b"\x01\x00\xbf\x00\x08\xdeQ"), (56, b"\x01\x01\x11\x10\xa8\xddQ"), (72, b"\x01\x01\x12\x10\xa8\xddQ"), (88, b"\x01\x01\x13\x10\xa8\xddQ"), (104, b"\x01\x01\x14\x10\xa8\xddQ"), (120, b"\x01\x01\x15\x10\xa8\xddQ"), (136, b"\x01\x01\x16\x10\xa8\xddQ"), (152, b"\x01\x01\x17\x10\xa8\xddQ"), (168, b"\x01\x01\x18\x10\xa8\xddQ"), (184, b"\x01\x01\x19\x10\xb8\xddQ"), (200, b"\x01\x01\x1a\x10\xb8\xddQ"), (216, b"\x01\x01\x1b\x10\xb8\xddQ"), (232, b"\x01\x01\x1c\x10\xb8\xddQ"), (248, b"\x01\x01\x1d\x10\xb8\xddQ"), (264, b"\x01\x01\x1e\x10\xb8\xddQ"), (280, b"\x01\x01\x1f\x10\xb8\xddQ"), (296, b"\x01\x01 \x10\xb8\xddQ"), (312, b"\x01\x01!\x10\xc8\xddQ"), (328, b"\x01\x01\"\x10\xc8\xddQ"), (344, b"\x01\x01#\x10\xc8\xddQ"), (360, b"\x01\x01$\x10\xc8\xddQ"), (376, b"\x01\x01%\x10\xc8\xddQ"), (392, b"\x01\x01&\x10\xc8\xddQ"), (408, b"\x01\x01'\x10\xc8\xddQ"), (424, b"\x01\x01(\x10\xc8\xddQ")]))),
+    folder_page: Bytes::new(linked::<424>(0x51DBA0, with_runs::<424>(&[(1, b"\x06\x9a"), (8, b"\xf5BA"), (20, b"NSA\x00\x05\x0c\x9e"), (40, b"$\x01"), (48, b"\xfa\xeb\x95\x00p\xddQ\x00\x05\n\xaa"), (72, b"\x05\n\xac"), (88, b"\x05\n\xad"), (104, b"\x05\n\xab"), (121, b"\x03\x9a"), (128, b"\xc7BA"), (144, b"\x05\n\xad"), (156, b"\x04SA\x00\x01\x01\xae"), (168, b"\xdaBA"), (176, b"\x01\x00\xbf"), (193, b"\x04\x9a"), (200, b"/CA"), (216, b"\x05\x0b\xb2"), (228, b"\x04SA\x00\x05\x0c\xb4"), (244, b"\x04SA\x00\x01\x01l\x05"), (264, b"\x01\x00k\x05"), (281, b"\x04\xb6\x00\x02\x00\x00\x00GCA"), (304, b"\x05\n\xb7"), (316, b"\x04SA\x00\x01\x01\xb8"), (336, b"\x01\x02\xb9"), (352, b"\x01\x00\xbf"), (368, b"@"), (376, b"\xcd0A"), (392, b"@"), (400, b"\xdf4A"), (416, b"@")]))),
     step: Bytes::new(with_runs::<16>(&[(0, b")6A")])),
     _gap_51dd58: Bytes::new(with_runs::<32>(&[(0, b"@"), (8, b"P6A"), (24, b"\x02|\xa0\x00\x0b\x00\xe9\x02")])),
-    title: Bytes::new(with_runs::<16>(&[(0, b"\x05\t\x00\x00\x88\xddQ")])),
+    title: Bytes::new(linked::<16>(0x51DD78, with_runs::<16>(&[(0, b"\x05\t\x00\x00\x88\xddQ")]))),
     _gap_51dd88: Bytes::new(with_runs::<16>(&[(0, b"2\x00\x00\x00\x96\x00\x00\x00\xee\x02\x00\x00,")])),
     title_box: Bytes::new(with_runs::<16>(&[(0, b"2\x00\x00\x00\x96\x00\x00\x00\xee\x02\x00\x00\x90\x01")])),
     _gap_51dda8: Bytes::new(with_runs::<112>(&[(0, b"}\x00\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00E\x01\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00\r\x02\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00\xe1\x00\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00\xa9\x01\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x002\x00\x00\x00\xc8\x00\x00\x00\xee\x02\x00\x00\x1e\x00\x00\x002\x00\x00\x00\xef\x01\x00\x00\xee\x02\x00\x00\x1e")])),
     bad_folder_chars: Bytes::new(with_runs::<20>(&[(0, b"\"+*,;=/:<>?\\{}[]|\x7f")])),
-};
+    _tail: Bytes::new([0; 4]),
+        }
+    }
+}
 
 impl InstallerPages {
+    /// The byte `index` of `kind_fonts` (8 bytes a font kind); an index past the table ends
+    /// the program as every checked installer read does.
+    pub fn kind_font(index: u32) -> u8 {
+        let install = crate::install::owner::install();
+        if index >= 108 {
+            crate::install::installer::refuse(crate::errors::BadInput(
+                "a font kind past the installer's table",
+            ));
+        }
+        install.pages.kind_fonts.get(index as usize)
+    }
+
+    /// Where font `index` of the page's fonts is (phase 13: the table keeps IDA's addresses
+    /// as names, `moved::point_into_homes` passes them over). A slot that names no font
+    /// object (the unused slot 0, an index off the table) is refused.
+    pub fn font_of(index: u32) -> Result<crate::gfx::typefaces::FontId, crate::errors::BadInput> {
+        let install = crate::install::owner::install();
+        let cell = install
+            .pages
+            .fonts
+            .get(index as usize)
+            .ok_or(crate::errors::BadInput("a page font past the table"))?;
+        crate::gfx::typefaces::FontId::try_at(cell.get() as usize).ok_or(crate::errors::BadInput(
+            "a page font that is no font object",
+        ))
+    }
+
+    /// 0x51D4C4: `dword_51D4C4`, the page fonts' table.
+    #[cfg(test)]
+    const FONTS_AT: usize = 0x51D4C4;
     pub const START: usize = 0x51C407;
     pub const LEN: usize = 0x1A25;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&INSTALLER_PAGES as *const InstallerPages) + 7) as usize
+        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.pages) + 7)
+            as usize
     }
 }
 
 /// The installer's path buffers (0x100 bytes each; the network's lobby edits two of them) (IDA 0x95E6F8 .. 0x95ECF8, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct InstallerPaths {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<8>,
@@ -407,56 +488,155 @@ pub struct InstallerPaths {
     pub script_path: Bytes<256>,
     /// 0x95EBF8: `byte_95EBF8`: the folder typed on the page.
     pub typed: Bytes<256>,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<8>,
 }
 
-pub static INSTALLER_PATHS: InstallerPaths = InstallerPaths {
-    _lead: Bytes::new([0; 8]),
-    game_dir: Bytes::new([0; 256]),
-    installed: Bytes::new([0; 256]),
-    path_a: Bytes::new([0; 256]),
-    path_b: Bytes::new([0; 256]),
-    script_path: Bytes::new([0; 256]),
-    typed: Bytes::new([0; 256]),
-};
+impl InstallerPaths {
+    pub const fn new() -> Self {
+        InstallerPaths {
+            _lead: Bytes::new([0; 8]),
+            game_dir: Bytes::new([0; 256]),
+            installed: Bytes::new([0; 256]),
+            path_a: Bytes::new([0; 256]),
+            path_b: Bytes::new([0; 256]),
+            script_path: Bytes::new([0; 256]),
+            typed: Bytes::new([0; 256]),
+            _tail: Bytes::new([0; 8]),
+        }
+    }
+}
 
 impl InstallerPaths {
     pub const START: usize = 0x95E6F8;
     pub const LEN: usize = 0x600;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&INSTALLER_PATHS as *const InstallerPaths) + 8) as usize
+        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.paths) + 8)
+            as usize
     }
 }
 
 /// The installer's palette buffer (IDA 0x4F3874 .. 0x4F3B74, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct InstallerPalette {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<4>,
     /// 0x4F3874: `unk_4F3874`: the installer's palette file read here (0x300 bytes, `install::open_installer`).
     pub palette: Bytes<768>,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<12>,
 }
 
-pub static INSTALLER_PALETTE: InstallerPalette = InstallerPalette {
-    _lead: Bytes::new([0; 4]),
-    palette: Bytes::new([0; 768]),
-};
+impl InstallerPalette {
+    pub const fn new() -> Self {
+        InstallerPalette {
+            _lead: Bytes::new([0; 4]),
+            palette: Bytes::new([0; 768]),
+            _tail: Bytes::new([0; 12]),
+        }
+    }
+}
 
 impl InstallerPalette {
     pub const START: usize = 0x4F3874;
     pub const LEN: usize = 0x300;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&INSTALLER_PALETTE as *const InstallerPalette) + 4) as usize
+        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.palette) + 4)
+            as usize
     }
 }
 
+/// The installer pages' dwords that name data: the pages' links, their items' fonts and
+/// variables (IDA's addresses, sorted). The code pointers beside them stay addresses.
+pub(super) const PAGE_LINKS: [u32; 105] = [
+    0x51D43B, 0x51D44B, 0x51D45B, 0x51D46B, 0x51D47B, 0x51D48F, 0x51D49F, 0x51D594, 0x51D59C,
+    0x51D5A0, 0x51D5A4, 0x51D5A8, 0x51D5AC, 0x51D5B0, 0x51D5B4, 0x51D5B8, 0x51D5BC, 0x51D5C0,
+    0x51D5C8, 0x51D5CC, 0x51D5D0, 0x51D5D4, 0x51D5D8, 0x51D5E0, 0x51D5E4, 0x51D5E8, 0x51D5EC,
+    0x51D5F0, 0x51D5F4, 0x51D5F8, 0x51D5FC, 0x51D600, 0x51D604, 0x51D608, 0x51D60C, 0x51D610,
+    0x51D614, 0x51D618, 0x51D61C, 0x51D620, 0x51D62C, 0x51D630, 0x51D634, 0x51D638, 0x51D63C,
+    0x51D648, 0x51D654, 0x51D660, 0x51D814, 0x51D824, 0x51D834, 0x51D844, 0x51D854, 0x51D864,
+    0x51D874, 0x51D884, 0x51D894, 0x51D8A4, 0x51D8CC, 0x51D8DC, 0x51D8EC, 0x51D8FC, 0x51D90C,
+    0x51D91C, 0x51D92C, 0x51D93C, 0x51D94C, 0x51D95C, 0x51D96C, 0x51D97C, 0x51D98C, 0x51D99C,
+    0x51D9AC, 0x51D9BC, 0x51D9CC, 0x51D9DC, 0x51DA04, 0x51DA14, 0x51DA24, 0x51DA34, 0x51DA44,
+    0x51DA54, 0x51DA64, 0x51DA74, 0x51DA84, 0x51DA94, 0x51DAA4, 0x51DAB4, 0x51DAC4, 0x51DAD4,
+    0x51DAE4, 0x51DAF4, 0x51DB04, 0x51DB14, 0x51DB24, 0x51DB34, 0x51DB44, 0x51DB54, 0x51DB64,
+    0x51DB74, 0x51DB84, 0x51DB94, 0x51DBD0, 0x51DBD4, 0x51DD7C,
+];
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn page_links_are_the_images_data_pointers() {
+        let found: Vec<u32> = crate::moved::image_relocations()
+            .into_iter()
+            .filter(|&p| {
+                let at = p as usize;
+                let fonts =
+                    (InstallerPages::FONTS_AT..InstallerPages::FONTS_AT + 100).contains(&at);
+                let value = crate::moved::image_bytes(at, 4);
+                let value = u32::from_le_bytes(value.try_into().unwrap());
+                (InstallerPages::START..InstallerPages::START + InstallerPages::LEN).contains(&at)
+                    && !fonts
+                    && value >= 0x4DA000
+            })
+            .collect();
+        assert_eq!(found, PAGE_LINKS);
+        for &p in &PAGE_LINKS {
+            let off = (p as usize - InstallerPages::START) as u32;
+            let image = crate::moved::image_bytes(p as usize, 4);
+            let ida = u32::from_le_bytes(image.try_into().unwrap());
+            let link = PageLink::from_raw(
+                crate::pointers::GamePtr::to(&crate::install::owner::install().pages)
+                    .offset(off + 7)
+                    .read::<u32>("a page link")
+                    .unwrap(),
+            );
+            assert_eq!(link, PageLink::of_ida(ida), "{p:#X}");
+            // The handle names the place the image's address is now.
+            let home = crate::moved::home_of_rva(ida as usize - crate::framework::IMAGE_BASE);
+            if let Ok(place) = link.place() {
+                assert_eq!(Some(place.addr() as usize), home, "{p:#X}");
+            }
+        }
+    }
+
     use super::*;
 
     #[test]
+    fn installer_page_fonts_resolve_as_the_images_do() {
+        // Slot 0 is no font; the others name font objects, as the image's dwords do.
+        assert!(InstallerPages::font_of(0).is_err());
+        assert!(InstallerPages::font_of(25).is_err());
+        for n in 1..25 {
+            let image = crate::moved::image_bytes(0x51D4C4 + 4 * n, 4);
+            let ida = u32::from_le_bytes(image[..4].try_into().unwrap()) as usize;
+            let font = crate::gfx::typefaces::FontId::try_at(ida).unwrap();
+            assert_eq!(font.ida(), ida);
+            assert_eq!(InstallerPages::font_of(n as u32).unwrap(), font);
+        }
+    }
+
+    #[test]
+    fn installer_languages_keys_are_the_images() {
+        // Nine keys, a slot's address each (0x51BEEE + 0x80 n), kept as the image's numbers.
+        for n in 0..9 {
+            let at = 0x51C378 + 0xE * n;
+            let image = crate::moved::image_bytes(at, 0xE);
+            assert_eq!(&image[..5], format!("lang{}", n + 1).as_bytes());
+            let slot = u32::from_le_bytes(image[6..10].try_into().unwrap()) as usize;
+            assert_eq!(slot, 0x51BEEE + 0x80 * n);
+        }
+    }
+
+    #[test]
     fn installerrun_starts_as_the_games() {
+        // `list_folder_tree`'s test writes these (under the lock).
+        let _lock = crate::store::test_lock();
         let size = size_of::<InstallerRun>();
         assert!(
             8 + InstallerRun::LEN <= size && size <= (8 + InstallerRun::LEN).next_multiple_of(16)
@@ -464,7 +644,7 @@ mod tests {
         let image = crate::moved::image_bytes(InstallerRun::START, InstallerRun::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(InstallerRun::home()) as *const u8,
+                crate::pointers::host_at(InstallerRun::home()).cast_const(),
                 InstallerRun::LEN,
             )
         };
@@ -473,12 +653,14 @@ mod tests {
 
     #[test]
     fn installernames_starts_as_the_games() {
+        // `list_folder_tree`'s test writes these (under the lock).
+        let _lock = crate::store::test_lock();
         let size = size_of::<InstallerNames>();
         assert!(InstallerNames::LEN <= size && size <= (InstallerNames::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(InstallerNames::START, InstallerNames::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(InstallerNames::home()) as *const u8,
+                crate::pointers::host_at(InstallerNames::home()).cast_const(),
                 InstallerNames::LEN,
             )
         };
@@ -492,10 +674,16 @@ mod tests {
             7 + InstallerPages::LEN <= size
                 && size <= (7 + InstallerPages::LEN).next_multiple_of(16)
         );
-        let image = crate::moved::image_bytes(InstallerPages::START, InstallerPages::LEN);
+        let mut image = crate::moved::image_bytes(InstallerPages::START, InstallerPages::LEN);
+        // The links are the handles that stand for the image's addresses.
+        for &p in &PAGE_LINKS {
+            let at = p as usize - InstallerPages::START;
+            let ida = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
+            image[at..at + 4].copy_from_slice(&PageLink::of_ida(ida).raw().to_le_bytes());
+        }
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(InstallerPages::home()) as *const u8,
+                crate::pointers::host_at(InstallerPages::home()).cast_const(),
                 InstallerPages::LEN,
             )
         };
@@ -512,7 +700,7 @@ mod tests {
         let image = crate::moved::image_bytes(InstallerPaths::START, InstallerPaths::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(InstallerPaths::home()) as *const u8,
+                crate::pointers::host_at(InstallerPaths::home()).cast_const(),
                 InstallerPaths::LEN,
             )
         };
@@ -529,7 +717,7 @@ mod tests {
         let image = crate::moved::image_bytes(InstallerPalette::START, InstallerPalette::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(InstallerPalette::home()) as *const u8,
+                crate::pointers::host_at(InstallerPalette::home()).cast_const(),
                 InstallerPalette::LEN,
             )
         };

@@ -6,12 +6,8 @@
 //! not negative, 0 when at or past the count (by the sign); past the last called
 //! (`unk_71A074`, unsigned): more than 16 past moves it up to ebx first, then every
 //! checkpoint after it up to ebx (at least one) has its group called
-//! (`physics::queue_pace_note`, edx the checkpoint, inside `pusha` / `popa`), and
+//! (`physics::queue_pace_note`, edx the checkpoint), and
 //! `unk_71A074` = ebx. Then (unless it left at the start) `physics::expire_car_events`.
-//!
-//! In:  nothing
-//! Out: the start's gates closed: every register kept; else ebx and edx as above (edx not
-//!      set when nothing was called) and what `expire_car_events` leaves; no flags read
 //!
 //! Caller: `physics::car_physics_step`, which calls the Rust version directly. Its calls by
 //! `physics/queue_pace_note.rs`' places (5 the group, 6 the expiry). Refuses what its calls
@@ -21,64 +17,62 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::work_store::RACE_WORK;
-use crate::scene::draw_store::DRAW;
+use crate::race::owner::Race;
 use rc2k_core::physics::pace_calls::{call_target, calling, calls};
 
 /// The gates' variables (each must be 0; the last is "1000 or more").
-fn gates() -> [u32; 7] {
+fn gates(race: &Race) -> [u32; 7] {
     [
-        CAR.finish_flag.get(),
-        CAR.go_stand_timer.get(),
-        CAR.started_stand_timer.get(),
-        REPLAY_FILE.hold_car_revs.get(),
-        RACE_WORK.in_credits.get(),
-        CAR.false_start_count.get(),
-        CAR.all_wheels_off.get(),
+        race.shared.car.finish_flag.get(),
+        race.shared.car.go_stand_timer.get(),
+        race.shared.car.started_stand_timer.get(),
+        race.shared.replay_file.hold_car_revs.get(),
+        race.shared.work.in_credits.get(),
+        crate::race::owner::RACE.shared.car.false_start_count.get(),
+        crate::race::owner::RACE.shared.car.all_wheels_off.get(),
     ]
 }
 const ONE_F32: u32 = 0x3F80_0000;
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::pace_calls::{calling, call_target, calls}`.
-pub fn pace_notes_step() -> Result<(), Refused> {
-    if !calling(gates(), CAR.driver_kind.get(), CAR.run_ticks.get()) {
+pub fn pace_notes_step(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
+    if !calling(
+        gates(race),
+        race.shared.car.driver_kind.get(),
+        race.shared.car.run_ticks.get(),
+    ) {
         return Ok(());
     }
     // `fld; fmul; fdiv; fistp` (the extra division by 1.0 is exact).
     let ahead = crate::math::x87::mul_div_div_to_int(
-        CAR.local_velocity[2].bits(),
-        PHYSICS.pace_scale.bits(),
-        NUMBERS.eight.bits(),
+        race.shared.car.local_velocity[2].bits(),
+        race.shared.physics_tables.pace_scale.bits(),
+        race.course.numbers.eight.bits(),
         ONE_F32,
     );
-    DRAW.scratch.set(ahead as u32);
+    scene.drawing.scene.scratch.set(ahead as u32);
     let target = call_target(
-        CAR.reset_checkpoint.get(),
+        race.shared.car.reset_checkpoint.get(),
         ahead,
-        RACE_VARS.checkpoint_count.get(),
+        race.shared.vars.checkpoint_count.get(),
     );
-    if let Some((last, _)) = calls(target, CAR.last_pace_call.get()) {
-        CAR.last_pace_call.set(last);
+    if let Some((last, _)) = calls(target, race.shared.car.last_pace_call.get()) {
+        race.shared.car.last_pace_call.set(last);
         let mut checkpoint = last;
         loop {
             checkpoint = checkpoint.wrapping_add(1);
-            crate::physics::queue_pace_note::queue_pace_note(checkpoint)?;
+            crate::physics::queue_pace_note::queue_pace_note(race, checkpoint, sound)?;
             if checkpoint >= target {
                 break;
             }
         }
-        CAR.last_pace_call.set(target);
+        race.shared.car.last_pace_call.set(target);
     }
-    {
-        crate::physics::expire_car_events::expire_car_events_at(
-            &crate::physics::queue_car_event::QueuePlaces::game(),
-        )
-    }?;
+    crate::physics::expire_car_events::expire_car_events(race)?;
     Ok(())
 }

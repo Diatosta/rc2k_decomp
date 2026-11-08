@@ -1,1096 +1,457 @@
-//! `physics::damage_gauges` (0x4AC817): the damage gauges' step (`physics/damage_model.rs`):
-//! each gauge (`unk_71A284` .. `unk_71A33C`, the gearbox's eight `unk_71A2AC[gear]` by
-//! `dword_75B3BC`) raised by its rate (`flt_75B5D0` ..) times this step's shares and hit
-//! figures (`flt_75B38C`, `flt_75B370`, `flt_75B398`, `flt_75B3B4`, `flt_75B450` ..), each
-//! held 0 ..= `flt_75B34C` after (`fcompp`, below or unordered raised); the hit's side
-//! (`dword_75B3C4` 1 .. 4) choosing gauges, its size (`flt_75B3C8`) scaled by
-//! `flt_71C708` past `flt_75B628`, the direction `dword_75B3B8` (1 / -1) adding fixed
-//! steps; the kind tables `flt_75B630` / `flt_75B638` by `flt_75B3E4`'s bits.
+//! `physics::damage_gauges` (0x4AC817): the damage gauges' step (`physics/damage_model.rs`).
 //!
-//! In:  nothing
-//! Out: esi and ebx the gear (where the original loads them), the rest as the steps leave
-//!      them; no flags read
+//! Each gauge of the car block (engine, exhaust, cooling, clutch, differential, electrics,
+//! lights, steering, suspension, turbo, brakes, the gearbox's gears, the body and part
+//! hits) is raised by its rate (`gauge_rates`, `wear_rates`) times this step's shares and
+//! hit figures, then held 0 ..= `gauge_top`. The hit's side (`dword_75B3C4`, 1 .. 4)
+//! chooses the gauges a hit wears, its size (`flt_75B3C8`) is scaled past `gauge_rates[22]`,
+//! and the direction `dword_75B3B8` (1 or -1) adds fixed steps.
 //!
 //! Caller: `physics::damage_step`.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
+use crate::errors::BadInput;
 use crate::math::x87::loaded;
 use crate::math::x87_float::X;
-#[allow(unused_imports)] // the generated body uses some of them
-use crate::math::x87_float::{int, ld, st, to_int};
-#[allow(unused_imports)]
-use crate::math::x87_run::{abs_compare, compare_full};
-use crate::physics::car_store::CAR;
-#[allow(unused_imports)]
-use crate::physics::flow::{a, c0, g, hold_high, hold_low, p, table_lerp};
-use crate::physics::store::{DAMAGE, DamageModel};
-use crate::scene::x87_mem::{fld, fstp};
-use crate::session::Cell32;
+use crate::math::x87_float::{ld, st};
+use crate::physics::flow::{below_or_unordered, c0};
+use crate::physics::store::DamageModel;
+use crate::race::owner::Race;
+use crate::race::owner_physics::Physics;
+use crate::race::owner_shared::Shared;
+use crate::session::{Cell32, Float};
 
-/// `unk_71A2AC[gear]` (the gear -1 .. 7 as the original indexes it).
-fn gear_gauge(gear: u32) -> u32 {
-    (CAR.gear_wear[1].addr()).wrapping_add(gear.wrapping_mul(4))
+/// `unk_71A2AC[gear]` (the gear -1 .. 7 as the original indexes it, `gear_wear` by gear + 1).
+fn gear_gauge(shared: &Shared, gear: u32) -> &Float {
+    shared
+        .car
+        .gear_wear
+        .get(gear.wrapping_add(1) as usize)
+        .unwrap_or_else(|| {
+            crate::fatal::raise::end("a gear's wear gauge", BadInput("the gear is not -1 .. 7"))
+        })
 }
 
 /// The gauge at `at` held 0 ..= `flt_75B34C` (the two `fcompp` holds).
-fn hold_at(at: u32) {
-    let rd = || crate::pointers::read_or_end::<u32>(at, "a damage gauge");
-    let put = |v: u32| crate::pointers::write_or_end(at, v, "a damage gauge");
-    if c0(rd(), DAMAGE.gauge_low.bits()) {
-        put(loaded(DAMAGE.gauge_low.bits()));
+fn hold_at(physics: &Physics, at: &Float) {
+    let rd = || at.bits();
+    let put = |v: u32| at.set_bits(v);
+    if c0(rd(), physics.damage.gauge_low.bits()) {
+        put(loaded(physics.damage.gauge_low.bits()));
     }
-    if !c0(rd(), DAMAGE.gauge_top.bits()) {
-        put(loaded(DAMAGE.gauge_top.bits()));
+    if !c0(rd(), physics.damage.gauge_top.bits()) {
+        put(loaded(physics.damage.gauge_top.bits()));
     }
 }
 
-/// The steps (generated from the disassembly by idiom; the indexed gauges by hand).
-pub fn steps() {
-    x87_1(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[0],
-        &DAMAGE.flt_75b38c,
-        0x31A290,
-        0x31A290,
-    );
-    hold_low(&CAR.engine_damage, &DAMAGE.gauge_low);
-    hold_high(&CAR.engine_damage, &DAMAGE.gauge_top);
-    x87_1(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[1],
-        &DAMAGE.flt_75b38c,
-        0x31A294,
-        0x31A294,
-    );
-    hold_low(&CAR.exhaust_damage, &DAMAGE.gauge_low);
-    hold_high(&CAR.exhaust_damage, &DAMAGE.gauge_top);
-    x87_1(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[2],
-        &DAMAGE.flt_75b38c,
-        0x31A29C,
-        0x31A29C,
-    );
-    hold_low(&CAR.cooling_damage, &DAMAGE.gauge_low);
-    hold_high(&CAR.cooling_damage, &DAMAGE.gauge_top);
-    x87_1(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[3],
-        &DAMAGE.flt_75b38c,
-        0x31A2A0,
-        0x31A2A0,
-    );
-    hold_low(&CAR.clutch_damage, &DAMAGE.gauge_low);
-    hold_high(&CAR.clutch_damage, &DAMAGE.gauge_top);
-    x87_1(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[4],
-        &DAMAGE.flt_75b38c,
-        0x31A2A4,
-        0x31A2A4,
-    );
-    hold_low(&CAR.differential_damage, &DAMAGE.gauge_low);
-    hold_high(&CAR.differential_damage, &DAMAGE.gauge_top);
-    x87_1(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[5],
-        &DAMAGE.flt_75b38c,
-        0x31A2E8,
-        0x31A2E8,
-    );
-    hold_low(&CAR.electrics_damage, &DAMAGE.gauge_low);
-    hold_high(&CAR.electrics_damage, &DAMAGE.gauge_top);
-    x87_1(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[6],
-        &DAMAGE.flt_75b38c,
-        0x31A2EC,
-        0x31A2EC,
-    );
-    hold_low(&CAR.light_damage[0], &DAMAGE.gauge_low);
-    hold_high(&CAR.light_damage[0], &DAMAGE.gauge_top);
-    x87_1(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[6],
-        &DAMAGE.flt_75b38c,
-        0x31A2F0,
-        0x31A2F0,
-    );
-    hold_low(&CAR.light_damage[1], &DAMAGE.gauge_low);
-    hold_high(&CAR.light_damage[1], &DAMAGE.gauge_top);
-    x87_1(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[6],
-        &DAMAGE.flt_75b38c,
-        0x31A2F4,
-        0x31A2F4,
-    );
-    hold_low(&CAR.light_damage[2], &DAMAGE.gauge_low);
-    hold_high(&CAR.light_damage[2], &DAMAGE.gauge_top);
-    x87_1(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[6],
-        &DAMAGE.flt_75b38c,
-        0x31A2F8,
-        0x31A2F8,
-    );
-    hold_low(&CAR.light_damage[3], &DAMAGE.gauge_low);
-    hold_high(&CAR.light_damage[3], &DAMAGE.gauge_top);
-    x87_1(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[6],
-        &DAMAGE.flt_75b38c,
-        0x31A2FC,
-        0x31A2FC,
-    );
-    hold_low(&CAR.light_damage[4], &DAMAGE.gauge_low);
-    hold_high(&CAR.light_damage[4], &DAMAGE.gauge_top);
-    x87_1(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[6],
-        &DAMAGE.flt_75b38c,
-        0x31A300,
-        0x31A300,
-    );
-    hold_low(&CAR.light_damage[5], &DAMAGE.gauge_low);
-    hold_high(&CAR.light_damage[5], &DAMAGE.gauge_top);
-    x87_1(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[7],
-        &DAMAGE.flt_75b38c,
-        0x31A308,
-        0x31A308,
-    );
-    hold_low(&CAR.steering_damage, &DAMAGE.gauge_low);
-    hold_high(&CAR.steering_damage, &DAMAGE.gauge_top);
-    x87_1(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[8],
-        &DAMAGE.flt_75b38c,
-        0x31A30C,
-        0x31A30C,
-    );
-    hold_low(&CAR.suspension_damage[0], &DAMAGE.gauge_low);
-    hold_high(&CAR.suspension_damage[0], &DAMAGE.gauge_top);
-    x87_1(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[8],
-        &DAMAGE.flt_75b38c,
-        0x31A310,
-        0x31A310,
-    );
-    hold_low(&CAR.suspension_damage[1], &DAMAGE.gauge_low);
-    hold_high(&CAR.suspension_damage[1], &DAMAGE.gauge_top);
-    x87_1(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[8],
-        &DAMAGE.flt_75b38c,
-        0x31A314,
-        0x31A314,
-    );
-    hold_low(&CAR.suspension_damage[2], &DAMAGE.gauge_low);
-    hold_high(&CAR.suspension_damage[2], &DAMAGE.gauge_top);
-    x87_1(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[8],
-        &DAMAGE.flt_75b38c,
-        0x31A318,
-        0x31A318,
-    );
-    hold_low(&CAR.suspension_damage[3], &DAMAGE.gauge_low);
-    hold_high(&CAR.suspension_damage[3], &DAMAGE.gauge_top);
-    x87_2(
-        &DAMAGE,
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.wear_rates[11],
-        &DAMAGE.flt_75b3c0,
-        &DAMAGE.flt_75b398,
-        0x31A298,
-        0x31A298,
-    );
-    hold_low(&CAR.turbo_damage, &DAMAGE.gauge_low);
-    hold_high(&CAR.turbo_damage, &DAMAGE.gauge_top);
-    let gear = DAMAGE.dword_75b3bc.bits();
-    let gauge = gear_gauge(gear);
-    x87_3(
-        &DAMAGE,
-        ((DAMAGE.flt_75b5b0.addr()).wrapping_add(gear.wrapping_mul(4))) as usize,
-        gauge as usize,
-    );
-    hold_at(gauge);
-    x87_4(&DAMAGE, crate::race::store::asm_base() as usize);
-    hold_low(&CAR.brake_wear_a, &DAMAGE.gauge_low);
-    hold_high(&CAR.brake_wear_a, &DAMAGE.gauge_top);
-    x87_2(
-        &DAMAGE,
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[9],
-        &DAMAGE.flt_75b43c,
-        &DAMAGE.flt_75b3b0,
-        0x31A324,
-        0x31A324,
-    );
-    hold_low(&CAR.brake_wear_b, &DAMAGE.gauge_low);
-    hold_high(&CAR.brake_wear_b, &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[10],
-        &DAMAGE.flt_75b3b4,
-        &DAMAGE.flt_75b38c,
-        0x31A2E8,
-        0x31A2E8,
-    );
-    hold_low(&CAR.electrics_damage, &DAMAGE.gauge_low);
-    hold_high(&CAR.electrics_damage, &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[11],
-        &DAMAGE.flt_75b3b4,
-        &DAMAGE.flt_75b38c,
-        0x31A2EC,
-        0x31A2EC,
-    );
-    hold_low(&CAR.light_damage[0], &DAMAGE.gauge_low);
-    hold_high(&CAR.light_damage[0], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[11],
-        &DAMAGE.flt_75b3b4,
-        &DAMAGE.flt_75b38c,
-        0x31A2F0,
-        0x31A2F0,
-    );
-    hold_low(&CAR.light_damage[1], &DAMAGE.gauge_low);
-    hold_high(&CAR.light_damage[1], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[11],
-        &DAMAGE.flt_75b3b4,
-        &DAMAGE.flt_75b38c,
-        0x31A2F4,
-        0x31A2F4,
-    );
-    hold_low(&CAR.light_damage[2], &DAMAGE.gauge_low);
-    hold_high(&CAR.light_damage[2], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[11],
-        &DAMAGE.flt_75b3b4,
-        &DAMAGE.flt_75b38c,
-        0x31A2F8,
-        0x31A2F8,
-    );
-    hold_low(&CAR.light_damage[3], &DAMAGE.gauge_low);
-    hold_high(&CAR.light_damage[3], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[11],
-        &DAMAGE.flt_75b3b4,
-        &DAMAGE.flt_75b38c,
-        0x31A2FC,
-        0x31A2FC,
-    );
-    hold_low(&CAR.light_damage[4], &DAMAGE.gauge_low);
-    hold_high(&CAR.light_damage[4], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.gauge_rates[11],
-        &DAMAGE.flt_75b3b4,
-        &DAMAGE.flt_75b38c,
-        0x31A300,
-        0x31A300,
-    );
-    hold_low(&CAR.light_damage[5], &DAMAGE.gauge_low);
-    hold_high(&CAR.light_damage[5], &DAMAGE.gauge_top);
-    x87_6(&DAMAGE);
-    let part = DAMAGE.flt_75b3e4.bits();
-    x87_7(
-        &DAMAGE,
-        ((DAMAGE.kind_table_a[0].addr()).wrapping_add(part.wrapping_mul(4))) as usize,
-        ((DAMAGE.kind_table_b[0].addr()).wrapping_add(part.wrapping_mul(4))) as usize,
-    );
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b46c,
-        &DAMAGE.flt_75b488,
-        &DAMAGE.flt_75b370,
-        0x31A32C,
-        0x31A32C,
-    );
-    hold_low(&CAR.part_hit_damage[0], &DAMAGE.gauge_low);
-    hold_high(&CAR.part_hit_damage[0], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b46c,
-        &DAMAGE.flt_75b488,
-        &DAMAGE.flt_75b370,
-        0x31A330,
-        0x31A330,
-    );
-    hold_low(&CAR.part_hit_damage[1], &DAMAGE.gauge_low);
-    hold_high(&CAR.part_hit_damage[1], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b470,
-        &DAMAGE.flt_75b48c,
-        &DAMAGE.flt_75b370,
-        0x31A334,
-        0x31A334,
-    );
-    hold_low(&CAR.part_hit_damage[2], &DAMAGE.gauge_low);
-    hold_high(&CAR.part_hit_damage[2], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b470,
-        &DAMAGE.flt_75b48c,
-        &DAMAGE.flt_75b370,
-        0x31A338,
-        0x31A338,
-    );
-    hold_low(&CAR.part_hit_damage[3], &DAMAGE.gauge_low);
-    hold_high(&CAR.part_hit_damage[3], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b45c,
-        &DAMAGE.gauge_rates[13],
-        &DAMAGE.flt_75b370,
-        0x31A290,
-        0x31A290,
-    );
-    hold_low(&CAR.engine_damage, &DAMAGE.gauge_low);
-    hold_high(&CAR.engine_damage, &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b45c,
-        &DAMAGE.gauge_rates[12],
-        &DAMAGE.flt_75b370,
-        0x31A29C,
-        0x31A29C,
-    );
-    hold_low(&CAR.cooling_damage, &DAMAGE.gauge_low);
-    hold_high(&CAR.cooling_damage, &DAMAGE.gauge_top);
-    if compare_full(DAMAGE.flt_75b464.bits(), DAMAGE.gauge_low.bits()) & 0x100 == 0 {
-        x87_8(crate::race::store::asm_base() as usize, &DAMAGE);
-        hold_low(&CAR.engine_damage, &DAMAGE.gauge_low);
-        hold_high(&CAR.engine_damage, &DAMAGE.gauge_top);
-        x87_5(
-            crate::race::store::asm_base() as usize,
-            &DAMAGE.flt_75b464,
-            &DAMAGE.gauge_rates[15],
-            &DAMAGE.flt_75b370,
-            0x31A29C,
-            0x31A29C,
+/// The damage gauges' step: each gauge raised by its rate times this step's shares and hit
+/// figures, then held 0 ..= `gauge_top`.
+pub fn steps(race: &Race) {
+    raise(&race.physics, &race.shared.car.engine_damage, |g| {
+        add_product(
+            &race.physics.damage.gauge_rates[0],
+            &race.physics.damage.flt_75b38c,
+            g,
+            g,
         );
-        hold_low(&CAR.cooling_damage, &DAMAGE.gauge_low);
-        hold_high(&CAR.cooling_damage, &DAMAGE.gauge_top);
+    });
+    raise(&race.physics, &race.shared.car.exhaust_damage, |g| {
+        add_product(
+            &race.physics.damage.gauge_rates[1],
+            &race.physics.damage.flt_75b38c,
+            g,
+            g,
+        );
+    });
+    raise(&race.physics, &race.shared.car.cooling_damage, |g| {
+        add_product(
+            &race.physics.damage.gauge_rates[2],
+            &race.physics.damage.flt_75b38c,
+            g,
+            g,
+        );
+    });
+    raise(&race.physics, &race.shared.car.clutch_damage, |g| {
+        add_product(
+            &race.physics.damage.gauge_rates[3],
+            &race.physics.damage.flt_75b38c,
+            g,
+            g,
+        );
+    });
+    raise(&race.physics, &race.shared.car.differential_damage, |g| {
+        add_product(
+            &race.physics.damage.gauge_rates[4],
+            &race.physics.damage.flt_75b38c,
+            g,
+            g,
+        );
+    });
+    raise(&race.physics, &race.shared.car.electrics_damage, |g| {
+        add_product(
+            &race.physics.damage.gauge_rates[5],
+            &race.physics.damage.flt_75b38c,
+            g,
+            g,
+        );
+    });
+    for k in 0..6 {
+        raise(&race.physics, &race.shared.car.light_damage[k], |g| {
+            add_product(
+                &race.physics.damage.gauge_rates[6],
+                &race.physics.damage.flt_75b38c,
+                g,
+                g,
+            );
+        });
     }
-    if DAMAGE.dword_75b3b8.bits() == 0x1 {
-        x87_9(
-            crate::race::store::asm_base() as usize,
-            &DAMAGE.gauge_rates[16],
+    raise(&race.physics, &race.shared.car.steering_damage, |g| {
+        add_product(
+            &race.physics.damage.gauge_rates[7],
+            &race.physics.damage.flt_75b38c,
+            g,
+            g,
         );
+    });
+    for k in 0..4 {
+        raise(&race.physics, &race.shared.car.suspension_damage[k], |g| {
+            add_product(
+                &race.physics.damage.gauge_rates[8],
+                &race.physics.damage.flt_75b38c,
+                g,
+                g,
+            );
+        });
     }
-    if DAMAGE.dword_75b3b8.bits() == 0xFFFFFFFF {
-        x87_9(
-            crate::race::store::asm_base() as usize,
-            &DAMAGE.gauge_rates[17],
+    raise(&race.physics, &race.shared.car.turbo_damage, |g| {
+        add_scaled_triple(
+            &race.physics.damage,
+            &race.physics.damage.wear_rates[11],
+            &race.physics.damage.flt_75b3c0,
+            &race.physics.damage.engine_speed_share,
+            g,
+            g,
         );
+    });
+    let gear = race.physics.damage.dword_75b3bc.bits();
+    let gauge = gear_gauge(&race.shared, gear);
+    let factor = race
+        .physics
+        .damage
+        .gear_factors
+        .get(gear.wrapping_add(1) as usize)
+        .unwrap_or_else(|| {
+            crate::fatal::raise::end("a gear's factor", BadInput("the gear is not -1 .. 7"))
+        });
+    gear_wear_from_speed(&race.physics.damage, factor, gauge);
+    hold_at(&race.physics, gauge);
+    brake_wear_step(&race.shared, &race.physics.damage);
+    hold_at(&race.physics, &race.shared.car.brake_wear_a);
+    raise(&race.physics, &race.shared.car.brake_wear_b, |g| {
+        add_scaled_triple(
+            &race.physics.damage,
+            &race.physics.damage.gauge_rates[9],
+            &race.physics.damage.flt_75b43c,
+            &race.physics.damage.brake_share,
+            g,
+            g,
+        );
+    });
+    raise(&race.physics, &race.shared.car.electrics_damage, |g| {
+        add_triple_product(
+            &race.physics.damage.gauge_rates[10],
+            &race.physics.damage.flt_75b3b4,
+            &race.physics.damage.flt_75b38c,
+            g,
+            g,
+        );
+    });
+    for k in 0..6 {
+        raise(&race.physics, &race.shared.car.light_damage[k], |g| {
+            add_triple_product(
+                &race.physics.damage.gauge_rates[11],
+                &race.physics.damage.flt_75b3b4,
+                &race.physics.damage.flt_75b38c,
+                g,
+                g,
+            );
+        });
     }
-    let gear = DAMAGE.dword_75b3bc.bits();
-    if DAMAGE.dword_75b3b8.bits() == 0x1 {
-        let gauge = gear_gauge(gear);
-        x87_10(gauge as usize, &DAMAGE.gauge_rates[18]);
+    part_hit_figures(&race.physics.damage);
+    let part = race.physics.damage.flt_75b3e4.bits();
+    fn kind(table: &[Float; 2], part: u32) -> &Float {
+        table.get(part as usize).unwrap_or_else(|| {
+            crate::fatal::raise::end("a kind table", BadInput("the kind is not 0 or 1"))
+        })
     }
-    let gear = DAMAGE.dword_75b3bc.bits();
-    if DAMAGE.dword_75b3b8.bits() == 0xFFFFFFFF {
-        let gauge = gear_gauge(gear);
-        x87_10(gauge as usize, &DAMAGE.gauge_rates[19]);
+    scale_part_hit_figures(
+        &race.physics.damage,
+        kind(&race.physics.damage.kind_table_a, part),
+        kind(&race.physics.damage.kind_table_b, part),
+    );
+    for k in 0..2 {
+        raise(&race.physics, &race.shared.car.part_hit_damage[k], |g| {
+            add_triple_product(
+                &race.physics.damage.flt_75b46c,
+                &race.physics.damage.flt_75b488,
+                &race.physics.damage.flt_75b370,
+                g,
+                g,
+            );
+        });
     }
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b450,
-        &DAMAGE.flt_75b670,
-        &DAMAGE.flt_75b370,
-        0x31A2D0,
-        0x31A2D0,
-    );
-    hold_low(&CAR.wheel_hit_damage[0], &DAMAGE.gauge_low);
-    hold_high(&CAR.wheel_hit_damage[0], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b450,
-        &DAMAGE.flt_75b670,
-        &DAMAGE.flt_75b370,
-        0x31A2D4,
-        0x31A2D4,
-    );
-    hold_low(&CAR.wheel_hit_damage[1], &DAMAGE.gauge_low);
-    hold_high(&CAR.wheel_hit_damage[1], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b450,
-        &DAMAGE.flt_75b670,
-        &DAMAGE.flt_75b370,
-        0x31A2D8,
-        0x31A2D8,
-    );
-    hold_low(&CAR.wheel_hit_damage[2], &DAMAGE.gauge_low);
-    hold_high(&CAR.wheel_hit_damage[2], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b450,
-        &DAMAGE.flt_75b670,
-        &DAMAGE.flt_75b370,
-        0x31A2DC,
-        0x31A2DC,
-    );
-    hold_low(&CAR.wheel_hit_damage[3], &DAMAGE.gauge_low);
-    hold_high(&CAR.wheel_hit_damage[3], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b458,
-        &DAMAGE.figures[0],
-        &DAMAGE.flt_75b370,
-        0x31A30C,
-        0x31A30C,
-    );
-    hold_low(&CAR.suspension_damage[0], &DAMAGE.gauge_low);
-    hold_high(&CAR.suspension_damage[0], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b458,
-        &DAMAGE.figures[0],
-        &DAMAGE.flt_75b370,
-        0x31A310,
-        0x31A310,
-    );
-    hold_low(&CAR.suspension_damage[1], &DAMAGE.gauge_low);
-    hold_high(&CAR.suspension_damage[1], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b458,
-        &DAMAGE.figures[0],
-        &DAMAGE.flt_75b370,
-        0x31A314,
-        0x31A314,
-    );
-    hold_low(&CAR.suspension_damage[2], &DAMAGE.gauge_low);
-    hold_high(&CAR.suspension_damage[2], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b458,
-        &DAMAGE.figures[0],
-        &DAMAGE.flt_75b370,
-        0x31A318,
-        0x31A318,
-    );
-    hold_low(&CAR.suspension_damage[3], &DAMAGE.gauge_low);
-    hold_high(&CAR.suspension_damage[3], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b454,
-        &DAMAGE.figures[1],
-        &DAMAGE.flt_75b370,
-        0x31A2E0,
-        0x31A2E0,
-    );
-    hold_low(&CAR.body_hit_damage, &DAMAGE.gauge_low);
-    hold_high(&CAR.body_hit_damage, &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b454,
-        &DAMAGE.figures[2],
-        &DAMAGE.flt_75b370,
-        0x31A308,
-        0x31A308,
-    );
-    hold_low(&CAR.steering_damage, &DAMAGE.gauge_low);
-    hold_high(&CAR.steering_damage, &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b454,
-        &DAMAGE.figures[3],
-        &DAMAGE.flt_75b370,
-        0x31A290,
-        0x31A290,
-    );
-    hold_low(&CAR.engine_damage, &DAMAGE.gauge_low);
-    hold_high(&CAR.engine_damage, &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b454,
-        &DAMAGE.figures[4],
-        &DAMAGE.flt_75b370,
-        0x31A294,
-        0x31A294,
-    );
-    hold_low(&CAR.exhaust_damage, &DAMAGE.gauge_low);
-    hold_high(&CAR.exhaust_damage, &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b454,
-        &DAMAGE.figures[5],
-        &DAMAGE.flt_75b370,
-        0x31A2A8,
-        0x31A2A8,
-    );
-    hold_low(&CAR.gear_wear[0], &DAMAGE.gauge_low);
-    hold_high(&CAR.gear_wear[0], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b454,
-        &DAMAGE.figures[5],
-        &DAMAGE.flt_75b370,
-        0x31A2B0,
-        0x31A2B0,
-    );
-    hold_low(&CAR.gear_wear[2], &DAMAGE.gauge_low);
-    hold_high(&CAR.gear_wear[2], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b454,
-        &DAMAGE.figures[5],
-        &DAMAGE.flt_75b370,
-        0x31A2B4,
-        0x31A2B4,
-    );
-    hold_low(&CAR.gear_wear[3], &DAMAGE.gauge_low);
-    hold_high(&CAR.gear_wear[3], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b454,
-        &DAMAGE.figures[5],
-        &DAMAGE.flt_75b370,
-        0x31A2B8,
-        0x31A2B8,
-    );
-    hold_low(&CAR.gear_wear[4], &DAMAGE.gauge_low);
-    hold_high(&CAR.gear_wear[4], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b454,
-        &DAMAGE.figures[5],
-        &DAMAGE.flt_75b370,
-        0x31A2BC,
-        0x31A2BC,
-    );
-    hold_low(&CAR.gear_wear[5], &DAMAGE.gauge_low);
-    hold_high(&CAR.gear_wear[5], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b454,
-        &DAMAGE.figures[5],
-        &DAMAGE.flt_75b370,
-        0x31A2C0,
-        0x31A2C0,
-    );
-    hold_low(&CAR.gear_wear[6], &DAMAGE.gauge_low);
-    hold_high(&CAR.gear_wear[6], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b454,
-        &DAMAGE.figures[5],
-        &DAMAGE.flt_75b370,
-        0x31A2C4,
-        0x31A2C4,
-    );
-    hold_low(&CAR.gear_wear[7], &DAMAGE.gauge_low);
-    hold_high(&CAR.gear_wear[7], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b454,
-        &DAMAGE.figures[5],
-        &DAMAGE.flt_75b370,
-        0x31A2C8,
-        0x31A2C8,
-    );
-    hold_low(&CAR.gear_wear[8], &DAMAGE.gauge_low);
-    hold_high(&CAR.gear_wear[8], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b454,
-        &DAMAGE.figures[6],
-        &DAMAGE.flt_75b370,
-        0x31A2A4,
-        0x31A2A4,
-    );
-    hold_low(&CAR.differential_damage, &DAMAGE.gauge_low);
-    hold_high(&CAR.differential_damage, &DAMAGE.gauge_top);
-    if compare_full(DAMAGE.flt_75b3c8.bits(), DAMAGE.gauge_rates[23].bits()) & 0x100 == 0 {
-        x87_1(
-            crate::race::store::asm_base() as usize,
-            &DAMAGE.flt_75b3c8,
-            &DAMAGE.figures[13],
-            0x31A2E0,
-            0x31A2E0,
-        );
-        hold_low(&CAR.body_hit_damage, &DAMAGE.gauge_low);
-        hold_high(&CAR.body_hit_damage, &DAMAGE.gauge_top);
+    for k in 2..4 {
+        raise(&race.physics, &race.shared.car.part_hit_damage[k], |g| {
+            add_triple_product(
+                &race.physics.damage.flt_75b470,
+                &race.physics.damage.flt_75b48c,
+                &race.physics.damage.flt_75b370,
+                g,
+                g,
+            );
+        });
     }
-    if compare_full(DAMAGE.flt_75b3c8.bits(), DAMAGE.gauge_rates[22].bits()) & 0x100 == 0 {
-        x87_11(&DAMAGE, crate::race::store::asm_base() as usize);
-        if DAMAGE.dword_75b3c4.bits() == 0x1 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[24],
-                0x31A2EC,
-                0x31A2EC,
-            );
-            hold_low(&CAR.light_damage[0], &DAMAGE.gauge_low);
-            hold_high(&CAR.light_damage[0], &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x2 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[24],
-                0x31A2F0,
-                0x31A2F0,
-            );
-            hold_low(&CAR.light_damage[1], &DAMAGE.gauge_low);
-            hold_high(&CAR.light_damage[1], &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x3 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[24],
-                0x31A2F4,
-                0x31A2F4,
-            );
-            hold_low(&CAR.light_damage[2], &DAMAGE.gauge_low);
-            hold_high(&CAR.light_damage[2], &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x4 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[24],
-                0x31A2F8,
-                0x31A2F8,
-            );
-            hold_low(&CAR.light_damage[3], &DAMAGE.gauge_low);
-            hold_high(&CAR.light_damage[3], &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x1 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[25],
-                0x31A2FC,
-                0x31A2FC,
-            );
-            hold_low(&CAR.light_damage[4], &DAMAGE.gauge_low);
-            hold_high(&CAR.light_damage[4], &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x2 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[25],
-                0x31A2FC,
-                0x31A2FC,
-            );
-            hold_low(&CAR.light_damage[4], &DAMAGE.gauge_low);
-            hold_high(&CAR.light_damage[4], &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x3 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[25],
-                0x31A300,
-                0x31A300,
-            );
-            hold_low(&CAR.light_damage[5], &DAMAGE.gauge_low);
-            hold_high(&CAR.light_damage[5], &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x4 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[25],
-                0x31A300,
-                0x31A300,
-            );
-            hold_low(&CAR.light_damage[5], &DAMAGE.gauge_low);
-            hold_high(&CAR.light_damage[5], &DAMAGE.gauge_top);
-        }
-        x87_1(
-            crate::race::store::asm_base() as usize,
-            &DAMAGE.flt_75b3c8,
-            &DAMAGE.figures[23],
-            0x31A308,
-            0x31A308,
+    raise(&race.physics, &race.shared.car.engine_damage, |g| {
+        add_triple_product(
+            &race.physics.damage.flt_75b45c,
+            &race.physics.damage.gauge_rates[13],
+            &race.physics.damage.flt_75b370,
+            g,
+            g,
         );
-        hold_low(&CAR.steering_damage, &DAMAGE.gauge_low);
-        hold_high(&CAR.steering_damage, &DAMAGE.gauge_top);
-        x87_1(
-            crate::race::store::asm_base() as usize,
-            &DAMAGE.flt_75b3c8,
-            &DAMAGE.figures[22],
-            0x31A2E8,
-            0x31A2E8,
+    });
+    raise(&race.physics, &race.shared.car.cooling_damage, |g| {
+        add_triple_product(
+            &race.physics.damage.flt_75b45c,
+            &race.physics.damage.gauge_rates[12],
+            &race.physics.damage.flt_75b370,
+            g,
+            g,
         );
-        hold_low(&CAR.electrics_damage, &DAMAGE.gauge_low);
-        hold_high(&CAR.electrics_damage, &DAMAGE.gauge_top);
-        x87_1(
-            crate::race::store::asm_base() as usize,
-            &DAMAGE.flt_75b3c8,
-            &DAMAGE.figures[17],
-            0x31A298,
-            0x31A298,
-        );
-        hold_low(&CAR.turbo_damage, &DAMAGE.gauge_low);
-        hold_high(&CAR.turbo_damage, &DAMAGE.gauge_top);
-        x87_1(
-            crate::race::store::asm_base() as usize,
-            &DAMAGE.flt_75b3c8,
-            &DAMAGE.figures[18],
-            0x31A2A0,
-            0x31A2A0,
-        );
-        hold_low(&CAR.clutch_damage, &DAMAGE.gauge_low);
-        hold_high(&CAR.clutch_damage, &DAMAGE.gauge_top);
-        x87_1(
-            crate::race::store::asm_base() as usize,
-            &DAMAGE.flt_75b3c8,
-            &DAMAGE.figures[19],
-            0x31A2A4,
-            0x31A2A4,
-        );
-        hold_low(&CAR.differential_damage, &DAMAGE.gauge_low);
-        hold_high(&CAR.differential_damage, &DAMAGE.gauge_top);
-        x87_1(
-            crate::race::store::asm_base() as usize,
-            &DAMAGE.flt_75b3c8,
-            &DAMAGE.figures[20],
-            0x31A2A8,
-            0x31A2A8,
-        );
-        hold_low(&CAR.gear_wear[0], &DAMAGE.gauge_low);
-        hold_high(&CAR.gear_wear[0], &DAMAGE.gauge_top);
-        x87_1(
-            crate::race::store::asm_base() as usize,
-            &DAMAGE.flt_75b3c8,
-            &DAMAGE.figures[20],
-            0x31A2AC,
-            0x31A2AC,
-        );
-        hold_low(&CAR.gear_wear[1], &DAMAGE.gauge_low);
-        hold_high(&CAR.gear_wear[1], &DAMAGE.gauge_top);
-        x87_1(
-            crate::race::store::asm_base() as usize,
-            &DAMAGE.flt_75b3c8,
-            &DAMAGE.figures[20],
-            0x31A2B0,
-            0x31A2B0,
-        );
-        hold_low(&CAR.gear_wear[2], &DAMAGE.gauge_low);
-        hold_high(&CAR.gear_wear[2], &DAMAGE.gauge_top);
-        x87_1(
-            crate::race::store::asm_base() as usize,
-            &DAMAGE.flt_75b3c8,
-            &DAMAGE.figures[20],
-            0x31A2B4,
-            0x31A2B4,
-        );
-        hold_low(&CAR.gear_wear[3], &DAMAGE.gauge_low);
-        hold_high(&CAR.gear_wear[3], &DAMAGE.gauge_top);
-        x87_1(
-            crate::race::store::asm_base() as usize,
-            &DAMAGE.flt_75b3c8,
-            &DAMAGE.figures[20],
-            0x31A2B8,
-            0x31A2B8,
-        );
-        hold_low(&CAR.gear_wear[4], &DAMAGE.gauge_low);
-        hold_high(&CAR.gear_wear[4], &DAMAGE.gauge_top);
-        x87_1(
-            crate::race::store::asm_base() as usize,
-            &DAMAGE.flt_75b3c8,
-            &DAMAGE.figures[20],
-            0x31A2BC,
-            0x31A2BC,
-        );
-        hold_low(&CAR.gear_wear[5], &DAMAGE.gauge_low);
-        hold_high(&CAR.gear_wear[5], &DAMAGE.gauge_top);
-        x87_1(
-            crate::race::store::asm_base() as usize,
-            &DAMAGE.flt_75b3c8,
-            &DAMAGE.figures[20],
-            0x31A2C0,
-            0x31A2C0,
-        );
-        hold_low(&CAR.gear_wear[6], &DAMAGE.gauge_low);
-        hold_high(&CAR.gear_wear[6], &DAMAGE.gauge_top);
-        x87_1(
-            crate::race::store::asm_base() as usize,
-            &DAMAGE.flt_75b3c8,
-            &DAMAGE.figures[20],
-            0x31A2C4,
-            0x31A2C4,
-        );
-        hold_low(&CAR.gear_wear[7], &DAMAGE.gauge_low);
-        hold_high(&CAR.gear_wear[7], &DAMAGE.gauge_top);
-        x87_1(
-            crate::race::store::asm_base() as usize,
-            &DAMAGE.flt_75b3c8,
-            &DAMAGE.figures[20],
-            0x31A2C8,
-            0x31A2C8,
-        );
-        hold_low(&CAR.gear_wear[8], &DAMAGE.gauge_low);
-        hold_high(&CAR.gear_wear[8], &DAMAGE.gauge_top);
-        let gear = DAMAGE.dword_75b3bc.bits();
-        let gauge = gear_gauge(gear);
-        x87_12(&DAMAGE, gauge as usize);
-        hold_at(gauge);
-        if DAMAGE.dword_75b3c4.bits() == 0x1 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[28],
-                0x31A2D0,
-                0x31A2D0,
+    });
+    if !below_or_unordered(
+        race.physics.damage.flt_75b464.bits(),
+        race.physics.damage.gauge_low.bits(),
+    ) {
+        engine_damage_carry(&race.shared, &race.physics.damage);
+        hold_at(&race.physics, &race.shared.car.engine_damage);
+        raise(&race.physics, &race.shared.car.cooling_damage, |g| {
+            add_triple_product(
+                &race.physics.damage.flt_75b464,
+                &race.physics.damage.gauge_rates[15],
+                &race.physics.damage.flt_75b370,
+                g,
+                g,
             );
-            hold_low(&CAR.wheel_hit_damage[0], &DAMAGE.gauge_low);
-            hold_high(&CAR.wheel_hit_damage[0], &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x2 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[28],
-                0x31A2D4,
-                0x31A2D4,
-            );
-            hold_low(&CAR.wheel_hit_damage[1], &DAMAGE.gauge_low);
-            hold_high(&CAR.wheel_hit_damage[1], &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x3 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[28],
-                0x31A2D8,
-                0x31A2D8,
-            );
-            hold_low(&CAR.wheel_hit_damage[2], &DAMAGE.gauge_low);
-            hold_high(&CAR.wheel_hit_damage[2], &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x4 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[28],
-                0x31A2DC,
-                0x31A2DC,
-            );
-            hold_low(&CAR.wheel_hit_damage[3], &DAMAGE.gauge_low);
-            hold_high(&CAR.wheel_hit_damage[3], &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x1 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[30],
-                0x31A30C,
-                0x31A30C,
-            );
-            hold_low(&CAR.suspension_damage[0], &DAMAGE.gauge_low);
-            hold_high(&CAR.suspension_damage[0], &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x2 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[30],
-                0x31A310,
-                0x31A310,
-            );
-            hold_low(&CAR.suspension_damage[1], &DAMAGE.gauge_low);
-            hold_high(&CAR.suspension_damage[1], &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x3 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[30],
-                0x31A314,
-                0x31A314,
-            );
-            hold_low(&CAR.suspension_damage[2], &DAMAGE.gauge_low);
-            hold_high(&CAR.suspension_damage[2], &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x4 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[30],
-                0x31A318,
-                0x31A318,
-            );
-            hold_low(&CAR.suspension_damage[3], &DAMAGE.gauge_low);
-            hold_high(&CAR.suspension_damage[3], &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x1 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[27],
-                0x31A29C,
-                0x31A29C,
-            );
-            hold_low(&CAR.cooling_damage, &DAMAGE.gauge_low);
-            hold_high(&CAR.cooling_damage, &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x2 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[27],
-                0x31A29C,
-                0x31A29C,
-            );
-            hold_low(&CAR.cooling_damage, &DAMAGE.gauge_low);
-            hold_high(&CAR.cooling_damage, &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x1 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[26],
-                0x31A290,
-                0x31A290,
-            );
-            hold_low(&CAR.engine_damage, &DAMAGE.gauge_low);
-            hold_high(&CAR.engine_damage, &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x2 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[26],
-                0x31A290,
-                0x31A290,
-            );
-            hold_low(&CAR.engine_damage, &DAMAGE.gauge_low);
-            hold_high(&CAR.engine_damage, &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x1 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[29],
-                0x31A320,
-                0x31A320,
-            );
-            hold_low(&CAR.brake_wear_a, &DAMAGE.gauge_low);
-            hold_high(&CAR.brake_wear_a, &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x2 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[29],
-                0x31A320,
-                0x31A320,
-            );
-            hold_low(&CAR.brake_wear_a, &DAMAGE.gauge_low);
-            hold_high(&CAR.brake_wear_a, &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x3 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[29],
-                0x31A324,
-                0x31A324,
-            );
-            hold_low(&CAR.brake_wear_b, &DAMAGE.gauge_low);
-            hold_high(&CAR.brake_wear_b, &DAMAGE.gauge_top);
-        }
-        if DAMAGE.dword_75b3c4.bits() == 0x4 {
-            x87_1(
-                crate::race::store::asm_base() as usize,
-                &DAMAGE.flt_75b3c8,
-                &DAMAGE.figures[29],
-                0x31A324,
-                0x31A324,
-            );
-            hold_low(&CAR.brake_wear_b, &DAMAGE.gauge_low);
-            hold_high(&CAR.brake_wear_b, &DAMAGE.gauge_top);
-        }
+        });
     }
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.wheel_loads[0],
-        &DAMAGE.figures[14],
-        &DAMAGE.flt_75b370,
-        0x31A30C,
-        0x31A30C,
-    );
-    hold_low(&CAR.suspension_damage[0], &DAMAGE.gauge_low);
-    hold_high(&CAR.suspension_damage[0], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.wheel_loads[1],
-        &DAMAGE.figures[14],
-        &DAMAGE.flt_75b370,
-        0x31A310,
-        0x31A310,
-    );
-    hold_low(&CAR.suspension_damage[1], &DAMAGE.gauge_low);
-    hold_high(&CAR.suspension_damage[1], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.wheel_loads[2],
-        &DAMAGE.figures[14],
-        &DAMAGE.flt_75b370,
-        0x31A314,
-        0x31A314,
-    );
-    hold_low(&CAR.suspension_damage[2], &DAMAGE.gauge_low);
-    hold_high(&CAR.suspension_damage[2], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.wheel_loads[3],
-        &DAMAGE.figures[14],
-        &DAMAGE.flt_75b370,
-        0x31A318,
-        0x31A318,
-    );
-    hold_low(&CAR.suspension_damage[3], &DAMAGE.gauge_low);
-    hold_high(&CAR.suspension_damage[3], &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b3dc,
-        &DAMAGE.figures[15],
-        &DAMAGE.flt_75b370,
-        0x31A294,
-        0x31A294,
-    );
-    hold_low(&CAR.exhaust_damage, &DAMAGE.gauge_low);
-    hold_high(&CAR.exhaust_damage, &DAMAGE.gauge_top);
-    x87_5(
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b3dc,
-        &DAMAGE.figures[16],
-        &DAMAGE.flt_75b370,
-        0x31A308,
-        0x31A308,
-    );
-    hold_low(&CAR.steering_damage, &DAMAGE.gauge_low);
-    hold_high(&CAR.steering_damage, &DAMAGE.gauge_top);
-    x87_13(crate::race::store::asm_base() as usize, &DAMAGE);
-    if DAMAGE.flt_75b3e4.bits() == 0x0 {
-        CAR.turbo_damage.set_bits(0x0);
+    if race.physics.damage.dword_75b3b8.bits() == 0x1 {
+        add_rate_to_clutch(&race.shared, &race.physics.damage.gauge_rates[16]);
     }
-    // retn
+    if race.physics.damage.dword_75b3b8.bits() == 0xFFFFFFFF {
+        add_rate_to_clutch(&race.shared, &race.physics.damage.gauge_rates[17]);
+    }
+    let gear = race.physics.damage.dword_75b3bc.bits();
+    if race.physics.damage.dword_75b3b8.bits() == 0x1 {
+        let gauge = gear_gauge(&race.shared, gear);
+        add_rate_to_gauge(gauge, &race.physics.damage.gauge_rates[18]);
+    }
+    let gear = race.physics.damage.dword_75b3bc.bits();
+    if race.physics.damage.dword_75b3b8.bits() == 0xFFFFFFFF {
+        let gauge = gear_gauge(&race.shared, gear);
+        add_rate_to_gauge(gauge, &race.physics.damage.gauge_rates[19]);
+    }
+    for k in 0..4 {
+        raise(&race.physics, &race.shared.car.wheel_hit_damage[k], |g| {
+            add_triple_product(
+                &race.physics.damage.flt_75b450,
+                &race.physics.damage.flt_75b670,
+                &race.physics.damage.flt_75b370,
+                g,
+                g,
+            );
+        });
+    }
+    for k in 0..4 {
+        raise(&race.physics, &race.shared.car.suspension_damage[k], |g| {
+            add_triple_product(
+                &race.physics.damage.flt_75b458,
+                &race.physics.damage.figures[0],
+                &race.physics.damage.flt_75b370,
+                g,
+                g,
+            );
+        });
+    }
+    raise(&race.physics, &race.shared.car.body_hit_damage, |g| {
+        add_triple_product(
+            &race.physics.damage.flt_75b454,
+            &race.physics.damage.figures[1],
+            &race.physics.damage.flt_75b370,
+            g,
+            g,
+        );
+    });
+    raise(&race.physics, &race.shared.car.steering_damage, |g| {
+        add_triple_product(
+            &race.physics.damage.flt_75b454,
+            &race.physics.damage.figures[2],
+            &race.physics.damage.flt_75b370,
+            g,
+            g,
+        );
+    });
+    raise(&race.physics, &race.shared.car.engine_damage, |g| {
+        add_triple_product(
+            &race.physics.damage.flt_75b454,
+            &race.physics.damage.figures[3],
+            &race.physics.damage.flt_75b370,
+            g,
+            g,
+        );
+    });
+    raise(&race.physics, &race.shared.car.exhaust_damage, |g| {
+        add_triple_product(
+            &race.physics.damage.flt_75b454,
+            &race.physics.damage.figures[4],
+            &race.physics.damage.flt_75b370,
+            g,
+            g,
+        );
+    });
+    raise(&race.physics, &race.shared.car.gear_wear[0], |g| {
+        add_triple_product(
+            &race.physics.damage.flt_75b454,
+            &race.physics.damage.figures[5],
+            &race.physics.damage.flt_75b370,
+            g,
+            g,
+        );
+    });
+    for k in 2..9 {
+        raise(&race.physics, &race.shared.car.gear_wear[k], |g| {
+            add_triple_product(
+                &race.physics.damage.flt_75b454,
+                &race.physics.damage.figures[5],
+                &race.physics.damage.flt_75b370,
+                g,
+                g,
+            );
+        });
+    }
+    raise(&race.physics, &race.shared.car.differential_damage, |g| {
+        add_triple_product(
+            &race.physics.damage.flt_75b454,
+            &race.physics.damage.figures[6],
+            &race.physics.damage.flt_75b370,
+            g,
+            g,
+        );
+    });
+    if !below_or_unordered(
+        race.physics.damage.flt_75b3c8.bits(),
+        race.physics.damage.gauge_rates[23].bits(),
+    ) {
+        raise(&race.physics, &race.shared.car.body_hit_damage, |g| {
+            add_product(
+                &race.physics.damage.flt_75b3c8,
+                &race.physics.damage.figures[13],
+                g,
+                g,
+            );
+        });
+    }
+    if !below_or_unordered(
+        race.physics.damage.flt_75b3c8.bits(),
+        race.physics.damage.gauge_rates[22].bits(),
+    ) {
+        side_hit_wear(race);
+    }
+    for k in 0..4 {
+        raise(&race.physics, &race.shared.car.suspension_damage[k], |g| {
+            add_triple_product(
+                &race.physics.damage.wheel_loads[k],
+                &race.physics.damage.figures[14],
+                &race.physics.damage.flt_75b370,
+                g,
+                g,
+            );
+        });
+    }
+    raise(&race.physics, &race.shared.car.exhaust_damage, |g| {
+        add_triple_product(
+            &race.physics.damage.flt_75b3dc,
+            &race.physics.damage.figures[15],
+            &race.physics.damage.flt_75b370,
+            g,
+            g,
+        );
+    });
+    raise(&race.physics, &race.shared.car.steering_damage, |g| {
+        add_triple_product(
+            &race.physics.damage.flt_75b3dc,
+            &race.physics.damage.figures[16],
+            &race.physics.damage.flt_75b370,
+            g,
+            g,
+        );
+    });
+    gauge_totals(&race.shared, &race.physics.damage);
+    if race.physics.damage.flt_75b3e4.bits() == 0 {
+        race.shared.car.turbo_damage.set_bits(0x0);
+    }
+}
+
+/// A hit big enough to count (its size at least `gauge_rates[22]`) wears the gauges of the
+/// side it landed on: `side` is 0 .. 3 for the hit figure 1 .. 4, and none for any other.
+fn side_hit_wear(race: &Race) {
+    scale_hit_size(&race.shared, &race.physics.damage);
+    let hit = race.physics.damage.dword_75b3c4.bits();
+    let side = (1..=4).contains(&hit).then(|| hit as usize - 1);
+    let wear = |gauge: &Float, figure: usize| {
+        raise(&race.physics, gauge, |g| {
+            add_product(
+                &race.physics.damage.flt_75b3c8,
+                &race.physics.damage.figures[figure],
+                g,
+                g,
+            );
+        });
+    };
+    if let Some(side) = side {
+        wear(&race.shared.car.light_damage[side], 24);
+        wear(&race.shared.car.light_damage[4 + side / 2], 25);
+    }
+    wear(&race.shared.car.steering_damage, 23);
+    wear(&race.shared.car.electrics_damage, 22);
+    wear(&race.shared.car.turbo_damage, 17);
+    wear(&race.shared.car.clutch_damage, 18);
+    wear(&race.shared.car.differential_damage, 19);
+    for gauge in &race.shared.car.gear_wear {
+        wear(gauge, 20);
+    }
+    let gauge = gear_gauge(&race.shared, race.physics.damage.dword_75b3bc.bits());
+    add_hit_to_gear_gauge(&race.physics.damage, gauge);
+    hold_at(&race.physics, gauge);
+    if let Some(side) = side {
+        wear(&race.shared.car.wheel_hit_damage[side], 28);
+        wear(&race.shared.car.suspension_damage[side], 30);
+    }
+    // The front hits (1 and 2) reach the cooling, the engine and the first brake wear,
+    // the rear hits (3 and 4) the second brake wear.
+    if (1..=2).contains(&hit) {
+        wear(&race.shared.car.cooling_damage, 27);
+        wear(&race.shared.car.engine_damage, 26);
+        wear(&race.shared.car.brake_wear_a, 29);
+    }
+    if (3..=4).contains(&hit) {
+        wear(&race.shared.car.brake_wear_b, 29);
+    }
+}
+
+/// Applies `step` to the gauge, then holds it 0 ..= `gauge_top`.
+pub(super) fn raise(physics: &Physics, gauge: &Float, step: impl FnOnce(&Float)) {
+    step(gauge);
+    hold_at(physics, gauge);
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -1098,26 +459,30 @@ pub fn steps() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o3] = ([m + o0] * [m + o1]) + [rc + o2]`
-fn x87_1(rc: usize, o0: &impl Cell32, o1: &impl Cell32, o2: usize, o3: usize) {
+fn add_product(
+    o0: &impl Cell32,
+    o1: &impl Cell32,
+    o2: &impl crate::session::Cell32,
+    o3: &impl crate::session::Cell32,
+) {
     let t0 = ld(o0.bits());
     let t1 = ld(o1.bits());
     let t2 = t0 * t1;
-    let t3 = fld(rc, o2);
+    let t3 = ld(o2.bits());
     let t4 = t2 + t3;
-    fstp(rc, o3, t4);
+    o3.set_bits(st(t4));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o5] = ((([m + o0] * [m + o1]) * [m + o2]) * [m + 0x35B38C]) + [rc + o4]`
-fn x87_2(
+fn add_scaled_triple(
     m: &DamageModel,
-    rc: usize,
     o0: &impl Cell32,
     o1: &impl Cell32,
     o2: &impl Cell32,
-    o4: usize,
-    o5: usize,
+    o4: &impl crate::session::Cell32,
+    o5: &impl crate::session::Cell32,
 ) {
     let t0 = ld(o0.bits());
     let t1 = ld(o1.bits());
@@ -1126,75 +491,81 @@ fn x87_2(
     let t4 = t2 * t3;
     let t5 = ld(m.flt_75b38c.bits());
     let t6 = t4 * t5;
-    let t7 = fld(rc, o4);
+    let t7 = ld(o4.bits());
     let t8 = t6 + t7;
-    fstp(rc, o5, t8);
+    o5.set_bits(st(t8));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[v + 0] = ((([m + 0x35B398] * [m + 0x35B5A8]) * [m + 0x35B370]) * [t + 0]) + [v + 0]`
-fn x87_3(m: &DamageModel, t: usize, v: usize) {
-    let t0 = ld(m.flt_75b398.bits());
+fn gear_wear_from_speed(m: &DamageModel, t: &impl Cell32, v: &impl Cell32) {
+    let t0 = ld(m.engine_speed_share.bits());
     let t1 = ld(m.wear_rates[12].bits());
     let t2 = t0 * t1;
     let t3 = ld(m.flt_75b370.bits());
     let t4 = t2 * t3;
-    let t5 = fld(t, 0);
+    let t5 = ld(t.bits());
     let t6 = t4 * t5;
-    let t7 = fld(v, 0);
+    let t7 = ld(v.bits());
     let t8 = t6 + t7;
-    fstp(v, 0, t8);
+    v.set_bits(st(t8));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B43C] = 1 - [m + 0x35B400]`
 /// `[rc + 0x31A320] = ((([m + 0x35B5F4] * [m + 0x35B400]) * [m + 0x35B3B0]) * [m + 0x35B38C]) + [rc + 0x31A320]`
-fn x87_4(m: &DamageModel, rc: usize) {
+fn brake_wear_step(shared: &Shared, m: &DamageModel) {
     let t0 = X(1.0);
-    let t1 = ld(m.flt_75b400.bits());
+    let t1 = ld(m.brake_balance_share.bits());
     let t2 = t0 - t1;
     m.flt_75b43c.set_bits(st(t2));
     let t3 = ld(m.gauge_rates[9].bits());
-    let t4 = ld(m.flt_75b400.bits());
+    let t4 = ld(m.brake_balance_share.bits());
     let t5 = t3 * t4;
-    let t6 = ld(m.flt_75b3b0.bits());
+    let t6 = ld(m.brake_share.bits());
     let t7 = t5 * t6;
     let t8 = ld(m.flt_75b38c.bits());
     let t9 = t7 * t8;
-    let t10 = fld(rc, 0x31A320);
+    let t10 = ld(shared.car.brake_wear_a.bits());
     let t11 = t9 + t10;
-    fstp(rc, 0x31A320, t11);
+    shared.car.brake_wear_a.set_bits(st(t11));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o4] = (([m + o0] * [m + o1]) * [m + o2]) + [rc + o3]`
-fn x87_5(rc: usize, o0: &impl Cell32, o1: &impl Cell32, o2: &impl Cell32, o3: usize, o4: usize) {
+fn add_triple_product(
+    o0: &impl Cell32,
+    o1: &impl Cell32,
+    o2: &impl Cell32,
+    o3: &impl crate::session::Cell32,
+    o4: &impl crate::session::Cell32,
+) {
     let t0 = ld(o0.bits());
     let t1 = ld(o1.bits());
     let t2 = t0 * t1;
     let t3 = ld(o2.bits());
     let t4 = t2 * t3;
-    let t5 = fld(rc, o3);
+    let t5 = ld(o3.bits());
     let t6 = t4 + t5;
-    fstp(rc, o4, t6);
+    o4.set_bits(st(t6));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B488] = (([m + 0x35B39C] / ([m + 0x35B484] * [m + 0x35B380])) * [m + 0x35B34C]) * [m + 0x35B3F4]`
 /// `[m + 0x35B48C] = (([m + 0x35B39C] / ([m + 0x35B484] * [m + 0x35B380])) * [m + 0x35B34C]) * [m + 0x35B3F4]`
-fn x87_6(m: &DamageModel) {
-    let t0 = ld(m.flt_75b39c.bits());
+fn part_hit_figures(m: &DamageModel) {
+    let t0 = ld(m.speed_share.bits());
     let t1 = ld(m.flt_75b484.bits());
     let t2 = ld(m.flt_75b380.bits());
     let t3 = t1 * t2;
     let t4 = t0 / t3;
     let t5 = ld(m.gauge_top.bits());
     let t6 = t4 * t5;
-    let t7 = ld(m.flt_75b3f4.bits());
+    let t7 = ld(m.wheels_down.bits());
     let t8 = t6 * t7;
     m.flt_75b488.set_bits(st(t8));
     m.flt_75b48c.set_bits(st(t8));
@@ -1204,13 +575,13 @@ fn x87_6(m: &DamageModel) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B488] = [m + 0x35B488] * [t + 0]`
 /// `[m + 0x35B48C] = [m + 0x35B48C] * [u + 0]`
-fn x87_7(m: &DamageModel, t: usize, u: usize) {
+fn scale_part_hit_figures(m: &DamageModel, t: &impl Cell32, u: &impl Cell32) {
     let t0 = ld(m.flt_75b488.bits());
-    let t1 = fld(t, 0);
+    let t1 = ld(t.bits());
     let t2 = t0 * t1;
     m.flt_75b488.set_bits(st(t2));
     let t3 = ld(m.flt_75b48c.bits());
-    let t4 = fld(u, 0);
+    let t4 = ld(u.bits());
     let t5 = t3 * t4;
     m.flt_75b48c.set_bits(st(t5));
 }
@@ -1218,43 +589,43 @@ fn x87_7(m: &DamageModel, t: usize, u: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A290] = (([rc + 0x31A28C] * [m + 0x35B608]) * [m + 0x35B370]) + [rc + 0x31A290]`
-fn x87_8(rc: usize, m: &DamageModel) {
-    let t0 = fld(rc, 0x31A28C);
+fn engine_damage_carry(shared: &Shared, m: &DamageModel) {
+    let t0 = ld(shared.car.engine_heat.bits());
     let t1 = ld(m.gauge_rates[14].bits());
     let t2 = t0 * t1;
     let t3 = ld(m.flt_75b370.bits());
     let t4 = t2 * t3;
-    let t5 = fld(rc, 0x31A290);
+    let t5 = ld(shared.car.engine_damage.bits());
     let t6 = t4 + t5;
-    fstp(rc, 0x31A290, t6);
+    shared.car.engine_damage.set_bits(st(t6));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A2A0] = [rc + 0x31A2A0] + [m + o1]`
-fn x87_9(rc: usize, o1: &impl Cell32) {
-    let t0 = fld(rc, 0x31A2A0);
+fn add_rate_to_clutch(shared: &Shared, o1: &impl Cell32) {
+    let t0 = ld(shared.car.clutch_damage.bits());
     let t1 = ld(o1.bits());
     let t2 = t0 + t1;
-    fstp(rc, 0x31A2A0, t2);
+    shared.car.clutch_damage.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[v + 0] = [v + 0] + [m + o1]`
-fn x87_10(v: usize, o1: &impl Cell32) {
-    let t0 = fld(v, 0);
+fn add_rate_to_gauge(v: &impl Cell32, o1: &impl Cell32) {
+    let t0 = ld(v.bits());
     let t1 = ld(o1.bits());
     let t2 = t0 + t1;
-    fstp(v, 0, t2);
+    v.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B3C8] = [m + 0x35B3C8] * [rc + 0x31C708]`
-fn x87_11(m: &DamageModel, rc: usize) {
+fn scale_hit_size(shared: &Shared, m: &DamageModel) {
     let t0 = ld(m.flt_75b3c8.bits());
-    let t1 = fld(rc, 0x31C708);
+    let t1 = ld(shared.work.patch_factors[1].bits());
     let t2 = t0 * t1;
     m.flt_75b3c8.set_bits(st(t2));
 }
@@ -1262,13 +633,13 @@ fn x87_11(m: &DamageModel, rc: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[v + 0] = ([m + 0x35B3C8] * [m + 0x35B6CC]) + [v + 0]`
-fn x87_12(m: &DamageModel, v: usize) {
+fn add_hit_to_gear_gauge(m: &DamageModel, v: &impl Cell32) {
     let t0 = ld(m.flt_75b3c8.bits());
     let t1 = ld(m.figures[21].bits());
     let t2 = t0 * t1;
-    let t3 = fld(v, 0);
+    let t3 = ld(v.bits());
     let t4 = t2 + t3;
-    fstp(v, 0, t4);
+    v.set_bits(st(t4));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -1282,35 +653,35 @@ fn x87_12(m: &DamageModel, v: usize) {
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// `[rc + 0x31A31C] = ((([rc + 0x31A30C] + [rc + 0x31A310]) + [rc + 0x31A314]) + [rc + 0x31A318]) * [m + 0x35B364]`
 /// `[rc + 0x31A430] = ((([rc + 0x31A420] + [rc + 0x31A424]) + [rc + 0x31A428]) + [rc + 0x31A42C]) * [m + 0x35B364]`
-fn x87_13(rc: usize, m: &DamageModel) {
-    let t0 = fld(rc, 0x31A2EC);
-    let t1 = fld(rc, 0x31A2F0);
+fn gauge_totals(shared: &Shared, m: &DamageModel) {
+    let t0 = ld(shared.car.light_damage[0].bits());
+    let t1 = ld(shared.car.light_damage[1].bits());
     let t2 = t0 + t1;
-    let t3 = fld(rc, 0x31A2F4);
+    let t3 = ld(shared.car.light_damage[2].bits());
     let t4 = t2 + t3;
-    let t5 = fld(rc, 0x31A2F8);
+    let t5 = ld(shared.car.light_damage[3].bits());
     let t6 = t4 + t5;
-    let t7 = fld(rc, 0x31A300);
+    let t7 = ld(shared.car.light_damage[5].bits());
     let t8 = t6 + t7;
-    let t9 = fld(rc, 0x31A2FC);
+    let t9 = ld(shared.car.light_damage[4].bits());
     let t10 = t8 + t9;
     let t11 = ld(m.flt_75b344.bits());
     let t12 = t10 / t11;
-    fstp(rc, 0x31A304, t12);
-    let t13 = fld(rc, 0x31A320);
-    let t14 = fld(rc, 0x31A324);
+    shared.car.lights_damage.set_bits(st(t12));
+    let t13 = ld(shared.car.brake_wear_a.bits());
+    let t14 = ld(shared.car.brake_wear_b.bits());
     let t15 = t13 + t14;
     let t16 = ld(m.flt_75b360.bits());
     let t17 = t15 * t16;
-    fstp(rc, 0x31A328, t17);
-    let t18 = fld(rc, 0x31A32C);
-    let t19 = fld(rc, 0x31A330);
+    shared.car.brake_damage.set_bits(st(t17));
+    let t18 = ld(shared.car.part_hit_damage[0].bits());
+    let t19 = ld(shared.car.part_hit_damage[1].bits());
     let t20 = t18 + t19;
     let t21 = ld(m.flt_75b360.bits());
     let t22 = t20 * t21;
     m.flt_75b440.set_bits(st(t22));
-    let t23 = fld(rc, 0x31A334);
-    let t24 = fld(rc, 0x31A338);
+    let t23 = ld(shared.car.part_hit_damage[2].bits());
+    let t24 = ld(shared.car.part_hit_damage[3].bits());
     let t25 = t23 + t24;
     let t26 = ld(m.flt_75b360.bits());
     let t27 = t25 * t26;
@@ -1320,21 +691,21 @@ fn x87_13(rc: usize, m: &DamageModel) {
     let t30 = t28 + t29;
     let t31 = ld(m.flt_75b360.bits());
     let t32 = t30 * t31;
-    fstp(rc, 0x31A33C, t32);
-    let t33 = fld(rc, 0x31A2A8);
-    let t34 = fld(rc, 0x31A2B0);
+    shared.car.tyre_wear.set_bits(st(t32));
+    let t33 = ld(shared.car.gear_wear[0].bits());
+    let t34 = ld(shared.car.gear_wear[2].bits());
     let t35 = t33 + t34;
-    let t36 = fld(rc, 0x31A2B4);
+    let t36 = ld(shared.car.gear_wear[3].bits());
     let t37 = t35 + t36;
-    let t38 = fld(rc, 0x31A2B8);
+    let t38 = ld(shared.car.gear_wear[4].bits());
     let t39 = t37 + t38;
-    let t40 = fld(rc, 0x31A2BC);
+    let t40 = ld(shared.car.gear_wear[5].bits());
     let t41 = t39 + t40;
-    let t42 = fld(rc, 0x31A2C0);
+    let t42 = ld(shared.car.gear_wear[6].bits());
     let t43 = t41 + t42;
-    let t44 = fld(rc, 0x31A2C4);
+    let t44 = ld(shared.car.gear_wear[7].bits());
     let t45 = t43 + t44;
-    let t46 = fld(rc, 0x31A2C8);
+    let t46 = ld(shared.car.gear_wear[8].bits());
     let t47 = t45 + t46;
     let t48 = ld(m.flt_75b360.bits());
     let t49 = t47 * t48;
@@ -1342,54 +713,56 @@ fn x87_13(rc: usize, m: &DamageModel) {
     let t51 = t49 * t50;
     let t52 = ld(m.flt_75b360.bits());
     let t53 = t51 * t52;
-    fstp(rc, 0x31A2CC, t53);
-    let t54 = fld(rc, 0x31A2D0);
-    let t55 = fld(rc, 0x31A2D4);
+    shared.car.gearbox_damage.set_bits(st(t53));
+    let t54 = ld(shared.car.wheel_hit_damage[0].bits());
+    let t55 = ld(shared.car.wheel_hit_damage[1].bits());
     let t56 = t54 + t55;
-    let t57 = fld(rc, 0x31A2D8);
+    let t57 = ld(shared.car.wheel_hit_damage[2].bits());
     let t58 = t56 + t57;
-    let t59 = fld(rc, 0x31A2DC);
+    let t59 = ld(shared.car.wheel_hit_damage[3].bits());
     let t60 = t58 + t59;
-    let t61 = fld(rc, 0x31A2E0);
+    let t61 = ld(shared.car.body_hit_damage.bits());
     let t62 = t60 + t61;
-    let t63 = fld(rc, 0x31A2E0);
+    let t63 = ld(shared.car.body_hit_damage.bits());
     let t64 = t62 + t63;
-    let t65 = fld(rc, 0x31A2E0);
+    let t65 = ld(shared.car.body_hit_damage.bits());
     let t66 = t64 + t65;
-    let t67 = fld(rc, 0x31A2E0);
+    let t67 = ld(shared.car.body_hit_damage.bits());
     let t68 = t66 + t67;
-    let t69 = fld(rc, 0x31A2E0);
+    let t69 = ld(shared.car.body_hit_damage.bits());
     let t70 = t68 + t69;
-    let t71 = fld(rc, 0x31A2E0);
+    let t71 = ld(shared.car.body_hit_damage.bits());
     let t72 = t70 + t71;
     let t73 = ld(m.flt_75b368.bits());
     let t74 = t72 * t73;
-    fstp(rc, 0x31A2E4, t74);
-    let t75 = fld(rc, 0x31A30C);
-    let t76 = fld(rc, 0x31A310);
+    shared.car.body_damage.set_bits(st(t74));
+    let t75 = ld(shared.car.suspension_damage[0].bits());
+    let t76 = ld(shared.car.suspension_damage[1].bits());
     let t77 = t75 + t76;
-    let t78 = fld(rc, 0x31A314);
+    let t78 = ld(shared.car.suspension_damage[2].bits());
     let t79 = t77 + t78;
-    let t80 = fld(rc, 0x31A318);
+    let t80 = ld(shared.car.suspension_damage[3].bits());
     let t81 = t79 + t80;
     let t82 = ld(m.flt_75b364.bits());
     let t83 = t81 * t82;
-    fstp(rc, 0x31A31C, t83);
-    let t84 = fld(rc, 0x31A420);
-    let t85 = fld(rc, 0x31A424);
+    shared.car.overall_suspension_damage.set_bits(st(t83));
+    let t84 = ld(shared.car.wheel_stiffness[0].bits());
+    let t85 = ld(shared.car.wheel_stiffness[1].bits());
     let t86 = t84 + t85;
-    let t87 = fld(rc, 0x31A428);
+    let t87 = ld(shared.car.wheel_stiffness[2].bits());
     let t88 = t86 + t87;
-    let t89 = fld(rc, 0x31A42C);
+    let t89 = ld(shared.car.wheel_stiffness[3].bits());
     let t90 = t88 + t89;
     let t91 = ld(m.flt_75b364.bits());
     let t92 = t90 * t91;
-    fstp(rc, 0x31A430, t92);
+    shared.car.stiffness_mean.set_bits(st(t92));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
+    use crate::scene::x87_mem::HostCell;
 
     /// The damage model as the test's buffer holds it (the buffer's base plus the RVA of
     /// 0x75B340).
@@ -1520,7 +893,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B5D0, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A290, In::F)],
                         writes: &[(0x31A290, Out::F)],
                     },
@@ -1528,13 +901,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).gauge_rates[0],
                         &dm(a[0]).flt_75b38c,
-                        0x31A290,
-                        0x31A290,
-                    )
+                        &crate::race::owner::race().shared.car.engine_damage,
+                        &crate::race::owner::race().shared.car.engine_damage,
+                    );
                 },
             },
             Block {
@@ -1544,7 +916,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B5D4, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A294, In::F)],
                         writes: &[(0x31A294, Out::F)],
                     },
@@ -1552,13 +924,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).gauge_rates[1],
                         &dm(a[0]).flt_75b38c,
-                        0x31A294,
-                        0x31A294,
-                    )
+                        &crate::race::owner::race().shared.car.exhaust_damage,
+                        &crate::race::owner::race().shared.car.exhaust_damage,
+                    );
                 },
             },
             Block {
@@ -1568,7 +939,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B5D8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A29C, In::F)],
                         writes: &[(0x31A29C, Out::F)],
                     },
@@ -1576,13 +947,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).gauge_rates[2],
                         &dm(a[0]).flt_75b38c,
-                        0x31A29C,
-                        0x31A29C,
-                    )
+                        &crate::race::owner::race().shared.car.cooling_damage,
+                        &crate::race::owner::race().shared.car.cooling_damage,
+                    );
                 },
             },
             Block {
@@ -1592,7 +962,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B5DC, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2A0, In::F)],
                         writes: &[(0x31A2A0, Out::F)],
                     },
@@ -1600,13 +970,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).gauge_rates[3],
                         &dm(a[0]).flt_75b38c,
-                        0x31A2A0,
-                        0x31A2A0,
-                    )
+                        &crate::race::owner::race().shared.car.clutch_damage,
+                        &crate::race::owner::race().shared.car.clutch_damage,
+                    );
                 },
             },
             Block {
@@ -1616,7 +985,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B5E0, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2A4, In::F)],
                         writes: &[(0x31A2A4, Out::F)],
                     },
@@ -1624,13 +993,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).gauge_rates[4],
                         &dm(a[0]).flt_75b38c,
-                        0x31A2A4,
-                        0x31A2A4,
-                    )
+                        &crate::race::owner::race().shared.car.differential_damage,
+                        &crate::race::owner::race().shared.car.differential_damage,
+                    );
                 },
             },
             Block {
@@ -1640,7 +1008,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B5E4, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2E8, In::F)],
                         writes: &[(0x31A2E8, Out::F)],
                     },
@@ -1648,13 +1016,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_5(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).gauge_rates[5],
                         &dm(a[0]).flt_75b38c,
-                        0x31A2E8,
-                        0x31A2E8,
-                    )
+                        &crate::race::owner::race().shared.car.electrics_damage,
+                        &crate::race::owner::race().shared.car.electrics_damage,
+                    );
                 },
             },
             Block {
@@ -1664,7 +1031,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B5E8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2EC, In::F)],
                         writes: &[(0x31A2EC, Out::F)],
                     },
@@ -1672,13 +1039,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).gauge_rates[6],
                         &dm(a[0]).flt_75b38c,
-                        0x31A2EC,
-                        0x31A2EC,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[0],
+                        &crate::race::owner::race().shared.car.light_damage[0],
+                    );
                 },
             },
             Block {
@@ -1688,7 +1054,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B5E8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2F0, In::F)],
                         writes: &[(0x31A2F0, Out::F)],
                     },
@@ -1696,13 +1062,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_7(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).gauge_rates[6],
                         &dm(a[0]).flt_75b38c,
-                        0x31A2F0,
-                        0x31A2F0,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[1],
+                        &crate::race::owner::race().shared.car.light_damage[1],
+                    );
                 },
             },
             Block {
@@ -1712,7 +1077,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B5E8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2F4, In::F)],
                         writes: &[(0x31A2F4, Out::F)],
                     },
@@ -1720,13 +1085,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_8(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).gauge_rates[6],
                         &dm(a[0]).flt_75b38c,
-                        0x31A2F4,
-                        0x31A2F4,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[2],
+                        &crate::race::owner::race().shared.car.light_damage[2],
+                    );
                 },
             },
             Block {
@@ -1736,7 +1100,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B5E8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2F8, In::F)],
                         writes: &[(0x31A2F8, Out::F)],
                     },
@@ -1744,13 +1108,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_9(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).gauge_rates[6],
                         &dm(a[0]).flt_75b38c,
-                        0x31A2F8,
-                        0x31A2F8,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[3],
+                        &crate::race::owner::race().shared.car.light_damage[3],
+                    );
                 },
             },
             Block {
@@ -1760,7 +1123,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B5E8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2FC, In::F)],
                         writes: &[(0x31A2FC, Out::F)],
                     },
@@ -1768,13 +1131,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_10(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).gauge_rates[6],
                         &dm(a[0]).flt_75b38c,
-                        0x31A2FC,
-                        0x31A2FC,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[4],
+                        &crate::race::owner::race().shared.car.light_damage[4],
+                    );
                 },
             },
             Block {
@@ -1784,7 +1146,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B5E8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A300, In::F)],
                         writes: &[(0x31A300, Out::F)],
                     },
@@ -1792,13 +1154,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_11(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).gauge_rates[6],
                         &dm(a[0]).flt_75b38c,
-                        0x31A300,
-                        0x31A300,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[5],
+                        &crate::race::owner::race().shared.car.light_damage[5],
+                    );
                 },
             },
             Block {
@@ -1808,7 +1169,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B5EC, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A308, In::F)],
                         writes: &[(0x31A308, Out::F)],
                     },
@@ -1816,13 +1177,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_12(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).gauge_rates[7],
                         &dm(a[0]).flt_75b38c,
-                        0x31A308,
-                        0x31A308,
-                    )
+                        &crate::race::owner::race().shared.car.steering_damage,
+                        &crate::race::owner::race().shared.car.steering_damage,
+                    );
                 },
             },
             Block {
@@ -1832,7 +1192,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B5F0, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A30C, In::F)],
                         writes: &[(0x31A30C, Out::F)],
                     },
@@ -1840,13 +1200,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_13(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).gauge_rates[8],
                         &dm(a[0]).flt_75b38c,
-                        0x31A30C,
-                        0x31A30C,
-                    )
+                        &crate::race::owner::race().shared.car.suspension_damage[0],
+                        &crate::race::owner::race().shared.car.suspension_damage[0],
+                    );
                 },
             },
             Block {
@@ -1856,7 +1215,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B5F0, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A310, In::F)],
                         writes: &[(0x31A310, Out::F)],
                     },
@@ -1864,13 +1223,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_14(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).gauge_rates[8],
                         &dm(a[0]).flt_75b38c,
-                        0x31A310,
-                        0x31A310,
-                    )
+                        &crate::race::owner::race().shared.car.suspension_damage[1],
+                        &crate::race::owner::race().shared.car.suspension_damage[1],
+                    );
                 },
             },
             Block {
@@ -1880,7 +1238,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B5F0, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A314, In::F)],
                         writes: &[(0x31A314, Out::F)],
                     },
@@ -1888,13 +1246,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_15(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).gauge_rates[8],
                         &dm(a[0]).flt_75b38c,
-                        0x31A314,
-                        0x31A314,
-                    )
+                        &crate::race::owner::race().shared.car.suspension_damage[2],
+                        &crate::race::owner::race().shared.car.suspension_damage[2],
+                    );
                 },
             },
             Block {
@@ -1904,7 +1261,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B5F0, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A318, In::F)],
                         writes: &[(0x31A318, Out::F)],
                     },
@@ -1912,13 +1269,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_16(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).gauge_rates[8],
                         &dm(a[0]).flt_75b38c,
-                        0x31A318,
-                        0x31A318,
-                    )
+                        &crate::race::owner::race().shared.car.suspension_damage[3],
+                        &crate::race::owner::race().shared.car.suspension_damage[3],
+                    );
                 },
             },
             Block {
@@ -1933,7 +1289,7 @@ mod asm_reference {
                         ],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A298, In::F)],
                         writes: &[(0x31A298, Out::F)],
                     },
@@ -1941,15 +1297,14 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_17(a[0], a[1]) },
                 plain: |a| {
-                    x87_2(
+                    add_scaled_triple(
                         dm(a[0]),
-                        a[1],
                         &dm(a[0]).wear_rates[11],
                         &dm(a[0]).flt_75b3c0,
-                        &dm(a[0]).flt_75b398,
-                        0x31A298,
-                        0x31A298,
-                    )
+                        &dm(a[0]).engine_speed_share,
+                        &crate::race::owner::race().shared.car.turbo_damage,
+                        &crate::race::owner::race().shared.car.turbo_damage,
+                    );
                 },
             },
             Block {
@@ -1970,7 +1325,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_18(a[0], a[1], a[2]) },
-                plain: |a| x87_3(dm(a[0]), a[1], a[2]),
+                plain: |a| gear_wear_from_speed(dm(a[0]), &HostCell(a[1]), &HostCell(a[2])),
             },
             Block {
                 name: "damage_gauges line 239",
@@ -1984,14 +1339,14 @@ mod asm_reference {
                         ],
                         writes: &[(0x35B43C, Out::F)],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A320, In::F)],
                         writes: &[(0x31A320, Out::F)],
                     },
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_19(a[0], a[1]) },
-                plain: |a| x87_4(dm(a[0]), a[1]),
+                plain: |a| brake_wear_step(&race().shared, dm(a[0])),
             },
             Block {
                 name: "damage_gauges line 254",
@@ -2005,7 +1360,7 @@ mod asm_reference {
                         ],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A324, In::F)],
                         writes: &[(0x31A324, Out::F)],
                     },
@@ -2013,15 +1368,14 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_20(a[0], a[1]) },
                 plain: |a| {
-                    x87_2(
+                    add_scaled_triple(
                         dm(a[0]),
-                        a[1],
                         &dm(a[0]).gauge_rates[9],
                         &dm(a[0]).flt_75b43c,
-                        &dm(a[0]).flt_75b3b0,
-                        0x31A324,
-                        0x31A324,
-                    )
+                        &dm(a[0]).brake_share,
+                        &crate::race::owner::race().shared.car.brake_wear_b,
+                        &crate::race::owner::race().shared.car.brake_wear_b,
+                    );
                 },
             },
             Block {
@@ -2031,7 +1385,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B3B4, In::F), (0x35B5F8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2E8, In::F)],
                         writes: &[(0x31A2E8, Out::F)],
                     },
@@ -2039,14 +1393,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_21(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).gauge_rates[10],
                         &dm(a[0]).flt_75b3b4,
                         &dm(a[0]).flt_75b38c,
-                        0x31A2E8,
-                        0x31A2E8,
-                    )
+                        &crate::race::owner::race().shared.car.electrics_damage,
+                        &crate::race::owner::race().shared.car.electrics_damage,
+                    );
                 },
             },
             Block {
@@ -2056,7 +1409,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B3B4, In::F), (0x35B5FC, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2EC, In::F)],
                         writes: &[(0x31A2EC, Out::F)],
                     },
@@ -2064,14 +1417,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_22(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).gauge_rates[11],
                         &dm(a[0]).flt_75b3b4,
                         &dm(a[0]).flt_75b38c,
-                        0x31A2EC,
-                        0x31A2EC,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[0],
+                        &crate::race::owner::race().shared.car.light_damage[0],
+                    );
                 },
             },
             Block {
@@ -2081,7 +1433,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B3B4, In::F), (0x35B5FC, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2F0, In::F)],
                         writes: &[(0x31A2F0, Out::F)],
                     },
@@ -2089,14 +1441,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_23(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).gauge_rates[11],
                         &dm(a[0]).flt_75b3b4,
                         &dm(a[0]).flt_75b38c,
-                        0x31A2F0,
-                        0x31A2F0,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[1],
+                        &crate::race::owner::race().shared.car.light_damage[1],
+                    );
                 },
             },
             Block {
@@ -2106,7 +1457,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B3B4, In::F), (0x35B5FC, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2F4, In::F)],
                         writes: &[(0x31A2F4, Out::F)],
                     },
@@ -2114,14 +1465,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_24(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).gauge_rates[11],
                         &dm(a[0]).flt_75b3b4,
                         &dm(a[0]).flt_75b38c,
-                        0x31A2F4,
-                        0x31A2F4,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[2],
+                        &crate::race::owner::race().shared.car.light_damage[2],
+                    );
                 },
             },
             Block {
@@ -2131,7 +1481,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B3B4, In::F), (0x35B5FC, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2F8, In::F)],
                         writes: &[(0x31A2F8, Out::F)],
                     },
@@ -2139,14 +1489,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_25(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).gauge_rates[11],
                         &dm(a[0]).flt_75b3b4,
                         &dm(a[0]).flt_75b38c,
-                        0x31A2F8,
-                        0x31A2F8,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[3],
+                        &crate::race::owner::race().shared.car.light_damage[3],
+                    );
                 },
             },
             Block {
@@ -2156,7 +1505,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B3B4, In::F), (0x35B5FC, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2FC, In::F)],
                         writes: &[(0x31A2FC, Out::F)],
                     },
@@ -2164,14 +1513,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_26(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).gauge_rates[11],
                         &dm(a[0]).flt_75b3b4,
                         &dm(a[0]).flt_75b38c,
-                        0x31A2FC,
-                        0x31A2FC,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[4],
+                        &crate::race::owner::race().shared.car.light_damage[4],
+                    );
                 },
             },
             Block {
@@ -2181,7 +1529,7 @@ mod asm_reference {
                         reads: &[(0x35B38C, In::F), (0x35B3B4, In::F), (0x35B5FC, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A300, In::F)],
                         writes: &[(0x31A300, Out::F)],
                     },
@@ -2189,14 +1537,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_27(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).gauge_rates[11],
                         &dm(a[0]).flt_75b3b4,
                         &dm(a[0]).flt_75b38c,
-                        0x31A300,
-                        0x31A300,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[5],
+                        &crate::race::owner::race().shared.car.light_damage[5],
+                    );
                 },
             },
             Block {
@@ -2213,7 +1560,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_28(a[0]) },
-                plain: |a| x87_6(dm(a[0])),
+                plain: |a| part_hit_figures(dm(a[0])),
             },
             Block {
                 name: "damage_gauges line 355",
@@ -2233,7 +1580,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_29(a[0], a[1], a[2]) },
-                plain: |a| x87_7(dm(a[0]), a[1], a[2]),
+                plain: |a| scale_part_hit_figures(dm(a[0]), &HostCell(a[1]), &HostCell(a[2])),
             },
             Block {
                 name: "damage_gauges line 365",
@@ -2242,7 +1589,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B46C, In::F), (0x35B488, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A32C, In::F)],
                         writes: &[(0x31A32C, Out::F)],
                     },
@@ -2250,14 +1597,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_30(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b46c,
                         &dm(a[0]).flt_75b488,
                         &dm(a[0]).flt_75b370,
-                        0x31A32C,
-                        0x31A32C,
-                    )
+                        &crate::race::owner::race().shared.car.part_hit_damage[0],
+                        &crate::race::owner::race().shared.car.part_hit_damage[0],
+                    );
                 },
             },
             Block {
@@ -2267,7 +1613,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B46C, In::F), (0x35B488, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A330, In::F)],
                         writes: &[(0x31A330, Out::F)],
                     },
@@ -2275,14 +1621,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_31(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b46c,
                         &dm(a[0]).flt_75b488,
                         &dm(a[0]).flt_75b370,
-                        0x31A330,
-                        0x31A330,
-                    )
+                        &crate::race::owner::race().shared.car.part_hit_damage[1],
+                        &crate::race::owner::race().shared.car.part_hit_damage[1],
+                    );
                 },
             },
             Block {
@@ -2292,7 +1637,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B470, In::F), (0x35B48C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A334, In::F)],
                         writes: &[(0x31A334, Out::F)],
                     },
@@ -2300,14 +1645,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_32(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b470,
                         &dm(a[0]).flt_75b48c,
                         &dm(a[0]).flt_75b370,
-                        0x31A334,
-                        0x31A334,
-                    )
+                        &crate::race::owner::race().shared.car.part_hit_damage[2],
+                        &crate::race::owner::race().shared.car.part_hit_damage[2],
+                    );
                 },
             },
             Block {
@@ -2317,7 +1661,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B470, In::F), (0x35B48C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A338, In::F)],
                         writes: &[(0x31A338, Out::F)],
                     },
@@ -2325,14 +1669,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_33(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b470,
                         &dm(a[0]).flt_75b48c,
                         &dm(a[0]).flt_75b370,
-                        0x31A338,
-                        0x31A338,
-                    )
+                        &crate::race::owner::race().shared.car.part_hit_damage[3],
+                        &crate::race::owner::race().shared.car.part_hit_damage[3],
+                    );
                 },
             },
             Block {
@@ -2342,7 +1685,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B45C, In::F), (0x35B604, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A290, In::F)],
                         writes: &[(0x31A290, Out::F)],
                     },
@@ -2350,14 +1693,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_34(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b45c,
                         &dm(a[0]).gauge_rates[13],
                         &dm(a[0]).flt_75b370,
-                        0x31A290,
-                        0x31A290,
-                    )
+                        &crate::race::owner::race().shared.car.engine_damage,
+                        &crate::race::owner::race().shared.car.engine_damage,
+                    );
                 },
             },
             Block {
@@ -2367,7 +1709,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B45C, In::F), (0x35B600, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A29C, In::F)],
                         writes: &[(0x31A29C, Out::F)],
                     },
@@ -2375,20 +1717,19 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_35(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b45c,
                         &dm(a[0]).gauge_rates[12],
                         &dm(a[0]).flt_75b370,
-                        0x31A29C,
-                        0x31A29C,
-                    )
+                        &crate::race::owner::race().shared.car.cooling_damage,
+                        &crate::race::owner::race().shared.car.cooling_damage,
+                    );
                 },
             },
             Block {
                 name: "damage_gauges line 432",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A28C, In::F), (0x31A290, In::F)],
                         writes: &[(0x31A290, Out::F)],
                     },
@@ -2399,7 +1740,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_36(a[0], a[1]) },
-                plain: |a| x87_8(a[0], dm(a[1])),
+                plain: |a| engine_damage_carry(&race().shared, dm(a[1])),
             },
             Block {
                 name: "damage_gauges line 443",
@@ -2408,7 +1749,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B464, In::F), (0x35B60C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A29C, In::F)],
                         writes: &[(0x31A29C, Out::F)],
                     },
@@ -2416,20 +1757,19 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_37(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b464,
                         &dm(a[0]).gauge_rates[15],
                         &dm(a[0]).flt_75b370,
-                        0x31A29C,
-                        0x31A29C,
-                    )
+                        &crate::race::owner::race().shared.car.cooling_damage,
+                        &crate::race::owner::race().shared.car.cooling_damage,
+                    );
                 },
             },
             Block {
                 name: "damage_gauges line 456",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2A0, In::F)],
                         writes: &[(0x31A2A0, Out::F)],
                     },
@@ -2440,12 +1780,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_38(a[0], a[1]) },
-                plain: |a| x87_9(a[0], &dm(a[1]).gauge_rates[16]),
+                plain: |a| add_rate_to_clutch(&race().shared, &dm(a[1]).gauge_rates[16]),
             },
             Block {
                 name: "damage_gauges line 465",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2A0, In::F)],
                         writes: &[(0x31A2A0, Out::F)],
                     },
@@ -2456,7 +1796,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_39(a[0], a[1]) },
-                plain: |a| x87_9(a[0], &dm(a[1]).gauge_rates[17]),
+                plain: |a| add_rate_to_clutch(&race().shared, &dm(a[1]).gauge_rates[17]),
             },
             Block {
                 name: "damage_gauges line 476",
@@ -2472,7 +1812,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_40(a[0], a[1]) },
-                plain: |a| x87_10(a[0], &dm(a[1]).gauge_rates[18]),
+                plain: |a| add_rate_to_gauge(&HostCell(a[0]), &dm(a[1]).gauge_rates[18]),
             },
             Block {
                 name: "damage_gauges line 486",
@@ -2488,7 +1828,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_41(a[0], a[1]) },
-                plain: |a| x87_10(a[0], &dm(a[1]).gauge_rates[19]),
+                plain: |a| add_rate_to_gauge(&HostCell(a[0]), &dm(a[1]).gauge_rates[19]),
             },
             Block {
                 name: "damage_gauges line 493",
@@ -2497,7 +1837,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B450, In::F), (0x35B670, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2D0, In::F)],
                         writes: &[(0x31A2D0, Out::F)],
                     },
@@ -2505,14 +1845,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_42(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b450,
                         &dm(a[0]).flt_75b670,
                         &dm(a[0]).flt_75b370,
-                        0x31A2D0,
-                        0x31A2D0,
-                    )
+                        &crate::race::owner::race().shared.car.wheel_hit_damage[0],
+                        &crate::race::owner::race().shared.car.wheel_hit_damage[0],
+                    );
                 },
             },
             Block {
@@ -2522,7 +1861,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B450, In::F), (0x35B670, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2D4, In::F)],
                         writes: &[(0x31A2D4, Out::F)],
                     },
@@ -2530,14 +1869,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_43(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b450,
                         &dm(a[0]).flt_75b670,
                         &dm(a[0]).flt_75b370,
-                        0x31A2D4,
-                        0x31A2D4,
-                    )
+                        &crate::race::owner::race().shared.car.wheel_hit_damage[1],
+                        &crate::race::owner::race().shared.car.wheel_hit_damage[1],
+                    );
                 },
             },
             Block {
@@ -2547,7 +1885,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B450, In::F), (0x35B670, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2D8, In::F)],
                         writes: &[(0x31A2D8, Out::F)],
                     },
@@ -2555,14 +1893,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_44(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b450,
                         &dm(a[0]).flt_75b670,
                         &dm(a[0]).flt_75b370,
-                        0x31A2D8,
-                        0x31A2D8,
-                    )
+                        &crate::race::owner::race().shared.car.wheel_hit_damage[2],
+                        &crate::race::owner::race().shared.car.wheel_hit_damage[2],
+                    );
                 },
             },
             Block {
@@ -2572,7 +1909,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B450, In::F), (0x35B670, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2DC, In::F)],
                         writes: &[(0x31A2DC, Out::F)],
                     },
@@ -2580,14 +1917,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_45(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b450,
                         &dm(a[0]).flt_75b670,
                         &dm(a[0]).flt_75b370,
-                        0x31A2DC,
-                        0x31A2DC,
-                    )
+                        &crate::race::owner::race().shared.car.wheel_hit_damage[3],
+                        &crate::race::owner::race().shared.car.wheel_hit_damage[3],
+                    );
                 },
             },
             Block {
@@ -2597,7 +1933,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B458, In::F), (0x35B678, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A30C, In::F)],
                         writes: &[(0x31A30C, Out::F)],
                     },
@@ -2605,14 +1941,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_46(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b458,
                         &dm(a[0]).figures[0],
                         &dm(a[0]).flt_75b370,
-                        0x31A30C,
-                        0x31A30C,
-                    )
+                        &crate::race::owner::race().shared.car.suspension_damage[0],
+                        &crate::race::owner::race().shared.car.suspension_damage[0],
+                    );
                 },
             },
             Block {
@@ -2622,7 +1957,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B458, In::F), (0x35B678, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A310, In::F)],
                         writes: &[(0x31A310, Out::F)],
                     },
@@ -2630,14 +1965,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_47(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b458,
                         &dm(a[0]).figures[0],
                         &dm(a[0]).flt_75b370,
-                        0x31A310,
-                        0x31A310,
-                    )
+                        &crate::race::owner::race().shared.car.suspension_damage[1],
+                        &crate::race::owner::race().shared.car.suspension_damage[1],
+                    );
                 },
             },
             Block {
@@ -2647,7 +1981,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B458, In::F), (0x35B678, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A314, In::F)],
                         writes: &[(0x31A314, Out::F)],
                     },
@@ -2655,14 +1989,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_48(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b458,
                         &dm(a[0]).figures[0],
                         &dm(a[0]).flt_75b370,
-                        0x31A314,
-                        0x31A314,
-                    )
+                        &crate::race::owner::race().shared.car.suspension_damage[2],
+                        &crate::race::owner::race().shared.car.suspension_damage[2],
+                    );
                 },
             },
             Block {
@@ -2672,7 +2005,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B458, In::F), (0x35B678, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A318, In::F)],
                         writes: &[(0x31A318, Out::F)],
                     },
@@ -2680,14 +2013,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_49(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b458,
                         &dm(a[0]).figures[0],
                         &dm(a[0]).flt_75b370,
-                        0x31A318,
-                        0x31A318,
-                    )
+                        &crate::race::owner::race().shared.car.suspension_damage[3],
+                        &crate::race::owner::race().shared.car.suspension_damage[3],
+                    );
                 },
             },
             Block {
@@ -2697,7 +2029,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B67C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2E0, In::F)],
                         writes: &[(0x31A2E0, Out::F)],
                     },
@@ -2705,14 +2037,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_50(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[1],
                         &dm(a[0]).flt_75b370,
-                        0x31A2E0,
-                        0x31A2E0,
-                    )
+                        &crate::race::owner::race().shared.car.body_hit_damage,
+                        &crate::race::owner::race().shared.car.body_hit_damage,
+                    );
                 },
             },
             Block {
@@ -2722,7 +2053,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B680, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A308, In::F)],
                         writes: &[(0x31A308, Out::F)],
                     },
@@ -2730,14 +2061,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_51(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[2],
                         &dm(a[0]).flt_75b370,
-                        0x31A308,
-                        0x31A308,
-                    )
+                        &crate::race::owner::race().shared.car.steering_damage,
+                        &crate::race::owner::race().shared.car.steering_damage,
+                    );
                 },
             },
             Block {
@@ -2747,7 +2077,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B684, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A290, In::F)],
                         writes: &[(0x31A290, Out::F)],
                     },
@@ -2755,14 +2085,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_52(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[3],
                         &dm(a[0]).flt_75b370,
-                        0x31A290,
-                        0x31A290,
-                    )
+                        &crate::race::owner::race().shared.car.engine_damage,
+                        &crate::race::owner::race().shared.car.engine_damage,
+                    );
                 },
             },
             Block {
@@ -2772,7 +2101,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B688, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A294, In::F)],
                         writes: &[(0x31A294, Out::F)],
                     },
@@ -2780,14 +2109,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_53(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[4],
                         &dm(a[0]).flt_75b370,
-                        0x31A294,
-                        0x31A294,
-                    )
+                        &crate::race::owner::race().shared.car.exhaust_damage,
+                        &crate::race::owner::race().shared.car.exhaust_damage,
+                    );
                 },
             },
             Block {
@@ -2797,7 +2125,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B68C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2A8, In::F)],
                         writes: &[(0x31A2A8, Out::F)],
                     },
@@ -2805,14 +2133,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_54(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).flt_75b370,
-                        0x31A2A8,
-                        0x31A2A8,
-                    )
+                        &crate::race::owner::race().shared.car.gear_wear[0],
+                        &crate::race::owner::race().shared.car.gear_wear[0],
+                    );
                 },
             },
             Block {
@@ -2822,7 +2149,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B68C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2B0, In::F)],
                         writes: &[(0x31A2B0, Out::F)],
                     },
@@ -2830,14 +2157,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_55(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).flt_75b370,
-                        0x31A2B0,
-                        0x31A2B0,
-                    )
+                        &crate::race::owner::race().shared.car.gear_wear[2],
+                        &crate::race::owner::race().shared.car.gear_wear[2],
+                    );
                 },
             },
             Block {
@@ -2847,7 +2173,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B68C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2B4, In::F)],
                         writes: &[(0x31A2B4, Out::F)],
                     },
@@ -2855,14 +2181,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_56(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).flt_75b370,
-                        0x31A2B4,
-                        0x31A2B4,
-                    )
+                        &crate::race::owner::race().shared.car.gear_wear[3],
+                        &crate::race::owner::race().shared.car.gear_wear[3],
+                    );
                 },
             },
             Block {
@@ -2872,7 +2197,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B68C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2B8, In::F)],
                         writes: &[(0x31A2B8, Out::F)],
                     },
@@ -2880,14 +2205,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_57(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).flt_75b370,
-                        0x31A2B8,
-                        0x31A2B8,
-                    )
+                        &crate::race::owner::race().shared.car.gear_wear[4],
+                        &crate::race::owner::race().shared.car.gear_wear[4],
+                    );
                 },
             },
             Block {
@@ -2897,7 +2221,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B68C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2BC, In::F)],
                         writes: &[(0x31A2BC, Out::F)],
                     },
@@ -2905,14 +2229,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_58(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).flt_75b370,
-                        0x31A2BC,
-                        0x31A2BC,
-                    )
+                        &crate::race::owner::race().shared.car.gear_wear[5],
+                        &crate::race::owner::race().shared.car.gear_wear[5],
+                    );
                 },
             },
             Block {
@@ -2922,7 +2245,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B68C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2C0, In::F)],
                         writes: &[(0x31A2C0, Out::F)],
                     },
@@ -2930,14 +2253,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_59(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).flt_75b370,
-                        0x31A2C0,
-                        0x31A2C0,
-                    )
+                        &crate::race::owner::race().shared.car.gear_wear[6],
+                        &crate::race::owner::race().shared.car.gear_wear[6],
+                    );
                 },
             },
             Block {
@@ -2947,7 +2269,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B68C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2C4, In::F)],
                         writes: &[(0x31A2C4, Out::F)],
                     },
@@ -2955,14 +2277,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_60(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).flt_75b370,
-                        0x31A2C4,
-                        0x31A2C4,
-                    )
+                        &crate::race::owner::race().shared.car.gear_wear[7],
+                        &crate::race::owner::race().shared.car.gear_wear[7],
+                    );
                 },
             },
             Block {
@@ -2972,7 +2293,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B68C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2C8, In::F)],
                         writes: &[(0x31A2C8, Out::F)],
                     },
@@ -2980,14 +2301,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_61(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).flt_75b370,
-                        0x31A2C8,
-                        0x31A2C8,
-                    )
+                        &crate::race::owner::race().shared.car.gear_wear[8],
+                        &crate::race::owner::race().shared.car.gear_wear[8],
+                    );
                 },
             },
             Block {
@@ -2997,7 +2317,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B690, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2A4, In::F)],
                         writes: &[(0x31A2A4, Out::F)],
                     },
@@ -3005,14 +2325,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_62(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[6],
                         &dm(a[0]).flt_75b370,
-                        0x31A2A4,
-                        0x31A2A4,
-                    )
+                        &crate::race::owner::race().shared.car.differential_damage,
+                        &crate::race::owner::race().shared.car.differential_damage,
+                    );
                 },
             },
             Block {
@@ -3022,7 +2341,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6AC, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2E0, In::F)],
                         writes: &[(0x31A2E0, Out::F)],
                     },
@@ -3030,13 +2349,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_63(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[13],
-                        0x31A2E0,
-                        0x31A2E0,
-                    )
+                        &crate::race::owner::race().shared.car.body_hit_damage,
+                        &crate::race::owner::race().shared.car.body_hit_damage,
+                    );
                 },
             },
             Block {
@@ -3046,14 +2364,14 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F)],
                         writes: &[(0x35B3C8, Out::F)],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31C708, In::F)],
                         writes: &[],
                     },
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_64(a[0], a[1]) },
-                plain: |a| x87_11(dm(a[0]), a[1]),
+                plain: |a| scale_hit_size(&race().shared, dm(a[0])),
             },
             Block {
                 name: "damage_gauges line 745",
@@ -3062,7 +2380,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6D8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2EC, In::F)],
                         writes: &[(0x31A2EC, Out::F)],
                     },
@@ -3070,13 +2388,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_65(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[24],
-                        0x31A2EC,
-                        0x31A2EC,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[0],
+                        &crate::race::owner::race().shared.car.light_damage[0],
+                    );
                 },
             },
             Block {
@@ -3086,7 +2403,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6D8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2F0, In::F)],
                         writes: &[(0x31A2F0, Out::F)],
                     },
@@ -3094,13 +2411,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_66(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[24],
-                        0x31A2F0,
-                        0x31A2F0,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[1],
+                        &crate::race::owner::race().shared.car.light_damage[1],
+                    );
                 },
             },
             Block {
@@ -3110,7 +2426,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6D8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2F4, In::F)],
                         writes: &[(0x31A2F4, Out::F)],
                     },
@@ -3118,13 +2434,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_67(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[24],
-                        0x31A2F4,
-                        0x31A2F4,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[2],
+                        &crate::race::owner::race().shared.car.light_damage[2],
+                    );
                 },
             },
             Block {
@@ -3134,7 +2449,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6D8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2F8, In::F)],
                         writes: &[(0x31A2F8, Out::F)],
                     },
@@ -3142,13 +2457,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_68(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[24],
-                        0x31A2F8,
-                        0x31A2F8,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[3],
+                        &crate::race::owner::race().shared.car.light_damage[3],
+                    );
                 },
             },
             Block {
@@ -3158,7 +2472,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6DC, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2FC, In::F)],
                         writes: &[(0x31A2FC, Out::F)],
                     },
@@ -3166,13 +2480,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_69(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[25],
-                        0x31A2FC,
-                        0x31A2FC,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[4],
+                        &crate::race::owner::race().shared.car.light_damage[4],
+                    );
                 },
             },
             Block {
@@ -3182,7 +2495,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6DC, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2FC, In::F)],
                         writes: &[(0x31A2FC, Out::F)],
                     },
@@ -3190,13 +2503,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_70(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[25],
-                        0x31A2FC,
-                        0x31A2FC,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[4],
+                        &crate::race::owner::race().shared.car.light_damage[4],
+                    );
                 },
             },
             Block {
@@ -3206,7 +2518,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6DC, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A300, In::F)],
                         writes: &[(0x31A300, Out::F)],
                     },
@@ -3214,13 +2526,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_71(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[25],
-                        0x31A300,
-                        0x31A300,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[5],
+                        &crate::race::owner::race().shared.car.light_damage[5],
+                    );
                 },
             },
             Block {
@@ -3230,7 +2541,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6DC, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A300, In::F)],
                         writes: &[(0x31A300, Out::F)],
                     },
@@ -3238,13 +2549,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_72(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[25],
-                        0x31A300,
-                        0x31A300,
-                    )
+                        &crate::race::owner::race().shared.car.light_damage[5],
+                        &crate::race::owner::race().shared.car.light_damage[5],
+                    );
                 },
             },
             Block {
@@ -3254,7 +2564,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6D4, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A308, In::F)],
                         writes: &[(0x31A308, Out::F)],
                     },
@@ -3262,13 +2572,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_73(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[23],
-                        0x31A308,
-                        0x31A308,
-                    )
+                        &crate::race::owner::race().shared.car.steering_damage,
+                        &crate::race::owner::race().shared.car.steering_damage,
+                    );
                 },
             },
             Block {
@@ -3278,7 +2587,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6D0, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2E8, In::F)],
                         writes: &[(0x31A2E8, Out::F)],
                     },
@@ -3286,13 +2595,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_74(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[22],
-                        0x31A2E8,
-                        0x31A2E8,
-                    )
+                        &crate::race::owner::race().shared.car.electrics_damage,
+                        &crate::race::owner::race().shared.car.electrics_damage,
+                    );
                 },
             },
             Block {
@@ -3302,7 +2610,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6BC, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A298, In::F)],
                         writes: &[(0x31A298, Out::F)],
                     },
@@ -3310,13 +2618,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_75(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[17],
-                        0x31A298,
-                        0x31A298,
-                    )
+                        &crate::race::owner::race().shared.car.turbo_damage,
+                        &crate::race::owner::race().shared.car.turbo_damage,
+                    );
                 },
             },
             Block {
@@ -3326,7 +2633,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6C0, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2A0, In::F)],
                         writes: &[(0x31A2A0, Out::F)],
                     },
@@ -3334,13 +2641,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_76(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[18],
-                        0x31A2A0,
-                        0x31A2A0,
-                    )
+                        &crate::race::owner::race().shared.car.clutch_damage,
+                        &crate::race::owner::race().shared.car.clutch_damage,
+                    );
                 },
             },
             Block {
@@ -3350,7 +2656,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6C4, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2A4, In::F)],
                         writes: &[(0x31A2A4, Out::F)],
                     },
@@ -3358,13 +2664,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_77(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[19],
-                        0x31A2A4,
-                        0x31A2A4,
-                    )
+                        &crate::race::owner::race().shared.car.differential_damage,
+                        &crate::race::owner::race().shared.car.differential_damage,
+                    );
                 },
             },
             Block {
@@ -3374,7 +2679,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6C8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2A8, In::F)],
                         writes: &[(0x31A2A8, Out::F)],
                     },
@@ -3382,13 +2687,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_78(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[20],
-                        0x31A2A8,
-                        0x31A2A8,
-                    )
+                        &crate::race::owner::race().shared.car.gear_wear[0],
+                        &crate::race::owner::race().shared.car.gear_wear[0],
+                    );
                 },
             },
             Block {
@@ -3398,7 +2702,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6C8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2AC, In::F)],
                         writes: &[(0x31A2AC, Out::F)],
                     },
@@ -3406,13 +2710,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_79(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[20],
-                        0x31A2AC,
-                        0x31A2AC,
-                    )
+                        &crate::race::owner::race().shared.car.gear_wear[1],
+                        &crate::race::owner::race().shared.car.gear_wear[1],
+                    );
                 },
             },
             Block {
@@ -3422,7 +2725,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6C8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2B0, In::F)],
                         writes: &[(0x31A2B0, Out::F)],
                     },
@@ -3430,13 +2733,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_80(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[20],
-                        0x31A2B0,
-                        0x31A2B0,
-                    )
+                        &crate::race::owner::race().shared.car.gear_wear[2],
+                        &crate::race::owner::race().shared.car.gear_wear[2],
+                    );
                 },
             },
             Block {
@@ -3446,7 +2748,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6C8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2B4, In::F)],
                         writes: &[(0x31A2B4, Out::F)],
                     },
@@ -3454,13 +2756,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_81(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[20],
-                        0x31A2B4,
-                        0x31A2B4,
-                    )
+                        &crate::race::owner::race().shared.car.gear_wear[3],
+                        &crate::race::owner::race().shared.car.gear_wear[3],
+                    );
                 },
             },
             Block {
@@ -3470,7 +2771,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6C8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2B8, In::F)],
                         writes: &[(0x31A2B8, Out::F)],
                     },
@@ -3478,13 +2779,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_82(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[20],
-                        0x31A2B8,
-                        0x31A2B8,
-                    )
+                        &crate::race::owner::race().shared.car.gear_wear[4],
+                        &crate::race::owner::race().shared.car.gear_wear[4],
+                    );
                 },
             },
             Block {
@@ -3494,7 +2794,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6C8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2BC, In::F)],
                         writes: &[(0x31A2BC, Out::F)],
                     },
@@ -3502,13 +2802,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_83(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[20],
-                        0x31A2BC,
-                        0x31A2BC,
-                    )
+                        &crate::race::owner::race().shared.car.gear_wear[5],
+                        &crate::race::owner::race().shared.car.gear_wear[5],
+                    );
                 },
             },
             Block {
@@ -3518,7 +2817,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6C8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2C0, In::F)],
                         writes: &[(0x31A2C0, Out::F)],
                     },
@@ -3526,13 +2825,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_84(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[20],
-                        0x31A2C0,
-                        0x31A2C0,
-                    )
+                        &crate::race::owner::race().shared.car.gear_wear[6],
+                        &crate::race::owner::race().shared.car.gear_wear[6],
+                    );
                 },
             },
             Block {
@@ -3542,7 +2840,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6C8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2C4, In::F)],
                         writes: &[(0x31A2C4, Out::F)],
                     },
@@ -3550,13 +2848,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_85(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[20],
-                        0x31A2C4,
-                        0x31A2C4,
-                    )
+                        &crate::race::owner::race().shared.car.gear_wear[7],
+                        &crate::race::owner::race().shared.car.gear_wear[7],
+                    );
                 },
             },
             Block {
@@ -3566,7 +2863,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6C8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2C8, In::F)],
                         writes: &[(0x31A2C8, Out::F)],
                     },
@@ -3574,13 +2871,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_86(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[20],
-                        0x31A2C8,
-                        0x31A2C8,
-                    )
+                        &crate::race::owner::race().shared.car.gear_wear[8],
+                        &crate::race::owner::race().shared.car.gear_wear[8],
+                    );
                 },
             },
             Block {
@@ -3597,7 +2893,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_87(a[0], a[1]) },
-                plain: |a| x87_12(dm(a[0]), a[1]),
+                plain: |a| add_hit_to_gear_gauge(dm(a[0]), &HostCell(a[1])),
             },
             Block {
                 name: "damage_gauges line 991",
@@ -3606,7 +2902,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6E8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2D0, In::F)],
                         writes: &[(0x31A2D0, Out::F)],
                     },
@@ -3614,13 +2910,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_88(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[28],
-                        0x31A2D0,
-                        0x31A2D0,
-                    )
+                        &crate::race::owner::race().shared.car.wheel_hit_damage[0],
+                        &crate::race::owner::race().shared.car.wheel_hit_damage[0],
+                    );
                 },
             },
             Block {
@@ -3630,7 +2925,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6E8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2D4, In::F)],
                         writes: &[(0x31A2D4, Out::F)],
                     },
@@ -3638,13 +2933,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_89(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[28],
-                        0x31A2D4,
-                        0x31A2D4,
-                    )
+                        &crate::race::owner::race().shared.car.wheel_hit_damage[1],
+                        &crate::race::owner::race().shared.car.wheel_hit_damage[1],
+                    );
                 },
             },
             Block {
@@ -3654,7 +2948,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6E8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2D8, In::F)],
                         writes: &[(0x31A2D8, Out::F)],
                     },
@@ -3662,13 +2956,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_90(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[28],
-                        0x31A2D8,
-                        0x31A2D8,
-                    )
+                        &crate::race::owner::race().shared.car.wheel_hit_damage[2],
+                        &crate::race::owner::race().shared.car.wheel_hit_damage[2],
+                    );
                 },
             },
             Block {
@@ -3678,7 +2971,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6E8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A2DC, In::F)],
                         writes: &[(0x31A2DC, Out::F)],
                     },
@@ -3686,13 +2979,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_91(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[28],
-                        0x31A2DC,
-                        0x31A2DC,
-                    )
+                        &crate::race::owner::race().shared.car.wheel_hit_damage[3],
+                        &crate::race::owner::race().shared.car.wheel_hit_damage[3],
+                    );
                 },
             },
             Block {
@@ -3702,7 +2994,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6F0, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A30C, In::F)],
                         writes: &[(0x31A30C, Out::F)],
                     },
@@ -3710,13 +3002,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_92(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[30],
-                        0x31A30C,
-                        0x31A30C,
-                    )
+                        &crate::race::owner::race().shared.car.suspension_damage[0],
+                        &crate::race::owner::race().shared.car.suspension_damage[0],
+                    );
                 },
             },
             Block {
@@ -3726,7 +3017,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6F0, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A310, In::F)],
                         writes: &[(0x31A310, Out::F)],
                     },
@@ -3734,13 +3025,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_93(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[30],
-                        0x31A310,
-                        0x31A310,
-                    )
+                        &crate::race::owner::race().shared.car.suspension_damage[1],
+                        &crate::race::owner::race().shared.car.suspension_damage[1],
+                    );
                 },
             },
             Block {
@@ -3750,7 +3040,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6F0, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A314, In::F)],
                         writes: &[(0x31A314, Out::F)],
                     },
@@ -3758,13 +3048,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_94(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[30],
-                        0x31A314,
-                        0x31A314,
-                    )
+                        &crate::race::owner::race().shared.car.suspension_damage[2],
+                        &crate::race::owner::race().shared.car.suspension_damage[2],
+                    );
                 },
             },
             Block {
@@ -3774,7 +3063,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6F0, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A318, In::F)],
                         writes: &[(0x31A318, Out::F)],
                     },
@@ -3782,13 +3071,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_95(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[30],
-                        0x31A318,
-                        0x31A318,
-                    )
+                        &crate::race::owner::race().shared.car.suspension_damage[3],
+                        &crate::race::owner::race().shared.car.suspension_damage[3],
+                    );
                 },
             },
             Block {
@@ -3798,7 +3086,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6E4, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A29C, In::F)],
                         writes: &[(0x31A29C, Out::F)],
                     },
@@ -3806,13 +3094,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_96(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[27],
-                        0x31A29C,
-                        0x31A29C,
-                    )
+                        &crate::race::owner::race().shared.car.cooling_damage,
+                        &crate::race::owner::race().shared.car.cooling_damage,
+                    );
                 },
             },
             Block {
@@ -3822,7 +3109,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6E4, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A29C, In::F)],
                         writes: &[(0x31A29C, Out::F)],
                     },
@@ -3830,13 +3117,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_97(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[27],
-                        0x31A29C,
-                        0x31A29C,
-                    )
+                        &crate::race::owner::race().shared.car.cooling_damage,
+                        &crate::race::owner::race().shared.car.cooling_damage,
+                    );
                 },
             },
             Block {
@@ -3846,7 +3132,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6E0, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A290, In::F)],
                         writes: &[(0x31A290, Out::F)],
                     },
@@ -3854,13 +3140,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_98(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[26],
-                        0x31A290,
-                        0x31A290,
-                    )
+                        &crate::race::owner::race().shared.car.engine_damage,
+                        &crate::race::owner::race().shared.car.engine_damage,
+                    );
                 },
             },
             Block {
@@ -3870,7 +3155,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6E0, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A290, In::F)],
                         writes: &[(0x31A290, Out::F)],
                     },
@@ -3878,13 +3163,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_99(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[26],
-                        0x31A290,
-                        0x31A290,
-                    )
+                        &crate::race::owner::race().shared.car.engine_damage,
+                        &crate::race::owner::race().shared.car.engine_damage,
+                    );
                 },
             },
             Block {
@@ -3894,7 +3178,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6EC, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A320, In::F)],
                         writes: &[(0x31A320, Out::F)],
                     },
@@ -3902,13 +3186,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_100(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[29],
-                        0x31A320,
-                        0x31A320,
-                    )
+                        &crate::race::owner::race().shared.car.brake_wear_a,
+                        &crate::race::owner::race().shared.car.brake_wear_a,
+                    );
                 },
             },
             Block {
@@ -3918,7 +3201,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6EC, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A320, In::F)],
                         writes: &[(0x31A320, Out::F)],
                     },
@@ -3926,13 +3209,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_101(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[29],
-                        0x31A320,
-                        0x31A320,
-                    )
+                        &crate::race::owner::race().shared.car.brake_wear_a,
+                        &crate::race::owner::race().shared.car.brake_wear_a,
+                    );
                 },
             },
             Block {
@@ -3942,7 +3224,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6EC, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A324, In::F)],
                         writes: &[(0x31A324, Out::F)],
                     },
@@ -3950,13 +3232,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_102(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[29],
-                        0x31A324,
-                        0x31A324,
-                    )
+                        &crate::race::owner::race().shared.car.brake_wear_b,
+                        &crate::race::owner::race().shared.car.brake_wear_b,
+                    );
                 },
             },
             Block {
@@ -3966,7 +3247,7 @@ mod asm_reference {
                         reads: &[(0x35B3C8, In::F), (0x35B6EC, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A324, In::F)],
                         writes: &[(0x31A324, Out::F)],
                     },
@@ -3974,13 +3255,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_103(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
-                        a[1],
+                    add_product(
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[29],
-                        0x31A324,
-                        0x31A324,
-                    )
+                        &crate::race::owner::race().shared.car.brake_wear_b,
+                        &crate::race::owner::race().shared.car.brake_wear_b,
+                    );
                 },
             },
             Block {
@@ -3990,7 +3270,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B3CC, In::F), (0x35B6B0, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A30C, In::F)],
                         writes: &[(0x31A30C, Out::F)],
                     },
@@ -3998,14 +3278,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_104(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).wheel_loads[0],
                         &dm(a[0]).figures[14],
                         &dm(a[0]).flt_75b370,
-                        0x31A30C,
-                        0x31A30C,
-                    )
+                        &crate::race::owner::race().shared.car.suspension_damage[0],
+                        &crate::race::owner::race().shared.car.suspension_damage[0],
+                    );
                 },
             },
             Block {
@@ -4015,7 +3294,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B3D0, In::F), (0x35B6B0, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A310, In::F)],
                         writes: &[(0x31A310, Out::F)],
                     },
@@ -4023,14 +3302,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_105(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).wheel_loads[1],
                         &dm(a[0]).figures[14],
                         &dm(a[0]).flt_75b370,
-                        0x31A310,
-                        0x31A310,
-                    )
+                        &crate::race::owner::race().shared.car.suspension_damage[1],
+                        &crate::race::owner::race().shared.car.suspension_damage[1],
+                    );
                 },
             },
             Block {
@@ -4040,7 +3318,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B3D4, In::F), (0x35B6B0, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A314, In::F)],
                         writes: &[(0x31A314, Out::F)],
                     },
@@ -4048,14 +3326,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_106(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).wheel_loads[2],
                         &dm(a[0]).figures[14],
                         &dm(a[0]).flt_75b370,
-                        0x31A314,
-                        0x31A314,
-                    )
+                        &crate::race::owner::race().shared.car.suspension_damage[2],
+                        &crate::race::owner::race().shared.car.suspension_damage[2],
+                    );
                 },
             },
             Block {
@@ -4065,7 +3342,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B3D8, In::F), (0x35B6B0, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A318, In::F)],
                         writes: &[(0x31A318, Out::F)],
                     },
@@ -4073,14 +3350,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_107(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).wheel_loads[3],
                         &dm(a[0]).figures[14],
                         &dm(a[0]).flt_75b370,
-                        0x31A318,
-                        0x31A318,
-                    )
+                        &crate::race::owner::race().shared.car.suspension_damage[3],
+                        &crate::race::owner::race().shared.car.suspension_damage[3],
+                    );
                 },
             },
             Block {
@@ -4090,7 +3366,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B3DC, In::F), (0x35B6B4, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A294, In::F)],
                         writes: &[(0x31A294, Out::F)],
                     },
@@ -4098,14 +3374,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_108(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b3dc,
                         &dm(a[0]).figures[15],
                         &dm(a[0]).flt_75b370,
-                        0x31A294,
-                        0x31A294,
-                    )
+                        &crate::race::owner::race().shared.car.exhaust_damage,
+                        &crate::race::owner::race().shared.car.exhaust_damage,
+                    );
                 },
             },
             Block {
@@ -4115,7 +3390,7 @@ mod asm_reference {
                         reads: &[(0x35B370, In::F), (0x35B3DC, In::F), (0x35B6B8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A308, In::F)],
                         writes: &[(0x31A308, Out::F)],
                     },
@@ -4123,20 +3398,19 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_109(a[0], a[1]) },
                 plain: |a| {
-                    x87_5(
-                        a[1],
+                    add_triple_product(
                         &dm(a[0]).flt_75b3dc,
                         &dm(a[0]).figures[16],
                         &dm(a[0]).flt_75b370,
-                        0x31A308,
-                        0x31A308,
-                    )
+                        &crate::race::owner::race().shared.car.steering_damage,
+                        &crate::race::owner::race().shared.car.steering_damage,
+                    );
                 },
             },
             Block {
                 name: "damage_gauges line 1249",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[
                             (0x31A2A8, In::F),
                             (0x31A2B0, In::F),
@@ -4196,7 +3470,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_110(a[0], a[1]) },
-                plain: |a| x87_13(a[0], dm(a[1])),
+                plain: |a| gauge_totals(&race().shared, dm(a[1])),
             },
         ]
     }

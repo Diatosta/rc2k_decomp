@@ -17,13 +17,32 @@ pub const MOST_PIECES: u32 = ROOM / PIECE;
 /// The fatal error of an item of a kind the installer does not know.
 pub const UNKNOWN_KIND: u32 = 0x80A9_7451;
 
-/// What a list is read through: its bytes (the list, its items and their choices' tables
-/// at the addresses they name), and the font of a text item's font number (`byte_51D52C`).
-pub trait ListMemory {
-    fn byte(&self, at: u32) -> u8;
-    fn word(&self, at: u32) -> u16;
-    fn dword(&self, at: u32) -> u32;
+/// A list as the layout reads it, each part only when the original reads it: its header,
+/// its items by number, a choice item's table and a text item's font (`byte_51D52C`).
+pub trait ListSource {
+    /// +0: the list's flags.
+    fn flags(&self) -> u8;
+    /// +1: its number of items (0: 0x100).
+    fn count(&self) -> u8;
+    /// +2: its title's string.
+    fn title_text(&self) -> u16;
+    /// Item `k`'s first four bytes: its kind and marks, its count or font, its string.
+    fn item(&self, k: u32) -> Item;
+    /// Choice `c` of item `k`'s table (a choice item): a string, its high bits marks.
+    fn choice(&self, k: u32, c: u32) -> u16;
+    /// The font of a text item's font number.
     fn text_font(&self, font: u8) -> u8;
+}
+
+/// An item's first four bytes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Item {
+    /// +0: the kind (low four bits) and marks.
+    pub first: u8,
+    /// +1: a choice's number of choices, a text's font number.
+    pub count: u8,
+    /// +2: its string.
+    pub text: u16,
 }
 
 /// Hidden: 0x40 of the marks 0xC0.
@@ -33,11 +52,6 @@ pub fn hidden(marks: u8) -> bool {
 
 fn count_of(b: u8) -> u32 {
     if b == 0 { 0x100 } else { b as u32 }
-}
-
-/// Item `k` of the list at `list`.
-pub fn item_at(list: u32, k: u32) -> u32 {
-    list.wrapping_add(0x18).wrapping_add(0x10 * k)
 }
 
 /// Why a page cannot be laid out.
@@ -50,11 +64,11 @@ pub enum LayoutError {
 }
 
 /// The pieces a list makes (the original's first pass), or its unknown kind.
-pub fn count(list: u32, mem: &impl ListMemory) -> Result<u32, LayoutError> {
-    let mut n = if hidden(mem.byte(list)) { 0 } else { 1 };
-    for k in 0..count_of(mem.byte(list.wrapping_add(1))) {
-        let item = item_at(list, k);
-        let b = mem.byte(item);
+pub fn count(list: &impl ListSource) -> Result<u32, LayoutError> {
+    let mut n = if hidden(list.flags()) { 0 } else { 1 };
+    for k in 0..count_of(list.count()) {
+        let item = list.item(k);
+        let b = item.first;
         if hidden(b) {
             continue;
         }
@@ -63,15 +77,21 @@ pub fn count(list: u32, mem: &impl ListMemory) -> Result<u32, LayoutError> {
             3 => 2,
             4 => 1 + (b & 0x10 == 0) as u32,
             2 => {
-                let table = mem.dword(item.wrapping_add(0xC));
-                1 + (0..count_of(mem.byte(item.wrapping_add(1))))
-                    .filter(|&c| !hidden(mem.byte(table.wrapping_add(2 * c + 1))))
+                1 + (0..count_of(item.count))
+                    .filter(|&c| !hidden((list.choice(k, c) >> 8) as u8))
                     .count() as u32
             }
             _ => return Err(LayoutError::UnknownKind),
         };
     }
     Ok(n)
+}
+
+/// Whose piece a piece is: the page's title's, or item `n`'s of the list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Owner {
+    Title,
+    Item(u32),
 }
 
 /// A piece made: its first two bytes, its string (`None`: the table's word left as it
@@ -81,78 +101,77 @@ pub struct NewPiece {
     pub marks: u8,
     pub kind: u8,
     pub text: Option<u16>,
-    pub item: u32,
+    pub owner: Owner,
 }
 
-/// The pieces of the list at `list` (`title` the title's item), in order: the title
-/// (kind 0x10) unless the list is hidden; for each item not hidden, a link a piece of kind
-/// 0, a choice a label (1) and a piece (2) for each choice not hidden (its marks from the
-/// choice's high bits), a value a label and a piece (0x12), an edit the same but with
-/// 0x10 one piece (0x12, the label's string), a text kind 0x10 with its font's bits, an
-/// action 0x14. Refused, before any: an unknown kind, more than `MOST_PIECES`.
-pub fn lay_out(list: u32, title: u32, mem: &impl ListMemory) -> Result<Vec<NewPiece>, LayoutError> {
-    if count(list, mem)? > MOST_PIECES {
+/// The pieces of `list`, in order: the title (kind 0x10) unless the list is hidden; for
+/// each item not hidden, a link a piece of kind 0, a choice a label (1) and a piece (2) for
+/// each choice not hidden (its marks from the choice's high bits), a value a label and a
+/// piece (0x12), an edit the same but with 0x10 one piece (0x12, the label's string), a
+/// text kind 0x10 with its font's bits, an action 0x14. Refused, before any: an unknown
+/// kind, more than `MOST_PIECES`.
+pub fn lay_out(list: &impl ListSource) -> Result<Vec<NewPiece>, LayoutError> {
+    if count(list)? > MOST_PIECES {
         return Err(LayoutError::TooMany);
     }
     let mut out = vec![];
-    let piece = |marks, kind, text, item| NewPiece {
+    let piece = |marks, kind, text, owner| NewPiece {
         marks,
         kind,
         text: Some(text),
-        item,
+        owner,
     };
-    if !hidden(mem.byte(list)) {
-        out.push(piece(5, 0x10, mem.word(list.wrapping_add(2)), title));
+    if !hidden(list.flags()) {
+        out.push(piece(5, 0x10, list.title_text(), Owner::Title));
     }
-    for k in 0..count_of(mem.byte(list.wrapping_add(1))) {
-        let item = item_at(list, k);
-        let b = mem.byte(item);
+    for k in 0..count_of(list.count()) {
+        let item = list.item(k);
+        let b = item.first;
         if hidden(b) {
             continue;
         }
-        let text = mem.word(item.wrapping_add(2));
+        let (text, owner) = (item.text, Owner::Item(k));
         match b & 0xF {
-            1 => out.push(piece(b, 0, text, item)),
+            1 => out.push(piece(b, 0, text, owner)),
             2 => {
-                out.push(piece(b, 1, text, item));
-                let table = mem.dword(item.wrapping_add(0xC));
-                for c in 0..count_of(mem.byte(item.wrapping_add(1))) {
-                    let word = mem.word(table.wrapping_add(2 * c));
+                out.push(piece(b, 1, text, owner));
+                for c in 0..count_of(item.count) {
+                    let word = list.choice(k, c);
                     let high = (word >> 8) as u8 & 0xC0;
                     if high == 0x40 {
                         continue;
                     }
                     let text = word.wrapping_sub((high as u16) << 8);
-                    out.push(piece(high | (b & 0x3F), 2, text, item));
+                    out.push(piece(high | (b & 0x3F), 2, text, owner));
                 }
             }
             3 => {
-                out.push(piece(b, 1, text, item));
+                out.push(piece(b, 1, text, owner));
                 out.push(NewPiece {
                     marks: b,
                     kind: 0x12,
                     text: None,
-                    item,
+                    owner,
                 });
             }
             4 => {
                 // With 0x10 the value's piece goes over the label's, keeping its string.
                 let label = b & 0x10 != 0;
                 if !label {
-                    out.push(piece(b, 1, text, item));
+                    out.push(piece(b, 1, text, owner));
                 }
                 out.push(NewPiece {
                     marks: b & 0xEF,
                     kind: 0x12,
                     text: label.then_some(text),
-                    item,
+                    owner,
                 });
             }
             5 => {
-                let font = mem.text_font(mem.byte(item.wrapping_add(1)));
-                out.push(piece(b, font | 0x10, text, item));
+                let font = list.text_font(item.count);
+                out.push(piece(b, font | 0x10, text, owner));
             }
-            _ => out.push(piece(b, 0x14, text, item)),
+            _ => out.push(piece(b, 0x14, text, owner)),
         }
     }
     Ok(out)
@@ -218,43 +237,41 @@ pub fn caret(marks: u8, record_flags: u8) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
-    struct Mem(HashMap<u32, u8>);
+    struct List {
+        flags: u8,
+        items: Vec<(u8, u8, u16)>,
+        choices: Vec<u16>,
+    }
 
-    impl ListMemory for Mem {
-        fn byte(&self, at: u32) -> u8 {
-            *self.0.get(&at).unwrap_or(&0)
+    impl ListSource for List {
+        fn flags(&self) -> u8 {
+            self.flags
         }
-        fn word(&self, at: u32) -> u16 {
-            self.byte(at) as u16 | (self.byte(at + 1) as u16) << 8
+        fn count(&self) -> u8 {
+            self.items.len() as u8
         }
-        fn dword(&self, at: u32) -> u32 {
-            self.word(at) as u32 | (self.word(at + 2) as u32) << 16
+        fn title_text(&self) -> u16 {
+            0x77
+        }
+        fn item(&self, k: u32) -> Item {
+            let (first, count, text) = self.items[k as usize];
+            Item { first, count, text }
+        }
+        fn choice(&self, _k: u32, c: u32) -> u16 {
+            self.choices[c as usize]
         }
         fn text_font(&self, font: u8) -> u8 {
             font + 0x20
         }
     }
 
-    fn list(flags: u8, items: &[(u8, u8, u16)], choices: &[u16]) -> Mem {
-        let mut m = HashMap::new();
-        m.insert(0x1000, flags);
-        m.insert(0x1001, items.len() as u8);
-        m.insert(0x1002, 0x77);
-        for (k, &(kind, n, text)) in items.iter().enumerate() {
-            let at = 0x1018 + 0x10 * k as u32;
-            m.insert(at, kind);
-            m.insert(at + 1, n);
-            m.insert(at + 2, text as u8);
-            m.insert(at + 3, (text >> 8) as u8);
-            m.insert(at + 0xD, 0x20);
+    fn list(flags: u8, items: &[(u8, u8, u16)], choices: &[u16]) -> List {
+        List {
+            flags,
+            items: items.to_vec(),
+            choices: choices.to_vec(),
         }
-        for (c, &w) in choices.iter().enumerate() {
-            m.insert(0x2000 + 2 * c as u32, w as u8);
-            m.insert(0x2001 + 2 * c as u32, (w >> 8) as u8);
-        }
-        Mem(m)
     }
 
     #[test]
@@ -264,8 +281,10 @@ mod tests {
             &[(1, 0, 0x10), (2, 3, 0x11), (4, 0, 0x12)],
             &[0x30, 0x4031, 0x8032],
         );
-        let p = lay_out(0x1000, 0x99, &m).unwrap();
-        assert_eq!(count(0x1000, &m), Ok(p.len() as u32));
+        let p = lay_out(&m).unwrap();
+        assert_eq!(count(&m), Ok(p.len() as u32));
+        assert_eq!(p[0].owner, Owner::Title);
+        assert_eq!(p[4].owner, Owner::Item(1));
         let kinds: Vec<_> = p.iter().map(|p| (p.marks, p.kind, p.text)).collect();
         assert_eq!(
             kinds,
@@ -284,7 +303,7 @@ mod tests {
             &[(0x14, 0, 0x12), (5, 2, 0x13), (0x43, 0, 0), (6, 0, 0x14)],
             &[],
         );
-        let p = lay_out(0x1000, 0x99, &m).unwrap();
+        let p = lay_out(&m).unwrap();
         let kinds: Vec<_> = p.iter().map(|p| (p.marks, p.kind, p.text)).collect();
         assert_eq!(
             kinds,
@@ -295,16 +314,13 @@ mod tests {
             ]
         );
         assert_eq!(
-            lay_out(0x1000, 0, &list(0, &[(7, 0, 0)], &[])),
+            lay_out(&list(0, &[(7, 0, 0)], &[])),
             Err(LayoutError::UnknownKind)
         );
         let many = vec![(3u8, 0u8, 0u16); 43];
+        assert_eq!(lay_out(&list(0, &many, &[])), Err(LayoutError::TooMany));
         assert_eq!(
-            lay_out(0x1000, 0, &list(0, &many, &[])),
-            Err(LayoutError::TooMany)
-        );
-        assert_eq!(
-            lay_out(0x1000, 0, &list(0x40, &many[..42], &[])).map(|p| p.len()),
+            lay_out(&list(0x40, &many[..42], &[])).map(|p| p.len()),
             Ok(84)
         );
     }

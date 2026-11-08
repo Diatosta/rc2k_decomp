@@ -4,39 +4,40 @@
 //! then 0 unless +0x3F4 (`unk_71A3CC`) is set. A reading: the gear asked for, unless the
 //! gearbox refuses it.
 //!
-//! In:  eax the gear
-//! Out: eax the gear or 0; the rest kept (ebx and ecx pushed around); no flags read
-//!      (the caller stores eax)
+//! Takes: the gear
 //!
-//! Caller: `sub_43C1E3` (0x43C1FD). Refuses what `gear_bit` refuses (a bit past 31).
+//! Caller: `physics::take_asked_gear` (0x43C1FD). Refuses what `gear_bit` refuses (a bit past 31).
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::physics::gear_bit::bits_at;
-use crate::race::numbers_store::NUMBERS;
-
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::allowed_gear's operand")
-}
+use crate::race::owner::Race;
+use crate::race::owner_course::Course;
 
 /// The Rust version on the word +0x2B8, the word +0x3F4 and the gear bits at these places.
 // Converted: `rc2k_core::physics::gearbox::allowed_gear`.
-pub fn allowed_gear_at(locked: u32, open: u32, bits: u32, eax: u32) -> Result<u32, Refused> {
-    let locked = at(locked) == NUMBERS.hundred.bits();
+pub fn allowed_gear_at(
+    course: &Course,
+    locked: &dyn crate::session::Cell32,
+    open: &dyn crate::session::Cell32,
+    bits: &dyn crate::session::Cell32,
+    eax: u32,
+) -> Result<u32, Refused> {
+    let locked = locked.bits() == course.numbers.hundred.bits();
     Ok(rc2k_core::physics::gearbox::allowed_gear(
         locked,
         eax,
         || bits_at(bits),
-        || at(open),
+        || open.bits(),
     )?)
 }
 
 /// The Rust version.
-pub fn allowed_gear(eax: u32) -> Result<u32, Refused> {
+pub fn allowed_gear(race: &Race, eax: u32) -> Result<u32, Refused> {
     allowed_gear_at(
-        CAR.engine_damage.addr(),
-        CAR.engine_power_factor.addr(),
-        CAR.lost_gear_bits.addr(),
+        &race.course,
+        &race.shared.car.engine_damage,
+        &race.shared.car.engine_power_factor,
+        &race.shared.car.lost_gear_bits,
         eax,
     )
 }

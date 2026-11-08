@@ -4,29 +4,31 @@
 //! 0x56D + DS3D, EAX, A3D, Dolby; each kept in `dword_7559EC`) at x 0x1D1, y 0x10B and on
 //! every 0x1B, in the font at 0x51E8C4.
 //!
-//! In:  nothing
-//! Out: as the last `draw_string_by_id` leaves them (carry, eax 0, ebx, ecx, edx)
 //!
 //! In a menu loop's draw list (0x758C96). Refuses what `menu::enable_item` refuses (no current
-//! menu), before anything. The menus and draw lists run its `entry` (`menu::table_calls`); the
-//! registers above are the original's, for reference.
+//! menu), before anything. The menus and draw lists run its `entry` (`menu::table_calls`).
 
-use crate::audio::store::AUDIO;
+use crate::audio::owner::audio;
 use crate::errors::Refused;
 use crate::menu::disable_item::disable_item;
 use crate::menu::enable_item::enable_item;
-use crate::menu::option_work_store::OPTION_WORK;
 use crate::session::Dword;
 use crate::text::draw_text::Canvas;
 
 /// (the setting, its first string).
 const NAMES: [(&Dword, u32); 6] = [
-    (&OPTION_WORK.audio_quality, 0x54B),
-    (&OPTION_WORK.channels, 0x554),
-    (&OPTION_WORK.ds3d, 0x56D),
-    (&OPTION_WORK.eax, 0x56D),
-    (&OPTION_WORK.a3d, 0x56D),
-    (&OPTION_WORK.dolby, 0x56D),
+    (
+        &crate::menu::owner::MENUS.screens.option_work.audio_quality,
+        0x54B,
+    ),
+    (
+        &crate::menu::owner::MENUS.screens.option_work.channels,
+        0x554,
+    ),
+    (&crate::menu::owner::MENUS.screens.option_work.ds3d, 0x56D),
+    (&crate::menu::owner::MENUS.screens.option_work.eax, 0x56D),
+    (&crate::menu::owner::MENUS.screens.option_work.a3d, 0x56D),
+    (&crate::menu::owner::MENUS.screens.option_work.dolby, 0x56D),
 ];
 
 /// The Rust version (the registers the last name leaves: the menus read none of them).
@@ -34,7 +36,7 @@ pub fn draw_sound_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::{sound_items, sound}`.
     use crate::screens::game_screen::SettingsScreen;
     // The switches, by their items 4, 5 and 6: 3D, EAX and A3D2 there.
-    let options = AUDIO.audio_options.get();
+    let options = audio().state.audio_options.get();
     let [a, b, c] = [options.has_3d, options.has_eax, options.has_a3d2].map(|switch| switch == 1);
     for (item, on) in rc2k_core::screens::settings_pages::sound_items(a, b, c) {
         if on {

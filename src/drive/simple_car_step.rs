@@ -7,35 +7,33 @@
 //! `dword_639828` + `flt_613FC4`'s bits into `dword_5CCDC0` and +0x138; pitch and roll 0;
 //! `race::get_mat_crash`. The first car block (`g_carBlockStore`) throughout.
 //!
-//! In:  nothing
-//! Out: the registers as the steps and calls leave them; no flags read
-//!
 //! Caller: `drive::race_tick`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
-use crate::physics::ground_store::GROUND_WORK;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::course_store::COURSE;
+use crate::race::owner::Race;
 use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi
 /// and esi after `drive::race_tick`'s call have no read point).
 // Converted: `rc2k_core::drive::roaming::{roam_distance, roam_turn}`.
-pub unsafe fn simple_car_step() -> Result<(), Refused> {
-    crate::drive::car_input_words::car_input_words()?;
-    crate::drive::read_car_controls::read_car_controls()?;
-    crate::drive::steer_inputs::steer_inputs();
-    crate::drive::pedal_inputs::pedal_inputs();
+pub fn simple_car_step(
+    race: &Race,
+    input: &crate::input::owner::Input,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    crate::drive::car_input_words::car_input_words(race, input)?;
+    crate::drive::read_car_controls::read_car_controls(race)?;
+    crate::drive::steer_inputs::steer_inputs(race);
+    crate::drive::pedal_inputs::pedal_inputs(race);
     // The keys `drive::pedal_inputs` leaves in ebx (`reset_request` loads the same again
     // before `physics::reset_car`): the turn's y.
-    let keys = CAR.input_keys.get();
-    unsafe { crate::drive::reset_request::reset_request() }?;
+    let keys = race.shared.car.input_keys.get();
+    { crate::drive::reset_request::reset_request(race, scene) }?;
     let distance = roam_distance(
         CAR_BLOCKS.cars[0].throttle.bits(),
         CAR_BLOCKS.cars[0].brake.bits(),
-        crate::input::store::DEVICES.keys_now.get(0x1D) != 0, // byte_4F6B79
+        input.devices.keys_now.get(0x1D) != 0, // byte_4F6B79
     );
     let [x, _, z, _] = {
         crate::math::turn_point_xz::turn_point_xz(
@@ -53,21 +51,29 @@ pub unsafe fn simple_car_step() -> Result<(), Refused> {
             .bits()
             .wrapping_add(roam_turn(CAR_BLOCKS.cars[0].steering.bits())),
     );
-    { crate::physics::wheel_surfaces::wheel_surfaces() }?;
-    GROUND_WORK.ground_x.set(COURSE.place_x.get());
-    GROUND_WORK.ground_z.set(COURSE.place_z.get());
-    unsafe { crate::physics::find_ground::find_ground() }?;
-    if COURSE.ground_slot.get() != u32::MAX {
-        let y = GROUND_WORK
+    { crate::physics::wheel_surfaces::wheel_surfaces(race, scene) }?;
+    race.physics
+        .ground
+        .ground_x
+        .set(race.course.course.place_x.get());
+    race.physics
+        .ground
+        .ground_z
+        .set(race.course.course.place_z.get());
+    { crate::physics::find_ground::find_ground(race, scene) }?;
+    if race.course.course.ground_slot.get() != u32::MAX {
+        let y = race
+            .physics
+            .ground
             .ground_height
             .get()
-            .wrapping_add(PHYSICS.ground_drop.get());
-        COURSE.place_y.set(y);
+            .wrapping_add(race.shared.physics_tables.ground_drop.get());
+        race.course.course.place_y.set(y);
         CAR_BLOCKS.cars[0].position[1].set_bits(y);
     }
     CAR_BLOCKS.cars[0].car_pitch.set_bits(0);
     CAR_BLOCKS.cars[0].car_roll.set_bits(0);
     // `race::get_mat_crash` reads no register at entry (liveness): a scratch.
-    crate::race::stage_prefs::get_mat_crash();
+    crate::race::stage_prefs::get_mat_crash(race);
     Ok(())
 }

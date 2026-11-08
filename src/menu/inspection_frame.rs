@@ -2,47 +2,45 @@
 //! (`menu::inspection_area_loop`'s later frame callback): `menu::frame_callback`'s steps in
 //! another order and without its notice: lock the surface; the background
 //! (`copy_picture_to_surface`); the draw list (`g_drawList`); unlock; `dword_6365CC` 4;
-//! begin the 3D scene; the scene list (`g_sceneList`, each between `pusha` and `popa`);
+//! begin the 3D scene; the scene list (`g_sceneList`);
 //! end the scene; lock again; `draw_menu`; the overlay list (`g_overlayList`); unlock;
 //! show the frame. A set carry after either lock, the scene's beginning or the showing ends
 //! it there (carry set), with what was locked left locked; else the carry is cleared.
 //!
-//! In:  edi = the menu; ebx, ecx as they come (`draw_menu` uses them)
-//! Out: carry = the frame could not be made; every register kept (`pusha` .. `popa`)
 //! The draw and overlay lists' functions get the registers as the one before left them.
 //! The surface and the showing are the platform's, as in `frame_callback`.
 
 use crate::errors::Refused;
-use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::fn_list::ListCell;
 use crate::menu::frame_callback::{copy_picture, draw_menu, lock_failed, run_listed};
+use crate::menu::owner::Menus;
 use crate::platform::{show_frame_now, unlock_surface};
-use crate::scene::light_store::LIGHT_STATE;
-use crate::session::Dword;
+use crate::scene::owner::scene;
 
-const DRAW_LIST: &Dword = &SCREEN_FLOW.draw_list; // g_drawList
-const SCENE_LIST: &Dword = &SCREEN_FLOW.scene_list; // g_sceneList
-const OVERLAY_LIST: &Dword = &SCREEN_FLOW.overlay_list; // g_overlayList
+const DRAW_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.draw_list; // g_drawList
+const SCENE_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.scene_list; // g_sceneList
+const OVERLAY_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.overlay_list; // g_overlayList
 
-/// The Rust version, `menu`, `palette` and `measure_x` being edi, ebx and ecx at entry:
-/// whether the frame was made.
-pub unsafe fn inspection_frame(menu: u32, palette: u32, measure_x: u32) -> Result<bool, Refused> {
-    unsafe {
-        if lock_failed() {
-            return Ok(false);
-        }
-        copy_picture()?;
-        run_listed(DRAW_LIST)?;
-        unlock_surface();
-        LIGHT_STATE.scene_state.set_bits(4u32);
-        crate::scene::begin_scene::begin_scene();
-        run_listed(SCENE_LIST)?;
-        crate::scene::end_scene::end_scene();
-        if lock_failed() {
-            return Ok(false);
-        }
-        draw_menu(menu, palette, measure_x)?;
-        run_listed(OVERLAY_LIST)?;
-        unlock_surface();
-        Ok(show_frame_now())
+/// The Rust version, `menu` being edi at entry: whether the frame was made.
+pub fn inspection_frame(
+    menus: &Menus,
+    menu: crate::menu::menus_store::MenuId,
+) -> Result<bool, Refused> {
+    if lock_failed() {
+        return Ok(false);
     }
+    copy_picture()?;
+    run_listed(menus, DRAW_LIST)?;
+    unlock_surface();
+    scene().lights.state.scene_state.set_bits(4u32);
+    crate::scene::begin_scene::begin_scene();
+    run_listed(menus, SCENE_LIST)?;
+    crate::scene::end_scene::end_scene();
+    if lock_failed() {
+        return Ok(false);
+    }
+    draw_menu(menus, menu)?;
+    run_listed(menus, OVERLAY_LIST)?;
+    unlock_surface();
+    Ok(show_frame_now())
 }

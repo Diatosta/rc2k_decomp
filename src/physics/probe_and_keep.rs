@@ -3,44 +3,37 @@
 //! points' faces (`dword_71ADC8`, 0x40 dwords) to 0x6D2F14 (`rep movsd`): by the look of
 //! it the step's starting points kept (a reading).
 //!
-//! In:  nothing
-//! Out: ecx 0, esi 0x71ADC8 + 0x100, edi 0x6D2F14 + 0x100; eax, ebx, edx as
-//!      `probe_ground` leaves them (with no probe points: kept)
-//!
-//! Caller: `sub_43B635` (0x43B700), every physics step; next a call (no flags read).
+//! Caller: `physics::car_physics_step` (0x43B700), every physics step; next a call (no flags read).
 //! Refuses what `probe_ground` refuses (nothing written).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
-use crate::physics::contact_store::CONTACT_WORK;
-use crate::physics::ground::*;
 use crate::physics::probe_ground::probe_ground_at;
+use crate::race::owner::Race;
 
 /// The Rust core. The registers it leaves (esi, edi past the copies, ecx 0) are read by
 /// none of its callers.
-pub unsafe fn probe_and_keep_at(g: &Ground) -> Result<(), Refused> {
-    unsafe {
-        probe_ground_at(g)?;
-        for k in 0..64 {
-            CONTACT_WORK.saved_probe_x[k].set(CONTACT_WORK.probe_x[k].get());
-        }
-        for k in 0..64 {
-            CONTACT_WORK.saved_probe_y[k].set(CONTACT_WORK.probe_y[k].get());
-        }
-        for k in 0..64 {
-            CONTACT_WORK.saved_probe_z[k].set(CONTACT_WORK.probe_z[k].get());
-        }
-        for k in 0..0x40 {
-            CONTACT_WORK.saved_probe_faces[k].set(CAR.probe_point_face[k].get());
-        }
-        Ok(())
+pub fn probe_and_keep_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let physics = &race.physics;
+    probe_ground_at(race, scene)?;
+    for k in 0..64 {
+        physics.contact.saved_probe_x[k].set(physics.contact.probe_x[k].get());
     }
+    for k in 0..64 {
+        physics.contact.saved_probe_y[k].set(physics.contact.probe_y[k].get());
+    }
+    for k in 0..64 {
+        physics.contact.saved_probe_z[k].set(physics.contact.probe_z[k].get());
+    }
+    for k in 0..0x40 {
+        physics.contact.saved_probe_faces[k].set(race.shared.car.probe_point_face[k].get());
+    }
+    Ok(())
 }
 
 /// The Rust version.
-pub unsafe fn probe_and_keep() -> Result<(), Refused> {
-    unsafe { probe_and_keep_at(&Ground::game()) }
+pub fn probe_and_keep(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    probe_and_keep_at(race, scene)
 }

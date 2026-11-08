@@ -3,9 +3,6 @@
 //! and the eight about it (± 0x200000 each way, in the original's order; the place read
 //! back from `dword_639824` .. before each).
 //!
-//! In:  nothing
-//! Out: the registers as the last `cell_face_contacts` leaves them; no flags read
-//!
 //! Caller: `physics::face_contacts` (0x45E190, its only code). Refuses what
 //! `cell_face_contacts` refuses.
 //!
@@ -13,16 +10,30 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
-use crate::physics::ground_store::GROUND_WORK;
+use crate::race::owner::Race;
 
 /// The steps, not guarded. The registers left are read by none of the callers.
 // Converted: `rc2k_core::physics::ground_search::cells_around`.
-pub fn face_contacts_around() -> Result<(), Refused> {
-    GROUND_WORK.ground_x.set(CAR.position[0].get());
-    GROUND_WORK.ground_z.set(CAR.position[2].get());
+pub fn face_contacts_around(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let physics_store = &race.physics;
+    physics_store
+        .ground
+        .ground_x
+        .set(race.shared.car.position[0].get());
+    physics_store
+        .ground
+        .ground_z
+        .set(race.shared.car.position[2].get());
     rc2k_core::physics::ground_search::cells_around(
-        || (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get()),
-        crate::physics::cell_face_contacts::steps,
+        || {
+            (
+                physics_store.ground.ground_x.get(),
+                physics_store.ground.ground_z.get(),
+            )
+        },
+        |x, z| crate::physics::cell_face_contacts::steps(race, x, z, scene),
     )
 }

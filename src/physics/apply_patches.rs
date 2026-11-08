@@ -1,8 +1,6 @@
 //! `physics::apply_patches` (0x4648BD): the physics' constants, with the `patch` settings
 //! worked into them. Once.
 //!
-//! In:  nothing
-//! Out: every register preserved (it uses none)
 //! Nothing if `g_patchesApplied` (0x71C72C) is not 0; else that becomes 1 and:
 //! - twelve settings are held to their ranges (`patches::RANGES`; the comparisons look at
 //!   the sign of the difference only, which is kept);
@@ -28,45 +26,48 @@
 //! (`rc2k_core::physics::patches`): each figure is one correctly rounded quotient or
 //! product at the game's double and extended precision.
 
-use crate::physics::tables_store::{PHYSICS, Surface};
-use crate::race::numbers_store::NUMBERS;
-use crate::race::work_store::RACE_WORK;
+use crate::physics::tables_store::Surface;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::session::Float;
 use rc2k_core::physics::patches::{Patches, apply_patches as apply_patches_core};
 
 /// The twelve ground records patched: `PHYSICS.surfaces[1 ..= 12]`.
-fn records() -> &'static [Surface] {
-    &PHYSICS.surfaces[1..13]
+fn records(shared: &Shared) -> &[Surface] {
+    &shared.physics_tables.surfaces[1..13]
 }
 
 /// A record's three grips: slide, acceleration, brake.
-fn grips(r: &'static Surface) -> [&'static Float; 3] {
+fn grips(r: &Surface) -> [&Float; 3] {
     [&r.slide_grip, &r.accel_grip, &r.brake_grip]
 }
 
 /// The two drags (10.0) the sticky grass setting keeps: grass, records 7 and 8.
-fn tens() -> [&'static Float; 2] {
-    [&PHYSICS.surfaces[7].drag, &PHYSICS.surfaces[8].drag]
+fn tens(shared: &Shared) -> [&Float; 2] {
+    [
+        &shared.physics_tables.surfaces[7].drag,
+        &shared.physics_tables.surfaces[8].drag,
+    ]
 }
 
 /// The game's patch state.
-fn load() -> Patches {
-    let w = &RACE_WORK;
+fn load(shared: &Shared) -> Patches {
+    let w = &shared.work;
     Patches {
         switch: w.patch_switch.get(),
         settings: std::array::from_fn(|n| w.patch_settings[n].get()),
         factors: std::array::from_fn(|n| w.patch_factors[n].bits()),
         applied: w.patches_applied.get(),
-        gravity: PHYSICS.gravity.bits(),
-        records: std::array::from_fn(|r| grips(&records()[r]).map(Float::bits)),
-        tens: tens().map(Float::bits),
+        gravity: shared.physics_tables.gravity.bits(),
+        records: std::array::from_fn(|r| grips(&records(shared)[r]).map(Float::bits)),
+        tens: tens(shared).map(Float::bits),
     }
 }
 
 /// The places that changed written back (the original writes only these, or the same
 /// value again).
-fn store(before: &Patches, after: &Patches) {
-    let w = &RACE_WORK;
+fn store(shared: &Shared, before: &Patches, after: &Patches) {
+    let w = &shared.work;
     if before.applied != after.applied {
         w.patches_applied.set(after.applied);
     }
@@ -80,13 +81,17 @@ fn store(before: &Patches, after: &Patches) {
             f.set_bits(new);
         }
     };
-    put(&PHYSICS.gravity, before.gravity, after.gravity);
-    for (r, record) in records().iter().enumerate() {
+    put(
+        &shared.physics_tables.gravity,
+        before.gravity,
+        after.gravity,
+    );
+    for (r, record) in records(shared).iter().enumerate() {
         for (n, f) in grips(record).into_iter().enumerate() {
             put(f, before.records[r][n], after.records[r][n]);
         }
     }
-    for (k, f) in tens().into_iter().enumerate() {
+    for (k, f) in tens(shared).into_iter().enumerate() {
         put(f, before.tens[k], after.tens[k]);
     }
     for n in 0..10 {
@@ -97,12 +102,12 @@ fn store(before: &Patches, after: &Patches) {
 /// The Rust version (the original's to the bit at the game's double and extended
 /// precision: each figure one quotient, or a product whose first step is exact).
 // Converted: `rc2k_core::physics::patches::apply_patches`.
-pub fn apply_patches() {
-    let before = load();
+pub fn apply_patches(race: &Race) {
+    let before = load(&race.shared);
     if before.applied != 0 {
         return;
     }
     let mut after = before;
-    apply_patches_core(&mut after, NUMBERS.hundred.get());
-    store(&before, &after);
+    apply_patches_core(&mut after, race.course.numbers.hundred.get());
+    store(&race.shared, &before, &after);
 }

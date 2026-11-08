@@ -1,9 +1,6 @@
 //! `system::sleep` (0x41100C): `Sleep(eax)`.
 //!
-//! In:  eax = milliseconds
-//! Out: every register preserved
-//! 34 callers. Hook removed 2026-10-22 (direct calls): Rust callers run `sleep`
-//! (by address: `routes.rs`); the registers above are the original's, for reference.
+//! Takes milliseconds. 34 callers.
 
 // ---- Rust version ----
 

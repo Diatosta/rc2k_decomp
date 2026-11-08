@@ -1,21 +1,13 @@
 //! `logfile::write_line` (0x40132C): the tail shared by the game's seven log functions. Formats
 //! one message into the line buffer and appends it to `var\logfile.txt`.
 //!
-//! In:  eax = message, dl = newline flag, dh = level - 1; `g_logLock` held by the caller
+//! Takes the message, the newline flag and the level - 1; `g_logLock` held by the caller.
 //! Out, logged:  eax = bytes written (or the path pointer if open or seek failed),
 //!               ebx = line buffer start, ecx = line length, edx = dl
 //! Out, skipped: ecx = level, edx = dl; eax and ebx unchanged
 //! The lock is released on both paths. Entered by `jmp`, so its `retn` returns to the log
 //! function's caller.
-//!
-//! The original writes the real file, so there is no shadow comparison: in shadow mode the
-//! original runs alone, and the self-test is the only check of the Rust version.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::moved::Place;
-use std::ptr::copy_nonoverlapping;
-use std::slice::from_raw_parts;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 // ---- game data ----
@@ -25,37 +17,40 @@ use std::sync::atomic::{AtomicU32, Ordering};
 /// Atomics: any thread logs. `LEVEL` is set from `var\ral.cfg` (`logfile=`, through
 /// `crate::moved::place`); the race's steps change `INDENT` and `ENABLED` directly.
 pub mod state {
-    use std::sync::atomic::{AtomicI32, AtomicU32};
+    use crate::session::Dword;
     /// On while above 0 (signed). 1 in the image.
-    pub static ENABLED: AtomicI32 = AtomicI32::new(1);
+    pub static ENABLED: Dword = Dword::new(1);
     /// The highest level logged; 0 logs nothing. 1 in the image.
-    pub static LEVEL: AtomicU32 = AtomicU32::new(1);
+    pub static LEVEL: Dword = Dword::new(1);
     /// 1 while a thread writes the log (`acquire`).
-    pub static LOCK: AtomicU32 = AtomicU32::new(0);
+    pub static LOCK: Dword = Dword::new(0);
     /// Spaces before a line.
-    pub static INDENT: AtomicI32 = AtomicI32::new(0);
+    pub static INDENT: Dword = Dword::new(0);
     /// 1 when the next text starts a line.
-    pub static LINE_START: AtomicU32 = AtomicU32::new(0);
+    pub static LINE_START: Dword = Dword::new(0);
 }
 
 /// `g_logLevel` now.
 pub fn level() -> u32 {
-    state::LEVEL.load(Ordering::Relaxed)
+    state::LEVEL.get()
 }
 
 /// Turns the log on or off (`g_logEnabled`).
 pub fn set_enabled(value: i32) {
-    state::ENABLED.store(value, Ordering::Relaxed)
+    state::ENABLED.set(value as u32);
 }
 
-/// The line buffer (0x93E080 .. the text buffer at 0x93E430 in the image): a line is at
-/// most `LINE_LIMIT` + 3 bytes.
-pub const LINE_BUF_LEN: usize = 0x3B0;
-pub static LINE_BUF: Place<[u8; LINE_BUF_LEN]> = Place::new([0; LINE_BUF_LEN]);
 /// `dword_4E06EA` .. (`files`' table of file modes, 16 bytes each): mode 4's access,
 /// disposition and share, as the image holds them (`tests::modes_are_the_games`).
 const MODE_ACCESS: u32 = 0x4000_0000;
 const MODE_DISPOSITION: u32 = 4;
+#[cfg_attr(
+    not(windows),
+    allow(
+        dead_code,
+        reason = "Windows' own sharing; the table's value, which the tests check"
+    )
+)]
 const MODE_SHARE: u32 = 0;
 
 /// "var\logfile.txt" (`aVarLogfileTxt`, 0x4E00A8); starts with "var\": `resolve_path`
@@ -63,11 +58,7 @@ const MODE_SHARE: u32 = 0;
 pub static LOG_PATH: &[u8] = b"var\\logfile.txt\0";
 
 pub fn lock() -> &'static AtomicU32 {
-    &state::LOCK
-}
-
-fn line_buf() -> *mut u8 {
-    LINE_BUF.ptr().cast()
+    state::LOCK.atomic()
 }
 
 // ---- Rust version ----
@@ -76,40 +67,37 @@ fn line_buf() -> *mut u8 {
 /// Some(bytes written) if the write was reached; None if open or seek failed.
 fn append_to_file(path: &'static [u8], data: &[u8]) -> Option<u32> {
     use std::io::{Seek, SeekFrom, Write};
-    use std::os::windows::fs::OpenOptionsExt;
     // open_by_mode stores resolve_path's result
-    crate::files::state::LAST_FILE_PATH.store(
-        crate::pointers::game_address(path.as_ptr()),
-        Ordering::Relaxed,
-    );
+    crate::files::state::set_last_file_path(Some(&path[..path.len() - 1]));
     // Mode 4 (`MODE_*`): write access, no sharing, open or create (std's `create`;
     // `write` only lets std accept it, the access is the table's).
     const _: () = assert!(MODE_DISPOSITION == 4);
-    let name = crate::files::ansi_text(&path[..path.len() - 1]);
-    let mut file = std::fs::OpenOptions::new()
-        .access_mode(MODE_ACCESS)
-        .share_mode(MODE_SHARE)
-        .attributes(0x80)
-        .write(true)
-        .create(true)
-        .open(name)
-        .ok()?; // the original does not close: the path stays set
+    const _: () = assert!(MODE_ACCESS == 0x4000_0000); // GENERIC_WRITE
+    let name = crate::files::host_path(&path[..path.len() - 1]);
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create(true);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        options.share_mode(MODE_SHARE).attributes(0x80);
+    }
+    let mut file = options.open(name).ok()?; // the original does not close: the path stays set
     let result = match file.seek(SeekFrom::End(0)) {
         // The bytes written; a failed write counts what it wrote, nothing.
         Ok(_) => Some(file.write(data).unwrap_or(0) as u32),
         Err(_) => None,
     };
     drop(file);
-    crate::files::state::LAST_FILE_PATH.store(0, Ordering::Relaxed);
+    crate::files::state::set_last_file_path(None);
     result
 }
 
 fn load_state() -> rc2k_core::files::log::LogState {
     rc2k_core::files::log::LogState {
-        enabled: state::ENABLED.load(Ordering::Relaxed),
-        level: state::LEVEL.load(Ordering::Relaxed),
-        indent: state::INDENT.load(Ordering::Relaxed),
-        line_start: state::LINE_START.load(Ordering::Relaxed),
+        enabled: (state::ENABLED.get() as i32),
+        level: state::LEVEL.get(),
+        indent: (state::INDENT.get() as i32),
+        line_start: state::LINE_START.get(),
     }
 }
 
@@ -127,14 +115,8 @@ pub fn log_text(text: &[u8], newline: bool, level: u8) {
     acquire();
     let mut now = load_state();
     if let Logged::Line(line) = log_line(&mut now, text, newline, level) {
-        state::LINE_START.store(now.line_start, Ordering::Relaxed);
-        // SAFETY: the line is at most `LINE_LIMIT` + 3 bytes, within the buffer; the lock
-        // is held.
-        unsafe {
-            let buf = line_buf();
-            copy_nonoverlapping(line.as_ptr(), buf, line.len());
-            append_to_file(LOG_PATH, from_raw_parts(buf, line.len()));
-        }
+        state::LINE_START.set(now.line_start);
+        append_to_file(LOG_PATH, &line);
     }
     lock().store(0, Ordering::Release);
 }
@@ -142,14 +124,13 @@ pub fn log_text(text: &[u8], newline: bool, level: u8) {
 /// Takes the lock the way `log_lock_acquire` does.
 pub fn acquire() {
     while lock().swap(1, Ordering::Acquire) != 0 {
-        crate::system::sleep::sleep(1)
+        crate::system::sleep::sleep(1);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::moved::image_bytes;
-    use std::sync::atomic::Ordering;
 
     #[test]
     fn modes_are_the_games() {
@@ -171,10 +152,10 @@ mod tests {
         use super::state::*;
         let d = image_bytes(0x4E0094, 0x14);
         let word = |n: usize| u32::from_le_bytes(d[n..n + 4].try_into().unwrap());
-        assert_eq!(word(0) as i32, ENABLED.load(Ordering::Relaxed));
-        assert_eq!(word(4), LEVEL.load(Ordering::Relaxed));
-        assert_eq!(word(8), LOCK.load(Ordering::Relaxed));
-        assert_eq!(word(0xC) as i32, INDENT.load(Ordering::Relaxed));
-        assert_eq!(word(0x10), LINE_START.load(Ordering::Relaxed));
+        assert_eq!(word(0) as i32, (ENABLED.get() as i32));
+        assert_eq!(word(4), LEVEL.get());
+        assert_eq!(word(8), LOCK.get());
+        assert_eq!(word(0xC) as i32, (INDENT.get() as i32));
+        assert_eq!(word(0x10), LINE_START.get());
     }
 }

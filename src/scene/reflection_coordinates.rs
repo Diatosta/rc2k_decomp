@@ -3,10 +3,6 @@
 //!
 //! In:  nothing; `dword_6399A8` = the number of the vertex's normal, `dword_6399AC` =
 //!      the number of its point
-//! Out: `dword_6399B0`, `dword_6399B4` = the two texture coordinates as whole numbers;
-//!      eax, edx and esi as its parts leave them (eax of the second
-//!      `math::normalise_vector`, edx = the point's record, esi = the matrix of
-//!      `scene::reflect_vector`); everything else preserved
 //!
 //! The normal's place in the view (record 0x1000 + (number & 0xFFF), +0x10 .. +0x18)
 //! goes to `dword_5EA428` ..; the point's, negated, to the work vector, which is made
@@ -21,24 +17,19 @@
 use crate::errors::BadInput;
 use crate::math::normalise_vector::normalise_vector;
 use crate::math::x87;
-use crate::physics::ground_store::GROUND_WORK;
-use crate::race::course_lists_store::COURSE_LISTS;
-use crate::race::matrices_store::MATRICES;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::scratch_store::FRAME_SCRATCH;
 use crate::scene::reflect_vector::reflect_vector;
-use crate::scene::x87_mem::{fistp, fld, fstp};
+use crate::scene::x87_mem::{Base, cells, fistp, fld, fstp};
 
 // ---- Rust version ----
 
 /// `fld a; fmul half; fadd half; fmul scale_a; fmul scale_b; fistp`.
 fn coordinate(a: u32, half: u32, scales: [u32; 2]) -> i32 {
-    let (v, mut out) = ([a, half, scales[0], scales[1]], 0i32);
-    coordinate_at(v.as_ptr().cast(), (&raw mut out).cast());
-    out
+    let (v, mut out) = ([a, half, scales[0], scales[1]], [0u32]);
+    coordinate_at(&v[..], cells(&mut out));
+    out[0] as i32
 }
 
-fn coordinate_at(v: *const u8, o: *mut u8) {
+fn coordinate_at(v: impl Base, o: impl Base) {
     let t0 = fld(v, 0x0);
     let t1 = fld(v, 0x4);
     let t2 = t0 * t1;
@@ -53,54 +44,63 @@ fn coordinate_at(v: *const u8, o: *mut u8) {
 
 /// `fld a; fchs; fstp`.
 fn negated(a: u32) -> u32 {
-    let mut out = 0u32;
-    negated_at((&raw const a).cast(), (&raw mut out).cast());
-    out
+    let mut out = [0u32];
+    negated_at(&[a][..], cells(&mut out));
+    out[0]
 }
 
-fn negated_at(a: *const u8, o: *mut u8) {
+fn negated_at(a: impl Base, o: impl Base) {
     let t0 = fld(a, 0x0);
     let t1 = -t0;
     fstp(o, 0x0, t1);
 }
 
-pub unsafe fn reflection_coordinates() -> Result<(), BadInput> {
-    unsafe {
-        let records: u32 = COURSE_LISTS.point_records.bits();
-        if records == 0 {
-            return Err(BadInput("no records for the points"));
-        }
-        let table = crate::scene::reading::PointRecords::new(records)?;
-        let normal = table.place(GROUND_WORK.reflection_normal_number.bits())?;
-        let point = table.place(GROUND_WORK.reflection_point_number.bits().wrapping_neg())?;
-        crate::session::write_bits(&MATRICES.reflect_vector, normal);
-        crate::session::write_first(&FRAME_SCRATCH.work_vector, &point.map(negated));
-        normalise_vector()?;
-        let to_eye: [u32; 3] = crate::session::read_first(&FRAME_SCRATCH.work_vector);
-        crate::session::write_bits(&MATRICES.reflect_normal, to_eye);
-        reflect_vector();
-        let mirrored: [u32; 3] = crate::session::read_bits(&MATRICES.reflect_vector);
-        crate::session::write_first(
-            &FRAME_SCRATCH.work_vector,
-            &[
-                x87::loaded(mirrored[0]),
-                x87::add(mirrored[1], NUMBERS.one.bits()),
-                x87::loaded(mirrored[2]),
-            ],
-        );
-        normalise_vector()?;
-        let looks: [u32; 3] = crate::session::read_first(&FRAME_SCRATCH.work_vector);
-        let half: u32 = NUMBERS.half.bits();
-        let scales = [NUMBERS.k65536.bits(), NUMBERS.k256.bits()];
-        crate::session::write_bits(
-            &GROUND_WORK.reflection_coordinates,
-            [
-                coordinate(looks[0], half, scales) as u32,
-                coordinate(looks[2], half, scales) as u32,
-            ],
-        );
-        Ok(())
+pub fn reflection_coordinates(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
+    if !crate::scene::point_records::held() {
+        return Err(BadInput("no records for the points"));
     }
+    let table = crate::scene::reading::PointRecords::new()?;
+    let normal = table.place(race.physics.ground.reflection_normal_number.bits())?;
+    let point = table.place(
+        race.physics
+            .ground
+            .reflection_point_number
+            .bits()
+            .wrapping_neg(),
+    )?;
+    crate::session::write_bits(&race.frame.matrices.reflect_vector, normal);
+    crate::session::write_first(&race.frame.scratch.work_vector, &point.map(negated));
+    normalise_vector(race)?;
+    let to_eye: [u32; 3] = crate::session::read_first(&race.frame.scratch.work_vector);
+    crate::session::write_bits(&race.frame.matrices.reflect_normal, to_eye);
+    reflect_vector(&race.frame, scene);
+    let mirrored: [u32; 3] = crate::session::read_bits(&race.frame.matrices.reflect_vector);
+    crate::session::write_first(
+        &race.frame.scratch.work_vector,
+        &[
+            x87::loaded(mirrored[0]),
+            x87::add(mirrored[1], race.course.numbers.one.bits()),
+            x87::loaded(mirrored[2]),
+        ],
+    );
+    normalise_vector(race)?;
+    let looks: [u32; 3] = crate::session::read_first(&race.frame.scratch.work_vector);
+    let half: u32 = race.course.numbers.half.bits();
+    let scales = [
+        race.course.numbers.k65536.bits(),
+        race.course.numbers.k256.bits(),
+    ];
+    crate::session::write_bits(
+        &race.physics.ground.reflection_coordinates,
+        [
+            coordinate(looks[0], half, scales) as u32,
+            coordinate(looks[2], half, scales) as u32,
+        ],
+    );
+    Ok(())
 }
 
 #[cfg(all(test, target_arch = "x86"))]

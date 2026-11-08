@@ -130,9 +130,9 @@ pub fn details<S: Screen<Font = Font, Work = Work>>(
     s.line(Font::Title, &line, LEFT_X, TITLE_Y)?;
     let mut last = Drawn::default();
     for (row, (y, car)) in ROWS.into_iter().zip(cars).enumerate() {
-        let sprites = |s: &mut S, palette: u32| -> Result<(), S::Error> {
-            s.sprite(flag_glyph(car.nation), FLAG_X, y, palette)?;
-            s.sprite(car_glyph(car.car), CAR_X, y, palette)
+        let sprites = |s: &mut S| -> Result<(), S::Error> {
+            s.sprite(flag_glyph(car.nation), FLAG_X, y)?;
+            s.sprite(car_glyph(car.car), CAR_X, y)
         };
         let numbers = |s: &mut S| -> Result<Drawn, S::Error> {
             number(s, car.numbers[0], NUMBER_COLUMNS[0], y)?;
@@ -151,11 +151,11 @@ pub fn details<S: Screen<Font = Font, Work = Work>>(
         if row == 0 {
             s.text(Font::Rows, car.name, NAME_X, y)?;
             last = numbers(s)?;
-            sprites(s, last.after)?;
+            sprites(s)?;
         } else {
             if players > row as i32 {
-                let name = s.text(Font::Rows, car.name, NAME_X, y)?;
-                sprites(s, name.after)?;
+                s.text(Font::Rows, car.name, NAME_X, y)?;
+                sprites(s)?;
             } else {
                 s.string(Font::Rows, NO_ENTRY, NAME_X, y)?;
                 s.string(Font::Rows, NOTHING, NO_FLAG_X, y)?;
@@ -206,10 +206,7 @@ mod tests {
         type Error = Invalid;
         fn text(&mut self, f: Font, t: u32, x: i32, y: i32) -> Result<Drawn, Invalid> {
             self.0.push(format!("{f:?} n{t} {x:#x} {y:#x}"));
-            Ok(Drawn {
-                after: 0x100 + t,
-                ..Drawn::default()
-            })
+            Ok(Drawn { ..Drawn::default() })
         }
         fn store(&mut self, _: Buffer, b: &[u8]) -> Result<(), Invalid> {
             self.1 = b.to_vec();
@@ -220,10 +217,7 @@ mod tests {
                 "{f:?} {:?} {x:#x} {y:#x}",
                 String::from_utf8_lossy(&self.1)
             ));
-            Ok(Drawn {
-                after: 7,
-                ..Drawn::default()
-            })
+            Ok(Drawn { ..Drawn::default() })
         }
         fn draw_time(&mut self, _: Font, _: Buffer, _: i32, _: i32) -> Result<(), Invalid> {
             unreachable!()
@@ -244,8 +238,8 @@ mod tests {
         fn strings(&mut self, _: u32, _: u32) -> Result<Vec<u8>, Invalid> {
             unreachable!()
         }
-        fn sprite(&mut self, g: u32, x: i32, y: i32, p: u32) -> Result<(), Invalid> {
-            self.0.push(format!("sprite {g:#x} {x:#x} {y:#x} {p:#x}"));
+        fn sprite(&mut self, g: u32, x: i32, y: i32) -> Result<(), Invalid> {
+            self.0.push(format!("sprite {g:#x} {x:#x} {y:#x}"));
             Ok(())
         }
         fn keep(&mut self, _: Work, _: u32) {
@@ -281,9 +275,9 @@ mod tests {
         };
         assert!(!details(&mut s, title, 2, &cars).unwrap());
         assert_eq!(s.0[7], "Title \"<1da> - <300> 2/6\\0\" 0x8f 0x161");
-        assert!(s.0.contains(&"sprite 0x1c 0xaf 0x193 0x7".to_string()));
-        assert!(s.0.contains(&"sprite 0x5d 0x18b 0x193 0x7".to_string()));
-        assert!(s.0.contains(&"sprite 0x1d 0xaf 0x1ac 0x101".to_string()));
+        assert!(s.0.contains(&"sprite 0x1c 0xaf 0x193".to_string()));
+        assert!(s.0.contains(&"sprite 0x5d 0x18b 0x193".to_string()));
+        assert!(s.0.contains(&"sprite 0x1d 0xaf 0x1ac".to_string()));
         assert!(s.0.contains(&"Rows \"-\\0\" 0x215 0x1ac".to_string()));
         assert!(s.0.contains(&"Rows s57a 0x2b6 0x1ac".to_string()));
         assert!(s.0.contains(&"Rows s578 0xd6 0x1c5".to_string()));

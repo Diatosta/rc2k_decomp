@@ -1,14 +1,11 @@
 //! `menu::start_a8_two` (0x4A9E3D): the A8 championship for two players in turn (event mode 0xB);
 //! then `menu::run_a8_championship`. The shape is `menu::start_event`'s.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Reached through a start menu's table. Refuses a missing player before anything, and what the
 //! callees refuse when they are reached.
 
 use crate::errors::Refused;
-use crate::menu::screen_loop::Carried;
+use crate::menu::owner::Menus;
 use crate::menu::start_event::{Starter, start_event};
 use rc2k_core::menu::starters::{self, Championship, Seats};
 
@@ -20,7 +17,7 @@ pub const START_A8_TWO: Starter = Starter {
     },
 };
 
-/// The Rust version (`c` the carried values the item gets).
-pub fn start_a8_two(c: &Carried) -> Result<(), Refused> {
-    start_event(&START_A8_TWO, c)
+/// The Rust version.
+pub fn start_a8_two(menus: &Menus) -> Result<(), Refused> {
+    start_event(menus, &START_A8_TWO)
 }

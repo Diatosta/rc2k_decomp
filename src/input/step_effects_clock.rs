@@ -1,8 +1,6 @@
 //! `input::step_effects_clock` (0x40F257): the force feedback's clock: every 40 ms the
 //! effects brought up to date.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` / `popa`)
 //! `system::tick_count` less the last time (`dword_518084`); under 40 ms (`js`)
 //! nothing. Else the last time = now, `dword_518088` = 1000 / now held to 1000 (unsigned
 //! `div`, as a float: the original divides by the clock, not by the time passed, so it
@@ -20,8 +18,8 @@ use crate::errors::{BadInput, Refused};
 
 /// The force feedback's clock: once 40 ms have gone, the rate (a second over the gap,
 /// held to 1000 ms) kept and `input::update_effects`.
-pub fn step_effects_clock() -> Result<(), Refused> {
-    let effects = &crate::input::store::FORCE_FEEDBACK;
+pub fn step_effects_clock(input: &crate::input::owner::Input) -> Result<(), Refused> {
+    let effects = &input.force_feedback;
     let last = effects.last_time.get();
     let gap = crate::system::tick_count::tick_count().wrapping_sub(last);
     if (gap.wrapping_sub(0x28) as i32) < 0 {
@@ -36,5 +34,5 @@ pub fn step_effects_clock() -> Result<(), Refused> {
     // `fild` / `fstp`: `as f32` at every precision.
     effects.rate.set(((1000 / divisor) as i32 as f32).to_bits());
     effects.steps.set(effects.steps.get().wrapping_add(1));
-    crate::input::update_effects::update_effects()
+    crate::input::update_effects::update_effects(input)
 }

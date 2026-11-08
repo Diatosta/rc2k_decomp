@@ -3,27 +3,21 @@
 //! frame, stored (rounded to floats) at `dword_71A17C`, `dword_71A180`, `g_carSpeed`
 //! (+0x1A4 .. +0x1AC). The tail of `physics::apply_force` on the work car.
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read
-//!
-//! Caller: `sub_43BD8B` (its tail).
+//! Caller: `physics::put_back_motion_vectors` (its tail).
 
+use crate::math::cells::Cells;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 
-/// The Rust core: the motion at `from` turned by the matrix at `m` into `to`.
-pub unsafe fn car_frame_motion_at(from: u32, m: u32, to: u32) {
-    unsafe {
-        let p = crate::pointers::host(from) as *const u32;
-        let point = [
-            extended(p.read_unaligned()),
-            extended(p.add(1).read_unaligned()),
-            extended(p.add(2).read_unaligned()),
-        ];
-        let out = rotate_point(m, point);
-        let q = crate::pointers::host(to) as *mut u32;
-        for (k, e) in out.iter().enumerate() {
-            q.add(k).write_unaligned(rounded(*e));
-        }
+/// The Rust core: the motion `from` turned by the matrix `m` into `to`.
+pub fn car_frame_motion(
+    from: &(impl Cells + ?Sized),
+    m: &(impl Cells + ?Sized),
+    to: &(impl Cells + ?Sized),
+) {
+    let point = std::array::from_fn(|k| extended(from.bits(k)));
+    let out = rotate_point(m, point);
+    for (k, e) in out.iter().enumerate() {
+        to.set_bits(k, rounded(*e));
     }
 }

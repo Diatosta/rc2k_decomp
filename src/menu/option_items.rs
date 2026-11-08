@@ -22,21 +22,18 @@
 //! - 0x46FFDB: the screen mode chosen (`dword_4F50C8`) one less, before 0 the last
 //!   (`dword_4F50E4` - 1); eax the new one.
 //!
-//! In:  nothing
-//! Out: eax as above (the volumes: the value, or the sound when one is heard; the switches
-//! with a copy: the value); what a callee leaves after it; no flags read
+//! Result as above (the volumes: the value, or the sound when one is heard; the switches
+//! with a copy: the value).
 //!
 //! Which item each is: the page tables' readings (the owner named the sound page's four volumes:
 //! general, race music, race effects, menu effects).
 
 use crate::errors::Refused;
-use crate::gfx::choices_store::SCREEN_CHOICES;
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::option_work_store::OPTION_WORK;
+use crate::gfx::owner::GFX;
+use crate::gfx::owner::gfx;
+use crate::menu::owner::MENUS;
 use crate::race::settings_copy::{Place, var};
-use crate::race::state_store::RACE_STATE;
-use crate::sound::store::SOUND_OPTIONS;
+use crate::sound::owner::SOUND;
 
 /// After a volume step.
 #[derive(Clone, Copy)]
@@ -97,18 +94,19 @@ fn get(x: Place) -> i32 {
     x.get() as i32
 }
 fn set(x: Place, v: i32) {
-    x.set(v as u32)
+    x.set(v as u32);
 }
 
-/// The Rust version (see the header). What it leaves in registers is read by none of its
+/// The Rust version. What it leaves in registers is read by none of its
 /// callers (the item call sites have nothing live after the call; register liveness,
 /// 2026-10-23).
 pub fn option_item(item: Item) -> Result<(), Refused> {
+    let audio = crate::audio::owner::audio();
     // Converted: `rc2k_core::menu::steps` (`flip`, `quality`, `volume`, `counter`,
     // `previous_mode`).
     use rc2k_core::menu::steps;
     let v = item.var;
-    let apply_audio = || crate::menu::option_steps::apply_audio_choices();
+    let apply_audio = || crate::menu::option_steps::apply_audio_choices(audio);
     match item.kind {
         Kind::Switch => set(v, steps::flip(get(v) as u32) as i32),
         Kind::SwitchCopy { other, flip } => {
@@ -123,7 +121,7 @@ pub fn option_item(item: Item) -> Result<(), Refused> {
             set(v, steps::flip(get(v) as u32) as i32);
             set(other, steps::flip(get(other) as u32) as i32);
             // `gfx::screen_mode_choices` with eax 0; its flags are read by no caller.
-            crate::gfx::screen_mode_choices::screen_mode_choices(false)?;
+            crate::gfx::screen_mode_choices::screen_mode_choices(&gfx().display, false)?;
         }
         Kind::SwitchAudio => {
             set(v, steps::flip(get(v) as u32) as i32);
@@ -201,7 +199,7 @@ option_item!(
     toggle_5180f4,
     "menu::toggle_5180f4",
     Item {
-        var: var!(SOUND_OPTIONS.name_switch),
+        var: var!(SOUND.menu.options.name_switch),
         kind: Kind::Switch,
     }
 );
@@ -210,7 +208,7 @@ step!(
     "menu::master_volume_down",
     0x467F00,
     0x24,
-    var!(OPTION_WORK.master_volume_shown),
+    var!(MENUS.screens.option_work.master_volume_shown),
     false,
     Kind::Volume {
         up: false,
@@ -222,7 +220,7 @@ step!(
     "menu::master_volume_up",
     0x467F24,
     0x24,
-    var!(OPTION_WORK.master_volume_shown),
+    var!(MENUS.screens.option_work.master_volume_shown),
     true,
     Kind::Volume {
         up: true,
@@ -234,10 +232,10 @@ option_item!(
     race_music_volume_down,
     "menu::race_music_volume_down",
     Item {
-        var: var!(OPTION_WORK.other_volume),
+        var: var!(MENUS.screens.option_work.other_volume),
         kind: Kind::Volume {
             up: false,
-            then: Then::Store(var!(SOUND_OPTIONS.race_music_volume))
+            then: Then::Store(var!(SOUND.menu.options.race_music_volume))
         },
     }
 );
@@ -246,10 +244,10 @@ option_item!(
     race_music_volume_up,
     "menu::race_music_volume_up",
     Item {
-        var: var!(OPTION_WORK.other_volume),
+        var: var!(MENUS.screens.option_work.other_volume),
         kind: Kind::Volume {
             up: true,
-            then: Then::Store(var!(SOUND_OPTIONS.race_music_volume))
+            then: Then::Store(var!(SOUND.menu.options.race_music_volume))
         },
     }
 );
@@ -258,7 +256,7 @@ step!(
     "menu::race_sounds_volume_down",
     0x467FE2,
     0x24,
-    var!(OPTION_WORK.menu_sounds_a),
+    var!(MENUS.screens.option_work.menu_sounds_a),
     false,
     Kind::Volume {
         up: false,
@@ -270,7 +268,7 @@ step!(
     "menu::race_sounds_volume_up",
     0x468006,
     0x24,
-    var!(OPTION_WORK.menu_sounds_a),
+    var!(MENUS.screens.option_work.menu_sounds_a),
     true,
     Kind::Volume {
         up: true,
@@ -282,7 +280,7 @@ step!(
     "menu::menu_sounds_volume_down",
     0x468138,
     0x24,
-    var!(OPTION_WORK.menu_sounds_c),
+    var!(MENUS.screens.option_work.menu_sounds_c),
     false,
     Kind::Volume {
         up: false,
@@ -294,7 +292,7 @@ step!(
     "menu::menu_sounds_volume_up",
     0x46815C,
     0x24,
-    var!(OPTION_WORK.menu_sounds_c),
+    var!(MENUS.screens.option_work.menu_sounds_c),
     true,
     Kind::Volume {
         up: true,
@@ -309,7 +307,7 @@ switch!(
     "menu::toggle_7556f8",
     0x468211,
     8,
-    var!(CHAMP_VIEW.switch_f8),
+    var!(MENUS.play.champ_view.switch_f8),
     Kind::Switch
 );
 switch!(
@@ -317,7 +315,7 @@ switch!(
     "menu::toggle_7556fc",
     0x468219,
     8,
-    var!(CHAMP_VIEW.switch_fc),
+    var!(MENUS.play.champ_view.switch_fc),
     Kind::Switch
 );
 step!(
@@ -325,7 +323,7 @@ step!(
     "menu::previous_75880e",
     0x468221,
     0x1A,
-    var!(CAPTIONS.shown_group),
+    var!(MENUS.tables.captions.shown_group),
     false,
     Kind::Counter {
         up: false,
@@ -338,7 +336,7 @@ step!(
     "menu::next_75880e",
     0x46823B,
     0x1A,
-    var!(CAPTIONS.shown_group),
+    var!(MENUS.tables.captions.shown_group),
     true,
     Kind::Counter {
         up: true,
@@ -351,7 +349,7 @@ step!(
     "menu::previous_758812",
     0x468255,
     0x1A,
-    var!(CAPTIONS.shown_stage),
+    var!(MENUS.tables.captions.shown_stage),
     false,
     Kind::Counter {
         up: false,
@@ -364,7 +362,7 @@ step!(
     "menu::next_758812",
     0x46826F,
     0x1A,
-    var!(CAPTIONS.shown_stage),
+    var!(MENUS.tables.captions.shown_stage),
     true,
     Kind::Counter {
         up: true,
@@ -380,9 +378,9 @@ switch!(
     "menu::toggle_755640",
     0x46FFB3,
     0x14,
-    var!(OPTION_WORK.switch_0),
+    var!(MENUS.screens.option_work.switch_0),
     Kind::SwitchCopy {
-        other: var!(SCREEN_CHOICES.mipmapping),
+        other: var!(GFX.display.choices.mipmapping),
         flip: true
     }
 );
@@ -391,9 +389,9 @@ switch!(
     "menu::toggle_755644",
     0x46FFC7,
     0x14,
-    var!(OPTION_WORK.switch_1),
+    var!(MENUS.screens.option_work.switch_1),
     Kind::SwitchCopy {
-        other: var!(SCREEN_CHOICES.buffering),
+        other: var!(GFX.display.choices.buffering),
         flip: true
     }
 );
@@ -401,9 +399,9 @@ option_item!(
     previous_screen_mode,
     "menu::previous_screen_mode",
     Item {
-        var: var!(SCREEN_CHOICES.resolution),
+        var: var!(GFX.display.choices.resolution),
         kind: Kind::PreviousMode {
-            other: var!(SCREEN_CHOICES.resolutions)
+            other: var!(GFX.display.choices.resolutions)
         },
     }
 );
@@ -412,9 +410,9 @@ switch!(
     "menu::toggle_75564c",
     0x470017,
     0x1E,
-    var!(OPTION_WORK.modes_switch),
+    var!(MENUS.screens.option_work.modes_switch),
     Kind::SwitchModes {
-        other: var!(SCREEN_CHOICES.card)
+        other: var!(GFX.display.choices.card)
     }
 );
 switch!(
@@ -422,9 +420,9 @@ switch!(
     "menu::toggle_755650",
     0x470035,
     0x12,
-    var!(OPTION_WORK.setting_0),
+    var!(MENUS.screens.option_work.setting_0),
     Kind::SwitchCopy {
-        other: var!(RACE_STATE.settings.setting_0),
+        other: var!(crate::race::owner::RACE.shared.state.settings.setting_0),
         flip: false
     }
 );
@@ -433,9 +431,9 @@ switch!(
     "menu::toggle_75565c",
     0x470107,
     0x12,
-    var!(OPTION_WORK.setting_1),
+    var!(MENUS.screens.option_work.setting_1),
     Kind::SwitchCopy {
-        other: var!(RACE_STATE.settings.setting_1),
+        other: var!(crate::race::owner::RACE.shared.state.settings.setting_1),
         flip: false
     }
 );
@@ -444,9 +442,9 @@ switch!(
     "menu::toggle_755660",
     0x470119,
     0x12,
-    var!(OPTION_WORK.setting_2),
+    var!(MENUS.screens.option_work.setting_2),
     Kind::SwitchCopy {
-        other: var!(RACE_STATE.settings.setting_2),
+        other: var!(crate::race::owner::RACE.shared.state.settings.setting_2),
         flip: false
     }
 );
@@ -455,9 +453,9 @@ switch!(
     "menu::toggle_755668",
     0x47018B,
     0x12,
-    var!(OPTION_WORK.setting_4),
+    var!(MENUS.screens.option_work.setting_4),
     Kind::SwitchCopy {
-        other: var!(RACE_STATE.settings.setting_4),
+        other: var!(crate::race::owner::RACE.shared.state.settings.setting_4),
         flip: false
     }
 );
@@ -468,7 +466,7 @@ option_item!(
     next_audio_quality,
     "menu::next_audio_quality",
     Item {
-        var: var!(OPTION_WORK.audio_quality),
+        var: var!(MENUS.screens.option_work.audio_quality),
         kind: Kind::Quality { up: true },
     }
 );
@@ -476,7 +474,7 @@ option_item!(
     previous_audio_quality,
     "menu::previous_audio_quality",
     Item {
-        var: var!(OPTION_WORK.audio_quality),
+        var: var!(MENUS.screens.option_work.audio_quality),
         kind: Kind::Quality { up: false },
     }
 );
@@ -485,7 +483,7 @@ switch!(
     "menu::toggle_ds3d",
     0x4701E9,
     0xD,
-    var!(OPTION_WORK.ds3d),
+    var!(MENUS.screens.option_work.ds3d),
     Kind::SwitchAudio
 );
 switch!(
@@ -493,7 +491,7 @@ switch!(
     "menu::toggle_eax",
     0x4701F6,
     0xD,
-    var!(OPTION_WORK.eax),
+    var!(MENUS.screens.option_work.eax),
     Kind::SwitchAudio
 );
 switch!(
@@ -501,7 +499,7 @@ switch!(
     "menu::toggle_a3d",
     0x470203,
     0xD,
-    var!(OPTION_WORK.a3d),
+    var!(MENUS.screens.option_work.a3d),
     Kind::SwitchAudio
 );
 switch!(
@@ -509,7 +507,7 @@ switch!(
     "menu::toggle_dolby",
     0x470210,
     0xD,
-    var!(OPTION_WORK.dolby),
+    var!(MENUS.screens.option_work.dolby),
     Kind::SwitchAudio
 );
 switch!(
@@ -517,6 +515,6 @@ switch!(
     "menu::toggle_channels",
     0x47021D,
     0xD,
-    var!(OPTION_WORK.channels),
+    var!(MENUS.screens.option_work.channels),
     Kind::SwitchAudio
 );

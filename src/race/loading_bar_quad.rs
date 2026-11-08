@@ -3,31 +3,30 @@
 //! (held to 0 .. 100) over 100, y from 0x24D to 0x258 scaled from 600 to the screen's
 //! height; `dword_6240C4` -1; `race::draw_screen_quad`.
 //!
-//! In:  nothing
-//! Out: nothing its caller reads (conversion phase 3, 2026-10-24)
-//!
 //! Caller: `race::loading_bar_frame`. The quad its Rust version.
 
 use crate::errors::Refused;
-use crate::race::vars_store::RACE_VARS;
-use crate::scene::draw_store::DRAW;
-use crate::session::SCREEN;
+use crate::race::owner::Race;
 
 /// The Rust version (see the header).
-pub unsafe fn loading_bar_quad() -> Result<(), Refused> {
+pub fn loading_bar_quad(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    let shared = &race.shared;
+    let session = &system.session;
     // Converted: `rc2k_core::race::loading::loading_bar`.
     use rc2k_core::race::loading::{BAR_COLOUR, loading_bar};
-    unsafe {
-        let [w, h] = [SCREEN.width.get(), SCREEN.height.get()];
-        let bar = loading_bar(w, h, RACE_VARS.bar_share.bits());
-        // The quad's colour (0x623DE8); x at +0x28 / +0x2C, y at +0x38 / +0x3C.
-        RACE_VARS.quad_corners[0].set(bar.left);
-        RACE_VARS.quad_colour[0].set(BAR_COLOUR);
-        RACE_VARS.quad_corners[4].set(bar.top);
-        RACE_VARS.quad_corners[5].set(bar.bottom);
-        RACE_VARS.quad_corners[1].set(bar.right);
-        DRAW.texture_page.set_bits(0xFFFF_FFFFu32);
-        // `draw_screen_quad` reads no register it is given.
-        crate::race::frame_draw::draw_screen_quad()
-    }
+    let [w, h] = [session.screen.width.get(), session.screen.height.get()];
+    let bar = loading_bar(w, h, shared.vars.bar_share.bits());
+    // The quad's colour (0x623DE8); x at +0x28 / +0x2C, y at +0x38 / +0x3C.
+    shared.vars.quad_corners[0].set(bar.left);
+    shared.vars.quad_colour[0].set(BAR_COLOUR);
+    shared.vars.quad_corners[4].set(bar.top);
+    shared.vars.quad_corners[5].set(bar.bottom);
+    shared.vars.quad_corners[1].set(bar.right);
+    scene.drawing.scene.texture_page.set_bits(0xFFFF_FFFFu32);
+    // `draw_screen_quad` reads no register it is given.
+    crate::race::frame_draw::draw_screen_quad(race, crate::scene::owner::scene())
 }

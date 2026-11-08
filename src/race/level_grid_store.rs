@@ -4,18 +4,19 @@
 //! Used by `race::frame_draw`, `scene::add_point_lights`, `scene::draw_polygon`, `race::course_faces`, `hud::overlay_pass`.
 //! Names are readings unless IDA's.
 
-use crate::session::{Dword, Float};
+use crate::session::{Bytes, Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LevelGrid {
     /// +0x0 (0x63DC5C): the first of four 256-byte tables `object_bytes` fills (`race::frame_draw` `FACE_TABLES`); used in place (`byte_63DC5C`).
-    pub face_table_a: [Dword; 64],
+    pub face_table_a: Bytes<256>,
     /// +0x100 (0x63DD5C): the second face table (`byte_63DD5C`).
-    pub face_table_b: [Dword; 64],
+    pub face_table_b: Bytes<256>,
     /// +0x200 (0x63DE5C): the third face table (`byte_63DE5C`).
-    pub face_table_c: [Dword; 64],
+    pub face_table_c: Bytes<256>,
     /// +0x300 (0x63DF5C): the fourth face table (`byte_63DF5C`).
-    pub face_table_d: [Dword; 64],
+    pub face_table_d: Bytes<256>,
     /// +0x400 (0x63E05C): `g_lamps`: 16 lamps of 0x10 bytes (`race::frame_draw`, `scene::add_point_lights`); IDA splits `dword_63E060` / `dword_63E064` out of it.
     pub lamps: [Dword; 64],
     /// +0x500 (0x63E15C): the course grid's half size (`race::frame_draw`, `dword_63E15C`) (a reading).
@@ -48,21 +49,16 @@ pub struct LevelGrid {
     pub flare_place_x: [Dword; 256],
 }
 
-/// The piece: the race block's bytes at IDA 0x63DC5C seen as `LevelGrid`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = LevelGrid;
-    fn deref(&self) -> &LevelGrid {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const LevelGrid) }
+/// The piece: a field of `race::owner::Race::course`, formerly a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl LevelGrid {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static LEVEL_GRID: InRaceBlock = InRaceBlock;
 
 /// IDA 0x63DC5C, the first byte of the piece.
 pub const START: usize = 0x63DC5C;
@@ -71,9 +67,12 @@ pub const END: usize = 0x63F58C;
 
 const _: () = assert!(END - START == core::mem::size_of::<LevelGrid>());
 
-/// Where IDA 0x63DC5C is now (in the race block).
+/// Where IDA 0x63DC5C is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::race::owner::RACE.course.level_grid,
+    ))
 }
 
 #[cfg(test)]
@@ -82,7 +81,16 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(
+            &crate::race::owner::RACE.course.level_grid,
+            START,
+            END,
+        );
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

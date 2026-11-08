@@ -5,7 +5,10 @@
 # `files\` and `var\`; RAL.EXE's own data is built into rc2k.exe since 2026-10-19). That
 # folder is STANDALONE_DIR if deploy.local sets it, else the folder above GAME_DIR.
 # Start it there: `wine rc2k.exe` (it writes rc2k.log next to itself).
-# `deploy_standalone.sh x64` deploys the 64-bit build instead (into an x64 folder).
+# `deploy_standalone.sh x64` deploys the 64-bit build instead (into an x64 folder), and
+# `deploy_standalone.sh linux` the native Linux one (into a linux folder), and
+# `deploy_standalone.sh anbernic` the handheld's (over SSH); `anbernic pgo` profile-guided, with
+# the profile of tools/anbernic/pgo.sh.
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -13,6 +16,51 @@ cd "$(dirname "$0")"
 [ -f deploy.local ] && source deploy.local
 : "${GAME_DIR:?Set GAME_DIR, e.g. in deploy.local}"
 DEST="${STANDALONE_DIR:-$GAME_DIR/..}"
+
+if [ "${1:-}" = anbernic ]; then
+    # The Anbernic RG34XXSP (`src/handheld.rs`), built in its own system's container and
+    # copied over SSH: ANBERNIC_HOST in deploy.local (root@address), the key in
+    # ANBERNIC_KEY. The game's files go there once, by hand: see tools/anbernic/README.md.
+    : "${ANBERNIC_HOST:?Set ANBERNIC_HOST in deploy.local}"
+    SSH=(ssh -i "${ANBERNIC_KEY:-$HOME/.ssh/rg34xxsp}" -o BatchMode=yes "$ANBERNIC_HOST")
+    docker build -q -t rc2k-anbernic tools/anbernic >/dev/null
+    tools/anbernic/run.sh tools/build_ffmpeg.sh a64
+    if [ "${2:-}" = pgo ]; then
+        # Profile-guided: with the profile tools/anbernic/pgo.sh made (in its own target folder).
+        PROFILE="$PWD/target/a64-pgo/rc2k.profdata"
+        [ -f "$PROFILE" ] || { echo "no $PROFILE: run tools/anbernic/pgo.sh first" >&2; exit 1; }
+        tools/anbernic/run.sh env CARGO_TARGET_DIR=target/a64-linux-pgo \
+            CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C target-cpu=cortex-a53 -C profile-use=$PROFILE -C llvm-args=-pgo-warn-missing-function=false" \
+            cargo build --release --target aarch64-unknown-linux-gnu --bin rc2k
+        BIN=target/a64-linux-pgo/aarch64-unknown-linux-gnu/release/rc2k
+    else
+        tools/anbernic/run.sh cargo build --release --target aarch64-unknown-linux-gnu --bin rc2k
+        BIN=target/a64-linux/aarch64-unknown-linux-gnu/release/rc2k
+    fi
+    tools/anbernic/run.sh aarch64-linux-gnu-strip -o target/a64-linux/rc2k.stripped "$BIN"
+    "${SSH[@]}" "rm -f /mnt/mmc/Roms/APPS/rally/rc2k"
+    "${SSH[@]}" "cat > /mnt/mmc/Roms/APPS/rally/rc2k; chmod +x /mnt/mmc/Roms/APPS/rally/rc2k" \
+        < target/a64-linux/rc2k.stripped
+    "${SSH[@]}" "cat > /mnt/mmc/Roms/APPS/Rally.sh; chmod +x /mnt/mmc/Roms/APPS/Rally.sh" \
+        < tools/anbernic/Rally.sh
+    echo "deployed rc2k to the handheld"
+    exit 0
+fi
+
+if [ "${1:-}" = linux ]; then
+    # The native Linux build (phase 11) into a linux folder in the game's folder, started
+    # from the game's folder: `linux/rc2k`. SDL and FFmpeg's decoders are linked in
+    # (build.rs): it needs only the C library, at least the glibc it prints.
+    tools/build_ffmpeg.sh linux
+    CARGO_TARGET_DIR=target/linux cargo build --release --target x86_64-unknown-linux-gnu \
+        --bin rc2k
+    mkdir -p "$DEST/linux"
+    cp --remove-destination target/linux/x86_64-unknown-linux-gnu/release/rc2k "$DEST/linux/"
+    echo "deployed the Linux rc2k to $DEST/linux (needs glibc $(objdump -T \
+        target/linux/x86_64-unknown-linux-gnu/release/rc2k | grep -v ' w ' \
+        | grep -oE 'GLIBC_[0-9.]+' | sort -uV | tail -1 | cut -d_ -f2) or newer)"
+    exit 0
+fi
 
 ./tools/fetch_sdl3.sh
 

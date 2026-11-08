@@ -1,9 +1,7 @@
 //! `scene::approximate_distance` (0x44EB78): how long a line is, near enough, without a
 //! square root.
 //!
-//! In:  eax, ebx, ecx = the three differences
-//! Out: eax = the length; ebx and ecx = the two smaller parts' shares of it;
-//!      everything else preserved
+//! Takes: the three differences
 //!
 //! Each difference over 256 (signed) and without its sign; the largest times 0xF2, the
 //! middle one times 0x60 and the smallest times 0x4B, added.

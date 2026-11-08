@@ -3,28 +3,25 @@
 //! `dword_7556A8` (an entry is going on) is 1.
 //! It first logs "getrepsaveslotname result=<name>".
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! It writes "Backed up name=<the name>" to the game's log (`logfile::log_write`). In six menu
 //! tables. Refuses a name past the list. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::BadInput;
 use crate::menu::name_lists::replay_name;
-use crate::menu::text_entry::{begin_logged, log_l1};
+use crate::menu::owner::Menus;
+use crate::menu::text_entry::begin_logged;
 
 // ---- Rust version ----
 
 /// `log` = false leaves the log lines out.
-pub fn begin_replay_name(log: bool) -> Result<(), BadInput> {
+pub fn begin_replay_name(menus: &Menus, log: bool) -> Result<(), BadInput> {
     let name = replay_name()?;
     if log {
         // aGetrepsaveslot
-        unsafe {
-            log_l1(c"getrepsaveslotname result=".as_ptr() as *const u8, false);
-            log_l1(crate::pointers::host(name) as *const u8, true);
-        }
+        crate::logfile::log_write::log_nul(c"getrepsaveslotname result=", false, 1);
+        crate::logfile::log_write::log_at(name, true, 1);
     }
     // Converted: `rc2k_core::menu::text_entry::Entry::begin` (through `begin_logged`).
-    begin_logged(name, log)
+    begin_logged(menus, name, log)
 }

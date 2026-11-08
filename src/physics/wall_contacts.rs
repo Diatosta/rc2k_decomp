@@ -10,48 +10,46 @@
 //! into `unk_71A1FC` .., `physics::wall_push_back`, the same two words,
 //! `restore_saved_car`, `feel_ground`.
 //!
-//! In:  nothing
-//! Out: the registers as the steps and calls leave them (ebp the point, or -1 after the
-//!      loop); no flags read (callers go on)
-//!
-//! Callers: `sub_43B635` (every physics step), `sub_43BDD1`. Refuses (before anything) a
-//! count of 0 or past 0x40 (the original's loop runs on, or past the tables), and what its
-//! calls refuse (what was written put back).
+//! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`. Refuses
+//! (before anything) a count of 0 or past 0x40 (the original's loop runs on, or past the tables),
+//! and what its calls refuse (what was written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
-use crate::physics::contact_store::CONTACT_WORK;
-use crate::pointers::GamePtr;
-use crate::race::course_store::COURSE;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use rc2k_core::physics::walls;
 
 fn word(face: u32) -> Result<u32, Refused> {
-    let at = (face << 6).wrapping_add(COURSE.course_faces.get()) + 2;
-    Ok(u32::from(GamePtr::new(at).read::<u16>("a face's flags")?))
+    Ok(u32::from(crate::race::course_places::face_field::<u16>(
+        face,
+        2,
+        "a face's flags",
+    )?))
 }
 
-fn after() -> Result<(), Refused> {
-    CAR.contact_flag.set(1);
-    CAR.wall_hit_timer.set(0x32);
-    unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
-    unsafe { crate::physics::feel_ground::feel_ground() }
+fn after(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    race.shared.car.contact_flag.set(1);
+    race.shared.car.wall_hit_timer.set(0x32);
+    { crate::physics::restore_saved_car::restore_saved_car(race) }?;
+    crate::physics::feel_ground::feel_ground(race, scene)
 }
 
 /// The steps, not guarded (`check` before). The registers the original leaves are read by
 /// none of its callers.
 // Converted: `rc2k_core::physics::walls::walk`.
-pub fn steps() -> Result<(), Refused> {
-    let walked = walls::walk(CAR.probe_count.get(), |k| {
+pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let physics_store = &race.physics;
+    let walked = walls::walk(race.shared.car.probe_count.get(), |k| {
         let k = k as usize;
-        let now = CAR.probe_point_face[k].get();
-        CONTACT_WORK.wall_face_now.set(now);
+        let now = race.shared.car.probe_point_face[k].get();
+        physics_store.contact.wall_face_now.set(now);
         let now_word = word(now)?;
-        let before = CONTACT_WORK.probe_saved_faces[k].get();
+        let before = physics_store.contact.probe_saved_faces[k].get();
         let before_word = if now != before {
-            CONTACT_WORK.wall_face_before.set(before);
+            physics_store.contact.wall_face_before.set(before);
             Some(word(before)?)
         } else {
             None
@@ -65,43 +63,44 @@ pub fn steps() -> Result<(), Refused> {
         walls::Walk::Met { probe, .. } => {
             // 0x45D83E: a wall met.
             let k = probe as usize;
-            CONTACT_WORK.probe_index.set(probe);
-            CAR.contact_point[0].set_bits(CAR.probe_point_x[k].bits());
-            CAR.contact_point[1].set_bits(CAR.probe_point_y[k].bits());
-            CAR.contact_point[2].set_bits(CAR.probe_point_z[k].bits());
-            crate::physics::wall_edge_contact::steps()?;
+            physics_store.contact.probe_index.set(probe);
+            race.shared.car.contact_point[0].set_bits(race.shared.car.probe_point_x[k].bits());
+            race.shared.car.contact_point[1].set_bits(race.shared.car.probe_point_y[k].bits());
+            race.shared.car.contact_point[2].set_bits(race.shared.car.probe_point_z[k].bits());
+            crate::physics::wall_edge_contact::steps(race, scene)?;
             if let Some(hit) = rc2k_core::physics::walls::raised_hit(
-                f32::from_bits(CONTACT_WORK.contact_speed_length.bits()),
-                f32::from_bits(CAR.contact_depth.bits()),
+                f32::from_bits(physics_store.contact.contact_speed_length.bits()),
+                f32::from_bits(race.shared.car.contact_depth.bits()),
             ) {
-                CAR.contact_depth.set_bits(hit.to_bits());
+                race.shared.car.contact_depth.set_bits(hit.to_bits());
             }
-            after()
+            after(race, scene)
         }
         walls::Walk::Clear { bits } => {
-            CONTACT_WORK
+            physics_store
+                .contact
                 .wall_face_now
-                .set(CONTACT_WORK.wall_face_before.get());
-            CONTACT_WORK.wall_bits.set(bits);
+                .set(physics_store.contact.wall_face_before.get());
+            physics_store.contact.wall_bits.set(bits);
             if bits != walls::WALL_BITS {
                 return Ok(());
             }
-            CAR.contact_point[0].set_bits(crate::physics::car_store::CAR.local_velocity[0].bits());
-            CAR.contact_point[1].set_bits(crate::physics::car_store::CAR.local_velocity[1].bits());
-            CAR.contact_point[2].set_bits(crate::physics::car_store::CAR.local_velocity[2].bits());
-            crate::physics::wall_push_back::steps()?;
-            after()
+            race.shared.car.contact_point[0].set_bits(race.shared.car.local_velocity[0].bits());
+            race.shared.car.contact_point[1].set_bits(race.shared.car.local_velocity[1].bits());
+            race.shared.car.contact_point[2].set_bits(race.shared.car.local_velocity[2].bits());
+            crate::physics::wall_push_back::steps(race, scene)?;
+            after(race, scene)
         }
     }
 }
 
 /// The probe count checked: 0 or past 0x40 refused.
-pub fn check() -> Result<(), Refused> {
-    Ok(walls::check_probe_count(CAR.probe_count.get())?)
+pub fn check(shared: &Shared) -> Result<(), Refused> {
+    Ok(walls::check_probe_count(shared.car.probe_count.get())?)
 }
 
 /// The Rust version.
-pub fn wall_contacts() -> Result<(), Refused> {
-    check()?;
-    steps()
+pub fn wall_contacts(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    check(&race.shared)?;
+    steps(race, scene)
 }

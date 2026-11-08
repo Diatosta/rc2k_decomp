@@ -4,44 +4,38 @@
 //! `DC` into `dword_71A9A0` (`g_car` +0x9C4, +0x9C0, +0x9C8): the car's angles in the
 //! game's whole-number units (a reading).
 //!
-//! In:  nothing
-//! Out: esi = `g_crashMatrix`; the rest kept; no flags read
+//! Returns: `g_crashMatrix`
 //!
 //! Caller: `physics::update_car_angles`.
 
 use crate::math::x87_run::mul3_to_int;
-use crate::physics::car_store::CAR;
-use crate::physics::matrix_angles::{AnglePlaces, matrix_angles_at};
-use crate::race::numbers_store::NUMBERS;
+use crate::physics::matrix_angles::matrix_angles;
+use crate::race::owner::Race;
 
-/// The Rust core: the matrix at `m`, `matrix_angles`' variables at `p`, the three ints at
-/// `ints` (+4 from the first angle, +0 from the second, +8 from the third).
-pub unsafe fn car_angles_at(m: u32, p: &AnglePlaces, ints: u32) {
-    unsafe {
-        matrix_angles_at(m, p);
-        let scale = |a: u32| {
-            mul3_to_int(
-                a,
-                NUMBERS.k65536.bits(),
-                NUMBERS.k4096.bits(),
-                NUMBERS.one_over_two_pi.bits(),
-            )
-            .wrapping_shl(4)
-        };
-        let angle = |k: u32| {
-            (crate::pointers::host(p.angles) as *const u32)
-                .add(k as usize)
-                .read_unaligned()
-        };
-        for (k, place) in [(0u32, 4u32), (1, 0), (2, 8)] {
-            let v = scale(angle(k));
-            (crate::pointers::host(ints + place) as *mut i32).write_unaligned(v);
-        }
-    }
-}
-
-/// The Rust version.
-pub unsafe fn car_angles() {
-    let m = CAR.crash_matrix[0].addr();
-    unsafe { car_angles_at(m, &AnglePlaces::game(), CAR.car_heading.addr()) };
+/// The Rust version: `matrix_angles` of the crash matrix, each angle scaled to the car's
+/// whole-number angle (pitch, heading, roll).
+pub fn car_angles(race: &Race, scene: &crate::scene::owner::Scene) {
+    matrix_angles(&race.course, &race.shared.car.crash_matrix, scene);
+    let scale = |a: u32| {
+        mul3_to_int(
+            a,
+            race.course.numbers.k65536.bits(),
+            race.course.numbers.k4096.bits(),
+            race.course.numbers.one_over_two_pi.bits(),
+        )
+        .wrapping_shl(4)
+    };
+    let l = &race.course.lists;
+    race.shared
+        .car
+        .car_pitch
+        .set_bits(scale(l.car_pitch.bits()) as u32);
+    race.shared
+        .car
+        .car_heading
+        .set_bits(scale(l.car_heading.bits()) as u32);
+    race.shared
+        .car
+        .car_roll
+        .set_bits(scale(l.car_roll.bits()) as u32);
 }

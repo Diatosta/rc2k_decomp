@@ -4,21 +4,15 @@
 //! less that into `dword_75AC80`; the player's +0xD0 1 when that is at least 100 (no
 //! penalty), else 2.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Caller: `sub_4A8556`. Refuses a current player past 3 or missing, before anything.
+//! Refuses a current player past 3 or missing, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::owner::Menus;
 use crate::menu::standings::*;
-use crate::menu::state_store::MENU_STATE;
 
-/// The Rust version (see the header): the registers it leaves.
-pub fn inspection_verdict() -> Result<(), Refused> {
-    let n: u32 = { EVENT_STATE.current_player.get() };
-    if n >= 4 || player(n) == 0 {
+/// The Rust version.
+pub fn inspection_verdict(menus: &Menus) -> Result<(), Refused> {
+    let n: u32 = menus.screens.event.current_player.get();
+    if n >= 4 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
     // Converted: `rc2k_core::menu::inspection::verdict`.
@@ -26,14 +20,14 @@ pub fn inspection_verdict() -> Result<(), Refused> {
 
     let fault = crate::menu::event_flow::Fault::default();
     let v = rc2k_core::menu::inspection::verdict(
-        |k| fault.ok(past_limit(p, k as u32)),
-        |k| MENU_LISTS.inspection_flags_a[k + 2].get() != 0,
-        |k| MENU_STATE.driver_stats.penalties[k].get(),
+        |k| fault.ok(past_limit(&menus.screens, p, k as u32)),
+        |k| menus.tables.lists.inspection_flags_a[k + 2].get() != 0,
+        |k| menus.screens.state.driver_stats.penalties[k].get(),
     );
     fault.check()?;
-    DRAW_WORK.figure.set(v.penalties);
-    MENU_STATE.driver_stats.score.set(v.score);
-    put(p + 0xD0, v.kind)?;
+    menus.screens.draw_work.figure.set(v.penalties);
+    menus.screens.state.driver_stats.score.set(v.score);
+    p.update(|q| q.entry = v.kind);
 
     Ok(())
 }

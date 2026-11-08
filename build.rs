@@ -3,8 +3,43 @@
 // `third_party/ffmpeg` (neither in git). Their DLLs are copied next to what is built (the
 // program and the test binaries in `deps`): Windows, and Wine running the tests, look for
 // a program's DLLs in its own folder, not on the build's search path.
+// On Linux both are linked into the program: SDL built from its source (`sdl3-sys`'s
+// `build-from-source-static`), FFmpeg's decoders from `tools/build_ffmpeg.sh linux`
+// (`third_party/ffmpeg-linux/lib`, static): one program runs on any distribution with
+// nothing else installed.
 fn main() {
+    // The debug UI: 64-bit builds with a window to draw it over (not 32-bit Windows, whose
+    // Dear ImGui crate has no target; not the handheld, whose frames go to the framebuffer).
+    println!("cargo:rustc-check-cfg=cfg(debug_ui)");
+    // A build instrumented for profile-guided optimisation (`tools/anbernic/pgo.sh` passes it
+    // with `-C profile-generate`): the counts are written as the program ends.
+    println!("cargo:rustc-check-cfg=cfg(rc2k_pgo)");
+    let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+    let bits = std::env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap_or_default();
+    if bits == "64" && arch != "aarch64" {
+        println!("cargo:rustc-cfg=debug_ui");
+    }
     println!("cargo:rerun-if-changed=build.rs");
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux") {
+        let dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+        let folder = match std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() {
+            Ok("aarch64") => "ffmpeg-a64",
+            _ => "ffmpeg-linux",
+        };
+        let lib = format!("{dir}/third_party/{folder}/lib");
+        if !std::path::Path::new(&format!("{lib}/libavcodec.a")).exists() {
+            panic!("no static FFmpeg in {lib}: run tools/build_ffmpeg.sh (linux or a64)");
+        }
+        println!("cargo:rerun-if-changed={lib}");
+        println!("cargo:rustc-link-search=native={lib}");
+        println!("cargo:rustc-link-lib=static=avcodec");
+        println!("cargo:rustc-link-lib=static=avutil");
+        println!("cargo:rustc-link-lib=dylib=m");
+        return;
+    }
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
+        return;
+    }
     let dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     // 32 or 64 bits: SDL's folder for it, and FFmpeg's (`tools/build_ffmpeg.sh x64`).
     let (sdl, ffmpeg) = match std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() {

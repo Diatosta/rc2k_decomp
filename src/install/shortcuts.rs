@@ -8,187 +8,180 @@
 //!   program it ran from, the CD's, which finds the installation in the registry; the
 //!   standalone's record is in the installed folder, so only that copy can remove it;
 //!   2026-10-20);
-//! - "View Readme": `<installed folder>readme.txt`;
+//! - "View Readme": `<installed folder>readme.txt` (named in the case the folder holds it);
 //! - the removal deletes the three and the group's folder (the original's `DeleteGroup`).
+//!
+//! On Unix (phase 11) the items are desktop entries in the user's applications folder
+//! (`~/.local/share/applications`, as Wine makes them from Start menu items).
 //!
 //! And the program installed: `rc2k.exe` and its DLLs copied from the running program's
 //! folder into the current one (the original copies the program named on its command line
 //! to `.\ral.exe` when run from the CD).
 
-use std::ffi::c_void;
 use std::path::{Path, PathBuf};
-use windows_sys::Win32::System::Com::{
-    CLSCTX_INPROC_SERVER, CoCreateInstance, CoInitialize, CoUninitialize,
-};
-use windows_sys::Win32::UI::Shell::{CSIDL_PROGRAMS, SHGetFolderPathW};
-use windows_sys::core::GUID;
 
 /// The group's folder name (the original's `[CreateGroup(Rally Championship)]`).
 pub const GROUP: &str = "Rally Championship";
 /// The program's file, in place of the original's `ral.exe`.
+#[cfg(windows)]
 pub const PROGRAM: &str = "rc2k.exe";
-/// The DLLs the program needs next to it (as `deploy_standalone.sh` copies them).
-pub const DLLS: [&str; 3] = ["SDL3.dll", "avcodec-61.dll", "avutil-59.dll"];
+#[cfg(not(windows))]
+pub const PROGRAM: &str = "rc2k";
+/// The libraries the program needs next to it (as `deploy_standalone.sh` copies them;
+/// on Unix the system's).
+#[cfg(windows)]
+pub const DLLS: &[&str] = &["SDL3.dll", "avcodec-61.dll", "avutil-59.dll"];
+#[cfg(not(windows))]
+pub const DLLS: &[&str] = &[];
 
-const CLSID_SHELL_LINK: GUID = GUID::from_u128(0x00021401_0000_0000_c000_000000000046);
-const IID_SHELL_LINK_W: GUID = GUID::from_u128(0x000214f9_0000_0000_c000_000000000046);
-const IID_PERSIST_FILE: GUID = GUID::from_u128(0x0000010b_0000_0000_c000_000000000046);
-
-// Vtable slots.
-const QUERY_INTERFACE: usize = 0;
-const RELEASE: usize = 2;
-const LINK_SET_DESCRIPTION: usize = 7;
-const LINK_SET_WORKING_DIRECTORY: usize = 9;
-const LINK_SET_ARGUMENTS: usize = 11;
-const LINK_SET_PATH: usize = 20;
-const PERSIST_SAVE: usize = 6;
-
-fn wide(s: &str) -> Vec<u16> {
-    s.encode_utf16().chain(Some(0)).collect()
+/// The three items: (name, target in the installed folder, arguments).
+fn items(installed: &Path) -> [(&'static str, PathBuf, &'static str); 3] {
+    [
+        ("Rally", installed.join(PROGRAM), ""),
+        ("Uninstall Rally", installed.join(PROGRAM), "-u"),
+        ("View Readme", installed.join(readme_name(installed)), ""),
+    ]
 }
 
-fn wide_path(p: &Path) -> Vec<u16> {
-    wide(&p.to_string_lossy())
-}
-
-unsafe fn slot(object: *mut c_void, n: usize) -> usize {
-    unsafe { *(*(object as *const *const usize)).add(n) }
-}
-
-unsafe fn release(object: *mut c_void) {
-    unsafe {
-        let f: unsafe extern "system" fn(*mut c_void) -> u32 =
-            std::mem::transmute(slot(object, RELEASE));
-        f(object);
-    }
-}
-
-unsafe fn call_text(object: *mut c_void, n: usize, text: &[u16]) -> i32 {
-    unsafe {
-        let f: unsafe extern "system" fn(*mut c_void, *const u16) -> i32 =
-            std::mem::transmute(slot(object, n));
-        f(object, text.as_ptr())
-    }
-}
-
-/// The user's Start menu Programs folder.
-fn programs_folder() -> Option<PathBuf> {
-    let mut path = [0u16; 260];
-    let hr = unsafe {
-        SHGetFolderPathW(
-            std::ptr::null_mut(),
-            CSIDL_PROGRAMS as i32,
-            std::ptr::null_mut(),
-            0,
-            path.as_mut_ptr(),
-        )
-    };
-    if hr < 0 {
-        return None;
-    }
-    let len = path.iter().position(|&c| c == 0).unwrap_or(path.len());
-    Some(PathBuf::from(String::from_utf16_lossy(&path[..len])))
-}
-
-fn group_folder() -> Option<PathBuf> {
-    programs_folder().map(|p| p.join(GROUP))
-}
-
-/// One shortcut written; false when COM or the shell refused.
-unsafe fn write_link(at: &Path, target: &Path, arguments: &str, name: &str) -> bool {
-    unsafe {
-        let mut link: *mut c_void = std::ptr::null_mut();
-        if CoCreateInstance(
-            &CLSID_SHELL_LINK,
-            std::ptr::null_mut(),
-            CLSCTX_INPROC_SERVER,
-            &IID_SHELL_LINK_W,
-            &mut link,
-        ) < 0
-            || link.is_null()
-        {
-            return false;
-        }
-        let folder = target.parent().map(wide_path).unwrap_or_else(|| wide(""));
-        let mut ok = call_text(link, LINK_SET_PATH, &wide_path(target)) >= 0
-            && call_text(link, LINK_SET_WORKING_DIRECTORY, &folder) >= 0
-            && call_text(link, LINK_SET_ARGUMENTS, &wide(arguments)) >= 0
-            && call_text(link, LINK_SET_DESCRIPTION, &wide(name)) >= 0;
-        if ok {
-            let query: unsafe extern "system" fn(
-                *mut c_void,
-                *const GUID,
-                *mut *mut c_void,
-            ) -> i32 = std::mem::transmute(slot(link, QUERY_INTERFACE));
-            let mut file: *mut c_void = std::ptr::null_mut();
-            ok = query(link, &IID_PERSIST_FILE, &mut file) >= 0 && !file.is_null();
-            if ok {
-                let save: unsafe extern "system" fn(*mut c_void, *const u16, i32) -> i32 =
-                    std::mem::transmute(slot(file, PERSIST_SAVE));
-                ok = save(file, wide_path(at).as_ptr(), 1) >= 0;
-                release(file);
-            }
-        }
-        release(link);
-        ok
-    }
-}
-
-/// COM for the calls in `f` (the thread may have it already).
-fn with_com<T>(f: impl FnOnce() -> T) -> T {
-    let hr = unsafe { CoInitialize(std::ptr::null()) };
-    let value = f();
-    if hr >= 0 {
-        unsafe { CoUninitialize() };
-    }
-    value
-}
-
-/// A C text at `at` as a path (the game's folders end in `\`).
-pub unsafe fn c_path(at: *const u8) -> PathBuf {
-    let text = unsafe { std::ffi::CStr::from_ptr(at as *const std::ffi::c_char) };
-    PathBuf::from(text.to_string_lossy().into_owned())
+/// The readme's name as the installed folder holds it: the copy keeps the source's case
+/// (`README.TXT`), which a case-sensitive system needs named exactly; else `readme.txt`.
+fn readme_name(installed: &Path) -> std::ffi::OsString {
+    std::fs::read_dir(installed)
+        .ok()
+        .and_then(|entries| {
+            entries.flatten().map(|e| e.file_name()).find(|n| {
+                n.to_str()
+                    .is_some_and(|n| n.eq_ignore_ascii_case("readme.txt"))
+            })
+        })
+        .unwrap_or_else(|| "readme.txt".into())
 }
 
 /// The three items, all in `installed`, the installed folder.
 pub fn add_start_menu_items(installed: &Path) {
-    let Some(group) = group_folder() else {
-        crate::framework::log("install: no Start menu Programs folder; no items added");
-        return;
-    };
-    if let Err(e) = std::fs::create_dir_all(&group) {
-        crate::framework::log(&format!("install: {}: {e}", group.display()));
-        return;
-    }
-    let items = [
-        ("Rally", installed.join(PROGRAM), ""),
-        ("Uninstall Rally", installed.join(PROGRAM), "-u"),
-        ("View Readme", installed.join("readme.txt"), ""),
-    ];
-    with_com(|| {
-        for (name, target, arguments) in items {
-            let at = group.join(format!("{name}.lnk"));
-            let done = unsafe { write_link(&at, &target, arguments, name) };
-            crate::framework::log(&format!(
-                "install: Start menu item {} -> {} {arguments}: {}",
-                at.display(),
-                target.display(),
-                if done { "written" } else { "failed" }
-            ));
-        }
-    });
+    start_menu::add(installed);
 }
 
 /// The group and its items removed.
 pub fn remove_start_menu_items() {
-    let Some(group) = group_folder() else {
-        return;
-    };
-    let gone = std::fs::remove_dir_all(&group);
-    crate::framework::log(&format!(
-        "install: Start menu group {} removed: {gone:?}",
-        group.display()
-    ));
+    start_menu::remove();
+}
+
+#[cfg(windows)]
+mod start_menu {
+    use super::{GROUP, items};
+    use crate::ffi::win32::{programs_folder, with_com, write_link};
+    use std::path::{Path, PathBuf};
+
+    fn group_folder() -> Option<PathBuf> {
+        programs_folder().map(|p| p.join(GROUP))
+    }
+
+    /// The three items, all in `installed`, the installed folder.
+    pub fn add(installed: &Path) {
+        let Some(group) = group_folder() else {
+            crate::framework::log("install: no Start menu Programs folder; no items added");
+            return;
+        };
+        if let Err(e) = std::fs::create_dir_all(&group) {
+            crate::framework::log(&format!("install: {}: {e}", group.display()));
+            return;
+        }
+        let items = items(installed);
+        with_com(|| {
+            for (name, target, arguments) in items {
+                let at = group.join(format!("{name}.lnk"));
+                let done = write_link(&at, &target, arguments, name);
+                crate::framework::log(&format!(
+                    "install: Start menu item {} -> {} {arguments}: {}",
+                    at.display(),
+                    target.display(),
+                    if done { "written" } else { "failed" }
+                ));
+            }
+        });
+    }
+
+    /// The group and its items removed.
+    pub fn remove() {
+        let Some(group) = group_folder() else {
+            return;
+        };
+        let gone = std::fs::remove_dir_all(&group);
+        crate::framework::log(&format!(
+            "install: Start menu group {} removed: {gone:?}",
+            group.display()
+        ));
+    }
+}
+
+#[cfg(unix)]
+mod start_menu {
+    use super::{GROUP, items};
+    use std::path::{Path, PathBuf};
+
+    /// The user's applications folder.
+    fn applications() -> Option<PathBuf> {
+        let data = std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))?;
+        Some(data.join("applications"))
+    }
+
+    /// An item's desktop entry's file.
+    fn entry_file(folder: &Path, name: &str) -> PathBuf {
+        let id = format!("{GROUP} {name}").to_lowercase().replace(' ', "-");
+        folder.join(format!("{id}.desktop"))
+    }
+
+    pub fn add(installed: &Path) {
+        let Some(folder) = applications() else {
+            crate::framework::log("install: no applications folder; no items added");
+            return;
+        };
+        if let Err(e) = std::fs::create_dir_all(&folder) {
+            crate::framework::log(&format!("install: {}: {e}", folder.display()));
+            return;
+        }
+        for (name, target, arguments) in items(installed) {
+            let at = entry_file(&folder, name);
+            let quoted = |p: &Path| format!("\"{}\"", p.display());
+            let exec = if target
+                .extension()
+                .is_some_and(|e| e.eq_ignore_ascii_case("txt"))
+            {
+                format!("xdg-open {}", quoted(&target))
+            } else {
+                format!("{} {arguments}", quoted(&target))
+                    .trim_end()
+                    .to_string()
+            };
+            let text = format!(
+                "[Desktop Entry]\nType=Application\nName={name}\nExec={exec}\nPath={}\nCategories=Game;\n",
+                installed.display()
+            );
+            let done = std::fs::write(&at, text);
+            crate::framework::log(&format!(
+                "install: menu item {} -> {exec}: {}",
+                at.display(),
+                if done.is_ok() { "written" } else { "failed" }
+            ));
+        }
+    }
+
+    pub fn remove() {
+        let Some(folder) = applications() else {
+            return;
+        };
+        for (name, ..) in items(Path::new("")) {
+            let at = entry_file(&folder, name);
+            let gone = std::fs::remove_file(&at);
+            crate::framework::log(&format!(
+                "install: menu item {} removed: {gone:?}",
+                at.display()
+            ));
+        }
+    }
 }
 
 /// The program and its DLLs copied from the running program's folder into the current one,

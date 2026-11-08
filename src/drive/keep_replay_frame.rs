@@ -4,18 +4,12 @@
 //! `g_carBlockStore`) kept in slot frame & 7 of `unk_6EF7E8`, and while recording
 //! (`dword_5C5CE0` 1) `drive::save_replay_cars`.
 //!
-//! In:  nothing
-//! Out: eax / edx / ebx as the `div` leaves them (not playing), at a whole frame eax the
-//!      slot's offset (`imul`), ecx 0, esi / edi past the copy, or as `save_replay_cars` leaves them; the rest kept; no
-//!      flags read
-//!
 //! Caller: `drive::replay_step`.
 
-use crate::drive::replay_frames_store::REPLAY_FRAMES;
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
+use crate::pointers::copy_cells;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::numbers_store::NUMBERS;
+use crate::race::owner::Race;
 use rc2k_core::drive::replay_frames::{
     PLAYING, RECORDING, SLOT_SIZE, frame_and_tenth, slot_offset,
 };
@@ -24,24 +18,24 @@ const SIZE: usize = SLOT_SIZE as usize;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{frame_and_tenth, slot_offset}`.
-pub fn keep_replay_frame() -> Result<(), BadInput> {
-    REPLAY_FRAMES.frame.set(0);
-    REPLAY_FRAMES.tenth.set(0);
-    if NUMBERS.replay_mode.get() != PLAYING {
+pub fn keep_replay_frame(race: &Race) -> Result<(), BadInput> {
+    race.replay.replay_frames.frame.set(0);
+    race.replay.replay_frames.tenth.set(0);
+    if race.course.numbers.replay_mode.get() != PLAYING {
         let (frame, tenth) = frame_and_tenth(CAR_BLOCKS.cars[0].step_clock.bits());
-        REPLAY_FRAMES.frame.set(frame);
-        REPLAY_FRAMES.tenth.set(tenth);
+        race.replay.replay_frames.frame.set(frame);
+        race.replay.replay_frames.tenth.set(tenth);
     }
-    if REPLAY_FRAMES.tenth.get() == 0 {
-        let offset = slot_offset(REPLAY_FRAMES.frame.get());
-        let to = REPLAY_FRAMES.slots.addr() + offset;
-        GamePtr::new(crate::race::blocks_store::block_addr(0)).copy_to(
-            GamePtr::new(to),
+    if race.replay.replay_frames.tenth.get() == 0 {
+        let offset = slot_offset(race.replay.replay_frames.frame.get());
+        // The first four blocks (`SLOT_SIZE` is four of them).
+        copy_cells(
+            (&CAR_BLOCKS.cars, 0),
+            (&race.replay.replay_frames.slots, offset as usize),
             SIZE,
-            "a car's block",
-        )?;
-        if NUMBERS.replay_mode.get() == RECORDING {
-            crate::drive::save_replay_cars::save_replay_cars()?;
+        );
+        if race.course.numbers.replay_mode.get() == RECORDING {
+            crate::drive::save_replay_cars::save_replay_cars(race);
         }
     }
     Ok(())

@@ -4,45 +4,46 @@
 //! (`g_carBlocks[g_currentCar]`) +0xFD0 .. gives them, or, for the car recorded
 //! (`dword_52A920`), takes them.
 //!
-//! In:  nothing
-//! Out: eax .. edx the readings (eax the car with a replay on), esi the device or the
-//!      block; the rest kept; no flags read
-//!
-//! Callers: `drive::car_controls` (`sub_43A1CA`), `sub_460835`, `sub_460B2F`. Refuses
-//! (before anything) a current car past 7, and what `device_axes` refuses.
+//! Callers: `drive::car_controls` (0x43A1CA), `race::step_replay_cars`, `drive::replay_step`.
+//! Refuses (before anything) a current car past 7, and what `device_axes` refuses.
 
 use crate::errors::Refused;
-use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
-use crate::race::frame_store::FRAME_WORK;
-use crate::race::work_store::RACE_WORK;
+use crate::net::owner::net;
+use crate::race::owner::Race;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::inputs::{check_car, device_words, replay_words}`.
-pub fn car_input_words() -> Result<(), Refused> {
+pub fn car_input_words(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
+    let vars = &net().vars;
+    let race_owner = race;
+    let frame = &race.frame;
     use rc2k_core::drive::inputs::{NO_DEVICE, ReplayWords, check_car, device_words, replay_words};
-    let car = RACE_WORK.current_car.get();
+    let car = race_owner.shared.work.current_car.get();
     check_car(car)?;
-    let device = FRAME_WORK.listed_car_sounds[car as usize].get();
+    let device = frame.frame_work.listed_car_sounds[car as usize].get();
     let readings = if device != NO_DEVICE {
-        Some(crate::drive::device_axes::device_axes(device)?)
+        Some(crate::drive::device_axes::device_axes(device, input)?)
     } else {
         None
     };
     let words = device_words(readings);
     for (k, v) in words.iter().enumerate() {
-        PHYSICS.input_words[k].set(*v);
+        race_owner.shared.physics_tables.input_words[k].set(*v);
     }
-    if crate::net::store::NET.session.get() != 0 {
-        let block = RACE_WORK.car_block(car as usize).wrapping_add(0xFD0);
-        for k in 0..4u32 {
-            let at = GamePtr::new(block.wrapping_add(4 * k));
-            match replay_words(car, crate::net::store::NET.player.get()) {
+    if vars.session.get() != 0 {
+        let block = crate::race::blocks_store::block_at(
+            race_owner.shared.work.car_block(car as usize),
+            "a car's block",
+        )?;
+        // +0xFD0: the second half of `unknown_fc0`.
+        for k in 0..4usize {
+            let at = &block.unknown_fc0[4 + k];
+            match replay_words(car, vars.player.get()) {
                 ReplayWords::FromBlock => {
-                    PHYSICS.input_words[k as usize].set(at.read::<u32>("a car's block")?)
+                    race_owner.shared.physics_tables.input_words[k].set(at.get());
                 }
                 ReplayWords::IntoBlock => {
-                    at.write(PHYSICS.input_words[k as usize].get(), "a car's block")?
+                    at.set(race_owner.shared.physics_tables.input_words[k].get());
                 }
             }
         }

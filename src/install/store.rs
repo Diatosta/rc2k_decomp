@@ -16,6 +16,7 @@ use crate::session::{Byte, Bytes, Dword, with_runs};
 
 /// IDA 0x529DAD .. 0x52A263.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct InstallVars {
     /// Not in the image: one byte so that the dwords are aligned (the block starts on an odd address).
     pub _lead: Byte,
@@ -29,7 +30,7 @@ pub struct InstallVars {
     pub clio_file: Bytes<20>,
     /// 0x529DCC: `byte_529DCC`: the installer's script for the Clio (`install::install_clio`).
     pub clio_script: Bytes<28>,
-    /// 0x529DE8: `unk_529DE8` ..: 64 pointers into the texts below and elsewhere (the credits'; repointed at start-up; nothing in the ported code reads them).
+    /// 0x529DE8: the texts of string ids 0x1000 .. 0x103F (`dword_525DE8[id]`, `strings::string_table::ptr_high`): the IDA address of each, a name.
     pub text_pointers: [Dword; 64],
     /// 0x529EE8: The credits' first texts (`aUmlaut`, `aCraigGriffiths`).
     pub credits_a: Bytes<27>,
@@ -37,9 +38,13 @@ pub struct InstallVars {
     pub clio_car_name: Bytes<27>,
     /// 0x529F1E: The Clio's descriptions (`a1121`, `aSolutionFTuned`, `aRearWheel` ..) in the languages, and the credits' texts.
     pub credits_b: Bytes<837>,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<1>,
 }
 
-pub static INSTALL: InstallVars = InstallVars {
+impl InstallVars {
+    pub const fn new() -> Self {
+        InstallVars {
     _lead: Byte::new(0),
     _gap_529dad: Bytes::new([0; 3]),
     running_from_cd: Dword::new(0),
@@ -50,19 +55,19 @@ pub static INSTALL: InstallVars = InstallVars {
     credits_a: Bytes::new(with_runs::<27>(&[(0, b"\xe5\x00umlaut\x00\xa7\x00Craig Griffiths")])),
     clio_car_name: Bytes::new(with_runs::<27>(&[(0, b"renault clio sport V6 (A7)")])),
     credits_b: Bytes::new(with_runs::<837>(&[(0, b"11.2:1\x00solution F tuned V6\x0aRS 24 valves\x00rear wheel\x00\xb7 Renault Sport developed chassis and\x0a  engine rekindles the spirit of the\x0a  legendary mid-engined Renault 5 turbo\x0a\x0a\xb7 mid-engine layout for optimal weight\x0a  distribution and dynamic performance\x0a\x0a\xb7 the 3 litre V6 24V engine delivers\x0a  over 280bhp in race trim\x0a\x0a\xb7 developed for a one-make racing\x0a  series with a limited production\x0a  run of road-going models\x0a\x0a\x00V6 24 soupapes\x0a\x09de\x02v\x02eloppe par sol\x01ution F\x00traction arri\xe8re\x00\xb7 les ch\xe2ssis et moteur d\xe9velopp\xe9s par\x0a  Renault Sport reprennent l'esprit du\x0a  l\xe9gendaire moteur central de la\x0a  Renault 5 turbo\x0a\x0a\xb7 support moteur central pour une\x0a  parfaite r\xe9partition du poids et des\x0a  performances optimales\x0a\x0a\xb7 le moteur 3 litres, V6 24 soupapes\x0a  produit plus de 280 ch. en course\x0a\x0a\xb7 d\xe9velopp\xe9e pour des courses\x0a  exclusives et en serie limit\xe9e")])),
-};
+    _tail: Bytes::new([0; 1]),
+        }
+    }
+}
 
 impl InstallVars {
     pub const START: usize = 0x529DAD;
     pub const LEN: usize = 0x4B6;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(&INSTALL as *const InstallVars) + 1) as usize
-    }
 }
 
 /// IDA 0x52A30F .. 0x52A4B0.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct DriveRows {
     /// 0x52A30F: `byte_52A30F`: the installer's drive rows, 0x10 bytes each (letter, a byte, the text).
     pub drive_rows: Bytes<400>,
@@ -70,85 +75,91 @@ pub struct DriveRows {
     pub _gap_52a49f: Bytes<17>,
 }
 
-pub static DRIVE_ROWS: DriveRows = DriveRows {
-    drive_rows: Bytes::new(with_runs::<400>(&[
-        (0, b"a:"),
-        (16, b"b:"),
-        (32, b"c:"),
-        (48, b"d:"),
-        (64, b"e:"),
-        (80, b"f:"),
-        (96, b"g:"),
-        (112, b"h:"),
-        (128, b"i:"),
-        (144, b"j:"),
-        (160, b"k:"),
-        (176, b"l:"),
-        (192, b"m:"),
-        (208, b"n:"),
-        (224, b"o:"),
-        (240, b"p:"),
-        (256, b"q:"),
-        (272, b"r:"),
-        (288, b"s:"),
-        (304, b"t:"),
-        (320, b"u:"),
-        (336, b"v:"),
-        (352, b"w:"),
-        (368, b"x:"),
-        (384, b"y:"),
-    ])),
-    _gap_52a49f: Bytes::new(with_runs::<17>(&[(0, b"z:")])),
-};
+impl DriveRows {
+    pub const fn new() -> Self {
+        DriveRows {
+            drive_rows: Bytes::new(with_runs::<400>(&[
+                (0, b"a:"),
+                (16, b"b:"),
+                (32, b"c:"),
+                (48, b"d:"),
+                (64, b"e:"),
+                (80, b"f:"),
+                (96, b"g:"),
+                (112, b"h:"),
+                (128, b"i:"),
+                (144, b"j:"),
+                (160, b"k:"),
+                (176, b"l:"),
+                (192, b"m:"),
+                (208, b"n:"),
+                (224, b"o:"),
+                (240, b"p:"),
+                (256, b"q:"),
+                (272, b"r:"),
+                (288, b"s:"),
+                (304, b"t:"),
+                (320, b"u:"),
+                (336, b"v:"),
+                (352, b"w:"),
+                (368, b"x:"),
+                (384, b"y:"),
+            ])),
+            _gap_52a49f: Bytes::new(with_runs::<17>(&[(0, b"z:")])),
+        }
+    }
+}
 
 impl DriveRows {
     pub const START: usize = 0x52A30F;
     pub const LEN: usize = 0x1A1;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&DRIVE_ROWS as *const DriveRows) as usize
+}
+
+/// IDA 0x5AB419 .. 0x5AB490: plain immutable texts, each NUL-ended in its room (read with
+/// `text_of`).
+pub struct LobbyKeys {
+    /// 0x5AB419: `aSoftwareMicros`: "SOFTWARE\Microsoft\DirectPlay\Applications\RC" (`install::register_lobby`).
+    pub registry_key: [u8; 74],
+    /// 0x5AB463: `aGuid`.
+    pub name_guid: [u8; 5],
+    /// 0x5AB468: `aFile`.
+    pub name_file: [u8; 5],
+    /// 0x5AB46D: `aCommandline`.
+    pub name_command_line: [u8; 12],
+    /// 0x5AB479: `aPath`.
+    pub name_path: [u8; 5],
+    /// 0x5AB47E: `aCurrentdirecto`.
+    pub name_current_directory: [u8; 17],
+    /// 0x5AB48F: Not named: 1 bytes (a gap, or text or data nothing reads here).
+    pub _gap_5ab48f: [u8; 1],
+}
+
+impl LobbyKeys {
+    pub const fn new() -> Self {
+        LobbyKeys {
+            registry_key: with_runs::<74>(&[(
+                0,
+                b"SOFTWARE\\Microsoft\\DirectPlay\\Applications\\RC",
+            )]),
+            name_guid: with_runs::<5>(&[(0, b"Guid")]),
+            name_file: with_runs::<5>(&[(0, b"File")]),
+            name_command_line: with_runs::<12>(&[(0, b"CommandLine")]),
+            name_path: with_runs::<5>(&[(0, b"Path")]),
+            name_current_directory: with_runs::<17>(&[(0, b"CurrentDirectory")]),
+            _gap_5ab48f: [0; 1],
+        }
     }
 }
 
-/// IDA 0x5AB419 .. 0x5AB490.
-#[repr(C)]
-pub struct LobbyKeys {
-    /// 0x5AB419: `aSoftwareMicros`: "SOFTWARE\Microsoft\DirectPlay\Applications\RC" (`install::register_lobby`).
-    pub registry_key: Bytes<74>,
-    /// 0x5AB463: `aGuid`.
-    pub name_guid: Bytes<5>,
-    /// 0x5AB468: `aFile`.
-    pub name_file: Bytes<5>,
-    /// 0x5AB46D: `aCommandline`.
-    pub name_command_line: Bytes<12>,
-    /// 0x5AB479: `aPath`.
-    pub name_path: Bytes<5>,
-    /// 0x5AB47E: `aCurrentdirecto`.
-    pub name_current_directory: Bytes<17>,
-    /// 0x5AB48F: Not named: 1 bytes (a gap, or text or data nothing reads here).
-    pub _gap_5ab48f: Bytes<1>,
+/// The bytes up to the first NUL (or all of them): a text kept in a field of `LobbyKeys`.
+pub fn text_of(field: &[u8]) -> &[u8] {
+    &field[..field.iter().position(|&c| c == 0).unwrap_or(field.len())]
 }
 
-pub static LOBBY_KEYS: LobbyKeys = LobbyKeys {
-    registry_key: Bytes::new(with_runs::<74>(&[(
-        0,
-        b"SOFTWARE\\Microsoft\\DirectPlay\\Applications\\RC",
-    )])),
-    name_guid: Bytes::new(with_runs::<5>(&[(0, b"Guid")])),
-    name_file: Bytes::new(with_runs::<5>(&[(0, b"File")])),
-    name_command_line: Bytes::new(with_runs::<12>(&[(0, b"CommandLine")])),
-    name_path: Bytes::new(with_runs::<5>(&[(0, b"Path")])),
-    name_current_directory: Bytes::new(with_runs::<17>(&[(0, b"CurrentDirectory")])),
-    _gap_5ab48f: Bytes::new([0; 1]),
-};
-
+#[cfg(test)]
 impl LobbyKeys {
     pub const START: usize = 0x5AB419;
     pub const LEN: usize = 0x77;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&LOBBY_KEYS as *const LobbyKeys) as usize
-    }
 }
 
 #[cfg(test)]
@@ -175,7 +186,7 @@ mod tests {
     #[test]
     fn start_as_the_games_image_and_keep_its_layout() {
         check(
-            &INSTALL as *const InstallVars as *const u8,
+            (&raw const crate::install::owner::INSTALL.vars).cast::<u8>(),
             size_of::<InstallVars>(),
             1,
             InstallVars::START,
@@ -214,7 +225,7 @@ mod tests {
             1 + 0x529F1E - InstallVars::START
         );
         check(
-            &DRIVE_ROWS as *const DriveRows as *const u8,
+            (&raw const crate::install::owner::INSTALL.drive_rows).cast::<u8>(),
             size_of::<DriveRows>(),
             0,
             DriveRows::START,
@@ -224,36 +235,20 @@ mod tests {
             offset_of!(DriveRows, drive_rows),
             0x52A30F - DriveRows::START
         );
-        check(
-            &LOBBY_KEYS as *const LobbyKeys as *const u8,
-            size_of::<LobbyKeys>(),
-            0,
-            LobbyKeys::START,
-            LobbyKeys::LEN,
-        );
+        let keys = &crate::install::owner::INSTALL.lobby_keys;
+        let mine = [
+            &keys.registry_key[..],
+            &keys.name_guid,
+            &keys.name_file,
+            &keys.name_command_line,
+            &keys.name_path,
+            &keys.name_current_directory,
+            &keys._gap_5ab48f,
+        ]
+        .concat();
         assert_eq!(
-            offset_of!(LobbyKeys, registry_key),
-            0x5AB419 - LobbyKeys::START
-        );
-        assert_eq!(
-            offset_of!(LobbyKeys, name_guid),
-            0x5AB463 - LobbyKeys::START
-        );
-        assert_eq!(
-            offset_of!(LobbyKeys, name_file),
-            0x5AB468 - LobbyKeys::START
-        );
-        assert_eq!(
-            offset_of!(LobbyKeys, name_command_line),
-            0x5AB46D - LobbyKeys::START
-        );
-        assert_eq!(
-            offset_of!(LobbyKeys, name_path),
-            0x5AB479 - LobbyKeys::START
-        );
-        assert_eq!(
-            offset_of!(LobbyKeys, name_current_directory),
-            0x5AB47E - LobbyKeys::START
+            mine,
+            crate::moved::image_bytes(LobbyKeys::START, LobbyKeys::LEN)
         );
     }
 }

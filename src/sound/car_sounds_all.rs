@@ -1,8 +1,6 @@
 //! `sound::car_sounds_all` (0x40D7AB): the turn's sounds of every car: the players' cars
 //! each, and of the computer's only the two nearest the listener.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` / `popa`)
 //! Unless `dword_514F7C` (the objects in use) is 0: for each object whose +8 is 1, a
 //! player's (+0 not negative) gets `sound::car_sounds` (eax its number) at once; of the
 //! others the squared distance (+0x2C .. +0x34 squared and added, through `flt_514F88`)
@@ -21,55 +19,54 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::{ld, st};
-use crate::sound::store::{RACE_SOUNDS, SoundObject};
-use crate::sound::turn_parts::object;
+use crate::sound::store::SoundObject;
 
 // ---- Rust version ----
 
 /// Every car's sounds for the turn: the players' each, of the computer's the two nearest
 /// the listener (each keeping its voice).
-pub fn car_sounds_all() -> Result<(), Refused> {
-    let count = RACE_SOUNDS.count.get();
+pub fn car_sounds_all(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+    let count = sound.race.sounds.count.get();
     if count == 0 {
         return Ok(());
     }
     if count > 8 {
         return Err(BadInput("a sound object count over 8").into());
     }
-    if (0..count).any(|n| object(n) == 0) {
-        return Err(BadInput("a null sound object").into());
-    }
     // Converted: `rc2k_core::sound::turn::Nearest` (the choice; `car_sounds` keeps the
     // registers it is held in).
     use rc2k_core::sound::turn::{NEAREST_MARK, NEXT_MARK, Nearest};
     let mut nearest = Nearest::default();
     for n in 0..count {
-        let o = SoundObject::at(object(n))?;
+        let o = SoundObject::number(n)?;
         if o.in_use.get() != 1 {
             continue;
         }
         if o.sound_offset.get() as i32 >= 0 {
-            crate::sound::car_sounds::car_sounds(n)?;
+            crate::sound::car_sounds::car_sounds(n, sound)?;
             continue;
         }
-        x87_1(o, &RACE_SOUNDS);
-        nearest.consider(n, RACE_SOUNDS.nearest_distance.bits());
+        x87_1(o, &sound.race.sounds);
+        nearest.consider(n, sound.race.sounds.nearest_distance.bits());
     }
-    let (first, second) = nearest.kept(RACE_SOUNDS.nearest.get(), RACE_SOUNDS.next.get());
-    RACE_SOUNDS.nearest.set(first);
-    RACE_SOUNDS.next.set(second);
+    let (first, second) = nearest.kept(
+        sound.race.sounds.nearest.get(),
+        sound.race.sounds.next.get(),
+    );
+    sound.race.sounds.nearest.set(first);
+    sound.race.sounds.next.set(second);
     for (which, mark) in [
-        (&RACE_SOUNDS.nearest, NEAREST_MARK),
-        (&RACE_SOUNDS.next, NEXT_MARK),
+        (&sound.race.sounds.nearest, NEAREST_MARK),
+        (&sound.race.sounds.next, NEXT_MARK),
     ] {
         let n = which.get();
         if (n as i32) < 0 {
             continue;
         }
-        let o = SoundObject::at(object(n))?;
+        let o = SoundObject::number(n)?;
         let kept = o.sound_offset.get();
         o.sound_offset.set(mark);
-        crate::sound::car_sounds::car_sounds(n)?;
+        crate::sound::car_sounds::car_sounds(n, sound)?;
         o.sound_offset.set(kept);
     }
     Ok(())
@@ -124,7 +121,7 @@ mod asm_reference {
                     unsafe {
                         &*(crate::pointers::host_at(a[1]) as *const crate::sound::store::RaceSounds)
                     },
-                )
+                );
             },
         }]
     }

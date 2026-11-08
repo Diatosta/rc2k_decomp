@@ -1,37 +1,32 @@
 //! `hud::draw_hud` (0x4B1CD0): the race's HUD: `hud::set_batch_depth`; the batch empty and
-//! without a texture (`dword_75C038` -1); the record `unk_6D13FE`'s times in tenths
-//! (`hud::tenths`); by its +0xF4 `hud::layout_1` (1), `hud::layout_2` (2) or
-//! `hud::layout_0`; then `hud::flush_batch`.
+//! without a texture (`batch_texture` -1); the panel's times in tenths (`hud::tenths`); by
+//! `Panel::players` `hud::layout_1` (1), `hud::layout_2` (2) or `hud::layout_0`; then
+//! `hud::flush_batch`.
 //!
-//! In:  nothing
-//! Out: ebp the record; the rest as the flush leaves them
-//!
-//! Caller: `sub_45A893` (0x45A8F0).
+//! Caller: `hud::overlay_pass` (0x45A8F0).
 
 use crate::errors::Refused;
-use crate::hud::store::HUD;
-use crate::pointers::GamePtr;
-use crate::race::panel_store::PANEL;
+use crate::hud::owner::Hud;
+use crate::race::owner_frame::Frame;
 
 /// The Rust version (see the header). What the original leaves in the registers is read
 /// by none of its callers (register liveness, 2026-10-23).
 // Converted: `rc2k_core::hud::batch::{Layout, NO_TEXTURE}`
-pub fn draw_hud() -> Result<(), Refused> {
+pub fn draw_hud(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     use crate::hud::*;
     use rc2k_core::hud::batch;
     {
-        set_batch_depth::set_batch_depth();
-        HUD.batch_texture.set(batch::NO_TEXTURE);
-        HUD.vertex_count.set(0);
-        HUD.index_count.set(0);
-        let record = PANEL.split_6.addr();
-        tenths::tenths(record)?;
-        match batch::Layout::of(GamePtr::new(record + 0xF4).read::<u32>("a hud record's field")?) {
-            batch::Layout::Single => layout_0::layout_0(record)?,
-            batch::Layout::One => layout_1::layout_1(record)?,
-            batch::Layout::Two => layout_2::layout_2(record)?,
+        set_batch_depth::set_batch_depth(hud);
+        hud.block.batch_texture.set(batch::NO_TEXTURE);
+        hud.block.vertex_count.set(0);
+        hud.block.index_count.set(0);
+        tenths::tenths(frame, hud);
+        match batch::Layout::of(frame.panel_and_overlay.panel.players.get()) {
+            batch::Layout::Single => layout_0::layout_0(frame, hud)?,
+            batch::Layout::One => layout_1::layout_1(frame, hud)?,
+            batch::Layout::Two => layout_2::layout_2(frame, hud)?,
         }
-        flush_batch::flush_batch();
+        flush_batch::flush_batch(hud);
     }
     Ok(())
 }

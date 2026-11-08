@@ -1,12 +1,10 @@
 //! `install::read_sku` (0x411696): reads the edition file `files\d\gfx\sku`.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! A settings text with the key `sku`. Its value may start with the marks `oem:` and
 //! `dvd:`, in any order and number, each setting a switch to 1 (`dword_5190F8`,
 //! `dword_5190FC`); then a number (`dword_5190F4`), after the next `:` a second
 //! (`byte_519101`) and after the next `.` within 254 characters a third (`byte_519100`).
-//! What is not there keeps its value. One caller, `sub_411239`.
+//! What is not there keeps its value. One caller, `system::load_game_data`.
 
 use crate::errors::BadInput;
 use crate::session::{Byte, Bytes, Dword, with_runs};
@@ -18,37 +16,36 @@ use rc2k_core::install::config;
 
 // ---- Rust version ----
 
-pub fn read_sku(path: *const u8) -> Result<(), BadInput> {
+pub fn read_sku(
+    install: &'static crate::install::owner::Install,
+    path: &[u8],
+) -> Result<(), BadInput> {
     let Some((text, _)) = read_text(path)? else {
         return Ok(());
     };
     // Converted: `rc2k_core::install::config::read_sku` (the key as its constant).
-    let Some(sku) = config::read_sku(
-        &crate::pointers::GamePtr::new(crate::pointers::game_address(text))
-            .bytes("the install record")?,
-        &case_table(),
-    )?
-    else {
+    let Some(sku) = config::read_sku(&text.bytes("the install record")?, &case_table())? else {
         return Ok(());
     };
     if sku.oem {
-        SKU.oem.set(1u32);
+        install.sku.oem.set(1u32);
     }
     if sku.dvd {
-        SKU.dvd.set(1u32);
+        install.sku.dvd.set(1u32);
     }
-    SKU.number.set(sku.number);
+    install.sku.number.set(sku.number);
     if let Some(second) = sku.second {
-        SKU.second.set(second);
+        install.sku.second.set(second);
     }
     if let Some(third) = sku.third {
-        SKU.third.set(third);
+        install.sku.third.set(third);
     }
     Ok(())
 }
 
 /// The edition's markers (`install::read_sku`) (IDA 0x5190F4 .. 0x519118, the image's layout).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Sku {
     /// 0x5190F4: `dword_5190F4`: the edition's number.
     pub number: Dword,
@@ -66,22 +63,27 @@ pub struct Sku {
     pub _gap_519112: Bytes<6>,
 }
 
-pub static SKU: Sku = Sku {
-    number: Dword::new(0xffffffff),
-    oem: Dword::new(0x0),
-    dvd: Dword::new(0x0),
-    third: Byte::new(0x0),
-    second: Byte::new(0x0),
-    path: Bytes::new(with_runs::<16>(&[(0, b"files\\d\\gfx\\sku")])),
-    _gap_519112: Bytes::new(with_runs::<6>(&[(0, b"sku")])),
-};
+impl Sku {
+    pub const fn new() -> Self {
+        Sku {
+            number: Dword::new(0xffffffff),
+            oem: Dword::new(0x0),
+            dvd: Dword::new(0x0),
+            third: Byte::new(0x0),
+            second: Byte::new(0x0),
+            path: Bytes::new(with_runs::<16>(&[(0, b"files\\d\\gfx\\sku")])),
+            _gap_519112: Bytes::new(with_runs::<6>(&[(0, b"sku")])),
+        }
+    }
+}
 
 impl Sku {
     pub const START: usize = 0x5190F4;
     pub const LEN: usize = 0x24;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SKU as *const Sku) as usize
+        crate::pointers::game_address(&raw const crate::install::owner::INSTALL.sku) as usize
     }
 }
 
@@ -95,7 +97,7 @@ mod sku_tests {
         assert!(Sku::LEN <= size && size <= (Sku::LEN).next_multiple_of(4));
         let image = crate::moved::image_bytes(Sku::START, Sku::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(crate::pointers::host_at(Sku::home()) as *const u8, Sku::LEN)
+            std::slice::from_raw_parts(crate::pointers::host_at(Sku::home()).cast_const(), Sku::LEN)
         };
         assert_eq!(mine, &image[..]);
     }

@@ -1,17 +1,18 @@
 //! `physics::apply_wheel_forces` (0x43F544): `physics::apply_forces` on the 0x17 records at `unk_614770` (`physics::clear_forces`', the wheels' among them).
 //!
-//! In:  nothing
-//! Out: esi the first record, ecx the count; the rest kept; no flags read
+//! Returns: the first record, the count
 //!
-//! Caller: `sub_43B635` (0x43B81D), every physics step.
+//! Caller: `physics::car_physics_step` (0x43B81D), every physics step.
 
 use crate::errors::Refused;
 use crate::physics::apply_forces::apply_forces;
-use crate::physics::tables_store::PHYSICS;
-const COUNT: u32 = 0x17;
+use crate::race::owner_shared::Shared;
+const COUNT: usize = 0x17;
 
 /// The Rust version.
-pub unsafe fn apply_wheel_forces() -> Result<(), Refused> {
-    let first = crate::pointers::game_address(PHYSICS.forces.as_ptr());
-    unsafe { apply_forces(first, COUNT) }
+pub fn apply_wheel_forces(
+    shared: &Shared,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    apply_forces(shared, &shared.physics_tables.forces[..COUNT], scene)
 }

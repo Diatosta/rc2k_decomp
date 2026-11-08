@@ -1,8 +1,6 @@
 //! `gfx::build_fonts` (0x415563): builds the fonts' glyph tables and palettes and hangs
 //! them on the font objects.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! Fatal error 0x80A48020 if it has been done (`dword_51DEB0`, the palettes, is not 0).
 //! Takes `dword_51B980` * 0x400 * `dword_4F4958` bytes on the list `stru_51B984`
 //! (0x80E48023 if there are none), `begin_glyph_tables`, the builder's flags = 1, 0x400
@@ -13,27 +11,23 @@
 //! 125 stores: each font object's palette (+0x14: the palettes' place plus the offset of
 //! its sixteen colours) and glyph table (+0x18), as listed in `HUNG`. A font that measures
 //! (mode 4) gets a palette too, which `text::draw_text` then uses as its line counter.
-//! Callers: `sub_47486C` (the game's start, before the main menu), `sub_4154CD`,
-//! `sub_4703C2`, `sub_41CDC2`, `sub_412DE0`, `sub_443104`.
+//! Callers: `menu::run_front_end` (the game's start, before the main menu), 0x4154CD,
+//! `menu::apply_screen_mode`, `race::viewer_load_stage`, `install::run_installer`, 0x443104.
 //! A refusal from one of the steps leaves the work half done; none can come with the
 //! game's own files.
 //! The registers above are the original's, for reference; a call by address goes through
 //! `routes.rs`.
 
 use crate::errors::{FatalError, Refused};
-use crate::gfx::build_glyphs::SHEET;
+use crate::gfx::build_glyphs::SheetVars;
 use crate::gfx::build_glyphs::build_glyphs;
-use crate::gfx::decoder::DECODER;
-use crate::gfx::fonts_store::FONTS as MENU_FONTS;
 use crate::gfx::glyph_builder::RUN_LENGTHS;
 use crate::gfx::glyph_tables::{
-    TABLES, begin_glyph_table, begin_glyph_tables, end_glyph_tables, palette_to_pixels,
+    begin_glyph_table, begin_glyph_tables, end_glyph_tables, palette_to_pixels,
 };
-use crate::gfx::typefaces::FONTS;
-use crate::memory::allocate::allocate;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
-use crate::pointers::GamePtr;
-use crate::session::{Dword, SCREEN};
+use crate::pointers::Store;
+use crate::session::Dword;
 
 // ---- game data ----
 
@@ -50,24 +44,26 @@ enum Source {
 
 impl Source {
     fn cell(self) -> &'static Dword {
+        let fonts = &gfx().fonts;
         match self {
-            Source::Palettes => &MENU_FONTS.palettes,
-            Source::Font13 => &MENU_FONTS.font13_glyphs,
-            Source::Font21 => &MENU_FONTS.font21_glyphs,
-            Source::Font23 => &MENU_FONTS.font23_glyphs,
-            Source::Font27 => &MENU_FONTS.font27_glyphs,
+            Source::Palettes => &fonts.font_block.palettes,
+            Source::Font13 => &fonts.font_block.font13_glyphs,
+            Source::Font21 => &fonts.font_block.font21_glyphs,
+            Source::Font23 => &fonts.font_block.font23_glyphs,
+            Source::Font27 => &fonts.font_block.font27_glyphs,
         }
     }
 }
 const PALETTE_BYTES: usize = 0x400;
 /// The four font sheets and where each one's table is kept.
-fn font_sheets() -> [(u32, &'static Dword); 4] {
-    use crate::gfx::texts::{FNT13, FNT21, FNT23, FNT27, address};
+fn font_sheets() -> [(&'static [u8], &'static Dword); 4] {
+    let fonts = &gfx().fonts;
+    use crate::gfx::texts::{FNT13, FNT21, FNT23, FNT27};
     [
-        (address(&FNT13), &MENU_FONTS.font13_glyphs), // fnt13_00.pcx
-        (address(&FNT21), &MENU_FONTS.font21_glyphs), // fnt21_00.pcx
-        (address(&FNT23), &MENU_FONTS.font23_glyphs), // fnt23_00.pcx
-        (address(&FNT27), &MENU_FONTS.font27_glyphs), // fnt27_00.pcx
+        (&FNT13, &fonts.font_block.font13_glyphs), // fnt13_00.pcx
+        (&FNT21, &fonts.font_block.font21_glyphs), // fnt21_00.pcx
+        (&FNT23, &fonts.font_block.font23_glyphs), // fnt23_00.pcx
+        (&FNT27, &fonts.font_block.font27_glyphs), // fnt27_00.pcx
     ]
 }
 
@@ -82,6 +78,7 @@ enum Field {
     Palette,
     GlyphTable,
 }
+use crate::gfx::owner::gfx;
 use Field::{GlyphTable, Palette};
 
 /// The stores, in the original's order: (the font object's number, its field, the variable
@@ -220,43 +217,46 @@ const HUNG: [(usize, Field, Source, u32); 125] = [
 /// The part with the calls; `palettes` is where the palettes' place is kept. (The
 /// original's fatal error 0x80E48023 for a failed allocation cannot come: the allocator
 /// reports its own.)
-unsafe fn tables(palettes: u32) -> Result<(), Refused> {
-    unsafe {
-        let list = TABLES.memory.as_ptr();
-        let bytes = TABLES
-            .units
-            .get()
-            .wrapping_mul(0x400)
-            .wrapping_mul(SCREEN.bytes.get());
-        allocate(list, bytes)?;
-        rewind_list(list)?;
-        begin_glyph_tables()?;
-        DECODER.builder_flags.set(RUN_LENGTHS);
-        GamePtr::new(palettes).write(
-            take_from_list(list, 0x400)?.unwrap_or(0),
-            "the fonts' palettes' place",
-        )?;
-        begin_glyph_table(list)?;
-        build_glyphs(
-            crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::PAL_00))
-                as *const u8,
-            list,
-        )?;
-        MENU_FONTS.font27_glyphs.set(SHEET.table.get());
-        palette_to_pixels(GamePtr::new(palettes).read("the fonts' palettes' place")?)?;
-        GamePtr::new(crate::pointers::game_address(DECODER.palette_ptr())).copy_to(
-            GamePtr::new(crate::session::address_of(&MENU_FONTS.palette_sheet)),
-            PALETTE_BYTES,
-            "the fonts' palette sheet",
-        )?;
-        for (sheet, kept) in font_sheets() {
-            begin_glyph_table(list)?;
-            build_glyphs(crate::pointers::host(sheet) as *const u8, list)?;
-            kept.set(SHEET.table.get());
-        }
-        end_glyph_tables()?;
-        Ok(())
+fn tables(vars: &SheetVars, palettes: &Dword) -> Result<(), Refused> {
+    let system = crate::system::owner::system();
+    let gfx = gfx();
+    let list = &gfx.fonts.glyph_tables.memory;
+    let bytes = gfx
+        .fonts
+        .glyph_tables
+        .units
+        .get()
+        .wrapping_mul(0x400)
+        .wrapping_mul(system.session.screen.bytes.get());
+    crate::memory::owned::count_on(list, bytes)?;
+    rewind_list(list)?;
+    begin_glyph_tables(vars, gfx, system)?;
+    gfx.pictures.decoder.builder_flags.set(RUN_LENGTHS);
+    palettes.set(palette_place(list)?);
+    begin_glyph_table(vars, list)?;
+    build_glyphs(vars, &crate::gfx::texts::PAL_00, list, gfx)?;
+    gfx.fonts.font_block.font27_glyphs.set(vars.table.get());
+    palette_to_pixels(palettes.get(), gfx)?;
+    // The palette sheet is a copy of the decoder's palette (256 dwords).
+    let mut palette = [0u8; PALETTE_BYTES];
+    gfx.pictures.decoder.palette.load(0, &mut palette)?;
+    gfx.fonts.font_block.palette_sheet.store(0, &palette)?;
+    for (sheet, kept) in font_sheets() {
+        begin_glyph_table(vars, list)?;
+        build_glyphs(vars, sheet, list, gfx)?;
+        kept.set(vars.table.get());
     }
+    end_glyph_tables()?;
+    Ok(())
+}
+
+/// 0x400 bytes carved off `list` for a palette: its place in `gfx::glyph_store`, or 0
+/// when the list has no room (the original's cursor would have been none).
+pub fn palette_place(list: &dyn crate::pointers::Store) -> Result<u32, Refused> {
+    Ok(match take_from_list(list, 0x400)? {
+        Some(_) => crate::gfx::glyph_store::new_palette(list)?,
+        None => 0,
+    })
 }
 
 /// What a store of `HUNG` stores.
@@ -264,24 +264,22 @@ fn hung_value(variable: Source, plus: u32) -> u32 {
     variable.cell().get().wrapping_add(plus)
 }
 
-pub unsafe fn build_fonts() -> Result<(), Refused> {
-    unsafe {
-        if MENU_FONTS.palettes.get() != 0 {
-            return Err(FatalError {
-                code: 0x80A4_8020,
-                message: "",
-            }
-            .into());
+pub fn build_fonts(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
+    if gfx.fonts.font_block.palettes.get() != 0 {
+        return Err(FatalError {
+            code: 0x80A4_8020,
+            message: "",
         }
-        tables(MENU_FONTS.palettes.addr())?;
-        for (font, field, variable, plus) in HUNG {
-            let object = &FONTS.objects[font];
-            let value = hung_value(variable, plus);
-            match field {
-                Palette => object.palette.set(value),
-                GlyphTable => object.glyph_table.set(value),
-            }
-        }
-        Ok(())
+        .into());
     }
+    tables(&gfx.sheet, &gfx.fonts.font_block.palettes)?;
+    for (font, field, variable, plus) in HUNG {
+        let object = &gfx.fonts.typefaces.objects[font];
+        let value = hung_value(variable, plus);
+        match field {
+            Palette => object.palette.set(value),
+            GlyphTable => object.glyph_table.set(value),
+        }
+    }
+    Ok(())
 }

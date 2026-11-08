@@ -2,32 +2,42 @@
 //! race's ("Shaun's") variables and car blocks, and logged: `race::copy_settings_in`
 //! (0x446EBE, "COPY GRAHAM TO SHAUN", before a race) and `race::copy_settings_out`
 //! (0x4486FB, "COPY SHAUN TO GRAHAM", after it). Both are long runs of the same few
-//! kinds of step; their steps are tables (`Step`), made from the disassembly by script
-//! (IDA 2026-10-17), and `run` does them in order as the original's code does.
+//! kinds of step (`Step`): the copies and logs of each of the two cars are built by loops
+//! over the gauge and setting tables, and `run` does the steps in order as the original's
+//! code does.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
-use crate::gfx::choices_store::SCREEN_CHOICES;
+use crate::gfx::owner::GFX;
 use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::state_store::RACE_STATE;
-use crate::race::tables_store::RACE_TABLES;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
+use crate::race::owner::Race;
+use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
+use crate::race::state_store::RaceCar;
 use crate::session::{Dword, Float};
+use std::ffi::{CStr, CString};
 
 use Step::*;
 pub use rc2k_core::race::settings_copy::Kind;
 use rc2k_core::race::settings_copy::Step;
 
-/// A variable of the steps: one of the physics block's cells, a field of a car's block,
-/// or the game's at an IDA address (the race's, the texts, the calls).
+/// A routine a `Call` step runs (the original's `call` at its address).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Routine {
+    /// `race::clear_player_absences` (0x449D44).
+    ClearPlayerAbsences,
+    /// `race::copy_league_table` (0x4650B7).
+    CopyLeagueTable,
+    /// `race::store_results_by_mode` (0x449957).
+    StoreResultsByMode,
+}
+
+/// An operand of the steps: one of the physics block's cells, a field of a car's block, a
+/// store's dword, or (for `Call` only) a routine.
 #[derive(Clone, Copy)]
 pub enum Place {
-    Addr(usize),
+    Routine(Routine),
     Cell(&'static Dword),
     /// A float of the physics block, by its bits.
     Bits(&'static Float),
@@ -38,13 +48,13 @@ pub enum Place {
     /// A dword of an overlay store on the race block (`var!`: `RACE_VARS.stage_number`).
     Var(fn() -> &'static Dword),
 }
-use Place::{Addr, Bits, CarBits, CarCell, Cell, Var};
+use Place::{Bits, CarBits, CarCell, Cell, Var};
 
 impl Place {
     /// Its dword (a float's bits).
     pub fn get(self) -> u32 {
         match self {
-            Addr(a) => get(a),
+            Place::Routine(r) => unreachable!("{r:?} is a routine, read as a variable"),
             Cell(cell) => cell.get(),
             Bits(cell) => cell.bits(),
             CarCell(n, f) => f(&CAR_BLOCKS.cars[n]).get(),
@@ -56,7 +66,7 @@ impl Place {
     /// Its dword set (a float's bits).
     pub fn set(self, v: u32) {
         match self {
-            Addr(a) => set(a, v),
+            Place::Routine(r) => unreachable!("{r:?} is a routine, written as a variable"),
             Cell(cell) => cell.set(v),
             Bits(cell) => cell.set_bits(v),
             CarCell(n, f) => f(&CAR_BLOCKS.cars[n]).set(v),
@@ -93,10 +103,10 @@ macro_rules! car_bits {
 
 /// `var!(STATIC.field)`: a dword of an overlay store as a `Place` (a `fn` item, as `car!`).
 macro_rules! var {
-    ($s:ident . $($f:tt)+) => {
+    ($($s:ident)::+ . $($f:tt)+) => {
         $crate::race::settings_copy::Place::Var({
             fn f() -> &'static $crate::session::Dword {
-                &$s.$($f)+
+                &$($s)::+.$($f)+
             }
             f
         })
@@ -104,44 +114,22 @@ macro_rules! var {
 }
 pub(crate) use {car, car_bits, var};
 
-/// `race::clear_player_absences`, `race::copy_league_table`, `race::store_results_by_mode`.
-pub const CALLS: [usize; 3] = [0x449D44, 0x4650B7, 0x449957];
-
-fn at(a: usize) -> *mut u32 {
-    crate::pointers::host(game_addr(rva(a))) as *mut u32
-}
-
-fn get(a: usize) -> u32 {
-    crate::pointers::read_or_end(
-        crate::pointers::game_address(at(a)),
-        "race::settings_copy's operand",
-    )
-}
-
-fn set(a: usize, v: u32) {
-    crate::pointers::write_or_end(
-        crate::pointers::game_address(at(a)),
-        v,
-        "race::settings_copy's operand",
-    )
-}
-
 /// The game as the steps' machine: its dwords at IDA addresses, the steps' own eax and ebx
 /// (the original reads no register at entry: they start from nothing), the x87's
 /// conversions, and the logs and calls.
-#[derive(Default)]
-struct Game {
+struct Game<'a> {
+    race: &'a Race,
     eax: u32,
     ebx: u32,
 }
 
-impl rc2k_core::race::settings_copy::Machine<Place> for Game {
+impl rc2k_core::race::settings_copy::Machine<Place> for Game<'_> {
     type Error = Refused;
     fn get(&mut self, a: Place) -> u32 {
         a.get()
     }
     fn set(&mut self, a: Place, v: u32) {
-        a.set(v)
+        a.set(v);
     }
     fn eax(&self) -> u32 {
         self.eax
@@ -162,10 +150,10 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game {
         x87::loaded(v)
     }
     fn scaled_brake(&mut self, v: i32) -> u32 {
-        x87::int_times_to_int(v, NUMBERS.brake_scale.bits()) as u32
+        x87::int_times_to_int(v, self.race.course.numbers.brake_scale.bits()) as u32
     }
     fn text(&mut self, text: &'static std::ffi::CStr, nl: bool) -> Result<(), Refused> {
-        unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), nl, 1) };
+        crate::logfile::log_write::log_nul(&text, nl, 1);
         Ok(())
     }
     fn value(&mut self, v: u32, kind: Kind) -> Result<(), Refused> {
@@ -181,19 +169,19 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game {
         Ok(())
     }
     fn call(&mut self, a: Place) -> Result<(), Refused> {
-        let Addr(a) = a else {
-            unreachable!("the calls are the image's");
+        let race = self.race;
+        let Place::Routine(routine) = a else {
+            unreachable!("a call of a variable");
         };
         use crate::race::race_shell::{
             clear_player_absences, copy_league_table, store_results_by_mode,
         };
         // Each keeps the registers the steps read (eax is set again before any use).
         {
-            match CALLS.iter().position(|&c| c == a) {
-                Some(0) => clear_player_absences(),
-                Some(1) => copy_league_table()?,
-                Some(2) => store_results_by_mode(),
-                _ => unreachable!("a call the tables have"),
+            match routine {
+                Routine::ClearPlayerAbsences => clear_player_absences(),
+                Routine::CopyLeagueTable => copy_league_table(race)?,
+                Routine::StoreResultsByMode => store_results_by_mode(race),
             }
         }
         Ok(())
@@ -201,1537 +189,616 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game {
 }
 
 /// The steps from the first, in the original's order.
-pub fn run(steps: &[Step<Place>]) -> Result<(), Refused> {
+pub fn run(race: &Race, steps: &[Step<Place>]) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::settings_copy::run` (the x87's conversions and the
     // brake's product kept, through `Machine`).
-    rc2k_core::race::settings_copy::run(steps, &mut Game::default())
+    rc2k_core::race::settings_copy::run(
+        steps,
+        &mut Game {
+            race,
+            eax: 0,
+            ebx: 0,
+        },
+    )
 }
 
 /// `race::copy_settings_in` (0x446EBE): `GRAHAM_TO_SHAUN`.
-pub fn copy_settings_in() -> Result<(), Refused> {
-    run(&GRAHAM_TO_SHAUN)
+pub fn copy_settings_in(race: &Race) -> Result<(), Refused> {
+    run(race, &race.replay.graham_to_shaun)
 }
 
 /// `race::copy_settings_out` (0x4486FB): `SHAUN_TO_GRAHAM`.
-pub fn copy_settings_out() -> Result<(), Refused> {
-    run(&SHAUN_TO_GRAHAM)
+pub fn copy_settings_out(race: &Race) -> Result<(), Refused> {
+    run(race, &race.replay.shaun_to_graham)
 }
 
-pub static GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
-    Text(c"-------------------------------------", true),
-    Text(c"COPY GRAHAM TO SHAUN", true),
+/// A float of a car block, picked by field.
+type CarFloat = fn(&Car) -> &Float;
+/// A dword of a car block, picked by field.
+type CarWord = fn(&Car) -> &Dword;
+/// A word of a player's settings record in the race's variables, picked by field.
+type SettingWord = fn(&RaceCar) -> &Dword;
+
+/// The race's car blocks and the front end's per-car settings records: the 43 gauges of a
+/// car (damage and wear), each with the settings word it is kept in.
+const GAUGES: [(CarFloat, SettingWord); 43] = [
+    (|c| &c.engine_damage, |r| &r.damage[0]),
+    (|c| &c.exhaust_damage, |r| &r.damage[2]),
+    (|c| &c.electrics_damage, |r| &r.damage[3]),
+    (|c| &c.turbo_damage, |r| &r.damage[4]),
+    (|c| &c.cooling_damage, |r| &r.damage[6]),
+    (|c| &c.steering_damage, |r| &r.damage[7]),
+    (|c| &c.clutch_damage, |r| &r.damage[8]),
+    (|c| &c.differential_damage, |r| &r.damage[10]),
+    (|c| &c.overall_suspension_damage, |r| &r.wear[27]),
+    (|c| &c.tyre_wear, |r| &r.wear[35]),
+    (|c| &c.brake_damage, |r| &r.wear[30]),
+    (|c| &c.lights_damage, |r| &r.wear[22]),
+    (|c| &c.gearbox_damage, |r| &r.wear[9]),
+    (|c| &c.body_damage, |r| &r.damage[1]),
+    (|c| &c.gear_wear[0], |r| &r.wear[0]),
+    (|c| &c.gear_wear[2], |r| &r.wear[2]),
+    (|c| &c.gear_wear[3], |r| &r.wear[3]),
+    (|c| &c.gear_wear[4], |r| &r.wear[4]),
+    (|c| &c.gear_wear[5], |r| &r.wear[5]),
+    (|c| &c.gear_wear[6], |r| &r.wear[6]),
+    (|c| &c.gear_wear[7], |r| &r.wear[7]),
+    (|c| &c.gear_wear[8], |r| &r.wear[8]),
+    (|c| &c.wheel_hit_damage[0], |r| &r.wear[10]),
+    (|c| &c.wheel_hit_damage[1], |r| &r.wear[11]),
+    (|c| &c.wheel_hit_damage[2], |r| &r.wear[12]),
+    (|c| &c.wheel_hit_damage[3], |r| &r.wear[13]),
+    (|c| &c.body_hit_damage, |r| &r.wear[14]),
+    (|c| &c.light_damage[0], |r| &r.wear[16]),
+    (|c| &c.light_damage[1], |r| &r.wear[17]),
+    (|c| &c.light_damage[2], |r| &r.wear[18]),
+    (|c| &c.light_damage[3], |r| &r.wear[19]),
+    (|c| &c.light_damage[4], |r| &r.wear[20]),
+    (|c| &c.light_damage[5], |r| &r.wear[21]),
+    (|c| &c.suspension_damage[0], |r| &r.wear[23]),
+    (|c| &c.suspension_damage[1], |r| &r.wear[24]),
+    (|c| &c.suspension_damage[2], |r| &r.wear[25]),
+    (|c| &c.suspension_damage[3], |r| &r.wear[26]),
+    (|c| &c.brake_wear_a, |r| &r.wear[28]),
+    (|c| &c.brake_wear_b, |r| &r.wear[29]),
+    (|c| &c.part_hit_damage[0], |r| &r.wear[31]),
+    (|c| &c.part_hit_damage[1], |r| &r.wear[32]),
+    (|c| &c.part_hit_damage[2], |r| &r.wear[33]),
+    (|c| &c.part_hit_damage[3], |r| &r.wear[34]),
+];
+
+/// The log names of the gauges in `GAUGES` (`[carN.name]`).
+const GAUGE_NAMES: [&str; 43] = [
+    "dam_engine",
+    "dam_exhaust",
+    "dam_elect",
+    "dam_turbo",
+    "dam_cooling",
+    "dam_steer",
+    "dam_clutch",
+    "dam_diff",
+    "dam_susp",
+    "dam_tyres",
+    "dam_brakes",
+    "dam_lights",
+    "dam_gearbox",
+    "dam_body",
+    "dam_gearrvs",
+    "dam_gear1",
+    "dam_gear2",
+    "dam_gear3",
+    "dam_gear4",
+    "dam_gear5",
+    "dam_gear6",
+    "dam_gear7",
+    "dam_whl1",
+    "dam_whl2",
+    "dam_whl3",
+    "dam_whl4",
+    "dam_bdywrk",
+    "dam_lights1",
+    "dam_lights2",
+    "dam_lights3",
+    "dam_lights4",
+    "dam_lightsf",
+    "dam_lightsb",
+    "dam_susp1",
+    "dam_susp2",
+    "dam_susp3",
+    "dam_susp4",
+    "dam_brakef",
+    "dam_brakeb",
+    "dam_tyre1",
+    "dam_tyre2",
+    "dam_tyre3",
+    "dam_tyre4",
+];
+
+/// The settings words of a car that are held to 0 .. 0x100 (`Brake`), then the gear ratio.
+const SETTING_BRAKES: [(CarWord, SettingWord); 4] = [
+    (|c| &c.steering_sensitivity, |r| &r.steering_sensitivity),
+    (|c| &c.brake_balance, |r| &r.brake_balance),
+    (|c| &c.ride_height, |r| &r.ride_height),
+    (|c| &c.suspension_stiffness, |r| &r.suspension_stiffness),
+];
+
+/// The head-up display's option bits: the settings word and the bit it sets.
+const OPTION_BITS: [(SettingWord, u32); 9] = [
+    (|r| &r.map_area, 0x10),
+    (|r| &r.rear_mirror, 0x8),
+    (|r| &r.rev_counter, 0x1),
+    (|r| &r.message_display, 0x4),
+    (|r| &r.driver_info, 0x2),
+    (|r| &r.metric_units, 0x100),
+    (|r| &r.progress_bar, 0x40),
+    (|r| &r.car_info, 0x20),
+    (|r| &r.pace_notes, 0x80),
+];
+
+/// The race's settings that are logged after the copy: the log text and the variable.
+const SHAUN_LOGS: [(&CStr, Place); 14] = [
+    (
+        c"[shaunnumplayers]",
+        var!(crate::race::owner::RACE.shared.view.players),
+    ),
+    (
+        c"[shaunsplitmode]",
+        var!(crate::race::owner::RACE.shared.vars.split),
+    ),
+    (
+        c"[shauntracknum]",
+        var!(crate::race::owner::RACE.shared.vars.stage_number),
+    ),
+    (
+        c"[shauncrsdirec]",
+        var!(crate::race::owner::RACE.shared.vars.direction),
+    ),
+    (
+        c"[shaunrallynumber]",
+        var!(crate::race::owner::RACE.shared.vars.race_level),
+    ),
+    (
+        c"[shaunstagenumber]",
+        var!(crate::race::owner::RACE.shared.vars.race_stage),
+    ),
+    (
+        c"[shaungmode]",
+        var!(crate::race::owner::RACE.shared.vars.run_kind),
+    ),
+    (
+        c"[shaunnumcars]",
+        var!(crate::race::owner::RACE.shared.view.race_cars),
+    ),
+    (
+        c"[shaunmipmapping]",
+        var!(crate::race::owner::RACE.shared.vars.mip_setting),
+    ),
+    (
+        c"[shaunlensflare]",
+        var!(crate::race::owner::RACE.shared.vars.settings_words[0]),
+    ),
+    (
+        c"[shaunreflections]",
+        var!(crate::race::owner::RACE.shared.vars.settings_words[1]),
+    ),
+    (
+        c"[shauncarshadow]",
+        var!(crate::race::owner::RACE.shared.vars.settings_words[2]),
+    ),
+    (
+        c"[shauncardetail]",
+        var!(crate::race::owner::RACE.shared.vars.settings_words[3]),
+    ),
+    (
+        c"[shaunheadlights]",
+        var!(crate::race::owner::RACE.shared.vars.settings_words[4]),
+    ),
+];
+
+/// The steps in building: pushes, and jumps patched to where they land.
+struct Builder(Vec<Step<Place>>);
+
+impl Builder {
+    fn push(&mut self, step: Step<Place>) {
+        self.0.push(step);
+    }
+
+    /// Where the next step goes (a jump's target).
+    fn here(&self) -> usize {
+        self.0.len()
+    }
+
+    /// The log text `[carN.name]` (N from 1), kept for the program's life.
+    fn car_label(car: usize, name: &str) -> &'static CStr {
+        let text = CString::new(format!("[car{}.{name}]", car + 1)).expect("no NUL in a name");
+        Box::leak(text.into_boxed_c_str())
+    }
+
+    /// Both cars' logged values: the three identity words, the 43 gauges, the eight impact
+    /// marks; after car 1's, a jump over car 2's unless there are two players.
+    fn car_logs(&mut self) {
+        let mut skip = None;
+        for car in 0..2 {
+            self.push(Text(Self::car_label(car, "shauncarnum1"), false));
+            self.push(Value(CarCell(car, |c| &c.car_kind), Kind::Int));
+            self.push(Text(Self::car_label(car, "carpartsleft"), false));
+            self.push(Value(CarCell(car, |c| &c.parts_present), Kind::Hex8));
+            self.push(Text(Self::car_label(car, "shauntyretype1"), false));
+            self.push(Value(CarCell(car, |c| &c.tyre_kind), Kind::Int));
+            for ((field, _), name) in GAUGES.iter().zip(GAUGE_NAMES) {
+                self.push(Text(Self::car_label(car, name), false));
+                self.push(Float(CarBits(car, *field)));
+            }
+            for (mark, field) in IMPACT_MARKS.into_iter().enumerate() {
+                self.push(Text(
+                    Self::car_label(car, &format!("caroctdamage{mark}")),
+                    false,
+                ));
+                self.push(Float(CarBits(car, field)));
+            }
+            if car == 0 {
+                skip = Some(self.here());
+                self.push(JumpIfNot(
+                    var!(crate::race::owner::RACE.shared.view.players),
+                    0x2,
+                    0,
+                ));
+            }
+        }
+        if let Some(at) = skip {
+            self.0[at] = JumpIfNot(
+                var!(crate::race::owner::RACE.shared.view.players),
+                0x2,
+                self.here(),
+            );
+        }
+    }
+}
+
+/// A car block's eight impact marks.
+const IMPACT_MARKS: [CarFloat; 8] = [
+    |c| &c.impact_octant_marks[0],
+    |c| &c.impact_octant_marks[1],
+    |c| &c.impact_octant_marks[2],
+    |c| &c.impact_octant_marks[3],
+    |c| &c.impact_octant_marks[4],
+    |c| &c.impact_octant_marks[5],
+    |c| &c.impact_octant_marks[6],
+    |c| &c.impact_octant_marks[7],
+];
+
+/// Car `car`'s eight impact marks in the results record (`results[car].impact_marks`).
+fn result_marks(shared: &Shared, car: usize) -> &[Dword; 8] {
+    &shared.state.results.results[car].impact_marks
+}
+
+/// The steps of `copy_settings_in` (the front end's settings into the race's), in the
+/// original's order.
+pub fn graham_to_shaun() -> Vec<Step<Place>> {
+    let shared = &race().shared;
+    let mut b = Builder(Vec::with_capacity(446));
+    let rule = c"-------------------------------------";
+    b.push(Text(rule, true));
+    b.push(Text(c"COPY GRAHAM TO SHAUN", true));
+    for step in HEAD_IN {
+        b.push(step);
+    }
+    for (text, place) in SHAUN_LOGS {
+        b.push(Text(text, false));
+        b.push(Value(place, Kind::Int));
+    }
+    for car in 0..2 {
+        let settings = |f: fn(&RaceCar) -> &Dword| Cell(f(&shared.state.settings.cars[car]));
+        for (field, setting) in SETTING_BRAKES {
+            b.push(Brake(CarCell(car, field), settings(setting)));
+        }
+        b.push(Copy(
+            CarCell(car, |c| &c.gear_ratio_setting),
+            settings(|r| &r.gear_ratio),
+        ));
+    }
+    // The first car's brake balance is turned round: 0x100 less itself.
+    b.push(LoadImm(0x100));
+    b.push(SubEax(CarCell(0, |c| &c.brake_balance)));
+    b.push(Store(CarCell(0, |c| &c.brake_balance)));
+    for (car, colour) in CAR_COLOURS.into_iter().enumerate() {
+        b.push(Load(Cell(&shared.state.settings.cars[car].gearing)));
+        b.push(Store(Var(colour)));
+    }
+    for car in 0..2 {
+        b.push(Copy(
+            CarCell(car, |c| &c.start_slot_value),
+            Cell(&shared.state.settings.cars[car].race_number),
+        ));
+    }
+    for car in 0..2 {
+        b.push(Load(Cell(&shared.state.settings.cars[car].view)));
+        b.push(Store(CarCell(car, |c| &c.camera_view)));
+        b.push(Store(CarCell(car, |c| &c.camera_blend_view)));
+    }
+    let hud_bits = [
+        &shared.state.results.hud_bits_current,
+        &shared.state.results.hud_bits_first,
+    ];
+    b.push(Text(c"[onerace.car1overbits]", false));
+    b.push(Value(Cell(hud_bits[0]), Kind::Int));
+    b.push(Text(c"[onerace.car2overbits]", false));
+    b.push(Value(Cell(hud_bits[1]), Kind::Int));
+    // The option bits: from the player's HUD settings, or -1 (all) as the race's override.
+    for car in 0..2 {
+        b.push(Load(Cell(hud_bits[car])));
+        let jump = b.here();
+        b.push(JumpIfEaxNot(0xFFFF_FFFF, 0));
+        b.push(LoadImm(0));
+        for (field, bit) in OPTION_BITS {
+            b.push(BitIf(Cell(field(&shared.state.settings.cars[car])), bit));
+        }
+        b.0[jump] = JumpIfEaxNot(0xFFFF_FFFF, b.here());
+        b.push(Store(CarCell(car, |c| &c.option_bits)));
+        b.push(Store(Var(PLAYER_OPTIONS[car])));
+    }
+    for car in 0..2 {
+        for (field, setting) in GAUGES {
+            b.push(IntToFloat(
+                CarBits(car, field),
+                Cell(setting(&shared.state.settings.cars[car])),
+            ));
+        }
+        for (mark, cell) in IMPACT_MARKS.into_iter().zip(result_marks(shared, car)) {
+            b.push(Copy(CarBits(car, mark), Cell(cell)));
+        }
+    }
+    for step in FLAGS_IN {
+        b.push(step);
+    }
+    b.car_logs();
+    for step in TAIL_IN {
+        b.push(step);
+    }
+    b.0
+}
+
+/// The front end's settings that the race's variables overwrite first (`GRAHAM_TO_SHAUN`).
+static HEAD_IN: [Step<Place>; 21] = [
     Copy(
-        var!(RACE_VARS.no_replay),
-        Cell(&RACE_STATE.settings.no_replay),
-    ),
-    Copy(var!(RACE_VARS.rivals), Cell(&RACE_STATE.settings.rivals)),
-    Copy(
-        var!(RACE_VARS.race_car_kinds[0]),
-        Cell(&RACE_STATE.settings.car_kind_current),
-    ),
-    Copy(
-        var!(RACE_VARS.race_car_kinds[1]),
-        Cell(&RACE_STATE.settings.car_kind_first),
-    ),
-    Copy(
-        var!(RACE_VIEW.players),
-        Cell(&RACE_STATE.settings.race_mode),
-    ),
-    Copy(var!(RACE_VARS.split), Cell(&RACE_STATE.settings.kept)),
-    Copy(
-        var!(RACE_VARS.stage_number),
-        Cell(&RACE_STATE.settings.stage),
-    ),
-    Copy(
-        var!(RACE_VARS.direction),
-        Cell(&RACE_STATE.settings.direction),
-    ),
-    Copy(
-        var!(RACE_VARS.race_level),
-        Cell(&RACE_STATE.results.race_level),
-    ),
-    Copy(
-        var!(RACE_VARS.race_stage),
-        Cell(&RACE_STATE.results.race_stage),
-    ),
-    Dec(var!(RACE_VARS.race_stage)),
-    Copy(
-        var!(RACE_VARS.run_kind),
-        Cell(&RACE_STATE.settings.run_kind),
-    ),
-    Copy(var!(RACE_VIEW.race_cars), var!(RACE_VIEW.players)),
-    Copy(
-        var!(RACE_VARS.car_tyres[0]),
-        Cell(&RACE_STATE.settings.cars[0].tyre),
-    ),
-    Copy(
-        var!(RACE_VARS.car_tyres[1]),
-        Cell(&RACE_STATE.settings.cars[1].tyre),
-    ),
-    Copy(var!(RACE_VARS.mip_setting), var!(SCREEN_CHOICES.mipmapping)),
-    Copy(
-        var!(RACE_VARS.settings_words[0]),
-        Cell(&RACE_STATE.settings.setting_0),
-    ),
-    Copy(
-        var!(RACE_VARS.settings_words[1]),
-        Cell(&RACE_STATE.settings.setting_1),
-    ),
-    Copy(
-        var!(RACE_VARS.settings_words[2]),
-        Cell(&RACE_STATE.settings.setting_2),
-    ),
-    Copy(
-        var!(RACE_VARS.settings_words[3]),
-        Cell(&RACE_STATE.settings.setting_3),
-    ),
-    Copy(
-        var!(RACE_VARS.settings_words[4]),
-        Cell(&RACE_STATE.settings.setting_4),
-    ),
-    Text(c"[shaunnumplayers]", false),
-    Value(var!(RACE_VIEW.players), Kind::Int),
-    Text(c"[shaunsplitmode]", false),
-    Value(var!(RACE_VARS.split), Kind::Int),
-    Text(c"[shauntracknum]", false),
-    Value(var!(RACE_VARS.stage_number), Kind::Int),
-    Text(c"[shauncrsdirec]", false),
-    Value(var!(RACE_VARS.direction), Kind::Int),
-    Text(c"[shaunrallynumber]", false),
-    Value(var!(RACE_VARS.race_level), Kind::Int),
-    Text(c"[shaunstagenumber]", false),
-    Value(var!(RACE_VARS.race_stage), Kind::Int),
-    Text(c"[shaungmode]", false),
-    Value(var!(RACE_VARS.run_kind), Kind::Int),
-    Text(c"[shaunnumcars]", false),
-    Value(var!(RACE_VIEW.race_cars), Kind::Int),
-    Text(c"[shaunmipmapping]", false),
-    Value(var!(RACE_VARS.mip_setting), Kind::Int),
-    Text(c"[shaunlensflare]", false),
-    Value(var!(RACE_VARS.settings_words[0]), Kind::Int),
-    Text(c"[shaunreflections]", false),
-    Value(var!(RACE_VARS.settings_words[1]), Kind::Int),
-    Text(c"[shauncarshadow]", false),
-    Value(var!(RACE_VARS.settings_words[2]), Kind::Int),
-    Text(c"[shauncardetail]", false),
-    Value(var!(RACE_VARS.settings_words[3]), Kind::Int),
-    Text(c"[shaunheadlights]", false),
-    Value(var!(RACE_VARS.settings_words[4]), Kind::Int),
-    Brake(
-        car!(0, steering_sensitivity),
-        Cell(&RACE_STATE.settings.cars[0].steering_sensitivity),
-    ),
-    Brake(
-        car!(0, brake_balance),
-        Cell(&RACE_STATE.settings.cars[0].brake_balance),
-    ),
-    Brake(
-        car!(0, ride_height),
-        Cell(&RACE_STATE.settings.cars[0].ride_height),
-    ),
-    Brake(
-        car!(0, suspension_stiffness),
-        Cell(&RACE_STATE.settings.cars[0].suspension_stiffness),
-    ),
-    Copy(
-        car!(0, gear_ratio_setting),
-        Cell(&RACE_STATE.settings.cars[0].gear_ratio),
-    ),
-    Brake(
-        car!(1, steering_sensitivity),
-        Cell(&RACE_STATE.settings.cars[1].steering_sensitivity),
-    ),
-    Brake(
-        car!(1, brake_balance),
-        Cell(&RACE_STATE.settings.cars[1].brake_balance),
-    ),
-    Brake(
-        car!(1, ride_height),
-        Cell(&RACE_STATE.settings.cars[1].ride_height),
-    ),
-    Brake(
-        car!(1, suspension_stiffness),
-        Cell(&RACE_STATE.settings.cars[1].suspension_stiffness),
-    ),
-    Copy(
-        car!(1, gear_ratio_setting),
-        Cell(&RACE_STATE.settings.cars[1].gear_ratio),
-    ),
-    LoadImm(0x100),
-    SubEax(car!(0, brake_balance)),
-    Store(car!(0, brake_balance)),
-    Load(Cell(&RACE_STATE.settings.cars[0].record_30)),
-    Store(var!(RACE_VARS.car_colours[0])),
-    Load(Cell(&RACE_STATE.settings.cars[1].record_30)),
-    Store(var!(RACE_VARS.car_colours[1])),
-    Copy(
-        car!(0, start_slot_value),
-        Cell(&RACE_STATE.settings.cars[0].race_number),
-    ),
-    Copy(
-        car!(1, start_slot_value),
-        Cell(&RACE_STATE.settings.cars[1].race_number),
-    ),
-    Load(Cell(&RACE_STATE.settings.cars[0].view)),
-    Store(car!(0, camera_view)),
-    Store(car!(0, camera_blend_view)),
-    Load(Cell(&RACE_STATE.settings.cars[1].view)),
-    Store(car!(1, camera_view)),
-    Store(car!(1, camera_blend_view)),
-    Text(c"[onerace.car1overbits]", false),
-    Value(Cell(&RACE_STATE.results.hud_bits_current), Kind::Int),
-    Text(c"[onerace.car2overbits]", false),
-    Value(Cell(&RACE_STATE.results.hud_bits_first), Kind::Int),
-    Load(Cell(&RACE_STATE.results.hud_bits_current)),
-    JumpIfEaxNot(0xFFFFFFFF, 92),
-    LoadImm(0),
-    BitIf(Cell(&RACE_STATE.settings.cars[0].map_area), 0x10),
-    BitIf(Cell(&RACE_STATE.settings.cars[0].rear_mirror), 0x8),
-    BitIf(Cell(&RACE_STATE.settings.cars[0].rev_counter), 0x1),
-    BitIf(Cell(&RACE_STATE.settings.cars[0].message_display), 0x4),
-    BitIf(Cell(&RACE_STATE.settings.cars[0].driver_info), 0x2),
-    BitIf(Cell(&RACE_STATE.settings.cars[0].metric_units), 0x100),
-    BitIf(Cell(&RACE_STATE.settings.cars[0].progress_bar), 0x40),
-    BitIf(Cell(&RACE_STATE.settings.cars[0].car_info), 0x20),
-    BitIf(Cell(&RACE_STATE.settings.cars[0].pace_notes), 0x80),
-    Store(car!(0, option_bits)),
-    Store(var!(RACE_VIEW.player_options[0])),
-    Load(Cell(&RACE_STATE.results.hud_bits_first)),
-    JumpIfEaxNot(0xFFFFFFFF, 106),
-    LoadImm(0),
-    BitIf(Cell(&RACE_STATE.settings.cars[1].map_area), 0x10),
-    BitIf(Cell(&RACE_STATE.settings.cars[1].rear_mirror), 0x8),
-    BitIf(Cell(&RACE_STATE.settings.cars[1].rev_counter), 0x1),
-    BitIf(Cell(&RACE_STATE.settings.cars[1].message_display), 0x4),
-    BitIf(Cell(&RACE_STATE.settings.cars[1].driver_info), 0x2),
-    BitIf(Cell(&RACE_STATE.settings.cars[1].metric_units), 0x100),
-    BitIf(Cell(&RACE_STATE.settings.cars[1].progress_bar), 0x40),
-    BitIf(Cell(&RACE_STATE.settings.cars[1].car_info), 0x20),
-    BitIf(Cell(&RACE_STATE.settings.cars[1].pace_notes), 0x80),
-    Store(car!(1, option_bits)),
-    Store(var!(RACE_VIEW.player_options[1])),
-    IntToFloat(
-        car_bits!(0, engine_damage),
-        Cell(&RACE_STATE.settings.cars[0].damage[0]),
-    ),
-    IntToFloat(
-        car_bits!(0, exhaust_damage),
-        Cell(&RACE_STATE.settings.cars[0].damage[2]),
-    ),
-    IntToFloat(
-        car_bits!(0, electrics_damage),
-        Cell(&RACE_STATE.settings.cars[0].damage[3]),
-    ),
-    IntToFloat(
-        car_bits!(0, turbo_damage),
-        Cell(&RACE_STATE.settings.cars[0].damage[4]),
-    ),
-    IntToFloat(
-        car_bits!(0, cooling_damage),
-        Cell(&RACE_STATE.settings.cars[0].damage[6]),
-    ),
-    IntToFloat(
-        car_bits!(0, steering_damage),
-        Cell(&RACE_STATE.settings.cars[0].damage[7]),
-    ),
-    IntToFloat(
-        car_bits!(0, clutch_damage),
-        Cell(&RACE_STATE.settings.cars[0].damage[8]),
-    ),
-    IntToFloat(
-        car_bits!(0, differential_damage),
-        Cell(&RACE_STATE.settings.cars[0].damage[10]),
-    ),
-    IntToFloat(
-        car_bits!(0, overall_suspension_damage),
-        Cell(&RACE_STATE.settings.cars[0].wear[27]),
-    ),
-    IntToFloat(
-        car_bits!(0, tyre_wear),
-        Cell(&RACE_STATE.settings.cars[0].wear[35]),
-    ),
-    IntToFloat(
-        car_bits!(0, brake_damage),
-        Cell(&RACE_STATE.settings.cars[0].wear[30]),
-    ),
-    IntToFloat(
-        car_bits!(0, lights_damage),
-        Cell(&RACE_STATE.settings.cars[0].wear[22]),
-    ),
-    IntToFloat(
-        car_bits!(0, gearbox_damage),
-        Cell(&RACE_STATE.settings.cars[0].wear[9]),
-    ),
-    IntToFloat(
-        car_bits!(0, body_damage),
-        Cell(&RACE_STATE.settings.cars[0].damage[1]),
-    ),
-    IntToFloat(
-        car_bits!(0, gear_wear[0]),
-        Cell(&RACE_STATE.settings.cars[0].wear[0]),
-    ),
-    IntToFloat(
-        car_bits!(0, gear_wear[2]),
-        Cell(&RACE_STATE.settings.cars[0].wear[2]),
-    ),
-    IntToFloat(
-        car_bits!(0, gear_wear[3]),
-        Cell(&RACE_STATE.settings.cars[0].wear[3]),
-    ),
-    IntToFloat(
-        car_bits!(0, gear_wear[4]),
-        Cell(&RACE_STATE.settings.cars[0].wear[4]),
-    ),
-    IntToFloat(
-        car_bits!(0, gear_wear[5]),
-        Cell(&RACE_STATE.settings.cars[0].wear[5]),
-    ),
-    IntToFloat(
-        car_bits!(0, gear_wear[6]),
-        Cell(&RACE_STATE.settings.cars[0].wear[6]),
-    ),
-    IntToFloat(
-        car_bits!(0, gear_wear[7]),
-        Cell(&RACE_STATE.settings.cars[0].wear[7]),
-    ),
-    IntToFloat(
-        car_bits!(0, gear_wear[8]),
-        Cell(&RACE_STATE.settings.cars[0].wear[8]),
-    ),
-    IntToFloat(
-        car_bits!(0, wheel_hit_damage[0]),
-        Cell(&RACE_STATE.settings.cars[0].wear[10]),
-    ),
-    IntToFloat(
-        car_bits!(0, wheel_hit_damage[1]),
-        Cell(&RACE_STATE.settings.cars[0].wear[11]),
-    ),
-    IntToFloat(
-        car_bits!(0, wheel_hit_damage[2]),
-        Cell(&RACE_STATE.settings.cars[0].wear[12]),
-    ),
-    IntToFloat(
-        car_bits!(0, wheel_hit_damage[3]),
-        Cell(&RACE_STATE.settings.cars[0].wear[13]),
-    ),
-    IntToFloat(
-        car_bits!(0, body_hit_damage),
-        Cell(&RACE_STATE.settings.cars[0].wear[14]),
-    ),
-    IntToFloat(
-        car_bits!(0, light_damage[0]),
-        Cell(&RACE_STATE.settings.cars[0].wear[16]),
-    ),
-    IntToFloat(
-        car_bits!(0, light_damage[1]),
-        Cell(&RACE_STATE.settings.cars[0].wear[17]),
-    ),
-    IntToFloat(
-        car_bits!(0, light_damage[2]),
-        Cell(&RACE_STATE.settings.cars[0].wear[18]),
-    ),
-    IntToFloat(
-        car_bits!(0, light_damage[3]),
-        Cell(&RACE_STATE.settings.cars[0].wear[19]),
-    ),
-    IntToFloat(
-        car_bits!(0, light_damage[4]),
-        Cell(&RACE_STATE.settings.cars[0].wear[20]),
-    ),
-    IntToFloat(
-        car_bits!(0, light_damage[5]),
-        Cell(&RACE_STATE.settings.cars[0].wear[21]),
-    ),
-    IntToFloat(
-        car_bits!(0, suspension_damage[0]),
-        Cell(&RACE_STATE.settings.cars[0].wear[23]),
-    ),
-    IntToFloat(
-        car_bits!(0, suspension_damage[1]),
-        Cell(&RACE_STATE.settings.cars[0].wear[24]),
-    ),
-    IntToFloat(
-        car_bits!(0, suspension_damage[2]),
-        Cell(&RACE_STATE.settings.cars[0].wear[25]),
-    ),
-    IntToFloat(
-        car_bits!(0, suspension_damage[3]),
-        Cell(&RACE_STATE.settings.cars[0].wear[26]),
-    ),
-    IntToFloat(
-        car_bits!(0, brake_wear_a),
-        Cell(&RACE_STATE.settings.cars[0].wear[28]),
-    ),
-    IntToFloat(
-        car_bits!(0, brake_wear_b),
-        Cell(&RACE_STATE.settings.cars[0].wear[29]),
-    ),
-    IntToFloat(
-        car_bits!(0, part_hit_damage[0]),
-        Cell(&RACE_STATE.settings.cars[0].wear[31]),
-    ),
-    IntToFloat(
-        car_bits!(0, part_hit_damage[1]),
-        Cell(&RACE_STATE.settings.cars[0].wear[32]),
-    ),
-    IntToFloat(
-        car_bits!(0, part_hit_damage[2]),
-        Cell(&RACE_STATE.settings.cars[0].wear[33]),
-    ),
-    IntToFloat(
-        car_bits!(0, part_hit_damage[3]),
-        Cell(&RACE_STATE.settings.cars[0].wear[34]),
+        var!(crate::race::owner::RACE.shared.vars.no_replay),
+        Cell(&crate::race::owner::RACE.shared.state.settings.no_replay),
     ),
     Copy(
-        car_bits!(0, impact_octant_marks[0]),
-        Cell(&RACE_STATE.results.results[0].block[0]),
+        var!(crate::race::owner::RACE.shared.vars.rivals),
+        Cell(&crate::race::owner::RACE.shared.state.settings.rivals),
     ),
     Copy(
-        car_bits!(0, impact_octant_marks[1]),
-        Cell(&RACE_STATE.results.results[0].block[1]),
+        var!(crate::race::owner::RACE.shared.vars.race_car_kinds[0]),
+        Cell(
+            &crate::race::owner::RACE
+                .shared
+                .state
+                .settings
+                .car_kind_current,
+        ),
     ),
     Copy(
-        car_bits!(0, impact_octant_marks[2]),
-        Cell(&RACE_STATE.results.results[0].block[2]),
+        var!(crate::race::owner::RACE.shared.vars.race_car_kinds[1]),
+        Cell(
+            &crate::race::owner::RACE
+                .shared
+                .state
+                .settings
+                .car_kind_first,
+        ),
     ),
     Copy(
-        car_bits!(0, impact_octant_marks[3]),
-        Cell(&RACE_STATE.results.results[0].block[3]),
+        var!(crate::race::owner::RACE.shared.view.players),
+        Cell(&crate::race::owner::RACE.shared.state.settings.race_mode),
     ),
     Copy(
-        car_bits!(0, impact_octant_marks[4]),
-        Cell(&RACE_STATE.results.results[0].block[4]),
+        var!(crate::race::owner::RACE.shared.vars.split),
+        Cell(&crate::race::owner::RACE.shared.state.settings.kept),
     ),
     Copy(
-        car_bits!(0, impact_octant_marks[5]),
-        Cell(&RACE_STATE.results.results[0].block[5]),
+        var!(crate::race::owner::RACE.shared.vars.stage_number),
+        Cell(&crate::race::owner::RACE.shared.state.settings.stage),
     ),
     Copy(
-        car_bits!(0, impact_octant_marks[6]),
-        Cell(&RACE_STATE.results.results[0].block[6]),
+        var!(crate::race::owner::RACE.shared.vars.direction),
+        Cell(&crate::race::owner::RACE.shared.state.settings.direction),
     ),
     Copy(
-        car_bits!(0, impact_octant_marks[7]),
-        Cell(&RACE_STATE.results.results[0].block[7]),
-    ),
-    IntToFloat(
-        car_bits!(1, engine_damage),
-        Cell(&RACE_STATE.settings.cars[1].damage[0]),
-    ),
-    IntToFloat(
-        car_bits!(1, exhaust_damage),
-        Cell(&RACE_STATE.settings.cars[1].damage[2]),
-    ),
-    IntToFloat(
-        car_bits!(1, electrics_damage),
-        Cell(&RACE_STATE.settings.cars[1].damage[3]),
-    ),
-    IntToFloat(
-        car_bits!(1, turbo_damage),
-        Cell(&RACE_STATE.settings.cars[1].damage[4]),
-    ),
-    IntToFloat(
-        car_bits!(1, cooling_damage),
-        Cell(&RACE_STATE.settings.cars[1].damage[6]),
-    ),
-    IntToFloat(
-        car_bits!(1, steering_damage),
-        Cell(&RACE_STATE.settings.cars[1].damage[7]),
-    ),
-    IntToFloat(
-        car_bits!(1, clutch_damage),
-        Cell(&RACE_STATE.settings.cars[1].damage[8]),
-    ),
-    IntToFloat(
-        car_bits!(1, differential_damage),
-        Cell(&RACE_STATE.settings.cars[1].damage[10]),
-    ),
-    IntToFloat(
-        car_bits!(1, overall_suspension_damage),
-        Cell(&RACE_STATE.settings.cars[1].wear[27]),
-    ),
-    IntToFloat(
-        car_bits!(1, tyre_wear),
-        Cell(&RACE_STATE.settings.cars[1].wear[35]),
-    ),
-    IntToFloat(
-        car_bits!(1, brake_damage),
-        Cell(&RACE_STATE.settings.cars[1].wear[30]),
-    ),
-    IntToFloat(
-        car_bits!(1, lights_damage),
-        Cell(&RACE_STATE.settings.cars[1].wear[22]),
-    ),
-    IntToFloat(
-        car_bits!(1, gearbox_damage),
-        Cell(&RACE_STATE.settings.cars[1].wear[9]),
-    ),
-    IntToFloat(
-        car_bits!(1, body_damage),
-        Cell(&RACE_STATE.settings.cars[1].damage[1]),
-    ),
-    IntToFloat(
-        car_bits!(1, gear_wear[0]),
-        Cell(&RACE_STATE.settings.cars[1].wear[0]),
-    ),
-    IntToFloat(
-        car_bits!(1, gear_wear[2]),
-        Cell(&RACE_STATE.settings.cars[1].wear[2]),
-    ),
-    IntToFloat(
-        car_bits!(1, gear_wear[3]),
-        Cell(&RACE_STATE.settings.cars[1].wear[3]),
-    ),
-    IntToFloat(
-        car_bits!(1, gear_wear[4]),
-        Cell(&RACE_STATE.settings.cars[1].wear[4]),
-    ),
-    IntToFloat(
-        car_bits!(1, gear_wear[5]),
-        Cell(&RACE_STATE.settings.cars[1].wear[5]),
-    ),
-    IntToFloat(
-        car_bits!(1, gear_wear[6]),
-        Cell(&RACE_STATE.settings.cars[1].wear[6]),
-    ),
-    IntToFloat(
-        car_bits!(1, gear_wear[7]),
-        Cell(&RACE_STATE.settings.cars[1].wear[7]),
-    ),
-    IntToFloat(
-        car_bits!(1, gear_wear[8]),
-        Cell(&RACE_STATE.settings.cars[1].wear[8]),
-    ),
-    IntToFloat(
-        car_bits!(1, wheel_hit_damage[0]),
-        Cell(&RACE_STATE.settings.cars[1].wear[10]),
-    ),
-    IntToFloat(
-        car_bits!(1, wheel_hit_damage[1]),
-        Cell(&RACE_STATE.settings.cars[1].wear[11]),
-    ),
-    IntToFloat(
-        car_bits!(1, wheel_hit_damage[2]),
-        Cell(&RACE_STATE.settings.cars[1].wear[12]),
-    ),
-    IntToFloat(
-        car_bits!(1, wheel_hit_damage[3]),
-        Cell(&RACE_STATE.settings.cars[1].wear[13]),
-    ),
-    IntToFloat(
-        car_bits!(1, body_hit_damage),
-        Cell(&RACE_STATE.settings.cars[1].wear[14]),
-    ),
-    IntToFloat(
-        car_bits!(1, light_damage[0]),
-        Cell(&RACE_STATE.settings.cars[1].wear[16]),
-    ),
-    IntToFloat(
-        car_bits!(1, light_damage[1]),
-        Cell(&RACE_STATE.settings.cars[1].wear[17]),
-    ),
-    IntToFloat(
-        car_bits!(1, light_damage[2]),
-        Cell(&RACE_STATE.settings.cars[1].wear[18]),
-    ),
-    IntToFloat(
-        car_bits!(1, light_damage[3]),
-        Cell(&RACE_STATE.settings.cars[1].wear[19]),
-    ),
-    IntToFloat(
-        car_bits!(1, light_damage[4]),
-        Cell(&RACE_STATE.settings.cars[1].wear[20]),
-    ),
-    IntToFloat(
-        car_bits!(1, light_damage[5]),
-        Cell(&RACE_STATE.settings.cars[1].wear[21]),
-    ),
-    IntToFloat(
-        car_bits!(1, suspension_damage[0]),
-        Cell(&RACE_STATE.settings.cars[1].wear[23]),
-    ),
-    IntToFloat(
-        car_bits!(1, suspension_damage[1]),
-        Cell(&RACE_STATE.settings.cars[1].wear[24]),
-    ),
-    IntToFloat(
-        car_bits!(1, suspension_damage[2]),
-        Cell(&RACE_STATE.settings.cars[1].wear[25]),
-    ),
-    IntToFloat(
-        car_bits!(1, suspension_damage[3]),
-        Cell(&RACE_STATE.settings.cars[1].wear[26]),
-    ),
-    IntToFloat(
-        car_bits!(1, brake_wear_a),
-        Cell(&RACE_STATE.settings.cars[1].wear[28]),
-    ),
-    IntToFloat(
-        car_bits!(1, brake_wear_b),
-        Cell(&RACE_STATE.settings.cars[1].wear[29]),
-    ),
-    IntToFloat(
-        car_bits!(1, part_hit_damage[0]),
-        Cell(&RACE_STATE.settings.cars[1].wear[31]),
-    ),
-    IntToFloat(
-        car_bits!(1, part_hit_damage[1]),
-        Cell(&RACE_STATE.settings.cars[1].wear[32]),
-    ),
-    IntToFloat(
-        car_bits!(1, part_hit_damage[2]),
-        Cell(&RACE_STATE.settings.cars[1].wear[33]),
-    ),
-    IntToFloat(
-        car_bits!(1, part_hit_damage[3]),
-        Cell(&RACE_STATE.settings.cars[1].wear[34]),
+        var!(crate::race::owner::RACE.shared.vars.race_level),
+        Cell(&crate::race::owner::RACE.shared.state.results.race_level),
     ),
     Copy(
-        car_bits!(1, impact_octant_marks[0]),
-        Cell(&RACE_STATE.results.results[1].block[0]),
+        var!(crate::race::owner::RACE.shared.vars.race_stage),
+        Cell(&crate::race::owner::RACE.shared.state.results.race_stage),
+    ),
+    Dec(var!(crate::race::owner::RACE.shared.vars.race_stage)),
+    Copy(
+        var!(crate::race::owner::RACE.shared.vars.run_kind),
+        Cell(&crate::race::owner::RACE.shared.state.settings.run_kind),
     ),
     Copy(
-        car_bits!(1, impact_octant_marks[1]),
-        Cell(&RACE_STATE.results.results[1].block[1]),
+        var!(crate::race::owner::RACE.shared.view.race_cars),
+        var!(crate::race::owner::RACE.shared.view.players),
     ),
     Copy(
-        car_bits!(1, impact_octant_marks[2]),
-        Cell(&RACE_STATE.results.results[1].block[2]),
+        var!(crate::race::owner::RACE.shared.vars.car_tyres[0]),
+        Cell(&crate::race::owner::RACE.shared.state.settings.cars[0].tyre),
     ),
     Copy(
-        car_bits!(1, impact_octant_marks[3]),
-        Cell(&RACE_STATE.results.results[1].block[3]),
+        var!(crate::race::owner::RACE.shared.vars.car_tyres[1]),
+        Cell(&crate::race::owner::RACE.shared.state.settings.cars[1].tyre),
     ),
     Copy(
-        car_bits!(1, impact_octant_marks[4]),
-        Cell(&RACE_STATE.results.results[1].block[4]),
+        var!(crate::race::owner::RACE.shared.vars.mip_setting),
+        var!(GFX.display.choices.mipmapping),
     ),
     Copy(
-        car_bits!(1, impact_octant_marks[5]),
-        Cell(&RACE_STATE.results.results[1].block[5]),
+        var!(crate::race::owner::RACE.shared.vars.settings_words[0]),
+        Cell(&crate::race::owner::RACE.shared.state.settings.setting_0),
     ),
     Copy(
-        car_bits!(1, impact_octant_marks[6]),
-        Cell(&RACE_STATE.results.results[1].block[6]),
+        var!(crate::race::owner::RACE.shared.vars.settings_words[1]),
+        Cell(&crate::race::owner::RACE.shared.state.settings.setting_1),
     ),
     Copy(
-        car_bits!(1, impact_octant_marks[7]),
-        Cell(&RACE_STATE.results.results[1].block[7]),
+        var!(crate::race::owner::RACE.shared.vars.settings_words[2]),
+        Cell(&crate::race::owner::RACE.shared.state.settings.setting_2),
     ),
+    Copy(
+        var!(crate::race::owner::RACE.shared.vars.settings_words[3]),
+        Cell(&crate::race::owner::RACE.shared.state.settings.setting_3),
+    ),
+    Copy(
+        var!(crate::race::owner::RACE.shared.vars.settings_words[4]),
+        Cell(&crate::race::owner::RACE.shared.state.settings.setting_4),
+    ),
+];
+
+/// The cars' part flags and the arcade start place into the results.
+static FLAGS_IN: [Step<Place>; 4] = [
     Copy(
         car!(0, parts_present),
-        Cell(&RACE_STATE.results.flags_current),
+        Cell(&crate::race::owner::RACE.shared.state.results.flags_current),
     ),
     Copy(
         car!(1, parts_present),
-        Cell(&RACE_STATE.results.flags_first),
+        Cell(&crate::race::owner::RACE.shared.state.results.flags_first),
     ),
     Copy(
-        var!(RACE_TABLES.start_place),
-        Cell(&RACE_STATE.results.figure_000),
+        var!(crate::race::owner::RACE.shared.tables.start_place),
+        Cell(&crate::race::owner::RACE.shared.state.results.figure_000),
     ),
-    Copy(car!(0, mode2_place), Cell(&RACE_STATE.results.figure_000)),
-    Text(c"[car1.shauncarnum1]", false),
-    Value(car!(0, car_kind), Kind::Int),
-    Text(c"[car1.carpartsleft]", false),
-    Value(car!(0, parts_present), Kind::Hex8),
-    Text(c"[car1.shauntyretype1]", false),
-    Value(car!(0, tyre_kind), Kind::Int),
-    Text(c"[car1.dam_engine]", false),
-    Float(car_bits!(0, engine_damage)),
-    Text(c"[car1.dam_exhaust]", false),
-    Float(car_bits!(0, exhaust_damage)),
-    Text(c"[car1.dam_elect]", false),
-    Float(car_bits!(0, electrics_damage)),
-    Text(c"[car1.dam_turbo]", false),
-    Float(car_bits!(0, turbo_damage)),
-    Text(c"[car1.dam_cooling]", false),
-    Float(car_bits!(0, cooling_damage)),
-    Text(c"[car1.dam_steer]", false),
-    Float(car_bits!(0, steering_damage)),
-    Text(c"[car1.dam_clutch]", false),
-    Float(car_bits!(0, clutch_damage)),
-    Text(c"[car1.dam_diff]", false),
-    Float(car_bits!(0, differential_damage)),
-    Text(c"[car1.dam_susp]", false),
-    Float(car_bits!(0, overall_suspension_damage)),
-    Text(c"[car1.dam_tyres]", false),
-    Float(car_bits!(0, tyre_wear)),
-    Text(c"[car1.dam_brakes]", false),
-    Float(car_bits!(0, brake_damage)),
-    Text(c"[car1.dam_lights]", false),
-    Float(car_bits!(0, lights_damage)),
-    Text(c"[car1.dam_gearbox]", false),
-    Float(car_bits!(0, gearbox_damage)),
-    Text(c"[car1.dam_body]", false),
-    Float(car_bits!(0, body_damage)),
-    Text(c"[car1.dam_gearrvs]", false),
-    Float(car_bits!(0, gear_wear[0])),
-    Text(c"[car1.dam_gear1]", false),
-    Float(car_bits!(0, gear_wear[2])),
-    Text(c"[car1.dam_gear2]", false),
-    Float(car_bits!(0, gear_wear[3])),
-    Text(c"[car1.dam_gear3]", false),
-    Float(car_bits!(0, gear_wear[4])),
-    Text(c"[car1.dam_gear4]", false),
-    Float(car_bits!(0, gear_wear[5])),
-    Text(c"[car1.dam_gear5]", false),
-    Float(car_bits!(0, gear_wear[6])),
-    Text(c"[car1.dam_gear6]", false),
-    Float(car_bits!(0, gear_wear[7])),
-    Text(c"[car1.dam_gear7]", false),
-    Float(car_bits!(0, gear_wear[8])),
-    Text(c"[car1.dam_whl1]", false),
-    Float(car_bits!(0, wheel_hit_damage[0])),
-    Text(c"[car1.dam_whl2]", false),
-    Float(car_bits!(0, wheel_hit_damage[1])),
-    Text(c"[car1.dam_whl3]", false),
-    Float(car_bits!(0, wheel_hit_damage[2])),
-    Text(c"[car1.dam_whl4]", false),
-    Float(car_bits!(0, wheel_hit_damage[3])),
-    Text(c"[car1.dam_bdywrk]", false),
-    Float(car_bits!(0, body_hit_damage)),
-    Text(c"[car1.dam_lights1]", false),
-    Float(car_bits!(0, light_damage[0])),
-    Text(c"[car1.dam_lights2]", false),
-    Float(car_bits!(0, light_damage[1])),
-    Text(c"[car1.dam_lights3]", false),
-    Float(car_bits!(0, light_damage[2])),
-    Text(c"[car1.dam_lights4]", false),
-    Float(car_bits!(0, light_damage[3])),
-    Text(c"[car1.dam_lightsf]", false),
-    Float(car_bits!(0, light_damage[4])),
-    Text(c"[car1.dam_lightsb]", false),
-    Float(car_bits!(0, light_damage[5])),
-    Text(c"[car1.dam_susp1]", false),
-    Float(car_bits!(0, suspension_damage[0])),
-    Text(c"[car1.dam_susp2]", false),
-    Float(car_bits!(0, suspension_damage[1])),
-    Text(c"[car1.dam_susp3]", false),
-    Float(car_bits!(0, suspension_damage[2])),
-    Text(c"[car1.dam_susp4]", false),
-    Float(car_bits!(0, suspension_damage[3])),
-    Text(c"[car1.dam_brakef]", false),
-    Float(car_bits!(0, brake_wear_a)),
-    Text(c"[car1.dam_brakeb]", false),
-    Float(car_bits!(0, brake_wear_b)),
-    Text(c"[car1.dam_tyre1]", false),
-    Float(car_bits!(0, part_hit_damage[0])),
-    Text(c"[car1.dam_tyre2]", false),
-    Float(car_bits!(0, part_hit_damage[1])),
-    Text(c"[car1.dam_tyre3]", false),
-    Float(car_bits!(0, part_hit_damage[2])),
-    Text(c"[car1.dam_tyre4]", false),
-    Float(car_bits!(0, part_hit_damage[3])),
-    Text(c"[car1.caroctdamage0]", false),
-    Float(car_bits!(0, impact_octant_marks[0])),
-    Text(c"[car1.caroctdamage1]", false),
-    Float(car_bits!(0, impact_octant_marks[1])),
-    Text(c"[car1.caroctdamage2]", false),
-    Float(car_bits!(0, impact_octant_marks[2])),
-    Text(c"[car1.caroctdamage3]", false),
-    Float(car_bits!(0, impact_octant_marks[3])),
-    Text(c"[car1.caroctdamage4]", false),
-    Float(car_bits!(0, impact_octant_marks[4])),
-    Text(c"[car1.caroctdamage5]", false),
-    Float(car_bits!(0, impact_octant_marks[5])),
-    Text(c"[car1.caroctdamage6]", false),
-    Float(car_bits!(0, impact_octant_marks[6])),
-    Text(c"[car1.caroctdamage7]", false),
-    Float(car_bits!(0, impact_octant_marks[7])),
-    JumpIfNot(var!(RACE_VIEW.players), 0x2, 431),
-    Text(c"[car2.shauncarnum1]", false),
-    Value(car!(1, car_kind), Kind::Int),
-    Text(c"[car2.carpartsleft]", false),
-    Value(car!(1, parts_present), Kind::Hex8),
-    Text(c"[car2.shauntyretype1]", false),
-    Value(car!(1, tyre_kind), Kind::Int),
-    Text(c"[car2.dam_engine]", false),
-    Float(car_bits!(1, engine_damage)),
-    Text(c"[car2.dam_exhaust]", false),
-    Float(car_bits!(1, exhaust_damage)),
-    Text(c"[car2.dam_elect]", false),
-    Float(car_bits!(1, electrics_damage)),
-    Text(c"[car2.dam_turbo]", false),
-    Float(car_bits!(1, turbo_damage)),
-    Text(c"[car2.dam_cooling]", false),
-    Float(car_bits!(1, cooling_damage)),
-    Text(c"[car2.dam_steer]", false),
-    Float(car_bits!(1, steering_damage)),
-    Text(c"[car2.dam_clutch]", false),
-    Float(car_bits!(1, clutch_damage)),
-    Text(c"[car2.dam_diff]", false),
-    Float(car_bits!(1, differential_damage)),
-    Text(c"[car2.dam_susp]", false),
-    Float(car_bits!(1, overall_suspension_damage)),
-    Text(c"[car2.dam_tyres]", false),
-    Float(car_bits!(1, tyre_wear)),
-    Text(c"[car2.dam_brakes]", false),
-    Float(car_bits!(1, brake_damage)),
-    Text(c"[car2.dam_lights]", false),
-    Float(car_bits!(1, lights_damage)),
-    Text(c"[car2.dam_gearbox]", false),
-    Float(car_bits!(1, gearbox_damage)),
-    Text(c"[car2.dam_body]", false),
-    Float(car_bits!(1, body_damage)),
-    Text(c"[car2.dam_gearrvs]", false),
-    Float(car_bits!(1, gear_wear[0])),
-    Text(c"[car2.dam_gear1]", false),
-    Float(car_bits!(1, gear_wear[2])),
-    Text(c"[car2.dam_gear2]", false),
-    Float(car_bits!(1, gear_wear[3])),
-    Text(c"[car2.dam_gear3]", false),
-    Float(car_bits!(1, gear_wear[4])),
-    Text(c"[car2.dam_gear4]", false),
-    Float(car_bits!(1, gear_wear[5])),
-    Text(c"[car2.dam_gear5]", false),
-    Float(car_bits!(1, gear_wear[6])),
-    Text(c"[car2.dam_gear6]", false),
-    Float(car_bits!(1, gear_wear[7])),
-    Text(c"[car2.dam_gear7]", false),
-    Float(car_bits!(1, gear_wear[8])),
-    Text(c"[car2.dam_whl1]", false),
-    Float(car_bits!(1, wheel_hit_damage[0])),
-    Text(c"[car2.dam_whl2]", false),
-    Float(car_bits!(1, wheel_hit_damage[1])),
-    Text(c"[car2.dam_whl3]", false),
-    Float(car_bits!(1, wheel_hit_damage[2])),
-    Text(c"[car2.dam_whl4]", false),
-    Float(car_bits!(1, wheel_hit_damage[3])),
-    Text(c"[car2.dam_bdywrk]", false),
-    Float(car_bits!(1, body_hit_damage)),
-    Text(c"[car2.dam_lights1]", false),
-    Float(car_bits!(1, light_damage[0])),
-    Text(c"[car2.dam_lights2]", false),
-    Float(car_bits!(1, light_damage[1])),
-    Text(c"[car2.dam_lights3]", false),
-    Float(car_bits!(1, light_damage[2])),
-    Text(c"[car2.dam_lights4]", false),
-    Float(car_bits!(1, light_damage[3])),
-    Text(c"[car2.dam_lightsf]", false),
-    Float(car_bits!(1, light_damage[4])),
-    Text(c"[car2.dam_lightsb]", false),
-    Float(car_bits!(1, light_damage[5])),
-    Text(c"[car2.dam_susp1]", false),
-    Float(car_bits!(1, suspension_damage[0])),
-    Text(c"[car2.dam_susp2]", false),
-    Float(car_bits!(1, suspension_damage[1])),
-    Text(c"[car2.dam_susp3]", false),
-    Float(car_bits!(1, suspension_damage[2])),
-    Text(c"[car2.dam_susp4]", false),
-    Float(car_bits!(1, suspension_damage[3])),
-    Text(c"[car2.dam_brakef]", false),
-    Float(car_bits!(1, brake_wear_a)),
-    Text(c"[car2.dam_brakeb]", false),
-    Float(car_bits!(1, brake_wear_b)),
-    Text(c"[car2.dam_tyre1]", false),
-    Float(car_bits!(1, part_hit_damage[0])),
-    Text(c"[car2.dam_tyre2]", false),
-    Float(car_bits!(1, part_hit_damage[1])),
-    Text(c"[car2.dam_tyre3]", false),
-    Float(car_bits!(1, part_hit_damage[2])),
-    Text(c"[car2.dam_tyre4]", false),
-    Float(car_bits!(1, part_hit_damage[3])),
-    Text(c"[car2.caroctdamage0]", false),
-    Float(car_bits!(1, impact_octant_marks[0])),
-    Text(c"[car2.caroctdamage1]", false),
-    Float(car_bits!(1, impact_octant_marks[1])),
-    Text(c"[car2.caroctdamage2]", false),
-    Float(car_bits!(1, impact_octant_marks[2])),
-    Text(c"[car2.caroctdamage3]", false),
-    Float(car_bits!(1, impact_octant_marks[3])),
-    Text(c"[car2.caroctdamage4]", false),
-    Float(car_bits!(1, impact_octant_marks[4])),
-    Text(c"[car2.caroctdamage5]", false),
-    Float(car_bits!(1, impact_octant_marks[5])),
-    Text(c"[car2.caroctdamage6]", false),
-    Float(car_bits!(1, impact_octant_marks[6])),
-    Text(c"[car2.caroctdamage7]", false),
-    Float(car_bits!(1, impact_octant_marks[7])),
-    Call(Addr(0x449D44)),
-    Load(Cell(&RACE_STATE.results.results[0].result)),
+    Copy(
+        car!(0, mode2_place),
+        Cell(&crate::race::owner::RACE.shared.state.results.figure_000),
+    ),
+];
+
+/// The end of the copy: the players' absences cleared, the results into the cars' stop
+/// states, the arcade positions logged, the league table copied.
+static TAIL_IN: [Step<Place>; 15] = [
+    Call(Place::Routine(Routine::ClearPlayerAbsences)),
+    Load(Cell(
+        &crate::race::owner::RACE.shared.state.results.results[0].result,
+    )),
     Store(car!(0, stop_state)),
-    Load(Cell(&RACE_STATE.results.results[1].result)),
+    Load(Cell(
+        &crate::race::owner::RACE.shared.state.results.results[1].result,
+    )),
     Store(car!(1, stop_state)),
     Text(c"[arcadestartposition]", false),
-    Value(var!(RACE_TABLES.start_place), Kind::Int),
+    Value(
+        var!(crate::race::owner::RACE.shared.tables.start_place),
+        Kind::Int,
+    ),
     Text(c"[car1.arcadeposition]", false),
     Value(car!(0, mode2_place), Kind::Int),
     Text(c"[onerace.car1arcadeposition]", false),
-    Value(Cell(&RACE_STATE.results.figure_000), Kind::Int),
-    Call(Addr(0x4650B7)),
+    Value(
+        Cell(&crate::race::owner::RACE.shared.state.results.figure_000),
+        Kind::Int,
+    ),
+    Call(Place::Routine(Routine::CopyLeagueTable)),
     Text(c"COPY GRAHAM TO SHAUN", true),
     Text(c"-------------------------------------", true),
     Return,
 ];
 
-pub static SHAUN_TO_GRAHAM: [Step<Place>; 344] = [
-    Text(c"-------------------------------------", true),
-    Text(c"COPY SHAUN TO GRAHAM", true),
-    JumpIfNot(var!(REPLAY_FILE.hold_car_revs), 0x0, 340),
-    Copy(
-        Cell(&RACE_STATE.results.hud_bits_current),
-        car!(0, option_bits),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.hud_bits_first),
-        car!(1, option_bits),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].damage[0]),
-        car_bits!(0, engine_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].damage[2]),
-        car_bits!(0, exhaust_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].damage[3]),
-        car_bits!(0, electrics_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].damage[4]),
-        car_bits!(0, turbo_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].damage[6]),
-        car_bits!(0, cooling_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].damage[7]),
-        car_bits!(0, steering_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].damage[8]),
-        car_bits!(0, clutch_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].damage[10]),
-        car_bits!(0, differential_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[27]),
-        car_bits!(0, overall_suspension_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[35]),
-        car_bits!(0, tyre_wear),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[30]),
-        car_bits!(0, brake_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[22]),
-        car_bits!(0, lights_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[9]),
-        car_bits!(0, gearbox_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].damage[1]),
-        car_bits!(0, body_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[0]),
-        car_bits!(0, gear_wear[0]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[2]),
-        car_bits!(0, gear_wear[2]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[3]),
-        car_bits!(0, gear_wear[3]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[4]),
-        car_bits!(0, gear_wear[4]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[5]),
-        car_bits!(0, gear_wear[5]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[6]),
-        car_bits!(0, gear_wear[6]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[7]),
-        car_bits!(0, gear_wear[7]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[8]),
-        car_bits!(0, gear_wear[8]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[10]),
-        car_bits!(0, wheel_hit_damage[0]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[11]),
-        car_bits!(0, wheel_hit_damage[1]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[12]),
-        car_bits!(0, wheel_hit_damage[2]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[13]),
-        car_bits!(0, wheel_hit_damage[3]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[14]),
-        car_bits!(0, body_hit_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[16]),
-        car_bits!(0, light_damage[0]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[17]),
-        car_bits!(0, light_damage[1]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[18]),
-        car_bits!(0, light_damage[2]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[19]),
-        car_bits!(0, light_damage[3]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[20]),
-        car_bits!(0, light_damage[4]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[21]),
-        car_bits!(0, light_damage[5]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[23]),
-        car_bits!(0, suspension_damage[0]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[24]),
-        car_bits!(0, suspension_damage[1]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[25]),
-        car_bits!(0, suspension_damage[2]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[26]),
-        car_bits!(0, suspension_damage[3]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[28]),
-        car_bits!(0, brake_wear_a),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[29]),
-        car_bits!(0, brake_wear_b),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[31]),
-        car_bits!(0, part_hit_damage[0]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[32]),
-        car_bits!(0, part_hit_damage[1]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[33]),
-        car_bits!(0, part_hit_damage[2]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[0].wear[34]),
-        car_bits!(0, part_hit_damage[3]),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.results[0].block[0]),
-        car_bits!(0, impact_octant_marks[0]),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.results[0].block[1]),
-        car_bits!(0, impact_octant_marks[1]),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.results[0].block[2]),
-        car_bits!(0, impact_octant_marks[2]),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.results[0].block[3]),
-        car_bits!(0, impact_octant_marks[3]),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.results[0].block[4]),
-        car_bits!(0, impact_octant_marks[4]),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.results[0].block[5]),
-        car_bits!(0, impact_octant_marks[5]),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.results[0].block[6]),
-        car_bits!(0, impact_octant_marks[6]),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.results[0].block[7]),
-        car_bits!(0, impact_octant_marks[7]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].damage[0]),
-        car_bits!(1, engine_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].damage[2]),
-        car_bits!(1, exhaust_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].damage[3]),
-        car_bits!(1, electrics_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].damage[4]),
-        car_bits!(1, turbo_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].damage[6]),
-        car_bits!(1, cooling_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].damage[7]),
-        car_bits!(1, steering_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].damage[8]),
-        car_bits!(1, clutch_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].damage[10]),
-        car_bits!(1, differential_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[27]),
-        car_bits!(1, overall_suspension_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[35]),
-        car_bits!(1, tyre_wear),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[30]),
-        car_bits!(1, brake_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[22]),
-        car_bits!(1, lights_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[9]),
-        car_bits!(1, gearbox_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].damage[1]),
-        car_bits!(1, body_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[0]),
-        car_bits!(1, gear_wear[0]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[2]),
-        car_bits!(1, gear_wear[2]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[3]),
-        car_bits!(1, gear_wear[3]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[4]),
-        car_bits!(1, gear_wear[4]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[5]),
-        car_bits!(1, gear_wear[5]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[6]),
-        car_bits!(1, gear_wear[6]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[7]),
-        car_bits!(1, gear_wear[7]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[8]),
-        car_bits!(1, gear_wear[8]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[10]),
-        car_bits!(1, wheel_hit_damage[0]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[11]),
-        car_bits!(1, wheel_hit_damage[1]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[12]),
-        car_bits!(1, wheel_hit_damage[2]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[13]),
-        car_bits!(1, wheel_hit_damage[3]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[14]),
-        car_bits!(1, body_hit_damage),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[16]),
-        car_bits!(1, light_damage[0]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[17]),
-        car_bits!(1, light_damage[1]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[18]),
-        car_bits!(1, light_damage[2]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[19]),
-        car_bits!(1, light_damage[3]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[20]),
-        car_bits!(1, light_damage[4]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[21]),
-        car_bits!(1, light_damage[5]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[23]),
-        car_bits!(1, suspension_damage[0]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[24]),
-        car_bits!(1, suspension_damage[1]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[25]),
-        car_bits!(1, suspension_damage[2]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[26]),
-        car_bits!(1, suspension_damage[3]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[28]),
-        car_bits!(1, brake_wear_a),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[29]),
-        car_bits!(1, brake_wear_b),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[31]),
-        car_bits!(1, part_hit_damage[0]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[32]),
-        car_bits!(1, part_hit_damage[1]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[33]),
-        car_bits!(1, part_hit_damage[2]),
-    ),
-    FloatToInt(
-        Cell(&RACE_STATE.settings.cars[1].wear[34]),
-        car_bits!(1, part_hit_damage[3]),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.results[1].block[0]),
-        car_bits!(1, impact_octant_marks[0]),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.results[1].block[1]),
-        car_bits!(1, impact_octant_marks[1]),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.results[1].block[2]),
-        car_bits!(1, impact_octant_marks[2]),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.results[1].block[3]),
-        car_bits!(1, impact_octant_marks[3]),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.results[1].block[4]),
-        car_bits!(1, impact_octant_marks[4]),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.results[1].block[5]),
-        car_bits!(1, impact_octant_marks[5]),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.results[1].block[6]),
-        car_bits!(1, impact_octant_marks[6]),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.results[1].block[7]),
-        car_bits!(1, impact_octant_marks[7]),
-    ),
-    Call(Addr(0x449957)),
-    Load(car!(0, stop_state)),
-    Store(Cell(&RACE_STATE.results.results[0].result)),
-    Load(car!(1, stop_state)),
-    Store(Cell(&RACE_STATE.results.results[1].result)),
-    FloatCopy(
-        Bits(&RACE_STATE.results.results[0].secs),
-        car_bits!(0, top_speed),
-    ),
-    FloatCopy(
-        Bits(&RACE_STATE.results.results[1].secs),
-        car_bits!(1, top_speed),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.flags_current),
-        car!(0, parts_present),
-    ),
-    Copy(
-        Cell(&RACE_STATE.results.flags_first),
-        car!(1, parts_present),
-    ),
-    Text(c"[car1.shauncarnum1]", false),
-    Value(car!(0, car_kind), Kind::Int),
-    Text(c"[car1.carpartsleft]", false),
-    Value(car!(0, parts_present), Kind::Hex8),
-    Text(c"[car1.shauntyretype1]", false),
-    Value(car!(0, tyre_kind), Kind::Int),
-    Text(c"[car1.dam_engine]", false),
-    Float(car_bits!(0, engine_damage)),
-    Text(c"[car1.dam_exhaust]", false),
-    Float(car_bits!(0, exhaust_damage)),
-    Text(c"[car1.dam_elect]", false),
-    Float(car_bits!(0, electrics_damage)),
-    Text(c"[car1.dam_turbo]", false),
-    Float(car_bits!(0, turbo_damage)),
-    Text(c"[car1.dam_cooling]", false),
-    Float(car_bits!(0, cooling_damage)),
-    Text(c"[car1.dam_steer]", false),
-    Float(car_bits!(0, steering_damage)),
-    Text(c"[car1.dam_clutch]", false),
-    Float(car_bits!(0, clutch_damage)),
-    Text(c"[car1.dam_diff]", false),
-    Float(car_bits!(0, differential_damage)),
-    Text(c"[car1.dam_susp]", false),
-    Float(car_bits!(0, overall_suspension_damage)),
-    Text(c"[car1.dam_tyres]", false),
-    Float(car_bits!(0, tyre_wear)),
-    Text(c"[car1.dam_brakes]", false),
-    Float(car_bits!(0, brake_damage)),
-    Text(c"[car1.dam_lights]", false),
-    Float(car_bits!(0, lights_damage)),
-    Text(c"[car1.dam_gearbox]", false),
-    Float(car_bits!(0, gearbox_damage)),
-    Text(c"[car1.dam_body]", false),
-    Float(car_bits!(0, body_damage)),
-    Text(c"[car1.dam_gearrvs]", false),
-    Float(car_bits!(0, gear_wear[0])),
-    Text(c"[car1.dam_gear1]", false),
-    Float(car_bits!(0, gear_wear[2])),
-    Text(c"[car1.dam_gear2]", false),
-    Float(car_bits!(0, gear_wear[3])),
-    Text(c"[car1.dam_gear3]", false),
-    Float(car_bits!(0, gear_wear[4])),
-    Text(c"[car1.dam_gear4]", false),
-    Float(car_bits!(0, gear_wear[5])),
-    Text(c"[car1.dam_gear5]", false),
-    Float(car_bits!(0, gear_wear[6])),
-    Text(c"[car1.dam_gear6]", false),
-    Float(car_bits!(0, gear_wear[7])),
-    Text(c"[car1.dam_gear7]", false),
-    Float(car_bits!(0, gear_wear[8])),
-    Text(c"[car1.dam_whl1]", false),
-    Float(car_bits!(0, wheel_hit_damage[0])),
-    Text(c"[car1.dam_whl2]", false),
-    Float(car_bits!(0, wheel_hit_damage[1])),
-    Text(c"[car1.dam_whl3]", false),
-    Float(car_bits!(0, wheel_hit_damage[2])),
-    Text(c"[car1.dam_whl4]", false),
-    Float(car_bits!(0, wheel_hit_damage[3])),
-    Text(c"[car1.dam_bdywrk]", false),
-    Float(car_bits!(0, body_hit_damage)),
-    Text(c"[car1.dam_lights1]", false),
-    Float(car_bits!(0, light_damage[0])),
-    Text(c"[car1.dam_lights2]", false),
-    Float(car_bits!(0, light_damage[1])),
-    Text(c"[car1.dam_lights3]", false),
-    Float(car_bits!(0, light_damage[2])),
-    Text(c"[car1.dam_lights4]", false),
-    Float(car_bits!(0, light_damage[3])),
-    Text(c"[car1.dam_lightsf]", false),
-    Float(car_bits!(0, light_damage[4])),
-    Text(c"[car1.dam_lightsb]", false),
-    Float(car_bits!(0, light_damage[5])),
-    Text(c"[car1.dam_susp1]", false),
-    Float(car_bits!(0, suspension_damage[0])),
-    Text(c"[car1.dam_susp2]", false),
-    Float(car_bits!(0, suspension_damage[1])),
-    Text(c"[car1.dam_susp3]", false),
-    Float(car_bits!(0, suspension_damage[2])),
-    Text(c"[car1.dam_susp4]", false),
-    Float(car_bits!(0, suspension_damage[3])),
-    Text(c"[car1.dam_brakef]", false),
-    Float(car_bits!(0, brake_wear_a)),
-    Text(c"[car1.dam_brakeb]", false),
-    Float(car_bits!(0, brake_wear_b)),
-    Text(c"[car1.dam_tyre1]", false),
-    Float(car_bits!(0, part_hit_damage[0])),
-    Text(c"[car1.dam_tyre2]", false),
-    Float(car_bits!(0, part_hit_damage[1])),
-    Text(c"[car1.dam_tyre3]", false),
-    Float(car_bits!(0, part_hit_damage[2])),
-    Text(c"[car1.dam_tyre4]", false),
-    Float(car_bits!(0, part_hit_damage[3])),
-    Text(c"[car1.caroctdamage0]", false),
-    Float(car_bits!(0, impact_octant_marks[0])),
-    Text(c"[car1.caroctdamage1]", false),
-    Float(car_bits!(0, impact_octant_marks[1])),
-    Text(c"[car1.caroctdamage2]", false),
-    Float(car_bits!(0, impact_octant_marks[2])),
-    Text(c"[car1.caroctdamage3]", false),
-    Float(car_bits!(0, impact_octant_marks[3])),
-    Text(c"[car1.caroctdamage4]", false),
-    Float(car_bits!(0, impact_octant_marks[4])),
-    Text(c"[car1.caroctdamage5]", false),
-    Float(car_bits!(0, impact_octant_marks[5])),
-    Text(c"[car1.caroctdamage6]", false),
-    Float(car_bits!(0, impact_octant_marks[6])),
-    Text(c"[car1.caroctdamage7]", false),
-    Float(car_bits!(0, impact_octant_marks[7])),
-    JumpIfNot(var!(RACE_VIEW.players), 0x2, 333),
-    Text(c"[car2.shauncarnum1]", false),
-    Value(car!(1, car_kind), Kind::Int),
-    Text(c"[car2.carpartsleft]", false),
-    Value(car!(1, parts_present), Kind::Hex8),
-    Text(c"[car2.shauntyretype1]", false),
-    Value(car!(1, tyre_kind), Kind::Int),
-    Text(c"[car2.dam_engine]", false),
-    Float(car_bits!(1, engine_damage)),
-    Text(c"[car2.dam_exhaust]", false),
-    Float(car_bits!(1, exhaust_damage)),
-    Text(c"[car2.dam_elect]", false),
-    Float(car_bits!(1, electrics_damage)),
-    Text(c"[car2.dam_turbo]", false),
-    Float(car_bits!(1, turbo_damage)),
-    Text(c"[car2.dam_cooling]", false),
-    Float(car_bits!(1, cooling_damage)),
-    Text(c"[car2.dam_steer]", false),
-    Float(car_bits!(1, steering_damage)),
-    Text(c"[car2.dam_clutch]", false),
-    Float(car_bits!(1, clutch_damage)),
-    Text(c"[car2.dam_diff]", false),
-    Float(car_bits!(1, differential_damage)),
-    Text(c"[car2.dam_susp]", false),
-    Float(car_bits!(1, overall_suspension_damage)),
-    Text(c"[car2.dam_tyres]", false),
-    Float(car_bits!(1, tyre_wear)),
-    Text(c"[car2.dam_brakes]", false),
-    Float(car_bits!(1, brake_damage)),
-    Text(c"[car2.dam_lights]", false),
-    Float(car_bits!(1, lights_damage)),
-    Text(c"[car2.dam_gearbox]", false),
-    Float(car_bits!(1, gearbox_damage)),
-    Text(c"[car2.dam_body]", false),
-    Float(car_bits!(1, body_damage)),
-    Text(c"[car2.dam_gearrvs]", false),
-    Float(car_bits!(1, gear_wear[0])),
-    Text(c"[car2.dam_gear1]", false),
-    Float(car_bits!(1, gear_wear[2])),
-    Text(c"[car2.dam_gear2]", false),
-    Float(car_bits!(1, gear_wear[3])),
-    Text(c"[car2.dam_gear3]", false),
-    Float(car_bits!(1, gear_wear[4])),
-    Text(c"[car2.dam_gear4]", false),
-    Float(car_bits!(1, gear_wear[5])),
-    Text(c"[car2.dam_gear5]", false),
-    Float(car_bits!(1, gear_wear[6])),
-    Text(c"[car2.dam_gear6]", false),
-    Float(car_bits!(1, gear_wear[7])),
-    Text(c"[car2.dam_gear7]", false),
-    Float(car_bits!(1, gear_wear[8])),
-    Text(c"[car2.dam_whl1]", false),
-    Float(car_bits!(1, wheel_hit_damage[0])),
-    Text(c"[car2.dam_whl2]", false),
-    Float(car_bits!(1, wheel_hit_damage[1])),
-    Text(c"[car2.dam_whl3]", false),
-    Float(car_bits!(1, wheel_hit_damage[2])),
-    Text(c"[car2.dam_whl4]", false),
-    Float(car_bits!(1, wheel_hit_damage[3])),
-    Text(c"[car2.dam_bdywrk]", false),
-    Float(car_bits!(1, body_hit_damage)),
-    Text(c"[car2.dam_lights1]", false),
-    Float(car_bits!(1, light_damage[0])),
-    Text(c"[car2.dam_lights2]", false),
-    Float(car_bits!(1, light_damage[1])),
-    Text(c"[car2.dam_lights3]", false),
-    Float(car_bits!(1, light_damage[2])),
-    Text(c"[car2.dam_lights4]", false),
-    Float(car_bits!(1, light_damage[3])),
-    Text(c"[car2.dam_lightsf]", false),
-    Float(car_bits!(1, light_damage[4])),
-    Text(c"[car2.dam_lightsb]", false),
-    Float(car_bits!(1, light_damage[5])),
-    Text(c"[car2.dam_susp1]", false),
-    Float(car_bits!(1, suspension_damage[0])),
-    Text(c"[car2.dam_susp2]", false),
-    Float(car_bits!(1, suspension_damage[1])),
-    Text(c"[car2.dam_susp3]", false),
-    Float(car_bits!(1, suspension_damage[2])),
-    Text(c"[car2.dam_susp4]", false),
-    Float(car_bits!(1, suspension_damage[3])),
-    Text(c"[car2.dam_brakef]", false),
-    Float(car_bits!(1, brake_wear_a)),
-    Text(c"[car2.dam_brakeb]", false),
-    Float(car_bits!(1, brake_wear_b)),
-    Text(c"[car2.dam_tyre1]", false),
-    Float(car_bits!(1, part_hit_damage[0])),
-    Text(c"[car2.dam_tyre2]", false),
-    Float(car_bits!(1, part_hit_damage[1])),
-    Text(c"[car2.dam_tyre3]", false),
-    Float(car_bits!(1, part_hit_damage[2])),
-    Text(c"[car2.dam_tyre4]", false),
-    Float(car_bits!(1, part_hit_damage[3])),
-    Text(c"[car2.caroctdamage0]", false),
-    Float(car_bits!(1, impact_octant_marks[0])),
-    Text(c"[car2.caroctdamage1]", false),
-    Float(car_bits!(1, impact_octant_marks[1])),
-    Text(c"[car2.caroctdamage2]", false),
-    Float(car_bits!(1, impact_octant_marks[2])),
-    Text(c"[car2.caroctdamage3]", false),
-    Float(car_bits!(1, impact_octant_marks[3])),
-    Text(c"[car2.caroctdamage4]", false),
-    Float(car_bits!(1, impact_octant_marks[4])),
-    Text(c"[car2.caroctdamage5]", false),
-    Float(car_bits!(1, impact_octant_marks[5])),
-    Text(c"[car2.caroctdamage6]", false),
-    Float(car_bits!(1, impact_octant_marks[6])),
-    Text(c"[car2.caroctdamage7]", false),
-    Float(car_bits!(1, impact_octant_marks[7])),
+/// The arcade positions logged at the end of the copy back.
+static TAIL_OUT: [Step<Place>; 6] = [
     Text(c"[arcadestartposition]", false),
-    Value(var!(RACE_TABLES.start_place), Kind::Int),
+    Value(
+        var!(crate::race::owner::RACE.shared.tables.start_place),
+        Kind::Int,
+    ),
     Text(c"[car1.arcadeposition]", false),
     Value(car!(0, mode2_place), Kind::Int),
     Text(c"[onerace.car1arcadeposition]", false),
-    Value(Cell(&RACE_STATE.results.figure_000), Kind::Int),
-    Jump(341),
-    Text(c"SKIPPING - REPLAY!", true),
-    Text(c"COPY SHAUN TO GRAHAM", true),
-    Text(c"-------------------------------------", true),
-    Return,
+    Value(
+        Cell(&crate::race::owner::RACE.shared.state.results.figure_000),
+        Kind::Int,
+    ),
+];
+
+/// The steps of `copy_settings_out` (the race's settings back to the front end's), in the
+/// original's order; skipped while a replay is shown.
+pub fn shaun_to_graham() -> Vec<Step<Place>> {
+    let shared = &race().shared;
+    let mut b = Builder(Vec::with_capacity(344));
+    b.push(Text(c"-------------------------------------", true));
+    b.push(Text(c"COPY SHAUN TO GRAHAM", true));
+    let skip = b.here();
+    b.push(JumpIfNot(
+        var!(crate::race::owner::RACE.shared.replay_file.hold_car_revs),
+        0x0,
+        0,
+    ));
+    b.push(Copy(
+        Cell(&shared.state.results.hud_bits_current),
+        CarCell(0, |c| &c.option_bits),
+    ));
+    b.push(Copy(
+        Cell(&shared.state.results.hud_bits_first),
+        CarCell(1, |c| &c.option_bits),
+    ));
+    for car in 0..2 {
+        for (field, setting) in GAUGES {
+            b.push(FloatToInt(
+                Cell(setting(&shared.state.settings.cars[car])),
+                CarBits(car, field),
+            ));
+        }
+        for (mark, cell) in IMPACT_MARKS.into_iter().zip(result_marks(shared, car)) {
+            b.push(Copy(Cell(cell), CarBits(car, mark)));
+        }
+    }
+    b.push(Call(Place::Routine(Routine::StoreResultsByMode)));
+    for car in 0..2 {
+        b.push(Load(CarCell(car, |c| &c.stop_state)));
+        b.push(Store(Cell(
+            &crate::race::owner::RACE.shared.state.results.results[car].result,
+        )));
+    }
+    for car in 0..2 {
+        b.push(FloatCopy(
+            Bits(&crate::race::owner::RACE.shared.state.results.results[car].secs),
+            CarBits(car, |c| &c.top_speed),
+        ));
+    }
+    b.push(Copy(
+        Cell(&crate::race::owner::RACE.shared.state.results.flags_current),
+        CarCell(0, |c| &c.parts_present),
+    ));
+    b.push(Copy(
+        Cell(&crate::race::owner::RACE.shared.state.results.flags_first),
+        CarCell(1, |c| &c.parts_present),
+    ));
+    b.car_logs();
+    for step in TAIL_OUT {
+        b.push(step);
+    }
+    let over = b.here();
+    b.push(Jump(0));
+    b.0[skip] = JumpIfNot(
+        var!(crate::race::owner::RACE.shared.replay_file.hold_car_revs),
+        0x0,
+        b.here(),
+    );
+    b.push(Text(c"SKIPPING - REPLAY!", true));
+    b.0[over] = Jump(b.here());
+    b.push(Text(c"COPY SHAUN TO GRAHAM", true));
+    b.push(Text(c"-------------------------------------", true));
+    b.push(Return);
+    b.0
+}
+
+/// The race variable of each of the two cars' colours, and of each player's options.
+const CAR_COLOURS: [fn() -> &'static Dword; 2] = [
+    || &crate::race::owner::RACE.shared.vars.car_colours[0],
+    || &crate::race::owner::RACE.shared.vars.car_colours[1],
+];
+const PLAYER_OPTIONS: [fn() -> &'static Dword; 2] = [
+    || &crate::race::owner::RACE.shared.view.player_options[0],
+    || &crate::race::owner::RACE.shared.view.player_options[1],
 ];

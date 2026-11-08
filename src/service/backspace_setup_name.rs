@@ -2,14 +2,11 @@
 //! highlighted setup slot: if the text entry's length is not 0, it is lowered by one and a
 //! NUL is written there.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//! Refuses a slot past the table and a length outside 0 .. 0x1F (the original writes
-//! wherever the length points).
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! Refuses a slot past the table and a length outside 0 .. 0x1F (the original writes wherever the
+//! length points).
 
 use crate::errors::BadInput;
+use crate::menu::owner::Menus;
 use crate::menu::text_entry::{length, set_length};
 use crate::service::load_setup_slot::highlighted_slot;
 use crate::service::read_setup_slot::{NAME_LEN, SLOT_COUNT, slot_name};
@@ -17,8 +14,8 @@ use crate::service::read_setup_slot::{NAME_LEN, SLOT_COUNT, slot_name};
 // ---- Rust version ----
 
 /// The name of the highlighted slot, and the text entry's length if it is usable.
-pub fn entry() -> Result<(*mut u8, usize), BadInput> {
-    let slot = highlighted_slot();
+pub fn entry(menus: &Menus) -> Result<(crate::place::Place, usize), BadInput> {
+    let slot = highlighted_slot(menus);
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table"));
     }
@@ -29,12 +26,15 @@ pub fn entry() -> Result<(*mut u8, usize), BadInput> {
     Ok((slot_name(slot), len as usize))
 }
 
-pub unsafe fn backspace_setup_name() -> Result<(), BadInput> {
+pub fn backspace_setup_name(menus: &Menus) -> Result<(), BadInput> {
     // Converted: `rc2k_core::service::setups::backspace`.
-    let (name, len) = entry()?;
+    let (name, len) = entry(menus)?;
     if len != 0 {
-        let name = unsafe { std::slice::from_raw_parts_mut(name, NAME_LEN) };
-        set_length(rc2k_core::service::setups::backspace(name, len) as i32);
+        let at = name;
+        let mut bytes = at.read(NAME_LEN, "a setup name")?;
+        let len = rc2k_core::service::setups::backspace(&mut bytes, len);
+        at.write(&bytes, "a setup name")?;
+        set_length(menus, len as i32);
     }
     Ok(())
 }

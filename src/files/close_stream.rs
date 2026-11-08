@@ -1,29 +1,18 @@
 //! `files::close_stream` (0x402CFA): closes a buffered stream.
 //!
-//! In:  esi = the stream
-//! Out: carry = the handle could not be closed (zero flag = it could); every register
-//!      preserved
-//! A stream opened with mode 1 has what is in its buffer written out first (`sub_402D8E`:
-//! `filled` bytes, nothing if that is 0; whether the write worked is not looked at). Then
-//! the handle is closed and -1 stored in its place. Five callers.
-//! The name is a reading.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! A stream opened with mode 1 has what is in its buffer written out first (0x402D8E: `filled`
+//! bytes, nothing if that is 0; whether the write worked is not looked at). Then the handle is
+//! closed and -1 stored in its place. Five callers. The name is a reading.
 
 use crate::errors::BadInput;
 use crate::files::handle::NO_HANDLE;
 use crate::files::stream::Stream;
 
-// ---- Rust version ----
-
-/// Returns whether the handle was closed.
-pub unsafe fn close_stream(stream: *mut Stream) -> Result<bool, BadInput> {
-    // Converted: `rc2k_core::files::io::close_stream`.
-    unsafe {
-        Ok(rc2k_core::files::io::close_stream(
-            &mut crate::files::handle::GameFiles::new(),
-            crate::files::stream::core_stream(stream),
-            NO_HANDLE,
-        )?)
-    }
+/// The Rust version.
+pub fn close_stream(stream: &mut Stream) -> Result<bool, BadInput> {
+    Ok(rc2k_core::files::io::close_stream(
+        &mut crate::files::handle::GameFiles::new(),
+        stream,
+        NO_HANDLE,
+    )?)
 }

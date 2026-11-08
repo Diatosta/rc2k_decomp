@@ -2,32 +2,28 @@
 //! the first edit item (kind 4) from it, which begins to be edited (`install::start_edit`);
 //! none before the list's end: the highlight back to 0. Any other ebx: nothing.
 //!
-//! In:  ebx 0 (a list action's start), edi the list
-//! Out: every register kept (`pusha` / `popa`); the flags of what it did last (no caller
-//!      reads them)
+//! Takes 0 (a list action's start), list.
 //! Callers `install::folder_page` (the folder page's action), `install::mark_page`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
-use crate::install::installer::rb;
-use crate::install::vars::INSTALLER_PAGES;
+use crate::menu::list_handle::ListMenu;
 
-/// `state` the list action's (ebx): only the start (0) does anything.
-pub fn next_edit(state: u32, list: u32) {
+/// `state` which call of the list action this is (0 the start, negative the end): only the start (0) does anything.
+pub fn next_edit(install: &'static crate::install::owner::Install, state: u32, list: ListMenu) {
     if state != 0 {
         return;
     }
-    let count = rb(list + 1) as u32;
-    let item = |n: u32| list + 0x18 + 0x10 * n;
+    let count = list.count() as u32;
     // Converted: `rc2k_core::install::items::next_edit` (the highlight stored once, where
     // it ends).
-    let (n, found) =
-        rc2k_core::install::items::next_edit(INSTALLER_PAGES.choice.get(), count, |n| rb(item(n)));
+    let (n, found) = rc2k_core::install::items::next_edit(install.pages.choice.get(), count, |n| {
+        list.item(n).first()
+    });
     if found {
-        INSTALLER_PAGES.choice.set(n);
-        crate::install::start_edit::start_edit(item(n));
+        install.pages.choice.set(n);
+        crate::install::start_edit::start_edit(install, list.item(n));
     } else {
-        INSTALLER_PAGES.choice.set(0);
+        install.pages.choice.set(0);
     }
 }

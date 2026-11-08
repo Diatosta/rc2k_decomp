@@ -1,34 +1,25 @@
 //! `physics::queue_listed_event` (0x44194D): for ebx below 0x20, the event
 //! `dword_614C7C[ebx]` (into ebx); unless it is -1, `physics::queue_car_event` with no
-//! delay (esi 0), inside `pusha` / `popa`.
+//! delay (esi 0).
 //!
-//! In:  ebx the event's number
-//! Out: ebx the table's entry (when below 0x20); the rest kept; no flags read (the
-//!      caller's next is an `inc`)
+//! Takes: the event's number
 //!
-//! Caller: `sub_4418B3`. Refuses what `queue_car_event` refuses.
+//! Caller: `physics::queue_pace_note`. Refuses what `queue_car_event` refuses.
 
 use crate::errors::Refused;
-use crate::physics::queue_car_event::{QueuePlaces, queue_car_event_at};
-use crate::physics::tables_store::PHYSICS;
+use crate::physics::queue_car_event::queue_car_event;
+use crate::race::owner::Race;
 use rc2k_core::physics::car_events::listed_event;
 
-/// The core: the table at `table`, the queue at `q`.
-// Converted: `rc2k_core::physics::car_events::listed_event`.
-pub fn queue_listed_event_at(table: u32, q: &QueuePlaces, ebx: u32) -> Result<(), Refused> {
-    let entry = |n: u32| {
-        crate::pointers::read_or_end::<u32>(table + 4 * n, "physics::queue_listed_event's operand")
-    };
-    let Some((event, queued)) = listed_event(ebx, entry) else {
+/// The Rust version.
+pub fn queue_listed_event(race: &Race, ebx: u32) -> Result<(), Refused> {
+    let Some((event, queued)) = listed_event(ebx, |n| {
+        race.shared.physics_tables.listed_events[n as usize].get()
+    }) else {
         return Ok(());
     };
     if queued {
-        { queue_car_event_at(q, 0, event) }?;
+        queue_car_event(race, 0, event)?;
     }
     Ok(())
-}
-
-/// The Rust version.
-pub fn queue_listed_event(ebx: u32) -> Result<(), Refused> {
-    queue_listed_event_at(PHYSICS.listed_events[0].addr(), &QueuePlaces::game(), ebx)
 }

@@ -7,6 +7,7 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ObjectTables {
     /// +0x0 (0x5CCE7C): `g_slotKinds`: each object slot's kind (`scene::load_front_end_objects`, `scene::set_up_front_end_scene`, `race::objects`; cleared by `scene::clear_slot_kinds`). [64] is `dword_5CCF7C`, the kind kept by `race::objects` (`scene::draw_object_polygon`).
     pub slot_kinds: [Dword; 256],
@@ -16,7 +17,8 @@ pub struct ObjectTables {
     pub face_count: Dword,
     /// +0x804 (0x5CD680): `g_objectPointCount`: the points loaded so far (`scene::add_object_shape`, `scene::project_point`, `scene::place_object_points`).
     pub point_count: Dword,
-    /// +0x808 (0x5CD684): `dword_5CD684`: where the shape's normals are in its file (`scene::add_object_shape`).
+    /// +0x808 (0x5CD684): `dword_5CD684`: where the shape's normals are in its file (`scene::add_object_shape`). Not used: nothing
+    /// reads it, so the address is not kept here.
     pub normals_at: Dword,
     /// +0x80c (0x5CD688): `g_carMarkTextures`: the textures of the car's marks (number, digits, plates) in the first 0x40 (`race::car_draw`; [1] .. [9] are `dword_5CD68C` .. `dword_5CD6AC`), and the 0x100 kind bytes `scene::draw_shown_object` sets (`scene::list_object_face`).
     pub car_mark_textures: [Dword; 256],
@@ -44,29 +46,26 @@ impl ObjectTables {
     /// `g_objectKinds[object]`, read by address: the object numbers the game's code passes
     /// are not all bounded by the table.
     pub fn object_kind(&self, object: u32) -> u32 {
-        let at = self.object_kinds[0]
-            .addr()
-            .wrapping_add(((object as usize).wrapping_mul(4)) as u32);
-        // SAFETY: as the game's own read, inside the race block.
-        unsafe { (crate::pointers::host_at(at as usize) as *const u32).read_unaligned() }
+        crate::session::read_on_in(
+            self,
+            &self.object_kinds,
+            object as usize,
+            "an object's kind",
+        )
+        .unwrap_or_else(|e| crate::fatal::raise::end("an object's kind", e))
     }
 }
 
-/// The piece: the race block's bytes at IDA 0x5CCE7C seen as `ObjectTables`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = ObjectTables;
-    fn deref(&self) -> &ObjectTables {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const ObjectTables) }
+impl ObjectTables {
+    /// The piece with the image's first values (a static of its own since 2026-10-29: it left
+    /// the race block, phase 13, `race::store::LEFT`; the owner `scene::owner::Scene` holds it).
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static OBJECT_TABLES: InRaceBlock = InRaceBlock;
 
 /// IDA 0x5CCE7C, the first byte of the piece.
 pub const START: usize = 0x5CCE7C;
@@ -75,18 +74,27 @@ pub const END: usize = 0x5D0AE0;
 
 const _: () = assert!(END - START == core::mem::size_of::<ObjectTables>());
 
-/// Where IDA 0x5CCE7C is now (in the race block).
+/// Where IDA 0x5CCE7C is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::scene::owner::scene().objects.tables,
+    ))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scene::owner::scene;
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&scene().objects.tables, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

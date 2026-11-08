@@ -14,7 +14,7 @@
 //! 80-bit value with more than 53 significant bits is rounded to nearest when loaded, and
 //! `fsin`, `fcos`, `fpatan` are libm's (within the last bit of the double).
 
-use crate::math::x87::{Rounding, rounding};
+use crate::math::x87::{Rounding, rounding, rounds_to_nearest};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 /// What the x87 holds in a register: an `f64` whose arithmetic rounds as the (emulated)
@@ -41,69 +41,95 @@ fn directed(r: f64, error: f64) -> X {
     })
 }
 
+/// A sum under a directed rounding (`r` is the sum rounded to nearest).
+#[cold]
+fn add_directed(a: f64, b: f64, r: f64) -> X {
+    if r == 0.0 && a.is_sign_negative() != b.is_sign_negative() {
+        // a sum of opposites is +0, but -0 when rounding down
+        return X(if rounding() == Rounding::Down {
+            -0.0
+        } else {
+            0.0
+        });
+    }
+    let bb = r - a;
+    directed(r, (a - (r - bb)) + (b - bb))
+}
+
+/// A product under a directed rounding.
+#[cold]
+fn mul_directed(a: f64, b: f64, r: f64) -> X {
+    directed(r, a.mul_add(b, -r))
+}
+
+/// A quotient under a directed rounding.
+#[cold]
+fn div_directed(a: f64, b: f64, r: f64) -> X {
+    // the remainder of the division has the sign of the error times the divisor's
+    let rem = (-r).mul_add(b, a);
+    directed(r, if b < 0.0 { -rem } else { rem })
+}
+
 impl Add for X {
     type Output = X;
+    #[inline]
     fn add(self, o: X) -> X {
         let r = self.0 + o.0;
-        if rounding() == Rounding::Nearest {
+        if rounds_to_nearest() {
             return X(r);
         }
-        if r == 0.0 && self.0.is_sign_negative() != o.0.is_sign_negative() {
-            // a sum of opposites is +0, but -0 when rounding down
-            return X(if rounding() == Rounding::Down {
-                -0.0
-            } else {
-                0.0
-            });
-        }
-        let bb = r - self.0;
-        directed(r, (self.0 - (r - bb)) + (o.0 - bb))
+        add_directed(self.0, o.0, r)
     }
 }
 impl Sub for X {
     type Output = X;
+    #[inline]
     fn sub(self, o: X) -> X {
         self + -o
     }
 }
 impl Mul for X {
     type Output = X;
+    #[inline]
     fn mul(self, o: X) -> X {
         let r = self.0 * o.0;
-        if rounding() == Rounding::Nearest {
+        if rounds_to_nearest() {
             return X(r);
         }
-        directed(r, self.0.mul_add(o.0, -r))
+        mul_directed(self.0, o.0, r)
     }
 }
 impl Div for X {
     type Output = X;
+    #[inline]
     fn div(self, o: X) -> X {
         let r = self.0 / o.0;
-        if rounding() == Rounding::Nearest {
+        if rounds_to_nearest() {
             return X(r);
         }
-        // the remainder of the division has the sign of the error times the divisor's
-        let rem = (-r).mul_add(o.0, self.0);
-        directed(r, if o.0 < 0.0 { -rem } else { rem })
+        div_directed(self.0, o.0, r)
     }
 }
 impl AddAssign for X {
+    #[inline]
     fn add_assign(&mut self, o: X) {
         *self = *self + o;
     }
 }
 impl SubAssign for X {
+    #[inline]
     fn sub_assign(&mut self, o: X) {
         *self = *self - o;
     }
 }
 impl DivAssign for X {
+    #[inline]
     fn div_assign(&mut self, o: X) {
         *self = *self / o;
     }
 }
 impl MulAssign for X {
+    #[inline]
     fn mul_assign(&mut self, o: X) {
         *self = *self * o;
     }

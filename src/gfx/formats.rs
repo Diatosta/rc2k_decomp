@@ -1,6 +1,6 @@
 //! The pixel formats' work variables (format numbers, scratch bytes, component format), out
 //! of RAL.EXE's image (phase 5; typed in phase 7, `notes/conversion.md`): IDA 0x4F3F78 ..
-//! 0x4F3FC4. The row table follows (`gfx::fill_row_table::ROW_TABLE`).
+//! 0x4F3FC4. The row table follows (`ROW_TABLE`).
 
 use crate::session::{Bytes, Dword};
 
@@ -12,6 +12,7 @@ pub const LEN: usize = 0x4F3FC4 - START;
 /// A pixel layout's number and its masks' summary (`describe_format` picks the number of
 /// the layout whose bits the masks match).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Numbered {
     /// The layout's number.
     pub number: Dword,
@@ -30,6 +31,7 @@ impl Numbered {
 
 /// The pixel formats' variables.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Formats {
     /// `dword_4F3F78`: six of (number, layout).
     pub numbers: [Numbered; 6],
@@ -39,23 +41,22 @@ pub struct Formats {
     pub component_format: [Dword; 6],
 }
 
-/// The pixel formats' variables; the first values are the image's.
-pub static FORMATS: Formats = Formats {
-    numbers: [
-        Numbered::new(1, 0xe0f8fbfd),
-        Numbered::new(2, 0xe0f7fafd),
-        Numbered::new(3, 0xf0f7fafd),
-        Numbered::new(4, 0xf0f4f8fc),
-        Numbered::new(5, 0xe0000000),
-        Numbered::new(6, 0x80000000),
-    ],
-    scratch: Bytes::new([0; 4]),
-    component_format: [const { Dword::new(0) }; 6],
-};
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x4F3F78).
-pub fn home() -> usize {
-    crate::pointers::game_address(&FORMATS as *const Formats) as usize
+impl Formats {
+    /// The pixel formats' variables; the first values are the image's.
+    pub const fn new() -> Self {
+        Formats {
+            numbers: [
+                Numbered::new(1, 0xe0f8fbfd),
+                Numbered::new(2, 0xe0f7fafd),
+                Numbered::new(3, 0xf0f7fafd),
+                Numbered::new(4, 0xf0f4f8fc),
+                Numbered::new(5, 0xe0000000),
+                Numbered::new(6, 0x80000000),
+            ],
+            scratch: Bytes::new([0; 4]),
+            component_format: [const { Dword::new(0) }; 6],
+        }
+    }
 }
 
 #[cfg(test)]
@@ -65,7 +66,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&FORMATS, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::GFX.pixel.formats,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
@@ -74,15 +79,23 @@ mod tests {
         assert_eq!(offset_of!(Formats, component_format), 0x4F3FAC - START);
         assert_eq!(
             crate::moved::place(START),
-            FORMATS.numbers[0].number.addr() as usize
+            crate::gfx::owner::GFX.pixel.formats.numbers[0]
+                .number
+                .addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x4F3FA8),
-            FORMATS.scratch.addr() as usize
+            crate::gfx::owner::GFX.pixel.formats.scratch.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x4F3FAC),
-            (crate::pointers::game_address(FORMATS.component_format.as_ptr())) as usize
+            (crate::pointers::game_address(
+                crate::gfx::owner::GFX
+                    .pixel
+                    .formats
+                    .component_format
+                    .as_ptr()
+            )) as usize
         );
     }
 }

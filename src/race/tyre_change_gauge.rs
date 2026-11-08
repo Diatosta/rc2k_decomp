@@ -20,8 +20,7 @@
 //!
 //! The result also goes into `g_soundScratch` (which the original uses as its scratch).
 //!
-//! In:  eax 0 to start, else to run; esi the player (`dword_5BEBEC`)
-//! Out: eax the result; the rest kept (`pusha` / `popa`); no flags read
+//! Returns: the result
 //!
 //! Caller: `race::tyre_change` (twice), which calls the Rust version directly and reads only
 //! eax. Its calls: `system::tick_count`, `race::draw_tyre_change`, `input_device_read`
@@ -29,50 +28,38 @@
 //! anything) a player past 7 or a null device.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::store::DEVICES;
-use crate::menu::names_store::NAME_BUFFERS;
-use crate::pointers::GamePtr;
-use crate::race::tyre_store::TYRE_CHANGE as TYRE;
+use crate::input::types::InputDevice;
+use crate::menu::owner::menus;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
-use crate::session::MACHINE;
 use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 
 /// flt_5C2C60 (`VIEWER_PANEL.one`): added to the square root in the press time's logarithm.
 #[cfg(all(test, target_arch = "x86"))]
 const SQRT_OFFSET: usize = 0x5C2C60;
-const GAUGE: u32 = 0x4EC;
-const STAGE: u32 = 0x4F0;
-const CLOCK: u32 = 0x4F4;
 
 #[cfg(all(test, target_arch = "x86"))]
 fn p(x: usize, v: u32) {
-    crate::store::game_write(crate::framework::rva(x), v)
-}
-
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("the tyre change device")
-}
-
-fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(a).write(v, "the tyre change device")
+    crate::store::game_write(crate::framework::rva(x), v);
 }
 
 /// The press time's constants: `TyreChange::{time_base, time_scale, gauge_unit,
 /// log_two_ten}` and flt_5C2C60.
-fn constants() -> [u32; 5] {
+fn constants(shared: &Shared) -> [u32; 5] {
     [
-        TYRE.time_base.bits(),
-        TYRE.time_scale.bits(),
-        TYRE.gauge_unit.bits(),
-        TYRE.log_two_ten.bits(),
+        shared.tyre_change.time_base.bits(),
+        shared.tyre_change.time_scale.bits(),
+        shared.tyre_change.gauge_unit.bits(),
+        shared.tyre_change.log_two_ten.bits(),
         VIEWER_PANEL.one.bits(),
     ]
 }
 
 /// 0x41C2C7 .. 0x41C320: the time of a press, from s = 0x10000 less the gauge.
-pub fn press_time(s: i32) -> i32 {
+pub fn press_time(shared: &Shared, s: i32) -> i32 {
     use crate::math::x87_float::{X, int, ld, to_int};
-    let f = constants().map(ld);
+    let f = constants(shared).map(ld);
     // `fyl2x` (libm's log2): the product and the sum are the x87's
     let log = (int(s) * f[2]).sqrt() + f[4];
     let r = f[1] * f[3] * X(log.0.log2());
@@ -82,75 +69,89 @@ pub fn press_time(s: i32) -> i32 {
 
 /// The gauge's dealings with the game: the device's state written into it before each
 /// drawing.
-struct GameIo {
-    device: u32,
+struct GameIo<'a> {
+    race: &'a Race,
+    device: &'static InputDevice,
 }
 
-impl GameIo {
-    fn store(&self, g: &Gauge) -> Result<(), BadInput> {
-        put(self.device + GAUGE, g.gauge)?;
-        put(self.device + STAGE, g.stage)?;
-        put(self.device + CLOCK, g.clock)
+impl GameIo<'_> {
+    fn store(&self, g: &Gauge) {
+        self.device.gauge.set(g.gauge);
+        self.device.stage.set(g.stage);
+        self.device.clock.set(g.clock);
     }
 }
 
-impl Io for GameIo {
+impl Io for GameIo<'_> {
     type Error = Refused;
     fn tick(&mut self) -> Result<u32, Refused> {
         Ok(crate::system::tick_count::tick_count())
     }
     fn pressed(&mut self) -> Result<bool, Refused> {
         // `input_device_read` (0x40930D, inlined): ebx the device's +0x4E8.
-        Ok(get(self.device + 0x4E8)? & 0xFF != 0)
+        Ok(self.device.bits.get() & 0xFF != 0)
     }
     fn draw(&mut self, g: &Gauge) -> Result<(), Refused> {
-        self.store(g)?;
-        unsafe { crate::race::draw_tyre_change::draw_tyre_change(self.device) }
+        // `draw_tyre_change` wants the `'static` owner.
+        let race = crate::race::owner::race();
+        let shared = &race.shared;
+        self.store(g);
+        // The drawing takes the device by address (its x87 turn reads the gauge).
+        crate::race::draw_tyre_change::draw_tyre_change(race, shared, self.device)
     }
     fn press_time(&mut self, s: u32) -> u32 {
-        press_time(s as i32) as u32
+        let shared = &self.race.shared;
+        press_time(shared, s as i32) as u32
     }
     fn developer(&mut self) -> bool {
         crate::system::check_developer_machine::DEVELOPER.get() == 1
     }
     fn record(&mut self) -> u32 {
-        TYRE.record.get()
+        self.race.shared.tyre_change.record.get()
     }
     fn beaten(&mut self, time: u32) {
-        TYRE.record.set(time);
+        let shared = &self.race.shared;
+        shared.tyre_change.record.set(time);
         // g_playerNames, or the second name, byte_7557A4: 30 bytes.
-        let from = 0x20 * (TYRE.player.get() != 0) as usize;
+        let from = 0x20 * (shared.tyre_change.player.get() != 0) as usize;
         for n in 0..30 {
-            TYRE.record_name
-                .set(n, NAME_BUFFERS.player_names.get(from + n));
+            shared
+                .tyre_change
+                .record_name
+                .set(n, menus().play.names.player_names.get(from + n));
         }
     }
 }
 
 /// The Rust version: `start` (eax 0) starts the gauge, else runs it, for player `player`
 /// (esi); gives the result (eax; the original keeps the rest).
-pub fn tyre_change_gauge(start: bool, player: u32) -> Result<u32, Refused> {
+pub fn tyre_change_gauge(
+    race: &Race,
+    start: bool,
+    player: u32,
+    input: &'static crate::input::owner::Input,
+    system: &crate::system::owner::System,
+) -> Result<u32, Refused> {
     // Converted: `rc2k_core::race::tyre_change::turn`.
     if player > 7 {
         return Err(BadInput("a tyre change player past 7").into());
     }
-    let d = DEVICES.input_device(player as usize);
-    if d == 0 {
+    let Some(d) = input.devices.input_device(player as usize)? else {
         return Err(BadInput("a tyre change player without a device").into());
-    }
-    TYRE.player.set(player);
-    let mut io = GameIo { device: d };
+    };
+    race.shared.tyre_change.player.set(player);
+    let mut io = GameIo { race, device: d };
     let mut gauge = Gauge {
-        gauge: get(d + GAUGE)?,
-        stage: get(d + STAGE)?,
-        clock: get(d + CLOCK)?,
+        gauge: d.gauge.get(),
+        stage: d.stage.get(),
+        clock: d.clock.get(),
     };
     let before = gauge;
     let result = turn(start, &mut gauge, &mut io)?;
     if gauge != before {
-        io.store(&gauge)?;
+        io.store(&gauge);
     }
-    MACHINE.scratch.set(result);
+    system.session.machine.scratch.set(result);
     Ok(result)
 }
 
@@ -159,22 +160,25 @@ mod asm_reference {
     use super::*;
     use crate::math::x87::x87;
     use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock};
+    use crate::race::owner::race;
 
     /// The four constants as they were, put back when dropped.
     struct Kept([u32; 4]);
 
     impl Drop for Kept {
         fn drop(&mut self) {
-            TYRE.time_base.set_bits(self.0[0]);
-            TYRE.time_scale.set_bits(self.0[1]);
-            TYRE.gauge_unit.set_bits(self.0[2]);
-            TYRE.log_two_ten.set_bits(self.0[3]);
+            let shared = &race().shared;
+            shared.tyre_change.time_base.set_bits(self.0[0]);
+            shared.tyre_change.time_scale.set_bits(self.0[1]);
+            shared.tyre_change.gauge_unit.set_bits(self.0[2]);
+            shared.tyre_change.log_two_ten.set_bits(self.0[3]);
         }
     }
 
     // The original block, verbatim.
     pub(super) fn press_time_asm(s: i32) -> i32 {
-        let f = constants();
+        let shared = &crate::race::owner::race().shared;
+        let f = constants(shared);
         let v = [
             f[1],
             f[3],
@@ -209,13 +213,14 @@ mod asm_reference {
     /// and libm's disagree at the last bit and the sum falls on a whole number; counted.
     #[test]
     fn press_time_matches() {
+        let shared = &race().shared;
         let _l = lock();
         let _saved = Saved::new(&[SQRT_OFFSET]);
         let _kept = Kept([
-            TYRE.time_base.bits(),
-            TYRE.time_scale.bits(),
-            TYRE.gauge_unit.bits(),
-            TYRE.log_two_ten.bits(),
+            shared.tyre_change.time_base.bits(),
+            shared.tyre_change.time_scale.bits(),
+            shared.tyre_change.gauge_unit.bits(),
+            shared.tyre_change.log_two_ten.bits(),
         ]);
         let mut r = Rng(31);
         let mut off = 0;
@@ -223,10 +228,10 @@ mod asm_reference {
         at_each_control_word(|| {
             for n in 0..60000u32 {
                 if n >= 20000 {
-                    TYRE.time_base.set_bits(r.float());
-                    TYRE.time_scale.set_bits(r.float());
-                    TYRE.gauge_unit.set_bits(r.float());
-                    TYRE.log_two_ten.set_bits(r.float());
+                    shared.tyre_change.time_base.set_bits(r.float());
+                    shared.tyre_change.time_scale.set_bits(r.float());
+                    shared.tyre_change.gauge_unit.set_bits(r.float());
+                    shared.tyre_change.log_two_ten.set_bits(r.float());
                     p(SQRT_OFFSET, r.float());
                 }
                 let s = if n < 20000 {
@@ -234,7 +239,7 @@ mod asm_reference {
                 } else {
                     r.int()
                 };
-                let (want, got) = (press_time_asm(s), press_time(s));
+                let (want, got) = (press_time_asm(s), press_time(shared, s));
                 total += 1;
                 if want != got {
                     off += 1;

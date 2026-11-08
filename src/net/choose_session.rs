@@ -7,54 +7,48 @@
 //! when it is gone; a failed listing gives -2. With no session listed only Escape, 'R' and
 //! the lexicon's key work.
 //!
-//! In:  nothing (the registers it is given reach only its frame, `net::sessions_frame`, and
-//!      `menu::list_take_key`, which read none)
-//! Out: the session chosen (`g_listChoice`: -1 Escape, -2 the listing failed; negative the
-//!      original's carry); the original keeps the rest
+//! Returns the session chosen.
 //! Caller: `net::start_link`.
 
 use crate::errors::Refused;
-use crate::field;
-use crate::install::vars::INSTALLER_PAGES;
 use crate::net::choose_connection::list_move;
-use crate::net::lobby::{list_key, movsb, other_key, run_frame, session};
-use crate::net::store::NET;
-use crate::net::types::NetSession;
-use crate::session::CLOCKS;
-use crate::session::FLAGS;
-use crate::system::same_guid::same_guid;
+use crate::net::lobby::{list_key, other_key, run_frame};
+use crate::net::owner::Net;
+use crate::net::tables::with_session;
+use crate::system::owner::system;
 use rc2k_core::net::screens::{self, ListKey};
 
 /// The sessions listed again (not posted), the highlight kept on the same one; false for
 /// a failed listing.
-fn refresh() -> Result<bool, Refused> {
-    let listed = NET.sessions.get();
+fn refresh(install: &'static crate::install::owner::Install, net: &Net) -> Result<bool, Refused> {
+    let listed = net.vars.sessions.get();
     if listed != 0 {
-        movsb(
-            NET.joined.addr(),
-            session(INSTALLER_PAGES.choice.get())? + field!(NetSession, instance),
-            0x10,
-        )?;
+        let instance = with_session(install.pages.choice.get(), |s| s.instance)?;
+        net.vars
+            .joined
+            .write_at(0, &instance, "the joined session")?;
     }
-    let posting = NET.posting.get();
-    NET.posting.set(0);
-    let found = crate::net::find_sessions::find_sessions()?;
-    NET.posting.set(posting);
+    let posting = net.vars.posting.get();
+    net.vars.posting.set(0);
+    let found = crate::net::find_sessions::find_sessions(net)?;
+    net.vars.posting.set(posting);
     if !found {
         return Ok(false);
     }
     let (mut choice, mut top) = (0, 0);
-    if listed != 0 && NET.sessions.get() != 0 {
+    if listed != 0 && net.vars.sessions.get() != 0 {
         let mut n = 0;
         loop {
-            if same_guid(session(n)?.wrapping_add(0x40), NET.joined.addr()) {
+            let joined = net.vars.joined.read();
+            // `system::same_guid`: the four dwords alike.
+            if with_session(n, |s| s.instance)? == joined {
                 // Converted: `rc2k_core::net::screens` (`keeps_top`, `moved_top`).
                 choice = n;
-                top = if screens::keeps_top(NET.sessions.get()) {
+                top = if screens::keeps_top(net.vars.sessions.get()) {
                     screens::moved_top(
                         n,
-                        INSTALLER_PAGES.choice_before.get(),
-                        INSTALLER_PAGES.choice.get(),
+                        install.pages.choice_before.get(),
+                        install.pages.choice.get(),
                     )
                 } else {
                     0
@@ -62,52 +56,62 @@ fn refresh() -> Result<bool, Refused> {
                 break;
             }
             n = n.wrapping_add(1);
-            if n == NET.sessions.get() {
+            if n == net.vars.sessions.get() {
                 break;
             }
         }
     }
-    INSTALLER_PAGES.choice.set(choice);
-    INSTALLER_PAGES.choice_before.set(top);
+    install.pages.choice.set(choice);
+    install.pages.choice_before.set(top);
     Ok(true)
 }
 
 /// The Rust version.
-pub fn choose_session() -> Result<u32, Refused> {
-    let now = CLOCKS.key_ticks.get();
-    INSTALLER_PAGES.move_clock.set(now);
-    INSTALLER_PAGES.key_clock.set(now);
-    INSTALLER_PAGES.choice.set(0);
-    INSTALLER_PAGES.choice_before.set(0);
-    NET.clock_a.set(crate::system::tick_count::tick_count());
+pub fn choose_session(
+    install: &'static crate::install::owner::Install,
+    net: &Net,
+) -> Result<u32, Refused> {
+    let system = system();
+    let now = system.session.clocks.key_ticks.get();
+    install.pages.move_clock.set(now);
+    install.pages.key_clock.set(now);
+    install.pages.choice.set(0);
+    install.pages.choice_before.set(0);
+    net.vars
+        .clock_a
+        .set(crate::system::tick_count::tick_count());
     loop {
         run_frame(crate::net::sessions_frame::sessions_frame)?;
         let tick = crate::system::tick_count::tick_count();
-        if (tick.wrapping_sub(NET.clock_a.get()).wrapping_sub(1000) as i32) >= 0 {
-            NET.clock_a.set(tick);
-            if !refresh()? {
-                INSTALLER_PAGES.choice.set(0xFFFF_FFFE);
-                return Ok(INSTALLER_PAGES.choice.get());
+        if (tick.wrapping_sub(net.vars.clock_a.get()).wrapping_sub(1000) as i32) >= 0 {
+            net.vars.clock_a.set(tick);
+            if !refresh(install, net)? {
+                install.pages.choice.set(0xFFFF_FFFE);
+                return Ok(install.pages.choice.get());
             }
         }
-        INSTALLER_PAGES.frame_clock.set(CLOCKS.key_ticks.get());
+        install
+            .pages
+            .frame_clock
+            .set(system.session.clocks.key_ticks.get());
         let key = list_key()?;
-        let any = NET.sessions.get() != 0;
-        if any && list_move(key, NET.sessions.get()) {
-            INSTALLER_PAGES
+        let any = net.vars.sessions.get() != 0;
+        if any && list_move(install, key, net.vars.sessions.get()) {
+            install
+                .pages
                 .move_clock
-                .set(INSTALLER_PAGES.frame_clock.get());
+                .set(install.pages.frame_clock.get());
         } else if any && ListKey::of(key) == ListKey::Enter {
-            return Ok(INSTALLER_PAGES.choice.get());
+            return Ok(install.pages.choice.get());
         } else if ListKey::of(key) == ListKey::Escape {
             break;
         } else {
             other_key(key)?;
         }
-        if FLAGS.quitting.get() == 1 {
+        if system.session.flags.quitting.get() == 1 {
             break;
         }
     }
-    INSTALLER_PAGES.choice.set(u32::MAX);
-    Ok(INSTALLER_PAGES.choice.get())
+    install.pages.choice.set(u32::MAX);
+    Ok(install.pages.choice.get())
 }

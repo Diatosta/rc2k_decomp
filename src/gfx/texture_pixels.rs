@@ -1,6 +1,7 @@
 //! What a picture goes through on its way into a texture (read 2026-10-14 from
-//! `gfx::load_picture_to_texture`'s upload `sub_41A68B` and `scene::upload_car_icon`).
-//! Pixels are 32-bit components: byte 0, 1, 2 the colour, byte 3 the alpha.
+//! `gfx::load_picture_to_texture`'s upload `gfx::upload_texture_picture` and
+//! `scene::upload_car_icon`). Pixels are 32-bit components: byte 0, 1, 2 the colour, byte 3 the
+//! alpha.
 //!
 //! - `gfx::alpha_from_kept` (0x405443): each pixel's alpha = the first byte of the
 //!   pixel at the same place 0x40000 bytes on (a second picture kept there), inverted.
@@ -20,7 +21,7 @@
 //!   alpha above 0 for the colour.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
+use crate::gfx::picture::{read_bytes, write_bytes};
 use crate::session::{Bytes, Dword};
 
 /// IDA's address of the grading variables.
@@ -31,6 +32,7 @@ pub const LEN: usize = 0x4F4B30 - START;
 /// The texture pictures' grading (`gfx::texture_upload` grades a texture's colours when the
 /// settings ask for it).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Grading {
     /// `dword_4F4A24`: 1 while the textures are being read (`reload_system_textures`).
     pub reading: Dword,
@@ -42,17 +44,16 @@ pub struct Grading {
     pub grades: Bytes<0x100>,
 }
 
-/// The grading variables; the first values are the image's.
-pub static GRADING: Grading = Grading {
-    reading: Dword::new(1),
-    scale: Dword::new(0x100),
-    saturation: Dword::new(0x100),
-    grades: Bytes::new([0; 0x100]),
-};
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x4F4A24).
-pub fn home() -> usize {
-    crate::pointers::game_address(&GRADING as *const Grading) as usize
+impl Grading {
+    /// The grading variables; the first values are the image's.
+    pub const fn new() -> Self {
+        Grading {
+            reading: Dword::new(1),
+            scale: Dword::new(0x100),
+            saturation: Dword::new(0x100),
+            grades: Bytes::new([0; 0x100]),
+        }
+    }
 }
 
 /// The second picture's place, in bytes from the first's start.
@@ -60,19 +61,19 @@ pub const KEPT: usize = rc2k_core::gfx::pixels::KEPT;
 
 // Converted: `rc2k_core::gfx::pixels` (the pixels as slices of the counts given).
 
+// `pixels` names a picture buffer (`gfx::picture`; the textures are read in it).
+
 pub fn alpha_from_kept(pixels: u32, count: u32) -> Result<(), BadInput> {
-    let place = GamePtr::new(pixels);
-    let mut buffer = place.read_bytes(KEPT + count as usize * 4, "a texture's pixels")?;
+    let mut buffer = read_bytes(pixels, 0, KEPT + count as usize * 4)?;
     rc2k_core::gfx::pixels::alpha_from_kept(&mut buffer, count as usize)
         .ok_or(BadInput("a texture's pixels shorter than both pictures"))?;
-    place.write_bytes(&buffer, "a texture's pixels")
+    write_bytes(pixels, 0, &buffer)
 }
 
 pub fn key_texture_colours(pixels: u32, count: u32, key: u32) -> Result<(), BadInput> {
-    let place = GamePtr::new(pixels);
-    let mut dwords = dwords_of(&place.read_bytes(count as usize * 4, "a texture's pixels")?);
+    let mut dwords = dwords_of(&read_bytes(pixels, 0, count as usize * 4)?);
     rc2k_core::gfx::pixels::key_colours(&mut dwords, key);
-    place.write_bytes(&bytes_of(&dwords), "a texture's pixels")
+    write_bytes(pixels, 0, &bytes_of(&dwords))
 }
 
 fn dwords_of(bytes: &[u8]) -> Vec<u32> {
@@ -100,10 +101,9 @@ pub fn grade_texture(
     table: &mut [u8; 0x100],
 ) -> Result<(), BadInput> {
     *table = grades(scale);
-    let place = GamePtr::new(pixels);
-    let mut dwords = dwords_of(&place.read_bytes(count as usize * 4, "a texture's pixels")?);
+    let mut dwords = dwords_of(&read_bytes(pixels, 0, count as usize * 4)?);
     rc2k_core::gfx::pixels::grade(&mut dwords, key, saturation, table);
-    place.write_bytes(&bytes_of(&dwords), "a texture's pixels")
+    write_bytes(pixels, 0, &bytes_of(&dwords))
 }
 
 /// Returns the size after the last pass (as it was for no pass).
@@ -113,12 +113,14 @@ pub fn halve_texture(
     height: u32,
     times: u32,
 ) -> Result<(u32, u32), BadInput> {
-    let place = GamePtr::new(pixels);
-    let mut dwords =
-        dwords_of(&place.read_bytes(width as usize * height as usize * 4, "a texture's pixels")?);
+    let mut dwords = dwords_of(&read_bytes(
+        pixels,
+        0,
+        width as usize * height as usize * 4,
+    )?);
     let size = rc2k_core::gfx::pixels::halve(&mut dwords, width, height, times)
         .ok_or(BadInput("a texture that is not its picture"))?;
-    place.write_bytes(&bytes_of(&dwords), "a texture's pixels")?;
+    write_bytes(pixels, 0, &bytes_of(&dwords))?;
     Ok(size)
 }
 
@@ -128,15 +130,18 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&GRADING, START, START + LEN);
+        crate::gfx::first_values_are_the_games(&crate::gfx::owner::GFX.grading, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), GRADING.reading.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            crate::gfx::owner::GFX.grading.reading.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(0x4F4A30),
-            GRADING.grades.addr() as usize
+            crate::gfx::owner::GFX.grading.grades.addr() as usize
         );
     }
 }

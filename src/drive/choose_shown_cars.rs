@@ -6,19 +6,14 @@
 //! `dword_641680` .. -1 but the shown ones' 0 (the first, and the second when there are
 //! two views). By the look of it the split screen's set-up (a reading).
 //!
-//! In:  nothing
-//! Out: eax `dword_63DBA0` (with `dword_52A910` set) or the second view's block; the
-//!      rest kept; no flags read (callers go on with `mov`, `lea`, calls)
-//!
-//! Callers (5): race init's loop (`sub_4608BB`), `sub_460835`, `sub_460B2F`, `sub_43A649`,
-//! `sub_45429B`. Refuses (before anything) a replay car (`dword_63DBA0`) above 7 with
+//! Callers (5): race init's loop (`drive::race_cars_step`), `race::step_replay_cars`,
+//! `drive::replay_step`, `race::race_keys`,
+//! `race::draw_race_scene`. Refuses (before anything) a replay car (`dword_63DBA0`) above 7 with
 //! `dword_52A910` set (it would write past `dword_641680`'s eight).
 
 use crate::errors::Refused;
-use crate::race::frame_store::FRAME_WORK;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
+use crate::net::owner::net;
+use crate::race::owner::Race;
 use crate::session::Dword;
 use rc2k_core::drive::shown_cars::{ShownCars, ShownSetup};
 
@@ -27,7 +22,7 @@ fn get(v: &[&Dword], k: usize) -> u32 {
 }
 
 fn put(v: &[&Dword], k: usize, x: u32) {
-    v[k].set_bits(x)
+    v[k].set_bits(x);
 }
 
 /// The Rust version on the variables at `v` (`game`'s order).
@@ -53,8 +48,9 @@ pub fn choose_at(v: &[&Dword]) -> Result<(), Refused> {
     if shown.split != split {
         put(v, 6, shown.split);
     }
-    put(v, 9, shown.blocks[0]);
-    put(v, 10, shown.blocks[1]);
+    // The views' blocks kept by handle (`blocks_store::block_ref`).
+    put(v, 9, crate::race::blocks_store::handle_of(shown.blocks[0]));
+    put(v, 10, crate::race::blocks_store::handle_of(shown.blocks[1]));
     for (k, &x) in shown.listed.iter().enumerate() {
         put(v, 11 + k, x);
     }
@@ -62,25 +58,26 @@ pub fn choose_at(v: &[&Dword]) -> Result<(), Refused> {
 }
 
 /// The variables' addresses, in the order the core uses them.
-fn game() -> Vec<&'static Dword> {
-    let mut cells: Vec<&'static Dword> = vec![
-        &RACE_VIEW.view_cars[0],
-        &RACE_VIEW.view_cars[1],
-        &RACE_VIEW.players,
-        &RACE_VIEW.views,
-        &NUMBERS.replay_mode,
-        &RACE_VIEW.view_switch,
-        &RACE_VARS.split,
-        &crate::net::store::NET.session, // dword_52A910: in the network's variables
-        &RACE_VIEW.local_car,
-        &RACE_VIEW.view_blocks[0],
-        &RACE_VIEW.view_blocks[1],
+fn game(race: &Race) -> Vec<&Dword> {
+    let shared = &race.shared;
+    let mut cells: Vec<&Dword> = vec![
+        &shared.view.view_cars[0],
+        &shared.view.view_cars[1],
+        &shared.view.players,
+        &shared.view.views,
+        &race.course.numbers.replay_mode,
+        &shared.view.view_switch,
+        &shared.vars.split,
+        &net().vars.session, // dword_52A910: in the network's variables
+        &shared.view.local_car,
+        &shared.view.view_blocks[0],
+        &shared.view.view_blocks[1],
     ];
-    cells.extend(FRAME_WORK.listed_car_sounds.iter());
+    cells.extend(race.frame.frame_work.listed_car_sounds.iter());
     cells
 }
 
 /// The Rust version.
-pub fn choose_shown_cars() -> Result<(), Refused> {
-    choose_at(&game())
+pub fn choose_shown_cars(race: &Race) -> Result<(), Refused> {
+    choose_at(&game(race))
 }

@@ -6,50 +6,47 @@
 //! (`menu::sealed_player_time` with eax the stage's +0x3C), the 0x40 bytes at the player's
 //! +0x20C at +0x5C, the name's first 31 bytes at +0x20; then `menu::rank_time_trial_best`.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Callers: the time trial's events, when the player qualifies. The two callees are their Rust
 //! versions, `sealed_player_time` with the registers the original has there (eax the stage's +0x3C,
 //! ebx `dword_7558D0`, esi the player, edi the entry). Refuses (before anything) a current player
 //! past the four or missing, a stage the tables do not give, or a name pointer of 0.
 
-use crate::errors::{BadInput, Refused};
-use crate::menu::draw_work_store::DRAW_WORK;
+use crate::errors::Refused;
 use crate::menu::event_flow::*;
+use crate::menu::owner::Menus;
+use crate::menu::standings::name_address_of;
 use crate::session::Dword;
 
-const STAGE_SLOT: &Dword = &DRAW_WORK.figure; // dword_7559EC
+const STAGE_SLOT: &Dword = &crate::menu::owner::MENUS.screens.draw_work.figure; // dword_7559EC
 // hhmm
 
-/// The Rust version (see the header).
-pub fn enter_time_trial_best() -> Result<(), Refused> {
+/// The Rust version.
+pub fn enter_time_trial_best(menus: &Menus) -> Result<(), Refused> {
+    let play = &menus.play;
+    let screens = &menus.screens;
     use rc2k_core::menu::bests;
     let record = stage_record()?;
     stage_times()?; // a stage the tables do not give: refused
     let p = current_player()?;
-    let name = dword(p + 0x18)?;
-    if name == 0 {
-        return Err(BadInput("a player's name pointer of 0").into());
-    }
-    let slot = dword(record + 0x3C)?;
+    let name = name_address_of(&p.get())?;
+    let slot = record.record()?.event_slot();
     set(STAGE_SLOT, slot);
     let cheats = get(CHEATS);
-    let sealed = crate::menu::sealed_player_time::sealed_player_time(slot)?;
-    // Converted: `rc2k_core::menu::bests::enter_tenth`, then `rank_time_trial_best`.
-    use crate::menu::standings::bytes;
+    let sealed = crate::menu::sealed_player_time::sealed_player_time(screens, slot)?;
+    // Converted: `rc2k_core::saves::entries::BestTime::enter`, then `rank_time_trial_best`.
+    use crate::menu::standings::name_of;
     let best = bests::NewBest {
-        key: dword(p + 0x88)?,
+        key: p.get().time,
         player: 1,
-        nationality: dword(p + 4)?,
+        nationality: p.get().nationality,
         name_at: name,
-        car: dword(p + 8)?,
-        group: dword(p + 0x90)?,
-        name: bytes(name)?,
+        car: p.get().car_number,
+        group: p.get().class,
+        name: name_of(menus, &p.get())?,
         entered: None,
         seal: Some(bests::Seal { cheats, sealed }),
-        line: Some(bytes(p + 0x20C)?),
+        line: Some(p.get().best_line),
     };
-    bests::enter_tenth(&mut crate::menu::rank_time_trial_best::stage_list()?, &best);
-    crate::menu::rank_time_trial_best::rank_time_trial_best()
+    with_stage_times(|list| list[9].enter(&best))?;
+    crate::menu::rank_time_trial_best::rank_time_trial_best(play)
 }

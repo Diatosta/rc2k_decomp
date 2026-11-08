@@ -1,8 +1,6 @@
 //! `install::check_clio_disc` (0x416653): the Clio update.
 //!
-//! In:  nothing
-//! Out: every register preserved; or it does not return (fatal error 0x90002105)
-//! `g_hasClio` (0x529DB4) = 1 if `files\b\obj0570.ro3` is there (`sub_47C63F` reads it:
+//! `g_hasClio` (0x529DB4) = 1 if `files\b\obj0570.ro3` is there (`menu::set_up_front_end` reads it:
 //! the extra car), and nothing at all if not. The rest is for a start from the update's
 //! disc: only if the installer is not running, there is no `var\ral.zog` here, the
 //! registry records an installation (status 1, a source) which is not where the game was
@@ -13,86 +11,74 @@
 //! under 2) is "CLIO: Requires normal or full installation" in the log and the fatal
 //! error. Otherwise the installer's script is set up (as in `check_at_start`, with
 //! string 0x1038), the car's name `aRenaultClioSpo` is put in capitals up to its `(`,
-//! where a line feed ends it, and `off_51DD48` becomes `sub_41675B`.
+//! where a line feed ends it, and `off_51DD48` becomes `install::install_clio`.
 //! One caller, `start`, which calls it directly (2026-10-23).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_addr, rva};
 use crate::install::check_at_start::set_script_entry;
 use crate::install::outside::Outside;
 use crate::install::runs_from_source::runs_from_source;
-use crate::install::vars::INSTALLER_NAMES;
-use crate::install::vars::INSTALLER_PAGES;
-use crate::install::vars::INSTALLER_PATHS;
-use crate::install::vars::INSTALLER_RUN;
 
 const CAR_NAME_LEN: usize = 0x1B;
 
 // ---- game data ----
 
-const CLIO_STEP_RVA: usize = rva(0x41675B); // sub_41675B
+const CLIO_STEP: u32 = 0x41675B; // `install::install_clio`
 
 // ---- Rust version ----
 
-pub unsafe fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> {
-    unsafe {
-        if !outside.file_exists(crate::pointers::host_at(
-            crate::install::store::INSTALL.clio_file.addr() as usize,
-        ) as *const u8)?
-        {
-            return Ok(());
-        }
-        crate::install::store::INSTALL.has_clio.set(1);
-        if INSTALLER_RUN.installing.get() == 1
-            || outside.file_exists(crate::pointers::host_at(
-                crate::install::installer::INSTALL_TEXTS.record_path.addr() as usize,
-            ) as *const u8)?
-            || runs_from_source(outside)?
-            || INSTALLER_NAMES.status.get() != 1
-            || INSTALLER_NAMES.source.get(0) == 0
-            || outside.file_exists(
-                crate::pointers::host(INSTALLER_NAMES.installer_data.addr()) as *const u8
-            )?
-        {
-            return Ok(());
-        }
-        let base_b = crate::pointers::host(crate::install::installer::INSTALL_TEXTS.base_b.addr())
-            as *const u8;
-        if !outside.normalise_path(base_b, crate::pointers::host(INSTALLER_PATHS.path_a.addr()))? {
-            return Ok(());
-        }
-        outside.set_directory(crate::pointers::host(INSTALLER_NAMES.source.addr()) as *const u8);
-        if !outside.normalise_path(base_b, crate::pointers::host(INSTALLER_PATHS.path_b.addr()))? {
-            return Ok(());
-        }
-        outside.read_record()?;
-        if crate::files::state::MEDIA_MODE.load(std::sync::atomic::Ordering::Relaxed) < 2 {
-            outside.log(
-                c"CLIO: Requires normal or full installation"
-                    .as_ptr()
-                    .cast(),
-            );
-            return Err(FatalError {
-                code: 0x9000_2105,
-                message: "This update disc requires normal or full main installation\nPlease update the main installation first and try again",
-            }
-            .into());
-        }
-        let at = crate::pointers::GamePtr::new(crate::install::store::INSTALL.clio_car_name.addr());
-        let mut name = at.read_bytes(CAR_NAME_LEN, "the Clio's name")?;
-        let Some(end) = name
-            .iter()
-            .position(|&c| c == b'(')
-            .filter(|end| end + 1 < CAR_NAME_LEN)
-        else {
-            return Err(BadInput("the Clio's name has no ( any more").into());
-        };
-        set_script_entry(0x1038);
-        name[..end].make_ascii_uppercase();
-        name[end] = b'\n';
-        name[end + 1] = 0;
-        at.write_bytes(&name, "the Clio's name")?;
-        INSTALLER_PAGES.step.set_u32(0, game_addr(CLIO_STEP_RVA));
-        Ok(())
+pub fn check_clio_disc(
+    g: &'static crate::install::owner::Install,
+    outside: &mut dyn Outside,
+) -> Result<(), Refused> {
+    let install = &g.vars;
+    if !outside.file_exists(&install.clio_file.text())? {
+        return Ok(());
     }
+    install.has_clio.set(1);
+    if g.run.installing.get() == 1
+        || outside.file_exists(&g.texts.record_path.text())?
+        || runs_from_source(g, outside)?
+        || g.names.status.get() != 1
+        || g.names.source.get(0) == 0
+        || outside.file_exists(&g.names.installer_data.text())?
+    {
+        return Ok(());
+    }
+    // `base_b` (`unk_5295B4`) is an empty text whose size is not known (section 13: the
+    // installer writes it elsewhere): read as a text at its place.
+    let base_b = crate::files::cstring(&g.texts.base_b, "the installer's base")?;
+    let Some(a) = outside.normalise_path(&base_b)? else {
+        return Ok(());
+    };
+    g.paths.path_a.write_at(0, &a, "a path")?;
+    outside.set_directory(&g.names.source.text());
+    let Some(b) = outside.normalise_path(&base_b)? else {
+        return Ok(());
+    };
+    g.paths.path_b.write_at(0, &b, "a path")?;
+    outside.read_record()?;
+    if crate::files::state::MEDIA_MODE.get() < 2 {
+        outside.log(b"CLIO: Requires normal or full installation");
+        return Err(FatalError {
+            code: 0x9000_2105,
+            message: "This update disc requires normal or full main installation\nPlease update the main installation first and try again",
+        }
+        .into());
+    }
+    let mut name = install.clio_car_name.read();
+    let Some(end) = name
+        .iter()
+        .position(|&c| c == b'(')
+        .filter(|end| end + 1 < CAR_NAME_LEN)
+    else {
+        return Err(BadInput("the Clio's name has no ( any more").into());
+    };
+    set_script_entry(g, 0x1038);
+    name[..end].make_ascii_uppercase();
+    name[end] = b'\n';
+    name[end + 1] = 0;
+    install.clio_car_name.write(&name);
+    g.pages.step.set_u32(0, CLIO_STEP);
+    Ok(())
 }

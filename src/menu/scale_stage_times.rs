@@ -5,15 +5,12 @@
 //! section, the record's +0x40, "a7x" and the first factor, "a8x" and the second, "times
 //! a8-a5" and the four times).
 //!
-//! In:  edi the record
-//! Out: eax the section held (no `pusha`); the rest kept
-//!
 //! Caller: `menu::calc_cpu_times`. Logs through the `logfile::` Rust versions (level 1).
 use crate::errors::Refused;
+use crate::menu::owner::Screens;
 use crate::menu::standings::*;
-use crate::menu::state_store::MENU_STATE;
-use crate::race::tables_store::RACE_TABLES;
-use crate::race::work_store::RACE_WORK;
+use crate::race::owner::race;
+use crate::records::stages_store::RecordRef;
 use crate::session::{read_all, write_all};
 
 const TEXTS_RVA: [&std::ffi::CStr; 4] = [c"stage times info", c"a7x", c"a8x", c"times a8-a5"];
@@ -24,11 +21,12 @@ pub fn held_section() -> u32 {
 
 /// The four times as scaled (see the header), and the two factors.
 pub fn scaled(times: [u32; 4], section: u32) -> ([u32; 4], [u32; 2]) {
+    let race = race();
     // flt_60463C, flt_604654: 6 each
     let s = section as usize;
     let f: [u32; 2] = [
-        RACE_TABLES.stage_time_factors_last[s].bits(),
-        RACE_TABLES.stage_time_factors_first[s].bits(),
+        race.shared.tables.stage_time_factors_last[s].bits(),
+        race.shared.tables.stage_time_factors_first[s].bits(),
     ];
     // Converted: `rc2k_core::menu::stage_scale` (exact at the game's precisions for times
     // below 2^29; its header).
@@ -38,27 +36,29 @@ pub fn scaled(times: [u32; 4], section: u32) -> ([u32; 4], [u32; 2]) {
 
 /// `record` the stage's record (edi in the original; its +0x40 is logged). The original
 /// leaves eax the section, which its one caller (`calc_cpu_times`) does not read.
-pub unsafe fn scale_stage_times(record: u32) -> Result<(), Refused> {
-    use crate::logfile::{log_float::log_float, log_int::log_int, log_write::log_write};
+pub fn scale_stage_times(
+    screens: &Screens,
+    record: RecordRef,
+    race: &crate::race::owner::Race,
+) -> Result<(), Refused> {
+    use crate::logfile::{log_float::log_float, log_int::log_int};
     let section = held_section();
-    unsafe {
-        let times: [u32; 4] = read_all(&MENU_STATE.menus.class_times);
-        let (times, f) = scaled(times, section);
-        RACE_WORK.stage_time_scales[0].set_bits(f[0]);
-        RACE_WORK.stage_time_scales[1].set_bits(f[1]);
-        write_all(&MENU_STATE.menus.class_times, times);
-        let text = |n: usize| TEXTS_RVA[n].as_ptr() as *const u8;
-        log_write(text(0), false, 1);
-        log_int(section as i32, false, 1);
-        log_int(get(record + 0x40)? as i32, false, 1);
-        log_write(text(1), false, 1);
-        log_float(f32::from_bits(f[0]), 2, false, 1);
-        log_write(text(2), false, 1);
-        log_float(f32::from_bits(f[1]), 2, false, 1);
-        log_write(text(3), false, 1);
-        for (k, &t) in times.iter().enumerate() {
-            log_int(t as i32, k == 3, 1);
-        }
+    let times: [u32; 4] = read_all(&screens.state.menus.class_times);
+    let (times, f) = scaled(times, section);
+    race.shared.work.stage_time_scales[0].set_bits(f[0]);
+    race.shared.work.stage_time_scales[1].set_bits(f[1]);
+    write_all(&screens.state.menus.class_times, times);
+    let text = |n: usize| &TEXTS_RVA[n];
+    crate::logfile::log_write::log_nul(text(0), false, 1);
+    log_int(section as i32, false, 1);
+    log_int(record.record()?.number() as i32, false, 1);
+    crate::logfile::log_write::log_nul(text(1), false, 1);
+    log_float(f32::from_bits(f[0]), 2, false, 1);
+    crate::logfile::log_write::log_nul(text(2), false, 1);
+    log_float(f32::from_bits(f[1]), 2, false, 1);
+    crate::logfile::log_write::log_nul(text(3), false, 1);
+    for (k, &t) in times.iter().enumerate() {
+        log_int(t as i32, k == 3, 1);
     }
     Ok(())
 }

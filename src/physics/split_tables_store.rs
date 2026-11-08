@@ -5,9 +5,12 @@
 //! scaled to a split). `#[repr(C)]` with the image's layout, over the race block's bytes
 //! (`SPLIT_TABLES`). Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SplitTables {
     /// +0x0 (0x60101C): `dword_60101C`: the arcade kind (1 or 2: `race::race_end`, `race::credits_race`, `race::race_cars`).
     pub arcade_kind: Dword,
@@ -47,19 +50,16 @@ pub struct SplitTables {
     pub car_time: Dword,
 }
 
-/// The piece: the race block's bytes at IDA 0x60101C seen as `SplitTables`.
-pub struct InBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InBlock {
-    type Target = SplitTables;
-    fn deref(&self) -> &SplitTables {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const SplitTables) }
+/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl SplitTables {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static SPLIT_TABLES: InBlock = InBlock;
 
 /// IDA 0x60101C, the first byte of the piece.
 pub const START: usize = 0x60101C;
@@ -69,8 +69,9 @@ pub const END: usize = 0x60230C;
 const _: () = assert!(END - START == core::mem::size_of::<SplitTables>());
 
 /// Where IDA 0x60101C is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&race().physics.split_tables))
 }
 
 #[cfg(test)]
@@ -79,7 +80,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&race().physics.split_tables, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             crate::moved::place(END - 1),

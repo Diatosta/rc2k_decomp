@@ -2,17 +2,9 @@
 //! (`system::sleep`) a key taken (`input::take_key`), the clock (`system::tick_count`)
 //! read until it reaches the start plus eax (a signed difference).
 //!
-//! In:  eax the milliseconds
-//! Out: eax the key (0 when the time ran out), zero = no key, carry clear; ebx kept (its
-//!      `push` / `pop`); the rest as the calls leave them
+//! Takes the milliseconds. Returns the key (0 when the time ran out).
 //!
-//! Caller: `sub_47F314` (the welcome's speech). A private copy (a call at +3). Ungated (it waits). Shadow mode
-//! runs the original alone (it takes keys). Self-test:
-//! `menu::scripted::test_loop`, keys and clocks by script.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `menu::championship_welcome` (the welcome's speech).
 
 use rc2k_core::system::time::{time_up, wait_end};
 
@@ -26,11 +18,13 @@ pub fn wait_or_key(milliseconds: u32) -> u8 {
     let end = wait_end(tick_count(), milliseconds);
     loop {
         crate::system::sleep::sleep(10);
+        // The original's window thread saw to these; here the window waits on this thread.
+        crate::platform::pump_messages_now();
         let key = crate::input::take_key::take_key();
         if key != 0 {
             return key;
         }
-        if time_up(tick_count(), end) {
+        if crate::platform::quitting() || time_up(tick_count(), end) {
             return 0;
         }
     }

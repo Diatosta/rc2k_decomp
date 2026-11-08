@@ -2,24 +2,24 @@
 //! (`scene::restart_clock`, `g_sceneClock` into `dword_613840`), the replay played
 //! (`race::play_movie_loop`), "shaunplayrendermovie - out" logged.
 //!
-//! In:  nothing
-//! Out: the registers as the play leaves them; no flags read
-//!
 //! Caller: `race::play_replay_range`.
 
 use crate::errors::Refused;
-use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::Race;
 
 const IN_TEXT: &std::ffi::CStr = c"shaunplayrendermovie - in"; // "shaunplayrendermovie - in"
 const OUT_TEXT: &std::ffi::CStr = c"shaunplayrendermovie - out"; // "shaunplayrendermovie - out"
 
 /// The Rust version. Reads no register; its caller (`race::play_replay_range`, which
 /// keeps every register) reads none it leaves.
-pub fn play_movie() -> Result<(), Refused> {
-    unsafe { crate::logfile::log_write::log_write(IN_TEXT.as_ptr().cast(), false, 1) };
-    crate::drive::race_parts::restart_clock();
-    PHYSICS.race_clock_base.set(PHYSICS.scene_clock.get());
-    crate::race::play_movie_loop::play_movie_loop()?;
-    unsafe { crate::logfile::log_write::log_write(OUT_TEXT.as_ptr().cast(), true, 1) };
+pub fn play_movie(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
+    crate::logfile::log_write::log_nul(&IN_TEXT, false, 1);
+    crate::drive::race_parts::restart_clock(race);
+    race.shared
+        .physics_tables
+        .race_clock_base
+        .set(race.shared.physics_tables.scene_clock.get());
+    crate::race::play_movie_loop::play_movie_loop(race, input)?;
+    crate::logfile::log_write::log_nul(&OUT_TEXT, true, 1);
     Ok(())
 }

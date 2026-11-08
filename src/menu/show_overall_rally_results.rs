@@ -3,40 +3,30 @@
 //! `menu::first_page_stage`, `menu::stage_range_caption`; then the page
 //! (`menu::overall_rally_results_loop`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Callers: `sub_4A0E60` (twice), `sub_4A94EC`. The steps are their Rust versions. Refuses what the
+//! The steps are their Rust versions. Refuses what the
 //! steps refuse, before anything; raises the search's fatal error as the original.
 
 use crate::errors::Refused;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::screen_loop::{Carried, run_screen};
+use crate::menu::owner::Menus;
+use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 use rc2k_core::menu::results_pages::{Page, held_figure};
 
 // dword_7558F4
 // g_eventMode
 
-/// The Rust version (see the header). `c` the carried values (the registers the page's
-/// screen is run with).
-pub unsafe fn show_overall_rally_results(c: &Carried) -> Result<(), Refused> {
-    unsafe {
-        let mut c = Carried {
-            palette: ANY_GROUP,
-            ..*c
-        };
-        let found = crate::menu::first_player_a::first_player_a(TABLE_A_RVA.get(), ANY_GROUP)?;
-        found.carry_on(&mut c);
-        // Converted: `rc2k_core::menu::results_pages::held_figure`.
-        let count = held_figure(Page::OverallRally, found.figure);
-        CHAMP_VIEW.count.set(count);
-        crate::menu::first_page_stage::carry_on(
-            crate::menu::first_page_stage::first_page_stage(),
-            &mut c,
-        );
-        crate::menu::stage_range_caption::stage_range_caption()?;
-        run_screen(&crate::menu::overall_rally_results_loop::SCREEN, &c)?;
-    }
+/// The Rust version.
+pub fn show_overall_rally_results(menus: &Menus) -> Result<(), Refused> {
+    let play = &menus.play;
+    let found = crate::menu::first_player_a::first_player_a(ANY_GROUP)?;
+    // Converted: `rc2k_core::menu::results_pages::held_figure`.
+    let count = held_figure(Page::OverallRally, found.figure);
+    menus.play.champ_view.count.set(count);
+    crate::menu::first_page_stage::first_page_stage(play);
+    crate::menu::stage_range_caption::stage_range_caption(play)?;
+    run_screen(
+        &crate::menu::overall_rally_results_loop::SCREEN,
+        &Entry::new(menus),
+    )?;
     Ok(())
 }

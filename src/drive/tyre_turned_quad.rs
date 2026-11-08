@@ -2,68 +2,70 @@
 //! steering wheel): the device's turn (esi +0x4EC, x `TyreChange::gauge_unit` x 2 pi, `fsincos` into
 //! `turn_cos`, `turn_sin`) turning the half-sizes of the rectangle at ebx
 //! (floats: x, y, w, h) round its place plus `TyreChange::wheel`'s place, the colour ecx, the
-//! texture rectangle at eax (`quad_tail`), drawn (place 5). All in `pusha` / `popa`.
+//! texture rectangle at eax (`quad_tail`), drawn (place 5).
 //!
-//! In:  eax the texture rectangle, ebx the rectangle, ecx the colour, esi the input device
-//! Out: every register kept; no flags read
+//! Takes: the texture rectangle, the rectangle, the colour, the input device
 //!
 //! Caller: `drive::tyre_screen`.
 
+use crate::d3d::vertices_store::{VERTICES, Vertex};
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
+use crate::input::types::InputDevice;
 use crate::math::x87_float::{int, ld, st};
-use crate::race::tyre_store::{TYRE_CHANGE, TyreChange};
-use crate::scene::x87_mem::{fild, fld, fstp};
-use crate::session::MACHINE;
+use crate::race::owner_shared::Shared;
+use crate::race::tyre_store::TyreChange;
+use crate::session::{Dword, Float};
 
 /// The turn's arithmetic: `ty` the tyre change's variables (the constants and results), `e`
-/// the device's address, `d` the rectangle, `v` the vertices, `t` the scratch float holding
-/// 2 pi.
-fn turn(ty: &TyreChange, e: usize, d: usize, v: usize, t: usize) {
-    let (e, d, v, t) = (
-        crate::pointers::host_at(e),
-        crate::pointers::host_at(d),
-        crate::pointers::host_at(v),
-        crate::pointers::host_at(t),
-    );
-    let angle = fild(e, 0x4EC) * ld(ty.gauge_unit.bits()) * fld(t, 0);
+/// the input device, `d` the rectangle (floats), `v` the vertices, `t` the scratch float
+/// holding 2 pi.
+fn turn(ty: &TyreChange, e: &InputDevice, d: &[Float; 4], v: &[Vertex], t: &Dword) {
+    let angle = int(e.gauge.get() as i32) * ld(ty.gauge_unit.bits()) * ld(t.bits());
     let (sin, cos) = angle.sin_cos();
     ty.turn_cos.set_bits(st(cos));
     ty.turn_sin.set_bits(st(sin));
     ty.half_h_sin
-        .set_bits(st(fld(d, 0xC) * ld(ty.turn_sin.bits())));
+        .set_bits(st(ld(d[3].bits()) * ld(ty.turn_sin.bits())));
     ty.neg_half_h_cos
-        .set_bits(st(-(fld(d, 0xC) * ld(ty.turn_cos.bits()))));
+        .set_bits(st(-(ld(d[3].bits()) * ld(ty.turn_cos.bits()))));
     ty.half_w_cos
-        .set_bits(st(fld(d, 0x8) * ld(ty.turn_cos.bits())));
+        .set_bits(st(ld(d[2].bits()) * ld(ty.turn_cos.bits())));
     ty.half_w_sin
-        .set_bits(st(fld(d, 0x8) * ld(ty.turn_sin.bits())));
+        .set_bits(st(ld(d[2].bits()) * ld(ty.turn_sin.bits())));
     let (wheel_x, wheel_y) = (int(ty.wheel[0].get() as i32), int(ty.wheel[1].get() as i32));
-    let x = -ld(ty.half_w_cos.bits()) + fld(d, 0) + wheel_x;
-    fstp(v, 0x40, x);
-    fstp(v, 0, x + ld(ty.half_h_sin.bits()));
-    let x = ld(ty.half_w_cos.bits()) + fld(d, 0) + wheel_x;
-    fstp(v, 0x60, x);
-    fstp(v, 0x20, x + ld(ty.half_h_sin.bits()));
-    let y = -ld(ty.half_w_sin.bits()) + fld(d, 0x4) + wheel_y;
-    fstp(v, 0x44, y);
-    fstp(v, 0x4, y + ld(ty.neg_half_h_cos.bits()));
-    let y = ld(ty.half_w_sin.bits()) + fld(d, 0x4) + wheel_y;
-    fstp(v, 0x64, y);
-    fstp(v, 0x24, y + ld(ty.neg_half_h_cos.bits()));
+    let x = -ld(ty.half_w_cos.bits()) + ld(d[0].bits()) + wheel_x;
+    v[2].x.set_bits(st(x));
+    v[0].x.set_bits(st(x + ld(ty.half_h_sin.bits())));
+    let x = ld(ty.half_w_cos.bits()) + ld(d[0].bits()) + wheel_x;
+    v[3].x.set_bits(st(x));
+    v[1].x.set_bits(st(x + ld(ty.half_h_sin.bits())));
+    let y = -ld(ty.half_w_sin.bits()) + ld(d[1].bits()) + wheel_y;
+    v[2].y.set_bits(st(y));
+    v[0].y.set_bits(st(y + ld(ty.neg_half_h_cos.bits())));
+    let y = ld(ty.half_w_sin.bits()) + ld(d[1].bits()) + wheel_y;
+    v[3].y.set_bits(st(y));
+    v[1].y.set_bits(st(y + ld(ty.neg_half_h_cos.bits())));
 }
 
-/// The Rust version: the texture rectangle at `uv` (eax), the screen rectangle at `rect`
+/// The Rust version: the texture rectangle `uv` (eax), the screen rectangle `rect`
 /// (ebx), the colour `colour` (ecx), the input device `device` (esi; its +0x4EC turns
 /// the quad); every register kept.
-pub fn tyre_turned_quad(uv: u32, rect: u32, colour: u32, device: u32) -> Result<(), Refused> {
-    MACHINE.scratch.set(0x40C9_0FDB);
+pub fn tyre_turned_quad(
+    shared: &Shared,
+    uv: [u32; 4],
+    rect: &[Float; 4],
+    colour: u32,
+    device: &InputDevice,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    system.session.machine.scratch.set(0x40C9_0FDB);
     turn(
-        &TYRE_CHANGE,
-        device as usize,
-        rect as usize,
-        verts(),
-        crate::session::MACHINE.scratch.addr() as usize,
+        &shared.tyre_change,
+        device,
+        rect,
+        &VERTICES.vertices[..4],
+        &system.session.machine.scratch,
     );
     quad_words(colour);
     quad_tail(uv);
@@ -155,11 +157,16 @@ mod asm_reference {
     }
 
     fn bytes(ty: &TyreChange) -> &[u8] {
-        unsafe { std::slice::from_raw_parts(ty as *const TyreChange as *const u8, WINDOW_END) }
+        unsafe {
+            std::slice::from_raw_parts(
+                std::ptr::from_ref::<TyreChange>(ty).cast::<u8>(),
+                WINDOW_END,
+            )
+        }
     }
 
     fn put_ty(ty: &TyreChange, off: usize, v: u32) {
-        unsafe { ((ty as *const TyreChange as *const u8).add(off) as *mut u32).write(v) }
+        unsafe { (std::ptr::from_ref::<TyreChange>(ty).cast::<u8>().add(off) as *mut u32).write(v) }
     }
 
     /// The device's turn is a small whole number and the factor small, so the angle is
@@ -178,7 +185,7 @@ mod asm_reference {
         // Lent while the runs read them as game memory.
         let as_bytes = |ty: &TyreChange| unsafe {
             std::slice::from_raw_parts(
-                ty as *const TyreChange as *const u8,
+                std::ptr::from_ref::<TyreChange>(ty).cast::<u8>(),
                 size_of::<TyreChange>(),
             )
         };
@@ -224,7 +231,7 @@ mod asm_reference {
                 t_b.copy_from_slice(&t_a);
                 unsafe {
                     ref_turn(
-                        (crate::pointers::game_address(&*ty_a as *const TyreChange)
+                        (crate::pointers::game_address(&raw const *ty_a)
                             .wrapping_sub(RVA_OFFSET as u32)) as usize,
                         (crate::pointers::game_address(e_a.as_mut_ptr())) as usize,
                         (crate::pointers::game_address(d_a.as_mut_ptr())) as usize,
@@ -232,13 +239,18 @@ mod asm_reference {
                         (crate::pointers::game_address(t_a.as_mut_ptr())) as usize,
                     );
                 }
-                turn(
-                    &ty_b,
-                    (crate::pointers::game_address(e_b.as_mut_ptr())) as usize,
-                    (crate::pointers::game_address(d_b.as_mut_ptr())) as usize,
-                    (crate::pointers::game_address(v_b.as_mut_ptr())) as usize,
-                    (crate::pointers::game_address(t_b.as_mut_ptr())) as usize,
-                );
+                // SAFETY: the buffers are the operands' (the device's record, four floats,
+                // four vertices, a dword), lent and aligned; the device's record is
+                // `0x4F0 + 16` bytes, its `gauge` at 0x4EC.
+                unsafe {
+                    turn(
+                        &ty_b,
+                        &*e_b.as_ptr().cast::<InputDevice>(),
+                        &*d_b.as_ptr().cast::<[Float; 4]>(),
+                        &*v_b.as_ptr().cast::<[Vertex; 4]>(),
+                        &*t_b.as_ptr().cast::<Dword>(),
+                    );
+                }
                 let mut places: Vec<(&str, usize, &[u8], &[u8])> = Vec::new();
                 for off in (WINDOW..WINDOW_END).step_by(4) {
                     places.push(("ty", off, bytes(&ty_a), bytes(&ty_b)));

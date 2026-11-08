@@ -1,8 +1,6 @@
 //! `saves::default_checkpoint_times` (0x47CA46): made-up best times with checkpoint times
 //! for the championship's stages.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! For each stage of the championship's record table (counted into `seconds`): the ten entries of
 //! the stage in the table at `dword_7556E8` get the record's +0x18 + 24,000 and 0x9F more each, and
 //! a driver, with the record's +4 as the stage for the checkpoints (`saves/default_times.rs`; its
@@ -14,9 +12,9 @@
 //! `rc2k_core::saves::defaults::championship_times` (a refusal now leaves nothing written).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::champ_store::CHAMP_VIEW;
 use crate::saves::allocate_best_times::count_stages;
 use crate::saves::default_times::*;
+use crate::system::owner::system;
 use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 
 // ---- game data ----
@@ -25,27 +23,28 @@ use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 
 /// `ebp` is not used: the stage comes from the record.
 pub fn default_checkpoint_times(_ebp: u32, log: Log) -> Result<(), Refused> {
+    let screens = &crate::menu::owner::menus().screens;
     // Converted: `rc2k_core::saves::defaults::championship_times`.
     {
-        let records_at = crate::records::stages_store::STAGE_TABLES.championship();
+        let records_at = system().records.stage_tables.championship();
         let stages = count_stages(records_at)?;
         let count = records(records_at)?;
-        let table: u32 = CHAMP_VIEW.time_trial_best_times.get();
-        if stages == 0 || table == 0 {
+        let table = &crate::saves::best_times::TIME_TRIAL_TIMES;
+        let (true, true) = (stages != 0, table.is_taken()) else {
             return Err(BadInput("no stages, or no table for their times").into());
-        }
+        };
         let records: Vec<_> = (0..count as u32)
-            .map(|n| read_record(records_at + n * RECORD_LEN))
+            .map(|n| read_record(records_at.row(n)?))
             .collect::<Result<_, _>>()?;
-        let tables = [(table, (stages * STAGE_LEN) as usize)];
+        let tables = [Target::Stages(table)];
         let filled = championship_times(
             &mut GameSource { log },
             &records,
             Championship::Checkpoints,
             [false; RALLIES],
-            crate::saves::default_times::with_checkpoints(),
+            crate::saves::default_times::with_checkpoints(screens),
         )?;
-        apply(&filled, &tables)?;
+        apply(screens, &filled, &tables)?;
         Ok(())
     }
 }

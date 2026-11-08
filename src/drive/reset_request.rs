@@ -6,28 +6,23 @@
 //! `unk_71A060`, the notice cleared and `physics::reset_car`. Else a count under way is
 //! cleared with the notice.
 //!
-//! In:  nothing
-//! Out: ebx `unk_71A440` past the first test; at the reset as `physics::reset_car` leaves
-//!      the registers (eax the penalty); the rest kept; no flags read
-//!
-//! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`. Refuses what
+//! Callers: `drive::car_controls`, `race::step_replay_cars`, `drive::replay_step`. Refuses what
 //! `physics::reset_car` refuses.
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::physics::flow::c0;
-use crate::physics::tables_store::PHYSICS;
-use crate::race::vars_store::RACE_VARS;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use rc2k_core::drive::controls::{
     RESET_NOTICE, reset_counts, reset_held, reset_penalty, reset_step,
 };
 
-fn clear_notice() {
+fn clear_notice(shared: &Shared) {
     for cell in [
-        &CAR.notice_last,
-        &CAR.notice_id,
-        &CAR.notice_time,
-        &CAR.notice_shown,
+        &shared.car.notice_last,
+        &shared.car.notice_id,
+        &shared.car.notice_time,
+        &shared.car.notice_shown,
     ] {
         cell.set(0);
     }
@@ -35,35 +30,47 @@ fn clear_notice() {
 
 /// The Rust version, then `physics::reset_car`.
 // Converted: `rc2k_core::drive::controls::{reset_counts, reset_held, reset_step, reset_penalty}`.
-pub unsafe fn reset_request() -> Result<(), Refused> {
-    if !reset_counts(CAR.run_ticks.get()) {
+pub fn reset_request(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let race_owner = race;
+
+    if !reset_counts(race_owner.shared.car.run_ticks.get()) {
         return Ok(());
     }
-    if !reset_held(CAR.input_keys.get(), RACE_VARS.run_kind.get(), || {
-        c0(CAR.speed.bits(), PHYSICS.reset_speed_limit.bits())
-    }) {
-        if CAR.reset_key_count.get() != 0 {
-            clear_notice();
-            CAR.reset_key_count.set(0);
+    if !reset_held(
+        race_owner.shared.car.input_keys.get(),
+        race_owner.shared.vars.run_kind.get(),
+        || {
+            c0(
+                race_owner.shared.car.speed.bits(),
+                race_owner.shared.physics_tables.reset_speed_limit.bits(),
+            )
+        },
+    ) {
+        if race_owner.shared.car.reset_key_count.get() != 0 {
+            clear_notice(&race.shared);
+            race_owner.shared.car.reset_key_count.set(0);
         }
         return Ok(());
     }
-    let (first, count, reset) = reset_step(CAR.reset_key_count.get());
+    let (first, count, reset) = reset_step(race_owner.shared.car.reset_key_count.get());
     if first {
-        CAR.notice_id.set(RESET_NOTICE);
-        CAR.notice_time_b.set(0x19);
-        CAR.notice_time.set(0x12C);
+        race_owner.shared.car.notice_id.set(RESET_NOTICE);
+        race_owner.shared.car.notice_time_b.set(0x19);
+        race_owner.shared.car.notice_time.set(0x12C);
     }
-    CAR.reset_key_count.set(count);
+    race_owner.shared.car.reset_key_count.set(count);
     if !reset {
         return Ok(());
     }
-    CAR.stage_time.set(
-        CAR.stage_time
+    race_owner.shared.car.stage_time.set(
+        race_owner
+            .shared
+            .car
+            .stage_time
             .get()
-            .wrapping_add(reset_penalty(CAR.stuck_count.get())),
+            .wrapping_add(reset_penalty(race_owner.shared.car.stuck_count.get())),
     );
-    clear_notice();
-    unsafe { crate::physics::reset_car::reset_car() }?;
+    clear_notice(&race.shared);
+    { crate::physics::reset_car::reset_car(race, scene) }?;
     Ok(())
 }

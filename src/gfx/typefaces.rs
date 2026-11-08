@@ -8,6 +8,7 @@
 //! (0 at x as given, 2 centred, 3 right-aligned or fixed pitch, 4 measuring), its line
 //! height (+8) the size of the sheet it was built from (10, 21, 23, 27, 13).
 
+use crate::gfx::owner::gfx;
 use crate::session::{Byte, Dword};
 use rc2k_core::text::Font;
 
@@ -20,6 +21,7 @@ pub const LEN: usize = COUNT * 0x20;
 
 /// A font object (0x20 bytes, `rc2k_core::text::Font`), its fields as cells.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct FontObject {
     /// +0x00: the character drawn with glyph 0.
     pub first_char: Byte,
@@ -64,97 +66,154 @@ impl FontObject {
         }
     }
 
-    /// Where the object is: what `draw_text` and the others take.
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self as *const Self)
+    /// The object made from a font record.
+    pub const fn from_font(font: Font) -> Self {
+        Self {
+            first_char: Byte::new(font.first_char),
+            last_char: Byte::new(font.last_char),
+            mode: Byte::new(font.mode),
+            flags: Byte::new(font.flags),
+            spacing: Dword::new(font.spacing as u32),
+            line_height: Dword::new(font.line_height as u32),
+            y_offset: Dword::new(font.y_offset as u32),
+            extended_spacing: Dword::new(font.extended_spacing as u32),
+            palette: Dword::new(font.palette),
+            glyph_table: Dword::new(font.glyph_table),
+            box_width: Dword::new(font.box_width),
+        }
     }
 
-    /// The object as the drawing functions' `Font`.
-    pub fn as_ptr(&self) -> *mut Font {
-        crate::pointers::host(self.addr()) as *mut Font
+    /// A copy of the font (its fields may be read half changed, as the original's).
+    pub fn get(&self) -> Font {
+        Font {
+            first_char: self.first_char.get(),
+            last_char: self.last_char.get(),
+            mode: self.mode.get(),
+            flags: self.flags.get(),
+            spacing: self.spacing.get() as i32,
+            line_height: self.line_height.get() as i32,
+            y_offset: self.y_offset.get() as i32,
+            extended_spacing: self.extended_spacing.get() as i32,
+            palette: self.palette.get(),
+            glyph_table: self.glyph_table.get(),
+            box_width: self.box_width.get(),
+        }
+    }
+
+    pub fn set(&self, font: Font) {
+        self.first_char.set(font.first_char);
+        self.last_char.set(font.last_char);
+        self.mode.set(font.mode);
+        self.flags.set(font.flags);
+        self.spacing.set(font.spacing as u32);
+        self.line_height.set(font.line_height as u32);
+        self.y_offset.set(font.y_offset as u32);
+        self.extended_spacing.set(font.extended_spacing as u32);
+        self.palette.set(font.palette);
+        self.glyph_table.set(font.glyph_table);
+        self.box_width.set(font.box_width);
+    }
+
+    /// The font changed by `change` (read, changed, written back).
+    pub fn update(&self, change: impl FnOnce(&mut Font)) {
+        let mut font = self.get();
+        change(&mut font);
+        self.set(font);
+    }
+
+    /// Where the object is.
+    #[cfg(test)]
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(std::ptr::from_ref::<Self>(self))
     }
 }
 
 /// The font objects.
 #[repr(C)]
-pub struct Fonts {
+#[derive(rc2k_derive::Cells)]
+pub struct FontObjects {
     pub objects: [FontObject; COUNT],
 }
 
-/// The font objects; the first values are the image's (the glyph tables and palettes come
-/// with `gfx::build_fonts`; the loading font's palette is the image's `unk_51DEC4`, made a
-/// home at start).
-pub static FONTS: Fonts = Fonts {
-    objects: [
-        FontObject::new(4, 10, 0),
-        FontObject::new(3, 10, 0),
-        FontObject::new(0, 10, 0),
-        FontObject::new(2, 10, 0),
-        FontObject::new(4, 21, 0),
-        FontObject::new(3, 21, 0),
-        FontObject::new(0, 21, 0),
-        FontObject::new(2, 21, 0),
-        FontObject::new(3, 21, 0),
-        FontObject::new(0, 21, 0),
-        FontObject::new(2, 21, 0),
-        FontObject::new(3, 21, 0),
-        FontObject::new(0, 21, 0),
-        FontObject::new(2, 21, 0),
-        FontObject::new(3, 21, 0),
-        FontObject::new(0, 21, 0),
-        FontObject::new(2, 21, 0),
-        FontObject::new(3, 21, 0),
-        FontObject::new(0, 21, 0),
-        FontObject::new(2, 21, 0),
-        FontObject::new(4, 23, 0),
-        FontObject::new(3, 23, 0),
-        FontObject::new(0, 23, 0),
-        FontObject::new(2, 23, 0),
-        FontObject::new(3, 23, 0),
-        FontObject::new(0, 23, 0),
-        FontObject::new(2, 23, 0),
-        FontObject::new(3, 23, 0),
-        FontObject::new(0, 23, 0),
-        FontObject::new(2, 23, 0),
-        FontObject::new(3, 23, 0),
-        FontObject::new(0, 23, 0),
-        FontObject::new(2, 23, 0),
-        FontObject::new(3, 23, 0),
-        FontObject::new(0, 23, 0),
-        FontObject::new(2, 23, 0),
-        FontObject::new(4, 27, 0),
-        FontObject::new(3, 27, 0),
-        FontObject::new(0, 27, 0),
-        FontObject::new(2, 27, 0),
-        FontObject::new(3, 27, 0),
-        FontObject::new(0, 27, 0),
-        FontObject::new(2, 27, 0),
-        FontObject::new(3, 27, 0),
-        FontObject::new(0, 27, 0),
-        FontObject::new(2, 27, 0),
-        FontObject::new(3, 27, 0),
-        FontObject::new(0, 27, 0),
-        FontObject::new(2, 27, 0),
-        FontObject::new(3, 27, 0),
-        FontObject::new(0, 27, 0),
-        FontObject::new(2, 27, 0),
-        FontObject::new(3, 27, 0),
-        FontObject::new(0, 27, 0),
-        FontObject::new(2, 27, 0),
-        FontObject::new(0, 27, 0),
-        FontObject::new(2, 27, 0x51dec4),
-        FontObject::new(3, 13, 0),
-        FontObject::new(0, 13, 0),
-        FontObject::new(2, 13, 0),
-        FontObject::new(3, 21, 0),
-        FontObject::new(0, 21, 0),
-        FontObject::new(2, 21, 0),
-    ],
-};
+impl FontObjects {
+    /// The font objects; the first values are the image's (the glyph tables and palettes come
+    /// with `gfx::build_fonts`; the loading font's palette is the image's `unk_51DEC4`, made a
+    /// home at start).
+    pub const fn new() -> Self {
+        FontObjects {
+            objects: [
+                FontObject::new(4, 10, 0),
+                FontObject::new(3, 10, 0),
+                FontObject::new(0, 10, 0),
+                FontObject::new(2, 10, 0),
+                FontObject::new(4, 21, 0),
+                FontObject::new(3, 21, 0),
+                FontObject::new(0, 21, 0),
+                FontObject::new(2, 21, 0),
+                FontObject::new(3, 21, 0),
+                FontObject::new(0, 21, 0),
+                FontObject::new(2, 21, 0),
+                FontObject::new(3, 21, 0),
+                FontObject::new(0, 21, 0),
+                FontObject::new(2, 21, 0),
+                FontObject::new(3, 21, 0),
+                FontObject::new(0, 21, 0),
+                FontObject::new(2, 21, 0),
+                FontObject::new(3, 21, 0),
+                FontObject::new(0, 21, 0),
+                FontObject::new(2, 21, 0),
+                FontObject::new(4, 23, 0),
+                FontObject::new(3, 23, 0),
+                FontObject::new(0, 23, 0),
+                FontObject::new(2, 23, 0),
+                FontObject::new(3, 23, 0),
+                FontObject::new(0, 23, 0),
+                FontObject::new(2, 23, 0),
+                FontObject::new(3, 23, 0),
+                FontObject::new(0, 23, 0),
+                FontObject::new(2, 23, 0),
+                FontObject::new(3, 23, 0),
+                FontObject::new(0, 23, 0),
+                FontObject::new(2, 23, 0),
+                FontObject::new(3, 23, 0),
+                FontObject::new(0, 23, 0),
+                FontObject::new(2, 23, 0),
+                FontObject::new(4, 27, 0),
+                FontObject::new(3, 27, 0),
+                FontObject::new(0, 27, 0),
+                FontObject::new(2, 27, 0),
+                FontObject::new(3, 27, 0),
+                FontObject::new(0, 27, 0),
+                FontObject::new(2, 27, 0),
+                FontObject::new(3, 27, 0),
+                FontObject::new(0, 27, 0),
+                FontObject::new(2, 27, 0),
+                FontObject::new(3, 27, 0),
+                FontObject::new(0, 27, 0),
+                FontObject::new(2, 27, 0),
+                FontObject::new(3, 27, 0),
+                FontObject::new(0, 27, 0),
+                FontObject::new(2, 27, 0),
+                FontObject::new(3, 27, 0),
+                FontObject::new(0, 27, 0),
+                FontObject::new(2, 27, 0),
+                FontObject::new(0, 27, 0),
+                FontObject::new(2, 27, 0x51dec4),
+                FontObject::new(3, 13, 0),
+                FontObject::new(0, 13, 0),
+                FontObject::new(2, 13, 0),
+                FontObject::new(3, 21, 0),
+                FontObject::new(0, 21, 0),
+                FontObject::new(2, 21, 0),
+            ],
+        }
+    }
+}
 
+#[cfg(test)]
 /// Where the block is (`moved::MOVED`'s home for IDA 0x51E3A4).
 pub fn home() -> usize {
-    crate::pointers::game_address(&FONTS as *const Fonts) as usize
+    crate::pointers::game_address(&raw const gfx().fonts.typefaces) as usize
 }
 
 /// A font of the block: its number (the object's place less the first's, in 0x20s).
@@ -169,17 +228,99 @@ impl FontId {
         Self((ida - START) / 0x20)
     }
 
+    /// The font at IDA's address `ida`, if it is one of the block's (a table that keeps
+    /// the image's addresses as names resolves them here).
+    pub fn try_at(ida: usize) -> Option<Self> {
+        (START..START + LEN)
+            .contains(&ida)
+            .then(|| ida - START)
+            .filter(|off| off.is_multiple_of(0x20))
+            .map(|off| Self(off / 0x20))
+    }
+
     pub fn object(self) -> &'static FontObject {
-        &FONTS.objects[self.0]
+        &gfx().fonts.typefaces.objects[self.0]
     }
 
-    /// Where the object is.
+    /// Where the object is (the tests').
+    #[cfg(test)]
     pub fn addr(self) -> u32 {
-        self.object().addr()
+        crate::pointers::GamePtr::to(self.object()).addr()
     }
 
-    pub fn as_ptr(self) -> *mut Font {
-        self.object().as_ptr()
+    /// IDA's address of the object (what the image's tables held).
+    #[cfg(test)]
+    pub const fn ida(self) -> usize {
+        START + 0x20 * self.0
+    }
+}
+
+/// A font the text functions draw and measure with: one of the block's, or the menus' blended
+/// font (`text::blend_font::BLENDED_FONT`). Resolved to the object's cells in one place
+/// (`object`).
+#[derive(Clone, Copy)]
+pub enum FontRef {
+    Typeface(FontId),
+    /// The menus' blended font.
+    Blended,
+    /// One of the fonts of `gfx::fonts_store` (the race's: frame rate, tyre change, credits).
+    Stored(&'static FontObject),
+}
+
+impl From<&'static FontObject> for FontRef {
+    fn from(object: &'static FontObject) -> Self {
+        FontRef::Stored(object)
+    }
+}
+
+impl From<FontId> for FontRef {
+    fn from(id: FontId) -> Self {
+        FontRef::Typeface(id)
+    }
+}
+
+impl FontRef {
+    /// The font object.
+    pub fn object(self) -> &'static FontObject {
+        match self {
+            FontRef::Typeface(id) => id.object(),
+            FontRef::Blended => &crate::text::blend_font::BLENDED_FONT,
+            FontRef::Stored(object) => object,
+        }
+    }
+
+    pub fn is_blended(self) -> bool {
+        matches!(self, FontRef::Blended)
+    }
+
+    /// Where the object is, as the game's tables keep a font (`GameScreen::font_value`
+    /// only: the screens' core stores the font in a work variable as the original did).
+    pub fn addr(self) -> u32 {
+        crate::pointers::GamePtr::to(self.object()).addr()
+    }
+}
+
+/// A font a table of the game's keeps (a menu item's): the object by number, where the
+/// original kept its address (phase 13, handles: `moved::point_into_homes` passes these
+/// places over).
+#[repr(transparent)]
+#[derive(rc2k_derive::Cells)]
+pub struct FontCell(crate::session::Dword);
+
+impl FontCell {
+    /// The font at IDA's address `ida` (a constant that is not one fails to compile).
+    pub const fn at(ida: u32) -> Self {
+        Self(crate::session::Dword::new(
+            FontId::at(ida as usize).0 as u32,
+        ))
+    }
+
+    pub fn get(&self) -> FontId {
+        FontId(self.0.get() as usize)
+    }
+
+    pub fn set(&self, font: FontId) {
+        self.0.set(font.0 as u32);
     }
 }
 
@@ -273,7 +414,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&FONTS, START, START + LEN);
+        crate::gfx::first_values_are_the_games(&gfx().fonts.typefaces, START, START + LEN);
     }
 
     #[test]
@@ -284,7 +425,7 @@ mod tests {
         assert_eq!(crate::moved::place(START), home());
         assert_eq!(
             crate::moved::place(0x51EAB8),
-            FONTS.objects[56].palette.addr() as usize
+            gfx().fonts.typefaces.objects[56].palette.addr() as usize
         );
         assert_eq!(fonts::MEASURE.addr() as usize, home() + 0x51E824 - START);
     }

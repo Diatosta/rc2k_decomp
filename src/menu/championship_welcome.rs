@@ -11,19 +11,14 @@
 //! asks about leaving (`menu::confirm_leaving`): a yes stops it again and ends, a no
 //! starts over.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Caller: `menu::run_championship` (`g_eventMode` 2).
 
 use crate::errors::Refused;
-use crate::menu::event_flow::Flow;
 use crate::menu::flow_game::Game;
 use rc2k_core::menu::welcome::{self};
 
-/// The Rust version. `f` the registers the caller carries (the welcome is a flow of its
-/// own: what it changes is its own, the original keeps every register).
-pub fn championship_welcome(f: &Flow) -> Result<(), Refused> {
+/// The Rust version.
+pub fn championship_welcome(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::welcome::championship_welcome`.
-    Game::nested(f).run(welcome::championship_welcome)
+    Game::new(menus).run(welcome::championship_welcome)
 }

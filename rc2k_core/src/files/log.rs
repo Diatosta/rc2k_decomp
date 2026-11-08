@@ -333,8 +333,8 @@ pub fn head(m: &Machine) -> Vec<(Message, bool)> {
     out
 }
 
-/// The free space in Kb from the drive's numbers (`sub_40317D`): the cluster's bytes as 32
-/// bits times the free clusters; 0xFFFFFFFF from 2^42 bytes on.
+/// The free space in Kb from the drive's numbers (`files::drive_free_space_kb`): the cluster's
+/// bytes as 32 bits times the free clusters; 0xFFFFFFFF from 2^42 bytes on.
 pub fn free_kb(cluster_sectors: u32, sector_bytes: u32, free_clusters: u32) -> u32 {
     let bytes = cluster_sectors.wrapping_mul(sector_bytes) as u64 * free_clusters as u64;
     if bytes >> 42 != 0 {

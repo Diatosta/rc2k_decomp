@@ -4,12 +4,16 @@
 //! message, the `patch*` settings, the stages' checkpoint counts. Named from the code's uses
 //! (2026-10-25); most names are readings, `unknown_*` runs are places no ported code names.
 //! `#[repr(C)]` with the image's layout, over the race block's bytes (`RACE_WORK`, as
-//! `physics::car_store::CAR`) until the code reaching them by RVA is typed.
+//! `crate::race::owner::race().shared.car`) until the code reaching them by RVA is typed.
 
+use crate::errors::BadInput;
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 /// A loose part flying off a car (0x78 bytes, `physics::fill_race_slot`; readings).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceSlot {
     /// +0x0: the part (0 the slot empty).
     pub part: Dword,
@@ -34,12 +38,15 @@ pub struct RaceSlot {
 const _: () = assert!(core::mem::size_of::<RaceSlot>() == 0x78);
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceWork {
     /// +0x0 (0x71AFB8): not named.
     pub unknown_0: [Dword; 256],
-    /// +0x400 (0x71B3B8): `g_carBlocks`: the eight cars' blocks (`CarBlock`, addresses).
+    /// +0x400 (0x71B3B8): `g_carBlocks`: the eight cars' blocks (`CarBlock`, by handle:
+    /// `blocks_store::block_ref`).
     pub car_blocks: [Dword; 8],
-    /// +0x420 (0x71B3D8): `g_carRecords`: a word for each car's view marks (`race::frame_views`).
+    /// +0x420 (0x71B3D8): `g_carRecords`: a word for each car's view marks (`race::frame_views`),
+    /// kept as IDA's addresses, as names (phase 13; `RaceWork::car_record` makes one real).
     pub car_records: [Dword; 8],
     /// +0x440 (0x71B3F8): `g_currentCar`: the car being stepped.
     pub current_car: Dword,
@@ -133,9 +140,9 @@ pub struct RaceWork {
     pub driver_bend_a: Dword,
     /// +0x1120 (0x71C0D8): (`drive::drive_computer_car`).
     pub driver_bend_b: Dword,
-    /// +0x1124 (0x71C0DC): its point in `driver_points_now`.
+    /// +0x1124 (0x71C0DC): its point in `driver_points_now` (a byte offset; the original kept the address).
     pub driver_point_now: Dword,
-    /// +0x1128 (0x71C0E0): its point in `driver_points_then`.
+    /// +0x1128 (0x71C0E0): its point in `driver_points_then` (a byte offset; the original kept the address).
     pub driver_point_then: Dword,
     /// +0x112c (0x71C0E4): 1: aim ahead.
     pub driver_aim: Dword,
@@ -196,48 +203,97 @@ pub struct RaceWork {
 }
 
 impl RaceWork {
-    /// Car `n`'s block (`g_carBlocks[n]`), read as the original reads it: past the eight
-    /// without a check (into `car_records`).
+    /// Car `n`'s block (`g_carBlocks[n]`, kept by handle: `blocks_store::block_of`), read as
+    /// the original reads it: past the eight without a check (into `car_records`).
     pub fn car_block(&self, n: usize) -> u32 {
-        // SAFETY: the original's own unchecked read; inside the race block for the numbers
-        // the game passes.
-        unsafe {
-            (crate::pointers::host_at(
-                (crate::pointers::game_address(self.car_blocks.as_ptr()) + (4 * n) as u32) as usize,
-            ) as *const u32)
-                .read_unaligned()
+        if let Some(cell) = self.car_blocks.get(n) {
+            return crate::race::blocks_store::block_of(cell.get());
+        }
+        let what = "a car block's pointer";
+        crate::pointers::GamePtr::to(&self.car_blocks)
+            .unbounded()
+            .offset((4 * n) as u32)
+            .read(what)
+            .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
+    }
+
+    /// Car `n`'s block as a car: `trap::car_at(self.car_block(n))` without the round trip
+    /// through an address (the drawing asks for it per face).
+    pub fn car(&self, n: usize) -> Result<&'static crate::physics::car_store::Car, BadInput> {
+        use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_TAG, CAR_BLOCKS};
+        if let Some(cell) = self.car_blocks.get(n) {
+            let k = (cell.get() ^ BLOCK_TAG) as usize;
+            if k < BLOCK_COUNT {
+                return Ok(&CAR_BLOCKS.cars[k]);
+            }
+        }
+        crate::race::trap::car_at(self.car_block(n))
+    }
+
+    /// Whether car `n` has a block (`car_block(n) != 0`, ending the program on a handle that
+    /// names none as it does), without working out its address.
+    pub fn has_car_block(&self, n: usize) -> bool {
+        use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_TAG};
+        match self.car_blocks.get(n).map(Dword::get) {
+            Some(0) => false,
+            Some(h) if ((h ^ BLOCK_TAG) as usize) < BLOCK_COUNT => true,
+            _ => self.car_block(n) != 0,
         }
     }
 
-    /// Car record `n` (`g_carRecords[n]`, a pointer to the car's view word), read without a
-    /// check as the original reads it.
-    pub fn car_record(&self, n: usize) -> u32 {
-        // SAFETY: as `car_block`.
-        unsafe {
-            (crate::pointers::host_at(
-                (crate::pointers::game_address(self.car_records.as_ptr()) + (4 * n) as u32)
-                    as usize,
-            ) as *const u32)
-                .read_unaligned()
+    /// Car record `n` (`g_carRecords[n]`, the name of one of the marks' car records,
+    /// `race::marks_settings_store`). Refused past the eight (the original reads on into
+    /// the next variables) and for a name that is not a record's start.
+    pub fn car_record(
+        &self,
+        n: usize,
+    ) -> Result<&'static crate::race::marks_settings_store::MarkCar, BadInput> {
+        let name = self
+            .car_records
+            .get(n)
+            .ok_or(BadInput("a car record past the eight"))?
+            .get() as usize;
+        let off = name.wrapping_sub(CAR_RECORDS_IDA);
+        if off >= CAR_RECORDS_LEN || !off.is_multiple_of(crate::race::marks_settings_store::CAR_LEN)
+        {
+            return Err(BadInput("a car record off the view marks' records"));
         }
+        Ok(&crate::race::marks_settings_store::MARKS_SETTINGS.cars
+            [off / crate::race::marks_settings_store::CAR_LEN])
+    }
+
+    /// The eight car records.
+    pub fn car_records_resolved(
+        &self,
+    ) -> Result<[&'static crate::race::marks_settings_store::MarkCar; 8], BadInput> {
+        let first = self.car_record(0)?;
+        let mut out = [first; 8];
+        for (n, record) in out.iter_mut().enumerate() {
+            *record = self.car_record(n)?;
+        }
+        Ok(out)
     }
 }
 
-/// The piece: the race block's bytes at IDA 0x71AFB8 seen as `RaceWork`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+/// IDA 0x5C2FE4, where the eight car records (0x4C8 bytes each, in
+/// `marks_settings_store::MarksSettings::cars`) begin, and their length.
+pub const CAR_RECORDS_IDA: usize = 0x5C2FE4;
+pub const CAR_RECORDS_LEN: usize = 8 * 0x4C8;
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = RaceWork;
-    fn deref(&self) -> &RaceWork {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const RaceWork) }
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
+
+impl RaceWork {
+    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+    /// `race::store::LEFT`), with the image's first values.
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::blocks_store::with_block_refs(
+            crate::race::store::first_values::<{ END - START }>(START),
+            crate::race::blocks_store::CAR_BLOCKS_IDA - START,
+            8,
+        ))
     }
 }
-
-pub static RACE_WORK: InRaceBlock = InRaceBlock;
 
 /// IDA 0x71AFB8, the first byte of the piece.
 pub const START: usize = 0x71AFB8;
@@ -246,9 +302,10 @@ pub const END: usize = 0x71C814;
 
 const _: () = assert!(END - START == core::mem::size_of::<RaceWork>());
 
-/// Where IDA 0x71AFB8 is now (in the race block).
+/// Where IDA 0x71AFB8 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&race().shared.work))
 }
 
 #[cfg(test)]
@@ -257,7 +314,46 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        let at = crate::race::blocks_store::CAR_BLOCKS_IDA - START;
+        crate::gfx::first_values_are_the_games_but(&race().shared.work, START, END, |image| {
+            for k in 0..8 {
+                let o = at + 4 * k;
+                let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+                image[o..o + 4]
+                    .copy_from_slice(&crate::race::blocks_store::block_ref(v).to_le_bytes());
+            }
+        });
+    }
+
+    #[test]
+    fn car_records_resolve_to_what_the_image_named() {
+        let shared = &race().shared;
+        let at = 0x71B3D8 - START;
+        let image = crate::moved::image_bytes(START, END - START);
+        for k in 0..8 {
+            let o = at + 4 * k;
+            let name = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+            assert_eq!(name as usize, CAR_RECORDS_IDA + 0x4C8 * k);
+            assert_eq!(
+                shared
+                    .work
+                    .car_record(k)
+                    .map(|r| crate::pointers::GamePtr::to(r).addr()),
+                Ok(crate::framework::game_addr(crate::framework::rva(
+                    name as usize
+                )))
+            );
+            assert!(std::ptr::eq(
+                shared.work.car_records_resolved().unwrap()[k],
+                shared.work.car_record(k).unwrap()
+            ));
+        }
+        assert!(shared.work.car_record(8).is_err());
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

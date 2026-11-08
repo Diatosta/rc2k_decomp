@@ -4,13 +4,16 @@
 //! start values). `g_lightRecords` follows.
 //! Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword, Float};
 
 /// One car kind's figures (IDA struct `CarSpec`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CarSpec {
     /// +0x0: the car's title, padded with spaces, e.g. "00 renault maxi megane"
-    /// (drawn by `sub_4426D4`).
+    /// (drawn by 0x4426D4).
     pub name: Bytes<24>,
     /// +0x18: the drive kind, checked 0 ..= 3 (`physics::load_car_specs`); also the start
     /// value (`race::race_shell`).
@@ -56,25 +59,21 @@ const _: () = assert!(core::mem::size_of::<CarSpec>() == 0xB0);
 
 /// The car kinds' records.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CarSpecs {
     pub cars: [CarSpec; 34],
 }
 
-/// The piece: the race block's bytes at IDA 0x5C790C seen as `CarSpecs`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = CarSpecs;
-    fn deref(&self) -> &CarSpecs {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const CarSpecs) }
+/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl CarSpecs {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static CAR_SPECS: InRaceBlock = InRaceBlock;
 
 /// IDA 0x5C790C, the first byte of the piece.
 pub const START: usize = 0x5C790C;
@@ -83,9 +82,10 @@ pub const END: usize = 0x5C906C;
 
 const _: () = assert!(END - START == core::mem::size_of::<CarSpecs>());
 
-/// Where IDA 0x5C790C is now (in the race block).
+/// Where IDA 0x5C790C is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&race().physics.car_specs))
 }
 
 #[cfg(test)]
@@ -94,7 +94,13 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&race().physics.car_specs, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
+        let physics = &race().physics;
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),
@@ -108,11 +114,11 @@ mod tests {
         assert_eq!(offset_of!(CarSpec, shift_points), 0xA4);
         let title = |k: usize| {
             (0..9)
-                .map(|i| CAR_SPECS.cars[k].name.get(i))
+                .map(|i| physics.car_specs.cars[k].name.get(i))
                 .collect::<Vec<u8>>()
         };
         assert_eq!(title(0), b"00 renaul");
         assert_eq!(title(33), b"33 Renaul");
-        assert_eq!(CAR_SPECS.cars[0].engine_top.get(), 8500);
+        assert_eq!(physics.car_specs.cars[0].engine_top.get(), 8500);
     }
 }

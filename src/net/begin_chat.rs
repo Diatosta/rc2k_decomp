@@ -2,25 +2,26 @@
 //! (`byte_52A4C8`) emptied and edited (`net::begin_edit`, the item `g_listChoice`, width
 //! 0x30C, measured with `dword_51E424`).
 //!
-//! In:  nothing
-//! Out: eax = the item, ebx = the input, ecx = 0x30C, edx = `dword_51E424`'s address; no
-//!      `pusha`
+//! Returns the item, input, 0x30C, `dword_51E424`'s address.
 //! Caller: `net::lobby_loop`.
 
-use crate::install::vars::INSTALLER_PAGES;
-use crate::net::store::NET;
+use crate::net::store::NetVars;
 
 const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CHAT_LINE;
 
 /// The Rust version. The registers the original leaves (eax the item, ebx the input, ecx
 /// 0x30C, edx the font) are read by no caller (`lobby_loop` only; liveness: ebp, edi, edx,
 /// esi live after, edx the caller's own).
-pub fn begin_chat() -> Result<(), crate::errors::Refused> {
-    NET.chat_input.set(0, 0);
+pub fn begin_chat(
+    install: &'static crate::install::owner::Install,
+    vars: &NetVars,
+) -> Result<(), crate::errors::Refused> {
+    vars.chat_input.set(0, 0);
     crate::net::begin_edit::begin_edit(
-        INSTALLER_PAGES.choice.get(),
-        NET.chat_input.addr(),
+        vars,
+        install.pages.choice.get(),
+        crate::net::begin_edit::EditedText::ChatInput,
         0x30C,
-        CHAT_FONT.addr(),
+        CHAT_FONT,
     )
 }

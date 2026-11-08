@@ -3,11 +3,13 @@
 //! fade, the inspection's figures and the four setup items. `#[repr(C)]` structs of atomic
 //! cells with the image's layout, one static; `moved::MOVED` points the range at it.
 
+use crate::menu::lists_store::CarList;
 use crate::session::{Bytes, Dword, Float};
 
 /// One of the service area's four setup items (gear ratio, tyre, ride height, suspension
 /// stiffness; IDA 0x75AC90 on, 12 bytes each).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SetupItem {
     /// The value being chosen (`service::step_*_up` / `_down`).
     pub chosen: Dword,
@@ -20,10 +22,12 @@ pub struct SetupItem {
 /// The menu carousel (IDA 0x75A658 .. 0x75AA90): the entry shown, the list, the turn,
 /// the place of its entries, their kinds, and the menu's own numbers.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Carousel {
     /// `dword_75A658`: the kind of the entry being drawn.
     pub kind: Dword,
-    /// `dword_75A65C`: the address of the entries' records (the menu's list).
+    /// `dword_75A65C`: the menu's list of cars (the address of the entries' records in the
+    /// original), `CarList::code` (0: none); `Carousel::list`.
     pub entries: Dword,
     /// `g_carouselDirection`: 1 after right, -1 after left, 0 at rest.
     pub direction: Dword,
@@ -53,14 +57,26 @@ pub struct Carousel {
     pub set_up: Dword,
 }
 
+impl Carousel {
+    /// The list the carousel shows, none before one is set up.
+    pub fn list(&self) -> Result<Option<CarList>, crate::errors::BadInput> {
+        Ok(CarList::from_code(self.entries.get())?)
+    }
+
+    pub fn set_list(&self, list: CarList) {
+        self.entries.set(list.code());
+    }
+}
+
 /// The service area's boxes and the inspection's fade (IDA 0x75AA90 .. 0x75AAA8).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ServiceUi {
-    /// `dword_75AA90`: the colour of the boxes' frames (`screens::draw_service_boxes`).
+    /// `dword_75AA90`: the boxes' see-through value (`screens::draw_service_boxes`).
     pub box_colour_a: Dword,
     /// `dword_75AA94`: the fade's full see-through (`menu::fades`).
     pub fade_full: Dword,
-    /// `dword_75AA98`: the boxes' colour as the box being drawn sets it.
+    /// `dword_75AA98`: the colour of the item's boxes, set from its inspection flags as each item is drawn.
     pub box_colour_b: Dword,
     /// `dword_75AA9C`: 1 when a service box is turned over.
     pub box_shown: Dword,
@@ -72,6 +88,7 @@ pub struct ServiceUi {
 
 /// The carousel's pictures (IDA 0x75AAA8 .. 0x75AAD8): four wanted, four shown, four held.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CarouselPictures {
     /// `dword_75AAA8` ..: the pictures wanted (`scene::draw_car_object`).
     pub wanted: [Dword; 4],
@@ -84,6 +101,7 @@ pub struct CarouselPictures {
 /// The menus' working variables (IDA 0x75AAD8 .. 0x75AB58): the review kind, the class
 /// times `menu::calc_cpu_times` makes, the fade, the standings' switches.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Menus {
     /// `dword_75AAD8`: the review option screens' kind (`sensiblesaving` in `ral.cfg`).
     pub review_kind: Dword,
@@ -131,6 +149,7 @@ pub struct Menus {
 
 /// The driver figures and the service area's variables (IDA 0x75AB58 .. 0x75ACCC).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct DriverStats {
     /// `flt_75AB58`: the steps a flat pair is divided by (`menu::driver_stats`).
     pub steps: Float,
@@ -170,6 +189,7 @@ pub struct DriverStats {
 
 /// The menus' working variables.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MenuState {
     /// The menu carousel (IDA 0x75A658 .. 0x75AA90): the entry shown, the list, the turn,
     pub carousel: Carousel,
@@ -183,120 +203,119 @@ pub struct MenuState {
     pub driver_stats: DriverStats,
 }
 
-/// First values the image's.
-pub static MENU_STATE: MenuState = MenuState {
-    carousel: Carousel {
-        kind: Dword::new(0),
-        entries: Dword::new(0),
-        direction: Dword::new(0),
-        spacing: Dword::new(0),
-        y: Dword::new(0),
-        z: Dword::new(0),
-        forward: Dword::new(0),
-        kinds: [const { Dword::new(0) }; 256],
-        menu: Dword::new(0),
-        count: Dword::new(4),
-        front: Dword::new(3),
-        angle: Dword::new(0),
-        last_clock: Dword::new(0),
-        passed: Dword::new(0),
-        set_up: Dword::new(1),
-    },
-    service_ui: ServiceUi {
-        box_colour_a: Dword::new(0xba),
-        fade_full: Dword::new(0xee),
-        box_colour_b: Dword::new(0),
-        box_shown: Dword::new(0),
-        box_page: Dword::new(1),
-        status: Dword::new(0),
-    },
-    carousel_pictures: CarouselPictures {
-        wanted: [const { Dword::new(0) }; 4],
-        shown: [const { Dword::new(0) }; 4],
-        held: [const { Dword::new(0) }; 4],
-    },
-    menus: Menus {
-        review_kind: Dword::new(0),
-        which_title: Dword::new(0),
-        skip_edit_values: Dword::new(0),
-        dword_75aae4: Dword::new(0),
-        class_times: [const { Dword::new(0) }; 4],
-        track_length: [Dword::new(0), Dword::new(0)],
-        class_counts: [
-            Dword::new(0x5a),
-            Dword::new(0x32),
-            Dword::new(0x1e),
-            Dword::new(0xa),
-        ],
-        firsts: [
-            Dword::new(0),
-            Dword::new(0x5a),
-            Dword::new(0x8c),
-            Dword::new(0xaa),
-        ],
-        rally_done: Dword::new(0),
-        first_row_time: Dword::new(0),
-        pair_ab28: [Dword::new(0), Dword::new(0)],
-        caption_choice: Dword::new(0),
-        standings_shown: Dword::new(0),
-        service_flag: Dword::new(0),
-        unk_75ab3c: Dword::new(0),
-        class_mode: Dword::new(2),
-        fade_length: Dword::new(0x1f4),
-        fade_start: Dword::new(0x7d0),
-        fade_gone: Dword::new(0),
-        fade_see: Dword::new(0),
-        repair_last_step: Dword::new(0),
-    },
-    driver_stats: DriverStats {
-        steps: Float::from_bits(0x42c60000),
-        scale: Float::from_bits(0x42c80000),
-        repair_times: [const { Dword::new(0) }; 16],
-        highs: [const { Dword::new(0) }; 14],
-        limits: [const { Dword::new(0) }; 14],
-        weights: [const { Dword::new(0) }; 14],
-        penalties: [const { Dword::new(0) }; 14],
-        score: Dword::new(0x64),
-        total: Dword::new(0),
-        _gap_75ac88: Bytes::new([0; 4]),
-        repair_time: Dword::new(0),
-        setups: [
-            SetupItem {
-                chosen: Dword::new(2),
-                installed: Dword::new(2),
-                start: Dword::new(0),
+impl MenuState {
+    /// First values the image's.
+    pub const fn new() -> Self {
+        MenuState {
+            carousel: Carousel {
+                kind: Dword::new(0),
+                entries: Dword::new(0),
+                direction: Dword::new(0),
+                spacing: Dword::new(0),
+                y: Dword::new(0),
+                z: Dword::new(0),
+                forward: Dword::new(0),
+                kinds: [const { Dword::new(0) }; 256],
+                menu: Dword::new(0),
+                count: Dword::new(4),
+                front: Dword::new(3),
+                angle: Dword::new(0),
+                last_clock: Dword::new(0),
+                passed: Dword::new(0),
+                set_up: Dword::new(1),
             },
-            SetupItem {
-                chosen: Dword::new(3),
-                installed: Dword::new(3),
-                start: Dword::new(0),
+            service_ui: ServiceUi {
+                box_colour_a: Dword::new(0xba),
+                fade_full: Dword::new(0xee),
+                box_colour_b: Dword::new(0),
+                box_shown: Dword::new(0),
+                box_page: Dword::new(1),
+                status: Dword::new(0),
             },
-            SetupItem {
-                chosen: Dword::new(0x32),
-                installed: Dword::new(0x32),
-                start: Dword::new(0),
+            carousel_pictures: CarouselPictures {
+                wanted: [const { Dword::new(0) }; 4],
+                shown: [const { Dword::new(0) }; 4],
+                held: [const { Dword::new(0) }; 4],
             },
-            SetupItem {
-                chosen: Dword::new(0x32),
-                installed: Dword::new(0x32),
-                start: Dword::new(0),
+            menus: Menus {
+                review_kind: Dword::new(0),
+                which_title: Dword::new(0),
+                skip_edit_values: Dword::new(0),
+                dword_75aae4: Dword::new(0),
+                class_times: [const { Dword::new(0) }; 4],
+                track_length: [Dword::new(0), Dword::new(0)],
+                class_counts: [
+                    Dword::new(0x5a),
+                    Dword::new(0x32),
+                    Dword::new(0x1e),
+                    Dword::new(0xa),
+                ],
+                firsts: [
+                    Dword::new(0),
+                    Dword::new(0x5a),
+                    Dword::new(0x8c),
+                    Dword::new(0xaa),
+                ],
+                rally_done: Dword::new(0),
+                first_row_time: Dword::new(0),
+                pair_ab28: [Dword::new(0), Dword::new(0)],
+                caption_choice: Dword::new(0),
+                standings_shown: Dword::new(0),
+                service_flag: Dword::new(0),
+                unk_75ab3c: Dword::new(0),
+                class_mode: Dword::new(2),
+                fade_length: Dword::new(0x1f4),
+                fade_start: Dword::new(0x7d0),
+                fade_gone: Dword::new(0),
+                fade_see: Dword::new(0),
+                repair_last_step: Dword::new(0),
             },
-        ],
-        money: Dword::new(0),
-        switch_a: Dword::new(0),
-        switch_b: Dword::new(0),
-    },
-};
+            driver_stats: DriverStats {
+                steps: Float::from_bits(0x42c60000),
+                scale: Float::from_bits(0x42c80000),
+                repair_times: [const { Dword::new(0) }; 16],
+                highs: [const { Dword::new(0) }; 14],
+                limits: [const { Dword::new(0) }; 14],
+                weights: [const { Dword::new(0) }; 14],
+                penalties: [const { Dword::new(0) }; 14],
+                score: Dword::new(0x64),
+                total: Dword::new(0),
+                _gap_75ac88: Bytes::new([0; 4]),
+                repair_time: Dword::new(0),
+                setups: [
+                    SetupItem {
+                        chosen: Dword::new(2),
+                        installed: Dword::new(2),
+                        start: Dword::new(0),
+                    },
+                    SetupItem {
+                        chosen: Dword::new(3),
+                        installed: Dword::new(3),
+                        start: Dword::new(0),
+                    },
+                    SetupItem {
+                        chosen: Dword::new(0x32),
+                        installed: Dword::new(0x32),
+                        start: Dword::new(0),
+                    },
+                    SetupItem {
+                        chosen: Dword::new(0x32),
+                        installed: Dword::new(0x32),
+                        start: Dword::new(0),
+                    },
+                ],
+                money: Dword::new(0),
+                switch_a: Dword::new(0),
+                switch_b: Dword::new(0),
+            },
+        }
+    }
+}
 
 /// IDA 0X75A658, the first byte of the piece.
 pub const START: usize = 0x75A658;
 /// IDA 0X75ACCC, the end of the piece.
 pub const END: usize = 0x75ACCC;
-
-/// Where IDA 0X75A658 is now (`moved::MOVED`'s home).
-pub fn menu_state_addr() -> u32 {
-    crate::pointers::game_address(&MENU_STATE as *const MenuState)
-}
 
 #[cfg(test)]
 mod tests {
@@ -309,7 +328,10 @@ mod tests {
         let size = size_of::<MenuState>();
         assert!(END - START <= size && size <= (END - START).next_multiple_of(4));
         let mine = unsafe {
-            std::slice::from_raw_parts(&MENU_STATE as *const MenuState as *const u8, END - START)
+            std::slice::from_raw_parts(
+                (&raw const crate::menu::owner::MENUS.screens.state).cast::<u8>(),
+                END - START,
+            )
         };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");

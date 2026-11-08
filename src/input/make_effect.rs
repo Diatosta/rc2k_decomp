@@ -10,8 +10,7 @@
 //! made (`CreateEffect` of the record's device (+4) with the GUID found (+0x10), into
 //! +0x30; its result not looked at).
 //!
-//! In:  esi = the device's record, edi = the effect, ecx = its number (for its function)
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the device's record, the effect, its number (for its function)
 //!
 //! Caller: `input::begin_force` (each of the six). The effect's function is
 //! one of `input::effect_N_change` (eax 1, the other registers as here), the methods the
@@ -20,84 +19,77 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
-use crate::field;
-use crate::input::devices::{at, put};
-use crate::input::di_harness::{method, slot};
-use crate::input::types::{ForceEffect as F, InputDevice};
+use crate::errors::Refused;
+use crate::input::store::Devices;
+use crate::input::types::{ForceEffect, InputDevice};
+
+/// What a `DIEFFECT` pointer (`axes`, `directions`, `envelope`, `type_specific`) holds when
+/// it points at the effect's own part: any value but 0 (nothing reads the address).
+pub const PART_SET: u32 = 1;
 
 /// The effect's `DIEFFECT` and parameters, as the original writes them (in its order).
-pub fn fill_parameters(e: u32) -> Result<(), BadInput> {
+pub fn fill_parameters(e: &ForceEffect) {
     // Converted: `rc2k_core::input::force` (the figures, `type_specific`).
     use rc2k_core::input::force as k;
-    let w = |offset: u32, v: u32| put(e, offset, v);
-    w(field!(F, effect.size), k::EFFECT_SIZE)?;
-    w(field!(F, effect.flags), k::EFFECT_FLAGS)?;
-    w(field!(F, effect.duration), k::FOR_EVER)?;
-    w(field!(F, effect.sample_period), 0)?;
-    w(field!(F, effect.gain), k::FULL_GAIN)?;
-    w(field!(F, effect.trigger_button), k::NO_BUTTON)?;
-    w(field!(F, effect.trigger_repeat_interval), 0)?;
-    w(field!(F, effect.axes_count), k::AXES_COUNT)?;
-    w(field!(F, effect.axes), e.wrapping_add(field!(F, axes)))?;
-    w(field!(F, axes), k::AXES[0])?;
-    w(field!(F, axes) + 4, k::AXES[1])?;
-    w(
-        field!(F, effect.directions),
-        e.wrapping_add(field!(F, directions)),
-    )?;
-    w(field!(F, directions), k::DIRECTION)?;
-    w(field!(F, effect.envelope), 0)?;
-    w(field!(F, effect.type_specific_size), 0)?;
-    w(field!(F, effect.type_specific), 0)?;
+    let d = &e.effect;
+    d.size.set(k::EFFECT_SIZE);
+    d.flags.set(k::EFFECT_FLAGS);
+    d.duration.set(k::FOR_EVER);
+    d.sample_period.set(0);
+    d.gain.set(k::FULL_GAIN);
+    d.trigger_button.set(k::NO_BUTTON);
+    d.trigger_repeat_interval.set(0);
+    d.axes_count.set(k::AXES_COUNT);
+    // the pointers the `DIEFFECT` holds (the original: game addresses of the effect's own
+    // arrays) are `PART_SET`: only `effect_objects::parameters_of` reads them, as set or not
+    d.axes.set(PART_SET);
+    e.axes[0].set(k::AXES[0]);
+    e.axes[1].set(k::AXES[1]);
+    d.directions.set(PART_SET);
+    e.directions[0].set(k::DIRECTION);
+    d.envelope.set(0);
+    d.type_specific_size.set(0);
+    d.type_specific.set(0);
     // an envelope of its size, all 0, not linked
-    w(field!(F, envelope.size), k::ENVELOPE_SIZE)?;
-    for offset in [
-        field!(F, envelope.attack_level),
-        field!(F, envelope.attack_time),
-        field!(F, envelope.fade_level),
-        field!(F, envelope.fade_time),
-    ] {
-        w(offset, 0)?;
-    }
-    let params = k::type_specific(at(e, field!(F, kind))?);
+    e.envelope.size.set(k::ENVELOPE_SIZE);
+    e.envelope.attack_level.set(0);
+    e.envelope.attack_time.set(0);
+    e.envelope.fade_level.set(0);
+    e.envelope.fade_time.set(0);
+    let params = k::type_specific(e.kind.get());
     if params.is_empty() {
-        return Ok(());
+        return;
     }
-    w(
-        field!(F, effect.type_specific_size),
-        4 * params.len() as u32,
-    )?;
-    w(
-        field!(F, effect.type_specific),
-        e.wrapping_add(field!(F, type_specific)),
-    )?;
-    for (n, &v) in params.iter().enumerate() {
-        w(field!(F, type_specific) + 4 * n as u32, v)?;
+    d.type_specific_size.set(4 * params.len() as u32);
+    d.type_specific.set(PART_SET);
+    for (cell, &v) in e.type_specific.iter().zip(params) {
+        cell.set(v);
     }
-    Ok(())
 }
 
-/// The device `record`'s effect `n` at `effect` made (see the header).
-pub fn make_effect(record: u32, effect: u32, n: u32) -> Result<(), Refused> {
+/// The device `record`'s effect `n`, `effect`, made (see the header).
+pub fn make_effect(
+    devices: &Devices,
+    record: &InputDevice,
+    effect: &ForceEffect,
+    n: u32,
+) -> Result<(), Refused> {
     let e = effect;
-    if at(e, field!(F, object))? != 0 {
-        crate::input::effect_objects::release_effect(e)?;
+    if e.object.get() != 0 {
+        crate::input::effect_objects::release_effect(e);
     }
-    fill_parameters(e)?;
+    fill_parameters(e);
     // The effect's function with a change of 1, ecx the effect's number, edx 0.
-    crate::input::effect_changes::effect_change_at(at(e, field!(F, change))?, record, e, 1, n, 0)?;
-    if at(e, field!(F, found))? == 1 {
-        method(
-            at(record, field!(InputDevice, device))?,
-            slot::CREATE_EFFECT,
-            &[
-                e.wrapping_add(field!(F, guid)),
-                e.wrapping_add(field!(F, effect)),
-                e.wrapping_add(field!(F, object)),
-                0,
-            ],
+    crate::input::effect_changes::effect_change_at(devices, e.change.get(), record, e, 1, n, 0)?;
+    if e.found.get() == 1 {
+        // The GUID and the `DIEFFECT`'s parts, as DirectInput takes them; the object's
+        // cell as `CreateEffect` leaves it.
+        let made = crate::input::di_objects::create_effect(
+            record.device.get(),
+            &e.guid.read(),
+            Some(&crate::input::effect_objects::parameters_of(e)),
         );
+        crate::input::di_objects::store(&e.object, made);
     }
     Ok(())
 }

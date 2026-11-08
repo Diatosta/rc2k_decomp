@@ -2,13 +2,15 @@
 //! sections an event starts at, the yes / no screens' switches, the lists a screen puts in place
 //! (`g_unreadList`, `g_drawList`, `g_overlayList`, `g_sceneList`) and a few switches of the item
 //! keys. A `#[repr(C)]` struct with the image's layout, one static; `moved::MOVED` points the range
-//! at it. The list pointers hold the lists' real addresses (`menu::draw_lists_store`). (Split 2026-10-25
+//! at it. The list pointers hold the lists by handle (`menu::fn_list`, 2026-10-28). (Split 2026-10-25
 //! from the front end's block `menu::store`.)
 
+use crate::menu::fn_list::ListCell;
 use crate::session::{Bytes, Dword, with_runs};
 
 /// The screens' flow variables (IDA 0x7554C0 .. 0x755525).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ScreenFlow {
     /// `g_startSection`: The section an event starts at (`menu::run_championship`); the same variable is the first car colour `menu::next_colour_a` chooses, which `saves::gather_savegame` puts in car 0 at +0x14.
     pub start_section: Dword,
@@ -20,8 +22,8 @@ pub struct ScreenFlow {
     pub asking: Dword,
     /// `dword_7554D0`: 1 = left and right do not click (`menu::navigation`).
     pub quiet: Dword,
-    /// `dword_7554D4`: Enter acts as key 4 (`menu::handle_keys`, `menu::begin_player_name`).
-    pub enter_with_4: Dword,
+    /// `g_enterSkipsNameEntry`: Enter acts as key 4 (`menu::handle_keys`, `menu::begin_player_name`).
+    pub enter_skips_name_entry: Dword,
     /// `dword_7554D8`: 1 picks the first list of cars (`menu::event_flow`).
     pub car_list_kind: Dword,
     /// Unreferenced bytes (IDA 0x7554DC .. 0x7554E4).
@@ -34,41 +36,45 @@ pub struct ScreenFlow {
     pub turning: Dword,
     /// `g_shownGearing`: The gearing shown (`screens::gearing_text`).
     pub shown_gearing: Dword,
-    /// `g_unreadList`: The screen's first list: the address of the list `menu::run_list` runs.
-    pub unread_list: Dword,
+    /// `g_unreadList`: The screen's first list (`menu::fn_list`: by handle, not the list's address).
+    pub unread_list: ListCell,
     /// `g_drawList`: The screen's draw list.
-    pub draw_list: Dword,
+    pub draw_list: ListCell,
     /// `g_overlayList`: The screen's overlay list.
-    pub overlay_list: Dword,
+    pub overlay_list: ListCell,
     /// `dword_755500`: The screen's set-up list: run once at set-up (`menu::run_list`) and not put in place again.
-    pub setup_list: Dword,
+    pub setup_list: ListCell,
     /// `g_sceneList`: The screen's 3D list.
-    pub scene_list: Dword,
+    pub scene_list: ListCell,
     /// Unreferenced bytes (IDA 0x755508 .. 0x755525).
-    pub _gap_755508: Bytes<29>,
+    pub _gap_755508: Bytes<32>,
 }
 
-/// First values the image's (`tests::screen_flow_starts_as_the_games`).
-pub static SCREEN_FLOW: ScreenFlow = ScreenFlow {
-    start_section: Dword::new(0x0),
-    start_section_a8: Dword::new(0x0),
-    kept: Dword::new(0x1),
-    asking: Dword::new(0x0),
-    quiet: Dword::new(0x0),
-    enter_with_4: Dword::new(0x0),
-    car_list_kind: Dword::new(0x0),
-    _gap_7554dc: Bytes::new([0; 8]),
-    left_service: Dword::new(0x1),
-    menu_sounds_volume: Dword::new(0x0),
-    turning: Dword::new(0x1),
-    shown_gearing: Dword::new(0x1),
-    unread_list: Dword::new(0x0),
-    draw_list: Dword::new(0x0),
-    overlay_list: Dword::new(0x0),
-    setup_list: Dword::new(0x0),
-    scene_list: Dword::new(0x0),
-    _gap_755508: Bytes::new(with_runs::<29>(&[(0x0, &[0xff, 0xff, 0xff, 0xff])])),
-};
+impl ScreenFlow {
+    /// First values the image's (`tests::screen_flow_starts_as_the_games`).
+    pub const fn new() -> Self {
+        ScreenFlow {
+            start_section: Dword::new(0x0),
+            start_section_a8: Dword::new(0x0),
+            kept: Dword::new(0x1),
+            asking: Dword::new(0x0),
+            quiet: Dword::new(0x0),
+            enter_skips_name_entry: Dword::new(0x0),
+            car_list_kind: Dword::new(0x0),
+            _gap_7554dc: Bytes::new([0; 8]),
+            left_service: Dword::new(0x1),
+            menu_sounds_volume: Dword::new(0x0),
+            turning: Dword::new(0x1),
+            shown_gearing: Dword::new(0x1),
+            unread_list: ListCell::new(),
+            draw_list: ListCell::new(),
+            overlay_list: ListCell::new(),
+            setup_list: ListCell::new(),
+            scene_list: ListCell::new(),
+            _gap_755508: Bytes::new(with_runs::<32>(&[(0x0, &[0xff, 0xff, 0xff, 0xff])])),
+        }
+    }
+}
 
 /// IDA 0x7554C0, the first byte of the piece.
 pub const START: usize = 0x7554C0;
@@ -76,8 +82,9 @@ pub const START: usize = 0x7554C0;
 pub const END: usize = 0x755525;
 
 /// Where IDA 0x7554C0 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn screen_flow_addr() -> u32 {
-    crate::pointers::game_address(&SCREEN_FLOW as *const ScreenFlow)
+    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.screens.flow)
 }
 
 #[cfg(test)]
@@ -94,7 +101,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(screen_flow_addr()) as *const u8,
+                crate::pointers::host(screen_flow_addr()).cast_const(),
                 END - START,
             )
         };
@@ -105,7 +112,7 @@ mod tests {
         at(offset_of!(ScreenFlow, kept), 0x7554C8);
         at(offset_of!(ScreenFlow, asking), 0x7554CC);
         at(offset_of!(ScreenFlow, quiet), 0x7554D0);
-        at(offset_of!(ScreenFlow, enter_with_4), 0x7554D4);
+        at(offset_of!(ScreenFlow, enter_skips_name_entry), 0x7554D4);
         at(offset_of!(ScreenFlow, car_list_kind), 0x7554D8);
         at(offset_of!(ScreenFlow, left_service), 0x7554E4);
         at(offset_of!(ScreenFlow, menu_sounds_volume), 0x7554E8);

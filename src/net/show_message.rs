@@ -2,10 +2,7 @@
 //! `screens::run_frame`), a quarter of a second's sleep, the pending key dropped
 //! (`input::take_key`), then frames until a key is pressed.
 //!
-//! In:  `message` (eax: the message's string id; 0x154 the connection failed, 0x155 the
-//!      session)
-//! Out: nothing (every register kept, `pusha` .. `popa`; the flags of the last `take_key`
-//!      read by no caller)
+//! Takes `message`.
 //! Caller: `net::start_link`. The frame's message goes to `net::message_frame` in esi
 //! (through `screens::run_frame`).
 

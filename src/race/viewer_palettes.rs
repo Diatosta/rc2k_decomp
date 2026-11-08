@@ -5,17 +5,10 @@
 //! screen's format (`gfx::pixel_to_components`, `g_surfaceFormat`), made opaque and put
 //! together in the texture format (`gfx::components_to_pixel`, `[off_5ABAC0 + 0xC] + 8`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`); no flags read
-//!
 //! Caller: `race::viewer_load_stage`.
 
 use crate::errors::BadInput;
-use crate::gfx::fonts_store::FONTS;
-use crate::gfx::pixel_format::PixelFormat;
-use crate::pointers::GamePtr;
-use crate::race::replay_file_store::REPLAY_FILE;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
+use crate::race::owner_shared::Shared;
 
 /// The replay viewer's panel fonts, whose palettes are pointed at the colours, in the
 /// original's order.
@@ -25,24 +18,29 @@ const PALETTES: [crate::gfx::typefaces::FontId; 6] = {
 };
 
 /// The Rust version.
-pub fn viewer_palettes() -> Result<(), BadInput> {
+pub fn viewer_palettes(
+    shared: &Shared,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
+    let gfx = crate::gfx::owner::gfx();
+    let textures = &scene.textures;
     // The textures and slots kept: (to, from).
     for (to, from) in [
         (
-            &REPLAY_FILE.viewer_first_texture_a,
-            &KIND_TEXTURES.kind_first_textures[212],
+            &shared.replay_file.viewer_first_texture_a,
+            &textures.kinds.kind_first_textures[212],
         ), // g_kindFirstTextures + 0x350
         (
-            &REPLAY_FILE.viewer_list_texture,
-            &KIND_TEXTURES.kind_first_slots[212],
+            &shared.replay_file.viewer_list_texture,
+            &textures.kinds.kind_first_slots[212],
         ), // g_kindFirstSlots + 0x350
         (
-            &REPLAY_FILE.viewer_panel_texture,
-            &KIND_TEXTURES.kind_first_textures[201],
+            &shared.replay_file.viewer_panel_texture,
+            &textures.kinds.kind_first_textures[201],
         ), // g_kindFirstTextures + 0x324
         (
-            &REPLAY_FILE.viewer_device_texture,
-            &KIND_TEXTURES.kind_first_slots[201],
+            &shared.replay_file.viewer_device_texture,
+            &textures.kinds.kind_first_slots[201],
         ), // g_kindFirstSlots + 0x324
     ] {
         to.set(from.get());
@@ -53,26 +51,26 @@ pub fn viewer_palettes() -> Result<(), BadInput> {
             .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours[0].addr());
     }
     {
-        let screen = GamePtr::new(crate::session::SCREEN.format_addr())
-            .read::<PixelFormat>("the screen's pixel format")?;
-        let texture = GamePtr::new(
-            crate::gfx::texture_upload::TEXTURE_TABLES.kinds[3]
-                .get()
-                .wrapping_add(8),
-        )
-        .read::<PixelFormat>("the texture pixel format")?;
+        let screen = crate::gfx::pixel_format::surface_format()?;
+        let texture = crate::gfx::pixel_format::layout(
+            crate::gfx::pixel_format::texture_kind_format(3, gfx),
+        )?;
         // Converted: `rc2k_core::race::viewer_flow::{font_colour, FONT_COLOURS}` (colour
         // by colour, as the original).
         use rc2k_core::race::viewer_flow::{FONT_COLOURS, font_colour};
-        let from = FONTS.palettes.get();
-        let to = crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours[0].addr();
+        let from = gfx.fonts.font_block.palettes.get();
+        let to = &crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours;
         for n in 0..FONT_COLOURS as u32 {
             let colour = font_colour(
-                GamePtr::new(from + 4 * n).read::<u32>("a font palette")?,
+                u32::from_le_bytes(
+                    crate::gfx::glyph_store::read_bytes(from, 4 * n, 4, "a font palette")?
+                        .try_into()
+                        .map_err(|_| BadInput("a font palette"))?,
+                ),
                 |c| crate::gfx::pixel_to_components::pixel_to_components(&screen, c),
                 |p| crate::gfx::components_to_pixel::components_to_pixel(&texture, p),
             );
-            GamePtr::new(to + 4 * n).write(colour, "the viewer's colours")?;
+            to[n as usize].set(colour);
         }
     }
     Ok(())

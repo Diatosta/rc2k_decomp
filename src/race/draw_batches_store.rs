@@ -1,9 +1,12 @@
 //! The race frame's draw batches (part R3): the scene's batch (`race::flush_draw_batch`) with its vertices and indices, and the two batches `race::draw_race_scene` flushes (`race::flush_triangle_batch`, the plain one; `race::flush_texture_batch`, the textured one): vertices, indices, counts, first words and the counts kept. The buffers' lengths are readings (up to the next item). Names are readings unless IDA's.
 //! It stops before the replay's variables at 0x6EF7CC (`drive::replay_frames_store`).
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct DrawBatches {
     /// +0x0 (0x6D3CF4): `unk_6D3CF4`: the scene batch's vertices (`race::flush_draw_batch`; a reading of its length).
     pub scene_vertices: Bytes<0x4000>,
@@ -31,21 +34,16 @@ pub struct DrawBatches {
     pub textured_kept: Dword,
 }
 
-/// The piece: the race block's bytes at IDA 0x6D3CF4 seen as `DrawBatches`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = DrawBatches;
-    fn deref(&self) -> &DrawBatches {
-        // SAFETY: the race block lives as long as the program and is aligned as the test
-        // checks; every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const DrawBatches) }
+/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl DrawBatches {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static DRAW_BATCHES: InRaceBlock = InRaceBlock;
 
 /// IDA 0x6D3CF4, the first byte of the piece.
 pub const START: usize = 0x6D3CF4;
@@ -54,9 +52,10 @@ pub const END: usize = 0x6EF7CC;
 
 const _: () = assert!(END - START == core::mem::size_of::<DrawBatches>());
 
-/// Where IDA 0x6D3CF4 is now (in the race block).
+/// Where IDA 0x6D3CF4 is now (the piece's static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(std::ptr::from_ref(&race().frame.draw_batches))
 }
 
 #[cfg(test)]
@@ -65,7 +64,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&race().frame.draw_batches, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(
             piece_addr() % (core::mem::align_of::<DrawBatches>()) as u32,
             0

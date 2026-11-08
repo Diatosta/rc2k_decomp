@@ -3,14 +3,16 @@
 //! working figures, the force and contact records, the gearbox and the spec's figures.
 //! Named from the code's uses (2026-10-25); most names are readings, `unknown_*` runs are
 //! places no ported code names. `#[repr(C)]` with the image's layout, over the race block's
-//! bytes (`PHYSICS`, as `physics::car_store::CAR`) until the code reaching them by RVA from
+//! bytes (`PHYSICS`, as `crate::race::owner::race().shared.car`) until the code reaching them by RVA from
 //! `race::store::asm_base()` is typed.
 
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 /// A kind of ground (0x30 bytes, `off_613978`): what `physics::wheel_surfaces` blends
 /// between for each point, and `physics::apply_patches` patches (readings).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Surface {
     /// +0x0: its table in `surface_tables` (an address).
     pub table: Dword,
@@ -37,6 +39,7 @@ pub struct Surface {
 /// A force on the car (0x20 bytes): `physics::apply_force` takes it, the step clears its
 /// first six dwords (`physics::clear_records`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ForceRecord {
     /// +0x0: the force.
     pub force: [Float; 3],
@@ -47,6 +50,7 @@ pub struct ForceRecord {
 }
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PhysicsTables {
     /// +0x0 (0x613828): 5.0: a reset is allowed below this speed (`drive::reset_request`).
     pub reset_speed_limit: Float,
@@ -90,8 +94,10 @@ pub struct PhysicsTables {
     pub view_counters: [Dword; 7],
     /// +0xc8 (0x6138F0): not named.
     pub unknown_c8: Dword,
-    /// +0xcc (0x6138F4): the frame's cleared flags (`input::keys`, `drive::race_step`).
-    pub frame_cleared: [Dword; 2],
+    /// +0xcc (0x6138F4): `g_debugPage`, the developers' debug overlay's page (0 .. 7), and
+    /// `g_debugFreezeRace` (`drive::race_step` skips the physics ticks while set): what is
+    /// left of the debug keys; `input::end_frame` sets both 0 every frame (`debug::overlay`).
+    pub debug: [Dword; 2],
     /// +0xd4 (0x6138FC): not named.
     pub unknown_d4: [Dword; 31],
     /// +0x150 (0x613978): `off_613978`: the ground kinds' records (`physics::wheel_surfaces`; twelve patched by `physics::apply_patches`).
@@ -228,7 +234,8 @@ pub struct PhysicsTables {
     pub inertia: [Float; 3],
     /// +0x78c (0x613FB4): 0.0001 (`physics::set_downforce`).
     pub downforce_factor: Float,
-    /// +0x790 (0x613FB8): 3000.0 then one more, by spec (`physics::load_car_specs`).
+    /// +0x790 (0x613FB8): 3000.0 then one more, by spec (`physics::load_car_specs`, by
+    /// drive kind 0 .. 2: kind 2 reads the next field, `camera_drop`; `notes/bugs.md`).
     pub rev_limits: [Float; 2],
     /// +0x798 (0x613FC0): 0.7 (`physics::update_camera`, the car's shadow).
     pub camera_drop: Float,
@@ -376,10 +383,9 @@ pub struct PhysicsTables {
     pub torque_cross: [Float; 3],
     /// +0xa58 (0x614280): not named.
     pub unknown_a58: Dword,
-    /// +0xa5c (0x614284): the four wheels' loads (`physics::wheel_surfaces`).
-    pub wheel_loads: [Float; 4],
-    /// +0xa6c (0x614294): (`physics::crash_contact`).
-    pub crash_figure: Float,
+    /// +0xa5c (0x614284): the five points' loads (`physics::wheel_surfaces` writes all
+    /// five; `physics::crash_contact` reads the fifth).
+    pub wheel_loads: [Float; 5],
     /// +0xa70 (0x614298): the five points' grips.
     pub wheel_grips: [Float; 5],
     /// +0xa84 (0x6142AC): the five points' second figures.
@@ -426,7 +432,8 @@ pub struct PhysicsTables {
     pub contacts: [ForceRecord; 7],
     /// +0x1308 (0x614B30): the push `physics::apply_force` takes.
     pub push_record: [Dword; 4],
-    /// +0x1318 (0x614B40): `physics::contact_force`'s record.
+    /// +0x1318 (0x614B40): `physics::contact_force`'s record. Not used: the callers pass the
+    /// record to it.
     pub contact_record: Dword,
     /// +0x131c (0x614B44): `physics::lever_push`'s vector.
     pub lever_push_vector: [Dword; 4],
@@ -516,21 +523,45 @@ const _: () = assert!(core::mem::size_of::<PhysicsTables>() == 0x1510);
 const _: () = assert!(core::mem::size_of::<Surface>() == 0x30);
 const _: () = assert!(core::mem::size_of::<ForceRecord>() == 0x20);
 
-/// The tables: the race block's bytes at IDA 0x613828 seen as `PhysicsTables`
-/// (`PHYSICS.gravity.get()`). They stay there while code reaches them by RVA from
-/// `race::store::asm_base()` and by IDA address (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = PhysicsTables;
-    fn deref(&self) -> &PhysicsTables {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(tables_addr()) as *const PhysicsTables) }
+impl PhysicsTables {
+    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+    /// `race::store::LEFT`), with the image's first values.
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
 
-pub static PHYSICS: InRaceBlock = InRaceBlock;
+impl PhysicsTables {
+    /// IDA's address of the first ground record (`off_613978`).
+    #[cfg(test)]
+    const SURFACES: usize = 0x613978;
+    /// IDA's address of the first surface table (`g_surfaceTables`) and its length.
+    const TABLES: usize = 0x613C78;
+    const TABLES_LEN: usize = 104 * 4;
+
+    /// Where ground kind `n`'s table starts in `surface_tables`, as a dword's number (phase
+    /// 13: the records keep IDA's addresses as names, and `moved::point_into_homes` passes
+    /// them over). A kind past the 16, or a name off the tables (or between two dwords), is
+    /// refused.
+    pub fn surface_table_index(n: u32) -> Result<usize, crate::errors::BadInput> {
+        let record = race()
+            .shared
+            .physics_tables
+            .surfaces
+            .get(n as usize)
+            .ok_or(crate::errors::BadInput("a ground kind past the 16"))?;
+        let at = (record.table.get() as usize).wrapping_sub(Self::TABLES);
+        if at >= Self::TABLES_LEN || !at.is_multiple_of(4) {
+            return Err(crate::errors::BadInput(
+                "a ground record's table off the tables",
+            ));
+        }
+        Ok(at / 4)
+    }
+}
 
 /// IDA 0x613828, the first byte of the piece.
 pub const START: usize = 0x613828;
@@ -539,9 +570,10 @@ pub const END: usize = 0x614D38;
 
 const _: () = assert!(END - START == core::mem::size_of::<PhysicsTables>());
 
-/// Where IDA 0x613828 is now (in the race block).
+/// Where IDA 0x613828 is now (its own static).
+#[cfg(test)]
 pub fn tables_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&race().shared.physics_tables))
 }
 
 #[cfg(test)]
@@ -551,6 +583,7 @@ mod tests {
 
     #[test]
     fn tables_sit_on_the_race_block() {
+        let race = race();
         assert_eq!(tables_addr() % 4, 0);
         assert_eq!(
             tables_addr(),
@@ -564,10 +597,28 @@ mod tests {
         assert_eq!(offset_of!(PhysicsTables, contacts), 0x614A50 - START);
         assert_eq!(offset_of!(PhysicsTables, gear_count), 0x614C10 - START);
         assert_eq!(offset_of!(PhysicsTables, pace_slot), 0x614D34 - START);
-        assert_eq!(PHYSICS.gravity.get(), 9.8);
-        assert_eq!(PHYSICS.surfaces[1].slide_grip.get(), 1.0);
+        assert_eq!(race.shared.physics_tables.gravity.get(), 9.8);
+        assert_eq!(race.shared.physics_tables.surfaces[1].slide_grip.get(), 1.0);
+    }
+
+    #[test]
+    fn the_ground_records_name_their_tables_as_the_image_does() {
+        let shared = &race().shared;
+        for n in 0..16u32 {
+            let ida = PhysicsTables::SURFACES + 0x30 * n as usize;
+            let image = u32::from_le_bytes(crate::moved::image_bytes(ida, 4).try_into().unwrap());
+            // Kept as the image's name; resolved to the same table's place.
+            assert_eq!(
+                shared.physics_tables.surfaces[n as usize].table.get(),
+                image
+            );
+            let slot = (image as usize - PhysicsTables::TABLES) / 4;
+            assert_eq!(PhysicsTables::surface_table_index(n).unwrap(), slot);
+            assert!(slot.is_multiple_of(13) && slot < 104);
+        }
+        assert!(PhysicsTables::surface_table_index(16).is_err());
         assert_eq!(
-            PHYSICS.contacts[0].force[0].addr(),
+            shared.physics_tables.contacts[0].force[0].addr(),
             crate::framework::game_addr(crate::framework::rva(0x614A50))
         );
     }

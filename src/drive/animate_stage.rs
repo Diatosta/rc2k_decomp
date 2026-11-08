@@ -1,23 +1,19 @@
 //! `drive::animate_stage` (0x45E9CA): `drive::animate_lit_faces`, then
 //! `physics::move_slots`.
 //!
-//! In:  nothing
-//! Out: esi past the slots, ecx 8 (`move_slots`); eax, ebx, edx as `animate_lit_faces`
-//!      leaves them; no flags read (callers go on with calls)
-//!
-//! Callers: race init's loop (`sub_4608BB`, 0x46093E) and `sub_460B2F` (0x460BE2). Refuses
-//! what the two refuse; what was written before a refusal is put back first.
+//! Callers: race init's loop (`drive::race_cars_step`, 0x46093E) and `drive::replay_step`
+//! (0x460BE2). Refuses what the two refuse; what was written before a refusal is put back first.
 
 use crate::drive::animate_lit_faces::animate_lit_faces;
 use crate::errors::Refused;
 use crate::physics::move_slots::move_slots;
+use crate::race::owner::Race;
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: ecx after
 /// `drive::replay_step`'s call has no read point).
-pub unsafe fn animate_stage() -> Result<(), Refused> {
-    unsafe {
-        animate_lit_faces()?;
-        move_slots()?;
-    }
+pub fn animate_stage(race: &Race) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
+    animate_lit_faces(race, scene)?;
+    move_slots(race, scene)?;
     Ok(())
 }

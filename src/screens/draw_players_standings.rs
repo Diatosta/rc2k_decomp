@@ -6,51 +6,53 @@
 //! `dword_7559B8`) at 0x217; rows 0x17 apart from y 0xFE; the sprites' palette ebx after the
 //! last name.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
 //!
 //! In a menu loop's draw list (0x758ECE). Refuses (before anything) a row's player without its
 //! record or name, or without its points. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::players_store::PLAYER_TABLE;
+use crate::menu::captions_store::CaptionTables;
+use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
 /// The Rust version.
-pub fn draw_players_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let rows = if EVENT_STATE.player_count.get() == 3 {
+pub fn draw_players_standings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let rows = if menus.screens.event.player_count.get() == 3 {
         3
     } else {
         4
     };
-    for row in 0..rows {
-        let p = PLAYER_TABLE.pointers[row].get();
-        if p == 0
-            || crate::pointers::GamePtr::new(p + 0x18)
-                .read::<u32>("draw players standings: a game value")?
-                == 0
-            || CAPTIONS.total_pointers[row].get() == 0
+    let mut totals = [0u32; 4];
+    for (row, total) in totals.iter_mut().enumerate().take(rows) {
+        if menus.play.players.players[row]
+            .get()
+            .name_player()
+            .is_none()
         {
-            return Err(BadInput("a standings row without its player, name or points").into());
+            return Err(BadInput("a standings row without its name").into());
         }
+        *total = CaptionTables::total_of(menus, row)?.get();
     }
     // Converted: `rc2k_core::screens::players_results::standings`.
-    let fault = crate::menu::event_flow::Fault::default();
-    let field = |row: usize, o: u32| fault.get(PLAYER_TABLE.pointers[row].get() + o);
-    let rows: Vec<rc2k_core::screens::players_results::Standing<u32>> = (0..rows)
-        .map(|row| rc2k_core::screens::players_results::Standing {
-            name: field(row, 0x18),
-            nation: field(row, 4),
-            car: field(row, 8),
-            points: fault.get(CAPTIONS.total_pointers[row].get()),
+    let player = |row: usize| menus.play.players.players[row].get();
+    let rows: Vec<
+        rc2k_core::screens::players_results::Standing<crate::screens::game_screen::HeldText>,
+    > = (0..rows)
+        .map(|row| {
+            Ok(rc2k_core::screens::players_results::Standing {
+                name: crate::screens::game_screen::player_name_of(
+                    menus,
+                    crate::menu::player_names::name_of(&player(row))?,
+                ),
+                nation: player(row).nationality,
+                car: player(row).car_number,
+                points: totals[row],
+            })
         })
-        .collect();
-    fault.check()?;
+        .collect::<Result<_, BadInput>>()?;
     rc2k_core::screens::players_results::standings(
-        &mut crate::screens::game_screen::GameScreen::new(canvas),
+        &mut crate::screens::game_screen::GameScreen::<_, _, crate::screens::game_screen::HeldText>::new(canvas),
         &rows,
     )?;
     Ok(())

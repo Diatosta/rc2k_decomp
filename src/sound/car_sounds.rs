@@ -1,7 +1,6 @@
 //! `sound::car_sounds` (0x40D893): one car's sounds for the turn.
 //!
-//! In:  eax the car's number (`g_raceSoundObjects[eax]`)
-//! Out: every register preserved (`pusha` / `popa`)
+//! Takes: the car's number (`g_raceSoundObjects[]`)
 //! ebx the object, esi the request (`unk_5124BC`); `sound::car_engine_state`, then the
 //! request's +0x20 and +0x24 (the pitch and volume factors) = the object's +0x13C and
 //! +0x140 (eax left at +0x140), then `sound::revs_sound`, `sound::throttle_sound`,
@@ -16,31 +15,26 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::sound::turn_parts::object;
 
 // ---- Rust version ----
 
 /// Car `n`'s sounds for the turn.
-pub fn car_sounds(n: u32) -> Result<(), Refused> {
+pub fn car_sounds(n: u32, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     if n > 7 {
         return Err(BadInput("a car's sound object past 7").into());
     }
-    let object = object(n);
-    if object == 0 {
-        return Err(BadInput("a null sound object").into());
-    }
+    let so = crate::sound::store::SoundObject::number(n)?;
     let request = crate::sound::turn_parts::request();
-    let kind = crate::sound::car_engine_state::car_engine_state(object)?;
-    let so = crate::sound::store::SoundObject::at(object)?;
-    crate::sound::turn_parts::put(request, 8, so.pitch_factor.bits())?;
-    crate::sound::turn_parts::put(request, 9, so.volume_factor.bits())?;
+    let kind = crate::sound::car_engine_state::car_engine_state(so, sound)?;
+    request.pitch_factor.set(so.pitch_factor.bits());
+    request.volume_factor.set(so.volume_factor.bits());
     use crate::sound::*;
-    revs_sound::revs_sound(object, kind, request)?;
-    throttle_sound::throttle_sound(object, kind, request)?;
-    speed_sound::speed_sound(object, kind, request)?;
-    surface_sounds::surface_sounds(object, request)?;
-    car_slot_sounds::car_slot_sounds(object, request)?;
-    car_hit_sound::car_hit_sound(object, request)?;
-    car_cue_sound::car_cue_sound(object, request)?;
-    car_gear_sounds::car_gear_sounds(object, request)
+    revs_sound::revs_sound(so, kind, request, sound)?;
+    throttle_sound::throttle_sound(so, kind, request, sound)?;
+    speed_sound::speed_sound(so, kind, request, sound)?;
+    surface_sounds::surface_sounds(so, request, sound)?;
+    car_slot_sounds::car_slot_sounds(so, request)?;
+    car_hit_sound::car_hit_sound(so, request)?;
+    car_cue_sound::car_cue_sound(so, request)?;
+    car_gear_sounds::car_gear_sounds(so, request)
 }

@@ -7,6 +7,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LightState {
     /// +0x0 (0x636588): `g_litPlace`, `dword_63658C`, `dword_636590`: the place (x, y, z) being lit, a car or a point (`scene::add_point_lights`, `race::frame_draw`, `race::course_faces`).
     pub lit_place: [Dword; 3],
@@ -62,21 +63,16 @@ pub struct LightState {
     pub hit_work: [Dword; 6],
 }
 
-/// The piece: the race block's bytes at IDA 0x636588 seen as `LightState`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = LightState;
-    fn deref(&self) -> &LightState {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const LightState) }
+impl LightState {
+    /// The piece with the image's first values (a static of its own since 2026-10-29: it left
+    /// the race block, phase 13, `race::store::LEFT`; the owner `scene::owner::Scene` holds it).
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static LIGHT_STATE: InRaceBlock = InRaceBlock;
 
 /// IDA 0x636588, the first byte of the piece.
 pub const START: usize = 0x636588;
@@ -85,18 +81,27 @@ pub const END: usize = 0x637660;
 
 const _: () = assert!(END - START == core::mem::size_of::<LightState>());
 
-/// Where IDA 0x636588 is now (in the race block).
+/// Where IDA 0x636588 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::scene::owner::scene().lights.state,
+    ))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scene::owner::scene;
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&scene().lights.state, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

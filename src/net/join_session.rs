@@ -6,22 +6,19 @@
 //! "NET: Open" and its result logged, the window restored; then `dword_52ACFC` 1, the player
 //! made (`net::create_player`), the group joined (`net::join_group`), "NET: Join complete".
 //!
-//! In:  `session` (eax: the session's number)
-//! Out: true when joined (the original: carry clear, the flags of `test eax, eax`; every
-//!      register kept), false for the carry
+//! Takes `session`. Returns true when joined.
 //! Caller: `net::joining`.
 
 use crate::errors::Refused;
-use crate::field;
 use crate::net::host_session::{OPEN_JOIN, finish, open};
-use crate::net::lobby::{log, log_int_nl, movsb, session, zero};
-use crate::net::store::NET;
-use crate::net::types::NetSession;
+use crate::net::lobby::{log, log_int_nl};
+use crate::net::owner::Net;
+use crate::net::store::put_bytes;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The code at 0x418D77 as the receiving thread calls it when it is posted.
-pub extern "C" fn posted_open_join() -> u32 {
-    unsafe { open(OPEN_JOIN) }
+pub fn posted_open_join() -> u32 {
+    open(OPEN_JOIN, b"")
 }
 
 fn join_group() -> Result<bool, Refused> {
@@ -29,36 +26,30 @@ fn join_group() -> Result<bool, Refused> {
 }
 
 /// The Rust version.
-pub fn join_session(number: u32) -> Result<bool, Refused> {
-    log(VIEWER_PANEL.text_addr(texts::NET_JOIN_SESSION), false, 2);
+pub fn join_session(net: &Net, number: u32) -> Result<bool, Refused> {
+    log(VIEWER_PANEL.text_ptr(texts::NET_JOIN_SESSION), false, 2);
     log_int_nl(number, 1);
-    if NET.dplay.get() == 0 {
+    if net.vars.dplay.get() == 0 {
         return Ok(false);
     }
-    let record = session(number)?;
-    movsb(
-        NET.joined.addr(),
-        record + field!(NetSession, instance),
-        0x10,
-    )?;
-    movsb(NET.joined_name.addr(), record, 0x40)?;
-    NET.joined_most
-        .set(crate::pointers::GamePtr::new(record + 0x50).read::<u32>("a session's record")?);
-    movsb(
-        NET.joined_password.addr(),
-        record + field!(NetSession, user),
-        0x10,
-    )?;
-    zero(NET.session_desc.addr(), 0x50)?;
-    NET.session_desc.size.set(0x50);
-    movsb(
-        crate::pointers::game_address(NET.session_desc.instance.as_ptr()),
-        NET.joined.addr(),
-        0x10,
-    )?;
+    let s = crate::net::tables::with_session(number, |s| *s)?;
+    net.vars
+        .joined
+        .write_at(0, &s.instance, "the joined session")?;
+    net.vars
+        .joined_name
+        .write_at(0, &s.name, "the joined session")?;
+    net.vars.joined_most.set(s.max_players);
+    net.vars
+        .joined_password
+        .write_at(0, &s.user, "the joined session")?;
+    net.vars.session_desc.clear();
+    net.vars.session_desc.size.set(0x50);
+    put_bytes(&net.vars.session_desc.instance, &net.vars.joined.read());
     finish(
+        net,
         posted_open_join,
         join_group,
-        VIEWER_PANEL.text_addr(texts::NET_JOIN_COMPLETE),
+        VIEWER_PANEL.text_ptr(texts::NET_JOIN_COMPLETE),
     )
 }

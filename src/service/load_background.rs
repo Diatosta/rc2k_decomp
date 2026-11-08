@@ -4,36 +4,26 @@
 //! of them) loaded (`gfx::load_picture`) and converted (`gfx::convert_picture`); a failed
 //! conversion (carry) is fatal error 0x80712435.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Callers: the service area's screens (0x47296A, 0x472B53, 0x4A1C0F). Its calls: the
-//! Rust versions. Refuses (before anything) a current player past the four or missing, and a car
-//! past the table.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! Callers: the service area's screens (`service::service_area_loop`, 0x47296A, 0x472B53,
+//! 0x4A1C0F). Its calls: the Rust versions. Refuses (before anything) a current player past the
+//! four or missing, and a car past the table.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
-use crate::pointers::GamePtr;
+use crate::menu::owner::menus;
 
 /// The Rust version (see the header). The conversion's carry (fatal error 0x80712435) is
 /// never set by `gfx::convert_picture`'s Rust version, which refuses instead.
-pub unsafe fn load_background() -> Result<(), Refused> {
-    let player = crate::menu::player::player_at(EVENT_STATE.current_player.get());
-    if player == 0 {
+pub fn load_background() -> Result<(), Refused> {
+    let menus = menus();
+    let Some(player) = crate::menu::player::player(menus.screens.event.current_player.get()) else {
         return Err(BadInput("no current player (or one past the four)").into());
-    }
+    };
     // Converted: `rc2k_core::service::car::background`.
-    let car = rc2k_core::service::car::background(
-        GamePtr::new(player + 8).read::<u32>("a player's record")?,
-    )
-    .map_err(BadInput::from)?;
-    unsafe {
-        let path = MENU_LISTS.service_pictures[car as usize].get();
-        crate::gfx::load_picture::load_picture(crate::pointers::host(path))?;
-        crate::gfx::convert_picture::convert_picture_now()?;
-    }
+    let car =
+        rc2k_core::service::car::background(player.get().car_number).map_err(BadInput::from)?;
+    let path =
+        crate::menu::texts_store::text_at(menus.tables.lists.service_pictures[car as usize].get())?;
+    crate::gfx::load_picture::load_picture(&path)?;
+    crate::gfx::convert_picture::convert_picture_now()?;
     Ok(())
 }

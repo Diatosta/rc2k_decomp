@@ -2,12 +2,8 @@
 //! string 0x1FC at (0x19A, 0x118) with the font at 0x51E8A4. In that screen's draw list
 //! (0x758E66). IDA had it as code outside any function (made one 2026-10-19).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`); the carry as `text::draw_string_by_id`
-//! leaves it
 //!
-//! The menus and draw lists run its `entry` (`menu::table_calls`); the registers above are the
-//! original's, for reference.
+//! The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::text::draw_text::Canvas;

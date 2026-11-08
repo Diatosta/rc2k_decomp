@@ -11,6 +11,7 @@
 //! `run_both` compares the registers, the flags the callers read, the calls and memory.
 
 use crate::errors::BadInput;
+use crate::math::cells::Cells;
 use crate::pointers::GamePtr;
 
 // ---- the replay being viewed ----
@@ -20,33 +21,67 @@ pub const TABLE_LEN: usize = 0x3840; // 0x708 blocks of 8 bytes
 /// The byte `offset` on from the first block's cameras (8 bytes a block; the original does not
 /// check the offset).
 pub fn camera_byte_at(offset: usize) -> Result<u8, BadInput> {
-    let at = crate::race::viewer_buffers_store::VIEWER_BUFFERS
-        .block_cameras
-        .addr()
-        .wrapping_add(offset as u32);
-    GamePtr::new(at).read("a replay camera byte")
+    camera_ptr(offset as u32).read("a replay camera byte")
+}
+
+/// The place `offset` bytes on from the first block's cameras. Unbounded: the original does
+/// not check the offset against the table (a camera step from camera 0 reads the byte
+/// before it).
+pub fn camera_ptr(offset: u32) -> GamePtr {
+    GamePtr::to(&crate::race::viewer_buffers_store::VIEWER_BUFFERS.block_cameras)
+        .unbounded()
+        .offset(offset)
 }
 
 // ---- the list menu (`menu::list_*`) ----
 
-/// `rep movsd` of `dwords` from `from` to `to` (absolute addresses), forwards.
-pub fn move_dwords(to: usize, from: usize, dwords: usize) -> Result<(), BadInput> {
+/// Whether `n` cells from `at` lie in `table`.
+fn inside(table: &dyn Cells, at: usize, n: usize) -> Result<(), BadInput> {
+    match at.checked_add(n) {
+        Some(end) if end <= table.count() => Ok(()),
+        _ => Err(BadInput("past a replay table")),
+    }
+}
+
+/// `rep movsd` of `dwords` from `from`'s cell `from_at` on to `to`'s cell `to_at` on,
+/// forwards; past either table refused before anything is written.
+pub fn move_cells(
+    to: &dyn Cells,
+    to_at: usize,
+    from: &dyn Cells,
+    from_at: usize,
+    dwords: usize,
+) -> Result<(), BadInput> {
+    inside(from, from_at, dwords)?;
+    inside(to, to_at, dwords)?;
     for n in 0..dwords {
-        let word: u32 = GamePtr::new((from + 4 * n) as u32).read("a replay table")?;
-        GamePtr::new((to + 4 * n) as u32).write(word, "a replay table")?;
+        to.set_bits(to_at + n, from.bits(from_at + n));
     }
     Ok(())
 }
 
-/// A table of `dwords` dwords at the absolute address `at` (dword-aligned) as a slice, for
-/// the core.
-///
-/// # Safety
-/// No other reference to the table may be alive while the slice is.
-pub unsafe fn table(at: usize, dwords: usize) -> &'static mut [u32] {
-    let at = crate::pointers::host_at(at) as *mut u32;
-    debug_assert!(at.is_aligned());
-    unsafe { std::slice::from_raw_parts_mut(at, dwords) }
+/// `std; rep movsd`: the same move from the last dword down (an overlapping move up).
+pub fn move_cells_back(
+    table: &dyn Cells,
+    to_at: usize,
+    from_at: usize,
+    dwords: usize,
+) -> Result<(), BadInput> {
+    inside(table, from_at, dwords)?;
+    inside(table, to_at, dwords)?;
+    for n in (0..dwords).rev() {
+        table.set_bits(to_at + n, table.bits(from_at + n));
+    }
+    Ok(())
+}
+
+/// `dwords` cells of `table` from `at` on set to 0.
+pub fn clear_cells(table: &dyn Cells, at: usize, dwords: usize) -> Result<(), BadInput> {
+    inside(table, at, dwords)?;
+    for n in 0..dwords {
+        table.set_bits(at + n, 0);
+    }
+    Ok(())
 }
 
 // ---- for `net::sort_players` ----

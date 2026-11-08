@@ -1,4 +1,4 @@
-//! The race's split times and timers under `sub_43B635` (IDA 2026-10-18):
+//! The race's split times and timers under `physics::car_physics_step` (IDA 2026-10-18):
 //! `physics::race_timers` (0x436790) by the race mode (`dword_62389C`) runs the start's
 //! counters and, at each new checkpoint split, `physics::take_split` (0x436900) or for
 //! mode 2 `physics::take_split_counted` (0x436833); those ask `physics::split_by_mode`
@@ -7,12 +7,20 @@
 //! `physics::fill_rival_table`, 0x436BD6), mode 3 `physics::compare_split_times` (0x436E11,
 //! against ten times kept per split). This file: the shared names and the test.
 
+use crate::race::owner_shared::Shared;
+
 /// `g_car + 0x140 + 4 split`: the splits run to 0x3F, past the sixteen figures of
 /// `split_times` (into the car's next fields), as the original writes them.
-pub fn put_split_time(split: usize, v: u32) {
-    unsafe {
-        (crate::physics::car_store::CAR.split_times.as_ptr() as *mut u32)
-            .add(split)
-            .write_unaligned(v)
-    }
+pub fn put_split_time(
+    shared: &Shared,
+    split: usize,
+    v: u32,
+) -> Result<(), crate::errors::BadInput> {
+    crate::session::write_on_in(
+        &shared.car,
+        &shared.car.split_times,
+        split,
+        v,
+        "a split's time",
+    )
 }

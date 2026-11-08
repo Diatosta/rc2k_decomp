@@ -1,8 +1,5 @@
 //! `scene::begin_scene` (0x44E8A1): the 3D part of a frame begins.
 //!
-//! In:  nothing
-//! Out: the registers and flags `d3d::begin_scene` leaves (carry = it failed)
-//!
 //! `d3d::begin_scene` (0x41ABC7: Direct3D's BeginScene and the layer's own states, platform),
 //! then, whatever it says, `scene::set_filters` and render states 0x15 = 4 (the texture's
 //! blending), 0x1C = 1 (fog on), 0x13 = 5 and 0x14 = 6 (the source and destination blend), 0x1B

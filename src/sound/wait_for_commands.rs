@@ -1,15 +1,13 @@
 //! `sound::wait_for_commands` (0x409C1E): waits until the audio thread has taken every
 //! command.
 //!
-//! In:  nothing (the registers go into the two commands it sends)
-//! Out: every register preserved
 //! Two "end of turn" commands (0xA) are queued; then, while commands are waiting
-//! (`sub_409C01`): a millisecond's sleep, the window's messages (`system::pump_messages`),
+//! (0x409C01): a millisecond's sleep, the window's messages (`system::pump_messages`),
 //! and the quit switch at 1 ends the wait.
 //! Fourteen callers.
 
-use crate::session::FLAGS;
 use crate::sound::queue::{END_OF_TURN, pending, send_command};
+use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -40,7 +38,7 @@ impl Parts for Game {
     }
 
     fn quitting(&mut self) -> bool {
-        FLAGS.quitting.get() == 1
+        system().session.flags.quitting.get() == 1
     }
 }
 

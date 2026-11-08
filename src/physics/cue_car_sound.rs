@@ -3,8 +3,7 @@
 //! `physics::queue_sound_cue` with eax 0 (first), edi its +0x298, the cue in ebx. All in
 //! `pusha` / `popa`.
 //!
-//! In:  eax which, ebx the cue
-//! Out: every register kept; no flags read
+//! Takes: which, the cue
 //!
 //! Caller: `physics::cue_listed_car_sound`. Refuses (before anything) a car past 7 or a
 //! null sound object.
@@ -13,21 +12,34 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use rc2k_core::physics::listed_cars::{QUEUE_OFFSET, cue_object};
+use crate::sound::store::SoundObject;
+use rc2k_core::physics::listed_cars::cue_object;
 
 /// `cue` queued first for the car `which` (0 or 1: a player's), if it sounds.
 // Converted: `rc2k_core::physics::listed_cars::cue_object`.
-pub fn cue_car_sound(which: u32, cue: u32) -> Result<(), Refused> {
-    let trap = crate::physics::cells::Trap::new();
+pub fn cue_car_sound(
+    which: u32,
+    cue: u32,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
+    let failed = std::cell::Cell::new(None);
     let found = cue_object(
         which,
-        |which| crate::sound::store::RACE_SOUNDS.player_cars[which as usize].get(),
-        |car| crate::sound::store::RACE_SOUNDS.table[car as usize].get(),
-        |o| trap.dword(o + 8, "a car's sound object"),
+        |which| sound.race.sounds.player_cars[which as usize].get(),
+        |car| car,
+        |car| match SoundObject::number(car) {
+            Ok(o) => o.in_use.get(),
+            Err(e) => {
+                failed.set(Some(e));
+                0
+            }
+        },
     )?;
-    trap.finish()?;
-    let Some(o) = found else {
+    if let Some(e) = failed.take() {
+        return Err(e.into());
+    }
+    let Some(car) = found else {
         return Ok(());
     };
-    crate::physics::queue_sound_cue::queue_sound_cue(true, cue, o, o + QUEUE_OFFSET)
+    crate::physics::queue_sound_cue::queue_sound_cue(true, cue, SoundObject::number(car)?)
 }

@@ -8,6 +8,7 @@ use crate::session::{Bytes, Dword, with_runs};
 
 /// The rows, the key clock and the tables' addresses (IDA 0x7556B4 .. 0x755784).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ChampView {
     /// `dword_7556B4`: The rows (players or drivers) the results and standings pages show.
     pub count: Dword,
@@ -25,23 +26,33 @@ pub struct ChampView {
     pub _gap_7556cc: Bytes<4>,
     /// `g_eventMode`: The event's mode: 2, 3 or 0x13.
     pub event_mode: Dword,
-    /// `g_bestScores`: The best scores' table (five groups of ten, 0x3C each).
+    /// `g_bestScores`: held the best scores' table; the table is typed now
+    /// (`saves::best_times::SCORES`) and this stays 0.
     pub best_scores: Dword,
-    /// `g_stageBestTimes`: The stages' best times (0x618 an event).
+    /// `g_stageBestTimes`: held the stages' best times; typed now
+    /// (`saves::best_times::STAGE_TIMES`), this stays 0 (`off_7354FE` names it).
     pub stage_best_times: Dword,
-    /// `g_levelBestScores`: The arcade levels' best scores.
+    /// `g_levelBestScores`: held the arcade levels' best scores; the table is typed now
+    /// (`saves::best_times::LEVEL_SCORES`) and this stays 0.
     pub level_best_scores: Dword,
-    /// `g_courseBestTimes`: The courses' best times (group 1's pointer for the stage pages).
+    /// `g_courseBestTimes`: held the courses' best times; typed now
+    /// (`saves::best_times::COURSE_TIMES`), this stays 0 (`off_7354FE` names it).
     pub course_best_times: Dword,
-    /// `g_stageBestTimesAlt`: The other group's stage times.
+    /// `g_stageBestTimesAlt`: held the other group's stage times; typed now
+    /// (`saves::best_times::STAGE_TIMES_ALT`), this stays 0 (`off_7354FE` names it).
     pub stage_best_times_alt: Dword,
-    /// `g_timeTrialBestTimes`: The time trial's best times.
+    /// `g_timeTrialBestTimes`: held the time trial's best times; typed now
+    /// (`saves::best_times::TIME_TRIAL_TIMES`), this stays 0 (`off_7354FE` names it).
     pub time_trial_best_times: Dword,
-    /// `g_rankedTimes`: The ranked times (`menu::standings`).
+    /// `g_rankedTimes`: held standings table A; typed now (`saves::best_times::RANKED_TIMES`),
+    /// this stays 0.
     pub ranked_times: Dword,
-    /// `g_champHistory`: The championship's history table.
+    /// `g_champHistory`: held standings table B; typed now
+    /// (`saves::best_times::CHAMP_HISTORY`), this stays 0.
     pub champ_history: Dword,
-    /// `dword_7556F4`: The standings summary (`menu::copy_standings_summary`).
+    /// `dword_7556F4`: held the standings summary; typed now (`saves::best_times::SUMMARY`),
+    /// this is 1 while it is taken (`menu::set_up_front_end`): the race's rivals dword
+    /// (`RACE_STATE.settings.rivals`, `RACE_VARS.rivals`) copies it, 1 meaning the summary.
     pub summary: Dword,
     /// `dword_7556F8`: A stage page switch (`menu::toggle_7556f8`).
     pub switch_f8: Dword,
@@ -54,29 +65,33 @@ pub struct ChampView {
 }
 
 /// First values the image's (`tests::champ_view_starts_as_the_games`).
-pub static CHAMP_VIEW: ChampView = ChampView {
-    count: Dword::new(0x0),
-    first_row: Dword::new(0x0),
-    row_end: Dword::new(0x0),
-    ranked_player: Dword::new(0x1),
-    last_key_time: Dword::new(0x0),
-    cursor_time: Dword::new(0x0),
-    _gap_7556cc: Bytes::new(with_runs::<4>(&[(0x0, &[0x01])])),
-    event_mode: Dword::new(0x2),
-    best_scores: Dword::new(0x0),
-    stage_best_times: Dword::new(0x0),
-    level_best_scores: Dword::new(0x0),
-    course_best_times: Dword::new(0x0),
-    stage_best_times_alt: Dword::new(0x0),
-    time_trial_best_times: Dword::new(0x0),
-    ranked_times: Dword::new(0x0),
-    champ_history: Dword::new(0x0),
-    summary: Dword::new(0x0),
-    switch_f8: Dword::new(0x1),
-    switch_fc: Dword::new(0x1),
-    stage_mode: Dword::new(0x1),
-    _gap_755704: Bytes::new([0; 128]),
-};
+impl ChampView {
+    pub const fn new() -> Self {
+        ChampView {
+            count: Dword::new(0x0),
+            first_row: Dword::new(0x0),
+            row_end: Dword::new(0x0),
+            ranked_player: Dword::new(0x1),
+            last_key_time: Dword::new(0x0),
+            cursor_time: Dword::new(0x0),
+            _gap_7556cc: Bytes::new(with_runs::<4>(&[(0x0, &[0x01])])),
+            event_mode: Dword::new(0x2),
+            best_scores: Dword::new(0),
+            stage_best_times: Dword::new(0),
+            level_best_scores: Dword::new(0),
+            course_best_times: Dword::new(0),
+            stage_best_times_alt: Dword::new(0),
+            time_trial_best_times: Dword::new(0),
+            ranked_times: Dword::new(0),
+            champ_history: Dword::new(0),
+            summary: Dword::new(0),
+            switch_f8: Dword::new(0x1),
+            switch_fc: Dword::new(0x1),
+            stage_mode: Dword::new(0x1),
+            _gap_755704: Bytes::new([0; 128]),
+        }
+    }
+}
 
 /// IDA 0x7556B4, the first byte of the piece.
 pub const START: usize = 0x7556B4;
@@ -84,8 +99,9 @@ pub const START: usize = 0x7556B4;
 pub const END: usize = 0x755784;
 
 /// Where IDA 0x7556B4 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn champ_view_addr() -> u32 {
-    crate::pointers::game_address(&CHAMP_VIEW as *const ChampView)
+    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.play.champ_view)
 }
 
 #[cfg(test)]
@@ -102,7 +118,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(champ_view_addr()) as *const u8,
+                crate::pointers::host(champ_view_addr()).cast_const(),
                 END - START,
             )
         };

@@ -5,20 +5,19 @@
 //! `dword_613898`. The handbrake `unk_71A618` = `dword_61389C`, 0 when that is 0x100 or
 //! less and `unk_71A400` is set.
 //!
-//! In:  nothing
-//! Out: eax `dword_61389C`, ebx `unk_71A440`; the rest kept; no flags read
+//! Returns: `dword_61389C`, `unk_71A440`
 //!
-//! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`.
+//! Callers: `drive::car_controls`, `race::step_replay_cars`, `drive::replay_step`.
 
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::session::Dword;
 use rc2k_core::drive::controls::{BRAKE_KEY, THROTTLE_KEY, handbrake, pedal};
 
 /// One pedal: by the keys' `bit`, stepped from `input`, or set to it.
-fn step_pedal(bit: u32, input: &Dword, at: &Dword) {
+fn step_pedal(shared: &Shared, bit: u32, input: &Dword, at: &Dword) {
     at.set(pedal(
-        CAR.input_keys.get() & bit != 0,
+        shared.car.input_keys.get() & bit != 0,
         input.get(),
         at.get(),
     ));
@@ -26,11 +25,22 @@ fn step_pedal(bit: u32, input: &Dword, at: &Dword) {
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::controls::{pedal, handbrake}`.
-pub fn pedal_inputs() {
-    step_pedal(THROTTLE_KEY, &PHYSICS.input_throttle, &CAR.throttle);
-    step_pedal(BRAKE_KEY, &PHYSICS.input_brake, &CAR.brake);
-    let hand = PHYSICS.input_handbrake.get();
-    CAR.handbrake.set(handbrake(hand, || {
-        crate::physics::car_store::CAR.handbrake_failed.get()
-    }));
+pub fn pedal_inputs(race: &Race) {
+    step_pedal(
+        &race.shared,
+        THROTTLE_KEY,
+        &race.shared.physics_tables.input_throttle,
+        &race.shared.car.throttle,
+    );
+    step_pedal(
+        &race.shared,
+        BRAKE_KEY,
+        &race.shared.physics_tables.input_brake,
+        &race.shared.car.brake,
+    );
+    let hand = race.shared.physics_tables.input_handbrake.get();
+    race.shared
+        .car
+        .handbrake
+        .set(handbrake(hand, || race.shared.car.handbrake_failed.get()));
 }

@@ -2,29 +2,29 @@
 //! stage heading, then everything in `stage_panel::draw_stage_body` and the stage's record
 //! rows.
 //!
-//! In:  nothing in registers; it works from the section and index of the event's stage
-//! Out: carry as `draw_stage_records` leaves it; every register preserved
 //! It is not called directly: its address is in the list of draw functions at 0x758D7E, which
-//! belongs to the screen loop `sub_473B21`. That loop is called from `sub_4A0E60` and
-//! `sub_4AA4D7`, which step through the stages of an event (`inc index`) and show another
-//! screen (`sub_472596`) before this one.
+//! belongs to the screen loop `menu::next_stage_loop`. That loop is called from
+//! `menu::run_championship` and
+//! `menu::run_a8_championship`, which step through the stages of an event (`inc index`) and show
+//! another screen (`menu::rally_stages_loop`) before this one.
 //!
 //! The stage is the record `find_record(g_recordTable, index, section)`.
 //!
 //! Screen: confirmed by the owner on 2026-10-10 with a `blank on` test: the stage details screen
 //! shown before each stage starts during a championship. The stage selection screen in the menu has
 //! the same layout but is drawn by another function. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::owner::Menus;
+use crate::menu::owner::Screens;
 use crate::records::find_record::find_record_in;
+use crate::records::stages_store::RecordRef;
 use crate::screens::draw_stage_heading::draw_stage_heading;
 use crate::screens::stage_panel::{
-    TITLE_FONT, draw_records_from, draw_stage_body, dword, label, table_dword_at,
+    TITLE_FONT, draw_records_from, draw_stage_body, label, table_dword_at,
 };
+use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -35,37 +35,45 @@ pub const TITLE_Y: i32 = 0x77;
 // ---- Rust version ----
 
 /// The record of the event's stage, and its section.
-pub fn event_stage() -> Result<(u32, u32), crate::errors::BadInput> {
-    let table = crate::records::stages_store::STAGE_TABLES.championship();
-    let section: u32 = EVENT_STATE.section.get();
-    let index: u32 = EVENT_STATE.index.get();
+pub fn event_stage(screens: &Screens) -> Result<(RecordRef, u32), crate::errors::BadInput> {
+    let table = system().records.stage_tables.championship();
+    let section: u32 = screens.event.section.get();
+    let index: u32 = screens.event.index.get();
     Ok((find_record_in(table, index as i32, section)?, section))
 }
 
 /// The title string of the event's section: from a table in mode 0x13, otherwise from the
 /// section's first record.
-pub fn event_title() -> Result<u32, crate::errors::BadInput> {
-    let table = crate::records::stages_store::STAGE_TABLES.championship();
-    let section: u32 = EVENT_STATE.section.get();
+pub fn event_title(menus: &Menus) -> Result<u32, crate::errors::BadInput> {
+    let table = system().records.stage_tables.championship();
+    let section: u32 = menus.screens.event.section.get();
     let first = find_record_in(table, 0, section)?;
-    if CHAMP_VIEW.event_mode.get() == 0x13 {
-        table_dword_at(MENU_LISTS.section_titles[0].addr() as usize, section)
+    if menus.play.champ_view.event_mode.get() == 0x13 {
+        table_dword_at(
+            &menus.tables.lists,
+            &menus.tables.lists.section_titles,
+            section,
+        )
     } else {
-        dword(first.wrapping_add(0x38))
+        Ok(first.record()?.name())
     }
 }
 
 /// Returns the carry flag of `draw_stage_records`. The errors are those of the functions it
 /// uses: the track pack lookup, the blitter, the formatters and the record rows.
-pub unsafe fn draw_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    unsafe {
-        label(canvas, event_title()?, TITLE_FONT, TITLE_X, TITLE_Y)?;
-        let (record, section) = event_stage()?;
-        draw_stage_heading(record, canvas)?;
-        // ebx, the markers' palette, still holds the section here.
-        draw_stage_body(record, section, false, canvas)?;
-        draw_records_from(CHAMP_VIEW.stage_best_times.get(), record, canvas)
-    }
+pub fn draw_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    let screens = &menus.screens;
+    let tables = &menus.tables;
+    label(canvas, event_title(menus)?, TITLE_FONT, TITLE_X, TITLE_Y)?;
+    let (record, _) = event_stage(screens)?;
+    draw_stage_heading(record, canvas)?;
+    draw_stage_body(tables, record, false, canvas)?;
+    draw_records_from(
+        menus,
+        &crate::saves::best_times::STAGE_TIMES,
+        record,
+        canvas,
+    )
 }
 
 //

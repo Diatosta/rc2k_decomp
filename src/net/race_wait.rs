@@ -4,36 +4,39 @@
 //! with 0x80 left out), the sync of `net::lobby_loop` with 'P' messages, and when all have
 //! answered `dword_52AD7C` 1.
 //!
-//! In:  nothing
-//! Out: `dword_52AD7C` (eax; 1: go). The original keeps the rest (`pusha` .. `popa`) and
-//!      sets the carry with no players on the host (or a failed listing, which never comes);
-//!      its one caller, `net::lets_rally`, reads eax only (`lq -s 0x4171FE`).
+//! Returns `dword_52AD7C` (1: go). The original sets the carry with no players on the host (or
+//! a failed listing, which never comes); its one caller, `net::lets_rally`, reads only the
+//! value (`lq -s 0x4171FE`).
 //! Caller: `net::lets_rally`, once a frame. The sync's registers are its own scratch.
 
 use crate::errors::Refused;
 use crate::net::lobby_loop::{all_states, sync};
-use crate::net::store::{NET, PlayerRecord};
+use crate::net::owner::Net;
+use crate::net::store::PlayerRecord;
 use rc2k_core::net::players;
 
 /// The Rust version.
-pub fn race_wait() -> Result<u32, Refused> {
+pub fn race_wait(net: &Net) -> Result<u32, Refused> {
+    let vars = &net.vars;
     // Converted: `rc2k_core::net::players` (`waiting`, `all_in_state` in `all_states`).
-    NET.own
+    vars.own
         .head
-        .set(PlayerRecord::STATE, players::waiting(NET.own.state()));
-    NET.own.race_time.set(u32::MAX);
+        .set(PlayerRecord::STATE, players::waiting(vars.own.state()));
+    vars.own.race_time.set(u32::MAX);
     let now = crate::system::tick_count::tick_count();
-    if (now.wrapping_sub(NET.clock_a.get()).wrapping_sub(1000) as i32) >= 0 {
-        NET.clock_a.set(now);
-        crate::net::list_players::list_players_regs()?;
+    if (now.wrapping_sub(vars.clock_a.get()).wrapping_sub(1000) as i32) >= 0 {
+        vars.clock_a.set(now);
+        crate::net::list_players::list_players_regs(&net.vars)?;
     }
-    if NET.own.state() & players::HOST != 0 {
-        if NET.players.get() == 0 {
-            return Ok(NET.race_over.get());
+    if vars.own.state() & players::HOST != 0 {
+        if vars.players.get() == 0 {
+            return Ok(vars.race_over.get());
         }
-        if all_states(players::WAITING, NET.players.get()) == players::WAITING && sync(b'P')? {
-            NET.race_over.set(1);
+        if all_states(&net.vars, players::WAITING, vars.players.get()) == players::WAITING
+            && sync(net, b'P')?
+        {
+            vars.race_over.set(1);
         }
     }
-    Ok(NET.race_over.get())
+    Ok(vars.race_over.get())
 }

@@ -7,7 +7,9 @@
 # layer 2) and their parsers, no assembly (no nasm needed), shared (LGPL 2.1). Into
 # third_party/ffmpeg (not in git): bin/avcodec-61.dll, bin/avutil-59.dll and their import
 # libraries bin/avcodec.lib, bin/avutil.lib. `build_ffmpeg.sh x64` builds the same for
-# 64-bit Windows into third_party/ffmpeg-x64.
+# 64-bit Windows into third_party/ffmpeg-x64; `build_ffmpeg.sh linux` static libraries
+# (lib/libavcodec.a, lib/libavutil.a) for the native Linux build into
+# third_party/ffmpeg-linux (needs gcc and make).
 # Needs: curl, gpg, clang-cl, lld-link, llvm-lib, llvm-nm, make; a cargo xwin build run
 # once (for the SDK).
 set -euo pipefail
@@ -24,7 +26,9 @@ ARCH="${1:-x86}"
 case "$ARCH" in
     x86) TRIPLE=i686-pc-windows-msvc; FFARCH=x86; SUFFIX="" ;;
     x64) TRIPLE=x86_64-pc-windows-msvc; FFARCH=x86_64; SUFFIX="-x64" ;;
-    *) echo "usage: build_ffmpeg.sh [x86|x64]" >&2; exit 1 ;;
+    linux) FFARCH=x86_64; SUFFIX="-linux" ;;
+    a64) FFARCH=aarch64; SUFFIX="-a64" ;;
+    *) echo "usage: build_ffmpeg.sh [x86|x64|linux|a64]" >&2; exit 1 ;;
 esac
 
 cd "$(dirname "$0")/.."
@@ -36,7 +40,7 @@ if [ -f "$DEST/VERSION" ] && [ "$(cat "$DEST/VERSION")" = "$VERSION $CONFIG" ]; 
 fi
 
 XWIN="${XWIN_CACHE:-$HOME/.cache/cargo-xwin/xwin}"
-[ -d "$XWIN/crt/lib/$FFARCH" ] || { echo "no Windows SDK for $FFARCH in $XWIN: run a cargo xwin build for it first" >&2; exit 1; }
+[ "$ARCH" = linux ] || [ "$ARCH" = a64 ] || [ -d "$XWIN/crt/lib/$FFARCH" ] || { echo "no Windows SDK for $FFARCH in $XWIN: run a cargo xwin build for it first" >&2; exit 1; }
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -52,6 +56,43 @@ gpg --homedir "$TMP/gnupg" --status-fd 1 --verify "$TMP/ffmpeg.tar.xz.asc" "$TMP
 
 tar xf "$TMP/ffmpeg.tar.xz" -C "$TMP"
 SRC="$TMP/ffmpeg-$VERSION"
+
+if [ "$ARCH" = linux ] || [ "$ARCH" = a64 ]; then
+    # Static, position-independent libraries for the native Linux build: linked into the
+    # program, so it needs no FFmpeg on the machine it runs on (build.rs links them).
+    # glibc 2.44 gave sinh and cosh new symbol versions (libavutil's expression evaluator
+    # calls them): bound to their first ones, so the program does not need a glibc newer
+    # than the one its other calls need.
+    printf '__asm__(".symver sinh,sinh@GLIBC_2.2.5");\n__asm__(".symver cosh,cosh@GLIBC_2.2.5");\n' \
+        > "$TMP/glibc_floor.h"
+    mkdir "$TMP/build"
+    cd "$TMP/build"
+    # The handheld's (tools/anbernic/Dockerfile): crossed, against its own old glibc, which
+    # needs no floor (and has no 2.2.5 on arm64).
+    if [ "$ARCH" = a64 ]; then
+        : > "$TMP/glibc_floor.h"
+        CROSS=(--enable-cross-compile --cross-prefix=aarch64-linux-gnu- --target-os=linux
+            --cc=aarch64-linux-gnu-gcc)
+    else
+        CROSS=(--cc="${CC:-gcc}")
+    fi
+    "$SRC/configure" "${CROSS[@]}" --arch=$FFARCH --disable-asm --enable-pic \
+        --extra-cflags="-include $TMP/glibc_floor.h" \
+        --disable-everything --enable-decoder=indeo4,mpeg1video,mp2 \
+        --enable-parser=mpegvideo,mpegaudio --disable-programs --disable-doc \
+        --disable-avformat --disable-avdevice --disable-avfilter --disable-swscale \
+        --disable-swresample --disable-network --disable-autodetect --enable-static \
+        --disable-shared --prefix="$TMP/out" >/dev/null
+    make -j"$(nproc)" >/dev/null 2>"$TMP/make.err" || { tail -20 "$TMP/make.err" >&2; exit 1; }
+    make install >/dev/null
+    rm -rf "$DEST"
+    mkdir -p "$DEST/lib"
+    cp "$TMP/out/lib/libavcodec.a" "$TMP/out/lib/libavutil.a" "$DEST/lib/"
+    cp "$SRC/COPYING.LGPLv2.1" "$DEST/"
+    echo "$VERSION $CONFIG" > "$DEST/VERSION"
+    echo "FFmpeg $VERSION ($CONFIG) is in $DEST"
+    exit 0
+fi
 
 # FFmpeg's makedef calls lib.exe by name: llvm-lib stands for it; NM=llvm-nm makes it
 # read the symbols with llvm-nm instead of dumpbin.

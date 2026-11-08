@@ -9,6 +9,7 @@ use crate::session::{Bytes, Dword};
 
 /// The menu loop's flags (IDA 0x755525 .. 0x755595).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LoopFlags {
     /// `dword_755525`: The highlighted menu item, from 1.
     pub item: Dword,
@@ -42,33 +43,37 @@ pub struct LoopFlags {
     pub sprite_table: Dword,
     /// Unreferenced bytes (IDA 0x755585 .. 0x75558D).
     pub _gap_755585: Bytes<8>,
-    /// `dword_75558D`: The current menu (the address of its head).
-    pub menu: Dword,
+    /// `dword_75558D`: The current menu (by handle, `menus_store::MenuId`).
+    pub menu: crate::menu::menus_store::MenuCell,
     /// `dword_755591`: Not worked out.
     pub dword_755591: Dword,
 }
 
-/// First values the image's (`tests::loop_flags_starts_as_the_games`).
-pub static LOOP_FLAGS: LoopFlags = LoopFlags {
-    item: Dword::new(0x1),
-    _gap_755529: Bytes::new([0; 40]),
-    idle: Dword::new(0x0),
-    idle_frames: Dword::new(0x0),
-    _gap_755559: Bytes::new([0; 4]),
-    went_back: Dword::new(0x0),
-    back: Dword::new(0x0),
-    ended_b: Dword::new(0x0),
-    ended_a: Dword::new(0x0),
-    text_length: Dword::new(0x0),
-    text_max: Dword::new(0x1E),
-    toggle: Dword::new(0x1),
-    champ_row: Dword::new(0x0),
-    options_loaded: Dword::new(0x0),
-    sprite_table: Dword::new(0x0),
-    _gap_755585: Bytes::new([0; 8]),
-    menu: Dword::new(0x0),
-    dword_755591: Dword::new(0x0),
-};
+impl LoopFlags {
+    /// First values the image's (`tests::loop_flags_starts_as_the_games`).
+    pub const fn new() -> Self {
+        LoopFlags {
+            item: Dword::new(0x1),
+            _gap_755529: Bytes::new([0; 40]),
+            idle: Dword::new(0x0),
+            idle_frames: Dword::new(0x0),
+            _gap_755559: Bytes::new([0; 4]),
+            went_back: Dword::new(0x0),
+            back: Dword::new(0x0),
+            ended_b: Dword::new(0x0),
+            ended_a: Dword::new(0x0),
+            text_length: Dword::new(0x0),
+            text_max: Dword::new(0x1E),
+            toggle: Dword::new(0x1),
+            champ_row: Dword::new(0x0),
+            options_loaded: Dword::new(0x0),
+            sprite_table: Dword::new(0x0),
+            _gap_755585: Bytes::new([0; 8]),
+            menu: crate::menu::menus_store::MenuCell::new(),
+            dword_755591: Dword::new(0x0),
+        }
+    }
+}
 
 /// IDA 0x755525, the first byte of the piece.
 pub const START: usize = 0x755525;
@@ -76,8 +81,9 @@ pub const START: usize = 0x755525;
 pub const END: usize = 0x755595;
 
 /// Where IDA 0x755525 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn loop_flags_addr() -> u32 {
-    crate::pointers::game_address(&LOOP_FLAGS as *const LoopFlags)
+    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.screens.loop_flags)
 }
 
 #[cfg(test)]
@@ -94,7 +100,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(loop_flags_addr()) as *const u8,
+                crate::pointers::host(loop_flags_addr()).cast_const(),
                 END - START,
             )
         };

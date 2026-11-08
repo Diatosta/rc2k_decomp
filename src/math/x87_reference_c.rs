@@ -112,7 +112,7 @@ pub(super) mod load {
 
     /// `scene::project_point::rotate` with its third store a `fistp`: the point (three whole
     /// numbers) through `matrix`, x and y stored as floats at `out[0]`, `out[1]`, z rounded
-    /// into `out[2]` from the x87's precision (`sub_4573FA`).
+    /// into `out[2]` from the x87's precision (0x4573FA).
     pub(super) fn rotate_rounding_z(point: *const i32, matrix: *const u32, out: *mut u32) {
         x87!(
             "fild dword ptr [{p} + 8]", "fild dword ptr [{p} + 4]", "fild dword ptr [{p}]",
@@ -274,7 +274,7 @@ pub(super) mod load {
     }
 
     /// `fild i; fdiv a; fdiv a; fdiv b; fmul v; fmul c; fsub m; fmul h; fadd m; fstp`: the
-    /// camera's roll eased towards a target (`sub_4386A4`), rounded once.
+    /// camera's roll eased towards a target (`race::view_matrices`), rounded once.
     pub(super) fn eased_roll(i: i32, a: u32, b: u32, v: u32, c: u32, m: u32, h: u32) -> u32 {
         let (x, mut out) = ([i as u32, a, b, v, c, m, h], 0u32);
         x87!(
@@ -307,7 +307,7 @@ pub(super) mod load {
         out
     }
 
-    /// The sun's direction in `sub_455540`: `fild a; fchs; fadd k; fmul s; fsincos; fild b;
+    /// The sun's direction in `race::draw_sky`: `fild a; fchs; fadd k; fmul s; fsincos; fild b;
     /// fmul s; fsincos; fmul st(2), st; fmulp st(3), st; fxch st(1)`, then each of the three
     /// times `m` and stored: cos a cos b, sin b, sin a cos b (each x `m`).
     pub(super) fn sun_direction(a: i32, k: u32, s: u32, b: i32, m: u32) -> [u32; 3] {
@@ -339,7 +339,7 @@ pub(super) mod load {
         out
     }
 
-    /// A point of whole numbers onto the screen as in `sub_455540` (the original's
+    /// A point of whole numbers onto the screen as in `race::draw_sky` (the original's
     /// instructions; `.byte 0xDE, 0xF1` its `fdivrp st(1), st`): `v` = x, y, z, the flat
     /// depth, the scale, the centre's y and x. Flat: z dropped (into `scratch`) for the flat
     /// depth + 1. Gives x as a float and rounded, y as a float and rounded.
@@ -791,11 +791,11 @@ pub(super) mod run {
         x87!("fld dword ptr [{a}]", "fstp tbyte ptr [{o}]"; a = &raw const terms[0], o = acc.as_mut_ptr());
         for t in &terms[1..] {
             x87!("fld tbyte ptr [{o}]", "fadd dword ptr [{t}]", "fstp tbyte ptr [{o}]";
-            o = acc.as_mut_ptr(), t = t as *const u32);
+            o = acc.as_mut_ptr(), t = std::ptr::from_ref::<u32>(t));
         }
         for d in divisors {
             x87!("fld tbyte ptr [{o}]", "fdiv dword ptr [{d}]", "fstp tbyte ptr [{o}]";
-            o = acc.as_mut_ptr(), d = d as *const u32);
+            o = acc.as_mut_ptr(), d = std::ptr::from_ref::<u32>(d));
         }
         crate::scene::matrix3::rounded(acc)
     }
@@ -1624,7 +1624,7 @@ mod tests {
         check(
             "abs_to_int",
             &ROUNDING,
-            |g| g.f(),
+            Rng::f,
             |&a| load::abs_to_int(a),
             |&a| x87_load::abs_to_int(a),
             exact,
@@ -1654,7 +1654,7 @@ mod tests {
         check(
             "tbyte_to_int",
             &ROUNDING,
-            |g| g.e80(),
+            Rng::e80,
             |&a| load::tbyte_to_int(a),
             |&a| x87_load::tbyte_to_int(a),
             exact,
@@ -1729,7 +1729,7 @@ mod tests {
         check(
             "to_tbyte",
             &ROUNDING,
-            |g| g.f(),
+            Rng::f,
             |&a| load::to_tbyte(a),
             |&a| x87_load::to_tbyte(a),
             eq80,
@@ -1801,17 +1801,11 @@ mod tests {
             |(p, m)| {
                 let mut o = [0xAAAA_AAAAu32; 3];
                 {
-                    load::rotate_rounding_z(p.as_ptr(), m.as_ptr(), o.as_mut_ptr())
+                    load::rotate_rounding_z(p.as_ptr(), m.as_ptr(), o.as_mut_ptr());
                 };
                 o
             },
-            |(p, m)| {
-                let mut o = [0xAAAA_AAAAu32; 3];
-                {
-                    x87_load::rotate_rounding_z(p.as_ptr(), m.as_ptr(), o.as_mut_ptr())
-                };
-                o
-            },
+            |(p, m)| x87_load::rotate_rounding_z(*p, m),
             |a, b| eqf(&a[0], &b[0]) && eqf(&a[1], &b[1]) && a[2] == b[2],
         );
         check_all(
@@ -1820,17 +1814,11 @@ mod tests {
             |(p, m)| {
                 let mut o = [0xAAAA_AAAAu32; 3];
                 {
-                    load::rotate_rounding(p.as_ptr(), m.as_ptr(), o.as_mut_ptr())
+                    load::rotate_rounding(p.as_ptr(), m.as_ptr(), o.as_mut_ptr());
                 };
                 o
             },
-            |(p, m)| {
-                let mut o = [0xAAAA_AAAAu32; 3];
-                {
-                    x87_load::rotate_rounding(p.as_ptr(), m.as_ptr(), o.as_mut_ptr())
-                };
-                o
-            },
+            |(p, m)| x87_load::rotate_rounding(*p, m),
             exact,
         );
     }
@@ -1855,13 +1843,13 @@ mod tests {
             },
             |&(v, flat)| {
                 let mut scratch = 0xAAAA_AAAAu32;
-                let o = { load::sun_on_screen(&v, flat, &raw mut scratch) };
+                let o = load::sun_on_screen(&v, flat, &raw mut scratch);
                 (o, scratch)
             },
             |&(v, flat)| {
-                let mut scratch = 0xAAAA_AAAAu32;
-                let o = { x87_load::sun_on_screen(&v, flat, &raw mut scratch) };
-                (o, scratch)
+                let scratch = crate::session::Dword::new(0xAAAA_AAAA);
+                let o = x87_load::sun_on_screen(&v, flat, &scratch);
+                (o, scratch.get())
             },
             |a, b| {
                 eqf(&a.0[0], &b.0[0])
@@ -1902,7 +1890,7 @@ mod tests {
         check(
             "ext_to_int",
             &ROUNDING,
-            |g| g.e80(),
+            Rng::e80,
             |&e| run::ext_to_int(e),
             |&e| x87_run::ext_to_int(e),
             exact,
@@ -2006,7 +1994,7 @@ mod tests {
         check(
             "square",
             &ROUNDING,
-            |g| g.f(),
+            Rng::f,
             |&a| run::square(a),
             |&a| x87_run::square(a),
             eqf,
@@ -2030,7 +2018,7 @@ mod tests {
         check(
             "one_less",
             &ROUNDING,
-            |g| g.f(),
+            Rng::f,
             |&a| run::one_less(a),
             |&a| x87_run::one_less(a),
             eqf,
@@ -2070,7 +2058,7 @@ mod tests {
         check(
             "abs_of",
             &ROUNDING,
-            |g| g.f(),
+            Rng::f,
             |&a| run::abs_of(a),
             |&a| x87_run::abs_of(a),
             eqf,
@@ -2245,7 +2233,7 @@ mod tests {
         check(
             "neg_rounded",
             &ROUNDING,
-            |g| g.e80(),
+            Rng::e80,
             |&x| run::neg_rounded(x),
             |&x| x87_run::neg_rounded(x),
             eqf,
@@ -2374,7 +2362,7 @@ mod tests {
             &ROUNDING,
             |g| [g.f(), g.f(), g.f()],
             |v| run::length_80(v.as_ptr()),
-            |v| x87_run::length_80(v.as_ptr()),
+            |v| x87_run::length_80(*v),
             eq80,
         );
         check(
@@ -2384,17 +2372,11 @@ mod tests {
             |&(v, s)| {
                 let mut v = v;
                 {
-                    run::scale_by_80(v.as_mut_ptr(), s)
+                    run::scale_by_80(v.as_mut_ptr(), s);
                 };
                 v
             },
-            |&(v, s)| {
-                let mut v = v;
-                {
-                    x87_run::scale_by_80(v.as_mut_ptr(), s)
-                };
-                v
-            },
+            |&(v, s)| x87_run::scale_by_80(v, s),
             eqf3,
         );
         check(
@@ -2502,7 +2484,7 @@ mod tests {
                 |&(i, sse)| {
                     let mut o = [0xAAAA_AAAAu32; 8];
                     {
-                        x87_run::face_shares(&i, &mut o, sse)
+                        x87_run::face_shares(&i, &mut o, sse);
                     };
                     o
                 },
@@ -2526,7 +2508,7 @@ mod tests {
         check(
             "sine_cosine_of",
             &ROUNDING,
-            |g| g.angle(),
+            Rng::angle,
             |&a| run::sine_cosine_of(a),
             |&a| x87_run::sine_cosine_of(a),
             |a, b| near_f(&a.0, &b.0, 1) && near_f(&a.1, &b.1, 1),
@@ -2606,7 +2588,10 @@ mod tests {
                 (x, g.f(), l)
             },
             |&(x, s, l)| call(run::clamped_asin_80, x, s, l),
-            |&(x, s, l)| call(x87_run::clamped_asin_80, x, s, l),
+            |&(x, s, l)| {
+                let (mut s, mut l) = (s, l);
+                (x87_run::clamped_asin_80(x, &mut s, &mut l), s, l)
+            },
             |a, b| near_80(&a.0, &b.0, 2) && eqf(&a.1, &b.1) && eqf(&a.2, &b.2),
         );
     }

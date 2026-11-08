@@ -1,7 +1,5 @@
 //! Functions that lay out parts of a screen: fixed positions, fonts and string ids.
 
-use crate::text::font::Font;
-
 pub mod best_scores;
 pub mod buttons;
 pub mod car_caption;
@@ -76,6 +74,7 @@ pub mod game_screen;
 pub mod gearing_text;
 pub mod itinerary;
 pub mod locked_notes;
+pub mod owner;
 pub mod page_settings;
 pub mod player_number_text;
 pub mod players_results;
@@ -95,15 +94,3 @@ pub mod stage_panel;
 pub mod stage_results;
 pub mod text_buffers_store;
 pub mod yes_no_caption;
-
-pub fn line_buffer() -> *mut u8 {
-    crate::screens::text_buffers_store::TEXT_BUFFERS
-        .line
-        .as_ptr()
-}
-
-/// A font object in game memory, by its address in IDA (where it lives now, if it has moved:
-/// `crate::moved::place`).
-pub fn font_at(addr: usize) -> *mut Font {
-    crate::pointers::host_at(crate::moved::place(addr)) as *mut Font
-}

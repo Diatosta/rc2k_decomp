@@ -384,9 +384,198 @@ pub fn frame_place(object: u32, frame: u32) -> (u32, u32) {
     (f, f + object * 8)
 }
 
+/// A course face (`CourseFace`, 0x40 bytes), its fields by name. The same bytes mean
+/// different things for the different kinds (a checkpoint face's +0xC is its next link,
+/// the fourth point's dword +0x10 shares its high bytes with the lights +0x11 .. +0x13),
+/// so the record stays its bytes and each reading is a method.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Face(pub [u8; FACE_BYTES]);
+
+impl Default for Face {
+    fn default() -> Self {
+        Self([0; FACE_BYTES])
+    }
+}
+
+impl Face {
+    fn word(&self, at: usize) -> u16 {
+        u16::from_le_bytes([self.0[at], self.0[at + 1]])
+    }
+
+    fn dword(&self, at: usize) -> u32 {
+        u32::from_le_bytes(self.0[at..at + 4].try_into().unwrap_or_default())
+    }
+
+    /// The dword at byte `at`, for code that takes the field's offset from a table (the
+    /// ground search's corners and edges).
+    pub fn dword_at(&self, at: u32) -> u32 {
+        self.0
+            .get(at as usize..)
+            .and_then(|rest| rest.first_chunk())
+            .map_or(0, |b| u32::from_le_bytes(*b))
+    }
+
+    /// +0: the kind and flags (`LIT_KIND` for the lit faces and the cameras).
+    pub fn kind(&self) -> u8 {
+        self.0[0]
+    }
+
+    /// +1: the object.
+    pub fn object(&self) -> u8 {
+        self.0[1]
+    }
+
+    /// +2: the switches word (`REPEATED`, `EXTRA_LIGHTS`, 0x1000 for a wheel's surface 5).
+    pub fn switches(&self) -> u16 {
+        self.word(2)
+    }
+
+    pub fn set_switches(&mut self, word: u16) {
+        self.0[2..4].copy_from_slice(&word.to_le_bytes());
+    }
+
+    /// +4 + 4 `n`: point `n` (0 .. 3) of the scene points.
+    pub fn point(&self, n: usize) -> u32 {
+        self.dword(4 + 4 * (n & 3))
+    }
+
+    /// Triangle `t`'s (0, 1) normal as stored (`NORMAL_TRIANGLES`): x, y, z, floats' bits.
+    pub fn normal(&self, t: usize) -> [u32; 3] {
+        NORMAL_TRIANGLES[t & 1].1.map(|at| self.dword(at as usize))
+    }
+
+    /// A checkpoint face's +0xC: the next checkpoint face in its chain.
+    pub fn next_link(&self) -> u32 {
+        self.dword(0xC)
+    }
+
+    /// A sound spot face's +8 (point 1's low byte): its sound.
+    pub fn sound(&self) -> u8 {
+        self.0[8]
+    }
+
+    /// A checkpoint face's +0xA and +0xB (point 1's high bytes): the computer driver's
+    /// bends.
+    pub fn bends(&self) -> (u8, u8) {
+        (self.0[0xA], self.0[0xB])
+    }
+
+    /// `physics::touch_face`'s marks: +9 0 when `clear_9`, then +0x11 `mark`, +0x13 0,
+    /// +0x12 `angle`.
+    pub fn touch(&mut self, mark: u8, angle: u8, clear_9: bool) {
+        if clear_9 {
+            self.0[9] = 0;
+        }
+        self.0[0x11] = mark;
+        self.0[0x13] = 0;
+        self.0[0x12] = angle;
+    }
+
+    /// +0x11: the mark a touch leaves (0 untouched).
+    pub fn mark(&self) -> u8 {
+        self.0[0x11]
+    }
+
+    pub fn set_mark(&mut self, mark: u8) {
+        self.0[0x11] = mark;
+    }
+
+    /// +0x14 + `k`: corner `k`'s (0 .. 3) colour, an index of the light table.
+    pub fn corner_light(&self, k: usize) -> u8 {
+        self.0[0x14 + (k & 3)]
+    }
+
+    /// +0x22 + `k`: corner `k`'s fog byte.
+    pub fn corner_fog(&self, k: usize) -> u8 {
+        self.0[0x22 + (k & 3)]
+    }
+
+    /// +0x28 + `k`: corner `k`'s colour on a two-sided face's back (the bytes `lamps` reads
+    /// for a face with extra lights).
+    pub fn back_light(&self, k: usize) -> u8 {
+        self.0[0x28 + (k & 3)]
+    }
+
+    /// +0x2C + `k`: corner `k`'s fog byte on the back.
+    pub fn back_fog(&self, k: usize) -> u8 {
+        self.0[0x2C + (k & 3)]
+    }
+
+    /// +0x20: the second triangle's kind and flags (as +0 for the first).
+    pub fn second_kind(&self) -> u8 {
+        self.0[0x20]
+    }
+
+    /// +0x21: the second triangle's object.
+    pub fn second_object(&self) -> u8 {
+        self.0[0x21]
+    }
+
+    /// A checkpoint face's +0x26: its check (0 and 1 are none).
+    pub fn check(&self) -> u8 {
+        self.0[0x26]
+    }
+
+    /// The extra lights' first lamp indices (+0x28 + `k`) and second (+0x2C + `k`).
+    pub fn lamps(&self, k: usize) -> (u8, u8) {
+        (self.0[0x28 + (k & 3)], self.0[0x2C + (k & 3)])
+    }
+
+    /// A checkpoint face's map place (+0x2C, +0x2E); a map anchor when not both 0.
+    pub fn map_place(&self) -> (u16, u16) {
+        (self.word(0x2C), self.word(0x2E))
+    }
+}
+
+/// A course record (0x20 bytes): its fields by name.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Record(pub [u8; RECORD_BYTES]);
+
+/// A course record's size.
+pub const RECORD_BYTES: usize = 0x20;
+
+impl Default for Record {
+    fn default() -> Self {
+        Self([0; RECORD_BYTES])
+    }
+}
+
+impl Record {
+    /// +0: the first dword (its low four bits and bits 11 .. 14 the kind the records are
+    /// grouped by).
+    pub fn head(&self) -> u32 {
+        u32::from_le_bytes(self.0[0..4].try_into().unwrap_or_default())
+    }
+
+    /// +4: a scene point record's point number.
+    pub fn number(&self) -> u32 {
+        u32::from_le_bytes(self.0[4..8].try_into().unwrap_or_default())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn face_and_record_fields() {
+        let mut b = [0u8; FACE_BYTES];
+        for (n, x) in b.iter_mut().enumerate() {
+            *x = n as u8;
+        }
+        let mut f = Face(b);
+        assert_eq!((f.kind(), f.object(), f.switches()), (0, 1, 0x0302));
+        assert_eq!(f.point(0), 0x0706_0504);
+        assert_eq!(f.point(3), 0x1312_1110);
+        assert_eq!(f.next_link(), f.point(2));
+        assert_eq!((f.mark(), f.second_object(), f.check()), (0x11, 0x21, 0x26));
+        assert_eq!(f.lamps(1), (0x29, 0x2D));
+        assert_eq!(f.map_place(), (0x2D2C, 0x2F2E));
+        f.set_switches(0xBEEF);
+        assert_eq!((f.0[2], f.0[3], f.0[4]), (0xEF, 0xBE, 4));
+        let r = Record(b[..RECORD_BYTES].try_into().unwrap());
+        assert_eq!((r.head(), r.number()), (0x0302_0100, 0x0706_0504));
+    }
 
     #[test]
     fn lights_corners_switches() {

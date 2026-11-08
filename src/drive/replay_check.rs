@@ -16,10 +16,8 @@
 //! `SUMMARY_EVERY` frames compared a count.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::view_store::RACE_VIEW;
+use crate::race::owner::Race;
 use rc2k_core::drive::replay_frames::{CAR_DWORDS, PLAYING, RECORDING};
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
@@ -27,11 +25,15 @@ use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 const EVERY: u32 = 1000;
 const DETAILS: u32 = 40;
 const SUMMARY_EVERY: u32 = 20;
-/// A car's fields the viewer sets itself while playing, left out: +0x9C the last pace
-/// checkpoint called (`race::replay_viewer` sets `g_holdCarRevs`, which keeps
-/// `physics::pace_notes_step` off; the recording's are the live race's) and +0x220 the
-/// option bits (`drive::replay_cameras` writes the viewer's).
-const VIEWERS: [usize; 2] = [0x9C, 0x220];
+/// A car's fields the viewer or the sound sets, not the physics, left out: +0x0 and +0x4
+/// (every car's; the first car's are the frame's head (the camera bytes `drive::replay_cameras`
+/// reads; a camera edited in the viewer rewrites them: seen 2026-10-29)), +0x9C the last
+/// pace checkpoint called (`race::replay_viewer` sets `g_holdCarRevs`, which keeps
+/// `physics::pace_notes_step` off; the recording's are the live race's), +0x220 the option
+/// bits (`drive::replay_cameras` writes the viewer's) and +0x23C the gear-change flag the
+/// sound listener clears (`drive::set_listener`, run by the frame, not the step: seen
+/// recorded 1, played 0, 2026-10-29).
+const VIEWERS: [usize; 5] = [0x0, 0x4, 0x9C, 0x220, 0x23C];
 
 static COMPARED: AtomicU32 = AtomicU32::new(0);
 static EQUAL: AtomicU32 = AtomicU32::new(0);
@@ -50,24 +52,33 @@ fn hash(words: impl Iterator<Item = u32>) -> u32 {
 }
 
 /// After the cars' step of a tick.
-pub fn note() -> Result<(), BadInput> {
-    let mode = match NUMBERS.replay_mode.get() {
+pub fn note(race: &Race) -> Result<(), BadInput> {
+    let mode = match race.course.numbers.replay_mode.get() {
         RECORDING => "recording",
         PLAYING => "playing",
         _ => return Ok(()),
     };
     let clock = CAR_BLOCKS.cars[0].step_clock.bits();
+    #[cfg(feature = "remote")]
+    if mode == "playing" {
+        crate::remote::replay_tick(clock);
+    }
     if !clock.is_multiple_of(EVERY) && clock != 1 {
         return Ok(());
     }
     let mut line = format!("replay check: {mode}, clock {clock}:");
-    for car in 0..RACE_VIEW.race_cars.get().min(4) as usize {
+    for car in 0..race.shared.view.race_cars.get().min(4) as usize {
         // g_carBlockStore: four blocks of 0xFE0.
         let block = &CAR_BLOCKS.cars[car];
-        let at = crate::race::blocks_store::block_addr(car);
-        let words: Vec<[u32; 1]> =
-            crate::scene::reading::read_records(at, CAR_DWORDS, "a car's block")?;
-        let h = hash(words.iter().map(|w| w[0]));
+        let mut bytes = vec![0u8; 4 * CAR_DWORDS];
+        crate::pointers::Store::load(block, 0, &mut bytes)?;
+        let h = hash(
+            bytes
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|w| u32::from_le_bytes(*w)),
+        );
         let speed = block.local_velocity[2].get(); // g_carSpeed's place in the block
         let gear = block.gear.get() as i32; // g_carGear's
         line += &format!(" car {car} {h:08x} speed {speed:.3} gear {gear};");
@@ -85,19 +96,23 @@ fn piece_name(piece: StartPiece) -> String {
 }
 
 /// At a whole frame of a replay played, before its recorded state is loaded.
-pub fn compare_frame() -> Result<(), BadInput> {
-    let saved = crate::race::blocks_store::block_addr(8);
-    let read = |at: u32| GamePtr::new(at).read::<u32>("the replay check's blocks");
+pub fn compare_frame(race: &Race) -> Result<(), BadInput> {
+    let saved = crate::race::blocks_store::replay_state(&race.replay);
     let clock = CAR_BLOCKS.cars[0].step_clock.bits();
-    if read(saved + 8)? != clock {
+    if saved.offset(8).read::<u32>("the replay check's blocks")? != clock {
         SKIPPED.fetch_add(1, Relaxed);
         return Ok(());
     }
     let mut differing = 0;
     for (piece, offset, n) in start_layout() {
-        let ours = crate::drive::save_replay_cars::piece_addr(piece);
+        let (ours, ours_at) = crate::drive::save_replay_cars::piece_place(&race.shared, piece);
         for k in 0..n as u32 {
-            let (now, kept) = (read(ours + 4 * k)?, read(saved + 4 * (offset as u32 + k))?);
+            let (now, kept) = (
+                crate::pointers::load_value::<u32>(ours, ours_at + 4 * k as usize)?,
+                saved
+                    .offset(4 * (offset as u32 + k))
+                    .read::<u32>("the replay check's blocks")?,
+            );
             if now == kept
                 || matches!(piece, StartPiece::Car(_)) && VIEWERS.contains(&(4 * k as usize))
             {

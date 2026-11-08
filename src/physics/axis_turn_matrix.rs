@@ -5,45 +5,45 @@
 //! parts and three of one with the sine); the fourth row 0, 0, 0, 1; the fourth column's
 //! three left as they were.
 //!
-//! In:  edi the matrix (0x40 bytes)
-//! Out: every register kept; no flags read (callers go on with `push`, `lea`)
+//! Takes: the matrix (0x40 bytes)
 //!
-//! Callers: `physics::move_slot` (0x4624D6) and `sub_43DD54` (0x43DD97).
+//! Callers: `physics::move_slot` (0x4624D6) and `physics::spin_matrix` (0x43DD97).
 
+use crate::math::cells::Cells;
 use crate::math::x87;
 use crate::math::x87_run::{abs_sqrt_times_plus, one_less, sine_cosine_of};
-use crate::race::course_lists_store::COURSE_LISTS;
+use crate::race::owner_course::Course;
 
-/// The Rust core on the game's variables; the matrix at `out`.
-pub unsafe fn axis_turn_at(out: u32) {
-    unsafe {
-        let (s, c) = sine_cosine_of(COURSE_LISTS.spin_angle.bits());
-        COURSE_LISTS.turn_cosine.set_bits(c);
-        COURSE_LISTS.turn_sine.set_bits(s);
-        let t = one_less(COURSE_LISTS.turn_cosine.bits());
-        COURSE_LISTS.turn_one_less_cosine.set_bits(t);
+/// The Rust version: the matrix into `out` (16 cells).
+pub fn axis_turn_matrix(course: &Course, out: &(impl Cells + ?Sized)) {
+    {
+        let (s, c) = sine_cosine_of(course.lists.spin_angle.bits());
+        course.lists.turn_cosine.set_bits(c);
+        course.lists.turn_sine.set_bits(s);
+        let t = one_less(course.lists.turn_cosine.bits());
+        course.lists.turn_one_less_cosine.set_bits(t);
         let (x, y, z) = (
-            COURSE_LISTS.spin_axis_x.bits(),
-            COURSE_LISTS.spin_axis_y.bits(),
-            COURSE_LISTS.spin_axis_z.bits(),
+            course.lists.spin_axis[0].bits(),
+            course.lists.spin_axis[1].bits(),
+            course.lists.spin_axis[2].bits(),
         );
-        COURSE_LISTS.turn_product_xz.set_bits(x87::mul2(t, x, z));
-        COURSE_LISTS.turn_product_xy.set_bits(x87::mul2(t, x, y));
-        COURSE_LISTS.turn_product_yz.set_bits(x87::mul2(t, y, z));
-        COURSE_LISTS.turn_sine_x.set_bits(x87::mul(x, s));
-        COURSE_LISTS.turn_sine_y.set_bits(x87::mul(y, s));
-        COURSE_LISTS.turn_sine_z.set_bits(x87::mul(z, s));
+        course.lists.turn_product_xz.set_bits(x87::mul2(t, x, z));
+        course.lists.turn_product_xy.set_bits(x87::mul2(t, x, y));
+        course.lists.turn_product_yz.set_bits(x87::mul2(t, y, z));
+        course.lists.turn_sine_x.set_bits(x87::mul(x, s));
+        course.lists.turn_sine_y.set_bits(x87::mul(y, s));
+        course.lists.turn_sine_z.set_bits(x87::mul(z, s));
         let (p1, p2, p3) = (
-            COURSE_LISTS.turn_product_xz.bits(),
-            COURSE_LISTS.turn_product_xy.bits(),
-            COURSE_LISTS.turn_product_yz.bits(),
+            course.lists.turn_product_xz.bits(),
+            course.lists.turn_product_xy.bits(),
+            course.lists.turn_product_yz.bits(),
         );
         let (q1, q2, q3) = (
-            COURSE_LISTS.turn_sine_x.bits(),
-            COURSE_LISTS.turn_sine_y.bits(),
-            COURSE_LISTS.turn_sine_z.bits(),
+            course.lists.turn_sine_x.bits(),
+            course.lists.turn_sine_y.bits(),
+            course.lists.turn_sine_z.bits(),
         );
-        let put = |o: u32, v: u32| (crate::pointers::host(out + o) as *mut u32).write_unaligned(v);
+        let put = |o: usize, v: u32| out.set_bits(o / 4, v);
         put(0x00, abs_sqrt_times_plus(x, t, c));
         put(0x04, x87::add(p2, q3));
         put(0x08, x87::sub(p1, q2));
@@ -58,9 +58,4 @@ pub unsafe fn axis_turn_at(out: u32) {
         }
         put(0x3C, x87::loaded(1.0f32.to_bits()));
     }
-}
-
-/// The Rust version.
-pub unsafe fn axis_turn_matrix(out: u32) {
-    unsafe { axis_turn_at(out) }
 }

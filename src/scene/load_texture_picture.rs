@@ -1,9 +1,7 @@
 //! `scene::load_texture_picture` (0x42578E): loads a numbered picture into a system
 //! texture.
 //!
-//! In:  eax = the picture's number, ebx = the texture
-//! Out: the original leaves eax, ebx, ecx, edx and ebp changed; its one caller keeps
-//!      them all. The Rust version keeps them.
+//! Takes: the picture's number, the texture
 //!
 //! A picture is `tx<number>.pcx`, four decimal digits, and with it goes the picture
 //! numbered one higher (by the look of it its transparency). The folder is by the
@@ -25,54 +23,24 @@
 //! `rc2k_core::scene::pictures`.
 
 use crate::errors::{BadInput, Refused};
-use crate::files::file_exists::file_exists;
 use crate::gfx::load_picture_to_texture::load_picture_to_texture_in_game;
 use crate::logfile::log_int::log_int;
-use crate::logfile::log_write::log_write;
-use crate::pointers::GamePtr;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
-use crate::scene::file_numbers_store::FILE_NUMBERS;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
+use crate::place::Place;
 
 // ---- game data ----
 
 /// `dword_60AF04` the picture's number, `dword_60AF08` the texture, then the twelve
 /// names up to the end of `files\s\extr\txxxxx.pcx`.
 /// The six folders' names and second names, and where the number is in the name.
-fn folders() -> [(usize, usize, usize); 6] {
-    let p = &crate::race::level_paths_store::LEVEL_PATHS;
+fn folders(course: &'static crate::race::owner_course::Course) -> [(Place, Place, u32); 6] {
+    let p = &course.level_paths;
     [
-        (
-            p.picture_a.addr() as usize,
-            p.second_a.addr() as usize,
-            0x0A,
-        ), // files\a
-        (
-            p.picture_m.addr() as usize,
-            p.second_m.addr() as usize,
-            0x0A,
-        ), // files\m
-        (
-            p.picture_b.addr() as usize,
-            p.second_b.addr() as usize,
-            0x0A,
-        ), // files\b
-        (
-            p.picture_gravel.addr() as usize,
-            p.second_gravel.addr() as usize,
-            0x11,
-        ), // files\b\gravel
-        (
-            p.picture_front.addr() as usize,
-            p.second_front.addr() as usize,
-            0x0F,
-        ), // files\g\frnt
-        (
-            p.picture_extra.addr() as usize,
-            p.second_extra.addr() as usize,
-            0x0F,
-        ), // files\s\extr
+        ((&p.picture_a).into(), (&p.second_a).into(), 0x0A), // files\a
+        ((&p.picture_m).into(), (&p.second_m).into(), 0x0A), // files\m
+        ((&p.picture_b).into(), (&p.second_b).into(), 0x0A), // files\b
+        ((&p.picture_gravel).into(), (&p.second_gravel).into(), 0x11), // files\b\gravel
+        ((&p.picture_front).into(), (&p.second_front).into(), 0x0F), // files\g\frnt
+        ((&p.picture_extra).into(), (&p.second_extra).into(), 0x0F), // files\s\extr
     ]
 }
 use rc2k_core::scene::pictures::{GRAVEL, folder, names, picture_car, takes_gravel};
@@ -80,25 +48,35 @@ use rc2k_core::scene::pictures::{GRAVEL, folder, names, picture_car, takes_grave
 
 /// What the function calls.
 pub enum Call {
-    Text(*const u8),
+    Text(Vec<u8>),
     Number(u32),
     /// Answers whether the file is there.
-    Exists(usize),
+    Exists(Place),
     /// The name, the second name, the texture.
-    Load(usize, usize, u32),
+    Load(Place, Place, u32),
 }
 
 // ---- Rust version ----
 
 /// The numbers and the names: everything the function writes.
-fn write_names(number: u32, texture: u32) -> Result<(), BadInput> {
+fn write_names(
+    course: &'static crate::race::owner_course::Course,
+    number: u32,
+    texture: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
+    let file_numbers = &scene.file_numbers;
     {
-        FILE_NUMBERS.picture_number.set(number);
-        FILE_NUMBERS.picture_texture.set(texture);
-        for ((name, second_name, at), (first, second)) in folders().into_iter().zip(names(number)) {
-            GamePtr::new((name + at) as u32).write(first, "a picture's file number")?;
+        file_numbers.picture_number.set(number);
+        file_numbers.picture_texture.set(texture);
+        for ((name, second_name, at), (first, second)) in
+            folders(course).into_iter().zip(names(number))
+        {
+            name.add(at).write(&first, "a picture's file number")?;
             if let Some(second) = second {
-                GamePtr::new((second_name + at) as u32).write(second, "a picture's file number")?;
+                second_name
+                    .add(at)
+                    .write(&second, "a picture's file number")?;
             }
         }
         Ok(())
@@ -107,55 +85,71 @@ fn write_names(number: u32, texture: u32) -> Result<(), BadInput> {
 
 // Converted: `rc2k_core::scene::pictures`
 pub fn load_texture_picture(
+    race: &'static crate::race::owner::Race,
     number: u32,
     texture: u32,
     call: &mut dyn FnMut(Call) -> bool,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
+    let (course, shared) = (&race.course, &race.shared);
     {
-        write_names(number, texture)?;
+        write_names(course, number, texture, scene)?;
         let mut gravel_chosen = false;
         let car = picture_car(
             number,
             texture,
-            || KIND_TEXTURES.kind_first_textures[0x100].get(), // dword_5D0EE8,
-            || RACE_VIEW.race_cars.bits(),
+            || scene.textures.kinds.kind_first_textures[0x100].get(), // dword_5D0EE8,
+            || shared.view.race_cars.bits(),
         );
         if let Some(car) = car {
-            call(Call::Text(c"carnum".as_ptr().cast()));
+            call(Call::Text(b"carnum".to_vec()));
             call(Call::Number(car));
-            call(Call::Text(c"grav".as_ptr().cast()));
+            call(Call::Text(b"grav".to_vec()));
             // Eight cars' gravel switches; a car past them (the race's cars are at most
             // eight) reads on, as the original.
-            let tyres = &RACE_VARS.car_tyres;
-            let gravel = match tyres.get(car as usize) {
-                Some(cell) => cell.get(),
-                None => GamePtr::new(tyres[0].addr() + (car as usize * 4) as u32)
-                    .read("a car's tyre switch")?,
-            };
+            let tyres = &shared.vars.car_tyres;
+            let gravel = crate::session::read_on_in(
+                &shared.vars,
+                tyres,
+                car as usize,
+                "a car's tyre switch",
+            )?;
             call(Call::Number(gravel));
-            if takes_gravel(gravel) && call(Call::Exists(folders()[GRAVEL].0)) {
+            if takes_gravel(gravel) && call(Call::Exists(folders(course)[GRAVEL].0)) {
                 gravel_chosen = true;
                 call(Call::Text(
-                    crate::pointers::host_at(folders()[GRAVEL].1) as *const u8
+                    folders(course)[GRAVEL].1.text("a folder's name")?,
                 ));
             }
         }
-        let (name, second, _) = folders()[folder(number, gravel_chosen)];
+        let (name, second, _) = folders(course)[folder(number, gravel_chosen)];
         call(Call::Load(name, second, texture));
         Ok(())
     }
 }
 
 /// With the game's log, files and loading.
-pub unsafe fn load_texture_picture_in_game(number: u32, texture: u32) -> Result<(), Refused> {
+pub fn load_texture_picture_in_game(
+    race: &'static crate::race::owner::Race,
+    number: u32,
+    texture: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
     let mut refused = None;
-    unsafe {
-        load_texture_picture(number, texture, &mut |call| {
+    load_texture_picture(
+        race,
+        number,
+        texture,
+        &mut |call| {
             match call {
-                Call::Text(text) => log_write(text, false, 1),
+                Call::Text(text) => crate::logfile::log_write::log_nul(&text[..], false, 1),
                 Call::Number(number) => log_int(number as i32, false, 1),
                 Call::Exists(path) => {
-                    match file_exists(crate::pointers::host_at(path) as *const u8) {
+                    match path
+                        .text("a texture folder")
+                        .and_then(|p| crate::files::file_exists::file_exists(&p))
+                    {
                         Ok(exists) => return exists,
                         Err(e) => {
                             refused.get_or_insert(e.into());
@@ -163,15 +157,19 @@ pub unsafe fn load_texture_picture_in_game(number: u32, texture: u32) -> Result<
                     }
                 }
                 Call::Load(name, second, texture) => {
-                    if let Err(e) =
-                        load_picture_to_texture_in_game(name as u32, second as u32, texture)
-                    {
+                    if let Err(e) = load_picture_to_texture_in_game(
+                        name.game_ptr(),
+                        Some(second.game_ptr()),
+                        texture,
+                        gfx,
+                    ) {
                         refused.get_or_insert(e);
                     }
                 }
             }
             false
-        })?;
-    }
+        },
+        scene,
+    )?;
     refused.map_or(Ok(()), Err)
 }

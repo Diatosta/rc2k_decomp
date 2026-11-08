@@ -2,10 +2,8 @@
 //! from the current car's thirteen damage values and draws it as a bar at the bottom of the
 //! service area, with a sprite to its left and a label at each end.
 //!
-//! In:  ebx, passed on as the palette of the sprite at the bar's left
-//! Out: what the last `draw_string_by_id` leaves (carry, eax = 0, ebx, ecx = 652, edx);
-//! edi = the player; esi = the address of the repair flag of the last damaged part
-//! looked at, or unchanged; ebp preserved
+//! Takes the palette of the sprite at the bar's left. Also reads the player and the repair flag
+//! of the last damaged part looked at.
 //! The percentage is 100 minus the weights of the parts that are damaged and not chosen for
 //! repair. For menu items 2, 3, 4, 5 and 7 .. 15: the part counts if the car's value at
 //! +0xCC + 4 * item is at least `dword_75ABD0[item]` and the item's repair flag is 0; its
@@ -18,7 +16,8 @@
 //! `draw_car_condition` before the screenshot.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::state_store::MENU_STATE;
+use crate::menu::owner::Menus;
+use crate::menu::owner::Screens;
 use crate::service::state::{current_player, repair_flag};
 use crate::text::draw_text::Canvas;
 
@@ -26,40 +25,42 @@ use crate::text::draw_text::Canvas;
 
 // dword_75AC80
 // dword_7559EC: a work variable, here the weights' sum
-const CAR_DAMAGE_OFFSET: u32 = 0xCC; // car +0xCC + 4 * item
 
 // ---- Rust version ----
 
 /// The percentage and the item of the last damaged part looked at (its repair flag's address
 /// is what the original leaves in esi). Converted: `rc2k_core::screens::inspection::status`.
-pub fn inspection_status(player: u32) -> Result<(i32, Option<u32>), crate::errors::BadInput> {
+pub fn inspection_status(
+    menus: &Menus,
+    screens: &Screens,
+    player: crate::menu::standings::PlayerCell,
+) -> Result<(i32, Option<u32>), crate::errors::BadInput> {
     use rc2k_core::screens::inspection::{PARTS, Part, status};
-    let fault = crate::menu::event_flow::Fault::default();
     let parts: [Part; 13] = std::array::from_fn(|n| {
         let item = PARTS[n];
         Part {
-            damage: fault.read::<i32>(
-                player.wrapping_add(CAR_DAMAGE_OFFSET + 4 * item),
-                "a car part\'s damage",
-            ),
-            threshold: MENU_STATE.driver_stats.limits[item as usize - 2].get() as i32,
-            weight: MENU_STATE.driver_stats.penalties[item as usize - 2].get() as i32,
-            repairing: repair_flag(item) != 0,
+            damage: player.get().damage[item as usize - 2] as i32,
+            threshold: screens.state.driver_stats.limits[item as usize - 2].get() as i32,
+            weight: screens.state.driver_stats.penalties[item as usize - 2].get() as i32,
+            repairing: repair_flag(menus, item) != 0,
         }
     });
-    fault.check()?;
     let (condition, last) = status(&parts);
     Ok((condition, last.map(|n| PARTS[n])))
 }
 
-/// `icon_palette` is what the caller has in ebx. Refuses a missing player. The carry of
+/// Refuses a missing player. The carry of
 /// the text (too wide): what the one caller, `screens::draw_service_area`, reads of what
 /// the original leaves.
-pub fn draw_inspection_status(icon_palette: u32, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_inspection_status(
+    menus: &Menus,
+    screens: &Screens,
+    canvas: &mut dyn Canvas,
+) -> Result<bool, Refused> {
     let Some(player) = current_player() else {
         return Err(BadInput("no current player object: the original reads through null").into());
     };
-    let (condition, _) = inspection_status(player)?;
+    let (condition, _) = inspection_status(menus, screens, player)?;
     // Converted: `rc2k_core::screens::inspection::inspection_status`.
     let out = rc2k_core::screens::inspection::inspection_status(
         &mut crate::screens::game_screen::GameScreen::<
@@ -67,7 +68,6 @@ pub fn draw_inspection_status(icon_palette: u32, canvas: &mut dyn Canvas) -> Res
             rc2k_core::screens::inspection::Work,
         >::new(canvas),
         condition,
-        icon_palette,
     )?;
     Ok(out.too_wide)
 }

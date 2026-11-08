@@ -1,27 +1,21 @@
 //! `records::default_stage_records` (0x47C7E0): gives every stage of a record table a
 //! made-up best time and top speed.
 //!
-//! In:  edi = the record table
-//! Out: every register preserved
-//! Nothing if the first record's byte +0x54 is not 0 (it has a name there already).
-//! Else for every record with tag 0, up to the table's -1 (`sub_47CE05`, a plain function
-//! here), from four random numbers under 0xAA: a driver, whose +0x14 goes to the
-//! record's +0x74, +0x18 to +0x78 and name (without a NUL) to +0x54; the second + 1000
-//! to +0x30; another driver to +0x9C, +0xA0 and +0x7C; the fourth + 1000 to +0x2C.
-//! One caller, `menu::set_up_front_end`, on each of thirteen record tables when
-//! `var\ral.dat` was not loaded.
-//! Refuses a null table, a table without its end, and a name that does not fit.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! Takes the record table. Nothing if the first record's byte +0x54 is not 0 (it has a name there
+//! already). Else for every record with tag 0, up to the table's -1 (0x47CE05, a plain function
+//! here), from four random numbers under 0xAA: a driver, whose +0x14 goes to the record's +0x74,
+//! +0x18 to +0x78 and name (without a NUL) to +0x54; the second + 1000 to +0x30; another driver to
+//! +0x9C, +0xA0 and +0x7C; the fourth + 1000 to +0x2C. One caller, `menu::set_up_front_end`, on
+//! each of thirteen record tables when `var\ral.dat` was not loaded. Refuses a null table, a table
+//! without its end, and a name that does not fit.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::random_below::random_below;
-use crate::pointers::GamePtr;
+use crate::records::stages_store::{HOLDER_NAME_LEN, Holder, HolderRow, RecordTable};
 use crate::saves::drivers::Driver;
 
 // ---- game data ----
 
-const RECORD_LEN: usize = 0xA4;
 /// More records than any table has.
 const MOST_RECORDS: usize = 0x1000;
 
@@ -29,54 +23,47 @@ const MOST_RECORDS: usize = 0x1000;
 
 /// How many records the table has before its -1 (the first is not looked at for the
 /// end, as in the original).
-fn records(table: u32) -> Result<usize, BadInput> {
+fn records(table: RecordTable) -> Result<usize, BadInput> {
     // Converted: `rc2k_core::files::records::record_count`.
-    let records = GamePtr::new(table).bytes("a record table")?;
     Ok(rc2k_core::files::records::record_count(
-        &records,
+        &table.bytes(),
         MOST_RECORDS,
     )?)
 }
 
-pub fn default_stage_records(table: u32) -> Result<(), Refused> {
-    if table == 0 {
-        return Err(BadInput("no record table").into());
-    }
-    if GamePtr::new(table + 0x54).read::<u8>("a record name")? != 0 {
+/// A made-up record holder: a random driver's nationality, car and name.
+fn holder(driver: Driver, speed: u32) -> Result<(HolderRow, Vec<u8>), Refused> {
+    let row = HolderRow {
+        nation: driver.nation(),
+        car: driver.car(),
+        speed,
+    };
+    Ok((row, driver.name(crate::menu::owner::menus())?.1))
+}
+
+pub fn default_stage_records(table: RecordTable) -> Result<(), Refused> {
+    if table.row(0)?.record()?.holder_name(Holder::Fastest)[0] != 0 {
         return Ok(());
     }
-    // (the record, the dwords by offset, the two names by offset)
-    type Made = (u32, [(u32, u32); 6], [(u32, Vec<u8>); 2]);
-    let mut made: Vec<Made> = Vec::new();
+    let mut made = Vec::new();
     for n in 0..records(table)? {
-        let record = table + (n * RECORD_LEN) as u32;
-        if GamePtr::new(record).read::<u32>("a record tag")? != 0 {
+        let record = table.row(n as u32)?.record()?;
+        if record.tag() != 0 {
             continue;
         }
         let first = Driver::number(random_below(0xAA)?)?;
         let time = random_below(0xAA)?.wrapping_add(1000);
         let second = Driver::number(random_below(0xAA)?)?;
         let speed = random_below(0xAA)?.wrapping_add(1000);
-        made.push((
-            record,
-            [
-                (0x74, first.nation()),
-                (0x78, first.car()),
-                (0x30, time),
-                (0x9C, second.nation()),
-                (0xA0, second.car()),
-                (0x2C, speed),
-            ],
-            [(0x54, first.name()?.1), (0x7C, second.name()?.1)],
-        ));
+        let both = [holder(first, time)?, holder(second, speed)?];
+        if both.iter().any(|(_, name)| name.len() > HOLDER_NAME_LEN) {
+            return Err(BadInput("a driver's name past a record holder's 0x20 bytes").into());
+        }
+        made.push((record, both));
     }
-    for (record, dwords, names) in made {
-        for (offset, value) in dwords {
-            GamePtr::new(record + offset).write(value, "a stage record")?;
-        }
-        for (offset, name) in names {
-            GamePtr::new(record + offset).write_bytes(&name, "a stage record")?;
-        }
+    for (record, [(first, first_name), (second, second_name)]) in made {
+        record.set_holder(Holder::Fastest, &first, &first_name);
+        record.set_holder(Holder::Second, &second, &second_name);
     }
     Ok(())
 }

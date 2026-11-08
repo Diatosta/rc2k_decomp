@@ -14,18 +14,13 @@
 //! - `menu::start_arcade` (0x487CAA): the arcade's level and stage (`g_arcadeLevel`,
 //!   `g_arcadeStage`) 0, the first player's units taken (`menu::take_player1_units`) and the
 //!   arcade event run (`menu::arcade_event`).
-//!
-//! In:  nothing (eax, the item's dword, is not read but by `show_intro`, which sets it)
-//! Out: the pure ones and those in `pusha` / `popa` every register kept; the others the
-//! registers their last call leaves
 
 use crate::errors::Refused;
-use crate::menu::arcade_store::ARCADE_GAME;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::screen_loop::{Carried, run_screen};
-use crate::menu::state_store::MENU_STATE;
-use crate::race::state_store::RACE_STATE;
+use crate::menu::owner::Menus;
+use crate::menu::owner::Play;
+use crate::menu::owner::Screens;
+use crate::menu::owner::Tables;
+use crate::menu::screen_loop::{Entry, run_screen};
 
 // ---- the Rust versions ----
 
@@ -36,46 +31,48 @@ pub fn show_intro() -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn previous_save_page() {
+pub fn previous_save_page(tables: &Tables) {
     // Converted: `rc2k_core::menu::steps::savegame_page`.
-    MENU_PAGES
+    tables
+        .pages
         .save_page
         .set(rc2k_core::menu::steps::savegame_page(
-            MENU_PAGES.save_page.get(),
+            tables.pages.save_page.get(),
             false,
         ));
 }
 
 /// The steering (page 3) or brake (page 4) box.
-pub fn open_service_box(page: u32) {
-    MENU_STATE
+pub fn open_service_box(screens: &Screens, page: u32) {
+    screens
+        .state
         .service_ui
         .box_shown
-        .set(MENU_STATE.service_ui.box_shown.get() ^ 1);
-    MENU_STATE.service_ui.box_page.set(page);
+        .set(screens.state.service_ui.box_shown.get() ^ 1);
+    screens.state.service_ui.box_page.set(page);
 }
 
-/// `menu::view_stage_details`: the stage information screen. `c` the carried values the
-/// item gets.
-pub unsafe fn view_stage_details(c: &Carried) -> Result<(), Refused> {
+/// `menu::view_stage_details`: the stage information screen.
+pub fn view_stage_details(menus: &Menus, screens: &Screens) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::stage_screens::time_trial_details`.
     let time_trial =
-        rc2k_core::menu::stage_screens::time_trial_details(EVENT_STATE.event_type.get());
-    unsafe {
-        if time_trial {
-            run_screen(&crate::menu::time_trial_stage_details_loop::SCREEN, c)?;
-        } else {
-            run_screen(&crate::menu::view_stage_loop::SCREEN, c)?;
-        }
+        rc2k_core::menu::stage_screens::time_trial_details(screens.event.event_type.get());
+    if time_trial {
+        run_screen(
+            &crate::menu::time_trial_stage_details_loop::SCREEN,
+            &Entry::new(menus),
+        )?;
+    } else {
+        run_screen(&crate::menu::view_stage_loop::SCREEN, &Entry::new(menus))?;
     }
     Ok(())
 }
 
 /// `menu::new_simulation_if_unlocked` (it reads no register).
-pub fn new_simulation_if_unlocked() -> Result<(), Refused> {
+pub fn new_simulation_if_unlocked(race: &crate::race::owner::Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::stage_screens::simulation_unlocked`.
     use rc2k_core::menu::stage_screens::{REFUSED_SLEEP, REFUSED_SOUND, simulation_unlocked};
-    if simulation_unlocked(RACE_STATE.settings.a8_game.get()) {
+    if simulation_unlocked(race.shared.state.settings.a8_game.get()) {
         // (An item of the typed tables: it runs with no carried values, as the menus'
         // items do.)
         crate::menu::new_simulation_loop::run()?;
@@ -87,10 +84,10 @@ pub fn new_simulation_if_unlocked() -> Result<(), Refused> {
 }
 
 /// `menu::start_arcade`: the arcade's level and stage 0, the first player's units taken
-/// and the arcade event run. `c` the carried values the item gets.
-pub fn start_arcade(c: &Carried) -> Result<(), Refused> {
-    ARCADE_GAME.level.set(0);
-    ARCADE_GAME.stage.set(0);
-    crate::menu::take_player1_units::take_player1_units()?;
-    crate::menu::arcade_event::arcade_event(c)
+/// and the arcade event run.
+pub fn start_arcade(menus: &Menus, play: &Play) -> Result<(), Refused> {
+    play.arcade.level.set(0);
+    play.arcade.stage.set(0);
+    crate::menu::take_player1_units::take_player1_units(menus)?;
+    crate::menu::arcade_event::arcade_event(menus)
 }

@@ -2,12 +2,9 @@
 //! `dword_71A234` (the grades' mode, `physics::grade_or_reset`), `dword_71A070`,
 //! `dword_71AA88`, `flt_71A650`, `flt_71A658`, `dword_71A01C`.
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read (`drive::store_car` next)
-//!
-//! Caller: `sub_43703E` (0x4371BC, 0x43729B).
+//! Caller: `drive::start_cars_behind` (0x4371BC, 0x43729B).
 
-use crate::physics::car_store::CAR;
+use crate::race::owner_shared::Shared;
 use crate::session::Cell32;
 
 fn core(v: &[&dyn Cell32]) {
@@ -16,18 +13,18 @@ fn core(v: &[&dyn Cell32]) {
     }
 }
 
-fn game() -> Vec<&'static dyn Cell32> {
+fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     vec![
-        &CAR.driver_kind,
-        &CAR.checkpoint,
-        &CAR.engine_sound_speed_int,
-        &CAR.start_share,
-        &CAR.start_blend,
-        &CAR.unknown_44,
+        &shared.car.driver_kind,
+        &shared.car.checkpoint,
+        &shared.car.engine_sound_speed_int,
+        &shared.car.start_share,
+        &shared.car.start_blend,
+        &shared.car.unknown_44,
     ]
 }
 
 /// The Rust version.
-pub fn clear_start_state() {
-    core(&game())
+pub fn clear_start_state(shared: &Shared) {
+    core(&game(shared));
 }

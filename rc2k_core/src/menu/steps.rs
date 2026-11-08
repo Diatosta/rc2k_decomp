@@ -215,7 +215,7 @@ pub fn gearing_switch_text(switch: u32) -> u32 {
     if switch == 0 { 0x221 } else { 0x21F }
 }
 
-/// `menu::apply_screen_mode`: what the screen mode's setting (`sub_4045D6`) is asked:
+/// `menu::apply_screen_mode`: what the screen mode's setting (`gfx::screen_mode_choices`) is asked:
 /// eax 1 the mode chosen, then, refused, 0 the mode before (a reading).
 pub const TRY_CHOSEN_MODE: u32 = 1;
 pub const BACK_TO_MODE: u32 = 0;

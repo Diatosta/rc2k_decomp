@@ -4,71 +4,42 @@
 //! 0 and +0xFA0 0 for the first entry, else +0xF9C less 0x20. A reading: timed events
 //! of the car (under `physics::pace_notes_step`).
 //!
-//! In:  esi a delay, ebx the event
-//! Out: eax the time, ecx the count before; the rest kept; no flags read (the caller
-//!      `popa`s)
+//! Takes: a delay, the event
 //!
-//! Caller: `sub_44194D`. Refuses (before anything) a count above 7 (the original writes
-//! past the queue).
+//! Caller: `physics::queue_listed_event`. Refuses (before anything) a count above 7 (the original
+//! writes past the queue).
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
-use crate::physics::cells::{get, get_list, put_changed, put_list_changed};
-use crate::physics::tables_store::PHYSICS;
+use crate::physics::cells::{set_changed, set_values_changed, values};
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use rc2k_core::physics::car_events::CarEvents;
 
-/// Where the variables are: the clock, the times, the events, the count, +0xF9C, +0xFA0.
-#[derive(Clone, Copy)]
-pub struct QueuePlaces {
-    pub clock: u32,
-    pub times: u32,
-    pub events: u32,
-    pub count: u32,
-    pub f9c: u32,
-    pub fa0: u32,
-}
-
-impl QueuePlaces {
-    pub fn game() -> Self {
-        Self {
-            clock: (PHYSICS.scene_clock.addr()),
-            times: (CAR.car_event_times[0].addr()),
-            events: (CAR.car_event_codes[0].addr()),
-            count: (CAR.car_event_count.addr()),
-            f9c: (CAR.car_event_limit.addr()),
-            fa0: (CAR.car_event_position.addr()),
-        }
+/// The work car's queue.
+pub fn load(race: &Race) -> CarEvents {
+    CarEvents {
+        times: values(&race.shared.car.car_event_times),
+        events: values(&race.shared.car.car_event_codes),
+        count: race.shared.car.car_event_count.get(),
+        level: race.shared.car.car_event_limit.get(),
+        shown: race.shared.car.car_event_position.get(),
     }
 }
 
-impl QueuePlaces {
-    /// The queue at these places.
-    pub fn load(&self) -> CarEvents {
-        CarEvents {
-            times: get_list(self.times),
-            events: get_list(self.events),
-            count: get(self.count),
-            level: get(self.f9c),
-            shown: get(self.fa0),
-        }
-    }
-
-    /// What changed from `was` to `now` stored back.
-    pub fn store(&self, was: &CarEvents, now: &CarEvents) {
-        put_list_changed(self.times, &was.times, &now.times);
-        put_list_changed(self.events, &was.events, &now.events);
-        put_changed(self.count, was.count, now.count);
-        put_changed(self.f9c, was.level, now.level);
-        put_changed(self.fa0, was.shown, now.shown);
-    }
+/// What changed from `was` to `now` stored back.
+pub fn store(shared: &Shared, was: &CarEvents, now: &CarEvents) {
+    set_values_changed(&shared.car.car_event_times, &was.times, &now.times);
+    set_values_changed(&shared.car.car_event_codes, &was.events, &now.events);
+    set_changed(&shared.car.car_event_count, was.count, now.count);
+    set_changed(&shared.car.car_event_limit, was.level, now.level);
+    set_changed(&shared.car.car_event_position, was.shown, now.shown);
 }
 
-/// The Rust version on the variables at `p`.
-// Converted: `rc2k_core::physics::car_events::CarEvents::queue`.
-pub fn queue_car_event_at(p: &QueuePlaces, esi: u32, ebx: u32) -> Result<(), Refused> {
-    let was = p.load();
+/// The Rust version.
+pub fn queue_car_event(race: &Race, esi: u32, ebx: u32) -> Result<(), Refused> {
+    let was = load(race);
     let mut q = was;
-    q.queue(get(p.clock), esi, ebx)?;
-    p.store(&was, &q);
+    q.queue(race.shared.physics_tables.scene_clock.get(), esi, ebx)?;
+    store(&race.shared, &was, &q);
     Ok(())
 }

@@ -4,6 +4,8 @@
 //! structs of atomic cells with the image's layout, one static; `moved::MOVED` points the
 //! range at it. Ends in unreferenced bytes up to the damage model.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword, Float};
 
 /// A gap's first bytes: `runs` are (offset, bytes) of the non-zero ones.
@@ -22,11 +24,16 @@ const fn sparse<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {
     out
 }
 
+/// The binding of `RaceCar::bindings` no word of the player's record goes to: the ninth
+/// device binding's (key byte 0x5C), left as the store's start value (0) and read as it is.
+pub const UNSET_BINDING: usize = 9;
+
 /// One player's settings as the race variables keep them (IDA 0x75AD1C and 0x75AE88,
 /// 0x16C bytes each): copies of fields of the player's record (`Player`), at the record's
 /// order less the words the race does not take. Field docs name the record's field and
 /// offset.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceCar {
     /// `Player.tyre` (+0x10C).
     pub tyre: Dword,
@@ -43,7 +50,7 @@ pub struct RaceCar {
     /// `Player.damage` words +0xD4 .. +0x100 and +0x108 (+0x104 goes into
     /// `wear[9]`, whose own +0x1A0 follows it).
     pub damage: [Dword; 13],
-    /// `Player.wear_17C` and `tyre_wear` (+0x17C .. +0x208, one word each).
+    /// `Player.parts_wear` and `tyre_wear` (+0x17C .. +0x208, one word each).
     pub wear: [Dword; 36],
     /// `Player.map_area` (+0x158).
     pub map_area: Dword,
@@ -69,28 +76,45 @@ pub struct RaceCar {
     pub codriver_sex: Dword,
     /// `Player.view` (+0xC).
     pub view: Dword,
-    /// The record word at +0x2C (`gap_2C`).
-    pub record_2c: Dword,
-    /// `Player.field_30` (+0x30), the colours.
-    pub record_30: Dword,
-    /// The record words +0x34 .. +0x48 (inside `gap_34`).
-    pub record_34: [Dword; 6],
+    /// `Player.controller` (+0x2C).
+    pub controller: Dword,
+    /// `Player.gearing` (+0x30); the network lobby keeps the car's colours here.
+    pub gearing: Dword,
+    /// `Player.sensitivity_level` (+0x34).
+    pub sensitivity_level: Dword,
+    /// `Player.axis_codes` (+0x38), the four bytes as one word.
+    pub axis_codes: Dword,
+    /// `Player.controller_mode` (+0x3C).
+    pub controller_mode: Dword,
+    /// `Player.dead_zone_1` (+0x40).
+    pub dead_zone_1: Dword,
+    /// `Player.dead_zone_2` (+0x44).
+    pub dead_zone_2: Dword,
+    /// `Player.strength` (+0x48).
+    pub strength: Dword,
     /// The record's +0x4C: not taken.
-    pub _gap_4c: Dword,
-    /// The record words +0x50 .. +0x70.
-    pub record_50: [Dword; 9],
-    /// The record's +0x70: not taken.
-    pub _gap_70: Dword,
-    /// The record word +0x74.
-    pub record_74: Dword,
-    /// The record word +0x78.
-    pub record_78: Dword,
+    pub _unused_4c: Dword,
+    /// The twelve bindings' controller words (`input::set_up_device`, by
+    /// `rc2k_core::input::devices::DEVICE_BINDINGS`): `Player.bindings`' eleven words go to
+    /// all but `UNSET_BINDING` (`race::single_rally`, `net::take_player_settings`, as the
+    /// original).
+    pub bindings: [Dword; 12],
     /// `Player.keys` (+0x1C .. +0x27): the 12 bytes of the controls.
     pub keys: Bytes<12>,
 }
 
+impl RaceCar {
+    /// The binding words the player's record's eleven go to, in order: all but
+    /// `UNSET_BINDING`.
+    pub fn recorded_bindings(&self) -> impl Iterator<Item = &Dword> {
+        let (head, tail) = self.bindings.split_at(UNSET_BINDING);
+        head.iter().chain(&tail[1..])
+    }
+}
+
 /// A car's result as the race leaves it (IDA 0x75B01C and 0x75B08C, 0x70 bytes each).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceResult {
     /// The car's time (`dword_75B01C` / `dword_75B08C`).
     pub time: Dword,
@@ -102,18 +126,20 @@ pub struct RaceResult {
     pub result: Dword,
     /// The 0x40 bytes of data (`unk_75B02C` / `unk_75B09C`; the best line's text).
     pub data: Bytes<64>,
-    /// The 0x20 bytes copied from the record's +0x24C (`Player.field_24C`).
-    pub block: [Dword; 8],
+    /// The car's eight impact marks, from and back to `Player::impact_marks`.
+    pub impact_marks: [Dword; 8],
 }
 
 /// The race's settings as the front end keeps them (IDA 0x75ACCC .. 0x75AFF4; "Graham's"
 /// variables, which `race::copy_settings_in` copies to the race's ("Shaun's")): the mode,
 /// the stage, the direction, the two players' settings.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceSettings {
     /// `g_newSimulationUnlocked`: 1 in the A8 game (`menu::apply_cheats`).
     pub a8_game: Dword,
-    /// `dword_75ACD0`: a copy of the standings summary (`dword_7556F4`), 10 records of 0x50, or 0.
+    /// `dword_75ACD0`: a copy of the standings summary (`dword_7556F4`, the game held its
+    /// address): 1 while the summary (`saves::best_times::SUMMARY`) is taken, or 0.
     pub rivals: Dword,
     /// `dword_75ACD4`: the stage chosen.
     pub stage: Dword,
@@ -158,6 +184,7 @@ pub struct RaceSettings {
 
 /// The race's results (IDA 0x75AFF4 .. 0x75B10C).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceResults {
     /// `dword_75AFF4`: the arcade race's stage (Shaun's `dword_6238D0`).
     pub race_stage: Dword,
@@ -168,9 +195,9 @@ pub struct RaceResults {
     /// `dword_75B000`: a figure of the race (Shaun's `dword_6051BC`).
     pub figure_000: Dword,
     /// `dword_75B004`: the current player's record +0x288.
-    pub word_288_current: Dword,
+    pub service_spent_current: Dword,
     /// `dword_75B008`: player 1's record +0x288.
-    pub word_288_first: Dword,
+    pub service_spent_first: Dword,
     /// `dword_75B00C`: the current player's record +0x284 (the HUD's bits); goes back to it.
     pub hud_bits_current: Dword,
     /// `dword_75B010`: player 1's record +0x284.
@@ -193,6 +220,7 @@ pub struct RaceResults {
 
 /// The race's settings and results.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceState {
     /// The race's settings as the front end keeps them (IDA 0x75ACCC .. 0x75AFF4; "Graham's"
     pub settings: RaceSettings,
@@ -202,207 +230,207 @@ pub struct RaceState {
     pub _gap_75b10c: Bytes<564>,
 }
 
-/// First values the image's.
-pub static RACE_STATE: RaceState = RaceState {
-    settings: RaceSettings {
-        a8_game: Dword::new(0),
-        rivals: Dword::new(0),
-        stage: Dword::new(0),
-        run_kind: Dword::new(0),
-        no_replay: Dword::new(0),
-        race_mode: Dword::new(1),
-        kept: Dword::new(0),
-        car_kind_current: Dword::new(0),
-        car_kind_first: Dword::new(0),
-        direction: Dword::new(0),
-        unk_75acf4: Dword::new(0),
-        track_1c: Dword::new(0x2d),
-        track_20: Dword::new(0x19),
-        setting_0: Dword::new(0),
-        dword_75ad04: Dword::new(0x64),
-        dword_75ad08: Dword::new(0x64),
-        setting_1: Dword::new(0),
-        setting_2: Dword::new(0),
-        setting_3: Dword::new(0),
-        setting_4: Dword::new(0),
-        cars: [
-            RaceCar {
-                tyre: Dword::new(0),
-                brake_balance: Dword::new(0x32),
-                ride_height: Dword::new(0x32),
-                suspension_stiffness: Dword::new(0x32),
-                steering_sensitivity: Dword::new(0x32),
-                gear_ratio: Dword::new(2),
-                damage: [const { Dword::new(0) }; 13],
-                wear: [const { Dword::new(0) }; 36],
-                map_area: Dword::new(0),
-                rear_mirror: Dword::new(0),
-                rev_counter: Dword::new(0),
-                metric_units: Dword::new(0),
-                message_display: Dword::new(0),
-                car_info: Dword::new(1),
-                progress_bar: Dword::new(1),
-                driver_info: Dword::new(1),
-                pace_notes: Dword::new(1),
-                race_number: Dword::new(0x61),
-                codriver_sex: Dword::new(0),
-                view: Dword::new(1),
-                record_2c: Dword::new(0),
-                record_30: Dword::new(0),
-                record_34: [
-                    Dword::new(0),
-                    Dword::new(0x2011000),
-                    Dword::new(0),
-                    Dword::new(0),
-                    Dword::new(0xa),
-                    Dword::new(0),
+impl RaceState {
+    /// First values the image's.
+    pub const fn new() -> Self {
+        RaceState {
+            settings: RaceSettings {
+                a8_game: Dword::new(0),
+                rivals: Dword::new(0),
+                stage: Dword::new(0),
+                run_kind: Dword::new(0),
+                no_replay: Dword::new(0),
+                race_mode: Dword::new(1),
+                kept: Dword::new(0),
+                car_kind_current: Dword::new(0),
+                car_kind_first: Dword::new(0),
+                direction: Dword::new(0),
+                unk_75acf4: Dword::new(0),
+                track_1c: Dword::new(0x2d),
+                track_20: Dword::new(0x19),
+                setting_0: Dword::new(0),
+                dword_75ad04: Dword::new(0x64),
+                dword_75ad08: Dword::new(0x64),
+                setting_1: Dword::new(0),
+                setting_2: Dword::new(0),
+                setting_3: Dword::new(0),
+                setting_4: Dword::new(0),
+                cars: [
+                    RaceCar {
+                        tyre: Dword::new(0),
+                        brake_balance: Dword::new(0x32),
+                        ride_height: Dword::new(0x32),
+                        suspension_stiffness: Dword::new(0x32),
+                        steering_sensitivity: Dword::new(0x32),
+                        gear_ratio: Dword::new(2),
+                        damage: [const { Dword::new(0) }; 13],
+                        wear: [const { Dword::new(0) }; 36],
+                        map_area: Dword::new(0),
+                        rear_mirror: Dword::new(0),
+                        rev_counter: Dword::new(0),
+                        metric_units: Dword::new(0),
+                        message_display: Dword::new(0),
+                        car_info: Dword::new(1),
+                        progress_bar: Dword::new(1),
+                        driver_info: Dword::new(1),
+                        pace_notes: Dword::new(1),
+                        race_number: Dword::new(0x61),
+                        codriver_sex: Dword::new(0),
+                        view: Dword::new(1),
+                        controller: Dword::new(0),
+                        gearing: Dword::new(0),
+                        sensitivity_level: Dword::new(0),
+                        axis_codes: Dword::new(0x2011000),
+                        controller_mode: Dword::new(0),
+                        dead_zone_1: Dword::new(0),
+                        dead_zone_2: Dword::new(0xa),
+                        strength: Dword::new(0),
+                        _unused_4c: Dword::new(0),
+                        bindings: [
+                            Dword::new(0x200),
+                            Dword::new(0x100),
+                            Dword::new(0x400),
+                            Dword::new(0x800),
+                            Dword::new(0x201),
+                            Dword::new(0x101),
+                            Dword::new(2),
+                            Dword::new(0),
+                            Dword::new(0),
+                            Dword::new(0),
+                            Dword::new(0),
+                            Dword::new(0),
+                        ],
+                        keys: Bytes::new(sparse::<12>(&[(
+                            0x0,
+                            &[
+                                0x2c, 0x2d, 0x66, 0x6b, 0x39, 0x69, 0x68, 0x26, 0x27, 0x2e, 0x19,
+                                0x28,
+                            ],
+                        )])),
+                    },
+                    RaceCar {
+                        tyre: Dword::new(0),
+                        brake_balance: Dword::new(0x32),
+                        ride_height: Dword::new(0x32),
+                        suspension_stiffness: Dword::new(0x32),
+                        steering_sensitivity: Dword::new(0x32),
+                        gear_ratio: Dword::new(2),
+                        damage: [const { Dword::new(0) }; 13],
+                        wear: [const { Dword::new(0) }; 36],
+                        map_area: Dword::new(0),
+                        rear_mirror: Dword::new(0),
+                        rev_counter: Dword::new(0),
+                        metric_units: Dword::new(0),
+                        message_display: Dword::new(0),
+                        car_info: Dword::new(1),
+                        progress_bar: Dword::new(1),
+                        driver_info: Dword::new(1),
+                        pace_notes: Dword::new(1),
+                        race_number: Dword::new(0x60),
+                        codriver_sex: Dword::new(0),
+                        view: Dword::new(1),
+                        controller: Dword::new(0),
+                        gearing: Dword::new(0),
+                        sensitivity_level: Dword::new(0),
+                        axis_codes: Dword::new(0x2011000),
+                        controller_mode: Dword::new(0),
+                        dead_zone_1: Dword::new(0),
+                        dead_zone_2: Dword::new(0xa),
+                        strength: Dword::new(0),
+                        _unused_4c: Dword::new(0),
+                        bindings: [
+                            Dword::new(0x200),
+                            Dword::new(0x100),
+                            Dword::new(0x400),
+                            Dword::new(0x800),
+                            Dword::new(0x201),
+                            Dword::new(0x101),
+                            Dword::new(2),
+                            Dword::new(0),
+                            Dword::new(0),
+                            Dword::new(0),
+                            Dword::new(0),
+                            Dword::new(0),
+                        ],
+                        keys: Bytes::new(sparse::<12>(&[(
+                            0x0,
+                            &[
+                                0x4f, 0x50, 0x4d, 0x51, 0x52, 0x4e, 0x53, 0x4a, 0x48, 0x49, 0x4c,
+                                0x4b,
+                            ],
+                        )])),
+                    },
                 ],
-                _gap_4c: Dword::new(0),
-                record_50: [
-                    Dword::new(0x200),
-                    Dword::new(0x100),
-                    Dword::new(0x400),
-                    Dword::new(0x800),
-                    Dword::new(0x201),
-                    Dword::new(0x101),
-                    Dword::new(2),
-                    Dword::new(0),
-                    Dword::new(0),
+            },
+            results: RaceResults {
+                race_stage: Dword::new(0),
+                race_level: Dword::new(0),
+                figure_ffc: Dword::new(0),
+                figure_000: Dword::new(0),
+                service_spent_current: Dword::new(0),
+                service_spent_first: Dword::new(0),
+                hud_bits_current: Dword::new(0xffffffff),
+                hud_bits_first: Dword::new(0xffffffff),
+                flags_current: Dword::new(0),
+                flags_first: Dword::new(0),
+                results: [
+                    RaceResult {
+                        time: Dword::new(0),
+                        word: Dword::new(0),
+                        secs: Float::from_bits(0),
+                        result: Dword::new(0),
+                        data: Bytes::new([0xff; 64]),
+                        impact_marks: [const { Dword::new(0) }; 8],
+                    },
+                    RaceResult {
+                        time: Dword::new(0),
+                        word: Dword::new(0),
+                        secs: Float::from_bits(0),
+                        result: Dword::new(0),
+                        data: Bytes::new([0xff; 64]),
+                        impact_marks: [const { Dword::new(0) }; 8],
+                    },
                 ],
-                _gap_70: Dword::new(0),
-                record_74: Dword::new(0),
-                record_78: Dword::new(0),
-                keys: Bytes::new(sparse::<12>(&[(
-                    0x0,
+                stage_index: Dword::new(0),
+                finish_player: Dword::new(1),
+                finish_kind: Dword::new(0),
+                finished: Dword::new(0),
+            },
+            _gap_75b10c: Bytes::new(sparse::<564>(&[
+                (0x8, &[0x78, 0x56, 0x34, 0x12]),
+                (
+                    0x16,
                     &[
-                        0x2c, 0x2d, 0x66, 0x6b, 0x39, 0x69, 0x68, 0x26, 0x27, 0x2e, 0x19, 0x28,
+                        0x32, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x8f, 0x40, 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0xf0, 0xee, 0x40, 0x00, 0x00, 0x80, 0x43, 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0x00, 0x80, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        0x90, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xa0, 0x40, 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0x00, 0xb0, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        0xf0, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x41, 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0x00, 0xe0, 0x41, 0xce, 0xfa, 0x1d, 0xac, 0x00, 0x00,
+                        0x80, 0x37, 0xce, 0xfa, 0x1d, 0xac, 0x33, 0xe3, 0xea, 0x3b, 0x35, 0x20,
+                        0x99, 0x3f, 0x00, 0x00, 0x00, 0x00, 0xce, 0xfa, 0x1d, 0xac, 0x78, 0x56,
+                        0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x78, 0x56,
+                        0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x78, 0x56,
+                        0x34, 0x12, 0x78, 0x56, 0x34, 0x12,
                     ],
-                )])),
-            },
-            RaceCar {
-                tyre: Dword::new(0),
-                brake_balance: Dword::new(0x32),
-                ride_height: Dword::new(0x32),
-                suspension_stiffness: Dword::new(0x32),
-                steering_sensitivity: Dword::new(0x32),
-                gear_ratio: Dword::new(2),
-                damage: [const { Dword::new(0) }; 13],
-                wear: [const { Dword::new(0) }; 36],
-                map_area: Dword::new(0),
-                rear_mirror: Dword::new(0),
-                rev_counter: Dword::new(0),
-                metric_units: Dword::new(0),
-                message_display: Dword::new(0),
-                car_info: Dword::new(1),
-                progress_bar: Dword::new(1),
-                driver_info: Dword::new(1),
-                pace_notes: Dword::new(1),
-                race_number: Dword::new(0x60),
-                codriver_sex: Dword::new(0),
-                view: Dword::new(1),
-                record_2c: Dword::new(0),
-                record_30: Dword::new(0),
-                record_34: [
-                    Dword::new(0),
-                    Dword::new(0x2011000),
-                    Dword::new(0),
-                    Dword::new(0),
-                    Dword::new(0xa),
-                    Dword::new(0),
-                ],
-                _gap_4c: Dword::new(0),
-                record_50: [
-                    Dword::new(0x200),
-                    Dword::new(0x100),
-                    Dword::new(0x400),
-                    Dword::new(0x800),
-                    Dword::new(0x201),
-                    Dword::new(0x101),
-                    Dword::new(2),
-                    Dword::new(0),
-                    Dword::new(0),
-                ],
-                _gap_70: Dword::new(0),
-                record_74: Dword::new(0),
-                record_78: Dword::new(0),
-                keys: Bytes::new(sparse::<12>(&[(
-                    0x0,
+                ),
+                (
+                    0xc8,
                     &[
-                        0x4f, 0x50, 0x4d, 0x51, 0x52, 0x4e, 0x53, 0x4a, 0x48, 0x49, 0x4c, 0x4b,
+                        0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0xbc, 0xbe, 0x4d, 0x00, 0x00,
+                        0x8c, 0x42,
                     ],
-                )])),
-            },
-        ],
-    },
-    results: RaceResults {
-        race_stage: Dword::new(0),
-        race_level: Dword::new(0),
-        figure_ffc: Dword::new(0),
-        figure_000: Dword::new(0),
-        word_288_current: Dword::new(0),
-        word_288_first: Dword::new(0),
-        hud_bits_current: Dword::new(0xffffffff),
-        hud_bits_first: Dword::new(0xffffffff),
-        flags_current: Dword::new(0),
-        flags_first: Dword::new(0),
-        results: [
-            RaceResult {
-                time: Dword::new(0),
-                word: Dword::new(0),
-                secs: Float::from_bits(0),
-                result: Dword::new(0),
-                data: Bytes::new([0xff; 64]),
-                block: [const { Dword::new(0) }; 8],
-            },
-            RaceResult {
-                time: Dword::new(0),
-                word: Dword::new(0),
-                secs: Float::from_bits(0),
-                result: Dword::new(0),
-                data: Bytes::new([0xff; 64]),
-                block: [const { Dword::new(0) }; 8],
-            },
-        ],
-        stage_index: Dword::new(0),
-        finish_player: Dword::new(1),
-        finish_kind: Dword::new(0),
-        finished: Dword::new(0),
-    },
-    _gap_75b10c: Bytes::new(sparse::<564>(&[
-        (0x8, &[0x78, 0x56, 0x34, 0x12]),
-        (
-            0x16,
-            &[
-                0x32, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x8f, 0x40, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0xf0, 0xee, 0x40, 0x00, 0x00, 0x80, 0x43, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x80, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x90, 0x40, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0xa0, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xb0, 0x40, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0xf0, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x41,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe0, 0x41, 0xce, 0xfa, 0x1d, 0xac, 0x00, 0x00,
-                0x80, 0x37, 0xce, 0xfa, 0x1d, 0xac, 0x33, 0xe3, 0xea, 0x3b, 0x35, 0x20, 0x99, 0x3f,
-                0x00, 0x00, 0x00, 0x00, 0xce, 0xfa, 0x1d, 0xac, 0x78, 0x56, 0x34, 0x12, 0x78, 0x56,
-                0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x12,
-                0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x12,
-            ],
-        ),
-        (
-            0xc8,
-            &[
-                0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0xbc, 0xbe, 0x4d, 0x00, 0x00, 0x8c, 0x42,
-            ],
-        ),
-    ])),
-};
+                ),
+            ])),
+        }
+    }
+}
 
 /// IDA 0X75ACCC, the first byte of the piece.
 pub const START: usize = 0x75ACCC;
 /// IDA 0X75B340, the end of the piece.
 pub const END: usize = 0x75B340;
-
-/// Where IDA 0X75ACCC is now (`moved::MOVED`'s home).
-pub fn race_state_addr() -> u32 {
-    crate::pointers::game_address(&RACE_STATE as *const RaceState)
-}
 
 #[cfg(test)]
 mod tests {
@@ -415,7 +443,7 @@ mod tests {
         let size = size_of::<RaceState>();
         assert!(END - START <= size && size <= (END - START).next_multiple_of(4));
         let mine = unsafe {
-            std::slice::from_raw_parts(&RACE_STATE as *const RaceState as *const u8, END - START)
+            std::slice::from_raw_parts((&raw const race().shared.state).cast::<u8>(), END - START)
         };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
@@ -439,5 +467,19 @@ mod tests {
                 + size_of::<RaceResult>(),
             0x75B08C,
         );
+        // The record's order inside a `RaceCar` (offsets from 0x75AD1C less the first word).
+        assert_eq!(offset_of!(RaceCar, controller), 0x140 - 0x34);
+        assert_eq!(offset_of!(RaceCar, gearing), 0x144 - 0x34);
+        assert_eq!(offset_of!(RaceCar, sensitivity_level), 0x148 - 0x34);
+        assert_eq!(offset_of!(RaceCar, axis_codes), 0x14C - 0x34);
+        assert_eq!(offset_of!(RaceCar, controller_mode), 0x150 - 0x34);
+        assert_eq!(offset_of!(RaceCar, dead_zone_1), 0x154 - 0x34);
+        assert_eq!(offset_of!(RaceCar, dead_zone_2), 0x158 - 0x34);
+        assert_eq!(offset_of!(RaceCar, strength), 0x15C - 0x34);
+        assert_eq!(offset_of!(RaceCar, bindings), 0x164 - 0x34);
+        assert_eq!(offset_of!(RaceCar, bindings) + 4 * 10, 0x18C - 0x34);
+        assert_eq!(offset_of!(RaceCar, bindings) + 4 * 11, 0x190 - 0x34);
+        assert_eq!(offset_of!(RaceCar, keys), 0x194 - 0x34);
+        assert_eq!(offset_of!(RaceResult, impact_marks), 0x50);
     }
 }

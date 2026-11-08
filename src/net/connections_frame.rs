@@ -5,28 +5,24 @@
 //! (`net::connection_entry`, `text::draw_text` at 0x190, each the font's line height lower);
 //! unlocked and shown.
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`; its caller, `screens::run_frame`,
-//!      passes the frame's carry on, which no list screen reads)
 //! Called by `screens::run_frame` for `net::choose_connection` (`routes.rs`).
 //! Called by `screens::run_frame` for `net::choose_connection`.
 
 use crate::errors::Refused;
-use crate::install::vars::INSTALLER_PAGES;
 use crate::net::connecting::STATUS_FONT;
-use crate::net::lobby::{FONT, connection, copy_picture, draw_string, draw_text, lock_surface};
-use crate::net::store::NET;
+use crate::net::lobby::{FONT, copy_picture, draw_string, lock_surface};
+use crate::net::owner::net;
 use rc2k_core::net::screens;
 
 const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON_LIT;
 
 /// A list screen's frame: the title, then up to sixteen names from the list's top, each the
-/// record (`record`) of an item below the count, the highlighted one blinking. Shared with
+/// name (`name`) of an item below the count, the highlighted one blinking. Shared with
 /// `net::sessions_frame`.
 pub fn list_frame(
     title: u32,
     count: &crate::session::Dword,
-    record: fn(u32) -> Result<u32, Refused>,
+    name: fn(u32) -> Result<[u8; 0x40], Refused>,
 ) -> Result<(), Refused> {
     if !lock_surface() {
         return Ok(());
@@ -35,24 +31,29 @@ pub fn list_frame(
     draw_string(title, STATUS_FONT, 0x316, 0x6F)?;
     let mut y: u32 = 0x6F + 0x2C;
     // Converted: `rc2k_core::net::screens` (`LIST_ROWS`, `listed`, `blink_lit`).
+    let pages = &crate::install::owner::install().pages;
     for row in 0..screens::LIST_ROWS {
-        let Some(item) = screens::listed(row, INSTALLER_PAGES.choice_before.get(), count.get())
-        else {
+        let Some(item) = screens::listed(row, pages.choice_before.get(), count.get()) else {
             continue;
         };
-        let font = if item == INSTALLER_PAGES.choice.get()
-            && screens::blink_lit(
-                INSTALLER_PAGES.frame_clock.get(),
-                INSTALLER_PAGES.move_clock.get(),
-            ) {
+        let font = if item == pages.choice.get()
+            && screens::blink_lit(pages.frame_clock.get(), pages.move_clock.get())
+        {
             LIT
         } else {
             FONT
         };
-        let name = record(item)?;
+        let mut text = crate::net::tables::name_text(&name(item)?)?;
+        text.push(0);
         let at = y;
         y = y.wrapping_add(font.object().line_height.get());
-        draw_text(font.addr(), name, 0x190, at)?;
+        crate::text::draw_text::draw_text_at(
+            font,
+            &text,
+            0x190,
+            at as i32,
+            &mut crate::text::draw_text::GameCanvas,
+        )?;
     }
     crate::platform::unlock_surface();
     crate::platform::show_frame_now();
@@ -61,5 +62,7 @@ pub fn list_frame(
 
 /// The Rust version.
 pub fn connections_frame() -> Result<(), Refused> {
-    list_frame(screens::CONNECTIONS_TITLE, &NET.connections, connection)
+    list_frame(screens::CONNECTIONS_TITLE, &net().vars.connections, |n| {
+        crate::net::tables::with_connection(n, |c| c.name)
+    })
 }

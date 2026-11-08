@@ -12,27 +12,28 @@
 //! `dword_755980` 1. The one-player ones differ (see `Starter::first`).
 
 use crate::errors::Refused;
-use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::event_flow::*;
-use crate::menu::lists_store::MENU_LISTS;
-use crate::menu::screen_loop::{Carried, run_screen_carried};
+use crate::menu::lists_store::CarList;
+use crate::menu::owner::Menus;
+use crate::menu::screen_loop::{Entry, run_screen};
 use crate::session::Dword;
 use rc2k_core::menu::starters;
 
-const REPAIR_SET: &Dword = &CAR_TABLE.last_car; // dword_75649C: 0xF
+const REPAIR_SET: &Dword = &crate::menu::owner::MENUS.cars.table.last_car; // dword_75649C: 0xF
 
 pub struct Starter {
     /// The championship and the seats (see `rc2k_core::menu::starters`).
     pub kind: starters::Starter,
 }
 
-/// The game's variables and callees for `rc2k_core::menu::starters::start`, with the
-/// registers the original has at each call (`f`).
-struct Game {
-    f: Flow,
+/// The game's variables and callees for `rc2k_core::menu::starters::start`, and the car
+/// list the car choice was shown.
+struct Game<'a> {
+    menus: &'a crate::menu::owner::Menus,
+    cars: Option<CarList>,
 }
 
-impl starters::Event for Game {
+impl starters::Event for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: starters::Var) -> u32 {
@@ -46,31 +47,27 @@ impl starters::Event for Game {
     fn call(&mut self, c: starters::Call) -> Result<(), Refused> {
         use crate::menu as m;
         use starters::Call as C;
-        unsafe {
-            match c {
-                C::RepairCar { current } => {
-                    if current {
-                        self.f.record = player(get(CURRENT));
-                    }
-                    crate::service::repair_parts::repair_car()?
-                }
-                C::BeginEvent => m::begin_event::begin_event()?,
-                C::ResetDrivers => m::reset_drivers::reset_drivers()?,
-                C::ResetDriverCondition => m::reset_driver_condition::reset_driver_condition()?,
-                C::SelectCar(list) => {
-                    self.f.c.cars = match list {
-                        starters::CarList::Championship => MENU_LISTS.cars_championship[0].addr(),
-                        starters::CarList::A8 => MENU_LISTS.cars_a8[0].addr(),
-                    };
-                    run_screen_carried(&m::select_car_loop::SCREEN, &mut self.f.c)?
-                }
-                C::TakeShownCar => m::take_shown_car::take_shown_car(self.f.c.cars)?,
-                C::ResetCars750724 => m::reset_cars_750724::reset_cars_750724()?,
-                C::RunA8Championship => m::run_a8_championship::run_a8_championship(&self.f.c)?,
-                C::ShowInGameOptions => m::in_game_options_items::show_in_game_options()?,
-                C::RunChampionship => m::run_championship::run_championship(&self.f.c)?,
+        match c {
+            C::RepairCar => crate::service::repair_parts::repair_car()?,
+            C::BeginEvent => m::begin_event::begin_event(self.menus)?,
+            C::ResetDrivers => m::reset_drivers::reset_drivers()?,
+            C::ResetDriverCondition => m::reset_driver_condition::reset_driver_condition()?,
+            C::SelectCar(list) => {
+                self.cars = Some(list);
+                {
+                    run_screen(
+                        &m::select_car_loop::SCREEN,
+                        &Entry::with_cars(self.menus, self.cars),
+                    )
+                }?;
             }
+            C::TakeShownCar => m::take_shown_car::take_shown_car(self.menus, self.cars)?,
+            C::ResetCars750724 => m::reset_cars_750724::reset_cars_750724(self.menus)?,
+            C::RunA8Championship => m::run_a8_championship::run_a8_championship(self.menus)?,
+            C::ShowInGameOptions => m::in_game_options_items::show_in_game_options(self.menus)?,
+            C::RunChampionship => m::run_championship::run_championship(self.menus)?,
         }
+
         Ok(())
     }
 }
@@ -95,9 +92,8 @@ fn var(v: starters::Var) -> &'static Dword {
     }
 }
 
-/// The Rust version of a starter. `c` the carried values the item gets.
-pub fn start_event(s: &Starter, c: &Carried) -> Result<(), Refused> {
-    players_there(s.kind.players())?;
+/// The Rust version of a starter.
+pub fn start_event(menus: &Menus, s: &Starter) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::starters::start`.
-    starters::start(s.kind, &mut Game { f: Flow::new(c) })
+    starters::start(s.kind, &mut Game { menus, cars: None })
 }

@@ -5,10 +5,7 @@
 //! entry k + 1, entry k + 2 wrapping past 0x10) from `hud::disc_vertex` and drawn by
 //! `hud::add_triangle`.
 //!
-//! In:  nothing
-//! Out: eax the last texture angle, ebx 0x10, ecx 0x10, edx 0x10; the rest kept
-//!
-//! Callers: `sub_4B6B0A`, `sub_4B6B5B`, `sub_4B6BAC`, `sub_4B6BFD`.
+//! Callers: 0x4B6B0A, 0x4B6B5B, 0x4B6BAC, 0x4B6BFD.
 //!
 //! Converted 2026-10-21: the ring's angles and the triangles' entries through
 //! `rc2k_core::hud::disc` (whole numbers; the sines are copied); the texture's turn stays
@@ -17,51 +14,46 @@
 
 use crate::errors::Refused;
 use crate::hud::disc_vertex::disc_vertex;
-use crate::hud::store::HUD;
+use crate::hud::owner::Hud;
 use crate::math::x87;
-use crate::scene::x87_mem::{fistp, fld};
+use crate::math::x87_float::{ld, to_int};
+use crate::race::owner_frame::Frame;
 use rc2k_core::hud::disc::SEGMENTS;
 
 /// `fld a; fchs; fmul b; fmul c; fistp`.
 fn negated_times_times_to_int(a: u32, b: u32, c: u32) -> u32 {
-    let (v, mut out) = ([a, b, c], 0u32);
-    x87_1(
-        (crate::pointers::game_address(v.as_ptr())) as usize,
-        crate::pointers::game_address(&raw mut out) as usize,
-    );
-    out
+    to_int((-ld(a) * ld(b)) * ld(c)) as u32
 }
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::disc::{ring_angles, disc_triangle}`
-pub fn draw_disc() -> Result<(), Refused> {
+pub fn draw_disc(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     {
         use rc2k_core::hud::disc::{disc_triangle, ring_angles};
         // The texture's turn follows the x87's control word: the x87's.
         let t = negated_times_times_to_int(
-            HUD.disc_turn.bits(),
-            HUD.disc_turn_a.bits(),
-            HUD.disc_turn_b.bits(),
+            hud.block.disc_turn.bits(),
+            hud.block.disc_turn_a.bits(),
+            hud.block.disc_turn_b.bits(),
         );
         let table = |cell: &crate::session::Float| x87::loaded(cell.bits());
         for (k, [a, b]) in ring_angles(t).into_iter().enumerate() {
             let n = k + 1;
-            HUD.ring_sines[n].set_bits(table(crate::scene::engine_tables_store::sine(a as usize)));
-            HUD.ring_cosines[n]
+            hud.block.ring_sines[n]
+                .set_bits(table(crate::scene::engine_tables_store::sine(a as usize)));
+            hud.block.ring_cosines[n]
                 .set_bits(table(crate::scene::engine_tables_store::cosine(a as usize)));
-            HUD.texture_ring_sines[n]
+            hud.block.texture_ring_sines[n]
                 .set_bits(table(crate::scene::engine_tables_store::sine(b as usize)));
-            HUD.texture_ring_cosines[n]
+            hud.block.texture_ring_cosines[n]
                 .set_bits(table(crate::scene::engine_tables_store::cosine(b as usize)));
         }
-        HUD.scratch.set(t);
-        let base = crate::d3d::vertices_store::piece_addr();
-
+        hud.block.scratch.set(t);
         for k in 0..SEGMENTS {
             for (n, e) in disc_triangle(k).into_iter().enumerate() {
-                disc_vertex(e, base + 0x20 * n as u32)?;
+                disc_vertex(hud, e, &crate::d3d::vertices_store::VERTICES.vertices[n])?;
             }
-            crate::hud::add_triangle::add_triangle()?;
+            crate::hud::add_triangle::add_triangle(frame, hud)?;
         }
     }
     Ok(())
@@ -69,17 +61,15 @@ pub fn draw_disc() -> Result<(), Refused> {
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [o + 0] = (-[v + 0] * [v + 4]) * [v + 8]`
+/// `negated_times_times_to_int` over the test's operand buffers (`[v + 4 k]`, the result
+/// at `[o]`), for the comparison with the original's x87 run.
+#[cfg(all(test, target_arch = "x86"))]
 fn x87_1(v: usize, o: usize) {
-    let t0 = fld(v, 0);
-    let t1 = -t0;
-    let t2 = fld(v, 4);
-    let t3 = t1 * t2;
-    let t4 = fld(v, 8);
-    let t5 = t3 * t4;
-    fistp(o, 0, t5);
+    use crate::scene::x87_mem::Base;
+    o.set_dword(
+        0,
+        negated_times_times_to_int(v.dword(0), v.dword(4), v.dword(8)),
+    );
 }
 
 #[cfg(all(test, target_arch = "x86"))]

@@ -30,8 +30,6 @@
 //! swapped, + 0x44) at 0x1AE, each with the palette the last text left (ebx). Each
 //! drawer's y is edx as the text drawers leave it.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //!
 //! In the results screens' draw lists (0x758E12 .., 0x758E2A ..). The rows are found before
 //! anything is drawn: a position not there is the look-ups' fatal error, raised then. Refuses
@@ -39,12 +37,10 @@
 //! line buffer, and what the look-ups refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::owner::Menus;
 use crate::menu::ranked_lookups::{find_ranked_entry, find_ranked_position, first_overall_time};
-use crate::menu::state_store::MENU_STATE;
 use crate::screens::best_scores::{record_at, section_there};
+use crate::screens::game_screen::{HeldText, held_name};
 use crate::strings::append_time::show_hours;
 use crate::text::draw_text::Canvas;
 
@@ -53,9 +49,6 @@ use crate::text::draw_text::Canvas;
 // g_firstPlayerTime
 // hundredths
 // dword_7559D4
-fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
-}
 
 #[derive(Clone, Copy)]
 enum Heading {
@@ -110,30 +103,31 @@ pub const OVERALL_STAGE: Page = Page {
 };
 
 /// The Rust version of one page.
-pub fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let (list, class) = (CHAMP_VIEW.ranked_times.get(), EVENT_STATE.class.get());
-    if list == 0 {
-        return Err(BadInput("no ranked list").into());
-    }
+pub fn draw_results_page(
+    menus: &Menus,
+    page: &Page,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    let class = menus.screens.event.class.get();
     if !section_there()? {
         return Err(BadInput("a section past the record table").into());
     }
     let rally = page.time == 0x18;
     let first = if page.by_class {
-        crate::menu::find_class_time::find_class_time(list, class, rally)?
+        crate::menu::find_class_time::find_class_time(class, rally)?
     } else {
-        first_overall_time(list, 2, rally)?
+        first_overall_time(2, rally)?
     };
-    let first_row = CHAMP_VIEW.first_row.get();
+    let first_row = menus.play.champ_view.first_row.get();
     let end = first_row.wrapping_add(10);
     // every row found before anything is drawn
     let mut rows = Vec::new();
     let mut row = first_row;
     loop {
         rows.push(if page.by_class {
-            find_ranked_entry(list, row, class)?
+            find_ranked_entry(row, class)?
         } else {
-            find_ranked_position(list, row)?
+            find_ranked_position(row)?
         });
         row = row.wrapping_add(1);
         if row == end || rows.len() > 0x400 {
@@ -148,46 +142,53 @@ pub fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<(), Ref
     {
         let heading = match page.heading {
             Heading::Titles(normal, alternative) => Drawn::Titles {
-                title: if MENU_STATE.menus.rally_done.get() == 1 {
+                title: if menus.screens.state.menus.rally_done.get() == 1 {
                     alternative
                 } else {
                     normal
                 },
-                name: if CHAMP_VIEW.event_mode.get() == 0x13 {
+                name: if menus.play.champ_view.event_mode.get() == 0x13 {
                     crate::screens::stage_panel::table_dword_at(
-                        MENU_LISTS.section_titles[0].addr() as usize,
-                        EVENT_STATE.section.get(),
+                        &menus.tables.lists,
+                        &menus.tables.lists.section_titles,
+                        menus.screens.event.section.get(),
                     )?
                 } else {
-                    get(record_at(0)? + 0x38)?
+                    record_at(0)?.record()?.name()
                 },
             },
             Heading::Record => {
-                crate::screens::best_scores::draw_record_heading(canvas)?;
+                crate::screens::best_scores::draw_record_heading(menus, canvas)?;
                 Drawn::Drawn
             }
         };
-        let f = crate::menu::event_flow::Fault::default();
-        let rows: Vec<Row<u32>> = rows
+        // A time field of the page's (+0x14 the time, +0x18 the total).
+        let time_at = |e: &rc2k_core::saves::entries::BestTime, at: u32| {
+            if at == 0x18 {
+                e.head.rally_time
+            } else {
+                e.head.key
+            }
+        };
+        let rows: Vec<Row<HeldText>> = rows
             .into_iter()
             .map(|e| {
-                let player = (f.get(e + 4) as i32) > 0;
+                let player = (e.head.player as i32) > 0;
                 let check = if player { page.check.1 } else { page.check.0 };
-                Row {
+                Ok(Row {
                     player,
-                    position: f.get(e + 0x44),
-                    name: e + 0x20,
-                    finished: f.get(e + 0x4C) == 1,
-                    not_timed: f.get(e + check) == NONE,
-                    time: f.get(e + page.time),
-                    nation: f.get(e + 8),
-                    car: f.get(e + 0x10),
-                }
+                    position: e.head.figure,
+                    name: held_name(e.name_text())?,
+                    finished: e.head.entered == 1,
+                    not_timed: time_at(&e, check) == NONE,
+                    time: time_at(&e, page.time),
+                    nation: e.head.nation,
+                    car: e.head.car,
+                })
             })
-            .collect();
-        f.check()?;
+            .collect::<Result<_, BadInput>>()?;
         results_page(
-            &mut crate::screens::game_screen::GameScreen::new(canvas),
+            &mut crate::screens::game_screen::GameScreen::<_, _, HeldText>::new(canvas),
             heading,
             first,
             first_row,
@@ -205,8 +206,8 @@ macro_rules! results_page_entry {
         pub mod $module {
             use super::*;
             /// The Rust version the typed tables run (`menu::table_calls`).
-            pub fn draw() -> Result<(), Refused> {
-                draw_results_page(&$page, &mut crate::text::draw_text::GameCanvas)
+            pub fn draw(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
+                draw_results_page(menus, &$page, &mut crate::text::draw_text::GameCanvas)
             }
         }
     };

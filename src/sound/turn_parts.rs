@@ -12,41 +12,30 @@
 //! are 0 now.
 
 use crate::errors::Refused;
-use crate::sound::sets_store::RACE_SOUND_SETS;
+use crate::sound::sets_store::SoundRequest;
 
-/// Object `n`'s address (`g_raceSoundObjects[n]`); `n` is under 8 (every caller checks).
-pub fn object(n: u32) -> u32 {
-    crate::sound::store::RACE_SOUNDS.table[n as usize].get()
-}
-
-/// The request's dword number `word` set to `value` (the request is the sound command's
-/// words, in the game's memory).
-pub fn put(request: u32, word: usize, value: u32) -> Result<(), crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(request)
-        .offset(4 * word as u32)
-        .write(value, "a sound request")
-}
-
-/// The request's address.
-pub fn request() -> u32 {
-    RACE_SOUND_SETS.request.addr()
+/// The request (`g_raceSoundRequest`), the sound command's words.
+pub fn request() -> &'static SoundRequest {
+    &crate::sound::owner::sound().race.sets.request
 }
 
 pub use crate::sound::play_sound::play_sound as play;
 
 /// `sound::stop_sound`: the request's sound stopped unless it has bit 0x8000.
-pub fn stop(request: u32) -> Result<(), Refused> {
-    Ok(crate::sound::stop_sound::stop_sound(request)?)
+pub fn stop(request: &SoundRequest) -> Result<(), Refused> {
+    crate::sound::stop_sound::stop_sound(request);
+    Ok(())
 }
 
 /// `sound::play_placed_sound` with the request.
-pub fn placed(request: u32) -> Result<(), Refused> {
+pub fn placed(request: &SoundRequest) -> Result<(), Refused> {
+    let audio = crate::audio::owner::audio();
     Ok(crate::sound::play_placed_sound::play_placed_sound_in_game(
-        request,
+        request, audio,
     )?)
 }
 
 /// `sound::step_race_clock`: true when a turn is due (the original's carry clear).
-pub fn step_clock() -> bool {
-    crate::sound::race_clock::step_race_clock(crate::system::tick_count::tick_count())
+pub fn step_clock(sound: &crate::sound::owner::Sound) -> bool {
+    crate::sound::race_clock::step_race_clock(crate::system::tick_count::tick_count(), sound)
 }

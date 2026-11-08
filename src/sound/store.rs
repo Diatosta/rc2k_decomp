@@ -6,8 +6,7 @@
 //! - `RaceClock` (0x5124E4 .. 0x512508): the race sounds' clock and constants;
 //! - `RaceSounds` (0x512A10 .. 0x514F90): the eight sound objects (`SoundObject`, 0x4A8 bytes
 //!   each, with the table of their addresses) and the cars the sound follows. The table
-//!   names the objects as the image holds them (IDA's addresses): `point_sound_objects`
-//!   sets it to where they are now (the standalone's start-up calls it);
+//!   keeps the image's IDA addresses: nothing reads it (the objects are reached by number);
 //! - `SurfaceSounds` (0x516358 .. 0x51639C): the factors the engine, speed, revs and
 //!   throttle sounds scale by, the wheel sounds across and along, the surface sound volume;
 //! - `StageSounds` (0x51655C .. 0x5168C0): the surface sound sets, the stage's one-off,
@@ -21,16 +20,18 @@
 //! The sound commands go to the audio thread through `audio::store`'s queue; these are the
 //! game thread's.
 
+use crate::race::owner::race;
 use crate::session::{Dword, Float, Word};
 
 /// `g_wheelSurfaceA`, `g_wheelSurfaceB` (IDA 0x4F66F1, 0x4F66F5): the surfaces of the wheels
 /// the first and the second of a car's two sounds follow (`sound::surface_sounds`). Split
 /// 2026-10-25 from the dwords around them: the save file's four before
-/// (`saves::load_options::KEPT`), the race record's seal key after (`race::replay::SEAL_KEY`).
+/// (`saves::owner::Files::options_kept`), the race record's seal key after (`race::replay::SEAL_KEY`).
 pub static WHEEL_SURFACES: [Dword; 2] = [Dword::new(0), Dword::new(0)];
 
 /// One cue of a car's queue: eight dwords.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CueEntry {
     /// The cue's first sound.
     pub first: Dword,
@@ -42,6 +43,7 @@ pub struct CueEntry {
 
 /// A car's queue of spoken cues, 0x210 bytes.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CueQueue {
     /// The first cue queued.
     pub first: Dword,
@@ -57,6 +59,7 @@ pub struct CueQueue {
 
 /// One of a car's four wheel records in its sound object: five dwords.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct EngineVoice {
     /// +0: a share the physics sets (`physics::car_sound_state`: +0x294 of the work car, or 0); the first wheel sum (`int` +0x284 of the object) scales these by 0.4.
     pub share_a: Float,
@@ -72,6 +75,7 @@ pub struct EngineVoice {
 
 /// A race sound object, 0x4A8 bytes: a car's sound state (the revs, the throttle, the place, the timed sound slots) as `sound::car_sounds` and the physics keep it. Offsets in the docs are the image's (+0x..); fields not worked out are gaps.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SoundObject {
     /// +0: added to a sound set's first sound to pick the car's sound; negative for a computer's car (a reading).
     pub sound_offset: Dword,
@@ -167,8 +171,10 @@ pub struct SoundObject {
     pub pitch_factor: Float,
     /// +0x140: 1, or 1 / the distance when that is over 1.
     pub volume_factor: Float,
-    /// +0x144: not worked out (2 dwords).
-    pub _gap_144: [Dword; 2],
+    /// +0x144: the sound playing from the surface sets of eight (-2: none; `sound::surface_sound`).
+    pub eights_sound: Dword,
+    /// +0x148: the sound playing from the surface sets of four (-2: none).
+    pub fours_sound: Dword,
     /// +0x14C: seven timed sound slots of 0x18 bytes (`sound::car_slot_sounds` the first five, `sound::car_gear_sounds` the last two: +0x1C4 armed by `sound::car_engine_state` when the throttle drops at high revs, +0x1DC by its countdown at low throttle).
     pub slots: [SoundSlot; 7],
     /// +0x1F4: counts down (back-fires).
@@ -215,23 +221,24 @@ pub struct SoundObject {
     pub cue_queue: CueQueue,
 }
 
-// SAFETY: each is made of `Dword`s and `Float`s (atomics) and arrays and records of them.
-unsafe impl crate::pointers::Cells for SoundSlot {}
-unsafe impl crate::pointers::Cells for EngineVoice {}
-unsafe impl crate::pointers::Cells for CueEntry {}
-unsafe impl crate::pointers::Cells for CueQueue {}
-unsafe impl crate::pointers::Cells for SoundObject {}
+/// The current car's sound object (`g_raceSoundObjects[g_currentCar & 7]`).
+pub fn current_object() -> &'static SoundObject {
+    &crate::sound::owner::sound().race.sounds.objects
+        [(race().shared.work.current_car.get() & 7) as usize]
+}
 
 impl SoundObject {
-    /// The object at `address`, as the game's tables and the physics hold it (a number),
-    /// when all of it lies in one region of the game's memory.
-    pub fn at<'a>(address: u32) -> Result<&'a SoundObject, crate::errors::BadInput> {
-        crate::pointers::GamePtr::new(address).record::<SoundObject>("a sound object")
-    }
-
-    /// Its address, as the game's tables hold it.
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self as *const SoundObject)
+    /// Race sound object `n` (the original kept its address in `g_raceSoundObjects`),
+    /// refused past the eight.
+    pub fn number(n: u32) -> Result<&'static SoundObject, crate::errors::BadInput> {
+        crate::sound::owner::sound()
+            .race
+            .sounds
+            .objects
+            .get(n as usize)
+            .ok_or(crate::errors::BadInput(
+                "a race sound object past the eight",
+            ))
     }
 
     /// The timed slot the image names by its offset in the object (the core's lists of
@@ -320,7 +327,8 @@ const fn initial_object(sound_offset: u32) -> SoundObject {
         approach: Float::from_bits(0),
         pitch_factor: Float::from_bits(0x3F800000),
         volume_factor: Float::from_bits(0),
-        _gap_144: [Dword::new(0xFFFFFFFE), Dword::new(0xFFFFFFFE)],
+        eights_sound: Dword::new(0xFFFFFFFE),
+        fours_sound: Dword::new(0xFFFFFFFE),
         slots: [
             SoundSlot {
                 sound: Dword::new(0xD6),
@@ -450,8 +458,9 @@ const fn initial_object(sound_offset: u32) -> SoundObject {
 
 /// The race sounds' objects and the cars they follow (IDA 0x512A10 .. 0x514F90, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceSounds {
-    /// `g_raceSoundObjects`: the eight objects' addresses (IDA's addresses at start; `point_sound_objects` sets them to where the objects are now).
+    /// `g_raceSoundObjects`: the eight objects' addresses as the image names them (IDA's); read by nothing, the objects are reached by number (`objects`).
     pub table: [Dword; 8],
     /// The eight objects (`dword_512A30` ..), 0x4A8 bytes each.
     pub objects: [SoundObject; 8],
@@ -472,44 +481,50 @@ pub struct RaceSounds {
 }
 
 /// The race sounds' objects (`RaceSounds`); first values the image's.
-pub static RACE_SOUNDS: RaceSounds = RaceSounds {
-    table: [
-        Dword::new(0x512A30),
-        Dword::new(0x512ED8),
-        Dword::new(0x513380),
-        Dword::new(0x513828),
-        Dword::new(0x513CD0),
-        Dword::new(0x514178),
-        Dword::new(0x514620),
-        Dword::new(0x514AC8),
-    ],
-    objects: [
-        initial_object(0),
-        initial_object(1),
-        initial_object(0xFFFFFFFE),
-        initial_object(0xFFFFFFFD),
-        initial_object(0xFFFFFFFC),
-        initial_object(0xFFFFFFFB),
-        initial_object(0xFFFFFFFA),
-        initial_object(0xFFFFFFF9),
-    ],
-    player_cars: [Dword::new(0), Dword::new(1)],
-    one_player: Dword::new(1),
-    count: Dword::new(1),
-    nearest: Dword::new(0),
-    next: Dword::new(0),
-    nearest_distance: Float::from_bits(0),
-    mark_car_voices: Dword::new(0),
-};
+impl RaceSounds {
+    pub const fn new() -> Self {
+        RaceSounds {
+            table: [
+                Dword::new(0x512A30),
+                Dword::new(0x512ED8),
+                Dword::new(0x513380),
+                Dword::new(0x513828),
+                Dword::new(0x513CD0),
+                Dword::new(0x514178),
+                Dword::new(0x514620),
+                Dword::new(0x514AC8),
+            ],
+            objects: [
+                initial_object(0),
+                initial_object(1),
+                initial_object(0xFFFFFFFE),
+                initial_object(0xFFFFFFFD),
+                initial_object(0xFFFFFFFC),
+                initial_object(0xFFFFFFFB),
+                initial_object(0xFFFFFFFA),
+                initial_object(0xFFFFFFF9),
+            ],
+            player_cars: [Dword::new(0), Dword::new(1)],
+            one_player: Dword::new(1),
+            count: Dword::new(1),
+            nearest: Dword::new(0),
+            next: Dword::new(0),
+            nearest_distance: Float::from_bits(0),
+            mark_car_voices: Dword::new(0),
+        }
+    }
+}
 
 /// Where the race sounds' block is (`moved::MOVED`'s home for IDA 0x512A10).
+#[cfg(test)]
 pub fn race_sounds_addr() -> u32 {
-    crate::pointers::game_address(&RACE_SOUNDS as *const RaceSounds)
+    crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.sounds)
 }
 
 /// The race sounds' clock and the constants of the placed and moving sounds (IDA 0x5124E4
 /// .. 0x512508, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceClock {
     /// `dword_5124E4`: 1 once the race's sounds are set up (`race::sounds`,
     /// `race::sound_tables`), 0 at the race's end; `sound::race_turn` does nothing before.
@@ -536,27 +551,33 @@ pub struct RaceClock {
 
 /// The race sounds' clock (`RaceClock`); first values the image's
 /// (`tests::race_clock_starts_as_the_games`).
-pub static RACE_CLOCK: RaceClock = RaceClock {
-    started: Dword::new(0),
-    last: Dword::new(0),
-    turns_a_second: Float::from_bits(0),
-    step: Dword::new(0),
-    turns: Dword::new(0),
-    sound_speed: Float::from_bits(0x43A8_C28F),
-    over_sound_speed: Float::from_bits(0x3B42_2B53),
-    pan_centre: Float::from_bits(0x4280_0000),
-    pan_per_radian: Float::from_bits(0x4222_F983),
-};
+impl RaceClock {
+    pub const fn new() -> Self {
+        RaceClock {
+            started: Dword::new(0),
+            last: Dword::new(0),
+            turns_a_second: Float::from_bits(0),
+            step: Dword::new(0),
+            turns: Dword::new(0),
+            sound_speed: Float::from_bits(0x43A8_C28F),
+            over_sound_speed: Float::from_bits(0x3B42_2B53),
+            pan_centre: Float::from_bits(0x4280_0000),
+            pan_per_radian: Float::from_bits(0x4222_F983),
+        }
+    }
+}
 
 /// Where the race clock is (`moved::MOVED`'s home for IDA 0x5124E4).
+#[cfg(test)]
 pub fn race_clock_addr() -> u32 {
-    crate::pointers::game_address(&RACE_CLOCK as *const RaceClock)
+    crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.clock)
 }
 
 /// The surface sounds' constants and work (IDA 0x516358 .. 0x51639C, the image's layout;
 /// phase 7, typed state): the factors the engine, speed, revs and throttle sounds and the
 /// wheel sounds scale by, and what `sound::surface_sounds` works out.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SurfaceSounds {
     /// `dword_516358`: 1 once `race::prepare_sound_tables` has run.
     pub tables_done: Dword,
@@ -596,33 +617,39 @@ pub struct SurfaceSounds {
 }
 
 /// The surface sounds' constants and work (`SurfaceSounds`); first values the image's.
-pub static SURFACE_SOUNDS: SurfaceSounds = SurfaceSounds {
-    tables_done: Dword::new(0),
-    volume_scale: Float::from_bits(0x3DCC_CCCD),
-    pitch_blend: Float::from_bits(0x3DCC_CCCD),
-    across_scale: Float::from_bits(0x3ECC_CCCD),
-    along_scale: Float::from_bits(0x4280_0000),
-    unused_160: Float::from_bits(0x4320_0000),
-    speed_scale: Float::from_bits(0x3C66_6666),
-    unused_65536: Float::from_bits(0x4780_0000),
-    unused_2: Float::from_bits(0x4000_0000),
-    speed_gain: Float::from_bits(0x3FB3_3333),
-    revs_gain: Float::from_bits(0x3F36_DB6E),
-    unused_625: Float::from_bits(0x3F20_0000),
-    unused_quarter: Float::from_bits(0x3E80_0000),
-    across: Float::from_bits(0),
-    _gap_390: Dword::new(0),
-    along: Float::from_bits(0),
-    volume: Float::from_bits(0),
-};
+impl SurfaceSounds {
+    pub const fn new() -> Self {
+        SurfaceSounds {
+            tables_done: Dword::new(0),
+            volume_scale: Float::from_bits(0x3DCC_CCCD),
+            pitch_blend: Float::from_bits(0x3DCC_CCCD),
+            across_scale: Float::from_bits(0x3ECC_CCCD),
+            along_scale: Float::from_bits(0x4280_0000),
+            unused_160: Float::from_bits(0x4320_0000),
+            speed_scale: Float::from_bits(0x3C66_6666),
+            unused_65536: Float::from_bits(0x4780_0000),
+            unused_2: Float::from_bits(0x4000_0000),
+            speed_gain: Float::from_bits(0x3FB3_3333),
+            revs_gain: Float::from_bits(0x3F36_DB6E),
+            unused_625: Float::from_bits(0x3F20_0000),
+            unused_quarter: Float::from_bits(0x3E80_0000),
+            across: Float::from_bits(0),
+            _gap_390: Dword::new(0),
+            along: Float::from_bits(0),
+            volume: Float::from_bits(0),
+        }
+    }
+}
 
 /// Where the surface sounds' block is (`moved::MOVED`'s home for IDA 0x516358).
+#[cfg(test)]
 pub fn surface_sounds_addr() -> u32 {
-    crate::pointers::game_address(&SURFACE_SOUNDS as *const SurfaceSounds)
+    crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.surface)
 }
 
 /// A timed sound's slot: six dwords (`sound::play_timed_slot`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SoundSlot {
     /// The sound (a sample number); +0 of the slot `sound::play_timed_slot` takes.
     pub sound: Dword,
@@ -638,15 +665,9 @@ pub struct SoundSlot {
     pub rate: Dword,
 }
 
-impl SoundSlot {
-    /// Its address, for `sound::play_timed_slot`.
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self as *const SoundSlot)
-    }
-}
-
 /// A sound spot shared with the sound side, 0x14 bytes.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SharedSpot {
     /// The spot's id.
     pub id: Dword,
@@ -658,6 +679,7 @@ pub struct SharedSpot {
 
 /// A spot kind's repeats, 8 bytes.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct KindRepeats {
     /// Nothing reads it (a gap).
     pub _word_0: Word,
@@ -671,6 +693,7 @@ pub struct KindRepeats {
 
 /// The stage sounds' state and the shared sound spots (IDA 0x51655C .. 0x5168C0, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct StageSounds {
     /// `g_surfaceSoundSet` (`dword_51655C`): a surface's sound set (an index into `off_51639C`'s pairs), 16 surfaces.
     pub surface_sets: [Dword; 16],
@@ -701,67 +724,73 @@ pub struct StageSounds {
 }
 
 /// The stage sounds (`StageSounds`); first values the image's.
-pub static STAGE_SOUNDS: StageSounds = StageSounds {
-    surface_sets: [
-        Dword::new(1),
-        Dword::new(3),
-        Dword::new(0),
-        Dword::new(1),
-        Dword::new(2),
-        Dword::new(4),
-        Dword::new(1),
-        Dword::new(1),
-        Dword::new(1),
-        Dword::new(2),
-        Dword::new(6),
-        Dword::new(2),
-        Dword::new(2),
-        Dword::new(1),
-        Dword::new(1),
-        Dword::new(1),
-    ],
-    once: [Dword::new(0), Dword::new(0), Dword::new(0)],
-    timed_arm: Dword::new(0),
-    timed_place: [
-        Float::from_bits(0),
-        Float::from_bits(0x40000000),
-        Float::from_bits(0x3F800000),
-    ],
-    timed_delay: Dword::new(0),
-    loop_volume_a: Dword::new(0),
-    loop_volume_b: Dword::new(0),
-    timed_due: Dword::new(0),
-    timed_waiting: Dword::new(0),
-    timed_slot: SoundSlot {
-        sound: Dword::new(0x1C4),
-        start: Dword::new(0),
-        playing: Dword::new(0),
-        ends: Dword::new(0),
-        volume: Dword::new(0xFFFFFF91),
-        rate: Dword::new(0xFFFFFF91),
-    },
-    random: [Dword::new(0), Dword::new(0)],
-    shared_count: Dword::new(0),
-    shared_spots: [const {
-        SharedSpot {
-            id: Dword::new(0),
-            place: [
-                Float::from_bits(0),
-                Float::from_bits(0),
-                Float::from_bits(0),
+impl StageSounds {
+    pub const fn new() -> Self {
+        StageSounds {
+            surface_sets: [
+                Dword::new(1),
+                Dword::new(3),
+                Dword::new(0),
+                Dword::new(1),
+                Dword::new(2),
+                Dword::new(4),
+                Dword::new(1),
+                Dword::new(1),
+                Dword::new(1),
+                Dword::new(2),
+                Dword::new(6),
+                Dword::new(2),
+                Dword::new(2),
+                Dword::new(1),
+                Dword::new(1),
+                Dword::new(1),
             ],
-            kind: Dword::new(0),
+            once: [Dword::new(0), Dword::new(0), Dword::new(0)],
+            timed_arm: Dword::new(0),
+            timed_place: [
+                Float::from_bits(0),
+                Float::from_bits(0x40000000),
+                Float::from_bits(0x3F800000),
+            ],
+            timed_delay: Dword::new(0),
+            loop_volume_a: Dword::new(0),
+            loop_volume_b: Dword::new(0),
+            timed_due: Dword::new(0),
+            timed_waiting: Dword::new(0),
+            timed_slot: SoundSlot {
+                sound: Dword::new(0x1C4),
+                start: Dword::new(0),
+                playing: Dword::new(0),
+                ends: Dword::new(0),
+                volume: Dword::new(0xFFFFFF91),
+                rate: Dword::new(0xFFFFFF91),
+            },
+            random: [Dword::new(0), Dword::new(0)],
+            shared_count: Dword::new(0),
+            shared_spots: [const {
+                SharedSpot {
+                    id: Dword::new(0),
+                    place: [
+                        Float::from_bits(0),
+                        Float::from_bits(0),
+                        Float::from_bits(0),
+                    ],
+                    kind: Dword::new(0),
+                }
+            }; 36],
         }
-    }; 36],
-};
+    }
+}
 
 /// Where the stage sounds are (`moved::MOVED`'s home for IDA 0x51655C).
+#[cfg(test)]
 pub fn stage_sounds_addr() -> u32 {
-    crate::pointers::game_address(&STAGE_SOUNDS as *const StageSounds)
+    crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.stage)
 }
 
 /// The spot voices' pickers' work and the sound kinds per spot (IDA 0x517f40 .. 0x518080, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SpotPicks {
     /// `g_spotPickPlaying`: the pickers' work (`sound::merge_spot_voices`): the playing voice (an address).
     pub pick_playing: Dword,
@@ -785,212 +814,226 @@ pub struct SpotPicks {
     pub _gap_5c: [Dword; 9],
 }
 
-pub static SPOT_PICKS: SpotPicks = SpotPicks {
-    pick_playing: Dword::new(0),
-    pick_nearest_distance: Dword::new(0xFFFFFFFF),
-    pick_nearest: Dword::new(0),
-    pick_next_distance: Dword::new(0xFFFFFFFF),
-    pick_next: Dword::new(0),
-    kind_sounds: [
-        Dword::new(0xFFFFFFFE),
-        Dword::new(0x1B1),
-        Dword::new(0x1B2),
-        Dword::new(0x1B3),
-        Dword::new(0x1B4),
-        Dword::new(0x1B5),
-        Dword::new(0x1B6),
-        Dword::new(0x1B7),
-        Dword::new(0x1B9),
-        Dword::new(0x1BA),
-        Dword::new(0x1BB),
-        Dword::new(0x1B0),
-        Dword::new(0xFFFFFFFE),
-        Dword::new(0x1BD),
-        Dword::new(0x1BE),
-        Dword::new(0x1BF),
-        Dword::new(0x1C0),
-        Dword::new(0x1C1),
-        Dword::new(0x1C2),
-        Dword::new(0x1C3),
-        Dword::new(0x1B8),
-        Dword::new(0x1BC),
-    ],
-    kind_repeats: [
-        KindRepeats {
-            _word_0: Word::new(0),
-            most: Word::new(0),
-            least_delay: Word::new(1000),
-            most_delay: Word::new(5000),
-        },
-        KindRepeats {
-            _word_0: Word::new(1),
-            most: Word::new(0),
-            least_delay: Word::new(0),
-            most_delay: Word::new(3000),
-        },
-        KindRepeats {
-            _word_0: Word::new(0),
-            most: Word::new(0),
-            least_delay: Word::new(2000),
-            most_delay: Word::new(6000),
-        },
-        KindRepeats {
-            _word_0: Word::new(0),
-            most: Word::new(0),
-            least_delay: Word::new(500),
-            most_delay: Word::new(3000),
-        },
-        KindRepeats {
-            _word_0: Word::new(0),
-            most: Word::new(0),
-            least_delay: Word::new(2000),
-            most_delay: Word::new(6000),
-        },
-        KindRepeats {
-            _word_0: Word::new(0),
-            most: Word::new(0),
-            least_delay: Word::new(1000),
-            most_delay: Word::new(4000),
-        },
-        KindRepeats {
-            _word_0: Word::new(1),
-            most: Word::new(0),
-            least_delay: Word::new(0),
-            most_delay: Word::new(0),
-        },
-        KindRepeats {
-            _word_0: Word::new(0),
-            most: Word::new(0),
-            least_delay: Word::new(1000),
-            most_delay: Word::new(5000),
-        },
-        KindRepeats {
-            _word_0: Word::new(0),
-            most: Word::new(0),
-            least_delay: Word::new(1000),
-            most_delay: Word::new(4000),
-        },
-        KindRepeats {
-            _word_0: Word::new(1),
-            most: Word::new(0),
-            least_delay: Word::new(0),
-            most_delay: Word::new(0),
-        },
-        KindRepeats {
-            _word_0: Word::new(0),
-            most: Word::new(0),
-            least_delay: Word::new(0),
-            most_delay: Word::new(0),
-        },
-        KindRepeats {
-            _word_0: Word::new(0),
-            most: Word::new(0),
-            least_delay: Word::new(4000),
-            most_delay: Word::new(8000),
-        },
-        KindRepeats {
-            _word_0: Word::new(0),
-            most: Word::new(0),
-            least_delay: Word::new(0),
-            most_delay: Word::new(0),
-        },
-        KindRepeats {
-            _word_0: Word::new(0),
-            most: Word::new(0),
-            least_delay: Word::new(0),
-            most_delay: Word::new(3000),
-        },
-        KindRepeats {
-            _word_0: Word::new(0),
-            most: Word::new(0),
-            least_delay: Word::new(0),
-            most_delay: Word::new(0),
-        },
-        KindRepeats {
-            _word_0: Word::new(0),
-            most: Word::new(0),
-            least_delay: Word::new(1000),
-            most_delay: Word::new(5000),
-        },
-        KindRepeats {
-            _word_0: Word::new(0),
-            most: Word::new(0),
-            least_delay: Word::new(0),
-            most_delay: Word::new(0),
-        },
-        KindRepeats {
-            _word_0: Word::new(0),
-            most: Word::new(0),
-            least_delay: Word::new(0),
-            most_delay: Word::new(0),
-        },
-        KindRepeats {
-            _word_0: Word::new(1),
-            most: Word::new(1),
-            least_delay: Word::new(0),
-            most_delay: Word::new(5000),
-        },
-        KindRepeats {
-            _word_0: Word::new(1),
-            most: Word::new(0),
-            least_delay: Word::new(0),
-            most_delay: Word::new(0),
-        },
-        KindRepeats {
-            _word_0: Word::new(1),
-            most: Word::new(0),
-            least_delay: Word::new(0),
-            most_delay: Word::new(0),
-        },
-    ],
-    spot_work_a: Dword::new(0),
-    spot_work_b: Dword::new(0),
-    _gap_5c: [
-        Dword::new(1),
-        Dword::new(2),
-        Dword::new(3),
-        Dword::new(4),
-        Dword::new(5),
-        Dword::new(6),
-        Dword::new(9),
-        Dword::new(7),
-        Dword::new(8),
-    ],
-};
+impl SpotPicks {
+    pub const fn new() -> Self {
+        SpotPicks {
+            pick_playing: Dword::new(0),
+            pick_nearest_distance: Dword::new(0xFFFFFFFF),
+            pick_nearest: Dword::new(0),
+            pick_next_distance: Dword::new(0xFFFFFFFF),
+            pick_next: Dword::new(0),
+            kind_sounds: [
+                Dword::new(0xFFFFFFFE),
+                Dword::new(0x1B1),
+                Dword::new(0x1B2),
+                Dword::new(0x1B3),
+                Dword::new(0x1B4),
+                Dword::new(0x1B5),
+                Dword::new(0x1B6),
+                Dword::new(0x1B7),
+                Dword::new(0x1B9),
+                Dword::new(0x1BA),
+                Dword::new(0x1BB),
+                Dword::new(0x1B0),
+                Dword::new(0xFFFFFFFE),
+                Dword::new(0x1BD),
+                Dword::new(0x1BE),
+                Dword::new(0x1BF),
+                Dword::new(0x1C0),
+                Dword::new(0x1C1),
+                Dword::new(0x1C2),
+                Dword::new(0x1C3),
+                Dword::new(0x1B8),
+                Dword::new(0x1BC),
+            ],
+            kind_repeats: [
+                KindRepeats {
+                    _word_0: Word::new(0),
+                    most: Word::new(0),
+                    least_delay: Word::new(1000),
+                    most_delay: Word::new(5000),
+                },
+                KindRepeats {
+                    _word_0: Word::new(1),
+                    most: Word::new(0),
+                    least_delay: Word::new(0),
+                    most_delay: Word::new(3000),
+                },
+                KindRepeats {
+                    _word_0: Word::new(0),
+                    most: Word::new(0),
+                    least_delay: Word::new(2000),
+                    most_delay: Word::new(6000),
+                },
+                KindRepeats {
+                    _word_0: Word::new(0),
+                    most: Word::new(0),
+                    least_delay: Word::new(500),
+                    most_delay: Word::new(3000),
+                },
+                KindRepeats {
+                    _word_0: Word::new(0),
+                    most: Word::new(0),
+                    least_delay: Word::new(2000),
+                    most_delay: Word::new(6000),
+                },
+                KindRepeats {
+                    _word_0: Word::new(0),
+                    most: Word::new(0),
+                    least_delay: Word::new(1000),
+                    most_delay: Word::new(4000),
+                },
+                KindRepeats {
+                    _word_0: Word::new(1),
+                    most: Word::new(0),
+                    least_delay: Word::new(0),
+                    most_delay: Word::new(0),
+                },
+                KindRepeats {
+                    _word_0: Word::new(0),
+                    most: Word::new(0),
+                    least_delay: Word::new(1000),
+                    most_delay: Word::new(5000),
+                },
+                KindRepeats {
+                    _word_0: Word::new(0),
+                    most: Word::new(0),
+                    least_delay: Word::new(1000),
+                    most_delay: Word::new(4000),
+                },
+                KindRepeats {
+                    _word_0: Word::new(1),
+                    most: Word::new(0),
+                    least_delay: Word::new(0),
+                    most_delay: Word::new(0),
+                },
+                KindRepeats {
+                    _word_0: Word::new(0),
+                    most: Word::new(0),
+                    least_delay: Word::new(0),
+                    most_delay: Word::new(0),
+                },
+                KindRepeats {
+                    _word_0: Word::new(0),
+                    most: Word::new(0),
+                    least_delay: Word::new(4000),
+                    most_delay: Word::new(8000),
+                },
+                KindRepeats {
+                    _word_0: Word::new(0),
+                    most: Word::new(0),
+                    least_delay: Word::new(0),
+                    most_delay: Word::new(0),
+                },
+                KindRepeats {
+                    _word_0: Word::new(0),
+                    most: Word::new(0),
+                    least_delay: Word::new(0),
+                    most_delay: Word::new(3000),
+                },
+                KindRepeats {
+                    _word_0: Word::new(0),
+                    most: Word::new(0),
+                    least_delay: Word::new(0),
+                    most_delay: Word::new(0),
+                },
+                KindRepeats {
+                    _word_0: Word::new(0),
+                    most: Word::new(0),
+                    least_delay: Word::new(1000),
+                    most_delay: Word::new(5000),
+                },
+                KindRepeats {
+                    _word_0: Word::new(0),
+                    most: Word::new(0),
+                    least_delay: Word::new(0),
+                    most_delay: Word::new(0),
+                },
+                KindRepeats {
+                    _word_0: Word::new(0),
+                    most: Word::new(0),
+                    least_delay: Word::new(0),
+                    most_delay: Word::new(0),
+                },
+                KindRepeats {
+                    _word_0: Word::new(1),
+                    most: Word::new(1),
+                    least_delay: Word::new(0),
+                    most_delay: Word::new(5000),
+                },
+                KindRepeats {
+                    _word_0: Word::new(1),
+                    most: Word::new(0),
+                    least_delay: Word::new(0),
+                    most_delay: Word::new(0),
+                },
+                KindRepeats {
+                    _word_0: Word::new(1),
+                    most: Word::new(0),
+                    least_delay: Word::new(0),
+                    most_delay: Word::new(0),
+                },
+            ],
+            spot_work_a: Dword::new(0),
+            spot_work_b: Dword::new(0),
+            _gap_5c: [
+                Dword::new(1),
+                Dword::new(2),
+                Dword::new(3),
+                Dword::new(4),
+                Dword::new(5),
+                Dword::new(6),
+                Dword::new(9),
+                Dword::new(7),
+                Dword::new(8),
+            ],
+        }
+    }
+}
 
 impl SpotPicks {
     pub const START: usize = 0x517f40;
     pub const LEN: usize = 0x140;
 
+    #[cfg(test)]
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        crate::pointers::game_address(&SPOT_PICKS as *const SpotPicks) as usize
+        crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.spot_picks)
+            as usize
     }
 }
 
 /// Set once the kept sound settings are applied (IDA 0x518080 .. 0x518084, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SettingsApplied {
     /// `dword_518080`: set once the kept sound settings are applied (`sound::apply_settings`, `sound::set_up_race_sounds`).
     pub done: Dword,
 }
 
-pub static SETTINGS_APPLIED: SettingsApplied = SettingsApplied {
-    done: Dword::new(0),
-};
+impl SettingsApplied {
+    pub const fn new() -> Self {
+        SettingsApplied {
+            done: Dword::new(0),
+        }
+    }
+}
 
 impl SettingsApplied {
     pub const START: usize = 0x518080;
     pub const LEN: usize = 0x4;
 
+    #[cfg(test)]
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        crate::pointers::game_address(&SETTINGS_APPLIED as *const SettingsApplied) as usize
+        crate::pointers::game_address(&raw const crate::sound::owner::SOUND.menu.settings_applied)
+            as usize
     }
 }
 
 /// The kept sound options (IDA 0x5180f0 .. 0x518104, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SoundOptions {
     /// `dword_5180F0`: kept in `var\ral.dat` (`saves::load_options`); what it sets is not worked out.
     pub kept_f0: Dword,
@@ -1004,26 +1047,32 @@ pub struct SoundOptions {
     pub race_music_volume: Dword,
 }
 
-pub static SOUND_OPTIONS: SoundOptions = SoundOptions {
-    kept_f0: Dword::new(1),
-    name_switch: Dword::new(0),
-    tune_turn: Dword::new(0),
-    music_volume: Dword::new(0x20),
-    race_music_volume: Dword::new(0x20),
-};
+impl SoundOptions {
+    pub const fn new() -> Self {
+        SoundOptions {
+            kept_f0: Dword::new(1),
+            name_switch: Dword::new(0),
+            tune_turn: Dword::new(0),
+            music_volume: Dword::new(0x20),
+            race_music_volume: Dword::new(0x20),
+        }
+    }
+}
 
 impl SoundOptions {
     pub const START: usize = 0x5180f0;
     pub const LEN: usize = 0x14;
 
+    #[cfg(test)]
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        crate::pointers::game_address(&SOUND_OPTIONS as *const SoundOptions) as usize
+        crate::pointers::game_address(&raw const crate::sound::owner::SOUND.menu.options) as usize
     }
 }
 
 /// The CD audio's state (IDA 0x518104 .. 0x518120, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CdAudio {
     /// `dword_518104`: `nocdaudio` (`var\ral.cfg`).
     pub no_cd_audio: Dword,
@@ -1041,58 +1090,56 @@ pub struct CdAudio {
     pub work_11c: Dword,
 }
 
-pub static CD_AUDIO: CdAudio = CdAudio {
-    no_cd_audio: Dword::new(1),
-    open: Dword::new(0),
-    _gap_10c: Dword::new(0),
-    track: Dword::new(0),
-    work_114: Dword::new(0),
-    mci_id: Dword::new(0),
-    work_11c: Dword::new(0),
-};
+impl CdAudio {
+    pub const fn new() -> Self {
+        CdAudio {
+            no_cd_audio: Dword::new(1),
+            open: Dword::new(0),
+            _gap_10c: Dword::new(0),
+            track: Dword::new(0),
+            work_114: Dword::new(0),
+            mci_id: Dword::new(0),
+            work_11c: Dword::new(0),
+        }
+    }
+}
 
 impl CdAudio {
     pub const START: usize = 0x518104;
     pub const LEN: usize = 0x1c;
 
+    #[cfg(test)]
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        crate::pointers::game_address(&CD_AUDIO as *const CdAudio) as usize
+        crate::pointers::game_address(&raw const crate::sound::owner::SOUND.menu.cd_audio) as usize
     }
 }
 
 // ---- single variables the game's thread keeps ----
 
-/// `g_nextMenuSoundTime` (IDA 0x511B0C): the clock the next menu sound may be heard at.
-pub static NEXT_MENU_SOUND_TIME: Dword = Dword::new(0);
-
-/// `g_raceSoundsOn` (0x6218F0): 1 at start; the race's sounds switched.
-pub static RACE_SOUNDS_ON: Dword = Dword::new(1);
-
-/// The car stream's three dwords (0xA8C180 .. 0xA8C18C): the place it is at, its list, and
+/// The car stream's three dwords (0xA8C180 .. 0xA8C18C): the place it is at, its list (a
+/// speech row's `texts_store::text_key`; the original kept its address), and
 /// whether it is on (`sound::play_car_stream`, `sound::step_car_stream`, the stage
 /// view's speech).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CarStream {
     pub place: Dword,  // dword_A8C180
     pub stream: Dword, // dword_A8C184
     pub on: Dword,     // dword_A8C188
 }
 
-pub static CAR_STREAM: CarStream = CarStream {
-    place: Dword::new(0),
-    stream: Dword::new(0),
-    on: Dword::new(0),
-};
-
-pub const CAR_STREAM_IDA: usize = 0xA8C180;
-
-/// Sets `g_raceSoundObjects` to the objects' places now.
-pub fn point_sound_objects() {
-    for (pointer, object) in RACE_SOUNDS.table.iter().zip(&RACE_SOUNDS.objects) {
-        pointer.set(crate::pointers::game_address(object as *const SoundObject));
+impl CarStream {
+    pub const fn new() -> Self {
+        CarStream {
+            place: Dword::new(0),
+            stream: Dword::new(0),
+            on: Dword::new(0),
+        }
     }
 }
+
+pub const CAR_STREAM_IDA: usize = 0xA8C180;
 
 #[cfg(test)]
 mod tests {
@@ -1105,10 +1152,20 @@ mod tests {
 
     #[test]
     fn single_variables_start_as_the_games() {
-        assert_eq!(dword(&NEXT_MENU_SOUND_TIME), image_bytes(0x511B0C, 4));
-        assert_eq!(dword(&RACE_SOUNDS_ON), image_bytes(0x6218F0, 4));
+        assert_eq!(
+            dword(&crate::sound::owner::sound().menu.next_sound_time),
+            image_bytes(0x511B0C, 4)
+        );
+        assert_eq!(
+            dword(&crate::sound::owner::sound().race.sounds_on),
+            image_bytes(0x6218F0, 4)
+        );
         let mut stream = Vec::new();
-        for d in [&CAR_STREAM.place, &CAR_STREAM.stream, &CAR_STREAM.on] {
+        for d in [
+            &crate::sound::owner::sound().race.car_stream.place,
+            &crate::sound::owner::sound().race.car_stream.stream,
+            &crate::sound::owner::sound().race.car_stream.on,
+        ] {
             stream.extend(dword(d));
         }
         assert_eq!(stream, image_bytes(CAR_STREAM_IDA, 12));
@@ -1116,9 +1173,15 @@ mod tests {
     }
 
     #[test]
+    fn objects_are_by_number_within_the_eight() {
+        assert!(SoundObject::number(7).is_ok());
+        assert!(SoundObject::number(8).is_err());
+    }
+
+    #[test]
     fn wheel_surfaces_start_as_the_games() {
         let image = crate::moved::image_bytes(0x4F66F1, 8);
-        let mine = unsafe { std::slice::from_raw_parts(WHEEL_SURFACES.as_ptr() as *const u8, 8) };
+        let mine = unsafe { std::slice::from_raw_parts(WHEEL_SURFACES.as_ptr().cast::<u8>(), 8) };
         assert_eq!(mine, &image[..]);
     }
 
@@ -1128,7 +1191,7 @@ mod tests {
         let image = crate::moved::image_bytes(0x516358, 0x44);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(surface_sounds_addr()) as *const u8,
+                crate::pointers::host(surface_sounds_addr()).cast_const(),
                 0x44,
             )
         };
@@ -1149,7 +1212,7 @@ mod tests {
         let image = crate::moved::image_bytes(0x51655C, 0x364);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(stage_sounds_addr()) as *const u8,
+                crate::pointers::host(stage_sounds_addr()).cast_const(),
                 0x364,
             )
         };
@@ -1162,7 +1225,7 @@ mod tests {
         let image = crate::moved::image_bytes(SpotPicks::START, SpotPicks::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(SpotPicks::home()) as *const u8,
+                crate::pointers::host_at(SpotPicks::home()).cast_const(),
                 SpotPicks::LEN,
             )
         };
@@ -1175,7 +1238,7 @@ mod tests {
         let image = crate::moved::image_bytes(SettingsApplied::START, SettingsApplied::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(SettingsApplied::home()) as *const u8,
+                crate::pointers::host_at(SettingsApplied::home()).cast_const(),
                 SettingsApplied::LEN,
             )
         };
@@ -1188,7 +1251,7 @@ mod tests {
         let image = crate::moved::image_bytes(SoundOptions::START, SoundOptions::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(SoundOptions::home()) as *const u8,
+                crate::pointers::host_at(SoundOptions::home()).cast_const(),
                 SoundOptions::LEN,
             )
         };
@@ -1201,7 +1264,7 @@ mod tests {
         let image = crate::moved::image_bytes(CdAudio::START, CdAudio::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(CdAudio::home()) as *const u8,
+                crate::pointers::host_at(CdAudio::home()).cast_const(),
                 CdAudio::LEN,
             )
         };
@@ -1234,7 +1297,7 @@ mod tests {
         let image = crate::moved::image_bytes(0x512A10, 0x2580);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(race_sounds_addr()) as *const u8,
+                crate::pointers::host(race_sounds_addr()).cast_const(),
                 0x2580,
             )
         };
@@ -1247,7 +1310,7 @@ mod tests {
         let image = crate::moved::image_bytes(0x5124E4, 0x24);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(super::race_clock_addr()) as *const u8,
+                crate::pointers::host(super::race_clock_addr()).cast_const(),
                 0x24,
             )
         };

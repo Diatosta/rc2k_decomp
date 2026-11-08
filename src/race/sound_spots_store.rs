@@ -1,8 +1,11 @@
 //! The face-drawing, sound-band and sound-spot part of the race block: the face kind flags, view-window limits, sound tables and scratch, and the 36 sound spots with their count. Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SoundSpotBlock {
     /// +0x0 (0x6D18C8): `g_workVectorLength` (a reading: float, stored by fst/movss).
     pub work_vector_length: Float,
@@ -52,21 +55,16 @@ pub struct SoundSpotBlock {
     pub unknown_500: [Dword; 3],
 }
 
-/// The piece: the race block's bytes at IDA 0x6D18C8 seen as `SoundSpotBlock`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = SoundSpotBlock;
-    fn deref(&self) -> &SoundSpotBlock {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const SoundSpotBlock) }
+/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl SoundSpotBlock {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static RACE_SOUND_SPOTS: InRaceBlock = InRaceBlock;
 
 /// IDA 0x6D18C8, the first byte of the piece.
 pub const START: usize = 0x6D18C8;
@@ -75,9 +73,10 @@ pub const END: usize = 0x6D1DD4;
 
 const _: () = assert!(END - START == core::mem::size_of::<SoundSpotBlock>());
 
-/// Where IDA 0x6D18C8 is now (in the race block).
+/// Where IDA 0x6D18C8 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.sound_spots))
 }
 
 #[cfg(test)]
@@ -86,7 +85,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&race().frame.sound_spots, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

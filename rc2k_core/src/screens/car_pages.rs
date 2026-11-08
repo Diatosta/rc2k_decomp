@@ -18,7 +18,8 @@ pub struct CarDescription {
     pub car: u32,
     /// String: the car's name.
     pub name: u32,
-    pub field_8: u32,
+    /// The car's class, 0 .. 3 (a player's `class`, the standings' group).
+    pub class: u32,
     /// Cubic centimetres.
     pub capacity: u32,
     /// String.
@@ -51,7 +52,50 @@ pub struct CarDescription {
     pub weight: u32,
     /// String: the first of the seven lines of its description.
     pub description: u32,
-    pub field_74: u32,
+    /// Where its figures are (an IDA address into the description texts,
+    /// `cars_store::description_table`).
+    pub figures: u32,
+}
+
+impl CarDescription {
+    /// The record from its 120 bytes in the game's layout (little-endian dwords).
+    pub const fn from_le_bytes(b: [u8; 120]) -> Self {
+        const fn word(b: &[u8; 120], n: usize) -> u32 {
+            u32::from_le_bytes([b[4 * n], b[4 * n + 1], b[4 * n + 2], b[4 * n + 3]])
+        }
+        Self {
+            car: word(&b, 0),
+            name: word(&b, 1),
+            class: word(&b, 2),
+            capacity: word(&b, 3),
+            engine_type: word(&b, 4),
+            power: word(&b, 5),
+            power_rpm: word(&b, 6),
+            torque: word(&b, 7),
+            torque_rpm: word(&b, 8),
+            bore: word(&b, 9),
+            stroke: word(&b, 10),
+            compression: word(&b, 11),
+            transmission: word(&b, 12),
+            drive: word(&b, 13),
+            steering: word(&b, 14),
+            front_brake_size: word(&b, 15),
+            rear_brake_size: word(&b, 16),
+            front_brakes: word(&b, 17),
+            rear_brakes: word(&b, 18),
+            front_suspension: word(&b, 19),
+            rear_suspension: word(&b, 20),
+            length: word(&b, 21),
+            width: word(&b, 22),
+            height: word(&b, 23),
+            wheelbase: word(&b, 24),
+            front_track: word(&b, 25),
+            rear_track: word(&b, 26),
+            weight: word(&b, 27),
+            description: word(&b, 28),
+            figures: word(&b, 29),
+        }
+    }
 }
 
 const _: () = assert!(std::mem::size_of::<CarDescription>() == 0x78);
@@ -62,11 +106,10 @@ pub enum Font {
     Figures,
 }
 
+/// No work variable: the original keeps the description's buffer's address in
+/// `dword_7559EC`, a scratch dword every other reader sets before reading.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Work {
-    /// `dword_7559EC`: the description's text buffer.
-    TextKept,
-}
+pub enum Work {}
 
 /// The string "n/d".
 const NOT_KNOWN: u32 = 0x578;
@@ -170,8 +213,6 @@ pub fn page<S: Screen<Font = Font, Work = Work>>(
             } else {
                 let text = p.s.strings(d.description, 7)?;
                 p.s.store(Buffer::Text, &text)?;
-                let at = p.s.buffer_address(Buffer::Text);
-                p.s.keep(Work::TextKept, at);
                 p.carry = p.s.draw(Font::Figures, Buffer::Text, 0x1A4, 0xD5)?.too_wide;
             }
         }
@@ -305,11 +346,11 @@ mod tests {
         fn strings(&mut self, first: u32, n: u32) -> Result<Vec<u8>, Invalid> {
             Ok(format!("d{first:x}x{n}\0").into_bytes())
         }
-        fn sprite(&mut self, _: u32, _: i32, _: i32, _: u32) -> Result<(), Invalid> {
+        fn sprite(&mut self, _: u32, _: i32, _: i32) -> Result<(), Invalid> {
             unreachable!()
         }
-        fn keep(&mut self, w: Work, v: u32) {
-            self.0.push(format!("keep {w:?} {v}"));
+        fn keep(&mut self, w: Work, _: u32) {
+            match w {}
         }
         fn bar(&mut self, _: Bar) -> Result<(), Invalid> {
             unreachable!()
@@ -345,7 +386,7 @@ mod tests {
         };
         let mut s = Record::default();
         page(&mut s, 0, &mut other, 3, 0).unwrap();
-        assert_eq!(s.0[1], "Figures \"d600x7\\0\" 0x1a4 0xd5");
+        assert_eq!(s.0, ["Figures \"d600x7\\0\" 0x1a4 0xd5"]);
         assert!(page(&mut Record::default(), 3, &mut other, 0, 2).is_ok());
         let mut s = Record::default();
         other.length = 120;

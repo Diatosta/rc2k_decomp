@@ -4,55 +4,53 @@
 //! raised to |`flt_6D3108`|, `unk_71A20C` = 1, `unk_71A1CC` = 0x32;
 //! `physics::feel_ground`.
 //!
-//! In:  nothing
-//! Out: the registers as the calls leave them; no flags read (callers go on)
-//!
-//! Callers: `sub_43B635` (every physics step), `sub_43BDD1`. Refuses (before anything) a
-//! probe point past 0x3F (the tables' room), and what its calls refuse (what was written
-//! put back).
+//! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`. Refuses
+//! (before anything) a probe point past 0x3F (the tables' room), and what its calls refuse (what
+//! was written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
-use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::crossed_edge_contact::check_probe;
+use crate::race::owner::Race;
+use crate::race::owner_physics::Physics;
 
 /// The steps, not guarded (the probe checked before).
 // Converted: `rc2k_core::physics::walls::{NONE_CROSSED, raised_hit}`.
-pub fn steps() -> Result<(), Refused> {
-    let n = CONTACT_WORK.crossed_probe.get();
+pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let physics_store = &race.physics;
+    let n = physics_store.contact.crossed_probe.get();
     if n == rc2k_core::physics::walls::NONE_CROSSED {
         return Ok(());
     }
     let k = n as usize;
-    CAR.contact_point[0].set_bits(CAR.probe_point_x[k].bits());
-    CAR.contact_point[1].set_bits(CAR.probe_point_y[k].bits());
-    CAR.contact_point[2].set_bits(CAR.probe_point_z[k].bits());
-    unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
-    crate::physics::crossed_edge_contact::steps()?;
+    race.shared.car.contact_point[0].set_bits(race.shared.car.probe_point_x[k].bits());
+    race.shared.car.contact_point[1].set_bits(race.shared.car.probe_point_y[k].bits());
+    race.shared.car.contact_point[2].set_bits(race.shared.car.probe_point_z[k].bits());
+    { crate::physics::restore_saved_car::restore_saved_car(race) }?;
+    crate::physics::crossed_edge_contact::steps(race, scene)?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
-        f32::from_bits(CONTACT_WORK.contact_speed_length.bits()),
-        f32::from_bits(CAR.contact_depth.bits()),
+        f32::from_bits(physics_store.contact.contact_speed_length.bits()),
+        f32::from_bits(race.shared.car.contact_depth.bits()),
     ) {
-        CAR.contact_depth.set_bits(hit.to_bits());
+        race.shared.car.contact_depth.set_bits(hit.to_bits());
     }
-    CAR.contact_flag.set(1);
-    CAR.wall_hit_timer.set(0x32);
-    unsafe { crate::physics::feel_ground::feel_ground() }
+    race.shared.car.contact_flag.set(1);
+    race.shared.car.wall_hit_timer.set(0x32);
+    crate::physics::feel_ground::feel_ground(race, scene)
 }
 
 /// The probe checked (-1 is none).
-pub fn check() -> Result<(), Refused> {
-    if CONTACT_WORK.crossed_probe.get() == rc2k_core::physics::walls::NONE_CROSSED {
+pub fn check(physics: &Physics) -> Result<(), Refused> {
+    if physics.contact.crossed_probe.get() == rc2k_core::physics::walls::NONE_CROSSED {
         return Ok(());
     }
-    check_probe()
+    check_probe(physics)
 }
 
 /// The Rust version. The registers it leaves are read by none of its callers.
-pub fn crossed_edge() -> Result<(), Refused> {
-    check()?;
-    steps()
+pub fn crossed_edge(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    check(&race.physics)?;
+    steps(race, scene)
 }

@@ -4,6 +4,7 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct StagePrefs {
     /// +0x0 (0x608CB4): the first 0x100 bytes of `g_stagePrefs`, the stage's `localdat` (0x206C bytes read in place; `race::stage_prefs`); not used by name.
     pub prefs_head: [Dword; 64],
@@ -131,21 +132,23 @@ pub struct StagePrefs {
     pub surface_scale: [Dword; 2],
 }
 
-/// The piece: the race block's bytes at IDA 0x608CB4 seen as `StagePrefs`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = StagePrefs;
-    fn deref(&self) -> &StagePrefs {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const StagePrefs) }
+/// The piece: a field of `race::owner::Race::course`, formerly a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl StagePrefs {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
 
-pub static STAGE_PREFS: InRaceBlock = InRaceBlock;
+impl StagePrefs {
+    /// The piece as its dwords in order: the stage's `localdat` read in place.
+    pub fn dwords(&self) -> &[Dword; (END - START) / 4] {
+        crate::pointers::dwords_in(self, 0)
+    }
+}
 
 /// IDA 0x608CB4, the first byte of the piece.
 pub const START: usize = 0x608CB4;
@@ -154,9 +157,12 @@ pub const END: usize = 0x60AD20;
 
 const _: () = assert!(END - START == core::mem::size_of::<StagePrefs>());
 
-/// Where IDA 0x608CB4 is now (in the race block).
+/// Where IDA 0x608CB4 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::race::owner::RACE.course.stage_prefs,
+    ))
 }
 
 #[cfg(test)]
@@ -165,7 +171,16 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(
+            &crate::race::owner::RACE.course.stage_prefs,
+            START,
+            END,
+        );
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

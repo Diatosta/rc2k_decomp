@@ -2,27 +2,23 @@
 //! that ends the editing and the message is not empty, it is sent (`net::send_chat_regs`,
 //! this machine's player) and the input emptied.
 //!
-//! In:  al = the key
-//! Out: as `net::edit_key` leaves them while editing goes on; after it eax = the player,
-//!      ebx = the input; no `pusha`
+//! Takes the key.
 //! Caller: `net::lobby_loop`.
 
 use crate::errors::Refused;
-use crate::net::store::NET;
+use crate::net::owner::Net;
 
 /// The Rust version: the key `key` for the chat message being typed; once it ends the
 /// editing, a message typed is sent and the input cleared. The registers the original
 /// leaves (eax the player, ebx the input) are read by no caller (`lobby_loop`).
-pub fn chat_key(key: u8) -> Result<(), Refused> {
-    if !crate::net::edit_key::edit_key(key)? {
+pub fn chat_key(net: &Net, key: u8) -> Result<(), Refused> {
+    let vars = &net.vars;
+    if !crate::net::edit_key::edit_key(net, key)? {
         return Ok(());
     }
-    if NET.chat_input.get(0) != 0 {
-        crate::net::send_chat::send_chat(
-            NET.player.get(),
-            crate::pointers::host(NET.chat_input.addr()) as *const u8,
-        )?;
-        NET.chat_input.set(0, 0);
+    if vars.chat_input.get(0) != 0 {
+        crate::net::send_chat::send_chat(net, vars.player.get(), &vars.chat_input.read())?;
+        vars.chat_input.set(0, 0);
     }
     Ok(())
 }

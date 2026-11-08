@@ -1,9 +1,7 @@
 //! `gfx::blit_glyph` (0x4069B2): draws one run-length-encoded glyph on the global surface,
 //! clipped to the global clip rectangle.
 //!
-//! In:  eax = glyph index, ecx = x, edx = y, ebx = palette (256 dwords), esi = glyph table
-//! Out: esi, edi and ebp preserved. eax, ebx, ecx and edx hold leftovers of the drawing loops;
-//!      the Rust version reproduces them, because the function has hundreds of callers.
+//! Takes: glyph index, x, y, palette (256 dwords), glyph table
 //! No surface, a null table and a glyph index past the table are fatal errors in the original:
 //! `glyph_record` returns them as errors.
 //!
@@ -16,9 +14,9 @@
 //! the pixels are copied as they are, whatever the surface depth.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::gfx::blit::BLIT;
-use crate::gfx::surface::{Clip, Surface, clip, surface};
-use crate::pointers::{GameBytes, GamePtr};
+use crate::gfx::glyph_store::{self, Glyphs};
+use crate::gfx::surface::{Clip, Surface, Target, clip, surface};
+use rc2k_core::strings::bytes::Bytes as _;
 
 // ---- game data ----
 
@@ -36,20 +34,22 @@ pub struct Scratch {
     pub rows_left: i32,
 }
 
-fn read_scratch() -> Scratch {
+fn read_scratch(gfx: &crate::gfx::owner::Gfx) -> Scratch {
+    let drawing = &gfx.drawing;
     Scratch {
-        left_skip: BLIT.left_skip.get() as i32,
-        visible_w: BLIT.visible_width.get() as i32,
-        top_skip: BLIT.top_skip.get() as i32,
-        rows_left: BLIT.rows_left.get() as i32,
+        left_skip: drawing.blit.left_skip.get() as i32,
+        visible_w: drawing.blit.visible_width.get() as i32,
+        top_skip: drawing.blit.top_skip.get() as i32,
+        rows_left: drawing.blit.rows_left.get() as i32,
     }
 }
 
-fn write_scratch(s: &Scratch) {
-    BLIT.left_skip.set(s.left_skip as u32);
-    BLIT.visible_width.set(s.visible_w as u32);
-    BLIT.top_skip.set(s.top_skip as u32);
-    BLIT.rows_left.set(s.rows_left as u32);
+fn write_scratch(s: &Scratch, gfx: &crate::gfx::owner::Gfx) {
+    let drawing = &gfx.drawing;
+    drawing.blit.left_skip.set(s.left_skip as u32);
+    drawing.blit.visible_width.set(s.visible_w as u32);
+    drawing.blit.top_skip.set(s.top_skip as u32);
+    drawing.blit.rows_left.set(s.rows_left as u32);
 }
 
 /// The three conditions the original reports as fatal errors, each with a null message.
@@ -68,85 +68,71 @@ pub const GLYPH_OUT_OF_RANGE: FatalError = FatalError {
 
 /// Record number `glyph` of a glyph table (`add esi, [esi+eax*4]`), after the three checks
 /// the original makes first.
-pub fn glyph_record(surface: &Surface, table: GamePtr, glyph: u32) -> Result<GameBytes, Refused> {
-    if surface.base == 0 {
+pub fn glyph_record(surface: &Surface, table: u32, glyph: u32) -> Result<Glyphs, Refused> {
+    if surface.target.is_none() {
         return Err(NO_SURFACE.into());
     }
-    if table.addr() == 0 {
+    if table == 0 {
         return Err(NO_GLYPH_TABLE.into());
     }
-    if glyph >= table.read::<u32>("a glyph table")? >> 2 {
+    let records = glyph_store::bytes(table, "a glyph table")?;
+    let count = records.u32_le(0).ok_or(BadInput("a glyph table"))?;
+    if glyph >= count >> 2 {
         return Err(GLYPH_OUT_OF_RANGE.into());
     }
-    let offset = table
-        .offset(glyph.wrapping_mul(4))
-        .read::<u32>("a glyph table's offset")?;
-    Ok(table.offset(offset).bytes("a glyph")?)
+    let offset = records
+        .u32_le(glyph.wrapping_mul(4) as usize)
+        .ok_or(BadInput("a glyph table's offset"))?;
+    Ok(match records {
+        Glyphs::Held(b, from) => Glyphs::Held(b, from.wrapping_add(offset as usize)),
+        Glyphs::Game(_) => glyph_store::bytes(table.wrapping_add(offset), "a glyph")?,
+    })
 }
 
 // ---- Rust version ----
-// Converted: `rc2k_core::gfx::blit`. Here the record is read as raw game memory and the core's
-// offsets from the surface's start are made addresses again.
+// Converted: `rc2k_core::gfx::blit`. Here the record is read as raw game memory; the core's
+// offsets from the surface's start go to its target (`gfx::surface::Target`).
 
-/// The four registers the original does not preserve, as it leaves them.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Exit {
-    pub eax: u32,
-    pub ebx: u32,
-    pub ecx: u32,
-    pub edx: u32,
-}
-
-/// The part of the surface a glyph may touch: `rows` spans of `row_bytes` bytes, the first at
-/// address `first`, each `pitch` bytes after the one before.
-#[derive(Clone, Copy, Debug)]
-pub struct Area {}
-
-/// Draws the glyph `record` at (`x`, `y`). `put(address, bytes)` receives every write.
-/// Returns the registers the original leaves and, unless the glyph is clipped away, the part
-/// of the surface it may have touched.
+/// Draws the glyph `record` at (`x`, `y`). `put(offset, bytes)` receives every write, the
+/// offset from the surface's start.
 #[allow(clippy::too_many_arguments)] // the original's five inputs, the surface, the clip and the sink
 pub fn blit_glyph(
-    record: &GameBytes,
+    record: &Glyphs,
     x: i32,
     y: i32,
-    palette: GamePtr,
+    palette: Option<u32>,
     surface: &Surface,
     clip: &Clip,
     scratch: &mut Scratch,
     put: &mut dyn FnMut(u32, &[u8]),
-) -> Result<(Exit, Option<Area>), Refused> {
+) -> Result<(), Refused> {
     use rc2k_core::gfx::blit as core;
-    use rc2k_core::strings::bytes::Bytes as _;
-    let base = surface.base;
     let mut work = core::Scratch {
         left_skip: scratch.left_skip,
         visible_w: scratch.visible_w,
         top_skip: scratch.top_skip,
         rows_left: scratch.rows_left,
     };
-    // The palette read inside its allocation, and only when a colour is looked up (some
-    // callers pass a leftover value for glyphs that never need one, as the original never
-    // reads it then); an entry outside answers 0 here and the blit is refused afterwards
-    // (the core's colour has no failure).
+    // The palette read inside its allocation, and only when a colour is looked up (the
+    // sprites have none: the original hands them leftover values it never reads, as their
+    // records are direct colour); an entry outside, or a lookup with no palette, answers 0
+    // here and the blit is refused afterwards (the core's colour has no failure).
     let colours = std::cell::OnceCell::new();
     let past_palette = std::cell::Cell::new(false);
     let colour = |n: u8| {
         let at = 4 * n as usize;
-        let Ok(colours) = colours.get_or_init(|| palette.bytes("a palette")) else {
+        let Some(palette) = palette else {
             past_palette.set(true);
             return 0;
         };
-        match (0..4)
-            .map(|k| colours.byte(at + k))
-            .collect::<Option<Vec<u8>>>()
-        {
-            Some(b) => u32::from_le_bytes([b[0], b[1], b[2], b[3]]),
-            None => {
-                past_palette.set(true);
-                0
-            }
-        }
+        let Ok(colours) = colours.get_or_init(|| glyph_store::bytes(palette, "a palette")) else {
+            past_palette.set(true);
+            return 0;
+        };
+        colours.u32_le(at).unwrap_or_else(|| {
+            past_palette.set(true);
+            0
+        })
     };
     let blitted = core::blit_glyph(
         record,
@@ -165,13 +151,18 @@ pub fn blit_glyph(
             bottom: clip.bottom,
         },
         &mut work,
-        &mut |offset, bytes| put(base.wrapping_add(offset), bytes),
+        &mut |offset, bytes| put(offset, bytes),
     );
-    let Ok((exit, area)) = blitted else {
+    let Ok(()) = blitted else {
         return Err(BadInput("a read past a glyph's record").into());
     };
     if past_palette.get() {
-        return Err(BadInput("a colour past a palette's allocation").into());
+        return Err(BadInput(if palette.is_some() {
+            "a colour past a palette's allocation"
+        } else {
+            "a palette-indexed glyph drawn with no palette"
+        })
+        .into());
     }
     *scratch = Scratch {
         left_skip: work.left_skip,
@@ -179,33 +170,25 @@ pub fn blit_glyph(
         top_skip: work.top_skip,
         rows_left: work.rows_left,
     };
-    let exit = Exit {
-        eax: exit.eax,
-        ebx: match exit.ebx {
-            core::Ebx::Value(v) => v,
-            core::Ebx::Row(offset) => base.wrapping_add(offset),
-        },
-        ecx: exit.ecx,
-        edx: exit.edx,
-    };
-    let area = area.map(|_a| Area {});
-    Ok((exit, area))
+    Ok(())
 }
 
 /// Draws glyph `glyph` of `table` on the game's surface with the game's clip rectangle, and
 /// updates the blitter's work globals: what a call of the original does.
 pub fn blit_glyph_on_surface(
     glyph: u32,
-    table: GamePtr,
+    table: u32,
     x: i32,
     y: i32,
-    palette: GamePtr,
-) -> Result<Exit, Refused> {
+    palette: Option<u32>,
+) -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
     let surface = surface();
     let record = glyph_record(&surface, table, glyph)?;
-    let mut scratch = read_scratch();
+    let mut scratch = read_scratch(gfx);
+    let target = surface.target.ok_or(NO_SURFACE)?;
     let surface_window = crate::pointers::Window::new();
-    let (exit, _) = {
+    {
         blit_glyph(
             &record,
             x,
@@ -214,11 +197,20 @@ pub fn blit_glyph_on_surface(
             &surface,
             &clip(),
             &mut scratch,
-            &mut |addr, bytes| surface_window.write_bytes_or_end(addr, bytes, "the surface"),
+            &mut |offset, bytes| match target {
+                Target::Address(a) => {
+                    surface_window.write_bytes_or_end(a.wrapping_add(offset), bytes, "the surface");
+                }
+                Target::Picture(n) => {
+                    if let Err(e) = crate::gfx::picture::write_bytes(n, offset as usize, bytes) {
+                        crate::fatal::raise::end("the surface", e)
+                    }
+                }
+            },
         )
     }?;
-    write_scratch(&scratch);
-    Ok(exit)
+    write_scratch(&scratch, gfx);
+    Ok(())
 }
 
 // ---- a call, as the canvases pass it on ----
@@ -229,21 +221,36 @@ pub struct BlitCall {
     pub glyph: u32,
     pub x: i32,
     pub y: i32,
-    pub palette: u32,
+    /// A font's palette (a glyph store handle); none for the sprite table's sprites, which
+    /// are direct colour (`gfx::build_menu_sprites` checks).
+    pub palette: Option<u32>,
     pub table: u32,
     /// `g_clipRight` at the time of the call: one caller narrows it around a blit.
     pub clip_right: i32,
 }
 
 impl BlitCall {
-    /// A call made now, with the clip rectangle as the game has it at this moment.
-    pub fn new(glyph: u32, x: i32, y: i32, palette: u32, table: u32) -> Self {
+    /// A call made now, with the clip rectangle as the game has it at this moment: glyph
+    /// `glyph` of a font's table with its palette.
+    pub fn glyph(glyph: u32, x: i32, y: i32, palette: u32, table: u32) -> Self {
         Self {
             glyph,
             x,
             y,
-            palette,
+            palette: Some(palette),
             table,
+            clip_right: clip().right,
+        }
+    }
+
+    /// Sprite `glyph` of the sprite table (`g_spriteTable`), made now.
+    pub fn sprite(glyph: u32, x: i32, y: i32) -> Self {
+        Self {
+            glyph,
+            x,
+            y,
+            palette: None,
+            table: crate::gfx::blit_marker_pair::sprite_table(),
             clip_right: clip().right,
         }
     }

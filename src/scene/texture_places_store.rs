@@ -6,10 +6,11 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct TexturePlaces {
     /// +0x0 (0x5D2AE8): `dword_5D2AE8`: the texture of each slot (`scene::try_allocate_textures`).
     pub texture_of: [Dword; 1024],
-    /// +0x1000 (0x5D3AE8): `dword_5D3AE8`: each place's slot (`scene::look_up_texture`, `scene::map_texture_places`, `scene::draw_polygon`, `race::frame_draw`). [1999] is `dword_5D5A24`, the hexagons' texture (`marks::hexagons_setup`).
+    /// +0x1000 (0x5D3AE8): `dword_5D3AE8`: each place's slot (`scene::look_up_texture`, `scene::map_texture_places`, `scene::draw_polygon`, `race::frame_draw`). [1999] is `dword_5D5A24`, the windscreen drops' texture (`effects::windscreen_drops_setup`).
     pub place_slot: [Dword; 4000],
     /// +0x4e80 (0x5D7968): `g_kindPictures`: the picture number of each kind (IDA types it int[4]; the code reaches [0x87], [0x258] ..) (`race::set_all_plates`, `scene::reload_system_textures`, `scene::set_up_front_end_scene`).
     pub kind_pictures: [Dword; 1024],
@@ -51,25 +52,19 @@ pub fn cell_at(first: &Dword, index: u32) -> &Dword {
     let at = first
         .addr()
         .wrapping_add(((index as usize).wrapping_mul(4)) as u32);
-    // SAFETY: as the game's own access, inside the race block; `Dword` is a 4-aligned cell.
-    unsafe { &*(crate::pointers::host_at(at as usize) as *const Dword) }
+    crate::pointers::cell_or_end(at, "a cell past a texture table")
 }
 
-/// The piece: the race block's bytes at IDA 0x5D2AE8 seen as `TexturePlaces`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = TexturePlaces;
-    fn deref(&self) -> &TexturePlaces {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const TexturePlaces) }
+impl TexturePlaces {
+    /// The piece with the image's first values (a static of its own since 2026-10-29: it left
+    /// the race block, phase 13, `race::store::LEFT`; the owner `scene::owner::Scene` holds it).
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static TEXTURE_PLACES: InRaceBlock = InRaceBlock;
 
 /// IDA 0x5D2AE8, the first byte of the piece.
 pub const START: usize = 0x5D2AE8;
@@ -78,18 +73,27 @@ pub const END: usize = 0x5E9EC8;
 
 const _: () = assert!(END - START == core::mem::size_of::<TexturePlaces>());
 
-/// Where IDA 0x5D2AE8 is now (in the race block).
+/// Where IDA 0x5D2AE8 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::scene::owner::scene().textures.places,
+    ))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scene::owner::scene;
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&scene().textures.places, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

@@ -8,10 +8,7 @@
 //! `drive::finish_race_0`, `dword_75B108` 0, the front end's set-up again (with the
 //! race's sounds once more); a key taken at the end (eax 0).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Caller: `sub_4A0E60`. The finders are their Rust versions (their fatal errors raised as the
+//! The finders are their Rust versions (their fatal errors raised as the
 //! original's). Refuses the leader's ecx past 3 (the original reads past `g_players`) and what the
 //! finders refuse, before anything.
 
@@ -19,8 +16,8 @@ use crate::errors::Refused;
 use crate::menu::finish_calls::Game;
 use rc2k_core::menu::finish;
 
-/// The Rust version (see the header).
-pub fn championship_finish() -> Result<(), Refused> {
+/// The Rust version.
+pub fn championship_finish(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::finish::championship_finish`.
-    Game::run(finish::championship_finish)
+    Game::run(menus, finish::championship_finish)
 }

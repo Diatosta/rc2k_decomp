@@ -9,76 +9,87 @@
 //! up to 16, else `off_51D9E8`) into `off_51D5F8` with its item count set to the number
 //! plus two.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`)
 //! Caller `install::run_installer`. Its two probes: `files::drive_type`,
 //! `files::drive_free_space_kb`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
-use crate::install::installer::{game_api, wb, wd};
-use crate::install::vars::INSTALLER_PAGES;
-use crate::install::vars::INSTALLER_RUN;
+use crate::install::installer::{wb, wd};
+use crate::install::page_links::PageLink;
+use crate::install::vars::InstallerPages;
+use core::mem::offset_of;
 use rc2k_core::install::drives::{self, DriveMenu};
 
-pub fn list_drives() {
-    let drives = crate::session::address_of(&INSTALLER_RUN.drives);
-    let mut letter = INSTALLER_RUN.first_drive.get();
+pub fn list_drives(install: &'static crate::install::owner::Install) {
+    let drives = crate::place::Place::from(crate::pointers::GamePtr::to(&install.run.drives));
+    let mut letter = install.run.first_drive.get();
     loop {
         // Converted: `rc2k_core::install::drives` (`offered`, `LISTED`, `free`, `text`,
         // `menu`, `items`).
-        let kind = unsafe { crate::files::drive_type::drive_type(letter as u8) };
+        let kind = crate::files::drive_type::drive_type(letter as u8);
         if drives::offered(kind)
-            && let Some(free) =
-                crate::files::drive_free_space_kb::drive_free_space_kb(letter, &mut game_api)
+            && let Some(free) = crate::files::drive_free_space_kb::drive_free_space_kb(letter)
         {
-            let slot = drives + 8 * letter.wrapping_sub(b'a' as u32);
+            let slot = drives.add(8u32.wrapping_mul(letter.wrapping_sub(b'a' as u32)));
             wd(slot, g_at(slot).wrapping_add(1));
-            wd(slot + 4, free);
+            wd(slot.add(4), free);
         }
         letter = letter.wrapping_add(1);
         if letter > b'z' as u32 {
             break;
         }
     }
-    INSTALLER_RUN.drive_count.set(0);
-    let mut ebx = crate::install::store::DRIVE_ROWS.drive_rows.addr();
+    install.run.drive_count.set(0);
+    let mut ebx = crate::place::Place::from(&install.drive_rows.drive_rows);
     // 'a' .. 'y': the loop's `cmp ecx, 7Ah; jb` leaves 'z' out (the game's slip, section 16)
     for letter in drives::LISTED {
-        let slot = drives + 8 * (letter - b'a') as u32;
+        let slot = drives.add(8 * (letter - b'a') as u32);
         if g_at(slot) == 0 {
             continue;
         }
-        INSTALLER_RUN
+        install
+            .run
             .drive_count
-            .set(INSTALLER_RUN.drive_count.get() + 1);
+            .set(install.run.drive_count.get() + 1);
         let row = ebx;
         wb(row, letter);
-        let free = drives::free(g_at(slot + 4));
+        let free = drives::free(g_at(slot.add(4)));
         let mut unit = Vec::new();
         crate::menu::event_flow::refuse_here(
-            crate::strings::append_string_by_id::append_string_by_id(free.unit, &mut |from, n| {
-                unit.extend_from_slice(unsafe { std::slice::from_raw_parts(from, n) });
+            crate::strings::append_string_by_id::append_string_by_id(free.unit, &mut |bytes| {
+                unit.extend_from_slice(bytes);
             }),
             "install::list_drives: a string",
         );
         // the original writes the letter, skips a byte (`add ebx, 2`), then the rest
         for (n, &b) in drives::text(free, &unit).iter().enumerate() {
-            wb(row + 2 + n as u32, b);
+            wb(row.add(2 + n as u32), b);
         }
-        ebx = row + 0x10;
+        ebx = row.add(0x10);
     }
-    let count = INSTALLER_RUN.drive_count.get();
-    let menu = (match drives::menu(count) {
-        DriveMenu::Eight => INSTALLER_PAGES.menu_8.addr(),
-        DriveMenu::Sixteen => INSTALLER_PAGES.menu_16.addr(),
-        DriveMenu::More => INSTALLER_PAGES.menu_more.addr(),
-    }) as u32;
-    INSTALLER_PAGES.chosen_menu.set_u32(0, menu);
-    wb(menu + 1, drives::items(count));
+    let count = install.run.drive_count.get();
+    let (menu, name) = match drives::menu(count) {
+        DriveMenu::Eight => (
+            crate::place::Place::from(&install.pages.menu_8),
+            offset_of!(InstallerPages, menu_8),
+        ),
+        DriveMenu::Sixteen => (
+            crate::place::Place::from(&install.pages.menu_16),
+            offset_of!(InstallerPages, menu_16),
+        ),
+        DriveMenu::More => (
+            crate::place::Place::from(&install.pages.menu_more),
+            offset_of!(InstallerPages, menu_more),
+        ),
+    };
+    // A link to the menu (`page_links::PageLink`).
+    install
+        .pages
+        .chosen_menu
+        .set_u32(0, PageLink::in_pages_at(name).raw());
+    crate::menu::list_handle::ListMenu::of(menu).set_count(drives::items(count));
 }
 
-fn g_at(at: u32) -> u32 {
+fn g_at(at: crate::place::Place) -> u32 {
     crate::install::installer::rd(at)
 }

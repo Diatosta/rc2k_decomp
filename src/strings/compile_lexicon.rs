@@ -1,33 +1,27 @@
 //! `strings::compile_lexicon` (0x40356E): makes the string table from the language file.
 //!
-//! The original ("Compiling lexicon..." in the game's log) is a compiler of 25 functions on
-//! memory of its own; what they do is in `strings/lexicon.rs`. Around that: it zeroes its
-//! 0xC44 bytes of work variables (`dword_94EAB4` on), takes `dword_519554` * 0x400 bytes on
-//! the list `stru_519558`, reads the first file matching `files\%locale\*.txt` (at most
-//! 0x40000 bytes), compiles, writes the table at 0x4E07F8 and points `g_stringTable` at it,
-//! logs its counts when the log level is 3 or more, and gives the memory back. There must
-//! be 0x757 messages, or it is fatal error 0x80E18052; an error in the file is logged with
-//! its line and ends in fatal error 0x80E18051 (the original's error paths jump back to its
-//! own start with `dword_94EAB0` set, and it ends there).
-//! The Rust version leaves the work variables that are pointers into the given-back memory
-//! 0 (the original leaves them dangling), and raises the fatal errors itself (`compiled`).
+//! The original ("Compiling lexicon..." in the game's log) is a compiler of 25 functions on memory
+//! of its own; what they do is in `strings/lexicon.rs`. Around that: it zeroes its 0xC44 bytes of
+//! work variables (`dword_94EAB4` on), takes `dword_519554` * 0x400 bytes on the list
+//! `stru_519558`, reads the first file matching `files\%locale\*.txt` (at most 0x40000 bytes),
+//! compiles, writes the table at 0x4E07F8 and points `g_stringTable` at it, logs its counts when
+//! the log level is 3 or more, and gives the memory back. There must be 0x757 messages, or it is
+//! fatal error 0x80E18052; an error in the file is logged with its line and ends in fatal error
+//! 0x80E18051 (the original's error paths jump back to its own start with `dword_94EAB0` set, and
+//! it ends there). The Rust version leaves the work variables that are pointers into the given-back
+//! memory 0 (the original leaves them dangling), and raises the fatal errors itself (`compiled`).
 //! Callers: `strings::load_language` (from `start` and the installer) and
 //! `strings::maybe_compile_lexicon`.
-//! Hook removed 2026-10-21 (conversion phase 4); the original's registers: none in, every
-//! register preserved.
 
 use crate::errors::{FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
-use crate::logfile::log_write::log_write;
 use crate::logfile::write_line::level;
 use crate::memory::MemoryList;
-use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
-use crate::moved::Place;
-use crate::session::{Dword, Shared};
-use crate::strings::string_table::{lexicon, use_lexicon};
+use crate::session::Dword;
+use crate::strings::owner::{Lexicon, strings};
 use rc2k_core::strings::lexicon::{Compiled, compile};
 
 // ---- game data ----
@@ -36,7 +30,6 @@ use rc2k_core::strings::lexicon::{Compiled, compile};
 /// `dword_94EAB4` ..). Written here, read by nothing now (the original's compiler read
 /// them).
 pub const WORK_LEN: usize = 0xC44;
-pub static WORK: Place<[u32; WORK_LEN / 4]> = Place::new([0; WORK_LEN / 4]);
 /// The work variables that are counts, as offsets into the block, in `Compiled`'s order;
 /// before them the flags word (0x11000000) at 0, after them the unused count at 0x30.
 const PADDED: usize = 0x04;
@@ -61,39 +54,38 @@ pub const MEMORY_LEN: usize = 0x519598 - MEMORY_START;
 
 /// The lexicon compiler's memory (the glyph builder takes the same work memory).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LexiconMemory {
     /// `dword_519554`: the memory's kilobytes (`imageheapsize`, a `var\ral.cfg` setting;
     /// the glyph tables' work memory is sized by it too).
     pub kilobytes: Dword,
     /// `g_lexiconMemory` (`stru_519558`): the list the memory is taken from (16 bytes).
-    pub memory: Shared<MemoryList>,
+    pub memory: crate::memory::ListCells,
     /// `0x519568` .. `0x519598`: nothing reads or writes them (a gap).
     pub _gap_14: [Dword; 12],
 }
 
-/// The lexicon's memory; the first values are the image's.
-pub static LEXICON: LexiconMemory = LexiconMemory {
-    kilobytes: Dword::new(0x400),
-    memory: Shared::new(MemoryList {
-        head: 0,
-        total: 0,
-        cursor: 0,
-        remaining: 0,
-    }),
-    _gap_14: [const { Dword::new(0) }; 12],
-};
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x519554).
-pub fn memory_home() -> usize {
-    crate::pointers::game_address(&LEXICON as *const LexiconMemory) as usize
+impl LexiconMemory {
+    /// The lexicon's memory; the first values are the image's.
+    pub const fn new() -> Self {
+        LexiconMemory {
+            kilobytes: Dword::new(0x400),
+            memory: crate::memory::ListCells::new(MemoryList {
+                head: 0,
+                total: 0,
+                cursor: 0,
+                remaining: 0,
+            }),
+            _gap_14: [const { Dword::new(0) }; 12],
+        }
+    }
 }
+
 /// The record all empty messages share (`unk_4F3034` in the image until 2026-10-24): +4 how
 /// often it was used (never reset), +0xC its index entry. Written here only.
 pub const EMPTY_MESSAGE_LEN: usize = 0x10;
-pub static EMPTY_MESSAGE: Place<[u32; EMPTY_MESSAGE_LEN / 4]> =
-    Place::new([0; EMPTY_MESSAGE_LEN / 4]);
 /// `aFilesLocaleTxt` (0x4E0770).
-const PATTERN: &[u8] = b"files\\%locale\\*.txt\0";
+const PATTERN: &[u8] = b"files\\%locale\\*.txt";
 const FILE_ROOM: u32 = 0x40000;
 const MESSAGE_COUNT: u32 = 0x757;
 
@@ -117,12 +109,12 @@ const WRONG_COUNT: FatalError = FatalError {
 /// `lexicon::report` (0x4040CC) for an error: "LC:" "ERROR:" and the reason on one line.
 /// The original adds "on line" with the line's number and its text; the core does not
 /// keep the line (`notes/reference.md` section 15).
-unsafe fn report(why: &str) {
+fn report(why: &str) {
     let why = why.strip_prefix("language file: ").unwrap_or(why);
     let mut text = b"LC:ERROR:".to_vec();
     text.extend_from_slice(why.as_bytes());
     text.push(0);
-    unsafe { line(&text, true) };
+    line(&text, true);
 }
 
 /// Reads the language file and compiles it, changing nothing of the game's but what the
@@ -130,30 +122,26 @@ unsafe fn report(why: &str) {
 /// does not load or does not compile is the original's fatal error: one that fails the
 /// compiler is reported in the log first. Memory and table overflows, which the original
 /// reports as 0x80E1801x / 2x, are 0x80E18051 here.
-pub unsafe fn compiled() -> Result<Compiled, FatalError> {
-    unsafe {
-        let memory = LEXICON.kilobytes.get().wrapping_mul(0x400);
-        if memory < FILE_ROOM {
-            report("the lexicon's memory is smaller than the file may be");
-            return Err(NOT_CREATED);
-        }
-        let mut text = vec![0u8; FILE_ROOM as usize];
-        let lent = crate::pointers::Lent::new(&text);
-        let read = read_first_match(PATTERN.as_ptr(), text.as_mut_ptr(), FILE_ROOM, 0)
-            .ok()
-            .flatten()
-            .ok_or(NOT_LOADED)?;
-        drop(lent);
-        text.truncate(read as usize);
-        let compiled = compile(&text, memory).map_err(|e| {
-            report(e.0);
-            NOT_CREATED
-        })?;
-        if compiled.messages != MESSAGE_COUNT {
-            return Err(WRONG_COUNT);
-        }
-        Ok(compiled)
+pub fn compiled(lexicon: &Lexicon) -> Result<Compiled, FatalError> {
+    let memory = lexicon.memory.kilobytes.get().wrapping_mul(0x400);
+    if memory < FILE_ROOM {
+        report("the lexicon's memory is smaller than the file may be");
+        return Err(NOT_CREATED);
     }
+    let mut text = vec![0u8; FILE_ROOM as usize];
+    let read = read_first_match(PATTERN, &mut text, 0)
+        .ok()
+        .flatten()
+        .ok_or(NOT_LOADED)?;
+    text.truncate(read as usize);
+    let compiled = compile(&text, memory).map_err(|e| {
+        report(e.0);
+        NOT_CREATED
+    })?;
+    if compiled.messages != MESSAGE_COUNT {
+        return Err(WRONG_COUNT);
+    }
+    Ok(compiled)
 }
 
 /// The counts as the work variables hold them: (offset, value).
@@ -176,32 +164,43 @@ fn counts(compiled: &Compiled) -> [(usize, u32); 14] {
     ]
 }
 
-unsafe fn line(text: &[u8], newline: bool) {
+fn line(text: &[u8], newline: bool) {
     debug_assert!(text.ends_with(&[0]));
-    unsafe { log_write(text.as_ptr(), newline, 1) };
+    crate::logfile::log_write::log_nul(text, newline, 1);
 }
 
-pub unsafe fn compile_lexicon() -> Result<(), Refused> {
-    unsafe {
+pub fn compile_lexicon() -> Result<(), Refused> {
+    let strings = strings();
+    {
         line(b"Compiling lexicon...\0", true);
-        let compiled = compiled()?;
-        let work = &mut *WORK.ptr();
-        work.fill(0);
-        // The original's memory, for the game's memory figures: taken and given back.
-        let list = LEXICON.memory.as_ptr();
-        let memory = allocate(list, LEXICON.kilobytes.get().wrapping_mul(0x400))?;
-        (*list).cursor = crate::pointers::game_address(memory);
-        (*list).remaining = (*list).total;
+        let compiled = compiled(&strings.lexicon)?;
+        strings.lexicon.work.write(&[0; WORK_LEN]);
+        // The original's memory, for the game's memory figures: counted and given back
+        // (nothing is put in it: the lexicon is built in Rust's memory).
+        let list = &strings.lexicon.memory.memory;
+        crate::memory::owned::count_on(
+            list,
+            strings.lexicon.memory.kilobytes.get().wrapping_mul(0x400),
+        )?;
 
         for (offset, value) in counts(&compiled) {
-            work[offset / 4] = value;
+            strings.lexicon.work.set_u32(offset, value);
         }
-        let empty = &mut *EMPTY_MESSAGE.ptr();
-        empty[1] = empty[1].wrapping_add(compiled.empty_messages);
-        empty[3] = compiled.index_size;
-        crate::pointers::GamePtr::new(crate::pointers::game_address(lexicon()))
+        strings.lexicon.empty_message.set_u32(
+            4,
+            strings
+                .lexicon
+                .empty_message
+                .get_u32(4)
+                .wrapping_add(compiled.empty_messages),
+        );
+        strings
+            .lexicon
+            .empty_message
+            .set_u32(12, compiled.index_size);
+        crate::strings::string_table::lexicon_room()
             .write_bytes(&compiled.table, "the lexicon's memory")?;
-        use_lexicon();
+        crate::strings::string_table::publish()?;
 
         if level() as i32 >= 3 {
             let number = |text: &[u8], value: u32| {
@@ -237,17 +236,19 @@ pub unsafe fn compile_lexicon() -> Result<(), Refused> {
 #[cfg(test)]
 mod tests {
     use crate::moved::image_bytes;
+    use crate::strings::owner::strings;
 
     #[test]
     fn lexicon_memory_first_values_are_the_games() {
+        let strings = strings();
         crate::gfx::first_values_are_the_games(
-            &super::LEXICON,
+            &strings.lexicon.memory,
             super::MEMORY_START,
             super::MEMORY_START + super::MEMORY_LEN,
         );
         assert_eq!(
             crate::moved::place(0x519558),
-            super::LEXICON.memory.addr() as usize
+            strings.lexicon.memory.memory.addr() as usize
         );
     }
 

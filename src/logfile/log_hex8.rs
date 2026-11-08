@@ -1,9 +1,6 @@
 //! `logfile::log_hex8` (0x4015F4): logs the low 8 hex digits of eax.
 //!
-//! In:  eax = the value, dl = 1 for a line break after it, dh = level - 1
-//! Out: see `numeric.rs`
-//! Hook removed 2026-10-22 (direct calls): Rust callers run the typed
-//! function; calls by address `numeric::number_entry` (`routes.rs`); the registers above are the original's, for reference.
+//! Takes the value, 1 for a line break after it, level - 1.
 
 use crate::errors::BadInput;
 use crate::logfile::numeric::{Body, NumberText, log_number};

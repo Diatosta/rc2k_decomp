@@ -2,36 +2,50 @@
 //! glyph, palette) blitted, each at (dx + x, dy + y) with its palette (`gfx::blit_glyph`).
 //! The x and y come in ecx and edx.
 //!
-//! In:  eax the count, ebx the table, ecx x, edx y
-//! Out: every register kept (`pusha` / `popa`)
+//! Takes the count, table, x, y.
 //! Caller the copy-progress frame (the install bar). Refuses a count of 0
 //! (the original's loop is a do-while: it
 //! would blit 2^32 records).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
-use crate::install::installer::rd;
+use crate::install::installer::{rd, rl};
 use rc2k_core::install::layout;
 
-/// `count` records of `table` blitted at (x, y) on, from the glyph table `glyphs` (esi).
-pub fn blit_glyph_list(count: u32, table: u32, x: u32, y: u32, glyphs: u32) -> Result<(), Refused> {
+/// `count` records of `table` blitted at (x, y) on, from the glyph table `glyphs`.
+pub fn blit_glyph_list(
+    count: u32,
+    table: impl Into<crate::place::Place>,
+    x: u32,
+    y: u32,
+    glyphs: u32,
+) -> Result<(), Refused> {
+    let table: crate::place::Place = table.into();
     // Converted: `rc2k_core::install::layout` (`list_records`, `list_place`).
     for (offset, _) in layout::list_records(count)? {
-        let record = table.wrapping_add(offset);
-        let (x, y) = layout::list_place(rd(record), rd(record + 4), x, y);
+        let record = table.add(offset);
+        let (x, y) = layout::list_place(rd(record), rd(record.add(4)), x, y);
         // gfx::blit_glyph (0x4069B2): eax the glyph, ebx the palette.
         {
             crate::gfx::blit_glyph::blit_glyph_on_surface(
-                rd(record + 8),
-                crate::pointers::GamePtr::new(glyphs),
+                rd(record.add(8)),
+                glyphs,
                 x as i32,
                 y as i32,
-                // (The bar's records name the blended palette's home: `moved::point_into_homes`.)
-                crate::pointers::GamePtr::new(rd(record + 0xC)),
+                Some(palette(rl(record.add(0xC)))),
             )
         }?;
     }
     Ok(())
+}
+
+/// The palette a record's link names: the blended palette, the only one the pages name.
+fn palette(link: crate::install::page_links::PageLink) -> u32 {
+    if !link.is_blended_palette() {
+        crate::install::installer::refuse(crate::errors::BadInput(
+            "a glyph list's palette that is not the blended palette",
+        ));
+    }
+    crate::pointers::GamePtr::to(&crate::text::blend_font::BLENDED_PALETTE).addr()
 }

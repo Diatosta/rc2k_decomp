@@ -16,23 +16,22 @@
 //!   `DestroyPlayer`, `CreateGroup`, `AddPlayerToGroup`, `DeletePlayerFromGroup`,
 //!   `EnumPlayers`, `EnumGroups`, `GetPlayerData`, `SetPlayerData`), `SetSessionDesc`, `Send`,
 //!   `Receive` (DPERR_NOMESSAGES, DPERR_BUFFERTOOSMALL as DirectPlay), `Close`.
-//! - The lobby object: `CreateCompoundAddress`; the rest of a lobby's launch is not there
-//!   (DPERR_NOTLOBBIED: the standalone program is never launched by one).
+//! - The lobby object: `CreateCompoundAddress` (the original never takes a lobby's launch:
+//!   `net::open_lobby`).
 //!
-//! The methods the game does not call answer E_NOTIMPL (DPERR_UNSUPPORTED), each with its
-//! own number of arguments (`stdcall`: the callee takes them off the stack).
+//! The game calls the methods as the functions here (phase 11, 2026-10-26: before, through
+//! COM method tables), on objects held as ids; the enumerations' callbacks are Rust
+//! functions. The methods the game does not call are not here. Since 2026-10-29 they take
+//! and give typed values (GUIDs, names, the session's `Desc`, byte buffers, results
+//! returned) in place of the structures' addresses; the callbacks get them the same way.
 
 use crate::net::dp_session::{
     DEFAULT_PORT, DP_OK, Desc, Session, Signal, find_sessions, session_address,
 };
-use crate::net::types::{DpAddressElement, DpName, DpSessionDesc};
 use std::ffi::CString;
-use std::mem::size_of;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 
-const E_NOTIMPL: u32 = 0x8000_4001;
-const E_NOINTERFACE: u32 = 0x8000_4002;
 const CLASS_NOT_REGISTERED: u32 = 0x8004_0154;
 const DPERR_ALREADYINITIALIZED: u32 = 0x8877_0005;
 const DPERR_BUFFERTOOSMALL: u32 = 0x8877_001E;
@@ -42,7 +41,6 @@ const DPERR_INVALIDPLAYER: u32 = 0x8877_0096;
 const DPERR_NOMESSAGES: u32 = 0x8877_00BE;
 const DPERR_NOSESSIONS: u32 = 0x8877_00DC;
 const DPERR_UNINITIALIZED: u32 = 0x8877_0140;
-const DPERR_NOTLOBBIED: u32 = 0x8877_042E;
 
 const DPOPEN_JOIN: u32 = 1;
 const DPOPEN_CREATE: u32 = 2;
@@ -128,109 +126,88 @@ struct State {
     session: Option<Arc<Session>>,
 }
 
-#[repr(C)]
+/// An `IDirectPlay4A` or `IDirectPlayLobby2A` object.
 struct Object {
-    /// The table's game address.
-    table: u32,
     refs: AtomicU32,
     state: Mutex<State>,
 }
 
-fn object<'a>(this: u32) -> &'a Object {
-    crate::pointers::check_or_end(this, size_of::<Object>(), "a DirectPlay object");
-    // SAFETY: a live object's region (registered in `make` until its last release).
-    unsafe { &*(crate::pointers::host(this) as *const Object) }
-}
+/// The objects by id (what the game holds of each: never 0).
+static OBJECTS: Mutex<Vec<(u32, Arc<Object>)>> = Mutex::new(Vec::new());
+static NEXT: AtomicU32 = AtomicU32::new(1);
 
-fn state(this: u32) -> std::sync::MutexGuard<'static, State> {
-    object(this).state.lock().unwrap_or_else(|e| e.into_inner())
-}
-
-fn session(this: u32) -> Option<Arc<Session>> {
-    state(this).session.clone()
-}
-
-fn make(table: u32) -> u32 {
-    // A region until its last release: the game's code reads its table by address.
-    crate::pointers::lend(
-        Box::into_raw(Box::new(Object {
-            table,
-            refs: AtomicU32::new(1),
-            state: Mutex::new(State::default()),
-        })),
-        size_of::<Object>(),
-    )
-}
-
-fn read_guid(at: u32) -> Option<Guid> {
-    (at != 0).then(|| crate::pointers::read_or_end(at, "a DirectPlay GUID"))
-}
-
-fn put(at: u32, v: u32) {
-    if at != 0 {
-        crate::pointers::write_or_end(at, v, "a DirectPlay method's result")
+fn object(this: u32) -> Arc<Object> {
+    let objects = OBJECTS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    match objects.iter().find(|(id, _)| *id == this) {
+        Some((_, o)) => Arc::clone(o),
+        None => {
+            drop(objects);
+            end(crate::errors::BadInput(
+                "a DirectPlay object that is not there",
+            ))
+        }
     }
 }
 
-fn get(at: u32) -> u32 {
-    crate::pointers::read_or_end(at, "a DirectPlay method's argument")
+/// The object's state, for `f`.
+fn with_state<R>(this: u32, f: impl FnOnce(&mut State) -> R) -> R {
+    let o = object(this);
+    let mut s = o
+        .state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    f(&mut s)
+}
+
+fn session(this: u32) -> Option<Arc<Session>> {
+    with_state(this, |s| s.session.clone())
+}
+
+fn make() -> u32 {
+    let id = NEXT.fetch_add(1, Ordering::SeqCst);
+    OBJECTS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .push((
+            id,
+            Arc::new(Object {
+                refs: AtomicU32::new(1),
+                state: Mutex::new(State::default()),
+            }),
+        ));
+    id
 }
 
 fn end(e: crate::errors::BadInput) -> ! {
     crate::fatal::raise::end("net::dp_objects", e)
 }
 
-/// A NUL-ended text at `at` (none: empty).
-fn text(at: u32) -> String {
-    if at == 0 {
-        return String::new();
-    }
-    let bytes = crate::files::cstring(crate::pointers::GamePtr::new(at), "a DirectPlay text")
-        .unwrap_or_else(|e| end(e));
-    String::from_utf8_lossy(&bytes).into_owned()
+/// A name's text up to its NUL (or its end).
+fn name_text(name: &[u8]) -> String {
+    let n = name.iter().position(|&b| b == 0).unwrap_or(name.len());
+    String::from_utf8_lossy(&name[..n]).into_owned()
 }
 
-/// A DPNAME's short name.
-fn short_name(name: u32) -> String {
-    if name == 0 {
-        return String::new();
+/// The thing's bytes copied to `out` (as DirectPlay into the caller's buffer): the result
+/// and the bytes' count (DPERR_BUFFERTOOSMALL when they do not fit).
+fn give(data: &[u8], out: &mut [u8]) -> (u32, u32) {
+    let size = data.len() as u32;
+    match out.get_mut(..data.len()) {
+        Some(room) => {
+            room.copy_from_slice(data);
+            (DP_OK, size)
+        }
+        None => (DPERR_BUFFERTOOSMALL, size),
     }
-    text(crate::pointers::read_or_end::<DpName>(name, "a DPNAME").short_name)
 }
 
-fn bytes(at: u32, n: u32) -> Vec<u8> {
-    if at == 0 || n == 0 {
-        return vec![];
-    }
-    crate::pointers::GamePtr::new(at)
-        .read_bytes(n as usize, "DirectPlay data")
-        .unwrap_or_else(|e| end(e))
-}
-
-/// The thing's bytes copied to `at`, `size` (in: the room, out: the bytes' count) set:
-/// DPERR_BUFFERTOOSMALL when they do not fit.
-fn give(data: &[u8], at: u32, size: u32) -> u32 {
-    if size == 0 {
-        return DPERR_INVALIDPARAMS;
-    }
-    let room = get(size) as usize;
-    put(size, data.len() as u32);
-    if at == 0 || room < data.len() {
-        return DPERR_BUFFERTOOSMALL;
-    }
-    crate::pointers::GamePtr::new(at)
-        .write_bytes(data, "DirectPlay data")
-        .unwrap_or_else(|e| end(e));
-    DP_OK
-}
-
-/// A player's event signalled (a Windows event's handle).
+/// A player's event signalled (`sync`'s handle).
 fn signal() -> Signal {
     Arc::new(|event: u32| {
         if event != 0 {
-            unsafe {
-                windows_sys::Win32::System::Threading::SetEvent(crate::pointers::handle(event))
-            };
+            crate::sync::set_event(event);
         }
     })
 }
@@ -252,129 +229,87 @@ fn fresh_guid() -> Guid {
     g
 }
 
-/// `CoCreateInstance` for DirectPlay's two classes: the object into `out`, or the error.
-pub fn create(class: u32, interface: u32, out: u32) -> i32 {
-    let (Some(class), Some(interface)) = (read_guid(class), read_guid(interface)) else {
-        return DPERR_INVALIDPARAMS as i32;
-    };
-    let made = if class == CLSID_DIRECTPLAY && interface == IID_IDIRECTPLAY4A {
-        make(play_table())
-    } else if class == CLSID_DIRECTPLAYLOBBY && interface == IID_IDIRECTPLAYLOBBY2A {
-        make(lobby_table())
+/// `CoCreateInstance` for DirectPlay's two classes: the object, or the error.
+pub fn create(class: &Guid, interface: &Guid) -> Result<u32, u32> {
+    if (*class == CLSID_DIRECTPLAY && *interface == IID_IDIRECTPLAY4A)
+        || (*class == CLSID_DIRECTPLAYLOBBY && *interface == IID_IDIRECTPLAYLOBBY2A)
+    {
+        Ok(make())
     } else {
-        put(out, 0);
-        return CLASS_NOT_REGISTERED as i32;
-    };
-    put(out, made);
-    DP_OK as i32
+        Err(CLASS_NOT_REGISTERED)
+    }
 }
 
 // ---- IUnknown ----
 
-extern "system" fn query_play(this: u32, iid: u32, out: u32) -> u32 {
-    query(this, iid, out, IID_IDIRECTPLAY4A)
-}
-
-extern "system" fn query_lobby(this: u32, iid: u32, out: u32) -> u32 {
-    query(this, iid, out, IID_IDIRECTPLAYLOBBY2A)
-}
-
-fn query(this: u32, iid: u32, out: u32, own: Guid) -> u32 {
-    if read_guid(iid) == Some(own) {
-        object(this).refs.fetch_add(1, Ordering::SeqCst);
-        put(out, this);
-        DP_OK
-    } else {
-        put(out, 0);
-        E_NOINTERFACE
-    }
-}
-
-extern "system" fn add_ref(this: u32) -> u32 {
-    object(this).refs.fetch_add(1, Ordering::SeqCst) + 1
-}
-
-unsafe extern "system" fn release(this: u32) -> u32 {
+/// `Release`: the references left; at none the session is closed and the object goes.
+pub fn release(this: u32) -> u32 {
     let left = object(this).refs.fetch_sub(1, Ordering::SeqCst) - 1;
     if left == 0 {
         if let Some(s) = session(this) {
             s.close();
         }
-        let object = crate::pointers::host(this) as *mut Object;
-        crate::pointers::forget(this);
-        drop(unsafe { Box::from_raw(object) });
+        OBJECTS
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .retain(|(id, _)| *id != this);
     }
     left
 }
 
 // ---- IDirectPlay4A ----
 
-extern "system" fn add_player_to_group(this: u32, group: u32, player: u32) -> u32 {
+pub fn add_player_to_group(this: u32, group: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.add_to_group(group, player))
 }
 
-extern "system" fn close(this: u32) -> u32 {
-    if let Some(s) = state(this).session.take() {
+pub fn close(this: u32) -> u32 {
+    if let Some(s) = with_state(this, |s| s.session.take()) {
         s.close();
     }
     DP_OK
 }
 
-extern "system" fn create_group(
-    this: u32,
-    id: u32,
-    name: u32,
-    data: u32,
-    size: u32,
-    _flags: u32,
-) -> u32 {
+/// `CreateGroup`: the group's id, or the error.
+pub fn create_group(this: u32, name: &[u8], data: &[u8]) -> Result<u32, u32> {
     let Some(s) = session(this) else {
-        return DPERR_UNINITIALIZED;
+        return Err(DPERR_UNINITIALIZED);
     };
-    let (result, made) = { s.create_group(&short_name(name), &bytes(data, size)) };
-    if result == DP_OK {
-        put(id, made);
+    match s.create_group(&name_text(name), data) {
+        (DP_OK, made) => Ok(made),
+        (e, _) => Err(e),
     }
-    result
 }
 
-extern "system" fn create_player(
-    this: u32,
-    id: u32,
-    name: u32,
-    event: u32,
-    data: u32,
-    size: u32,
-    _flags: u32,
-) -> u32 {
+/// `CreatePlayer` (its event signalled when a message comes for it): the player's id, or
+/// the error.
+pub fn create_player(this: u32, name: &[u8], event: u32, data: &[u8]) -> Result<u32, u32> {
     let Some(s) = session(this) else {
-        return DPERR_UNINITIALIZED;
+        return Err(DPERR_UNINITIALIZED);
     };
-    let (result, made) = { s.create_player(&short_name(name), &bytes(data, size), event) };
-    if result == DP_OK {
-        put(id, made);
+    match s.create_player(&name_text(name), data, event) {
+        (DP_OK, made) => Ok(made),
+        (e, _) => Err(e),
     }
-    result
 }
 
-extern "system" fn delete_player_from_group(this: u32, group: u32, player: u32) -> u32 {
+pub fn delete_player_from_group(this: u32, group: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.remove_from_group(group, player))
 }
 
-extern "system" fn destroy_player(this: u32, player: u32) -> u32 {
+pub fn destroy_player(this: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.destroy_player(player))
 }
 
-type EnumPlayersCallback = unsafe extern "system" fn(u32, u32, u32, u32, u32) -> u32;
+/// `EnumPlayers` / `EnumGroups`' callback: (the id, the kind, its short name, flags, the
+/// context) -> 0 to stop.
+pub type EnumPlayersCallback = fn(u32, u32, &[u8], u32, u32) -> u32;
 
-/// The players (kind 1) or the groups (kind 0) to `callback`, each with a DPNAME.
-unsafe fn enumerate(this: u32, callback: u32, context: u32, kind: u32) -> u32 {
+/// The players (kind 1) or the groups (kind 0) to `callback`, each with its name.
+fn enumerate(this: u32, callback: EnumPlayersCallback, context: u32, kind: u32) -> u32 {
     let Some(s) = session(this) else {
         return DPERR_UNINITIALIZED;
     };
-    if callback == 0 {
-        return DPERR_INVALIDPARAMS;
-    }
     let world = s.world();
     let list: Vec<(u32, String)> = if kind == 1 {
         world
@@ -389,177 +324,101 @@ unsafe fn enumerate(this: u32, callback: u32, context: u32, kind: u32) -> u32 {
             .map(|(id, g)| (*id, g.name.clone()))
             .collect()
     };
-    let callback: EnumPlayersCallback =
-        unsafe { std::mem::transmute(crate::pointers::code(callback)) };
     for (id, name) in list {
         let name = CString::new(name).unwrap_or_default();
-        // Lent to the callback, which reads it as the game's memory.
-        let _lent = crate::pointers::Lent::new(name.as_bytes_with_nul());
-        let dpname = dp_name(&name);
-        if unsafe {
-            callback(
-                id,
-                kind,
-                crate::pointers::game_address(&dpname as *const DpName),
-                0,
-                context,
-            )
-        } == 0
-        {
+        if callback(id, kind, name.as_bytes_with_nul(), 0, context) == 0 {
             break;
         }
     }
     DP_OK
 }
 
-unsafe extern "system" fn enum_groups(
-    this: u32,
-    _guid: u32,
-    callback: u32,
-    context: u32,
-    _flags: u32,
-) -> u32 {
-    unsafe { enumerate(this, callback, context, 0) }
+pub fn enum_groups(this: u32, callback: EnumPlayersCallback, context: u32) -> u32 {
+    enumerate(this, callback, context, 0)
 }
 
-unsafe extern "system" fn enum_players(
-    this: u32,
-    _guid: u32,
-    callback: u32,
-    context: u32,
-    _flags: u32,
-) -> u32 {
-    unsafe { enumerate(this, callback, context, 1) }
+pub fn enum_players(this: u32, callback: EnumPlayersCallback, context: u32) -> u32 {
+    enumerate(this, callback, context, 1)
 }
 
-/// A session's DPSESSIONDESC2 (its name at `name`).
-fn session_desc(d: &Desc, name: &CString) -> DpSessionDesc {
-    DpSessionDesc {
-        size: size_of::<DpSessionDesc>() as u32,
-        flags: d.flags,
-        instance: d.instance,
-        application: d.application,
-        max_players: d.max_players,
-        current_players: d.current_players,
-        name: crate::pointers::game_address(name.as_ptr()),
-        password: 0,
-        reserved: [0; 2],
-        user: d.user,
-    }
-}
-
-/// A DPNAME of a short name (kept alive by `name`).
-fn dp_name(name: &std::ffi::CStr) -> DpName {
-    DpName {
-        size: size_of::<DpName>() as u32,
-        flags: 0,
-        short_name: crate::pointers::game_address(name.as_ptr()),
-        long_name: 0,
-    }
-}
-
-/// A DPSESSIONDESC2 read (its instance, application, name, flags, most players, user data).
-fn read_desc(at: u32) -> Desc {
-    {
-        let d: DpSessionDesc = crate::pointers::read_or_end(at, "a DPSESSIONDESC2");
-        Desc {
-            flags: d.flags,
-            instance: d.instance,
-            application: d.application,
-            max_players: d.max_players,
-            current_players: d.current_players,
-            name: text(d.name),
-            user: d.user,
+/// A DPSESSIONDESC2's fields (its name's text as `name`).
+pub fn desc(d: &crate::net::store::SessionDesc, name: &[u8]) -> Desc {
+    let guid = |c: &[crate::session::Dword; 4]| -> Guid {
+        let mut g = [0u8; 16];
+        for (k, cell) in c.iter().enumerate() {
+            g[4 * k..4 * k + 4].copy_from_slice(&cell.get().to_le_bytes());
         }
+        g
+    };
+    Desc {
+        flags: d.flags.get(),
+        instance: guid(&d.instance),
+        application: guid(&d.application),
+        max_players: d.max_players.get(),
+        current_players: d.current_players.get(),
+        name: name_text(name),
+        user: crate::session::read_all(&d.user),
     }
 }
 
-type EnumSessionsCallback = unsafe extern "system" fn(u32, u32, u32, u32) -> u32;
+/// `EnumSessions`' callback: (the session, or none at the end, flags, the context) -> 0
+/// to stop.
+pub type EnumSessionsCallback = fn(Option<&Desc>, u32, u32) -> u32;
 
-unsafe extern "system" fn enum_sessions(
+/// `EnumSessions` for `application`'s sessions.
+pub fn enum_sessions(
     this: u32,
-    desc: u32,
-    timeout: u32,
-    callback: u32,
+    application: &Guid,
+    callback: EnumSessionsCallback,
     context: u32,
     flags: u32,
 ) -> u32 {
-    let (host, port) = {
-        let s = state(this);
-        if !s.initialized {
-            return DPERR_UNINITIALIZED;
-        }
-        (s.host.clone(), s.port)
+    let Some((host, port)) = with_state(this, |s| s.initialized.then(|| (s.host.clone(), s.port)))
+    else {
+        return DPERR_UNINITIALIZED;
     };
-    if desc == 0 || callback == 0 {
-        return DPERR_INVALIDPARAMS;
-    }
-    let application = { read_desc(desc).application };
-    let callback: EnumSessionsCallback =
-        unsafe { std::mem::transmute(crate::pointers::code(callback)) };
-    let mut time = timeout;
-    let time_at = crate::pointers::game_address(&mut time as *mut u32);
-    for (d, _) in find_sessions(&host, port, application) {
+    for (d, _) in find_sessions(&host, port, *application) {
         let closed =
             d.flags & 0x21 != 0 || (d.max_players != 0 && d.current_players >= d.max_players);
         if flags & DPENUMSESSIONS_AVAILABLE != 0 && closed {
             continue;
         }
-        let name = CString::new(d.name.clone()).unwrap_or_default();
-        // Lent to the callback, which reads it as the game's memory.
-        let _lent = crate::pointers::Lent::new(name.as_bytes_with_nul());
-        let desc = session_desc(&d, &name);
-        if unsafe {
-            callback(
-                crate::pointers::game_address(&desc as *const DpSessionDesc),
-                time_at,
-                0,
-                context,
-            )
-        } == 0
-        {
+        if callback(Some(&d), 0, context) == 0 {
             return DP_OK;
         }
     }
-    unsafe { callback(0, time_at, DPESC_TIMEDOUT, context) };
+    callback(None, DPESC_TIMEDOUT, context);
     DP_OK
 }
 
-extern "system" fn get_player_data(
-    this: u32,
-    player: u32,
-    data: u32,
-    size: u32,
-    _flags: u32,
-) -> u32 {
+/// `GetPlayerData` into `out`: the result and the data's size.
+pub fn get_player_data(this: u32, player: u32, out: &mut [u8]) -> (u32, u32) {
     let Some(s) = session(this) else {
-        return DPERR_UNINITIALIZED;
+        return (DPERR_UNINITIALIZED, 0);
     };
     match s.world().players.get(&player) {
-        Some(p) => give(&p.data, data, size),
-        None => DPERR_INVALIDPLAYER,
+        Some(p) => give(&p.data, out),
+        None => (DPERR_INVALIDPLAYER, 0),
     }
 }
 
-extern "system" fn open(this: u32, desc: u32, flags: u32) -> u32 {
-    if desc == 0 {
-        return DPERR_INVALIDPARAMS;
-    }
-    let port = {
-        let s = state(this);
+pub fn open(this: u32, d: &Desc, flags: u32) -> u32 {
+    let port = match with_state(this, |s| {
         if !s.initialized {
-            return DPERR_UNINITIALIZED;
+            Err(DPERR_UNINITIALIZED)
+        } else if s.session.is_some() {
+            Err(DPERR_ALREADYINITIALIZED)
+        } else {
+            Ok(s.port)
         }
-        if s.session.is_some() {
-            return DPERR_ALREADYINITIALIZED;
-        }
-        s.port
+    }) {
+        Ok(port) => port,
+        Err(e) => return e,
     };
-    let d = { read_desc(desc) };
     let made = if flags & DPOPEN_CREATE != 0 {
         let d = Desc {
             instance: fresh_guid(),
-            ..d
+            ..d.clone()
         };
         Session::host(d, port, signal()).map_err(|_| DPERR_CANTCREATESESSION)
     } else if flags & DPOPEN_JOIN != 0 {
@@ -572,100 +431,79 @@ extern "system" fn open(this: u32, desc: u32, flags: u32) -> u32 {
     };
     match made {
         Ok(s) => {
-            state(this).session = Some(s);
+            with_state(this, |state| state.session = Some(s));
             DP_OK
         }
         Err(e) => e,
     }
 }
 
-extern "system" fn receive(
-    this: u32,
-    from: u32,
-    to: u32,
-    _flags: u32,
-    data: u32,
-    size: u32,
-) -> u32 {
-    let Some(s) = session(this) else {
-        return DPERR_UNINITIALIZED;
+/// What `Receive` gave: its result, the sender and addressee when a message was taken,
+/// the size when one was there.
+pub struct Received {
+    pub result: u32,
+    pub from_to: Option<(u32, u32)>,
+    pub size: Option<u32>,
+}
+
+/// `Receive` into `out`.
+pub fn receive(this: u32, out: &mut [u8]) -> Received {
+    let none = |result| Received {
+        result,
+        from_to: None,
+        size: None,
     };
-    if size == 0 {
-        return DPERR_INVALIDPARAMS;
-    }
-    let room = { if data == 0 { 0 } else { get(size) as usize } };
-    match s.receive(room) {
-        None => DPERR_NOMESSAGES,
-        Some(Err(n)) => {
-            put(size, n as u32);
-            DPERR_BUFFERTOOSMALL
-        }
+    let Some(s) = session(this) else {
+        return none(DPERR_UNINITIALIZED);
+    };
+    match s.receive(out.len()) {
+        None => none(DPERR_NOMESSAGES),
+        Some(Err(n)) => Received {
+            result: DPERR_BUFFERTOOSMALL,
+            from_to: None,
+            size: Some(n as u32),
+        },
         Some(Ok(m)) => {
-            put(from, m.from);
-            put(to, m.to);
-            give(&m.data, data, size)
+            let (result, size) = give(&m.data, out);
+            Received {
+                result,
+                from_to: Some((m.from, m.to)),
+                size: Some(size),
+            }
         }
     }
 }
 
-extern "system" fn send(this: u32, from: u32, to: u32, _flags: u32, data: u32, size: u32) -> u32 {
-    session(this).map_or(DPERR_UNINITIALIZED, |s| {
-        s.send(from, to, &bytes(data, size))
-    })
+pub fn send(this: u32, from: u32, to: u32, data: &[u8]) -> u32 {
+    session(this).map_or(DPERR_UNINITIALIZED, |s| s.send(from, to, data))
 }
 
-extern "system" fn set_player_data(
-    this: u32,
-    player: u32,
-    data: u32,
-    size: u32,
-    _flags: u32,
-) -> u32 {
-    session(this).map_or(DPERR_UNINITIALIZED, |s| {
-        s.set_player_data(player, &bytes(data, size))
-    })
+pub fn set_player_data(this: u32, player: u32, data: &[u8]) -> u32 {
+    session(this).map_or(DPERR_UNINITIALIZED, |s| s.set_player_data(player, data))
 }
 
-extern "system" fn set_session_desc(this: u32, desc: u32, _flags: u32) -> u32 {
+pub fn set_session_desc(this: u32, desc: &Desc) -> u32 {
     let Some(s) = session(this) else {
         return DPERR_UNINITIALIZED;
     };
-    if desc == 0 {
-        return DPERR_INVALIDPARAMS;
-    }
-    s.set_desc(read_desc(desc))
+    s.set_desc(desc.clone())
 }
 
-type EnumConnectionsCallback = unsafe extern "system" fn(u32, u32, u32, u32, u32, u32) -> u32;
+/// `EnumConnections`' callback: (the service provider's GUID, the connection's address,
+/// its name, flags, the context) -> 0 to stop.
+pub type EnumConnectionsCallback = fn(&Guid, &[u8], &[u8], u32, u32) -> u32;
 
-unsafe extern "system" fn enum_connections(
-    this: u32,
-    _app: u32,
-    callback: u32,
-    context: u32,
-    _flags: u32,
-) -> u32 {
-    let _ = this;
-    if callback == 0 {
-        return DPERR_INVALIDPARAMS;
-    }
+/// `EnumConnections`: TCP/IP alone.
+pub fn enum_connections(callback: EnumConnectionsCallback, context: u32) -> u32 {
     let address = compound(&[(DPAID_SERVICEPROVIDER, DPSPGUID_TCPIP.to_vec())]);
-    // Lent to the callback, which reads it as the game's memory.
-    let _lent = crate::pointers::Lent::new(&address);
     let name = c"Internet TCP/IP Connection For DirectPlay";
-    let dpname = dp_name(name);
-    let callback: EnumConnectionsCallback =
-        unsafe { std::mem::transmute(crate::pointers::code(callback)) };
-    unsafe {
-        callback(
-            crate::pointers::game_address(DPSPGUID_TCPIP.as_ptr()),
-            crate::pointers::game_address(address.as_ptr()),
-            address.len() as u32,
-            crate::pointers::game_address(&dpname as *const DpName),
-            0,
-            context,
-        )
-    };
+    callback(
+        &DPSPGUID_TCPIP,
+        &address,
+        name.to_bytes_with_nul(),
+        0,
+        context,
+    );
     DP_OK
 }
 
@@ -700,18 +538,24 @@ fn compound(parts: &[(Guid, Vec<u8>)]) -> Vec<u8> {
     v
 }
 
-extern "system" fn initialize_connection(this: u32, address: u32, _flags: u32) -> u32 {
-    let mut s = state(this);
-    if s.initialized {
+/// DirectPlay's `InitializeConnection` on an address Rust holds (`None`: a null one).
+pub fn initialize_connection_with(this: u32, address: Option<&[u8]>) -> u32 {
+    if with_state(this, |s| s.initialized) {
         return DPERR_ALREADYINITIALIZED;
     }
-    if address == 0 {
+    let Some(raw) = address else {
         return DPERR_INVALIDPARAMS;
-    }
-    // the total size is the first element's data
-    let total = { get(address + 20) } as usize;
-    let raw = { bytes(address, total.clamp(24, 4096) as u32) };
-    let parts = elements(&raw);
+    };
+    let total = raw
+        .get(20..24)
+        .map_or(0, |b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as usize);
+    let raw = &raw[..total.clamp(24, 4096).min(raw.len())];
+    let parts = elements(raw);
+    with_state(this, |s| initialize(s, parts))
+}
+
+/// The connection's host and port from its address's parts.
+fn initialize(s: &mut State, parts: Vec<(Guid, Vec<u8>)>) -> u32 {
     s.host = String::new();
     s.port = DEFAULT_PORT;
     for (kind, data) in parts {
@@ -736,145 +580,108 @@ extern "system" fn initialize_connection(this: u32, address: u32, _flags: u32) -
 
 // ---- IDirectPlayLobby2A ----
 
-extern "system" fn not_lobbied4(_this: u32, _a: u32, _b: u32, _c: u32) -> u32 {
-    DPERR_NOTLOBBIED
-}
+/// An address element: its type's GUID and its data (DPCOMPOUNDADDRESSELEMENT).
+pub type Element = (Guid, Vec<u8>);
 
-unsafe extern "system" fn create_compound_address(
-    _this: u32,
-    list: u32,
-    count: u32,
-    address: u32,
-    size: u32,
-) -> u32 {
-    if (list == 0 && count != 0) || size == 0 {
-        return DPERR_INVALIDPARAMS;
+/// `CreateCompoundAddress` sized for `room` bytes: the result and the address's size.
+pub fn create_compound_address(parts: &[Element], room: u32) -> (u32, u32) {
+    let size = compound(parts).len() as u32;
+    if room < size {
+        (DPERR_BUFFERTOOSMALL, size)
+    } else {
+        (DP_OK, size)
     }
-    // DPCOMPOUNDADDRESSELEMENT: the type's GUID, the data's size, the data
-    let parts: Vec<(Guid, Vec<u8>)> = (0..count)
-        .map(|n| unsafe {
-            let e = (crate::pointers::host(list) as *const DpAddressElement)
-                .add(n as usize)
-                .read_unaligned();
-            (e.data_type, bytes(e.data, e.data_size))
-        })
-        .collect();
-    give(&compound(&parts), address, size)
 }
 
-// ---- the tables ----
+/// `CreateCompoundAddress` into Rust's memory: the address's bytes.
+pub fn compound_address(parts: &[Element]) -> Vec<u8> {
+    compound(parts)
+}
 
-macro_rules! unsupported {
-    ($name:ident, $($arg:ident),*) => {
-        unsafe extern "system" fn $name(_this: u32, $($arg: u32),*) -> u32 {
-            $(let _ = $arg;)*
-            E_NOTIMPL
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    static FOUND: Mutex<Vec<Guid>> = Mutex::new(Vec::new());
+
+    fn session_found(desc: Option<&Desc>, flags: u32, _context: u32) -> u32 {
+        if let (0, Some(d)) = (flags & DPESC_TIMEDOUT, desc) {
+            FOUND.lock().unwrap().push(d.instance);
         }
-    };
-}
+        1
+    }
 
-unsupported!(no2, a);
-unsupported!(no3, a, b);
-unsupported!(no4, a, b, c);
-unsupported!(no5, a, b, c, d);
-unsupported!(no6, a, b, c, d, e);
-unsupported!(no7, a, b, c, d, e, f);
-unsupported!(no10, a, b, c, d, e, f, g, h, i);
+    const APPLICATION: Guid = guid(0x1234_5678, 0x9ABC, 0xDEF0, [1, 2, 3, 4, 5, 6, 7, 8]);
 
-macro_rules! table {
-    ($($f:expr),* $(,)?) => {
-        [$(crate::pointers::game_address($f as *const ())),*]
-    };
-}
+    fn play_object(port: u16) -> u32 {
+        let this = create(&CLSID_DIRECTPLAY, &IID_IDIRECTPLAY4A).expect("the object");
+        let address = compound(&[
+            (DPAID_SERVICEPROVIDER, DPSPGUID_TCPIP.to_vec()),
+            (DPAID_INET, b"127.0.0.1\0".to_vec()),
+            (DPAID_INETPORT, port.to_le_bytes().to_vec()),
+        ]);
+        assert_eq!(initialize_connection_with(this, Some(&address)), DP_OK);
+        this
+    }
 
-fn play_table() -> u32 {
-    static TABLE: OnceLock<[u32; 53]> = OnceLock::new();
-    crate::pointers::game_address(
-        TABLE
-            .get_or_init(|| {
-                table![
-                    query_play,               // 0x00 QueryInterface
-                    add_ref,                  // 0x04 AddRef
-                    release,                  // 0x08 Release
-                    add_player_to_group,      // 0x0C AddPlayerToGroup
-                    close,                    // 0x10 Close
-                    create_group,             // 0x14 CreateGroup
-                    create_player,            // 0x18 CreatePlayer
-                    delete_player_from_group, // 0x1C DeletePlayerFromGroup
-                    no2,                      // 0x20 DestroyGroup
-                    destroy_player,           // 0x24 DestroyPlayer
-                    no6,                      // 0x28 EnumGroupPlayers
-                    enum_groups,              // 0x2C EnumGroups
-                    enum_players,             // 0x30 EnumPlayers
-                    enum_sessions,            // 0x34 EnumSessions
-                    no3,                      // 0x38 GetCaps
-                    no5,                      // 0x3C GetGroupData
-                    no4,                      // 0x40 GetGroupName
-                    no3,                      // 0x44 GetMessageCount
-                    no4,                      // 0x48 GetPlayerAddress
-                    no4,                      // 0x4C GetPlayerCaps
-                    get_player_data,          // 0x50 GetPlayerData
-                    no4,                      // 0x54 GetPlayerName
-                    no3,                      // 0x58 GetSessionDesc
-                    no2,                      // 0x5C Initialize
-                    open,                     // 0x60 Open
-                    receive,                  // 0x64 Receive
-                    send,                     // 0x68 Send
-                    no5,                      // 0x6C SetGroupData
-                    no4,                      // 0x70 SetGroupName
-                    set_player_data,          // 0x74 SetPlayerData
-                    no4,                      // 0x78 SetPlayerName
-                    set_session_desc,         // 0x7C SetSessionDesc
-                    no3,                      // 0x80 AddGroupToGroup
-                    no7,                      // 0x84 CreateGroupInGroup
-                    no3,                      // 0x88 DeleteGroupFromGroup
-                    enum_connections,         // 0x8C EnumConnections
-                    no6,                      // 0x90 EnumGroupsInGroup
-                    no5,                      // 0x94 GetGroupConnectionSettings
-                    initialize_connection,    // 0x98 InitializeConnection
-                    no5,                      // 0x9C SecureOpen
-                    no5,                      // 0xA0 SendChatMessage
-                    no4,                      // 0xA4 SetGroupConnectionSettings
-                    no3,                      // 0xA8 StartSession
-                    no3,                      // 0xAC GetGroupFlags
-                    no3,                      // 0xB0 GetGroupParent
-                    no5,                      // 0xB4 GetPlayerAccount
-                    no3,                      // 0xB8 GetPlayerFlags
-                    no3,                      // 0xBC GetGroupOwner
-                    no3,                      // 0xC0 SetGroupOwner
-                    no10,                     // 0xC4 SendEx
-                    no6,                      // 0xC8 GetMessageQueue
-                    no3,                      // 0xCC CancelMessage
-                    no4,                      // 0xD0 CancelPriority
-                ]
-            })
-            .as_ptr(),
-    )
-}
+    fn desc(instance: Guid) -> Desc {
+        Desc {
+            flags: 0,
+            instance,
+            application: APPLICATION,
+            max_players: 4,
+            current_players: 0,
+            name: "test".into(),
+            user: [0; 4],
+        }
+    }
 
-fn lobby_table() -> u32 {
-    static TABLE: OnceLock<[u32; 15]> = OnceLock::new();
-    crate::pointers::game_address(
-        TABLE
-            .get_or_init(|| {
-                table![
-                    query_lobby,             // 0x00 QueryInterface
-                    add_ref,                 // 0x04 AddRef
-                    release,                 // 0x08 Release
-                    not_lobbied4,            // 0x0C Connect
-                    no7,                     // 0x10 CreateAddress
-                    no5,                     // 0x14 EnumAddress
-                    no5,                     // 0x18 EnumAddressTypes
-                    no4,                     // 0x1C EnumLocalApplications
-                    not_lobbied4,            // 0x20 GetConnectionSettings
-                    no6,                     // 0x24 ReceiveLobbyMessage
-                    no5,                     // 0x28 RunApplication
-                    no5,                     // 0x2C SendLobbyMessage
-                    not_lobbied4,            // 0x30 SetConnectionSettings
-                    no4,                     // 0x34 SetLobbyMessageEvent
-                    create_compound_address, // 0x38 CreateCompoundAddress
-                ]
-            })
-            .as_ptr(),
-    )
+    #[test]
+    fn a_session_is_hosted_found_joined_and_talked_to() {
+        let _lock = crate::store::test_lock();
+        let port = 47_700 + (std::process::id() % 200) as u16;
+        let host = play_object(port);
+        assert_eq!(open(host, &desc([0; 16]), DPOPEN_CREATE), DP_OK);
+        let host_player = create_player(host, b"host\0", 0, &[]).unwrap();
+
+        let guest = play_object(port);
+        let mut found = None;
+        // Up to 10 s (it stops when found): a full parallel test run under Wine is slow.
+        for _ in 0..500 {
+            assert_eq!(
+                enum_sessions(guest, &APPLICATION, session_found, 0, 0),
+                DP_OK
+            );
+            found = FOUND.lock().unwrap().first().copied();
+            if found.is_some() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let instance = found.expect("the hosted session is found");
+        assert_eq!(open(guest, &desc(instance), DPOPEN_JOIN), DP_OK);
+        let guest_player = create_player(guest, b"guest\0", 0, &[]).unwrap();
+
+        assert_eq!(send(guest, guest_player, host_player, b"hello"), DP_OK);
+        let mut data = [0u8; 64];
+        let mut got = None;
+        for _ in 0..1000 {
+            let r = receive(host, &mut data);
+            if r.result == DP_OK {
+                let (from, to) = r.from_to.unwrap();
+                if from == guest_player {
+                    got = Some((data[..r.size.unwrap() as usize].to_vec(), to));
+                    break;
+                }
+                // a system message (from 0): the guest's player made
+                continue;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        let (bytes, to) = got.expect("the message");
+        assert_eq!(bytes, b"hello");
+        assert_eq!(to, host_player);
+        assert_eq!(release(guest), 0);
+        assert_eq!(release(host), 0);
+    }
 }

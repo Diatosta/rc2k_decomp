@@ -3,20 +3,16 @@
 //! (`cmp g_netPlayerId, 0; jnz` past the call: the game's slip, section 16; this machine's
 //! player is never destroyed, `DestroyPlayer(0)` is called instead).
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`; the flags are read by no caller:
-//!      `lq -s 0x41916B`)
 //! Caller: `net::destroy_connection`. `DestroyPlayer` from Rust (`net::dplay`).
 //! Refuses nothing.
 
-use crate::net::dplay::{DESTROY_PLAYER, method};
-use crate::net::store::NET;
+use crate::net::store::NetVars;
 
 /// The Rust version.
-pub fn destroy_player() {
-    let id = NET.player_id.get();
+pub fn destroy_player(vars: &NetVars) {
+    let id = vars.player_id.get();
     if id == 0 {
-        unsafe { method(NET.dplay.get(), DESTROY_PLAYER, &[id]) };
-        NET.player_id.set(0);
+        crate::net::dp_objects::destroy_player(vars.dplay.get(), id);
+        vars.player_id.set(0);
     }
 }

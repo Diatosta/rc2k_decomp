@@ -3,31 +3,23 @@
 //! `physics::set_flag_51659C` (0x45D151, `dword_51659C`), `physics::set_flag_5165A0`
 //! (0x45D16D, `dword_5165A0`), `physics::set_flag_5165A4` (0x45D189, `dword_5165A4`).
 //!
-//! In:  nothing
-//! Out: eax the entry; the rest kept; no flags read (callers go on with other
-//!      instructions)
-//!
-//! Callers: `sub_436833`, `sub_436AFB`, `sub_436A4B` (under `sub_436790`). Refuses (before
-//! anything) a current car past 7 (the table's size not worked out).
+//! Callers: `physics::take_split_counted`, `physics::count_down_start`, `physics::start_go_notice`
+//! (under `physics::race_timers`). Refuses (before anything) a current car past 7 (the table's size
+//! not worked out).
 
 use crate::errors::Refused;
-use crate::physics::cells::{get, put};
-use crate::race::frame_store::FRAME_WORK;
+use crate::race::owner::Race;
+use crate::session::Dword;
 use rc2k_core::physics::listed_cars::listed_entry;
 
-/// The Rust version: the current car at `current`, the table at `table`, the flag at
-/// `flag`.
-// Converted: `rc2k_core::physics::listed_cars::listed_entry`.
-pub fn set_flag_at(current: u32, table: u32, flag: u32) -> Result<(), Refused> {
-    let (_, listed) = listed_entry(get(current), |car| get(table + 4 * car))?;
+/// Sets `flag` to 1 when the current car is listed (`FRAME_WORK.listed_car_sounds`).
+pub fn set_flag(race: &Race, flag: &Dword) -> Result<(), Refused> {
+    let current = race.shared.work.current_car.get();
+    let (_, listed) = listed_entry(current, |car| {
+        race.frame.frame_work.listed_car_sounds[car as usize].get()
+    })?;
     if listed {
-        put(flag, 1);
+        flag.set(1);
     }
     Ok(())
-}
-
-/// On the game's variables.
-pub fn set_flag(flag: &crate::session::Dword) -> Result<(), Refused> {
-    let current = crate::race::work_store::RACE_WORK.current_car.addr();
-    set_flag_at(current, FRAME_WORK.listed_car_sounds[0].addr(), flag.addr())
 }

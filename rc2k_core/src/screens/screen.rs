@@ -5,13 +5,12 @@
 
 use crate::Invalid;
 
-/// What drawing a text leaves: the y of its last line, where the text ended (the
-/// original's ebx), which some screens hand the blitter as a palette, and whether a line
-/// was too wide for a font that says so (the carry flag).
+/// What drawing a text leaves: the y of its last line and whether a line was too wide for
+/// a font that says so (the carry flag). (The original also leaves where the text ended in
+/// ebx, which some screens hand the blitter as a sprite's palette, never looked at.)
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Drawn {
     pub y: i32,
-    pub after: u32,
     pub too_wide: bool,
 }
 
@@ -102,7 +101,7 @@ pub trait Screen {
     /// for the text buffer.
     fn strings(&mut self, first: u32, count: u32) -> Result<Vec<u8>, Self::Error>;
     /// Sprite `glyph` of the sprite table.
-    fn sprite(&mut self, glyph: u32, x: i32, y: i32, palette: u32) -> Result<(), Self::Error>;
+    fn sprite(&mut self, glyph: u32, x: i32, y: i32) -> Result<(), Self::Error>;
     /// A work variable set.
     fn keep(&mut self, work: Self::Work, value: u32);
     /// A bar drawn.
@@ -121,24 +120,18 @@ pub trait Screen {
     ) -> Result<(), Self::Error> {
         Err(Invalid("this screen draws no spaced numbers").into())
     }
-    /// A text the game keeps measured from x (`text::measure_text`): its widest line's width
-    /// and its line count (which the measuring leaves in the font, and a page may hand the
-    /// blitter as a palette). A screen that measures nothing refuses.
+    /// A text the game keeps measured from x (`text::measure_text`): its widest line's
+    /// width. A screen that measures nothing refuses.
     fn measure(
         &mut self,
         _font: Self::Font,
         _text: Self::Text,
         _x: i32,
-    ) -> Result<(u32, u32), Self::Error> {
+    ) -> Result<u32, Self::Error> {
         Err(Invalid("this screen measures no text").into())
     }
     /// String `id` measured from x, as `measure`. A screen that measures nothing refuses.
-    fn measure_string(
-        &mut self,
-        _font: Self::Font,
-        _id: u32,
-        _x: i32,
-    ) -> Result<(u32, u32), Self::Error> {
+    fn measure_string(&mut self, _font: Self::Font, _id: u32, _x: i32) -> Result<u32, Self::Error> {
         Err(Invalid("this screen measures no text").into())
     }
     /// The font `a` blended with `b` by the time since the last key (half a pulse 0x100),
@@ -165,11 +158,6 @@ pub trait Screen {
     fn item(&mut self, _n: u32, _on: bool) -> Result<(), Self::Error> {
         Err(Invalid("this screen has no menu").into())
     }
-    /// Where a buffer is, as the game keeps it in a work variable (0 off the game).
-    fn buffer_address(&mut self, _buffer: Buffer) -> u32 {
-        0
-    }
-
     /// `bytes` (no NUL) put in the line buffer with a NUL and drawn from there.
     fn line(
         &mut self,

@@ -15,17 +15,13 @@
 //! (the move's `rep movsd`): a message stored between others keeps no length or bytes
 //! (the game's slip, section 16).
 //!
-//! In:  `sequence` (al), `block` (edi: the player's block, a `PlayerBlock`), `time` (edx), `bytes` (ebx) and
-//!      `length` (ecx)
-//! Out: nothing (every register kept, `pusha` .. `popa`; the flags not read: the one
-//!      caller calls `net::unlock_received` next)
+//! Takes `sequence`, `block`, `time`, `bytes` and `length`.
 //! Caller: `net::take_messages` (under the lock). Refuses (before anything) a count above
 //! 0x40 and a length above 0xFE (the original writes past the block or the record; its
 //! caller sends neither).
 
 use crate::errors::Refused;
 use crate::net::store::PlayerBlock;
-use crate::pointers::GamePtr;
 use rc2k_core::net::inbox;
 
 /// The Rust version.
@@ -33,15 +29,11 @@ pub fn store_received(
     sequence: u8,
     block: &PlayerBlock,
     time: u32,
-    bytes: *const u8,
-    length: u32,
+    message: &[u8],
 ) -> Result<(), Refused> {
-    let base = GamePtr::new(block.inbox_addr());
     // Converted: `rc2k_core::net::inbox::store`, on the block's inbox and the message.
-    let mut inbox = base.read_bytes(inbox::INBOX, "a player's inbox")?;
-    let message = GamePtr::new(crate::pointers::game_address(bytes))
-        .read_bytes(length as usize, "a received message")?;
-    inbox::store(&mut inbox, sequence, time, &message)?;
-    base.write_bytes(&inbox, "a player's inbox")?;
+    let mut inbox = block.read_inbox(inbox::INBOX)?;
+    inbox::store(&mut inbox, sequence, time, message)?;
+    block.write_inbox(&inbox)?;
     Ok(())
 }

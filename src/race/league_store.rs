@@ -6,6 +6,7 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct League {
     /// +0x0 (0x60410C): `dword_60410C`: the ten records' names (`race::copy_league_table`, `physics::compare_split_times`).
     pub names: [Dword; 10],
@@ -19,19 +20,16 @@ pub struct League {
     pub auto_setups: [Dword; 144],
 }
 
-/// The piece: the race block's bytes at IDA 0x60410C seen as `League`.
-pub struct InBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InBlock {
-    type Target = League;
-    fn deref(&self) -> &League {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const League) }
+/// The piece: a field of `race::owner::Race::course`, formerly a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl League {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static LEAGUE: InBlock = InBlock;
 
 /// IDA 0x60410C, the first byte of the piece.
 pub const START: usize = 0x60410C;
@@ -41,8 +39,9 @@ pub const END: usize = 0x60463C;
 const _: () = assert!(END - START == core::mem::size_of::<League>());
 
 /// Where IDA 0x60410C is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&crate::race::owner::RACE.course.league))
 }
 
 #[cfg(test)]
@@ -51,7 +50,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&crate::race::owner::RACE.course.league, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             crate::moved::place(END - 1),

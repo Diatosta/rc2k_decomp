@@ -6,73 +6,68 @@
 //! empty, `Path` and `CurrentDirectory` the installed folder (`byte_95E7F8`); the key
 //! closed (`RegCloseKey`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`)
 //! Caller `install::install_files`. The registry calls through `api`; the GUID formatting
-//! (`sub_40171A`) done here.
+//! (0x40171A) done here.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
-use crate::install::installer::{Api, REG_CLOSE_KEY, REG_CREATE_KEY, append_byte, rd, wb};
-use crate::install::vars::INSTALLER_NAMES;
-use crate::install::vars::INSTALLER_PATHS;
-use crate::install::vars::INSTALLER_RUN;
-use crate::net::store::NET;
-use crate::strings::text_buffer::TEXT_BUFFER;
+use crate::install::read_registry::Registry;
+use crate::install::store::text_of;
+use crate::net::owner::net;
+use crate::strings::owner::strings;
 
-const HKLM: u32 = 0x8000_0002;
-
-pub fn register_lobby(api: Api) -> Result<(), Refused> {
+pub fn register_lobby(
+    install: &'static crate::install::owner::Install,
+    registry: &mut dyn Registry,
+) -> Result<(), Refused> {
+    let strings = strings();
     use crate::install::set_lobby_value::set_lobby_value;
-    if api(
-        REG_CREATE_KEY,
-        &[
-            HKLM,
-            crate::install::store::LOBBY_KEYS.registry_key.addr(),
-            INSTALLER_RUN.reg_key.addr(),
-        ],
-    ) != 0
-    {
+    let Ok(key) = registry.create(text_of(&install.lobby_keys.registry_key)) else {
         return Ok(());
-    }
-    let text = TEXT_BUFFER.text.addr();
+    };
+    install.run.reg_key.set(key);
     // Converted: `rc2k_core::install::lobby::guid_text`.
-    let guid: [u8; 16] = std::array::from_fn(|n| NET.app_guid.get(n));
-    let guid = rc2k_core::install::lobby::guid_text(&guid);
-    for (n, &b) in guid.iter().enumerate() {
-        wb(text + n as u32, b);
-    }
-    append_byte(text + guid.len() as u32, 0);
+    let guid = rc2k_core::install::lobby::guid_text(&net().vars.app_guid.read());
+    let mut text = guid.to_vec();
+    text.push(0);
+    strings
+        .text
+        .buffer
+        .text
+        .write_at(0, &text, "the text buffer")?;
     set_lobby_value(
-        crate::install::store::LOBBY_KEYS.name_guid.addr(),
-        text,
-        api,
+        install,
+        text_of(&install.lobby_keys.name_guid),
+        &guid,
+        registry,
     )?;
     set_lobby_value(
-        crate::install::store::LOBBY_KEYS.name_file.addr(),
-        INSTALLER_NAMES.ral_exe.addr(),
-        api,
+        install,
+        text_of(&install.lobby_keys.name_file),
+        &install.names.ral_exe.text(),
+        registry,
     )?;
-    wb(text, 0);
+    strings.text.buffer.text.set(0, 0);
     set_lobby_value(
-        crate::install::store::LOBBY_KEYS.name_command_line.addr(),
-        text,
-        api,
+        install,
+        text_of(&install.lobby_keys.name_command_line),
+        b"",
+        registry,
+    )?;
+    let installed = install.paths.installed.text();
+    set_lobby_value(
+        install,
+        text_of(&install.lobby_keys.name_path),
+        &installed,
+        registry,
     )?;
     set_lobby_value(
-        crate::install::store::LOBBY_KEYS.name_path.addr(),
-        INSTALLER_PATHS.installed.addr(),
-        api,
+        install,
+        text_of(&install.lobby_keys.name_current_directory),
+        &installed,
+        registry,
     )?;
-    set_lobby_value(
-        crate::install::store::LOBBY_KEYS
-            .name_current_directory
-            .addr(),
-        INSTALLER_PATHS.installed.addr(),
-        api,
-    )?;
-    api(REG_CLOSE_KEY, &[rd(INSTALLER_RUN.reg_key.addr())]);
+    registry.close(install.run.reg_key.get());
     Ok(())
 }

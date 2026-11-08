@@ -7,20 +7,14 @@
 //! `menu::ready_players` and without the fourth player's time: four races, eax 4 for the
 //! review. The end: `rc2k_core::menu::rounds::end`.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Reached through the start menu's table. Refuses a missing player before anything, and what the
 //! callees refuse when they are reached.
 
 use crate::errors::Refused;
-use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
-use crate::menu::screen_loop::Carried;
 use rc2k_core::menu::rounds;
 
-pub fn single_rally_four(c: &Carried) -> Result<(), Refused> {
-    players_there(4)?;
+pub fn single_rally_four(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::rounds::single_rally_four`.
-    Game::new(c).run(rounds::single_rally_four)
+    Game::new(menus).run(rounds::single_rally_four)
 }

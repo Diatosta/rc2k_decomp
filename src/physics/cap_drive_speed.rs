@@ -3,18 +3,13 @@
 //! unordered one counts as below); `g_carDriveSpeed` held to at most the speed plus it
 //! (through `dword_62400C`; a drive speed below that, or unordered, is left).
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read (the caller's next is a `mov`)
-//!
-//! Caller: `sub_43DFB1` (0x43E0DD).
+//! Caller: `physics::drive_wheels_step` (0x43E0DD).
 
-use crate::framework::{game_addr, rva};
 use crate::math::x87;
 use crate::math::x87_run::over_abs_plus_minus;
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
-use crate::scene::draw_store::DRAW;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
+use crate::session::Cell32;
 use std::cmp::Ordering;
 
 /// C0 of comparing `a` with `b`: below, or unordered.
@@ -25,27 +20,27 @@ fn below(a: u32, b: u32) -> bool {
     )
 }
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::cap_drive_speed's operand")
+fn at(a: &dyn Cell32) -> u32 {
+    a.bits()
 }
 
-fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::cap_drive_speed's operand")
+fn put(a: &dyn Cell32, v: u32) {
+    a.set_bits(v);
 }
 
 /// The places: the allowance, the speed, the scratch, the drive speed.
-pub type CapPlaces = [u32; 4];
+pub type CapPlaces<'a> = [&'a dyn Cell32; 4];
 
 /// The core.
-pub fn cap_drive_speed_at(v: CapPlaces) {
-    let zero = NUMBERS.zero.bits();
+pub fn cap_drive_speed_at(race: &Race, v: CapPlaces<'_>) {
+    let zero = race.course.numbers.zero.bits();
     put(
         v[0],
         over_abs_plus_minus(
-            PHYSICS.drive_speed_cap.bits(),
+            race.shared.physics_tables.drive_speed_cap.bits(),
             at(v[1]),
-            PHYSICS.drive_speed_cap_a.bits(),
-            PHYSICS.drive_speed_cap_b.bits(),
+            race.shared.physics_tables.drive_speed_cap_a.bits(),
+            race.shared.physics_tables.drive_speed_cap_b.bits(),
         ),
     );
     if below(at(v[0]), zero) {
@@ -57,17 +52,16 @@ pub fn cap_drive_speed_at(v: CapPlaces) {
     }
 }
 
-fn game() -> CapPlaces {
-    let _g = |a: usize| game_addr(rva(a));
+fn game<'a>(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> CapPlaces<'a> {
     [
-        (PHYSICS.drive_speed_figure.addr()),
-        (CAR.local_velocity[2].addr()),
-        (DRAW.scratch.addr()),
-        (CAR.drive_speed_a.addr()),
+        &shared.physics_tables.drive_speed_figure,
+        &shared.car.local_velocity[2],
+        &scene.drawing.scene.scratch,
+        &shared.car.drive_speed_a,
     ]
 }
 
 /// The Rust version (the exact one, for `physics::drive_wheels_step`).
-pub fn cap_drive_speed() {
-    cap_drive_speed_at(game())
+pub fn cap_drive_speed(race: &Race, scene: &crate::scene::owner::Scene) {
+    cap_drive_speed_at(race, game(&race.shared, scene));
 }

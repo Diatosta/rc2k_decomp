@@ -2,22 +2,21 @@
 //!
 //! In:  nothing: the vertices are at `g_polygonVertices` (0x9605A0), their number in
 //!      `g_polygonVertexCount` (0x6240F8)
-//! Out: eax = Direct3D's result (0: drawn); ecx, edx as Direct3D leaves them
 //! The device's DrawPrimitive with a triangle fan (6) of transformed and lit vertices
 //! (3) and the flags 0x1C (not to be clipped, lit or measured). Two callers,
-//! `scene::draw_polygon_fan` and `sub_4651E6`.
+//! `scene::draw_polygon_fan` and `race::draw_view_backdrop`.
 //! Platform: the original always runs, here the fan is only noted. In the standalone
 //! program the rasteriser draws it (`platform_3d::draw_fan`) and the result is 0.
 
 use crate::d3d::Vertex;
 use crate::d3d::vertices_store::VERTICES;
-use crate::scene::draw_store::DRAW;
+use crate::scene::owner::scene;
 
 /// The polygon as it stands in the buffer (the store's `TLVertex[64]`). More vertices than
 /// the buffer holds is a count gone wrong (the original reads on past it, into other
 /// variables): a refusal.
-pub fn polygon() -> Vec<Vertex> {
-    let count = DRAW.polygon_vertex_count.bits() as usize;
+pub fn polygon() -> smallvec::SmallVec<[Vertex; 6]> {
+    let count = scene().drawing.scene.polygon_vertex_count.bits() as usize;
     let vertices = &VERTICES.vertices;
     if count > vertices.len() {
         crate::framework::log(&format!(

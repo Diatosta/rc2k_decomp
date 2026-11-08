@@ -6,81 +6,102 @@
 //! `flt_64BB74` (t - c) / (d - c); and with `dword_75B108` and t from `flt_64BB70` on,
 //! `dword_5C2F88` 1.
 //!
-//! In:  nothing
-//! Out: eax the clock less the start; the rest kept; no flags read
+//! Returns: the clock less the start
 //!
 //! Caller: `drive::finish_run`.
 
-use crate::drive::finish_store::FINISH;
 use crate::math::x87::loaded;
+use crate::math::x87_float::int;
+use crate::math::x87_float::ld;
+use crate::math::x87_float::st;
 use crate::physics::flow::c0;
-use crate::race::state_store::RACE_STATE;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
-use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fild, fld, fstp};
+use crate::race::marks_settings_store::MARKS_SETTINGS;
+use crate::race::owner::Race;
+use crate::race::owner_replay::Replay;
+use crate::scene::owner::scene;
 
-/// `flt_64BB64` = the clock less the start (`dword_62400C`) over `flt_5C5D18`, over the race
-/// block at `rc`.
-fn time(rc: usize) {
-    fstp(rc, 0x24BB64, fild(rc, 0x22400C) / fld(rc, 0x1C5D18))
+/// `flt_64BB64` = the clock less the start (`dword_62400C`) over `flt_5C5D18`.
+fn time(race: &Race) {
+    race.replay
+        .finish
+        .time
+        .set_bits(st(int(scene().drawing.scene.scratch.bits() as i32)
+            / ld(race.course.numbers.thousand.bits())));
 }
 
 /// The eased time between the two limits: t less ((t - a) / (b - a))^2 x ((b - a) x half).
-fn eased_middle(rc: usize) {
-    let q = (fld(rc, 0x24BB64) - fld(rc, 0x24BB44)) / (fld(rc, 0x24BB48) - fld(rc, 0x24BB44));
+fn eased_middle(race: &Race) {
+    let q = (ld(race.replay.finish.time.bits()) - ld(race.replay.finish.limit_a.bits()))
+        / (ld(race.replay.finish.limit_b.bits()) - ld(race.replay.finish.limit_a.bits()));
     let square = q * q;
-    let span = (fld(rc, 0x24BB48) - fld(rc, 0x24BB44)) * fld(rc, 0x1C5E40);
+    let span = (ld(race.replay.finish.limit_b.bits()) - ld(race.replay.finish.limit_a.bits()))
+        * ld(race.course.numbers.half.bits());
     let product = square * span;
-    fstp(rc, 0x24BB68, -product + fld(rc, 0x24BB64));
+    race.replay
+        .finish
+        .eased
+        .set_bits(st(-product + ld(race.replay.finish.time.bits())));
 }
 
 /// The eased time past the second limit: a + (b - a) x half.
-fn eased_end(rc: usize) {
-    let span = (fld(rc, 0x24BB48) - fld(rc, 0x24BB44)) * fld(rc, 0x1C5E40);
-    fstp(rc, 0x24BB68, span + fld(rc, 0x24BB44));
+fn eased_end(race: &Race) {
+    let span = (ld(race.replay.finish.limit_b.bits()) - ld(race.replay.finish.limit_a.bits()))
+        * ld(race.course.numbers.half.bits());
+    race.replay
+        .finish
+        .eased
+        .set_bits(st(span + ld(race.replay.finish.limit_a.bits())));
 }
 
 /// The share between the last two limits: (t - c) / (d - c).
-fn share(rc: usize) {
-    let q = (fld(rc, 0x24BB64) - fld(rc, 0x24BB70)) / (fld(rc, 0x24BB74) - fld(rc, 0x24BB70));
-    fstp(rc, 0x24BB6C, q);
+fn share(replay: &Replay) {
+    let q = (ld(replay.finish.time.bits()) - ld(replay.finish.limit_c.bits()))
+        / (ld(replay.finish.limit_d.bits()) - ld(replay.finish.limit_c.bits()));
+    replay.finish.share.set_bits(st(q));
 }
 
 /// The core from the clock's reading `now` (already in `g_sceneClock`).
-pub fn timing_from(now: u32) {
-    let rc = crate::race::store::asm_base() as usize;
-    let since = now.wrapping_sub(FINISH.start_clock.get());
-    DRAW.scratch.set(since);
-    time(rc);
-    if c0(FINISH.time.bits(), FINISH.limit_a.bits()) {
-        FINISH.eased.set_bits(loaded(FINISH.time.bits()));
-    } else if c0(FINISH.time.bits(), FINISH.limit_b.bits()) {
-        eased_middle(rc);
+pub fn timing_from(race: &Race, now: u32, scene: &crate::scene::owner::Scene) {
+    let replay = &race.replay;
+    let since = now.wrapping_sub(replay.finish.start_clock.get());
+    scene.drawing.scene.scratch.set(since);
+    time(race);
+    if c0(replay.finish.time.bits(), replay.finish.limit_a.bits()) {
+        replay
+            .finish
+            .eased
+            .set_bits(loaded(replay.finish.time.bits()));
+    } else if c0(replay.finish.time.bits(), replay.finish.limit_b.bits()) {
+        eased_middle(race);
     } else {
-        eased_end(rc);
+        eased_end(race);
     }
-    FINISH.share.set_bits(0);
-    let late = !c0(FINISH.time.bits(), FINISH.limit_c.bits());
-    if RACE_STATE.results.finished.get() != 0 && late {
-        FINISH.share.set_bits(0x3F80_0000);
-        if c0(FINISH.time.bits(), FINISH.limit_d.bits()) {
-            share(rc);
+    replay.finish.share.set_bits(0);
+    let late = !c0(replay.finish.time.bits(), replay.finish.limit_c.bits());
+    if race.shared.state.results.finished.get() != 0 && late {
+        replay.finish.share.set_bits(0x3F80_0000);
+        if c0(replay.finish.time.bits(), replay.finish.limit_d.bits()) {
+            share(&race.replay);
         }
     }
-    if late && RACE_STATE.results.finished.get() != 0 {
-        VIEWER_PANEL.race_done.set(1);
+    if late && race.shared.state.results.finished.get() != 0 {
+        MARKS_SETTINGS.race_done.set(1);
     }
 }
 
 /// The Rust version (the exact one, for `drive::finish_run`).
-pub fn finish_timing() {
-    let now = crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
-    timing_from(now)
+pub fn finish_timing(race: &Race, scene: &crate::scene::owner::Scene) {
+    let now = crate::scene::restart_clock::restart_clock(
+        &race.shared,
+        crate::system::tick_count::tick_count(),
+    );
+    timing_from(race, now, scene);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
     // The original's instructions, one function per run.
@@ -120,17 +141,17 @@ mod asm_reference {
         vec![
             Block {
                 name: "finish_timing time",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x22400C, In::I), (0x1C5D18, In::F)],
                     writes: &[(0x24BB64, Out::F)],
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_time(a[0]) },
-                plain: |a| time(a[0]),
+                plain: |_| time(race()),
             },
             Block {
                 name: "finish_timing middle",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x24BB64, In::F),
                         (0x24BB44, In::F),
@@ -141,27 +162,27 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_middle(a[0]) },
-                plain: |a| eased_middle(a[0]),
+                plain: |_| eased_middle(race()),
             },
             Block {
                 name: "finish_timing end",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x24BB48, In::F), (0x24BB44, In::F), (0x1C5E40, In::F)],
                     writes: &[(0x24BB68, Out::F)],
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_end(a[0]) },
-                plain: |a| eased_end(a[0]),
+                plain: |_| eased_end(race()),
             },
             Block {
                 name: "finish_timing share",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x24BB64, In::F), (0x24BB70, In::F), (0x24BB74, In::F)],
                     writes: &[(0x24BB6C, Out::F)],
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_share(a[0]) },
-                plain: |a| share(a[0]),
+                plain: |_| share(&race().replay),
             },
         ]
     }

@@ -1,10 +1,6 @@
 //! `scene::try_allocate_textures` (0x4224C4): asks for the texture memory every needed
 //! texture takes, at the levels they are needed at.
 //!
-//! In:  nothing
-//! Out: carry clear = all of it was had; carry set = not. The original leaves the
-//!      registers changed; its callers keep them all. The Rust version keeps them.
-//!
 //! - Each kind's first slot and first texture (`g_kindFirstSlots`,
 //!   `g_kindFirstTextures`) = -1.
 //! - The memory asked for is added up for the log: `dword_5D0AE0` over the textures
@@ -28,12 +24,9 @@
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
-use crate::logfile::log_write::log_write;
-use crate::race::vars_store::RACE_VARS;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
-use crate::scene::object_tables_store::OBJECT_TABLES;
+use crate::race::owner_shared::Shared;
+use crate::scene::owner::scene;
 use crate::scene::texture_needs::TEXTURES;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::scene::texture_places_store::cell_at;
 
 // ---- game data ----
@@ -45,30 +38,32 @@ pub use rc2k_core::scene::textures::Call;
 // ---- Rust version ----
 
 /// The game's tables.
-struct GameMemory;
+struct GameMemory<'a>(&'a Shared);
 
-impl rc2k_core::scene::textures::TextureMemory for GameMemory {
+impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
     fn level(&self, video: bool, texture: u32) -> u32 {
+        let objects = &scene().objects;
         let table = if video {
-            &OBJECT_TABLES.video_levels
+            &objects.tables.video_levels
         } else {
-            &OBJECT_TABLES.system_levels
+            &objects.tables.system_levels
         };
         cell_at(&table[0], texture).get()
     }
     fn size(&self, level: u32) -> u32 {
-        cell_at(&OBJECT_TABLES.level_sizes[0], level).get()
+        cell_at(&scene().objects.tables.level_sizes[0], level).get()
     }
     fn mips(&self) -> u32 {
-        RACE_VARS.mip_setting.bits()
+        self.0.vars.mip_setting.bits()
     }
     fn level_mips(&self, level: u32) -> u32 {
-        cell_at(&OBJECT_TABLES.level_mips[0], level).get()
+        cell_at(&scene().objects.tables.level_mips[0], level).get()
     }
     fn forget_kinds(&mut self) {
+        let textures = &scene().textures;
         for table in [
-            &KIND_TEXTURES.kind_first_slots,
-            &KIND_TEXTURES.kind_first_textures,
+            &textures.kinds.kind_first_slots,
+            &textures.kinds.kind_first_textures,
         ] {
             for cell in &table[..TEXTURES] {
                 cell.set(u32::MAX);
@@ -76,48 +71,51 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory {
         }
     }
     fn set_asked(&mut self, asked: [u32; 2]) {
-        KIND_TEXTURES.textures_asked.set(asked[0]);
-        KIND_TEXTURES.textures_asked_other.set(asked[1]);
+        let textures = &scene().textures;
+        textures.kinds.textures_asked.set(asked[0]);
+        textures.kinds.textures_asked_other.set(asked[1]);
     }
     fn set_first_slot(&mut self, texture: u32, slot: u32) {
-        KIND_TEXTURES.kind_first_slots[texture as usize].set(slot)
+        scene().textures.kinds.kind_first_slots[texture as usize].set(slot);
     }
     fn set_first_texture(&mut self, texture: u32, first: u32) {
-        cell_at(&TEXTURE_PLACES.texture_of[0], first).set(texture);
-        KIND_TEXTURES.kind_first_textures[texture as usize].set(first);
+        let textures = &scene().textures;
+        cell_at(&textures.places.texture_of[0], first).set(texture);
+        textures.kinds.kind_first_textures[texture as usize].set(first);
     }
 }
 
 /// Whether all the memory was had.
 // Converted: `rc2k_core::scene::textures::try_allocate`
-pub fn try_allocate_textures(call: &mut dyn FnMut(Call) -> Option<u32>) -> Result<bool, BadInput> {
+pub fn try_allocate_textures(
+    shared: &Shared,
+    call: &mut dyn FnMut(Call) -> Option<u32>,
+) -> Result<bool, BadInput> {
     Ok(rc2k_core::scene::textures::try_allocate(
-        &mut GameMemory,
+        &mut GameMemory(shared),
         &mut |c| call(c),
     )?)
 }
 
 /// With the game's log and the game's allocation.
-pub unsafe fn try_allocate_textures_in_game() -> Result<bool, BadInput> {
-    unsafe {
-        try_allocate_textures(&mut |call| {
-            match call {
-                Call::Text(text, newline) => log_write(text.as_ptr().cast(), newline, 1),
-                Call::Number(number) => log_int(number as i32, false, 1),
-                Call::Allocate(ask) => {
-                    // The allocation reads no esi (the texture) and never comes back
-                    // with its carry set: a failure raises its fatal error.
-                    let (video, system) = crate::platform_3d::allocate_textures_for(
-                        ask.video as u32,
-                        !ask.video as u32,
-                        ask.level,
-                        ask.pixel_kind,
-                        ask.mips,
-                    );
-                    return Some(if ask.video { video } else { system });
-                }
+pub fn try_allocate_textures_in_game(shared: &Shared) -> Result<bool, BadInput> {
+    try_allocate_textures(shared, &mut |call| {
+        match call {
+            Call::Text(text, newline) => crate::logfile::log_write::log_nul(&text, newline, 1),
+            Call::Number(number) => log_int(number as i32, false, 1),
+            Call::Allocate(ask) => {
+                // The allocation reads no esi (the texture) and never comes back
+                // with its carry set: a failure raises its fatal error.
+                let (video, system) = crate::platform_3d::allocate_textures_for(
+                    ask.video as u32,
+                    !ask.video as u32,
+                    ask.level,
+                    ask.pixel_kind,
+                    ask.mips,
+                );
+                return Some(if ask.video { video } else { system });
             }
-            Some(0)
-        })
-    }
+        }
+        Some(0)
+    })
 }

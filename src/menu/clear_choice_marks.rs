@@ -1,17 +1,14 @@
 //! `menu::clear_choice_marks` (0x490346): `dword_75AAC8` .. `dword_75AAD4` set to -1.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! Four dwords, one a player by the look of it (their meaning is not read). In two entry lists
 //! (0x759406, 0x759412: the car choice's). The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
-use crate::menu::state_store::MENU_STATE;
+//! (`menu::table_calls`).
 
-pub fn clear_choice_marks() -> Result<(), crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(MENU_STATE.carousel_pictures.held[0].addr()).fill(
-        0xFF,
-        16,
-        "the chosen pictures",
-    )
+use crate::menu::owner::Screens;
+
+pub fn clear_choice_marks(screens: &Screens) -> Result<(), crate::errors::BadInput> {
+    for held in &screens.state.carousel_pictures.held {
+        held.set(u32::MAX);
+    }
+    Ok(())
 }

@@ -2,24 +2,26 @@
 //! log off (`g_logEnabled` 0) for `drive::race_loop`, back on, "... - FINIS" between
 //! rules.
 //!
-//! In:  nothing
-//! Out: the registers as `race_loop` leaves them; no flags read
-//!
-//! Callers: `race::run_race`, `sub_443F96`, 0x44402F, `race::credits_race`, `sub_4640AA`.
+//! Callers: `race::run_race`, 0x443F96, 0x44402F, `race::credits_race`, `net::lets_race`.
 //! Refuses what `race_loop` refuses.
 
 use crate::drive::race_parts::log_line;
 use crate::errors::Refused;
+use crate::race::owner::Race;
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: esi after
-/// `race::run_race`'s and `sub_443F96`'s calls, ecx edi edx esi after
+/// `race::run_race`'s and 0x443F96's calls, ecx edi edx esi after
 /// `race::credits_race`'s: no read point; only DF after `net::lets_race`'s).
-pub unsafe fn play_race() -> Result<(), Refused> {
+pub fn play_race(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let system = crate::system::owner::system();
+    let input = crate::input::owner::input();
     log_line(c"");
     log_line(c"--------------------------");
     log_line(c"CALLING DOPLAYGAME - START");
     crate::logfile::write_line::set_enabled(0); // g_logEnabled
-    unsafe { crate::drive::race_loop::race_loop() }?;
+    { crate::drive::race_loop::race_loop(race, input, system, scene) }?;
+    // Not the original's: for the debug UI's free play.
+    crate::debug::screens::note_race();
     crate::logfile::write_line::set_enabled(1);
     log_line(c"CALLING DOPLAYGAME - FINIS");
     log_line(c"--------------------------");

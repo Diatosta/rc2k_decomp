@@ -12,21 +12,15 @@
 //! `enter_time_trial_best` and the best times page (`time_trial_best_times_loop`; a yes
 //! ends it); the review (`rc2k_core::menu::rounds::review`, eax 1, a yes asked). The end: `rc2k_core::menu::rounds::end`.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Reached through the time trial's start menu (0x48BCDC's items). Refuses a missing player before
 //! anything, and what the callees and the stage's record (`Hand::Stage`) refuse when they are
 //! reached.
 
 use crate::errors::Refused;
-use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
-use crate::menu::screen_loop::Carried;
 use rc2k_core::menu::rounds;
 
-pub fn time_trial_one(c: &Carried) -> Result<(), Refused> {
-    players_there(1)?;
+pub fn time_trial_one(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::rounds::time_trial_one`.
-    Game::new(c).run(rounds::time_trial_one)
+    Game::new(menus).run(rounds::time_trial_one)
 }

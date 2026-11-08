@@ -1,33 +1,27 @@
 //! `service::write_setup_slot` (0x4AB378): builds the 0x48-byte car setup file in the buffer at
 //! 0x527838 and writes it to `savedata\carsetup\carsetNN`.
 //!
-//! In:  ebx = slot, 0 .. 99
-//! Out: carry = failed (zero flag = succeeded); every register preserved
-//! The file: "CRSU", 0, version 0x50000, `packed_local_time`, the slot's 0x20-byte name from
-//! `byte_527880[slot * 0x20]`, then the chosen tyre, the car's brake balance, the chosen ride
-//! height and suspension stiffness, the car's steering sensitivity and the chosen gear ratio.
-//! The name is taken from the slot list, so the caller puts it there first; nothing takes it
-//! out again if the write fails. Refuses a slot past 99 and a missing player.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! Takes slot, 0 .. 99. The file: "CRSU", 0, version 0x50000, `packed_local_time`, the slot's
+//! 0x20-byte name from `byte_527880[slot * 0x20]`, then the chosen tyre, the car's brake balance,
+//! the chosen ride height and suspension stiffness, the car's steering sensitivity and the chosen
+//! gear ratio. The name is taken from the slot list, so the caller puts it there first; nothing
+//! takes it out again if the write fails. Refuses a slot past 99 and a missing player.
 
 use crate::errors::{BadInput, Refused};
-use crate::files::numbered_path::numbered_path_in_game;
-use crate::files::write_file::write_file;
-use crate::pointers::GamePtr;
+use crate::files::numbered_path::numbered_path_bytes;
+use crate::files::write_file::write_file_from;
+use crate::service::owner::Service;
 use crate::service::pages::{
     BRAKE_BALANCE, GEAR_RATIO, RIDE_HEIGHT, STEERING_SENSITIVITY, SUSPENSION_STIFFNESS, TYRE,
 };
-use crate::service::read_setup_slot::{
-    NAME_LEN, SET_UPS, SETUP_FILE_LEN, SLOT_COUNT, TEMPLATE, slot_name,
-};
+use crate::service::read_setup_slot::{NAME_LEN, SETUP_FILE_LEN, SLOT_COUNT, slot_name};
 use crate::service::state::current_player;
 use crate::system::packed_local_time::packed_local_time;
 
 // ---- Rust version ----
 
 /// True if the file was written.
-pub fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
+pub fn write_setup_slot(service: &Service, slot: u32) -> Result<bool, Refused> {
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table").into());
     }
@@ -35,30 +29,24 @@ pub fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
         return Err(BadInput("no current player object: the original reads through null").into());
     };
     {
-        let file = GamePtr::new(SET_UPS.file.addr());
+        let file = &service.set_ups.file;
         // Converted: `rc2k_core::saves::kept::setup_file`.
-        let in_car =
-            |offset: u32| GamePtr::new(player.wrapping_add(offset)).read::<u32>("the car's record");
+        let in_car = |field: rc2k_core::menu::player::SetupField| field.get(player.get());
         let bytes = rc2k_core::saves::kept::setup_file(
             packed_local_time(),
-            &GamePtr::new(crate::pointers::game_address(slot_name(slot)))
-                .read::<[u8; NAME_LEN]>("a setup's name")?,
+            &slot_name(slot).read_array::<NAME_LEN>("a setup's name")?,
             [
                 TYRE.change.chosen.get(),
-                in_car(BRAKE_BALANCE.car_offset)?,
+                in_car(BRAKE_BALANCE.in_car),
                 RIDE_HEIGHT.change.chosen.get(),
                 SUSPENSION_STIFFNESS.change.chosen.get(),
-                in_car(STEERING_SENSITIVITY.car_offset)?,
+                in_car(STEERING_SENSITIVITY.in_car),
                 GEAR_RATIO.change.chosen.get(),
             ],
         );
-        file.write_bytes(&bytes, "the setup file")?;
-        let path = numbered_path_in_game(TEMPLATE.as_ptr(), slot)?;
-        Ok(write_file(
-            path,
-            crate::pointers::host(file.addr()) as *const u8,
-            SETUP_FILE_LEN as u32,
-        )?
-        .ok)
+        file.write_at(0, &bytes, "the setup file")?;
+        let template = service.template.read();
+        let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
+        Ok(write_file_from(&path[..], &file.read()[..SETUP_FILE_LEN])?.ok)
     }
 }

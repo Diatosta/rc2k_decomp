@@ -11,6 +11,7 @@ use crate::session::{Bytes, Dword};
 
 /// The seal cipher's subkeys, key, block and result (IDA 0x4E04AC .. 0x4E0544, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct SealWork {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<12>,
@@ -22,23 +23,26 @@ pub struct SealWork {
     pub block: [Dword; 2],
     /// 0x4E053C: `value`, `dword_4E0540`: the enciphered block (two dwords).
     pub sealed: [Dword; 2],
+    /// Not in the image: the struct's tail up to its 16-byte alignment.
+    pub _tail: Bytes<12>,
 }
 
-pub static SEAL_WORK: SealWork = SealWork {
-    _lead: Bytes::new([0; 12]),
-    subkeys: [const { Dword::new(0x0) }; 32],
-    key: [Dword::new(0x6b726164), Dword::new(0x72617473)],
-    block: [const { Dword::new(0x0) }; 2],
-    sealed: [const { Dword::new(0x0) }; 2],
-};
+impl SealWork {
+    pub const fn new() -> Self {
+        SealWork {
+            _lead: Bytes::new([0; 12]),
+            subkeys: [const { Dword::new(0x0) }; 32],
+            key: [Dword::new(0x6b726164), Dword::new(0x72617473)],
+            block: [const { Dword::new(0x0) }; 2],
+            sealed: [const { Dword::new(0x0) }; 2],
+            _tail: Bytes::new([0; 12]),
+        }
+    }
+}
 
 impl SealWork {
     pub const START: usize = 0x4E04AC;
     pub const LEN: usize = 0x98;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(&SEAL_WORK as *const SealWork) + 12) as usize
-    }
 }
 
 #[cfg(test)]
@@ -52,7 +56,7 @@ mod tests {
         let image = crate::moved::image_bytes(SealWork::START, SealWork::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(SealWork::home()) as *const u8,
+                crate::pointers::host_at(crate::moved::place(SealWork::START)).cast_const(),
                 SealWork::LEN,
             )
         };

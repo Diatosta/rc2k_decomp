@@ -1,29 +1,20 @@
 //! `menu::clear_event_state` (0x486C2C): an event's state cleared at its start.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! `dword_755950`, `dword_758714` and the 28 dwords `dword_758758` .. `dword_7587C4` set to 0 (the
 //! results screens and the savegame read them; their meaning is not read). Callers: the event loops
-//! (`sub_482382` and four more).
-
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::results_store::RESULT_FIGURES;
-use crate::service::harness::Region;
+//! (`menu::single_rally` and four more).
+use crate::menu::owner::Menus;
+use crate::menu::results_store::Results;
+use crate::pointers::Store;
 
 const RUN_DWORDS: usize = 28;
 
-fn regions() -> [Region; 3] {
-    [
-        (EVENT_STATE.stages_done.addr(), 4),
-        (RESULT_FIGURES.round.addr(), 4),
-        (RESULT_FIGURES.time_bonus[0].addr(), RUN_DWORDS * 4),
-    ]
-}
-
-pub fn clear_event_state() -> Result<(), crate::errors::BadInput> {
-    for (addr, len) in regions() {
-        crate::pointers::GamePtr::new(addr).fill(0, len, "the event\'s figures")?;
-    }
+pub fn clear_event_state(menus: &Menus) -> Result<(), crate::errors::BadInput> {
+    menus.screens.event.stages_done.store(0, &[0; 4])?;
+    menus.play.results.round.store(0, &[0; 4])?;
+    menus.play.results.store(
+        std::mem::offset_of!(Results, time_bonus),
+        &[0; RUN_DWORDS * 4],
+    )?;
     Ok(())
 }

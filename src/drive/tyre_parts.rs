@@ -3,27 +3,24 @@
 //! `drive::tyre_turned_quad` (0x41C969), `drive::tyre_quad` (0x41DD3B). Their calls by
 //! place: 0 `d3d::set_texture` (0x41ACF5), 1 `d3d::set_render_state` (0x41AB5B), 2
 //! `tyre_quad`, 3 `tyre_turned_quad`, 4 `tyre_screen_parts`, 5 the device's DrawPrimitive
-//! (`sub_41ADE1`: platform, a call into the game), 6 `tyre_screen`. In the game the Rust
-//! versions and the game's three.
+//! (`d3d::draw_vertex_strip`: platform, a call into the game), 6 `tyre_screen`. In the game the
+//! Rust versions and the game's three.
 //!
 //! This file: the places, the quads' shared steps and the tests' frame.
 
-use crate::d3d::vertices_store::VERTICES;
+use crate::d3d::vertices_store::{VERTICES, Vertex};
 use crate::errors::Refused;
 
-use crate::scene::x87_mem::{fild, fld, fstp};
+use crate::math::x87_float::{int, ld, st};
+use crate::race::viewer_screen_store::VIEWER_PANEL;
+use crate::session::Dword;
 
-/// `g_polygonVertices`: the four vertices (0x20 bytes each) a quad draws.
-pub fn verts() -> usize {
-    crate::d3d::vertices_store::piece_addr() as usize
-}
-
-/// `d3d::set_texture` (0x41ACF5): eax the texture.
+/// `d3d::set_texture` (0x41ACF5).
 pub fn set_texture(texture: u32) {
     crate::d3d::set_texture::set_texture(texture);
 }
 
-/// `d3d::set_render_state` (0x41AB5B): eax the value, ebx the state.
+/// `d3d::set_render_state` (0x41AB5B).
 pub fn set_render_state(value: u32, state: u32) {
     crate::d3d::set_render_state::set_render_state(value, state);
 }
@@ -40,59 +37,59 @@ pub fn quad_words(colour: u32) {
     }
 }
 
-/// The quads' shared tail (0x41DDA1 ..): the texture places from the rectangle at `uv`
-/// (x, y, w, h, whole numbers) x `flt_5C2C64`, and the places scaled to the screen
-/// (`g_screenWidth` x `flt_5C2C68`, `g_screenHeight` x `flt_5C2C6C`, through
-/// `dword_5183CC`).
-pub fn quad_tail(uv: u32) {
+/// The quads' shared tail (0x41DDA1 ..): the texture places from the rectangle `uv`
+/// (x, y, w, h, whole numbers) times the panel's texel scale, and the corners scaled to
+/// the screen (width and height times the panel's two smaller scales, through the
+/// machine's scratch float).
+pub fn quad_tail(uv: [u32; 4]) {
+    let system = crate::system::owner::system();
+    let session = &system.session;
     quad_tail_math(
-        uv as usize,
-        verts(),
-        crate::session::SCREEN.width.addr() as usize,
-        crate::session::MACHINE.scratch.addr() as usize,
-        crate::race::store::asm_base() as usize,
+        uv,
+        &VERTICES.vertices[..4],
+        [session.screen.width.get(), session.screen.height.get()],
+        &session.machine.scratch,
     );
 }
 
-/// The tail's arithmetic over the memory at the operands' addresses: `s` the texture
-/// rectangle (whole numbers), `v` the vertices, `sc` the screen size (whole numbers), `t` a
-/// scratch float, `rc` the race block (the scale floats at their RVA offsets).
-fn quad_tail_math(s: usize, v: usize, sc: usize, t: usize, rc: usize) {
-    let (s, v, sc, t, rc) = (
-        crate::pointers::host_at(s),
-        crate::pointers::host_at(v),
-        crate::pointers::host_at(sc),
-        crate::pointers::host_at(t),
-        crate::pointers::host_at(rc),
-    );
-    let k = fld(rc, 0x1C2C64);
-    let left = fild(s, 0) * k;
-    fstp(v, 0x18, left);
-    fstp(v, 0x58, left);
-    let right = (fild(s, 0) + fild(s, 8)) * fld(rc, 0x1C2C64);
-    fstp(v, 0x38, right);
-    fstp(v, 0x78, right);
-    let top = fild(s, 4) * fld(rc, 0x1C2C64);
-    fstp(v, 0x1C, top);
-    fstp(v, 0x3C, top);
-    let bottom = (fild(s, 4) + fild(s, 0xC)) * fld(rc, 0x1C2C64);
-    fstp(v, 0x5C, bottom);
-    fstp(v, 0x7C, bottom);
-    fstp(t, 0, fild(sc, 0) * fld(rc, 0x1C2C68));
-    for off in [0, 0x20, 0x40, 0x60] {
-        fstp(v, off, fld(v, off) * fld(t, 0));
+/// The tail's arithmetic: `rect` the texture rectangle (x, y, width, height, whole
+/// numbers), `vertices` the four corners (left top, right top, left bottom, right bottom),
+/// `screen` the screen size (whole numbers), `scratch` the float the screen scales pass
+/// through (stored as a single, as the original does).
+fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch: &Dword) {
+    let [x, y, width, height] = rect.map(|n| int(n as i32));
+    let texel = ld(VIEWER_PANEL.texel_scale.bits());
+    let (left, right) = (x * texel, (x + width) * texel);
+    let (top, bottom) = (y * texel, (y + height) * texel);
+    for (corner, vertex) in vertices[..4].iter().enumerate() {
+        let at_right = corner % 2 == 1;
+        let at_bottom = corner >= 2;
+        vertex.u.set_bits(st(if at_right { right } else { left }));
+        vertex.v.set_bits(st(if at_bottom { bottom } else { top }));
     }
-    fstp(t, 0, fild(sc, 4) * fld(rc, 0x1C2C6C));
-    for off in [4, 0x24, 0x44, 0x64] {
-        fstp(v, off, fld(v, off) * fld(t, 0));
+    scratch.set_bits(st(
+        int(screen[0] as i32) * ld(VIEWER_PANEL.texel_scale_small.bits())
+    ));
+    for vertex in &vertices[..4] {
+        vertex
+            .x
+            .set_bits(st(ld(vertex.x.bits()) * ld(scratch.bits())));
+    }
+    scratch.set_bits(st(
+        int(screen[1] as i32) * ld(VIEWER_PANEL.texel_scale_smaller.bits())
+    ));
+    for vertex in &vertices[..4] {
+        vertex
+            .y
+            .set_bits(st(ld(vertex.y.bits()) * ld(scratch.bits())));
     }
 }
 
 /// The draw (`d3d::draw_vertex_strip`, 0x41ADE1) of 4 vertices at `g_polygonVertices`;
 /// its result (Direct3D's, always 0) is read by no one: the quads keep every register
-/// round it (`pusha` / `popa`).
+/// round it.
 pub fn draw() -> Result<(), Refused> {
-    crate::d3d::draw_vertex_strip::draw_vertex_strip(verts() as u32, 4)?;
+    crate::d3d::draw_vertex_strip::draw_vertex_strip(&VERTICES.vertices, 4)?;
     Ok(())
 }
 
@@ -199,14 +196,26 @@ mod asm_reference {
                     reads: &[],
                     writes: &[(0, Out::F)],
                 },
-                Operand::Buffer {
+                Operand::RaceBlock {
                     reads: &[(0x1C2C64, In::F), (0x1C2C68, In::F), (0x1C2C6C, In::F)],
                     writes: &[],
                 },
             ],
             ulps: 0,
             reference: |a| unsafe { ref_tail(a[0], a[1], a[2], a[3], a[4]) },
-            plain: |a| quad_tail_math(a[0], a[1], a[2], a[3], a[4]),
+            plain: |a| {
+                // SAFETY: the buffers are the operands' (a rectangle's four dwords, four
+                // vertices, the screen's two, the scratch dword), lent and aligned.
+                let (rect, verts, screen, scratch) = unsafe {
+                    (
+                        *(crate::pointers::host_at(a[0]) as *const [u32; 4]),
+                        &*(crate::pointers::host_at(a[1]) as *const [Vertex; 4]),
+                        *(crate::pointers::host_at(a[2]) as *const [u32; 2]),
+                        &*(crate::pointers::host_at(a[3]) as *const Dword),
+                    )
+                };
+                quad_tail_math(rect, verts, screen, scratch);
+            },
         }];
         sparse(&blocks, 4000, 205);
     }

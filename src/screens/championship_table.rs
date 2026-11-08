@@ -1,36 +1,38 @@
-//! The championship's standings table (`sub_4A4E1E` -> `sub_4A256C`; stream A, part F1,
-//! 2026-10-18): ten rows from position `dword_7556B8` of class `dword_7558F4` in the
-//! championship history (`dword_7556F0`: 0x78-byte entries, -1 ends them; +4 the player's
-//! own, +8 the car, +0xC the flag, +0x10 the class, +0x14 the name, +0x54 .. +0x68 six
-//! rounds' points, below 0 none, +0x6C the total, +0x70 the position).
+//! The championship's standings table (`screens::draw_championship_table` ->
+//! `screens::find_history_entry`; stream A, part F1, 2026-10-18): ten rows from position
+//! `dword_7556B8` of class `dword_7558F4` in the championship history (`dword_7556F0`: 0x78-byte
+//! entries, -1 ends them; +4 the player's own, +8 the car, +0xC the flag, +0x10 the class, +0x14
+//! the name, +0x54 .. +0x68 six rounds' points, below 0 none, +0x6C the total, +0x70 the position).
 
 use crate::errors::{FatalError, Refused};
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_flow::Fault;
-use crate::menu::event_store::EVENT_STATE;
+use crate::menu::owner::Menus;
+use crate::screens::game_screen::{HeldText, held_name};
 use crate::text::draw_text::Canvas;
+use rc2k_core::saves::rankings::HistoryEntry;
 
 const NOT_FOUND: FatalError = FatalError {
     code: 0x8070_A7FA,
     message: "Position in GB_ChampHST Not Found (see Log)",
 };
 
-/// `screens::find_history_entry` (0x4A256C): from entry edi on, the first of class ebx and
-/// position eax (the entry edi points at itself is looked at before the end test); none
-/// before an entry of -1 is fatal error 0x8070A7FA.
-pub fn find_history_entry(entry: u32, class: u32, position: u32) -> Result<u32, Refused> {
+/// `screens::find_history_entry` (0x4A256C): from the history's first entry (edi) on, the
+/// first of class ebx and position eax (the first entry is looked at before the end test);
+/// none before an entry of -1 is fatal error 0x8070A7FA. `walked`: the history's entries
+/// as far as its end entry.
+pub fn find_history_entry(
+    walked: &[HistoryEntry],
+    class: u32,
+    position: u32,
+) -> Result<usize, Refused> {
     // Converted: `rc2k_core::screens::championship_table::find_history`.
-    use rc2k_core::screens::championship_table::{HISTORY_ENTRY_LEN, find_history};
-    let at = |n: u32| entry.wrapping_add(n.wrapping_mul(HISTORY_ENTRY_LEN));
-    let f = Fault::default();
+    use rc2k_core::screens::championship_table::find_history;
     let found = find_history(
-        |n| f.get(at(n)),
-        |n| (f.get(at(n) + 0x10), f.get(at(n) + 0x70)),
+        |n| walked.get(n as usize).map_or(u32::MAX, |e| e.first),
+        |n| (walked[n as usize].group, walked[n as usize].position),
         class,
         position,
     );
-    f.check()?;
-    found.map(at).ok_or(NOT_FOUND.into())
+    found.map(|n| n as usize).ok_or(NOT_FOUND.into())
 }
 
 /// `screens::draw_championship_table` (0x4A4E1E): the heads (strings 0x484, 0x485, 0x4F9 at
@@ -42,38 +44,37 @@ pub fn find_history_entry(entry: u32, class: u32, position: u32) -> Result<u32, 
 /// leaves it. (It also looks the section's first record up and never uses it: left out.)
 /// Every register kept. Refuses (before anything) no history table; a position not in it is
 /// the original's fatal error.
-pub fn draw_championship_table(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let table = CHAMP_VIEW.champ_history.get();
-    if table == 0 {
-        return Err(crate::errors::BadInput("no championship history").into());
-    }
+pub fn draw_championship_table(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let walked = crate::menu::standings::walked_entries_b()?;
     // Converted: `rc2k_core::screens::championship_table`; the ten entries looked up
     // first (a position not in the history is the original's fatal error, raised
     // before the rows rather than after those before it).
-    let (class, first) = (EVENT_STATE.class.get(), CHAMP_VIEW.first_row.get());
+    let (class, first) = (
+        menus.screens.event.class.get(),
+        menus.play.champ_view.first_row.get(),
+    );
     let mut rows = Vec::with_capacity(10);
     for n in 0..10u32 {
-        let e = find_history_entry(table, class, first.wrapping_add(n))?;
-        let f = Fault::default();
+        let e = &walked[find_history_entry(&walked, class, first.wrapping_add(n))?];
         rows.push(rc2k_core::screens::championship_table::Row {
-            mine: (f.get(e + 4) as i32) > 0,
-            nation: f.get(e + 8),
-            car: f.get(e + 0xC),
-            name: e + 0x14,
-            points: std::array::from_fn(|r| f.get(e + 0x54 + 4 * r as u32) as i32),
-            total: f.get(e + 0x6C),
-            position: f.get(e + 0x70),
+            mine: (e.player as i32) > 0,
+            nation: e.nation,
+            car: e.car,
+            name: held_name(e.name_text())?,
+            points: std::array::from_fn(|r| e.stage[r] as i32),
+            total: e.stage[6],
+            position: e.position,
         });
-        f.check()?;
     }
     let rows: [_; 10] = rows.try_into().unwrap_or_else(|_| unreachable!());
     rc2k_core::screens::championship_table::championship_table(
         &mut crate::screens::game_screen::GameScreen::<
             rc2k_core::screens::championship_table::Font,
             rc2k_core::screens::championship_table::Work,
+            HeldText,
         >::new(canvas),
         first,
-        CHAMP_VIEW.event_mode.get() == 0x13,
+        menus.play.champ_view.event_mode.get() == 0x13,
         &rows,
     )
 }

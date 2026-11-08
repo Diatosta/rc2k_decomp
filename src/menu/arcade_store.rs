@@ -7,6 +7,7 @@ use crate::session::{Bytes, Dword};
 
 /// The arcade game's variables (IDA 0x7587E8 .. 0x758806).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Arcade {
     /// `dword_7587E8`: 1 when the front end's scene was let go for a race (`menu::reload_front_end` sets it up again).
     pub scene_let_go: Dword,
@@ -21,19 +22,23 @@ pub struct Arcade {
     /// Unreferenced bytes (IDA 0x7587FC .. 0x758800).
     pub _gap_7587fc: Bytes<4>,
     /// `byte_758800`: One byte a level: won before (the options file's last six bytes; `screens::locked_notes`).
-    pub levels_won: Bytes<6>,
+    pub levels_won: Bytes<8>,
 }
 
 /// First values the image's (`tests::arcade_game_starts_as_the_games`).
-pub static ARCADE_GAME: Arcade = Arcade {
-    scene_let_go: Dword::new(0x0),
-    level: Dword::new(0x0),
-    stage: Dword::new(0x1),
-    retry: Dword::new(0x0),
-    places: Dword::new(0x64),
-    _gap_7587fc: Bytes::new([0; 4]),
-    levels_won: Bytes::new([0; 6]),
-};
+impl Arcade {
+    pub const fn new() -> Self {
+        Arcade {
+            scene_let_go: Dword::new(0x0),
+            level: Dword::new(0x0),
+            stage: Dword::new(0x1),
+            retry: Dword::new(0x0),
+            places: Dword::new(0x64),
+            _gap_7587fc: Bytes::new([0; 4]),
+            levels_won: Bytes::new([0; 8]),
+        }
+    }
+}
 
 /// IDA 0x7587E8, the first byte of the piece.
 pub const START: usize = 0x7587E8;
@@ -41,8 +46,9 @@ pub const START: usize = 0x7587E8;
 pub const END: usize = 0x758806;
 
 /// Where IDA 0x7587E8 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn arcade_addr() -> u32 {
-    crate::pointers::game_address(&ARCADE_GAME as *const Arcade)
+    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.play.arcade)
 }
 
 #[cfg(test)]
@@ -59,7 +65,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(arcade_addr()) as *const u8,
+                crate::pointers::host(arcade_addr()).cast_const(),
                 END - START,
             )
         };

@@ -4,9 +4,11 @@
 //! parts' middles and half extents, the radii). `#[repr(C)]` with the image's layout, over
 //! the race block's bytes (`OBJECT_SLOTS`). Names are readings unless IDA's.
 
+use crate::scene::owner::scene;
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ObjectTables {
     /// +0x0 (0x62DB5C): `g_listedFaces`: the faces listed for drawing, 0x10 bytes each (number, sort key, third word, see-through; `scene::list_object_face`, `scene::sort_listed_faces`, `scene::draw_object_faces`).
     pub listed_faces: [Dword; 4096],
@@ -40,28 +42,23 @@ impl ObjectTables {
     /// A slot's entry of one of the 256-entry tables, read by address as the original does:
     /// a slot past the table reads on into the next one (for slots nothing has checked).
     pub fn slot_value(table: &[Dword; 256], slot: usize) -> u32 {
-        // SAFETY: the tables are contiguous in the race block; a slot far past them is the
-        // caller's slip, as it was the original's.
-        unsafe {
-            (crate::pointers::host_at((table[0].addr() + (4 * slot) as u32) as usize) as *const u32)
-                .read_volatile()
-        }
+        // The tables are contiguous; a slot far past them is the caller's slip, as it was the
+        // original's (a checked read: outside the allocation ends the program).
+        crate::session::read_on_in(&scene().objects.slots, table, slot, "an object slot")
+            .unwrap_or_else(|e| crate::fatal::raise::end("an object slot", e))
     }
 }
 
-/// The piece: the race block's bytes at IDA 0x62DB5C seen as `ObjectTables`.
-pub struct InBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InBlock {
-    type Target = ObjectTables;
-    fn deref(&self) -> &ObjectTables {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const ObjectTables) }
+impl ObjectTables {
+    /// The piece with the image's first values (a static of its own since 2026-10-29: it left
+    /// the race block, phase 13, `race::store::LEFT`; the owner `scene::owner::Scene` holds it).
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static OBJECT_SLOTS: InBlock = InBlock;
 
 /// IDA 0x62DB5C, the first byte of the piece.
 pub const START: usize = 0x62DB5C;
@@ -71,8 +68,9 @@ pub const END: usize = 0x634FA0;
 const _: () = assert!(END - START == core::mem::size_of::<ObjectTables>());
 
 /// Where IDA 0x62DB5C is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&scene().objects.slots))
 }
 
 #[cfg(test)]
@@ -81,7 +79,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&scene().objects.slots, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             crate::moved::place(END - 1),

@@ -1,15 +1,11 @@
 //! `logfile::date_text` (0x401D74): writes the date and time the game started at.
 //!
-//! In:  ebx = cursor
-//! Out: ebx = the cursor after the text; everything else preserved
-//! "Monday 12th October 2026 14:49:56.46": the day's name, the day with its ending, the
-//! month's name, the year, the time with hundredths. From what `sub_410F29` took from
-//! `GetLocalTime` at the game's start: `byte_51839F` the day of the week, `dword_5183A0`
-//! the day, the month and (a word) the year, `dword_5183A4` hour, minute, second and
-//! hundredths. After the text a carriage return, a line feed and two NULs are written,
-//! which the cursor is not moved past. One caller, the log's start.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Takes cursor. Returns the cursor after the text. "Monday 12th October 2026 14:49:56.46": the
+//! day's name, the day with its ending, the month's name, the year, the time with hundredths. From
+//! what `system::keep_start_time` took from `GetLocalTime` at the game's start: `byte_51839F` the
+//! day of the week, `dword_5183A0` the day, the month and (a word) the year, `dword_5183A4` hour,
+//! minute, second and hundredths. After the text a carriage return, a line feed and two NULs are
+//! written, which the cursor is not moved past. One caller, the log's start.
 
 use crate::errors::BadInput;
 use rc2k_core::files::log::Started;
@@ -48,12 +44,12 @@ pub fn date_text() -> Result<Vec<u8>, BadInput> {
 }
 
 /// For Rust callers: the text at the cursor, and after it CR, LF and two NULs. Returns the
-/// cursor after the text.
-pub fn write_date_text(cursor: *mut u8) -> Result<*mut u8, BadInput> {
+/// text with the CR and LF (what a read up to the first NUL finds there).
+pub fn write_date_text(at: &dyn crate::pointers::Store) -> Result<Vec<u8>, BadInput> {
     let text = date_text()?;
-    let at = crate::pointers::GamePtr::new(crate::pointers::game_address(cursor));
-    at.write_bytes(&text, "the log's date text")?;
-    at.offset(text.len() as u32)
-        .write(0x0A0Du32, "the log's date text")?;
-    Ok(cursor.wrapping_add(text.len()))
+    at.store(0, &text)?;
+    crate::pointers::store_value(at, text.len(), 0x0A0Du32)?;
+    let mut line = text;
+    line.extend_from_slice(b"\r\n");
+    Ok(line)
 }

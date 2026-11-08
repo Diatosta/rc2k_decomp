@@ -6,11 +6,8 @@
 //! it otherwise).
 
 use crate::errors::Refused;
-use crate::race::prefs_store::STAGE_PREFS;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::view_store::RACE_VIEW;
-use crate::scene::object_tables_store::OBJECT_TABLES;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
+use crate::race::owner::Race;
+use crate::race::owner_course::Course;
 use crate::session::Dword;
 
 /// A kind's block: its first-texture variable (an index in `kind_first_textures`; only its place in `g_textureWantedPictures`
@@ -26,11 +23,11 @@ enum Prefs {
 }
 
 impl Prefs {
-    fn list(self) -> &'static [Dword] {
+    fn list(self, course: &Course) -> &[Dword] {
         match self {
-            Prefs::A => &STAGE_PREFS.picture_lists_a,
-            Prefs::B => &STAGE_PREFS.picture_lists_b,
-            Prefs::C => &STAGE_PREFS.picture_lists_c,
+            Prefs::A => &course.stage_prefs.picture_lists_a,
+            Prefs::B => &course.stage_prefs.picture_lists_b,
+            Prefs::C => &course.stage_prefs.picture_lists_c,
         }
     }
 }
@@ -64,8 +61,8 @@ const BLOCKS: [Block; 26] = [
     (128, Prefs::C, 0, 0x80, 7, 0x3D, 0, 1, 4),
 ];
 
-fn other() -> bool {
-    OBJECT_TABLES.other_levels.get() != 0
+fn other(scene: &crate::scene::owner::Scene) -> bool {
+    scene.objects.tables.other_levels.get() != 0
 }
 
 const COUNT_TEXT_RVA: &std::ffi::CStr = c"NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "; // "NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "
@@ -79,57 +76,72 @@ const COUNT_TEXT_RVA: &std::ffi::CStr = c"NUM DIFFERENT CARS/OBJECTS/TEXTURE SET
 /// the video level of two), and with `dword_621514` three more. What the original
 /// leaves in the registers its one caller reads none of (register liveness, 2026-10-23:
 /// the site in `race::loadlevel_init`, every register followed, no read).
-pub unsafe fn init_texture_levels() -> Result<(), Refused> {
+pub fn init_texture_levels(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let shared = &race.shared;
     // Converted: `rc2k_core::scene::texture_levels::{held_cars, set_levels}`.
-    use crate::logfile::{log_int::log_int, log_write::log_write};
-    use crate::scene::textures::cells_mut;
+    use crate::logfile::log_int::log_int;
+    use crate::scene::textures::with_cells;
     use rc2k_core::scene::texture_levels::{KindSlots, held_cars, set_levels};
-    unsafe {
-        let cars = held_cars(RACE_VIEW.race_cars.bits());
-        RACE_VIEW.race_cars.set_bits(cars);
-        crate::scene::reset_texture_tables::reset_texture_tables();
-        log_write(COUNT_TEXT_RVA.as_ptr() as *const u8, false, 1);
-        log_int(cars as i32, true, 1);
-        OBJECT_TABLES.other_levels.set(0);
-        crate::input::keys::update_input(&mut crate::input::keys::game_screenshot);
-        let kinds: Vec<(KindSlots, Vec<u32>)> = BLOCKS
-            .iter()
-            .map(
-                |&(_, list, from, first, count, tag, level, other_level, step)| {
-                    let k = KindSlots {
-                        first,
-                        tag,
-                        level,
-                        other_level,
-                        step,
-                    };
-                    let prefs = list.list();
-                    (
-                        k,
-                        (0..count as usize).map(|n| prefs[from + n].get()).collect(),
-                    )
+    let cars = held_cars(shared.view.race_cars.bits());
+    shared.view.race_cars.set_bits(cars);
+    crate::scene::reset_texture_tables::reset_texture_tables(scene);
+    crate::logfile::log_write::log_nul(&COUNT_TEXT_RVA, false, 1);
+    log_int(cars as i32, true, 1);
+    scene.objects.tables.other_levels.set(0);
+    crate::input::keys::update_input(&mut crate::input::keys::game_screenshot);
+    let kinds: Vec<(KindSlots, Vec<u32>)> = BLOCKS
+        .iter()
+        .map(
+            |&(_, list, from, first, count, tag, level, other_level, step)| {
+                let k = KindSlots {
+                    first,
+                    tag,
+                    level,
+                    other_level,
+                    step,
+                };
+                let prefs = list.list(&race.course);
+                (
+                    k,
+                    (0..count as usize).map(|n| prefs[from + n].get()).collect(),
+                )
+            },
+        )
+        .collect();
+    let set = with_cells(
+        [
+            &scene.objects.tables.texture_tags,
+            &scene.objects.tables.system_levels,
+            &scene.objects.tables.video_levels,
+        ],
+        |[tags, system, video]| {
+            set_levels(
+                &mut rc2k_core::scene::textures::LevelTables {
+                    tags,
+                    system,
+                    video,
+                },
+                cars,
+                shared.view.players.bits() == 1,
+                &kinds,
+                shared.switches.editor_mode.bits() != 0,
+                other(scene),
+                |car| {
+                    let kinds = &shared.vars.race_car_kinds;
+                    let own = crate::race::blocks_store::own_car_number();
+                    car as usize == own || kinds[car as usize].get() == kinds[own].get()
                 },
             )
-            .collect();
-        let set = set_levels(
-            &mut rc2k_core::scene::textures::LevelTables {
-                tags: cells_mut(&OBJECT_TABLES.texture_tags),
-                system: cells_mut(&OBJECT_TABLES.system_levels),
-                video: cells_mut(&OBJECT_TABLES.video_levels),
-            },
-            cars,
-            RACE_VIEW.players.bits() == 1,
-            &kinds,
-            FRAME_SWITCHES.editor_mode.bits() != 0,
-            other(),
-        )?;
-        // `g_kindSlotBytes`: + 4 (or 1) a kind's slot.
-        TEXTURE_PLACES.kind_slot_bytes.set(
-            TEXTURE_PLACES
-                .kind_slot_bytes
-                .get()
-                .wrapping_add(set.kind_slots_added),
-        );
-    }
+        },
+    )?;
+    // `g_kindSlotBytes`: + 4 (or 1) a kind's slot.
+    scene.textures.places.kind_slot_bytes.set(
+        scene
+            .textures
+            .places
+            .kind_slot_bytes
+            .get()
+            .wrapping_add(set.kind_slots_added),
+    );
     Ok(())
 }

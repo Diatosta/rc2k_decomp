@@ -5,12 +5,14 @@
 //! `moved::MOVED`. `#[repr(C)]` struct of atomic cells with the image's layout, first values the
 //! image's (`tests`).
 
+use crate::errors::BadInput;
 use crate::session::{Bytes, Dword};
 
 /// The graphics page's choices (IDA 0x4F50C0 .. 0x4F51F0, the image's layout; the rows' texts
 /// in the language file: `tokAVPPrimary` / `tokAVPSecondary`, `tokAVPDoubleBuffer` /
 /// `tokAVPTripleBuffer`, `tokOff` / `tokOn`).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct ScreenChoices {
     /// 0x4F50C0: `unk_4F50C0`: 1 once the choices are made (`gfx::screen_mode_choices`).
     pub made: Dword,
@@ -38,29 +40,79 @@ pub struct ScreenChoices {
     pub resolutions: Dword,
     /// 0x4F50E8: `unk_4F50E8`: the resolutions, 0x10 bytes each (width, height, the pixel
     /// kind's figure, the mode); room for 16 and 8 bytes more.
-    pub list: Bytes<264>,
+    pub list: ModeList,
 }
 
-pub static SCREEN_CHOICES: ScreenChoices = ScreenChoices {
-    made: Dword::new(0x0),
-    card: Dword::new(0x0),
-    resolution: Dword::new(0x0),
-    buffering: Dword::new(0x0),
-    mipmapping: Dword::new(0x0),
-    has_primary: Dword::new(0x0),
-    has_secondary: Dword::new(0x0),
-    listed: Dword::new(0x0),
-    mip_limit: Dword::new(0x0),
-    resolutions: Dword::new(0x0),
-    list: Bytes::new([0; 264]),
-};
+/// One resolution of the list (`unk_4F50E8`, 0x10 bytes).
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct ScreenMode {
+    /// +0.
+    pub width: Dword,
+    /// +4.
+    pub height: Dword,
+    /// +8: the pixel kind's figure.
+    pub figure: Dword,
+    /// +0xC: the mode.
+    pub mode: Dword,
+}
+
+/// The resolutions' list: room for 16 and 8 bytes more.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct ModeList {
+    pub modes: [ScreenMode; 16],
+    pub spare: Bytes<8>,
+}
+
+impl ModeList {
+    /// Dword `index` (0 width, 1 height, 2 figure, 3 mode) of the resolution at `place`. A
+    /// place past the 16 reads on past the list, as the original does (`what` names it in a
+    /// refusal there).
+    pub fn dword(&self, place: u32, index: usize, what: &'static str) -> Result<u32, BadInput> {
+        if let Some(m) = self.modes.get(place as usize) {
+            return Ok([&m.width, &m.height, &m.figure, &m.mode][index].get());
+        }
+        crate::pointers::load_value(self, (16 * place + 4 * index as u32) as usize)
+            .inspect_err(|_| crate::framework::log(&format!("choices: {what}: past the table")))
+    }
+}
+
+impl ScreenChoices {
+    pub const fn new() -> Self {
+        ScreenChoices {
+            made: Dword::new(0x0),
+            card: Dword::new(0x0),
+            resolution: Dword::new(0x0),
+            buffering: Dword::new(0x0),
+            mipmapping: Dword::new(0x0),
+            has_primary: Dword::new(0x0),
+            has_secondary: Dword::new(0x0),
+            listed: Dword::new(0x0),
+            mip_limit: Dword::new(0x0),
+            resolutions: Dword::new(0x0),
+            list: ModeList {
+                modes: [const {
+                    ScreenMode {
+                        width: Dword::new(0),
+                        height: Dword::new(0),
+                        figure: Dword::new(0),
+                        mode: Dword::new(0),
+                    }
+                }; 16],
+                spare: Bytes::new([0; 8]),
+            },
+        }
+    }
+}
 
 impl ScreenChoices {
     pub const START: usize = 0x4F50C0;
     pub const LEN: usize = 0x130;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&SCREEN_CHOICES as *const ScreenChoices) as usize
+        crate::pointers::game_address(&raw const crate::gfx::owner::GFX.display.choices) as usize
     }
 }
 
@@ -75,7 +127,7 @@ mod tests {
         let image = crate::moved::image_bytes(ScreenChoices::START, ScreenChoices::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(ScreenChoices::home()) as *const u8,
+                crate::pointers::host_at(ScreenChoices::home()).cast_const(),
                 ScreenChoices::LEN,
             )
         };

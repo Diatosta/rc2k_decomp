@@ -3,52 +3,39 @@
 //! record (`unk_5B521C`, 0x78 each, `platform_3d`'s `TextureRecord`): +4 width, +8
 //! height, +0xC its pixel kind's description (+4 bytes a pixel, +8 the format), +0x14 its
 //! first level's surface (a DirectDraw surface: `Lock` at +0x64 and `Unlock` at +0x80 of
-//! its method table), +0x60 locked. The surface's methods are called through its own
-//! table, so the same code locks the game's DirectDraw surfaces and the standalone's
-//! (`platform_3d`'s objects).
+//! its method table; `platform_3d::lock_surface` / `unlock_surface`), +0x60 locked.
 
 use crate::errors::FatalError;
+use crate::gfx::owner::gfx;
 
 pub const RECORD: u32 = 0x78;
 
-pub fn record(slot: u32) -> u32 {
-    crate::pointers::game_address(
-        crate::gfx::texture_upload::TEXTURE_TABLES
-            .system
-            .records
-            .as_ptr(),
+/// Record `slot`; `slot` is unchecked (as the original's), the pointer bounded to the
+/// texture tables as a whole.
+pub fn record(slot: u32) -> crate::pointers::GamePtr {
+    use crate::gfx::texture_upload::{Pool, Textures};
+    crate::pointers::GamePtr::to(&gfx().card.texture_tables).offset(
+        ((core::mem::offset_of!(Textures, system) + core::mem::offset_of!(Pool, records)) as u32)
+            .wrapping_add(slot.wrapping_mul(RECORD)),
     )
-    .wrapping_add(slot.wrapping_mul(RECORD))
+}
+
+/// The dword `offset` bytes into the record `r`.
+pub fn field(r: crate::pointers::GamePtr, offset: u32) -> u32 {
+    r.offset(offset)
+        .read::<u32>("a texture's record or surface")
+        .unwrap_or_else(|e| crate::fatal::raise::end("d3d::texture_lock::field", e))
+}
+
+/// Sets the dword `offset` bytes into the record `r`.
+pub fn put_field(r: crate::pointers::GamePtr, offset: u32, v: u32) {
+    r.offset(offset)
+        .write::<u32>(v, "a texture's record or surface")
+        .unwrap_or_else(|e| crate::fatal::raise::end("d3d::texture_lock::put_field", e));
 }
 
 pub fn get(a: u32) -> u32 {
     crate::pointers::read_or_end(a, "a texture's record or surface")
-}
-
-pub fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end(a, v, "a texture's record or surface")
-}
-
-/// A surface's method at `offset` of its table, called with `args` after `this`
-/// (`stdcall`).
-pub unsafe fn method(surface: u32, offset: u32, args: &[u32]) -> i32 {
-    unsafe {
-        let table = get(surface);
-        let f = get(table + offset);
-        match args {
-            [a] => {
-                let f: unsafe extern "system" fn(u32, u32) -> i32 =
-                    std::mem::transmute(crate::pointers::code(f));
-                f(surface, *a)
-            }
-            [a, b, c, d] => {
-                let f: unsafe extern "system" fn(u32, u32, u32, u32, u32) -> i32 =
-                    std::mem::transmute(crate::pointers::code(f));
-                f(surface, *a, *b, *c, *d)
-            }
-            _ => unreachable!("the two methods used here"),
-        }
-    }
 }
 
 pub const fn fatal(code: u32) -> FatalError {

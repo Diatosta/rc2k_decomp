@@ -4,40 +4,35 @@
 //! +0xC4 .. +0xD0; always `dword_71A1E0` into +0xD4 and +0x10 = 1. By the look of it the
 //! engine's figures for the sounds (a reading).
 //!
-//! In:  nothing
-//! Out: edi the sound object; the rest kept; no flags read
+//! Returns: the sound object
 //!
-//! Caller: `sub_43B635` (0x43B99F), every physics step. Refuses (before anything) a null
-//! sound object.
+//! Caller: `physics::car_physics_step` (0x43B99F), every physics step. Refuses (before anything) a
+//! null sound object.
 
-use crate::errors::{BadInput, Refused};
-use crate::physics::car_store::CAR;
-use crate::race::work_store::RACE_WORK;
+use crate::errors::Refused;
+use crate::race::owner::Race;
 use rc2k_core::physics::engine::shares_figures;
 
 /// The Rust version (a compare of floats only: the same at any precision).
 // Converted: `rc2k_core::physics::engine::shares_figures`.
-pub fn share_engine_sound() -> Result<(), Refused> {
-    let table = &crate::sound::store::RACE_SOUNDS.table;
-    let o = table[(RACE_WORK.current_car.get() & 7) as usize].get();
-    if o == 0 {
-        return Err(BadInput("a null sound object").into());
-    }
-    let so = crate::sound::store::SoundObject::at(o)?;
+pub fn share_engine_sound(race: &Race) -> Result<(), Refused> {
+    let so = crate::sound::store::current_object();
     if shares_figures(
-        CAR.contact_depth.get(),
+        race.shared.car.contact_depth.get(),
         f32::from_bits(so.knock_in[3].get()),
     ) {
-        for (k, figure) in CAR
+        for (k, figure) in race
+            .shared
+            .car
             .contact_point
             .iter()
-            .chain([&CAR.contact_depth])
+            .chain([&race.shared.car.contact_depth])
             .enumerate()
         {
             so.knock_in[k].set(figure.bits());
         }
     }
-    so.knock_d4.set(CAR.steer_trim.get());
+    so.knock_d4.set(race.shared.car.steer_trim.get());
     so.new_revs.set(1);
     Ok(())
 }

@@ -5,66 +5,55 @@
 //! (`strings::copy_printable`, 0x40 room), the instance GUID (+0x40), the most players
 //! (+0x50), the players (+0x54), `dwUser1` .. `dwUser4` (+0x58).
 //!
-//! In:  (stdcall) the session's description (a DPSESSIONDESC2), the time-out's address,
-//!      the flags, the context
-//! Out: eax = 1 to go on, 0 to stop; ebx, esi, edi, ebp kept; `ret 10h`
+//! Takes (stdcall) the session's description (a DPSESSIONDESC2), the time-out's address, the
+//! flags and the context. Returns 1 to go on, 0 to stop.
 //! Caller: DirectPlay, from `net::find_sessions` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;
-use crate::field;
-use crate::net::lobby::{copy_printable, log, log_hex, movsb_from_rust, session};
-use crate::net::store::NET;
-use crate::net::types::{DpSessionDesc, NetSession};
-use crate::pointers::GamePtr;
+use crate::net::dp_session::Desc;
+use crate::net::lobby::{log, log_bytes, log_hex};
+use crate::net::owner::net;
+use crate::net::tables::{copy_printable_into, with_session};
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use rc2k_core::net::lists::{self, Found};
 
-/// A dword of the callback's argument (memory Rust owns: DirectPlay's session record).
-fn get(at: u32) -> u32 {
-    crate::pointers::read_or_end(at, "DirectPlay's session record")
-}
-
-/// The Rust version: eax.
-pub fn session_found(args: &[u32]) -> Result<u32, Refused> {
-    let (desc, flags) = (args[0], args[2]);
-    log(VIEWER_PANEL.text_addr(texts::NET_FOUND), false, 2);
+/// The Rust version (see the header): the session (none at the end) and the flags.
+pub fn session_found(desc: Option<&Desc>, flags: u32) -> Result<u32, Refused> {
+    let vars = &net().vars;
+    log(VIEWER_PANEL.text_ptr(texts::NET_FOUND), false, 2);
     log_hex(flags, false);
-    if desc != 0 {
-        log(get(desc + 0x30), false, 2);
+    if let Some(d) = desc {
+        log_bytes(d.name.as_bytes(), false, 2);
     }
-    log(crate::pointers::game_address(c"".as_ptr()), true, 2);
-    // Converted: `rc2k_core::net::lists::session_found`.
-    let count =
-        match lists::session_found(flags, desc != 0, || get(desc + 0x44), || NET.sessions.get()) {
-            Found::Stop => return Ok(0),
-            Found::Pass => return Ok(1),
-            Found::List(n) => n,
-        };
-    NET.sessions.set(count + 1);
-    let record = session(count)?;
-    copy_printable(get(desc + 0x30), record, 0x40)?;
-    movsb_from_rust(
-        record + field!(NetSession, instance),
-        desc + field!(DpSessionDesc, instance),
-        0x10,
-    )?;
-    GamePtr::new(record + field!(NetSession, max_players)).write(
-        get(desc + field!(DpSessionDesc, max_players)),
-        "a session's record",
-    )?;
-    GamePtr::new(record + field!(NetSession, players)).write(
-        get(desc + field!(DpSessionDesc, current_players)),
-        "a session's record",
-    )?;
-    movsb_from_rust(
-        record + field!(NetSession, user),
-        desc + field!(DpSessionDesc, user),
-        0x10,
-    )?;
+    log_bytes(b"", true, 2);
+    let user2 = || desc.map_or(0, |d| d.user[1]);
+    let count = match lists::session_found(flags, desc.is_some(), user2, || vars.sessions.get()) {
+        Found::Stop => return Ok(0),
+        Found::Pass => return Ok(1),
+        Found::List(n) => n,
+    };
+    let Some(d) = desc else {
+        return Ok(0);
+    };
+    vars.sessions.set(count + 1);
+    let mut name = with_session(count, |s| s.name)?;
+    copy_printable_into(d.name.as_bytes(), &mut name, 0x40)?;
+    let mut user = [0u8; 16];
+    for (k, v) in d.user.iter().enumerate() {
+        user[4 * k..4 * k + 4].copy_from_slice(&v.to_le_bytes());
+    }
+    with_session(count, |s| {
+        s.name = name;
+        s.instance = d.instance;
+        s.max_players = d.max_players;
+        s.players = d.current_players;
+        s.user = user;
+    })?;
     Ok(1)
 }
 
-/// The callback DirectPlay is given: the Rust version.
-pub extern "system" fn callback(a: u32, b: u32, c: u32, d: u32) -> u32 {
-    crate::net::lobby::callback_entry("net::session_found", 0x418A62, &[a, b, c, d], session_found)
+pub fn callback(desc: Option<&Desc>, flags: u32, _context: u32) -> u32 {
+    crate::net::lobby::callback_entry("net::session_found", 0x418A62, || {
+        session_found(desc, flags)
+    })
 }

@@ -3,9 +3,12 @@
 //! `#[repr(C)]` with the image's layout, over the race block's bytes (`GROUND_PROBE`).
 //! Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct GroundProbe {
     /// +0x0 (0x620458): `dword_620458`: not used by the Rust side.
     pub unknown_0: Dword,
@@ -19,19 +22,16 @@ pub struct GroundProbe {
     pub settle_mark: Dword,
 }
 
-/// The piece: the race block's bytes at IDA 0x620458 seen as `GroundProbe`.
-pub struct InBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InBlock {
-    type Target = GroundProbe;
-    fn deref(&self) -> &GroundProbe {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const GroundProbe) }
+/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl GroundProbe {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static GROUND_PROBE: InBlock = InBlock;
 
 /// IDA 0x620458, the first byte of the piece.
 pub const START: usize = 0x620458;
@@ -41,8 +41,9 @@ pub const END: usize = 0x620474;
 const _: () = assert!(END - START == core::mem::size_of::<GroundProbe>());
 
 /// Where IDA 0x620458 is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&race().physics.ground_probe))
 }
 
 #[cfg(test)]
@@ -51,7 +52,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&race().physics.ground_probe, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             crate::moved::place(END - 1),

@@ -1,9 +1,12 @@
 //! The camera's work and the car parts' axle figures (IDA 0x608B08 .. 0x608CB4): the lights file's path text, the two views' figures (heading, roll, pitch, turns, offsets, points, shares) and the blended camera offset and turn, the pitch ease limits, the ground probe counts, the axle figures, the listener's points, and the car draw flags. `#[repr(C)]` with the image's layout, over the race block's bytes. The stage prefs buffer `g_stagePrefs` (0x608CB4 ..) is a separate piece.
 //! Names are readings unless IDA's.
 
-use crate::session::{Dword, Float};
+#[cfg(test)]
+use crate::race::owner::race;
+use crate::session::{Bytes, Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CameraWork {
     /// +0x0 (0x608B08): the text `files\s\data\ldata` (19 bytes + pad, read in place; `race::stage_prefs`).
     pub lights_path: [Dword; 5],
@@ -55,12 +58,12 @@ pub struct CameraWork {
     pub view_b_turn: [Float; 3],
     /// +0x90 (0x608B98): the first view's offset: record +4 .. +0xC plus `dword_637638` .. (`physics::take_view_a`).
     pub view_a_offset: [Float; 3],
-    /// +0x9c (0x608BA4): not named.
-    pub unknown_9c: [Dword; 3],
+    /// +0x9c (0x608BA4): unreferenced bytes (0xc of them).
+    pub _gap_9c: Bytes<12>,
     /// +0xa8 (0x608BB0): the second view's offset (`physics::take_view_b`).
     pub view_b_offset: [Float; 3],
-    /// +0xb4 (0x608BBC): not named.
-    pub unknown_b4: [Dword; 3],
+    /// +0xb4 (0x608BBC): unreferenced bytes (0xc of them).
+    pub _gap_b4: Bytes<12>,
     /// +0xc0 (0x608BC8): the first view's point (record +0x1C .. +0x24; `physics::take_view_a`).
     pub view_a_point: [Float; 3],
     /// +0xcc (0x608BD4): the second view's point (`physics::take_view_b`).
@@ -115,8 +118,8 @@ pub struct CameraWork {
     pub axle_front_z: Dword,
     /// +0x158 (0x608C60): two points of the car's light record x 65536 / 1000: the sound listener's (`drive::set_listener`).
     pub listener_points: [Dword; 6],
-    /// +0x170 (0x608C78): not named.
-    pub unknown_170: [Dword; 12],
+    /// +0x170 (0x608C78): unreferenced bytes (0x30 of them).
+    pub _gap_170: Bytes<48>,
     /// +0x1a0 (0x608CA8): `dword_608CA8`, set to 0x2100000 while a car is drawn (`race::car_draw`).
     pub car_draw_kept: Dword,
     /// +0x1a4 (0x608CAC): the car's faded bits (record +0x10), -1 after (`race::car_draw`, `scene::draw_object_face`).
@@ -125,21 +128,16 @@ pub struct CameraWork {
     pub drawing_car: Dword,
 }
 
-/// The piece: the race block's bytes at IDA 0x608B08 seen as `CameraWork`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = CameraWork;
-    fn deref(&self) -> &CameraWork {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const CameraWork) }
+/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl CameraWork {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static CAMERA_WORK: InRaceBlock = InRaceBlock;
 
 /// IDA 0x608B08, the first byte of the piece.
 pub const START: usize = 0x608B08;
@@ -148,9 +146,10 @@ pub const END: usize = 0x608CB4;
 
 const _: () = assert!(END - START == core::mem::size_of::<CameraWork>());
 
-/// Where IDA 0x608B08 is now (in the race block).
+/// Where IDA 0x608B08 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&race().physics.camera))
 }
 
 #[cfg(test)]
@@ -159,7 +158,16 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(
+            &crate::race::owner::race().physics.camera,
+            START,
+            END,
+        );
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

@@ -3,21 +3,16 @@
 //! (`menu::replay_slot_loop`, eax as given: the caller's 1), the stage loaded again
 //! (`race::viewer_load_stage`).
 //!
-//! In:  eax 1 (the saving screen)
-//! Out: eax the slot chosen or -1 (the screen's; the loading keeps it); the rest as the
-//!      screen leaves them
-//!
 //! Caller: `race::viewer_action` (0x16).
 
 use crate::errors::Refused;
-use crate::menu::screen_loop::Carried;
+use crate::race::owner::Race;
 
-/// The Rust version: the slot chosen (eax; -1 for none). `c` the carried values the
-/// slot screen is run with (`c.arg` non-zero: the saving screen).
-pub fn choose_save_slot(c: &Carried) -> Result<u32, Refused> {
+/// The Rust version: the slot chosen (eax; -1 for none).
+pub fn choose_save_slot(race: &Race) -> Result<u32, Refused> {
     // Both keep every register.
-    crate::race::viewer_tidy_stage::viewer_tidy_stage()?;
-    let slot = crate::menu::replay_slot_loop::replay_slot_loop(c)?;
-    crate::race::viewer_load_stage::viewer_load_stage()?;
+    crate::race::viewer_tidy_stage::viewer_tidy_stage(race)?;
+    let slot = crate::menu::replay_slot_loop::replay_slot_loop(crate::menu::owner::menus(), true)?;
+    crate::race::viewer_load_stage::viewer_load_stage(race)?;
     Ok(slot)
 }

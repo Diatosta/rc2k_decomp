@@ -1,7 +1,6 @@
 //! `strings::format_u32` (0x40204A): appends an unsigned decimal number.
 //!
-//! In:  eax = value, ecx = flags, ebx = cursor
-//! Out: ebx = new cursor; everything else preserved
+//! Takes the value, the flags and the cursor. Returns the new cursor.
 //! Flags: low nibble = width, 0x10 = zero-pad to width, 0x20 = space-pad to width,
 //! neither = no padding. 0x40 and 0x80 are ignored.
 

@@ -1,7 +1,5 @@
 //! `d3d::draw_vertex_strip` (0x41ADE1): draws a triangle strip of the vertices at ebx.
 //!
-//! In:  eax = the vertices' number, ebx = the vertices (transformed and lit, 0x20 bytes each)
-//! Out: eax = Direct3D's result (0: drawn); ecx, edx as Direct3D leaves them
 //! The device's (`g_d3dDevice`, an `IDirect3DDevice2`) DrawPrimitive (+0x74) with a
 //! triangle strip (5: `D3DPT_TRIANGLESTRIP`; the fan is 6), transformed and lit vertices (3) and the flags 0x1C (not clipped,
 //! no lighting, no extents). Callers: `drive::tyre_turned_quad`, `drive::tyre_quad` (the
@@ -14,14 +12,14 @@
 use crate::d3d::recorder::{Call, note};
 use crate::d3d::{VERTEX_LEN, Vertex};
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
+use crate::pointers::Store;
 
 /// Direct3D takes at most this many vertices in one primitive.
 const MOST: u32 = 0x400;
 
-fn vertices(at: u32, count: u32) -> Result<Vec<Vertex>, BadInput> {
-    let bytes =
-        GamePtr::new(at).read_bytes(count.min(MOST) as usize * VERTEX_LEN, "a strip's vertices")?;
+fn vertices(at: &dyn Store, count: u32) -> Result<Vec<Vertex>, BadInput> {
+    let mut bytes = vec![0; count.min(MOST) as usize * VERTEX_LEN];
+    at.load(0, &mut bytes)?;
     Ok(bytes
         .as_chunks::<VERTEX_LEN>()
         .0
@@ -35,7 +33,7 @@ fn vertices(at: u32, count: u32) -> Result<Vec<Vertex>, BadInput> {
 }
 
 /// The strip of `count` vertices at `at` drawn: Direct3D's result, always 0 here.
-pub fn draw_vertex_strip(at: u32, count: u32) -> Result<u32, BadInput> {
+pub fn draw_vertex_strip(at: &dyn Store, count: u32) -> Result<u32, BadInput> {
     let vertices = vertices(at, count)?;
     let swallowed = note(|| Call::Fan(vertices.clone()));
     if !swallowed {

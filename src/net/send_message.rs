@@ -3,10 +3,7 @@
 //! (`net::dplay_send`: to `dword_5AB274`, the bytes and their count, one more than given,
 //! flags 0).
 //!
-//! In:  `bytes` (ebx), `count` (ecx)
-//! Out: nothing (the original leaves eax, ebx, ecx, edx as the send has them and keeps
-//!      esi, edi; its callers, `net::send_race_message`'s, read esi only: `lq -s
-//!      0x46449E`, kept by a Rust function)
+//! Takes `bytes`, `count`.
 //!
 //! See `net/mod.rs`. Callers: `net::send_inputs`, `net::send_position`, `net::send_extra`
 //! (through `net::send_race_message`, `call net::send_message; retn`, folded in). Refuses
@@ -15,20 +12,19 @@
 
 use crate::errors::Refused;
 use crate::net::dplay_send::dplay_send;
-use crate::net::store::NET;
-use crate::pointers::GamePtr;
+use crate::net::owner::Net;
 use rc2k_core::net::inbox;
 
 /// The Rust version.
-pub fn send_message(bytes: *const u8, count: u32) -> Result<(), Refused> {
+pub fn send_message(net: &Net, bytes: &[u8]) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::inbox` (`next_sequence`, `outgoing`: a message too long
     // refused before anything is written).
-    let byte = inbox::next_sequence(NET.sequence.get());
-    let bytes = GamePtr::new(crate::pointers::game_address(bytes))
-        .read_bytes(count as usize, "a message to send")?;
-    let message = inbox::outgoing(byte, &bytes)?;
-    NET.sequence.set(byte);
-    GamePtr::new(NET.send_buffer.addr()).write_bytes(&message, "the send buffer")?;
-    dplay_send(NET.send_to.get(), 0, NET.send_buffer.addr(), count + 1);
+    let byte = inbox::next_sequence(net.vars.sequence.get());
+    let message = inbox::outgoing(byte, bytes)?;
+    net.vars.sequence.set(byte);
+    net.vars
+        .send_buffer
+        .write_at(0, &message, "the send buffer")?;
+    dplay_send(&net.vars, net.vars.send_to.get(), &message);
     Ok(())
 }

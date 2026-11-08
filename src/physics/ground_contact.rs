@@ -9,13 +9,8 @@
 //! into `dword_6D3018` ..; with the depth below 0, `physics::restore_saved_car` and
 //! `physics::feel_ground`.
 //!
-//! In:  nothing
-//! Out: the registers as `lowest_body_point` and, on the long path, `contact_force`,
-//!      `restore_saved_car` and `feel_ground` leave them, eax the depth; no flags read
-//!      (the caller calls on)
-//!
-//! Caller: `sub_43B635`, every physics step. Refuses a point past 0x3F on the long path
-//! (the tables' room), and what its calls refuse; what was written is put back. Not
+//! Caller: `physics::car_physics_step`, every physics step. Refuses a point past 0x3F on the long
+//! path (the tables' room), and what its calls refuse; what was written is put back. Not
 //! reached: a depth below 0 (`restore_saved_car` and `feel_ground` need the stage; their
 //! own tests cover them).
 //!
@@ -23,53 +18,56 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
-use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::crash_contact::{point_number, sign, take_contact};
 use crate::physics::feel_ground::feel_ground;
 use crate::physics::flow::copy_cells;
 use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e1::place_sound_e1;
 use crate::physics::restore_saved_car::restore_saved_car;
-use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::Race;
 
 // Converted: `rc2k_core::physics::contacts::touches` and `walls::raised_hit` (the x87 steps stay).
-fn steps() -> Result<(), Refused> {
-    CONTACT_WORK.ground_contact_started.set(0);
-    unsafe { lowest_body_point() }?;
-    let depth = CONTACT_WORK.lowest_depth.get();
+fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let physics_store = &race.physics;
+    physics_store.contact.ground_contact_started.set(0);
+    { lowest_body_point(race) }?;
+    let depth = physics_store.contact.lowest_depth.get();
     let limit = rc2k_core::physics::contacts::GROUND_LIMIT;
-    if !rc2k_core::physics::contacts::touches(depth, limit, CAR.all_wheels_off.get() != 0) {
+    if !rc2k_core::physics::contacts::touches(
+        depth,
+        limit,
+        race.shared.car.all_wheels_off.get() != 0,
+    ) {
         return Ok(());
     }
-    let n = point_number()?;
-    CONTACT_WORK.ground_contact_started.set(1);
-    CAR.contact_point[0].set_bits(CAR.probe_point_x[n].bits());
-    CAR.contact_point[1].set_bits(CAR.probe_point_y[n].bits());
-    CAR.contact_point[2].set_bits(CAR.probe_point_z[n].bits());
-    take_contact(n)?;
-    CONTACT_WORK.contact_slide_limit.set_bits(0);
-    PHYSICS
-        .contact_record
-        .set(PHYSICS.contacts[2].force[0].addr());
-    unsafe { contact_force() };
-    { place_sound_e1() }?;
+    let n = point_number(&race.physics)?;
+    physics_store.contact.ground_contact_started.set(1);
+    race.shared.car.contact_point[0].set_bits(race.shared.car.probe_point_x[n].bits());
+    race.shared.car.contact_point[1].set_bits(race.shared.car.probe_point_y[n].bits());
+    race.shared.car.contact_point[2].set_bits(race.shared.car.probe_point_z[n].bits());
+    take_contact(race, n)?;
+    physics_store.contact.contact_slide_limit.set_bits(0);
+    contact_force(race, &race.shared.physics_tables.contacts[2], scene);
+    { place_sound_e1(race) }?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
-        f32::from_bits(CONTACT_WORK.contact_speed_length.bits()),
-        f32::from_bits(CAR.contact_depth.bits()),
+        f32::from_bits(physics_store.contact.contact_speed_length.bits()),
+        f32::from_bits(race.shared.car.contact_depth.bits()),
     ) {
-        CAR.contact_depth.set_bits(hit.to_bits());
+        race.shared.car.contact_depth.set_bits(hit.to_bits());
     }
-    copy_cells(&CONTACT_WORK.ground_force, &PHYSICS.contacts[2].force);
-    if sign(CONTACT_WORK.lowest_depth.get()) {
-        unsafe { restore_saved_car() }?;
-        unsafe { feel_ground() }?;
+    copy_cells(
+        &physics_store.contact.ground_force,
+        &race.shared.physics_tables.contacts[2].force,
+    );
+    if sign(physics_store.contact.lowest_depth.get()) {
+        { restore_saved_car(race) }?;
+        { feel_ground(race, scene) }?;
     }
     Ok(())
 }
 
 /// The Rust version. The registers it leaves are read by none of its callers.
-pub fn ground_contact() -> Result<(), Refused> {
-    steps()
+pub fn ground_contact(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    steps(race, scene)
 }

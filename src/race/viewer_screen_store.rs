@@ -1,8 +1,10 @@
 //! The replay viewer's screen (IDA 0x5C291C .. 0x5C2FE4; phase 7, typed): the cameras' text ids, the bar, buttons, marks and place rectangles (scratch ones written each frame), the quad scale floats, the picture switches, the replay patch switches kept, the frame-picture recording state (three dwords at odd addresses), the NET and display text strings between 0x5C2CF7 and 0x5C2F81 (left as unknown bytes), the view marks' state and the listener place and turn. Names are readings unless IDA's.
 
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ViewerPanelBlock {
     /// +0x0 (0x5C291C): not named.
     pub unknown_0: [Dword; 24],
@@ -74,53 +76,26 @@ pub struct ViewerPanelBlock {
     pub picture_name: [Dword; 3],
     /// +0x3cc (0x5C2CE8): not named.
     pub unknown_3cc: [Dword; 167],
-    /// +0x668 (0x5C2F84): `asc_5C2F84`: a 2-byte tab text, a pointer taken in place by `marks::init_mark_step` (a reading).
-    pub settings_text: Dword,
-    /// +0x66c (0x5C2F88): `dword_5C2F88`: set by `drive::finish_timing`, cleared twice by `drive::finish_race` (a reading).
-    pub race_done: Dword,
-    /// +0x670 (0x5C2F8C): `dword_5C2F8C`: the view's marks layout (`race::frame_views`).
-    pub marks_layout: Dword,
-    /// +0x674 (0x5C2F90): `dword_5C2F90`: this view's marks show (`race::frame_views`).
-    pub own_marks_shown: Dword,
-    /// +0x678 (0x5C2F94): `dword_5C2F94`: the other view's marks show; `drive::race_init` sets it (`race::frame_views`).
-    pub other_marks_shown: Dword,
-    /// +0x67c (0x5C2F98): not named.
-    pub unknown_67c: [Dword; 2],
-    /// +0x684 (0x5C2FA0): `dword_5C2FA0` ..: the view's place negated, three whole numbers (`drive::set_listener`).
-    pub listener_place: [Dword; 3],
-    /// +0x690 (0x5C2FAC): `dword_5C2FAC` ..: the view's turn matrix, nine floats, popped from the x87 (image value identity) (`drive::set_listener`).
-    pub listener_turn: [Float; 9],
-    /// +0x6b4 (0x5C2FD0): `dword_5C2FD0`: `dword_7558DC` copied after the loading picture (`race::single_rally`).
-    pub after_loading_copy: Dword,
-    /// +0x6b8 (0x5C2FD4): `dword_5C2FD4`: the viewed car's +0xABC >= 0x10; image value 1 (`drive::set_listener`).
-    pub listener_near: Dword,
-    /// +0x6bc (0x5C2FD8): not named.
-    pub unknown_6bc: [Dword; 2],
-    /// +0x6c4 (0x5C2FE0): `dword_5C2FE0`: a copy of the race's cars (`marks::init_mark_step`).
-    pub cars_copy: Dword,
 }
 
-/// The piece: the race block's bytes at IDA 0x5C291C seen as `ViewerPanelBlock`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+/// The piece: a field of `VIEWER_AND_KINDS` since 2026-10-29 (it left the race
+/// block with its group, phase 13).
+pub struct InGroup;
 
-impl core::ops::Deref for InRaceBlock {
+impl core::ops::Deref for InGroup {
     type Target = ViewerPanelBlock;
     fn deref(&self) -> &ViewerPanelBlock {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const ViewerPanelBlock) }
+        &race().replay.viewer_and_kinds.viewer_panel
     }
 }
 
-pub static VIEWER_PANEL: InRaceBlock = InRaceBlock;
+pub static VIEWER_PANEL: InGroup = InGroup;
 
 /// IDA 0x5C2CE8, the first byte of `unknown_3cc`: the untyped tail with the viewer's texts and
 /// its unaligned values.
 const TAIL: usize = 0x5C2CE8;
 
-/// The texts in `unknown_3cc`, by IDA's address (for `ViewerPanelBlock::text_addr`).
+/// The texts in `unknown_3cc`, by IDA's address (for `ViewerPanelBlock::text_ptr`).
 pub mod texts {
     /// "SVM: Release all textures"
     pub const SVM_RELEASE_TEXTURES: usize = 0x5C2DDF;
@@ -169,14 +144,19 @@ pub mod texts {
 impl ViewerPanelBlock {
     /// Where the byte at IDA `ida` is, inside the untyped tail `unknown_3cc` (the texts of
     /// `texts`, the unaligned values below).
-    pub fn text_addr(&self, ida: usize) -> u32 {
+    pub fn text_ptr(&self, ida: usize) -> crate::pointers::GamePtr {
         assert!((TAIL..TAIL + 4 * 167).contains(&ida));
-        self.unknown_3cc[0].addr() + (ida - TAIL) as u32
+        crate::pointers::GamePtr::to(&self.unknown_3cc).offset((ida - TAIL) as u32)
     }
 
     /// `dword_5C2CEB` (unaligned, in the tail): 1 when the developer's keys work in the viewer.
     pub fn developer_keys(&self) -> u32 {
         self.tail_read(0x5C2CEB)
+    }
+
+    /// Sets `dword_5C2CEB` (the `wrreplayenable` setting writes it).
+    pub fn set_developer_keys(&self, value: u32) {
+        self.tail_write(0x5C2CEB, value);
     }
 
     /// `dword_5C2CEF` (unaligned): pictures a second, 1 .. 100.
@@ -185,7 +165,7 @@ impl ViewerPanelBlock {
     }
 
     pub fn set_picture_rate(&self, value: u32) {
-        self.tail_write(0x5C2CEF, value)
+        self.tail_write(0x5C2CEF, value);
     }
 
     /// `dword_5C2CF3` (unaligned): ms a picture.
@@ -194,47 +174,164 @@ impl ViewerPanelBlock {
     }
 
     pub fn set_picture_time(&self, value: u32) {
-        self.tail_write(0x5C2CF3, value)
+        self.tail_write(0x5C2CF3, value);
     }
 
     /// `word_5C291C` ..: the text id of camera `camera` (47 of them; the original does not
     /// check the number).
     pub fn camera_name(&self, camera: usize) -> u16 {
-        // SAFETY: the table is in `unknown_0`; the read is unaligned and plain.
-        unsafe {
-            (crate::pointers::host_at((self.unknown_0[0].addr() + (2 * camera) as u32) as usize)
-                as *const u16)
-                .read_unaligned()
+        // The names are the block's first bytes; a number past them reads on in the block.
+        crate::pointers::GamePtr::to(self)
+            .offset((2 * camera) as u32)
+            .read("a camera's name")
+            .unwrap_or_else(|e| crate::fatal::raise::end("a camera's name", e))
+    }
+
+    /// Where the picture `n` places on in switch table `table` (0 `off_5C2C70`, 1
+    /// `off_5C2C78`, 2 `off_5C2C88`) is (phase 13: the tables keep IDA's addresses as names,
+    /// and `moved::point_into_homes` passes them over). The three tables are one run of nine
+    /// names, which an `n` past a table's end reads on into, as the original; past the run,
+    /// or a name off the panel, is refused.
+    pub fn switch_picture(
+        &self,
+        table: usize,
+        n: u32,
+    ) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
+        let run: [&Dword; 9] = [
+            &self.switch_pictures_a[0],
+            &self.switch_pictures_a[1],
+            &self.switch_pictures_b[0],
+            &self.switch_pictures_b[1],
+            &self.switch_pictures_b[2],
+            &self.switch_pictures_b[3],
+            &self.switch_pictures_c[0],
+            &self.switch_pictures_c[1],
+            &self.switch_pictures_c[2],
+        ];
+        let first = [0usize, 2, 6]
+            .get(table)
+            .ok_or(crate::errors::BadInput("a switch table past the 3"))?;
+        let cell = usize::try_from(n)
+            .ok()
+            .and_then(|n| run.get(first + n))
+            .ok_or(crate::errors::BadInput(
+                "a camera byte past the switch pictures",
+            ))?;
+        let ida = cell.get() as usize;
+        if !(START..END).contains(&ida) {
+            return Err(crate::errors::BadInput(
+                "a switch picture's name off the panel",
+            ));
+        }
+        crate::moved::named(ida)
+    }
+
+    /// The dword at IDA's `ida` in the tail: unaligned, so made of the two cells it spans.
+    fn tail_read(&self, ida: usize) -> u32 {
+        let (n, shift) = Self::tail_cells(ida);
+        let low = self.unknown_3cc[n].get();
+        match shift {
+            0 => low,
+            _ => (low >> shift) | (self.unknown_3cc[n + 1].get() << (32 - shift)),
         }
     }
 
-    fn tail_read(&self, ida: usize) -> u32 {
-        // SAFETY: inside the tail (`text_addr` checks); unaligned.
-        unsafe { (crate::pointers::host(self.text_addr(ida)) as *const u32).read_unaligned() }
+    /// `tail_read`'s write: the bytes of the two cells it spans that the dword covers.
+    fn tail_write(&self, ida: usize, value: u32) {
+        let (n, shift) = Self::tail_cells(ida);
+        if shift == 0 {
+            self.unknown_3cc[n].set(value);
+            return;
+        }
+        let (low, high) = (&self.unknown_3cc[n], &self.unknown_3cc[n + 1]);
+        low.set(low.get() & !(u32::MAX << shift) | value << shift);
+        high.set(high.get() & (u32::MAX << shift) | value >> (32 - shift));
     }
 
-    fn tail_write(&self, ida: usize, value: u32) {
-        // SAFETY: as `tail_read`; every other field is a cell, so the bytes are shared.
-        unsafe { (crate::pointers::host(self.text_addr(ida)) as *mut u32).write_unaligned(value) }
+    /// The tail's cell holding IDA's `ida` and the dword's bit shift in it.
+    fn tail_cells(ida: usize) -> (usize, u32) {
+        assert!((TAIL..TAIL + 4 * 166).contains(&ida));
+        ((ida - TAIL) / 4, 8 * ((ida - TAIL) % 4) as u32)
     }
 }
 
 /// IDA 0x5C291C, the first byte of the piece.
 pub const START: usize = 0x5C291C;
-/// IDA 0x5C2FE4, the end of the piece.
-pub const END: usize = 0x5C2FE4;
+/// IDA 0x5C2F84, the end of the piece (the marks' settings follow).
+pub const END: usize = 0x5C2F84;
 
 const _: () = assert!(END - START == core::mem::size_of::<ViewerPanelBlock>());
 
-/// Where IDA 0x5C291C is now (in the race block).
+/// Where IDA 0x5C291C is now (its group's static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(
+        &race().replay.viewer_and_kinds.viewer_panel,
+    ))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use core::mem::offset_of;
+
+    #[test]
+    fn tail_dwords_read_and_write_unaligned() {
+        let _g = crate::store::test_lock();
+        let v = &*VIEWER_PANEL;
+        let kept: Vec<u32> = v
+            .unknown_3cc
+            .iter()
+            .map(crate::session::Dword::get)
+            .collect();
+        for (k, ida) in [0x5C2CE8, 0x5C2CEB, 0x5C2CEF, 0x5C2CF3]
+            .into_iter()
+            .enumerate()
+        {
+            for (n, c) in v.unknown_3cc.iter().enumerate() {
+                c.set(0xA5A5_0000 | n as u32);
+            }
+            let before: Vec<u8> = v.text_ptr(0x5C2CE8).read_bytes(24, "the tail").unwrap();
+            let value = 0x1122_3344 + k as u32;
+            v.tail_write(ida, value);
+            let after: Vec<u8> = v.text_ptr(0x5C2CE8).read_bytes(24, "the tail").unwrap();
+            let mut want = before.clone();
+            want[ida - TAIL..ida - TAIL + 4].copy_from_slice(&value.to_le_bytes());
+            assert_eq!(after, want, "{ida:#x}");
+            assert_eq!(v.tail_read(ida), value);
+        }
+        for (c, k) in v.unknown_3cc.iter().zip(kept) {
+            c.set(k);
+        }
+    }
+
+    #[test]
+    fn the_switch_tables_name_their_pictures_as_the_image_does() {
+        let v = &*VIEWER_PANEL;
+        let name =
+            |ida: usize| u32::from_le_bytes(crate::moved::image_bytes(ida, 4).try_into().unwrap());
+        for k in 0..9usize {
+            let ida = 0x5C2C70 + 4 * k;
+            // The three tables hold two, four and three names, one run.
+            let (table, n) = match k {
+                0..2 => (0, k),
+                2..6 => (1, k - 2),
+                _ => (2, k - 6),
+            };
+            let cell = match table {
+                0 => &v.switch_pictures_a[n],
+                1 => &v.switch_pictures_b[n],
+                _ => &v.switch_pictures_c[n],
+            };
+            assert_eq!(cell.get(), name(ida));
+            assert_eq!(
+                v.switch_picture(table, n as u32).unwrap().addr() as usize,
+                crate::moved::place(name(ida) as usize)
+            );
+        }
+        assert!(v.switch_picture(0, 9).is_err());
+        assert!(v.switch_picture(3, 0).is_err());
+    }
 
     #[test]
     fn piece_sits_on_the_race_block() {
@@ -259,14 +356,6 @@ mod tests {
         assert_eq!(
             offset_of!(ViewerPanelBlock, kept_patch_switches),
             0x5C2C98 - START
-        );
-        assert_eq!(
-            offset_of!(ViewerPanelBlock, settings_text),
-            0x5C2F84 - START
-        );
-        assert_eq!(
-            offset_of!(ViewerPanelBlock, listener_turn),
-            0x5C2FAC - START
         );
     }
 }

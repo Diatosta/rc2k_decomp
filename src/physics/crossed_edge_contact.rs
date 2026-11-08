@@ -11,10 +11,6 @@
 //! `physics::contact_force` into contact record 1 (`g_contactRecords` + 0x20),
 //! `physics::place_sound_e1`.
 //!
-//! In:  nothing
-//! Out: ebp the face, and the registers as the steps and `contact_force` leave them; no
-//!      flags read (the caller goes on)
-//!
 //! Caller: `physics::crossed_edge`. Refuses (before anything) a probe point past 0x3F (the
 //! tables' room), and what `place_sound_e1` refuses (what was written put back).
 //!
@@ -23,15 +19,10 @@
 
 use crate::errors::Refused;
 use crate::math::x87::mul;
-use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
-use crate::physics::contact_store::CONTACT_WORK;
-use crate::physics::flow::p;
-use crate::physics::tables_store::PHYSICS;
 use crate::physics::wall_edge_contact::edge_normal;
-use crate::pointers::GamePtr;
-use crate::race::course_store::COURSE;
-use crate::race::numbers_store::NUMBERS;
+use crate::race::owner::Race;
+use crate::race::owner_physics::Physics;
 use crate::session::Float;
 use rc2k_core::physics::walls;
 
@@ -42,83 +33,95 @@ fn copy3(to: &[Float], from: &[Float]) {
     }
 }
 
-fn rd(x: u32) -> Result<u32, Refused> {
-    Ok(GamePtr::new(x).read::<u32>("a face's or scene point's dword")?)
-}
-
 /// Which side of the probe's path the point (x, z) lies: true for not left of it (the
 /// 64-bit difference not below 0, `jns` / `stc`). `qword_620460` the first product.
-fn side(x: u32, z: u32) -> bool {
+fn side(physics: &Physics, x: u32, z: u32) -> bool {
     let (first, difference) = walls::path_side(
         (
-            CONTACT_WORK.crossed_figures[0].get(),
-            CONTACT_WORK.crossed_figures[1].get(),
+            physics.contact.crossed_figures[0].get(),
+            physics.contact.crossed_figures[1].get(),
         ),
         (
-            CONTACT_WORK.crossed_figures[2].get(),
-            CONTACT_WORK.crossed_figures[3].get(),
+            physics.contact.crossed_figures[2].get(),
+            physics.contact.crossed_figures[3].get(),
         ),
         (x, z),
     );
-    crate::physics::ground_probe_store::GROUND_PROBE.product[0].set(first as u32);
-    crate::physics::ground_probe_store::GROUND_PROBE.product[1].set((first >> 32) as u32);
+    physics.ground_probe.product[0].set(first as u32);
+    physics.ground_probe.product[1].set((first >> 32) as u32);
     difference >= 0
 }
 
 /// The steps, not guarded (the probe checked before). The registers the original leaves
 /// are read by none of its callers.
 // Converted: `rc2k_core::physics::walls::{path_side, crossed_edge}`.
-pub fn steps() -> Result<(), Refused> {
-    let n = CONTACT_WORK.crossed_probe.get();
-    CONTACT_WORK.probe_index.set(n);
+pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let race_owner = race;
+    let n = race_owner.physics.contact.crossed_probe.get();
+    race_owner.physics.contact.probe_index.set(n);
     let k = n as usize;
-    let figures = &CONTACT_WORK.crossed_figures;
-    figures[0].set(CONTACT_WORK.saved_probe_x[k].get());
-    figures[1].set(CONTACT_WORK.saved_probe_z[k].get());
-    figures[2].set(CONTACT_WORK.probe_x[k].get());
-    figures[3].set(CONTACT_WORK.probe_z[k].get());
-    figures[4].set(CONTACT_WORK.saved_probe_faces[k].get());
-    let face = (CONTACT_WORK.crossed_figures[4].get() << 6).wrapping_add(COURSE.course_faces.get());
+    let figures = &race_owner.physics.contact.crossed_figures;
+    figures[0].set(race_owner.physics.contact.saved_probe_x[k].get());
+    figures[1].set(race_owner.physics.contact.saved_probe_z[k].get());
+    figures[2].set(race_owner.physics.contact.probe_x[k].get());
+    figures[3].set(race_owner.physics.contact.probe_z[k].get());
+    figures[4].set(race_owner.physics.contact.saved_probe_faces[k].get());
+    let face = race_owner.physics.contact.crossed_figures[4].get();
     for j in 0..4u32 {
-        let point = rd(face + 4 + 4 * j)?
-            .wrapping_mul(12)
-            .wrapping_add(COURSE.scene_points.get());
-        CONTACT_WORK.crossed_corners[2 * j as usize].set(rd(point)?);
-        CONTACT_WORK.crossed_corners[2 * j as usize + 1].set(rd(point + 8)?);
+        let point =
+            crate::race::course_places::face_field::<u32>(face, 4 + 4 * j, "a face's corner")?;
+        race_owner.physics.contact.crossed_corners[2 * j as usize]
+            .set(crate::race::scene_points::point_word(point, 0)?);
+        race_owner.physics.contact.crossed_corners[2 * j as usize + 1]
+            .set(crate::race::scene_points::point_word(point, 2)?);
     }
     let corner = |j: usize| {
         (
-            CONTACT_WORK.crossed_corners[2 * j].get(),
-            CONTACT_WORK.crossed_corners[2 * j + 1].get(),
+            race_owner.physics.contact.crossed_corners[2 * j].get(),
+            race_owner.physics.contact.crossed_corners[2 * j + 1].get(),
         )
     };
     // The original's order of tests (each computed, `qword_620460` the last one's).
     let (first, second) = walls::crossed_edge(|j| {
         let (x, z) = corner(j);
-        side(x, z)
+        side(&race.physics, x, z)
     });
-    let (from, to) = (rd(face + first)?, rd(face + second)?);
-    PHYSICS.crossed_edge[0].set(from);
-    PHYSICS.crossed_edge[1].set(to);
-    edge_normal(from, to)?;
-    CONTACT_WORK.crossed_heading.set(PHYSICS.wall_heading.get());
-    copy3(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
-    copy3(&CONTACT_WORK.contact_turn_speed, &CAR.spin);
-    CONTACT_WORK.contact_point[0].set_bits(CONTACT_WORK.probe_turned_x[k].bits());
-    CONTACT_WORK.contact_point[1].set_bits(CONTACT_WORK.probe_turned_y[k].bits());
-    CONTACT_WORK.contact_point[2].set_bits(CONTACT_WORK.probe_turned_z[k].bits());
-    CONTACT_WORK.contact_point[1].set_bits(mul(
-        CONTACT_WORK.contact_point[1].bits(),
-        NUMBERS.tenth.bits(),
+    let corner_point =
+        |at| crate::race::course_places::face_field::<u32>(face, at, "a face's corner");
+    let (from, to) = (corner_point(first)?, corner_point(second)?);
+    race.shared.physics_tables.crossed_edge[0].set(from);
+    race.shared.physics_tables.crossed_edge[1].set(to);
+    edge_normal(race, from, to, scene)?;
+    race_owner
+        .physics
+        .contact
+        .crossed_heading
+        .set(race.shared.physics_tables.wall_heading.get());
+    copy3(
+        &race_owner.physics.contact.contact_car_speed,
+        &race.shared.car.velocity,
+    );
+    copy3(
+        &race_owner.physics.contact.contact_turn_speed,
+        &race.shared.car.spin,
+    );
+    race_owner.physics.contact.contact_point[0]
+        .set_bits(race_owner.physics.contact.probe_turned_x[k].bits());
+    race_owner.physics.contact.contact_point[1]
+        .set_bits(race_owner.physics.contact.probe_turned_y[k].bits());
+    race_owner.physics.contact.contact_point[2]
+        .set_bits(race_owner.physics.contact.probe_turned_z[k].bits());
+    race_owner.physics.contact.contact_point[1].set_bits(mul(
+        race_owner.physics.contact.contact_point[1].bits(),
+        race_owner.course.numbers.tenth.bits(),
     ));
-    CONTACT_WORK.contact_slide_limit.set_bits(0);
-    p(&PHYSICS.contact_record, PHYSICS.contacts[1].force[0].addr());
-    unsafe { contact_force() };
-    { crate::physics::place_sound_e1::place_sound_e1() }?;
+    race_owner.physics.contact.contact_slide_limit.set_bits(0);
+    contact_force(race, &race.shared.physics_tables.contacts[1], scene);
+    { crate::physics::place_sound_e1::place_sound_e1(race) }?;
     Ok(())
 }
 
 /// The probe checked: refused past 0x3F.
-pub fn check_probe() -> Result<(), Refused> {
-    Ok(walls::check_probe(CONTACT_WORK.crossed_probe.get())?)
+pub fn check_probe(physics: &Physics) -> Result<(), Refused> {
+    Ok(walls::check_probe(physics.contact.crossed_probe.get())?)
 }

@@ -9,102 +9,99 @@
 //! `dword_7588D2[dword_758768 - 1]` / `[dword_75876C - 1]`, and two columns of six numbers
 //! (`dword_758778` .. at x 0x1C4, `dword_75877C` .. at 0x2C8).
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
 //!
 //! In a menu loop's draw list (0x758E86). The sprites' palettes are ebx as the original leaves it.
 //! Refuses (before anything) players 1 or 2 missing or without a name, no stage records, a stage
 //! line past the line buffer, and a string index past `dword_7588D2`'s 21 (the original reads the
-//! -1 ends or past them). The menus and draw lists run its `entry` (`menu::table_calls`); the
-//! registers above are the original's, for reference.
+//! -1 ends or past them). The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::player::player_at;
-use crate::menu::results_store::RESULT_FIGURES;
+use crate::menu::owner::Menus;
+use crate::menu::owner::Screens;
+use crate::menu::owner::Tables;
+use crate::records::stages_store::{RecordRef, RecordTable};
+use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 
 // dword_758720: byte offset in g_players
 // dword_758724
-fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
-}
 
 /// The stage's section's first record and the stage's record (`off_735512[dword_7558C8]
 /// [dword_7558D0]`, + 0xA4 x `dword_7558CC`); none: 0.
-fn records() -> Result<(u32, u32), BadInput> {
-    let table =
-        crate::records::stages_store::STAGE_TABLES.group_list(EVENT_STATE.stage_group.get());
-    if table == 0 {
-        return Ok((0, 0));
-    }
-    let base = get(table + 4 * EVENT_STATE.stage_sub.get())?;
+fn records(screens: &Screens) -> Result<(RecordTable, RecordRef), BadInput> {
+    let base = system().records.stage_tables.group_event_table(
+        screens.event.stage_group.get(),
+        screens.event.stage_sub.get(),
+    )?;
     Ok((
         base,
-        base.wrapping_add(EVENT_STATE.stage_number.get().wrapping_mul(0xA4)),
+        crate::records::stages_store::row(base, screens.event.stage_number.get())?,
     ))
 }
 
 /// `dword_7588D2[v - 1]`, refused outside its 21 entries.
-fn label(v: u32) -> Result<u32, Refused> {
+fn label(tables: &Tables, v: u32) -> Result<u32, Refused> {
     if !(1..=21).contains(&v) {
         return Err(BadInput("a string index past dword_7588D2's 21").into());
     }
-    Ok(CAPTIONS.duel_labels[v as usize - 1].get())
+    Ok(tables.captions.duel_labels[v as usize - 1].get())
 }
 
-pub fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let (p1, p2) = (player_at(0), player_at(1));
-    if p1 == 0 || p2 == 0 || get(p1 + 0x18)? == 0 || get(p2 + 0x18)? == 0 {
-        return Err(BadInput("player 1 or 2 missing or without a name").into());
+pub fn draw_duel_result(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let play = &menus.play;
+    let screens = &menus.screens;
+    let tables = &menus.tables;
+    let (p1, p2) = (
+        crate::menu::standings::player(0),
+        crate::menu::standings::player(1),
+    );
+    if p1.get().name_player().is_none() || p2.get().name_player().is_none() {
+        return Err(BadInput("player 1 or 2 without a name").into());
     }
-    let (base, record) = records()?;
-    if base == 0 {
-        return Err(BadInput("no stage records").into());
-    }
+    let (base, record) = records(screens)?;
     let stage = crate::screens::page_settings::stage_line_bytes(0x482, record)?;
     if stage.len() > 0x100 {
         return Err(BadInput("a stage line past the line buffer").into());
     }
     let (label1, label2) = (
-        label(RESULT_FIGURES.positions[0].get())?,
-        label(RESULT_FIGURES.positions[1].get())?,
+        label(tables, play.results.positions[0].get())?,
+        label(tables, play.results.positions[1].get())?,
     );
     // Converted: `rc2k_core::screens::duel_result`.
     use rc2k_core::screens::player_result::Player;
     let units = crate::strings::units::units();
-    let player = |p: u32| -> Result<Player<u32>, Refused> {
+    let player = |p: crate::menu::standings::PlayerCell| -> Result<Player<crate::screens::game_screen::HeldText>, Refused> {
+        let p = p.get();
         Ok(Player {
-            name: get(p + 0x18)?,
-            nation: get(p + 4)?,
-            car: get(p + 8)?,
-            time: get(p + 0x88)?,
-            speed: crate::strings::append_speed::append_speed(get(p + 0x94)?, true, units)?,
+            name: crate::screens::game_screen::player_name_of(menus, crate::menu::player_names::name_of(&p)?),
+            nation: p.nationality,
+            car: p.car_number,
+            time: p.time,
+            speed: crate::strings::append_speed::append_speed(p.figure, true, units)?,
         })
     };
     let players = [player(p1)?, player(p2)?];
     let figures = rc2k_core::screens::duel_result::Figures {
         labels: [label1, label2],
         best: [
-            RESULT_FIGURES.time_bonus[0].get(),
-            RESULT_FIGURES.time_bonus[1].get(),
+            play.results.time_bonus[0].get(),
+            play.results.time_bonus[1].get(),
         ],
         columns: [0, 1].map(|p| {
             [
-                RESULT_FIGURES.points[p].get(),
-                RESULT_FIGURES.time_bonus[p].get(),
-                RESULT_FIGURES.extra[p].get(),
-                RESULT_FIGURES.sums[p].get(),
-                RESULT_FIGURES.before[p].get(),
-                RESULT_FIGURES.totals[p].get(),
+                play.results.points[p].get(),
+                play.results.time_bonus[p].get(),
+                play.results.extra[p].get(),
+                play.results.sums[p].get(),
+                play.results.before[p].get(),
+                play.results.totals[p].get(),
             ]
         }),
     };
     rc2k_core::screens::duel_result::duel_result(
-        &mut crate::screens::game_screen::GameScreen::new(canvas),
+        &mut crate::screens::game_screen::GameScreen::<_, _, crate::screens::game_screen::HeldText>::new(canvas),
         &players,
-        get(base + 0x38)?,
+        base.title()?,
         &stage,
         &figures,
         crate::strings::append_time::show_hours(),

@@ -11,101 +11,120 @@
 //! from a CD a "please wait" frame is shown. Finally the installer is closed
 //! (`install::close_installer`) and the fonts freed (`gfx::free_fonts`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`)
 //! Caller `system::main_loop` (the Rust version calls this directly).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    append_byte, append_string_by_id, copy_picture, draw_string, fatal, load_language, lock,
-    normalise, rb, set_cd, show, sleep, unlock, wb,
+    copy_picture, draw_string, fatal, load_language, lock, normalise, push_string_by_id, rb,
+    set_cd, show, sleep, store_text, unlock, wb,
 };
-use crate::install::vars::INSTALLER_NAMES;
-use crate::install::vars::INSTALLER_PAGES;
-use crate::install::vars::INSTALLER_PATHS;
-use crate::install::vars::INSTALLER_RUN;
-use crate::session::MACHINE;
+use crate::place::Place;
+use crate::system::owner::system;
 
 const FONT_BE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BOX_TEXT;
 
-pub fn run_installer() -> Result<(), Refused> {
+pub fn run_installer(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
     use crate::install as i;
-    crate::install::installer::wb(
-        crate::pointers::game_address(crate::files::state::base_directory()),
-        0,
+    crate::platform_events::keep_running_after_close();
+    // The folder page's edit item (0x51DBC8) shows the folder from its third byte
+    // (0x95EBFA, past the drive's `c:`); a Unix path has no drive, so the item shows it
+    // whole (2026-10-28: it showed `ome/..`).
+    #[cfg(unix)]
+    crate::install::installer::wd(
+        // 0x51DBD0.
+        crate::place::Place::from(&install.pages.folder_page).add(0x30),
+        // A link to `InstallerPaths::typed` from its first byte (`byte_95EBF8`).
+        crate::install::page_links::PageLink::of_ida(0x95EBF8).raw(),
     );
-    i::read_languages::read_languages(
-        crate::pointers::host(INSTALLER_NAMES.lang_cfg.addr()) as *const u8
-    )?;
-    unsafe { crate::gfx::build_fonts::build_fonts() }?;
-    i::open_installer::open_installer()?;
+    crate::install::installer::wb(crate::files::state::base_directory_place(), 0);
+    i::read_languages::read_languages(install, &install.names.lang_cfg.text()[..])?;
+    { crate::gfx::build_fonts::build_fonts(gfx) }?;
+    i::open_installer::open_installer(install)?;
     // From the command line: the install, and on past the pages (`jmp loc_412EDC`).
-    let from_command = INSTALLER_RUN.from_command.get() == 1;
+    let from_command = install.run.from_command.get() == 1;
     if from_command {
-        i::install_from_command::install_from_command()?;
+        i::install_from_command::install_from_command(install)?;
     } else {
-        if !normalise(
-            crate::install::installer::INSTALL_TEXTS.base_b.addr(),
-            INSTALLER_PATHS.game_dir.addr(),
-        )? {
+        if !normalise(&install.texts.base_b, &install.paths.game_dir)? {
             return Err(fatal(0x80AF_8101));
         }
-        i::list_drives::list_drives();
-        let cursor = append_string_by_id(0x9F, INSTALLER_PATHS.typed.addr());
-        let cursor = append_string_by_id(0xA0, cursor);
-        append_byte(cursor, 0);
-        if MACHINE.keyboard_type.get() == 2 {
-            wb(
-                INSTALLER_PATHS.typed.addr(),
-                INSTALLER_RUN.first_drive.get() as u8,
-            );
+        i::list_drives::list_drives(install);
+        let mut typed = Vec::new();
+        push_string_by_id(&mut typed, 0x9F);
+        push_string_by_id(&mut typed, 0xA0);
+        typed.push(0);
+        store_text(&install.paths.typed, &typed);
+        if system().session.machine.keyboard_type.get() == 2 {
+            install
+                .paths
+                .typed
+                .set(0, install.run.first_drive.get() as u8);
         }
-        i::read_registry::read_registry_here();
-        if INSTALLER_NAMES.source.get(0) != 0 {
-            let n = INSTALLER_NAMES.source_size.get();
+        i::read_registry::read_registry_here(install);
+        if install.names.source.get(0) != 0 {
+            let n = install.names.source_size.get();
             for k in 0..n {
                 wb(
-                    INSTALLER_PATHS.typed.addr() + k,
-                    rb(INSTALLER_NAMES.source.addr() + k),
+                    Place::from(&install.paths.typed).add(k),
+                    rb(Place::from(&install.names.source).add(k)),
                 );
             }
         }
-        i::check_installed_version::check_installed_version()?;
+        show_folder(install);
+        i::check_installed_version::check_installed_version(install)?;
         // The version-match branch changes into the installed folder.
-        if INSTALLER_RUN.same_version.get() == 1 {
-            INSTALLER_PAGES.record_flag.set(1);
-            set_cd(INSTALLER_PATHS.installed.addr());
-            i::read_record::read_record(crate::pointers::host_at(
-                crate::install::installer::INSTALL_TEXTS.record_path.addr() as usize,
-            ) as *const u8)?;
-            crate::install::installer::wb(
-                crate::pointers::game_address(crate::files::state::base_directory()),
-                0,
-            );
-            set_cd(INSTALLER_PATHS.game_dir.addr());
+        if install.run.same_version.get() == 1 {
+            install.pages.record_flag.set(1);
+            set_cd(&install.paths.installed);
+            i::read_record::read_record(&install.texts.record_path.text()[..])?;
+            crate::install::installer::wb(crate::files::state::base_directory_place(), 0);
+            set_cd(&install.paths.game_dir);
             load_language()?;
         }
-        let pages = if INSTALLER_RUN.updating.get() == 1 {
-            INSTALLER_PAGES.update_pages.addr()
+        let pages = if install.run.updating.get() == 1 {
+            crate::install::page_records::PageEntry::of(&install.pages.update_pages)
         } else {
-            INSTALLER_PAGES.normal_pages.addr()
+            crate::install::page_records::PageEntry::of(&install.pages.normal_pages)
         };
-        i::run_pages::run_pages(pages)?;
+        i::run_pages::run_pages(install, crate::strings::owner::strings(), pages)?;
     }
-    if INSTALLER_RUN.installing.get() == 1
-        && crate::install::store::INSTALL.running_from_cd.get() == 1
-        && lock()
-    {
+    if install.run.installing.get() == 1 && install.vars.running_from_cd.get() == 1 && lock() {
         copy_picture()?;
-        draw_string(0xBE, FONT_BE.addr(), 0x1A9, 0x113)?;
+        draw_string(0xBE, FONT_BE, 0x1A9, 0x113)?;
         unlock();
         show();
         sleep(2000);
     }
-    i::close_installer::close_installer()?;
-    crate::gfx::free_fonts::free_fonts_in_game()?;
+    i::close_installer::close_installer(install)?;
+    crate::gfx::free_fonts::free_fonts_in_game(gfx)?;
     Ok(())
+}
+
+/// The folder page's text by the system's rules (`install::folders`): a recorded folder as
+/// shown, else the system's first folder (on Windows both the original's, unchanged).
+fn show_folder(install: &'static crate::install::owner::Install) {
+    use crate::install::folders::{Folders, Native};
+    let typed = &install.paths.typed;
+    let len = (0..256).position(|k| typed.get(k) == 0).unwrap_or(0);
+    let now: Vec<u8> = (0..len).map(|k| typed.get(k)).collect();
+    let recorded = install.names.source.get(0) != 0;
+    let text = match (recorded, <Native as Folders>::first_folder()) {
+        (true, _) => <Native as Folders>::shown(&now),
+        (false, Some(first)) => first,
+        (false, None) => return,
+    };
+    put_typed(install, &text);
+}
+
+/// `text` as the folder page's text (cut to its place, NUL-ended).
+pub fn put_typed(install: &'static crate::install::owner::Install, text: &[u8]) {
+    let typed = &install.paths.typed;
+    let n = text.len().min(255);
+    for (k, &b) in text[..n].iter().enumerate() {
+        typed.set(k, b);
+    }
+    typed.set(n, 0);
 }

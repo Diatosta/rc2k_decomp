@@ -10,6 +10,7 @@ pub const LEN: usize = 8;
 
 /// Whether a 3D card was found.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Cards {
     /// `g_primary3dCard` (`dword_5AB4AC`): a 3D primary card.
     pub primary: Dword,
@@ -17,15 +18,14 @@ pub struct Cards {
     pub secondary: Dword,
 }
 
-/// The switches; the first values are the image's.
-pub static CARDS: Cards = Cards {
-    primary: Dword::new(0),
-    secondary: Dword::new(0),
-};
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x5AB4AC).
-pub fn home() -> usize {
-    crate::pointers::game_address(&CARDS as *const Cards) as usize
+impl Cards {
+    /// The switches; the first values are the image's.
+    pub const fn new() -> Self {
+        Cards {
+            primary: Dword::new(0),
+            secondary: Dword::new(0),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -34,15 +34,22 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&CARDS, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::GFX.display.cards,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), CARDS.primary.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            crate::gfx::owner::GFX.display.cards.primary.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(START + 4),
-            CARDS.secondary.addr() as usize
+            crate::gfx::owner::GFX.display.cards.secondary.addr() as usize
         );
     }
 }

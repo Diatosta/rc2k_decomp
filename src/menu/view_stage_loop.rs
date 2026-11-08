@@ -2,24 +2,15 @@
 //! championship, by its title "VER ETAPA" and its draw list, which is that of
 //! `screens::draw_service_stage_info` (a reading)
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: leaving is asked about; it has a step of its own once a
 //! frame; the steps that are more than a call or a store are the functions below, generated
 //! from the listing.
 //! The name is a reading from the title string of its menu, "VER ETAPA", not yet a visit.
-//! Callers: `sub_47037E`.
 
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step};
+use crate::menu::screen_items_store::slot;
+use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -34,60 +25,62 @@ fn take_kept() -> u32 {
     KEPT.with_borrow_mut(|stack| stack.pop().expect("a pop without its push"))
 }
 
-fn before(c: &mut Carried) -> Result<(), Refused> {
-    KEPT.with_borrow_mut(|stack| stack.push(EVENT_STATE.section.get()));
-    KEPT.with_borrow_mut(|stack| stack.push(EVENT_STATE.index.get()));
-    c.arg = EVENT_STATE.section.get();
-    EVENT_STATE.dword_755964.set(c.arg);
-    c.arg = EVENT_STATE.index.get();
-    EVENT_STATE.first_page_stage.set(c.arg);
+fn before(entry: &Entry) -> Result<(), Refused> {
+    let screens = &entry.menus.screens;
+    KEPT.with_borrow_mut(|stack| {
+        stack.push(screens.event.section.get());
+    });
+    KEPT.with_borrow_mut(|stack| stack.push(screens.event.index.get()));
+    screens.event.dword_755964.set(screens.event.section.get());
+    screens
+        .event
+        .first_page_stage
+        .set(screens.event.index.get());
 
     Ok(())
 }
 
-unsafe fn after_lists(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        Callee::CountStagePages.run(c)?;
-        Callee::StyleChosenStageItem.run(c)?;
-        if EVENT_STATE.stage_pages.get() == 0x0 {
-            Callee::StyleStageItem.run(c)?;
-        }
-        CHAMP_VIEW.stage_mode.set(0x3u32);
+fn after_lists(entry: &Entry) -> Result<(), Refused> {
+    let menus = entry.menus;
+    Callee::CountStagePages.run(entry)?;
+    Callee::StyleChosenStageItem.run(entry)?;
+    if menus.screens.event.stage_pages.get() == 0x0 {
+        Callee::StyleStageItem.run(entry)?;
     }
+    menus.play.champ_view.stage_mode.set(0x3u32);
     Ok(())
 }
 
-unsafe fn after(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        EVENT_STATE.index.set(take_kept());
-        EVENT_STATE.section.set(take_kept());
-        Callee::StopStream.run(c)?;
-    }
+fn after(entry: &Entry) -> Result<(), Refused> {
+    let screens = &entry.menus.screens;
+    screens.event.index.set(take_kept());
+    screens.event.section.set(take_kept());
+    Callee::StopStream.run(entry)?;
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.view_stage.addr() as usize,
-    saved_item: || &SCREEN_ITEMS.current[slot::VIEW_STAGE],
+    menu: |m| m.tables.menus.view_stage.id(),
+    saved_item: |m| &m.screens.items.current[slot::VIEW_STAGE],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.view_stage_scene.addr() as usize,
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.view_stage_scene.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.view_stage_draw.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.view_stage_draw.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.view_stage_overlay.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.view_stage_overlay.id(),
             run: false,
         },
     ],
     first_frame_lists: None,
-    frame_callback: rva(0x474D4B),
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[Step::Do(before)],
     set_up_first: &[],

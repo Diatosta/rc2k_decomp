@@ -2,27 +2,25 @@
 //! key (`register_lobby`): its data's length found (`strings::text_length`) and one more
 //! (the NUL), and `RegSetValueExA(phkResult, name, 0, REG_SZ, data, len + 1)`.
 //!
-//! In:  eax the value's name, ebx the data (NUL-terminated)
-//! Out: eax `RegSetValueExA`'s result; ebx, edx kept, ecx the length plus one
+//! Takes the value's name and the data (NUL-terminated). Returns `RegSetValueExA`'s result.
 //! Caller `install::register_lobby` (five times). The call through `api`
 //! (`installer::game_api`: `RegSetValueExA`).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
-use crate::install::installer::{Api, REG_SET_VALUE, rd};
-use crate::install::vars::INSTALLER_RUN;
+use crate::install::read_registry::Registry;
 
 const REG_SZ: u32 = 1;
 
-/// The value `name` (eax) set to the text `data` (ebx); `RegSetValueExA`'s answer (no
-/// caller reads it).
-pub fn set_lobby_value(name: u32, data: u32, api: Api) -> Result<u32, Refused> {
-    let len = crate::strings::text_length::text_length(crate::pointers::host(data) as *const u8)?;
-    let key = rd(INSTALLER_RUN.reg_key.addr());
-    Ok(api(
-        REG_SET_VALUE,
-        &[key, name, 0, REG_SZ, data, len.wrapping_add(1)],
-    ))
+/// The Rust version: the text `data` (its NUL added) as the value `name` of the lobby's key.
+pub fn set_lobby_value(
+    install: &'static crate::install::owner::Install,
+    name: &[u8],
+    data: &[u8],
+    registry: &mut dyn Registry,
+) -> Result<u32, Refused> {
+    let mut text = data.to_vec();
+    text.push(0);
+    Ok(registry.set_value(install.run.reg_key.get(), name, REG_SZ, &text))
 }

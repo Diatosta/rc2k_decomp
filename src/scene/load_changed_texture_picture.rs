@@ -1,8 +1,7 @@
 //! `scene::load_changed_texture_picture` (0x42574B): a system texture gets the picture
 //! it should have, if it has another.
 //!
-//! In:  ecx = the texture
-//! Out: every register preserved
+//! Takes: the texture
 //!
 //! Nothing if the texture wants no picture (`dword_5D8968[texture]` is -1 or 0) or has the one
 //! it wants (`dword_5D9968[texture]`). Else `scene::load_texture_picture` and the picture is
@@ -13,7 +12,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::scene::load_texture_picture::load_texture_picture_in_game;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 // ---- game data ----
 
@@ -27,26 +25,32 @@ pub const TEXTURES: u32 = 0x400;
 pub fn load_changed_texture_picture(
     texture: u32,
     load: &mut dyn FnMut(u32, u32) -> Result<(), Refused>,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    let textures = &scene.textures;
     if texture >= TEXTURES {
         return Err(BadInput("a texture past the pictures' tables").into());
     }
     let at = texture as usize;
     let Some(wanted) = rc2k_core::scene::pictures::changed_picture(
-        TEXTURE_PLACES.wanted_pictures[at].get(),
-        || TEXTURE_PLACES.loaded_pictures[at].get(),
+        textures.places.wanted_pictures[at].get(),
+        || textures.places.loaded_pictures[at].get(),
     ) else {
         return Ok(());
     };
     load(wanted, texture)?;
-    TEXTURE_PLACES.loaded_pictures[at].set(wanted);
+    textures.places.loaded_pictures[at].set(wanted);
     Ok(())
 }
 
-pub unsafe fn load_changed_texture_picture_in_game(texture: u32) -> Result<(), Refused> {
-    unsafe {
-        load_changed_texture_picture(texture, &mut |picture, texture| {
-            load_texture_picture_in_game(picture, texture)
-        })
-    }
+pub fn load_changed_texture_picture_in_game(
+    race: &'static crate::race::owner::Race,
+    texture: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    load_changed_texture_picture(
+        texture,
+        &mut |picture, texture| load_texture_picture_in_game(race, picture, texture, scene),
+        scene,
+    )
 }

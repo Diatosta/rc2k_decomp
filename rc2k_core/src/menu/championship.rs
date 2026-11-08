@@ -136,7 +136,6 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                 let given = e.get(start_section);
                 if given != 0 {
                     let section = e.get(start_section).wrapping_sub(1);
-                    e.hand(super::flow::Hand::Kept(section))?;
                     e.set(Var::Section, section);
                 }
                 At::Record
@@ -153,7 +152,6 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                     }
                     WELCOME => {
                         let figure = e.get(Var::Record(0x38));
-                        e.hand(super::flow::Hand::Kept(figure))?;
                         e.set(Var::WelcomeFigure, figure);
                         e.inc(Var::Index);
                         e.set(Var::Welcomed, 1);
@@ -165,17 +163,13 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                     SERVICE => {
                         e.set(Var::ServiceDue, 1);
                         let time = e.get(Var::Record(0x14));
-                        e.hand(super::flow::Hand::Kept(time))?;
                         e.set(Var::ServiceTime, time);
                         let figure = e.get(Var::Record(0xC));
-                        e.hand(super::flow::Hand::Kept(figure))?;
                         e.set(Var::Service940, figure);
                         e.set(Var::Service944, 1);
                         e.set(Var::ServiceNext, 1);
                         e.inc(Var::Services);
                         e.inc(Var::Index);
-                        let index = e.get(Var::Index);
-                        e.hand(super::flow::Hand::Kept(index))?;
                         At::Record
                     }
                     STAGE => 'stage: {
@@ -303,7 +297,7 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                     break 'races reset(e)?;
                 }
                 if e.get(Var::StagesDone) as i32 >= 1 {
-                    let next = e.call(Call::NextRecordKind)?.eax;
+                    let next = e.next_record_kind()?;
                     if next == THE_END || next == SECTION_END {
                         e.set(Var::RallyDone, 1);
                     }
@@ -319,7 +313,7 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                 if e.get(Var::Entered) == 1 && screens(e, &[Call::BestTimesLoop])? {
                     break 'races stop(e)?;
                 }
-                let reviewed = match e.call(Call::NextRecordKind)?.eax {
+                let reviewed = match e.next_record_kind()? {
                     THE_END => false,
                     SECTION_END => break 'races At::Standings,
                     SERVICE => {
@@ -372,7 +366,7 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                 At::End
             }
             At::End => {
-                return e.run(Call::ShowInGameOptions { from_entry: true });
+                return e.run(Call::ShowInGameOptions);
             }
         };
     }
@@ -380,18 +374,16 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
 
 #[cfg(test)]
 mod tests {
+    use super::super::flow::Var;
     use super::super::flow::log::Log;
-    use super::super::flow::{Reply, Var};
+    use super::super::flow::log::Said;
     use super::*;
 
     #[test]
     fn welcome_yes_ends() {
         let mut log = Log::default().on("ChampionshipWelcome", vec![vec![(Var::Answer, 1)]]);
         run(&mut log, false).unwrap();
-        assert_eq!(
-            log.steps.last().unwrap(),
-            "ShowInGameOptions { from_entry: true }"
-        );
+        assert_eq!(log.steps.last().unwrap(), "ShowInGameOptions");
         assert!(!log.has("Continuing=0"));
     }
 
@@ -410,16 +402,7 @@ mod tests {
             )
             .reply(
                 "NextRecordKind",
-                vec![
-                    Reply {
-                        eax: THE_END,
-                        ..Reply::default()
-                    },
-                    Reply {
-                        eax: THE_END,
-                        ..Reply::default()
-                    },
-                ],
+                vec![Said::Kind(THE_END), Said::Kind(THE_END)],
             );
         run(&mut log, false).unwrap();
         assert!(log.has("RunEventRaces"));
@@ -436,7 +419,6 @@ mod tests {
             run(&mut log, true),
             Err(crate::Invalid("Invalid Level Type(A8)"))
         );
-        assert!(log.has("Kept(2)"));
         assert!(log.has("Section=2"));
         assert!(!log.has("A8Welcome"));
     }

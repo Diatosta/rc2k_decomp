@@ -8,24 +8,17 @@
 //! `physics::wall_contacts`, `physics::car_collisions`, `physics::face_contacts`; a try
 //! that restored nothing ends it. None: `physics::reset_car`. Found:
 //! `lowest_body_point`, a depth below 0 taken off the height (+0x800); "porky", n, the
-//! first depth and the last logged (level 1, in `pusha` / `popa`); `dword_61473C` + 1;
+//! first depth and the last logged (level 1); `dword_61473C` + 1;
 //! `physics::limit_motion`.
 //!
-//! In:  nothing
-//! Out: the registers as the steps and calls leave them (ebp the try, kept around each
-//!      try's calls); no flags read (the caller returns)
-//!
-//! Caller: `sub_43B635` (0x43B8DB). Refuses (before anything) a probe count of 0 or past
-//! 0x40; what its calls refuse.
+//! Caller: `physics::car_physics_step` (0x43B8DB). Refuses (before anything) a probe count of 0 or
+//! past 0x40; what its calls refuse.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
-use crate::physics::contact_store::CONTACT_WORK;
-use crate::physics::tables_store::PHYSICS;
-use crate::scene::draw_store::DRAW;
+use crate::race::owner::Race;
 use crate::scene::matrix3::{extended, rounded};
 use rc2k_core::physics::clear_place;
 
@@ -33,67 +26,80 @@ use rc2k_core::physics::clear_place;
 const PORKY: &std::ffi::CStr = c"porky"; // aPorky
 
 /// One try's calls (0x43BE4D .. 0x43BE61).
-fn try_place() -> Result<(), Refused> {
-    unsafe { crate::physics::probe_ground::probe_ground() }?;
-    crate::physics::crossed_edge::check()?;
-    crate::physics::crossed_edge::steps()?;
-    crate::physics::wall_contacts::check()?;
-    crate::physics::wall_contacts::steps()?;
-    unsafe { crate::physics::car_collisions::car_collisions() }?;
-    crate::physics::face_contacts_around::face_contacts_around()
+fn try_place(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    { crate::physics::probe_ground::probe_ground(race, scene) }?;
+    crate::physics::crossed_edge::check(&race.physics)?;
+    crate::physics::crossed_edge::steps(race, scene)?;
+    crate::physics::wall_contacts::check(&race.shared)?;
+    crate::physics::wall_contacts::steps(race, scene)?;
+    { crate::physics::car_collisions::car_collisions(race, scene) }?;
+    crate::physics::face_contacts_around::face_contacts_around(race, scene)
 }
 
 /// The steps, not guarded.
 // Converted: `rc2k_core::physics::clear_place`.
-pub fn steps() -> Result<(), Refused> {
-    PHYSICS.clear_place_mark.set(clear_place::TRY_MARK);
-    let factor = extended(PHYSICS.clear_place_share.bits());
-    crate::physics::scale_vector::scale_vector(CAR.velocity[0].addr(), factor);
-    DRAW.scratch.set(rounded(factor));
-    unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
-    unsafe { crate::physics::lowest_body_point::lowest_body_point() }?;
-    PHYSICS
+pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let physics_store = &race.physics;
+    race.shared
+        .physics_tables
+        .clear_place_mark
+        .set(clear_place::TRY_MARK);
+    let factor = extended(race.shared.physics_tables.clear_place_share.bits());
+    crate::physics::scale_vector::scale_vector(&race.shared.car.velocity, factor);
+    scene.drawing.scene.scratch.set(rounded(factor));
+    { crate::physics::restore_saved_car::restore_saved_car(race) }?;
+    { crate::physics::lowest_body_point::lowest_body_point(race) }?;
+    race.shared
+        .physics_tables
         .clear_place_face
-        .set(CONTACT_WORK.lowest_depth.get());
-    let found = clear_place::tries(clear_place::first_try(CAR.step_clock.get()), |n| {
-        PHYSICS.clear_place_count.set(0);
-        let m = clear_place::try_move(n);
-        for (table, place) in [
-            (&PHYSICS.clear_place_steps_a, &CAR.position[0]),
-            (&PHYSICS.clear_place_steps_b, &CAR.position[2]),
-        ] {
-            let (part, _) = clear_place::move_part(m.step, table[m.entry as usize].get());
-            place.set(place.get().wrapping_add(part));
-        }
-        try_place()?;
-        Ok::<_, Refused>(PHYSICS.clear_place_count.get() == 0)
-    })?;
+        .set(physics_store.contact.lowest_depth.get());
+    let found = clear_place::tries(
+        clear_place::first_try(race.shared.car.step_clock.get()),
+        |n| {
+            race.shared.physics_tables.clear_place_count.set(0);
+            let m = clear_place::try_move(n);
+            for (table, place) in [
+                (
+                    &race.shared.physics_tables.clear_place_steps_a,
+                    &race.shared.car.position[0],
+                ),
+                (
+                    &race.shared.physics_tables.clear_place_steps_b,
+                    &race.shared.car.position[2],
+                ),
+            ] {
+                let (part, _) = clear_place::move_part(m.step, table[m.entry as usize].get());
+                place.set(place.get().wrapping_add(part));
+            }
+            try_place(race, scene)?;
+            Ok::<_, Refused>(race.shared.physics_tables.clear_place_count.get() == 0)
+        },
+    )?;
     let Some(n) = found else {
-        return unsafe { crate::physics::reset_car::reset_car() };
+        return crate::physics::reset_car::reset_car(race, scene);
     };
-    unsafe { crate::physics::lowest_body_point::lowest_body_point() }?;
-    let depth = CONTACT_WORK.lowest_depth.get();
-    if let Some(height) = clear_place::lifted(CAR.position[1].get(), depth) {
-        CAR.position[1].set(height);
+    { crate::physics::lowest_body_point::lowest_body_point(race) }?;
+    let depth = physics_store.contact.lowest_depth.get();
+    if let Some(height) = clear_place::lifted(race.shared.car.position[1].get(), depth) {
+        race.shared.car.position[1].set(height);
     }
-    unsafe {
-        crate::logfile::log_write::log_write(PORKY.as_ptr().cast(), false, 1);
-        crate::logfile::log_int::log_int(n as i32, false, 1);
-        crate::logfile::log_hex8::log_hex8(PHYSICS.clear_place_face.get(), false, 1);
-        crate::logfile::log_hex8::log_hex8(CONTACT_WORK.lowest_depth.get(), true, 1);
-    }
-    PHYSICS.clear_place_tries.set(
-        crate::physics::tables_store::PHYSICS
+    crate::logfile::log_write::log_nul(&PORKY, false, 1);
+    crate::logfile::log_int::log_int(n as i32, false, 1);
+    crate::logfile::log_hex8::log_hex8(race.shared.physics_tables.clear_place_face.get(), false, 1);
+    crate::logfile::log_hex8::log_hex8(physics_store.contact.lowest_depth.get(), true, 1);
+    race.shared.physics_tables.clear_place_tries.set(
+        race.shared
+            .physics_tables
             .clear_place_tries
             .get()
             .wrapping_add(1),
     );
-    unsafe { crate::physics::limit_motion::limit_motion() };
+    crate::physics::limit_motion::limit_motion(race, scene);
     Ok(())
 }
 
 /// The Rust version.
-pub fn find_clear_place() -> Result<(), Refused> {
-    crate::physics::wall_contacts::check()?;
-    steps()
+pub fn find_clear_place(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    crate::physics::wall_contacts::check(&race.shared)?;
+    steps(race, scene)
 }

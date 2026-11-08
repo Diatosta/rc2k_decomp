@@ -28,6 +28,7 @@ pub mod free_fonts;
 pub mod free_glyph_tables;
 pub mod free_picture_buffer;
 pub mod glyph_builder;
+pub mod glyph_store;
 pub mod glyph_tables;
 pub mod install_converters;
 pub mod jade_store;
@@ -41,6 +42,7 @@ pub mod load_picture_to_texture;
 pub mod load_picture_with_overlay;
 pub mod mark_3d_modes;
 pub mod mmx_converters;
+pub mod owner;
 pub mod palette_pixels_to_dwords;
 pub mod palette_to_dwords;
 pub mod pcx;
@@ -62,6 +64,7 @@ pub mod rect;
 pub mod rescale_picture;
 pub mod rescale_to_surface;
 pub mod rgb_pixels_to_dwords;
+pub mod rows;
 pub mod screen_state;
 pub mod set_clip;
 pub mod set_component_format;
@@ -85,7 +88,6 @@ pub mod converters;
 pub mod decoder;
 pub mod formats;
 pub mod front;
-pub mod hexagon_batch;
 pub mod locked;
 pub mod modes;
 pub mod pcx_planes;
@@ -98,6 +100,7 @@ pub mod strips;
 pub mod texts;
 pub mod typefaces;
 pub mod upload;
+pub mod windscreen_drop_batch;
 
 /// The test of every typed block of this module: the static's bytes are the image's (phase 7).
 #[cfg(test)]
@@ -110,8 +113,30 @@ pub(crate) fn first_values_are_the_games<T>(block: &'static T, start: usize, end
         "the struct's size"
     );
     // Read in place: a copy of a big block would not fit the test thread's stack.
-    let mine = unsafe { core::slice::from_raw_parts(block as *const T as *const u8, len) };
+    let mine =
+        unsafe { core::slice::from_raw_parts(std::ptr::from_ref::<T>(block).cast::<u8>(), len) };
     let image = crate::moved::image_bytes(start, len);
+    assert!(
+        mine == &image[..],
+        "the block's bytes differ from the image's"
+    );
+}
+
+/// As `first_values_are_the_games`, the image's bytes first changed by `patch` (places
+/// that hold a handle where the image has an address).
+#[cfg(test)]
+pub(crate) fn first_values_are_the_games_but<T>(
+    block: &'static T,
+    start: usize,
+    end: usize,
+    patch: impl Fn(&mut [u8]),
+) {
+    let _g = crate::store::test_lock();
+    let len = end - start;
+    let mine =
+        unsafe { core::slice::from_raw_parts(std::ptr::from_ref::<T>(block).cast::<u8>(), len) };
+    let mut image = crate::moved::image_bytes(start, len);
+    patch(&mut image);
     assert!(
         mine == &image[..],
         "the block's bytes differ from the image's"

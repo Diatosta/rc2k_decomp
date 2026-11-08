@@ -3,72 +3,64 @@
 //!
 //! Named `screen_46658f_loop` until then.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`):
 //! before the loop it sets the string of the menu's first item to 0x138 if `dword_75AADC` is 1 and
 //! to 0x139 otherwise, as the stage results screen does; its background comes from
 //! `menu::load_background`, after which a set carry flag is fatal error 0x80712345; leaving is
-//! asked about, and a "no" sets the screen up again. One caller, `sub_4A1FE5`.
+//! asked about, and a "no" sets the screen up again. One caller.
 
 use crate::errors::Refused;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, Carried, FRAME_CALLBACK, List, Screen, Step};
-use crate::menu::state_store::MENU_STATE;
+use crate::menu::screen_items_store::slot;
+use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step};
 
 // ---- game data ----
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn set_first_item(c: &mut Carried) -> Result<(), Refused> {
-    c.arg = if MENU_STATE.menus.which_title.get() == 1 {
+fn set_first_item(entry: &Entry) -> Result<(), Refused> {
+    let menus = entry.menus;
+    let title = if menus.screens.state.menus.which_title.get() == 1 {
         0x138
     } else {
         0x139
     };
-    MENUS.overall_stage_results.items[0].string.set(c.arg);
+    menus.tables.menus.overall_stage_results.items[0]
+        .string
+        .set(title);
 
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.overall_stage_results.addr() as usize,
-    saved_item: || &SCREEN_ITEMS.current[slot::OVERALL_STAGE_RESULTS], // dword_747784
+    menu: |m| m.tables.menus.overall_stage_results.id(),
+    saved_item: |m| &m.screens.items.current[slot::OVERALL_STAGE_RESULTS], // dword_747784
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list,
-            table: || DRAW_LISTS.overall_stage_results_scene.addr() as usize,
+            pointer: |m| &m.screens.flow.scene_list,
+            table: |m| m.tables.draw_lists.overall_stage_results_scene.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list,
-            table: || DRAW_LISTS.list_758e1e.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list,
+            table: |m| m.tables.draw_lists.list_758e1e.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list,
-            table: || DRAW_LISTS.overall_stage_results_overlay.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list,
+            table: |m| m.tables.draw_lists.overall_stage_results_overlay.id(),
             run: false,
         },
     ],
     first_frame_lists: None,
-    frame_callback: FRAME_CALLBACK,
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[Step::Do(set_first_item)],
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgAddr(|| {
-            (crate::menu::texts_store::MENU_TEXTS
-                .overall_stage_results_picture
-                .addr()) as usize
-        }),
-        Step::CallOrFatal(Callee::LoadBackground, 0x8071_2345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.overall_stage_results_picture
+    }))],
     after_first_frame: &[],
     confirm: Some(&[]),
     ask_also_if: None,

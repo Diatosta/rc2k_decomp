@@ -15,15 +15,15 @@ pub enum Film {
 /// The steps, at the game's addresses in the hook crate.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Step {
-    /// `sub_40F826` (`sound::stop_music`).
+    /// 0x40F826 (`sound::stop_music`).
     StopMusic,
-    /// `sub_4059F4`.
+    /// `gfx::clear_front_surface`.
     Step4059F4,
     /// `input::take_key`: the zero flag clear with a key.
     TakeKey,
     /// `files::swap_missing_extension` on the film (eax).
     SwapMissingExtension(Film),
-    /// The player (`sub_41AE39`, ebx 0) on the film, or on the path the step before left
+    /// The player (0x41AE39, ebx 0) on the film, or on the path the step before left
     /// (None); the zero flag clear when a key ended it.
     Player(Option<Film>),
     /// `scene::set_up_lit_engine`.
@@ -37,7 +37,7 @@ pub enum Step {
     FileExists(Film),
     /// `race::credits_race`, the demonstration (ebp kept across it).
     Demonstration,
-    /// `sub_409B76`.
+    /// `sound::let_sounds_play`.
     Step409B76,
     /// `scene::set_up_engine`, `scene::set_up_front_end_scene`, `sound::play_tune_3`.
     SetUpEngine,

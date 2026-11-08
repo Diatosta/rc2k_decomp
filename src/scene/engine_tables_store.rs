@@ -1,14 +1,16 @@
 //! The engine's lookup tables and the object file's room, typed (phase 7): IDA 0xA23AE4 ..
-//! 0xA8BB54, in the image's zeroed tail (`race::store::buffers`), made by
+//! 0xA8BB54, in the image's zeroed tail (`race::buffers_store`), made by
 //! `scene::fill_engine_tables` at start: the sines (the cosines are the same table 0x400
 //! places on), the arctangents, the noise bytes, the room the object files are read into
 //! and the shuffled words. Names are readings unless IDA's.
 
+use crate::race::owner::race;
 use crate::session::{Bytes, Float, Word};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct EngineTables {
-    /// +0x0 (0xA23AE4): `g_sines`: 0x1400 floats, the sine of n times pi over 0x800; `g_cosines` (0xA24AE4) is this table from entry 0x400 (`math::turn_scratch_xz`, `scene::matrix`, `marks::`, `hud::draw_disc`).
+    /// +0x0 (0xA23AE4): `g_sines`: 0x1400 floats, the sine of n times pi over 0x800; `g_cosines` (0xA24AE4) is this table from entry 0x400 (`math::turn_scratch_xz`, `scene::matrix`, `effects::`, `hud::draw_disc`).
     pub sines: [Float; 0x1400],
     /// +0x5000 (0xA28AE4): `g_arctangents`: 0x1000 words, the angle of a tangent (`scene::fill_engine_tables`).
     pub arctangents: [Word; 0x1000],
@@ -20,14 +22,13 @@ pub struct EngineTables {
     pub shuffled_words: [Word; 0x10000],
 }
 
+/// The piece, a field of `crate::race::owner::race().shared.buffers`.
 pub struct InBuffers;
 
 impl core::ops::Deref for InBuffers {
     type Target = EngineTables;
     fn deref(&self) -> &EngineTables {
-        // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
-        // test checks); every field is an atomic or a cell.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const EngineTables) }
+        &race().shared.buffers.engine_tables
     }
 }
 
@@ -36,12 +37,7 @@ pub static ENGINE_TABLES: InBuffers = InBuffers;
 /// The sine table's cell `n`: the callers index with an angle's top bits (below 0x1000), and
 /// the cosine is the cell 0x400 on.
 pub fn sine(n: usize) -> &'static Float {
-    // SAFETY: the piece is one block of cells; the address is the original's own.
-    unsafe {
-        &*(crate::pointers::host_at(
-            (ENGINE_TABLES.sines[0].addr().wrapping_add((4 * n) as u32)) as usize,
-        ) as *const Float)
-    }
+    &ENGINE_TABLES.sines[n]
 }
 
 /// The cosine of table place `n` (`g_cosines[n]`, the sine table's cell `n + 0x400`).
@@ -56,7 +52,8 @@ pub const END: usize = 0xA8BB54;
 
 const _: () = assert!(END - START == core::mem::size_of::<EngineTables>());
 
-/// Where IDA 0xA23AE4 is now.
+/// Where IDA 0xA23AE4 is now (the tests' reference).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::moved::place(START) as u32
 }

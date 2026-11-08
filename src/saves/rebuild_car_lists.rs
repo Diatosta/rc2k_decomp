@@ -1,7 +1,5 @@
 //! `saves::rebuild_car_lists` (0x47088C): two lists of pointers from two lists of numbers.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The list at `off_75A042` (0x28 entries) and the one at `off_75A12E` (0x14) are filled
 //! with -1; then, for each number of `unk_755258` up to its -1, the entry of
 //! `off_7564A0` with that number goes to the first list, and likewise from `unk_7552F8`
@@ -11,9 +9,7 @@
 //! 0x400 or more.
 
 use crate::errors::BadInput;
-use crate::menu::car_numbers_store::CAR_NUMBERS;
-use crate::menu::cars_store::CAR_TABLE;
-use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::owner::Menus;
 use crate::session::Dword;
 use crate::system::checked_reads::CheckedReads;
 
@@ -21,30 +17,41 @@ use crate::system::checked_reads::CheckedReads;
 
 /// (the numbers, the pointers, how many entries each has)
 const LISTS: [(&[Dword], &[Dword], usize); 2] = [
-    (&CAR_NUMBERS.first_numbers, &MENU_LISTS.cars_second, 0x28), // unk_755258, off_75A042
-    (&CAR_NUMBERS.second_numbers, &MENU_LISTS.shown_cars, 0x14), // unk_7552F8, off_75A12E
+    (
+        &crate::menu::owner::MENUS.cars.numbers.first_numbers,
+        &crate::menu::owner::MENUS.tables.lists.cars_second,
+        0x28,
+    ), // unk_755258, off_75A042
+    (
+        &crate::menu::owner::MENUS.cars.numbers.second_numbers,
+        &crate::menu::owner::MENUS.tables.lists.shown_cars,
+        0x14,
+    ), // unk_7552F8, off_75A12E
 ];
 
 // ---- Rust version ----
 
-pub fn rebuild_car_lists() -> Result<(), BadInput> {
+pub fn rebuild_car_lists(menus: &Menus) -> Result<(), BadInput> {
     // Converted: `rc2k_core::saves::cars::pointers`, both lists worked out before either
     // is written.
 
     let mut found = Vec::new();
     for (numbers, _, len) in LISTS {
         let list: Vec<u32> = (0..len).map(|n| numbers[n].get()).collect();
+        // Saved before the front end first ended: the lists stay as they start.
+        if rc2k_core::saves::cars::never_listed(&list) {
+            found.push(None);
+            continue;
+        }
         let reads = CheckedReads::new();
         let answer = rc2k_core::saves::cars::pointers(&list, |id| {
-            reads.dword(
-                CAR_TABLE.cars[0].addr() + (4 * id as usize) as u32,
-                "a car table's entry",
-            )
+            // Past the table's 34 the original reads on into the bytes after it: refused.
+            reads.value(crate::menu::cars_store::car_entry(menus, id))
         });
-        found.push(reads.finish(answer)??);
+        found.push(Some(reads.finish(answer)??));
     }
     for ((_, pointers, _), list) in LISTS.into_iter().zip(found) {
-        for (n, v) in list.into_iter().enumerate() {
+        for (n, v) in list.into_iter().flatten().enumerate() {
             pointers[n].set(v);
         }
     }

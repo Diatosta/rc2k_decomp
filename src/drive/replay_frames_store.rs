@@ -1,8 +1,11 @@
 //! The replay's frame variables: the first step, the cameras' words, the frame and tenth kept, the step's block and frame, the eight kept frames of the car blocks (`unk_6EF7E8`, 0x3F80 bytes each) and the last frame `quit_question` keeps (`dword_70F3E8`, just before `g_carBlockStore`). Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ReplayFrames {
     /// +0x0 (0x6EF7CC): `dword_6EF7CC`: set while the replay steps to a still (`physics::ease_view_turn`, `race::show_replay_still`).
     pub step_first: Dword,
@@ -24,21 +27,16 @@ pub struct ReplayFrames {
     pub last_kept: Dword,
 }
 
-/// The piece: the race block's bytes at IDA 0x6EF7CC seen as `ReplayFrames`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = ReplayFrames;
-    fn deref(&self) -> &ReplayFrames {
-        // SAFETY: the race block lives as long as the program and is aligned as the test
-        // checks; every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const ReplayFrames) }
+/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl ReplayFrames {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static REPLAY_FRAMES: InRaceBlock = InRaceBlock;
 
 /// IDA 0x6EF7CC, the first byte of the piece.
 pub const START: usize = 0x6EF7CC;
@@ -47,9 +45,10 @@ pub const END: usize = 0x70F3EC;
 
 const _: () = assert!(END - START == core::mem::size_of::<ReplayFrames>());
 
-/// Where IDA 0x6EF7CC is now (in the race block).
+/// Where IDA 0x6EF7CC is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&race().replay.replay_frames))
 }
 
 #[cfg(test)]
@@ -58,7 +57,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&race().replay.replay_frames, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(
             piece_addr() % (core::mem::align_of::<ReplayFrames>()) as u32,
             0

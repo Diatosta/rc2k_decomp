@@ -4,9 +4,12 @@
 //! ("RCIB", the seal, the block and frame counts, the (offset, size) per block). `#[repr(C)]` with
 //! the image's layout, over the race block's bytes. Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ReplayFileBlock {
     /// +0x0 (0x5BEC78): `dword_5BEC78`: 1 = replays are recorded (`race::open_replay`, `race::replay`).
     pub replays_on: Dword,
@@ -60,21 +63,27 @@ pub struct ReplayFileBlock {
     pub block_places: [Dword; 3600],
 }
 
-/// The piece: the race block's bytes at IDA 0x5BEC78 seen as `ReplayFileBlock`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = ReplayFileBlock;
-    fn deref(&self) -> &ReplayFileBlock {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const ReplayFileBlock) }
+impl ReplayFileBlock {
+    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+    /// `race::store::LEFT`), with the image's first values.
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
 
-pub static REPLAY_FILE: InRaceBlock = InRaceBlock;
+/// The index's dwords: "RCIB" .. the places, 0x3850 bytes.
+pub const INDEX_DWORDS: usize = 4 + 3600;
+
+impl ReplayFileBlock {
+    /// The replay index ("RCIB", the seal, the counts, the places) as its dwords in order,
+    /// read and written in place.
+    pub fn index(&self) -> &[Dword; INDEX_DWORDS] {
+        crate::pointers::dwords_in(self, core::mem::offset_of!(Self, index_magic))
+    }
+}
 
 /// IDA 0x5BEC78, the first byte of the piece.
 pub const START: usize = 0x5BEC78;
@@ -83,9 +92,10 @@ pub const END: usize = 0x5C2518;
 
 const _: () = assert!(END - START == core::mem::size_of::<ReplayFileBlock>());
 
-/// Where IDA 0x5BEC78 is now (in the race block).
+/// Where IDA 0x5BEC78 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&race().shared.replay_file))
 }
 
 #[cfg(test)]
@@ -94,7 +104,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&race().shared.replay_file, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

@@ -1,0 +1,43 @@
+//! The race owner's course group (`race::owner::Race::course`): the course and the stage: course data and lists, level grid and paths, kind and light records, flares, marks settings, stage preferences, numbers, league.
+
+use crate::race::course_lists_store::CourseLists;
+use crate::race::course_store::CourseWork;
+use crate::race::flares_store::FlareTables;
+use crate::race::kind_records_store::KindRecords;
+use crate::race::league_store::League;
+use crate::race::level_grid_store::LevelGrid;
+use crate::race::level_paths_store::LevelPaths;
+use crate::race::lights_store::LightsData;
+use crate::race::numbers_store::Numbers;
+use crate::race::prefs_store::StagePrefs;
+
+/// The race's course state (step 11, owned state: the stores move in as fields).
+pub struct Course {
+    pub course: CourseWork,
+    pub lists: CourseLists,
+    pub level_grid: LevelGrid,
+    pub level_paths: LevelPaths,
+    pub kind_records: KindRecords,
+    pub lights_data: LightsData,
+    pub flare_tables: FlareTables,
+    pub stage_prefs: StagePrefs,
+    pub numbers: Numbers,
+    pub league: League,
+}
+
+impl Course {
+    pub const fn new() -> Self {
+        Course {
+            course: CourseWork::new(),
+            lists: CourseLists::new(),
+            level_grid: LevelGrid::new(),
+            level_paths: LevelPaths::new(),
+            kind_records: KindRecords::new(),
+            lights_data: LightsData::new(),
+            flare_tables: FlareTables::new(),
+            stage_prefs: StagePrefs::new(),
+            numbers: Numbers::new(),
+            league: League::new(),
+        }
+    }
+}

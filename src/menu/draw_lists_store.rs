@@ -26,13 +26,20 @@ impl<const N: usize> DrawList<N> {
         Self { entries }
     }
 
-    /// The list's address.
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self as *const Self)
+    /// The list from its entry `k` on (lists share tails: a screen's may start inside
+    /// another).
+    pub fn from(&self, k: usize) -> crate::menu::fn_list::FnList {
+        crate::menu::fn_list::FnList::starting_at(crate::menu::owner::menus(), &self.entries[k])
+    }
+
+    /// The list.
+    pub fn id(&self) -> crate::menu::fn_list::FnList {
+        self.from(0)
     }
 }
 
 /// The screens' draw lists.
+#[derive(rc2k_derive::Cells)]
 #[repr(C)]
 pub struct DrawLists {
     /// List at IDA 0x758B72 (screens: arcade_best_times, arcade_results, audio_setup, best_class_scores ..): 0 entries and the -1 that ends it.
@@ -823,7 +830,9 @@ pub struct DrawLists {
 
 /// First values the image's (`tests::draw_lists_start_as_the_games`).
 #[rustfmt::skip]
-pub static DRAW_LISTS: DrawLists = DrawLists {
+impl DrawLists {
+    pub const fn new() -> Self {
+        DrawLists {
         unread_758b72: DrawList::new([0xFFFFFFFF]),
         main_menu_draw: DrawList::new([0x46989B, 0x4695C6, 0xFFFFFFFF]),
         start_rally_draw: DrawList::new([0x46989B, 0x4695C6, 0xFFFFFFFF]),
@@ -1216,7 +1225,9 @@ pub static DRAW_LISTS: DrawLists = DrawLists {
         player3_controller_setup: DrawList::new([0x46AF58, 0xFFFFFFFF]),
         player3_buttons_setup: DrawList::new([0xFFFFFFFF]),
         player4_controller_setup: DrawList::new([0x46AF8F, 0xFFFFFFFF]),
-};
+        }
+    }
+}
 
 /// IDA 0x758B72, the first byte of the piece.
 pub const START: usize = 0x758B72;
@@ -1224,8 +1235,9 @@ pub const START: usize = 0x758B72;
 pub const END: usize = 0x7594AA;
 
 /// Where IDA 0x758B72 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn draw_lists_addr() -> u32 {
-    crate::pointers::game_address(&DRAW_LISTS as *const DrawLists)
+    crate::pointers::game_address(&raw const crate::menu::owner::menus().tables.draw_lists)
 }
 
 #[cfg(test)]
@@ -1239,7 +1251,7 @@ mod tests {
         assert_eq!(size_of::<DrawLists>(), END - START);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(draw_lists_addr()) as *const u8,
+                crate::pointers::host(draw_lists_addr()).cast_const(),
                 END - START,
             )
         };

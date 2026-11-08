@@ -8,6 +8,7 @@ use crate::session::Dword;
 
 /// The savegame preview (IDA 0x755144 .. 0x755170).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SavegamePreview {
     /// `dword_755144`: the `usesavegamekeys` setting of `var\ral.cfg`; 0 lets
     /// `saves::load_savegame` call `maybeCopySomeData`.
@@ -22,17 +23,22 @@ pub struct SavegamePreview {
     /// others are not read (`screens::draw_savegame_details`).
     pub saved: [Dword; 7],
     /// `dword_75516C`: the saved cars in the file's buffer (the address after the figures).
+    /// Not used: nothing reads it (the readers take the cars by their offset in the file).
     pub saved_cars: Dword,
 }
 
 /// First values the image's (`tests::savegame_preview_starts_as_the_games`).
-pub static SAVEGAME_PREVIEW: SavegamePreview = SavegamePreview {
-    use_savegame_keys: Dword::new(0),
-    shown_slot: Dword::new(0x65),
-    nothing_to_show: Dword::new(1),
-    saved: [const { Dword::new(0) }; 7],
-    saved_cars: Dword::new(0),
-};
+impl SavegamePreview {
+    pub const fn new() -> Self {
+        SavegamePreview {
+            use_savegame_keys: Dword::new(0),
+            shown_slot: Dword::new(0x65),
+            nothing_to_show: Dword::new(1),
+            saved: [const { Dword::new(0) }; 7],
+            saved_cars: Dword::new(0),
+        }
+    }
+}
 
 /// IDA 0X755144, the first byte of the piece.
 pub const START: usize = 0x755144;
@@ -40,8 +46,9 @@ pub const START: usize = 0x755144;
 pub const END: usize = 0x755170;
 
 /// Where IDA 0X755144 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn savegame_preview_addr() -> u32 {
-    crate::pointers::game_address(&SAVEGAME_PREVIEW as *const SavegamePreview)
+    crate::pointers::game_address(&raw const crate::saves::owner::SAVES.savegame_preview)
 }
 
 #[cfg(test)]
@@ -56,7 +63,7 @@ mod tests {
         assert!(size_of::<SavegamePreview>() <= (END - START).next_multiple_of(4));
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(savegame_preview_addr()) as *const u8,
+                crate::pointers::host(savegame_preview_addr()).cast_const(),
                 END - START,
             )
         };

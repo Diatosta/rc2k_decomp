@@ -6,60 +6,48 @@
 //! +0x50 the data, +0x40 the service provider's GUID, +0 the name
 //! (`strings::copy_printable`, 0x40 room).
 //!
-//! In:  (stdcall) the service provider's GUID, the connection, its size, its name (a
-//!      DPNAME: +8 the short name), the flags, the context
-//! Out: eax = 1 to go on, 0 to stop; ebx, esi, edi, ebp kept; `ret 18h`
+//! Takes (stdcall) the service provider's GUID, the connection, its size, its name (a DPNAME:
+//! +8 the short name), the flags and the context. Returns 1 to go on, 0 to stop.
 //! A full list stops the enumeration after the memory is taken (it stays on the list).
 //! Caller: DirectPlay, from `net::find_connections` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;
-use crate::field;
-use crate::net::lobby::{connection, copy_printable, log, movsb_from_rust, net_allocate};
-use crate::net::store::NET;
-use crate::net::types::NetConnection;
-use crate::pointers::GamePtr;
+use crate::net::lobby::{log, log_bytes};
+use crate::net::owner::net;
+use crate::net::tables::{copy_printable_into, with_connection};
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
-use crate::system::same_guid::same_guid;
 use rc2k_core::net::lists;
 
-/// A dword of the callback's argument (memory Rust owns: DirectPlay's name record).
-fn get(at: u32) -> u32 {
-    crate::pointers::read_or_end(at, "DirectPlay's name record")
-}
-
-/// The Rust version: eax.
-pub fn connection_found(args: &[u32]) -> Result<u32, Refused> {
-    let (guid, data, size, name) = (args[0], args[1], args[2], args[3]);
-    log(VIEWER_PANEL.text_addr(texts::NET_FOUND), false, 2);
-    let short = get(name + 8);
-    log(short, true, 2);
-    // Converted: `rc2k_core::net::lists` (`LEAVES_OUT_PROVIDERS`, `connection_listed`).
+/// The Rust version (see the header): the provider's GUID, the connection's address, its
+/// short name.
+pub fn connection_found(guid: &[u8; 16], data: &[u8], short: &[u8]) -> Result<u32, Refused> {
+    let vars = &net().vars;
+    log(VIEWER_PANEL.text_ptr(texts::NET_FOUND), false, 2);
+    log_bytes(short, true, 2);
     if crate::strings::load_language::notice_kind() == lists::LEAVES_OUT_PROVIDERS
-        && [&NET.sp_serial, &NET.sp_modem]
+        && [&vars.sp_serial, &vars.sp_modem]
             .into_iter()
-            .any(|left_out| same_guid(guid, left_out.addr()))
+            .any(|left_out| left_out.read() == *guid)
     {
         return Ok(1);
     }
-    let memory = net_allocate(size)?;
-    let Some(count) = lists::connection_listed(NET.connections.get()) else {
+    crate::net::tables::count(data.len() as u32)?;
+    let Some(count) = lists::connection_listed(vars.connections.get()) else {
         return Ok(0);
     };
-    NET.connections.set(count + 1);
-    let record = connection(count)?;
-    GamePtr::new(record + field!(NetConnection, data)).write(memory, "a connection's record")?;
-    movsb_from_rust(memory, data, size)?;
-    movsb_from_rust(record + field!(NetConnection, service_provider), guid, 0x10)?;
-    copy_printable(short, record, 0x40)?;
+    vars.connections.set(count + 1);
+    let mut name = with_connection(count, |c| c.name)?;
+    copy_printable_into(short, &mut name, 0x40)?;
+    with_connection(count, |c| {
+        c.data = data.to_vec();
+        c.provider = *guid;
+        c.name = name;
+    })?;
     Ok(1)
 }
 
-/// The callback DirectPlay is given: the Rust version.
-pub extern "system" fn callback(a: u32, b: u32, c: u32, d: u32, e: u32, f: u32) -> u32 {
-    crate::net::lobby::callback_entry(
-        "net::connection_found",
-        0x4186E5,
-        &[a, b, c, d, e, f],
-        connection_found,
-    )
+pub fn callback(guid: &[u8; 16], data: &[u8], short: &[u8], _flags: u32, _context: u32) -> u32 {
+    crate::net::lobby::callback_entry("net::connection_found", 0x4186E5, || {
+        connection_found(guid, data, short)
+    })
 }

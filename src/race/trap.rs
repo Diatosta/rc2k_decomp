@@ -18,8 +18,15 @@ impl Trap {
     }
 
     /// The `T` at `at`, or its zero when the read is refused (kept for `finish`).
-    pub fn read<T: Copy + Default>(&self, at: u32, what: &str) -> T {
-        match GamePtr::new(at).read::<T>(what) {
+    #[track_caller]
+    pub fn read<T: crate::pointers::Plain + Default>(&self, at: u32, what: &str) -> T {
+        self.read_at(GamePtr::new(at), what)
+    }
+
+    /// As `read`, at a pointer made from a store's field.
+    #[track_caller]
+    pub fn read_at<T: crate::pointers::Plain + Default>(&self, at: GamePtr, what: &str) -> T {
+        match at.read::<T>(what) {
             Ok(v) => v,
             Err(e) => {
                 if self.refused.get().is_none() {
@@ -28,6 +35,24 @@ impl Trap {
                 T::default()
             }
         }
+    }
+
+    /// As `read_at`, at byte `offset` of a store.
+    #[track_caller]
+    pub fn load_at<T: crate::pointers::Plain + Default>(
+        &self,
+        store: &dyn crate::pointers::Store,
+        offset: usize,
+    ) -> T {
+        self.keep_read(crate::pointers::load_value(store, offset))
+    }
+
+    /// A checked read's answer, or its zero when refused (kept for `finish`).
+    pub fn keep_read<T: Default>(&self, read: Result<T, BadInput>) -> T {
+        read.unwrap_or_else(|e| {
+            self.keep(e);
+            T::default()
+        })
     }
 
     /// Keeps a refusal met elsewhere in the closure.
@@ -46,84 +71,29 @@ impl Trap {
     }
 }
 
-/// Whether `len` bytes from `addr` lie in one of the game's regions, for the calls that still
-/// take a raw pointer into the game's memory (file reads and writes): refused otherwise,
-/// the address logged.
-pub fn span(addr: u32, len: usize, what: &str) -> Result<(), BadInput> {
-    match crate::pointers::region_of(addr) {
-        Some((_, end)) if (end - addr) as usize >= len => Ok(()),
-        _ => {
-            crate::framework::log(&format!(
-                "pointers: {what} at {addr:#010x} ({len} bytes) is outside every allocation"
-            ));
-            Err(BadInput(
-                "a game pointer outside every allocation (rc2k.log names it)",
-            ))
+/// The car block at `addr` (a `g_carBlocks` entry, a view's block, `g_car`: the work car or
+/// one of the ten blocks); any other address is refused (the tests' own cars are found among
+/// their regions).
+pub fn car_at(addr: u32) -> Result<&'static crate::physics::car_store::Car, BadInput> {
+    match crate::physics::car_store::Car::known(addr) {
+        Some(car) => Ok(car),
+        #[cfg(test)]
+        None => GamePtr::new(addr).record::<crate::physics::car_store::Car>("a car block"),
+        #[cfg(not(test))]
+        None => {
+            crate::framework::log(&format!("trap: {addr:#x} is no car block's place"));
+            Err(BadInput("a car block at no car's place"))
         }
     }
-}
-
-/// `files::handle::read` into game memory: the span checked first. (The bytes read, whether
-/// the read succeeded.)
-pub fn file_read(file: u32, addr: u32, count: u32, what: &str) -> Result<(u32, bool), BadInput> {
-    span(addr, count as usize, what)?;
-    // SAFETY: the span lies in one live region (checked above).
-    Ok(crate::files::handle::read(
-        file,
-        crate::pointers::host(addr),
-        count,
-    ))
-}
-
-/// `files::handle::write` from game memory: the span checked first.
-pub fn file_write(file: u32, addr: u32, count: u32, what: &str) -> Result<(u32, bool), BadInput> {
-    span(addr, count as usize, what)?;
-    // SAFETY: the span lies in one live region (checked above).
-    Ok(crate::files::handle::write(
-        file,
-        crate::pointers::host(addr) as *const u8,
-        count,
-    ))
-}
-
-/// The dword at offset `at` of bytes read in place (`GamePtr::bytes`): refused past the
-/// region's end.
-pub fn dword_at(b: &crate::pointers::GameBytes, at: usize) -> Result<u32, BadInput> {
-    use rc2k_core::strings::bytes::Bytes;
-    let mut v = [0u8; 4];
-    for (k, x) in v.iter_mut().enumerate() {
-        *x = b
-            .byte(at + k)
-            .ok_or(BadInput("a game read past its region"))?;
-    }
-    Ok(u32::from_le_bytes(v))
-}
-
-/// `files::read_whole_file` into game memory: the buffer's span checked first.
-pub fn read_whole_file_into(
-    path: *const u8,
-    buffer: u32,
-    count: u32,
-    what: &str,
-) -> Result<(), BadInput> {
-    span(buffer, count as usize, what)?;
-    // SAFETY: the span lies in one live region (checked above); `path` is the caller's own.
-    crate::files::read_whole_file::read_whole_file(path, crate::pointers::host(buffer), count)
-}
-
-/// The car block at `addr` (a `g_carBlocks` entry, a view's block, `g_car`), checked to lie
-/// in one region.
-pub fn car_at(addr: u32) -> Result<&'static crate::physics::car_store::Car, BadInput> {
-    GamePtr::new(addr).record::<crate::physics::car_store::Car>("a car block")
 }
 
 /// A test's own buffer made a region while the guard lives (any items; see
 /// `pointers::TestRegion`).
 #[cfg(all(test, target_arch = "x86"))]
-pub fn test_region<T>(items: &[T]) -> crate::pointers::TestRegion {
+pub fn test_region<T>(items: &[T]) -> crate::pointers::Lent {
     // SAFETY: the same memory seen as bytes, for the registry only.
     let bytes = unsafe {
         std::slice::from_raw_parts(items.as_ptr().cast::<u8>(), std::mem::size_of_val(items))
     };
-    crate::pointers::TestRegion::new(bytes)
+    crate::pointers::Lent::new(bytes)
 }

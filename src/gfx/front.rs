@@ -11,6 +11,7 @@ pub const LEN: usize = 8;
 
 /// The surface handles.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Surfaces {
     /// `g_frontSurface` (`dword_4F32B4`): the front surface, 0 with none.
     pub front: Dword,
@@ -18,32 +19,36 @@ pub struct Surfaces {
     pub back: Dword,
 }
 
-/// The handles; the first values are the image's.
-pub static SURFACES: Surfaces = Surfaces {
-    front: Dword::new(0),
-    back: Dword::new(0),
-};
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x4F32B4).
-pub fn home() -> usize {
-    crate::pointers::game_address(&SURFACES as *const Surfaces) as usize
+impl Surfaces {
+    /// The handles; the first values are the image's.
+    pub const fn new() -> Self {
+        Surfaces {
+            front: Dword::new(0),
+            back: Dword::new(0),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gfx::owner::gfx;
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&SURFACES, START, START + LEN);
+        crate::gfx::first_values_are_the_games(&gfx().drawing.surfaces, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), SURFACES.front.addr() as usize);
+        let drawing = &gfx().drawing;
+        assert_eq!(
+            crate::moved::place(START),
+            drawing.surfaces.front.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(START + 4),
-            SURFACES.back.addr() as usize
+            drawing.surfaces.back.addr() as usize
         );
     }
 }

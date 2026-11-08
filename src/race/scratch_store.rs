@@ -1,8 +1,11 @@
 //! The scratch point, work vector and kept frame (IDA 0x5C5F48 .. 0x5C5FB8; phase 7, typed): the tangent scratch, the scratch point's three floats, the work vector and its squares (`math::normalise_vector`), and the locked surface's kept pitch and pixels. `#[repr(C)]` with the image's layout, over the race block's bytes. Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct FrameScratch {
     /// +0x0 (0x5C5F48): `dword_5C5F48`: the tangent's doubled number (`scene::fill_engine_tables`).
     pub tangent_scratch: Dword,
@@ -19,28 +22,30 @@ pub struct FrameScratch {
     /// +0x28 (0x5C5F70): `xmmword_5C5F70`: the four floats squared (`math::normalise_vector`).
     pub work_squares: [Dword; 4],
     /// +0x38 (0x5C5F80): not named.
-    pub unknown_38: [Dword; 12],
+    pub unknown_38: [Dword; 6],
+    /// +0x50 (0x5C5F98): `g_debugCursorX`: where the debug font's last print ended
+    /// (`debug::draw::print`, a print at (0, 0) goes on from here).
+    pub debug_cursor_x: Dword,
+    /// +0x54 (0x5C5F9C): `g_debugCursorY`: its row.
+    pub debug_cursor_y: Dword,
+    /// +0x58 (0x5C5FA0): not named.
+    pub unknown_58: [Dword; 4],
     /// +0x68 (0x5C5FB0): `dword_5C5FB0`: the locked surface's pitch (`scene::lock_frame`, `scene::unlock_frame`).
     pub frame_pitch: Dword,
     /// +0x6c (0x5C5FB4): `dword_5C5FB4`: the locked surface's pixels (`scene::lock_frame`, `scene::unlock_frame`).
     pub frame_pixels: Dword,
 }
 
-/// The piece: the race block's bytes at IDA 0x5C5F48 seen as `FrameScratch`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = FrameScratch;
-    fn deref(&self) -> &FrameScratch {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const FrameScratch) }
+/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl FrameScratch {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static FRAME_SCRATCH: InRaceBlock = InRaceBlock;
 
 /// IDA 0x5C5F48, the first byte of the piece.
 pub const START: usize = 0x5C5F48;
@@ -49,9 +54,10 @@ pub const END: usize = 0x5C5FB8;
 
 const _: () = assert!(END - START == core::mem::size_of::<FrameScratch>());
 
-/// Where IDA 0x5C5F48 is now (in the race block).
+/// Where IDA 0x5C5F48 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.scratch))
 }
 
 #[cfg(test)]
@@ -60,7 +66,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&race().frame.scratch, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

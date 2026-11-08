@@ -1,29 +1,19 @@
-/// The dword at `a`.
-pub fn get(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::cells's operand")
-}
-
-/// `v` into the dword at `a`.
-pub fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::cells's operand")
-}
-
-/// `now` into the dword at `a` when it is not `was` (what was loaded from there).
-pub fn put_changed(a: u32, was: u32, now: u32) {
+/// `now` into the cell when it is not `was` (what was read from it).
+pub fn set_changed(c: &dyn crate::session::Cell32, was: u32, now: u32) {
     if now != was {
-        put(a, now)
+        c.set_bits(now);
     }
 }
 
-/// `N` dwords from `a` on.
-pub fn get_list<const N: usize>(a: u32) -> [u32; N] {
-    std::array::from_fn(|k| get(a + 4 * k as u32))
+/// The values of `cells`.
+pub fn values<const N: usize>(cells: &[crate::session::Dword; N]) -> [u32; N] {
+    std::array::from_fn(|k| cells[k].get())
 }
 
-/// The dwords of `now` that are not `was`'s into their places from `a` on.
-pub fn put_list_changed(a: u32, was: &[u32], now: &[u32]) {
-    for (k, (&w, &n)) in was.iter().zip(now).enumerate() {
-        put_changed(a + 4 * k as u32, w, n)
+/// What changed from `was` to `now` stored into `cells`.
+pub fn set_values_changed(cells: &[crate::session::Dword], was: &[u32], now: &[u32]) {
+    for ((c, &w), &n) in cells.iter().zip(was).zip(now) {
+        set_changed(c, w, n);
     }
 }
 
@@ -38,7 +28,7 @@ impl Trap {
         Self::default()
     }
 
-    fn keep<T: Default>(&self, r: Result<T, crate::errors::BadInput>) -> T {
+    pub fn keep<T: Default>(&self, r: Result<T, crate::errors::BadInput>) -> T {
         r.unwrap_or_else(|e| {
             self.refuse(e);
             T::default()
@@ -50,21 +40,6 @@ impl Trap {
         if self.0.get().is_none() {
             self.0.set(Some(e.into()));
         }
-    }
-
-    /// The dword at `a`.
-    pub fn dword(&self, a: u32, what: &str) -> u32 {
-        self.keep(crate::pointers::GamePtr::new(a).read::<u32>(what))
-    }
-
-    /// The byte at `a`.
-    pub fn byte(&self, a: u32, what: &str) -> u8 {
-        self.keep(crate::pointers::GamePtr::new(a).read::<u8>(what))
-    }
-
-    /// The word at `a`.
-    pub fn word(&self, a: u32, what: &str) -> u16 {
-        self.keep(crate::pointers::GamePtr::new(a).read::<u16>(what))
     }
 
     /// Whether a refusal has been kept.

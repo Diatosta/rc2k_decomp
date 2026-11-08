@@ -7,64 +7,60 @@
 //! window restored (`system::restore_window`); then `dword_52ACFC` 1, the player made
 //! (`net::create_player`), the group made (`net::create_group`), "NET: Host complete".
 //!
-//! In:  nothing
-//! Out: true when hosted (the original: carry clear, the flags of `test eax, eax`; every
-//!      register kept), false for the carry
+//! Since 2026-10-29 the session's name goes to `net::dp_objects` as text (`open`): the
+//! description's name pointer is left 0.
+//!
+//! Returns true when hosted.
 //! Caller: `net::hosting`.
 
 use crate::errors::Refused;
-use crate::net::dplay::{OPEN, call};
 use crate::net::find_sessions::{posted_or_called, zeroed_description};
-use crate::net::lobby::{log, log_hex, movsb, zero};
-use crate::net::store::NET;
+use crate::net::lobby::{log, log_bytes, log_hex};
+use crate::net::owner::Net;
+use crate::net::owner::net;
+use crate::net::store::put_bytes;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 const OPEN_CREATE: u32 = 2; // DPOPEN_CREATE
 pub const OPEN_JOIN: u32 = 1; // DPOPEN_JOIN
 
 /// `Open(dword_5AB2AC, flags)`.
-pub unsafe fn open(flags: u32) -> u32 {
-    unsafe { call(&NET.dplay, OPEN, &[NET.session_desc.addr(), flags]) }
+pub fn open(flags: u32, name: &[u8]) -> u32 {
+    let vars = &net().vars;
+    let d = crate::net::dp_objects::desc(&vars.session_desc, name);
+    crate::net::dp_objects::open(vars.dplay.get(), &d, flags)
 }
 
 /// The code at 0x418C5A as the receiving thread calls it when it is posted.
-pub extern "C" fn posted_open_host() -> u32 {
-    unsafe { open(OPEN_CREATE) }
+pub fn posted_open_host() -> u32 {
+    open(OPEN_CREATE, &net().vars.machine_name.read())
 }
 
 /// The Rust version.
-pub fn host_session() -> Result<bool, Refused> {
-    log(VIEWER_PANEL.text_addr(texts::NET_HOST), false, 2);
-    log(NET.machine_name.addr(), true, 2);
-    if NET.dplay.get() == 0 {
+pub fn host_session(net: &Net) -> Result<bool, Refused> {
+    log(VIEWER_PANEL.text_ptr(texts::NET_HOST), false, 2);
+    log_bytes(&net.vars.machine_name.read(), true, 2);
+    if net.vars.dplay.get() == 0 {
         return Ok(false);
     }
-    zero(NET.joined.addr(), 0x10)?;
-    movsb(NET.joined_name.addr(), NET.machine_name.addr(), 0x40)?;
-    NET.joined_most.set(NET.most_players.get());
-    movsb(
-        NET.joined_password.addr(),
-        NET.session_password.addr(),
-        0x10,
-    )?;
-    zeroed_description()?;
-    NET.session_desc.flags.set(0x44);
-    movsb(
-        crate::pointers::game_address(NET.session_desc.application.as_ptr()),
-        NET.app_guid.addr(),
-        0x10,
-    )?;
-    NET.session_desc.max_players.set(NET.most_players.get());
-    NET.session_desc.name.set(NET.machine_name.addr());
-    movsb(
-        crate::pointers::game_address(NET.session_desc.user.as_ptr()),
-        NET.session_password.addr(),
-        0x10,
-    )?;
+    net.vars.joined.write(&[0; 16]);
+    net.vars.joined_name.write(&net.vars.machine_name.read());
+    net.vars.joined_most.set(net.vars.most_players.get());
+    net.vars
+        .joined_password
+        .write(&net.vars.session_password.read());
+    zeroed_description(&net.vars)?;
+    let desc = &net.vars.session_desc;
+    desc.flags.set(0x44);
+    put_bytes(&desc.application, &net.vars.app_guid.read());
+    desc.max_players.set(net.vars.most_players.get());
+    // The name goes to `open` as text (the description's pointer is left 0).
+    put_bytes(&desc.user, &net.vars.session_password.read());
     finish(
+        net,
         posted_open_host,
         crate::net::create_group::create_group,
-        VIEWER_PANEL.text_addr(texts::NET_HOST_COMPLETE),
+        VIEWER_PANEL.text_ptr(texts::NET_HOST_COMPLETE),
     )
 }
 
@@ -72,18 +68,19 @@ pub fn host_session() -> Result<bool, Refused> {
 /// window restored; `dword_52ACFC` 1, the player made, then `then` (the group made or
 /// joined) and `done` logged. Shared with `net::join_session`. Whether all of it worked.
 pub fn finish(
-    posted: extern "C" fn() -> u32,
+    net: &Net,
+    posted: fn() -> u32,
     then: fn() -> Result<bool, Refused>,
-    done: u32,
+    done: crate::pointers::GamePtr,
 ) -> Result<bool, Refused> {
-    let result = posted_or_called(posted);
-    log(VIEWER_PANEL.text_addr(texts::NET_OPEN), false, 2);
+    let result = posted_or_called(net, posted);
+    log(VIEWER_PANEL.text_ptr(texts::NET_OPEN), false, 2);
     log_hex(result, true);
     crate::system::restore_window::restore_window();
     if result != 0 {
         return Ok(false);
     }
-    NET.session_open.set(1);
+    net.vars.session_open.set(1);
     if !crate::net::create_player::create_player()? || !then()? {
         return Ok(false);
     }

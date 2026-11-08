@@ -1,4 +1,4 @@
-//! The players' input devices, as the input thread (`sub_4078DA`, "INPUTTDB") keeps them:
+//! The players' input devices, as the input thread (`input::input_thread`, "INPUTTDB") keeps them:
 //! two records of 0x4F8 bytes (`unk_4F6EF0`, `unk_4F73E8`; `g_inputDevices` 0x4F6EE8 points
 //! at them). What is known of a record (a reading from the code that uses it):
 //! - +0 the controller's number, +4 its DirectInput device (0: none), +8 its kind (1
@@ -15,35 +15,20 @@
 //!   `drive::device_axes` reads.
 
 use crate::errors::BadInput;
-use crate::input::store::DEVICES;
-use crate::pointers::GamePtr;
+use crate::input::store::Devices;
+use crate::input::types::InputDevice;
 
-/// The two records' places (`g_inputRecord1`, `g_inputRecord2`).
-pub fn record_addrs() -> [u32; 2] {
-    DEVICES.records.each_ref().map(|record| record.addr())
+/// The two records (`g_inputRecord1`, `g_inputRecord2`).
+pub fn records(devices: &Devices) -> &[InputDevice; 2] {
+    &devices.records
 }
 
 /// The device's state (`g_deviceState`), 0x50 bytes.
 pub const STATE_LEN: usize = 0x50;
 
-/// A dword of the record at `record`.
-pub fn at(record: u32, offset: u32) -> Result<u32, BadInput> {
-    GamePtr::new(record)
-        .offset(offset)
-        .read("a device record's dword")
-}
-
-/// Writes a dword of the record at `record`.
-pub fn put(record: u32, offset: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(record)
-        .offset(offset)
-        .write(v, "a device record's dword")
-}
-
-/// Whether key `key` is down.
 /// A record's bytes, for the core (`rc2k_core::input::devices`).
-pub fn record_bytes(record: u32) -> Result<rc2k_core::input::devices::Record, BadInput> {
-    GamePtr::new(record).read("a device record")
+pub fn record_bytes(record: &InputDevice) -> rc2k_core::input::devices::Record {
+    record.to_bytes()
 }
 
 /// A refusal met inside a closure the core asks for a value (it has no failure to give):
@@ -67,51 +52,18 @@ impl Deferred {
 /// What the program does with a refusal where a Windows callback leaves no way to hand it
 /// on: it ends, saying which function refused and why.
 pub fn refused_here(name: &str, e: impl Into<crate::errors::Refused>) {
-    crate::fatal::raise::refused_in(name, e, &crate::framework::Regs::default());
+    crate::fatal::raise::refused_in(name, e, &rc2k_core::fatal::Context::default());
 }
 
 /// The key table and the device's state, for the core.
-pub fn key_table() -> rc2k_core::input::devices::KeyTable {
-    DEVICES.key_table()
+pub fn key_table(devices: &Devices) -> rc2k_core::input::devices::KeyTable {
+    devices.key_table()
 }
 
-pub fn joy_state() -> rc2k_core::input::devices::State {
+pub fn joy_state(devices: &Devices) -> rc2k_core::input::devices::State {
     let mut state = [0u8; STATE_LEN];
-    for (n, dword) in DEVICES.device_state.iter().enumerate() {
+    for (n, dword) in devices.device_state.iter().enumerate() {
         state[4 * n..4 * n + 4].copy_from_slice(&dword.get().to_le_bytes());
     }
     state
-}
-
-/// A method of a COM object (DirectInput's device): the function in slot `slot` (a byte
-/// offset) of its table, `stdcall` with the object first; the method's result.
-pub unsafe fn com_call(object: u32, slot: u32, args: &[u32]) -> u32 {
-    unsafe {
-        let table: u32 = crate::pointers::read_or_end(object, "a DirectInput object");
-        let f: u32 = crate::pointers::read_or_end(table + slot, "a DirectInput method table");
-        let f = crate::pointers::code(f);
-        match *args {
-            [] => {
-                let f: extern "system" fn(u32) -> u32 = std::mem::transmute(f);
-                f(object)
-            }
-            [a] => {
-                let f: extern "system" fn(u32, u32) -> u32 = std::mem::transmute(f);
-                f(object, a)
-            }
-            [a, b] => {
-                let f: extern "system" fn(u32, u32, u32) -> u32 = std::mem::transmute(f);
-                f(object, a, b)
-            }
-            [a, b, c] => {
-                let f: extern "system" fn(u32, u32, u32, u32) -> u32 = std::mem::transmute(f);
-                f(object, a, b, c)
-            }
-            [a, b, c, d] => {
-                let f: extern "system" fn(u32, u32, u32, u32, u32) -> u32 = std::mem::transmute(f);
-                f(object, a, b, c, d)
-            }
-            _ => panic!("com_call: {} arguments", args.len()),
-        }
-    }
 }

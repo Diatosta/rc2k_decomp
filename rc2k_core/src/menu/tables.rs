@@ -123,11 +123,11 @@ mod tests {
     /// RAL.EXE's image as the standalone builds it (`data/ral_image.bin`), unmoved (its
     /// addresses as IDA shows them), indexed by RVA.
     fn image() -> Vec<u8> {
-        let d = std::fs::read(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../data/ral_image.bin"
-        ))
-        .expect("data/ral_image.bin");
+        // `RC2K_IMAGE` for a test binary run away from the source tree.
+        let path = std::env::var("RC2K_IMAGE").unwrap_or_else(|_| {
+            concat!(env!("CARGO_MANIFEST_DIR"), "/../data/ral_image.bin").to_string()
+        });
+        let d = std::fs::read(path).expect("data/ral_image.bin");
         let u = |at: usize| u32::from_le_bytes(d[at..at + 4].try_into().unwrap()) as usize;
         assert_eq!(&d[..8], b"RC2KIMG1");
         let (size, sections) = (u(8), u(16));

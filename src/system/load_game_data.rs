@@ -1,8 +1,6 @@
 //! `system::load_game_data` (0x411239): loads what the game keeps between runs, and gives
 //! every name that is empty a default.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! In this order:
 //! - `saves::load_options`, `saves::load_best_times`, `settings::read_settings` (again:
 //!   the settings file outranks the kept options), `install::read_sku`, `dword_518BB0`
@@ -22,24 +20,19 @@
 //!   that is empty becomes string 0x4E0 and the slot's number in two digits; the same for
 //!   the replays (string 0x4E2) and the car setups (string 0x4E1).
 //!
-//! One caller, `start`.
-//! Refuses a default name that does not fit its place, and what its parts refuse. A refusal
-//! comes with the work half done, and the original then starts from the top.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! One caller, `start`. Refuses a default name that does not fit its place, and what its parts
+//! refuse. A refusal comes with the work half done, and the original then starts from the top.
 
 use crate::errors::{BadInput, Refused};
-use crate::install::read_sku::SKU;
-use crate::menu::cheats_store::CHEAT_VARS;
 use crate::menu::name_lists::NAME_LEN;
-use crate::menu::names_store::NAME_BUFFERS;
-use crate::net::store::NET;
-use crate::race::tyre_store::TYRE_CHANGE;
+use crate::net::owner::net;
+use crate::race::owner::race;
+use crate::service::owner::service;
 use crate::session::Bytes;
 use crate::session::Dword;
 use crate::strings::append_string_by_id::push_string;
-use crate::strings::copy_printable::copy_printable;
-use windows_sys::Win32::System::WindowsProgramming::GetUserNameA;
+use crate::strings::copy_printable::printable_from;
+use crate::system::owner::Start;
 
 // ---- game data ----
 
@@ -47,6 +40,8 @@ use windows_sys::Win32::System::WindowsProgramming::GetUserNameA;
 
 // Converted: `rc2k_core::system::game_data` (the choices, the default names, the drawn
 // driver's name).
+use crate::menu::owner::menus;
+use crate::saves::owner::saves;
 use rc2k_core::system::game_data::{
     ALL_CARS_CHEATS, DRIVER_NAME_IDS, MACHINE_NAME_ID, PLAYER_NAME_IDS, REPLAY_NAME_ID,
     SAVEGAME_NAME_ID, SETUP_NAME_ID, SLOTS, TYRE_CHANGE_RECORD, USER_NAME_ROOM, all_secret_cars,
@@ -68,10 +63,10 @@ pub enum Call {
     ApplyPatches,
     RemoveSecretCars,
     ApplyCheats,
-    /// The user's name to this place.
-    UserName(u32),
-    /// The computer's name to this place.
-    ComputerName(u32),
+    /// The user's name to the first player's name.
+    UserName,
+    /// The computer's name to the machine name.
+    ComputerName,
     /// A random number under this.
     RandomBelow(u32),
     ReadSavegameSlot(u32),
@@ -83,13 +78,18 @@ pub enum Call {
 pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<u32, Refused>;
 
 /// The string and what follows it, with a NUL, at `to`.
-fn default_name(to: *mut u8, room: usize, id: u32, after: &[u8]) -> Result<(), BadInput> {
+fn default_name<const N: usize>(
+    to: &Bytes<N>,
+    at: usize,
+    room: usize,
+    id: u32,
+    after: &[u8],
+) -> Result<(), BadInput> {
     let mut string = Vec::new();
     push_string(&mut string, id)?;
     let name = rc2k_core::system::game_data::default_name(&string, after, room)
         .ok_or(BadInput("a default name longer than its place"))?;
-    crate::pointers::GamePtr::new(crate::pointers::game_address(to))
-        .write_bytes(&name, "a default name")?;
+    to.write_at(at, &name, "a default name")?;
     Ok(())
 }
 
@@ -102,177 +102,210 @@ fn number_empty_names<const N: usize>(names: &Bytes<N>, id: u32) -> Result<(), B
             push_string(&mut string, id)?;
             let bytes = rc2k_core::system::game_data::slot_name(&string, slot, NAME_LEN)
                 .ok_or(BadInput("a default name longer than its place"))?;
-            crate::pointers::GamePtr::new(
-                (crate::pointers::game_address(names.as_ptr())).wrapping_add(name as u32),
-            )
-            .write_bytes(&bytes, "a default slot name")?;
+            // The name bytes at their slot in the names buffer.
+            names.write_at(name, &bytes, "a default slot name")?;
         }
     }
     Ok(())
 }
 
-pub unsafe fn load_game_data(outside: Outside) -> Result<(), Refused> {
-    unsafe {
-        outside(Call::LoadOptions)?;
-        outside(Call::LoadBestTimes)?;
-        outside(Call::ReadSettings)?;
-        outside(Call::ReadSku)?;
-        RUN_COUNT.runs.set(RUN_COUNT.runs.get().wrapping_add(1));
-        outside(Call::ReadDriverNames)?;
-        outside(Call::ApplyPatches)?;
-        if removes_secret_cars(CHEAT_VARS.all_secret_cars.get()) {
-            outside(Call::RemoveSecretCars)?;
-        }
-        if all_secret_cars(CHEAT_VARS.all_secret_cars.get()) {
-            CHEAT_VARS
-                .cheats
-                .set(CHEAT_VARS.cheats.get() | ALL_CARS_CHEATS);
-            outside(Call::ApplyCheats)?;
-        }
+pub fn load_game_data(start: &Start, outside: Outside) -> Result<(), Refused> {
+    let race = race();
+    let net = net();
+    let play = &menus().play;
+    outside(Call::LoadOptions)?;
+    outside(Call::LoadBestTimes)?;
+    outside(Call::ReadSettings)?;
+    outside(Call::ReadSku)?;
+    start
+        .run_count
+        .runs
+        .set(start.run_count.runs.get().wrapping_add(1));
+    outside(Call::ReadDriverNames)?;
+    outside(Call::ApplyPatches)?;
+    if removes_secret_cars(play.cheats.all_secret_cars.get()) {
+        outside(Call::RemoveSecretCars)?;
+    }
+    if all_secret_cars(play.cheats.all_secret_cars.get()) {
+        play.cheats
+            .cheats
+            .set(play.cheats.cheats.get() | ALL_CARS_CHEATS);
+        outside(Call::ApplyCheats)?;
+    }
 
-        for (player, id) in PLAYER_NAME_IDS.into_iter().enumerate() {
-            let name = NAME_BUFFERS.player_names.addr() + (player * NAME_LEN) as u32;
-            if NAME_BUFFERS.player_names.get(player * NAME_LEN) != 0 {
+    for (player, id) in PLAYER_NAME_IDS.into_iter().enumerate() {
+        // The player's name bytes at their slot in the names buffer.
+        if play.names.player_names.get(player * NAME_LEN) != 0 {
+            continue;
+        }
+        if player == 0 {
+            let field = &play.names.player_names;
+            outside(Call::UserName)?;
+            let bytes = printable_from(&field.read(), USER_NAME_ROOM)?;
+            field.write_at(0, &bytes, "a printable name")?;
+            if play.names.player_names.get(player * NAME_LEN) != 0 {
                 continue;
             }
-            if player == 0 {
-                let place = crate::pointers::host_at(name as usize);
-                outside(Call::UserName(crate::pointers::game_address(place)))?;
-                copy_printable(place, place, USER_NAME_ROOM)?;
-                if NAME_BUFFERS.player_names.get(player * NAME_LEN) != 0 {
-                    continue;
-                }
-            }
-            default_name(crate::pointers::host_at(name as usize), NAME_LEN, id, &[])?;
         }
-
-        if NET.machine_name.get(0) == 0 {
-            let place = NET.machine_name.as_ptr();
-            outside(Call::ComputerName(crate::pointers::game_address(place)))?;
-            copy_printable(place, place, MACHINE_NAME_ROOM as u32)?;
-            if NET.machine_name.get(0) == 0 {
-                default_name(
-                    NET.machine_name.as_ptr(),
-                    MACHINE_NAME_ROOM,
-                    MACHINE_NAME_ID,
-                    &[],
-                )?;
-            }
-        }
-
-        if TYRE_CHANGE.record_name.get(0) == 0 {
-            let mut draws = 0;
-            let end = loop {
-                let drawn = outside(Call::RandomBelow(DRIVER_NAME_IDS.1))?;
-                let mut name = Vec::new();
-                push_string(&mut name, DRIVER_NAME_IDS.0.wrapping_add(drawn))?;
-                if name.len() >= NAME_LEN {
-                    return Err(BadInput("a driver's name longer than its place").into());
-                }
-                // No NUL yet: a short name leaves what was there after it.
-                for (k, &b) in name.iter().enumerate() {
-                    TYRE_CHANGE.record_name.set(k, b);
-                }
-                if !drawn_again(std::array::from_fn(|k| TYRE_CHANGE.record_name.get(k))) {
-                    break name.len();
-                }
-                draws += 1;
-                if draws == MOST_DRAWS {
-                    return Err(BadInput("no driver's name that can be taken").into());
-                }
-            };
-            TYRE_CHANGE.record_name.set(end, 0);
-            TYRE_CHANGE.record.set(TYRE_CHANGE_RECORD);
-        }
-
-        for slot in 0..SLOTS {
-            outside(Call::ReadSavegameSlot(slot))?;
-        }
-        number_empty_names(
-            &crate::saves::write_savegame_slot::SAVE_GAMES.names,
-            SAVEGAME_NAME_ID,
+        default_name(
+            &play.names.player_names,
+            player * NAME_LEN,
+            NAME_LEN,
+            id,
+            &[],
         )?;
-        for slot in 0..SLOTS {
-            outside(Call::ReadReplaySlot(slot))?;
-        }
-        number_empty_names(&crate::race::replay::REPLAYS.names, REPLAY_NAME_ID)?;
-        for slot in 0..SLOTS {
-            outside(Call::ReadSetupSlot(slot))?;
-        }
-        number_empty_names(
-            &crate::service::read_setup_slot::SET_UPS.names,
-            SETUP_NAME_ID,
-        )?;
-        Ok(())
     }
+
+    if net.vars.machine_name.get(0) == 0 {
+        let field = &net.vars.machine_name;
+        outside(Call::ComputerName)?;
+        let bytes = printable_from(&field.read(), MACHINE_NAME_ROOM as u32)?;
+        field.write_at(0, &bytes, "a printable name")?;
+        if net.vars.machine_name.get(0) == 0 {
+            default_name(
+                &net.vars.machine_name,
+                0,
+                MACHINE_NAME_ROOM,
+                MACHINE_NAME_ID,
+                &[],
+            )?;
+        }
+    }
+
+    if race.shared.tyre_change.record_name.get(0) == 0 {
+        let mut draws = 0;
+        let end = loop {
+            let drawn = outside(Call::RandomBelow(DRIVER_NAME_IDS.1))?;
+            let mut name = Vec::new();
+            push_string(&mut name, DRIVER_NAME_IDS.0.wrapping_add(drawn))?;
+            if name.len() >= NAME_LEN {
+                return Err(BadInput("a driver's name longer than its place").into());
+            }
+            // No NUL yet: a short name leaves what was there after it.
+            for (k, &b) in name.iter().enumerate() {
+                race.shared.tyre_change.record_name.set(k, b);
+            }
+            if !drawn_again(std::array::from_fn(|k| {
+                race.shared.tyre_change.record_name.get(k)
+            })) {
+                break name.len();
+            }
+            draws += 1;
+            if draws == MOST_DRAWS {
+                return Err(BadInput("no driver's name that can be taken").into());
+            }
+        };
+        race.shared.tyre_change.record_name.set(end, 0);
+        race.shared.tyre_change.record.set(TYRE_CHANGE_RECORD);
+    }
+
+    for slot in 0..SLOTS {
+        outside(Call::ReadSavegameSlot(slot))?;
+    }
+    number_empty_names(&saves().save_games.names, SAVEGAME_NAME_ID)?;
+    for slot in 0..SLOTS {
+        outside(Call::ReadReplaySlot(slot))?;
+    }
+    number_empty_names(&race.shared.replays.names, REPLAY_NAME_ID)?;
+    for slot in 0..SLOTS {
+        outside(Call::ReadSetupSlot(slot))?;
+    }
+    number_empty_names(&service().set_ups.names, SETUP_NAME_ID)?;
+    Ok(())
 }
 
 /// The calls done by the Rust versions.
 fn in_game(call: Call) -> Result<u32, Refused> {
-    unsafe {
-        match call {
-            Call::LoadOptions => {
-                crate::saves::load_options::load_game_options()?;
+    let race = crate::race::owner::race();
+    let menus = menus();
+    match call {
+        Call::LoadOptions => {
+            crate::saves::load_options::load_game_options(menus)?;
+        }
+        Call::LoadBestTimes => {
+            crate::saves::load_best_times::load_game_best_times(crate::saves::owner::saves())?;
+        }
+        Call::ReadSettings => crate::settings::read_settings::read_settings()?,
+        Call::ReadSku => {
+            crate::install::read_sku::read_sku(
+                crate::install::owner::install(),
+                &crate::install::owner::install().sku.path.text(),
+            )?;
+        }
+        Call::ReadDriverNames => crate::settings::read_driver_names::read_driver_names(
+            menus,
+            crate::settings::read_driver_names::path(),
+        )?,
+        Call::ApplyPatches => crate::physics::apply_patches::apply_patches(race),
+        Call::RemoveSecretCars => crate::menu::remove_secret_cars::remove_secret_cars(menus)?,
+        Call::ApplyCheats => crate::menu::apply_cheats::apply_cheats(
+            menus,
+            &mut |line| {
+                crate::logfile::log_write::log_nul(line, true, 1);
+            },
+            race,
+        )?,
+        Call::UserName => {
+            if let Some(mut name) = crate::os::user_name(USER_NAME_ROOM) {
+                name.push(0);
+                menus
+                    .play
+                    .names
+                    .player_names
+                    .write_at(0, &name, "the user's name")?;
             }
-            Call::LoadBestTimes => {
-                crate::saves::load_best_times::load_game_best_times()?;
+        }
+        Call::ComputerName => {
+            if let Some(name) = crate::system::check_developer_machine::computer_name() {
+                net()
+                    .vars
+                    .machine_name
+                    .write_at(0, &name, "the computer's name")?;
             }
-            Call::ReadSettings => crate::settings::read_settings::read_settings()?,
-            Call::ReadSku => crate::install::read_sku::read_sku(crate::pointers::host_at(
-                SKU.path.addr() as usize,
-            ) as *const u8)?,
-            Call::ReadDriverNames => crate::settings::read_driver_names::read_driver_names(
-                crate::settings::read_driver_names::path(),
-            )?,
-            Call::ApplyPatches => crate::physics::apply_patches::apply_patches(),
-            Call::RemoveSecretCars => crate::menu::remove_secret_cars::remove_secret_cars()?,
-            Call::ApplyCheats => crate::menu::apply_cheats::apply_cheats(&mut |line| {
-                crate::menu::text_entry::log_l1(line, true)
-            })?,
-            Call::UserName(to) => {
-                let mut room = USER_NAME_ROOM;
-                GetUserNameA(crate::pointers::host(to), &mut room);
-            }
-            Call::ComputerName(to) => {
-                crate::system::check_developer_machine::computer_name(crate::pointers::host(to));
-            }
-            Call::RandomBelow(limit) => return Ok(crate::math::random_below::random_below(limit)?),
-            Call::ReadSavegameSlot(slot) => {
-                crate::saves::read_savegame_slot::read_savegame_slot(slot)?;
-            }
-            Call::ReadReplaySlot(slot) => {
-                crate::saves::read_replay_slot::read_replay_slot(slot)?;
-            }
-            Call::ReadSetupSlot(slot) => {
-                crate::service::read_setup_slot::read_setup_slot(slot)?;
-            }
+        }
+        Call::RandomBelow(limit) => return Ok(crate::math::random_below::random_below(limit)?),
+        Call::ReadSavegameSlot(slot) => {
+            crate::saves::read_savegame_slot::read_savegame_slot(slot)?;
+        }
+        Call::ReadReplaySlot(slot) => {
+            crate::saves::read_replay_slot::read_replay_slot(slot, race)?;
+        }
+        Call::ReadSetupSlot(slot) => {
+            crate::service::read_setup_slot::read_setup_slot(service(), slot)?;
         }
     }
     Ok(0)
 }
 
 /// The Rust version on the game's own calls.
-pub fn load_in_game() -> Result<(), Refused> {
-    unsafe { load_game_data(&mut in_game) }
+pub fn load_in_game(system: &crate::system::owner::System) -> Result<(), Refused> {
+    load_game_data(&system.start, &mut in_game)
 }
 
 /// How many times the game was run (IDA 0x518BB0 .. 0x518BB4, the image's layout).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RunCount {
     /// 0x518BB0: `g_runCount`: the game's runs counted (`system::load_game_data`; the save file keeps it).
     pub runs: Dword,
 }
 
-pub static RUN_COUNT: RunCount = RunCount {
-    runs: Dword::new(0x0),
-};
+impl RunCount {
+    pub const fn new() -> Self {
+        RunCount {
+            runs: Dword::new(0x0),
+        }
+    }
+}
 
 impl RunCount {
     pub const START: usize = 0x518BB0;
     pub const LEN: usize = 0x4;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&RUN_COUNT as *const RunCount) as usize
+        crate::pointers::game_address(&raw const crate::system::owner::system().start.run_count)
+            as usize
     }
 }
 
@@ -287,7 +320,7 @@ mod run_count_tests {
         let image = crate::moved::image_bytes(RunCount::START, RunCount::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(RunCount::home()) as *const u8,
+                crate::pointers::host_at(RunCount::home()).cast_const(),
                 RunCount::LEN,
             )
         };

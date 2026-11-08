@@ -5,81 +5,77 @@
 //! set, or in gear; kept in other modes); `dword_71A244` on by one unless 0, -1 or 1;
 //! `flt_71A5D4` raised to `flt_71AEE0` (the highest so far). Readings, all.
 //!
-//! In:  nothing
-//! Out: eax `dword_71A270` & 0x1E when that is looked at, else kept; no flags read
-//!
-//! Callers: `sub_43B635` (0x43B70A) and `sub_421848` (the car specification's run).
+//! Callers: `physics::car_physics_step` (0x43B70A) and `physics::test_drive_run` (the car
+//! specification's run).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::physics::car_store::CAR;
-use crate::race::vars_store::RACE_VARS;
+use crate::race::owner_shared::Shared;
+use crate::session::Cell32;
 use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
 
-/// The converted version (`rc2k_core::physics::motion`) on the variables at `v`; `r` as
+/// The converted version (`rc2k_core::physics::motion`) on the variables' cells `v`; `r` as
 /// the original leaves (eax) are read by none of its callers.
 // Converted: `rc2k_core::physics::motion::count_down`.
-pub unsafe fn count_at(v: &[u32]) {
-    unsafe {
-        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (crate::pointers::host(v[k]) as *mut u32).write_unaligned(x);
-        let mut c = StepCounters {
-            first: [get(0), get(1)],
-            standing: get(9),
-            running: get(10),
-            later: [get(11), get(12), get(15)],
-            highest: f32::from_bits(get(14)),
-        };
-        let facts = StepFacts {
-            steps: get(2),
-            switches: [get(3), get(4), get(5)],
-            mode: get(6),
-            bits: get(7),
-            gear: get(8),
-            figure: f32::from_bits(get(13)),
-        };
-        count_down(&mut c, &facts);
-        for (k, x) in [
-            (0, c.first[0]),
-            (1, c.first[1]),
-            (9, c.standing),
-            (10, c.running),
-            (11, c.later[0]),
-            (12, c.later[1]),
-            (14, c.highest.to_bits()),
-            (15, c.later[2]),
-        ] {
-            if get(k) != x {
-                put(k, x);
-            }
+pub fn count_at(v: &[&dyn Cell32]) {
+    let get = |k: usize| v[k].bits();
+    let put = |k: usize, x: u32| v[k].set_bits(x);
+    let mut c = StepCounters {
+        first: [get(0), get(1)],
+        standing: get(9),
+        running: get(10),
+        later: [get(11), get(12), get(15)],
+        highest: f32::from_bits(get(14)),
+    };
+    let facts = StepFacts {
+        steps: get(2),
+        switches: [get(3), get(4), get(5)],
+        mode: get(6),
+        bits: get(7),
+        gear: get(8),
+        figure: f32::from_bits(get(13)),
+    };
+    count_down(&mut c, &facts);
+    for (k, x) in [
+        (0, c.first[0]),
+        (1, c.first[1]),
+        (9, c.standing),
+        (10, c.running),
+        (11, c.later[0]),
+        (12, c.later[1]),
+        (14, c.highest.to_bits()),
+        (15, c.later[2]),
+    ] {
+        if get(k) != x {
+            put(k, x);
         }
     }
 }
 
-fn game() -> Vec<u32> {
+fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     vec![
-        CAR.light_hold_steps.addr(),
-        CAR.value_jump_steps.addr(),
-        CAR.run_ticks.addr(),
-        CAR.finish_flag.addr(),
-        CAR.go_stand_timer.addr(),
-        CAR.started_stand_timer.addr(),
-        RACE_VARS.run_kind.addr(),
-        CAR.parts_present.addr(),
-        CAR.gear.addr(),
-        CAR.stopped_steps.addr(),
-        CAR.tyre_change_state.addr(),
-        CAR.wall_hit_timer.addr(),
-        CAR.drive_cut_steps.addr(),
-        CAR.engine_speed_scaled.addr(),
-        CAR.top_speed.addr(),
-        CAR.hit_cooldown.addr(),
+        &shared.car.light_hold_steps as &dyn Cell32,
+        &shared.car.value_jump_steps,
+        &shared.car.run_ticks,
+        &shared.car.finish_flag,
+        &shared.car.go_stand_timer,
+        &shared.car.started_stand_timer,
+        &shared.vars.run_kind,
+        &shared.car.parts_present,
+        &shared.car.gear,
+        &shared.car.stopped_steps,
+        &shared.car.tyre_change_state,
+        &shared.car.wall_hit_timer,
+        &shared.car.drive_cut_steps,
+        &shared.car.engine_speed_scaled,
+        &shared.car.top_speed,
+        &shared.car.hit_cooldown,
     ]
 }
 
 /// The Rust version (one compare and copy of floats: the same at any precision); `r` as
 /// the registers it leaves are read by none of its callers.
-pub unsafe fn count_down_timers() {
-    unsafe { count_at(&game()) }
+pub fn count_down_timers(shared: &Shared) {
+    count_at(&game(shared));
 }

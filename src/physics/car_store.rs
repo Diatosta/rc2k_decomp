@@ -5,9 +5,11 @@
 //! places no ported code names. `#[repr(C)]` with the image's layout, over the race
 //! block's bytes (`CAR`) until the code reaching the car by RVA is typed.
 
-use crate::session::{Dword, Float};
+use crate::race::owner::race;
+use crate::session::{Bytes, Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Car {
     /// +0x0 (0x719FD8): not named.
     pub unknown_0: [Dword; 2],
@@ -75,8 +77,8 @@ pub struct Car {
     pub stop_state: Dword,
     /// +0xb4 (0x71A08C): g_crashMatrix: the 4 x 4 orientation, translation row at +0x30.
     pub crash_matrix: [Float; 16],
-    /// +0xf4 (0x71A0CC): not named.
-    pub unknown_f4: [Dword; 16],
+    /// +0xf4 (0x71A0CC): unreferenced bytes (0x40 of them).
+    pub _gap_f4: Bytes<64>,
     /// +0x134 (0x71A10C): world position x, y, z (x 65536).
     pub position: [Dword; 3],
     /// +0x140 (0x71A118): one figure per split taken.
@@ -85,16 +87,16 @@ pub struct Car {
     pub drive_slip_speed: Float,
     /// +0x184 (0x71A15C): angular velocity x, y, z.
     pub spin: [Float; 3],
-    /// +0x190 (0x71A168): not named.
-    pub unknown_190: Dword,
+    /// +0x190 (0x71A168): unreferenced bytes (0x4 of them).
+    pub _gap_190: Bytes<4>,
     /// +0x194 (0x71A16C): length of the spin.
     pub spin_length: Float,
     /// +0x198 (0x71A170): world-frame velocity.
     pub velocity: [Float; 3],
     /// +0x1a4 (0x71A17C): velocity in the car's frame (z forward: g_carSpeed).
     pub local_velocity: [Float; 3],
-    /// +0x1b0 (0x71A188): not named.
-    pub unknown_1b0: [Dword; 2],
+    /// +0x1b0 (0x71A188): unreferenced bytes (0x8 of them).
+    pub _gap_1b0: Bytes<8>,
     /// +0x1b8 (0x71A190): driven wheels' speed (g_carDriveSpeed).
     pub drive_speed_a: Float,
     /// +0x1bc (0x71A194): second driven speed (g_carDriveSpeed2).
@@ -115,8 +117,9 @@ pub struct Car {
     pub engine_speed: Float,
     /// +0x1dc (0x71A1B4): engine top revs.
     pub engine_speed_limit: Float,
-    /// +0x1e0 (0x71A1B8): written by load_car_specs, read by gear code.
-    pub unknown_1e0: Dword,
+    /// +0x1e0 (0x71A1B8): a copy of the car spec's scale (`spec_scale_1b8`) written by
+    /// load_car_specs; no reader.
+    pub spec_scale_copy: Dword,
     /// +0x1e4 (0x71A1BC): revs for the sound object.
     pub engine_sound_revs: Dword,
     /// +0x1e8 (0x71A1C0): steps stuck.
@@ -380,12 +383,23 @@ pub struct Car {
     pub unknown_6cc: [Dword; 9],
     /// +0x6f0 (0x71A6C8): 1 when the camera mode is 2 or 3.
     pub camera_mode_is_2_or_3: Dword,
-    /// +0x6f4 (0x71A6CC): not named.
-    pub unknown_6f4: [Dword; 10],
+    /// +0x6f4 (0x71A6CC): unreferenced bytes (0x8 of them).
+    pub _gap_6f4: Bytes<8>,
+    /// +0x6fc (0x71A6D4): the car's state bits (lights, seen from inside 0x10, casts a
+    /// shadow; `race::car_draw`, `race::car_shadow`, `race::frame_views`).
+    pub state_bits: Dword,
+    /// +0x700 (0x71A6D8): the six parts' wake counts (`race::frame_draw`'s lights,
+    /// `drive::share_car_state`).
+    pub part_wake_counts: [Dword; 6],
+    /// +0x718 (0x71A6F0): the engine speed shown (+0x1D8 as a float, not below
+    /// `flt_6140F8`; `race::car_parts`), drawn by the panel and the car's number.
+    pub shown_engine_speed: Float,
     /// +0x71c (0x71A6F4): id of the notice shown (0 none).
     pub notice_id: Dword,
-    /// +0x720 (0x71A6F8): only false_start reads and clears it.
-    pub notice_unknown_6f8: Dword,
+    /// +0x720 (0x71A6F8): the notice's counter: the name plates set it to 1 when drawn,
+    /// `race::frame_views` counts it down as a view's textures are forgotten, `false_start`
+    /// reads and clears it.
+    pub notice_counter: Dword,
     /// +0x724 (0x71A6FC): id of the last notice shown.
     pub notice_last: Dword,
     /// +0x728 (0x71A700): 1 while a notice is shown.
@@ -394,8 +408,19 @@ pub struct Car {
     pub notice_time: Dword,
     /// +0x730 (0x71A708): second notice time.
     pub notice_time_b: Dword,
-    /// +0x734 (0x71A70C): not named.
-    pub unknown_734: [Dword; 115],
+    /// +0x734 (0x71A70C): the view's place kept with the car (`race::frame_draw`).
+    pub kept_view_place: [Dword; 3],
+    /// +0x740 (0x71A718): the four wheels' matrices, 16 floats each, kept by
+    /// `race::car_parts` for `race::car_draw`.
+    pub part_matrices: [Float; 64],
+    /// +0x840 (0x71A818): the body's turn matrix (`race::car_draw`, `race::car_shadow`,
+    /// `drive::set_listener`).
+    pub body_matrix: [Float; 16],
+    /// +0x880 (0x71A858): the car's place matrix (`flt_641760` kept: `race::car_draw`,
+    /// `drive::set_listener`).
+    pub place_matrix: [Float; 16],
+    /// +0x8c0 (0x71A898): the body's turn times its place (`race::car_parts`).
+    pub whole_matrix: [Float; 16],
     /// +0x900 (0x71A8D8): noise sample 1 scaled.
     pub surface_noise_a: Dword,
     /// +0x904 (0x71A8DC): same sample 1 value.
@@ -410,8 +435,9 @@ pub struct Car {
     pub wheel_surface_a: [Dword; 5],
     /// +0x934 (0x71A90C): per ground point: surface kind of the second cell.
     pub wheel_surface_b: [Dword; 5],
-    /// +0x948 (0x71A920): not named.
-    pub unknown_948: [Dword; 5],
+    /// +0x948 (0x71A920): per point: the surface's `blend_2c` figure blended between the two
+    /// surfaces by `wheel_surface_blend`.
+    pub point_surface_2c: [Dword; 5],
     /// +0x95c (0x71A934): per point: byte +0x18 of the first cell's record.
     pub wheel_cell_a_byte18: [Dword; 5],
     /// +0x970 (0x71A948): same for the second cell.
@@ -448,12 +474,23 @@ pub struct Car {
     pub unknown_a58: [Dword; 20],
     /// +0xaa8 (0x71AA80): the start position's table entry (unknown).
     pub start_slot_value: Dword,
-    /// +0xaac (0x71AA84): not named.
-    pub unknown_aac: Dword,
+    /// +0xaac (0x71AA84): the steering drawn (from +0x650, `race::car_parts`).
+    pub shown_steering: Dword,
     /// +0xab0 (0x71AA88): speed scaled, whole number (engine sound).
     pub engine_sound_speed_int: Dword,
-    /// +0xab4 (0x71AA8C): not named.
-    pub unknown_ab4: [Dword; 8],
+    /// +0xab4 (0x71AA8C): the marks switched on (`race::car_parts`).
+    pub marks_on: Dword,
+    /// +0xab8 (0x71AA90): the mode's marks on (`race::car_parts`; `race::car_draw`'s sound
+    /// groups).
+    pub mode_on: Dword,
+    /// +0xabc (0x71AA94): the marks' bytes (the count x 0x20; `race::car_parts`,
+    /// `race::frame_draw`'s headlights).
+    pub marks_count: Dword,
+    /// +0xac0 (0x71AA98): the parts' switch bytes (`rc2k_core::race::car_parts::
+    /// mark_switches`).
+    pub part_switches: Bytes<0x11>,
+    /// +0xad1 (0x71AAA9): unreferenced bytes (0x3 of them).
+    pub _gap_ad1: Bytes<3>,
     /// +0xad4 (0x71AAAC): the course map picture's corner x, y (16-pixel steps;
     /// `race::map_scroll`).
     pub map_corner: [Dword; 2],
@@ -474,8 +511,9 @@ pub struct Car {
     /// +0xef0 (0x71AEC8): last ground faces under the camera and its sides (five saved by
     /// `physics::camera_avoid_ground`).
     pub camera_ground_faces: [Dword; 5],
-    /// +0xf04 (0x71AEDC): not named.
-    pub unknown_f04: Dword,
+    /// +0xf04 (0x71AEDC): the object groups drawn with the car (`dword_60629C` kept,
+    /// `race::car_draw`).
+    pub group_mask: Dword,
     /// +0xf08 (0x71AEE0): speed scaled (engine sound).
     pub engine_speed_scaled: Float,
     /// +0xf0c (0x71AEE4): not named.
@@ -486,8 +524,11 @@ pub struct Car {
     pub wheel_ground_height: [Dword; 4],
     /// +0xf30 (0x71AF08): world z of the four wheels.
     pub wheel_ground_z: [Dword; 4],
-    /// +0xf40 (0x71AF18): not named.
-    pub unknown_f40: [Dword; 6],
+    /// +0xf40 (0x71AF18): the front and rear axles' skid grip (`physics::drive_wheels_step`;
+    /// `race::lay_skidmarks` lays marks from `flt_643AD0` up).
+    pub skid_grip: [Float; 2],
+    /// +0xf48 (0x71AF20): each wheel's last skid point (-1 none; `race::lay_skidmarks`).
+    pub skid_slots: [Dword; 4],
     /// +0xf58 (0x71AF30): timed-event queue times.
     pub car_event_times: [Dword; 8],
     /// +0xf78 (0x71AF50): event codes of the queue.
@@ -518,34 +559,45 @@ pub struct Car {
 
 const _: () = assert!(core::mem::size_of::<Car>() == 0xFE0);
 
-// SAFETY: every field is a `Dword` or a `Float` (atomics), or an array of them.
-unsafe impl crate::pointers::Cells for Car {}
-
 impl Car {
-    /// The car block at `address` (a `g_carBlocks` entry, a view's block, `g_car`); an
-    /// address whose block is not inside one region (or is out of line) ends the program.
+    /// The car block at `address` (a `g_carBlocks` entry, a view's block, `g_car`); any other
+    /// address ends the program (`trap::car_at`).
     pub fn at(address: u32) -> &'static Car {
-        crate::pointers::GamePtr::new(address)
-            .record::<Car>("a car block")
+        crate::race::trap::car_at(address)
             .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e))
     }
-}
 
-/// The work car: the race block's bytes at IDA 0x719FD8 seen as a `Car` (`CAR.gear.get()`).
-/// It stays there while code reaches the car by RVA from `race::store::asm_base()` and by
-/// IDA address (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+    /// The work car (`CAR`) or a car block when `address` is its first byte, found by
+    /// arithmetic on their game addresses (statics: found once); none for any other
+    /// address, which the callers then look up among the regions.
+    pub fn known(address: u32) -> Option<&'static Car> {
+        let shared_store = &crate::race::owner::race().shared;
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = Car;
-    fn deref(&self) -> &Car {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(car_addr()) as *const Car) }
+        let replay = &race().replay;
+        use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_LEN, CAR_BLOCKS, blocks_addr};
+        static HOMES: std::sync::OnceLock<(u32, u32)> = std::sync::OnceLock::new();
+        let &(car, blocks) = HOMES.get_or_init(|| {
+            (
+                crate::pointers::game_address(core::ptr::from_ref(&shared_store.car)),
+                blocks_addr(replay),
+            )
+        });
+        if address == car {
+            return Some(&shared_store.car);
+        }
+        let off = address.wrapping_sub(blocks) as usize;
+        (off.is_multiple_of(BLOCK_LEN) && off / BLOCK_LEN < BLOCK_COUNT)
+            .then(|| &CAR_BLOCKS.cars[off / BLOCK_LEN])
     }
 }
 
-pub static CAR: InRaceBlock = InRaceBlock;
+impl Car {
+    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+    /// `race::store::LEFT`), with the image's first values.
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x719FD8, the first byte of the piece.
 pub const START: usize = 0x719FD8;
@@ -554,11 +606,6 @@ pub const END: usize = 0x71AFB8;
 
 const _: () = assert!(END - START == core::mem::size_of::<Car>());
 
-/// Where IDA 0x719FD8 is now (in the race block).
-pub fn car_addr() -> u32 {
-    crate::race::store::home(START) as u32
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -566,21 +613,61 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
+    fn known_cars_are_the_records_their_addresses_name() {
+        use crate::race::blocks_store::{BLOCK_COUNT, block_addr};
+        let by_region = |at: u32| {
+            crate::pointers::GamePtr::new(at)
+                .record::<Car>("a test's car")
+                .ok()
+                .map(core::ptr::from_ref)
+        };
+        let at = crate::pointers::game_address(core::ptr::from_ref(
+            &crate::race::owner::race().shared.car,
+        ));
+        assert_eq!(Car::known(at).map(core::ptr::from_ref), by_region(at));
+        for n in 0..BLOCK_COUNT {
+            let at = block_addr(n);
+            assert_eq!(
+                Car::known(at).map(core::ptr::from_ref),
+                by_region(at),
+                "block {n}"
+            );
+            assert!(Car::known(at + 4).is_none(), "inside block {n}");
+        }
+        assert!(Car::known(block_addr(BLOCK_COUNT)).is_none());
+        assert!(Car::known(0).is_none());
+    }
+
+    #[test]
     fn car_starts_as_the_games() {
+        let shared_store = &crate::race::owner::race().shared;
+
+        // other tests write the work car while they run
+        let _lock = crate::store::test_lock();
         assert_eq!(offset_of!(Car, crash_matrix), 0xB4);
+        assert_eq!(offset_of!(Car, state_bits), 0x6FC);
+        assert_eq!(offset_of!(Car, part_wake_counts), 0x700);
+        assert_eq!(offset_of!(Car, part_matrices), 0x740);
+        assert_eq!(offset_of!(Car, body_matrix), 0x840);
+        assert_eq!(offset_of!(Car, whole_matrix), 0x8C0);
+        assert_eq!(offset_of!(Car, shown_engine_speed), 0x718);
+        assert_eq!(offset_of!(Car, part_switches), 0xAC0);
+        assert_eq!(offset_of!(Car, map_corner), 0xAD4);
+        assert_eq!(offset_of!(Car, skid_slots), 0xF48);
         assert_eq!(offset_of!(Car, gear), 0x1D4);
         assert_eq!(offset_of!(Car, probe_point_face), 0xDF0);
+        let car_addr = || crate::pointers::game_address(core::ptr::from_ref(&shared_store.car));
         assert_eq!(car_addr() % 4, 0);
         assert_eq!(
             car_addr(),
             crate::framework::game_addr(crate::framework::rva(START))
         );
         assert_eq!(
-            crate::pointers::game_address(&CAR.gear as *const _),
+            crate::pointers::game_address(&raw const shared_store.car.gear),
             car_addr() + 0x1D4
         );
         let mine = unsafe {
-            std::slice::from_raw_parts(crate::pointers::host(car_addr()) as *const u8, END - START)
+            std::slice::from_raw_parts(crate::pointers::host(car_addr()).cast_const(), END - START)
         };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
     }

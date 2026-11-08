@@ -9,6 +9,7 @@ use crate::session::{Bytes, Dword, with_runs};
 
 /// The 3D cards, the device's render states and the 3D switches (IDA 0x5AB4B4 .. 0x5ABA18, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct Cards3d {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<4>,
@@ -60,51 +61,59 @@ pub struct Cards3d {
     pub mode_switches_end: [Dword; 2],
     /// 0x5AB9B0: Not named: 104 bytes (a gap, or data nothing reads here).
     pub _gap_5ab9b0: Bytes<104>,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<8>,
 }
 
-pub static CARDS_3D: Cards3d = Cards3d {
-    _lead: Bytes::new([0; 4]),
-    secondary_card_guid: Bytes::new([0; 16]),
-    _gap_5ab4c4: Bytes::new(with_runs::<436>(&[(428, b"\x01")])),
-    d3d_device: Dword::new(0x0),
-    _gap_5ab67c: Bytes::new([0; 64]),
-    kept_states: [const { Dword::new(0xfffffc43) }; 160],
-    current_texture: Dword::new(0xfffffc43),
-    _gap_5ab940: Bytes::new(with_runs::<12>(&[(
-        0,
-        b"C\xfc\xff\xffC\xfc\xff\xffC\xfc\xff\xff",
-    )])),
-    no_search: Dword::new(0x0),
-    not_primary: Dword::new(0x0),
-    ignore_secondary: Dword::new(0x0),
-    force_dx5: Dword::new(0x0),
-    agp_mode: Dword::new(0x0),
-    in_scene: Dword::new(0x0),
-    fade_from: Dword::new(0x0),
-    _gap_5ab968: Bytes::new([0; 20]),
-    force_trans: Dword::new(0xffffffff),
-    force_shadow: Dword::new(0xffffffff),
-    force_alpha: Dword::new(0xffffffff),
-    force_fogging: Dword::new(0xffffffff),
-    mode_switches: [
-        Dword::new(0x1),
-        Dword::new(0x1),
-        Dword::new(0x1),
-        Dword::new(0x1),
-        Dword::new(0x0),
-    ],
-    fog_state: Dword::new(0x0),
-    mips: Dword::new(0x0),
-    mode_switches_end: [const { Dword::new(0x0) }; 2],
-    _gap_5ab9b0: Bytes::new(with_runs::<104>(&[(4, b"\x01")])),
-};
+impl Cards3d {
+    pub const fn new() -> Self {
+        Cards3d {
+            _lead: Bytes::new([0; 4]),
+            secondary_card_guid: Bytes::new([0; 16]),
+            _gap_5ab4c4: Bytes::new(with_runs::<436>(&[(428, b"\x01")])),
+            d3d_device: Dword::new(0x0),
+            _gap_5ab67c: Bytes::new([0; 64]),
+            kept_states: [const { Dword::new(0xfffffc43) }; 160],
+            current_texture: Dword::new(0xfffffc43),
+            _gap_5ab940: Bytes::new(with_runs::<12>(&[(
+                0,
+                b"C\xfc\xff\xffC\xfc\xff\xffC\xfc\xff\xff",
+            )])),
+            no_search: Dword::new(0x0),
+            not_primary: Dword::new(0x0),
+            ignore_secondary: Dword::new(0x0),
+            force_dx5: Dword::new(0x0),
+            agp_mode: Dword::new(0x0),
+            in_scene: Dword::new(0x0),
+            fade_from: Dword::new(0x0),
+            _gap_5ab968: Bytes::new([0; 20]),
+            force_trans: Dword::new(0xffffffff),
+            force_shadow: Dword::new(0xffffffff),
+            force_alpha: Dword::new(0xffffffff),
+            force_fogging: Dword::new(0xffffffff),
+            mode_switches: [
+                Dword::new(0x1),
+                Dword::new(0x1),
+                Dword::new(0x1),
+                Dword::new(0x1),
+                Dword::new(0x0),
+            ],
+            fog_state: Dword::new(0x0),
+            mips: Dword::new(0x0),
+            mode_switches_end: [const { Dword::new(0x0) }; 2],
+            _gap_5ab9b0: Bytes::new(with_runs::<104>(&[(4, b"\x01")])),
+            _tail: Bytes::new([0; 8]),
+        }
+    }
+}
 
 impl Cards3d {
     pub const START: usize = 0x5AB4B4;
     pub const LEN: usize = 0x564;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&CARDS_3D as *const Cards3d) + 4) as usize
+        (crate::pointers::game_address(&raw const crate::d3d::owner::D3D.cards) + 4) as usize
     }
 }
 
@@ -119,7 +128,7 @@ mod tests {
         let image = crate::moved::image_bytes(Cards3d::START, Cards3d::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(Cards3d::home()) as *const u8,
+                crate::pointers::host_at(Cards3d::home()).cast_const(),
                 Cards3d::LEN,
             )
         };

@@ -17,23 +17,22 @@ pub enum Kind {
     Extra,
 }
 
-/// The car block's dwords each kind carries, in order.
-const INPUTS: [u32; 4] = [0xFD0, 0xFD4, 0xFD8, 0xFDC];
-const POSITION: [u32; 40] = [
-    0x134, 0x138, 0x13C, 0xB4, 0xB8, 0xBC, 0xC0, 0xC4, 0xC8, 0xCC, 0xD0, 0xD4, 0xD8, 0xDC, 0xE0,
-    0x198, 0x19C, 0x1A0, 0x1A4, 0x1A8, 0x1AC, 0x184, 0x188, 0x18C, 0x98, 0x94, 0x1D4, 0x1D8, 0x1B8,
-    0x1BC, 0x600, 0x604, 0x608, 0x60C, 0x638, 0x63C, 0x640, 0x644, 0x648, 0x1EC,
-];
-const EXTRA: [u32; 9] = [0x64, 0x68, 0x6C, 0x70, 0x74, 0x78, 0x7C, 0x80, 0x84];
-
-/// A car's place (the block's +0x134 .. +0x13C) and where a place received goes, to be
-/// glided to (+0xFC0 .. +0xFC8; then the glide's 32nd), and the glide's steps left
-/// (+0xFCC).
-pub const PLACE: u32 = 0x134;
-pub const WANTED: u32 = 0xFC0;
-pub const GLIDE_STEPS: u32 = 0xFCC;
-/// The block's step count (+8).
-pub const STEPS: u32 = 8;
+/// How far a message's dwords may be from what a car could hold, by field: the game crate's
+/// table of each kind's fields (selectors into a car's block) says which limit goes with
+/// each.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Limit {
+    /// Any value.
+    Free,
+    /// The gear: -1 reverse, 0 neutral, 1 .. 7.
+    Gear,
+    /// The gauges, the orientation, the springs: a float of about 1 at most.
+    Gauge,
+    /// Spin, velocities, driven wheels, revs: a float below 1e7.
+    Large,
+    /// The pedals, the steering: a whole number within 0x4000_0000.
+    Pedal,
+}
 
 impl Kind {
     pub fn tag(self) -> u32 {
@@ -51,32 +50,6 @@ impl Kind {
             .find(|k| k.tag() == tag)
     }
 
-    /// The car block's dwords it carries, in order.
-    pub fn fields(self) -> &'static [u32] {
-        match self {
-            Kind::Inputs => &INPUTS,
-            Kind::Position => &POSITION,
-            Kind::Extra => &EXTRA,
-        }
-    }
-
-    /// Where the `n`th dword received goes in the block: as sent, but the place received
-    /// goes where the car is to be.
-    pub fn destination(self, n: usize) -> u32 {
-        if self == Kind::Position && n < 3 {
-            WANTED + 4 * n as u32
-        } else {
-            self.fields()[n]
-        }
-    }
-
-    /// The message: the tag and the dwords (`field`, asked of each in order).
-    pub fn pack(self, field: impl Fn(u32) -> u32) -> Vec<u32> {
-        let mut out = vec![self.tag()];
-        out.extend(self.fields().iter().map(|&f| field(f)));
-        out
-    }
-
     /// Whether this kind goes out at the own car's step `count` (read afresh for each:
     /// every fourth step the inputs, at & 0x1F = 2 the place, at & 0xFF = 1 the rest),
     /// with the masked count the original leaves in eax.
@@ -88,6 +61,24 @@ impl Kind {
         };
         (count & mask == value, count & mask)
     }
+}
+
+/// Whether a car could hold what a message carries (`values`: its dwords after the tag,
+/// `limits`: the limit of each field of its kind, in order). Another machine's message is
+/// not to be believed by a game that refuses such values and so ends: one that fails is not
+/// applied. The original took any, and read its tables with them.
+pub fn believable(limits: impl IntoIterator<Item = Limit>, values: &[u32]) -> bool {
+    let within = |value: u32, most: f32| f32::from_bits(value).abs() <= most; // NaN: false
+    limits
+        .into_iter()
+        .zip(values)
+        .all(|(limit, &value)| match limit {
+            Limit::Gear => (-1..=7).contains(&(value as i32)),
+            Limit::Gauge => within(value, 2.0),
+            Limit::Large => within(value, 1e7),
+            Limit::Pedal => (value as i32).unsigned_abs() <= 0x4000_0000,
+            Limit::Free => true,
+        })
 }
 
 /// The kinds in the order a step looks at them.
@@ -128,6 +119,12 @@ pub fn arrival(wanted: [u32; 3], now: [u32; 3], steps: u32, near: f32) -> Arriva
     }
 }
 
+/// How far off a car's place received is snapped to rather than glided to: ten metres. The
+/// original compares with 10.0 (`g_ten`) in the place's own units, 1/65536 of a metre, so
+/// past a car's first 1000 steps every message snapped it; moved from outside the physics
+/// that way, a remote car crossed face edges and was reset to the line.
+pub const SNAP_FROM: f32 = 10.0 * 65536.0;
+
 /// The steps of a glide.
 pub const GLIDE: u32 = 0x20;
 
@@ -152,14 +149,44 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_car_glides_to_a_place_metres_off_and_snaps_to_one_far_off() {
+        let metre = 65536u32;
+        let at = [1000 * metre, 0, 1000 * metre];
+        let near = [at[0] + 3 * metre, 0, at[2]];
+        assert!(matches!(
+            arrival(near, at, 5000, SNAP_FROM),
+            Arrival::Glide(_)
+        ));
+        let far = [at[0] + 11 * metre, 0, at[2]];
+        assert!(matches!(arrival(far, at, 5000, SNAP_FROM), Arrival::Jump));
+    }
+
+    #[test]
+    fn what_no_car_could_hold_is_not_believed() {
+        use Limit::*;
+        let limits = [Free, Gear, Gauge, Large, Pedal];
+        let honest = [7, 3, 0.5f32.to_bits(), 0.5f32.to_bits(), 0x100];
+        assert!(believable(limits, &honest));
+        for (field, value) in [
+            (1, 8),
+            (1, (-2i32) as u32),
+            (2, f32::NAN.to_bits()),
+            (2, 3.0f32.to_bits()),
+            (3, f32::INFINITY.to_bits()),
+            (3, 1e8f32.to_bits()),
+            (4, 0x7FFF_FFFF),
+        ] {
+            let mut values = honest;
+            values[field] = value;
+            assert!(!believable(limits, &values), "{field} {value:#x}");
+        }
+        assert!(!believable([Gauge; 9], &[f32::NAN.to_bits(); 9]));
+    }
+
+    #[test]
     fn kinds() {
         assert_eq!(Kind::of(0x4D53_4750), Some(Kind::Position));
         assert_eq!(Kind::of(0x4D53_4751), None);
-        assert_eq!(Kind::Position.fields().len(), 40);
-        assert_eq!(Kind::Position.destination(2), 0xFC8);
-        assert_eq!(Kind::Position.destination(3), 0xB4);
-        assert_eq!(Kind::Inputs.destination(0), 0xFD0);
-        assert_eq!(Kind::Extra.pack(|f| f + 1)[..3], [0x4D53_4758, 0x65, 0x69]);
         assert_eq!(Kind::Inputs.due(8), (true, 0));
         assert_eq!(Kind::Position.due(0x22), (true, 2));
         assert_eq!(Kind::Extra.due(0x102), (false, 2));

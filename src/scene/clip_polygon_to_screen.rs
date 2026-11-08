@@ -1,10 +1,6 @@
 //! `scene::clip_polygon_to_screen` (0x44D15A): cuts the polygon to the screen's four
 //! edges.
 //!
-//! In:  nothing
-//! Out: the original leaves eax, ecx, edx, esi changed, and after a clipping ebx, edi
-//!      and ebp too; its callers go on by the number of vertices alone (none reads them)
-//!
 //! `dword_624120` = 1. Each vertex's place on the screen (its record's +0xC and +0x1C) against
 //! the edges `flt_6241EC` (left), `flt_6241F0` (right), `flt_6241E4` (top) and `flt_6241E8`
 //! (bottom) gives the bits 1, 2, 4, 8 of a mask: right is looked at first and left only if the
@@ -15,9 +11,8 @@
 //! (what it had written is put back first).
 
 use crate::errors::BadInput;
+use crate::race::owner::Race;
 use crate::scene::clip::{Edge, below, clip_pass, listed_with_records, or_undone};
-use crate::scene::draw_store::DRAW;
-use crate::scene::polygon::dword;
 use crate::session::Float;
 
 // ---- game data ----
@@ -25,20 +20,23 @@ use crate::session::Float;
 // ---- Rust version ----
 
 /// The polygon's entries and the mask of the edges some vertex is past.
-fn outside_mask() -> Result<u32, BadInput> {
+fn outside_mask(
+    scene: &crate::scene::owner::Scene,
+) -> Result<(crate::scene::polygon::Listed, u32), BadInput> {
+    let drawing = &scene.drawing;
     let entries = listed_with_records()?;
     let edge = |cell: &Float| cell.get() as f64;
     let (left, right, top, bottom) = (
-        edge(&DRAW.clip_screen[2]),
-        edge(&DRAW.clip_screen[3]),
-        edge(&DRAW.clip_screen[0]),
-        edge(&DRAW.clip_screen[1]),
+        edge(&drawing.scene.clip_screen[2]),
+        edge(&drawing.scene.clip_screen[3]),
+        edge(&drawing.scene.clip_screen[0]),
+        edge(&drawing.scene.clip_screen[1]),
     );
     let mut mask = 0;
-    for &entry in &entries {
-        let record = dword(entry + 4) as usize;
-        let x = f32::from_bits(dword(record + 0xC)) as f64;
-        let y = f32::from_bits(dword(record + 0x1C)) as f64;
+    for entry in &entries {
+        let record = entry.record.get();
+        let x = f32::from_bits(crate::scene::point_records::vertex(record, 0xC)) as f64;
+        let y = f32::from_bits(crate::scene::point_records::vertex(record, 0x1C)) as f64;
         if !below(x, right) {
             mask |= 2;
         } else if below(x, left) {
@@ -50,32 +48,36 @@ fn outside_mask() -> Result<u32, BadInput> {
             mask |= 4;
         }
     }
-    Ok(mask)
+    Ok((entries, mask))
 }
 
-pub unsafe fn clip_polygon_to_screen() -> Result<(), BadInput> {
-    unsafe {
-        let mask = outside_mask()?;
-        DRAW.screen_clipped.set_bits(1u32);
-        if mask == 0 {
-            return Ok(());
-        }
-        DRAW.polygon_clip_mask.set_bits(mask);
-        or_undone(|| {
-            for (bit, edge, inside_past) in [
-                (1, Edge::X(DRAW.clip_screen[2].bits()), true),
-                (2, Edge::X(DRAW.clip_screen[3].bits()), false),
-                (4, Edge::Y(DRAW.clip_screen[0].bits()), true),
-                (8, Edge::Y(DRAW.clip_screen[1].bits()), false),
-            ] {
-                if mask & bit != 0 {
-                    clip_pass(edge, inside_past, mask)?;
-                    if DRAW.polygon_vertex_count.bits() < 3 {
-                        break;
-                    }
+pub fn clip_polygon_to_screen(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
+    let drawing = &scene.drawing;
+    let course = &race.course;
+    let (entries, mask) = outside_mask(scene)?;
+    drawing.scene.screen_clipped.set_bits(1u32);
+    if mask == 0 {
+        return Ok(());
+    }
+    drawing.scene.polygon_clip_mask.set_bits(mask);
+    or_undone(|| {
+        let mut listed = Some(entries);
+        for (bit, edge, inside_past) in [
+            (1, Edge::X(drawing.scene.clip_screen[2].bits()), true),
+            (2, Edge::X(drawing.scene.clip_screen[3].bits()), false),
+            (4, Edge::Y(drawing.scene.clip_screen[0].bits()), true),
+            (8, Edge::Y(drawing.scene.clip_screen[1].bits()), false),
+        ] {
+            if mask & bit != 0 {
+                listed = clip_pass(course, listed, edge, inside_past, mask, scene)?;
+                if drawing.scene.polygon_vertex_count.bits() < 3 {
+                    break;
                 }
             }
-            Ok(())
-        })
-    }
+        }
+        Ok(())
+    })
 }

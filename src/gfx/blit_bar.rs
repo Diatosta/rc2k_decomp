@@ -1,19 +1,16 @@
 //! `gfx::blit_bar` (0x46B574): draws a bar filled to a percentage: the fill sprite with the
 //! clip rectangle's right edge pulled in to where the fill ends, then an end piece there.
 //!
-//! In:  nothing in registers; the bar is described by six globals (see `Bar`)
-//! Out: every register preserved
 //! Nothing is drawn at 0 percent. If width * percent is 0 with a non-zero percent the original
 //! reports fatal error 0x80701010. The blitter is given the fill's end x as its palette,
 //! which only works because these sprites do not use one; it is reproduced as is.
 //! Also leaves the fill's end x in `seconds` (0x7559AC), a work variable.
 
 use crate::errors::{FatalError, Refused};
-use crate::gfx::bar_store::BAR;
 use crate::gfx::blit_glyph::BlitCall;
-use crate::gfx::blit_marker_pair::sprite_table;
+use crate::gfx::owner::gfx;
 use crate::gfx::surface::clip;
-use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::owner::menus;
 
 // ---- game data ----
 
@@ -32,23 +29,25 @@ pub struct Bar {
 
 impl Bar {
     pub fn read() -> Self {
+        let drawing = &gfx().drawing;
         Self {
-            x: BAR.x.get() as i32,
-            y: BAR.y.get() as i32,
-            width: BAR.width.get() as i32,
-            fill_glyph: BAR.fill_glyph.get(),
-            end_glyph: BAR.end_glyph.get(),
-            percent: BAR.percent.get() as i32,
+            x: drawing.bar.x.get() as i32,
+            y: drawing.bar.y.get() as i32,
+            width: drawing.bar.width.get() as i32,
+            fill_glyph: drawing.bar.fill_glyph.get(),
+            end_glyph: drawing.bar.end_glyph.get(),
+            percent: drawing.bar.percent.get() as i32,
         }
     }
 
     pub fn write(&self) {
-        BAR.x.set(self.x as u32);
-        BAR.y.set(self.y as u32);
-        BAR.width.set(self.width as u32);
-        BAR.fill_glyph.set(self.fill_glyph);
-        BAR.end_glyph.set(self.end_glyph);
-        BAR.percent.set(self.percent as u32);
+        let drawing = &gfx().drawing;
+        drawing.bar.x.set(self.x as u32);
+        drawing.bar.y.set(self.y as u32);
+        drawing.bar.width.set(self.width as u32);
+        drawing.bar.fill_glyph.set(self.fill_glyph);
+        drawing.bar.end_glyph.set(self.end_glyph);
+        drawing.bar.percent.set(self.percent as u32);
     }
 }
 
@@ -59,7 +58,7 @@ pub const BAR_HAS_NO_LENGTH: FatalError = FatalError {
 };
 
 pub fn set_bar_x(x: i32) {
-    BAR.x.set(x as u32);
+    gfx().drawing.bar.x.set(x as u32);
 }
 
 // ---- Rust version ----
@@ -72,17 +71,17 @@ pub struct GameBar<'a>(pub Blit<'a>);
 
 impl rc2k_core::gfx::bars::BarCanvas for GameBar<'_> {
     type Error = Refused;
-    fn sprite(&mut self, glyph: u32, x: i32, y: i32, palette: u32) -> Result<(), Refused> {
-        (self.0)(BlitCall::new(glyph, x, y, palette, sprite_table()))
+    fn sprite(&mut self, glyph: u32, x: i32, y: i32) -> Result<(), Refused> {
+        (self.0)(BlitCall::sprite(glyph, x, y))
     }
     fn clip_right(&mut self) -> i32 {
         clip().right
     }
     fn set_clip_right(&mut self, x: i32) {
-        crate::gfx::blit::BLIT.clip.right.set(x as u32);
+        gfx().drawing.blit.clip.right.set(x as u32);
     }
     fn keep_fill_end(&mut self, x: i32) {
-        DRAW_WORK.seconds.set(x as u32);
+        menus().screens.draw_work.seconds.set(x as u32);
     }
     fn set_bar_x(&mut self, x: i32) {
         set_bar_x(x);

@@ -1,9 +1,6 @@
 //! `scene::read_kind_records` (0x439975): reads the four files of the object kinds'
 //! records.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! A kind's record is 0x80 bytes at `g_objectMaterials` + kind * 0x80, and the four files fill
 //! the four ranges of kinds, each with `files::read_whole_file`: `files\a\objsinfo` kinds 0 ..
 //! 0x18F, `files\b\carsinfo` 0x190 .. 0x257, `files\g\frnt\frntinfo` 0x258 .. 0x31F,
@@ -12,9 +9,9 @@
 
 use crate::errors::Refused;
 use crate::files::read_whole_file::read_whole_file;
-use crate::scene::file_numbers_store::{FILE_NUMBERS, texts};
+use crate::pointers::GamePtr;
+use crate::scene::file_numbers_store::texts;
 use crate::scene::set_object_material::MATERIAL_LEN;
-use crate::service::harness::Region;
 
 // ---- game data ----
 
@@ -49,21 +46,24 @@ const FILES: [KindFile; 4] = [
     },
 ];
 
-fn records(file: &KindFile) -> Region {
+fn records(file: &KindFile) -> (GamePtr, usize) {
     (
-        (crate::scene::polygon::materials_addr() + (file.first_kind * MATERIAL_LEN) as u32),
+        crate::scene::polygon::materials_ptr().offset((file.first_kind * MATERIAL_LEN) as u32),
         file.kinds * MATERIAL_LEN,
     )
 }
 
 // ---- Rust version ----
 
-pub fn read_kind_records() -> Result<(), Refused> {
+pub fn read_kind_records(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     for file in &FILES {
         let (to, room) = records(file);
         read_whole_file(
-            crate::pointers::host(FILE_NUMBERS.text_addr(file.path)),
-            crate::pointers::host(to),
+            &crate::files::cstring_at(
+                scene.file_numbers.text_ptr(file.path),
+                "a kinds file's path",
+            )?,
+            to,
             room as u32,
         )?;
     }

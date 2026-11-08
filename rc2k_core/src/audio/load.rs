@@ -45,7 +45,8 @@ pub struct At {
 /// What loading asks of the audio thread.
 pub trait Loader {
     type Error;
-    fn record(&mut self, sound: u32) -> &mut SampleRecord;
+    fn record(&mut self, sound: u32) -> SampleRecord;
+    fn set_first_voice(&mut self, sound: u32, voice: u32);
     /// All 0x200 voices in use.
     fn full(&mut self) -> bool;
     /// A voice already made from the record's file (0: none).
@@ -64,7 +65,7 @@ pub trait Loader {
 pub fn load<L: Loader>(l: &mut L, entries: &[u32]) -> Result<(), L::Error> {
     for (entry, &sound) in entries.iter().enumerate() {
         if sound != SKIP {
-            let record = *l.record(sound);
+            let record = l.record(sound);
             if record.data_key != 0 && record.copies > 0 {
                 let mut left = record.copies as u32;
                 while !l.full() {
@@ -75,7 +76,7 @@ pub fn load<L: Loader>(l: &mut L, entries: &[u32]) -> Result<(), L::Error> {
                     }
                     let voice = l.new_voice(at, shared)?;
                     if l.record(sound).first_voice == 0 {
-                        l.record(sound).first_voice = voice;
+                        l.set_first_voice(sound, voice);
                     }
                     l.make_ready(at, voice, shared)?;
                     l.mark_loaded(voice);
@@ -107,8 +108,11 @@ mod tests {
 
     impl Loader for Test {
         type Error = ();
-        fn record(&mut self, n: u32) -> &mut SampleRecord {
-            &mut self.records[n as usize]
+        fn record(&mut self, n: u32) -> SampleRecord {
+            self.records[n as usize]
+        }
+        fn set_first_voice(&mut self, n: u32, voice: u32) {
+            self.records[n as usize].first_voice = voice;
         }
         fn full(&mut self) -> bool {
             self.voices == 0x200

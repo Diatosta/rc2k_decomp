@@ -1,6 +1,5 @@
 //! `scene::end_scene` (0x44E952): the 3D part of a frame ends.
 //!
-//! In:  nothing
 //! Out: as `d3d::end_scene` (0x41AB8A: Direct3D's EndScene, platform) leaves them
 //!
 //! A call of `d3d::end_scene` and nothing more. Nine callers. The registers above are the

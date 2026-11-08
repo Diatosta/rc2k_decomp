@@ -9,9 +9,6 @@
 //!   effects begun (`input::begin_effects`), a tick, `dword_518090` 1;
 //! - others: nothing.
 //!
-//! In:  al = the command, ah = the device (for 1)
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! Caller: `input::input_tick` (when `g_inputCommand` was set). Refuses (before
 //! anything) a device past 1 for command 1.
 //!
@@ -19,47 +16,63 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::input::devices::put;
-use crate::input::store::DEVICES;
-use crate::race::state_store::RACE_STATE;
-use crate::sound::store::RACE_SOUNDS;
+use crate::input::owner::Input;
+use crate::input::store::Devices;
+use crate::race::owner::race;
 
-fn device(n: usize) -> u32 {
-    DEVICES.input_devices[n].get()
+/// Device `n`'s record: a command names a device the table holds.
+fn device(
+    devices: &Devices,
+    n: usize,
+) -> Result<&crate::input::types::InputDevice, crate::errors::BadInput> {
+    devices.device(n).ok_or(crate::errors::BadInput(
+        "a device command for a device without a record",
+    ))
 }
 
 /// The command `command` (its low byte the command, the next the device; see the header).
-pub unsafe fn device_command(command: u32) -> Result<(), Refused> {
+pub fn device_command(
+    input: &Input,
+    command: u32,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
+    let race = race();
     // Converted: `rc2k_core::input::devices::command_steps`.
     use rc2k_core::input::devices::{CommandStep::*, command_steps};
-    unsafe {
+    {
         let steps = command_steps(
             command as u8,
             (command >> 8) as u8,
-            DEVICES.two_devices_one_player.get(),
-            RACE_SOUNDS.one_player.get(),
+            input.devices.two_devices_one_player.get(),
+            sound.race.sounds.one_player.get(),
         )?;
         for step in steps {
             match step {
-                EffectsOn(on) => crate::input::store::FORCE_FEEDBACK.race_on.set(on as u32),
-                Release(n) => crate::input::release_device::release_device(device(n))?,
-                Acquire(n) => crate::input::acquire_device::acquire_device(device(n))?,
-                EndEffects => crate::input::end_effects::end_effects()?,
-                Tick => crate::input::input_tick::input_tick()?,
-                SetUp(n) => crate::input::set_up_device::set_up_device(
-                    device(n),
-                    RACE_STATE.settings.cars[n].record_2c.addr(),
+                EffectsOn(on) => input.force_feedback.race_on.set(on as u32),
+                Release(n) => crate::input::release_device::release_device(
+                    &input.devices,
+                    device(&input.devices, n)?,
                 )?,
-                Reading(n, on) => put(device(n), 0x414, on as u32)?,
+                Acquire(n) => {
+                    let record = device(&input.devices, n)?;
+                    crate::input::acquire_device::acquire_device(input, record)?;
+                }
+                EndEffects => crate::input::end_effects::end_effects(input)?,
+                Tick => crate::input::input_tick::input_tick(input, sound)?,
+                SetUp(n) => crate::input::set_up_device::set_up_device(
+                    device(&input.devices, n)?,
+                    &race.shared.state.settings.cars[n],
+                )?,
+                Reading(n, on) => device(&input.devices, n)?.reading.set(on as u32),
                 SecondApart => {
-                    if RACE_STATE.settings.cars[0].record_2c.get()
-                        == RACE_STATE.settings.cars[1].record_2c.get()
+                    if race.shared.state.settings.cars[0].controller.get()
+                        == race.shared.state.settings.cars[1].controller.get()
                     {
-                        RACE_STATE.settings.cars[1].record_2c.set(0);
+                        race.shared.state.settings.cars[1].controller.set(0);
                     }
                 }
                 Sleep(ms) => crate::system::sleep::sleep(ms),
-                BeginEffects => crate::input::begin_effects::begin_effects()?,
+                BeginEffects => crate::input::begin_effects::begin_effects(input, sound)?,
             }
         }
     }

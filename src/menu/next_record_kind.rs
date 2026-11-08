@@ -2,27 +2,29 @@
 //! current one (`g_recordTable`, section `section`, index `index` + 1), kept in
 //! `dword_7559EC`.
 //!
-//! In:  nothing
-//! Out: eax the kind; the rest kept
-//!
 //! Callers: `saves::load_savegame`, the event drivers. `records::find_record`'s Rust version.
 //! Refuses a section or index past 63 or a section the table does not hold, before anything. Rust
-//! callers run its `entry` (`routes.rs`); the registers above are the original's, for reference.
+//! callers run its `entry` (`routes.rs`).
 
 use crate::errors::Refused;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::event_store::EVENT_STATE;
+use crate::menu::owner::menus;
+use crate::system::owner::system;
 
-/// The Rust version (see the header): the kind (eax in the original), also kept in
+/// The Rust version: the kind (eax in the original), also kept in
 /// `dword_7559EC`.
 pub fn next_record_kind() -> Result<u32, Refused> {
-    let section: u32 = { EVENT_STATE.section.get() };
-    let index: u32 = { EVENT_STATE.index.get() };
-    let table =
-        crate::pointers::GamePtr::new(crate::records::stages_store::STAGE_TABLES.championship())
-            .bytes("the championship's stage table")?;
+    let screens = &menus().screens;
+    let section: u32 = screens.event.section.get();
+    let index: u32 = screens.event.index.get();
+    // The scan may run on past the 66 records (to `championship_end` and the event tables):
+    // bounded by the whole store.
+    let table = crate::pointers::GamePtr::to(&system().records.stage_tables)
+        .offset(
+            std::mem::offset_of!(crate::records::stages_store::StageTables, championship) as u32,
+        )
+        .bytes("the championship's stage table")?;
     // Converted: `rc2k_core::menu::record_kinds::next_record_kind`.
     let kind = rc2k_core::menu::record_kinds::next_record_kind(&table, section, index)?;
-    DRAW_WORK.figure.set(kind);
+    screens.draw_work.figure.set(kind);
     Ok(kind)
 }

@@ -7,3 +7,4 @@ pub mod packed;
 pub mod paths;
 pub mod records;
 pub mod settings;
+pub mod wildcard;

@@ -4,33 +4,28 @@
 //! at) and the six effects' objects given back (`input::release_effect`), each effect's
 //! +0xC (found) 0. (+0x28, effects on, is left: `input::release_device` clears it.)
 //!
-//! In:  esi = the device's record (+4 its DirectInput device)
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the device's record (+4 its DirectInput device)
 //!
 //! Caller: `input::release_device`. The controller's number is not checked (as the
 //! original's).
 
-use crate::errors::BadInput;
-use crate::field;
-use crate::input::devices::{at, put};
-use crate::input::di_harness::{EFFECT_LEN, EFFECTS_AT, entry_of, method, slot};
-use crate::input::types::{Controller, ForceEffect, InputDevice};
+use crate::input::di_harness::entry_of;
+use crate::input::store::Devices;
+use crate::input::types::InputDevice;
 
 /// The Rust version (see the header).
-pub fn end_force(record: u32) -> Result<(), BadInput> {
-    if at(entry_of(record)?, field!(Controller, force_feedback))? != 1 {
+pub fn end_force(devices: &Devices, record: &InputDevice) -> Result<(), crate::errors::BadInput> {
+    if entry_of(devices, record)?.force_feedback.get() != 1 {
         return Ok(());
     }
-    let prop = crate::input::begin_force::dword_property(1)?;
-    method(
-        at(record, field!(InputDevice, device))?,
-        slot::SET_PROPERTY,
-        &[9, prop],
+    let prop = crate::input::begin_force::dword_property(1);
+    crate::input::di_objects::set_property(
+        record.device.get(),
+        crate::input::di_objects::Property::AutoCenter(&prop),
     );
-    for n in 0..6 {
-        let e = record.wrapping_add(EFFECTS_AT + n * EFFECT_LEN);
-        crate::input::effect_objects::release_effect(e)?;
-        put(e, field!(ForceEffect, found), 0)?;
+    for e in &record.effects {
+        crate::input::effect_objects::release_effect(e);
+        e.found.set(0);
     }
     Ok(())
 }

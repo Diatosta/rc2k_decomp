@@ -2,22 +2,20 @@
 //! (`dword_5BEC88` 1): the game's physics patches back (`race::restore_replay_patches`),
 //! the file `h` closed (`files::close`), `dword_5BEC88` 0.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`); no flags read
-//!
 //! Callers: `race::replay_viewer`, `race::viewer_action` (action 0x14),
 //! `race::open_viewed_replay` (failing), `race::save_last_replay`, 0x444034.
 
 use crate::errors::Refused;
-use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::owner::Race;
 
 /// The Rust version (every register kept).
-pub fn close_viewed_replay() -> Result<(), Refused> {
+pub fn close_viewed_replay(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::closes`.
-    if rc2k_core::race::viewer_flow::closes(REPLAY_FILE.replay_open.get()) {
-        crate::race::replay_patches::restore_replay_patches()?;
-        crate::files::handle::close(REPLAY_FILE.replay_handle.get());
-        REPLAY_FILE.replay_open.set(0);
+    let shared = &race.shared;
+    if rc2k_core::race::viewer_flow::closes(shared.replay_file.replay_open.get()) {
+        crate::race::replay_patches::restore_replay_patches(race)?;
+        crate::files::handle::close(shared.replay_file.replay_handle.get());
+        shared.replay_file.replay_open.set(0);
     }
     Ok(())
 }

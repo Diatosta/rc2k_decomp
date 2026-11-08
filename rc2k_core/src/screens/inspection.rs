@@ -47,11 +47,10 @@ pub fn status(parts: &[Part; 13]) -> (i32, Option<usize>) {
     (100i32.wrapping_sub(lost), last)
 }
 
-/// The status drawn; `icon_palette` the caller's ebx. What the last text left.
+/// The status drawn. What the last text left.
 pub fn inspection_status<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     status: i32,
-    icon_palette: u32,
 ) -> Result<Drawn, S::Error> {
     s.keep(Work::Lost, 100i32.wrapping_sub(status) as u32);
     s.keep(Work::Status, status as u32);
@@ -63,7 +62,7 @@ pub fn inspection_status<S: Screen<Font = Font, Work = Work>>(
         end_glyph: 0x87,
         percent: status,
     })?;
-    s.sprite(0x88, 0x161, 0x228, icon_palette)?;
+    s.sprite(0x88, 0x161, 0x228)?;
     s.string(Font::Labels, 0x4AE, 0x17F, 0x22C)?;
     s.string(Font::Labels, 0x4AF, 0x28C, 0x22C)
 }

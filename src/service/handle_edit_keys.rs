@@ -2,16 +2,12 @@
 //! (`dword_75AA9C == 1`), passes the keys to the edit page in `dword_75AAA0`: 1 gear ratio,
 //! 2 tyre, 3 steering sensitivity, 4 brake balance, 5 ride height, 6 suspension stiffness.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//! Any other page number is fatal error 0x80709A9A, "Incorrect Locked Box", in the original.
-//! It is not called directly: its address is in the service area's list at 0x758D6E.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! Any other page number is fatal error 0x80709A9A, "Incorrect Locked Box", in the original. It is
+//! not called directly: its address is in the service area's list at 0x758D6E.
 
 use crate::errors::FatalError;
 use crate::errors::Refused;
-use crate::menu::state_store::MENU_STATE;
+use crate::menu::owner::Menus;
 use crate::service::edit_brake_balance::edit_brake_balance;
 use crate::service::edit_gear_ratio::edit_gear_ratio;
 use crate::service::edit_ride_height::edit_ride_height;
@@ -22,17 +18,17 @@ use crate::service::state::edit_mode;
 
 // ---- Rust version ----
 
-pub fn handle_edit_keys() -> Result<(), Refused> {
-    if !edit_mode() {
+pub fn handle_edit_keys(menus: &Menus) -> Result<(), Refused> {
+    if !edit_mode(menus) {
         return Ok(());
     }
     // Converted: `rc2k_core::service::setups::EditPage`.
     use rc2k_core::service::setups::EditPage;
-    match EditPage::from_number(MENU_STATE.service_ui.box_page.get()) {
+    match EditPage::from_number(menus.screens.state.service_ui.box_page.get()) {
         Some(EditPage::GearRatio) => edit_gear_ratio(false),
         Some(EditPage::Tyre) => edit_tyre(false),
-        Some(EditPage::SteeringSensitivity) => edit_steering_sensitivity(),
-        Some(EditPage::BrakeBalance) => edit_brake_balance(),
+        Some(EditPage::SteeringSensitivity) => edit_steering_sensitivity(menus),
+        Some(EditPage::BrakeBalance) => edit_brake_balance(menus),
         Some(EditPage::RideHeight) => edit_ride_height(false),
         Some(EditPage::SuspensionStiffness) => edit_suspension_stiffness(false),
         None => Err(FatalError {

@@ -7,65 +7,87 @@
 //! faces, the EAX environment, the lamps gathered and wanted; the sort entries sorted and
 //! drawn, the race's slots; the cars' shadows, the skidmarks, the car lights; the depth
 //! entries sorted and drawn, the batch flushed, the view's value stored.
-//!
-//! In:  nothing (no step reads a register its caller gives: register liveness and the Rust
-//!      steps, 2026-10-23; edx's "read" is `fog_table`'s `imul`)
-//! Out: nothing its callers (`race::draw_race_scene`, `race::draw_mirror_view`) read
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
-use crate::race::view_store::RACE_VIEW;
-use crate::scene::object_store::OBJECT_WORK;
-fn sort_list() -> u32 {
-    crate::scene::faces_store::FACES.sort_entries[0].addr()
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
+use crate::scene::faces_store::FACES;
+
+/// A list of the faces store at byte `off` of it, bounded by the whole buffers block: a
+/// flare's entry is read as a description of 0x3C bytes, past its own 8
+/// (`scene::draw_described_object`), and the sort list's last entries past the store.
+fn faces_list(shared: &Shared, off: usize) -> crate::pointers::GamePtr {
+    use crate::race::buffers_store::Buffers;
+    crate::pointers::GamePtr::to(&shared.buffers)
+        .offset((core::mem::offset_of!(Buffers, faces) + off) as u32)
 }
 
-fn depth_list() -> u32 {
-    crate::scene::faces_store::FACES.depth_entries[0].addr()
+fn sort_list(shared: &Shared) -> crate::pointers::GamePtr {
+    faces_list(
+        shared,
+        core::mem::offset_of!(crate::scene::faces_store::Faces, sort_entries),
+    )
+}
+
+fn depth_list(shared: &Shared) -> crate::pointers::GamePtr {
+    faces_list(
+        shared,
+        core::mem::offset_of!(crate::scene::faces_store::Faces, depth_entries),
+    )
 }
 
 /// The Rust version (see the header).
-pub unsafe fn draw_view_scene() -> Result<(), Refused> {
+pub fn draw_view_scene(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     use crate::race::frame_draw::*;
     use crate::sound::race_sound_tick::race_sound_tick;
-    unsafe {
-        if CAR.view_covered.get() != 0 {
-            return draw_view_tint();
-        }
-        // dword_635014, dword_635018.
-        for cell in &OBJECT_WORK.view_cleared {
-            cell.set(0);
-        }
-        race_sound_tick()?; // 0x14
-        car_light_modes()?;
-        clear_point_records()?;
-        set_up_fog()?;
-        camera_view()?;
-        draw_sky()?;
-        crate::race::flush_draw_batch::flush_draw_batch()?;
-        view_light()?;
-        race_sound_tick()?; // 0x15
-        reset_lamps()?;
-        RACE_VIEW.view_lamps.set_bits(0u32);
-        prepare_course_view()?;
-        gather_visible_faces()?;
-        eax_environment()?;
-        gather_lamps()?;
-        lamps_wanted()?;
-        race_sound_tick()?; // 0x16
-        sort_entries(&RACE_VIEW.sort_entry_count, sort_list())?;
-        draw_entries(&RACE_VIEW.sort_entry_count, sort_list())?;
-        draw_race_slots()?;
-        race_sound_tick()?; // 0x17
-        crate::race::car_shadow::cast_car_shadows()?;
-        crate::race::skidmarks::draw_skidmarks_if_on()?;
-        car_lights()?;
-        race_sound_tick()?; // 0x18
-        sort_entries(&RACE_VIEW.depth_entry_count, depth_list())?;
-        race_sound_tick()?; // 0x19
-        draw_entries(&RACE_VIEW.depth_entry_count, depth_list())?;
-        race_sound_tick()?; // 0x1A
-        crate::race::flush_draw_batch::flush_draw_batch()?;
-        store_view_value()
+    if race.shared.car.view_covered.get() != 0 {
+        return draw_view_tint(race, scene);
     }
+    // dword_635014, dword_635018.
+    for cell in &scene.drawing.object_work.view_cleared {
+        cell.set(0);
+    }
+    race_sound_tick(&race.frame)?; // 0x14
+    car_light_modes(race)?;
+    clear_point_records(race, scene)?;
+    set_up_fog(race, scene)?;
+    camera_view(race, scene)?;
+    draw_sky(race, scene)?;
+    crate::race::flush_draw_batch::flush_draw_batch(race)?;
+    view_light(race, scene)?;
+    race_sound_tick(&race.frame)?; // 0x15
+    reset_lamps(race, scene)?;
+    race.shared.view.view_lamps.set_bits(0u32);
+    prepare_course_view(race, scene)?;
+    gather_visible_faces(race, scene)?;
+    eax_environment(race, scene)?;
+    gather_lamps(race, scene)?;
+    lamps_wanted(&race.shared)?;
+    race_sound_tick(&race.frame)?; // 0x16
+    sort_entries(&race.shared.view.sort_entry_count, &FACES.sort_entries)?;
+    draw_entries(
+        race,
+        scene,
+        &race.shared.view.sort_entry_count,
+        &FACES.sort_entries,
+        sort_list(&race.shared),
+    )?;
+    draw_race_slots(race, scene)?;
+    race_sound_tick(&race.frame)?; // 0x17
+    crate::race::car_shadow::cast_car_shadows(race, scene)?;
+    crate::race::skidmarks::draw_skidmarks_if_on(race, scene)?;
+    car_lights(race, scene)?;
+    race_sound_tick(&race.frame)?; // 0x18
+    sort_entries(&race.shared.view.depth_entry_count, &FACES.depth_entries)?;
+    race_sound_tick(&race.frame)?; // 0x19
+    draw_entries(
+        race,
+        scene,
+        &race.shared.view.depth_entry_count,
+        &FACES.depth_entries,
+        depth_list(&race.shared),
+    )?;
+    race_sound_tick(&race.frame)?; // 0x1A
+    crate::race::flush_draw_batch::flush_draw_batch(race)?;
+    store_view_value(race)
 }

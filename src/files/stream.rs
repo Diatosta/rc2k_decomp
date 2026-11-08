@@ -4,32 +4,24 @@
 
 pub const BUFFER_LEN: usize = 0x2000;
 
-#[repr(C)]
-pub struct Stream {
-    /// The mode it was opened with (1 = written to: closing writes the buffer out).
-    pub mode: u32,
-    pub file: u32,
-    /// The next byte of the buffer to hand out, or to fill.
-    pub position: u32,
-    /// The bytes in the buffer.
-    pub filled: u32,
-    pub buffer: [u8; BUFFER_LEN],
+/// The core's stream: the mode, the file, the position, the fill and the buffer.
+pub type Stream = rc2k_core::files::io::Stream<u32>;
+
+/// The one stream the picture readers and the screenshot use (the original's at
+/// `g_pcx` + 0x18; Rust's since 2026-10-29, the block there no longer used).
+static STREAM: std::sync::Mutex<Stream> = std::sync::Mutex::new(Stream {
+    mode: 0,
+    file: u32::MAX,
+    position: 0,
+    filled: 0,
+    buffer: [0; BUFFER_LEN],
+});
+
+/// `f` on the stream (held meanwhile: the readers do not nest).
+pub fn with_stream<R>(f: impl FnOnce(&mut Stream) -> R) -> R {
+    f(&mut STREAM
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner))
 }
-
-// The core's stream is the same block.
-const _: () = assert!(
-    size_of::<Stream>() == size_of::<rc2k_core::files::io::Stream<u32>>()
-        && BUFFER_LEN == rc2k_core::files::io::BUFFER_LEN
-);
-
-/// The game's stream block as the core's.
-///
-/// # Safety
-/// `stream` must point at a whole stream block that nothing else uses meanwhile.
-pub unsafe fn core_stream<'a>(stream: *mut Stream) -> &'a mut rc2k_core::files::io::Stream<u32> {
-    unsafe { &mut *(stream as *mut rc2k_core::files::io::Stream<u32>) }
-}
-
-impl Stream {}
 
 // ---- for the self-tests: a file of the test's own in the game's `var` folder ----

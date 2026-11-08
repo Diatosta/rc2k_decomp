@@ -5,6 +5,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CourseLists {
     /// +0x0 (0x5C694C): the keys read for the car's controls (`drive::read_car_controls`, `dword_5C694C`; a reading).
     pub input_keys_mask: Dword,
@@ -26,7 +27,8 @@ pub struct CourseLists {
     pub point_records_list: [Dword; 4],
     /// +0x514 (0x5C6E60): not named.
     pub unknown_514: [Dword; 28],
-    /// +0x584 (0x5C6ED0): `stru_5C6ED0`, a MemoryList used by `sub_459764`, `sub_4599D4` (not used by Rust; a reading).
+    /// +0x584 (0x5C6ED0): `stru_5C6ED0`, a MemoryList used by 0x459764, 0x4599D4 (not used by Rust;
+    /// a reading).
     pub list_6ed0: [Dword; 4],
     /// +0x594 (0x5C6EE0): not named.
     pub unknown_594: [Dword; 28],
@@ -36,13 +38,13 @@ pub struct CourseLists {
     pub unknown_614: [Dword; 12],
     /// +0x644 (0x5C6F90): `dword_5C6F90`: bytes taken from the course lists, added and subtracted by the allocators (`race::stage_free`, `race::mud`, `scene::allocate_object_memory`).
     pub course_bytes_total: Dword,
-    /// +0x648 (0x5C6F94): `g_courseMemory`: pointer to the course's memory (`race::course_data`, `race::norms`, `race::pace_notes`).
+    /// +0x648 (0x5C6F94): `g_courseMemory`: handle of the course's memory, `level_init::COURSE_TAG` while taken (`race::course_data`, `race::norms`, `race::pace_notes`).
     pub course_memory: Dword,
     /// +0x64c (0x5C6F98): `dword_5C6F98`, set by `race::free_course_list_2` (cleared by `race::stage_free`).
     pub course_list_2_a: Dword,
     /// +0x650 (0x5C6F9C): `dword_5C6F9C`, as its neighbour (cleared by `race::stage_free`).
     pub course_list_2_b: Dword,
-    /// +0x654 (0x5C6FA0): `g_courseInfo`: pointer to the last 0x400000 bytes of the course memory (`race::level_init`, `marks::profiles`, `marks::draw_frame`).
+    /// +0x654 (0x5C6FA0): `g_courseInfo`: pointer to the last 0x400000 bytes of the course memory (`race::level_init`, `effects::profiles`, `effects::draw_frame`).
     pub course_info: Dword,
     /// +0x658 (0x5C6FA4): `g_objectPoints`: pointer to the object points (`scene::objects`, `scene::place_object_points`, `physics::object_hits_car`).
     pub object_points: Dword,
@@ -126,29 +128,20 @@ pub struct CourseLists {
     pub exponent_root_table: [Float; 256],
     /// +0xfac (0x5C78F8): `flt_5C78F8`: the angle of the turn (`physics::axis_turn_matrix`, `physics::spin_matrix`, `physics::move_slot`).
     pub spin_angle: Float,
-    /// +0xfb0 (0x5C78FC): `flt_5C78FC`: the axis' x.
-    pub spin_axis_x: Float,
-    /// +0xfb4 (0x5C7900): `flt_5C7900`: its y.
-    pub spin_axis_y: Float,
-    /// +0xfb8 (0x5C7904): `flt_5C7904`: its z.
-    pub spin_axis_z: Float,
+    /// +0xfb0 (0x5C78FC): `flt_5C78FC` ..: the axis' x, y, z.
+    pub spin_axis: [Float; 3],
 }
 
-/// The piece: the race block's bytes at IDA 0x5C694C seen as `CourseLists`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = CourseLists;
-    fn deref(&self) -> &CourseLists {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const CourseLists) }
+/// The piece: a field of `race::owner::Race::course`, formerly a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl CourseLists {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static COURSE_LISTS: InRaceBlock = InRaceBlock;
 
 /// IDA 0x5C694C, the first byte of the piece.
 pub const START: usize = 0x5C694C;
@@ -157,9 +150,10 @@ pub const END: usize = 0x5C7908;
 
 const _: () = assert!(END - START == core::mem::size_of::<CourseLists>());
 
-/// Where IDA 0x5C694C is now (in the race block).
+/// Where IDA 0x5C694C is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&crate::race::owner::RACE.course.lists))
 }
 
 #[cfg(test)]
@@ -168,7 +162,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&crate::race::owner::RACE.course.lists, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

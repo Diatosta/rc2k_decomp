@@ -4,17 +4,15 @@
 //! if either fails the saved connection forgotten (`unk_52AC94` 16 bytes, `unk_52ACA4` 64,
 //! `system::zero_memory`); then the network stopped (`net::stop`).
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`)
 //! Caller: `net::settings_loop` (on entering it).
 
 use crate::errors::Refused;
 use crate::net::lobby::zero;
-use crate::net::store::NET;
+use crate::net::store::NetVars;
 
 /// The Rust version.
-pub fn settings_done() -> Result<(), Refused> {
-    let saved = if crate::net::find_connections::find_connections()? {
+pub fn settings_done(vars: &'static NetVars) -> Result<(), Refused> {
+    let saved = if crate::net::find_connections::find_connections(vars)? {
         crate::net::find_saved_connection::find_saved_connection()?
     } else {
         None
@@ -22,9 +20,9 @@ pub fn settings_done() -> Result<(), Refused> {
     match saved {
         Some(n) => crate::net::keep_connection::keep_connection(n)?,
         None => {
-            zero(NET.saved_connection.addr(), 0x10)?;
-            zero(NET.saved_name.addr(), 0x40)?;
+            zero(&vars.saved_connection, 0x10)?;
+            zero(&vars.saved_name, 0x40)?;
         }
     }
-    crate::net::stop::stop()
+    crate::net::stop::stop(vars)
 }

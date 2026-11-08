@@ -1,10 +1,6 @@
 //! `scene::draw_carousel` (0x490649): the entries of the main menu's carousel that
 //! can be seen.
 //!
-//! In:  ecx, passed on for a carousel of one entry
-//! Out: ebx = the last entry drawn, ecx = its place in the row (for one entry: ebx = 0,
-//!      edx = 0, ecx as it came); nothing changed but ebx for a carousel of none
-//!
 //! With one entry (`g_carouselCount` = 1): entry 0, the place whatever ecx holds. With none or
 //! fewer: nothing. Else the entry before the front one (`g_carouselFront`, going round) at
 //! place -1, the front one at 0, the next at 1, and while the carousel turns (`g_carouselAngle`
@@ -12,7 +8,7 @@
 //! `scene::draw_main_menu_carousel`.
 
 use crate::errors::Refused;
-use crate::menu::state_store::MENU_STATE;
+use crate::menu::owner::{Menus, Screens};
 use crate::scene::draw_carousel_entry::draw_carousel_entry;
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
 
@@ -25,16 +21,17 @@ use crate::scene::draw_menu_object::draw_menu_object_in_game;
 /// (the original sets ebx and edx for it, not ecx).
 // Converted: `rc2k_core::scene::carousel::drawn`
 pub fn draw_carousel(
+    screens: &Screens,
     lone_row: u32,
     entry: &mut dyn FnMut(u32, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::carousel::{Drawn, drawn};
     {
-        let count: u32 = MENU_STATE.carousel.count.get();
+        let count: u32 = screens.state.carousel.count.get();
         match drawn(
             count,
-            || MENU_STATE.carousel.front.get(),
-            || MENU_STATE.carousel.angle.get() != 0,
+            || screens.state.carousel.front.get(),
+            || screens.state.carousel.angle.get() != 0,
         ) {
             Drawn::Nothing => Ok(()),
             Drawn::Lone => entry(0, lone_row),
@@ -49,10 +46,20 @@ pub fn draw_carousel(
 }
 
 /// With the Rust versions of what it calls.
-pub unsafe fn draw_carousel_in_game(lone_row: u32) -> Result<(), Refused> {
-    unsafe {
-        draw_carousel(lone_row, &mut |e, place| {
-            draw_carousel_entry(e, place, &mut || draw_menu_object_in_game())
-        })
-    }
+pub fn draw_carousel_in_game(
+    menus: &Menus,
+    race: &crate::race::owner::Race,
+    lone_row: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    draw_carousel(&menus.screens, lone_row, &mut |e, place| {
+        draw_carousel_entry(
+            &race.shared,
+            menus,
+            e,
+            place,
+            &mut || draw_menu_object_in_game(race, scene),
+            scene,
+        )
+    })
 }

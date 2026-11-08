@@ -20,39 +20,30 @@
 //! being `asm_reference` in the tests.
 //!
 //! In:  nothing (`dword_614B40` the record)
-//! Out: eax `dword_6D3098` (the point's z turned), ebx and esi 0x6D3090, ecx 0x6D31F4,
-//!      edx 0x6D31E4, edi the record; no flags read (callers call on)
 //!
-//! Callers: `sub_45D8FB`, `sub_45DA14`, `sub_45DC3E`, `sub_45E3BF`,
+//! Callers: `physics::wall_push_back`, `physics::wall_edge_contact`,
+//! `physics::crossed_edge_contact`, `physics::face_contact`,
 //! `physics::crash_contact`, `physics::ground_contact`.
 
-use crate::math::x87_float::X;
 use crate::math::x87_float::compare;
+use crate::math::x87_float::int;
+use crate::math::x87_float::ld;
+use crate::math::x87_float::st;
+use crate::math::x87_float::{X, f80};
 use crate::math::x87_run::{compare_80, neg_rounded};
-use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::dot_product::dot_product;
 use crate::physics::flow::{hold_low, negate, p};
 use crate::physics::multiply_parts::multiply_parts;
 use crate::physics::scale_vector::scale_vector;
-use crate::physics::tables_store::PHYSICS;
+use crate::physics::tables_store::ForceRecord;
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::physics::vector_length::vector_length;
-use crate::race::numbers_store::NUMBERS;
-use crate::scene::draw_store::DRAW;
+use crate::race::owner::Race;
+use crate::race::owner_physics::Physics;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::view_matrix::cross_product;
-use crate::scene::x87_mem::{fild, fld, fnstsw, fstp, fstp80};
 use crate::session::Float;
-
-/// `scene::cross_product` with the original's ebx, ecx, edx.
-fn cross(ebx: &Float, ecx: &Float, edx: &Float) {
-    cross_product(
-        ebx.addr() as usize,
-        ecx.addr() as usize,
-        edx.addr() as usize,
-    );
-}
 
 /// Three floats copied as bits, in order.
 fn copy3(to: &[Float], from: &[Float]) {
@@ -68,200 +59,191 @@ fn fill3(to: &[Float], v: u32) {
     }
 }
 
-/// The Rust version.
-pub unsafe fn contact_force() {
-    cross(
-        &CONTACT_WORK.contact_turn_speed[0],
-        &CONTACT_WORK.contact_point[0],
-        &CONTACT_WORK.contact_turn_cross[0],
+/// The Rust version: `record` the one the contact's force goes to (the original's
+/// `dword_614B40`, set by each caller just before).
+pub fn contact_force(race: &Race, record: &ForceRecord, scene: &crate::scene::owner::Scene) {
+    let drawing = &scene.drawing;
+    cross_product(
+        &race.physics.contact.contact_turn_speed,
+        &race.physics.contact.contact_point,
+        &race.physics.contact.contact_turn_cross,
     );
     x87_1(
-        crate::race::store::asm_base() as usize,
-        0x2D30C0,
-        0x2D30A8,
-        0x2D30CC,
+        &race.physics.contact.contact_turn_cross,
+        &race.physics.contact.contact_car_speed,
+        &race.physics.contact.contact_point_speed,
     );
     p(
-        &CONTACT_WORK.contact_depth,
+        &race.physics.contact.contact_depth,
         neg_rounded({
             dot_product(
-                CONTACT_WORK.contact_point_speed[0].addr(),
-                CONTACT_WORK.contact_normal[0].addr(),
+                &race.physics.contact.contact_point_speed,
+                &race.physics.contact.contact_normal,
             )
         }),
     );
-    x87_2(crate::race::store::asm_base() as usize);
-    hold_low(&CONTACT_WORK.contact_depth, &DRAW.scratch);
+    x87_2(race, scene);
+    hold_low(&race.physics.contact.contact_depth, &drawing.scene.scratch);
     // 0x45F222: the push the turn would give.
-    cross(
-        &CONTACT_WORK.contact_point[0],
-        &CONTACT_WORK.contact_normal[0],
-        &CONTACT_WORK.contact_scratch_a[0],
+    cross_product(
+        &race.physics.contact.contact_point,
+        &race.physics.contact.contact_normal,
+        &race.physics.contact.contact_scratch_a,
     );
-    unsafe { turn_by_inverse(CONTACT_WORK.contact_scratch_a[0].addr()) };
-    unsafe {
-        multiply_parts(
-            CONTACT_WORK.contact_scratch_a[0].addr(),
-            PHYSICS.inertia[0].addr(),
-            CONTACT_WORK.contact_scratch_b[0].addr(),
-        )
-    };
-    unsafe { turn_by_car_matrix(CONTACT_WORK.contact_scratch_b[0].addr()) };
-    cross(
-        &CONTACT_WORK.contact_point[0],
-        &CONTACT_WORK.contact_scratch_b[0],
-        &CONTACT_WORK.contact_scratch_a[0],
+    turn_by_inverse(&race.shared, &race.physics.contact.contact_scratch_a);
+    multiply_parts(
+        &race.physics.contact.contact_scratch_a,
+        &race.shared.physics_tables.inertia,
+        &race.physics.contact.contact_scratch_b,
+    );
+    turn_by_car_matrix(&race.shared, &race.physics.contact.contact_scratch_b);
+    cross_product(
+        &race.physics.contact.contact_point,
+        &race.physics.contact.contact_scratch_b,
+        &race.physics.contact.contact_scratch_a,
     );
     p(
-        &CONTACT_WORK.contact_turn_push,
+        &race.physics.contact.contact_turn_push,
         neg_rounded({
             dot_product(
-                CONTACT_WORK.contact_scratch_a[0].addr(),
-                CONTACT_WORK.contact_normal[0].addr(),
+                &race.physics.contact.contact_scratch_a,
+                &race.physics.contact.contact_normal,
             )
         }),
     );
-    x87_3(crate::race::store::asm_base() as usize);
+    x87_3(race);
     // 0x45F2C2: the normal push, the speed along the normal and across it.
     copy3(
-        &CONTACT_WORK.contact_normal_push,
-        &CONTACT_WORK.contact_normal,
+        &race.physics.contact.contact_normal_push,
+        &race.physics.contact.contact_normal,
     );
-    let factor = extended(CONTACT_WORK.contact_factor.bits());
-    scale_vector(CONTACT_WORK.contact_normal_push[0].addr(), factor);
-    DRAW.scratch.set(rounded(factor));
+    let factor = extended(race.physics.contact.contact_factor.bits());
+    scale_vector(&race.physics.contact.contact_normal_push, factor);
+    drawing.scene.scratch.set(rounded(factor));
     let along = {
         dot_product(
-            CONTACT_WORK.contact_point_speed[0].addr(),
-            CONTACT_WORK.contact_normal[0].addr(),
+            &race.physics.contact.contact_point_speed,
+            &race.physics.contact.contact_normal,
         )
     };
     copy3(
-        &CONTACT_WORK.contact_normal_speed,
-        &CONTACT_WORK.contact_normal,
+        &race.physics.contact.contact_normal_speed,
+        &race.physics.contact.contact_normal,
     );
-    scale_vector(CONTACT_WORK.contact_normal_speed[0].addr(), along);
-    DRAW.scratch.set(rounded(along));
+    scale_vector(&race.physics.contact.contact_normal_speed, along);
+    drawing.scene.scratch.set(rounded(along));
     copy3(
-        &CONTACT_WORK.contact_side_speed,
-        &CONTACT_WORK.contact_point_speed,
+        &race.physics.contact.contact_side_speed,
+        &race.physics.contact.contact_point_speed,
     );
-    x87_4(crate::race::store::asm_base() as usize);
-    CONTACT_WORK.contact_speed_length.set_bits(rounded({
-        vector_length(CONTACT_WORK.contact_normal_speed[0].addr())
+    x87_4(&race.physics);
+    race.physics.contact.contact_speed_length.set_bits(rounded({
+        vector_length(&race.physics.contact.contact_normal_speed)
     }));
-    CONTACT_WORK.contact_value.set_bits(rounded({
-        vector_length(CONTACT_WORK.contact_side_speed[0].addr())
-    }));
-    fill3(&CONTACT_WORK.contact_extra, 0);
-    if PHYSICS.contact_step.get() != 0 {
-        fill3(&CONTACT_WORK.contact_normal_push, 0);
-        copy3(&CONTACT_WORK.contact_extra, &CONTACT_WORK.contact_normal);
-        let mut part = [0u8; 10];
-        x87_5(
-            crate::race::store::asm_base() as usize,
-            (crate::pointers::game_address(part.as_mut_ptr())) as usize,
+    race.physics
+        .contact
+        .contact_value
+        .set_bits(rounded(vector_length(
+            &race.physics.contact.contact_side_speed,
+        )));
+    fill3(&race.physics.contact.contact_extra, 0);
+    if race.shared.physics_tables.contact_step.get() != 0 {
+        fill3(&race.physics.contact.contact_normal_push, 0);
+        copy3(
+            &race.physics.contact.contact_extra,
+            &race.physics.contact.contact_normal,
         );
-        scale_vector(CONTACT_WORK.contact_extra[0].addr(), part);
-        DRAW.scratch.set(rounded(part));
+        let part = x87_5(race);
+        scale_vector(&race.physics.contact.contact_extra, part);
+        drawing.scene.scratch.set(rounded(part));
     }
     x87_1(
-        crate::race::store::asm_base() as usize,
-        0x2D3130,
-        0x2D3160,
-        0x2D3130,
+        &race.physics.contact.contact_normal_push,
+        &race.physics.contact.contact_extra,
+        &race.physics.contact.contact_normal_push,
     );
     copy3(
-        &CONTACT_WORK.contact_total,
-        &CONTACT_WORK.contact_normal_push,
+        &race.physics.contact.contact_total,
+        &race.physics.contact.contact_normal_push,
     );
-    CONTACT_WORK
+    race.physics
+        .contact
         .contact_slide_limit_held
         .set_bits(crate::math::x87::loaded(
-            CONTACT_WORK.contact_slide_limit.bits(),
+            race.physics.contact.contact_slide_limit.bits(),
         ));
     // 0x45F48D: the slide against the motion, held to `flt_6D30FC` long.
     copy3(
-        &CONTACT_WORK.contact_slide,
-        &CONTACT_WORK.contact_side_speed,
+        &race.physics.contact.contact_slide,
+        &race.physics.contact.contact_side_speed,
     );
-    negate(&CONTACT_WORK.contact_slide[0]);
-    negate(&CONTACT_WORK.contact_slide[1]);
-    negate(&CONTACT_WORK.contact_slide[2]);
+    negate(&race.physics.contact.contact_slide[0]);
+    negate(&race.physics.contact.contact_slide[1]);
+    negate(&race.physics.contact.contact_slide[2]);
     if compare_80(
-        vector_length(CONTACT_WORK.contact_slide[0].addr()),
-        NUMBERS.zero.bits(),
+        vector_length(&race.physics.contact.contact_slide),
+        race.course.numbers.zero.bits(),
     ) & 0x4000
         != 0
     {
-        fill3(&CONTACT_WORK.contact_slide, 0);
+        fill3(&race.physics.contact.contact_slide, 0);
     }
-    let mut status = 0u16;
-    x87_6(
-        crate::race::store::asm_base() as usize,
-        crate::pointers::game_address(&raw mut status) as usize,
-    );
+    let status = x87_6(&race.physics, scene);
     if status & 0x4100 == 0 {
-        x87_7(crate::race::store::asm_base() as usize);
+        x87_7(&race.physics, scene);
     }
     // 0x45F57E: the sum into the record.
     x87_1(
-        crate::race::store::asm_base() as usize,
-        0x2D3140,
-        0x2D3130,
-        0x2D3150,
+        &race.physics.contact.contact_slide,
+        &race.physics.contact.contact_normal_push,
+        &race.physics.contact.contact_total,
     );
-    let edi = PHYSICS.contact_record.get();
-    unsafe { turn_by_inverse(CONTACT_WORK.contact_total[0].addr()) };
-    x87_8(crate::race::store::asm_base() as usize, edi as usize);
-    unsafe { turn_by_inverse(CONTACT_WORK.contact_point[0].addr()) };
+    turn_by_inverse(&race.shared, &race.physics.contact.contact_total);
+    x87_8(race, &record.force);
+    turn_by_inverse(&race.shared, &race.physics.contact.contact_point);
     for k in 0..3 {
-        unsafe {
-            (crate::pointers::host(edi + 0xC + 4 * k) as *mut u32)
-                .write_unaligned(CONTACT_WORK.contact_point[k as usize].bits())
-        };
+        record.point[k].set_bits(race.physics.contact.contact_point[k].bits());
     }
 }
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the race core
-/// at `rc`: three floats added, `[rc + out + 4 k] = [rc + a + 4 k] + [rc + b + 4 k]` (each stored
-/// as made, so `out` may be one of the two).
-fn x87_1(rc: usize, a: usize, b: usize, out: usize) {
+/// An x87 run of the original, in plain Rust over `X`: three floats added, `out[k] = a[k] +
+/// b[k]` (each stored as made, so `out` may be one of the two).
+fn x87_1(a: &[Float; 3], b: &[Float; 3], out: &[Float; 3]) {
     for k in 0..3 {
-        fstp(rc, out + 4 * k, fld(rc, a + 4 * k) + fld(rc, b + 4 * k));
+        out[k].set_bits(st(ld(a[k].bits()) + ld(b[k].bits())));
     }
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = (1 - |[rc + 0x2D307C]|) + [rc + 0x1C5CFC]`
-fn x87_2(rc: usize) {
+fn x87_2(race: &Race, scene: &crate::scene::owner::Scene) {
     let t0 = X(1.0);
-    let t1 = fld(rc, 0x2D307C);
+    let t1 = ld(race.physics.contact.contact_normal[1].bits());
     let t2 = t1.abs();
     let t3 = t0 - t2;
-    let t4 = fld(rc, 0x1C5CFC);
+    let t4 = ld(race.course.numbers.hundredth_a.bits());
     let t5 = t3 + t4;
-    fstp(rc, 0x22400C, t5);
+    scene.drawing.scene.scratch.set_bits(st(t5));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x2D31E0] = [rc + 0x2D1DF4] / ([rc + 0x2D31D8] + [rc + 0x1C5D38])`
 /// `[rc + 0x2D3204] = [rc + 0x2D31DC] * [rc + 0x2D31E0]`
-fn x87_3(rc: usize) {
-    let t0 = fld(rc, 0x2D1DF4);
-    let t1 = fld(rc, 0x2D31D8);
-    let t2 = fld(rc, 0x1C5D38);
+fn x87_3(race: &Race) {
+    let t0 = ld(race.physics.contact.contact_share_numerator.bits());
+    let t1 = ld(race.physics.contact.contact_turn_push.bits());
+    let t2 = ld(race.course.numbers.one.bits());
     let t3 = t1 + t2;
     let t4 = t0 / t3;
-    fstp(rc, 0x2D31E0, t4);
-    let t5 = fld(rc, 0x2D31DC);
-    let t6 = fld(rc, 0x2D31E0);
+    race.physics.contact.contact_share.set_bits(st(t4));
+    let t5 = ld(race.physics.contact.contact_depth.bits());
+    let t6 = ld(race.physics.contact.contact_share.bits());
     let t7 = t5 * t6;
-    fstp(rc, 0x2D3204, t7);
+    race.physics.contact.contact_factor.set_bits(st(t7));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -269,51 +251,50 @@ fn x87_3(rc: usize) {
 /// `[rc + 0x2D30F0] = [rc + 0x2D30F0] - [rc + 0x2D30E4]`
 /// `[rc + 0x2D30F4] = [rc + 0x2D30F4] - [rc + 0x2D30E8]`
 /// `[rc + 0x2D30F8] = [rc + 0x2D30F8] - [rc + 0x2D30EC]`
-fn x87_4(rc: usize) {
-    let t0 = fld(rc, 0x2D30F0);
-    let t1 = fld(rc, 0x2D30E4);
+fn x87_4(physics: &Physics) {
+    let t0 = ld(physics.contact.contact_side_speed[0].bits());
+    let t1 = ld(physics.contact.contact_normal_speed[0].bits());
     let t2 = t0 - t1;
-    fstp(rc, 0x2D30F0, t2);
-    let t3 = fld(rc, 0x2D30F4);
-    let t4 = fld(rc, 0x2D30E8);
+    physics.contact.contact_side_speed[0].set_bits(st(t2));
+    let t3 = ld(physics.contact.contact_side_speed[1].bits());
+    let t4 = ld(physics.contact.contact_normal_speed[1].bits());
     let t5 = t3 - t4;
-    fstp(rc, 0x2D30F4, t5);
-    let t6 = fld(rc, 0x2D30F8);
-    let t7 = fld(rc, 0x2D30EC);
+    physics.contact.contact_side_speed[1].set_bits(st(t5));
+    let t6 = ld(physics.contact.contact_side_speed[2].bits());
+    let t7 = ld(physics.contact.contact_normal_speed[2].bits());
     let t8 = t6 - t7;
-    fstp(rc, 0x2D30F8, t8);
+    physics.contact.contact_side_speed[2].set_bits(st(t8));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `ext [o + 0] = ([rc + 0x2D1DF8] * int [rc + 0x214148]) / int [rc + 0x21414C]`
-fn x87_5(rc: usize, o: usize) {
-    let t0 = fld(rc, 0x2D1DF8);
-    let t1 = fild(rc, 0x214148);
+fn x87_5(race: &Race) -> [u8; 10] {
+    let t0 = ld(race.physics.contact.contact_normal_factor.bits());
+    let t1 = int(race.shared.physics_tables.contact_step.bits() as i32);
     let t2 = t0 * t1;
-    let t3 = fild(rc, 0x21414C);
+    let t3 = int(race.shared.physics_tables.contact_steps.bits() as i32);
     let t4 = t2 / t3;
-    fstp80(o, 0, t4);
+    f80(t4)
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = sqrt((([rc + 0x2D3140] * [rc + 0x2D3140]) + (([rc + 0x2D3144] * [rc + 0x2D3144]) + ([rc + 0x2D3148] * [rc + 0x2D3148]))))`
 /// `status [s + 0] = status`
-fn x87_6(rc: usize, s: usize) {
-    let t0 = fld(rc, 0x2D3140);
+fn x87_6(physics: &Physics, scene: &crate::scene::owner::Scene) -> u16 {
+    let t0 = ld(physics.contact.contact_slide[0].bits());
     let t1 = t0 * t0;
-    let t2 = fld(rc, 0x2D3144);
+    let t2 = ld(physics.contact.contact_slide[1].bits());
     let t3 = t2 * t2;
-    let t4 = fld(rc, 0x2D3148);
+    let t4 = ld(physics.contact.contact_slide[2].bits());
     let t5 = t4 * t4;
     let t6 = t3 + t5;
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
-    fstp(rc, 0x22400C, t8);
-    let t9 = fld(rc, 0x2D30FC);
-    let t10 = compare(t8, t9);
-    fnstsw(s, 0, t10);
+    scene.drawing.scene.scratch.set_bits(st(t8));
+    let t9 = ld(physics.contact.contact_slide_limit_held.bits());
+    compare(t8, t9)
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -322,20 +303,21 @@ fn x87_6(rc: usize, s: usize) {
 /// `[rc + 0x2D3144] = [rc + 0x2D3144] * ([rc + 0x2D30FC] / [rc + 0x22400C])`
 /// `[rc + 0x2D3148] = [rc + 0x2D3148] * ([rc + 0x2D30FC] / [rc + 0x22400C])`
 /// `[rc + 0x22400C] = [rc + 0x2D30FC] / [rc + 0x22400C]`
-fn x87_7(rc: usize) {
-    let t0 = fld(rc, 0x2D30FC);
-    let t1 = fld(rc, 0x22400C);
+fn x87_7(physics: &Physics, scene: &crate::scene::owner::Scene) {
+    let drawing = &scene.drawing;
+    let t0 = ld(physics.contact.contact_slide_limit_held.bits());
+    let t1 = ld(drawing.scene.scratch.bits());
     let t2 = t0 / t1;
-    let t3 = fld(rc, 0x2D3140);
+    let t3 = ld(physics.contact.contact_slide[0].bits());
     let t4 = t3 * t2;
-    fstp(rc, 0x2D3140, t4);
-    let t5 = fld(rc, 0x2D3144);
+    physics.contact.contact_slide[0].set_bits(st(t4));
+    let t5 = ld(physics.contact.contact_slide[1].bits());
     let t6 = t5 * t2;
-    fstp(rc, 0x2D3144, t6);
-    let t7 = fld(rc, 0x2D3148);
+    physics.contact.contact_slide[1].set_bits(st(t6));
+    let t7 = ld(physics.contact.contact_slide[2].bits());
     let t8 = t7 * t2;
-    fstp(rc, 0x2D3148, t8);
-    fstp(rc, 0x22400C, t2);
+    physics.contact.contact_slide[2].set_bits(st(t8));
+    drawing.scene.scratch.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -343,25 +325,27 @@ fn x87_7(rc: usize) {
 /// `[d + 0] = [rc + 0x2D3150] / [rc + 0x21388C]`
 /// `[d + 4] = [rc + 0x2D3154] / [rc + 0x21388C]`
 /// `[d + 8] = [rc + 0x2D3158] / [rc + 0x21388C]`
-fn x87_8(rc: usize, d: usize) {
-    let t0 = fld(rc, 0x2D3150);
-    let t1 = fld(rc, 0x21388C);
+fn x87_8(race: &Race, d: &[Float; 3]) {
+    let t0 = ld(race.physics.contact.contact_total[0].bits());
+    let t1 = ld(race.shared.physics_tables.step_time.bits());
     let t2 = t0 / t1;
-    fstp(d, 0, t2);
-    let t3 = fld(rc, 0x2D3154);
-    let t4 = fld(rc, 0x21388C);
+    d[0].set_bits(st(t2));
+    let t3 = ld(race.physics.contact.contact_total[1].bits());
+    let t4 = ld(race.shared.physics_tables.step_time.bits());
     let t5 = t3 / t4;
-    fstp(d, 4, t5);
-    let t6 = fld(rc, 0x2D3158);
-    let t7 = fld(rc, 0x21388C);
+    d[1].set_bits(st(t5));
+    let t6 = ld(race.physics.contact.contact_total[2].bits());
+    let t7 = ld(race.shared.physics_tables.step_time.bits());
     let t8 = t6 / t7;
-    fstp(d, 8, t8);
+    d[2].set_bits(st(t8));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::x87_mem::{Base, view};
 
     // The original's instructions, one function per run.
     reference!(ref_0(rc) "fld dword ptr [{rc} + 0x2D30C0]", "fadd dword ptr [{rc} + 0x2D30A8]", "fstp dword ptr [{rc} + 0x2D30CC]", "fld dword ptr [{rc} + 0x2D30C4]", "fadd dword ptr [{rc} + 0x2D30AC]", "fstp dword ptr [{rc} + 0x2D30D0]", "fld dword ptr [{rc} + 0x2D30C8]", "fadd dword ptr [{rc} + 0x2D30B0]", "fstp dword ptr [{rc} + 0x2D30D4]");
@@ -379,7 +363,7 @@ mod asm_reference {
         vec![
             Block {
                 name: "contact_force line 50",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x2D30A8, In::F),
                         (0x2D30AC, In::F),
@@ -392,21 +376,33 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0]) },
-                plain: |a| x87_1(a[0], 0x2D30C0, 0x2D30A8, 0x2D30CC),
+                plain: |_| {
+                    x87_1(
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .contact_turn_cross,
+                        &crate::race::owner::race().physics.contact.contact_car_speed,
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .contact_point_speed,
+                    );
+                },
             },
             Block {
                 name: "contact_force line 66",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x1C5CFC, In::F), (0x2D307C, In::F)],
                     writes: &[(0x22400C, Out::F)],
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |a| x87_2(a[0]),
+                plain: |_| x87_2(crate::race::owner::race(), crate::scene::owner::scene()),
             },
             Block {
                 name: "contact_force line 86",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x1C5D38, In::F),
                         (0x2D1DF4, In::F),
@@ -418,11 +414,11 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0]) },
-                plain: |a| x87_3(a[0]),
+                plain: |_| x87_3(crate::race::owner::race()),
             },
             Block {
                 name: "contact_force line 107",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x2D30E4, In::F),
                         (0x2D30E8, In::F),
@@ -435,12 +431,12 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0]) },
-                plain: |a| x87_4(a[0]),
+                plain: |_| x87_4(&crate::race::owner::race().physics),
             },
             Block {
                 name: "contact_force line 126",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x214148, In::I), (0x21414C, In::I), (0x2D1DF8, In::F)],
                         writes: &[],
                     },
@@ -451,11 +447,11 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1]),
+                plain: |a| a[1].set_tbyte(0, x87_5(race())),
             },
             Block {
                 name: "contact_force line 137",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x2D3130, In::F),
                         (0x2D3134, In::F),
@@ -468,12 +464,24 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_5(a[0]) },
-                plain: |a| x87_1(a[0], 0x2D3130, 0x2D3160, 0x2D3130),
+                plain: |_| {
+                    x87_1(
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .contact_normal_push,
+                        &crate::race::owner::race().physics.contact.contact_extra,
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .contact_normal_push,
+                    );
+                },
             },
             Block {
                 name: "contact_force line 160",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[
                             (0x2D30FC, In::F),
                             (0x2D3140, In::F),
@@ -489,11 +497,19 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0], a[1]) },
-                plain: |a| x87_6(a[0], a[1]),
+                plain: |a| {
+                    a[1].set_word(
+                        0,
+                        x87_6(
+                            &crate::race::owner::race().physics,
+                            crate::scene::owner::scene(),
+                        ),
+                    );
+                },
             },
             Block {
                 name: "contact_force line 176",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x22400C, In::F),
                         (0x2D30FC, In::F),
@@ -510,11 +526,16 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_7(a[0]) },
-                plain: |a| x87_7(a[0]),
+                plain: |_| {
+                    x87_7(
+                        &crate::race::owner::race().physics,
+                        crate::scene::owner::scene(),
+                    );
+                },
             },
             Block {
                 name: "contact_force line 193",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x2D3130, In::F),
                         (0x2D3134, In::F),
@@ -527,12 +548,21 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_8(a[0]) },
-                plain: |a| x87_1(a[0], 0x2D3140, 0x2D3130, 0x2D3150),
+                plain: |_| {
+                    x87_1(
+                        &crate::race::owner::race().physics.contact.contact_slide,
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .contact_normal_push,
+                        &crate::race::owner::race().physics.contact.contact_total,
+                    );
+                },
             },
             Block {
                 name: "contact_force line 207",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[
                             (0x21388C, In::F),
                             (0x2D3150, In::F),
@@ -548,7 +578,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_9(a[0], a[1]) },
-                plain: |a| x87_8(a[0], a[1]),
+                plain: |a| x87_8(race(), view(a[1], 0)),
             },
         ]
     }

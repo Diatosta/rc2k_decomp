@@ -1,13 +1,12 @@
-//! The itinerary pages (`sub_472C8C` and its sisters; stream A, part F1, 2026-10-18): a
-//! section of the record table (`g_recordTable`, records 0xA4 bytes; +0 the tag: 0 a stage,
+//! The itinerary pages (`screens::draw_itinerary` and its sisters; stream A, part F1, 2026-10-18):
+//! a section of the record table (`g_recordTable`, records 0xA4 bytes; +0 the tag: 0 a stage,
 //! 1 a service, 3 / 4 the end; +0x10 its time of day as hhmm) listed row by row from y 0xE8
 //! (`seconds`), the rows counted in `dword_7559B0`, the stages in `dword_7559B4`, the
 //! services in `dword_755A0C`.
 
 use crate::errors::{FatalError, Refused};
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::owner::Menus;
+use crate::records::stages_store::RecordRef;
 use crate::screens::best_scores::{record_at, section_there};
 use crate::screens::game_screen::GameScreen;
 use crate::text::draw_text::Canvas;
@@ -26,7 +25,7 @@ const INVALID_STAGE: FatalError = FatalError {
 /// number, and its time; tags 3 and 4 end the list, any other is fatal error 0x8070D91A
 /// "Invalid Stage ID". Every register kept. Refuses (before anything) a section past the
 /// table.
-pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_itinerary(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::itinerary`.
     use rc2k_core::screens::itinerary::Row;
     {
@@ -34,37 +33,38 @@ pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             return Err(crate::errors::BadInput("a section past the record table").into());
         }
         let first = record_at(0)?;
-        let heading = if CHAMP_VIEW.event_mode.get() == 0x13 {
-            crate::pointers::GamePtr::new(
-                MENU_LISTS.section_titles[0].addr() + 4 * EVENT_STATE.section.get(),
-            )
-            .read::<u32>("a section title")?
+        let heading = if menus.play.champ_view.event_mode.get() == 0x13 {
+            crate::session::read_on_in(
+                &menus.tables.lists,
+                &menus.tables.lists.section_titles,
+                menus.screens.event.section.get() as usize,
+                "a section title",
+            )?
         } else {
-            crate::pointers::GamePtr::new(first + 0x38).read::<u32>("a stage record")?
+            first.record()?.name()
         };
         let base = record_at(1)?;
-        let record = move |n: u32| base.wrapping_add((n - 1).wrapping_mul(0xA4));
-        let get = |a: u32| crate::pointers::GamePtr::new(a).read::<u32>("a stage record");
+        let record = move |n: u32| base.offset(n.wrapping_sub(1));
         let row = |n: u32| -> Result<Row, Refused> {
-            let r = record(n);
-            match get(r)? {
+            let r = record(n)?;
+            match r.tag() {
                 1 => Ok(Row::Service {
-                    hhmm: get(r + 0x10)?,
+                    hhmm: r.record()?.hhmm(),
                 }),
                 3 | 4 => Ok(Row::End),
                 0 => {
-                    let entry = crate::records::trakpak_entry::record_entry(r)?;
+                    let entry = crate::records::trakpak_entry::track_of(r)?;
                     Ok(Row::Stage {
-                        name: get(entry)?,
-                        length: get(entry + 0xC)?,
-                        hhmm: get(r + 0x10)?,
+                        name: entry.name()?,
+                        length: entry.length()?,
+                        hhmm: r.record()?.hhmm(),
                     })
                 }
                 _ => Err(INVALID_STAGE.into()),
             }
         };
         let fault = crate::menu::event_flow::Fault::default();
-        let ends_at = |n: u32| fault.ok(get(record(n))) == u32::MAX;
+        let ends_at = |n: u32| fault.ok(record(n).map(RecordRef::tag)) == u32::MAX;
         let drawn = rc2k_core::screens::itinerary::itinerary(
             &mut GameScreen::<
                 rc2k_core::screens::itinerary::Font,
@@ -73,7 +73,7 @@ pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             heading,
             &row,
             &ends_at,
-            EVENT_STATE.index.get(),
+            menus.screens.event.index.get(),
             crate::strings::units::units(),
         );
         fault.check()?;

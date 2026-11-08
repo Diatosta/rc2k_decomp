@@ -1,9 +1,11 @@
 //! The object faces and the two sort lists, typed (phase 7): IDA 0x9A3730 .. 0x9E3738, in
-//! the image's zeroed tail (`race::store::buffers`). Names are readings unless IDA's.
+//! the image's zeroed tail (`race::buffers_store`). Names are readings unless IDA's.
 
+use crate::race::owner::race;
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Faces {
     /// +0x0 (0x9A3730): `g_faces`: the objects' faces, 0x30000 bytes (`scene::objects`, `scene::draw_object_faces`, `scene::list_object_faces`, `race::frame_draw`).
     pub faces: [Dword; 0xC000],
@@ -15,14 +17,13 @@ pub struct Faces {
     pub unknown_40000: [Dword; 2],
 }
 
+/// The piece, a field of `crate::race::owner::race().shared.buffers`.
 pub struct InBuffers;
 
 impl core::ops::Deref for InBuffers {
     type Target = Faces;
     fn deref(&self) -> &Faces {
-        // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
-        // test checks); every field is an atomic cell.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const Faces) }
+        &race().shared.buffers.faces
     }
 }
 
@@ -36,6 +37,7 @@ pub const END: usize = 0x9E3738;
 const _: () = assert!(END - START == core::mem::size_of::<Faces>());
 
 /// Where IDA 0x9A3730 is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::moved::place(START) as u32
 }

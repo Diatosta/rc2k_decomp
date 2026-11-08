@@ -13,20 +13,14 @@
 //! times page when one did (a yes ends it); the review (`rc2k_core::menu::rounds::review`, eax 2; its yes
 //! not looked at). The end: `rc2k_core::menu::rounds::end`.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Reached through the time trial's start menu. Refuses a missing player before anything, and what
 //! the callees and the stage's record (`Hand::Stage`) refuse when they are reached.
 
 use crate::errors::Refused;
-use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
-use crate::menu::screen_loop::Carried;
 use rc2k_core::menu::rounds;
 
-pub fn time_trial_split(c: &Carried) -> Result<(), Refused> {
-    players_there(4)?;
+pub fn time_trial_split(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::rounds::time_trial_split`.
-    Game::new(c).run(rounds::time_trial_split)
+    Game::new(menus).run(rounds::time_trial_split)
 }

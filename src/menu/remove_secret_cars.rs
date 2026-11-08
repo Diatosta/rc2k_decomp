@@ -1,10 +1,8 @@
 //! `menu::remove_secret_cars` (0x471BC7): takes the secret cars out of the two lists of
 //! cars that can be chosen, and clears the cheats.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//! For the list at `off_75A042` and then the one at `off_759D16` (`sub_471BEC`): the
-//! entries that are not in the list of secret cars `off_759F4A` (`sub_471BAC`) are copied
+//! For the list at `off_75A042` and then the one at `off_759D16` (0x471BEC): the
+//! entries that are not in the list of secret cars `off_759F4A` (0x471BAC) are copied
 //! to the scratch list `unk_759F7A` and from there back to the list's start, a -1 put
 //! after them, and the cheats' flags `g_cheats` (0x75870C) set to 0. The lists hold the
 //! addresses of car descriptions; each ends with -1.
@@ -13,8 +11,7 @@
 //! car at all: the original copies one entry back and then counts through all 32 bits.
 
 use crate::errors::BadInput;
-use crate::menu::cheats_store::CHEAT_VARS;
-use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::owner::Menus;
 use crate::session::Dword;
 use rc2k_core::menu::car_lists;
 
@@ -23,13 +20,13 @@ use rc2k_core::menu::car_lists;
 /// A list of dwords ended by -1: its cells and how many dwords it has room for.
 pub type List = (&'static [Dword], usize);
 /// off_75A042: the cars of one kind of event (0x28 entries are kept in `var\ral.dat`).
-pub const FIRST: List = (&MENU_LISTS.cars_second, 0x28);
+pub const FIRST: List = (&crate::menu::owner::MENUS.tables.lists.cars_second, 0x28);
 /// off_759D16: the next variable is 0xB4 bytes on.
-pub const SECOND: List = (&MENU_LISTS.cars_a8, 0x2D);
+pub const SECOND: List = (&crate::menu::owner::MENUS.tables.lists.cars_a8, 0x2D);
 /// off_759F4A: the secret cars.
-const SECRET: List = (&MENU_LISTS.secret_cars, 0x0C);
+const SECRET: List = (&crate::menu::owner::MENUS.tables.lists.secret_cars, 0x0C);
 /// unk_759F7A: where a list is copied to and back from.
-const SCRATCH: List = (&MENU_LISTS.cars_scratch, 0x32);
+const SCRATCH: List = (&crate::menu::owner::MENUS.tables.lists.cars_scratch, 0x32);
 /// The list's entries before its -1.
 pub fn read_list(list: List) -> Result<Vec<u32>, BadInput> {
     Ok(car_lists::entries(list.1, |n| list.0[n].get())?)
@@ -45,7 +42,7 @@ pub fn write_list(list: List, entries: &[u32]) {
 
 // ---- Rust version ----
 
-pub fn remove_secret_cars() -> Result<(), BadInput> {
+pub fn remove_secret_cars(menus: &Menus) -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::car_lists` (`entries`, `without_secret`).
     {
         let secret = read_list(SECRET)?;
@@ -64,7 +61,7 @@ pub fn remove_secret_cars() -> Result<(), BadInput> {
                 SCRATCH.0[n].set(car);
             }
             write_list(list, cars);
-            CHEAT_VARS.cheats.set(0u32);
+            menus.play.cheats.cheats.set(0u32);
         }
         Ok(())
     }

@@ -2,37 +2,26 @@
 //! and its time `dword_71A704` is not 0, the time less 1; at 0 the notice is cleared
 //! (`dword_71A700` 0). `physics::take_notice` sets them.
 //!
-//! In:  nothing
-//! Out: eax the time before (when `dword_71A700` is set); the rest kept; no flags read
+//! Returns: the time before (when `dword_71A700` is set)
 //!
-//! Caller: `sub_43B635` (0x43B919), every physics step.
+//! Caller: `physics::car_physics_step` (0x43B919), every physics step.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::physics::car_store::CAR;
-use crate::physics::cells::{get, put_changed};
+use crate::physics::cells::set_changed;
+use crate::race::owner_shared::Shared;
 use rc2k_core::physics::notices::Notice;
 
-/// The Rust version on (shown, time) at `v`. The registers the original leaves are read by none of its callers (eax).
-// Converted: `rc2k_core::physics::notices::Notice::count_down`.
-pub fn count_down_at(v: [u32; 2]) {
+/// The Rust version.
+pub fn count_down_notice(shared: &Shared) {
     let was = Notice {
-        shown: get(v[0]),
-        time: get(v[1]),
+        shown: shared.car.notice_shown.get(),
+        time: shared.car.notice_time.get(),
         ..Notice::default()
     };
     let mut n = was;
     n.count_down();
-    put_changed(v[1], was.time, n.time);
-    put_changed(v[0], was.shown, n.shown);
-}
-
-fn game() -> [u32; 2] {
-    [CAR.notice_shown.addr(), CAR.notice_time.addr()]
-}
-
-/// The Rust version.
-pub fn count_down_notice() {
-    count_down_at(game())
+    set_changed(&shared.car.notice_time, was.time, n.time);
+    set_changed(&shared.car.notice_shown, was.shown, n.shown);
 }

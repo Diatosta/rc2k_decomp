@@ -3,53 +3,61 @@
 //! changes (+0x40 .. +0x48) x `flt_5C5D98` (`fistp`) << 16 added to `unk_71A694`,
 //! `unk_71A698`, `unk_71A69C`.
 //!
-//! In:  nothing
-//! Out: esi the mode's record; eax the last change added (or the time held, kept when
-//!      the record has no time); the rest kept; no flags read
-//!
-//! Caller: `sub_437A53`.
+//! Caller: `physics::update_camera`.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::physics::camera_view::{rd, record, share_done};
-use crate::physics::car_store::CAR;
-use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fistp, fld};
+use crate::math::x87_float::ld;
+use crate::math::x87_float::to_int;
+use crate::physics::camera_view::{record, share_done};
+use crate::race::owner::Race;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub fn ease_view_angles() {
-    let esi = record();
-    if rd(esi + 0x3C) == 0 {
-        return;
+pub fn ease_view_angles(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), crate::errors::BadInput> {
+    let esi = record(&race.shared)?;
+    if esi.change_time.get() == 0 {
+        return Ok(());
     }
-    share_done(esi);
-    for (k, to) in CAR.camera_offset_turns.iter().enumerate() {
-        x87_1(
-            (esi + 0x40 + 4 * k as u32) as usize,
-            crate::race::store::asm_base() as usize,
+    share_done(&race.shared, esi, scene);
+    for (to, rate) in race
+        .shared
+        .car
+        .camera_offset_turns
+        .iter()
+        .zip(&esi.turn_rates)
+    {
+        x87_1(race, rate.get(), scene);
+        to.set(
+            to.get()
+                .wrapping_add(scene.drawing.scene.scratch.get() << 16),
         );
-        to.set(to.get().wrapping_add(DRAW.scratch.get() << 16));
     }
+    Ok(())
 }
 
 // ---- the arithmetic that was x87 assembly ----
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [rc + 0x22400C] = ([s + 0] * [rc + 0x205260]) * [rc + 0x1C5D98]`
-fn x87_1(s: usize, rc: usize) {
-    let t0 = fld(s, 0);
-    let t1 = fld(rc, 0x205260);
+/// `int [rc + 0x22400C] = ([s + 0] * [rc + 0x205260]) * [rc + 0x1C5D98]` (`[s + 0]` a
+/// record's turn rate, passed by value)
+fn x87_1(race: &Race, rate: u32, scene: &crate::scene::owner::Scene) {
+    let t0 = ld(rate);
+    let t1 = ld(race.shared.tables.view_share.bits());
     let t2 = t0 * t1;
-    let t3 = fld(rc, 0x1C5D98);
+    let t3 = ld(race.course.numbers.k65536.bits());
     let t4 = t2 * t3;
-    fistp(rc, 0x22400C, t4);
+    scene.drawing.scene.scratch.set_bits(to_int(t4) as u32);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
     // The original's instructions, one function per run.
@@ -63,14 +71,20 @@ mod asm_reference {
                     reads: &[(0, In::F)],
                     writes: &[],
                 },
-                Operand::Buffer {
+                Operand::RaceBlock {
                     reads: &[(0x1C5D98, In::F), (0x205260, In::F)],
                     writes: &[(0x22400C, Out::I)],
                 },
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
-            plain: |a| x87_1(a[0], a[1]),
+            plain: |a| {
+                x87_1(
+                    race(),
+                    crate::scene::x87_mem::Base::dword(a[0], 0),
+                    crate::scene::owner::scene(),
+                );
+            },
         }]
     }
 

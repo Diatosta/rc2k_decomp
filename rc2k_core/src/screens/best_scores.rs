@@ -120,10 +120,9 @@ pub fn section_best_times<S: Screen<Font = Font, Work = Work>>(
         y = s.line(font, &time(r.time, show_hours), 0x1E0, y)?.y;
         let place = s.line(place_font, &decimal(n, Pad::None), 0xC8, y)?;
         y = place.y;
-        s.sprite(flag_glyph(r.nation), 0xD2, y, place.after)?;
+        s.sprite(flag_glyph(r.nation), 0xD2, y)?;
         let car = car_glyph(r.car);
-        s.sprite(car, 0x276, y, place.after)?;
-        s.sprite(car_glyph(car), 0x276, y, place.after)?;
+        s.sprite(car, 0x276, y)?;
         y = y.wrapping_add(0x19);
     }
     Ok(())
@@ -162,8 +161,8 @@ where
         if keeps_y {
             s.keep(Work::RowY, sy as u32);
         }
-        s.sprite(flag_glyph(row.nation), 0xD2, sy, out.after)?;
-        s.sprite(car_glyph(row.car), 0x1CC, sy, out.after)?;
+        s.sprite(flag_glyph(row.nation), 0xD2, sy)?;
+        s.sprite(car_glyph(row.car), 0x1CC, sy)?;
         y = y.wrapping_add(0x19);
     }
     Ok(())
@@ -203,9 +202,9 @@ where
         if keep != Keep::Nothing {
             s.keep(Work::RowY, sy as u32);
         }
-        s.sprite(flag_glyph(row.nation), 0xD2, sy, out.after)?;
+        s.sprite(flag_glyph(row.nation), 0xD2, sy)?;
         let glyph = car_glyph(row.car);
-        s.sprite(glyph, 0x1CC, sy, out.after)?;
+        s.sprite(glyph, 0x1CC, sy)?;
         if keep == Keep::Below4 {
             s.keep(Work::CarGlyph, glyph);
         }
@@ -264,10 +263,10 @@ where
     S: Screen<Font = Font, Text = T, Work = Work>,
     T: Copy,
 {
-    let out = s.string(Font::Fastest, 0x1A2, 0x142, 0x1FB)?;
-    s.sprite(flag_glyph(nation), 0x14F, 0x1FB, out.after)?;
-    let out = s.text(Font::Name, name, 0x172, 0x1FB)?;
-    s.sprite(car_glyph(car), 0x225, 0x1FB, out.after)?;
+    s.string(Font::Fastest, 0x1A2, 0x142, 0x1FB)?;
+    s.sprite(flag_glyph(nation), 0x14F, 0x1FB)?;
+    s.text(Font::Name, name, 0x172, 0x1FB)?;
+    s.sprite(car_glyph(car), 0x225, 0x1FB)?;
     s.line(Font::Name, speed, 0x262, 0x1FB)?;
     Ok(())
 }
@@ -299,7 +298,6 @@ mod tests {
             self.0.push(format!("text {f:?} {t} {x} {y}"));
             Ok(Drawn {
                 y: y + 1,
-                after: 7,
                 too_wide: false,
             })
         }
@@ -309,11 +307,7 @@ mod tests {
         }
         fn draw(&mut self, f: Font, _: Buffer, x: i32, y: i32) -> Result<Drawn, Invalid> {
             self.0.push(format!("line {f:?} {} {x} {y}", self.1));
-            Ok(Drawn {
-                y,
-                after: 9,
-                too_wide: false,
-            })
+            Ok(Drawn { y, too_wide: false })
         }
         fn draw_clock(&mut self, f: Font, _: Buffer, x: i32, y: i32) -> Result<(), Invalid> {
             self.0.push(format!("clock {f:?} {x:#x} {y:#x}"));
@@ -325,11 +319,7 @@ mod tests {
         }
         fn string(&mut self, f: Font, id: u32, x: i32, y: i32) -> Result<Drawn, Invalid> {
             self.0.push(format!("string {f:?} {id:#x} {x} {y}"));
-            Ok(Drawn {
-                y,
-                after: 3,
-                too_wide: false,
-            })
+            Ok(Drawn { y, too_wide: false })
         }
         fn string_bytes(&mut self, id: u32) -> Vec<u8> {
             format!("s{id:x}").into_bytes()
@@ -337,8 +327,8 @@ mod tests {
         fn strings(&mut self, first: u32, _: u32) -> Result<Vec<u8>, Invalid> {
             Ok(format!("t{first:x}\0").into_bytes())
         }
-        fn sprite(&mut self, g: u32, x: i32, y: i32, p: u32) -> Result<(), Invalid> {
-            self.0.push(format!("sprite {g:#x} {x} {y} {p}"));
+        fn sprite(&mut self, g: u32, x: i32, y: i32) -> Result<(), Invalid> {
+            self.0.push(format!("sprite {g:#x} {x} {y}"));
             Ok(())
         }
         fn bar(&mut self, b: crate::screens::screen::Bar) -> Result<(), Invalid> {
@@ -375,8 +365,8 @@ mod tests {
         .unwrap();
         assert_eq!(s.0[1], "text Name 0 240 240");
         assert_eq!(s.0[2], "line Name 100 540 241");
-        assert_eq!(s.0[5], "sprite 0x1e 210 241 9");
-        assert_eq!(s.0[6], "sprite 0x5d 460 241 9");
+        assert_eq!(s.0[5], "sprite 0x1e 210 241");
+        assert_eq!(s.0[6], "sprite 0x5d 460 241");
         assert_eq!(s.0[8], "text MarkedName 1 240 266");
         assert_eq!(s.0.len(), 14);
         let mut s = Record::default();

@@ -2,20 +2,20 @@
 //!
 //! In:  the point (`dword_639824`, `dword_63982C`), the face mask `dword_620470`, the
 //!      last face `dword_5CCC78`
-//! Out: every register kept; `g_groundFound`, `dword_5CCC74`, the face's shares and
-//!      height (`dword_639828`); CF not read by its callers
 //!
-//! See `physics/ground.rs`. Callers (7): `sub_45D305` (the car's ground points),
-//! `sub_462485`, `sub_45EB06`, `sub_458078`, `sub_44ECE4`, `sub_43A1CA`, `sub_438E22`.
-//! Refuses what `ground_search` refuses.
+//! See `physics/ground.rs`. Callers (7): `physics::probe_ground` (the car's ground points),
+//! `physics::move_slot`, `drive::animate_lit_faces`, `race::shadow_points`,
+//! `physics::car_lighting`, `drive::simple_car_step`, `physics::count_ground_probe`. Refuses what
+//! `ground_search` refuses.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::physics::ground_search::ground_search;
+use crate::race::owner::Race;
 
 /// The Rust version: the carry (the registers are kept).
-pub unsafe fn find_ground() -> Result<bool, Refused> {
-    unsafe { ground_search() }
+pub fn find_ground(race: &Race, scene: &crate::scene::owner::Scene) -> Result<bool, Refused> {
+    ground_search(race, scene)
 }

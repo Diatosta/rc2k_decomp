@@ -8,11 +8,23 @@
 pub const SLOTS: u32 = 0x400;
 pub const KINDS: u32 = 0x400;
 
-/// A table of the typed variables (`KIND_TEXTURES.kind_first_slots`, ...) as a slice, for the core.
-///
-/// # Safety
-/// Nothing else may use the table while the slice lives (the game runs on its thread).
-#[allow(clippy::mut_from_ref)] // the statics are the game's one thread's; same as `slice`
-pub unsafe fn cells_mut(cells: &'static [crate::session::Dword]) -> &'static mut [u32] {
-    unsafe { std::slice::from_raw_parts_mut(cells.as_ptr() as *mut u32, cells.len()) }
+/// Typed tables (`KIND_TEXTURES.kind_first_slots`, ...) as slices for the core: each read
+/// out, `f` run on the copies, each written back (also after a refusal: the core's writes
+/// up to it are kept, as when it worked on the tables in place).
+pub fn with_cells<const N: usize, R>(
+    cells: [&[crate::session::Dword]; N],
+    f: impl FnOnce(&mut [Vec<u32>; N]) -> R,
+) -> R {
+    let mut copies = cells.map(|t| {
+        t.iter()
+            .map(super::super::session::Dword::get)
+            .collect::<Vec<u32>>()
+    });
+    let result = f(&mut copies);
+    for (table, copy) in cells.iter().zip(&copies) {
+        for (cell, &v) in table.iter().zip(copy) {
+            cell.set(v);
+        }
+    }
+    result
 }

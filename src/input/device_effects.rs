@@ -5,8 +5,7 @@
 //! function (+0) called with eax the change's low byte, ecx bits 8 .. 19 and edx bits 20 ..
 //! 31 (each signed), esi the record and edi the effect.
 //!
-//! In:  esi = the device's record
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the device's record
 //!
 //! Caller: `input::input_tick` (each device, each tick). Refuses (before anything) a controller number past the
 //! table's 16.
@@ -15,49 +14,45 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::field;
-use crate::input::devices::{at, put};
-use crate::input::store::DEVICES;
-use crate::input::types::{ForceEffect, InputDevice};
+use crate::input::store::Devices;
+use crate::input::types::{Controller, InputDevice};
 
 pub const CONTROLLERS: u32 = 16;
-const EFFECTS: u32 = 0x3C;
-const EFFECT_LEN: u32 = 0xA4;
 
-/// The controller entry's dword at `offset` for the record's controller, or the refusal.
-pub fn controller(record: u32, offset: usize) -> Result<u32, Refused> {
-    let n = at(record, field!(InputDevice, controller))?;
+/// The record's controller entry, or the refusal.
+pub fn controller<'a>(
+    devices: &'a Devices,
+    record: &InputDevice,
+) -> Result<&'a Controller, Refused> {
+    let n = record.controller.get();
     if n >= CONTROLLERS {
         return Err(BadInput("a controller number past the table's 16").into());
     }
-    Ok(DEVICES.controllers[n as usize].get_u32(offset))
+    Ok(&devices.controllers[n as usize])
 }
 
 /// The pending changes of the device `record`'s effects.
-pub fn device_effects(record: u32) -> Result<(), Refused> {
-    if at(record, field!(InputDevice, effects_on))? != 1
-        || at(record, field!(InputDevice, device))? == 0
-    {
+pub fn device_effects(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
+    if record.effects_on.get() != 1 || record.device.get() == 0 {
         return Ok(());
     }
-    if controller(record, 0x1C)? != 1 {
+    if controller(devices, record)?.force_feedback.get() != 1 {
         return Ok(());
     }
-    for k in 0..6 {
-        let effect = record + EFFECTS + EFFECT_LEN * k;
-        if at(effect, field!(ForceEffect, object))? == 0 {
+    for effect in &record.effects {
+        if effect.object.get() == 0 {
             continue;
         }
-        let change = at(effect, field!(ForceEffect, pending))?;
-        put(effect, field!(ForceEffect, pending), 0)?;
+        let change = effect.pending.get();
+        effect.pending.set(0);
         if change == 0 {
             continue;
         }
         // Converted: `rc2k_core::input::effects::change`.
         let (what, a, b) = rc2k_core::input::effects::change(change);
-        let function = at(effect, field!(ForceEffect, change))?;
+        let function = effect.change.get();
         crate::input::effect_changes::effect_change_at(
-            function, record, effect, what, a as u32, b as u32,
+            devices, function, record, effect, what, a as u32, b as u32,
         )?;
     }
     Ok(())

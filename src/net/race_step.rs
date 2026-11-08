@@ -3,29 +3,26 @@
 //! messages sent (`net::send_turn`) and the others' applied (`net::apply_received`); for
 //! another's, its glide (`net::follow_remote`).
 //!
-//! In:  nothing
-//! Out: nothing (the original leaves eax `g_currentCar`, or as the calls leave it; its
-//!      caller, `drive::replay_step`'s car step, runs it on a copy of its registers and
-//!      reads none of them after it)
 //!
 //! See `net/mod.rs`. One caller, `drive::replay_step` (each car's step, after its
 //! physics).
 
 use crate::errors::Refused;
-use crate::net::store::NET;
+use crate::net::owner::net;
 use crate::net::{apply_received, follow_remote, send_turn};
-use crate::race::work_store::RACE_WORK;
+use crate::race::owner::Race;
 
 /// The Rust version.
-pub fn race_step() -> Result<(), Refused> {
-    if NET.session.get() == 0 {
+pub fn race_step(race: &Race) -> Result<(), Refused> {
+    let vars = &net().vars;
+    if vars.session.get() == 0 {
         return Ok(());
     }
-    if RACE_WORK.current_car.get() == NET.player.get() {
-        send_turn::send_turn()?;
-        apply_received::apply_received()
+    if race.shared.work.current_car.get() == vars.player.get() {
+        send_turn::send_turn(race)?;
+        apply_received::apply_received(race, vars)
     } else {
-        follow_remote::follow_remote()?;
+        follow_remote::follow_remote(race, vars)?;
         Ok(())
     }
 }

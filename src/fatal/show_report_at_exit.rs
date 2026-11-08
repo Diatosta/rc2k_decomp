@@ -4,36 +4,27 @@
 //! exclamation, task-modal); for a code with bit 28 the caption ("Rally: Guru Meditation")
 //! is first cut to "Rally" (its byte 5, `byte_4F6702`, 0). Then "END PROCESS" logged.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! One caller, `start`'s way out, which calls it directly (2026-10-23). The registers
 //! above are the original's, for reference.
 
 use crate::fatal::state::{CAPTION, CODE, REPORTED, TEXT};
 use crate::logfile::write_line::log_text;
-use std::sync::atomic::Ordering::Relaxed;
 
 /// The Rust version (see the header).
 pub fn show_report_at_exit() {
-    use windows_sys::Win32::UI::WindowsAndMessaging::MessageBoxA;
-    unsafe {
-        if REPORTED.load(Relaxed) == 1 {
-            // Converted: `rc2k_core::fatal::caption_cut`.
-            if rc2k_core::fatal::caption_cut(CODE.load(Relaxed)) {
-                CAPTION
-                    .ptr()
-                    .cast::<u8>()
-                    .add(rc2k_core::fatal::CAPTION_CUT)
-                    .write(0);
-            }
-            MessageBoxA(
-                std::ptr::null_mut(),
-                TEXT.ptr().cast(),
-                CAPTION.ptr().cast(),
-                0x2030,
-            );
+    if REPORTED.get() == 1 {
+        // Converted: `rc2k_core::fatal::caption_cut`.
+        if rc2k_core::fatal::caption_cut(CODE.get()) {
+            CAPTION.set(rc2k_core::fatal::CAPTION_CUT, 0);
         }
+        // MB_ICONEXCLAMATION | MB_TASKMODAL.
+        let (caption, text) = (CAPTION.read(), TEXT.read());
+        let until_nul = |b: &[u8]| b.split(|&c| c == 0).next().unwrap_or_default().to_vec();
+        crate::os::message_box(
+            crate::os::Icon::Warning,
+            &until_nul(&caption),
+            &until_nul(&text),
+        );
     }
     log_text(b"END PROCESS", true, 2);
 }

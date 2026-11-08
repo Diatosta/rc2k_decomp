@@ -5,9 +5,6 @@
 //! `physics::contact_force` into contact record 4 (`g_contactRecords` + 0x80),
 //! `physics::place_sound_e1`; `dword_6141C8` = -1.
 //!
-//! In:  nothing
-//! Out: the registers as `contact_force` leaves them; no flags read (callers go on)
-//!
 //! Callers: `physics::wall_contacts`, `physics::wall_edge_contact`. Refuses what
 //! `place_sound_e1` refuses (what was written put back).
 //!
@@ -16,36 +13,37 @@
 
 use crate::errors::Refused;
 use crate::math::x87_run::compare_80;
-use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
-use crate::physics::contact_store::CONTACT_WORK;
-use crate::physics::flow::{a, copy_cells, fill_cells, negate};
-use crate::physics::tables_store::PHYSICS;
+use crate::physics::flow::{copy_cells, fill_cells, negate};
 use crate::physics::vector_length::vector_length;
 use crate::race::norms::normalise_work_vector;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::scratch_store::FRAME_SCRATCH;
+use crate::race::owner::Race;
 
 /// The steps, not guarded. The registers the original leaves are read by none of its
 /// callers.
-pub fn steps() -> Result<(), Refused> {
-    let work = &FRAME_SCRATCH.work_vector;
-    copy_cells(work, &CAR.velocity);
+pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let work = &race.frame.scratch.work_vector;
+    copy_cells(work, &race.shared.car.velocity);
     negate(&work[0]);
     negate(&work[1]);
     negate(&work[2]);
-    if compare_80(vector_length(work[0].addr()), NUMBERS.zero.bits()) & 0x4000 != 0 {
+    if compare_80(vector_length(&work), race.course.numbers.zero.bits()) & 0x4000 != 0 {
         fill_cells(work, 0);
     }
-    normalise_work_vector();
-    copy_cells(&CONTACT_WORK.contact_normal, work);
-    copy_cells(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
-    copy_cells(&CONTACT_WORK.contact_turn_speed, &CAR.spin);
-    fill_cells(&CONTACT_WORK.contact_point, 0);
-    CONTACT_WORK.contact_slide_limit.set_bits(0);
-    PHYSICS.contact_record.set(a(&PHYSICS.contacts[4].force[0]));
-    unsafe { contact_force() };
-    { crate::physics::place_sound_e1::place_sound_e1() }?;
-    PHYSICS.wall_heading.set(u32::MAX);
+    normalise_work_vector(race);
+    copy_cells(&race.physics.contact.contact_normal, work);
+    copy_cells(
+        &race.physics.contact.contact_car_speed,
+        &race.shared.car.velocity,
+    );
+    copy_cells(
+        &race.physics.contact.contact_turn_speed,
+        &race.shared.car.spin,
+    );
+    fill_cells(&race.physics.contact.contact_point, 0);
+    race.physics.contact.contact_slide_limit.set_bits(0);
+    contact_force(race, &race.shared.physics_tables.contacts[4], scene);
+    { crate::physics::place_sound_e1::place_sound_e1(race) }?;
+    race.shared.physics_tables.wall_heading.set(u32::MAX);
     Ok(())
 }

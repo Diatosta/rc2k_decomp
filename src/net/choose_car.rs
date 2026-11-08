@@ -4,46 +4,40 @@
 //! (`menu::take_shown_car`) and this player's record given it (+1 the car, +2 its colours);
 //! then the background again (`net::show_background`).
 //!
-//! In:  nothing
-//! Out: nothing (the original keeps every register: `pusha` .. `popa`)
 //! Caller: `net::lobby_loop`.
 
 use crate::errors::Refused;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::players_store::PLAYER_TABLE;
-use crate::menu::screen_loop::{Carried, run_screen};
-use crate::net::store::{NET, PlayerRecord};
+use crate::menu::owner::menus;
+use crate::menu::screen_loop::{Entry, run_screen};
+use crate::net::store::NetVars;
+use crate::net::store::PlayerRecord;
 use crate::session::Dword;
 
-const CLEARED: &Dword = &EVENT_STATE.current_player; // dword_75598C
-pub const ESCAPED: &Dword = &DRAW_WORK.escaped; // dword_755A3C: the screen was left with Escape
+const CLEARED: &Dword = &crate::menu::owner::MENUS.screens.event.current_player; // dword_75598C
+pub const ESCAPED: &Dword = &crate::menu::owner::MENUS.screens.draw_work.escaped; // dword_755A3C: the screen was left with Escape
 
-/// The Rust version. The car screen starts from the car (eax) and the list of cars (esi);
-/// the other registers it is handed are the lobby loop's leftovers (ebx the clock's tick,
-/// ecx and edx scratch), which the screen overwrites or reads only as the x its first item
-/// is measured from: 0 here, as the loop leaves ecx.
-pub fn choose_car() -> Result<(), Refused> {
+/// The Rust version. The car screen is handed the list of cars (the original's esi); the
+/// car it starts from its set-up finds itself (the current player's record,
+/// `menu::car_choice::find_player_car`).
+pub fn choose_car(vars: &NetVars) -> Result<(), Refused> {
+    let menus = menus();
+    let play = &menus.play;
     CLEARED.set(0);
-    let cars = crate::net::car_list::car_list()?;
+    let cars = crate::net::car_list::car_list(&menus.tables)?;
     ESCAPED.set(0);
-    let entry = Carried {
-        arg: PLAYER_TABLE.players[0].get().car_number,
-        cars,
-        ..Carried::default()
-    };
-    unsafe { run_screen(&crate::menu::select_car_loop::SCREEN, &entry) }?;
+    let entry = Entry::with_cars(menus, Some(cars));
+    { run_screen(&crate::menu::select_car_loop::SCREEN, &entry) }?;
     if ESCAPED.get() != 1 {
-        crate::menu::take_shown_car::take_shown_car(cars)?;
-        NET.own.head.set(
+        crate::menu::take_shown_car::take_shown_car(menus, Some(cars))?;
+        vars.own.head.set(
             PlayerRecord::CAR,
-            PLAYER_TABLE.players[0].get().car_number as u8,
+            play.players.players[0].get().car_number as u8,
         );
-        NET.own.head.set(
+        vars.own.head.set(
             PlayerRecord::COLOURS,
-            PLAYER_TABLE.players[0].get().gearing as u8,
+            play.players.players[0].get().gearing as u8,
         );
     }
-    crate::net::show_background::show_background()?;
+    crate::net::show_background::show_background(vars)?;
     Ok(())
 }

@@ -12,95 +12,82 @@
 //! the exact x87 one (the runs over the object, plain Rust over `X`) stays
 //! for `physics::engine_sound`.
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read
-//!
 //! Caller: `physics::engine_sound`. Refuses (before anything) a null sound object, or a
 //! null view block when it is read.
 
 use crate::errors::{BadInput, Refused};
+use crate::math::x87_float::ld;
 use crate::math::x87_float::{X, st};
 use crate::math::x87_run::{ext_times, ints_diff_80};
-use crate::physics::car_store::CAR;
-use crate::race::matrices_store::MATRICES;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::view_store::RACE_VIEW;
-use crate::race::work_store::RACE_WORK;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-use crate::scene::x87_mem::{fld, fstp};
 use crate::session::Dword;
 
-fn get(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::car_sound_state's operand")
-}
-
 /// 0x45CB02 .. 0x45CB88 (the shares into the voices), the integer steps between in Rust.
-fn shares(so: &crate::sound::store::SoundObject) {
-    x87_1(crate::race::store::asm_base() as usize);
-    if CAR.all_wheels_off.get() != 0 {
-        CAR.sound_slip_share.set_bits(0);
-        CAR.sound_level.set_bits(0);
-        CAR.sound_speed.set_bits(0);
+fn shares(race: &Race, so: &crate::sound::store::SoundObject) {
+    x87_1(&race.shared);
+    if race.shared.car.all_wheels_off.get() != 0 {
+        race.shared.car.sound_slip_share.set_bits(0);
+        race.shared.car.sound_level.set_bits(0);
+        race.shared.car.sound_speed.set_bits(0);
     }
-    x87_2(crate::race::store::asm_base() as usize, so);
+    x87_2(race, so);
 }
 
-fn object() -> u32 {
-    crate::sound::store::RACE_SOUNDS.table[(RACE_WORK.current_car.get() & 7) as usize].get()
-}
-
-fn listener() -> u32 {
-    if RACE_VIEW.players.get() == 1 {
-        RACE_VIEW.view_blocks[0].get()
+/// The car the sound is heard from: view 0's block with one player (none if it has no
+/// block), else the work car.
+fn listener(shared: &Shared) -> Option<&crate::physics::car_store::Car> {
+    if shared.view.players.get() == 1 {
+        crate::race::blocks_store::car_of(shared.view.view_blocks[0].get())
     } else {
-        crate::physics::car_store::car_addr()
+        Some(&crate::race::owner::RACE.shared.car)
     }
 }
+
+const _: () =
+    assert!(core::mem::offset_of!(crate::physics::car_store::Car, camera_position) == 0x6A4);
 
 /// The exact x87 version (for `physics::engine_sound`).
-pub fn car_sound_state() -> Result<(), Refused> {
-    let o = object();
-    if o == 0 {
-        return Err(BadInput("a null sound object").into());
-    }
-    let l = listener();
-    if l == 0 {
+pub fn car_sound_state(race: &Race) -> Result<(), Refused> {
+    let Some(l) = listener(&race.shared) else {
         return Err(BadInput("a null view block").into());
-    }
-    let so = crate::sound::store::SoundObject::at(o)?;
+    };
+    let so = crate::sound::store::current_object();
     so.new_revs.set(1);
-    so.revs.set(CAR.engine_sound_revs.get());
-    let w = CAR.wheel_surface_a[4].get();
+    so.revs.set(race.shared.car.engine_sound_revs.get());
+    let w = race.shared.car.wheel_surface_a[4].get();
     for voice in &so.voices {
         voice.surface.set(w);
     }
-    shares(so);
-    let n = CAR.throttle.get() as i32;
+    shares(race, so);
+    let n = race.shared.car.throttle.get() as i32;
     so.throttle.set(n.clamp(0, 0x100) as u32);
-    so.gear.set(CAR.gear.get());
-    so.speed.set_bits(CAR.mean_drive_speed.bits());
+    so.gear.set(race.shared.car.gear.get());
+    so.speed.set_bits(race.shared.car.mean_drive_speed.bits());
     so.flag_ac
-        .set(CAR.front_wheels_off.get() & CAR.rear_wheels_off.get());
-    so.view_flag.set(CAR.camera_mode_is_2_or_3.get() ^ 1);
-    let d = |c: &Dword, k: u32| ints_diff_80(c.get() as i32, get(l + k) as i32);
+        .set(race.shared.car.front_wheels_off.get() & race.shared.car.rear_wheels_off.get());
+    so.view_flag
+        .set(race.shared.car.camera_mode_is_2_or_3.get() ^ 1);
+    let d = |c: &Dword, other: &Dword| ints_diff_80(c.get() as i32, other.get() as i32);
     let place = [
-        d(&CAR.position[0], 0x6A4),
-        d(&CAR.position[1], 0x6A8),
-        d(&CAR.position[2], 0x6AC),
+        d(&race.shared.car.position[0], &l.camera_position[0]),
+        d(&race.shared.car.position[1], &l.camera_position[1]),
+        d(&race.shared.car.position[2], &l.camera_position[2]),
     ];
-    let m = MATRICES.view_turn_matrix[0].addr();
+    let m = &race.frame.matrices.view_turn_matrix;
     let out = rotate_point(m, place);
-    let k = NUMBERS.one_over_65536.bits();
+    let k = race.course.numbers.one_over_65536.bits();
     for (i, e) in out.iter().enumerate() {
         so.place[i].set_bits(rounded(ext_times(*e, k)));
     }
     let out = rotate_point(
         m,
         [
-            extended(CAR.crash_matrix[8].bits()),
-            extended(CAR.crash_matrix[9].bits()),
-            extended(CAR.crash_matrix[10].bits()),
+            extended(race.shared.car.crash_matrix[8].bits()),
+            extended(race.shared.car.crash_matrix[9].bits()),
+            extended(race.shared.car.crash_matrix[10].bits()),
         ],
     );
     for (i, e) in out.iter().enumerate() {
@@ -115,13 +102,13 @@ pub fn car_sound_state() -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A264] = [rc + 0x31A260] / [rc + 0x213EE0]`
 /// `[rc + 0x31A268] = 1`
-fn x87_1(rc: usize) {
-    let t0 = fld(rc, 0x31A260);
-    let t1 = fld(rc, 0x213EE0);
+fn x87_1(shared: &Shared) {
+    let t0 = ld(shared.car.slip_speed.bits());
+    let t1 = ld(shared.physics_tables.sound_speed_scale.bits());
     let t2 = t0 / t1;
-    fstp(rc, 0x31A264, t2);
+    shared.car.sound_slip_share.set_bits(st(t2));
     let t3 = X(1.0);
-    fstp(rc, 0x31A268, t3);
+    shared.car.sound_level.set_bits(st(t3));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -138,20 +125,20 @@ fn x87_1(rc: usize) {
 /// `[o + 0x58] = [rc + 0x31A26C]`
 /// `[o + 0x6C] = [rc + 0x31A26C]`
 /// `[o + 0x80] = [rc + 0x31A26C]`
-fn x87_2(rc: usize, o: &crate::sound::store::SoundObject) {
-    let t0 = fld(rc, 0x31A268);
+fn x87_2(race: &Race, o: &crate::sound::store::SoundObject) {
+    let t0 = ld(race.shared.car.sound_level.bits());
     o.voices[0].share_b.set_bits(st(t0));
     o.voices[1].share_b.set_bits(st(t0));
     o.voices[2].share_b.set_bits(st(t0));
     o.voices[3].share_b.set_bits(st(t0));
-    let t1 = fld(rc, 0x31A264);
-    let t2 = fld(rc, 0x1C5E2C);
+    let t1 = ld(race.shared.car.sound_slip_share.bits());
+    let t2 = ld(race.course.numbers.k256.bits());
     let t3 = t1 * t2;
     o.voices[0].share_c.set_bits(st(t3));
     o.voices[1].share_c.set_bits(st(t3));
     o.voices[2].share_c.set_bits(st(t3));
     o.voices[3].share_c.set_bits(st(t3));
-    let t4 = fld(rc, 0x31A26C);
+    let t4 = ld(race.shared.car.sound_speed.bits());
     o.voices[0].share_a.set_bits(st(t4));
     o.voices[1].share_a.set_bits(st(t4));
     o.voices[2].share_a.set_bits(st(t4));
@@ -161,6 +148,7 @@ fn x87_2(rc: usize, o: &crate::sound::store::SoundObject) {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
     // The original's instructions, one function per run.
@@ -171,18 +159,18 @@ mod asm_reference {
         vec![
             Block {
                 name: "car_sound_state line 46",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x213EE0, In::F), (0x31A260, In::F)],
                     writes: &[(0x31A264, Out::F), (0x31A268, Out::F)],
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0]) },
-                plain: |a| x87_1(a[0]),
+                plain: |_| x87_1(&race().shared),
             },
             Block {
                 name: "car_sound_state line 64",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[
                             (0x1C5E2C, In::F),
                             (0x31A264, In::F),
@@ -212,10 +200,10 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
-                    x87_2(a[0], unsafe {
+                    x87_2(race(), unsafe {
                         &*(crate::pointers::host_at(a[1])
                             as *const crate::sound::store::SoundObject)
-                    })
+                    });
                 },
             },
         ]

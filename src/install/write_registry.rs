@@ -4,64 +4,49 @@
 //! (`dword_51BC90` bytes, type string). The key opened (`RegCreateKeyA`) and closed
 //! (`RegCloseKey`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`)
 //! A failed create, or a failed set of either value, is fatal error 0x80108420, 0x80108421
-//! or 0x80108425. Three callers (`install::install_files`, `uninstall`, and `sub_412DE0`).
-//! The registry calls through `api` (`installer::game_api` in the game: `windows-sys`
+//! or 0x80108425. Three callers (`install::install_files`, `uninstall`, and
+//! `install::run_installer`). The registry calls through `api` (`installer::game_api` in the game:
+//! `windows-sys`
 //! `Win32_System_Registry`); the standalone makes them too .
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
-use crate::install::installer::{Api, REG_CLOSE_KEY, REG_CREATE_KEY, REG_SET_VALUE, fatal, rd};
-use crate::install::vars::INSTALLER_NAMES;
-use crate::install::vars::INSTALLER_RUN;
+use crate::install::installer::fatal;
+use crate::install::read_registry::Registry;
 
-const HKLM: u32 = 0x8000_0002;
 const REG_SZ: u32 = 1;
 const REG_BINARY: u32 = 3;
 
-pub fn write_registry(api: Api) -> Result<(), Refused> {
-    let key_at = INSTALLER_RUN.reg_key.addr();
-    if api(
-        REG_CREATE_KEY,
-        &[HKLM, INSTALLER_NAMES.key_name.addr(), key_at],
-    ) != 0
-    {
+pub fn write_registry(
+    install: &'static crate::install::owner::Install,
+    registry: &mut dyn Registry,
+) -> Result<(), Refused> {
+    let names = &install.names;
+    let Ok(key) = registry.create(&names.key_name.text()) else {
         return Err(fatal(0x8010_8420));
-    }
-    let key = rd(key_at);
-    if api(
-        REG_SET_VALUE,
-        &[
-            key,
-            INSTALLER_NAMES.status_name.addr(),
-            0,
-            REG_BINARY,
-            INSTALLER_NAMES.status.addr(),
-            1,
-        ],
+    };
+    install.run.reg_key.set(key);
+    if registry.set_value(
+        key,
+        &names.status_name.text(),
+        REG_BINARY,
+        &[names.status.get()],
     ) != 0
     {
         return Err(fatal(0x8010_8421));
     }
-    if INSTALLER_NAMES.source.get(0) != 0
-        && api(
-            REG_SET_VALUE,
-            &[
-                key,
-                INSTALLER_NAMES.source_name.addr(),
-                0,
-                REG_SZ,
-                INSTALLER_NAMES.source.addr(),
-                INSTALLER_NAMES.source_size.get(),
-            ],
-        ) != 0
-    {
-        return Err(fatal(0x8010_8425));
+    if names.source.get(0) != 0 {
+        let size = names.source_size.get() as usize;
+        let source = names.source.read();
+        let data = source
+            .get(..size)
+            .ok_or(crate::errors::BadInput("a source size past its buffer"))?;
+        if registry.set_value(key, &names.source_name.text(), REG_SZ, data) != 0 {
+            return Err(fatal(0x8010_8425));
+        }
     }
-    api(REG_CLOSE_KEY, &[key]);
+    registry.close(key);
     Ok(())
 }

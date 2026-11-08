@@ -1,11 +1,12 @@
 //! The race's music at the stage's loading (`race::load_stage`'s "doingamemusic", IDA,
 //! 2026-10-15): with `dword_64BB18` set `race::game_music` (tune 6 with `dword_75B108` 1,
 //! else tune 5), else `race::game_music_8` (tune 8).
-use crate::race::state_store::RACE_STATE;
 
-pub fn game_music() {
+use crate::race::owner_shared::Shared;
+
+pub fn game_music(shared: &Shared) {
     // Converted: `rc2k_core::race::music::race_tune`.
-    let second: u32 = RACE_STATE.results.finished.get();
+    let second: u32 = shared.state.results.finished.get();
     crate::sound::senders::play_tune(rc2k_core::race::music::race_tune(second));
 }
 

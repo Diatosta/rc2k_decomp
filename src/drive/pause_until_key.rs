@@ -2,14 +2,11 @@
 //! `dword_6235EC` 0x19, five keys taken, the race's sounds stopped (`race::stop_race_sounds`),
 //! `dword_6235E8` 1, the two first blocks' notice 0xCB (+0x71C, +0x730 0, +0x72C -1); the
 //! wait `dword_6235F0` 30, held at 10 or more while the window is not active; each turn a key
-//! taken and the race's frame drawn (`sub_4541BF`, stream A's: through the game); with the
+//! taken and the race's frame drawn (`drive::race_frame`, stream A's: through the game); with the
 //! window active, `input::update` and, the wait over, `race::race_keys` and any key down
 //! but Ctrl, Alt, Tab, F1 .. F10 and F11 ends it. Then the notices cleared, `dword_6235E8`
 //! 0 and the sounds woken (`race::wake_car_sounds`), a key taken, the first block's +0x468
 //! 0.
-//!
-//! In:  nothing
-//! Out: the registers as the steps leave them; no flags read
 //!
 //! Caller: `drive::race_loop`. Refuses what its calls refuse.
 
@@ -17,59 +14,62 @@ use crate::drive::race_parts::{
     input_update, race_frame, race_keys, stop_race_sounds, take_key, wake_car_sounds,
 };
 use crate::errors::Refused;
-use crate::input::store::DEVICES;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::vars_store::RACE_VARS;
-use crate::session::FLAGS;
+use crate::race::owner::Race;
 use rc2k_core::drive::race_ticks;
 
 /// Whether a key ends the pause: any of 1 .. 0x7F but 0x1D, 0x38, 0x0F, 0x3B .. 0x44, 0x57.
-fn any_ending_key() -> u32 {
+fn any_ending_key(input: &crate::input::owner::Input) -> u32 {
     (1..0x80usize)
         .filter(|&k| race_ticks::ends_pause(k))
-        .fold(0u32, |o, k| o | DEVICES.keys_pressed.get(k) as u32)
+        .fold(0u32, |o, k| o | input.devices.keys_pressed.get(k) as u32)
 }
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::race_ticks::{ends_pause, held_wait}`.
 /// The Rust version. The registers it leaves are read by no caller (liveness: nothing
 /// live after `race_loop`'s call).
-pub fn pause_until_key() -> Result<(), Refused> {
-    RACE_VARS.hold_count.set(0x19);
+pub fn pause_until_key(
+    race: &Race,
+    input: &crate::input::owner::Input,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    let shared = &race.shared;
+    shared.vars.hold_count.set(0x19);
     for _ in 0..5 {
         take_key();
     }
     stop_race_sounds()?;
-    RACE_VARS.scene_switch.set(1);
+    shared.vars.scene_switch.set(1);
     for c in 0..2 {
         CAR_BLOCKS.cars[c as usize].notice_id.set_bits(0xCB);
         CAR_BLOCKS.cars[c as usize].notice_time_b.set_bits(0);
         CAR_BLOCKS.cars[c as usize].notice_time.set_bits(u32::MAX);
     }
-    RACE_VARS.pause_wait.set(0x1E);
+    shared.vars.pause_wait.set(0x1E);
     // From 0x4453EE (the wait held) or 0x445401 (a turn).
     let mut hold = true;
     loop {
         if hold {
-            let wait = RACE_VARS.pause_wait.get();
+            let wait = shared.vars.pause_wait.get();
             if race_ticks::held_wait(wait) != wait {
-                RACE_VARS.pause_wait.set(race_ticks::held_wait(wait));
+                shared.vars.pause_wait.set(race_ticks::held_wait(wait));
             }
         }
         take_key();
-        race_frame()?;
-        if FLAGS.window_active.get() == 0 {
+        race_frame(race)?;
+        if system.session.flags.window_active.get() == 0 {
             hold = true;
             continue;
         }
         hold = false;
         input_update();
-        if RACE_VARS.pause_wait.get() != 0 {
-            RACE_VARS.pause_wait.set(RACE_VARS.pause_wait.get() - 1);
+        if shared.vars.pause_wait.get() != 0 {
+            shared.vars.pause_wait.set(shared.vars.pause_wait.get() - 1);
             continue;
         }
-        race_keys()?;
-        if any_ending_key() != 0 {
+        race_keys(race)?;
+        if any_ending_key(input) != 0 {
             break;
         }
     }
@@ -78,8 +78,8 @@ pub fn pause_until_key() -> Result<(), Refused> {
         CAR_BLOCKS.cars[c as usize].notice_id.set_bits(0);
         CAR_BLOCKS.cars[c as usize].notice_last.set_bits(0);
     }
-    RACE_VARS.scene_switch.set(0);
-    wake_car_sounds()?;
+    shared.vars.scene_switch.set(0);
+    wake_car_sounds(race)?;
     take_key();
     CAR_BLOCKS.cars[0].input_keys.set_bits(0);
     Ok(())

@@ -1,17 +1,16 @@
 //! `net::clear_chat` (0x419411): the lobby's chat (`byte_52A508`) made eight empty lines:
 //! seven 0x0A and a NUL.
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`)
 //! Caller: `net::start_link` (with the received messages' lock held).
-
-use crate::net::store::NET;
 
 /// The Rust version.
 pub fn clear_chat() {
     // Converted: `rc2k_core::net::chat::EMPTY`.
-    unsafe {
-        (crate::pointers::host(NET.chat.addr()) as *mut [u8; 8])
-            .write_unaligned(rc2k_core::net::chat::EMPTY)
-    };
+    if let Err(e) = crate::net::owner::NET_OWNER.vars.chat.write_at(
+        0,
+        &rc2k_core::net::chat::EMPTY,
+        "the chat line",
+    ) {
+        crate::fatal::raise::end("the chat line", e)
+    }
 }

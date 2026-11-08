@@ -17,8 +17,8 @@ impl CaseTable {
         }
     }
 
-    /// The language's table (RAL.EXE `sub_4034C2`): ASCII's letters, then `pairs` (the
-    /// language's string 2) as "lower, upper" pairs. An odd length is refused (the original
+    /// The language's table (RAL.EXE `strings::make_case_tables`): ASCII's letters, then `pairs`
+    /// (the language's string 2) as "lower, upper" pairs. An odd length is refused (the original
     /// reads on past the string).
     pub fn for_language(pairs: &[u8]) -> Result<Self, crate::Invalid> {
         if !pairs.len().is_multiple_of(2) {

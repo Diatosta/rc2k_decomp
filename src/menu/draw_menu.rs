@@ -1,29 +1,23 @@
 //! `menu::draw_menu` (0x4746B7): draws a menu, its fixed labels and then its items.
 //!
-//! In:  edi = the menu; ebx, ecx as they come (`draw_menu_items` uses them)
-//! Out: every register preserved
-//! `pusha`, `screens::draw_menu_labels`, `screens::draw_menu_items`, `popa`. Called by
+//! `screens::draw_menu_labels`, then `screens::draw_menu_items`. Called by
 //! `menu::draw_frame` and `menu::frame_callback`, and by the screens with a frame callback of their
-//! own. Refuses what the two functions refuse. Rust callers run its `entry` (`routes.rs`); the
-//! registers above are the original's, for reference.
+//! own. Refuses what the two functions refuse. Rust callers run its `entry` (`routes.rs`).
 
 use crate::errors::Refused;
+use crate::menu::owner::Menus;
 use crate::screens::draw_menu_items::draw_menu_items;
 use crate::screens::draw_menu_labels::draw_menu_labels;
 use crate::text::draw_text::Canvas;
 
 // ---- Rust version ----
 
-/// `menu` (edi in the original); `ebx` and `ecx` are those registers at entry, used as
-/// they come (`screens::draw_menu_items`: the original's reads of what its caller left).
-pub unsafe fn draw_menu(
-    menu: u32,
-    ebx: u32,
-    ecx: u32,
+/// `menu` (edi in the original).
+pub fn draw_menu(
+    menus: &Menus,
+    menu: crate::menu::menus_store::MenuId,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    unsafe {
-        draw_menu_labels(menu, canvas)?;
-        draw_menu_items(menu, ebx, ecx, canvas)
-    }
+    draw_menu_labels(menus, menu, canvas)?;
+    draw_menu_items(menus, menu, canvas)
 }

@@ -1,24 +1,37 @@
 //! The game's file primitives as Rust functions: `files::open_by_mode` (0x402DE8),
 //! `files::read` (0x402E3D), `files::write` (0x402E57), `files::seek` (0x402E75),
-//! `files::handle_size` (0x402EA9), `files::close` (0x402E23), and `sub_402F1C` /
-//! `sub_402F4D` (a file's time read and set, for `files::copy_file`). Each was a few
+//! `files::handle_size` (0x402EA9), `files::close` (0x402E23), and `files::file_time` /
+//! `files::set_file_time` (a file's time read and set, for `files::copy_file`). Each was a few
 //! instructions around one Win32 call; since phase 6 (2026-10-24) they go through
-//! `std::fs::File` on the game's handle (`with_file`), all but `close`, which keeps
-//! `CloseHandle` because the callers read whether it closed (std's drop says nothing).
+//! `std::fs::File` on the game's handle (`with_file`). Since phase 11 a handle is a key in
+//! a table of `File`s (no Win32 handle): `close` takes the file out (whether it was there).
 //! `read_file` and `write_file` have them written out inline; the buffered streams use these.
 
 use crate::errors::BadInput;
-use crate::files::resolve_path::resolve_path_at;
-use crate::files::state::LAST_FILE_PATH;
-use crate::pointers::GamePtr;
+use crate::files::resolve_path::resolve;
+use crate::files::state::set_last_file_path;
+use std::collections::HashMap;
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::os::windows::fs::OpenOptionsExt;
-use std::os::windows::io::{FromRawHandle, IntoRawHandle};
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
-use windows_sys::Win32::Foundation::CloseHandle;
-use windows_sys::Win32::Storage::FileSystem::{
-    CREATE_ALWAYS, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, OPEN_ALWAYS,
-};
+
+/// `CreateFileA`'s access bits and dispositions, as the mode table holds them.
+const GENERIC_READ: u32 = 0x8000_0000;
+const GENERIC_WRITE: u32 = 0x4000_0000;
+const CREATE_NEW: u32 = 1;
+const CREATE_ALWAYS: u32 = 2;
+const OPEN_ALWAYS: u32 = 4;
+
+/// The open files by the game's handle: 0x6000_0000 up in fours (never 0 or
+/// `NO_HANDLE`). Each under its own lock, so threads' files do not wait on each other.
+static FILES: Mutex<Option<HashMap<u32, Arc<Mutex<std::fs::File>>>>> = Mutex::new(None);
+static NEXT_HANDLE: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0x6000_0000);
+
+fn files() -> std::sync::MutexGuard<'static, Option<HashMap<u32, Arc<Mutex<std::fs::File>>>>> {
+    FILES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
 
 /// The file mode table (0x4E06EA in the image, 16 bytes per mode: +0 access, +4 disposition,
 /// +8 share, +12 0): `tests::modes_are_the_games`.
@@ -39,64 +52,76 @@ pub const NO_HANDLE: u32 = u32::MAX;
 /// path afterwards, either way.
 /// Refuses what `resolve_path` refuses and a mode the table does not have.
 /// Opened through `std::fs::OpenOptions` with the table's access, sharing and disposition
-/// (the path's bytes read as Windows-1252, `files::ansi_path`); the handle is the file's
-/// Win32 handle, kept by the game until `close`. One difference: std makes "create or
-/// replace" an open-or-create and a truncation, so a hidden or system file is replaced
-/// where `CREATE_ALWAYS` with normal attributes would fail.
-pub fn open_by_mode(path: *const u8, mode: u32) -> Result<Option<u32>, BadInput> {
-    open_by_mode_at(GamePtr::new(crate::pointers::game_address(path)), mode)
-}
-
-/// `open_by_mode` on a checked address.
-pub fn open_by_mode_at(path: GamePtr, mode: u32) -> Result<Option<u32>, BadInput> {
+/// (the path's bytes read as Windows-1252, `files::host_path`); the handle is the file's
+/// key in `FILES`, kept by the game until `close`. The sharing (others kept out while it is
+/// open) is Windows' own and kept there. One difference: std makes "create or replace" an
+/// open-or-create and a truncation, so a hidden or system file is replaced where
+/// `CREATE_ALWAYS` with normal attributes would fail. `path` without its NUL.
+pub fn open_by_mode(path: &[u8], mode: u32) -> Result<Option<u32>, BadInput> {
     if mode >= MODE_COUNT {
         return Err(BadInput("a file mode past the table"));
     }
-    let resolved = resolve_path_at(path)?;
-    LAST_FILE_PATH.store(resolved.addr(), std::sync::atomic::Ordering::Relaxed);
+    let resolved = resolve(path)?;
+    set_last_file_path(Some(&resolved));
     let [access, disposition, share, _] = MODES[mode as usize];
     let mut options = std::fs::OpenOptions::new();
-    // `write` only lets std accept a creating disposition; the access is the table's.
     options
-        .access_mode(access)
-        .share_mode(share)
-        .attributes(FILE_ATTRIBUTE_NORMAL)
-        .write(true);
+        .read(access & GENERIC_READ != 0)
+        .write(access & GENERIC_WRITE != 0);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_ATTRIBUTE_NORMAL: u32 = 0x80;
+        options.share_mode(share).attributes(FILE_ATTRIBUTE_NORMAL);
+    }
+    #[cfg(not(windows))]
+    let _ = share;
     match disposition {
         CREATE_NEW => options.create_new(true),
         CREATE_ALWAYS => options.create(true).truncate(true),
         OPEN_ALWAYS => options.create(true),
         _ => &mut options, // OPEN_EXISTING
     };
-    let file = options.open(crate::files::ansi_path(resolved)?);
-    Ok(file
-        .ok()
-        .map(|f| crate::pointers::handle_number(f.into_raw_handle())))
+    #[cfg(feature = "remote")]
+    crate::remote::note_open(&resolved);
+    let Ok(file) = options.open(crate::files::host_path(&resolved)) else {
+        return Ok(None);
+    };
+    let handle = NEXT_HANDLE.fetch_add(4, std::sync::atomic::Ordering::Relaxed);
+    files()
+        .get_or_insert_default()
+        .insert(handle, Arc::new(Mutex::new(file)));
+    Ok(Some(handle))
 }
 
-/// The game's handle as a `File` for one call, not closed after it.
-fn with_file<R>(file: u32, f: impl FnOnce(&mut std::fs::File) -> R) -> R {
-    let mut file = std::mem::ManuallyDrop::new(unsafe {
-        std::fs::File::from_raw_handle(crate::pointers::handle(file))
-    });
+/// The game's handle as its `File` for one call; a handle that is none fails the call.
+fn with_file<R>(
+    file: u32,
+    f: impl FnOnce(&mut std::fs::File) -> std::io::Result<R>,
+) -> std::io::Result<R> {
+    let open = files().get_or_insert_default().get(&file).cloned();
+    let Some(open) = open else {
+        return Err(std::io::ErrorKind::NotFound.into());
+    };
+    let mut file = open
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     f(&mut file)
 }
 
-/// (the bytes read, whether the read succeeded): one `ReadFile`. A short read is not a
-/// failure.
-pub fn read(file: u32, buffer: *mut u8, count: u32) -> (u32, bool) {
-    crate::pointers::check_or_end(
-        crate::pointers::game_address(buffer),
-        count as usize,
-        "a file read's buffer",
-    );
-    // SAFETY: `count` bytes inside one live region (checked above).
-    read_slice(file, unsafe {
-        std::slice::from_raw_parts_mut(buffer, count as usize)
-    })
+/// `read_slice` of `N` bytes into a typed buffer: (the bytes read, whether the read
+/// succeeded).
+pub fn read_into<const N: usize>(file: u32, into: &crate::session::Bytes<N>) -> (u32, bool) {
+    let mut bytes = vec![0u8; N];
+    let (got, ok) = read_slice(file, &mut bytes);
+    for (k, &b) in bytes[..got as usize].iter().enumerate() {
+        into.set(k, b);
+    }
+    (got, ok)
 }
 
-/// `read` into a Rust buffer.
+/// (the bytes read, whether the read succeeded): one `ReadFile` into a Rust buffer. A
+/// short read is not a failure.
 pub fn read_slice(file: u32, into: &mut [u8]) -> (u32, bool) {
     match with_file(file, |f| f.read(into)) {
         Ok(n) => (n as u32, true),
@@ -104,40 +129,47 @@ pub fn read_slice(file: u32, into: &mut [u8]) -> (u32, bool) {
     }
 }
 
-/// `read` into the game's memory at `to` (checked); a read that gets more than the memory
-/// holds is refused before anything is written.
-pub fn read_to(file: u32, to: GamePtr, count: u32, what: &str) -> Result<(u32, bool), BadInput> {
+/// `read` into dwords (a typed store's, their bytes in order); what the file does not
+/// reach is kept.
+pub fn read_cells(file: u32, cells: &[crate::session::Dword]) -> (u32, bool) {
+    let mut bytes: Vec<u8> = cells.iter().flat_map(|c| c.get().to_le_bytes()).collect();
+    let got = read_slice(file, &mut bytes);
+    for (c, b) in cells.iter().zip(bytes.as_chunks::<4>().0) {
+        c.set(u32::from_le_bytes(*b));
+    }
+    got
+}
+
+/// `write` from dwords (a typed store's, their bytes in order).
+pub fn write_cells(file: u32, cells: &[crate::session::Dword]) -> (u32, bool) {
+    let bytes: Vec<u8> = cells.iter().flat_map(|c| c.get().to_le_bytes()).collect();
+    write_slice(file, &bytes)
+}
+
+/// `read_to` into a store's field from its first byte (no address between).
+pub fn read_into_store(
+    file: u32,
+    to: &dyn crate::pointers::Store,
+    count: u32,
+) -> Result<(u32, bool), BadInput> {
     let mut bytes = vec![0u8; count as usize];
     let (got, ok) = read_slice(file, &mut bytes);
-    to.write_bytes(&bytes[..got as usize], what)?;
+    to.store(0, &bytes[..got as usize])?;
     Ok((got, ok))
 }
 
-/// `write` from the game's memory at `from` (checked).
-pub fn write_from(
+/// `write_from` the first `count` bytes of a store's field.
+pub fn write_from_store(
     file: u32,
-    from: GamePtr,
+    from: &dyn crate::pointers::Store,
     count: u32,
-    what: &str,
 ) -> Result<(u32, bool), BadInput> {
-    let bytes = from.read_bytes(count as usize, what)?;
+    let mut bytes = vec![0u8; count as usize];
+    from.load(0, &mut bytes)?;
     Ok(write_slice(file, &bytes))
 }
 
-/// (the bytes written, whether all of them were): one `WriteFile`.
-pub fn write(file: u32, buffer: *const u8, count: u32) -> (u32, bool) {
-    crate::pointers::check_or_end(
-        crate::pointers::game_address(buffer),
-        count as usize,
-        "a file write's buffer",
-    );
-    // SAFETY: `count` bytes inside one live region (checked above).
-    write_slice(file, unsafe {
-        std::slice::from_raw_parts(buffer, count as usize)
-    })
-}
-
-/// `write` from a Rust buffer.
+/// (the bytes written, whether all of them were): one `WriteFile`, from a Rust buffer.
 pub fn write_slice(file: u32, from: &[u8]) -> (u32, bool) {
     let count = from.len() as u32;
     match with_file(file, |f| f.write(from)) {
@@ -169,13 +201,13 @@ pub fn handle_size(file: u32) -> Option<u32> {
     (size != u32::MAX).then_some(size)
 }
 
-/// `sub_402F1C`: the file's last write time as DOS date << 16 | time, or None.
+/// `files::file_time`: the file's last write time as DOS date << 16 | time, or None.
 pub fn file_time(file: u32) -> Option<u32> {
     let modified = with_file(file, |f| f.metadata().and_then(|m| m.modified())).ok()?;
     rc2k_core::files::dos_time::from_ticks(ticks_of(modified)?)
 }
 
-/// `sub_402F4D`: a DOS date << 16 | time put on the file as its last access and write
+/// `files::set_file_time`: a DOS date << 16 | time put on the file as its last access and write
 /// time; whether it worked (not for fields that are not a time).
 pub fn set_file_time(file: u32, dos: u32) -> bool {
     let Some(time) = rc2k_core::files::dos_time::to_ticks(dos).and_then(time_of) else {
@@ -208,38 +240,38 @@ fn time_of(ticks: u64) -> Option<SystemTime> {
     }
 }
 
-/// Whether the handle was closed. `g_lastFilePath` is 0 afterwards.
+/// Whether the handle was closed. `g_lastFilePath` is none afterwards.
 pub fn close(file: u32) -> bool {
-    LAST_FILE_PATH.store(0, std::sync::atomic::Ordering::Relaxed);
-    // SAFETY: closing a handle the game owns; a bad handle only makes it answer false.
-    unsafe { CloseHandle(crate::pointers::handle(file)) != 0 }
+    set_last_file_path(None);
+    files().get_or_insert_default().remove(&file).is_some()
 }
 
 /// The game's file primitives as the core's file system: paths are the game's (a path's
-/// resolving refuses, `g_lastFilePath` set as the original sets it), handles Win32's.
-pub struct GameFiles(());
+/// resolving refuses, `g_lastFilePath` set as the original sets it), handles `FILES`'. A
+/// path is its bytes without a NUL.
+pub struct GameFiles<'a>(std::marker::PhantomData<&'a [u8]>);
 
-impl GameFiles {
+impl GameFiles<'_> {
     pub fn new() -> Self {
-        GameFiles(())
+        GameFiles(std::marker::PhantomData)
     }
 }
 
-impl rc2k_core::files::io::Files for GameFiles {
-    type Path = GamePtr;
+impl<'a> rc2k_core::files::io::Files for GameFiles<'a> {
+    type Path = &'a [u8];
     type Handle = u32;
 
-    fn check(&mut self, path: GamePtr) -> Result<(), rc2k_core::Invalid> {
-        resolve_path_at(path)
+    fn check(&mut self, path: &'a [u8]) -> Result<(), rc2k_core::Invalid> {
+        resolve(path)
             .map(|_| ())
             .map_err(|e| rc2k_core::Invalid(e.0))
     }
     fn open(
         &mut self,
-        path: GamePtr,
+        path: &'a [u8],
         mode: rc2k_core::files::io::Mode,
     ) -> Result<Option<u32>, rc2k_core::Invalid> {
-        open_by_mode_at(path, mode as u32).map_err(|e| rc2k_core::Invalid(e.0))
+        open_by_mode(path, mode as u32).map_err(|e| rc2k_core::Invalid(e.0))
     }
     fn read(&mut self, file: u32, into: &mut [u8]) -> (u32, bool) {
         read_slice(file, into)

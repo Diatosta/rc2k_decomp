@@ -1,14 +1,14 @@
-//! The installer that `RAL.EXE` also is (`sub_412DE0` and its tree, read 2026-10-19): the
-//! variables its parts share, the calls they make, the functions its tables hold, the Win32
-//! calls (`Api`).
+//! The installer that `RAL.EXE` also is (`install::run_installer` and its tree, read 2026-10-19):
+//! the variables its parts share, the calls they make, the functions its tables hold (its
+//! registry calls: `install::read_registry::Registry`).
 //!
 //! The installer runs only with its script set up (`-i`, `-u`, `-p`, or the update and Clio
 //! discs: `install::check_at_start`, `check_clio_disc`). Its pages are list menus
-//! (`sub_4144CF`): a list of 0x18 bytes (+0 flags, +1 items, +2 title, +4 the item chosen,
+//! (`install::run_page`): a list of 0x18 bytes (+0 flags, +1 items, +2 title, +4 the item chosen,
 //! +8 the list's action with the state 0 at the start, 1 after a key, -1 at the end, +0x10
 //! the neighbours for `menu::list_step`, +0x14 a key action) and its items of 0x10 bytes
 //! from +0x18 (+0 kind and marks, +1 the next list or the choices, +2 the text, +8 and +0xC
-//! the kind's pointers). `sub_4144AA` goes from list to list by the answer.
+//! the kind's pointers). `install::run_pages` goes from list to list by the answer.
 //!
 //! Conversion phase 3 (2026-10-23): the parts call each other and the game's other
 //! functions directly with typed arguments; the functions the tables hold (by address in
@@ -16,12 +16,9 @@
 //! and `draw_action`, each knowing the functions the game's tables put in that place.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::game_addr;
-use crate::pointers::GamePtr;
-use crate::session::FLAGS;
-
-/// A Win32 call by the address of its import the arguments in, eax out.
-pub type Api<'a> = &'a mut dyn FnMut(u32, &[u32]) -> u32;
+use crate::menu::list_handle::ListMenu;
+use crate::place::Place;
+use crate::system::owner::system;
 
 // ---- the variables (IDA addresses) ----
 
@@ -32,6 +29,7 @@ pub const TEXTS_LEN: usize = 0x18;
 
 /// The texts the installer (and `files::resolve_path`) use.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct InstallTexts {
     /// `unk_5295B4`: base directory B, an empty text.
     pub base_b: crate::session::Bytes<1>,
@@ -48,29 +46,28 @@ pub struct InstallTexts {
 }
 
 /// The installer's texts; the first values are the image's.
-pub static INSTALL_TEXTS: InstallTexts = InstallTexts {
-    base_b: crate::session::Bytes::new(*b"\0"),
-    other_dir: crate::session::Bytes::new(*b"\\\0"),
-    dot: crate::session::Bytes::new(*b".\0"),
-    dotdot: crate::session::Bytes::new(*b"..\0"),
-    star: crate::session::Bytes::new(*b"*.*\0"),
-    record_path: crate::session::Bytes::new(*b"var\\ral.zog\0"),
-};
-
-/// Where the texts are (`moved::MOVED`'s home for IDA 0x5295B4).
-pub fn texts_home() -> usize {
-    crate::pointers::game_address(&INSTALL_TEXTS as *const InstallTexts) as usize
+impl InstallTexts {
+    pub const fn new() -> Self {
+        InstallTexts {
+            base_b: crate::session::Bytes::new(*b"\0"),
+            other_dir: crate::session::Bytes::new(*b"\\\0"),
+            dot: crate::session::Bytes::new(*b".\0"),
+            dotdot: crate::session::Bytes::new(*b"..\0"),
+            star: crate::session::Bytes::new(*b"*.*\0"),
+            record_path: crate::session::Bytes::new(*b"var\\ral.zog\0"),
+        }
+    }
 }
 
 // g_baseDirectory, g_localeDirectory: `files::state::{base_directory, locale_directory}`
 
 /// g_mediaMode (`files::state::MEDIA_MODE`).
 pub fn media_mode() -> u32 {
-    crate::files::state::MEDIA_MODE.load(std::sync::atomic::Ordering::Relaxed)
+    crate::files::state::MEDIA_MODE.get()
 }
 
 pub fn set_media_mode(mode: u32) {
-    crate::files::state::MEDIA_MODE.store(mode, std::sync::atomic::Ordering::Relaxed)
+    crate::files::state::MEDIA_MODE.set(mode);
 }
 // dword_51B9CC (-u)
 // g_removeStartItems
@@ -91,164 +88,146 @@ pub fn refuse(e: crate::errors::BadInput) -> ! {
     crate::fatal::raise::end("install", e)
 }
 
-pub fn rb(at: u32) -> u8 {
-    GamePtr::new(at)
-        .read::<u8>("an installer byte")
-        .unwrap_or_else(|e| refuse(e))
+pub fn rb(at: impl Into<Place>) -> u8 {
+    at.into()
+        .read(1, "an installer byte")
+        .unwrap_or_else(|e| refuse(e))[0]
 }
 
-pub fn wb(at: u32, v: u8) {
-    GamePtr::new(at)
-        .write(v, "an installer byte")
-        .unwrap_or_else(|e| refuse(e))
+pub fn wb(at: impl Into<Place>, v: u8) {
+    at.into()
+        .write(&[v], "an installer byte")
+        .unwrap_or_else(|e| refuse(e));
 }
 
-pub fn rw(at: u32) -> u16 {
-    GamePtr::new(at)
-        .read::<u16>("an installer word")
-        .unwrap_or_else(|e| refuse(e))
+pub fn rw(at: impl Into<Place>) -> u16 {
+    let b = at
+        .into()
+        .read(2, "an installer word")
+        .unwrap_or_else(|e| refuse(e));
+    u16::from_le_bytes([b[0], b[1]])
 }
 
-pub fn ww(at: u32, v: u16) {
-    GamePtr::new(at)
-        .write(v, "an installer word")
-        .unwrap_or_else(|e| refuse(e))
+pub fn ww(at: impl Into<Place>, v: u16) {
+    at.into()
+        .write(&v.to_le_bytes(), "an installer word")
+        .unwrap_or_else(|e| refuse(e));
 }
 
-pub fn rd(at: u32) -> u32 {
-    GamePtr::new(at)
-        .read::<u32>("an installer dword")
-        .unwrap_or_else(|e| refuse(e))
+pub fn rd(at: impl Into<Place>) -> u32 {
+    let b = at
+        .into()
+        .read(4, "an installer dword")
+        .unwrap_or_else(|e| refuse(e));
+    u32::from_le_bytes([b[0], b[1], b[2], b[3]])
 }
 
-pub fn wd(at: u32, v: u32) {
-    GamePtr::new(at)
-        .write(v, "an installer dword")
-        .unwrap_or_else(|e| refuse(e))
+/// The link (`page_links::PageLink`) the dword at `at` holds.
+pub fn rl(at: impl Into<Place>) -> crate::install::page_links::PageLink {
+    crate::install::page_links::PageLink::from_raw(rd(at))
+}
+
+pub fn wd(at: impl Into<Place>, v: u32) {
+    at.into()
+        .write(&v.to_le_bytes(), "an installer dword")
+        .unwrap_or_else(|e| refuse(e));
 }
 
 pub fn fatal(code: u32) -> Refused {
     FatalError { code, message: "" }.into()
 }
 
-/// The IDA address of a game address (for the dispatchers).
-fn ida_of(place: u32) -> usize {
-    (place as usize)
-        .wrapping_sub(game_addr(0) as usize)
-        .wrapping_add(0x40_0000)
-}
-
 // ---- pure text work ----
 
-/// `strings::str_append`: `text` appended at `cursor`; the cursor past it.
-pub fn str_append(text: u32, cursor: u32) -> u32 {
-    crate::pointers::game_address(crate::menu::event_flow::refuse_here(
-        crate::strings::str_append::str_append(
-            crate::pointers::host(text) as *const u8,
-            crate::pointers::host(cursor),
-        ),
-        "install::installer: a text",
-    ))
+/// The NUL-ended text at `place` (a refused read ends the installer, as every wrapper here).
+pub fn text_at(place: impl Into<Place>) -> Vec<u8> {
+    place
+        .into()
+        .text("an installer text")
+        .unwrap_or_else(|e| refuse(e))
 }
 
-/// `strings::str_append_indexed`: text `index` of `table` appended at `cursor`.
-pub fn str_append_indexed(table: u32, index: u32, cursor: u32) -> u32 {
-    crate::pointers::game_address(crate::menu::event_flow::refuse_here(
-        crate::strings::str_append_indexed::str_append_indexed(
-            crate::pointers::host(table) as *const u8,
-            index as i32,
-            crate::pointers::host(cursor),
-        ),
-        "install::installer: a string list",
-    ))
+/// `bytes`, the whole text a builder made (its NULs too), written at `at`.
+pub fn store_text(at: impl Into<Place>, bytes: &[u8]) {
+    at.into()
+        .write(bytes, "an installer text")
+        .unwrap_or_else(|e| refuse(e));
 }
 
-/// `strings::append_nul` and the other one-byte cursor helpers.
-pub fn append_byte(cursor: u32, b: u8) -> u32 {
-    wb(cursor, b);
-    cursor.wrapping_add(1)
-}
-
-/// `strings::append_string_by_id`: string `id` appended at `cursor`; the cursor past it.
-pub fn append_string_by_id(id: u32, cursor: u32) -> u32 {
-    let mut text = Vec::new();
-    let written = crate::strings::append_string_by_id::push_string(&mut text, id)
-        .and_then(|()| crate::pointers::GamePtr::new(cursor).write_bytes(&text, "a text"));
-    crate::menu::event_flow::refuse_here(written, "install::installer: a string");
-    cursor.wrapping_add(text.len() as u32)
+/// `strings::append_string_by_id`: string `id` appended to `out`.
+pub fn push_string_by_id(out: &mut Vec<u8>, id: u32) {
+    let pushed = crate::strings::append_string_by_id::push_string(out, id);
+    crate::menu::event_flow::refuse_here(pushed, "install::installer: a string");
 }
 
 // ---- the game's other functions the installer calls ----
 
+/// A path place read as text (a refused read ends the installer, as every wrapper here).
+fn path_text(path: impl Into<Place>) -> Vec<u8> {
+    path.into().text("a path").unwrap_or_else(|e| refuse(e))
+}
+
 /// `files::set_current_directory` (0x403105): whether it worked.
-pub fn set_cd(path: u32) -> bool {
-    crate::files::directories::set_current_directory(crate::pointers::host(path) as *const u8)
-        .unwrap_or_else(|e| refuse(e))
-        != 0
+pub fn set_cd(path: impl Into<Place>) -> bool {
+    crate::files::directories::set_current_directory(&path_text(path))
 }
 
 /// `files::make_directory` (0x403113): whether it worked.
-pub fn make_dir(path: u32) -> bool {
-    crate::files::directories::make_directory(crate::pointers::host(path) as *const u8)
-        .unwrap_or_else(|e| refuse(e))
-        != 0
+pub fn make_dir(path: impl Into<Place>) -> bool {
+    crate::files::directories::make_directory(&path_text(path))
 }
 
-/// `sub_403123` (remove a directory): whether it worked.
-pub fn remove_dir(path: u32) -> bool {
-    crate::files::directories::remove_directory(crate::pointers::host(path) as *const u8)
-        .unwrap_or_else(|e| refuse(e))
-        != 0
+/// `files::remove_directory` (remove a directory): whether it worked.
+pub fn remove_dir(path: impl Into<Place>) -> bool {
+    crate::files::directories::remove_directory(&path_text(path))
 }
 
 /// `files::delete_file` (0x402E8C): whether it worked.
-pub fn delete_file(path: u32) -> bool {
-    crate::files::directories::delete_file(crate::pointers::host(path) as *const u8)
-        .unwrap_or_else(|e| refuse(e))
-        != 0
+pub fn delete_file(path: impl Into<Place>) -> bool {
+    crate::files::directories::delete_file(&path_text(path))
 }
 
 /// `install::normalise_path` (0x4139EC): `path` written at `to`; whether it was.
-pub fn normalise(path: u32, to: u32) -> Result<bool, Refused> {
+pub fn normalise(path: impl Into<Place>, to: impl Into<Place>) -> Result<bool, Refused> {
     Ok(crate::install::normalise_path::normalise_path(
-        crate::pointers::host(path) as *const u8,
-        crate::pointers::host(to),
+        path.into(),
+        to.into(),
     )?)
 }
 
 /// `files::copy_file` (0x402C28): whether it worked.
-pub fn copy_file(from: u32, to: u32) -> Result<bool, Refused> {
+pub fn copy_file(from: impl Into<Place>, to: impl Into<Place>) -> Result<bool, Refused> {
     Ok(crate::files::copy_file::copy_file(
-        crate::pointers::host(from) as *const u8,
-        crate::pointers::host(to) as *const u8,
+        &from.into().text("a file to copy")?,
+        &to.into().text("a copy's path")?,
     )?)
 }
 
-/// `files::resolve_path` (0x403206): the path the game opens.
-pub fn resolve_path(path: u32) -> Result<u32, Refused> {
-    Ok(crate::pointers::game_address(
-        crate::files::resolve_path::resolve_path_in_game(crate::pointers::host(path) as *const u8)?,
-    ))
+/// `files::resolve_path` (0x403206): the path the game opens (without its NUL).
+pub fn resolve_path(path: impl Into<Place>) -> Result<Vec<u8>, Refused> {
+    Ok(crate::files::resolve_path::resolve(
+        &path.into().text("a path")?,
+    )?)
 }
 
 /// `files::find_first` (0x402FC2): whether a file was found.
-pub fn find_first(pattern: u32) -> bool {
-    unsafe { crate::race::find_snapshot_number::find_first(pattern) }
+pub fn find_first(pattern: &[u8]) -> bool {
+    crate::race::find_snapshot_number::find_first(pattern)
 }
 
 /// `files::find_next_wanted` (0x402FF6): whether a file was found.
 pub fn find_next() -> bool {
-    unsafe { crate::race::find_snapshot_number::find_next_wanted() }
+    crate::race::find_snapshot_number::find_next_wanted()
 }
 
 /// `files::close_search` (0x40301F).
 pub fn close_search() {
-    unsafe { crate::race::find_snapshot_number::close_search() }
+    crate::files::search::close();
 }
 
 /// `system::sleep` (0x41100C).
 pub fn sleep(milliseconds: u32) {
-    crate::system::sleep::sleep(milliseconds)
+    crate::system::sleep::sleep(milliseconds);
 }
 
 /// `input::take_key` (0x407F95): the pending key (0: none).
@@ -274,7 +253,7 @@ pub fn show() -> bool {
 
 /// `system::pump_messages` (0x410535).
 pub fn pump() {
-    crate::platform::pump_messages_now()
+    crate::platform::pump_messages_now();
 }
 
 /// A frame of the installer's for `screens::run_frame`: its carry.
@@ -286,7 +265,7 @@ pub fn run_frame(frame: Option<Frame>) -> Result<bool, Refused> {
     // The platform's run_frame with no frame of its own: the window's messages only.
     crate::platform::run_frame_now(|| ());
     match frame {
-        Some(frame) if FLAGS.quitting.get() != 1 => frame(),
+        Some(frame) if system().session.flags.quitting.get() != 1 => frame(),
         _ => Ok(false),
     }
 }
@@ -302,61 +281,63 @@ pub fn copy_picture() -> Result<(), Refused> {
 }
 
 /// `text::draw_string_by_id` (0x40234A): string `id` in `font` at (x, y).
-pub fn draw_string(id: u32, font: u32, x: u32, y: u32) -> Result<(), Refused> {
+pub fn draw_string(
+    id: u32,
+    font: crate::gfx::typefaces::FontId,
+    x: u32,
+    y: u32,
+) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
-    unsafe {
-        crate::text::draw_string_by_id::draw_string_by_id_at(
-            id,
-            crate::pointers::host(font) as *mut crate::text::font::Font,
-            x as i32,
-            y as i32,
-            &mut GameCanvas,
-        )
-    }?;
+    crate::text::draw_string_by_id::draw_string_by_id_at(
+        id,
+        font,
+        x as i32,
+        y as i32,
+        &mut GameCanvas,
+    )?;
     Ok(())
 }
 
 /// `text::draw_text` (0x4023D5): `text` in `font` at (x, y); the font object written back
 /// when the drawing changed it.
-pub fn draw_text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
+pub fn draw_text(
+    font: crate::gfx::typefaces::FontId,
+    text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
+    x: u32,
+    y: u32,
+) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
-    use crate::text::font::Font;
-    let at = crate::pointers::GamePtr::new(font);
-    let mut copy = at.read::<Font>("a font object")?;
-    crate::text::draw_text::draw_text(
-        &mut copy,
-        crate::pointers::host(text) as *const u8,
-        x as i32,
-        y as i32,
-        &mut GameCanvas,
-    )?;
-    if copy != at.read::<Font>("a font object")? {
-        at.write(copy, "a font object")?;
+    let at = font.object();
+    let mut copy = at.get();
+    crate::text::draw_text::draw_text(&mut copy, text, x as i32, y as i32, &mut GameCanvas)?;
+    if copy != at.get() {
+        at.set(copy);
     }
     Ok(())
 }
 
 /// `text::measure_text` (0x40230B), ecx `x`: (the widest line, the last line's y).
-pub fn measure_text(font: u32, text: u32, x: u32) -> Result<(u32, u32), Refused> {
+pub fn measure_text(
+    font: crate::gfx::typefaces::FontId,
+    text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
+    x: u32,
+) -> Result<(u32, u32), Refused> {
     use crate::text::draw_text::GameCanvas;
-    let m = {
-        crate::text::measure_text::measure_text_at(
-            crate::pointers::host(font) as *mut crate::text::font::Font,
-            crate::pointers::host(text) as *const u8,
-            x as i32,
-            &mut GameCanvas,
-        )
-    }?;
+    let m = { crate::text::measure_text::measure_text_at(font, text, x as i32, &mut GameCanvas) }?;
     Ok((m.width, m.outcome.y as u32))
 }
 
 /// `text::measure_string_by_id` (0x40232C), ecx `x`: (the widest line, the last line's y).
-pub fn measure_string(id: u32, font: u32, x: u32) -> Result<(u32, u32), Refused> {
+pub fn measure_string(
+    id: u32,
+    font: crate::gfx::typefaces::FontId,
+    x: u32,
+) -> Result<(u32, u32), Refused> {
     use crate::text::draw_text::GameCanvas;
-    let m = unsafe {
+    let m = {
         crate::text::measure_string_by_id::measure_string_by_id_at(
             id,
-            crate::pointers::host(font) as *mut crate::text::font::Font,
+            font,
             x as i32,
             &mut GameCanvas,
         )
@@ -365,45 +346,51 @@ pub fn measure_string(id: u32, font: u32, x: u32) -> Result<(u32, u32), Refused>
 }
 
 /// `gfx::components_to_pixels` (0x405E02): 0x100 colours of `from` made pixels of the
-/// format `format` into `to`.
-pub unsafe fn components_to_pixels(from: u32, to: u32, format: u32) {
-    let format = unsafe {
-        &*(crate::pointers::host(format) as *const crate::gfx::pixel_format::PixelFormat)
-    };
-    for n in 0..0x100u32 {
-        let components = rd(from + 4 * n);
-        let pixel = crate::gfx::components_to_pixel::components_to_pixel(format, components);
-        wd(to + 4 * n, pixel);
+/// surface's format into `to`.
+pub fn components_to_pixels(
+    from: &[crate::session::Dword; 256],
+    to: &[crate::session::Dword; 256],
+) {
+    let what = "a pixel format";
+    let format = crate::gfx::pixel_format::surface_format()
+        .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
+    for (from, to) in from.iter().zip(to) {
+        to.set(crate::gfx::components_to_pixel::components_to_pixel(
+            &format,
+            from.get(),
+        ));
     }
 }
 
 /// `strings::load_language` (0x40331F).
 pub fn load_language() -> Result<(), Refused> {
-    unsafe {
-        crate::strings::load_language::load_language(&mut || {
-            crate::strings::compile_lexicon::compile_lexicon()
-        })
-    }
+    crate::strings::load_language::load_language(&mut || {
+        crate::strings::compile_lexicon::compile_lexicon()
+    })
 }
 
 /// `menu::list_take_key` (0x41469A): the key (0: none).
 pub fn list_take_key() -> Result<u8, Refused> {
-    Ok(crate::menu::list_take_key::list_take_key().key)
+    Ok(crate::menu::list_take_key::list_take_key())
 }
 
 /// `menu::list_step` (0x414A55): `key` moving the highlight of `list` by the neighbours
 /// table `table`; whether it moved (the original's zero).
-pub fn list_step(key: u32, table: u32, list: u32) -> Result<bool, crate::errors::BadInput> {
-    Ok(crate::menu::list_step::list_step(key as u8, table, list)?.zero)
+pub fn list_step(
+    key: u32,
+    table: Option<crate::pointers::GamePtr>,
+    list: ListMenu,
+) -> Result<bool, crate::errors::BadInput> {
+    crate::menu::list_step::list_step(key as u8, table, list)
 }
 
 /// `menu::list_clear_marks` (0x414AC9).
-pub fn list_clear_marks(list: u32) -> Result<(), crate::errors::BadInput> {
-    crate::menu::list_clear_marks::list_clear_marks(list)
+pub fn list_clear_marks(list: ListMenu) {
+    crate::menu::list_clear_marks::list_clear_marks(list);
 }
 
 /// `menu::list_item_unusable` (0x414C1B): whether the highlighted item cannot be chosen.
-pub fn list_item_unusable(list: u32) -> Result<bool, crate::errors::BadInput> {
+pub fn list_item_unusable(list: ListMenu) -> bool {
     crate::menu::list_item_unusable::list_item_unusable(list)
 }
 
@@ -422,42 +409,55 @@ pub fn logged(what: &str, done: Result<(), Refused>) -> Result<(), Refused> {
 /// -1 at the end). The game's lists hold the pages' actions and, in lists of nothing else
 /// (flags 0x40), the install, the uninstall, the installed copy's start (or the Clio
 /// disc's install) and the registration.
-pub fn page_action(place: u32, state: u32, list: u32) -> Result<(), Refused> {
+pub fn page_action(
+    install: &'static crate::install::owner::Install,
+    place: u32,
+    state: u32,
+    list: ListMenu,
+) -> Result<(), Refused> {
     use crate::install as i;
-    match ida_of(place) {
-        0x414199 => i::language_page::language_page(state, list)?,
-        0x4141EF => i::mark_main_page::mark_main_page(list),
-        0x41422B => i::mode_page::mode_page(state),
-        0x41425E => i::drive_page::drive_page(state, list),
-        0x4142C7 => i::room_page::room_page(state),
-        0x4142F5 => i::folder_page::folder_page(state, list),
-        0x41432F => i::dxsetup_page::dxsetup_page(state),
-        0x414347 => i::finish_page::finish_page(state),
-        0x4130CD => logged("install", i::install_files::install_files())?,
-        0x4134DF => logged("uninstall", i::uninstall::uninstall())?,
-        0x413629 => i::open_installed::open_installed()?,
-        0x413650 => i::ask_registration::ask_registration(),
-        0x41675B => i::install_clio::install_clio()?,
+    match place {
+        0x414199 => i::language_page::language_page(install, state, list)?,
+        0x4141EF => i::mark_main_page::mark_main_page(install, list),
+        0x41422B => i::mode_page::mode_page(install, state),
+        0x41425E => i::drive_page::drive_page(install, state, list),
+        0x4142C7 => i::room_page::room_page(install, state),
+        0x4142F5 => i::folder_page::folder_page(install, state, list),
+        0x41432F => i::dxsetup_page::dxsetup_page(install, state),
+        0x414347 => i::finish_page::finish_page(install, state),
+        0x4130CD => logged("install", i::install_files::install_files(install))?,
+        0x4134DF => logged("uninstall", i::uninstall::uninstall(install))?,
+        0x413629 => i::open_installed::open_installed(install)?,
+        0x413650 => i::ask_registration::ask_registration(install),
+        0x41675B => i::install_clio::install_clio(install)?,
         _ => return Err(BadInput("a list action that is not one of the installer's").into()),
     }
     Ok(())
 }
 
-/// A list's key action (+0x14): `key` (eax: al the key, ah its bits); whether it took the
+/// A list's key action (+0x14): `key`; whether it took the
 /// key (the original's zero). The game's lists hold only the folder page's.
-pub fn key_action(place: u32, key: u32, list: u32) -> Result<bool, Refused> {
-    match ida_of(place) {
-        0x41534E => Ok(crate::install::folder_key::folder_key(key, list)),
+pub fn key_action(
+    install: &'static crate::install::owner::Install,
+    place: u32,
+    key: u32,
+    list: ListMenu,
+) -> Result<bool, Refused> {
+    match place {
+        0x41534E => Ok(crate::install::folder_key::folder_key(install, key, list)),
         _ => Err(BadInput("a key action that is not one of the installer's").into()),
     }
 }
 
 /// A link's or an action item's action (+8); the original's zero after it. The game's items
 /// hold only the not-enough-room page's "go on anyway".
-pub fn item_action_at(place: u32) -> Result<bool, Refused> {
-    match ida_of(place) {
+pub fn item_action_at(
+    install: &'static crate::install::owner::Install,
+    place: u32,
+) -> Result<bool, Refused> {
+    match place {
         0x4142DA => {
-            crate::install::ignore_room::ignore_room();
+            crate::install::ignore_room::ignore_room(install);
             Ok(true)
         }
         _ => Err(BadInput("an item action that is not one of the installer's").into()),
@@ -466,9 +466,12 @@ pub fn item_action_at(place: u32) -> Result<bool, Refused> {
 
 /// A text item's action (+0xC), eax its +8: more text at `cursor`; the cursor after. The
 /// game's items hold only `install::end_text_line`.
-pub fn text_action(place: u32, cursor: u32) -> Result<u32, Refused> {
-    match ida_of(place) {
-        0x415304 => Ok(crate::install::end_text_line::end_text_line(cursor)),
+pub fn text_action(place: u32, out: &mut Vec<u8>) -> Result<(), Refused> {
+    match place {
+        0x415304 => {
+            crate::install::end_text_line::end_text_line(out);
+            Ok(())
+        }
         _ => Err(BadInput("a text action that is not one of the installer's").into()),
     }
 }
@@ -478,55 +481,6 @@ pub fn draw_action(_place: u32) -> Result<(), Refused> {
     Err(BadInput("an action item's drawing (the game's lists have none)").into())
 }
 
-// ---- Win32 by import ----
-
-pub const REG_CREATE_KEY: u32 = 0x4D7CA4; // RegCreateKeyA (3)
-pub const REG_SET_VALUE: u32 = 0x4D7CB6; // RegSetValueExA (6)
-pub const REG_CLOSE_KEY: u32 = 0x4D7CB0; // RegCloseKey (1)
-pub const REG_DELETE_KEY: u32 = 0x4D7C98; // RegDeleteKeyA (2)
-pub const GET_DISK_FREE: u32 = 0x4D5D2E; // GetDiskFreeSpaceA (5)
-
-/// The installer's Win32 calls in the game: the platform's, made from Rust. The DirectPlay
-/// registry key, the disk-free query and the registration-record registry values; the DDE
-/// to the Program Manager and `CreateProcess` stay the game's (`install::run_after_exit`).
-pub fn game_api(place: u32, x: &[u32]) -> u32 {
-    use windows_sys::Win32::System::Registry as reg;
-    // The standalone is portable: no registry (`install::portable`).
-    if let Some(answer) = crate::install::portable::api(place, x) {
-        return answer;
-    }
-    unsafe {
-        match place {
-            REG_CREATE_KEY => reg::RegCreateKeyA(
-                crate::pointers::host(x[0]) as _,
-                crate::pointers::host(x[1]) as _,
-                crate::pointers::host(x[2]) as _,
-            ) as u32,
-            REG_SET_VALUE => reg::RegSetValueExA(
-                crate::pointers::host(x[0]) as _,
-                crate::pointers::host(x[1]) as _,
-                x[2],
-                x[3],
-                crate::pointers::host(x[4]) as _,
-                x[5],
-            ) as u32,
-            REG_CLOSE_KEY => reg::RegCloseKey(crate::pointers::host(x[0]) as _) as u32,
-            REG_DELETE_KEY => reg::RegDeleteKeyA(
-                crate::pointers::host(x[0]) as _,
-                crate::pointers::host(x[1]) as _,
-            ) as u32,
-            GET_DISK_FREE => windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceA(
-                crate::pointers::host(x[0]) as _,
-                crate::pointers::host(x[1]) as _,
-                crate::pointers::host(x[2]) as _,
-                crate::pointers::host(x[3]) as _,
-                crate::pointers::host(x[4]) as _,
-            ) as u32,
-            _ => 0,
-        }
-    }
-}
-
 #[cfg(test)]
 mod text_tests {
     use super::*;
@@ -534,17 +488,17 @@ mod text_tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(
-            &INSTALL_TEXTS,
+            &crate::install::owner::install().texts,
             TEXTS_START,
             TEXTS_START + TEXTS_LEN,
         );
         assert_eq!(
             crate::moved::place(TEXTS_START),
-            INSTALL_TEXTS.base_b.addr() as usize
+            crate::install::owner::install().texts.base_b.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x5295C0),
-            INSTALL_TEXTS.record_path.addr() as usize
+            crate::install::owner::install().texts.record_path.addr() as usize
         );
     }
 }

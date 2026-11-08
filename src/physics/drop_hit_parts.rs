@@ -5,9 +5,6 @@
 //! timer 256) and it ends there; a bit of +0x298 already clear ends it too. A reading:
 //! hit parts coming off.
 //!
-//! In:  nothing
-//! Out: as the calls leave them; no flags read (the caller calls on)
-//!
 //! Caller: `physics::hit_part_checks`. Refuses what `fill_slot_on_bit` refuses; what was
 //! written is put back.
 //!
@@ -16,9 +13,8 @@
 
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::physics::car_store::CAR;
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit;
-use crate::race::numbers_store::NUMBERS;
+use crate::race::owner::Race;
 use rc2k_core::physics::parts::{self, DROP_TESTS, Hit, HitTest};
 
 /// The four tests' timers.
@@ -27,30 +23,36 @@ pub type Timers = [crate::session::Float; 4];
 /// The shared steps (`rc2k_core::physics::parts::hit_tests`): `act` the bit's step (with
 /// the bit, the original's ecx). The registers left are read by none of the callers.
 pub fn hit_tests(
+    race: &Race,
     tests: &[HitTest; 4],
     timers: &Timers,
     act: &mut dyn FnMut(u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let word = CAR.noise_word.get();
+    let word = race.shared.car.noise_word.get();
     let (_, hit) = parts::hit_tests(
         tests,
         word,
         |k| timers[k].get(),
-        || f32::from_bits(NUMBERS.hundred.bits()),
-        || CAR.parts_present.get(),
+        || f32::from_bits(race.course.numbers.hundred.bits()),
+        || race.shared.car.parts_present.get(),
     );
     if let Hit::Act(k) = hit {
         act(tests[k].1)?;
-        timers[k].set_bits(x87::loaded(NUMBERS.k256.bits()));
+        timers[k].set_bits(x87::loaded(race.course.numbers.k256.bits()));
     }
     Ok(())
 }
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::parts::{hit_tests, DROP_TESTS}`.
-pub fn drop_hit_parts() -> Result<(), Refused> {
-    if CAR.car_kind.get() >= 0x17 {
+pub fn drop_hit_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    if race.shared.car.car_kind.get() >= 0x17 {
         return Ok(());
     }
-    hit_tests(&DROP_TESTS, &CAR.wheel_hit_damage, &mut fill_slot_on_bit)
+    hit_tests(
+        race,
+        &DROP_TESTS,
+        &race.shared.car.wheel_hit_damage,
+        &mut |bit| fill_slot_on_bit(race, bit, scene),
+    )
 }

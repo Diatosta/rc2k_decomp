@@ -2,18 +2,16 @@
 //! (`net::show_background`) and "stopping" shown (string 0x157, as `net::connecting` shows
 //! its); then the network stopped (`net::stop`).
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`)
 //! Caller: `net::start_link`.
 
 use crate::errors::Refused;
-use crate::net::store::NET;
+use crate::net::store::NetVars;
 
 /// The Rust version.
-pub fn stopping() -> Result<(), Refused> {
-    if NET.session.get() == 1 {
-        crate::net::show_background::show_background()?;
+pub fn stopping(vars: &NetVars) -> Result<(), Refused> {
+    if vars.session.get() == 1 {
+        crate::net::show_background::show_background(vars)?;
         crate::net::connecting::status(0x157)?;
     }
-    crate::net::stop::stop()
+    crate::net::stop::stop(vars)
 }

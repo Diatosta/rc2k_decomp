@@ -6,38 +6,32 @@
 //! (`g_listChoice - 2`, if not below 0, times 0x10 into the texts), `byte_95EBF9` ':' and
 //! `dword_51BA00` 0.
 //!
-//! In:  ebx the state, edi the list
-//! Out: eax, ecx, edx as the original leaves them; esi kept; the flags of the end's `jb`
+//! Takes the state, list.
 //! Caller `install::run_page`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::install::installer::rb;
-use crate::install::vars::INSTALLER_PAGES;
-use crate::install::vars::INSTALLER_PATHS;
-use crate::install::vars::INSTALLER_RUN;
+use crate::menu::list_handle::ListMenu;
 use rc2k_core::install::pages;
 
-/// `state` the list action's (ebx), `list` the page's.
-pub fn drive_page(state: u32, list: u32) {
-    let letters = crate::install::store::DRIVE_ROWS.drive_rows.addr();
+/// `state` which call of the list action this is (0 the start, negative the end), `list` the page's.
+pub fn drive_page(install: &'static crate::install::owner::Install, state: u32, list: ListMenu) {
+    let letters = crate::place::Place::from(&install.drive_rows.drive_rows);
     if state == 0 {
-        let letter = crate::strings::same_text::lower(INSTALLER_PATHS.typed.get(0)); // g_lowerCase
+        let letter = crate::strings::same_text::lower(install.paths.typed.get(0)); // g_lowerCase
         // Converted: `rc2k_core::install::pages` (`drive_highlight`, `chosen_drive`).
-        let at = |n: u32| letters + pages::DRIVE_TEXT * n;
-        let (_, highlight) = pages::drive_highlight(letter, |n| rb(at(n)), rb(list + 1));
+        let at = |n: u32| letters.add(pages::DRIVE_TEXT * n);
+        let (_, highlight) = pages::drive_highlight(letter, |n| rb(at(n)), list.count());
         if let Some(highlight) = highlight {
-            INSTALLER_PAGES.choice.set(highlight);
+            install.pages.choice.set(highlight);
         }
     }
     if (state as i32) < 0
-        && let Some(offset) = pages::chosen_drive(INSTALLER_PAGES.choice.get())
+        && let Some(offset) = pages::chosen_drive(install.pages.choice.get())
     {
-        INSTALLER_PATHS
-            .typed
-            .set(0, rb(offset.wrapping_add(letters)));
-        INSTALLER_PATHS.typed.set(1, b':');
-        INSTALLER_RUN.path_problem.set(0);
+        install.paths.typed.set(0, rb(letters.add(offset)));
+        install.paths.typed.set(1, b':');
+        install.run.path_problem.set(0);
     }
 }

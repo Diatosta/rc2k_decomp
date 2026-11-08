@@ -6,58 +6,92 @@
 //! up to a -1; one not below 0 plus the object's base, esi's +0) at +8 .., their number at
 //! +4; the count up by one.
 //!
-//! In:  eax 0 first / else last, ebx the cue, esi the sound object, edi its queue
-//! Out: ebx the cue's list, ecx the sounds' number, edx the entry, eax the last sound;
-//!      the rest kept; no flags read
-//!
-//! Caller: `physics::cue_car_sound`. Refuses (before anything) a cue past 0x5F (the list's
-//! size not worked out).
+//! Caller: `physics::cue_car_sound`. The object is a reference; the queue is its typed
+//! +0x298 (`CueQueue`), walked by dword as the original does (a dword past it refused).
+//! Refuses (before anything) a cue past 0x5F (the list's size not worked out).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
+use crate::session::Dword;
+use crate::sound::store::{CueQueue, SoundObject};
 use rc2k_core::physics::sound_queue::{ENTRY_DWORDS, Place, check_cue, place, sounds};
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::queue_sound_cue's operand")
+const WHAT: &str = "physics::queue_sound_cue's operand";
+
+/// Dword `i` of the queue, counted as the original walks it: the four header dwords, then
+/// the entries' eight each (the first cue's place at -1 reads the entry's count: a run-on
+/// kept). One past the sixteen entries is refused.
+fn dword(q: &CueQueue, i: u32) -> Result<&Dword, BadInput> {
+    Ok(match i {
+        0 => &q.first,
+        1 => &q.place,
+        2 => &q.due,
+        3 => &q.count,
+        _ => {
+            let (e, f) = (
+                ((i - 4) / ENTRY_DWORDS) as usize,
+                ((i - 4) % ENTRY_DWORDS) as usize,
+            );
+            let c = q
+                .cues
+                .get(e)
+                .ok_or(BadInput("a dword past the cue queue"))?;
+            match f {
+                0 => &c.first,
+                1 => &c.count,
+                _ => &c.sounds[f - 2],
+            }
+        }
+    })
 }
 
-fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::queue_sound_cue's operand")
-}
-
-/// `cue` queued in `object`'s queue (at `queue`), first or last. The registers it leaves
+/// `cue` queued in `object`'s queue (at +0x298), first or last. The registers it leaves
 /// no caller reads (both callers keep theirs); the sound it stops on the way (a queue
 /// begun again) goes as a volume of 0, of which the audio thread reads only the sound.
 // Converted: `rc2k_core::physics::sound_queue::{check_cue, place, sounds}`.
-pub fn queue_sound_cue(first: bool, cue: u32, object: u32, queue: u32) -> Result<(), Refused> {
+pub fn queue_sound_cue(first: bool, cue: u32, object: &SoundObject) -> Result<(), Refused> {
     check_cue(cue)?;
-    let q = queue;
-    let count = at(q + 0xC);
-    let mut entry = q + 0x10;
+    let q = &object.cue_queue;
+    let count = q.count.get();
+    // The entry's first dword (the original's +0x10 + n x 0x20, in dwords).
+    let mut entry = 4u32;
     match place(count, first) {
         Place::Full => return Ok(()),
-        Place::At(n) => entry = entry.wrapping_add(n.wrapping_mul(ENTRY_DWORDS).wrapping_mul(4)),
+        Place::At(n) => entry = entry.wrapping_add(n.wrapping_mul(ENTRY_DWORDS)),
         Place::First { count } => {
-            let playing = at(q.wrapping_add(at(q + 4).wrapping_mul(4)).wrapping_add(0x18));
+            // The playing sound: the first cue's sound at its place (+0x18 + place x 4).
+            let playing = dword(q, q.place.get().wrapping_add(6))?.get();
             crate::sound::turn_parts::play(playing, 0, 0, [0; 3]);
-            put(q + 4, u32::MAX);
+            q.place.set(u32::MAX);
+            // The entries moved up one, from the last dword down (`std`, `rep movsd`).
             let n = count.wrapping_mul(ENTRY_DWORDS);
-            let src = entry + n * 4 - 4;
-            let dst = entry + n * 4 + 0x1C;
             for k in 0..n {
-                put(dst - 4 * k, at(src - 4 * k));
+                let from = dword(q, entry + n - 1 - k)?.get();
+                dword(q, entry + n - 1 - k + ENTRY_DWORDS)?.set(from);
             }
         }
     }
-    put(q + 0xC, at(q + 0xC).wrapping_add(1));
-    put(entry, cue);
-    let list: u32 = crate::sound::sets_store::CUE_LISTS.table[cue as usize].get();
-    let (written, n) = sounds(|k| at(list + 4 * k), at(object));
-    for (k, &v) in written.iter().enumerate() {
-        put(entry + 4 * k as u32 + 8, v);
+    q.count.set(q.count.get().wrapping_add(1));
+    dword(q, entry)?.set(cue);
+    let list = crate::sound::sets_store::CueLists::list(cue)?;
+    let failed = std::cell::Cell::new(None);
+    let (written, n) = sounds(
+        |k| {
+            list.offset(4 * k).read::<u32>(WHAT).unwrap_or_else(|e| {
+                failed.set(Some(e));
+                0
+            })
+        },
+        object.sound_offset.get(),
+    );
+    if let Some(e) = failed.take() {
+        return Err(e.into());
     }
-    put(entry + 4, n);
+    for (k, &v) in written.iter().enumerate() {
+        dword(q, entry + 2 + k as u32)?.set(v);
+    }
+    dword(q, entry + 1)?.set(n);
     Ok(())
 }

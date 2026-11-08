@@ -6,6 +6,7 @@
 use crate::session::{Bytes, Dword};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LightsData {
     /// +0x0 (0x6077B0): `unk_6077B0`: seven dwords of the camera's place (`physics::place_camera`, the usual mode).
     pub place_usual: [Dword; 7],
@@ -15,19 +16,16 @@ pub struct LightsData {
     pub lights: Bytes<0x1320>,
 }
 
-/// The piece: the race block's bytes at IDA 0x6077B0 seen as `LightsData`.
-pub struct InBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InBlock {
-    type Target = LightsData;
-    fn deref(&self) -> &LightsData {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const LightsData) }
+/// The piece: a field of `race::owner::Race::course`, formerly a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl LightsData {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static LIGHTS_DATA: InBlock = InBlock;
 
 /// IDA 0x6077B0, the first byte of the piece.
 pub const START: usize = 0x6077B0;
@@ -37,8 +35,11 @@ pub const END: usize = 0x608B08;
 const _: () = assert!(END - START == core::mem::size_of::<LightsData>());
 
 /// Where IDA 0x6077B0 is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::race::owner::RACE.course.lights_data,
+    ))
 }
 
 #[cfg(test)]
@@ -47,7 +48,16 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(
+            &crate::race::owner::RACE.course.lights_data,
+            START,
+            END,
+        );
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             crate::moved::place(END - 1),

@@ -3,30 +3,23 @@
 //! +0x180 and +0x10 set to 1; at -1 its +0x198 and +0x10 set to 1. A reading: a gear
 //! change up or down heard.
 //!
-//! In:  nothing
-//! Out: edi the sound object; the rest kept; no flags read (the caller returns)
+//! Returns: the sound object
 //!
-//! Caller: `sub_43DC72` (its tail). Refuses (before anything) a null sound object when it
-//! would be written (the original writes near address 0).
+//! Caller: `physics::engine_sound` (its tail). Refuses (before anything) a null sound object when
+//! it would be written (the original writes near address 0).
 
-use crate::errors::{BadInput, Refused};
-use crate::physics::car_store::CAR;
-use crate::race::work_store::RACE_WORK;
+use crate::errors::Refused;
+use crate::race::owner_shared::Shared;
+use crate::session::Dword;
 use rc2k_core::physics::gearbox::{GearChange, gear_change};
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::gear_change_sound's operand")
-}
-
-/// The Rust version on the car number, the object table and the word at these places.
+/// The Rust version on the current car's sound object and the word at this place.
 // Converted: `rc2k_core::physics::gearbox::gear_change`.
-pub fn gear_change_sound_at(current: u32, table: u32, word: u32) -> Result<(), Refused> {
-    let object = at(table + 4 * (at(current) & 7));
-    if let Some(change) = gear_change(at(word)) {
-        if object == 0 {
-            return Err(BadInput("a null sound object").into());
-        }
-        let o = crate::sound::store::SoundObject::at(object)?;
+pub fn gear_change_sound_at(
+    o: &crate::sound::store::SoundObject,
+    word: &Dword,
+) -> Result<(), Refused> {
+    if let Some(change) = gear_change(word.get()) {
         match change {
             GearChange::Up => o.slots[2].start.set(1),
             GearChange::Down => o.slots[3].start.set(1),
@@ -37,10 +30,9 @@ pub fn gear_change_sound_at(current: u32, table: u32, word: u32) -> Result<(), R
 }
 
 /// The Rust version.
-pub fn gear_change_sound() -> Result<(), Refused> {
+pub fn gear_change_sound(shared: &Shared) -> Result<(), Refused> {
     gear_change_sound_at(
-        RACE_WORK.current_car.addr(),
-        crate::pointers::game_address(crate::sound::store::RACE_SOUNDS.table.as_ptr()),
-        CAR.gear_changed.addr(),
+        crate::sound::store::current_object(),
+        &shared.car.gear_changed,
     )
 }

@@ -1,42 +1,58 @@
-//! `input::update_car_effects` (0x40F347): one car's force feedback for one device, from
-//! its physics (the view block in ebx) into its sound object (edi) and six requests
-//! (`input::set_effect` on the device in esi). A reading of the code:
-//! - the object's +0xAC = the block's +0x248 (1 while the car is off the ground, it seems);
-//!   +0xB0 = +0x1A4 * 10, +0xB4 = (+0x1B8 - +0x1AC) * 10, +0xB8 = +0x1A4 * 10, +0xBC =
-//!   +0x1AC * 10 (`fistp`, `flt_5180DC`);
-//! - a knock (+0xC0): with +0xD0 and +0xC4 not ±0, (256 - |atan2(+0xCC, +0xC4)| *
-//!   162.97) * +0xD0 * 0.1 (`flt_5180E0`, `flt_5180E4`, `flt_5180EC`; the angle also
-//!   into `g_soundScratch`), else 0; then +0xC4 .. +0xD0 cleared;
-//! - effect 1 (the surface's rumble): ecx the effect kind of the surface (+0x294, through
-//!   `dword_51809C`), edx |+0x284| (the speed?); at 5 or less ecx 0 and edx +0x14 squared
-//!   >> 19; edx held to 0x100;
-//! - effects 4 and 0 by the kind (5 and 9, 7, 8, 0, others), then by +0xAC and +0x278 (the
-//!   car's landing: effects 0, 1, 4; effects 0 and 2) or a steering force from +0xB0 and
-//!   +0xB4 on effect 0;
-//! - effect 3 once for a knock (±0x100, +0xDC counting to 4 before the next), effect 5
-//!   the change of +0xBC since the last time (+0x27C), held to ±0x200, halved.
+//! `input::update_car_effects` (0x40F347): one car's force feedback for one device. From the
+//! car's physics (the view block) and its sound object it fills the object's feedback inputs
+//! and sends up to seven requests (`input::set_effect`) to the device:
+//! - the object's `flag_ac` = the block's `front_wheels_off`; `effect_in` = the local velocity
+//!   (x, then drive speed minus z, then x and z again) times ten, truncated (`fistp`);
+//! - the knock: with a weight and an x component both not zero, (256 - |atan2(y, x)| *
+//!   162.97) * weight * 0.1, else 0; the angle also goes into the session's scratch dword; the
+//!   knock inputs are cleared afterwards;
+//! - the surface effect: the surface's effect kind and the speed (|`sum_a`|, or at 5 or less
+//!   the revs squared >> 19), held to 0x100;
+//! - the steering and engine effects by the surface kind (5, 9 and 0; 7; 8; others), and for
+//!   the others the car's landing (leaving the ground, coming back) or a steering force from
+//!   `effect_in`;
+//! - the knock effect once per knock (+-0x100; `knock_count` counts to 4 before the next);
+//! - the speed-change effect: the change of `effect_in[3]` since the last time, held to +-0x200,
+//!   halved.
 //!
-//! Every request is a "set" (ebx 3). `g_controllers[+0 * 0x50]` is loaded into ebx and not
-//! used.
-//!
-//! In:  ebx = the view block, edi = the car's sound object, esi = the device's record
-//! Out: eax 5, ebx 3, ecx effect 5's number, edx as it was at the last call (+0xD8 on
-//!      every way through but the first's), esi and edi kept; flags not read
-//!
-//! See `input/effects.rs`. Three callers, all in `input::update_effects`. The x87 work with the
-//! original's instructions (its rounding).
+//! Every request is a "set" (what 3). The x87 work uses the original's rounding.
 //! Refuses (before anything) a surface number past the table's 16.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::devices::at;
+use crate::input::store::ForceFeedback;
+use crate::input::types::InputDevice;
 use crate::math::x87::mul_to_int;
 use crate::math::x87_float::{ld, st, to_int};
-use crate::pointers::GamePtr;
+use crate::system::owner::system;
 
-/// dword_51809C: a surface's effect kind, 16 entries.
+/// The force feedback effects of a device's record (its six slots).
+#[derive(Clone, Copy)]
+enum Effect {
+    Steering = 0,
+    Surface = 1,
+    Landing = 2,
+    Knock = 3,
+    /// Set together with the steering effect by the surface kind (not worked out further).
+    Fourth = 4,
+    SpeedChange = 5,
+}
+
+/// A "set" request of one effect with its two numbers; the second number is what the
+/// next request that has none of its own repeats (the original passes it on in a register).
+struct Requests<'a> {
+    feedback: &'a ForceFeedback,
+    device: &'a InputDevice,
+    last_strength: u32,
+}
+
+impl Requests<'_> {
+    fn set(&mut self, effect: Effect, a: u32, b: u32) -> Result<(), Refused> {
+        self.last_strength = b;
+        crate::input::set_effect::set_effect(self.feedback, self.device, effect as u32, 3, a, b)
+    }
+}
+
+/// The number of surface kinds (the effect kind table's entries).
 const KIND_COUNT: u32 = 16;
 
 /// `fld a; fsub b; fmul c; fistp`.
@@ -52,35 +68,36 @@ fn knock(y: u32, x: u32, s: u32, full: u32, d: u32, tenth: u32) -> (u32, i32) {
     (st(angle), to_int(knock))
 }
 
-/// The original's ecx and edx, which carry the numbers from one request to the next.
-#[derive(Default)]
-struct Last {
-    ecx: u32,
-    edx: u32,
-}
-
-/// Exactly as the original (the x87 at its precision), the angle written to `scratch` (an
-/// address). `view` the view block, `object` the car's sound object, `device` the device's
-/// record; the requests through `input::set_effect`.
+/// The car's feedback for the frame, the angle written to `scratch`; the original's x87
+/// arithmetic. `view` the view block, `o` the car's sound object, `device` the device's
+/// record.
 fn update_car_effects_with(
-    view: u32,
-    object: u32,
-    device: u32,
-    scratch: u32,
+    effects: &ForceFeedback,
+    view: &crate::physics::car_store::Car,
+    o: &crate::sound::store::SoundObject,
+    device: &InputDevice,
+    scratch: &crate::session::Dword,
 ) -> Result<(), Refused> {
-    let r = &mut Last::default();
-    let o = crate::sound::store::SoundObject::at(object)?;
     let surface = o.surface.get();
     if surface >= KIND_COUNT {
         return Err(BadInput("a surface number past the effect kinds' 16").into());
     }
-    o.flag_ac.set(at(view, 0x248)?);
-    let effects = &crate::input::store::FORCE_FEEDBACK;
+    let mut out = Requests {
+        feedback: effects,
+        device,
+        last_strength: 0,
+    };
+    o.flag_ac.set(view.front_wheels_off.get());
     let ten = effects.effect_ten.bits();
-    o.effect_in[0].set(mul_to_int(at(view, 0x1A4)?, ten) as u32);
-    o.effect_in[1].set(sub_mul_to_int(at(view, 0x1B8)?, at(view, 0x1AC)?, ten) as u32);
-    o.effect_in[2].set(mul_to_int(at(view, 0x1A4)?, ten) as u32);
-    o.effect_in[3].set(mul_to_int(at(view, 0x1AC)?, ten) as u32);
+    o.effect_in[0].set(mul_to_int(view.local_velocity[0].bits(), ten) as u32);
+    o.effect_in[1].set(sub_mul_to_int(
+        view.drive_speed_a.bits(),
+        view.local_velocity[2].bits(),
+        ten,
+    ) as u32);
+    o.effect_in[2].set(mul_to_int(view.local_velocity[0].bits(), ten) as u32);
+    o.effect_in[3].set(mul_to_int(view.local_velocity[2].bits(), ten) as u32);
+    // The knock's force from its inputs (angle from y = `knock_in[2]`, x = `knock_in[0]`).
     if o.knock_in[3].get() & 0x7FFF_FFFF != 0 && o.knock_in[0].get() & 0x7FFF_FFFF != 0 {
         let (angle, force) = knock(
             o.knock_in[2].get(),
@@ -90,7 +107,7 @@ fn update_car_effects_with(
             o.knock_in[3].get(),
             effects.effect_tenth.bits(),
         );
-        GamePtr::new(scratch).write(angle, "the angle's scratch")?;
+        scratch.set(angle);
         o.knock.set(force as u32);
     } else {
         o.knock.set(0);
@@ -98,81 +115,72 @@ fn update_car_effects_with(
     for d in &o.knock_in {
         d.set(0);
     }
-    r.ecx = effects.surface_effect_kinds[surface as usize].get();
-    r.edx = o.sum_a.get();
-    if (r.edx as i32) < 0 {
-        r.edx = r.edx.wrapping_neg();
+    // The surface effect: the surface's kind and the speed.
+    let mut kind = effects.surface_effect_kinds[surface as usize].get();
+    let mut speed = (o.sum_a.get() as i32).unsigned_abs();
+    if speed <= 5 {
+        kind = 0;
+        let revs = o.revs.get();
+        speed = revs.wrapping_mul(revs) >> 19;
     }
-    if r.edx <= 5 {
-        r.ecx = 0;
-        let s = o.revs.get();
-        r.edx = s.wrapping_mul(s) >> 19;
-    }
-    if r.edx > 0x100 {
-        r.edx = 0x100;
-    }
-    let set = |r: &mut Last, eax: u32, ecx: u32, edx: u32| {
-        r.ecx = ecx;
-        r.edx = edx;
-        crate::input::set_effect::set_effect(device, eax, 3, ecx, edx)
-    };
-    let d8 = || o.effect_d8.get();
-    let (ecx, edx) = (r.ecx, r.edx);
-    set(r, 1, ecx, edx)?;
-    let mut to_703 = false;
-    match r.ecx {
+    let speed = speed.min(0x100);
+    out.set(Effect::Surface, kind, speed)?;
+    let strength = || o.effect_d8.get();
+    let mut landed_now = false;
+    match kind {
         5 | 9 | 0 => {
-            set(r, 4, 0x100, d8())?;
-            set(r, 0, 0, d8())?;
+            out.set(Effect::Fourth, 0x100, strength())?;
+            out.set(Effect::Steering, 0, strength())?;
         }
         7 => {
-            set(r, 4, 0x55, d8())?;
-            set(r, 0, 0x55, d8())?;
+            out.set(Effect::Fourth, 0x55, strength())?;
+            out.set(Effect::Steering, 0x55, strength())?;
         }
         8 => {
-            set(r, 4, 0, d8())?;
-            set(r, 0, 0, d8())?;
+            out.set(Effect::Fourth, 0, strength())?;
+            out.set(Effect::Steering, 0, strength())?;
         }
         _ => {
-            set(r, 4, 0, d8())?;
+            out.set(Effect::Fourth, 0, strength())?;
             if o.flag_ac.get() != 0 {
+                // Wheels off the ground.
                 o.landed.set(1);
-                set(r, 0, 0, d8())?;
-                set(r, 1, 0, 0x100)?;
-                set(r, 4, 0, d8())?;
-                to_703 = true;
+                out.set(Effect::Steering, 0, strength())?;
+                out.set(Effect::Surface, 0, 0x100)?;
+                out.set(Effect::Fourth, 0, strength())?;
+                landed_now = true;
             } else if o.landed.get() == 1 {
+                // Back on the ground.
                 o.landed.set(0);
-                set(r, 0, 0x100, d8())?;
-                let edx = r.edx;
-                set(r, 2, 0x100, edx)?;
+                out.set(Effect::Steering, 0x100, strength())?;
+                let carried = out.last_strength;
+                out.set(Effect::Landing, 0x100, carried)?;
             } else {
-                let mut a = (o.effect_in[0].get() << 1).wrapping_add(o.effect_in[1].get()) << 1;
-                if (a as i32) < 0 {
-                    a = a.wrapping_neg();
-                }
-                if (a as i32) > 0x14 {
-                    let a = (a - 0x14).min(0x100);
-                    set(r, 0, 0x100 - a, d8())?;
+                // A steering force from the sideways and forward velocities.
+                let a = (o.effect_in[0].get() << 1).wrapping_add(o.effect_in[1].get()) << 1;
+                let a = (a as i32).wrapping_abs();
+                if a > 0x14 {
+                    let a = ((a - 0x14) as u32).min(0x100);
+                    out.set(Effect::Steering, 0x100 - a, strength())?;
                 } else {
-                    set(r, 0, 0x100, d8())?;
+                    out.set(Effect::Steering, 0x100, strength())?;
                 }
             }
         }
     }
-    if !to_703 {
-        // loc_40F67C: the knock.
-        r.ecx = o.knock.get();
+    if !landed_now {
+        // The knock effect, once per knock.
+        let force = o.knock.get();
         let mut counted = false;
-        if r.ecx != 0 && o.flag_ac.get() == 0 {
+        if force != 0 && o.flag_ac.get() == 0 {
             if o.knock_count.get() == 0 {
-                let ecx = if (r.ecx as i32) < 0 {
+                let push = if (force as i32) < 0 {
                     0xFFFF_FF00
                 } else {
                     0x100
                 };
-                let edx = r.edx;
-                set(r, 3, ecx, edx)?;
+                let carried = out.last_strength;
+                out.set(Effect::Knock, push, carried)?;
                 o.knock_count.set(o.knock_count.get().wrapping_add(1));
                 counted = true;
             } else {
@@ -186,20 +194,31 @@ fn update_car_effects_with(
             }
         }
     }
-    // loc_40F703: the change of +0xBC.
+    // The change of `effect_in[3]` since the last time.
     let now = o.effect_in[3].get();
     let before = o.last_effect_bc.get();
     o.last_effect_bc.set(now);
     let change = (now.wrapping_sub(before) as i32).clamp(-0x200, 0x200) >> 1;
-    let edx = r.edx;
-    set(r, 5, change as u32, edx)
+    let carried = out.last_strength;
+    out.set(Effect::SpeedChange, change as u32, carried)
 }
 
 /// The car's force feedback for the frame (the original's x87 arithmetic). The
 /// converted version (`rc2k_core::input::feedback::update_car_effects`, plain floats)
 /// waits for the float pass.
-pub fn update_car_effects(view: u32, object: u32, device: u32) -> Result<(), Refused> {
-    update_car_effects_with(view, object, device, crate::session::MACHINE.scratch.addr())
+pub fn update_car_effects(
+    effects: &ForceFeedback,
+    view: &crate::physics::car_store::Car,
+    object: &crate::sound::store::SoundObject,
+    device: &InputDevice,
+) -> Result<(), Refused> {
+    update_car_effects_with(
+        effects,
+        view,
+        object,
+        device,
+        &system().session.machine.scratch,
+    )
 }
 
 #[cfg(all(test, target_arch = "x86"))]

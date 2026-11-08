@@ -2,9 +2,6 @@
 //! pages share this file's code: `draw_player2_details` (0x4677B5) is the same code,
 //! `draw_player34_details` (0x467975) the page without the second view (`Layout`).
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! - The controller's item (9) of the current menu greyed out when there is no
 //!   controller (`g_controllerCount`), else made choosable (`menu::disable_item`,
 //!   `menu::enable_item`).
@@ -26,15 +23,12 @@
 //! In the draw list at 0x758CBA (the four players' details screens). Refuses a player past the
 //! four, a player without its name, an index past its string table, and what its parts refuse;
 //! since the conversion (2026-10-20) before the controller's item is switched (the original
-//! switches it first). The menus and draw lists run its `entry` (`menu::table_calls`); the
-//! registers above are the original's, for reference.
+//! switches it first). The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::option_work_store::OPTION_WORK;
-use crate::menu::player::{Player, player_at};
+use crate::input::owner::input;
+use crate::menu::owner::Menus;
+use crate::menu::player::Player;
 use crate::session::Dword;
 use crate::text::draw_text::Canvas;
 
@@ -42,12 +36,12 @@ use crate::text::draw_text::Canvas;
 
 // seconds
 // dword_7559EC
-const NATIONALITIES_RVA: &[Dword] = &CAPTIONS.nationalities; // dword_758816
-const VIEWS_RVA: &[Dword] = &CAPTIONS.views; // dword_7589BA
-const SECOND_VIEWS_RVA: &[Dword] = &CAPTIONS.second_views; // dword_7589DA
-/// What differs between the players' pages: players 1 and 2 (`sub_46F894`,
-/// `sub_4677B5`) have the controller's item at 9 and the second view's line; players 3
-/// and 4 (`sub_467975`) have it at 8 and no second view, the lines below moving up one.
+const NATIONALITIES_RVA: &[Dword] = &crate::menu::owner::MENUS.tables.captions.nationalities; // dword_758816
+const VIEWS_RVA: &[Dword] = &crate::menu::owner::MENUS.tables.captions.views; // dword_7589BA
+const SECOND_VIEWS_RVA: &[Dword] = &crate::menu::owner::MENUS.tables.captions.second_views; // dword_7589DA
+/// What differs between the players' pages: players 1 and 2 (`screens::draw_player_details`,
+/// 0x4677B5) have the controller's item at 9 and the second view's line; players 3
+/// and 4 (0x467975) have it at 8 and no second view, the lines below moving up one.
 #[derive(Clone, Copy, Debug)]
 pub struct Layout {
     pub controller_item: u32,
@@ -76,14 +70,17 @@ fn string(table: &[Dword], index: u32, count: u32) -> Result<u32, Refused> {
     Ok(table[index as usize].get())
 }
 
-pub fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let at = player_at(EVENT_STATE.current_player.get());
-    if at == 0 {
+pub fn draw_player_page(
+    menus: &Menus,
+    layout: Layout,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    let screens = &menus.screens;
+    let Some(cell) = crate::menu::player::player(screens.event.current_player.get()) else {
         return Err(BadInput("a player past the four").into());
-    }
-    let player =
-        crate::pointers::GamePtr::new(at).read::<Player>("draw player details: a game value")?;
-    if player.name == 0 {
+    };
+    let player: Player = cell.get();
+    if player.name_player().is_none() {
         return Err(BadInput("a player without its name").into());
     }
     // Converted: `rc2k_core::screens::player_details`; the strings looked up (and refused)
@@ -98,11 +95,7 @@ pub fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), R
         };
         let id = string(SECOND_VIEWS_RVA, view, SECOND_VIEWS)?;
         if player.second_view == 5 {
-            let mut written = crate::pointers::GamePtr::new(at)
-                .read::<Player>("draw player details: a game value")?;
-            written.second_view = 0;
-            crate::pointers::GamePtr::new(at)
-                .write::<Player>(written, "draw player details: a game value")?;
+            cell.update(|p| p.second_view = 0);
         }
         Some(id)
     } else {
@@ -110,10 +103,13 @@ pub fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), R
     };
     let details = rc2k_core::screens::player_details::Details {
         controller_item: layout.controller_item,
-        controllers: crate::input::store::DEVICES.controller_count.get() != 0,
-        name: player.name,
-        typing: OPTION_WORK.typing.get() != 0,
-        blink: DRAW_WORK.cursor_on.get(),
+        controllers: input().devices.controller_count.get() != 0,
+        name: crate::screens::game_screen::player_name_of(
+            menus,
+            crate::menu::player_names::name_of(&player)?,
+        ),
+        typing: screens.option_work.typing.get() != 0,
+        blink: screens.draw_work.cursor_on.get(),
         nationality: player.nationality,
         nationality_id,
         view_id,

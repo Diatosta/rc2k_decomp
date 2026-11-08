@@ -3,35 +3,32 @@
 //! +8 / +0xC / +0x10 its +4 / +8 / +0x90, +0x34 its +0x8C, +0x38 .. +0x50 its +0xB4 ..
 //! +0xCC, +0x54 .. +0x6C its +0x98 .. +0xB0.
 //!
-//! In:  edi the entry, esi the record, ebx its index
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Caller: `sub_4A44A0` (three times). Refuses a null entry, record or name, before anything.
-use crate::errors::{BadInput, Refused};
-use crate::menu::event_flow::Fault;
+//! Refuses a null entry, record or name, before anything.
+use crate::errors::Refused;
+use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
-/// `e` the entry (edi in the original), `p` the player's record (esi), `index` the
-/// player's index (ebx).
-pub fn player_to_standing_b(e: u32, p: u32, index: u32) -> Result<(), Refused> {
-    if e == 0 || p == 0 || get(p + 0x18)? == 0 {
-        return Err(BadInput("a null entry, record or name").into());
-    }
-    // Converted: `rc2k_core::menu::standings::fill_b`.
-    use rc2k_core::menu::standings::{PlayerB, fill_b};
-    let fault = Fault::default();
+/// `e` the entry of table B (edi in the original), `p` the player's record (esi), `index`
+/// the player's index (ebx).
+pub fn player_to_standing_b(
+    menus: &Menus,
+    e: usize,
+    p: PlayerCell,
+    index: u32,
+) -> Result<(), Refused> {
+    name_player(&p.get())?;
+    // Converted: `rc2k_core::saves::rankings::fill_b`.
+    use rc2k_core::menu::standings::PlayerB;
     let source = PlayerB {
         index,
-        name: bytes(get(p + 0x18)?)?,
-        nationality: get(p + 4)?,
-        car: get(p + 8)?,
-        group: get(p + 0x90)?,
-        total: get(p + 0x8C)?,
-        b4: std::array::from_fn(|k| fault.get(p + 0xB4 + 4 * k as u32)),
-        slots: std::array::from_fn(|k| fault.get(p + 0x98 + 4 * k as u32)),
+        name: name_of(menus, &p.get())?,
+        nationality: p.get().nationality,
+        car: p.get().car_number,
+        group: p.get().class,
+        total: p.get().total,
+        b4: std::array::from_fn(|k| p.get().overall_points[k]),
+        slots: std::array::from_fn(|k| p.get().stage_points[k]),
     };
-    fault.check()?;
-    // The entry's bytes as far as it is written (to +0x70).
-    fill_b(&mut table(e, 0x70, 1)?, 0, &source);
+    with_b(|t| rc2k_core::saves::rankings::fill_b(&mut t.entries[e], &source))?;
     Ok(())
 }

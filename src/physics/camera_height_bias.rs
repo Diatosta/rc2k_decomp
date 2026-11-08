@@ -3,44 +3,46 @@
 //! `flt_5C5D98` x `flt_60628C` (`fistp`) into `dword_606288` and added to the camera's
 //! height `unk_71A680`.
 //!
-//! In:  nothing
-//! Out: esi the mode's record; eax the height added when it ran; the rest kept; no
-//!      flags read
-//!
-//! Caller: `sub_437A53`.
+//! Caller: `physics::update_camera`.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
 use crate::math::x87_float::X;
-use crate::physics::camera_view::{rd, record};
-use crate::physics::car_store::CAR;
+use crate::math::x87_float::ld;
+use crate::math::x87_float::st;
+use crate::math::x87_float::to_int;
+use crate::physics::camera_view::record;
 use crate::physics::flow::{hold_high, hold_low};
-use crate::race::numbers_store::NUMBERS;
-use crate::race::view_vars_store::VIEW_VARS;
-use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fistp, fld, fstp};
+use crate::race::owner::Race;
+use crate::race::owner_frame::Frame;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub fn camera_height_bias() {
-    let esi = record();
-    if rd(esi + 0x54) == 0 {
-        return;
+pub fn camera_height_bias(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), crate::errors::BadInput> {
+    let drawing = &scene.drawing;
+    let esi = record(&race.shared)?;
+    if esi.height_bias.get() == 0 {
+        return Ok(());
     }
-    x87_1(crate::race::store::asm_base() as usize);
-    hold_low(&DRAW.scratch, &NUMBERS.zero);
-    hold_high(&DRAW.scratch, &NUMBERS.one);
-    if (rd(esi + 0x54) as i32) < 0 {
-        x87_2(crate::race::store::asm_base() as usize);
+    x87_1(&race.frame, scene);
+    hold_low(&drawing.scene.scratch, &race.course.numbers.zero);
+    hold_high(&drawing.scene.scratch, &race.course.numbers.one);
+    if (esi.height_bias.get() as i32) < 0 {
+        x87_2(scene);
     }
-    x87_3(crate::race::store::asm_base() as usize);
-    let eax = DRAW.scratch.get();
-    VIEW_VARS.camera_height_bias.set(eax);
-    CAR.camera_position[1].set(
-        crate::physics::car_store::CAR.camera_position[1]
-            .get()
-            .wrapping_add(eax),
-    );
+    x87_3(race, scene);
+    let eax = drawing.scene.scratch.get();
+    race.frame
+        .view_and_records
+        .view_vars
+        .camera_height_bias
+        .set(eax);
+    race.shared.car.camera_position[1]
+        .set(race.shared.car.camera_position[1].get().wrapping_add(eax));
+    Ok(())
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -48,33 +50,40 @@ pub fn camera_height_bias() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = [rc + 0x20631C] / [rc + 0x206290]`
-fn x87_1(rc: usize) {
-    let t0 = fld(rc, 0x20631C);
-    let t1 = fld(rc, 0x206290);
+fn x87_1(frame: &Frame, scene: &crate::scene::owner::Scene) {
+    let t0 = ld(frame.view_and_records.view_vars.camera_distance.bits());
+    let t1 = ld(frame.view_and_records.view_vars.camera_bias_limit.bits());
     let t2 = t0 / t1;
-    fstp(rc, 0x22400C, t2);
+    scene.drawing.scene.scratch.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = 1 - [rc + 0x22400C]`
-fn x87_2(rc: usize) {
+fn x87_2(scene: &crate::scene::owner::Scene) {
+    let drawing = &scene.drawing;
     let t0 = X(1.0);
-    let t1 = fld(rc, 0x22400C);
+    let t1 = ld(drawing.scene.scratch.bits());
     let t2 = t0 - t1;
-    fstp(rc, 0x22400C, t2);
+    drawing.scene.scratch.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = ([rc + 0x22400C] * [rc + 0x1C5D98]) * [rc + 0x20628C]`
-fn x87_3(rc: usize) {
-    let t0 = fld(rc, 0x22400C);
-    let t1 = fld(rc, 0x1C5D98);
+fn x87_3(race: &Race, scene: &crate::scene::owner::Scene) {
+    let drawing = &scene.drawing;
+    let t0 = ld(drawing.scene.scratch.bits());
+    let t1 = ld(race.course.numbers.k65536.bits());
     let t2 = t0 * t1;
-    let t3 = fld(rc, 0x20628C);
+    let t3 = ld(race
+        .frame
+        .view_and_records
+        .view_vars
+        .camera_bias_scale
+        .bits());
     let t4 = t2 * t3;
-    fistp(rc, 0x22400C, t4);
+    drawing.scene.scratch.set_bits(to_int(t4) as u32);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -91,33 +100,38 @@ mod asm_reference {
         vec![
             Block {
                 name: "camera_height_bias line 24",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x206290, In::F), (0x20631C, In::F)],
                     writes: &[(0x22400C, Out::F)],
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0]) },
-                plain: |a| x87_1(a[0]),
+                plain: |_| {
+                    x87_1(
+                        &crate::race::owner::race().frame,
+                        crate::scene::owner::scene(),
+                    );
+                },
             },
             Block {
                 name: "camera_height_bias line 33",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x22400C, In::F)],
                     writes: &[(0x22400C, Out::F)],
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |a| x87_2(a[0]),
+                plain: |_| x87_2(crate::scene::owner::scene()),
             },
             Block {
                 name: "camera_height_bias line 40",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x1C5D98, In::F), (0x20628C, In::F), (0x22400C, In::F)],
                     writes: &[(0x22400C, Out::I)],
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0]) },
-                plain: |a| x87_3(a[0]),
+                plain: |_| x87_3(crate::race::owner::race(), crate::scene::owner::scene()),
             },
         ]
     }

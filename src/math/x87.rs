@@ -25,9 +25,9 @@ pub(crate) use x87;
 
 use super::x87_float as bh;
 
-/// A float read from game memory (possibly unaligned), as the x87 holds it once loaded.
 /// `bytes` bytes at `p` checked to lie in one region (the program ends otherwise): what a
 /// helper below reads and writes, checked before it starts.
+#[cfg(all(test, target_arch = "x86"))]
 fn span<T>(p: *const T, bytes: usize) {
     crate::pointers::check_or_end(
         crate::pointers::game_address(p),
@@ -36,6 +36,8 @@ fn span<T>(p: *const T, bytes: usize) {
     );
 }
 
+/// A float read from game memory (possibly unaligned), as the x87 holds it once loaded.
+#[cfg(all(test, target_arch = "x86"))] // the pointer forms' tests only
 unsafe fn load(p: *const u32, index: usize) -> bh::X {
     bh::ld(unsafe { p.add(index).read_unaligned() })
 }
@@ -98,14 +100,12 @@ pub fn one_less_int_ratio(a: i32, b: i32) -> u32 {
 /// `rcpss xmm0, a; mulss xmm0, b` (an SSE approximation, kept as the instruction: its
 /// result differs between processors).
 pub fn rcpss_times(a: u32, b: u32) -> u32 {
-    use crate::arch::{_mm_cvtss_f32, _mm_mul_ss, _mm_rcp_ss, _mm_set_ss};
-    let (a, b) = (f32::from_bits(a), f32::from_bits(b));
-    // SSE is part of the i686 target's baseline.
-    unsafe { _mm_cvtss_f32(_mm_mul_ss(_mm_rcp_ss(_mm_set_ss(a)), _mm_set_ss(b))).to_bits() }
+    (crate::arch::rcpss(f32::from_bits(a)) * f32::from_bits(b)).to_bits()
 }
 
 /// A row of one matrix times a column of another: `a[0] b[0] + (a[1] b[4] + a[2] b[8])`,
 /// the last two products added first, stored to `out`.
+#[cfg(all(test, target_arch = "x86"))] // checked against the assembly; the helpers work on cells now
 pub fn row_times_column(a: *const u32, b: *const u32, out: *mut u32) {
     span(a, 12);
     span(b, 36);
@@ -118,6 +118,7 @@ pub fn row_times_column(a: *const u32, b: *const u32, out: *mut u32) {
 }
 
 /// `out = a + out`.
+#[cfg(all(test, target_arch = "x86"))] // checked against the assembly; the helpers work on cells now
 pub fn add_into(a: *const u32, out: *mut u32) {
     span(a, 4);
     span(out, 4);
@@ -154,6 +155,7 @@ pub fn negated_product_difference(a: u32, b: u32, c: u32, d: u32) -> u32 {
 }
 
 /// The length of three floats: `sqrt(v0 v0 + (v1 v1 + v2 v2))`.
+#[cfg(all(test, target_arch = "x86"))] // checked against the assembly; the helpers work on cells now
 pub fn length(v: *const u32) -> u32 {
     span(v, 12);
 
@@ -231,14 +233,12 @@ pub fn mul_div_div_to_int(a: u32, b: u32, c: u32, d: u32) -> i32 {
     bh::to_int(bh::ld(a) * bh::ld(b) / bh::ld(c) / bh::ld(d))
 }
 
-/// `sub_41FC4D`'s sequence: x, y, z squared and summed (y and z first), the root taken and
-/// compared with `zero`; unless equal (or unordered), each of the three is divided by the
+/// `race::normalise_work_vector`'s sequence: x, y, z squared and summed (y and z first), the root
+/// taken and compared with `zero`; unless equal (or unordered), each of the three is divided by the
 /// root (not rounded to a float first) and stored back; then the root is stored. Returns
 /// the root's bits and whether it compared equal.
-pub fn normalise_in_place(v: *mut u32, zero: u32) -> (u32, bool) {
-    span(v, 12);
-
-    let (x, y, z) = unsafe { (load(v, 0), load(v, 1), load(v, 2)) };
+pub fn normalise_in_place(v: &mut [u32; 3], zero: u32) -> (u32, bool) {
+    let [x, y, z] = v.map(bh::ld);
     let root = (x * x + (y * y + z * z)).sqrt();
     let zero = bh::ld(zero);
     let equal = matches!(
@@ -246,11 +246,7 @@ pub fn normalise_in_place(v: *mut u32, zero: u32) -> (u32, bool) {
         None | Some(std::cmp::Ordering::Equal)
     );
     if !equal {
-        unsafe {
-            v.write_unaligned(bh::st(x / root));
-            v.add(1).write_unaligned(bh::st(y / root));
-            v.add(2).write_unaligned(bh::st(z / root));
-        }
+        *v = [bh::st(x / root), bh::st(y / root), bh::st(z / root)];
     }
     (bh::st(root), equal)
 }
@@ -273,20 +269,13 @@ pub fn int_div_div_doubled(a: i32, b: u32, c: u32) -> u32 {
 
 /// `math::turn_scratch_xz`'s turn: x' = x cos + z sin, z' = z cos - x sin, each rounded
 /// once, written back over x and z.
-pub fn turn_in_place(sine: *const u32, cosine: *const u32, x: *mut u32, z: *mut u32) {
-    span(sine, 4);
-    span(cosine, 4);
-    span(x, 4);
-    span(z, 4);
-
-    let (s, c) = unsafe { (load(sine, 0), load(cosine, 0)) };
-    let (xv, zv) = unsafe { (load(x, 0), load(z, 0)) };
+pub fn turn_in_place(sine: u32, cosine: u32, x: &mut u32, z: &mut u32) {
+    let (s, c) = (bh::ld(sine), bh::ld(cosine));
+    let (xv, zv) = (bh::ld(*x), bh::ld(*z));
     let new_x = xv * c + zv * s;
     let new_z = c * zv - s * xv;
-    unsafe {
-        z.write_unaligned(bh::st(new_z));
-        x.write_unaligned(bh::st(new_x));
-    }
+    *z = bh::st(new_z);
+    *x = bh::st(new_x);
 }
 
 /// `race::add_surface_share`'s sum: `a / b * c / d * e + f`.
@@ -324,15 +313,13 @@ pub fn int_div_less(a: i32, b: u32, c: u32) -> u32 {
     bh::st(bh::int(a) / bh::ld(b) - bh::ld(c))
 }
 
-/// `count` sines of an angle that starts at 0 and grows by `step` each time (the angle kept
-/// as a double, never rounded to a float), stored one dword each from `out`.
-pub fn sine_table(step: u32, out: *mut u32, count: u32) {
-    span(out, 4 * count as usize);
-
+/// `out.len()` sines of an angle that starts at 0 and grows by `step` each time (the angle
+/// kept as a double, never rounded to a float), one dword each.
+pub fn sine_table(step: u32, out: &mut [u32]) {
     let step = bh::ld(step);
     let mut angle = bh::X(0.0);
-    for i in 0..count as usize {
-        unsafe { out.add(i).write_unaligned(bh::st(angle.sin())) };
+    for o in out {
+        *o = bh::st(angle.sin());
         angle += step;
     }
 }
@@ -386,18 +373,14 @@ pub fn int_times_plus(a: i32, b: u32, c: u32) -> u32 {
     bh::st(bh::int(a) * bh::ld(b) + bh::ld(c))
 }
 
-/// The step `(last - first) / by`, then for each of `count` whole numbers at `values` the
+/// The step `(last - first) / by`, then for each of the whole numbers in `values` the
 /// number less the running sum, rounded to a whole number and stored back, and the sum
 /// grown by the step (both kept as doubles).
-pub fn ramp_down(values: *mut i32, count: u32, last: i32, first: i32, by: i32) {
-    span(values, 4 * count as usize);
-
+pub fn ramp_down(values: &mut [i32], last: i32, first: i32, by: i32) {
     let step = (bh::int(last) - bh::int(first)) / bh::int(by);
     let mut sum = bh::X(0.0);
-    for i in 0..count as usize {
-        let p = unsafe { values.add(i) };
-        let value = unsafe { p.read_unaligned() };
-        unsafe { p.write_unaligned(bh::to_int(bh::int(value) - sum)) };
+    for v in values {
+        *v = bh::to_int(bh::int(*v) - sum);
         sum += step;
     }
 }
@@ -459,9 +442,16 @@ pub enum Rounding {
     Chop,
 }
 
+/// Whether this thread rounds to nearest, as it nearly always does (asked by every
+/// operation of `x87_float::X`).
+#[inline]
+pub fn rounds_to_nearest() -> bool {
+    CONTROL.with(std::cell::Cell::get) & 0xC00 == 0
+}
+
 /// This thread's rounding (the emulated control word's bits 10 .. 11).
 pub fn rounding() -> Rounding {
-    match (CONTROL.with(|c| c.get()) >> 10) & 3 {
+    match (CONTROL.with(std::cell::Cell::get) >> 10) & 3 {
         0 => Rounding::Nearest,
         1 => Rounding::Down,
         2 => Rounding::Up,
@@ -497,13 +487,13 @@ pub fn finit() {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-        )
+        );
     }
 }
 
 /// The control word (`fnstcw`): this thread's emulated one.
 pub fn control_word() -> u16 {
-    CONTROL.with(|c| c.get())
+    CONTROL.with(std::cell::Cell::get)
 }
 
 /// `fldcw`: the control word set (the emulated one; in the tests the real one too).
@@ -512,44 +502,8 @@ pub fn set_control_word(w: u16) {
     // The real control word only matters to the tests' reference assembly.
     #[cfg(all(test, target_arch = "x86"))]
     unsafe {
-        core::arch::asm!("fldcw word ptr [{w}]", w = in(reg) &raw const w, options(nostack))
+        core::arch::asm!("fldcw word ptr [{w}]", w = in(reg) &raw const w, options(nostack));
     };
-}
-
-/// `row_times_column` for 3 x 3 matrices: `b`'s column read 12 bytes apart.
-/// `row_times_column` for 3 x 3 matrices: `b`'s column read 12 bytes apart.
-pub fn row_times_column_3(a: *const u32, b: *const u32, out: *mut u32) {
-    span(a, 12);
-    span(b, 28);
-    span(out, 4);
-
-    let p1 = unsafe { load(a, 0) * load(b, 0) };
-    let p2 = unsafe { load(a, 1) * load(b, 3) };
-    let p3 = unsafe { load(a, 2) * load(b, 6) };
-    unsafe { out.write_unaligned(bh::st(p1 + (p2 + p3))) };
-}
-
-/// A point of three whole numbers turned by a 3 x 3 matrix: x m0 + (y m1 + z m2) and
-/// x m3 + (y m4 + z m5) rounded to whole numbers at `out` and `out + 4`, and
-/// y m7 + (x m6 + z m8) at `out + 8` (the original's order). `out` may be `p`.
-pub fn turn_int_point(p: *const i32, m: *const u32, out: *mut i32) {
-    span(p, 12);
-    span(m, 36);
-    span(out, 12);
-
-    unsafe {
-        let (x, y, z) = (
-            bh::int(p.read_unaligned()),
-            bh::int(p.add(1).read_unaligned()),
-            bh::int(p.add(2).read_unaligned()),
-        );
-        let first = x * load(m, 0) + (y * load(m, 1) + z * load(m, 2));
-        out.write_unaligned(bh::to_int(first));
-        let second = x * load(m, 3) + (y * load(m, 4) + z * load(m, 5));
-        out.add(1).write_unaligned(bh::to_int(second));
-        let third = y * load(m, 7) + (x * load(m, 6) + z * load(m, 8));
-        out.add(2).write_unaligned(bh::to_int(third));
-    }
 }
 
 /// `a * b * c`.
@@ -568,25 +522,14 @@ pub fn circle_curve(i: i32, a: u32, b: u32, negate: bool) -> u32 {
 /// cos(angle) r, the dword between left alone. The angle starts at 0 and grows by
 /// `pi / c * d` each time, kept as a double. `count` at least 1 (the original would run 2^32
 /// times on 0; here nothing is done).
-pub fn circle_points(r: *const u32, out: *mut u32, count: u32, c: *const i32, d: *const u32) {
-    if count == 0 {
-        return;
-    }
-    span(r, 4);
-    span(c, 4);
-    span(d, 4);
-    span(out, 4 * (3 * (count as usize - 1) + 2));
+/// (`out` holds at least `3 (count - 1) + 2` dwords: the slice's index check.)
+pub fn circle_points(r: u32, out: &mut [u32], count: u32, c: i32, d: u32) {
     let mut angle = bh::X(0.0);
     for i in 0..count as usize {
         let (sin, cos) = angle.sin_cos();
-        let cos_r = cos * unsafe { load(r, 0) };
-        let sin_r = sin * unsafe { load(r, 0) };
-        unsafe {
-            out.add(i * 3 + 1).write_unaligned(bh::st(cos_r));
-            out.add(i * 3).write_unaligned(bh::st(sin_r));
-        }
-        let divisor = bh::int(unsafe { c.read_unaligned() });
-        angle += divisor.pi_over() * unsafe { load(d, 0) };
+        out[i * 3 + 1] = bh::st(cos * bh::ld(r));
+        out[i * 3] = bh::st(sin * bh::ld(r));
+        angle += bh::int(c).pi_over() * bh::ld(d);
     }
 }
 
@@ -608,16 +551,11 @@ pub fn cosine_step(c: i32, m: i32, t: u32, a: u32) -> u32 {
 
 /// Three floats at `row` each times `c` over their length: the root of
 /// `x x + (y y + z z)`, `c / root`, then each times that, rounded once and stored in turn.
-pub fn scale_row(row: *mut u32, c: u32) {
-    span(row, 12);
-
-    let (x, y, z) = unsafe { (load(row, 0), load(row, 1), load(row, 2)) };
+/// (On a copy of the three floats' bits.)
+pub fn scale_row_bits(row: [u32; 3], c: u32) -> [u32; 3] {
+    let [x, y, z] = row.map(bh::ld);
     let k = bh::ld(c) / (x * x + (y * y + z * z)).sqrt();
-    unsafe {
-        row.write_unaligned(bh::st(k * x));
-        row.add(1).write_unaligned(bh::st(k * y));
-        row.add(2).write_unaligned(bh::st(k * z));
-    }
+    [bh::st(k * x), bh::st(k * y), bh::st(k * z)]
 }
 
 /// `x + (k - (y - n)) s`, n the whole number y rounds to (as the control word says),
@@ -775,19 +713,13 @@ pub fn int_plus_less_squared(y: i32, a: u32, b: u32) -> u32 {
 /// One of the marks' kind records (0x30 bytes, 12 floats): +0xC and +0x24 negated in
 /// place, then each of the twelve times a / b (kept unrounded) rounded to a whole number in
 /// place.
-pub fn scale_record(r: *mut u32, a: u32, b: u32) {
-    span(r, 48);
-
-    unsafe {
-        for i in [3, 9] {
-            r.add(i).write(bh::st(-bh::ld(r.add(i).read())));
-        }
-        let ratio = bh::ld(a) / bh::ld(b);
-        for i in 0..12 {
-            let x = bh::ld(r.add(i).read()) * ratio;
-            r.add(i).write(bh::to_int(x) as u32);
-        }
+/// (On a copy of the record's twelve floats' bits.)
+pub fn scale_record_bits(mut r: [u32; 12], a: u32, b: u32) -> [u32; 12] {
+    for i in [3, 9] {
+        r[i] = bh::st(-bh::ld(r[i]));
     }
+    let ratio = bh::ld(a) / bh::ld(b);
+    r.map(|v| bh::to_int(bh::ld(v) * ratio) as u32)
 }
 
 /// `a m + c` stored (the first), then `(a m + c) + d - e` stored (the second).
@@ -1013,14 +945,18 @@ pub fn abs_sum_times_to_int(a: u32, b: u32, k: u32) -> i32 {
     bh::to_int((bh::ld(a).abs() + bh::ld(b).abs()) * bh::ld(k))
 }
 
+/// The matrix in `m`'s cells, as far as a turn reads it (the first 15 dwords).
+fn matrix_at(m: &(impl crate::math::cells::Cells + ?Sized)) -> [u32; 15] {
+    crate::math::cells::load(m)
+}
+
 /// The point (a, b, c) (a on top of the x87 stack) by the matrix at `m` (its rows 0x10
 /// apart, as floats): x = (m0 a + (m4 b + m8 c)) [+ m12], y from m1, m5, m9 [m13], z from
 /// m2, m6, m10 [m14], unrounded.
-fn matrix_turn(m: *const u32, a: bh::X, b: bh::X, c: bh::X, translate: bool) -> [bh::X; 3] {
-    span(m, 0x3C);
+fn matrix_turn(m: &[u32; 15], a: bh::X, b: bh::X, c: bh::X, translate: bool) -> [bh::X; 3] {
     let mut out = [bh::X(0.0); 3];
     for (col, o) in out.iter_mut().enumerate() {
-        let at = |row: usize| bh::ld(unsafe { m.add(row * 4 + col).read() });
+        let at = |row: usize| bh::ld(m[row * 4 + col]);
         let mut x = at(0) * a + (at(1) * b + at(2) * c);
         if translate {
             x += at(3);
@@ -1030,17 +966,23 @@ fn matrix_turn(m: *const u32, a: bh::X, b: bh::X, c: bh::X, translate: bool) -> 
     out
 }
 
-/// `sub_4CE05E`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m` (its rows
-/// 0x10 apart), placed by +0x30 .. and the place taken off again; then x, y, y less
+/// `effects::emit_particle_13`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m` (its
+/// rows 0x10 apart), placed by +0x30 .. and the place taken off again; then x, y, y less
 /// `lift`, z.
-pub fn turned_place_less(t: [u32; 3], k: u32, d: u32, lift: u32, m: u32) -> [u32; 4] {
+pub fn turned_place_less(
+    t: [u32; 3],
+    k: u32,
+    d: u32,
+    lift: u32,
+    m: &(impl crate::math::cells::Cells + ?Sized),
+) -> [u32; 4] {
     let kf = bh::ld(k);
     let a = -bh::ld(t[0]) * kf;
     let b = (bh::ld(t[1]) - bh::ld(d)) * kf;
     let c = bh::ld(t[2]) * kf;
-    let m = crate::pointers::host(m) as *const u32;
-    let [x, y, z] = matrix_turn(m, c, b, a, true);
-    let at = |i: usize| bh::ld(unsafe { m.add(i).read() });
+    let m = matrix_at(m);
+    let [x, y, z] = matrix_turn(&m, c, b, a, true);
+    let at = |i: usize| bh::ld(m[i]);
     [
         bh::st(x - at(12)),
         bh::st(y - at(13)),
@@ -1074,9 +1016,18 @@ pub fn mul_80(a: u32, b: u32) -> [u8; 10] {
 
 /// The point (p0, p1, p2) turned and placed by the matrix at `m`; then x, y, y less
 /// `lift`, z.
-pub fn turned_place(p: [u32; 3], lift: u32, m: u32) -> [u32; 4] {
-    let m = crate::pointers::host(m) as *const u32;
-    let [x, y, z] = matrix_turn(m, bh::ld(p[0]), bh::ld(p[1]), bh::ld(p[2]), true);
+pub fn turned_place(
+    p: [u32; 3],
+    lift: u32,
+    m: &(impl crate::math::cells::Cells + ?Sized),
+) -> [u32; 4] {
+    let [x, y, z] = matrix_turn(
+        &matrix_at(m),
+        bh::ld(p[0]),
+        bh::ld(p[1]),
+        bh::ld(p[2]),
+        true,
+    );
     [bh::st(x), bh::st(y), bh::st(y - bh::ld(lift)), bh::st(z)]
 }
 
@@ -1113,24 +1064,20 @@ pub fn normalised3(p: [u32; 3], one: u32) -> [u32; 3] {
     [0, 1, 2].map(|i| bh::st(bh::ld(p[i]) * inverse))
 }
 
-/// `sub_4C9AF6`'s third side: the cross product of (p0, p1, p2) and the vector at `w`
+/// `effects::cars_particles`'s third side: the cross product of (p0, p1, p2) and the vector at `w`
 /// (unrounded) turned by the transposed matrix at `m` (rows 0x10 apart).
-pub fn crossed_turned(p: [u32; 3], w: u32, m: u32) -> [u32; 3] {
-    let wp = crate::pointers::host(w) as *const u32;
-    let m = crate::pointers::host(m) as *const u32;
-    span(wp, 12);
+pub fn crossed_turned(
+    p: [u32; 3],
+    w: &(impl crate::math::cells::Cells + ?Sized),
+    m: &(impl crate::math::cells::Cells + ?Sized),
+) -> [u32; 3] {
+    let [w0, w1, w2]: [u32; 3] = crate::math::cells::load(w);
+    let (w0, w1, w2) = (bh::ld(w0), bh::ld(w1), bh::ld(w2));
     let (p0, p1, p2) = (bh::ld(p[0]), bh::ld(p[1]), bh::ld(p[2]));
-    let (w0, w1, w2) = unsafe {
-        (
-            bh::ld(wp.read()),
-            bh::ld(wp.add(1).read()),
-            bh::ld(wp.add(2).read()),
-        )
-    };
     let cz = p0 * w1 - p1 * w0;
     let cy = p2 * w0 - p0 * w2;
     let cx = p1 * w2 - p2 * w1;
-    let [x, y, z] = matrix_turn(m, cx, cy, cz, false);
+    let [x, y, z] = matrix_turn(&matrix_at(m), cx, cy, cz, false);
     [bh::st(x), bh::st(y), bh::st(z)]
 }
 
@@ -1154,7 +1101,7 @@ pub fn sine_and_cosine(t: u32) -> (u32, u32) {
     (bh::st(t.sin()), bh::st(t.cos()))
 }
 
-/// `sub_4C1194`'s turn of (y, z) by the stored sine and cosine: z s + y c and z c - y s.
+/// `effects::tilt_shape`'s turn of (y, z) by the stored sine and cosine: z s + y c and z c - y s.
 pub fn turn_yz(y: u32, z: u32, s: u32, c: u32) -> (u32, u32) {
     let (y, z, s, c) = (bh::ld(y), bh::ld(z), bh::ld(s), bh::ld(c));
     (bh::st(z * s + y * c), bh::st(z * c - y * s))
@@ -1189,14 +1136,14 @@ pub fn int_over_int_times(a: i32, b: i32, k: u32) -> u32 {
     bh::st(bh::int(a) / bh::int(b) * bh::ld(k))
 }
 
-/// `sub_4B8A0B`'s crossing: t = (m - fc) / (fs - fc), then for each (s, c) pair
+/// `effects::clip_quad`'s crossing: t = (m - fc) / (fs - fc), then for each (s, c) pair
 /// (s - c) t + c, t kept unrounded.
 pub fn clip_lerp3(m: u32, fc: u32, fs: u32, pairs: [[u32; 2]; 3]) -> [u32; 3] {
     let t = (bh::ld(m) - bh::ld(fc)) / (bh::ld(fs) - bh::ld(fc));
     pairs.map(|[s, c]| bh::st((bh::ld(s) - bh::ld(c)) * t + bh::ld(c)))
 }
 
-/// `sub_4C969A`'s projection: q = focal / z, kept; x' = q x + cx, y' = -(q y) + cy,
+/// `effects::draw_mark_slots`'s projection: q = focal / z, kept; x' = q x + cx, y' = -(q y) + cy,
 /// s = q k.
 pub fn slot_project(focal: u32, z: u32, x: u32, cx: u32, y: u32, cy: u32, k: u32) -> [u32; 3] {
     let q = bh::ld(focal) / bh::ld(z);
@@ -1227,13 +1174,12 @@ pub fn diff_times_plus_times(b: u32, a: u32, k: u32, c: u32, m: u32) -> u32 {
     bh::st((bh::ld(b) - bh::ld(a)) * bh::ld(k) + bh::ld(c) * bh::ld(m))
 }
 
-/// `sub_4CFDD5`'s turn: the point p (x, y, z, 80 bits) by the matrix at m read by
+/// `effects::draw_particle`'s turn: the point p (x, y, z, 80 bits) by the matrix at m read by
 /// columns, each (m[c] x + (m[c+4] y + m[c+8] z)) + m[c+12]; the three rounded.
-pub fn column_turn(p: &[[u8; 10]; 3], m: u32) -> [u32; 3] {
-    let m = crate::pointers::host(m) as *const u32;
+pub fn column_turn(p: &[[u8; 10]; 3], m: &(impl crate::math::cells::Cells + ?Sized)) -> [u32; 3] {
     let [x, y, z] = {
         matrix_turn(
-            m,
+            &matrix_at(m),
             bh::from_f80(p[0]),
             bh::from_f80(p[1]),
             bh::from_f80(p[2]),
@@ -1243,8 +1189,8 @@ pub fn column_turn(p: &[[u8; 10]; 3], m: u32) -> [u32; 3] {
     [bh::st(x), bh::st(y), bh::st(z)]
 }
 
-/// `sub_4CFDD5`'s square: q = focal / c, kept; z' = c zk; s = size q; Y = -(q b) + cy and
-/// X = q a + cx kept unrounded, the corners Y - s, Y - s, Y + s, Y + s and X - s, X + s,
+/// `effects::draw_particle`'s square: q = focal / c, kept; z' = c zk; s = size q; Y = -(q b) + cy
+/// and X = q a + cx kept unrounded, the corners Y - s, Y - s, Y + s, Y + s and X - s, X + s,
 /// X + s, X - s (s as stored). Out: [s, z', y0 .. y3, x0 .. x3].
 pub fn particle_square(a: u32, b: u32, c: u32, k: [u32; 4], size: i32) -> [u32; 10] {
     // k: focal, cx, cy, zk
@@ -1300,8 +1246,8 @@ pub fn int_times_plus_times_plus(r: i32, k1: u32, a: u32, k2: u32, b: u32) -> u3
     bh::st((bh::int(r) * bh::ld(k1) + bh::ld(a)) * bh::ld(k2) + bh::ld(b))
 }
 
-/// `sub_4CBD12`'s square: q = focal / c, kept; z' = c zk; s = size q; the half sides
-/// (s, s) and (s, -s) turned by sin / cos (u' = v cos + u sin, v' = -v sin + u cos, the
+/// `effects::draw_turned_sprite`'s square: q = focal / c, kept; z' = c zk; s = size q; the half
+/// sides (s, s) and (s, -s) turned by sin / cos (u' = v cos + u sin, v' = -v sin + u cos, the
 /// sides as stored); Y = -(q b) + cy and X = q a + cx kept unrounded, the corners Y - v1,
 /// Y - v2, Y + v1, Y + v2 and X - u1, X - u2, X + u1, X + u2. Out: [s, z', u1, v1, u2, v2,
 /// y0 .. y3, x0 .. x3].
@@ -1361,8 +1307,8 @@ pub fn int_to_float(a: i32) -> u32 {
     bh::st(bh::int(a))
 }
 
-/// `sub_4C4FFB`'s turn of a corner (x, y) by sin / cos about (cx, cy): x' = (x cos + y
-/// sin) + cx, y' = (-x sin + y cos) + cy.
+/// `effects::draw_flare_part`'s turn of a corner (x, y) by sin / cos about (cx, cy): x' = (x cos +
+/// y sin) + cx, y' = (-x sin + y cos) + cy.
 pub fn turn_about(x: u32, y: u32, sin: u32, cos: u32, cx: u32, cy: u32) -> [u32; 2] {
     let (x, y, sn, cs) = (bh::ld(x), bh::ld(y), bh::ld(sin), bh::ld(cos));
     [

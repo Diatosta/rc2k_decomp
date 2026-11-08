@@ -8,77 +8,65 @@
 //! the owner's screenshot of the fixed build (Rust version running, 2026-10-11) shows the table
 //! without them. Named `screen_4670df_loop` until then.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`):
 //! nothing happens before the loop (its set-up starts at the function's second byte); its
 //! background comes from `menu::load_background`, after which a set carry flag is fatal error
 //! 0x80712345; leaving is asked about, and a "no" sets the screen up again. If `dword_75AB34` is 1
 //! when the screen is left, nothing more is done: no question, and the highlight is not saved. One
-//! caller, `sub_4A5A47`.
-
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, FRAME_CALLBACK, List, Screen, Step};
-use crate::menu::state_store::MENU_STATE;
+//! caller.
+use crate::menu::screen_items_store::slot;
+use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 // ---- game data ----
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.championship_standings.addr() as usize,
-    saved_item: || &SCREEN_ITEMS.current[slot::CHAMPIONSHIP_STANDINGS], // dword_7477BC
+    menu: |m| m.tables.menus.championship_standings.id(),
+    saved_item: |m| &m.screens.items.current[slot::CHAMPIONSHIP_STANDINGS], // dword_7477BC
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.unread_list, // dword_7554F4
-            table: || DRAW_LISTS.unread_758b72.addr() as usize,
+            pointer: |m| &m.screens.flow.unread_list, // dword_7554F4
+            table: |m| m.tables.draw_lists.unread_758b72.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list,
-            table: || DRAW_LISTS.list_758e5e.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list,
+            table: |m| m.tables.draw_lists.list_758e5e.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list,
-            table: || DRAW_LISTS.overlay_7592b6.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list,
+            table: |m| m.tables.draw_lists.overlay_7592b6.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.championship_standings_scene.addr() as usize, // unk_7590F6: empty
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.championship_standings_scene.id(), // unk_7590F6: empty
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list,
-            table: || DRAW_LISTS.list_758e5e.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list,
+            table: |m| m.tables.draw_lists.list_758e5e.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list,
-            table: || DRAW_LISTS.overlay_7592b6.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list,
+            table: |m| m.tables.draw_lists.overlay_7592b6.id(),
             run: false,
         },
     ]),
-    frame_callback: FRAME_CALLBACK,
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[],
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgAddr(|| {
-            (crate::menu::texts_store::MENU_TEXTS
-                .championship_standings_picture
-                .addr()) as usize
-        }),
-        Step::CallOrFatal(Callee::LoadBackground, 0x8071_2345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.championship_standings_picture
+    }))],
     after_first_frame: &[],
     confirm: Some(&[]),
     ask_also_if: None,
@@ -88,7 +76,7 @@ pub const SCREEN: Screen = Screen {
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,
-    leave_at_once: Some(|| &MENU_STATE.menus.standings_shown), // dword_75AB34
+    leave_at_once: Some(|m| &m.screens.state.menus.standings_shown), // dword_75AB34
     next_frame_repeats_first: false,
     action_saved_item: None,
     action_menu: None,

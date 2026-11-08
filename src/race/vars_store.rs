@@ -5,9 +5,12 @@
 //! colours and vertices. `#[repr(C)]` with the image's layout, over the race block's bytes
 //! (`RACE_VARS`), as `CAR`. Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceVars {
     /// +0x0 (0x6235E8): a scene switch (`race::show_replay_still`; read by `physics::car_lighting`, `race::skid_laying`).
     pub scene_switch: Dword,
@@ -67,7 +70,7 @@ pub struct RaceVars {
     pub direction: Dword,
     /// +0x270 (0x623858): `g_raceCarKinds`: [0] the current (`settings.car_kind_current`), [1] the first (`car_kind_first`), [2 ..] `[shauncarnum3]` ...
     pub race_car_kinds: [Dword; 8],
-    /// +0x290 (0x623878): each car's colours word (`net::set_up_race`; the stored blocks' gearbox kind; the players' `settings.cars[n].record_30`).
+    /// +0x290 (0x623878): each car's colours word (`net::set_up_race`; the stored blocks' gearbox kind; the players' `settings.cars[n].gearing`).
     pub car_colours: [Dword; 8],
     /// +0x2b0 (0x623898): the textures' mip setting (`scene::set_filters`, `scene::try_allocate_textures`; from `dword_4F50D0`).
     pub mip_setting: Dword,
@@ -79,7 +82,7 @@ pub struct RaceVars {
     pub split: Dword,
     /// +0x2c0 (0x6238A8): `settings.setting_0` .. `4` ([1] the shine and the front end's set-up, [4] all cars' lights).
     pub settings_words: [Dword; 5],
-    /// +0x2d4 (0x6238BC): `g_rivals` (`settings.rivals`).
+    /// +0x2d4 (0x6238BC): `g_rivals` (`settings.rivals`: the standings summary's block id).
     pub rivals: Dword,
     /// +0x2d8 (0x6238C0): `settings.no_replay`.
     pub no_replay: Dword,
@@ -119,7 +122,8 @@ pub struct RaceVars {
     pub mud_row: Dword,
     /// +0x758 (0x623D40): not named.
     pub unknown_758: [Dword; 4],
-    /// +0x768 (0x623D50): `g_mud`: the mud file's memory.
+    /// +0x768 (0x623D50): `g_mud`: the mud file's memory (the game's address; unused
+    /// since the mud is Rust's, `race::mud::MUD`).
     pub mud: Dword,
     /// +0x76c (0x623D54): the texture locked (`race::update_mud_texture`).
     pub mud_locked: Dword,
@@ -171,21 +175,16 @@ pub struct RaceVars {
     pub unknown_8d8: [Dword; 48],
 }
 
-/// The piece: the race block's bytes at IDA 0x6235E8 seen as `RaceVars`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = RaceVars;
-    fn deref(&self) -> &RaceVars {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const RaceVars) }
+impl RaceVars {
+    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+    /// `race::store::LEFT`), with the image's first values.
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static RACE_VARS: InRaceBlock = InRaceBlock;
 
 /// IDA 0x6235E8, the first byte of the piece.
 pub const START: usize = 0x6235E8;
@@ -194,9 +193,10 @@ pub const END: usize = 0x623F80;
 
 const _: () = assert!(END - START == core::mem::size_of::<RaceVars>());
 
-/// Where IDA 0x6235E8 is now (in the race block).
+/// Where IDA 0x6235E8 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&race().shared.vars))
 }
 
 #[cfg(test)]
@@ -205,7 +205,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&race().shared.vars, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

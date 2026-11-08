@@ -3,31 +3,35 @@
 //! and DirectPlay set to it (`InitializeConnection`, `dword_52AC40`, flags 0); "NET: Init"
 //! and its result logged.
 //!
-//! In:  `connection` (eax: the connection's number)
-//! Out: true when made (the original: carry clear, the flags of `test eax, eax`; every
-//!      register kept), false for the carry
+//! Takes `connection`. Returns true when made.
 //! Caller: `net::connecting`.
 
 use crate::errors::Refused;
 use crate::net::build_address::build_address;
-use crate::net::dplay::{INITIALIZE_CONNECTION, call};
 use crate::net::lobby::{log, log_hex, log_int_nl};
-use crate::net::store::NET;
+use crate::net::owner::Net;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The Rust version.
-pub fn init_connection(connection: u32) -> Result<bool, Refused> {
+pub fn init_connection(net: &Net, connection: u32) -> Result<bool, Refused> {
+    let vars = &net.vars;
     log(
-        VIEWER_PANEL.text_addr(texts::NET_INIT_CONNECTION_INDEX),
+        VIEWER_PANEL.text_ptr(texts::NET_INIT_CONNECTION_INDEX),
         false,
         2,
     );
     log_int_nl(connection, 2);
-    if NET.dplay.get() == 0 || !build_address(connection)? {
+    if vars.dplay.get() == 0 || !build_address(net, connection)? {
         return Ok(false);
     }
-    let result = unsafe { call(&NET.dplay, INITIALIZE_CONNECTION, &[NET.address.get(), 0]) };
-    log(VIEWER_PANEL.text_addr(texts::NET_INIT), false, 2);
+    let result = {
+        let address = crate::net::tables::NET_TABLES.with(|t| t.address.clone())?;
+        crate::net::dp_objects::initialize_connection_with(
+            vars.dplay.get(),
+            (!address.is_empty()).then_some(&address[..]),
+        )
+    };
+    log(VIEWER_PANEL.text_ptr(texts::NET_INIT), false, 2);
     log_hex(result, true);
     Ok(result == 0)
 }

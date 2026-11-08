@@ -2,31 +2,27 @@
 //! point whose number is the dword at esi+4 (`g_scenePoints` + 12 n), with no offset:
 //! `dword_614108` + 1, `dword_6D3B40` .. = 0.
 //!
-//! In:  esi the record (+4 the point's number), ebp the object
-//! Out: CF as `point_hits_car` leaves it; ebx the number, esi the point; the rest kept
+//! Takes: the record (+4 the point's number), the object
 //!
-//! Caller: `sub_45E3BF` (0x45E48C, `jb`).
+//! Caller: `physics::face_contact` (0x45E48C, `jb`).
 
 use crate::errors::Refused;
-use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flow::fill_cells;
 use crate::physics::point_hits_car::point_hits_car;
-use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
-use crate::race::course_store::COURSE;
+use crate::race::owner::Race;
 
-/// The Rust version: (inside, ebx, esi).
-pub unsafe fn scene_point_hits_car(record: u32, object: u32) -> Result<(bool, u32, u32), Refused> {
-    let number = GamePtr::new(record + 4).read::<u32>("a scene point record's number")?;
-    let point = number
-        .wrapping_mul(12)
-        .wrapping_add(COURSE.scene_points.get());
-    PHYSICS.scene_point_hits.set(
-        crate::physics::tables_store::PHYSICS
+/// The Rust version for course face `face` (its number: the original's record and object
+/// are both the face): (inside, the point's number).
+pub fn scene_point_hits_car(race: &Race, face: u32) -> Result<(bool, u32), Refused> {
+    let number = crate::race::course_places::face_field::<u32>(face, 4, "a scene point record")?;
+    race.shared.physics_tables.scene_point_hits.set(
+        race.shared
+            .physics_tables
             .scene_point_hits
             .get()
             .wrapping_add(1),
     );
-    fill_cells(&CONTACT_WORK.object_offset, 0);
-    Ok((unsafe { point_hits_car(point, object) }?, number, point))
+    fill_cells(&race.physics.contact.object_offset, 0);
+    let place = crate::race::scene_points::point_number(number)?;
+    Ok(({ point_hits_car(race, place, face) }?, number))
 }

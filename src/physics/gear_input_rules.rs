@@ -8,32 +8,31 @@
 //! `dword_62389C` is 1, four cleared; each of three switches clears them and the gear.
 //! What they are is a reading at best (an automatic box's held inputs?).
 //!
-//! In:  nothing
-//! Out: eax the joined input when they were joined; the rest kept; no flags read
+//! Returns: the joined input when they were joined
 //!
-//! Callers: race init's loop (`sub_4608BB`), `sub_460835`, `sub_460B2F` (each calls
-//! `sub_43B635` or `sub_439DB1` next).
+//! Callers: race init's loop (`drive::race_cars_step`), `race::step_replay_cars`,
+//! `drive::replay_step` (each calls
+//! `physics::car_physics_step` or `drive::steer_inputs` next).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
-use crate::race::vars_store::RACE_VARS;
+use crate::race::owner::Race;
+use crate::session::Cell32;
 use rc2k_core::physics::gearbox::{GearCar, GearInputs};
 
-fn get(v: &[u32], k: usize) -> u32 {
-    crate::pointers::read_or_end::<u32>(v[k], "physics::gear_input_rules's operand")
+fn get(v: &[&dyn Cell32], k: usize) -> u32 {
+    v[k].bits()
 }
 
-fn put(v: &[u32], k: usize, x: u32) {
-    crate::pointers::write_or_end::<u32>(v[k], x, "physics::gear_input_rules's operand")
+fn put(v: &[&dyn Cell32], k: usize, x: u32) {
+    v[k].set_bits(x);
 }
 
-/// The Rust version on the variables at `v`; what the rules change is written back. The
+/// The Rust version on the variables' cells `v`; what the rules change is written back. The
 /// eax it leaves (the joined input) is read by none of its callers.
 // Converted: `rc2k_core::physics::gearbox::GearInputs::apply_rules`.
-pub fn rules_at(v: &[u32]) {
+pub fn rules_at(v: &[&dyn Cell32]) {
     let car = GearCar {
         state: get(v, 0),
         box_mode: get(v, 7),
@@ -69,27 +68,27 @@ pub fn rules_at(v: &[u32]) {
     }
 }
 
-fn game() -> Vec<u32> {
+fn game(race: &Race) -> Vec<&dyn Cell32> {
     vec![
-        CAR.tyre_change_state.addr(),
-        PHYSICS.input_gear_down.addr(),
-        PHYSICS.input_gear_up.addr(),
-        PHYSICS.input_throttle.addr(),
-        PHYSICS.input_brake.addr(),
-        PHYSICS.input_handbrake.addr(),
-        CAR.gear.addr(),
-        CAR.gearbox_kind.addr(),
-        PHYSICS.input_gear_wanted.addr(),
-        CAR.run_ticks.addr(),
-        RACE_VARS.run_kind.addr(),
-        PHYSICS.input_steer.addr(),
-        CAR.go_stand_timer.addr(),
-        CAR.started_stand_timer.addr(),
-        CAR.finish_flag.addr(),
+        &race.shared.car.tyre_change_state as &dyn Cell32,
+        &race.shared.physics_tables.input_gear_down,
+        &race.shared.physics_tables.input_gear_up,
+        &race.shared.physics_tables.input_throttle,
+        &race.shared.physics_tables.input_brake,
+        &race.shared.physics_tables.input_handbrake,
+        &race.shared.car.gear,
+        &race.shared.car.gearbox_kind,
+        &race.shared.physics_tables.input_gear_wanted,
+        &race.shared.car.run_ticks,
+        &race.shared.vars.run_kind,
+        &race.shared.physics_tables.input_steer,
+        &race.shared.car.go_stand_timer,
+        &race.shared.car.started_stand_timer,
+        &race.shared.car.finish_flag,
     ]
 }
 
 /// The Rust version.
-pub fn gear_input_rules() {
-    rules_at(&game())
+pub fn gear_input_rules(race: &Race) {
+    rules_at(&game(race));
 }

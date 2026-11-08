@@ -6,78 +6,65 @@
 //! DirectPlay ids (+0x20, unsigned); this machine's player found among them by its id
 //! (`g_netPlayerId`) into `g_netPlayer`.
 //!
-//! In:  nothing
-//! Out: true when this machine's player was found (the original: carry clear, the flags of
-//!      `test eax, eax` on its id; every register kept); false for the carry: no object,
-//!      the listing failed or the player is not among them
+//! Returns true when this machine's player was found; false when there is no object, the
+//! listing failed or the player is not among them.
 //! The search looks at block 0 even with no player listed. More than eight players
 //! (possible only with the race on) would sort past the blocks: refused. Caller:
 //! `net::list_players_regs`, `net::open_lobby`. DirectPlay's calls from Rust (`net::dplay`).
 
 use crate::errors::{BadInput, Refused};
-use crate::net::dplay::{ENUM_PLAYERS, GET_PLAYER_DATA, SET_PLAYER_DATA, call};
 use crate::net::sort_players::{bubble_blocks, swap_blocks};
-use crate::net::store::NET;
+use crate::net::store::NetVars;
 use rc2k_core::net::players;
 
 /// The Rust version.
-pub fn list_players() -> Result<bool, Refused> {
-    if NET.dplay.get() == 0 {
+pub fn list_players(vars: &NetVars) -> Result<bool, Refused> {
+    if vars.dplay.get() == 0 {
         return Ok(false);
     }
-    unsafe {
-        call(
-            &NET.dplay,
-            SET_PLAYER_DATA,
-            &[NET.player_id.get(), NET.own.addr(), 0x10, 0],
+    crate::net::dp_objects::set_player_data(
+        vars.dplay.get(),
+        vars.player_id.get(),
+        &vars.own.bytes(),
+    );
+    if vars.racing.get() != 1 {
+        vars.players.set(0);
+        let result = crate::net::dp_objects::enum_players(
+            vars.dplay.get(),
+            crate::net::player_found::callback,
+            0,
         );
-        if NET.racing.get() != 1 {
-            NET.players.set(0);
-            let result = call(
-                &NET.dplay,
-                ENUM_PLAYERS,
-                &[
-                    0,
-                    crate::pointers::game_address(crate::net::player_found::callback as *const ()),
-                    0,
-                    0,
-                ],
-            );
-            if result != 0 {
-                return Ok(false);
-            }
+        if result != 0 {
+            return Ok(false);
         }
-        let players = NET.players.get();
-        if players > players::MOST {
-            return Err(BadInput("more than eight players").into());
-        }
-        for n in 0..players {
-            NET.data_size.set(0x10);
-            let player = NET.player_block(n);
-            call(
-                &NET.dplay,
-                GET_PLAYER_DATA,
-                &[
-                    player.id.get(),
-                    player.record.addr(),
-                    (NET.data_size.addr()),
-                    0,
-                ],
-            );
-        }
-        // Converted: `rc2k_core::net::players` (`bubble` by the ids, `find_own`).
-        let id = |n: u32| NET.player_block(n).id.get();
-        bubble_blocks(
-            players,
-            |k| id(k) > id(k + 1),
-            |k| swap_blocks(NET.player_block(k), NET.player_block(k + 1)),
-        )?;
     }
-    match players::find_own(NET.player_id.get(), NET.players.get(), |n| {
-        NET.player_block(n).id.get()
+    let players = vars.players.get();
+    if players > players::MOST {
+        return Err(BadInput("more than eight players").into());
+    }
+    for n in 0..players {
+        vars.data_size.set(0x10);
+        let player = vars.player_block(n);
+        let mut data = [0u8; 0x10];
+        let (result, size) =
+            crate::net::dp_objects::get_player_data(vars.dplay.get(), player.id.get(), &mut data);
+        vars.data_size.set(size);
+        if result == 0 {
+            player.record.set_bytes(&data[..size as usize]);
+        }
+    }
+    // Converted: `rc2k_core::net::players` (`bubble` by the ids, `find_own`).
+    let id = |n: u32| vars.player_block(n).id.get();
+    bubble_blocks(
+        players,
+        |k| id(k) > id(k + 1),
+        |k| swap_blocks(vars.player_block(k), vars.player_block(k + 1)),
+    )?;
+    match players::find_own(vars.player_id.get(), vars.players.get(), |n| {
+        vars.player_block(n).id.get()
     }) {
         Ok(n) => {
-            NET.player.set(n);
+            vars.player.set(n);
             Ok(true)
         }
         Err(_) => Ok(false),
@@ -85,10 +72,10 @@ pub fn list_players() -> Result<bool, Refused> {
 }
 
 /// `net::list_players_regs` (0x417A03): `net::list_players`, then `test eax, eax` on the
-/// eax it keeps, inside `pusha` .. `popa`: the carry it gives is lost, so its callers'
+/// eax it keeps, inside a `pusha` .. `popa`: the carry it gives is lost, so its callers'
 /// `jb` after it are never taken (section 16). Callers: `net::lets_rally`,
 /// `net::race_wait`, `net::race_over`, `net::lobby_loop`.
-pub fn list_players_regs() -> Result<(), Refused> {
-    list_players()?;
+pub fn list_players_regs(vars: &NetVars) -> Result<(), Refused> {
+    list_players(vars)?;
     Ok(())
 }

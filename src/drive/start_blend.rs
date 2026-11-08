@@ -4,18 +4,16 @@
 //! that + `flt_71A64C`, held to `flt_5C5D90` .. `flt_5C5D38` (0 .. 1). By the look of
 //! it a share used at a start (a reading).
 //!
-//! In:  nothing
-//! Out: eax the held count; the rest kept; no flags read (`fld` next)
+//! Returns: the held count
 //!
-//! Caller: `sub_43A35A` (0x43A486).
+//! Caller: `drive::read_car_controls` (0x43A486).
 
 use crate::math::x87;
 use crate::math::x87_run::{add3, compare_full};
-use crate::physics::car_store::CAR;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::tables_store::RACE_TABLES;
-use crate::scene::draw_store::DRAW;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
+use crate::scene::owner::scene;
 use crate::session::Cell32;
 
 fn get(v: &[&dyn Cell32], k: usize) -> u32 {
@@ -23,11 +21,11 @@ fn get(v: &[&dyn Cell32], k: usize) -> u32 {
 }
 
 fn put(v: &[&dyn Cell32], k: usize, x: u32) {
-    v[k].set_bits(x)
+    v[k].set_bits(x);
 }
 
 /// The Rust core on the variables at `v`: the held count.
-pub fn blend_at(v: &[&dyn Cell32]) -> u32 {
+pub fn blend_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
     let mut n = get(v, 0).wrapping_sub(get(v, 1));
     if (n as i32) < 0 {
         n = 0;
@@ -39,10 +37,13 @@ pub fn blend_at(v: &[&dyn Cell32]) -> u32 {
     put(
         v,
         3,
-        x87::int_times(n as i32, RACE_TABLES.start_blend_step.bits()),
+        x87::int_times(n as i32, race.shared.tables.start_blend_step.bits()),
     );
     put(v, 6, add3(get(v, 4), get(v, 3), get(v, 5)));
-    let (low, high) = (NUMBERS.zero.bits(), NUMBERS.one.bits());
+    let (low, high) = (
+        race.course.numbers.zero.bits(),
+        race.course.numbers.one.bits(),
+    );
     if compare_full(get(v, 6), low) & 0x100 != 0 {
         put(v, 6, x87::loaded(low));
     }
@@ -52,19 +53,19 @@ pub fn blend_at(v: &[&dyn Cell32]) -> u32 {
     n
 }
 
-fn game() -> Vec<&'static dyn Cell32> {
+fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     vec![
-        &CAR.checkpoint,
+        &shared.car.checkpoint,
         &CAR_BLOCKS.cars[0].checkpoint,
-        &DRAW.scratch,
-        &CAR.start_blend_share,
-        &CAR.start_share,
-        &CAR.pace_push,
-        &CAR.start_blend,
+        &scene().drawing.scene.scratch,
+        &shared.car.start_blend_share,
+        &shared.car.start_share,
+        &shared.car.pace_push,
+        &shared.car.start_blend,
     ]
 }
 
 /// The Rust version (the exact one, for `drive::read_car_controls`).
-pub fn start_blend() -> u32 {
-    blend_at(&game())
+pub fn start_blend(race: &Race) -> u32 {
+    blend_at(race, &game(&race.shared))
 }

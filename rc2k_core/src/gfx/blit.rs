@@ -24,33 +24,6 @@ pub struct Scratch {
     pub rows_left: i32,
 }
 
-/// What the original leaves in ebx: a value, or a row's place (a byte offset from the
-/// surface's start, to which the caller adds the surface's address).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Ebx {
-    Value(u32),
-    Row(u32),
-}
-
-/// The four registers the original does not preserve, as it leaves them.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Exit {
-    pub eax: u32,
-    pub ebx: Ebx,
-    pub ecx: u32,
-    pub edx: u32,
-}
-
-/// The part of the surface a glyph may touch: `rows` spans of `row_bytes` bytes, the first
-/// at byte offset `first`, each `pitch` bytes after the one before.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Area {
-    pub first: u32,
-    pub pitch: i32,
-    pub rows: u32,
-    pub row_bytes: u32,
-}
-
 /// The offset of record `glyph` of a table; `None` for a glyph past the table (the
 /// original's fatal error 0x80A7DF32).
 pub fn record_offset(table: &(impl Bytes + ?Sized), glyph: u32) -> Result<Option<usize>, Invalid> {
@@ -100,6 +73,8 @@ struct Runs<'a, B: Bytes + ?Sized> {
     src: usize,
     palette: &'a dyn Fn(u8) -> u32,
     put: &'a mut dyn FnMut(u32, &[u8]),
+    /// The colours of the run being drawn; kept for the next run's.
+    colours: Vec<u8>,
 }
 
 impl<B: Bytes + ?Sized> Runs<'_, B> {
@@ -127,27 +102,39 @@ impl<B: Bytes + ?Sized> Runs<'_, B> {
             return Ok(());
         }
         let n = count as usize;
-        let out = match self.format {
+        match self.format {
             Format::Raw8 | Format::Direct16 | Format::Direct32 => {
                 let bytes = n * self.format.src_unit();
-                let out = (0..bytes)
-                    .map(|i| self.byte(self.src.wrapping_add(i)))
-                    .collect::<Result<Vec<u8>, _>>()?;
+                let src = self.src;
                 self.src = self.src.wrapping_add(bytes);
-                out
+                if let Some(run) = self.record.run(src, bytes) {
+                    (self.put)(dst, run);
+                    return Ok(());
+                }
+                let mut out = vec![0; bytes];
+                self.record.copy_run(src, &mut out).ok_or(PAST)?;
+                (self.put)(dst, &out);
             }
             Format::Palette16 | Format::Palette32 => {
                 let d = self.format.dst_unit() as usize;
-                let mut out = vec![0u8; n * d];
-                for i in 0..n {
-                    let colour = (self.palette)(self.byte(self.src.wrapping_add(i))?);
-                    out[i * d..(i + 1) * d].copy_from_slice(&colour.to_le_bytes()[..d]);
+                let mut out = std::mem::take(&mut self.colours);
+                out.clear();
+                out.resize(n * d, 0);
+                if let Some(run) = self.record.run(self.src, n) {
+                    for (place, &index) in out.chunks_exact_mut(d).zip(run) {
+                        place.copy_from_slice(&(self.palette)(index).to_le_bytes()[..d]);
+                    }
+                } else {
+                    for i in 0..n {
+                        let colour = (self.palette)(self.byte(self.src.wrapping_add(i))?);
+                        out[i * d..(i + 1) * d].copy_from_slice(&colour.to_le_bytes()[..d]);
+                    }
                 }
                 self.src = self.src.wrapping_add(n);
-                out
+                (self.put)(dst, &out);
+                self.colours = out;
             }
-        };
-        (self.put)(dst, &out);
+        }
         Ok(())
     }
 }
@@ -172,8 +159,7 @@ enum Step {
 }
 
 /// Draws `record` at x, y. `put(offset, bytes)` gets every write, at byte offsets from the
-/// surface's start (wrapping). Returns the registers the original leaves and, unless the
-/// glyph is clipped away, the part of the surface it may have touched.
+/// surface's start (wrapping).
 #[allow(clippy::too_many_arguments)] // the original's inputs, the surface, the clip and the sink
 pub fn blit_glyph(
     record: &(impl Bytes + ?Sized),
@@ -184,11 +170,11 @@ pub fn blit_glyph(
     clip: &Clip,
     scratch: &mut Scratch,
     put: &mut dyn FnMut(u32, &[u8]),
-) -> Result<(Exit, Option<Area>), Invalid> {
+) -> Result<(), Invalid> {
     let marker = record.u32_le(0).ok_or(PAST)?;
     let byte = |at: usize| record.byte(at).map(i32::from).ok_or(PAST);
     let word = |at: usize| Ok::<_, Invalid>(byte(at)? | byte(at + 1)? << 8);
-    let (x_offset, y_offset, width, height, data, format) = if marker < 0xFFFF_FFFC {
+    let (x_offset, y_offset, width, height, data, format) = if !direct_colour(marker) {
         let format = match surface.bits {
             16 => Format::Palette16,
             32 => Format::Palette32,
@@ -205,16 +191,6 @@ pub fn blit_glyph(
     };
     let x = x.wrapping_add(x_offset);
     let y = y.wrapping_add(y_offset);
-    let clipped_away = |eax: i32, ebx: i32| {
-        let exit = Exit {
-            eax: eax as u32,
-            ebx: Ebx::Value(ebx as u32),
-            ecx: x as u32,
-            edx: y as u32,
-        };
-        Ok((exit, None))
-    };
-
     // Horizontal clip.
     scratch.left_skip = 0;
     if x < clip.left {
@@ -227,7 +203,7 @@ pub fn blit_glyph(
         visible = visible.wrapping_sub(over);
     }
     if visible <= scratch.left_skip {
-        return clipped_away(visible.wrapping_sub(scratch.left_skip), over);
+        return Ok(());
     }
     visible = visible.wrapping_sub(scratch.left_skip);
     scratch.visible_w = visible;
@@ -244,7 +220,7 @@ pub fn blit_glyph(
         rows = rows.wrapping_sub(over);
     }
     if rows <= scratch.top_skip {
-        return clipped_away(rows.wrapping_sub(scratch.top_skip), over);
+        return Ok(());
     }
     rows = rows.wrapping_sub(scratch.top_skip);
     scratch.rows_left = rows;
@@ -257,28 +233,13 @@ pub fn blit_glyph(
         .wrapping_add(scratch.top_skip)
         .wrapping_mul(pitch)
         .wrapping_add(x.wrapping_mul(surface.bytes_per_pixel)) as u32;
-    let area = Area {
-        first: row.wrapping_add((scratch.left_skip as u32).wrapping_mul(d)),
-        pitch,
-        rows: rows as u32,
-        row_bytes: (visible as u32).wrapping_mul(d),
-    };
-    let done = |eax: u32, row: u32, edx: u32| {
-        let exit = Exit {
-            eax,
-            ebx: Ebx::Row(row),
-            ecx: 0,
-            edx,
-        };
-        Ok((exit, Some(area)))
-    };
-
     let mut runs = Runs {
         format,
         record,
         src: data,
         palette,
         put,
+        colours: Vec::new(),
     };
 
     // Step over the rows clipped off at the top.
@@ -298,9 +259,6 @@ pub fn blit_glyph(
         }
     }
 
-    // The gap of the last run read: what the original leaves in eax.
-    let mut gap = 0u32;
-
     if visible == width {
         // Nothing clipped horizontally: every run is drawn whole.
         let mut rows_left = rows;
@@ -310,13 +268,13 @@ pub fn blit_glyph(
             if count == 0 {
                 rows_left -= 1;
                 if rows_left == 0 {
-                    return done(gap, row, 0);
+                    return Ok(());
                 }
                 row = row.wrapping_add(pitch as u32);
                 dst = row;
                 continue;
             }
-            gap = runs.field()?;
+            let gap = runs.field()?;
             dst = dst.wrapping_add(gap.wrapping_mul(d));
             runs.draw(count, dst)?;
             dst = dst.wrapping_add(count.wrapping_mul(d));
@@ -342,7 +300,7 @@ pub fn blit_glyph(
                     if count == 0 {
                         break;
                     }
-                    gap = runs.field()?;
+                    let gap = runs.field()?;
                     dst = dst.wrapping_add(gap.wrapping_mul(d));
                     let (rest, le) = sub_le(left, gap as i32);
                     left = rest;
@@ -373,7 +331,7 @@ pub fn blit_glyph(
                     if count == 0 {
                         break;
                     }
-                    gap = runs.field()?;
+                    let gap = runs.field()?;
                     dst = dst.wrapping_add(gap.wrapping_mul(d));
                     let (room, le) = sub_le(left, gap as i32);
                     left = room;
@@ -417,10 +375,16 @@ pub fn blit_glyph(
         }
         scratch.rows_left = scratch.rows_left.wrapping_sub(1);
         if scratch.rows_left == 0 {
-            return done(gap, row, left as u32);
+            return Ok(());
         }
         row = row.wrapping_add(pitch as u32);
     }
+}
+
+/// Whether a record starting with `marker` holds its pixels as they are (an extended
+/// record), not as palette indices.
+pub fn direct_colour(marker: u32) -> bool {
+    marker >= 0xFFFF_FFFC
 }
 
 #[cfg(test)]
@@ -436,7 +400,7 @@ mod tests {
     /// A 3 x 2 glyph: row 1 a gap of 1 and pixels 7, 8; row 2 pixels 1, 2, 3.
     const GLYPH: [u8; 15] = [0, 0, 3, 2, 2, 1, 7, 8, 0, 3, 0, 1, 2, 3, 0];
 
-    type Drawn = (Vec<u8>, Result<(Exit, Option<Area>), Invalid>);
+    type Drawn = (Vec<u8>, Result<(), Invalid>);
 
     fn draw(clip: Clip) -> Drawn {
         let mut screen = vec![0u8; 16 * 4];
@@ -465,7 +429,7 @@ mod tests {
         let (screen, r) = draw(all);
         assert_eq!(&screen[16..20], &[0, 0, 7, 8]);
         assert_eq!(&screen[32..36], &[0, 1, 2, 3]);
-        assert_eq!(r.unwrap().0.ebx, Ebx::Row(33));
+        assert!(r.is_ok());
         let (screen, _) = draw(Clip { left: 2, ..all });
         assert_eq!(&screen[32..36], &[0, 0, 2, 3]);
         let (screen, _) = draw(Clip { right: 2, ..all });
@@ -473,8 +437,9 @@ mod tests {
         let (screen, _) = draw(Clip { top: 2, ..all });
         assert_eq!(&screen[16..20], &[0; 4]);
         assert_eq!(&screen[32..36], &[0, 1, 2, 3]);
-        let (_, r) = draw(Clip { left: 9, ..all });
-        assert!(r.unwrap().1.is_none());
+        let (screen, r) = draw(Clip { left: 9, ..all });
+        assert!(r.is_ok());
+        assert_eq!(screen, [0; 64]);
         // A record cut short is refused, not read past.
         let mut scratch = Scratch::default();
         assert!(

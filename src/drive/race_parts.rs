@@ -1,19 +1,23 @@
 use crate::errors::Refused;
+use crate::race::owner::Race;
 
 // What these calls leave in the registers is read by none of their callers (liveness at
 // each call site in `race_loop`, `quit_question`, `pause_until_key`, `finish_run` and
 // `race::play_movie_loop` / `play_movie`).
 
-/// `sub_4541BF`: the race's frame (drawing and the sound tick), for the callers that do
+/// `drive::race_frame`: the race's frame (drawing and the sound tick), for the callers that do
 /// not read the eax it leaves (any value in, as their eax is not read past it either).
-pub fn race_frame() -> Result<(), Refused> {
-    crate::drive::race_frame::race_frame(0)?;
+pub fn race_frame(race: &Race) -> Result<(), Refused> {
+    crate::drive::race_frame::race_frame(race, 0)?;
     Ok(())
 }
 
 /// `scene::restart_clock` (its reading into `g_sceneClock`).
-pub fn restart_clock() {
-    crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
+pub fn restart_clock(race: &Race) {
+    crate::scene::restart_clock::restart_clock(
+        &race.shared,
+        crate::system::tick_count::tick_count(),
+    );
 }
 
 /// `input::update`.
@@ -27,34 +31,39 @@ pub fn take_key() {
 }
 
 /// `race::race_keys`.
-pub fn race_keys() -> Result<(), Refused> {
-    { crate::race::frame::race_keys() }?;
+pub fn race_keys(race: &Race) -> Result<(), Refused> {
+    { crate::race::frame::race_keys(race) }?;
     Ok(())
 }
 
 /// `race::tyre_change`.
-pub fn tyre_change() -> Result<(), Refused> {
-    crate::race::frame::tyre_change_at(&crate::race::frame::tyre_variables())?;
+pub fn tyre_change(
+    race: &Race,
+    input: &'static crate::input::owner::Input,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    crate::race::frame::tyre_change(race, input, system)?;
     Ok(())
 }
 
 /// `race::players_all_out`: the CF.
-pub fn players_all_out() -> Result<bool, Refused> {
-    crate::race::frame::players_all_out()
+pub fn players_all_out(race: &Race) -> Result<bool, Refused> {
+    crate::race::frame::players_all_out(race)
 }
 
 /// `race::stop_race_sounds` (0x45D28E): `race::reset_race_sounds`, its one call.
 pub fn stop_race_sounds() -> Result<(), Refused> {
-    crate::race::race_end::reset_race_sounds(&crate::race::race_end::SoundVars::game())
+    let sound = crate::sound::owner::sound();
+    crate::race::race_end::reset_race_sounds(&crate::race::race_end::SoundVars::game(), sound)
 }
 
 /// `race::wake_car_sounds` (its callers keep the registers round it).
-pub fn wake_car_sounds() -> Result<(), Refused> {
-    crate::race::sounds::wake_car_sounds()?;
+pub fn wake_car_sounds(race: &Race) -> Result<(), Refused> {
+    crate::race::sounds::wake_car_sounds(race)?;
     Ok(())
 }
 
 /// `logfile::log_newline_l1` and the `pusha`'d `log_write_l1_nl` of a text.
 pub fn log_line(text: &std::ffi::CStr) {
-    unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), true, 1) };
+    crate::logfile::log_write::log_nul(&text, true, 1);
 }

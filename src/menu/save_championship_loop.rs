@@ -1,8 +1,6 @@
 //! `menu::save_championship_loop` (0x47F034): the loop of the screen where a championship is
 //! saved and its name typed.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `loadsv.png`; leaving is not asked about; its
 //! own 3D list goes to `g_sceneList` before the first frame only; the Escape flag is looked at
@@ -11,96 +9,86 @@
 //! The name is a reading from the title string of its menu, "GRAVAR CAMPEONATO", not yet a
 //! visit.
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::menus_store::MENUS;
-use crate::menu::option_work_store::OPTION_WORK;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, Carried, Flow, List, Screen, Step, screen_entry};
+use crate::menu::screen_items_store::slot;
+use crate::menu::screen_loop::{
+    Callee, Entry, Flow, FrameRoutine, List, Screen, Step, screen_entry,
+};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn before(c: &mut Carried) -> Result<(), Refused> {
-    DRAW_WORK.escaped.set(0x0u32);
-    c.measure_x = SCREEN_ITEMS.first[slot::SAVE_CHAMPIONSHIP].get();
-    SCREEN_ITEMS.current[slot::SAVE_CHAMPIONSHIP].set(c.measure_x);
+fn before(entry: &Entry) -> Result<(), Refused> {
+    let screens = &entry.menus.screens;
+    screens.draw_work.escaped.set(0x0u32);
+    screens.items.current[slot::SAVE_CHAMPIONSHIP]
+        .set(screens.items.first[slot::SAVE_CHAMPIONSHIP].get());
     Ok(())
 }
 
-unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
-    unsafe {
-        if OPTION_WORK.typing.get() == 0x1 {
-            Callee::EditSavegameName.run(c)?;
-            if OPTION_WORK.typing.get() != 0x0 {
-                return Ok(Flow::NextFrame);
-            }
-            c.arg = 0x0;
+fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
+    let screens = &entry.menus.screens;
+    if screens.option_work.typing.get() == 0x1 {
+        Callee::EditSavegameName.run(entry)?;
+        if screens.option_work.typing.get() != 0x0 {
+            return Ok(Flow::NextFrame);
         }
-        Ok(Flow::On)
     }
+    Ok(Flow::On)
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.save_championship.addr() as usize,
-    saved_item: || &SCREEN_ITEMS.current[slot::SAVE_CHAMPIONSHIP],
+    menu: |m| m.tables.menus.save_championship.id(),
+    saved_item: |m| &m.screens.items.current[slot::SAVE_CHAMPIONSHIP],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
-            table: || DRAW_LISTS.unread_758b72.addr() as usize,
+            pointer: |m| &m.screens.flow.unread_list, // g_unreadList
+            table: |m| m.tables.draw_lists.unread_758b72.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758bbe.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.draw_758bbe.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.save_championship_setup.addr() as usize,
+            pointer: |m| &m.screens.flow.setup_list, // dword_755500
+            table: |m| m.tables.draw_lists.save_championship_setup.id(),
             run: true,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_75914a.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.overlay_75914a.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.save_championship_scene.addr() as usize,
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.save_championship_scene.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758bbe.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.draw_758bbe.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_75914a.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.overlay_75914a.id(),
             run: false,
         },
     ]),
-    frame_callback: rva(0x474D4B),
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[Step::Do(before)],
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgAddr(|| {
-            (crate::menu::texts_store::MENU_TEXTS
-                .save_championship_picture
-                .addr()) as usize
-        }),
-        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.save_championship_picture
+    }))],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,

@@ -1,50 +1,48 @@
 //! Game variables the service area's functions share.
 
 use crate::errors::BadInput;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::players_store::PLAYER_TABLE;
-use crate::menu::state_store::MENU_STATE;
-use crate::pointers::GamePtr;
+use crate::menu::owner::Menus;
+use crate::menu::owner::{Screens, Tables, menus};
 use crate::session::{read_all, write_all};
 use crate::system::checked_reads::refuse;
 
-/// The current player (`Player`), or None if the index or the pointer is not usable.
-pub fn current_player() -> Option<u32> {
-    let index: u32 = EVENT_STATE.current_player.get();
-    if index >= 64 {
-        return None;
-    }
-    let player = GamePtr::new(PLAYER_TABLE.pointers[0].addr())
-        .offset(4 * index)
-        .read::<u32>("the players' table")
-        .unwrap_or_else(|e| refuse(e));
-    (player != 0).then_some(player)
+/// The current player (`Player`), or None if the index is past the four.
+pub fn current_player() -> Option<crate::menu::standings::PlayerCell> {
+    current_player_of(&menus().screens)
 }
 
-/// Address of the flag of menu item `item` in the repair flag table.
-pub fn repair_flag_addr(item: u32) -> u32 {
-    (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(item.wrapping_mul(4))
+/// `current_player` for a caller that holds the screens group.
+pub fn current_player_of(screens: &Screens) -> Option<crate::menu::standings::PlayerCell> {
+    crate::menu::player::player(screens.event.current_player.get())
 }
 
-pub fn repair_flag(item: u32) -> u32 {
-    GamePtr::new(repair_flag_addr(item))
-        .read::<u32>("a repair flag")
-        .unwrap_or_else(|e| refuse(e))
+/// The flag of menu item `item` in the repair flag table (the item not checked against
+/// the table: a read past it reads on, as the original's).
+pub fn repair_flag(menus: &Menus, item: u32) -> u32 {
+    repair_flag_in(&menus.tables, item)
 }
 
-pub fn edit_mode() -> bool {
-    MENU_STATE.service_ui.box_shown.get() == 1
+/// `repair_flag` for a caller that holds the tables group.
+pub fn repair_flag_in(tables: &Tables, item: u32) -> u32 {
+    crate::session::read_on_in(
+        &tables.lists,
+        &tables.lists.inspection_flags_a,
+        item as usize,
+        "a repair flag",
+    )
+    .unwrap_or_else(|e| refuse(e))
+}
+
+pub fn edit_mode(menus: &Menus) -> bool {
+    menus.screens.state.service_ui.box_shown.get() == 1
 }
 
 pub fn menu_item() -> u32 {
-    LOOP_FLAGS.item.get()
+    menus().screens.loop_flags.item.get()
 }
 
-pub fn blink_on() -> bool {
-    DRAW_WORK.blink.get() == 1
+pub fn blink_on(menus: &Menus) -> bool {
+    menus.screens.draw_work.blink.get() == 1
 }
 
 /// Menu items of the service area that have a flag: 0 .. 19. Entry 20 of both flag tables is
@@ -52,8 +50,8 @@ pub fn blink_on() -> bool {
 pub const ITEM_COUNT: u32 = 20;
 
 /// The highlighted menu item, if it has a flag.
-pub fn flagged_item() -> Result<u32, BadInput> {
-    let item = menu_item();
+pub fn flagged_item(screens: &Screens) -> Result<u32, BadInput> {
+    let item = screens.loop_flags.item.get();
     if item < ITEM_COUNT {
         Ok(item)
     } else {
@@ -61,64 +59,67 @@ pub fn flagged_item() -> Result<u32, BadInput> {
     }
 }
 
-pub fn set_repair_flag(item: u32, value: u32) {
-    GamePtr::new(repair_flag_addr(item))
-        .write(value, "a repair flag")
-        .unwrap_or_else(|e| refuse(e))
+pub fn set_repair_flag(tables: &Tables, item: u32, value: u32) {
+    crate::session::write_on_in(
+        &tables.lists,
+        &tables.lists.inspection_flags_a,
+        item as usize,
+        value,
+        "a repair flag",
+    )
+    .unwrap_or_else(|e| refuse(e));
 }
 
 /// The flag table, with its end mark.
-pub fn flags() -> rc2k_core::service::repairs::Table {
-    read_all(&MENU_LISTS.inspection_flags_a)
+pub fn flags(tables: &Tables) -> rc2k_core::service::repairs::Table {
+    read_all(&tables.lists.inspection_flags_a)
 }
 
-pub fn store_flags(t: &rc2k_core::service::repairs::Table) {
-    write_all(&MENU_LISTS.inspection_flags_a, *t)
+pub fn store_flags(tables: &Tables, t: &rc2k_core::service::repairs::Table) {
+    write_all(&tables.lists.inspection_flags_a, *t);
 }
 
 /// The mark table, with its end mark.
-pub fn marks() -> rc2k_core::service::repairs::Table {
-    read_all(&MENU_LISTS.inspection_flags_b)
+pub fn marks(tables: &Tables) -> rc2k_core::service::repairs::Table {
+    read_all(&tables.lists.inspection_flags_b)
 }
 
-pub fn store_marks(t: &rc2k_core::service::repairs::Table) {
-    write_all(&MENU_LISTS.inspection_flags_b, *t)
+pub fn store_marks(tables: &Tables, t: &rc2k_core::service::repairs::Table) {
+    write_all(&tables.lists.inspection_flags_b, *t);
 }
 
 /// An item's repair time, through its pointer (None: null).
-pub fn time_of(item: usize) -> Option<i32> {
-    let at = GamePtr::new(MENU_LISTS.repair_time_ptrs[0].addr())
-        .offset(4 * item as u32)
-        .read::<u32>("the repair times' pointers")
-        .unwrap_or_else(|e| refuse(e));
-    (at != 0).then(|| {
-        GamePtr::new(at)
-            .read::<i32>("a repair time")
-            .unwrap_or_else(|e| refuse(e))
-    })
+pub fn time_of(menus: &Menus, tables: &Tables, item: usize) -> Option<i32> {
+    let key: u32 = tables
+        .lists
+        .repair_time_ptrs
+        .get(item)
+        .map(super::super::session::Dword::get)
+        .unwrap_or_else(|| refuse(BadInput("an item past the repair times' pointers")));
+    crate::menu::lists_store::repair_time_at(menus, key)
+        .unwrap_or_else(|e| refuse(e))
+        .map(|time| time.get() as i32)
 }
 
 /// The time of every item whose flag is not 0, as the original adds it up. Converted:
 /// `rc2k_core::service::repairs::chosen_time`.
-pub fn chosen_repairs_time() -> Result<i32, BadInput> {
-    Ok(rc2k_core::service::repairs::chosen_time(&flags(), time_of)?)
+pub fn chosen_repairs_time(menus: &Menus, tables: &Tables) -> Result<i32, BadInput> {
+    Ok(rc2k_core::service::repairs::chosen_time(
+        &flags(tables),
+        |item| time_of(menus, tables, item),
+    )?)
 }
 
-pub fn leave_edit_mode() {
-    MENU_STATE.service_ui.box_shown.set(0u32)
+pub fn leave_edit_mode(screens: &Screens) {
+    screens.state.service_ui.box_shown.set(0u32);
 }
 
 /// True if menu item `item` has a repair time (a non-null pointer in the table).
-pub fn has_repair_time(item: u32) -> bool {
-    item < ITEM_COUNT
-        && GamePtr::new(MENU_LISTS.repair_time_ptrs[0].addr())
-            .offset(4 * item)
-            .read::<u32>("the repair times' pointers")
-            .unwrap_or_else(|e| refuse(e))
-            != 0
+pub fn has_repair_time(tables: &Tables, item: u32) -> bool {
+    item < ITEM_COUNT && tables.lists.repair_time_ptrs[item as usize].get() != 0
 }
 
 /// True if the second flag table has its end mark where it belongs.
-pub fn marks_ended() -> bool {
-    rc2k_core::service::repairs::end_of(&marks()).is_some()
+pub fn marks_ended(tables: &Tables) -> bool {
+    rc2k_core::service::repairs::end_of(&marks(tables)).is_some()
 }

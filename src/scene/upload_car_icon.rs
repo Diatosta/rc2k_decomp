@@ -2,11 +2,6 @@
 //! The game's log calls every texture a "icon"; this was `scene::upload_plate` until
 //! 2026-10-24.
 //!
-//! In:  eax, ecx = the icon sheet's two pictures (the second for the alpha), ebx = the
-//!      system texture, edx, esi = where on the sheet the icon is, edi, ebp = where on
-//!      the texture it goes
-//! Out: every register preserved
-//!
 //! - ebx, edi, ebp, edx, esi to `dword_5BE8F1`, `_8F5`, `_8F9`, `_8FD`, `_901`, the
 //!   icon's size 0x52 x 0x2A to `dword_5BE905`, `_909`.
 //! - With the texture's record (0x78 bytes at `unk_5B521C`) +0x5C at 1: the second
@@ -19,10 +14,10 @@
 //!   a size not in it, or two different numbers, is a fatal error (0x80A18761 ..
 //!   0x80A18767). The picture is halved that many times (`halve_texture`) and the six
 //!   places and sizes stored are shifted right by it.
-//! - The texture locked (`sub_41AA4B`, which makes it `g_surface`); if it locked, the
+//! - The texture locked (`d3d::lock_texture`, which makes it `g_surface`); if it locked, the
 //!   icon's piece blitted (`gfx::blit_components`, the picture's row bytes being its
 //!   height times 4: the original's, a square sheet makes it right) and the texture
-//!   unlocked (`sub_41AB02`). Those two are Direct3D and stay the game's.
+//!   unlocked (`d3d::unlock_texture`). Those two are Direct3D and stay the game's.
 //!
 //! Two call sites in `scene::load_hud_car_icons`. Refuses a texture of 0x140 or more, a record
 //! without its format, and what the pixel functions refuse; a refusal after the pictures are
@@ -54,30 +49,69 @@ pub struct IconUpload {
 const _: () = assert!(STORED_LEN == 0x1C);
 
 /// `stru_5BE8F1` (`IconUpload` in IDA, unaligned): what the upload keeps while it works.
-pub static ICON_UPLOAD: crate::session::Shared<IconUpload> =
-    crate::session::Shared::new(IconUpload {
-        texture: 0,
-        target_x: 0,
-        target_y: 0,
-        piece: [0; 4],
-    });
+/// The record as bytes (it lies at an address that is no multiple of 4): `get` and `set` turn
+/// them to and from an `IconUpload`.
+#[repr(transparent)]
+#[derive(rc2k_derive::Cells)]
+pub struct IconUploadCell(crate::session::Bytes<STORED_LEN>);
 
-/// Where the record is (`moved::MOVED`'s home for IDA 0x5BE8F1).
-pub fn home() -> usize {
-    ICON_UPLOAD.addr() as usize
+impl IconUploadCell {
+    pub fn get(&self) -> IconUpload {
+        let bytes = self.0.read();
+        let word =
+            |n: usize| u32::from_le_bytes([bytes[n], bytes[n + 1], bytes[n + 2], bytes[n + 3]]);
+        IconUpload {
+            texture: word(0),
+            target_x: word(4),
+            target_y: word(8),
+            piece: [word(12), word(16), word(20), word(24)],
+        }
+    }
+
+    pub fn set(&self, upload: IconUpload) {
+        let (texture, target_x, target_y, piece) = (
+            upload.texture,
+            upload.target_x,
+            upload.target_y,
+            upload.piece,
+        );
+        let mut bytes = [0u8; STORED_LEN];
+        for (n, value) in [texture, target_x, target_y]
+            .into_iter()
+            .chain(piece)
+            .enumerate()
+        {
+            bytes[4 * n..4 * n + 4].copy_from_slice(&value.to_le_bytes());
+        }
+        self.0.write(&bytes);
+    }
+
+    #[cfg(test)]
+    pub fn addr(&self) -> u32 {
+        crate::pointers::GamePtr::to(self).addr()
+    }
 }
 
-/// The piece's place: what `blit_components` gets in ebx.
-fn piece_address() -> u32 {
-    ICON_UPLOAD.addr() + std::mem::offset_of!(IconUpload, piece) as u32
+impl IconUploadCell {
+    pub const fn new() -> Self {
+        IconUploadCell(crate::session::Bytes::new([0; STORED_LEN]))
+    }
+}
+
+/// The piece's place: what `blit_components` gets in ebx, bounded to the piece's four dwords
+/// (the longest read is its 16 bytes).
+fn piece_place(upload: &IconUploadCell) -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::to(upload)
+        .offset(std::mem::offset_of!(IconUpload, piece) as u32)
+        .limited(std::mem::size_of::<[u32; 4]>() as u32)
 }
 
 /// What `upload_car_icon` is given (the original's registers): the icon sheet's two pictures
 /// (eax, ecx), the system texture (ebx), where on the sheet the icon is (edx, esi) and
 /// where on the texture it goes (edi, ebp).
 pub struct CarIcon {
-    pub sheet: u32,
-    pub alpha_sheet: u32,
+    pub sheet: crate::pointers::GamePtr,
+    pub alpha_sheet: crate::pointers::GamePtr,
     pub texture: u32,
     pub sheet_x: u32,
     pub sheet_y: u32,
@@ -87,58 +121,57 @@ pub struct CarIcon {
 
 // ---- Rust version ----
 
-/// The Rust version. The original keeps every register (`pusha` .. `popa`).
-pub unsafe fn upload_car_icon(icon: &CarIcon) -> Result<(), Refused> {
-    unsafe {
-        let texture = icon.texture;
-        let record = Record::of(texture)?;
-        ICON_UPLOAD.set(IconUpload {
-            texture,
-            target_x: icon.target_x,
-            target_y: icon.target_y,
-            piece: [icon.sheet_x, icon.sheet_y, 0x52, 0x2A],
-        });
-        keep_second_picture(&record, icon.alpha_sheet)?;
-        let (pixels, width, height, _) = read_texture_picture(crate::pointers::host(icon.sheet))?;
-        ready_picture(&record, pixels, width, height)?;
-        let across = halvings_apart(
-            &record,
-            width,
-            height,
-            [
-                0x80A1_8761,
-                0x80A1_8762,
-                0x80A1_8764,
-                0x80A1_8765,
-                0x80A1_8767,
-            ],
-        )?;
-        if !halvable(width, height, across) {
-            return Err(BadInput("a picture that halves to nothing").into());
-        }
-        let (_, height) = halve_texture(pixels, width, height, across)?;
-        let mut stored: IconUpload = ICON_UPLOAD.get();
-        let shift = across & 31;
-        stored.target_x >>= shift;
-        stored.target_y >>= shift;
-        stored.piece = stored.piece.map(|value| value >> shift);
-        ICON_UPLOAD.set(stored);
-        // The texture locked (making it the surface): if it locked, the icon's piece
-        // blitted and the texture unlocked.
-        if !crate::d3d::lock_texture::lock_texture(texture)?.carry {
-            let piece = Piece {
-                rectangle: piece_address(),
-                x: stored.target_x,
-                y: stored.target_y,
-                pixels,
-                row_bytes: height.wrapping_mul(4),
-            };
-            let blitted = blit_components(&piece, &game_target());
-            crate::d3d::unlock_texture::unlock_texture(texture)?;
-            blitted?;
-        }
-        Ok(())
+/// The Rust version. The original keeps every register.
+pub fn upload_car_icon(upload: &IconUploadCell, icon: &CarIcon) -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
+    let texture = icon.texture;
+    let record = Record::of(texture)?;
+    upload.set(IconUpload {
+        texture,
+        target_x: icon.target_x,
+        target_y: icon.target_y,
+        piece: [icon.sheet_x, icon.sheet_y, 0x52, 0x2A],
+    });
+    keep_second_picture(&record, Some(icon.alpha_sheet))?;
+    let (pixels, width, height, _) = read_texture_picture(icon.sheet)?;
+    ready_picture(&record, pixels, width, height, gfx)?;
+    let across = halvings_apart(
+        &record,
+        width,
+        height,
+        [
+            0x80A1_8761,
+            0x80A1_8762,
+            0x80A1_8764,
+            0x80A1_8765,
+            0x80A1_8767,
+        ],
+    )?;
+    if !halvable(width, height, across) {
+        return Err(BadInput("a picture that halves to nothing").into());
     }
+    let (_, height) = halve_texture(pixels, width, height, across)?;
+    let mut stored: IconUpload = upload.get();
+    let shift = across & 31;
+    stored.target_x >>= shift;
+    stored.target_y >>= shift;
+    stored.piece = stored.piece.map(|value| value >> shift);
+    upload.set(stored);
+    // The texture locked (making it the surface): if it locked, the icon's piece
+    // blitted and the texture unlocked.
+    if !crate::d3d::lock_texture::lock_texture(texture)?.carry {
+        let piece = Piece {
+            rectangle: piece_place(upload),
+            x: stored.target_x,
+            y: stored.target_y,
+            pixels,
+            row_bytes: height.wrapping_mul(4),
+        };
+        let blitted = blit_components(&gfx.pixel.formats, &piece, &game_target(gfx)?);
+        crate::d3d::unlock_texture::unlock_texture(texture)?;
+        blitted?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -147,7 +180,28 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&ICON_UPLOAD, START, START + STORED_LEN);
-        assert_eq!(crate::moved::place(START), ICON_UPLOAD.addr() as usize);
+        crate::gfx::first_values_are_the_games(
+            &crate::scene::owner::SCENE.icon_upload,
+            START,
+            START + STORED_LEN,
+        );
+        assert_eq!(
+            crate::moved::place(START),
+            crate::scene::owner::SCENE.icon_upload.addr() as usize
+        );
+    }
+
+    #[test]
+    fn the_piece_place_holds_its_four_dwords_and_no_more() {
+        assert!(
+            piece_place(&crate::scene::owner::SCENE.icon_upload)
+                .read::<[u32; 4]>("t")
+                .is_ok()
+        );
+        assert!(
+            piece_place(&crate::scene::owner::SCENE.icon_upload)
+                .read::<[u32; 5]>("t")
+                .is_err()
+        );
     }
 }

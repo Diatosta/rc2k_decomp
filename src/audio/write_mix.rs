@@ -2,23 +2,19 @@
 //! locked parts.
 //!
 //! In:  nothing (`g_lockedParts`, `g_soundMode`)
-//! Out: eax .. ebp as its loops leave them (the one caller, `audio::mix`, keeps its own)
 //!
-//! See `audio/mixer.rs`; `sub_40C087`, `sub_40C0E0`, `sub_40C153` (the three formats)
+//! See `audio/mixer.rs`; 0x40C087, 0x40C0E0, 0x40C153 (the three formats)
 //! inlined. Refuses sixteen bits with a right sample that clips (the original loops for
 //! ever there: section 16).
 
 use crate::audio::mixer::*;
-use crate::audio::store::AUDIO;
+use crate::audio::store::AudioState;
 use crate::errors::Refused;
 
-pub fn write_mix_in_game() -> Result<(), Refused> {
-    let parts = AUDIO.locked_parts.each_ref().map(|d| d.get());
-    unsafe {
-        write_mix(
-            AUDIO.sound_mode.get(),
-            crate::audio::mix_buffer::MIX_BUFFER.samples.addr(),
-            parts,
-        )
-    }
+pub fn write_mix_in_game(state: &AudioState) -> Result<(), Refused> {
+    let parts = state
+        .locked_parts
+        .each_ref()
+        .map(super::super::session::Dword::get);
+    write_mix(state.sound_mode.get(), state.primary_buffer.get(), parts)
 }

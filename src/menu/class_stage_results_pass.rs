@@ -1,67 +1,50 @@
 //! `menu::class_stage_results_pass` (0x4A1EE6): standings table A sorted by stage time (`menu::sort_standings_by_time`), then for each class from 1 (with `dword_75AB40` 2) or 0 up to `dword_7558F8`:
 //! when a player (1 .. 3: the original does not look for player 4, section 16) is in the
-//! class's entries of standings table A, the class numbered (`menu::number_standings_a`, its
+//! class's entries of standings table A, the class numbered (`number_standings`, its
 //! count into `dword_75597C`) and its page shown (`menu::show_class_stage_results`), stopping when the
 //! leaving is answered yes (`g_yesNoAnswer` 1). `dword_755565` the class's flag.
-//!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //!
 //! Callers: the event drivers. The steps are their Rust versions. Refuses a table without its end
 //! entry and a class count the loop would run past (at or below the first, or past 0x100), before
 //! anything; what the steps refuse.
 
 use crate::errors::Refused;
-use crate::menu::event_flow::Fault;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::screen_loop::Carried;
+use crate::menu::owner::Menus;
+use crate::menu::owner::Screens;
 use crate::menu::standings::*;
-use crate::menu::state_store::MENU_STATE;
+use crate::menu::standings_steps::number_standings;
 use rc2k_core::menu::class_pages;
 
 // g_eventMode
 
-/// The first class (see the header).
-fn first_class() -> u32 {
-    class_pages::first_stage_class(MENU_STATE.menus.class_mode.get())
+/// The first class.
+fn first_class(screens: &Screens) -> u32 {
+    class_pages::first_stage_class(screens.state.menus.class_mode.get())
 }
 
-/// The Rust version (see the header). `c` the carried values (registers the pages' screens are run with).
-pub unsafe fn class_stage_results_pass(c: &Carried) -> Result<(), Refused> {
-    unsafe {
-        crate::menu::sort_standings_by_time::sort_standings_by_time()?;
-        let first = first_class();
-        // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).
-        let classes = class_pages::classes(first, EVENT_STATE.classes.get())?;
-        let table: u32 = TABLE_A_RVA.get();
-        let all = entries(table, A_ENTRY)?;
-        for class in classes {
-            LOOP_FLAGS.ended_b.set(0u32);
-            let fault = Fault::default();
-            let has_player = class_pages::has_player(
-                all.len(),
-                |n| fault.get(all[n] + 0x1C),
-                |n| fault.get(all[n] + 4),
-                class,
-            );
-            fault.check()?;
-            if !has_player {
-                continue;
-            }
-            LOOP_FLAGS.ended_b.set(1u32);
-            let numbered = crate::menu::number_standings_a::number_standings_a(class)?;
-            let mut g = Carried {
-                palette: class,
-                ..*c
-            };
-            numbered.carry_on(&mut g);
-            EVENT_STATE.count_a.set(numbered.last_number);
-            crate::menu::show_class_stage_results::show_class_stage_results(class, &g)?;
-            if MENU_PAGES.yes_no_answer.get() == 1 {
-                break;
-            }
+/// The Rust version.
+pub fn class_stage_results_pass(menus: &Menus) -> Result<(), Refused> {
+    let screens = &menus.screens;
+    crate::menu::sort_standings_by_time::sort_standings_by_time(menus)?;
+    let first = first_class(screens);
+    // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).
+    let classes = class_pages::classes(first, menus.screens.event.classes.get())?;
+    let all: Vec<(u32, u32)> = walked_entries_a()?
+        .iter()
+        .map(|e| (e.head.group, e.head.player))
+        .collect();
+    for class in classes {
+        menus.screens.loop_flags.ended_b.set(0u32);
+        let has_player = class_pages::has_player(all.len(), |n| all[n].0, |n| all[n].1, class);
+        if !has_player {
+            continue;
+        }
+        menus.screens.loop_flags.ended_b.set(1u32);
+        let numbered = number_standings(Which::A, class)?;
+        menus.screens.event.count_a.set(numbered.last_number);
+        crate::menu::show_class_stage_results::show_class_stage_results(menus, class)?;
+        if menus.tables.pages.yes_no_answer.get() == 1 {
+            break;
         }
     }
     Ok(())

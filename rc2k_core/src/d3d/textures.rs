@@ -87,7 +87,7 @@ pub struct Surface {
     pub bytes: u32,
     pub row_bytes: u32,
     pub row_dwords: u32,
-    /// The pixel kind's format (its description + 8).
+    /// The pixel kind's format (its description's layout, as the caller names it).
     pub format: u32,
     pub pitch: u32,
     pub pixels: u32,

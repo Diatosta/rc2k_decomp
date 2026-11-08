@@ -4,15 +4,11 @@
 //! (`math::turn_float_point_xz`, ebx the middle value), times `dword_75C2B8` plus
 //! `dword_75C2A0` / `dword_75C2A4`; colour white under the quad record's alpha, specular 0.
 //!
-//! In:  st(0) y, st(1) x (popped), edi the vertex, edx the angle, ebx passed on
-//! Out: eax the colour, ecx the turned y, ebx as the turn leaves it; edx, ebp kept
-//!
-//! Callers: `sub_4B6ECD`'s four (code at 0x4B6FFE ..). The turn is its Rust version.
+//! Callers: `hud::draw_needle`'s four (code at 0x4B6FFE ..). The turn is its Rust version.
 
-use crate::errors::Refused;
-use crate::hud::store::HUD;
+use crate::d3d::vertices_store::Vertex;
+use crate::hud::owner::Hud;
 use crate::math::turn_float_point_xz::turn_float_point_xz_plain;
-use crate::pointers::GamePtr;
 use rc2k_core::hud::disc;
 
 /// The Rust version (see the header), the point as `f64`s (what the x87 holds at the
@@ -20,27 +16,29 @@ use rc2k_core::hud::disc;
 /// original hands its caller's ebx to `math::turn_float_point_xz` as y; that goes to
 /// `g_scratchY` alone, which is written before it is read everywhere: 0 here.
 // Converted: `rc2k_core::hud::disc::{turned_texture, turned_place, white_under}`
-pub fn turned_vertex(vertex: u32, angle: u32, point: [f64; 2]) -> Result<(), Refused> {
-    unsafe {
-        let [y, x] = point.map(|v| v as f32);
-        HUD.point[1].set(y.to_bits());
-        HUD.point[0].set(x.to_bits());
-        let put = |o: u32, v: f32| {
-            GamePtr::new(vertex + o).write::<u32>(v.to_bits(), "a hud record's field")
-        };
-        let scale = HUD.uv_scale_x.get();
-        put(0x18, disc::turned_texture(x, HUD.uv_shift[0].get(), scale))?;
-        put(0x1C, disc::turned_texture(y, HUD.uv_shift[1].get(), scale))?;
-        let [tx, _, tz, _] = turn_float_point_xz_plain(x.to_bits(), 0, y.to_bits(), angle);
-        HUD.point[1].set(tz);
-        HUD.point[0].set(tx);
-        let size = HUD.needle_size.get();
-        let [tx, tz] = [tx, tz].map(f32::from_bits);
-        put(0, disc::turned_place(tx, size, HUD.needle_centre[0].get()))?;
-        put(4, disc::turned_place(tz, size, HUD.needle_centre[1].get()))?;
-        let colour = disc::white_under(HUD.quad[0].get());
-        GamePtr::new(vertex + 0x10).write::<u32>(colour, "a hud record's field")?;
-        GamePtr::new(vertex + 0x14).write::<u32>(0, "a hud record's field")?;
-    }
-    Ok(())
+pub fn turned_vertex(hud: &Hud, vertex: &Vertex, angle: u32, point: [f64; 2]) {
+    let [y, x] = point.map(|v| v as f32);
+    hud.block.point[1].set(y.to_bits());
+    hud.block.point[0].set(x.to_bits());
+    let scale = hud.block.uv_scale_x.get();
+    vertex
+        .u
+        .set_bits(disc::turned_texture(x, hud.block.uv_shift[0].get(), scale).to_bits());
+    vertex
+        .v
+        .set_bits(disc::turned_texture(y, hud.block.uv_shift[1].get(), scale).to_bits());
+    let [tx, _, tz, _] = turn_float_point_xz_plain(x.to_bits(), 0, y.to_bits(), angle);
+    hud.block.point[1].set(tz);
+    hud.block.point[0].set(tx);
+    let size = hud.block.needle_size.get();
+    let [tx, tz] = [tx, tz].map(f32::from_bits);
+    vertex
+        .x
+        .set_bits(disc::turned_place(tx, size, hud.block.needle_centre[0].get()).to_bits());
+    vertex
+        .y
+        .set_bits(disc::turned_place(tz, size, hud.block.needle_centre[1].get()).to_bits());
+    let colour = disc::white_under(hud.block.quad[0].get());
+    vertex.colour.set(colour);
+    vertex.specular.set(0);
 }

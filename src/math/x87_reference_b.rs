@@ -10,13 +10,13 @@ pub(super) fn sub_compare(a: u32, b: u32, negate: bool, c: u32) -> u16 {
         x87!(
             "fld dword ptr [{a}]", "fsub dword ptr [{b}]", "fchs", "fcomp dword ptr [{c}]",
             "fstsw word ptr [{s}]";
-            a = &a, b = &b, c = &c, s = &mut status
+            a = &raw const a, b = &raw const b, c = &raw const c, s = &raw mut status
         );
     } else {
         x87!(
             "fld dword ptr [{a}]", "fsub dword ptr [{b}]", "fcomp dword ptr [{c}]",
             "fstsw word ptr [{s}]";
-            a = &a, b = &b, c = &c, s = &mut status
+            a = &raw const a, b = &raw const b, c = &raw const c, s = &raw mut status
         );
     }
     status & 0x700
@@ -31,7 +31,7 @@ pub(super) fn random_step(r: i32, v: [u32; 7]) -> u32 {
         "fld dword ptr [{v} + 8]", "fsub dword ptr [{v} + 12]", "fmul dword ptr [{v} + 16]",
         "fadd dword ptr [{v} + 20]", "fmul dword ptr [{v} + 24]", ".byte 0xDE, 0xC9",
         "fstp dword ptr [{o}]";
-        r = &r, v = v.as_ptr(), o = &mut out
+        r = &raw const r, v = v.as_ptr(), o = &raw mut out
     );
     out
 }
@@ -42,7 +42,7 @@ pub(super) fn int_plus_less_squared(y: i32, a: u32, b: u32) -> u32 {
     x87!(
         "fild dword ptr [{y}]", "fadd dword ptr [{a}]", "fsub dword ptr [{b}]",
         ".byte 0xD8, 0xC8", "fstp dword ptr [{o}]";
-        y = &y, a = &a, b = &b, o = &mut out
+        y = &raw const y, a = &raw const a, b = &raw const b, o = &raw mut out
     );
     out
 }
@@ -67,7 +67,7 @@ pub(super) fn scale_record(r: *mut u32, a: u32, b: u32) {
         "fld dword ptr [{r} + 0x24]", ".byte 0xD8, 0xC9", "fistp dword ptr [{r} + 0x24]",
         "fld dword ptr [{r} + 0x28]", ".byte 0xD8, 0xC9", "fistp dword ptr [{r} + 0x28]",
         "fld dword ptr [{r} + 0x2C]", ".byte 0xDE, 0xC9", "fistp dword ptr [{r} + 0x2C]";
-        r = r, a = &a, b = &b
+        r = r, a = &raw const a, b = &raw const b
     );
 }
 
@@ -136,7 +136,7 @@ pub(super) fn less_int_plus_int(f: u32, a: i32, b: i32) -> i32 {
 pub(super) fn two_pi_less(a: u32) -> u32 {
     let mut out = 0u32;
     x87!("fldpi", ".byte 0xD8, 0xC0", "fsub dword ptr [{a}]", "fstp dword ptr [{o}]";
-        a = &a, o = &raw mut out);
+        a = &raw const a, o = &raw mut out);
     out
 }
 
@@ -221,7 +221,7 @@ pub(super) fn pair_sum_80(a: i32, m1: u32, b: i32, m2: u32, d: u32) -> [u8; 10] 
 pub(super) fn ext_less(e: [u8; 10], f: u32) -> u32 {
     let mut out = 0u32;
     x87!("fld tbyte ptr [{e}]", "fsub dword ptr [{f}]", "fstp dword ptr [{o}]";
-        e = e.as_ptr(), f = &f, o = &raw mut out);
+        e = e.as_ptr(), f = &raw const f, o = &raw mut out);
     out
 }
 
@@ -432,8 +432,8 @@ pub(super) fn abs_sum_times_to_int(a: u32, b: u32, k: u32) -> i32 {
     out
 }
 
-/// `sub_4CE05E`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m` (its rows
-/// 0x10 apart), placed by +0x30 .. and the place taken off again, all on the x87 stack as
+/// `effects::emit_particle_13`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m` (its
+/// rows 0x10 apart), placed by +0x30 .. and the place taken off again, all on the x87 stack as
 /// the original does (`fxch`, register forms as bytes); then x, y, y less `lift`, z.
 pub(super) fn turned_place_less(t: [u32; 3], k: u32, d: u32, lift: u32, m: u32) -> [u32; 4] {
     let (v, mut out) = ([t[0], t[1], t[2], k, d, lift], [0u32; 4]);
@@ -520,7 +520,8 @@ pub(super) fn mul_80(a: u32, b: u32) -> [u8; 10] {
 }
 
 /// The point (st(0) p0, st(1) p1, st(2) p2) turned and placed by the matrix at `m` on the
-/// x87 stack as `sub_4CE283` does (`fxch`, register forms as bytes); then x, y, y less
+/// x87 stack as `effects::emit_particle_19` does (`fxch`, register forms as bytes); then x, y, y
+/// less
 /// `lift`, z.
 pub(super) fn turned_place(p: [u32; 3], lift: u32, m: u32) -> [u32; 4] {
     let (v, mut out) = ([p[0], p[1], p[2], lift], [0u32; 4]);
@@ -597,7 +598,7 @@ pub(super) fn normalised3(p: [u32; 3], one: u32) -> [u32; 3] {
     out
 }
 
-/// `sub_4C9AF6`'s third side: the cross product of (p0, p1, p2) and the vector at `w`
+/// `effects::cars_particles`'s third side: the cross product of (p0, p1, p2) and the vector at `w`
 /// (unrounded) turned by the transposed matrix at `m` (rows 0x10 apart), as the original
 /// does it on the x87 stack (`fxch`, register forms as bytes).
 pub(super) fn crossed_turned(p: [u32; 3], w: u32, m: u32) -> [u32; 3] {
@@ -630,7 +631,7 @@ pub(super) fn crossed_turned(p: [u32; 3], w: u32, m: u32) -> [u32; 3] {
     out
 }
 
-/// The vector at `p` made of length 1 as `sub_4C1294` does it: the length (`fmul st, st`
+/// The vector at `p` made of length 1 as `effects::aim_vector` does it: the length (`fmul st, st`
 /// each, `faddp` twice, `fsqrt`) `fst` (the second), `fld1; fdivrp`, each by it, stored z
 /// first, the factor dropped (`ffree st; fincstp`).
 pub(super) fn unit_and_length(p: [u32; 3]) -> ([u32; 3], u32) {
@@ -666,7 +667,7 @@ pub(super) fn sine_and_cosine(t: u32) -> (u32, u32) {
     (s, c)
 }
 
-/// `sub_4C1194`'s turn of (y, z) by the stored sine and cosine: z c - y s and z s + y c
+/// `effects::tilt_shape`'s turn of (y, z) by the stored sine and cosine: z c - y s and z s + y c
 /// (`fsubp`, `faddp` on the stack), returned as (new y, new z).
 pub(super) fn turn_yz(y: u32, z: u32, s: u32, c: u32) -> (u32, u32) {
     let (v, mut out) = ([y, z, s, c], [0u32; 2]);
@@ -730,7 +731,7 @@ pub(super) fn int_over_int_times(a: i32, b: i32, k: u32) -> u32 {
     out
 }
 
-/// `sub_4B8A0B`'s crossing: t = (m - fc) / (fs - fc) (`fld m; fsub fc; fld fs; fsub fc;
+/// `effects::clip_quad`'s crossing: t = (m - fc) / (fs - fc) (`fld m; fsub fc; fld fs; fsub fc;
 /// fdivp st(1), st`), then for each (s, c) pair (s - c) t + c (`fld s; fsub c; fmul st,
 /// st(1)`, the last `fmulp`; `fadd c; fstp`), t kept unrounded.
 pub(super) fn clip_lerp3(m: u32, fc: u32, fs: u32, pairs: [[u32; 2]; 3]) -> [u32; 3] {
@@ -760,8 +761,8 @@ pub(super) fn clip_lerp3(m: u32, fc: u32, fs: u32, pairs: [[u32; 2]; 3]) -> [u32
     out
 }
 
-/// `sub_4C969A`'s projection: q = focal / z (`fld; fdiv`), kept; x' = q x + cx (`fld st;
-/// fmul; fadd; fstp`), y' = -(q y) + cy (`fld st; fmul; fchs; fadd; fstp`), s = q k
+/// `effects::draw_mark_slots`'s projection: q = focal / z (`fld; fdiv`), kept; x' = q x + cx (`fld
+/// st; fmul; fadd; fstp`), y' = -(q y) + cy (`fld st; fmul; fchs; fadd; fstp`), s = q k
 /// (`fmul; fstp`).
 pub(super) fn slot_project(
     focal: u32,
@@ -822,8 +823,8 @@ pub(super) fn diff_times_plus_times(b: u32, a: u32, k: u32, c: u32, m: u32) -> u
     out
 }
 
-/// `sub_4CFDD5`'s turn: the point p (st(0) x, st(1) y, st(2) z, 80 bits) by the matrix at
-/// m read by columns, each (m[c] x + (m[c+4] y + m[c+8] z)) + m[c+12], as the original
+/// `effects::draw_particle`'s turn: the point p (st(0) x, st(1) y, st(2) z, 80 bits) by the matrix
+/// at m read by columns, each (m[c] x + (m[c+4] y + m[c+8] z)) + m[c+12], as the original
 /// interleaves them; the three rounded.
 pub(super) fn column_turn(p: &[[u8; 10]; 3], m: u32) -> [u32; 3] {
     let mut out = [0u32; 3];
@@ -850,7 +851,7 @@ pub(super) fn column_turn(p: &[[u8; 10]; 3], m: u32) -> [u32; 3] {
     out
 }
 
-/// `sub_4CFDD5`'s square: q = focal / c, kept; z' = c zk; s = size q (`fild; fmul st,
+/// `effects::draw_particle`'s square: q = focal / c, kept; z' = c zk; s = size q (`fild; fmul st,
 /// st(1)`); Y = -(q b) + cy and X = q a + cx kept in 80 bits, the corners Y - s, Y - s,
 /// Y + s, Y + s and X - s, X + s, X + s, X - s. Out: [s, z', y0 .. y3, x0 .. x3].
 pub(super) fn particle_square(a: u32, b: u32, c: u32, k: [u32; 4], size: i32) -> [u32; 10] {
@@ -939,8 +940,8 @@ pub(super) fn int_times_plus_times_plus(r: i32, k1: u32, a: u32, k2: u32, b: u32
     out
 }
 
-/// `sub_4CBD12`'s square: q = focal / c, kept; z' = c zk; s = size q (`fild; fmul st,
-/// st(1)`); the half sides (s, s) and (s, -s) turned by sin / cos (u' = v cos + u sin,
+/// `effects::draw_turned_sprite`'s square: q = focal / c, kept; z' = c zk; s = size q (`fild; fmul
+/// st, st(1)`); the half sides (s, s) and (s, -s) turned by sin / cos (u' = v cos + u sin,
 /// v' = u cos - v sin, as the original's `fld st(1)` pairs); Y = -(q b) + cy and X = q a +
 /// cx kept in 80 bits, the corners Y - v1, Y - v2, Y + v1, Y + v2 and X - u1, X - u2,
 /// X + u1, X + u2. Out: [s, z', u1, v1, u2, v2, y0 .. y3, x0 .. x3].
@@ -1016,8 +1017,8 @@ pub(super) fn int_to_float(a: i32) -> u32 {
     out
 }
 
-/// `sub_4C4FFB`'s turn of a corner (x, y) by sin / cos about (cx, cy): x' = (x cos + y sin)
-/// + cx, y' = (-x sin + y cos) + cy (`fld y; fld x; fld st(1); fld st(1)` ...).
+/// `effects::draw_flare_part`'s turn of a corner (x, y) by sin / cos about (cx, cy): x' = (x cos +
+/// y sin) + cx, y' = (-x sin + y cos) + cy (`fld y; fld x; fld st(1); fld st(1)` ...).
 pub(super) fn turn_about(x: u32, y: u32, sin: u32, cos: u32, cx: u32, cy: u32) -> [u32; 2] {
     let v = [x, y, sin, cos, cx, cy];
     let mut out = [0u32; 2];
@@ -1161,6 +1162,7 @@ pub(super) fn sum3_times(a: u32, b: u32, c: u32, k: u32) -> u32 {
 
 #[cfg(test)]
 mod diff {
+    use crate::math::cells::At;
     use crate::math::x87 as plain;
     use crate::math::x87::{control_word, set_control_word};
     use std::collections::BTreeMap;
@@ -1407,11 +1409,11 @@ mod diff {
         unsafe {
             core::arch::asm!(
                 "fld qword ptr [{x}]", "fstp tbyte ptr [{o}]",
-                x = in(reg) &x, o = in(reg) out.as_mut_ptr(),
+                x = in(reg) &raw const x, o = in(reg) out.as_mut_ptr(),
                 out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
                 out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
                 options(nostack),
-            )
+            );
         };
         out
     }
@@ -1554,7 +1556,7 @@ mod diff {
             let (a, b) = (t.rng.fl(), t.rng.fl());
             let (mut want, mut got) = (r, r);
             super::scale_record(want.as_mut_ptr(), a, b);
-            plain::scale_record(got.as_mut_ptr(), a, b);
+            got = plain::scale_record_bits(got, a, b);
             let ok = want.same(&got, 0);
             t.record("scale_record", ok, || {
                 format!("{r:x?} {a:x} {b:x} want {want:x?} got {got:x?}")
@@ -1563,15 +1565,15 @@ mod diff {
             let m = matrix(&mut t.rng);
             let mp = crate::pointers::game_address(m.as_ptr());
             let (p, k, d, lift) = (t.rng.a3(), t.rng.fl(), t.rng.fl(), t.rng.fl());
-            let want = { super::turned_place_less(p, k, d, lift, mp) };
-            let got = { plain::turned_place_less(p, k, d, lift, mp) };
+            let want = super::turned_place_less(p, k, d, lift, mp);
+            let got = plain::turned_place_less(p, k, d, lift, &At(mp));
             let ok = want.same(&got, 0);
             t.record("turned_place_less", ok, || {
                 format!("{p:x?} {k:x} {d:x} {lift:x} {m:x?} want {want:x?} got {got:x?}")
             });
 
-            let want = { super::turned_place(p, lift, mp) };
-            let got = { plain::turned_place(p, lift, mp) };
+            let want = super::turned_place(p, lift, mp);
+            let got = plain::turned_place(p, lift, &At(mp));
             let ok = want.same(&got, 0);
             t.record("turned_place", ok, || {
                 format!("{p:x?} {lift:x} {m:x?} want {want:x?} got {got:x?}")
@@ -1579,8 +1581,8 @@ mod diff {
 
             let w = t.rng.a3();
             let wp = crate::pointers::game_address(w.as_ptr());
-            let want = { super::crossed_turned(p, wp, mp) };
-            let got = { plain::crossed_turned(p, wp, mp) };
+            let want = super::crossed_turned(p, wp, mp);
+            let got = plain::crossed_turned(p, &At(wp), &At(mp));
             let ok = want.same(&got, 0);
             t.record("crossed_turned", ok, || {
                 format!("{p:x?} {w:x?} {m:x?} want {want:x?} got {got:x?}")
@@ -1588,7 +1590,7 @@ mod diff {
 
             let p80 = t.rng.p80();
             let want = super::column_turn(&p80, mp);
-            let got = plain::column_turn(&p80, mp);
+            let got = plain::column_turn(&p80, &At(mp));
             let ok = want.same(&got, 0);
             t.record("column_turn", ok, || {
                 format!("{p80:x?} {m:x?} want {want:x?} got {got:x?}")

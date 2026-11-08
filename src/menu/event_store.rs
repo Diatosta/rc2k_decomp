@@ -8,6 +8,7 @@ use crate::session::{Bytes, Dword, with_runs};
 
 /// The event's state (IDA 0x7558C4 .. 0x7559A4).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Event {
     /// `dword_7558C4`: Not worked out.
     pub dword_7558c4: Dword,
@@ -121,64 +122,68 @@ pub struct Event {
     pub _gap_75599c: Bytes<8>,
 }
 
-/// First values the image's (`tests::event_state_starts_as_the_games`).
-pub static EVENT_STATE: Event = Event {
-    dword_7558c4: Dword::new(0x0),
-    stage_group: Dword::new(0x0),
-    stage_number: Dword::new(0x1),
-    stage_sub: Dword::new(0x0),
-    dword_7558d4: Dword::new(0x0),
-    clears_escape_flag: Dword::new(0x0),
-    sparks_mode: Dword::new(0x0),
-    dword_7558e0: Dword::new(0x0),
-    dword_7558e4: Dword::new(0x0),
-    dword_7558e8: Dword::new(0x0),
-    dword_7558ec: Dword::new(0x0),
-    dword_7558f0: Dword::new(0x0),
-    class: Dword::new(0x0),
-    classes: Dword::new(0x4),
-    dword_7558fc: Dword::new(0x0),
-    dword_755900: Dword::new(0x0),
-    dword_755904: Dword::new(0x0),
-    dword_755908: Dword::new(0x0),
-    dword_75590c: Dword::new(0x0),
-    dword_755910: Dword::new(0x2),
-    player_time: Dword::new(0x0),
-    time_qualifies: Dword::new(0x0),
-    dword_75591c: Dword::new(0x0),
-    any_time_qualified: Dword::new(0x0),
-    welcome_figure: Dword::new(0x3DC),
-    championship_end: Dword::new(0x0),
-    event_goes_on: Dword::new(0x1),
-    dword_755930: Dword::new(0x0),
-    welcomed: Dword::new(0x0),
-    service_due: Dword::new(0x0),
-    service_minutes: Dword::new(0x0),
-    service_940: Dword::new(0x0),
-    service_944: Dword::new(0x0),
-    dword_755948: Dword::new(0x0),
-    service_next: Dword::new(0x0),
-    stages_done: Dword::new(0x0),
-    event_type: Dword::new(0x1),
-    index: Dword::new(0x0),
-    section: Dword::new(0x0),
-    first_page_stage: Dword::new(0x0),
-    dword_755964: Dword::new(0x0),
-    stage_pages: Dword::new(0x0),
-    stage_page: Dword::new(0x0),
-    continuing_save: Dword::new(0x0),
-    _gap_755974: Bytes::new(with_runs::<4>(&[(0x0, &[0x05])])),
-    event_out: Dword::new(0x0),
-    count_a: Dword::new(0x0),
-    event_done: Dword::new(0x0),
-    player_count: Dword::new(0x1),
-    event_kind: Dword::new(0x18),
-    current_player: Dword::new(0x0),
-    shown_car: Dword::new(0x0),
-    picture: Dword::new(0x0),
-    car_page: Dword::new(0x0),
-    _gap_75599c: Bytes::new([0; 8]),
-};
+impl Event {
+    /// First values the image's (`tests::event_state_starts_as_the_games`).
+    pub const fn new() -> Self {
+        Event {
+            dword_7558c4: Dword::new(0x0),
+            stage_group: Dword::new(0x0),
+            stage_number: Dword::new(0x1),
+            stage_sub: Dword::new(0x0),
+            dword_7558d4: Dword::new(0x0),
+            clears_escape_flag: Dword::new(0x0),
+            sparks_mode: Dword::new(0x0),
+            dword_7558e0: Dword::new(0x0),
+            dword_7558e4: Dword::new(0x0),
+            dword_7558e8: Dword::new(0x0),
+            dword_7558ec: Dword::new(0x0),
+            dword_7558f0: Dword::new(0x0),
+            class: Dword::new(0x0),
+            classes: Dword::new(0x4),
+            dword_7558fc: Dword::new(0x0),
+            dword_755900: Dword::new(0x0),
+            dword_755904: Dword::new(0x0),
+            dword_755908: Dword::new(0x0),
+            dword_75590c: Dword::new(0x0),
+            dword_755910: Dword::new(0x2),
+            player_time: Dword::new(0x0),
+            time_qualifies: Dword::new(0x0),
+            dword_75591c: Dword::new(0x0),
+            any_time_qualified: Dword::new(0x0),
+            welcome_figure: Dword::new(0x3DC),
+            championship_end: Dword::new(0x0),
+            event_goes_on: Dword::new(0x1),
+            dword_755930: Dword::new(0x0),
+            welcomed: Dword::new(0x0),
+            service_due: Dword::new(0x0),
+            service_minutes: Dword::new(0x0),
+            service_940: Dword::new(0x0),
+            service_944: Dword::new(0x0),
+            dword_755948: Dword::new(0x0),
+            service_next: Dword::new(0x0),
+            stages_done: Dword::new(0x0),
+            event_type: Dword::new(0x1),
+            index: Dword::new(0x0),
+            section: Dword::new(0x0),
+            first_page_stage: Dword::new(0x0),
+            dword_755964: Dword::new(0x0),
+            stage_pages: Dword::new(0x0),
+            stage_page: Dword::new(0x0),
+            continuing_save: Dword::new(0x0),
+            _gap_755974: Bytes::new(with_runs::<4>(&[(0x0, &[0x05])])),
+            event_out: Dword::new(0x0),
+            count_a: Dword::new(0x0),
+            event_done: Dword::new(0x0),
+            player_count: Dword::new(0x1),
+            event_kind: Dword::new(0x18),
+            current_player: Dword::new(0x0),
+            shown_car: Dword::new(0x0),
+            picture: Dword::new(0x0),
+            car_page: Dword::new(0x0),
+            _gap_75599c: Bytes::new([0; 8]),
+        }
+    }
+}
 
 /// IDA 0x7558C4, the first byte of the piece.
 pub const START: usize = 0x7558C4;
@@ -186,8 +191,9 @@ pub const START: usize = 0x7558C4;
 pub const END: usize = 0x7559A4;
 
 /// Where IDA 0x7558C4 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn event_addr() -> u32 {
-    crate::pointers::game_address(&EVENT_STATE as *const Event)
+    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.screens.event)
 }
 
 #[cfg(test)]
@@ -204,7 +210,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(event_addr()) as *const u8,
+                crate::pointers::host(event_addr()).cast_const(),
                 END - START,
             )
         };

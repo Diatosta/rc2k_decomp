@@ -3,56 +3,52 @@
 //! floats `flt_614234` and `flt_614238` held to at most `flt_5C5D3C` (2.0; one that is
 //! below it, or unordered, is left).
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read (the caller's next is a call)
-//!
-//! Caller: `sub_43DFB1` (0x43E519).
+//! Caller: `physics::drive_wheels_step` (0x43E519).
 
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
+use crate::race::owner::Race;
+use crate::race::owner_course::Course;
+use crate::session::Cell32;
 use rc2k_core::physics::drive_forces::cap_reverse;
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::cap_reverse_inputs's operand")
+fn at(a: &dyn Cell32) -> u32 {
+    a.bits()
 }
 
 /// The converted version (`rc2k_core::physics::drive_forces`) on the gear, the speed and
 /// the two values at these places.
 // Converted: `rc2k_core::physics::drive_forces::cap_reverse`.
-pub unsafe fn cap_reverse_inputs_at(gear: u32, speed: u32, values: [u32; 2]) {
-    unsafe {
-        if at(gear) != u32::MAX {
-            return; // the speed and the values not read, as the original
-        }
-        let f = |a: u32| f32::from_bits(at(a));
-        let zero = f32::from_bits(NUMBERS.zero.bits());
-        let cap = f32::from_bits(NUMBERS.two.bits());
-        let Some(held) = cap_reverse(at(gear), f(speed), zero, [f(values[0]), f(values[1])], cap)
-        else {
-            return;
-        };
-        for (v, h) in values.iter().zip(held) {
-            if at(*v) != h.to_bits() {
-                (crate::pointers::host(*v) as *mut u32).write_unaligned(h.to_bits());
-            }
+pub fn cap_reverse_inputs_at(
+    course: &Course,
+    gear: &dyn Cell32,
+    speed: &dyn Cell32,
+    values: [&dyn Cell32; 2],
+) {
+    if at(gear) != u32::MAX {
+        return; // the speed and the values not read, as the original
+    }
+    let f = |a: &dyn Cell32| f32::from_bits(at(a));
+    let zero = f32::from_bits(course.numbers.zero.bits());
+    let cap = f32::from_bits(course.numbers.two.bits());
+    let Some(held) = cap_reverse(at(gear), f(speed), zero, [f(values[0]), f(values[1])], cap)
+    else {
+        return;
+    };
+    for (v, h) in values.iter().zip(held) {
+        if at(*v) != h.to_bits() {
+            v.set_bits(h.to_bits());
         }
     }
 }
 
-fn game() -> (u32, u32, [u32; 2]) {
-    (
-        (CAR.gear.addr()),
-        (CAR.local_velocity[2].addr()),
-        [
-            (PHYSICS.wheel_slips[0].addr()),
-            (PHYSICS.wheel_slips[1].addr()),
-        ],
-    )
-}
-
 /// The Rust version (compares and copies of floats only: the same at any precision).
-pub unsafe fn cap_reverse_inputs() {
-    let (gear, speed, values) = game();
-    unsafe { cap_reverse_inputs_at(gear, speed, values) }
+pub fn cap_reverse_inputs(race: &Race) {
+    cap_reverse_inputs_at(
+        &race.course,
+        &race.shared.car.gear,
+        &race.shared.car.local_velocity[2],
+        [
+            &race.shared.physics_tables.wheel_slips[0],
+            &race.shared.physics_tables.wheel_slips[1],
+        ],
+    );
 }

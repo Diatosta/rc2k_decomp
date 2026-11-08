@@ -1,12 +1,14 @@
 //! The polygon vertex buffer `g_polygonVertices`, typed (phase 7): IDA 0x9605A0 .. 0x960DA0,
 //! 64 transformed and lit vertices (`TLVertex`, 0x20 bytes) in the image's zeroed tail
-//! (`race::store::buffers`). The polygon about to be drawn stands in its first vertices
+//! (`race::buffers_store`). The polygon about to be drawn stands in its first vertices
 //! (`g_polygonVertexCount`, `DRAW.polygon_vertex_count`, says how many).
 
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 /// One `TLVertex` of IDA: a Direct3D transformed and lit vertex.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Vertex {
     /// +0x0: the screen x.
     pub x: Float,
@@ -28,19 +30,19 @@ pub struct Vertex {
 
 /// The vertices of the polygon being drawn.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PolygonVertices {
-    /// +0x0 (0x9605A0): `g_polygonVertices`: `TLVertex[64]` (`d3d::draw_fan_unclipped`, `scene::draw_polygon`, `marks::`, `hud::`, `drive::tyre_parts`).
+    /// +0x0 (0x9605A0): `g_polygonVertices`: `TLVertex[64]` (`d3d::draw_fan_unclipped`, `scene::draw_polygon`, `effects::`, `hud::`, `drive::tyre_parts`).
     pub vertices: [Vertex; 64],
 }
 
+/// The piece, a field of `crate::race::owner::race().shared.buffers`.
 pub struct InBuffers;
 
 impl core::ops::Deref for InBuffers {
     type Target = PolygonVertices;
     fn deref(&self) -> &PolygonVertices {
-        // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
-        // test checks); every field is an atomic cell.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const PolygonVertices) }
+        &race().shared.buffers.vertices
     }
 }
 
@@ -53,15 +55,14 @@ pub const END: usize = 0x960DA0;
 
 const _: () = assert!(END - START == core::mem::size_of::<PolygonVertices>());
 
-/// Where IDA 0x9605A0 is now.
-pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use core::mem::offset_of;
+
+    fn piece_addr() -> u32 {
+        crate::pointers::game_address(core::ptr::from_ref(&*VERTICES))
+    }
 
     #[test]
     fn piece_sits_on_the_buffers() {

@@ -1,8 +1,11 @@
 //! The frame and object work, first part (IDA 0x621480 .. 0x6218B0; phase 7, typed): the light and view switches, the object being drawn (number, material, fade, face flags, group mask), the frame-rate clock, the courses found, and a few race flags. `#[repr(C)]` with the image layout over the race block bytes. Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct FrameSwitches {
     /// +0x0 (0x621480): `dword_621480`: nonzero in a race, 0 in the front end scene; 1 set by `race::stage_loading` (`scene::vertex_light`, `scene::draw_object_face`, `race::course_faces`) (a reading).
     pub other_way: Dword,
@@ -58,21 +61,16 @@ pub struct FrameSwitches {
     pub service_cleared: Dword,
 }
 
-/// The piece: the race block's bytes at IDA 0x621480 seen as `FrameSwitches`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = FrameSwitches;
-    fn deref(&self) -> &FrameSwitches {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const FrameSwitches) }
+impl FrameSwitches {
+    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+    /// `race::store::LEFT`), with the image's first values.
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static FRAME_SWITCHES: InRaceBlock = InRaceBlock;
 
 /// IDA 0x621480, the first byte of the piece.
 pub const START: usize = 0x621480;
@@ -81,9 +79,10 @@ pub const END: usize = 0x6218B0;
 
 const _: () = assert!(END - START == core::mem::size_of::<FrameSwitches>());
 
-/// Where IDA 0x621480 is now (in the race block).
+/// Where IDA 0x621480 is now (the piece's static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(std::ptr::from_ref(&race().shared.switches))
 }
 
 #[cfg(test)]
@@ -92,7 +91,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&race().shared.switches, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

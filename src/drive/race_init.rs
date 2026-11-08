@@ -8,34 +8,31 @@
 //! (`race::reset_car_race_state`), the car parts (`race::clear_race_slots`), the timers
 //! (`race::reset_car_starts`, `race::seed_car_randoms`); fifty settling steps (in `pusha`
 //! / `popa`: `drive::race_cars_step`; `drive::share_all_cars` with `dword_5C2F94` 1;
-//! `marks::frame_marks`, `marks::run_frame`); the slots again; the damage messages
+//! `effects::frame_marks`, `effects::run_frame`); the slots again; the damage messages
 //! (`race::grade_all_cars`); "RACEINIT : end". Its second chunk (0x40763C ..) is the
 //! fatal-error reporter's, shared, not entered from here.
 //!
 //! Not the race's step loop (that runs elsewhere, a step per frame): a run of fifty steps at
 //! the stage's start.
 //!
-//! In:  nothing
-//! Out: the registers as the parts leave them (ecx 0x32 after the steps); no flags read
-//!
 //! Caller: `race::load_stage` (0x44412D). Refuses what its parts refuse; raises 0x80600D1E
 //! as the original.
 
+use crate::effects::owner::effects;
 use crate::errors::{FatalError, Refused};
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
+use crate::race::marks_settings_store::MARKS_SETTINGS;
+use crate::race::owner::Race;
 use rc2k_core::drive::race_steps;
 
 /// `g_logIndent` changed by `by` (wrapping, as the original's `add`).
 fn indent_by(by: u32) {
-    let indent = &crate::logfile::write_line::state::INDENT;
-    indent.fetch_add(by as i32, std::sync::atomic::Ordering::Relaxed);
+    let indent = crate::logfile::write_line::state::INDENT.atomic();
+    indent.fetch_add(by, std::sync::atomic::Ordering::Relaxed);
 }
 
-/// A "RACEINIT : ..." line (level 1, a line break; in `pusha` / `popa`).
+/// A "RACEINIT : ..." line (level 1, a line break).
 fn log(text: &std::ffi::CStr) {
-    unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), true, 1) };
+    crate::logfile::log_write::log_nul(&text, true, 1);
 }
 
 /// The log indented round a part (`pushf`; +- 3; `popf`).
@@ -52,12 +49,13 @@ fn indented(part: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused
 /// is reached only with two checkpoints or more (conversion phase 3, 2026-10-24).
 // Converted: `rc2k_core::drive::race_steps::{no_best_line, NO_BEST_LINE, SETTLING_STEPS,
 // LOG_INDENT}`.
-pub unsafe fn race_init() -> Result<(), Refused> {
+pub fn race_init(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let race_owner = race;
     log(c"RACEINIT : setbestline");
     indent_by(race_steps::LOG_INDENT);
-    crate::race::best_line::build_best_line()?;
-    if race_steps::no_best_line(RACE_VARS.checkpoint_count.get()) {
-        if FRAME_SWITCHES.editor_mode.get() != 0 {
+    crate::race::best_line::build_best_line(race, scene)?;
+    if race_steps::no_best_line(race_owner.shared.vars.checkpoint_count.get()) {
+        if race_owner.shared.switches.editor_mode.get() != 0 {
             return Ok(());
         }
         return Err(FatalError {
@@ -68,44 +66,44 @@ pub unsafe fn race_init() -> Result<(), Refused> {
     }
     indent_by(race_steps::LOG_INDENT.wrapping_neg());
     log(c"RACEINIT : initcarpositions");
-    indented(&mut || unsafe { crate::race::car_starts::start_cars() })?;
+    indented(&mut || crate::race::car_starts::start_cars(race))?;
     log(c"RACEINIT : initobjectsoncourse");
-    indented(&mut || crate::race::course_data::reset_face_lights())?;
+    indented(&mut || crate::race::course_data::reset_face_lights(race))?;
     log(c"RACEINIT : gamemodestuff_init");
-    indented(&mut || { crate::race::race_cars::set_up_cars() }.map(drop))?;
+    indented(&mut || { crate::race::race_cars::set_up_cars(race, scene) }.map(drop))?;
     log(c"RACEINIT : messagesystem_init");
     indented(&mut || {
-        crate::race::race_init::reset_car_race_state()?;
+        crate::race::race_init::reset_car_race_state(race)?;
         Ok(())
     })?;
     log(c"RACEINIT : carparts_init");
     indented(&mut || {
-        crate::race::race_init::clear_race_slots();
+        crate::race::race_init::clear_race_slots(&race.shared);
         Ok(())
     })?;
     log(c"RACEINIT : resettimers");
     indented(&mut || {
         {
-            crate::race::race_init::reset_car_starts()?;
-            crate::race::race_init::seed_car_randoms()?;
+            crate::race::race_init::reset_car_starts(&race.shared)?;
+            crate::race::race_init::seed_car_randoms(&race.shared)?;
         }
         Ok(())
     })?;
     log(c"RACEINIT : singlecarinit");
     indent_by(race_steps::LOG_INDENT);
     for _ in 0..race_steps::SETTLING_STEPS {
-        unsafe { crate::drive::race_cars_step::race_cars_step() }?;
-        VIEWER_PANEL.other_marks_shown.set(1);
-        { crate::drive::share_all_cars::share_all_cars() }?;
-        VIEWER_PANEL.other_marks_shown.set(0);
-        crate::marks::frame_marks::frame_marks()?;
-        crate::marks::run_frame::run_frame()?;
+        { crate::drive::race_cars_step::race_cars_step(race) }?;
+        MARKS_SETTINGS.other_marks_shown.set(1);
+        { crate::drive::share_all_cars::share_all_cars(race, scene) }?;
+        MARKS_SETTINGS.other_marks_shown.set(0);
+        crate::effects::frame_marks::frame_marks(race, effects())?;
+        crate::effects::run_frame::run_frame(race)?;
     }
-    crate::race::race_init::clear_race_slots();
+    crate::race::race_init::clear_race_slots(&race.shared);
     indent_by(race_steps::LOG_INDENT.wrapping_neg());
     log(c"RACEINIT : resetalldamagemessages");
     indented(&mut || {
-        crate::race::car_grades::grade_all_cars()?;
+        crate::race::car_grades::grade_all_cars(&race.shared, scene)?;
         Ok(())
     })?;
     log(c"RACEINIT : end");

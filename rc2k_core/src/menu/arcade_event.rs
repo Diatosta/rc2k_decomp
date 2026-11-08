@@ -65,11 +65,11 @@ pub enum Step {
     TakeStageBest = 6,
     /// `service::repair_car` (eax 0).
     RepairCar = 7,
-    /// `race::single_rally_race` (ebx 2).
+    /// `race::single_rally_race` (kind 2, from 0: `RepairCar` clears eax just before).
     Race = 8,
     ScoreStage = 9,
     ResultsLoop = 10,
-    /// `menu::keep_arcade_stage_best` with the stage's record (`Hand::StageRecord`).
+    /// `menu::keep_arcade_stage_best` with the stage's record in the level's table.
     KeepStageBest = 11,
     CheckStageTime = 12,
     ClearTimeMarks = 13,
@@ -89,21 +89,11 @@ pub enum Step {
     ShowInGameOptions = 24,
 }
 
-/// What the original leaves for the steps after it, outside their own arguments.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Hand {
-    /// A value kept (eax).
-    Kept(u32),
-    /// The stage's record of the level's table (edi, ebx the level, eax the stage x 0xA4).
-    StageRecord,
-}
-
 pub trait Arcade {
     type Error: From<Invalid>;
     fn get(&mut self, v: Var) -> u32;
     fn set(&mut self, v: Var, value: u32);
     fn step(&mut self, s: Step) -> Result<(), Self::Error>;
-    fn hand(&mut self, h: Hand) -> Result<(), Self::Error>;
 
     fn yes(&mut self) -> bool {
         self.get(Var::Answer) == 1
@@ -149,7 +139,6 @@ fn stage<A: Arcade>(e: &mut A) -> Result<At, A::Error> {
     let stage = e.get(Var::Stage);
     e.set(Var::RaceStage, stage);
     let level = e.get(Var::Level);
-    e.hand(Hand::Kept(level))?;
     e.set(Var::RaceLevel, level);
     e.set(Var::CheatSwitch, 1);
     if e.get(Var::Cheats) & CHEAT != 0 {
@@ -162,10 +151,8 @@ fn stage<A: Arcade>(e: &mut A) -> Result<At, A::Error> {
         e.set(Var::Failed, 1);
     } else {
         let figure = e.get(Var::RaceFigureFFC);
-        e.hand(Hand::Kept(figure))?;
         e.set(Var::Figure758, figure);
         let figure = e.get(Var::RaceFigure000);
-        e.hand(Hand::Kept(figure))?;
         e.set(Var::Figure768, figure);
     }
     e.set(Var::Current, 0);
@@ -176,7 +163,6 @@ fn stage<A: Arcade>(e: &mut A) -> Result<At, A::Error> {
     if screen(e, Step::ResultsLoop)? {
         return Ok(At::End);
     }
-    e.hand(Hand::StageRecord)?;
     e.step(Step::KeepStageBest)?;
     if e.get(Var::Failed) != 1 {
         e.step(Step::CheckStageTime)?;
@@ -325,10 +311,6 @@ mod tests {
             {
                 self.set(v, x);
             }
-            Ok(())
-        }
-        fn hand(&mut self, h: Hand) -> Result<(), Invalid> {
-            self.steps.push(format!("{h:?}"));
             Ok(())
         }
     }

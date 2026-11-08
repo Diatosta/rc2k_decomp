@@ -5,68 +5,60 @@
 //! then each group's (+0x90, 0 .. 3) counted players into the entries from 89, 119, 169
 //! and 179 down (`menu::player_to_standing_b`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Callers: the event drivers, `sub_4A9583`. The steps are their Rust versions
+//! Callers: the event drivers. The steps are their Rust versions
 //! (`strings::append_string_by_id`'s for the names). Refuses no table, more drivers than its 200
 //! entries, a name past the entry, a player count of 0 or past 4, a player missing or without a
 //! name, before anything.
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::Menus;
+use crate::menu::owner::Screens;
 use crate::menu::standings::*;
 
 /// Each group's (0 .. 3) players, in order, into the table's entries from the group's slot
 /// down (`player_to_standing_b`, ebx the player's index).
-fn players_by_group(first: u32, size: u32, firsts: [usize; 4]) -> Result<(), Refused> {
-    let players = counted_players()?;
-    let groups: Vec<u32> = players
-        .iter()
-        .map(|&p| get(p + 0x90))
-        .collect::<Result<_, _>>()?;
+fn players_by_group(menus: &Menus, screens: &Screens, firsts: [usize; 4]) -> Result<(), Refused> {
+    let players = counted_players(screens)?;
+    let groups: Vec<u32> = players.iter().map(|p| p.get().class).collect();
     // Converted: `rc2k_core::menu::standings::by_group`.
     for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
         {
-            crate::menu::player_to_standing_b::player_to_standing_b(
-                first + size * e as u32,
-                players[n],
-                n as u32,
-            )
+            crate::menu::player_to_standing_b::player_to_standing_b(menus, e, players[n], n as u32)
         }?;
     }
     Ok(())
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub fn standings_b_from_all() -> Result<(), Refused> {
-    let first: u32 = { TABLE_B_RVA.get() };
-    let drivers = entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
-    if first == 0 || drivers.len() > 200 {
-        return Err(BadInput("no standings table, or more drivers than it holds").into());
+/// The Rust version.
+pub fn standings_b_from_all(menus: &Menus) -> Result<(), Refused> {
+    let screens = &menus.screens;
+    let drivers = walked_drivers()?;
+    if drivers.len() > 200 {
+        return Err(BadInput("more drivers than the standings table holds").into());
     }
-    let players = counted_players()?;
+    let players = counted_players(screens)?;
     if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());
     }
     let mut texts = Vec::new();
-    for &d in &drivers {
-        let id: u32 = crate::menu::drivers_store::name_string(get(d)?);
+    for d in &drivers {
+        let id: u32 = crate::menu::drivers_store::name_string(menus, d.number)?;
         let mut text = Vec::new();
         crate::strings::append_string_by_id::push_string(&mut text, id)?;
         text.push(0);
-        if text.len() > (B_ENTRY - 0x14) as usize {
+        if text.len() > rc2k_core::saves::rankings::HISTORY_LEN - 0x14 {
             return Err(BadInput("a driver's name past its entry").into());
         }
         texts.push(text);
     }
     crate::menu::init_standings_b::init_standings_b()?;
-    // Converted: `rc2k_core::menu::standings::fill_b_from_driver`.
-    let count = drivers.len() as u32;
-    let all = table(drivers[0], DRIVER, count)?;
-    let mut t = table(first, B_ENTRY, count)?;
-    for (n, text) in texts.into_iter().enumerate() {
-        rc2k_core::menu::standings::fill_b_from_driver(&mut t, n, &all, n, &text);
-    }
+    // Converted: `rc2k_core::saves::rankings::fill_b_from_driver`.
+    with_b(|t| {
+        for ((d, text), e) in drivers.iter().zip(&texts).zip(&mut t.entries) {
+            rc2k_core::saves::rankings::fill_b_from_driver(e, d, text)
+                .expect("the name's length checked");
+        }
+    })?;
     use rc2k_core::menu::standings::B_GROUP_FIRSTS;
-    players_by_group(first, B_ENTRY, B_GROUP_FIRSTS)?;
+    players_by_group(menus, screens, B_GROUP_FIRSTS)?;
     Ok(())
 }

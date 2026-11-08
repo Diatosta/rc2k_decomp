@@ -10,29 +10,25 @@
 //! `unk_71A628` = `unk_71A620` + 4 x it; both 0 unless `unk_71A308` is below
 //! `flt_5C5D14` (or unordered).
 //!
-//! In:  nothing
-//! Out: eax `unk_71A628` before the last test, ebx `unk_71A440` or 0x20000000 (device),
-//!      edx the product's high dword (device); the rest kept; no flags read
-//!
-//! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`.
+//! Callers: `drive::car_controls`, `race::step_replay_cars`, `drive::replay_step`.
 
-use crate::physics::car_store::CAR;
+use crate::math::x87_float::int;
+use crate::math::x87_float::ld;
+use crate::math::x87_float::to_int;
 use crate::physics::flow::c0;
-use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
-use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fild, fistp, fld};
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::session::Dword;
 
-/// `fild dword [rc + from]; fmul dword [rc + by]; fistp dword [rc + to]` over the race
-/// block at `rc`.
-fn scale(rc: usize, from: usize, by: usize, to: usize) {
-    fistp(rc, to, fild(rc, from) * fld(rc, by))
+/// `fild dword [from]; fmul dword [by]; fistp dword [to]`.
+fn scale(
+    from: &impl crate::session::Cell32,
+    by: &impl crate::session::Cell32,
+    to: &impl crate::session::Cell32,
+) {
+    to.set_bits(to_int(int(from.bits() as i32) * ld(by.bits())) as u32);
 }
 
-fn base() -> usize {
-    crate::race::store::asm_base() as usize
-}
 const LEFT: u32 = 0xE000_0000;
 const RIGHT: u32 = 0x2000_0000;
 
@@ -41,15 +37,20 @@ fn sign(v: u32) -> bool {
 }
 
 /// The key step: 0xA00000 x `flt_614C0C`, through `dword_62400C`.
-fn key_step() -> u32 {
-    DRAW.scratch.set(0xA0_0000);
-    scale(base(), 0x22400C, 0x214C0C, 0x22400C);
-    DRAW.scratch.get()
+fn key_step(shared: &Shared, scene: &crate::scene::owner::Scene) -> u32 {
+    let drawing = &scene.drawing;
+    drawing.scene.scratch.set(0xA0_0000);
+    scale(
+        &drawing.scene.scratch,
+        &shared.physics_tables.handling[8],
+        &drawing.scene.scratch,
+    );
+    drawing.scene.scratch.get()
 }
 
 /// One steering value moved by the key step (0x439DFA .. / 0x439E95 ..).
-fn steer(cell: &Dword, step: u32) {
-    let word = PHYSICS.input_steer.get();
+fn steer(shared: &Shared, cell: &Dword, step: u32) {
+    let word = shared.physics_tables.input_steer.get();
     let v = cell.get();
     if word != 0 {
         if sign(word) {
@@ -80,62 +81,96 @@ fn steer(cell: &Dword, step: u32) {
 
 /// The Rust version (the exact one, for `drive::simple_car_step`, `drive::replay_step`
 /// and `race::step_replay_cars`).
-pub fn steer_inputs() {
-    let mut keys = PHYSICS.input_steer.get() == 0;
-    if !keys && CAR.driver_kind.get() != 2 {
-        keys = CAR.input_keys.get() & 0x1000 != 0;
+pub fn steer_inputs(race: &Race) {
+    let scene = crate::scene::owner::scene();
+    let race_owner = race;
+    let drawing = &scene.drawing;
+    let course = &race_owner.course;
+    let mut keys = race_owner.shared.physics_tables.input_steer.get() == 0;
+    if !keys && race_owner.shared.car.driver_kind.get() != 2 {
+        keys = race_owner.shared.car.input_keys.get() & 0x1000 != 0;
     }
     if keys {
-        steer(&CAR.steering_raw, key_step());
-        steer(&CAR.steering, key_step());
+        steer(
+            &race_owner.shared,
+            &race_owner.shared.car.steering_raw,
+            key_step(&race_owner.shared, scene),
+        );
+        steer(
+            &race_owner.shared,
+            &race_owner.shared.car.steering,
+            key_step(&race_owner.shared, scene),
+        );
     } else {
-        CAR.steering.set(0);
-        let product = i64::from(PHYSICS.input_steer.get() as i32) * i64::from(RIGHT as i32);
-        DRAW.scratch.set((product >> 8) as u32);
-        scale(base(), 0x22400C, 0x214C08, 0x22400C);
-        if sign(DRAW.scratch.get().wrapping_sub(LEFT)) {
-            DRAW.scratch.set(LEFT);
+        race_owner.shared.car.steering.set(0);
+        let product = i64::from(race_owner.shared.physics_tables.input_steer.get() as i32)
+            * i64::from(RIGHT as i32);
+        drawing.scene.scratch.set((product >> 8) as u32);
+        scale(
+            &drawing.scene.scratch,
+            &race_owner.shared.physics_tables.handling[7],
+            &drawing.scene.scratch,
+        );
+        if sign(drawing.scene.scratch.get().wrapping_sub(LEFT)) {
+            drawing.scene.scratch.set(LEFT);
         }
-        if !sign(DRAW.scratch.get().wrapping_sub(RIGHT)) {
-            DRAW.scratch.set(RIGHT);
+        if !sign(drawing.scene.scratch.get().wrapping_sub(RIGHT)) {
+            drawing.scene.scratch.set(RIGHT);
         }
-        CAR.steering_raw.set(DRAW.scratch.get());
-        CAR.steering.set(DRAW.scratch.get());
+        race_owner
+            .shared
+            .car
+            .steering_raw
+            .set(drawing.scene.scratch.get());
+        race_owner
+            .shared
+            .car
+            .steering
+            .set(drawing.scene.scratch.get());
     }
     // 0x439F7D: the trim.
-    DRAW.scratch.set(RIGHT);
-    scale(base(), 0x22400C, 0x31A3E0, 0x31A1E0);
-    if CAR.car_flags.get() & 0x10 != 0 {
-        CAR.steer_trim.set(
-            crate::physics::car_store::CAR
-                .steer_trim
-                .get()
-                .wrapping_neg(),
-        );
-    }
-    let trim = CAR.steer_trim.get();
-    CAR.steer_angle.set(
-        crate::physics::car_store::CAR
-            .steering
-            .get()
-            .wrapping_add(trim),
+    drawing.scene.scratch.set(RIGHT);
+    scale(
+        &drawing.scene.scratch,
+        &race_owner.shared.car.steering_efficiency,
+        &race_owner.shared.car.steer_trim,
     );
-    CAR.steer_angle_visual.set(
-        crate::physics::car_store::CAR
+    if race_owner.shared.car.car_flags.get() & 0x10 != 0 {
+        race_owner
+            .shared
+            .car
+            .steer_trim
+            .set(race_owner.shared.car.steer_trim.get().wrapping_neg());
+    }
+    let trim = race_owner.shared.car.steer_trim.get();
+    race_owner
+        .shared
+        .car
+        .steer_angle
+        .set(race_owner.shared.car.steering.get().wrapping_add(trim));
+    race_owner.shared.car.steer_angle_visual.set(
+        race_owner
+            .shared
+            .car
             .steering_raw
             .get()
             .wrapping_add(trim.wrapping_mul(4)),
     );
-    if !c0(CAR.steering_damage.bits(), NUMBERS.hundred.bits()) {
-        CAR.steer_angle.set(0);
-        CAR.steer_angle_visual.set(0);
+    if !c0(
+        race_owner.shared.car.steering_damage.bits(),
+        course.numbers.hundred.bits(),
+    ) {
+        race_owner.shared.car.steer_angle.set(0);
+        race_owner.shared.car.steer_angle_visual.set(0);
     }
 }
 
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::owner::scene;
 
     // The original's instructions, one function per run.
     reference!(ref_key(rc)
@@ -155,33 +190,54 @@ mod asm_reference {
         vec![
             Block {
                 name: "steer_inputs key step",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x22400C, In::I), (0x214C0C, In::F)],
                     writes: &[(0x22400C, Out::I)],
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_key(a[0]) },
-                plain: |a| scale(a[0], 0x22400C, 0x214C0C, 0x22400C),
+                plain: |_| {
+                    let drawing = &scene().drawing;
+                    scale(
+                        &drawing.scene.scratch,
+                        &race().shared.physics_tables.handling[8],
+                        &drawing.scene.scratch,
+                    );
+                },
             },
             Block {
                 name: "steer_inputs device",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x22400C, In::I), (0x214C08, In::F)],
                     writes: &[(0x22400C, Out::I)],
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_device(a[0]) },
-                plain: |a| scale(a[0], 0x22400C, 0x214C08, 0x22400C),
+                plain: |_| {
+                    let drawing = &scene().drawing;
+                    scale(
+                        &drawing.scene.scratch,
+                        &race().shared.physics_tables.handling[7],
+                        &drawing.scene.scratch,
+                    );
+                },
             },
             Block {
                 name: "steer_inputs trim",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x22400C, In::I), (0x31A3E0, In::F)],
                     writes: &[(0x31A1E0, Out::I)],
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_trim(a[0]) },
-                plain: |a| scale(a[0], 0x22400C, 0x31A3E0, 0x31A1E0),
+                plain: |_| {
+                    let drawing = &scene().drawing;
+                    scale(
+                        &drawing.scene.scratch,
+                        &race().shared.car.steering_efficiency,
+                        &race().shared.car.steer_trim,
+                    );
+                },
             },
         ]
     }

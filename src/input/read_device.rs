@@ -1,5 +1,5 @@
 //! `input::read_device` (0x408E38): a device's four readings from its bindings (see
-//! `input/devices.rs`). The device polled (`sub_408869`: its state copied into +0x2C ..
+//! `input/devices.rs`). The device polled (`input::poll_device`: its state copied into +0x2C ..
 //! +0x38); while it is read (+0x414 1):
 //! - the bits: the hat's angle (`input::hat_reading`) in the top byte, its direction
 //!   (`input::hat_direction`) in the second;
@@ -16,32 +16,36 @@
 //!
 //! Into +0x4DC (steering), +0x4E0 (brake), +0x4E4 (throttle), +0x4E8 (the bits).
 //!
-//! In:  esi = the device's record
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the device's record
 //!
-//! Callers: `sub_408A56` (both devices, each tick of the input thread). Refuses (before
+//! Callers: `input::input_tick` (both devices, each tick of the input thread). Refuses (before
 //! anything) a bound key past 0xFF and an axis's place past the record.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::input::devices::put;
 use crate::input::devices::{joy_state, key_table, record_bytes};
+use crate::input::store::Devices;
+use crate::input::types::InputDevice;
 
 /// The device `record` read (see the header). Converted: `rc2k_core::input::devices::read_device`; the bindings are checked before the poll,
 /// the record read again after it.
-pub unsafe fn read_device(record: u32) -> Result<(), Refused> {
+pub fn read_device(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
     use rc2k_core::input::devices;
-    devices::check_bindings(&record_bytes(record)?)?;
-    unsafe { crate::input::poll_device::poll_device(record) }?;
-    let Some(r) = devices::read_device(&record_bytes(record)?, &key_table(), &joy_state())? else {
+    devices::check_bindings(&record_bytes(record))?;
+    { crate::input::poll_device::poll_device(devices, record) }?;
+    let Some(r) = devices::read_device(
+        &record_bytes(record),
+        &key_table(devices),
+        &joy_state(devices),
+    )?
+    else {
         return Ok(());
     };
-    let readings = devices::READINGS as u32;
-    put(record, readings, r.steering)?;
-    put(record, readings + 4, r.brake)?;
-    put(record, readings + 8, r.throttle)?;
-    put(record, devices::BITS as u32, r.bits)?;
+    record.readings[0].set(r.steering);
+    record.readings[1].set(r.brake);
+    record.readings[2].set(r.throttle);
+    record.bits.set(r.bits);
     Ok(())
 }

@@ -7,24 +7,18 @@
 //! start. Then +0xFA0 moves 4 towards +0xF9C (not past it; left when at or below it, by
 //! the sign).
 //!
-//! In:  nothing
-//! Out: eax +0xFA0, ecx 4; after a shift esi 0x71AF70, edi 0x71AF6C; the rest kept; no
-//!      flags read (the callers return)
-//!
 //! Callers: `physics::pace_notes_step`, and itself. Refuses (before anything) a count above
 //! 7.
 
 use crate::errors::Refused;
+use crate::physics::queue_car_event::{load, store};
+use crate::race::owner::Race;
 
-use crate::physics::cells::get;
-use crate::physics::queue_car_event::QueuePlaces;
-
-/// The Rust version on the variables at `p`.
-// Converted: `rc2k_core::physics::car_events::CarEvents::expire`.
-pub fn expire_car_events_at(p: &QueuePlaces) -> Result<(), Refused> {
-    let was = p.load();
+/// The Rust version.
+pub fn expire_car_events(race: &Race) -> Result<(), Refused> {
+    let was = load(race);
     let mut q = was;
-    q.expire(get(p.clock))?;
-    p.store(&was, &q);
+    q.expire(race.shared.physics_tables.scene_clock.get())?;
+    store(&race.shared, &was, &q);
     Ok(())
 }

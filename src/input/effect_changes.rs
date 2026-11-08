@@ -22,10 +22,9 @@
 //! Other changes do nothing.
 //!
 //! In:  as above
-//! Out: every register kept (`pusha` .. `popa`)
-//! The DirectInput calls (`sub_409AEE` the effect's Download and Start, `sub_409B1F` its
-//! SetParameters with eax the flags, `sub_409B0D` its Stop; each only with an effect at
-//! +0x30) are the Rust versions (`effect_objects`). Refuses
+//! The DirectInput calls (`input::start_effect` the effect's Download and Start,
+//! `input::set_effect_parameters` its SetParameters with eax the flags, `input::stop_effect` its
+//! Stop; each only with an effect at +0x30) are the Rust versions (`effect_objects`). Refuses
 //! (before anything) for effect 1 a row past the table's 14 and a blend of 0 (the
 //! original's `idiv` traps).
 //!
@@ -33,28 +32,20 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::field;
-use crate::input::store::DEVICES;
+use crate::input::store::Devices;
 use crate::input::types::{ForceEffect, InputDevice};
-use crate::pointers::GamePtr;
 
-// sub_409AEE
-// sub_409B1F
-// sub_409B0D
+// `input::start_effect`
+// `input::set_effect_parameters`
+// `input::stop_effect`
 
-fn put(effect: u32, o: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(effect).offset(o).write(v, "an effect's dword")
-}
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("an effect's dword")
-}
-
-/// The change `what` (with `a`, `b`) of the effect at `effect` of the device `record`, by
+/// The change `what` (with `a`, `b`) of the effect `effect` of the device `record`, by
 /// the effect's function `number` (`input::effect_N_change`).
 pub fn effect_change(
+    devices: &Devices,
     number: u32,
-    record: u32,
-    effect: u32,
+    record: &InputDevice,
+    effect: &ForceEffect,
     what: u32,
     a: u32,
     b: u32,
@@ -62,46 +53,40 @@ pub fn effect_change(
     use crate::input::effect_objects::{set_effect_parameters, start_effect, stop_effect};
     use rc2k_core::input::effect_changes::{Call, Field, plan};
     let e = effect;
-    let row_at = |n: u32| DEVICES.effect_rows[0][0].addr() + 16 * n;
     // Converted: `rc2k_core::input::effect_changes::plan`.
-    let failed = std::cell::Cell::new(None);
-    let read = |at: u32| {
-        get(at).unwrap_or_else(|err| {
-            failed.set(failed.get().or(Some(err)));
-            0
-        })
-    };
     let p = plan(
         number,
         what,
         a,
         b,
-        || read(record + field!(InputDevice, sensitivity)),
-        |n| std::array::from_fn(|k| read(row_at(n) + 4 * k as u32)),
+        || record.sensitivity.get(),
+        // the core asks only for a row inside the table
+        |n| {
+            devices.effect_rows[n as usize]
+                .each_ref()
+                .map(crate::session::Dword::get)
+        },
     )
-    .map_err(BadInput::from);
-    if let Some(err) = failed.get() {
-        return Err(err.into());
-    }
-    let p = p?;
+    .map_err(BadInput::from)?;
     for (f, v) in p.stores {
-        let (at, v) = match f {
-            Field::Duration => (field!(ForceEffect, effect.duration), v),
-            Field::FirstAxis => (field!(ForceEffect, axes), v),
-            Field::EnvelopePointer => (
-                field!(ForceEffect, effect.envelope),
-                e + field!(ForceEffect, envelope),
-            ),
-            Field::FadeTime => (field!(ForceEffect, envelope.fade_time), v),
-            Field::Specific(n) => (field!(ForceEffect, type_specific) + 4 * n, v),
-            Field::Found => (field!(ForceEffect, found), v),
-        };
-        put(e, at, v)?;
+        match f {
+            Field::Duration => e.effect.duration.set(v),
+            Field::FirstAxis => e.axes[0].set(v),
+            // the `DIEFFECT` points at the effect's own envelope
+            Field::EnvelopePointer => e.effect.envelope.set(crate::input::make_effect::PART_SET),
+            Field::FadeTime => e.envelope.fade_time.set(v),
+            Field::Specific(n) => e
+                .type_specific
+                .get(n as usize)
+                .ok_or(BadInput("a type-specific parameter past the six"))?
+                .set(v),
+            Field::Found => e.found.set(v),
+        }
     }
     match p.call {
-        Some(Call::Start) => start_effect(e)?,
-        Some(Call::Set(flags)) => set_effect_parameters(e, flags)?,
-        Some(Call::Stop) => stop_effect(e)?,
+        Some(Call::Start) => start_effect(e),
+        Some(Call::Set(flags)) => set_effect_parameters(e, flags),
+        Some(Call::Stop) => stop_effect(e),
         None => {}
     }
     Ok(())
@@ -113,19 +98,16 @@ const FUNCTIONS: [u32; 6] = [0x409708, 0x4097FA, 0x409754, 0x4097B4, 0x409871, 0
 /// The effect's function (`ForceEffect::change`, the game's address of one of the six)
 /// with the change.
 pub fn effect_change_at(
+    devices: &Devices,
     function: u32,
-    record: u32,
-    effect: u32,
+    record: &InputDevice,
+    effect: &ForceEffect,
     what: u32,
     a: u32,
     b: u32,
 ) -> Result<(), Refused> {
-    // As IDA shows it.
-    let at = ((function as usize)
-        .wrapping_sub(crate::framework::game_addr(0) as usize)
-        .wrapping_add(crate::framework::IMAGE_BASE)) as u32;
-    let Some(number) = FUNCTIONS.iter().position(|&f| f == at) else {
+    let Some(number) = FUNCTIONS.iter().position(|&f| f == function) else {
         return Err(BadInput("an effect's function that is none of the six").into());
     };
-    effect_change(number as u32, record, effect, what, a, b)
+    effect_change(devices, number as u32, record, effect, what, a, b)
 }

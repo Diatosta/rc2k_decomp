@@ -4,54 +4,49 @@
 //! it comes back), and `dword_614C24` = whether either now has the limit's size (C3: also
 //! when no number). A reading: no tumbling on the ground.
 //!
-//! In:  nothing
-//! Out: ecx the wheels down, ebx 4; the rest kept; no flags read
-//!
-//! Caller: `sub_43B635` (0x43B986), every physics step.
+//! Caller: `physics::car_physics_step` (0x43B986), every physics step.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::Race;
+use crate::session::Cell32;
 use rc2k_core::physics::motion::hold_spin;
 
-/// The converted version (`rc2k_core::physics::motion`) on the variables at `v`. The
+/// The converted version (`rc2k_core::physics::motion`) on the variables' cells `v`. The
 /// registers it leaves (ecx the wheels on the ground, ebx 4) are read by none of its
 /// callers.
 // Converted: `rc2k_core::physics::motion::hold_spin`.
-pub unsafe fn hold_at(v: &[u32]) {
-    unsafe {
-        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (crate::pointers::host(v[k]) as *mut u32).write_unaligned(x);
-        if (0..4).any(|k| get(k) == 0) {
-            return;
-        }
-        let f = |k: usize| f32::from_bits(get(k));
-        let (mut limit, mut x, mut z) = (f(4), f(5), f(6));
-        let flag = hold_spin(&mut limit, &mut x, &mut z);
-        put(4, limit.to_bits());
-        put(5, x.to_bits());
-        put(6, z.to_bits());
-        put(7, flag);
+pub fn hold_at(v: &[&dyn Cell32]) {
+    let get = |k: usize| v[k].bits();
+    let put = |k: usize, x: u32| v[k].set_bits(x);
+    if (0..4).any(|k| get(k) == 0) {
+        return;
     }
+    let f = |k: usize| f32::from_bits(get(k));
+    let (mut limit, mut x, mut z) = (f(4), f(5), f(6));
+    let flag = hold_spin(&mut limit, &mut x, &mut z);
+    put(4, limit.to_bits());
+    put(5, x.to_bits());
+    put(6, z.to_bits());
+    put(7, flag);
 }
 
-fn game() -> Vec<u32> {
+fn game(race: &Race) -> Vec<&dyn Cell32> {
     vec![
-        CAR.wheel_squeeze[0].addr(),
-        CAR.wheel_squeeze[1].addr(),
-        CAR.wheel_squeeze[2].addr(),
-        CAR.wheel_squeeze[3].addr(),
-        PHYSICS.ground_spin_limit.addr(),
-        CAR.spin[0].addr(),
-        CAR.spin[2].addr(),
-        PHYSICS.ground_spin.addr(),
+        &race.shared.car.wheel_squeeze[0] as &dyn Cell32,
+        &race.shared.car.wheel_squeeze[1],
+        &race.shared.car.wheel_squeeze[2],
+        &race.shared.car.wheel_squeeze[3],
+        &race.shared.physics_tables.ground_spin_limit,
+        &race.shared.car.spin[0],
+        &race.shared.car.spin[2],
+        &race.shared.physics_tables.ground_spin,
     ]
 }
 
 /// The Rust version (compares and copies of floats only: the same at any precision); `r`
 /// the registers it leaves are read by none of its callers.
-pub unsafe fn hold_spin_on_ground() {
-    unsafe { hold_at(&game()) }
+pub fn hold_spin_on_ground(race: &Race) {
+    hold_at(&game(race));
 }

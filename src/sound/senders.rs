@@ -20,11 +20,12 @@ pub fn music(m: Music) {
 
 /// `sound::play_tune_n` (converted: `rc2k_core::sound::senders::tune_command`).
 pub fn play_tune(n: u32) {
+    let options = &crate::sound::owner::sound().menu.options;
     if let Some(m) = rc2k_core::sound::senders::tune_command(
         n,
-        crate::sound::store::SOUND_OPTIONS.music_volume.get(),
-        crate::sound::store::SOUND_OPTIONS.race_music_volume.get(),
-        crate::sound::store::SOUND_OPTIONS.name_switch.get() == 1,
+        options.music_volume.get(),
+        options.race_music_volume.get(),
+        options.name_switch.get() == 1,
     ) {
         music(m);
     }

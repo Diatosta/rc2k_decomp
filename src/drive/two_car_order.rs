@@ -4,30 +4,33 @@
 //! one ahead (checkpoint +0x94, then +0x624, each by the sign of the `cmp`), 2 for the
 //! other.
 //!
-//! In:  nothing
-//! Out: ebx the last figure compared; the rest kept; no flags read
+//! Returns: the last figure compared
 //!
 //! Caller: `drive::replay_step`.
 
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
+use crate::race::owner_shared::Shared;
 use rc2k_core::drive::places;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::places::two_car_order`.
-pub fn two_car_order() -> Result<(), crate::errors::BadInput> {
+pub fn two_car_order(shared: &Shared) -> Result<(), crate::errors::BadInput> {
     // g_carBlockStore: the figures of car block `car`.
-    let reading = crate::scene::reading::Reading::new();
     let figure = |car: usize, o: u32| {
-        reading.read::<u32>(
-            (crate::race::blocks_store::block_addr(car)).wrapping_add(o),
-            "a car's block",
-        )
+        let block = &CAR_BLOCKS.cars[car];
+        match o {
+            places::FINISHED => block.finish_flag.bits(),
+            places::CHECKPOINT => block.reset_checkpoint.bits(),
+            _ => block.checkpoint_offset[1].bits(), // places::TIE_BREAK
+        }
     };
     // The last argument is only handed back as `last` (ebx), which no caller reads.
-    let order = places::two_car_order(RACE_VARS.run_kind.get(), RACE_VIEW.players.get(), figure, 0);
-    reading.finish()?;
+    let order = places::two_car_order(
+        shared.vars.run_kind.get(),
+        shared.view.players.get(),
+        figure,
+        0,
+    );
     if let Some([x, y]) = order.places {
         CAR_BLOCKS.cars[0].unknown_fa4.set_bits(x);
         CAR_BLOCKS.cars[1].unknown_fa4.set_bits(y);

@@ -1,120 +1,22 @@
 //! `net::open_lobby` (0x418E9B): "NET: Create dplobby", DirectPlay's lobby object made
 //! (`CoCreateInstance` of CLSID_DirectPlayLobby `stru_5AB340`, IID_IDirectPlayLobby2A
-//! `stru_5AB320`) into `g_dplayLobby`; then, for a game a lobby launched
-//! (`g_lobbyLaunched` 1): its connection settings read (`GetConnectionSettings` twice: the
-//! size, which must come back DPERR_BUFFERTOOSMALL, into `dword_5AB298`; the settings into
-//! memory of the network's list, `dword_5AB294`), the session's flags made 0x44 and the
-//! settings put back (`SetConnectionSettings`), the lobby's `Connect` into the object
-//! whose address `dword_5AB284` holds, `g_dplay` asked for IDirectPlay4A
-//! (`QueryInterface`), the object at `dword_5AB284` released and the variable 0; the
-//! player's name from the settings (`strings::copy_printable` to `byte_52AB70`), the player
-//! set up (`net::fill_own_player`) and made (`net::create_player`); then the session's group
-//! made (`net::create_group`, as the host: state bit 0x10) when the settings say to create
-//! the session (flag 2), else joined (`net::join_group`); the players listed
-//! (`net::list_players`).
+//! `stru_5AB320`) into `g_dplayLobby`.
 //!
-//! In:  nothing
-//! Out: true when done (the original: carry clear, the flags of `test eax, eax`; every
-//!      register kept), false for the carry
-//! `Connect` is given `dword_5AB284`'s value as where to write, and that is 0: it can only
-//! fail, so a lobby's launch never gets further (section 16). Past it the original would
-//! read through `g_dplay` and the object at `dword_5AB284`: refused while they are null.
+//! Returns true when done.
+//! Left out: the original's branch for a game a lobby launched (`g_lobbyLaunched` 1: the
+//! connection settings read, the lobby's `Connect`, the player and the session made from
+//! them): the standalone has no lobbies (its own network protocol), so `net::set_up` leaves out the
+//! original's lobby detection (0x418E23) and `g_lobbyLaunched` stays 0. (Its
+//! `Connect` could not have worked in the original either: section 16.)
 //! Caller: `net::find_connections`.
 
-use crate::errors::{BadInput, Refused};
-use crate::net::dplay::{
-    CONNECT, GET_CONNECTION_SETTINGS, QUERY_INTERFACE, RELEASE, SET_CONNECTION_SETTINGS, call,
-    method,
-};
-use crate::net::lobby::{co_create, copy_printable, log, net_allocate};
-use crate::net::store::{NET, PlayerRecord};
-use crate::net::{create_group, create_player, fill_own_player, join_group, list_players};
-use crate::pointers::GamePtr;
+use crate::errors::Refused;
+use crate::net::lobby::{co_create, log};
+use crate::net::store::NetVars;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
-const BUFFER_TOO_SMALL: u32 = 0x8877_001E; // DPERR_BUFFERTOOSMALL
-
-fn get(at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(at).read::<u32>("the lobby's connection settings")
-}
-
 /// The Rust version.
-pub fn open_lobby() -> Result<bool, Refused> {
-    log(VIEWER_PANEL.text_addr(texts::NET_CREATE_DLOBBY), true, 2);
-    if co_create(
-        NET.clsid_lobby.addr(),
-        NET.iid_lobby2a.addr(),
-        NET.lobby.addr(),
-    ) != 0
-    {
-        return Ok(false);
-    }
-    if NET.lobby_launched.get() != 1 {
-        return Ok(true);
-    }
-    unsafe {
-        NET.settings_size.set(0);
-        if call(
-            &NET.lobby,
-            GET_CONNECTION_SETTINGS,
-            &[0, 0, NET.settings_size.addr()],
-        ) != BUFFER_TOO_SMALL
-        {
-            return Ok(false);
-        }
-        NET.settings.set(net_allocate(NET.settings_size.get())?);
-        if call(
-            &NET.lobby,
-            GET_CONNECTION_SETTINGS,
-            &[0, NET.settings.get(), NET.settings_size.addr()],
-        ) != 0
-        {
-            return Ok(false);
-        }
-        GamePtr::new(get(NET.settings.get() + 8)? + 4)
-            .write(0x44u32, "the lobby's connection settings")?;
-        if call(
-            &NET.lobby,
-            SET_CONNECTION_SETTINGS,
-            &[0, 0, NET.settings.get()],
-        ) != 0
-        {
-            return Ok(false);
-        }
-        if call(&NET.lobby, CONNECT, &[0, NET.dplay_2.get(), 0]) != 0 {
-            return Ok(false);
-        }
-        if NET.dplay.get() == 0 || NET.dplay_2.get() == 0 {
-            return Err(BadInput("a lobby's connection with no DirectPlay object").into());
-        }
-        let queried = call(
-            &NET.dplay,
-            QUERY_INTERFACE,
-            &[NET.iid_dplay4a.addr(), NET.dplay.addr()],
-        );
-        method(NET.dplay_2.get(), RELEASE, &[]);
-        NET.dplay_2.set(0);
-        if queried != 0 {
-            return Ok(false);
-        }
-        let name = get(get(NET.settings.get() + 0xC)? + 8)?;
-        copy_printable(name, NET.player_name.addr(), 0x1F)?;
-        fill_own_player::fill_own_player(name)?;
-        if !create_player::create_player()? {
-            return Ok(false);
-        }
-        let joined = if get(NET.settings.get() + 4)? & 2 != 0 {
-            NET.own
-                .head
-                .set(PlayerRecord::STATE, NET.own.state() | 0x10);
-            create_group::create_group()?
-        } else {
-            join_group::join_group()
-        };
-        if !joined {
-            return Ok(false);
-        }
-        list_players::list_players()?;
-        Ok(true)
-    }
+pub fn open_lobby(vars: &NetVars) -> Result<bool, Refused> {
+    log(VIEWER_PANEL.text_ptr(texts::NET_CREATE_DLOBBY), true, 2);
+    Ok(co_create(&vars.clsid_lobby, &vars.iid_lobby2a, &vars.lobby) == 0)
 }

@@ -234,14 +234,11 @@ pub enum CarRow {
 /// The two record rows (`screens::draw_stage_records` 0x4742BF): "<0x34B>:  <0>" and
 /// "<0x34C>:  <0>" (x 0x188), then the best time (y 0x1FC: flag x 0x18A, name x 0x1A6,
 /// car x 0x266, the time in fixed columns ending at x 0x314) and the top speed (y 0x213,
-/// its figure in tenths of a mile per hour at x 0x2A8). The best time's sprites take where
-/// the text before them ended as their palette; the top speed's flag `top_palette` (what
-/// the original has in ebx). The carry of the last text.
+/// its figure in tenths of a mile per hour at x 0x2A8). The carry of the last text.
 pub fn records<S, T>(
     s: &mut S,
     best: Holder<T>,
     top: Holder<T>,
-    top_palette: u32,
     car_row: CarRow,
     show_hours: bool,
     units: u32,
@@ -254,22 +251,22 @@ where
         let mut line = s.string_bytes(id);
         line.extend(b":  ");
         line.extend(s.string_bytes(0));
-        let out = s.line(Font::Label, &line, 0x188, y)?;
+        s.line(Font::Label, &line, 0x188, y)?;
         if id == 0x34C {
-            s.sprite(flag_glyph(best.nation), 0x18A, ROW_1_Y, out.after)?;
+            s.sprite(flag_glyph(best.nation), 0x18A, ROW_1_Y)?;
         }
     }
-    let out = s.text(Font::Value, best.name, 0x1A6, ROW_1_Y)?;
-    s.sprite(car_glyph(best.car), 0x266, ROW_1_Y, out.after)?;
+    s.text(Font::Value, best.name, 0x1A6, ROW_1_Y)?;
+    s.sprite(car_glyph(best.car), 0x266, ROW_1_Y)?;
     s.time_line(Font::Time, &time(best.figure, show_hours), 0x314, ROW_1_Y)?;
 
-    s.sprite(flag_glyph(top.nation), 0x18A, ROW_2_Y, top_palette)?;
-    let out = s.text(Font::Value, top.name, 0x1A6, ROW_2_Y)?;
+    s.sprite(flag_glyph(top.nation), 0x18A, ROW_2_Y)?;
+    s.text(Font::Value, top.name, 0x1A6, ROW_2_Y)?;
     let car_y = match car_row {
         CarRow::Second => ROW_2_Y,
         CarRow::First => ROW_1_Y,
     };
-    s.sprite(car_glyph(top.car), 0x266, car_y, out.after)?;
+    s.sprite(car_glyph(top.car), 0x266, car_y)?;
     let setting = Units::from_setting(units).ok_or(Invalid("a unit setting with no label"))?;
     let figure = speed(top.figure, setting).ok_or(Invalid(
         "result does not fit 32 bits: the original's div traps",
@@ -296,10 +293,7 @@ mod tests {
         type Error = Invalid;
         fn text(&mut self, f: Font, t: u32, x: i32, y: i32) -> Result<Drawn, Invalid> {
             self.0.push(format!("{f:?} t{t} {x:#x} {y:#x}"));
-            Ok(Drawn {
-                after: t,
-                ..Drawn::default()
-            })
+            Ok(Drawn { ..Drawn::default() })
         }
         fn store(&mut self, _: Buffer, b: &[u8]) -> Result<(), Invalid> {
             self.1 = b.to_vec();
@@ -333,8 +327,8 @@ mod tests {
         fn strings(&mut self, first: u32, n: u32) -> Result<Vec<u8>, Invalid> {
             Ok(format!("d{first:x}x{n}\0").into_bytes())
         }
-        fn sprite(&mut self, g: u32, x: i32, y: i32, p: u32) -> Result<(), Invalid> {
-            self.0.push(format!("sprite {g:#x} {x:#x} {y:#x} {p}"));
+        fn sprite(&mut self, g: u32, x: i32, y: i32) -> Result<(), Invalid> {
+            self.0.push(format!("sprite {g:#x} {x:#x} {y:#x}"));
             Ok(())
         }
         fn bar(&mut self, b: crate::screens::screen::Bar) -> Result<(), Invalid> {
@@ -391,12 +385,12 @@ mod tests {
             figure: 1234,
         };
         let mut s = Record::default();
-        records(&mut s, best, top, 77, CarRow::First, false, 0).unwrap();
+        records(&mut s, best, top, CarRow::First, false, 0).unwrap();
         assert_eq!(s.0[0], "Label \"<34b>:  <0>\\0\" 0x188 0x1fc");
-        assert_eq!(s.0[2], "sprite 0x1d 0x18a 0x1fc 0");
-        assert_eq!(s.0[4], "sprite 0x5c 0x266 0x1fc 10");
-        assert_eq!(s.0[6], "sprite 0x1e 0x18a 0x213 77");
-        assert_eq!(s.0[8], "sprite 0x47 0x266 0x1fc 20");
+        assert_eq!(s.0[2], "sprite 0x1d 0x18a 0x1fc");
+        assert_eq!(s.0[4], "sprite 0x5c 0x266 0x1fc");
+        assert_eq!(s.0[6], "sprite 0x1e 0x18a 0x213");
+        assert_eq!(s.0[8], "sprite 0x47 0x266 0x1fc");
         assert_eq!(s.0[9], "Value \"123.4<573>\\0\" 0x2a8 0x213");
     }
 }

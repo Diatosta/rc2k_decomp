@@ -105,16 +105,17 @@ impl KeyTables {
     }
 }
 
-/// The frame's dwords `end_frame` clears (`dword_6138F4`, `dword_6138F8`).
-pub const FRAME_CLEARED: usize = 2;
+/// The dwords `end_frame` clears: the debug page and the race freeze (`g_debugPage`,
+/// `g_debugFreezeRace`).
+pub const DEBUG_WORDS: usize = 2;
 
 /// `input::end_frame` (0x43AA91): with screenshots on, `check` (the screenshot key looked
 /// at); the frame's dwords as they are left.
-pub fn end_frame(screenshots_on: u32, check: impl FnOnce()) -> [u32; FRAME_CLEARED] {
+pub fn end_frame(screenshots_on: u32, check: impl FnOnce()) -> [u32; DEBUG_WORDS] {
     if screenshots_on != 0 {
         check();
     }
-    [0; FRAME_CLEARED]
+    [0; DEBUG_WORDS]
 }
 
 /// `gfx::screenshot_if_key` (0x43B573): a screenshot while the key (`SCREENSHOT_KEY`) is

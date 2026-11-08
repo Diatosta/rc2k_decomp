@@ -1,25 +1,31 @@
-//! The race's results file (`sub_41E6EC` / `sub_41E85A`, IDA 2026-10-17): its bytes packed
-//! by runs (`race::pack_runs`) and a block sealed by a DES-like cipher of the game's
+//! The race's results file (`race::open_replay` / `race::close_replay`, IDA 2026-10-17): its bytes
+//! packed by runs (`race::pack_runs`) and a block sealed by a DES-like cipher of the game's
 //! tables (`race::seal_block`, with `race::permute_bits`).
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
-use crate::race::seal_store::SEAL_WORK;
+use crate::race::seal_store::SealWork;
 
 /// `race::pack_runs` (0x41EFEC): ecx bytes at esi packed to edi: runs of 2 .. 0x80 equal
 /// bytes as (length - 1, byte), other stretches of up to 0x80 as (-length, bytes); fewer
 /// than three bytes, or one left, as one literal; then a dword 0 of which one byte
-/// counts. Returns the bytes written (ecx). Every other register kept.
-pub fn pack_runs(from: u32, count: u32, to: u32) -> Result<u32, BadInput> {
-    // Converted: `rc2k_core::race::seal::pack_runs` (the source read whole first: the
-    // callers' buffers do not overlap).
-    let source = GamePtr::new(from).read_bytes(count as usize, "the bytes to pack")?;
-    let mut packed = rc2k_core::race::seal::pack_runs(&source);
+/// counts. Returns the bytes written (ecx). Every other register kept. Here: `source`
+/// packed into the shared scratch (`g_pngInfo`, edi of its one caller); the packing (end
+/// mark included) is returned with the count.
+pub fn pack_runs(
+    source: &[u8],
+    system: &crate::system::owner::System,
+) -> Result<(Vec<u8>, u32), BadInput> {
+    // Converted: `rc2k_core::race::seal::pack_runs`.
+    let mut packed = rc2k_core::race::seal::pack_runs(source);
     let len = packed.len() as u32;
     // The end mark is the first byte of a dword 0.
     packed.extend_from_slice(&[0, 0, 0]);
-    GamePtr::new(to).write_bytes(&packed, "the packed bytes")?;
-    Ok(len)
+    system
+        .work
+        .files
+        .buffer
+        .write_at(0, &packed, "the packed bytes")?;
+    Ok((packed, len))
 }
 
 // The cipher's tables and variables (dword_4E052C .. as IDA shows them).
@@ -29,8 +35,8 @@ pub fn pack_runs(from: u32, count: u32, to: u32) -> Result<u32, BadInput> {
 /// subkeys (turns by `byte_4E01C7`, PC2) into `dword_4E04AC` ..; the block's initial
 /// permutation, sixteen rounds (expansion, the subkey, eight S-boxes, the permutation,
 /// the halves swapped), the final permutation into `value` (0x4E053C) and `dword_4E0540`.
-/// Every register kept (`pusha` / `popa`).
-pub fn seal_block() {
+/// Every register kept.
+pub fn seal_block(w: &SealWork) {
     // Converted: `rc2k_core::race::seal::seal_block`.
     {
         use crate::race::seal_tables::*;
@@ -43,7 +49,6 @@ pub fn seal_block() {
             permutation: &PERMUTATION,
             last: &LAST,
         };
-        let w = &SEAL_WORK;
         let sealed = rc2k_core::race::seal::seal_block(
             [w.key[0].get(), w.key[1].get()],
             [w.block[0].get(), w.block[1].get()],

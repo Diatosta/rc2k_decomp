@@ -2,72 +2,52 @@
 //! pointers to the cars' sound objects (`sound::load_race_sounds`), each with a flag at +8.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::view_store::RACE_VIEW;
-use crate::race::work_store::RACE_WORK;
+use crate::race::owner::Race;
 
 const OBJECTS: u32 = 8;
 const MOST_CARS: u32 = 0x1_0000;
 
-pub fn object(n: u32) -> u32 {
-    crate::sound::store::RACE_SOUNDS.table[(n & 7) as usize].get()
-}
-
 fn wake(n: u32) -> Result<(), BadInput> {
-    crate::sound::store::SoundObject::at(object(n))?
+    crate::sound::store::SoundObject::number(n & 7)?
         .in_use
         .set(1);
     Ok(())
 }
 
-pub fn objects_there() -> bool {
-    (0..OBJECTS).all(|n| object(n) != 0)
-}
-
 /// `race::start_race_sounds` (0x40D592): `sound::start_race_clock`, and unless
 /// `dword_514F7C` is 0 it is held to 1 .. 8 and that many objects woken; then
-/// `sound::let_sounds_play` and `dword_5124E4` 1. Refuses an object missing.
-pub fn start_race_sounds() -> Result<(), Refused> {
-    if !objects_there() {
-        return Err(BadInput("a race sound object missing").into());
-    }
-    crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count());
-    let count: u32 = crate::sound::store::RACE_SOUNDS.count.get();
+/// `sound::let_sounds_play` and `dword_5124E4` 1.
+pub fn start_race_sounds(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+    crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count(), sound);
+    let count: u32 = sound.race.sounds.count.get();
     if count != 0 {
         let count = count.clamp(1, OBJECTS);
-        crate::sound::store::RACE_SOUNDS.count.set(count);
+        sound.race.sounds.count.set(count);
         for n in 0..count {
             wake(n)?;
         }
     }
     crate::sound::let_sounds_play::let_sounds_play();
-    crate::sound::store::RACE_CLOCK.started.set(1);
+    sound.race.clock.started.set(1);
     Ok(())
 }
 
 /// `race::wake_car_sounds` (0x45D255): nothing while `dword_71C3E0` is set; else each car's
 /// object (`dword_63DB90` of them, the table taken round its eight) woken, then
-/// `race::start_race_sounds`. Returns the count and the last object when it wakes any
-/// (the original leaves them in ebx and edi: it has no `pusha`). Refuses 0x10000 cars or
-/// more (the original counts on to them), an object missing.
-pub fn wake_car_sounds() -> Result<Option<(u32, u32)>, Refused> {
-    if RACE_WORK.in_credits.bits() != 0 {
-        return Ok(None);
+/// `race::start_race_sounds`. Refuses 0x10000 cars or
+/// more (the original counts on to them).
+pub fn wake_car_sounds(race: &Race) -> Result<(), Refused> {
+    let sound = crate::sound::owner::sound();
+    let shared = &race.shared;
+    if shared.work.in_credits.bits() != 0 {
+        return Ok(());
     }
-    let cars: u32 = RACE_VIEW.race_cars.bits();
+    let cars: u32 = shared.view.race_cars.bits();
     if cars >= MOST_CARS {
         return Err(BadInput("0x10000 cars or more").into());
     }
-    if !objects_there() {
-        return Err(BadInput("a race sound object missing").into());
+    for n in 0..cars {
+        wake(n)?;
     }
-    let woken = if cars != 0 {
-        for n in 0..cars {
-            wake(n)?;
-        }
-        Some((cars, object(cars - 1)))
-    } else {
-        None
-    };
-    start_race_sounds()?;
-    Ok(woken)
+    start_race_sounds(sound)
 }

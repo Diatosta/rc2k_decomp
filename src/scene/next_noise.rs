@@ -1,14 +1,13 @@
 //! `scene::next_noise` (0x440F3E): the next number of the scene's own generator.
 //!
-//! In:  nothing
-//! Out: eax = the number; everything else preserved
+//! Returns: the number
 //!
 //! One step on the state `dword_614C54` (`scene::noise_step`, 0x440F4E, inlined): bit 22, then
 //! bits 2 and 1 of the low byte as it then is, each flip bit 0; the whole turned right by one;
 //! then `xor` 0x87654321. `math::next_random`'s step with that last `xor` added. Five callers
 //! (two in the engine's tables, three unread).
 
-use crate::physics::tables_store::PHYSICS;
+use crate::race::owner_shared::Shared;
 
 // ---- Rust version ----
 
@@ -18,11 +17,11 @@ pub fn noise_step(state: u32) -> u32 {
 }
 
 /// Converted: `rc2k_core::scene::noise::Noise::draw`.
-pub fn next_noise() -> u32 {
+pub fn next_noise(shared: &Shared) -> u32 {
     let mut n = rc2k_core::scene::noise::Noise {
-        state: PHYSICS.noise_state.bits(),
+        state: shared.physics_tables.noise_state.bits(),
     };
     let number = n.draw();
-    PHYSICS.noise_state.set_bits(n.state);
+    shared.physics_tables.noise_state.set_bits(n.state);
     number
 }

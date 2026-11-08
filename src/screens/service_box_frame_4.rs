@@ -1,138 +1,20 @@
-//! `screens::service_box_frame_4` (0x4932D4): the frame (yellow) round box `dword_75AC9C` of the second row, shown as `service_box_frame_2`'s.
+//! `screens::service_box_frame_4` (0x4932D4): the yellow frame round the chosen part of the
+//! service area's second row of six cells (`service_boxes::chosen_frame`, item 0xF).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Caller: `screens::draw_service_boxes`. The body is the original's code written out by
-//! `service_boxes`' translator.
+//! Part of `screens::draw_service_boxes`.
 
 use crate::errors::Refused;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::lists_store::MENU_LISTS;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::state_store::MENU_STATE;
-use crate::screens::service_boxes::{at_esi, quad};
+use crate::menu::owner::Menus;
+use crate::screens::service_boxes::chosen_frame;
 
-/// The Rust version (see the header): the registers it leaves.
-#[allow(unused_assignments, clippy::needless_late_init)] // the translator's flags, one per `cmp`
-pub fn service_box_frame_4() -> Result<(), Refused> {
-    // The original's eax and esi: an item number or a value compared, and the address of
-    // the item's repair flag.
-    let mut value = 0u32;
-    let mut flag = 0u32;
-    let mut c: (u32, u32);
-    c = (MENU_STATE.service_ui.box_shown.get(), 0x1);
-    'l4940ba: {
-        'l49331c: {
-            'l4932fa: {
-                if c.0 != c.1 {
-                    break 'l4932fa;
-                }
-                value = 0xF;
-                c = (LOOP_FLAGS.item.get(), value);
-                if c.0 != c.1 {
-                    break 'l4932fa;
-                }
-                c = (DRAW_WORK.blink.get(), 0x1);
-                if c.0 != c.1 {
-                    break 'l4940ba;
-                }
-                break 'l49331c;
-            }
-            value = MENU_STATE.driver_stats.setups[1].chosen.get();
-            c = (MENU_STATE.driver_stats.setups[1].installed.get(), value);
-            if c.0 != c.1 {
-                break 'l49331c;
-            }
-            value = 0xF;
-            flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-            c = (at_esi(flag)?, 0x1);
-            if c.0 != c.1 {
-                break 'l4940ba;
-            }
-        }
-        c = (MENU_STATE.driver_stats.setups[1].chosen.get(), 0x0);
-        'l493561: {
-            if c.0 != c.1 {
-                break 'l493561;
-            }
-            quad(0x193, 0x12B, 0x36, 0x1, 0xFFFF00, 0xFF)?;
-            quad(0x193, 0x12B, 0x1, 0x27, 0xFFFF00, 0xFF)?;
-            quad(0x1C9, 0x12B, 0x1, 0x28, 0xFFFF00, 0xFF)?;
-            quad(0x193, 0x152, 0x36, 0x1, 0xFFFF00, 0xFF)?;
-            quad(0x194, 0x12C, 0x34, 0x1, 0xFFFF00, 0xFF)?;
-            quad(0x194, 0x12C, 0x1, 0x25, 0xFFFF00, 0xFF)?;
-            quad(0x1C8, 0x12C, 0x1, 0x26, 0xFFFF00, 0xFF)?;
-            quad(0x194, 0x151, 0x34, 0x1, 0xFFFF00, 0xFF)?;
-        }
-        c = (MENU_STATE.driver_stats.setups[1].chosen.get(), 0x1);
-        'l4937a6: {
-            if c.0 != c.1 {
-                break 'l4937a6;
-            }
-            quad(0x1CA, 0x12B, 0x36, 0x1, 0xFFFF00, 0xFF)?;
-            quad(0x1CA, 0x12B, 0x1, 0x27, 0xFFFF00, 0xFF)?;
-            quad(0x200, 0x12B, 0x1, 0x28, 0xFFFF00, 0xFF)?;
-            quad(0x1CA, 0x152, 0x36, 0x1, 0xFFFF00, 0xFF)?;
-            quad(0x1CB, 0x12C, 0x34, 0x1, 0xFFFF00, 0xFF)?;
-            quad(0x1CB, 0x12C, 0x1, 0x25, 0xFFFF00, 0xFF)?;
-            quad(0x1FF, 0x12C, 0x1, 0x26, 0xFFFF00, 0xFF)?;
-            quad(0x1CB, 0x151, 0x34, 0x1, 0xFFFF00, 0xFF)?;
-        }
-        c = (MENU_STATE.driver_stats.setups[1].chosen.get(), 0x2);
-        'l4939eb: {
-            if c.0 != c.1 {
-                break 'l4939eb;
-            }
-            quad(0x201, 0x12B, 0x36, 0x1, 0xFFFF00, 0xFF)?;
-            quad(0x201, 0x12B, 0x1, 0x27, 0xFFFF00, 0xFF)?;
-            quad(0x237, 0x12B, 0x1, 0x28, 0xFFFF00, 0xFF)?;
-            quad(0x201, 0x152, 0x36, 0x1, 0xFFFF00, 0xFF)?;
-            quad(0x202, 0x12C, 0x34, 0x1, 0xFFFF00, 0xFF)?;
-            quad(0x202, 0x12C, 0x1, 0x25, 0xFFFF00, 0xFF)?;
-            quad(0x236, 0x12C, 0x1, 0x26, 0xFFFF00, 0xFF)?;
-            quad(0x202, 0x151, 0x34, 0x1, 0xFFFF00, 0xFF)?;
-        }
-        c = (MENU_STATE.driver_stats.setups[1].chosen.get(), 0x3);
-        'l493c30: {
-            if c.0 != c.1 {
-                break 'l493c30;
-            }
-            quad(0x238, 0x12B, 0x36, 0x1, 0xFFFF00, 0xFF)?;
-            quad(0x238, 0x12B, 0x1, 0x27, 0xFFFF00, 0xFF)?;
-            quad(0x26E, 0x12B, 0x1, 0x28, 0xFFFF00, 0xFF)?;
-            quad(0x238, 0x152, 0x36, 0x1, 0xFFFF00, 0xFF)?;
-            quad(0x239, 0x12C, 0x34, 0x1, 0xFFFF00, 0xFF)?;
-            quad(0x239, 0x12C, 0x1, 0x25, 0xFFFF00, 0xFF)?;
-            quad(0x26D, 0x12C, 0x1, 0x26, 0xFFFF00, 0xFF)?;
-            quad(0x239, 0x151, 0x34, 0x1, 0xFFFF00, 0xFF)?;
-        }
-        c = (MENU_STATE.driver_stats.setups[1].chosen.get(), 0x4);
-        'l493e75: {
-            if c.0 != c.1 {
-                break 'l493e75;
-            }
-            quad(0x26F, 0x12B, 0x36, 0x1, 0xFFFF00, 0xFF)?;
-            quad(0x26F, 0x12B, 0x1, 0x27, 0xFFFF00, 0xFF)?;
-            quad(0x2A5, 0x12B, 0x1, 0x28, 0xFFFF00, 0xFF)?;
-            quad(0x26F, 0x152, 0x36, 0x1, 0xFFFF00, 0xFF)?;
-            quad(0x270, 0x12C, 0x34, 0x1, 0xFFFF00, 0xFF)?;
-            quad(0x270, 0x12C, 0x1, 0x25, 0xFFFF00, 0xFF)?;
-            quad(0x2A4, 0x12C, 0x1, 0x26, 0xFFFF00, 0xFF)?;
-            quad(0x270, 0x151, 0x34, 0x1, 0xFFFF00, 0xFF)?;
-        }
-        c = (MENU_STATE.driver_stats.setups[1].chosen.get(), 0x5);
-        if c.0 != c.1 {
-            break 'l4940ba;
-        }
-        quad(0x2A6, 0x12B, 0x36, 0x1, 0xFFFF00, 0xFF)?;
-        quad(0x2A6, 0x12B, 0x1, 0x27, 0xFFFF00, 0xFF)?;
-        quad(0x2DC, 0x12B, 0x1, 0x28, 0xFFFF00, 0xFF)?;
-        quad(0x2A6, 0x152, 0x36, 0x1, 0xFFFF00, 0xFF)?;
-        quad(0x2A7, 0x12C, 0x34, 0x1, 0xFFFF00, 0xFF)?;
-        quad(0x2A7, 0x12C, 0x1, 0x25, 0xFFFF00, 0xFF)?;
-        quad(0x2DB, 0x12C, 0x1, 0x26, 0xFFFF00, 0xFF)?;
-        quad(0x2A7, 0x151, 0x34, 0x1, 0xFFFF00, 0xFF)?;
-    }
-    Ok(())
+pub fn service_box_frame_4(menus: &Menus) -> Result<(), Refused> {
+    chosen_frame(
+        &menus.screens,
+        0xF,
+        &menus.screens.state.driver_stats.setups[1],
+        &menus.tables.lists.inspection_flags_a[0xF],
+        0x193,
+        0x37,
+        6,
+    )
 }

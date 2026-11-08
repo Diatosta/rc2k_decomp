@@ -1,5 +1,5 @@
 //! The order an object's listed faces are drawn in (converted 2026-10-21 from
-//! `scene::sort_listed_faces` 0x45098C and its quicksort `sub_4509BF`): the largest key
+//! `scene::sort_listed_faces` 0x45098C and its quicksort 0x4509BF): the largest key
 //! first. The quicksort is the original's step for step, since which of two equal keys
 //! comes first is its doing.
 
@@ -17,7 +17,7 @@ fn key(list: &[ListedFace], at: usize) -> Result<u32, Invalid> {
         .ok_or(Invalid("the faces' sort went past the list"))
 }
 
-/// `sub_4509BF` on the entries `low` ..= `high`: the key in the middle is the pivot; the
+/// 0x4509BF on the entries `low` ..= `high`: the key in the middle is the pivot; the
 /// left place moves on one entry if its key is above the pivot, the right place moves
 /// back while its key is below; if the two places are not the same the entries change
 /// places, and the left one moves on once more if their keys are now equal; when they

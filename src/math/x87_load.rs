@@ -45,49 +45,25 @@ pub fn scaled_abs_less_below(a: u32, h: u32, k: u32, b: u32) -> bool {
     compare(x, ld(b)) & 0x0100 != 0
 }
 
-/// `bytes` bytes at `p` checked to lie in one region (the program ends otherwise).
-fn span<T>(p: *const T, bytes: usize) {
-    crate::pointers::check_or_end(
-        crate::pointers::game_address(p),
-        bytes,
-        "a math helper's operand",
-    );
-}
-
 /// The point (three whole numbers) through `matrix` (16 floats; the 12 used are the
 /// columns' at 0, 4, 8 / 0x10, 0x14, 0x18 / 0x20, 0x24, 0x28 and the translation at 0x30,
 /// 0x34, 0x38), as the original adds them: m0 x + (m4 y + m8 z) and so on, then the
 /// translation. Left at double precision.
-fn rotated(point: *const i32, matrix: *const u32) -> [X; 3] {
-    span(point, 12);
-    span(matrix, 60);
-
-    unsafe {
-        let (x, y, z) = (
-            int(point.read_unaligned()),
-            int(point.add(1).read_unaligned()),
-            int(point.add(2).read_unaligned()),
-        );
-        let m = |i: usize| ld(matrix.add(i).read_unaligned());
-        let s0 = m(0) * x + (m(4) * y + m(8) * z) + m(12);
-        let s1 = m(1) * x + (m(5) * y + m(9) * z) + m(13);
-        let s2 = x * m(2) + (y * m(6) + z * m(10)) + m(14);
-        [s0, s1, s2]
-    }
+fn rotated(point: [i32; 3], matrix: &[u32]) -> [X; 3] {
+    let [x, y, z] = point.map(int);
+    let m = |i: usize| ld(matrix[i]);
+    let s0 = m(0) * x + (m(4) * y + m(8) * z) + m(12);
+    let s1 = m(1) * x + (m(5) * y + m(9) * z) + m(13);
+    let s2 = x * m(2) + (y * m(6) + z * m(10)) + m(14);
+    [s0, s1, s2]
 }
 
 /// `scene::project_point::rotate` with its third store a `fistp`: the point (three whole
 /// numbers) through `matrix`, x and y stored as floats at `out[0]`, `out[1]`, z rounded
-/// into `out[2]` from the x87's precision (`sub_4573FA`).
-pub fn rotate_rounding_z(point: *const i32, matrix: *const u32, out: *mut u32) {
-    span(out, 12);
-
-    unsafe {
-        let s = rotated(point, matrix);
-        out.write_unaligned(st(s[0]));
-        out.add(1).write_unaligned(st(s[1]));
-        out.add(2).write_unaligned(to_int(s[2]) as u32);
-    }
+/// into the third from the x87's precision (0x4573FA).
+pub fn rotate_rounding_z(point: [i32; 3], matrix: &[u32]) -> [u32; 3] {
+    let s = rotated(point, matrix);
+    [st(s[0]), st(s[1]), to_int(s[2]) as u32]
 }
 
 /// `a a + b b` of two whole numbers, as a float (`fild a; fmul st, st; fild b; fmul st,
@@ -126,16 +102,9 @@ pub fn abs_below_or_unordered(a: u32, k: u32) -> bool {
 }
 
 /// `scene::project_point::rotate` with all three stores `fistp`: the point (three whole
-/// numbers) through `matrix`, each part rounded from the x87's precision into `out`.
-pub fn rotate_rounding(point: *const i32, matrix: *const u32, out: *mut u32) {
-    span(out, 12);
-
-    unsafe {
-        let s = rotated(point, matrix);
-        out.write_unaligned(to_int(s[0]) as u32);
-        out.add(1).write_unaligned(to_int(s[1]) as u32);
-        out.add(2).write_unaligned(to_int(s[2]) as u32);
-    }
+/// numbers) through `matrix`, each part rounded from the x87's precision.
+pub fn rotate_rounding(point: [i32; 3], matrix: &[u32]) -> [u32; 3] {
+    rotated(point, matrix).map(|part| to_int(part) as u32)
 }
 
 /// `(a a + b b) k` (`times` = 1) or `(a a + b b) k k` (`times` = 2) as a whole number
@@ -149,7 +118,7 @@ pub fn int_square_sum_scaled_to_int(a: i32, b: i32, k: u32, times: u32) -> u32 {
     to_int(x) as u32
 }
 
-/// The camera's roll eased towards a target (`sub_4386A4`), rounded once at the end:
+/// The camera's roll eased towards a target (`race::view_matrices`), rounded once at the end:
 /// `((((i / a / a / b) v c) - m) h) + m`.
 pub fn eased_roll(i: i32, a: u32, b: u32, v: u32, c: u32, m: u32, h: u32) -> u32 {
     let mut x = int(i);
@@ -169,7 +138,7 @@ pub fn product4_to_int(a: u32, b: u32, c: u32, d: u32) -> u32 {
     to_int(ld(a) * ld(b) * ld(c) * ld(d)) as u32
 }
 
-/// The sun's direction in `sub_455540`: with `p = (k - a) s` and `q = b s`, cos p cos q,
+/// The sun's direction in `race::draw_sky`: with `p = (k - a) s` and `q = b s`, cos p cos q,
 /// sin q and sin p cos q, each times `m` and stored as a float.
 pub fn sun_direction(a: i32, k: u32, s: u32, b: i32, m: u32) -> [u32; 3] {
     let p = (-int(a) + ld(k)) * ld(s);
@@ -191,16 +160,14 @@ pub fn tbyte_to_int(a: [u8; 10]) -> u32 {
     to_int(from_f80(a)) as u32
 }
 
-/// A point of whole numbers onto the screen as in `sub_455540`: `v` = x, y, z, the flat
+/// A point of whole numbers onto the screen as in `race::draw_sky`: `v` = x, y, z, the flat
 /// depth, the scale, the centre's y and x. Flat: z dropped (into `scratch`, as a float)
 /// and the scale over the flat depth + 1; else the scale over z. Gives x as a float and
 /// rounded, y as a float and rounded (each `x r + cx` and `cy - y r`, r the ratio).
-pub fn sun_on_screen(v: &[u32; 7], flat: bool, scratch: *mut u32) -> [u32; 4] {
-    span(scratch, 4);
-
+pub fn sun_on_screen(v: &[u32; 7], flat: bool, scratch: &impl crate::session::Cell32) -> [u32; 4] {
     let (x, y, z) = (int(v[0] as i32), int(v[1] as i32), int(v[2] as i32));
     let ratio = if flat {
-        unsafe { scratch.write_unaligned(st(z)) };
+        scratch.set_bits(st(z));
         ld(v[4]) / (int(v[3] as i32) + X(1.0))
     } else {
         ld(v[4]) / z

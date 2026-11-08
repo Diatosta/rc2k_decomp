@@ -6,109 +6,113 @@
 //! tile's place on the locked surface (`g_surface`); the gap between a tile's rows kept in
 //! `dword_5BE9AD`; unlocked (`d3d::unlock_texture`, eax as the lock left it).
 //!
-//! In:  `texture` (eax), `first_x` / `first_y` (ecx / edx) the first tile's column and row
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! Callers: `race::map_tiles_stub`, so `race::map_tiles` (the map's scroll). Refuses (after the
 //! lock, unlocking first) a null surface, and a null tile table with a tile inside the 0x80 x
 //! 0x80.
 
+use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::gfx::screen_state::DRAW_SURFACE;
-use crate::pointers::GamePtr;
-use crate::race::game_map::MAP;
+use crate::gfx::owner::gfx;
+use crate::race::game_map::{GAME_MAP, Tile};
+use crate::race::owner_frame::Frame;
 use rc2k_core::race::map::TILE;
 
 /// The Rust version (see the header).
-pub unsafe fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result<(), Refused> {
+pub fn blit_map_tiles(
+    frame: &Frame,
+    texture: u32,
+    first_x: u32,
+    first_y: u32,
+) -> Result<(), Refused> {
+    let drawing = &gfx().drawing;
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
-    // Converted: `rc2k_core::race::map::{any_inside, check_tiles, row_gap, tile_offset,
+    // Converted: `rc2k_core::race::map::{any_inside, check_tiles, row_gap, tile_row,
     // tile_index, pixel_width}`.
     use rc2k_core::race::map::{
-        BLITTED, any_inside, check_tiles, pixel_width, row_gap, tile_index, tile_offset,
+        BLITTED, any_inside, check_tiles, pixel_width, row_gap, tile_index, tile_row,
     };
-    if unsafe { lock_texture(texture) }?.carry {
+    if { lock_texture(texture) }?.carry {
         return Ok(());
     }
     let (bytes, pitch, pixels) = (
-        DRAW_SURFACE.bytes_per_pixel.get(),
-        DRAW_SURFACE.pitch.get(),
-        DRAW_SURFACE.pixels.get(),
+        drawing.draw_surface.bytes_per_pixel.get(),
+        drawing.draw_surface.pitch.get(),
+        crate::gfx::surface::address()?,
     );
-    let tiles = MAP.tiles.get();
+    let tiles = u32::from(GAME_MAP.is_taken());
     if let Err(e) = check_tiles(pixels, tiles, any_inside(first_x, first_y)) {
-        unsafe { unlock_texture(texture) }?;
+        { unlock_texture(texture) }?;
         return Err(e.into());
     }
-    let gap = row_gap(pitch, bytes);
-    MAP.row_gap.set(gap);
-    let black = MAP.black.get();
+    frame.map.row_gap.set(row_gap(pitch, bytes));
+    let surface = crate::gfx::rows::Rows::new(pixels, pitch, drawing.draw_surface.height.get());
+    let black = frame.map.black.get();
     for row in 0..BLITTED {
         for col in 0..BLITTED {
             let (x, y) = (first_x.wrapping_add(col), first_y.wrapping_add(row));
-            let mut to = pixels.wrapping_add(tile_offset(col, row, bytes, pitch));
-            let tile = match tile_index(x, y) {
-                Some(n) => match GamePtr::new(tiles.wrapping_add(4 * n))
-                    .read::<u32>("a map tile's pointer")
-                {
-                    Ok(t) => t,
-                    Err(e) => {
-                        unsafe { unlock_texture(texture) }?;
-                        return Err(e.into());
-                    }
-                },
-                None => 0,
-            };
             let wide = pixel_width(bytes);
-            // The tile's pixels, read whole once (16 x 16 of them, contiguous).
-            let source = if tile != 0 {
-                match GamePtr::new(tile).read_bytes(
-                    (TILE * TILE) as usize * wide as usize,
-                    "a map tile's pixels",
-                ) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        unsafe { unlock_texture(texture) }?;
-                        return Err(e.into());
-                    }
-                }
-            } else {
-                Vec::new()
+            // The tile's pixels, copied out whole once (16 x 16 of them, contiguous); none
+            // drawn black. A tile marked but never filled holds 1 in the original's table:
+            // read there, refused.
+            let len = (TILE * TILE) as usize * wide as usize;
+            let source = match tile_index(x, y) {
+                Some(n) => GAME_MAP.with(|m| match m.tiles.get(n as usize) {
+                    Some(Tile::None) => Ok(None),
+                    Some(Tile::At(at)) => m
+                        .pixels
+                        .get(*at..*at + len)
+                        .map(|p| Some(p.to_vec()))
+                        .ok_or(BadInput("a map tile's pixels past their block")),
+                    Some(Tile::Marked) => Err(BadInput("a map tile marked but never filled")),
+                    None => Err(BadInput("a map tile past the table")),
+                }),
+                None => Ok(Ok(None)),
             };
+            let source = match source.and_then(|s| s) {
+                Ok(s) => s,
+                Err(e) => {
+                    { unlock_texture(texture) }?;
+                    return Err(e.into());
+                }
+            };
+            let tile = u32::from(source.is_some());
+            let source = source.unwrap_or_default();
             let mut at = 0usize;
-            for _ in 0..TILE {
+            for r in 0..TILE {
+                // The original steps a tile's rows by its pixels' bytes and the gap: the
+                // texture's pitch, and `wide` - `bytes` more a pixel when they differ.
+                let (y, along) = tile_row(col, row, r, bytes, wide);
+                // The row's pixels, `wide` bytes each, written at once (the locked texture
+                // is the platform's memory).
+                let mut row = Vec::with_capacity(TILE as usize * wide as usize);
                 for _ in 0..TILE {
-                    // The locked texture is the platform's memory (left for its own change).
-                    unsafe {
-                        if wide == 2 {
-                            let v = if tile != 0 {
-                                u16::from_le_bytes([source[at], source[at + 1]])
-                            } else {
-                                black as u16
-                            };
-                            (crate::pointers::host(to) as *mut u16).write_unaligned(v);
+                    if wide == 2 {
+                        let v = if tile != 0 {
+                            u16::from_le_bytes([source[at], source[at + 1]])
                         } else {
-                            let v = if tile != 0 {
-                                u32::from_le_bytes([
-                                    source[at],
-                                    source[at + 1],
-                                    source[at + 2],
-                                    source[at + 3],
-                                ])
-                            } else {
-                                black
-                            };
-                            (crate::pointers::host(to) as *mut u32).write_unaligned(v);
-                        }
+                            black as u16
+                        };
+                        row.extend_from_slice(&v.to_le_bytes());
+                    } else {
+                        let v = if tile != 0 {
+                            u32::from_le_bytes([
+                                source[at],
+                                source[at + 1],
+                                source[at + 2],
+                                source[at + 3],
+                            ])
+                        } else {
+                            black
+                        };
+                        row.extend_from_slice(&v.to_le_bytes());
                     }
-                    to = to.wrapping_add(wide);
                     at += wide as usize;
                 }
-                to = to.wrapping_add(gap);
+                surface.write(y, along, &row, "a map texture's row")?;
             }
         }
     }
     // eax at the unlock: the texture, as the lock left it.
-    unsafe { unlock_texture(texture) }?;
+    { unlock_texture(texture) }?;
     Ok(())
 }

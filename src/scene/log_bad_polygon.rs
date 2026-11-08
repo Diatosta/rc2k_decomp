@@ -9,21 +9,16 @@
 //! "wv" +0xC, "v" +0x1C (floats, two decimals; the labels are the tails of one string),
 //! "co" +0x10 and "sp" +0x14 (hex8), a line's end; and a last line's end.
 //!
-//! In:  edi = the vertices
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the vertices
 //!
 //! Caller: `scene::show_bad_polygon` (0x443AEC). Refuses (before anything) more than 64
 //! vertices (the original's loop would run through memory).
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
-use crate::race::course_store::COURSE;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::vars_store::RACE_VARS;
-use crate::scene::draw_store::DRAW;
-use crate::scene::light_work_store::LIGHT_WORK;
+use crate::pointers::Store;
+use crate::race::owner::race;
+use crate::scene::owner::scene;
 
-const WRITE: u32 = 0;
 const HEX8: u32 = 1;
 /// The value column: what the line shows.
 type Value = fn() -> u32;
@@ -35,26 +30,49 @@ const MOST: u32 = 64;
 
 /// (label, kind, value): the head's lines before the mask's clearing, and after.
 const HEAD: [(&std::ffi::CStr, u32, Value); 10] = [
-    (c"videox", HEX8, || crate::session::SCREEN.width.get()), // "videox" g_screenWidth
-    (c"videoy", HEX8, || crate::session::SCREEN.height.get()), // "videoy" g_screenHeight
-    (c"videoy", HEX8, || crate::session::SCREEN.height.get()), // "videoy" g_screenHeight
-    (c"r", FLOAT, || DRAW.clip_screen[3].bits()),             // "r" g_clipScreenRight
-    (c"l", FLOAT, || DRAW.clip_screen[2].bits()),             // "l" g_clipScreenLeft
-    (c"b", FLOAT, || DRAW.clip_screen[1].bits()),             // "b" g_clipScreenBottom
-    (c"t", FLOAT, || DRAW.clip_screen[0].bits()),             // "t" g_clipScreenTop
-    (c"donezcut", INT, || DRAW.depth_clipped.bits()),         // "donezcut"
-    (c"donesuth", INT, || DRAW.screen_clipped.bits()),        // "donesuth"
-    (c"cuttest", INT_NL, || DRAW.polygon_clip_mask.bits()),   // "cuttest" g_polygonClipMask
+    (c"videox", HEX8, || {
+        crate::system::owner::system().session.screen.width.get()
+    }), // "videox" g_screenWidth
+    (c"videoy", HEX8, || {
+        crate::system::owner::system().session.screen.height.get()
+    }), // "videoy" g_screenHeight
+    (c"videoy", HEX8, || {
+        crate::system::owner::system().session.screen.height.get()
+    }), // "videoy" g_screenHeight
+    (c"r", FLOAT, || scene().drawing.scene.clip_screen[3].bits()), // "r" g_clipScreenRight
+    (c"l", FLOAT, || scene().drawing.scene.clip_screen[2].bits()), // "l" g_clipScreenLeft
+    (c"b", FLOAT, || scene().drawing.scene.clip_screen[1].bits()), // "b" g_clipScreenBottom
+    (c"t", FLOAT, || scene().drawing.scene.clip_screen[0].bits()), // "t" g_clipScreenTop
+    (c"donezcut", INT, || {
+        scene().drawing.scene.depth_clipped.bits()
+    }), // "donezcut"
+    (c"donesuth", INT, || {
+        scene().drawing.scene.screen_clipped.bits()
+    }), // "donesuth"
+    (c"cuttest", INT_NL, || {
+        scene().drawing.scene.polygon_clip_mask.bits()
+    }), // "cuttest" g_polygonClipMask
 ];
 const AFTER: [(&std::ffi::CStr, u32, Value); 2] = [
-    (c"tpage", HEX8, || DRAW.texture_page.bits()), // "tpage"
-    (c"points", INT, || DRAW.polygon_vertex_count.bits()), // "points" g_polygonVertexCount
+    (c"tpage", HEX8, || scene().drawing.scene.texture_page.bits()), // "tpage"
+    (c"points", INT, || {
+        scene().drawing.scene.polygon_vertex_count.bits()
+    }), // "points" g_polygonVertexCount
 ];
-const POLYGON_NUMBER: [(&std::ffi::CStr, u32, Value); 1] =
-    [(c"polynum", INT, || COURSE.current_course_face.bits())]; // "polynum"
+const POLYGON_NUMBER: [(&std::ffi::CStr, u32, Value); 1] = [(c"polynum", INT, || {
+    race().course.course.current_course_face.bits()
+})]; // "polynum"
 const OBJECT: [(&std::ffi::CStr, u32, Value); 2] = [
-    (c"objdraw", INT, || FRAME_SWITCHES.object_number.bits()), // "objdraw" g_objectNumber
-    (c"objfaced", INT, || RACE_VARS.face_number.bits()),       // "objfaced" g_faceNumber
+    (c"objdraw", INT, || {
+        crate::race::owner::RACE
+            .shared
+            .switches
+            .object_number
+            .bits()
+    }), // "objdraw" g_objectNumber
+    (c"objfaced", INT, || {
+        crate::race::owner::RACE.shared.vars.face_number.bits()
+    }), // "objfaced" g_faceNumber
 ];
 /// A vertex's: (label, kind, offset).
 const VERTEX: [(&std::ffi::CStr, u32, u32); 8] = [
@@ -69,22 +87,25 @@ const VERTEX: [(&std::ffi::CStr, u32, u32); 8] = [
 ];
 const PT: &std::ffi::CStr = c"pt"; // "pt"
 
-/// The Rust version: the dump of the `g_polygonVertexCount` vertices at `vertices`.
-pub fn log_bad_polygon(vertices: u32) -> Result<(), BadInput> {
-    let count: u32 = DRAW.polygon_vertex_count.bits();
+/// The Rust version: the dump of the `g_polygonVertexCount` vertices at `vertices` (at most 64,
+/// held to the vertex buffer: the longest read is the last vertex's 0x20 bytes of its 0x800).
+pub fn log_bad_polygon(
+    vertices: &dyn Store,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
+    let count: u32 = scene.drawing.scene.polygon_vertex_count.bits();
     if count > MOST {
         return Err(BadInput("more than 64 vertices"));
     }
-    let text = |s: &std::ffi::CStr| crate::pointers::game_address(s.as_ptr());
     for (label, kind, at) in HEAD {
-        log(WRITE, text(label));
+        write(label);
         log(kind, at());
     }
-    DRAW.polygon_clip_mask.set_bits(0u32);
-    let object = LIGHT_WORK.drawing_object.bits() == 1;
+    scene.drawing.scene.polygon_clip_mask.set_bits(0u32);
+    let object = scene.lights.work.drawing_object.bits() == 1;
     let tail: &[(&std::ffi::CStr, u32, Value)] = if object { &OBJECT } else { &POLYGON_NUMBER };
     for &(label, kind, at) in AFTER.iter().chain(tail) {
-        log(WRITE, text(label));
+        write(label);
         log(kind, at());
     }
     log(NEWLINE, 0);
@@ -92,12 +113,12 @@ pub fn log_bad_polygon(vertices: u32) -> Result<(), BadInput> {
         return Ok(());
     }
     for n in 0..count {
-        let vertex = vertices.wrapping_add(0x20 * n);
-        let words = GamePtr::new(vertex).read_bytes(0x20, "a vertex")?;
-        log(WRITE, text(PT));
+        let mut words = [0u8; 0x20];
+        vertices.load(0x20 * n as usize, &mut words)?;
+        write(PT);
         log(INT, n);
         for (label, kind, offset) in VERTEX {
-            log(WRITE, text(label));
+            write(label);
             log(
                 kind,
                 u32::from_le_bytes(
@@ -113,18 +134,19 @@ pub fn log_bad_polygon(vertices: u32) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// One log call at level 1: a text, a number (a float with two decimals) or a line's end.
+/// A label, at level 1.
+fn write(label: &std::ffi::CStr) {
+    crate::logfile::log_write::log_nul(label.to_bytes(), false, 1);
+}
+
+/// One log call at level 1: a number (a float with two decimals) or a line's end.
 fn log(kind: u32, value: u32) {
-    use crate::logfile::log_write::log_write;
     use crate::logfile::{log_float::log_float, log_hex8::log_hex8, log_int::log_int};
-    unsafe {
-        match kind {
-            WRITE => crate::logfile::log_write::log_at(value, false, 1),
-            HEX8 => log_hex8(value, false, 1),
-            FLOAT => log_float(f32::from_bits(value), 2, false, 1),
-            INT => log_int(value as i32, false, 1),
-            INT_NL => log_int(value as i32, true, 1),
-            _ => log_write(c"".as_ptr().cast(), true, 1),
-        }
+    match kind {
+        HEX8 => log_hex8(value, false, 1),
+        FLOAT => log_float(f32::from_bits(value), 2, false, 1),
+        INT => log_int(value as i32, false, 1),
+        INT_NL => log_int(value as i32, true, 1),
+        _ => crate::logfile::log_write::log_nul(&c"", true, 1),
     }
 }

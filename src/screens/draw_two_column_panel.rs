@@ -3,23 +3,24 @@
 //! `dword_75AA94`; `scene::draw_tinted_quad`), then the rows' rules
 //! (`screens::draw_column_rules`) and boxes (`screens::draw_column_boxes`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //!
 //! In two menu loops' draw lists (0x758F12, 0x758F1A). The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::state_store::MENU_STATE;
+use crate::menu::owner::Menus;
 use crate::screens::service_boxes::quad;
 
 /// The Rust version: every register kept. Parts: 1 the quads, 2 the rules, 3 the boxes.
-pub fn draw_two_column_panel() -> Result<(), Refused> {
+pub fn draw_two_column_panel(menus: &Menus) -> Result<(), Refused> {
+    let screens = &menus.screens;
     // Converted: `rc2k_core::screens::panels::two_column_panel`.
-    for a in rc2k_core::screens::panels::two_column_panel(MENU_STATE.service_ui.fade_full.get()) {
+    for a in
+        rc2k_core::screens::panels::two_column_panel(menus.screens.state.service_ui.fade_full.get())
+    {
         quad(a.x, a.y, a.w, a.h, a.colour, a.see)?;
     }
-    crate::screens::draw_column_rules::draw_column_rules()?;
-    crate::screens::draw_column_boxes::draw_column_boxes()?;
+    crate::screens::draw_column_rules::draw_column_rules(screens)?;
+    crate::screens::draw_column_boxes::draw_column_boxes(screens)?;
     Ok(())
 }

@@ -1,0 +1,143 @@
+//! `effects::emit_particle_11` (0x4CC35A, a chunk of `effects::emit_wheel_particles` entered
+//! by `jz` from it and from 0x4CA215, left by `popa; retn`): one ring entry of kind 0xB;
+//! `effects::emit_particle_5`'s code on its own variables (`dword_93A262`, `flt_93A266` ..
+//! `flt_93A286`), a life of 2000, and made only when the wheel's |+0x18| rounded to an
+//! integer (`fist`, the x87's rounding) is over 1 (kind 5: when it is not 0).
+//!
+//! Takes: the wheel record, the car object
+//!
+//! Refuses as `emit_particle_5`.
+
+use crate::effects::emit_particle_5::{JitterSet, emit_particle_5_with};
+use crate::effects::ring_store::Ring;
+use crate::errors::Refused;
+use crate::race::marks_settings_store::{MarkCar, MarkRecord};
+use crate::session::{Bytes, Dword, Float};
+
+/// Kind 0xB's variables.
+pub static ELEVENTH: JitterSet = JitterSet {
+    kind: 0xB,
+    over_one: true,
+    place_random: &crate::effects::owner::EFFECTS
+        .particles
+        .kind11_set
+        .place_random,
+    motion_k: [
+        &crate::effects::owner::EFFECTS.particles.kind11_set.motion_x,
+        &crate::effects::owner::EFFECTS.particles.kind11_set.motion_y,
+        &crate::effects::owner::EFFECTS.particles.kind11_set.motion_z,
+    ],
+    lift: &crate::effects::owner::EFFECTS.particles.kind11_set.lift,
+    spread: &crate::effects::owner::EFFECTS.particles.kind11_set.spread,
+    roll_k: [
+        &crate::effects::owner::EFFECTS.particles.kind11_set.roll_k[0],
+        &crate::effects::owner::EFFECTS.particles.kind11_set.roll_k[1],
+        &crate::effects::owner::EFFECTS.particles.kind11_set.roll_k[2],
+    ],
+    spin: &crate::effects::owner::EFFECTS.particles.kind11_set.spin,
+    life: 0x7D0,
+};
+
+/// The Rust version (see the header).
+pub fn emit_particle_11(
+    ring: &Ring,
+    wheel: &MarkRecord,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
+    emit_particle_5_with(ring, &ELEVENTH, wheel, object)
+}
+
+/// Kind 0xB's emitter variables (`emit_particle_5::ELEVENTH`), and the constants of code that is in no function (IDA 0x93A262 .. 0x93A312, the image's layout; phase 7, typed state).
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct Kind11Set {
+    /// 0x93A262: `dword_93A262`: the place's random
+    pub place_random: Dword,
+    /// 0x93A266: `flt_93A266`: the motion's x factor
+    pub motion_x: Float,
+    /// 0x93A26A: `flt_93A26A`: the motion's y factor
+    pub motion_y: Float,
+    /// 0x93A26E: `flt_93A26E`: added to the motion's y
+    pub lift: Float,
+    /// 0x93A272: `flt_93A272`: the motion's z factor
+    pub motion_z: Float,
+    /// 0x93A276: `flt_93A276`: the spread `jitter_point` takes
+    pub spread: Float,
+    /// 0x93A27A: `flt_93A27A` .. `flt_93A282`: the third row's factors (z, y, x)
+    pub roll_k: [Float; 3],
+    /// 0x93A286: `flt_93A286`: the spin's factor
+    pub spin: Float,
+    /// 0x93A28A: `flt_93A28E` .. `dword_93A30A`: read only by code at 0x4CC56C .. 0x4CC9BB, which is in no function (no ported code reads them)
+    pub _gap_93a28a: Bytes<136>,
+}
+
+impl Kind11Set {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        Kind11Set {
+            place_random: Dword::new(0x0),
+            motion_x: Float::from_bits(0x41200000),
+            motion_y: Float::from_bits(0x41200000),
+            lift: Float::from_bits(0x41700000),
+            motion_z: Float::from_bits(0x41200000),
+            spread: Float::from_bits(0x42DC0000),
+            roll_k: [
+                Float::from_bits(0xC1400000),
+                Float::from_bits(0xC1400000),
+                Float::from_bits(0xC1400000),
+            ],
+            spin: Float::from_bits(0xC2800000),
+            _gap_93a28a: Bytes::new([
+                0x08, 0xAC, 0x82, 0x42, 0x0A, 0xD7, 0xA3, 0x3C, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00,
+                0x40, 0x48, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x47, 0xA6, 0x9B, 0x44, 0x42,
+                0xA6, 0x9B, 0x44, 0x42, 0xA6, 0x9B, 0x44, 0xC2, 0xA6, 0x9B, 0x44, 0x42, 0xA6, 0x9B,
+                0x44, 0x42, 0xA6, 0x9B, 0x44, 0xC2, 0xA6, 0x9B, 0x44, 0x42, 0xA6, 0x9B, 0x44, 0x42,
+                0xA6, 0x9B, 0x44, 0xC2, 0x00, 0x00, 0x00, 0x00, 0xCD, 0xCC, 0x4C, 0x3E, 0x08, 0xAC,
+                0x82, 0x42, 0xAC, 0xC5, 0xA7, 0x37, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x40, 0x48,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x47, 0xA6, 0x9B, 0x44, 0x42, 0xA6, 0x9B,
+                0x44, 0x42, 0xA6, 0x9B, 0x44, 0xC2, 0xA6, 0x9B, 0x44, 0x42, 0xA6, 0x9B, 0x44, 0x42,
+                0xA6, 0x9B, 0x44, 0xC2, 0xA6, 0x9B, 0x44, 0x42, 0xA6, 0x9B, 0x44, 0x42, 0xA6, 0x9B,
+                0x44, 0xC2, 0x00, 0x00, 0x00, 0x00, 0xCD, 0xCC, 0x4C, 0x3E,
+            ]),
+        }
+    }
+}
+
+impl Kind11Set {
+    pub const START: usize = 0x93A262;
+    pub const LEN: usize = 0xB0;
+}
+
+#[cfg(test)]
+mod kind11_set_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
+
+    #[test]
+    fn kind11_set_starts_as_the_games() {
+        assert_eq!(size_of::<Kind11Set>(), Kind11Set::LEN);
+        assert!(
+            bytes(&crate::effects::owner::EFFECTS.particles.kind11_set)
+                == crate::moved::image_bytes(Kind11Set::START, Kind11Set::LEN),
+            "KIND11_SET starts differently from the image"
+        );
+        assert_eq!(
+            offset_of!(Kind11Set, place_random),
+            0x93A262 - Kind11Set::START
+        );
+        assert_eq!(offset_of!(Kind11Set, motion_x), 0x93A266 - Kind11Set::START);
+        assert_eq!(offset_of!(Kind11Set, motion_y), 0x93A26A - Kind11Set::START);
+        assert_eq!(offset_of!(Kind11Set, lift), 0x93A26E - Kind11Set::START);
+        assert_eq!(offset_of!(Kind11Set, motion_z), 0x93A272 - Kind11Set::START);
+        assert_eq!(offset_of!(Kind11Set, spread), 0x93A276 - Kind11Set::START);
+        assert_eq!(offset_of!(Kind11Set, roll_k), 0x93A27A - Kind11Set::START);
+        assert_eq!(offset_of!(Kind11Set, spin), 0x93A286 - Kind11Set::START);
+    }
+}

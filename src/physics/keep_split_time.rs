@@ -3,53 +3,21 @@
 //! ..= `g_splitColourCount` (both by the sign of the difference). A reading: a split
 //! time at a checkpoint.
 //!
-//! In:  nothing
-//! Out: eax the time, ebx k; the rest kept; no flags read (the caller `popa`s)
+//! Returns: the time, k
 //!
-//! Caller: `sub_436833`. Refuses (before anything) a k past the table's 0x40 entries (the
-//! original writes past it; race init clears 0x40).
+//! Caller: `physics::take_split_counted`. Refuses (before anything) a k past the table's 0x40
+//! entries (the original writes past it; race init clears 0x40).
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
-use crate::physics::split_tables_store::SPLIT_TABLES;
+use crate::race::owner::Race;
 use rc2k_core::physics::splits::kept_split_slot;
 
-/// Where the variables are: the time, the checks, the count, the table.
-#[derive(Clone, Copy)]
-pub struct SplitPlaces {
-    pub time: u32,
-    pub checks: u32,
-    pub count: u32,
-    pub table: u32,
-}
-
-impl SplitPlaces {
-    pub fn game() -> Self {
-        Self {
-            time: (CAR.stage_time.addr()),
-            checks: (CAR.splits_passed.addr()),
-            count: (SPLIT_TABLES.split_colour_count.addr()),
-            table: (SPLIT_TABLES.kept_times[0].addr()),
-        }
-    }
-}
-
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::keep_split_time's operand")
-}
-
-/// The Rust version on the variables at `p`.
-// Converted: `rc2k_core::physics::splits::kept_split_slot`.
-pub unsafe fn keep_split_time_at(p: &SplitPlaces) -> Result<(), Refused> {
-    unsafe {
-        let time = at(p.time);
-        let k = kept_split_slot(at(p.checks), at(p.count))?;
-        (crate::pointers::host(p.table + 4 * k) as *mut u32).write_unaligned(time);
-        Ok(())
-    }
-}
-
-/// The Rust version.
-pub unsafe fn keep_split_time() -> Result<(), Refused> {
-    unsafe { keep_split_time_at(&SplitPlaces::game()) }
+/// The Rust version. Converted: `rc2k_core::physics::splits::kept_split_slot` (below 0x40).
+pub fn keep_split_time(race: &Race) -> Result<(), Refused> {
+    let k = kept_split_slot(
+        race.shared.car.splits_passed.get(),
+        race.physics.split_tables.split_colour_count.get(),
+    )?;
+    race.physics.split_tables.kept_times[k as usize].set(race.shared.car.stage_time.get());
+    Ok(())
 }

@@ -1,26 +1,17 @@
 //! `files::numbered_path` (0x403292): copies a path template to the buffer at 0x94E8B0 and
 //! writes a number over its last `!!`, or if there is none its last `00`.
 //!
-//! In:  eax = template, ebx = number
-//! Out: eax = the buffer; everything else preserved
-//! The number is written with `format_u32` flags 0x12: two digits, zero-padded (a larger
-//! number's last two). A template with
-//! neither marker is fatal error 0x80F19001 in the original. The search never looks at the
-//! template's first character. Refuses an empty template (the original reads before the
-//! buffer) and anything that does not fit the buffer's 0x100 bytes.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! Takes template, number. Returns the buffer. The number is written with `format_u32` flags 0x12:
+//! two digits, zero-padded (a larger number's last two). A template with neither marker is fatal
+//! error 0x80F19001 in the original. The search never looks at the template's first character.
+//! Refuses an empty template (the original reads before the buffer) and anything that does not fit
+//! the buffer's 0x100 bytes.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::pointers::GamePtr;
 
 // ---- game data ----
 
 const BUFFER_LEN: usize = 0x100; // up to the path buffer at 0x94E9B0
-
-pub fn buffer() -> *mut u8 {
-    crate::files::state::PATHS.ptr().cast()
-}
 
 // ---- Rust version ----
 
@@ -41,14 +32,10 @@ pub fn numbered_path(template: &[u8], number: u32) -> Result<Vec<u8>, Refused> {
     Ok(out)
 }
 
-/// For Rust callers: writes the buffer and returns it.
-pub fn numbered_path_in_game(template: *const u8, number: u32) -> Result<*const u8, Refused> {
-    let template = crate::files::cstring(
-        GamePtr::new(crate::pointers::game_address(template)),
-        "a path template",
-    )?;
-    let path = numbered_path(&template, number)?;
-    GamePtr::new(crate::pointers::game_address(buffer()))
-        .write_bytes(&path, "the numbered path's buffer")?;
-    Ok(buffer())
+/// For Rust callers: writes the buffer (as the original does) and returns the path, both
+/// `template` and the path without their NULs.
+pub fn numbered_path_bytes(template: &[u8], number: u32) -> Result<Vec<u8>, Refused> {
+    let path = numbered_path(template, number)?;
+    crate::files::state::PATHS.write_at(0, &path, "the numbered path's buffer")?;
+    Ok(path[..path.iter().position(|&b| b == 0).unwrap_or(path.len())].to_vec())
 }

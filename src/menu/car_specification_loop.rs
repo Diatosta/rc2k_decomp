@@ -1,7 +1,5 @@
 //! `menu::car_specification_loop` (0x47A652): the screen titled "ESPECIFICAÇÕES DO CARRO".
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: leaving is not asked about; it has a step of its own once
 //! a frame; one call comes after the registers are put back; the steps that are more than a
@@ -9,85 +7,88 @@
 //! The name is a reading from the title string of its menu, "ESPECIFICAÇÕES DO CARRO", not yet
 //! a visit.
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::menu::cheats_store::CHEAT_VARS;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Callee, Carried, List, Screen, Step, carousel, prepare_scene, screen_entry,
+    Callee, Entry, FrameRoutine, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
-use crate::menu::state_store::MENU_STATE;
-use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn before(c: &mut Carried) -> Result<(), Refused> {
-    c.arg = CHEAT_VARS.kept_car.get();
-    EVENT_STATE.shown_car.set(c.arg);
-    EVENT_STATE.car_page.set(0x0u32);
+fn before(entry: &Entry) -> Result<(), Refused> {
+    let menus = entry.menus;
+    menus
+        .screens
+        .event
+        .shown_car
+        .set(menus.play.cheats.kept_car.get());
+    menus.screens.event.car_page.set(0x0u32);
 
     Ok(())
 }
 
-fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
-    DRAW.view_offset[0].set(0xFFFFFF60u32);
-    DRAW.view_offset[1].set(0xFFFFFF9Cu32);
-    DRAW.view_zoom.set(0x100u32);
-    prepare_scene(c);
-    SCREEN_FLOW.turning.set(0x1u32);
-    MENU_STATE.carousel.menu.set(0xBu32);
-    carousel(c)?;
-    c.arg = SCREEN_ITEMS.current[slot::CAR_SPECIFICATION].get();
-    LOOP_FLAGS.item.set(c.arg);
-    c.arg = c.arg.wrapping_sub(1);
-    MENU_STATE.carousel.front.set(c.arg);
-    SCREEN_FLOW.turning.set(0x0u32);
-    c.arg = EVENT_STATE.shown_car.get();
-    MENU_STATE.carousel.front.set(c.arg);
+fn set_up_first(entry: &Entry) -> Result<(), Refused> {
+    let drawing = &entry.scene.drawing;
+    let screens = &entry.menus.screens;
+    drawing.scene.view_offset[0].set(0xFFFFFF60u32);
+    drawing.scene.view_offset[1].set(0xFFFFFF9Cu32);
+    drawing.scene.view_zoom.set(0x100u32);
+    prepare_scene(entry.scene);
+    screens.flow.turning.set(0x1u32);
+    screens.state.carousel.menu.set(0xBu32);
+    carousel(None, entry.scene)?;
+    let item = screens.items.current[slot::CAR_SPECIFICATION].get();
+    screens.loop_flags.item.set(item);
+    screens.state.carousel.front.set(item.wrapping_sub(1));
+    screens.flow.turning.set(0x0u32);
+    screens
+        .state
+        .carousel
+        .front
+        .set(screens.event.shown_car.get());
     Ok(())
 }
 
-fn after(c: &mut Carried) -> Result<(), Refused> {
-    c.arg = EVENT_STATE.shown_car.get();
-    CHEAT_VARS.kept_car.set(c.arg);
+fn after(entry: &Entry) -> Result<(), Refused> {
+    let menus = entry.menus;
+    menus
+        .play
+        .cheats
+        .kept_car
+        .set(menus.screens.event.shown_car.get());
 
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.car_specification.addr() as usize,
-    saved_item: || &SCREEN_ITEMS.current[slot::CAR_SPECIFICATION],
+    menu: |m| m.tables.menus.car_specification.id(),
+    saved_item: |m| &m.screens.items.current[slot::CAR_SPECIFICATION],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.car_specification_scene.addr() as usize,
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.car_specification_scene.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.car_specification_draw.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.car_specification_draw.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.car_specification_setup.addr() as usize,
+            pointer: |m| &m.screens.flow.setup_list, // dword_755500
+            table: |m| m.tables.draw_lists.car_specification_setup.id(),
             run: true,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.car_specification_overlay.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.car_specification_overlay.id(),
             run: false,
         },
     ],
     first_frame_lists: None,
-    frame_callback: rva(0x474D4B),
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[Step::Do(before)],
     set_up_first: &[Step::Do(set_up_first)],

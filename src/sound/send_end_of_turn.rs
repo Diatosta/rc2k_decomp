@@ -1,8 +1,6 @@
 //! `sound::send_end_of_turn` (0x409BE0): tells the audio thread a turn is over
 //! (command 0xA).
 //!
-//! In:  the registers go into the command as they are
-//! Out: every register preserved
 //! `push eax; push 0xA; call sound::send_command; pop eax; pop eax`. Callers:
 //! `sound::race_turn`, `sound::wait_for_commands` (twice, whose Rust version sends it
 //! itself), `sound::send_command_7`.

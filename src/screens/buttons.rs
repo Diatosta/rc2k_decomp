@@ -14,19 +14,18 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::blit_bar::BAR_HAS_NO_LENGTH;
 use crate::gfx::blit_glyph::BlitCall;
-use crate::gfx::blit_marker_pair::sprite_table;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::item_sprites_store::ItemSprite;
+use crate::menu::owner::Screens;
+use crate::menu::owner::menus;
 use crate::session::Dword;
 use crate::text::draw_text::Canvas;
-use crate::text::font::Font;
 use crate::text::measure_string_by_id::measure_string_by_id_at;
 
 /// One of the three button functions.
 pub struct Kind {
-    /// Where in the item's five sprite numbers the two ends are.
-    left_at: u32,
-    right_at: u32,
+    /// Which of the item's five sprite numbers the two ends are.
+    left_at: usize,
+    right_at: usize,
     width: &'static Dword,
     x: &'static Dword,
     y: &'static Dword,
@@ -50,12 +49,12 @@ const BAD_ALIGN: &str = "Invalid Active Vbutt Align Tag";
 /// `screens::draw_button` (0x4688A1).
 pub const PLAIN: Kind = Kind {
     left_at: 0,
-    right_at: 4,
-    width: &DRAW_WORK.seconds,
-    x: &DRAW_WORK.work_b0,
-    y: &DRAW_WORK.work_b4,
-    left: &DRAW_WORK.glyph,
-    right: &DRAW_WORK.work_c4,
+    right_at: 1,
+    width: &crate::menu::owner::MENUS.screens.draw_work.seconds,
+    x: &crate::menu::owner::MENUS.screens.draw_work.work_b0,
+    y: &crate::menu::owner::MENUS.screens.draw_work.work_b4,
+    left: &crate::menu::owner::MENUS.screens.draw_work.glyph,
+    right: &crate::menu::owner::MENUS.screens.draw_work.work_c4,
     slips: true,
     borrows: false,
     bad_align: FatalError {
@@ -66,8 +65,8 @@ pub const PLAIN: Kind = Kind {
 
 /// `screens::draw_button_highlighted` (0x468BBE).
 pub const HIGHLIGHTED: Kind = Kind {
-    left_at: 8,
-    right_at: 0xC,
+    left_at: 2,
+    right_at: 3,
     slips: false,
     bad_align: FatalError {
         code: 0x8070_2022,
@@ -79,12 +78,12 @@ pub const HIGHLIGHTED: Kind = Kind {
 /// `screens::draw_button_alt` (0x468EDD).
 pub const ALT: Kind = Kind {
     left_at: 0,
-    right_at: 4,
-    width: &DRAW_WORK.figure,
-    x: &DRAW_WORK.hhmm,
-    y: &DRAW_WORK.work_f4,
-    left: &DRAW_WORK.work_00,
-    right: &DRAW_WORK.work_04,
+    right_at: 1,
+    width: &crate::menu::owner::MENUS.screens.draw_work.figure,
+    x: &crate::menu::owner::MENUS.screens.draw_work.hhmm,
+    y: &crate::menu::owner::MENUS.screens.draw_work.work_f4,
+    left: &crate::menu::owner::MENUS.screens.draw_work.work_00,
+    right: &crate::menu::owner::MENUS.screens.draw_work.work_04,
     slips: false,
     borrows: true,
     bad_align: FatalError {
@@ -94,80 +93,66 @@ pub const ALT: Kind = Kind {
 };
 
 // Menu item fields the button functions read.
-const ITEM_X: u32 = 0;
-const ITEM_Y: u32 = 4;
-const ITEM_WIDTH: u32 = 8;
-const ITEM_ALIGN: u32 = 0xC;
-const ITEM_TYPE: u32 = 0x10;
-const ITEM_STRING: u32 = 0x14;
-const ITEM_SPRITES: u32 = 0x20;
-const ITEM_MEASURING_FONT: u32 = 0x4C;
 
 pub const ALIGN_CENTRE: u32 = 1;
 pub const ALIGN_RIGHT: u32 = 3;
 
-pub fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
-}
-
 // ---- Rust version of the three button functions ----
 
-/// What the three functions do: `item` is only read for its sprites.
-pub unsafe fn draw_button(
+/// What the three functions do: the item is only read for its sprites (`set`, its +0x20).
+pub fn draw_button(
     kind: &Kind,
     width: u32,
     x: i32,
     y: i32,
     align: u32,
-    item: u32,
+    set: ItemSprite,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    unsafe {
-        let set = dword(item.wrapping_add(ITEM_SPRITES))?;
-        if item == 0 || set == 0 {
-            return Err(BadInput("a button without sprites").into());
-        }
-        let sprites = [
-            dword(set + kind.left_at)?,
-            dword(set + kind.right_at)?,
-            dword(set + 0x10)?,
-        ];
-        kind.width.set(width);
-        kind.x.set(x as u32);
-        kind.y.set(y as u32);
-        kind.left.set(sprites[0]);
-        kind.right.set(sprites[1]);
-        DRAW_WORK.middle.set(sprites[2]);
-        // Converted: `rc2k_core::screens::buttons::draw`; the pieces blitted from the sprite table.
-        use rc2k_core::screens::buttons::{Borrowed, Error};
-        let table = sprite_table();
-        let borrowed = Borrowed {
-            y: PLAIN.y.get() as i32,
-            x: PLAIN.x.get() as i32,
-        };
-        let core = rc2k_core::screens::buttons::Kind {
-            slips: kind.slips,
-            borrows: kind.borrows,
-        };
-        let (end, drawn) = rc2k_core::screens::buttons::draw(
-            core,
-            width,
-            x,
-            y,
-            align,
-            sprites,
-            borrowed,
-            &mut |glyph, x, y, palette| {
-                canvas.blit_glyph(BlitCall::new(glyph, x, y, palette, table))
-            },
-        );
-        kind.x.set(end as u32);
-        match drawn {
-            Ok(()) => Ok(()),
-            Err(Error::NoLength) => Err(BAR_HAS_NO_LENGTH.into()),
-            Err(Error::BadAlign) => Err(kind.bad_align.into()),
-            Err(Error::Draw(e)) => Err(e),
-        }
+    let menus = menus();
+    let list = match set {
+        ItemSprite::List(n) => &menus.panels.item_sprites.lists[n],
+        ItemSprite::Sprite(0) => return Err(BadInput("a button without sprites").into()),
+        // The original reads the five numbers at the sprite number as at an address.
+        ItemSprite::Sprite(_) => return Err(BadInput("a button's sprites at no list").into()),
+    };
+    let sprites = [
+        list[kind.left_at].get(),
+        list[kind.right_at].get(),
+        list[4].get(),
+    ];
+    kind.width.set(width);
+    kind.x.set(x as u32);
+    kind.y.set(y as u32);
+    kind.left.set(sprites[0]);
+    kind.right.set(sprites[1]);
+    menus.screens.draw_work.middle.set(sprites[2]);
+    // Converted: `rc2k_core::screens::buttons::draw`; the pieces blitted from the sprite table.
+    use rc2k_core::screens::buttons::{Borrowed, Error};
+    let borrowed = Borrowed {
+        y: PLAIN.y.get() as i32,
+        x: PLAIN.x.get() as i32,
+    };
+    let core = rc2k_core::screens::buttons::Kind {
+        slips: kind.slips,
+        borrows: kind.borrows,
+    };
+    let (end, drawn) = rc2k_core::screens::buttons::draw(
+        core,
+        width,
+        x,
+        y,
+        align,
+        sprites,
+        borrowed,
+        &mut |glyph, x, y| canvas.blit_glyph(BlitCall::sprite(glyph, x, y)),
+    );
+    kind.x.set(end as u32);
+    match drawn {
+        Ok(()) => Ok(()),
+        Err(Error::NoLength) => Err(BAR_HAS_NO_LENGTH.into()),
+        Err(Error::BadAlign) => Err(kind.bad_align.into()),
+        Err(Error::Draw(e)) => Err(e),
     }
 }
 
@@ -175,51 +160,42 @@ pub unsafe fn draw_button(
 
 /// `screens::draw_item_button` (0x469283): the button an item describes itself (width at
 /// +8, alignment at +0xC), highlighted if the item is.
-pub unsafe fn draw_item_button(item: u32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    if item == 0 {
-        return Err(BadInput("no menu item").into());
-    }
-    unsafe {
-        let highlighted = LOOP_FLAGS.item.get() == dword(item + ITEM_TYPE)?;
-        draw_button(
-            if highlighted { &HIGHLIGHTED } else { &PLAIN },
-            dword(item + ITEM_WIDTH)?,
-            dword(item + ITEM_X)? as i32,
-            dword(item + ITEM_Y)? as i32,
-            dword(item + ITEM_ALIGN)?,
-            item,
-            canvas,
-        )
-    }
+pub fn draw_item_button(
+    screens: &Screens,
+    item: &crate::menu::menus_store::MenuItem,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    let highlighted = screens.loop_flags.item.get() == item.id.get();
+    draw_button(
+        if highlighted { &HIGHLIGHTED } else { &PLAIN },
+        item.text_x.get(),
+        item.x.get() as i32,
+        item.y.get() as i32,
+        item.text_y.get(),
+        item.sprites.get(),
+        canvas,
+    )
 }
 
 /// The other four: a button as wide as the item's text, measured with the item's font at
-/// +0x4C, plus 12. `measure_x` is the x the measuring is given: the caller's ecx.
-pub unsafe fn draw_text_button(
+/// +0x4C, plus 12. The original measures from whatever x its caller left in ecx; a measured
+/// width does not depend on it, so it is measured from 0. Refused: a measuring font that
+/// does not only measure (it would draw the text at that x).
+pub fn draw_text_button(
     kind: &Kind,
     align: u32,
-    item: u32,
-    measure_x: i32,
+    item: &crate::menu::menus_store::MenuItem,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    if item == 0 {
-        return Err(BadInput("no menu item").into());
-    }
-    unsafe {
-        let font = dword(item + ITEM_MEASURING_FONT)?;
-        // The font object must lie in the game's memory before it is used.
-        crate::pointers::GamePtr::new(font).read::<Font>("an item's measuring font")?;
-        let font = crate::pointers::host(font) as *mut Font;
-        let measured =
-            measure_string_by_id_at(dword(item + ITEM_STRING)?, font, measure_x, canvas)?;
-        draw_button(
-            kind,
-            rc2k_core::screens::buttons::text_width(measured.width),
-            dword(item + ITEM_X)? as i32,
-            dword(item + ITEM_Y)? as i32,
-            align,
-            item,
-            canvas,
-        )
-    }
+    let font = crate::text::measure_text::only_measures(item.measuring_font.get())?;
+    let measured = measure_string_by_id_at(item.string.get(), font, 0, canvas)?;
+    draw_button(
+        kind,
+        rc2k_core::screens::buttons::text_width(measured.width),
+        item.x.get() as i32,
+        item.y.get() as i32,
+        align,
+        item.sprites.get(),
+        canvas,
+    )
 }

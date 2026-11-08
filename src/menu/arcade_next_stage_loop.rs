@@ -1,60 +1,49 @@
 //! `menu::arcade_next_stage_loop` (0x48980C): a screen titled "ETAPA SEGUINTE" under the mode
 //! menu's third entry (a reading)
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: leaving is asked about; left without the question, the
 //! highlight is not saved.
 //! The name is a reading from the title string of its menu, "ETAPA SEGUINTE", not yet a visit.
-//! Callers: `sub_487E2C`.
-
-use crate::framework::rva;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::menus_store::MENUS;
-use crate::menu::option_work_store::OPTION_WORK;
-use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, List, Screen, Step};
+use crate::menu::screen_items_store::slot;
+use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.arcade_next_stage.addr() as usize,
-    saved_item: || &SCREEN_ITEMS.current[slot::ARCADE_NEXT_STAGE],
+    menu: |m| m.tables.menus.arcade_next_stage.id(),
+    saved_item: |m| &m.screens.items.current[slot::ARCADE_NEXT_STAGE],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.arcade_next_stage_scene.addr() as usize,
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.arcade_next_stage_scene.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.arcade_next_stage_draw.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.arcade_next_stage_draw.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.arcade_next_stage_overlay.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.arcade_next_stage_overlay.id(),
             run: false,
         },
     ],
     first_frame_lists: None,
-    frame_callback: rva(0x474D4B),
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
-    before: &[Step::Write(|| &MENU_PAGES.yes_no_answer, 0x0)],
+    before: &[Step::Write(|m| &m.tables.pages.yes_no_answer, 0x0)],
     set_up_first: &[],
     prepare: &[],
-    after_lists: &[Step::Write(|| &CHAMP_VIEW.stage_mode, 0x2)],
+    after_lists: &[Step::Write(|m| &m.play.champ_view.stage_mode, 0x2)],
     background: &[Step::Call(Callee::DrawStageMap)],
     after_first_frame: &[],
     confirm: Some(&[]),
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: true,
-    after: &[Step::Write(|| &OPTION_WORK.menu_sound, 0x6F)],
+    after: &[Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F)],
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,

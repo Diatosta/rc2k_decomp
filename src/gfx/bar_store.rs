@@ -11,6 +11,7 @@ pub const LEN: usize = 0x75523C - START;
 
 /// The bar being drawn.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct BarVars {
     /// `dword_755224`: the bar's x (`blit_bar_marker` moves it to the marker).
     pub x: Dword,
@@ -26,33 +27,37 @@ pub struct BarVars {
     pub percent: Dword,
 }
 
-/// The bar; the first values are the image's.
-pub static BAR: BarVars = BarVars {
-    x: Dword::new(0),
-    y: Dword::new(0),
-    width: Dword::new(0),
-    fill_glyph: Dword::new(0),
-    end_glyph: Dword::new(0),
-    percent: Dword::new(0),
-};
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x755224).
-pub fn home() -> usize {
-    crate::pointers::game_address(&BAR as *const BarVars) as usize
+impl BarVars {
+    /// The bar; the first values are the image's.
+    pub const fn new() -> Self {
+        BarVars {
+            x: Dword::new(0),
+            y: Dword::new(0),
+            width: Dword::new(0),
+            fill_glyph: Dword::new(0),
+            end_glyph: Dword::new(0),
+            percent: Dword::new(0),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gfx::owner::gfx;
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&BAR, START, START + LEN);
+        crate::gfx::first_values_are_the_games(&gfx().drawing.bar, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), BAR.x.addr() as usize);
-        assert_eq!(crate::moved::place(0x755238), BAR.percent.addr() as usize);
+        let drawing = &gfx().drawing;
+        assert_eq!(crate::moved::place(START), drawing.bar.x.addr() as usize);
+        assert_eq!(
+            crate::moved::place(0x755238),
+            drawing.bar.percent.addr() as usize
+        );
     }
 }

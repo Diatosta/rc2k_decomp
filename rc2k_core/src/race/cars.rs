@@ -131,48 +131,6 @@ pub fn car_seeds(random: &mut Random) -> [u32; 8] {
     std::array::from_fn(|_| nonzero_random(random))
 }
 
-/// A car's grade: (the value's offset in its block, the grade's, the thresholds), in the
-/// original's order (`race::grade_car_values`).
-pub type Grade = (u32, u32, &'static [u32]);
-
-/// The grades `race::grade_car_values` works out.
-pub const GRADES: [Grade; 34] = [
-    (0x2B4, 0x3C0, &[50, 75, 90, 100]),
-    (0x2AC, 0x3C4, &[75]),
-    (0x2B8, 0x368, &[50, 75, 90, 100]),
-    (0x2BC, 0x36C, &[50, 75, 90, 100]),
-    (0x2C0, 0x370, &[50, 75, 90, 100]),
-    (0x2C4, 0x374, &[50, 75, 90, 100]),
-    (0x2C8, 0x378, &[50, 75, 90, 100]),
-    (0x2CC, 0x37C, &[50, 75, 90, 100]),
-    (0x2F4, 0x380, &[50, 75, 90, 100]),
-    (0x30C, 0x384, &[50, 75, 90, 100]),
-    (0x310, 0x388, &[50, 75, 90, 100]),
-    (0x330, 0x38C, &[50, 75, 90, 100]),
-    (0x350, 0x390, &[50, 75, 90, 100]),
-    (0x344, 0x39C, &[50, 75, 90, 100]),
-    (0x32C, 0x394, &[50, 75, 90]),
-    (0x314, 0x3CC, &[100]),
-    (0x318, 0x3D0, &[100]),
-    (0x31C, 0x3D4, &[100]),
-    (0x320, 0x3D8, &[100]),
-    (0x324, 0x3DC, &[100]),
-    (0x328, 0x3E0, &[100]),
-    (0x2F8, 0x3E4, &[100]),
-    (0x2FC, 0x3E8, &[100]),
-    (0x300, 0x3EC, &[100]),
-    (0x304, 0x3F0, &[100]),
-    (0x364, 0x398, &[50, 75, 90]),
-    (0x2D0, 0x3A0, &[100]),
-    (0x2D8, 0x3A4, &[100]),
-    (0x2DC, 0x3A8, &[100]),
-    (0x2E0, 0x3AC, &[100]),
-    (0x2E4, 0x3B0, &[100]),
-    (0x2E8, 0x3B4, &[100]),
-    (0x2EC, 0x3B8, &[100]),
-    (0x2F0, 0x3BC, &[100]),
-];
-
 /// A value's grade: how many of the thresholds, taken in order, lie below it (`fild t;
 /// fcomp x` then `jnb` on C0: a NaN, unordered, passes them all); and the last threshold
 /// tried (the original's way in to the x87, `dword_62400C`).
@@ -332,23 +290,6 @@ pub fn opponent_distance(place: u32, first: u32) -> (u32, bool) {
 /// The car blocks reset for a race.
 pub const CAR_BLOCKS: u32 = 8;
 
-/// The block offsets `reset_block` sets to 0, in the original's order.
-pub const CLEARED: [u32; 22] = [
-    0xFA8, 0xAC, 0x88, 0xA8, 0xA4, 0xA0, 0x29C, 0x98, 0x2AC, 0x2B0, 0x2A4, 0x2A8, 0x2B4, 0x2A0,
-    0x428, 0x40C, 0x410, 0x414, 0x418, 0x41C, 0x420, 0x424,
-];
-
-/// What `race::reset_car_blocks` writes into car block `n` (offset, value, in order):
-/// +0x25C 1 for the race's cars (`cars`, unsigned) else 0, the `CLEARED` offsets 0, +0x38
-/// 1, +0x8C the stage's number (`dword_601430`) x 100.
-pub fn reset_block(n: u32, cars: u32, number: u32) -> Vec<(u32, u32)> {
-    let mut writes = vec![(0x25C, (n < cars) as u32)];
-    writes.extend(CLEARED.iter().map(|&off| (off, 0)));
-    writes.push((0x38, 1));
-    writes.push((0x8C, number.wrapping_mul(100)));
-    writes
-}
-
 /// What `race::reset_car_race_state` writes into each car block (offset, value, in the
 /// original's order): +0x730 0, +0x72C 0x12C, +0x724 0, +0x71C 0xCA, +0x720 0, +0x728 0,
 /// the five dwords +0xA0C .. -1.
@@ -422,16 +363,6 @@ pub fn cars_steps(mode: u32) -> &'static [CarsStep] {
     }
 }
 
-/// What `race::set_up_cars` writes into both players' blocks first (offset, value).
-pub const PLAYER_RESETS: [(u32, u32); 6] = [
-    (0x5FC, 0),
-    (0xA0C, u32::MAX),
-    (0xA14, u32::MAX),
-    (0xA10, u32::MAX),
-    (0xA1C, u32::MAX),
-    (0xA18, u32::MAX),
-];
-
 /// A player's brake setting (`dword_75AD2C` / `dword_75AE98`) for the block's +0x3C:
 /// below 0 is 0, 100 or more 0x100, else `scaled` (the x87's x 2.56, rounded).
 pub fn held_brake(v: i32, scaled: impl FnOnce(i32) -> u32) -> u32 {
@@ -489,16 +420,6 @@ pub fn arcade_swap_draw(noise: u32, cars: u32) -> (u32, u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn block_reset() {
-        let w = reset_block(2, 3, 7);
-        assert_eq!(w.len(), 25);
-        assert_eq!(w[0], (0x25C, 1));
-        assert_eq!(w[23], (0x38, 1));
-        assert_eq!(w[24], (0x8C, 700));
-        assert_eq!(reset_block(3, 3, 0)[0], (0x25C, 0));
-    }
 
     #[test]
     fn set_ups_and_opponents() {

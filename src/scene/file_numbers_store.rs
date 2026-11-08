@@ -7,16 +7,17 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ObjectFileNumbers {
     /// +0x0 (0x60AD20): not named.
     pub unknown_0: Dword,
-    /// +0x4 (0x60AD24): `dword_60AD24`: .ro3 name number (`scene::set_object_file_names`).
+    /// +0x4 (0x60AD24): `dword_60AD24`: .ro3 name number, kept as the text's IDA address within `unknown_14` (the original kept its address; `scene::set_object_file_names`).
     pub object_ro3_number: Dword,
-    /// +0x8 (0x60AD28): `dword_60AD28`: .ro3 path (`scene::set_object_file_names`).
+    /// +0x8 (0x60AD28): `dword_60AD28`: .ro3 path, kept as the text's IDA address within `unknown_14` (the original kept its address; `scene::set_object_file_names`).
     pub object_ro3_path: Dword,
-    /// +0xc (0x60AD2C): `dword_60AD2C`: .lwo path (`scene::set_object_file_names`).
+    /// +0xc (0x60AD2C): `dword_60AD2C`: .lwo path, kept as the text's IDA address within `unknown_14` (the original kept its address; `scene::set_object_file_names`).
     pub object_lwo_path: Dword,
-    /// +0x10 (0x60AD30): `dword_60AD30`: .lwo name number (`scene::set_object_file_names`).
+    /// +0x10 (0x60AD30): `dword_60AD30`: .lwo name number, kept as the text's IDA address within `unknown_14` (the original kept its address; `scene::set_object_file_names`).
     pub object_lwo_number: Dword,
     /// +0x14 (0x60AD34): not named.
     pub unknown_14: [Dword; 116],
@@ -26,23 +27,17 @@ pub struct ObjectFileNumbers {
     pub picture_texture: Dword,
 }
 
-/// The piece: the race block's bytes at IDA 0x60AD20 seen as `ObjectFileNumbers`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = ObjectFileNumbers;
-    fn deref(&self) -> &ObjectFileNumbers {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const ObjectFileNumbers) }
+impl ObjectFileNumbers {
+    /// The piece with the image's first values (the owner `scene::owner::Scene` holds it).
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
 
-pub static FILE_NUMBERS: InRaceBlock = InRaceBlock;
-
-/// The path texts in `unknown_14`, by IDA's address (for `ObjectFileNumbers::text_addr`).
+/// The path texts in `unknown_14`, by IDA's address (for `ObjectFileNumbers::text_ptr`).
 pub mod texts {
     pub const FOLDER_0_RO3: usize = 0x60AD4E;
     pub const FOLDER_0_LWO: usize = 0x60AD62;
@@ -72,10 +67,12 @@ pub mod texts {
 }
 
 impl ObjectFileNumbers {
-    /// Where the byte at IDA `ida` is, inside the untyped bytes `unknown_14` (the path texts of `texts`).
-    pub fn text_addr(&self, ida: usize) -> u32 {
+    /// The text at IDA address `ida` as a pointer bounded by the untyped bytes `unknown_14` hold the texts in.
+    pub fn text_ptr(&self, ida: usize) -> crate::pointers::GamePtr {
         assert!((0x60AD34..0x60AF04).contains(&ida));
-        self.unknown_14[0].addr() + (ida - 0x60AD34) as u32
+        crate::pointers::GamePtr::to(&self.unknown_14[0])
+            .limited(4 * self.unknown_14.len() as u32)
+            .offset((ida - 0x60AD34) as u32)
     }
 }
 
@@ -86,9 +83,12 @@ pub const END: usize = 0x60AF0C;
 
 const _: () = assert!(END - START == core::mem::size_of::<ObjectFileNumbers>());
 
-/// Where IDA 0x60AD20 is now (in the race block).
+/// Where IDA 0x60AD20 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::scene::owner::SCENE.file_numbers,
+    ))
 }
 
 #[cfg(test)]
@@ -97,7 +97,16 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(
+            &crate::scene::owner::SCENE.file_numbers,
+            START,
+            END,
+        );
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

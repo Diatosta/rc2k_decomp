@@ -3,11 +3,12 @@
 //! the same layout; they differ only in where the stage comes from, what goes above the panel
 //! and which best-time table the record rows use.
 
-use crate::errors::Refused;
-use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position, sprite_table};
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::pointers::GamePtr;
+use crate::errors::{BadInput, Refused};
+use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position};
+use crate::menu::owner::Menus;
+use crate::menu::owner::Screens;
+use crate::menu::owner::Tables;
+use crate::records::stages_store::RecordRef;
 use crate::records::trakpak_entry::record_entry;
 use crate::screens::draw_stage_heading::heading_text;
 use crate::screens::draw_stage_records::draw_stage_records;
@@ -21,44 +22,41 @@ use crate::text::draw_text::Canvas;
 // dword_7559EC: a work variable used all over the game
 // mmss: receives the finish time
 // dword_75ACD0[1]: copy of entry +0x34
-pub const BEST_TIME_ENTRY_SIZE: u32 = 0x618;
 const SECOND_HEADING_STRING: u32 = 0x482;
 
 pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::STAGE_TITLE;
 const HEADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING;
-pub fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
-}
-
-/// The dword `index` of the table at `table` (an address; no bounds, as the original).
-pub fn table_dword_at(table: usize, index: u32) -> Result<u32, crate::errors::BadInput> {
-    dword((table as u32).wrapping_add(index.wrapping_mul(4)))
+/// The dword `index` of `table`, reading on only inside `holder`, the store holding it.
+pub fn table_dword_at<H: crate::pointers::Cells>(
+    holder: &H,
+    table: &[crate::session::Dword],
+    index: u32,
+) -> Result<u32, crate::errors::BadInput> {
+    crate::session::read_on_in(holder, table, index as usize, "a table's dword")
 }
 
 // ---- the shared parts ----
 
 /// Draws a string id with one of the game's font objects.
-pub unsafe fn label(
+pub fn label(
     canvas: &mut dyn Canvas,
     id: u32,
     font: crate::gfx::typefaces::FontId,
     x: i32,
     y: i32,
 ) -> Result<(), Refused> {
-    unsafe { draw_string_by_id_at(id, font.as_ptr(), x, y, canvas) }.map(|_| ())
+    { draw_string_by_id_at(id, font, x, y, canvas) }.map(|_| ())
 }
 
 /// Builds the second heading ("<string 0x482> n/6: name") in its own buffer. Three of the
-/// four panels build it; only `draw_time_trial_stage_info` also draws it.
-pub fn build_second_heading(record: u32) -> Result<(), Refused> {
+/// four panels build it; only `draw_time_trial_stage_info` also draws it (the text it
+/// returns, with its NUL).
+pub fn build_second_heading(record: RecordRef) -> Result<Vec<u8>, Refused> {
     let bytes = heading_text(record, SECOND_HEADING_STRING)?;
-    GamePtr::new(
-        crate::screens::text_buffers_store::TEXT_BUFFERS
-            .stage_heading
-            .addr(),
-    )
-    .write_bytes(&bytes, "the second stage heading")?;
-    Ok(())
+    crate::screens::text_buffers_store::TEXT_BUFFERS
+        .stage_heading
+        .write_at(0, &bytes, "the second stage heading")?;
+    Ok(bytes)
 }
 
 /// Everything from the map markers down to the numbered line at the bottom left, for the
@@ -71,113 +69,140 @@ pub fn build_second_heading(record: u32) -> Result<(), Refused> {
 /// +0x14 weather string, +0x1C temperature, +0x20 wind in tenths of a mile per hour,
 /// +0x24/+0x28/+0x2C/+0x30 surface percentages, +0x38 a number and +0x3C which of two labels
 /// goes with it. The record gives +0x10, the start time as hours * 100 + minutes.
-pub unsafe fn draw_stage_body(
-    record: u32,
-    marker_palette: u32,
+pub fn draw_stage_body(
+    tables: &Tables,
+    record: RecordRef,
     keep_entry_34: bool,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    unsafe { draw_stage_body_in(record, marker_palette, keep_entry_34, HEADING_FONT, canvas) }
+    draw_stage_body_in(tables, record, keep_entry_34, HEADING_FONT, canvas)
 }
 
 /// `draw_stage_body` with the two headings (surface, weather) in `heading_font`: the rally
 /// stage page (`screens::draw_rally_stage_info`) uses `stru_51E564`, the others
 /// `stru_51E5C4`.
-pub unsafe fn draw_stage_body_in(
-    record: u32,
-    marker_palette: u32,
+pub fn draw_stage_body_in(
+    tables: &Tables,
+    record: RecordRef,
     keep_entry_34: bool,
     heading_font: crate::gfx::typefaces::FontId,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::stage_panel::body`.
     use rc2k_core::screens::stage_panel::{Entry, Font};
-    unsafe {
-        // The two markers on the map.
-        for call in marker_calls(record, marker_palette, sprite_table())? {
-            set_marker_position(&call);
-            canvas.blit_glyph(call)?;
-        }
-        let entry = || -> Result<Entry, Refused> {
-            let entry = record_entry(record)?;
-            let fault = crate::menu::event_flow::Fault::default();
-            let f = |o: u32| fault.get(entry.wrapping_add(o));
-            let made = Entry {
-                // `MENU_LISTS.durations` (dword_75A49A) has 37 entries; the original's index
-                // has no bound: each address resolved to its home by `MOVED`.
-                duration: crate::store::game_read::<u32>(crate::framework::rva(
-                    0x75A49A_usize.wrapping_add((f(8) as usize).wrapping_mul(4)),
-                )),
-                length: f(0x0C),
-                description: f(0x10),
-                weather: f(0x14),
-                temperature: f(0x1C) as i32,
-                wind: f(0x20),
-                surfaces: [f(0x24), f(0x28), f(0x2C), f(0x30)],
-                entry_34: f(0x34),
-                number: f(0x38),
-                number_label_one: f(0x3C) == 1,
-            };
-            fault.check()?;
-            Ok(made)
-        };
-        let heading = if heading_font == HEADING_FONT {
-            Font::Heading
-        } else {
-            Font::RallyHeading
-        };
-        let mut screen = PanelScreen::new(canvas);
-        rc2k_core::screens::stage_panel::body(
-            &mut screen,
-            dword(record.wrapping_add(0x10))?,
-            &entry,
-            units(),
-            heading,
-            keep_entry_34,
-        )
+    // The two markers on the map.
+    for call in marker_calls(record.record()?) {
+        set_marker_position(&call);
+        canvas.blit_glyph(call)?;
     }
+    let entry = || -> Result<Entry, Refused> {
+        // By offset: past the pack's 36 entries the original's index reads on into what
+        // follows it (`trakpak_entry::Track`), and every field here may be reached so.
+        let entry = record_entry(record)?;
+        let fault = crate::menu::event_flow::Fault::default();
+        let f = |o: u32| fault.read_at::<u32>(entry.offset(o), "a stage record");
+        let made = Entry {
+            // `MENU_LISTS.durations` (dword_75A49A) has 37 entries; the original's index
+            // has no bound (fixed: refused).
+            duration: tables
+                .lists
+                .durations
+                .get(f(8) as usize)
+                .ok_or(BadInput("a stage duration past the 37"))?
+                .get(),
+            length: f(0x0C),
+            description: f(0x10),
+            weather: f(0x14),
+            temperature: f(0x1C) as i32,
+            wind: f(0x20),
+            surfaces: [f(0x24), f(0x28), f(0x2C), f(0x30)],
+            entry_34: f(0x34),
+            number: f(0x38),
+            number_label_one: f(0x3C) == 1,
+        };
+        fault.check()?;
+        Ok(made)
+    };
+    let heading = if heading_font == HEADING_FONT {
+        Font::Heading
+    } else {
+        Font::RallyHeading
+    };
+    let mut screen = PanelScreen::new(canvas);
+    rc2k_core::screens::stage_panel::body(
+        &mut screen,
+        record.record()?.hhmm(),
+        &entry,
+        units(),
+        heading,
+        keep_entry_34,
+    )
 }
 
-/// The panel's screen for `rc2k_core::screens::stage_panel`.
-pub type PanelScreen<'a> =
-    GameScreen<'a, rc2k_core::screens::stage_panel::Font, rc2k_core::screens::stage_panel::Work>;
+/// The panel's screen for `rc2k_core::screens::stage_panel`: the best times' names copied
+/// out of their tables (`HeldText::Held`), the game's texts drawn where they are.
+pub type PanelScreen<'a> = GameScreen<
+    'a,
+    rc2k_core::screens::stage_panel::Font,
+    rc2k_core::screens::stage_panel::Work,
+    crate::screens::game_screen::HeldText,
+>;
 
-/// The record rows, with the stage's best-time entry taken from the table at `table`.
-/// Returns the carry flag.
+/// Stage `stage`'s best time (its first) in `table`, copied out. Refuses no table (the
+/// original reads near 0) and a stage past it.
+pub fn best_of(
+    table: &crate::menu::event_flow::StageTable,
+    stage: u32,
+) -> Result<rc2k_core::saves::entries::BestTime, crate::errors::BadInput> {
+    if !table.is_taken() {
+        return Err(crate::errors::BadInput("no best times table"));
+    }
+    table
+        .with(|t| t.stages.get(stage as usize).map(|s| s[0]))?
+        .ok_or(crate::errors::BadInput("a stage past its best times table"))
+}
+
+/// The record rows, with the stage's best time (the record's +0x3C its stage) from
+/// `table`. Returns the carry flag.
 pub fn draw_records_from(
-    table: u32,
-    record: u32,
+    menus: &Menus,
+    table: &crate::menu::event_flow::StageTable,
+    record: RecordRef,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
-    let entry = dword(record.wrapping_add(0x3C))?.wrapping_mul(BEST_TIME_ENTRY_SIZE);
-    draw_stage_records(table.wrapping_add(entry), canvas)
+    let best = best_of(table, record.record()?.event_slot())?;
+    draw_stage_records(menus, &best, canvas)
 }
 
 /// The record rows as the two "selected stage" panels draw them: from the group 1 table when
 /// group 1 is selected, else from the usual one, and not at all while either the group 1
 /// table or the chosen one is missing. Returns the carry flag (clear when nothing is drawn).
 pub fn draw_records_for_group(
+    menus: &Menus,
     group: u32,
-    record: u32,
+    record: RecordRef,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
-    let mut table: u32 = CHAMP_VIEW.course_best_times.get();
-    if table == 0 {
+    use crate::saves::best_times::{COURSE_TIMES, STAGE_TIMES};
+    if !COURSE_TIMES.is_taken() {
         return Ok(false);
     }
-    if group != 1 {
-        table = CHAMP_VIEW.stage_best_times.get();
-    }
-    if table == 0 {
+    let table = if group != 1 {
+        &STAGE_TIMES
+    } else {
+        &COURSE_TIMES
+    };
+    if !table.is_taken() {
         return Ok(false);
     }
-    draw_records_from(table, record, canvas)
+    draw_records_from(menus, table, record, canvas)
 }
 
 // ---- support ----
 
-/// Address of the string id of item `n` of the current menu, or None without a menu.
-pub fn menu_item_id(n: u32) -> Option<u32> {
-    let menu: u32 = { LOOP_FLAGS.menu.get() };
-    (menu != 0).then(|| menu.wrapping_add(4 + n * 0x5C + 0x14))
+/// The string id (+0x14) of item `n` (from 0) of the current menu, or None without a menu
+/// (or past its end).
+pub fn menu_item_id(screens: &Screens, n: u32) -> Option<&'_ crate::session::Dword> {
+    let menu = screens.loop_flags.menu.get().ok()?;
+    menu.items().get(n as usize).map(|i| &i.string)
 }

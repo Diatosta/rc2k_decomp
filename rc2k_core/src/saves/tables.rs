@@ -11,10 +11,19 @@ use crate::Invalid;
 pub const TABLES: usize = 9;
 /// A stage's entry in the two tables of stages.
 pub const STAGE_ENTRY_LEN: u32 = 0x618;
-/// The tables that end with -1 in their last dword.
-pub const MARKED: [usize; 2] = [5, 6];
 /// More records than any table has.
 pub const MOST_RECORDS: u32 = 0x1000;
+
+/// A typed table as `var\hst.dat` holds it, in the original's layout.
+pub trait FileTable: Sized {
+    /// A new one (zeros) of the size `allocate_best_times` asks; None for a size it cannot
+    /// be.
+    fn zeroed(bytes: usize) -> Option<Self>;
+    /// From its bytes (as many as `write` gives).
+    fn read(b: &[u8]) -> Self;
+    /// Into its bytes.
+    fn write(&self) -> Vec<u8>;
+}
 
 /// `saves::count_stages`: the records with tag 0, up to the table's -1 (`tag` record n's
 /// first dword; the first record is not looked at for the end). Refused: no end within

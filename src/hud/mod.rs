@@ -1,5 +1,5 @@
-//! The race's HUD (`sub_4B1CD0` and under it, entered from `sub_45A893`): 2D polygons in a
-//! virtual screen (`flt_75C02C` by `flt_75C030`) scaled to the real one and gathered into a
+//! The race's HUD (`hud::draw_hud` and under it, entered from `hud::overlay_pass`): 2D polygons in
+//! a virtual screen (`flt_75C02C` by `flt_75C030`) scaled to the real one and gathered into a
 //! batch (`unk_75C324`, 0x400 vertices; `unk_764324`, 0x600 indices) drawn with one indexed
 //! call per texture.
 
@@ -11,43 +11,26 @@ pub mod add_sprite;
 pub mod add_triangle;
 pub mod batch;
 pub mod dials;
-pub mod disc_0;
-pub mod disc_1a;
-pub mod disc_1b;
-pub mod disc_2a;
-pub mod disc_2b;
 pub mod disc_vertex;
 pub mod draw_disc;
 pub mod draw_hud;
 pub mod draw_icon;
 pub mod draw_marker;
-pub mod draw_markers_1;
-pub mod draw_markers_2;
+pub mod draw_markers;
 pub mod draw_needle;
 pub mod draw_signs;
-pub mod draw_signs_1a;
-pub mod draw_signs_1b;
-pub mod draw_signs_2a;
-pub mod draw_signs_2b;
 pub mod draw_stage_bar;
-pub mod draw_stage_bars_1;
-pub mod draw_stage_bars_2;
+pub mod draw_stage_bars;
 pub mod draw_view_strip;
 pub mod draw_view_strips;
 pub mod flush_batch;
-pub mod icons_0;
-pub mod icons_1;
-pub mod icons_2;
+pub mod icons;
 pub mod layout_0;
 pub mod layout_1;
 pub mod layout_2;
-pub mod needle_0;
-pub mod needle_1a;
-pub mod needle_1b;
-pub mod needle_2a;
-pub mod needle_2b;
 pub mod overlay_pass;
 pub mod overlay_states;
+pub mod owner;
 pub mod set_batch_depth;
 pub mod set_batch_texture;
 pub mod store;

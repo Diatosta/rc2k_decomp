@@ -1,6 +1,6 @@
 //! Whether an object's face is drawn: the four tests of `scene::list_object_face`'s own
-//! (converted 2026-10-21 from 0x4504CB and its parts `sub_452292`, `sub_4505BD`,
-//! `sub_450688`, `sub_4506B7`). A face's group is the low five bits of its byte +7. The
+//! (converted 2026-10-21 from 0x4504CB and its parts 0x452292, 0x4505BD,
+//! 0x450688, 0x4506B7). A face's group is the low five bits of its byte +7. The
 //! game's variables come through `FaceWorld`, each asked only where the original reads it.
 
 use crate::Invalid;

@@ -3,51 +3,23 @@
 //! `physics::apply_patches`), `flt_6147F4` its negative, `flt_614804` = -1. By the look
 //! of it the car's weight with downforce growing with the speed's square (a reading).
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read
-//!
-//! Caller: `sub_43B635` (0x43B728), every physics step.
+//! Caller: `physics::car_physics_step` (0x43B728), every physics step.
 
 use crate::math::x87_run::{minus_one, square_times_plus_times};
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::Race;
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::set_downforce's operand")
-}
-
-fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::set_downforce's operand")
-}
-
-/// The Rust core on the variables at `v`.
-pub fn set_downforce_at(v: &[u32; 6]) {
-    if at(v[0]) != 0 {
+/// The Rust version.
+pub fn set_downforce(race: &Race) {
+    if race.shared.car.rear_wheels_off.get() != 0 {
         return;
     }
     let (load, negative) = square_times_plus_times(
-        at(v[1]),
-        PHYSICS.downforce_factor.bits(),
-        at(v[2]),
-        PHYSICS.gravity.bits(),
+        race.shared.car.local_velocity[2].bits(),
+        race.shared.physics_tables.downforce_factor.bits(),
+        race.shared.physics_tables.downforce_spec.bits(),
+        race.shared.physics_tables.gravity.bits(),
     );
-    put(v[3], load);
-    put(v[4], negative);
-    put(v[5], minus_one());
-}
-
-fn game() -> [u32; 6] {
-    [
-        CAR.rear_wheels_off.addr(),
-        CAR.local_velocity[2].addr(),
-        PHYSICS.downforce_spec.addr(),
-        PHYSICS.downforce.addr(),
-        PHYSICS.forces[4].force[1].addr(),
-        PHYSICS.forces[4].point[2].addr(),
-    ]
-}
-
-/// The Rust version (the exact one, for `physics::car_physics_step`).
-pub fn set_downforce() {
-    set_downforce_at(&game())
+    race.shared.physics_tables.downforce.set_bits(load);
+    race.shared.physics_tables.forces[4].force[1].set_bits(negative);
+    race.shared.physics_tables.forces[4].point[2].set_bits(minus_one());
 }

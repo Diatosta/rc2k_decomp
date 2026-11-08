@@ -4,11 +4,10 @@
 //! `rc2k_core::service::car`.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use crate::service::state::current_player;
 use rc2k_core::menu::player::Player;
 
-pub fn player() -> Result<u32, BadInput> {
+pub fn player() -> Result<crate::menu::standings::PlayerCell, BadInput> {
     current_player().ok_or(BadInput(
         "no current player object: the original writes through null",
     ))
@@ -16,10 +15,7 @@ pub fn player() -> Result<u32, BadInput> {
 
 /// The current player's record changed by `f` (read, changed, written back whole).
 pub fn with_player(f: impl FnOnce(&mut Player)) -> Result<(), BadInput> {
-    let at = GamePtr::new(player()?);
-    let mut p = at.read::<Player>("a player's record")?;
-    f(&mut p);
-    at.write(p, "a player's record")?;
+    player()?.update(f);
     Ok(())
 }
 

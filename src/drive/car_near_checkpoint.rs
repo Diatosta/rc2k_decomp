@@ -2,21 +2,21 @@
 //! 0) is within 3 checkpoints of eax: CF when |+0x98 - eax| (`neg` of a negative) less 4
 //! has its sign set.
 //!
-//! In:  esi a car block, eax a checkpoint
-//! Out: CF; ebx the distance when +0x25C is not 0; the rest kept (ZF not read: `jb`)
+//! Takes: a car block, a checkpoint
 //!
 //! Caller: `drive::checkpoint_taken` (four cars).
 
-use crate::errors::BadInput;
+use crate::physics::car_store::Car;
 use rc2k_core::physics::line_places::car_near;
 
-/// The Rust core: whether the car block at `car` is near `checkpoint` (eax; the CF).
+/// The Rust core: whether the car block `car` is near `checkpoint` (eax; the CF).
 /// The distance it leaves in ebx is read by no caller (`checkpoint_taken` keeps ebx).
 // Converted: `rc2k_core::physics::line_places::car_near`.
-pub fn near_at(car: u32, checkpoint: u32) -> Result<bool, BadInput> {
-    let reading = crate::scene::reading::Reading::new();
-    let get = |o: u32| reading.read::<u32>(car.wrapping_add(o), "a car's block");
-    let near = car_near(get(0x25C) != 0, || get(0x98), checkpoint).is_some_and(|n| n.1);
-    reading.finish()?;
-    Ok(near)
+pub fn near_at(car: &Car, checkpoint: u32) -> bool {
+    car_near(
+        car.driver_kind.bits() != 0,
+        || car.checkpoint.bits(),
+        checkpoint,
+    )
+    .is_some_and(|n| n.1)
 }

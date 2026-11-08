@@ -3,9 +3,12 @@
 //! first values the image's (`tests`); `moved::MOVED` points the image's addresses at it.
 
 use crate::session::{Byte, Bytes, with_runs};
+#[cfg(test)]
+use crate::system::owner::system;
 
 /// The version, copyright, window and class texts (IDA 0x4E0000 .. 0x4E0094, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct StartTexts {
     /// 0x4E0000: `aVerRally530482`: "$VER: Rally 5.30 (4.8.2000)" (`system::read_command_line`, `install::check_at_start`).
     pub version: Bytes<28>,
@@ -18,24 +21,29 @@ pub struct StartTexts {
     /// 0x4E0080: `ClassName`: the window class's name, "MF-SDG R5" (`system::find_running_game`).
     pub class_name: Bytes<10>,
     /// 0x4E008A: Not named: 10 bytes (a gap, or data nothing reads here).
-    pub _gap_4e008a: Bytes<10>,
+    pub _gap_4e008a: Bytes<22>,
 }
 
-pub static START_TEXTS: StartTexts = StartTexts {
+impl StartTexts {
+    pub const fn new() -> Self {
+        StartTexts {
     version: Bytes::new(with_runs::<28>(&[(0, b"$VER: Rally 5.30 (4.8.2000)")])),
     copyright: Bytes::new(with_runs::<91>(&[(0, b"Copyright (c) Magnetic Fields (Software Design) Ltd., 1998,1999,2000. All rights reserved.")])),
     second_text: Byte::new(0x0),
     window_name: Bytes::new(with_runs::<8>(&[(0, b"Rally 5")])),
     class_name: Bytes::new(with_runs::<10>(&[(0, b"MF-SDG R5")])),
-    _gap_4e008a: Bytes::new(with_runs::<10>(&[(2, b"c\x0f_\x00M\x10\x11")])),
-};
+    _gap_4e008a: Bytes::new(with_runs::<22>(&[(2, b"c\x0f_\x00M\x10\x11")])),
+}
+    }
+}
 
 impl StartTexts {
     pub const START: usize = 0x4E0000;
     pub const LEN: usize = 0x94;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&START_TEXTS as *const StartTexts) as usize
+        crate::pointers::game_address(&raw const system().start.texts) as usize
     }
 }
 
@@ -50,7 +58,7 @@ mod tests {
         let image = crate::moved::image_bytes(StartTexts::START, StartTexts::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(StartTexts::home()) as *const u8,
+                crate::pointers::host_at(StartTexts::home()).cast_const(),
                 StartTexts::LEN,
             )
         };

@@ -4,10 +4,6 @@
 //! (`math::next_random`) x 500 has a high dword of 0 (a rare draw); (+0x908 squared, low
 //! dword) >> 12 - 8, held, into `dword_5165C0`.
 //!
-//! In:  nothing
-//! Out: eax the second level, edx the square's high dword, ebx 500 after a draw; the rest
-//!      kept; no flags read
-//!
 //! Caller: `drive::replay_step`.
 
 use crate::race::blocks_store::CAR_BLOCKS;
@@ -15,13 +11,13 @@ use rc2k_core::drive::replay_views::{RARE_FROM, first_level, rare_draw, second_l
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_views::{first_level, rare_draw, second_level}`.
-pub fn duel_sound_levels() {
-    let stage = &crate::sound::store::STAGE_SOUNDS;
+pub fn duel_sound_levels(sound: &crate::sound::owner::Sound) {
+    let stage = &sound.race.stage;
     stage
         .loop_volume_a
         .set(first_level(CAR_BLOCKS.cars[0].surface_noise_a.bits()));
     if stage.loop_volume_a.get() >= RARE_FROM {
-        let r = { crate::math::next_random::next_random() };
+        let r = crate::math::next_random::next_random();
         if rare_draw(r) {
             stage.timed_arm.set(1);
         }

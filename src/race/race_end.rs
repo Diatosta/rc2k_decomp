@@ -1,31 +1,28 @@
-//! The race's end and tidying (`sub_444AC7` "SHAUNTIDYEVERYTHING", `sub_444940`
-//! "LOADLEVEL_TIDY", IDA 2026-10-17), and the replay header's record (`sub_460246`). Here
-//! their steps.
+//! The race's end and tidying (`race::tidy_everything` "SHAUNTIDYEVERYTHING", `race::tidy_stage`
+//! "LOADLEVEL_TIDY", IDA 2026-10-17), and the replay header's record
+//! (`race::record_replay_header`). Here their steps.
 
+use crate::effects::owner::effects;
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::numbers_store::NUMBERS;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::race::replay_work_store::REPLAY_WORK;
-use crate::race::state_store::RACE_STATE;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::tables_store::RACE_TABLES;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
-use crate::race::view_vars_store::VIEW_VARS;
-use crate::sound::sets_store::SPOT_VOICES;
 
 /// Where a header setting lives in the race's variables (its first place).
-pub fn setting_cell(s: rc2k_core::race::replay::Setting) -> &'static crate::session::Dword {
+pub fn setting_cell(
+    shared: &Shared,
+    s: rc2k_core::race::replay::Setting,
+) -> &crate::session::Dword {
     use rc2k_core::race::replay::Setting::*;
     match s {
-        Seed => &RACE_TABLES.noise_seed,
-        StartPlace => &RACE_TABLES.start_place,
-        ArcadeCars => &RACE_TABLES.arcade_cars,
-        Stage => &RACE_VARS.stage_number,
-        Mode => &RACE_VARS.run_kind,
-        Players => &RACE_VIEW.players,
-        Cars => &RACE_VIEW.race_cars,
+        Seed => &shared.tables.noise_seed,
+        StartPlace => &shared.tables.start_place,
+        ArcadeCars => &shared.tables.arcade_cars,
+        Stage => &shared.vars.stage_number,
+        Mode => &shared.vars.run_kind,
+        Players => &shared.view.players,
+        Cars => &shared.view.race_cars,
         Kind(n) => &CAR_BLOCKS.cars[n as usize].car_kind,
         GameOver(n) => &CAR_BLOCKS.cars[n as usize].stop_state,
     }
@@ -74,16 +71,15 @@ const REPLAY_WORDS: [&std::ffi::CStr; 13] = [
 /// two players' absences) into the car header (`dword_719B14` ..), each logged as
 /// "[replayheader.x]" (`log_write_l1`) and its value (`log_int_l1_nl`). Every register
 /// kept (the logs inside `pusha`); it reads none.
-pub unsafe fn record_replay_header() {
+pub fn record_replay_header(race: &Race) {
+    let shared = &race.shared;
     // Converted: `rc2k_core::race::replay::HEADER_SETTINGS`.
     use rc2k_core::race::replay::HEADER_SETTINGS;
     for s in HEADER_SETTINGS {
-        header_cell(s).set(setting_cell(s).get());
+        header_cell(s).set(setting_cell(shared, s).get());
     }
     for (n, &s) in HEADER_SETTINGS.iter().enumerate() {
-        unsafe {
-            crate::logfile::log_write::log_write(REPLAY_WORDS[n].as_ptr() as *const u8, false, 1)
-        };
+        crate::logfile::log_write::log_nul(&REPLAY_WORDS[n], false, 1);
         crate::logfile::log_int::log_int(header_cell(s).get() as i32, true, 1);
     }
 }
@@ -109,8 +105,8 @@ fn reset_object(o: &crate::sound::store::SoundObject) {
     }
 }
 /// dword_51659C .. dword_5165E8: set 0.
-fn clear_stage_flags() {
-    let s = &crate::sound::store::STAGE_SOUNDS;
+fn clear_stage_flags(sound: &crate::sound::owner::Sound) {
+    let s = &sound.race.stage;
     for flag in [
         &s.once[0],
         &s.once[1],
@@ -148,50 +144,40 @@ pub fn wait_for_commands() {
 /// voices' +0 0x1888FFFF and +0x14 -2; `dword_5165EC`, `dword_518054` 0, the EAX
 /// environment 1.0; command 2 with eax 3; `dword_5124E4` 0. Every register kept; the
 /// commands' registers but those the audio thread reads (command 2's eax) go as 0.
-/// Refuses, before anything, a sound object missing (the original writes through 0).
-pub fn reset_race_sounds(v: &SoundVars) -> Result<(), Refused> {
-    let objects: Vec<u32> = (0..8)
-        .map(|n| GamePtr::new(v.objects + 4 * n).read::<u32>("the race sound objects"))
-        .collect::<Result<_, _>>()?;
-    if objects.contains(&0) {
-        return Err(crate::errors::BadInput("a race sound object missing").into());
-    }
+pub fn reset_race_sounds(v: &SoundVars, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+    let audio = crate::audio::owner::audio();
     wait_for_commands();
     command(7, 0);
     command(0xA, 7);
     wait_for_commands();
-    crate::sound::hold_sounds_back::hold_sounds_back();
-    crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count());
-    for &o in &objects {
-        reset_object(crate::sound::store::SoundObject::at(o)?);
+    crate::sound::hold_sounds_back::hold_sounds_back(audio);
+    crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count(), sound);
+    for o in &sound.race.sounds.objects {
+        reset_object(o);
     }
-    clear_stage_flags();
-    let first = v.voices;
-    for k in 0..0x48u32 {
-        let at = first + 0x50 * k;
-        GamePtr::new(at).write(0x1888_FFFFu32, "a sound voice")?;
-        GamePtr::new(at + 0x14).write(0xFFFF_FFFEu32, "a sound voice")?;
+    clear_stage_flags(sound);
+    for voice in v.voices.iter() {
+        voice[0].set(0x1888_FFFF);
+        voice[5].set(0xFFFF_FFFE);
     }
-    crate::sound::store::STAGE_SOUNDS.shared_count.set(0);
-    crate::sound::store::SPOT_PICKS.spot_work_a.set(0);
+    sound.race.stage.shared_count.set(0);
+    sound.race.spot_picks.spot_work_a.set(0);
     crate::audio::store::ENVIRONMENT.set(0x3F80_0000u32);
     command(2, 3);
-    crate::sound::store::RACE_CLOCK.started.set(0);
+    sound.race.clock.started.set(0);
     Ok(())
 }
 
-/// Where `reset_race_sounds` finds the sound objects' table and the voices (the game's,
+/// Where `reset_race_sounds` finds the voices (the game's,
 /// or a test's: the audio thread reads the game's).
 pub struct SoundVars {
-    pub objects: u32,
-    pub voices: u32,
+    pub voices: &'static [[crate::session::Dword; 20]; 72],
 }
 
 impl SoundVars {
     pub fn game() -> Self {
         Self {
-            objects: crate::pointers::game_address(crate::sound::store::RACE_SOUNDS.table.as_ptr()),
-            voices: crate::session::address_of(&SPOT_VOICES.voices),
+            voices: &crate::sound::owner::sound().race.spot_voices.voices,
         }
     }
 }
@@ -228,7 +214,7 @@ struct Tidy;
 impl Tidy {
     /// `log_write_l1_nl` of a word.
     fn log(&self, word: &std::ffi::CStr) {
-        unsafe { crate::logfile::log_write::log_write(word.as_ptr().cast(), true, 1) }
+        crate::logfile::log_write::log_nul(&word, true, 1);
     }
 
     /// `log_write_l1_nl` of the empty text (0x4E00B7).
@@ -238,7 +224,8 @@ impl Tidy {
 
     fn indent(&self, by: i32) {
         crate::logfile::write_line::state::INDENT
-            .fetch_add(by, std::sync::atomic::Ordering::Relaxed);
+            .atomic()
+            .fetch_add(by as u32, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// The word, the indent in, the call, the indent out.
@@ -260,38 +247,42 @@ impl Tidy {
 /// fonts, the map, the textures, the course's two memories, the objects (then `g_inRace`
 /// 0, `dword_606294` `dword_6235F4`); "finis". What the steps leave in eax, ebx and the
 /// flags is read by no caller (taint at its one site, 0x444B56 in `tidy_everything`: 0 reads).
-pub unsafe fn tidy_stage() -> Result<(), Refused> {
+pub fn tidy_stage(race: &Race) -> Result<(), Refused> {
     use crate::race::stage_free::{
         COURSE, COURSE_2, FONTS, MUD, OBJECT_POINTS, POINT_RECORDS, free,
     };
     let s = Tidy;
-    unsafe {
-        s.step(STAGE_WORDS[0], || free(&MUD))?;
-        s.step(STAGE_WORDS[1], || free(&POINT_RECORDS))?;
-        s.log(STAGE_WORDS[2]);
-        s.indent(3);
-        let enabled = crate::logfile::write_line::state::ENABLED
-            .swap(0, std::sync::atomic::Ordering::Relaxed);
-        crate::marks::tidy_marks::tidy_marks()?;
-        crate::logfile::write_line::state::ENABLED
-            .store(enabled, std::sync::atomic::Ordering::Relaxed);
-        s.indent(-3);
-        s.step(STAGE_WORDS[3], || free(&FONTS))?;
-        s.step(STAGE_WORDS[4], crate::race::game_map::free_game_map)?;
-        s.step(STAGE_WORDS[5], || {
-            crate::race::race_shell::release_stage_textures();
-            Ok(())
-        })?;
-        s.step(STAGE_WORDS[6], || free(&COURSE_2))?;
-        s.step(STAGE_WORDS[7], || free(&COURSE))?;
-        s.log(STAGE_WORDS[8]);
-        s.indent(3);
-        free(&OBJECT_POINTS)?;
-        NUMBERS.in_race.set(0);
-        VIEW_VARS.view_scale.set_bits(RACE_VARS.kept_scale.get());
-        s.indent(-3);
-        s.log(STAGE_WORDS[9]);
-    }
+    s.step(STAGE_WORDS[0], || free(race, &MUD))?;
+    s.step(STAGE_WORDS[1], || free(race, &POINT_RECORDS))?;
+    s.log(STAGE_WORDS[2]);
+    s.indent(3);
+    let enabled = crate::logfile::write_line::state::ENABLED
+        .atomic()
+        .swap(0, std::sync::atomic::Ordering::Relaxed);
+    crate::effects::tidy_marks::tidy_marks(effects())?;
+    crate::logfile::write_line::state::ENABLED.set(enabled);
+    s.indent(-3);
+    s.step(STAGE_WORDS[3], || free(race, &FONTS))?;
+    s.step(STAGE_WORDS[4], || {
+        crate::race::game_map::free_game_map(race)
+    })?;
+    s.step(STAGE_WORDS[5], || {
+        crate::race::race_shell::release_stage_textures();
+        Ok(())
+    })?;
+    s.step(STAGE_WORDS[6], || free(race, &COURSE_2))?;
+    s.step(STAGE_WORDS[7], || free(race, &COURSE))?;
+    s.log(STAGE_WORDS[8]);
+    s.indent(3);
+    free(race, &OBJECT_POINTS)?;
+    race.course.numbers.in_race.set(0);
+    race.frame
+        .view_and_records
+        .view_vars
+        .view_scale
+        .set_bits(race.shared.vars.kept_scale.get());
+    s.indent(-3);
+    s.log(STAGE_WORDS[9]);
     Ok(())
 }
 
@@ -300,30 +291,31 @@ pub unsafe fn tidy_stage() -> Result<(), Refused> {
 /// `tidy_stage`, the sounds (then `dword_63DB74` and `dword_63DB78` 1); "finis", a rule, a
 /// line break. Reads no register; of what it leaves its callers read only esi, which it
 /// keeps (taint at all six sites: 0 reads of the rest).
-pub unsafe fn tidy_everything() -> Result<(), Refused> {
+pub fn tidy_everything(race: &Race) -> Result<(), Refused> {
+    let input = crate::input::owner::input();
+    let sound = crate::sound::owner::sound();
+    let shared = &race.shared;
     let s = Tidy;
-    unsafe {
-        s.newline();
-        s.log(EVERYTHING_WORDS[0]);
-        s.log(EVERYTHING_WORDS[1]);
-        s.indent(3);
-        s.indent(-3);
-        s.step(EVERYTHING_WORDS[2], || {
-            crate::race::race_shell::release_controls();
-            Ok(())
-        })?;
-        s.step(EVERYTHING_WORDS[3], || Ok(()))?;
-        s.step(EVERYTHING_WORDS[4], || tidy_stage())?;
-        s.log(EVERYTHING_WORDS[5]);
-        s.indent(3);
-        reset_race_sounds(&SoundVars::game())?;
-        RACE_VIEW.view_on[0].set(1u32);
-        RACE_VIEW.view_on[1].set(1u32);
-        s.indent(-3);
-        s.log(EVERYTHING_WORDS[6]);
-        s.log(EVERYTHING_WORDS[7]);
-        s.newline();
-    }
+    s.newline();
+    s.log(EVERYTHING_WORDS[0]);
+    s.log(EVERYTHING_WORDS[1]);
+    s.indent(3);
+    s.indent(-3);
+    s.step(EVERYTHING_WORDS[2], || {
+        crate::race::race_shell::release_controls(input);
+        Ok(())
+    })?;
+    s.step(EVERYTHING_WORDS[3], || Ok(()))?;
+    s.step(EVERYTHING_WORDS[4], || tidy_stage(race))?;
+    s.log(EVERYTHING_WORDS[5]);
+    s.indent(3);
+    reset_race_sounds(&SoundVars::game(), sound)?;
+    shared.view.view_on[0].set(1u32);
+    shared.view.view_on[1].set(1u32);
+    s.indent(-3);
+    s.log(EVERYTHING_WORDS[6]);
+    s.log(EVERYTHING_WORDS[7]);
+    s.newline();
     Ok(())
 }
 
@@ -336,32 +328,31 @@ pub unsafe fn tidy_everything() -> Result<(), Refused> {
 /// the replay's header and file, `dword_63DB84` 0, the race run (`drive::play_race`), the
 /// replay closed, everything tidied, the settings out. `indent` is `g_logIndent`'s
 /// address. Its callers read only esi of what it leaves, which every step keeps.
-pub unsafe fn run_race() -> Result<(), Refused> {
-    unsafe {
-        crate::physics::split_tables_store::SPLIT_TABLES
-            .arcade_kind
-            .set(1);
-        crate::logfile::write_line::state::INDENT.store(0, std::sync::atomic::Ordering::Relaxed);
-        if RACE_STATE.results.race_stage.get() == 0 && RACE_STATE.settings.run_kind.get() == 2 {
-            RACE_TABLES
-                .noise_seed
-                .set(crate::math::next_random::next_random());
-        }
-        FRAME_SWITCHES.editor_mode.set(0u32);
-        NUMBERS.replay_mode.set_bits(1u32);
-        crate::race::settings_copy::copy_settings_in()?;
-        crate::race::race_cars::set_up_arcade_cars()?;
-        RACE_VARS.settings_words[1].set(1u32);
-        crate::race::race_shell::set_start_states()?;
-        crate::race::stage_loading::load_stage()?;
-        record_replay_header();
-        crate::race::replay::open_replay()?;
-        RACE_VIEW.after_credits.set(0u32);
-        crate::drive::play_race::play_race()?;
-        crate::race::replay::close_replay()?;
-        tidy_everything()?;
-        crate::race::settings_copy::copy_settings_out()?;
+pub fn run_race(race: &Race) -> Result<(), Refused> {
+    race.physics.split_tables.arcade_kind.set(1);
+    crate::logfile::write_line::state::INDENT.set(0);
+    if race.shared.state.results.race_stage.get() == 0
+        && race.shared.state.settings.run_kind.get() == 2
+    {
+        race.shared
+            .tables
+            .noise_seed
+            .set(crate::math::next_random::next_random());
     }
+    race.shared.switches.editor_mode.set(0u32);
+    race.course.numbers.replay_mode.set_bits(1u32);
+    crate::race::settings_copy::copy_settings_in(race)?;
+    crate::race::race_cars::set_up_arcade_cars(race)?;
+    race.shared.vars.settings_words[1].set(1u32);
+    crate::race::race_shell::set_start_states(race)?;
+    crate::race::stage_loading::load_stage(race)?;
+    record_replay_header(race);
+    crate::race::replay::open_replay(race)?;
+    race.shared.view.after_credits.set(0u32);
+    crate::drive::play_race::play_race(race, crate::scene::owner::scene())?;
+    crate::race::replay::close_replay(race)?;
+    tidy_everything(race)?;
+    crate::race::settings_copy::copy_settings_out(race)?;
     Ok(())
 }
 
@@ -371,25 +362,22 @@ pub unsafe fn run_race() -> Result<(), Refused> {
 /// `scene::reset_texture_tables`. Reads no register; what it leaves (ecx, edi, eax, the
 /// flags) no caller reads (taint at its ten sites).
 pub fn release_textures() {
+    let scene = crate::scene::owner::scene();
     crate::race::race_shell::release_stage_textures();
-    crate::scene::reset_texture_tables::reset_texture_tables();
+    crate::scene::reset_texture_tables::reset_texture_tables(scene);
 }
 
 /// `race::start_race` (0x4278B7): `dword_621870` 0, `race::run_race`.
-pub unsafe fn start_race() -> Result<(), Refused> {
-    unsafe {
-        FRAME_SWITCHES.mask_kind.set(0u32);
-        run_race()
-    }
+pub fn start_race(race: &Race) -> Result<(), Refused> {
+    race.shared.switches.mask_kind.set(0u32);
+    run_race(race)
 }
 
 /// `race::race_from_menu` (0x485570): `race::render3d_tidy`, `race::objects_tidy`,
 /// `nullsub_6`, `race::release_textures`, `race::start_race`.
-pub unsafe fn race_from_menu() -> Result<(), Refused> {
-    unsafe {
-        crate::race::stage_free::render3d_tidy()?;
-        crate::race::stage_free::objects_tidy()?;
-        release_textures();
-        start_race()
-    }
+pub fn race_from_menu(race: &Race) -> Result<(), Refused> {
+    crate::race::stage_free::render3d_tidy(race)?;
+    crate::race::stage_free::objects_tidy(race)?;
+    release_textures();
+    start_race(race)
 }

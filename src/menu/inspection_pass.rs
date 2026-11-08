@@ -8,62 +8,58 @@
 //! sleep. When every player has failed (`dword_755978` the player count), `dword_75592C`
 //! 0 (the event is over).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! Callers: the event drivers. The figures, verdict and faults are their Rust versions. Refuses a
 //! player count of 0 or past 4, a player missing, a taking-part player's car without its table,
 //! before anything.
 
 use crate::errors::Refused;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::screen_loop::{Carried, run_screen_carried};
+use crate::menu::owner::Menus;
+use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn inspection_pass(c: &Carried) -> Result<(), Refused> {
+/// The Rust version.
+pub fn inspection_pass(menus: &Menus) -> Result<(), Refused> {
+    let screens = &menus.screens;
     // Converted: `rc2k_core::menu::passes` (who is looked at, the pauses, `goes_on`).
     use rc2k_core::menu::passes;
-    let players = counted_players()?;
+    let players = counted_players(screens)?;
     for &p in &players {
-        if passes::takes_part(get(p + 0xD0)?) {
-            crate::menu::driver_stats::car_table(p)?;
+        if passes::takes_part(p.get().entry) {
+            crate::menu::driver_stats::car_table(menus, p)?;
         }
     }
-    let mut g = *c;
-    unsafe {
-        EVENT_STATE.event_goes_on.set(1u32);
-        for (n, &p) in players.iter().enumerate() {
-            g.measure_x = n as u32;
-            EVENT_STATE.current_player.set(g.measure_x);
-            if !passes::takes_part(get(p + 0xD0)?) {
-                continue;
-            }
-            crate::menu::driver_stats::driver_stats()?;
-            crate::menu::inspection_verdict::inspection_verdict()?;
-            crate::menu::inspection_faults::inspection_faults()?;
-            if !passes::is_out(get(p + 0xD0)?) {
-                continue;
-            }
-            EVENT_STATE
-                .event_out
-                .set(EVENT_STATE.event_out.get().wrapping_add(1));
-            crate::menu::inspection_screen::inspection_screen()?;
-            g.arg = passes::SCREEN_PAUSE;
-            crate::system::sleep::sleep(g.arg);
-            crate::menu::fade_in::fade_in()?;
-            run_screen_carried(&crate::menu::inspection_area_loop::SCREEN, &mut g)?;
-            if MENU_PAGES.yes_no_answer.get() == 1 {
-                return Ok(());
-            }
-            crate::menu::fades::fade(true)?;
-            g.arg = passes::INSPECTION_PAUSE;
-            crate::system::sleep::sleep(g.arg);
+    menus.screens.event.event_goes_on.set(1u32);
+    for (n, &p) in players.iter().enumerate() {
+        menus.screens.event.current_player.set(n as u32);
+        if !passes::takes_part(p.get().entry) {
+            continue;
         }
-        if !passes::goes_on(EVENT_STATE.event_out.get(), PLAYER_COUNT_RVA.get()) {
-            EVENT_STATE.event_goes_on.set(0u32);
+        crate::menu::driver_stats::driver_stats(menus, screens)?;
+        crate::menu::inspection_verdict::inspection_verdict(menus)?;
+        crate::menu::inspection_faults::inspection_faults(menus)?;
+        if !passes::is_out(p.get().entry) {
+            continue;
         }
+        menus
+            .screens
+            .event
+            .event_out
+            .set(menus.screens.event.event_out.get().wrapping_add(1));
+        crate::menu::inspection_screen::inspection_screen()?;
+        crate::system::sleep::sleep(passes::SCREEN_PAUSE);
+        crate::menu::fade_in::fade_in(screens)?;
+        run_screen(
+            &crate::menu::inspection_area_loop::SCREEN,
+            &Entry::new(menus),
+        )?;
+        if menus.tables.pages.yes_no_answer.get() == 1 {
+            return Ok(());
+        }
+        crate::menu::fades::fade(screens, true)?;
+        crate::system::sleep::sleep(passes::INSPECTION_PAUSE);
+    }
+    if !passes::goes_on(menus.screens.event.event_out.get(), PLAYER_COUNT_RVA.get()) {
+        menus.screens.event.event_goes_on.set(0u32);
     }
     Ok(())
 }

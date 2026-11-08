@@ -91,19 +91,17 @@ pub const WIDEST_NAME: u32 = 0x15E;
 
 /// `menu::fit_name` (0x411474, of `menu::fit_player_names` 0x411445): a name of `len`
 /// characters cut, one character at a time, until it is no wider than `WIDEST_NAME`;
-/// `measure(len, x)` ends the name at `len` (its NUL written) and measures it from x, the
-/// width the measuring before gave (the first: `x`). The width it is left with. Refused:
-/// an empty name still too wide.
+/// `measure(len)` ends the name at `len` (its NUL written) and measures it. The width it is
+/// left with. Refused: an empty name still too wide.
 pub fn fit_name<E: From<Invalid>>(
     len: usize,
-    x: u32,
-    mut measure: impl FnMut(usize, u32) -> Result<u32, E>,
+    mut measure: impl FnMut(usize) -> Result<u32, E>,
 ) -> Result<u32, E> {
-    let (mut len, mut x) = (len, x);
+    let mut len = len;
     loop {
-        x = measure(len, x)?;
-        if x <= WIDEST_NAME {
-            return Ok(x);
+        let width = measure(len)?;
+        if width <= WIDEST_NAME {
+            return Ok(width);
         }
         if len == 0 {
             return Err(Invalid("an empty name that measures too wide").into());
@@ -220,12 +218,12 @@ mod tests {
         assert_eq!(text_length(|i| text[i]), Ok(3));
         assert!(text_length(|_| 1).is_err());
         let mut cuts = Vec::new();
-        let fit = fit_name(3, 7, |len, x| -> Result<u32, Invalid> {
-            cuts.push((len, x));
+        let fit = fit_name(3, |len| -> Result<u32, Invalid> {
+            cuts.push(len);
             Ok(0x100 + 0x40 * len as u32)
         });
         assert_eq!(fit, Ok(0x140));
-        assert_eq!(cuts, [(3, 7), (2, 0x1C0), (1, 0x180)]);
-        assert!(fit_name(2, 0, |_, _| Ok::<u32, Invalid>(0x200)).is_err());
+        assert_eq!(cuts, [3, 2, 1]);
+        assert!(fit_name(2, |_| Ok::<u32, Invalid>(0x200)).is_err());
     }
 }

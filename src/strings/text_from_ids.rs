@@ -1,26 +1,23 @@
 //! `strings::text_from_ids` (0x40229B): builds the text of `count` consecutive string ids in
 //! the shared text buffer and NUL-terminates it.
 //!
-//! In:  eax = first id, ecx = count (at least 1)
-//! Out: ebx = the text buffer; everything else preserved
-//! The next id is whatever `append_string_by_id` leaves in eax, plus 1. That is the previous id
-//! for string-table ids, but a string pointer for the pointer-table branches, so a run only
-//! makes sense over string-table ids. A count of 0 wraps and never ends: refused, as is a text
-//! longer than the buffer (the callers pass the refusal on).
-//! Hook removed 2026-10-21 (conversion phase 4): Rust callers call this directly; the
-//! register use above is the original's, for reference.
+//! Returns the text buffer. The next id is whatever `append_string_by_id` leaves in eax, plus 1.
+//! That is the previous id for string-table ids, but a string pointer for the pointer-table
+//! branches, so a run only makes sense over string-table ids. A count of 0 wraps and never ends:
+//! refused, as is a text longer than the buffer (the callers pass the refusal on).
 
 use crate::errors::BadInput;
 use crate::strings::append_string_by_id::append_string_by_id;
-use std::slice::from_raw_parts;
+use crate::strings::owner::strings;
 
 // ---- game data ----
 
 /// The shared text buffer's length (`strings::text_buffer`).
 pub const TEXT_LEN: usize = 0x400;
 
-pub fn text() -> *mut u8 {
-    crate::strings::text_buffer::TEXT_BUFFER.text.as_ptr()
+/// The game's text buffer as a game pointer.
+pub fn text_at() -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::to(&strings().text.buffer.text)
 }
 
 // ---- Rust version ----
@@ -35,9 +32,8 @@ pub fn text_from_ids(first_id: u32, count: u32) -> Result<Vec<u8>, BadInput> {
     }
     let fault = crate::menu::event_flow::Fault::default();
     let text = rc2k_core::strings::table::text_from_ids(first_id, count, TEXT_LEN, |id, out| {
-        fault.ok(append_string_by_id(id, &mut |p, n| {
-            // SAFETY: `p` .. `p + n` was checked or is the expansion's own `Vec`.
-            out.extend_from_slice(unsafe { from_raw_parts(p, n) })
+        fault.ok(append_string_by_id(id, &mut |bytes| {
+            out.extend_from_slice(bytes);
         }))
     });
     fault.check()?;

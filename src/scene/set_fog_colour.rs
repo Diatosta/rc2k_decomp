@@ -2,19 +2,18 @@
 //! given to Direct3D (`d3d_set_fog_colour`, 0x41AE25: inside `pusha`, render state 0x22 =
 //! eax with its top byte set, through `d3d::set_render_state`).
 //!
-//! In:  eax = the colour
-//! Out: every register kept; no flags read
+//! Takes: the colour
 //!
 //! Callers: `race::set_up_fog` and ten more. The layer's call is made here (the two lines of
 //! `d3d_set_fog_colour`).
 
-use crate::d3d::cards_store::CARDS_3D;
+use crate::d3d::owner::d3d;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::scene::render_states::fog_colour`
 pub fn set_fog_colour(colour: u32) {
     {
-        CARDS_3D.fade_from.set(colour);
+        d3d().cards.fade_from.set(colour);
         let s = rc2k_core::scene::render_states::fog_colour(colour);
         crate::d3d::set_render_state::set_render_state(s.value, s.state);
     }

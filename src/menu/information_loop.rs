@@ -1,97 +1,82 @@
 //! `menu::information_loop` (0x48E169): the loop of the information screen.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `info.png`; leaving is not asked about; the
 //! steps that are more than a call or a store are the functions below, generated from the
 //! listing.
 //! The name is a reading from the title string of its menu, "INFORMAÇÃO", not yet a visit.
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Callee, Carried, List, Screen, Step, carousel, log_line, prepare_scene, screen_entry,
+    Callee, Entry, FrameRoutine, List, Screen, Step, carousel, log_line, prepare_scene,
+    screen_entry,
 };
-use crate::menu::state_store::MENU_STATE;
-use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        // Between `pusha` and `popa`: no register changes.
-        log_line(c"InfoScr: Start");
-        DRAW.view_offset[0].set(0xFFFFFF64u32);
-        DRAW.view_offset[1].set(0x27u32);
-        DRAW.view_zoom.set(0x140u32);
-        prepare_scene(c);
-        DRAW.clip_edges[2].set(0xFFFFFFD8u32);
-        DRAW.clip_edges[3].set(0x2F8u32);
-        DRAW.clip_screen[2].set(DRAW.clip_edges[2].bits() as i32 as f32);
-        DRAW.clip_screen[3].set(DRAW.clip_edges[3].bits() as i32 as f32);
-        SCREEN_FLOW.turning.set(0x1u32);
-        MENU_STATE.carousel.menu.set(0x9u32);
-        carousel(c)?;
-        c.arg = SCREEN_ITEMS.current[slot::INFORMATION].get();
-        LOOP_FLAGS.item.set(c.arg);
-        c.arg = c.arg.wrapping_sub(1);
-        MENU_STATE.carousel.front.set(c.arg);
-    }
+fn set_up_first(entry: &Entry) -> Result<(), Refused> {
+    let drawing = &entry.scene.drawing;
+    let screens = &entry.menus.screens;
+    // Between `pusha` and `popa`: no register changes.
+    log_line(c"InfoScr: Start");
+    drawing.scene.view_offset[0].set(0xFFFFFF64u32);
+    drawing.scene.view_offset[1].set(0x27u32);
+    drawing.scene.view_zoom.set(0x140u32);
+    prepare_scene(entry.scene);
+    drawing.scene.clip_edges[2].set(0xFFFFFFD8u32);
+    drawing.scene.clip_edges[3].set(0x2F8u32);
+    drawing.scene.clip_screen[2].set(drawing.scene.clip_edges[2].bits() as i32 as f32);
+    drawing.scene.clip_screen[3].set(drawing.scene.clip_edges[3].bits() as i32 as f32);
+    screens.flow.turning.set(0x1u32);
+    screens.state.carousel.menu.set(0x9u32);
+    carousel(None, entry.scene)?;
+    let item = screens.items.current[slot::INFORMATION].get();
+    screens.loop_flags.item.set(item);
+    screens.state.carousel.front.set(item.wrapping_sub(1));
     Ok(())
 }
 
-unsafe fn after(_c: &mut Carried) -> Result<(), Refused> {
+fn after(_: &Entry) -> Result<(), Refused> {
     // Between `pusha` and `popa`: no register changes.
-    unsafe {
-        log_line(c"InfoScr: End");
-    }
+    log_line(c"InfoScr: End");
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.information.addr() as usize,
-    saved_item: || &SCREEN_ITEMS.current[slot::INFORMATION],
+    menu: |m| m.tables.menus.information.id(),
+    saved_item: |m| &m.screens.items.current[slot::INFORMATION],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.information_scene.addr() as usize,
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.information_scene.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.information_draw.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.information_draw.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.information_overlay.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.information_overlay.id(),
             run: false,
         },
     ],
     first_frame_lists: None,
-    frame_callback: rva(0x474D4B),
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::Write(|| &EVENT_STATE.clears_escape_flag, 0x1),
-        Step::ArgAddr(|| {
-            (crate::menu::texts_store::MENU_TEXTS
-                .information_picture
-                .addr()) as usize
-        }),
-        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
+        Step::Write(|m| &m.screens.event.clears_escape_flag, 0x1),
+        Step::Call(Callee::LoadBackground(|m| {
+            &m.tables.texts.information_picture
+        })),
     ],
     after_first_frame: &[],
     confirm: None,

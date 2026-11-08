@@ -1,9 +1,6 @@
 //! `scene::reload_system_textures` (0x4254B4): every system texture gets the picture
 //! it should have ("reload system plates").
 //!
-//! In:  nothing
-//! Out: the registers as `scene::load_hud_car_icons` leaves them
-//!
 //! - Two lines in the game's log (a rule and "Reload system plates - start").
 //! - Each kind's first texture (`g_kindFirstTextures`), where it has one, wants the
 //!   kind's picture (`dword_5D7968`; 0 counts as none, -1).
@@ -22,14 +19,11 @@
 //! `rc2k_core::scene::pictures`.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::texture_pixels::GRADING;
-use crate::logfile::log_write::log_write;
-use crate::race::prefs_store::STAGE_PREFS;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
+use crate::gfx::owner::gfx;
+use crate::race::owner::race;
 use crate::scene::load_changed_texture_picture::{TEXTURES, load_changed_texture_picture_in_game};
 use crate::scene::load_hud_car_icons::load_hud_car_icons;
 use crate::scene::step_loading_bar::step_loading_bar;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::scene::textures::KINDS;
 use rc2k_core::scene::pictures::{kind_picture, read_size};
 
@@ -48,49 +42,52 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 
 /// The Rust version. The registers the original leaves (those of `load_hud_car_icons`) are
 /// read by no caller (taint at the site in `race::set_all_plates`: 0 read points; the other
-/// is the game's own code, `sub_443478`, not Rust). It reads no register at entry but edi,
+/// is the game's own code, 0x443478, not Rust). It reads no register at entry but edi,
 /// esi (for `load_changed_texture_picture` and `step_loading_bar`, which set them
 /// themselves).
 // Converted: `rc2k_core::scene::pictures::{kind_picture, read_size}`
-pub unsafe fn reload_system_textures() -> Result<(), Refused> {
-    unsafe {
-        let textures: u32 = TEXTURE_PLACES.totals[3].get();
-        if textures == 0 || textures > TEXTURES {
-            return Err(BadInput("no system textures, or more than the table has").into());
-        }
-        let first = |kind: u32| KIND_TEXTURES.kind_first_textures[kind as usize].get();
-        if (0..KINDS).any(|kind| first(kind) != u32::MAX && first(kind) >= TEXTURES) {
-            return Err(BadInput("a kind's first texture past the pictures' table").into());
-        }
-        log_write(TEXTS[0].as_ptr().cast(), true, 1);
-        log_write(TEXTS[1].as_ptr().cast(), true, 1);
-        for kind in 0..KINDS {
-            let texture = first(kind);
-            if texture == u32::MAX {
-                continue;
-            }
-            let picture = kind_picture(TEXTURE_PLACES.kind_pictures[kind as usize].get());
-            TEXTURE_PLACES.wanted_pictures[texture as usize].set(picture);
-        }
-        let scene = [
-            STAGE_PREFS.scene_size_a.get(),
-            STAGE_PREFS.scene_size_b.get(),
-        ];
-        for texture in 0..textures {
-            GRADING.reading.set(1u32);
-            let wanted = TEXTURE_PLACES.wanted_pictures[texture as usize].get();
-            let [scale, saturation] = read_size(wanted, scene);
-            GRADING.scale.set(scale);
-            GRADING.saturation.set(saturation);
-            load_changed_texture_picture_in_game(texture)?;
-            step_loading_bar(texture)?;
-        }
-        GRADING.reading.set(0u32);
-        GRADING.scale.set(0x100);
-        GRADING.saturation.set(0x100);
-        load_hud_car_icons()?;
-        log_write(TEXTS[2].as_ptr().cast(), true, 1);
-        log_write(TEXTS[3].as_ptr().cast(), true, 1);
-        Ok(())
+pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let gfx_grading = &gfx().grading;
+    let race = race();
+    let course = &race.course;
+    let textures: u32 = scene.textures.places.totals[3].get();
+    if textures == 0 || textures > TEXTURES {
+        return Err(BadInput("no system textures, or more than the table has").into());
     }
+    let first = |kind: u32| scene.textures.kinds.kind_first_textures[kind as usize].get();
+    if (0..KINDS).any(|kind| first(kind) != u32::MAX && first(kind) >= TEXTURES) {
+        return Err(BadInput("a kind's first texture past the pictures' table").into());
+    }
+    crate::logfile::log_write::log_nul(&TEXTS[0], true, 1);
+    crate::logfile::log_write::log_nul(&TEXTS[1], true, 1);
+    for kind in 0..KINDS {
+        let texture = first(kind);
+        if texture == u32::MAX {
+            continue;
+        }
+        let picture = kind_picture(scene.textures.places.kind_pictures[kind as usize].get());
+        scene.textures.places.wanted_pictures[texture as usize].set(picture);
+    }
+    let size = [
+        course.stage_prefs.scene_size_a.get(),
+        course.stage_prefs.scene_size_b.get(),
+    ];
+    for texture in 0..textures {
+        gfx_grading.reading.set(1u32);
+        let wanted = scene.textures.places.wanted_pictures[texture as usize].get();
+        let [scale, saturation] = read_size(wanted, size);
+        let grading = &gfx_grading;
+        grading.scale.set(scale);
+        grading.saturation.set(saturation);
+        load_changed_texture_picture_in_game(race, texture, scene)?;
+        step_loading_bar(race, texture)?;
+    }
+    let grading = &gfx_grading;
+    grading.reading.set(0u32);
+    grading.scale.set(0x100);
+    grading.saturation.set(0x100);
+    load_hud_car_icons(scene, &race.shared)?;
+    crate::logfile::log_write::log_nul(&TEXTS[2], true, 1);
+    crate::logfile::log_write::log_nul(&TEXTS[3], true, 1);
+    Ok(())
 }

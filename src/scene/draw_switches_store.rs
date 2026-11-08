@@ -3,6 +3,7 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct DrawSwitches {
     /// +0x0 (0x621900): `dword_621900`: the far clip / own car switch (`scene::clip_polygon_by_depth`, `race::draw_view_overlays`).
     pub far_on: Dword,
@@ -22,25 +23,19 @@ pub struct DrawSwitches {
     pub use_3dnow: Dword,
     /// +0x160 (0x621A60): not named.
     pub unknown_160: [Dword; 8],
-    /// +0x180 (0x621A80): `dword_621A80` (`marks::draw_frame`).
+    /// +0x180 (0x621A80): `dword_621A80` (`effects::draw_frame`).
     pub marks_source: Dword,
 }
 
-/// The piece: the race block's bytes at IDA 0x621900 seen as `DrawSwitches`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = DrawSwitches;
-    fn deref(&self) -> &DrawSwitches {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const DrawSwitches) }
+impl DrawSwitches {
+    /// The piece with the image's first values (the owner `scene::owner::Scene` holds it).
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static DRAW_SWITCHES: InRaceBlock = InRaceBlock;
 
 /// IDA 0x621900, the first byte of the piece.
 pub const START: usize = 0x621900;
@@ -49,9 +44,12 @@ pub const END: usize = 0x621A84;
 
 const _: () = assert!(END - START == core::mem::size_of::<DrawSwitches>());
 
-/// Where IDA 0x621900 is now (in the race block).
+/// Where IDA 0x621900 is now (the piece's static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(std::ptr::from_ref(
+        &crate::scene::owner::SCENE.draw_switches,
+    ))
 }
 
 #[cfg(test)]
@@ -60,7 +58,16 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(
+            &crate::scene::owner::SCENE.draw_switches,
+            START,
+            END,
+        );
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

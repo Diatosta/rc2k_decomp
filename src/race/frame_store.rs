@@ -4,9 +4,12 @@
 //! matrices and decal places, and the car shadow's work. `#[repr(C)]` with the image's
 //! layout, over the race block's bytes (`FRAME_WORK`), as `CAR`. Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct FrameWork {
     /// +0x0 (0x64158C): `g_flareCount`: the flares this frame.
     pub flare_count: Dword,
@@ -51,7 +54,7 @@ pub struct FrameWork {
     /// +0x70 (0x6415FC): `g_mirrorPlaces` (and IDA's `dword_641600`): 12 entries of two dwords,
     /// by `race::mirror_entry`.
     pub mirror_places: [Dword; 24],
-    /// +0xd0 (0x64165C): the lead car's camera kept (`drive::lead_car_values`); [0] also `marks::stage_record`'s number, [7] `marks::draw_plane`'s switch and `marks::pong`'s shown.
+    /// +0xd0 (0x64165C): the lead car's camera kept (`drive::lead_car_values`); [0] also `effects::stage_record`'s number, [7] `effects::draw_plane`'s switch and `effects::pong`'s shown.
     pub lead_kept: [Dword; 8],
     /// +0xf0 (0x64167C): `g_faceHideMask`.
     pub face_hide_mask: Dword,
@@ -119,21 +122,16 @@ pub struct FrameWork {
     pub shadow_ground: Dword,
 }
 
-/// The piece: the race block's bytes at IDA 0x64158C seen as `FrameWork`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = FrameWork;
-    fn deref(&self) -> &FrameWork {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const FrameWork) }
+/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl FrameWork {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static FRAME_WORK: InRaceBlock = InRaceBlock;
 
 /// IDA 0x64158C, the first byte of the piece.
 pub const START: usize = 0x64158C;
@@ -142,9 +140,10 @@ pub const END: usize = 0x641AA4;
 
 const _: () = assert!(END - START == core::mem::size_of::<FrameWork>());
 
-/// Where IDA 0x64158C is now (in the race block).
+/// Where IDA 0x64158C is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.frame_work))
 }
 
 #[cfg(test)]
@@ -153,7 +152,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&race().frame.frame_work, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

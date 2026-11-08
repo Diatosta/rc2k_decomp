@@ -10,19 +10,19 @@ pub const LEN: usize = 4;
 
 /// The surface-locked switch.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Locked {
     /// `g_surfaceLocked` (`dword_4F3870`): 1 while the screen's surface is locked for drawing.
     pub surface: Dword,
 }
 
-/// The switch; the first value is the image's.
-pub static LOCKED: Locked = Locked {
-    surface: Dword::new(0),
-};
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x4F3870).
-pub fn home() -> usize {
-    crate::pointers::game_address(&LOCKED as *const Locked) as usize
+impl Locked {
+    /// The switch; the first value is the image's.
+    pub const fn new() -> Self {
+        Locked {
+            surface: Dword::new(0),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -31,11 +31,14 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&LOCKED, START, START + LEN);
+        crate::gfx::first_values_are_the_games(&crate::gfx::owner::GFX.locked, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), LOCKED.surface.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            crate::gfx::owner::GFX.locked.surface.addr() as usize
+        );
     }
 }

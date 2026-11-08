@@ -107,7 +107,7 @@ impl Source<'_> {
         Ok(self.at(place))
     }
 
-    /// `sub_403889`: the next word from `scan` on.
+    /// 0x403889: the next word from `scan` on.
     fn next_word(&self, scan: usize) -> Result<Token, Invalid> {
         let mut place = scan;
         loop {
@@ -233,7 +233,7 @@ impl Source<'_> {
     }
 }
 
-/// `sub_403B85` after its `#`: two hex digits.
+/// 0x403B85 after its `#`: two hex digits.
 fn hex_pair(digits: &[u8]) -> Result<u8, Invalid> {
     let mut value = 0u8;
     for n in 0..2 {
@@ -248,7 +248,7 @@ fn hex_pair(digits: &[u8]) -> Result<u8, Invalid> {
     Ok(value)
 }
 
-/// `sub_403AC2` for one word: the escapes of the file become the bytes of the table.
+/// 0x403AC2 for one word: the escapes of the file become the bytes of the table.
 fn unescaped(raw: &[u8]) -> Result<Vec<u8>, Invalid> {
     let mut text = raw.to_vec();
     let mut place = 0;
@@ -320,10 +320,10 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
     let (mut lines, mut source_size, mut words_encountered, mut phrases_encountered) =
         (1u32, 0u32, 0u32, 0u32);
 
-    // `sub_403682`: a message a line.
+    // 0x403682: a message a line.
     let mut place = 0usize;
     loop {
-        // `sub_403CD2`: comments and line ends.
+        // 0x403CD2: comments and line ends.
         let at_end = loop {
             match source.at(place) {
                 0 => break true,
@@ -376,7 +376,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
         arena.take(counted)?;
         let body = label + counted as usize - 1;
 
-        // `sub_403745`: the message's words.
+        // 0x403745: the message's words.
         let mut message: Vec<usize> = Vec::new();
         let mut scan = body;
         let end = loop {
@@ -394,7 +394,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
             if token.length > 0x7F {
                 return Err(Invalid("language file: Word too long"));
             }
-            // `sub_403A10`: the word, kept once.
+            // 0x403A10: the word, kept once.
             let raw: &[u8] = match token.start {
                 Some(start) => text
                     .get(start..start + token.length as usize)
@@ -429,7 +429,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
             scan = token.after;
         };
 
-        // `sub_40379F`: the message as a phrase, kept once.
+        // 0x40379F: the message as a phrase, kept once.
         if message.is_empty() {
             messages.push(None);
         } else {
@@ -452,12 +452,12 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
         place = end;
     }
 
-    // `sub_403AC2`.
+    // 0x403AC2.
     for word in &mut words {
         word.text = unescaped(&word.raw)?;
     }
 
-    // `sub_403BDC`, `sub_403C54`: one list each, by first byte and then as met; sorted.
+    // 0x403BDC, 0x403C54: one list each, by first byte and then as met; sorted.
     let mut word_order: Vec<usize> = word_buckets.into_iter().flatten().collect();
     sort_by_length(&mut word_order, |&word| words[word].text.len());
     let mut phrase_order: Vec<usize> = phrase_buckets.into_iter().flatten().collect();
@@ -466,7 +466,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
         return Err(Invalid("a language file without words"));
     }
 
-    // `sub_403DA7`: offsets and numbers.
+    // 0x403DA7: offsets and numbers.
     let entries = messages.len() + words.len();
     if entries > 0x10000 {
         return Err(Invalid("language file: More than 64K indices in bundle"));
@@ -506,7 +506,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
         return Err(Invalid("the compiled lexicon is larger than its table"));
     }
 
-    // The index, and `sub_403F0B`: the table.
+    // The index, and 0x403F0B: the table.
     let mut index: Vec<u32> = Vec::with_capacity(entries);
     let mut empty_messages = 0;
     for message in &messages {
@@ -519,7 +519,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
         });
     }
     index.extend(word_order.iter().map(|&word| words[word].entry));
-    // `sub_403FC1`: an entry's number is that of the first index entry like it.
+    // 0x403FC1: an entry's number is that of the first index entry like it.
     let mut number_of: HashMap<u32, u16> = HashMap::new();
     for (n, &entry) in index.iter().enumerate() {
         number_of.entry(entry).or_insert(n as u16);
@@ -570,7 +570,7 @@ struct WordAt {
     named_at: Option<usize>,
 }
 
-/// Every word of string `id` (RAL.EXE `sub_4163CE`), in order.
+/// Every word of string `id` (RAL.EXE 0x4163CE), in order.
 fn words_of(
     table: &[u8],
     id: u32,
@@ -621,8 +621,8 @@ fn word_text(table: &[u8], entry: usize) -> Result<&[u8], Invalid> {
 }
 
 /// The four corrections the game makes in its lexicon after loading it (RAL.EXE
-/// `sub_416389`): in string 0x6CA "Bowland" loses its `w`, in 0x6AB "Laukennen" becomes
-/// "Laukkanen", and in 0x23B the word "A7" or "(A7)" names string 0x23A's "A8" or "(A8)"
+/// `strings::correct_lexicon`): in string 0x6CA "Bowland" loses its `w`, in 0x6AB "Laukennen"
+/// becomes "Laukkanen", and in 0x23B the word "A7" or "(A7)" names string 0x23A's "A8" or "(A8)"
 /// instead. A correction meeting its word where the string is that word alone is refused.
 pub fn correct(table: &mut [u8]) -> Result<(), Invalid> {
     const ALONE: Invalid = Invalid("a correction's word is its whole string");

@@ -1,9 +1,8 @@
 //! `drive::countdown_sound` (0x40EC9C): for a listed car (eax 0 or 1) the count down's
 //! sound ebx played on its channel (`sound::play_sound`: eax + ebx, ebx and edx -0x6F,
-//! ecx, edi, ebp 0). All in `pusha` / `popa`.
+//! ecx, edi, ebp 0).
 //!
-//! In:  eax the car's sound slot, ebx the sound
-//! Out: every register kept; no flags read
+//! Takes: the car's sound slot, the sound
 //!
 //! Caller: `drive::countdown_cue`.
 

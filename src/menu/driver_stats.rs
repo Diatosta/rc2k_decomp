@@ -16,19 +16,14 @@
 //!   that limit, its penalty (`dword_75AC48`[k]) the wear / `flt_75AB5C` times the weight.
 //!   Each figure also passes through `dword_7559EC`.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Callers: `sub_48E093`, `sub_4A15E3`, `sub_4A8556`. Logs through the `logfile::` Rust versions
+//! Logs through the `logfile::` Rust versions
 //! (level 1). Refuses a current player past 3 or missing, a car past 0xFF or without its table,
 //! before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::cars_store::CAR_TABLE;
-use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_flow::Fault;
-use crate::menu::event_store::EVENT_STATE;
+use crate::menu::owner::Menus;
+use crate::menu::owner::Screens;
 use crate::menu::standings::*;
-use crate::menu::state_store::MENU_STATE;
 use crate::session::write_all;
 
 /// The parts' names in the log, by inspected part.
@@ -54,88 +49,82 @@ const EQUALS_RVA: [&std::ffi::CStr; 13] = [
 ];
 const PARTS: u32 = 14;
 /// The current player and its car's table.
-pub fn player_and_table() -> Result<(u32, u32), BadInput> {
-    let n: u32 = { EVENT_STATE.current_player.get() };
-    if n >= 4 || player(n) == 0 {
+pub fn player_and_table(
+    menus: &Menus,
+    screens: &Screens,
+) -> Result<(PlayerCell, crate::pointers::GamePtr), BadInput> {
+    let n: u32 = screens.event.current_player.get();
+    if n >= 4 {
         return Err(BadInput("a current player past 3 or missing"));
     }
     let p = player(n);
-    Ok((p, car_table(p)?))
+    Ok((p, car_table(menus, p)?))
 }
 
 /// The player `p`'s car's table (`off_7564A0`[car]'s +0x74; car 0x21 as 0x17).
-pub fn car_table(p: u32) -> Result<u32, BadInput> {
-    let car = match get(p + 8)? {
+pub fn car_table(menus: &Menus, p: PlayerCell) -> Result<crate::pointers::GamePtr, BadInput> {
+    let car = match p.get().car_number {
         0x21 => 0x17,
         c => c,
     };
-    let entry = if car < 0x100 {
-        CAR_TABLE.cars[car as usize].get()
-    } else {
-        0
-    };
-    if entry == 0 || get(entry + 0x74)? == 0 {
-        return Err(BadInput("a car past 0xFF or without its table"));
-    }
-    get(entry + 0x74)
+    // The original reads entries up to 0xFF, on past the table's 34: refused there.
+    crate::menu::cars_store::description_table(crate::menu::cars_store::car_entry(menus, car)?)
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn driver_stats() -> Result<(), Refused> {
-    use crate::logfile::{log_int::log_int, log_write::log_write};
+/// The Rust version.
+pub fn driver_stats(menus: &Menus, screens: &Screens) -> Result<(), Refused> {
+    use crate::logfile::log_int::log_int;
     // Converted: `rc2k_core::menu::driver_figures` (float: exact at the game's 0x027F).
     use rc2k_core::menu::driver_figures::{Car, Constants, Table, figures};
-    let (p, t) = player_and_table()?;
-    unsafe {
-        let fault = Fault::default();
-        let table = Table::read(|o| fault.get(t + o as u32));
-        let car = Car {
-            wear: std::array::from_fn(|k| fault.get(p + 0xD4 + 4 * k as u32)),
-            fitted: fault.get(p + 0x278),
-            setup: [fault.get(p + 0x114), fault.get(p + 0x118)],
-        };
-        fault.check()?;
-        let c = Constants {
-            steps: MENU_STATE.driver_stats.steps.get(),
-            scale: MENU_STATE.driver_stats.scale.get(),
-            keep_part_1: MENU_STATE.driver_stats.switch_a.get(),
-            short_part_5: MENU_STATE.driver_stats.switch_b.get(),
-        };
-        let f = figures(&table, &car, &c);
-        write_all(&MENU_STATE.driver_stats.repair_times, f.values);
-        write_all(&MENU_STATE.driver_stats.highs, f.highs);
-        write_all(&MENU_STATE.driver_stats.limits, f.limits);
-        MENU_STATE.driver_stats.total.set(f.total);
-        let ds = &MENU_STATE.driver_stats;
-        for (cell, value) in [
-            &ds.setups[2].chosen,
-            &ds.setups[2].installed,
-            &ds.setups[3].chosen,
-            &ds.setups[3].installed,
-        ]
-        .into_iter()
-        .zip(f.kept)
-        {
-            cell.set(value);
+    let (p, t) = player_and_table(menus, screens)?;
+    let fault = Fault::default();
+    let table = Table::read(|o| fault.read_at::<u32>(t.offset(o as u32), "a car's figures"));
+    let car = Car {
+        wear: std::array::from_fn(|k| p.get().damage[k]),
+        fitted: p.get().state_flags,
+        setup: [p.get().ride_height, p.get().suspension_stiffness],
+    };
+    fault.check()?;
+    let c = Constants {
+        steps: screens.state.driver_stats.steps.get(),
+        scale: screens.state.driver_stats.scale.get(),
+        keep_part_1: screens.state.driver_stats.switch_a.get(),
+        short_part_5: screens.state.driver_stats.switch_b.get(),
+    };
+    let f = figures(&table, &car, &c);
+    write_all(&screens.state.driver_stats.repair_times, f.values);
+    write_all(&screens.state.driver_stats.highs, f.highs);
+    write_all(&screens.state.driver_stats.limits, f.limits);
+    screens.state.driver_stats.total.set(f.total);
+    let ds = &screens.state.driver_stats;
+    for (cell, value) in [
+        &ds.setups[2].chosen,
+        &ds.setups[2].installed,
+        &ds.setups[3].chosen,
+        &ds.setups[3].installed,
+    ]
+    .into_iter()
+    .zip(f.kept)
+    {
+        cell.set(value);
+    }
+    for k in 0..PARTS as usize {
+        if let Some(w) = f.weights[k] {
+            screens.state.driver_stats.weights[k].set(w);
         }
-        for k in 0..PARTS as usize {
-            if let Some(w) = f.weights[k] {
-                MENU_STATE.driver_stats.weights[k].set(w);
-            }
-            if let Some(v) = f.penalties[k] {
-                MENU_STATE.driver_stats.penalties[k].set(v);
-            }
+        if let Some(v) = f.penalties[k] {
+            screens.state.driver_stats.penalties[k].set(v);
         }
-        DRAW_WORK.figure.set(f.figure);
-        if let Some(span) = f.span {
-            DRAW_WORK.hhmm.set(span);
-        }
-        for (slot, line) in f.logged.iter().enumerate() {
-            log_write(NAMES_RVA[slot].as_ptr() as *const u8, false, 1);
-            log_int(line.wear as i32, false, 1);
-            log_write(EQUALS_RVA[slot].as_ptr() as *const u8, false, 1);
-            log_int(line.limit as i32, true, 1);
-        }
+    }
+    screens.draw_work.figure.set(f.figure);
+    if let Some(span) = f.span {
+        screens.draw_work.hhmm.set(span);
+    }
+    for (slot, line) in f.logged.iter().enumerate() {
+        crate::logfile::log_write::log_nul(&NAMES_RVA[slot], false, 1);
+        log_int(line.wear as i32, false, 1);
+        crate::logfile::log_write::log_nul(&EQUALS_RVA[slot], false, 1);
+        log_int(line.limit as i32, true, 1);
     }
     Ok(())
 }

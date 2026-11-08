@@ -1,8 +1,6 @@
 //! `menu::build_notice` (0x4165F1): for the edition whose notice kind is 2, makes one
 //! copyright line of the two.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! Only when `g_noticeKind` (the byte at 0x4E07A0, from the language's `.loc` file) is 2. The first
 //! line (`unk_52A263`, "Copyright (c) Magnetic Fields (Software Design) Ltd, 1999. All rights
 //! reserved.") becomes "(c) 2000 Actualize Ltd and Magnetic Fields (Software Design) Ltd, " and the
@@ -11,40 +9,43 @@
 //! second line's eleventh on, "2000", fourteen from its twelfth on, " and", 0x26 from the first
 //! line's twelfth on, a space and a NUL; then copied over the first line. One caller,
 //! `system::main_loop`. Calling it twice builds from the changed lines, as the original would. Rust
-//! callers run its `entry` (`routes.rs`); the registers above are the original's, for reference.
-
-use crate::strings::text_buffer::TEXT_BUFFER;
+//! callers run its `entry` (`routes.rs`).
 
 // ---- game data ----
 
+use crate::strings::owner::strings;
 use rc2k_core::menu::notice::{
     BUILDS, BUILT_LEN, FIRST_FROM, FIRST_READ, SECOND_FROM, SECOND_READ, notice,
 };
 
 // ---- Rust version ----
 
-pub fn build_notice() {
+pub fn build_notice(menus: &Menus) {
+    let panels = &menus.panels;
     // Converted: `rc2k_core::menu::notice::notice`.
     if crate::strings::load_language::notice_kind() != BUILDS {
         return;
     }
-    let first: [u8; FIRST_READ] = std::array::from_fn(|i| NOTICE.notice_first.get(FIRST_FROM + i));
+    let first: [u8; FIRST_READ] =
+        std::array::from_fn(|i| panels.notice.notice_first.get(FIRST_FROM + i));
     let second: [u8; SECOND_READ] =
-        std::array::from_fn(|i| NOTICE.notice_second.get(SECOND_FROM + i));
+        std::array::from_fn(|i| panels.notice.notice_second.get(SECOND_FROM + i));
     let built = notice(&first, &second);
     for (i, &byte) in built.iter().take(BUILT_LEN).enumerate() {
-        TEXT_BUFFER.text.set(i, byte);
-        NOTICE.notice_first.set(i, byte);
+        strings().text.buffer.text.set(i, byte);
+        panels.notice.notice_first.set(i, byte);
     }
-    NOTICE.notice_second.set(0, 0);
+    panels.notice.notice_second.set(0, 0);
 }
 
 // ---- the notice's lines (IDA 0x52A263 .. 0x52A30F, split from the network's block) ----
 
+use crate::menu::owner::Menus;
 use crate::session::{Bytes, with_runs};
 
 /// IDA 0x52A263 .. 0x52A30F.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct BuildNotice {
     /// 0x52A263: `unk_52A263`: the build notice's first line, "Copyright ... Magnetic Fields ..." (`menu::build_notice`).
     pub notice_first: Bytes<78>,
@@ -52,18 +53,18 @@ pub struct BuildNotice {
     pub notice_second: Bytes<94>,
 }
 
-pub static NOTICE: BuildNotice = BuildNotice {
+impl BuildNotice {
+    pub const fn new() -> Self {
+        BuildNotice {
     notice_first: Bytes::new(with_runs::<78>(&[(0, b"Copyright \xa9 Magnetic Fields (Software Design) Ltd, 1999. All rights reserved.")])),
     notice_second: Bytes::new(with_runs::<94>(&[(0, b"Copyright \xa9 Actualize Ltd, 1999. All rights reserved.\x00http:\x01/\x01/\x01www.rallychampionship.co.uk\x01/")])),
-};
+        }
+    }
+}
 
 impl BuildNotice {
     pub const START: usize = 0x52A263;
     pub const LEN: usize = 0xAC;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&NOTICE as *const BuildNotice) as usize
-    }
 }
 
 #[cfg(test)]
@@ -74,7 +75,7 @@ mod notice_tests {
     #[test]
     fn notice_starts_as_the_games_image() {
         assert_eq!(size_of::<BuildNotice>(), BuildNotice::LEN);
-        let p = &NOTICE as *const BuildNotice as *const u8;
+        let p = (&raw const crate::menu::owner::MENUS.panels.notice).cast::<u8>();
         let image = crate::moved::image_bytes(BuildNotice::START, BuildNotice::LEN);
         for (i, &b) in image.iter().enumerate() {
             assert_eq!(

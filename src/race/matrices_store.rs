@@ -3,9 +3,12 @@
 //! 0x5EA484 is IDA's one 1092-byte item, taken whole; only its first 64 bytes are used.
 //! Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SceneMatrices {
     /// +0x0 (0x5E9EC8): `dword_5E9EC8`: the model last set up for drawing (`scene::load_object`, `race::car_draw`).
     pub known_object: Dword,
@@ -23,7 +26,7 @@ pub struct SceneMatrices {
     pub placed_matrix: [Float; 16],
     /// +0x1c4 (0x5EA08C): `flt_5EA08C`: the car body's turn matrix copied from the car (`race::car_parts`, `race::car_draw`).
     pub body_turn_matrix: [Float; 16],
-    /// +0x204 (0x5EA0CC): unnamed buffer used in place (`drive::set_listener`, `marks::draw_shadow`) (a reading).
+    /// +0x204 (0x5EA0CC): unnamed buffer used in place (`drive::set_listener`, `effects::draw_shadow`) (a reading).
     pub listener_matrix: [Float; 16],
     /// +0x244 (0x5EA10C): `g_turnedMatrix`: the turned matrix (`race::frame_draw`, `physics::move_slot`, `scene::matrix`).
     pub turned_matrix: [Float; 16],
@@ -39,13 +42,13 @@ pub struct SceneMatrices {
     pub view_turn_matrix: [Float; 16],
     /// +0x3c4 (0x5EA28C): not named.
     pub unknown_3c4: [Dword; 16],
-    /// +0x404 (0x5EA2CC): `g_viewMatrix` and its elements `flt_5EA2D0`..: the view matrix, used in place (`scene::project_point`, `marks::draw_particle`, `race::skidmarks`).
+    /// +0x404 (0x5EA2CC): `g_viewMatrix` and its elements `flt_5EA2D0`..: the view matrix, used in place (`scene::project_point`, `effects::draw_particle`, `race::skidmarks`).
     pub view_matrix: [Float; 16],
     /// +0x444 (0x5EA30C): `g_madeObjectMatrix`: the matrix made for an object (`scene::matrix`, `race::frame_draw`).
     pub made_object_matrix: [Float; 16],
     /// +0x484 (0x5EA34C): `dword_5EA34C`: a block whose first 0x40 bytes receive a copy of the made object matrix (`race::frame_draw`).
     pub object_matrix_slots: [Dword; 32],
-    /// +0x504 (0x5EA3CC): `flt_5EA3CC`: the view's matrix, place at +0x30 (`marks::view_motion`, `race::frame_views`).
+    /// +0x504 (0x5EA3CC): `flt_5EA3CC`: the view's matrix, place at +0x30 (`effects::view_motion`, `race::frame_views`).
     pub view_place: [Float; 16],
     /// +0x544 (0x5EA40C): `g_objectMatrix`: pointer to the object matrix in use (`scene::place_object_points`).
     pub object_matrix_ptr: Dword,
@@ -63,21 +66,16 @@ pub struct SceneMatrices {
     pub matrix_scratch: [Float; 273],
 }
 
-/// The piece: the race block's bytes at IDA 0x5E9EC8 seen as `SceneMatrices`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = SceneMatrices;
-    fn deref(&self) -> &SceneMatrices {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const SceneMatrices) }
+/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl SceneMatrices {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static MATRICES: InRaceBlock = InRaceBlock;
 
 /// IDA 0x5E9EC8, the first byte of the piece.
 pub const START: usize = 0x5E9EC8;
@@ -86,9 +84,10 @@ pub const END: usize = 0x5EA8C8;
 
 const _: () = assert!(END - START == core::mem::size_of::<SceneMatrices>());
 
-/// Where IDA 0x5E9EC8 is now (in the race block).
+/// Where IDA 0x5E9EC8 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.matrices))
 }
 
 #[cfg(test)]
@@ -97,7 +96,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&race().frame.matrices, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

@@ -9,6 +9,10 @@
 //! variable to its neighbour reads the same neighbour (the vendor text of the processor,
 //! three dwords; the surface format, six dwords; the Windows version record).
 
+#![allow(unsafe_code)]
+
+#[cfg(test)]
+use crate::system::owner::system;
 use std::cell::UnsafeCell;
 use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
 
@@ -26,7 +30,7 @@ impl Dword {
     }
 
     pub fn set(&self, value: u32) {
-        self.0.store(value, Relaxed)
+        self.0.store(value, Relaxed);
     }
 
     /// The atomic itself, for code that wants more than a load and a store.
@@ -50,7 +54,7 @@ impl Dword {
 
     /// Stores the bits, for the x87 model's stores (as `Float::set_bits`).
     pub fn set_bits(&self, bits: u32) {
-        self.set(bits)
+        self.set(bits);
     }
 }
 
@@ -115,7 +119,12 @@ impl Float {
     }
 
     pub fn set(&self, value: f32) {
-        self.0.store(value.to_bits(), Relaxed)
+        self.0.store(value.to_bits(), Relaxed);
+    }
+
+    /// The atomic holding its bits (the cells' copies, `pointers::CellRef`).
+    pub fn atomic(&self) -> &AtomicU32 {
+        &self.0
     }
 
     /// The bits, for the x87 model's loads (`x87_float::ld`).
@@ -125,13 +134,94 @@ impl Float {
 
     /// Stores the bits, for the x87 model's stores (`x87_float::st`).
     pub fn set_bits(&self, bits: u32) {
-        self.0.store(bits, Relaxed)
+        self.0.store(bits, Relaxed);
     }
 
-    /// Its place, for code that is handed an address.
+    /// Its place (the tests).
+    #[cfg(test)]
     pub fn addr(&self) -> u32 {
         crate::pointers::game_address(self.0.as_ptr())
     }
+}
+
+/// Cell `n` of `cells`, or the dword the original reads there: past the table's end it reads what
+/// follows only inside `holder`, the store or record holding the table. The original reads
+/// on anywhere; here the next thing in memory is another static, so that is refused.
+pub fn read_on_in<H: crate::pointers::Cells, C: Cell32>(
+    holder: &H,
+    cells: &[C],
+    n: usize,
+    what: &str,
+) -> Result<u32, crate::errors::BadInput> {
+    match cells.get(n) {
+        Some(cell) => Ok(cell.bits()),
+        None => {
+            let mut bytes = [0; 4];
+            on_in(holder, cells, n, what, |at| {
+                crate::pointers::load_cells(holder, at, &mut bytes)
+            })?;
+            Ok(u32::from_le_bytes(bytes))
+        }
+    }
+}
+
+/// `read_on_in`'s write.
+pub fn write_on_in<H: crate::pointers::Cells, C: Cell32>(
+    holder: &H,
+    cells: &[C],
+    n: usize,
+    v: u32,
+    what: &str,
+) -> Result<(), crate::errors::BadInput> {
+    match cells.get(n) {
+        Some(cell) => {
+            cell.set_bits(v);
+            Ok(())
+        }
+        None => on_in(holder, cells, n, what, |at| {
+            crate::pointers::store_cells(holder, at, &v.to_le_bytes())
+        }),
+    }
+}
+
+/// `access` on dword `n` of `cells`, placed from `holder`'s first byte (refused, and logged,
+/// when that is not inside `holder`).
+fn on_in<H, C>(
+    holder: &H,
+    cells: &[C],
+    n: usize,
+    what: &str,
+    access: impl FnOnce(usize) -> Result<(), crate::errors::BadInput>,
+) -> Result<(), crate::errors::BadInput> {
+    let at = (cells.as_ptr() as usize)
+        .wrapping_sub(std::ptr::from_ref(holder) as usize)
+        .wrapping_add(n.wrapping_mul(4));
+    access(at).inspect_err(|_| {
+        crate::framework::log(&format!(
+            "pointers: {what}: dword {n} at +{at:#x}, outside its holder of {:#x} bytes",
+            size_of::<H>()
+        ));
+    })
+}
+
+/// `n` cells from `from` into `to`, one at a time forwards (a `rep movsd`: an overlap reads
+/// what it has just written), each past its table's end only inside its holder.
+pub fn copy_on_in<F: crate::pointers::Cells, T: crate::pointers::Cells, A: Cell32, B: Cell32>(
+    (from_holder, from): (&F, &[A]),
+    (to_holder, to): (&T, &[B]),
+    n: usize,
+    what: &str,
+) -> Result<(), crate::errors::BadInput> {
+    for k in 0..n {
+        write_on_in(
+            to_holder,
+            to,
+            k,
+            read_on_in(from_holder, from, k, what)?,
+            what,
+        )?;
+    }
+    Ok(())
 }
 
 /// A 32-bit cell the x87 model loads and stores by its bits: a `Dword` or a `Float` (a
@@ -141,12 +231,27 @@ pub trait Cell32 {
     fn set_bits(&self, bits: u32);
 }
 
+/// A cell by reference (a list of `&dyn Cell32` is a run of cells: `math::cells`).
+impl<T: Cell32 + ?Sized> Cell32 for &T {
+    fn bits(&self) -> u32 {
+        (**self).bits()
+    }
+    fn set_bits(&self, bits: u32) {
+        (**self).set_bits(bits);
+    }
+}
+
+/// The byte `n` of `cells` (a table of bytes held as dwords, little-endian), if inside.
+pub fn byte_of(cells: &[Dword], n: usize) -> Option<u8> {
+    cells.get(n / 4).map(|c| c.get().to_le_bytes()[n % 4])
+}
+
 impl Cell32 for Dword {
     fn bits(&self) -> u32 {
         self.get()
     }
     fn set_bits(&self, bits: u32) {
-        self.set(bits)
+        self.set(bits);
     }
 }
 
@@ -155,20 +260,7 @@ impl Cell32 for Float {
         self.bits()
     }
     fn set_bits(&self, bits: u32) {
-        self.set_bits(bits)
-    }
-}
-
-/// A cell named where a variable's IDA address is taken (`physics::flow::g`, `p`, `a`).
-impl crate::store::At for &Dword {
-    fn here(self) -> usize {
-        self.addr() as usize
-    }
-}
-
-impl crate::store::At for &Float {
-    fn here(self) -> usize {
-        self.addr() as usize
+        self.set_bits(bits);
     }
 }
 
@@ -186,11 +278,12 @@ impl Word {
     }
 
     pub fn set(&self, value: u16) {
-        self.0.store(value, Relaxed)
+        self.0.store(value, Relaxed);
     }
 
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self.0.as_ptr())
+    /// The atomic itself (the cells' copies, `pointers::CellRef`).
+    pub fn atomic(&self) -> &AtomicU16 {
+        &self.0
     }
 }
 
@@ -208,65 +301,62 @@ impl Byte {
     }
 
     pub fn set(&self, value: u8) {
-        self.0.store(value, Relaxed)
+        self.0.store(value, Relaxed);
     }
 
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self.0.as_ptr())
+    /// The atomic itself, for code that wants more than a load and a store (a once-only guard).
+    pub fn atomic(&self) -> &AtomicU8 {
+        &self.0
     }
 }
 
-/// A buffer of the game's bytes (a table, a record handed on by address): plain volatile
-/// loads and stores, as the image's bytes were shared between the game's threads.
+/// A buffer of the game's bytes (a table, a record handed on by address), shared between the
+/// game's threads as the image's bytes were: each byte an atomic of its own, reached at that
+/// width only (`shared_memory` copies byte by byte too), so no access mixes sizes.
 #[repr(transparent)]
-pub struct Bytes<const N: usize>(UnsafeCell<[u8; N]>);
-
-// SAFETY: as the image's memory: raw access only, under the original's discipline.
-unsafe impl<const N: usize> Sync for Bytes<N> {}
+pub struct Bytes<const N: usize>([AtomicU8; N]);
 
 impl<const N: usize> Bytes<N> {
     pub const fn new(value: [u8; N]) -> Self {
-        Self(UnsafeCell::new(value))
+        Self(atomic_bytes(value))
     }
 
     pub fn as_ptr(&self) -> *mut u8 {
-        self.0.get().cast()
+        self.0.as_ptr().cast::<u8>().cast_mut()
     }
 
+    /// Its atomics (the cells' copies, `pointers::CellRef`).
+    pub fn atomics(&self) -> &[AtomicU8] {
+        &self.0
+    }
+
+    #[cfg(test)]
     pub fn addr(&self) -> u32 {
         crate::pointers::game_address(self.as_ptr())
     }
 
     pub fn get(&self, index: usize) -> u8 {
-        assert!(index < N);
-        unsafe { self.as_ptr().add(index).read_volatile() }
+        self.0[index].load(Relaxed)
     }
 
     pub fn set(&self, index: usize, value: u8) {
-        assert!(index < N);
-        unsafe { self.as_ptr().add(index).write_volatile(value) }
+        self.0[index].store(value, Relaxed);
     }
 
     /// The byte at `index` as an atomic (an `xchg` on a key).
     pub fn atomic(&self, index: usize) -> &AtomicU8 {
-        assert!(index < N);
-        unsafe { AtomicU8::from_ptr(self.as_ptr().add(index)) }
+        &self.0[index]
     }
 
     /// The little-endian dword at byte `offset` (any alignment, as the game's records are
-    /// read).
+    /// read): four byte reads, so another thread's write of it may be seen half done.
     pub fn get_u32(&self, offset: usize) -> u32 {
-        assert!(offset + 4 <= N);
-        unsafe { self.as_ptr().add(offset).cast::<u32>().read_unaligned() }
+        u32::from_le_bytes(std::array::from_fn(|i| self.get(offset + i)))
     }
 
     pub fn set_u32(&self, offset: usize, value: u32) {
-        assert!(offset + 4 <= N);
-        unsafe {
-            self.as_ptr()
-                .add(offset)
-                .cast::<u32>()
-                .write_unaligned(value)
+        for (i, b) in value.to_le_bytes().into_iter().enumerate() {
+            self.set(offset + i, b);
         }
     }
 
@@ -275,33 +365,99 @@ impl<const N: usize> Bytes<N> {
         std::array::from_fn(|i| self.get(i))
     }
 
+    /// The bytes up to the first NUL (or all of them): a text kept in the buffer.
+    pub fn text(&self) -> Vec<u8> {
+        let all = self.read();
+        let n = all.iter().position(|&c| c == 0).unwrap_or(N);
+        all[..n].to_vec()
+    }
+
     pub fn write(&self, value: &[u8; N]) {
         for (i, &b) in value.iter().enumerate() {
             self.set(i, b);
         }
     }
+
+    /// `len` bytes from `offset` (`what` names them in a refusal past the end).
+    pub fn read_at(
+        &self,
+        offset: usize,
+        len: usize,
+        what: &str,
+    ) -> Result<Vec<u8>, crate::errors::BadInput> {
+        self.range(offset, len, what)?;
+        Ok((offset..offset + len).map(|i| self.get(i)).collect())
+    }
+
+    /// `data` written from `offset`.
+    pub fn write_at(
+        &self,
+        offset: usize,
+        data: &[u8],
+        what: &str,
+    ) -> Result<(), crate::errors::BadInput> {
+        self.range(offset, data.len(), what)?;
+        for (i, &b) in data.iter().enumerate() {
+            self.set(offset + i, b);
+        }
+        Ok(())
+    }
+
+    fn range(&self, offset: usize, len: usize, what: &str) -> Result<(), crate::errors::BadInput> {
+        match offset.checked_add(len) {
+            Some(end) if end <= N => Ok(()),
+            _ => {
+                crate::framework::log(&format!(
+                    "session: {what}: {len} bytes at {offset:#x} of a {N:#x}-byte buffer"
+                ));
+                Err(crate::errors::BadInput("past the end of a buffer"))
+            }
+        }
+    }
 }
 
-/// A dword at an address that is not a multiple of 4 (the audio block's `g_has3d`): plain
-/// unaligned volatile loads and stores, as the image's were.
+/// A dword at an address that is not a multiple of 4 (the audio block's `g_has3d`): four
+/// byte atomics, as `Bytes`.
 #[repr(transparent)]
-pub struct Loose(UnsafeCell<[u8; 4]>);
-
-// SAFETY: as the image's memory: raw access only, under the original's discipline.
-unsafe impl Sync for Loose {}
+pub struct Loose([AtomicU8; 4]);
 
 impl Loose {
     pub const fn new(value: u32) -> Self {
-        Self(UnsafeCell::new(value.to_le_bytes()))
+        Self(atomic_bytes(value.to_le_bytes()))
     }
 
     pub fn get(&self) -> u32 {
-        unsafe { self.0.get().cast::<u32>().read_unaligned() }
+        u32::from_le_bytes(std::array::from_fn(|i| self.0[i].load(Relaxed)))
     }
 
     pub fn set(&self, value: u32) {
-        unsafe { self.0.get().cast::<u32>().write_unaligned(value) }
+        for (cell, b) in self.0.iter().zip(value.to_le_bytes()) {
+            cell.store(b, Relaxed);
+        }
     }
+
+    /// Its atomics (the cells' copies, `pointers::CellRef`).
+    pub fn atomics(&self) -> &[AtomicU8] {
+        &self.0
+    }
+}
+
+/// `value`'s bytes as atomics (a `const` initialiser of `Bytes` and `Loose`), in one move: a
+/// loop over a table of the game's data is too slow for the compiler's evaluator.
+const fn atomic_bytes<const N: usize>(value: [u8; N]) -> [AtomicU8; N] {
+    use std::mem::ManuallyDrop;
+    union Both<const N: usize> {
+        plain: ManuallyDrop<[u8; N]>,
+        atomic: ManuallyDrop<[AtomicU8; N]>,
+    }
+    // SAFETY: `AtomicU8` has `u8`'s size, alignment and bit validity, so the arrays are the
+    // same bytes; the value is moved, not shared.
+    ManuallyDrop::into_inner(unsafe {
+        Both {
+            plain: ManuallyDrop::new(value),
+        }
+        .atomic
+    })
 }
 
 /// A record the game keeps as a plain struct (a voice, a mixer channel, a stream player, a
@@ -319,13 +475,65 @@ impl<T: Copy> Shared<T> {
         Self(UnsafeCell::new(value))
     }
 
-    /// A copy of the record (a plain, possibly unaligned, volatile read).
+    /// Whether the record is reached by dwords (4-aligned: each whole dword one atomic, as
+    /// the original's dwords were whole) or byte by byte (a packed record).
+    pub const WORDS: bool = align_of::<T>() >= 4;
+
+    /// A copy of the record (a record's fields may be read half changed, as the original's;
+    /// a 4-aligned record's dwords are each read whole).
     pub fn get(&self) -> T {
-        unsafe { self.0.get().read_volatile() }
+        let mut value = std::mem::MaybeUninit::<T>::uninit();
+        // SAFETY: the record's own bytes, reached only at the widths `WORDS` picks (here and
+        // in its cells, `pointers`); every byte of `value` is written before it is taken.
+        unsafe {
+            let to =
+                std::slice::from_raw_parts_mut(value.as_mut_ptr().cast::<u8>(), size_of::<T>());
+            let base = self.0.get().cast::<u8>();
+            if Self::WORDS {
+                crate::shared_memory::load_words(base, size_of::<T>(), 0, to);
+            } else {
+                crate::shared_memory::load(base, to.as_mut_ptr(), to.len());
+            }
+            value.assume_init()
+        }
+    }
+
+    /// The run of cells holding byte `offset`, at the width `WORDS` picks, and the byte it
+    /// starts at: a 4-aligned record's whole dwords, or the bytes past them; a packed
+    /// record's bytes.
+    pub fn cell_run(&self, offset: usize) -> (usize, crate::pointers::CellRun<'_>) {
+        use crate::pointers::CellRun;
+        let size = size_of::<T>();
+        let words = if Self::WORDS { size & !3 } else { 0 };
+        let base = self.0.get().cast::<u8>();
+        assert!(offset < size, "Shared: byte {offset} outside the record");
+        if offset < words {
+            // SAFETY: the record's whole dwords, 4-aligned (`WORDS`), reached only as these
+            // `AtomicU32`s (`get`, `set` and the cells take the same width); they live as
+            // long as `self`.
+            (
+                0,
+                CellRun::Words(unsafe { std::slice::from_raw_parts(base.cast(), words / 4) }),
+            )
+        } else {
+            // SAFETY: the bytes past them (a packed record: all of it), reached only as these
+            // `AtomicU8`s, `u8`'s layout.
+            let tail = unsafe { std::slice::from_raw_parts(base.add(words).cast(), size - words) };
+            (words, CellRun::Bytes(tail))
+        }
     }
 
     pub fn set(&self, value: T) {
-        unsafe { self.0.get().write_volatile(value) }
+        // SAFETY: as `get`'s; `value`'s bytes are only read.
+        unsafe {
+            let from = std::slice::from_raw_parts((&raw const value).cast::<u8>(), size_of::<T>());
+            let base = self.0.get().cast::<u8>();
+            if Self::WORDS {
+                crate::shared_memory::store_words(base, size_of::<T>(), 0, from);
+            } else {
+                crate::shared_memory::store(base, from.as_ptr(), from.len());
+            }
+        }
     }
 
     /// The record changed by `change` (read, changed, written back).
@@ -344,13 +552,6 @@ impl<T> Shared<T> {
     pub fn addr(&self) -> u32 {
         crate::pointers::game_address(self.as_ptr())
     }
-
-    /// The record as the core's struct, to work on in place. The caller keeps the original's
-    /// discipline: no other borrow of it lives at the same time.
-    #[allow(clippy::mut_from_ref)]
-    pub unsafe fn borrow(&self) -> &mut T {
-        unsafe { &mut *self.0.get() }
-    }
 }
 
 const fn zeros<const N: usize>() -> [Dword; N] {
@@ -359,6 +560,7 @@ const fn zeros<const N: usize>() -> [Dword; N] {
 
 /// The screen: 0x4F494C .. 0x4F4984.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Screen {
     pub width: Dword,       // g_screenWidth
     pub height: Dword,      // g_screenHeight
@@ -372,63 +574,64 @@ pub struct Screen {
 }
 
 impl Screen {
-    /// Where the pixel format record is (a Windows-style record the game's code reads and
-    /// writes by address).
-    pub fn format_addr(&self) -> u32 {
-        crate::pointers::game_address(self.format.as_ptr())
+    pub const fn new() -> Self {
+        Screen {
+            width: Dword::new(0),
+            height: Dword::new(0),
+            bits: Dword::new(0),
+            bytes: Dword::new(0),
+            row_bytes: Dword::new(0),
+            row_dwords: Dword::new(0),
+            depth_bits: Dword::new(0),
+            kind: Dword::new(0),
+            format: zeros(),
+        }
     }
 }
-
-pub static SCREEN: Screen = Screen {
-    width: Dword::new(0),
-    height: Dword::new(0),
-    bits: Dword::new(0),
-    bytes: Dword::new(0),
-    row_bytes: Dword::new(0),
-    row_dwords: Dword::new(0),
-    depth_bits: Dword::new(0),
-    kind: Dword::new(0),
-    format: zeros(),
-};
 
 pub const SCREEN_IDA: usize = 0x4F494C;
 pub const SCREEN_LEN: usize = core::mem::size_of::<Screen>();
 
 /// The window's state and the main loop's: 0x518370 .. 0x51839C.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Flags {
-    pub f370: Dword,            // dword_518370
-    pub window_active: Dword,   // g_windowActive
-    pub window_focused: Dword,  // g_windowFocused
-    pub quitting: Dword,        // g_quitting
-    pub lost: Dword,            // dword_518380
-    pub no_task_switch: Dword,  // dword_518384 (`notaskswitch`, a `var\ral.cfg` setting)
-    pub keep_priority: Dword,   // g_keepPriority (`noprichange`, a setting)
-    pub f38c: Dword,            // dword_51838C
-    pub main_loop_stack: Dword, // g_mainLoopStack
-    pub f394: Dword,            // dword_518394 (1 at start)
-    pub paused: Dword,          // dword_518398
+    pub f370: Dword,           // dword_518370
+    pub window_active: Dword,  // g_windowActive
+    pub window_focused: Dword, // g_windowFocused
+    pub quitting: Dword,       // g_quitting
+    pub lost: Dword,           // dword_518380
+    pub no_task_switch: Dword, // dword_518384 (`notaskswitch`, a `var\ral.cfg` setting)
+    pub keep_priority: Dword,  // g_keepPriority (`noprichange`, a setting)
+    /// `dword_51838C` and `g_mainLoopStack`: only the main loop's, which needs neither.
+    pub _gap_51838c: [Dword; 2],
+    pub f394: Dword,   // dword_518394 (1 at start)
+    pub paused: Dword, // dword_518398
 }
 
-pub static FLAGS: Flags = Flags {
-    f370: Dword::new(0),
-    window_active: Dword::new(0),
-    window_focused: Dword::new(0),
-    quitting: Dword::new(0),
-    lost: Dword::new(0),
-    no_task_switch: Dword::new(0),
-    keep_priority: Dword::new(0),
-    f38c: Dword::new(0),
-    main_loop_stack: Dword::new(0),
-    f394: Dword::new(1),
-    paused: Dword::new(0),
-};
+impl Flags {
+    pub const fn new() -> Self {
+        Flags {
+            f370: Dword::new(0),
+            window_active: Dword::new(0),
+            window_focused: Dword::new(0),
+            quitting: Dword::new(0),
+            lost: Dword::new(0),
+            no_task_switch: Dword::new(0),
+            keep_priority: Dword::new(0),
+            _gap_51838c: [Dword::new(0), Dword::new(0)],
+            f394: Dword::new(1),
+            paused: Dword::new(0),
+        }
+    }
+}
 
 pub const FLAGS_IDA: usize = 0x518370;
 pub const FLAGS_LEN: usize = core::mem::size_of::<Flags>();
 
 /// What the machine is and has, and the window handles: 0x5183A8 .. 0x5184A8.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Machine {
     pub has_mmx: Dword,          // g_hasMmx
     pub ignore_mmx: Dword,       // dword_5183AC (`ignoremmx`)
@@ -459,69 +662,66 @@ pub struct Machine {
 }
 
 impl Machine {
-    /// The processor vendor's text (12 bytes).
-    pub fn vendor_addr(&self) -> u32 {
-        crate::pointers::game_address(self.cpu_vendor.as_ptr())
-    }
-
-    /// The Windows version record (`OSVERSIONINFOA`, 148 bytes).
-    pub fn version_addr(&self) -> u32 {
-        crate::pointers::game_address(self.version.as_ptr())
+    pub const fn new() -> Self {
+        Machine {
+            has_mmx: Dword::new(0),
+            ignore_mmx: Dword::new(0),
+            has_sse: Dword::new(0),
+            ignore_katmai: Dword::new(0),
+            has_3dnow: Dword::new(0),
+            ignore_3dnow: Dword::new(0),
+            work: Dword::new(0),
+            work_float: Dword::new(0),
+            gap_c8: Dword::new(0),
+            scratch: Dword::new(0),
+            cpu_family: Dword::new(0),
+            cpu_signature: Dword::new(0),
+            cpu_vendor: zeros(),
+            gap_e4: Dword::new(0),
+            cpu_mhz: Dword::new(0),
+            has_fpu: Dword::new(0),
+            has_tsc: Dword::new(0),
+            has_cmov: Dword::new(0),
+            found_mmx: Dword::new(0),
+            found_sse: Dword::new(0),
+            found_3dnow: Dword::new(0),
+            keyboard_type: Dword::new(1),
+            version: zeros(),
+            exception_resume: Dword::new(0),
+            instance: Dword::new(0),
+            window: Dword::new(0),
+        }
     }
 }
-
-pub static MACHINE: Machine = Machine {
-    has_mmx: Dword::new(0),
-    ignore_mmx: Dword::new(0),
-    has_sse: Dword::new(0),
-    ignore_katmai: Dword::new(0),
-    has_3dnow: Dword::new(0),
-    ignore_3dnow: Dword::new(0),
-    work: Dword::new(0),
-    work_float: Dword::new(0),
-    gap_c8: Dword::new(0),
-    scratch: Dword::new(0),
-    cpu_family: Dword::new(0),
-    cpu_signature: Dword::new(0),
-    cpu_vendor: zeros(),
-    gap_e4: Dword::new(0),
-    cpu_mhz: Dword::new(0),
-    has_fpu: Dword::new(0),
-    has_tsc: Dword::new(0),
-    has_cmov: Dword::new(0),
-    found_mmx: Dword::new(0),
-    found_sse: Dword::new(0),
-    found_3dnow: Dword::new(0),
-    keyboard_type: Dword::new(1),
-    version: zeros(),
-    exception_resume: Dword::new(0),
-    instance: Dword::new(0),
-    window: Dword::new(0),
-};
 
 pub const MACHINE_IDA: usize = 0x5183A8;
 pub const MACHINE_LEN: usize = core::mem::size_of::<Machine>();
 
 /// The key thread's count and the clocks the menus keep: 0x518998 .. 0x5189A4.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Clocks {
     pub key_ticks: Dword,  // dword_518998: the key thread's turns
     pub frame: Dword,      // dword_51899C: the menus' clock (`update_frame_clock`)
     pub setup_time: Dword, // dword_5189A0
 }
 
-pub static CLOCKS: Clocks = Clocks {
-    key_ticks: Dword::new(0),
-    frame: Dword::new(0),
-    setup_time: Dword::new(0),
-};
+impl Clocks {
+    pub const fn new() -> Self {
+        Clocks {
+            key_ticks: Dword::new(0),
+            frame: Dword::new(0),
+            setup_time: Dword::new(0),
+        }
+    }
+}
 
 pub const CLOCKS_IDA: usize = 0x518998;
 pub const CLOCKS_LEN: usize = core::mem::size_of::<Clocks>();
 
 /// The address of a field or an array of cells, for code that is handed an address.
 pub fn address_of<T: ?Sized>(field: &T) -> u32 {
-    crate::pointers::game_address(field as *const T as *const u8)
+    crate::pointers::game_address(std::ptr::from_ref::<T>(field).cast::<u8>())
 }
 
 /// `N` bytes holding `runs` ((offset, bytes)) and zeros elsewhere.
@@ -540,13 +740,117 @@ pub const fn with_runs<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {
     out
 }
 
+/// A text the game keeps in place and may write into (a path whose ending the picture
+/// loader swaps): a typed buffer (`Bytes<N>`), or one known only by its game address
+/// (`GamePtr`, checked as game memory).
+pub trait TextPlace {
+    /// The bytes up to the NUL; refused when none comes before the place's end.
+    fn text(&self, what: &str) -> Result<Vec<u8>, crate::errors::BadInput>;
+    /// `bytes` written `at` bytes in.
+    fn write_text_at(
+        &self,
+        at: usize,
+        bytes: &[u8],
+        what: &str,
+    ) -> Result<(), crate::errors::BadInput>;
+}
+
+impl<const N: usize> TextPlace for Bytes<N> {
+    fn text(&self, _what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
+        let all = self.read();
+        match all.iter().position(|&c| c == 0) {
+            Some(n) => Ok(all[..n].to_vec()),
+            None => Err(crate::errors::BadInput("a text with no end in its buffer")),
+        }
+    }
+
+    fn write_text_at(
+        &self,
+        at: usize,
+        bytes: &[u8],
+        what: &str,
+    ) -> Result<(), crate::errors::BadInput> {
+        self.write_at(at, bytes, what)
+    }
+}
+
+/// A text of the program's own (a literal with its NUL): read only. The writes the
+/// original could make into its copy in the image (a missing `.png`'s ending swapped) are
+/// refused.
+impl<const N: usize> TextPlace for [u8; N] {
+    fn text(&self, _what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
+        match self.iter().position(|&c| c == 0) {
+            Some(n) => Ok(self[..n].to_vec()),
+            None => Err(crate::errors::BadInput("a text with no end in its buffer")),
+        }
+    }
+
+    fn write_text_at(&self, _: usize, _: &[u8], _: &str) -> Result<(), crate::errors::BadInput> {
+        Err(crate::errors::BadInput(
+            "a write into one of the program's own texts",
+        ))
+    }
+}
+
+/// A text in a `Bytes` that begins `from` bytes in (a path among several in one buffer): read
+/// up to its NUL inside the buffer, written to inside it.
+pub struct TextFrom<'a, const N: usize> {
+    buffer: &'a Bytes<N>,
+    from: usize,
+}
+
+impl<const N: usize> Bytes<N> {
+    /// The text that begins `from` bytes in.
+    pub fn text_from(&self, from: usize) -> TextFrom<'_, N> {
+        TextFrom { buffer: self, from }
+    }
+}
+
+impl<const N: usize> TextPlace for TextFrom<'_, N> {
+    fn text(&self, _what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
+        let all = self.buffer.read();
+        let rest = all
+            .get(self.from..)
+            .ok_or(crate::errors::BadInput("a text past its buffer"))?;
+        match rest.iter().position(|&c| c == 0) {
+            Some(n) => Ok(rest[..n].to_vec()),
+            None => Err(crate::errors::BadInput("a text with no end in its buffer")),
+        }
+    }
+
+    fn write_text_at(
+        &self,
+        at: usize,
+        bytes: &[u8],
+        what: &str,
+    ) -> Result<(), crate::errors::BadInput> {
+        self.buffer
+            .write_at(self.from.saturating_add(at), bytes, what)
+    }
+}
+
+impl TextPlace for crate::pointers::GamePtr {
+    fn text(&self, what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
+        crate::files::cstring_at(*self, what)
+    }
+
+    fn write_text_at(
+        &self,
+        at: usize,
+        bytes: &[u8],
+        what: &str,
+    ) -> Result<(), crate::errors::BadInput> {
+        self.offset(at as u32).write_bytes(bytes, what)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::moved::image_bytes;
 
     fn bytes_of<T>(block: &'static T) -> Vec<u8> {
-        let p = block as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(block).cast::<u8>();
         (0..core::mem::size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()
@@ -554,10 +858,23 @@ mod tests {
 
     #[test]
     fn the_blocks_start_as_the_images_bytes() {
-        assert_eq!(bytes_of(&SCREEN), image_bytes(SCREEN_IDA, SCREEN_LEN));
-        assert_eq!(bytes_of(&FLAGS), image_bytes(FLAGS_IDA, FLAGS_LEN));
-        assert_eq!(bytes_of(&MACHINE), image_bytes(MACHINE_IDA, MACHINE_LEN));
-        assert_eq!(bytes_of(&CLOCKS), image_bytes(CLOCKS_IDA, CLOCKS_LEN));
+        let system = system();
+        assert_eq!(
+            bytes_of(&system.session.screen),
+            image_bytes(SCREEN_IDA, SCREEN_LEN)
+        );
+        assert_eq!(
+            bytes_of(&system.session.flags),
+            image_bytes(FLAGS_IDA, FLAGS_LEN)
+        );
+        assert_eq!(
+            bytes_of(&system.session.machine),
+            image_bytes(MACHINE_IDA, MACHINE_LEN)
+        );
+        assert_eq!(
+            bytes_of(&system.session.clocks),
+            image_bytes(CLOCKS_IDA, CLOCKS_LEN)
+        );
     }
 
     #[test]

@@ -1,8 +1,6 @@
 //! `menu::simple_select_players_loop` (0x481771): a screen titled "ESCOLHA NÚMERO DE
 //! JOGADORES", the mode menu's first entry (a reading)
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `arcade1.png`; leaving is not asked about; the
 //! next frame begins with the steps after the first frame; the steps that are more than a call
@@ -13,90 +11,77 @@
 //! Named `select_players_481771_loop`, then by mistake `championship_select_players_loop`
 //! and `arcade_select_players_loop`.
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::menus_store::MENUS;
-use crate::menu::option_work_store::OPTION_WORK;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Callee, Carried, Flow, List, Screen, Step, carousel, prepare_scene, screen_entry,
+    Callee, Entry, Flow, FrameRoutine, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
-use crate::menu::state_store::MENU_STATE;
-use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
-    SCREEN_FLOW.turning.set(0x1u32);
-    MENU_STATE.carousel.menu.set(0x2u32);
-    carousel(c)?;
-    c.arg = SCREEN_ITEMS.current[slot::SIMPLE_SELECT_PLAYERS].get();
-    LOOP_FLAGS.item.set(c.arg);
-    c.arg = c.arg.wrapping_sub(1);
-    MENU_STATE.carousel.front.set(c.arg);
-    DRAW.view_offset[0].set(0x7u32);
-    DRAW.view_offset[1].set(0xAu32);
-    DRAW.view_zoom.set(0x100u32);
-    prepare_scene(c);
+fn set_up_first(entry: &Entry) -> Result<(), Refused> {
+    let drawing = &entry.scene.drawing;
+    let screens = &entry.menus.screens;
+    screens.flow.turning.set(0x1u32);
+    screens.state.carousel.menu.set(0x2u32);
+    carousel(None, entry.scene)?;
+    let item = screens.items.current[slot::SIMPLE_SELECT_PLAYERS].get();
+    screens.loop_flags.item.set(item);
+    screens.state.carousel.front.set(item.wrapping_sub(1));
+    drawing.scene.view_offset[0].set(0x7u32);
+    drawing.scene.view_offset[1].set(0xAu32);
+    drawing.scene.view_zoom.set(0x100u32);
+    prepare_scene(entry.scene);
     Ok(())
 }
 
-fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
-    if CAPTIONS.screen_left.get() == 0x1 {
-        CAPTIONS.screen_left.set(0x0u32);
+fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
+    let tables = &entry.menus.tables;
+    if tables.captions.screen_left.get() == 0x1 {
+        tables.captions.screen_left.set(0x0u32);
         return Ok(Flow::SetUp);
     }
     Ok(Flow::On)
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.simple_select_players.addr() as usize,
-    saved_item: || &SCREEN_ITEMS.current[slot::SIMPLE_SELECT_PLAYERS],
+    menu: |m| m.tables.menus.simple_select_players.id(),
+    saved_item: |m| &m.screens.items.current[slot::SIMPLE_SELECT_PLAYERS],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.simple_select_players_scene.addr() as usize,
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.simple_select_players_scene.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.simple_select_players_draw.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.simple_select_players_draw.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.simple_select_players_overlay.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.simple_select_players_overlay.id(),
             run: false,
         },
     ],
     first_frame_lists: None,
-    frame_callback: rva(0x474D4B),
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
-    before: &[Step::Write(|| &EVENT_STATE.event_done, 0x0)],
+    before: &[Step::Write(|m| &m.screens.event.event_done, 0x0)],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgAddr(|| {
-            (crate::menu::texts_store::MENU_TEXTS
-                .simple_select_players_picture
-                .addr()) as usize
-        }),
-        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.simple_select_players_picture
+    }))],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     confirm: None,
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Write(|| &OPTION_WORK.menu_sound, 0x6F)],
+    after: &[Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F)],
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,

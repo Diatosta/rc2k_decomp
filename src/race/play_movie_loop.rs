@@ -7,17 +7,10 @@
 //! (`drive::race_frame`), until the block played is the one to stop at; "dpg replay
 //! exit".
 //!
-//! In:  nothing
-//! Out: the registers as the steps leave them (eax `dword_5C2530` after a whole play); no
-//!      flags read
-//!
 //! Caller: `race::play_movie`.
 
 use crate::errors::Refused;
-use crate::input::store::DEVICES;
-use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::viewer_state_store::REPLAY_VIEW;
+use crate::race::owner::Race;
 
 const TEXTS: [&std::ffi::CStr; 4] = [
     c"dpg replay",
@@ -27,34 +20,37 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 ]; // "dpg replay" ..
 
 fn log_text(text: &std::ffi::CStr, newline: bool) {
-    unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), newline, 1) }
+    crate::logfile::log_write::log_nul(&text, newline, 1);
 }
 
 fn log_number(n: u32) {
-    crate::logfile::log_int::log_int(n as i32, true, 1)
+    crate::logfile::log_int::log_int(n as i32, true, 1);
 }
 
 /// The Rust version. Reads no register, and its one caller (`race::play_movie`, whose
 /// caller reads none either) reads none it leaves (`lq -s 0x4607A5`: nothing live).
-pub fn play_movie_loop() -> Result<(), Refused> {
+pub fn play_movie_loop(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
     use crate::drive::race_parts;
-    crate::race::stage_prefs::init_skidmarks()?;
+    crate::race::stage_prefs::init_skidmarks(race)?;
     log_text(TEXTS[0], false);
     log_text(TEXTS[1], false);
-    log_number(REPLAY_VIEW.replay_block.get());
+    log_number(race.replay.replay_view.replay_block.get());
     log_text(TEXTS[2], false);
-    log_number(REPLAY_VIEW.play_end.get());
-    NUMBERS.replay_mode.set(2); // dword_5C5CE0
-    race_parts::restart_clock();
-    PHYSICS.race_clock_base.set(PHYSICS.scene_clock.get());
+    log_number(race.replay.replay_view.play_end.get());
+    race.course.numbers.replay_mode.set(2); // dword_5C5CE0
+    race_parts::restart_clock(race);
+    race.shared
+        .physics_tables
+        .race_clock_base
+        .set(race.shared.physics_tables.scene_clock.get());
     loop {
         race_parts::input_update();
-        if DEVICES.keys_pressed.get(1) != 0 {
+        if input.devices.keys_pressed.get(1) != 0 {
             break;
         }
-        unsafe { crate::drive::race_step::race_step() }?;
-        race_parts::race_frame()?;
-        if REPLAY_VIEW.replay_block.get() == REPLAY_VIEW.play_end.get() {
+        { crate::drive::race_step::race_step(race, crate::scene::owner::scene()) }?;
+        race_parts::race_frame(race)?;
+        if race.replay.replay_view.replay_block.get() == race.replay.replay_view.play_end.get() {
             break;
         }
     }

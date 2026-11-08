@@ -5,6 +5,8 @@
 //! a palette number and the palette, 0x300 bytes, is the end of the file.
 
 use crate::files::stream::Stream;
+#[cfg(test)]
+use crate::gfx::owner::gfx;
 use crate::session::{Bytes, Dword, with_runs};
 
 /// IDA's address of the PCX decoding's variables.
@@ -20,6 +22,7 @@ pub const STREAM_LEN: usize = core::mem::size_of::<Stream>();
 
 /// The PCX file being decoded.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Pcx {
     /// `dword_5195D4`: the picture's width, as the header says.
     pub file_width: Dword,
@@ -29,8 +32,8 @@ pub struct Pcx {
     pub line_bytes: Dword,
     /// `g_pcxPlanes` (`dword_5195E0`).
     pub planes: Dword,
-    /// `g_pictureStream` (`dword_5195E4`): the stream the readers open the file as (a
-    /// `files::stream::Stream`, its file handle -1 at the start).
+    /// `g_pictureStream` (`dword_5195E4`): the stream the readers opened the file as; not
+    /// used since 2026-10-29 (`files::stream::with_stream`), kept for the block's layout.
     pub stream: Bytes<STREAM_LEN>,
     /// `g_pcxHeader` (`dword_51B5F4`): the header as read from the file, 0x80 bytes.
     pub header: Bytes<HEADER_LEN>,
@@ -42,26 +45,63 @@ pub struct Pcx {
     pub height_limit: Dword,
 }
 
-/// The PCX file's variables; the first values are the image's.
-pub static PCX: Pcx = Pcx {
-    file_width: Dword::new(0),
-    file_height: Dword::new(0),
-    line_bytes: Dword::new(0),
-    planes: Dword::new(0),
-    stream: Bytes::new(with_runs(&[(4, &[0xFF; 4])])),
-    header: Bytes::new([0; HEADER_LEN]),
-    file_palette: Bytes::new([0; FILE_PALETTE_LEN]),
-    width_limit: Dword::new(0x320),
-    height_limit: Dword::new(0x258),
-};
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x5195D4).
-pub fn home() -> usize {
-    crate::pointers::game_address(&PCX as *const Pcx) as usize
+impl Pcx {
+    /// The PCX file's variables; the first values are the image's.
+    pub const fn new() -> Self {
+        Pcx {
+            file_width: Dword::new(0),
+            file_height: Dword::new(0),
+            line_bytes: Dword::new(0),
+            planes: Dword::new(0),
+            stream: Bytes::new(with_runs(&[(4, &[0xFF; 4])])),
+            header: Bytes::new([0; HEADER_LEN]),
+            file_palette: Bytes::new([0; FILE_PALETTE_LEN]),
+            width_limit: Dword::new(0x320),
+            height_limit: Dword::new(0x258),
+        }
+    }
 }
 
-pub fn stream() -> *mut Stream {
-    PCX.stream.as_ptr().cast()
+/// The header zeroed and the file's first 0x80 bytes read into it (`files::read_file`):
+/// whether the read worked.
+pub fn read_header(
+    path: &[u8],
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<bool, crate::errors::BadInput> {
+    let mut header = [0u8; HEADER_LEN];
+    let ok = crate::files::read_file::read_file_into(path, &mut header, 0)?.ok;
+    gfx.pictures.pcx.header.write(&header);
+    Ok(ok)
+}
+
+/// The header read through `stream` (`files::read_stream_block`): whether it worked. The
+/// bytes past a short read stay as they were.
+pub fn read_stream_header(
+    stream: &mut Stream,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<bool, crate::errors::BadInput> {
+    let pictures = &gfx.pictures;
+    let mut header = pictures.pcx.header.read();
+    let failed = crate::files::read_stream_block::read_stream_block(stream, &mut header)?.1;
+    pictures.pcx.header.write(&header);
+    Ok(!failed)
+}
+
+/// `path` opened as the stream (mode 0), `rows` run on it, the stream closed: whether all
+/// three worked.
+pub fn on_stream(
+    path: &[u8],
+    rows: impl FnOnce(&mut Stream) -> Result<bool, crate::errors::BadInput>,
+) -> Result<bool, crate::errors::BadInput> {
+    use crate::files::{close_stream::close_stream, open_stream::open_stream};
+    crate::files::stream::with_stream(|stream| {
+        if !open_stream(stream, path, 0)? {
+            return Ok(false);
+        }
+        let rows = rows(stream);
+        let closed = close_stream(stream)?;
+        Ok(rows? && closed)
+    })
 }
 
 #[cfg(test)]
@@ -71,20 +111,27 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&PCX, START, START + LEN);
+        crate::gfx::first_values_are_the_games(&gfx().pictures.pcx, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
+        let pictures = &gfx().pictures;
         assert_eq!(offset_of!(Pcx, stream), 0x5195E4 - START);
         assert_eq!(offset_of!(Pcx, header), 0x51B5F4 - START);
         assert_eq!(offset_of!(Pcx, file_palette), 0x51B674 - START);
         assert_eq!(offset_of!(Pcx, width_limit), 0x51B974 - START);
-        assert_eq!(crate::moved::place(START), PCX.file_width.addr() as usize);
-        assert_eq!(crate::moved::place(0x51B5F4), PCX.header.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            pictures.pcx.file_width.addr() as usize
+        );
+        assert_eq!(
+            crate::moved::place(0x51B5F4),
+            pictures.pcx.header.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(0x51B978),
-            PCX.height_limit.addr() as usize
+            pictures.pcx.height_limit.addr() as usize
         );
     }
 }

@@ -1,19 +1,17 @@
 //! `drive::store_first_car` (0x460CAA): `g_currentCar` 0 and `drive::store_car` (the work
 //! car back into the first block).
 //!
-//! In:  nothing
-//! Out: as `store_car` leaves the registers; no flags read
-//!
-//! Callers: `drive::finish_run`, `sub_4293CB` (twice). Refuses what `store_car` refuses.
+//! Callers: `drive::finish_run`, 0x4293CB (twice). Refuses what `store_car` refuses.
 
 use crate::errors::Refused;
-use crate::race::work_store::RACE_WORK;
+use crate::race::owner_shared::Shared;
 
 /// The Rust version.
 /// The Rust version. The registers and ZF it leaves are read by no caller (liveness: ZF
-/// after `sub_4293CB`'s call has no read point).
-pub fn store_first_car() -> Result<(), Refused> {
-    RACE_WORK.current_car.set(0);
-    crate::drive::store_car::store_car()?;
+/// after 0x4293CB's call has no read point).
+pub fn store_first_car(shared: &Shared) -> Result<(), Refused> {
+    shared.work.current_car.set(0);
+
+    crate::drive::store_car::store_car(shared)?;
     Ok(())
 }

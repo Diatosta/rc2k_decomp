@@ -1,65 +1,42 @@
 //! A 3D buffer's property sets (IDA, 2026-10-15): DirectSound's voice manager ("DSV",
 //! setting `ignoredsv`) and EAX 1's reverb ("EAX", `ignoreeax`), each opened once through
 //! the first 3D buffer made (`IKsPropertySet` from its `QueryInterface`), and the EAX room.
+//! The platform's DirectSound offers no property sets (`platform_sound::query_interface`
+//! answers `E_NOINTERFACE`, as a sound card without them): the openings end there, as
+//! they did through the method tables; what the original does with a set it got (its
+//! `QuerySupport` for get and set, the voice manager's mode 2, the log line, `found` 1,
+//! the room's `Set`) is refused where it would be reached.
 
-use crate::audio::com::method;
-use crate::audio::store::AUDIO;
+use crate::audio::store::AudioState;
 use crate::errors::{BadInput, Refused};
-use crate::session::{Bytes, Dword};
+use crate::session::Dword;
 
-const USING_DSV_TEXT: &std::ffi::CStr = c"AUD: Using DSV"; // "AUD: Using DSV"
-const USING_EAX_TEXT: &std::ffi::CStr = c"AUD: Using EAX"; // "AUD: Using EAX"
-/// `IKsPropertySet`'s `Set` and `QuerySupport`.
-const SET: u32 = 0x10;
-const QUERY_SUPPORT: u32 = 0x14;
-/// `KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET`.
-const GET_AND_SET: u32 = 3;
-/// `DSPROPERTY_VMANAGER_MODE`'s value 2 (`DSPROPERTY_VMANAGER_MODE_REPORT`).
-const VOICE_MANAGER_MODE: u32 = 2;
+/// What a property set the platform made would need (it makes none).
+const NO_SETS: &str = "a DirectSound property set (the platform offers none)";
 
-/// A text to the log (level 1, with a line's end).
-pub type Log<'a> = &'a mut dyn FnMut(u32);
-
-pub fn game_log(text: u32) {
-    crate::audio::sound_device::log_text_1(text);
-}
-
-/// Where one opening's things are.
+/// Where one opening's things are. (The original also has, per set, its `found` flag, its
+/// id, its log line "AUD: Using DSV" / "AUD: Using EAX" and, for the voice manager, the
+/// mode it sets: only reached with a set the platform never makes.)
 #[derive(Clone, Copy)]
-pub struct Opening {
+pub struct Opening<'a> {
     /// The `ignore...` setting.
-    pub setting: &'static Dword,
+    pub setting: &'a Dword,
     /// Where the property set goes.
-    pub object: &'static Dword,
-    /// Set to 1 when it is there.
-    pub found: &'static Dword,
-    /// Which set (its id); the text logged.
-    pub set: &'static Bytes<16>,
-    pub text: &'static std::ffi::CStr,
-    /// The voice manager's mode is set; EAX's nothing.
-    pub mode: bool,
+    pub object: &'a Dword,
 }
 
-impl Opening {
-    pub fn voice_manager() -> Self {
+impl<'a> Opening<'a> {
+    pub fn voice_manager(state: &'a AudioState) -> Self {
         Self {
-            setting: &AUDIO.ignore_dsv_setting,
-            object: &AUDIO.voice_manager,
-            found: &AUDIO.voice_manager_on,
-            set: &AUDIO.voice_manager_set,
-            text: USING_DSV_TEXT,
-            mode: true,
+            setting: &state.ignore_dsv_setting,
+            object: &state.voice_manager,
         }
     }
 
-    pub fn eax() -> Self {
+    pub fn eax(state: &'a AudioState) -> Self {
         Self {
-            setting: &AUDIO.ignore_eax_setting,
-            object: &AUDIO.eax_properties,
-            found: &AUDIO.has_eax,
-            set: &AUDIO.eax_reverb_set,
-            text: USING_EAX_TEXT,
-            mode: false,
+            setting: &state.ignore_eax_setting,
+            object: &state.eax_properties,
         }
     }
 }
@@ -70,74 +47,40 @@ impl Opening {
 /// both), for the voice manager its mode set to 2; then logged and `found` 1. A failure
 /// leaves the set where it went (it is released at the close). Refuses a holder that is
 /// no pointer (the original reads through it: `make_buffer`'s EAX bug, `notes/bugs.md`).
-pub unsafe fn open_property_set(o: &Opening, holder: u32, log: Log) -> Result<bool, Refused> {
-    unsafe {
-        if o.setting.get() != 0 || o.object.get() != 0 {
-            return Ok(false);
-        }
-        if holder < 0x1_0000 {
-            return Err(BadInput("ebx holds no 3D buffer (make_buffer's EAX bug)").into());
-        }
-        let buffer = crate::audio::voices::read(holder);
-        if buffer == 0 {
-            return Ok(false);
-        }
-        let query: unsafe extern "system" fn(u32, u32, u32) -> i32 =
-            std::mem::transmute(method(buffer, 0));
-        if query(buffer, AUDIO.iid_property_set.addr(), o.object.addr()) != 0 {
-            return Ok(false);
-        }
-        let p = o.object.get();
-        let set = o.set.addr();
-        let mut support = 0u32;
-        let query_support: unsafe extern "system" fn(u32, u32, u32, u32) -> i32 =
-            std::mem::transmute(method(p, QUERY_SUPPORT));
-        if query_support(
-            p,
-            set,
-            0,
-            crate::pointers::game_address(&mut support as *mut u32),
-        ) != 0
-            || support & GET_AND_SET != GET_AND_SET
-        {
-            return Ok(false);
-        }
-        if o.mode {
-            let value = VOICE_MANAGER_MODE;
-            if set_property(
-                p,
-                set,
-                crate::pointers::game_address(&value as *const u32),
-                4,
-            ) != 0
-            {
-                return Ok(false);
-            }
-        }
-        log(crate::pointers::game_address(o.text.as_ptr()));
-        o.found.set(1);
-        Ok(true)
+pub fn open_property_set(state: &AudioState, o: &Opening, holder: u32) -> Result<bool, Refused> {
+    if o.setting.get() != 0 || o.object.get() != 0 {
+        return Ok(false);
     }
-}
-
-/// `IKsPropertySet::Set` of property 0, no instance data.
-unsafe fn set_property(p: u32, set: u32, data: u32, bytes: u32) -> i32 {
-    unsafe {
-        let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32) -> i32 =
-            std::mem::transmute(method(p, SET));
-        f(p, set, 0, 0, 0, data, bytes)
+    if holder < 0x1_0000 {
+        return Err(BadInput("ebx holds no 3D buffer (make_buffer's EAX bug)").into());
+    }
+    let buffer = crate::audio::voices::read(holder);
+    if buffer == 0 {
+        return Ok(false);
+    }
+    match crate::platform_sound::query_interface(buffer, state.iid_property_set.get_u32(0)) {
+        Err(_) => {
+            o.object.set(0);
+            Ok(false)
+        }
+        Ok(set) => {
+            o.object.set(set);
+            Err(BadInput(NO_SETS).into())
+        }
     }
 }
 
 /// `audio::set_eax_room`: the room's reverb (`g_eaxRooms`) set when EAX is open; eax the
 /// room's entry. Refuses a room past the table (the original reads past it).
-pub fn set_eax_room(room: u32) -> Result<u32, Refused> {
+pub fn set_eax_room(state: &AudioState, room: u32) -> Result<crate::pointers::GamePtr, Refused> {
     // Converted: `rc2k_core::audio::levels::eax_room_offset`.
-    let at = crate::pointers::game_address(AUDIO.eax_rooms.as_ptr())
-        + rc2k_core::audio::levels::eax_room_offset(room)?;
-    let p = AUDIO.eax_properties.get();
+    // The room's entry by the core's byte offset into the table.
+    let at = crate::pointers::GamePtr::to(&state.eax_rooms)
+        .offset(rc2k_core::audio::levels::eax_room_offset(room)?);
+    let p = state.eax_properties.get();
     if p != 0 {
-        unsafe { set_property(p, AUDIO.eax_reverb_set.addr(), at, 0x10) };
+        // `IKsPropertySet::Set` of the reverb's property 0 with the room's 0x10 bytes.
+        return Err(BadInput(NO_SETS).into());
     }
     Ok(at)
 }

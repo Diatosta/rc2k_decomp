@@ -1,4 +1,4 @@
-//! The way through (`net::start_link`, 0x416F50, eax 1 host, 2 join, 3 launched by a lobby):
+//! The way through (`net::start_link`, 0x416F50, eax 1 host, 2 join):
 //! the player's record set up (`net::take_player_settings`, `net::fill_own_player`), the
 //! DirectPlay connections listed (`net::find_connections`: the lobby object, DirectPlay,
 //! `EnumConnections` into the 0x54-byte records at `dword_52AC38`), one chosen
@@ -21,16 +21,13 @@
 //! COM objects whose methods note their arguments.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::net::store::NET;
-use crate::pointers::GamePtr;
-use crate::session::Dword;
-use crate::strings::text_buffer::TEXT_BUFFER;
+use crate::session::{Bytes, Dword};
+use crate::strings::owner::strings;
+use rc2k_core::fatal::Context;
 
 // ---- game data (IDA addresses) ----
 
-pub const SPRITES: &Dword = &LOOP_FLAGS.sprite_table; // g_spriteTable
+pub const SPRITES: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.sprite_table; // g_spriteTable
 pub const PALETTE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE_23;
 pub const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING_23;
 
@@ -38,86 +35,52 @@ pub const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HE
 
 // ---- small pieces ----
 
-/// `rep movsb` of `n` bytes, forwards (addresses).
-pub fn movsb(to: u32, from: u32, n: u32) -> Result<(), Refused> {
-    GamePtr::new(from).copy_to(GamePtr::new(to), n as usize, "a network record's bytes")?;
+/// `rep movsb` of `n` bytes, forwards (the places do not overlap).
+pub fn movsb(
+    to: impl Into<crate::place::Place>,
+    from: impl Into<crate::place::Place>,
+    n: u32,
+) -> Result<(), Refused> {
+    let bytes = from.into().read(n as usize, "a network record's bytes")?;
+    to.into().write(&bytes, "a network record's bytes")?;
     Ok(())
 }
 
-/// `rep movsb` from what DirectPlay's callbacks hand over (a GUID, a connection's data:
-/// Rust's statics or buffers lent for the callback) to the game's memory; both checked.
-pub fn movsb_from_rust(to: u32, from: u32, n: u32) -> Result<(), Refused> {
-    let bytes = GamePtr::new(from).read_bytes(n as usize, "a network callback's bytes")?;
-    GamePtr::new(to).write_bytes(&bytes, "a network record's bytes")?;
+/// `strings::append_string_by_id`: the string `id` added to the text being built.
+pub fn push_id(text: &mut Vec<u8>, id: u32) -> Result<(), Refused> {
+    crate::strings::append_string_by_id::push_string(text, id)?;
     Ok(())
 }
 
-/// A cursor into a text buffer: what the original's `ebx` is while it builds a line with
-/// `strings::str_append`, `append_string_by_id`, `format_u32`, `append_time` and
-/// `append_nul`.
-#[derive(Clone, Copy)]
-pub struct Cursor(pub u32);
-
-impl Cursor {
-    /// The start of the game's text buffer.
-    pub fn text() -> Self {
-        Self(TEXT_BUFFER.text.addr())
-    }
-
-    /// `strings::str_append`: the NUL-ended text at `from`, its end the new cursor.
-    pub fn string(&mut self, from: u32) {
-        self.0 = crate::pointers::game_address(crate::menu::event_flow::refuse_here(
-            crate::strings::str_append::str_append(
-                crate::pointers::host(from) as *const u8,
-                crate::pointers::host(self.0),
-            ),
-            "net::lobby: a text",
-        ));
-    }
-
-    /// `strings::append_string_by_id`: the string `id`.
-    pub fn string_id(&mut self, id: u32) {
-        let mut text = Vec::new();
-        let written = crate::strings::append_string_by_id::push_string(&mut text, id)
-            .and_then(|()| GamePtr::new(self.0).write_bytes(&text, "a text line"));
-        crate::menu::event_flow::refuse_here(written, "net::lobby: a string");
-        self.0 = self.0.wrapping_add(text.len() as u32);
-    }
-
-    /// The bytes written at the cursor (`format_u32`'s, `append_time`'s).
-    pub fn bytes(&mut self, bytes: &[u8]) -> Result<(), Refused> {
-        GamePtr::new(self.0).write_bytes(bytes, "a text line's bytes")?;
-        self.0 = self.0.wrapping_add(bytes.len() as u32);
-        Ok(())
-    }
-
-    /// `strings::append_nul`: a NUL written, the cursor past it.
-    pub fn nul(&mut self) -> Result<(), Refused> {
-        GamePtr::new(self.0).write(0u8, "a text line's end")?;
-        self.0 = self.0.wrapping_add(1);
-        Ok(())
-    }
+/// The text a line is built as (`text` up to its NUL), stored with its NUL at the start of
+/// the game's text buffer, where the original builds it; the text with its NUL, to be
+/// drawn or measured as a value.
+pub fn store_text(mut text: Vec<u8>) -> Result<Vec<u8>, Refused> {
+    text.push(0);
+    strings()
+        .text
+        .buffer
+        .text
+        .write_at(0, &text, "a text line")?;
+    Ok(text)
 }
 
 /// `gfx::blit_glyph` of the sprite `glyph` of the sprite table (`g_spriteTable`) at (`x`,
-/// `y`) with the palette at `palette`; the ebx it leaves (the next blit's palette in the
-/// original, which hands each the one before leaves).
-pub fn blit(glyph: u32, x: u32, y: u32, palette: u32) -> Result<u32, Refused> {
-    let exit = {
-        crate::gfx::blit_glyph::blit_glyph_on_surface(
-            glyph,
-            crate::pointers::GamePtr::new(SPRITES.get()),
-            x as i32,
-            y as i32,
-            crate::pointers::GamePtr::new(palette),
-        )
-    }?;
-    Ok(exit.ebx)
+/// `y`). (The original hands each the ebx the blit before left as its palette, which the
+/// sprites, direct colour, never look at.)
+pub fn blit(glyph: u32, x: u32, y: u32) -> Result<(), Refused> {
+    crate::gfx::blit_glyph::blit_glyph_on_surface(glyph, SPRITES.get(), x as i32, y as i32, None)
 }
 
 /// `logfile::log_write_l<level>[_nl]` on the text at the address `text`.
-pub fn log(text: u32, newline: bool, level: u8) {
+pub fn log(text: impl Into<crate::place::Place>, newline: bool, level: u8) {
     crate::logfile::log_write::log_at(text, newline, level);
+}
+
+/// `log` of a text in hand (up to its NUL or its end).
+pub fn log_bytes(text: &[u8], newline: bool, level: u8) {
+    let n = text.iter().position(|&c| c == 0).unwrap_or(text.len());
+    crate::logfile::write_line::log_text(&text[..n], newline, level);
 }
 
 /// `logfile::log_hex8_l2[_nl]`.
@@ -130,37 +93,26 @@ pub fn log_int_nl(value: u32, level: u8) {
     crate::logfile::log_int::log_int(value as i32, true, level);
 }
 
-/// `memory::allocate` on the network's list (`g_netMemory`): the memory's address.
-pub fn net_allocate(bytes: u32) -> Result<u32, Refused> {
-    Ok(crate::pointers::game_address({
-        crate::memory::allocate::allocate(
-            crate::pointers::host(crate::pointers::game_address(NET.memory.as_ptr())) as *mut _,
-            bytes,
-        )
-    }?))
-}
-
-/// `strings::copy_printable` (addresses).
-pub fn copy_printable(text: u32, to: u32, room: u32) -> Result<(), Refused> {
-    unsafe {
-        crate::strings::copy_printable::copy_printable(
-            crate::pointers::host(text) as *const u8,
-            crate::pointers::host(to),
-            room,
-        )
-    }?;
+/// `system::zero_memory`.
+pub fn zero(at: impl Into<crate::place::Place>, length: u32) -> Result<(), Refused> {
+    at.into()
+        .write(&vec![0; length as usize], "memory to zero")?;
     Ok(())
 }
 
-/// `system::zero_memory` (an address).
-pub fn zero(at: u32, length: u32) -> Result<(), Refused> {
-    GamePtr::new(at).fill(0, length as usize, "memory to zero")?;
-    Ok(())
-}
-
-/// `CoCreateInstance` (`net::dplay::create_instance`): its result.
-pub fn co_create(class: u32, interface: u32, out: u32) -> u32 {
-    crate::net::dplay::create_instance(class, interface, out) as u32
+/// `CoCreateInstance` (`net::dplay::create_instance`): the object into `out` (0 when none
+/// is made), its result.
+pub fn co_create(class: &Bytes<16>, interface: &Bytes<16>, out: &Dword) -> u32 {
+    match crate::net::dplay::create_instance(&class.read(), &interface.read()) {
+        Ok(made) => {
+            out.set(made);
+            0
+        }
+        Err(e) => {
+            out.set(0);
+            e
+        }
+    }
 }
 
 /// `screens::run_frame` with the frame `frame` (`platform::run_frame_now`: the window's
@@ -174,7 +126,7 @@ pub fn run_frame<T>(frame: impl FnOnce() -> Result<T, Refused>) -> Result<(), Re
 
 /// `menu::list_take_key`: the key.
 pub fn list_key() -> Result<u8, Refused> {
-    Ok(crate::menu::list_take_key::list_take_key().key)
+    Ok(crate::menu::list_take_key::list_take_key())
 }
 
 /// A list screen's other keys: a screenshot (R, when they are on), the lexicon.
@@ -182,7 +134,7 @@ pub fn other_key(key: u8) -> Result<(), Refused> {
     if crate::gfx::shots::on() != 0 && key == 0x52 {
         crate::gfx::take_screenshot::take_screenshot()?;
     }
-    unsafe { crate::strings::maybe_compile_lexicon::maybe_compile_lexicon() }
+    crate::strings::maybe_compile_lexicon::maybe_compile_lexicon()
 }
 
 /// `gfx::lock_surface`: whether it is locked (the original's carry clear).
@@ -207,29 +159,13 @@ pub fn draw_string(
     x: u32,
     y: u32,
 ) -> Result<(), Refused> {
-    unsafe {
-        crate::text::draw_string_by_id::draw_string_by_id_at(
-            id,
-            font.as_ptr(),
-            x as i32,
-            y as i32,
-            &mut crate::text::draw_text::GameCanvas,
-        )
-    }?;
-    Ok(())
-}
-
-/// `text::draw_text` with the font at the address `font`.
-pub fn draw_text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
-    {
-        crate::text::draw_text::draw_text_at(
-            crate::pointers::host(font) as *mut _,
-            crate::pointers::host(text) as *const u8,
-            x as i32,
-            y as i32,
-            &mut crate::text::draw_text::GameCanvas,
-        )
-    }?;
+    crate::text::draw_string_by_id::draw_string_by_id_at(
+        id,
+        font,
+        x as i32,
+        y as i32,
+        &mut crate::text::draw_text::GameCanvas,
+    )?;
     Ok(())
 }
 
@@ -238,61 +174,14 @@ pub const fn fatal(code: u32) -> crate::errors::FatalError {
     crate::errors::FatalError { code, message: "" }
 }
 
-pub use rc2k_core::net::lists::{NO_CONNECTION, NO_CONNECTIONS, NO_SESSION, NO_SESSIONS};
-pub const CONNECTION_LEN: u32 = std::mem::size_of::<crate::net::types::NetConnection>() as u32;
-pub const SESSION_LEN: u32 = std::mem::size_of::<crate::net::types::NetSession>() as u32;
-
-/// Record `index` (unsigned) of a table of `len`-byte records at `table` holding `count`:
-/// `jnb` the first fatal error, a null table the second.
-pub fn record_of(
-    index: u32,
-    count: &Dword,
-    table: &Dword,
-    len: u32,
-    codes: [u32; 2],
-) -> Result<u32, Refused> {
-    // Converted: `rc2k_core::net::lists::record`.
-    rc2k_core::net::lists::record(index, count.get(), || table.get(), len, codes)
-        .map_err(|missing| fatal(missing.0).into())
-}
-
-/// A connection's record (`net::connection_entry`).
-pub fn connection(index: u32) -> Result<u32, Refused> {
-    record_of(
-        index,
-        &NET.connections,
-        &NET.connection_table,
-        CONNECTION_LEN,
-        [NO_CONNECTION, NO_CONNECTIONS],
-    )
-}
-
-/// A session's record (`net::session_entry`).
-pub fn session(index: u32) -> Result<u32, Refused> {
-    record_of(
-        index,
-        &NET.sessions,
-        &NET.session_table,
-        SESSION_LEN,
-        [NO_SESSION, NO_SESSIONS],
-    )
-}
-
 // ---- DirectPlay's callbacks (`stdcall`, their arguments on the stack) ----
-
-/// A callback's Rust version: its arguments in, its eax out.
-pub type Callback = fn(&[u32]) -> Result<u32, Refused>;
-
-thread_local!(static CALLBACK_ARGS: std::cell::RefCell<(usize, Vec<u32>)> =
-    const { std::cell::RefCell::new((0, Vec::new())) });
 
 /// A callback's Rust version where DirectPlay calls it (2026-10-23): a refused
 /// input ends the program with its reason (there is no game code to run in its place:
 /// before 2026-10-23 it called the game's callback at `ral`, which in the standalone would
-/// fault), a fatal error is raised.
-pub fn callback_entry(name: &str, ral: u32, args: &[u32], rust: Callback) -> u32 {
-    let result = rust(args);
-    match result {
+/// fault), a fatal error is raised. Its eax out.
+pub fn callback_entry(name: &str, ral: u32, rust: impl FnOnce() -> Result<u32, Refused>) -> u32 {
+    match rust() {
         Ok(eax) => eax,
         Err(Refused::BadInput(why)) => {
             crate::standalone::finish(&format!("{name} ({ral:#x}) refused: {}", why.0), 1)
@@ -302,7 +191,7 @@ pub fn callback_entry(name: &str, ral: u32, args: &[u32], rust: Callback) -> u32
                 "{name}: the Rust version raises fatal error {:#x} {:?}",
                 error.code, error.message
             ));
-            let r = Regs::default();
+            let r = Context::default();
             crate::fatal::raise::raise(error, &r);
             r.eax
         }

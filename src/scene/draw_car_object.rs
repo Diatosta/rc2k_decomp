@@ -1,47 +1,40 @@
 //! `scene::draw_car_object` (0x49017B): the 3D part of a frame of the car
 //! specification screen.
 //!
-//! In:  nothing
-//! Out: the registers as its parts leave them (the scene lists' caller keeps them all);
-//!      nothing at all on a page other than the first
-//!
 //! Only with `dword_755998` (the page shown) at 0: `scene::clear_depth_buffer`,
-//! `scene::assign_kind_textures`, `sub_490238`, `scene::map_texture_places`,
-//! `scene::load_slot_textures`, `sub_4901A3`. The three under it have one caller each
+//! `scene::assign_kind_textures`, 0x490238, `scene::map_texture_places`,
+//! `scene::load_slot_textures`, 0x4901A3. The three under it have one caller each
 //! and are inlined:
-//! - `sub_490238`: with the carousel menu (`g_carouselMenu`) at 0xB, the entry before
+//! - 0x490238: with the carousel menu (`g_carouselMenu`) at 0xB, the entry before
 //!   `dword_755990` (the car shown) and the three after it, wrapping at
 //!   `g_carouselCount`, to `dword_75AAA8` .., then `scene::update_carousel_pictures`;
-//! - `sub_4901A3` -> `sub_4901B3` -> `sub_49040D`: `dword_6365C4` = 0; the turn about y
+//! - 0x4901A3 -> 0x4901B3 -> 0x49040D: `dword_6365C4` = 0; the turn about y
 //!   from the clock (times 8, sixteen bits), the place's z `dword_75A66C`, the kind
 //!   `dword_75A674[dword_755990]` to `dword_75A658`, its object to `g_objectNumber`,
-//!   `scene::draw_menu_object` with eax = it (between `pusha` and `popa`).
+//!   `scene::draw_menu_object` with eax = it.
 //!
 //! In the scene list at 0x758F76; IDA had not made it a function. Refuses an entry past the
 //! 0x100 kinds, and what its parts refuse. The menus and draw lists run its `run`
 //! (`menu::table_routes`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::state_store::MENU_STATE;
-use crate::physics::tables_store::PHYSICS;
-use crate::race::switches_store::FRAME_SWITCHES;
+use crate::menu::owner::{Menus, Screens, menus};
+use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::carousel_pictures::update;
 use crate::scene::clear_depth_buffer::clear_depth_buffer;
 use crate::scene::draw_carousel_entry::{ENTRIES, find_object_of_kind};
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
-use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::load_slot_textures::load_slot_textures_in_game;
 use crate::scene::map_texture_places::map_texture_places;
-use crate::scene::object_store::OBJECT_WORK;
 use crate::session::write_all;
 
 // ---- game data ----
 
 // ---- Rust version ----
 
-/// `sub_490238`'s four entries around the car shown.
+/// 0x490238's four entries around the car shown.
 pub fn picked(car: u32, count: u32) -> [u32; 4] {
     let mut entry = if car == 0 { count } else { car }.wrapping_sub(1);
     let mut entries = [entry; 4];
@@ -55,48 +48,64 @@ pub fn picked(car: u32, count: u32) -> [u32; 4] {
     entries
 }
 
-/// `sub_490238`.
-pub fn pick_pictures() -> Result<(), Refused> {
-    if MENU_STATE.carousel.menu.get() != 0xB {
+/// 0x490238.
+pub fn pick_pictures(menus: &Menus) -> Result<(), Refused> {
+    let screens = &menus.screens;
+    if screens.state.carousel.menu.get() != 0xB {
         return Ok(());
     }
-    let entries = picked(EVENT_STATE.shown_car.get(), MENU_STATE.carousel.count.get());
-    write_all(&MENU_STATE.carousel_pictures.wanted, entries);
-    update(entries)?;
+    let entries = picked(
+        screens.event.shown_car.get(),
+        screens.state.carousel.count.get(),
+    );
+    write_all(&screens.state.carousel_pictures.wanted, entries);
+    update(menus, entries)?;
     Ok(())
 }
 
-/// `sub_49040D`: the car shown's object set up and drawn by `draw`.
-pub fn draw_shown_car(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
-    let car: u32 = EVENT_STATE.shown_car.get();
+/// 0x49040D: the car shown's object set up and drawn by `draw`.
+pub fn draw_shown_car(
+    shared: &Shared,
+    screens: &Screens,
+    draw: &mut dyn FnMut() -> Result<(), Refused>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let drawing = &scene.drawing;
+    let car: u32 = screens.event.shown_car.get();
     if car >= ENTRIES {
         return Err(BadInput("a car shown past the carousel's kinds").into());
     }
-    let clock: u32 = PHYSICS.scene_clock.bits();
-    OBJECT_WORK.angles[1].set((clock << 3) & 0xFFFF);
-    OBJECT_WORK.place[2].set(MENU_STATE.carousel.z.get());
-    let kind = MENU_STATE.carousel.kinds[car as usize].get();
-    MENU_STATE.carousel.kind.set(kind);
-    let object = find_object_of_kind(kind);
-    FRAME_SWITCHES.object_number.set_bits(object);
+    let clock: u32 = shared.physics_tables.scene_clock.bits();
+    drawing.object_work.angles[1].set((clock << 3) & 0xFFFF);
+    drawing.object_work.place[2].set(screens.state.carousel.z.get());
+    let kind = screens.state.carousel.kinds[car as usize].get();
+    screens.state.carousel.kind.set(kind);
+    let object = find_object_of_kind(kind, scene);
+    shared.switches.object_number.set_bits(object);
     draw()
 }
 
 /// The Rust version the typed tables run: nothing on a page other than the first, else
 /// its six calls in order. It reads no register of its caller's (register liveness,
 /// 2026-10-23), and the drawing reads none of what the calls before it leave (the eax and
-/// ebx `sub_49040D` gives it included).
+/// ebx 0x49040D gives it included).
 pub fn run() -> Result<(), crate::errors::Refused> {
-    unsafe {
-        if EVENT_STATE.car_page.get() != 0 {
-            return Ok(());
-        }
-        clear_depth_buffer();
-        assign_kind_textures()?;
-        pick_pictures()?;
-        map_texture_places();
-        load_slot_textures_in_game()?;
-        LIGHT_STATE.draw_mode.set_bits(0u32);
-        draw_shown_car(&mut || draw_menu_object_in_game())
+    let scene = crate::scene::owner::scene();
+    let race = race();
+    let menus = menus();
+    if menus.screens.event.car_page.get() != 0 {
+        return Ok(());
     }
+    clear_depth_buffer(scene);
+    assign_kind_textures(scene)?;
+    pick_pictures(menus)?;
+    map_texture_places(scene);
+    load_slot_textures_in_game(&race.frame, scene)?;
+    scene.lights.state.draw_mode.set_bits(0u32);
+    draw_shown_car(
+        &race.shared,
+        &menus.screens,
+        &mut || draw_menu_object_in_game(race, scene),
+        scene,
+    )
 }

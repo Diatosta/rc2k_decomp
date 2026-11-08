@@ -1,8 +1,7 @@
 //! `gfx::read_pcx_8bit` (0x411C6B): decodes a PCX file of one plane, 8 bits a pixel with a
 //! palette, into the picture buffer as 32-bit pixels.
 //!
-//! In:  eax = path
-//! Out: carry = failed; every register preserved
+//! Takes: path
 //! Opens the file as the stream `dword_5195E4`; reads the palette, the last 0x300 bytes of
 //! the file, with a seek and a plain read on the stream's handle, and seeks back to the
 //! start; reads the header through the stream; sets `g_pictureFlags` to 0x800 and calls
@@ -17,63 +16,47 @@
 //! all 32 bits) and what `open_stream` refuses. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::files::close_stream::close_stream;
-use crate::files::handle::{read, seek};
-use crate::files::open_stream::open_stream;
-use crate::files::read_stream_block::read_stream_block;
-use crate::files::read_stream_byte::read_stream_byte;
-use crate::gfx::decoder::DECODER;
+use crate::files::handle::{read_into, seek};
+use crate::files::read_stream_byte::{ByteRead, read_stream_byte};
+use crate::files::stream::Stream;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
-use crate::gfx::pcx::PCX;
-use crate::gfx::pcx::{FILE_PALETTE_LEN, HEADER_LEN, stream};
-use crate::gfx::picture_store::PICTURE;
+use crate::gfx::pcx::{FILE_PALETTE_LEN, on_stream, read_stream_header};
+use crate::gfx::picture::{put_or_end, with_buffer};
 
 // ---- Rust version ----
 
+/// The file's palette read with a seek and a plain read on the stream's handle, and the
+/// handle back at the start: whether it worked.
+pub fn read_file_palette(stream: &Stream, gfx: &crate::gfx::owner::Gfx) -> bool {
+    let file = stream.file;
+    seek(file, -(FILE_PALETTE_LEN as i32), 2).is_some()
+        && read_into(file, &gfx.pictures.pcx.file_palette).1
+        && seek(file, 0, 0).is_some()
+}
+
 /// The part between the open and the close: whether it worked.
-unsafe fn read_rows() -> Result<bool, BadInput> {
-    unsafe {
-        let stream = stream();
-        let file = (*stream).file;
-        if seek(file, -(FILE_PALETTE_LEN as i32), 2).is_none() {
-            return Ok(false);
-        }
-        let palette_bytes = crate::pointers::host(PCX.file_palette.addr());
-        if !read(file, palette_bytes, FILE_PALETTE_LEN as u32).1 {
-            return Ok(false);
-        }
-        if seek(file, 0, 0).is_none() {
-            return Ok(false);
-        }
-        let header = crate::pointers::host(PCX.header.addr());
-        if read_stream_block(stream, header, HEADER_LEN as u32)?.1 {
-            return Ok(false);
-        }
-        PICTURE.flags.set(0x800u32);
-        let layout = lay_out_pcx()?;
-        // Converted: `rc2k_core::gfx::pcx::decode_8bit`.
-        let palette: [u32; 256] = DECODER.palette();
-        let pixels: u32 = DECODER.pixels.get();
+fn read_rows(stream: &mut Stream) -> Result<bool, BadInput> {
+    let gfx = crate::gfx::owner::gfx();
+    let pictures = &gfx.pictures;
+    if !read_file_palette(stream, gfx) || !read_stream_header(stream, gfx)? {
+        return Ok(false);
+    }
+    pictures.picture.flags.set(0x800u32);
+    let layout = lay_out_pcx(gfx)?;
+    // Converted: `rc2k_core::gfx::pcx::decode_8bit`.
+    let palette: [u32; 256] = pictures.decoder.palette();
+    with_buffer(pictures.decoder.pixels.get(), |pixels| {
         rc2k_core::gfx::pcx::decode_8bit(
             &layout,
             &palette,
-            |eax| read_stream_byte(stream, eax).map(|r| r.eax),
-            |to, pixel| {
-                (crate::pointers::host(pixels.wrapping_add(to)) as *mut u32).write_unaligned(pixel)
-            },
-        )?
-        .ok_or(BadInput("a PCX picture without rows"))?;
-        Ok(true)
-    }
+            || read_stream_byte(stream).map(ByteRead::value),
+            |to, pixel| put_or_end(pixels, to as usize, &pixel.to_le_bytes()),
+        )
+    })??
+    .ok_or(BadInput("a PCX picture without rows"))?;
+    Ok(true)
 }
 
-pub unsafe fn read_pcx_8bit(path: *const u8) -> Result<bool, BadInput> {
-    unsafe {
-        if !open_stream(stream(), path, 0)? {
-            return Ok(false);
-        }
-        let rows = read_rows();
-        let closed = close_stream(stream())?;
-        Ok(rows? && closed)
-    }
+pub fn read_pcx_8bit(path: &[u8]) -> Result<bool, BadInput> {
+    on_stream(path, read_rows)
 }

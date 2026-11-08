@@ -18,10 +18,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::input::take_key::take_key;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::state_store::MENU_STATE;
-use crate::pointers::GamePtr;
+use crate::menu::owner::{Menus, Play};
 use crate::service::setup_values::{Change, Stepper, step};
 use crate::service::state::{
     chosen_repairs_time, current_player, flagged_item, has_repair_time, leave_edit_mode,
@@ -35,7 +32,9 @@ use crate::service::{
     step_tyre_down, step_tyre_up, toggle_gear_ratio_change, toggle_ride_height_change,
     toggle_suspension_stiffness_change, toggle_tyre_change,
 };
-use crate::session::{CLOCKS, Dword};
+use crate::session::Dword;
+use crate::system::owner::system;
+use rc2k_core::menu::player::SetupField;
 
 pub const KEY_CONFIRM: u8 = 0x1C;
 
@@ -44,8 +43,8 @@ pub const KEY_CONFIRM: u8 = 0x1C;
 pub struct SimplePage {
     pub down: Stepper,
     pub up: Stepper,
-    /// Offset of the value in the player.
-    pub car_offset: u32,
+    /// The value in the player's car.
+    pub in_car: SetupField,
 }
 
 /// A page whose value costs service time to change.
@@ -56,63 +55,63 @@ pub struct ChangePage {
     pub change: Change,
     /// The chosen value as it was when the edit started.
     pub entry: &'static Dword,
-    /// Where the car has this value, for the pages that compare with it.
-    pub car_offset: Option<u32>,
-    /// The page's menu item (the self-tests highlight it).
+    /// The car's value, for the pages that compare with it.
+    pub in_car: Option<SetupField>,
+    /// The page's menu item (the one to highlight).
     pub item: u32,
 }
 
 pub const STEERING_SENSITIVITY: SimplePage = SimplePage {
     down: step_steering_sensitivity_down::STEPPER,
     up: step_steering_sensitivity_up::STEPPER,
-    car_offset: 0x11C,
+    in_car: SetupField::SteeringSensitivity,
 };
 pub const BRAKE_BALANCE: SimplePage = SimplePage {
     down: step_brake_balance_down::STEPPER,
     up: step_brake_balance_up::STEPPER,
-    car_offset: 0x110,
+    in_car: SetupField::BrakeBalance,
 };
 pub const GEAR_RATIO: ChangePage = ChangePage {
     down: step_gear_ratio_down::STEPPER,
     up: step_gear_ratio_up::STEPPER,
     change: toggle_gear_ratio_change::CHANGE,
-    entry: &MENU_STATE.driver_stats.setups[0].start,
-    car_offset: None,
+    entry: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[0].start,
+    in_car: None,
     item: 0xE,
 };
 pub const TYRE: ChangePage = ChangePage {
     down: step_tyre_down::STEPPER,
     up: step_tyre_up::STEPPER,
     change: toggle_tyre_change::CHANGE,
-    entry: &MENU_STATE.driver_stats.setups[1].start,
-    car_offset: None,
+    entry: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[1].start,
+    in_car: None,
     item: 0xF,
 };
 pub const RIDE_HEIGHT: ChangePage = ChangePage {
     down: step_ride_height_down::STEPPER,
     up: step_ride_height_up::STEPPER,
     change: toggle_ride_height_change::CHANGE,
-    entry: &MENU_STATE.driver_stats.setups[2].start,
-    car_offset: Some(0x114),
+    entry: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[2].start,
+    in_car: Some(SetupField::RideHeight),
     item: 0x12,
 };
 pub const SUSPENSION_STIFFNESS: ChangePage = ChangePage {
     down: step_suspension_stiffness_down::STEPPER,
     up: step_suspension_stiffness_up::STEPPER,
     change: toggle_suspension_stiffness_change::CHANGE,
-    entry: &MENU_STATE.driver_stats.setups[3].start,
-    car_offset: Some(0x118),
+    entry: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[3].start,
+    in_car: Some(SetupField::Stiffness),
     item: 0x13,
 };
 
-fn player() -> Result<u32, BadInput> {
+fn player() -> Result<crate::menu::standings::PlayerCell, BadInput> {
     current_player().ok_or(BadInput(
         "no current player object: the original reads through null",
     ))
 }
 
 /// The key, with the clock noted and the value stepped if it was an arrow. 0 = no key.
-fn key_and_step(down: Stepper, up: Stepper) -> Result<u8, Refused> {
+fn key_and_step(play: &Play, down: Stepper, up: Stepper) -> Result<u8, Refused> {
     // Converted: `rc2k_core::service::setups::page_key`.
     use rc2k_core::service::setups::{PageKey, page_key};
     let key = take_key();
@@ -120,7 +119,9 @@ fn key_and_step(down: Stepper, up: Stepper) -> Result<u8, Refused> {
     if action == PageKey::None {
         return Ok(0);
     }
-    CHAMP_VIEW.last_key_time.set(CLOCKS.frame.get());
+    play.champ_view
+        .last_key_time
+        .set(system().session.clocks.frame.get());
     match action {
         PageKey::Down => {
             step(down)?;
@@ -133,65 +134,64 @@ fn key_and_step(down: Stepper, up: Stepper) -> Result<u8, Refused> {
     Ok(key)
 }
 
-pub fn simple_page(page: SimplePage) -> Result<(), Refused> {
+pub fn simple_page(menus: &Menus, page: SimplePage) -> Result<(), Refused> {
     // Nothing may be written before it is known that nothing will be refused.
     player()?;
-    if { key_and_step(page.down, page.up) }? == KEY_CONFIRM {
-        leave_edit_mode();
+    if { key_and_step(&menus.play, page.down, page.up) }? == KEY_CONFIRM {
+        leave_edit_mode(&menus.screens);
     }
     Ok(())
 }
 
 /// `confirm`: act as if the confirm key had been pressed, without taking a key (the callers
 /// outside the key handler pass ebx = 1 for this).
-pub fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused> {
+pub fn change_page(menus: &Menus, page: ChangePage, confirm: bool) -> Result<(), Refused> {
+    let (screens, tables) = (&menus.screens, &menus.tables);
     // Everything the steps below could refuse is checked first, so that an error never
     // leaves half of the work done.
-    let item = flagged_item()?;
-    if !has_repair_time(item) {
+    let item = flagged_item(screens)?;
+    if !has_repair_time(tables, item) {
         return Err(BadInput("the highlighted item has no repair time").into());
     }
-    chosen_repairs_time()?;
-    if !marks_ended() {
+    chosen_repairs_time(menus, tables)?;
+    if !marks_ended(tables) {
         return Err(BadInput("the second flag table has lost its end mark").into());
     }
-    let installed_in_car = match page.car_offset {
-        Some(offset) => Some(GamePtr::new(player()?.wrapping_add(offset))),
+    let installed_in_car = match page.in_car {
+        Some(field) => Some((player()?, field)),
         None => None,
     };
 
-    if !confirm && key_and_step(page.down, page.up)? != KEY_CONFIRM {
-        return update_repair_total();
+    if !confirm && key_and_step(&menus.play, page.down, page.up)? != KEY_CONFIRM {
+        return update_repair_total(menus);
     }
 
     // Converted: `rc2k_core::service::repairs::confirm_change`.
     use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
-    let (mut f, mut m) = (flags(), marks());
+    let (mut f, mut m) = (flags(tables), marks(tables));
     let v = rc2k_core::service::repairs::Value {
         chosen: page.change.chosen.get(),
         installed: page.change.installed.get(),
         entry: page.entry.get(),
-        in_car: installed_in_car
-            .map(|value| value.read::<u32>("the car's record"))
-            .transpose()?,
+        in_car: installed_in_car.map(|(p, field)| field.get(p.get())),
     };
     let c = rc2k_core::service::repairs::confirm_change(
         &mut f,
         &mut m,
         item as usize,
-        EVENT_STATE.service_minutes.get() as i32,
+        screens.event.service_minutes.get() as i32,
         v,
-        time_of,
+        |item| time_of(menus, tables, item),
     )
     .map_err(|e| BadInput(e.0))?;
-    store_flags(&f);
-    store_marks(&m);
+    store_flags(tables, &f);
+    store_marks(tables, &m);
     page.change.chosen.set(c.chosen);
     if let Some(status) = c.status {
-        MENU_STATE.service_ui.status.set(status);
+        screens.state.service_ui.status.set(status);
     }
-    MENU_STATE.driver_stats.repair_time.set(c.total as u32);
-    leave_edit_mode();
+    screens.state.driver_stats.repair_time.set(c.total as u32);
+    leave_edit_mode(screens);
     Ok(())
 }
 

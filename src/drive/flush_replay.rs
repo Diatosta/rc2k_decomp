@@ -2,22 +2,22 @@
 //! `unk_7172EC`) copied into the frame `dword_9613A4` and the frames written
 //! (`drive::write_replay_frames`).
 //!
-//! In:  nothing
-//! Out: ecx 0, esi and edi past the copy; the rest kept; no flags read
-//!
 //! Caller: `drive::flush_replay_if`. Refuses what `write_replay_frames` refuses.
 
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
+use crate::pointers::copy_cells;
+use crate::race::blocks_store::REPLAY_STATE_OFFSET;
+use crate::race::owner::Race;
+use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
 
 const DWORDS: usize = 0xA04;
 
 /// The Rust version.
-pub unsafe fn flush_replay() -> Result<(), Refused> {
-    GamePtr::new(crate::race::blocks_store::block_addr(8)).copy_to(
-        GamePtr::new(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr()),
+pub fn flush_replay(race: &Race) -> Result<(), Refused> {
+    copy_cells(
+        (&race.replay.cars_and_replay, REPLAY_STATE_OFFSET),
+        (&VIEWER_BUFFERS.block, 0),
         DWORDS * 4,
-        "a car's block",
-    )?;
-    unsafe { crate::drive::write_replay_frames::write_replay_frames() }
+    );
+    crate::drive::write_replay_frames::write_replay_frames(race)
 }

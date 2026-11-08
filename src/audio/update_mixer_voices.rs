@@ -1,9 +1,6 @@
 //! `audio::update_mixer_voices` (0x40BC05, a chunk of 0x40AC77 entered by `jnz`): the
 //! turn's update of the voices on the game's own mixer.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! The playing list: a voice with dirty bits gets, on its channel, as marked: the step
 //! (frequency `>>` the halvings, over `g_mixRate`, as 32.32) for 4; the left and right
 //! volumes for 1 or 2 (volume x factor, times 64 - pan and 64 for a pan of 0 and up, 64 and
@@ -20,50 +17,55 @@
 //! volume or pan changes while its sound has ended: the original's ebx (the list's link)
 //! then holds the pan, and it writes the link through it (section 16).
 
-use crate::audio::store::AUDIO;
+use crate::audio::owner::Audio;
+use crate::audio::store::AudioState;
 use crate::audio::voices::GamePool;
 use crate::errors::Refused;
 use rc2k_core::audio::voices::Lists;
 
 /// The lists as the mixer's turn reads them (no channel count).
-fn lists() -> Lists {
+fn lists(state: &AudioState) -> Lists {
     Lists {
-        playing: AUDIO.playing_voices.get(),
-        stopping: AUDIO.stopping_voices.get(),
-        channels_used: AUDIO.channels_used.get(),
+        playing: state.playing_voices.get(),
+        stopping: state.stopping_voices.get(),
+        channels_used: state.channels_used.get(),
         channel_count: 0,
     }
 }
 
-fn store(l: &Lists) {
-    AUDIO.playing_voices.set(l.playing);
-    AUDIO.stopping_voices.set(l.stopping);
-    AUDIO.channels_used.set(l.channels_used);
+fn store(state: &AudioState, l: &Lists) {
+    state.playing_voices.set(l.playing);
+    state.stopping_voices.set(l.stopping);
+    state.channels_used.set(l.channels_used);
 }
 
 /// `mix`: `audio::mix`.
-pub fn update_mixer_voices(mix: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
+pub fn update_mixer_voices(
+    audio: &Audio,
+    mix: &mut dyn FnMut() -> Result<(), Refused>,
+) -> Result<(), Refused> {
+    let state = &audio.state;
     // Converted: `rc2k_core::audio::mixer_voices`; the lists stored for the mix, which
     // reads them, and read again after it.
     use rc2k_core::audio::mixer_voices::{after_mix, before_mix};
-    let rate = AUDIO.mix_rate.get();
-    let mode = AUDIO.sound_mode.get();
-    let mut pool = GamePool;
-    let mut l = lists();
+    let rate = state.mix_rate.get();
+    let mode = state.sound_mode.get();
+    let mut pool = GamePool::new(audio);
+    let mut l = lists(state);
     before_mix(&mut pool, &mut l, rate, mode)?;
-    store(&l);
+    store(state, &l);
     mix()?;
-    let mut l = lists();
+    let mut l = lists(state);
     after_mix(&mut pool, &mut l, rate, mode)?;
-    store(&l);
+    store(state, &l);
     Ok(())
 }
 
 /// The voices' turn of the game's own mixer, the mix (`audio::mix`) in it.
-pub fn update_mixer_voices_in_game() -> Result<(), Refused> {
+pub fn update_mixer_voices_in_game(audio: &Audio) -> Result<(), Refused> {
     let mut mix = || -> Result<(), Refused> {
-        crate::audio::mix::mix()?;
+        crate::audio::mix::mix(&audio.state)?;
         Ok(())
     };
-    update_mixer_voices(&mut mix)
+    update_mixer_voices(audio, &mut mix)
 }

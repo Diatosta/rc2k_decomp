@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/rc2k_hook.iml" filepath="$PROJECT_DIR$/.idea/rc2k_hook.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/rc2k_decomp.iml" filepath="$PROJECT_DIR$/.idea/rc2k_decomp.iml" />
     </modules>
   </component>
 </project>

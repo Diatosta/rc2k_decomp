@@ -1,14 +1,17 @@
 //! The overlay and countdown part of the race block: the stage-bar parts (distances, two colour tables), the start lights, the countdown sounds and the position labels with their kept copies. Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct OverlayBlock {
     /// +0x0 (0x6D150C): `g_overlayPartMiles`: the overlay parts' distances (`race::init_overlay`, `hud::draw_stage_bar`).
     pub overlay_part_miles: [Float; 64],
     /// +0x100 (0x6D160C): `dword_6D160C`: the parts' colours/kinds, first view (`race::init_overlay`, `race::frame_draw` COLOUR_BUFFERS, `hud::draw_stage_bar`).
     pub overlay_part_kinds_a: [Dword; 64],
-    /// +0x200 (0x6D170C): `dword_6D170C`: the same, second view (`race::init_overlay`, `hud::draw_stage_bars_1`).
+    /// +0x200 (0x6D170C): `dword_6D170C`: the same, second view (`race::init_overlay`, `hud::draw_stage_bars`).
     pub overlay_part_kinds_b: [Dword; 64],
     /// +0x300 (0x6D180C): `flt_6D180C`: the polygon w factor (`scene::draw_polygon`).
     pub w_factor: Float,
@@ -40,22 +43,6 @@ pub struct OverlayBlock {
     pub unknown_358: [Dword; 3],
 }
 
-/// The piece: the race block's bytes at IDA 0x6D150C seen as `OverlayBlock`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
-
-impl core::ops::Deref for InRaceBlock {
-    type Target = OverlayBlock;
-    fn deref(&self) -> &OverlayBlock {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const OverlayBlock) }
-    }
-}
-
-pub static RACE_OVERLAY: InRaceBlock = InRaceBlock;
-
 /// IDA 0x6D150C, the first byte of the piece.
 pub const START: usize = 0x6D150C;
 /// IDA 0x6D1870, the end of the piece.
@@ -63,9 +50,10 @@ pub const END: usize = 0x6D1870;
 
 const _: () = assert!(END - START == core::mem::size_of::<OverlayBlock>());
 
-/// Where IDA 0x6D150C is now (in the race block).
+/// Where IDA 0x6D150C is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.panel_and_overlay.overlay))
 }
 
 #[cfg(test)]

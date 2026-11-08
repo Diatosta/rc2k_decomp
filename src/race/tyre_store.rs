@@ -5,10 +5,13 @@
 //! A `#[repr(C)]` struct of atomic cells with the image's layout, first values the image's
 //! (`tests`); `moved::MOVED` points the image's addresses at it (`home`).
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword, Float};
 
 /// The tyre change's constants, layouts and work (IDA 0x5BEAC0 .. 0x5BEC30, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct TyreChange {
     /// 0x5BEAC0: `flt_5BEAC0` (150.0): added to the press time (ms, before the scaling to hundredths) (`race::tyre_change_gauge::press_time`).
     pub time_base: Float,
@@ -62,111 +65,116 @@ pub struct TyreChange {
     pub palette: Bytes<4>,
 }
 
-pub static TYRE_CHANGE: TyreChange = TyreChange {
-    time_base: Float::from_bits(0x43160000),
-    time_scale: Float::from_bits(0x43160000),
-    gauge_unit: Float::from_bits(0x37800000),
-    log_two_ten: Float::from_bits(0x40549a78),
-    panel: [
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x320),
-        Dword::new(0x258),
-    ],
-    wheel: [
-        Dword::new(0xa),
-        Dword::new(0xa),
-        Dword::new(0xde),
-        Dword::new(0xde),
-    ],
-    turning_rect: [
-        Float::from_bits(0x42db0000),
-        Float::from_bits(0x42db0000),
-        Float::from_bits(0x41300000),
-        Float::from_bits(0x42da0000),
-    ],
-    panel_texture: [
-        Dword::new(0x74),
-        Dword::new(0x63),
-        Dword::new(0x8),
-        Dword::new(0x8),
-    ],
-    wheel_texture: [
-        Dword::new(0x2),
-        Dword::new(0x2),
-        Dword::new(0x6f),
-        Dword::new(0x6f),
-    ],
-    turning_texture: [
-        Dword::new(0x73),
-        Dword::new(0x2),
-        Dword::new(0xb),
-        Dword::new(0x36),
-    ],
-    layouts: [
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x320),
-        Dword::new(0x258),
-        Dword::new(0x114),
-        Dword::new(0x64),
-        Dword::new(0xd8),
-        Dword::new(0x1f4),
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x320),
-        Dword::new(0x12c),
-        Dword::new(0x1dc),
-        Dword::new(0x4b),
-        Dword::new(0x1a0),
-        Dword::new(0xaf),
-        Dword::new(0x0),
-        Dword::new(0x12c),
-        Dword::new(0x320),
-        Dword::new(0x12c),
-        Dword::new(0x1dc),
-        Dword::new(0x177),
-        Dword::new(0x1a0),
-        Dword::new(0x1db),
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x190),
-        Dword::new(0x258),
-        Dword::new(0x4c),
-        Dword::new(0x64),
-        Dword::new(0x10),
-        Dword::new(0x1f4),
-        Dword::new(0x190),
-        Dword::new(0x0),
-        Dword::new(0x190),
-        Dword::new(0x258),
-        Dword::new(0x1dc),
-        Dword::new(0x64),
-        Dword::new(0x1a0),
-        Dword::new(0x1f4),
-    ],
-    parts: [const { Dword::new(0x0) }; 4],
-    texture: Dword::new(0x0),
-    device_texture: Dword::new(0x0),
-    drawn: Dword::new(0x0),
-    player: Dword::new(0x0),
-    turn_sin: Float::from_bits(0x0),
-    turn_cos: Float::from_bits(0x0),
-    half_h_sin: Float::from_bits(0x0),
-    neg_half_h_cos: Float::from_bits(0x0),
-    half_w_cos: Float::from_bits(0x0),
-    half_w_sin: Float::from_bits(0x0),
-    record_name: Bytes::new([0; 32]),
-    record: Dword::new(0x5208),
-    palette: Bytes::new([0; 4]),
-};
+impl TyreChange {
+    pub const fn new() -> Self {
+        TyreChange {
+            time_base: Float::from_bits(0x43160000),
+            time_scale: Float::from_bits(0x43160000),
+            gauge_unit: Float::from_bits(0x37800000),
+            log_two_ten: Float::from_bits(0x40549a78),
+            panel: [
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x320),
+                Dword::new(0x258),
+            ],
+            wheel: [
+                Dword::new(0xa),
+                Dword::new(0xa),
+                Dword::new(0xde),
+                Dword::new(0xde),
+            ],
+            turning_rect: [
+                Float::from_bits(0x42db0000),
+                Float::from_bits(0x42db0000),
+                Float::from_bits(0x41300000),
+                Float::from_bits(0x42da0000),
+            ],
+            panel_texture: [
+                Dword::new(0x74),
+                Dword::new(0x63),
+                Dword::new(0x8),
+                Dword::new(0x8),
+            ],
+            wheel_texture: [
+                Dword::new(0x2),
+                Dword::new(0x2),
+                Dword::new(0x6f),
+                Dword::new(0x6f),
+            ],
+            turning_texture: [
+                Dword::new(0x73),
+                Dword::new(0x2),
+                Dword::new(0xb),
+                Dword::new(0x36),
+            ],
+            layouts: [
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x320),
+                Dword::new(0x258),
+                Dword::new(0x114),
+                Dword::new(0x64),
+                Dword::new(0xd8),
+                Dword::new(0x1f4),
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x320),
+                Dword::new(0x12c),
+                Dword::new(0x1dc),
+                Dword::new(0x4b),
+                Dword::new(0x1a0),
+                Dword::new(0xaf),
+                Dword::new(0x0),
+                Dword::new(0x12c),
+                Dword::new(0x320),
+                Dword::new(0x12c),
+                Dword::new(0x1dc),
+                Dword::new(0x177),
+                Dword::new(0x1a0),
+                Dword::new(0x1db),
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x190),
+                Dword::new(0x258),
+                Dword::new(0x4c),
+                Dword::new(0x64),
+                Dword::new(0x10),
+                Dword::new(0x1f4),
+                Dword::new(0x190),
+                Dword::new(0x0),
+                Dword::new(0x190),
+                Dword::new(0x258),
+                Dword::new(0x1dc),
+                Dword::new(0x64),
+                Dword::new(0x1a0),
+                Dword::new(0x1f4),
+            ],
+            parts: [const { Dword::new(0x0) }; 4],
+            texture: Dword::new(0x0),
+            device_texture: Dword::new(0x0),
+            drawn: Dword::new(0x0),
+            player: Dword::new(0x0),
+            turn_sin: Float::from_bits(0x0),
+            turn_cos: Float::from_bits(0x0),
+            half_h_sin: Float::from_bits(0x0),
+            neg_half_h_cos: Float::from_bits(0x0),
+            half_w_cos: Float::from_bits(0x0),
+            half_w_sin: Float::from_bits(0x0),
+            record_name: Bytes::new([0; 32]),
+            record: Dword::new(0x5208),
+            palette: Bytes::new([0; 4]),
+        }
+    }
+}
 
 impl TyreChange {
     pub const START: usize = 0x5BEAC0;
     pub const LEN: usize = 0x170;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&TYRE_CHANGE as *const TyreChange) as usize
+        crate::pointers::game_address(&raw const race().shared.tyre_change) as usize
     }
 }
 
@@ -181,7 +189,7 @@ mod tests {
         let image = crate::moved::image_bytes(TyreChange::START, TyreChange::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(TyreChange::home()) as *const u8,
+                crate::pointers::host_at(TyreChange::home()).cast_const(),
                 TyreChange::LEN,
             )
         };

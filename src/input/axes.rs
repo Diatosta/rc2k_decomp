@@ -5,24 +5,25 @@
 //! 0x50 x `unk_4F6EF0`) +0x14 the axes it has.
 
 use crate::errors::BadInput;
-use crate::input::store::{DEVICES, KEYBOARD};
-use crate::pointers::GamePtr;
+use crate::input::types::InputDevice;
 
 /// `input::device_state` (0x408A49): device esi's four values: (ecx, edx, eax, ebx) =
 /// (+0x2C, +0x30, +0x34, +0x38).
-pub fn device_state(device: u32) -> Result<[u32; 4], BadInput> {
-    let at = GamePtr::new(device).offset(0x2C);
-    Ok([
-        at.read("a device's state")?,
-        at.offset(4).read("a device's state")?,
-        at.offset(8).read("a device's state")?,
-        at.offset(12).read("a device's state")?,
-    ])
+pub fn device_state(device: &InputDevice) -> [u32; 4] {
+    [
+        device.axes[0].get(),
+        device.axes[1].get(),
+        device.axes[2].get(),
+        device.buttons.get(),
+    ]
 }
 
 /// `input::first_device_state` (0x409391): `device_state` of `g_inputDevices`.
-pub fn first_device_state() -> Result<[u32; 4], BadInput> {
-    device_state(DEVICES.input_devices[0].get())
+pub fn first_device_state(input: &crate::input::owner::Input) -> Result<[u32; 4], BadInput> {
+    let Some(device) = input.devices.device(0) else {
+        return Err(BadInput("no first input device record"));
+    };
+    Ok(device_state(device))
 }
 
 /// What `input::axis_moved` leaves: the carry (none), eax.
@@ -35,21 +36,25 @@ pub struct Moved {
 /// axes' rest values taken (`dword_4F6A28` -> `unk_4F8270`), carry. Else the first of the
 /// device's axes (its record's +0x14 bits) moved more than 0x80 from rest: eax its number,
 /// +0x10 when the way was up; carry when none (eax the last difference).
-pub fn axis_moved(eax: u32) -> Result<Moved, BadInput> {
-    let now: [u32; 6] = std::array::from_fn(|n| DEVICES.device_state[n].get());
+pub fn axis_moved(eax: u32, input: &crate::input::owner::Input) -> Result<Moved, BadInput> {
+    let now: [u32; 6] = std::array::from_fn(|n| input.devices.device_state[n].get());
     if eax == 0 {
         crate::system::sleep::sleep(250);
-        for (rest, now) in KEYBOARD.axes_rest.iter().zip(now) {
+        for (rest, now) in input.keyboard.axes_rest.iter().zip(now) {
             rest.set(now);
         }
         return Ok(Moved { carry: true, eax });
     }
     // Converted: `rc2k_core::input::devices::axis_moved`.
-    let device = DEVICES.records[0].get_u32(0).wrapping_mul(0x50);
-    let axes: u32 = GamePtr::new((DEVICES.controllers[0].addr()).wrapping_add(device))
-        .offset(0x14)
-        .read("a controller's axes")?;
-    let rest: [u32; 6] = std::array::from_fn(|n| KEYBOARD.axes_rest[n].get());
+    // The original does not check the number: one past the table's 16 is refused.
+    let axes = input
+        .devices
+        .controllers
+        .get(input.devices.records[0].controller.get() as usize)
+        .ok_or(BadInput("a controller's axes past the table"))?
+        .axis_bits
+        .get();
+    let rest: [u32; 6] = std::array::from_fn(|n| input.keyboard.axes_rest[n].get());
     Ok(
         match rc2k_core::input::devices::axis_moved(&now, &rest, axes) {
             Ok(axis) => Moved {

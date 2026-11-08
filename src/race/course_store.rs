@@ -7,6 +7,7 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CourseWork {
     /// +0x0 (0x5CCBF0): a course record's x and z (`race::frame_draw`, `race::car_shadow`).
     pub record_place: [Dword; 2],
@@ -102,21 +103,16 @@ pub struct CourseWork {
     pub shine_whole: Dword,
 }
 
-/// The piece: the race block's bytes at IDA 0x5CCBF0 seen as `CourseWork`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = CourseWork;
-    fn deref(&self) -> &CourseWork {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const CourseWork) }
+/// The piece: a field of `race::owner::Race::course`, formerly a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl CourseWork {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static COURSE: InRaceBlock = InRaceBlock;
 
 /// IDA 0x5CCBF0, the first byte of the piece.
 pub const START: usize = 0x5CCBF0;
@@ -125,9 +121,10 @@ pub const END: usize = 0x5CCE7C;
 
 const _: () = assert!(END - START == core::mem::size_of::<CourseWork>());
 
-/// Where IDA 0x5CCBF0 is now (in the race block).
+/// Where IDA 0x5CCBF0 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&crate::race::owner::RACE.course.course))
 }
 
 #[cfg(test)]
@@ -136,7 +133,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&crate::race::owner::RACE.course.course, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

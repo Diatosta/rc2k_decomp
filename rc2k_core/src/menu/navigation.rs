@@ -56,14 +56,14 @@ pub fn passed(clock: u32, last: u32) -> u32 {
     clock.wrapping_sub(last).min(LONGEST)
 }
 
-/// `sub_4904C7`: how far the angle moves from `from` in `passed` ms. Refused: a time so
+/// 0x4904C7: how far the angle moves from `from` in `passed` ms. Refused: a time so
 /// long that the division traps (above 0x71C71C6; `passed` keeps it from coming).
 fn spin_step(from: u32, passed: u32) -> Result<u32, Invalid> {
     let moved = ((from >> 3) + 0x400_0000) as u64 * passed as u64 / 20;
     u32::try_from(moved).map_err(|_| Invalid("a time so long that the division traps"))
 }
 
-/// `menu::step_carousel`'s turn (`sub_49044F`): while the way is not 0 the angle (`step`)
+/// `menu::step_carousel`'s turn (`menu::turn_carousel`): while the way is not 0 the angle (`step`)
 /// moves by `spin_step`, down for a negative way, up (from the angle negated) for a
 /// positive one. Past zero it is 0 and the way 0; after a turn upwards the next object is
 /// in front (`value`), the first again after the last (`count`).

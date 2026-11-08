@@ -5,67 +5,70 @@
 //! (sixteen rows), Enter (0x1C) chooses, Escape (1) or the game closing gives -1; 'R' takes a
 //! screenshot (with screenshots on), any other key may compile the lexicon again.
 //!
-//! In:  nothing (the registers it is given reach only its frame, `net::connections_frame`,
-//!      which reads none, and `menu::list_take_key`, which reads none)
-//! Out: the connection chosen (`g_listChoice`; negative: none, the original's carry); the
-//!      original keeps the rest (`pusha` .. `popa`)
+//! Returns the connection chosen.
 //! Callers: `net::settings_link`, `net::start_link`.
 
 use crate::errors::Refused;
-use crate::install::vars::INSTALLER_PAGES;
 use crate::net::lobby::{list_key, other_key, run_frame};
-use crate::net::store::NET;
-use crate::session::CLOCKS;
-use crate::session::FLAGS;
+use crate::net::store::NetVars;
+use crate::system::owner::system;
 use rc2k_core::net::screens::{self, ListKey};
 
 /// A list's up (0x66) or down (0x6B) on a list of `count` items: the highlight and the top
 /// moved; false for another key.
-pub fn list_move(key: u8, count: u32) -> bool {
+pub fn list_move(install: &'static crate::install::owner::Install, key: u8, count: u32) -> bool {
     // Converted: `rc2k_core::net::screens` (`ListKey`, `up`, `down`).
     let (choice, top) = match ListKey::of(key) {
         ListKey::Up => screens::up(
-            INSTALLER_PAGES.choice.get(),
-            INSTALLER_PAGES.choice_before.get(),
+            install.pages.choice.get(),
+            install.pages.choice_before.get(),
         ),
         ListKey::Down => screens::down(
-            INSTALLER_PAGES.choice.get(),
-            INSTALLER_PAGES.choice_before.get(),
+            install.pages.choice.get(),
+            install.pages.choice_before.get(),
             count,
         ),
         _ => return false,
     };
-    INSTALLER_PAGES.choice.set(choice);
-    INSTALLER_PAGES.choice_before.set(top);
+    install.pages.choice.set(choice);
+    install.pages.choice_before.set(top);
     true
 }
 
 /// The Rust version.
-pub fn choose_connection() -> Result<u32, Refused> {
-    let now = CLOCKS.key_ticks.get();
-    INSTALLER_PAGES.move_clock.set(now);
-    INSTALLER_PAGES.key_clock.set(now);
-    INSTALLER_PAGES.choice_before.set(0);
-    INSTALLER_PAGES.choice.set(0);
+pub fn choose_connection(
+    install: &'static crate::install::owner::Install,
+    vars: &NetVars,
+) -> Result<u32, Refused> {
+    let system = system();
+    let now = system.session.clocks.key_ticks.get();
+    install.pages.move_clock.set(now);
+    install.pages.key_clock.set(now);
+    install.pages.choice_before.set(0);
+    install.pages.choice.set(0);
     loop {
         run_frame(crate::net::connections_frame::connections_frame)?;
-        INSTALLER_PAGES.frame_clock.set(CLOCKS.key_ticks.get());
+        install
+            .pages
+            .frame_clock
+            .set(system.session.clocks.key_ticks.get());
         let key = list_key()?;
-        if list_move(key, NET.connections.get()) {
-            INSTALLER_PAGES
+        if list_move(install, key, vars.connections.get()) {
+            install
+                .pages
                 .move_clock
-                .set(INSTALLER_PAGES.frame_clock.get());
+                .set(install.pages.frame_clock.get());
         } else if ListKey::of(key) == ListKey::Enter {
-            return Ok(INSTALLER_PAGES.choice.get());
+            return Ok(install.pages.choice.get());
         } else if ListKey::of(key) == ListKey::Escape {
             break;
         } else {
             other_key(key)?;
         }
-        if FLAGS.quitting.get() == 1 {
+        if system.session.flags.quitting.get() == 1 {
             break;
         }
     }
-    INSTALLER_PAGES.choice.set(u32::MAX);
-    Ok(INSTALLER_PAGES.choice.get())
+    install.pages.choice.set(u32::MAX);
+    Ok(install.pages.choice.get())
 }

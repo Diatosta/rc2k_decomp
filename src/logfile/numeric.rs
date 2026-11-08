@@ -7,18 +7,13 @@
 //! scratch buffer and ebx the byte after the text's NUL. With `g_logLevel` 0 only eax
 //! changes, to the address after that function's call to the lock function.
 //! Each of the six has four entries before it that set edx (`_l1`, `_l1_nl`, `_l2`,
-//! `_l2_nl`) and jump to it, so they go through its hook.
+//! `_l2_nl`) and jump to it, so they go through it.
 
 use crate::errors::BadInput;
-use crate::moved::Place;
 
 /// `dst` (0x93E030 in the image, 0x50 bytes below the log's line buffer): where a number's
 /// text is made, and `start_log`'s date. Written under the log's lock.
 pub const SCRATCH_LEN: usize = 0x50;
-pub static SCRATCH: Place<[u8; SCRATCH_LEN]> = Place::new([0; SCRATCH_LEN]);
-pub fn scratch() -> *mut u8 {
-    SCRATCH.ptr().cast()
-}
 
 /// The text of a number, as it is left in the scratch buffer.
 pub struct NumberText {

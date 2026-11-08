@@ -4,9 +4,6 @@
 //! In:  nothing: the vertices are at `g_polygonVertices` (0x9605A0), their number in
 //!      `g_polygonVertexCount` (0x6240F8), the texture's number in `g_polygonTexture`
 //!      (0x6240D4)
-//! Out: the original leaves eax, ecx, edx and esi changed; none of its fourteen call
-//!      sites (all in `sub_44BA2C`) reads them, and the Rust version keeps every
-//!      register
 //! With `scene::draw_polygon_fan` (0x44EA36), `scene::check_polygon_vertices`
 //! (0x44EA6A), `scene::set_texture` (0x44E77E) and `scene::clear_texture` (0x44E958)
 //! inlined, each of which has this as its only caller on the way here.
@@ -15,17 +12,14 @@
 //! (`dword_5CDA8C` not 0; a reading).
 //! The vertices: each must have x in 0 .. the screen's width, y in 0 .. its height
 //! and z in 0 .. 1 (compared on the x87; one that is not a number fails), else "Error"
-//! is logged, the buffer shown by `sub_443AEC` and nothing drawn. Then, with 3D, the
+//! is logged, the buffer shown by `scene::show_bad_polygon` and nothing drawn. Then, with 3D, the
 //! fan; a result other than 0 is logged as "drawtri" and the number.
 
-use crate::d3d::cards_store::CARDS_3D;
 use crate::d3d::draw_fan_unclipped::polygon;
+use crate::d3d::owner::d3d;
 use crate::d3d::{NO_TEXTURE, Vertex};
 use crate::logfile::log_hex8::log_hex8;
-use crate::logfile::log_write::log_write;
-use crate::scene::draw_store::DRAW;
-use crate::scene::object_tables_store::OBJECT_TABLES;
-use crate::session::SCREEN;
+use crate::scene::owner::scene;
 
 // ---- game data ----
 const TEXTURES: u32 = 0x400;
@@ -40,8 +34,8 @@ pub trait Outside {
     /// `d3d::set_texture`.
     fn set_texture(&mut self, texture: u32);
     /// `d3d::draw_fan_unclipped`: Direct3D's result.
-    fn draw_fan(&mut self) -> u32;
-    /// A vertex is off the screen: "Error" to the log and `sub_443AEC`.
+    fn draw_fan(&mut self, vertices: &[Vertex]) -> u32;
+    /// A vertex is off the screen: "Error" to the log and `scene::show_bad_polygon`.
     fn bad_vertex(&mut self);
     /// Direct3D did not draw: "drawtri" and its result to the log.
     fn not_drawn(&mut self, result: u32);
@@ -60,29 +54,36 @@ pub fn vertices_fit(vertices: &[Vertex], width: u32, height: u32) -> bool {
 }
 
 pub fn submit_polygon(outside: &mut dyn Outside) {
-    let has_3d = OBJECT_TABLES.has_3d.get() != 0;
-    let texture: u32 = DRAW.polygon_texture.bits();
+    let system = crate::system::owner::system();
+    let session = &system.session;
+    let scene = scene();
+    let has_3d = scene.objects.tables.has_3d.get() != 0;
+    let texture: u32 = scene.drawing.scene.polygon_texture.bits();
     if texture == NO_TEXTURE {
         if has_3d {
             outside.set_texture(NO_TEXTURE);
         }
     } else {
         let texture = if texture >= TEXTURES { 0 } else { texture };
-        if texture != CARDS_3D.current_texture.get() && has_3d {
+        if texture != d3d().cards.current_texture.get() && has_3d {
             outside.set_texture(texture);
         }
     }
     let vertices = polygon();
     if !vertices.is_empty() {
         // The check clears this before it looks at a vertex.
-        DRAW.scratch.set_bits(0u32);
+        scene.drawing.scene.scratch.set_bits(0u32);
     }
-    if !vertices_fit(&vertices, SCREEN.width.get(), SCREEN.height.get()) {
+    if !vertices_fit(
+        &vertices,
+        session.screen.width.get(),
+        session.screen.height.get(),
+    ) {
         outside.bad_vertex();
         return;
     }
     if has_3d {
-        let result = outside.draw_fan();
+        let result = outside.draw_fan(&vertices);
         if result != 0 {
             outside.not_drawn(result);
         }
@@ -96,19 +97,20 @@ impl Outside for Game {
     fn set_texture(&mut self, texture: u32) {
         crate::d3d::set_texture::set_texture(texture);
     }
-    fn draw_fan(&mut self) -> u32 {
+    fn draw_fan(&mut self, vertices: &[Vertex]) -> u32 {
         // `d3d::draw_fan_unclipped`: its result is always 0.
-        crate::platform_3d::draw_fan(&polygon());
+        crate::platform_3d::draw_fan(vertices);
         0
     }
     fn bad_vertex(&mut self) {
-        unsafe { log_write(ERROR_TEXT.as_ptr().cast(), true, 1) };
-        if let Err(e) = crate::scene::show_bad_polygon::show_bad_polygon() {
+        let scene = crate::scene::owner::scene();
+        crate::logfile::log_write::log_nul(&ERROR_TEXT, true, 1);
+        if let Err(e) = crate::scene::show_bad_polygon::show_bad_polygon(scene) {
             crate::fatal::raise::end("scene::show_bad_polygon", e);
         }
     }
     fn not_drawn(&mut self, result: u32) {
-        unsafe { log_write(DRAWTRI_TEXT.as_ptr().cast(), false, 1) };
+        crate::logfile::log_write::log_nul(&DRAWTRI_TEXT, false, 1);
         log_hex8(result, false, 1);
     }
 }

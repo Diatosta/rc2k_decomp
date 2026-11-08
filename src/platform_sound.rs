@@ -1,14 +1,19 @@
 //! DirectSound for the standalone program, on one SDL3 audio stream (the owner chose it,
 //! 2026-10-15: "Emulate DirectSound").
 //!
-//! The ported audio code calls DirectSound only through COM method tables. Here those are
-//! Rust functions: a device, its buffers (the primary one and the secondary ones, with
-//! duplicates sharing their data), the buffers' 3D interfaces and the 3D listener. A small
+//! The ported audio code calls DirectSound's methods as the functions here (phase 11,
+//! 2026-10-26: before, through COM method tables), on objects held as ids: a device, its
+//! buffers (the primary one and the secondary ones, with duplicates sharing their data),
+//! the buffers' 3D interfaces and the 3D listener. Results are DirectSound's codes, which
+//! the game checks and logs. A small
 //! software mixer in SDL's audio callback plays every playing buffer: its data (8 or 16
 //! bits, mono or stereo) at its frequency, with its volume and pan, into 44100 Hz 16-bit
 //! stereo; the primary buffer too, which in the Dolby mode is where the game's own mixer
 //! writes, so the music (a secondary buffer) is heard there as well (section 16's Dolby
-//! bug does not happen here). The primary buffer's volume is the whole output's.
+//! bug does not happen here). The primary buffer's volume is the whole output's. The
+//! secondary buffers play at `SECONDARY_GAIN` (owner, 2026-10-26): the game's own mixer
+//! leaves 12 dB of headroom, so the effects of the Dolby mode were 12 dB below the other
+//! modes'; every mode, and the music beside the Dolby mode's effects, now sounds alike.
 //! 3D placing (2026-10-19; before, the 3D calls did nothing and every placed sound played
 //! as near): a buffer's 3D interface keeps its place, its least and greatest distances and
 //! its mode; the listener stays where the game leaves it (at the origin, facing +z: the
@@ -16,18 +21,17 @@
 //! buffer is heard at DirectSound 3D's distance (the least distance over the distance,
 //! to the roll-off's power, held at the greatest distance) and panned by its direction
 //! (equal power); its own pan is not used then, as in DirectSound.
-//! Not done: Doppler, cones, EAX (its set-up is unported game code, which the standalone
-//! passes by).
-//! Every method has the arity of DirectSound's: these are `stdcall`, the callee takes the
-//! arguments off the stack.
+//! Not done: Doppler, cones, EAX and the voice manager (their property sets are not
+//! offered: `query_interface` answers `E_NOINTERFACE`, as a DirectSound without them).
 
-use sdl3_sys::everything::*;
+use crate::system::owner::system;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 const OUT_RATE: u32 = 44100;
-const OK: i32 = 0;
 const E_NOINTERFACE: i32 = 0x8000_4002u32 as i32;
+/// `DSERR_NODRIVER`.
+const NO_DRIVER: i32 = 0x8878_0078u32 as i32;
 const E_INVALIDARG: i32 = 0x8007_0057u32 as i32;
 const IID_3D_BUFFER: u32 = 0x279A_FA86;
 const IID_3D_LISTENER: u32 = 0x279A_FA84;
@@ -39,35 +43,15 @@ const STATUS_LOOPING: u32 = 4;
 /// What `GetCaps` says of the device (as Wine's does: no hardware buffers).
 const CAPS_FLAGS: u32 = 0xF5F;
 
-/// A method table: the methods, shared by every thread, and (made at the first use) the
-/// table the game reads, of their game addresses.
-struct Table<const N: usize>([*const (); N], std::sync::OnceLock<[u32; N]>);
-// SAFETY: the methods' addresses only, never written after the table is made.
-unsafe impl<const N: usize> Sync for Table<N> {}
+/// A DirectSound result: `OK`, or the failure code the game logs.
+pub const OK: i32 = 0;
 
-impl<const N: usize> Table<N> {
-    /// The game's table: its game address.
-    fn start(&'static self) -> u32 {
-        let game = self
-            .1
-            .get_or_init(|| self.0.map(crate::pointers::game_address));
-        crate::pointers::game_address(game.as_ptr())
-    }
-}
-
-/// What the game holds: its method table first, as for any COM object.
-#[repr(C)]
-struct Object {
-    /// The table's game address.
-    table: u32,
-    id: u32,
-}
-
-#[derive(Clone, Copy)]
-struct Format {
-    channels: u32,
-    bits: u32,
-    rate: u32,
+/// A sample format (`WAVEFORMATEX`'s channels, bits and rate).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Format {
+    pub channels: u32,
+    pub bits: u32,
+    pub rate: u32,
 }
 
 impl Format {
@@ -76,27 +60,24 @@ impl Format {
     }
 }
 
-/// A buffer's bytes, a region while they live (the game's code writes them by address once
-/// locked: `pointers`); shared by a buffer and its duplicates.
-struct SoundData {
-    bytes: Vec<u8>,
-    _lent: crate::pointers::Lent,
+/// What `IDirectSound::GetCaps` says (as Wine's DirectSound does: no hardware buffers):
+/// the dwords at +4 .. +0x10 of `DSCAPS`, the rest 0.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DeviceCaps {
+    pub flags: u32,
+    pub min_rate: u32,
+    pub max_rate: u32,
+    pub primary_buffers: u32,
 }
 
-impl SoundData {
-    fn new(bytes: Vec<u8>) -> Self {
-        Self {
-            _lent: crate::pointers::Lent::new(&bytes),
-            bytes,
-        }
-    }
-}
+/// A buffer's bytes, shared by a buffer and its duplicates; written while locked through
+/// `with_parts` (phase 12: no longer by address).
+type SoundData = Mutex<Vec<u8>>;
 
-impl std::ops::Deref for SoundData {
-    type Target = Vec<u8>;
-    fn deref(&self) -> &Vec<u8> {
-        &self.bytes
-    }
+/// A buffer's bytes, a poisoned lock taken as it is.
+fn bytes_of(data: &SoundData) -> std::sync::MutexGuard<'_, Vec<u8>> {
+    data.lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 struct Buffer {
@@ -116,7 +97,8 @@ struct Buffer {
     space: Option<Space>,
 }
 
-/// A buffer's 3D settings (DirectSound 3D's defaults at first).
+/// A buffer's 3D settings (DirectSound 3D's defaults at first; the game sets only the
+/// place and the least distance).
 #[derive(Clone, Copy)]
 struct Space {
     place: [f32; 3],
@@ -169,33 +151,30 @@ enum Kind {
     /// A buffer's 3D interface: the buffer's id.
     Space(u32),
     /// The listener (its roll-off is the state's).
-    Quiet,
+    Listener,
 }
 
 struct Entry {
-    object: Box<Object>,
     refs: u32,
     kind: Kind,
-    /// The object a region while it lives (the game's code reads its table by address:
-    /// `audio::com`).
-    _lent: crate::pointers::Lent,
 }
 
+/// The objects by id (what the game holds of each: never 0).
 struct State {
     entries: HashMap<u32, Entry>,
     next: u32,
     primary: Option<u32>,
-    /// The listener's roll-off factor.
+    /// The listener's roll-off factor (DirectSound's default; the game leaves it).
     rolloff: f32,
 }
-
-// SAFETY: the raw pointers in it are the game's to use; every access goes through the mutex.
-unsafe impl Send for State {}
 
 static STATE: Mutex<Option<State>> = Mutex::new(None);
 
 fn with<R>(f: impl FnOnce(&mut State) -> R) -> R {
-    let mut s = STATE.lock().unwrap();
+    // Taken even after a panic held it: the audio callback must not panic on it again.
+    let mut s = STATE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     f(s.get_or_insert_with(|| State {
         entries: HashMap::new(),
         next: 1,
@@ -204,70 +183,50 @@ fn with<R>(f: impl FnOnce(&mut State) -> R) -> R {
     }))
 }
 
-fn id_of(this: u32) -> u32 {
-    get(this + std::mem::offset_of!(Object, id) as u32)
-}
-
-/// A dword written where the game asked (none for a null address); an address outside the
-/// game's memory ends the program.
-fn put(at: u32, value: u32) {
-    put_as(at, value)
-}
-
-fn put_as<T: Copy>(at: u32, value: T) {
-    if at != 0 {
-        crate::pointers::write_or_end(at, value, "a DirectSound method's result")
-    }
-}
-
-fn get(at: u32) -> u32 {
-    crate::pointers::read_or_end(at, "a DirectSound method's argument")
-}
-
-fn new_object(s: &mut State, table: u32, kind: Kind) -> u32 {
+fn new_object(s: &mut State, kind: Kind) -> u32 {
     let id = s.next;
     s.next += 1;
-    let object = Box::new(Object { table, id });
-    let lent = crate::pointers::Lent::of(&*object);
-    let at = lent.addr();
-    s.entries.insert(
-        id,
-        Entry {
-            _lent: lent,
-            object,
-            refs: 1,
-            kind,
-        },
-    );
-    at
+    s.entries.insert(id, Entry { refs: 1, kind });
+    id
 }
 
-fn buffer(s: &mut State, this: u32) -> Option<&mut Buffer> {
-    match &mut s.entries.get_mut(&id_of(this))?.kind {
+fn buffer(s: &mut State, id: u32) -> Option<&mut Buffer> {
+    match &mut s.entries.get_mut(&id)?.kind {
         Kind::Buffer(b) => Some(b),
         _ => None,
     }
 }
 
-/// The 3D settings of the buffer whose 3D interface is `this`.
-fn space(s: &mut State, this: u32) -> Option<&mut Space> {
-    let id = match s.entries.get(&id_of(this))?.kind {
-        Kind::Space(id) => id,
-        _ => return None,
-    };
-    match &mut s.entries.get_mut(&id)?.kind {
-        Kind::Buffer(b) => b.space.as_mut(),
-        _ => None,
-    }
+/// The buffer `id` changed by `f`; `E_INVALIDARG` for no such buffer.
+fn with_buffer(id: u32, f: impl FnOnce(&mut Buffer)) -> i32 {
+    with(|s| match buffer(s, id) {
+        Some(b) => {
+            f(b);
+            OK
+        }
+        None => E_INVALIDARG,
+    })
 }
 
-fn read_format(at: u32) -> Format {
-    let word = |o: u32| crate::pointers::read_or_end::<u16>(at + o, "a wave format") as u32;
-    Format {
-        channels: word(2),
-        rate: get(at + 4),
-        bits: word(0xE),
-    }
+/// The 3D settings of the buffer whose 3D interface is `id`, changed by `f`.
+fn with_space(id: u32, f: impl FnOnce(&mut Space)) -> i32 {
+    with(|s| {
+        let Some(Entry {
+            kind: Kind::Space(owner),
+            ..
+        }) = s.entries.get(&id)
+        else {
+            return E_INVALIDARG;
+        };
+        let owner = *owner;
+        match buffer(s, owner).and_then(|b| b.space.as_mut()) {
+            Some(p) => {
+                f(p);
+                OK
+            }
+            None => E_INVALIDARG,
+        }
+    })
 }
 
 /// A primary buffer's size for a format: a quarter of a second, whole frames.
@@ -275,28 +234,18 @@ fn primary_bytes(f: &Format) -> u32 {
     (f.rate * f.block() / 4) / f.block() * f.block()
 }
 
-// ---- the methods every object has ----
+// ---- every object (IUnknown) ----
 
-extern "system" fn add_ref(this: u32) -> u32 {
+/// `Release`: the references left; at none the object goes (a 3D interface lets its
+/// buffer go too).
+pub fn release(id: u32) -> u32 {
     with(|s| {
-        s.entries.get_mut(&id_of(this)).map_or(0, |e| {
-            e.refs += 1;
-            e.refs
-        })
-    })
-}
-
-extern "system" fn release(this: u32) -> u32 {
-    with(|s| {
-        let id = id_of(this);
         let Some(e) = s.entries.get_mut(&id) else {
             return 0;
         };
         e.refs -= 1;
         let left = e.refs;
         if left == 0 {
-            // The object's memory goes too: the game must not use it again (it does not).
-            let _ = &e.object;
             let owner = match e.kind {
                 Kind::Space(owner) => Some(owner),
                 _ => None,
@@ -305,7 +254,6 @@ extern "system" fn release(this: u32) -> u32 {
             if s.primary == Some(id) {
                 s.primary = None;
             }
-            // A 3D interface held its buffer.
             if let Some(owner) = owner
                 && let Some(b) = s.entries.get_mut(&owner)
             {
@@ -319,72 +267,55 @@ extern "system" fn release(this: u32) -> u32 {
     })
 }
 
-extern "system" fn no_interface(_: u32, _: u32, out: u32) -> i32 {
-    put(out, 0);
-    E_NOINTERFACE
-}
-
-extern "system" fn ok0(_: u32) -> i32 {
-    OK
-}
-extern "system" fn ok1(_: u32, _: u32) -> i32 {
-    OK
-}
-extern "system" fn ok2(_: u32, _: u32, _: u32) -> i32 {
-    OK
-}
-extern "system" fn ok3(_: u32, _: u32, _: u32, _: u32) -> i32 {
-    OK
-}
-extern "system" fn ok4(_: u32, _: u32, _: u32, _: u32, _: u32) -> i32 {
-    OK
-}
-#[allow(clippy::too_many_arguments)] // IDirectSound3DListener::SetOrientation's arity
-extern "system" fn ok7(_: u32, _: u32, _: u32, _: u32, _: u32, _: u32, _: u32, _: u32) -> i32 {
-    OK
-}
-/// A `Get..` whose answer is not looked at by the game: a 0 written.
-extern "system" fn zero1(_: u32, out: u32) -> i32 {
-    put(out, 0);
-    OK
-}
-extern "system" fn zero2(_: u32, a: u32, b: u32) -> i32 {
-    put(a, 0);
-    put(b, 0);
-    OK
+/// `QueryInterface` by the interface id's first dword: a secondary buffer's 3D interface,
+/// the primary buffer's listener; anything else (the property sets) `E_NOINTERFACE`.
+pub fn query_interface(id: u32, iid: u32) -> Result<u32, i32> {
+    with(|s| {
+        let primary = match buffer(s, id) {
+            Some(b) => b.flags & PRIMARY != 0,
+            None => return Err(E_NOINTERFACE),
+        };
+        let kind = match (iid, primary) {
+            (IID_3D_BUFFER, false) => {
+                if let Some(b) = buffer(s, id) {
+                    b.space.get_or_insert(Space::DEFAULT);
+                }
+                // The buffer is kept while its 3D interface is.
+                if let Some(e) = s.entries.get_mut(&id) {
+                    e.refs += 1;
+                }
+                Kind::Space(id)
+            }
+            (IID_3D_LISTENER, true) => Kind::Listener,
+            _ => return Err(E_NOINTERFACE),
+        };
+        Ok(new_object(s, kind))
+    })
 }
 
 // ---- the device (IDirectSound) ----
 
-extern "system" fn create_buffer(_: u32, desc: u32, out: u32, _outer: u32) -> i32 {
-    if desc == 0 || out == 0 {
-        return E_INVALIDARG;
-    }
-    let flags = get(desc + 4);
-    let format_at = get(desc + 0x10);
+/// `CreateSoundBuffer`: a primary buffer (`DSBCAPS_PRIMARYBUFFER` in `flags`) a quarter
+/// second of its format; a secondary one `bytes` long. No format: 8-bit stereo at 22050.
+pub fn create_sound_buffer(flags: u32, bytes: u32, format: Option<Format>) -> u32 {
     let primary = flags & PRIMARY != 0;
-    let format = if format_at != 0 {
-        read_format(format_at)
-    } else {
-        Format {
-            channels: 2,
-            bits: 8,
-            rate: 22050,
-        }
-    };
+    let format = format.unwrap_or(Format {
+        channels: 2,
+        bits: 8,
+        rate: 22050,
+    });
     let bytes = if primary {
         primary_bytes(&format)
     } else {
-        get(desc + 8)
+        bytes
     };
     // A primary buffer's memory is the largest it can be, its formats changing.
     let room = if primary { 48000 * 4 } else { bytes as usize };
-    let at = with(|s| {
-        let at = new_object(
+    with(|s| {
+        let id = new_object(
             s,
-            BUFFER.start(),
             Kind::Buffer(Buffer {
-                data: Arc::new(SoundData::new(vec![
+                data: Arc::new(Mutex::new(vec![
                     if format.bits == 8 { 0x80 } else { 0 };
                     room.max(4)
                 ])),
@@ -401,29 +332,27 @@ extern "system" fn create_buffer(_: u32, desc: u32, out: u32, _outer: u32) -> i3
             }),
         );
         if primary {
-            s.primary = Some(id_of(at));
+            s.primary = Some(id);
         }
-        at
-    });
-    put(out, at);
-    OK
+        id
+    })
 }
 
-extern "system" fn device_caps(_: u32, caps: u32) -> i32 {
-    for n in 1..0x18 {
-        put(caps + n * 4, 0);
+/// `GetCaps`.
+pub fn device_caps() -> DeviceCaps {
+    DeviceCaps {
+        flags: CAPS_FLAGS,
+        min_rate: 100,
+        max_rate: 200_000,
+        primary_buffers: 1,
     }
-    put(caps + 4, CAPS_FLAGS);
-    put(caps + 8, 100);
-    put(caps + 0xC, 200_000);
-    put(caps + 0x10, 1);
-    OK
 }
 
-extern "system" fn duplicate(_: u32, source: u32, out: u32) -> i32 {
+/// `DuplicateSoundBuffer`: a buffer sharing the source's data, stopped at its start.
+pub fn duplicate_sound_buffer(source: u32) -> Result<u32, i32> {
     with(|s| {
         let Some(b) = buffer(s, source) else {
-            return E_INVALIDARG;
+            return Err(E_INVALIDARG);
         };
         let copy = Buffer {
             data: Arc::clone(&b.data),
@@ -432,155 +361,58 @@ extern "system" fn duplicate(_: u32, source: u32, out: u32) -> i32 {
             looping: false,
             ..*b
         };
-        let at = new_object(s, BUFFER.start(), Kind::Buffer(copy));
-        put(out, at);
-        OK
+        Ok(new_object(s, Kind::Buffer(copy)))
     })
 }
 
-static DEVICE: Table<11> = Table(
-    [
-        no_interface as *const (),
-        add_ref as *const (),
-        release as *const (),
-        create_buffer as *const (),
-        device_caps as *const (),
-        duplicate as *const (),
-        ok2 as *const (),   // SetCooperativeLevel
-        ok0 as *const (),   // Compact
-        zero1 as *const (), // GetSpeakerConfig
-        ok1 as *const (),   // SetSpeakerConfig
-        ok1 as *const (),   // Initialize
-    ],
-    std::sync::OnceLock::new(),
-);
+/// `SetCooperativeLevel`: nothing to do (SDL's stream is shared).
+pub fn set_cooperative_level(_device: u32, _window: u32, _level: u32) -> i32 {
+    OK
+}
 
 // ---- a buffer (IDirectSoundBuffer) ----
 
-extern "system" fn buffer_query(this: u32, iid: u32, out: u32) -> i32 {
-    let first = { get(iid) };
+/// `GetCaps`: the buffer's flags and length.
+pub fn buffer_caps(id: u32) -> Result<(u32, u32), i32> {
     with(|s| {
-        let primary = buffer(s, this).is_some_and(|b| b.flags & PRIMARY != 0);
-        let table = match (first, primary) {
-            (IID_3D_BUFFER, false) => BUFFER_3D.start(),
-            (IID_3D_LISTENER, true) => LISTENER.start(),
-            _ => {
-                put(out, 0);
-                return E_NOINTERFACE;
-            }
-        };
-        let kind = if primary {
-            Kind::Quiet
-        } else {
-            let id = id_of(this);
-            if let Some(b) = buffer(s, this) {
-                b.space.get_or_insert(Space::DEFAULT);
-            }
-            // The buffer is kept while its 3D interface is.
-            if let Some(e) = s.entries.get_mut(&id) {
-                e.refs += 1;
-            }
-            Kind::Space(id)
-        };
-        let at = new_object(s, table, kind);
-        put(out, at);
-        OK
+        buffer(s, id)
+            .map(|b| (b.flags, b.bytes))
+            .ok_or(E_INVALIDARG)
     })
 }
 
-extern "system" fn buffer_caps(this: u32, caps: u32) -> i32 {
+/// `GetCurrentPosition`: the play and write cursors (both where it plays).
+pub fn current_position(id: u32) -> Result<(u32, u32), i32> {
     with(|s| {
-        let Some(b) = buffer(s, this) else {
-            return E_INVALIDARG;
-        };
-        put(caps + 4, b.flags);
-        put(caps + 8, b.bytes);
-        put(caps + 0xC, 0);
-        put(caps + 0x10, 0);
-        OK
-    })
-}
-
-extern "system" fn position(this: u32, play: u32, write: u32) -> i32 {
-    with(|s| {
-        let Some(b) = buffer(s, this) else {
-            return E_INVALIDARG;
-        };
+        let b = buffer(s, id).ok_or(E_INVALIDARG)?;
         let at = (b.position as u32 * b.format.block()) % b.bytes.max(1);
-        put(play, at);
-        put(write, at);
-        OK
+        Ok((at, at))
     })
 }
 
-extern "system" fn get_format(this: u32, format: u32, size: u32, written: u32) -> i32 {
+/// `GetVolume`.
+pub fn volume(id: u32) -> Result<i32, i32> {
+    with(|s| buffer(s, id).map(|b| b.volume).ok_or(E_INVALIDARG))
+}
+
+/// `GetStatus`: `DSBSTATUS_PLAYING`, with `_LOOPING`.
+pub fn status(id: u32) -> Result<u32, i32> {
     with(|s| {
-        let Some(b) = buffer(s, this) else {
-            return E_INVALIDARG;
-        };
-        let f = b.format;
-        if format != 0 && size >= 0x10 {
-            put_as(format, 1u16);
-            put_as(format + 2, f.channels as u16);
-            put(format + 4, f.rate);
-            put(format + 8, f.rate * f.block());
-            put_as(format + 0xC, f.block() as u16);
-            put_as(format + 0xE, f.bits as u16);
-        }
-        put(written, 0x10);
-        OK
+        let b = buffer(s, id).ok_or(E_INVALIDARG)?;
+        Ok(if b.playing {
+            STATUS_PLAYING | if b.looping { STATUS_LOOPING } else { 0 }
+        } else {
+            0
+        })
     })
 }
 
-macro_rules! getter {
-    ($name:ident, $field:ident) => {
-        extern "system" fn $name(this: u32, out: u32) -> i32 {
-            with(|s| match buffer(s, this) {
-                Some(b) => {
-                    {
-                        put(out, b.$field as u32)
-                    };
-                    OK
-                }
-                None => E_INVALIDARG,
-            })
-        }
-    };
-}
-getter!(get_volume, volume);
-getter!(get_pan, pan);
-getter!(get_frequency, frequency);
-
-extern "system" fn status(this: u32, out: u32) -> i32 {
-    with(|s| match buffer(s, this) {
-        Some(b) => {
-            let st = if b.playing {
-                STATUS_PLAYING | if b.looping { STATUS_LOOPING } else { 0 }
-            } else {
-                0
-            };
-            put(out, st);
-            OK
-        }
-        None => E_INVALIDARG,
-    })
-}
-
-#[allow(clippy::too_many_arguments)] // IDirectSoundBuffer::Lock's arity
-extern "system" fn lock(
-    this: u32,
-    offset: u32,
-    bytes: u32,
-    p1: u32,
-    n1: u32,
-    p2: u32,
-    n2: u32,
-    flags: u32,
-) -> i32 {
+/// `Lock`: the two parts (place in the buffer + 1, 0 for none; bytes) of `bytes` from
+/// `offset` round the buffer, written through `with_parts`
+/// (flag 1: from the play cursor; 2: the whole buffer).
+pub fn lock(id: u32, offset: u32, bytes: u32, flags: u32) -> Result<[u32; 4], i32> {
     with(|s| {
-        let Some(b) = buffer(s, this) else {
-            return E_INVALIDARG;
-        };
+        let b = buffer(s, id).ok_or(E_INVALIDARG)?;
         let size = b.bytes.max(1);
         let bytes = if flags & 2 != 0 {
             size
@@ -593,281 +425,125 @@ extern "system" fn lock(
             offset % size
         };
         let first = bytes.min(size - offset);
-        let base = crate::pointers::game_address(b.data.as_ptr());
-        put(p1, base + offset);
-        put(n1, first);
-        put(p2, if bytes > first { base } else { 0 });
-        put(n2, bytes - first);
-        OK
+        Ok([
+            offset + 1,
+            first,
+            if bytes > first { 1 } else { 0 },
+            bytes - first,
+        ])
     })
 }
 
-extern "system" fn play(this: u32, _: u32, _: u32, flags: u32) -> i32 {
-    with(|s| match buffer(s, this) {
-        Some(b) => {
-            b.playing = true;
-            b.looping = flags & LOOPING != 0 || b.flags & PRIMARY != 0;
-            OK
-        }
-        None => E_INVALIDARG,
+/// `f` on the bytes of the parts `lock` gave (`parts`: the first's place + 1 and bytes, the
+/// second's; a place 0 is no part, given as empty). `E_INVALIDARG` for no such buffer or
+/// parts that are not the buffer's.
+pub fn with_parts<R>(
+    id: u32,
+    parts: [u32; 4],
+    f: impl FnOnce(&mut [u8], &mut [u8]) -> R,
+) -> Result<R, i32> {
+    with(|s| {
+        let b = buffer(s, id).ok_or(E_INVALIDARG)?;
+        let mut data = bytes_of(&b.data);
+        let [p1, n1, p2, n2] = parts;
+        let first_at = p1.checked_sub(1).ok_or(E_INVALIDARG)? as usize;
+        // The second part is the buffer's start, before the first.
+        let (head, tail) = data.split_at_mut_checked(first_at).ok_or(E_INVALIDARG)?;
+        let first = tail.get_mut(..n1 as usize).ok_or(E_INVALIDARG)?;
+        let second = match p2 {
+            0 => &mut [][..],
+            _ => head
+                .get_mut(p2 as usize - 1..(p2 - 1 + n2) as usize)
+                .ok_or(E_INVALIDARG)?,
+        };
+        Ok(f(first, second))
     })
 }
 
-extern "system" fn set_position(this: u32, at: u32) -> i32 {
-    with(|s| match buffer(s, this) {
-        Some(b) => {
-            b.position = (at / b.format.block()) as f64;
-            OK
-        }
-        None => E_INVALIDARG,
+/// `Unlock`: the bytes are the buffer's already.
+pub fn unlock(_id: u32, _parts: [u32; 4]) -> i32 {
+    OK
+}
+
+/// `Play` (`DSBPLAY_LOOPING` in `flags`; a primary buffer always loops).
+pub fn play(id: u32, flags: u32) -> i32 {
+    with_buffer(id, |b| {
+        b.playing = true;
+        b.looping = flags & LOOPING != 0 || b.flags & PRIMARY != 0;
     })
 }
 
-extern "system" fn set_format(this: u32, format: u32) -> i32 {
-    with(|s| match buffer(s, this) {
-        Some(b) if b.flags & PRIMARY != 0 && format != 0 => {
-            let f = { read_format(format) };
-            if f.rate == 0
-                || f.rate > 48000
-                || !matches!(f.bits, 8 | 16)
-                || !matches!(f.channels, 1 | 2)
-            {
-                return E_INVALIDARG;
-            }
+/// `SetCurrentPosition`.
+pub fn set_current_position(id: u32, at: u32) -> i32 {
+    with_buffer(id, |b| b.position = (at / b.format.block()) as f64)
+}
+
+/// `SetFormat` (the primary buffer only): its bytes silence in the new format.
+pub fn set_format(id: u32, f: Format) -> i32 {
+    if f.rate == 0 || f.rate > 48000 || !matches!(f.bits, 8 | 16) || !matches!(f.channels, 1 | 2) {
+        return E_INVALIDARG;
+    }
+    with(|s| match buffer(s, id) {
+        Some(b) if b.flags & PRIMARY != 0 => {
             // Silence in the new format: the 8-bit one's 0x80 bytes read as 16-bit are
             // -32640, a jump to near full scale (the clicks at the opening, 2026-10-15).
             let silence = if f.bits == 8 { 0x80 } else { 0 };
-            // The buffer is lent to the game (its region): filled as the game's memory.
-            crate::pointers::GamePtr::new(crate::pointers::game_address(b.data.as_ptr()))
-                .fill(silence, b.data.len(), "a sound buffer")
-                .unwrap_or_else(|e| crate::fatal::raise::end("platform_sound::set_format", e));
+            bytes_of(&b.data).fill(silence);
             b.format = f;
             b.bytes = primary_bytes(&f);
             b.position = 0.0;
+            crate::framework::log(&format!(
+                "platform_sound: the primary buffer's format: {} Hz, {} bits, {} channels",
+                f.rate, f.bits, f.channels
+            ));
             OK
         }
         _ => E_INVALIDARG,
     })
 }
 
-macro_rules! setter {
-    ($name:ident, $field:ident, $ty:ty) => {
-        extern "system" fn $name(this: u32, value: u32) -> i32 {
-            with(|s| match buffer(s, this) {
-                Some(b) => {
-                    b.$field = value as $ty;
-                    OK
-                }
-                None => E_INVALIDARG,
-            })
-        }
-    };
-}
-setter!(set_volume, volume, i32);
-setter!(set_pan, pan, i32);
-setter!(set_frequency, frequency, u32);
-
-extern "system" fn stop(this: u32) -> i32 {
-    with(|s| match buffer(s, this) {
-        Some(b) => {
-            b.playing = false;
-            OK
-        }
-        None => E_INVALIDARG,
-    })
+/// `SetVolume` (hundredths of a decibel, 0 the loudest).
+pub fn set_volume(id: u32, volume: i32) -> i32 {
+    with_buffer(id, |b| b.volume = volume)
 }
 
-static BUFFER: Table<21> = Table(
-    [
-        buffer_query as *const (),
-        add_ref as *const (),
-        release as *const (),
-        buffer_caps as *const (),
-        position as *const (),
-        get_format as *const (),
-        get_volume as *const (),
-        get_pan as *const (),
-        get_frequency as *const (),
-        status as *const (),
-        ok2 as *const (), // Initialize
-        lock as *const (),
-        play as *const (),
-        set_position as *const (),
-        set_format as *const (),
-        set_volume as *const (),
-        set_pan as *const (),
-        set_frequency as *const (),
-        stop as *const (),
-        ok4 as *const (), // Unlock
-        ok0 as *const (), // Restore
-    ],
-    std::sync::OnceLock::new(),
-);
+/// `SetPan`.
+pub fn set_pan(id: u32, pan: i32) -> i32 {
+    with_buffer(id, |b| b.pan = pan)
+}
+
+/// `SetFrequency` (0: the format's).
+pub fn set_frequency(id: u32, frequency: u32) -> i32 {
+    with_buffer(id, |b| b.frequency = frequency)
+}
+
+/// `Stop`.
+pub fn stop(id: u32) -> i32 {
+    with_buffer(id, |b| b.playing = false)
+}
+
+/// `Restore`: a buffer here is never lost.
+pub fn restore(_id: u32) -> i32 {
+    OK
+}
 
 // ---- 3D (IDirectSound3DBuffer, IDirectSound3DListener) ----
 
-fn float(bits: u32) -> f32 {
-    f32::from_bits(bits)
-}
-
 /// `SetPosition(x, y, z, apply)`: deferred or not, taken at once (the game commits each
 /// turn).
-extern "system" fn set_place(this: u32, x: u32, y: u32, z: u32, _: u32) -> i32 {
-    with(|s| match space(s, this) {
-        Some(p) => {
-            p.place = [float(x), float(y), float(z)];
-            OK
-        }
-        None => E_INVALIDARG,
-    })
+pub fn set_place(id: u32, place: [f32; 3]) -> i32 {
+    with_space(id, |p| p.place = place)
 }
 
-extern "system" fn get_place(this: u32, out: u32) -> i32 {
-    with(|s| match space(s, this) {
-        Some(p) => {
-            for (n, v) in p.place.iter().enumerate() {
-                put(out + 4 * n as u32, v.to_bits());
-            }
-            OK
-        }
-        None => E_INVALIDARG,
-    })
+/// `SetMinDistance(value, apply)`, taken at once.
+pub fn set_min_distance(id: u32, value: f32) -> i32 {
+    with_space(id, |p| p.least = value)
 }
 
-extern "system" fn set_least(this: u32, value: u32, _: u32) -> i32 {
-    with(|s| match space(s, this) {
-        Some(p) => {
-            p.least = float(value);
-            OK
-        }
-        None => E_INVALIDARG,
-    })
-}
-
-extern "system" fn set_greatest(this: u32, value: u32, _: u32) -> i32 {
-    with(|s| match space(s, this) {
-        Some(p) => {
-            p.greatest = float(value);
-            OK
-        }
-        None => E_INVALIDARG,
-    })
-}
-
-extern "system" fn set_mode(this: u32, value: u32, _: u32) -> i32 {
-    with(|s| match space(s, this) {
-        Some(p) => {
-            p.mode = value;
-            OK
-        }
-        None => E_INVALIDARG,
-    })
-}
-
-macro_rules! get_space {
-    ($name:ident, $field:ident, $to:expr) => {
-        extern "system" fn $name(this: u32, out: u32) -> i32 {
-            with(|s| match space(s, this) {
-                Some(p) => {
-                    let v: u32 = $to(p.$field);
-                    {
-                        put(out, v)
-                    };
-                    OK
-                }
-                None => E_INVALIDARG,
-            })
-        }
-    };
-}
-
-get_space!(get_least, least, f32::to_bits);
-get_space!(get_greatest, greatest, f32::to_bits);
-get_space!(get_mode, mode, |m: u32| m);
-
-/// `SetAllParameters(DS3DBUFFER*, apply)`: dwSize, vPosition, vVelocity, the cone's two
-/// angles, its orientation, its outside volume, flMinDistance, flMaxDistance, dwMode.
-extern "system" fn set_all(this: u32, all: u32, _: u32) -> i32 {
-    if all == 0 {
-        return E_INVALIDARG;
-    }
-    with(|s| match space(s, this) {
-        Some(p) => {
-            p.place = [
-                float(get(all + 4)),
-                float(get(all + 8)),
-                float(get(all + 0xC)),
-            ];
-            p.least = float(get(all + 0x34));
-            p.greatest = float(get(all + 0x38));
-            p.mode = get(all + 0x3C);
-            OK
-        }
-        None => E_INVALIDARG,
-    })
-}
-
-static BUFFER_3D: Table<21> = Table(
-    [
-        no_interface as *const (),
-        add_ref as *const (),
-        release as *const (),
-        zero1 as *const (), // GetAllParameters
-        zero2 as *const (), // GetConeAngles
-        zero1 as *const (), // GetConeOrientation
-        zero1 as *const (), // GetConeOutsideVolume
-        get_greatest as *const (),
-        get_least as *const (),
-        get_mode as *const (),
-        get_place as *const (),
-        zero1 as *const (), // GetVelocity
-        set_all as *const (),
-        ok3 as *const (), // SetConeAngles
-        ok4 as *const (), // SetConeOrientation
-        ok2 as *const (), // SetConeOutsideVolume
-        set_greatest as *const (),
-        set_least as *const (),
-        set_mode as *const (),
-        set_place as *const (),
-        ok4 as *const (), // SetVelocity
-    ],
-    std::sync::OnceLock::new(),
-);
-
-extern "system" fn set_rolloff(_: u32, value: u32, _: u32) -> i32 {
-    with(|s| s.rolloff = float(value));
+/// The listener's `CommitDeferredSettings`: everything is taken at once.
+pub fn commit_deferred(_listener: u32) -> i32 {
     OK
 }
-
-extern "system" fn get_rolloff(_: u32, out: u32) -> i32 {
-    let v = with(|s| s.rolloff);
-    put(out, v.to_bits());
-    OK
-}
-
-static LISTENER: Table<18> = Table(
-    [
-        no_interface as *const (),
-        add_ref as *const (),
-        release as *const (),
-        zero1 as *const (), // GetAllParameters
-        zero1 as *const (), // GetDistanceFactor
-        zero1 as *const (), // GetDopplerFactor
-        zero2 as *const (), // GetOrientation
-        zero1 as *const (), // GetPosition
-        get_rolloff as *const (),
-        zero1 as *const (), // GetVelocity
-        ok2 as *const (),   // SetAllParameters
-        ok2 as *const (),   // SetDistanceFactor
-        ok2 as *const (),   // SetDopplerFactor
-        ok7 as *const (),   // SetOrientation
-        ok4 as *const (),   // SetPosition
-        set_rolloff as *const (),
-        ok4 as *const (), // SetVelocity
-        ok0 as *const (), // CommitDeferredSettings
-    ],
-    std::sync::OnceLock::new(),
-);
 
 // ---- the mixer ----
 
@@ -875,6 +551,10 @@ static LISTENER: Table<18> = Table(
 fn gain(centibels: i32) -> f32 {
     10f32.powf(centibels.clamp(-10000, 0) as f32 / 2000.0)
 }
+
+/// The secondary buffers' gain: a quarter (-12 dB), the level the game's own mixer gives
+/// its channels at full volume (`volume * volume_factor` at most 0x1000, `>> 14`).
+const SECONDARY_GAIN: f32 = 0.25;
 
 /// One buffer added into `out` (stereo frames at `OUT_RATE`), its position moved on.
 fn mix_into(b: &mut Buffer, master: f32, rolloff: f32, out: &mut [f32]) {
@@ -893,7 +573,8 @@ fn mix_into(b: &mut Buffer, master: f32, rolloff: f32, out: &mut [f32]) {
         None if b.pan < 0 => (g, g * gain(b.pan)),
         None => (g * gain(-b.pan), g),
     };
-    let data: &[u8] = &b.data;
+    let data = bytes_of(&b.data);
+    let data: &[u8] = &data;
     let sample = |at: usize| -> f32 {
         if f.bits == 8 {
             (data[at] as f32 - 128.0) / 128.0
@@ -944,17 +625,44 @@ fn mix_into(b: &mut Buffer, master: f32, rolloff: f32, out: &mut [f32]) {
 const STICKY_FOCUS: u32 = 0x4000;
 const GLOBAL_FOCUS: u32 = 0x8000;
 
-/// SDL's audio callback: the playing buffers mixed into what the stream wants.
-extern "C" fn feed(_: *mut core::ffi::c_void, stream: *mut SDL_AudioStream, wanted: i32, _: i32) {
+/// The loudest sample sent to the device since the remote control last asked.
+#[cfg(feature = "remote")]
+pub static LAST_PEAK: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// Whether the audio callback has panicked: it gives silence from then on.
+static FEED_PANICKED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// SDL's audio callback: the playing buffers mixed into what the stream wants (none when it
+/// wants less than a frame).
+fn feed(wanted: i32) -> Option<Vec<i16>> {
+    use std::sync::atomic::Ordering::Relaxed;
     let frames = (wanted.max(0) / 4) as usize;
     if frames == 0 {
-        return;
+        return None;
     }
+    // A panic must not unwind into SDL (it would end the program, unreported).
+    let mixed = if FEED_PANICKED.load(Relaxed) {
+        None
+    } else {
+        std::panic::catch_unwind(|| mixed_frames(frames)).ok()
+    };
+    Some(mixed.unwrap_or_else(|| {
+        if !FEED_PANICKED.swap(true, Relaxed) {
+            crate::framework::log(
+                "platform_sound: the audio callback panicked: silence from now on",
+            );
+        }
+        vec![0i16; frames * 2]
+    }))
+}
+
+/// The playing buffers mixed into `frames` stereo frames for the device.
+fn mixed_frames(frames: usize) -> Vec<i16> {
     let mut out = vec![0f32; frames * 2];
     // DirectSound's focus: while the window is not in front, a buffer made without
     // `DSBCAPS_GLOBALFOCUS` or `DSBCAPS_STICKYFOCUS` plays on unheard (the game asks for
     // neither, so it goes quiet and comes back with the focus).
-    let focused = crate::session::FLAGS.window_focused.get() == 1;
+    let focused = system().session.flags.window_focused.get() == 1;
     let mut unheard = Vec::new();
     with(|s| {
         let master = s
@@ -970,8 +678,13 @@ extern "C" fn feed(_: *mut core::ffi::c_void, stream: *mut SDL_AudioStream, want
                 && b.playing
             {
                 // The primary buffer's own volume is the master's; its data is not
-                // scaled twice.
-                let m = if b.flags & PRIMARY != 0 { 1.0 } else { master };
+                // scaled twice (nor given the secondary buffers' headroom, which the game's
+                // mixer has written into it already).
+                let m = if b.flags & PRIMARY != 0 {
+                    1.0
+                } else {
+                    master * SECONDARY_GAIN
+                };
                 if focused || b.flags & (GLOBAL_FOCUS | STICKY_FOCUS) != 0 {
                     mix_into(b, m, rolloff, &mut out);
                 } else {
@@ -986,44 +699,72 @@ extern "C" fn feed(_: *mut core::ffi::c_void, stream: *mut SDL_AudioStream, want
         .iter()
         .map(|x| (x * 32767.0).clamp(-32768.0, 32767.0) as i16)
         .collect();
-    // SAFETY: the stream SDL called back with; `pcm`'s bytes, their count.
-    unsafe { SDL_PutAudioStreamData(stream, pcm.as_ptr().cast(), (pcm.len() * 2) as i32) };
+    #[cfg(feature = "remote")]
+    if let Some(peak) = pcm.iter().map(|sample| sample.unsigned_abs() as u32).max() {
+        LAST_PEAK.fetch_max(peak, std::sync::atomic::Ordering::Relaxed);
+    }
+    pcm
 }
 
 static OPENED: Mutex<bool> = Mutex::new(false);
 
-/// `DirectSoundCreate` for the standalone: the device object into `out`, SDL's audio
-/// opened the first time. Fails (as `DirectSoundCreate` can) when SDL cannot.
-pub fn direct_sound_create(out: u32) -> i32 {
+/// `DirectSoundCreate` for the standalone: the device, SDL's audio opened the first time.
+/// Fails (as `DirectSoundCreate` can, with `DSERR_NODRIVER`) when SDL cannot.
+pub fn create_device() -> Result<u32, i32> {
     let mut opened = OPENED.lock().unwrap();
     if !*opened {
-        // SAFETY: SDL started on the main thread; the spec and callback live as SDL needs
-        // (`feed` is a plain function, the spec copied by SDL).
-        unsafe {
-            if !SDL_InitSubSystem(SDL_INIT_AUDIO) {
+        match crate::ffi::sdl::start_audio_output(OUT_RATE, feed) {
+            Ok(()) => {}
+            Err(crate::ffi::sdl::AudioError::Init) => {
                 crate::framework::log("platform_sound: SDL audio cannot be started");
-                return 0x8878_0078u32 as i32; // DSERR_NODRIVER
+                return Err(NO_DRIVER);
             }
-            let spec = SDL_AudioSpec {
-                format: SDL_AUDIO_S16LE,
-                channels: 2,
-                freq: OUT_RATE as i32,
-            };
-            let stream = SDL_OpenAudioDeviceStream(
-                SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
-                &spec,
-                Some(feed),
-                std::ptr::null_mut(),
-            );
-            if stream.is_null() {
+            Err(crate::ffi::sdl::AudioError::NoDevice) => {
                 crate::framework::log("platform_sound: no SDL audio device");
-                return 0x8878_0078u32 as i32;
+                return Err(NO_DRIVER);
             }
-            SDL_ResumeAudioStreamDevice(stream);
         }
         *opened = true;
     }
-    let at = with(|s| new_object(s, DEVICE.start(), Kind::Device));
-    put(out, at);
-    OK
+    Ok(with(|s| new_object(s, Kind::Device)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn objects_lock_round_and_go_with_their_references() {
+        let format = Format {
+            channels: 2,
+            bits: 16,
+            rate: 22050,
+        };
+        let b = create_sound_buffer(0x80, 400, Some(format));
+        assert_ne!(b, 0);
+        assert_eq!(buffer_caps(b), Ok((0x80, 400)));
+        // The 3D interface of a secondary buffer, and none of the property sets.
+        let space = query_interface(b, IID_3D_BUFFER).unwrap();
+        assert_eq!(query_interface(b, IID_3D_LISTENER), Err(E_NOINTERFACE));
+        assert_eq!(query_interface(b, 0x31EF_AC30), Err(E_NOINTERFACE));
+        assert_eq!(set_place(space, [1.0, 2.0, 3.0]), OK);
+        assert_eq!(set_place(b, [1.0, 2.0, 3.0]), E_INVALIDARG);
+        // A lock past the end goes round to the start.
+        assert_eq!(set_current_position(b, 0), OK);
+        let [p1, n1, p2, n2] = lock(b, 300, 200, 0).unwrap();
+        assert_eq!((n1, n2), (100, 100));
+        assert_eq!(p1 - p2, 300);
+        assert_eq!(play(b, LOOPING), OK);
+        assert_eq!(status(b), Ok(STATUS_PLAYING | STATUS_LOOPING));
+        assert_eq!(stop(b), OK);
+        assert_eq!(status(b), Ok(0));
+        // A duplicate shares the data; the buffer stays while its 3D interface does.
+        let copy = duplicate_sound_buffer(b).unwrap();
+        assert_eq!(lock(copy, 300, 1, 0).unwrap()[0], p1);
+        assert_eq!(release(b), 1);
+        assert_eq!(status(b), Ok(0));
+        assert_eq!(release(space), 0);
+        assert_eq!(status(b), Err(E_INVALIDARG));
+        assert_eq!(release(copy), 0);
+    }
 }

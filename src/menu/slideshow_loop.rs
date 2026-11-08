@@ -1,50 +1,43 @@
 //! `menu::slideshow_loop` (0x47A973): the loop of the slideshow screen.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: leaving is not asked about; it has a step of its own once
 //! a frame.
 //! The name is a reading from the title string of its menu, "SLIDESHOW", not yet a visit.
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
-
-use crate::framework::rva;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, List, Screen, Step, screen_entry};
+//! (`menu::table_calls`).
+use crate::menu::screen_items_store::slot;
+use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.slideshow.addr() as usize,
-    saved_item: || &SCREEN_ITEMS.current[slot::SLIDESHOW],
+    menu: |m| m.tables.menus.slideshow.id(),
+    saved_item: |m| &m.screens.items.current[slot::SLIDESHOW],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.slideshow_scene.addr() as usize,
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.slideshow_scene.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.slideshow_draw.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.slideshow_draw.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.slideshow_setup.addr() as usize,
+            pointer: |m| &m.screens.flow.setup_list, // dword_755500
+            table: |m| m.tables.draw_lists.slideshow_setup.id(),
             run: true,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.slideshow_overlay.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.slideshow_overlay.id(),
             run: false,
         },
     ],
     first_frame_lists: None,
-    frame_callback: rva(0x474D4B),
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[],
     set_up_first: &[],

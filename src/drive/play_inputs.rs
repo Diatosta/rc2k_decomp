@@ -2,37 +2,31 @@
 //! tape: frame `dword_6EF7E4` (16 bytes; the car's 8) has ebx and the packed word, taken
 //! apart (`drive::unpack_inputs`) into `dword_6138C4` .. (eax, ebx, ecx, edx).
 //!
-//! In:  nothing
-//! Out: eax .. edx the words, esi the tape's offset (cars 0, 1); the rest kept; no flags
-//!      read
-//!
-//! Callers: `drive::play_inputs_if`, `sub_460835`.
+//! Callers: `drive::play_inputs_if`, `race::step_replay_cars`.
 
-use crate::drive::replay_frames_store::REPLAY_FRAMES;
 use crate::errors::BadInput;
-use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
+use crate::pointers::Store;
+use crate::race::owner::Race;
 use crate::race::replay_work_store::REPLAY_WORK;
-use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{on_tape, tape_offset}`.
-pub fn play_inputs() -> Result<(), BadInput> {
-    let car = RACE_WORK.current_car.get();
+pub fn play_inputs(race: &Race) -> Result<(), BadInput> {
+    let shared = &race.shared;
+    let replay = &race.replay;
+    let car = shared.work.current_car.get();
     if !on_tape(car) {
         return Ok(());
     }
-    let esi = tape_offset(REPLAY_FRAMES.step_frame.get(), car);
-    let at = |o: u32| {
-        (REPLAY_WORK.replay_tape[0].addr())
-            .wrapping_add(esi)
-            .wrapping_add(o)
-    };
-    let [ebx, second]: [u32; 2] = GamePtr::new(at(0)).read("the replay tape")?;
+    let esi = tape_offset(replay.replay_frames.step_frame.get(), car);
+    let mut words = [0u8; 8];
+    REPLAY_WORK.replay_tape.load(esi as usize, &mut words)?;
+    let ebx = u32::from_le_bytes([words[0], words[1], words[2], words[3]]);
+    let second = u32::from_le_bytes([words[4], words[5], words[6], words[7]]);
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(second);
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {
-        PHYSICS.input_words[k].set(*v);
+        shared.physics_tables.input_words[k].set(*v);
     }
     Ok(())
 }

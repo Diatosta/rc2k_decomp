@@ -8,18 +8,14 @@
 //! blocks; the log ("LOADING NETWORK START", the counts, the cars), the stage loaded
 //! (`race::load_stage`), "LOADING NETWORK COMPLETE".
 //!
-//! In:  nothing
-//! Out: nothing its one caller, `net::lets_rally` (which has a `pusha`), reads
 //! The players' loop ends on `jnz` with the count: none, or more than the tables' eight,
 //! would run past them: refused. Caller: `net::lets_rally`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{log, log_int_nl};
-use crate::net::store::NET;
+use crate::net::lobby::{log_bytes, log_int_nl};
+use crate::net::store::NetVars;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
+use crate::race::owner::Race;
 use rc2k_core::net::record;
 
 const RULE: &std::ffi::CStr = c"------------------------"; // "------------------------"
@@ -41,8 +37,8 @@ const COUNTS: [(&std::ffi::CStr, Count); 11] = [
     (c"[shauncarnum8]", Count::Kind(7)),
 ];
 
-/// A count logged: `RACE_VIEW`'s car and player counts, this machine's player (`NET.player`), or
-/// a car's kind (`RACE_VARS.race_car_kinds`).
+/// A count logged: `crate::race::owner::race().shared.view`'s car and player counts, this machine's player (`crate::net::owner::net().vars.player`), or
+/// a car's kind (`crate::race::owner::race().shared.vars.race_car_kinds`).
 #[derive(Clone, Copy)]
 enum Count {
     RaceCars,
@@ -52,14 +48,14 @@ enum Count {
 }
 
 /// The Rust version.
-pub fn set_up_race() -> Result<(), Refused> {
+pub fn set_up_race(race: &Race, vars: &NetVars) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::record` (`race_players`, `seat`).
-    let players = record::race_players(NET.players.get())?;
-    RACE_VIEW.local_car.set(NET.player.get());
+    let players = record::race_players(vars.players.get())?;
+    race.shared.view.local_car.set(vars.player.get());
     for n in 0..players {
-        let record = &NET.player_block(n).record;
+        let record = &vars.player_block(n).record;
         let seat = record::seat(|n| record.head.get(n));
-        let v = &RACE_VARS;
+        let v = &race.shared.vars;
         v.race_car_kinds[n as usize].set(seat.car);
         v.car_colours[n as usize].set(seat.colours);
         v.start_numbers[n as usize].set(seat.race_number);
@@ -68,34 +64,40 @@ pub fn set_up_race() -> Result<(), Refused> {
             v.direction.set(direction);
         }
     }
-    RACE_VARS.run_kind.set(0);
-    RACE_VIEW.race_cars.set(players);
-    RACE_VIEW.players.set(1);
-    FRAME_SWITCHES.editor_mode.set(0);
-    crate::net::reset_cars::reset_cars()?;
-    crate::race::race_cars::set_up_arcade_cars()?;
-    crate::race::race_shell::set_start_states()?;
+    race.shared.vars.run_kind.set(0);
+    race.shared.view.race_cars.set(players);
+    race.shared.view.players.set(1);
+    race.shared.switches.editor_mode.set(0);
+    crate::net::reset_cars::reset_cars(race)?;
+    crate::race::race_cars::set_up_arcade_cars(race)?;
+    crate::race::race_shell::set_start_states(race)?;
     // Each stored block's gearbox kind and start slot value, from the race's tables.
-    for (car, colours) in CAR_BLOCKS.cars[..8].iter().zip(&RACE_VARS.car_colours) {
+    for (car, colours) in CAR_BLOCKS.cars[..8]
+        .iter()
+        .zip(&race.shared.vars.car_colours)
+    {
         car.gearbox_kind.set(colours.get());
     }
-    for (car, number) in CAR_BLOCKS.cars[..8].iter().zip(&RACE_VARS.start_numbers) {
+    for (car, number) in CAR_BLOCKS.cars[..8]
+        .iter()
+        .zip(&race.shared.vars.start_numbers)
+    {
         car.start_slot_value.set(number.get());
     }
-    log(crate::pointers::game_address(RULE.as_ptr()), true, 1);
-    log(crate::pointers::game_address(START.as_ptr()), true, 1);
+    log_bytes(RULE.to_bytes(), true, 1);
+    log_bytes(START.to_bytes(), true, 1);
     for (label, value) in COUNTS {
-        log(crate::pointers::game_address(label.as_ptr()), false, 1);
+        log_bytes(label.to_bytes(), false, 1);
         let value = match value {
-            Count::RaceCars => RACE_VIEW.race_cars.get(),
-            Count::Players => RACE_VIEW.players.get(),
-            Count::LocalPlayer => NET.player.get(),
-            Count::Kind(n) => RACE_VARS.race_car_kinds[n].get(),
+            Count::RaceCars => race.shared.view.race_cars.get(),
+            Count::Players => race.shared.view.players.get(),
+            Count::LocalPlayer => vars.player.get(),
+            Count::Kind(n) => race.shared.vars.race_car_kinds[n].get(),
         };
         log_int_nl(value, 1);
     }
-    unsafe { crate::race::stage_loading::load_stage() }?;
-    log(crate::pointers::game_address(COMPLETE.as_ptr()), true, 1);
-    log(crate::pointers::game_address(RULE_2.as_ptr()), true, 1);
+    { crate::race::stage_loading::load_stage(race) }?;
+    log_bytes(COMPLETE.to_bytes(), true, 1);
+    log_bytes(RULE_2.to_bytes(), true, 1);
     Ok(())
 }

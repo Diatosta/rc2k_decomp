@@ -24,6 +24,7 @@ const fn zeros<const N: usize>() -> [Dword; N] {
 /// A player's 16 bytes of DirectPlay player data (`NetPlayerRecord`; `g_netOwnRecord` for
 /// this machine).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PlayerRecord {
     /// +0 the state bits (1 ready, 2 waiting, 4 racing, 0x10 the host), +1 the car, +2 its
     /// colours, +3 the nationality, +4 the stage, +5 its direction, +6 the race number, +7 a
@@ -55,13 +56,33 @@ impl PlayerRecord {
         self.head.get(Self::STATE)
     }
 
-    pub fn addr(&self) -> u32 {
-        self.head.addr()
+    /// The record's 16 bytes, as DirectPlay's player data.
+    pub fn bytes(&self) -> [u8; 16] {
+        let mut b = [0u8; 16];
+        b[..8].copy_from_slice(&self.head.read());
+        b[8..12].copy_from_slice(&self.race_time.get().to_le_bytes());
+        b[12..].copy_from_slice(&self.total.get().to_le_bytes());
+        b
+    }
+
+    /// The record's first `data.len()` bytes (at most 16) set from `data`.
+    pub fn set_bytes(&self, data: &[u8]) {
+        let mut b = self.bytes();
+        let n = data.len().min(16);
+        b[..n].copy_from_slice(&data[..n]);
+        for (k, &v) in b[..8].iter().enumerate() {
+            self.head.set(k, v);
+        }
+        self.race_time
+            .set(u32::from_le_bytes([b[8], b[9], b[10], b[11]]));
+        self.total
+            .set(u32::from_le_bytes([b[12], b[13], b[14], b[15]]));
     }
 }
 
 /// A player's block of `g_netReceived` (`NetPlayerBlock`, 0x804C bytes).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PlayerBlock {
     /// +0: the player's name.
     pub name: Bytes<32>,
@@ -90,6 +111,9 @@ pub struct PlayerBlock {
     pub _gap_8044: [Dword; 2],
 }
 
+/// Where the inbox begins in a player's block.
+const INBOX_AT: usize = 0x34;
+
 impl PlayerBlock {
     pub const fn zero() -> Self {
         Self {
@@ -108,15 +132,23 @@ impl PlayerBlock {
         }
     }
 
-    /// Where the count and the records are (`+0x34`, the start of the inbox
-    /// `rc2k_core::net::inbox` works on, which runs on past `messages`).
-    pub fn inbox_addr(&self) -> u32 {
-        crate::pointers::game_address(self as *const Self) + 0x34
+    /// `len` bytes of the inbox: the count and the records, from `+0x34` (the start of the
+    /// inbox `rc2k_core::net::inbox` works on, which runs on past `messages`).
+    pub fn read_inbox(&self, len: usize) -> Result<Vec<u8>, crate::errors::BadInput> {
+        let mut bytes = vec![0; len];
+        crate::pointers::Store::load(self, INBOX_AT, &mut bytes)?;
+        Ok(bytes)
+    }
+
+    /// `bytes` written from the inbox's start.
+    pub fn write_inbox(&self, bytes: &[u8]) -> Result<(), crate::errors::BadInput> {
+        crate::pointers::Store::store(self, INBOX_AT, bytes)
     }
 }
 
 /// DirectPlay's `DPNAME`.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct DpName {
     pub size: Dword,
     pub flags: Dword,
@@ -133,14 +165,20 @@ impl DpName {
             long_name: Dword::new(0),
         }
     }
+}
 
-    pub fn addr(&self) -> u32 {
-        self.size.addr()
+/// `bytes` into `cells`' dwords, little-endian (a GUID's 16 bytes into four).
+pub fn put_bytes(cells: &[Dword], bytes: &[u8]) {
+    for (cell, b) in cells.iter().zip(bytes.chunks(4)) {
+        let mut v = cell.get().to_le_bytes();
+        v[..b.len()].copy_from_slice(b);
+        cell.set(u32::from_le_bytes(v));
     }
 }
 
 /// DirectPlay's `DPSESSIONDESC2` (80 bytes).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SessionDesc {
     pub size: Dword,
     pub flags: Dword,
@@ -172,24 +210,46 @@ impl SessionDesc {
         }
     }
 
-    pub fn addr(&self) -> u32 {
-        self.size.addr()
+    /// Every field 0 (`system::zero_memory` of its 0x50 bytes).
+    pub fn clear(&self) {
+        for d in [
+            &self.size,
+            &self.flags,
+            &self.max_players,
+            &self.current_players,
+            &self.name,
+            &self.password,
+        ] {
+            d.set(0);
+        }
+        for d in self
+            .instance
+            .iter()
+            .chain(&self.application)
+            .chain(&self.reserved)
+            .chain(&self.user)
+        {
+            d.set(0);
+        }
     }
 }
 
 /// IDA 0x52A4B0 .. 0x5AB419.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct NetVars {
     /// 0x52A4B0: `g_netReceiveDone`: set when the receiving thread has ended; also the `nonetwork` setting's variable (`settings::read_settings`).
     pub receive_done: Dword,
-    /// 0x52A4B4: `g_netEditText`: the text of the item edited (an address).
+    /// 0x52A4B4: `g_netEditText`: the text of the item edited, by number
+    /// (`net::begin_edit::EditedText`; the original keeps its address).
     pub edit_text: Dword,
     /// 0x52A4B8: `g_netEdited`: the item edited (-1: none).
     pub edited: Dword,
     /// 0x52A4BC: `dword_52A4BC`: the widest the edited text may be.
     pub edit_width: Dword,
-    /// 0x52A4C0: `dword_52A4C0`: the font the edited text is measured with.
-    pub edit_font: Dword,
+    /// 0x52A4C0: `dword_52A4C0`: the font the edited text is measured with (the original
+    /// keeps its address).
+    pub edit_font: crate::gfx::typefaces::FontCell,
     /// 0x52A4C4: `dword_52A4C4`: the time of the players' last listing.
     pub clock_a: Dword,
     /// 0x52A4C8: `g_netChatInput`: what this player types into the chat.
@@ -252,11 +312,13 @@ pub struct NetVars {
     pub show_gaps: Dword,
     /// 0x52AC34: `g_netConnections`: the connections listed.
     pub connections: Dword,
-    /// 0x52AC38: `g_netConnectionTable`: the connection records (0x54 bytes each; an address).
+    /// 0x52AC38: `g_netConnectionTable`: the connection records (0x54 bytes each; an address,
+    /// 0 since phase 12: `net::tables::NET_TABLES`).
     pub connection_table: Dword,
     /// 0x52AC3C: `dword_52AC3C`: the address elements added.
     pub elements: Dword,
-    /// 0x52AC40: `dword_52AC40`: the compound address (memory of the network's list).
+    /// 0x52AC40: `dword_52AC40`: the compound address (memory of the network's list; 0 since
+    /// phase 12: `net::tables::NET_TABLES`).
     pub address: Dword,
     /// 0x52AC44: `bytes`: the compound address's size.
     pub address_size: Dword,
@@ -276,7 +338,8 @@ pub struct NetVars {
     pub posted_answered: Dword,
     /// 0x52ACF4: `g_netSessions`: the sessions listed.
     pub sessions: Dword,
-    /// 0x52ACF8: `g_netSessionTable`: the session records (0x68 bytes each; an address).
+    /// 0x52ACF8: `g_netSessionTable`: the session records (0x68 bytes each; an address, 0
+    /// since phase 12: `net::tables::NET_TABLES`).
     pub session_table: Dword,
     /// 0x52ACFC: `g_netSessionOpen`.
     pub session_open: Dword,
@@ -330,12 +393,9 @@ pub struct NetVars {
     pub dplay: Dword,
     /// 0x5AB28C: `g_dplayLobby`: the `IDirectPlayLobby2A` object.
     pub lobby: Dword,
-    /// 0x5AB290: `g_lobbyLaunched`: the game was launched by a lobby.
-    pub lobby_launched: Dword,
-    /// 0x5AB294: `dword_5AB294`: the lobby's connection settings (an address).
-    pub settings: Dword,
-    /// 0x5AB298: `dword_5AB298`: their size.
-    pub settings_size: Dword,
+    /// 0x5AB290 .. 0x5AB29C: `g_lobbyLaunched`, a lobby's connection settings and their
+    /// size: the lobby-launched branch's, left out with the lobbies (`net::open_lobby`).
+    pub _gap_5ab290: [Dword; 3],
     /// 0x5AB29C: `g_netName`: a `DPNAME`.
     pub dp_name: DpName,
     /// 0x5AB2AC: `g_netSessionDesc`: a `DPSESSIONDESC2`.
@@ -371,138 +431,154 @@ pub struct NetVars {
     /// 0x5AB3F0: `DPAID_INetPort`.
     pub aid_inet_port: Bytes<16>,
     /// 0x5AB400: `aFilesDGfxChatz`: the text `files\d\gfx\chatzone.pcx`.
-    pub chatzone_file: Bytes<25>,
+    pub chatzone_file: Bytes<28>,
 }
 
-pub static NET: NetVars = NetVars {
-    receive_done: Dword::new(0),
-    edit_text: Dword::new(0),
-    edited: Dword::new(0),
-    edit_width: Dword::new(0),
-    edit_font: Dword::new(0),
-    clock_a: Dword::new(0),
-    chat_input: Bytes::new([0; 64]),
-    chat: Bytes::new([0; 768]),
-    chat_line: Bytes::new([0; 128]),
-    chat_text: Bytes::new([0; 128]),
-    mode: Dword::new(0x3),
-    _gap_52a90c: Bytes::new([0; 4]),
-    session: Dword::new(0),
-    sync: Byte::new(0),
-    sequence: Byte::new(128),
-    sync_answer: Word::new(0),
-    receiving: Dword::new(0),
-    messages_taken: Dword::new(0),
-    player: Dword::new(0),
-    first_host: Dword::new(0),
-    memory: zeros(),
-    _gap_52a938: Bytes::new([0; 48]),
-    receive_data: Bytes::new([0; 256]),
-    send_buffer: Bytes::new([0; 256]),
-    event: Dword::new(0),
-    mutex: Dword::new(0),
-    player_name: Bytes::new([0; 32]),
-    machine_name: Bytes::new([0; 64]),
-    most_players: Dword::new(0x8),
-    session_password: Bytes::new(with_runs::<16>(&[(0, b"\x17\x00\x00\x00\x01")])),
-    host_address: Bytes::new([0; 64]),
-    port: Dword::new(0),
-    car_item: Dword::new(0x1),
-    stage_item: Dword::new(0x1),
-    show_gaps: Dword::new(0),
-    connections: Dword::new(0),
-    connection_table: Dword::new(0),
-    elements: Dword::new(0),
-    address: Dword::new(0),
-    address_size: Dword::new(0),
-    element_table: Bytes::new([0; 76]),
-    saved_connection: Bytes::new([0; 16]),
-    saved_name: Bytes::new([0; 64]),
-    posting: Dword::new(0),
-    posted_call: Dword::new(0),
-    posted_result: Dword::new(0),
-    posted_answered: Dword::new(0),
-    sessions: Dword::new(0),
-    session_table: Dword::new(0),
-    session_open: Dword::new(0),
-    joined: Bytes::new([0; 16]),
-    joined_name: Bytes::new([0; 64]),
-    joined_most: Dword::new(0),
-    joined_password: Bytes::new([0; 16]),
-    own: PlayerRecord::zero(),
-    data_size: Dword::new(0),
-    all_raced: Dword::new(0),
-    race_over: Dword::new(0),
-    after_race: Dword::new(0),
-    racing: Dword::new(0),
-    sync_clock: Dword::new(0),
-    sync_first: Dword::new(0x1),
-    synced: Bytes::new([0; 8]),
-    players: Dword::new(0),
-    received: [const { PlayerBlock::zero() }; 8],
-    sorted: [const { PlayerBlock::zero() }; 8],
-    group_name: Bytes::new(with_runs::<20>(&[(0, b"susanivanovafanclub")])),
-    player_id: Dword::new(0),
-    send_to: Dword::new(0),
-    received_from: Dword::new(0),
-    received_to: Dword::new(0),
-    received_size: Dword::new(0),
-    dplay_2: Dword::new(0),
-    dplay: Dword::new(0),
-    lobby: Dword::new(0),
-    lobby_launched: Dword::new(0),
-    settings: Dword::new(0),
-    settings_size: Dword::new(0),
-    dp_name: DpName::zero(),
-    session_desc: SessionDesc::zero(),
-    _gap_5ab2fc: Bytes::new([0; 4]),
-    app_guid: Bytes::new(with_runs::<16>(&[(0, b"\x80\xb0\xfa\xb5W\x09\xd1\x11\x91\xc0"), (11, b"\xc0\xf0\x1a\x9f\xb3")])),
-    iid_dplay4a: Bytes::new(with_runs::<16>(&[(0, b"A\xfe>\x13\xdc2\xd0\x11\x9c\xfb"), (11, b"\xa0\xc9\x0aC\xcb")])),
-    iid_lobby2a: Bytes::new(with_runs::<16>(&[(0, b"\x80\xaf\xb4\x1b\x03\xa3\xd0\x11\x9cO"), (11, b"\xa0\xc9\x05B^")])),
-    clsid_dplay: Bytes::new(with_runs::<16>(&[(0, b" m\xeb\xd1#\x89\xd0\x11\x9d\x97"), (11, b"\xa0\xc9\x0aC\xcb")])),
-    clsid_lobby: Bytes::new(with_runs::<16>(&[(0, b"\x10\xf8\xe8/\xa5\xb2\xd0\x11\xa7\x87"), (12, b"\xf8\x03\xab\xfc")])),
-    sp_ipx: Bytes::new(with_runs::<16>(&[(1, b"\xc4[h,\x9d\xcf\x11\xa9\xcd"), (11, b"\xaa"), (13, b"h\x86\xe3")])),
-    sp_tcpip: Bytes::new(with_runs::<16>(&[(0, b"\xe0^\xe96w\x85\xcf\x11\x96\x0c"), (11, b"\x80\xc7SN\x82")])),
-    sp_serial: Bytes::new(with_runs::<16>(&[(0, b"`h\x1d\x0f\xd9\x88\xcf\x11\x9cN"), (11, b"\xa0\xc9\x05B^")])),
-    sp_modem: Bytes::new(with_runs::<16>(&[(0, b"`\xa7\xeaDh\xcb\xcf\x11\x9cN"), (11, b"\xa0\xc9\x05B^")])),
-    aid_total_size: Bytes::new(with_runs::<16>(&[(0, b"`\xf5\x18\x13,\x91\xd0\x11\x9d\xaa"), (11, b"\xa0\xc9\x0aC\xcb")])),
-    aid_service_provider: Bytes::new(with_runs::<16>(&[(0, b"\xc0\x16\xd9\x07\xaf\xe0\xcf\x11\x9cN"), (11, b"\xa0\xc9\x05B^")])),
-    _gap_5ab3b0: Bytes::new(with_runs::<48>(&[(0, b"@V\xb9Yg\x96\xd0\x11\xa7}\x00\x00\xf8\x03\xab\xfc\xa0\x89\xecx\xaf\xe0\xcf\x11\x9cN\x00\xa0\xc9\x05B^\x00\xc2\xdc\xf6\xfe\xa2\xd0\x11\x9cO"), (43, b"\xa0\xc9\x05B^")])),
-    aid_inet: Bytes::new(with_runs::<16>(&[(0, b"\xa0M\xa5\xc4\xaf\xe0\xcf\x11\x9cN"), (11, b"\xa0\xc9\x05B^")])),
-    aid_inet_port: Bytes::new(with_runs::<16>(&[(0, b"AER\xe4\xa5\x8e\xd1\x11\x8a\x96"), (11, b"`\x97\xb0\x14\x11")])),
-    chatzone_file: Bytes::new(with_runs::<25>(&[(0, b"files\\d\\gfx\\chatzone.pcx")])),
-};
+impl NetVars {
+    pub const fn new() -> Self {
+        NetVars {
+        receive_done: Dword::new(0),
+        edit_text: Dword::new(0),
+        edited: Dword::new(0),
+        edit_width: Dword::new(0),
+        // 0 in the image: the first font's number; read only once an edit has set it.
+        edit_font: crate::gfx::typefaces::FontCell::at(0x51E3A4),
+        clock_a: Dword::new(0),
+        chat_input: Bytes::new([0; 64]),
+        chat: Bytes::new([0; 768]),
+        chat_line: Bytes::new([0; 128]),
+        chat_text: Bytes::new([0; 128]),
+        mode: Dword::new(0x3),
+        _gap_52a90c: Bytes::new([0; 4]),
+        session: Dword::new(0),
+        sync: Byte::new(0),
+        sequence: Byte::new(128),
+        sync_answer: Word::new(0),
+        receiving: Dword::new(0),
+        messages_taken: Dword::new(0),
+        player: Dword::new(0),
+        first_host: Dword::new(0),
+        memory: zeros(),
+        _gap_52a938: Bytes::new([0; 48]),
+        receive_data: Bytes::new([0; 256]),
+        send_buffer: Bytes::new([0; 256]),
+        event: Dword::new(0),
+        mutex: Dword::new(0),
+        player_name: Bytes::new([0; 32]),
+        machine_name: Bytes::new([0; 64]),
+        most_players: Dword::new(0x8),
+        session_password: Bytes::new(with_runs::<16>(&[(0, b"\x17\x00\x00\x00\x01")])),
+        host_address: Bytes::new([0; 64]),
+        port: Dword::new(0),
+        car_item: Dword::new(0x1),
+        stage_item: Dword::new(0x1),
+        show_gaps: Dword::new(0),
+        connections: Dword::new(0),
+        connection_table: Dword::new(0),
+        elements: Dword::new(0),
+        address: Dword::new(0),
+        address_size: Dword::new(0),
+        element_table: Bytes::new([0; 76]),
+        saved_connection: Bytes::new([0; 16]),
+        saved_name: Bytes::new([0; 64]),
+        posting: Dword::new(0),
+        posted_call: Dword::new(0),
+        posted_result: Dword::new(0),
+        posted_answered: Dword::new(0),
+        sessions: Dword::new(0),
+        session_table: Dword::new(0),
+        session_open: Dword::new(0),
+        joined: Bytes::new([0; 16]),
+        joined_name: Bytes::new([0; 64]),
+        joined_most: Dword::new(0),
+        joined_password: Bytes::new([0; 16]),
+        own: PlayerRecord::zero(),
+        data_size: Dword::new(0),
+        all_raced: Dword::new(0),
+        race_over: Dword::new(0),
+        after_race: Dword::new(0),
+        racing: Dword::new(0),
+        sync_clock: Dword::new(0),
+        sync_first: Dword::new(0x1),
+        synced: Bytes::new([0; 8]),
+        players: Dword::new(0),
+        received: [const { PlayerBlock::zero() }; 8],
+        sorted: [const { PlayerBlock::zero() }; 8],
+        group_name: Bytes::new(with_runs::<20>(&[(0, b"susanivanovafanclub")])),
+        player_id: Dword::new(0),
+        send_to: Dword::new(0),
+        received_from: Dword::new(0),
+        received_to: Dword::new(0),
+        received_size: Dword::new(0),
+        dplay_2: Dword::new(0),
+        dplay: Dword::new(0),
+        lobby: Dword::new(0),
+        _gap_5ab290: [Dword::new(0), Dword::new(0), Dword::new(0)],
+        dp_name: DpName::zero(),
+        session_desc: SessionDesc::zero(),
+        _gap_5ab2fc: Bytes::new([0; 4]),
+        app_guid: Bytes::new(with_runs::<16>(&[(0, b"\x80\xb0\xfa\xb5W\x09\xd1\x11\x91\xc0"), (11, b"\xc0\xf0\x1a\x9f\xb3")])),
+        iid_dplay4a: Bytes::new(with_runs::<16>(&[(0, b"A\xfe>\x13\xdc2\xd0\x11\x9c\xfb"), (11, b"\xa0\xc9\x0aC\xcb")])),
+        iid_lobby2a: Bytes::new(with_runs::<16>(&[(0, b"\x80\xaf\xb4\x1b\x03\xa3\xd0\x11\x9cO"), (11, b"\xa0\xc9\x05B^")])),
+        clsid_dplay: Bytes::new(with_runs::<16>(&[(0, b" m\xeb\xd1#\x89\xd0\x11\x9d\x97"), (11, b"\xa0\xc9\x0aC\xcb")])),
+        clsid_lobby: Bytes::new(with_runs::<16>(&[(0, b"\x10\xf8\xe8/\xa5\xb2\xd0\x11\xa7\x87"), (12, b"\xf8\x03\xab\xfc")])),
+        sp_ipx: Bytes::new(with_runs::<16>(&[(1, b"\xc4[h,\x9d\xcf\x11\xa9\xcd"), (11, b"\xaa"), (13, b"h\x86\xe3")])),
+        sp_tcpip: Bytes::new(with_runs::<16>(&[(0, b"\xe0^\xe96w\x85\xcf\x11\x96\x0c"), (11, b"\x80\xc7SN\x82")])),
+        sp_serial: Bytes::new(with_runs::<16>(&[(0, b"`h\x1d\x0f\xd9\x88\xcf\x11\x9cN"), (11, b"\xa0\xc9\x05B^")])),
+        sp_modem: Bytes::new(with_runs::<16>(&[(0, b"`\xa7\xeaDh\xcb\xcf\x11\x9cN"), (11, b"\xa0\xc9\x05B^")])),
+        aid_total_size: Bytes::new(with_runs::<16>(&[(0, b"`\xf5\x18\x13,\x91\xd0\x11\x9d\xaa"), (11, b"\xa0\xc9\x0aC\xcb")])),
+        aid_service_provider: Bytes::new(with_runs::<16>(&[(0, b"\xc0\x16\xd9\x07\xaf\xe0\xcf\x11\x9cN"), (11, b"\xa0\xc9\x05B^")])),
+        _gap_5ab3b0: Bytes::new(with_runs::<48>(&[(0, b"@V\xb9Yg\x96\xd0\x11\xa7}\x00\x00\xf8\x03\xab\xfc\xa0\x89\xecx\xaf\xe0\xcf\x11\x9cN\x00\xa0\xc9\x05B^\x00\xc2\xdc\xf6\xfe\xa2\xd0\x11\x9cO"), (43, b"\xa0\xc9\x05B^")])),
+        aid_inet: Bytes::new(with_runs::<16>(&[(0, b"\xa0M\xa5\xc4\xaf\xe0\xcf\x11\x9cN"), (11, b"\xa0\xc9\x05B^")])),
+        aid_inet_port: Bytes::new(with_runs::<16>(&[(0, b"AER\xe4\xa5\x8e\xd1\x11\x8a\x96"), (11, b"`\x97\xb0\x14\x11")])),
+        chatzone_file: Bytes::new(with_runs::<28>(&[(0, b"files\\d\\gfx\\chatzone.pcx")])),
+        }
+    }
+}
 
 impl NetVars {
     pub const START: usize = 0x52A4B0;
     pub const LEN: usize = 0x80F69;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&NET as *const NetVars) as usize
-    }
 }
 
 impl NetVars {
     /// Player `n`'s block of `received`; 8 up to 15 are `sorted`'s (the original's blocks
     /// run on from one store into the other: `net::take_messages` allows 16 players).
     pub fn player_block(&self, n: u32) -> &PlayerBlock {
-        assert!(n < 16, "a player's block: the number is above 15");
-        unsafe { &*(self.received.as_ptr().add(n as usize)) }
+        let n = n as usize;
+        if n < 8 {
+            &self.received[n]
+        } else {
+            &self.sorted[n - 8]
+        }
     }
 
     /// Player `n`'s byte of `synced`, any number (the original's index has no bound; `synced`
     /// is 8 bytes, the bytes after it are `players`).
     pub fn synced(&self, n: usize) -> u8 {
-        unsafe { self.synced.as_ptr().add(n).read_volatile() }
+        let what = "a player's synced byte";
+        crate::pointers::GamePtr::to(&self.synced)
+            .unbounded()
+            .offset(n as u32)
+            .read(what)
+            .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
     }
 
     pub fn set_synced(&self, n: usize, value: u8) {
-        unsafe { self.synced.as_ptr().add(n).write_volatile(value) }
+        let what = "a player's synced byte";
+        if let Err(e) = crate::pointers::GamePtr::to(&self.synced)
+            .unbounded()
+            .offset(n as u32)
+            .write(value, what)
+        {
+            crate::fatal::raise::end(what, e)
+        }
     }
 }
 
 /// IDA 0x5AB490 .. 0x5AB4AC.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Button {
     /// 0x5AB490: `dword_5AB490`: `net::draw_button`'s string.
     pub text: Dword,
@@ -520,23 +596,23 @@ pub struct Button {
     pub item: Dword,
 }
 
-pub static BUTTON: Button = Button {
-    text: Dword::new(0),
-    flags: Dword::new(0),
-    x: Dword::new(0),
-    y: Dword::new(0),
-    width: Dword::new(0),
-    tiles: Dword::new(0),
-    item: Dword::new(0),
-};
+impl Button {
+    pub const fn new() -> Self {
+        Button {
+            text: Dword::new(0),
+            flags: Dword::new(0),
+            x: Dword::new(0),
+            y: Dword::new(0),
+            width: Dword::new(0),
+            tiles: Dword::new(0),
+            item: Dword::new(0),
+        }
+    }
+}
 
 impl Button {
     pub const START: usize = 0x5AB490;
     pub const LEN: usize = 0x1C;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&BUTTON as *const Button) as usize
-    }
 }
 
 #[cfg(test)]
@@ -563,7 +639,7 @@ mod tests {
     #[test]
     fn start_as_the_games_image_and_keep_its_layout() {
         check(
-            &NET as *const NetVars as *const u8,
+            (&raw const crate::net::owner::NET_OWNER.vars).cast::<u8>(),
             size_of::<NetVars>(),
             0,
             NetVars::START,
@@ -675,15 +751,7 @@ mod tests {
         assert_eq!(offset_of!(NetVars, dplay_2), 0x5AB284 - NetVars::START);
         assert_eq!(offset_of!(NetVars, dplay), 0x5AB288 - NetVars::START);
         assert_eq!(offset_of!(NetVars, lobby), 0x5AB28C - NetVars::START);
-        assert_eq!(
-            offset_of!(NetVars, lobby_launched),
-            0x5AB290 - NetVars::START
-        );
-        assert_eq!(offset_of!(NetVars, settings), 0x5AB294 - NetVars::START);
-        assert_eq!(
-            offset_of!(NetVars, settings_size),
-            0x5AB298 - NetVars::START
-        );
+        assert_eq!(offset_of!(NetVars, _gap_5ab290), 0x5AB290 - NetVars::START);
         assert_eq!(offset_of!(NetVars, dp_name), 0x5AB29C - NetVars::START);
         assert_eq!(offset_of!(NetVars, session_desc), 0x5AB2AC - NetVars::START);
         assert_eq!(offset_of!(NetVars, app_guid), 0x5AB300 - NetVars::START);
@@ -713,7 +781,7 @@ mod tests {
             0x5AB400 - NetVars::START
         );
         check(
-            &BUTTON as *const Button as *const u8,
+            (&raw const crate::net::owner::NET_OWNER.button).cast::<u8>(),
             size_of::<Button>(),
             0,
             Button::START,

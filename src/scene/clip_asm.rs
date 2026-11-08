@@ -6,7 +6,8 @@
 //! left out). A byte the original loads through `dword_62400C` is in the block as a
 //! whole number already. The original's instructions are `asm_reference` in the tests.
 
-use crate::scene::x87_mem::{fild, fistp, fld, fstp};
+use crate::math::x87_float::X;
+use crate::scene::x87_mem::{Base, cells, fild, fistp, fld, fstp};
 
 /// The block the arithmetic works in, in dwords. Offsets: 0 the first point's record,
 /// 0x20 the second's, 0x40 and 0x88 their entries, 0xD0 and 0xE4 the entries' five
@@ -25,276 +26,126 @@ pub const OUT_2: usize = 0x128;
 pub const CHECKED: usize = 0x13C;
 pub const PLANE: usize = 0x140;
 
-/// `sub_44D247` from after its `fstp flt_623F80` (the edge is in the block already) to its `call`.
-pub fn cut_at_x(w: *mut Work) {
-    cut_x(w.cast())
+/// 0x44D247 from after its `fstp flt_623F80` (the edge is in the block already) to its `call`.
+pub fn cut_at_x(w: &mut Work) {
+    cut_axis(cells(w), X_AXIS);
 }
 
-fn cut_x(w: *mut u8) {
-    let t0 = fld(w, 0x38);
-    let t1 = fld(w, 0x18);
-    let t2 = t1 - t0;
-    let t3 = fld(w, 0xF8);
-    let t4 = t3 * t2;
-    let t5 = fld(w, 0xC);
-    let t6 = fld(w, 0x18);
-    let t7 = t6 * t5;
-    let t8 = -t7;
+/// 0x44D532, likewise with `flt_623F84`.
+pub fn cut_at_y(w: &mut Work) {
+    cut_axis(cells(w), Y_AXIS);
+}
+
+/// Where a clipper finds the axis it cuts on, as byte offsets into the block: the edge value
+/// (and the slot where the other axis' edge value is stored), the cut axis' float in each
+/// point's record, and the other axis' float in each record.
+#[derive(Clone, Copy)]
+struct Axis {
+    edge: usize,
+    other_edge: usize,
+    a: usize,
+    b: usize,
+    other_a: usize,
+    other_b: usize,
+}
+
+const X_AXIS: Axis = Axis {
+    edge: 0xF8,
+    other_edge: 0xFC,
+    a: 0x0C,
+    b: 0x2C,
+    other_a: 0x1C,
+    other_b: 0x3C,
+};
+const Y_AXIS: Axis = Axis {
+    edge: 0xFC,
+    other_edge: 0xF8,
+    a: 0x1C,
+    b: 0x3C,
+    other_a: 0x0C,
+    other_b: 0x2C,
+};
+
+/// Cuts the segment between the two points at the edge of one axis: the fraction along it
+/// (`dword_62400C` takes it rounded), every interpolated record field and entry byte, and
+/// the other axis' edge value.
+fn cut_axis(w: impl Base, axis: Axis) {
+    let depth_a = fld(w, 0x18);
+    let depth_b = fld(w, 0x38);
+    let edge = fld(w, axis.edge);
+    let along_a = fld(w, axis.a);
+    let along_b = fld(w, axis.b);
+    let t4 = edge * (depth_a - depth_b);
+    let t8 = -(depth_a * along_a);
     let t9 = t8 + t4;
-    let t10 = fld(w, 0x2C);
-    let t11 = fld(w, 0x38);
-    let t12 = t11 * t10;
+    let t12 = depth_b * along_b;
     let t13 = t12 + t9;
-    let t14 = fld(w, 0xF8);
-    let t15 = fld(w, 0x2C);
-    let t16 = t15 - t14;
-    let t17 = fld(w, 0x38);
-    let t18 = t17 * t16;
-    let t19 = t18 / t13;
-    let t20 = fld(w, 0x30);
-    let t21 = fld(w, 0x10);
-    let t22 = t21 - t20;
-    let t23 = t22 * t19;
-    let t24 = t20 + t23;
-    fstp(w, 0x100, t24);
-    let t25 = fld(w, 0x34);
-    let t26 = fld(w, 0x14);
-    let t27 = t26 - t25;
-    let t28 = t27 * t19;
-    let t29 = t25 + t28;
-    fstp(w, 0x104, t29);
-    let t30 = fld(w, 0x38);
-    let t31 = fld(w, 0x18);
-    let t32 = t31 - t30;
-    let t33 = t32 * t19;
-    let t34 = t30 + t33;
-    fstp(w, 0x108, t34);
-    let t35 = fild(w, 0x20);
-    let t36 = fild(w, 0x0);
-    let t37 = t36 - t35;
-    let t38 = t37 * t19;
-    let t39 = t35 + t38;
-    fistp(w, 0x10C, t39);
-    let t40 = fild(w, 0x24);
-    let t41 = fild(w, 0x4);
-    let t42 = t41 - t40;
-    let t43 = t42 * t19;
-    let t44 = t40 + t43;
-    fistp(w, 0x110, t44);
-    let t45 = fild(w, 0x28);
-    let t46 = fild(w, 0x8);
-    let t47 = t46 - t45;
-    let t48 = t47 * t19;
-    let t49 = t45 + t48;
-    fistp(w, 0x114, t49);
-    let t50 = fld(w, 0x90);
-    let t51 = fld(w, 0x48);
-    let t52 = t51 - t50;
-    let t53 = t52 * t19;
-    let t54 = t50 + t53;
-    fstp(w, 0x118, t54);
-    let t55 = fld(w, 0x94);
-    let t56 = fld(w, 0x4C);
-    let t57 = t56 - t55;
-    let t58 = t57 * t19;
-    let t59 = t55 + t58;
-    fstp(w, 0x11C, t59);
-    let t60 = fld(w, 0x98);
-    let t61 = fld(w, 0x50);
-    let t62 = t61 - t60;
-    let t63 = t62 * t19;
-    let t64 = t60 + t63;
-    fstp(w, 0x120, t64);
-    let t65 = fld(w, 0x9C);
-    let t66 = fld(w, 0x54);
-    let t67 = t66 - t65;
-    let t68 = t67 * t19;
-    let t69 = t65 + t68;
-    fstp(w, 0x124, t69);
-    let t70 = fild(w, 0xE4);
-    let t71 = fild(w, 0xD0);
-    let t72 = t71 - t70;
-    let t73 = t72 * t19;
-    let t74 = t70 + t73;
-    fistp(w, 0x130, t74);
-    let t75 = fild(w, 0xE8);
-    let t76 = fild(w, 0xD4);
-    let t77 = t76 - t75;
-    let t78 = t77 * t19;
-    let t79 = t75 + t78;
-    fistp(w, 0x134, t79);
-    let t80 = fild(w, 0xEC);
-    let t81 = fild(w, 0xD8);
-    let t82 = t81 - t80;
-    let t83 = t82 * t19;
-    let t84 = t80 + t83;
-    fistp(w, 0x138, t84);
-    let t85 = fild(w, 0xF0);
-    let t86 = fild(w, 0xDC);
-    let t87 = t86 - t85;
-    let t88 = t87 * t19;
-    let t89 = t85 + t88;
-    fistp(w, 0x128, t89);
-    let t90 = fild(w, 0xF4);
-    let t91 = fild(w, 0xE0);
-    let t92 = t91 - t90;
-    let t93 = t92 * t19;
-    let t94 = t90 + t93;
-    fistp(w, 0x12C, t94);
-    fistp(w, 0x13C, t19);
-    let t95 = fld(w, 0x2C);
-    let t96 = fld(w, 0xC);
-    let t97 = t95 - t96;
-    let t98 = fld(w, 0xF8);
-    let t99 = t96 - t98;
-    let t100 = fld(w, 0x3C);
-    let t101 = fld(w, 0x1C);
-    let t102 = t100 - t101;
-    let t103 = -t99;
-    let t104 = t102 * t103;
-    let t105 = t104 / t97;
-    let t106 = t105 + t101;
-    fstp(w, 0xFC, t106);
+    let t14 = fld(w, axis.edge);
+    let t15 = fld(w, axis.b);
+    let t18 = fld(w, 0x38) * (t15 - t14);
+    let fraction = t18 / t13;
+    interpolate_cut(w, fraction);
+    let span = fld(w, axis.b) - fld(w, axis.a);
+    let from_edge = fld(w, axis.a) - fld(w, axis.edge);
+    let other_a = fld(w, axis.other_a);
+    let other_span = fld(w, axis.other_b) - other_a;
+    let t104 = other_span * -from_edge;
+    let t105 = t104 / span;
+    fstp(w, axis.other_edge, t105 + other_a);
 }
 
-/// `sub_44D532`, likewise with `flt_623F84`.
-pub fn cut_at_y(w: *mut Work) {
-    cut_y(w.cast())
+/// The part every clipper shares: the cut point's record fields (floats and integers), the
+/// entry's floats and the five entry bytes, each `a + (b - a) * fraction`, then the fraction
+/// itself as an integer in `dword_62400C`.
+fn interpolate_cut(w: impl Base, fraction: X) {
+    for (from, to, store) in [
+        (0x30, 0x10, 0x100),
+        (0x34, 0x14, 0x104),
+        (0x38, 0x18, 0x108),
+    ] {
+        let a = fld(w, from);
+        let b = fld(w, to);
+        fstp(w, store, a + (b - a) * fraction);
+    }
+    for (from, to, store) in [
+        (0x20, 0x00, 0x10C),
+        (0x24, 0x04, 0x110),
+        (0x28, 0x08, 0x114),
+    ] {
+        let a = fild(w, from);
+        let b = fild(w, to);
+        fistp(w, store, a + (b - a) * fraction);
+    }
+    for (from, to, store) in [
+        (0x90, 0x48, 0x118),
+        (0x94, 0x4C, 0x11C),
+        (0x98, 0x50, 0x120),
+        (0x9C, 0x54, 0x124),
+    ] {
+        let a = fld(w, from);
+        let b = fld(w, to);
+        fstp(w, store, a + (b - a) * fraction);
+    }
+    for (from, to, store) in [
+        (0xE4, 0xD0, 0x130),
+        (0xE8, 0xD4, 0x134),
+        (0xEC, 0xD8, 0x138),
+        (0xF0, 0xDC, 0x128),
+        (0xF4, 0xE0, 0x12C),
+    ] {
+        let a = fild(w, from);
+        let b = fild(w, to);
+        fistp(w, store, a + (b - a) * fraction);
+    }
+    fistp(w, 0x13C, fraction);
 }
 
-fn cut_y(w: *mut u8) {
-    let t0 = fld(w, 0x38);
-    let t1 = fld(w, 0x18);
-    let t2 = t1 - t0;
-    let t3 = fld(w, 0xFC);
-    let t4 = t3 * t2;
-    let t5 = fld(w, 0x1C);
-    let t6 = fld(w, 0x18);
-    let t7 = t6 * t5;
-    let t8 = -t7;
-    let t9 = t8 + t4;
-    let t10 = fld(w, 0x3C);
-    let t11 = fld(w, 0x38);
-    let t12 = t11 * t10;
-    let t13 = t12 + t9;
-    let t14 = fld(w, 0xFC);
-    let t15 = fld(w, 0x3C);
-    let t16 = t15 - t14;
-    let t17 = fld(w, 0x38);
-    let t18 = t17 * t16;
-    let t19 = t18 / t13;
-    let t20 = fld(w, 0x30);
-    let t21 = fld(w, 0x10);
-    let t22 = t21 - t20;
-    let t23 = t22 * t19;
-    let t24 = t20 + t23;
-    fstp(w, 0x100, t24);
-    let t25 = fld(w, 0x34);
-    let t26 = fld(w, 0x14);
-    let t27 = t26 - t25;
-    let t28 = t27 * t19;
-    let t29 = t25 + t28;
-    fstp(w, 0x104, t29);
-    let t30 = fld(w, 0x38);
-    let t31 = fld(w, 0x18);
-    let t32 = t31 - t30;
-    let t33 = t32 * t19;
-    let t34 = t30 + t33;
-    fstp(w, 0x108, t34);
-    let t35 = fild(w, 0x20);
-    let t36 = fild(w, 0x0);
-    let t37 = t36 - t35;
-    let t38 = t37 * t19;
-    let t39 = t35 + t38;
-    fistp(w, 0x10C, t39);
-    let t40 = fild(w, 0x24);
-    let t41 = fild(w, 0x4);
-    let t42 = t41 - t40;
-    let t43 = t42 * t19;
-    let t44 = t40 + t43;
-    fistp(w, 0x110, t44);
-    let t45 = fild(w, 0x28);
-    let t46 = fild(w, 0x8);
-    let t47 = t46 - t45;
-    let t48 = t47 * t19;
-    let t49 = t45 + t48;
-    fistp(w, 0x114, t49);
-    let t50 = fld(w, 0x90);
-    let t51 = fld(w, 0x48);
-    let t52 = t51 - t50;
-    let t53 = t52 * t19;
-    let t54 = t50 + t53;
-    fstp(w, 0x118, t54);
-    let t55 = fld(w, 0x94);
-    let t56 = fld(w, 0x4C);
-    let t57 = t56 - t55;
-    let t58 = t57 * t19;
-    let t59 = t55 + t58;
-    fstp(w, 0x11C, t59);
-    let t60 = fld(w, 0x98);
-    let t61 = fld(w, 0x50);
-    let t62 = t61 - t60;
-    let t63 = t62 * t19;
-    let t64 = t60 + t63;
-    fstp(w, 0x120, t64);
-    let t65 = fld(w, 0x9C);
-    let t66 = fld(w, 0x54);
-    let t67 = t66 - t65;
-    let t68 = t67 * t19;
-    let t69 = t65 + t68;
-    fstp(w, 0x124, t69);
-    let t70 = fild(w, 0xE4);
-    let t71 = fild(w, 0xD0);
-    let t72 = t71 - t70;
-    let t73 = t72 * t19;
-    let t74 = t70 + t73;
-    fistp(w, 0x130, t74);
-    let t75 = fild(w, 0xE8);
-    let t76 = fild(w, 0xD4);
-    let t77 = t76 - t75;
-    let t78 = t77 * t19;
-    let t79 = t75 + t78;
-    fistp(w, 0x134, t79);
-    let t80 = fild(w, 0xEC);
-    let t81 = fild(w, 0xD8);
-    let t82 = t81 - t80;
-    let t83 = t82 * t19;
-    let t84 = t80 + t83;
-    fistp(w, 0x138, t84);
-    let t85 = fild(w, 0xF0);
-    let t86 = fild(w, 0xDC);
-    let t87 = t86 - t85;
-    let t88 = t87 * t19;
-    let t89 = t85 + t88;
-    fistp(w, 0x128, t89);
-    let t90 = fild(w, 0xF4);
-    let t91 = fild(w, 0xE0);
-    let t92 = t91 - t90;
-    let t93 = t92 * t19;
-    let t94 = t90 + t93;
-    fistp(w, 0x12C, t94);
-    fistp(w, 0x13C, t19);
-    let t95 = fld(w, 0x3C);
-    let t96 = fld(w, 0x1C);
-    let t97 = t95 - t96;
-    let t98 = fld(w, 0xFC);
-    let t99 = t96 - t98;
-    let t100 = fld(w, 0x2C);
-    let t101 = fld(w, 0xC);
-    let t102 = t100 - t101;
-    let t103 = -t99;
-    let t104 = t102 * t103;
-    let t105 = t104 / t97;
-    let t106 = t105 + t101;
-    fstp(w, 0xF8, t106);
+/// 0x44DB93 from 0x44DC37 to 0x44DD9A (0x44DEAA has the same there).
+pub fn cut_at_depth(w: &mut Work) {
+    cut_depth(cells(w));
 }
 
-/// `sub_44DB93` from 0x44DC37 to 0x44DD9A (`sub_44DEAA` has the same there).
-pub fn cut_at_depth(w: *mut Work) {
-    cut_depth(w.cast())
-}
-
-fn cut_depth(w: *mut u8) {
+fn cut_depth(w: impl Base) {
     let t0 = fild(w, 0x140);
     let t1 = fld(w, 0x18);
     let t2 = t0 - t1;
@@ -788,7 +639,7 @@ mod asm_reference {
             [Kind::Float; 0x51],
             fill,
             |base| unsafe { cut_x_ref(base) },
-            cut_x,
+            |w| cut_axis(w, X_AXIS),
         );
     }
 
@@ -801,7 +652,7 @@ mod asm_reference {
             [Kind::Float; 0x51],
             fill,
             |base| unsafe { cut_y_ref(base) },
-            cut_y,
+            |w| cut_axis(w, Y_AXIS),
         );
     }
 

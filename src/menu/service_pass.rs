@@ -13,89 +13,87 @@
 //! +0x288 then `dword_75ACC0` x 100. When every player is out, `dword_75592C` 0. At the
 //! end `dword_755938` 0.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! Callers: the event drivers. Refuses a player count of 0 or past 4, a player missing, a
 //! taking-part player's car without its table, before anything.
 
 use crate::errors::Refused;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::screen_loop::{Carried, run_screen_carried};
+use crate::menu::owner::Menus;
+use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
-use crate::menu::state_store::MENU_STATE;
 // service::service_area_loop
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn service_pass(c: &Carried) -> Result<(), Refused> {
+/// The Rust version.
+pub fn service_pass(menus: &Menus) -> Result<(), Refused> {
+    let screens = &menus.screens;
     // Converted: `rc2k_core::menu::passes` (who is serviced, the minutes, the money, the
     // pauses, `goes_on`).
     use rc2k_core::menu::passes;
-    let players = counted_players()?;
-    let due = { EVENT_STATE.service_due.get() } == 1;
+    let players = counted_players(screens)?;
+    let due = { menus.screens.event.service_due.get() } == 1;
     for &p in &players {
-        if due && passes::takes_part(get(p + 0xD0)?) {
-            crate::menu::driver_stats::car_table(p)?;
+        if due && passes::takes_part(p.get().entry) {
+            crate::menu::driver_stats::car_table(menus, p)?;
         }
     }
-    let mut g = *c;
-    unsafe {
-        MENU_STATE.driver_stats.money.set(0u32);
-        EVENT_STATE
-            .service_minutes
-            .set(passes::more_minutes(EVENT_STATE.service_minutes.get()));
-        EVENT_STATE.event_goes_on.set(1u32);
-        g.palette = 0;
-        'all: {
-            for (n, &p) in players.iter().enumerate() {
-                g.measure_x = n as u32;
-                EVENT_STATE.current_player.set(g.measure_x);
-                g.arg = get(p + 0xD0)?;
-                g.palette = g.palette.wrapping_add(g.arg);
-                if !passes::serviced(g.arg, || EVENT_STATE.service_due.get()) {
-                    continue;
-                }
-                crate::menu::inspection_screen::inspection_screen()?;
-                g.arg = passes::SCREEN_PAUSE;
-                crate::system::sleep::sleep(g.arg);
-                crate::menu::fade_in::fade_in()?;
-                g.arg = passes::FADE_PAUSE;
-                crate::system::sleep::sleep(g.arg);
-                MENU_STATE.driver_stats.repair_time.set(0);
-                crate::menu::driver_stats::driver_stats()?;
-                MENU_STATE.menus.service_flag.set(0);
-                crate::menu::reset_driver_condition::reset_driver_condition()?;
-                crate::service::clear_repair_flags::clear_repair_flags()?;
-                for _ in 0..passes::DROPPED_KEYS {
-                    // `input::take_key`: eax's low byte (and the zero flag).
-                    let key = crate::input::take_key::take_key();
-                    g.arg = (g.arg & !0xFF) | u32::from(key);
-                }
-                run_screen_carried(&crate::service::service_area_loop::SCREEN, &mut g)?;
-                if MENU_PAGES.yes_no_answer.get() == 1 {
+    menus.screens.state.driver_stats.money.set(0u32);
+    menus
+        .screens
+        .event
+        .service_minutes
+        .set(passes::more_minutes(
+            menus.screens.event.service_minutes.get(),
+        ));
+    menus.screens.event.event_goes_on.set(1u32);
+    'all: {
+        for (n, &p) in players.iter().enumerate() {
+            menus.screens.event.current_player.set(n as u32);
+            let entry = p.get().entry;
+            if !passes::serviced(entry, || menus.screens.event.service_due.get()) {
+                continue;
+            }
+            crate::menu::inspection_screen::inspection_screen()?;
+            crate::system::sleep::sleep(passes::SCREEN_PAUSE);
+            crate::menu::fade_in::fade_in(screens)?;
+            crate::system::sleep::sleep(passes::FADE_PAUSE);
+            menus.screens.state.driver_stats.repair_time.set(0);
+            crate::menu::driver_stats::driver_stats(menus, screens)?;
+            menus.screens.state.menus.service_flag.set(0);
+            crate::menu::reset_driver_condition::reset_driver_condition()?;
+            crate::service::clear_repair_flags::clear_repair_flags(menus)?;
+            for _ in 0..passes::DROPPED_KEYS {
+                crate::input::take_key::take_key();
+            }
+            run_screen(
+                &crate::service::service_area_loop::SCREEN,
+                &Entry::new(menus),
+            )?;
+            if menus.tables.pages.yes_no_answer.get() == 1 {
+                break 'all;
+            }
+            crate::service::apply_repairs::apply_repairs_in_game(menus)?;
+            crate::menu::set_player_entry_kind::set_player_entry_kind(screens)?;
+            if passes::is_out(p.get().entry) {
+                crate::menu::inspection_faults::inspection_faults(menus)?;
+                run_screen(
+                    &crate::menu::inspection_area_loop::SCREEN,
+                    &Entry::new(menus),
+                )?;
+                if menus.tables.pages.yes_no_answer.get() == 1 {
                     break 'all;
                 }
-                crate::service::apply_repairs::apply_repairs_in_game()?;
-                crate::menu::set_player_entry_kind::set_player_entry_kind()?;
-                if passes::is_out(get(p + 0xD0)?) {
-                    crate::menu::inspection_faults::inspection_faults()?;
-                    run_screen_carried(&crate::menu::inspection_area_loop::SCREEN, &mut g)?;
-                    if MENU_PAGES.yes_no_answer.get() == 1 {
-                        break 'all;
-                    }
-                    EVENT_STATE
-                        .event_out
-                        .set(EVENT_STATE.event_out.get().wrapping_add(1));
-                }
-                g.arg = passes::spent(MENU_STATE.driver_stats.money.get());
-                put(p + 0x288, g.arg)?;
+                menus
+                    .screens
+                    .event
+                    .event_out
+                    .set(menus.screens.event.event_out.get().wrapping_add(1));
             }
-            if !passes::goes_on(EVENT_STATE.event_out.get(), PLAYER_COUNT_RVA.get()) {
-                EVENT_STATE.event_goes_on.set(0u32);
-            }
+            let spent = passes::spent(menus.screens.state.driver_stats.money.get());
+            p.update(|q| q.service_spent = spent);
         }
-        EVENT_STATE.service_due.set(0u32);
+        if !passes::goes_on(menus.screens.event.event_out.get(), PLAYER_COUNT_RVA.get()) {
+            menus.screens.event.event_goes_on.set(0u32);
+        }
     }
+    menus.screens.event.service_due.set(0u32);
     Ok(())
 }

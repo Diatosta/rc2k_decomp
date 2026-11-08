@@ -15,39 +15,33 @@
 //! (0x1C + +8) at 0x7E and the flag's (+0xC, 0x18 and 0x19 swapped, + 0x44) at 0x154 with
 //! the palette the last text left. Each drawer's y is edx as the text drawers leave it.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //!
 //! In the standings screen's draw list (0x758E5E). The rows are found before anything is drawn (a
 //! position not there is the look-up's fatal error, raised then). Refuses (before anything) no
 //! history, a section the record table has not (the look-up runs on), and what the look-up refuses.
-//! The menus and draw lists run its `entry` (`menu::table_calls`); the registers above are the
-//! original's, for reference.
+//! The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_flow::Fault;
+use crate::menu::owner::Menus;
 use crate::menu::ranked_lookups::find_champ_position;
 use crate::screens::best_scores::section_there;
+use crate::screens::game_screen::{HeldText, held_name};
 use crate::text::draw_text::Canvas;
 
 // g_champRow
 // g_champRowEnd
 /// The Rust version.
-pub fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let history = CHAMP_VIEW.champ_history.get();
-    if history == 0 {
-        return Err(BadInput("no championship history").into());
-    }
+pub fn draw_championship_standings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let play = &menus.play;
     if !section_there()? {
         return Err(BadInput("a section past the record table").into());
     }
-    let first_row = CHAMP_VIEW.first_row.get();
+    let first_row = play.champ_view.first_row.get();
     let end = first_row.wrapping_add(10);
     let mut rows = Vec::new();
     let mut row = first_row;
     loop {
-        rows.push(find_champ_position(history, row)?);
+        rows.push(find_champ_position(row)?);
         row = row.wrapping_add(1);
         if row == end || rows.len() > 0x400 {
             break;
@@ -55,23 +49,23 @@ pub fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(), Refuse
     }
     // Converted: `rc2k_core::screens::results_pages::championship_standings` (the rows found here).
     use rc2k_core::screens::results_pages::{StandingRow, championship_standings};
-    let f = Fault::default();
-    let rows: Vec<StandingRow<u32>> = rows
+    let rows: Vec<StandingRow<HeldText>> = rows
         .into_iter()
-        .map(|e| StandingRow {
-            player: (f.get(e + 4) as i32) > 0,
-            position: f.get(e + 0x70),
-            name: e + 0x14,
-            points: std::array::from_fn(|k| f.get(e + 0x38 + 4 * k as u32)),
-            nation: f.get(e + 8),
-            car: f.get(e + 0xC),
+        .map(|e| {
+            Ok(StandingRow {
+                player: (e.player as i32) > 0,
+                position: e.position,
+                name: held_name(e.name_text())?,
+                points: e.overall,
+                nation: e.nation,
+                car: e.car,
+            })
         })
-        .collect();
-    f.check()?;
+        .collect::<Result<_, BadInput>>()?;
     championship_standings(
-        &mut crate::screens::game_screen::GameScreen::new(canvas),
+        &mut crate::screens::game_screen::GameScreen::<_, _, HeldText>::new(canvas),
         first_row,
-        CHAMP_VIEW.event_mode.get() == 0x13,
+        play.champ_view.event_mode.get() == 0x13,
         &rows,
     )?;
     Ok(())

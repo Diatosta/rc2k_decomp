@@ -1,28 +1,36 @@
-//! The race panel: the HUD record the race frame fills for the HUD (`hud::draw_hud` walks it from `g_hudRecord`, IDA 0x6D13FE, by address) and the variables around it: the two views' values (place, times, split gaps, motion), the overlay's miles and parts, the start lights, the marks, the HUD flags and the texture counter. Names are readings unless IDA's.
+//! The race panel: the HUD record the race frame fills for the HUD (`g_hudRecord`, IDA 0x6D13FE;
+//! the original's HUD walks it by offset, the `hud::` drawers read its fields) and the variables
+//! around it: the two views' values (place, times, split gaps, motion), the overlay's miles and
+//! parts, the start lights, the marks, the HUD flags and the texture counter. Names are readings
+//! unless IDA's.
 //! Most of its dwords lie at addresses that are not a multiple of 4 (the piece starts at 0x6D13FE): they are `Loose32` cells and the piece needs no alignment.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::Bytes;
 
 /// A dword at an address that is not a multiple of 4: plain unaligned volatile loads and stores, as the image's were.
 #[repr(transparent)]
+#[derive(rc2k_derive::Cells)]
 pub struct Loose32(Bytes<4>);
 
 impl Loose32 {
+    pub const fn new(value: u32) -> Self {
+        Self(Bytes::new(value.to_le_bytes()))
+    }
+
     pub fn get(&self) -> u32 {
         self.0.get_u32(0)
     }
 
     pub fn set(&self, value: u32) {
-        self.0.set_u32(0, value)
-    }
-
-    pub fn addr(&self) -> u32 {
-        self.0.addr()
+        self.0.set_u32(0, value);
     }
 }
 
 /// The first view's values for the panel (0x30 bytes from 0x6D140E; `race::panel_values`, `race::panel_motion`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ViewA {
     /// The speed shown, rounded (`flt_6D140E`; the car's +0x718).
     pub whole: Loose32,
@@ -48,6 +56,7 @@ pub struct ViewA {
 
 /// The second view's values for the panel (0x28 bytes from 0x6D143E).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ViewB {
     pub whole: Loose32,
     pub speed: Loose32,
@@ -64,16 +73,21 @@ pub struct ViewB {
 
 /// One view's start lights (0x10 bytes from 0x6D1482 and 0x6D1492; `race::countdown_lights`, `drive::countdown_beep`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Lights {
     /// The lit count (`unk_6D1482`; -1 before the race: no extra texture).
     pub lit: Loose32,
-    pub fade: Loose32,
-    pub size: Loose32,
-    pub shift: Loose32,
+    /// The start-lights icon's width (`hud::draw_icon`).
+    pub width: Loose32,
+    /// The icon's alpha.
+    pub alpha: Loose32,
+    /// How far the icon drops below its row.
+    pub drop: Loose32,
 }
 
 /// One view's marks (0x14 bytes from 0x6D14A2 and 0x6D14B6; `race::panel_marks`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Marks {
     /// The first (at most 4) marks, each + 1.
     pub marks: [Loose32; 4],
@@ -82,8 +96,10 @@ pub struct Marks {
 }
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Panel {
-    /// +0x0 (0x6D13FE): `g_hudRecord`: the HUD record's first dword (the first car's split gap 6, `race::panel_values`); `hud::draw_hud` walks the record from here by address.
+    /// +0x0 (0x6D13FE): `g_hudRecord`: the HUD record's first dword (the first car's split gap 6,
+    /// `race::panel_values`).
     pub split_6: Loose32,
     /// +0x4 (0x6D1402): `unk_6D1402`: the first car's split gap 5.
     pub split_5: Loose32,
@@ -99,7 +115,10 @@ pub struct Panel {
     pub distance: [Loose32; 2],
     /// +0x74 (0x6D1472): `g_overlayParts`: the number of parts of the stage bar (`race::init_overlay`).
     pub overlay_parts: Loose32,
-    /// +0x78 (0x6D1476): not named or used (a gap of 0xc bytes).
+    /// +0x78 (0x6D1476): not named or used (a gap of 0xc bytes): the three arrays' places of the
+    /// overlay (`g_overlayPartMiles`, `g_overlayPartKindsA`, `g_overlayPartKindsB`), kept as
+    /// IDA's addresses, as names (phase 13; nothing reads them, and `moved::point_into_homes`
+    /// passes them over).
     pub unknown_78: Bytes<12>,
     /// +0x84 (0x6D1482): `unk_6D1482`, `unk_6D1492`: the two views' start lights.
     pub lights: [Lights; 2],
@@ -123,22 +142,6 @@ pub struct Panel {
     pub texture_changes: Loose32,
 }
 
-/// The piece: the race block's bytes at IDA 0x6D13FE seen as `Panel`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
-
-impl core::ops::Deref for InRaceBlock {
-    type Target = Panel;
-    fn deref(&self) -> &Panel {
-        // SAFETY: the race block lives as long as the program and is aligned as the test
-        // checks; every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const Panel) }
-    }
-}
-
-pub static PANEL: InRaceBlock = InRaceBlock;
-
 /// IDA 0x6D13FE, the first byte of the piece.
 pub const START: usize = 0x6D13FE;
 /// IDA 0x6D150C, the end of the piece.
@@ -146,9 +149,10 @@ pub const END: usize = 0x6D150C;
 
 const _: () = assert!(END - START == core::mem::size_of::<Panel>());
 
-/// Where IDA 0x6D13FE is now (in the race block).
+/// Where IDA 0x6D13FE is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.panel_and_overlay.panel))
 }
 
 #[cfg(test)]
@@ -175,5 +179,23 @@ mod tests {
         assert_eq!(offset_of!(Panel, players), 0x6D14F2 - START);
         assert_eq!(offset_of!(Panel, flat), 0x6D1502 - START);
         assert_eq!(offset_of!(Panel, texture_changes), 0x6D1508 - START);
+
+        // The three places at +0x78 are the image's addresses of the overlay's arrays, names
+        // that resolve to them.
+        let image = crate::moved::image_bytes(0x6D1476, 12);
+        for (k, miles) in [0x6D150C_usize, 0x6D160C, 0x6D170C].into_iter().enumerate() {
+            let name = u32::from_le_bytes(image[4 * k..4 * k + 4].try_into().unwrap());
+            assert_eq!(name as usize, miles);
+            assert_eq!(
+                crate::moved::named_in(
+                    name,
+                    crate::race::overlay_store::START,
+                    crate::race::overlay_store::END - crate::race::overlay_store::START,
+                    "an overlay array off the overlay"
+                ),
+                Ok(crate::race::overlay_store::piece_addr()
+                    + (miles - crate::race::overlay_store::START) as u32)
+            );
+        }
     }
 }

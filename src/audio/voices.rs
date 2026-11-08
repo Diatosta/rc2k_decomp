@@ -10,8 +10,14 @@
 //! stopping list (`g_stoppingVoices`, 0x4F8344) for the next turn to stop. What a command
 //! changes in a voice is marked in its `dirty` bits for the turn to carry out: 1 volume,
 //! 2 pan, 4 frequency, 8 place, 0x10 play, 0x20 restart.
+//!
+//! Since phase 12 a voice or a channel is named by its id, its place + 1 (the original's
+//! pointers: `first_voice`, `source`, `next_copy`, `next`, a channel's `voice`, the lists),
+//! never by an address.
 
-use crate::audio::store::{AUDIO, SAMPLE_RECORDS};
+use crate::audio::owner::{Audio, audio};
+use crate::audio::store::{AudioState, SampleRecords};
+use crate::session::Shared;
 
 pub use rc2k_core::audio::voices::{SAMPLES, VOICES};
 
@@ -23,72 +29,161 @@ pub fn read(at: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(at, "audio::voices's operand")
 }
 
-/// A record of `T` at `at`, once the address is known to hold one (inside one region,
-/// aligned); the program ends with the address otherwise.
-fn record_at<'a, T>(at: u32, what: &str) -> &'a mut T {
-    crate::pointers::check_or_end(at, size_of::<T>(), what);
-    if !(at as usize).is_multiple_of(align_of::<T>()) {
-        crate::fatal::raise::end(
-            "audio::voices",
-            crate::errors::BadInput("a record at an address out of line"),
-        );
+/// An id's place in a pool of `len`: ids are the place + 1 (phase 12: no addresses; 0 is
+/// none, as a null pointer was). 0, or one past the pool, ends the program.
+fn place_of(id: u32, len: usize, what: &'static str) -> usize {
+    match (id as usize).checked_sub(1) {
+        Some(n) if n < len => n,
+        _ => crate::fatal::raise::end("audio::voices", crate::errors::BadInput(what)),
     }
-    // Safety: `at` .. `at + size_of::<T>()` lies in one live region and is aligned; the
-    // records are the audio thread's (its lock held), as the original's are.
-    unsafe { &mut *(crate::pointers::host(at) as *mut T) }
 }
 
-pub fn voice<'a>(at: u32) -> &'a mut Voice {
-    record_at(at, "a voice")
+/// The voice's place in the pool for id `id`.
+fn voice_place(state: &AudioState, id: u32) -> &Shared<Voice> {
+    &state.voices[place_of(id, state.voices.len(), "a voice id past the pool")]
 }
 
-/// The sample record of sound `number` (the original indexes the table unchecked; a
-/// number past it ends the program).
-pub fn sample<'a>(number: u32) -> &'a mut SampleRecord {
-    let Some(r) = SAMPLE_RECORDS.records.get(number as usize) else {
+/// The mixer channel's place for id `id` (its place in `g_channels` + 1).
+fn channel_place(state: &AudioState, id: u32) -> &Shared<MixerChannel> {
+    &state.channels[place_of(
+        id,
+        state.channels.len(),
+        "a mixer channel id past the channels",
+    )]
+}
+
+/// The sample record's place (the original indexes the table unchecked; a number past it ends
+/// the program).
+fn sample_place(records: &SampleRecords, number: u32) -> &Shared<SampleRecord> {
+    let Some(r) = records.records.get(number as usize) else {
         crate::fatal::raise::end(
             "audio::voices",
             crate::errors::BadInput("a sound number past the sample records"),
         );
     };
-    record_at(crate::pointers::game_address(r.as_ptr()), "a sample record")
+    r
 }
 
-pub fn channel<'a>(at: u32) -> &'a mut MixerChannel {
-    record_at(at, "a mixer channel")
+/// The voice of id `id` (its place in `g_voices` + 1), as it is now. Entry point: the sound
+/// commands' side asks for a voice without the owner.
+pub fn voice(id: u32) -> Voice {
+    voice_of(&audio().state, id)
 }
 
-/// The core's `Pool` over the game's memory: voices and channels by their addresses.
-pub struct GamePool;
+/// The voice of id `id`, as it is now.
+pub fn voice_of(state: &AudioState, id: u32) -> Voice {
+    voice_place(state, id).get()
+}
 
-impl rc2k_core::audio::voices::Pool for GamePool {
-    fn voice(&mut self, at: u32) -> &mut Voice {
-        voice(at)
+/// The voice of id `id` changed (read, changed, written back): `change` must not change it by
+/// another way.
+pub fn update_voice<R>(state: &AudioState, id: u32, change: impl FnOnce(&mut Voice) -> R) -> R {
+    let place = voice_place(state, id);
+    let mut v = place.get();
+    let answer = change(&mut v);
+    place.set(v);
+    answer
+}
+
+/// The voice being changed stored now, for what reads it by address; its `buffer_3d`'s address.
+pub fn stored_buffer_3d(state: &AudioState, id: u32, v: &Voice) -> u32 {
+    let place = voice_place(state, id);
+    place.set(*v);
+    place.addr() + core::mem::offset_of!(Voice, buffer_3d) as u32
+}
+
+/// The id of the voice at place `n`.
+pub fn voice_id(n: u32) -> u32 {
+    n + 1
+}
+
+/// The mixer channel of id `id`, as it is now.
+pub fn channel(state: &AudioState, id: u32) -> MixerChannel {
+    channel_place(state, id).get()
+}
+
+/// The mixer channel of id `id` changed, as `update_voice`.
+pub fn update_channel(state: &AudioState, id: u32, change: impl FnOnce(&mut MixerChannel)) {
+    channel_place(state, id).update(change);
+}
+
+/// The sample record of sound `number`, as it is now.
+pub fn sample(records: &SampleRecords, number: u32) -> SampleRecord {
+    sample_place(records, number).get()
+}
+
+/// The core's `Pool` over the stores: voices and channels by their ids (place + 1).
+pub struct GamePool<'a> {
+    pub state: &'a AudioState,
+    pub records: &'a SampleRecords,
+}
+
+impl<'a> GamePool<'a> {
+    /// The pool over the audio's stores.
+    pub fn new(audio: &'a Audio) -> Self {
+        GamePool {
+            state: &audio.state,
+            records: &audio.sample_records,
+        }
     }
-    fn channel(&mut self, at: u32) -> &mut MixerChannel {
-        channel(at)
+}
+
+impl rc2k_core::audio::voices::Pool for GamePool<'_> {
+    fn voice(&self, at: u32) -> Voice {
+        voice_place(self.state, at).get()
+    }
+    fn set_voice(&mut self, at: u32, v: Voice) {
+        voice_place(self.state, at).set(v);
+    }
+    fn channel(&self, at: u32) -> MixerChannel {
+        channel_place(self.state, at).get()
+    }
+    fn set_channel(&mut self, at: u32, c: MixerChannel) {
+        channel_place(self.state, at).set(c);
     }
     fn channel_at(&self, n: u32) -> u32 {
-        AUDIO.channels[0].addr() + n * std::mem::size_of::<MixerChannel>() as u32
+        n + 1
     }
-    fn record(&mut self, n: u32) -> &mut SampleRecord {
-        sample(n)
+    fn record(&self, n: u32) -> SampleRecord {
+        sample_place(self.records, n).get()
     }
 }
 
 /// The playing and stopping lists, the channels held and their count, read.
-pub fn lists() -> rc2k_core::audio::voices::Lists {
+pub fn lists(state: &AudioState) -> rc2k_core::audio::voices::Lists {
     rc2k_core::audio::voices::Lists {
-        playing: AUDIO.playing_voices.get(),
-        stopping: AUDIO.stopping_voices.get(),
-        channels_used: AUDIO.channels_used.get(),
-        channel_count: AUDIO.channel_count.get(),
+        playing: state.playing_voices.get(),
+        stopping: state.stopping_voices.get(),
+        channels_used: state.channels_used.get(),
+        channel_count: state.channel_count.get(),
     }
 }
 
 /// The lists stored back (the channel count is not written).
-pub fn store_lists(l: &rc2k_core::audio::voices::Lists) {
-    AUDIO.playing_voices.set(l.playing);
-    AUDIO.stopping_voices.set(l.stopping);
-    AUDIO.channels_used.set(l.channels_used);
+pub fn store_lists(state: &AudioState, l: &rc2k_core::audio::voices::Lists) {
+    state.playing_voices.set(l.playing);
+    state.stopping_voices.set(l.stopping);
+    state.channels_used.set(l.channels_used);
+}
+
+#[cfg(test)]
+mod id_tests {
+    /// The voices and channels are named by ids since phase 12: no pointer of the image's
+    /// may point into them (it would be taken for an id).
+    #[test]
+    fn no_pointer_of_the_image_points_at_a_voice_or_a_channel() {
+        let voices = 0x4F834C..0x4F834C + 0x200 * 0x70;
+        let channels = 0x506354..0x506354 + 16 * 0x58;
+        for place in crate::moved::image_relocations() {
+            let target = u32::from_le_bytes(
+                crate::moved::image_bytes(place as usize, 4)
+                    .try_into()
+                    .unwrap(),
+            ) as usize;
+            assert!(
+                !voices.contains(&target) && !channels.contains(&target),
+                "{place:#x} points at {target:#x}"
+            );
+        }
+    }
 }

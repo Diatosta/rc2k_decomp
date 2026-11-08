@@ -3,9 +3,6 @@
 //! (`input::start_effects`); the clock (`system::tick_count`) kept as the effects' last
 //! step (`g_effectsLastTime`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! See `input/effects.rs`. One caller, `input::device_command` (command 3, the race's
 //! start).
 //!
@@ -13,14 +10,16 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::input::owner::Input;
 
 /// The effects started with sound objects in use (`g_raceSoundObjectCount`), and the
 /// effects' clock set.
-pub fn begin_effects() -> Result<(), Refused> {
-    if crate::sound::store::RACE_SOUNDS.count.get() != 0 {
-        crate::input::start_effects::start_effects()?;
+pub fn begin_effects(input: &Input, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+    if sound.race.sounds.count.get() != 0 {
+        crate::input::start_effects::start_effects(input)?;
     }
-    crate::input::store::FORCE_FEEDBACK
+    input
+        .force_feedback
         .last_time
         .set(crate::system::tick_count::tick_count());
     Ok(())

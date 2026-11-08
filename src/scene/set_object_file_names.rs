@@ -1,9 +1,7 @@
 //! `scene::set_object_file_names` (0x43964A): the paths of a kind of object's two
 //! files.
 //!
-//! In:  eax = the kind (which folder), `dword_634FE8` = the kind (the number)
-//! Out: eax = the tens digit as a character, ecx = 10, edx = the units digit as a
-//!      character, esi and ebp = where the number is in the two names
+//! Takes: the kind (which folder), `dword_634FE8` = the kind (the number)
 //!
 //! By the kind: under 0x190 `files\a\obj????.ro3` and `.lwo`, under 0x258 `files\b\`, under
 //! 0x320 `files\g\frnt\`, else `files\s\extr\`. Four pointers are set: the `.ro3` path
@@ -12,9 +10,7 @@
 //! `????` of both (the thousands digit as one byte: anything above 9999 gives another
 //! character). One caller, `scene::load_object`.
 
-use crate::pointers::GamePtr;
-use crate::scene::file_numbers_store::{FILE_NUMBERS, texts};
-use crate::scene::object_store::OBJECT_WORK;
+use crate::scene::file_numbers_store::texts;
 
 // ---- game data ----
 
@@ -30,25 +26,27 @@ const FOLDERS: [(usize, usize, usize); 4] = [
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::objects::{folder, number_digits}`
-pub fn set_object_file_names(folder_kind: u32) -> Result<(), crate::errors::BadInput> {
+pub fn set_object_file_names(
+    scene: &crate::scene::owner::Scene,
+    folder_kind: u32,
+) -> Result<(), crate::errors::BadInput> {
     use rc2k_core::scene::objects::{folder, number_digits};
     {
         let (ro3, lwo, number) = FOLDERS[folder(folder_kind)];
-        let (ro3_number, lwo_number) = (
-            FILE_NUMBERS.text_addr(ro3 + number),
-            FILE_NUMBERS.text_addr(lwo + number),
-        );
-        FILE_NUMBERS.object_ro3_number.set_bits(ro3_number);
-        FILE_NUMBERS
-            .object_ro3_path
-            .set_bits(FILE_NUMBERS.text_addr(ro3));
-        FILE_NUMBERS
-            .object_lwo_path
-            .set_bits(FILE_NUMBERS.text_addr(lwo));
-        FILE_NUMBERS.object_lwo_number.set_bits(lwo_number);
-        let digits = number_digits(OBJECT_WORK.loading_kind.bits());
-        GamePtr::new(ro3_number).write(digits, "the object's file number")?;
-        GamePtr::new(lwo_number).write(digits, "the object's file number")?;
+        let (ro3_number, lwo_number) = ((ro3 + number) as u32, (lwo + number) as u32);
+        scene.file_numbers.object_ro3_number.set_bits(ro3_number);
+        scene.file_numbers.object_ro3_path.set_bits(ro3 as u32);
+        scene.file_numbers.object_lwo_path.set_bits(lwo as u32);
+        scene.file_numbers.object_lwo_number.set_bits(lwo_number);
+        let digits = number_digits(scene.drawing.object_work.loading_kind.bits());
+        scene
+            .file_numbers
+            .text_ptr(ro3 + number)
+            .write(digits, "the object's file number")?;
+        scene
+            .file_numbers
+            .text_ptr(lwo + number)
+            .write(digits, "the object's file number")?;
         Ok(())
     }
 }

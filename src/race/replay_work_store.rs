@@ -4,9 +4,11 @@
 //! switches and the co-driver's door kept in the header, and the replay cameras' wishes and last
 //! draw frames. `#[repr(C)]` with the image's layout, over the race block's bytes. Names are readings unless IDA's.
 
+use crate::race::owner::race;
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ReplayWork {
     /// +0x0 (0x7194BC): `dword_7194BC` / `dword_7194C0`: the replay's input tape, 16 bytes a tenth, 8 a car for cars 0 and 1, 100 tenths (`drive::record_inputs`, `drive::play_inputs`); extent to `unk_719AFC` (a reading).
     pub replay_tape: [Dword; 400],
@@ -58,21 +60,18 @@ pub struct ReplayWork {
     pub camera_last_frame: [Dword; 2],
 }
 
-/// The piece: the race block's bytes at IDA 0x7194BC seen as `ReplayWork`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+/// The piece: a field of `CARS_AND_REPLAY` since 2026-10-29 (it left the race
+/// block with its group, phase 13).
+pub struct InGroup;
 
-impl core::ops::Deref for InRaceBlock {
+impl core::ops::Deref for InGroup {
     type Target = ReplayWork;
     fn deref(&self) -> &ReplayWork {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const ReplayWork) }
+        &race().replay.cars_and_replay.replay_work
     }
 }
 
-pub static REPLAY_WORK: InRaceBlock = InRaceBlock;
+pub static REPLAY_WORK: InGroup = InGroup;
 
 /// IDA 0x7194BC, the first byte of the piece.
 pub const START: usize = 0x7194BC;
@@ -81,9 +80,12 @@ pub const END: usize = 0x719FD8;
 
 const _: () = assert!(END - START == core::mem::size_of::<ReplayWork>());
 
-/// Where IDA 0x7194BC is now (in the race block).
+/// Where IDA 0x7194BC is now (its group's static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(
+        &race().replay.cars_and_replay.replay_work,
+    ))
 }
 
 #[cfg(test)]

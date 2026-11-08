@@ -99,32 +99,6 @@ impl Figures {
     }
 }
 
-/// The game's own heap (the setting `altmemenable`; converted 2026-10-21 from
-/// `memory::open_own_heap` 0x40298A and `memory::free_own_heap` 0x4029DB): in use only
-/// when the switch is 1.
-pub fn own_heap_on(switch: u32) -> bool {
-    switch == 1
-}
-
-/// The smallest own heap, in Kb (signed).
-pub const SMALLEST_HEAP_KB: i32 = 0x2800;
-
-/// The own heap's size from the setting (`altmemsize`, Kb): the Kb, at least
-/// `SMALLEST_HEAP_KB`, and the bytes (an `imul`, wrapping); None when the bytes wrap to 0
-/// (the original writes at address 0 then).
-pub fn own_heap_size(kb_setting: u32) -> Option<(u32, u32)> {
-    let kb = (kb_setting as i32).max(SMALLEST_HEAP_KB) as u32;
-    match kb.wrapping_mul(0x400) {
-        0 => None,
-        bytes => Some((kb, bytes)),
-    }
-}
-
-/// The own heap's first two dwords: 0 and its bytes.
-pub fn own_heap_head(bytes: u32) -> [u32; 2] {
-    [0, bytes]
-}
-
 /// `memory::move_bytes` (0x46573F) inside one buffer: `count` bytes from `from` to `to`,
 /// forwards, a dword at a time (each read before it is written) and then the last bytes
 /// one by one. With `to` a little past `from` the copy repeats what was there, as the
@@ -192,16 +166,6 @@ mod tests {
         f.taken(0);
         // Compared unsigned: a held count gone below 0 is "more".
         assert_eq!(f.most_held, f.held);
-    }
-
-    #[test]
-    fn own_heap() {
-        assert!(own_heap_on(1) && !own_heap_on(2));
-        assert_eq!(own_heap_size(0), Some((0x2800, 0xA0_0000)));
-        assert_eq!(own_heap_size(0x8000_0000), Some((0x2800, 0xA0_0000)));
-        assert_eq!(own_heap_size(0x4000), Some((0x4000, 0x100_0000)));
-        assert_eq!(own_heap_size(0x40_0000), None);
-        assert_eq!(own_heap_head(5), [0, 5]);
     }
 
     #[test]

@@ -4,48 +4,40 @@
 //! drive's setting `dword_5CC190` into `unk_71A3CC`; `physics::test_drive_run`; the six
 //! put back.
 //!
-//! In:  nothing
-//! Out: as `test_drive_run` leaves the registers (ebx 5000); no flags read
-//!
 //! Caller: `scene::set_up_engine` (0x442AFB, the car's choice). Refuses what its parts refuse
-//! (everything written put back). Plain since 2026-10-23 (phase 3): its one caller calls it by
-//! address (`routes.rs`), which sets the registers it leaves (`LEFT`).
+//! (everything written put back). The registers it leaves nothing reads (2026-11-03: the main
+//! menu writes ebx at 0x474AC7 before reading it).
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::physics::gear_store::GEAR;
 use crate::physics::test_drive_run;
-
-/// What the original leaves in eax, ebx, ecx and edx (`test_drive_run`'s last step:
-/// 4999 / 20, the step count, 20, 4999 % 20). Its caller by address (`scene::set_up_engine`)
-/// leaves ebx to `menu::main_menu_loop`, which reads it (0x47493E).
-pub const LEFT: [u32; 4] = [249, test_drive_run::STEPS, 20, 19];
+use crate::race::owner::Race;
 
 /// The Rust version.
-pub unsafe fn test_drive() -> Result<(), Refused> {
-    unsafe {
-        crate::physics::load_car_specs::load_car_specs()?;
-        crate::physics::make_gear_ratios::make_gear_ratios()?;
-    }
+pub fn test_drive(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    crate::physics::load_car_specs::load_car_specs(race, scene)?;
+    crate::physics::make_gear_ratios::make_gear_ratios(race, scene)?;
     // The figures kept round the run: the drive speeds, the car's speed, the gear, the
     // engine, the gearbox kind.
     let kept = [
-        CAR.drive_speed_a.bits(),
-        CAR.drive_speed_b.bits(),
-        CAR.local_velocity[2].bits(),
-        CAR.gear.bits(),
-        CAR.engine_speed.bits(),
-        CAR.gearbox_kind.bits(),
+        race.shared.car.drive_speed_a.bits(),
+        race.shared.car.drive_speed_b.bits(),
+        race.shared.car.local_velocity[2].bits(),
+        race.shared.car.gear.bits(),
+        race.shared.car.engine_speed.bits(),
+        race.shared.car.gearbox_kind.bits(),
     ];
-    CAR.engine_power_factor
+    race.shared
+        .car
+        .engine_power_factor
         .set_bits(GEAR.test_power_factor.bits());
-    test_drive_run::test_drive_run()?;
+    test_drive_run::test_drive_run(race, scene)?;
     let [a, b, speed, gear, engine, kind] = kept;
-    CAR.drive_speed_a.set_bits(a);
-    CAR.drive_speed_b.set_bits(b);
-    CAR.local_velocity[2].set_bits(speed);
-    CAR.gear.set_bits(gear);
-    CAR.engine_speed.set_bits(engine);
-    CAR.gearbox_kind.set_bits(kind);
+    race.shared.car.drive_speed_a.set_bits(a);
+    race.shared.car.drive_speed_b.set_bits(b);
+    race.shared.car.local_velocity[2].set_bits(speed);
+    race.shared.car.gear.set_bits(gear);
+    race.shared.car.engine_speed.set_bits(engine);
+    race.shared.car.gearbox_kind.set_bits(kind);
     Ok(())
 }

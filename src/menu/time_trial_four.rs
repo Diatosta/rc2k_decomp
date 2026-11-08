@@ -8,20 +8,14 @@
 //! ends it, no stage record put in edi, and before the review `menu::show_in_game_options`
 //! where the others hide them. The end: `rc2k_core::menu::rounds::end`.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Reached through the time trial's start menu. Refuses a missing player before anything, and what
 //! the callees refuse when they are reached.
 
 use crate::errors::Refused;
-use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
-use crate::menu::screen_loop::Carried;
 use rc2k_core::menu::rounds;
 
-pub fn time_trial_four(c: &Carried) -> Result<(), Refused> {
-    players_there(4)?;
+pub fn time_trial_four(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::rounds::time_trial_four`.
-    Game::new(c).run(rounds::time_trial_four)
+    Game::new(menus).run(rounds::time_trial_four)
 }

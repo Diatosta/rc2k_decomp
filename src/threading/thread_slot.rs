@@ -5,11 +5,10 @@
 //! buffer `files::resolve_path` uses for the thread.
 
 use crate::errors::{BadInput, Refused};
-use crate::moved::Place;
-use crate::pointers::{Cells, GamePtr};
 use crate::session::{Byte, Bytes, Dword};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ThreadSlot {
     /// The routine: its IDA address, as the image held it before relocation
     /// (`start_slot_thread` makes the running address of it).
@@ -24,9 +23,6 @@ pub struct ThreadSlot {
     pub path: Bytes<0x100>,
 }
 
-// SAFETY: every field is a cell of plain integers.
-unsafe impl Cells for ThreadSlot {}
-
 impl ThreadSlot {
     const fn new(routine: u32) -> Self {
         Self {
@@ -40,9 +36,9 @@ impl ThreadSlot {
     }
 }
 
-/// Slot `n`, checked against the slots' region.
+/// Slot `n`.
 pub fn slot_ref(n: usize) -> Result<&'static ThreadSlot, BadInput> {
-    GamePtr::new((slot(n)) as u32).record::<ThreadSlot>("a thread slot")
+    SLOTS.get(n).ok_or(BadInput("a thread slot past the four"))
 }
 
 /// The slot of the input thread, the audio thread, the network receive thread and the
@@ -55,29 +51,25 @@ pub const SHUTDOWN: usize = 3;
 pub const SLOT_COUNT: usize = 4;
 pub const SLOT_LEN: usize = size_of::<ThreadSlot>();
 
-pub static SLOTS: Place<[ThreadSlot; SLOT_COUNT]> = Place::new([
+pub static SLOTS: [ThreadSlot; SLOT_COUNT] = [
     ThreadSlot::new(0x4078DA),
     ThreadSlot::new(0x409CCE),
     ThreadSlot::new(0x4183C3),
     ThreadSlot::new(0x410C17),
-]);
+];
 
 /// A slot's routine (the IDA address the slot holds) run by its Rust version; None for
 /// an address that is none of the four.
 pub fn run_routine(routine: u32) -> Option<Result<(), Refused>> {
+    let audio = crate::audio::owner::audio();
+    let input = crate::input::owner::input();
     match routine {
-        0x4078DA => Some(crate::input::input_thread::thread_routine()),
-        0x409CCE => Some(unsafe { crate::audio::thread::audio_thread((slot(AUDIO)) as u32) }),
+        0x4078DA => Some(crate::input::input_thread::thread_routine(input)),
+        0x409CCE => Some(crate::audio::thread::audio_thread(audio)),
         0x4183C3 => Some(crate::net::receive_thread::receive_thread()),
         0x410C17 => Some(crate::threading::shutdown_thread::shutdown_thread()),
         _ => None,
     }
-}
-
-/// The address of slot `n`.
-pub fn slot(n: usize) -> usize {
-    assert!(n < SLOT_COUNT);
-    (SLOTS.addr() + (n * SLOT_LEN) as u32) as usize
 }
 
 #[cfg(test)]
@@ -89,10 +81,10 @@ mod tests {
         let mut mine = vec![0u8; d.len()];
         unsafe {
             std::ptr::copy_nonoverlapping(
-                super::SLOTS.ptr() as *const u8,
+                super::SLOTS.as_ptr().cast::<u8>(),
                 mine.as_mut_ptr(),
                 d.len(),
-            )
+            );
         };
         // The image's routines are relocated addresses; compared here as IDA's.
         assert_eq!(mine, d);

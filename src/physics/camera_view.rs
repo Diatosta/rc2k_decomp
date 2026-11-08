@@ -1,4 +1,4 @@
-//! The camera's view steps under `sub_437A53` (stream B, 2026-10-18): the mode record
+//! The camera's view steps under `physics::update_camera` (stream B, 2026-10-18): the mode record
 //! (`off_606320[mode]`, the mode `unk_71A65C` held to 0 ..= 0x33), the share of a
 //! change done (`unk_719FE0` - `unk_71A668` held to 0 ..= the record's +0x3C, over it,
 //! into `flt_605260`), and the tests' frame of `physics::take_view_a`, `take_view_b`,
@@ -7,35 +7,33 @@
 //! `view_test_floats` (`rc2k_core::physics::camera_view`). What the variables are (the
 //! camera's mode, place, turns, a view's figures) is a reading.
 
-use crate::physics::car_store::CAR;
-use crate::race::view_vars_store::VIEW_VARS;
-use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fild, fstp};
+use crate::math::x87_float::int;
+use crate::math::x87_float::st;
+use crate::race::owner_shared::Shared;
+use crate::race::view_vars_store::{ViewRecord, ViewVars};
 
 /// esi as the original leaves it: the mode's record.
-pub fn record() -> u32 {
-    let mode = (CAR.camera_view.get() as i32).clamp(0, 0x33);
-    VIEW_VARS.view_records[mode as usize].get()
-}
-
-pub fn rd(x: u32) -> u32 {
-    crate::pointers::read_or_end(x, "a car block's field")
+pub fn record(shared: &Shared) -> Result<&ViewRecord, crate::errors::BadInput> {
+    let mode = (shared.car.camera_view.get() as i32).clamp(0, 0x33);
+    ViewVars::record_of(mode as usize)
 }
 
 /// The share done (0x438498 .. 0x4384BD): eax as left (the time held).
-pub fn share_done(record: u32) -> u32 {
-    let mut eax = CAR
+pub fn share_done(shared: &Shared, record: &ViewRecord, scene: &crate::scene::owner::Scene) -> u32 {
+    let mut eax = shared
+        .car
         .step_clock
         .get()
-        .wrapping_sub(CAR.camera_switch_clock.get());
+        .wrapping_sub(shared.car.camera_switch_clock.get());
     if (eax as i32) < 0 {
         eax = 0;
     }
-    if eax >= rd(record + 0x3C) {
-        eax = rd(record + 0x3C);
+    let change_time = record.change_time.get();
+    if eax >= change_time {
+        eax = change_time;
     }
-    DRAW.scratch.set(eax);
-    x87_1(crate::race::store::asm_base() as usize, record as usize);
+    scene.drawing.scene.scratch.set(eax);
+    x87_1(shared, change_time, scene);
     eax
 }
 
@@ -43,17 +41,19 @@ pub fn share_done(record: u32) -> u32 {
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x205260] = int [rc + 0x22400C] / int [s + 0x3C]`
-fn x87_1(rc: usize, s: usize) {
-    let t0 = fild(rc, 0x22400C);
-    let t1 = fild(s, 0x3C);
+/// `[rc + 0x205260] = int [rc + 0x22400C] / int [s + 0x3C]` (`s + 0x3C` the record's
+/// `change_time`, passed by value)
+fn x87_1(shared: &Shared, change_time: u32, scene: &crate::scene::owner::Scene) {
+    let t0 = int(scene.drawing.scene.scratch.bits() as i32);
+    let t1 = int(change_time as i32);
     let t2 = t0 / t1;
-    fstp(rc, 0x205260, t2);
+    shared.tables.view_share.set_bits(st(t2));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
     // The original's instructions, one function per run.
@@ -63,7 +63,7 @@ mod asm_reference {
         vec![Block {
             name: "camera_view line 35",
             operands: vec![
-                Operand::Buffer {
+                Operand::RaceBlock {
                     reads: &[(0x22400C, In::I)],
                     writes: &[(0x205260, Out::F)],
                 },
@@ -74,7 +74,13 @@ mod asm_reference {
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
-            plain: |a| x87_1(a[0], a[1]),
+            plain: |a| {
+                x87_1(
+                    &race().shared,
+                    crate::scene::x87_mem::Base::dword(a[1], 0x3C),
+                    crate::scene::owner::scene(),
+                );
+            },
         }]
     }
 

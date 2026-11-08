@@ -6,47 +6,44 @@
 //! and is taken off again if the text is then wider (`text::measure_text` with the editing's
 //! font, signed) than allowed.
 //!
-//! In:  `key` (al)
-//! Out: whether no text is edited (any more): the original's zero flag of `cmp
-//!      dword_52A4B8, -1`, which its callers read (`lq -s 0x416E43`: ZF); every register
-//!      kept. `input::key_to_char` and `text::measure_text` see only the key's byte and the
-//!      text (the measure's x changes no width it reads).
+//! Takes `key`. Returns whether no text is edited (any more); the original's callers read this
+//! as the zero flag of `cmp dword_52A4B8, -1` (`lq -s 0x416E43`). `input::key_to_char` and
+//! `text::measure_text` see only the key's byte and the text (the measure's x changes no width
+//! it reads).
 //! Callers: `net::setting_key`, `net::chat_key`.
 
-use crate::errors::{BadInput, Refused};
-use crate::install::vars::INSTALLER_PATHS;
-use crate::net::lobby::movsb;
-use crate::net::store::NET;
-use crate::pointers::GamePtr;
+use crate::errors::Refused;
+use crate::net::owner::Net;
+use crate::pointers::{StoreBytes, copy_between, store_value};
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
 use rc2k_core::net::editing::{self, EditKey};
 
-fn set_byte(at: u32, v: u8) -> Result<(), BadInput> {
-    GamePtr::new(at).write(v, "an edited text")
-}
-
 /// The Rust version.
-pub fn edit_key(key: u8) -> Result<bool, Refused> {
+pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
+    let install = crate::install::owner::install();
     // Converted: `rc2k_core::net::editing` (`EditKey`, `last_char`, `takes`,
     // `end_for_char`, `too_wide`).
-    if NET.edited.get() != editing::NOT_EDITING {
-        let text = NET.edit_text.get();
-        let words = GamePtr::new(text).bytes("an edited text")?;
+    if net.vars.edited.get() != editing::NOT_EDITING {
+        let text = crate::net::begin_edit::EditedText::edited(&net.vars)?.text(&net.vars, install);
+        let words = StoreBytes(text);
         match EditKey::of(key) {
             EditKey::Escape => {
-                movsb(
+                copy_between(
+                    &install.paths.script_path,
+                    0,
                     text,
-                    INSTALLER_PATHS.script_path.addr(),
-                    editing::TEXT_LEN as u32,
+                    0,
+                    editing::TEXT_LEN,
+                    "an edited text",
                 )?;
-                NET.edited.set(editing::NOT_EDITING);
+                net.vars.edited.set(editing::NOT_EDITING);
             }
-            EditKey::Enter => NET.edited.set(editing::NOT_EDITING),
-            EditKey::Clear => GamePtr::new(text).fill(0, editing::TEXT_LEN, "an edited text")?,
+            EditKey::Enter => net.vars.edited.set(editing::NOT_EDITING),
+            EditKey::Clear => text.store(0, &[0; editing::TEXT_LEN])?,
             EditKey::Backspace => {
                 if let Some(last) = editing::last_char(&words)? {
-                    set_byte(text + last as u32, 0)?;
+                    store_value(text, last, 0u8)?;
                 }
             }
             EditKey::Other => {
@@ -54,23 +51,30 @@ pub fn edit_key(key: u8) -> Result<bool, Refused> {
                 if editing::takes(typed)
                     && let Some(at) = editing::end_for_char(&words)?
                 {
-                    let at = at as u32;
-                    GamePtr::new(text + at).write(typed as u16, "an edited text")?;
+                    // The text up to the character's place and the character, measured as a
+                    // value; the original writes the character and a NUL, then takes the
+                    // character off again (a NUL over it) when the text is too wide.
+                    let mut shown = vec![0; at];
+                    text.load(0, &mut shown)?;
+                    shown.extend_from_slice(&[typed, 0]);
                     let width = {
                         measure_text_at(
-                            crate::pointers::host(NET.edit_font.get()) as *mut _,
-                            crate::pointers::host(text) as *const u8,
+                            net.vars.edit_font.get(),
+                            &shown,
                             at as i32,
                             &mut GameCanvas,
                         )
                     }?
                     .width;
-                    if editing::too_wide(width, NET.edit_width.get()) {
-                        set_byte(text + at, 0)?;
-                    }
+                    let kept = if editing::too_wide(width, net.vars.edit_width.get()) {
+                        [0, 0]
+                    } else {
+                        [typed, 0]
+                    };
+                    text.store(at, &kept)?;
                 }
             }
         }
     }
-    Ok(NET.edited.get() == u32::MAX)
+    Ok(net.vars.edited.get() == u32::MAX)
 }

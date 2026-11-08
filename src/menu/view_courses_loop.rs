@@ -1,81 +1,70 @@
 //! `menu::view_courses_loop` (0x48EC30): the loop of the course information screen.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: leaving is not asked about; the steps that are more than
 //! a call or a store are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "INFORMAÇÃO DO PERCURSO", not yet a
 //! visit.
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::menu::arcade_store::ARCADE_GAME;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, log_line, screen_entry};
+use crate::menu::screen_items_store::slot;
+use crate::menu::screen_loop::{
+    Callee, Entry, FrameRoutine, List, Screen, Step, log_line, screen_entry,
+};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn set_up_first(_c: &mut Carried) -> Result<(), Refused> {
+fn set_up_first(_: &Entry) -> Result<(), Refused> {
     // Between `pusha` and `popa`: no register changes.
-    unsafe {
-        log_line(c"VCoursesScr: Start");
-    }
+    log_line(c"VCoursesScr: Start");
     Ok(())
 }
 
-unsafe fn after(_c: &mut Carried) -> Result<(), Refused> {
+fn after(_: &Entry) -> Result<(), Refused> {
     // Between `pusha` and `popa`: no register changes.
-    unsafe {
-        log_line(c"VCoursesScr: End");
-    }
+    log_line(c"VCoursesScr: End");
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.view_courses.addr() as usize,
-    saved_item: || &SCREEN_ITEMS.current[slot::VIEW_COURSES],
+    menu: |m| m.tables.menus.view_courses.id(),
+    saved_item: |m| &m.screens.items.current[slot::VIEW_COURSES],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.view_courses_scene.addr() as usize,
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.view_courses_scene.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.view_courses_draw.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.view_courses_draw.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.view_courses_setup.addr() as usize,
+            pointer: |m| &m.screens.flow.setup_list, // dword_755500
+            table: |m| m.tables.draw_lists.view_courses_setup.id(),
             run: true,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.view_courses_overlay.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.view_courses_overlay.id(),
             run: false,
         },
     ],
     first_frame_lists: None,
-    frame_callback: rva(0x474D4B),
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[
-        Step::Write(|| &CHAMP_VIEW.stage_mode, 0x1),
-        Step::Write(|| &EVENT_STATE.stage_group, 0x0),
-        Step::Write(|| &EVENT_STATE.stage_number, 0x1),
-        Step::Write(|| &EVENT_STATE.stage_sub, 0x0),
-        Step::Write(|| &ARCADE_GAME.level, 0x0),
-        Step::Write(|| &ARCADE_GAME.stage, 0x1),
-        Step::Write(|| &EVENT_STATE.section, 0x0),
-        Step::Write(|| &EVENT_STATE.index, 0x0),
+        Step::Write(|m| &m.play.champ_view.stage_mode, 0x1),
+        Step::Write(|m| &m.screens.event.stage_group, 0x0),
+        Step::Write(|m| &m.screens.event.stage_number, 0x1),
+        Step::Write(|m| &m.screens.event.stage_sub, 0x0),
+        Step::Write(|m| &m.play.arcade.level, 0x0),
+        Step::Write(|m| &m.play.arcade.stage, 0x1),
+        Step::Write(|m| &m.screens.event.section, 0x0),
+        Step::Write(|m| &m.screens.event.index, 0x0),
     ],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],

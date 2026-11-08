@@ -19,56 +19,48 @@
 //!   `dword_9ED808` change over the note's length times 60), + 8 for a note of 0x780000 or
 //!   longer, + 0x10 turning one way.
 //!
-//! The functions run on `rc2k_core::race::pace_notes::Notes` (the registers and an image of
-//! the tables, written back only when the function is done, so a refusal writes nothing);
+//! The tables are made by `rc2k_core::race::pace_notes::Notes` (on an image of the tables,
+//! written back only when it is done, so a refusal writes nothing);
 //! here the game's stage it asks and the image's load and store.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
-use crate::physics::tables_store::PHYSICS;
 use crate::pointers::GamePtr;
-use crate::race::course_lists_store::COURSE_LISTS;
-use crate::race::course_store::COURSE;
-use crate::race::vars_store::RACE_VARS;
+use crate::race::owner::Race;
+use crate::race::owner::race;
+use crate::race::owner_physics::Physics;
+use crate::race::owner_shared::Shared;
 pub use rc2k_core::race::pace_notes::IMAGE_START;
-use rc2k_core::race::pace_notes::{IMAGE_LEN, Notes, Registers, Stage};
-
-const COURSE_MEMORY_LEN: u32 = 0x130_0000;
+use rc2k_core::race::pace_notes::{IMAGE_LEN, Notes, Stage};
 
 /// Where the course is (`rc2k_core::race::pace_notes::Course`).
 pub type Course = rc2k_core::race::pace_notes::Course;
 
-/// A test stage's faces while one is up (start, end): the original's code
-/// reads them there.
-static TEST_WINDOW: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-
-/// The game's course: the faces (`g_courseFaces`), where they may be read (the course
-/// memory, or a test stage's faces), the checkpoints' count.
-pub fn game_course() -> Course {
-    {
-        let memory: u32 = COURSE_LISTS.course_memory.bits();
-        let faces: u32 = COURSE.course_faces.bits();
-        let test = TEST_WINDOW.load(std::sync::atomic::Ordering::SeqCst);
-        let (lo, hi) = (test as u32, (test >> 32) as u32);
-        Course {
-            faces,
-            window: if test != 0 && faces >= lo && faces < hi {
-                (lo, hi)
-            } else if memory == 0 {
-                (0, 0)
-            } else {
-                (memory, memory.wrapping_add(COURSE_MEMORY_LEN))
-            },
-            count: RACE_VARS.checkpoint_count.bits(),
-        }
+/// The game's course: the faces' table (`race::course_places`: the walk's places are
+/// offsets into it, face n at 0x40 n, read by number in `face_byte`) and the checkpoints'
+/// count. Without the table (the walk runs only after `race::load_level` has taken it) the
+/// window is empty and a face read refused.
+pub fn game_course(shared: &Shared) -> Course {
+    let len = if crate::race::course_places::held() {
+        crate::race::course_places::FACES
+            .with(|f| f.len() as u32)
+            .unwrap_or(0)
+    } else {
+        0
+    };
+    Course {
+        faces: 0,
+        window: (0, len),
+        count: shared.vars.checkpoint_count.bits(),
     }
 }
 
 /// The first refusal of a face read, kept until the walk is done.
 static REFUSED: std::sync::Mutex<Option<BadInput>> = std::sync::Mutex::new(None);
 
-/// The game's stage, as the walk asks it.
+/// The game's stage, as the walk asks it: the faces by offset into their table.
 pub struct GameStage;
+
+static STAGE: GameStage = GameStage;
 
 impl Stage for GameStage {
     fn checkpoint_face(&self, k: u32) -> u32 {
@@ -81,17 +73,20 @@ impl Stage for GameStage {
         crate::race::checkpoints_store::angle(k as usize).get()
     }
     fn slot_offset(&self, slot: u32) -> u32 {
-        PHYSICS.pace_slot_offsets[slot as usize].bits() // dword_614D14: each slot's byte in the face
+        race().shared.physics_tables.pace_slot_offsets[slot as usize].bits() // dword_614D14: each slot's byte in the face
     }
     fn word(&self, tens: u32) -> u8 {
-        crate::physics::pace_store::PACE
-            .distance_words
-            .get(tens as usize)
+        race().physics.pace.distance_words.get(tens as usize)
     }
     fn face_byte(&self, at: u32) -> u8 {
         // The core asks only inside the course's window; a refusal here is kept for
         // `Machine::init` (the core's trait answers a byte).
-        match GamePtr::new(at).read::<u8>("a checkpoint face's byte") {
+        let read = crate::race::course_places::face_field::<u8>(
+            at / 0x40,
+            at % 0x40,
+            "a checkpoint face's byte",
+        );
+        match read {
             Ok(b) => b,
             Err(e) => {
                 if let Ok(mut held) = REFUSED.lock() {
@@ -120,29 +115,36 @@ impl std::ops::DerefMut for Machine {
     }
 }
 
+/// The tables the machine works on: the pace store from `IMAGE_START` to its end.
+fn tables(physics: &Physics) -> GamePtr {
+    use crate::physics::pace_store::{END, START};
+    const _: () = assert!(IMAGE_START as usize >= START && IMAGE_START as usize + IMAGE_LEN == END);
+    // The tables are the image's bytes, read by the notes' own offsets.
+    GamePtr::to(&physics.pace).offset(IMAGE_START - START as u32)
+}
+
 impl Machine {
-    pub fn load(course: Course) -> Result<Self, BadInput> {
-        let at = game_addr(rva(IMAGE_START as usize));
+    pub fn load(race: &Race, course: Course) -> Result<Self, BadInput> {
+        let physics = &race.physics;
         if let Ok(mut held) = REFUSED.lock() {
             *held = None;
         }
         Ok(Self(Notes::new(
-            Registers::default(),
-            PHYSICS.pace_slot.bits(),
-            GamePtr::new(at).read_bytes(IMAGE_LEN, "the pace notes' tables")?,
+            race.shared.physics_tables.pace_slot.bits(),
+            tables(physics).read_bytes(IMAGE_LEN, "the pace notes' tables")?,
             course,
-            &GameStage,
+            &STAGE,
         )))
     }
 
     /// The slot and the tables written back.
-    pub fn commit(&self) -> Result<(), BadInput> {
-        PHYSICS.pace_slot.set_bits(self.slot);
-        GamePtr::new(game_addr(rva(IMAGE_START as usize)))
-            .write_bytes(&self.image, "the pace notes' tables")
+    pub fn commit(&self, race: &Race) -> Result<(), BadInput> {
+        let physics = &race.physics;
+        race.shared.physics_tables.pace_slot.set_bits(self.slot);
+        tables(physics).write_bytes(&self.image, "the pace notes' tables")
     }
 
-    /// `sub_441A66` (`race::init_pace_notes`).
+    /// 0x441A66 (`race::init_pace_notes`).
     pub fn init(&mut self) -> Result<(), Refused> {
         let done = self.0.init();
         if let Ok(mut held) = REFUSED.lock()

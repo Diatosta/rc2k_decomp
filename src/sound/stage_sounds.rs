@@ -1,8 +1,6 @@
 //! `sound::stage_sounds` (0x40E2A9): the stage's own sounds for the turn: three one-off
 //! sounds, a timed one, two that play all the time and two at a random pitch and place.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` / `popa`)
 //! esi the request, its pitch and volume factors (+0x20, +0x24) 1.0. Each of
 //! `dword_51659C`, `dword_5165A0`, `dword_5165A4` at 1 is cleared and sound 0x1AB,
 //! 0x1AC, 0x1AD played (`sound::play_sound`: ebx and edx -0x6F, ecx and edi 0, ebp
@@ -24,10 +22,8 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::session::MACHINE;
 use crate::sound::sample_settings::OWN;
-use crate::sound::sets_store::RACE_SOUND_SETS;
-use crate::sound::store::STAGE_SOUNDS;
+use crate::system::owner::system;
 
 /// The one-off sounds: the flag's index in `once` and the sound.
 const ONE_OFFS: [(usize, u32); 3] = [(0, 0x1AB), (1, 0x1AC), (2, 0x1AD)];
@@ -40,12 +36,15 @@ const MINUS_ONE: u32 = 0xBF80_0000;
 // ---- Rust version ----
 
 /// The stage's own sounds for the turn.
-pub fn stage_sounds() -> Result<(), Refused> {
+pub fn stage_sounds(
+    sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
+) -> Result<(), Refused> {
     use crate::sound::turn_parts::play;
     let request = crate::sound::turn_parts::request();
-    let stage = &STAGE_SOUNDS;
-    RACE_SOUND_SETS.request.set_u32(0x20, ONE);
-    RACE_SOUND_SETS.request.set_u32(0x24, ONE);
+    let stage = &sound.race.stage;
+    request.pitch_factor.set(ONE);
+    request.volume_factor.set(ONE);
     for (n, sound) in ONE_OFFS {
         if stage.once[n].get() == 1 {
             stage.once[n].set(0);
@@ -53,7 +52,7 @@ pub fn stage_sounds() -> Result<(), Refused> {
         }
     }
     // Converted: `rc2k_core::sound::stage::wait_turn`.
-    let clock = crate::sound::store::RACE_CLOCK.last.get();
+    let clock = sound.race.clock.last.get();
     let mut wait = rc2k_core::sound::stage::Wait {
         arm: stage.timed_arm.get(),
         delay: stage.timed_delay.get(),
@@ -69,13 +68,10 @@ pub fn stage_sounds() -> Result<(), Refused> {
         stage.timed_slot.start.set(wait.start);
     }
     if slot {
-        for k in 0..3 {
-            RACE_SOUND_SETS
-                .request
-                .set_u32(0xC + 4 * k, stage.timed_place[k].bits());
+        for (cell, place) in request.place.iter().zip(&stage.timed_place) {
+            cell.set(place.bits());
         }
-        let timed = crate::pointers::game_address(&stage.timed_slot as *const _);
-        crate::sound::play_timed_slot::play_timed_slot(timed, request)?;
+        crate::sound::play_timed_slot::play_timed_slot(&stage.timed_slot, request)?;
     }
     play(
         0x1C5,
@@ -89,12 +85,11 @@ pub fn stage_sounds() -> Result<(), Refused> {
             continue;
         }
         stage.random[n].set(0);
-        let n = { crate::math::next_random::next_random() };
+        let n = crate::math::next_random::next_random();
         // Converted: `rc2k_core::sound::stage::random`.
-        let r =
-            rc2k_core::sound::stage::random(n, crate::audio::store::AUDIO.mix_rate_setting.get());
+        let r = rc2k_core::sound::stage::random(n, audio.state.mix_rate_setting.get());
         // The scratch dword holds the last float.
-        MACHINE.scratch.set(r.ahead.to_bits());
+        system().session.machine.scratch.set(r.ahead.to_bits());
         play(
             sound,
             r.volume,

@@ -1,7 +1,5 @@
 //! `screens::draw_visual_preferences` (0x47A4C7): the values on the visual preferences page.
 //!
-//! In:  nothing
-//! Out: every register preserved; carry of the last text
 //!
 //! For the current player (`dword_75598C`), at x = 0x1D1 from y = 0xC8 on every 0x1D, in the font
 //! at 0x51E8C4: string 0x56B + the setting ("não", "sim") for the progress bar, the driver's
@@ -9,8 +7,7 @@
 //! information and the local map, then string 0x373 + the units' setting ("imperial", "métrico").
 //! Each id is stored in `dword_7559EC` first. In the draw list 0x758CAA
 //! (`menu::visual_preferences_loop`). Refuses no current player and what `draw_string_by_id`
-//! refuses. The menus and draw lists run its `entry` (`menu::table_calls`); the registers above are
-//! the original's, for reference.
+//! refuses. The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::player::Player;
@@ -43,8 +40,7 @@ fn rows(p: &Player) -> [(u32, u32); 9] {
 /// Returns the carry.
 pub fn draw_visual_preferences(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // Converted: `rc2k_core::screens::settings_pages::visual_preferences`.
-    let player = crate::pointers::GamePtr::new(current()?)
-        .read::<rc2k_core::menu::player::Player>("the current player")?;
+    let player = current()?.get();
     let ids = rows(&player).map(|(value, first)| value.wrapping_add(first));
     rc2k_core::screens::settings_pages::visual_preferences(
         &mut crate::screens::game_screen::SettingsScreen::new(canvas),

@@ -1,8 +1,8 @@
 //! The race cars' lights and parts' sounds (converted 2026-10-21 from
 //! `race::car_light_modes` 0x455B70, `race::car_lights` 0x455CFF and
 //! `race::wake_part_sounds` 0x45D1EA; the light at a place, its colours added and
-//! multiplied, converted 2026-10-21 from `race::light_colour_at` 0x4537CE (`sub_44F601`,
-//! `sub_44F691`, `sub_44F863`), `race::view_light` 0x455896 and `race::face_colours`
+//! multiplied, converted 2026-10-21 from `race::light_colour_at` 0x4537CE (0x44F601,
+//! 0x44F691, 0x44F863), `race::view_light` 0x455896 and `race::face_colours`
 //! 0x452887).
 
 use crate::Invalid;
@@ -138,7 +138,7 @@ pub fn clamp_byte(v: u32) -> u32 {
     (v as i32).clamp(0, 0xFF) as u32
 }
 
-/// `sub_44F601`: whether car n's headlights light the place: with one car chosen
+/// 0x44F601: whether car n's headlights light the place: with one car chosen
 /// (`dword_52A910`) that car (`dword_52A920`) or all with `dword_6238B8` 1; else the
 /// players' cars (all with `dword_6238B8` 1), outside one player and modes 0 and 2 only
 /// the drawn view's car. Each value asked where the original reads it.
@@ -162,7 +162,7 @@ pub fn headlights_light(
     }
 }
 
-/// `sub_44F691`'s strength of a car's headlights at the place, an index into the car
+/// 0x44F691's strength of a car's headlights at the place, an index into the car
 /// light table (`g_carLightTable`): from the spread ahead (`spread`, the x87's scaled
 /// square sum), the place's height off the beam (`side`, the turned y) and the car's
 /// marks (+0xABC).
@@ -176,7 +176,7 @@ pub fn headlight_index(spread: u32, side: u32, marks: u32) -> u32 {
     clamp_byte(eax)
 }
 
-/// `sub_44F863`'s grey of a lamp at the place: ((0x200000 - its distance) x its
+/// 0x44F863's grey of a lamp at the place: ((0x200000 - its distance) x its
 /// strength) >> 17, held to 0 ..= 0xFF, in the three colour bytes; with the product's
 /// high half (the original's edx).
 pub fn lamp_grey(distance: u32, strength: u32) -> (u32, u32) {

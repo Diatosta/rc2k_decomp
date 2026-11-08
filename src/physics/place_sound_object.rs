@@ -5,60 +5,51 @@
 //! `dword_6D3B4C` .. at +0x240 .. and +0x10 1 (see `physics/car_sounds.rs`). A reading:
 //! the sound of a roadside object hit.
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read
-//!
-//! Caller: `sub_45E9E0`. Refuses (before anything) a car number past 7, a null sound object
-//! when it is written, an object past 0x100 or a kind past the 0x4B0 records.
+//! Caller: `physics::touch_face`. Refuses (before anything) a car number past 7, a null sound
+//! object when it is written, an object past 0x100 or a kind past the 0x4B0 records.
 
 use crate::errors::Refused;
 use crate::physics::car_sounds::{cue_plain, listed, object};
-use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::sound_band_2::TWIN;
 use crate::physics::sound_bands::band_value_plain;
-use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
-use crate::race::work_store::RACE_WORK;
-use crate::scene::object_tables_store::OBJECT_TABLES;
+use crate::race::owner::Race;
 use rc2k_core::physics::sound_places::{FIRST, object_sound};
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::sound_places::{object_sound, place}`.
-pub fn place_sound_object() -> Result<(), Refused> {
-    if !listed(RACE_WORK.current_car.get())? {
+pub fn place_sound_object(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let physics_store = &race.physics;
+    if !listed(&race.frame, race.shared.work.current_car.get())? {
         return Ok(());
     }
     let trap = crate::physics::cells::Trap::new();
     let sound = object_sound(
-        CONTACT_WORK.face_object.get(),
-        |thing| OBJECT_TABLES.object_kind(thing),
+        physics_store.contact.face_object.get(),
+        |thing| scene.objects.tables.object_kind(thing),
         |kind| {
-            trap.byte(
-                crate::scene::polygon::materials_addr() + 0x24 + (0x80 * kind as usize) as u32,
-                "an object material's record",
+            // The material's byte +0x24 (the low byte of its tenth word).
+            trap.keep(
+                crate::scene::polygon_store::POLYGON_WORK
+                    .object_materials
+                    .get(kind as usize)
+                    .map(|m| m.words[9].get() as u8)
+                    .ok_or(crate::errors::BadInput("an object kind past the materials")),
             )
         },
-        |n| RACE_SOUND_SPOTS.object_kind_sounds[n as usize].get(),
+        |n| race.frame.sound_spots.object_kind_sounds[n as usize].get(),
     )?;
     trap.finish()?;
-    let scratch = RACE_SOUND_SPOTS.band_scratch.get();
-    let b = band_value_plain(TWIN);
+    let b = band_value_plain(race, TWIN);
     if b == 0 {
         return Ok(());
     }
-    // The band left `dword_6D1AEC` written: put back if the object refuses.
-    let o = match object() {
-        Ok(o) => o,
-        Err(e) => {
-            RACE_SOUND_SPOTS.band_scratch.set_bits(scratch);
-            return Err(e);
-        }
-    };
     let offset = Some(
-        CONTACT_WORK
+        physics_store
+            .contact
             .object_point_offset
             .each_ref()
-            .map(|c| c.bits()),
+            .map(super::super::session::Dword::bits),
     );
-    cue_plain(o, FIRST, sound, b, offset);
+    cue_plain(race, object(), FIRST, sound, b, offset)?;
     Ok(())
 }

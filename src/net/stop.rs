@@ -3,26 +3,24 @@
 //! messages, until it is done, or the game is closing (`g_quitting` 1) and the thread has
 //! ended (`dword_52A4B0` 1); then `net::destroy_connection`.
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`)
 //!
 //! See `net/mod.rs`. Four callers: `net::shut_down` and three of the network's menus
 //! (`net::settings_link`, `net::settings_done`, `net::stopping`). It waits on another
 //! thread. Refuses what `net::destroy_connection` refuses.
 
 use crate::errors::Refused;
-use crate::net::store::NET;
-use crate::session::FLAGS;
+use crate::net::store::NetVars;
+use crate::system::owner::system;
 
 /// The Rust version.
-pub fn stop() -> Result<(), Refused> {
-    NET.session.set(0);
-    while NET.receiving.get() != 0 {
+pub fn stop(vars: &NetVars) -> Result<(), Refused> {
+    vars.session.set(0);
+    while vars.receiving.get() != 0 {
         crate::system::sleep::sleep(1);
         crate::platform::pump_messages_now();
-        if FLAGS.quitting.get() == 1 && NET.receive_done.get() == 1 {
+        if system().session.flags.quitting.get() == 1 && vars.receive_done.get() == 1 {
             break;
         }
     }
-    crate::net::destroy_connection::destroy_connection()
+    crate::net::destroy_connection::destroy_connection(vars)
 }

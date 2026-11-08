@@ -1,20 +1,17 @@
 //! `install::unregister_lobby` (0x4190E9): the game's DirectPlay lobby key removed:
 //! `RegDeleteKeyA(HKEY_LOCAL_MACHINE, "SOFTWARE\Microsoft\DirectPlay\Applications\RC")`.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`)
 //! Caller `install::uninstall`. The call through `api`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
-use crate::install::installer::{Api, REG_DELETE_KEY};
+use crate::install::read_registry::Registry;
 
-const HKLM: u32 = 0x8000_0002;
-
-pub fn unregister_lobby(api: Api) {
-    api(
-        REG_DELETE_KEY,
-        &[HKLM, crate::install::store::LOBBY_KEYS.registry_key.addr()],
-    );
+pub fn unregister_lobby(
+    install: &'static crate::install::owner::Install,
+    registry: &mut dyn Registry,
+) {
+    registry.delete(crate::install::store::text_of(
+        &install.lobby_keys.registry_key,
+    ));
 }

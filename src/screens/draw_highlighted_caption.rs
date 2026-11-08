@@ -1,8 +1,6 @@
 //! `screens::draw_highlighted_caption` (0x4695C6): the name of the highlighted entry of a
 //! menu whose entries are turning objects, on a button at the bottom of the screen.
 //!
-//! In:  ecx (the x the caption is measured with)
-//! Out: every register preserved; carry of the text drawn
 //! `dword_75AA74` says which menu (0 .. 6; anything else: nothing is drawn) and so which list of
 //! string numbers; the highlighted item picks the string, which is put at `byte_A8BE54`, where
 //! string 0x1004 is read from. The button is as wide as the caption measured with the font at
@@ -15,13 +13,11 @@
 //! main menu's among them: its menu is number 0). Refuses an item of 0 or above 32, a caption of
 //! 0x100 bytes or more, and a caption narrower than 20 (the original then draws 2^32 middle
 //! pieces). Screen: not confirmed; the name is a reading of the code. The menus and draw lists run
-//! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
+//! its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::state_store::MENU_STATE;
-use crate::session::CLOCKS;
+use crate::menu::owner::Menus;
+use crate::system::owner::system;
 use crate::text::draw_string_by_id::string_text;
 use crate::text::draw_text::Canvas;
 
@@ -35,44 +31,41 @@ const ITEMS: u32 = 32;
 
 // ---- Rust version ----
 
-pub unsafe fn draw_highlighted_caption(
+pub fn draw_highlighted_caption(
+    menus: &Menus,
     measured_at: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<Option<bool>, Refused> {
-    unsafe {
-        let menu: u32 = MENU_STATE.carousel.menu.get();
-        let Some(&list) = LISTS.get(menu as usize) else {
-            return Ok(None);
-        };
-        let item: u32 = LOOP_FLAGS.item.get();
-        if !(1..=ITEMS).contains(&item) {
-            return Err(BadInput("a highlighted item outside the lists of captions").into());
-        }
-        let id: u32 =
-            crate::menu::captions_store::CAPTIONS.caption_lists[list + item as usize - 1].get();
-        let caption = string_text(id)?;
-        if caption.len() > CAPTION_LEN {
-            return Err(BadInput("a caption longer than its place").into());
-        }
-        crate::pointers::GamePtr::new(
-            crate::screens::text_buffers_store::TEXT_BUFFERS
-                .caption
-                .addr(),
-        )
-        .write_bytes(&caption, "the caption")?;
-        // Converted: `rc2k_core::screens::highlighted_caption`.
-        let since_key = CLOCKS
-            .frame
-            .get()
-            .wrapping_sub(CHAMP_VIEW.last_key_time.get());
-        let too_wide = rc2k_core::screens::highlighted_caption::highlighted_caption(
-            &mut crate::screens::game_screen::GameScreen::<
-                rc2k_core::screens::highlighted_caption::Font,
-                rc2k_core::screens::highlighted_caption::Work,
-            >::new(canvas),
-            measured_at as i32,
-            since_key,
-        )?;
-        Ok(Some(too_wide))
+    let menu: u32 = menus.screens.state.carousel.menu.get();
+    let Some(&list) = LISTS.get(menu as usize) else {
+        return Ok(None);
+    };
+    let item: u32 = menus.screens.loop_flags.item.get();
+    if !(1..=ITEMS).contains(&item) {
+        return Err(BadInput("a highlighted item outside the lists of captions").into());
     }
+    let id: u32 = menus.tables.captions.caption_lists[list + item as usize - 1].get();
+    let caption = string_text(id)?;
+    if caption.len() > CAPTION_LEN {
+        return Err(BadInput("a caption longer than its place").into());
+    }
+    crate::screens::text_buffers_store::TEXT_BUFFERS
+        .caption
+        .write_at(0, &caption, "the caption")?;
+    // Converted: `rc2k_core::screens::highlighted_caption`.
+    let since_key = system()
+        .session
+        .clocks
+        .frame
+        .get()
+        .wrapping_sub(menus.play.champ_view.last_key_time.get());
+    let too_wide = rc2k_core::screens::highlighted_caption::highlighted_caption(
+        &mut crate::screens::game_screen::GameScreen::<
+            rc2k_core::screens::highlighted_caption::Font,
+            rc2k_core::screens::highlighted_caption::Work,
+        >::new(canvas),
+        measured_at as i32,
+        since_key,
+    )?;
+    Ok(Some(too_wide))
 }

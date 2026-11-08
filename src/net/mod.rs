@@ -22,7 +22,8 @@
 //! screens' loops and frames of the lobby too (conversion phase 3, 2026-10-24: no registers,
 //! no calls by place). DirectPlay's methods from Rust (`net::dplay`).
 
-use crate::net::store::NET;
+use crate::net::store::NetVars;
+use crate::race::owner::race;
 
 pub mod add_address_element;
 pub mod add_chat_line;
@@ -85,11 +86,11 @@ pub mod list_players;
 pub mod lobby;
 pub mod lobby_button;
 pub mod lobby_frame;
-pub mod lobby_launched_game;
 pub mod lobby_loop;
 pub mod lock_received;
 pub mod message_frame;
 pub mod open_lobby;
+pub mod owner;
 pub mod player_found;
 pub mod post_call;
 pub mod race_over;
@@ -127,19 +128,16 @@ pub mod stopping;
 pub mod store;
 pub mod store_received;
 pub mod system_message;
+pub mod tables;
 pub mod take_messages;
 pub mod take_player_settings;
 pub mod types;
 pub mod unlock_received;
 
 /// Logs as the send functions do: "send x", the player, the step (`log_int_l1_nl`).
-pub fn log_send(text: &std::ffi::CStr) {
-    use crate::logfile::{log_int::log_int, log_write::log_write};
-    unsafe { log_write(text.as_ptr().cast(), false, 1) };
-    log_int(NET.player.get() as i32, false, 1);
-    log_int(
-        crate::race::view_store::RACE_VIEW.local_car.get() as i32,
-        true,
-        1,
-    );
+pub fn log_send(vars: &NetVars, text: &std::ffi::CStr) {
+    use crate::logfile::log_int::log_int;
+    crate::logfile::log_write::log_nul(&text, false, 1);
+    log_int(vars.player.get() as i32, false, 1);
+    log_int(race().shared.view.local_car.get() as i32, true, 1);
 }

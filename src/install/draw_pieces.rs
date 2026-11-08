@@ -6,75 +6,77 @@
 //! bit 1; a text its string and the item's appended text in `text`; an action its drawing
 //! action (`[item+0xC]`, ecx and edx the place).
 //!
-//! In:  nothing (the pieces at `dword_51C407`)
-//! Out: every register kept (`pusha` / `popa`); no flags read
 //! No pieces would go round 2^32 times: refused. Caller `install::run_page` (the surface
 //! locked).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{
-    append_byte, append_string_by_id, draw_action, draw_string, draw_text, rb, rd, rw, str_append,
-    text_action,
+    draw_action, draw_string, draw_text, push_string_by_id, store_text, text_action, text_at,
 };
-use crate::install::lay_out_pieces::PIECE;
-use crate::install::vars::INSTALLER_PAGES;
-use crate::strings::text_buffer::TEXT_BUFFER;
+use crate::install::page_records::{Piece, piece_count};
+use crate::install::vars::InstallerPages;
+use crate::strings::owner::Strings;
 use rc2k_core::install::pieces::{self, Way};
 
-fn font(index: u32) -> u32 {
-    rd(crate::session::address_of(&INSTALLER_PAGES.fonts) + 4 * index)
+fn font(index: u32) -> Result<crate::gfx::typefaces::FontId, BadInput> {
+    crate::install::vars::InstallerPages::font_of(index)
 }
 
 fn colour(marks: u8, kind: u32) -> u32 {
-    rb(INSTALLER_PAGES.kind_fonts.addr() + pieces::colour_at(marks, kind)) as u32
+    InstallerPages::kind_font(pieces::colour_at(marks, kind)) as u32
 }
 
-pub fn draw_pieces() -> Result<(), Refused> {
-    let count = INSTALLER_PAGES.layout.get_u32(0);
+pub fn draw_pieces(
+    install: &'static crate::install::owner::Install,
+    strings: &'static Strings,
+) -> Result<(), Refused> {
+    let count = piece_count(install);
     if count == 0 {
         return Err(BadInput("a page of no pieces").into());
     }
     for k in 0..count {
-        let piece = INSTALLER_PAGES.layout.addr() + 4 + PIECE * k;
-        let first = rb(piece);
-        let (x, y) = (rd(piece + 8), rd(piece + 0xC));
+        let piece = Piece::nth(k);
+        let first = piece.marks();
+        let (x, y) = (piece.x(), piece.y());
         // Converted: `rc2k_core::install::pieces` (`Way`, `colour_at`, `caret`).
-        match Way::of(first, rb(piece + 1)) {
+        match Way::of(first, piece.kind()) {
             Way::String { font_kind } => {
-                draw_string(rw(piece + 2) as u32, font(colour(first, font_kind)), x, y)?;
-            }
-            Way::Edit => {
-                let item = rd(piece + 4);
-                let record = rd(item + 0xC);
-                let edit_font = font(colour(first, rb(record + 4) as u32));
-                let mut text = rd(item + 8);
-                if pieces::caret(first, rb(record)) {
-                    let cursor = str_append(text, TEXT_BUFFER.text.addr());
-                    let cursor = append_string_by_id(4, cursor);
-                    append_byte(cursor, 0);
-                    text = TEXT_BUFFER.text.addr();
-                }
-                draw_text(edit_font, text, x, y)?;
-            }
-            Way::Text => {
-                let item = rd(piece + 4);
-                let mut cursor = append_string_by_id(rw(piece + 2) as u32, TEXT_BUFFER.text.addr());
-                let action = rd(item + 0xC);
-                if action != 0 {
-                    cursor = text_action(action, cursor)?;
-                }
-                append_byte(cursor, 0);
-                draw_text(
-                    font(colour(first, rb(item + 1) as u32)),
-                    TEXT_BUFFER.text.addr(),
+                draw_string(
+                    piece.text_id() as u32,
+                    font(colour(first, font_kind))?,
                     x,
                     y,
                 )?;
             }
-            Way::Action => draw_action(rd(rd(piece + 4) + 0xC))?,
+            Way::Edit => {
+                let item = piece.item();
+                let record = item.edit_field();
+                let edit_font = font(colour(first, record.font_kind() as u32))?;
+                let mut text = text_at(item.text());
+                if pieces::caret(first, record.flags()) {
+                    // The text and the caret, kept in the text buffer (anything reads it
+                    // afterwards only after another page text overwrote it).
+                    push_string_by_id(&mut text, 4);
+                    text.push(0);
+                    store_text(&strings.text.buffer.text, &text);
+                }
+                draw_text(edit_font, &text, x, y)?;
+            }
+            Way::Text => {
+                let item = piece.item();
+                let mut text = Vec::new();
+                push_string_by_id(&mut text, piece.text_id() as u32);
+                let action = item.data();
+                if action != 0 {
+                    text_action(action, &mut text)?;
+                }
+                text.push(0);
+                store_text(&strings.text.buffer.text, &text);
+                draw_text(font(colour(first, item.font_kind() as u32))?, &text, x, y)?;
+            }
+            Way::Action => draw_action(piece.item().data())?,
             Way::Other => {}
         }
     }

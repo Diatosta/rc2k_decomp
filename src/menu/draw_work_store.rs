@@ -9,6 +9,7 @@ use crate::session::{Bytes, Dword, with_runs};
 
 /// The drawing work variables (IDA 0x7559A4 .. 0x755A4C).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct DrawWork {
     /// `dword_7559A4`: 1 in the visible half of a blink (`menu::update_blink`).
     pub blink: Dword,
@@ -90,48 +91,52 @@ pub struct DrawWork {
     pub _gap_755a40: Bytes<12>,
 }
 
-/// First values the image's (`tests::draw_work_starts_as_the_games`).
-pub static DRAW_WORK: DrawWork = DrawWork {
-    blink: Dword::new(0x1),
-    cursor_on: Dword::new(0x1),
-    seconds: Dword::new(0x0),
-    work_b0: Dword::new(0x0),
-    work_b4: Dword::new(0x0),
-    work_b8: Dword::new(0x0),
-    first_player_time: Dword::new(0x0),
-    glyph: Dword::new(0x0),
-    work_c4: Dword::new(0x0),
-    dword_7559c8: Dword::new(0x0),
-    dword_7559cc: Dword::new(0x0),
-    drawing_highlighted_item: Dword::new(0x0),
-    overall_first_time: Dword::new(0x0),
-    middle: Dword::new(0x0),
-    slider_a_start: Dword::new(0x0),
-    slider_a_end: Dword::new(0x0),
-    slider_b_start: Dword::new(0x0),
-    slider_b_end: Dword::new(0x0),
-    figure: Dword::new(0x0),
-    hhmm: Dword::new(0x0),
-    work_f4: Dword::new(0x0),
-    work_f8: Dword::new(0x0),
-    work_fc: Dword::new(0x0),
-    work_00: Dword::new(0x0),
-    work_04: Dword::new(0x0),
-    work_08: Dword::new(0x0),
-    work_0c: Dword::new(0x0),
-    _gap_755a10: Bytes::new([0; 8]),
-    marker_x: Dword::new(0x0),
-    marker_y: Dword::new(0x0),
-    marker_end_a: Dword::new(0x0),
-    marker_end_b: Dword::new(0x0),
-    marker_end_c: Dword::new(0x0),
-    marker_end_d: Dword::new(0x0),
-    dword_755a30: Dword::new(0x0),
-    dword_755a34: Dword::new(0x0),
-    action_value: Dword::new(0x0),
-    escaped: Dword::new(0x0),
-    _gap_755a40: Bytes::new(with_runs::<12>(&[(0x0, &[0x86, 0x01])])),
-};
+impl DrawWork {
+    /// First values the image's (`tests::draw_work_starts_as_the_games`).
+    pub const fn new() -> Self {
+        DrawWork {
+            blink: Dword::new(0x1),
+            cursor_on: Dword::new(0x1),
+            seconds: Dword::new(0x0),
+            work_b0: Dword::new(0x0),
+            work_b4: Dword::new(0x0),
+            work_b8: Dword::new(0x0),
+            first_player_time: Dword::new(0x0),
+            glyph: Dword::new(0x0),
+            work_c4: Dword::new(0x0),
+            dword_7559c8: Dword::new(0x0),
+            dword_7559cc: Dword::new(0x0),
+            drawing_highlighted_item: Dword::new(0x0),
+            overall_first_time: Dword::new(0x0),
+            middle: Dword::new(0x0),
+            slider_a_start: Dword::new(0x0),
+            slider_a_end: Dword::new(0x0),
+            slider_b_start: Dword::new(0x0),
+            slider_b_end: Dword::new(0x0),
+            figure: Dword::new(0x0),
+            hhmm: Dword::new(0x0),
+            work_f4: Dword::new(0x0),
+            work_f8: Dword::new(0x0),
+            work_fc: Dword::new(0x0),
+            work_00: Dword::new(0x0),
+            work_04: Dword::new(0x0),
+            work_08: Dword::new(0x0),
+            work_0c: Dword::new(0x0),
+            _gap_755a10: Bytes::new([0; 8]),
+            marker_x: Dword::new(0x0),
+            marker_y: Dword::new(0x0),
+            marker_end_a: Dword::new(0x0),
+            marker_end_b: Dword::new(0x0),
+            marker_end_c: Dword::new(0x0),
+            marker_end_d: Dword::new(0x0),
+            dword_755a30: Dword::new(0x0),
+            dword_755a34: Dword::new(0x0),
+            action_value: Dword::new(0x0),
+            escaped: Dword::new(0x0),
+            _gap_755a40: Bytes::new(with_runs::<12>(&[(0x0, &[0x86, 0x01])])),
+        }
+    }
+}
 
 /// IDA 0x7559A4, the first byte of the piece.
 pub const START: usize = 0x7559A4;
@@ -139,8 +144,9 @@ pub const START: usize = 0x7559A4;
 pub const END: usize = 0x755A4C;
 
 /// Where IDA 0x7559A4 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn draw_work_addr() -> u32 {
-    crate::pointers::game_address(&DRAW_WORK as *const DrawWork)
+    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.screens.draw_work)
 }
 
 #[cfg(test)]
@@ -157,7 +163,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(draw_work_addr()) as *const u8,
+                crate::pointers::host(draw_work_addr()).cast_const(),
                 END - START,
             )
         };

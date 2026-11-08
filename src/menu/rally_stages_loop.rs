@@ -3,60 +3,48 @@
 //!
 //! The owner: "the screen before the service area in championship that shows that rally's stages".
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`): before the loop it clears the Escape flag `dword_755A3C`;
 //! its background comes from `menu::load_background`, after which a set carry flag is fatal
 //! error 0x80712345; leaving is asked about, and a "no" sets the screen up again.
-//! Callers: the event loops `sub_4A0E60` and `sub_4AA4D7`.
-
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, FRAME_CALLBACK, List, Screen, Step};
+//! Callers: the event loops `menu::run_championship`.
+use crate::menu::screen_items_store::slot;
+use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 // ---- game data ----
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.rally_stages.addr() as usize,
-    saved_item: || &SCREEN_ITEMS.current[slot::RALLY_STAGES], // dword_747770
+    menu: |m| m.tables.menus.rally_stages.id(),
+    saved_item: |m| &m.screens.items.current[slot::RALLY_STAGES], // dword_747770
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list,
-            table: || DRAW_LISTS.rally_stages_scene.addr() as usize,
+            pointer: |m| &m.screens.flow.scene_list,
+            table: |m| m.tables.draw_lists.rally_stages_scene.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list,
-            table: || DRAW_LISTS.list_758d56.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list,
+            table: |m| m.tables.draw_lists.list_758d56.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list,
-            table: || DRAW_LISTS.rally_stages_overlay.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list,
+            table: |m| m.tables.draw_lists.rally_stages_overlay.id(),
             run: false,
         },
     ],
     first_frame_lists: None,
-    frame_callback: FRAME_CALLBACK,
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
-    before: &[Step::Write(|| &DRAW_WORK.escaped, 0)],
+    before: &[Step::Write(|m| &m.screens.draw_work.escaped, 0)],
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgAddr(|| {
-            (crate::menu::texts_store::MENU_TEXTS
-                .rally_stages_picture
-                .addr()) as usize
-        }),
-        Step::CallOrFatal(Callee::LoadBackground, 0x8071_2345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.rally_stages_picture
+    }))],
     after_first_frame: &[],
     confirm: Some(&[]),
     ask_also_if: None,

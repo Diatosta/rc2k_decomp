@@ -1,0 +1,50 @@
+//! `effects::pong_cell` (0x4B8557): one cell of a score digit: unless the pattern byte at
+//! eax is 0, `effects::draw_pong_box` at (ebx times `flt_7691FA` plus `dword_7687D4`, ecx
+//! times `flt_7691FE` plus `dword_7687D8`) sized `flt_769202` by `flt_769206`; eax on one.
+//!
+//! Takes: the pattern byte, the column, the row
+//!
+//! Caller: `effects::pong_digit` (twenty times).
+//!
+//! Converted 2026-10-21: the box's place through `rc2k_core::effects::pong::cell_place` (a
+//! whole number times a float plus a whole number: exact in `f64`, as the x87's at double
+//! precision; at extended too while the product fits 53 bits, as the score's cells do).
+
+use crate::effects::pong::Pong;
+use crate::effects::windscreen_flakes_store::WindscreenFlakes;
+use crate::errors::Refused;
+use crate::scene::matrix3::extended;
+use rc2k_core::math::extended::from_f64;
+
+/// The Rust version (see the header): `pattern` the pattern byte (eax),
+/// `column` (ebx), `row` (ecx).
+// Converted: `rc2k_core::effects::pong::cell_place`
+pub fn pong_cell(
+    pong: &Pong,
+    fl: &WindscreenFlakes,
+    pattern: u8,
+    column: u32,
+    row: u32,
+    effects: &crate::effects::owner::Effects,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    {
+        if pattern != 0 {
+            let step = pong
+                .rules
+                .cell_step
+                .each_ref()
+                .map(super::super::session::Float::get);
+            let at = pong.state.digit_at.each_ref().map(|d| d.get() as i32);
+            let [x, y] = rc2k_core::effects::pong::cell_place(column as i32, row as i32, step, at);
+            let values = [
+                extended(pong.rules.cell_size[1].bits()),
+                extended(pong.rules.cell_size[0].bits()),
+                from_f64(y),
+                from_f64(x),
+            ];
+            crate::effects::draw_pong_box::draw_pong_box(pong, fl, values, effects, scene);
+        }
+    }
+    Ok(())
+}

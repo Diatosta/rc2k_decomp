@@ -1,7 +1,6 @@
 //! `sound::surface_sounds` (0x40DE9B): a car's two sounds of what its wheels run on.
 //!
-//! In:  ebx the car's sound object, esi the request
-//! Out: every register preserved (`pusha` / `popa`)
+//! Takes: the car's sound object, the request
 //! The four wheels are records of five dwords at +0x44, +0x58, +0x6C, +0x80 (+8 and +0xC
 //! floats, +0x10 the surface). From the floats at +8: `flt_51638C` (front less back,
 //! by the signs), `flt_516394` (left less right), +0x284 = the sum of the four +0
@@ -15,7 +14,7 @@
 //! their sum x 0.1, the surface into `dword_4F66F5`, x 0.1 on 7 and 8) with the sets
 //! of `off_5163A0`. The x87 code is plain Rust over `X` (`math/x87_float.rs`; the original's instructions
 //! are `asm_reference` in the tests; `dword_5183CC` is the scratch dword for the constants). One caller, `sound::car_sounds`.
-//! Refuses a null object or request, a surface past the 16 of `dword_51655C` and a set
+//! Refuses a null object, a surface past the 16 of `dword_51655C` and a set
 //! past the seven pairs: what was written is put back (a sound already sent stays).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
@@ -24,17 +23,28 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::X;
 use crate::math::x87_float::{ld, st, to_int};
-use crate::scene::x87_mem::{fld, mov};
-use crate::sound::store::{STAGE_SOUNDS, SURFACE_SOUNDS, SoundObject, WHEEL_SURFACES};
+use crate::scene::x87_mem::{Base, fld, mov};
+use crate::sound::sets_store::SoundRequest;
+use crate::sound::store::{SoundObject, WHEEL_SURFACES};
+use crate::system::owner::system;
 use rc2k_core::sound::surfaces;
 
 // ---- Rust version ----
 
-/// The surface of the wheel picked (of object `o`), its set and `sound::surface_sound`
+/// The surface of the wheel picked (of object `so`), its set and `sound::surface_sound`
 /// (the other wheel of the pair, the original's edx, it does not read).
-fn one(o: &SoundObject, request: u32, second: usize) -> Result<(), Refused> {
+fn one(
+    o: &SoundObject,
+    request: &SoundRequest,
+    second: usize,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
+    let system = system();
     // Converted: `rc2k_core::sound::surfaces` (`wheel`, `quieter`, `set_pair`).
-    let (first, _) = surfaces::wheel(SURFACE_SOUNDS.across.bits(), SURFACE_SOUNDS.along.bits());
+    let (first, _) = surfaces::wheel(
+        sound.race.surface.across.bits(),
+        sound.race.surface.along.bits(),
+    );
     let surface = o.voices[first].surface.get();
     if second == 0 {
         o.surface.set(surface);
@@ -42,33 +52,27 @@ fn one(o: &SoundObject, request: u32, second: usize) -> Result<(), Refused> {
     WHEEL_SURFACES[second].set(surface);
     if surfaces::quieter(surface) {
         if second == 0 {
-            x87_1(
-                &crate::sound::store::SURFACE_SOUNDS,
-                crate::session::MACHINE.scratch.addr() as usize,
-            );
+            x87_1(&sound.race.surface, &system.session.machine.scratch);
         } else {
-            x87_2(
-                &crate::sound::store::SURFACE_SOUNDS,
-                crate::session::MACHINE.scratch.addr() as usize,
-            );
+            x87_2(&sound.race.surface, &system.session.machine.scratch);
         }
     }
-    let pair = surfaces::set_pair(surface, |n| STAGE_SOUNDS.surface_sets[n as usize].get())
+    let pair = surfaces::set_pair(surface, |n| sound.race.stage.surface_sets[n as usize].get())
         .map_err(BadInput::from)?;
-    let set = crate::sound::sets_store::SURFACE_SETS.sets[second + 2 * pair as usize].get();
-    crate::sound::surface_sound::surface_sound(o.addr(), set, request)
+    let set = crate::sound::sets_store::SurfaceSets::set(second + 2 * pair as usize)?;
+    crate::sound::surface_sound::surface_sound(o, set, request)
 }
 
-/// The wheels' surface sounds of object `o`, through `request`.
-pub fn surface_sounds(o: u32, request: u32) -> Result<(), Refused> {
-    if o == 0 || request == 0 {
-        return Err(BadInput("no object or no request").into());
-    }
-    let so = SoundObject::at(o)?;
-    x87_3(so, &SURFACE_SOUNDS);
-    one(so, request, 0)?;
-    x87_4(so, &SURFACE_SOUNDS);
-    one(so, request, 1)
+/// The wheels' surface sounds of object `so`, through `request`.
+pub fn surface_sounds(
+    so: &crate::sound::store::SoundObject,
+    request: &SoundRequest,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
+    x87_3(so, &sound.race.surface);
+    one(so, request, 0, sound)?;
+    x87_4(so, &sound.race.surface);
+    one(so, request, 1, sound)
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -77,7 +81,7 @@ pub fn surface_sounds(o: u32, request: u32) -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [t + 0] = 0x3E800000`
 /// `[sf + 0x40] = [sf + 0x40] * [t + 0]`
-fn x87_1(sf: &crate::sound::store::SurfaceSounds, t: usize) {
+fn x87_1(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
     let t0 = ld(sf.volume.bits());
     mov(t, 0, 0x3E800000);
     let t1 = fld(t, 0);
@@ -89,7 +93,7 @@ fn x87_1(sf: &crate::sound::store::SurfaceSounds, t: usize) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [t + 0] = 0x3DCCCCCD`
 /// `[sf + 0x40] = [sf + 0x40] * [t + 0]`
-fn x87_2(sf: &crate::sound::store::SurfaceSounds, t: usize) {
+fn x87_2(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
     let t0 = ld(sf.volume.bits());
     mov(t, 0, 0x3DCCCCCD);
     let t1 = fld(t, 0);
@@ -250,7 +254,7 @@ mod asm_reference {
                                 as *const crate::sound::store::SurfaceSounds)
                         },
                         a[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -274,7 +278,7 @@ mod asm_reference {
                                 as *const crate::sound::store::SurfaceSounds)
                         },
                         a[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -310,7 +314,7 @@ mod asm_reference {
                             &*(crate::pointers::host_at(a[1])
                                 as *const crate::sound::store::SurfaceSounds)
                         },
-                    )
+                    );
                 },
             },
             Block {
@@ -337,7 +341,7 @@ mod asm_reference {
                             &*(crate::pointers::host_at(a[1])
                                 as *const crate::sound::store::SurfaceSounds)
                         },
-                    )
+                    );
                 },
             },
         ]

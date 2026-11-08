@@ -5,16 +5,12 @@
 //! (`budget - (total + time)`, signed, at least 0), the value at the edit's start is the
 //! chosen one, edit mode flips (`xor 1`) and the edit page is the item's. Else nothing.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //! Refuses (before anything) a highlighted item past the flag table (the original reads
-//! past it). Self-test: the original and the Rust version on the variables, each flag,
-//! budgets around the boundary, edit mode 0 and 1, put back.
+//! past it).
 
 use crate::errors::Refused;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::state_store::MENU_STATE;
-use crate::service::state::{flagged_item, repair_flag};
+use crate::menu::owner::menus;
+use crate::service::state::{flagged_item, repair_flag_in};
 use crate::session::Dword;
 
 /// One page's own variables.
@@ -32,21 +28,24 @@ pub struct Edit {
 
 /// The Rust version (see the header).
 pub fn begin_edit(e: Edit) -> Result<(), Refused> {
-    let item = flagged_item()?;
+    let menus = menus();
+    let screens = &menus.screens;
+    let item = flagged_item(screens)?;
 
     // Converted: `rc2k_core::service::repairs::may_edit`.
     if rc2k_core::service::repairs::may_edit(
-        repair_flag(item),
-        MENU_STATE.driver_stats.repair_time.get() as i32,
+        repair_flag_in(&menus.tables, item),
+        screens.state.driver_stats.repair_time.get() as i32,
         e.time.get() as i32,
-        EVENT_STATE.service_minutes.get() as i32,
+        screens.event.service_minutes.get() as i32,
     ) {
         e.start.set(e.chosen.get());
-        MENU_STATE
+        screens
+            .state
             .service_ui
             .box_shown
-            .set(MENU_STATE.service_ui.box_shown.get() ^ 1);
-        MENU_STATE.service_ui.box_page.set(e.page);
+            .set(screens.state.service_ui.box_shown.get() ^ 1);
+        screens.state.service_ui.box_page.set(e.page);
     }
 
     Ok(())
@@ -54,25 +53,41 @@ pub fn begin_edit(e: Edit) -> Result<(), Refused> {
 
 pub const GEAR_RATIO: Edit = Edit {
     page: 1,
-    time: &MENU_STATE.driver_stats.repair_times[12],
-    chosen: &MENU_STATE.driver_stats.setups[0].chosen,
-    start: &MENU_STATE.driver_stats.setups[0].start,
+    time: &crate::menu::owner::MENUS
+        .screens
+        .state
+        .driver_stats
+        .repair_times[12],
+    chosen: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[0].chosen,
+    start: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[0].start,
 };
 pub const TYRE: Edit = Edit {
     page: 2,
-    time: &MENU_STATE.driver_stats.repair_times[13],
-    chosen: &MENU_STATE.driver_stats.setups[1].chosen,
-    start: &MENU_STATE.driver_stats.setups[1].start,
+    time: &crate::menu::owner::MENUS
+        .screens
+        .state
+        .driver_stats
+        .repair_times[13],
+    chosen: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[1].chosen,
+    start: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[1].start,
 };
 pub const RIDE_HEIGHT: Edit = Edit {
     page: 5,
-    time: &MENU_STATE.driver_stats.repair_times[14],
-    chosen: &MENU_STATE.driver_stats.setups[2].chosen,
-    start: &MENU_STATE.driver_stats.setups[2].start,
+    time: &crate::menu::owner::MENUS
+        .screens
+        .state
+        .driver_stats
+        .repair_times[14],
+    chosen: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[2].chosen,
+    start: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[2].start,
 };
 pub const SUSPENSION_STIFFNESS: Edit = Edit {
     page: 6,
-    time: &MENU_STATE.driver_stats.repair_times[15],
-    chosen: &MENU_STATE.driver_stats.setups[3].chosen,
-    start: &MENU_STATE.driver_stats.setups[3].start,
+    time: &crate::menu::owner::MENUS
+        .screens
+        .state
+        .driver_stats
+        .repair_times[15],
+    chosen: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[3].chosen,
+    start: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[3].start,
 };

@@ -62,16 +62,14 @@ pub enum Step {
     StandingsFromDrivers,
     SortByTime,
     CopySummary,
-    /// `dword_75ACD0` the summary table, `dword_75ACD4` the track pack entry's +0x34 (the
-    /// registers the original leaves on the way).
+    /// `dword_75ACD0` the summary table, `dword_75ACD4` the track pack entry's +0x34.
     RaceInfo,
-    /// `race::single_rally_race` (ebx 1).
-    Race,
-    ReloadFrontEnd,
-    /// `menu::player_entered` for player `next` (eax 1), whose registers go on.
-    PlayerEntered {
-        next: u32,
+    /// `race::single_rally_race` (kind 1); `next` when another player's race follows
+    /// (the original's eax 1, from `menu::player_entered`; 0 otherwise).
+    Race {
+        next: bool,
     },
+    ReloadFrontEnd,
     ClearPlayers288,
 }
 
@@ -92,10 +90,6 @@ pub trait EventRaces {
     fn takes_part(&mut self, i: u32) -> bool;
     /// The fourth player's dropping out noted (edi it).
     fn fourth_out(&mut self);
-    /// The results kept (eax).
-    fn keep(&mut self, value: u32);
-    /// The race's kept value handed (edx).
-    fn hand_kept(&mut self, value: u32);
 }
 
 /// The players' races of the modes 0xB .. 0xD, 0x10 .. 0x12.
@@ -105,34 +99,24 @@ fn players_races<E: EventRaces>(e: &mut E, n: u32, note_fourth: bool) -> Result<
         e.set(Var::Current, i);
         if !e.takes_part(i) {
             if i == 0 {
-                e.keep(NONE);
                 kept = NONE;
             } else {
                 e.set(Var::Result, NONE);
             }
         } else {
-            if i + 1 < n {
-                e.step(Step::PlayerEntered { next: i + 1 })?;
-            } else {
-                e.keep(0);
-            }
-            e.step(Step::Race)?;
+            let next = i + 1 < n && e.takes_part(i + 1);
+            e.step(Step::Race { next })?;
             if e.get(Var::Result) == QUIT {
                 e.step(Step::ResetPlayerTimes)?;
                 e.step(Step::ReloadFrontEnd)?;
-                if i > 0 {
-                    e.keep(kept);
-                }
                 return Ok(());
             }
             if i == 0 {
                 kept = e.get(Var::Result);
-                e.keep(kept);
             }
         }
         if i > 0 {
             kept &= e.get(Var::Result);
-            e.keep(kept);
         }
     }
     if kept == NONE {
@@ -181,22 +165,18 @@ pub fn run_event_races<E: EventRaces>(
         match mode {
             9 | 0xA | 0xE | 0xF => {
                 e.set(Var::Current, 0);
-                e.keep(0);
                 let kept = mode == 0xA || mode == 0xF;
                 if kept {
                     let v = e.get(Var::Kept);
-                    e.hand_kept(v);
                     e.set(Var::RaceKept, v);
                 }
-                e.step(Step::Race)?;
+                e.step(Step::Race { next: false })?;
                 if mode == 0xA {
                     let v = e.get(Var::Kept);
-                    e.hand_kept(v);
                     e.set(Var::RaceKept, v);
                 }
                 let ended = if kept {
                     let both = e.get(Var::Result) & e.get(Var::Result2);
-                    e.keep(both);
                     both == NONE
                 } else {
                     e.get(Var::Result) == NONE
@@ -240,7 +220,7 @@ mod tests {
         }
         fn step(&mut self, s: Step) -> Result<(), ()> {
             self.steps.push(format!("{s:?}"));
-            if s == Step::Race {
+            if let Step::Race { .. } = s {
                 let r = self.results.remove(0);
                 self.vars.insert("Result".into(), r);
             }
@@ -264,12 +244,6 @@ mod tests {
         fn fourth_out(&mut self) {
             self.steps.push("fourth".into());
         }
-        fn keep(&mut self, value: u32) {
-            self.steps.push(format!("keep {value:#x}"));
-        }
-        fn hand_kept(&mut self, value: u32) {
-            self.steps.push(format!("edx {value}"));
-        }
     }
 
     #[test]
@@ -291,7 +265,18 @@ mod tests {
         run_event_races(&mut log, 0xD, false).unwrap();
         assert!(log.steps.contains(&format!("slow 0 {}", 100 + ADDED_FROM)));
         assert_eq!(log.steps.iter().filter(|s| *s == "out").count(), 2);
-        assert!(log.steps.contains(&"PlayerEntered { next: 1 }".to_string()));
+        // Player 1 sits out: player 0's race is not followed by one, player 2's is.
+        assert_eq!(
+            log.steps
+                .iter()
+                .filter(|s| s.starts_with("Race "))
+                .collect::<Vec<_>>(),
+            [
+                "Race { next: false }",
+                "Race { next: true }",
+                "Race { next: false }"
+            ]
+        );
         assert!(log.steps.contains(&"fourth".to_string()));
         assert!(log.steps.contains(&"GoesOn=0".to_string()));
         assert_eq!(log.steps.last().unwrap(), "ClearPlayers288");
@@ -302,7 +287,7 @@ mod tests {
             ..Log::default()
         };
         run_event_races(&mut log, 0xA, false).unwrap();
-        assert_eq!(log.steps.iter().filter(|s| *s == "edx 0").count(), 2);
+        assert_eq!(log.steps.iter().filter(|s| *s == "RaceKept=0").count(), 2);
         assert!(!log.steps.contains(&"GoesOn=0".to_string()));
         assert_eq!(players_of(0x11), Some((3, false)));
     }

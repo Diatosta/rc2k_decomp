@@ -181,7 +181,7 @@ mod tests {
         fn strings(&mut self, _: u32, _: u32) -> Result<Vec<u8>, Invalid> {
             unreachable!()
         }
-        fn sprite(&mut self, _: u32, _: i32, _: i32, _: u32) -> Result<(), Invalid> {
+        fn sprite(&mut self, _: u32, _: i32, _: i32) -> Result<(), Invalid> {
             unreachable!()
         }
         fn bar(&mut self, b: crate::screens::screen::Bar) -> Result<(), Invalid> {

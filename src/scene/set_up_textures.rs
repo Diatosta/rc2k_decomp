@@ -1,9 +1,6 @@
 //! `scene::set_up_textures` (0x44E7A5): the texture memory for everything that is
 //! needed, and one texture more for the game's own use.
 //!
-//! In:  nothing
-//! Out: carry clear; eax and ebx as `gfx::allocate_textures` leaves them
-//!
 //! `scene::build_texture_catalogue`; `dword_624234` = 0; then one system texture of size code 3
 //! and pixel kind 4 without mip levels from `gfx::allocate_textures` (0x4051ED, Direct3D: not
 //! ported; eax = 0, ebx = 1, ecx = 3, edx = 4, ebp = 0), whose number (ebx) goes to
@@ -11,8 +8,8 @@
 //! above are the original's; a call by address goes through `routes.rs`, which maps them.
 
 use crate::errors::Refused;
+use crate::race::owner_shared::Shared;
 use crate::scene::build_texture_catalogue::build_texture_catalogue_in_game;
-use crate::scene::draw_store::DRAW;
 
 // ---- game data ----
 
@@ -25,12 +22,11 @@ use crate::scene::draw_store::DRAW;
 /// leaves the carry clear and eax, ebx as the allocation leaves them; no caller reads
 /// those registers (register liveness, 2026-10-23: `race::textures_alloc` and
 /// `race::loadlevel_init` after it), the carry the register-threaded callers set.
-pub unsafe fn set_up_textures() -> Result<(), Refused> {
-    unsafe {
-        build_texture_catalogue_in_game()?;
-        DRAW.mirror_picture.set_bits(0u32);
-        let (_, system) = crate::platform_3d::allocate_textures_for(0, 1, 3, 4, 0);
-        DRAW.mirror_picture.set_bits(system);
-        Ok(())
-    }
+pub fn set_up_textures(shared: &Shared, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let drawing = &scene.drawing;
+    build_texture_catalogue_in_game(shared, scene)?;
+    drawing.scene.mirror_picture.set_bits(0u32);
+    let (_, system) = crate::platform_3d::allocate_textures_for(0, 1, 3, 4, 0);
+    drawing.scene.mirror_picture.set_bits(system);
+    Ok(())
 }

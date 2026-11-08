@@ -1,8 +1,6 @@
 //! `menu::load_replay_loop` (0x47F48B): the replay list "CARREGAR REPETIÇÃO"; returns the
 //! replay chosen.
 //!
-//! In:  nothing
-//! Out: eax = the result; every other register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `loadsv.png`; leaving is not asked about; its
 //! own 3D list goes to `g_sceneList` before the first frame only; the Escape flag is looked at
@@ -10,38 +8,31 @@
 //! a store are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "CARREGAR REPETIÇÃO", not yet a
 //! visit.
-//! Callers: `sub_46F786`.
 
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::menus_store::MENUS;
-use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step};
+use crate::menu::owner::Menus;
+use crate::menu::screen_items_store::slot;
+use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn before(c: &mut Carried) -> Result<(), Refused> {
-    c.measure_x = SCREEN_ITEMS.first[slot::LOAD_REPLAY].get();
-    SCREEN_ITEMS.current[slot::LOAD_REPLAY].set(c.measure_x);
-    DRAW_WORK.escaped.set(0x0u32);
+fn before(entry: &Entry) -> Result<(), Refused> {
+    let screens = &entry.menus.screens;
+    screens.items.current[slot::LOAD_REPLAY].set(screens.items.first[slot::LOAD_REPLAY].get());
+    screens.draw_work.escaped.set(0x0u32);
     Ok(())
 }
 
-/// What the loop returns in eax, written by hand from the end of the listing (after the
-/// `popa`): -1 if the highlight is on item 0x16 or `dword_758806` is 1, else the replay's
+/// What the loop returns, written by hand from the end of the listing: -1 if the highlight is on item 0x16 or `dword_758806` is 1, else the replay's
 /// number, `dword_755248` * 20 + the highlighted item - 1.
-fn result() -> u32 {
-    let item: u32 = LOOP_FLAGS.item.get();
-    if item == 0x16 || CAPTIONS.screen_left.get() == 1 {
+fn result(menus: &Menus) -> u32 {
+    let item: u32 = menus.screens.loop_flags.item.get();
+    if item == 0x16 || menus.tables.captions.screen_left.get() == 1 {
         return 0xFFFF_FFFF;
     }
-    MENU_PAGES
+    menus
+        .tables
+        .pages
         .replay_page
         .get()
         .wrapping_mul(0x14)
@@ -50,61 +41,56 @@ fn result() -> u32 {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.load_replay.addr() as usize,
-    saved_item: || &SCREEN_ITEMS.current[slot::LOAD_REPLAY],
+    menu: |m| m.tables.menus.load_replay.id(),
+    saved_item: |m| &m.screens.items.current[slot::LOAD_REPLAY],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
-            table: || DRAW_LISTS.unread_758b72.addr() as usize,
+            pointer: |m| &m.screens.flow.unread_list, // g_unreadList
+            table: |m| m.tables.draw_lists.unread_758b72.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758bd6.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.draw_758bd6.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.load_replay_setup.addr() as usize,
+            pointer: |m| &m.screens.flow.setup_list, // dword_755500
+            table: |m| m.tables.draw_lists.load_replay_setup.id(),
             run: true,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_759152.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.overlay_759152.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.load_replay_scene.addr() as usize,
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.load_replay_scene.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758bd6.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.draw_758bd6.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_759152.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.overlay_759152.id(),
             run: false,
         },
     ]),
-    frame_callback: rva(0x474D4B),
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[Step::Do(before)],
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgAddr(|| {
-            (crate::menu::texts_store::MENU_TEXTS
-                .load_replay_picture
-                .addr()) as usize
-        }),
-        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.load_replay_picture
+    }))],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,

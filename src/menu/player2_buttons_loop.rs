@@ -1,7 +1,5 @@
 //! `menu::player2_buttons_loop` (0x478954): player 2's controller binding page (CONFIGURAÇÃO DO COMANDO, background `control.png`; "progamar comando" on player 2's controller set-up page: accelerate, brake, steer left and right ... bound to buttons and axes).
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`), as extracted from the disassembly: background `control.png` through
 //! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is not asked
@@ -9,77 +7,66 @@
 //! Which screen it is has not been confirmed, hence the name. One of eight such loops in a row
 //! (0x47814C .. 0x479410), by the picture the pages of the controls set-up.
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
-
-use crate::framework::rva;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, List, Screen, Step, screen_entry};
+//! (`menu::table_calls`).
+use crate::menu::screen_items_store::slot;
+use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.player2_buttons.addr() as usize,
-    saved_item: || &SCREEN_ITEMS.current[slot::PLAYER2_BUTTONS],
+    menu: |m| m.tables.menus.player2_buttons.id(),
+    saved_item: |m| &m.screens.items.current[slot::PLAYER2_BUTTONS],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
-            table: || DRAW_LISTS.unread_758b72.addr() as usize,
+            pointer: |m| &m.screens.flow.unread_list, // g_unreadList
+            table: |m| m.tables.draw_lists.unread_758b72.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758daa.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.draw_758daa.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.player2_buttons_setup.addr() as usize,
+            pointer: |m| &m.screens.flow.setup_list, // dword_755500
+            table: |m| m.tables.draw_lists.player2_buttons_setup.id(),
             run: true,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_75926a.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.overlay_75926a.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.player2_buttons_scene.addr() as usize,
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.player2_buttons_scene.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758daa.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.draw_758daa.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_75926a.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.overlay_75926a.id(),
             run: false,
         },
     ]),
-    frame_callback: rva(0x474D4B),
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[],
     set_up_first: &[
         Step::Call(Callee::ApplyController),
-        Step::Arg(0x0),
-        Step::Call(Callee::AxisMoved),
+        Step::Call(Callee::AxisMoved(0x0)),
     ],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgAddr(|| {
-            (crate::menu::texts_store::MENU_TEXTS
-                .player2_buttons_picture
-                .addr()) as usize
-        }),
-        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.player2_buttons_picture
+    }))],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,

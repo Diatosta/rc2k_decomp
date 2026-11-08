@@ -24,8 +24,9 @@ pub enum Var {
     SetUpDriver,
     SetUpDriver2,
     SetUpSection,
-    /// A dword of the player chosen (its offset).
-    Racer(u32),
+    /// The chosen player's race number (+0x28) and car (+8).
+    RacerNumber,
+    RacerCar,
 }
 
 /// The steps, by the place the hook crate calls them at.
@@ -116,18 +117,17 @@ pub trait Finish {
     fn find_done(&mut self) -> Result<Option<u32>, Self::Error>;
     /// The player the set-up reads (`Var::Racer`).
     fn racer(&mut self, r: Racer) -> Result<(), Self::Error>;
-    /// A value the original keeps for the steps after (eax).
-    fn keep(&mut self, value: u32);
     fn step(&mut self, s: Step) -> Result<(), Self::Error>;
 }
 
-/// The race's set-up from the racer: its +0x28, +8 twice, `dword_75ACE4` 0, the section.
+/// The race's set-up from the racer: its race number, its car twice, `dword_75ACE4` 0, the
+/// section.
 fn set_up<F: Finish>(e: &mut F) {
-    let car = e.get(Var::Racer(0x28));
+    let car = e.get(Var::RacerNumber);
     e.set(Var::SetUpCar, car);
-    let driver = e.get(Var::Racer(8));
+    let driver = e.get(Var::RacerCar);
     e.set(Var::SetUpDriver, driver);
-    let driver = e.get(Var::Racer(8));
+    let driver = e.get(Var::RacerCar);
     e.set(Var::SetUpDriver2, driver);
     e.set(Var::Kept, 0);
     let section = e.get(Var::Section);
@@ -141,9 +141,8 @@ fn steps<F: Finish>(e: &mut F, list: &[Step]) -> Result<(), F::Error> {
     Ok(())
 }
 
-/// The key at the end (eax 0).
+/// The key at the end (dropped).
 fn take_key<F: Finish>(e: &mut F) -> Result<(), F::Error> {
-    e.keep(0);
     e.step(TakeKey)
 }
 
@@ -172,8 +171,6 @@ pub fn championship_finish<F: Finish>(e: &mut F) -> Result<(), F::Error> {
         }
     }
     set_up(e);
-    let section = e.get(Var::Section);
-    e.keep(section);
     steps(e, &RACE)?;
     e.set(Var::On, 0);
     steps(e, &FRONT_END)?;
@@ -188,8 +185,6 @@ pub fn section_finish<F: Finish>(e: &mut F) -> Result<(), F::Error> {
     if let Some(n) = e.find_done()? {
         e.racer(Racer::Done(n))?;
         set_up(e);
-        let section = e.get(Var::Section);
-        e.keep(section);
         steps(e, &RACE)?;
         steps(e, &SECTION_FRONT_END)?;
     }
@@ -213,7 +208,8 @@ mod tests {
         fn get(&mut self, v: Var) -> u32 {
             match v {
                 Var::EventMode => self.mode,
-                Var::Racer(o) => o,
+                Var::RacerNumber => 0x28,
+                Var::RacerCar => 8,
                 _ => 7,
             }
         }
@@ -232,9 +228,6 @@ mod tests {
             self.steps.push(format!("{r:?}"));
             Ok(())
         }
-        fn keep(&mut self, value: u32) {
-            self.steps.push(format!("keep {value}"));
-        }
         fn step(&mut self, s: Step) -> Result<(), Invalid> {
             self.steps.push(format!("{s:?}"));
             Ok(())
@@ -252,7 +245,6 @@ mod tests {
         assert_eq!(log.steps[2], "leader true");
         assert_eq!(log.steps[3], "Leader(2)");
         assert!(log.steps.contains(&"SetUpCar=40".to_string()));
-        assert!(log.steps.contains(&"keep 7".to_string()));
         assert_eq!(log.steps.iter().filter(|s| *s == "On=0").count(), 2);
         assert_eq!(log.steps.last().unwrap(), "TakeKey");
 
@@ -264,7 +256,7 @@ mod tests {
 
         let mut log = Log::default();
         championship_finish(&mut log).unwrap();
-        assert_eq!(&log.steps[4..], ["done", "keep 0", "TakeKey"]);
+        assert_eq!(&log.steps[4..], ["done", "TakeKey"]);
 
         let mut log = Log {
             done: Some(1),
@@ -273,6 +265,6 @@ mod tests {
         section_finish(&mut log).unwrap();
         assert_eq!(log.steps.iter().filter(|s| s.starts_with("On")).count(), 1);
         assert_eq!(log.steps.iter().filter(|s| *s == "RaceSounds").count(), 1);
-        assert_eq!(log.steps.len(), 3 + 1 + 5 + 1 + 8 + 8 + 2);
+        assert_eq!(log.steps.len(), 3 + 5 + 1 + 8 + 8 + 1);
     }
 }

@@ -3,73 +3,31 @@
 //! bit 16 of `g_cheats` clear (`bt`): `physics::set_flag_5165a4`, then +0xA4 1, the
 //! notice +0x71C 0xC7, +0x730 0x32 and +0x72C -1.
 //!
-//! In:  nothing
-//! Out: when it ran, eax as `set_flag_5165a4` leaves it; the rest kept; no flags read
-//!      (the caller's next is a call)
-//!
-//! Caller: `sub_436790` (0x4367E3). Refuses what `set_flag_5165a4` refuses.
+//! Caller: `physics::race_timers` (0x4367E3). Refuses what `set_flag_5165a4` refuses.
 
 use crate::errors::Refused;
-use crate::menu::cheats_store::CHEAT_VARS;
-use crate::physics::car_store::CAR;
-use crate::physics::listed_car_flags::set_flag_at;
-use crate::race::frame_store::FRAME_WORK;
-use crate::race::work_store::RACE_WORK;
+use crate::menu::owner::menus;
+use crate::physics::listed_car_flags::set_flag;
+use crate::race::owner::Race;
 use rc2k_core::physics::progress::{GO_NOTICE, GoFacts};
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::start_go_notice's operand")
-}
-
-fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::start_go_notice's operand")
-}
-
-/// The core: `v` the variables' addresses, then the twin's current, listed and flag.
-// Converted: `rc2k_core::physics::progress::GoFacts::go_due`.
-pub fn start_go_notice_at(v: &[u32], twin: [u32; 3]) -> Result<(), Refused> {
+/// The Rust version.
+pub fn start_go_notice(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+    let c = &race.shared.car;
     let facts = GoFacts {
-        mode: at(v[0]),
-        countdown: at(v[1]),
-        gone: at(v[2]),
-        finished: at(v[3]),
-        cheats: at(v[4]),
+        mode: c.driver_kind.get(),
+        countdown: c.time_left.get(),
+        gone: c.go_stand_timer.get(),
+        finished: c.finish_flag.get(),
+        cheats: menus().play.cheats.cheats.get(),
     };
     if !facts.go_due() {
         return Ok(());
     }
-    set_flag_at(twin[0], twin[1], twin[2])?;
-    put(v[2], 1);
-    put(v[5], GO_NOTICE);
-    put(v[6], 0x32);
-    put(v[7], u32::MAX);
+    set_flag(race, &sound.race.stage.once[2])?;
+    c.go_stand_timer.set(1);
+    c.notice_id.set(GO_NOTICE);
+    c.notice_time_b.set(0x32);
+    c.notice_time.set(u32::MAX);
     Ok(())
-}
-
-fn game() -> (Vec<u32>, [u32; 3]) {
-    let c = &CAR;
-    (
-        // In the order the core takes them.
-        vec![
-            c.driver_kind.addr(),
-            c.time_left.addr(),
-            c.go_stand_timer.addr(),
-            c.finish_flag.addr(),
-            CHEAT_VARS.cheats.addr(),
-            c.notice_id.addr(),
-            c.notice_time_b.addr(),
-            c.notice_time.addr(),
-        ],
-        [
-            RACE_WORK.current_car.addr(),
-            FRAME_WORK.listed_car_sounds[0].addr(),
-            crate::sound::store::STAGE_SOUNDS.once[2].addr(),
-        ],
-    )
-}
-
-/// The Rust version.
-pub fn start_go_notice() -> Result<(), Refused> {
-    let (v, twin) = game();
-    start_go_notice_at(&v, twin)
 }

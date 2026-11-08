@@ -6,17 +6,14 @@
 //! at s; else `dword_614B7C[0]`. Then `flt_614744` = engine / top x `flt_613F94` (0.25),
 //! and `flt_614748` times +0x3F4 (`unk_71A3CC`, as a float).
 //!
-//! In:  nothing
-//! Out: ebx i on the curve's path; the rest kept; no flags read
+//! Returns: i on the curve's path
 //!
-//! Callers: `physics::engine_torque_or_cut`, `sub_421848`, `sub_43CAAB`, `sub_43EA80`.
+//! Callers: `physics::engine_torque_or_cut`, `physics::test_drive_run`, 0x43CAAB,
+//! `physics::free_rev`.
 
 use crate::math::x87;
 use crate::math::x87_run::{div_then_mul, lerp_table, trunc_mul_to_int};
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
-use crate::scene::draw_store::DRAW;
+use crate::race::owner::Race;
 use std::cmp::Ordering;
 
 /// C0 of comparing `a` with `b`: below, or unordered.
@@ -29,32 +26,47 @@ pub fn below(a: u32, b: u32) -> bool {
 
 /// The Rust version (the exact one, for `physics::engine_torque_or_cut`, `drive_force`,
 /// `free_rev*`, `test_drive_run`).
-pub fn engine_torque() {
-    let s = x87::div(CAR.engine_speed.bits(), CAR.engine_speed_limit.bits());
-    DRAW.scratch.set(s);
-    if below(s, NUMBERS.one.bits()) && !below(s, NUMBERS.zero.bits()) {
-        let i = trunc_mul_to_int(s, NUMBERS.eight.bits()) as u32;
-        DRAW.work_dword.set(i);
+pub fn engine_torque(race: &Race, scene: &crate::scene::owner::Scene) {
+    let shared_store = &race.shared;
+    let drawing = &scene.drawing;
+    let course = &race.course;
+    let s = x87::div(
+        shared_store.car.engine_speed.bits(),
+        shared_store.car.engine_speed_limit.bits(),
+    );
+    drawing.scene.scratch.set(s);
+    if below(s, course.numbers.one.bits()) && !below(s, course.numbers.zero.bits()) {
+        let i = trunc_mul_to_int(s, course.numbers.eight.bits()) as u32;
+        drawing.scene.work_dword.set(i);
         let k = i as usize;
-        PHYSICS.engine_force.set_bits(lerp_table(
-            s,
-            PHYSICS.torque_curve[k].bits(),
-            PHYSICS.torque_curve[k + 1].bits(),
-            PHYSICS.spec_torque[k].get(),
-            PHYSICS.spec_torque[k + 1].get(),
-        ));
+        shared_store
+            .physics_tables
+            .engine_force
+            .set_bits(lerp_table(
+                s,
+                shared_store.physics_tables.torque_curve[k].bits(),
+                shared_store.physics_tables.torque_curve[k + 1].bits(),
+                shared_store.physics_tables.spec_torque[k].get(),
+                shared_store.physics_tables.spec_torque[k + 1].get(),
+            ));
     } else {
-        PHYSICS.engine_force.set_bits(x87::loaded(
-            crate::physics::tables_store::PHYSICS.spec_torque[0].get(),
-        ));
+        shared_store
+            .physics_tables
+            .engine_force
+            .set_bits(x87::loaded(
+                shared_store.physics_tables.spec_torque[0].get(),
+            ));
     }
-    PHYSICS.engine_torque.set_bits(div_then_mul(
-        CAR.engine_speed.bits(),
-        CAR.engine_speed_limit.bits(),
-        PHYSICS.torque_ease.bits(),
-    ));
-    PHYSICS.engine_force.set_bits(x87::mul(
-        PHYSICS.engine_force.bits(),
-        CAR.engine_power_factor.bits(),
+    shared_store
+        .physics_tables
+        .engine_torque
+        .set_bits(div_then_mul(
+            shared_store.car.engine_speed.bits(),
+            shared_store.car.engine_speed_limit.bits(),
+            shared_store.physics_tables.torque_ease.bits(),
+        ));
+    shared_store.physics_tables.engine_force.set_bits(x87::mul(
+        shared_store.physics_tables.engine_force.bits(),
+        shared_store.car.engine_power_factor.bits(),
     ));
 }

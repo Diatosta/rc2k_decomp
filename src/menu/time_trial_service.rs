@@ -9,70 +9,73 @@
 //! (`menu::inspection_area_loop`; a yes ends it all) and counts in `dword_755978`. When
 //! every player is out, `dword_75592C` 0. At the end `dword_755938` 0.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! `menu::service_pass` without its due test, its money and its keys. Callers: the time trial's
 //! events. The calls through `event_flow::Call`. Refuses a player count of 0 or past 4 or a player
 //! missing before anything, a current player past the four when it is read.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::*;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::screen_loop::run_screen_carried;
-use crate::menu::state_store::MENU_STATE;
+use crate::menu::owner::Menus;
+use crate::menu::screen_loop::{Entry, run_screen};
 use crate::session::Dword;
 
-const SERVICE_TIME: &Dword = &EVENT_STATE.service_minutes; // dword_75593C
-const GOES_ON: &Dword = &EVENT_STATE.event_goes_on; // dword_75592C
-const OUT: &Dword = &EVENT_STATE.event_out; // dword_755978
-const DUE: &Dword = &EVENT_STATE.service_due; // dword_755938
+const SERVICE_TIME: &Dword = &crate::menu::owner::MENUS.screens.event.service_minutes; // dword_75593C
+const GOES_ON: &Dword = &crate::menu::owner::MENUS.screens.event.event_goes_on; // dword_75592C
+const OUT: &Dword = &crate::menu::owner::MENUS.screens.event.event_out; // dword_755978
+const DUE: &Dword = &crate::menu::owner::MENUS.screens.event.service_due; // dword_755938
 
-/// The Rust version. `f` the registers the caller carries; the original keeps every
-/// register of it (`pusha` .. `popa`).
-pub unsafe fn time_trial_service(f: &Flow) -> Result<(), Refused> {
+/// The Rust version.
+pub fn time_trial_service(menus: &Menus) -> Result<(), Refused> {
+    let screens = &menus.screens;
     // Converted: `rc2k_core::menu::passes` (the minutes, the pauses, who is out,
     // `goes_on`).
     use rc2k_core::menu::passes;
-    crate::menu::standings::counted_players()?;
-    let mut g = f.c;
+    crate::menu::standings::counted_players(screens)?;
     set(SERVICE_TIME, passes::TIME_TRIAL_MINUTES);
     set(GOES_ON, 1);
-    g.measure_x = 0;
-    g.palette = 0;
+    let mut current = 0;
     'all: {
         loop {
-            set(CURRENT, g.measure_x);
-            unsafe { crate::menu::inspection_screen::inspection_screen() }?;
-            g.arg = passes::SCREEN_PAUSE;
-            crate::system::sleep::sleep(g.arg);
-            crate::menu::fade_in::fade_in()?;
-            g.arg = passes::FADE_PAUSE;
-            crate::system::sleep::sleep(g.arg);
-            MENU_STATE.driver_stats.repair_time.set(0);
-            unsafe { crate::menu::driver_stats::driver_stats() }?;
-            MENU_STATE.menus.service_flag.set(0);
-            unsafe { run_screen_carried(&crate::service::service_area_loop::SCREEN, &mut g) }?;
+            set(CURRENT, current);
+            { crate::menu::inspection_screen::inspection_screen() }?;
+            crate::system::sleep::sleep(passes::SCREEN_PAUSE);
+            crate::menu::fade_in::fade_in(screens)?;
+            crate::system::sleep::sleep(passes::FADE_PAUSE);
+            screens.state.driver_stats.repair_time.set(0);
+            { crate::menu::driver_stats::driver_stats(menus, screens) }?;
+            screens.state.menus.service_flag.set(0);
+            {
+                run_screen(
+                    &crate::service::service_area_loop::SCREEN,
+                    &Entry::new(menus),
+                )
+            }?;
             if yes() {
                 break 'all;
             }
-            { crate::service::apply_repairs::apply_repairs_in_game() }?;
-            crate::menu::set_player_entry_kind::set_player_entry_kind()?;
-            let current = get(CURRENT);
-            if current >= 4 || player(current) == 0 {
-                return Err(BadInput("a current player past the four or missing").into());
+            { crate::service::apply_repairs::apply_repairs_in_game(menus) }?;
+            crate::menu::set_player_entry_kind::set_player_entry_kind(screens)?;
+            // The current player as the screens leave it (the original reads it again).
+            let serviced = get(CURRENT);
+            if serviced >= 4 {
+                return Err(BadInput("a current player past the four").into());
             }
-            let record = player(current);
-            if passes::is_out(dword(record + 0xD0)?) {
-                crate::menu::inspection_faults::inspection_faults()?;
-                unsafe { run_screen_carried(&crate::menu::inspection_area_loop::SCREEN, &mut g) }?;
+            let record = player(serviced);
+            if passes::is_out(record.get().entry) {
+                crate::menu::inspection_faults::inspection_faults(menus)?;
+                {
+                    run_screen(
+                        &crate::menu::inspection_area_loop::SCREEN,
+                        &Entry::new(menus),
+                    )
+                }?;
                 if yes() {
                     break 'all;
                 }
                 inc(OUT);
             }
-            g.measure_x = g.measure_x.wrapping_add(1);
-            if g.measure_x == get(PLAYER_COUNT) {
+            current += 1;
+            if current == get(PLAYER_COUNT) {
                 break;
             }
         }

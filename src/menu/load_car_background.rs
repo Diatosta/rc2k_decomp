@@ -1,9 +1,6 @@
 //! `menu::load_car_background` (0x468482): the car specification page's background,
 //! the car's own.
 //!
-//! In:  nothing
-//! Out: every register preserved; carry as `menu::load_background` leaves it
-//!
 //! The car is the first dword of the shown entry's record (`dword_755990` through `dword_75A65C`),
 //! 0x21 counting as 0x17; the path is that car's in the page's table (`off_759AD2[dword_755998]`);
 //! `menu::load_background` with it and ebx = the car (the blit's palette). A carry after it is
@@ -12,9 +9,8 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::menu::car_description::{read, shown_description};
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::load_background::load_background;
+use crate::menu::owner::Menus;
 use crate::text::draw_text::GameCanvas;
 
 // ---- game data ----
@@ -25,23 +21,28 @@ use crate::text::draw_text::GameCanvas;
 // ---- Rust version ----
 
 /// The car of the entry shown, 0x21 counting as 0x17.
-pub fn shown_car() -> Result<u32, Refused> {
-    let car = read(shown_description()?)?.car;
+pub fn shown_car(menus: &Menus) -> Result<u32, Refused> {
+    let car = read(shown_description(menus)?)?.car;
     // Converted: `rc2k_core::menu::slides::picture_car`.
     Ok(rc2k_core::menu::slides::picture_car(car))
 }
 
-/// `load` gets the path and the car; it returns whether the carry was set.
+/// `load` gets the path; it returns whether the carry was set. (The original hands it the
+/// car too, as the frame sprite's palette, which the sprite never looks at.)
 pub fn load_car_background(
-    load: &mut dyn FnMut(u32, u32) -> Result<bool, Refused>,
+    menus: &Menus,
+    load: &mut dyn FnMut(crate::pointers::GamePtr) -> Result<bool, Refused>,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::slides::background_page`.
-    let page = rc2k_core::menu::slides::background_page(EVENT_STATE.car_page.get())?;
-    let car = shown_car()?;
-    let table = MENU_LISTS.page_picture_lists[page as usize].get();
-    let path = crate::pointers::GamePtr::new(table + car * 4)
-        .read::<u32>("load car background: a game value")?;
-    if load(path, car)? {
+    let page = rc2k_core::menu::slides::background_page(menus.screens.event.car_page.get())?;
+    let car = shown_car(menus)?;
+    let path = crate::menu::texts_store::text_at(crate::session::read_on_in(
+        &menus.tables.lists,
+        crate::menu::lists_store::page_pictures(&menus.tables, page)?,
+        car as usize,
+        "load car background: a game value",
+    )?)?;
+    if load(path)? {
         return Err(FatalError {
             code: 0x8071_2345,
             message: "",
@@ -52,11 +53,9 @@ pub fn load_car_background(
 }
 
 /// In the game: the background through `menu::load_background` (its carry is never set).
-pub unsafe fn load_car_background_in_game() -> Result<(), Refused> {
-    unsafe {
-        load_car_background(&mut |path, car| {
-            load_background(crate::pointers::host(path), car, &mut GameCanvas)?;
-            Ok(false)
-        })
-    }
+pub fn load_car_background_in_game(menus: &Menus) -> Result<(), Refused> {
+    load_car_background(menus, &mut |path| {
+        load_background(&path, &mut GameCanvas)?;
+        Ok(false)
+    })
 }

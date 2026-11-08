@@ -24,5 +24,5 @@ fn main() {
         .ok()
         .and_then(|frames| frames.parse().ok())
         .unwrap_or(0);
-    rc2k_hook::standalone::run(Path::new(&log), frames);
+    rc2k_decomp::standalone::run(Path::new(&log), frames);
 }

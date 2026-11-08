@@ -7,24 +7,26 @@
 //! blocks 0 .. 0x11 and 0x15 .. 0x19; 0x18, 0x19 when the block's camera byte 5 is 0, 0xD,
 //! 0xE when it is 1; 0xF for one player's replay (`dword_719B34`).
 //!
-//! In:  edi the list (`unk_5C255C`)
-//! Out: every register kept (`pusha` / `popa`); no flags read
+//! Takes: the list (`unk_5C255C`)
 //!
 //! Callers: `race::replay_viewer` (two).
 
-use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::owner::Race;
 use crate::race::replay_work_store::REPLAY_WORK;
-use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// The Rust version.
-pub fn mark_viewer_items(list: u32) -> Result<(), crate::errors::BadInput> {
+pub fn mark_viewer_items(
+    race: &Race,
+    list: crate::menu::list_handle::ListMenu,
+) -> Result<(), crate::errors::BadInput> {
+    let replay = &race.replay;
     // Converted: `rc2k_core::race::viewer::item_marks`.
-    crate::menu::list_clear_marks::list_clear_marks(list)?;
-    let block = REPLAY_VIEW.replay_block.get();
+    crate::menu::list_clear_marks::list_clear_marks(list);
+    let block = replay.replay_view.replay_block.get();
     let state = rc2k_core::race::viewer::ViewerState {
-        last_race: REPLAY_VIEW.last_race_viewed.get() == 1,
+        last_race: replay.replay_view.last_race_viewed.get() == 1,
         block,
-        blocks: REPLAY_FILE.index_block_count.get(),
+        blocks: race.shared.replay_file.index_block_count.get(),
         mark_in: crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .mark_in
             .get(),
@@ -43,8 +45,8 @@ pub fn mark_viewer_items(list: u32) -> Result<(), crate::errors::BadInput> {
         one_player: REPLAY_WORK.header_one_player.get() == 1,
     };
     for (item, bit) in rc2k_core::race::viewer::item_marks(&state) {
-        let at = crate::pointers::GamePtr::new(list + 0x18 + 0x10 * item);
-        at.write::<u8>(at.read::<u8>("a list item")? | bit, "a list item")?;
+        let item = list.item(item);
+        item.set_first(item.first() | bit);
     }
     Ok(())
 }

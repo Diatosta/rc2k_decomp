@@ -7,6 +7,7 @@
 use crate::session::Bytes;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LevelPaths {
     /// +0x0 (0x60AF0C): `files\a\txxxxx.pcx` (`scene::load_texture_picture`; the number written in).
     pub picture_a: Bytes<0x13>,
@@ -48,19 +49,16 @@ pub struct LevelPaths {
     pub files_s: Bytes<0xb>,
 }
 
-/// The piece: the race block's bytes at IDA 0x60AF0C seen as `LevelPaths`.
-pub struct InBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InBlock {
-    type Target = LevelPaths;
-    fn deref(&self) -> &LevelPaths {
-        // SAFETY: the race block lives as long as the program; every field is a cell of
-        // bytes (alignment 1), as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const LevelPaths) }
+/// The piece: a field of `race::owner::Race::course`, formerly a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl LevelPaths {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static LEVEL_PATHS: InBlock = InBlock;
 
 /// IDA 0x60AF0C, the first byte of the piece.
 pub const START: usize = 0x60AF0C;
@@ -70,8 +68,11 @@ pub const END: usize = 0x60B0BD;
 const _: () = assert!(END - START == core::mem::size_of::<LevelPaths>());
 
 /// Where IDA 0x60AF0C is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::race::owner::RACE.course.level_paths,
+    ))
 }
 
 #[cfg(test)]
@@ -80,7 +81,16 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(
+            &crate::race::owner::RACE.course.level_paths,
+            START,
+            END,
+        );
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(
             crate::moved::place(END - 1),
             (piece_addr() + (END - START) as u32 - 1) as usize

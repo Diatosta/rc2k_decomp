@@ -1,8 +1,7 @@
 //! `system::read_command_line` (0x410684): takes the switches off the command line.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//! The first word is the program (its place and length to `dword_518BA8`, `dword_518BAC`).
+//! The first word is the program (its length to `COMMAND_LINE`; the original also kept its
+//! place, `dword_518BA8`, which nothing reads).
 //! Of the words after it only those of two characters or more count, by their first two:
 //! - `-v`: a message box with the version ("Rally 5.30 (4.8.2000)", a tab, a line break and
 //!   the second version text `byte_4E0077`, built in the fatal report's `Text`; the title
@@ -17,22 +16,15 @@
 //! - `-c`: the next word's first character: `1` sets `dword_5AB954` (`ignoresecondary`),
 //!   `2` sets `dword_5AB950` (`ignoreprimary`).
 //!
-//! The line ends at a word of no length that starts where the reading stands.
-//! One caller, `start`. Refuses a word for `-i` of 0x100 bytes or more.
-//! The `-v` part cannot be run in a test: it was looked at by the owner.
-//! `start` calls it directly (2026-10-23); the registers above are the original's, for
-//! reference.
+//! The line ends at a word of no length that starts where the reading stands. One caller, `start`.
+//! Refuses a word for `-i` of 0x100 bytes or more. The `-v` part cannot be run in a test: it was
+//! looked at by the owner. `start` calls it directly (2026-10-23).
 
-use crate::audio::store::AUDIO;
-use crate::d3d::cards_store::CARDS_3D;
+use crate::audio::owner::audio;
+use crate::d3d::owner::d3d;
 use crate::errors::BadInput;
-use crate::install::vars::INSTALLER_PATHS;
-use crate::install::vars::INSTALLER_RUN;
-use crate::pointers::GamePtr;
 use crate::session::Dword;
-use crate::system::start_texts::START_TEXTS;
-use windows_sys::Win32::System::Environment::GetCommandLineA;
-use windows_sys::Win32::UI::WindowsAndMessaging::MessageBoxA;
+use crate::system::owner::Start;
 
 // ---- game data ----
 
@@ -49,82 +41,73 @@ pub enum Asked {
 }
 
 /// The `-v` part: the box, and out through `start`'s exit path. Does not return.
-pub fn show_version_and_leave() -> ! {
+pub fn show_version_and_leave(start: &Start) -> ! {
     let leave = |e: BadInput| -> ! { crate::fatal::raise::end("system::read_command_line", e) };
-    let caption = crate::pointers::game_address(crate::fatal::state::CAPTION.ptr());
-    // byte_4F6702: its `:`
-    GamePtr::new(caption + 5)
-        .write(0u8, "the caption")
-        .unwrap_or_else(|e| leave(e));
-    let c_text = |at: usize, what| {
-        crate::files::cstring(GamePtr::new(at as u32), what).unwrap_or_else(|e| leave(e))
+    let caption = &crate::fatal::state::CAPTION;
+    // byte_4F6702: its `:` (a byte of the caption text)
+    caption.set(5, 0);
+    let c_text = |at: &dyn crate::pointers::Store, what| {
+        crate::files::cstring(at, what).unwrap_or_else(|e| leave(e))
     };
-    let mut text = c_text((START_TEXTS.version.addr() + 6) as usize, "the version");
+    // The text from its seventh byte up to its NUL.
+    let version = start.texts.version.read();
+    let Some(end) = version[6..].iter().position(|&b| b == 0) else {
+        leave(BadInput("the version without its end in its block"))
+    };
+    let mut text = version[6..6 + end].to_vec();
     text.extend(*b"\t\r\n");
-    text.extend(c_text(
-        START_TEXTS.second_text.addr() as usize,
-        "the second text",
-    ));
-    text.push(0);
-    let place = crate::pointers::game_address(crate::fatal::state::TEXT.ptr()); // Text
-    GamePtr::new(place)
-        .write_bytes(&text, "the version's text")
+    // The second text is empty: its NUL is its one byte.
+    text.extend(c_text(&start.texts.second_text, "the second text"));
+    let mut kept = text.clone();
+    kept.push(0);
+    crate::fatal::state::TEXT // Text
+        .write_at(0, &kept, "the version's text")
         .unwrap_or_else(|e| leave(e));
-    // SAFETY: both texts end in their NULs, written above.
-    unsafe {
-        MessageBoxA(
-            std::ptr::null_mut(),
-            crate::pointers::host(place) as *const u8,
-            crate::pointers::host(caption) as *const u8,
-            0x2040,
-        )
-    };
+    // MB_ICONINFORMATION | MB_TASKMODAL.
+    let caption = c_text(caption, "the caption");
+    crate::os::message_box(crate::os::Icon::Information, &caption, &text);
     // The exit path (0x401116) ends in `ExitProcess`; so does the standalone, here.
     crate::standalone::finish(&format!("the game's way out {EXIT_PATH:#x} was reached"), 0)
 }
 
 /// The Rust version on a command line (its text with the NUL; kept for the program's
 /// life, as the game keeps a pointer into it).
-pub fn read_command_line(line: &'static [u8]) -> Result<Asked, BadInput> {
+pub fn read_command_line(start: &Start, line: &[u8]) -> Result<Asked, BadInput> {
+    let install = crate::install::owner::install();
+    let d3d = d3d();
     // Converted: `rc2k_core::system::command_line::read`, the whole line read before
     // anything is written (a refused `-i` word now leaves nothing written).
     let sw = rc2k_core::system::command_line::read(line)?;
-    COMMAND_LINE.program.set(crate::pointers::game_address(
-        line.as_ptr().wrapping_add(sw.program.0),
-    ));
-    COMMAND_LINE.program_len.set(sw.program.1 as u32);
-    for (on, place) in [
-        (sw.u, INSTALLER_RUN.updating.addr()),
-        (sw.installing, INSTALLER_RUN.installing.addr()),
-        (sw.no_audio, AUDIO.no_audio.addr()),
+    start.command_line.program_len.set(sw.program.1 as u32);
+    for (on, cell) in [
+        (sw.u, &install.run.updating),
+        (sw.installing, &install.run.installing),
+        (sw.no_audio, &audio().state.no_audio),
     ] {
         if on {
-            GamePtr::new(place).write(1u32, "a command-line switch")?;
+            cell.set(1u32);
         }
     }
     for i in &sw.install {
-        INSTALLER_RUN.from_command.set(1u32);
-        INSTALLER_RUN.ignore_room.set(1u32);
-        for (place, (start, len)) in [
-            INSTALLER_PATHS.game_dir.addr(),
-            INSTALLER_PATHS.installed.addr(),
-        ]
-        .into_iter()
-        .zip(i.words)
+        install.run.from_command.set(1u32);
+        install.run.ignore_room.set(1u32);
+        for (place, (start, len)) in [&install.paths.game_dir, &install.paths.installed]
+            .into_iter()
+            .zip(i.words)
         {
             let word = line
                 .get(start..start + len)
                 .ok_or(BadInput("a word past the command line"))?;
-            GamePtr::new(place).write_bytes(word, "an installer path")?;
+            place.write_at(0, word, "an installer path")?;
         }
-        INSTALLER_RUN.given_mode.set(i.digits[0]);
-        INSTALLER_RUN.given_language.set(i.digits[1]);
+        install.run.given_mode.set(i.digits[0]);
+        install.run.given_language.set(i.digits[1]);
     }
     if sw.ignore_secondary {
-        CARDS_3D.ignore_secondary.set(1u32);
+        d3d.cards.ignore_secondary.set(1u32);
     }
     if sw.ignore_primary {
-        CARDS_3D.not_primary.set(1u32);
+        d3d.cards.not_primary.set(1u32);
     }
     Ok(if sw.version {
         Asked::Version
@@ -133,57 +116,30 @@ pub fn read_command_line(line: &'static [u8]) -> Result<Asked, BadInput> {
     })
 }
 
-/// The Rust version on the program's own command line (`GetCommandLineA`, copied and kept
-/// as a region); `-v` shows the version and leaves through `start`'s exit path.
-pub fn read_own_command_line() -> Result<(), BadInput> {
-    // SAFETY: `GetCommandLineA` gives the process's NUL-ended command line.
-    let own = unsafe { std::ffi::CStr::from_ptr(GetCommandLineA() as *const _) };
-    let line: &'static [u8] = Box::leak(own.to_bytes_with_nul().to_vec().into_boxed_slice());
-    crate::pointers::lend(line.as_ptr(), line.len());
-    if read_command_line(line)? == Asked::Version {
-        show_version_and_leave();
+/// The Rust version on the program's own command line (`os::command_line`, for
+/// `GetCommandLineA`; kept as a region); `-v` shows the version and leaves through
+/// `start`'s exit path.
+pub fn read_own_command_line(system: &crate::system::owner::System) -> Result<(), BadInput> {
+    let mut line = crate::os::command_line();
+    line.push(0);
+    let start = &system.start;
+    if read_command_line(start, &line)? == Asked::Version {
+        show_version_and_leave(start);
     }
     Ok(())
 }
 
-/// The program's name on the command line (IDA 0x518BA8 .. 0x518BB0, the image's layout).
-#[repr(C)]
+/// The program's name on the command line, as `read_command_line` found it (the image had
+/// its place and length at `dword_518BA8` / `dword_518BAC`; nothing reads the place).
 pub struct CommandLine {
-    /// 0x518BA8: `dword_518BA8`: the program's name (a pointer into the command line; `system::read_command_line`).
-    pub program: Dword,
-    /// 0x518BAC: `dword_518BAC`: its length.
+    /// `dword_518BAC`: its length.
     pub program_len: Dword,
 }
 
-pub static COMMAND_LINE: CommandLine = CommandLine {
-    program: Dword::new(0x0),
-    program_len: Dword::new(0x0),
-};
-
 impl CommandLine {
-    pub const START: usize = 0x518BA8;
-    pub const LEN: usize = 0x8;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&COMMAND_LINE as *const CommandLine) as usize
-    }
-}
-
-#[cfg(test)]
-mod command_line_tests {
-    use super::*;
-
-    #[test]
-    fn commandline_starts_as_the_games() {
-        let size = size_of::<CommandLine>();
-        assert!(CommandLine::LEN <= size && size <= (CommandLine::LEN).next_multiple_of(4));
-        let image = crate::moved::image_bytes(CommandLine::START, CommandLine::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(CommandLine::home()) as *const u8,
-                CommandLine::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
+    pub const fn new() -> Self {
+        CommandLine {
+            program_len: Dword::new(0x0),
+        }
     }
 }

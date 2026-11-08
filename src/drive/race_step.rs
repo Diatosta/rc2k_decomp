@@ -3,26 +3,29 @@
 //! each tenth gone (`dword_613844`, signed), stopping when the players are all out
 //! (`race::players_all_out`).
 //!
-//! In:  nothing
-//! Out: ecx the tenths left, the rest as the ticks leave them; no flags read
-//!
-//! Callers: `drive::race_loop`, `sub_4607A5`. Refuses what its calls refuse.
+//! Callers: `drive::race_loop`, `race::play_movie_loop`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
-use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::Race;
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: edi, edx
 /// and esi after `drive::race_loop`'s call have no read point but the false ones of
 /// `imul` and the physics; `race::play_movie_loop` has only DF live after it).
 // Converted: `rc2k_core::drive::race_ticks::run_ticks`.
-pub unsafe fn race_step() -> Result<(), Refused> {
-    crate::drive::race_clock_tick::race_clock_tick();
-    if PHYSICS.frame_cleared[1].get() == 0 {
-        rc2k_core::drive::race_ticks::run_ticks(PHYSICS.race_tenths.get(), |ecx| {
-            unsafe { crate::drive::race_tick::race_tick() }?;
-            let out = crate::race::frame::players_all_out()?;
-            Ok::<_, Refused>((out, ecx))
-        })?;
+pub fn race_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let input = crate::input::owner::input();
+    let sound = crate::sound::owner::sound();
+    crate::drive::race_clock_tick::race_clock_tick(&race.shared);
+    if race.shared.physics_tables.debug[1].get() == 0 {
+        rc2k_core::drive::race_ticks::run_ticks(
+            race.shared.physics_tables.race_tenths.get(),
+            |ecx| {
+                crate::debug::timing::note_tick();
+                { crate::drive::race_tick::race_tick(race, sound, input, scene) }?;
+                let out = crate::race::frame::players_all_out(race)?;
+                Ok::<_, Refused>((out, ecx))
+            },
+        )?;
     }
     Ok(())
 }

@@ -5,8 +5,7 @@
 //!   (eax the value); the speech's (`dword_755698`) heard with `sound::start_stream` (eax
 //!   the path ";3files\%speech\rally\st1.wav", ecx the value); two of the menu sounds'
 //!   (`dword_75569C`, `dword_7556A0`) into `dword_7554E8` and `sound::play_menu_sound`
-//!   with eax 0x10 / 0x20 (the first's) or 0x40 (the second's). Not `pusha`'d: they leave
-//!   eax (the value, the path or the sound), ecx (the speech's: the value) as loaded.
+//!   with eax 0x10 / 0x20 (the first's) or 0x40 (the second's).
 //! - `menu::next_screen_mode` (0x46FFEF): `dword_4F50C8` one more, 0 past `dword_4F50E4` -
 //!   1 (signed); `dword_755648` flipped; leaves eax `dword_755648`, ebx the last mode.
 //! - `menu::previous_texture_setting` (0x47012B), `next_texture_setting` (0x47015B):
@@ -21,15 +20,11 @@
 //!
 //! The names of the texture and colour steps are readings of their variables.
 
-use crate::audio::names_store::SAMPLE_NAMES;
-use crate::audio::store::AUDIO;
+use crate::audio::names_store::SampleNames;
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::gfx::choices_store::SCREEN_CHOICES;
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::option_work_store::OPTION_WORK;
-use crate::race::state_store::RACE_STATE;
+use crate::gfx::owner::gfx;
+use crate::menu::owner::Screens;
+use crate::menu::owner::Tables;
 use crate::session::Dword;
 
 // ---- the volume steps ----
@@ -49,29 +44,32 @@ pub struct Volume {
     pub then: Then,
 }
 
-pub const MUSIC_LEVEL_RVA: &Dword = &OPTION_WORK.music_level; // dword_755688
-pub const SPEECH_LEVEL_RVA: &Dword = &OPTION_WORK.speech_level; // dword_755698
-pub const SOUNDS_A_RVA: &Dword = &OPTION_WORK.sounds_a; // dword_75569C
-pub const SOUNDS_B_RVA: &Dword = &OPTION_WORK.sounds_b; // dword_7556A0
+pub const MUSIC_LEVEL_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.music_level; // dword_755688
+pub const SPEECH_LEVEL_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.speech_level; // dword_755698
+pub const SOUNDS_A_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.sounds_a; // dword_75569C
+pub const SOUNDS_B_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.sounds_b; // dword_7556A0
 /// The Rust version of a volume step. What it leaves in registers is read by none of its
 /// callers (the item call sites have nothing live after the call).
-pub fn volume_step(v: Volume) {
+pub fn volume_step(screens: &Screens, v: Volume) {
+    let audio = crate::audio::owner::audio();
     // Converted: `rc2k_core::menu::steps::volume`.
     let value = rc2k_core::menu::steps::volume(v.value.get() as i32, v.up);
     v.value.set(value as u32);
     match v.then {
         Then::Music => {
-            crate::sound::store::SOUND_OPTIONS
+            crate::sound::owner::sound()
+                .menu
+                .options
                 .music_volume
                 .set(value as u32);
-            crate::sound::set_music_volume::set_music_volume(value as u32);
+            crate::sound::set_music_volume::set_music_volume(value as u32, audio);
         }
         Then::Speech => crate::sound::start_stream::start_stream(
-            SAMPLE_NAMES.menu_speech_st1.addr(),
+            core::mem::offset_of!(SampleNames, menu_speech_st1) as u32,
             value as u32,
         ),
         Then::Sound(sound) => {
-            SCREEN_FLOW.menu_sounds_volume.set(value as u32);
+            screens.flow.menu_sounds_volume.set(value as u32);
             crate::sound::play_menu_sound::play_menu_sound_in_game(sound);
         }
     }
@@ -80,24 +78,25 @@ pub fn volume_step(v: Volume) {
 // ---- the plain steps (no calls) ----
 
 /// `menu::next_screen_mode`: the next screen mode chosen, the changed flag flipped.
-pub fn next_screen_mode() {
+pub fn next_screen_mode(screens: &Screens) {
+    let display = &gfx().display;
     // Converted: `rc2k_core::menu::steps::next_mode`.
     let mode = rc2k_core::menu::steps::next_mode(
-        SCREEN_CHOICES.resolution.get(),
-        SCREEN_CHOICES.resolutions.get(),
+        display.choices.resolution.get(),
+        display.choices.resolutions.get(),
     );
-    SCREEN_CHOICES.resolution.set(mode);
-    let changed = OPTION_WORK.mode_changed.get() ^ 1;
-    OPTION_WORK.mode_changed.set(changed);
+    display.choices.resolution.set(mode);
+    let changed = screens.option_work.mode_changed.get() ^ 1;
+    screens.option_work.mode_changed.set(changed);
 }
 
 /// `menu::previous_texture_setting` / `next_texture_setting`: the texture setting one
 /// step down or up.
-pub fn step_texture_setting(up: bool) {
+pub fn step_texture_setting(screens: &Screens, up: bool, race: &crate::race::owner::Race) {
     // Converted: `rc2k_core::menu::steps::texture`.
-    let v = rc2k_core::menu::steps::texture(OPTION_WORK.setting_3.get(), up);
-    OPTION_WORK.setting_3.set(v);
-    RACE_STATE.settings.setting_3.set(v);
+    let v = rc2k_core::menu::steps::texture(screens.option_work.setting_3.get(), up);
+    screens.option_work.setting_3.set(v);
+    race.shared.state.settings.setting_3.set(v);
 }
 
 /// One of the colour choices: (its number, the table, where the pick goes).
@@ -110,28 +109,30 @@ pub struct Colour {
 }
 
 pub const COLOUR_A: Colour = Colour {
-    number: &SCREEN_FLOW.start_section,
-    table_at: 21,                     // dword_758A66
-    pick: &CAPTIONS.caption_lists[7], // dword_758A2E
+    number: &crate::menu::owner::MENUS.screens.flow.start_section,
+    table_at: 21,                                                      // dword_758A66
+    pick: &crate::menu::owner::MENUS.tables.captions.caption_lists[7], // dword_758A2E
 };
 pub const COLOUR_B: Colour = Colour {
-    number: &SCREEN_FLOW.start_section_a8,
-    table_at: 13,                     // dword_758A46
-    pick: &CAPTIONS.caption_lists[8], // dword_758A32
+    number: &crate::menu::owner::MENUS.screens.flow.start_section_a8,
+    table_at: 13,                                                      // dword_758A46
+    pick: &crate::menu::owner::MENUS.tables.captions.caption_lists[8], // dword_758A32
 };
 
 /// `menu::next_colour_a` and the three others.
-pub fn step_colour(c: Colour, up: bool) {
+pub fn step_colour(tables: &Tables, c: Colour, up: bool) {
     // Converted: `rc2k_core::menu::steps::colour`.
     let n = rc2k_core::menu::steps::colour(c.number.get() as i32, up);
     c.number.set(n as u32);
     // `CAPTIONS.caption_lists` from `table_at`: the original does not check `n` (a kept
     // number past 6 steps on from it); the address is resolved by `MOVED`.
-    let pick: u32 = {
-        crate::store::game_read(rva(0x758A12_usize
-            .wrapping_add(4 * c.table_at)
-            .wrapping_add((n as usize).wrapping_mul(4))))
-    };
+    let pick = crate::session::read_on_in(
+        &tables.captions,
+        &tables.captions.caption_lists,
+        c.table_at.wrapping_add(n as usize),
+        "a caption list",
+    )
+    .unwrap_or_else(|e| crate::fatal::raise::end("a caption list", e));
     c.pick.set(pick);
 }
 
@@ -139,24 +140,27 @@ pub fn step_colour(c: Colour, up: bool) {
 
 /// (the work value, its place among `g_audioOptions`' six choices and six applied).
 const CHOICES: [(&Dword, usize); 6] = [
-    (&OPTION_WORK.audio_quality, 0), // quality
-    (&OPTION_WORK.channels, 1),      // channels
-    (&OPTION_WORK.dolby, 5),         // Dolby
-    (&OPTION_WORK.a3d, 4),           // A3D
-    (&OPTION_WORK.eax, 3),           // EAX
-    (&OPTION_WORK.ds3d, 2),          // DS3D
+    (
+        &crate::menu::owner::MENUS.screens.option_work.audio_quality,
+        0,
+    ), // quality
+    (&crate::menu::owner::MENUS.screens.option_work.channels, 1), // channels
+    (&crate::menu::owner::MENUS.screens.option_work.dolby, 5),    // Dolby
+    (&crate::menu::owner::MENUS.screens.option_work.a3d, 4),      // A3D
+    (&crate::menu::owner::MENUS.screens.option_work.eax, 3),      // EAX
+    (&crate::menu::owner::MENUS.screens.option_work.ds3d, 2),     // DS3D
 ];
-/// `menu::apply_audio_choices`: the registers it leaves (`popa`'s).
-pub fn apply_audio_choices() -> Result<(), Refused> {
+/// `menu::apply_audio_choices`.
+pub fn apply_audio_choices(audio: &crate::audio::owner::Audio) -> Result<(), Refused> {
     for (work, n) in CHOICES {
         let value = work.get();
-        AUDIO.audio_options.update(|o| o.choice[n] = value);
+        audio.state.audio_options.update(|o| o.choice[n] = value);
     }
     // `audio::choose_modes` with the game's log (the original's eax there, the last
     // value copied, is read by none of it).
     crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)?;
     for (work, n) in CHOICES {
-        work.set(AUDIO.audio_options.get().applied[n]);
+        work.set(audio.state.audio_options.get().applied[n]);
     }
 
     Ok(())

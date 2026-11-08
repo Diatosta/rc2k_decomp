@@ -11,19 +11,18 @@
 //!   (`race::spread_camera`, dh the old value).
 
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
-use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::owner::Race;
 use crate::race::replay_work_store::REPLAY_WORK;
-use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// `edit_camera_1` / `_2` (eax the block shown is left; its caller, `viewer_action`,
 /// keeps every register).
-pub fn edit_camera(camera: u32) {
+pub fn edit_camera(race: &Race, camera: u32) {
+    let replay = &race.replay;
     // Converted: `rc2k_core::race::viewer_flow::edits_camera`.
-    crate::race::keep_undo::keep_undo();
+    crate::race::keep_undo::keep_undo(&race.shared);
     if rc2k_core::race::viewer_flow::edits_camera(
-        REPLAY_VIEW.replay_block.get(),
-        REPLAY_FILE.index_block_count.get(),
+        replay.replay_view.replay_block.get(),
+        race.shared.replay_file.index_block_count.get(),
     ) {
         crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .camera_edit
@@ -37,22 +36,21 @@ fn name_of(camera: u8) -> u16 {
 
 /// `next_camera` (`step` 1) and `previous_camera` (-1). What they leave their caller,
 /// `viewer_action` (which keeps every register), does not read.
-pub fn step_camera(step: i8) -> Result<(), Refused> {
-    let block = REPLAY_VIEW.replay_block.get();
-    if block == REPLAY_FILE.index_block_count.get() {
+pub fn step_camera(race: &Race, step: i8) -> Result<(), Refused> {
+    let replay = &race.replay;
+    let block = replay.replay_view.replay_block.get();
+    if block == race.shared.replay_file.index_block_count.get() {
         return Ok(());
     }
-    let byte = (crate::race::viewer_buffers_store::VIEWER_BUFFERS
-        .block_cameras
-        .addr())
-    .wrapping_sub(1)
-    .wrapping_add(
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .camera_edit
-            .get(),
-    )
-    .wrapping_add(block.wrapping_mul(8));
-    let at = GamePtr::new(byte);
+    let at = crate::race::viewer::camera_ptr(
+        0u32.wrapping_sub(1)
+            .wrapping_add(
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .camera_edit
+                    .get(),
+            )
+            .wrapping_add(block.wrapping_mul(8)),
+    );
     let old: u8 = at.read("a replay camera byte")?;
     // Converted: `rc2k_core::race::viewer::{every_camera, step_camera}`.
     use rc2k_core::race::viewer::{camera_skipped, every_camera, step_camera};
@@ -62,7 +60,7 @@ pub fn step_camera(step: i8) -> Result<(), Refused> {
     );
     let dl = step_camera(old, step > 0, every, |n| camera_skipped(name_of(n)))?;
     at.write(dl, "a replay camera byte")?;
-    let spread = crate::race::spread_camera::spread_camera(byte, old);
+    let spread = crate::race::spread_camera::spread_camera(race, at, old);
     if spread.is_err() {
         at.write(old, "a replay camera byte")?; // refused before it wrote: nothing left written
     }

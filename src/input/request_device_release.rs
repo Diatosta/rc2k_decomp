@@ -2,13 +2,9 @@
 //! effects and gives both devices back (`input::device_command`). The same store as
 //! `race::release_controls` (0x409425).
 //!
-//! In:  nothing
-//! Out: every register kept
 //! Caller: `menu::release_controller`.
 
-use crate::input::store::DEVICES;
-
 /// The Rust version (see the header).
-pub fn request_device_release() {
-    DEVICES.input_command.set(2); // g_inputCommand
+pub fn request_device_release(input: &crate::input::owner::Input) {
+    input.devices.input_command.set(2); // g_inputCommand
 }

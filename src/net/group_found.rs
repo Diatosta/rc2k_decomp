@@ -2,32 +2,29 @@
 //! short name is "susanivanovafanclub" (`strings::same_text`) is the one to send to
 //! (`g_netSendTo`), and the enumeration stops; any other: it goes on.
 //!
-//! In:  (stdcall) the group's id, its type, its name (a DPNAME: +8 the short name), the
-//!      flags, the context
-//! Out: eax = 0 found (stop), 1 go on; ebx, esi, edi, ebp kept; `ret 14h`
+//! Takes (stdcall) the group's id, its type, its name (a DPNAME: +8 the short name), the flags
+//! and the context. Returns 0 when found (stop), 1 to go on.
 //! Caller: DirectPlay, from `net::join_group` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;
-use crate::net::store::NET;
+use crate::net::owner::net;
 
-/// The Rust version: eax.
-pub fn group_found(args: &[u32]) -> Result<u32, Refused> {
-    if args[1] != 0 {
+/// The Rust version (see the header): the group's id, type and short name.
+pub fn group_found(id: u32, kind: u32, short: &[u8]) -> Result<u32, Refused> {
+    let vars = &net().vars;
+    if kind != 0 {
         return Ok(1);
     }
-    let name = crate::pointers::read_or_end::<u32>(args[2] + 8, "net::group_found's operand");
-    let order = crate::strings::same_text::compare_texts(
-        crate::pointers::host(name) as *const u8,
-        crate::pointers::host(NET.group_name.addr()) as *const u8,
-    )?;
+    let order = crate::strings::same_text::compare_bytes(short, &vars.group_name.read());
     if order != std::cmp::Ordering::Equal {
         return Ok(1);
     }
-    NET.send_to.set(args[0]);
+    vars.send_to.set(id);
     Ok(0)
 }
 
-/// The callback DirectPlay is given: the Rust version.
-pub extern "system" fn callback(a: u32, b: u32, c: u32, d: u32, e: u32) -> u32 {
-    crate::net::lobby::callback_entry("net::group_found", 0x419391, &[a, b, c, d, e], group_found)
+pub fn callback(id: u32, kind: u32, short: &[u8], _flags: u32, _context: u32) -> u32 {
+    crate::net::lobby::callback_entry("net::group_found", 0x419391, || {
+        group_found(id, kind, short)
+    })
 }

@@ -6,49 +6,42 @@
 //! sprites' palette ebx as the original leaves it (the speed line past its NUL, then the
 //! measure's line count).
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
 //!
 //! In a menu loop's draw list (0x758E7E). Refuses (before anything) no current player or name, no
 //! stage records, and what `strings::append_speed` refuses. The menus and draw lists run its
-//! `entry` (`menu::table_calls`); the registers above are the original's, for reference.
+//! `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
+use crate::menu::owner::Menus;
 use crate::screens::best_scores::{STAGE_TIMES, draw_times_heading};
 use crate::text::draw_text::Canvas;
 
 /// The Rust version.
-pub fn draw_player_stage_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let player = crate::menu::player_settings::current()?;
-    let p = player;
-    let fault = crate::menu::event_flow::Fault::default();
-    let f = |o: u32| fault.get(p + o);
-    let name = crate::menu::player_name::name()?;
-    let top_speed = f(0x94);
-    fault.check()?;
+pub fn draw_player_stage_result(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let player = crate::menu::player_settings::current()?.get();
+    let name =
+        crate::screens::game_screen::player_name_of(menus, crate::menu::player_name::name()?);
+    let top_speed = player.figure;
     let mut speed = crate::strings::append_speed::append_speed(
         top_speed,
         true,
         crate::strings::units::units(),
     )?;
     speed.push(0);
-    if (STAGE_TIMES.records)()? == 0 {
-        return Err(crate::errors::BadInput("no stage records").into());
-    }
+    (STAGE_TIMES.records)(menus)?;
     // Converted: `rc2k_core::screens::player_result::stage_result`.
     use crate::screens::game_screen::PlayerResultScreen;
     speed.pop();
     let p = rc2k_core::screens::player_result::Player {
         name,
-        nation: f(4),
-        car: f(8),
-        time: f(0x88),
+        nation: player.nationality,
+        car: player.car_number,
+        time: player.time,
         speed,
     };
-    fault.check()?;
     rc2k_core::screens::player_result::stage_result(
         &mut PlayerResultScreen::new(canvas),
-        &mut |s: &mut PlayerResultScreen| draw_times_heading(&STAGE_TIMES, s.canvas),
+        &mut |s: &mut PlayerResultScreen| draw_times_heading(menus, &STAGE_TIMES, s.canvas),
         &p,
         crate::strings::append_time::show_hours(),
     )?;

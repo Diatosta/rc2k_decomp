@@ -3,29 +3,27 @@
 //! revs), +0x1DC (armed by its countdown at low throttle) and +0x1F8 (armed with a gear
 //! change; its pitch +0x210). Names by those readings.
 //!
-//! In:  ebx the car's sound object, esi the request
-//! Out: every register preserved (`pusha` / `popa`)
+//! Takes: the car's sound object, the request
 //! Nothing in state 3 (+0x10C). The request's place = +0x2C .. +0x34 less +0x38 ..
 //! +0x40; the slots at +0x1C4 and +0x1DC (`sound::play_timed_slot`); then, the
 //! request's pitch factor (+0x20) times the object's +0x210 for it and put back after,
 //! the slot at +0x1F8. One caller, `sound::car_sounds`.
-//! Refuses (before anything) a null object or request; what the slots refuse puts back
+//! Refuses (before anything) a null object; what the slots refuse puts back
 //! what was written (sounds already sent stay sent).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
+use crate::errors::Refused;
+use crate::sound::sets_store::SoundRequest;
 
 // ---- Rust version ----
 
-/// The gear sounds of object `o`, through `request`.
-pub fn car_gear_sounds(o: u32, request: u32) -> Result<(), Refused> {
-    if o == 0 || request == 0 {
-        return Err(BadInput("no object or no request").into());
-    }
-    let so = crate::sound::store::SoundObject::at(o)?;
+/// The gear sounds of object `so`, through `request`.
+pub fn car_gear_sounds(
+    so: &crate::sound::store::SoundObject,
+    request: &SoundRequest,
+) -> Result<(), Refused> {
     if so.state.get() == 3 {
         return Ok(());
     }
@@ -33,22 +31,20 @@ pub fn car_gear_sounds(o: u32, request: u32) -> Result<(), Refused> {
     // precision: one rounding each).
     use rc2k_core::sound::engine::{gear_pitch, place_behind};
     let place = place_behind(
-        so.place.each_ref().map(|f| f.get()),
-        so.motion.each_ref().map(|f| f.get()),
+        so.place.each_ref().map(super::super::session::Float::get),
+        so.motion.each_ref().map(super::super::session::Float::get),
     );
-    for (n, v) in place.into_iter().enumerate() {
-        GamePtr::new(request)
-            .offset(0xC + 4 * n as u32)
-            .write(v, "a sound request")?;
+    for (cell, v) in request.place.iter().zip(place) {
+        cell.set(v.to_bits());
     }
     for slot in &so.slots[5..] {
-        crate::sound::play_timed_slot::play_timed_slot(slot.addr(), request)?;
+        crate::sound::play_timed_slot::play_timed_slot(slot, request)?;
     }
-    let factor = GamePtr::new(request).offset(0x20);
-    let kept: u32 = factor.read("a sound request")?;
-    let pitch = gear_pitch(factor.read::<f32>("a sound request")?, so.gear_pitch.get());
-    factor.write(pitch, "a sound request")?;
-    crate::sound::play_timed_slot::play_timed_slot(so.gear_slot.addr(), request)?;
-    factor.write(kept, "a sound request")?;
+    let factor = &request.pitch_factor;
+    let kept = factor.get();
+    let pitch = gear_pitch(f32::from_bits(kept), so.gear_pitch.get());
+    factor.set(pitch.to_bits());
+    crate::sound::play_timed_slot::play_timed_slot(&so.gear_slot, request)?;
+    factor.set(kept);
     Ok(())
 }

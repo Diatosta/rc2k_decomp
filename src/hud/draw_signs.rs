@@ -1,60 +1,91 @@
-//! `hud::draw_signs` (0x4B4F2B): up to four signs of the HUD's record (+0xA4 .. +0xB0, 0
-//! none): sign v as rectangle 0x4C + (v - 1) & 0xF of `dword_75B940`, centred in its 0x40
-//! wide place by its width (`dword_75BF80`[(v - 1) & 7]), the places from +0xB4 on 0x40
-//! apart, at 0x36 (0x16 with `dword_6D1502` 0).
-//!
-//! In:  ebp the HUD's record
-//! Out: ebx the last place, ecx the last sign's row (0 when the last is none), eax / esi
-//!      the last drawn sign's rectangle (as `add_sprite` keeps them)
-//!
-//! Caller: layout 0's drawer (0x4B1F27).
+//! `hud::draw_signs` (0x4B4F2B): up to four signs of a view's marks (`Panel::marks`; 0
+//! none): sign v as rectangle 0x4C + (v - 1) & 0xF of the sprite sheet, centred in its
+//! 0x40 wide place by its width (`sign_widths`[(v - 1) & 7]), the places 0x40 apart from
+//! the marks' `base`. Each layout and player has a `SignStyle` for whose marks they are and
+//! the row they are drawn at.
 
 use crate::errors::Refused;
-use crate::hud::store::HUD;
-use crate::pointers::GamePtr;
-use crate::race::panel_store::PANEL;
+use crate::hud::owner::Hud;
+use crate::race::owner_frame::Frame;
 
-/// The row: `y`, or 0x20 higher with `dword_6D1502` 0.
-pub fn row(y: u32) -> u32 {
-    row_by(y, 0x20)
+/// The row: `y`, or 0x20 higher with `Panel::flat` 0.
+pub fn row(frame: &Frame, y: u32) -> u32 {
+    row_by(frame, y, 0x20)
 }
 
-/// The row: `y`, or `lift` higher with `dword_6D1502` 0.
-pub fn row_by(y: u32, lift: u32) -> u32 {
-    rc2k_core::hud::signs::row(y, lift, PANEL.flat.get())
+/// The row: `y`, or `lift` higher with `Panel::flat` 0.
+pub fn row_by(frame: &Frame, y: u32, lift: u32) -> u32 {
+    rc2k_core::hud::signs::row(y, lift, frame.panel_and_overlay.panel.flat.get())
 }
 
-/// The Rust version (see the header).
-// Converted: `rc2k_core::hud::signs` (through `signs_with`)
-pub fn draw_signs(record: u32) -> Result<(), Refused> {
-    signs_with(record, 0xA4, 0xB4, 0, 0x36, 0x20)
-}
-
-/// Four signs from the record's `first` .. on, the places from its `start` field plus
-/// `shift`, at row `y` (shared with `hud::draw_signs_1a` / `_1b`).
-// Converted: `rc2k_core::hud::signs::{sign, place, row}`
-pub fn signs_with(
-    record: u32,
-    first: u32,
-    start: u32,
+/// Where one player's signs are: whose marks they are and where they are drawn.
+pub struct SignStyle {
+    /// The view whose marks they are.
+    view: usize,
+    /// Added to the marks' base (the places' start).
     shift: u32,
+    /// The row.
     y: u32,
+    /// How much higher the row is with `Panel::flat` 0.
     lift: u32,
-) -> Result<(), Refused> {
+}
+
+/// Layout 0's signs (0x4B4F2B).
+pub static LAYOUT_0: SignStyle = SignStyle {
+    view: 0,
+    shift: 0,
+    y: 0x36,
+    lift: 0x20,
+};
+/// The first player's signs in layout 1 (0x4B52F7).
+pub static LAYOUT_1A: SignStyle = SignStyle {
+    view: 0,
+    shift: 0xFFFFFF38,
+    y: 0x70,
+    lift: 0x20,
+};
+/// The second player's signs in layout 1 (0x4B5451).
+pub static LAYOUT_1B: SignStyle = SignStyle {
+    view: 1,
+    shift: 0xC8,
+    y: 0x70,
+    lift: 0x20,
+};
+/// The first player's signs in layout 2 (0x4B507F).
+pub static LAYOUT_2A: SignStyle = SignStyle {
+    view: 0,
+    shift: 0,
+    y: 0x8,
+    lift: 0,
+};
+/// The second player's signs in layout 2 (0x4B51A3).
+pub static LAYOUT_2B: SignStyle = SignStyle {
+    view: 1,
+    shift: 0,
+    y: 0x143,
+    lift: 0x10,
+};
+
+/// Draws the four signs of `style`.
+// Converted: `rc2k_core::hud::signs::{sign, place, row}`
+pub fn draw_signs(frame: &Frame, hud: &Hud, style: &SignStyle) -> Result<(), Refused> {
     use rc2k_core::hud::signs;
-    {
-        let get = |o: u32| GamePtr::new(record + o).read::<u32>("a hud record's field");
-        let places = get(start)?.wrapping_add(shift);
-        for n in 0..signs::SIGNS as u32 {
-            let v = get(first + 4 * n)?;
-            let Some(sign) = signs::sign(places, n, v, |k| HUD.sign_widths[k as usize].get())
-            else {
-                continue;
-            };
-            let rect =
-                (crate::pointers::game_address(HUD.rects.as_ptr())).wrapping_add(sign.rectangle);
-            crate::hud::add_sprite::add_sprite(sign.x, row_by(y, lift), rect)?;
-        }
+    let marks = &frame.panel_and_overlay.panel.marks[style.view];
+    let places = marks.base.get().wrapping_add(style.shift);
+    for (n, mark) in (0..signs::SIGNS as u32).zip(&marks.marks) {
+        let v = mark.get();
+        let Some(sign) = signs::sign(places, n, v, |k| hud.block.sign_widths[k as usize].get())
+        else {
+            continue;
+        };
+        let rect = crate::hud::store::rects_at(hud, sign.rectangle);
+        crate::hud::add_sprite::add_sprite(
+            frame,
+            hud,
+            sign.x,
+            row_by(frame, style.y, style.lift),
+            rect,
+        )?;
     }
     Ok(())
 }

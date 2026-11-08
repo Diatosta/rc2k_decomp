@@ -1,10 +1,7 @@
 //! `scene::project_point` (0x44D004): a point's place in the view and on the screen,
 //! worked out once and kept.
 //!
-//! In:  eax = the point's number
-//! Out: edx = its record; a point of the scene: eax unchanged, ecx = the point's address
-//!      (or the number of points + 0x40 if the record was already made); a point of an
-//!      object (a negative number): eax = the record's offset; everything else preserved
+//! Takes: the point's number
 //!
 //! The records are 0x20 bytes each at `dword_5C6FB8`: +0 the point's number, +0xC the
 //! x on the screen, +0x10, +0x14, +0x18 the point in the view, +0x1C the y on the
@@ -12,7 +9,7 @@
 //! record 0x1000 + (n & 0xFFF), which is made elsewhere and only found here.
 //! A record whose number is not the point's is made anew: the point's three whole
 //! numbers (12 bytes each at `dword_5CCCC0`) through the matrix `flt_5EA2CC`
-//! (`sub_44D110`: three rows of x, y, z factors and a fourth to add; x87, inlined here
+//! (`scene::rotate_point`: three rows of x, y, z factors and a fourth to add; x87, inlined here
 //! with its own instructions), the screen's two set to 0, and, unless the depth is
 //! under 4096: x = x' * (`flt_624088` / depth) + `flt_62409C`, y = `flt_6240A0` - y' *
 //! (the same). With `dword_60932C` set the depth divided by is `dword_5CCD80` + 1
@@ -29,15 +26,9 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87;
 use crate::math::x87_float::ONE;
-use crate::race::course_lists_store::COURSE_LISTS;
-use crate::race::course_store::COURSE;
-use crate::race::matrices_store::MATRICES;
-use crate::race::prefs_store::STAGE_PREFS;
-use crate::scene::draw_store::DRAW;
-use crate::scene::light_store::LIGHT_STATE;
-use crate::scene::object_tables_store::OBJECT_TABLES;
-use crate::scene::polygon::{dword, put};
-use crate::scene::x87_mem::{fild, fld, fstp};
+use crate::race::owner::Race;
+use crate::scene::point_records;
+use crate::scene::x87_mem::{Base, cells, fild, fld, fstp};
 
 // ---- game data ----
 
@@ -58,14 +49,14 @@ const TOO_HIGH: FatalError = FatalError {
 
 // ---- Rust version ----
 
-/// `sub_44D110` as `project_point` uses it: the point's three whole numbers through the
+/// `scene::rotate_point` as `project_point` uses it: the point's three whole numbers through the
 /// matrix, into the record's +0x10, +0x14, +0x18.
-pub(crate) fn rotate(point: *const i32, matrix: *const u32, record: *mut u32) {
-    rotate_at(point.cast(), matrix.cast(), record.cast())
+pub(crate) fn rotate(point: &[u32], matrix: &[u32], record: &mut [u32]) {
+    rotate_at(point, matrix, cells(record));
 }
 
 /// `fild` x3, the three rows' sums of products plus the place, `fstp dword` x3.
-fn rotate_at(p: *const u8, m: *const u8, o: *mut u8) {
+fn rotate_at(p: impl Base, m: impl Base, o: impl Base) {
     let t0 = fild(p, 0x8);
     let t1 = fild(p, 0x4);
     let t2 = fild(p, 0x0);
@@ -106,17 +97,17 @@ fn rotate_at(p: *const u8, m: *const u8, o: *mut u8) {
 
 /// The record's place on the screen from its place in the view. `v`: the scale, the
 /// centre's x and y, and the whole number the flat depth is made from.
-pub(crate) fn to_screen(record: *mut u32, v: &[u32; 4], flat: bool, checked: *mut u32) {
+pub(crate) fn to_screen(record: &mut [u32], v: &[u32; 4], flat: bool, checked: impl Base) {
     if flat {
-        screen_flat(record.cast(), v.as_ptr().cast(), checked.cast());
+        screen_flat(cells(record), &v[..], checked);
     } else {
-        screen_plain(record.cast(), v.as_ptr().cast());
+        screen_plain(cells(record), &v[..]);
     }
 }
 
 /// With the flat depth: the depth goes to `checked`, and the one divided by is the whole
 /// number plus one.
-fn screen_flat(o: *mut u8, v: *const u8, w: *mut u8) {
+fn screen_flat(o: impl Base, v: impl Base, w: impl Base) {
     let t0 = fld(o, 0x10);
     let t1 = fld(o, 0x14);
     let t2 = fld(o, 0x18);
@@ -138,7 +129,7 @@ fn screen_flat(o: *mut u8, v: *const u8, w: *mut u8) {
 }
 
 /// The usual way: x = x' * (scale / depth) + centre x, y = centre y - y' * (the same).
-fn screen_plain(o: *mut u8, v: *const u8) {
+fn screen_plain(o: impl Base, v: impl Base) {
     let t0 = fld(o, 0x10);
     let t1 = fld(o, 0x14);
     let t2 = fld(o, 0x18);
@@ -157,12 +148,16 @@ fn screen_plain(o: *mut u8, v: *const u8) {
 
 /// The offset of a point's record, or the fatal error for a number too high.
 // Converted: `rc2k_core::scene::projection::record_offset`
-pub fn record_offset(point: u32) -> Result<u32, FatalError> {
+pub fn record_offset(
+    course: &crate::race::owner_course::Course,
+    point: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<u32, FatalError> {
     use rc2k_core::scene::projection::TooHigh;
     rc2k_core::scene::projection::record_offset(
         point,
-        OBJECT_TABLES.point_count.get(),
-        COURSE.scene_point_count.bits(),
+        scene.objects.tables.point_count.get(),
+        course.course.scene_point_count.bits(),
     )
     .map_err(|e| match e {
         TooHigh::Object => TOO_HIGH_OBJECT,
@@ -173,81 +168,71 @@ pub fn record_offset(point: u32) -> Result<u32, FatalError> {
 /// What the function leaves.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Projected {
-    /// The record's address.
+    /// The record (`scene::point_records`: its number + 1).
     pub record: u32,
-    pub eax: u32,
-    /// None: unchanged.
-    pub ecx: Option<u32>,
 }
 
-/// A scene point's record made anew (`sub_44CF4E`, and the same code in
+/// A scene point's record made anew (0x44CF4E, and the same code in
 /// `project_point`): the point through the view's matrix and onto the screen.
-/// Returns the point's address.
-pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<u32, BadInput> {
-    let at = record as usize;
-    let points: u32 = COURSE.scene_points.bits();
+pub(crate) fn make_scene_record(
+    race: &Race,
+    point: u32,
+    record: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
+    let points: u32 = race.course.course.scene_points.bits();
     if points == 0 {
         return Err(BadInput("no points"));
     }
-    let from = points.wrapping_add(point.wrapping_mul(12));
-    put(at, point);
+    // Made on a copy of the record (`scene::point_records`), then stored.
+    let mut r = point_records::get(record)?;
+    r[0] = point;
+    let place = crate::race::scene_points::point_number(point)?;
     rotate(
-        crate::pointers::host(from) as *const i32,
-        crate::pointers::host(MATRICES.view_matrix[0].addr()) as *const u32,
-        crate::pointers::host(record) as *mut u32,
+        &place,
+        &race
+            .frame
+            .matrices
+            .view_matrix
+            .each_ref()
+            .map(super::super::session::Float::bits),
+        &mut r,
     );
-    put(at + 0xC, 0);
-    put(at + 0x1C, 0);
-    if f32::from_bits(dword(at + 0x18)) >= NEAR {
+    r[3] = 0;
+    r[7] = 0;
+    if f32::from_bits(r[6]) >= NEAR {
         let v = [
-            DRAW.view_scale.bits(),
-            DRAW.view_centre[0].bits(),
-            DRAW.view_centre[1].bits(),
-            COURSE.flat_depth.bits(),
+            scene.drawing.scene.view_scale.bits(),
+            scene.drawing.scene.view_centre[0].bits(),
+            scene.drawing.scene.view_centre[1].bits(),
+            race.course.course.flat_depth.bits(),
         ];
-        let flat = STAGE_PREFS.flat_depth.bits() != 0;
-        to_screen(
-            crate::pointers::host(record) as *mut u32,
-            &v,
-            flat,
-            DRAW.scratch.as_ptr(),
-        );
+        let flat = race.course.stage_prefs.flat_depth.bits() != 0;
+        to_screen(&mut r, &v, flat, &scene.drawing.scene.scratch);
     }
-    if LIGHT_STATE.draw_mode.bits() == 1 {
-        put(at + 0x18, x87::sub(dword(at + 0x18), LOWERED_BY.to_bits()));
-        DRAW.scratch.set_bits(LOWERED_BY.to_bits());
+    if scene.lights.state.draw_mode.bits() == 1 {
+        r[6] = x87::sub(r[6], LOWERED_BY.to_bits());
+        scene.drawing.scene.scratch.set_bits(LOWERED_BY.to_bits());
     }
-    Ok(from)
+    point_records::set(record, r)?;
+    Ok(())
 }
 
-pub fn project_point(point: u32) -> Result<Projected, Refused> {
-    let offset = record_offset(point)?;
-    let records: u32 = COURSE_LISTS.point_records.bits();
-    if records == 0 {
+pub fn project_point(
+    race: &Race,
+    point: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<Projected, Refused> {
+    let course = &race.course;
+    let offset = record_offset(course, point, scene)?;
+    if !point_records::held() {
         return Err(BadInput("no records for the points").into());
     }
-    let record = records.wrapping_add(offset);
-    if (point as i32) < 0 {
-        return Ok(Projected {
-            record,
-            eax: offset,
-            ecx: None,
-        });
+    let record = point_records::at_offset(offset);
+    if (point as i32) >= 0 && point_records::field(record, 0)? != point {
+        make_scene_record(race, point, record, scene)?;
     }
-    let at = record as usize;
-    if dword(at) == point {
-        return Ok(Projected {
-            record,
-            eax: point,
-            ecx: Some(COURSE.scene_point_count.bits().wrapping_add(0x40)),
-        });
-    }
-    let from = make_scene_record(point, record)?;
-    Ok(Projected {
-        record,
-        eax: point,
-        ecx: Some(from),
-    })
+    Ok(Projected { record })
 }
 
 #[cfg(all(test, target_arch = "x86"))]

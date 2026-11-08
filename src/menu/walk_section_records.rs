@@ -6,72 +6,72 @@
 //! reset (`menu::reset_player_totals`). Tag 4 ends the walk, tag 3 too with
 //! `dword_755928` 1; then the drivers' condition reset.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Callers: `sub_4A0E60`, `sub_4AA4D7`. The steps are their Rust versions. Refuses what they refuse
+//! The steps are their Rust versions. Refuses what they refuse
 //! for any record of the walk, and a walk past 64 records, before anything.
 use crate::errors::Refused;
 use crate::menu::event_flow::Fault;
-use crate::menu::event_store::EVENT_STATE;
+use crate::menu::owner::Menus;
+use crate::menu::owner::Screens;
 use crate::menu::standings::*;
+use crate::records::stages_store::RecordRef;
+use crate::system::owner::system;
 use rc2k_core::menu::section_walk::Step;
 
 /// The record at `index` of the current section.
-fn record_at(index: u32) -> Result<u32, crate::errors::BadInput> {
-    let table = crate::records::stages_store::STAGE_TABLES.championship();
-    let section: u32 = { SECTION_RVA.get() };
+fn record_at(index: u32) -> Result<RecordRef, crate::errors::BadInput> {
+    let table = system().records.stage_tables.championship();
+    let section: u32 = SECTION_RVA.get();
     crate::records::find_record::find_record_in(table, index as i32, section)
 }
 
 /// The records the walk visits from `index`, with their steps, checked.
-fn walk() -> Result<Vec<(u32, Step)>, Refused> {
-    current_event()?;
-    counted_players()?;
-    entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
-    let index: u32 = { INDEX_RVA.get() };
+fn walk(screens: &Screens) -> Result<Vec<(u32, Step)>, Refused> {
+    current_event(screens)?;
+    counted_players(screens)?;
+    drivers()?;
+    let index: u32 = INDEX_RVA.get();
     // Converted: `rc2k_core::menu::section_walk::walk`.
     let fault = Fault::default();
     let walked = rc2k_core::menu::section_walk::walk(
         index,
-        |i| fault.ok(record_at(i).and_then(get)),
-        |i| crate::menu::calc_cpu_times::check(record_at(i)?).map(|_| ()),
+        |i| fault.ok(record_at(i).map(RecordRef::tag)),
+        |i| crate::menu::calc_cpu_times::check(screens, record_at(i)?).map(|_| ()),
     );
     fault.check()?;
     walked
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn walk_section_records() -> Result<(), Refused> {
+/// The Rust version.
+pub fn walk_section_records(menus: &Menus) -> Result<(), Refused> {
+    let screens = &menus.screens;
     use crate::menu::{reset_driver_condition as rdc, reset_player_totals as rpt};
-    let records = walk()?;
-    unsafe {
-        for (_, step) in records {
-            if !step.goes_on() {
-                if step == Step::Ended {
-                    EVENT_STATE.championship_end.set(1u32);
-                }
-                break;
+    let records = walk(screens)?;
+    for (_, step) in records {
+        if !step.goes_on() {
+            if step == Step::Ended {
+                screens.event.championship_end.set(1u32);
             }
-            match step {
-                Step::CpuTimes => {
-                    crate::menu::calc_cpu_times::calc_cpu_times()?;
-                }
-                Step::Condition => {
-                    rdc::reset_driver_condition()?;
-                }
-                _ => {}
-            }
-            if let Some(first) = step.first() {
-                EVENT_STATE.service_944.set(first);
-            }
-            INDEX_RVA.set(INDEX_RVA.get().wrapping_add(1));
-            EVENT_STATE
-                .stages_done
-                .set(EVENT_STATE.stages_done.get().wrapping_add(1));
-            rpt::reset_player_totals()?;
+            break;
         }
-        rdc::reset_driver_condition()?;
+        match step {
+            Step::CpuTimes => {
+                crate::menu::calc_cpu_times::calc_cpu_times(screens)?;
+            }
+            Step::Condition => {
+                rdc::reset_driver_condition()?;
+            }
+            _ => {}
+        }
+        if let Some(first) = step.first() {
+            screens.event.service_944.set(first);
+        }
+        INDEX_RVA.set(INDEX_RVA.get().wrapping_add(1));
+        screens
+            .event
+            .stages_done
+            .set(screens.event.stages_done.get().wrapping_add(1));
+        rpt::reset_player_totals(menus)?;
     }
+    rdc::reset_driver_condition()?;
     Ok(())
 }

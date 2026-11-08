@@ -1,9 +1,6 @@
 //! `menu::load_slideshow_picture` (0x4684F5): the slideshow's picture of the car shown,
 //! the next one that is there.
 //!
-//! In:  eax = the way to look (below 0: back, else on)
-//! Out: every register preserved
-//!
 //! The car (as `menu::load_car_background` finds it, 0x21 counting as 0x17); its pictures are
 //! `off_759B0E[car]` (`;3files\g\slides\mgnslNN.png` and so on) with the number `dword_755994`.
 //! Starting from that number: the path made (`files::numbered_path`); if the file is there it is
@@ -18,58 +15,67 @@
 
 use crate::errors::Refused;
 use crate::files::file_exists::file_exists;
-use crate::files::numbered_path::numbered_path_in_game;
+use crate::files::numbered_path::numbered_path_bytes;
 use crate::gfx::convert_picture::convert_picture_now;
 use crate::gfx::load_picture::load_picture;
 use crate::gfx::load_picture_with_overlay::load_picture_with_overlay;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::load_car_background::shown_car;
-use crate::strings::text_length::text_length;
+use crate::menu::owner::Menus;
+use crate::pointers::GamePtr;
 
 // ---- game data ----
 
 /// What it asks for.
 pub enum Step {
-    /// `gfx::load_picture_with_overlay` with the path and the title bar: the carry.
-    Overlay(*mut u8, *mut u8),
+    /// `gfx::load_picture_with_overlay` with the path (its text, without the NUL) and the
+    /// title bar: the carry.
+    Overlay(Vec<u8>, GamePtr),
     /// `gfx::load_picture` of the title bar.
-    Load(*mut u8),
+    Load(GamePtr),
     Convert,
 }
 
 // ---- Rust version ----
 
 pub fn load_slideshow_picture(
+    menus: &Menus,
     way: u32,
     step: &mut dyn FnMut(Step) -> Result<bool, Refused>,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::slides` (`slideshow_car`, `search`, `pcx`).
     use rc2k_core::menu::slides;
-    let car = slides::slideshow_car(shown_car()?)?;
-    let template = MENU_LISTS.slideshow_templates[car as usize].get();
-    let start: u32 = EVENT_STATE.picture.get();
-    let mut path = std::ptr::null_mut();
+    let car = slides::slideshow_car(shown_car(menus)?)?;
+    let template = crate::files::cstring_at(
+        crate::menu::texts_store::text_at(
+            menus.tables.lists.slideshow_templates[car as usize].get(),
+        )?,
+        "a path template",
+    )?;
+    let start: u32 = menus.screens.event.picture.get();
+    // Set by the first try (`search` always makes one).
+    let mut path: Option<Vec<u8>> = None;
     slides::search(
         start,
         (way as i32) < 0,
         |number| -> Result<bool, Refused> {
-            path = numbered_path_in_game(crate::pointers::host(template) as *const u8, number)?
-                as *mut u8;
-            if file_exists(path)? {
+            // The path is also written to `PATHS`, as the original builds it there.
+            let numbered = numbered_path_bytes(&template, number)?;
+            let there = file_exists(&numbered)?;
+            path = Some(numbered.clone());
+            if there {
                 return Ok(true);
             }
-            let length = text_length(path)? as usize;
-            slides::pcx(crate::menu::event_flow::game_slice(
-                crate::pointers::game_address(path),
-                length as u32,
-                "a picture path",
-            )?)?;
-            Ok(file_exists(path)?)
+            let mut text = numbered;
+            slides::pcx(&mut text)?;
+            crate::files::state::PATHS.write_at(0, &text, "a picture path")?;
+            let exists = file_exists(&text)?;
+            path = Some(text);
+            Ok(exists)
         },
-        |next| EVENT_STATE.picture.set(next),
+        |next| menus.screens.event.picture.set(next),
     )?;
-    let title_bar = crate::pointers::host(crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr());
+    let path = path.ok_or(crate::errors::BadInput("no slideshow picture tried"))?;
+    let title_bar = GamePtr::to(&menus.tables.texts.titlebar_png);
     if step(Step::Overlay(path, title_bar))? {
         step(Step::Load(title_bar))?;
     }
@@ -78,12 +84,41 @@ pub fn load_slideshow_picture(
 }
 
 /// With the Rust versions of what it calls.
-pub unsafe fn load_slideshow_picture_in_game(way: u32) -> Result<(), Refused> {
-    unsafe {
-        load_slideshow_picture(way, &mut |step| match step {
-            Step::Overlay(path, over) => load_picture_with_overlay(path, over),
-            Step::Load(path) => load_picture(path).map(|_| false),
-            Step::Convert => convert_picture_now().map(|_| false).map_err(Into::into),
-        })
+pub fn load_slideshow_picture_in_game(menus: &Menus, way: u32) -> Result<(), Refused> {
+    load_slideshow_picture(menus, way, &mut |step| match step {
+        Step::Overlay(path, over) => load_picture_with_overlay(&MirroredPath::new(path), &over),
+        Step::Load(path) => load_picture(&path).map(|_| false),
+        Step::Convert => convert_picture_now().map(|_| false).map_err(Into::into),
+    })
+}
+
+/// A picture's path as a value, for the loader that may swap its ending: the swap is
+/// written to the value and, as the original swapped it in place, to `PATHS` too.
+struct MirroredPath(std::cell::RefCell<Vec<u8>>);
+
+impl MirroredPath {
+    fn new(path: Vec<u8>) -> Self {
+        Self(std::cell::RefCell::new(path))
+    }
+}
+
+impl crate::session::TextPlace for MirroredPath {
+    fn text(&self, _what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
+        Ok(self.0.borrow().clone())
+    }
+
+    fn write_text_at(
+        &self,
+        at: usize,
+        bytes: &[u8],
+        what: &str,
+    ) -> Result<(), crate::errors::BadInput> {
+        let mut value = self.0.borrow_mut();
+        let end = at + bytes.len();
+        if end > value.len() {
+            return Err(crate::errors::BadInput("a write past a path's end"));
+        }
+        value[at..end].copy_from_slice(bytes);
+        crate::files::state::PATHS.write_at(at, bytes, what)
     }
 }

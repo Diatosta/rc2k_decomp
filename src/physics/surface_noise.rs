@@ -6,21 +6,14 @@
 //! `dword_62400C`, / 256 into +0x280 (`unk_71A258`). Then with `dword_60934C` set +0x900
 //! 0, else +0x904 0.
 //!
-//! In:  nothing
-//! Out: eax the second sample (held), ebx its range, ecx and edx as left, esi
-//!      `unk_A2AB04`; no flags read
-//!
-//! Caller: `sub_43B635` (0x43B714), every physics step.
+//! Caller: `physics::car_physics_step` (0x43B714), every physics step.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
 use crate::math::x87_run::{ext_div2, int_80};
-use crate::physics::car_store::CAR;
 use crate::race::frame_draw::sample_noise;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::prefs_store::STAGE_PREFS;
-use crate::scene::draw_store::DRAW;
+use crate::race::owner::Race;
 use rc2k_core::physics::ground::{noise_level, rough_floor};
 
 /// lo + (hi - lo) x sample >> 16, held to 0 ..= 0xFF.
@@ -28,50 +21,48 @@ fn scaled(sample: u32, lo: u32, hi: u32) -> u32 {
     noise_level(sample, lo, hi).0
 }
 
-/// The noise map `x`'s sample under the work car (what `race::sample_noise` leaves in eax).
-fn sample(x: usize) -> Result<u32, crate::errors::BadInput> {
-    sample_noise(x as u32)
+/// The noise map `x` bytes into `g_noiseBytes`: its sample under the work car (what
+/// `race::sample_noise` leaves in eax).
+fn sample(
+    shared: &crate::race::owner_shared::Shared,
+    x: usize,
+    scene: &crate::scene::owner::Scene,
+) -> Result<u32, crate::errors::BadInput> {
+    sample_noise(shared, x, scene)
 }
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::ground::{noise_level, rough_floor}` (the share / 256
 // stays x87).
-pub fn surface_noise() -> Result<(), crate::errors::BadInput> {
+pub fn surface_noise(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), crate::errors::BadInput> {
     {
         let first = scaled(
-            sample(
-                (crate::scene::engine_tables_store::ENGINE_TABLES
-                    .noise_bytes
-                    .addr()
-                    + 0x50) as usize,
-            )?,
-            STAGE_PREFS.blit_cleared[0].get(),
-            STAGE_PREFS.blit_cleared[1].get(),
+            sample(&race.shared, 0x50, scene)?,
+            race.course.stage_prefs.blit_cleared[0].get(),
+            race.course.stage_prefs.blit_cleared[1].get(),
         );
-        CAR.surface_noise_a.set(first);
-        CAR.surface_noise_b.set(first);
+        race.shared.car.surface_noise_a.set(first);
+        race.shared.car.surface_noise_b.set(first);
         let second = scaled(
-            sample(
-                (crate::scene::engine_tables_store::ENGINE_TABLES
-                    .noise_bytes
-                    .addr()
-                    + 0x20) as usize,
-            )?,
-            STAGE_PREFS.surface_scale[0].get(),
-            STAGE_PREFS.surface_scale[1].get(),
+            sample(&race.shared, 0x20, scene)?,
+            race.course.stage_prefs.surface_scale[0].get(),
+            race.course.stage_prefs.surface_scale[1].get(),
         );
-        CAR.surface_noise_second.set(second);
-        let floor = rough_floor(second, STAGE_PREFS.surface_floor.get());
-        DRAW.scratch.set(floor);
-        CAR.surface_blend.set_bits(ext_div2(
+        race.shared.car.surface_noise_second.set(second);
+        let floor = rough_floor(second, race.course.stage_prefs.surface_floor.get());
+        scene.drawing.scene.scratch.set(floor);
+        race.shared.car.surface_blend.set_bits(ext_div2(
             int_80(floor as i32, false),
-            NUMBERS.k256.bits(),
+            race.course.numbers.k256.bits(),
             0x3F80_0000,
         ));
-        if STAGE_PREFS.noise_pick.get() != 0 {
-            CAR.surface_noise_a.set(0);
+        if race.course.stage_prefs.noise_pick.get() != 0 {
+            race.shared.car.surface_noise_a.set(0);
         } else {
-            CAR.surface_noise_b.set(0);
+            race.shared.car.surface_noise_b.set(0);
         }
     }
     Ok(())

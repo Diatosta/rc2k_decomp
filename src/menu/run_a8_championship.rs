@@ -9,18 +9,14 @@
 //! `dword_755254` is not cleared after a stage; no `best_overall_scores` at the end; an
 //! unknown record kind is fatal error 0x8070DBA9 "Invalid Level Type(A8)".
 //!
-//! In:  nothing
-//! Out: every register as `menu::show_in_game_options` leaves the entry's (all kept)
-//!
 //! Callers: `saves::load_savegame` (`dword_7556D0` 0x13) and the five starters
 //! (`menu::start_a8_*`). Refuses what its callees refuse, when they are
 //! reached.
 
 use crate::errors::Refused;
 use crate::menu::run_championship::run_event;
-use crate::menu::screen_loop::Carried;
 
-pub fn run_a8_championship(c: &Carried) -> Result<(), Refused> {
+pub fn run_a8_championship(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::championship::run` (`a8`).
-    run_event(c, true)
+    run_event(menus, true)
 }

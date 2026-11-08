@@ -10,15 +10,20 @@
 //! (a copy of the generator's input is the image). The data is the same as
 //! `rc2k_core::menu::tables`' (menus and labels), the memory the game walks by address.
 
+use crate::gfx::typefaces::FontCell;
+use crate::menu::item_sprites_store::SpriteCell;
+use crate::menu::owner::{Menus, menus};
 use crate::session::Dword;
 
-/// A label: x, y, the font record's address, the string id.
+/// A label: x, y, the font, the string id.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MenuLabel {
     pub x: Dword,
     pub y: Dword,
-    /// The font record's address (IDA 0x51E...; `moved::point_into_homes` makes it real).
-    pub font: Dword,
+    /// The font (the original kept the object's address; `moved::point_into_homes` passes
+    /// it over).
+    pub font: FontCell,
     pub string: Dword,
 }
 
@@ -27,7 +32,7 @@ impl MenuLabel {
         Self {
             x: Dword::new(v[0]),
             y: Dword::new(v[1]),
-            font: Dword::new(v[2]),
+            font: FontCell::at(v[2]),
             string: Dword::new(v[3]),
         }
     }
@@ -35,6 +40,7 @@ impl MenuLabel {
 
 /// A list of labels: the label and the -1 that ends the list.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LabelList {
     pub label: MenuLabel,
     pub end: Dword,
@@ -51,6 +57,7 @@ impl LabelList {
 
 /// A menu item, 0x5C bytes (IDA's `MenuItem`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MenuItem {
     pub x: Dword,
     pub y: Dword,
@@ -62,11 +69,14 @@ pub struct MenuItem {
     pub id: Dword,
     /// The string id (+0x14); changed in play.
     pub string: Dword,
-    /// The font record's address (+0x18); changed in play (`menu::disable_item` / `enable_item`).
-    pub font: Dword,
+    /// The font (+0x18, the original's the object's address); changed in play
+    /// (`menu::disable_item` / `enable_item`).
+    pub font: FontCell,
     /// +0x1C; changed in play.
     pub behind: Dword,
-    pub sprites: Dword,
+    /// +0x20: the sprite behind it, or a button's sprite list (the original's the list's
+    /// address); changed in play (`menu::stage_view_steps::style_stage_item`).
+    pub sprites: SpriteCell,
     /// The items up, down, left and right of this one, by `id`.
     pub links: [Dword; 4],
     /// The code addresses of what a key does on it: up, down, left, right (+0x34 .. +0x40).
@@ -75,8 +85,10 @@ pub struct MenuItem {
     pub action: Dword,
     /// +0x48: passed over when the moves up and down meet it; changed in play.
     pub skip_mark: Dword,
-    pub measuring_font: Dword,
-    pub highlight_font: Dword,
+    /// +0x4C: the font a text button is measured in.
+    pub measuring_font: FontCell,
+    /// +0x50: the font a highlighted item pulses in.
+    pub highlight_font: FontCell,
     /// What `menu::run_item_action` hands the action.
     pub action_value: Dword,
     pub spaced: Dword,
@@ -91,9 +103,9 @@ impl MenuItem {
             text_y: Dword::new(v[3]),
             id: Dword::new(v[4]),
             string: Dword::new(v[5]),
-            font: Dword::new(v[6]),
+            font: FontCell::at(v[6]),
             behind: Dword::new(v[7]),
-            sprites: Dword::new(v[8]),
+            sprites: SpriteCell::at(v[8]),
             links: [
                 Dword::new(v[9]),
                 Dword::new(v[10]),
@@ -108,8 +120,8 @@ impl MenuItem {
             ],
             action: Dword::new(v[17]),
             skip_mark: Dword::new(v[18]),
-            measuring_font: Dword::new(v[19]),
-            highlight_font: Dword::new(v[20]),
+            measuring_font: FontCell::at(v[19]),
+            highlight_font: FontCell::at(v[20]),
             action_value: Dword::new(v[21]),
             spaced: Dword::new(v[22]),
         }
@@ -117,6 +129,10 @@ impl MenuItem {
 }
 
 const _: () = assert!(core::mem::size_of::<MenuItem>() == 0x5C);
+const _: () = assert!(core::mem::offset_of!(MenuItem, font) == 0x18);
+const _: () = assert!(core::mem::offset_of!(MenuItem, sprites) == 0x20);
+const _: () = assert!(core::mem::offset_of!(MenuItem, measuring_font) == 0x4C);
+const _: () = assert!(core::mem::offset_of!(MenuItem, highlight_font) == 0x50);
 
 /// A menu: the address of its labels, its `N` items and the -1 that ends them.
 #[repr(C)]
@@ -126,23 +142,47 @@ pub struct Menu<const N: usize> {
     pub end: Dword,
 }
 
+#[allow(
+    unsafe_code,
+    reason = "an `unsafe trait` impl; the derive cannot name the const parameter"
+)]
+// SAFETY: `#[repr(C)]` over a dword, `N` items and a dword, no padding (checked in `cell_run`).
+// (Written by hand: the derive's size check cannot name the const parameter.)
+unsafe impl<const N: usize> crate::pointers::Cells for Menu<N> {
+    fn cell_run(&self, offset: usize) -> (usize, crate::pointers::CellRun<'_>) {
+        const { assert!(core::mem::size_of::<Menu<1>>() == 8 + 0x5C) };
+        let items = core::mem::size_of::<[MenuItem; N]>();
+        if offset < 4 {
+            self.head.cell_run(offset)
+        } else if offset < 4 + items {
+            let (start, run) = self.items.cell_run(offset - 4);
+            (4 + start, run)
+        } else {
+            let (start, run) = self.end.cell_run(offset - 4 - items);
+            (4 + items + start, run)
+        }
+    }
+}
+
 impl<const N: usize> Menu<N> {
+    /// `head` is the IDA address of the menu's labels (0: none); the cell holds the handle.
     pub const fn new(head: u32, items: [MenuItem; N]) -> Self {
         Self {
-            head: Dword::new(head),
+            head: Dword::new(label_list_ref(head)),
             items,
             end: Dword::new(0xFFFF_FFFF),
         }
     }
 
-    /// The menu's address (its head).
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self as *const Self)
+    /// The menu (`MenuId`).
+    pub fn id(&self) -> MenuId {
+        MenuId::of(&self.head)
     }
 }
 
 /// The menus of RAL.EXE, in the image's order (IDA 0x747AD8 .. 0x755144).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MenuTables {
     /// Label list at IDA 0x747AD8 (the labels of the review_options_485f5e menu).
     pub review_options_485f5e_labels: LabelList,
@@ -536,7 +576,9 @@ pub struct MenuTables {
 
 /// First values the image's (`tests::menus_start_as_the_games`).
 #[rustfmt::skip]
-pub static MENUS: MenuTables = MenuTables {
+impl MenuTables {
+    pub const fn new() -> Self {
+        MenuTables {
         review_options_485f5e_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x514]),
         arcade_review_options_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x514]),
         review_options_4882e2_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x514]),
@@ -731,7 +773,330 @@ pub static MENUS: MenuTables = MenuTables {
         time_trial_stage_details: Menu::new(0x747F74, [MenuItem::new([0x2EB, 0x227, 0x2EB, 0x225, 0x1, 0x138, 0x51E9A4, 0xFFFFFFA7, 0x747A10, 0x1, 0x1, 0x6F, 0x6F, 0x471C81, 0x471C81, 0x471C81, 0x471C81, 0x471C82, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0])]),
         review_options_48108e: Menu::new(0x747EFC, [MenuItem::new([0x2EB, 0x77, 0x0, 0x0, 0x1, 0x515, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x7, 0x2, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x471C82, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0x92, 0x0, 0x0, 0x2, 0x518, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x1, 0x3, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x47053E, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xAD, 0x0, 0x0, 0x3, 0x519, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x2, 0x4, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x47052F, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xC8, 0x0, 0x0, 0x4, 0x51A, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x3, 0x5, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x47D8F7, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xE3, 0x0, 0x0, 0x5, 0x51F, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x4, 0x6, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x4A94EC, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xFE, 0x0, 0x0, 0x6, 0x51E, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x5, 0x7, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x4A9583, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0x119, 0x0, 0x0, 0x7, 0x1F8, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x6, 0x1, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x47E8BB, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0])]),
         review_options_481429: Menu::new(0x747F10, [MenuItem::new([0x2EB, 0x77, 0x0, 0x0, 0x1, 0x1F8, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x6, 0x2, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x471C82, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0x92, 0x0, 0x0, 0x2, 0x518, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x1, 0x3, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x47053E, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xAD, 0x0, 0x0, 0x3, 0x519, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x2, 0x4, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x47052F, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xC8, 0x0, 0x0, 0x4, 0x51A, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x3, 0x5, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x47D8F7, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xE3, 0x0, 0x0, 0x5, 0x51F, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x4, 0x6, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x4A94EC, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xFE, 0x0, 0x0, 0x6, 0x51E, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x5, 0x1, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x4A9583, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0])]),
-};
+        }
+    }
+}
+
+/// The 98 label lists, in the image's order (the first 98 fields of `MenuTables`, one after
+/// the other from IDA 0x747AD8).
+pub static LABEL_LISTS: [&LabelList; 98] = [
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .review_options_485f5e_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .arcade_review_options_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .review_options_4882e2_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .review_options_48861d_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_74bafc_labels,
+    &crate::menu::owner::MENUS.tables.menus.stage_result_labels,
+    &crate::menu::owner::MENUS.tables.menus.labels_747b50,
+    &crate::menu::owner::MENUS.tables.menus.results_48584b_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_750b94_labels,
+    &crate::menu::owner::MENUS.tables.menus.results_482e9b_labels,
+    &crate::menu::owner::MENUS.tables.menus.screen_483163_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .time_trial_results_labels,
+    &crate::menu::owner::MENUS.tables.menus.labels_747bc8,
+    &crate::menu::owner::MENUS.tables.menus.main_menu_labels,
+    &crate::menu::owner::MENUS.tables.menus.network_rally_labels,
+    &crate::menu::owner::MENUS.tables.menus.start_rally_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .championship_new_simulation_labels,
+    &crate::menu::owner::MENUS.tables.menus.new_simulation_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_749290_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_7493ac_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .simple_select_players_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .time_trial_select_players_labels,
+    &crate::menu::owner::MENUS.tables.menus.labels_747c90,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .arcade_select_level_labels,
+    &crate::menu::owner::MENUS.tables.menus.service_area_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_74d1e8_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .in_game_options_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_7509b0_labels,
+    &crate::menu::owner::MENUS.tables.menus.audio_setup_labels,
+    &crate::menu::owner::MENUS.tables.menus.advanced_audio_labels,
+    &crate::menu::owner::MENUS.tables.menus.leave_question_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .car_specification_labels,
+    &crate::menu::owner::MENUS.tables.menus.slideshow_labels,
+    &crate::menu::owner::MENUS.tables.menus.select_car_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .car_specs_47af4c_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_74ba3c_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .inspection_area_labels,
+    &crate::menu::owner::MENUS.tables.menus.welcome_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .arcade_next_stage_labels,
+    &crate::menu::owner::MENUS.tables.menus.screen_488f4c_labels,
+    &crate::menu::owner::MENUS.tables.menus.arcade_results_labels,
+    &crate::menu::owner::MENUS.tables.menus.rally_stages_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .class_stage_results_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .overall_stage_results_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .class_rally_results_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .overall_rally_results_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_74fde0_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_74fe44_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .class_championship_standings_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .championship_standings_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_74fea8_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .review_options_47d5a5_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .review_options_480d46_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .review_options_48108e_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .review_options_481429_labels,
+    &crate::menu::owner::MENUS.tables.menus.select_stage_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .time_trial_select_stage_labels,
+    &crate::menu::owner::MENUS.tables.menus.next_stage_labels,
+    &crate::menu::owner::MENUS.tables.menus.view_stage_labels,
+    &crate::menu::owner::MENUS.tables.menus.view_courses_labels,
+    &crate::menu::owner::MENUS.tables.menus.labels_747f88,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player1_controller_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player1_buttons_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player2_controller_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player2_buttons_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player3_controller_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player3_buttons_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player4_controller_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player4_buttons_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .redefine_keys_player1_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .redefine_keys_player2_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .redefine_keys_player3_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .redefine_keys_player4_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .view_best_times_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .view_best_scores_labels,
+    &crate::menu::owner::MENUS.tables.menus.best_times_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .arcade_best_times_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .time_trial_best_times_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .best_scores_48a69e_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .best_class_scores_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .best_overall_scores_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_74e168_labels,
+    &crate::menu::owner::MENUS.tables.menus.options_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_74e79c_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player1_details_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player2_details_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player3_details_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player4_details_labels,
+    &crate::menu::owner::MENUS.tables.menus.player_details_labels,
+    &crate::menu::owner::MENUS.tables.menus.information_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .load_championship_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .save_championship_labels,
+    &crate::menu::owner::MENUS.tables.menus.load_replay_labels,
+    &crate::menu::owner::MENUS.tables.menus.save_replay_labels,
+    &crate::menu::owner::MENUS.tables.menus.labels_748230,
+    &crate::menu::owner::MENUS.tables.menus.save_setup_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .visual_preferences_labels,
+    &crate::menu::owner::MENUS.tables.menus.visual_options_labels,
+];
+
+/// Tag of a label list's handle (a menu's +0): `LABEL_LIST_TAG` plus the list's byte offset
+/// in the menus' tables (its IDA address minus `START`); 0 is none.
+pub const LABEL_LIST_TAG: u32 = 0xC100_0000;
+
+/// The handle of the label list at IDA address `ida` (0 for none).
+pub const fn label_list_ref(ida: u32) -> u32 {
+    if ida == 0 {
+        0
+    } else {
+        assert!(ida as usize >= START && ida as usize - START < 0x100_0000);
+        LABEL_LIST_TAG | (ida - START as u32)
+    }
+}
+
+/// Where the label list a menu's +0 names is: its byte offset in the menus' tables; 0 for a
+/// menu without any. A handle off the lists is refused.
+pub fn labels_place_of(head: &Dword) -> Result<Option<u32>, crate::errors::BadInput> {
+    match head.get() {
+        0 => Ok(None),
+        h if h & 0xFF00_0000 == LABEL_LIST_TAG
+            && ((h & 0xFF_FFFF) as usize) < LABEL_LISTS.len() * LABEL_LIST_LEN =>
+        {
+            Ok(Some(h & 0xFF_FFFF))
+        }
+        _ => Err(crate::errors::BadInput(
+            "a menu's labels off the label lists",
+        )),
+    }
+}
+
+/// The place `offset` bytes on from the labels a menu's +0 names, bounded to the menus' store;
+/// None for a menu without labels. For the original's slip of writing item 1 of the "menu"
+/// its labels would be (`notes/bugs.md`): the place lands in the labels' memory.
+pub fn labels_slot(
+    menus: &Menus,
+    head: &Dword,
+    offset: u32,
+) -> Result<Option<crate::pointers::GamePtr>, crate::errors::BadInput> {
+    let Some(at) = labels_place_of(head)? else {
+        return Ok(None);
+    };
+    Ok(Some(
+        crate::pointers::GamePtr::to(&menus.tables.menus).offset(at.wrapping_add(offset)),
+    ))
+}
+
+/// The font of the label whose font field is `at` bytes into the menus' tables (in the label
+/// lists; `screens::draw_menu_labels` walks them by offset). Refused: a place that is no label's
+/// font (the walk gone off the lists' grid: the original would take what is there for a
+/// font object's address).
+pub fn label_font(at: u32) -> Result<crate::gfx::typefaces::FontId, crate::errors::BadInput> {
+    let off = at as usize;
+    if off >= LABEL_LISTS.len() * LABEL_LIST_LEN || off % LABEL_LIST_LEN != 8 {
+        return Err(crate::errors::BadInput("a label's font read off a label"));
+    }
+    Ok(LABEL_LISTS[off / LABEL_LIST_LEN].label.font.get())
+}
+
+/// A label list's length.
+const LABEL_LIST_LEN: usize = core::mem::size_of::<LabelList>();
+
+const _: () = assert!(LABEL_LIST_LEN == 0x14);
+const _: () = assert!(core::mem::offset_of!(MenuLabel, font) == 8);
+const _: () = assert!(core::mem::offset_of!(MenuTables, visual_options_labels) == 97 * 0x14);
 
 /// IDA 0x747AD8, the first byte of the piece.
 pub const START: usize = 0x747AD8;
@@ -739,26 +1104,900 @@ pub const START: usize = 0x747AD8;
 pub const END: usize = 0x755144;
 
 /// Where IDA 0x747AD8 is now (`moved::MOVED`'s home).
-pub fn menus_addr() -> u32 {
-    crate::pointers::game_address(&MENUS as *const MenuTables)
+#[cfg(test)]
+pub fn menus_addr(tables: &crate::menu::owner::Tables) -> u32 {
+    crate::pointers::game_address(&raw const tables.menus)
+}
+
+/// A menu by handle (phase 13, 2026-10-28): its number among `MENUS`' menus, in the image's
+/// order. The current menu (`LOOP_FLAGS.menu`), the keys menu and the item calls hold
+/// one in place of the menu's address.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MenuId(u16);
+
+/// The number of menus.
+pub const MENU_COUNT: u16 = 96;
+
+impl MenuId {
+    /// The menu's head (the address of its labels) and its items.
+    fn parts(self) -> (&'static Dword, &'static [MenuItem]) {
+        let tables = &menus().tables;
+        match self.0 {
+            0 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .visual_preferences
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .visual_preferences
+                    .items,
+            ),
+            1 => (
+                &tables.menus.select_stage.head,
+                &tables.menus.select_stage.items,
+            ),
+            2 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_select_stage
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_select_stage
+                    .items,
+            ),
+            3 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_select_players
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_select_players
+                    .items,
+            ),
+            4 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .simple_select_players
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .simple_select_players
+                    .items,
+            ),
+            5 => (&tables.menus.main_menu.head, &tables.menus.main_menu.items),
+            6 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .arcade_select_level
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .arcade_select_level
+                    .items,
+            ),
+            7 => (
+                &tables.menus.network_rally.head,
+                &tables.menus.network_rally.items,
+            ),
+            8 => (
+                &tables.menus.menu_749290.head,
+                &tables.menus.menu_749290.items,
+            ),
+            9 => (
+                &tables.menus.menu_7493ac.head,
+                &tables.menus.menu_7493ac.items,
+            ),
+            10 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .championship_new_simulation
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .championship_new_simulation
+                    .items,
+            ),
+            11 => (
+                &tables.menus.new_simulation.head,
+                &tables.menus.new_simulation.items,
+            ),
+            12 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .player1_controller
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .player1_controller
+                    .items,
+            ),
+            13 => (
+                &tables.menus.player1_buttons.head,
+                &tables.menus.player1_buttons.items,
+            ),
+            14 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .player2_controller
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .player2_controller
+                    .items,
+            ),
+            15 => (
+                &tables.menus.player2_buttons.head,
+                &tables.menus.player2_buttons.items,
+            ),
+            16 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .player3_controller
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .player3_controller
+                    .items,
+            ),
+            17 => (
+                &tables.menus.player3_buttons.head,
+                &tables.menus.player3_buttons.items,
+            ),
+            18 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .player4_controller
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .player4_controller
+                    .items,
+            ),
+            19 => (
+                &tables.menus.player4_buttons.head,
+                &tables.menus.player4_buttons.items,
+            ),
+            20 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .car_specification
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .car_specification
+                    .items,
+            ),
+            21 => (&tables.menus.slideshow.head, &tables.menus.slideshow.items),
+            22 => (
+                &tables.menus.select_car.head,
+                &tables.menus.select_car.items,
+            ),
+            23 => (
+                &tables.menus.car_specs_47af4c.head,
+                &tables.menus.car_specs_47af4c.items,
+            ),
+            24 => (
+                &tables.menus.menu_74ba3c.head,
+                &tables.menus.menu_74ba3c.items,
+            ),
+            25 => (
+                &tables.menus.menu_74bafc.head,
+                &tables.menus.menu_74bafc.items,
+            ),
+            26 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .redefine_keys_player1
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .redefine_keys_player1
+                    .items,
+            ),
+            27 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .redefine_keys_player2
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .redefine_keys_player2
+                    .items,
+            ),
+            28 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .redefine_keys_player3
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .redefine_keys_player3
+                    .items,
+            ),
+            29 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .redefine_keys_player4
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .redefine_keys_player4
+                    .items,
+            ),
+            30 => (
+                &tables.menus.audio_setup.head,
+                &tables.menus.audio_setup.items,
+            ),
+            31 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .arcade_next_stage
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .arcade_next_stage
+                    .items,
+            ),
+            32 => (
+                &tables.menus.screen_488f4c.head,
+                &tables.menus.screen_488f4c.items,
+            ),
+            33 => (
+                &tables.menus.arcade_results.head,
+                &tables.menus.arcade_results.items,
+            ),
+            34 => (
+                &tables.menus.menu_74d1e8.head,
+                &tables.menus.menu_74d1e8.items,
+            ),
+            35 => (
+                &tables.menus.service_area.head,
+                &tables.menus.service_area.items,
+            ),
+            36 => (
+                &tables.menus.next_stage.head,
+                &tables.menus.next_stage.items,
+            ),
+            37 => (
+                &tables.menus.view_stage.head,
+                &tables.menus.view_stage.items,
+            ),
+            38 => (
+                &tables.menus.rally_stages.head,
+                &tables.menus.rally_stages.items,
+            ),
+            39 => (
+                &tables.menus.view_courses.head,
+                &tables.menus.view_courses.items,
+            ),
+            40 => (
+                &tables.menus.view_best_times.head,
+                &tables.menus.view_best_times.items,
+            ),
+            41 => (
+                &tables.menus.best_times.head,
+                &tables.menus.best_times.items,
+            ),
+            42 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .arcade_best_times
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .arcade_best_times
+                    .items,
+            ),
+            43 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_best_times
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_best_times
+                    .items,
+            ),
+            44 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .best_scores_48a69e
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .best_scores_48a69e
+                    .items,
+            ),
+            45 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .best_class_scores
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .best_class_scores
+                    .items,
+            ),
+            46 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .best_overall_scores
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .best_overall_scores
+                    .items,
+            ),
+            47 => (
+                &tables.menus.menu_74e168.head,
+                &tables.menus.menu_74e168.items,
+            ),
+            48 => (
+                &tables.menus.start_rally.head,
+                &tables.menus.start_rally.items,
+            ),
+            49 => (&tables.menus.options.head, &tables.menus.options.items),
+            50 => (
+                &tables.menus.menu_74e79c.head,
+                &tables.menus.menu_74e79c.items,
+            ),
+            51 => (
+                &tables.menus.player_details.head,
+                &tables.menus.player_details.items,
+            ),
+            52 => (
+                &tables.menus.player1_details.head,
+                &tables.menus.player1_details.items,
+            ),
+            53 => (
+                &tables.menus.player2_details.head,
+                &tables.menus.player2_details.items,
+            ),
+            54 => (
+                &tables.menus.player3_details.head,
+                &tables.menus.player3_details.items,
+            ),
+            55 => (
+                &tables.menus.player4_details.head,
+                &tables.menus.player4_details.items,
+            ),
+            56 => (
+                &tables.menus.information.head,
+                &tables.menus.information.items,
+            ),
+            57 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .class_stage_results
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .class_stage_results
+                    .items,
+            ),
+            58 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .overall_stage_results
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .overall_stage_results
+                    .items,
+            ),
+            59 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .class_rally_results
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .class_rally_results
+                    .items,
+            ),
+            60 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .overall_rally_results
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .overall_rally_results
+                    .items,
+            ),
+            61 => (
+                &tables.menus.menu_74fde0.head,
+                &tables.menus.menu_74fde0.items,
+            ),
+            62 => (
+                &tables.menus.menu_74fe44.head,
+                &tables.menus.menu_74fe44.items,
+            ),
+            63 => (
+                &tables.menus.menu_74fea8.head,
+                &tables.menus.menu_74fea8.items,
+            ),
+            64 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .class_championship_standings
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .class_championship_standings
+                    .items,
+            ),
+            65 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .championship_standings
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .championship_standings
+                    .items,
+            ),
+            66 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_47d5a5
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_47d5a5
+                    .items,
+            ),
+            67 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_480d46
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_480d46
+                    .items,
+            ),
+            68 => (
+                &tables.menus.inspection_area.head,
+                &tables.menus.inspection_area.items,
+            ),
+            69 => (&tables.menus.welcome.head, &tables.menus.welcome.items),
+            70 => (
+                &tables.menus.in_game_options.head,
+                &tables.menus.in_game_options.items,
+            ),
+            71 => (
+                &tables.menus.menu_7509b0.head,
+                &tables.menus.menu_7509b0.items,
+            ),
+            72 => (
+                &tables.menus.stage_result.head,
+                &tables.menus.stage_result.items,
+            ),
+            73 => (
+                &tables.menus.results_48584b.head,
+                &tables.menus.results_48584b.items,
+            ),
+            74 => (
+                &tables.menus.menu_750b94.head,
+                &tables.menus.menu_750b94.items,
+            ),
+            75 => (
+                &tables.menus.results_482e9b.head,
+                &tables.menus.results_482e9b.items,
+            ),
+            76 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_results
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_results
+                    .items,
+            ),
+            77 => (
+                &tables.menus.screen_483163.head,
+                &tables.menus.screen_483163.items,
+            ),
+            78 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_485f5e
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_485f5e
+                    .items,
+            ),
+            79 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .arcade_review_options
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .arcade_review_options
+                    .items,
+            ),
+            80 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_4882e2
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_4882e2
+                    .items,
+            ),
+            81 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_48861d
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_48861d
+                    .items,
+            ),
+            82 => (
+                &tables.menus.view_best_scores.head,
+                &tables.menus.view_best_scores.items,
+            ),
+            83 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .load_championship
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .load_championship
+                    .items,
+            ),
+            84 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .save_championship
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .save_championship
+                    .items,
+            ),
+            85 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .load_championship_46e899
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .load_championship_46e899
+                    .items,
+            ),
+            86 => (
+                &tables.menus.save_setup.head,
+                &tables.menus.save_setup.items,
+            ),
+            87 => (
+                &tables.menus.save_replay.head,
+                &tables.menus.save_replay.items,
+            ),
+            88 => (
+                &tables.menus.load_replay.head,
+                &tables.menus.load_replay.items,
+            ),
+            89 => (
+                &tables.menus.leave_question.head,
+                &tables.menus.leave_question.items,
+            ),
+            90 => (
+                &tables.menus.visual_options.head,
+                &tables.menus.visual_options.items,
+            ),
+            91 => (
+                &tables.menus.advanced_audio.head,
+                &tables.menus.advanced_audio.items,
+            ),
+            92 => (
+                &tables.menus.menu_754bc0.head,
+                &tables.menus.menu_754bc0.items,
+            ),
+            93 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_stage_details
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_stage_details
+                    .items,
+            ),
+            94 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_48108e
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_48108e
+                    .items,
+            ),
+            95 => (
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_481429
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_481429
+                    .items,
+            ),
+            _ => unreachable!("a menu handle is made only from a menu"),
+        }
+    }
+
+    /// The menu's +0: the handle of its labels (`label_list_ref`; `labels_place` finds them).
+    pub fn labels(self) -> &'static Dword {
+        self.parts().0
+    }
+
+    /// The offset of the menu's labels in the menus' tables; None for a menu without any.
+    pub fn labels_place(self) -> Result<Option<u32>, crate::errors::BadInput> {
+        labels_place_of(self.labels())
+    }
+
+    /// The menu's items (the -1 after them is `MenuItem::END`'s place: not among them).
+    pub fn items(self) -> &'static [MenuItem] {
+        self.parts().1
+    }
+
+    /// Item `number` (from 1). Refused: item 0, for which the original counts through all
+    /// 32 bits, and one past the menu's end (the original reads on into what follows).
+    pub fn item(self, number: u32) -> Result<&'static MenuItem, crate::errors::BadInput> {
+        if number == 0 {
+            return Err(crate::errors::BadInput(
+                "item number 0: the original counts through all 32 bits",
+            ));
+        }
+        self.items()
+            .get(number as usize - 1)
+            .ok_or(crate::errors::BadInput("an item past its menu's end"))
+    }
+
+    /// What a cell holds for it (0 is none).
+    pub fn code(self) -> u32 {
+        self.0 as u32 + 1
+    }
+
+    /// The menu a cell's `code` names.
+    pub fn from_code(code: u32) -> Result<MenuId, crate::errors::BadInput> {
+        match code {
+            1..=0xFFFF if code - 1 < MENU_COUNT as u32 => Ok(MenuId((code - 1) as u16)),
+            _ => Err(crate::errors::BadInput("no current menu")),
+        }
+    }
+
+    fn of(head: &Dword) -> MenuId {
+        (0..MENU_COUNT)
+            .map(MenuId)
+            .find(|m| std::ptr::eq(m.labels(), head))
+            .expect("a menu of MENUS'")
+    }
+}
+
+/// A menu pointer: none (0, as the image starts) or a menu.
+#[repr(transparent)]
+#[derive(rc2k_derive::Cells)]
+pub struct MenuCell(Dword);
+
+impl MenuCell {
+    pub const fn new() -> Self {
+        MenuCell(Dword::new(0))
+    }
+
+    pub fn get(&self) -> Result<MenuId, crate::errors::BadInput> {
+        MenuId::from_code(self.0.get())
+    }
+
+    pub fn set(&self, menu: MenuId) {
+        self.0.set(menu.code());
+    }
+}
+
+impl Default for MenuCell {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl MenuItem {
+    /// The dword after a menu's last item, and an item's `x` that ends the walk.
+    pub const END: u32 = 0xFFFF_FFFF;
+}
+
+#[cfg(test)]
+impl MenuItem {
+    fn addr(&self) -> u32 {
+        crate::pointers::game_address(std::ptr::from_ref::<Self>(self))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::menu::item_sprites_store::ItemSprite;
     use crate::moved::image_bytes;
     use core::mem::{offset_of, size_of};
 
     #[test]
+    fn menu_heads_name_label_lists() {
+        for n in 0..MENU_COUNT {
+            let head = MenuId(n).labels().get();
+            assert!(
+                head == 0 || MenuId(n).labels_place().is_ok(),
+                "menu {n}: {head:#X}"
+            );
+        }
+    }
+
+    #[test]
+    fn menus_by_handle() {
+        let menu_tables = &menus().tables;
+        for n in 0..MENU_COUNT {
+            let m = MenuId(n);
+            assert_eq!(MenuId::from_code(m.code()).unwrap(), m);
+            assert_eq!(MenuId::of(m.labels()), m);
+            // The -1 after the items is the dword right after the last: read through the
+            // whole tables (a reference to the last item reaches no further than it).
+            let tables = std::ptr::from_ref(&menu_tables.menus).cast::<u8>();
+            let last = std::ptr::from_ref::<MenuItem>(m.items().last().unwrap());
+            let after = last.addr() + size_of::<MenuItem>() - tables.addr();
+            assert!(after + 4 <= size_of::<MenuTables>());
+            assert_eq!(
+                unsafe { (*tables.add(after).cast::<Dword>()).get() },
+                MenuItem::END
+            );
+        }
+        assert_eq!(
+            menu_tables.menus.stage_result.id().items().len(),
+            menu_tables.menus.stage_result.items.len()
+        );
+        assert!(MenuId::from_code(0).is_err());
+        assert!(menu_tables.menus.select_stage.id().item(0).is_err());
+        let c = MenuCell::new();
+        assert!(c.get().is_err());
+        c.set(menu_tables.menus.service_area.id());
+        assert_eq!(c.get().unwrap(), menu_tables.menus.service_area.id());
+    }
+
+    #[test]
     fn menus_start_as_the_games() {
+        let tables = &menus().tables;
         assert_eq!(size_of::<MenuTables>(), END - START);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(menus_addr()) as *const u8,
+                crate::pointers::host(menus_addr(tables)).cast_const(),
                 END - START,
             )
         };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
+        // The items' and labels' fonts are kept as `FontCell`s: compared by the objects' IDA
+        // addresses.
+        let mut mine = mine.to_vec();
+        for item in (0..MENU_COUNT).flat_map(|n| MenuId(n).items()) {
+            let at = (item.addr() - menus_addr(tables)) as usize;
+            for (off, cell) in [
+                (0x18, &item.font),
+                (0x4C, &item.measuring_font),
+                (0x50, &item.highlight_font),
+            ] {
+                mine[at + off..at + off + 4]
+                    .copy_from_slice(&(cell.get().ida() as u32).to_le_bytes());
+            }
+            let sprites = match item.sprites.get() {
+                ItemSprite::Sprite(n) => n,
+                ItemSprite::List(n) => (crate::menu::item_sprites_store::START + 0x14 * n) as u32,
+            };
+            mine[at + 0x20..at + 0x24].copy_from_slice(&sprites.to_le_bytes());
+        }
+        for n in 0..MENU_COUNT {
+            // The head holds a handle: the image's cell holds the list's IDA address.
+            let head = MenuId(n).labels();
+            let at = (crate::pointers::game_address(std::ptr::from_ref(head)) - menus_addr(tables))
+                as usize;
+            let ida = match labels_place_of(head).unwrap() {
+                Some(off) => START as u32 + off,
+                None => 0,
+            };
+            mine[at..at + 4].copy_from_slice(&ida.to_le_bytes());
+        }
+        for (n, list) in LABEL_LISTS.iter().enumerate() {
+            let at = n * LABEL_LIST_LEN + 8;
+            mine[at..at + 4].copy_from_slice(&(list.label.font.get().ida() as u32).to_le_bytes());
+        }
+        assert_eq!(mine, image_bytes(START, END - START));
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(
             offset_of!(MenuTables, review_options_485f5e_labels),

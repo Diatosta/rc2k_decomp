@@ -1,8 +1,6 @@
 //! `sound::repeat_spot_voices` (0x40EB44): each voice heard and not playing told when to
 //! start again: a random delay of its kind and, while its repeats last, a restart.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` / `popa`)
 //! For each voice heard (+4 1) and not playing: its kind's record (`unk_517FAC`, 8 bytes
 //! from kind 1: words +2 the most repeats, +4 and +6 the least and most delay): +0x30 =
 //! the least + `math::random_below` (most - least) (as words; no call when they are
@@ -18,10 +16,12 @@ use crate::errors::Refused;
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::spot_voices::repeat`.
-pub fn repeat_spot_voices() -> Result<(), Refused> {
+pub fn repeat_spot_voices(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     use crate::sound::spot_voices::{load_voices, store_voices};
     use rc2k_core::sound::spot_voices::{Repeats, repeat};
-    let table_of = crate::sound::store::SPOT_PICKS
+    let table_of = sound
+        .race
+        .spot_picks
         .kind_repeats
         .each_ref()
         .map(|r| Repeats {
@@ -29,10 +29,10 @@ pub fn repeat_spot_voices() -> Result<(), Refused> {
             least_delay: r.least_delay.get(),
             most_delay: r.most_delay.get(),
         });
-    let mut voices = load_voices();
+    let mut voices = load_voices(sound);
     repeat::<Refused>(&mut voices, &table_of, |_, range| {
         Ok({ crate::math::random_below::random_below(range) }?)
     })?;
-    store_voices(&voices);
+    store_voices(sound, &voices);
     Ok(())
 }

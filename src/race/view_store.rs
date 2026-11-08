@@ -5,9 +5,12 @@
 //! counts. `#[repr(C)]` with the image's layout, over the race block's bytes (`RACE_VIEW`), as
 //! `CAR`. Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceView {
     /// +0x0 (0x63D9B8): `g_reflectionsKept` (`scene::cached_reflection_coordinates`).
     pub reflections_kept: Dword,
@@ -93,7 +96,8 @@ pub struct RaceView {
     pub shown_car: Dword,
     /// +0x1f0 (0x63DBA8): each view's car.
     pub view_cars: [Dword; 2],
-    /// +0x1f8 (0x63DBB0): `g_viewBlocks`: each view's car block.
+    /// +0x1f8 (0x63DBB0): `g_viewBlocks`: each view's car block (by handle:
+    /// `blocks_store::block_ref`; read through `view_block`).
     pub view_blocks: [Dword; 2],
     /// +0x200 (0x63DBB8): cleared by `race::draw_race_scene`.
     pub view_cleared: [Dword; 32],
@@ -115,21 +119,32 @@ pub struct RaceView {
     pub view_depth: [Dword; 2],
 }
 
-/// The piece: the race block's bytes at IDA 0x63D9B8 seen as `RaceView`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = RaceView;
-    fn deref(&self) -> &RaceView {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const RaceView) }
+impl RaceView {
+    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+    /// `race::store::LEFT`), with the image's first values.
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::blocks_store::with_block_refs(
+            crate::race::store::first_values::<{ END - START }>(START),
+            crate::race::blocks_store::VIEW_BLOCKS_IDA - START,
+            2,
+        ))
     }
 }
 
-pub static RACE_VIEW: InRaceBlock = InRaceBlock;
+impl RaceView {
+    /// View `n`'s car block (`g_viewBlocks[n]`, kept by handle: `blocks_store::block_of`).
+    pub fn view_block(&self, n: usize) -> u32 {
+        crate::race::blocks_store::block_of(self.view_blocks[n].get())
+    }
+
+    /// View `n`'s car block (None for none).
+    pub fn view_car(&self, n: usize) -> Option<&'static crate::physics::car_store::Car> {
+        crate::race::blocks_store::car_of(self.view_blocks[n].get())
+    }
+}
 
 /// IDA 0x63D9B8, the first byte of the piece.
 pub const START: usize = 0x63D9B8;
@@ -138,9 +153,10 @@ pub const END: usize = 0x63DC5C;
 
 const _: () = assert!(END - START == core::mem::size_of::<RaceView>());
 
-/// Where IDA 0x63D9B8 is now (in the race block).
+/// Where IDA 0x63D9B8 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&race().shared.view))
 }
 
 #[cfg(test)]
@@ -149,7 +165,20 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        let at = crate::race::blocks_store::VIEW_BLOCKS_IDA - START;
+        crate::gfx::first_values_are_the_games_but(&race().shared.view, START, END, |image| {
+            for k in 0..2 {
+                let o = at + 4 * k;
+                let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+                image[o..o + 4]
+                    .copy_from_slice(&crate::race::blocks_store::block_ref(v).to_le_bytes());
+            }
+        });
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

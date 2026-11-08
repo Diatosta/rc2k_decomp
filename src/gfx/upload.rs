@@ -13,6 +13,7 @@ pub const LEN: usize = 0x5ABA8C - START;
 /// A DirectDraw surface description (DDSURFACEDESC, 0x6C bytes), filled by a surface's
 /// `Lock`; the game's code reads its fields by their DirectDraw offsets.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SurfaceDesc {
     /// `dwSize` (`dword_5ABA18`).
     pub size: Dword,
@@ -39,6 +40,7 @@ pub struct SurfaceDesc {
 
 /// The upload's variables.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Upload {
     /// `dword_5ABA18`: the description a `Lock` fills.
     pub description: SurfaceDesc,
@@ -52,64 +54,69 @@ const fn zeros<const N: usize>() -> [Dword; N] {
     [const { Dword::new(0) }; N]
 }
 
-/// The upload's variables; the first values are the image's.
-pub static UPLOAD: Upload = Upload {
-    description: SurfaceDesc {
-        size: Dword::new(0),
-        flags: Dword::new(0),
-        height: Dword::new(0),
-        width: Dword::new(0),
-        pitch: Dword::new(0),
-        counts: zeros(),
-        pixels: Dword::new(0),
-        colour_keys: zeros(),
-        pixel_format: zeros(),
-        caps: Dword::new(0),
-    },
-    _gap_6c: Dword::new(0),
-    trying: Dword::new(0),
-};
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x5ABA18).
-pub fn home() -> usize {
-    crate::pointers::game_address(&UPLOAD as *const Upload) as usize
+impl Upload {
+    /// The upload's variables; the first values are the image's.
+    pub const fn new() -> Self {
+        Upload {
+            description: SurfaceDesc {
+                size: Dword::new(0),
+                flags: Dword::new(0),
+                height: Dword::new(0),
+                width: Dword::new(0),
+                pitch: Dword::new(0),
+                counts: zeros(),
+                pixels: Dword::new(0),
+                colour_keys: zeros(),
+                pixel_format: zeros(),
+                caps: Dword::new(0),
+            },
+            _gap_6c: Dword::new(0),
+            trying: Dword::new(0),
+        }
+    }
 }
 
 impl SurfaceDesc {
-    /// Where the description is, for the surface's `Lock`.
+    /// Where the description is (the tests).
+    #[cfg(test)]
     pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self as *const SurfaceDesc)
+        crate::pointers::game_address(std::ptr::from_ref::<SurfaceDesc>(self))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gfx::owner::gfx;
     use core::mem::{offset_of, size_of};
 
     #[test]
     fn first_values_are_the_games() {
         assert_eq!(size_of::<SurfaceDesc>(), 0x6C);
-        crate::gfx::first_values_are_the_games(&UPLOAD, START, START + LEN);
+        crate::gfx::first_values_are_the_games(&gfx().card.upload, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
+        let card = &gfx().card;
         assert_eq!(offset_of!(SurfaceDesc, pitch), 0x10);
         assert_eq!(offset_of!(SurfaceDesc, pixels), 0x24);
         assert_eq!(offset_of!(Upload, trying), 0x5ABA88 - START);
         assert_eq!(
             crate::moved::place(START),
-            UPLOAD.description.addr() as usize
+            card.upload.description.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x5ABA28),
-            UPLOAD.description.pitch.addr() as usize
+            card.upload.description.pitch.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x5ABA3C),
-            UPLOAD.description.pixels.addr() as usize
+            card.upload.description.pixels.addr() as usize
         );
-        assert_eq!(crate::moved::place(0x5ABA88), UPLOAD.trying.addr() as usize);
+        assert_eq!(
+            crate::moved::place(0x5ABA88),
+            card.upload.trying.addr() as usize
+        );
     }
 }

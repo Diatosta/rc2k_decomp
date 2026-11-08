@@ -5,52 +5,39 @@
 //! `flt_5C78F8` = the length times the step `flt_61388C`, the turn's matrix into
 //! `flt_5C7010` (`physics::axis_turn_matrix`) and squared (`scene::square_matrix`),
 //! `g_crashMatrix` times it into `g_turnedMatrix` (`scene::multiply_matrices`) and copied
-//! back (16 dwords, `rep movsd` in `pusha` / `popa`). Then `g_crashMatrix` squared.
+//! back (16 dwords, `rep movsd`). Then `g_crashMatrix` squared.
 //!
-//! In:  nothing
-//! Out: esi `g_crashMatrix`; when the spin is not 0, also ecx and edx 0 (`multiply_
-//!      matrices`), edi `flt_5C7010`, ebp `g_turnedMatrix`; the rest kept; no flags read
-//!
-//! Callers: `sub_43B635` (0x43B82C, 0x43B8A5), every physics step.
+//! Callers: `physics::car_physics_step` (0x43B82C, 0x43B8A5), every physics step.
 
 use crate::math::x87;
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
-use crate::race::course_lists_store::COURSE_LISTS;
-use crate::race::matrices_store::MATRICES;
+use crate::race::owner::Race;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
 
 /// The Rust version.
-pub unsafe fn spin_matrix() {
-    unsafe {
-        CAR.spin_length
-            .set_bits(rounded(vector_length(CAR.spin[0].addr())));
-        if CAR.spin_length.bits() != 0 {
-            let lists = &*COURSE_LISTS;
-            let turn = lists.turn_matrix[0].addr();
-            let turned = MATRICES.turned_matrix[0].addr();
-            unit_vector(
-                (CAR.spin[0].addr()) as usize,
-                lists.spin_axis_x.addr() as usize,
-            );
-            lists
-                .spin_angle
-                .set_bits(x87::mul(CAR.spin_length.bits(), PHYSICS.step_time.bits()));
-            axis_turn_matrix(turn);
-            square_matrix(turn as usize);
-            multiply_matrices(
-                (CAR.crash_matrix[0].addr()) as usize,
-                turn as usize,
-                turned as usize,
-            );
-            for k in 0..16 {
-                CAR.crash_matrix[k].set_bits(MATRICES.turned_matrix[k].bits());
-            }
+pub fn spin_matrix(race: &Race) {
+    race.shared
+        .car
+        .spin_length
+        .set_bits(rounded(vector_length(&race.shared.car.spin)));
+    if race.shared.car.spin_length.bits() != 0 {
+        let lists = &race.course.lists;
+        let turn = &lists.turn_matrix;
+        let turned = &race.frame.matrices.turned_matrix;
+        unit_vector(&race.course, &race.shared.car.spin, &lists.spin_axis);
+        lists.spin_angle.set_bits(x87::mul(
+            race.shared.car.spin_length.bits(),
+            race.shared.physics_tables.step_time.bits(),
+        ));
+        axis_turn_matrix(&race.course, turn);
+        square_matrix(&race.course, turn);
+        multiply_matrices(&race.shared.car.crash_matrix, turn, turned);
+        for k in 0..16 {
+            race.shared.car.crash_matrix[k].set_bits(race.frame.matrices.turned_matrix[k].bits());
         }
-        square_matrix((CAR.crash_matrix[0].addr()) as usize);
     }
+    square_matrix(&race.course, &race.shared.car.crash_matrix);
 }

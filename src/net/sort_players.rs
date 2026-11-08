@@ -3,16 +3,14 @@
 //! the race's time (+0x2C), then the DirectPlay id (+0x20), unsigned, the smaller first; a
 //! player whose time is -1 (no time) goes after one who has a time.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //! `g_netPlayers` - 1 passes (signed: none for one player or none). More than eight players
 //! would sort past the copy: refused (DirectPlay's listing keeps eight at most). Caller:
 //! `net::lobby_frame`.
 
 use crate::errors::{BadInput, Refused};
-use crate::net::lobby::movsb;
-use crate::net::store::{NET, PlayerBlock};
-use crate::pointers::GamePtr;
+use crate::net::store::NetVars;
+use crate::net::store::PlayerBlock;
+use crate::pointers::Store;
 use rc2k_core::net::players::{self, Standing};
 
 const BLOCK: u32 = std::mem::size_of::<PlayerBlock>() as u32;
@@ -29,16 +27,13 @@ fn standing(block: &PlayerBlock) -> Standing {
 
 /// The two blocks swapped, a dword at a time.
 pub fn swap_blocks(one: &PlayerBlock, two: &PlayerBlock) -> Result<(), BadInput> {
-    let (one, two) = (
-        GamePtr::new(crate::pointers::game_address(one as *const PlayerBlock)),
-        GamePtr::new(crate::pointers::game_address(two as *const PlayerBlock)),
-    );
-    for n in 0..BLOCK / 4 {
-        let v = one.offset(4 * n).read::<u32>("a player's block")?;
-        let w = two.offset(4 * n).read::<u32>("a player's block")?;
-        one.offset(4 * n).write(w, "a player's block")?;
-        two.offset(4 * n).write(v, "a player's block")?;
-    }
+    // Two player blocks swapped as dwords: whole blocks of bytes.
+    let mut first = vec![0u8; BLOCK as usize];
+    let mut second = vec![0u8; BLOCK as usize];
+    Store::load(one, 0, &mut first)?;
+    Store::load(two, 0, &mut second)?;
+    Store::store(one, 0, &second)?;
+    Store::store(two, 0, &first)?;
     Ok(())
 }
 
@@ -60,19 +55,17 @@ pub fn bubble_blocks(
 }
 
 /// The Rust version (the original keeps every register).
-pub fn sort_players() -> Result<(), Refused> {
-    let players = NET.players.get();
+pub fn sort_players(vars: &NetVars) -> Result<(), Refused> {
+    let players = vars.players.get();
     if players > players::MOST {
         return Err(BadInput("more than eight players").into());
     }
-    movsb(
-        crate::pointers::game_address(NET.sorted.as_ptr()),
-        crate::pointers::game_address(NET.received.as_ptr()),
-        ALL,
-    )?;
+    let mut all = vec![0u8; ALL as usize];
+    Store::load(&vars.received, 0, &mut all)?;
+    Store::store(&vars.sorted, 0, &all)?;
     // Converted: `rc2k_core::net::players` (`bubble`, `goes_after`).
     // `k + 1` is at most 7: `players` is at most eight.
-    let sorted = &NET.sorted;
+    let sorted = &vars.sorted;
     bubble_blocks(
         players,
         |k| {

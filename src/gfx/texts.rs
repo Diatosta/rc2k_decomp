@@ -33,11 +33,6 @@ pub static FNT23: [u8; 25] = *b"files\\d\\fnt\\fnt23_00.pcx\0";
 /// IDA 0x5297C5: the text files\d\fnt\fnt27_00.pcx (a NUL ends it).
 pub static FNT27: [u8; 25] = *b"files\\d\\fnt\\fnt27_00.pcx\0";
 
-/// The text's address for the game's functions (they take a pointer).
-pub fn address(text: &'static [u8]) -> u32 {
-    crate::pointers::game_address(text.as_ptr())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

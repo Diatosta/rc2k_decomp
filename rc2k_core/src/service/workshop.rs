@@ -2,31 +2,33 @@
 //! from `service::apply_repairs` 0x46C14D): each chosen repair shown being done, a frame
 //! at a time, then the chosen setup installed.
 //!
-//! A chosen item is one whose flag (`dword_759B6E`) is exactly 1. The car's dwords by
-//! offset: +0xCC + 4 x item the parts' damage (the tyres' at +0x108), +0x10C the tyre,
-//! +0x114 the ride height, +0x118 the stiffness, +0x120 the gear ratio, +0x17C .. +0x1F4
-//! the parts' wear, +0x24C eight dwords of the body's state, +0x278 the state bits.
+//! A chosen item is one whose flag (`dword_759B6E`) is exactly 1. Items 2 .. 0xF are the
+//! car's parts, their damage `Player::damage[item - 2]` (the tyres' the last).
 
-/// The car's damage of item 0 (+4 an item).
-pub const DAMAGE: u32 = 0xCC;
+use crate::menu::player::Player;
+use crate::service::car::Part;
+
 pub const BODY: u32 = 3;
 pub const GEARBOX: u32 = 0xE;
 pub const TYRES: u32 = 0xF;
-/// The car's state bits, and the body's eight dwords of state.
-pub const STATE_BITS: u32 = 0x278;
-pub const BODY_STATE: u32 = 0x24C;
-/// The state bits a repaired part sets: the tyres', the body's (all the others).
+/// The state bits a repaired part sets in `state_flags`: the tyres', the body's (all the
+/// others).
 pub const TYRE_BITS: u32 = 0x1E;
 pub const BODY_BITS: u32 = 0xFFFF_FFE1;
 
-/// (item, first offset in the car, dwords) zeroed before the repairs are shown.
-pub const RESET_RUNS: [(u32, u32, u32); 5] = [
-    (GEARBOX, 0x17C, 10),
-    (BODY, 0x1A4, 6),
-    (7, 0x1BC, 7),
-    (0xB, 0x1D8, 5),
-    (0xD, 0x1EC, 3),
+/// The parts whose wear is zeroed before the repairs are shown, by item.
+pub const RESET_RUNS: [(u32, Part); 5] = [
+    (GEARBOX, Part::Gearbox),
+    (BODY, Part::Body),
+    (7, Part::Lights),
+    (0xB, Part::Suspension),
+    (0xD, Part::Brakes),
 ];
+
+/// An item's damage.
+fn damage(car: &mut Player, item: u32) -> &mut u32 {
+    &mut car.damage[item as usize - 2]
+}
 
 /// The order the repairs are shown in.
 pub const REPAIR_ORDER: [u32; 14] = [2, 4, 6, 8, 0xA, 0xC, GEARBOX, 3, 5, 7, 9, 0xB, 0xD, TYRES];
@@ -40,7 +42,7 @@ pub const PAUSE_MS: i32 = 500;
 pub const END_SLEEP_MS: u32 = 1000;
 
 /// The setup values the work installs (the chosen one made the installed one and the
-/// car's), with their items and the car's offsets.
+/// car's), with their items.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Setting {
     GearRatio,
@@ -51,12 +53,12 @@ pub enum Setting {
 
 impl Setting {
     /// Where the car keeps it.
-    pub fn offset(self) -> u32 {
+    pub fn of(self, car: &mut Player) -> &mut u32 {
         match self {
-            Setting::GearRatio => 0x120,
-            Setting::Tyre => 0x10C,
-            Setting::RideHeight => 0x114,
-            Setting::Stiffness => 0x118,
+            Setting::GearRatio => &mut car.gear_ratio,
+            Setting::Tyre => &mut car.tyre,
+            Setting::RideHeight => &mut car.ride_height,
+            Setting::Stiffness => &mut car.suspension_stiffness,
         }
     }
 }
@@ -80,9 +82,9 @@ pub trait Workshop {
     /// An item's flag.
     fn flag(&mut self, item: u32) -> u32;
     fn set_flag(&mut self, item: u32, value: u32);
-    /// The car's dword at `offset`.
-    fn car(&mut self, offset: u32) -> u32;
-    fn set_car(&mut self, offset: u32, value: u32);
+    /// The car (the current player's record).
+    fn car(&mut self) -> Player;
+    fn update_car(&mut self, change: impl FnOnce(&mut Player));
     /// `dword_75AB38` = 1.
     fn set_working(&mut self);
     fn timer(&mut self, t: Timer) -> u32;
@@ -113,25 +115,21 @@ fn pause<W: Workshop>(w: &mut W) {
 /// `service::apply_repairs`.
 pub fn apply_repairs<W: Workshop>(w: &mut W) -> Result<(), W::Error> {
     w.set_working();
-    for (item, offset, dwords) in RESET_RUNS {
+    for (item, part) in RESET_RUNS {
         if w.flag(item) == 1 {
-            for i in 0..dwords {
-                w.set_car(offset + 4 * i, 0);
-            }
+            w.update_car(|car| car.clear_wear(part));
         }
     }
-    let tyre_damage = DAMAGE + 4 * TYRES;
     if w.flag(TYRES) == 1 {
-        let kept = w.car(tyre_damage);
+        let kept = *damage(&mut w.car(), TYRES);
         w.reset_tyre_wear()?;
-        w.set_car(tyre_damage, kept);
+        w.update_car(|car| *damage(car, TYRES) = kept);
     }
 
     for item in REPAIR_ORDER {
         if w.flag(item) != 1 {
             continue;
         }
-        let damage = DAMAGE + 4 * item;
         let now = w.clock();
         w.set_timer(Timer::Start, now);
         w.set_timer(Timer::LastStep, 0);
@@ -143,13 +141,13 @@ pub fn apply_repairs<W: Workshop>(w: &mut W) -> Result<(), W::Error> {
                 continue;
             }
             w.set_timer(Timer::LastStep, elapsed);
-            let left = w.car(damage) as i32;
+            let left = *damage(&mut w.car(), item) as i32;
             if left <= 0 || left - STEP <= 0 {
                 break;
             }
-            w.set_car(damage, (left - STEP) as u32);
+            w.update_car(|car| *damage(car, item) = (left - STEP) as u32);
         }
-        w.set_car(damage, 0);
+        w.update_car(|car| *damage(car, item) = 0);
         w.set_flag(item, 0);
         let installed = match item {
             GEARBOX => Some(Setting::GearRatio),
@@ -158,7 +156,7 @@ pub fn apply_repairs<W: Workshop>(w: &mut W) -> Result<(), W::Error> {
         };
         if let Some(s) = installed {
             let value = w.install(s);
-            w.set_car(s.offset(), value);
+            w.update_car(|car| *s.of(car) = value);
         }
         pause(w);
     }
@@ -169,21 +167,19 @@ pub fn apply_repairs<W: Workshop>(w: &mut W) -> Result<(), W::Error> {
         }
         w.set_flag(item, 0);
         let value = w.install(s);
-        w.set_car(s.offset(), value);
+        w.update_car(|car| *s.of(car) = value);
         pause(w);
     }
 
-    if w.car(tyre_damage) == 0 {
-        let bits = w.car(STATE_BITS);
-        w.set_car(STATE_BITS, bits | TYRE_BITS);
-    }
-    if w.car(DAMAGE + 4 * BODY) == 0 {
-        let bits = w.car(STATE_BITS);
-        w.set_car(STATE_BITS, bits | BODY_BITS);
-        for i in 0..8 {
-            w.set_car(BODY_STATE + 4 * i, 0);
+    w.update_car(|car| {
+        if *damage(car, TYRES) == 0 {
+            car.state_flags |= TYRE_BITS;
         }
-    }
+        if *damage(car, BODY) == 0 {
+            car.state_flags |= BODY_BITS;
+            car.impact_marks = [0; 8];
+        }
+    });
     w.sleep(END_SLEEP_MS);
     Ok(())
 }
@@ -196,7 +192,7 @@ mod tests {
     #[derive(Default)]
     struct Shop {
         flags: HashMap<u32, u32>,
-        car: HashMap<u32, u32>,
+        car: Option<Player>,
         timers: HashMap<u8, u32>,
         clock: u32,
         frames: u32,
@@ -213,11 +209,15 @@ mod tests {
         fn set_flag(&mut self, item: u32, value: u32) {
             self.flags.insert(item, value);
         }
-        fn car(&mut self, offset: u32) -> u32 {
-            *self.car.get(&offset).unwrap_or(&0)
+        fn car(&mut self) -> Player {
+            *self
+                .car
+                .get_or_insert_with(|| Player::from_le_bytes([0; 0x28c]))
         }
-        fn set_car(&mut self, offset: u32, value: u32) {
-            self.car.insert(offset, value);
+        fn update_car(&mut self, change: impl FnOnce(&mut Player)) {
+            let mut car = self.car();
+            change(&mut car);
+            self.car = Some(car);
         }
         fn set_working(&mut self) {
             self.working = true;
@@ -229,7 +229,7 @@ mod tests {
             self.timers.insert(t as u8, value);
         }
         fn reset_tyre_wear(&mut self) -> Result<(), ()> {
-            self.car.insert(DAMAGE + 4 * TYRES, 77);
+            self.update_car(|car| *damage(car, TYRES) = 77);
             Ok(())
         }
         fn install(&mut self, s: Setting) -> u32 {
@@ -255,22 +255,26 @@ mod tests {
             s.flags.insert(item, 1);
         }
         s.flags.insert(5, 2);
-        s.car.insert(DAMAGE + 4 * 3, 7);
-        s.car.insert(DAMAGE + 4 * 0xF, 9);
-        s.car.insert(DAMAGE + 4 * 5, 9);
-        s.car.insert(0x17C, 5);
+        s.update_car(|car| {
+            *damage(car, 3) = 7;
+            *damage(car, 0xF) = 9;
+            *damage(car, 5) = 9;
+            car.parts_wear[0] = 5;
+        });
         apply_repairs(&mut s).unwrap();
         assert!(s.working);
-        assert_eq!(s.car[&0x17C], 0);
-        assert_eq!(s.car[&(DAMAGE + 12)], 0);
-        assert_eq!(s.car[&(DAMAGE + 4 * 5)], 9);
+        let car = s.car();
+        let at = |o: usize| car.word(o);
+        assert_eq!(at(0x17C), 0);
+        assert_eq!(at(0xCC + 12), 0);
+        assert_eq!(at(0xCC + 4 * 5), 9);
         assert_eq!(s.flags[&5], 2);
         assert_eq!(
             s.installed,
             [Setting::GearRatio, Setting::Tyre, Setting::RideHeight]
         );
-        assert_eq!(s.car[&0x120], 40);
-        assert_eq!(s.car[&STATE_BITS], TYRE_BITS | BODY_BITS);
+        assert_eq!(at(0x120), 40);
+        assert_eq!(at(0x278), TYRE_BITS | BODY_BITS);
         assert_eq!(s.slept, END_SLEEP_MS);
         assert!(s.frames > 0);
     }

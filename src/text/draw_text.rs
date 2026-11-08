@@ -1,9 +1,6 @@
 //! `text::draw_text` (0x4023D5): draws NUL-terminated text with a bitmap font, line by line.
 //!
-//! In:  eax = font, ebx = text, ecx = x, edx = y
-//! Out: carry set if a line was wider than the box (`FLAG_FAIL_IF_WIDER`), else clear;
-//!      eax = 0, ebx = text after the NUL (the start of the failed line on carry),
-//!      ecx = x as given, edx = y of the last line; esi, edi and ebp preserved
+//! Takes: font, text, x, y
 //!
 //! Bytes from `first_char` to `last_char` are glyphs, bytes above are ignored, bytes below are
 //! control codes:
@@ -15,14 +12,14 @@
 //!   other       x -= code
 //! Except in `MODE_AT_X` each line is measured before it is drawn. In `MODE_MEASURE` nothing
 //! is drawn and the font object is updated instead.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::gfx::blit_glyph::{BlitCall, blit_glyph_on_surface};
-use crate::pointers::{GameBytes, GamePtr};
+use crate::gfx::glyph_store;
+use crate::gfx::typefaces::FontRef;
 use crate::text::font::Font;
-use crate::text::glyph_kerning::{State, state_ptr};
+use crate::text::glyph_kerning::{STATE, State};
+use rc2k_core::strings::bytes::Bytes;
 
 // ---- Rust version ----
 
@@ -31,8 +28,9 @@ pub trait Canvas {
     /// False for a canvas that only predicts: font objects in game memory are then left alone.
     fn keeps_font_changes(&self) -> bool;
     /// The kerning row table the canvas keeps.
-    fn kerning(&mut self) -> &mut State;
-    unsafe fn blit_glyph(&mut self, call: BlitCall) -> Result<(), Refused>;
+    fn kerning(&self) -> State;
+    fn set_kerning(&mut self, kerning: State);
+    fn blit_glyph(&mut self, call: BlitCall) -> Result<(), Refused>;
 }
 
 /// The game's own kerning table and surface.
@@ -42,18 +40,18 @@ impl Canvas for GameCanvas {
     fn keeps_font_changes(&self) -> bool {
         true
     }
-    fn kerning(&mut self) -> &mut State {
-        unsafe { &mut *state_ptr() }
+    fn kerning(&self) -> State {
+        *STATE
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
-    unsafe fn blit_glyph(&mut self, c: BlitCall) -> Result<(), Refused> {
-        blit_glyph_on_surface(
-            c.glyph,
-            GamePtr::new(c.table),
-            c.x,
-            c.y,
-            GamePtr::new(c.palette),
-        )
-        .map(|_| ())
+    fn set_kerning(&mut self, kerning: State) {
+        *STATE
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = kerning;
+    }
+    fn blit_glyph(&mut self, c: BlitCall) -> Result<(), Refused> {
+        blit_glyph_on_surface(c.glyph, c.table, c.x, c.y, c.palette)
     }
 }
 
@@ -62,8 +60,6 @@ impl Canvas for GameCanvas {
 pub struct Outcome {
     /// A line was wider than the box and the font has `FLAG_FAIL_IF_WIDER`: the carry flag.
     pub too_wide: bool,
-    /// After the NUL, or the start of the line that was too wide: ebx.
-    pub text: *const u8,
     /// The x that was passed in: ecx.
     pub x: i32,
     /// The y of the last line, font offset included: edx.
@@ -71,7 +67,24 @@ pub struct Outcome {
 }
 
 /// A canvas of this crate as the core's.
-pub struct Adapt<'a>(&'a mut dyn Canvas);
+pub struct Adapt<'a> {
+    canvas: &'a mut dyn Canvas,
+    kerning: State,
+}
+
+impl<'a> Adapt<'a> {
+    pub fn new(canvas: &'a mut dyn Canvas) -> Self {
+        let kerning = canvas.kerning();
+        Self { canvas, kerning }
+    }
+}
+
+/// The kerning table goes back when the drawing ends, whichever way: it lasts from text to text.
+impl Drop for Adapt<'_> {
+    fn drop(&mut self) {
+        self.canvas.set_kerning(self.kerning);
+    }
+}
 
 pub enum AdaptError {
     Refused(Refused),
@@ -88,77 +101,66 @@ impl From<rc2k_core::Invalid> for AdaptError {
 impl rc2k_core::text::Canvas for Adapt<'_> {
     type Error = AdaptError;
     fn kerning(&mut self) -> &mut State {
-        self.0.kerning()
+        &mut self.kerning
     }
     fn blit(&mut self, font: &Font, glyph: u32, x: i32, y: i32) -> Result<(), AdaptError> {
-        let call = BlitCall::new(glyph, x, y, font.palette, font.glyph_table);
-        unsafe { self.0.blit_glyph(call) }.map_err(AdaptError::Refused)
+        let call = BlitCall::glyph(glyph, x, y, font.palette, font.glyph_table);
+        { self.canvas.blit_glyph(call) }.map_err(AdaptError::Refused)
     }
 }
 
-/// A core text function run on a text and a font's glyph table in game memory, with a
-/// canvas of this crate. The glyph table is the font's pointer, read inside its allocation
-/// (`pointers`): a read past it is refused.
-pub fn run_core<T>(
-    font: &Font,
-    text: *const u8,
-    canvas: &mut dyn Canvas,
-    f: impl FnOnce(&GameBytes, &GameBytes, &mut Adapt) -> Result<T, AdaptError>,
-) -> Result<T, Refused> {
-    let glyphs = GamePtr::new(font.glyph_table).bytes("a font's glyph table")?;
-    let words = GamePtr::new(crate::pointers::game_address(text)).bytes("a text")?;
-    match f(&words, &glyphs, &mut Adapt(canvas)) {
+/// The core's error as a refusal.
+pub fn refusal<T>(result: Result<T, AdaptError>) -> Result<T, Refused> {
+    match result {
         Ok(value) => Ok(value),
         Err(AdaptError::Refused(e)) => Err(e),
         Err(AdaptError::Invalid) => {
-            Err(crate::errors::BadInput("a read past a font's glyph table").into())
+            Err(crate::errors::BadInput("a read past a text or a font's glyph table").into())
         }
     }
 }
 
-/// The core's outcome with the text as a pointer.
-pub fn outcome(text: *const u8, out: rc2k_core::text::Outcome) -> Outcome {
-    Outcome {
-        too_wide: out.too_wide,
-        text: text.wrapping_add(out.next),
-        x: out.x,
-        y: out.y,
-    }
-}
-
 /// `font` is changed only in `MODE_MEASURE`. An error can only come from the blitter; by then
-/// earlier glyphs are drawn. Converted: `rc2k_core::text::draw`.
+/// earlier glyphs are drawn. The text is read up to where the core stops (a text that does
+/// not end is refused). Converted: `rc2k_core::text::draw`.
 pub fn draw_text(
     font: &mut Font,
-    text: *const u8,
+    text: &(impl Bytes + ?Sized),
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, Refused> {
-    let copy = *font;
-    let out = {
-        run_core(&copy, text, canvas, |words, glyphs, c| {
-            rc2k_core::text::draw(font, words, glyphs, x, y, c)
-        })
-    }?;
-    Ok(outcome(text, out))
+    let glyphs = glyph_store::bytes(font.glyph_table, "a font's glyph table")?;
+    let out = refusal(rc2k_core::text::draw(
+        font,
+        text,
+        &glyphs,
+        x,
+        y,
+        &mut Adapt::new(canvas),
+    ))?;
+    Ok(Outcome {
+        too_wide: out.too_wide,
+        x: out.x,
+        y: out.y,
+    })
 }
 
 /// `draw_text` with a font object in game memory, for Rust callers. The object is only
 /// written (it only changes in `MODE_MEASURE`) if the canvas keeps font changes.
 pub fn draw_text_at(
-    font: *mut Font,
-    text: *const u8,
+    font: impl Into<FontRef>,
+    text: &(impl Bytes + ?Sized),
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, Refused> {
-    let before = crate::pointers::GamePtr::new(crate::pointers::game_address(font))
-        .read::<Font>("a font")?;
+    let font = font.into().object();
+    let before = font.get();
     let mut copy = before;
     let out = draw_text(&mut copy, text, x, y, canvas)?;
     if copy != before && canvas.keeps_font_changes() {
-        crate::pointers::GamePtr::new(crate::pointers::game_address(font)).write(copy, "a font")?;
+        font.set(copy);
     }
     Ok(out)
 }

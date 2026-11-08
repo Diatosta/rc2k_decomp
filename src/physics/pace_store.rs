@@ -3,9 +3,12 @@
 //! codes. `#[repr(C)]` with the image's layout, over the race block's bytes (`PACE`). Names
 //! are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PaceNotes {
     /// +0x0 (0X614D38): `g_paceDistanceWords`: the distance's word by tens, the first 41 bytes used (`race::pace_notes`); IDA names its first byte only.
     pub distance_words: Bytes<0x1034>,
@@ -31,19 +34,16 @@ pub struct PaceNotes {
     pub text: Bytes<0x4000>,
 }
 
-/// The piece: the race block's bytes at IDA 0x614D38 seen as `PaceNotes`.
-pub struct InBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
 
-impl core::ops::Deref for InBlock {
-    type Target = PaceNotes;
-    fn deref(&self) -> &PaceNotes {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const PaceNotes) }
+/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+impl PaceNotes {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
-
-pub static PACE: InBlock = InBlock;
 
 /// IDA 0x614D38, the first byte of the piece.
 pub const START: usize = 0x614D38;
@@ -53,8 +53,9 @@ pub const END: usize = 0x61FE18;
 const _: () = assert!(END - START == core::mem::size_of::<PaceNotes>());
 
 /// Where IDA 0x614D38 is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&race().physics.pace))
 }
 
 #[cfg(test)]
@@ -63,7 +64,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&race().physics.pace, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             crate::moved::place(END - 1),

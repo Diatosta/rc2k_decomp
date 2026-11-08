@@ -1,16 +1,12 @@
 //! `scene::set_object_material` (0x45170E): what an object's drawing needs from its
 //! kind's record, and for a kind that moves between two shapes, how far it has moved.
 //!
-//! In:  nothing
-//! Out: the original leaves eax, ecx, esi (and for a moving kind ebx, edx) changed; its
-//!      caller goes on without them, and the Rust version keeps them
-//!
 //! `dword_623DD0` = 0 and the polygon's colour white; the object's kind
 //! (`g_objectKinds[object]`) picks a record of 0x80 bytes at `unk_97DF30`, whose byte +0x20
 //! goes to `dword_6214DC`; then the object's first face and number of faces (`dword_632B70`,
 //! `dword_632F70`) to `g_objectFirstFace` and `g_objectFaceCount`. With that byte at 4 the
 //! object has two shapes, the second right after the first: `dword_623DD0` = the bytes between
-//! them (the next object's first point less this one's, times 12), and `sub_45079A` works out
+//! them (the next object's first point less this one's, times 12), and 0x45079A works out
 //! the fraction `flt_623DD4` from a state of four dwords (+0x30 .. +0x3C of the record
 //! `dword_5CCCD0` of 0x40 bytes at `dword_5CCCBC`: the clock when last here, the time into the
 //! phase, the phase's length, the phase): the time since last here (the clock `dword_613830`,
@@ -19,8 +15,8 @@
 //! random part of 400 (`math::next_random`, its top half times 400). The fraction: 0 in phase
 //! 0, time over length in phase 1, 1 in phase 2, 1 less that in phase 3. The original has a
 //! second way for when the four random parts are all 0, which they never are (it sets them
-//! itself just before): left out. One caller, `sub_45045D`. Refuses an object's number past the
-//! tables and, for a moving kind, no state.
+//! itself just before): left out. One caller, `scene::draw_object`. Refuses an object's number past
+//! the tables and, for a moving kind, no state.
 //!
 //! Converted 2026-10-21: the Rust version is `set_object_material_plain`, through
 //! `rc2k_core::scene::materials` (the fraction a plain float; the x87 version stays for the
@@ -29,15 +25,7 @@
 use crate::errors::BadInput;
 use crate::math::next_random::next_random;
 use crate::math::x87;
-use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
-use crate::race::course_store::COURSE;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::vars_store::RACE_VARS;
-use crate::scene::draw_store::DRAW;
-use crate::scene::light_work_store::LIGHT_WORK;
-use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::object_tables_store::OBJECT_TABLES;
+use crate::race::owner_shared::Shared;
 
 // ---- game data ----
 const OBJECTS: u32 = 0xFF;
@@ -50,21 +38,28 @@ const LENGTHS: [u32; 9] = [200, 400, 200, 400, 400, 400, 400, 400, 0];
 
 // ---- Rust version ----
 
-/// The state's address, or None without one.
-fn state() -> Option<usize> {
-    {
-        let states: u32 = COURSE.course_faces.bits();
-        (states != 0)
-            .then(|| states.wrapping_add(COURSE.current_course_face.bits() << 6) as usize + 0x30)
-    }
+/// The face whose +0x30 .. +0x40 hold the state (`g_currentCourseFace`), or None without
+/// the course faces.
+fn state(course: &crate::race::owner_course::Course) -> Option<u32> {
+    (course.course.course_faces.bits() != 0).then(|| course.course.current_course_face.bits())
 }
 
-/// `sub_45079A`.
-fn step_shape(state: usize) -> Result<(), BadInput> {
-    let at = GamePtr::new(state as u32);
-    let [last, mut time, mut length, mut phase]: [u32; 4] = at.read("an object's state")?;
-    crate::session::write_bits(&LIGHT_WORK.phase_lengths, LENGTHS);
-    let clock: u32 = PHYSICS.scene_clock.bits();
+/// The state's four dwords from +0x30 of the face.
+const STATE: u32 = 0x30;
+
+/// 0x45079A, on the state of face `face`.
+fn step_shape(
+    shared: &Shared,
+    face: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
+    use crate::race::course_places::{face_field, write_face_field};
+    let b: [u8; 16] = face_field(face, STATE, "an object's state")?;
+    let [last, mut time, mut length, mut phase]: [u32; 4] = std::array::from_fn(|k| {
+        u32::from_le_bytes([b[4 * k], b[4 * k + 1], b[4 * k + 2], b[4 * k + 3]])
+    });
+    crate::session::write_bits(&scene.lights.work.phase_lengths, LENGTHS);
+    let clock: u32 = shared.physics_tables.scene_clock.bits();
     time = time.wrapping_add(clock.wrapping_sub(last).min(100));
     while time >= length {
         time -= length;
@@ -78,47 +73,57 @@ fn step_shape(state: usize) -> Result<(), BadInput> {
         3 => x87::one_less_int_ratio(time as i32, length as i32),
         _ => 0f32.to_bits(),
     };
-    RACE_VARS.move_fraction.set_bits(fraction);
-    LIGHT_WORK.phase_clock.set_bits(clock);
-    crate::session::write_first(
-        &crate::scene::object_slots_store::OBJECT_SLOTS.phase_work,
-        &[length, time, phase],
-    );
-    at.write([clock, time, length, phase], "an object's state")?;
+    shared.vars.move_fraction.set_bits(fraction);
+    scene.lights.work.phase_clock.set_bits(clock);
+    crate::session::write_first(&scene.objects.slots.phase_work, &[length, time, phase]);
+    let mut b = [0u8; 16];
+    for (k, v) in [clock, time, length, phase].into_iter().enumerate() {
+        b[4 * k..4 * k + 4].copy_from_slice(&v.to_le_bytes());
+    }
+    write_face_field(face, STATE, b, "an object's state")?;
     Ok(())
 }
 
-pub fn set_object_material() -> Result<(), BadInput> {
-    let object: u32 = FRAME_SWITCHES.object_number.bits();
+pub fn set_object_material(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
+    let shared = &race.shared;
+    let object: u32 = shared.switches.object_number.bits();
     if object >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
     }
-    let kind: u32 = OBJECT_TABLES.object_kind(object);
-    let material = crate::scene::polygon::materials_addr()
-        .wrapping_add(((kind as usize).wrapping_mul(MATERIAL_LEN)) as u32);
-    let way = GamePtr::new(material.wrapping_add(0x20)).read::<u8>("an object's material")? as u32;
-    let state = state();
+    let kind: u32 = scene.objects.tables.object_kind(object);
+    let material = crate::scene::polygon::materials_ptr()
+        .offset(((kind as usize).wrapping_mul(MATERIAL_LEN)) as u32);
+    let way = material.offset(0x20).read::<u8>("an object's material")? as u32;
+    let state = state(&race.course);
     if way == 4 && state.is_none() {
         return Err(BadInput("a moving object without its state"));
     }
-    RACE_VARS.move_by.set_bits(0u32);
-    DRAW.polygon_colour.set_bits(0x00FF_FFFFu32);
-    FRAME_SWITCHES.other_way_kind.set_bits(way);
+    shared.vars.move_by.set_bits(0u32);
+    scene.drawing.scene.polygon_colour.set_bits(0x00FF_FFFFu32);
+    shared.switches.other_way_kind.set_bits(way);
     if let (4, Some(state)) = (way, state) {
         let points: [u32; 2] = [
-            crate::scene::object_slots_store::OBJECT_SLOTS.first_point[object as usize].get(),
-            crate::scene::object_slots_store::OBJECT_SLOTS.first_point[object as usize + 1].get(),
+            scene.objects.slots.first_point[object as usize].get(),
+            scene.objects.slots.first_point[object as usize + 1].get(),
         ];
-        RACE_VARS
+        shared
+            .vars
             .move_by
             .set_bits(points[1].wrapping_sub(points[0]).wrapping_mul(12));
-        step_shape(state)?;
+        step_shape(shared, state, scene)?;
     }
-    OBJECT_WORK
+    scene
+        .drawing
+        .object_work
         .object_first_face
-        .set_bits(crate::scene::object_slots_store::OBJECT_SLOTS.first_face[object as usize].get());
-    OBJECT_WORK.object_face_count.set_bits(
-        crate::scene::object_slots_store::OBJECT_SLOTS.face_counts[object as usize].get(),
-    );
+        .set_bits(scene.objects.slots.first_face[object as usize].get());
+    scene
+        .drawing
+        .object_work
+        .object_face_count
+        .set_bits(scene.objects.slots.face_counts[object as usize].get());
     Ok(())
 }

@@ -6,37 +6,36 @@
 //! palette the same value) at x 0x190 from y 0x82 every 0x1B (`dword_7559EC`, `hhmm` the
 //! glyph, `g_markerX` 0x190).
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
 //!
 //! In a menu loop's draw list (0x75927E). The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
-use crate::menu::state_store::MENU_STATE;
+use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
 /// (id, x, y, font) of the page's lines.
 /// The Rust version.
-pub fn draw_options_checklist(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_options_checklist(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::options_checklist`.
     {
-        let mut at = MENU_LISTS.inspection_faults[0].addr();
         let mut ticks = Vec::new();
         loop {
-            let tick = crate::pointers::GamePtr::new(at).read::<u32>("a checklist tick")?;
+            let tick = crate::session::read_on_in(
+                &menus.tables.lists,
+                &menus.tables.lists.inspection_faults,
+                ticks.len(),
+                "a checklist tick",
+            )?;
             if tick == u32::MAX {
                 break;
             }
             ticks.push(tick);
-            at += 4;
         }
         rc2k_core::screens::settings_pages::options_checklist(
             &mut crate::screens::game_screen::SettingsScreen::new(canvas),
-            EVENT_STATE.current_player.get(),
-            MENU_STATE.driver_stats.score.get() as i32,
+            menus.screens.event.current_player.get(),
+            menus.screens.state.driver_stats.score.get() as i32,
             &ticks,
         )
     }

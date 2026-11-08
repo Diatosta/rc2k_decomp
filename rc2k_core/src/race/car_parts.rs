@@ -150,8 +150,6 @@ pub fn parts_shown(shown: u32) -> bool {
 /// The matrices kept in the block (+0x740 .., 0x40 bytes each): the four wheels', the
 /// car's turn and its place; the body's after them at +0x8C0.
 pub const KEPT_MATRICES: u32 = 6;
-pub const KEPT_AT: u32 = 0x740;
-pub const BODY_AT: u32 = 0x8C0;
 
 #[cfg(test)]
 mod tests {

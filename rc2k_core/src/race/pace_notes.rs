@@ -1,20 +1,24 @@
 //! The pace notes' tables made and their texts written (converted 2026-10-21 from
 //! `race::init_pace_notes` 0x441A66 and `race::pace_note_calls` 0x441CB4, with the codes'
-//! rules of `race::pace`). The functions run on a machine of the registers the original
-//! keeps its walk in and an image of the tables (0x615E10 .. 0x61FE18: the notes' count and
-//! the groups', the notes' starts, ends, end codes and gaps, the groups' checkpoints and
-//! text places, the text); the stage (the checkpoints' faces, distances, angles, the
-//! slots' offsets, the distance words, the faces' bytes) is asked through `Stage`. Every
-//! place read is checked: a table place outside the image, a checkpoint 0x1418 or past, a
-//! face outside the course's window: refused (the original reads elsewhere). The
-//! original's own slips are kept (`notes/bugs.md`): the last group is walked from the
-//! place after the last note, the last group's text has no NUL, a corner after a corner
-//! in one walk reads the tables at the first one's remainder (edx), 'b' moves the text on
-//! without writing.
+//! rules of `race::pace`). `Notes` works on an image of the tables (0x615E10 .. 0x61FE18:
+//! the notes' count and the groups', the notes' starts, ends, end codes and gaps, the
+//! groups' checkpoints and text places, the text); the stage (the checkpoints' faces,
+//! distances, angles, the slots' offsets, the distance words, the faces' bytes) is asked
+//! through `Stage`. Every place read is checked: a table place outside the image, a
+//! checkpoint 0x1418 or past, a face outside the course's window: refused (the original
+//! reads elsewhere). The tables lie one after the other in the image and are read by
+//! place, so an entry past a table's end is the next table's, as in the original.
+//!
+//! The original's own slips are kept (`notes/bugs.md`):
+//! - the last group is walked from the place after the last note;
+//! - the last group's text has no NUL;
+//! - a corner after a corner in one walk reads the tables at the first one's division
+//!   remainder in place of the note's number (`pending_note` in `write_calls`);
+//! - 'b' moves the text on without writing.
 
 use crate::Invalid;
 use crate::race::pace::{
-    B, C, D, JOIN, code_place, corner, corner_start, distance_tens, ends_note, next_slot,
+    B, C, Corner, D, JOIN, code_place, corner, corner_start, distance_tens, ends_note, next_slot,
     replaces_join, starts_note,
 };
 
@@ -63,35 +67,26 @@ pub struct Course {
     pub count: u32,
 }
 
-/// The registers the walk keeps its state in (what the original leaves in them).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Registers {
-    pub eax: u32,
-    pub ebx: u32,
-    pub ecx: u32,
-    pub edx: u32,
-    pub esi: u32,
-    pub edi: u32,
-    pub ebp: u32,
-}
-
-/// The registers, the slot (`dword_614D34`) and the tables' image.
+/// The pace notes' tables being made: the game's slot (`dword_614D34`), the tables' image
+/// and the text's end.
 pub struct Notes<'a, S: Stage> {
-    pub r: Registers,
+    /// The slot the walk is at; the game keeps it between calls.
     pub slot: u32,
     pub image: Vec<u8>,
+    /// Where the next byte of the text goes (from `TEXT`).
+    text_end: u32,
     course: Course,
     stage: &'a S,
 }
 
 impl<'a, S: Stage> Notes<'a, S> {
-    /// The machine on the tables' image (`IMAGE_LEN` bytes).
-    pub fn new(r: Registers, slot: u32, image: Vec<u8>, course: Course, stage: &'a S) -> Self {
+    /// The notes on the tables' image (`IMAGE_LEN` bytes).
+    pub fn new(slot: u32, image: Vec<u8>, course: Course, stage: &'a S) -> Self {
         assert_eq!(image.len(), IMAGE_LEN);
         Self {
-            r,
             slot,
             image,
+            text_end: 0,
             course,
             stage,
         }
@@ -107,24 +102,46 @@ impl<'a, S: Stage> Notes<'a, S> {
         Ok(off as usize)
     }
 
-    pub fn get(&self, at: u32) -> Result<u32, Invalid> {
+    fn word(&self, at: u32) -> Result<u32, Invalid> {
         let o = self.place(at, 4)?;
         Ok(u32::from_le_bytes(self.image[o..o + 4].try_into().unwrap()))
     }
 
-    pub fn put(&mut self, at: u32, v: u32) -> Result<(), Invalid> {
+    fn set_word(&mut self, at: u32, v: u32) -> Result<(), Invalid> {
         let o = self.place(at, 4)?;
         self.image[o..o + 4].copy_from_slice(&v.to_le_bytes());
         Ok(())
     }
 
-    pub fn get8(&self, at: u32) -> Result<u8, Invalid> {
+    fn byte(&self, at: u32) -> Result<u8, Invalid> {
         Ok(self.image[self.place(at, 1)?])
     }
 
-    pub fn put8(&mut self, at: u32, v: u8) -> Result<(), Invalid> {
+    fn set_byte(&mut self, at: u32, v: u8) -> Result<(), Invalid> {
         let o = self.place(at, 1)?;
         self.image[o] = v;
+        Ok(())
+    }
+
+    /// Entry `i` of the table that starts at `table` (`STARTS`, `ENDS`, `KINDS`, `GAPS`,
+    /// `GROUP_CHECKPOINTS`, `GROUP_TEXTS`), read by place, wrapping as the original's.
+    pub fn entry(&self, table: u32, i: u32) -> Result<u32, Invalid> {
+        self.word(table.wrapping_add(i.wrapping_mul(4)))
+    }
+
+    fn set_entry(&mut self, table: u32, i: u32, v: u32) -> Result<(), Invalid> {
+        self.set_word(table.wrapping_add(i.wrapping_mul(4)), v)
+    }
+
+    /// The notes' count plus one (entry 0 is the start).
+    fn count(&self) -> Result<u32, Invalid> {
+        self.word(COUNT)
+    }
+
+    /// A byte written to the text's end, which moves on.
+    fn push_text(&mut self, byte: u8) -> Result<(), Invalid> {
+        self.set_byte(TEXT.wrapping_add(self.text_end), byte)?;
+        self.text_end = self.text_end.wrapping_add(1);
         Ok(())
     }
 
@@ -135,8 +152,8 @@ impl<'a, S: Stage> Notes<'a, S> {
         Ok(k)
     }
 
-    /// Checkpoint k's face: (its number, its address) as `mov ebx, g_checkpointFaces[k*4];
-    /// mov esi, ebx; shl esi, 6; add esi, g_courseFaces`.
+    /// Checkpoint k's face: its number and its address (the number x 0x40 from the
+    /// course's faces).
     fn face(&self, k: u32) -> Result<(u32, u32), Invalid> {
         let n = self.stage.checkpoint_face(self.by_checkpoint(k)?);
         Ok((n, (n << 6).wrapping_add(self.course.faces)))
@@ -158,223 +175,198 @@ impl<'a, S: Stage> Notes<'a, S> {
         Ok(self.stage.angle(self.by_checkpoint(k)?))
     }
 
-    /// `sub_441A37` (`race::pace_note_code`): eax the face esi's code at the slot.
-    pub fn code(&mut self) -> Result<(), Invalid> {
-        let place = code_place(self.r.esi, self.slot, |slot| self.stage.slot_offset(slot))?;
-        self.r.eax = self.face_byte(place)?;
-        Ok(())
+    /// `race::pace_note_code`: the code in the face at `face` for the current slot.
+    fn code(&self, face: u32) -> Result<u32, Invalid> {
+        let place = code_place(face, self.slot, |slot| self.stage.slot_offset(slot))?;
+        self.face_byte(place)
     }
 
-    /// `sub_441A4B` (`race::next_pace_slot`): the slot on; past 7 back to 0, ebp on.
-    pub fn next_slot(&mut self) {
-        (self.slot, self.r.ebp) = next_slot(self.slot, self.r.ebp);
+    /// The code at the current slot of the checkpoint's face.
+    fn code_at(&self, checkpoint: u32) -> Result<u32, Invalid> {
+        self.code(self.face(checkpoint)?.1)
     }
 
-    /// The place ebp x 8 + the slot.
-    fn here(&self) -> u32 {
-        (self.r.ebp << 3).wrapping_add(self.slot)
-    }
-
-    /// `sub_441C78` (`race::pace_distance_word`): the distance eax (16.16) / 10, at most
-    /// 40, its word; unless 0, at the text's edi, edi on.
-    pub fn distance_word(&mut self) -> Result<(), Invalid> {
-        let word = self.stage.word(distance_tens(self.r.eax));
+    /// `race::pace_distance_word`: the word for the distance (16.16) in tens, at most 40,
+    /// written to the text unless it is 0.
+    fn write_distance_word(&mut self, distance: u32) -> Result<(), Invalid> {
+        let word = self.stage.word(distance_tens(distance));
         if word != 0 {
-            self.put8(TEXT.wrapping_add(self.r.edi), word)?;
-            self.r.edi = self.r.edi.wrapping_add(1);
+            self.push_text(word)?;
         }
         Ok(())
     }
 
-    /// `sub_441C6D` / `sub_441E01` (the text's NUL / ')' and edi on).
-    fn append(&mut self, byte: u8) -> Result<(), Invalid> {
-        self.put8(TEXT.wrapping_add(self.r.edi), byte)?;
-        self.r.edi = self.r.edi.wrapping_add(1);
-        Ok(())
-    }
-
-    /// `sub_441CB4` (`race::pace_note_calls`): from place ebx, each code to the next 0 or
-    /// 'd' into the text at edi; edx the note before (its +1's end and start are read for
-    /// a corner). ecx and edx kept; ebx, esi, eax where it stopped; ebp a corner's flags.
-    pub fn note_calls(&mut self) -> Result<(), Invalid> {
-        let (ecx, edx) = (self.r.ecx, self.r.edx);
+    /// `race::pace_note_calls`: the codes of the note whose start is the place `start`, up
+    /// to its end (a 0 or 'd'), written to the text; 'b' codes move the text on unwritten,
+    /// a joint is taken back by the codes that replace one. `previous` is the note before:
+    /// a corner reads the tables at its successor.
+    fn write_calls(&mut self, start: u32, previous: u32) -> Result<(), Invalid> {
+        // The slip: a corner leaves its division's remainder where the note's number was
+        // kept, so a second corner in this walk reads the tables at that remainder.
+        let mut pending_note = previous;
+        let mut place = start;
         loop {
-            let place = self.r.ebx;
-            self.r.esi = self.face(place >> 3)?.1;
             self.slot = place & 7;
-            self.code()?;
-            if self.r.eax == 0 || self.r.eax == D {
-                break;
+            let mut code = self.code_at(place >> 3)?;
+            if code == 0 || code == D {
+                return Ok(());
             }
-            let kept = self.r.ebx;
-            if self.r.eax == C {
-                self.corner()?;
+            if code == C {
+                let corner = self.corner(pending_note)?;
+                pending_note = corner.remainder;
+                code = corner.code;
             }
-            let al = self.r.eax as u8;
-            if al as u32 != B {
-                if replaces_join(al)
-                    && self.get8(TEXT.wrapping_sub(1).wrapping_add(self.r.edi))? == JOIN
+            let byte = code as u8;
+            if byte as u32 != B {
+                if replaces_join(byte)
+                    && self.byte(TEXT.wrapping_sub(1).wrapping_add(self.text_end))? == JOIN
                 {
-                    self.r.edi = self.r.edi.wrapping_sub(1);
+                    self.text_end = self.text_end.wrapping_sub(1);
                 }
-                // (`mov ebx, off_61FE18[eax*4]`: overwritten by the `pop ebx`.)
-                self.put8(TEXT.wrapping_add(self.r.edi), al)?;
+                self.set_byte(TEXT.wrapping_add(self.text_end), byte)?;
             }
-            self.r.ebx = kept.wrapping_add(1);
-            self.r.edi = self.r.edi.wrapping_add(1);
+            place = place.wrapping_add(1);
+            self.text_end = self.text_end.wrapping_add(1);
         }
-        self.r.ecx = ecx;
-        self.r.edx = edx;
-        Ok(())
     }
 
-    /// 0x441CFB: a corner's code into eax (ecx, edx, ebx, ebp changed).
-    fn corner(&mut self) -> Result<(), Invalid> {
-        let n = self.r.edx.wrapping_mul(4);
-        let next_end = ENDS.wrapping_add(4).wrapping_add(n);
-        let next_start = STARTS.wrapping_add(4).wrapping_add(n);
-        let e = self.get(next_end)? >> 3;
-        let s = self.get(next_start)? >> 3;
-        let length = self.distance(e)?.wrapping_sub(self.distance(s)?);
-        let at_end = self.angle(self.get(next_end)? >> 3)?;
-        let ebx = corner_start(self.get(next_start)?);
-        let c = corner(length, at_end.wrapping_sub(self.angle(ebx)?));
-        let r = &mut self.r;
-        r.edx = c.remainder;
-        r.ecx = c.length;
-        r.ebx = ebx;
-        r.ebp = c.flags;
-        r.eax = c.code;
-        Ok(())
+    /// A corner: its code from the length and turn of the note after `note`.
+    fn corner(&self, note: u32) -> Result<Corner, Invalid> {
+        let end = self.entry(ENDS, note.wrapping_add(1))? >> 3;
+        let start = self.entry(STARTS, note.wrapping_add(1))?;
+        let length = self.distance(end)?.wrapping_sub(self.distance(start >> 3)?);
+        let at_end = self.angle(end)?;
+        let turn = at_end.wrapping_sub(self.angle(corner_start(start))?);
+        Ok(corner(length, turn))
     }
 
-    /// `sub_441A66` (`race::init_pace_notes`): the tables made.
-    pub fn init(&mut self) -> Result<(), Invalid> {
+    /// From the place `checkpoint` x 8 + the slot on, the next code `wanted` accepts, with
+    /// its place; both move on past it. `None` when the walk reaches the checkpoints'
+    /// count first. Refused: a walk past the count (the original's loops would run on).
+    fn next_code(
+        &mut self,
+        checkpoint: &mut u32,
+        wanted: impl Fn(u32) -> bool,
+    ) -> Result<Option<(u32, u32)>, Invalid> {
         let count = self.course.count;
-        self.put(GROUPS, 0)?;
-        self.put(COUNT, 0)?;
-        if count < 2 {
+        loop {
+            let code = self.code_at(*checkpoint)?;
+            let place = (*checkpoint << 3).wrapping_add(self.slot);
+            (self.slot, *checkpoint) = next_slot(self.slot, *checkpoint);
+            if wanted(code) {
+                return Ok(Some((code, place)));
+            }
+            if *checkpoint == count {
+                return Ok(None);
+            }
+            if *checkpoint > count {
+                return Err(Invalid(
+                    "the pace notes' search past the checkpoints' count",
+                ));
+            }
+        }
+    }
+
+    /// The first checkpoint whose face is of kind 2, or the count.
+    fn first_of_kind_2(&self) -> Result<u32, Invalid> {
+        let count = self.course.count;
+        let mut checkpoint = 0;
+        loop {
+            let (_, face) = self.face(checkpoint)?;
+            if self.face_byte(face.wrapping_add(0x26))? == 2 {
+                return Ok(checkpoint);
+            }
+            checkpoint = checkpoint.wrapping_add(1);
+            if checkpoint == count {
+                return Ok(checkpoint);
+            }
+        }
+    }
+
+    /// `race::init_pace_notes`: the tables made.
+    pub fn init(&mut self) -> Result<(), Invalid> {
+        self.set_word(GROUPS, 0)?;
+        self.set_word(COUNT, 0)?;
+        if self.course.count < 2 {
             return Ok(());
         }
-        // The first checkpoint whose face is of kind 2 (or the count).
-        self.r.ebp = 0;
-        loop {
-            (self.r.ebx, self.r.esi) = self.face(self.r.ebp)?;
-            if self.face_byte(self.r.esi.wrapping_add(0x26))? == 2 {
-                break;
-            }
-            self.r.ebp = self.r.ebp.wrapping_add(1);
-            if self.r.ebp == count {
-                break;
-            }
-        }
-        self.r.ebp = self.r.ebp.wrapping_add(2) << 3;
-        self.put(STARTS, self.r.ebp)?;
-        self.r.ebp = self.r.ebp.wrapping_add(1);
-        self.put(ENDS, self.r.ebp)?;
-        self.r.ebp >>= 3;
-        self.put(GROUPS, 0)?;
-        self.put(COUNT, 1)?;
+        self.find_notes()?;
+        self.measure_gaps()?;
+        self.write_groups()
+    }
+
+    /// The notes: entry 0 is the start (the first checkpoint of kind 2, + 2); then each
+    /// note's start place, end place and the end's code, walking the faces' slots.
+    fn find_notes(&mut self) -> Result<(), Invalid> {
+        let start = self.first_of_kind_2()?.wrapping_add(2) << 3;
+        self.set_entry(STARTS, 0, start)?;
+        self.set_entry(ENDS, 0, start.wrapping_add(1))?;
+        let mut checkpoint = start.wrapping_add(1) >> 3;
+        self.set_word(GROUPS, 0)?;
+        self.set_word(COUNT, 1)?;
         self.slot = 0;
-        // Its loops end only on ebp equal to the count (tested after a slot moved on
-        // without a note's end or start): past it they would run on.
-        let runs_on = || Invalid("the pace notes' search past the checkpoints' count");
-        'notes: loop {
-            self.r.edx = self.get(COUNT)?;
-            loop {
-                (self.r.ebx, self.r.esi) = self.face(self.r.ebp)?;
-                self.code()?;
-                let e = self.r.eax;
-                if starts_note(e) {
-                    self.r.eax = self.here();
-                    self.put(STARTS.wrapping_add(self.r.edx.wrapping_mul(4)), self.r.eax)?;
-                    self.next_slot();
-                    break;
-                }
-                self.next_slot();
-                if self.r.ebp == count {
-                    break 'notes;
-                }
-                if self.r.ebp > count {
-                    return Err(runs_on());
-                }
-            }
-            loop {
-                (self.r.ebx, self.r.esi) = self.face(self.r.ebp)?;
-                self.code()?;
-                let e = self.r.eax;
-                if ends_note(e) {
-                    let n = self.r.edx.wrapping_mul(4);
-                    self.put(KINDS.wrapping_add(n), e)?;
-                    self.r.eax = self.here();
-                    self.put(ENDS.wrapping_add(n), self.r.eax)?;
-                    self.put(COUNT, self.get(COUNT)?.wrapping_add(1))?;
-                    self.next_slot();
-                    continue 'notes;
-                }
-                self.next_slot();
-                if self.r.ebp == count {
-                    break 'notes;
-                }
-                if self.r.ebp > count {
-                    return Err(runs_on());
-                }
-            }
-        }
-        if self.get(COUNT)? < 1 {
-            return Ok(());
-        }
-        // Each note's distance to the next start.
-        self.r.edx = 0;
         loop {
-            let n = self.r.edx.wrapping_mul(4);
-            self.get(STARTS.wrapping_add(n))?;
-            self.r.ebx = self.get(STARTS.wrapping_add(4).wrapping_add(n))? >> 3;
-            self.r.eax = self.distance(self.r.ebx)?;
-            self.r.ebx = self.get(ENDS.wrapping_add(n))? >> 3;
-            self.r.eax = self.r.eax.wrapping_sub(self.distance(self.r.ebx)?);
-            self.put(GAPS.wrapping_add(n), self.r.eax)?;
-            self.r.edx = self.r.edx.wrapping_add(1);
-            if self.r.edx == self.get(COUNT)? {
-                break;
+            let note = self.count()?;
+            let Some((_, start)) = self.next_code(&mut checkpoint, starts_note)? else {
+                return Ok(());
+            };
+            self.set_entry(STARTS, note, start)?;
+            let Some((code, end)) = self.next_code(&mut checkpoint, ends_note)? else {
+                return Ok(());
+            };
+            self.set_entry(KINDS, note, code)?;
+            self.set_entry(ENDS, note, end)?;
+            let count = self.count()?;
+            self.set_word(COUNT, count.wrapping_add(1))?;
+        }
+    }
+
+    /// Each note's distance from its end to the next note's start (the last one's to the
+    /// place after it).
+    fn measure_gaps(&mut self) -> Result<(), Invalid> {
+        let mut note = 0u32;
+        loop {
+            let next_start = self.distance(self.entry(STARTS, note.wrapping_add(1))? >> 3)?;
+            let end = self.distance(self.entry(ENDS, note)? >> 3)?;
+            self.set_entry(GAPS, note, next_start.wrapping_sub(end))?;
+            note = note.wrapping_add(1);
+            if note == self.count()? {
+                return Ok(());
             }
         }
-        // The groups.
-        self.r.ecx = 0;
-        self.r.edx = 0;
-        self.r.edi = 0;
+    }
+
+    /// The groups: a note starts a new one when the gap before it is more than 0x1E0000 or
+    /// the note before ended with 'b'; a group's text is the distance word, then its notes'
+    /// calls, joined by ')', and a NUL (not after the last group).
+    fn write_groups(&mut self) -> Result<(), Invalid> {
+        self.text_end = 0;
+        let mut group = 0u32;
+        let mut note = 0u32;
         loop {
-            let n = self.r.edx.wrapping_mul(4);
-            self.r.ebx = self.get(ENDS.wrapping_add(n))? >> 3;
-            let g = self.r.ecx.wrapping_mul(4);
-            self.put(GROUP_CHECKPOINTS.wrapping_add(g), self.r.ebx)?;
-            self.put(GROUP_TEXTS.wrapping_add(g), self.r.edi)?;
-            self.r.eax = self.get(GAPS.wrapping_add(n))?;
-            self.distance_word()?;
-            self.r.ebx = self.get(STARTS.wrapping_add(4).wrapping_add(n))?;
-            self.note_calls()?;
+            let end = self.entry(ENDS, note)? >> 3;
+            self.set_entry(GROUP_CHECKPOINTS, group, end)?;
+            self.set_entry(GROUP_TEXTS, group, self.text_end)?;
+            let gap = self.entry(GAPS, note)?;
+            self.write_distance_word(gap)?;
+            let next_start = self.entry(STARTS, note.wrapping_add(1))?;
+            self.write_calls(next_start, note)?;
             loop {
-                self.r.edx = self.r.edx.wrapping_add(1);
-                if self.r.edx == self.get(COUNT)? {
-                    self.put(GROUPS, self.r.ecx)?;
-                    self.put(GROUPS, self.get(GROUPS)?.wrapping_add(1))?;
+                note = note.wrapping_add(1);
+                if note == self.count()? {
+                    self.set_word(GROUPS, group)?;
+                    self.set_word(GROUPS, self.word(GROUPS)?.wrapping_add(1))?;
                     return Ok(());
                 }
-                let n = self.r.edx.wrapping_mul(4);
-                self.r.eax = self.get(GAPS.wrapping_add(n))?;
-                if self.r.eax > 0x1E_0000 {
+                if self.entry(GAPS, note)? > 0x1E_0000 || self.entry(KINDS, note)? == B {
                     break;
                 }
-                self.r.eax = self.get(KINDS.wrapping_add(n))?;
-                if self.r.eax == B {
-                    break;
-                }
-                self.append(JOIN)?;
-                self.r.ebx = self.get(STARTS.wrapping_add(4).wrapping_add(n))?;
-                self.note_calls()?;
+                self.push_text(JOIN)?;
+                let next_start = self.entry(STARTS, note.wrapping_add(1))?;
+                self.write_calls(next_start, note)?;
             }
-            self.append(0)?;
-            self.r.ecx = self.r.ecx.wrapping_add(1);
+            self.push_text(0)?;
+            group = group.wrapping_add(1);
         }
     }
 }
@@ -438,30 +430,24 @@ mod tests {
             codes,
             kinds: vec![2, 0, 0, 0, 0, 0],
         };
-        let mut m = Notes::new(
-            Registers::default(),
-            5,
-            vec![0; IMAGE_LEN],
-            course(6),
-            &stage,
-        );
+        let mut m = Notes::new(5, vec![0; IMAGE_LEN], course(6), &stage);
         m.init().unwrap();
         // Entry 0 the start (checkpoint 0 + 2, slot 0) and its end (+1).
-        assert_eq!(m.get(STARTS).unwrap(), 2 << 3);
-        assert_eq!(m.get(ENDS).unwrap(), (2 << 3) + 1);
-        assert_eq!(m.get(COUNT).unwrap(), 3);
-        assert_eq!(m.get(STARTS + 4).unwrap(), (2 << 3) + 1);
-        assert_eq!(m.get(ENDS + 4).unwrap(), (2 << 3) + 3);
-        assert_eq!(m.get(KINDS + 4).unwrap(), D);
-        assert_eq!(m.get(STARTS + 8).unwrap(), 3 << 3);
-        assert_eq!(m.get(ENDS + 8).unwrap(), (3 << 3) + 2);
-        assert_eq!(m.get(GROUPS).unwrap(), 2);
+        assert_eq!(m.entry(STARTS, 0).unwrap(), 2 << 3);
+        assert_eq!(m.entry(ENDS, 0).unwrap(), (2 << 3) + 1);
+        assert_eq!(m.count().unwrap(), 3);
+        assert_eq!(m.entry(STARTS, 1).unwrap(), (2 << 3) + 1);
+        assert_eq!(m.entry(ENDS, 1).unwrap(), (2 << 3) + 3);
+        assert_eq!(m.entry(KINDS, 1).unwrap(), D);
+        assert_eq!(m.entry(STARTS, 2).unwrap(), 3 << 3);
+        assert_eq!(m.entry(ENDS, 2).unwrap(), (3 << 3) + 2);
+        assert_eq!(m.word(GROUPS).unwrap(), 2);
         // The first group: the gap's word (tens 0), the first note's code, ')', the
         // second's, a NUL; the second (walked from the place after the last note, the
         // table's 0) only its gap's word (wrapped: the last, 40), no NUL.
-        assert_eq!(m.get(GROUP_TEXTS).unwrap(), 0);
-        assert_eq!(m.get(GROUP_TEXTS + 4).unwrap(), 5);
-        assert_eq!(m.get(GROUP_CHECKPOINTS + 4).unwrap(), 3);
+        assert_eq!(m.entry(GROUP_TEXTS, 0).unwrap(), 0);
+        assert_eq!(m.entry(GROUP_TEXTS, 1).unwrap(), 5);
+        assert_eq!(m.entry(GROUP_CHECKPOINTS, 1).unwrap(), 3);
         assert_eq!(
             &m.image[(TEXT - IMAGE_START) as usize..][..7],
             &[0xA0, 0x10, JOIN, 0x20, 0, 0xA0 + 40, 0]
@@ -474,29 +460,17 @@ mod tests {
             codes: vec![[0x10; 8]; 3],
             kinds: vec![0; 3],
         };
-        let mut m = Notes::new(
-            Registers::default(),
-            0,
-            vec![0; IMAGE_LEN],
-            course(3),
-            &stage,
-        );
+        let mut m = Notes::new(0, vec![0; IMAGE_LEN], course(3), &stage);
         // No face of kind 2: the start is the count + 2, past the window.
         assert!(m.init().is_err());
-        assert!(m.get(IMAGE_END - 2).is_err());
-        assert!(m.put8(IMAGE_START - 1, 0).is_err());
+        assert!(m.word(IMAGE_END - 2).is_err());
+        assert!(m.set_byte(IMAGE_START - 1, 0).is_err());
         let few = Test {
             codes: vec![[0; 8]],
             kinds: vec![0],
         };
-        let mut m = Notes::new(
-            Registers::default(),
-            0,
-            vec![0xAA; IMAGE_LEN],
-            course(1),
-            &few,
-        );
+        let mut m = Notes::new(0, vec![0xAA; IMAGE_LEN], course(1), &few);
         m.init().unwrap();
-        assert_eq!((m.get(COUNT), m.get(GROUPS)), (Ok(0), Ok(0)));
+        assert_eq!((m.count(), m.word(GROUPS)), (Ok(0), Ok(0)));
     }
 }

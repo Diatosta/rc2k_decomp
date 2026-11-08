@@ -1,8 +1,6 @@
 //! `install::check_at_start` (0x416477): finds the game's data when the game is started
 //! from somewhere that is not an installation.
 //!
-//! In:  nothing
-//! Out: every register preserved; or it does not return (fatal error 0x90002103)
 //! Nothing if the installer is running (`g_installing`) or `var\ral.zog` is there: the
 //! usual case. Otherwise `g_noAudio` = 1, and nothing more if `files\d\gfx\jade.bun` is
 //! there. Otherwise:
@@ -23,132 +21,102 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::install::outside::Outside;
-use crate::install::runs_from_source::scratch_path;
-use crate::install::vars::INSTALLER_NAMES;
-use crate::install::vars::INSTALLER_PAGES;
-use crate::install::vars::INSTALLER_RUN;
-use crate::pointers::GamePtr;
-use crate::system::start_texts::START_TEXTS;
+use crate::install::runs_from_source::{scratch_bytes, scratch_put, scratch_text};
+use crate::session::Dword;
+use crate::system::owner::system;
 
 const PATH_ROOM: usize = 0x100;
 
 // ---- game data ----
 
 /// What both checks write into the script's entry, but for the string's id.
-pub fn set_script_entry(text_id: u16) {
+pub fn set_script_entry(install: &'static crate::install::owner::Install, text_id: u16) {
     // The entry of the installer's script (off_51D728): two bytes, a string's id, and
     // 0xBD (`word_51D752`) = the installer runs.
-    INSTALLER_PAGES.entry_kind.set(5);
-    INSTALLER_PAGES.entry_marks.set(0x0C);
-    INSTALLER_PAGES.entry_text.set(text_id);
-    INSTALLER_PAGES.script_set_up.set(0xBD);
-}
-
-/// "ral.exe" (in ".\ral.exe").
-fn program() -> Result<Vec<u8>, BadInput> {
-    crate::files::cstring(
-        GamePtr::new(INSTALLER_NAMES.program.addr()),
-        "the program's name",
-    )
+    install.pages.entry_kind.set(5);
+    install.pages.entry_marks.set(0x0C);
+    install.pages.entry_text.set(text_id);
+    install.pages.script_set_up.set(0xBD);
 }
 
 // ---- Rust version ----
 
-/// `no_audio` is where the sound's switch is.
-pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> Result<(), Refused> {
-    unsafe {
-        let record =
-            crate::pointers::host(crate::install::installer::INSTALL_TEXTS.record_path.addr())
-                as *const u8;
-        if INSTALLER_RUN.installing.get() == 1 || outside.file_exists(record)? {
-            return Ok(());
-        }
-        GamePtr::new(crate::pointers::game_address(no_audio)).write(1u32, "the sound's switch")?;
-        if outside.file_exists(crate::pointers::host(crate::gfx::texts::address(
-            &crate::gfx::texts::JADE,
-        )) as *const u8)?
-        {
-            return Ok(());
-        }
-        let path = scratch_path();
-        let put = |at: usize, text: &[u8]| -> Result<(), BadInput> {
-            let place = GamePtr::new(crate::pointers::game_address(path));
-            place
-                .offset(at as u32)
-                .write_bytes(text, "the scratch path")?;
-            place
-                .offset((at + text.len()) as u32)
-                .write(0u8, "the scratch path")?;
-            Ok(())
-        };
-
-        outside.read_registry();
-        if INSTALLER_NAMES.status.get() == 1 && INSTALLER_NAMES.source.get(0) != 0 {
-            // Whether the source could be put there is not asked: the program's name
-            // goes after whatever text the place holds.
-            outside.normalise_path(
-                crate::pointers::host(INSTALLER_NAMES.source.addr()) as *const u8,
-                path,
-            )?;
-            let held = GamePtr::new(crate::pointers::game_address(path))
-                .read_bytes(PATH_ROOM, "the scratch path")?;
-            let Some(len) = held
-                .iter()
-                .position(|&c| c == 0)
-                .filter(|len| len + 8 < PATH_ROOM)
-            else {
-                return Err(BadInput("the scratch path holds no text to go on from").into());
-            };
-            put(len, &program()?)?;
-            if outside.file_exists(path)? {
-                // "patch6: ", then the version from the blank before its `(`.
-                let version = crate::files::cstring(
-                    GamePtr::new(START_TEXTS.version.addr()),
-                    "the version text",
-                )?;
-                let from = (1..version.len())
-                    .find(|&n| version[n] == b'(')
-                    .ok_or(BadInput("a version text without a ("))?
-                    - 1;
-                let text = [b"patch6: ", &version[from..], b"\n\0"].concat();
-                GamePtr::new(
-                    crate::screens::text_buffers_store::TEXT_BUFFERS
-                        .number_text
-                        .addr(),
-                )
-                .write_bytes(&text, "the number text")?;
-                set_script_entry(0x1006);
-            }
-        }
-
-        for letter in b'a'..=b'z' {
-            if outside.drive_type(letter) != 5 {
-                continue;
-            }
-            put(0, &[letter, b':', b'\\'])?;
-            put(3, &program()?)?;
-            if !outside.file_exists(path)? {
-                continue;
-            }
-            put(
-                3,
-                &crate::gfx::texts::JADE[..crate::gfx::texts::JADE.len() - 1],
-            )?;
-            if !outside.file_exists(path)? {
-                continue;
-            }
-            GamePtr::new(crate::pointers::game_address(path) + 3).write(0u8, "the scratch path")?;
-            if !outside.set_directory(path) {
-                continue;
-            }
-            crate::install::store::INSTALL.running_from_cd.set(1);
-            return Ok(());
-        }
-        outside.log(c"Update cannot find RC CD-ROM".as_ptr().cast());
-        Err(FatalError {
-            code: 0x9000_2103,
-            message: "Cannot find the RC CD-ROM\nPlease insert the RC CD-ROM into your CD-ROM drive and try again",
-        }
-        .into())
+/// `no_audio` is the sound's switch.
+pub fn check_at_start(
+    install: &'static crate::install::owner::Install,
+    outside: &mut dyn Outside,
+    no_audio: &Dword,
+) -> Result<(), Refused> {
+    let record = install.texts.record_path.text();
+    if install.run.installing.get() == 1 || outside.file_exists(&record)? {
+        return Ok(());
     }
+    no_audio.set(1);
+    let jade = &crate::gfx::texts::JADE[..crate::gfx::texts::JADE.len() - 1];
+    if outside.file_exists(jade)? {
+        return Ok(());
+    }
+    // `text` and its NUL into the path buffer at `at`.
+    let put = |at: usize, text: &[u8]| -> Result<(), BadInput> {
+        scratch_put(at, &[text, &[0]].concat())
+    };
+    let program = install.names.program.text();
+
+    outside.read_registry();
+    if install.names.status.get() == 1 && install.names.source.get(0) != 0 {
+        // Whether the source could be put there is not asked: the program's name goes
+        // after whatever text the place holds.
+        if let Some(normalised) = outside.normalise_path(&install.names.source.text())? {
+            scratch_put(0, &normalised)?;
+        }
+        let held = scratch_bytes()?;
+        let Some(len) = held
+            .iter()
+            .position(|&c| c == 0)
+            .filter(|len| len + 8 < PATH_ROOM)
+        else {
+            return Err(BadInput("the scratch path holds no text to go on from").into());
+        };
+        put(len, &program)?;
+        if outside.file_exists(&scratch_text()?)? {
+            // "patch6: ", then the version from the blank before its `(`.
+            let version = system().start.texts.version.text();
+            let from = (1..version.len())
+                .find(|&n| version[n] == b'(')
+                .ok_or(BadInput("a version text without a ("))?
+                - 1;
+            let text = [b"patch6: ", &version[from..], b"\n\0"].concat();
+            crate::screens::text_buffers_store::TEXT_BUFFERS
+                .number_text
+                .write_at(0, &text, "the number text")?;
+            set_script_entry(install, 0x1006);
+        }
+    }
+
+    for letter in b'a'..=b'z' {
+        if outside.drive_type(letter) != 5 {
+            continue;
+        }
+        put(0, &[letter, b':', b'\\'])?;
+        put(3, &program)?;
+        if !outside.file_exists(&scratch_text()?)? {
+            continue;
+        }
+        put(3, jade)?;
+        if !outside.file_exists(&scratch_text()?)? {
+            continue;
+        }
+        put(3, b"")?;
+        if !outside.set_directory(&scratch_text()?) {
+            continue;
+        }
+        install.vars.running_from_cd.set(1);
+        return Ok(());
+    }
+    outside.log(b"Update cannot find RC CD-ROM");
+    Err(FatalError {
+        code: 0x9000_2103,
+        message: "Cannot find the RC CD-ROM\nPlease insert the RC CD-ROM into your CD-ROM drive and try again",
+    }
+    .into())
 }

@@ -1,8 +1,7 @@
 //! `scene::reflect_vector` (0x451A9D): a direction mirrored at a surface and turned by
 //! a matrix.
 //!
-//! In:  nothing
-//! Out: esi = the matrix `flt_5EA20C`; everything else preserved
+//! Returns: the matrix `flt_5EA20C`
 //!
 //! v = the three floats at `dword_5EA428`, n = the three at `qword_5EA438`:
 //! d = v . n (the first and second products added first, then the third); v = v * d, each rounded to a
@@ -10,31 +9,31 @@
 //! (`scene::rotate_point`, inlined) and back to its place. d stays unrounded between its uses.
 //! Plain Rust since 2026-10-24 (the x87's arithmetic in `X`, `math/x87_float.rs`); the
 //! original's instructions are `asm_reference` in the tests.
-//! One caller, `sub_45198C` (the reflection's texture coordinates).
-
-use crate::race::matrices_store::MATRICES;
-use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fld, fstp};
+//! One caller, `scene::reflection_coordinates` (the reflection's texture coordinates).
+use crate::scene::x87_mem::{Base, cells, fld, fstp};
 
 // ---- Rust version ----
 
-pub fn reflect_vector() {
+pub fn reflect_vector(frame: &crate::race::owner_frame::Frame, scene: &crate::scene::owner::Scene) {
     let (v, n): ([u32; 3], [u32; 3]) = (
-        crate::session::read_bits(&MATRICES.reflect_vector),
-        crate::session::read_bits(&MATRICES.reflect_normal),
+        crate::session::read_bits(&frame.matrices.reflect_vector),
+        crate::session::read_bits(&frame.matrices.reflect_normal),
     );
     // The vector, the normal, d.
     let mut w = [v[0], v[1], v[2], n[0], n[1], n[2], 0];
-    reflect(
-        w.as_mut_ptr().cast(),
-        (crate::pointers::host(MATRICES.view_back_matrix[0].addr()) as *mut u32).cast(),
-    );
-    crate::session::write_bits(&MATRICES.reflect_vector, [w[0], w[1], w[2]]);
-    DRAW.scratch.set_bits(w[6]);
+    // The matrix is only read: a copy of its cells.
+    let m = frame
+        .matrices
+        .view_back_matrix
+        .each_ref()
+        .map(super::super::session::Float::bits);
+    reflect(cells(&mut w), &m[..]);
+    crate::session::write_bits(&frame.matrices.reflect_vector, [w[0], w[1], w[2]]);
+    scene.drawing.scene.scratch.set_bits(w[6]);
 }
 
 /// The block's arithmetic: `w` the vector, the normal, d; `m` the matrix.
-fn reflect(w: *mut u8, m: *const u8) {
+fn reflect(w: impl Base, m: impl Base) {
     let t0 = fld(w, 0x8);
     let t1 = fld(w, 0x14);
     let t2 = t0 * t1;

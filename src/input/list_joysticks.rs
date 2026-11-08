@@ -3,24 +3,20 @@
 //! (`EnumDevices` of `dword_4F6904`, DirectInput, for joysticks (4), attached only (1), with
 //! `input::joystick_found`, context 0; its result not looked at).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! Caller: `input::input_thread` (its start). The method DirectInput's own (in the
 //! standalone program Rust's, `input::di_objects`).
 
-use crate::input::di_harness::{method, slot};
-use crate::input::store::DEVICES;
+use crate::input::owner::Input;
 
 /// The Rust version.
-pub fn list_joysticks() {
-    if DEVICES.no_joysticks.get() != 0 {
+pub fn list_joysticks(input: &Input) {
+    if input.devices.no_joysticks.get() != 0 {
         return;
     }
-    let found = crate::pointers::game_address(crate::input::joystick_found::callback as *const ());
-    method(
-        DEVICES.direct_input.get(),
-        slot::ENUM_DEVICES,
-        &[4, found, 0, 1],
+    crate::input::di_objects::enum_devices(
+        input.devices.direct_input.get(),
+        4,
+        |instance| crate::input::joystick_found::callback(input, instance),
+        1,
     );
 }

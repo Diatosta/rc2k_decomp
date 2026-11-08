@@ -2,32 +2,29 @@
 //! one more; at 0xE it is 0 again and the next of the four mud textures is worked on
 //! (`dword_623D5C`, kept to 0 .. 3: `race::mud_texture_turn`, then one more, `and 3`).
 //!
-//! In:  nothing (the original reads no register at entry)
-//! Out: nothing its one caller, `race::draw_race_scene`, reads
-//!
 //! See `race/mud.rs`. Refuses what `mud_texture_turn` refuses.
 
 use crate::errors::Refused;
-use crate::race::vars_store::RACE_VARS;
+use crate::race::owner::Race;
 
 /// The Rust version (see the header).
-pub unsafe fn mud_frame() -> Result<(), Refused> {
+pub fn mud_frame(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::{count_frame, texture_turn, next_texture}`.
     use crate::race::mud_texture_turn::mud_texture_turn;
     use rc2k_core::race::mud::{count_frame, next_texture, texture_turn};
-    unsafe {
-        let (frames, due) = count_frame(RACE_VARS.mud_frames.bits());
-        RACE_VARS.mud_frames.set_bits(frames);
-        if !due {
-            return Ok(());
-        }
-        RACE_VARS
-            .mud_texture
-            .set_bits(texture_turn(RACE_VARS.mud_texture.bits()));
-        mud_texture_turn()?;
-        RACE_VARS
-            .mud_texture
-            .set_bits(next_texture(RACE_VARS.mud_texture.bits()));
-        Ok(())
+    let (frames, due) = count_frame(race.shared.vars.mud_frames.bits());
+    race.shared.vars.mud_frames.set_bits(frames);
+    if !due {
+        return Ok(());
     }
+    race.shared
+        .vars
+        .mud_texture
+        .set_bits(texture_turn(race.shared.vars.mud_texture.bits()));
+    mud_texture_turn(race, scene)?;
+    race.shared
+        .vars
+        .mud_texture
+        .set_bits(next_texture(race.shared.vars.mud_texture.bits()));
+    Ok(())
 }

@@ -1,4 +1,5 @@
 pub mod allocate_best_times;
+pub mod best_times;
 pub mod best_times_store;
 pub mod default_best_scores;
 pub mod default_championship_times;
@@ -15,6 +16,7 @@ pub mod list_car_numbers;
 pub mod load_best_times;
 pub mod load_options;
 pub mod load_savegame;
+pub mod owner;
 pub mod preview_store;
 pub mod read_replay_slot;
 pub mod read_savegame_slot;

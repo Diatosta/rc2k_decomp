@@ -81,9 +81,9 @@ pub fn resolve(path: &[u8], bases: &Bases) -> Option<Vec<u8>> {
     let mut out = base.to_vec();
     for &c in rel {
         if c == b'%' {
-            out.extend_from_slice(bases.percent)
+            out.extend_from_slice(bases.percent);
         } else {
-            out.push(c)
+            out.push(c);
         }
     }
     out.push(0);

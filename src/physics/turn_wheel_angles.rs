@@ -7,17 +7,12 @@
 //! the same, times `flt_623DAC` and `flt_623DB4`, added to the four at `dword_623D70`.
 //! Each s goes through `dword_62400C`.
 //!
-//! In:  nothing
-//! Out: every register kept; CF when skipped (no caller reads it: the next is an `fld`)
-//!
-//! Caller: `sub_43B635` (0x43B91E), every physics step.
+//! Caller: `physics::car_physics_step` (0x43B91E), every physics step.
 
 use crate::math::x87;
-use crate::physics::car_store::CAR;
 use crate::race::kind_store::KIND_TABLES;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::vars_store::RACE_VARS;
-use crate::scene::draw_store::DRAW;
+use crate::race::owner::Race;
+use crate::race::owner_course::Course;
 use crate::session::Float;
 use std::cmp::Ordering;
 
@@ -30,41 +25,63 @@ fn below(s: u32, zero: u32) -> bool {
 }
 
 /// One half: `speed` (None with the switch set) held, scaled, added to the four at `to`.
-fn add_turn(speed: Option<u32>, f1: &Float, f2: &Float, to: &[Float; 4]) {
-    DRAW.scratch.set(0);
+fn add_turn(
+    course: &Course,
+    speed: Option<u32>,
+    f1: &Float,
+    f2: &Float,
+    to: &[Float; 4],
+    scene: &crate::scene::owner::Scene,
+) {
+    let drawing = &scene.drawing;
+    drawing.scene.scratch.set(0);
     if let Some(s) = speed {
-        DRAW.scratch.set(s);
-        if below(DRAW.scratch.get(), NUMBERS.zero.bits()) {
-            DRAW.scratch.set(x87::loaded(NUMBERS.zero.bits()));
+        drawing.scene.scratch.set(s);
+        if below(drawing.scene.scratch.get(), course.numbers.zero.bits()) {
+            drawing
+                .scene
+                .scratch
+                .set(x87::loaded(course.numbers.zero.bits()));
         }
     }
-    DRAW.scratch
-        .set(x87::mul2(DRAW.scratch.get(), f1.bits(), f2.bits()));
+    drawing
+        .scene
+        .scratch
+        .set(x87::mul2(drawing.scene.scratch.get(), f1.bits(), f2.bits()));
     for cell in to {
-        cell.set_bits(x87::add(cell.bits(), DRAW.scratch.get()));
+        cell.set_bits(x87::add(cell.bits(), drawing.scene.scratch.get()));
     }
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub fn turn_wheel_angles() {
-    let kind = CAR.car_kind.get();
+pub fn turn_wheel_angles(race: &Race, scene: &crate::scene::owner::Scene) {
+    let kind = race.shared.car.car_kind.get();
     if kind >= 0x22 || KIND_TABLES.kind_turns_wheels[kind as usize].get() == 0 {
         return;
     }
-    let still = CAR.all_wheels_off.get() != 0;
-    let drive = || x87::loaded(CAR.drive_speed_a.bits());
-    let v = &RACE_VARS;
+    let still = race.shared.car.all_wheels_off.get() != 0;
+    let drive = || x87::loaded(race.shared.car.drive_speed_a.bits());
+    let v = &race.shared.vars;
     add_turn(
+        &race.course,
         (!still).then(drive),
         &v.wheel_turn_a[0],
         &v.wheel_turn_b[0],
         &v.mud_thrown_in,
+        scene,
     );
-    let slip = || x87::sub(CAR.drive_speed_a.bits(), CAR.local_velocity[2].bits());
+    let slip = || {
+        x87::sub(
+            race.shared.car.drive_speed_a.bits(),
+            race.shared.car.local_velocity[2].bits(),
+        )
+    };
     add_turn(
+        &race.course,
         (!still).then(slip),
         &v.wheel_turn_a[1],
         &v.wheel_turn_b[1],
         &v.mud_splashes_in,
+        scene,
     );
 }

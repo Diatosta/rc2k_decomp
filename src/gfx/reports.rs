@@ -12,17 +12,17 @@ pub const LEN: usize = 4;
 
 /// The 3D reports switch.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Reports {
     /// `dword_4F52AC`: 1 while Direct3D's errors are reported (fatal).
     pub on: Dword,
 }
 
 /// The switch; the first value is the image's.
-pub static REPORTS: Reports = Reports { on: Dword::new(1) };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x4F52AC).
-pub fn home() -> usize {
-    crate::pointers::game_address(&REPORTS as *const Reports) as usize
+impl Reports {
+    pub const fn new() -> Self {
+        Reports { on: Dword::new(1) }
+    }
 }
 
 #[cfg(test)]
@@ -31,11 +31,14 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&REPORTS, START, START + LEN);
+        crate::gfx::first_values_are_the_games(&crate::gfx::owner::GFX.reports, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), REPORTS.on.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            crate::gfx::owner::GFX.reports.on.addr() as usize
+        );
     }
 }

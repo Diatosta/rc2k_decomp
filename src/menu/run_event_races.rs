@@ -21,50 +21,59 @@
 //!
 //! Then the players' +0x288 cleared (`menu::clear_players_288`).
 //!
-//! In:  nothing
-//! Out: no `pusha`: eax, ecx, edx, ebx, esi and edi as the original leaves them (see
-//! `run_event_races`)
-//!
 //! Callers: the event drivers. The steps are their Rust versions. Refuses fewer than 0xB2 drivers
 //! or fewer than four still running among them (the drop-out loop would run on), a missing player
 //! for the mode, and what the steps refuse, before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::cheats_store::CHEAT_VARS;
+use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::event_flow::Fault;
-use crate::menu::event_flow::Flow;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::pages_store::MENU_PAGES;
+use crate::menu::owner::Menus;
+use crate::menu::owner::menus;
 use crate::menu::standings::*;
-use crate::race::state_store::RACE_STATE;
+use crate::race::owner::race;
 use crate::session::Dword;
 use rc2k_core::menu::event_races::{self as races, PICKED, Step, Var};
 
-const GOES_ON: &Dword = &EVENT_STATE.event_goes_on; // dword_75592C
-const CHEATS: &Dword = &CHEAT_VARS.cheats; // g_cheats
-const KEPT: &Dword = &SCREEN_FLOW.kept; // dword_7554C8
-const CURRENT: &Dword = &EVENT_STATE.current_player; // dword_75598C
+const GOES_ON: &Dword = &crate::menu::owner::MENUS.screens.event.event_goes_on; // dword_75592C
+const CHEATS: &Dword = &crate::menu::owner::MENUS.play.cheats.cheats; // g_cheats
+const KEPT: &Dword = &crate::menu::owner::MENUS.screens.flow.kept; // dword_7554C8
+const CURRENT: &Dword = &crate::menu::owner::MENUS.screens.event.current_player; // dword_75598C
 
 /// The game for `rc2k_core::menu::event_races`: the variables at their addresses, the
-/// steps' Rust versions on the registers carried through (`g`), the race and the front end.
-struct Game<'a> {
-    g: &'a mut Flow,
-    first: u32,
-    rec: u32,
-    pack: u32,
+/// steps' Rust versions, the race and the front end.
+struct Game {
+    /// The walked drivers.
+    drivers: &'static [Driver],
+    /// The stage's track pack entry.
+    pack: crate::records::trakpak_entry::Track,
+    /// The driver `running` last asked about (the one `drop_out` drops).
+    asked: Option<&'static Driver>,
     /// A refused read or write of the core's variables (checked at each step and at the end).
     fault: Fault,
 }
 
+impl Game {
+    /// Driver `k` of the walked ones; past them a refusal kept for the next check (the core
+    /// picks under `PICKED`, which `run_event_races` checks the walk reaches).
+    fn driver(&self, k: u32) -> Option<&'static Driver> {
+        let d = self.drivers.get(k as usize);
+        if d.is_none() {
+            self.fault
+                .ok::<()>(Err(BadInput("a driver past the walked ones")));
+        }
+        d
+    }
+}
+
 /// The variables that are in the physics block.
 fn cell(v: Var) -> &'static Dword {
+    let race = race();
     match v {
-        Var::CheatSwitch => &RACE_STATE.settings.direction,
-        Var::RaceKept => &RACE_STATE.settings.kept,
-        Var::Result => &RACE_STATE.results.results[0].result,
-        Var::Result2 => &RACE_STATE.results.results[1].result,
+        Var::CheatSwitch => &race.shared.state.settings.direction,
+        Var::RaceKept => &race.shared.state.settings.kept,
+        Var::Result => &race.shared.state.results.results[0].result,
+        Var::Result2 => &race.shared.state.results.results[1].result,
         Var::GoesOn => GOES_ON,
         Var::Cheats => CHEATS,
         Var::Kept => KEPT,
@@ -72,7 +81,7 @@ fn cell(v: Var) -> &'static Dword {
     }
 }
 
-impl races::EventRaces for Game<'_> {
+impl races::EventRaces for Game {
     type Error = Refused;
 
     fn get(&mut self, v: Var) -> u32 {
@@ -80,59 +89,47 @@ impl races::EventRaces for Game<'_> {
     }
 
     fn set(&mut self, v: Var, value: u32) {
-        cell(v).set(value)
+        cell(v).set(value);
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
+        let race = race();
+        let menus = menus();
+        let screens = &menus.screens;
         self.fault.check()?;
-        let g = &mut *self.g;
-        unsafe {
-            match s {
-                Step::CpuTimes => {
-                    crate::menu::calc_cpu_times::calc_cpu_times()?;
-                    g.c.measure_x = 0;
-                }
-                Step::ResetPlayerTimes => {
-                    crate::menu::reset_player_times::reset_player_times()?;
-                }
-                Step::StandingsFromDrivers => {
-                    crate::menu::standings_from_drivers::standings_from_drivers()?;
-                }
-                Step::SortByTime => {
-                    crate::menu::sort_standings_by_time::sort_standings_by_time()?;
-                }
-                Step::CopySummary => {
-                    crate::menu::copy_standings_summary::copy_standings_summary()?;
-                }
-                Step::RaceInfo => {
-                    let (rec, pack) = (self.rec, self.pack);
-                    g.c.arg = CHAMP_VIEW.summary.get();
-                    RACE_STATE.settings.rivals.set(g.c.arg);
-                    g.c.arg = INDEX_RVA.get();
-                    g.c.palette = SECTION_RVA.get();
-                    g.record = pack;
-                    g.c.cars = pack;
-                    g.c.palette = get(rec + 4)?.wrapping_mul(0x40);
-                    g.c.measure_x = get(rec + 8)?;
-                    g.c.clock = crate::records::trakpak_entry::loaded_pack_id();
-                    g.c.cars = RACE_STATE.settings.rivals.addr();
-                    g.c.arg = get(pack + 0x34)?;
-                    RACE_STATE.settings.stage.set(g.c.arg);
-                }
-                Step::Race => {
-                    g.c.palette = 1;
-                    crate::race::single_rally_race::single_rally_race(g.c.arg, 1)?;
-                }
-                Step::ReloadFrontEnd => crate::menu::reload_front_end::reload_front_end()?,
-                Step::PlayerEntered { next } => {
-                    let (record, value) = crate::menu::player_entered::player_entered(next, 1)?;
-                    (g.c.measure_x, g.record, g.c.arg) = (next, record, value);
-                }
-                Step::ClearPlayers288 => {
-                    crate::menu::clear_players_288::clear_players_288()?;
-                }
+        match s {
+            Step::CpuTimes => crate::menu::calc_cpu_times::calc_cpu_times(screens)?,
+            Step::ResetPlayerTimes => {
+                crate::menu::reset_player_times::reset_player_times(menus)?;
+            }
+            Step::StandingsFromDrivers => {
+                crate::menu::standings_from_drivers::standings_from_drivers(menus)?;
+            }
+            Step::SortByTime => {
+                crate::menu::sort_standings_by_time::sort_standings_by_time(menus)?;
+            }
+            Step::CopySummary => {
+                crate::menu::copy_standings_summary::copy_standings_summary(screens)?;
+            }
+            Step::RaceInfo => {
+                // The summary's variable: 1 while it is there (the race reads it:
+                // `RACE_STATE.settings.rivals`).
+                race.shared
+                    .state
+                    .settings
+                    .rivals
+                    .set(menus.play.champ_view.summary.get());
+                race.shared.state.settings.stage.set(self.pack.stage()?);
+            }
+            Step::Race { next } => {
+                crate::race::single_rally_race::single_rally_race(u32::from(next), 1)?;
+            }
+            Step::ReloadFrontEnd => crate::menu::reload_front_end::reload_front_end(menus)?,
+            Step::ClearPlayers288 => {
+                crate::menu::clear_players_288::clear_players_288()?;
             }
         }
+
         Ok(())
     }
 
@@ -141,76 +138,65 @@ impl races::EventRaces for Game<'_> {
     }
 
     fn slow(&mut self, k: u32, added: u32) {
-        self.g.record = self.first + k * DRIVER;
-        self.g.c.arg = added;
-        let edi = self.g.record;
-        let fault = &self.fault;
-        fault.put(edi + 0xC, fault.get(edi + 0xC).wrapping_add(added));
-        fault.put(edi + 0x10, fault.get(edi + 0x10).wrapping_add(added));
+        if let Some(d) = self.driver(k) {
+            d.time.set(d.time.get().wrapping_add(added));
+            d.total.set(d.total.get().wrapping_add(added));
+        }
     }
 
     fn running(&mut self, k: u32) -> bool {
-        self.g.c.arg = k * DRIVER;
-        self.g.record = self.first + self.g.c.arg;
-        self.fault.get(self.g.record + 0x24) == races::RUNNING
+        self.asked = self.driver(k);
+        self.asked
+            .is_some_and(|d| d.in_event.get() == races::RUNNING)
     }
 
     fn drop_out(&mut self) {
-        self.fault.put(self.g.record + 0x24, races::DROPPED);
-        self.fault.put(self.g.record + 0xC, races::DROPPED_TIME);
-        self.fault.put(self.g.record + 0x10, races::DROPPED_TIME);
+        if let Some(d) = self.asked {
+            d.in_event.set(races::DROPPED);
+            d.time.set(races::DROPPED_TIME);
+            d.total.set(races::DROPPED_TIME);
+        }
     }
 
     fn takes_part(&mut self, i: u32) -> bool {
-        self.g.record = player(i);
-        self.fault.get(self.g.record + 0xD0) == races::TAKES_PART
+        player(i).get().entry == races::TAKES_PART
     }
 
     fn fourth_out(&mut self) {
-        self.g.record = player(3);
-        self.fault.put(self.g.record + 0x88, races::FOURTH_TIME);
-        self.fault.put(self.g.record + 0xD0, races::FOURTH_ENTRY);
-    }
-
-    fn keep(&mut self, value: u32) {
-        self.g.c.arg = value;
-    }
-
-    fn hand_kept(&mut self, value: u32) {
-        self.g.c.clock = value;
+        player(3).update(|q| {
+            q.time = races::FOURTH_TIME;
+            q.entry = races::FOURTH_ENTRY;
+        });
     }
 }
 
-/// The Rust version (see the header). `f` the registers carried in and out (what it
-/// leaves is the last step's).
-pub fn run_event_races(f: &mut Flow) -> Result<(), Refused> {
-    let drivers = entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
-    let fault = Fault::default();
+/// The Rust version.
+pub fn run_event_races(menus: &Menus) -> Result<(), Refused> {
+    let screens = &menus.screens;
+    let drivers = drivers()?;
     let few_running = drivers.len() < PICKED as usize
         || drivers[..PICKED as usize]
             .iter()
-            .filter(|&&d| fault.get(d + 0x24) == 1)
+            .filter(|d| d.in_event.get() == IN_EVENT)
             .count()
             < 4;
-    fault.check()?;
     if few_running {
         return Err(BadInput("fewer than 0xB2 drivers, or fewer than four still running").into());
     }
-    let mode: u32 = { EVENT_STATE.event_kind.get() };
+    let mode: u32 = menus.screens.event.event_kind.get();
     if let Some((n, _)) = races::players_of(mode)
-        && (0..n).any(|i| player(i) == 0)
+        && n > 4
     {
         return Err(BadInput("a player of the event's mode missing").into());
     }
-    let reset_only = { MENU_PAGES.reset_times.get() } == 1;
-    let rec = crate::menu::calc_cpu_times::record()?;
-    crate::menu::calc_cpu_times::check(rec)?;
-    let pack = crate::records::trakpak_entry::record_entry(rec)?;
+    let reset_only = { menus.tables.pages.reset_times.get() } == 1;
+    let rec = crate::menu::calc_cpu_times::record(screens)?;
+    crate::menu::calc_cpu_times::check(screens, rec)?;
+    let pack = crate::records::trakpak_entry::track_of(rec)?;
     let mut game = Game {
-        g: f,
-        first: drivers[0],
-        rec,
+        drivers,
         pack,
+        asked: None,
         fault: Fault::default(),
     };
     // Converted: `rc2k_core::menu::event_races::run_event_races`.

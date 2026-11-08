@@ -1,48 +1,39 @@
 //! `menu::time_trial_stage_details_loop` (0x48F1F4): the loop of the stage details screen of a
 //! time trial.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`), as extracted from the disassembly: leaving is not asked about.
 //! A reading, not yet a visit: its draw list 0x758CFE is the one of
 //! `screens::draw_time_trial_stage_info`, a confirmed screen; it sets `dword_755700` to 1 first.
-//! Callers: `sub_47037E`.
-
-use crate::framework::rva;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, List, Screen, Step};
+use crate::menu::screen_items_store::slot;
+use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.time_trial_stage_details.addr() as usize,
-    saved_item: || &SCREEN_ITEMS.current[slot::TIME_TRIAL_STAGE_DETAILS],
+    menu: |m| m.tables.menus.time_trial_stage_details.id(),
+    saved_item: |m| &m.screens.items.current[slot::TIME_TRIAL_STAGE_DETAILS],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.time_trial_stage_details_scene.addr() as usize,
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.time_trial_stage_details_scene.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.time_trial_stage_details_draw.addr() as usize,
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.time_trial_stage_details_draw.id(),
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.time_trial_stage_details_overlay.addr() as usize,
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.time_trial_stage_details_overlay.id(),
             run: false,
         },
     ],
     first_frame_lists: None,
-    frame_callback: rva(0x474D4B),
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
-    before: &[Step::Write(|| &CHAMP_VIEW.stage_mode, 0x1)],
+    before: &[Step::Write(|m| &m.play.champ_view.stage_mode, 0x1)],
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],

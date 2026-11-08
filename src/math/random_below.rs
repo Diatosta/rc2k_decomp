@@ -1,10 +1,8 @@
 //! `math::random_below` (0x4018A2): a random number under a limit.
 //!
-//! In:  eax = the limit
-//! Out: eax = `next_random` modulo the limit; everything else preserved
+//! Takes: the limit
+//! Returns: `next_random` modulo the limit
 //! 73 callers. A limit of 0 makes the original's `div` trap: refused.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
 

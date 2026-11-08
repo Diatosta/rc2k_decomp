@@ -5,52 +5,39 @@
 //! NUL, the cursor advanced and `dword_51BB4C` (the count) raised. More than 0x40000 bytes
 //! of names is fatal error 0x80AF2206. The search is closed at the end.
 //!
-//! In:  eax the pattern
-//! Out: every register kept (`pusha` / `popa`)
+//! Takes the pattern.
 //! Caller `install::run_script` (opcode 3).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
-use crate::install::installer::{
-    append_byte, close_search, fatal, find_first, find_next, resolve_path, str_append,
-};
-use crate::install::vars::INSTALLER_RUN;
+use crate::install::installer::{close_search, fatal, find_first, find_next, resolve_path};
+use crate::install::name_tables::{FILES, found_name};
 use rc2k_core::install::script;
 
-/// FindFileData.cFileName (the search record: `files::state`).
-fn find_name() -> u32 {
-    unsafe {
-        crate::pointers::game_address(&raw const (*crate::files::state::find_data()).cFileName)
-    }
+/// FindFileData.cFileName (the search record: `files::search`), up to its NUL.
+fn find_name() -> Vec<u8> {
+    crate::files::search::found_name()
 }
 
-/// The files of `pattern` (eax) added to the files' table.
-pub fn list_files(pattern: u32) -> Result<(), Refused> {
+/// The files of `pattern` added to the files' table.
+pub fn list_files(
+    install: &'static crate::install::owner::Install,
+    pattern: impl Into<crate::place::Place>,
+) -> Result<(), Refused> {
     let pattern = resolve_path(pattern)?;
-    if find_first(pattern) {
+    if find_first(&pattern) {
         loop {
             // append_directory (edx the pattern's path, ebx the cursor)
-            let (cursor, _) = crate::files::append_directory::append_directory(
-                crate::pointers::host(pattern) as *const u8,
-                crate::pointers::host(INSTALLER_RUN.file_cursor.get()),
-            )?;
-            let cursor = append_byte(
-                str_append(find_name(), crate::pointers::game_address(cursor)),
-                0,
-            );
-            INSTALLER_RUN.file_cursor.set(cursor);
-            INSTALLER_RUN
+            let name = found_name(&pattern, &find_name())?;
+            let used = FILES.with(|t| t.push(name))?;
+            install.run.file_cursor.set(used);
+            install
+                .run
                 .file_count
-                .set(INSTALLER_RUN.file_count.get().wrapping_add(1));
+                .set(install.run.file_count.get().wrapping_add(1));
             // Converted: `rc2k_core::install::script::room_left` (`sub ebx, [table]`).
-            script::room_left(
-                cursor.wrapping_sub(INSTALLER_RUN.files.get()),
-                script::FILES_ROOM,
-                script::FILES_FULL,
-            )
-            .map_err(fatal)?;
+            script::room_left(used, script::FILES_ROOM, script::FILES_FULL).map_err(fatal)?;
             if !find_next() {
                 break;
             }

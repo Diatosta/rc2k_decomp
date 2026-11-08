@@ -8,6 +8,7 @@ use crate::session::Dword;
 
 /// The list pages and the answer (IDA 0x75523C .. 0x755258).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MenuPages {
     /// `g_savePage`: The page the list of saved games is on (`menu::item_actions`, `menu::name_lists`).
     pub save_page: Dword,
@@ -26,15 +27,19 @@ pub struct MenuPages {
 }
 
 /// First values the image's (`tests::menu_pages_starts_as_the_games`).
-pub static MENU_PAGES: MenuPages = MenuPages {
-    save_page: Dword::new(0x0),
-    scores_page: Dword::new(0x0),
-    setup_slot_page: Dword::new(0x0),
-    replay_page: Dword::new(0x0),
-    yes_no_answer: Dword::new(0x1),
-    reset_times: Dword::new(0x0),
-    services: Dword::new(0x0),
-};
+impl MenuPages {
+    pub const fn new() -> Self {
+        MenuPages {
+            save_page: Dword::new(0x0),
+            scores_page: Dword::new(0x0),
+            setup_slot_page: Dword::new(0x0),
+            replay_page: Dword::new(0x0),
+            yes_no_answer: Dword::new(0x1),
+            reset_times: Dword::new(0x0),
+            services: Dword::new(0x0),
+        }
+    }
+}
 
 /// IDA 0x75523C, the first byte of the piece.
 pub const START: usize = 0x75523C;
@@ -42,8 +47,9 @@ pub const START: usize = 0x75523C;
 pub const END: usize = 0x755258;
 
 /// Where IDA 0x75523C is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn menu_pages_addr() -> u32 {
-    crate::pointers::game_address(&MENU_PAGES as *const MenuPages)
+    crate::pointers::game_address(&raw const crate::menu::owner::menus().tables.pages)
 }
 
 #[cfg(test)]
@@ -60,7 +66,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(menu_pages_addr()) as *const u8,
+                crate::pointers::host(menu_pages_addr()).cast_const(),
                 END - START,
             )
         };

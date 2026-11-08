@@ -7,3 +7,6 @@ edition = "2024"
 # Windows (`notes/conversion.md`).
 [dependencies]
 miniz_oxide = "0.8"
+
+[lints]
+workspace = true

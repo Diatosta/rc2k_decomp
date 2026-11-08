@@ -1,10 +1,6 @@
 //! `scene::set_object_light` (0x45143A): the light that falls on the object as a whole,
 //! to be added to each of its vertices.
 //!
-//! In:  nothing
-//! Out: the original leaves eax, ebx, ecx and esi changed where it gathers the lamps;
-//!      its caller goes on without them, and the Rust version keeps them
-//!
 //! `dword_635068` (what `scene::vertex_light` adds) = 0, then by `g_lightKind`:
 //! - 5: plain white;
 //! - 1: `g_lightStrength` = 0; the lamps gathered; `g_lightColour` plus
@@ -18,22 +14,16 @@
 //! "The lamps gathered" (`scene::gather_lights`, 0x451425, inlined): the object's place
 //! `dword_63501C` .. to `g_litPlace`, `g_lightColour` = 0, `scene::add_car_lights`,
 //! `scene::add_point_lights`. "Plus" is byte by byte without overflow, as in
-//! `scene::vertex_light`. One caller, `sub_45045D`.
+//! `scene::vertex_light`. One caller, `scene::draw_object`.
 //!
 //! Converted 2026-10-21: the kind's way through `rc2k_core::scene::lamps::object_light`.
 
 use crate::errors::Refused;
-use crate::input::store::DEVICES;
-use crate::physics::ground_store::GROUND_WORK;
-use crate::race::view_vars_store::VIEW_VARS;
+use crate::input::owner::input;
 use crate::scene::add_car_light::add_car_light;
 use crate::scene::add_car_lights::add_car_lights;
 use crate::scene::add_point_lights::add_point_lights;
-use crate::scene::light_store::LIGHT_STATE;
-use crate::scene::light_work_store::LIGHT_WORK;
-use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::vertex_light::plus;
-use crate::session::MACHINE;
 
 // ---- game data ----
 
@@ -41,14 +31,19 @@ use crate::session::MACHINE;
 
 /// `gather`: what stands for `scene::add_car_lights` and `scene::add_point_lights`.
 // Converted: `rc2k_core::scene::lamps::object_light`
-pub fn set_object_light(gather: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
+pub fn set_object_light(
+    race: &crate::race::owner::Race,
+    gather: &mut dyn FnMut() -> Result<(), Refused>,
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
-    OBJECT_WORK.light_added.set_bits(0u32);
-    let (clear_strength, own_car) = match object_light(LIGHT_WORK.light_kind.bits(), || {
-        DEVICES.keys_now.get(0x18) != 0 // byte_4F6B74
+    scene.drawing.object_work.light_added.set_bits(0u32);
+    let (clear_strength, own_car) = match object_light(scene.lights.work.light_kind.bits(), || {
+        input().devices.keys_now.get(0x18) != 0 // byte_4F6B74
     }) {
         ObjectLight::White => {
-            OBJECT_WORK.light_added.set_bits(WHITE);
+            scene.drawing.object_work.light_added.set_bits(WHITE);
             return Ok(());
         }
         ObjectLight::Gathered {
@@ -58,36 +53,49 @@ pub fn set_object_light(gather: &mut dyn FnMut() -> Result<(), Refused>) -> Resu
         ObjectLight::Nothing => return Ok(()),
     };
     if clear_strength {
-        OBJECT_WORK.light_strength.set_bits(0u32);
+        scene.drawing.object_work.light_strength.set_bits(0u32);
     }
     crate::session::write_bits(
-        &LIGHT_STATE.lit_place,
-        crate::session::read_bits::<_, 3>(&OBJECT_WORK.place),
+        &scene.lights.state.lit_place,
+        crate::session::read_bits::<_, 3>(&scene.drawing.object_work.place),
     );
     if own_car {
-        GROUND_WORK
+        race.physics
+            .ground
             .drawn_car_light
-            .set_bits(VIEW_VARS.drawn_car.bits());
+            .set_bits(race.frame.view_and_records.view_vars.drawn_car.bits());
     }
-    LIGHT_WORK.light_colour.set_bits(0u32);
+    scene.lights.work.light_colour.set_bits(0u32);
     gather()?;
     if own_car {
-        GROUND_WORK.drawn_car_light.set_bits(u32::MAX);
+        race.physics.ground.drawn_car_light.set_bits(u32::MAX);
     }
-    let mmx = MACHINE.has_mmx.get() != 0;
-    OBJECT_WORK.light_added.set_bits(plus(
-        LIGHT_WORK.light_colour.bits(),
-        OBJECT_WORK.other_light.bits(),
+    let mmx = system.session.machine.has_mmx.get() != 0;
+    scene.drawing.object_work.light_added.set_bits(plus(
+        scene.lights.work.light_colour.bits(),
+        scene.drawing.object_work.other_light.bits(),
         mmx,
     ));
     Ok(())
 }
 
 /// With the lamps' Rust versions.
-pub fn set_object_light_in_game() -> Result<(), Refused> {
-    set_object_light(&mut || {
-        add_car_lights(&mut |car| Ok(add_car_light(car)?))?;
-        add_point_lights()?;
-        Ok(())
-    })
+pub fn set_object_light_in_game(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    set_object_light(
+        race,
+        &mut || {
+            add_car_lights(race, &mut |car| {
+                add_car_light(&race.course, car, scene, system);
+                Ok(())
+            })?;
+            add_point_lights(race, scene, system)?;
+            Ok(())
+        },
+        scene,
+        system,
+    )
 }

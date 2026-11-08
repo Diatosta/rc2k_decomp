@@ -3,24 +3,27 @@
 //! "raced" (bits 0 and 1 off, bit 2 on), "after a race" (`dword_52AD80` 1), and the players
 //! listed (`net::list_players_regs`: the record sent).
 //!
-//! In:  `time` (eax: the race's time)
-//! Out: nothing (every register kept, `pusha` .. `popa`)
+//! Takes `time`.
 //! Caller: `net::lets_rally`.
 
 use crate::errors::Refused;
-use crate::net::store::{NET, PlayerRecord};
+use crate::net::owner::Net;
+use crate::net::store::PlayerRecord;
 
 /// The Rust version.
-pub fn race_over(time: u32) -> Result<(), Refused> {
-    NET.all_raced.set(0);
-    NET.race_over.set(0);
-    NET.own.race_time.set(time);
-    NET.own.total.set(NET.own.total.get().wrapping_add(time));
+pub fn race_over(net: &Net, time: u32) -> Result<(), Refused> {
+    net.vars.all_raced.set(0);
+    net.vars.race_over.set(0);
+    net.vars.own.race_time.set(time);
+    net.vars
+        .own
+        .total
+        .set(net.vars.own.total.get().wrapping_add(time));
     // Converted: `rc2k_core::net::players::raced`.
-    NET.own.head.set(
+    net.vars.own.head.set(
         PlayerRecord::STATE,
-        rc2k_core::net::players::raced(NET.own.state()),
+        rc2k_core::net::players::raced(net.vars.own.state()),
     );
-    NET.after_race.set(1);
-    crate::net::list_players::list_players_regs()
+    net.vars.after_race.set(1);
+    crate::net::list_players::list_players_regs(&net.vars)
 }

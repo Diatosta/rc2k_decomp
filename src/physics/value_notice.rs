@@ -4,44 +4,40 @@
 //! below 300 with 0xCE the last, `dword_71A700` and `dword_71A6FC` 0. What the figure is
 //! is not known.
 //!
-//! In:  nothing
-//! Out: every register kept; flags not read (`sub_43B635` returns next, its callers
-//!      go on with `inc`, calls)
-//!
-//! Caller: `sub_43B635` (0x43B9AE), its last call, every physics step.
+//! Caller: `physics::car_physics_step` (0x43B9AE), its last call, every physics step.
 
-use crate::physics::car_store::CAR;
-use crate::physics::cells::{get, put_changed};
+use crate::race::owner_shared::Shared;
+use crate::session::Cell32;
 use rc2k_core::physics::notices::Notice;
 
 // Converted: `rc2k_core::physics::notices::Notice::value_notice`.
-fn core(v: &[u32]) {
+fn core(v: &[&dyn Cell32]) {
     let was = Notice {
-        shown: get(v[1]),
-        last: get(v[2]),
-        id: get(v[3]),
-        time: get(v[4]),
+        shown: v[1].bits(),
+        last: v[2].bits(),
+        id: v[3].bits(),
+        time: v[4].bits(),
         ..Notice::default()
     };
     let mut n = was;
-    n.value_notice(get(v[0]));
-    put_changed(v[3], was.id, n.id);
-    put_changed(v[4], was.time, n.time);
-    put_changed(v[1], was.shown, n.shown);
-    put_changed(v[2], was.last, n.last);
+    n.value_notice(v[0].bits());
+    crate::physics::cells::set_changed(v[3], was.id, n.id);
+    crate::physics::cells::set_changed(v[4], was.time, n.time);
+    crate::physics::cells::set_changed(v[1], was.shown, n.shown);
+    crate::physics::cells::set_changed(v[2], was.last, n.last);
 }
 
-fn game() -> Vec<u32> {
+fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     vec![
-        CAR.turned_steps.addr(),
-        CAR.notice_shown.addr(),
-        CAR.notice_last.addr(),
-        CAR.notice_id.addr(),
-        CAR.notice_time.addr(),
+        &shared.car.turned_steps as &dyn Cell32,
+        &shared.car.notice_shown,
+        &shared.car.notice_last,
+        &shared.car.notice_id,
+        &shared.car.notice_time,
     ]
 }
 
 /// The Rust version.
-pub fn value_notice() {
-    core(&game())
+pub fn value_notice(shared: &Shared) {
+    core(&game(shared));
 }
