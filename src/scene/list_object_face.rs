@@ -97,7 +97,7 @@ impl FaceWorld for GameFace<'_> {
         ))
     }
     fn no_second_mask(&self) -> u32 {
-        self.0.shared.car.camera_switch_active.bits()
+        crate::race::frame::drawn_car().camera_switch_active.bits()
     }
     fn second_mask(&self) -> u32 {
         self.0.frame.view_and_records.view_vars.group_mask.bits()

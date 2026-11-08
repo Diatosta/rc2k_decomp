@@ -343,7 +343,7 @@ pub fn light_colour_at(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     Ok(())
 }
 
-/// `race::view_light` (0x455896): the lit place the work car's (`g_car` +0x134 ..);
+/// `race::view_light` (0x455896): the lit place the view's car's (`race::frame::drawn_car`, the original's `g_car` +0x134 ..);
 /// `light_colour_at`; `race().frame.frame_work.view_light` = `LIGHT_WORK.view_light_base` plus the light
 /// (`add_colours`, through `DRAW.scratch`).
 pub fn view_light(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
@@ -351,7 +351,7 @@ pub fn view_light(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(),
     check_light_colour(&race.shared)?;
     crate::session::write_bits(
         &scene.lights.state.lit_place,
-        crate::session::read_bits(&race.shared.car.position),
+        crate::session::read_bits(&crate::race::frame::drawn_car().position),
     );
     light_colour_at(race, scene)?;
     let light: u32 = scene.lights.work.light_colour.bits();

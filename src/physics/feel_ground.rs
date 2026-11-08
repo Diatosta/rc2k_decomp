@@ -30,7 +30,7 @@ pub fn feel_ground(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
         return Err(BadInput("more than 0x40 probe points").into());
     }
     crate::physics::note_surface_mode::note_surface_mode(&race.shared);
-    crate::physics::probe_ground::probe_ground(race, scene)?;
+    crate::physics::probe_ground::probe_ground(race, &race.shared.car, scene)?;
     crate::physics::lowest_body_point::lowest_body_point(race)?;
     let off = WheelsOff::of([
         race.shared.car.wheel_squeeze[0].bits(),

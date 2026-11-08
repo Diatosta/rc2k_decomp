@@ -27,7 +27,7 @@ const PORKY: &std::ffi::CStr = c"porky"; // aPorky
 
 /// One try's calls (0x43BE4D .. 0x43BE61).
 fn try_place(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    { crate::physics::probe_ground::probe_ground(race, scene) }?;
+    { crate::physics::probe_ground::probe_ground(race, &race.shared.car, scene) }?;
     crate::physics::crossed_edge::check(&race.physics)?;
     crate::physics::crossed_edge::steps(race, scene)?;
     crate::physics::wall_contacts::check(&race.shared)?;

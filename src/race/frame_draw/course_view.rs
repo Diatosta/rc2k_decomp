@@ -41,15 +41,18 @@ pub fn checkpoint_colours(race: &Race) -> Result<(), BadInput> {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::frame::checkpoint_colours`.
     {
-        let n: u32 = shared.car.checkpoint.get();
+        let n: u32 = crate::race::frame::drawn_car().checkpoint.get();
         let face =
             crate::race::checkpoints_store::cell_in(&CHECKPOINTS.checkpoint_faces, n as usize)
                 .get();
         let byte: u8 = face_field(face, 0x10)?;
         let along =
             crate::race::checkpoints_store::cell_in(&CHECKPOINTS.angles[2..], n as usize).get();
-        let c =
-            rc2k_core::race::frame::checkpoint_colours(byte, along, shared.car.car_heading.bits());
+        let c = rc2k_core::race::frame::checkpoint_colours(
+            byte,
+            along,
+            crate::race::frame::drawn_car().car_heading.bits(),
+        );
         shared.physics_tables.checkpoint_colours[0].set(c.near);
         shared.physics_tables.checkpoint_colours[1].set(c.far);
         shared.physics_tables.checkpoint_colours[2].set(c.distance);
@@ -95,7 +98,7 @@ pub fn face_hidden(
     // Converted: `rc2k_core::race::faces::{hidden_by_switches, hidden_by_depth}`; the
     // depths' roundings the x87's.
     use rc2k_core::race::faces::{hidden_by_depth, hidden_by_switches};
-    let view: u32 = race.shared.car.camera_view.bits();
+    let view: u32 = crate::race::frame::drawn_car().camera_view.bits();
     // race().frame.view_and_records.view_vars.view_hides[]: by camera view. Its 34 entries cover views 0 .. 0x21; the views up
     // to 0x33 (the viewer's cameras) read on into the variables after it, as the original
     // (notes/bugs.md); 0x33 is still inside `race().frame.view_and_records.view_vars`.
@@ -364,8 +367,12 @@ pub fn gather_visible_faces(
 /// when any is set (0xA), or'd with bits 4 and 5 likewise (0x30).
 pub fn face_hide_mask(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;
-    crate::physics::probe_ground::probe_ground(race, crate::scene::owner::scene())?;
-    let ground: u32 = race.shared.car.probe_point_face[4].bits();
+    crate::physics::probe_ground::probe_ground(
+        race,
+        crate::race::frame::drawn_car(),
+        crate::scene::owner::scene(),
+    )?;
+    let ground: u32 = crate::race::frame::drawn_car().probe_point_face[4].bits();
     if ground == u32::MAX {
         return Ok(());
     }

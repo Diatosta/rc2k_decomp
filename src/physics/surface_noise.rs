@@ -28,7 +28,7 @@ fn sample(
     x: usize,
     scene: &crate::scene::owner::Scene,
 ) -> Result<u32, crate::errors::BadInput> {
-    sample_noise(shared, x, scene)
+    sample_noise(&shared.car, x, scene)
 }
 
 /// The Rust version.

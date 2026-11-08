@@ -29,7 +29,7 @@ fn depth_list() -> crate::pointers::GamePtr {
 /// The Rust version (see the header).
 pub fn draw_view_scene(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     use crate::race::frame_draw::*;
-    if race.shared.car.view_covered.get() != 0 {
+    if crate::race::frame::drawn_car().view_covered.get() != 0 {
         return draw_view_tint(race, scene);
     }
     // dword_635014, dword_635018.

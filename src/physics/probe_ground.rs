@@ -33,6 +33,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_run::{int_times_times_over_to_int, less_plus_less_product_80};
+use crate::physics::car_store::Car;
 use crate::physics::ground::*;
 use crate::race::owner::Race;
 use crate::scene::matrix3::{extended, rounded};
@@ -45,8 +46,12 @@ pub const MOST_POINTS: u32 = 0x40;
 /// the last point's) are read by none of its callers.
 // Converted: `rc2k_core::physics::ground::{wheel_lifted, noise_cell, bump_noise}` (the
 // turns and the bump's scaling stay x87).
-pub fn probe_ground_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let n = race.shared.car.probe_count.get();
+pub fn probe_ground_at(
+    race: &Race,
+    car: &Car,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let n = car.probe_count.get();
     if n < 1 {
         return Ok(());
     }
@@ -54,24 +59,29 @@ pub fn probe_ground_at(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
         return Err(BadInput("more than 0x40 probe points (the lists' room)").into());
     }
 
-    probe_points(race, n, scene)
+    probe_points(race, car, n, scene)
 }
 
-fn probe_points(race: &Race, n: u32, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+fn probe_points(
+    race: &Race,
+    car: &Car,
+    n: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let drawing = &scene.drawing;
     let k65536 = race.course.numbers.k65536.bits();
     race.physics.contact.crossed_probe.set(u32::MAX);
     for b in 0..n {
         let i = b as usize;
         let work = &race.physics.contact;
-        let z = race.shared.car.probe_point_z[b as usize].bits();
-        let y = race.shared.car.probe_point_y[b as usize].bits();
+        let z = car.probe_point_z[b as usize].bits();
+        let y = car.probe_point_y[b as usize].bits();
         let y = if b < 4 {
             drawing.scene.scratch.set(x87::loaded(y));
             let add;
-            (add, _) = ground::wheel_lifted(race.shared.car.parts_present.get(), b);
+            (add, _) = ground::wheel_lifted(car.parts_present.get(), b);
             less_plus_less_product_80(
-                race.shared.car.probe_point_y[6].bits(),
+                car.probe_point_y[6].bits(),
                 race.shared.physics_tables.handling[2].bits(),
                 add.then(|| race.shared.physics_tables.probe_lift.bits()),
                 race.shared.physics_tables.probe_share.bits(),
@@ -80,8 +90,8 @@ fn probe_points(race: &Race, n: u32, scene: &crate::scene::owner::Scene) -> Resu
         } else {
             extended(y)
         };
-        let x = extended(race.shared.car.probe_point_x[b as usize].bits());
-        let out = rotate_point(&race.shared.car.crash_matrix, [x, y, extended(z)]);
+        let x = extended(car.probe_point_x[b as usize].bits());
+        let out = rotate_point(&car.crash_matrix, [x, y, extended(z)]);
         let (ox, oy, oz) = (rounded(out[0]), rounded(out[1]), rounded(out[2]));
         race.physics.contact.probe_turned_x_last.set_bits(ox);
         work.probe_turned_x[i].set_bits(ox);
@@ -89,9 +99,9 @@ fn probe_points(race: &Race, n: u32, scene: &crate::scene::owner::Scene) -> Resu
         race.physics.contact.probe_turned_z_last.set_bits(oz);
         work.probe_turned_z[i].set_bits(oz);
         for (v, place, list) in [
-            (ox, &race.shared.car.position[0], &work.probe_x[i]),
-            (oy, &race.shared.car.position[1], &work.probe_y[i]),
-            (oz, &race.shared.car.position[2], &work.probe_z[i]),
+            (ox, &car.position[0], &work.probe_x[i]),
+            (oy, &car.position[1], &work.probe_y[i]),
+            (oz, &car.position[2], &work.probe_z[i]),
         ] {
             let w = (x87::mul_to_int(v, k65536) as u32).wrapping_add(place.get());
             list.set(w);
@@ -101,7 +111,7 @@ fn probe_points(race: &Race, n: u32, scene: &crate::scene::owner::Scene) -> Resu
         race.course
             .course
             .ground_face_last
-            .set(race.shared.car.probe_point_face[b as usize].get());
+            .set(car.probe_point_face[b as usize].get());
         race.physics.ground_probe.settle_mark.set(0x80);
         ground_search_at(race, scene)?;
         work.probe_ground_height[i].set(0);
@@ -143,7 +153,7 @@ fn probe_points(race: &Race, n: u32, scene: &crate::scene::owner::Scene) -> Resu
         drawing.scene.scratch.set(n5c);
         let bump = int_times_times_over_to_int(
             n5c as i32,
-            race.shared.car.ground_bump_scale.bits(),
+            car.ground_bump_scale.bits(),
             race.course.numbers.k256.bits(),
             race.course.numbers.hundred.bits(),
         );
@@ -161,7 +171,7 @@ fn probe_points(race: &Race, n: u32, scene: &crate::scene::owner::Scene) -> Resu
             drawing
                 .scene
                 .scratch
-                .set(x87::loaded(race.shared.car.crash_matrix[5].bits()));
+                .set(x87::loaded(car.crash_matrix[5].bits()));
             if x87::compare_status(drawing.scene.scratch.get(), race.course.numbers.zero.bits())
                 & 0x100
                 != 0
@@ -175,18 +185,22 @@ fn probe_points(race: &Race, n: u32, scene: &crate::scene::owner::Scene) -> Resu
             work.probe_height[i]
                 .set(x87::int_times_to_int(d as i32, drawing.scene.scratch.get()) as u32);
         }
-        race.shared.car.probe_point_face[b as usize].set(race.course.course.ground_slot.get());
+        car.probe_point_face[b as usize].set(race.course.course.ground_slot.get());
     }
     for i in 0..4 {
-        race.shared.car.wheel_ground_x[i].set(race.physics.contact.probe_x[i].get());
-        race.shared.car.wheel_ground_height[i]
-            .set(race.physics.contact.probe_ground_height[i].get());
-        race.shared.car.wheel_ground_z[i].set(race.physics.contact.probe_z[i].get());
+        car.wheel_ground_x[i].set(race.physics.contact.probe_x[i].get());
+        car.wheel_ground_height[i].set(race.physics.contact.probe_ground_height[i].get());
+        car.wheel_ground_z[i].set(race.physics.contact.probe_z[i].get());
     }
     Ok(())
 }
 
 /// The Rust version.
-pub fn probe_ground(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    probe_ground_at(race, scene)
+/// `car` is the work car in the race's ticks, the view's car in the drawing.
+pub fn probe_ground(
+    race: &Race,
+    car: &Car,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    probe_ground_at(race, car, scene)
 }

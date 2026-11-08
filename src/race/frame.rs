@@ -67,35 +67,29 @@ pub fn view_car(shared: &Shared, n: usize) -> &crate::session::Dword {
     }
 }
 
-/// `race::load_car_a` / `_b` / `_c` (0x45422F, 0x454241, 0x454277): `g_currentCar` the
-/// view car's number, `drive::load_car`. (Its callers, `race::draw_race_scene` and
-/// `race::scroll_maps`, read no register it leaves.)
+/// The view's car: a copy of its block that the view's camera, matrices, course and lights
+/// read (`drawn_car`), one per drawing thread. The original loaded it into the work car
+/// `g_car`, the physics' own, and set `g_currentCar`; neither is touched now. (The drawing's
+/// headers name its fields as the original's `g_car` +offsets.)
+static VIEW_CAR: crate::workers::PerWorker<crate::physics::car_store::Car> =
+    crate::workers::PerWorker::new(
+        [const { crate::physics::car_store::Car::new() }; crate::workers::COPIES],
+    );
+
+/// `race::load_car_a` / `_b` / `_c` (0x45422F, 0x454241, 0x454277): the view car `n`'s
+/// block copied into the view's car (`drawn_car`). Refuses a null block (the original's
+/// copy faults) before anything.
 pub fn load_view_car(shared: &Shared, n: usize) -> Result<(), Refused> {
-    with_view_car(shared, n, crate::drive::load_car::load_car)
+    use rc2k_core::drive::work_car::{car_block, car_slot};
+    let slot = car_slot(view_car(shared, n).get());
+    let block = car_block(shared.work.car_block(slot as usize))?;
+    crate::drive::car::copy_car(crate::physics::car_store::Car::at(block), &VIEW_CAR);
+    Ok(())
 }
 
-/// `g_currentCar` the view car's number, then `then`; on a refusal `g_currentCar` is put
-/// back, so a refusing call has written nothing.
-fn with_view_car(
-    shared: &Shared,
-    n: usize,
-    then: impl FnOnce(&Shared) -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    let current = &shared.work.current_car;
-    let was = current.get();
-    current.set(view_car(shared, n).get());
-    let result = then(shared);
-    if result.is_err() {
-        current.set(was);
-    }
-    result
-}
-
-/// `race::store_car_a` / `_b` / `_c` (0x454253, 0x454265, 0x454289): `g_currentCar` the
-/// view car's number, `drive::store_car`. (Its one caller, `race::scroll_maps`, reads no
-/// register it leaves.)
-pub fn store_view_car(shared: &Shared, n: usize) -> Result<(), Refused> {
-    with_view_car(shared, n, crate::drive::store_car::store_car)
+/// The car of the view being drawn (`load_view_car`).
+pub fn drawn_car() -> &'static crate::physics::car_store::Car {
+    &VIEW_CAR
 }
 
 // The race keys, by scan code in `g_keysPressed`; the second view's keys is `g_keysNow`'s 0x1D

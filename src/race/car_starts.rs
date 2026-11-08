@@ -45,7 +45,11 @@ fn settle_step(low: u32, high: u32, angle: &Dword, step: &Dword) {
 /// The matrix (`get_mat_crash`) and the wheels (`physics::probe_ground`).
 fn matrix_and_wheels(race: &Race) -> Result<[u32; 4], Refused> {
     crate::race::stage_prefs::get_mat_crash(race);
-    crate::physics::probe_ground::probe_ground(race, crate::scene::owner::scene())?;
+    crate::physics::probe_ground::probe_ground(
+        race,
+        &race.shared.car,
+        crate::scene::owner::scene(),
+    )?;
     Ok(wheels(&race.physics))
 }
 

@@ -90,7 +90,7 @@ pub struct PhysicsTables {
     pub unknown_84: [Dword; 6],
     /// +0x9c (0x6138C4): the four input words recorded and replayed (`drive::record_inputs`, `drive::play_inputs`).
     pub input_words: [Dword; 4],
-    /// +0xac (0x6138D4): a counter by camera view (`race::frame::store_view_car`).
+    /// +0xac (0x6138D4): a counter by camera view (`race::frame`).
     pub view_counters: [Dword; 7],
     /// +0xc8 (0x6138F0): not named.
     pub unknown_c8: Dword,
