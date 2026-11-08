@@ -78,6 +78,14 @@ pub fn read_car_controls(race: &Race) -> Result<(), Refused> {
     {
         to.set(from.get());
     }
+    // A held race (`RC2K_HELD_RACE`) takes no key from the players: a key still held from the
+    // menus (the test's Return) would reach the car at a tick that depends on the timing.
+    #[cfg(feature = "remote")]
+    if crate::remote::held_race()
+        && race_owner.shared.work.current_car.get() < race_owner.shared.view.players.get()
+    {
+        race_owner.shared.car.input_keys.set(0);
+    }
     let keys = read_keys(
         course.lists.input_keys_mask.get(),
         race_owner.shared.car.input_keys.get(),

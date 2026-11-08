@@ -7,6 +7,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
+use crate::race::frame_view::car_at as car_view;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
@@ -102,7 +103,7 @@ pub fn car_number_textures(
     use rc2k_core::race::car_marks::{
         decals_shown, lamp_side, letter_number, letter_place, number_digits, stage_plate,
     };
-    let block = car_at(car)?;
+    let block = car_view(car)?;
     let float = |c: &crate::session::Float| f32::from_bits(c.bits());
     {
         let limit = f32::from_bits(race.frame.frame_work.decal_limit.bits());
@@ -115,7 +116,7 @@ pub fn car_number_textures(
         // Unbounded: 34 kinds of 0x30 bytes, the table holds 32.
         let name = GamePtr::to(&race.shared.work.number_texture_names)
             .unbounded()
-            .offset(car_at(car)?.car_kind.bits().wrapping_mul(0x30));
+            .offset(car_view(car)?.car_kind.bits().wrapping_mul(0x30));
         let n = crate::math::x87::to_int(car_at(car)?.shown_engine_speed.bits());
         scene.drawing.scene.scratch.set(n as u32);
         let (place, _) = letter_place(n);
@@ -125,7 +126,7 @@ pub fn car_number_textures(
         ) as u32;
         scene.objects.tables.car_mark_textures[5].set(letter);
         scene.objects.tables.car_letter_b.set(letter);
-        let d = number_digits(car_at(car)?.start_slot_value.bits());
+        let d = number_digits(car_view(car)?.start_slot_value.bits());
         scene.objects.tables.car_mark_textures[6].set(d.tens);
         scene.objects.tables.car_mark_textures[7].set(d.units);
         scene.objects.tables.car_mark_textures[9].set(d.alone);
@@ -137,7 +138,7 @@ pub fn car_number_textures(
             f32::from_bits(race.course.numbers.hundred.bits()),
         ) {
             for k in 0..0x11u32 {
-                let byte = block.part_switches.get(k as usize) as u32;
+                let byte = car_at(car)?.part_switches.get(k as usize) as u32;
                 let to: u32 = race.frame.frame_work.car_decal_places[k as usize].bits();
                 crate::scene::texture_places_store::cell_at(
                     &scene.objects.tables.car_mark_textures[0],
@@ -282,10 +283,10 @@ pub fn draw_car(race: &Race, car: u32, scene: &crate::scene::owner::Scene) -> Re
         .sound_spots
         .groups_which
         .set(car_at(car)?.mode_on.bits());
-    let model = car_at(car)?.car_kind.bits();
+    let model = car_view(car)?.car_kind.bits();
     race.frame.matrices.known_object.set(model);
     set_group_masks(&race.course, model)?;
-    let switches = car_at(car)?.parts_present.bits();
+    let switches = car_view(car)?.parts_present.bits();
     let shown = shown_groups(&race.course, switches);
     race.shared.switches.group_mask.set(shown);
     let field = |offset: u32| model_field(model, offset);
@@ -413,7 +414,7 @@ pub fn draw_car(race: &Race, car: u32, scene: &crate::scene::owner::Scene) -> Re
     scene.drawing.object_work.light_turns[1].set(race.course.stage_prefs.sun_height.bits());
     scene.lights.state.view_kind.set(1);
     scene.lights.work.light_kind.set(3);
-    let this_car = car_at(car)?;
+    let this_car = car_view(car)?;
     let place = || {
         scene.drawing.object_work.place[0].set(this_car.position[0].bits());
         scene.drawing.object_work.place[1].set(this_car.position[1].bits());
@@ -568,13 +569,13 @@ pub fn draw_car_entry(
         .lights
         .work
         .view_light_base
-        .set(car_at(car)?.light_colour.bits());
+        .set(car_view(car)?.light_colour.bits());
     let t = crate::scene::rotate_point::rotate_point(
         view_matrix(&race.frame),
         [
-            int_80(car_at(car)?.position[0].bits()),
-            int_80(car_at(car)?.position[1].bits()),
-            int_80(car_at(car)?.position[2].bits()),
+            int_80(car_view(car)?.position[0].bits()),
+            int_80(car_view(car)?.position[1].bits()),
+            int_80(car_view(car)?.position[2].bits()),
         ],
     );
     let place = t.map(tbyte_to_int);

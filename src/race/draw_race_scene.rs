@@ -132,6 +132,7 @@ pub fn draw_race_scene(
     use crate::scene::set_render_state::set_render_state;
     use crate::sound::race_sound_tick::race_sound_tick;
     let before_views = crate::write_watch::step("before_views");
+    let _cars = crate::race::frame_view::Held::take();
     let blocks = view_blocks(&race.shared)?;
     for (k, extra) in race
         .frame
@@ -157,7 +158,7 @@ pub fn draw_race_scene(
         .iter()
         .zip(blocks)
     {
-        flags.set(crate::race::trap::car_at(block)?.option_bits.get());
+        flags.set(crate::race::frame_view::car_at(block)?.option_bits.get());
     }
     for (flags, on) in race
         .frame
@@ -203,7 +204,7 @@ pub fn draw_race_scene(
         != 0
     {
         race.frame.frame_work.mirror_wanted.set(
-            crate::race::trap::car_at(blocks[0])?
+            crate::race::frame_view::car_at(blocks[0])?
                 .camera_mode_is_2_or_3
                 .get(),
         );

@@ -573,21 +573,24 @@ impl Car {
     pub fn known(address: u32) -> Option<&'static Car> {
         let shared_store = &crate::race::owner::race().shared;
 
-        let replay = &race().replay;
-        use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_LEN, CAR_BLOCKS, blocks_addr};
-        static HOMES: std::sync::OnceLock<(u32, u32)> = std::sync::OnceLock::new();
-        let &(car, blocks) = HOMES.get_or_init(|| {
-            (
-                crate::pointers::game_address(core::ptr::from_ref(&shared_store.car)),
-                blocks_addr(replay),
-            )
-        });
+        use crate::race::blocks_store::CAR_BLOCKS;
+        static HOME: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
+        let &car = HOME
+            .get_or_init(|| crate::pointers::game_address(core::ptr::from_ref(&shared_store.car)));
         if address == car {
             return Some(&shared_store.car);
         }
+        Self::block_number(address).map(|n| &CAR_BLOCKS.cars[n])
+    }
+
+    /// The number of the car block whose first byte is at `address` (none for the work car or
+    /// any other address).
+    pub fn block_number(address: u32) -> Option<usize> {
+        use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_LEN, blocks_addr};
+        static BLOCKS: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
+        let blocks = *BLOCKS.get_or_init(|| blocks_addr(&race().replay));
         let off = address.wrapping_sub(blocks) as usize;
-        (off.is_multiple_of(BLOCK_LEN) && off / BLOCK_LEN < BLOCK_COUNT)
-            .then(|| &CAR_BLOCKS.cars[off / BLOCK_LEN])
+        (off.is_multiple_of(BLOCK_LEN) && off / BLOCK_LEN < BLOCK_COUNT).then_some(off / BLOCK_LEN)
     }
 }
 

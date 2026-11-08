@@ -14,7 +14,6 @@
 
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 
@@ -49,7 +48,7 @@ pub fn overlay_pass(hud: &Hud, race: &Race) -> Result<(), Refused> {
     ];
     if race.shared.view.views.bits() == 2 {
         for n in 0..2 {
-            if CAR_BLOCKS.cars[n].view_covered.get() != 0 {
+            if crate::race::frame_view::car(n)?.view_covered.get() != 0 {
                 race.frame.panel_and_overlay.panel.hud_flags[n]
                     .set(race.frame.panel_and_overlay.panel.hud_flags[n].get() & 0x40);
                 race.frame.panel_and_overlay.panel.lights[n].width.set(0);

@@ -3,7 +3,6 @@
 use super::*;
 use crate::audio::store::ENVIRONMENT;
 use crate::errors::BadInput;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
@@ -20,8 +19,8 @@ pub(super) fn table_root(course: &Course, v: u32) -> u32 {
 /// A point's x and z less car 0's (`g_carBlockStore` +0x134, +0x13C), and its y.
 pub(super) fn point_from_car(physics: &Physics, point: u32) -> Result<(u32, u32, u32), BadInput> {
     let [px, py, pz] = crate::race::scene_points::point_number(point)?;
-    let x = px.wrapping_sub(CAR_BLOCKS.cars[0].position[0].bits());
-    let z = pz.wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
+    let x = px.wrapping_sub(crate::race::frame_view::car(0)?.position[0].bits());
+    let z = pz.wrapping_sub(crate::race::frame_view::car(0)?.position[2].bits());
     physics.contact.eax_point_x.set(x);
     physics.contact.eax_point_z.set(z);
     Ok((x, py, z))

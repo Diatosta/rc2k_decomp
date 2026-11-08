@@ -3,6 +3,7 @@
 use super::*;
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
+use crate::race::frame_view::car_at as car_view;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::matrices_store::SceneMatrices;
@@ -251,7 +252,7 @@ pub fn add_car_depth_entry(
     if n >= SORT_MAX {
         return Err(BadInput("a depth entry past the 0x1000").into());
     }
-    let place = crate::session::read_bits(&car_at(car)?.position);
+    let place = crate::session::read_bits(&car_view(car)?.position);
     for (k, &p) in place.iter().enumerate() {
         drawing.object_work.place[k].set_bits(p);
     }
@@ -338,11 +339,11 @@ pub(super) fn place_flare(
     let drawing = &scene.drawing;
     let t = crate::math::x87_load::rotate_rounding(
         point.map(|v| v as i32),
-        &crate::session::read_bits(&car_at(car)?.crash_matrix),
+        &crate::session::read_bits(&car_view(car)?.crash_matrix),
     );
     drawing.scene.scratch.set_bits(t[2]);
     for (k, v) in t.iter().enumerate() {
-        drawing.object_work.place[k].set_bits(v.wrapping_add(car_at(car)?.position[k].bits()));
+        drawing.object_work.place[k].set_bits(v.wrapping_add(car_view(car)?.position[k].bits()));
     }
     race.shared.switches.object_number.set(0x39u32);
     add_flare(race, scene)?;
@@ -434,12 +435,12 @@ pub fn car_light_flares(
     if race.shared.switches.other_way.bits() == 0 {
         return Ok(());
     }
-    let kind = car_at(car)?.car_kind.bits();
+    let kind = car_view(car)?.car_kind.bits();
     race.frame.frame_work.part_kind.set(kind);
     let valid = kind < 0x22 && KIND_TABLES.kind_shows_parts[kind as usize].bits() != 0;
     if valid {
         if !crate::math::x87_load::below_or_unordered(
-            car_at(car)?.electrics_damage.bits(),
+            car_view(car)?.electrics_damage.bits(),
             race.course.numbers.hundred.bits(),
         ) {
             return Ok(());
@@ -447,7 +448,7 @@ pub fn car_light_flares(
         race.frame
             .frame_work
             .parts_present
-            .set(car_at(car)?.parts_present.bits());
+            .set(car_view(car)?.parts_present.bits());
         // A second test of the same kind follows; its error branch (a log line) is
         // never reached.
     }

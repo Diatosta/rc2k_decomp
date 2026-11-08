@@ -638,6 +638,8 @@ mod tests {
 
     #[test]
     fn start_as_the_games_image_and_keep_its_layout() {
+        // The vars' first values: no other test may be writing them meanwhile.
+        let _lock = crate::store::test_lock();
         check(
             (&raw const crate::net::owner::NET_OWNER.vars).cast::<u8>(),
             size_of::<NetVars>(),

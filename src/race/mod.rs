@@ -39,6 +39,7 @@ pub mod frame_draw;
 pub mod frame_flush;
 pub mod frame_store;
 pub mod frame_text;
+pub mod frame_view;
 pub mod frame_views;
 pub mod game_map;
 pub mod groups_store;

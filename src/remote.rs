@@ -419,7 +419,8 @@ static HELD_CLOCK: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::
 /// starts at 0x10000), so the clock never runs backwards.
 const HELD_START: u32 = 0x0100_0000;
 
-fn held_race() -> bool {
+/// A held race was asked for (`RC2K_HELD_RACE`, remote builds).
+pub fn held_race() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();
     folder().is_some() && *ON.get_or_init(|| std::env::var_os("RC2K_HELD_RACE").is_some())
 }

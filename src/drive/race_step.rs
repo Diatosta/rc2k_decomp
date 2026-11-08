@@ -49,10 +49,23 @@ fn hash_if_asked(race: &Race) {
     let _ = crate::pointers::Store::load(blocks, 0, &mut bytes);
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     bytes.hash(&mut hasher);
+    let tick = TICKS.fetch_add(1, Relaxed);
     crate::framework::log(&format!(
-        "sim hash {}: {:016x}, random {:08x}",
-        TICKS.fetch_add(1, Relaxed),
+        "sim hash {tick}: {:016x}, random {:08x}",
         hasher.finish(),
         crate::math::next_random::STATE.get()
     ));
+    // With `RC2K_SIM_CHUNKS` too: each 0x100 bytes' hash, to find which part of the blocks
+    // differs between two runs (the held race's stray key was found so, at car 0's +0x400).
+    if std::env::var_os("RC2K_SIM_CHUNKS").is_some() {
+        let chunks: Vec<String> = bytes
+            .chunks(0x100)
+            .map(|c| {
+                let mut h = std::collections::hash_map::DefaultHasher::new();
+                c.hash(&mut h);
+                format!("{:04x}", h.finish() & 0xFFFF)
+            })
+            .collect();
+        crate::framework::log(&format!("sim chunks {tick}: {}", chunks.join(" ")));
+    }
 }
