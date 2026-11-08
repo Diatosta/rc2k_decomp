@@ -19,5 +19,5 @@ pub fn seed_random() {
         weekday: kept[0],
     };
     crate::math::next_random::with_random(|r| r.seed(clock));
-    crate::math::next_random::seed_sounds();
+    crate::math::next_random::seed_streams();
 }

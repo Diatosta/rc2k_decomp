@@ -69,6 +69,9 @@ pub fn load_stage(race: &Race) -> Result<(), Refused> {
     indent(3);
     use crate::race::loading_bar_frame::STAGE_LOADING;
     STAGE_LOADING.store(true, std::sync::atomic::Ordering::Relaxed);
+    crate::race::heard_turn::forget();
+    #[cfg(feature = "remote")]
+    crate::remote::race_loading();
     let begun = std::time::Instant::now();
     crate::race::loadlevel::loadlevel_init(race, scene, system)?;
     STAGE_LOADING.store(false, std::sync::atomic::Ordering::Relaxed);

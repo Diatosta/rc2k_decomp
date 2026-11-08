@@ -90,13 +90,15 @@ fn draw_view(
         crate::moved::census::after("mirror", c);
         Ok(())
     };
-    // The first view's sound spots, from its own camera and grid (not the original's: they
-    // were found after every view, from what the last one drawn left, the mirror's when there
-    // was one; `notes/bugs.md`). The race's sounds are heard around the first car.
+    // The first view's sound spots, from its own camera and grid, and its turn for the race's
+    // placed sounds (not the original's: both came from what the last view drawn left, the
+    // mirror's when there was one; `notes/bugs.md`). The race's sounds are heard around the
+    // first car.
     let view = || -> Result<(), Refused> {
         view()?;
         if car == 0 {
             crate::race::sound_spots::find_sound_spots(race, scene)?;
+            crate::race::heard_turn::keep(race);
         }
         Ok(())
     };

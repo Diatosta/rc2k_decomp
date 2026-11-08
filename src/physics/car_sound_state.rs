@@ -76,7 +76,7 @@ pub fn car_sound_state(race: &Race) -> Result<(), Refused> {
         d(&race.shared.car.position[1], &l.camera_position[1]),
         d(&race.shared.car.position[2], &l.camera_position[2]),
     ];
-    let m = &race.frame.matrices.view_turn_matrix;
+    let m = crate::race::heard_turn::turn(race);
     let out = rotate_point(m, place);
     let k = race.course.numbers.one_over_65536.bits();
     for (i, e) in out.iter().enumerate() {

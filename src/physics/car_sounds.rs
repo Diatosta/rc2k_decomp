@@ -48,7 +48,7 @@ pub fn place(race: &Race, into: &[Float; 3], offset: Option<[u32; 3]>) {
         }
     };
     let out = rotate_point(
-        &race.frame.matrices.view_turn_matrix,
+        crate::race::heard_turn::turn(race),
         [part(0), part(1), part(2)],
     );
     let k = race.course.numbers.one_over_65536.bits();
@@ -65,7 +65,7 @@ pub fn place_plain(race: &Race, into: &[Float; 3], offset: Option<[u32; 3]>) {
         whole(&race.shared.car.position),
         whole(&race.shared.car.camera_position),
         offset.map(|o| o.map(|v| v as i32)),
-        &std::array::from_fn(|n| f32::from_bits(race.frame.matrices.view_turn_matrix[n].bits())),
+        &std::array::from_fn(|n| f32::from_bits(crate::race::heard_turn::turn(race)[n].bits())),
         f32::from_bits(race.course.numbers.one_over_65536.bits()),
     );
     for (cell, x) in into.iter().zip(&p) {

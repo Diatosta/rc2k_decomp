@@ -12,6 +12,10 @@ use crate::race::viewer_screen_store::VIEWER_PANEL;
 // ---- Rust version ----
 
 pub fn tick_count() -> u32 {
+    #[cfg(feature = "remote")]
+    if let Some(held) = crate::remote::held_clock() {
+        return held;
+    }
     // The original asks Windows first in both cases.
     let now = crate::os::ticks();
     // Converted: `rc2k_core::system::time::clock`.

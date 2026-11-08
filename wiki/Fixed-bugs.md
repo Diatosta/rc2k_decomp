@@ -485,3 +485,23 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read in `sound::thin_spot_voices`, `sound::stage_sounds`, `sound::repeat_spot_voices` and `drive::duel_sound_levels`; measured 2026-11-08 (the cars the same tick by tick, the random state different).
 
 **Fix:** the sounds have a generator of their own, started from the same seed. Nothing the sounds do changes the race or the pictures any more. (The race's own random numbers therefore differ from the original's after the first sound draw: the same kind of numbers, but not the same sequence.)
+
+## The pictures steer the race's random numbers
+
+**What it is:** the same single random number generator also serves the drawing: the mud thrown onto the car's textures and the shimmer of some objects draw numbers from it every frame they are drawn. The race draws from it too, for the camera's shake and for the chance of a course face being marked when a car touches it. How many numbers the drawing takes depends on how many frames are drawn, so the race's numbers depend on the frame rate.
+
+**In game:** on a faster or slower machine, or when a frame is slow, the camera shakes a little differently and different faces get marked. Nobody could tell, but it means the same drive is never the same twice.
+
+**Seen or read:** read in `race::throw_mud_texel` (0x44A2A2), `race::splash_mud` (0x44A35F) and `scene::set_object_material` (0x45170E), against `physics::camera_frame` (0x44FF1B) and `physics::touch_face` (0x45E9E0); found 2026-11-08 by the conversion's frame census and a driven race replayed with a held clock.
+
+**Fix:** the drawing has a generator of its own, started from the same seed. The race's numbers no longer depend on what is drawn or how fast.
+
+## The race's sounds placed from the mirror's camera
+
+**What it is:** the sounds the cars make (the engine, knocks and hits) are placed against the camera, turned by the view's matrix. The game uses whatever matrix the last view drawn left behind. With the rear-view mirror on, that is the mirror's, which looks backwards, while the listener faces forwards. With two players it is the second player's view (or its mirror).
+
+**In game:** with the mirror on, the car's sounds are turned half round: what is to the left is placed to the right, and in front is placed behind. Subtle, since the player's own car is close to the listener; not reported.
+
+**Seen or read:** read in `physics::place_car_sound` (0x45CC5C), `physics::car_sound_state` (0x45CACE) and the car's sound places (`physics::car_sounds`), which read `g_viewTurnMatrix` during the race's ticks; found 2026-11-08 by the conversion's frame census.
+
+**Fix:** the first view's matrix is kept once that view is drawn, and the race's sounds are placed by it.

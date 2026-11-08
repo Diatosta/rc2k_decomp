@@ -12,7 +12,7 @@
 //! phase, the phase's length, the phase): the time since last here (the clock `dword_613830`,
 //! at most 100) is added; while the time is not under the length, it loses the length, the
 //! phase goes on by one of four, and the new length is a base (200, 400, 200, 400) plus a
-//! random part of 400 (`math::next_random`, its top half times 400). The fraction: 0 in phase
+//! random part of 400 (the drawing's random numbers, `next_drawing_random`, its top half times 400). The fraction: 0 in phase
 //! 0, time over length in phase 1, 1 in phase 2, 1 less that in phase 3. The original has a
 //! second way for when the four random parts are all 0, which they never are (it sets them
 //! itself just before): left out. One caller, `scene::draw_object`. Refuses an object's number past
@@ -23,7 +23,7 @@
 //! Rust callers in unconverted code).
 
 use crate::errors::BadInput;
-use crate::math::next_random::next_random;
+use crate::math::next_random::next_drawing_random;
 use crate::math::x87;
 use crate::race::owner_shared::Shared;
 
@@ -64,7 +64,8 @@ fn step_shape(
     while time >= length {
         time -= length;
         phase = (phase + 1) & 3;
-        let part = ((next_random() as u64 * LENGTHS[4 + phase as usize] as u64) >> 32) as u32;
+        let part =
+            ((next_drawing_random() as u64 * LENGTHS[4 + phase as usize] as u64) >> 32) as u32;
         length = part.wrapping_add(LENGTHS[phase as usize]);
     }
     let fraction = match phase {

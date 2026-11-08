@@ -409,10 +409,44 @@ pub fn shots_loading() {
     race().frame.counter.show.set(0);
 }
 
+/// With `RC2K_HELD_RACE` (a check: two runs of a driven race the same tick for tick,
+/// `RC2K_SIM_HASH`): the race's clock from its first frame on, 10 ms a frame from a fixed
+/// start (the race keeps clock values in its state: a start at the wall clock made two runs
+/// differ from the third tick on; 0: not held).
+static HELD_CLOCK: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// The held race's first clock value: later than any menu's before it (the game's clock
+/// starts at 0x10000), so the clock never runs backwards.
+const HELD_START: u32 = 0x0100_0000;
+
+fn held_race() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    folder().is_some() && *ON.get_or_init(|| std::env::var_os("RC2K_HELD_RACE").is_some())
+}
+
+/// A race's stage about to load (`race::load_stage`): with `RC2K_HELD_RACE`, the random
+/// numbers from one state (the menus before took a number of them that depends on the
+/// timing), the computer at the players' wheels (`drive on`), the clock free until the first
+/// frame.
+pub fn race_loading() {
+    if !held_race() {
+        return;
+    }
+    reseed();
+    AUTODRIVE.store(true, std::sync::atomic::Ordering::Relaxed);
+    HELD_CLOCK.store(0, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The game's clock while a race is held (`system::tick_count`).
+pub fn held_clock() -> Option<u32> {
+    let held = HELD_CLOCK.load(std::sync::atomic::Ordering::Relaxed);
+    (held != 0).then_some(held)
+}
+
 /// Both random generators (the game's and the effects' `g_marksSeed`) from one state.
 fn reseed() {
     crate::math::next_random::with_random(|r| r.state = 0x1234_5678);
-    crate::math::next_random::seed_sounds();
+    crate::math::next_random::seed_streams();
     effects().setup.work.seed.set(0x8765_4321);
 }
 
@@ -420,6 +454,16 @@ fn reseed() {
 /// recording pictures itself (`race::replay_screenshot` moves it then).
 pub fn shot_frame_drawn() {
     use crate::race::viewer_screen_store::VIEWER_PANEL;
+    if held_race() && race().course.numbers.in_race.get() != 0 {
+        use std::sync::atomic::Ordering::Relaxed;
+        let held = HELD_CLOCK.load(Relaxed);
+        let next = if held == 0 {
+            HELD_START
+        } else {
+            held.wrapping_add(10)
+        };
+        HELD_CLOCK.store(next.max(1), Relaxed);
+    }
     if !shots_on() {
         return;
     }

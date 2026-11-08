@@ -32,7 +32,7 @@ pub fn thin_spot_voices(sound: u32, owner: &crate::sound::owner::Sound) -> Resul
     let (Some(_), Some(_)) = (picks.nearest, picks.next) else {
         return Ok(());
     };
-    let random = crate::math::next_random::next_sound_random();
+    let random = crate::math::next_random::SOUNDS.next();
     core::thin_choose(&mut voices, &picks, random);
     store_voices(owner, &voices);
     Ok(())

@@ -1,6 +1,6 @@
 //! `race::splash_mud` (0x44A35F): one splash of mud onto the texture worked on
 //! (`dword_623D5C`, n): its count `dword_623D90[n]` one more; a random place (x the low
-//! byte, y the next of `math::next_random`); unless the mud map's strength there (as
+//! byte, y the next of the drawing's random numbers, `next_drawing_random`); unless the mud map's strength there (as
 //! `race::muddy_texel`'s) is below 0x20, or a random byte is above it, the 4 x 4 texels
 //! from that place are faded (`gfx::fade_colour`, by each colour's top byte) toward one of
 //! 16 patterns of `g_mudColours` (4 x 4 colours each, picked at random), their top bytes set,
@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::gfx::fade_colour::fade_colour;
-use crate::math::next_random::next_random;
+use crate::math::next_random::next_drawing_random;
 use crate::race::mud_texel::mud_texel;
 use crate::race::muddy_texel::{strength_at, texture_and_mud};
 use crate::race::owner_shared::Shared;
@@ -31,14 +31,14 @@ pub fn splash_mud(shared: &Shared) -> Result<(), Refused> {
     // dword_623D90: each texture's count (the texture is 0 .. 3).
     let count_cell = &shared.vars.mud_splash_counts[n as usize];
     count_cell.set(count_cell.get().wrapping_add(1));
-    let (mut x, mut y) = splash_place(next_random());
+    let (mut x, mut y) = splash_place(next_drawing_random());
     let strength = strength_at(n, x, y)?;
-    if !splash_lands(strength, || next_random() & 0xFF) {
+    if !splash_lands(strength, || next_drawing_random() & 0xFF) {
         return Ok(());
     }
     // eax carries from texel to texel: `mud_texel` and `put_mud_texel` hand it back
     // when they skip a place.
-    let mut eax = splash_pattern(next_random());
+    let mut eax = splash_pattern(next_drawing_random());
     let mut colours = (eax >> 2) as usize; // the pattern's place: whole dwords
     shared.vars.mud_row.set_bits(0u32);
     for row in 0..SPLASH_SIDE {
