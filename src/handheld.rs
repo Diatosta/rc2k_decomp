@@ -244,12 +244,27 @@ pub fn start_profile() {
     ));
 }
 
-/// The samples so far as `profile.txt`: the marker's place, then (place, thread) a line.
+/// The samples so far as `profile.txt`: the marker's place, then (place, thread) a line. On a
+/// thread of its own (the samples are atomics): written on the game's, the whole profile so far
+/// made one frame every 5 s longer the longer the game ran (2026-11-08: 70 to 190 ms).
 pub fn write_profile() {
-    let n = TAKEN.load(Relaxed).min(SAMPLES);
-    if n == 0 {
+    static WRITING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if TAKEN.load(Relaxed) == 0 || WRITING.swap(true, Relaxed) {
         return;
     }
+    let spawned = std::thread::Builder::new()
+        .name("profile".into())
+        .spawn(|| {
+            write_samples();
+            WRITING.store(false, Relaxed);
+        });
+    if spawned.is_err() {
+        WRITING.store(false, Relaxed);
+    }
+}
+
+fn write_samples() {
+    let n = TAKEN.load(Relaxed).min(SAMPLES);
     let mut text = format!("{:x}\n", start_profile as *const () as usize);
     for i in 0..n {
         text += &format!("{:x} {}", PLACES[i].load(Relaxed), THREADS[i].load(Relaxed));
