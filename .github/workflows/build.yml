@@ -5,7 +5,14 @@
 # and FFmpeg's decoders built from their signed source (`tools/build_ffmpeg.sh x64`);
 # Linux with SDL built from source and FFmpeg's decoders linked in (`build_ffmpeg.sh
 # linux`), so the program needs only the C library. `third_party/` is cached by the
-# scripts' contents: FFmpeg is built again only when its script changes.
+# scripts' contents: FFmpeg is built again only when its script changes. Ubuntu 24.04, not
+# `ubuntu-latest`: the Linux program needs the glibc it is built against or newer (2.38
+# there; 26.04's 2.43 would leave out most systems in use).
+#
+# A push also publishes the two builds as a GitHub release (the `release` job): from `main`
+# a stable one, tagged `stable-<date>-<commit>` and marked the latest; from any other branch
+# an experimental pre-release, `experimental-<branch>`, replaced by each push to that branch.
+# Pull requests only build.
 name: Build
 
 on:
@@ -19,10 +26,10 @@ concurrency:
 
 jobs:
   windows-x64:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Tools
         run: |
@@ -49,7 +56,7 @@ jobs:
         run: cargo install --locked cargo-xwin
 
       - name: Cached third_party
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             third_party
@@ -71,16 +78,16 @@ jobs:
           cp target/x86_64-pc-windows-msvc/release/rc2k.exe third_party/sdl3/lib/x64/SDL3.dll \
             third_party/ffmpeg-x64/bin/avcodec-61.dll third_party/ffmpeg-x64/bin/avutil-59.dll out/
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: rc2k-windows-x64-${{ github.sha }}
           path: out/
 
   linux-x64:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Tools and SDL's build dependencies
         run: |
@@ -98,7 +105,7 @@ jobs:
           key: linux-x64
 
       - name: Cached FFmpeg
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: third_party/ffmpeg-linux
           key: linux-x64-${{ hashFiles('tools/build_ffmpeg.sh') }}
@@ -116,7 +123,54 @@ jobs:
           echo "needs glibc $(objdump -T out/rc2k | grep -v ' w ' | grep -oE 'GLIBC_[0-9.]+' \
             | sort -uV | tail -1 | cut -d_ -f2) or newer"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: rc2k-linux-x64-${{ github.sha }}
           path: out/
+
+  release:
+    if: github.event_name == 'push'
+    needs: [windows-x64, linux-x64]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: builds
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          SHORT="${GITHUB_SHA::7}"
+          DAY="$(date -u +%Y-%m-%d)"
+          cd builds
+          # The artifacts lose the executable bit: the Linux program gets it back.
+          chmod +x rc2k-linux-x64-*/rc2k
+          for d in */; do
+            name="${d%/}"; name="${name%-$GITHUB_SHA}"
+            (cd "$d" && zip -q -r "../$name.zip" .)
+          done
+          if [ "$BRANCH" = main ]; then
+            TAG="stable-${DAY//-/}-$SHORT"
+            TITLE="Stable $DAY ($SHORT)"
+            NOTES="Built from main at $GITHUB_SHA."
+            FLAGS=(--latest)
+          else
+            TAG="experimental-$(printf '%s' "$BRANCH" | tr -c 'A-Za-z0-9._-' '-')"
+            TITLE="Experimental: $BRANCH ($SHORT)"
+            NOTES="Experimental build of the $BRANCH branch at $GITHUB_SHA, replaced by its next push. Not checked like the stable builds: expect bugs."
+            FLAGS=(--prerelease --latest=false)
+            gh release delete "$TAG" --cleanup-tag --yes 2>/dev/null || true
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" *.zip --clobber
+          else
+            gh release create "$TAG" *.zip --target "$GITHUB_SHA" --title "$TITLE" \
+              --notes "$NOTES" "${FLAGS[@]}"
+          fi
