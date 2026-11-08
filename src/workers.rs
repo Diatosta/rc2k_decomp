@@ -189,6 +189,13 @@ pub fn threads() -> usize {
     })
 }
 
+/// With `RC2K_MIRROR_BESIDE` (an experiment): the rear-view mirror drawn beside its view
+/// (`draw_beside`, `race::draw_race_scene`).
+pub fn mirror_beside() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("RC2K_MIRROR_BESIDE").is_some())
+}
+
 /// Whether parts are being drawn beside each other (`draw_beside`): a list inside one of them
 /// is not split into runs, the copies being the parts' own.
 static BESIDE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -221,13 +228,13 @@ fn register_copies() {
 }
 
 /// The other drawing threads.
-/// `threads()`, and at least one besides the game's on a machine of two cores or more (the
-/// mirror beside its view, `draw_beside`; the handheld: 24 to 29 frames a second).
+/// `threads()`, and with `mirror_beside` at least one besides the game's on a machine of two
+/// cores or more (the handheld: 24 to 29 frames a second).
 fn pool() -> Option<&'static rayon::ThreadPool> {
     static POOL: OnceLock<Option<rayon::ThreadPool>> = OnceLock::new();
     POOL.get_or_init(|| {
         let cores = std::thread::available_parallelism().map_or(1, usize::from);
-        let all = threads().max(cores.min(2));
+        let all = threads().max(if mirror_beside() { cores.min(2) } else { 1 });
         (all > 1)
             .then(|| {
                 rayon::ThreadPoolBuilder::new()

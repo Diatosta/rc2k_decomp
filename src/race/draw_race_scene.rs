@@ -57,11 +57,17 @@ fn draw_view(
 ) -> Result<(), Refused> {
     use crate::race::frame::load_view_car;
     use crate::sound::race_sound_tick::race_sound_tick;
+    let setup = crate::write_watch::step(["view0_setup", "view1_setup"][car]);
     load_view_car(&race.shared, car)?;
     crate::race::frame_draw::fetch_view_value(race)?;
+    drop(setup);
     let view = || -> Result<(), Refused> {
         let c = crate::moved::census::before();
-        crate::race::draw_view_scene::draw_view_scene(race, scene)?;
+        {
+            let _step = crate::write_watch::step(["view0_scene", "view1_scene"][car]);
+            crate::race::draw_view_scene::draw_view_scene(race, scene)?;
+        }
+        let _step = crate::write_watch::step(["view0_rest", "view1_rest"][car]);
         crate::moved::census::after(if car == 0 { "view0" } else { "view1" }, c);
         // Not the original's: the debug UI's probe points need this view.
         if car == 0 {
@@ -78,6 +84,7 @@ fn draw_view(
         race_sound_tick(&race.frame) // 0xF
     };
     let mirror = || -> Result<(), Refused> {
+        let _step = crate::write_watch::step(["mirror0", "mirror1"][car]);
         load_view_car(&race.shared, car)?;
         let c = crate::moved::census::before();
         let begun = crate::debug::timing::start();
@@ -91,10 +98,16 @@ fn draw_view(
     if !mirrored {
         return view();
     }
-    // Not the original's: the mirror drawn beside its view (`workers::draw_beside`), from the
-    // working state the view starts from rather than the one it leaves (the original's mirror
-    // read some of the view's leftovers: a few pixels differ now and then, `notes/conversion.md`).
-    crate::workers::draw_beside(view, mirror)
+    // With `RC2K_MIRROR_BESIDE` (an experiment): the mirror drawn beside its view
+    // (`workers::draw_beside`), from the working state the view starts from. Not the default:
+    // what the steps after it read of the mirror's leftovers then differs (the sound spots'
+    // places: wrong pitches, 2026-11-08); the frame's steps get explicit inputs and outputs
+    // instead (`notes/frame_plan.md`).
+    if crate::workers::mirror_beside() {
+        return crate::workers::draw_beside(view, mirror);
+    }
+    view()?;
+    mirror()
 }
 
 /// The Rust version (see the header).
@@ -109,6 +122,7 @@ pub fn draw_race_scene(
     let frame = &race.frame;
     use crate::scene::set_render_state::set_render_state;
     use crate::sound::race_sound_tick::race_sound_tick;
+    let before_views = crate::write_watch::step("before_views");
     let blocks = view_blocks(&race.shared)?;
     for (k, extra) in race
         .frame
@@ -241,6 +255,7 @@ pub fn draw_race_scene(
     if race.replay.finish.no_place.get() == 0 {
         crate::race::frame_draw::set_up_panel(race, scene)?;
     }
+    drop(before_views);
     if race.shared.view.views.get() == 1 {
         race.shared.view.drawn_view.set(0);
         draw_view(race, 0, 0, true, scene, system, effects)?;
@@ -274,6 +289,7 @@ pub fn draw_race_scene(
             )?;
         }
     }
+    let _step = crate::write_watch::step("after_views");
     crate::race::frame_views::load_first_car(&race.shared)?;
     use crate::race::frame_flush::{flush_batch, plain, textured};
     flush_batch(&race.frame, &plain(&race.frame), false)?;

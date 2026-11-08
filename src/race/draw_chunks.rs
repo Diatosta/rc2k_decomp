@@ -259,7 +259,7 @@ pub(crate) mod shared {
             }
         }
         s.1 += 1;
-        if s.1 % 300 != 0 {
+        if !s.1.is_multiple_of(300) {
             return;
         }
         let mut text = String::from("draw_chunks: shared places:");

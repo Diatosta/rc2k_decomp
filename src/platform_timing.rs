@@ -16,6 +16,42 @@ static SAMPLES: std::sync::Mutex<Option<std::collections::HashMap<usize, u32>>> 
 /// The time putting frames on the screen (`show_frame`), in microseconds.
 pub static SHOW_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
+/// Since the last report: the longest time between two frames shown and the frames that
+/// took over 50 ms (stutters), in microseconds and a count; the longest time between two
+/// race sound turns (`sound::race_turn`), in microseconds.
+static LONGEST_FRAME: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static SLOW_FRAMES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static LONGEST_TURN_GAP: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// The microseconds since `last` was noted, `last` now.
+fn since(last: &std::sync::Mutex<Option<std::time::Instant>>) -> Option<u64> {
+    let now = std::time::Instant::now();
+    let mut last = last.lock().ok()?;
+    let gap = last.map(|at| now.duration_since(at).as_micros() as u64);
+    *last = Some(now);
+    gap
+}
+
+/// A frame shown (`platform`): its time since the last one noted.
+pub fn note_frame_shown() {
+    use std::sync::atomic::Ordering::Relaxed;
+    static LAST: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
+    if let Some(gap) = since(&LAST) {
+        LONGEST_FRAME.fetch_max(gap, Relaxed);
+        if gap > 50_000 {
+            SLOW_FRAMES.fetch_add(1, Relaxed);
+        }
+    }
+}
+
+/// A race sound turn (`sound::race_turn`): its time since the last one noted.
+pub fn note_sound_turn() {
+    static LAST: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
+    if let Some(gap) = since(&LAST) {
+        LONGEST_TURN_GAP.fetch_max(gap, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
 /// The threads the sampler looks at: the main one and the rasteriser's.
 #[cfg(windows)]
 static SAMPLED: std::sync::Mutex<Vec<u32>> = std::sync::Mutex::new(Vec::new());
@@ -168,14 +204,17 @@ pub fn report_timing() {
         Some((at, f0, n0, m0, l0, p0)) if now.duration_since(at).as_secs() >= 5 => {
             let seconds = now.duration_since(at).as_secs_f64();
             log(&format!(
-                "platform: the last {seconds:.1} s: {} frames ({:.1} a second), {} fans in {} flushes, {:.1} screens of pixels a frame ({:.0} ms in the rasteriser, {:.0}%)",
+                "platform: the last {seconds:.1} s: {} frames ({:.1} a second), {} fans in {} flushes, {:.1} screens of pixels a frame ({:.0} ms in the rasteriser, {:.0}%); the longest frame {:.1} ms, {} over 50 ms; the longest gap between sound turns {:.1} ms",
                 frames - f0,
                 (frames - f0) as f64 / seconds,
                 fans - n0,
                 flushes - l0,
                 (pixels - p0) as f64 / (frames - f0).max(1) as f64 / screen,
                 (micros - m0) as f64 / 1000.0,
-                (micros - m0) as f64 / 10000.0 / seconds
+                (micros - m0) as f64 / 10000.0 / seconds,
+                LONGEST_FRAME.swap(0, Relaxed) as f64 / 1000.0,
+                SLOW_FRAMES.swap(0, Relaxed),
+                LONGEST_TURN_GAP.swap(0, Relaxed) as f64 / 1000.0,
             ));
             *last = Some((now, frames, fans, micros, flushes, pixels));
             log(&format!(

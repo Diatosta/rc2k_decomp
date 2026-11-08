@@ -13,6 +13,7 @@ use crate::race::owner::Race;
 /// `imul` and the physics; `race::play_movie_loop` has only DF live after it).
 // Converted: `rc2k_core::drive::race_ticks::run_ticks`.
 pub fn race_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let _step = crate::write_watch::step("physics");
     let input = crate::input::owner::input();
     let sound = crate::sound::owner::sound();
     crate::drive::race_clock_tick::race_clock_tick(&race.shared);

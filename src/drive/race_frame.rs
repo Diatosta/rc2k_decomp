@@ -42,7 +42,10 @@ pub fn race_frame(race: &Race, eax: u32) -> Result<u32, Refused> {
         use crate::debug::timing::{Stage, start, stop};
         let begun = start();
         crate::scene::begin_scene::begin_scene();
-        { crate::race::draw_race_scene::draw_race_scene(race, input, system) }?;
+        {
+            let _step = crate::write_watch::step("draw");
+            crate::race::draw_race_scene::draw_race_scene(race, input, system)
+        }?;
         crate::scene::end_scene::end_scene();
         stop(Stage::Scene, begun);
         // eax 0x12 here in the original; read by nothing.
@@ -52,7 +55,10 @@ pub fn race_frame(race: &Race, eax: u32) -> Result<u32, Refused> {
         { crate::race::replay_screenshot::replay_screenshot() }?;
         #[cfg(feature = "remote")]
         crate::remote::shot_frame_drawn();
-        let shown = { crate::race::show_frame::show_frame(race) }?;
+        let shown = {
+            let _step = crate::write_watch::step("show");
+            crate::race::show_frame::show_frame(race)
+        }?;
         eax = shown.eax;
         if !shown.lost {
             return Ok(eax);

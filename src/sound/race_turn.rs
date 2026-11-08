@@ -32,7 +32,9 @@ pub fn race_turn(
     if sound.race.clock.started.get() != 1 {
         return Ok(());
     }
+    let _step = crate::write_watch::step("sound_turn");
     if crate::sound::turn_parts::step_clock(sound) {
+        crate::platform_timing::note_sound_turn();
         use crate::sound::*;
         mark_car_voices::mark_car_voices(sound)?;
         car_sounds_all::car_sounds_all(sound)?;

@@ -519,6 +519,7 @@ pub fn show_frame_now() -> bool {
             if let Some(pixels) = shot {
                 crate::remote::frame(&pixels, screen.width as u32, screen.height as u32);
             }
+            crate::platform_timing::note_frame_shown();
             let shown = SHOWN.fetch_add(1, Ordering::SeqCst) + 1;
             let wanted = FRAMES_TO_SHOW.load(Ordering::SeqCst);
             if wanted != 0 && shown == wanted {

@@ -22,6 +22,7 @@ pub const END_OF_TURN: u32 = 0xA;
 /// queued; a full queue takes nothing. The count is shared with the audio thread, which
 /// counts it down: it is added to atomically here (the original's `inc` is not).
 pub fn send_command(command: u32, registers: [u32; 7]) {
+    hash_if_asked(command, registers);
     let audio = audio();
     // Converted: `rc2k_core::audio::commands::put` and `record`.
     use rc2k_core::audio::commands::{Put, put, record};
@@ -42,6 +43,38 @@ pub fn send_command(command: u32, registers: [u32; 7]) {
                 .fetch_add(1, Ordering::SeqCst);
             audio.state.command_write.set(next);
         }
+    }
+}
+
+/// With `RC2K_SOUND_HASH` (a check, as `RC2K_FAN_HASH` for the drawing): the commands of each
+/// turn in the race hashed and logged at its end (`END_OF_TURN`), so that two runs of a
+/// replay can be compared turn by turn.
+fn hash_if_asked(command: u32, registers: [u32; 7]) {
+    use std::hash::{Hash, Hasher};
+    use std::sync::{Mutex, OnceLock};
+    static ON: OnceLock<bool> = OnceLock::new();
+    /// The turn's hash so far, its commands and the turns logged.
+    static TURN: Mutex<Option<(std::collections::hash_map::DefaultHasher, u32, u32)>> =
+        Mutex::new(None);
+    if !*ON.get_or_init(|| std::env::var_os("RC2K_SOUND_HASH").is_some())
+        || crate::race::owner::race().course.numbers.in_race.get() == 0
+    {
+        return;
+    }
+    let Ok(mut turn) = TURN.lock() else {
+        return;
+    };
+    let (hasher, commands, turns) = turn.get_or_insert_with(Default::default);
+    (command, registers).hash(hasher);
+    *commands += 1;
+    if command == END_OF_TURN {
+        crate::framework::log(&format!(
+            "sound hash {turns}: {commands} commands, {:016x}",
+            hasher.finish()
+        ));
+        *hasher = Default::default();
+        *commands = 0;
+        *turns += 1;
     }
 }
 
