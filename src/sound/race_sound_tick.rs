@@ -20,6 +20,12 @@ use crate::race::owner_frame::Frame;
 /// No caller reads what the original leaves in eax and ebx (every call site's live
 /// registers, 2026-10-23): the Rust version leaves nothing.
 pub fn race_sound_tick(frame: &Frame) -> Result<(), Refused> {
+    // A drawing thread's run (the mirror drawn beside its view) leaves the race's turn to the
+    // game's thread: the turn is due at most once a scene-clock step, which the game's
+    // thread's own ticks of the frame reach.
+    if crate::workers::index() != 0 {
+        return Ok(());
+    }
     let input = crate::input::owner::input();
     let sound = crate::sound::owner::sound();
     let race = race();

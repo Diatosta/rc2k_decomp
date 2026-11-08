@@ -17,7 +17,8 @@ use crate::race::work_store::RaceWork;
 /// The race's stores the menus, the network and the audio side read too.
 pub struct Shared {
     /// `RACE_WORK` (`race`).
-    pub work: RaceWork,
+    /// One copy per drawing thread (`workers`).
+    pub work: crate::workers::PerWorker<RaceWork>,
     /// `RACE_STATE` (`race`).
     pub state: RaceState,
     /// `RACE_TABLES` (`race`).
@@ -42,33 +43,39 @@ pub struct Shared {
     /// `REPLAYS` (`race`).
     pub replays: Replays,
     /// `PHYSICS` (`physics`).
-    pub physics_tables: PhysicsTables,
+    /// One copy per drawing thread (`workers`).
+    pub physics_tables: crate::workers::PerWorker<PhysicsTables>,
     /// `CAR` (`physics`).
-    pub car: Car,
+    /// One copy per drawing thread (`workers`).
+    pub car: crate::workers::PerWorker<Car>,
 }
 
 impl Shared {
     pub const fn new() -> Self {
         Shared {
-            work: RaceWork::new(),
+            work: crate::workers::PerWorker::new(
+                [const { RaceWork::new() }; crate::workers::COPIES],
+            ),
             state: RaceState::new(),
             tables: RaceTables::new(),
             buffers: Buffers::new(),
             tyre_change: TyreChange::new(),
             vars: crate::workers::PerWorker::new(
-                [const { RaceVars::new() }; crate::workers::COUNT],
+                [const { RaceVars::new() }; crate::workers::COPIES],
             ),
             view: crate::workers::PerWorker::new(
-                [const { RaceView::new() }; crate::workers::COUNT],
+                [const { RaceView::new() }; crate::workers::COPIES],
             ),
             switches: crate::workers::PerWorker::new(
-                [const { FrameSwitches::new() }; crate::workers::COUNT],
+                [const { FrameSwitches::new() }; crate::workers::COPIES],
             ),
             replay_file: ReplayFileBlock::new(),
             replay_templates: Templates::new(),
             replays: Replays::new(),
-            physics_tables: PhysicsTables::new(),
-            car: Car::new(),
+            physics_tables: crate::workers::PerWorker::new(
+                [const { PhysicsTables::new() }; crate::workers::COPIES],
+            ),
+            car: crate::workers::PerWorker::new([const { Car::new() }; crate::workers::COPIES]),
         }
     }
 }

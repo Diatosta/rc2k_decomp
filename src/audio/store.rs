@@ -2399,8 +2399,12 @@ impl CommandQueue {
 }
 
 /// `g_eaxEnvironment` (IDA 0x6D1DD4): the EAX environment the race asks for (the audio
-/// thread reads it).
-pub static ENVIRONMENT: crate::session::Dword = crate::session::Dword::new(0);
+/// thread reads it, the game's own copy). One per drawing thread: the mirror drawn beside its
+/// view weighs its own (`workers::draw_beside`), merged back as the serial drawing leaves it.
+pub static ENVIRONMENT: crate::workers::PerWorker<crate::session::Dword> =
+    crate::workers::PerWorker::new(
+        [const { crate::session::Dword::new(0) }; crate::workers::COPIES],
+    );
 
 #[cfg(test)]
 mod tests {

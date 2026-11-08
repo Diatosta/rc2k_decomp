@@ -153,7 +153,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().frame.frame_work, START, END);
+        crate::gfx::first_values_are_the_games(race().frame.frame_work.first(), START, END);
     }
 
     #[test]

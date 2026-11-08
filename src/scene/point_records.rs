@@ -32,7 +32,8 @@ pub type Record = [u32; 8];
 /// by another thread that needs it.
 static RECORDS: crate::workers::PerWorker<[[Dword; 8]; COUNT as usize]> =
     crate::workers::PerWorker::new(
-        [const { [const { [const { Dword::new(0) }; 8] }; COUNT as usize] }; crate::workers::COUNT],
+        [const { [const { [const { Dword::new(0) }; 8] }; COUNT as usize] };
+            crate::workers::COPIES],
     );
 /// The records' copies (`workers`).
 pub fn copies() -> &'static dyn crate::workers::Copies {
@@ -65,7 +66,9 @@ pub fn give_back() {
 }
 
 /// The first `n` records' cells in every drawing thread's copy (copy 0 first): a clear
-/// of the records reaches them all, so no copy keeps a record of an earlier frame.
+/// of the records reaches them all, so no copy keeps a record of an earlier frame. While
+/// views are drawn beside each other (`workers::draw_beside`) only the running thread's
+/// copy: the other view's are its own, being drawn.
 pub fn first_records_everywhere(
     n: usize,
 ) -> Result<impl Iterator<Item = &'static [Dword; 8]>, BadInput> {
@@ -75,7 +78,12 @@ pub fn first_records_everywhere(
     if n > COUNT as usize {
         return Err(BadInput("a point record past the block"));
     }
-    Ok(RECORDS.all().iter().flat_map(move |copy| &copy[..n]))
+    let copies: &'static [_] = if crate::workers::beside() {
+        std::slice::from_ref(&*RECORDS)
+    } else {
+        RECORDS.all()
+    };
+    Ok(copies.iter().flat_map(move |copy| &copy[..n]))
 }
 
 /// Every record's bytes (`race::draw_chunks`' check).

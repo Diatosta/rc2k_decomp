@@ -22,7 +22,8 @@ use crate::scene::upload_car_icon::IconUploadCell;
 /// The scene's state.
 pub struct Scene {
     pub file_numbers: ObjectFileNumbers,
-    pub draw_switches: DrawSwitches,
+    /// One copy per drawing thread (`workers`).
+    pub draw_switches: crate::workers::PerWorker<DrawSwitches>,
     pub light_tables: LightTables,
     pub icon_upload: IconUploadCell,
     pub drawing: Drawing,
@@ -72,25 +73,29 @@ pub struct Textures {
 /// The one instance. Reached through `scene()`; `moved` registers its stores' places.
 pub static SCENE: Scene = Scene {
     file_numbers: ObjectFileNumbers::new(),
-    draw_switches: DrawSwitches::new(),
+    draw_switches: crate::workers::PerWorker::new(
+        [const { DrawSwitches::new() }; crate::workers::COPIES],
+    ),
     light_tables: LightTables::new(),
     icon_upload: IconUploadCell::new(),
     drawing: Drawing {
-        scene: crate::workers::PerWorker::new([const { SceneDraw::new() }; crate::workers::COUNT]),
+        scene: crate::workers::PerWorker::new([const { SceneDraw::new() }; crate::workers::COPIES]),
         object_work: crate::workers::PerWorker::new(
-            [const { ObjectWork::new() }; crate::workers::COUNT],
+            [const { ObjectWork::new() }; crate::workers::COPIES],
         ),
     },
     lights: Lights {
-        state: crate::workers::PerWorker::new([const { LightState::new() }; crate::workers::COUNT]),
-        work: crate::workers::PerWorker::new([const { LightWork::new() }; crate::workers::COUNT]),
+        state: crate::workers::PerWorker::new(
+            [const { LightState::new() }; crate::workers::COPIES],
+        ),
+        work: crate::workers::PerWorker::new([const { LightWork::new() }; crate::workers::COPIES]),
     },
     objects: Objects {
         slots: crate::workers::PerWorker::new(
-            [const { ObjectSlots::new() }; crate::workers::COUNT],
+            [const { ObjectSlots::new() }; crate::workers::COPIES],
         ),
         tables: crate::workers::PerWorker::new(
-            [const { ObjectTables::new() }; crate::workers::COUNT],
+            [const { ObjectTables::new() }; crate::workers::COPIES],
         ),
     },
     textures: Textures {

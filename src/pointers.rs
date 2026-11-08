@@ -743,6 +743,41 @@ pub unsafe trait Cells {
     {
         copy_cells((other, 0), (self, 0), size_of::<Self>());
     }
+
+    /// The bytes of `now` that differ from the same bytes of `start` set into this record, the
+    /// others left as they are: what one copy changed since it was `start`, put into another.
+    /// Records derive it field by field; this default compares the bytes run by run.
+    fn merge_changes(&self, now: &Self, start: &Self)
+    where
+        Self: Sized,
+    {
+        let size = size_of::<Self>();
+        let (mut a, mut b) = (vec![0; size], vec![0; size]);
+        // The whole record: inside it.
+        let _ = load_cells(now, 0, &mut a);
+        let _ = load_cells(start, 0, &mut b);
+        let mut k = 0;
+        while k < size {
+            if a[k] == b[k] {
+                k += 1;
+                continue;
+            }
+            let first = k;
+            while k < size && a[k] != b[k] {
+                k += 1;
+            }
+            let _ = store_cells(self, first, &a[first..k]);
+        }
+    }
+}
+
+/// `now` when it differs from `start` (a cell's value changed, taken whole: two copies that
+/// both rewrote a float must not leave one made of both's bytes), else none.
+macro_rules! merged {
+    ($t:ty, $now:expr, $start:expr) => {{
+        let (now, start): ($t, $t) = ($now, $start);
+        (now != start).then_some(now)
+    }};
 }
 
 /// `len` bytes copied from byte `from.1` of one record of cells to byte `to.1` of another
@@ -937,6 +972,17 @@ unsafe impl Cells for crate::session::Dword {
         self.atomic().store(other.atomic().load(Relaxed), Relaxed);
     }
 
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        let a = self.atomic();
+        if let Some(v) = merged!(
+            u32,
+            now.atomic().load(Relaxed),
+            start.atomic().load(Relaxed)
+        ) {
+            a.store(v, Relaxed);
+        }
+    }
+
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Dword(std::slice::from_ref(self)))
     }
@@ -949,6 +995,17 @@ unsafe impl Cells for crate::session::Dword {
 unsafe impl Cells for crate::session::Float {
     fn copy_from(&self, other: &Self) {
         self.atomic().store(other.atomic().load(Relaxed), Relaxed);
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        let a = self.atomic();
+        if let Some(v) = merged!(
+            u32,
+            now.atomic().load(Relaxed),
+            start.atomic().load(Relaxed)
+        ) {
+            a.store(v, Relaxed);
+        }
     }
 
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
@@ -965,6 +1022,17 @@ unsafe impl Cells for crate::session::Word {
         self.atomic().store(other.atomic().load(Relaxed), Relaxed);
     }
 
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        let a = self.atomic();
+        if let Some(v) = merged!(
+            u16,
+            now.atomic().load(Relaxed),
+            start.atomic().load(Relaxed)
+        ) {
+            a.store(v, Relaxed);
+        }
+    }
+
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Word(std::slice::from_ref(self)))
     }
@@ -977,6 +1045,13 @@ unsafe impl Cells for crate::session::Word {
 unsafe impl Cells for crate::session::Byte {
     fn copy_from(&self, other: &Self) {
         self.atomic().store(other.atomic().load(Relaxed), Relaxed);
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        let a = self.atomic();
+        if let Some(v) = merged!(u8, now.atomic().load(Relaxed), start.atomic().load(Relaxed)) {
+            a.store(v, Relaxed);
+        }
     }
 
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
@@ -992,6 +1067,20 @@ unsafe impl<const N: usize> Cells for crate::session::Bytes<N> {
     fn copy_from(&self, other: &Self) {
         for (to, from) in self.atomics().iter().zip(other.atomics()) {
             to.store(from.load(Relaxed), Relaxed);
+        }
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        for ((to, now), start) in self
+            .atomics()
+            .iter()
+            .zip(now.atomics())
+            .zip(start.atomics())
+        {
+            let v = now.load(Relaxed);
+            if v != start.load(Relaxed) {
+                to.store(v, Relaxed);
+            }
         }
     }
 
@@ -1018,6 +1107,12 @@ unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
     fn copy_from(&self, other: &Self) {
         for (to, from) in self.iter().zip(other) {
             to.copy_from(from);
+        }
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        for ((to, now), start) in self.iter().zip(now).zip(start) {
+            to.merge_changes(now, start);
         }
     }
 

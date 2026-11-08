@@ -62,7 +62,7 @@ pub fn mirror_view_window(
         places.get(k).map_or_else(
             || {
                 trap.keep_read(crate::session::read_on_in(
-                    &race.frame.frame_work,
+                    &*race.frame.frame_work,
                     places,
                     k,
                     "the mirror places",

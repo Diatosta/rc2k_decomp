@@ -18,6 +18,10 @@ use std::sync::{Condvar, Mutex, OnceLock};
 /// The most drawing threads, the game's own one with them.
 pub const COUNT: usize = 4;
 
+/// A store's copies: one per drawing thread, and the state the runs of a list start from
+/// (copy `COUNT`), against which their changes are found.
+pub const COPIES: usize = COUNT + 1;
+
 thread_local! {
     /// The running thread's copy: 0 unless it is one of the drawing threads.
     static INDEX: Cell<usize> = const { Cell::new(0) };
@@ -39,11 +43,12 @@ pub fn index() -> usize {
     INDEX.get()
 }
 
-/// A store with one copy per drawing thread (see the module's header).
-pub struct PerWorker<T>([T; COUNT]);
+/// A store with one copy per drawing thread (see the module's header), and one of the state
+/// the runs start from.
+pub struct PerWorker<T>([T; COPIES]);
 
 impl<T> PerWorker<T> {
-    pub const fn new(copies: [T; COUNT]) -> Self {
+    pub const fn new(copies: [T; COPIES]) -> Self {
         Self(copies)
     }
 
@@ -53,7 +58,7 @@ impl<T> PerWorker<T> {
     }
 
     /// Every copy (what is set up for all threads at once: a stage's records zeroed).
-    pub fn all(&self) -> &[T; COUNT] {
+    pub fn all(&self) -> &[T; COPIES] {
         &self.0
     }
 }
@@ -90,10 +95,33 @@ impl<T: crate::pointers::Store> Copies for PerWorker<T> {
     }
 }
 
+/// A store whose copies are set from the game's own and merged back (`carried_stores`), cell
+/// by cell with no run searched.
+pub trait Carried: Copies {
+    /// Copy 0 kept as the runs' start, and into copies 1 .. `runs`.
+    fn begin_runs(&self, runs: usize);
+    /// What copy `n` changed since the start put into copy 0.
+    fn merge_run(&self, n: usize);
+}
+
+impl<T: crate::pointers::Cells + crate::pointers::Store> Carried for PerWorker<T> {
+    fn begin_runs(&self, runs: usize) {
+        let [first, rest @ ..] = &self.0;
+        rest[COUNT - 1].copy_from(first);
+        for copy in &rest[..runs - 1] {
+            copy.copy_from(first);
+        }
+    }
+
+    fn merge_run(&self, n: usize) {
+        self.0[0].merge_changes(&self.0[n], &self.0[COUNT]);
+    }
+}
+
 /// The stores of the drawing's working state a run reads as the list began (the write
 /// watch's list, `notes/conversion.md`): copied into each run's copy, the changes merged
 /// back.
-fn carried_stores() -> [&'static dyn Copies; 18] {
+fn carried_stores() -> [&'static dyn Carried; 31] {
     let race = crate::race::owner::race();
     let scene = crate::scene::owner::scene();
     [
@@ -115,6 +143,20 @@ fn carried_stores() -> [&'static dyn Copies; 18] {
         &scene.objects.slots,
         &scene.objects.tables,
         &crate::d3d::owner::d3d().cards,
+        // The stores the mirror shares with its view (`draw_beside`, the write watch's list).
+        &race.frame.frame_work,
+        &race.frame.shadow_skids,
+        &race.frame.view_and_records,
+        &race.physics.contact,
+        &race.physics.ground_probe,
+        &race.shared.work,
+        &race.shared.physics_tables,
+        &race.shared.car,
+        &race.course.lists,
+        &race.course.stage_prefs,
+        &scene.draw_switches,
+        &crate::race::blocks_store::CAR_BLOCKS,
+        &crate::audio::store::ENVIRONMENT,
     ]
 }
 
@@ -122,37 +164,13 @@ fn carried_stores() -> [&'static dyn Copies; 18] {
 /// replays' every flush is the same as on one thread): the point records (a cache of the
 /// points' projections, each record named by its point, the frame's clear reaching every
 /// copy: `point_records::first_records_everywhere`), the vertex buffer and the polygon work.
-fn scratch_stores() -> [&'static dyn Copies; 3] {
+fn scratch_stores() -> [&'static dyn Copies; 4] {
     [
         crate::scene::point_records::copies(),
         &crate::d3d::vertices_store::VERTICES,
         &crate::scene::polygon_store::POLYGON_WORK,
+        &crate::scene::faces_store::SORT_LISTS,
     ]
-}
-
-fn load(store: &dyn crate::pointers::Store) -> Vec<u8> {
-    let mut bytes = vec![0; store.size()];
-    // The whole store: inside it.
-    let _ = store.load(0, &mut bytes);
-    bytes
-}
-
-/// The changed bytes of copy `from` (against `start`) put into copy 0, run by run.
-fn merge(store: &dyn Copies, from: usize, start: &[u8]) {
-    let now = load(store.copy(from));
-    let first = store.copy(0);
-    let mut k = 0;
-    while k < now.len() {
-        if now[k] == start[k] {
-            k += 1;
-            continue;
-        }
-        let s = k;
-        while k < now.len() && now[k] != start[k] {
-            k += 1;
-        }
-        let _ = first.store(s, &now[s..k]);
-    }
 }
 
 // ---- the runs ----
@@ -170,6 +188,15 @@ pub fn threads() -> usize {
     })
 }
 
+/// Whether parts are being drawn beside each other (`draw_beside`): a list inside one of them
+/// is not split into runs, the copies being the parts' own.
+static BESIDE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether parts are being drawn beside each other (`draw_beside`).
+pub fn beside() -> bool {
+    BESIDE.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 /// With `RC2K_DRAW_SERIAL` (a check): the runs drawn one after another on the game's thread,
 /// each on its own copy as on its own thread, so that what the copies and their merging do is
 /// told apart from what threads drawing at once do.
@@ -178,19 +205,24 @@ fn serial() -> bool {
     *ON.get_or_init(|| std::env::var_os("RC2K_DRAW_SERIAL").is_some())
 }
 
+/// The copies made regions as copy 0 (the store's home) is, once: a place in them named by
+/// its game address is read through their cells.
+fn register_copies() {
+    static DONE: OnceLock<()> = OnceLock::new();
+    DONE.get_or_init(|| {
+        let carried = carried_stores().map(|s| -> &'static dyn Copies { s });
+        for s in carried.into_iter().chain(scratch_stores()) {
+            for n in 1..COUNT {
+                crate::pointers::register_store(s.copy(n));
+            }
+        }
+    });
+}
+
 /// The other drawing threads.
 fn pool() -> Option<&'static rayon::ThreadPool> {
     static POOL: OnceLock<Option<rayon::ThreadPool>> = OnceLock::new();
     POOL.get_or_init(|| {
-        if threads() > 1 {
-            // The copies are regions as copy 0 (the store's home) is: a place in them named by
-            // its game address is read through their cells.
-            for s in carried_stores().into_iter().chain(scratch_stores()) {
-                for n in 1..COUNT {
-                    crate::pointers::register_store(s.copy(n));
-                }
-            }
-        }
         (threads() > 1)
             .then(|| {
                 rayon::ThreadPoolBuilder::new()
@@ -244,23 +276,63 @@ pub fn draw_in_runs(
     draw: impl Fn(Range<usize>) -> Result<(), Refused> + Sync,
 ) -> Result<(), Refused> {
     let k = threads().min(count);
-    let Some(pool) = pool().filter(|_| k > 1) else {
+    let beside = BESIDE.load(std::sync::atomic::Ordering::Relaxed);
+    let Some(pool) = pool().filter(|_| k > 1 && !beside) else {
         return draw(0..count);
     };
     let ranges: Vec<Range<usize>> = (0..k).map(|i| i * count / k..(i + 1) * count / k).collect();
+    if crate::platform_3d::flushes()
+        != flushes_before(|| draw_parts(Some(pool), k, |n| draw(ranges[n].clone())))?
+    {
+        crate::framework::log("workers: a flush while the runs were drawn");
+    }
+    Ok(())
+}
+
+/// `parts` drawn and the flushes counted before it.
+fn flushes_before(parts: impl FnOnce() -> Result<(), Refused>) -> Result<u64, Refused> {
+    let flushes = crate::platform_3d::flushes();
+    parts()?;
+    Ok(flushes)
+}
+
+/// `first` drawn on the game's thread and `second` beside it on a drawing thread, each from
+/// the working state as it is now (the mirror beside its view, `race::draw_race_scene`):
+/// `second`'s drawing goes after `first`'s, which may flush, and its changes to the working
+/// state over `first`'s. With fewer than two drawing threads both on the game's thread, one
+/// after the other, each on its own copy as on its own thread, so that what is drawn is the
+/// same however many threads draw.
+pub fn draw_beside(
+    first: impl Fn() -> Result<(), Refused> + Sync,
+    second: impl Fn() -> Result<(), Refused> + Sync,
+) -> Result<(), Refused> {
+    let pool = pool();
+    BESIDE.store(true, std::sync::atomic::Ordering::Relaxed);
+    let drawn = draw_parts(pool, 2, |n| if n == 0 { first() } else { second() });
+    BESIDE.store(false, std::sync::atomic::Ordering::Relaxed);
+    drawn
+}
+
+/// Parts 0 .. `k` of a drawing (`part`), part 0 on the game's thread and each other on a
+/// drawing thread with its own copy of the working state, all set from the game's own at the
+/// start; the other parts' noted drawing put after part 0's in their order, and each copy's
+/// changes put into the game's own in that order.
+fn draw_parts(
+    pool: Option<&rayon::ThreadPool>,
+    k: usize,
+    part: impl Fn(usize) -> Result<(), Refused> + Sync,
+) -> Result<(), Refused> {
+    register_copies();
+    // One after another on the game's thread without a pool or with `RC2K_DRAW_SERIAL`.
+    let pool = pool.filter(|_| !serial());
     let stores = carried_stores();
-    let start: Vec<Vec<u8>> = stores.iter().map(|s| load(s.copy(0))).collect();
-    for n in 1..k {
-        for (s, bytes) in stores.iter().zip(&start) {
-            let _ = s.copy(n).store(0, bytes);
-        }
+    for s in stores {
+        s.begin_runs(k);
     }
     *ENDED
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = [false; COUNT];
     let control = crate::math::x87::control_word();
-    let mark = crate::platform_3d::noted_len();
-    let flushes = crate::platform_3d::flushes();
     // Run `n` of the others, on the thread it is called on: its noted drawing from `from` on.
     let other = |n: usize, from: usize| {
         INDEX.set(n);
@@ -270,7 +342,7 @@ pub fn draw_in_runs(
         #[cfg(feature = "write_watch")]
         crate::write_watch::begin();
         crate::d3d::run_states::begin_run();
-        let result = draw(ranges[n].clone());
+        let result = part(n);
         let states = crate::d3d::run_states::end_run();
         #[cfg(feature = "write_watch")]
         WATCHED
@@ -293,17 +365,12 @@ pub fn draw_in_runs(
     let first_run = || {
         IN_RUN.set(true);
         crate::race::scene_points::forget_own();
-        let result = draw(ranges[0].clone());
+        let result = part(0);
         IN_RUN.set(false);
         ended(0);
         result
     };
-    let (first, mine, others) = if serial() {
-        let first = first_run();
-        let mine = crate::platform_3d::take_noted_from(mark);
-        let others: Vec<OtherRun> = (1..k).map(|n| other(n, mark)).collect();
-        (first, mine, others)
-    } else {
+    let (first, others) = if let Some(pool) = pool {
         let slots: Vec<Mutex<Option<OtherRun>>> = (1..k).map(|_| Mutex::new(None)).collect();
         let mut first = Ok(());
         // In place: the closure (run 0) on the game's thread, the spawned runs on the pool.
@@ -319,7 +386,6 @@ pub fn draw_in_runs(
             }
             first = first_run();
         });
-        let mine = crate::platform_3d::take_noted_from(mark);
         let others = slots
             .into_iter()
             .map(|slot| {
@@ -328,22 +394,32 @@ pub fn draw_in_runs(
                     .ok_or(BadInput("a drawing run that did not end"))
             })
             .collect::<Result<Vec<_>, _>>()?;
-        (first, mine, others)
+        (first, others)
+    } else {
+        let first = first_run();
+        // Run 0's watch ends before the others' begin on this thread.
+        #[cfg(feature = "write_watch")]
+        WATCHED
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(crate::write_watch::end());
+        let others: Vec<OtherRun> = (1..k)
+            .map(|n| other(n, crate::platform_3d::noted_len()))
+            .collect();
+        (first, others)
     };
-    if crate::platform_3d::flushes() != flushes {
-        crate::framework::log("workers: a flush while the runs were drawn");
-    }
     #[cfg(feature = "write_watch")]
     {
-        // Run 0's watch ends here (in the serial check the others' notes are in theirs).
+        // Run 0's watch ends here (one after another it ended before the others').
         let mut watched = WATCHED
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        watched.push(crate::write_watch::end());
+        if pool.is_some() {
+            watched.push(crate::write_watch::end());
+        }
         crate::race::draw_chunks::shared::add(&watched);
         watched.clear();
     }
-    crate::platform_3d::put_noted(mine);
     let mut result = first;
     for (n, mut run) in others.into_iter().enumerate() {
         result = result.and(run.result);
@@ -351,8 +427,8 @@ pub fn draw_in_runs(
         let carried = crate::d3d::run_states::carried();
         crate::d3d::run_states::patch(&mut run.noted, &run.states, &carried);
         crate::platform_3d::put_noted(run.noted);
-        for (s, bytes) in stores.iter().zip(&start) {
-            merge(*s, n + 1, bytes);
+        for s in stores {
+            s.merge_run(n + 1);
         }
         crate::d3d::run_states::carry(&run.states, n + 1);
     }

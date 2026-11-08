@@ -226,7 +226,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     // A car number past 7 (refused further down) reads past the field.
     let car = race.shared.work.current_car.get() as usize;
     let listed = crate::session::read_on_in(
-        &race_owner.frame.frame_work,
+        &*race_owner.frame.frame_work,
         &race_owner.frame.frame_work.listed_car_sounds,
         car,
         "a listed car sound",

@@ -14,8 +14,10 @@ use crate::race::car_specs_store::CarSpecs;
 pub struct Physics {
     /// One copy per drawing thread (`workers`).
     pub camera: crate::workers::PerWorker<CameraWork>,
-    pub contact: ContactWork,
-    pub ground_probe: GroundProbe,
+    /// One copy per drawing thread (`workers`).
+    pub contact: crate::workers::PerWorker<ContactWork>,
+    /// One copy per drawing thread (`workers`).
+    pub ground_probe: crate::workers::PerWorker<GroundProbe>,
     /// One copy per drawing thread (`workers`).
     pub ground: crate::workers::PerWorker<GroundWork>,
     pub pace: PaceNotes,
@@ -28,12 +30,16 @@ impl Physics {
     pub const fn new() -> Self {
         Physics {
             camera: crate::workers::PerWorker::new(
-                [const { CameraWork::new() }; crate::workers::COUNT],
+                [const { CameraWork::new() }; crate::workers::COPIES],
             ),
-            contact: ContactWork::new(),
-            ground_probe: GroundProbe::new(),
+            contact: crate::workers::PerWorker::new(
+                [const { ContactWork::new() }; crate::workers::COPIES],
+            ),
+            ground_probe: crate::workers::PerWorker::new(
+                [const { GroundProbe::new() }; crate::workers::COPIES],
+            ),
             ground: crate::workers::PerWorker::new(
-                [const { GroundWork::new() }; crate::workers::COUNT],
+                [const { GroundWork::new() }; crate::workers::COPIES],
             ),
             pace: PaceNotes::new(),
             split_tables: SplitTables::new(),

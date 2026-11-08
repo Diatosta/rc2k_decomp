@@ -306,7 +306,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(
-            &crate::race::owner::race().physics.contact,
+            crate::race::owner::race().physics.contact.first(),
             START,
             END,
         );

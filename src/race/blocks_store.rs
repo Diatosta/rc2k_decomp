@@ -24,13 +24,53 @@ pub struct CarBlocks {
 const _: () = assert!(core::mem::size_of::<CarBlocks>() == 0xA0D0);
 
 /// The piece: a field of `CARS_AND_REPLAY` since 2026-10-29 (it left the race
-/// block with its group, phase 13).
+/// block with its group, phase 13) for the game's own thread, one of `WORKER_COPIES` for
+/// each other drawing thread (the mirror drawn beside its view reads and writes the cars'
+/// camera and state fields: `workers::draw_beside`).
 pub struct InGroup;
+
+/// The drawing threads' copies but the game's thread's, then the runs' start
+/// (`workers::Carried`).
+static WORKER_COPIES: [CarBlocks; crate::workers::COUNT] =
+    [const { crate::pointers::cells_of_bytes([0u8; core::mem::size_of::<CarBlocks>()]) };
+        crate::workers::COUNT];
 
 impl core::ops::Deref for InGroup {
     type Target = CarBlocks;
+    #[inline]
     fn deref(&self) -> &CarBlocks {
-        &race().replay.cars_and_replay.car_blocks
+        match crate::workers::index() {
+            0 => &race().replay.cars_and_replay.car_blocks,
+            n => &WORKER_COPIES[n - 1],
+        }
+    }
+}
+
+impl crate::workers::Copies for InGroup {
+    fn copy(&self, n: usize) -> &dyn crate::pointers::Store {
+        match n {
+            0 => &race().replay.cars_and_replay.car_blocks,
+            n => &WORKER_COPIES[n - 1],
+        }
+    }
+}
+
+impl crate::workers::Carried for InGroup {
+    fn begin_runs(&self, runs: usize) {
+        use crate::pointers::Cells;
+        let first = &race().replay.cars_and_replay.car_blocks;
+        WORKER_COPIES[crate::workers::COUNT - 1].copy_from(first);
+        for copy in &WORKER_COPIES[..runs - 1] {
+            copy.copy_from(first);
+        }
+    }
+
+    fn merge_run(&self, n: usize) {
+        use crate::pointers::Cells;
+        race().replay.cars_and_replay.car_blocks.merge_changes(
+            &WORKER_COPIES[n - 1],
+            &WORKER_COPIES[crate::workers::COUNT - 1],
+        );
     }
 }
 

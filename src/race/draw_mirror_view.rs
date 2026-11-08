@@ -9,6 +9,14 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
+/// With `RC2K_MIRROR_ALWAYS` (a check): the mirror drawn in every view, replays' included,
+/// whatever the car's options and the mirror switch say, so that the mirror's drawing can be
+/// compared over a replay.
+pub fn always() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("RC2K_MIRROR_ALWAYS").is_some())
+}
+
 /// The Rust version (see the header).
 pub fn draw_mirror_view(
     race: &Race,
@@ -17,7 +25,7 @@ pub fn draw_mirror_view(
 ) -> Result<(), Refused> {
     if race.replay.finish.no_place.get() != 0
         || race.shared.work.in_credits.get() != 0
-        || race.shared.switches.other_way.get() == 0
+        || (race.shared.switches.other_way.get() == 0 && !always())
     {
         return Ok(());
     }

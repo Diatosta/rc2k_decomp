@@ -10,30 +10,20 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
-use crate::scene::faces_store::FACES;
+use crate::scene::faces_store::SORT_LISTS;
 
-/// A list of the faces store at byte `off` of it, bounded by the whole buffers block: a
-/// flare's entry is read as a description of 0x3C bytes, past its own 8
-/// (`scene::draw_described_object`), and the sort list's last entries past the store.
-fn faces_list(shared: &Shared, off: usize) -> crate::pointers::GamePtr {
-    use crate::race::buffers_store::Buffers;
-    crate::pointers::GamePtr::to(&shared.buffers)
-        .offset((core::mem::offset_of!(Buffers, faces) + off) as u32)
+fn sort_list() -> crate::pointers::GamePtr {
+    crate::scene::faces_store::list_at(core::mem::offset_of!(
+        crate::scene::faces_store::SortLists,
+        sort_entries
+    ))
 }
 
-fn sort_list(shared: &Shared) -> crate::pointers::GamePtr {
-    faces_list(
-        shared,
-        core::mem::offset_of!(crate::scene::faces_store::Faces, sort_entries),
-    )
-}
-
-fn depth_list(shared: &Shared) -> crate::pointers::GamePtr {
-    faces_list(
-        shared,
-        core::mem::offset_of!(crate::scene::faces_store::Faces, depth_entries),
-    )
+fn depth_list() -> crate::pointers::GamePtr {
+    crate::scene::faces_store::list_at(core::mem::offset_of!(
+        crate::scene::faces_store::SortLists,
+        depth_entries
+    ))
 }
 
 /// The Rust version (see the header).
@@ -64,15 +54,15 @@ pub fn draw_view_scene(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     gather_lamps(race, scene)?;
     lamps_wanted(&race.shared)?;
     race_sound_tick(&race.frame)?; // 0x16
-    sort_entries(&race.shared.view.sort_entry_count, &FACES.sort_entries)?;
+    sort_entries(&race.shared.view.sort_entry_count, &SORT_LISTS.sort_entries)?;
     let c = crate::moved::census::before();
     let begun = crate::debug::timing::start();
     draw_entries(
         race,
         scene,
         &race.shared.view.sort_entry_count,
-        &FACES.sort_entries,
-        sort_list(&race.shared),
+        &SORT_LISTS.sort_entries,
+        sort_list(),
     )?;
     crate::debug::timing::stop(crate::debug::timing::Stage::CourseEntries, begun);
     crate::moved::census::after("sorted", c);
@@ -82,7 +72,10 @@ pub fn draw_view_scene(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     crate::race::skidmarks::draw_skidmarks_if_on(race, scene)?;
     car_lights(race, scene)?;
     race_sound_tick(&race.frame)?; // 0x18
-    sort_entries(&race.shared.view.depth_entry_count, &FACES.depth_entries)?;
+    sort_entries(
+        &race.shared.view.depth_entry_count,
+        &SORT_LISTS.depth_entries,
+    )?;
     race_sound_tick(&race.frame)?; // 0x19
     let c = crate::moved::census::before();
     let begun = crate::debug::timing::start();
@@ -90,8 +83,8 @@ pub fn draw_view_scene(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
         race,
         scene,
         &race.shared.view.depth_entry_count,
-        &FACES.depth_entries,
-        depth_list(&race.shared),
+        &SORT_LISTS.depth_entries,
+        depth_list(),
     )?;
     crate::debug::timing::stop(crate::debug::timing::Stage::DepthEntries, begun);
     crate::moved::census::after("depth", c);

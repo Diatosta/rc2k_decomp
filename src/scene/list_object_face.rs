@@ -87,7 +87,7 @@ impl FaceWorld for GameFace<'_> {
         self.0.shared.switches.mask_kind.bits()
     }
     fn group_table(&self, group: u32) -> u32 {
-        let draw_switches = &scene().draw_switches;
+        let draw_switches = &*scene().draw_switches;
         // The table is typed by its first dword only.
         self.1.keep(crate::session::read_on_in(
             draw_switches,

@@ -492,7 +492,7 @@ pub fn shadow_on_face(race: &Race, scene: &crate::scene::owner::Scene) -> Result
     drawing.scene.polygon_drawn.set(0u32);
     let list = &POLYGON_WORK.list;
     copy_on_in(
-        (&race.frame.frame_work, &race.frame.frame_work.shadow_list),
+        (&*race.frame.frame_work, &race.frame.frame_work.shadow_list),
         (&race.shared.buffers, list),
         count as usize,
         "the shadow list",
@@ -773,7 +773,7 @@ pub fn cast_car_shadow(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     frame.frame_work.shadow_list_count.set(n);
     for k in hull_list(n) {
         crate::session::write_on_in(
-            &frame.frame_work,
+            &*frame.frame_work,
             &frame.frame_work.shadow_list,
             k as usize,
             k,

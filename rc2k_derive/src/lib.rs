@@ -2,7 +2,8 @@
 //! when each field is, and no byte lies outside its fields. Both are checked at compile time,
 //! so the promise the trait asks for rests on the primitive cells alone. The derived
 //! `cell_run` finds a byte's field by its offset and asks the field's type, down to a run of
-//! primitive cells. The derived `copy_from` copies field by field, in the fields' order.
+//! primitive cells. The derived `copy_from` copies field by field, in the fields' order, and `merge_changes`
+//! merges field by field.
 
 use proc_macro::TokenStream;
 use quote::quote;
@@ -71,6 +72,10 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
         unsafe impl #with crate::pointers::Cells for #name #of #clause {
             fn copy_from(&self, other: &Self) {
                 #( crate::pointers::Cells::copy_from(&self.#names, &other.#names); )*
+            }
+
+            fn merge_changes(&self, now: &Self, start: &Self) {
+                #( crate::pointers::Cells::merge_changes(&self.#names, &now.#names, &start.#names); )*
             }
 
             fn cell_run(&self, offset: usize) -> (usize, crate::pointers::CellRun<'_>) {

@@ -9,7 +9,7 @@ use crate::race::owner_course::Course;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::Trap;
 use crate::race::trap::car_at;
-use crate::scene::faces_store::FACES;
+use crate::scene::faces_store::SORT_LISTS;
 use crate::session::Dword;
 
 /// `race::car_light_modes` (0x455B70): `crate::race::owner::race().shared.view.shown_car` = the drawn view's car
@@ -93,7 +93,7 @@ pub(super) fn lamp(course: &Course, n: u32) -> Result<&'_ [Dword], BadInput> {
 /// Depth entry `n` (8 bytes: the key, the second word). One past the 0x1000 refused.
 pub(super) fn depth_entry(n: u32) -> Result<&'static [Dword], BadInput> {
     let n = n as usize;
-    FACES
+    SORT_LISTS
         .depth_entries
         .get(2 * n..2 * n + 2)
         .ok_or(BadInput("a depth entry past the table"))

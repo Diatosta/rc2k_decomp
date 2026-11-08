@@ -59,31 +59,42 @@ fn draw_view(
     use crate::sound::race_sound_tick::race_sound_tick;
     load_view_car(&race.shared, car)?;
     crate::race::frame_draw::fetch_view_value(race)?;
-    let c = crate::moved::census::before();
-    crate::race::draw_view_scene::draw_view_scene(race, scene)?;
-    crate::moved::census::after(if car == 0 { "view0" } else { "view1" }, c);
-    // Not the original's: the debug UI's probe points need this view.
-    if car == 0 {
-        crate::debug::imgui_sdl::view_drawn(&race.frame);
-    }
-    race_sound_tick(&race.frame)?; // 0xD
-    if blit {
-        crate::d3d::copy_screen_to_texture::copy_screen_to_texture(&race.frame);
-        race_sound_tick(&race.frame)?; // 0xE
-    }
-    let c = crate::moved::census::before();
-    crate::race::draw_view_overlays::draw_view_overlays(race, scene, system, effects)?;
-    crate::moved::census::after("overlays", c);
-    race_sound_tick(&race.frame)?; // 0xF
-    if race.frame.panel_and_overlay.panel.hud_flags[flags].get() & 8 != 0 {
+    let view = || -> Result<(), Refused> {
+        let c = crate::moved::census::before();
+        crate::race::draw_view_scene::draw_view_scene(race, scene)?;
+        crate::moved::census::after(if car == 0 { "view0" } else { "view1" }, c);
+        // Not the original's: the debug UI's probe points need this view.
+        if car == 0 {
+            crate::debug::imgui_sdl::view_drawn(&race.frame);
+        }
+        race_sound_tick(&race.frame)?; // 0xD
+        if blit {
+            crate::d3d::copy_screen_to_texture::copy_screen_to_texture(&race.frame);
+            race_sound_tick(&race.frame)?; // 0xE
+        }
+        let c = crate::moved::census::before();
+        crate::race::draw_view_overlays::draw_view_overlays(race, scene, system, effects)?;
+        crate::moved::census::after("overlays", c);
+        race_sound_tick(&race.frame) // 0xF
+    };
+    let mirror = || -> Result<(), Refused> {
         load_view_car(&race.shared, car)?;
         let c = crate::moved::census::before();
         let begun = crate::debug::timing::start();
         crate::race::draw_mirror_view::draw_mirror_view(race, scene, system)?;
         crate::debug::timing::stop(crate::debug::timing::Stage::Mirror, begun);
         crate::moved::census::after("mirror", c);
+        Ok(())
+    };
+    let mirrored = race.frame.panel_and_overlay.panel.hud_flags[flags].get() & 8 != 0
+        || crate::race::draw_mirror_view::always();
+    if !mirrored {
+        return view();
     }
-    Ok(())
+    // Not the original's: the mirror drawn beside its view (`workers::draw_beside`), from the
+    // working state the view starts from rather than the one it leaves (the original's mirror
+    // read some of the view's leftovers: a few pixels differ now and then, `notes/conversion.md`).
+    crate::workers::draw_beside(view, mirror)
 }
 
 /// The Rust version (see the header).

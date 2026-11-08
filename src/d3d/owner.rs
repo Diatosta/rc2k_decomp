@@ -15,7 +15,7 @@ impl D3d {
     pub const fn new() -> Self {
         D3d {
             cards: crate::workers::PerWorker::new(
-                [const { Cards3d::new() }; crate::workers::COUNT],
+                [const { Cards3d::new() }; crate::workers::COPIES],
             ),
         }
     }

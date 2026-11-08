@@ -7,12 +7,12 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::Trap;
-use crate::scene::faces_store::FACES;
+use crate::scene::faces_store::SORT_LISTS;
 
-// FACES.sort_entries: 0x1000 of 8 bytes
+// SORT_LISTS.sort_entries: 0x1000 of 8 bytes
 pub const SORT_MAX: u32 = 0x1000;
 
-/// `race::add_sort_entry` (0x454D57): entry `RACE_VIEW.sort_entry_count` of `FACES.sort_entries` for `face`:
+/// `race::add_sort_entry` (0x454D57): entry `RACE_VIEW.sort_entry_count` of `SORT_LISTS.sort_entries` for `face`:
 /// +4 the face, +0 0, or with the face number (without its top bit) below 0x1000000 the
 /// object `kind` << 16 | the face's low 16 bits; the count + 1. Refuses (before anything)
 /// an entry past the 0x1000.
@@ -23,7 +23,7 @@ pub fn add_sort_entry(shared: &Shared, kind: u32, face: u32) -> Result<(), Refus
     }
     // Converted: `rc2k_core::race::frame::sort_entry`.
     let entry = rc2k_core::race::frame::sort_entry(kind, face);
-    let at = &FACES.sort_entries[2 * n as usize..2 * n as usize + 2];
+    let at = &SORT_LISTS.sort_entries[2 * n as usize..2 * n as usize + 2];
     at[0].set(entry.first.unwrap_or(0));
     at[1].set(face);
     shared.view.sort_entry_count.set_bits(n.wrapping_add(1));
@@ -195,10 +195,10 @@ pub fn face_depth(
     Ok(())
 }
 
-// FACES.depth_entries: 0x1000 of 8 bytes
+// SORT_LISTS.depth_entries: 0x1000 of 8 bytes
 
 /// `race::add_depth_entry` (0x454D2A): `face_depth` of `face`, then entry `RACE_VIEW.depth_entry_count` of
-/// `FACES.depth_entries`: +0 the key, +4 the face; the count + 1. Refuses (before anything) an
+/// `SORT_LISTS.depth_entries`: +0 the key, +4 the face; the count + 1. Refuses (before anything) an
 /// entry past the 0x1000, or what `face_depth` refuses.
 pub fn add_depth_entry(
     race: &Race,

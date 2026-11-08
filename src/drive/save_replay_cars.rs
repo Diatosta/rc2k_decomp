@@ -19,7 +19,7 @@ pub fn piece_place(shared: &Shared, piece: StartPiece) -> (&dyn crate::pointers:
     match piece {
         StartPiece::Car(k) => (&CAR_BLOCKS.cars[k as usize], 0),
         StartPiece::RaceSlots => (&shared.work.race_slots, 0),
-        StartPiece::Extra => (&shared.work, core::mem::offset_of!(RaceWork, replay_extra)),
+        StartPiece::Extra => (&*shared.work, core::mem::offset_of!(RaceWork, replay_extra)),
     }
 }
 
@@ -38,13 +38,13 @@ pub fn copy_piece(race: &Race, piece: StartPiece, offset: usize, n: usize, save:
     match piece {
         StartPiece::Car(k) => copy_between((&CAR_BLOCKS.cars[k as usize], 0), state, len, save),
         StartPiece::RaceSlots => copy_between(
-            (&shared.work, core::mem::offset_of!(RaceWork, race_slots)),
+            (&*shared.work, core::mem::offset_of!(RaceWork, race_slots)),
             state,
             len,
             save,
         ),
         StartPiece::Extra => copy_between(
-            (&shared.work, core::mem::offset_of!(RaceWork, replay_extra)),
+            (&*shared.work, core::mem::offset_of!(RaceWork, replay_extra)),
             state,
             len,
             save,

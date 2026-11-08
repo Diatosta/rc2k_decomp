@@ -17,7 +17,7 @@ pub fn put_split_time(
     v: u32,
 ) -> Result<(), crate::errors::BadInput> {
     crate::session::write_on_in(
-        &shared.car,
+        &*shared.car,
         &shared.car.split_times,
         split,
         v,
