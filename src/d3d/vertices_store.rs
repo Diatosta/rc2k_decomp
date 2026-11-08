@@ -53,6 +53,15 @@ impl core::ops::Deref for InBuffers {
     }
 }
 
+impl crate::workers::Copies for InBuffers {
+    fn copy(&self, n: usize) -> &dyn crate::pointers::Store {
+        match n {
+            0 => &race().shared.buffers.vertices,
+            n => &WORKER_COPIES[n - 1],
+        }
+    }
+}
+
 pub static VERTICES: InBuffers = InBuffers;
 
 /// IDA 0x9605A0, the first byte of the piece.

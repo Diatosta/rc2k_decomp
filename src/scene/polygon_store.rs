@@ -189,6 +189,15 @@ impl core::ops::Deref for InBuffers {
     }
 }
 
+impl crate::workers::Copies for InBuffers {
+    fn copy(&self, n: usize) -> &dyn crate::pointers::Store {
+        match n {
+            0 => &race().shared.buffers.polygon,
+            n => &WORKER_COPIES[n - 1],
+        }
+    }
+}
+
 pub static POLYGON_WORK: InBuffers = InBuffers;
 
 /// The tables, a field of `crate::race::owner::race().shared.buffers`.

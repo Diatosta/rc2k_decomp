@@ -41,9 +41,15 @@ impl SharedTable {
 
     fn words(&self) -> &[AtomicU32] {
         self.words.get_or_init(|| {
-            (0..self.room.div_ceil(4))
+            let words: Box<[AtomicU32]> = (0..self.room.div_ceil(4))
                 .map(|_| AtomicU32::new(0))
-                .collect()
+                .collect();
+            #[cfg(feature = "write_watch")]
+            WATCHED_TABLES
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push((words.as_ptr().addr(), words.len() * 4, self.what));
+            words
         })
     }
 
@@ -96,6 +102,7 @@ impl SharedTable {
         let Some(words) = self.holding(at, into.len())? else {
             return Ok(None);
         };
+        crate::write_watch::read(words[at / 4..].as_ptr().cast(), into.len() + at % 4);
         let word = |n: usize| words[n].load(Ordering::Relaxed).to_le_bytes();
         if at.is_multiple_of(4) {
             // The common case: whole words from a word's start.
@@ -158,6 +165,7 @@ impl SharedTable {
         let Some(words) = self.holding(at, data.len())? else {
             return Ok(None);
         };
+        crate::write_watch::wrote(words[at / 4..].as_ptr().cast(), data.len() + at % 4);
         let mut k = 0;
         while k < data.len() {
             let byte = at + k;
@@ -190,6 +198,22 @@ impl SharedTable {
         }
         Ok(Some(()))
     }
+}
+
+/// With the feature `write_watch`: each table's words (host address, bytes) and what it is.
+#[cfg(feature = "write_watch")]
+static WATCHED_TABLES: std::sync::Mutex<Vec<(usize, usize, &'static str)>> =
+    std::sync::Mutex::new(Vec::new());
+
+/// With the feature `write_watch`: the table and byte a host address lies in.
+#[cfg(feature = "write_watch")]
+pub fn table_of(host: usize) -> Option<(&'static str, usize)> {
+    WATCHED_TABLES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .iter()
+        .find(|&&(start, len, _)| (start..start + len).contains(&host))
+        .map(|&(start, _, what)| (what, host - start))
 }
 
 #[cfg(test)]

@@ -25,7 +25,7 @@ pub fn sort_listed_faces(scene: &crate::scene::owner::Scene) -> Result<(), BadIn
     }
     // The list runs on past `listed_faces` into the store's next fields, as
     // `scene::list_object_face` writes it.
-    let (slots, cells) = (&scene.objects.slots, &scene.objects.slots.listed_faces);
+    let (slots, cells) = (&*scene.objects.slots, &scene.objects.slots.listed_faces);
     let mut list = Vec::with_capacity(listed as usize);
     for n in 0..listed as usize {
         let mut face: rc2k_core::scene::face_order::ListedFace = [0; 4];
@@ -56,9 +56,9 @@ mod tests {
         let _lock = crate::store::test_lock();
         const LISTED: usize = 0x408;
         let cells = &scene.objects.slots.listed_faces;
-        let word = |n: usize| read_on_in(&scene.objects.slots, cells, n, "a test").unwrap();
+        let word = |n: usize| read_on_in(&*scene.objects.slots, cells, n, "a test").unwrap();
         let put = |n: usize, v: u32| {
-            write_on_in(&scene.objects.slots, cells, n, v, "a test").unwrap();
+            write_on_in(&*scene.objects.slots, cells, n, v, "a test").unwrap();
         };
         let kept: Vec<u32> = (0..4 * LISTED).map(word).collect();
         let count = scene.lights.work.listed_face_count.bits();

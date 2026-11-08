@@ -33,17 +33,16 @@ thread_local! {
     static TAIL: std::cell::RefCell<Vec<u8>> = const { std::cell::RefCell::new(Vec::new()) };
 }
 
-/// The byte from which the running thread's points are its own: the count's for a drawing
-/// thread, none for the game's.
+/// The byte from which the running thread's points are its own: the count's in a run of a
+/// list drawn by several threads (the game's thread's run too), none otherwise.
 fn own_from() -> usize {
-    if crate::workers::index() == 0 {
+    if !crate::workers::in_run() {
         return usize::MAX;
     }
     (race().course.course.scene_point_count.get() as usize).saturating_mul(12)
 }
 
 /// A drawing thread's own points forgotten: its next run takes them from the shared ones.
-#[allow(dead_code, reason = "the drawing threads' pool calls it (next step)")]
 pub fn forget_own() {
     TAIL.with_borrow_mut(Vec::clear);
 }

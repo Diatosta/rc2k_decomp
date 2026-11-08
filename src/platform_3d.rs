@@ -233,6 +233,11 @@ struct NotedLevel {
 
 /// The noted drawing's way to the backend: nothing noted is left behind.
 fn draw_noted(pending: &mut Pending) {
+    if crate::workers::index() != 0 {
+        // The runs' drawing is put together on the game's thread: a flush here would draw
+        // this run's part ahead of the earlier runs'.
+        crate::framework::log("platform: a flush on a drawing thread (its drawing out of order)");
+    }
     FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     // Room for as many as there has been: growing to them shows in a profile.
     let room = pending.noted.capacity();

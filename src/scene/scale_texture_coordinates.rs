@@ -4,8 +4,9 @@
 //! For each entry of the polygon, with the switch `dword_6240E0` its first pair of
 //! coordinates (+8, +0xC) and with `dword_6240E4` its second (+0x10, +0x14): a value
 //! that is not 0 becomes a float (`fild`, `fstp`) whose bits then lose 0x0C000000: the
-//! number over 2^24. The two work variables `dword_5183C0` and `flt_5183C4` keep the
-//! last value and its float.
+//! number over 2^24. (The original also leaves the last value and its float in the work
+//! variables `dword_5183C0` and `flt_5183C4`, which nothing reads: not kept, so that threads
+//! drawing at once share no write.)
 //! Eight callers.
 
 use crate::errors::Refused;
@@ -25,8 +26,6 @@ pub fn scale_texture_coordinates(scene: &crate::scene::owner::Scene) -> Result<(
 
 /// `scale_texture_coordinates` on the polygon's entries as listed (a polygon of some).
 pub fn scale_entries(entries: &Listed, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let system = crate::system::owner::system();
-    let session = &system.session;
     let drawing = &scene.drawing;
     use rc2k_core::scene::texture_coordinates as coordinates;
     let switches: [u32; 2] = [
@@ -40,10 +39,6 @@ pub fn scale_entries(entries: &Listed, scene: &crate::scene::owner::Scene) -> Re
             }
             for at in [8 + pair * 8, 0xC + pair * 8] {
                 let value = entry.word(at);
-                if let Some(float) = coordinates::float_of(value) {
-                    session.machine.work.set(value);
-                    session.machine.work_float.set(float);
-                }
                 entry.set_word(at, coordinates::scaled(value));
             }
         }

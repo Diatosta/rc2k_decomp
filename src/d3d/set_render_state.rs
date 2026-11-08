@@ -17,6 +17,8 @@ const STATES: u32 = 0x40;
 /// Render state `state` set to `value` (the standalone keeps the value).
 pub fn set_render_state(value: u32, state: u32) {
     if state < STATES {
+        // Noted for the drawing threads' runs whether or not it changes (`run_states`).
+        crate::d3d::run_states::note_set(state as usize);
         let kept = &d3d().cards.kept_states[state as usize];
         if kept.get() != value {
             kept.set(value);

@@ -1233,7 +1233,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::scene::object_slots_store::START,
         len: crate::scene::object_slots_store::END - crate::scene::object_slots_store::START,
-        home: Home::Store(&crate::scene::owner::SCENE.objects.slots),
+        home: Home::Store(crate::scene::owner::SCENE.objects.slots.first()),
     },
     Moved {
         ida: crate::scene::light_tables_store::START,
@@ -1298,7 +1298,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::scene::object_tables_store::START,
         len: crate::scene::object_tables_store::END - crate::scene::object_tables_store::START,
-        home: Home::Store(&crate::scene::owner::SCENE.objects.tables),
+        home: Home::Store(crate::scene::owner::SCENE.objects.tables.first()),
     },
     Moved {
         ida: crate::scene::texture_places_store::START,

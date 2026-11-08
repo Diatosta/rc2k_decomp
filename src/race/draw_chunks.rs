@@ -239,7 +239,7 @@ pub fn draw_in_chunks(
 /// (what threads drawing the runs at once would race on), gathered over the lists and
 /// logged as IDA ranges (the moved ranges) or game addresses (Rust's own state) at the 300th.
 #[cfg(feature = "write_watch")]
-mod shared {
+pub(crate) mod shared {
     use std::collections::BTreeSet;
     use std::sync::Mutex;
 
@@ -273,6 +273,11 @@ mod shared {
             let len = (words[k] - first + 1) * 4;
             let host = first * 4;
             let game = crate::address_map::game_of(host).map(|g| g as usize);
+            if let Some((what, at)) = crate::memory::shared_table::table_of(host) {
+                text += &format!(" [{what} +{at:#x}+{len:#x}]");
+                k += 1;
+                continue;
+            }
             match game.and_then(crate::moved::ida_of) {
                 Some(ida) => text += &format!(" {ida:#x}+{len:#x}"),
                 None => text += &format!(" game:{:#x}+{len:#x}", game.unwrap_or(0)),

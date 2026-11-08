@@ -14,6 +14,8 @@ use std::sync::Arc;
 
 use crate::render::{Command, STATES};
 
+type States = [u32; STATES];
+
 /// Where a run first set each state, counted in the commands it noted (`usize::MAX`:
 /// never).
 pub struct RunStates {
@@ -41,9 +43,7 @@ pub fn begin_run() {
 
 /// The run on this thread is over: where it set its states.
 pub fn end_run() -> RunStates {
-    let first_set = CURRENT
-        .take()
-        .map_or([usize::MAX; STATES], |c| c.first_set);
+    let first_set = CURRENT.take().map_or([usize::MAX; STATES], |c| c.first_set);
     RunStates { first_set }
 }
 
@@ -63,7 +63,8 @@ pub fn note_set(state: usize) {
 /// The run's fans before its own setting of a state given `carried`'s value of it (the
 /// states as the earlier runs left them). Fans that shared states share the patched ones.
 pub fn patch(noted: &mut [Command], run: &RunStates, carried: &[u32; STATES]) {
-    let mut made: Vec<(*const [u32; STATES], usize, Arc<[u32; STATES]>)> = Vec::new();
+    // (the states patched, how many states were still unset, the patched ones)
+    let mut made: Vec<(*const States, usize, Arc<States>)> = Vec::new();
     for (at, c) in noted.iter_mut().enumerate() {
         let Command::Fan { states, .. } = c else {
             continue;
@@ -79,8 +80,13 @@ pub fn patch(noted: &mut [Command], run: &RunStates, carried: &[u32; STATES]) {
             *states = Arc::clone(done);
             continue;
         }
-        let fixed: [u32; STATES] =
-            std::array::from_fn(|i| if at < run.first_set[i] { carried[i] } else { states[i] });
+        let fixed: [u32; STATES] = std::array::from_fn(|i| {
+            if at < run.first_set[i] {
+                carried[i]
+            } else {
+                states[i]
+            }
+        });
         let fixed = Arc::new(fixed);
         made.push((key, unset, Arc::clone(&fixed)));
         *states = fixed;

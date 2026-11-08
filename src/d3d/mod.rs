@@ -16,6 +16,7 @@ pub mod draw_vertex_strip;
 pub mod lock_texture;
 pub mod owner;
 pub mod recorder;
+pub mod run_states;
 pub mod set_render_state;
 pub mod set_texture;
 pub mod texture_lock;

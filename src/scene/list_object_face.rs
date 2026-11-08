@@ -142,7 +142,7 @@ impl FaceWorld for GameFace<'_> {
     fn kind_byte(&self, kind: u32) -> u32 {
         let objects = &scene().objects;
         self.1.keep(crate::session::read_on_in(
-            &objects.tables,
+            &*objects.tables,
             &objects.tables.car_mark_textures,
             kind as usize,
             "the car marks' textures",
@@ -208,7 +208,7 @@ pub fn list_object_face(
     .enumerate()
     {
         crate::session::write_on_in(
-            &scene.objects.slots,
+            &*scene.objects.slots,
             &scene.objects.slots.listed_faces,
             entry + k,
             v,

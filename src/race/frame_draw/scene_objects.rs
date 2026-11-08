@@ -872,7 +872,7 @@ pub fn draw_entries(
     if crate::race::draw_chunks::chunks() > 1 {
         return crate::race::draw_chunks::draw_in_chunks(entries.len(), draw);
     }
-    draw(0..entries.len())
+    crate::workers::draw_in_runs(entries.len(), draw)
 }
 
 /// The scene matrices from byte `off` on, as the esi the original leaves for a drawing

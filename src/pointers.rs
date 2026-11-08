@@ -90,10 +90,26 @@ impl std::fmt::Debug for Backing {
 /// The pool's blocks lent to the game, by their game address: each a store of its own.
 static POOL_HOMES: RwLock<BTreeMap<u32, &'static pool::PoolBlock>> = RwLock::new(BTreeMap::new());
 
+/// Stores that are regions of their own, by their game address: the drawing threads' copies
+/// of the drawing's state (`workers`; copy 0 is the store's home, `moved`).
+static STORE_HOMES: RwLock<BTreeMap<u32, &'static dyn Store>> = RwLock::new(BTreeMap::new());
+
+/// `store` a region of its own, reached through its cells as a moved store's home is.
+pub fn register_store(store: &'static dyn Store) {
+    let at = game_address(store.first());
+    if let Ok(mut homes) = STORE_HOMES.write() {
+        homes.insert(at, store);
+    }
+    register(at, store.size() as u32);
+}
+
 /// The backing of the region that starts at `start`.
 fn backing_of(start: u32) -> Backing {
     if let Some(&block) = POOL_HOMES.read().ok().as_ref().and_then(|h| h.get(&start)) {
         return Backing::Store(block, start);
+    }
+    if let Some(&store) = STORE_HOMES.read().ok().as_ref().and_then(|h| h.get(&start)) {
+        return Backing::Store(store, start);
     }
     match crate::moved::store_of(start as usize) {
         Some((store, 0)) => Backing::Store(store, start),

@@ -44,7 +44,7 @@ impl ObjectTables {
     pub fn slot_value(table: &[Dword; 256], slot: usize) -> u32 {
         // The tables are contiguous; a slot far past them is the caller's slip, as it was the
         // original's (a checked read: outside the allocation ends the program).
-        crate::session::read_on_in(&scene().objects.slots, table, slot, "an object slot")
+        crate::session::read_on_in(&*scene().objects.slots, table, slot, "an object slot")
             .unwrap_or_else(|e| crate::fatal::raise::end("an object slot", e))
     }
 }
@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&scene().objects.slots, START, END);
+        crate::gfx::first_values_are_the_games(&*scene().objects.slots, START, END);
     }
 
     #[test]

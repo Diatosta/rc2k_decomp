@@ -24,7 +24,7 @@ const FACES: u32 = 0xC000;
 fn listed_dword(n: usize, scene: &crate::scene::owner::Scene) -> Result<u32, BadInput> {
     let objects = &scene.objects;
     crate::session::read_on_in(
-        &objects.slots,
+        &*objects.slots,
         &objects.slots.listed_faces,
         n,
         "the list of faces",

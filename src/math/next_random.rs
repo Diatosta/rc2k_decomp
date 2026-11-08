@@ -44,6 +44,8 @@ pub fn wait_for_random() {
 pub static DRAWS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
 pub fn next_random() -> u32 {
+    // On a drawing thread, after the runs before its own (the numbers in the list's order).
+    crate::workers::wait_for_earlier_runs();
     wait_for_random();
     DRAWS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     with_random(rc2k_core::math::random::Random::draw)
