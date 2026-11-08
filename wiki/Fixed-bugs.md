@@ -455,3 +455,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** seen in the original (2026-10-24, settings changed in one run were back in the next after loading a save) and read in `saves::load_savegame` (0x46E6E1).
 
 **Fix:** the four player records and names are set aside before a championship starts or is loaded and put back when it ends or is left, on every way out. Inside the championship its own settings are used and saved as before. (Which of the save's or the player's controls and gearing a loaded championship uses is still `usesavegamekeys` in `var\ral.cfg`.)
+
+## Course faces drawn with the last face's depth setting
+
+**What it is:** course faces of mode 4 without texture animation (see-through overlays) are meant to be drawn without writing to the depth buffer, with depth writing back on afterwards. Each side of a face does that with its own texture and mode. But the code that draws a whole course face wraps its sides in the same switch a second time, judged by the previous face's texture and mode, before the face's own are set. And the switch back on is the wrong way round: it turns depth writing on only when it was not turned off.
+
+**In game:** after a mode-4 face, the next face can be drawn without writing depth, and depth writing can stay off for a face longer than meant, so a shape drawn later behind it can show through for a frame. Rare and at most a few pixels; not seen. In the conversion it showed up as the drawing on several threads (each starting part-way through a list, without the previous face's leftovers) differing from the drawing on one.
+
+**Seen or read:** read in `race::draw_course_face` (0x45232A), `race::face_depth_test_off` (0x452358) and `race::face_depth_test_on` (0x45237A); found 2026-11-08 by the multi-threaded drawing's comparison with the single-threaded one (replay 01).
+
+**Fix:** each face's sides are switched by their own texture and mode only (the outer, stale switch dropped), and depth writing goes back on after a side that turned it off.

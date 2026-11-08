@@ -49,9 +49,9 @@ pub fn face_depth_test_off(shared: &Shared) {
     }
 }
 
-/// `race::face_depth_test_on` (0x45237A): the depth test on unless `dword_63D9E0` is set,
-/// then `dword_63D9E0` 0. (It turns the test on when it was not turned off: the test looks
-/// the wrong way round, `notes/bugs.md`.)
+/// `race::face_depth_test_on` (0x45237A): depth writing back on when `face_depth_test_off`
+/// turned it off (`dword_63D9E0` set), then `dword_63D9E0` 0. Fixed: the original's test is
+/// the wrong way round (on only when it was not turned off), `wiki/Fixed-bugs.md`.
 pub fn face_depth_test_on(shared: &Shared) {
     {
         // Converted: `rc2k_core::race::faces::depth_test_on`.
@@ -986,9 +986,12 @@ pub fn draw_face_sides(
 /// `race::draw_course_face` (0x45232A): face `face` (esi): its corners
 /// (`race::face_corners`; with flag 0x200 of +2 copied to new points,
 /// `race::face_corners_to_new_points`), and unless none is in sight
-/// (`race::face_out_of_view`) its facings (`race::face_sides`), the depth test off, its
-/// sides (`race::draw_face_sides`), the depth test on. Refuses (before anything) no point
-/// records or points.
+/// (`race::face_out_of_view`) its facings (`race::face_sides`) and its sides
+/// (`race::draw_face_sides`). Refuses (before anything) no point records or points.
+/// Fixed: the original wraps the sides in `face_depth_test_off` / `on` too, judged by the
+/// previous face's texture and mode (this face's are set inside `draw_face_sides`), so a
+/// face after a mode-4 face could be drawn without writing depth; each side's own
+/// `race::draw_face` does it with its own (`wiki/Fixed-bugs.md`).
 pub fn draw_course_face(
     race: &Race,
     face: u32,
@@ -1006,10 +1009,7 @@ pub fn draw_course_face(
         return Ok(());
     }
     face_sides(race, &face)?;
-    face_depth_test_off(&race.shared);
-    draw_face_sides(race, &face, scene)?;
-    face_depth_test_on(&race.shared);
-    Ok(())
+    draw_face_sides(race, &face, scene)
 }
 
 /// `race::draw_tinted_face` (0x44F9F3): face `face` (esi) drawn (0x4537E3, that is

@@ -285,10 +285,11 @@ pub fn depth_test_off(animation: u32, mode: u32) -> bool {
     animation == 0 && mode == 4
 }
 
-/// `race::face_depth_test_on`: whether the depth test goes on after a face: when it was
-/// not turned off (`dword_63D9E0` 0; the test looks the wrong way round, kept).
+/// `race::face_depth_test_on`: whether depth writing goes back on after a face: when it
+/// was turned off (`dword_63D9E0` set). Fixed: the original's test is the wrong way round
+/// (on only when it was not turned off).
 pub fn depth_test_on(turned_off: u32) -> bool {
-    turned_off == 0
+    turned_off != 0
 }
 
 /// `race::face_lights`: whether the face's corners take the lamps' light: lamps wanted
@@ -676,7 +677,7 @@ mod tests {
     #[test]
     fn drawing_decisions() {
         assert!(depth_test_off(0, 4) && !depth_test_off(1, 4) && !depth_test_off(0, 3));
-        assert!(depth_test_on(0) && !depth_test_on(1));
+        assert!(!depth_test_on(0) && depth_test_on(1));
         assert!(corners_lit(1, 0, 3) && !corners_lit(1, 0, 4) && !corners_lit(0, 1, 3));
         assert_eq!(hidden_by_switches(0, 1, || 4), (Some(4), true));
         assert_eq!(hidden_by_switches(0, 1, || 0), (Some(0), false));
