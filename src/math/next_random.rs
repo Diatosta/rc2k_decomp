@@ -51,6 +51,43 @@ pub fn next_random() -> u32 {
     with_random(rc2k_core::math::random::Random::draw)
 }
 
+/// The race sounds' own random numbers (not the original's: it drew them from `STATE`, so
+/// which sounds played changed the numbers the race and the drawing drew after them;
+/// `notes/bugs.md`). The same generator, started from the game's seed (`seed_sounds`); drawn
+/// only on the game's thread (the sound turn, the race's sound levels).
+pub static SOUND_STATE: crate::session::Dword = crate::session::Dword::new(0x9570_1114);
+
+/// The sounds' generator started from the game's state (after `math::seed_random`).
+pub fn seed_sounds() {
+    SOUND_STATE.set(STATE.get());
+}
+
+/// The sounds' generator loaded from `SOUND_STATE`, `f` run on it, its state stored back.
+fn with_sound_random<R>(f: impl FnOnce(&mut rc2k_core::math::random::Random) -> R) -> R {
+    let mut random = rc2k_core::math::random::Random {
+        state: SOUND_STATE.get(),
+    };
+    let value = f(&mut random);
+    SOUND_STATE.set(random.state);
+    value
+}
+
+/// A sound's random number (`next_random` on the sounds' generator).
+pub fn next_sound_random() -> u32 {
+    with_sound_random(rc2k_core::math::random::Random::draw)
+}
+
+/// A sound's random number below `limit` (`math::random_below` on the sounds' generator).
+pub fn sound_random_below(limit: u32) -> Result<u32, crate::errors::BadInput> {
+    if limit == 0 {
+        return Err(crate::errors::BadInput(
+            "a random number under 0: the original divides by it",
+        ));
+    }
+    with_sound_random(|r| r.below(limit))
+        .ok_or(crate::errors::BadInput("unreachable: the limit is not 0"))
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

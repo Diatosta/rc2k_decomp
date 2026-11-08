@@ -29,7 +29,6 @@ fn depth_list() -> crate::pointers::GamePtr {
 /// The Rust version (see the header).
 pub fn draw_view_scene(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     use crate::race::frame_draw::*;
-    use crate::sound::race_sound_tick::race_sound_tick;
     if race.shared.car.view_covered.get() != 0 {
         return draw_view_tint(race, scene);
     }
@@ -37,7 +36,6 @@ pub fn draw_view_scene(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     for cell in &scene.drawing.object_work.view_cleared {
         cell.set(0);
     }
-    race_sound_tick(&race.frame)?; // 0x14
     car_light_modes(race)?;
     clear_point_records(race, scene)?;
     set_up_fog(race, scene)?;
@@ -45,7 +43,6 @@ pub fn draw_view_scene(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     draw_sky(race, scene)?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
     view_light(race, scene)?;
-    race_sound_tick(&race.frame)?; // 0x15
     reset_lamps(race, scene)?;
     race.shared.view.view_lamps.set_bits(0u32);
     prepare_course_view(race, scene)?;
@@ -53,7 +50,6 @@ pub fn draw_view_scene(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     eax_environment(race, scene)?;
     gather_lamps(race, scene)?;
     lamps_wanted(&race.shared)?;
-    race_sound_tick(&race.frame)?; // 0x16
     sort_entries(&race.shared.view.sort_entry_count, &SORT_LISTS.sort_entries)?;
     let c = crate::moved::census::before();
     let begun = crate::debug::timing::start();
@@ -67,16 +63,13 @@ pub fn draw_view_scene(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     crate::debug::timing::stop(crate::debug::timing::Stage::CourseEntries, begun);
     crate::moved::census::after("sorted", c);
     draw_race_slots(race, scene)?;
-    race_sound_tick(&race.frame)?; // 0x17
     crate::race::car_shadow::cast_car_shadows(race, scene)?;
     crate::race::skidmarks::draw_skidmarks_if_on(race, scene)?;
     car_lights(race, scene)?;
-    race_sound_tick(&race.frame)?; // 0x18
     sort_entries(
         &race.shared.view.depth_entry_count,
         &SORT_LISTS.depth_entries,
     )?;
-    race_sound_tick(&race.frame)?; // 0x19
     let c = crate::moved::census::before();
     let begun = crate::debug::timing::start();
     draw_entries(
@@ -88,7 +81,6 @@ pub fn draw_view_scene(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     )?;
     crate::debug::timing::stop(crate::debug::timing::Stage::DepthEntries, begun);
     crate::moved::census::after("depth", c);
-    race_sound_tick(&race.frame)?; // 0x1A
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
     store_view_value(race)
 }

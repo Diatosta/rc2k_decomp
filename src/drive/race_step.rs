@@ -23,10 +23,36 @@ pub fn race_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
             |ecx| {
                 crate::debug::timing::note_tick();
                 { crate::drive::race_tick::race_tick(race, sound, input, scene) }?;
+                hash_if_asked(race);
                 let out = crate::race::frame::players_all_out(race)?;
                 Ok::<_, Refused>((out, ecx))
             },
         )?;
     }
     Ok(())
+}
+
+/// With `RC2K_SIM_HASH` (a check, as `RC2K_FAN_HASH` for the drawing): the car blocks and
+/// the random state hashed after each tick and logged, so that two runs of a replay can be
+/// compared tick by tick (the simulation must stay bit-identical).
+fn hash_if_asked(race: &Race) {
+    use std::hash::{Hash, Hasher};
+    use std::sync::OnceLock;
+    use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
+    static ON: OnceLock<bool> = OnceLock::new();
+    static TICKS: AtomicU32 = AtomicU32::new(0);
+    if !*ON.get_or_init(|| std::env::var_os("RC2K_SIM_HASH").is_some()) {
+        return;
+    }
+    let blocks = &race.replay.cars_and_replay.car_blocks;
+    let mut bytes = vec![0u8; core::mem::size_of_val(blocks)];
+    let _ = crate::pointers::Store::load(blocks, 0, &mut bytes);
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    bytes.hash(&mut hasher);
+    crate::framework::log(&format!(
+        "sim hash {}: {:016x}, random {:08x}",
+        TICKS.fetch_add(1, Relaxed),
+        hasher.finish(),
+        crate::math::next_random::STATE.get()
+    ));
 }

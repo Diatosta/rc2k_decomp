@@ -412,6 +412,7 @@ pub fn shots_loading() {
 /// Both random generators (the game's and the effects' `g_marksSeed`) from one state.
 fn reseed() {
     crate::math::next_random::with_random(|r| r.state = 0x1234_5678);
+    crate::math::next_random::seed_sounds();
     effects().setup.work.seed.set(0x8765_4321);
 }
 

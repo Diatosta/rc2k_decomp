@@ -26,7 +26,6 @@ pub fn race_frame(race: &Race, eax: u32) -> Result<u32, Refused> {
     let input = crate::input::owner::input();
     let system = system();
 
-    let frame = &race.frame;
     // The calls below read no register at entry (liveness: `pump_messages`,
     // `race_sound_tick`, `replay_screenshot`, `show_frame`, 0x405B10): only eax runs
     // from call to call, and only `show_frame`'s carry is read.
@@ -48,10 +47,8 @@ pub fn race_frame(race: &Race, eax: u32) -> Result<u32, Refused> {
         }?;
         crate::scene::end_scene::end_scene();
         stop(Stage::Scene, begun);
-        // eax 0x12 here in the original; read by nothing.
-        let begun = start();
-        crate::sound::race_sound_tick::race_sound_tick(frame)?;
-        stop(Stage::SoundTick, begun);
+        // The original's sound tick here (eax 0x12) never found a turn due: the frame's one
+        // is in `draw_race_scene`.
         { crate::race::replay_screenshot::replay_screenshot() }?;
         #[cfg(feature = "remote")]
         crate::remote::shot_frame_drawn();

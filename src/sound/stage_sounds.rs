@@ -85,7 +85,7 @@ pub fn stage_sounds(
             continue;
         }
         stage.random[n].set(0);
-        let n = crate::math::next_random::next_random();
+        let n = crate::math::next_random::next_sound_random();
         // Converted: `rc2k_core::sound::stage::random`.
         let r = rc2k_core::sound::stage::random(n, audio.state.mix_rate_setting.get());
         // The scratch dword holds the last float.

@@ -465,3 +465,23 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read in `race::draw_course_face` (0x45232A), `race::face_depth_test_off` (0x452358) and `race::face_depth_test_on` (0x45237A); found 2026-11-08 by the multi-threaded drawing's comparison with the single-threaded one (replay 01).
 
 **Fix:** each face's sides are switched by their own texture and mode only (the outer, stale switch dropped), and depth writing goes back on after a side that turned it off.
+
+## The course's sounds placed from the mirror's camera
+
+**What it is:** after the views are drawn, the game finds the course's sound spots (running water, crowds and the like) around the camera and places each one against it. It does this once for the whole frame, after every view, with whatever camera was drawn last. When the rear-view mirror is on, that is the mirror's camera, which looks backwards; with two players it is the second player's view (or its mirror). The race's sounds are heard around the first car.
+
+**In game:** with the mirror on, the course's sounds are placed as seen from behind the car: what is on the left is panned to the right, and the spots chosen are the ones round the mirror's view. Subtle; not reported.
+
+**Seen or read:** read in `race::draw_race_scene` (0x45C605 called after the views) and measured with the conversion's frame census (2026-11-08: the spots read the view matrix and grid the mirror left).
+
+**Fix:** the sound spots are found right after the first view is drawn, from its own camera and grid.
+
+## The race's sounds steer the race's random numbers
+
+**What it is:** the game has one random number generator. The sounds draw from it (which of two nearby sounds is heard, the stage's random noises and their delays, a rare engine sound) in the same stream as the race itself (the cars' handling on some surfaces, the mud, the replay cameras, the camera's shake). So how many numbers the sounds draw changes every number drawn after them.
+
+**In game:** what the sounds do changes, in a way nobody could notice, what the race does next: the mud thrown, the replay's camera choices, and in a race the computer cars' handling on some surfaces. In the conversion it showed up when the sounds were changed on purpose (the fix above): replays drew different mud and cameras although the cars were the same.
+
+**Seen or read:** read in `sound::thin_spot_voices`, `sound::stage_sounds`, `sound::repeat_spot_voices` and `drive::duel_sound_levels`; measured 2026-11-08 (the cars the same tick by tick, the random state different).
+
+**Fix:** the sounds have a generator of their own, started from the same seed. Nothing the sounds do changes the race or the pictures any more. (The race's own random numbers therefore differ from the original's after the first sound draw: the same kind of numbers, but not the same sequence.)

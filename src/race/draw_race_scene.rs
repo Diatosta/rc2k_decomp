@@ -56,7 +56,6 @@ fn draw_view(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     use crate::race::frame::load_view_car;
-    use crate::sound::race_sound_tick::race_sound_tick;
     let setup = crate::write_watch::step(["view0_setup", "view1_setup"][car]);
     load_view_car(&race.shared, car)?;
     crate::race::frame_draw::fetch_view_value(race)?;
@@ -73,15 +72,13 @@ fn draw_view(
         if car == 0 {
             crate::debug::imgui_sdl::view_drawn(&race.frame);
         }
-        race_sound_tick(&race.frame)?; // 0xD
         if blit {
             crate::d3d::copy_screen_to_texture::copy_screen_to_texture(&race.frame);
-            race_sound_tick(&race.frame)?; // 0xE
         }
         let c = crate::moved::census::before();
         crate::race::draw_view_overlays::draw_view_overlays(race, scene, system, effects)?;
         crate::moved::census::after("overlays", c);
-        race_sound_tick(&race.frame) // 0xF
+        Ok(())
     };
     let mirror = || -> Result<(), Refused> {
         let _step = crate::write_watch::step(["mirror0", "mirror1"][car]);
@@ -91,6 +88,16 @@ fn draw_view(
         crate::race::draw_mirror_view::draw_mirror_view(race, scene, system)?;
         crate::debug::timing::stop(crate::debug::timing::Stage::Mirror, begun);
         crate::moved::census::after("mirror", c);
+        Ok(())
+    };
+    // The first view's sound spots, from its own camera and grid (not the original's: they
+    // were found after every view, from what the last one drawn left, the mirror's when there
+    // was one; `notes/bugs.md`). The race's sounds are heard around the first car.
+    let view = || -> Result<(), Refused> {
+        view()?;
+        if car == 0 {
+            crate::race::sound_spots::find_sound_spots(race, scene)?;
+        }
         Ok(())
     };
     let mirrored = race.frame.panel_and_overlay.panel.hud_flags[flags].get() & 8 != 0
@@ -200,7 +207,13 @@ pub fn draw_race_scene(
         );
     }
     scene.objects.tables.has_3d.set(1);
-    race_sound_tick(frame)?; // 0xA
+    // The frame's one sound turn (`sound::race_turn`, when 20 ms of the scene clock have
+    // passed since the last): the original polled 28 places through the frame, but the clock
+    // moves only here before (`restart_clock` above and in `show_frame` after the present),
+    // so only this one ever found it due. It hears the previous frame's sound spots.
+    let begun = crate::debug::timing::start();
+    race_sound_tick(frame)?;
+    crate::debug::timing::stop(crate::debug::timing::Stage::SoundTick, begun);
     race.course
         .course
         .shine
@@ -210,7 +223,6 @@ pub fn draw_race_scene(
     for (value, state) in [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1, 0x1B)] {
         set_render_state(value, state);
     }
-    race_sound_tick(frame)?; // 0xB
     race.physics
         .ground
         .frames_drawn
@@ -251,7 +263,6 @@ pub fn draw_race_scene(
     }
     crate::scene::map_texture_places::map_texture_places(scene);
     crate::scene::load_slot_textures::load_slot_textures_in_game(&race.frame, scene)?;
-    race_sound_tick(frame)?; // 0xC
     if race.replay.finish.no_place.get() == 0 {
         crate::race::frame_draw::set_up_panel(race, scene)?;
     }
@@ -294,17 +305,14 @@ pub fn draw_race_scene(
     use crate::race::frame_flush::{flush_batch, plain, textured};
     flush_batch(&race.frame, &plain(&race.frame), false)?;
     flush_batch(&race.frame, &textured(&race.frame), true)?;
-    crate::race::sound_spots::find_sound_spots(race, scene)?;
     crate::race::frame_draw::share_sound_spots(race)?;
     crate::race::frame_draw::wake_part_sounds(race)?;
-    race_sound_tick(frame)?; // 0x10
     for state in [0x11, 0x12] {
         set_render_state(2, state);
     }
     if race.shared.work.in_credits.bits() == 0 && race.replay.finish.no_place.get() == 0 {
         crate::hud::overlay_pass::overlay_pass(crate::hud::owner::hud(), race)?;
     }
-    race_sound_tick(frame)?; // 0x11
     crate::race::skid_laying::lay_skidmarks_if_on(race, scene)?;
     crate::race::name_plates::update_name_plates(race, scene)?;
     if race.course.numbers.replay_mode.bits() != 2 {

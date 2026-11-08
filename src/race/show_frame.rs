@@ -33,8 +33,6 @@ pub fn show_frame(race: &Race) -> Result<Shown, Refused> {
             eax: kept,
         });
     }
-    // The sound tick with eax 0x13 (it reads no register).
-    crate::sound::race_sound_tick::race_sound_tick(&race.frame)?;
     if race.shared.work.in_credits.get() != 0 {
         crate::race::frame_text::roll_credits(
             frame,
@@ -56,8 +54,6 @@ pub fn show_frame(race: &Race) -> Result<Shown, Refused> {
     if !crate::scene::present_frame::present_frame() {
         return Ok(Shown { lost: true, eax: 0 });
     }
-    // The sound tick with eax 0x14.
-    crate::sound::race_sound_tick::race_sound_tick(&race.frame)?;
     let clock = crate::scene::restart_clock::restart_clock(
         &race.shared,
         crate::system::tick_count::tick_count(),

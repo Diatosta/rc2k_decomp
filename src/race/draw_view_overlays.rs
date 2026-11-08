@@ -27,7 +27,6 @@ pub fn draw_view_overlays(
     crate::scene::set_render_state::set_render_state(3, 3);
     crate::race::frame_views::run_view_marks(race, scene, system, effects)?;
     overlay_states();
-    crate::sound::race_sound_tick::race_sound_tick(&race.frame)?;
     draw_flat_triangle(scene);
     crate::scene::depth_buffer_on::depth_buffer(true);
     set_filters();
