@@ -23,7 +23,7 @@ pub struct FrameSwitches {
     pub frame_rate: Float,
     /// +0x74 (0x6214F4): not named.
     pub unknown_74: [Dword; 2],
-    /// +0x7c (0x6214FC): `g_objectNumber`: the object being drawn or set up (`scene::draw_object_face`, `race::frame_draw`, `race::car_draw`); now each view's (`ctx.view.cars.object_number`); still written for `scene::log_bad_polygon`.
+    /// +0x7c (0x6214FC): `g_objectNumber`: the object being drawn or set up (`scene::draw_object_face`, `race::frame_draw`, `race::car_draw`); now each view's (`ctx.view.cars.object_number`; the bad polygon's log reads the view's); this one not used.
     pub object_number: Dword,
     /// +0x80 (0x621500): `g_faceReflects` (`scene::draw_object_face`).
     pub face_reflects: Dword,

@@ -190,11 +190,7 @@ pub fn vertex_light(
         3 => {
             set_normal(number, light)?;
             // The colour was just set to 0.
-            let colour = plus(
-                plus(scene.lights.work.view_light_base.bits(), 0, mmx),
-                added,
-                mmx,
-            );
+            let colour = plus(plus(light.car_light.bits(), 0, mmx), added, mmx);
             light.light_colour.set_bits(colour);
             blend(course, light, object);
             Ok(light.light_colour.bits())

@@ -47,7 +47,7 @@ pub struct SoundSpotBlock {
     pub band_scale_3: Float,
     /// +0x224 (0x6D1AEC): `dword_6D1AEC`: fistp target (`physics::sound_bands`, `physics::place_sound_e1`).
     pub band_scratch: Dword,
-    /// +0x228 (0x6D1AF0): `g_eaxFaceCount`: the faces summed (`race::frame_draw`).
+    /// +0x228 (0x6D1AF0): `g_eaxFaceCount`: the faces summed; read by nothing, not kept.
     pub eax_face_count: Dword,
     /// +0x22c (0x6D1AF4): `g_soundSpots`: 36 spots of 0x14 bytes (`race::sound_spots`, `race::frame_draw`).
     pub sound_spots: [Dword; 180],

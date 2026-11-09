@@ -68,7 +68,8 @@ fn draw_view(
                 race,
                 scene,
                 crate::race::view_scratch::main_view(car),
-            )?;
+            )?
+            .publish();
         }
         let _step = crate::write_watch::step(["view0_rest", "view1_rest"][car]);
         crate::moved::census::after(if car == 0 { "view0" } else { "view1" }, c);

@@ -27,7 +27,7 @@ pub struct RaceVars {
     pub car_tyres: [Dword; 8],
     /// +0x34 (0x62361C): (`scene::list_object_faces`).
     pub face_mark: Dword,
-    /// +0x38 (0x623620): `g_faceNumber` ("objfaced"); now each view's (`race::face_work::FaceWork`); still written for `scene::log_bad_polygon`.
+    /// +0x38 (0x623620): `g_faceNumber` ("objfaced"); now each view's (`race::face_work::FaceWork`; the bad polygon's log reads the view's); this one not used.
     pub face_number: Dword,
     /// +0x3c (0x623624): not named.
     pub unknown_3c: [Dword; 4],

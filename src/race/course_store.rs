@@ -102,7 +102,8 @@ pub struct CourseWork {
     pub unknown_274: [Dword; 4],
     /// +0x284 (0x5CCE74): `g_shine`.
     pub shine: Dword,
-    /// +0x288 (0x5CCE78): (`race::car_draw`).
+    /// +0x288 (0x5CCE78): the shine as a whole number (`race::car_draw` stored it beside
+    /// `shine`); read by nothing, not kept.
     pub shine_whole: Dword,
 }
 

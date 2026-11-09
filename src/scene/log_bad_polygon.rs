@@ -55,15 +55,12 @@ const POLYGON_NUMBER: [(&std::ffi::CStr, u32, Value); 1] = [(c"polynum", INT, |_
     race().course.course.current_course_face.bits()
 })]; // "polynum"
 const OBJECT: [(&std::ffi::CStr, u32, Value); 2] = [
-    (c"objdraw", INT, |_| {
-        crate::race::owner::RACE
-            .shared
-            .switches
-            .object_number
-            .bits()
+    // The view's whose polygon this is (every polygon work is a view slot's).
+    (c"objdraw", INT, |poly| {
+        crate::race::view_scratch::of_polygon(poly).map_or(0, |v| v.cars.object_number.bits())
     }), // "objdraw" g_objectNumber
-    (c"objfaced", INT, |_| {
-        crate::race::owner::RACE.shared.vars.face_number.bits()
+    (c"objfaced", INT, |poly| {
+        crate::race::view_scratch::of_polygon(poly).map_or(0, |v| v.face.face_number.bits())
     }), // "objfaced" g_faceNumber
 ];
 /// A vertex's: (label, kind, offset).

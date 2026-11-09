@@ -104,8 +104,6 @@ pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
         let kinds: [u32; 0x100] = crate::session::read_bits(&scene.objects.tables.object_kinds);
         if let Some(other) = (1..0x100).find(|&n| kinds[n] == other_kind) {
             ctx.view.cars.object_number.set_bits(other as u32);
-            // Read by `scene::log_bad_polygon`.
-            race.shared.switches.object_number.set_bits(other as u32);
         }
     }
     Ok(())

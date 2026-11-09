@@ -44,8 +44,6 @@ pub fn draw_object_faces(
         }
         object.see_through.set_bits(listed[3]);
         work.face_number.set_bits(listed[0]);
-        // Read by `scene::log_bad_polygon`.
-        race.shared.vars.face_number.set_bits(listed[0]);
         let head: [u8; 0xC] = crate::scene::object_faces::array(face as u32)?;
         let texture = u16::from_le_bytes([head[4], head[5]]) as u32;
         poly.polygon_textures[0].set_bits(

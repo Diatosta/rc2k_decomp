@@ -201,3 +201,11 @@ pub fn filter_input(view: &ViewScratch) -> [u32; 3] {
         [0; 3]
     }
 }
+
+/// The view slot whose polygon work `poly` is (the bad polygon's log names the view's object
+/// and face).
+pub fn of_polygon(poly: &crate::scene::polygon_work::PolygonWork) -> Option<&'static ViewScratch> {
+    SLOTS
+        .iter()
+        .find(|s| std::ptr::eq(&raw const s.polygon, poly))
+}

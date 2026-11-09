@@ -14,9 +14,10 @@
 //!
 //! Left in the shared pieces, because a view reads them before writing them: the light's
 //! strength (`light_strength`, read by the car lights' flares), the other light
-//! (`other_light`, read by the sky's faces in the material way 2), the view's base light
-//! (`view_light_base`, read by `race::view_light`) and the object being drawn
-//! (`drawing_object`, read by the bad polygon's dump).
+//! (`other_light`, read by the sky's faces in the material way 2) and the object being drawn
+//! (`drawing_object`, read by the bad polygon's dump). The car's base light
+//! (`view_light_base`) is here since F6 (`car_light`): measured with the shared one kept
+//! beside, no reading saw another value (three held races, nine menu flows).
 
 use crate::session::{Dword, Float};
 
@@ -33,6 +34,11 @@ pub struct ObjectLight {
     pub light_dot_factor: Float,
     /// The light's colour (`g_lightColour`).
     pub light_colour: Dword,
+    /// The base light of the car being drawn (`LIGHT_WORK.view_light_base`, `dword_62DAD4`):
+    /// the view's car's light colour at the view's start (`race::draw_view_scene`), each car's
+    /// as it is drawn (`race::draw_car_entry`, `race::draw_own_car`); read by the light kind 3
+    /// (`scene::vertex_light`).
+    pub car_light: Dword,
     /// The kind of light being set (`g_lightKind`).
     pub light_kind: Dword,
     /// Set with the light kind, 0 for a car (`dword_62DAF8`).
@@ -66,6 +72,7 @@ impl ObjectLight {
             light_dot_light: [const { Float::from_bits(0) }; 3],
             light_dot_factor: Float::from_bits(0),
             light_colour: Dword::new(0),
+            car_light: Dword::new(0),
             light_kind: Dword::new(0),
             light_kind_extra: Dword::new(0),
             lit_place: [const { Dword::new(0) }; 3],

@@ -525,3 +525,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read in `race::view_light` (0x455896), `race::draw_sky` (0x455540) and `race::draw_race_scene`, which sets the shine once a frame; found 2026-11-09 by the conversion's survey of what each view leaves to the next.
 
 **Fix:** each view takes its own car's light colour, the sky's extra light is 0, and the shine starts from the stage's at each view. A view now depends only on its own inputs.
+
+## The reverb can be chosen from a half-made sum
+
+**What it is:** the game chooses its reverb (the EAX room) from how much of the course is close to the player's car: each nearby face adds a weight, summed again for every view drawn. The sum is made in place in a variable that the sound thread reads whenever it runs. If the sound thread runs while the sum is being made, it takes a partial value, as low as zero.
+
+**In game:** at most a moment of the wrong reverb, then the right one again on the next turn. Not reported; probably not audible.
+
+**Seen or read:** read in `race::eax_environment` (0x45C7EE) and the sound thread's voice update; found 2026-11-09 by the conversion's work on what each view hands on.
+
+**Fix:** the weight is summed apart and handed to the sound whole, at the end of each view.

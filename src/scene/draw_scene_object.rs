@@ -70,8 +70,6 @@ pub fn draw_scene_object(
     cars: &crate::race::car_draw_state::CarDrawState,
 ) -> Result<(), Refused> {
     let (set, object) = texture_set(race, scene, cars)?;
-    // Read by `scene::log_bad_polygon`, outside the view.
-    race.shared.switches.object_number.set_bits(object);
     race.physics.ground.object_texture_set.set_bits(set);
     let faces: u32 = scene.objects.slots.face_counts[object as usize].get();
     match rc2k_core::scene::shown::way(faces, scene.lights.state.draw_mode.bits()) {

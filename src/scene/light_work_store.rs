@@ -35,7 +35,8 @@ pub struct LightWork {
     pub lamps_mask: Dword,
     /// +0x8c (0x62DAD0): `dword_62DAD0`: the lone-group switch / marks mask (`race::car_parts`, `physics::drop_broken_parts`, `scene::list_object_face`, `race::draw_race_scene`, `race::loadlevel`).
     pub marks_mask: Dword,
-    /// +0x90 (0x62DAD4): `dword_62DAD4`: the base light colour of the view or car (`scene::vertex_light`, `race::car_draw`, `race::frame_draw`, `race::frame_views`).
+    /// +0x90 (0x62DAD4): `dword_62DAD4`: the base light colour of the view or car; now each view's
+    /// (`scene::object_light::ObjectLight::car_light`), this one not used.
     pub view_light_base: Dword,
     /// +0x94 (0x62DAD8): not named.
     pub unknown_94: [Dword; 2],

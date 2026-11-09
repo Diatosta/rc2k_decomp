@@ -462,7 +462,6 @@ fn nearness(race: &Race, cars: &CarDrawState) {
         let shine = (ONE - ld(race.shared.work.car_nearness.bits()))
             * int(race.course.course.shine.get() as i32);
         let whole = to_int(shine);
-        race.course.course.shine_whole.set(whole as u32);
         race.course.course.shine.set(whole as u32);
     }
 }
@@ -511,7 +510,7 @@ pub fn draw_car_entry(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     entry: u32,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     let frame = &race.frame;
     use crate::math::x87_load::tbyte_to_int;
     use crate::race::skidmarks::int_80;
@@ -521,10 +520,9 @@ pub fn draw_car_entry(
         return Err(BadInput("a car without its block").into());
     }
     frame.view_and_records.view_vars.drawn_car.set(n);
-    scene
-        .lights
-        .work
-        .view_light_base
+    ctx.view
+        .light
+        .car_light
         .set(car_view(car)?.light_colour.bits());
     let t = crate::scene::rotate_point::rotate_point(
         view_matrix(&race.frame),
@@ -646,11 +644,13 @@ mod asm_reference {
         0x62400C, 0x6415A4, 0x71BA08, 0x5CCE78, 0x5CCE74, 0x5C5D90, 0x5C5D38, 0x6415A4,
     ];
 
-    /// The places' values, without `dword_62400C` (the assembly's spill dword, not kept by
-    /// the Rust versions).
+    /// The places' values, without `dword_62400C` (the assembly's spill dword) and
+    /// `dword_5CCE78` (the shine as a whole number, read by nothing): neither kept by the Rust
+    /// versions.
     fn state() -> Vec<u32> {
         let mut v: Vec<u32> = PLACES.iter().map(|&a| game_read(rva(a))).collect();
         v[0] = 0;
+        v[3] = 0;
         v
     }
 
@@ -663,7 +663,6 @@ mod asm_reference {
             .car_depth
             .set((r.int() as u32) & 0x3F_FFFF);
         race.shared.work.car_nearness.set_bits(r.float());
-        race.course.course.shine_whole.set(0xAAAA_AAAAu32);
         race.course.course.shine.set(r.int() as u32);
         race.course
             .numbers

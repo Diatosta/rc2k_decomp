@@ -477,11 +477,7 @@ pub fn draw_own_car(
         return Ok(());
     }
     let block = crate::race::frame_view::car_at(car)?;
-    scene
-        .lights
-        .work
-        .view_light_base
-        .set(block.light_colour.get());
+    ctx.view.light.car_light.set(block.light_colour.get());
     let clears = clears_depth(
         block.surface_noise_a.get(),
         || block.surface_noise_b.get(),

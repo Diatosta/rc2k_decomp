@@ -1,7 +1,6 @@
 //! The EAX sound environment: the weight of the course faces round the first car.
 
 use super::*;
-use crate::audio::store::ENVIRONMENT;
 use crate::errors::BadInput;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
@@ -26,19 +25,16 @@ pub(super) fn point_from_car(point: u32) -> Result<(u32, u32, u32), BadInput> {
 }
 
 /// The weight's end: `v` held to 16.0 (`race().course.numbers.sixteen`; kept when below or
-/// not a number), added to `g_eaxEnvironment`; `race().frame.sound_spots.eax_face_count` + 1.
-pub(super) fn add_eax_weight(race: &Race, v: u32) {
+/// not a number), added to `sum` (the original's `g_eaxEnvironment`; it also counted the
+/// faces in `g_eaxFaceCount`, which nothing read).
+pub(super) fn add_eax_weight(race: &Race, sum: &mut u32, v: u32) {
     let sixteen: u32 = race.course.numbers.sixteen.bits();
     let w = if crate::math::x87_load::below_or_unordered(v, sixteen) {
         v
     } else {
         sixteen
     };
-    ENVIRONMENT.set(crate::math::x87::add(w, ENVIRONMENT.get()));
-    race.frame
-        .sound_spots
-        .eax_face_count
-        .set_bits(race.frame.sound_spots.eax_face_count.bits().wrapping_add(1));
+    *sum = crate::math::x87::add(w, *sum);
 }
 
 /// `race::eax_face_weight` (0x45C881): the weight of `face` in the EAX sound environment
@@ -48,7 +44,7 @@ pub(super) fn add_eax_weight(race: &Race, v: u32) {
 /// points; each held to 16 (see `add_eax_weight`). Distances by the game's root tables. (The
 /// original kept the middle and the distance in `CONTACT_WORK.eax_mid_x` / `eax_mid_z` /
 /// `eax_distance`, which nothing read: locals here.)
-pub fn eax_face_weight(race: &Race, face: u32) -> Result<(), BadInput> {
+pub fn eax_face_weight(race: &Race, sum: &mut u32, face: u32) -> Result<(), BadInput> {
     use crate::math::x87::{div, from_int};
     use crate::math::x87_load::{
         abs_below_or_unordered, float_square_sum, int_over_float, int_plus_times, int_square_sum,
@@ -64,7 +60,7 @@ pub fn eax_face_weight(race: &Race, face: u32) -> Result<(), BadInput> {
             let (x, _, z) = point_from_car(face_field(face, 4)?)?;
             let distance = table_root(&race.course, int_square_sum(x as i32, z as i32));
             let strength = face_field::<u8>(face, 0x18)? as u32;
-            add_eax_weight(race, int_over_float(strength as i32, distance));
+            add_eax_weight(race, sum, int_over_float(strength as i32, distance));
             return Ok(());
         }
         if kind >= 0x10 {
@@ -80,22 +76,23 @@ pub fn eax_face_weight(race: &Race, face: u32) -> Result<(), BadInput> {
         let mx = int_plus_times(x2 as i32, mx, half);
         let mz = int_plus_times(z2 as i32, mz, half);
         let distance = table_root(&race.course, float_square_sum(mx, mz));
-        add_eax_weight(race, div(race.course.numbers.three.bits(), distance));
+        add_eax_weight(race, sum, div(race.course.numbers.three.bits(), distance));
     }
     Ok(())
 }
 
-/// `race::eax_environment` (0x45C7EE): `g_eaxEnvironment` 0.0 and
-/// `race().frame.sound_spots.eax_face_count` 0, then the 3 x 3 grid cells around the middle (from
+/// `race::eax_environment` (0x45C7EE): the view's EAX weight, returned (the view's output:
+/// `race::draw_view_scene`): from 0.0, the 3 x 3 grid cells around the middle (from
 /// `hold_to_limit(race().course.stage_prefs.grid_reach)` - 1 on each axis; 0x45C84C each): every
 /// face of each cell's course record (numbers below 0x0FFFFFFF) weighed by `eax_face_weight`.
+/// The original summed straight into `g_eaxEnvironment`, which the audio thread reads at its
+/// own pace (`audio::update_voices`): it could take a sum half made (`notes/bugs.md`).
 pub fn eax_environment(
     race: &Race,
     view: &crate::race::view_grid::ViewGrid,
-) -> Result<(), BadInput> {
+) -> Result<u32, BadInput> {
+    let mut sum = 0u32;
     {
-        ENVIRONMENT.set(0);
-        race.frame.sound_spots.eax_face_count.set_bits(0u32);
         // Converted: `rc2k_core::race::view::{cells_from, record_faces}`.
         use rc2k_core::race::view::{NO_RECORD, cells_from, record_faces};
         for cell in cells_from(
@@ -112,7 +109,7 @@ pub fn eax_environment(
                 continue;
             }
             loop {
-                eax_face_weight(race, face)?;
+                eax_face_weight(race, &mut sum, face)?;
                 face = face.wrapping_add(1);
                 if face > record_field(record, 0xC)? {
                     break;
@@ -120,5 +117,5 @@ pub fn eax_environment(
             }
         }
     }
-    Ok(())
+    Ok(sum)
 }

@@ -32,8 +32,6 @@ pub fn list_object_faces(
         shared.vars.face_mark.set_bits(u32::MAX);
         for (n, &face) in faces.iter().enumerate() {
             work.face_number.set_bits(n as u32);
-            // Read by `scene::log_bad_polygon`.
-            shared.vars.face_number.set_bits(n as u32);
             list(faces_list, face as usize)?;
         }
         Ok(())
