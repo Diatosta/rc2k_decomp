@@ -637,7 +637,6 @@ fn shadow_on_record(
     car: &Car,
     record: u32,
 ) -> Result<(), Refused> {
-    let race = ctx.race;
     use crate::race::course_places::{face_number, record_field};
     // Converted: `rc2k_core::race::shadow::{takes_shadow, SHADOW_TRIANGLES}`,
     // `rc2k_core::race::view::record_faces`.
@@ -649,7 +648,7 @@ fn shadow_on_record(
         return Ok(());
     };
     for face in first..=last {
-        race.course.course.current_course_face.set(face);
+        ctx.view.face.course_face.set(face);
         let f = face_number(face, "a course face")?;
         let takes = takes_shadow(f.kind(), || f.switches());
         if takes {

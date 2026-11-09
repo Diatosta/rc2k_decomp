@@ -16,7 +16,6 @@
 
 use crate::errors::BadInput;
 use crate::pointers::Store;
-use crate::race::owner::race;
 use crate::scene::owner::scene;
 
 const HEX8: u32 = 1;
@@ -51,8 +50,8 @@ const AFTER: [(&std::ffi::CStr, u32, Value); 2] = [
     (c"tpage", HEX8, |poly| poly.texture_page.bits()), // "tpage"
     (c"points", INT, |poly| poly.polygon_vertex_count.bits()), // "points" g_polygonVertexCount
 ];
-const POLYGON_NUMBER: [(&std::ffi::CStr, u32, Value); 1] = [(c"polynum", INT, |_| {
-    race().course.course.current_course_face.bits()
+const POLYGON_NUMBER: [(&std::ffi::CStr, u32, Value); 1] = [(c"polynum", INT, |poly| {
+    crate::race::view_scratch::of_polygon(poly).map_or(0, |v| v.face.course_face.bits())
 })]; // "polynum"
 const OBJECT: [(&std::ffi::CStr, u32, Value); 2] = [
     // The view's whose polygon this is (every polygon work is a view slot's).

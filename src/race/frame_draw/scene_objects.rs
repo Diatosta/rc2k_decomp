@@ -773,8 +773,6 @@ pub fn draw_list_entry(
     at: Description<'_>,
     flags_word: u32,
 ) -> Result<(), Refused> {
-    let race = ctx.race;
-    let course = &race.course;
     let word = flags_word & 0x7FFF_FFFF;
     if word >= 0x400_0000 {
         return Err(BadInput("a list entry of 0x4000000 or more").into());
@@ -782,7 +780,7 @@ pub fn draw_list_entry(
     let low = word & 0xFF_FFFF;
     match word >> 24 {
         0 => {
-            course.course.current_course_face.set_bits(word);
+            ctx.view.face.course_face.set_bits(word);
             let face = word;
             let kind = crate::race::course_places::face_field::<u8>(face, 0, "a course face")?;
             if kind == 0xFF || kind < 0x10 {

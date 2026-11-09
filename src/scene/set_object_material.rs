@@ -38,10 +38,15 @@ const LENGTHS: [u32; 9] = [200, 400, 200, 400, 400, 400, 400, 400, 0];
 
 // ---- Rust version ----
 
-/// The face whose +0x30 .. +0x40 hold the state (`g_currentCourseFace`), or None without
-/// the course faces.
-fn state(course: &crate::race::owner_course::Course) -> Option<u32> {
-    (course.course.course_faces.bits() != 0).then(|| course.course.current_course_face.bits())
+/// The face whose +0x30 .. +0x40 hold the state (`g_currentCourseFace`, now the view's), or
+/// None without the course faces. (The original read the face the previous view drew last
+/// when an object of two shapes came before the view's first face; no kind in the game's
+/// files has that material, so it never comes into play.)
+fn state(
+    course: &crate::race::owner_course::Course,
+    face: &crate::race::face_work::FaceWork,
+) -> Option<u32> {
+    (course.course.course_faces.bits() != 0).then(|| face.course_face.bits())
 }
 
 /// The state's four dwords from +0x30 of the face.
@@ -96,7 +101,7 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     let material = crate::scene::polygon::materials_ptr()
         .offset(((kind as usize).wrapping_mul(MATERIAL_LEN)) as u32);
     let way = material.offset(0x20).read::<u8>("an object's material")? as u32;
-    let state = state(&race.course);
+    let state = state(&race.course, &ctx.view.face);
     if way == 4 && state.is_none() {
         return Err(BadInput("a moving object without its state"));
     }

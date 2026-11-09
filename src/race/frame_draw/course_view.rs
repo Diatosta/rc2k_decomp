@@ -300,7 +300,7 @@ pub fn gather_record_faces(ctx: &DrawCtx, record: u32) -> Result<(), Refused> {
     }
     let mut face = first;
     loop {
-        race.course.course.current_course_face.set_bits(face);
+        ctx.view.face.course_face.set_bits(face);
         // The face read once for its kind, objects, switches and first point.
         let read = crate::race::course_places::face_number(face, "a course face")?;
         let kind = read.kind();

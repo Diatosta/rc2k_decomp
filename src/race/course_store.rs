@@ -45,7 +45,8 @@ pub struct CourseWork {
     pub course_tail: [Dword; 2],
     /// +0xdc (0x5CCCCC): not named.
     pub unknown_dc: Dword,
-    /// +0xe0 (0x5CCCD0): `g_currentCourseFace` ("polynum").
+    /// +0xe0 (0x5CCCD0): `g_currentCourseFace` ("polynum"); now each view's
+    /// (`race::face_work::FaceWork::course_face`), this one not used.
     pub current_course_face: Dword,
     /// +0xe4 (0x5CCCD4): `g_polygonFlags`: the list entry's flags word; nothing reads it to
     /// effect (`notes/bugs.md`), the port does not store it.

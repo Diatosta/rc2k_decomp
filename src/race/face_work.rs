@@ -5,9 +5,9 @@
 //! original these were `RACE_VIEW`'s fields (`face_turned` .. `polygon_mode`), `RaceVars`'s
 //! `face_number`, `mapping_a` and `mapping_b`, the sound spot block's `face_kind` and
 //! `face_unlit`, and `dword_606284`, `dword_608CAC`, `dword_63660C` (the fade), written and
-//! read by every view in turn. Not here: the texture coordinates by corner (`RACE_VIEW.corner_uv`, `corner_uv_b`: the faces without a texture read the
-//! last face's) and `current_course_face` (`scene::set_object_material` in the menus), read
-//! before a view's own write.
+//! read by every view in turn; and the current course face (`g_currentCourseFace`). Not here:
+//! the texture coordinates by corner (`RACE_VIEW.corner_uv`, `corner_uv_b`: the faces without
+//! a texture read the last face's), read before a view's own write.
 
 use crate::session::Dword;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -48,6 +48,11 @@ pub struct FaceWork {
     pub fade_alpha: Dword,
     pub faded_bits: Dword,
     pub faded: Dword,
+    /// The course face being drawn or listed (`g_currentCourseFace`, 0x5CCCD0), named by the
+    /// bad polygon's log; the objects of two shapes would keep their moving state in its
+    /// +0x30 .. (`scene::set_object_material`), but no kind in the game's files has that
+    /// material (way 4: none in objsinfo, carsinfo, frntinfo or extrinfo, 2026-11-09).
+    pub course_face: Dword,
 }
 
 impl FaceWork {
@@ -73,6 +78,7 @@ impl FaceWork {
             fade_alpha: Dword::new(0),
             faded_bits: Dword::new(u32::MAX),
             faded: Dword::new(0),
+            course_face: Dword::new(0),
         }
     }
 }
