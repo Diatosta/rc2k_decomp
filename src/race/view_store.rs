@@ -22,7 +22,8 @@ pub struct RaceView {
     pub depth_test: Dword,
     /// +0x2c (0x63D9E4): the face's halves turned to the view (`race::course_faces`); now each view's (`race::face_work::FaceWork`); unused.
     pub face_turned: [Dword; 2],
-    /// +0x34 (0x63D9EC): the face's corners ([3] -1 for faces of three points, `race::norms`); now each view's (`race::face_work::FaceWork`); still written for `race::norms`, which reads [3] at the stage's start-up.
+    /// +0x34 (0x63D9EC): the face's corners ([3] -1 for faces of three points, `race::norms`); now each view's (`race::face_work::FaceWork`); here only the image's first values, which
+    /// `race::norms` reads before any face was drawn (`face_work::last_fourth_corner`).
     pub corners: [Dword; 4],
     /// +0x44 (0x63D9FC): (`race::course_faces`).
     pub slope: Float,

@@ -62,8 +62,9 @@ pub fn overlay_pass(hud: &Hud, race: &Race) -> Result<(), Refused> {
     depth_buffer(true);
     crate::scene::full_view_window::full_view_window(race);
     crate::scene::set_render_state::set_render_state(3, 3);
-    race.course.level_grid.plain_first.set(1);
-    race.course.level_grid.plain_second.set(1);
+    // Read by the next frame's first view (`view_scratch::filter_input`) and the menus.
+    crate::scene::polygon_work::front_end().plain_first.set(1);
+    crate::scene::polygon_work::front_end().plain_second.set(1);
     crate::hud::draw_view_strips::draw_view_strips(race)?;
     depth_buffer(false);
     crate::scene::set_filters::set_filters();

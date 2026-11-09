@@ -789,18 +789,18 @@ pub fn draw_list_entry(
             let face = word;
             let kind = crate::race::course_places::face_field::<u8>(face, 0, "a course face")?;
             if kind == 0xFF || kind < 0x10 {
-                course.level_grid.smooth.set_bits(1);
-                course.level_grid.plain_first.set_bits(1);
-                course.level_grid.plain_second.set_bits(1);
+                ctx.view.polygon.smooth.set_bits(1);
+                ctx.view.polygon.plain_first.set_bits(1);
+                ctx.view.polygon.plain_second.set_bits(1);
                 if kind == 0xFF {
                     // The description is the face.
                     crate::scene::draw_described_object::draw_described_face(ctx, face)?;
                 } else {
                     crate::race::course_faces::draw_tinted_face(ctx, face)?;
                 }
-                course.level_grid.smooth.set_bits(0);
-                course.level_grid.plain_first.set_bits(0);
-                course.level_grid.plain_second.set_bits(0);
+                ctx.view.polygon.smooth.set_bits(0);
+                ctx.view.polygon.plain_first.set_bits(0);
+                ctx.view.polygon.plain_second.set_bits(0);
             }
         }
         1 => draw_flare(ctx, low, at)?,

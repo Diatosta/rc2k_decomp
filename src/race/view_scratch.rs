@@ -182,3 +182,22 @@ impl<'a> DrawCtx<'a> {
         }
     }
 }
+
+/// The texture filter's switches a view starts from (`scene::polygon_work`'s `smooth`,
+/// `plain_first`, `plain_second`): for the first view (slot 0) the front end's slot's, where
+/// the HUD's overlay left them the frame before (1, 1) or the menus' passes; for the others
+/// 0. In the original one set of variables went from view to view: the mirror and the second
+/// view read what the first view's last list entry left (0, measured), the first view the
+/// HUD's (its sky drawn smooth, the others not).
+pub fn filter_input(view: &ViewScratch) -> [u32; 3] {
+    if view.number() == 0 {
+        let from = &front_end().polygon;
+        [
+            from.smooth.get(),
+            from.plain_first.get(),
+            from.plain_second.get(),
+        ]
+    } else {
+        [0; 3]
+    }
+}

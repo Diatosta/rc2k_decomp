@@ -312,11 +312,10 @@ fn copy_set(entries: &[Listed], set: Set) {
 /// polygon's texture from the number in `dword_6240C4`.
 fn choose_texture(
     poly: &crate::scene::polygon_work::PolygonWork,
-    course: &crate::race::owner_course::Course,
     outside: &mut dyn Outside,
     scene: &crate::scene::owner::Scene,
 ) {
-    let smooth = course.level_grid.smooth.bits() == 1;
+    let smooth = poly.smooth.bits() == 1;
     outside.state(3, if smooth { 3 } else { 1 });
     let number: u32 = poly.texture_page.bits();
     let loaded: u32 = scene.textures.places.totals[2].get();
@@ -454,7 +453,7 @@ pub fn draw_polygon(
         }
         poly.texture_page.set_bits(FADE_TEXTURE);
         face.polygon_mode.set_bits(7u32);
-        choose_texture(poly, &race.course, outside, scene);
+        choose_texture(poly, outside, scene);
         for (state, value) in [(0x15, 4), (0x13, 5), (0x14, 6), (0x1B, 1), (0x1C, 0)] {
             outside.state(state, value);
         }
@@ -485,17 +484,11 @@ pub fn draw_polygon(
         shade(poly, &entries, how);
         for pass in passes {
             let (texture, smooth) = match pass.set {
-                Set::A => (
-                    &poly.polygon_textures[0],
-                    &race.course.level_grid.plain_first,
-                ),
-                Set::B => (
-                    &poly.polygon_textures[1],
-                    &race.course.level_grid.plain_second,
-                ),
+                Set::A => (&poly.polygon_textures[0], &poly.plain_first),
+                Set::B => (&poly.polygon_textures[1], &poly.plain_second),
             };
             poly.texture_page.set_bits(texture.bits());
-            race.course.level_grid.smooth.set_bits(smooth.bits());
+            poly.smooth.set_bits(smooth.bits());
             copy_set(&entries, pass.set);
             if let Some(as_mode) = pass.as_mode {
                 face.polygon_mode.set_bits(as_mode);
@@ -503,7 +496,7 @@ pub fn draw_polygon(
             if pass.no_depth {
                 outside.state(0x0E, 0);
             }
-            choose_texture(poly, &race.course, outside, scene);
+            choose_texture(poly, outside, scene);
             for &(state, value) in pass.states {
                 outside.state(state, value);
             }

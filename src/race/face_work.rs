@@ -10,6 +10,7 @@
 //! before a view's own write.
 
 use crate::session::Dword;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub struct FaceWork {
     /// The face's halves turned to the view (`race::course_faces`).
@@ -73,5 +74,24 @@ impl FaceWork {
             faded_bits: Dword::new(u32::MAX),
             faded: Dword::new(0),
         }
+    }
+}
+
+/// The slot of the view that last drew a course face (`race::face_corners`), none at first.
+static LAST_FACE_VIEW: AtomicUsize = AtomicUsize::new(usize::MAX);
+
+/// The view in slot `slot` is drawing a face.
+pub fn note_face_drawn(slot: usize) {
+    LAST_FACE_VIEW.store(slot, Ordering::Relaxed);
+}
+
+/// The fourth corner of the last face drawn by any view (-1 for a face of three points),
+/// read by `race::norms` at a stage's start-up as the original read `dword_63D9F8` (it
+/// should be the face's own: a slip kept, `notes/bugs.md`); before any face was drawn the
+/// image's first value.
+pub fn last_fourth_corner(shared: &crate::race::owner_shared::Shared) -> u32 {
+    match LAST_FACE_VIEW.load(Ordering::Relaxed) {
+        usize::MAX => shared.view.corners[3].bits(),
+        slot => crate::race::view_scratch::slot(slot).face.corners[3].bits(),
     }
 }

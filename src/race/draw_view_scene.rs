@@ -27,6 +27,10 @@ pub fn draw_view_scene(
         .course
         .shine
         .set(race.course.stage_prefs.shine_from.get());
+    let input = crate::race::view_scratch::filter_input(view);
+    view.polygon.smooth.set(input[0]);
+    view.polygon.plain_first.set(input[1]);
+    view.polygon.plain_second.set(input[2]);
     let lists = &view.lists;
     if crate::race::frame::drawn_car().view_covered.get() != 0 {
         return draw_view_tint(&view.polygon, race, &view.face, scene);

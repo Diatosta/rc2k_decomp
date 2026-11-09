@@ -63,6 +63,14 @@ pub struct PolygonWork {
     /// `RaceVars.quad_vertices`; every writer sets dwords 3, 6, 7 of the vertices it names
     /// just before the polygon is clipped and drawn.
     pub quad_vertices: [Dword; 32],
+    /// The texture filter's switches (`LEVEL_GRID.smooth`, `plain_first`, `plain_second`:
+    /// `dword_63E164` .. `dword_63E16C`): `smooth` the pass being drawn's (render state 3:
+    /// 3 smooth, 1 not), set from the pass's set's `plain`, 1 when its texture's mapping is 0.
+    /// A view starts from `race::view_scratch::filter_input`; the HUD sets the front end's
+    /// slot's `plain` 1, 1 (`hud::overlay_pass`).
+    pub smooth: Dword,
+    pub plain_first: Dword,
+    pub plain_second: Dword,
 }
 
 impl PolygonWork {
@@ -91,6 +99,9 @@ impl PolygonWork {
             clip_work: [const { Float::from_bits(0) }; 12],
             clip_work_2: [const { Dword::new(0) }; 5],
             quad_vertices: [const { Dword::new(0) }; 32],
+            smooth: Dword::new(0),
+            plain_first: Dword::new(0),
+            plain_second: Dword::new(0),
         }
     }
 }

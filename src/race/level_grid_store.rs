@@ -23,11 +23,14 @@ pub struct LevelGrid {
     pub grid_half: Dword,
     /// +0x504 (0x63E160): the course grid's span; now each view's (`race::view_grid`); unused.
     pub grid_span: Dword,
-    /// +0x508 (0x63E164): the polygon smoothing switch (`scene::draw_polygon`, `dword_63E164`) (a reading).
+    /// +0x508 (0x63E164): the polygon smoothing switch; now each view's
+    /// (`scene::polygon_work`), this one not used.
     pub smooth: Dword,
-    /// +0x50c (0x63E168): "plain" flag of the first triangle's texture set (`race::course_faces` `FIRST_SET`, `hud::overlay_pass`, `scene::draw_polygon`).
+    /// +0x50c (0x63E168): "plain" flag of the first triangle's texture set; now each view's
+    /// (`scene::polygon_work`), this one not used.
     pub plain_first: Dword,
-    /// +0x510 (0x63E16C): "plain" flag of the second triangle's set (`race::course_faces` `SECOND_SET`, `hud::overlay_pass`, `scene::draw_polygon`).
+    /// +0x510 (0x63E16C): "plain" flag of the second triangle's set; now each view's
+    /// (`scene::polygon_work`), this one not used.
     pub plain_second: Dword,
     /// +0x514 (0x63E170): the view value kept by `race::draw_mirror_view` (pushed and popped around it; `dword_63E170`).
     pub view_value_kept: Dword,
