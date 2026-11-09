@@ -1223,7 +1223,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::physics::ground_probe_store::START,
         len: crate::physics::ground_probe_store::END - crate::physics::ground_probe_store::START,
-        home: Home::Store(crate::race::owner::RACE.physics.ground_probe.first()),
+        home: Home::Store(&crate::race::owner::RACE.physics.ground_probe),
     },
     Moved {
         ida: crate::race::panel_clock_store::START,
@@ -1233,7 +1233,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::scene::object_slots_store::START,
         len: crate::scene::object_slots_store::END - crate::scene::object_slots_store::START,
-        home: Home::Store(crate::scene::owner::SCENE.objects.slots.first()),
+        home: Home::Store(&crate::scene::owner::SCENE.objects.slots),
     },
     Moved {
         ida: crate::scene::light_tables_store::START,
@@ -1379,7 +1379,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::physics::contact_store::START,
         len: crate::physics::contact_store::END - crate::physics::contact_store::START,
-        home: Home::Store(crate::race::owner::RACE.physics.contact.first()),
+        home: Home::Store(&crate::race::owner::RACE.physics.contact),
     },
     Moved {
         ida: crate::drive::replay_frames_store::START,

@@ -121,7 +121,7 @@ impl<T: crate::pointers::Cells + crate::pointers::Store> Carried for PerWorker<T
 /// The stores of the drawing's working state a run reads as the list began (the write
 /// watch's list, `notes/conversion.md`): copied into each run's copy, the changes merged
 /// back.
-fn carried_stores() -> [&'static dyn Carried; 30] {
+fn carried_stores() -> [&'static dyn Carried; 27] {
     let race = crate::race::owner::race();
     let scene = crate::scene::owner::scene();
     [
@@ -140,15 +140,12 @@ fn carried_stores() -> [&'static dyn Carried; 30] {
         &scene.drawing.object_work,
         &scene.lights.state,
         &scene.lights.work,
-        &scene.objects.slots,
         &scene.objects.tables,
         &crate::d3d::owner::d3d().cards,
         // The stores the mirror shares with its view (`draw_beside`, the write watch's list).
         &race.frame.frame_work,
         &race.frame.shadow_skids,
         &race.frame.view_and_records,
-        &race.physics.contact,
-        &race.physics.ground_probe,
         &race.shared.work,
         &race.shared.physics_tables,
         &race.course.lists,

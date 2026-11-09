@@ -56,7 +56,7 @@ impl<'a> GroundQuery<'a> {
     /// The physics' own fields.
     pub fn of_physics(race: &'a Race) -> Self {
         let g = &*race.physics.ground;
-        let p = &*race.physics.ground_probe;
+        let p = &race.physics.ground_probe;
         let c = &*race.course.course;
         GroundQuery {
             x: &g.ground_x,
