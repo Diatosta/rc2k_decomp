@@ -72,13 +72,12 @@ pub fn draw_shown_car(
     draw: &mut dyn FnMut() -> Result<(), Refused>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
     let car: u32 = screens.event.shown_car.get();
     if car >= ENTRIES {
         return Err(BadInput("a car shown past the carousel's kinds").into());
     }
     let clock: u32 = shared.physics_tables.scene_clock.bits();
-    drawing.object_work.angles[1].set((clock << 3) & 0xFFFF);
+    object_place.angles[1].set((clock << 3) & 0xFFFF);
     object_place.place[2].set(screens.state.carousel.z.get());
     let kind = screens.state.carousel.kinds[car as usize].get();
     screens.state.carousel.kind.set(kind);

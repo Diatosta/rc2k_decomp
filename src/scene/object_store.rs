@@ -43,7 +43,8 @@ pub struct ObjectWork {
     pub turned_place: [Dword; 3],
     /// +0x98 (0x635038): the object's size (`scene::matrix`); each view's drawing uses `ctx.view.object.size`; this one is the physics' contact tests' own.
     pub size: Dword,
-    /// +0x9c (0x63503C): its angles, x y z (`scene::matrix`, `physics::object_turn_matrix`).
+    /// +0x9c (0x63503C): its angles, x y z: the physics' (`physics::object_turn_matrix`); the
+    /// drawing's are the view's (`scene::object_place`).
     pub angles: [Dword; 3],
     /// +0xa8 (0x635048): (`race::car_parts`).
     pub part_values: [Dword; 3],

@@ -131,9 +131,9 @@ fn draw_description(
     ctx.view.object.place[0].set(at[0].wrapping_add(get(0x30)));
     ctx.view.object.place[1].set(at[1].wrapping_add(get(0x34)));
     ctx.view.object.place[2].set(at[2].wrapping_add(get(0x38)));
-    scene.drawing.object_work.angles[0].set((byte(8) << 8) & 0xFFFF);
-    scene.drawing.object_work.angles[1].set(byte(0xC) << 8);
-    scene.drawing.object_work.angles[2].set(byte(0x10) << 8);
+    ctx.view.object.angles[0].set((byte(8) << 8) & 0xFFFF);
+    ctx.view.object.angles[1].set(byte(0xC) << 8);
+    ctx.view.object.angles[2].set(byte(0x10) << 8);
     scene.drawing.object_work.described_cleared[1].set(0u32);
     scene.drawing.object_work.described_cleared[0].set(0u32);
     scene.drawing.object_work.described_cleared[2].set(0u32);
@@ -155,9 +155,9 @@ fn draw_description(
         ctx.view.object.light_strength.set(strength);
     };
     if object == 0x38 || (0x3A..0x40).contains(&object) {
-        scene.drawing.object_work.angles[0].set(0x2000u32);
-        scene.drawing.object_work.angles[1].set(0u32);
-        scene.drawing.object_work.angles[2].set(0u32);
+        ctx.view.object.angles[0].set(0x2000u32);
+        ctx.view.object.angles[1].set(0u32);
+        ctx.view.object.angles[2].set(0u32);
         ctx.view.object.size.set(byte(0x18));
         light(0xFF, 0xFF, 0xFF, 0);
         ctx.view.light.light_turns[0].set(0u32);

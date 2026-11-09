@@ -573,18 +573,18 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         set_turn_y(
             &ctx.view.matrices.turn_y_matrix,
             &ctx.view.matrices.turn_y_work,
-            scene.drawing.object_work.angles[1].bits().wrapping_neg(),
+            ctx.view.object.angles[1].bits().wrapping_neg(),
         );
         set_turn_x(
             &ctx.view.matrices.turn_x_matrix,
             &ctx.view.matrices.turn_x_work,
-            scene.drawing.object_work.angles[0].bits().wrapping_neg(),
+            ctx.view.object.angles[0].bits().wrapping_neg(),
         );
         multiply_matrices(turn_y, turn_x, turned);
         set_turn_z_16(
             &ctx.view.matrices.turn_z_matrix,
             &ctx.view.matrices.turn_z_work,
-            scene.drawing.object_work.angles[2].bits().wrapping_neg(),
+            ctx.view.object.angles[2].bits().wrapping_neg(),
         );
         multiply_matrices(turned, turn_z, object);
         placed_object_tail(ctx);
@@ -631,26 +631,26 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             set_turn_y(
                 &ctx.view.matrices.turn_y_matrix,
                 &ctx.view.matrices.turn_y_work,
-                scene.drawing.object_work.angles[0].bits().wrapping_neg(),
+                ctx.view.object.angles[0].bits().wrapping_neg(),
             );
             crate::math::cells::copy_cells(&turn_y, &object, 16);
-            if scene.drawing.object_work.angles[1].get() != 0 {
+            if ctx.view.object.angles[1].get() != 0 {
                 set_turn_y(
                     &ctx.view.matrices.turn_y_matrix,
                     &ctx.view.matrices.turn_y_work,
-                    scene.drawing.object_work.angles[2].bits().wrapping_neg(),
+                    ctx.view.object.angles[2].bits().wrapping_neg(),
                 );
                 multiply_matrices(object, turn_y, lit);
                 set_turn_x(
                     &ctx.view.matrices.turn_x_matrix,
                     &ctx.view.matrices.turn_x_work,
-                    scene.drawing.object_work.angles[1].bits().wrapping_neg(),
+                    ctx.view.object.angles[1].bits().wrapping_neg(),
                 );
                 multiply_matrices(lit, turn_x, turned);
                 set_turn_y(
                     &ctx.view.matrices.turn_y_matrix,
                     &ctx.view.matrices.turn_y_work,
-                    scene.drawing.object_work.angles[2].get(),
+                    ctx.view.object.angles[2].get(),
                 );
                 multiply_matrices(turned, turn_y, object);
             }

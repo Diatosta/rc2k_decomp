@@ -40,7 +40,6 @@ use crate::session::{Dword, write_all, write_prefix};
 // ---- game data ----
 const MENUS: u32 = 0x15;
 use crate::menu::owner::{Menus, Tables, menus};
-use crate::scene::owner::scene;
 use rc2k_core::scene::carousel;
 
 /// One step of a carousel's set-up.
@@ -75,7 +74,10 @@ const CARS_TAIL: [Op; 9] = [
         &crate::menu::owner::MENUS.screens.state.carousel.forward,
         0x20000,
     ),
-    Op::Run(|| &scene().drawing.object_work.angles[0], 0x10FF),
+    Op::Run(
+        || &crate::race::view_scratch::front_end().object.angles[0],
+        0x10FF,
+    ),
     Op::Run(
         || &crate::race::view_scratch::front_end().object.place[1],
         0xFFFE_6000,

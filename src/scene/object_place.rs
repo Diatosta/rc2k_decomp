@@ -10,7 +10,7 @@
 //!
 //! Left in `ObjectWork` because a drawing reads them before the same view has written them:
 //! `object_place` and `only_object` (the first shown object of a view reads what the last
-//! described object left), and `angles` (the physics' contact tests use it as their own).
+//! described object left).
 //!
 //! `place`, `size` and `light_strength` are here too since F6: every reading of a view's
 //! drawing finds them written by the same view's drawing first (the sky, the slot objects,
@@ -20,7 +20,10 @@
 //! `prepare_menu_scene`, `set_up_lit_engine`, the main menu's loop) is what its shown car
 //! and highlighted object read. The physics' contact tests keep `ObjectWork.size` as their
 //! own (`face_contact` writes it before `object_turn_matrix` reads it); `ObjectWork.place`
-//! and `ObjectWork.light_strength` are read by none now.
+//! and `ObjectWork.light_strength` are read by none now. `angles` too (F6 step 5): measured
+//! with a copy beside the store's (three held races, nine menu flows), no reading of the
+//! drawing found other than the same view's last write; `ObjectWork.angles` stays the
+//! physics' own (`physics::face_contact`, `race::get_mat_crash`, `physics::object_turn_matrix`).
 
 use crate::session::Dword;
 
@@ -42,6 +45,8 @@ pub struct ObjectPlace {
     pub size: Dword,
     /// `ObjectWork.light_strength` (`g_lightStrength`, 0x635090).
     pub light_strength: Dword,
+    /// `ObjectWork.angles` (0x63503C): the object's x, y and z turns.
+    pub angles: [Dword; 3],
     /// `ObjectWork.object_first_face` (`g_objectFirstFace`, 0x6350BC).
     pub first_face: Dword,
     /// `ObjectWork.object_face_count` (`g_objectFaceCount`, 0x6350C0).
@@ -80,6 +85,7 @@ impl ObjectPlace {
             place: [const { Dword::new(0) }; 3],
             size: Dword::new(0),
             light_strength: Dword::new(0),
+            angles: [const { Dword::new(0) }; 3],
             first_face: Dword::new(0),
             face_count: Dword::new(0),
             normal_work: [const { Dword::new(0) }; 15],

@@ -142,17 +142,16 @@ pub fn make_object_matrix(
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
 ) {
-    let drawing = &scene.drawing;
     set_light_direction(v, &scene.drawing.scene.light_direction, view_turn, light);
     set_turn_y(
         &v.turn_y_matrix,
         &v.turn_y_work,
-        drawing.object_work.angles[1].bits().wrapping_neg(),
+        object.angles[1].bits().wrapping_neg(),
     );
     set_turn_x(
         &v.turn_x_matrix,
         &v.turn_x_work,
-        drawing.object_work.angles[0].bits().wrapping_neg(),
+        object.angles[0].bits().wrapping_neg(),
     );
     let place: [u32; 3] = crate::session::read_bits(&object.place);
     set_place(&v.placed_matrix, place);

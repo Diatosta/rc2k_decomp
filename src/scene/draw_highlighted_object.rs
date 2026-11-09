@@ -44,7 +44,6 @@ pub fn draw_highlighted(
 ) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
     let shared = &race().shared;
-    let drawing = &scene.drawing;
     let screens = &menus.screens;
     let item = screens.loop_flags.item.get().wrapping_sub(1);
     if item >= ENTRIES {
@@ -56,7 +55,7 @@ pub fn draw_highlighted(
         return Err(BadInput("a kind past the records of the kinds' own places").into());
     }
     let clock: u32 = shared.physics_tables.scene_clock.bits();
-    drawing.object_work.angles[1].set((clock << 3) & 0xFFFF);
+    object_place.angles[1].set((clock << 3) & 0xFFFF);
     object_place.place[2].set(screens.state.carousel.z.get());
     object_place.place[0].set_bits(0u32);
     if let Some(own) = own {
@@ -66,7 +65,7 @@ pub fn draw_highlighted(
             object_place.place[1].set(y);
         }
         if angle != u32::MAX {
-            drawing.object_work.angles[0].set_bits(angle);
+            object_place.angles[0].set_bits(angle);
         }
     }
     screens.state.carousel.kind.set(kind);

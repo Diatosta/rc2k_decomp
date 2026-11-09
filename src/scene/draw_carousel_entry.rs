@@ -122,8 +122,8 @@ pub fn draw_carousel_entry(
     if let Some(size) = set.size {
         view.object.size.set_bits(size);
     }
-    drawing.object_work.angles[0].set_bits(set.angle_x);
-    drawing.object_work.angles[1].set_bits(set.angle_y);
+    view.object.angles[0].set_bits(set.angle_x);
+    view.object.angles[1].set_bits(set.angle_y);
     crate::session::write_bits(&drawing.scene.view_offset, [0u32; 2]);
     menus.screens.state.carousel.kind.set(set.kind);
     view.cars.object_number.set_bits(set.object);
