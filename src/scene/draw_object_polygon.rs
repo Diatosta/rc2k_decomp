@@ -62,11 +62,11 @@ fn needs_clipping(
 // Converted: `rc2k_core::scene::polygons`
 pub fn draw_object_polygon(
     race: &crate::race::owner::Race,
+    object: &crate::scene::object_place::ObjectPlace,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
     let drawing = &scene.drawing;
-    let physics = &race.physics;
     use rc2k_core::scene::polygons::{drawn_whole, fan, first_list, fits};
     let count: u32 = drawing.scene.polygon_vertex_count.bits();
     if !fits(count) {
@@ -82,16 +82,14 @@ pub fn draw_object_polygon(
     drawing.scene.polygon_next_entry.set_bits(count);
     step(Step::Project)?;
     if drawn_whole(count, needs_clipping(&race.course, count, scene)?) {
-        physics
-            .ground
+        object
             .whole_polygon_count
-            .set_bits(physics.ground.whole_polygon_count.bits().wrapping_add(1));
+            .set_bits(object.whole_polygon_count.bits().wrapping_add(1));
         return step(Step::Draw);
     }
-    physics
-        .ground
+    object
         .split_polygon_count
-        .set_bits(physics.ground.split_polygon_count.bits().wrapping_add(1));
+        .set_bits(object.split_polygon_count.bits().wrapping_add(1));
     // the first `count` entries kept from entry 64 (`fits`: at most 64)
     let (entries, kept) = crate::scene::polygon_store::POLYGON_WORK
         .entries

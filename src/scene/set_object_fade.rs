@@ -78,26 +78,26 @@ pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
         }
     };
     crate::session::write_bits(&race.shared.switches.fade_words, [other_kind, distance]);
-    scene.drawing.object_work.object_position[0].set_bits(0u32);
-    scene.drawing.object_work.object_position[2].set_bits(0u32);
-    race.physics.ground.object_fading.set_bits(0u32);
-    race.physics.ground.object_fade[0].set_bits(0x100u32);
+    ctx.view.object.position[0].set_bits(0u32);
+    ctx.view.object.position[2].set_bits(0u32);
+    ctx.view.object.fading.set_bits(0u32);
+    ctx.view.object.fade[0].set_bits(0x100u32);
     if !needs_record {
         return Ok(());
     }
     if field(record, 0)? != place {
         make_scene_record(ctx.race, place, record, ctx.scene)?;
     }
-    scene.drawing.object_work.object_position[0].set_bits(x87::to_int(field(record, 0x10)?) as u32);
+    ctx.view.object.position[0].set_bits(x87::to_int(field(record, 0x10)?) as u32);
     let depth = x87::to_int(field(record, 0x18)?);
-    scene.drawing.object_work.object_position[2].set_bits(depth as u32);
+    ctx.view.object.position[2].set_bits(depth as u32);
     let near = ((distance << 16) as i32).wrapping_sub(depth);
     if near >= 0 {
         return Ok(());
     }
     let fade = (near.wrapping_add(0x10_0000).max(0) as u32) >> 12;
-    crate::session::write_bits(&race.physics.ground.object_fade, [fade, fade]);
-    race.physics.ground.object_fading.set_bits(1u32);
+    crate::session::write_bits(&ctx.view.object.fade, [fade, fade]);
+    ctx.view.object.fading.set_bits(1u32);
     if other_kind != 0 {
         let kinds: [u32; 0x100] = crate::session::read_bits(&scene.objects.tables.object_kinds);
         if let Some(other) = (1..0x100).find(|&n| kinds[n] == other_kind) {

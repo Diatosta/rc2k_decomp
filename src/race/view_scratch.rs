@@ -6,7 +6,7 @@
 //! Holds so far the two sort lists the view's drawing fills, sorts and draws (the original's
 //! `g_depthEntries` / `g_sortEntries` at 0x9D3730 in the buffers block, one for every view)
 //! and their counts (the original's `RACE_VIEW.depth_entry_count` / `sort_entry_count`), and
-//! the view's fog (`scene::fog`).
+//! the view's fog (`scene::fog`) and its object's placing (`scene::object_place`).
 
 use crate::errors::BadInput;
 use crate::session::Dword;
@@ -79,6 +79,8 @@ pub struct ViewScratch {
     pub lists: SortLists,
     /// The view's fog, set up at the start of its drawing (`race::set_up_fog`).
     pub fog: crate::scene::fog::Fog,
+    /// The placing, fading and reflecting of the object being drawn.
+    pub object: crate::scene::object_place::ObjectPlace,
 }
 
 impl ViewScratch {
@@ -86,6 +88,7 @@ impl ViewScratch {
         Self {
             lists: SortLists::new(),
             fog: crate::scene::fog::Fog::new(),
+            object: crate::scene::object_place::ObjectPlace::new(),
         }
     }
 }

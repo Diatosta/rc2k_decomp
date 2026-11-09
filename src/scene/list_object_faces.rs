@@ -17,15 +17,12 @@ use crate::race::owner_shared::Shared;
 // Converted: `rc2k_core::scene::objects::object_faces`
 pub fn list_object_faces(
     shared: &Shared,
+    object: &crate::scene::object_place::ObjectPlace,
     faces_list: &mut crate::scene::face_list::FaceList,
     list: &mut dyn FnMut(&mut crate::scene::face_list::FaceList, usize) -> Result<(), Refused>,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     {
-        let (first, count): (u32, u32) = (
-            scene.drawing.object_work.object_first_face.bits(),
-            scene.drawing.object_work.object_face_count.bits(),
-        );
+        let (first, count): (u32, u32) = (object.first_face.bits(), object.face_count.bits());
         // Every face is looked up before anything is written.
         let faces = rc2k_core::scene::objects::object_faces(first, count, |number| {
             crate::scene::objects::face_cell(number as usize).get()

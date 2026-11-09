@@ -20,7 +20,7 @@ pub struct GroundWork {
     pub stage_loading: Dword,
     /// +0xc (0x639688): not named.
     pub unknown_c: [Dword; 6],
-    /// +0x24 (0x6396A0): `face_normal`'s work: the three points (9 dwords) and the six differences (`race::norms`, `scene::face_faces_away`).
+    /// +0x24 (0x6396A0): `face_normal`'s work: the three points (9 dwords) and the six differences (`race::norms`, `scene::face_faces_away`); the drawing's is each view's (`ctx.view.object.normal_work`); this one is written by `race::face_normal` and read by none.
     pub normal_work: [Dword; 15],
     /// +0x60 (0x6396DC): not named.
     pub unknown_60: [Dword; 8],
@@ -90,27 +90,27 @@ pub struct GroundWork {
     pub point_light_strength: Dword,
     /// +0x2e0 (0x63995C): unreferenced bytes (0x4 of them).
     pub _gap_2e0: Bytes<4>,
-    /// +0x2e4 (0x639960): `dword_639960`: polygons drawn whole this frame (`scene::draw_object_polygon`; zeroed by `race::draw_race_scene`) (a reading).
+    /// +0x2e4 (0x639960): `dword_639960`: polygons drawn whole this frame (`scene::draw_object_polygon`; zeroed by `race::draw_race_scene`) (a reading); now each view's (`ctx.view.object.whole_polygon_count`); unused.
     pub whole_polygon_count: Dword,
-    /// +0x2e8 (0x639964): `dword_639964`: polygons drawn split this frame (`scene::draw_object_polygon`; zeroed by `race::draw_race_scene`) (a reading).
+    /// +0x2e8 (0x639964): `dword_639964`: polygons drawn split this frame (`scene::draw_object_polygon`; zeroed by `race::draw_race_scene`) (a reading); now each view's (`ctx.view.object.split_polygon_count`); unused.
     pub split_polygon_count: Dword,
     /// +0x2ec (0x639968): `dword_639968`: the car whose object is being drawn, or -1; `scene::add_car_lights` skips it (`scene::set_object_light`).
     pub drawn_car_light: Dword,
-    /// +0x2f0 (0x63996C): `g_objectFading`: the object being drawn fades (`scene::set_object_fade`, `scene::list_object_face`).
+    /// +0x2f0 (0x63996C): `g_objectFading`: the object being drawn fades (`scene::set_object_fade`, `scene::list_object_face`); now each view's (`ctx.view.object.fading`); unused.
     pub object_fading: Dword,
-    /// +0x2f4 (0x639970): `g_objectSeeThrough`: faces of the object are see-through (`scene::draw_object_faces`, `scene::list_object_face`).
+    /// +0x2f4 (0x639970): `g_objectSeeThrough`: faces of the object are see-through (`scene::draw_object_faces`, `scene::list_object_face`); now each view's (`ctx.view.object.see_through`); unused.
     pub object_see_through: Dword,
-    /// +0x2f8 (0x639974): `dword_639974`, `dword_639978`: the fade value (0x100 = none) written twice by `scene::set_object_fade` (`scene::list_object_face`).
+    /// +0x2f8 (0x639974): `dword_639974`, `dword_639978`: the fade value (0x100 = none) written twice by `scene::set_object_fade` (`scene::list_object_face`); now each view's (`ctx.view.object.fade`); unused.
     pub object_fade: [Dword; 2],
     /// +0x300 (0x63997C): unreferenced bytes (0x2c of them).
     pub _gap_300: Bytes<44>,
-    /// +0x32c (0x6399A8): `dword_6399A8`: the normal's number `scene::reflection_coordinates` is asked for (`scene::cached_reflection_coordinates`).
+    /// +0x32c (0x6399A8): `dword_6399A8`: the normal's number `scene::reflection_coordinates` is asked for (`scene::cached_reflection_coordinates`); now each view's (`ctx.view.object.reflection_normal_number`); unused.
     pub reflection_normal_number: Dword,
-    /// +0x330 (0x6399AC): `dword_6399AC`: the point's number it is asked for (`scene::reflection_coordinates`).
+    /// +0x330 (0x6399AC): `dword_6399AC`: the point's number it is asked for (`scene::reflection_coordinates`); now each view's (`ctx.view.object.reflection_point_number`); unused.
     pub reflection_point_number: Dword,
-    /// +0x334 (0x6399B0): `dword_6399B0`, `dword_6399B4`: the reflection's two coordinates worked out (`scene::reflection_coordinates`).
+    /// +0x334 (0x6399B0): `dword_6399B0`, `dword_6399B4`: the reflection's two coordinates worked out (`scene::reflection_coordinates`); now each view's (`ctx.view.object.reflection_coordinates`); unused.
     pub reflection_coordinates: [Dword; 2],
-    /// +0x33c (0x6399B8): four caches of 1024 by point number, 0x1000 bytes apart: `g_keptReflectionNormals` (cleared to -999), `g_keptReflectionPoints`, `g_keptReflectionU`, `g_keptReflectionV` (`race::frame_draw::start_kept_reflections`, `scene::cached_reflection_coordinates`).
+    /// +0x33c (0x6399B8): four caches of 1024 by point number, 0x1000 bytes apart: `g_keptReflectionNormals` (cleared to -999), `g_keptReflectionPoints`, `g_keptReflectionU`, `g_keptReflectionV` (`race::frame_draw::start_kept_reflections`, `scene::cached_reflection_coordinates`); now each view's (`ctx.view.object.kept_reflections`); unused.
     pub kept_reflections: [Dword; 4096],
 }
 

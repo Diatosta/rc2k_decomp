@@ -29,17 +29,17 @@ pub struct ObjectWork {
     pub object_place: Dword,
     /// +0x60 (0x635000): not named.
     pub unknown_60: Dword,
-    /// +0x64 (0x635004): the object's x, y, depth (`scene::set_object_fade`, `physics::fill_race_slot`).
+    /// +0x64 (0x635004): the object's x, y, depth (`scene::set_object_fade`, `physics::fill_race_slot`); the drawing's is each view's (`ctx.view.object.position`); this one is `physics::fill_race_slot`'s own.
     pub object_position: [Dword; 3],
-    /// +0x70 (0x635010): (`race::frame_draw`).
+    /// +0x70 (0x635010): (`race::frame_draw`); now each view's (`ctx.view.object.face_depth`); unused.
     pub face_depth: Dword,
     /// +0x74 (0x635014): cleared by `race::draw_view_scene`.
     pub view_cleared: [Dword; 2],
     /// +0x7c (0x63501C): the matrix's place, x y z (`scene::matrix`).
     pub place: [Dword; 3],
-    /// +0x88 (0x635028): (`race::car_draw`).
+    /// +0x88 (0x635028): (`race::car_draw`); now each view's (`ctx.view.object.car_switches`); unused.
     pub car_switches: Dword,
-    /// +0x8c (0x63502C): the place turned (`race::frame_draw`).
+    /// +0x8c (0x63502C): the place turned (`race::frame_draw`); now each view's (`ctx.view.object.turned_place`); unused.
     pub turned_place: [Dword; 3],
     /// +0x98 (0x635038): the object's size (`scene::matrix`).
     pub size: Dword,
@@ -71,9 +71,9 @@ pub struct ObjectWork {
     pub light_turns: [Dword; 2],
     /// +0xfc (0x63509C): not named.
     pub unknown_fc: [Dword; 8],
-    /// +0x11c (0x6350BC): `g_objectFirstFace`.
+    /// +0x11c (0x6350BC): `g_objectFirstFace`; now each view's (`ctx.view.object.first_face`); unused.
     pub object_first_face: Dword,
-    /// +0x120 (0x6350C0): `g_objectFaceCount`.
+    /// +0x120 (0x6350C0): `g_objectFaceCount`; now each view's (`ctx.view.object.face_count`); unused.
     pub object_face_count: Dword,
     /// +0x124 (0x6350C4): the shape's first point, face, normal (`scene::add_object_shape`).
     pub shape_firsts: [Dword; 3],

@@ -424,7 +424,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     scene.drawing.object_work.size.set(0x10);
     crate::scene::matrix::set_light_direction(&race.frame.matrices, scene);
     place();
-    scene.drawing.object_work.car_switches.set(switches);
+    ctx.view.object.car_switches.set(switches);
     race.physics.camera.drawing_car.set(1);
     scene.drawing.object_work.other_light.set(0);
     scene.lights.work.light_kind.set(3);
@@ -439,7 +439,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
             .wrapping_add(0x50),
     );
     car_body_matrix(&race.course, &race.frame);
-    crate::race::frame_draw::start_kept_reflections(race, &race.physics)?;
+    crate::race::frame_draw::start_kept_reflections(race, ctx.view)?;
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         ctx,
         Some(lit_place(&race.frame).into()),
@@ -455,7 +455,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
                 .switches
                 .object_number
                 .set(race.shared.switches.object_number.bits().wrapping_add(1));
-            if scene.drawing.object_work.car_switches.bits() & bit != 0 {
+            if ctx.view.object.car_switches.bits() & bit != 0 {
                 car_part_matrix(&race.frame, matrix);
                 crate::scene::draw_scene_object::draw_scene_object_in_game(
                     ctx,

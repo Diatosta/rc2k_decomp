@@ -186,8 +186,16 @@ pub fn draw_race_scene(
             flags.set(0);
         }
     }
-    race.physics.ground.split_polygon_count.set(0);
-    race.physics.ground.whole_polygon_count.set(0);
+    // The polygon counts of the four views' slots (read by none).
+    for view in [
+        crate::race::view_scratch::main_view(0),
+        crate::race::view_scratch::main_view(1),
+        crate::race::view_scratch::mirror(0),
+        crate::race::view_scratch::mirror(1),
+    ] {
+        view.object.split_polygon_count.set(0);
+        view.object.whole_polygon_count.set(0);
+    }
     for cell in [
         &race.frame.draw_batches.plain_word,
         &race.frame.draw_batches.plain_count,

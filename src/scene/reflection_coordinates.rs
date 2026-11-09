@@ -55,19 +55,16 @@ fn negated_at(a: impl Base, o: impl Base) {
     fstp(o, 0x0, t1);
 }
 
-pub fn reflection_coordinates(race: &crate::race::owner::Race) -> Result<(), BadInput> {
+pub fn reflection_coordinates(
+    race: &crate::race::owner::Race,
+    object: &crate::scene::object_place::ObjectPlace,
+) -> Result<(), BadInput> {
     if !crate::scene::point_records::held() {
         return Err(BadInput("no records for the points"));
     }
     let table = crate::scene::reading::PointRecords::new()?;
-    let normal = table.place(race.physics.ground.reflection_normal_number.bits())?;
-    let point = table.place(
-        race.physics
-            .ground
-            .reflection_point_number
-            .bits()
-            .wrapping_neg(),
-    )?;
+    let normal = table.place(object.reflection_normal_number.bits())?;
+    let point = table.place(object.reflection_point_number.bits().wrapping_neg())?;
     crate::session::write_bits(&race.frame.matrices.reflect_vector, normal);
     crate::session::write_first(&race.frame.scratch.work_vector, &point.map(negated));
     normalise_vector(race)?;
@@ -91,7 +88,7 @@ pub fn reflection_coordinates(race: &crate::race::owner::Race) -> Result<(), Bad
         race.course.numbers.k256.bits(),
     ];
     crate::session::write_bits(
-        &race.physics.ground.reflection_coordinates,
+        &object.reflection_coordinates,
         [
             coordinate(looks[0], half, scales) as u32,
             coordinate(looks[2], half, scales) as u32,

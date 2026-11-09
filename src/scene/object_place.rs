@@ -1,0 +1,114 @@
+//! The fading, listing and reflecting of the object being drawn (frame plan F4): the object's
+//! position and turned place, its faces' first and count, the fade, the see-through value, the
+//! reflection being worked out and the reflections kept, one in each view's slot
+//! (`race::view_scratch`, `ctx.view.object`) and one for the front end.
+//!
+//! The original kept them in two stores for every view at once: the object work
+//! (`ObjectWork`, 0x634FA0) and the ground work (`GroundWork`, 0x63967C). Their fields stay
+//! there (the stores keep the 1999 layout); the ones listed under each field's name below
+//! are now these.
+//!
+//! Left in `ObjectWork` because a drawing reads them before the same view has written them:
+//! `object_place` and `only_object` (the first shown object of a view reads what the last
+//! described object left), and `place`, `size` and `angles` (the front end's shown car and
+//! highlighted object read the ones the earlier menu draws left; the physics' contact
+//! tests use `angles` and `size` as their own).
+
+use crate::session::Dword;
+
+/// The kept reflections' room: four caches of 1024 by point number.
+pub const KEPT_REFLECTIONS: usize = 4096;
+
+pub struct ObjectPlace {
+    /// `ObjectWork.object_position` (0x635004): the object's x, y, depth.
+    pub position: [Dword; 3],
+    /// `ObjectWork.face_depth` (0x635010).
+    pub face_depth: Dword,
+    /// `ObjectWork.car_switches` (0x635028).
+    pub car_switches: Dword,
+    /// `ObjectWork.turned_place` (0x63502C): the place turned.
+    pub turned_place: [Dword; 3],
+    /// `ObjectWork.object_first_face` (`g_objectFirstFace`, 0x6350BC).
+    pub first_face: Dword,
+    /// `ObjectWork.object_face_count` (`g_objectFaceCount`, 0x6350C0).
+    pub face_count: Dword,
+    /// `GroundWork.normal_work` (0x6396A0): `face_normal`'s work: three points and six
+    /// differences.
+    pub normal_work: [Dword; 15],
+    /// `GroundWork.whole_polygon_count` (0x639960): polygons drawn whole (read by none).
+    pub whole_polygon_count: Dword,
+    /// `GroundWork.split_polygon_count` (0x639964): polygons drawn split (read by none).
+    pub split_polygon_count: Dword,
+    /// `GroundWork.object_fading` (`g_objectFading`, 0x63996C): the object fades.
+    pub fading: Dword,
+    /// `GroundWork.object_see_through` (`g_objectSeeThrough`, 0x639970).
+    pub see_through: Dword,
+    /// `GroundWork.object_fade` (0x639974): the fade value (0x100 = none), twice.
+    pub fade: [Dword; 2],
+    /// `GroundWork.reflection_normal_number` (0x6399A8): the normal's number asked for.
+    pub reflection_normal_number: Dword,
+    /// `GroundWork.reflection_point_number` (0x6399AC): the point's number asked for.
+    pub reflection_point_number: Dword,
+    /// `GroundWork.reflection_coordinates` (0x6399B0): the two coordinates worked out.
+    pub reflection_coordinates: [Dword; 2],
+    /// `GroundWork.kept_reflections` (0x6399B8): four caches of 1024 by point number: the
+    /// normals (cleared to -999 by `race::start_kept_reflections`), the points, u and v.
+    pub kept_reflections: [Dword; KEPT_REFLECTIONS],
+}
+
+impl ObjectPlace {
+    pub const fn new() -> Self {
+        Self {
+            position: [const { Dword::new(0) }; 3],
+            face_depth: Dword::new(0),
+            car_switches: Dword::new(0),
+            turned_place: [const { Dword::new(0) }; 3],
+            first_face: Dword::new(0),
+            face_count: Dword::new(0),
+            normal_work: [const { Dword::new(0) }; 15],
+            whole_polygon_count: Dword::new(0),
+            split_polygon_count: Dword::new(0),
+            fading: Dword::new(0),
+            see_through: Dword::new(0),
+            fade: [const { Dword::new(0) }; 2],
+            reflection_normal_number: Dword::new(0),
+            reflection_point_number: Dword::new(0),
+            reflection_coordinates: [const { Dword::new(0) }; 2],
+            kept_reflections: [const { Dword::new(0) }; KEPT_REFLECTIONS],
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The slots begin where the stores did: the image's first values.
+    #[test]
+    fn begins_as_the_stores_did() {
+        let o = ObjectPlace::new();
+        let work = crate::scene::object_store::ObjectWork::new();
+        let ground = crate::physics::ground_store::GroundWork::new();
+        let bits = |c: &[Dword]| c.iter().map(Dword::bits).collect::<Vec<_>>();
+        assert_eq!(bits(&o.position), bits(&work.object_position));
+        assert_eq!(o.face_depth.bits(), work.face_depth.bits());
+        assert_eq!(o.car_switches.bits(), work.car_switches.bits());
+        assert_eq!(bits(&o.turned_place), bits(&work.turned_place));
+        assert_eq!(bits(&o.turned_place), bits(&work.turned_place));
+        assert_eq!(o.first_face.bits(), work.object_first_face.bits());
+        assert_eq!(o.face_count.bits(), work.object_face_count.bits());
+        assert_eq!(bits(&o.normal_work), bits(&ground.normal_work));
+        assert_eq!(o.fading.bits(), ground.object_fading.bits());
+        assert_eq!(o.see_through.bits(), ground.object_see_through.bits());
+        assert_eq!(bits(&o.fade), bits(&ground.object_fade));
+        assert_eq!(bits(&o.kept_reflections), bits(&ground.kept_reflections));
+        assert_eq!(
+            o.reflection_normal_number.bits(),
+            ground.reflection_normal_number.bits()
+        );
+        assert_eq!(
+            bits(&o.reflection_coordinates),
+            bits(&ground.reflection_coordinates)
+        );
+    }
+}

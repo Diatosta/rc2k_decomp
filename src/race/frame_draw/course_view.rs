@@ -90,8 +90,7 @@ pub fn face_hidden(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     face: &rc2k_core::race::faces::Face,
 ) -> Result<bool, Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
-    let drawing = &scene.drawing;
+    let race = ctx.race;
     // Converted: `rc2k_core::race::faces::{hidden_by_switches, hidden_by_depth}`; the
     // depths' roundings the x87's.
     use rc2k_core::race::faces::{hidden_by_depth, hidden_by_switches};
@@ -119,12 +118,12 @@ pub fn face_hidden(
     points_there(&race.course)?;
     let record = point_record(ctx, face.point(0))?;
     let x = crate::math::x87_load::abs_to_int(crate::scene::point_records::field(record, 0x10)?);
-    drawing.object_work.object_position[0].set_bits(x as u32);
+    ctx.view.object.position[0].set_bits(x as u32);
     let depth = crate::math::x87_load::add_to_int(
         crate::scene::point_records::field(record, 0x18)?,
         race.course.level_grid.depth_shift.bits(),
     );
-    drawing.object_work.face_depth.set_bits(depth as u32);
+    ctx.view.object.face_depth.set_bits(depth as u32);
     Ok(hidden_by_depth(depth as u32, x as u32))
 }
 

@@ -114,15 +114,13 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             .set_bits(points[1].wrapping_sub(points[0]).wrapping_mul(12));
         step_shape(shared, state, scene)?;
     }
-    scene
-        .drawing
-        .object_work
-        .object_first_face
+    ctx.view
+        .object
+        .first_face
         .set_bits(scene.objects.slots.first_face[object as usize].get());
-    scene
-        .drawing
-        .object_work
-        .object_face_count
+    ctx.view
+        .object
+        .face_count
         .set_bits(scene.objects.slots.face_counts[object as usize].get());
     Ok(())
 }

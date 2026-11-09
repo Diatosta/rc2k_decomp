@@ -112,7 +112,7 @@ pub fn face_faces_away(
             table.place(points[1])?,
             table.place(points[2])?,
         ]);
-        crate::session::write_bits(&race.physics.ground.normal_work, triangle.work);
+        crate::session::write_bits(&ctx.view.object.normal_work, triangle.work);
         crate::session::write_first(&race.frame.scratch.work_vector, &triangle.cross);
         if !triangle.faces_away() {
             return Ok(false);

@@ -52,6 +52,7 @@ pub fn draw_object_face(
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
+    object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<(), Refused> {
     if scene.lights.state.draw_mode.bits() != 0 {
         return Ok(());
@@ -135,17 +136,12 @@ pub fn draw_object_face(
     if reflects {
         race.shared.switches.face_any_shine.set_bits(0u32);
         for (entry, vertex) in vertices {
-            race.physics
-                .ground
-                .reflection_normal_number
-                .set_bits(fw(vertex + 0xC));
-            race.physics
-                .ground
+            object.reflection_normal_number.set_bits(fw(vertex + 0xC));
+            object
                 .reflection_point_number
                 .set_bits(fw(vertex).wrapping_neg());
-            cached_reflection_coordinates(race)?;
-            let coordinates: [u32; 2] =
-                crate::session::read_bits(&race.physics.ground.reflection_coordinates);
+            cached_reflection_coordinates(race, object)?;
+            let coordinates: [u32; 2] = crate::session::read_bits(&object.reflection_coordinates);
             entry.u2.set(coordinates[0]);
             entry.v2.set(coordinates[1]);
             let first_fog = entries[0].fog.get() as u32;
@@ -165,7 +161,7 @@ pub fn draw_object_face(
     }
     scene.drawing.scene.polygon_sides[0].set_bits(1u32);
     scene.drawing.scene.polygon_sides[1].set_bits(race.shared.switches.face_reflects.bits());
-    let see_through: u32 = race.physics.ground.object_see_through.bits();
+    let see_through: u32 = object.see_through.bits();
     if see_through != 0x100 {
         for entry in &entries[..0x10] {
             entry.amount.set(see_through as u8);
@@ -197,7 +193,7 @@ pub fn draw_object_face_in_game(
         race,
         face,
         &mut |step| match step {
-            Step::Draw => draw_object_polygon(race, &mut |step| match step {
+            Step::Draw => draw_object_polygon(race, &ctx.view.object, &mut |step| match step {
                 draw_object_polygon::Step::Project => project_polygon(race, scene),
                 draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(ctx),
             }),
@@ -212,5 +208,6 @@ pub fn draw_object_face_in_game(
         },
         scene,
         system,
+        &ctx.view.object,
     )
 }

@@ -14,33 +14,35 @@ use crate::errors::Refused;
 use crate::scene::reflection_coordinates::reflection_coordinates;
 
 // ---- game data ----
-/// The four tables (`GROUND_WORK.kept_reflections`), 0x400 dwords apart: the normal's
+/// The four tables (`ObjectPlace.kept_reflections`), 0x400 dwords apart: the normal's
 /// number, the point's, the two coordinates.
 const TABLE_CELLS: usize = 0x400;
 
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::reflection::{cache_place, cached}`
-pub fn cached_reflection_coordinates(race: &crate::race::owner::Race) -> Result<(), Refused> {
-    let physics = &race.physics;
+pub fn cached_reflection_coordinates(
+    race: &crate::race::owner::Race,
+    object: &crate::scene::object_place::ObjectPlace,
+) -> Result<(), Refused> {
     use rc2k_core::scene::reflection::{cache_place, cached};
     if race.shared.view.reflections_kept.bits() == 0 {
-        return Ok(reflection_coordinates(race)?);
+        return Ok(reflection_coordinates(race, object)?);
     }
     let asked: [u32; 2] = [
-        physics.ground.reflection_normal_number.bits(),
-        physics.ground.reflection_point_number.bits(),
+        object.reflection_normal_number.bits(),
+        object.reflection_point_number.bits(),
     ];
     let place = cache_place(asked[0]);
-    let slot = |table: usize| &physics.ground.kept_reflections[table * TABLE_CELLS + place];
+    let slot = |table: usize| &object.kept_reflections[table * TABLE_CELLS + place];
     if let Some(coordinates) = cached(asked, [slot(0).bits(), slot(1).bits()], || {
         [slot(2).bits(), slot(3).bits()]
     }) {
-        crate::session::write_bits(&physics.ground.reflection_coordinates, coordinates);
+        crate::session::write_bits(&object.reflection_coordinates, coordinates);
         return Ok(());
     }
-    reflection_coordinates(race)?;
-    let coordinates: [u32; 2] = crate::session::read_bits(&physics.ground.reflection_coordinates);
+    reflection_coordinates(race, object)?;
+    let coordinates: [u32; 2] = crate::session::read_bits(&object.reflection_coordinates);
     for (table, value) in [asked[0], asked[1], coordinates[0], coordinates[1]]
         .into_iter()
         .enumerate()

@@ -90,15 +90,16 @@ pub fn draw_object_in_game(
             Step::List => {
                 list_object_faces(
                     &race.shared,
+                    &ctx.view.object,
                     &mut faces,
                     &mut |list, face| list_object_face(ctx, face, list, ctx.marks),
-                    scene,
                 )?;
             }
             Step::Sort => sort_listed_faces(&mut faces)?,
             Step::Faces => {
                 draw_object_faces(
                     race,
+                    &ctx.view.object,
                     &faces,
                     &mut |face| draw_object_face_in_game(ctx, face, system),
                     scene,

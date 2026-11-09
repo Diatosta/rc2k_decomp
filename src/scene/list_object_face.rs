@@ -53,6 +53,7 @@ struct GameFace<'a>(
     &'a crate::race::owner::Race,
     crate::scene::reading::Reading,
     &'a crate::scene::car_marks::CarMarks,
+    &'a crate::scene::object_place::ObjectPlace,
 );
 
 impl FaceWorld for GameFace<'_> {
@@ -118,13 +119,13 @@ impl FaceWorld for GameFace<'_> {
         self.0.frame.sound_spots.groups_which.bits()
     }
     fn see_through_on(&self) -> u32 {
-        self.0.physics.ground.object_fading.bits()
+        self.3.fading.bits()
     }
     fn see_through_value(&self) -> u32 {
-        self.0.physics.ground.object_fade[0].bits()
+        self.3.fade[0].bits()
     }
     fn set_see_through(&mut self, value: u32) {
-        self.0.physics.ground.object_see_through.set_bits(value);
+        self.3.see_through.set_bits(value);
     }
     fn line_value(&self, extra: u32) -> Result<u32, rc2k_core::Invalid> {
         {
@@ -169,16 +170,20 @@ pub fn list_object_face(
     marks: &crate::scene::car_marks::CarMarks,
 ) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
-    let physics = &race.physics;
     if face == 0 {
         return Err(BadInput("no face").into());
     }
     if list.len() as u32 >= LIST_ROOM {
         return Err(BadInput("no room in the list of faces").into());
     }
-    physics.ground.object_see_through.set_bits(0x100u32);
+    ctx.view.object.see_through.set_bits(0x100u32);
     let bytes = face_bytes(face)?;
-    let mut world = GameFace(race, crate::scene::reading::Reading::new(), marks);
+    let mut world = GameFace(
+        race,
+        crate::scene::reading::Reading::new(),
+        marks,
+        &ctx.view.object,
+    );
     let answer = dropped(&mut world, bytes);
     world.1.finish()?;
     match answer {
@@ -203,7 +208,7 @@ pub fn list_object_face(
         race.shared.vars.face_number.bits(),
         key,
         scene.drawing.scene.entry_third.bits(),
-        physics.ground.object_see_through.bits(),
+        ctx.view.object.see_through.bits(),
     ]);
     Ok(())
 }

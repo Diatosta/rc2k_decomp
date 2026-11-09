@@ -9,7 +9,6 @@ use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
-use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::car_at;
 use crate::race::view_scratch::DrawCtx;
@@ -18,9 +17,12 @@ use crate::scene::polygon_store::POLYGON_WORK;
 
 /// `race::start_kept_reflections` (0x451864): the 0x400 kept reflection normals cleared to
 /// -999 (0xFFFFFC19) and `g_reflectionsKept` 1.
-pub fn start_kept_reflections(race: &Race, physics: &Physics) -> Result<(), BadInput> {
+pub fn start_kept_reflections(
+    race: &Race,
+    view: &crate::race::view_scratch::ViewScratch,
+) -> Result<(), BadInput> {
     {
-        for cell in &physics.ground.kept_reflections[..0x400] {
+        for cell in &view.object.kept_reflections[..0x400] {
             cell.set(0xFFFF_FC19);
         }
         race.shared.view.reflections_kept.set_bits(1u32);
@@ -103,7 +105,7 @@ pub fn draw_slot_object(
         &race.frame.matrices.view_turn_matrix,
         &race.frame.matrices.made_object_matrix,
     );
-    start_kept_reflections(race, &race.physics)?;
+    start_kept_reflections(race, ctx.view)?;
     // esi `g_turnedMatrix`, as the matrices' calls leave it.
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         ctx,
@@ -261,7 +263,7 @@ pub fn add_car_depth_entry(ctx: &DrawCtx, car: u32, number: u32) -> Result<(), R
     let matrix: [u32; 16] = crate::session::read_bits(&frame.matrices.view_matrix);
     let t = crate::math::x87_load::rotate_rounding(place.map(|v| v as i32), &matrix);
     for (k, &v) in t.iter().enumerate() {
-        drawing.object_work.turned_place[k].set_bits(v);
+        view.object.turned_place[k].set_bits(v);
     }
     drawing.object_work.place[0].set(from_int(t[0] as i32));
     drawing.object_work.place[1].set(from_int(t[1] as i32));
