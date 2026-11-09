@@ -36,7 +36,9 @@ pub fn begin_quads(effects: &crate::effects::owner::Effects, scene: &crate::scen
             at.u.set_bits(u);
             at.v.set_bits(v);
         }
-        scene.drawing.scene.polygon_vertex_count.set_bits(4u32);
+        crate::scene::polygon_work::front_end()
+            .polygon_vertex_count
+            .set_bits(4u32);
         frame.draw_work.z_k.set_bits(crate::math::x87::reciprocal(
             scene.drawing.scene.farthest.bits(),
         ));

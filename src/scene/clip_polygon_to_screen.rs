@@ -21,10 +21,11 @@ use crate::session::Float;
 
 /// The polygon's entries and the mask of the edges some vertex is past.
 fn outside_mask(
+    poly: &crate::scene::polygon_work::PolygonWork,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(crate::scene::polygon::Listed, u32), BadInput> {
     let drawing = &scene.drawing;
-    let entries = listed_with_records()?;
+    let entries = listed_with_records(poly)?;
     let edge = |cell: &Float| cell.get() as f64;
     let (left, right, top, bottom) = (
         edge(&drawing.scene.clip_screen[2]),
@@ -52,17 +53,18 @@ fn outside_mask(
 }
 
 pub fn clip_polygon_to_screen(
+    poly: &crate::scene::polygon_work::PolygonWork,
     race: &Race,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
     let drawing = &scene.drawing;
     let course = &race.course;
-    let (entries, mask) = outside_mask(scene)?;
-    drawing.scene.screen_clipped.set_bits(1u32);
+    let (entries, mask) = outside_mask(poly, scene)?;
+    poly.screen_clipped.set_bits(1u32);
     if mask == 0 {
         return Ok(());
     }
-    drawing.scene.polygon_clip_mask.set_bits(mask);
+    poly.polygon_clip_mask.set_bits(mask);
     or_undone(|| {
         let mut listed = Some(entries);
         for (bit, edge, inside_past) in [
@@ -72,8 +74,8 @@ pub fn clip_polygon_to_screen(
             (8, Edge::Y(drawing.scene.clip_screen[1].bits()), false),
         ] {
             if mask & bit != 0 {
-                listed = clip_pass(course, listed, edge, inside_past, mask, scene)?;
-                if drawing.scene.polygon_vertex_count.bits() < 3 {
+                listed = clip_pass(poly, course, listed, edge, inside_past, mask)?;
+                if poly.polygon_vertex_count.bits() < 3 {
                     break;
                 }
             }

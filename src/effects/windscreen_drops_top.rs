@@ -128,7 +128,9 @@ pub fn windscreen_drops_top(
         }
     }
     crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].bits());
-    scene.drawing.scene.polygon_vertex_count.set_bits(4u32);
+    crate::scene::polygon_work::front_end()
+        .polygon_vertex_count
+        .set_bits(4u32);
     Ok(())
 }
 

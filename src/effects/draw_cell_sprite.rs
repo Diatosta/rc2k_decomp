@@ -110,7 +110,9 @@ pub fn draw_cell_sprite(
         return Ok(());
     }
     draw_fan();
-    scene.drawing.scene.polygon_vertex_count.set_bits(4u32);
+    crate::scene::polygon_work::front_end()
+        .polygon_vertex_count
+        .set_bits(4u32);
     Ok(())
 }
 

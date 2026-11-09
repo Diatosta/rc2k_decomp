@@ -101,7 +101,7 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         return Err(BadInput("a moving object without its state"));
     }
     shared.vars.move_by.set_bits(0u32);
-    scene.drawing.scene.polygon_colour.set_bits(0x00FF_FFFFu32);
+    ctx.view.polygon.polygon_colour.set_bits(0x00FF_FFFFu32);
     ctx.view.cars.other_way_kind.set_bits(way);
     if let (4, Some(state)) = (way, state) {
         let points: [u32; 2] = [

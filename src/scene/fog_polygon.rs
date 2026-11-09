@@ -23,7 +23,7 @@ const TABLE_LEN: u32 = crate::scene::fog::TABLE_LEN as u32;
 // ---- Rust version ----
 
 pub fn fog_polygon(view: &crate::race::view_scratch::ViewScratch) -> Result<(), Refused> {
-    fog_entries(&listed()?, view)
+    fog_entries(&listed(&view.polygon)?, view)
 }
 
 /// `fog_polygon` on the polygon's entries as listed.

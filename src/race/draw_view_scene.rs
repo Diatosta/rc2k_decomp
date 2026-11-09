@@ -23,7 +23,7 @@ pub fn draw_view_scene(
     let _held = view.matrices.hold(&race.frame.matrices);
     let lists = &view.lists;
     if crate::race::frame::drawn_car().view_covered.get() != 0 {
-        return draw_view_tint(race, &view.face, scene);
+        return draw_view_tint(&view.polygon, race, &view.face, scene);
     }
     // dword_635014, dword_635018.
     for cell in &scene.drawing.object_work.view_cleared {

@@ -75,16 +75,16 @@ pub fn draw_object_face(
     let view_kind: u32 = light.view_kind.bits();
     let shine: u32 = race.course.course.shine.bits();
 
-    scene.drawing.scene.face_word.set_bits(fw(0xC));
+    ctx.view.polygon.face_word.set_bits(fw(0xC));
     light.face_bits.set_bits(words[7] as u32 & 0x1F);
     let face_shine = words[9] as u32;
-    scene.drawing.scene.face_shine.set_bits(face_shine);
+    ctx.view.polygon.face_shine.set_bits(face_shine);
     let reflects = shine != 0
         && race.shared.vars.settings_words[1].bits() != 0
         && view_kind != 4
         && face_shine != 0;
     race.shared.switches.face_reflects.set_bits(reflects as u32);
-    scene.drawing.scene.polygon_vertex_count.set_bits(count);
+    ctx.view.polygon.polygon_vertex_count.set_bits(count);
 
     if race.shared.switches.other_way.bits() != 0 && ctx.view.cars.other_way_kind.bits() == 2 {
         for (entry, vertex) in vertices {
@@ -96,10 +96,9 @@ pub fn draw_object_face(
                 .light
                 .set(scene.drawing.object_work.other_light.bits());
         }
-        scene.drawing.scene.polygon_textures[1]
-            .set_bits(scene.drawing.scene.polygon_textures[0].bits());
-        scene.drawing.scene.polygon_sides[0].set_bits(0u32);
-        scene.drawing.scene.polygon_sides[1].set_bits(1u32);
+        ctx.view.polygon.polygon_textures[1].set_bits(ctx.view.polygon.polygon_textures[0].bits());
+        ctx.view.polygon.polygon_sides[0].set_bits(0u32);
+        ctx.view.polygon.polygon_sides[1].set_bits(1u32);
         work.polygon_mode.set_bits(4u32);
         step(Step::DepthTestOff)?;
         step(Step::Draw)?;
@@ -146,7 +145,7 @@ pub fn draw_object_face(
             }
             entry.amount.set(amount as u8);
         }
-        scene.drawing.scene.polygon_textures[1].set_bits(REFLECTION_TEXTURE);
+        ctx.view.polygon.polygon_textures[1].set_bits(REFLECTION_TEXTURE);
     }
     let faded = race.frame.fade_alpha.bits() != 0
         && light.face_bits.bits() == race.physics.camera.faded_bits.bits();
@@ -154,8 +153,8 @@ pub fn draw_object_face(
     if race.shared.switches.face_any_shine.bits() == 0 {
         race.shared.switches.face_reflects.set_bits(0u32);
     }
-    scene.drawing.scene.polygon_sides[0].set_bits(1u32);
-    scene.drawing.scene.polygon_sides[1].set_bits(race.shared.switches.face_reflects.bits());
+    ctx.view.polygon.polygon_sides[0].set_bits(1u32);
+    ctx.view.polygon.polygon_sides[1].set_bits(race.shared.switches.face_reflects.bits());
     let see_through: u32 = object.see_through.bits();
     if see_through != 0x100 {
         for entry in &entries[..0x10] {
@@ -163,11 +162,10 @@ pub fn draw_object_face(
             entry.u2.set(entry.u.get());
             entry.v2.set(entry.v.get());
         }
-        scene.drawing.scene.polygon_sides[0].set_bits(0u32);
-        scene.drawing.scene.polygon_sides[1].set_bits(1u32);
+        ctx.view.polygon.polygon_sides[0].set_bits(0u32);
+        ctx.view.polygon.polygon_sides[1].set_bits(1u32);
         work.polygon_mode.set_bits(3u32);
-        scene.drawing.scene.polygon_textures[1]
-            .set_bits(scene.drawing.scene.polygon_textures[0].bits());
+        ctx.view.polygon.polygon_textures[1].set_bits(ctx.view.polygon.polygon_textures[0].bits());
     } else {
         work.polygon_mode.set_bits(4u32);
     }
@@ -188,10 +186,16 @@ pub fn draw_object_face_in_game(
         ctx,
         face,
         &mut |step| match step {
-            Step::Draw => draw_object_polygon(race, &ctx.view.object, &mut |step| match step {
-                draw_object_polygon::Step::Project => project_polygon(race, scene),
-                draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(ctx),
-            }),
+            Step::Draw => {
+                draw_object_polygon(&ctx.view.polygon, race, &ctx.view.object, &mut |step| {
+                    match step {
+                        draw_object_polygon::Step::Project => {
+                            project_polygon(&ctx.view.polygon, race, scene)
+                        }
+                        draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(ctx),
+                    }
+                })
+            }
             Step::DepthTestOff => {
                 Game.state(0xE, 0);
                 Ok(())

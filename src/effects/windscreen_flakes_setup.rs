@@ -48,7 +48,9 @@ pub fn setup_with(fl: &WindscreenFlakes, places: [u32; 4], scene: &crate::scene:
             VERTICES.vertices[n].u.set_bits(u);
             VERTICES.vertices[n].v.set_bits(v);
         }
-        scene.drawing.scene.polygon_vertex_count.set_bits(4u32);
+        crate::scene::polygon_work::front_end()
+            .polygon_vertex_count
+            .set_bits(4u32);
         fl.tables
             .inverse
             .set_bits(x87::reciprocal(scene.drawing.scene.farthest.bits()));

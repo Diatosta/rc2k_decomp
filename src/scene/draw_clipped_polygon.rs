@@ -41,46 +41,43 @@ pub enum Step {
 }
 
 pub fn draw_clipped_polygon(
+    poly: &crate::scene::polygon_work::PolygonWork,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
     {
-        let count: u32 = drawing.scene.polygon_vertex_count.bits();
+        let count: u32 = poly.polygon_vertex_count.bits();
         if count == 0 || count > MOST {
             return Err(BadInput("a polygon of no vertices, or of more than 256").into());
         }
-        drawing.scene.screen_clipped.set_bits(0u32);
-        drawing.scene.depth_clipped.set_bits(0u32);
-        drawing.scene.polygon_drawn.set_bits(0u32);
-        drawing
-            .scene
-            .polygon_next_record
+        poly.screen_clipped.set_bits(0u32);
+        poly.depth_clipped.set_bits(0u32);
+        poly.polygon_drawn.set_bits(0u32);
+        poly.polygon_next_record
             .set_bits(crate::scene::polygon::pool_start());
         for n in 0..count {
             crate::scene::polygon::list_cell(n as usize).set(n);
         }
         crate::scene::polygon::list_cell(count as usize).set(0u32);
-        drawing.scene.polygon_next_entry.set_bits(count);
+        poly.polygon_next_entry.set_bits(count);
         step(Step::Project)?;
-        let outside: u32 = drawing.scene.polygon_outside_count.bits();
-        if outside == drawing.scene.polygon_vertex_count.bits() {
+        let outside: u32 = poly.polygon_outside_count.bits();
+        if outside == poly.polygon_vertex_count.bits() {
             return Ok(());
         }
         step(Step::ScaleTextureCoordinates)?;
         step(Step::Fog)?;
-        if drawing.scene.polygon_outside_count.bits() != 0 {
+        if poly.polygon_outside_count.bits() != 0 {
             step(Step::ClipByDepth)?;
-            if drawing.scene.polygon_vertex_count.bits() < 3 {
+            if poly.polygon_vertex_count.bits() < 3 {
                 return Ok(());
             }
         }
         step(Step::ClipToScreen)?;
-        if drawing.scene.polygon_vertex_count.bits() < 3 {
+        if poly.polygon_vertex_count.bits() < 3 {
             return Ok(());
         }
         step(Step::Draw)?;
-        drawing.scene.polygon_drawn.set_bits(1u32);
+        poly.polygon_drawn.set_bits(1u32);
         Ok(())
     }
 }
@@ -92,31 +89,29 @@ pub fn draw_clipped_polygon_in_game(
     let (race, scene) = (ctx.race, ctx.scene);
     // The list stays as it is from the projection to the fog: listed once for the three.
     let mut entries = None;
-    draw_clipped_polygon(
-        &mut |step| {
-            match step {
-                Step::Project => {
-                    let listed = entries.insert(crate::scene::polygon::listed()?);
-                    project_entries(race, listed, scene)?;
-                }
-                Step::ScaleTextureCoordinates => match &entries {
-                    Some(listed) if !listed.is_empty() => scale_entries(listed, scene)?,
-                    _ => scale_texture_coordinates(scene)?,
-                },
-                Step::Fog => match entries.take() {
-                    Some(listed) => fog_entries(&listed, ctx.view)?,
-                    None => fog_polygon(ctx.view)?,
-                },
-                Step::ClipByDepth => clip_polygon_by_depth(race, scene, ctx.far_clip)?,
-                Step::ClipToScreen => clip_polygon_to_screen(race, scene)?,
-                Step::Draw => {
-                    draw_marked_polygon(race, &mut || {
-                        draw_polygon(race, &ctx.view.face, &mut Game, scene)
-                    })?;
-                }
+    let poly = &ctx.view.polygon;
+    draw_clipped_polygon(poly, &mut |step| {
+        match step {
+            Step::Project => {
+                let listed = entries.insert(crate::scene::polygon::listed(poly)?);
+                project_entries(poly, race, listed, scene)?;
             }
-            Ok(())
-        },
-        scene,
-    )
+            Step::ScaleTextureCoordinates => match &entries {
+                Some(listed) if !listed.is_empty() => scale_entries(poly, listed)?,
+                _ => scale_texture_coordinates(poly)?,
+            },
+            Step::Fog => match entries.take() {
+                Some(listed) => fog_entries(&listed, ctx.view)?,
+                None => fog_polygon(ctx.view)?,
+            },
+            Step::ClipByDepth => clip_polygon_by_depth(poly, race, scene, ctx.far_clip)?,
+            Step::ClipToScreen => clip_polygon_to_screen(poly, race, scene)?,
+            Step::Draw => {
+                draw_marked_polygon(race, &mut || {
+                    draw_polygon(poly, race, &ctx.view.face, &mut Game, scene)
+                })?;
+            }
+        }
+        Ok(())
+    })
 }

@@ -20,6 +20,7 @@ const FACES: u32 = 0xC000;
 // ---- Rust version ----
 
 pub fn draw_object_faces(
+    poly: &crate::scene::polygon_work::PolygonWork,
     race: &crate::race::owner::Race,
     object: &crate::scene::object_place::ObjectPlace,
     work: &crate::race::face_work::FaceWork,
@@ -47,19 +48,19 @@ pub fn draw_object_faces(
         race.shared.vars.face_number.set_bits(listed[0]);
         let head: [u8; 0xC] = crate::scene::object_faces::array(face as u32)?;
         let texture = u16::from_le_bytes([head[4], head[5]]) as u32;
-        scene.drawing.scene.polygon_textures[0].set_bits(
+        poly.polygon_textures[0].set_bits(
             texture.wrapping_add(race.physics.ground.object_texture_set.bits()) | 0x8000_0000,
         );
         race.frame.sound_spots.face_kind.set_bits(head[6] as u32);
         race.frame.sound_spots.face_unlit.set_bits(head[0xB] as u32);
         let shade = head[0xA] as u32;
-        scene.drawing.scene.polygon_colour.set_bits(if shade == 0 {
+        poly.polygon_colour.set_bits(if shade == 0 {
             0x00FF_FFFF
         } else {
             0x0001_0101 * shade
         });
         draw(face)?;
-        scene.drawing.scene.polygon_colour.set_bits(0x00FF_FFFFu32);
+        poly.polygon_colour.set_bits(0x00FF_FFFFu32);
     }
     scene.drawing.scene.faces_done.set_bits(0u32);
     Ok(())

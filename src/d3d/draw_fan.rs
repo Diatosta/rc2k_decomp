@@ -12,7 +12,7 @@
 use crate::d3d::draw_fan_unclipped::polygon;
 
 /// The fan drawn: Direct3D's result, always 0 here.
-pub fn draw_fan() -> u32 {
-    crate::platform_3d::draw_fan(&polygon());
+pub fn draw_fan(poly: &crate::scene::polygon_work::PolygonWork) -> u32 {
+    crate::platform_3d::draw_fan(&polygon(poly));
     0
 }

@@ -6,14 +6,17 @@
 //! Callers: `scene::choose_texture` (0x44CCB8), `race::flush_texture_batch`.
 
 /// The Rust version: what it leaves in eax.
-pub fn look_up_texture(scene: &crate::scene::owner::Scene) -> u32 {
+pub fn look_up_texture(
+    poly: &crate::scene::polygon_work::PolygonWork,
+    scene: &crate::scene::owner::Scene,
+) -> u32 {
     // Converted: `rc2k_core::scene::textures::look_up`.
     let found = rc2k_core::scene::textures::look_up(
-        scene.drawing.scene.texture_page.bits(),
+        poly.texture_page.bits(),
         |p| scene.textures.places.place_slot[p].get(),
         |k| scene.textures.kinds.kind_first_slots[k].get(),
         || scene.textures.places.totals[2].get(),
     );
-    scene.drawing.scene.polygon_texture.set_bits(found.texture);
+    poly.polygon_texture.set_bits(found.texture);
     found.eax
 }

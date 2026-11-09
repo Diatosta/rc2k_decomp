@@ -10,13 +10,12 @@
 
 use crate::d3d::Vertex;
 use crate::d3d::vertices_store::VERTICES;
-use crate::scene::owner::scene;
 
 /// The polygon as it stands in the buffer (the store's `TLVertex[64]`). More vertices than
 /// the buffer holds is a count gone wrong (the original reads on past it, into other
 /// variables): a refusal.
-pub fn polygon() -> smallvec::SmallVec<[Vertex; 6]> {
-    let count = scene().drawing.scene.polygon_vertex_count.bits() as usize;
+pub fn polygon(poly: &crate::scene::polygon_work::PolygonWork) -> smallvec::SmallVec<[Vertex; 6]> {
+    let count = poly.polygon_vertex_count.bits() as usize;
     let vertices = &VERTICES.vertices;
     if count > vertices.len() {
         crate::framework::log(&format!(
@@ -46,7 +45,7 @@ pub fn polygon() -> smallvec::SmallVec<[Vertex; 6]> {
 }
 
 /// The fan drawn: Direct3D's result, always 0 here.
-pub fn draw_fan_unclipped() -> u32 {
-    crate::platform_3d::draw_fan(&polygon());
+pub fn draw_fan_unclipped(poly: &crate::scene::polygon_work::PolygonWork) -> u32 {
+    crate::platform_3d::draw_fan(&polygon(poly));
     0
 }

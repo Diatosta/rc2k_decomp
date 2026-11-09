@@ -170,7 +170,7 @@ pub fn list_object_face(
     list: &mut FaceList,
     marks: &crate::scene::car_marks::CarMarks,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     if face == 0 {
         return Err(BadInput("no face").into());
     }
@@ -200,16 +200,16 @@ pub fn list_object_face(
     if count as i32 <= 0 {
         return Ok(());
     }
-    scene.drawing.scene.polygon_vertex_count.set_bits(count);
-    scene.drawing.scene.face_sort_key.set_bits(0u32);
-    face_sort_key(&race.course, face, count, scene)?;
+    ctx.view.polygon.polygon_vertex_count.set_bits(count);
+    ctx.view.polygon.face_sort_key.set_bits(0u32);
+    face_sort_key(&ctx.view.polygon, &race.course, face, count)?;
     // The original's room was 0x1000 entries but its list 0x400 long, the rest written over
     // the next tables (fixed: `wiki/Fixed-bugs.md`).
-    let key = listed_key(bytes, scene.drawing.scene.face_sort_key.bits());
+    let key = listed_key(bytes, ctx.view.polygon.face_sort_key.bits());
     list.push([
         ctx.view.face.face_number.bits(),
         key,
-        scene.drawing.scene.entry_third.bits(),
+        ctx.view.polygon.entry_third.bits(),
         ctx.view.object.see_through.bits(),
     ]);
     Ok(())

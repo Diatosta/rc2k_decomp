@@ -154,7 +154,9 @@ pub fn draw_snow(
                 if !clip_quad(scene, effects)? {
                     draw_fan();
                     snow.drawn.set(snow.drawn.get().wrapping_add(1));
-                    scene.drawing.scene.polygon_vertex_count.set_bits(4u32);
+                    crate::scene::polygon_work::front_end()
+                        .polygon_vertex_count
+                        .set_bits(4u32);
                 }
             }
         }

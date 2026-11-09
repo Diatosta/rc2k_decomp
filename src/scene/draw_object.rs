@@ -99,6 +99,7 @@ pub fn draw_object_in_game(
             Step::Sort => sort_listed_faces(&mut faces)?,
             Step::Faces => {
                 draw_object_faces(
+                    &ctx.view.polygon,
                     race,
                     &ctx.view.object,
                     &ctx.view.face,

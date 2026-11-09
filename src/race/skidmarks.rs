@@ -119,7 +119,6 @@ fn turn_skid_point(
 /// met with four vertices).
 pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
-    let drawing = &scene.drawing;
     let frame = &race.frame;
     let mut views = u32::MAX;
     let mode: u32 = race.shared.vars.run_kind.get();
@@ -146,8 +145,8 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
         e.amount.set(0x60);
         e.fog.set(0);
     }
-    drawing.scene.polygon_textures[0].set(0xC0u32);
-    drawing.scene.polygon_textures[1].set(0xC0u32);
+    ctx.view.polygon.polygon_textures[0].set(0xC0u32);
+    ctx.view.polygon.polygon_textures[1].set(0xC0u32);
     let matrix: [u32; 15] = crate::math::cells::load(&frame.matrices.view_matrix);
     // The last quad's two points (its link's number and the points as turned): a skidmark's
     // next quad has them as its two before, and nothing it is drawn with changes what they
@@ -191,9 +190,9 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
             }
         }
         last = Some((n, first, second));
-        drawing.scene.polygon_vertex_count.set(4u32);
-        drawing
-            .scene
+        ctx.view.polygon.polygon_vertex_count.set(4u32);
+        ctx.view
+            .polygon
             .polygon_next_record
             .set(crate::scene::polygon::pool_start());
         let list = &crate::scene::polygon_store::POLYGON_WORK.list;
@@ -201,27 +200,41 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
             list[k as usize].set(k);
         }
         list[4].set(0);
-        drawing.scene.polygon_next_entry.set(4u32);
+        ctx.view.polygon.polygon_next_entry.set(4u32);
         crate::scene::fog_polygon::fog_polygon(ctx.view)?;
-        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(race, scene, ctx.far_clip)?;
+        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(
+            &ctx.view.polygon,
+            race,
+            scene,
+            ctx.far_clip,
+        )?;
         // Each quad inside the original's `pusha` .. `popa`; the depth test's switches
         // and the polygon's drawing read no register.
-        if drawing.scene.polygon_vertex_count.get() < 3 {
+        if ctx.view.polygon.polygon_vertex_count.get() < 3 {
             continue;
         }
-        crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(race, scene)?;
-        if drawing.scene.polygon_vertex_count.get() >= 3 {
-            drawing.scene.polygon_colour.set(0u32);
+        crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(
+            &ctx.view.polygon,
+            race,
+            scene,
+        )?;
+        if ctx.view.polygon.polygon_vertex_count.get() >= 3 {
+            ctx.view.polygon.polygon_colour.set(0u32);
             crate::scene::depth_test_off::depth_test_off();
             ctx.view.face.polygon_mode.set(3u32);
-            drawing.scene.polygon_sides[0].set(0u32);
-            drawing.scene.polygon_sides[1].set(1u32);
-            crate::scene::draw_polygon::draw_polygon_in_game(race, &ctx.view.face, scene)?;
+            ctx.view.polygon.polygon_sides[0].set(0u32);
+            ctx.view.polygon.polygon_sides[1].set(1u32);
+            crate::scene::draw_polygon::draw_polygon_in_game(
+                &ctx.view.polygon,
+                race,
+                &ctx.view.face,
+                scene,
+            )?;
             ctx.view.face.polygon_mode.set(0u32);
-            drawing.scene.polygon_drawn.set(1u32);
+            ctx.view.polygon.polygon_drawn.set(1u32);
             crate::scene::depth_test_on::depth_test_on();
         }
-        drawing.scene.polygon_colour.set(0x00FF_FFFFu32);
+        ctx.view.polygon.polygon_colour.set(0x00FF_FFFFu32);
     }
     Ok(())
 }

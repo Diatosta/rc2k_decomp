@@ -46,8 +46,10 @@ pub enum Edge {
 }
 
 /// The polygon's entries, each with its record.
-pub fn listed_with_records() -> Result<crate::scene::polygon::Listed, BadInput> {
-    let entries = { listed() }?;
+pub fn listed_with_records(
+    poly: &crate::scene::polygon_work::PolygonWork,
+) -> Result<crate::scene::polygon::Listed, BadInput> {
+    let entries = listed(poly)?;
     if entries.is_empty() {
         return Err(BadInput("a polygon of no vertices"));
     }
@@ -84,6 +86,7 @@ fn put_bytes(w: &mut Work, at: usize, bytes: &[u8]) {
 /// what the screen's passes keep in `dword_624008`. Returns the entry's number; the
 /// caller lists it and counts `dword_624114` on.
 fn cut(
+    poly: &crate::scene::polygon_work::PolygonWork,
     course: &crate::race::owner_course::Course,
     edge: Edge,
     a: &PolygonEntry,
@@ -91,12 +94,12 @@ fn cut(
     mask: u32,
 ) -> Result<u32, BadInput> {
     let drawing = &scene().drawing;
-    let number: u32 = drawing.scene.polygon_next_entry.bits();
+    let number: u32 = poly.polygon_next_entry.bits();
     if number >= ENTRIES {
         return Err(BadInput("no entry left for a new vertex"));
     }
     // the pool's next record (its number: `scene::point_records::of_pool`)
-    let record: u32 = drawing.scene.polygon_next_record.bits();
+    let record: u32 = poly.polygon_next_record.bits();
     if record == 0 {
         return Err(BadInput("no pool of records"));
     }
@@ -114,19 +117,19 @@ fn cut(
             w[bytes_at / 4 + k] = u32::from(entry.byte(at));
         }
     }
-    let out_1 = crate::session::read_bits(&drawing.scene.clip_work);
-    let out_2 = crate::session::read_bits(&drawing.scene.clip_work_2);
+    let out_1 = crate::session::read_bits(&poly.clip_work);
+    let out_2 = crate::session::read_bits(&poly.clip_work_2);
     w[OUT_1 / 4..OUT_1 / 4 + 12].copy_from_slice(&out_1);
     w[OUT_2 / 4..OUT_2 / 4 + 5].copy_from_slice(&out_2);
-    w[PLANE / 4] = drawing.scene.clip_plane.bits();
+    w[PLANE / 4] = poly.clip_plane.bits();
     match edge {
         Edge::X(at) => {
-            drawing.scene.clip_kept_mask.set_bits(mask);
+            poly.clip_kept_mask.set_bits(mask);
             w[OUT_1 / 4] = at;
             cut_at_x(&mut w);
         }
         Edge::Y(at) => {
-            drawing.scene.clip_kept_mask.set_bits(mask);
+            poly.clip_kept_mask.set_bits(mask);
             w[OUT_1 / 4 + 1] = at;
             cut_at_y(&mut w);
         }
@@ -153,13 +156,10 @@ fn cut(
     }
     let out_1: [u32; 12] = w[OUT_1 / 4..OUT_1 / 4 + 12].try_into().expect("12 dwords");
     let out_2: [u32; 5] = w[OUT_2 / 4..OUT_2 / 4 + 5].try_into().expect("5 dwords");
-    crate::session::write_bits(&drawing.scene.clip_work, out_1);
-    crate::session::write_bits(&drawing.scene.clip_work_2, out_2);
+    crate::session::write_bits(&poly.clip_work, out_1);
+    crate::session::write_bits(&poly.clip_work_2, out_2);
 
-    drawing
-        .scene
-        .polygon_next_record
-        .set_bits(record.wrapping_add(1));
+    poly.polygon_next_record.set_bits(record.wrapping_add(1));
     new.record.set(record);
     if !matches!(edge, Edge::Depth(_)) {
         made[..3].copy_from_slice(&out_1[5..8]);
@@ -185,17 +185,16 @@ fn cut(
 /// `listed_with_records` gives them, when the caller has them already. Returns them again
 /// when the pass kept every vertex (the list is as it was), else `None`.
 pub fn clip_pass(
+    poly: &crate::scene::polygon_work::PolygonWork,
     course: &crate::race::owner_course::Course,
     listed: Option<crate::scene::polygon::Listed>,
     edge: Edge,
     inside_past: bool,
     mask: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<Option<crate::scene::polygon::Listed>, BadInput> {
-    let drawing = &scene.drawing;
     let entries = match listed {
         Some(entries) => entries,
-        None => listed_with_records()?,
+        None => listed_with_records(poly)?,
     };
     let count = entries.len();
     let numbers: smallvec::SmallVec<[u32; 32]> = (0..count)
@@ -230,13 +229,13 @@ pub fn clip_pass(
             out += 1;
         }
         if a_inside != b_inside {
-            let number = cut(course, edge, a, b, mask)?;
+            let number = cut(poly, course, edge, a, b, mask)?;
             crate::scene::polygon::list_cell(out).set(number);
-            drawing.scene.polygon_next_entry.set_bits(number + 1);
+            poly.polygon_next_entry.set_bits(number + 1);
             out += 1;
         }
     }
-    drawing.scene.polygon_vertex_count.set_bits(out as u32);
+    poly.polygon_vertex_count.set_bits(out as u32);
     Ok(None)
 }
 

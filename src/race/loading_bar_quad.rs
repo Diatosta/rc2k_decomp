@@ -11,7 +11,7 @@ use crate::race::owner::Race;
 /// The Rust version (see the header).
 pub fn loading_bar_quad(
     race: &Race,
-    scene: &crate::scene::owner::Scene,
+    _scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
@@ -26,9 +26,12 @@ pub fn loading_bar_quad(
     shared.vars.quad_corners[4].set(bar.top);
     shared.vars.quad_corners[5].set(bar.bottom);
     shared.vars.quad_corners[1].set(bar.right);
-    scene.drawing.scene.texture_page.set_bits(0xFFFF_FFFFu32);
+    crate::scene::polygon_work::front_end()
+        .texture_page
+        .set_bits(0xFFFF_FFFFu32);
     // `draw_screen_quad` reads no register it is given.
     crate::race::frame_draw::draw_screen_quad(
+        crate::scene::polygon_work::front_end(),
         race,
         &crate::race::view_scratch::front_end().face,
         crate::scene::owner::scene(),

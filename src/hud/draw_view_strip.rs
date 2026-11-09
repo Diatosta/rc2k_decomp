@@ -55,20 +55,20 @@ fn quad(
 ) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
     let shared = &race.shared;
-    let drawing = &scene.drawing;
     let course = &race.course;
     let sizes: [u32; 4] = std::array::from_fn(|n| gfx().strips.sizes[n].get());
     for (o, v) in strips::quad_inputs(left, width, &sizes, rows) {
         quad_input(shared, o).set_bits(v);
     }
     if let Some(t) = texture {
-        drawing.scene.polygon_textures[0].set_bits(t);
+        crate::scene::polygon_work::front_end().polygon_textures[0].set_bits(t);
     }
-    drawing.scene.polygon_alpha.set_bits(0xFF);
+    scene.drawing.scene.polygon_alpha.set_bits(0xFF);
     quad_input(shared, 0).set_bits(0xFFFF_FFFF);
-    drawing.scene.polygon_sides[0].set_bits(1);
-    drawing.scene.polygon_sides[1].set_bits(0);
+    crate::scene::polygon_work::front_end().polygon_sides[0].set_bits(1);
+    crate::scene::polygon_work::front_end().polygon_sides[1].set_bits(0);
     crate::scene::draw_flat_quad::draw_flat_quad(
+        crate::scene::polygon_work::front_end(),
         race,
         &crate::race::view_scratch::front_end().face,
         course,

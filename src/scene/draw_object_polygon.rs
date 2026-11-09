@@ -61,25 +61,23 @@ fn needs_clipping(
 
 // Converted: `rc2k_core::scene::polygons`
 pub fn draw_object_polygon(
+    poly: &crate::scene::polygon_work::PolygonWork,
     race: &crate::race::owner::Race,
     object: &crate::scene::object_place::ObjectPlace,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
-    let drawing = &scene.drawing;
     use rc2k_core::scene::polygons::{drawn_whole, fan, first_list, fits};
-    let count: u32 = drawing.scene.polygon_vertex_count.bits();
+    let count: u32 = poly.polygon_vertex_count.bits();
     if !fits(count) {
         return Err(BadInput("a polygon of no vertices, or of more than 64").into());
     }
-    drawing
-        .scene
-        .polygon_next_record
+    poly.polygon_next_record
         .set_bits(crate::scene::polygon::pool_start());
     for (n, number) in first_list(count).into_iter().enumerate() {
         crate::scene::polygon::list_cell(n).set(number);
     }
-    drawing.scene.polygon_next_entry.set_bits(count);
+    poly.polygon_next_entry.set_bits(count);
     step(Step::Project)?;
     if drawn_whole(count, needs_clipping(&race.course, count, scene)?) {
         object
@@ -97,14 +95,14 @@ pub fn draw_object_polygon(
     for (to, from) in kept.iter().zip(&entries[..count as usize]) {
         to.copy_from(from);
     }
-    drawing.scene.polygon_vertex_count.set_bits(3u32);
+    poly.polygon_vertex_count.set_bits(3u32);
     step(Step::Draw)?;
-    drawing.scene.polygon_vertex_count.set_bits(count);
+    poly.polygon_vertex_count.set_bits(count);
     for triangle in fan(count) {
         for (to, from) in triangle.into_iter().enumerate() {
             entries[to].copy_from(&kept[from]);
         }
-        drawing.scene.polygon_vertex_count.set_bits(3u32);
+        poly.polygon_vertex_count.set_bits(3u32);
         step(Step::Draw)?;
     }
     Ok(())

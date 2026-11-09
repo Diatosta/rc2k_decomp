@@ -9,7 +9,7 @@ use crate::session::{Dword, Float};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SceneDraw {
-    /// +0x0 (0x623F80): `scene::clip`'s work (`flt_623F80` ..); `race::car_shadow` keeps a vertex's pieces in [2], [4], [10], [11].
+    /// +0x0 (0x623F80): `scene::clip`'s work (`flt_623F80` ..); `race::car_shadow` keeps a vertex's pieces in [2], [4], [10], [11]; now each view's (`scene::polygon_work`); unused.
     pub clip_work: [Float; 12],
     /// +0x30 (0x623FB0): the view window's offsets x, y (`scene::set_view_window`; the menus and `race::frame_views` set them).
     pub view_offset: [Dword; 2],
@@ -31,7 +31,7 @@ pub struct SceneDraw {
     pub fog_colour: Dword,
     /// +0x84 (0x624004): not named.
     pub unknown_84: Dword,
-    /// +0x88 (0x624008): the clip's kept mask (`scene::clip`).
+    /// +0x88 (0x624008): the clip's kept mask (`scene::clip`); now each view's (`scene::polygon_work`); unused.
     pub clip_kept_mask: Dword,
     /// +0x8c (0x62400C): the x87 code's shared work dword (IDA `g_scratch`): every converted helper that stored to it still does.
     pub scratch: Dword,
@@ -47,7 +47,7 @@ pub struct SceneDraw {
     pub surface_point: [Dword; 3],
     /// +0xcc (0x62404C): not named.
     pub unknown_cc: [Dword; 12],
-    /// +0xfc (0x62407C): `g_faceSortKey` (`scene::face_sort_key`).
+    /// +0xfc (0x62407C): `g_faceSortKey` (`scene::face_sort_key`); now each view's (`scene::polygon_work`); unused.
     pub face_sort_key: Dword,
     /// +0x100 (0x624080): the view's zoom, a whole number (0x100; the menus set it), in the scale.
     pub view_zoom: Dword,
@@ -61,53 +61,53 @@ pub struct SceneDraw {
     pub view_middle: [Dword; 2],
     /// +0x11c (0x62409C): the middle as floats (`scene::project_point`'s centre; `draw_polygon`'s mirror).
     pub view_centre: [Float; 2],
-    /// +0x124 (0x6240A4): `g_polygonNextRecord`.
+    /// +0x124 (0x6240A4): `g_polygonNextRecord`; now each view's (`scene::polygon_work`); unused.
     pub polygon_next_record: Dword,
     /// +0x128 (0x6240A8): `g_lightDirection` (`scene::vertex_light`).
     pub light_direction: [Float; 3],
     /// +0x134 (0x6240B4): not named.
     pub unknown_134: [Dword; 2],
-    /// +0x13c (0x6240BC): the polygon's two texture words (`scene::draw_polygon`).
+    /// +0x13c (0x6240BC): the polygon's two texture words (`scene::draw_polygon`); now each view's (`scene::polygon_work`); unused.
     pub polygon_textures: [Dword; 2],
-    /// +0x144 (0x6240C4): the texture page ("tpage"; `scene::look_up_texture`; the loading bar's switch).
+    /// +0x144 (0x6240C4): the texture page ("tpage"; `scene::look_up_texture`; the loading bar's switch); now each view's (`scene::polygon_work`); unused.
     pub texture_page: Dword,
     /// +0x148 (0x6240C8): not named.
     pub unknown_148: Dword,
-    /// +0x14c (0x6240CC): `g_polygonColour`.
+    /// +0x14c (0x6240CC): `g_polygonColour`; now each view's (`scene::polygon_work`); unused.
     pub polygon_colour: Dword,
-    /// +0x150 (0x6240D0): `g_polygonAlpha`.
+    /// +0x150 (0x6240D0): `g_polygonAlpha` (set by `hud::draw_view_strip` only, read by every view).
     pub polygon_alpha: Dword,
-    /// +0x154 (0x6240D4): `g_polygonTexture`.
+    /// +0x154 (0x6240D4): `g_polygonTexture`; now each view's (`scene::polygon_work`); unused.
     pub polygon_texture: Dword,
-    /// +0x158 (0x6240D8): `g_faceShine` (`scene::draw_object_face`).
+    /// +0x158 (0x6240D8): `g_faceShine` (`scene::draw_object_face`); now each view's (`scene::polygon_work`); unused.
     pub face_shine: Dword,
-    /// +0x15c (0x6240DC): a face's word (`scene::draw_object_face`).
+    /// +0x15c (0x6240DC): a face's word (`scene::draw_object_face`); now each view's (`scene::polygon_work`); unused.
     pub face_word: Dword,
-    /// +0x160 (0x6240E0): the polygon's two side switches (`scene::draw_polygon`, the quads).
+    /// +0x160 (0x6240E0): the polygon's two side switches (`scene::draw_polygon`, the quads); now each view's (`scene::polygon_work`); unused.
     pub polygon_sides: [Dword; 2],
-    /// +0x168 (0x6240E8): kept by `scene::draw_polygon`.
+    /// +0x168 (0x6240E8): kept by `scene::draw_polygon`; now each view's (`scene::polygon_work`); unused.
     pub polygon_kept: [Dword; 3],
-    /// +0x174 (0x6240F4): `g_polygonOutsideCount`.
+    /// +0x174 (0x6240F4): `g_polygonOutsideCount`; now each view's (`scene::polygon_work`); unused.
     pub polygon_outside_count: Dword,
-    /// +0x178 (0x6240F8): `g_polygonVertexCount`.
+    /// +0x178 (0x6240F8): `g_polygonVertexCount`; now each view's (`scene::polygon_work`); unused.
     pub polygon_vertex_count: Dword,
     /// +0x17c (0x6240FC): not named.
     pub unknown_17c: [Dword; 6],
-    /// +0x194 (0x624114): `g_polygonNextEntry`.
+    /// +0x194 (0x624114): `g_polygonNextEntry`; now each view's (`scene::polygon_work`); unused.
     pub polygon_next_entry: Dword,
-    /// +0x198 (0x624118): `g_polygonClipMask` ("cuttest").
+    /// +0x198 (0x624118): `g_polygonClipMask` ("cuttest"); now each view's (`scene::polygon_work`); unused.
     pub polygon_clip_mask: Dword,
-    /// +0x19c (0x62411C): the clip's plane (`scene::clip`).
+    /// +0x19c (0x62411C): the clip's plane (`scene::clip`); now each view's (`scene::polygon_work`); unused.
     pub clip_plane: Dword,
-    /// +0x1a0 (0x624120): clipped by the screen ("donesuth").
+    /// +0x1a0 (0x624120): clipped by the screen ("donesuth"); now each view's (`scene::polygon_work`); unused.
     pub screen_clipped: Dword,
-    /// +0x1a4 (0x624124): clipped by depth ("donezcut").
+    /// +0x1a4 (0x624124): clipped by depth ("donezcut"); now each view's (`scene::polygon_work`); unused.
     pub depth_clipped: Dword,
     /// +0x1a8 (0x624128): not named.
     pub unknown_1a8: [Dword; 2],
-    /// +0x1b0 (0x624130): a list entry's third word (`scene::list_object_face`).
+    /// +0x1b0 (0x624130): a list entry's third word (`scene::list_object_face`); now each view's (`scene::polygon_work`); unused.
     pub entry_third: Dword,
-    /// +0x1b4 (0x624134): `g_polygonDrawn`.
+    /// +0x1b4 (0x624134): `g_polygonDrawn`; now each view's (`scene::polygon_work`); unused.
     pub polygon_drawn: Dword,
     /// +0x1b8 (0x624138): the rectangle to clear: left, top, right, bottom (`race::frame_views`).
     pub cleared_rectangle: [Dword; 4],
@@ -123,7 +123,7 @@ pub struct SceneDraw {
     pub vertex_byte_21: Dword,
     /// +0x220 (0x6241A0): not named.
     pub unknown_220: [Dword; 3],
-    /// +0x22c (0x6241AC): `scene::clip`'s second work run; `race::car_shadow` keeps a vertex's byte +0x20 in [0].
+    /// +0x22c (0x6241AC): `scene::clip`'s second work run; `race::car_shadow` keeps a vertex's byte +0x20 in [0]; now each view's (`scene::polygon_work`); unused.
     pub clip_work_2: [Dword; 5],
     /// +0x240 (0x6241C0): not named.
     pub unknown_240: [Dword; 2],

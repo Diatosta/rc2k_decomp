@@ -117,6 +117,7 @@ pub mod place_object_points;
 pub mod point_records;
 pub mod polygon;
 pub mod polygon_store;
+pub mod polygon_work;
 pub mod prepare_menu_scene;
 pub mod present_frame;
 pub mod project_point;

@@ -36,7 +36,7 @@ pub trait Outside {
     /// `d3d::draw_fan_unclipped`: Direct3D's result.
     fn draw_fan(&mut self, vertices: &[Vertex]) -> u32;
     /// A vertex is off the screen: "Error" to the log and `scene::show_bad_polygon`.
-    fn bad_vertex(&mut self);
+    fn bad_vertex(&mut self, poly: &crate::scene::polygon_work::PolygonWork);
     /// Direct3D did not draw: "drawtri" and its result to the log.
     fn not_drawn(&mut self, result: u32);
 }
@@ -53,12 +53,12 @@ pub fn vertices_fit(vertices: &[Vertex], width: u32, height: u32) -> bool {
         .all(|v| fits(v[0], width as f64) && fits(v[1], height as f64) && fits(v[2], 1.0))
 }
 
-pub fn submit_polygon(outside: &mut dyn Outside) {
+pub fn submit_polygon(poly: &crate::scene::polygon_work::PolygonWork, outside: &mut dyn Outside) {
     let system = crate::system::owner::system();
     let session = &system.session;
     let scene = scene();
     let has_3d = scene.objects.tables.has_3d.get() != 0;
-    let texture: u32 = scene.drawing.scene.polygon_texture.bits();
+    let texture: u32 = poly.polygon_texture.bits();
     if texture == NO_TEXTURE {
         if has_3d {
             outside.set_texture(NO_TEXTURE);
@@ -69,13 +69,13 @@ pub fn submit_polygon(outside: &mut dyn Outside) {
             outside.set_texture(texture);
         }
     }
-    let vertices = polygon();
+    let vertices = polygon(poly);
     if !vertices_fit(
         &vertices,
         session.screen.width.get(),
         session.screen.height.get(),
     ) {
-        outside.bad_vertex();
+        outside.bad_vertex(poly);
         return;
     }
     if has_3d {
@@ -98,10 +98,10 @@ impl Outside for Game {
         crate::platform_3d::draw_fan(vertices);
         0
     }
-    fn bad_vertex(&mut self) {
+    fn bad_vertex(&mut self, poly: &crate::scene::polygon_work::PolygonWork) {
         let scene = crate::scene::owner::scene();
         crate::logfile::log_write::log_nul(&ERROR_TEXT, true, 1);
-        if let Err(e) = crate::scene::show_bad_polygon::show_bad_polygon(scene) {
+        if let Err(e) = crate::scene::show_bad_polygon::show_bad_polygon(poly, scene) {
             crate::fatal::raise::end("scene::show_bad_polygon", e);
         }
     }

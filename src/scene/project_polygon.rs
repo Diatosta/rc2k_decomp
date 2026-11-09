@@ -20,12 +20,17 @@ use crate::scene::project_point::{NEAR, project_point};
 
 // ---- Rust version ----
 
-pub fn project_polygon(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    project_entries(race, &listed()?, scene)
+pub fn project_polygon(
+    poly: &crate::scene::polygon_work::PolygonWork,
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    project_entries(poly, race, &listed(poly)?, scene)
 }
 
 /// `project_polygon` on the polygon's entries as listed.
 pub fn project_entries(
+    poly: &crate::scene::polygon_work::PolygonWork,
     race: &Race,
     entries: &Listed,
     scene: &crate::scene::owner::Scene,
@@ -60,6 +65,6 @@ pub fn project_entries(
             outside += 1;
         }
     }
-    drawing.scene.polygon_outside_count.set_bits(outside);
+    poly.polygon_outside_count.set_bits(outside);
     Ok(())
 }

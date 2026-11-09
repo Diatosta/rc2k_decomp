@@ -17,7 +17,6 @@ use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::race::owner_frame::Frame;
-use crate::scene::owner::scene;
 use crate::system::owner::system;
 
 /// The Rust version (see the header). What the original leaves in eax, ecx, esi and edi
@@ -29,7 +28,9 @@ pub fn add_polygon(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     use rc2k_core::hud::batch::{self, MOST_VERTICES};
     use rc2k_core::hud::quads::screen_scaled;
     {
-        let count: u32 = scene().drawing.scene.polygon_vertex_count.bits();
+        let count: u32 = crate::scene::polygon_work::front_end()
+            .polygon_vertex_count
+            .bits();
         let texture = hud.block.texture.get();
         let vertices = hud.block.vertex_count.get();
         let flushes = if count == 0 || count > MOST_VERTICES {

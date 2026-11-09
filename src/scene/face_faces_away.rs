@@ -81,12 +81,11 @@ pub fn face_faces_away(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     face: usize,
 ) -> Result<bool, Refused> {
-    let scene = ctx.scene;
     if face == 0 || !crate::scene::point_records::held() {
         return Err(BadInput("no face or no records").into());
     }
     let count: u32 = crate::scene::object_faces::word(face as u32)?;
-    scene.drawing.scene.polygon_vertex_count.set_bits(count);
+    ctx.view.polygon.polygon_vertex_count.set_bits(count);
     if count < 3 {
         return Ok(true);
     }

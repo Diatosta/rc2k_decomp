@@ -101,7 +101,9 @@ pub fn run_rain(
             v.u.set_bits(0);
             v.v.set_bits(0);
         }
-        scene.drawing.scene.polygon_vertex_count.set_bits(4u32);
+        crate::scene::polygon_work::front_end()
+            .polygon_vertex_count
+            .set_bits(4u32);
         if setup.kind_floats.running.bits() != 0 {
             crate::effects::drift_offsets::drift_offsets(race, weather, effects);
         }

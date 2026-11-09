@@ -8,7 +8,8 @@
 //! and their counts (the original's `RACE_VIEW.depth_entry_count` / `sort_entry_count`), and
 //! the view's fog (`scene::fog`), its object's placing (`scene::object_place`) and its
 //! object lighting (`scene::object_light`), its face work (`race::face_work`), its cars'
-//! drawing state (`race::car_draw_state`) and its matrices (`scene::view_matrices`).
+//! drawing state (`race::car_draw_state`), its matrices (`scene::view_matrices`) and its
+//! polygon pipeline's work (`scene::polygon_work`).
 
 use crate::errors::BadInput;
 use crate::session::Dword;
@@ -91,6 +92,8 @@ pub struct ViewScratch {
     pub cars: crate::race::car_draw_state::CarDrawState,
     /// The view's matrices and turning work (`scene::view_matrices`).
     pub matrices: crate::scene::view_matrices::ViewMatrices,
+    /// The polygon pipeline's working values (`scene::polygon_work`).
+    pub polygon: crate::scene::polygon_work::PolygonWork,
 }
 
 impl ViewScratch {
@@ -103,6 +106,7 @@ impl ViewScratch {
             face: crate::race::face_work::FaceWork::new(),
             cars: crate::race::car_draw_state::CarDrawState::new(),
             matrices: crate::scene::view_matrices::ViewMatrices::new(),
+            polygon: crate::scene::polygon_work::PolygonWork::new(),
         }
     }
 }

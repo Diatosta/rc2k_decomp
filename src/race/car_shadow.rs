@@ -282,6 +282,7 @@ fn inside_edge(work: &ShadowWork, n: u32) -> Result<bool, BadInput> {
 /// shared the same way between the scene points numbered `pa`, `pb` and the entries `ea`, `eb`;
 /// The original's store of the share's bits to `g_scratch` is not kept (nothing read it).
 fn crossing_block(
+    poly: &crate::scene::polygon_work::PolygonWork,
     work: &ShadowWork,
     pa: u32,
     pb: u32,
@@ -304,11 +305,11 @@ fn crossing_block(
             int(a as i32) + (int(b as i32) - int(a as i32)) * share,
         ))
     };
-    drawing.scene.clip_work[2].set_bits(whole(0)? as u32);
-    drawing.scene.clip_work[4].set_bits(whole(2)? as u32);
+    poly.clip_work[2].set_bits(whole(0)? as u32);
+    poly.clip_work[4].set_bits(whole(2)? as u32);
     let float = |a: &Dword, b: &Dword| st(ld(a.get()) + (ld(b.get()) - ld(a.get())) * share);
-    drawing.scene.clip_work[10].set_bits(float(&ea.u2, &eb.u2));
-    drawing.scene.clip_work[11].set_bits(float(&ea.v2, &eb.v2));
+    poly.clip_work[10].set_bits(float(&ea.u2, &eb.u2));
+    poly.clip_work[11].set_bits(float(&ea.v2, &eb.v2));
     let byte = |a: &Byte, b: &Byte| {
         let (a, b) = (int(a.get().into()), int(b.get().into()));
         to_int(a + (b - a) * share) as u32
@@ -317,7 +318,7 @@ fn crossing_block(
         .scene
         .vertex_byte_21
         .set(byte(&ea.amount, &eb.amount));
-    drawing.scene.clip_work_2[0].set(byte(&ea.fog, &eb.fog));
+    poly.clip_work_2[0].set(byte(&ea.fog, &eb.fog));
     Ok(())
 }
 
@@ -354,17 +355,17 @@ fn edge_crossing(
     w[11].set(rd(&w[4]).wrapping_sub(rd(&w[6])));
     w[12].set(rd(&w[1]).wrapping_sub(rd(&w[2])));
     w[13].set(rd(&w[5]).wrapping_sub(rd(&w[6])));
-    crossing_block(work, pa, pb, ea, eb, scene)?;
+    crossing_block(&ctx.view.polygon, work, pa, pb, ea, eb, scene)?;
     let n = rd(&work.next_point);
-    put_point_word(&race.course, n, 0, drawing.scene.clip_work[2].bits())?;
+    put_point_word(&race.course, n, 0, ctx.view.polygon.clip_work[2].bits())?;
     put_point_word(&race.course, n, 1, 0)?;
-    put_point_word(&race.course, n, 2, drawing.scene.clip_work[4].bits())?;
+    put_point_word(&race.course, n, 2, ctx.view.polygon.clip_work[4].bits())?;
     ed.point.set(n);
     work.next_point.set(n.wrapping_add(1));
-    ed.u2.set(drawing.scene.clip_work[10].bits());
-    ed.v2.set(drawing.scene.clip_work[11].bits());
+    ed.u2.set(ctx.view.polygon.clip_work[10].bits());
+    ed.v2.set(ctx.view.polygon.clip_work[11].bits());
     ed.amount.set(rd(&drawing.scene.vertex_byte_21) as u8);
-    ed.fog.set(rd(&drawing.scene.clip_work_2[0]) as u8);
+    ed.fog.set(rd(&ctx.view.polygon.clip_work_2[0]) as u8);
     Ok(())
 }
 
@@ -376,9 +377,8 @@ fn clip_to_edge(
     from: u32,
     to: u32,
 ) -> Result<(), BadInput> {
-    let (race, scene) = (ctx.race, ctx.scene);
-    let drawing = &scene.drawing;
-    let count: u32 = drawing.scene.polygon_vertex_count.bits();
+    let race = ctx.race;
+    let count: u32 = ctx.view.polygon.polygon_vertex_count.bits();
     if count < 3 {
         return Ok(());
     }
@@ -432,14 +432,14 @@ fn clip_to_edge(
             })
         },
         |a, b| {
-            let next: u32 = drawing.scene.polygon_next_entry.bits();
+            let next: u32 = ctx.view.polygon.polygon_next_entry.bits();
             let crossing =
                 (|| edge_crossing(ctx, work, work_entry(a)?, work_entry(b)?, work_entry(next)?))();
             if let Err(err) = crossing {
                 trap.keep(err);
             }
-            drawing
-                .scene
+            ctx.view
+                .polygon
                 .polygon_next_entry
                 .set_bits(next.wrapping_add(1));
             next
@@ -458,7 +458,7 @@ fn clip_to_edge(
         },
     );
     trap.finish()?;
-    drawing.scene.polygon_vertex_count.set_bits(added);
+    ctx.view.polygon.polygon_vertex_count.set_bits(added);
     Ok(())
 }
 
@@ -472,8 +472,6 @@ pub fn clip_shadow_to_face(
     work: &ShadowWork,
     car: &Car,
 ) -> Result<(), BadInput> {
-    let scene = ctx.scene;
-    let drawing = &scene.drawing;
     let corners = [
         work.face_corners[0].get(),
         work.face_corners[1].bits(),
@@ -490,11 +488,11 @@ pub fn clip_shadow_to_face(
         });
     trap.finish()?;
     if !found.near {
-        drawing.scene.polygon_vertex_count.set_bits(0u32);
+        ctx.view.polygon.polygon_vertex_count.set_bits(0u32);
         return Ok(());
     }
     for (a, b) in [(0usize, 1usize), (1, 2), (2, 0)] {
-        if drawing.scene.polygon_vertex_count.bits() < 3 {
+        if ctx.view.polygon.polygon_vertex_count.bits() < 3 {
             return Ok(());
         }
         clip_to_edge(ctx, work, corners[a], corners[b])?;
@@ -543,12 +541,11 @@ pub fn shadow_on_face(
     car: &Car,
 ) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
-    let drawing = &scene.drawing;
     let count: u32 = work.list_count.get();
     if count > 0x40 {
         return Err(BadInput("a shadow list past 0x40").into());
     }
-    drawing.scene.polygon_drawn.set(0u32);
+    ctx.view.polygon.polygon_drawn.set(0u32);
     let list = &POLYGON_WORK.list;
     copy_on_in(
         (work, &work.list),
@@ -556,7 +553,7 @@ pub fn shadow_on_face(
         count as usize,
         "the shadow list",
     )?;
-    drawing.scene.polygon_vertex_count.set_bits(count);
+    ctx.view.polygon.polygon_vertex_count.set_bits(count);
     write_on_in(
         &race.shared.buffers,
         list,
@@ -564,11 +561,11 @@ pub fn shadow_on_face(
         work.list[0].get(),
         "the polygon list",
     )?;
-    drawing.scene.polygon_next_entry.set_bits(0x20u32);
+    ctx.view.polygon.polygon_next_entry.set_bits(0x20u32);
     let scene_points: u32 = race.course.course.scene_point_count.get();
     work.next_point.set(scene_points.wrapping_add(0x30));
-    drawing.scene.polygon_sides[0].set(0u32);
-    drawing.scene.polygon_sides[1].set(1u32);
+    ctx.view.polygon.polygon_sides[0].set(0u32);
+    ctx.view.polygon.polygon_sides[1].set(1u32);
     let mut at = (scene_points & 0xFFF) * 0x20;
     for _ in 0..0x40 {
         crate::scene::point_records::put_field(
@@ -579,10 +576,10 @@ pub fn shadow_on_face(
         at = (at + 0x20) & 0x1FFE0;
     }
     clip_shadow_to_face(ctx, work, car)?;
-    if drawing.scene.polygon_vertex_count.bits() < 3 {
+    if ctx.view.polygon.polygon_vertex_count.bits() < 3 {
         return Ok(());
     }
-    let n: u32 = drawing.scene.polygon_vertex_count.bits();
+    let n: u32 = ctx.view.polygon.polygon_vertex_count.bits();
     for k in 0..n {
         raise_onto_face(
             race,
@@ -590,33 +587,43 @@ pub fn shadow_on_face(
             read_on_in(&race.shared.buffers, list, k as usize, "the polygon list")?,
         )?;
     }
-    crate::scene::project_polygon::project_polygon(race, scene)?;
+    crate::scene::project_polygon::project_polygon(&ctx.view.polygon, race, scene)?;
     crate::scene::fog_polygon::fog_polygon(ctx.view)?;
-    drawing
-        .scene
+    ctx.view
+        .polygon
         .polygon_next_record
         .set(crate::scene::polygon::pool_start());
-    let outside: u32 = drawing.scene.polygon_outside_count.get();
+    let outside: u32 = ctx.view.polygon.polygon_outside_count.get();
     if outside != 0 {
-        if outside == drawing.scene.polygon_vertex_count.bits() {
+        if outside == ctx.view.polygon.polygon_vertex_count.bits() {
             return Ok(());
         }
-        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(race, scene, ctx.far_clip)?;
-        if drawing.scene.polygon_vertex_count.bits() < 3 {
+        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(
+            &ctx.view.polygon,
+            race,
+            scene,
+            ctx.far_clip,
+        )?;
+        if ctx.view.polygon.polygon_vertex_count.bits() < 3 {
             return Ok(());
         }
     }
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(race, scene)?;
-    if drawing.scene.polygon_vertex_count.bits() < 3 {
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(&ctx.view.polygon, race, scene)?;
+    if ctx.view.polygon.polygon_vertex_count.bits() < 3 {
         return Ok(());
     }
-    drawing.scene.polygon_textures[0].set(u32::MAX);
-    drawing.scene.polygon_textures[1].set(work.texture.get());
-    drawing.scene.polygon_sides[0].set(0u32);
-    drawing.scene.polygon_sides[1].set(1u32);
+    ctx.view.polygon.polygon_textures[0].set(u32::MAX);
+    ctx.view.polygon.polygon_textures[1].set(work.texture.get());
+    ctx.view.polygon.polygon_sides[0].set(0u32);
+    ctx.view.polygon.polygon_sides[1].set(1u32);
     ctx.view.face.polygon_mode.set(5u32);
-    crate::scene::draw_polygon::draw_polygon_in_game(race, &ctx.view.face, scene)?;
-    drawing.scene.polygon_drawn.set(1u32);
+    crate::scene::draw_polygon::draw_polygon_in_game(
+        &ctx.view.polygon,
+        race,
+        &ctx.view.face,
+        scene,
+    )?;
+    ctx.view.polygon.polygon_drawn.set(1u32);
     Ok(())
 }
 
@@ -1333,6 +1340,7 @@ mod asm_reference {
                 // The work dwords the original read at 0x641978 .., the Rust version's in its
                 // work.
                 let work = ShadowWork::new();
+                let poly = crate::scene::polygon_work::PolygonWork::new();
                 for (k, a) in places[1..7].iter().enumerate() {
                     work.crossing[8 + k].set(game_read::<u32>(rva(*a)));
                 }
@@ -1344,6 +1352,7 @@ mod asm_reference {
                             .expect("the test's memory is registered")
                     };
                     crossing_block(
+                        &poly,
                         &work,
                         0,
                         1,
@@ -1353,6 +1362,12 @@ mod asm_reference {
                     )
                 })
                 .expect("the test's memory is registered");
+                // The Rust version writes the view's work: put its pieces where `read` looks.
+                let old = &crate::scene::owner::scene().drawing.scene;
+                for k in [2, 4, 10, 11] {
+                    old.clip_work[k].set_bits(poly.clip_work[k].bits());
+                }
+                old.clip_work_2[0].set(poly.clip_work_2[0].get());
                 let mut got = read();
                 // `plane_f` (0x639810) the Rust version keeps in the shadow's own search fields.
                 got[7] = work.search.query().plane_f.bits();

@@ -17,21 +17,22 @@ use crate::scene::polygon::{Listed, listed};
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::texture_coordinates`
-pub fn scale_texture_coordinates(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    if (scene.drawing.scene.polygon_vertex_count.bits() as i32) <= 0 {
+pub fn scale_texture_coordinates(
+    poly: &crate::scene::polygon_work::PolygonWork,
+) -> Result<(), Refused> {
+    if (poly.polygon_vertex_count.bits() as i32) <= 0 {
         return Ok(());
     }
-    scale_entries(&listed()?, scene)
+    scale_entries(poly, &listed(poly)?)
 }
 
 /// `scale_texture_coordinates` on the polygon's entries as listed (a polygon of some).
-pub fn scale_entries(entries: &Listed, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
+pub fn scale_entries(
+    poly: &crate::scene::polygon_work::PolygonWork,
+    entries: &Listed,
+) -> Result<(), Refused> {
     use rc2k_core::scene::texture_coordinates as coordinates;
-    let switches: [u32; 2] = [
-        drawing.scene.polygon_sides[0].bits(),
-        drawing.scene.polygon_sides[1].bits(),
-    ];
+    let switches: [u32; 2] = [poly.polygon_sides[0].bits(), poly.polygon_sides[1].bits()];
     for entry in entries {
         for (pair, switch) in switches.into_iter().enumerate() {
             if switch == 0 {

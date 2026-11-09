@@ -85,8 +85,15 @@ pub fn flush_batch(frame: &Frame, b: &Batch, textured: bool) -> Result<(), Refus
     if count != 0 {
         if textured {
             // Inside `pusha`: the look-up, then its texture set.
-            crate::scene::look_up_texture::look_up_texture(scene);
-            set_texture(scene.drawing.scene.polygon_texture.get());
+            crate::scene::look_up_texture::look_up_texture(
+                crate::scene::polygon_work::front_end(),
+                scene,
+            );
+            set_texture(
+                crate::scene::polygon_work::front_end()
+                    .polygon_texture
+                    .get(),
+            );
         }
         let result = (b.draw)(frame, b.word.get(), count);
         if result != 0 {
@@ -158,10 +165,12 @@ pub fn draw_view_backdrop(race: &Race, scene: &crate::scene::owner::Scene) {
     for vertex in &v[..4] {
         vertex.colour.set(0xFF00_0000);
     }
-    scene.drawing.scene.polygon_vertex_count.set(4);
+    crate::scene::polygon_work::front_end()
+        .polygon_vertex_count
+        .set(4);
     crate::scene::glow_render_states::glow_render_states();
     crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[192].get());
-    crate::d3d::draw_fan_unclipped::draw_fan_unclipped();
+    crate::d3d::draw_fan_unclipped::draw_fan_unclipped(crate::scene::polygon_work::front_end());
     crate::scene::depth_buffer_on::depth_buffer(true);
 }
 

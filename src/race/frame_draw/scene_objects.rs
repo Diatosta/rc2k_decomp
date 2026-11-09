@@ -152,14 +152,14 @@ pub fn draw_race_slots(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
 /// to 0xFFFFFF. Every register kept (its callers return at once). Refuses what the clip
 /// refuses (after the entries are set: never seen with four vertices).
 pub fn draw_screen_quad(
+    poly: &crate::scene::polygon_work::PolygonWork,
     race: &Race,
     face: &crate::race::face_work::FaceWork,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let course = &race.course;
     let shared = &race.shared;
-    let drawing = &scene.drawing;
-    drawing.scene.polygon_drawn.set(0u32);
+    poly.polygon_drawn.set(0u32);
     let entries = &POLYGON_WORK.entries[..4];
     for (k, e) in (0u32..).zip(entries) {
         // the quad vertex's record (the original's address of it)
@@ -184,35 +184,30 @@ pub fn draw_screen_quad(
         e.point.set(u32::MAX);
         e.light.set(0u32);
     }
-    drawing
-        .scene
-        .polygon_colour
-        .set(shared.vars.quad_colour[0].get());
-    drawing.scene.polygon_vertex_count.set(4u32);
-    drawing
-        .scene
-        .polygon_next_record
+    poly.polygon_colour.set(shared.vars.quad_colour[0].get());
+    poly.polygon_vertex_count.set(4u32);
+    poly.polygon_next_record
         .set(crate::scene::polygon::pool_start());
     for k in 0..4u32 {
         POLYGON_WORK.list[k as usize].set(k);
     }
     POLYGON_WORK.list[4].set(0u32);
-    drawing.scene.polygon_next_entry.set(4u32);
+    poly.polygon_next_entry.set(4u32);
     // No callee reads a register (the clip keeps them; the depth buffer's switches and
     // the polygon's drawing take none).
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(race, scene)?;
-    if drawing.scene.polygon_vertex_count.get() >= 3 {
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(poly, race, scene)?;
+    if poly.polygon_vertex_count.get() >= 3 {
         crate::scene::depth_buffer_on::depth_buffer(false);
-        drawing.scene.polygon_textures[0].set(u32::MAX);
+        poly.polygon_textures[0].set(u32::MAX);
         face.polygon_mode.set(0u32);
-        drawing.scene.polygon_sides[0].set(1u32);
-        drawing.scene.polygon_sides[1].set(0u32);
-        crate::scene::draw_polygon::draw_polygon_in_game(race, face, scene)?;
+        poly.polygon_sides[0].set(1u32);
+        poly.polygon_sides[1].set(0u32);
+        crate::scene::draw_polygon::draw_polygon_in_game(poly, race, face, scene)?;
         face.polygon_mode.set(0u32);
-        drawing.scene.polygon_drawn.set(1u32);
+        poly.polygon_drawn.set(1u32);
         crate::scene::depth_buffer_on::depth_buffer(true);
     }
-    drawing.scene.polygon_colour.set(0x00FF_FFFFu32);
+    poly.polygon_colour.set(0x00FF_FFFFu32);
     Ok(())
 }
 
@@ -220,6 +215,7 @@ pub fn draw_screen_quad(
 /// `DRAW.view_size[1]`) as a screen quad in 0x204080 (`RACE_VARS.quad_colour`), switches -1, 1, 0, by
 /// `draw_screen_quad`.
 pub fn draw_view_tint(
+    poly: &crate::scene::polygon_work::PolygonWork,
     race: &Race,
     face: &crate::race::face_work::FaceWork,
     scene: &crate::scene::owner::Scene,
@@ -231,10 +227,10 @@ pub fn draw_view_tint(
     shared.vars.quad_corners[4].set(0u32);
     shared.vars.quad_corners[5].set(drawing.scene.view_size[1].get());
     shared.vars.quad_colour[0].set(0x20_4080u32);
-    drawing.scene.polygon_textures[0].set(u32::MAX);
-    drawing.scene.polygon_sides[0].set(1u32);
-    drawing.scene.polygon_sides[1].set(0u32);
-    draw_screen_quad(race, face, scene)
+    poly.polygon_textures[0].set(u32::MAX);
+    poly.polygon_sides[0].set(1u32);
+    poly.polygon_sides[1].set(0u32);
+    draw_screen_quad(poly, race, face, scene)
 }
 
 /// `race::add_car_depth_entry` (0x4574A0): the place (+0x134 .., into `OBJECT_WORK.place` ..) of

@@ -57,7 +57,9 @@ pub fn windscreen_drops_setup(drops: &WindscreenDrops, scene: &crate::scene::own
             VERTICES.vertices[n].u.set_bits(u);
             VERTICES.vertices[n].v.set_bits(v);
         }
-        scene.drawing.scene.polygon_vertex_count.set_bits(6u32);
+        crate::scene::polygon_work::front_end()
+            .polygon_vertex_count
+            .set_bits(6u32);
         drops
             .work
             .inverse

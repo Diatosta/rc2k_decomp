@@ -12,7 +12,6 @@ use crate::hud::owner::Hud;
 use crate::race::owner_frame::Frame;
 use crate::race::panel_store::Lights;
 
-use crate::scene::owner::scene;
 use rc2k_core::hud::icons;
 
 /// The Rust version (see the header): the icon of `lights`, `bottom` its row.
@@ -45,6 +44,8 @@ pub fn draw_icon(frame: &Frame, hud: &Hud, lights: &Lights, bottom: u32) -> Resu
         // `fild` through `scratch`: it keeps the last.
         hud.block.scratch.set(y);
     }
-    scene().drawing.scene.polygon_vertex_count.set_bits(4u32);
+    crate::scene::polygon_work::front_end()
+        .polygon_vertex_count
+        .set_bits(4u32);
     crate::hud::add_polygon::add_polygon(frame, hud)
 }

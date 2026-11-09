@@ -19,13 +19,12 @@ const FACTORS: u32 = 0x100;
 // ---- Rust version ----
 
 pub fn face_sort_key(
+    poly: &crate::scene::polygon_work::PolygonWork,
     course: &crate::race::owner_course::Course,
     face: usize,
     count: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
-    let vertices: u32 = drawing.scene.polygon_vertex_count.bits();
+    let vertices: u32 = poly.polygon_vertex_count.bits();
     if face == 0
         || !crate::scene::point_records::held()
         || count == 0
@@ -42,9 +41,7 @@ pub fn face_sort_key(
         sum = x87::add(crate::scene::point_records::field(record, 0x18)?, sum);
     }
     let factor = course.lists.face_key_factors[vertices as usize].bits();
-    drawing
-        .scene
-        .face_sort_key
+    poly.face_sort_key
         .set_bits(x87::mul_to_int(sum, factor) as u32);
     Ok(())
 }

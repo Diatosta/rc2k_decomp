@@ -86,7 +86,9 @@ pub fn run_snow(
             at.u.set_bits(u);
             at.v.set_bits(v);
         }
-        scene.drawing.scene.polygon_vertex_count.set_bits(4u32);
+        crate::scene::polygon_work::front_end()
+            .polygon_vertex_count
+            .set_bits(4u32);
         let inverse = x87::reciprocal(scene.drawing.scene.farthest.bits());
         for r in &s.inverses {
             r.set_bits(inverse);
