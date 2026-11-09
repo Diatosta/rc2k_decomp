@@ -146,7 +146,7 @@ fn with_bit(value: u32, bit: u32) -> u32 {
     value | 1u32 << (bit & 31)
 }
 
-/// A mask slot of `race().course.course.group_masks` and the index into the model's `groups` whose bit it
+/// A mask slot of the view's group masks (`CarDrawState::group_masks`) and the index into the model's `groups` whose bit it
 /// takes, in the order they are set.
 const BODY_GROUPS: [(usize, usize); 5] = [(0, 0), (1, 1), (2, 2), (3, 3), (6, 5)];
 
@@ -172,9 +172,9 @@ const PART_SWITCHES: [(u32, usize); 7] = [
 ];
 
 /// The course's group masks from the model's part groups (an unknown model is refused).
-fn set_group_masks(course: &Course, model: u32) -> Result<(), BadInput> {
+fn set_group_masks(masks: &[crate::session::Dword; 18], model: u32) -> Result<(), BadInput> {
     for (to, group) in BODY_GROUPS {
-        course.course.group_masks[to].set(model_bit(model, group as u32 * 4)?);
+        masks[to].set(model_bit(model, group as u32 * 4)?);
     }
     let (slot, group) = LAMPS;
     let mut lamps = model_bit(model, group as u32 * 4)?;
@@ -185,19 +185,19 @@ fn set_group_masks(course: &Course, model: u32) -> Result<(), BadInput> {
             }
         }
     }
-    course.course.group_masks[slot].set(lamps);
+    masks[slot].set(lamps);
     for (to, group) in OTHER_GROUPS {
-        course.course.group_masks[to].set(model_bit(model, group as u32 * 4)?);
+        masks[to].set(model_bit(model, group as u32 * 4)?);
     }
     Ok(())
 }
 
 /// The groups of the parts still on the car: all but those of the parts whose switch is off.
-fn shown_groups(course: &Course, switches: u32) -> u32 {
+fn shown_groups(masks: &[crate::session::Dword; 18], switches: u32) -> u32 {
     let mut shown = u32::MAX;
     for (bit, slot) in PART_SWITCHES {
         if switches & (1 << bit) == 0 {
-            shown &= !course.course.group_masks[slot].bits();
+            shown &= !masks[slot].bits();
         }
     }
     shown
@@ -263,18 +263,18 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
         .set(car_at(car)?.mode_on.bits());
     let model = car_view(car)?.car_kind.bits();
     ctx.view.matrices.known_object.set(model);
-    set_group_masks(&race.course, model)?;
+    set_group_masks(&ctx.view.cars.group_masks, model)?;
     let switches = car_view(car)?.parts_present.bits();
-    let shown = shown_groups(&race.course, switches);
-    race.shared.switches.group_mask.set(shown);
+    let shown = shown_groups(&ctx.view.cars.group_masks, switches);
+    ctx.view.cars.shown_groups.set(shown);
     let field = |offset: u32| model_field(model, offset);
     ctx.view.face.faded_bits.set(field(0x10)?);
-    race.course.course.group_masks[4].set(
+    ctx.view.cars.group_masks[4].set(
         u32::MAX
-            .wrapping_sub(race.course.course.group_masks[0].bits())
-            .wrapping_sub(race.course.course.group_masks[1].bits())
-            .wrapping_sub(race.course.course.group_masks[2].bits())
-            .wrapping_sub(race.course.course.group_masks[3].bits()),
+            .wrapping_sub(ctx.view.cars.group_masks[0].bits())
+            .wrapping_sub(ctx.view.cars.group_masks[1].bits())
+            .wrapping_sub(ctx.view.cars.group_masks[2].bits())
+            .wrapping_sub(ctx.view.cars.group_masks[3].bits()),
     );
     ctx.view.cars.car_draw_kept.set(0x210_0000);
     for (to, offset) in [
@@ -284,28 +284,16 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
         (16, 0x24),
         (17, 0x14),
     ] {
-        race.course.course.group_masks[to].set(field(offset)?);
+        ctx.view.cars.group_masks[to].set(field(offset)?);
     }
     let state = car_at(car)?.state_bits.bits();
-    let bit = race.course.course.group_masks[17].bits();
-    race.frame
-        .view_and_records
-        .view_vars
-        .group_mask
-        .set(u32::MAX);
+    let bit = ctx.view.cars.group_masks[17].bits();
+    ctx.view.cars.group_mask.set(u32::MAX);
     if state & 2 != 0 {
-        race.frame
-            .view_and_records
-            .view_vars
-            .group_mask
-            .set(with_bit(field(0x48)?, bit));
+        ctx.view.cars.group_mask.set(with_bit(field(0x48)?, bit));
     }
     if state & 4 != 0 {
-        race.frame
-            .view_and_records
-            .view_vars
-            .group_mask
-            .set(with_bit(field(0x44)?, bit));
+        ctx.view.cars.group_mask.set(with_bit(field(0x44)?, bit));
     }
     race.shared
         .work
@@ -323,7 +311,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
         ctx.view.cars.car_depth.set(0x5_0000);
     }
     let and = |mask: u32| {
-        let view = &race.frame.view_and_records.view_vars;
+        let view = &ctx.view.cars;
         view.group_mask.set(view.group_mask.bits() & mask);
     };
     if state & 0x10 == 0 {
@@ -332,19 +320,19 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
         if !below(depth, 0x14_0000) {
             and(with_bit(field(0x40)?, bit));
             for var in [13usize, 14, 15, 16] {
-                and(!(1u32 << (race.course.course.group_masks[var].bits() & 31)));
+                and(!(1u32 << (ctx.view.cars.group_masks[var].bits() & 31)));
             }
-            and(!race.course.course.group_masks[7].bits());
-            and(!race.course.course.group_masks[8].bits());
+            and(!ctx.view.cars.group_masks[7].bits());
+            and(!ctx.view.cars.group_masks[8].bits());
         }
         if !below(depth, 0x28_0000) {
-            and(!race.course.course.group_masks[9].bits());
-            and(!race.course.course.group_masks[10].bits());
-            and(!race.course.course.group_masks[6].bits());
+            and(!ctx.view.cars.group_masks[9].bits());
+            and(!ctx.view.cars.group_masks[10].bits());
+            and(!ctx.view.cars.group_masks[6].bits());
         }
         if !below(depth, 0x3C_0000) {
-            and(!race.course.course.group_masks[12].bits());
-            and(!race.course.course.group_masks[11].bits());
+            and(!ctx.view.cars.group_masks[12].bits());
+            and(!ctx.view.cars.group_masks[11].bits());
         }
     }
     let mut ecx = 0x60u32.wrapping_add(near_size(&race.shared));
@@ -368,11 +356,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     if view_car == race.frame.view_and_records.view_vars.drawn_car.bits()
         && race.frame.view_and_records.view_vars.view_car_flag_a.bits() != 0
     {
-        race.frame
-            .view_and_records
-            .view_vars
-            .group_mask
-            .set(u32::MAX);
+        ctx.view.cars.group_mask.set(u32::MAX);
     }
     ctx.view.light.light_lowest.set(0);
     ctx.view.light.light_highest.set(0xFF);

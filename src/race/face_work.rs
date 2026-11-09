@@ -6,9 +6,8 @@
 //! `face_number`, `mapping_a` and `mapping_b`, the sound spot block's `face_kind` and
 //! `face_unlit`, and `dword_606284`, `dword_608CAC`, `dword_63660C` (the fade), written and
 //! read by every view in turn. Not here: the texture coordinates by corner (`RACE_VIEW.corner_uv`, `corner_uv_b`: the faces without a texture read the
-//! last face's), `current_course_face` (`scene::set_object_material` in the menus) and
-//! `polygon_flags` (`scene::draw_marked_polygon` in the menus), read before a view's own
-//! write.
+//! last face's) and `current_course_face` (`scene::set_object_material` in the menus), read
+//! before a view's own write.
 
 use crate::session::Dword;
 

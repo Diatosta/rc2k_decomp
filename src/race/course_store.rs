@@ -47,7 +47,8 @@ pub struct CourseWork {
     pub unknown_dc: Dword,
     /// +0xe0 (0x5CCCD0): `g_currentCourseFace` ("polynum").
     pub current_course_face: Dword,
-    /// +0xe4 (0x5CCCD4): (`scene::draw_marked_polygon`, `race::frame_draw`)
+    /// +0xe4 (0x5CCCD4): `g_polygonFlags`: the list entry's flags word; nothing reads it to
+    /// effect (`notes/bugs.md`), the port does not store it.
     pub polygon_flags: Dword,
     /// +0xe8 (0x5CCCD8): not named.
     pub unknown_e8: [Dword; 15],
@@ -93,7 +94,9 @@ pub struct CourseWork {
     pub shape_radius: Dword,
     /// +0x228 (0x5CCE18): the moved point's x (`scene::move_point_between`, which stores y and z on over `group_masks[0]` and `[1]`).
     pub point_moved: Dword,
-    /// +0x22c (0x5CCE1C): the car model's part groups' masks (`race::car_draw`, `scene::load_object`, `scene::list_object_face`).
+    /// +0x22c (0x5CCE1C): the part groups' masks: here only `scene::load_object`'s (a load) and
+    /// the moved point's y and z over [0], [1]; the drawing's are the view's
+    /// (`race::car_draw_state`).
     pub group_masks: [Dword; 18],
     /// +0x274 (0x5CCE64): not named.
     pub unknown_274: [Dword; 4],

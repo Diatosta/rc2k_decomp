@@ -145,7 +145,8 @@ pub struct RaceVars {
     pub wheel_turn_a: [Float; 2],
     /// +0x7c8 (0x623DB0): the same, the second.
     pub wheel_turn_b: [Float; 2],
-    /// +0x7d0 (0x623DB8): (`scene::draw_marked_polygon`).
+    /// +0x7d0 (0x623DB8): `g_polygonMark`: read only by unreached code (0x44EB04); the port
+    /// does not store it.
     pub polygon_mark: Dword,
     /// +0x7d4 (0x623DBC): (`scene::draw_polygon`, `race::skidmarks`).
     pub fade_uv: [Dword; 2],

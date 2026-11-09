@@ -765,7 +765,8 @@ pub fn draw_lamp_flare(
 }
 
 /// `race::draw_list_entry` (0x454FF0): the entry whose cells from it on are `at`, whose second word is `flags_word`
-/// (into `COURSE.polygon_flags`; the top bit dropped for the kind): below 0x1000000 a course face
+/// (the original kept it in `g_polygonFlags`, which nothing reads to effect: not kept; the top
+/// bit dropped for the kind): below 0x1000000 a course face
 /// (`g_currentCourseFace`): kind 0xFF part 1, below 0x10 part 2, each with `LEVEL_GRID.smooth` ..
 /// `LEVEL_GRID.plain_second` 1 around it; 0x1000000 .. a flare, 0x2000000 .. a car, 0x3000000 .. a
 /// lamp, each by its low 24 bits; then `LIGHT_STATE.view_kind` 0. Refuses (before anything) a word
@@ -781,7 +782,6 @@ pub fn draw_list_entry(
     if word >= 0x400_0000 {
         return Err(BadInput("a list entry of 0x4000000 or more").into());
     }
-    course.course.polygon_flags.set(flags_word);
     let low = word & 0xFF_FFFF;
     match word >> 24 {
         0 => {

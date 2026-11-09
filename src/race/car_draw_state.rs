@@ -5,7 +5,8 @@
 //! The original kept it in shared pieces for every view at once: `FrameWork` (the cars drawn,
 //! the car's kept place and depth), `CameraWork` (the car's kept word), `RaceWork` (the car's
 //! drawing word) and `FrameSwitches` (the object's material way, the fade words and the
-//! number of the object being drawn). The old fields stay in the stores, unused.
+//! number of the object being drawn), `CourseWork` and `FrameSwitches` (the car's group
+//! masks) and `ViewVars` (`g_groupMask`). The old fields stay in the stores, unused.
 
 use crate::session::Dword;
 
@@ -26,6 +27,14 @@ pub struct CarDrawState {
     pub fade_words: [Dword; 2],
     /// The object being drawn or set up (`g_objectNumber`).
     pub object_number: Dword,
+    /// The drawn car's model's group masks (`COURSE.group_masks`, 0x5CCE1C ..: its parts'
+    /// groups by slot, set by `race::draw_car` for each car, [13] .. [17] read by
+    /// `scene::list_object_face`; outside a race [13], [14] the known kinds' hidden groups).
+    pub group_masks: [Dword; 18],
+    /// The groups of the car's parts still on it (`dword_62150C`).
+    pub shown_groups: Dword,
+    /// The face group mask of the car being drawn (`g_groupMask`, 0x606280; -1 after a car).
+    pub group_mask: Dword,
 }
 
 impl CarDrawState {
@@ -39,6 +48,9 @@ impl CarDrawState {
             other_way_kind: Dword::new(0),
             fade_words: [const { Dword::new(0) }; 2],
             object_number: Dword::new(0),
+            group_masks: [const { Dword::new(0) }; 18],
+            shown_groups: Dword::new(0),
+            group_mask: Dword::new(0),
         }
     }
 }

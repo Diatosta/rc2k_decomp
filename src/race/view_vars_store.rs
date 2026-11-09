@@ -20,7 +20,8 @@ pub struct ViewVars {
     pub view_scale_kept: Float,
     /// +0x10 (0x60627C): `g_drawnCar`: the car being drawn (`race::car_draw`, `scene::set_object_light`, `scene::list_object_face`).
     pub drawn_car: Dword,
-    /// +0x14 (0x606280): `dword_606280`: face group mask for the drawn car (`race::car_draw`, `scene::list_object_face`).
+    /// +0x14 (0x606280): `g_groupMask`: face group mask for the drawn car; the drawing's is the
+    /// view's (`race::car_draw_state`), this one not used.
     pub group_mask: Dword,
     /// +0x18 (0x606284): `dword_606284`: the car's fade alpha, now the view's (`race::face_work`):
     /// this place is no longer reached.

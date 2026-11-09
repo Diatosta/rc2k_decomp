@@ -9,7 +9,8 @@
 //! every point is outside the depths; `scene::scale_texture_coordinates`; `scene::fog_polygon`;
 //! if some point is outside, `scene::clip_polygon_by_depth`, and nothing more with fewer than
 //! three vertices left; `scene::clip_polygon_to_screen`, and the same;
-//! `scene::draw_marked_polygon`; `dword_624134` = 1 (the polygon was drawn). Four callers
+//! `scene::draw_polygon` (the original through `scene::draw_marked_polygon`, whose mark
+//! nothing reads: dropped, `notes/bugs.md`); `dword_624134` = 1 (the polygon was drawn). Four callers
 //! (`scene::draw_object_polygon` and three more: the objects' polygons). Refuses a polygon of no
 //! vertices (the original goes through 2^32) or of more than 256, and what its parts refuse. A
 //! refusal after the texture coordinates were scaled hands the original a polygon it scales once
@@ -18,7 +19,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::scene::clip_polygon_by_depth::clip_polygon_by_depth;
 use crate::scene::clip_polygon_to_screen::clip_polygon_to_screen;
-use crate::scene::draw_marked_polygon::draw_marked_polygon;
 use crate::scene::draw_polygon::{Game, draw_polygon};
 use crate::scene::fog_polygon::{fog_entries, fog_polygon};
 use crate::scene::polygon::MOST;
@@ -107,9 +107,7 @@ pub fn draw_clipped_polygon_in_game(
             Step::ClipByDepth => clip_polygon_by_depth(poly, race, scene, ctx.far_clip)?,
             Step::ClipToScreen => clip_polygon_to_screen(poly, race, scene)?,
             Step::Draw => {
-                draw_marked_polygon(race, &mut || {
-                    draw_polygon(poly, race, &ctx.view.face, &mut Game, scene)
-                })?;
+                draw_polygon(poly, race, &ctx.view.face, &mut Game, scene)?;
             }
         }
         Ok(())

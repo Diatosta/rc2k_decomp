@@ -493,7 +493,7 @@ pub fn draw_own_car(
     }
     // `race::draw_car_shined` reads only esi, the car's block.
     crate::race::car_draw::draw_car_shined(ctx, car)?;
-    frame.view_and_records.view_vars.group_mask.set(u32::MAX);
+    ctx.view.cars.group_mask.set(u32::MAX);
     crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].get());
     crate::scene::set_render_state::set_render_state(2, 0x14);
     crate::scene::polygon_work::front_end()

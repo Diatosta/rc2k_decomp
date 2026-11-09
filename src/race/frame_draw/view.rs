@@ -464,7 +464,7 @@ pub fn camera_view(
     Ok(())
 }
 
-/// `race::draw_sky` (0x455540): `race::fetch_view_value`; `race().course.course.polygon_flags` 0; unless the
+/// `race::draw_sky` (0x455540): `race::fetch_view_value`; (the original's `g_polygonFlags` 0 not kept: dead); unless the
 /// scene's mode (`LIGHT_STATE.draw_mode`) is 1 or 2: the sky (object 1 through `sky_matrix`,
 /// kept at 0x5EA34C, full light, `LIGHT_STATE.view_kind` 4 and `FRAME_SWITCHES.no_far_clip` 1
 /// while it is drawn by parts 1 .. 4); then with a sun (`race().course.stage_prefs.fog_near` +
@@ -478,7 +478,6 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
     let (race, scene) = (ctx.race, ctx.scene);
     let system = crate::system::owner::system();
     fetch_view_value(race)?;
-    race.course.course.polygon_flags.set(0u32);
     // Not left from the previous view's last object (the original's slip, fixed:
     // `wiki/Fixed-bugs.md`).
     scene.drawing.object_work.other_light.set(0);

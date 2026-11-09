@@ -31,7 +31,8 @@ pub struct FrameSwitches {
     pub face_any_shine: Dword,
     /// +0x88 (0x621508): `dword_621508`: the marker object (`race::loadlevel`, `race::frame_draw`).
     pub marker_object: Dword,
-    /// +0x8c (0x62150C): `dword_62150C`: the face groups shown, built per car (`race::car_draw`, `scene::list_object_face`).
+    /// +0x8c (0x62150C): `dword_62150C`: the face groups shown, built per car; the drawing's is the view's
+    /// (`race::car_draw_state`), this one not used.
     pub group_mask: Dword,
     /// +0x90 (0x621510): `dword_621510`: set by `race::frame_draw` for the sky (`scene::clip_polygon_by_depth`).
     pub no_far_clip: Dword,

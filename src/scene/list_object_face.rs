@@ -80,16 +80,16 @@ impl FaceWorld for GameFace<'_> {
         )
     }
     fn hidden_groups(&self) -> [u32; 2] {
-        crate::session::read_first(&self.0.course.course.group_masks[13..15])
+        crate::session::read_first(&self.4.group_masks[13..15])
     }
     fn set_hidden_groups(&mut self, groups: [u32; 2]) {
-        crate::session::write_first(&self.0.course.course.group_masks[13..15], &groups);
+        crate::session::write_first(&self.4.group_masks[13..15], &groups);
     }
     fn other_groups(&self) -> [u32; 2] {
-        [15, 16].map(|k| self.0.course.course.group_masks[k].get())
+        [15, 16].map(|k| self.4.group_masks[k].get())
     }
     fn group_mask(&self) -> u32 {
-        self.0.shared.switches.group_mask.bits()
+        self.4.shown_groups.bits()
     }
     fn mask_kind(&self) -> u32 {
         self.0.shared.switches.mask_kind.bits()
@@ -108,10 +108,10 @@ impl FaceWorld for GameFace<'_> {
         crate::race::frame::drawn_car().camera_switch_active.bits()
     }
     fn second_mask(&self) -> u32 {
-        self.0.frame.view_and_records.view_vars.group_mask.bits()
+        self.4.group_mask.bits()
     }
     fn lone_group(&self) -> u32 {
-        self.0.course.course.group_masks[17].bits()
+        self.4.group_masks[17].bits()
     }
     fn lone_group_on(&self) -> u32 {
         scene().lights.work.marks_mask.bits()

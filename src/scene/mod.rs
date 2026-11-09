@@ -45,7 +45,6 @@ pub mod draw_flat_quad;
 pub mod draw_highlighted_object;
 pub mod draw_main_menu_carousel;
 pub mod draw_main_menu_objects;
-pub mod draw_marked_polygon;
 pub mod draw_menu_object;
 pub mod draw_object;
 pub mod draw_object_face;

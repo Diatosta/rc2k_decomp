@@ -175,19 +175,18 @@ pub fn face_materials(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
 }
 
 /// `race::draw_marked_face` (0x44CD90): `scene::scale_texture_coordinates`,
-/// `scene::fog_polygon`, the drawing (`scene::draw_marked_polygon`), `g_polygonDrawn` 1.
+/// `scene::fog_polygon`, the drawing (`scene::draw_polygon`; the original through
+/// `scene::draw_marked_polygon`, whose mark nothing reads: dropped), `g_polygonDrawn` 1.
 pub fn draw_marked_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
     crate::scene::scale_texture_coordinates::scale_texture_coordinates(&ctx.view.polygon)?;
     crate::scene::fog_polygon::fog_polygon(ctx.view)?;
-    crate::scene::draw_marked_polygon::draw_marked_polygon(race, &mut || {
-        crate::scene::draw_polygon::draw_polygon_in_game(
-            &ctx.view.polygon,
-            race,
-            &ctx.view.face,
-            scene,
-        )
-    })?;
+    crate::scene::draw_polygon::draw_polygon_in_game(
+        &ctx.view.polygon,
+        race,
+        &ctx.view.face,
+        scene,
+    )?;
     ctx.view.polygon.polygon_drawn.set(1u32);
     Ok(())
 }
