@@ -34,12 +34,17 @@ pub fn full_view_window(race: &Race, first: bool) {
     physics.ground.view_mirrored.set(0);
 }
 
+/// The mirror's grid reach.
+const MIRROR_REACH: u32 = 2;
+
 /// `race::mirror_view_window` (0x455F17): the rear-view mirror's window: its corner from
 /// `dword_6415FC` / `dword_641600` (8 bytes each, at `dword_6238A4` + 3 x `g_drawnView`, + 6
 /// when `dword_6D1502` is 0), 800 x 600 scaled to the screen, 0xB3 x 0x40 big (each even);
 /// its edges `dword_624138` .. `dword_624144`; `dword_624080` 0x100,
 /// `scene::set_view_window`, the fog (`race::set_up_fog`), `dword_6365C4` 0,
-/// `dword_63993C` 1. Refuses (before anything) a size whose scaling would fault.
+/// `dword_63993C` 1, the window with the grid's reach 2 (the original's `g_gridReach`, set
+/// by `race::draw_mirror_view`; the fog's `draw_distance_settings` sets the level's again).
+/// Refuses (before anything) a size whose scaling would fault.
 pub fn mirror_view_window(
     race: &Race,
     scene: &crate::scene::owner::Scene,
@@ -94,7 +99,7 @@ pub fn mirror_view_window(
     scene.drawing.scene.cleared_rectangle[2].set(x.wrapping_add(sx));
     scene.drawing.scene.cleared_rectangle[3].set(y.wrapping_add(sy));
     scene.drawing.scene.view_zoom.set(0x100);
-    crate::scene::set_view_window::set_view_window(race, scene);
+    crate::scene::set_view_window::set_view_window_reaching(race, scene, MIRROR_REACH);
     crate::race::frame_draw::set_up_fog(race, scene)?;
     scene.lights.state.draw_mode.set(0);
     race.physics.ground.view_mirrored.set(1);

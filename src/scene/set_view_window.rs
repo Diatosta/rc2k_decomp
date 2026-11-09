@@ -28,9 +28,15 @@ use crate::race::owner::Race;
 // ---- Rust version ----
 
 pub fn set_view_window(race: &Race, scene: &crate::scene::owner::Scene) {
+    set_view_window_reaching(race, scene, race.course.stage_prefs.grid_reach.bits());
+}
+
+/// `set_view_window` with the grid's reach `reach` in place of `g_gridReach` (the mirror's
+/// 2: the original set `g_gridReach` to it around the mirror's window).
+pub fn set_view_window_reaching(race: &Race, scene: &crate::scene::owner::Scene, reach: u32) {
     let system = crate::system::owner::system();
     let drawing = &scene.drawing;
-    let depth = race.course.stage_prefs.grid_reach.bits().wrapping_mul(0x20);
+    let depth = reach.wrapping_mul(0x20);
     crate::session::write_bits(&race.shared.view.view_depth, [depth, depth]);
     let [width, height]: [u32; 2] = crate::session::read_bits(&drawing.scene.view_size);
     let middle = [width >> 1, height >> 1];
