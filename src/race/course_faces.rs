@@ -133,11 +133,7 @@ fn frame_of(t: u32, f: u32, a: u32, b: u32) -> u32 {
 /// `dword_63DA38`; the kind's low three bits and bit 3 (+0, +0x20) into `dword_63DA30` /
 /// `dword_63DA34` and `dword_63DA3C` / `dword_63DA40`. The registers it leaves are read
 /// by no one.
-pub fn face_materials(
-    race: &Race,
-    face: &Face,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), BadInput> {
+pub fn face_materials(race: &Race, face: &Face) -> Result<(), BadInput> {
     let course = &race.course;
     let shared = &race.shared;
     {
@@ -154,7 +150,6 @@ pub fn face_materials(
                 k1,
                 k2,
             );
-            scene.drawing.scene.scratch.set(n);
             let (frame, place) = rc2k_core::race::faces::frame_place(object, n);
             if first {
                 shared.view.face_frame.set(frame);
@@ -209,8 +204,8 @@ pub fn face_switches(shared: &Shared, scene: &crate::scene::owner::Scene) {
     }
 }
 
-/// 0x453786: the light at scene point `n` (`race::light_colour_at`, through
-/// `dword_62400C`), 0 for -1.
+/// 0x453786: the light at scene point `n` (`race::light_colour_at`; the original's store of
+/// it to `dword_62400C` is not kept), 0 for -1.
 fn point_light(race: &Race, n: u32, scene: &crate::scene::owner::Scene) -> Result<u32, Refused> {
     if n == u32::MAX {
         return Ok(0);
@@ -221,7 +216,6 @@ fn point_light(race: &Race, n: u32, scene: &crate::scene::owner::Scene) -> Resul
     scene.lights.state.lit_place[2].set(z);
     crate::race::frame_draw::light_colour_at(race, scene)?;
     let light: u32 = scene.lights.work.light_colour.get();
-    scene.drawing.scene.scratch.set(light);
     Ok(light)
 }
 
@@ -280,7 +274,7 @@ pub fn clip_and_draw_face(race: &Race, scene: &crate::scene::owner::Scene) -> Re
 /// `race::face_out_of_view` (0x45246F): true (the original's carry) when none of the
 /// face's corners (`dword_63D9EC` ..; the fourth when there is one) is in sight: a corner
 /// is in sight when its scene record's depth (+0x18) is not negative and |x| (+0x10) is
-/// below `flt_63DA00` (|x| then left in `dword_62400C`) or |x| times `flt_63D9FC` is below
+/// below `flt_63DA00` (the original's store of |x| to `dword_62400C` is not kept) or |x| times `flt_63D9FC` is below
 /// the depth. The records are made when not there (as 0x44CF33). The eax and edx the
 /// original leaves are read by no one. Refuses (before anything) no point records or
 /// points.
@@ -305,7 +299,6 @@ pub fn face_out_of_view(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
         let x = crate::scene::point_records::field(record, 0x10)?;
         match corner_in_sight(depth, x, near, slope) {
             Some(InSight::Near) => {
-                scene.drawing.scene.scratch.set(x & 0x7FFF_FFFF);
                 return Ok(false);
             }
             Some(InSight::Slope) => return Ok(false),
@@ -539,7 +532,7 @@ fn plain_list(count: u32, next: u32, scene: &crate::scene::owner::Scene) {
 /// entries 1, 2, 3, 0 from corners 0, 1, 3, 2; carry (draw it as triangles) when a corner
 /// has lamp light or some vertex is outside after `scene::project_polygon` or off the
 /// screen's inside (the screen edges `dword_6241D4` .. less one; each vertex's x and y
-/// rounded into `dword_62400C`, compared by the sign of the difference); nothing when
+/// rounded, compared by the sign of the difference); nothing when
 /// all are outside; else the quad drawn (`race::draw_marked_face`). Gives the carry
 /// (true: draw it as triangles).
 pub fn draw_whole_quad(race: &Race, scene: &crate::scene::owner::Scene) -> Result<bool, Refused> {
@@ -569,7 +562,6 @@ pub fn draw_whole_quad(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     );
     let inside = |v: u32, low: u32, high: u32| {
         let n = crate::math::x87::to_int(v) as u32;
-        drawing.scene.scratch.set(n);
         rc2k_core::race::face_drawing::inside(n, low, high)
     };
     for slot in 0..4 {
@@ -690,7 +682,7 @@ pub fn draw_face(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
 /// view floats (+0x10 .. +0x18) halfway (b - a) x `flt_5C5E40` + a, the screen place
 /// (+0xC, +0x1C) 0, or when the depth is not below `flt_5C5E18` projected (by
 /// `flt_624088` over the depth, or over `dword_5CCD80` + 1 when `dword_60932C` is set,
-/// the depth then kept in `dword_62400C`; centre `flt_62409C`, `flt_6240A0`).
+/// the original's store of the depth to `dword_62400C` is not kept; centre `flt_62409C`, `flt_6240A0`).
 fn halfway_vertex(
     course: &Course,
     a: u32,
@@ -813,7 +805,6 @@ pub fn draw_lit_triangle(race: &Race, scene: &crate::scene::owner::Scene) -> Res
         halfway_entry(&race.course, entry(first), entry(second), to);
         crate::race::frame_draw::light_colour_at(race, scene)?;
         let light: u32 = scene.lights.work.light_colour.get();
-        scene.drawing.scene.scratch.set(light);
         to.lamp_light.set(light);
     }
     let mode5 = race.shared.view.polygon_mode.get() == 5;
@@ -946,7 +937,7 @@ pub fn draw_face_sides(
     // flipped}`.
     use rc2k_core::race::face_drawing::{flipped, has_objects, side_drawn, two_sided};
     if race.shared.switches.other_way.get() == 0 {
-        face_materials(race, face, scene)?;
+        face_materials(race, face)?;
         race.shared.view.face_turned[0].set(0u32);
         race.shared.view.face_turned[1].set(0u32);
         face_colours(race, face, scene)?;
@@ -967,10 +958,10 @@ pub fn draw_face_sides(
         if !facings() {
             return Ok(());
         }
-        face_materials(race, face, scene)?;
+        face_materials(race, face)?;
         return face_colours(race, face, scene);
     }
-    face_materials(race, face, scene)?;
+    face_materials(race, face)?;
     if facings() {
         face_colours(race, face, scene)?;
     }
@@ -1330,7 +1321,6 @@ mod asm_reference {
         let mut r = Rng(13);
         at_each_control_word(|| {
             for n in 0..20000 {
-                drawing.scene.scratch.set(0xAAAA_AAAAu32);
                 course.stage_prefs.flat_depth.set((n % 2) as u32);
                 course.course.flat_depth.set(r.int() as u32);
                 drawing.scene.view_scale.set_bits(r.float());
@@ -1362,11 +1352,9 @@ mod asm_reference {
                         crate::pointers::game_address(v1.as_mut_ptr()),
                     );
                 };
-                let kept = drawing.scene.scratch.get();
-                drawing.scene.scratch.set_bits(0xAAAA_AAAAu32);
                 halfway_record(course, &a, &b, &mut v2, crate::scene::owner::scene());
                 same_all(&v1, &v2, "vertex");
-                assert!(same(kept, drawing.scene.scratch.get()), "depth kept");
+                // The assembly's depth store to 0x62400C is not kept by the Rust version.
             }
         });
     }

@@ -205,9 +205,7 @@ pub(super) fn car_light_on_point(
         k,
         2,
     );
-    // The second spread is worked out and then not used (eax is loaded over it).
-    let s2 = int_square_sum_scaled_to_int(t[2].wrapping_sub(0x10_0000) as i32, t[0] as i32, k, 1);
-    scene.drawing.scene.scratch.set_bits(s2);
+    // The original worked out a second spread and stored it in `g_scratch`; nothing read it, so it is not kept.
     let index = headlight_index(s1, t[1], marks_count);
     let colour = scene.light_tables.car_light_table[index as usize].get();
     scene
@@ -297,7 +295,6 @@ pub(super) fn lamp_lights_on_point(
             let at = crate::race::scene_points::point_number(point)?;
             let d: [u32; 3] = std::array::from_fn(|k| at[k].wrapping_sub(place[k].get()));
             let [distance, _, _] = crate::scene::approximate_distance::approximate_distance(d);
-            scene.drawing.scene.scratch.set_bits(distance);
             let (grey, _) = rc2k_core::race::lights::lamp_grey(
                 distance,
                 physics.ground.point_light_strength.bits(),
@@ -340,7 +337,7 @@ pub fn light_colour_at(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
 
 /// `race::view_light` (0x455896): the lit place the view's car's (`race::frame::drawn_car`, the original's `g_car` +0x134 ..);
 /// `light_colour_at`; `race().frame.frame_work.view_light` = `LIGHT_WORK.view_light_base` plus the light
-/// (`add_colours`, through `DRAW.scratch`).
+/// (`add_colours`).
 pub fn view_light(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::lights::add_colours` (through `light_colour_at`'s).
     check_light_colour(&race.shared)?;
@@ -350,7 +347,6 @@ pub fn view_light(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(),
     );
     light_colour_at(race, scene)?;
     let light: u32 = scene.lights.work.light_colour.bits();
-    scene.drawing.scene.scratch.set_bits(light);
     race.frame
         .frame_work
         .view_light

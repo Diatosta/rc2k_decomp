@@ -133,8 +133,7 @@ pub fn face_hidden(
 /// `race::face_depth` (0x4552D8): the depth key of `face` (records of 0x40 at
 /// `g_courseFaces`) into `RACE_VIEW.face_depth_key`: for a kind (+0) of 0x10 or more, its first point's
 /// depth (`fistp`; and `RACE_VIEW.face_side` its x); else, with its object's (+1) record +0xE bit
-/// 1, the largest of its four points' depths (+4 .. +0x10, each `fistp`, through
-/// `DRAW.scratch`), otherwise their float sum `fistp`'d and shifted right 2. Then + 0x2000000,
+/// 1, the largest of its four points' depths (+4 .. +0x10, each `fistp`), otherwise their float sum `fistp`'d and shifted right 2. Then + 0x2000000,
 /// shifted right 10 (logical). Refuses (before anything) no point records or points.
 pub fn face_depth(
     race: &Race,
@@ -177,7 +176,6 @@ pub fn face_depth(
             let mut key = to_int(depth(0)?) as u32;
             for k in 1..4 {
                 let d = to_int(depth(k)?) as u32;
-                scene.drawing.scene.scratch.set_bits(d);
                 key = deeper(key, d);
             }
             key
@@ -355,7 +353,7 @@ pub fn gather_visible_faces(ctx: &DrawCtx) -> Result<(), Refused> {
 /// when any is set (0xA), or'd with bits 4 and 5 likewise (0x30).
 pub fn face_hide_mask(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;
-    crate::physics::probe_ground::probe_ground(
+    crate::physics::probe_ground::probe_ground_in_view(
         race,
         crate::race::frame::drawn_car(),
         crate::scene::owner::scene(),
@@ -375,8 +373,8 @@ pub fn face_hide_mask(race: &Race) -> Result<(), Refused> {
 
 /// `race::mark_far_cells` (0x454A5B): every `g_courseGrid` cell's top bits cleared (&
 /// 0x0FFFFFFF); then each cell (column x, row z, each less the half `LEVEL_GRID.grid_half`) turned
-/// by `g_viewTurnMatrix` (into `LEVEL_GRID.turned_x` / `LEVEL_GRID.turned_z`, the middle into
-/// `DRAW.scratch`, then its length there): not marked when the length is below 2.0; marked
+/// by `g_viewTurnMatrix` (into `LEVEL_GRID.turned_x` / `LEVEL_GRID.turned_z`, the length of the
+/// middle taken): not marked when the length is below 2.0; marked
 /// (bit 31) when the turned z is below 0, or when |x / 2| - 2 is not below z, or when the
 /// length is not below `LEVEL_GRID.far_cell_limit` (as a float, `DRAW.work_float_b`).
 pub fn mark_far_cells(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
@@ -402,7 +400,6 @@ pub fn mark_far_cells(race: &Race, scene: &crate::scene::owner::Scene) -> Result
         race.course.level_grid.turned_x.set_bits(x);
         race.course.level_grid.turned_z.set_bits(z);
         let length = float_hypot(x, z);
-        drawing.scene.scratch.set_bits(length);
         let limit = crate::math::x87::from_int(race.course.level_grid.far_cell_limit.get() as i32);
         drawing.scene.work_float_b.set_bits(limit);
         if below_or_unordered(length, two) {

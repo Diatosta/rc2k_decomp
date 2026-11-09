@@ -184,7 +184,6 @@ pub fn draw_screen_quad(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
         v[7].set_bits(y.to_bits());
         v[6].set_bits(course.numbers.k4096_b.bits());
     }
-    drawing.scene.scratch.set_bits(corners[2].1.to_bits());
     for e in entries {
         e.point.set(u32::MAX);
         e.light.set(0u32);
@@ -339,7 +338,6 @@ pub(super) fn place_flare(ctx: &DrawCtx, car: u32, point: [u32; 3]) -> Result<()
         point.map(|v| v as i32),
         &crate::session::read_bits(&car_view(car)?.crash_matrix),
     );
-    drawing.scene.scratch.set_bits(t[2]);
     for (k, v) in t.iter().enumerate() {
         drawing.object_work.place[k].set_bits(v.wrapping_add(car_view(car)?.position[k].bits()));
     }
@@ -535,7 +533,7 @@ pub(super) fn placed_object_tail(frame: &Frame, scene: &crate::scene::owner::Sce
     );
 }
 
-/// `race().frame.matrices.object_turn_matrix`'s sixteen floats times `OBJECT_WORK.size` / 16 (through `DRAW.scratch`).
+/// `race().frame.matrices.object_turn_matrix`'s sixteen floats times `OBJECT_WORK.size` / 16.
 pub(super) fn scale_object_turn(
     frame: &Frame,
     scene: &crate::scene::owner::Scene,
@@ -543,7 +541,6 @@ pub(super) fn scale_object_turn(
     let drawing = &scene.drawing;
     {
         let scale = crate::math::x87::int_over_16(drawing.object_work.size.get() as i32);
-        drawing.scene.scratch.set_bits(scale);
         for cell in &frame.matrices.object_turn_matrix {
             cell.set_bits(crate::math::x87::mul(cell.bits(), scale));
         }

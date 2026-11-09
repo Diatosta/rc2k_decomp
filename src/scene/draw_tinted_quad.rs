@@ -31,11 +31,7 @@ pub fn draw_tinted_quad(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
         rec.u.set(0);
         rec.v.set(0);
     }
-    let float = |cell: &Dword| {
-        let v = x87::from_int(cell.bits() as i32);
-        drawing.scene.scratch.set_bits(v);
-        v
-    };
+    let float = |cell: &Dword| x87::from_int(cell.bits() as i32);
     let [left, right, top, bottom] = [
         &shared.vars.quad_corners[0],
         &shared.vars.quad_corners[1],

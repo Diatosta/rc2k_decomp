@@ -105,7 +105,7 @@ pub fn update_mud_texture(race: &Race, scene: &crate::scene::owner::Scene) -> Re
         if throws > 0 {
             let mut done = 0u32;
             loop {
-                throw_mud_texel(race, scene)?;
+                throw_mud_texel(race)?;
                 done = done.wrapping_add(1);
                 if done == race.shared.vars.mud_throws.bits() {
                     break;

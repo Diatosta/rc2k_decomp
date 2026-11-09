@@ -7,7 +7,8 @@
 //! - x87: the squares' sum as a float; its square root from two tables (the float's
 //!   bits 15 .. 22 pick one of 0x100 at `flt_5C70F8`, its exponent one at
 //!   `flt_5C74F8`), the two multiplied; each of the three times 1 over that;
-//!   `dword_62400C` = 1 over the length; a component that comes out as minus zero is
+//!   1 over the length (the original also left it in `dword_62400C`, which its one caller,
+//!   the drawing, never read: not kept); a component that comes out as minus zero is
 //!   made zero. A length that compares equal to `flt_5C5D90` (0.0), or is no number,
 //!   ends the original at once with the length left on the x87's stack: refused.
 //! - SSE: the four floats squared to `xmmword_5C5F70`, the first three added,
@@ -25,7 +26,7 @@ use crate::scene::owner::scene;
 // ---- game data ----
 
 // Still the image's: the work vector and the SSE switch (the race's), the root tables
-// (`scene::fill_engine_tables` makes them), `dword_62400C` (scratch many functions share).
+// (`scene::fill_engine_tables` makes them).
 // The squares (`xmmword_5C5F70`) and the length (`g_workVectorLength`, 0x6D18C8) are no
 // longer stored (2026-10-24, phase 5): no function the game reaches reads them (IDA: the
 // length's one reader, 0x4517F3, is unreached).
@@ -88,8 +89,8 @@ pub fn normalise(race: &Race, sse: bool) -> Result<Option<u32>, BadInput> {
     }
     let (scaled, inverse) = scaled_by_inverse([v[0], v[1], v[2]], root, exponent_root);
     let unsigned_zero = |bits: u32| if bits == 0x8000_0000 { 0 } else { bits };
+    let _ = inverse;
     crate::session::write_first(&race.frame.scratch.work_vector, &scaled.map(unsigned_zero));
-    scene().drawing.scene.scratch.set_bits(inverse);
     Ok(Some(sum))
 }
 

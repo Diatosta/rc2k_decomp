@@ -118,7 +118,6 @@ pub fn car_number_textures(
             .unbounded()
             .offset(car_view(car)?.car_kind.bits().wrapping_mul(0x30));
         let n = crate::math::x87::to_int(car_at(car)?.shown_engine_speed.bits());
-        scene.drawing.scene.scratch.set(n as u32);
         let (place, _) = letter_place(n);
         let letter = letter_number(
             name.offset(place)
@@ -349,7 +348,7 @@ pub fn draw_car(race: &Race, car: u32, scene: &crate::scene::owner::Scene) -> Re
         view.group_mask.set(view.group_mask.bits() & mask);
     };
     if state & 0x10 == 0 {
-        nearness(race, scene);
+        nearness(race);
         let depth = race.frame.frame_work.car_depth.bits();
         if !below(depth, 0x14_0000) {
             and(with_bit(field(0x40)?, bit));
@@ -369,7 +368,7 @@ pub fn draw_car(race: &Race, car: u32, scene: &crate::scene::owner::Scene) -> Re
             and(!race.course.course.group_masks[11].bits());
         }
     }
-    let mut ecx = 0x60u32.wrapping_add(near_size(&race.shared, scene));
+    let mut ecx = 0x60u32.wrapping_add(near_size(&race.shared));
     race.shared.work.car_draw_word.set(ecx);
     if state & 0x100 != 0 {
         if state & 6 == 0 {
@@ -473,16 +472,13 @@ pub fn draw_car(race: &Race, car: u32, scene: &crate::scene::owner::Scene) -> Re
 }
 
 /// `race::draw_car`'s nearness: `dword_71BA08` = (`dword_6415A4` - 0xA0000) / 0x140000 held to 0 ..
-/// 1 (`flt_5C5D90`, `flt_5C5D38`), `g_shine` (and `dword_5CCE78`) times 1 less it (`dword_62400C`
-/// left 0x140000).
-fn nearness(race: &Race, scene: &crate::scene::owner::Scene) {
-    let drawing = &scene.drawing;
+/// 1 (`flt_5C5D90`, `flt_5C5D38`), `g_shine` (and `dword_5CCE78`) times 1 less it (the
+/// original's stores to `dword_62400C` are not kept).
+fn nearness(race: &Race) {
     use crate::math::x87_float::{ONE, int, ld, st, to_int};
     use crate::math::x87_load::below_or_unordered;
     {
-        drawing.scene.scratch.set(0xA_0000u32);
         let depth = int(race.frame.frame_work.car_depth.get() as i32);
-        drawing.scene.scratch.set(0x14_0000u32);
         race.shared
             .work
             .car_nearness
@@ -510,13 +506,12 @@ fn nearness(race: &Race, scene: &crate::scene::owner::Scene) {
     }
 }
 
-/// `race::draw_car`'s size: 0x90 (into `dword_62400C`) times `dword_71BA08`, rounded (left in
-/// `dword_62400C`).
-fn near_size(shared: &Shared, scene: &crate::scene::owner::Scene) -> u32 {
+/// `race::draw_car`'s size: 0x90 times `dword_71BA08`, rounded (the original's stores to
+/// `dword_62400C` are not kept).
+fn near_size(shared: &Shared) -> u32 {
     use crate::math::x87_float::{int, ld, to_int};
     {
         let size = to_int(int(0x90) * ld(shared.work.car_nearness.bits()));
-        scene.drawing.scene.scratch.set(size as u32);
         size as u32
     }
 }
@@ -690,8 +685,12 @@ mod asm_reference {
         0x62400C, 0x6415A4, 0x71BA08, 0x5CCE78, 0x5CCE74, 0x5C5D90, 0x5C5D38, 0x6415A4,
     ];
 
+    /// The places' values, without `dword_62400C` (the assembly's spill dword, not kept by
+    /// the Rust versions).
     fn state() -> Vec<u32> {
-        PLACES.iter().map(|&a| game_read(rva(a))).collect()
+        let mut v: Vec<u32> = PLACES.iter().map(|&a| game_read(rva(a))).collect();
+        v[0] = 0;
+        v
     }
 
     fn fill(r: &mut Rng) {
@@ -735,9 +734,9 @@ mod asm_reference {
                 r.0 = seed;
                 fill(&mut r);
                 assert_eq!(state(), before);
-                nearness(race, crate::scene::owner::scene());
+                nearness(race);
                 assert_eq!(state(), want, "nearness from {before:x?}");
-                let size_got = near_size(&race.shared, crate::scene::owner::scene());
+                let size_got = near_size(&race.shared);
                 assert_eq!(size_got, size_want, "size from {before:x?}");
                 assert_eq!(state(), want_size_place);
             }

@@ -43,7 +43,6 @@ pub fn windscreen_drops_setup(drops: &WindscreenDrops, scene: &crate::scene::own
             set_render_state(value, state);
         }
         for n in 0..6 {
-            scene.drawing.scene.scratch.set_bits(0x100u32);
             VERTICES.vertices[n].rhw.set_bits(x87::int_to_float(0x100));
         }
         for n in 0..6 {

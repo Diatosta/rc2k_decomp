@@ -121,11 +121,7 @@ fn two_pi_plus(v: u32) -> u32 {
 /// (`work.first_angle`; below 0 plus 2 pi), times 65536 as a whole number, +0x14 0;
 /// with two records or more sorted by angle (`sorting::sort_records`). Refuses
 /// (before anything) no points (its loop tests at its end) or more than 0x40.
-pub fn shadow_angles(
-    race: &Race,
-    work: &ShadowWork,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn shadow_angles(race: &Race, work: &ShadowWork) -> Result<(), Refused> {
     use crate::math::x87::{mul_to_int, sub};
     let count: u32 = work.point_count.bits();
     if count == 0 || count > 0x40 {
@@ -148,7 +144,6 @@ pub fn shadow_angles(
         if crate::math::x87_load::below_or_unordered(v, zero) {
             v = two_pi_plus(v);
         }
-        scene.drawing.scene.scratch.set_bits(v);
         record.angle.set(mul_to_int(v, unit) as u32);
         record.zeroed.set(0);
     }
@@ -214,11 +209,7 @@ fn circle_place(e: &PolygonEntry, k: u32, n: u32, radius: u32, unit: u32) {
 /// +0x10 / +0x14 a circle's texture place: cos / sin of 2 pi k / n times
 /// `CIRCLE[0]` plus it, rounded, over `CIRCLE[1]`). Refuses
 /// (before anything) a hull of no points (its loop tests at its end) or more than 0x40.
-pub fn shadow_polygon(
-    race: &Race,
-    work: &ShadowWork,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn shadow_polygon(race: &Race, work: &ShadowWork) -> Result<(), Refused> {
     let n: u32 = work.hull_count.get();
     if n == 0 || n > 0x40 {
         return Err(BadInput("a shadow hull of no points or more than 0x40").into());
@@ -238,7 +229,6 @@ pub fn shadow_polygon(
         e.light.set(0x00FF_FFFFu32);
         e.amount
             .set((race.course.stage_prefs.shadow_alpha.get() >> 1) as u8);
-        scene.drawing.scene.scratch.set_bits(k);
         circle_place(e, k, n, CIRCLE[0], CIRCLE[1]);
     }
     Ok(())
@@ -276,7 +266,7 @@ fn inside_edge(race: &Race, work: &ShadowWork, n: u32) -> Result<bool, BadInput>
 /// place (x and z whole numbers into `DRAW.clip_work[2]` / `DRAW.clip_work[4]`) and the entry's
 /// texture floats (`DRAW.clip_work[10]`, `DRAW.clip_work[11]`) and two bytes (`DRAW.vertex_byte_21`, `DRAW.clip_work_2`)
 /// shared the same way between the scene points numbered `pa`, `pb` and the entries `ea`, `eb`;
-/// `DRAW.scratch` is left with the share's bits.
+/// The original's store of the share's bits to `g_scratch` is not kept (nothing read it).
 fn crossing_block(
     race: &Race,
     work: &ShadowWork,
@@ -315,7 +305,6 @@ fn crossing_block(
         .vertex_byte_21
         .set(byte(&ea.amount, &eb.amount));
     drawing.scene.clip_work_2[0].set(byte(&ea.fog, &eb.fog));
-    drawing.scene.scratch.set(st(share));
     Ok(())
 }
 
@@ -710,8 +699,9 @@ fn tbyte_to_float(t: [u8; 10]) -> u32 {
 }
 
 /// The sun's slant from `sun` and `turn` (the angles as 128ths of a half turn): `work.slant_x`
-/// = cos(turn) x cot(sun), `work.slant_z` = sin(turn) x cot(sun); `DRAW.scratch` is left 0x80.
-fn sun_slant(work: &ShadowWork, sun: u32, turn: u32, scene: &crate::scene::owner::Scene) {
+/// = cos(turn) x cot(sun), `work.slant_z` = sin(turn) x cot(sun)
+/// (the original's store of 0x80 to `g_scratch` is not kept, nothing read it).
+fn sun_slant(work: &ShadowWork, sun: u32, turn: u32) {
     use crate::math::x87_float::{int, st};
     let cot = {
         let (sin, cos) = (int(sun as i32) / int(0x80)).times_pi().sin_cos();
@@ -720,7 +710,6 @@ fn sun_slant(work: &ShadowWork, sun: u32, turn: u32, scene: &crate::scene::owner
     let (sin, cos) = (int(turn as i32) / int(0x80)).times_pi().sin_cos();
     work.slant_x.set_bits(st(cos * cot));
     work.slant_z.set_bits(st(cot * sin));
-    scene.drawing.scene.scratch.set(0x80u32);
 }
 
 /// `fld x; fld z; fpatan; fstp`: the angle of the corner at `at` (x at +0, z at +8).
@@ -737,12 +726,7 @@ fn angle_of(at: &ShadowPoint) -> u32 {
 /// and distance, the farthest kept (`work.farthest_length`, `work.farthest`), as whole numbers (x
 /// 65536) plus the car's place. Refuses what `find_ground` refuses (before anything), and
 /// no corners or more than 0x40.
-pub fn shadow_points(
-    race: &Race,
-    work: &ShadowWork,
-    car: &Car,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn shadow_points(race: &Race, work: &ShadowWork, car: &Car) -> Result<(), Refused> {
     use crate::math::x87::mul_to_int;
     use crate::math::x87_load::{below_or_unordered, to_tbyte};
     let count: u32 = work.point_count.bits();
@@ -776,7 +760,7 @@ pub fn shadow_points(
         .get()
         .wrapping_neg()
         .wrapping_sub(0x40);
-    sun_slant(work, sun, turn, scene);
+    sun_slant(work, sun, turn);
     let (sx, sz) = (work.slant_x.bits(), work.slant_z.bits());
     let lift: u32 = race.shared.physics_tables.camera_drop.bits();
     let unit: u32 = race.course.numbers.k65536.bits();
@@ -833,13 +817,13 @@ pub fn cast_car_shadow(
     if !casts(work.point_count.bits()) {
         return Ok(());
     }
-    shadow_points(race, work, car, scene)?;
-    shadow_angles(race, work, scene)?;
+    shadow_points(race, work, car)?;
+    shadow_angles(race, work)?;
     shadow_hull(race, work)?;
     if !hull_drawn(work.hull_count.get()) {
         return Ok(());
     }
-    shadow_polygon(race, work, scene)?;
+    shadow_polygon(race, work)?;
     let n: u32 = work.hull_count.get();
     work.list_count.set(n);
     for k in hull_list(n) {
@@ -891,7 +875,6 @@ pub fn cast_car_shadows(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
-    use crate::scene::owner::scene;
 
     // The original blocks, verbatim.
     pub(super) fn two_pi_plus_asm(v: u32) -> u32 {
@@ -1365,7 +1348,6 @@ mod asm_reference {
                 for a in &places[7..] {
                     game_write(rva(*a), 0xAAAA_AAAAu32);
                 }
-                scene().drawing.scene.scratch.set_bits(0xAAAA_AAAAu32);
                 // The work dwords the original read at 0x641978 .., the Rust version's in its
                 // work.
                 let work = ShadowWork::new();
@@ -1391,7 +1373,8 @@ mod asm_reference {
                 })
                 .expect("the test's memory is registered");
                 let got = read();
-                for k in 0..places.len() {
+                // Place 0 (0x62400C, the assembly's spill dword) is not kept by the Rust version.
+                for k in 1..places.len() {
                     assert!(
                         same(want[k], got[k]),
                         "place {:#x}: {:#x} {:#x} (inputs {:x?})",
@@ -1428,13 +1411,9 @@ mod asm_reference {
                     game_write(rva(a), 0xAAAA_AAAAu32);
                 }
                 let work = ShadowWork::new();
-                sun_slant(&work, sun, turn, crate::scene::owner::scene());
-                let got = [
-                    game_read::<u32>(rva(0x62400C)),
-                    work.slant_x.bits(),
-                    work.slant_z.bits(),
-                ];
-                assert_eq!(want[0], got[0]);
+                sun_slant(&work, sun, turn);
+                // The assembly's 0x80 store to 0x62400C (want[0]) is not kept by the Rust version.
+                let got = [0, work.slant_x.bits(), work.slant_z.bits()];
                 for k in 1..3 {
                     assert!(
                         within_ulps(want[k], got[k], 1),

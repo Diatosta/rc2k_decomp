@@ -25,16 +25,15 @@ pub(super) fn point_from_car(point: u32) -> Result<(u32, u32, u32), BadInput> {
     Ok((x, py, z))
 }
 
-/// The weight's end: `DRAW.scratch` = `v`, held to 16.0 (`race().course.numbers.sixteen`; kept when below or
+/// The weight's end: `v` held to 16.0 (`race().course.numbers.sixteen`; kept when below or
 /// not a number), added to `g_eaxEnvironment`; `race().frame.sound_spots.eax_face_count` + 1.
-pub(super) fn add_eax_weight(race: &Race, v: u32, scene: &crate::scene::owner::Scene) {
+pub(super) fn add_eax_weight(race: &Race, v: u32) {
     let sixteen: u32 = race.course.numbers.sixteen.bits();
     let w = if crate::math::x87_load::below_or_unordered(v, sixteen) {
         v
     } else {
         sixteen
     };
-    scene.drawing.scene.scratch.set_bits(w);
     ENVIRONMENT.set(crate::math::x87::add(w, ENVIRONMENT.get()));
     race.frame
         .sound_spots
@@ -49,11 +48,7 @@ pub(super) fn add_eax_weight(race: &Race, v: u32, scene: &crate::scene::owner::S
 /// points; each held to 16 (see `add_eax_weight`). Distances by the game's root tables. (The
 /// original kept the middle and the distance in `CONTACT_WORK.eax_mid_x` / `eax_mid_z` /
 /// `eax_distance`, which nothing read: locals here.)
-pub fn eax_face_weight(
-    race: &Race,
-    face: u32,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), BadInput> {
+pub fn eax_face_weight(race: &Race, face: u32) -> Result<(), BadInput> {
     use crate::math::x87::{div, from_int};
     use crate::math::x87_load::{
         abs_below_or_unordered, float_square_sum, int_over_float, int_plus_times, int_square_sum,
@@ -69,8 +64,7 @@ pub fn eax_face_weight(
             let (x, _, z) = point_from_car(face_field(face, 4)?)?;
             let distance = table_root(&race.course, int_square_sum(x as i32, z as i32));
             let strength = face_field::<u8>(face, 0x18)? as u32;
-            scene.drawing.scene.scratch.set_bits(strength);
-            add_eax_weight(race, int_over_float(strength as i32, distance), scene);
+            add_eax_weight(race, int_over_float(strength as i32, distance));
             return Ok(());
         }
         if kind >= 0x10 {
@@ -86,7 +80,7 @@ pub fn eax_face_weight(
         let mx = int_plus_times(x2 as i32, mx, half);
         let mz = int_plus_times(z2 as i32, mz, half);
         let distance = table_root(&race.course, float_square_sum(mx, mz));
-        add_eax_weight(race, div(race.course.numbers.three.bits(), distance), scene);
+        add_eax_weight(race, div(race.course.numbers.three.bits(), distance));
     }
     Ok(())
 }
@@ -95,7 +89,7 @@ pub fn eax_face_weight(
 /// `race().frame.sound_spots.eax_face_count` 0, then the 3 x 3 grid cells around the middle (from
 /// `hold_to_limit(race().course.stage_prefs.grid_reach)` - 1 on each axis; 0x45C84C each): every
 /// face of each cell's course record (numbers below 0x0FFFFFFF) weighed by `eax_face_weight`.
-pub fn eax_environment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+pub fn eax_environment(race: &Race) -> Result<(), BadInput> {
     {
         ENVIRONMENT.set(0);
         race.frame.sound_spots.eax_face_count.set_bits(0u32);
@@ -115,7 +109,7 @@ pub fn eax_environment(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
                 continue;
             }
             loop {
-                eax_face_weight(race, face, scene)?;
+                eax_face_weight(race, face)?;
                 face = face.wrapping_add(1);
                 if face > record_field(record, 0xC)? {
                     break;

@@ -276,7 +276,7 @@ pub fn draw_race_scene(
     crate::scene::map_texture_places::map_texture_places(scene);
     crate::scene::load_slot_textures::load_slot_textures_in_game(&race.frame, scene)?;
     if race.replay.finish.no_place.get() == 0 {
-        crate::race::frame_draw::set_up_panel(race, scene)?;
+        crate::race::frame_draw::set_up_panel(race)?;
     }
     drop(before_views);
     if race.shared.view.views.get() == 1 {
@@ -325,7 +325,7 @@ pub fn draw_race_scene(
     if race.shared.work.in_credits.bits() == 0 && race.replay.finish.no_place.get() == 0 {
         crate::hud::overlay_pass::overlay_pass(crate::hud::owner::hud(), race)?;
     }
-    crate::race::skid_laying::lay_skidmarks_if_on(race, scene)?;
+    crate::race::skid_laying::lay_skidmarks_if_on(race)?;
     crate::race::name_plates::update_name_plates(race, scene)?;
     if race.course.numbers.replay_mode.bits() != 2 {
         crate::drive::tyre_change_screen::tyre_change_screen(race, input, system)?;

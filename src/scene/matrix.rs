@@ -9,7 +9,6 @@ use crate::math::cells::Cells;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::matrices_store::SceneMatrices;
-use crate::scene::owner::scene;
 use crate::scene::project_point::rotate;
 
 /// An angle's sine and cosine from the game's tables: sixteen bits a turn, the low
@@ -54,13 +53,13 @@ pub fn set_turn_z_16(m: &SceneMatrices, angle: u32, scene: &crate::scene::owner:
     m.turn_z_matrix[5].set_bits(cosine);
 }
 
-/// `scene::set_place` (0x4271AE).
+/// `scene::set_place` (0x4271AE). (The original also left the place's z in `dword_62400C`;
+/// the drawing never read it, `physics::car_collisions` stores it there itself.)
 pub fn set_place(m: &SceneMatrices, place: [u32; 3]) {
     crate::session::write_first(
         &m.placed_matrix[12..15],
         &place.map(|part| x87::from_int(part as i32)),
     );
-    scene().drawing.scene.scratch.set_bits(place[2]);
 }
 
 /// `scene::multiply_matrices` (0x42720D): the first three columns of `out`, column by
@@ -157,7 +156,6 @@ pub fn make_object_matrix(
     );
     let size: u32 = drawing.object_work.size.bits();
     let factor = x87::int_over_16(size as i32);
-    drawing.scene.scratch.set_bits(factor);
     for n in 0..0x10 {
         let cell = &frame.matrices.turned_matrix[n];
         cell.set_bits(x87::mul(cell.bits(), factor));

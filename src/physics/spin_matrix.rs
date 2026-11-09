@@ -39,5 +39,12 @@ pub fn spin_matrix(race: &Race) {
             race.shared.car.crash_matrix[k].set_bits(race.frame.matrices.turned_matrix[k].bits());
         }
     }
-    square_matrix(&race.course, &race.shared.car.crash_matrix);
+    // `scene::square_matrix` left its last length in `g_scratch` (the ones before are
+    // written over by it).
+    let length = square_matrix(&race.course, &race.shared.car.crash_matrix);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(length);
 }

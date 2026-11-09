@@ -4,8 +4,8 @@
 //! For each of the `dword_63DC48` lamps (0x10 bytes each from `dword_63E05C`: a point
 //! of the scene, a strength, a colour; a strength of 0 is skipped): the strength to
 //! `dword_639958` and the colour to `dword_62DA7C`; the lamp's distance from the
-//! place being lit (`dword_636588` ..) by `scene::approximate_distance`, kept in
-//! `dword_62400C`; (0x200000 less the distance) times the strength over 0x20000,
+//! place being lit (`dword_636588` ..) by `scene::approximate_distance` (the original
+//! kept it in `g_scratch`, which nothing read: not kept); (0x200000 less the distance) times the strength over 0x20000,
 //! held to 0 .. 255, in all three colour places, each times the lamp's colour's
 //! over 256; and that added to `g_lightColour` byte by byte without overflow (all
 //! four bytes with MMX, the low three without, as in `scene::vertex_light`).
@@ -60,7 +60,6 @@ pub fn add_point_lights(
     for (to, value) in [
         (&race.physics.ground.point_light_strength, out.strength),
         (&scene.lights.work.lamp_tint, out.colour),
-        (&scene.drawing.scene.scratch, out.distance),
         (&scene.lights.work.light_colour, out.light),
     ] {
         if let Some(v) = value {

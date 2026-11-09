@@ -70,10 +70,6 @@ pub fn submit_polygon(outside: &mut dyn Outside) {
         }
     }
     let vertices = polygon();
-    if !vertices.is_empty() {
-        // The check clears this before it looks at a vertex.
-        scene.drawing.scene.scratch.set_bits(0u32);
-    }
     if !vertices_fit(
         &vertices,
         session.screen.width.get(),

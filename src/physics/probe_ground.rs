@@ -46,10 +46,12 @@ pub const MOST_POINTS: u32 = 0x40;
 /// the last point's) are read by none of its callers.
 // Converted: `rc2k_core::physics::ground::{wheel_lifted, noise_cell, bump_noise}` (the
 // turns and the bump's scaling stay x87).
+/// `scratch` is the dword the original spills its work values to (`g_scratch`).
 pub fn probe_ground_at(
     race: &Race,
     car: &Car,
     scene: &crate::scene::owner::Scene,
+    scratch: &crate::session::Dword,
 ) -> Result<(), Refused> {
     let n = car.probe_count.get();
     if n < 1 {
@@ -59,7 +61,7 @@ pub fn probe_ground_at(
         return Err(BadInput("more than 0x40 probe points (the lists' room)").into());
     }
 
-    probe_points(race, car, n, scene)
+    probe_points(race, car, n, scene, scratch)
 }
 
 fn probe_points(
@@ -67,8 +69,8 @@ fn probe_points(
     car: &Car,
     n: u32,
     scene: &crate::scene::owner::Scene,
+    scratch: &crate::session::Dword,
 ) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
     let k65536 = race.course.numbers.k65536.bits();
     race.physics.contact.crossed_probe.set(u32::MAX);
     for b in 0..n {
@@ -77,7 +79,7 @@ fn probe_points(
         let z = car.probe_point_z[b as usize].bits();
         let y = car.probe_point_y[b as usize].bits();
         let y = if b < 4 {
-            drawing.scene.scratch.set(x87::loaded(y));
+            scratch.set(x87::loaded(y));
             let add;
             (add, _) = ground::wheel_lifted(car.parts_present.get(), b);
             less_plus_less_product_80(
@@ -150,14 +152,14 @@ fn probe_points(
         race.physics.contact.ground_noise_mix[1].set(n58);
         race.physics.contact.ground_noise_mix[0].set(n54);
         race.physics.contact.ground_noise_mix[2].set(n5c);
-        drawing.scene.scratch.set(n5c);
+        scratch.set(n5c);
         let bump = int_times_times_over_to_int(
             n5c as i32,
             car.ground_bump_scale.bits(),
             race.course.numbers.k256.bits(),
             race.course.numbers.hundred.bits(),
         );
-        drawing.scene.scratch.set(bump as u32);
+        scratch.set(bump as u32);
         work.probe_ground_height[i]
             .set(work.probe_ground_height[i].get().wrapping_add(bump as u32));
         work.probe_face_flip[i].set(race.course.course.ground_half.get());
@@ -168,22 +170,12 @@ fn probe_points(
             .wrapping_sub(work.probe_ground_height[i].get());
         work.probe_height[i].set(d);
         if b < 4 {
-            drawing
-                .scene
-                .scratch
-                .set(x87::loaded(car.crash_matrix[5].bits()));
-            if x87::compare_status(drawing.scene.scratch.get(), race.course.numbers.zero.bits())
-                & 0x100
-                != 0
-            {
-                drawing
-                    .scene
-                    .scratch
-                    .set(x87::loaded(race.course.numbers.zero.bits()));
+            scratch.set(x87::loaded(car.crash_matrix[5].bits()));
+            if x87::compare_status(scratch.get(), race.course.numbers.zero.bits()) & 0x100 != 0 {
+                scratch.set(x87::loaded(race.course.numbers.zero.bits()));
             }
             work.wheel_height_raw[i].set(d);
-            work.probe_height[i]
-                .set(x87::int_times_to_int(d as i32, drawing.scene.scratch.get()) as u32);
+            work.probe_height[i].set(x87::int_times_to_int(d as i32, scratch.get()) as u32);
         }
         car.probe_point_face[b as usize].set(race.course.course.ground_slot.get());
     }
@@ -202,5 +194,15 @@ pub fn probe_ground(
     car: &Car,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    probe_ground_at(race, car, scene)
+    probe_ground_at(race, car, scene, &scene.drawing.scene.scratch)
+}
+
+/// The same for the drawing (`race::face_hide_mask`): its work values in a local, not in the
+/// physics' `g_scratch` (nothing the drawing does reads them after).
+pub fn probe_ground_in_view(
+    race: &Race,
+    car: &Car,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    probe_ground_at(race, car, scene, &crate::session::Dword::new(0))
 }

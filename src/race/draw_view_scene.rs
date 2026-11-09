@@ -39,7 +39,7 @@ pub fn draw_view_scene(
     race.shared.view.view_lamps.set_bits(0u32);
     prepare_course_view(race, scene)?;
     gather_visible_faces(&ctx)?;
-    eax_environment(race, scene)?;
+    eax_environment(race)?;
     gather_lamps(&ctx)?;
     lamps_wanted(&race.shared)?;
     sort_entries(&lists.sort_entry_count, lists.sort_entries())?;

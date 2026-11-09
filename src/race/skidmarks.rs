@@ -32,7 +32,7 @@ fn float_of_80(t: [u8; 10]) -> u32 {
 /// onto the screen (+0xC, +0x1C): flat (`dword_60932C`) by `dword_5CCD80` + 1, else by the
 /// depth (the original's `fdivrp st(1), st` is `dword_624088` over that). x is
 /// x times that scale plus `dword_62409C`, y is `dword_6240A0` less y times it. When flat,
-/// the depth is also stored at `dword_62400C`.
+/// the original also stored the depth at `dword_62400C`; nothing read it, so it is not kept.
 pub(crate) fn project_record(
     course: &Course,
     v: &mut crate::scene::point_records::Record,
@@ -43,7 +43,6 @@ pub(crate) fn project_record(
     let (x, y, z) = (ld(v[4]), ld(v[5]), ld(v[6]));
     let reach = ld(drawing.scene.view_scale.bits());
     let scale = if course.stage_prefs.flat_depth.get() != 0 {
-        drawing.scene.scratch.set(st(z));
         reach / (int(course.course.flat_depth.get() as i32) + ONE)
     } else {
         reach / z
@@ -52,12 +51,10 @@ pub(crate) fn project_record(
     v[7] = st(-(y * scale) + ld(drawing.scene.view_centre[1].bits()));
 }
 
-/// A skidmark point turned and projected: its vertex record's +0xC .. +0x20, and what the
-/// projection left in `dword_62400C` (flat projections only).
+/// A skidmark point turned and projected: its vertex record's +0xC .. +0x20.
 #[derive(Clone, Copy)]
 struct Turned {
     words: [u32; 5],
-    scratch: Option<u32>,
 }
 
 /// One skidmark point (`unk_645B18` + 0xC x n) into the vertex record `v`: raised by
@@ -71,15 +68,12 @@ fn skid_vertex(
     scene: &crate::scene::owner::Scene,
 ) -> Result<Turned, BadInput> {
     let turned = turn_skid_point(race, matrix, n, scene)?;
-    put_turned(v, turned, scene)?;
+    put_turned(v, turned)?;
     Ok(turned)
 }
 
 /// A point as `skid_vertex` turns it, put into the vertex record `v` again.
-fn put_turned(v: u32, turned: Turned, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
-    if let Some(z) = turned.scratch {
-        scene.drawing.scene.scratch.set_bits(z);
-    }
+fn put_turned(v: u32, turned: Turned) -> Result<(), BadInput> {
     let mut made = crate::scene::point_records::get(v)?;
     made[3..8].copy_from_slice(&turned.words);
     crate::scene::point_records::set(v, made)
@@ -109,16 +103,11 @@ fn turn_skid_point(
         // Only +0xC .. +0x20 are written; the projection reads +0x10 .. +0x18.
         let mut made = [0u32; 8];
         made[4..7].copy_from_slice(&t.map(st));
-        let mut scratch = None;
         if !crate::math::x87_load::below_or_unordered(made[6], race.course.numbers.k4096_a.bits()) {
             project_record(&race.course, &mut made, scene);
-            if race.course.stage_prefs.flat_depth.get() != 0 {
-                scratch = Some(scene.drawing.scene.scratch.bits());
-            }
         }
         Ok(Turned {
             words: made[3..8].try_into().expect("5 dwords"),
-            scratch,
         })
     }
 }
@@ -189,8 +178,8 @@ pub fn draw_skidmarks(race: &Race, scene: &crate::scene::owner::Scene) -> Result
         let second = skid_vertex(race, &matrix, 2 * n + 1, of_quad(2), scene)?;
         match last {
             Some((m, a, b)) if m == before => {
-                put_turned(of_quad(0), a, scene)?;
-                put_turned(of_quad(1), b, scene)?;
+                put_turned(of_quad(0), a)?;
+                put_turned(of_quad(1), b)?;
             }
             _ => {
                 skid_vertex(race, &matrix, before.wrapping_mul(2), of_quad(0), scene)?;
@@ -402,10 +391,7 @@ mod asm_reference {
                 let mut b = a;
                 let _r = crate::race::trap::test_region(&a);
                 unsafe { project_vertex_asm(crate::pointers::game_address(a.as_mut_ptr()), flat) };
-                let kept = drawing.scene.scratch.get();
-                drawing.scene.scratch.set_bits(0xAAAA_AAAAu32);
                 project_record(course, &mut b, crate::scene::owner::scene());
-                let now = drawing.scene.scratch.get();
                 for k in 0..8 {
                     assert!(
                         same_bits(a[k], b[k]),
@@ -414,7 +400,7 @@ mod asm_reference {
                         b[k]
                     );
                 }
-                assert!(same_bits(kept, now), "depth store {kept:#x} {now:#x}");
+                // The assembly's depth store at 0x62400C is not kept by the Rust version.
             }
         });
     }

@@ -245,12 +245,7 @@ pub fn object_bytes(course: &Course, scene: &crate::scene::owner::Scene) -> Resu
 /// fields (the rounded engine speed, the engine sound speed, the gear, the distance, the
 /// stage time x 10, the split gaps, and for the first view also its front and back gaps and
 /// the two last ones).
-pub(super) fn panel_half(
-    race: &Race,
-    car: u32,
-    first: bool,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), BadInput> {
+pub(super) fn panel_half(race: &Race, car: u32, first: bool) -> Result<(), BadInput> {
     use rc2k_core::race::panel::{distance_shown, shown_whole, travelled};
     let panel = &race.frame.panel_and_overlay.panel;
     // The two views' records have the same fields in two types.
@@ -282,7 +277,6 @@ pub(super) fn panel_half(
         |n: u32| crate::race::checkpoints_store::cell_in(&CHECKPOINTS.distances, n as usize).get();
     let from: u32 = race.physics.split_tables.checkpoints[0].get();
     let d = travelled(at(car.checkpoint.bits()), at(from));
-    scene.drawing.scene.scratch.set_bits(d);
     let (unit, miles): (u32, u32) = (
         race.course.numbers.k65536.bits(),
         race.course.numbers.metres_in_mile.bits(),
@@ -307,12 +301,12 @@ pub(super) fn panel_half(
 /// exact x87 version went once its one Rust caller converted): both view blocks' values
 /// into the panel (see `panel_half`).
 // Converted: `rc2k_core::race::panel::{shown_whole, travelled, distance_shown}`.
-pub fn panel_values_plain(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+pub fn panel_values_plain(race: &Race) -> Result<(), BadInput> {
     {
         let a: u32 = race.shared.view.view_block(0);
-        panel_half(race, a, true, scene)?;
+        panel_half(race, a, true)?;
         let b: u32 = race.shared.view.view_block(1);
-        panel_half(race, b, false, scene)?;
+        panel_half(race, b, false)?;
     }
     Ok(())
 }
@@ -457,12 +451,11 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
 /// each view block, +0xAE8 and +0xAEC x 0.5 / 65536 (floats) and the heading,
 /// (-(+0x9C0)) >> 14 x pi x 0.5 / 65536, into the panel
 /// (`race().frame.panel_and_overlay.panel.view_a.motion[0]`.. for the first,
-/// `race().frame.panel_and_overlay.panel.view_b.motion[0]`.. for the second); then `DRAW.scratch` =
-/// `g_sceneClock` - `race().frame.panel_clock.shown_since` - 800, 0 when negative.
-// Converted: `rc2k_core::race::panel::{motion, heading_turn, heading, shown_for}`.
-pub fn panel_motion_plain(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
-    let drawing = &scene.drawing;
-    use rc2k_core::race::panel::{heading, heading_turn, motion, shown_for};
+/// `race().frame.panel_and_overlay.panel.view_b.motion[0]`.. for the second). The original's stores to `g_scratch`
+/// (the heading turn, `g_sceneClock` less the shown-since clock and 800) are not kept: nothing read them.
+// Converted: `rc2k_core::race::panel::{motion, heading_turn, heading}`.
+pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
+    use rc2k_core::race::panel::{heading, heading_turn, motion};
     {
         // NUMBERS.half (0.5), NUMBERS.one_over_65536, NUMBERS.k65536 (65536.0)
         let (half, small, big) = (
@@ -480,14 +473,8 @@ pub fn panel_motion_plain(race: &Race, scene: &crate::scene::owner::Scene) -> Re
             out[1]
                 .set(motion(car_at(b)?.map_picture_place[1].bits() as i32, half, small).to_bits());
             let turn = heading_turn(car_view(b)?.car_heading.bits());
-            drawing.scene.scratch.set_bits(turn);
             out[2].set(heading(turn as i32, half, big).to_bits());
         }
-        let shown = shown_for(
-            race.shared.physics_tables.scene_clock.bits(),
-            race.frame.panel_clock.shown_since.get(),
-        );
-        drawing.scene.scratch.set_bits(shown);
     }
     Ok(())
 }
@@ -656,14 +643,14 @@ pub(super) fn check_panel_neighbours(shared: &Shared) -> Result<(), Refused> {
 /// `race::set_up_panel` (0x45AB36): `panel_values`, `panel_neighbours`, `panel_players`,
 /// `panel_motion`, `panel_marks`, `both_countdown_lights`, `both_split_colours`. Refuses
 /// (before anything) what `panel_neighbours` or `both_split_colours` would.
-pub fn set_up_panel(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn set_up_panel(race: &Race) -> Result<(), Refused> {
     check_panel_neighbours(&race.shared)?;
     check_split_colours(race)?;
     // Converted: its float callees' `_plain` versions.
-    panel_values_plain(race, scene)?;
+    panel_values_plain(race)?;
     panel_neighbours(race)?;
     panel_players(race)?;
-    panel_motion_plain(race, scene)?;
+    panel_motion_plain(race)?;
     panel_marks(race)?;
     both_countdown_lights(race)?;
     both_split_colours(race)

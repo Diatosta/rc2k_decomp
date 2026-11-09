@@ -2,7 +2,7 @@
 //! pipeline: `g_polygonDrawn` 0; the four polygon records' vertex pointers
 //! (`dword_623E40` .. 0x20 apart), texture places (`dword_623DF0` .. u, `dword_623E00` ..
 //! v), the corners' x (`dword_623E10` left, `dword_623E14` right) and y (`dword_623E20`
-//! top, `dword_623E24` bottom) as floats (through `dword_62400C`), depth `dword_5C5E20`;
+//! top, `dword_623E24` bottom) as floats (the original passed them through `g_scratch`, not kept), depth `dword_5C5E20`;
 //! the entries -1, colour `dword_623DE8`'s low 24 bits, the records' +0x18 0; four
 //! vertices, the record pool, the list 0 .. 3; then `scene::scale_texture_coordinates`,
 //! `scene::clip_polygon_to_screen` and, with three vertices or more left, mode 6
@@ -39,11 +39,7 @@ pub fn draw_flat_quad(
         rec.u.set(shared.vars.quad_uv[n].bits());
         rec.v.set(shared.vars.quad_uv[4 + n].bits());
     }
-    let float = |cell: &Dword| {
-        let v = x87::from_int(cell.bits() as i32);
-        drawing.scene.scratch.set_bits(v);
-        v
-    };
+    let float = |cell: &Dword| x87::from_int(cell.bits() as i32);
     let [left, right, top, bottom] = [
         &shared.vars.quad_corners[0],
         &shared.vars.quad_corners[1],

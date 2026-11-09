@@ -51,6 +51,12 @@ fn face_checkpoint(course: &Course, shared: &Shared, back: u32) -> bool {
     let first = shared.car.position[0].get().wrapping_sub(coordinate(0));
     let second = shared.car.position[2].get().wrapping_sub(coordinate(2));
     let angle = crate::scene::angle_between::angle_of(course, first, second);
+    // `scene::angle_between` left the angle in `g_scratch`.
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(angle);
     shared.car.camera_heading.set(angle << 16);
     true
 }

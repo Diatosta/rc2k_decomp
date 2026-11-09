@@ -1,8 +1,8 @@
 //! `scene::fog_polygon` (0x44E286): each of the polygon's points gets its fog by its
 //! depth.
 //!
-//! For each entry: the depth of its point's record (+0x18) as a whole number (`fistp`,
-//! kept in `dword_62400C`), under 0 taken as 0, over 0x2000 is the place in the table
+//! For each entry: the depth of its point's record (+0x18) as a whole number (`fistp`),
+//! under 0 taken as 0, over 0x2000 is the place in the table
 //! `byte_63661C` (0x44E260; its length `dword_63761C`, a place past it is the last
 //! one); the entry's byte +0x20 is that table's byte inverted. With `dword_6365C8` at 4
 //! the byte is the low byte of `dword_636610` inverted instead.
@@ -42,7 +42,6 @@ pub fn fog_entries(entries: &Listed, scene: &crate::scene::owner::Scene) -> Resu
     for entry in entries {
         let record = entry.record.get();
         let depth = x87::to_int(crate::scene::point_records::vertex(record, 0x18));
-        scene.drawing.scene.scratch.set_bits(depth as u32);
         // A place past the length is the last one; with no length (the menus)
         // that is the byte before the table, as in the original.
         let place = depth.max(0) as u32 >> 13;

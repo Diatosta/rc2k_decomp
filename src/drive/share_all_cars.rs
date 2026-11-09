@@ -72,7 +72,6 @@ pub fn share_all_cars(race: &Race, scene: &crate::scene::owner::Scene) -> Result
             crate::physics::car_store::Car::at(block),
             record,
             sound,
-            scene,
         )?;
     }
     let first_record = race

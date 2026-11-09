@@ -150,7 +150,6 @@ pub fn set_listener(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
     MARKS_SETTINGS
         .listener_flag
         .set(u32::from(car.handbrake.get() != 0));
-    scene.drawing.scene.scratch.set(0x2000_0000);
     MARKS_SETTINGS.listener_scale.set_bits(int_over_int_plus(
         car.steer_angle_visual.get() as i32,
         0x2000_0000,

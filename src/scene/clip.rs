@@ -118,7 +118,6 @@ fn cut(
     let out_2 = crate::session::read_bits(&drawing.scene.clip_work_2);
     w[OUT_1 / 4..OUT_1 / 4 + 12].copy_from_slice(&out_1);
     w[OUT_2 / 4..OUT_2 / 4 + 5].copy_from_slice(&out_2);
-    w[CHECKED / 4] = drawing.scene.scratch.bits();
     w[PLANE / 4] = drawing.scene.clip_plane.bits();
     match edge {
         Edge::X(at) => {
@@ -156,7 +155,6 @@ fn cut(
     let out_2: [u32; 5] = w[OUT_2 / 4..OUT_2 / 4 + 5].try_into().expect("5 dwords");
     crate::session::write_bits(&drawing.scene.clip_work, out_1);
     crate::session::write_bits(&drawing.scene.clip_work_2, out_2);
-    drawing.scene.scratch.set_bits(w[CHECKED / 4]);
 
     drawing
         .scene

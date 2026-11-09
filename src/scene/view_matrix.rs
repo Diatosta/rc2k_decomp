@@ -25,8 +25,6 @@ pub enum Axis {
 /// `scene::set_turn_z` (0x42715D).
 pub fn set_fine_turn(course: &Course, matrices: &SceneMatrices, axis: Axis, angle: u32) {
     let drawing = &scene().drawing;
-
-    drawing.scene.scratch.set_bits(angle);
     let (sine, cosine) = x87::sine_cosine(
         angle as i32,
         course.numbers.k65536.bits(),
@@ -60,8 +58,13 @@ pub fn set_fine_turn(course: &Course, matrices: &SceneMatrices, axis: Axis, angl
 
 /// `scene::unit_vector` (0x420EF8): three floats made one long, into `out`; all 0 when
 /// their length compares equal to `flt_5C5D90` (0, or no number). Minus zero made zero.
-/// The length is left in `dword_62400C`.
-pub fn unit_vector(course: &Course, from: &(impl Cells + ?Sized), out: &(impl Cells + ?Sized)) {
+/// Returns the length (the original left it in `dword_62400C`: the physics' callers store it
+/// there, the drawing's never read it).
+pub fn unit_vector(
+    course: &Course,
+    from: &(impl Cells + ?Sized),
+    out: &(impl Cells + ?Sized),
+) -> u32 {
     // `x87::length`: sqrt(x x + (y y + z z)).
     let (x, y, z) = (
         bh::ld(from.bits(0)),
@@ -69,12 +72,11 @@ pub fn unit_vector(course: &Course, from: &(impl Cells + ?Sized), out: &(impl Ce
         bh::ld(from.bits(2)),
     );
     let length = bh::st((x * x + (y * y + z * z)).sqrt());
-    scene().drawing.scene.scratch.set_bits(length);
     if x87::equal_or_unordered(length, course.numbers.zero.bits()) {
         for n in 0..3 {
             out.set_bits(n, 0);
         }
-        return;
+        return length;
     }
     for n in 0..3 {
         out.set_bits(n, x87::div(from.bits(n), length));
@@ -84,6 +86,7 @@ pub fn unit_vector(course: &Course, from: &(impl Cells + ?Sized), out: &(impl Ce
             out.set_bits(n, 0);
         }
     }
+    length
 }
 
 /// `scene::cross_product` (0x420F8D): ebx = `b`, ecx = `c`, edx = `out`, written part
@@ -123,22 +126,27 @@ impl Cells for Squared<'_> {
 }
 
 /// `scene::square_matrix` (0x420E94): a turning's three rows made one long and at right
-/// angles again, from its third row and its second.
-pub fn square_matrix(course: &Course, at: &(impl Cells + ?Sized)) {
+/// angles again, from its third row and its second. Returns the second `unit_vector`'s length.
+pub fn square_matrix(course: &Course, at: &(impl Cells + ?Sized)) -> u32 {
     let squared = Squared(course);
     let (first, second, third) = (Off(&squared, 0), Off(&squared, 4), Off(&squared, 8));
     unit_vector(course, &Off(at, 8), &third);
     cross_product(&Off(at, 4), &third, &first);
-    unit_vector(course, &first, &first);
+    let length = unit_vector(course, &first, &first);
     cross_product(&third, &first, &second);
     for n in 0..0x10 {
         at.set_bits(n, squared.bits(n));
     }
+    length
 }
 
 /// `scene::invert_turn` (0x420CC2): the turning at `from` undone, into `out`: its nine
-/// floats' cofactors laid out the other way round, then squared.
-pub fn invert_turn(course: &Course, from: &(impl Cells + ?Sized), out: &(impl Cells + ?Sized)) {
+/// floats' cofactors laid out the other way round, then squared. Returns `square_matrix`'s length.
+pub fn invert_turn(
+    course: &Course,
+    from: &(impl Cells + ?Sized),
+    out: &(impl Cells + ?Sized),
+) -> u32 {
     let mut m = [0u32; 9];
     for (n, value) in m.iter_mut().enumerate() {
         *value = x87::loaded(from.bits((n / 3) * 4 + n % 3));
@@ -162,7 +170,7 @@ pub fn invert_turn(course: &Course, from: &(impl Cells + ?Sized), out: &(impl Ce
     for (n, value) in made.into_iter().enumerate() {
         out.set_bits((n / 3) * 4 + n % 3, x87::loaded(value));
     }
-    square_matrix(course, out);
+    square_matrix(course, out)
 }
 
 /// `scene::set_view_matrices` (0x438FBF).

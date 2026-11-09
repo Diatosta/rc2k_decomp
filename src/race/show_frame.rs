@@ -42,13 +42,7 @@ pub fn show_frame(race: &Race) -> Result<Shown, Refused> {
             system,
         )?;
     }
-    {
-        crate::race::frame_text::draw_frame_rate(
-            race,
-            &mut crate::text::draw_text::GameCanvas,
-            scene,
-        )
-    }?;
+    { crate::race::frame_text::draw_frame_rate(race, &mut crate::text::draw_text::GameCanvas) }?;
     // `scene::unlock_frame` leaves eax 0 (its carry is `present_frame`'s next).
     crate::scene::unlock_frame::unlock_frame(&race.frame);
     if !crate::scene::present_frame::present_frame() {

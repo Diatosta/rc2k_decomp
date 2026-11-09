@@ -288,9 +288,15 @@ pub fn nearest_checkpoint(race: &Race, scene: &crate::scene::owner::Scene) -> Re
 /// (`g_crashMatrix`, +0xB4) into its inverse (+0x9CC, 0x71A9A4), every register kept.
 pub fn invert_car_matrix(race: &Race) {
     let shared = &race.shared;
-    crate::scene::view_matrix::invert_turn(
+    let length = crate::scene::view_matrix::invert_turn(
         &race.course,
         &shared.car.crash_matrix,
         &shared.car.car_inverse_matrix,
     );
+    // `scene::square_matrix` left its last length in `g_scratch`.
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(length);
 }

@@ -217,7 +217,7 @@ pub fn place_view(race: &Race) -> Result<(), BadInput> {
 /// `race::sky_matrix` (0x42725E): `g_madeObjectMatrix` for the sky: a turn about y by
 /// -(`race().course.stage_prefs.sky_turn` << 8), placed at (0, `race().course.stage_prefs.sky_height` << 8, 0) (into `OBJECT_WORK.place` ..),
 /// the copy with the place (`g_turnedMatrix`) scaled by (`DRAW.farthest_scaled` << 4) / 16
-/// (`OBJECT_WORK.size`, through `DRAW.scratch`), times `g_viewTurnMatrix`.
+/// (`OBJECT_WORK.size`), times `g_viewTurnMatrix`.
 pub fn sky_matrix(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
     let drawing = &scene.drawing;
     use crate::scene::matrix;
@@ -236,7 +236,6 @@ pub fn sky_matrix(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(),
     let size = drawing.scene.farthest_scaled.get() << 4;
     drawing.object_work.size.set(size);
     let scale = crate::math::x87::int_over_16(size as i32);
-    drawing.scene.scratch.set_bits(scale);
     for cell in &race.frame.matrices.turned_matrix {
         cell.set_bits(crate::math::x87::mul(cell.bits(), scale));
     }
@@ -282,8 +281,7 @@ pub(super) fn view_place_tail(course: &Course, frame: &Frame) -> Result<(), BadI
 /// `race().frame.view_and_records.view_vars.view_angles[5]`), each step `turn y`, `turn x`, `turn z` multiplied in. Views 1 and 2
 /// then roll with the car (`g_car` +0x648 by its speed, eased into `g_car` +0x6A0, turned
 /// about z). Then the place (see `view_place_tail`).
-pub fn view_matrices(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
-    let drawing = &scene.drawing;
+pub fn view_matrices(race: &Race) -> Result<(), BadInput> {
     use crate::scene::matrix::multiply_matrices;
     use crate::scene::view_matrix::{Axis, invert_turn, set_fine_turn};
     let (view_turn, turn_y, turn_x, turn_z) = (
@@ -352,7 +350,6 @@ pub fn view_matrices(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
         if !below_or_unordered(v, race.course.numbers.one.bits()) {
             v = race.course.numbers.one.bits();
         }
-        drawing.scene.scratch.set_bits(v);
         let roll = eased_roll(
             crate::race::frame::drawn_car().steering_raw.get() as i32,
             race.course.numbers.k65536.bits(),
@@ -369,7 +366,6 @@ pub fn view_matrices(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
             race.course.numbers.k4096.bits(),
             race.course.numbers.one_over_two_pi.bits(),
         ) << 4;
-        drawing.scene.scratch.set_bits(angle);
         set_fine_turn(&race.course, &race.frame.matrices, Axis::Z, angle);
         multiply_matrices(view_turn, turn_z, turned);
         crate::math::cells::copy_cells(&turned, &view_turn, 16);
@@ -405,7 +401,7 @@ pub fn camera_view(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
         .set(crate::race::frame::drawn_car().camera_view.get());
     if race.shared.switches.other_way.get() == 0 {
         place_view(race)?;
-        view_matrices(race, scene)?;
+        view_matrices(race)?;
         return Ok(());
     }
     let place: [u32; 3] = if race.physics.ground.view_mirrored.get() == 0 {
@@ -461,7 +457,7 @@ pub fn camera_view(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
     race.frame.view_and_records.view_vars.view_place_f[1].set_bits(from_int(place[1] as i32));
     race.frame.view_and_records.view_vars.view_place_f[2].set_bits(from_int(place[2] as i32));
     crate::scene::set_view_window::set_view_window(race, scene);
-    view_matrices(race, scene)?;
+    view_matrices(race)?;
     Ok(())
 }
 
@@ -549,7 +545,6 @@ fn place_sun(
         .get()
         .wrapping_add(race.course.stage_prefs.sky_turn.get())
         & 0xFF;
-    drawing.scene.scratch.set_bits(angle);
     let dir = sun_direction(
         angle as i32,
         race.course.numbers.sixty_four.bits(),
@@ -582,7 +577,7 @@ fn place_sun(
         drawing.scene.view_centre[1].bits(),
         drawing.scene.view_centre[0].bits(),
     ];
-    let [fx, ix, fy, iy] = sun_on_screen(&v, flat, &drawing.scene.scratch);
+    let [fx, ix, fy, iy] = sun_on_screen(&v, flat, &crate::session::Dword::new(0));
     race.frame.frame_work.sun_place[0].set(fx);
     race.frame.frame_work.sun_hit[0].set(ix);
     race.frame.frame_work.sun_place[1].set(fy);
@@ -597,7 +592,6 @@ fn place_sun(
         race.course.numbers.half.bits(),
         race.course.numbers.k256.bits(),
     );
-    drawing.scene.scratch.set_bits(size);
     race.frame
         .frame_work
         .sun_size

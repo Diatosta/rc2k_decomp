@@ -13,7 +13,7 @@
 //! with its own instructions), the screen's two set to 0, and, unless the depth is
 //! under 4096: x = x' * (`flt_624088` / depth) + `flt_62409C`, y = `flt_6240A0` - y' *
 //! (the same). With `dword_60932C` set the depth divided by is `dword_5CCD80` + 1
-//! instead (and the real one goes to `dword_62400C`). With `dword_6365C4` at 1 the
+//! instead (the real one went to `g_scratch`, which nothing read: not kept). With `dword_6365C4` at 1 the
 //! record's depth is then lowered by 262144.
 //! Fatal errors 0x80600902 and 0x80600903 for a number past the object's or the
 //! scene's points.
@@ -208,11 +208,11 @@ pub(crate) fn make_scene_record(
             race.course.course.flat_depth.bits(),
         ];
         let flat = race.course.stage_prefs.flat_depth.bits() != 0;
-        to_screen(&mut r, &v, flat, &scene.drawing.scene.scratch);
+        // The depth it stores is a work value nothing reads.
+        to_screen(&mut r, &v, flat, &crate::session::Dword::new(0));
     }
     if scene.lights.state.draw_mode.bits() == 1 {
         r[6] = x87::sub(r[6], LOWERED_BY.to_bits());
-        scene.drawing.scene.scratch.set_bits(LOWERED_BY.to_bits());
     }
     point_records::set(record, r)?;
     Ok(())

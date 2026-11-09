@@ -249,14 +249,14 @@ pub fn share_car_state(
     block: &'static Car,
     record: &MarkCar,
     sound: &SoundObject,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     share_car_state_at(
         race,
         block,
         record,
         sound,
-        &scene.drawing.scene.scratch, /* dword_62400C */
+        // The original's spill to `g_scratch` (0x62400C), which nothing read: a local.
+        &Dword::new(0),
     )
 }
 

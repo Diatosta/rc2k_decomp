@@ -19,7 +19,8 @@
 //!   (`g_clipScreenLeft` ..), the middle (`flt_62409C`, `flt_6240A0`), and the width
 //!   and height less `flt_5C5D38` (`flt_6D18E8`, `EC`).
 //!
-//! `dword_62400C` is left holding the low half. Twelve callers.
+//! The original also stored the low half to `g_scratch`; nothing read it, so it is not kept.
+//! Twelve callers.
 
 use crate::math::x87;
 use crate::race::owner::Race;
@@ -65,7 +66,6 @@ pub fn set_view_window(race: &Race, scene: &crate::scene::owner::Scene) {
     drawing.scene.depth_divisor.set_bits(divisor);
     let product = depth as u64 * 0x1_0000;
     let low = product as u32;
-    drawing.scene.scratch.set_bits(low);
     let farthest = x87::int_over(low as i32, divisor);
     drawing.scene.farthest.set_bits(farthest);
     drawing
@@ -128,8 +128,6 @@ pub fn set_view_window_plain(
     crate::session::write_bits(&drawing.scene.clip_edges, w.edges);
     drawing.scene.view_scale.set_bits(w.scale.to_bits());
     drawing.scene.depth_divisor.set_bits(w.divisor.to_bits());
-    let low = w.product as u32;
-    drawing.scene.scratch.set_bits(low);
     drawing.scene.farthest.set(w.farthest);
     drawing.scene.one_over_farthest.set(w.reciprocal);
     drawing.scene.farthest_scaled.set(w.fade_depth as u32);

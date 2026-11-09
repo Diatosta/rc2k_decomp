@@ -12,7 +12,7 @@
 //! `scene::project_point` does it (0x45C237: not if it is nearer than 4096). With
 //! `dword_623DD0` not 0 the point is first moved (0x45C29B) towards the one that
 //! many bytes further on in the table, by `flt_623DD4` of the way, rounded to whole
-//! numbers in `unk_5CCE18`; `dword_62400C` = that fraction. A normal goes through
+//! numbers in `unk_5CCE18`; (the original's store of that fraction to `g_scratch` is not kept). A normal goes through
 //! the matrix without its fourth row (0x45C1E7).
 //! One caller, `scene::place_object_points_any`, which takes this way unless `dword_621A5C` (3DNow)
 //! or
@@ -64,7 +64,6 @@ fn moved(race: &crate::race::owner::Race, from: usize, by: u32) -> Result<(), Ba
     course.course.point_moved.set(w[7]);
     course.course.group_masks[0].set(w[8]);
     course.course.group_masks[1].set(w[9]);
-    scene().drawing.scene.scratch.set_bits(w[10]);
     Ok(())
 }
 
@@ -206,7 +205,7 @@ pub fn place_object_points(
                 race.course.course.flat_depth.bits(),
             ];
             let flat = race.course.stage_prefs.flat_depth.bits() != 0;
-            to_screen(&mut r, &v, flat, &drawing.scene.scratch);
+            to_screen(&mut r, &v, flat, &crate::session::Dword::new(0));
         }
         point_records::set(record, r)?;
         from = from.wrapping_add(12);
@@ -266,7 +265,7 @@ pub fn place_object_points_sse(
                 race.course.course.flat_depth.bits(),
             ];
             let flat = race.course.stage_prefs.flat_depth.bits() != 0;
-            to_screen(&mut r, &v, flat, &drawing.scene.scratch);
+            to_screen(&mut r, &v, flat, &crate::session::Dword::new(0));
         }
         point_records::set(record, r)?;
         from = from.wrapping_add(12);

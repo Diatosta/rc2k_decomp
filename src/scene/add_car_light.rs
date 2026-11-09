@@ -10,7 +10,7 @@
 //! - 0x100 less a quarter of ((z - 0x200000) squared + (2x) squared) times
 //!   `flt_5C5DA0` twice: a cone ahead of the car;
 //! - one the original works out and then overwrites (((z - 0x100000) squared + x
-//!   squared) times `flt_5C5DA0`, whose rounding is left in `dword_62400C`);
+//!   squared) times `flt_5C5DA0`, stored to `g_scratch`, which nothing read: not kept);
 //! - (0x100000 less y without its sign) over 0x1000: how near the car's height.
 //!
 //! The third times twice the first over 256, times the block's dword +0xABC over 256, held to
@@ -140,12 +140,8 @@ pub fn add_car_light(
     let factor: u32 = course.numbers.one_over_65536.bits();
     let ahead = squares(z.wrapping_sub(0x20_0000), x.wrapping_add(x), factor, true);
     let cone = held(0x100i32.wrapping_sub((ahead >> 2) as i32));
-    // Worked out and not used; its rounding is what `dword_62400C` is left with.
-    scene
-        .drawing
-        .scene
-        .scratch
-        .set(squares(z.wrapping_sub(0x10_0000), x, factor, false));
+    // The original also worked out a second sum of squares, stored to `g_scratch` and
+    // never read: not kept.
     let height = if (y as i32) < 0 { y.wrapping_neg() } else { y };
     let level = held((0x10_0000u32.wrapping_sub(height) as i32) >> 12);
     let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(marks_count) >> 8;

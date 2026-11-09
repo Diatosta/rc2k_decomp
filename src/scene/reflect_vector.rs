@@ -5,8 +5,9 @@
 //!
 //! v = the three floats at `dword_5EA428`, n = the three at `qword_5EA438`:
 //! d = v . n (the first and second products added first, then the third); v = v * d, each rounded to a
-//! float; `dword_62400C` = d; v = v + v - n; then v through the matrix `flt_5EA20C`
-//! (`scene::rotate_point`, inlined) and back to its place. d stays unrounded between its uses.
+//! float; v = v + v - n; then v through the matrix `flt_5EA20C`
+//! (`scene::rotate_point`, inlined) and back to its place. d stays unrounded between its uses. The original's store of d to `g_scratch` (nothing read it)
+//! is not kept.
 //! Plain Rust since 2026-10-24 (the x87's arithmetic in `X`, `math/x87_float.rs`); the
 //! original's instructions are `asm_reference` in the tests.
 //! One caller, `scene::reflection_coordinates` (the reflection's texture coordinates).
@@ -14,7 +15,7 @@ use crate::scene::x87_mem::{Base, cells, fld, fstp};
 
 // ---- Rust version ----
 
-pub fn reflect_vector(frame: &crate::race::owner_frame::Frame, scene: &crate::scene::owner::Scene) {
+pub fn reflect_vector(frame: &crate::race::owner_frame::Frame) {
     let (v, n): ([u32; 3], [u32; 3]) = (
         crate::session::read_bits(&frame.matrices.reflect_vector),
         crate::session::read_bits(&frame.matrices.reflect_normal),
@@ -29,7 +30,6 @@ pub fn reflect_vector(frame: &crate::race::owner_frame::Frame, scene: &crate::sc
         .map(super::super::session::Float::bits);
     reflect(cells(&mut w), &m[..]);
     crate::session::write_bits(&frame.matrices.reflect_vector, [w[0], w[1], w[2]]);
-    scene.drawing.scene.scratch.set_bits(w[6]);
 }
 
 /// The block's arithmetic: `w` the vector, the normal, d; `m` the matrix.

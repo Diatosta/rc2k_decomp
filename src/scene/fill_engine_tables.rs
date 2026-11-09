@@ -117,7 +117,10 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race) {
     for angle in (0..0x2000).step_by(0x40) {
         tangent(&race.frame, angle);
     }
+    let mut angle = 0;
     for place in 0..0x100u32 {
-        angle_of(&race.course, place, 0x100);
+        angle = angle_of(&race.course, place, 0x100);
     }
+    // `scene::angle_between` left the last angle in `g_scratch`.
+    scene().drawing.scene.scratch.set_bits(angle);
 }

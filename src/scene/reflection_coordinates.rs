@@ -55,10 +55,7 @@ fn negated_at(a: impl Base, o: impl Base) {
     fstp(o, 0x0, t1);
 }
 
-pub fn reflection_coordinates(
-    race: &crate::race::owner::Race,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), BadInput> {
+pub fn reflection_coordinates(race: &crate::race::owner::Race) -> Result<(), BadInput> {
     if !crate::scene::point_records::held() {
         return Err(BadInput("no records for the points"));
     }
@@ -76,7 +73,7 @@ pub fn reflection_coordinates(
     normalise_vector(race)?;
     let to_eye: [u32; 3] = crate::session::read_first(&race.frame.scratch.work_vector);
     crate::session::write_bits(&race.frame.matrices.reflect_normal, to_eye);
-    reflect_vector(&race.frame, scene);
+    reflect_vector(&race.frame);
     let mirrored: [u32; 3] = crate::session::read_bits(&race.frame.matrices.reflect_vector);
     crate::session::write_first(
         &race.frame.scratch.work_vector,

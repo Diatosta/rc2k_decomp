@@ -143,7 +143,7 @@ pub fn draw_object_face(
                 .ground
                 .reflection_point_number
                 .set_bits(fw(vertex).wrapping_neg());
-            cached_reflection_coordinates(race, scene)?;
+            cached_reflection_coordinates(race)?;
             let coordinates: [u32; 2] =
                 crate::session::read_bits(&race.physics.ground.reflection_coordinates);
             entry.u2.set(coordinates[0]);

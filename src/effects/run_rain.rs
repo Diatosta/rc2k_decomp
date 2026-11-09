@@ -95,7 +95,6 @@ pub fn run_rain(
         let rhw = weather.rain_rules.rhw;
         for (n, colour) in COLOURS.into_iter().enumerate() {
             let v = &VERTICES.vertices[n];
-            scene.drawing.scene.scratch.set_bits(rhw);
             v.rhw.set_bits(x87::int_to_float(rhw as i32));
             v.colour.set(colour);
             v.specular.set(0);

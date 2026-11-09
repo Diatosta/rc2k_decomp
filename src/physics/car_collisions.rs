@@ -58,14 +58,18 @@ pub fn car_collisions(race: &Race, scene: &crate::scene::owner::Scene) -> Result
             if { Car::at(block) }.driver_kind.bits() == 0 {
                 continue;
             }
-            set_place(
-                &race.frame.matrices,
-                [0usize, 1, 2].map(|k| {
-                    race.shared.car.position[k]
-                        .get()
-                        .wrapping_sub(Car::at(block).position[k].get())
-                }),
-            );
+            let place = [0usize, 1, 2].map(|k| {
+                race.shared.car.position[k]
+                    .get()
+                    .wrapping_sub(Car::at(block).position[k].get())
+            });
+            set_place(&race.frame.matrices, place);
+            // `scene::set_place` left the z in `g_scratch`.
+            crate::scene::owner::scene()
+                .drawing
+                .scene
+                .scratch
+                .set_bits(place[2]);
             multiply_matrices(
                 &race.shared.car.crash_matrix,
                 &race.frame.matrices.placed_matrix,
