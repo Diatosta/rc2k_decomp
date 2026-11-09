@@ -121,7 +121,7 @@ impl<T: crate::pointers::Cells + crate::pointers::Store> Carried for PerWorker<T
 /// The stores of the drawing's working state a run reads as the list began (the write
 /// watch's list, `notes/conversion.md`): copied into each run's copy, the changes merged
 /// back.
-fn carried_stores() -> [&'static dyn Carried; 31] {
+fn carried_stores() -> [&'static dyn Carried; 30] {
     let race = crate::race::owner::race();
     let scene = crate::scene::owner::scene();
     [
@@ -151,7 +151,6 @@ fn carried_stores() -> [&'static dyn Carried; 31] {
         &race.physics.ground_probe,
         &race.shared.work,
         &race.shared.physics_tables,
-        &race.shared.car,
         &race.course.lists,
         &race.course.stage_prefs,
         &scene.draw_switches,
@@ -287,6 +286,13 @@ pub fn draw_in_runs(
     count: usize,
     draw: impl Fn(Range<usize>) -> Result<(), Refused> + Sync,
 ) -> Result<(), Refused> {
+    carried_census("a list", || draw_in_runs_now(count, &draw))
+}
+
+fn draw_in_runs_now(
+    count: usize,
+    draw: &(impl Fn(Range<usize>) -> Result<(), Refused> + Sync),
+) -> Result<(), Refused> {
     let k = threads().min(count);
     let beside = BESIDE.load(std::sync::atomic::Ordering::Relaxed);
     let Some(pool) = pool().filter(|_| k > 1 && !beside) else {
@@ -318,10 +324,78 @@ pub fn draw_beside(
     first: impl Fn() -> Result<(), Refused> + Sync,
     second: impl Fn() -> Result<(), Refused> + Sync,
 ) -> Result<(), Refused> {
-    let pool = pool();
-    BESIDE.store(true, std::sync::atomic::Ordering::Relaxed);
-    let drawn = draw_parts(pool, 2, |n| if n == 0 { first() } else { second() });
-    BESIDE.store(false, std::sync::atomic::Ordering::Relaxed);
+    carried_census("parts beside", || {
+        let pool = pool();
+        BESIDE.store(true, std::sync::atomic::Ordering::Relaxed);
+        let drawn = draw_parts(pool, 2, |n| if n == 0 { first() } else { second() });
+        BESIDE.store(false, std::sync::atomic::Ordering::Relaxed);
+        drawn
+    })
+}
+
+/// With `RC2K_CARRIED_CENSUS` (frame plan F4): which carried stores the drawing changes. The
+/// game's copy of each before and after `drawing`, the changed bytes unioned per store over
+/// the run and logged every 200 calls: a store never changed needs no copy per run. Other
+/// threads' writes in the same time show too (the audio thread's environment).
+fn carried_census(
+    label: &str,
+    drawing: impl FnOnce() -> Result<(), Refused>,
+) -> Result<(), Refused> {
+    static ON: OnceLock<bool> = OnceLock::new();
+    if !*ON.get_or_init(|| std::env::var_os("RC2K_CARRIED_CENSUS").is_some()) {
+        return drawing();
+    }
+    static CHANGED: Mutex<(u32, Vec<Vec<bool>>)> = Mutex::new((0, Vec::new()));
+    let bytes = || -> Vec<Vec<u8>> {
+        carried_stores()
+            .iter()
+            .map(|s| {
+                let store = s.copy(0);
+                let mut v = vec![0u8; store.size()];
+                let _ = store.load(0, &mut v);
+                v
+            })
+            .collect()
+    };
+    let before = bytes();
+    let drawn = drawing();
+    let after = bytes();
+    let mut c = CHANGED
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if c.1.is_empty() {
+        c.1 = before.iter().map(|b| vec![false; b.len()]).collect();
+    }
+    for ((b, a), m) in before.iter().zip(&after).zip(&mut c.1) {
+        for (k, flag) in m.iter_mut().enumerate() {
+            *flag |= b[k] != a[k];
+        }
+    }
+    c.0 += 1;
+    if c.0.is_multiple_of(200) {
+        let lines: Vec<String> =
+            c.1.iter()
+                .enumerate()
+                .map(|(n, m)| {
+                    let changed = m.iter().filter(|&&f| f).count();
+                    let first = m.iter().position(|&f| f);
+                    let last = m.iter().rposition(|&f| f);
+                    format!(
+                        "{n}:{changed}/{}{}",
+                        m.len(),
+                        match (first, last) {
+                            (Some(f), Some(l)) => format!("@{f:#x}..{l:#x}"),
+                            _ => String::new(),
+                        }
+                    )
+                })
+                .collect();
+        crate::framework::log(&format!(
+            "workers: carried census after {} calls ({label} last): {}",
+            c.0,
+            lines.join(" ")
+        ));
+    }
     drawn
 }
 

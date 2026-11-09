@@ -1389,7 +1389,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::physics::car_store::START,
         len: crate::physics::car_store::END - crate::physics::car_store::START,
-        home: Home::Store(crate::race::owner::RACE.shared.car.first()),
+        home: Home::Store(&crate::race::owner::RACE.shared.car),
     },
     Moved {
         ida: crate::race::work_store::START,

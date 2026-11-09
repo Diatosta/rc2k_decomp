@@ -46,7 +46,7 @@ pub fn restore_saved_car(race: &Race) -> Result<(), Refused> {
             &*race.physics.contact,
             &race.physics.contact.probe_saved_faces,
         ),
-        (&*race.shared.car, &race.shared.car.probe_point_face),
+        (&race.shared.car, &race.shared.car.probe_point_face),
         n as usize,
         "the saved faces",
     )?;

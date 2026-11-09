@@ -14,7 +14,7 @@ pub fn grade_or_reset(race: &Race) {
     if shared.car.driver_kind.get() == 2 {
         reset_grades_at(
             &race.course,
-            &*shared.car,
+            &shared.car,
             &shared.car.suspension_stiffness,
             &shared.car.ride_height,
         );

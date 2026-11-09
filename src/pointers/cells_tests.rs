@@ -150,7 +150,7 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         menus.play.results,
         menus.screens.state,
         *race.physics.camera,
-        *race.shared.car,
+        race.shared.car,
         *race.physics.contact,
         *race.physics.ground_probe,
         *race.physics.ground,

@@ -45,9 +45,9 @@ pub struct Shared {
     /// `PHYSICS` (`physics`).
     /// One copy per drawing thread (`workers`).
     pub physics_tables: crate::workers::PerWorker<PhysicsTables>,
-    /// `CAR` (`physics`).
-    /// One copy per drawing thread (`workers`).
-    pub car: crate::workers::PerWorker<Car>,
+    /// `CAR` (`physics`): the work car. One copy: the drawing no longer reads it (frame plan
+    /// F3), so the drawing threads need none of their own.
+    pub car: Car,
 }
 
 impl Shared {
@@ -75,7 +75,7 @@ impl Shared {
             physics_tables: crate::workers::PerWorker::new(
                 [const { PhysicsTables::new() }; crate::workers::COPIES],
             ),
-            car: crate::workers::PerWorker::new([const { Car::new() }; crate::workers::COPIES]),
+            car: Car::new(),
         }
     }
 }
