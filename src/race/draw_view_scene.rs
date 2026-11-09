@@ -20,6 +20,7 @@ pub fn draw_view_scene(
 ) -> Result<(), Refused> {
     use crate::race::frame_draw::*;
     let ctx = DrawCtx::new(race, scene, view);
+    let _held = view.matrices.hold(&race.frame.matrices);
     let lists = &view.lists;
     if crate::race::frame::drawn_car().view_covered.get() != 0 {
         return draw_view_tint(race, &view.face, scene);
@@ -31,7 +32,7 @@ pub fn draw_view_scene(
     car_light_modes(race)?;
     clear_point_records(race, scene)?;
     set_up_fog(race, scene, &view.fog)?;
-    camera_view(race, scene)?;
+    camera_view(race, scene, &view.matrices)?;
     draw_sky(&ctx)?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
     view_light(race, scene, &view.light)?;

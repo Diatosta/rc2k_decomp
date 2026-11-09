@@ -7,10 +7,9 @@
 use crate::math::cells::{Cells, Off};
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner_course::Course;
 use crate::scene::matrix;
-use crate::scene::owner::scene;
+use crate::scene::view_matrices::ViewMatrices;
 use crate::session::Float;
 
 /// Which of the three turnings.
@@ -23,8 +22,7 @@ pub enum Axis {
 
 /// `scene::set_fine_turn_x` (0x4270BA), `scene::set_fine_turn_y` (0x42710C),
 /// `scene::set_turn_z` (0x42715D).
-pub fn set_fine_turn(course: &Course, matrices: &SceneMatrices, axis: Axis, angle: u32) {
-    let drawing = &scene().drawing;
+pub fn set_fine_turn(course: &Course, matrices: &ViewMatrices, axis: Axis, angle: u32) {
     let (sine, cosine) = x87::sine_cosine(
         angle as i32,
         course.numbers.k65536.bits(),
@@ -35,20 +33,16 @@ pub fn set_fine_turn(course: &Course, matrices: &SceneMatrices, axis: Axis, angl
     // cosine go in the matrix.
     let (work, rows, places): (&[Float; 2], &[Float; 16], [usize; 4]) = match axis {
         Axis::X => (
-            &drawing.scene.turn_x_work,
+            &matrices.turn_x_work,
             &matrices.turn_x_matrix,
             [5, 6, 9, 10],
         ),
         Axis::Y => (
-            &drawing.scene.turn_y_work,
+            &matrices.turn_y_work,
             &matrices.turn_y_matrix,
             [0, 8, 2, 10],
         ),
-        Axis::Z => (
-            &drawing.scene.turn_z_work,
-            &matrices.turn_z_matrix,
-            [0, 1, 4, 5],
-        ),
+        Axis::Z => (&matrices.turn_z_work, &matrices.turn_z_matrix, [0, 1, 4, 5]),
     };
     crate::session::write_bits(work, [sine, cosine]);
     for (place, value) in places.into_iter().zip([cosine, sine, negated, cosine]) {
@@ -173,36 +167,40 @@ pub fn invert_turn(
     square_matrix(course, out)
 }
 
-/// `scene::set_view_matrices` (0x438FBF).
-pub fn set_view_matrices(course: &Course, frame: &crate::race::owner_frame::Frame) {
+/// `scene::set_view_matrices` (0x438FBF), working in `scratch` (the front end's).
+pub fn set_view_matrices(
+    course: &Course,
+    frame: &crate::race::owner_frame::Frame,
+    scratch: &ViewMatrices,
+) {
     crate::session::write_bits(
         &frame.matrices.view_turn_matrix,
         crate::session::read_bits(&frame.matrices.identity_matrix),
     );
     let angles: [u32; 3] =
         crate::session::read_first(&frame.view_and_records.view_vars.view_angles);
-    set_fine_turn(course, &frame.matrices, Axis::Y, angles[0].wrapping_neg());
-    set_fine_turn(course, &frame.matrices, Axis::X, angles[1].wrapping_neg());
-    set_fine_turn(course, &frame.matrices, Axis::Z, angles[2].wrapping_neg());
+    set_fine_turn(course, scratch, Axis::Y, angles[0].wrapping_neg());
+    set_fine_turn(course, scratch, Axis::X, angles[1].wrapping_neg());
+    set_fine_turn(course, scratch, Axis::Z, angles[2].wrapping_neg());
     matrix::multiply_matrices(
-        &frame.matrices.turn_y_matrix,
-        &frame.matrices.turn_x_matrix,
-        &frame.matrices.lit_matrix,
+        &scratch.turn_y_matrix,
+        &scratch.turn_x_matrix,
+        &scratch.lit_matrix,
     );
     matrix::multiply_matrices(
-        &frame.matrices.lit_matrix,
-        &frame.matrices.turn_z_matrix,
+        &scratch.lit_matrix,
+        &scratch.turn_z_matrix,
         &frame.matrices.view_turn_matrix,
     );
     let place = crate::session::read_bits::<_, 3>(&frame.view_and_records.view_vars.view_place)
         .map(u32::wrapping_neg);
-    matrix::set_place(&frame.matrices, place);
+    matrix::set_place(&scratch.placed_matrix, place);
     crate::session::write_bits(
         &frame.matrices.view_place_matrix,
-        crate::session::read_bits(&frame.matrices.placed_matrix),
+        crate::session::read_bits(&scratch.placed_matrix),
     );
     matrix::multiply_matrices(
-        &frame.matrices.placed_matrix,
+        &scratch.placed_matrix,
         &frame.matrices.view_turn_matrix,
         &frame.matrices.view_matrix,
     );

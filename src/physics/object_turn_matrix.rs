@@ -25,9 +25,9 @@ pub fn object_turn_matrix(race: &Race, scene: &crate::scene::owner::Scene) -> Re
         return Err(BadInput("an object past 0xFF").into());
     }
     set_turn_y(
-        &race.frame.matrices,
+        &race.frame.matrices.turn_y_matrix,
+        &scene.drawing.scene.turn_y_work,
         drawing.object_work.angles[0].get().wrapping_neg(),
-        scene,
     );
     let (out, turn_y, turn_x) = (
         &race.frame.matrices.object_turn_matrix,
@@ -43,21 +43,21 @@ pub fn object_turn_matrix(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     }
     if drawing.object_work.angles[1].get() != 0 {
         set_turn_y(
-            &race.frame.matrices,
+            &race.frame.matrices.turn_y_matrix,
+            &scene.drawing.scene.turn_y_work,
             drawing.object_work.angles[2].get().wrapping_neg(),
-            scene,
         );
         multiply_matrices(&out, &turn_y, &lit);
         set_turn_x(
-            &race.frame.matrices,
+            &race.frame.matrices.turn_x_matrix,
+            &scene.drawing.scene.turn_x_work,
             drawing.object_work.angles[1].get().wrapping_neg(),
-            scene,
         );
         multiply_matrices(&lit, &turn_x, &turned);
         set_turn_y(
-            &race.frame.matrices,
+            &race.frame.matrices.turn_y_matrix,
+            &scene.drawing.scene.turn_y_work,
             drawing.object_work.angles[2].get(),
-            scene,
         );
         multiply_matrices(&turned, &turn_y, &out);
     }

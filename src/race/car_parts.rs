@@ -102,7 +102,7 @@ pub fn car_part_matrices(
         scene.drawing.object_work.part_weights[i].set_bits(p.wheel_spring_force[i].bits());
     }
     set_place(
-        &race.frame.matrices,
+        &race.frame.matrices.placed_matrix,
         [
             scene.drawing.object_work.place[0].get(),
             scene.drawing.object_work.place[1].get(),
@@ -154,25 +154,32 @@ pub fn car_part_matrices(
             scene.drawing.object_work.part_values[2].set(0);
         }
         set_place(
-            &race.frame.matrices,
+            &race.frame.matrices.placed_matrix,
             [
                 x.get().wrapping_neg(),
                 race.physics.camera.axle_rear_lift.get().wrapping_neg(),
                 z.get().wrapping_neg(),
             ],
         );
-        set_turn_x(&race.frame.matrices, spin.get(), scene);
+        set_turn_x(
+            &race.frame.matrices.turn_x_matrix,
+            &scene.drawing.scene.turn_x_work,
+            spin.get(),
+        );
         let placed = &race.frame.matrices.placed_matrix;
         let turned = &race.frame.matrices.turned_matrix;
         let lit = &race.frame.matrices.lit_matrix;
         multiply_matrices(placed, &race.frame.matrices.turn_x_matrix, turned);
         set_turn_y(
-            &race.frame.matrices,
+            &race.frame.matrices.turn_y_matrix,
+            &scene.drawing.scene.turn_y_work,
             scene.drawing.object_work.part_values[2].get(),
-            scene,
         );
         multiply_matrices(turned, &race.frame.matrices.turn_y_matrix, lit);
-        set_place(&race.frame.matrices, [x.get(), lift.get(), z.get()]);
+        set_place(
+            &race.frame.matrices.placed_matrix,
+            [x.get(), lift.get(), z.get()],
+        );
         multiply_matrices(lit, placed, out);
     }
     Ok(())

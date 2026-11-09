@@ -109,6 +109,7 @@ pub fn run() -> Result<(), crate::errors::Refused> {
         scene,
         crate::race::view_scratch::front_end(),
     );
+    let _held = ctx.view.matrices.hold(&race.frame.matrices);
     draw_shown_car(
         &race.shared,
         &ctx.view.cars,

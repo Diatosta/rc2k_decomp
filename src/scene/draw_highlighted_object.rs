@@ -93,6 +93,7 @@ pub fn run() -> Result<(), crate::errors::Refused> {
         scene,
         crate::race::view_scratch::front_end(),
     );
+    let _held = ctx.view.matrices.hold(&race.frame.matrices);
     draw_highlighted(menus, &ctx.view.cars, &mut || {
         draw_menu_object_in_game(&ctx)
     })

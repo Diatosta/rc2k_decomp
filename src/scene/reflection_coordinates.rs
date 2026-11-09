@@ -58,6 +58,7 @@ fn negated_at(a: impl Base, o: impl Base) {
 pub fn reflection_coordinates(
     race: &crate::race::owner::Race,
     object: &crate::scene::object_place::ObjectPlace,
+    m: &crate::scene::view_matrices::ViewMatrices,
 ) -> Result<(), BadInput> {
     if !crate::scene::point_records::held() {
         return Err(BadInput("no records for the points"));
@@ -65,23 +66,23 @@ pub fn reflection_coordinates(
     let table = crate::scene::reading::PointRecords::new()?;
     let normal = table.place(object.reflection_normal_number.bits())?;
     let point = table.place(object.reflection_point_number.bits().wrapping_neg())?;
-    crate::session::write_bits(&race.frame.matrices.reflect_vector, normal);
-    crate::session::write_first(&race.frame.scratch.work_vector, &point.map(negated));
-    normalise_vector(race)?;
-    let to_eye: [u32; 3] = crate::session::read_first(&race.frame.scratch.work_vector);
-    crate::session::write_bits(&race.frame.matrices.reflect_normal, to_eye);
-    reflect_vector(&race.frame);
-    let mirrored: [u32; 3] = crate::session::read_bits(&race.frame.matrices.reflect_vector);
+    crate::session::write_bits(&m.reflect_vector, normal);
+    crate::session::write_first(&m.work_vector, &point.map(negated));
+    normalise_vector(race, &m.work_vector)?;
+    let to_eye: [u32; 3] = crate::session::read_first(&m.work_vector);
+    crate::session::write_bits(&m.reflect_normal, to_eye);
+    reflect_vector(m, &race.frame.matrices.view_back_matrix);
+    let mirrored: [u32; 3] = crate::session::read_bits(&m.reflect_vector);
     crate::session::write_first(
-        &race.frame.scratch.work_vector,
+        &m.work_vector,
         &[
             x87::loaded(mirrored[0]),
             x87::add(mirrored[1], race.course.numbers.one.bits()),
             x87::loaded(mirrored[2]),
         ],
     );
-    normalise_vector(race)?;
-    let looks: [u32; 3] = crate::session::read_first(&race.frame.scratch.work_vector);
+    normalise_vector(race, &m.work_vector)?;
+    let looks: [u32; 3] = crate::session::read_first(&m.work_vector);
     let half: u32 = race.course.numbers.half.bits();
     let scales = [
         race.course.numbers.k65536.bits(),

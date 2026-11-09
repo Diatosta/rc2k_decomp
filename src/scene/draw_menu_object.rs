@@ -48,7 +48,12 @@ pub fn draw_menu_object_in_game(
         &race.course,
         &mut |step| match step {
             Step::Matrix => {
-                make_object_matrix(&race.frame, scene, &ctx.view.light);
+                make_object_matrix(
+                    &ctx.view.matrices,
+                    &race.frame.matrices.view_turn_matrix,
+                    scene,
+                    &ctx.view.light,
+                );
                 Ok(())
             }
             Step::Draw => crate::scene::draw_scene_object::draw_scene_object_in_game(ctx, None),

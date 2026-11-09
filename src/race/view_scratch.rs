@@ -7,8 +7,8 @@
 //! `g_depthEntries` / `g_sortEntries` at 0x9D3730 in the buffers block, one for every view)
 //! and their counts (the original's `RACE_VIEW.depth_entry_count` / `sort_entry_count`), and
 //! the view's fog (`scene::fog`), its object's placing (`scene::object_place`) and its
-//! object lighting (`scene::object_light`), its face work (`race::face_work`) and its cars'
-//! drawing state (`race::car_draw_state`).
+//! object lighting (`scene::object_light`), its face work (`race::face_work`), its cars'
+//! drawing state (`race::car_draw_state`) and its matrices (`scene::view_matrices`).
 
 use crate::errors::BadInput;
 use crate::session::Dword;
@@ -89,6 +89,8 @@ pub struct ViewScratch {
     pub face: crate::race::face_work::FaceWork,
     /// The cars' drawing state (`race::car_draw_state`).
     pub cars: crate::race::car_draw_state::CarDrawState,
+    /// The view's matrices and turning work (`scene::view_matrices`).
+    pub matrices: crate::scene::view_matrices::ViewMatrices,
 }
 
 impl ViewScratch {
@@ -100,6 +102,7 @@ impl ViewScratch {
             light: crate::scene::object_light::ObjectLight::new(),
             face: crate::race::face_work::FaceWork::new(),
             cars: crate::race::car_draw_state::CarDrawState::new(),
+            matrices: crate::scene::view_matrices::ViewMatrices::new(),
         }
     }
 }

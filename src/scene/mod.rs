@@ -163,5 +163,6 @@ pub mod unlock_frame;
 pub mod upload_car_icon;
 pub mod vector3;
 pub mod vertex_light;
+pub mod view_matrices;
 pub mod view_matrix;
 pub(crate) mod x87_mem;

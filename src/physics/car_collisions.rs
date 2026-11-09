@@ -63,7 +63,7 @@ pub fn car_collisions(race: &Race, scene: &crate::scene::owner::Scene) -> Result
                     .get()
                     .wrapping_sub(Car::at(block).position[k].get())
             });
-            set_place(&race.frame.matrices, place);
+            set_place(&race.frame.matrices.placed_matrix, place);
             // `scene::set_place` left the z in `g_scratch`.
             crate::scene::owner::scene()
                 .drawing

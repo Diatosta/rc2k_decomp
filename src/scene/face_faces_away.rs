@@ -81,7 +81,7 @@ pub fn face_faces_away(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     face: usize,
 ) -> Result<bool, Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let scene = ctx.scene;
     if face == 0 || !crate::scene::point_records::held() {
         return Err(BadInput("no face or no records").into());
     }
@@ -113,7 +113,7 @@ pub fn face_faces_away(
             table.place(points[2])?,
         ]);
         crate::session::write_bits(&ctx.view.object.normal_work, triangle.work);
-        crate::session::write_first(&race.frame.scratch.work_vector, &triangle.cross);
+        crate::session::write_first(&ctx.view.matrices.work_vector, &triangle.cross);
         if !triangle.faces_away() {
             return Ok(false);
         }

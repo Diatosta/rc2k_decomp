@@ -6,9 +6,7 @@ use crate::pointers::GamePtr;
 use crate::race::frame_view::car_at as car_view;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
-use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner::Race;
-use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::car_at;
 use crate::race::view_scratch::DrawCtx;
@@ -39,9 +37,9 @@ pub fn end_kept_reflections(shared: &Shared) {
 /// drawn, unless outside one player and modes 0 and 2 its car (object 0x50 + 0x14 x car)
 /// is not the drawn view's (`race().frame.frame_work.listed_car_sounds`): the light (lowest 0, highest 0xFF, level
 /// `STAGE_PREFS.light_level`, strength `STAGE_PREFS.light_strength`, turns -`STAGE_PREFS.sun_turn` / `STAGE_PREFS.sun_height`,
-/// `LIGHT_STATE.view_kind` 1, `g_lightKind` 2), its turn (+0x10, 16 dwords to `race().frame.matrices.object_turn_matrix`) placed
+/// `LIGHT_STATE.view_kind` 1, `g_lightKind` 2), its turn (+0x10, 16 dwords to `ctx.view.matrices.object_turn_matrix`) placed
 /// at +4, +8 + (+0x5C), +0xC (into `OBJECT_WORK.place` ..) and moved by the view (0x5EA1CC,
-/// into `race().frame.matrices.matrix_scratch`), times the view's turn into `g_madeObjectMatrix`; the reflections
+/// into `ctx.view.matrices.matrix_scratch`), times the view's turn into `g_madeObjectMatrix`; the reflections
 /// kept around the drawing (`scene::draw_scene_object`). Refuses
 /// (before anything) as `check_slot_object`.
 pub fn draw_slot_object(
@@ -78,7 +76,7 @@ pub fn draw_slot_object(
     ctx.view.light.light_turns[1].set_bits(race.course.stage_prefs.sun_height.bits());
     ctx.view.light.view_kind.set_bits(1);
     ctx.view.light.light_kind.set_bits(2);
-    crate::math::cells::copy_cells(&slot.matrix, &race.frame.matrices.object_turn_matrix, 16);
+    crate::math::cells::copy_cells(&slot.matrix, &ctx.view.matrices.object_turn_matrix, 16);
     let place = [
         slot.place[0].get(),
         slot.place[1].get().wrapping_add(slot.unknown_5c.get()),
@@ -87,33 +85,27 @@ pub fn draw_slot_object(
     for (k, &p) in place.iter().enumerate() {
         scene.drawing.object_work.place[k].set_bits(p);
     }
-    matrix::set_place(&race.frame.matrices, place);
+    matrix::set_place(&ctx.view.matrices.placed_matrix, place);
     matrix::copy_matrix_with_place(
-        &race.frame.matrices.placed_matrix,
+        &ctx.view.matrices.placed_matrix,
         &race.frame.matrices.view_place_matrix,
-        &race.frame.matrices.matrix_scratch,
+        &ctx.view.matrices.matrix_scratch,
     );
     matrix::copy_matrix_with_place(
-        &race.frame.matrices.object_turn_matrix,
-        &race.frame.matrices.matrix_scratch,
-        &race.frame.matrices.turned_matrix,
+        &ctx.view.matrices.object_turn_matrix,
+        &ctx.view.matrices.matrix_scratch,
+        &ctx.view.matrices.turned_matrix,
     );
     matrix::multiply_matrices(
-        &race.frame.matrices.turned_matrix,
+        &ctx.view.matrices.turned_matrix,
         &race.frame.matrices.view_turn_matrix,
-        &race.frame.matrices.made_object_matrix,
+        &ctx.view.matrices.made_object_matrix,
     );
     start_kept_reflections(race, ctx.view)?;
     // esi `g_turnedMatrix`, as the matrices' calls leave it.
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         ctx,
-        Some(
-            matrices_at(
-                &race.frame,
-                core::mem::offset_of!(SceneMatrices, turned_matrix),
-            )
-            .into(),
-        ),
+        Some(GamePtr::to(&ctx.view.matrices.turned_matrix).into()),
     )?;
     end_kept_reflections(&race.shared);
     Ok(())
@@ -519,43 +511,40 @@ pub fn car_lights(ctx: &DrawCtx) -> Result<(), Refused> {
 }
 
 /// The end of `place_object_matrix`'s ways: the place `OBJECT_WORK.place` .. into
-/// `g_placedMatrix`, moved by the view (0x5EA1CC into `race().frame.matrices.matrix_scratch`), `race().frame.matrices.object_turn_matrix` with it
+/// `g_placedMatrix`, moved by the view (0x5EA1CC into `ctx.view.matrices.matrix_scratch`), `ctx.view.matrices.object_turn_matrix` with it
 /// (`g_turnedMatrix`), times the view's turn into `g_madeObjectMatrix`.
-pub(super) fn placed_object_tail(frame: &Frame, scene: &crate::scene::owner::Scene) {
-    let drawing = &scene.drawing;
+pub(super) fn placed_object_tail(ctx: &DrawCtx) {
+    let (frame, drawing) = (&ctx.race.frame, &ctx.scene.drawing);
     use crate::scene::matrix;
     let place = [
         drawing.object_work.place[0].get(),
         drawing.object_work.place[1].bits(),
         drawing.object_work.place[2].bits(),
     ];
-    matrix::set_place(&frame.matrices, place);
+    matrix::set_place(&ctx.view.matrices.placed_matrix, place);
     matrix::copy_matrix_with_place(
-        &frame.matrices.placed_matrix,
+        &ctx.view.matrices.placed_matrix,
         &frame.matrices.view_place_matrix,
-        &frame.matrices.matrix_scratch,
+        &ctx.view.matrices.matrix_scratch,
     );
     matrix::copy_matrix_with_place(
-        &frame.matrices.object_turn_matrix,
-        &frame.matrices.matrix_scratch,
-        &frame.matrices.turned_matrix,
+        &ctx.view.matrices.object_turn_matrix,
+        &ctx.view.matrices.matrix_scratch,
+        &ctx.view.matrices.turned_matrix,
     );
     matrix::multiply_matrices(
-        &frame.matrices.turned_matrix,
+        &ctx.view.matrices.turned_matrix,
         &frame.matrices.view_turn_matrix,
-        &frame.matrices.made_object_matrix,
+        &ctx.view.matrices.made_object_matrix,
     );
 }
 
-/// `race().frame.matrices.object_turn_matrix`'s sixteen floats times `OBJECT_WORK.size` / 16.
-pub(super) fn scale_object_turn(
-    frame: &Frame,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), BadInput> {
-    let drawing = &scene.drawing;
+/// `ctx.view.matrices.object_turn_matrix`'s sixteen floats times `OBJECT_WORK.size` / 16.
+pub(super) fn scale_object_turn(ctx: &DrawCtx) -> Result<(), BadInput> {
+    let drawing = &ctx.scene.drawing;
     {
         let scale = crate::math::x87::int_over_16(drawing.object_work.size.get() as i32);
-        for cell in &frame.matrices.object_turn_matrix {
+        for cell in &ctx.view.matrices.object_turn_matrix {
             cell.set_bits(crate::math::x87::mul(cell.bits(), scale));
         }
     }
@@ -579,35 +568,40 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     };
     use crate::scene::view_matrix::{Axis, set_fine_turn};
     let (turn_y, turn_x, turn_z) = (
-        &frame.matrices.turn_y_matrix,
-        &frame.matrices.turn_x_matrix,
-        &frame.matrices.turn_z_matrix,
+        &ctx.view.matrices.turn_y_matrix,
+        &ctx.view.matrices.turn_x_matrix,
+        &ctx.view.matrices.turn_z_matrix,
     );
     let (turned, lit, object) = (
-        &frame.matrices.turned_matrix,
-        &frame.matrices.lit_matrix,
-        &frame.matrices.object_turn_matrix,
+        &ctx.view.matrices.turned_matrix,
+        &ctx.view.matrices.lit_matrix,
+        &ctx.view.matrices.object_turn_matrix,
     );
-    set_light_direction(&race.frame.matrices, scene, &ctx.view.light);
+    set_light_direction(
+        &ctx.view.matrices,
+        &scene.drawing.scene.light_direction,
+        &race.frame.matrices.view_turn_matrix,
+        &ctx.view.light,
+    );
     if scene.lights.state.light_turn_off.get() == 0 {
         set_turn_y(
-            &race.frame.matrices,
+            &ctx.view.matrices.turn_y_matrix,
+            &ctx.view.matrices.turn_y_work,
             scene.drawing.object_work.angles[1].bits().wrapping_neg(),
-            scene,
         );
         set_turn_x(
-            &race.frame.matrices,
+            &ctx.view.matrices.turn_x_matrix,
+            &ctx.view.matrices.turn_x_work,
             scene.drawing.object_work.angles[0].bits().wrapping_neg(),
-            scene,
         );
         multiply_matrices(turn_y, turn_x, turned);
         set_turn_z_16(
-            &race.frame.matrices,
+            &ctx.view.matrices.turn_z_matrix,
+            &ctx.view.matrices.turn_z_work,
             scene.drawing.object_work.angles[2].bits().wrapping_neg(),
-            scene,
         );
         multiply_matrices(turned, turn_z, object);
-        placed_object_tail(frame, scene);
+        placed_object_tail(ctx);
         return Ok(());
     }
     if ctx.view.light.view_kind.get() == 4 {
@@ -631,14 +625,14 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             crate::math::cells::copy_cells(&frame.matrices.identity_matrix, &object, 16);
             set_fine_turn(
                 &race.course,
-                &race.frame.matrices,
+                &ctx.view.matrices,
                 Axis::Y,
                 frame.view_and_records.view_vars.view_angles[3].get(),
             );
             multiply_matrices(object, turn_y, turned);
             set_fine_turn(
                 &race.course,
-                &race.frame.matrices,
+                &ctx.view.matrices,
                 Axis::Y,
                 frame.view_and_records.view_vars.view_angles[0].get(),
             );
@@ -646,28 +640,28 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         }
         _ => {
             set_turn_y(
-                &race.frame.matrices,
+                &ctx.view.matrices.turn_y_matrix,
+                &ctx.view.matrices.turn_y_work,
                 scene.drawing.object_work.angles[0].bits().wrapping_neg(),
-                scene,
             );
             crate::math::cells::copy_cells(&turn_y, &object, 16);
             if scene.drawing.object_work.angles[1].get() != 0 {
                 set_turn_y(
-                    &race.frame.matrices,
+                    &ctx.view.matrices.turn_y_matrix,
+                    &ctx.view.matrices.turn_y_work,
                     scene.drawing.object_work.angles[2].bits().wrapping_neg(),
-                    scene,
                 );
                 multiply_matrices(object, turn_y, lit);
                 set_turn_x(
-                    &race.frame.matrices,
+                    &ctx.view.matrices.turn_x_matrix,
+                    &ctx.view.matrices.turn_x_work,
                     scene.drawing.object_work.angles[1].bits().wrapping_neg(),
-                    scene,
                 );
                 multiply_matrices(lit, turn_x, turned);
                 set_turn_y(
-                    &race.frame.matrices,
+                    &ctx.view.matrices.turn_y_matrix,
+                    &ctx.view.matrices.turn_y_work,
                     scene.drawing.object_work.angles[2].get(),
-                    scene,
                 );
                 multiply_matrices(turned, turn_y, object);
             }
@@ -675,40 +669,40 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
                 || scene.drawing.object_work.described_cleared[1].get() != 0
             {
                 set_turn_y(
-                    &race.frame.matrices,
+                    &ctx.view.matrices.turn_y_matrix,
+                    &ctx.view.matrices.turn_y_work,
                     scene.drawing.object_work.described_cleared[2]
                         .bits()
                         .wrapping_neg(),
-                    scene,
                 );
                 multiply_matrices(object, turn_y, lit);
                 set_turn_y(
-                    &race.frame.matrices,
+                    &ctx.view.matrices.turn_y_matrix,
+                    &ctx.view.matrices.turn_y_work,
                     scene.drawing.object_work.described_cleared[0]
                         .bits()
                         .wrapping_neg(),
-                    scene,
                 );
                 multiply_matrices(lit, turn_y, turned);
                 set_turn_x(
-                    &race.frame.matrices,
+                    &ctx.view.matrices.turn_x_matrix,
+                    &ctx.view.matrices.turn_x_work,
                     scene.drawing.object_work.described_cleared[1]
                         .bits()
                         .wrapping_neg(),
-                    scene,
                 );
                 multiply_matrices(turned, turn_x, lit);
                 set_turn_y(
-                    &race.frame.matrices,
+                    &ctx.view.matrices.turn_y_matrix,
+                    &ctx.view.matrices.turn_y_work,
                     scene.drawing.object_work.described_cleared[0].get(),
-                    scene,
                 );
                 multiply_matrices(lit, turn_y, object);
             }
         }
     }
-    scale_object_turn(frame, scene)?;
-    placed_object_tail(frame, scene);
+    scale_object_turn(ctx)?;
+    placed_object_tail(ctx);
     Ok(())
 }
 
@@ -786,13 +780,7 @@ pub fn draw_lamp_flare(
     // so it always ends by placing the object).
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         ctx,
-        Some(
-            matrices_at(
-                &race.frame,
-                core::mem::offset_of!(SceneMatrices, turned_matrix),
-            )
-            .into(),
-        ),
+        Some(GamePtr::to(&ctx.view.matrices.turned_matrix).into()),
     )
 }
 
@@ -873,11 +861,4 @@ pub fn draw_entries<'a>(
         return crate::race::draw_chunks::draw_in_chunks(entries.len(), draw);
     }
     crate::workers::draw_in_runs(entries.len(), draw)
-}
-
-/// The scene matrices from byte `off` on, as the esi the original leaves for a drawing
-/// (`scene::draw_described_object` reads a description there): bounded by the whole
-/// store, since a description's 0x3C bytes run past one matrix.
-pub(super) fn matrices_at(frame: &Frame, off: usize) -> GamePtr {
-    GamePtr::to(&frame.matrices).offset(off as u32)
 }

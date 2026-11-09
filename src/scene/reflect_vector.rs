@@ -15,21 +15,20 @@ use crate::scene::x87_mem::{Base, cells, fld, fstp};
 
 // ---- Rust version ----
 
-pub fn reflect_vector(frame: &crate::race::owner_frame::Frame) {
+pub fn reflect_vector(
+    m: &crate::scene::view_matrices::ViewMatrices,
+    view_back: &[crate::session::Float; 16],
+) {
     let (v, n): ([u32; 3], [u32; 3]) = (
-        crate::session::read_bits(&frame.matrices.reflect_vector),
-        crate::session::read_bits(&frame.matrices.reflect_normal),
+        crate::session::read_bits(&m.reflect_vector),
+        crate::session::read_bits(&m.reflect_normal),
     );
     // The vector, the normal, d.
     let mut w = [v[0], v[1], v[2], n[0], n[1], n[2], 0];
     // The matrix is only read: a copy of its cells.
-    let m = frame
-        .matrices
-        .view_back_matrix
-        .each_ref()
-        .map(super::super::session::Float::bits);
-    reflect(cells(&mut w), &m[..]);
-    crate::session::write_bits(&frame.matrices.reflect_vector, [w[0], w[1], w[2]]);
+    let back = view_back.each_ref().map(crate::session::Float::bits);
+    reflect(cells(&mut w), &back[..]);
+    crate::session::write_bits(&m.reflect_vector, [w[0], w[1], w[2]]);
 }
 
 /// The block's arithmetic: `w` the vector, the normal, d; `m` the matrix.

@@ -46,7 +46,7 @@ pub struct SceneMatrices {
     pub view_matrix: [Float; 16],
     /// +0x444 (0x5EA30C): `g_madeObjectMatrix`: the matrix made for an object (`scene::matrix`, `race::frame_draw`).
     pub made_object_matrix: [Float; 16],
-    /// +0x484 (0x5EA34C): `dword_5EA34C`: a block whose first 0x40 bytes receive a copy of the made object matrix (`race::frame_draw`).
+    /// +0x484 (0x5EA34C): `dword_5EA34C`: a block whose first 0x40 bytes receive a copy of the made object matrix (`race::frame_draw`); now each view's (`scene::view_matrices`); unused.
     pub object_matrix_slots: [Dword; 32],
     /// +0x504 (0x5EA3CC): `flt_5EA3CC`: the view's matrix, place at +0x30 (`effects::view_motion`, `race::frame_views`).
     pub view_place: [Float; 16],
@@ -54,15 +54,15 @@ pub struct SceneMatrices {
     pub object_matrix_ptr: Dword,
     /// +0x548 (0x5EA410): not named.
     pub unknown_548: [Dword; 6],
-    /// +0x560 (0x5EA428): `dword_5EA428`..: the vector reflected (`scene::reflect_vector`).
+    /// +0x560 (0x5EA428): `dword_5EA428`..: the vector reflected (`scene::reflect_vector`); now each view's (`scene::view_matrices`); unused.
     pub reflect_vector: [Float; 3],
     /// +0x56c (0x5EA434): not named.
     pub unknown_56c: Dword,
-    /// +0x570 (0x5EA438): `qword_5EA438`, `dword_5EA440`: the normal (`scene::reflect_vector`).
+    /// +0x570 (0x5EA438): `qword_5EA438`, `dword_5EA440`: the normal (`scene::reflect_vector`); now each view's (`scene::view_matrices`); unused.
     pub reflect_normal: [Float; 3],
     /// +0x57c (0x5EA444): `flt_5EA444`: the object's turn matrix (`physics::object_turn_matrix`, `physics::object_hits_car`, `race::frame_draw`).
     pub object_turn_matrix: [Float; 16],
-    /// +0x5bc (0x5EA484): `flt_5EA484`: 1092-byte item, only the first 0x40 used as a matrix in place (`race::frame_draw`).
+    /// +0x5bc (0x5EA484): `flt_5EA484`: 1092-byte item, only the first 0x40 used as a matrix in place (`race::frame_draw`); now each view's (`scene::view_matrices`); unused.
     pub matrix_scratch: [Float; 273],
 }
 

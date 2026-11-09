@@ -152,9 +152,21 @@ pub fn get_mat_crash(race: &Race) {
         shared.car.car_roll.get(),
     ]);
     crate::session::write_bits(&scene.drawing.object_work.angles, turns);
-    matrix::set_turn_x(&race.frame.matrices, turns[0], scene);
-    matrix::set_turn_y(&race.frame.matrices, turns[1], scene);
-    matrix::set_turn_z_16(&race.frame.matrices, turns[2], scene);
+    matrix::set_turn_x(
+        &race.frame.matrices.turn_x_matrix,
+        &scene.drawing.scene.turn_x_work,
+        turns[0],
+    );
+    matrix::set_turn_y(
+        &race.frame.matrices.turn_y_matrix,
+        &scene.drawing.scene.turn_y_work,
+        turns[1],
+    );
+    matrix::set_turn_z_16(
+        &race.frame.matrices.turn_z_matrix,
+        &scene.drawing.scene.turn_z_work,
+        turns[2],
+    );
     matrix::multiply_matrices(
         &frame.matrices.turn_z_matrix,
         &frame.matrices.turn_x_matrix,

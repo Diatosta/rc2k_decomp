@@ -135,7 +135,7 @@ pub fn draw_object_face(
             object
                 .reflection_point_number
                 .set_bits(fw(vertex).wrapping_neg());
-            cached_reflection_coordinates(race, object)?;
+            cached_reflection_coordinates(race, object, &ctx.view.matrices)?;
             let coordinates: [u32; 2] = crate::session::read_bits(&object.reflection_coordinates);
             entry.u2.set(coordinates[0]);
             entry.v2.set(coordinates[1]);

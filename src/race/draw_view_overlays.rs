@@ -29,14 +29,18 @@ pub fn draw_view_overlays(
     draw_flat_triangle(scene);
     crate::scene::depth_buffer_on::depth_buffer(true);
     set_filters();
-    draw_own_car(
-        &crate::race::view_scratch::DrawCtx {
-            far_clip: false,
-            ..*ctx
-        },
-        system,
-        effects,
-    )?;
+    {
+        // Not around the view's marks: they run `drive::set_listener`, on the shared store.
+        let _held = ctx.view.matrices.hold(&race.frame.matrices);
+        draw_own_car(
+            &crate::race::view_scratch::DrawCtx {
+                far_clip: false,
+                ..*ctx
+            },
+            system,
+            effects,
+        )?;
+    }
     draw_screen_tint(ctx, &ctx.view.fog)?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
     set_filters();

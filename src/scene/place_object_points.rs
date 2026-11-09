@@ -174,8 +174,7 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     }
     // A copy: nothing the loop writes is the matrix (`off_5EA40C`'s, the object's own).
     // (`g_objectMatrix` is only ever `g_madeObjectMatrix`, never written.)
-    let matrix: [u32; 16] =
-        std::array::from_fn(|n| race.frame.matrices.made_object_matrix[n].bits());
+    let matrix: [u32; 16] = std::array::from_fn(|n| ctx.view.matrices.made_object_matrix[n].bits());
     let move_by: u32 = race.shared.vars.move_by.bits();
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
@@ -239,13 +238,12 @@ fn sse_lanes(p: [f32; 3], m: &[f32; 16], place: bool) -> [u32; 4] {
 /// points are never moved, a record's +0x1C holds the fourth lane until the screen's two are
 /// worked out (0x45C237), and the table's point 0 ends as a normal in record 0x1000.
 pub fn place_object_points_sse(
-    race: &crate::race::owner::Race,
-    scene: &crate::scene::owner::Scene,
-    cars: &crate::race::car_draw_state::CarDrawState,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let drawing = &scene.drawing;
-    let object = object(race, cars)?;
-    let m: [f32; 16] = std::array::from_fn(|n| race.frame.matrices.made_object_matrix[n].get());
+    let object = object(race, &ctx.view.cars)?;
+    let m: [f32; 16] = std::array::from_fn(|n| ctx.view.matrices.made_object_matrix[n].get());
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
     for _ in 0..object.points.max(0) {
