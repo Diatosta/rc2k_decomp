@@ -207,7 +207,8 @@ pub fn face_switches(shared: &Shared, scene: &crate::scene::owner::Scene) {
 
 /// 0x453786: the light at scene point `n` (`race::light_colour_at`; the original's store of
 /// it to `dword_62400C` is not kept), 0 for -1.
-fn point_light(race: &Race, n: u32, scene: &crate::scene::owner::Scene) -> Result<u32, Refused> {
+fn point_light(ctx: &crate::race::view_scratch::DrawCtx<'_>, n: u32) -> Result<u32, Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     if n == u32::MAX {
         return Ok(0);
     }
@@ -224,7 +225,8 @@ fn point_light(race: &Race, n: u32, scene: &crate::scene::owner::Scene) -> Resul
 /// (`dword_63DA54` .. `dword_63DA60`; 0 for a missing fourth), when lamps are wanted
 /// (`g_lampsWanted`) and the face is not a plain mode-4 one; all 0 otherwise. Refuses
 /// (before anything) what `light_colour_at` refuses.
-pub fn face_lights(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn face_lights(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+    let race = ctx.race;
     // Converted: `rc2k_core::race::faces::corners_lit`.
     let wanted: u32 = race.shared.view.lamps_wanted.get();
     let lit = wanted != 0
@@ -244,7 +246,7 @@ pub fn face_lights(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
     }
     for k in 0..4 {
         let n: u32 = race.shared.view.corners[k].get();
-        let light = point_light(race, n, scene)?;
+        let light = point_light(ctx, n)?;
         race.shared.view.corner_lights[k].set(light);
     }
     Ok(())
@@ -280,7 +282,8 @@ pub fn clip_and_draw_face(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resul
 /// the depth. The records are made when not there (as 0x44CF33). The eax and edx the
 /// original leaves are read by no one. Refuses (before anything) no point records or
 /// points.
-pub fn face_out_of_view(race: &Race, scene: &crate::scene::owner::Scene) -> Result<bool, Refused> {
+pub fn face_out_of_view(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<bool, Refused> {
+    let race = ctx.race;
     let course = &race.course;
     let shared = &race.shared;
     // Converted: `rc2k_core::race::face_drawing::corner_in_sight` (exact in `f64`).
@@ -293,7 +296,7 @@ pub fn face_out_of_view(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
         if k == 3 && n == u32::MAX {
             break;
         }
-        let record = crate::race::frame_draw::point_record(race, n, scene)?;
+        let record = crate::race::frame_draw::point_record(ctx, n)?;
         let depth = crate::scene::point_records::field(record, 0x18)?;
         if depth & 0x8000_0000 != 0 {
             continue;
@@ -314,7 +317,8 @@ pub fn face_out_of_view(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
 /// edge (`rc2k_core::race::face_drawing::off_screen`; not the original's, which cuts each of
 /// its polygons away at the end: the same picture, without the face's colours, lights and
 /// polygons made for nothing). The corners' records are there: `face_out_of_view` made them.
-fn face_off_screen(race: &Race, scene: &crate::scene::owner::Scene) -> Result<bool, Refused> {
+fn face_off_screen(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<bool, Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     use rc2k_core::race::face_drawing::{ScreenCorner, ScreenEdges, off_screen};
     let mut corners = [ScreenCorner {
         depth: 0,
@@ -327,7 +331,7 @@ fn face_off_screen(race: &Race, scene: &crate::scene::owner::Scene) -> Result<bo
         if k == 3 && point == u32::MAX {
             break;
         }
-        let record = crate::race::frame_draw::point_record(race, point, scene)?;
+        let record = crate::race::frame_draw::point_record(ctx, point)?;
         let at = |offset| crate::scene::point_records::field(record, offset);
         corners[n] = ScreenCorner {
             depth: at(0x18)?,
@@ -677,7 +681,7 @@ pub fn draw_face(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Ref
         trap.finish()?;
         face_texture_coordinates(&race.shared, &second_set(race))?;
     }
-    face_lights(race, scene)?;
+    face_lights(ctx)?;
     face_depth_test_off(&race.shared);
     draw_face_polygons(ctx)?;
     face_depth_test_on(&race.shared);
@@ -993,7 +997,7 @@ pub fn draw_course_face(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     face: u32,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     crate::race::frame_draw::points_there(&race.course)?;
     // The face read once for its corners, normals, kinds, objects and colours: drawing it
     // writes no face.
@@ -1002,7 +1006,7 @@ pub fn draw_course_face(
     if face.switches() & rc2k_core::race::faces::REPEATED != 0 {
         face_corners_to_new_points(race)?;
     }
-    if face_out_of_view(race, scene)? || face_off_screen(race, scene)? {
+    if face_out_of_view(ctx)? || face_off_screen(ctx)? {
         return Ok(());
     }
     face_sides(race, &face)?;

@@ -162,10 +162,8 @@ fn object(race: &crate::race::owner::Race) -> Result<Object, BadInput> {
 
 /// The object's points placed and projected, its normals turned. What the original
 /// leaves in the registers its one caller's callers never read (`draw_object`).
-pub fn place_object_points(
-    race: &crate::race::owner::Race,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let drawing = &scene.drawing;
     let object = object(race)?;
     if object.points <= 0 {

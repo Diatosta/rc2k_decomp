@@ -563,10 +563,8 @@ pub(super) fn scale_object_turn(
 /// angle (fine turns); else about y by -`OBJECT_WORK.angles`, then with `OBJECT_WORK.angles[1]` tilted
 /// about x round the y of `OBJECT_WORK.angles[2]`, and with `OBJECT_WORK.described_cleared[1]` / `OBJECT_WORK.described_cleared[2]` again
 /// round `OBJECT_WORK.described_cleared`; then scaled by `OBJECT_WORK.size` / 16.
-pub fn place_object_matrix(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), BadInput> {
+pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let frame = &race.frame;
     use crate::scene::matrix::{
         multiply_matrices, set_light_direction, set_turn_x, set_turn_y, set_turn_z_16,
@@ -748,7 +746,7 @@ pub fn draw_flare(
         );
     }
     scene.lights.state.view_kind.set(2u32);
-    place_object_matrix(race, scene)?;
+    place_object_matrix(ctx)?;
     scene.lights.work.light_kind.set(0u32);
     crate::scene::draw_scene_object::draw_scene_object_in_game(ctx, Some(entry))
 }
@@ -774,7 +772,7 @@ pub fn draw_lamp_flare(
         .object_number
         .set(race.shared.switches.marker_object.get());
     scene.lights.state.view_kind.set(2u32);
-    place_object_matrix(race, scene)?;
+    place_object_matrix(ctx)?;
     scene.lights.work.light_kind.set(0u32);
     // esi `g_turnedMatrix`, as `place_object_matrix` leaves it (`LIGHT_STATE.view_kind` is 2 here,
     // so it always ends by placing the object).

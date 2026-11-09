@@ -85,10 +85,8 @@ fn step_shape(
     Ok(())
 }
 
-pub fn set_object_material(
-    race: &crate::race::owner::Race,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), BadInput> {
+pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let shared = &race.shared;
     let object: u32 = shared.switches.object_number.bits();
     if object >= OBJECTS {

@@ -221,7 +221,8 @@ pub fn place_view(race: &Race) -> Result<(), BadInput> {
 /// -(`race().course.stage_prefs.sky_turn` << 8), placed at (0, `race().course.stage_prefs.sky_height` << 8, 0) (into `OBJECT_WORK.place` ..),
 /// the copy with the place (`g_turnedMatrix`) scaled by (`DRAW.farthest_scaled` << 4) / 16
 /// (`OBJECT_WORK.size`), times `g_viewTurnMatrix`.
-pub fn sky_matrix(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+pub fn sky_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let drawing = &scene.drawing;
     use crate::scene::matrix;
     let angle = (race.course.stage_prefs.sky_turn.get() << 8).wrapping_neg();
@@ -484,7 +485,7 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
     if mode == 1 || mode == 2 {
         return Ok(());
     }
-    sky_matrix(race, scene)?;
+    sky_matrix(ctx)?;
     crate::math::cells::copy_cells(
         &race.frame.matrices.made_object_matrix,
         &race.frame.matrices.object_matrix_slots,
@@ -515,17 +516,17 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
     crate::scene::depth_buffer_on::depth_buffer(true);
     scene.lights.state.view_kind.set_bits(0);
     race.shared.switches.no_far_clip.set_bits(0);
-    place_sun(race, scene, system)
+    place_sun(ctx, system)
 }
 
 /// The sun: its direction from the stage's sun angles, turned by the sky's matrix, and when it is
 /// in front its place on the screen and its size. Cleared first, and left cleared when both sun settings are 0 or
 /// the sun is behind the view.
 fn place_sun(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let session = &system.session;
     let drawing = &scene.drawing;
     use crate::math::x87_load::{sun_direction, sun_on_screen, sun_size, tbyte_to_int, to_tbyte};

@@ -386,6 +386,31 @@ fn carried_census(
             c.0,
             lines.join(" ")
         ));
+        // The changed bytes as runs, for naming the fields (`first..end` each).
+        let runs: Vec<String> =
+            c.1.iter()
+                .enumerate()
+                .filter(|(_, m)| m.contains(&true))
+                .map(|(n, m)| {
+                    let mut out = Vec::new();
+                    let mut k = 0;
+                    while k < m.len() {
+                        if m[k] {
+                            let start = k;
+                            while k < m.len() && m[k] {
+                                k += 1;
+                            }
+                            out.push(format!("{start:#x}..{k:#x}"));
+                        }
+                        k += 1;
+                    }
+                    format!("{n}:{}", out.join(","))
+                })
+                .collect();
+        crate::framework::log(&format!(
+            "workers: carried runs ({label} last): {}",
+            runs.join(" ")
+        ));
     }
     drawn
 }

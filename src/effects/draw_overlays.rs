@@ -13,7 +13,6 @@ use crate::effects::draw_shadow::{SECOND, draw_shadow_with};
 use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::Race;
 
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1, 0x1B)];
 
@@ -34,13 +33,13 @@ fn shadow_refuses(effects: &crate::effects::owner::Effects) -> Option<Refused> {
 
 /// The Rust version (see the header).
 pub fn draw_overlays(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     masks: &Masks,
     drops: &WindscreenDrops,
-    scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     use crate::scene::set_render_state::set_render_state;
     if let Some(e) = shadow_refuses(effects) {
         return Err(e);
@@ -52,7 +51,7 @@ pub fn draw_overlays(
             set_render_state(value, state);
         }
         let fl = &effects.windscreen_flakes;
-        crate::effects::draw_plane::draw_plane(race, drops, fl, scene, effects)?;
+        crate::effects::draw_plane::draw_plane(ctx, drops, fl, effects)?;
         crate::effects::windscreen_flakes_frame::windscreen_flakes_frame(
             &race.frame,
             masks,
@@ -70,6 +69,6 @@ pub fn draw_overlays(
             gfx,
             effects,
         )?;
-        draw_shadow_with(race, masks, &SECOND, false, effects, scene)
+        draw_shadow_with(ctx, masks, &SECOND, false, effects)
     }
 }

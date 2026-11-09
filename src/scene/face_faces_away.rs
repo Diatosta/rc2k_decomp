@@ -78,10 +78,10 @@ impl Triangle {
 }
 
 pub fn face_faces_away(
-    race: &crate::race::owner::Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     face: usize,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     if face == 0 || !crate::scene::point_records::held() {
         return Err(BadInput("no face or no records").into());
     }

@@ -24,7 +24,7 @@ pub fn draw_view_overlays(
     }
     overlay_states();
     crate::scene::set_render_state::set_render_state(3, 3);
-    crate::race::frame_views::run_view_marks(race, scene, system, effects, &ctx.view.fog)?;
+    crate::race::frame_views::run_view_marks(ctx, system, effects, &ctx.view.fog)?;
     overlay_states();
     draw_flat_triangle(scene);
     crate::scene::depth_buffer_on::depth_buffer(true);
@@ -37,7 +37,7 @@ pub fn draw_view_overlays(
         system,
         effects,
     )?;
-    draw_screen_tint(race, scene, &ctx.view.fog)?;
+    draw_screen_tint(ctx, &ctx.view.fog)?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
     set_filters();
     Ok(())

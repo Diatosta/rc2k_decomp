@@ -21,10 +21,10 @@ const MOST: u32 = 0x100;
 
 // Converted: `rc2k_core::scene::lamps::add_point_lights`
 pub fn add_point_lights(
-    race: &crate::race::owner::Race,
-    scene: &crate::scene::owner::Scene,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     use rc2k_core::scene::lamps::{self, Lamp};
 
     let lamps: u32 = race.shared.view.lamp_count.bits();

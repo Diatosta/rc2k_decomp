@@ -21,7 +21,6 @@ use crate::effects::kind_store::{CONSTS_1, CONSTS_2, KindConsts, QuadWork};
 use crate::effects::mask_store::Masks;
 use crate::errors::{BadInput, Refused};
 use crate::math::{x87, x87_run};
-use crate::race::owner::Race;
 use crate::scene::cross_product3::cross;
 use crate::scene::matrix3::{Axis, extended, rounded, turn_matrix3, turnable};
 use crate::scene::rotate_point::rotate_point;
@@ -77,12 +76,11 @@ fn angle(sh: &Shadow) -> Result<[u8; 10], Refused> {
 
 /// The Rust version (see the header).
 pub fn draw_shadow(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     masks: &Masks,
     effects: &crate::effects::owner::Effects,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    draw_shadow_with(race, masks, &FIRST, true, effects, scene)
+    draw_shadow_with(ctx, masks, &FIRST, true, effects)
 }
 
 impl Shadow<'_> {
@@ -102,13 +100,13 @@ impl Shadow<'_> {
 
 /// A shadow (see the header) on `sh`'s variables; `depth` the two depth calls first.
 pub fn draw_shadow_with(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     masks: &Masks,
     sh: &Shadow,
     depth: bool,
     effects: &crate::effects::owner::Effects,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     use crate::scene::set_render_state::set_render_state;
     let q = sh.quad;
     let corner: u32 = q.corner.get();

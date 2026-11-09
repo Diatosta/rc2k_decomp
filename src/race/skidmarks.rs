@@ -5,7 +5,6 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::race::owner::Race;
 #[cfg(all(test, target_arch = "x86"))]
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
@@ -61,13 +60,12 @@ struct Turned {
 /// `flt_643AD4`, turned by `g_viewMatrix` (`scene::rotate_point`), +0xC / +0x1C 0, and
 /// projected when its depth is not below 4096.0.
 fn skid_vertex(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     matrix: &[u32; 15],
     n: u32,
     v: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<Turned, BadInput> {
-    let turned = turn_skid_point(race, matrix, n, scene)?;
+    let turned = turn_skid_point(ctx, matrix, n)?;
     put_turned(v, turned)?;
     Ok(turned)
 }
@@ -81,11 +79,11 @@ fn put_turned(v: u32, turned: Turned) -> Result<(), BadInput> {
 
 /// Skidmark point `n` turned and projected, as `skid_vertex` does it.
 fn turn_skid_point(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     matrix: &[u32; 15],
     n: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<Turned, BadInput> {
+    let (race, scene) = (ctx.race, ctx.scene);
     {
         let points = &race.frame.shadow_skids.skid_points;
         let at = n as usize * 0xC;
@@ -175,21 +173,20 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
             continue;
         }
         use crate::scene::point_records::of_quad;
-        let first = skid_vertex(race, &matrix, 2 * n, of_quad(3), scene)?;
-        let second = skid_vertex(race, &matrix, 2 * n + 1, of_quad(2), scene)?;
+        let first = skid_vertex(ctx, &matrix, 2 * n, of_quad(3))?;
+        let second = skid_vertex(ctx, &matrix, 2 * n + 1, of_quad(2))?;
         match last {
             Some((m, a, b)) if m == before => {
                 put_turned(of_quad(0), a)?;
                 put_turned(of_quad(1), b)?;
             }
             _ => {
-                skid_vertex(race, &matrix, before.wrapping_mul(2), of_quad(0), scene)?;
+                skid_vertex(ctx, &matrix, before.wrapping_mul(2), of_quad(0))?;
                 skid_vertex(
-                    race,
+                    ctx,
                     &matrix,
                     before.wrapping_mul(2).wrapping_add(1),
                     of_quad(1),
-                    scene,
                 )?;
             }
         }

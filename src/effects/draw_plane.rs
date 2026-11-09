@@ -25,7 +25,6 @@ use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::marks_settings_store::MarksSettings;
-use crate::race::owner::Race;
 use crate::scene::cross_product3::cross;
 use crate::scene::vector3::normalise;
 
@@ -99,12 +98,12 @@ fn plane_projected(effects: &crate::effects::owner::Effects, scene: &crate::scen
 
 /// The Rust version (see the header).
 pub fn draw_plane(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     drops: &WindscreenDrops,
     fl: &WindscreenFlakes,
-    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     use crate::scene::set_render_state::set_render_state;
     let m = crate::effects::setup::marks()?;
     let corner: u32 = effects.kinds.quad_3.corner.get();

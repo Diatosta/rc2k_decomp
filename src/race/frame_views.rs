@@ -151,8 +151,7 @@ fn shadow_refuses(
 /// `race::draw_marks_overlays` (0x45632B): `effects::draw_overlays`, then
 /// `effects::draw_shadow`. Refuses (before anything) the second shadow's refusals.
 pub fn draw_marks_overlays(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
@@ -160,14 +159,13 @@ pub fn draw_marks_overlays(
     // Neither reads a register, and the race reads none they leave (only DF, ST).
     {
         crate::effects::draw_overlays::draw_overlays(
-            race,
+            ctx,
             &effects.masks,
             &effects.windscreen_drops,
-            scene,
             gfx,
             effects,
         )?;
-        crate::effects::draw_shadow::draw_shadow(race, &effects.masks, effects, scene)?;
+        crate::effects::draw_shadow::draw_shadow(ctx, &effects.masks, effects)?;
     }
     Ok(())
 }
@@ -400,10 +398,10 @@ fn window_corners(shared: &Shared, scene: &crate::scene::owner::Scene) {
 /// glare, the view's fog's far value (`dword_6365F4`, held to 0 .. 0xFF) through, colour `dword_60A570` red,
 /// `byte_60A574` green, `byte_60A578` blue, none when 0; `g_sunOnScreen` put back after.
 pub fn draw_screen_tint(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     fog: &crate::scene::fog::Fog,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     // Converted: `rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha,
     // glare_colour}`.
     use rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha, glare_colour};
@@ -411,7 +409,7 @@ pub fn draw_screen_tint(
         race.shared.vars.quad_colour[1].set(NIGHT_ALPHA);
         window_corners(&race.shared, scene);
         race.shared.vars.quad_colour[0].set(NIGHT_COLOUR);
-        return crate::scene::draw_tinted_quad::draw_tinted_quad(race, scene);
+        return crate::scene::draw_tinted_quad::draw_tinted_quad(ctx);
     }
     let sun = race.frame.frame_work.sun_on_screen.get();
     let a = glare_alpha(fog.far.get());
@@ -426,7 +424,7 @@ pub fn draw_screen_tint(
             byte(0),
             byte(1),
         ));
-        done = crate::scene::draw_tinted_quad::draw_tinted_quad(race, scene);
+        done = crate::scene::draw_tinted_quad::draw_tinted_quad(ctx);
     }
     race.frame.frame_work.sun_on_screen.set(sun);
     done
@@ -497,7 +495,7 @@ pub fn draw_own_car(
     crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].get());
     crate::scene::set_render_state::set_render_state(2, 0x14);
     scene.drawing.scene.polygon_vertex_count.set(4);
-    draw_marks_overlays(race, scene, effects)
+    draw_marks_overlays(ctx, effects)
 }
 
 /// `fild i; fdiv a; fmul b; fstp`.
@@ -516,12 +514,12 @@ fn int_over_times(i: u32, a: u32, b: u32) -> u32 {
 /// and, unless `dword_6416B8`, `effects::run_frame` (part 2), the centre put back. Refuses
 /// (before anything) a null view block or car record, or no marks settings.
 pub fn run_view_marks(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,
     effects: &crate::effects::owner::Effects,
     fog: &crate::scene::fog::Fog,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let session = &system.session;
     let drawing = &scene.drawing;
     // Converted: `rc2k_core::race::view_steps::{check_view_marks, marks_shown,

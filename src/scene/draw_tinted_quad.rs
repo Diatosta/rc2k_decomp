@@ -15,12 +15,12 @@
 
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::race::owner::Race;
 use crate::session::Dword;
 
 /// The Rust version (see the header). It reads no register, and what it leaves is read by
 /// none of its 856 call sites (register liveness, 2026-10-23).
-pub fn draw_tinted_quad(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let shared = &race.shared;
     let drawing = &scene.drawing;
     drawing.scene.polygon_drawn.set_bits(0);

@@ -193,7 +193,7 @@ fn draw_description(
         }
     }
     scene.lights.state.view_kind.set(2u32);
-    crate::race::frame_draw::place_object_matrix(race, scene)?;
+    crate::race::frame_draw::place_object_matrix(ctx)?;
     scene.lights.work.light_kind.set(2u32);
     let object: u32 = shared.switches.object_number.bits();
     let kind: u32 = scene.objects.tables.object_kind(object);

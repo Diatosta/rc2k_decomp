@@ -327,13 +327,13 @@ fn crossing_block(
 /// +0x20 / +0x21 shared the same way); the original's work dwords (0x641958 .. 0x64198C,
 /// `DRAW.clip_work[2]` ..) kept as it leaves them.
 fn edge_crossing(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
     ea: &PolygonEntry,
     eb: &PolygonEntry,
     ed: &PolygonEntry,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let drawing = &scene.drawing;
     let (pa, pb) = (ea.point.get(), eb.point.get());
     let c = &work.edge;
@@ -371,12 +371,12 @@ fn edge_crossing(
 /// `clip_to_edge`: the polygon cut by the edge from scene point `from` to scene point `to`
 /// (kept: those on the inner side, and the crossings), with three vertices or more.
 fn clip_to_edge(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
     from: u32,
     to: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let drawing = &scene.drawing;
     let count: u32 = drawing.scene.polygon_vertex_count.bits();
     if count < 3 {
@@ -433,16 +433,8 @@ fn clip_to_edge(
         },
         |a, b| {
             let next: u32 = drawing.scene.polygon_next_entry.bits();
-            let crossing = (|| {
-                edge_crossing(
-                    race,
-                    work,
-                    work_entry(a)?,
-                    work_entry(b)?,
-                    work_entry(next)?,
-                    scene,
-                )
-            })();
+            let crossing =
+                (|| edge_crossing(ctx, work, work_entry(a)?, work_entry(b)?, work_entry(next)?))();
             if let Err(err) = crossing {
                 trap.keep(err);
             }
@@ -476,11 +468,11 @@ fn clip_to_edge(
 /// 0x100000 in z is met (or none is); else cut by its three edges in turn while three vertices
 /// are left (`clip_to_edge`, with `inside_edge` the side test and `edge_crossing` the crossing).
 pub fn clip_shadow_to_face(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
     car: &Car,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
+    let scene = ctx.scene;
     let drawing = &scene.drawing;
     let corners = [
         work.face_corners[0].get(),
@@ -505,7 +497,7 @@ pub fn clip_shadow_to_face(
         if drawing.scene.polygon_vertex_count.bits() < 3 {
             return Ok(());
         }
-        clip_to_edge(race, work, corners[a], corners[b], scene)?;
+        clip_to_edge(ctx, work, corners[a], corners[b])?;
     }
     Ok(())
 }
@@ -586,7 +578,7 @@ pub fn shadow_on_face(
         )?;
         at = (at + 0x20) & 0x1FFE0;
     }
-    clip_shadow_to_face(race, work, car, scene)?;
+    clip_shadow_to_face(ctx, work, car)?;
     if drawing.scene.polygon_vertex_count.bits() < 3 {
         return Ok(());
     }

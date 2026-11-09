@@ -163,12 +163,12 @@ fn face_bytes(face: usize) -> Result<Face, BadInput> {
 
 // Converted: `rc2k_core::scene::face_tests::{dropped, listed_key}`
 pub fn list_object_face(
-    race: &crate::race::owner::Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     face: usize,
-    scene: &crate::scene::owner::Scene,
     list: &mut FaceList,
     marks: &crate::scene::car_marks::CarMarks,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let physics = &race.physics;
     if face == 0 {
         return Err(BadInput("no face").into());
@@ -186,7 +186,7 @@ pub fn list_object_face(
         Ok(false) => {}
         Err(why) => return Err(why.into()),
     }
-    if face_faces_away(race, face, scene)? {
+    if face_faces_away(ctx, face)? {
         return Ok(());
     }
     let count: u32 = crate::scene::object_faces::word(face as u32)?;

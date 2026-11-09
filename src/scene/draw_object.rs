@@ -59,10 +59,8 @@ pub fn draw_object(step: &mut dyn FnMut(Step) -> Result<(), Refused>) -> Result<
 
 /// `scene::place_object_points_any` (0x45BDE1). The 3DNow way (0x45BF89) is not ported:
 /// a refusal ends the program.
-fn place_object_points_any(
-    race: &crate::race::owner::Race,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+fn place_object_points_any(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let draw_switches = &scene.draw_switches;
     if draw_switches.use_3dnow.bits() != 0 {
         return Err(BadInput("the 3DNow way of placing points is not ported").into());
@@ -70,7 +68,7 @@ fn place_object_points_any(
     if draw_switches.use_sse.bits() != 0 {
         return crate::scene::place_object_points::place_object_points_sse(race, scene);
     }
-    place_object_points(race, scene)?;
+    place_object_points(ctx)?;
     Ok(())
 }
 
@@ -85,15 +83,15 @@ pub fn draw_object_in_game(
     let mut faces = crate::scene::face_list::FaceList::new();
     draw_object(&mut |step| {
         match step {
-            Step::Light => set_object_light_in_game(race, scene, system)?,
-            Step::Material => set_object_material(race, scene)?,
-            Step::Fade => set_object_fade(race, scene)?,
-            Step::Points => place_object_points_any(race, scene)?,
+            Step::Light => set_object_light_in_game(ctx, system)?,
+            Step::Material => set_object_material(ctx)?,
+            Step::Fade => set_object_fade(ctx)?,
+            Step::Points => place_object_points_any(ctx)?,
             Step::List => {
                 list_object_faces(
                     &race.shared,
                     &mut faces,
-                    &mut |list, face| list_object_face(race, face, scene, list, ctx.marks),
+                    &mut |list, face| list_object_face(ctx, face, list, ctx.marks),
                     scene,
                 )?;
             }

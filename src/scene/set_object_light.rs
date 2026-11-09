@@ -81,10 +81,10 @@ pub fn set_object_light(
 
 /// With the lamps' Rust versions.
 pub fn set_object_light_in_game(
-    race: &crate::race::owner::Race,
-    scene: &crate::scene::owner::Scene,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     set_object_light(
         race,
         &mut || {
@@ -92,7 +92,7 @@ pub fn set_object_light_in_game(
                 add_car_light(&race.course, car, marks, scene, system);
                 Ok(())
             })?;
-            add_point_lights(race, scene, system)?;
+            add_point_lights(ctx, system)?;
             Ok(())
         },
         scene,
