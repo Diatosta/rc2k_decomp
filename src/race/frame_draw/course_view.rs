@@ -32,11 +32,11 @@ pub fn add_sort_entry(lists: &SortLists, kind: u32, face: u32) -> Result<(), Ref
 /// `race::checkpoint_colours` (0x4548E3): the current checkpoint's (`CAR.checkpoint`) face
 /// (`g_checkpointFaces`, records of 0x40 at `g_courseFaces`): its +0x10 byte's low and high
 /// nibbles (0 read as 0x10) to `PHYSICS.checkpoint_colours` / `PHYSICS.checkpoint_colours[1]`; `PHYSICS.checkpoint_colours[2]` =
-/// `CHECKPOINTS.angles[2][checkpoint]` - `CAR.car_heading`; `LEVEL_GRID.far_cell_limit` the low (twice the distance
-/// below 0x40000000 as signed), the high (from 0xC0000000), else the larger. The tables are
-/// read unchecked, as the original.
-pub fn checkpoint_colours(race: &Race) -> Result<(), BadInput> {
-    let course = &race.course;
+/// `CHECKPOINTS.angles[2][checkpoint]` - `CAR.car_heading`; the far cells' limit returned
+/// (the original's `LEVEL_GRID.far_cell_limit`): the low (twice the distance below 0x40000000
+/// as signed), the high (from 0xC0000000), else the larger. The tables are read unchecked, as
+/// the original.
+pub fn checkpoint_colours(race: &Race) -> Result<u32, BadInput> {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::frame::checkpoint_colours`.
     {
@@ -55,9 +55,8 @@ pub fn checkpoint_colours(race: &Race) -> Result<(), BadInput> {
         shared.physics_tables.checkpoint_colours[0].set(c.near);
         shared.physics_tables.checkpoint_colours[1].set(c.far);
         shared.physics_tables.checkpoint_colours[2].set(c.distance);
-        course.level_grid.far_cell_limit.set(c.level);
+        Ok(c.level)
     }
-    Ok(())
 }
 
 /// A scene point's record (0x44CF33, inline in the callers): the record at
@@ -377,12 +376,12 @@ pub fn face_hide_mask(race: &Race) -> Result<(), Refused> {
 
 /// `race::mark_far_cells` (0x454A5B): every `g_courseGrid` cell's top bits cleared (&
 /// 0x0FFFFFFF); then each cell (column x, row z, each less the half `LEVEL_GRID.grid_half`) turned
-/// by `g_viewTurnMatrix` (into `LEVEL_GRID.turned_x` / `LEVEL_GRID.turned_z`, the length of the
-/// middle taken): not marked when the length is below 2.0; marked
-/// (bit 31) when the turned z is below 0, or when |x / 2| - 2 is not below z, or when the
-/// length is not below `LEVEL_GRID.far_cell_limit` (as a float, `DRAW.work_float_b`).
-pub fn mark_far_cells(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
-    let drawing = &scene.drawing;
+/// by `g_viewTurnMatrix` (the length of the middle taken): not marked when the length is
+/// below 2.0; marked (bit 31) when the turned z is below 0, or when |x / 2| - 2 is not below
+/// z, or when the length is not below `limit` (as a float). The original kept the limit in
+/// `LEVEL_GRID.far_cell_limit` and stored the turned x and z (`LEVEL_GRID.turned_x` /
+/// `turned_z`) and the limit as a float (`DRAW.work_float_b`), which nothing read after.
+pub fn mark_far_cells(race: &Race, limit: u32) -> Result<(), BadInput> {
     use crate::math::x87_load::{below_or_unordered, float_hypot, scaled_abs_less_below};
     let grid = &race.course.level_grid.course_grid;
     for k in 0..0x400 {
@@ -401,11 +400,8 @@ pub fn mark_far_cells(race: &Race, scene: &crate::scene::owner::Scene) -> Result
         let point = [x, 0, z];
         crate::scene::project_point::rotate(&point, &matrix, &mut out);
         let (x, z) = (out[4], out[6]);
-        race.course.level_grid.turned_x.set_bits(x);
-        race.course.level_grid.turned_z.set_bits(z);
         let length = float_hypot(x, z);
-        let limit = crate::math::x87::from_int(race.course.level_grid.far_cell_limit.get() as i32);
-        drawing.scene.work_float_b.set_bits(limit);
+        let limit = crate::math::x87::from_int(limit as i32);
         if below_or_unordered(length, two) {
             continue;
         }
@@ -419,26 +415,25 @@ pub fn mark_far_cells(race: &Race, scene: &crate::scene::owner::Scene) -> Result
     Ok(())
 }
 
-/// `race::prepare_course_view` (0x4548A8): `LEVEL_GRID.far_cell_limit` 0x10, `face_hide_mask`,
-/// `course_grid`; with `FRAME_SWITCHES.other_way` set, `LEVEL_GRID.far_cell_limit` 0x10 again, `checkpoint_colours`
-/// with two checkpoints or more (`g_checkpointCount`), and `mark_far_cells`. Refuses
+/// `race::prepare_course_view` (0x4548A8): `face_hide_mask`, `course_grid`; with
+/// `FRAME_SWITCHES.other_way` set, `mark_far_cells` with the limit `checkpoint_colours` gives
+/// with two checkpoints or more (`g_checkpointCount`), else 0x10 (the original kept it in
+/// `LEVEL_GRID.far_cell_limit`, set to 0x10 first, which nothing else read). Refuses
 /// (before anything) what `course_grid` would.
-pub fn prepare_course_view(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn prepare_course_view(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     check_course_grid(course)?;
-    // `face_hide_mask` first: its `probe_ground` may refuse, and neither reads
-    // `LEVEL_GRID.far_cell_limit`, so the 0x10 written before it in the original comes after here.
     face_hide_mask(race)?;
-    course.level_grid.far_cell_limit.set(0x10u32);
     course_grid(race)?;
     if race.shared.switches.other_way.bits() == 0 {
         return Ok(());
     }
-    course.level_grid.far_cell_limit.set(0x10u32);
-    if race.shared.vars.checkpoint_count.get() >= 2 {
-        checkpoint_colours(race)?;
-    }
-    mark_far_cells(race, scene)?;
+    let limit = if race.shared.vars.checkpoint_count.get() >= 2 {
+        checkpoint_colours(race)?
+    } else {
+        0x10
+    };
+    mark_far_cells(race, limit)?;
     Ok(())
 }
 

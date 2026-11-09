@@ -37,7 +37,7 @@ pub fn draw_view_scene(
     view_light(race, scene)?;
     reset_lamps(&ctx)?;
     race.shared.view.view_lamps.set_bits(0u32);
-    prepare_course_view(race, scene)?;
+    prepare_course_view(race)?;
     gather_visible_faces(&ctx)?;
     eax_environment(race)?;
     gather_lamps(&ctx)?;

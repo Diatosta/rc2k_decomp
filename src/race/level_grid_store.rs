@@ -37,11 +37,11 @@ pub struct LevelGrid {
     pub grid_z: Dword,
     /// +0x520 (0x63E17C): `g_courseGrid`: 32 x 32 course records, used in place (`race::frame_draw`, `race::sound_spots`).
     pub course_grid: [Dword; 1024],
-    /// +0x1520 (0x63F17C): `g_farCellLimit`: how many cells out are drawn, 0x10 at most (`race::frame_draw`).
+    /// +0x1520 (0x63F17C): `g_farCellLimit`: how many cells out are drawn; now a value in `race::frame_draw::prepare_course_view`; unused.
     pub far_cell_limit: Dword,
-    /// +0x1524 (0x63F180): the view-turned x (`race::frame_draw`, `flt_63F180`).
+    /// +0x1524 (0x63F180): the view-turned x (`flt_63F180`), never read; unused.
     pub turned_x: Float,
-    /// +0x1528 (0x63F184): the view-turned z (`race::frame_draw`, `flt_63F184`).
+    /// +0x1528 (0x63F184): the view-turned z (`flt_63F184`), never read; unused.
     pub turned_z: Float,
     /// +0x152c (0x63F188): the depth shift (`race::frame_draw`, `flt_63F188`).
     pub depth_shift: Float,
