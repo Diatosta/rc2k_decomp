@@ -84,6 +84,8 @@ pub struct ViewScratch {
     pub object: crate::scene::object_place::ObjectPlace,
     /// The view's object lighting (`scene::object_light`).
     pub light: crate::scene::object_light::ObjectLight,
+    /// The course face being drawn (`race::face_work`).
+    pub face: crate::race::face_work::FaceWork,
 }
 
 impl ViewScratch {
@@ -93,6 +95,7 @@ impl ViewScratch {
             fog: crate::scene::fog::Fog::new(),
             object: crate::scene::object_place::ObjectPlace::new(),
             light: crate::scene::object_light::ObjectLight::new(),
+            face: crate::race::face_work::FaceWork::new(),
         }
     }
 }

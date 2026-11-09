@@ -68,7 +68,12 @@ fn quad(
     quad_input(shared, 0).set_bits(0xFFFF_FFFF);
     drawing.scene.polygon_sides[0].set_bits(1);
     drawing.scene.polygon_sides[1].set_bits(0);
-    crate::scene::draw_flat_quad::draw_flat_quad(race, course, scene)
+    crate::scene::draw_flat_quad::draw_flat_quad(
+        race,
+        &crate::race::view_scratch::front_end().face,
+        course,
+        scene,
+    )
 }
 
 /// The shared tail (0x45B9AA, see the header).

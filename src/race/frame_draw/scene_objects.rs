@@ -159,7 +159,11 @@ pub fn draw_race_slots(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
 /// buffer off (`g_polygonMode` 0, switches -1, 1, 0; `g_polygonDrawn` 1); the colour back
 /// to 0xFFFFFF. Every register kept (its callers return at once). Refuses what the clip
 /// refuses (after the entries are set: never seen with four vertices).
-pub fn draw_screen_quad(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn draw_screen_quad(
+    race: &Race,
+    face: &crate::race::face_work::FaceWork,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let course = &race.course;
     let shared = &race.shared;
     let drawing = &scene.drawing;
@@ -208,11 +212,11 @@ pub fn draw_screen_quad(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
     if drawing.scene.polygon_vertex_count.get() >= 3 {
         crate::scene::depth_buffer_on::depth_buffer(false);
         drawing.scene.polygon_textures[0].set(u32::MAX);
-        shared.view.polygon_mode.set(0u32);
+        face.polygon_mode.set(0u32);
         drawing.scene.polygon_sides[0].set(1u32);
         drawing.scene.polygon_sides[1].set(0u32);
-        crate::scene::draw_polygon::draw_polygon_in_game(race, scene)?;
-        shared.view.polygon_mode.set(0u32);
+        crate::scene::draw_polygon::draw_polygon_in_game(race, face, scene)?;
+        face.polygon_mode.set(0u32);
         drawing.scene.polygon_drawn.set(1u32);
         crate::scene::depth_buffer_on::depth_buffer(true);
     }
@@ -223,7 +227,11 @@ pub fn draw_screen_quad(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
 /// `race::draw_view_tint` (0x456092): the whole view (0 .. `DRAW.view_size`, 0 ..
 /// `DRAW.view_size[1]`) as a screen quad in 0x204080 (`RACE_VARS.quad_colour`), switches -1, 1, 0, by
 /// `draw_screen_quad`.
-pub fn draw_view_tint(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn draw_view_tint(
+    race: &Race,
+    face: &crate::race::face_work::FaceWork,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let shared = &race.shared;
     let drawing = &scene.drawing;
     shared.vars.quad_corners[0].set(0u32);
@@ -234,7 +242,7 @@ pub fn draw_view_tint(race: &Race, scene: &crate::scene::owner::Scene) -> Result
     drawing.scene.polygon_textures[0].set(u32::MAX);
     drawing.scene.polygon_sides[0].set(1u32);
     drawing.scene.polygon_sides[1].set(0u32);
-    draw_screen_quad(race, scene)
+    draw_screen_quad(race, face, scene)
 }
 
 /// `race::add_car_depth_entry` (0x4574A0): the place (+0x134 .., into `OBJECT_WORK.place` ..) of

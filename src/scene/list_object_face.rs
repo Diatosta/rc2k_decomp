@@ -205,7 +205,7 @@ pub fn list_object_face(
     // the next tables (fixed: `wiki/Fixed-bugs.md`).
     let key = listed_key(bytes, scene.drawing.scene.face_sort_key.bits());
     list.push([
-        race.shared.vars.face_number.bits(),
+        ctx.view.face.face_number.bits(),
         key,
         scene.drawing.scene.entry_third.bits(),
         ctx.view.object.see_through.bits(),

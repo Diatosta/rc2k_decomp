@@ -27,7 +27,7 @@ pub struct RaceVars {
     pub car_tyres: [Dword; 8],
     /// +0x34 (0x62361C): (`scene::list_object_faces`).
     pub face_mark: Dword,
-    /// +0x38 (0x623620): `g_faceNumber` ("objfaced").
+    /// +0x38 (0x623620): `g_faceNumber` ("objfaced"); now each view's (`race::face_work::FaceWork`); still written for `scene::log_bad_polygon`.
     pub face_number: Dword,
     /// +0x3c (0x623624): not named.
     pub unknown_3c: [Dword; 4],
@@ -157,9 +157,9 @@ pub struct RaceVars {
     pub move_by: Dword,
     /// +0x7ec (0x623DD4): the same.
     pub move_fraction: Float,
-    /// +0x7f0 (0x623DD8): a texture mapping (`race::course_faces`).
+    /// +0x7f0 (0x623DD8): a texture mapping (`race::course_faces`); now each view's (`race::face_work::FaceWork`); unused.
     pub mapping_a: [Dword; 2],
-    /// +0x7f8 (0x623DE0): another.
+    /// +0x7f8 (0x623DE0): another; now each view's (`race::face_work::FaceWork`); unused.
     pub mapping_b: [Dword; 2],
     /// +0x800 (0x623DE8): the quad's colour and see-through (`scene::draw_flat_quad`, `scene::draw_tinted_quad`).
     pub quad_colour: [Dword; 2],

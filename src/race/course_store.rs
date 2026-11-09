@@ -47,7 +47,7 @@ pub struct CourseWork {
     pub unknown_dc: Dword,
     /// +0xe0 (0x5CCCD0): `g_currentCourseFace` ("polynum").
     pub current_course_face: Dword,
-    /// +0xe4 (0x5CCCD4): (`scene::draw_marked_polygon`, `race::frame_draw`).
+    /// +0xe4 (0x5CCCD4): (`scene::draw_marked_polygon`, `race::frame_draw`)
     pub polygon_flags: Dword,
     /// +0xe8 (0x5CCCD8): not named.
     pub unknown_e8: [Dword; 15],

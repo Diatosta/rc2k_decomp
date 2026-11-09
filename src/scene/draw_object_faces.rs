@@ -22,6 +22,7 @@ const FACES: u32 = 0xC000;
 pub fn draw_object_faces(
     race: &crate::race::owner::Race,
     object: &crate::scene::object_place::ObjectPlace,
+    work: &crate::race::face_work::FaceWork,
     list: &crate::scene::face_list::FaceList,
     draw: &mut dyn FnMut(usize) -> Result<(), Refused>,
     scene: &crate::scene::owner::Scene,
@@ -41,6 +42,8 @@ pub fn draw_object_faces(
             return Err(BadInput("a face that is not there").into());
         }
         object.see_through.set_bits(listed[3]);
+        work.face_number.set_bits(listed[0]);
+        // Read by `scene::log_bad_polygon`.
         race.shared.vars.face_number.set_bits(listed[0]);
         let head: [u8; 0xC] = crate::scene::object_faces::array(face as u32)?;
         let texture = u16::from_le_bytes([head[4], head[5]]) as u32;

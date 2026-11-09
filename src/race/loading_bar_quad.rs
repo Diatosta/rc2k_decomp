@@ -28,5 +28,9 @@ pub fn loading_bar_quad(
     shared.vars.quad_corners[1].set(bar.right);
     scene.drawing.scene.texture_page.set_bits(0xFFFF_FFFFu32);
     // `draw_screen_quad` reads no register it is given.
-    crate::race::frame_draw::draw_screen_quad(race, crate::scene::owner::scene())
+    crate::race::frame_draw::draw_screen_quad(
+        race,
+        &crate::race::view_scratch::front_end().face,
+        crate::scene::owner::scene(),
+    )
 }

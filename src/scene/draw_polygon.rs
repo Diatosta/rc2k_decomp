@@ -328,7 +328,7 @@ fn choose_texture(
 
 /// 0x44B94F: clears a switch by what the entries' bytes +0x21 hold.
 fn clear_a_switch(
-    shared: &crate::race::owner_shared::Shared,
+    face: &crate::race::face_work::FaceWork,
     entries: &[Listed],
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
@@ -341,7 +341,7 @@ fn clear_a_switch(
     if all == 0xFF {
         let info = crate::scene::polygon_store::POLYGON_TABLES
             .texture_infos
-            .get(shared.view.texture_b.bits() as usize)
+            .get(face.texture_b.bits() as usize)
             .ok_or(BadInput("a texture past the records"))?;
         // the record's byte +0x2E
         if info.words[0xB].get().to_le_bytes()[2] == 0 {
@@ -391,6 +391,7 @@ fn shade(entries: &[Listed], how: Shade) {
 
 pub fn draw_polygon(
     race: &crate::race::owner::Race,
+    face: &crate::race::face_work::FaceWork,
     outside: &mut dyn Outside,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
@@ -410,7 +411,7 @@ pub fn draw_polygon(
     let kept: [u32; 3] = [
         scene.drawing.scene.polygon_sides[0].bits(),
         scene.drawing.scene.polygon_sides[1].bits(),
-        race.shared.view.polygon_mode.bits(),
+        face.polygon_mode.bits(),
     ];
     crate::session::write_bits(&scene.drawing.scene.polygon_kept, kept);
     let mirrored = race.physics.ground.view_mirrored.bits() != 0;
@@ -425,7 +426,7 @@ pub fn draw_polygon(
 
     if scene.lights.state.faded.bits() != 0 {
         let (mode, texture): (u32, u32) = (
-            race.shared.view.polygon_mode.bits(),
+            face.polygon_mode.bits(),
             scene.drawing.scene.texture_page.bits(),
         );
         // 0x44CAD5.
@@ -441,20 +442,20 @@ pub fn draw_polygon(
             out.v.set_bits(uv[1]);
         }
         scene.drawing.scene.texture_page.set_bits(FADE_TEXTURE);
-        race.shared.view.polygon_mode.set_bits(7u32);
+        face.polygon_mode.set_bits(7u32);
         choose_texture(&race.course, outside, scene);
         for (state, value) in [(0x15, 4), (0x13, 5), (0x14, 6), (0x1B, 1), (0x1C, 0)] {
             outside.state(state, value);
         }
         submit_polygon(outside);
         scene.drawing.scene.texture_page.set_bits(texture);
-        race.shared.view.polygon_mode.set_bits(mode);
+        face.polygon_mode.set_bits(mode);
     }
 
     // The mode, with its fallbacks.
-    let mut mode: u32 = race.shared.view.polygon_mode.bits();
+    let mut mode: u32 = face.polygon_mode.bits();
     if mode == 3 && scene.draw_switches.clears_switch.bits() != 0 {
-        clear_a_switch(&race.shared, &entries, scene)?;
+        clear_a_switch(face, &entries, scene)?;
     }
     if matches!(mode, 3..=5) {
         let fallback = if scene.drawing.scene.polygon_sides[1].bits() == 0 {
@@ -466,7 +467,7 @@ pub fn draw_polygon(
         };
         if let Some(fallback) = fallback {
             mode = fallback;
-            race.shared.view.polygon_mode.set_bits(mode);
+            face.polygon_mode.set_bits(mode);
         }
     }
     if let Some((how, passes)) = passes(mode) {
@@ -486,7 +487,7 @@ pub fn draw_polygon(
             race.course.level_grid.smooth.set_bits(smooth.bits());
             copy_set(&entries, pass.set);
             if let Some(as_mode) = pass.as_mode {
-                race.shared.view.polygon_mode.set_bits(as_mode);
+                face.polygon_mode.set_bits(as_mode);
             }
             if pass.no_depth {
                 outside.state(0x0E, 0);
@@ -497,7 +498,7 @@ pub fn draw_polygon(
             }
             submit_polygon(outside);
             if pass.as_mode.is_some() {
-                race.shared.view.polygon_mode.set_bits(mode);
+                face.polygon_mode.set_bits(mode);
             }
             if pass.no_depth {
                 outside.state(0x0E, 1);
@@ -510,7 +511,7 @@ pub fn draw_polygon(
     // 0x44B9DD.
     scene.drawing.scene.polygon_sides[0].set_bits(kept[0]);
     scene.drawing.scene.polygon_sides[1].set_bits(kept[1]);
-    race.shared.view.polygon_mode.set_bits(kept[2]);
+    face.polygon_mode.set_bits(kept[2]);
     Ok(())
 }
 
@@ -542,7 +543,8 @@ impl Outside for Game {
 /// callers.
 pub fn draw_polygon_in_game(
     race: &Race,
+    face: &crate::race::face_work::FaceWork,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
-    draw_polygon(race, &mut Game, scene)
+    draw_polygon(race, face, &mut Game, scene)
 }

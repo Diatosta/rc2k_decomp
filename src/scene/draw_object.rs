@@ -91,6 +91,7 @@ pub fn draw_object_in_game(
                 list_object_faces(
                     &race.shared,
                     &ctx.view.object,
+                    &ctx.view.face,
                     &mut faces,
                     &mut |list, face| list_object_face(ctx, face, list, ctx.marks),
                 )?;
@@ -100,6 +101,7 @@ pub fn draw_object_in_game(
                 draw_object_faces(
                     race,
                     &ctx.view.object,
+                    &ctx.view.face,
                     &faces,
                     &mut |face| draw_object_face_in_game(ctx, face, system),
                     scene,

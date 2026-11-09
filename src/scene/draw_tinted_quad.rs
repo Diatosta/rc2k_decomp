@@ -81,13 +81,13 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(race, scene)?;
     if drawing.scene.polygon_vertex_count.bits() >= 3 {
         crate::scene::depth_buffer_on::depth_buffer(false);
-        shared.view.polygon_mode.set_bits(3);
+        ctx.view.face.polygon_mode.set_bits(3);
         drawing.scene.polygon_textures[0].set_bits(0xFFFF_FFFF);
         drawing.scene.polygon_textures[1].set_bits(0xFFFF_FFFF);
         drawing.scene.polygon_sides[0].set_bits(0);
         drawing.scene.polygon_sides[1].set_bits(1);
-        crate::scene::draw_polygon::draw_polygon_in_game(race, scene)?;
-        shared.view.polygon_mode.set_bits(0);
+        crate::scene::draw_polygon::draw_polygon_in_game(race, &ctx.view.face, scene)?;
+        ctx.view.face.polygon_mode.set_bits(0);
         drawing.scene.polygon_drawn.set_bits(1);
         crate::scene::depth_buffer_on::depth_buffer(true);
     }

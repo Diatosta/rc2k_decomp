@@ -26,6 +26,7 @@ use crate::session::Dword;
 /// none of its callers (register liveness, 2026-10-23).
 pub fn draw_flat_quad(
     race: &Race,
+    face: &crate::race::face_work::FaceWork,
     course: &Course,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
@@ -90,11 +91,11 @@ pub fn draw_flat_quad(
     crate::scene::scale_texture_coordinates::scale_texture_coordinates(scene)?;
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(race, scene)?;
     if drawing.scene.polygon_vertex_count.bits() >= 3 {
-        shared.view.polygon_mode.set_bits(6);
+        face.polygon_mode.set_bits(6);
         drawing.scene.polygon_sides[0].set_bits(1);
         drawing.scene.polygon_sides[1].set_bits(0);
         crate::scene::depth_buffer_on::depth_buffer(false);
-        crate::scene::draw_polygon::draw_polygon_in_game(race, scene)?;
+        crate::scene::draw_polygon::draw_polygon_in_game(race, face, scene)?;
         drawing.scene.polygon_drawn.set_bits(1);
         crate::scene::depth_buffer_on::depth_buffer(true);
     }

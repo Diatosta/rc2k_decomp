@@ -614,8 +614,8 @@ pub fn shadow_on_face(
     drawing.scene.polygon_textures[1].set(work.texture.get());
     drawing.scene.polygon_sides[0].set(0u32);
     drawing.scene.polygon_sides[1].set(1u32);
-    race.shared.view.polygon_mode.set(5u32);
-    crate::scene::draw_polygon::draw_polygon_in_game(race, scene)?;
+    ctx.view.face.polygon_mode.set(5u32);
+    crate::scene::draw_polygon::draw_polygon_in_game(race, &ctx.view.face, scene)?;
     drawing.scene.polygon_drawn.set(1u32);
     Ok(())
 }

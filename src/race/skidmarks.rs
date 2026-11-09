@@ -213,11 +213,11 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
         if drawing.scene.polygon_vertex_count.get() >= 3 {
             drawing.scene.polygon_colour.set(0u32);
             crate::scene::depth_test_off::depth_test_off();
-            race.shared.view.polygon_mode.set(3u32);
+            ctx.view.face.polygon_mode.set(3u32);
             drawing.scene.polygon_sides[0].set(0u32);
             drawing.scene.polygon_sides[1].set(1u32);
-            crate::scene::draw_polygon::draw_polygon_in_game(race, scene)?;
-            race.shared.view.polygon_mode.set(0u32);
+            crate::scene::draw_polygon::draw_polygon_in_game(race, &ctx.view.face, scene)?;
+            ctx.view.face.polygon_mode.set(0u32);
             drawing.scene.polygon_drawn.set(1u32);
             crate::scene::depth_test_on::depth_test_on();
         }

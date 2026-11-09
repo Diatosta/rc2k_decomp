@@ -20,9 +20,9 @@ pub struct RaceView {
     pub surface_kinds: [Dword; 4],
     /// +0x28 (0x63D9E0): the depth test on (`race::course_faces`).
     pub depth_test: Dword,
-    /// +0x2c (0x63D9E4): the face's halves turned to the view (`race::course_faces`).
+    /// +0x2c (0x63D9E4): the face's halves turned to the view (`race::course_faces`); now each view's (`race::face_work::FaceWork`); unused.
     pub face_turned: [Dword; 2],
-    /// +0x34 (0x63D9EC): the face's corners ([3] -1 for faces of three points, `race::norms`).
+    /// +0x34 (0x63D9EC): the face's corners ([3] -1 for faces of three points, `race::norms`); now each view's (`race::face_work::FaceWork`); still written for `race::norms`, which reads [3] at the stage's start-up.
     pub corners: [Dword; 4],
     /// +0x44 (0x63D9FC): (`race::course_faces`).
     pub slope: Float,
@@ -32,33 +32,33 @@ pub struct RaceView {
     pub unknown_4c: Dword,
     /// +0x50 (0x63DA08): the frame the face was drawn in (`race::course_faces`).
     pub face_frame: Dword,
-    /// +0x54 (0x63DA0C): the first texture's coordinates by corner, x then y.
+    /// +0x54 (0x63DA0C): the first texture's coordinates by corner, x then y
     pub corner_uv: [Dword; 8],
-    /// +0x74 (0x63DA2C): the first texture (`race::course_faces`).
+    /// +0x74 (0x63DA2C): the first texture (`race::course_faces`); now each view's (`race::face_work::FaceWork`); unused.
     pub texture_a: Dword,
-    /// +0x78 (0x63DA30): its corner order.
+    /// +0x78 (0x63DA30): its corner order; now each view's (`race::face_work::FaceWork`); unused.
     pub order_a: Dword,
-    /// +0x7c (0x63DA34): its back.
+    /// +0x7c (0x63DA34): its back; now each view's (`race::face_work::FaceWork`); unused.
     pub back_a: Dword,
-    /// +0x80 (0x63DA38): the second texture (`scene::draw_polygon`'s material).
+    /// +0x80 (0x63DA38): the second texture (`scene::draw_polygon`'s material); now each view's (`race::face_work::FaceWork`); unused.
     pub texture_b: Dword,
-    /// +0x84 (0x63DA3C): its corner order.
+    /// +0x84 (0x63DA3C): its corner order; now each view's (`race::face_work::FaceWork`); unused.
     pub order_b: Dword,
-    /// +0x88 (0x63DA40): its back.
+    /// +0x88 (0x63DA40): its back; now each view's (`race::face_work::FaceWork`); unused.
     pub back_b: Dword,
-    /// +0x8c (0x63DA44): the colour by corner.
+    /// +0x8c (0x63DA44): the colour by corner; now each view's (`race::face_work::FaceWork`); unused.
     pub corner_colours: [Dword; 4],
-    /// +0x9c (0x63DA54): the light by corner.
+    /// +0x9c (0x63DA54): the light by corner; now each view's (`race::face_work::FaceWork`); unused.
     pub corner_lights: [Dword; 4],
-    /// +0xac (0x63DA64): the see-through by corner (a byte).
+    /// +0xac (0x63DA64): the see-through by corner (a byte); now each view's (`race::face_work::FaceWork`); unused.
     pub corner_alphas: [Dword; 4],
     /// +0xbc (0x63DA74): not named.
     pub unknown_bc: [Dword; 2],
     /// +0xc4 (0x63DA7C): `g_turnedCornerOrder`: the turned orders, a byte table read in place (`race::course_faces`).
     pub turned_corner_order: [Dword; 14],
-    /// +0xfc (0x63DAB4): `g_polygonMode`.
+    /// +0xfc (0x63DAB4): `g_polygonMode`; now each view's (`race::face_work::FaceWork`); unused.
     pub polygon_mode: Dword,
-    /// +0x100 (0x63DAB8): the second texture's coordinates by corner, x then y.
+    /// +0x100 (0x63DAB8): the second texture's coordinates by corner, x then y
     pub corner_uv_b: [Dword; 8],
     /// +0x120 (0x63DAD8): `g_cornerUvOffsets`: by order, four.
     pub corner_uv_offsets: [Dword; 32],

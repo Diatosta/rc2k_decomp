@@ -18,6 +18,7 @@ use crate::race::owner_shared::Shared;
 pub fn list_object_faces(
     shared: &Shared,
     object: &crate::scene::object_place::ObjectPlace,
+    work: &crate::race::face_work::FaceWork,
     faces_list: &mut crate::scene::face_list::FaceList,
     list: &mut dyn FnMut(&mut crate::scene::face_list::FaceList, usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
@@ -30,6 +31,8 @@ pub fn list_object_faces(
         faces_list.clear();
         shared.vars.face_mark.set_bits(u32::MAX);
         for (n, &face) in faces.iter().enumerate() {
+            work.face_number.set_bits(n as u32);
+            // Read by `scene::log_bad_polygon`.
             shared.vars.face_number.set_bits(n as u32);
             list(faces_list, face as usize)?;
         }

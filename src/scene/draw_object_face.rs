@@ -47,14 +47,13 @@ pub enum Step {
 }
 
 pub fn draw_object_face(
-    race: &crate::race::owner::Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     face: usize,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
-    scene: &crate::scene::owner::Scene,
-    light: &crate::scene::object_light::ObjectLight,
     system: &crate::system::owner::System,
-    object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
+    let (work, light, object) = (&ctx.view.face, &ctx.view.light, &ctx.view.object);
     if scene.lights.state.draw_mode.bits() != 0 {
         return Ok(());
     }
@@ -102,11 +101,11 @@ pub fn draw_object_face(
             .set_bits(scene.drawing.scene.polygon_textures[0].bits());
         scene.drawing.scene.polygon_sides[0].set_bits(0u32);
         scene.drawing.scene.polygon_sides[1].set_bits(1u32);
-        race.shared.view.polygon_mode.set_bits(4u32);
+        work.polygon_mode.set_bits(4u32);
         step(Step::DepthTestOff)?;
         step(Step::Draw)?;
         step(Step::DepthTestOn)?;
-        race.shared.view.polygon_mode.set_bits(0u32);
+        work.polygon_mode.set_bits(0u32);
         return Ok(());
     }
 
@@ -167,14 +166,14 @@ pub fn draw_object_face(
         }
         scene.drawing.scene.polygon_sides[0].set_bits(0u32);
         scene.drawing.scene.polygon_sides[1].set_bits(1u32);
-        race.shared.view.polygon_mode.set_bits(3u32);
+        work.polygon_mode.set_bits(3u32);
         scene.drawing.scene.polygon_textures[1]
             .set_bits(scene.drawing.scene.polygon_textures[0].bits());
     } else {
-        race.shared.view.polygon_mode.set_bits(4u32);
+        work.polygon_mode.set_bits(4u32);
     }
     step(Step::Draw)?;
-    race.shared.view.polygon_mode.set_bits(0u32);
+    work.polygon_mode.set_bits(0u32);
     scene.lights.state.faded.set_bits(0u32);
     Ok(())
 }
@@ -187,7 +186,7 @@ pub fn draw_object_face_in_game(
 ) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
     draw_object_face(
-        race,
+        ctx,
         face,
         &mut |step| match step {
             Step::Draw => draw_object_polygon(race, &ctx.view.object, &mut |step| match step {
@@ -203,9 +202,6 @@ pub fn draw_object_face_in_game(
                 Ok(())
             }
         },
-        scene,
-        &ctx.view.light,
         system,
-        &ctx.view.object,
     )
 }
