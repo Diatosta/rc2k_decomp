@@ -10,19 +10,19 @@ use crate::session::{Bytes, Dword, Float};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ContactWork {
-    /// +0x0 (0x6D1DD8): `race::eax_face_weight`: the x of the middle of a face's second and third points, as a float.
+    /// +0x0 (0x6D1DD8): the original's `race::eax_face_weight` kept the x of the middle of a face's second and third points here, which nothing read (a local now; kept for the layout).
     pub eax_mid_x: Float,
     /// +0x4 (0x6D1DDC): not named.
     pub unknown_4: Dword,
-    /// +0x8 (0x6D1DE0): `race::eax_face_weight`: the z of that middle.
+    /// +0x8 (0x6D1DE0): the z of that middle (unused likewise).
     pub eax_mid_z: Float,
-    /// +0xc (0x6D1DE4): `race::frame_draw` `point_from_car`: a scene point's x less car 0's, a whole number.
+    /// +0xc (0x6D1DE4): the original's `point_from_car` x (a scene point's x less car 0's), never read: unused.
     pub eax_point_x: Dword,
     /// +0x10 (0x6D1DE8): not named.
     pub unknown_10: Dword,
-    /// +0x14 (0x6D1DEC): `race::frame_draw` `point_from_car`: the z less car 0's, a whole number.
+    /// +0x14 (0x6D1DEC): the z of the same, never read: unused.
     pub eax_point_z: Dword,
-    /// +0x18 (0x6D1DF0): `race::eax_face_weight`: the distance by the game's root tables.
+    /// +0x18 (0x6D1DF0): the original's `race::eax_face_weight` distance, never read: unused.
     pub eax_distance: Float,
     /// +0x1c (0x6D1DF4): `flt_6D1DF4`, the numerator of the share `physics::contact_force` makes (a reading).
     pub contact_share_numerator: Float,
