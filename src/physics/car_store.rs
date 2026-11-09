@@ -511,8 +511,8 @@ pub struct Car {
     /// +0xef0 (0x71AEC8): last ground faces under the camera and its sides (five saved by
     /// `physics::camera_avoid_ground`).
     pub camera_ground_faces: [Dword; 5],
-    /// +0xf04 (0x71AEDC): the object groups drawn with the car (`dword_60629C` kept,
-    /// `race::car_draw`).
+    /// +0xf04 (0x71AEDC): the object groups drawn with the car, which the original's
+    /// `race::car_draw` stored (0x461CD8) and nothing ever read; not stored any more; unused.
     pub group_mask: Dword,
     /// +0xf08 (0x71AEE0): speed scaled (engine sound).
     pub engine_speed_scaled: Float,
