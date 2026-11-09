@@ -603,14 +603,17 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     if ctx.view.light.view_kind.get() == 4 {
         return Ok(());
     }
-    let kind = scene
-        .objects
-        .tables
-        .object_kind(ctx.view.cars.object_number.get());
+    let number = ctx.view.cars.object_number.get();
+    let kind = scene.objects.tables.object_kind(number);
     let material = crate::scene::polygon_store::POLYGON_TABLES
         .object_materials
         .get(kind as usize)
-        .ok_or(BadInput("an object kind past the 1200 materials"))?
+        .ok_or_else(|| {
+            crate::framework::log(&format!(
+                "race::place_object_matrix: object {number:#x} has kind {kind:#x}, past the 1200 materials"
+            ));
+            BadInput("an object kind past the 1200 materials")
+        })?
         .words[8]
         .get() as u8; // the record's byte +0x20
     match material {

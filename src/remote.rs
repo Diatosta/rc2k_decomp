@@ -6,6 +6,11 @@
 //!     <id> key <scancode name> <ms>      a press of ms
 //!     <id> down|up <scancode name>       held until told
 //!     <id> pad <button name> <ms>        a gamepad button (the menus' side)
+//!     <id> joy attach                    a plain stand-in stick plugged in (4 axes, 17
+//!                                        buttons, 1 hat; USB ids 0x1209 / 0x5253)
+//!     <id> joy axis <n> <value>          its axis n set (-32768 .. 32767)
+//!     <id> joy button <n> <0|1>          its button n let go or pressed
+//!     <id> joy detach                    the stick unplugged
 //!     <id> shot <name>                   the next frame to <name>.raw, BGRA; answers its size
 //!     <id> state                         frames, race flag, menu, highlighted item
 //!     <id> quit                          as closing the window
@@ -74,6 +79,53 @@ fn key(scancode: SDL_Scancode, down: bool) {
 
 fn pad(button: SDL_GamepadButton, down: bool) {
     sdl_input::push_gamepad_button_event(button, down);
+}
+
+/// The stand-in stick (`joy attach`): its id and its handle, open for setting its values.
+static STICK: Mutex<Option<(SDL_JoystickID, sdl_input::Joystick)>> = Mutex::new(None);
+
+/// `RC2K_REMOTE_STICK`: the stand-in stick plugged in as SDL's joysticks start, so the game
+/// lists it with the others (it looks for devices once, at its start).
+pub fn stick_at_start() {
+    if std::env::var_os("RC2K_REMOTE_STICK").is_some() && folder().is_some() {
+        let answer = stick(&["attach"]);
+        crate::framework::log(&format!(
+            "remote: the stand-in stick plugged in at the start: {}",
+            answer.unwrap_or_else(|| "failed".to_string())
+        ));
+    }
+}
+
+fn stick(words: &[&str]) -> Option<String> {
+    let mut held = STICK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    match words {
+        ["attach"] if held.is_none() => {
+            let id = sdl_input::attach_virtual_stick(4, 17, 1, 0x1209, 0x5253)?;
+            let joystick = sdl_input::Joystick::open(id)?;
+            *held = Some((id, joystick));
+            Some("ok".to_string())
+        }
+        ["axis", n, value] => {
+            let (_, joystick) = (*held)?;
+            joystick
+                .set_virtual_axis(n.parse().ok()?, value.parse().ok()?)
+                .then(|| "ok".to_string())
+        }
+        ["button", n, down @ ("0" | "1")] => {
+            let (_, joystick) = (*held)?;
+            joystick
+                .set_virtual_button(n.parse().ok()?, *down == "1")
+                .then(|| "ok".to_string())
+        }
+        ["detach"] => {
+            let (id, joystick) = held.take()?;
+            joystick.close();
+            sdl_input::detach_virtual_stick(id).then(|| "ok".to_string())
+        }
+        _ => None,
+    }
 }
 
 fn scancode(name: &str) -> Option<SDL_Scancode> {
@@ -258,6 +310,7 @@ fn run(line: &str) {
                 .push((Instant::now() + ms(tail.first()), Release::Pad(code)));
             "ok".to_string()
         }),
+        ("joy", words) => stick(words),
         ("shot", [name]) => {
             pending().shot = Some(((*id).to_string(), (*name).to_string()));
             return;

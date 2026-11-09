@@ -6,6 +6,8 @@
     remote.py key Return [ms]            a key press (SDL's scancode names)
     remote.py down W / up W              a key held
     remote.py pad a [ms]                 a gamepad button (menus)
+    remote.py joy attach|detach          a plain stand-in stick plugged in or out
+    remote.py joy axis n v / button n 0|1   its axes and buttons
     remote.py shot name                  the next frame to <folder>/shots/name.png
     remote.py time n                     the arcade's countdown set to n
     remote.py state                      frames, race flag, menu, item, speed, time, place, cars
@@ -250,7 +252,7 @@ def main():
         print(ask('drive ' + rest[0]))
     elif command == 'log':
         log(int(rest[0]) if rest else 30)
-    elif command in ('key', 'down', 'up', 'pad', 'state', 'time'):
+    elif command in ('key', 'down', 'up', 'pad', 'joy', 'state', 'time'):
         print(ask(' '.join([command] + rest)))
     else:
         sys.exit(__doc__)

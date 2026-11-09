@@ -183,6 +183,52 @@ impl Joystick {
             (!haptic.is_null()).then_some(Haptic(haptic))
         }
     }
+
+    /// A virtual joystick's axis set (the remote driver's stand-in stick).
+    #[cfg(feature = "remote")]
+    pub fn set_virtual_axis(self, axis: i32, value: i16) -> bool {
+        // SAFETY: an open joystick; SDL refuses one that is not virtual.
+        unsafe { SDL_SetJoystickVirtualAxis(self.0, axis, value) }
+    }
+
+    /// A virtual joystick's button set.
+    #[cfg(feature = "remote")]
+    pub fn set_virtual_button(self, button: i32, down: bool) -> bool {
+        // SAFETY: an open joystick; SDL refuses one that is not virtual.
+        unsafe { SDL_SetJoystickVirtualButton(self.0, button, down) }
+    }
+}
+
+/// A plain virtual joystick (not a gamepad) of `axes`, `buttons` and `hats`, with the USB ids
+/// given, attached as if plugged in (the remote driver's stand-in stick): its id, or none.
+#[cfg(feature = "remote")]
+pub fn attach_virtual_stick(
+    axes: u16,
+    buttons: u16,
+    hats: u16,
+    vendor: u16,
+    product: u16,
+) -> Option<SDL_JoystickID> {
+    let desc = SDL_VirtualJoystickDesc {
+        r#type: SDL_JOYSTICK_TYPE_FLIGHT_STICK.0 as u16,
+        naxes: axes,
+        nbuttons: buttons,
+        nhats: hats,
+        vendor_id: vendor,
+        product_id: product,
+        name: c"Remote stand-in stick".as_ptr(),
+        ..SDL_VirtualJoystickDesc::default()
+    };
+    // SAFETY: a description made by SDL's own initialiser; the name is a constant C text.
+    let id = unsafe { SDL_AttachVirtualJoystick(&raw const desc) };
+    (id.0 != 0).then_some(id)
+}
+
+/// A virtual joystick detached, as if unplugged.
+#[cfg(feature = "remote")]
+pub fn detach_virtual_stick(id: SDL_JoystickID) -> bool {
+    // SAFETY: a plain id; SDL refuses one that is not a virtual joystick.
+    unsafe { SDL_DetachVirtualJoystick(id) }
 }
 
 /// An open gamepad (its joystick is its own, closed with it).

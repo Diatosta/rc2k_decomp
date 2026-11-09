@@ -127,6 +127,8 @@ impl SdlBackend {
             log("platform: SDL's joysticks do not start: no joysticks");
             return;
         }
+        #[cfg(feature = "remote")]
+        crate::remote::stick_at_start();
         crate::input::di_objects::set_backend(Box::new(SdlBackend {
             devices: Vec::new(),
             seen: Vec::new(),
@@ -149,8 +151,12 @@ impl SdlBackend {
         if ids == self.seen {
             return;
         }
-        for device in &mut self.devices {
-            if !ids.contains(&device.sdl_id) {
+        for (n, device) in self.devices.iter_mut().enumerate() {
+            if device.joystick.is_some() && !ids.contains(&device.sdl_id) {
+                log(&format!(
+                    "platform: joystick {n}: \"{}\" has gone",
+                    device.info.name
+                ));
                 device.close();
             }
         }
@@ -455,6 +461,10 @@ impl Backend for SdlBackend {
         let mut r = Reading::default();
         // The device's joystick, open until it has gone (none then).
         let Some(joystick) = d.joystick.filter(|j| j.connected()) else {
+            if d.joystick.is_some() {
+                let gone = format!("joystick {device}: \"{}\" has gone", d.info.name);
+                self.warn(gone);
+            }
             return r;
         };
         if let Some(pad) = d.gamepad {
