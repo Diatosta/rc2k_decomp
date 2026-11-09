@@ -7,6 +7,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
+use crate::physics::ground_query::{GroundCells, GroundQuery};
 #[cfg(all(test, target_arch = "x86"))]
 use crate::pointers::GamePtr;
 use crate::race::owner::Race;
@@ -61,6 +62,8 @@ pub struct ShadowWork {
     list_count: Dword,
     /// The ground's height under the car.
     ground: Dword,
+    /// The ground searches' fields (the original's were the physics', `GROUND_WORK` ..).
+    search: GroundCells,
 }
 
 impl ShadowWork {
@@ -83,6 +86,16 @@ impl ShadowWork {
             list: [const { Dword::new(0) }; 64],
             list_count: Dword::new(0),
             ground: Dword::new(0),
+            search: GroundCells::new(),
+        }
+    }
+
+    /// The ground search on the shadow's own fields; the caller's mark (`settle_mark`), which
+    /// the search only reads, is the physics' as the last search there left it.
+    fn query<'a>(&'a self, race: &'a Race) -> GroundQuery<'a> {
+        GroundQuery {
+            settle_mark: &race.physics.ground_probe.settle_mark,
+            ..self.search.query()
         }
     }
 }
@@ -164,7 +177,7 @@ pub fn shadow_angles(race: &Race, work: &ShadowWork) -> Result<(), Refused> {
 /// 64-bit cross product of whole numbers, `GROUND_PROBE.product` its first half, not negative)
 /// is taken out (the rest moved down, starting again), until none is; `work.hull_count`
 /// the points left. Refuses (before anything) fewer than two points or more than 0x40.
-pub fn shadow_hull(race: &Race, work: &ShadowWork) -> Result<(), Refused> {
+pub fn shadow_hull(work: &ShadowWork) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::shadow::hull`.
     use rc2k_core::race::shadow::{Record, hull, hull_records};
     let count: u32 = work.point_count.bits();
@@ -183,8 +196,8 @@ pub fn shadow_hull(race: &Race, work: &ShadowWork) -> Result<(), Refused> {
             crate::pointers::store_value(at(n)?, 0, *now)?;
         }
     }
-    race.physics.ground_probe.product[0].set(h.product as u32);
-    race.physics.ground_probe.product[1].set((h.product as u64 >> 32) as u32);
+    work.search.query().product[0].set(h.product as u32);
+    work.search.query().product[1].set((h.product as u64 >> 32) as u32);
     work.hull_count.set(h.count);
     Ok(())
 }
@@ -246,13 +259,14 @@ fn work_entry(n: u32) -> Result<&'static PolygonEntry, BadInput> {
 /// (`work.edge`, `work.edge[1]`) to (`work.edge[2]`, `work.edge[3]`): the cross product
 /// of whole numbers on the x87 (the original's instructions) above 0, or not a number
 /// (`fldz; fcompp`, C0). The point's x and z into `GROUND_WORK.ground_x` / `GROUND_WORK.ground_z`.
-fn inside_edge(race: &Race, work: &ShadowWork, n: u32) -> Result<bool, BadInput> {
+fn inside_edge(work: &ShadowWork, n: u32) -> Result<bool, BadInput> {
     let (x, z) = point_xz(n)?;
-    race.physics.ground.ground_x.set(x);
-    race.physics.ground.ground_z.set(z);
+    let q = work.search.query();
+    q.x.set(x);
+    q.z.set(z);
     use crate::math::x87_float::{X, compare, int};
     let word = |d: &crate::session::Dword| int(d.bits() as i32);
-    let (x, z) = (&race.physics.ground.ground_x, &race.physics.ground.ground_z);
+    let (x, z) = (q.x, q.z);
     let c = &work.edge;
     let first = (word(x) - word(&c[0])) * (word(&c[3]) - word(&c[1]));
     let second = (word(z) - word(&c[1])) * (word(&c[2]) - word(&c[0]));
@@ -268,7 +282,6 @@ fn inside_edge(race: &Race, work: &ShadowWork, n: u32) -> Result<bool, BadInput>
 /// shared the same way between the scene points numbered `pa`, `pb` and the entries `ea`, `eb`;
 /// The original's store of the share's bits to `g_scratch` is not kept (nothing read it).
 fn crossing_block(
-    race: &Race,
     work: &ShadowWork,
     pa: u32,
     pb: u32,
@@ -282,7 +295,7 @@ fn crossing_block(
     let first = word(11) * word(8) - word(10) * word(9);
     let second = word(13) * word(8) - word(12) * word(9);
     let share = st(-(first / (second - first)));
-    race.physics.ground.plane_f.set_bits(share);
+    work.search.query().plane_f.set_bits(share);
     let share = ld(share);
     // a + (b - a) x share
     let whole = |k: u32| -> Result<i32, BadInput> {
@@ -341,7 +354,7 @@ fn edge_crossing(
     w[11].set(rd(&w[4]).wrapping_sub(rd(&w[6])));
     w[12].set(rd(&w[1]).wrapping_sub(rd(&w[2])));
     w[13].set(rd(&w[5]).wrapping_sub(rd(&w[6])));
-    crossing_block(race, work, pa, pb, ea, eb, scene)?;
+    crossing_block(work, pa, pb, ea, eb, scene)?;
     let n = rd(&work.next_point);
     put_point_word(&race.course, n, 0, drawing.scene.clip_work[2].bits())?;
     put_point_word(&race.course, n, 1, 0)?;
@@ -413,7 +426,7 @@ fn clip_to_edge(
                     0
                 }
             };
-            inside_edge(race, work, entry).unwrap_or_else(|err| {
+            inside_edge(work, entry).unwrap_or_else(|err| {
                 trap.keep(err);
                 false
             })
@@ -504,23 +517,20 @@ pub fn clip_shadow_to_face(
 fn raise_onto_face(race: &Race, work: &ShadowWork, index: u32) -> Result<(), Refused> {
     use crate::physics::ground::face_shares_at;
     let p = work_entry(index)?.point.get();
+    let q = work.query(race);
     for k in 0..3 {
-        race.physics.ground.face_corner_numbers[k].set_bits(work.face_corners[k].bits());
+        q.corner_numbers[k].set_bits(work.face_corners[k].bits());
     }
     let (x, z) = point_xz(p)?;
-    race.physics.ground.ground_x.set(x);
-    race.physics.ground.ground_z.set(z);
-    face_shares_at(race, crate::scene::owner::scene())?;
-    crate::physics::plane_height::plane_height(&race.physics);
+    q.x.set(x);
+    q.z.set(z);
+    face_shares_at(race, &q, crate::scene::owner::scene())?;
+    crate::physics::plane_height::plane_height(&q);
     put_point_word(
         &race.course,
         p,
         1,
-        race.physics
-            .ground
-            .ground_height
-            .get()
-            .wrapping_add(work.lift.bits()),
+        q.height.get().wrapping_add(work.lift.bits()),
     )?;
     Ok(())
 }
@@ -733,25 +743,13 @@ pub fn shadow_points(race: &Race, work: &ShadowWork, car: &Car) -> Result<(), Re
     if count == 0 || count > 0x40 {
         return Err(BadInput("no shadow corners or more than 0x40").into());
     }
-    let inputs = [
-        &race.physics.ground.ground_x,
-        &race.physics.ground.ground_z,
-        &race.course.course.ground_face_last,
-    ];
-    let was: Vec<u32> = inputs.iter().map(|d| d.bits()).collect();
-    inputs[0].set_bits(car.position[0].bits());
-    inputs[1].set_bits(car.position[2].bits());
-    inputs[2].set_bits(car.probe_point_face[4].bits());
-    if let Err(e) = crate::physics::find_ground::find_ground(race, crate::scene::owner::scene()) {
-        // Its inputs put back: a refusal has written nothing.
-        for (d, &v) in inputs.iter().zip(&was) {
-            d.set_bits(v);
-        }
-        return Err(e);
-    }
+    let q = work.query(race);
+    q.x.set_bits(car.position[0].bits());
+    q.z.set_bits(car.position[2].bits());
+    q.last.set_bits(car.probe_point_face[4].bits());
+    crate::physics::find_ground::find_ground_with(race, &q, crate::scene::owner::scene())?;
     work.farthest_length.set(-1.0f32);
-    work.ground
-        .set_bits(race.physics.ground.ground_height.get());
+    work.ground.set_bits(q.height.get());
     let sun = race.course.stage_prefs.sun_height.get().max(0x10);
     let turn = race
         .course
@@ -819,7 +817,7 @@ pub fn cast_car_shadow(
     }
     shadow_points(race, work, car)?;
     shadow_angles(race, work)?;
-    shadow_hull(race, work)?;
+    shadow_hull(work)?;
     if !hull_drawn(work.hull_count.get()) {
         return Ok(());
     }
@@ -1265,27 +1263,19 @@ mod asm_reference {
                     race.physics.ground.ground_x.get(),
                     race.physics.ground.ground_z.get(),
                 );
-                {
-                    race.physics.ground.ground_x.set(0xAAAA_AAAAu32);
-                    race.physics.ground.ground_z.set(0xAAAA_AAAAu32);
-                }
                 // The edge the original read at 0x641948 .., the Rust version's in its work.
                 let work = ShadowWork::new();
                 for (k, a) in places[2..6].iter().enumerate() {
                     work.edge[k].set(game_read::<u32>(rva(*a)));
                 }
-                let got = crate::race::scene_points::with_test_points(&points, || {
-                    inside_edge(race, &work, n)
-                })
-                .expect("the test's memory is registered");
+                let got =
+                    crate::race::scene_points::with_test_points(&points, || inside_edge(&work, n))
+                        .expect("the test's memory is registered");
                 assert_eq!(want, got, "{points:x?} {n}");
-                assert_eq!(
-                    seen,
-                    (
-                        race.physics.ground.ground_x.get(),
-                        race.physics.ground.ground_z.get()
-                    )
-                );
+                // The point the original left in `GROUND_WORK`, the Rust version in the
+                // shadow's own search fields.
+                let q = work.search.query();
+                assert_eq!(seen, (q.x.get(), q.z.get()));
                 if want { yes += 1 } else { no += 1 }
             }
         });
@@ -1294,7 +1284,6 @@ mod asm_reference {
 
     #[test]
     fn crossing_block_matches() {
-        let race = race();
         let _l = lock();
         let places = [
             0x62400C, 0x641978, 0x64197C, 0x641980, 0x641984, 0x641988, 0x64198C, 0x639810,
@@ -1362,7 +1351,6 @@ mod asm_reference {
                             .expect("the test's memory is registered")
                     };
                     crossing_block(
-                        race,
                         &work,
                         0,
                         1,
@@ -1372,7 +1360,9 @@ mod asm_reference {
                     )
                 })
                 .expect("the test's memory is registered");
-                let got = read();
+                let mut got = read();
+                // `plane_f` (0x639810) the Rust version keeps in the shadow's own search fields.
+                got[7] = work.search.query().plane_f.bits();
                 // Place 0 (0x62400C, the assembly's spill dword) is not kept by the Rust version.
                 for k in 1..places.len() {
                     assert!(

@@ -9,13 +9,13 @@
 //! quad).
 
 use crate::physics::flag_result::FlagResult;
-use crate::race::owner_physics::Physics;
+use crate::physics::ground_query::GroundQuery;
 use rc2k_core::physics::faces;
 
 /// The Rust version: the ground point's side of the edge from scene point `from` to `to`
 /// (their numbers).
 pub fn edge_side(
-    physics: &Physics,
+    q: &GroundQuery<'_>,
     from: u32,
     to: u32,
 ) -> Result<FlagResult, crate::errors::Refused> {
@@ -26,7 +26,7 @@ pub fn edge_side(
         carry,
         zero: Some(zero),
     };
-    let point = (physics.ground.ground_x.get(), physics.ground.ground_z.get());
+    let point = (q.x.get(), q.z.get());
     let scene = |n: u32| -> Result<(u32, u32), crate::errors::BadInput> {
         Ok((
             crate::race::scene_points::point_word(n, 0)?,
@@ -36,8 +36,8 @@ pub fn edge_side(
     Ok(match faces::edge_side(point, scene(from)?, scene(to)?) {
         None => result(1, false, false),
         Some((kept, negative)) => {
-            physics.ground_probe.product[0].set(kept as u32);
-            physics.ground_probe.product[1].set((kept >> 32) as u32);
+            q.product[0].set(kept as u32);
+            q.product[1].set((kept >> 32) as u32);
             result(0, negative, true)
         }
     })

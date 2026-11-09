@@ -17,5 +17,9 @@ use crate::race::owner::Race;
 
 /// The Rust version: the carry (the registers are kept).
 pub fn ground_search(race: &Race, scene: &crate::scene::owner::Scene) -> Result<bool, Refused> {
-    ground_search_at(race, scene)
+    ground_search_at(
+        race,
+        &crate::physics::ground_query::GroundQuery::of_physics(race),
+        scene,
+    )
 }

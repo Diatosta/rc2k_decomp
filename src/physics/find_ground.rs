@@ -19,3 +19,12 @@ use crate::race::owner::Race;
 pub fn find_ground(race: &Race, scene: &crate::scene::owner::Scene) -> Result<bool, Refused> {
     ground_search(race, scene)
 }
+
+/// The same on the fields of `q` (a drawing's own: `race::car_shadow`).
+pub fn find_ground_with(
+    race: &Race,
+    q: &crate::physics::ground_query::GroundQuery<'_>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<bool, Refused> {
+    crate::physics::ground::ground_search_at(race, q, scene)
+}

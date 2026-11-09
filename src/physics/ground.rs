@@ -14,6 +14,7 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::cells::Trap;
 use crate::physics::edge_side::edge_side;
 use crate::physics::find_course_record::find_course_record;
+use crate::physics::ground_query::GroundQuery;
 use crate::physics::plane_height::plane_height;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
@@ -31,56 +32,31 @@ fn record_faces(record: u32) -> Result<(u32, u32), BadInput> {
 /// shares by the x87 (`math::x87_run::face_shares`; the `rcpss` way with the SSE switch).
 /// The registers it leaves (eax the last difference, ebx, ecx the third corner's y, z)
 /// are read by none of its callers.
-pub fn face_shares_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn face_shares_at(
+    race: &Race,
+    q: &GroundQuery<'_>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let race_owner = race;
     let mut corner = [[0u32; 3]; 3];
     for (k, c) in corner.iter_mut().enumerate() {
-        *c = crate::race::scene_points::point_number(
-            race_owner.physics.ground.face_corner_numbers[k].get(),
-        )?;
+        *c = crate::race::scene_points::point_number(q.corner_numbers[k].get())?;
         for (n, &v) in c.iter().enumerate() {
-            race_owner.physics.ground.face_corners[3 * k + n].set(v);
+            q.corners[3 * k + n].set(v);
         }
     }
-    let (x, z) = (
-        race_owner.physics.ground.ground_x.get(),
-        race_owner.physics.ground.ground_z.get(),
-    );
-    race_owner.physics.ground.face_point_x.set(x);
-    race_owner.physics.ground.face_point_z.set(z);
+    let (x, z) = (q.x.get(), q.z.get());
+    q.point_x.set(x);
+    q.point_z.set(z);
     let d = [
-        (
-            &race_owner.physics.ground.corner_x_differences[0],
-            x.wrapping_sub(corner[0][0]),
-        ),
-        (
-            &race_owner.physics.ground.corner_x_differences[1],
-            corner[1][0].wrapping_sub(corner[0][0]),
-        ),
-        (
-            &race_owner.physics.ground.corner_x_differences[2],
-            corner[2][0].wrapping_sub(corner[0][0]),
-        ),
-        (
-            &race_owner.physics.ground.corner_z_differences[0],
-            z.wrapping_sub(corner[0][2]),
-        ),
-        (
-            &race_owner.physics.ground.corner_z_differences[1],
-            corner[1][2].wrapping_sub(corner[0][2]),
-        ),
-        (
-            &race_owner.physics.ground.corner_z_differences[2],
-            corner[2][2].wrapping_sub(corner[0][2]),
-        ),
-        (
-            &race_owner.physics.ground.corner_y_differences[0],
-            corner[1][1].wrapping_sub(corner[0][1]),
-        ),
-        (
-            &race_owner.physics.ground.corner_y_differences[1],
-            corner[2][1].wrapping_sub(corner[0][1]),
-        ),
+        (&q.x_differences[0], x.wrapping_sub(corner[0][0])),
+        (&q.x_differences[1], corner[1][0].wrapping_sub(corner[0][0])),
+        (&q.x_differences[2], corner[2][0].wrapping_sub(corner[0][0])),
+        (&q.z_differences[0], z.wrapping_sub(corner[0][2])),
+        (&q.z_differences[1], corner[1][2].wrapping_sub(corner[0][2])),
+        (&q.z_differences[2], corner[2][2].wrapping_sub(corner[0][2])),
+        (&q.y_differences[0], corner[1][1].wrapping_sub(corner[0][1])),
+        (&q.y_differences[1], corner[2][1].wrapping_sub(corner[0][1])),
     ];
     for &(cell, value) in &d {
         cell.set(value);
@@ -97,15 +73,15 @@ pub fn face_shares_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result
     ];
     let mut o = [0u32; 8];
     crate::math::x87_run::face_shares(&i, &mut o, sse);
-    race_owner.physics.ground.face_share_a.set_bits(o[0]);
-    race_owner.physics.ground.face_share_b.set_bits(o[1]);
-    race_owner.physics.ground.face_share_c.set_bits(o[2]);
-    race_owner.physics.ground.plane_f.set_bits(o[3]);
-    race_owner.physics.ground.share_s.set(o[4]);
-    race_owner.physics.ground.plane_g.set_bits(o[5]);
-    race_owner.physics.ground.share_t.set(o[6]);
+    q.share_a.set_bits(o[0]);
+    q.share_b.set_bits(o[1]);
+    q.share_c.set_bits(o[2]);
+    q.plane_f.set_bits(o[3]);
+    q.share_s.set(o[4]);
+    q.plane_g.set_bits(o[5]);
+    q.share_t.set(o[6]);
     if sse {
-        race_owner.physics.ground.face_share_scale.set_bits(o[7]);
+        q.share_scale.set_bits(o[7]);
     }
     Ok(())
 }
@@ -123,15 +99,15 @@ pub fn face_refusal(course: &Course, face: u32) -> Option<&'static str> {
 // Converted: `rc2k_core::physics::ground_search::face_under_point`.
 pub fn face_under_point_at(
     race: &Race,
+    q: &GroundQuery<'_>,
     number: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
-    let physics = &race.physics;
     let race_owner = race;
     if let Some(why) = face_refusal(&race_owner.course, number) {
         return Err(BadInput(why).into());
     }
-    race_owner.course.course.ground_number.set(number);
+    q.number.set(number);
     // The face read once: its kind, flags, corners and edges.
     let f = crate::race::course_places::face_number(number, "a course face")?;
     let trap = Trap::new();
@@ -140,7 +116,7 @@ pub fn face_under_point_at(
         if trap.failed() {
             return None;
         }
-        match edge_side(&race_owner.physics, f.dword_at(from), f.dword_at(to)) {
+        match edge_side(q, f.dword_at(from), f.dword_at(to)) {
             Ok(s) => (s.zero == Some(true)).then_some(s.carry),
             Err(e) => {
                 trap.refuse(e);
@@ -151,7 +127,7 @@ pub fn face_under_point_at(
     let test = ground_search::face_under_point(
         f.kind(),
         || f.switches(),
-        race_owner.physics.ground_probe.settle_mark.get(),
+        q.settle_mark.get(),
         |o| f.dword_at(o),
         side,
     );
@@ -160,20 +136,16 @@ pub fn face_under_point_at(
         FaceTest::Kind | FaceTest::Flags(_) | FaceTest::Edge => return Ok(false),
         FaceTest::Inside { half, corners } => (half, corners),
     };
-    race_owner
-        .course
-        .course
-        .ground_slot
-        .set(race_owner.course.course.ground_number.get());
-    race_owner.course.course.ground_half.set(half);
+    q.slot.set(q.number.get());
+    q.half.set(half);
     for (k, &o) in corners.iter().enumerate() {
         let corner = f.dword_at(o);
-        race_owner.physics.ground.face_corner_numbers[k].set(corner);
-        race_owner.course.course.ground_corners[k].set(corner);
+        q.corner_numbers[k].set(corner);
+        q.face_corners[k].set(corner);
     }
-    face_shares_at(race, scene)?;
-    race_owner.physics.ground.face_under_point_done.set(1);
-    plane_height(physics);
+    face_shares_at(race, q, scene)?;
+    q.done.set(1);
+    plane_height(q);
     Ok(true)
 }
 
@@ -200,6 +172,7 @@ pub fn record_refusal(course: &Course, record: u32) -> Option<&'static str> {
 // Converted: `rc2k_core::physics::ground_search::search_faces`.
 pub fn search_record_faces_at(
     race: &Race,
+    q: &GroundQuery<'_>,
     record: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
@@ -208,7 +181,7 @@ pub fn search_record_faces_at(
     }
     let (first, last) = record_faces(record)?;
     let (found, _) = ground_search::search_faces(first, last, |number| {
-        face_under_point_at(race, number, scene)
+        face_under_point_at(race, q, number, scene)
     })?;
     Ok(found)
 }
@@ -219,6 +192,7 @@ pub fn search_record_faces_at(
 // Converted: `rc2k_core::physics::ground_search::cell_key`.
 pub fn search_cell_at(
     race: &Race,
+    q: &GroundQuery<'_>,
     x: u32,
     z: u32,
     scene: &crate::scene::owner::Scene,
@@ -227,38 +201,41 @@ pub fn search_cell_at(
     let Some(record) = find_course_record(&race.course, key)? else {
         return Ok(false);
     };
-    search_record_faces_at(race, record, scene)
+    search_record_faces_at(race, q, record, scene)
 }
 
 /// `physics::try_last_face` (0x441E0C): ebx = `dword_5CCC78`; when it is a face (not -1,
 /// below the count) `face_under_point` on it. The carry when found.
 // Converted: `rc2k_core::physics::ground_search::last_face`.
-pub fn try_last_face_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<bool, Refused> {
-    let last = race.course.course.ground_face_last.get();
+pub fn try_last_face_at(
+    race: &Race,
+    q: &GroundQuery<'_>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<bool, Refused> {
+    let last = q.last.get();
     if ground_search::last_face(last, race.course.course.course_face_count.get()).is_none() {
         return Ok(false);
     }
-    face_under_point_at(race, last, scene)
+    face_under_point_at(race, q, last, scene)
 }
 
 /// `physics::ground_search` (0x441E2F), inside `pusha` / `popa`: `try_last_face`; else
 /// `dword_5CCC74` = -1 and `search_cell` on the point plus each of `CELLS` until one
 /// finds it. `g_groundFound` 1 when found, else 0. Registers kept; the carry the found.
 // Converted: `rc2k_core::physics::ground_search::ground_search`.
-pub fn ground_search_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<bool, Refused> {
+pub fn ground_search_at(
+    race: &Race,
+    q: &GroundQuery<'_>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<bool, Refused> {
     let found = ground_search::ground_search(
-        || try_last_face_at(race, scene),
+        || try_last_face_at(race, q, scene),
         || {
-            race.course.course.ground_slot.set(ground_search::NO_FACE);
+            q.slot.set(ground_search::NO_FACE);
         },
-        || {
-            (
-                race.physics.ground.ground_x.get(),
-                race.physics.ground.ground_z.get(),
-            )
-        },
-        |x, z| search_cell_at(race, x, z, scene),
+        || (q.x.get(), q.z.get()),
+        |x, z| search_cell_at(race, q, x, z, scene),
     )?;
-    race.physics.ground.ground_found.set(u32::from(found));
+    q.found.set(u32::from(found));
     Ok(found)
 }

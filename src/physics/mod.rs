@@ -116,6 +116,7 @@ pub mod grade_or_reset;
 pub mod ground;
 pub mod ground_contact;
 pub mod ground_probe_store;
+pub mod ground_query;
 pub mod ground_search;
 pub mod ground_store;
 pub mod higher_free_gear;

@@ -7,17 +7,16 @@
 //! Callers (2): `physics::face_under_point` (the face under a point, the ground's search) and
 //! 0x457B86.
 
-use crate::race::owner_physics::Physics;
+use crate::physics::ground_query::GroundQuery;
 
 /// The Rust version.
-pub fn plane_height(physics: &Physics) {
-    let w = &physics.ground;
+pub fn plane_height(q: &GroundQuery<'_>) {
     let h = crate::math::x87_run::plane_height(
-        w.face_corners[4].get() as i32,
-        w.face_corners[7].get() as i32,
-        w.face_corners[1].get() as i32,
-        w.plane_f.bits(),
-        w.plane_g.bits(),
+        q.corners[4].get() as i32,
+        q.corners[7].get() as i32,
+        q.corners[1].get() as i32,
+        q.plane_f.bits(),
+        q.plane_g.bits(),
     );
-    w.ground_height.set(h as u32);
+    q.height.set(h as u32);
 }

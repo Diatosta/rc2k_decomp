@@ -17,7 +17,13 @@ use crate::race::owner::Race;
 /// none of its callers.
 pub fn probe_and_keep_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let physics = &race.physics;
-    probe_ground_at(race, &race.shared.car, scene, &scene.drawing.scene.scratch)?;
+    probe_ground_at(
+        race,
+        &race.shared.car,
+        scene,
+        &crate::physics::ground_query::GroundQuery::of_physics(race),
+        &scene.drawing.scene.scratch,
+    )?;
     for k in 0..64 {
         physics.contact.saved_probe_x[k].set(physics.contact.probe_x[k].get());
     }
