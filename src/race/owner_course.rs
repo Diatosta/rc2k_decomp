@@ -15,16 +15,17 @@ use crate::race::prefs_store::StagePrefs;
 pub struct Course {
     /// One copy per drawing thread (`workers`).
     pub course: crate::workers::PerWorker<CourseWork>,
-    /// One copy per drawing thread (`workers`).
-    pub lists: crate::workers::PerWorker<CourseLists>,
+    /// One copy: the drawing only reads it (frame plan F4).
+    pub lists: CourseLists,
     /// One copy per drawing thread (`workers`).
     pub level_grid: crate::workers::PerWorker<LevelGrid>,
     pub level_paths: LevelPaths,
     pub kind_records: KindRecords,
     pub lights_data: LightsData,
     pub flare_tables: FlareTables,
-    /// One copy per drawing thread (`workers`).
-    pub stage_prefs: crate::workers::PerWorker<StagePrefs>,
+    /// One copy (frame plan F4): the drawing writes only what each view's fog set-up works
+    /// out from the draw distance (`race::draw_distance_settings`), the same in every view.
+    pub stage_prefs: StagePrefs,
     pub numbers: Numbers,
     pub league: League,
 }
@@ -35,9 +36,7 @@ impl Course {
             course: crate::workers::PerWorker::new(
                 [const { CourseWork::new() }; crate::workers::COPIES],
             ),
-            lists: crate::workers::PerWorker::new(
-                [const { CourseLists::new() }; crate::workers::COPIES],
-            ),
+            lists: CourseLists::new(),
             level_grid: crate::workers::PerWorker::new(
                 [const { LevelGrid::new() }; crate::workers::COPIES],
             ),
@@ -45,9 +44,7 @@ impl Course {
             kind_records: KindRecords::new(),
             lights_data: LightsData::new(),
             flare_tables: FlareTables::new(),
-            stage_prefs: crate::workers::PerWorker::new(
-                [const { StagePrefs::new() }; crate::workers::COPIES],
-            ),
+            stage_prefs: StagePrefs::new(),
             numbers: Numbers::new(),
             league: League::new(),
         }

@@ -142,7 +142,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(race().frame.shadow_skids.first(), START, END);
+        crate::gfx::first_values_are_the_games(&race().frame.shadow_skids, START, END);
     }
 
     #[test]

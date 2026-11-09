@@ -163,11 +163,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            crate::race::owner::RACE.course.lists.first(),
-            START,
-            END,
-        );
+        crate::gfx::first_values_are_the_games(&crate::race::owner::RACE.course.lists, START, END);
     }
 
     #[test]

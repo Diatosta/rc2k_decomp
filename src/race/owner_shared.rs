@@ -43,8 +43,8 @@ pub struct Shared {
     /// `REPLAYS` (`race`).
     pub replays: Replays,
     /// `PHYSICS` (`physics`).
-    /// One copy per drawing thread (`workers`).
-    pub physics_tables: crate::workers::PerWorker<PhysicsTables>,
+    /// One copy: the drawing only reads it (frame plan F4).
+    pub physics_tables: PhysicsTables,
     /// `CAR` (`physics`): the work car. One copy: the drawing no longer reads it (frame plan
     /// F3), so the drawing threads need none of their own.
     pub car: Car,
@@ -72,9 +72,7 @@ impl Shared {
             replay_file: ReplayFileBlock::new(),
             replay_templates: Templates::new(),
             replays: Replays::new(),
-            physics_tables: crate::workers::PerWorker::new(
-                [const { PhysicsTables::new() }; crate::workers::COPIES],
-            ),
+            physics_tables: PhysicsTables::new(),
             car: Car::new(),
         }
     }
