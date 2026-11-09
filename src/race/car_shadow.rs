@@ -730,13 +730,13 @@ fn angle_of(at: &ShadowPoint) -> u32 {
 
 /// `race::shadow_points` (0x458078): the shadow's points: the ground under the work car
 /// (`physics::find_ground`, its height to `work.ground`); the sun's slant from
-/// `stage_prefs.sun_height` (at least 0x10) and -`stage_prefs.sun_turn` - 0x40 (`work.slant_x`, `work.slant_z`);
+/// the sun's height `sun` (at least 0x10) and -`stage_prefs.sun_turn` - 0x40 (`work.slant_x`, `work.slant_z`);
 /// each of the car's `work.point_count` corners (`g_car` +0xAF0 .. +0xCF0 by axis) turned by
 /// its matrix (+0x840), moved along the slant by its height plus 0.7, its angle (`fpatan`)
 /// and distance, the farthest kept (`work.farthest_length`, `work.farthest`), as whole numbers (x
 /// 65536) plus the car's place. Refuses what `find_ground` refuses (before anything), and
 /// no corners or more than 0x40.
-pub fn shadow_points(race: &Race, work: &ShadowWork, car: &Car) -> Result<(), Refused> {
+pub fn shadow_points(race: &Race, work: &ShadowWork, car: &Car, sun: u32) -> Result<(), Refused> {
     use crate::math::x87::mul_to_int;
     use crate::math::x87_load::{below_or_unordered, to_tbyte};
     let count: u32 = work.point_count.bits();
@@ -750,7 +750,7 @@ pub fn shadow_points(race: &Race, work: &ShadowWork, car: &Car) -> Result<(), Re
     crate::physics::find_ground::find_ground_with(race, &q, crate::scene::owner::scene())?;
     work.farthest_length.set(-1.0f32);
     work.ground.set_bits(q.height.get());
-    let sun = race.course.stage_prefs.sun_height.get().max(0x10);
+    let sun = sun.max(0x10);
     let turn = race
         .course
         .stage_prefs
@@ -801,12 +801,13 @@ fn lifted(y: u32, lift: u32, slant: u32, base: u32) -> u32 {
 /// `race::cast_car_shadow` (0x4575C1): with three corners or more, the shadow's points, their
 /// order, hull and polygon, the hull's list (`work.list`,
 /// `work.list_count`), texture 0xC3 (`work.texture`), and the shadow
-/// on the faces round the car (`shadow_faces`). Refuses what its
+/// on the faces round the car (`shadow_faces`), with the sun at height `sun`. Refuses what its
 /// parts refuse (before anything for the points and the counts).
 pub fn cast_car_shadow(
     race: &Race,
     work: &ShadowWork,
     car: &Car,
+    sun: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::shadow::{casts, hull_drawn, hull_list,
@@ -815,7 +816,7 @@ pub fn cast_car_shadow(
     if !casts(work.point_count.bits()) {
         return Ok(());
     }
-    shadow_points(race, work, car)?;
+    shadow_points(race, work, car, sun)?;
     shadow_angles(race, work)?;
     shadow_hull(work)?;
     if !hull_drawn(work.hull_count.get()) {
@@ -834,8 +835,9 @@ pub fn cast_car_shadow(
 /// `race::cast_car_shadows` (0x45754C): the depth test off, `work.lift`
 /// 0x1999, then for each race car with +0x6FC not 0: its block read directly (the original
 /// loaded it into the work copy, `drive::load_car`), its corner count from its +0x260, `cast_car_shadow` once with
-/// `RACE_VARS.settings_words[2]` set, then once more with `stage_prefs.sun_height` 0x40 (put
-/// back after); the depth test on. Refuses (before anything) no cars or more than eight, or a
+/// `RACE_VARS.settings_words[2]` set, then once more with the sun at height 0x40 (the original
+/// set `stage_prefs.sun_height` to it and put it back after: an argument here); the depth
+/// test on. Refuses (before anything) no cars or more than eight, or a
 /// null block.
 pub fn cast_car_shadows(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::shadow::{check_shadow_cars, casts_shadow, first_pass,
@@ -859,12 +861,10 @@ pub fn cast_car_shadows(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
         }
         work.point_count.set_bits(car.probe_count.bits());
         if first_pass(race.shared.vars.settings_words[2].bits()) {
-            cast_car_shadow(race, &work, car, scene)?;
+            let sun: u32 = race.course.stage_prefs.sun_height.get();
+            cast_car_shadow(race, &work, car, sun, scene)?;
         }
-        let sun: u32 = race.course.stage_prefs.sun_height.get();
-        race.course.stage_prefs.sun_height.set(SUN_PASS);
-        cast_car_shadow(race, &work, car, scene)?;
-        race.course.stage_prefs.sun_height.set(sun);
+        cast_car_shadow(race, &work, car, SUN_PASS, scene)?;
     }
     crate::scene::depth_test_on::depth_test_on();
     Ok(())
