@@ -137,6 +137,7 @@ pub mod viewer_state_store;
 pub mod work_store;
 
 pub mod vars_store;
+pub mod view_scratch;
 pub mod view_store;
 pub mod viewer;
 

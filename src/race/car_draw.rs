@@ -442,7 +442,7 @@ pub fn draw_car(race: &Race, car: u32, scene: &crate::scene::owner::Scene) -> Re
     crate::race::frame_draw::start_kept_reflections(race, &race.physics)?;
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         race,
-        Some(lit_place(&race.frame)),
+        Some(lit_place(&race.frame).into()),
         scene,
     )?;
     crate::race::frame_draw::end_kept_reflections(&race.shared);
@@ -460,7 +460,7 @@ pub fn draw_car(race: &Race, car: u32, scene: &crate::scene::owner::Scene) -> Re
                 car_part_matrix(&race.frame, matrix);
                 crate::scene::draw_scene_object::draw_scene_object_in_game(
                     race,
-                    Some(lit_place(&race.frame)),
+                    Some(lit_place(&race.frame).into()),
                     scene,
                 )?;
             }

@@ -64,7 +64,11 @@ fn draw_view(
         let c = crate::moved::census::before();
         {
             let _step = crate::write_watch::step(["view0_scene", "view1_scene"][car]);
-            crate::race::draw_view_scene::draw_view_scene(race, scene)?;
+            crate::race::draw_view_scene::draw_view_scene(
+                race,
+                scene,
+                crate::race::view_scratch::main_view(car),
+            )?;
         }
         let _step = crate::write_watch::step(["view0_rest", "view1_rest"][car]);
         crate::moved::census::after(if car == 0 { "view0" } else { "view1" }, c);
@@ -85,7 +89,12 @@ fn draw_view(
         load_view_car(&race.shared, car)?;
         let c = crate::moved::census::before();
         let begun = crate::debug::timing::start();
-        crate::race::draw_mirror_view::draw_mirror_view(race, scene, system)?;
+        crate::race::draw_mirror_view::draw_mirror_view(
+            race,
+            scene,
+            system,
+            crate::race::view_scratch::mirror(car),
+        )?;
         crate::debug::timing::stop(crate::debug::timing::Stage::Mirror, begun);
         crate::moved::census::after("mirror", c);
         Ok(())

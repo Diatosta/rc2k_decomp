@@ -83,7 +83,7 @@ pub fn draw_scene_object(
 /// original's esi is 0).
 pub fn draw_scene_object_in_game(
     race: &Race,
-    description: Option<crate::pointers::GamePtr>,
+    description: Option<crate::scene::draw_described_object::Description<'_>>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let system = crate::system::owner::system();

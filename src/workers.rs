@@ -163,12 +163,12 @@ fn carried_stores() -> [&'static dyn Carried; 30] {
 /// replays' every flush is the same as on one thread): the point records (a cache of the
 /// points' projections, each record named by its point, the frame's clear reaching every
 /// copy: `point_records::first_records_everywhere`), the vertex buffer and the polygon work.
-fn scratch_stores() -> [&'static dyn Copies; 4] {
+/// (The sort lists are each view's own: `race::view_scratch`.)
+fn scratch_stores() -> [&'static dyn Copies; 3] {
     [
         crate::scene::point_records::copies(),
         &crate::d3d::vertices_store::VERTICES,
         &crate::scene::polygon_store::POLYGON_WORK,
-        &crate::scene::faces_store::SORT_LISTS,
     ]
 }
 

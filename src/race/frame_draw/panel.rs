@@ -669,15 +669,15 @@ pub fn set_up_panel(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
     both_split_colours(race)
 }
 
-/// `race::reset_lamps` (0x45487A): `g_lampCount`, `RACE_VIEW.depth_entry_count`,
-/// `RACE_VIEW.sort_entry_count` (the sort entries' count) and `race().frame.frame_work.flare_count`
-/// 0, then `race::object_bytes`.
-pub fn reset_lamps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+/// `race::reset_lamps` (0x45487A): `g_lampCount`, the view's two sort lists' counts and
+/// `race().frame.frame_work.flare_count` 0, then `race::object_bytes`.
+pub fn reset_lamps(ctx: &crate::race::view_scratch::DrawCtx) -> Result<(), BadInput> {
+    let crate::race::view_scratch::DrawCtx { race, scene, view } = *ctx;
     let shared = &race.shared;
     let course = &race.course;
     shared.view.lamp_count.set_bits(0);
-    shared.view.depth_entry_count.set_bits(0);
-    shared.view.sort_entry_count.set_bits(0);
+    view.lists.depth_entry_count.set_bits(0);
+    view.lists.sort_entry_count.set_bits(0);
     race.frame.frame_work.flare_count.set_bits(0);
     object_bytes(course, scene)
 }

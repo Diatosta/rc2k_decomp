@@ -503,10 +503,13 @@ pub fn draw_sky(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), R
     // esi as the `rep movsd` of the matrix's copy leaves it: past `g_madeObjectMatrix`.
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         race,
-        Some(matrices_at(
-            frame,
-            core::mem::offset_of!(SceneMatrices, made_object_matrix) + 0x40,
-        )),
+        Some(
+            matrices_at(
+                frame,
+                core::mem::offset_of!(SceneMatrices, made_object_matrix) + 0x40,
+            )
+            .into(),
+        ),
         scene,
     )?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;

@@ -9,7 +9,7 @@ use crate::race::owner_course::Course;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::Trap;
 use crate::race::trap::car_at;
-use crate::scene::faces_store::SORT_LISTS;
+use crate::race::view_scratch::DrawCtx;
 use crate::session::Dword;
 
 /// `race::car_light_modes` (0x455B70): `crate::race::owner::race().shared.view.shown_car` = the drawn view's car
@@ -91,24 +91,13 @@ pub(super) fn lamp(course: &Course, n: u32) -> Result<&'_ [Dword], BadInput> {
         .ok_or(BadInput("a lamp past the sixteen"))
 }
 
-/// Depth entry `n` (8 bytes: the key, the second word). One past the 0x1000 refused.
-pub(super) fn depth_entry(n: u32) -> Result<&'static [Dword], BadInput> {
-    let n = n as usize;
-    SORT_LISTS
-        .depth_entries
-        .get(2 * n..2 * n + 2)
-        .ok_or(BadInput("a depth entry past the table"))
-}
 /// `race::add_lamp_entry` (0x4573FA): the lamp's point (`g_lamps` +0) through
 /// `g_viewMatrix` (the point into `OBJECT_WORK.place` .. `OBJECT_WORK.place[2]`, then x and y turned
 /// there, z rounded into `g_faceDepthKey`, + 0x2000000 and shifted right 10), and a depth
 /// entry of that key with `g_lampCount` + 0x3000000; `race().frame.frame_work.lamp_entry_count` + 1. The caller checks
 /// the room.
-pub(super) fn add_lamp_entry(
-    race: &Race,
-    lamp: u32,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), BadInput> {
+pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
+    let DrawCtx { race, scene, view } = *ctx;
     let frame = &race.frame;
     let point = self::lamp(&race.course, lamp)?[0].get();
     let place = crate::race::scene_points::point_number(point)?;
@@ -123,14 +112,11 @@ pub(super) fn add_lamp_entry(
     let key = out[2].wrapping_add(0x200_0000) >> 10;
     race.shared.view.face_depth_key.set_bits(key);
     let second = race.shared.view.lamp_count.bits().wrapping_add(0x300_0000);
-    let n: u32 = race.shared.view.depth_entry_count.bits();
-    let at = depth_entry(n)?;
+    let n: u32 = view.lists.depth_entry_count.bits();
+    let at = view.lists.depth_entry(n)?;
     at[0].set(key);
     at[1].set(second);
-    race.shared
-        .view
-        .depth_entry_count
-        .set_bits(n.wrapping_add(1));
+    view.lists.depth_entry_count.set_bits(n.wrapping_add(1));
     frame
         .frame_work
         .lamp_entry_count
@@ -143,14 +129,15 @@ pub(super) fn add_lamp_entry(
 /// `g_lamps` entry (+0 the face's first point, +4 its +0x11 byte, +8 0xFFFFFF) and its depth
 /// entry (`add_lamp_entry`. Refuses (before anything) more than 0x100 lit faces, or a depth
 /// list without room for 16.
-pub fn gather_lamps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn gather_lamps(ctx: &DrawCtx) -> Result<(), Refused> {
+    let race = ctx.race;
     let course = &race.course;
     let physics = &race.physics;
     let count: u32 = physics.contact.lit_face_count.bits();
     if count > 0x100 {
         return Err(BadInput("more than 0x100 lit faces").into());
     }
-    if count != 0 && race.shared.view.depth_entry_count.bits() > SORT_MAX - 16 {
+    if count != 0 && ctx.view.lists.depth_entry_count.bits() > SORT_MAX - 16 {
         return Err(BadInput("the depth list has no room for the lamps").into());
     }
     race.shared.view.lamp_count.set_bits(0u32);
@@ -169,7 +156,7 @@ pub fn gather_lamps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
         at[0].set(face_field(face, 4)?);
         at[1].set(crate::race::course_places::face_number(face, "a lamp's face")?.mark() as u32);
         at[2].set(rc2k_core::race::faces::LAMP_COLOUR);
-        add_lamp_entry(race, lamp, scene)?;
+        add_lamp_entry(ctx, lamp)?;
         race.shared.view.lamp_count.set_bits(lamp + 1);
     }
     Ok(())

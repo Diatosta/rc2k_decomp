@@ -5,28 +5,27 @@ use crate::errors::{BadInput, Refused};
 use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::race::owner_shared::Shared;
 use crate::race::trap::Trap;
-use crate::scene::faces_store::SORT_LISTS;
+use crate::race::view_scratch::{DrawCtx, SortLists};
 
-// SORT_LISTS.sort_entries: 0x1000 of 8 bytes
-pub const SORT_MAX: u32 = 0x1000;
+/// The most entries in a sort list (`race::view_scratch`).
+pub const SORT_MAX: u32 = crate::race::view_scratch::ENTRIES as u32;
 
-/// `race::add_sort_entry` (0x454D57): entry `RACE_VIEW.sort_entry_count` of `SORT_LISTS.sort_entries` for `face`:
+/// `race::add_sort_entry` (0x454D57): entry `sort_entry_count` of the view's sort entries for `face`:
 /// +4 the face, +0 0, or with the face number (without its top bit) below 0x1000000 the
 /// object `kind` << 16 | the face's low 16 bits; the count + 1. Refuses (before anything)
 /// an entry past the 0x1000.
-pub fn add_sort_entry(shared: &Shared, kind: u32, face: u32) -> Result<(), Refused> {
-    let n: u32 = shared.view.sort_entry_count.bits();
+pub fn add_sort_entry(lists: &SortLists, kind: u32, face: u32) -> Result<(), Refused> {
+    let n: u32 = lists.sort_entry_count.bits();
     if n >= SORT_MAX {
         return Err(BadInput("a sort entry past the 0x1000").into());
     }
     // Converted: `rc2k_core::race::frame::sort_entry`.
     let entry = rc2k_core::race::frame::sort_entry(kind, face);
-    let at = &SORT_LISTS.sort_entries[2 * n as usize..2 * n as usize + 2];
+    let at = lists.sort_entry(n)?;
     at[0].set(entry.first.unwrap_or(0));
     at[1].set(face);
-    shared.view.sort_entry_count.set_bits(n.wrapping_add(1));
+    lists.sort_entry_count.set_bits(n.wrapping_add(1));
     Ok(())
 }
 
@@ -198,26 +197,21 @@ pub fn face_depth(
     Ok(())
 }
 
-// SORT_LISTS.depth_entries: 0x1000 of 8 bytes
-
-/// `race::add_depth_entry` (0x454D2A): `face_depth` of `face`, then entry `RACE_VIEW.depth_entry_count` of
-/// `SORT_LISTS.depth_entries`: +0 the key, +4 the face; the count + 1. Refuses (before anything) an
+/// `race::add_depth_entry` (0x454D2A): `face_depth` of `face`, then entry `depth_entry_count` of
+/// the view's depth entries: +0 the key, +4 the face; the count + 1. Refuses (before anything) an
 /// entry past the 0x1000, or what `face_depth` refuses.
-pub fn add_depth_entry(
-    race: &Race,
-    face: u32,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
-    let shared = &race.shared;
+pub fn add_depth_entry(ctx: &DrawCtx, face: u32) -> Result<(), Refused> {
+    let DrawCtx { race, scene, view } = *ctx;
+    let lists = &view.lists;
     // Converted: `rc2k_core::race::faces::depth_entry_room`.
-    let n: u32 = shared.view.depth_entry_count.bits();
+    let n: u32 = lists.depth_entry_count.bits();
     rc2k_core::race::faces::depth_entry_room(n)?;
     face_depth(race, face, scene)?;
-    let key: u32 = shared.view.face_depth_key.bits();
-    let at = depth_entry(n)?;
+    let key: u32 = race.shared.view.face_depth_key.bits();
+    let at = lists.depth_entry(n)?;
     at[0].set(key);
     at[1].set(face);
-    shared.view.depth_entry_count.set_bits(n.wrapping_add(1));
+    lists.depth_entry_count.set_bits(n.wrapping_add(1));
     Ok(())
 }
 // LEVEL_GRID.course_grid[0x400]: 32 x 32 course records
@@ -305,11 +299,8 @@ pub(super) fn record_faces(record: u32) -> Result<Option<(u32, u32)>, BadInput> 
 /// kinds below 0x10 the object is +1, or +0x21 when +1 is 0.
 /// Refuses a last face of -1 (the loop would not end); the full tables and missing points
 /// are refused where they are met.
-pub fn gather_record_faces(
-    race: &Race,
-    record: u32,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn gather_record_faces(ctx: &DrawCtx, record: u32) -> Result<(), Refused> {
+    let DrawCtx { race, scene, view } = *ctx;
     let Some((first, last)) = record_faces(record)? else {
         return Ok(());
     };
@@ -334,9 +325,9 @@ pub fn gather_record_faces(
                 (tables[0], tables[2])
             };
             if byte_at(depth_table, object)? != 0 {
-                add_depth_entry(race, face, scene)?;
+                add_depth_entry(ctx, face)?;
             } else {
-                add_sort_entry(&race.shared, byte_at(kind_table, object)?, face)?;
+                add_sort_entry(&view.lists, byte_at(kind_table, object)?, face)?;
             }
         }
         face = face.wrapping_add(1);
@@ -350,14 +341,11 @@ pub fn gather_record_faces(
 /// `race::gather_visible_faces` (0x454B71): `gather_record_faces` of each record in
 /// `g_courseGrid` (numbers below 0x0FFFFFFF), then of the last record once more (its "already
 /// done" test sets ebp, so it is lost: `notes/bugs.md`). Refuses as `gather_record_faces`.
-pub fn gather_visible_faces(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
-    let course = &race.course;
+pub fn gather_visible_faces(ctx: &DrawCtx) -> Result<(), Refused> {
+    let course = &ctx.race.course;
     let todo = visible_records(course)?;
     for &record in &todo {
-        gather_record_faces(race, record, scene)?;
+        gather_record_faces(ctx, record)?;
     }
     Ok(())
 }

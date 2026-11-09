@@ -29,6 +29,41 @@ fn check_object(race: &crate::race::owner::Race, object: u32) -> Result<(), Refu
     Ok(())
 }
 
+/// Where an object's description is read (esi at the original's entry): a place in game
+/// memory, or a view's sort list from a flare's entry on (`race::view_scratch`; the
+/// original's entries lay in the buffers block, read on past the entry).
+#[derive(Clone, Copy)]
+pub enum Description<'a> {
+    At(GamePtr),
+    Cells(&'a [crate::session::Dword]),
+}
+
+impl From<GamePtr> for Description<'_> {
+    fn from(at: GamePtr) -> Self {
+        Description::At(at)
+    }
+}
+
+impl Description<'_> {
+    /// The description's first `len` bytes.
+    pub fn read_bytes(&self, len: usize) -> Result<Vec<u8>, BadInput> {
+        match self {
+            Description::At(at) => at.read_bytes(len, "a described object"),
+            Description::Cells(cells) => {
+                let bytes: Vec<u8> = cells
+                    .iter()
+                    .take(len.div_ceil(4))
+                    .flat_map(|c| c.get().to_le_bytes())
+                    .collect();
+                bytes
+                    .get(..len)
+                    .map(<[u8]>::to_vec)
+                    .ok_or(BadInput("a described object past the sort lists"))
+            }
+        }
+    }
+}
+
 /// The Rust version for the description at `d` (esi at the original's entry). Its calls:
 /// `race::place_object_matrix` and `scene::draw_scene_object`. What it leaves in the
 /// registers (ebx the object) no caller reads (register liveness, 2026-10-23: only the
@@ -36,10 +71,10 @@ fn check_object(race: &crate::race::owner::Race, object: u32) -> Result<(), Refu
 /// placing reads no register, and the drawing only esi, which it is given.
 pub fn draw_described_object(
     race: &crate::race::owner::Race,
-    d: Option<GamePtr>,
+    d: Option<Description<'_>>,
 ) -> Result<(), Refused> {
     let d = d.ok_or(BadInput("a described object without its description"))?;
-    draw_description(race, &|len| d.read_bytes(len, "a described object"))
+    draw_description(race, &|len| d.read_bytes(len))
 }
 
 /// The same for course face `face` (kind 0xFF), its own description.
@@ -164,7 +199,7 @@ fn draw_description(
     if record.offset(0x1F).read::<u8>("an object's material")? != 0 {
         scene.lights.work.light_kind.set(1u32);
     }
-    crate::scene::draw_scene_object::draw_scene_object_in_game(race, Some(record), scene)?;
+    crate::scene::draw_scene_object::draw_scene_object_in_game(race, Some(record.into()), scene)?;
     end();
     Ok(())
 }
