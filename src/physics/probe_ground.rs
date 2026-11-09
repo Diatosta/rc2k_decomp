@@ -34,6 +34,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_run::{int_times_times_over_to_int, less_plus_less_product_80};
 use crate::physics::car_store::Car;
+use crate::physics::contact_store::ContactWork;
 use crate::physics::ground::*;
 use crate::physics::ground_query::GroundQuery;
 use crate::race::owner::Race;
@@ -53,6 +54,7 @@ pub fn probe_ground_at(
     car: &Car,
     scene: &crate::scene::owner::Scene,
     q: &GroundQuery<'_>,
+    contact: &ContactWork,
     scratch: &crate::session::Dword,
 ) -> Result<(), Refused> {
     let n = car.probe_count.get();
@@ -63,7 +65,7 @@ pub fn probe_ground_at(
         return Err(BadInput("more than 0x40 probe points (the lists' room)").into());
     }
 
-    probe_points(race, car, n, scene, q, scratch)
+    probe_points(race, car, n, scene, q, contact, scratch)
 }
 
 fn probe_points(
@@ -72,13 +74,14 @@ fn probe_points(
     n: u32,
     scene: &crate::scene::owner::Scene,
     q: &GroundQuery<'_>,
+    contact: &ContactWork,
     scratch: &crate::session::Dword,
 ) -> Result<(), Refused> {
     let k65536 = race.course.numbers.k65536.bits();
-    race.physics.contact.crossed_probe.set(u32::MAX);
+    contact.crossed_probe.set(u32::MAX);
     for b in 0..n {
         let i = b as usize;
-        let work = &race.physics.contact;
+        let work = contact;
         let z = car.probe_point_z[b as usize].bits();
         let y = car.probe_point_y[b as usize].bits();
         let y = if b < 4 {
@@ -98,10 +101,10 @@ fn probe_points(
         let x = extended(car.probe_point_x[b as usize].bits());
         let out = rotate_point(&car.crash_matrix, [x, y, extended(z)]);
         let (ox, oy, oz) = (rounded(out[0]), rounded(out[1]), rounded(out[2]));
-        race.physics.contact.probe_turned_x_last.set_bits(ox);
+        contact.probe_turned_x_last.set_bits(ox);
         work.probe_turned_x[i].set_bits(ox);
         work.probe_turned_y[i].set_bits(oy);
-        race.physics.contact.probe_turned_z_last.set_bits(oz);
+        contact.probe_turned_z_last.set_bits(oz);
         work.probe_turned_z[i].set_bits(oz);
         for (v, place, list) in [
             (ox, &car.position[0], &work.probe_x[i]),
@@ -121,15 +124,15 @@ fn probe_points(
         ground_search_at(race, q, scene)?;
         work.probe_ground_height[i].set(0);
         if q.found.get() == 0 {
-            race.physics.contact.crossed_probe.set(b);
+            contact.crossed_probe.set(b);
             work.probe_found[i].set(0);
             continue;
         }
         work.probe_found[i].set(1);
         work.probe_ground_height[i].set(q.height.get());
         let cell = ground::noise_cell(q.x.get(), q.z.get());
-        race.physics.contact.ground_cell_row[0].set(cell.row);
-        race.physics.contact.ground_cell_row[1].set(cell.row_offset);
+        contact.ground_cell_row[0].set(cell.row);
+        contact.ground_cell_row[1].set(cell.row_offset);
         let trap = crate::physics::cells::Trap::new();
         let noise = |i: u32| {
             trap.keep(
@@ -145,9 +148,9 @@ fn probe_points(
             work.ground_noise_corners[c].set(x);
         }
         let (n58, n54, n5c, _) = ground::bump_noise(n, q.x.get(), q.z.get());
-        race.physics.contact.ground_noise_mix[1].set(n58);
-        race.physics.contact.ground_noise_mix[0].set(n54);
-        race.physics.contact.ground_noise_mix[2].set(n5c);
+        contact.ground_noise_mix[1].set(n58);
+        contact.ground_noise_mix[0].set(n54);
+        contact.ground_noise_mix[2].set(n5c);
         scratch.set(n5c);
         let bump = int_times_times_over_to_int(
             n5c as i32,
@@ -176,9 +179,9 @@ fn probe_points(
         car.probe_point_face[b as usize].set(q.slot.get());
     }
     for i in 0..4 {
-        car.wheel_ground_x[i].set(race.physics.contact.probe_x[i].get());
-        car.wheel_ground_height[i].set(race.physics.contact.probe_ground_height[i].get());
-        car.wheel_ground_z[i].set(race.physics.contact.probe_z[i].get());
+        car.wheel_ground_x[i].set(contact.probe_x[i].get());
+        car.wheel_ground_height[i].set(contact.probe_ground_height[i].get());
+        car.wheel_ground_z[i].set(contact.probe_z[i].get());
     }
     Ok(())
 }
@@ -195,14 +198,14 @@ pub fn probe_ground(
         car,
         scene,
         &GroundQuery::of_physics(race),
+        &race.physics.contact,
         &scene.drawing.scene.scratch,
     )
 }
 
-/// The same for the drawing (`race::face_hide_mask`): its ground search on fields of its
-/// own and its work values in a local, not in the physics' work and `g_scratch` (nothing
-/// the drawing does reads them after). It still writes the physics' contact work
-/// (`race.physics.contact.probe_*`).
+/// The same for the drawing (`race::face_hide_mask`): its ground search, its probe lists and
+/// its work values on fields of its own, not the physics' work and `g_scratch` (nothing the
+/// drawing does reads them after).
 pub fn probe_ground_in_view(
     race: &Race,
     car: &Car,
@@ -214,6 +217,7 @@ pub fn probe_ground_in_view(
         car,
         scene,
         &ground.query(),
+        &ContactWork::new(),
         &crate::session::Dword::new(0),
     )
 }

@@ -22,6 +22,7 @@ pub fn probe_and_keep_at(race: &Race, scene: &crate::scene::owner::Scene) -> Res
         &race.shared.car,
         scene,
         &crate::physics::ground_query::GroundQuery::of_physics(race),
+        &race.physics.contact,
         &scene.drawing.scene.scratch,
     )?;
     for k in 0..64 {
