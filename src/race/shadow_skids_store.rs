@@ -33,6 +33,19 @@ pub struct ShadowPoint {
 const _: () = assert!(core::mem::size_of::<ShadowPoint>() == 0x20);
 
 impl ShadowPoint {
+    /// A record of zeros.
+    pub const fn new() -> Self {
+        Self {
+            x: Dword::new(0),
+            y: Dword::new(0),
+            z: Dword::new(0),
+            angle: Dword::new(0),
+            length: Dword::new(0),
+            zeroed: Dword::new(0),
+            unknown_18: [Dword::new(0), Dword::new(0)],
+        }
+    }
+
     /// The record's eight dwords, in order (it is swapped and sorted whole).
     pub fn words(&self) -> [&Dword; 8] {
         [
@@ -51,22 +64,22 @@ impl ShadowPoint {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ShadowSkids {
-    /// +0x0 (0x641AA4): `g_shadowPoints`: the shadow's points, records of 0x20 bytes (x, y, z, angle, length, ...; 0x40 at most) and the hull's records after (`race::car_shadow`).
+    /// +0x0 (0x641AA4): `g_shadowPoints`: the shadow's points, records of 0x20 bytes (x, y, z, angle, length, ...; 0x40 at most) and the hull's records after (`race::car_shadow`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_points: [ShadowPoint; 0x100],
     /// +0x2000 (0x643AA4): `flt_643AA4` .. `dword_643AB4`: not worked out.
     pub shadow_work: [Dword; 5],
-    /// +0x2014 (0x643AB8): `flt_643AB8`: the length of the farthest point (`race::car_shadow::shadow_points`).
+    /// +0x2014 (0x643AB8): `flt_643AB8`: the length of the farthest point (`race::car_shadow::shadow_points`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub farthest_length: Float,
     /// +0x2018 (0x643ABC): `dword_643ABC`: the farthest point's number (`race::car_shadow`;
-    /// the original kept its record's address).
+    /// the original kept its record's address). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub farthest: Dword,
-    /// +0x201c (0x643AC0): `flt_643AC0`: the first point's angle.
+    /// +0x201c (0x643AC0): `flt_643AC0`: the first point's angle. Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub first_angle: Float,
-    /// +0x2020 (0x643AC4): `flt_643AC4`: cos(turn) x cot(sun) (`race::car_shadow::sun_slant`).
+    /// +0x2020 (0x643AC4): `flt_643AC4`: cos(turn) x cot(sun) (`race::car_shadow::sun_slant`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub slant_x: Float,
-    /// +0x2024 (0x643AC8): `flt_643AC8`: sin(turn) x cot(sun).
+    /// +0x2024 (0x643AC8): `flt_643AC8`: sin(turn) x cot(sun). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub slant_z: Float,
-    /// +0x2028 (0x643ACC): `g_shadowHullCount`: the shadow hull's points.
+    /// +0x2028 (0x643ACC): `g_shadowHullCount`: the shadow hull's points. Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub hull_count: Dword,
     /// +0x202c (0x643AD0): `flt_643AD0`: the least grip that lays a skid mark (`race::skid_laying`).
     pub skid_grip: Float,

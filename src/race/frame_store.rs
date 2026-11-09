@@ -94,31 +94,31 @@ pub struct FrameWork {
     pub part_matrices: [Float; 64],
     /// +0x354 (0x6418E0): not named.
     pub unknown_354: [Dword; 18],
-    /// +0x39c (0x641928): (`race::car_shadow`).
+    /// +0x39c (0x641928): (`race::car_shadow`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_strength: Dword,
-    /// +0x3a0 (0x64192C): `g_shadowPointCount`.
+    /// +0x3a0 (0x64192C): `g_shadowPointCount`. Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_point_count: Dword,
-    /// +0x3a4 (0x641930): (`race::car_shadow`).
+    /// +0x3a4 (0x641930): (`race::car_shadow`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_texture: Dword,
     /// +0x3a8 (0x641934): not named.
     pub unknown_3a8: Dword,
-    /// +0x3ac (0x641938): (`race::car_shadow`).
+    /// +0x3ac (0x641938): (`race::car_shadow`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_light: [Dword; 3],
     /// +0x3b8 (0x641944): not named.
     pub unknown_3b8: Dword,
-    /// +0x3bc (0x641948): the shadow's corners, x and z twice (`race::car_shadow`).
+    /// +0x3bc (0x641948): the shadow's corners, x and z twice (`race::car_shadow`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_corners: [Dword; 4],
-    /// +0x3cc (0x641958): `race::car_shadow`'s work dwords.
+    /// +0x3cc (0x641958): `race::car_shadow`'s work dwords. Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_work: [Dword; 14],
-    /// +0x404 (0x641990): (`race::car_shadow`).
+    /// +0x404 (0x641990): (`race::car_shadow`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_scene: Dword,
-    /// +0x408 (0x641994): (`race::car_shadow`).
+    /// +0x408 (0x641994): `g_shadowCircle`, `flt_641998`: the shadow circle's radius and unit, 2^23 and 2^24, never written (`race::car_shadow::CIRCLE`).
     pub shadow_circle: [Float; 2],
-    /// +0x410 (0x64199C): the shadow's list (used by address, `race::car_shadow`).
+    /// +0x410 (0x64199C): the shadow's list (used by address, `race::car_shadow`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_list: [Dword; 64],
-    /// +0x510 (0x641A9C): (`race::car_shadow`).
+    /// +0x510 (0x641A9C): (`race::car_shadow`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_list_count: Dword,
-    /// +0x514 (0x641AA0): the ground's height (`race::car_shadow`).
+    /// +0x514 (0x641AA0): the ground's height (`race::car_shadow`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_ground: Dword,
 }
 
