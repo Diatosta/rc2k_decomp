@@ -34,5 +34,11 @@ pub fn run() -> Result<(), crate::errors::Refused> {
     assign_menu_textures(&menus.tables, scene)?;
     map_texture_places(scene);
     let count = load_slot_textures_in_game(&race.frame, scene)?;
-    draw_main_menu_carousel(menus, race, count, scene)
+    // The front end's 3D draws on a slot of its own (frame plan F4).
+    let ctx = crate::race::view_scratch::DrawCtx {
+        race,
+        scene,
+        view: crate::race::view_scratch::front_end(),
+    };
+    draw_main_menu_carousel(menus, &ctx, count)
 }

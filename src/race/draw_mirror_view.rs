@@ -47,7 +47,7 @@ pub fn draw_mirror_view(
         .view_scale
         .set_bits(race.course.numbers.k256.bits());
     let drawn = (|| {
-        crate::race::frame_views::mirror_view_window(race, scene, system)?;
+        crate::race::frame_views::mirror_view_window(race, scene, system, &view.fog)?;
         race.shared.view.view_depth[1].set_bits(race.course.level_grid.view_value_kept.bits());
         crate::race::frame_flush::draw_view_backdrop(race, scene);
         crate::race::draw_view_scene::draw_view_scene(race, scene, view)

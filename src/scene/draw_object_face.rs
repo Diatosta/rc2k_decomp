@@ -188,18 +188,18 @@ pub fn draw_object_face(
 
 /// The function with its parts' Rust versions, drawing for real.
 pub fn draw_object_face_in_game(
-    race: &crate::race::owner::Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     face: usize,
-    scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     draw_object_face(
         race,
         face,
         &mut |step| match step {
             Step::Draw => draw_object_polygon(race, &mut |step| match step {
                 draw_object_polygon::Step::Project => project_polygon(race, scene),
-                draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(race, scene),
+                draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(ctx),
             }),
             Step::DepthTestOff => {
                 Game.state(0xE, 0);

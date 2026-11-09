@@ -5,7 +5,8 @@
 //!
 //! Holds so far the two sort lists the view's drawing fills, sorts and draws (the original's
 //! `g_depthEntries` / `g_sortEntries` at 0x9D3730 in the buffers block, one for every view)
-//! and their counts (the original's `RACE_VIEW.depth_entry_count` / `sort_entry_count`).
+//! and their counts (the original's `RACE_VIEW.depth_entry_count` / `sort_entry_count`), and
+//! the view's fog (`scene::fog`).
 
 use crate::errors::BadInput;
 use crate::session::Dword;
@@ -76,18 +77,22 @@ impl SortLists {
 /// A view slot's working state.
 pub struct ViewScratch {
     pub lists: SortLists,
+    /// The view's fog, set up at the start of its drawing (`race::set_up_fog`).
+    pub fog: crate::scene::fog::Fog,
 }
 
 impl ViewScratch {
     const fn new() -> Self {
         Self {
             lists: SortLists::new(),
+            fog: crate::scene::fog::Fog::new(),
         }
     }
 }
 
-/// The view slots: the two players' views, then their mirrors.
-static SLOTS: [ViewScratch; 4] = [const { ViewScratch::new() }; 4];
+/// The view slots: the two players' views, then their mirrors, then the front end's 3D (the
+/// menus' objects and carousel).
+static SLOTS: [ViewScratch; 5] = [const { ViewScratch::new() }; 5];
 
 /// Player `car`'s view's working state.
 pub fn main_view(car: usize) -> &'static ViewScratch {
@@ -97,6 +102,11 @@ pub fn main_view(car: usize) -> &'static ViewScratch {
 /// Player `car`'s mirror's working state.
 pub fn mirror(car: usize) -> &'static ViewScratch {
     &SLOTS[2 + car]
+}
+
+/// The front end's 3D's working state.
+pub fn front_end() -> &'static ViewScratch {
+    &SLOTS[4]
 }
 
 /// What a view's drawing works with: the race, the scene, and the view's own state.

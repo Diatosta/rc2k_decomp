@@ -247,7 +247,8 @@ fn shown_groups(course: &Course, switches: u32) -> u32 {
 /// described way). Refuses (before anything) what
 /// `scene::draw_scene_object` would for the car's objects: in a race (`g_inRace`) car
 /// `dword_60627C` (below eight) without its block.
-pub fn draw_car(race: &Race, car: u32, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let n: u32 = race.frame.view_and_records.view_vars.drawn_car.get();
     if race.course.numbers.in_race.bits() != 0
         && n < 8
@@ -440,9 +441,8 @@ pub fn draw_car(race: &Race, car: u32, scene: &crate::scene::owner::Scene) -> Re
     car_body_matrix(&race.course, &race.frame);
     crate::race::frame_draw::start_kept_reflections(race, &race.physics)?;
     crate::scene::draw_scene_object::draw_scene_object_in_game(
-        race,
+        ctx,
         Some(lit_place(&race.frame).into()),
-        scene,
     )?;
     crate::race::frame_draw::end_kept_reflections(&race.shared);
     scene.lights.work.light_kind_extra.set(1);
@@ -458,9 +458,8 @@ pub fn draw_car(race: &Race, car: u32, scene: &crate::scene::owner::Scene) -> Re
             if scene.drawing.object_work.car_switches.bits() & bit != 0 {
                 car_part_matrix(&race.frame, matrix);
                 crate::scene::draw_scene_object::draw_scene_object_in_game(
-                    race,
+                    ctx,
                     Some(lit_place(&race.frame).into()),
-                    scene,
                 )?;
             }
         }
@@ -521,10 +520,10 @@ fn near_size(shared: &Shared) -> u32 {
 /// drawn (`race::draw_car`), `g_shine` put back. Of its callers' registers only esi is
 /// read (by `draw_car`).
 pub fn draw_car_shined(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     car: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    let race = ctx.race;
     let course = &race.course;
     let shine: u32 = course.course.shine.get();
     let mut eax = 0x3_FCE0u32.wrapping_sub(race.shared.vars.mud_thrown_counts[0].bits());
@@ -536,7 +535,7 @@ pub fn draw_car_shined(
     }
     let product = eax as u64 * course.stage_prefs.shine_scale.get() as u64;
     course.course.shine.set((product as u32) >> 18);
-    let done = draw_car(race, car, scene);
+    let done = draw_car(ctx, car);
     course.course.shine.set(shine);
     done
 }
@@ -547,10 +546,10 @@ pub fn draw_car_shined(
 /// behind (depth + 0x40000 below 0) or aside (|x| - 0x80000 not below the depth), counted in
 /// `dword_641598`. Refuses (before anything) a car without its block.
 pub fn draw_car_entry(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     entry: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let frame = &race.frame;
     use crate::math::x87_load::tbyte_to_int;
     use crate::race::skidmarks::int_80;
@@ -601,7 +600,7 @@ pub fn draw_car_entry(
         .frame_work
         .cars_drawn
         .set(frame.frame_work.cars_drawn.get().wrapping_add(1));
-    draw_car_shined(race, car, scene)
+    draw_car_shined(ctx, car)
 }
 
 #[cfg(all(test, target_arch = "x86"))]

@@ -43,10 +43,10 @@ pub fn end_kept_reflections(shared: &Shared) {
 /// kept around the drawing (`scene::draw_scene_object`). Refuses
 /// (before anything) as `check_slot_object`.
 pub fn draw_slot_object(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     slot: &crate::race::work_store::RaceSlot,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     use crate::scene::matrix;
     check_slot_object(&race.shared, slot)?;
     let object = slot.part.get();
@@ -106,7 +106,7 @@ pub fn draw_slot_object(
     start_kept_reflections(race, &race.physics)?;
     // esi `g_turnedMatrix`, as the matrices' calls leave it.
     crate::scene::draw_scene_object::draw_scene_object_in_game(
-        race,
+        ctx,
         Some(
             matrices_at(
                 &race.frame,
@@ -114,7 +114,6 @@ pub fn draw_slot_object(
             )
             .into(),
         ),
-        scene,
     )?;
     end_kept_reflections(&race.shared);
     Ok(())
@@ -136,7 +135,8 @@ pub fn check_slot_object(
 /// `race::draw_race_slots` (0x4621E5): `draw_slot_object` for each of the eight race slots
 /// (0x78 bytes at `g_raceSlots`) whose +0 is not 0. Refuses (before anything) as
 /// `check_slot_object` for any.
-pub fn draw_race_slots(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn draw_race_slots(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+    let race = ctx.race;
     let slots = &race.shared.work.race_slots;
     for slot in slots {
         if slot.part.get() != 0 {
@@ -145,7 +145,7 @@ pub fn draw_race_slots(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     }
     for slot in slots {
         if slot.part.get() != 0 {
-            draw_slot_object(race, slot, scene)?;
+            draw_slot_object(ctx, slot)?;
         }
     }
     Ok(())
@@ -705,11 +705,11 @@ pub fn place_object_matrix(
 /// `place_object_matrix`, `g_lightKind` 0 and the drawing (`scene::draw_scene_object`,
 /// described by `entry`, the draw list entry the flare came from).
 pub fn draw_flare(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     flare: u32,
     entry: Description<'_>,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let course = &race.course;
     for (table, to) in [
         (
@@ -744,7 +744,7 @@ pub fn draw_flare(
     scene.lights.state.view_kind.set(2u32);
     place_object_matrix(race, scene)?;
     scene.lights.work.light_kind.set(0u32);
-    crate::scene::draw_scene_object::draw_scene_object_in_game(race, Some(entry), scene)
+    crate::scene::draw_scene_object::draw_scene_object_in_game(ctx, Some(entry))
 }
 
 /// `race::draw_lamp_flare` (0x4551F4): lamp `lamp` (`g_lamps`): its point (`g_scenePoints`)
@@ -752,10 +752,10 @@ pub fn draw_flare(
 /// `LIGHT_STATE.view_kind` 2, `place_object_matrix`, `g_lightKind` 0 and the drawing. Every
 /// register kept.
 pub fn draw_lamp_flare(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     lamp: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let edi = self::lamp(&race.course, lamp)?;
     let [x, y, z] = crate::race::scene_points::point_number(edi[0].get())?;
     scene.drawing.object_work.place[0].set(x);
@@ -773,7 +773,7 @@ pub fn draw_lamp_flare(
     // esi `g_turnedMatrix`, as `place_object_matrix` leaves it (`LIGHT_STATE.view_kind` is 2 here,
     // so it always ends by placing the object).
     crate::scene::draw_scene_object::draw_scene_object_in_game(
-        race,
+        ctx,
         Some(
             matrices_at(
                 &race.frame,
@@ -781,7 +781,6 @@ pub fn draw_lamp_flare(
             )
             .into(),
         ),
-        scene,
     )
 }
 
@@ -792,11 +791,11 @@ pub fn draw_lamp_flare(
 /// lamp, each by its low 24 bits; then `LIGHT_STATE.view_kind` 0. Refuses (before anything) a word
 /// of 0x4000000 or more (the original would take it for a face far past the table).
 pub fn draw_list_entry(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     at: Description<'_>,
     flags_word: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let course = &race.course;
     let word = flags_word & 0x7FFF_FFFF;
     if word >= 0x400_0000 {
@@ -815,18 +814,18 @@ pub fn draw_list_entry(
                 course.level_grid.plain_second.set_bits(1);
                 if kind == 0xFF {
                     // The description is the face.
-                    crate::scene::draw_described_object::draw_described_face(race, face)?;
+                    crate::scene::draw_described_object::draw_described_face(ctx, face)?;
                 } else {
-                    crate::race::course_faces::draw_tinted_face(race, face, scene)?;
+                    crate::race::course_faces::draw_tinted_face(ctx, face)?;
                 }
                 course.level_grid.smooth.set_bits(0);
                 course.level_grid.plain_first.set_bits(0);
                 course.level_grid.plain_second.set_bits(0);
             }
         }
-        1 => draw_flare(race, low, at, scene)?,
-        2 => crate::race::car_draw::draw_car_entry(race, low, scene)?,
-        _ => draw_lamp_flare(race, low, scene)?,
+        1 => draw_flare(ctx, low, at)?,
+        2 => crate::race::car_draw::draw_car_entry(ctx, low)?,
+        _ => draw_lamp_flare(ctx, low)?,
     }
     scene.lights.state.view_kind.set(0u32);
     Ok(())
@@ -838,8 +837,7 @@ pub fn draw_list_entry(
 /// `from(n)` the list's cells from entry `n` on (a flare's entry is read there as a
 /// description, past its own 8 bytes).
 pub fn draw_entries<'a>(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     count: &crate::session::Dword,
     from: impl Fn(usize) -> &'a [crate::session::Dword] + Sync,
 ) -> Result<(), Refused> {
@@ -855,7 +853,7 @@ pub fn draw_entries<'a>(
     }
     let draw = |range: std::ops::Range<usize>| -> Result<(), Refused> {
         for (k, entry) in entries.iter().enumerate().take(range.end).skip(range.start) {
-            draw_list_entry(race, Description::Cells(from(k)), entry[1].get(), scene)?;
+            draw_list_entry(ctx, Description::Cells(from(k)), entry[1].get())?;
         }
         Ok(())
     };

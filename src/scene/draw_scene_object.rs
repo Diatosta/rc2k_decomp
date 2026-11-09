@@ -13,7 +13,6 @@
 //! `rc2k_core::scene::shown`.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::race::owner::Race;
 use crate::scene::draw_object::draw_object_in_game;
 use crate::scene::draw_shown_object::draw_shown_object;
 
@@ -82,22 +81,19 @@ pub fn draw_scene_object(
 /// object's description, read only on that way, the scene's mode 1 or 2; `None` where the
 /// original's esi is 0).
 pub fn draw_scene_object_in_game(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     description: Option<crate::scene::draw_described_object::Description<'_>>,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let system = crate::system::owner::system();
     draw_scene_object(
         race,
         &mut |way| match way {
-            Way::Shown => draw_shown_object(
-                race,
-                &mut || draw_object_in_game(race, scene, system),
-                scene,
-            )
-            .map(|_| ()),
+            Way::Shown => {
+                draw_shown_object(race, &mut || draw_object_in_game(ctx, system), scene).map(|_| ())
+            }
             Way::Described => {
-                crate::scene::draw_described_object::draw_described_object(race, description)
+                crate::scene::draw_described_object::draw_described_object(ctx, description)
             }
         },
         scene,

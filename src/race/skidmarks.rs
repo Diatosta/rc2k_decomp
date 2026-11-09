@@ -119,7 +119,8 @@ fn turn_skid_point(
 /// and the two before as a quad (vertices 3, 2, 0, 1), `scene::fog_polygon`, cut by depth
 /// and to the screen and drawn in black in mode 3 without the depth test. Refuses what the scene's functions refuse (mid-way; not
 /// met with four vertices).
-pub fn draw_skidmarks(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let drawing = &scene.drawing;
     let frame = &race.frame;
     let mut views = u32::MAX;
@@ -204,7 +205,7 @@ pub fn draw_skidmarks(race: &Race, scene: &crate::scene::owner::Scene) -> Result
         }
         list[4].set(0);
         drawing.scene.polygon_next_entry.set(4u32);
-        crate::scene::fog_polygon::fog_polygon(scene)?;
+        crate::scene::fog_polygon::fog_polygon(scene, &ctx.view.fog)?;
         crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(race, scene)?;
         // Each quad inside the original's `pusha` .. `popa`; the depth test's switches
         // and the polygon's drawing read no register.
@@ -230,14 +231,12 @@ pub fn draw_skidmarks(race: &Race, scene: &crate::scene::owner::Scene) -> Result
 
 /// `race::draw_skidmarks_if_on` (0x4585E3): `draw_skidmarks` unless `dword_6416B8` is set.
 /// Its one caller, `race::draw_view_scene`, reads no register it leaves.
-pub fn draw_skidmarks_if_on(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn draw_skidmarks_if_on(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+    let race = ctx.race;
     if race.frame.frame_work.drawing.get() != 0 {
         return Ok(());
     }
-    draw_skidmarks(race, scene)
+    draw_skidmarks(ctx)
 }
 
 #[cfg(all(test, target_arch = "x86"))]

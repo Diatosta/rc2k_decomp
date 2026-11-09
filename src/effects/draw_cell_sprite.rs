@@ -67,6 +67,7 @@ pub fn draw_cell_sprite(
     entry: u32,
     place: [[u8; 10]; 3],
     scene: &crate::scene::owner::Scene,
+    fog: &crate::scene::fog::Fog,
 ) -> Result<(), Refused> {
     if cell >= CELLS {
         return Err(BadInput("a mark cell past g_marksCellPlaces").into());
@@ -78,7 +79,7 @@ pub fn draw_cell_sprite(
         return Err(BadInput("a null ring entry").into());
     }
     // The fog's and the clip's refusals, before anything.
-    fog_at(0)?;
+    fog_at(fog, 0)?;
     if effects.setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
@@ -87,10 +88,10 @@ pub fn draw_cell_sprite(
     {
         return Ok(());
     }
-    let fog = fog_at(ring.work.whole.get())?;
+    let fogged = fog_at(fog, ring.work.whole.get())?;
     let colour = (alpha & 0xFF00_0000) | crate::effects::ring_entries::entry(ring, entry)?.car_tag;
     for n in 0..4 {
-        VERTICES.vertices[n].specular.set(fog);
+        VERTICES.vertices[n].specular.set(fogged);
         VERTICES.vertices[n].colour.set(colour);
     }
     effects.frame.draw_work.sprite_half[0].set_bits(size);

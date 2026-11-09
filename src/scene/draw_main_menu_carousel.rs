@@ -17,10 +17,10 @@ use crate::scene::draw_carousel::draw_carousel_in_game;
 /// `draw_carousel`).
 pub fn draw_main_menu_carousel(
     menus: &crate::menu::owner::Menus,
-    race: &crate::race::owner::Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     lone_row: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    let scene = ctx.scene;
     scene.lights.state.draw_mode.set_bits(0u32);
-    draw_carousel_in_game(menus, race, lone_row, scene)
+    draw_carousel_in_game(menus, ctx, lone_row)
 }

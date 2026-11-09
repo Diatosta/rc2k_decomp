@@ -42,9 +42,9 @@ pub fn draw_menu_object(
 /// With the Rust versions of what it calls. The drawing's esi (the description) is read
 /// only in the scene's modes 1 and 2; the menus draw in mode 0 (each caller writes it).
 pub fn draw_menu_object_in_game(
-    race: &crate::race::owner::Race,
-    scene: &crate::scene::owner::Scene,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     draw_menu_object(
         &race.course,
         &mut |step| match step {
@@ -52,9 +52,7 @@ pub fn draw_menu_object_in_game(
                 make_object_matrix(&race.frame, scene);
                 Ok(())
             }
-            Step::Draw => {
-                crate::scene::draw_scene_object::draw_scene_object_in_game(race, None, scene)
-            }
+            Step::Draw => crate::scene::draw_scene_object::draw_scene_object_in_game(ctx, None),
         },
         scene,
     )

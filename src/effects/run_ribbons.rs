@@ -108,6 +108,7 @@ fn colour_at(
 fn refusal(
     ring: &Ring,
     effects: &crate::effects::owner::Effects,
+    fog: &crate::scene::fog::Fog,
 ) -> Result<Option<&'static str>, Refused> {
     Ok({
         let Ok(marks) = crate::effects::setup::marks() else {
@@ -129,7 +130,7 @@ fn refusal(
                     && x87::compare_status(entry(ring, e)?.place[1], entry(ring, e)?.ground_y)
                         != 0x100
                 {
-                    if fog_at(0).is_err() {
+                    if fog_at(fog, 0).is_err() {
                         return Ok(Some("the fog table is not there"));
                     }
                     let i = x87::int_times_to_int(
@@ -154,6 +155,7 @@ fn streak(
     e: u32,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
+    fog: &crate::scene::fog::Fog,
 ) -> Result<bool, Refused> {
     let t: u32 = effects.setup.clock.frame_ticks.get();
     let life = entry(ring, e)?.life;
@@ -186,7 +188,7 @@ fn streak(
     }
     VERTICES.vertices[0]
         .specular
-        .set(fog_at(entry(ring, e)?.last_place[2])?);
+        .set(fog_at(fog, entry(ring, e)?.last_place[2])?);
     let i = x87::int_times_to_int(entry(ring, e)?.life as i32, entry(ring, e)?.alpha_fade);
     ring.work.whole.set(i as u32);
     let colour = colour_at(&effects.masks, ring, i as usize, effects);
@@ -212,8 +214,9 @@ pub fn run_ribbons(
     ring: &Ring,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
+    fog: &crate::scene::fog::Fog,
 ) -> Result<(), Refused> {
-    if let Some(why) = refusal(ring, effects)? {
+    if let Some(why) = refusal(ring, effects, fog)? {
         return Err(BadInput(why).into());
     }
     {
@@ -228,7 +231,7 @@ pub fn run_ribbons(
             // The settings' +0x60: the first car record's first word.
             if crate::effects::setup::marks()?.cars[0].streaks_on.get() != 0
                 && entry(ring, e)?.kind == STREAK
-                && streak(frame, ring, e, scene, effects)?
+                && streak(frame, ring, e, scene, effects, fog)?
             {
                 ring.work.count.set(ring.work.count.get().wrapping_sub(1));
                 if e == ring.work.cursor.get() {

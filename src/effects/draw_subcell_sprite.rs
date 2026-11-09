@@ -51,6 +51,7 @@ pub fn draw_subcell_sprite(
     entry: u32,
     place: [[u8; 10]; 3],
     scene: &crate::scene::owner::Scene,
+    fog: &crate::scene::fog::Fog,
 ) -> Result<(), Refused> {
     if subcell >= SUBCELLS {
         return Err(BadInput("a mark subcell past g_marksSubcellPlaces").into());
@@ -58,7 +59,7 @@ pub fn draw_subcell_sprite(
     if entry == 0 {
         return Err(BadInput("a null ring entry").into());
     }
-    fog_at(0)?;
+    fog_at(fog, 0)?;
     if effects.setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
@@ -67,10 +68,10 @@ pub fn draw_subcell_sprite(
     {
         return Ok(());
     }
-    let fog = fog_at(ring.work.whole.get())?;
+    let fogged = fog_at(fog, ring.work.whole.get())?;
     let colour = crate::effects::ring_entries::entry(ring, entry)?.car_tag | 0xFF00_0000;
     for n in 0..4 {
-        VERTICES.vertices[n].specular.set(fog);
+        VERTICES.vertices[n].specular.set(fogged);
         VERTICES.vertices[n].colour.set(colour);
     }
     effects.frame.draw_work.half[0].set_bits(size);

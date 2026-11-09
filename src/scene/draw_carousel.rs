@@ -48,17 +48,17 @@ pub fn draw_carousel(
 /// With the Rust versions of what it calls.
 pub fn draw_carousel_in_game(
     menus: &Menus,
-    race: &crate::race::owner::Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     lone_row: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     draw_carousel(&menus.screens, lone_row, &mut |e, place| {
         draw_carousel_entry(
             &race.shared,
             menus,
             e,
             place,
-            &mut || draw_menu_object_in_game(race, scene),
+            &mut || draw_menu_object_in_game(ctx),
             scene,
         )
     })

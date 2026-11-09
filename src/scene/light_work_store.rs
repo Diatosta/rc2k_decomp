@@ -41,7 +41,7 @@ pub struct LightWork {
     pub unknown_94: [Dword; 2],
     /// +0x9c (0x62DAE0): `xmmword_62DAE0`: 16 bytes the point records are cleared with by SSE (`race::frame_draw`); 8 bytes of padding before it are unused.
     pub sse_fill: [Dword; 4],
-    /// +0xac (0x62DAF0): `dword_62DAF0`: the fog's step (`race::frame_draw`) (a reading).
+    /// +0xac (0x62DAF0): `dword_62DAF0`: the fog's step; never read, no longer written (`scene::fog`).
     pub fog_step: Dword,
     /// +0xb0 (0x62DAF4): `g_lightKind`: the kind of light being set (`scene::set_object_light`, `scene::vertex_light`, `race::car_draw`, `scene::draw_described_object`, `scene::draw_menu_object`, `race::frame_draw`).
     pub light_kind: Dword,

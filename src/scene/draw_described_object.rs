@@ -13,8 +13,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
-use crate::race::owner::Race;
-use crate::scene::owner::scene;
 
 /// What `scene::draw_scene_object` would refuse for `object`: in a race (`g_inRace`) a car
 /// (0x50 ..) without its block.
@@ -70,16 +68,19 @@ impl Description<'_> {
 /// unreached 0x49081A), nor do its two calls read what it had in them: the matrix's
 /// placing reads no register, and the drawing only esi, which it is given.
 pub fn draw_described_object(
-    race: &crate::race::owner::Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     d: Option<Description<'_>>,
 ) -> Result<(), Refused> {
     let d = d.ok_or(BadInput("a described object without its description"))?;
-    draw_description(race, &|len| d.read_bytes(len))
+    draw_description(ctx, &|len| d.read_bytes(len))
 }
 
 /// The same for course face `face` (kind 0xFF), its own description.
-pub fn draw_described_face(race: &Race, face: u32) -> Result<(), Refused> {
-    draw_description(race, &|len| {
+pub fn draw_described_face(
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
+    face: u32,
+) -> Result<(), Refused> {
+    draw_description(ctx, &|len| {
         let bytes: [u8; 0x40] =
             crate::race::course_places::face_field(face, 0, "a described face")?;
         Ok(bytes[..len].to_vec())
@@ -88,12 +89,13 @@ pub fn draw_described_face(race: &Race, face: u32) -> Result<(), Refused> {
 
 /// The drawing from a description's first `len` bytes as `read` gives them.
 fn draw_description(
-    race: &crate::race::owner::Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     read: &dyn Fn(usize) -> Result<Vec<u8>, BadInput>,
 ) -> Result<(), Refused> {
+    let race = ctx.race;
     let course = &race.course;
     let shared = &race.shared;
-    let scene = scene();
+    let scene = ctx.scene;
     let head = read(8)?;
     let object = head[1] as u32;
     let place = u32::from_le_bytes([head[4], head[5], head[6], head[7]]);
@@ -199,7 +201,7 @@ fn draw_description(
     if record.offset(0x1F).read::<u8>("an object's material")? != 0 {
         scene.lights.work.light_kind.set(1u32);
     }
-    crate::scene::draw_scene_object::draw_scene_object_in_game(race, Some(record.into()), scene)?;
+    crate::scene::draw_scene_object::draw_scene_object_in_game(ctx, Some(record.into()))?;
     end();
     Ok(())
 }

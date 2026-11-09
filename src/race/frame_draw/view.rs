@@ -80,17 +80,21 @@ pub fn sample_noise(
     Ok(s.value)
 }
 
-// g_fogTable: 0x1000 bytes
-
 /// `race::fog_table` (0x44FC33): `draw_distance_settings`; the noise at the car
-/// (`sample_noise` of `g_noiseBytes`) spread between `race().course.stage_prefs.fog_low` and `race().course.stage_prefs.fog_high` into
-/// the step `LIGHT_WORK.fog_step`; `LIGHT_STATE.fog_near` / `LIGHT_STATE.fog_far` = (`race().frame.frame_work.sun_size` x
-/// `race().frame.frame_work.view_out` >> 4) x `race().course.stage_prefs.fog_near` / `race().course.stage_prefs.fog_far` >> 8; `g_fogTableLength` =
-/// `RACE_VIEW.view_depth[1]` x 8 bytes of `g_fogTable`, each ((sum of steps) >> 16) + `race().course.stage_prefs.fog_start` +
-/// `LIGHT_STATE.fog_near` held to 0 ..= 0xFF; `LIGHT_STATE.fog_next` the next one's value with
-/// `race().course.stage_prefs.fog_end` (held) plus `LIGHT_STATE.fog_near` (held). Refuses (before anything) a table length of 0 or past 0x1000.
-pub fn fog_table(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let lights = &scene.lights;
+/// (`sample_noise` of `g_noiseBytes`) spread between `race().course.stage_prefs.fog_low` and
+/// `race().course.stage_prefs.fog_high` into a step; the near and far values = (`race().frame.frame_work.sun_size` x
+/// `race().frame.frame_work.view_out` >> 4) x `race().course.stage_prefs.fog_near` / `race().course.stage_prefs.fog_far` >> 8 (the far one to
+/// `fog.far`); `fog.length` = `RACE_VIEW.view_depth[1]` x 8 bytes of the table, each ((sum
+/// of steps) >> 16) + `race().course.stage_prefs.fog_start` + the near value held to 0 ..= 0xFF; `fog.next`
+/// the next one's value with `race().course.stage_prefs.fog_end` (held) plus the near value (held). The
+/// original kept them in the light state (`scene::fog`), and also stored the step
+/// (`dword_62DAF0`) and the near value (`dword_6365F0`), which nothing read. Refuses (before
+/// anything) a table length of 0 or past 0x1000.
+pub fn fog_table(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    fog: &crate::scene::fog::Fog,
+) -> Result<(), Refused> {
     let length = race.shared.view.view_depth[1].get().wrapping_shl(3);
     if length == 0 || length > 0x1000 {
         return Err(BadInput("a fog table length of 0 or past 0x1000").into());
@@ -98,7 +102,7 @@ pub fn fog_table(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
     // Converted: `rc2k_core::race::view::fog_table`.
     draw_distance_settings(&race.course);
     let noise = sample_noise(crate::race::frame::drawn_car(), 0, scene)?;
-    let fog = rc2k_core::race::view::fog_table(
+    let set = rc2k_core::race::view::fog_table(
         noise,
         &rc2k_core::race::view::FogSettings {
             low: race.course.stage_prefs.fog_low.get(),
@@ -114,26 +118,25 @@ pub fn fog_table(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
             length,
         },
     );
-    lights.work.fog_step.set(fog.step);
-    lights.state.fog_near.set(fog.near);
-    lights.state.fog_far.set(fog.far);
-    lights.state.fog_table_length.set_bits(length);
-    // The table's bytes (any length up to 0x1000; a last part-dword keeps its other bytes).
-    for (cell, b) in lights.state.fog_table.iter().zip(fog.table.chunks(4)) {
-        let mut d = cell.get().to_le_bytes();
-        d[..b.len()].copy_from_slice(b);
-        cell.set(u32::from_le_bytes(d));
-    }
-    lights.state.fog_next.set(fog.next);
+    fog.far.set(set.far);
+    fog.length.set_bits(length);
+    // The table's bytes (any length up to 0x1000; the rest kept).
+    fog.set_levels(&set.table);
+    fog.next.set(set.next);
     Ok(())
 }
 
 /// `race::set_up_fog` (0x44FBD9): `scene::restart_clock`; `DRAW.fog_colour` = the fog colour
 /// from `race().course.stage_prefs.fog_colour` (red), `race().course.stage_prefs.fog_colour[1]`, `race().course.stage_prefs.fog_colour[2]` (each shifted into its byte
-/// and added); `fog_table`; the colour with 0xFF000000 to the device. None of it reads a
-/// register at entry, and its callers (`race::draw_view_scene`, `race::mirror_view_window`)
-/// read none it leaves. Refuses (before anything) what `fog_table` would.
-pub fn set_up_fog(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+/// and added); `fog_table` into the view's `fog`; the colour with 0xFF000000 to the device.
+/// None of it reads a register at entry, and its callers (`race::draw_view_scene`,
+/// `race::mirror_view_window`) read none it leaves. Refuses (before anything) what
+/// `fog_table` would.
+pub fn set_up_fog(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    fog: &crate::scene::fog::Fog,
+) -> Result<(), Refused> {
     let drawing = &scene.drawing;
     let course = &race.course;
     let length = race.shared.view.view_depth[1].get().wrapping_shl(3);
@@ -151,7 +154,7 @@ pub fn set_up_fog(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(),
         course.stage_prefs.fog_colour[2].bits(),
     );
     drawing.scene.fog_colour.set_bits(colour);
-    fog_table(race, scene)?;
+    fog_table(race, scene, fog)?;
     crate::scene::set_fog_colour::set_fog_colour(rc2k_core::race::view::device_fog_colour(
         drawing.scene.fog_colour.bits(),
     ));
@@ -471,7 +474,8 @@ pub fn camera_view(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
 /// `race().course.numbers.k4096_a`) its place on the screen (`race().frame.frame_work.sun_place` / `race().frame.frame_work.sun_hit`
 /// ..), `race().frame.frame_work.sun_on_screen` 1 when on the screen, `race().frame.frame_work.sun_size` its size (256
 /// less half its distance from the centre, at least 0).
-pub fn draw_sky(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let system = crate::system::owner::system();
     let frame = &race.frame;
     fetch_view_value(race)?;
@@ -498,7 +502,7 @@ pub fn draw_sky(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), R
     scene.lights.work.light_kind.set(0u32);
     // esi as the `rep movsd` of the matrix's copy leaves it: past `g_madeObjectMatrix`.
     crate::scene::draw_scene_object::draw_scene_object_in_game(
-        race,
+        ctx,
         Some(
             matrices_at(
                 frame,
@@ -506,7 +510,6 @@ pub fn draw_sky(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), R
             )
             .into(),
         ),
-        scene,
     )?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
     crate::scene::depth_buffer_on::depth_buffer(true);

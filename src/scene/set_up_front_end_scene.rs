@@ -9,7 +9,7 @@
 //!   texture 0x87. (Each store of the level is there twice, the second under
 //!   `dword_5CDADC`: the same value either way.)
 //! - `scene::set_up_textures`, `scene::set_up_object_memory`, `scene::clear_slot_kinds`;
-//! - the scene's colours and sizes (`FIRST_STORES`), `scene::clear_fog`, `dword_621480`
+//! - the scene's colours and sizes (`FIRST_STORES`), `scene::clear_fog` (the front end's own fog: `scene::fog`), `dword_621480`
 //!   = 1, `scene::fill_light_tables`;
 //! - the slots' kinds: slot 0 kind 1, slots 1 .. 0x28 kinds 0x259 .. 0x280, slots 0x29
 //!   .. 0x2C kinds 0x28B .. 0x28E, slots 0x2D .. 0x4E the 0x22 known kinds
@@ -34,7 +34,6 @@
 use crate::errors::Refused;
 use crate::race::owner::race;
 use crate::scene::allocate_point_records::allocate_point_records_in_game;
-use crate::scene::clear_fog::clear_fog;
 use crate::scene::clear_slot_kinds::clear_slot_kinds;
 use crate::scene::fill_light_tables::fill_light_tables;
 use crate::scene::fill_scene_light_tables::fill_scene_light_tables;
@@ -121,7 +120,7 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     course.stage_prefs.fog_near.set_bits(0u32);
     course.stage_prefs.fog_start.set_bits(0u32);
     course.stage_prefs.fog_end.set_bits(0u32);
-    clear_fog(scene);
+    crate::race::view_scratch::front_end().fog.clear();
     shared.switches.other_way.set_bits(1u32);
     fill_light_tables(scene, race)?;
 

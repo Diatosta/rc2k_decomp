@@ -182,7 +182,7 @@ static K16: Kind = Kind {
 };
 
 /// Why it refuses, if it does: the walk's pointers checked, nothing written.
-fn refusal(ring: &Ring) -> Result<Option<&'static str>, Refused> {
+fn refusal(ring: &Ring, fog: &crate::scene::fog::Fog) -> Result<Option<&'static str>, Refused> {
     Ok({
         let Ok(marks) = crate::effects::setup::marks() else {
             return Ok(Some("no marks settings"));
@@ -206,7 +206,7 @@ fn refusal(ring: &Ring) -> Result<Option<&'static str>, Refused> {
                 }
                 // The draws' own refusals, for an entry that may be drawn.
                 if entry_flag(marks, entry(ring, e)?.emitter_tag)? != 0 {
-                    if crate::scene::fog_at::fog_at(0).is_err() {
+                    if crate::scene::fog_at::fog_at(fog, 0).is_err() {
                         return Ok(Some("the fog table is not there"));
                     }
                     let bad = if matches!(kind, 0x10 | 0x11) {
@@ -444,6 +444,7 @@ fn draw(
     sprite: Sprite,
     e: u32,
     p: [[u8; 10]; 3],
+    fog: &crate::scene::fog::Fog,
 ) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
     use crate::effects::{draw_cell_sprite, draw_subcell_sprite};
@@ -456,16 +457,20 @@ fn draw(
     {
         match place {
             3 => draw_subcell_sprite::draw_subcell_sprite(
-                frame, masks, ring, effects, cell, size, e, p, scene,
+                frame, masks, ring, effects, cell, size, e, p, scene, fog,
             ),
             _ => draw_cell_sprite::draw_cell_sprite(
-                frame, masks, ring, effects, cell, angle, alpha, size, e, p, scene,
+                frame, masks, ring, effects, cell, angle, alpha, size, e, p, scene, fog,
             ),
         }
     }
 }
 
 /// Kinds 5 and 0xB (draw 1 or 2; their y gain, size and alpha gains): whether it dies.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the effects' groups, the owners and the view's fog"
+)]
 fn drift_kind(
     frame: &Frame,
     masks: &Masks,
@@ -474,6 +479,7 @@ fn drift_kind(
     place: u32,
     ks: [&f32; 3],
     effects: &crate::effects::owner::Effects,
+    fog: &crate::scene::fog::Fog,
 ) -> Result<bool, Refused> {
     {
         if aged(ring, e, true, effects)? {
@@ -501,6 +507,7 @@ fn drift_kind(
                 },
                 e,
                 p,
+                fog,
             )?;
         }
         spin_and_move(ring, e, true, effects)?;
@@ -523,6 +530,10 @@ fn drift_kind(
 }
 
 /// Kinds 6, 0x15, 1, 0xD, 0x13, 0x16 (draw 1): whether it dies.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the effects' groups, the owners and the view's fog"
+)]
 fn fading_kind(
     frame: &Frame,
     masks: &Masks,
@@ -531,6 +542,7 @@ fn fading_kind(
     kind: u32,
     c: &Kind,
     effects: &crate::effects::owner::Effects,
+    fog: &crate::scene::fog::Fog,
 ) -> Result<bool, Refused> {
     {
         if aged(ring, e, true, effects)? {
@@ -571,6 +583,7 @@ fn fading_kind(
                 },
                 e,
                 p,
+                fog,
             )?;
         }
         spin_and_move(ring, e, true, effects)?;
@@ -638,6 +651,10 @@ fn pull_toward(
 }
 
 /// Kinds 0x10, 0x11 (draw 3): boxed, no ground test of their own first. Whether it dies.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the effects' groups, the owners and the view's fog"
+)]
 fn boxed_kind(
     frame: &Frame,
     masks: &Masks,
@@ -646,6 +663,7 @@ fn boxed_kind(
     gain: &f32,
     both: bool,
     effects: &crate::effects::owner::Effects,
+    fog: &crate::scene::fog::Fog,
 ) -> Result<bool, Refused> {
     if aged(ring, e, true, effects)? {
         return Ok(true);
@@ -676,6 +694,7 @@ fn boxed_kind(
             },
             e,
             p,
+            fog,
         )?;
     }
     box_place(ring, e, entry_car(ring, e)?);
@@ -695,8 +714,9 @@ pub fn run_ring(
     masks: &Masks,
     ring: &Ring,
     effects: &crate::effects::owner::Effects,
+    fog: &crate::scene::fog::Fog,
 ) -> Result<(), Refused> {
-    if let Some(why) = refusal(ring)? {
+    if let Some(why) = refusal(ring, fog)? {
         return Err(BadInput(why).into());
     }
     {
@@ -721,6 +741,7 @@ pub fn run_ring(
                         &ring.kinds.drift5[2],
                     ],
                     effects,
+                    fog,
                 )?,
                 0xB => drift_kind(
                     frame,
@@ -734,15 +755,34 @@ pub fn run_ring(
                         &ring.kinds.drift_b[2],
                     ],
                     effects,
+                    fog,
                 )?,
-                6 => fading_kind(frame, masks, ring, e, 6, &K6, effects)?,
-                0x15 => fading_kind(frame, masks, ring, e, 0x15, &K15, effects)?,
-                1 => fading_kind(frame, masks, ring, e, 1, &K1, effects)?,
-                0xD => fading_kind(frame, masks, ring, e, 0xD, &KD, effects)?,
-                0x13 => fading_kind(frame, masks, ring, e, 0x13, &K13, effects)?,
-                0x16 => fading_kind(frame, masks, ring, e, 0x16, &K16, effects)?,
-                0x10 => boxed_kind(frame, masks, ring, e, &ring.kinds.k10_gain, true, effects)?,
-                0x11 => boxed_kind(frame, masks, ring, e, &ring.kinds.k11_gain, false, effects)?,
+                6 => fading_kind(frame, masks, ring, e, 6, &K6, effects, fog)?,
+                0x15 => fading_kind(frame, masks, ring, e, 0x15, &K15, effects, fog)?,
+                1 => fading_kind(frame, masks, ring, e, 1, &K1, effects, fog)?,
+                0xD => fading_kind(frame, masks, ring, e, 0xD, &KD, effects, fog)?,
+                0x13 => fading_kind(frame, masks, ring, e, 0x13, &K13, effects, fog)?,
+                0x16 => fading_kind(frame, masks, ring, e, 0x16, &K16, effects, fog)?,
+                0x10 => boxed_kind(
+                    frame,
+                    masks,
+                    ring,
+                    e,
+                    &ring.kinds.k10_gain,
+                    true,
+                    effects,
+                    fog,
+                )?,
+                0x11 => boxed_kind(
+                    frame,
+                    masks,
+                    ring,
+                    e,
+                    &ring.kinds.k11_gain,
+                    false,
+                    effects,
+                    fog,
+                )?,
                 _ => false,
             };
             if dies {

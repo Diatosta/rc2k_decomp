@@ -80,7 +80,12 @@ fn draw_view(
             crate::d3d::copy_screen_to_texture::copy_screen_to_texture(&race.frame);
         }
         let c = crate::moved::census::before();
-        crate::race::draw_view_overlays::draw_view_overlays(race, scene, system, effects)?;
+        let ctx = crate::race::view_scratch::DrawCtx {
+            race,
+            scene,
+            view: crate::race::view_scratch::main_view(car),
+        };
+        crate::race::draw_view_overlays::draw_view_overlays(&ctx, system, effects)?;
         crate::moved::census::after("overlays", c);
         Ok(())
     };

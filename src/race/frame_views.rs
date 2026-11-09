@@ -41,7 +41,7 @@ const MIRROR_REACH: u32 = 2;
 /// `dword_6415FC` / `dword_641600` (8 bytes each, at `dword_6238A4` + 3 x `g_drawnView`, + 6
 /// when `dword_6D1502` is 0), 800 x 600 scaled to the screen, 0xB3 x 0x40 big (each even);
 /// its edges `dword_624138` .. `dword_624144`; `dword_624080` 0x100,
-/// `scene::set_view_window`, the fog (`race::set_up_fog`), `dword_6365C4` 0,
+/// `scene::set_view_window`, the fog (`race::set_up_fog`, into the mirror's `fog`), `dword_6365C4` 0,
 /// `dword_63993C` 1, the window with the grid's reach 2 (the original's `g_gridReach`, set
 /// by `race::draw_mirror_view`; the fog's `draw_distance_settings` sets the level's again).
 /// Refuses (before anything) a size whose scaling would fault.
@@ -49,6 +49,7 @@ pub fn mirror_view_window(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
+    fog: &crate::scene::fog::Fog,
 ) -> Result<(), Refused> {
     let session = &system.session;
     // Converted: `rc2k_core::race::view::{mirror_entry, mirror_window}`.
@@ -100,7 +101,7 @@ pub fn mirror_view_window(
     scene.drawing.scene.cleared_rectangle[3].set(y.wrapping_add(sy));
     scene.drawing.scene.view_zoom.set(0x100);
     crate::scene::set_view_window::set_view_window_reaching(race, scene, MIRROR_REACH);
-    crate::race::frame_draw::set_up_fog(race, scene)?;
+    crate::race::frame_draw::set_up_fog(race, scene, fog)?;
     scene.lights.state.draw_mode.set(0);
     race.physics.ground.view_mirrored.set(1);
     Ok(())
@@ -396,9 +397,13 @@ fn window_corners(shared: &Shared, scene: &crate::scene::owner::Scene) {
 
 /// `race::draw_screen_tint` (0x455A11): a tinted quad over the view window
 /// (`scene::draw_tinted_quad`, which reads no register): with `dword_71C3E0` 0x283080 half through; else the sun's
-/// glare, `dword_6365F4` (held to 0 .. 0xFF) through, colour `dword_60A570` red,
+/// glare, the view's fog's far value (`dword_6365F4`, held to 0 .. 0xFF) through, colour `dword_60A570` red,
 /// `byte_60A574` green, `byte_60A578` blue, none when 0; `g_sunOnScreen` put back after.
-pub fn draw_screen_tint(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn draw_screen_tint(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    fog: &crate::scene::fog::Fog,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha,
     // glare_colour}`.
     use rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha, glare_colour};
@@ -409,7 +414,7 @@ pub fn draw_screen_tint(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
         return crate::scene::draw_tinted_quad::draw_tinted_quad(race, scene);
     }
     let sun = race.frame.frame_work.sun_on_screen.get();
-    let a = glare_alpha(scene.lights.state.fog_far.get());
+    let a = glare_alpha(fog.far.get());
     race.shared.vars.quad_colour[1].set(a);
     let mut done = Ok(());
     if a != 0 {
@@ -450,11 +455,11 @@ pub fn clear_view_depth(scene: &crate::scene::owner::Scene, system: &crate::syst
 /// overlays (`race::draw_marks_overlays`).
 /// Refuses (before anything) the car without its block.
 pub fn draw_own_car(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let frame = &race.frame;
     // Converted: `rc2k_core::race::view_steps::{car_number, seen_inside, clears_depth}`.
     use rc2k_core::race::view_steps::{car_number, clears_depth, seen_inside};
@@ -487,7 +492,7 @@ pub fn draw_own_car(
         crate::scene::depth_buffer_on::depth_buffer(true);
     }
     // `race::draw_car_shined` reads only esi, the car's block.
-    crate::race::car_draw::draw_car_shined(race, car, scene)?;
+    crate::race::car_draw::draw_car_shined(ctx, car)?;
     frame.view_and_records.view_vars.group_mask.set(u32::MAX);
     crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].get());
     crate::scene::set_render_state::set_render_state(2, 0x14);
@@ -515,6 +520,7 @@ pub fn run_view_marks(
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
     effects: &crate::effects::owner::Effects,
+    fog: &crate::scene::fog::Fog,
 ) -> Result<(), Refused> {
     let session = &system.session;
     let drawing = &scene.drawing;
@@ -581,7 +587,7 @@ pub fn run_view_marks(
     // Neither reads a register nor leaves one read after it (0x456464, 0x456472).
     let done = crate::effects::frame_marks::frame_marks(race, effects).and_then(|_| {
         if race.frame.frame_work.drawing.get() == 0 {
-            crate::effects::run_frame::run_frame(race)
+            crate::effects::run_frame::run_frame(race, fog)
         } else {
             Ok(())
         }

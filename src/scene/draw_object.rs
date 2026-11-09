@@ -76,10 +76,10 @@ fn place_object_points_any(
 
 /// With the steps' Rust versions.
 pub fn draw_object_in_game(
-    race: &crate::race::owner::Race,
-    scene: &crate::scene::owner::Scene,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     // The object's listed faces: filled, sorted and drawn here alone (the original's
     // `g_listedFaces`, one for every drawing).
     let mut faces = crate::scene::face_list::FaceList::new();
@@ -102,7 +102,7 @@ pub fn draw_object_in_game(
                 draw_object_faces(
                     race,
                     &faces,
-                    &mut |face| draw_object_face_in_game(race, face, scene, system),
+                    &mut |face| draw_object_face_in_game(ctx, face, system),
                     scene,
                 )?;
             }

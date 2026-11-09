@@ -546,11 +546,11 @@ fn raise_onto_face(race: &Race, work: &ShadowWork, index: u32) -> Result<(), Ref
 /// it. Refuses what the projection and the clips refuse (after the work is set; not met with a
 /// hull's few vertices) and a hull list past 0x40.
 pub fn shadow_on_face(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
     car: &Car,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let drawing = &scene.drawing;
     let count: u32 = work.list_count.get();
     if count > 0x40 {
@@ -599,7 +599,7 @@ pub fn shadow_on_face(
         )?;
     }
     crate::scene::project_polygon::project_polygon(race, scene)?;
-    crate::scene::fog_polygon::fog_polygon(scene)?;
+    crate::scene::fog_polygon::fog_polygon(scene, &ctx.view.fog)?;
     drawing
         .scene
         .polygon_next_record
@@ -633,12 +633,12 @@ pub fn shadow_on_face(
 /// without bit 7 of its +2 word gets the shadow (`shadow_on_face`) on its two triangles
 /// (corners +4, +8, +0xC and +0x10, +0xC, +8); `g_currentCourseFace` each face.
 fn shadow_on_record(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
     car: &Car,
     record: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    let race = ctx.race;
     use crate::race::course_places::{face_number, record_field};
     // Converted: `rc2k_core::race::shadow::{takes_shadow, SHADOW_TRIANGLES}`,
     // `rc2k_core::race::view::record_faces`.
@@ -658,7 +658,7 @@ fn shadow_on_record(
                 for (k, &o) in corners.iter().enumerate() {
                     work.face_corners[k].set_bits(f.dword_at(o));
                 }
-                shadow_on_face(race, work, car, scene)?;
+                shadow_on_face(ctx, work, car)?;
             }
         }
     }
@@ -669,14 +669,14 @@ fn shadow_on_record(
 /// record's faces, then on every record in the 3 x 3 cells round the work car
 /// (`shadow_on_record` each).
 pub fn shadow_faces(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
     car: &Car,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    let race = ctx.race;
     let course = &race.course;
     let count: u32 = course.course.course_record_count.get();
-    shadow_on_record(race, work, car, count.wrapping_sub(1), scene)?;
+    shadow_on_record(ctx, work, car, count.wrapping_sub(1))?;
     if count == 0 {
         return Ok(());
     }
@@ -697,7 +697,7 @@ pub fn shadow_faces(
         course.course.record_place[0].set(x);
         course.course.record_place[1].set(z);
         if cell_near_car((car.position[0].bits(), car.position[2].bits()), (x, z)) {
-            shadow_on_record(race, work, car, n, scene)?;
+            shadow_on_record(ctx, work, car, n)?;
         }
     }
     Ok(())
@@ -804,12 +804,12 @@ fn lifted(y: u32, lift: u32, slant: u32, base: u32) -> u32 {
 /// on the faces round the car (`shadow_faces`), with the sun at height `sun`. Refuses what its
 /// parts refuse (before anything for the points and the counts).
 pub fn cast_car_shadow(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
     car: &Car,
     sun: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    let race = ctx.race;
     // Converted: `rc2k_core::race::shadow::{casts, hull_drawn, hull_list,
     // SHADOW_TEXTURE}`.
     use rc2k_core::race::shadow::{SHADOW_TEXTURE, casts, hull_drawn, hull_list};
@@ -829,7 +829,7 @@ pub fn cast_car_shadow(
         crate::session::write_on_in(work, &work.list, k as usize, k, "the shadow list")?;
     }
     work.texture.set(SHADOW_TEXTURE);
-    shadow_faces(race, work, car, scene)
+    shadow_faces(ctx, work, car)
 }
 
 /// `race::cast_car_shadows` (0x45754C): the depth test off, `work.lift`
@@ -839,7 +839,8 @@ pub fn cast_car_shadow(
 /// set `stage_prefs.sun_height` to it and put it back after: an argument here); the depth
 /// test on. Refuses (before anything) no cars or more than eight, or a
 /// null block.
-pub fn cast_car_shadows(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn cast_car_shadows(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+    let race = ctx.race;
     // Converted: `rc2k_core::race::shadow::{check_shadow_cars, casts_shadow, first_pass,
     // SHADOW_STRENGTH, SUN_PASS}`.
     use rc2k_core::race::shadow::{
@@ -862,9 +863,9 @@ pub fn cast_car_shadows(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
         work.point_count.set_bits(car.probe_count.bits());
         if first_pass(race.shared.vars.settings_words[2].bits()) {
             let sun: u32 = race.course.stage_prefs.sun_height.get();
-            cast_car_shadow(race, &work, car, sun, scene)?;
+            cast_car_shadow(ctx, &work, car, sun)?;
         }
-        cast_car_shadow(race, &work, car, SUN_PASS, scene)?;
+        cast_car_shadow(ctx, &work, car, SUN_PASS)?;
     }
     crate::scene::depth_test_on::depth_test_on();
     Ok(())

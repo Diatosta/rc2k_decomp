@@ -16,7 +16,6 @@
 //! more.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::Race;
 use crate::scene::clip_polygon_by_depth::clip_polygon_by_depth;
 use crate::scene::clip_polygon_to_screen::clip_polygon_to_screen;
 use crate::scene::draw_marked_polygon::draw_marked_polygon;
@@ -88,9 +87,9 @@ pub fn draw_clipped_polygon(
 
 /// The function with its parts' Rust versions, drawing for real.
 pub fn draw_clipped_polygon_in_game(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
 ) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     // The list stays as it is from the projection to the fog: listed once for the three.
     let mut entries = None;
     draw_clipped_polygon(
@@ -105,8 +104,8 @@ pub fn draw_clipped_polygon_in_game(
                     _ => scale_texture_coordinates(scene)?,
                 },
                 Step::Fog => match entries.take() {
-                    Some(listed) => fog_entries(&listed, scene)?,
-                    None => fog_polygon(scene)?,
+                    Some(listed) => fog_entries(&listed, scene, &ctx.view.fog)?,
+                    None => fog_polygon(scene, &ctx.view.fog)?,
                 },
                 Step::ClipByDepth => clip_polygon_by_depth(race, scene)?,
                 Step::ClipToScreen => clip_polygon_to_screen(race, scene)?,

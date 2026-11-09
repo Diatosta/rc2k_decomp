@@ -20,6 +20,10 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1,
 
 /// The Rust version (see the header): the render states (`scene::set_render_state`), the
 /// texture (`scene::set_texture`), `scene::depth_test_off`, `run_ring`, `run_ribbons`.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the effects' groups, the owners and the view's fog"
+)]
 pub fn ring_frame(
     frame: &Frame,
     masks: &Masks,
@@ -28,6 +32,7 @@ pub fn ring_frame(
     ring: &Ring,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
+    fog: &crate::scene::fog::Fog,
 ) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     {
@@ -41,9 +46,9 @@ pub fn ring_frame(
         // The settings' +0x7C: the first car record's +0x1C.
         masks.surface.lives_by_level[8].set(marks.cars[0].tag.get() & 0xFF_FFFF);
         particles.kind1_choice.choice.set(weather.rain.drops.get());
-        crate::effects::run_ring::run_ring(frame, masks, ring, effects)?;
+        crate::effects::run_ring::run_ring(frame, masks, ring, effects, fog)?;
         set_render_state(2, 0x14);
-        crate::effects::run_ribbons::run_ribbons(frame, ring, scene, effects)?;
+        crate::effects::run_ribbons::run_ribbons(frame, ring, scene, effects, fog)?;
     }
     Ok(())
 }

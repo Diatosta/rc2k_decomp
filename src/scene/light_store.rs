@@ -31,9 +31,9 @@ pub struct LightState {
     pub unknown_60: Dword,
     /// +0x64 (0x6365EC): `dword_6365EC`: the fraction on to the next checkpoint, / 65536 (`race::start_place`, `physics::reset_car_on_line`).
     pub line_fraction: Dword,
-    /// +0x68 (0x6365F0): `dword_6365F0`: the fog's near distance, written by the frame set-up (`race::frame_draw`).
+    /// +0x68 (0x6365F0): `dword_6365F0`: the fog's near distance; never read, no longer written (`scene::fog`).
     pub fog_near: Dword,
-    /// +0x6c (0x6365F4): `dword_6365F4`: the fog's far value; also read as the glare alpha input (`race::frame_draw`, `race::frame_views`).
+    /// +0x6c (0x6365F4): `dword_6365F4`: the fog's far value, now each view's (`scene::fog::Fog::far`); unused.
     pub fog_far: Dword,
     /// +0x70 (0x6365F8): not named.
     pub unknown_70: [Dword; 4],
@@ -41,13 +41,13 @@ pub struct LightState {
     pub face_bits: Dword,
     /// +0x84 (0x63660C): `dword_63660C`: the faded flag (`scene::draw_polygon`, `scene::draw_object_face`).
     pub faded: Dword,
-    /// +0x88 (0x636610): `dword_636610`: the fog's next step, cleared by `scene::clear_fog` (`scene::fog_polygon`, `race::frame_draw`).
+    /// +0x88 (0x636610): `dword_636610`: the fog's next step, now each view's (`scene::fog::Fog::next`); unused.
     pub fog_next: Dword,
     /// +0x8c (0x636614): not named.
     pub unknown_8c: [Dword; 2],
-    /// +0x94 (0x63661C): `g_fogTable`: 0x1000 bytes of fog levels, taken in place (`scene::fog_at`, `scene::fog_polygon`, `scene::clear_fog`, `race::frame_draw`).
+    /// +0x94 (0x63661C): `g_fogTable`: 0x1000 bytes of fog levels, now each view's (`scene::fog::Fog`); unused.
     pub fog_table: [Dword; 1024],
-    /// +0x1094 (0x63761C): `g_fogTableLength` (`scene::fog_at`, `scene::fog_polygon`, `race::frame_draw`).
+    /// +0x1094 (0x63761C): `g_fogTableLength`, now each view's (`scene::fog::Fog::length`); unused.
     pub fog_table_length: Dword,
     /// +0x1098 (0x637620): `dword_637620` .. `dword_637634`: the four corners, then the x blends, of the noise map (`race::frame_draw::sample_noise`).
     pub noise_samples: [Dword; 6],

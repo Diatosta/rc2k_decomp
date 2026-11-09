@@ -30,9 +30,9 @@ pub fn draw_view_scene(
     }
     car_light_modes(race)?;
     clear_point_records(race, scene)?;
-    set_up_fog(race, scene)?;
+    set_up_fog(race, scene, &view.fog)?;
     camera_view(race, scene)?;
-    draw_sky(race, scene)?;
+    draw_sky(&ctx)?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
     view_light(race, scene)?;
     reset_lamps(&ctx)?;
@@ -45,19 +45,17 @@ pub fn draw_view_scene(
     sort_entries(&lists.sort_entry_count, lists.sort_entries())?;
     let c = crate::moved::census::before();
     let begun = crate::debug::timing::start();
-    draw_entries(race, scene, &lists.sort_entry_count, |n| lists.sort_from(n))?;
+    draw_entries(&ctx, &lists.sort_entry_count, |n| lists.sort_from(n))?;
     crate::debug::timing::stop(crate::debug::timing::Stage::CourseEntries, begun);
     crate::moved::census::after("sorted", c);
-    draw_race_slots(race, scene)?;
-    crate::race::car_shadow::cast_car_shadows(race, scene)?;
-    crate::race::skidmarks::draw_skidmarks_if_on(race, scene)?;
+    draw_race_slots(&ctx)?;
+    crate::race::car_shadow::cast_car_shadows(&ctx)?;
+    crate::race::skidmarks::draw_skidmarks_if_on(&ctx)?;
     car_lights(&ctx)?;
     sort_entries(&lists.depth_entry_count, lists.depth_entries())?;
     let c = crate::moved::census::before();
     let begun = crate::debug::timing::start();
-    draw_entries(race, scene, &lists.depth_entry_count, |n| {
-        lists.depth_from(n)
-    })?;
+    draw_entries(&ctx, &lists.depth_entry_count, |n| lists.depth_from(n))?;
     crate::debug::timing::stop(crate::debug::timing::Stage::DepthEntries, begun);
     crate::moved::census::after("depth", c);
     crate::race::flush_draw_batch::flush_draw_batch(race)?;

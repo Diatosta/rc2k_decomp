@@ -44,7 +44,7 @@ fn share(at: usize, start: u32, effects: &crate::effects::owner::Effects) {
 }
 
 /// The Rust version (see the header).
-pub fn run_frame(race: &Race) -> Result<(), Refused> {
+pub fn run_frame(race: &Race, fog: &crate::scene::fog::Fog) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
     let scene = crate::scene::owner::scene();
     use crate::effects::*;
@@ -73,6 +73,7 @@ pub fn run_frame(race: &Race) -> Result<(), Refused> {
             ring,
             scene,
             effects,
+            fog,
         )?;
         share(1, start, effects);
         set_render_state(2, 0x14);
