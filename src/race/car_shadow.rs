@@ -609,7 +609,7 @@ pub fn shadow_on_face(
         if outside == drawing.scene.polygon_vertex_count.bits() {
             return Ok(());
         }
-        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(race, scene)?;
+        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(race, scene, ctx.far_clip)?;
         if drawing.scene.polygon_vertex_count.bits() < 3 {
             return Ok(());
         }

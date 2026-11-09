@@ -97,7 +97,9 @@ pub(super) fn lamp(course: &Course, n: u32) -> Result<&'_ [Dword], BadInput> {
 /// entry of that key with `g_lampCount` + 0x3000000; `race().frame.frame_work.lamp_entry_count` + 1. The caller checks
 /// the room.
 pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
-    let DrawCtx { race, scene, view } = *ctx;
+    let DrawCtx {
+        race, scene, view, ..
+    } = *ctx;
     let frame = &race.frame;
     let point = self::lamp(&race.course, lamp)?[0].get();
     let place = crate::race::scene_points::point_number(point)?;

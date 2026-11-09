@@ -107,7 +107,7 @@ pub fn draw_clipped_polygon_in_game(
                     Some(listed) => fog_entries(&listed, scene, &ctx.view.fog)?,
                     None => fog_polygon(scene, &ctx.view.fog)?,
                 },
-                Step::ClipByDepth => clip_polygon_by_depth(race, scene)?,
+                Step::ClipByDepth => clip_polygon_by_depth(race, scene, ctx.far_clip)?,
                 Step::ClipToScreen => clip_polygon_to_screen(race, scene)?,
                 Step::Draw => {
                     draw_marked_polygon(race, &mut || draw_polygon(race, &mut Game, scene))?;

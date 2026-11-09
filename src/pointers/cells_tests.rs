@@ -193,7 +193,7 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         race.replay.replay_view,
         *race.shared.work,
         *scene.drawing.scene,
-        *crate::scene::owner::SCENE.draw_switches,
+        crate::scene::owner::SCENE.draw_switches,
         crate::scene::owner::SCENE.file_numbers,
         scene.textures.kinds,
         *scene.lights.state,

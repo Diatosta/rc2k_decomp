@@ -19,7 +19,7 @@ pub fn draw_view_scene(
     view: &ViewScratch,
 ) -> Result<(), Refused> {
     use crate::race::frame_draw::*;
-    let ctx = DrawCtx { race, scene, view };
+    let ctx = DrawCtx::new(race, scene, view);
     let lists = &view.lists;
     if crate::race::frame::drawn_car().view_covered.get() != 0 {
         return draw_view_tint(race, scene);

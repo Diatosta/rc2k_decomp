@@ -659,7 +659,9 @@ pub fn set_up_panel(race: &Race) -> Result<(), Refused> {
 /// `race::reset_lamps` (0x45487A): `g_lampCount`, the view's two sort lists' counts and
 /// `race().frame.frame_work.flare_count` 0, then `race::object_bytes`.
 pub fn reset_lamps(ctx: &crate::race::view_scratch::DrawCtx) -> Result<(), BadInput> {
-    let crate::race::view_scratch::DrawCtx { race, scene, view } = *ctx;
+    let crate::race::view_scratch::DrawCtx {
+        race, scene, view, ..
+    } = *ctx;
     let shared = &race.shared;
     let course = &race.course;
     shared.view.lamp_count.set_bits(0);

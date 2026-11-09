@@ -1429,7 +1429,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::scene::draw_switches_store::START,
         len: crate::scene::draw_switches_store::END - crate::scene::draw_switches_store::START,
-        home: Home::Store(crate::scene::owner::SCENE.draw_switches.first()),
+        home: Home::Store(&crate::scene::owner::SCENE.draw_switches),
     },
     Moved {
         ida: crate::scene::light_work_store::START,

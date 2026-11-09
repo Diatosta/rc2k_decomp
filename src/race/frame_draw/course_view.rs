@@ -199,7 +199,9 @@ pub fn face_depth(
 /// the view's depth entries: +0 the key, +4 the face; the count + 1. Refuses (before anything) an
 /// entry past the 0x1000, or what `face_depth` refuses.
 pub fn add_depth_entry(ctx: &DrawCtx, face: u32) -> Result<(), Refused> {
-    let DrawCtx { race, scene, view } = *ctx;
+    let DrawCtx {
+        race, scene, view, ..
+    } = *ctx;
     let lists = &view.lists;
     // Converted: `rc2k_core::race::faces::depth_entry_room`.
     let n: u32 = lists.depth_entry_count.bits();
@@ -298,7 +300,9 @@ pub(super) fn record_faces(record: u32) -> Result<Option<(u32, u32)>, BadInput> 
 /// Refuses a last face of -1 (the loop would not end); the full tables and missing points
 /// are refused where they are met.
 pub fn gather_record_faces(ctx: &DrawCtx, record: u32) -> Result<(), Refused> {
-    let DrawCtx { race, scene, view } = *ctx;
+    let DrawCtx {
+        race, scene, view, ..
+    } = *ctx;
     let Some((first, last)) = record_faces(record)? else {
         return Ok(());
     };

@@ -22,8 +22,8 @@ use crate::scene::upload_car_icon::IconUploadCell;
 /// The scene's state.
 pub struct Scene {
     pub file_numbers: ObjectFileNumbers,
-    /// One copy per drawing thread (`workers`).
-    pub draw_switches: crate::workers::PerWorker<DrawSwitches>,
+    /// One copy: the drawing only reads it (frame plan F4).
+    pub draw_switches: DrawSwitches,
     pub light_tables: LightTables,
     pub icon_upload: IconUploadCell,
     pub drawing: Drawing,
@@ -73,9 +73,7 @@ pub struct Textures {
 /// The one instance. Reached through `scene()`; `moved` registers its stores' places.
 pub static SCENE: Scene = Scene {
     file_numbers: ObjectFileNumbers::new(),
-    draw_switches: crate::workers::PerWorker::new(
-        [const { DrawSwitches::new() }; crate::workers::COPIES],
-    ),
+    draw_switches: DrawSwitches::new(),
     light_tables: LightTables::new(),
     icon_upload: IconUploadCell::new(),
     drawing: Drawing {

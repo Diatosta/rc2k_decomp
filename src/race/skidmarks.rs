@@ -206,7 +206,7 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
         list[4].set(0);
         drawing.scene.polygon_next_entry.set(4u32);
         crate::scene::fog_polygon::fog_polygon(scene, &ctx.view.fog)?;
-        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(race, scene)?;
+        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(race, scene, ctx.far_clip)?;
         // Each quad inside the original's `pusha` .. `popa`; the depth test's switches
         // and the polygon's drawing read no register.
         if drawing.scene.polygon_vertex_count.get() < 3 {

@@ -109,10 +109,30 @@ pub fn front_end() -> &'static ViewScratch {
     &SLOTS[4]
 }
 
-/// What a view's drawing works with: the race, the scene, and the view's own state.
+/// What a view's drawing works with: the race, the scene, the view's own state, and whether
+/// polygons are cut at the far depth.
 #[derive(Clone, Copy)]
 pub struct DrawCtx<'a> {
     pub race: &'a crate::race::owner::Race,
     pub scene: &'a crate::scene::owner::Scene,
     pub view: &'a ViewScratch,
+    /// Off for the own car drawn over the view (`race::draw_view_overlays`; the original
+    /// cleared `dword_621900` around it): `scene::clip_polygon_by_depth`'s far pass.
+    pub far_clip: bool,
+}
+
+impl<'a> DrawCtx<'a> {
+    /// A view's drawing, cut at the far depth.
+    pub fn new(
+        race: &'a crate::race::owner::Race,
+        scene: &'a crate::scene::owner::Scene,
+        view: &'a ViewScratch,
+    ) -> Self {
+        Self {
+            race,
+            scene,
+            view,
+            far_clip: true,
+        }
+    }
 }

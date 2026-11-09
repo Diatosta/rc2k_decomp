@@ -87,10 +87,10 @@ pub fn run() -> Result<(), crate::errors::Refused> {
     load_slot_textures_in_game(&race.frame, scene)?;
     scene.lights.state.draw_mode.set_bits(0u32);
     // The front end's 3D draws on a slot of its own (frame plan F4).
-    let ctx = crate::race::view_scratch::DrawCtx {
+    let ctx = crate::race::view_scratch::DrawCtx::new(
         race,
         scene,
-        view: crate::race::view_scratch::front_end(),
-    };
+        crate::race::view_scratch::front_end(),
+    );
     draw_highlighted(menus, &mut || draw_menu_object_in_game(&ctx))
 }

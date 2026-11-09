@@ -253,12 +253,13 @@ pub fn face_lights(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
 /// `race::clip_and_draw_face` (0x454187): the face's polygon cut by depth (when some
 /// vertices are outside, `g_polygonOutsideCount`) and to the screen, and with three
 /// vertices or more drawn (`scene::draw_polygon_in_game`), `g_polygonDrawn` 1.
-pub fn clip_and_draw_face(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn clip_and_draw_face(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+    let (race, scene) = (ctx.race, ctx.scene);
     let drawing = &scene.drawing;
     // Converted: `rc2k_core::race::face_drawing::draws_polygon`.
     use rc2k_core::race::face_drawing::draws_polygon;
     if drawing.scene.polygon_outside_count.get() != 0 {
-        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(race, scene)?;
+        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(race, scene, ctx.far_clip)?;
         if !draws_polygon(drawing.scene.polygon_vertex_count.bits()) {
             return Ok(());
         }
@@ -829,7 +830,7 @@ pub fn draw_lit_triangle(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result
         POLYGON_WORK.list[3].set(list[0]);
         scene.drawing.scene.polygon_vertex_count.set(3u32);
         scene.drawing.scene.polygon_next_entry.set(6u32);
-        clip_and_draw_face(race, scene)?;
+        clip_and_draw_face(ctx)?;
     }
     Ok(())
 }

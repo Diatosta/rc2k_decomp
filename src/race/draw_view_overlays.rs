@@ -3,8 +3,9 @@
 //! state 3 = 3, the view's marks (`race::run_view_marks`), the overlay states again, the
 //! race's sound tick (eax 0xE in the original), a flat triangle
 //! (`race::draw_flat_triangle`), the depth buffer on, the filters; the own car drawn
-//! (`race::draw_own_car`) with `dword_621900` 0 meanwhile (put back after), the screen's
-//! tint, the draw batch flushed, the filters.
+//! (`race::draw_own_car`) without the far clip (the original set `dword_621900` 0 meanwhile
+//! and put it back after: `DrawCtx::far_clip`), the screen's tint, the draw batch flushed,
+//! the filters.
 
 use crate::errors::Refused;
 
@@ -15,7 +16,6 @@ pub fn draw_view_overlays(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
-    let draw_switches = &scene.draw_switches;
     use crate::hud::overlay_states::overlay_states;
     use crate::race::frame_views::{draw_flat_triangle, draw_own_car, draw_screen_tint};
     use crate::scene::set_filters::set_filters;
@@ -29,11 +29,14 @@ pub fn draw_view_overlays(
     draw_flat_triangle(scene);
     crate::scene::depth_buffer_on::depth_buffer(true);
     set_filters();
-    let kept: u32 = draw_switches.far_on.bits();
-    draw_switches.far_on.set_bits(0u32);
-    let drawn = draw_own_car(ctx, system, effects);
-    draw_switches.far_on.set_bits(kept);
-    drawn?;
+    draw_own_car(
+        &crate::race::view_scratch::DrawCtx {
+            far_clip: false,
+            ..*ctx
+        },
+        system,
+        effects,
+    )?;
     draw_screen_tint(race, scene, &ctx.view.fog)?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
     set_filters();

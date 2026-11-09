@@ -243,7 +243,9 @@ pub fn draw_view_tint(race: &Race, scene: &crate::scene::owner::Scene) -> Result
 /// of the key with the car's `number` plus 0x2000000. Refuses (before anything) a depth
 /// entry past the 0x1000.
 pub fn add_car_depth_entry(ctx: &DrawCtx, car: u32, number: u32) -> Result<(), Refused> {
-    let DrawCtx { race, scene, view } = *ctx;
+    let DrawCtx {
+        race, scene, view, ..
+    } = *ctx;
     let frame = &race.frame;
     let shared = &race.shared;
     let drawing = &scene.drawing;
@@ -282,7 +284,9 @@ pub const FLARES_MAX: u32 = 0x100;
 /// `LEVEL_GRID.flare_place_x`) and, turned by `g_viewMatrix` (x and y back as floats, z rounded into
 /// the key), a depth entry with the flare's number + 0x1000000; none past `FLARES_MAX`.
 pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
-    let DrawCtx { race, scene, view } = *ctx;
+    let DrawCtx {
+        race, scene, view, ..
+    } = *ctx;
     let drawing = &scene.drawing;
     let n: u32 = race.frame.frame_work.flare_count.bits();
     if n == FLARES_MAX {
@@ -399,7 +403,9 @@ pub(super) fn light_pair(
 /// Refuses (before anything) a flare list or depth list without room for the 24 flares a car
 /// can give.
 pub fn car_light_flares(ctx: &DrawCtx, car: u32) -> Result<(), Refused> {
-    let DrawCtx { race, scene, view } = *ctx;
+    let DrawCtx {
+        race, scene, view, ..
+    } = *ctx;
     if view.lists.depth_entry_count.bits() > SORT_MAX - 24 {
         return Err(BadInput("the depth list has no room for a car's flares").into());
     }
