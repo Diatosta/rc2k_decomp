@@ -22,7 +22,8 @@
 //! 4. 0x4506B7: a face of kind (byte +6) 0x1C is dropped outside a race, or if its
 //!    byte +0xB is 0 or above 6, or if the dword that byte picks at +0x6FC of the
 //!    block `off_71B3B8[dword_60627C]` is 0x80000000 or under 10; a face of another
-//!    kind than 0 is dropped unless its byte +0xB is `dword_5CD688[kind]`.
+//!    kind than 0 is dropped unless its byte +0xB is `dword_5CD688[kind]` (the drawing's
+//!    `marks`: `scene::car_marks`).
 //! 5. 0x45071B: dropped if `scene::face_faces_away`.
 //!
 //! A face that is left and has a vertex gets its key (`scene::face_sort_key`) and the next
@@ -48,7 +49,11 @@ const LIST_ROOM: u32 = 0x1000;
 // ---- Rust version ----
 
 /// The game's variables the tests read and write.
-struct GameFace<'a>(&'a crate::race::owner::Race, crate::scene::reading::Reading);
+struct GameFace<'a>(
+    &'a crate::race::owner::Race,
+    crate::scene::reading::Reading,
+    &'a crate::scene::car_marks::CarMarks,
+);
 
 impl FaceWorld for GameFace<'_> {
     fn in_race(&self) -> bool {
@@ -141,13 +146,7 @@ impl FaceWorld for GameFace<'_> {
         }
     }
     fn kind_byte(&self, kind: u32) -> u32 {
-        let objects = &scene().objects;
-        self.1.keep(crate::session::read_on_in(
-            &*objects.tables,
-            &objects.tables.car_mark_textures,
-            kind as usize,
-            "the car marks' textures",
-        ))
+        self.2.kind_byte(kind)
     }
 }
 
@@ -168,6 +167,7 @@ pub fn list_object_face(
     face: usize,
     scene: &crate::scene::owner::Scene,
     list: &mut FaceList,
+    marks: &crate::scene::car_marks::CarMarks,
 ) -> Result<(), Refused> {
     let physics = &race.physics;
     if face == 0 {
@@ -178,7 +178,7 @@ pub fn list_object_face(
     }
     physics.ground.object_see_through.set_bits(0x100u32);
     let bytes = face_bytes(face)?;
-    let mut world = GameFace(race, crate::scene::reading::Reading::new());
+    let mut world = GameFace(race, crate::scene::reading::Reading::new(), marks);
     let answer = dropped(&mut world, bytes);
     world.1.finish()?;
     match answer {

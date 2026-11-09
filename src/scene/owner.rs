@@ -58,8 +58,8 @@ pub struct Objects {
     /// One copy (the listed faces are each object drawing's own since frame plan F4).
     pub slots: ObjectSlots,
     /// The object tables (`OBJECT_TABLES`).
-    /// One copy per drawing thread (`workers`: the car marks' textures are set as a car is drawn).
-    pub tables: crate::workers::PerWorker<ObjectTables>,
+    /// One copy (the car marks are each car drawing's own since frame plan F4: `scene::car_marks`).
+    pub tables: ObjectTables,
 }
 
 /// The texture places and the kinds' texture tables.
@@ -90,9 +90,7 @@ pub static SCENE: Scene = Scene {
     },
     objects: Objects {
         slots: ObjectSlots::new(),
-        tables: crate::workers::PerWorker::new(
-            [const { ObjectTables::new() }; crate::workers::COPIES],
-        ),
+        tables: ObjectTables::new(),
     },
     textures: Textures {
         places: TexturePlaces::new(),

@@ -20,9 +20,9 @@ pub struct ObjectTables {
     /// +0x808 (0x5CD684): `dword_5CD684`: where the shape's normals are in its file (`scene::add_object_shape`). Not used: nothing
     /// reads it, so the address is not kept here.
     pub normals_at: Dword,
-    /// +0x80c (0x5CD688): `g_carMarkTextures`: the textures of the car's marks (number, digits, plates) in the first 0x40 (`race::car_draw`; [1] .. [9] are `dword_5CD68C` .. `dword_5CD6AC`), and the 0x100 kind bytes `scene::draw_shown_object` sets (`scene::list_object_face`).
+    /// +0x80c (0x5CD688): `g_carMarkTextures`: the textures of the car's marks and the menus' kind bytes; now the drawing's own (`scene::car_marks`); unused.
     pub car_mark_textures: [Dword; 256],
-    /// +0xc0c (0x5CDA88): `dword_5CDA88`: the car's letter number, a second copy (`race::car_number_textures`).
+    /// +0xc0c (0x5CDA88): `dword_5CDA88`: the car's letter number, a second copy, never read; unused.
     pub car_letter_b: Dword,
     /// +0xc10 (0x5CDA8C): `dword_5CDA8C`: the 3D switch the texture and polygon functions test (`scene::clear_depth_buffer`, `scene::submit_polygon`, `race::draw_race_scene`, `race::frame_views`).
     pub has_3d: Dword,
@@ -90,7 +90,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&*scene().objects.tables, START, END);
+        crate::gfx::first_values_are_the_games(&scene().objects.tables, START, END);
     }
 
     #[test]

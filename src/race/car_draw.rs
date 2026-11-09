@@ -74,29 +74,22 @@ pub fn car_body_matrix(course: &Course, frame: &Frame) {
     car_part_matrix(frame, lit(frame));
 }
 
-/// `race::clear_car_marks` (0x46202A): the 0x40 dwords at `dword_5CD688` (the car's
-/// marks: number, digits, plates) 0. (The original leaves eax 0, ecx 0, edi past them;
-/// its one caller reads none.)
-pub fn clear_car_marks(scene: &crate::scene::owner::Scene) {
-    for mark in &scene.objects.tables.car_mark_textures[..0x40] {
-        mark.set(0);
-    }
-}
-
-/// `race::car_number_textures` (0x46203D): car `car`'s (esi) marks' textures
-/// (`dword_5CD688` ..): +0x1B8 / +0x1BC (|x| not below `flt_641740`: 1) into
+/// `race::car_number_textures` (0x46203D): car `car`'s (esi) marks' textures into `marks`
+/// (the original's `dword_5CD688` ..: `scene::car_marks`): +0x1B8 / +0x1BC (|x| not below `flt_641740`: 1) into
 /// `dword_5CD68C`, `dword_5CD698` / `dword_5CD690`, `dword_5CD694`; the letter of its
 /// model's name (`unk_71B408` + 0x30 x model) at +0x718 (rounded, held to 0 .. 0x2EDF) /
-/// 250, as a digit or letter number, into `dword_5CD69C`, `dword_5CDA88`; its number
+/// 250, as a digit or letter number, into `dword_5CD69C` (and `dword_5CDA88`, which nothing
+/// read: not kept); its number
 /// +0xAA8 as tens and units (`dword_5CD6A0`, `dword_5CD6A4`, 999 for none; `dword_5CD6AC`
 /// the units alone below ten); the stage's (held to 11 .. 0x50) tens' plate
 /// `dword_71BA10[]` into `dword_5CD6A8`; and while +0x310 is below `flt_5C5D14` its 17
-/// bytes +0xAC0 .. into the places `dword_6416F8[]` names. The registers it leaves are
+/// bytes +0xAC0 .. into the places `dword_6416F8[]` names (marks 0xA .. 0x1B; one past the
+/// marks is refused). The registers it leaves are
 /// read by no one (`draw_car` reads only esi, which it keeps).
 pub fn car_number_textures(
     race: &Race,
     car: u32,
-    scene: &crate::scene::owner::Scene,
+    marks: &crate::scene::car_marks::CarMarks,
 ) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::car_marks` (the rounding of +0x718 the x87's, under the
     // game's control word).
@@ -108,11 +101,11 @@ pub fn car_number_textures(
     {
         let limit = f32::from_bits(race.frame.frame_work.decal_limit.bits());
         let side = lamp_side(float(&block.drive_speed_a), limit);
-        scene.objects.tables.car_mark_textures[1].set(side);
-        scene.objects.tables.car_mark_textures[4].set(side);
+        marks.mark(1).set(side);
+        marks.mark(4).set(side);
         let side = lamp_side(float(&block.drive_speed_b), limit);
-        scene.objects.tables.car_mark_textures[2].set(side);
-        scene.objects.tables.car_mark_textures[3].set(side);
+        marks.mark(2).set(side);
+        marks.mark(3).set(side);
         // Unbounded: 34 kinds of 0x30 bytes, the table holds 32.
         let name = GamePtr::to(&race.shared.work.number_texture_names)
             .unbounded()
@@ -123,14 +116,14 @@ pub fn car_number_textures(
             name.offset(place)
                 .read::<u8>("a car's number texture name")?,
         ) as u32;
-        scene.objects.tables.car_mark_textures[5].set(letter);
-        scene.objects.tables.car_letter_b.set(letter);
+        marks.mark(5).set(letter);
         let d = number_digits(car_view(car)?.start_slot_value.bits());
-        scene.objects.tables.car_mark_textures[6].set(d.tens);
-        scene.objects.tables.car_mark_textures[7].set(d.units);
-        scene.objects.tables.car_mark_textures[9].set(d.alone);
+        marks.mark(6).set(d.tens);
+        marks.mark(7).set(d.units);
+        marks.mark(9).set(d.alone);
         let (tens, _) = stage_plate(race.shared.vars.stage_number.bits());
-        scene.objects.tables.car_mark_textures[8]
+        marks
+            .mark(8)
             .set(race.shared.work.number_tens_textures[tens as usize].bits());
         if decals_shown(
             float(&block.electrics_damage),
@@ -138,12 +131,11 @@ pub fn car_number_textures(
         ) {
             for k in 0..0x11u32 {
                 let byte = car_at(car)?.part_switches.get(k as usize) as u32;
-                let to: u32 = race.frame.frame_work.car_decal_places[k as usize].bits();
-                crate::scene::texture_places_store::cell_at(
-                    &scene.objects.tables.car_mark_textures[0],
-                    to,
-                )
-                .set(byte);
+                let to = race.frame.frame_work.car_decal_places[k as usize].bits() as usize;
+                if to >= crate::scene::car_marks::MARKS {
+                    return Err(BadInput("a decal place past the car's marks"));
+                }
+                marks.mark(to).set(byte);
             }
         }
     }
@@ -242,7 +234,8 @@ fn shown_groups(course: &Course, switches: u32) -> u32 {
 /// `scene::set_light_direction`; the body (`g_objectNumber` 0x50 + 0x14 x car,
 /// `race::car_body_matrix`, `scene::draw_scene_object` between the kept reflections), and
 /// nearer than 0x3C0000 its four parts by +0x298's bits 5 .. 8 (each `car_part_matrix`,
-/// `scene::draw_scene_object`); then `race::clear_car_marks`. Each drawing gets esi
+/// `scene::draw_scene_object`); then `race::clear_car_marks` (here the marks are the
+/// drawing's own: `scene::car_marks`). Each drawing gets esi
 /// `g_litMatrix`, as the matrices leave it (the object's description, read only on the
 /// described way). Refuses (before anything) what
 /// `scene::draw_scene_object` would for the car's objects: in a race (`g_inRace`) car
@@ -256,7 +249,14 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     {
         return Err(BadInput("the drawn car without its block").into());
     }
-    car_number_textures(race, car, scene)?;
+    // The car's marks, its own while it is drawn (the original's, cleared after it by
+    // `race::clear_car_marks`: `scene::car_marks`).
+    let marks = crate::scene::car_marks::CarMarks::new();
+    car_number_textures(race, car, &marks)?;
+    let ctx = &crate::race::view_scratch::DrawCtx {
+        marks: &marks,
+        ..*ctx
+    };
     let [p0, p1, p2, p3] = part_matrices(&race.frame);
     let c = car_at(car)?;
     let kept = &c.part_matrices;
@@ -466,7 +466,6 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     }
     race.physics.camera.drawing_car.set(0);
     race.physics.camera.faded_bits.set(u32::MAX);
-    clear_car_marks(scene);
     Ok(())
 }
 

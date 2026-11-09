@@ -119,10 +119,13 @@ pub struct DrawCtx<'a> {
     /// Off for the own car drawn over the view (`race::draw_view_overlays`; the original
     /// cleared `dword_621900` around it): `scene::clip_polygon_by_depth`'s far pass.
     pub far_clip: bool,
+    /// The marks the faces' kinds pick: the car's while one is drawn (`race::draw_car`), none
+    /// between cars, the menus' outside a race (`scene::car_marks`).
+    pub marks: &'a crate::scene::car_marks::CarMarks,
 }
 
 impl<'a> DrawCtx<'a> {
-    /// A view's drawing, cut at the far depth.
+    /// A view's drawing, cut at the far depth, with no car's marks.
     pub fn new(
         race: &'a crate::race::owner::Race,
         scene: &'a crate::scene::owner::Scene,
@@ -133,6 +136,7 @@ impl<'a> DrawCtx<'a> {
             scene,
             view,
             far_clip: true,
+            marks: &crate::scene::car_marks::NONE,
         }
     }
 }

@@ -14,7 +14,8 @@
 //!
 //! Outside a race `scene::clear_kind_bytes` (0x46219C, inlined): the 0x100 dwords at
 //! `dword_5CD688` = 0, then the seventh, eighth and tenth = 999 (eax = 0, ecx = 0, edi = the
-//! table's end). Then `scene::draw_object`. One caller, `scene::draw_scene_object`. Refuses, in a
+//! table's end): here the caller's context carries the menus' marks instead
+//! (`scene::car_marks::MENUS`). Then `scene::draw_object`. One caller, `scene::draw_scene_object`. Refuses, in a
 //! race, an object's number of 0x100 or more (the original reads past its tables).
 //!
 //! Converted 2026-10-21: the race's tests and the kind bytes through
@@ -78,15 +79,8 @@ pub fn draw_shown_object(
     let show = if in_race {
         rc2k_core::scene::shown::race_shown(&Game(race))
     } else {
-        for (cell, byte) in scene
-            .objects
-            .tables
-            .car_mark_textures
-            .iter()
-            .zip(rc2k_core::scene::shown::kind_bytes())
-        {
-            cell.set(byte);
-        }
+        // The original set the 0x100 kind dwords here (`scene::clear_kind_bytes`): the
+        // caller's context has the menus' marks (`scene::car_marks`).
         true
     };
     if show {

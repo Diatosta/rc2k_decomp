@@ -93,7 +93,7 @@ pub fn draw_object_in_game(
                 list_object_faces(
                     &race.shared,
                     &mut faces,
-                    &mut |list, face| list_object_face(race, face, scene, list),
+                    &mut |list, face| list_object_face(race, face, scene, list, ctx.marks),
                     scene,
                 )?;
             }

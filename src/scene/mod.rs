@@ -17,6 +17,7 @@ pub mod begin_scene;
 pub mod build_texture_catalogue;
 pub mod cached_reflection_coordinates;
 pub mod car_icon_number;
+pub mod car_marks;
 pub mod carousel_pictures;
 pub mod carousel_set_ups;
 pub mod choose_carousel_pictures;

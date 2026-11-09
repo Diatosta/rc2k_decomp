@@ -90,6 +90,16 @@ pub fn draw_scene_object_in_game(
         race,
         &mut |way| match way {
             Way::Shown => {
+                // Outside a race the faces pick the menus' marks (the original's
+                // `draw_shown_object` set them before every object: `scene::car_marks`).
+                let ctx = &if race.course.numbers.in_race.bits() != 0 {
+                    *ctx
+                } else {
+                    crate::race::view_scratch::DrawCtx {
+                        marks: &crate::scene::car_marks::MENUS,
+                        ..*ctx
+                    }
+                };
                 draw_shown_object(race, &mut || draw_object_in_game(ctx, system), scene).map(|_| ())
             }
             Way::Described => {
