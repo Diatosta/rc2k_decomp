@@ -89,7 +89,10 @@ pub fn eax_face_weight(race: &Race, face: u32) -> Result<(), BadInput> {
 /// `race().frame.sound_spots.eax_face_count` 0, then the 3 x 3 grid cells around the middle (from
 /// `hold_to_limit(race().course.stage_prefs.grid_reach)` - 1 on each axis; 0x45C84C each): every
 /// face of each cell's course record (numbers below 0x0FFFFFFF) weighed by `eax_face_weight`.
-pub fn eax_environment(race: &Race) -> Result<(), BadInput> {
+pub fn eax_environment(
+    race: &Race,
+    view: &crate::race::view_grid::ViewGrid,
+) -> Result<(), BadInput> {
     {
         ENVIRONMENT.set(0);
         race.frame.sound_spots.eax_face_count.set_bits(0u32);
@@ -100,7 +103,7 @@ pub fn eax_environment(race: &Race) -> Result<(), BadInput> {
             3,
         ) {
             // 0x45C84C.
-            let record = course_grid_cell(cell)?.get();
+            let record = view.cell(cell)?.get();
             if record >= NO_RECORD {
                 continue;
             }

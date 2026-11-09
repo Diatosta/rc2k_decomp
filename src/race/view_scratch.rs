@@ -94,6 +94,8 @@ pub struct ViewScratch {
     pub matrices: crate::scene::view_matrices::ViewMatrices,
     /// The polygon pipeline's working values (`scene::polygon_work`).
     pub polygon: crate::scene::polygon_work::PolygonWork,
+    /// The view's course grid (`race::view_grid`).
+    pub grid: crate::race::view_grid::ViewGrid,
 }
 
 impl ViewScratch {
@@ -107,13 +109,32 @@ impl ViewScratch {
             cars: crate::race::car_draw_state::CarDrawState::new(),
             matrices: crate::scene::view_matrices::ViewMatrices::new(),
             polygon: crate::scene::polygon_work::PolygonWork::new(),
+            grid: crate::race::view_grid::ViewGrid::new(),
         }
+    }
+
+    /// The slot's number (`slot`).
+    pub fn number(&self) -> usize {
+        SLOTS
+            .iter()
+            .position(|s| std::ptr::eq(s, self))
+            .unwrap_or_else(|| {
+                crate::fatal::raise::end("a view's slot", BadInput("not one of the slots"))
+            })
     }
 }
 
 /// The view slots: the two players' views, then their mirrors, then the front end's 3D (the
 /// menus' objects and carousel).
-static SLOTS: [ViewScratch; 5] = [const { ViewScratch::new() }; 5];
+static SLOTS: [ViewScratch; SLOT_COUNT] = [const { ViewScratch::new() }; SLOT_COUNT];
+
+/// How many slots there are.
+pub const SLOT_COUNT: usize = 5;
+
+/// Slot `n` (below `SLOT_COUNT`).
+pub fn slot(n: usize) -> &'static ViewScratch {
+    &SLOTS[n]
+}
 
 /// Player `car`'s view's working state.
 pub fn main_view(car: usize) -> &'static ViewScratch {

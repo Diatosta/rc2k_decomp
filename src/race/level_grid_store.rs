@@ -19,9 +19,9 @@ pub struct LevelGrid {
     pub face_table_d: Bytes<256>,
     /// +0x400 (0x63E05C): `g_lamps`: 16 lamps of 0x10 bytes (`race::frame_draw`, `scene::add_point_lights`); IDA splits `dword_63E060` / `dword_63E064` out of it.
     pub lamps: [Dword; 64],
-    /// +0x500 (0x63E15C): the course grid's half size (`race::frame_draw`, `dword_63E15C`) (a reading).
+    /// +0x500 (0x63E15C): the course grid's half size; now each view's (`race::view_grid`); unused.
     pub grid_half: Dword,
-    /// +0x504 (0x63E160): the course grid's span (`race::frame_draw`, `dword_63E160`) (a reading).
+    /// +0x504 (0x63E160): the course grid's span; now each view's (`race::view_grid`); unused.
     pub grid_span: Dword,
     /// +0x508 (0x63E164): the polygon smoothing switch (`scene::draw_polygon`, `dword_63E164`) (a reading).
     pub smooth: Dword,
@@ -31,11 +31,11 @@ pub struct LevelGrid {
     pub plain_second: Dword,
     /// +0x514 (0x63E170): the view value kept by `race::draw_mirror_view` (pushed and popped around it; `dword_63E170`).
     pub view_value_kept: Dword,
-    /// +0x518 (0x63E174): grid cell x of the view, a refresh value (`race::level_init`, `race::frame_draw`).
+    /// +0x518 (0x63E174): grid cell x of the view, a refresh value; now each view's (`race::view_grid`); unused.
     pub grid_x: Dword,
-    /// +0x51c (0x63E178): grid cell z of the view, a refresh value (`race::level_init`, `race::frame_draw`).
+    /// +0x51c (0x63E178): grid cell z of the view, a refresh value; now each view's (`race::view_grid`); unused.
     pub grid_z: Dword,
-    /// +0x520 (0x63E17C): `g_courseGrid`: 32 x 32 course records, used in place (`race::frame_draw`, `race::sound_spots`).
+    /// +0x520 (0x63E17C): `g_courseGrid`: 32 x 32 course records; now each view's (`race::view_grid`); unused (`race::find_sound_spots`' reads past a view's grid go on into the fields after this one).
     pub course_grid: [Dword; 1024],
     /// +0x1520 (0x63F17C): `g_farCellLimit`: how many cells out are drawn; now a value in `race::frame_draw::prepare_course_view`; unused.
     pub far_cell_limit: Dword,

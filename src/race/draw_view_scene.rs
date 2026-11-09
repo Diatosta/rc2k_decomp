@@ -38,9 +38,9 @@ pub fn draw_view_scene(
     view_light(race, scene, &view.light)?;
     reset_lamps(&ctx)?;
     race.shared.view.view_lamps.set_bits(0u32);
-    prepare_course_view(race)?;
+    prepare_course_view(race, view)?;
     gather_visible_faces(&ctx)?;
-    eax_environment(race)?;
+    eax_environment(race, &view.grid)?;
     gather_lamps(&ctx)?;
     lamps_wanted(&race.shared)?;
     sort_entries(&lists.sort_entry_count, lists.sort_entries())?;

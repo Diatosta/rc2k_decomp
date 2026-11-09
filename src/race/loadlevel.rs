@@ -236,7 +236,7 @@ pub fn loadlevel_init(
     // refresh init and the refresh flags.
     s.log();
     s.indent(3);
-    level::reset_refresh(&race.course);
+    level::reset_refresh();
     let flags: u32 = race.course.stage_prefs.refresh_flags_a.bits();
     scene.lights.work.marks_mask.set_bits((flags & 2) >> 1);
     for car in &CAR_BLOCKS.cars[..8] {

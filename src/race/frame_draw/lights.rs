@@ -4,7 +4,6 @@ use super::*;
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::net;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::Trap;
@@ -69,15 +68,6 @@ pub fn car_light_modes(race: &Race) -> Result<(), Refused> {
         at.set(word);
     }
     Ok(())
-}
-/// Cell `n` of `g_courseGrid` (32 x 32). One past the grid refused (the original reads on).
-pub(super) fn course_grid_cell(n: u32) -> Result<&'static Dword, BadInput> {
-    race()
-        .course
-        .level_grid
-        .course_grid
-        .get(n as usize)
-        .ok_or(BadInput("a course grid cell past the 32 x 32"))
 }
 
 /// Lamp `n` of `g_lamps` (16 of 0x10 bytes: +0 the point, +4 the strength, +8 the

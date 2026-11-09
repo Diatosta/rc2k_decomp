@@ -8,20 +8,10 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
+use crate::race::view_grid::ViewGrid;
 
 /// The grid and what lies past it that the original may read (as `race::course_grid`).
 const GRID_DWORDS: u32 = 0x1084 / 4;
-
-/// `g_courseGrid`[c]. The grid is 32 x 32 cells (1024 dwords); the check below lets 1057
-/// through, and the original reads on into the variables after the grid (a slip kept).
-fn grid_cell(course: &Course, c: u32) -> Result<u32, BadInput> {
-    crate::session::read_on_in(
-        &*course.level_grid,
-        &course.level_grid.course_grid,
-        c as usize,
-        "the variables after the course grid",
-    )
-}
 
 /// Field `offset` of course record `record`.
 fn record_field(record: u32, offset: u32) -> Result<u32, BadInput> {
@@ -36,12 +26,14 @@ fn cells(course: &Course) -> Vec<u32> {
 }
 
 /// What the original would read through a null or past the grid: refused before anything.
-fn check(course: &Course) -> Result<(), Refused> {
+fn check(course: &Course, grid: &ViewGrid) -> Result<(), Refused> {
     for c in cells(course) {
         if c >= GRID_DWORDS {
             return Err(BadInput("a sound spot cell past the course grid").into());
         }
-        let record: u32 = grid_cell(course, c)?;
+        // The grid is 32 x 32 cells (1024 dwords); the check above lets 1057 through, and
+        // the original reads on into the variables after the grid (a slip kept).
+        let record: u32 = grid.read_on(course, c)?;
         if record >= 0x0FFF_FFFF {
             continue;
         }
@@ -126,12 +118,13 @@ pub fn face_sound_spot(
 /// `face_sound_spot`.
 pub fn cell_sound_spots(
     race: &Race,
+    grid: &ViewGrid,
     cell: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
     {
         // Converted: `rc2k_core::race::view::record_faces`.
-        let record: u32 = grid_cell(&race.course, cell)?;
+        let record: u32 = grid.read_on(&race.course, cell)?;
         if record >= rc2k_core::race::view::NO_RECORD {
             return Ok(());
         }
@@ -154,12 +147,16 @@ pub fn cell_sound_spots(
 /// (`g_gridReach` - 2) x 0x21 (rows 0x20 apart) by `cell_sound_spots`. Its one caller,
 /// `race::draw_race_scene`, reads no register it leaves. Refuses (before anything) a cell past the grid, or no
 /// records, faces or points when a cell has a record.
-pub fn find_sound_spots(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn find_sound_spots(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    grid: &ViewGrid,
+) -> Result<(), Refused> {
     {
-        check(&race.course)?;
+        check(&race.course, grid)?;
         race.frame.sound_spots.sound_spot_count.set_bits(0u32);
         for c in cells(&race.course) {
-            cell_sound_spots(race, c, scene)?;
+            cell_sound_spots(race, grid, c, scene)?;
         }
         Ok(())
     }

@@ -111,7 +111,11 @@ fn draw_view(
     let view = || -> Result<(), Refused> {
         view()?;
         if car == 0 {
-            crate::race::sound_spots::find_sound_spots(race, scene)?;
+            crate::race::sound_spots::find_sound_spots(
+                race,
+                scene,
+                crate::race::view_grid::last_drawn(),
+            )?;
             crate::race::heard_turn::keep(race);
         }
         Ok(())

@@ -216,10 +216,11 @@ pub fn build_texture_infos(course: &Course) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::reset_refresh` (0x45C53B): `dword_63E174` and `dword_63E178` 0x80000000.
-pub fn reset_refresh(course: &Course) {
-    course.level_grid.grid_x.set(0x8000_0000);
-    course.level_grid.grid_z.set(0x8000_0000);
+/// `race::reset_refresh` (0x45C53B): `dword_63E174` and `dword_63E178` 0x80000000: the
+/// course grid's corner, now each view's (`race::view_grid`), so every view makes its grid
+/// again.
+pub fn reset_refresh() {
+    crate::race::view_grid::reset_corners();
 }
 
 /// `race::init_checkpoints` (0x45A98F): `dword_601830` 0; unless `dword_623640` - 2 is

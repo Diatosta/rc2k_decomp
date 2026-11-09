@@ -217,7 +217,7 @@ pub fn add_depth_entry(ctx: &DrawCtx, face: u32) -> Result<(), Refused> {
 /// the corner (& 0x7FF) is within the span on both axes goes in at row z, column x.
 /// Refuses (before anything is written) no records when the grid
 /// is to be made (the original's loop would run on: it tests `jnz` after the first).
-pub fn course_grid(race: &Race) -> Result<(), Refused> {
+pub fn course_grid(race: &Race, view: &crate::race::view_grid::ViewGrid) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame::{hold_to_limit, grid_corner, record_cell,
     // grid_cell}`.
     use rc2k_core::race::frame::{GRID_EMPTY, GRID_SIDE, grid_cell, grid_corner, record_cell};
@@ -228,20 +228,19 @@ pub fn course_grid(race: &Race) -> Result<(), Refused> {
         race.frame.view_and_records.view_vars.view_z.bits(),
         half,
     );
-    let unchanged =
-        gx == race.course.level_grid.grid_x.bits() && gz == race.course.level_grid.grid_z.bits();
+    let unchanged = gx == view.x.bits() && gz == view.z.bits();
     let count: u32 = race.course.course.course_record_count.bits();
     if !unchanged && count == 0 {
         return Err(BadInput("no course records (the loop would not end)?").into());
     }
-    race.course.level_grid.grid_half.set_bits(half);
-    race.course.level_grid.grid_span.set_bits(span);
+    view.half.set_bits(half);
+    view.span.set_bits(span);
     if unchanged {
         return Ok(());
     }
-    race.course.level_grid.grid_x.set_bits(gx);
-    race.course.level_grid.grid_z.set_bits(gz);
-    let grid = &race.course.level_grid.course_grid;
+    view.x.set_bits(gx);
+    view.z.set_bits(gz);
+    let grid = &view.cells;
     for k in 0..GRID_SIDE * GRID_SIDE {
         grid[k as usize].set(GRID_EMPTY);
     }
@@ -252,7 +251,7 @@ pub fn course_grid(race: &Race) -> Result<(), Refused> {
         race.course.course.record_place[0].set_bits(cx);
         race.course.course.record_place[1].set_bits(cz);
         if let Some(cell) = grid_cell(cx, cz, (gx, gz), span) {
-            course_grid_cell(cell)?.set(n);
+            view.cell(cell)?.set(n);
         }
     }
     Ok(())
@@ -335,7 +334,7 @@ pub fn gather_record_faces(ctx: &DrawCtx, record: u32) -> Result<(), Refused> {
 /// done" test sets ebp, so it is lost: `notes/bugs.md`). Refuses as `gather_record_faces`.
 pub fn gather_visible_faces(ctx: &DrawCtx) -> Result<(), Refused> {
     let course = &ctx.race.course;
-    let todo = visible_records(course)?;
+    let todo = visible_records(course, &ctx.view.grid)?;
     for &record in &todo {
         gather_record_faces(ctx, record)?;
     }
@@ -372,13 +371,17 @@ pub fn face_hide_mask(race: &Race) -> Result<(), Refused> {
 /// z, or when the length is not below `limit` (as a float). The original kept the limit in
 /// `LEVEL_GRID.far_cell_limit` and stored the turned x and z (`LEVEL_GRID.turned_x` /
 /// `turned_z`) and the limit as a float (`DRAW.work_float_b`), which nothing read after.
-pub fn mark_far_cells(race: &Race, limit: u32) -> Result<(), BadInput> {
+pub fn mark_far_cells(
+    race: &Race,
+    view: &crate::race::view_grid::ViewGrid,
+    limit: u32,
+) -> Result<(), BadInput> {
     use crate::math::x87_load::{below_or_unordered, float_hypot, scaled_abs_less_below};
-    let grid = &race.course.level_grid.course_grid;
+    let grid = &view.cells;
     for k in 0..0x400 {
         grid[k as usize].set(grid[k as usize].get() & 0x0FFF_FFFF);
     }
-    let half: u32 = race.course.level_grid.grid_half.bits();
+    let half: u32 = view.half.bits();
     // Nothing in the loop writes the matrix: its floats read once.
     let matrix = crate::session::read_bits(&race.frame.matrices.view_turn_matrix);
     let two: u32 = race.course.numbers.two.bits();
@@ -411,11 +414,15 @@ pub fn mark_far_cells(race: &Race, limit: u32) -> Result<(), BadInput> {
 /// with two checkpoints or more (`g_checkpointCount`), else 0x10 (the original kept it in
 /// `LEVEL_GRID.far_cell_limit`, set to 0x10 first, which nothing else read). Refuses
 /// (before anything) what `course_grid` would.
-pub fn prepare_course_view(race: &Race) -> Result<(), Refused> {
+pub fn prepare_course_view(
+    race: &Race,
+    view: &crate::race::view_scratch::ViewScratch,
+) -> Result<(), Refused> {
     let course = &race.course;
     check_course_grid(course)?;
     face_hide_mask(race)?;
-    course_grid(race)?;
+    course_grid(race, &view.grid)?;
+    crate::race::view_grid::note_drawn(view.number());
     if race.shared.switches.other_way.bits() == 0 {
         return Ok(());
     }
@@ -424,7 +431,7 @@ pub fn prepare_course_view(race: &Race) -> Result<(), Refused> {
     } else {
         0x10
     };
-    mark_far_cells(race, limit)?;
+    mark_far_cells(race, &view.grid, limit)?;
     Ok(())
 }
 
@@ -437,9 +444,12 @@ pub(super) fn check_course_grid(course: &Course) -> Result<(), Refused> {
 }
 
 /// The records `gather_visible_faces` gathers, as it would.
-pub fn visible_records(course: &Course) -> Result<Vec<u32>, BadInput> {
+pub fn visible_records(
+    course: &Course,
+    view: &crate::race::view_grid::ViewGrid,
+) -> Result<Vec<u32>, BadInput> {
     // Converted: `rc2k_core::race::view::visible_records`.
-    let grid = &course.level_grid.course_grid;
+    let grid = &view.cells;
     let list = rc2k_core::race::view::visible_records(
         grid.iter().map(crate::session::Dword::get),
         course.course.course_record_count.bits(),
