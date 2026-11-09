@@ -333,8 +333,10 @@ pub fn light_colour_at(
 }
 
 /// `race::view_light` (0x455896): the lit place the view's car's (`race::frame::drawn_car`, the original's `g_car` +0x134 ..);
-/// `light_colour_at`; `race().frame.frame_work.view_light` = `LIGHT_WORK.view_light_base` plus the light
-/// (`add_colours`).
+/// `light_colour_at`; `race().frame.frame_work.view_light` = the view's car's light colour plus the
+/// light (`add_colours`). The original added `LIGHT_WORK.view_light_base`, the light colour of
+/// the last car the previous view drew (a slip fixed: the views' order showed in the
+/// snowflakes' tint; `wiki/Fixed-bugs.md`).
 pub fn view_light(
     race: &Race,
     scene: &crate::scene::owner::Scene,
@@ -348,9 +350,9 @@ pub fn view_light(
     );
     light_colour_at(race, scene, object_light)?;
     let light: u32 = object_light.light_colour.bits();
-    race.frame
-        .frame_work
-        .view_light
-        .set(add_colours(scene.lights.work.view_light_base.bits(), light));
+    race.frame.frame_work.view_light.set(add_colours(
+        crate::race::frame::drawn_car().light_colour.bits(),
+        light,
+    ));
     Ok(())
 }

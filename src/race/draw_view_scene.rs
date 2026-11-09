@@ -21,6 +21,12 @@ pub fn draw_view_scene(
     use crate::race::frame_draw::*;
     let ctx = DrawCtx::new(race, scene, view);
     let _held = view.matrices.hold(&race.frame.matrices);
+    // The shine from the stage's, as the frame's first view has it: the original left each
+    // later view the previous one's last car's (a slip fixed: `wiki/Fixed-bugs.md`).
+    race.course
+        .course
+        .shine
+        .set(race.course.stage_prefs.shine_from.get());
     let lists = &view.lists;
     if crate::race::frame::drawn_car().view_covered.get() != 0 {
         return draw_view_tint(&view.polygon, race, &view.face, scene);

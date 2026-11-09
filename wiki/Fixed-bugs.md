@@ -515,3 +515,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read in `scene::list_object_face` (0x4504CB), `scene::sort_listed_faces` (0x45098C) and `scene::draw_object_faces` (0x450A4B); found 2026-11-09 by the conversion's survey of the drawing's working state.
 
 **Fix:** each object's drawing has its own list, with room for the 4,096 faces the check allows. Nothing past it is touched.
+
+## Each view lit by what the view before it left
+
+**What it is:** the game draws its views one after another (the main view, the rear-view mirror, the second player's). Three values the drawing of a view reads were left by the view drawn before it: the light added to the view's own car was that of the last car the previous view drew; the sky's extra light was that of the previous view's last object; and the cars' shine started from the previous view's last car's, not from the stage's.
+
+**In game:** barely visible: only the snowflakes' tint, by at most one step in 255, in a few frames with the mirror on. Not reported.
+
+**Seen or read:** read in `race::view_light` (0x455896), `race::draw_sky` (0x455540) and `race::draw_race_scene`, which sets the shine once a frame; found 2026-11-09 by the conversion's survey of what each view leaves to the next.
+
+**Fix:** each view takes its own car's light colour, the sky's extra light is 0, and the shine starts from the stage's at each view. A view now depends only on its own inputs.

@@ -479,6 +479,9 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
     let system = crate::system::owner::system();
     fetch_view_value(race)?;
     race.course.course.polygon_flags.set(0u32);
+    // Not left from the previous view's last object (the original's slip, fixed:
+    // `wiki/Fixed-bugs.md`).
+    scene.drawing.object_work.other_light.set(0);
     let mode: u32 = scene.lights.state.draw_mode.get();
     if mode == 1 || mode == 2 {
         return Ok(());
