@@ -43,7 +43,7 @@ pub fn draw_menu_object(
 pub fn draw_menu_object_in_game(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     draw_menu_object(
         &race.course,
         &mut |step| match step {
@@ -51,7 +51,6 @@ pub fn draw_menu_object_in_game(
                 make_object_matrix(
                     &ctx.view.matrices,
                     &race.frame.matrices.view_turn_matrix,
-                    scene,
                     &ctx.view.light,
                     &ctx.view.object,
                 );

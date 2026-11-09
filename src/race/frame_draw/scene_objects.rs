@@ -46,7 +46,7 @@ pub fn draw_slot_object(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     slot: &crate::race::work_store::RaceSlot,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     use crate::scene::matrix;
     check_slot_object(&race.shared, slot)?;
     let object = slot.part.get();
@@ -60,7 +60,7 @@ pub fn draw_slot_object(
             return Ok(());
         }
     }
-    scene.drawing.object_work.other_light.set_bits(0);
+    ctx.view.light.other_light.set_bits(0);
     ctx.view.light.light_lowest.set_bits(0);
     ctx.view.light.light_highest.set_bits(0xFF);
     ctx.view
@@ -276,10 +276,7 @@ pub const FLARES_MAX: u32 = 0x100;
 /// `LEVEL_GRID.flare_place_x`) and, turned by `g_viewMatrix` (x and y back as floats, z rounded into
 /// the key), a depth entry with the flare's number + 0x1000000; none past `FLARES_MAX`.
 pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
-    let DrawCtx {
-        race, scene, view, ..
-    } = *ctx;
-    let drawing = &scene.drawing;
+    let DrawCtx { race, view, .. } = *ctx;
     let n: u32 = race.frame.frame_work.flare_count.bits();
     if n == FLARES_MAX {
         return Ok(());
@@ -300,7 +297,7 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
         (&race.course.flare_tables.size, ctx.view.object.size.bits()),
         (
             &race.course.flare_tables.other_light,
-            drawing.object_work.other_light.bits(),
+            ctx.view.light.other_light.bits(),
         ),
     ] {
         table[n as usize].set(v);
@@ -405,7 +402,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: u32) -> Result<(), Refused> {
                 .wrapping_sub(race.shared.physics_tables.ground_drop.bits()),
             race.frame.frame_work.part_place[2].bits(),
         ];
-        scene.drawing.object_work.other_light.set(0x00F0_F0F0u32);
+        ctx.view.light.other_light.set_bits(0x00F0_F0F0u32);
         place_flare(ctx, car, point)?;
         // Not the original's: the pair's other light, as `light_pair` (the debug UI).
         if point[0] != 0 {
@@ -439,7 +436,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: u32) -> Result<(), Refused> {
     ctx.view.light.view_kind.set(1u32);
     ctx.view.light.light_kind.set(3u32);
     ctx.view.object.size.set(2u32);
-    scene.drawing.object_work.other_light.set(0x0060_6060u32);
+    ctx.view.light.other_light.set_bits(0x0060_6060u32);
     let pair = |at: u32, left: u32, right: u32| light_pair(ctx, car, record, at, left, right);
     pair(0xA4, 0xAC0, 0xAC1)?;
     if scene.lights.work.marks_mask.get() != 0
@@ -452,7 +449,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: u32) -> Result<(), Refused> {
     // 0x45721A: no left light for kind 0xD.
     let left = if kind == 0xD { u32::MAX } else { 0xAC6 };
     pair(0xF8, left, 0xAC7)?;
-    scene.drawing.object_work.other_light.set(0x00C0_0000u32);
+    ctx.view.light.other_light.set_bits(0x00C0_0000u32);
     // 0x457229: none for kinds 0xD and 0xE.
     let left = if kind == 0xD || kind == 0xE {
         u32::MAX
@@ -460,7 +457,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: u32) -> Result<(), Refused> {
         0xAC8
     };
     pair(0x104, left, 0xAC9)?;
-    scene.drawing.object_work.other_light.set(0x0080_0000u32);
+    ctx.view.light.other_light.set_bits(0x0080_0000u32);
     pair(0xD4, 0xAC4, 0xAC5)?;
     pair(0xE0, 0xAD0, u32::MAX)?;
     pair(0xEC, 0xAC2, 0xAC3)?;
@@ -565,7 +562,7 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     );
     set_light_direction(
         &ctx.view.matrices,
-        &scene.drawing.scene.light_direction,
+        &ctx.view.light.light_direction,
         &race.frame.matrices.view_turn_matrix,
         &ctx.view.light,
     );
@@ -704,7 +701,7 @@ pub fn draw_flare(
     flare: u32,
     entry: Description<'_>,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     let course = &race.course;
     for (table, to) in [
         (&course.level_grid.flare_place_x, &ctx.view.object.place[0]),
@@ -713,7 +710,7 @@ pub fn draw_flare(
         (&course.flare_tables.size, &ctx.view.object.size),
         (
             &course.flare_tables.other_light,
-            &scene.drawing.object_work.other_light,
+            &ctx.view.light.other_light,
         ),
         (
             &course.flare_tables.object_number,
@@ -741,14 +738,14 @@ pub fn draw_lamp_flare(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     lamp: u32,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     let edi = self::lamp(&race.course, lamp)?;
     let [x, y, z] = crate::race::scene_points::point_number(edi[0].get())?;
     ctx.view.object.place[0].set(x);
     ctx.view.object.place[1].set(y);
     ctx.view.object.place[2].set(z);
     ctx.view.object.size.set(edi[1].get() << 3);
-    scene.drawing.object_work.other_light.set(edi[2].get());
+    ctx.view.light.other_light.set_bits(edi[2].get());
     ctx.view
         .cars
         .object_number

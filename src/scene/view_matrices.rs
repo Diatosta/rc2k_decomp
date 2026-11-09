@@ -8,9 +8,8 @@
 //! cosines), shared by every view in turn. Each is written before it
 //! is read within a view.
 //!
-//! Kept in the shared pieces: the light's direction (`scene::draw_store`'s
-//! `light_direction`), which the slots' objects read before the view has set it (the last
-//! object placed left it, in this view or an earlier one); and, being the view's parameters read outside the drawing (the
+//! Kept in the shared pieces (the light's direction is the view's `ObjectLight`'s since F6),
+//! being the view's parameters read outside the drawing (the
 //! effects, the listener, the heard turn) or kept from view to view: the view matrix, the
 //! view turn and its copy, the view's place, the view back matrix, the identity, the frame
 //! draw's two work matrices, and the listener's matrix.

@@ -34,7 +34,6 @@ use crate::scene::vertex_light::plus;
 pub fn set_object_light(
     race: &crate::race::owner::Race,
     gather: &mut dyn FnMut() -> Result<(), Refused>,
-    scene: &crate::scene::owner::Scene,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
     system: &crate::system::owner::System,
@@ -75,7 +74,7 @@ pub fn set_object_light(
     let mmx = system.session.machine.has_mmx.get() != 0;
     light.light_added.set_bits(plus(
         light.light_colour.bits(),
-        scene.drawing.object_work.other_light.bits(),
+        light.other_light.bits(),
         mmx,
     ));
     Ok(())
@@ -97,7 +96,6 @@ pub fn set_object_light_in_game(
             add_point_lights(ctx, system)?;
             Ok(())
         },
-        scene,
         &ctx.view.light,
         &ctx.view.object,
         system,

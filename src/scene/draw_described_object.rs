@@ -142,7 +142,7 @@ fn draw_description(
         scene.drawing.object_work.described_cleared[0].set(byte(0x12) << 8);
         scene.drawing.object_work.described_cleared[1].set(byte(0x13) << 8);
     }
-    scene.drawing.object_work.other_light.set(get(0x2C));
+    ctx.view.light.other_light.set_bits(get(0x2C));
     scene
         .drawing
         .object_work

@@ -92,9 +92,7 @@ pub fn draw_object_face(
             entry.u2.set(fw(vertex + 4));
             entry.v2.set(fw(vertex + 8));
             entry.amount.set(0xFF);
-            entry
-                .light
-                .set(scene.drawing.object_work.other_light.bits());
+            entry.light.set(light.other_light.bits());
         }
         ctx.view.polygon.polygon_textures[1].set_bits(ctx.view.polygon.polygon_textures[0].bits());
         ctx.view.polygon.polygon_sides[0].set_bits(0u32);

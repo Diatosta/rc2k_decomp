@@ -12,12 +12,11 @@
 //! at the start of every race view, and the lit place, the colour and the added light are set
 //! by whoever gathers the lamps before they are used.
 //!
-//! Left in the shared pieces, because a view reads them before writing them: the light's
-//! strength (`light_strength`, read by the car lights' flares), the other light
-//! (`other_light`, read by the sky's faces in the material way 2) and the object being drawn
-//! (`drawing_object`, read by the bad polygon's dump). The car's base light
-//! (`view_light_base`) is here since F6 (`car_light`): measured with the shared one kept
-//! beside, no reading saw another value (three held races, nine menu flows).
+//! Here too since F6: the car's base light (`view_light_base`, as `car_light`), the other
+//! light (`OBJECT_WORK.other_light`) and the light's direction (`g_lightDirection`): each
+//! measured with the shared one kept beside, no reading saw another value (three held races,
+//! nine menu flows). The sky sets the other light 0 and, by placing its object, the
+//! direction, at every view's start.
 
 use crate::session::{Dword, Float};
 
@@ -39,6 +38,13 @@ pub struct ObjectLight {
     /// as it is drawn (`race::draw_car_entry`, `race::draw_own_car`); read by the light kind 3
     /// (`scene::vertex_light`).
     pub car_light: Dword,
+    /// The other light of the object being drawn (`OBJECT_WORK.other_light`, 0x635054):
+    /// 0 from the sky on, a described object's or lamp's or flare's own; added to the light
+    /// (`scene::set_object_light`) or the faces' light in the material way 2.
+    pub other_light: Dword,
+    /// The light's direction (`g_lightDirection`, 0x6240A8 ..), set with the
+    /// object's turned matrix (`scene::matrix::set_light_direction`).
+    pub light_direction: [Float; 3],
     /// The kind of light being set (`g_lightKind`).
     pub light_kind: Dword,
     /// Set with the light kind, 0 for a car (`dword_62DAF8`).
@@ -73,6 +79,8 @@ impl ObjectLight {
             light_dot_factor: Float::from_bits(0),
             light_colour: Dword::new(0),
             car_light: Dword::new(0),
+            other_light: Dword::new(0),
+            light_direction: [const { Float::from_bits(0) }; 3],
             light_kind: Dword::new(0),
             light_kind_extra: Dword::new(0),
             lit_place: [const { Dword::new(0) }; 3],

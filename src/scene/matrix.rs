@@ -138,11 +138,10 @@ pub fn set_light_direction(
 pub fn make_object_matrix(
     v: &ViewMatrices,
     view_turn: &[Float; 16],
-    scene: &crate::scene::owner::Scene,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
 ) {
-    set_light_direction(v, &scene.drawing.scene.light_direction, view_turn, light);
+    set_light_direction(v, &light.light_direction, view_turn, light);
     set_turn_y(
         &v.turn_y_matrix,
         &v.turn_y_work,

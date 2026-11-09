@@ -71,7 +71,6 @@ fn set_normal(
 
 /// The start of 0x4511F1 and of 0x451296: the light on the normal as a number.
 fn light_number(
-    scene: &crate::scene::owner::Scene,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
 ) -> i32 {
@@ -81,7 +80,7 @@ fn light_number(
     }
     crate::session::write_bits(
         &light.light_dot_light,
-        crate::session::read_bits::<_, 3>(&scene.drawing.scene.light_direction),
+        crate::session::read_bits::<_, 3>(&light.light_direction),
     );
     light.light_dot_factor.set_bits(x87::from_int(strength));
     light_dot(light)
@@ -89,12 +88,11 @@ fn light_number(
 
 /// Where 0x4511F1 would look in the table, checked.
 fn table_place(
-    scene: &crate::scene::owner::Scene,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<usize, BadInput> {
     let place = held(
-        light_number(scene, light, object).wrapping_add(light.light_level.bits() as i32),
+        light_number(light, object).wrapping_add(light.light_level.bits() as i32),
         light.light_lowest.bits() as i32,
         light.light_highest.bits() as i32,
     );
@@ -113,7 +111,7 @@ fn lit(
 ) -> Result<u32, BadInput> {
     let scene = scene();
     // The checks first, on a copy of what they would write.
-    let place = set_normal(number, light).and_then(|()| table_place(scene, light, object));
+    let place = set_normal(number, light).and_then(|()| table_place(light, object));
     let place = place?;
     let colour = plus(
         scene.light_tables.light_table[place].get(),
@@ -130,8 +128,7 @@ fn blend(
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
 ) {
-    let scene = crate::scene::owner::scene();
-    let amount = held(light_number(scene, light, object), -255, 255);
+    let amount = held(light_number(light, object), -255, 255);
     let (amount, towards) = if amount < 0 {
         (amount.wrapping_neg(), &course.stage_prefs.dark_colour)
     } else {

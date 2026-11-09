@@ -63,7 +63,8 @@ pub struct SceneDraw {
     pub view_centre: [Float; 2],
     /// +0x124 (0x6240A4): `g_polygonNextRecord`; now each view's (`scene::polygon_work`); unused.
     pub polygon_next_record: Dword,
-    /// +0x128 (0x6240A8): `g_lightDirection` (`scene::vertex_light`).
+    /// +0x128 (0x6240A8): `g_lightDirection`; now each view's (`scene::object_light`), this
+    /// one not used.
     pub light_direction: [Float; 3],
     /// +0x134 (0x6240B4): not named.
     pub unknown_134: [Dword; 2],

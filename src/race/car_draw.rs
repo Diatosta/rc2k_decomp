@@ -219,7 +219,7 @@ fn shown_groups(masks: &[crate::session::Dword; 18], switches: u32) -> u32 {
 /// `scene::draw_scene_object` would for the car's objects: in a race (`g_inRace`) car
 /// `dword_60627C` (below eight) without its block.
 pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     let n: u32 = race.frame.view_and_records.view_vars.drawn_car.get();
     if race.course.numbers.in_race.bits() != 0
         && n < 8
@@ -382,14 +382,14 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     ctx.view.object.size.set(0x10);
     crate::scene::matrix::set_light_direction(
         &ctx.view.matrices,
-        &scene.drawing.scene.light_direction,
+        &ctx.view.light.light_direction,
         &race.frame.matrices.view_turn_matrix,
         &ctx.view.light,
     );
     place();
     ctx.view.object.car_switches.set(switches);
     race.physics.camera.drawing_car.set(1);
-    scene.drawing.object_work.other_light.set(0);
+    ctx.view.light.other_light.set_bits(0);
     ctx.view.light.light_kind.set(3);
     ctx.view.light.light_kind_extra.set(0);
     ctx.view.cars.object_number.set(

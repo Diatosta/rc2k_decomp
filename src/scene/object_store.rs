@@ -48,7 +48,8 @@ pub struct ObjectWork {
     pub angles: [Dword; 3],
     /// +0xa8 (0x635048): (`race::car_parts`).
     pub part_values: [Dword; 3],
-    /// +0xb4 (0x635054): (`scene::draw_object_face`).
+    /// +0xb4 (0x635054): the other light; now each view's (`scene::object_light`), this one
+    /// not used.
     pub other_light: Dword,
     /// +0xb8 (0x635058): (`scene::draw_shown_object`).
     pub only_object: Dword,

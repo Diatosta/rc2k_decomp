@@ -480,7 +480,7 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
     fetch_view_value(race)?;
     // Not left from the previous view's last object (the original's slip, fixed:
     // `wiki/Fixed-bugs.md`).
-    scene.drawing.object_work.other_light.set(0);
+    ctx.view.light.other_light.set_bits(0);
     let mode: u32 = scene.lights.state.draw_mode.get();
     if mode == 1 || mode == 2 {
         return Ok(());
