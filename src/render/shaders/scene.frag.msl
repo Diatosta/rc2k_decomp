@@ -1,0 +1,153 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct _15
+{
+    float4 _m0;
+    float _m1;
+    int _m2;
+    int _m3;
+    int _m4;
+};
+
+struct main0_out
+{
+    float4 m_192 [[color(0)]];
+};
+
+struct main0_in
+{
+    float4 m_72 [[user(locn0), center_no_perspective]];
+    float m_165 [[user(locn1), center_no_perspective]];
+    float2 m_90 [[user(locn2)]];
+};
+
+fragment main0_out main0(main0_in in [[stage_in]], constant _15& _17 [[buffer(0)]], texture2d<float> _86 [[texture(0)]], sampler _86Smplr [[sampler(0)]])
+{
+    main0_out out = {};
+    float4 _255;
+    if ((_17._m4 & 1) != 0)
+    {
+        float4 _92 = _86.sample(_86Smplr, in.m_90);
+        bool _96 = _17._m3 == 1;
+        bool _104;
+        if (!_96)
+        {
+            _104 = _17._m3 == 7;
+        }
+        else
+        {
+            _104 = _96;
+        }
+        float4 _256;
+        if (_104)
+        {
+            _256 = _92;
+        }
+        else
+        {
+            float4 _257;
+            if (_17._m3 == 4)
+            {
+                _257 = _92 * in.m_72;
+            }
+            else
+            {
+                float _254;
+                if ((_17._m4 & 2) != 0)
+                {
+                    _254 = _92.w;
+                }
+                else
+                {
+                    _254 = in.m_72.w;
+                }
+                _257 = float4(_92.xyz * in.m_72.xyz, _254);
+            }
+            _256 = _257;
+        }
+        _255 = _256;
+    }
+    else
+    {
+        _255 = in.m_72;
+    }
+    bool _146 = _17._m2 != 0;
+    bool _154;
+    if (_146)
+    {
+        bool _260;
+        switch (_17._m2)
+        {
+            case 1:
+            {
+                _260 = false;
+                break;
+            }
+            case 2:
+            {
+                _260 = _255.w < _17._m1;
+                break;
+            }
+            case 3:
+            {
+                _260 = _255.w == _17._m1;
+                break;
+            }
+            case 4:
+            {
+                _260 = _255.w <= _17._m1;
+                break;
+            }
+            case 5:
+            {
+                _260 = _255.w > _17._m1;
+                break;
+            }
+            case 6:
+            {
+                _260 = _255.w != _17._m1;
+                break;
+            }
+            case 7:
+            {
+                _260 = _255.w >= _17._m1;
+                break;
+            }
+            default:
+            {
+                _260 = true;
+                break;
+            }
+        }
+        _154 = !_260;
+    }
+    else
+    {
+        _154 = _146;
+    }
+    if (_154)
+    {
+        discard_fragment();
+    }
+    float4 _264;
+    if ((_17._m4 & 4) != 0)
+    {
+        float _169 = fast::clamp(in.m_165, 0.0, 1.0);
+        float3 _181 = (_255.xyz * _169) + (_17._m0.xyz * (1.0 - _169));
+        float4 _249 = _255;
+        _249.x = _181.x;
+        _249.y = _181.y;
+        _249.z = _181.z;
+        _264 = _249;
+    }
+    else
+    {
+        _264 = _255;
+    }
+    out.m_192 = _264;
+    return out;
+}
+

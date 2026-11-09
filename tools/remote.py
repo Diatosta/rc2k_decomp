@@ -15,15 +15,25 @@
     remote.py stop                       quits, then ends it
 
 --handheld (or RC2K_REMOTE_HOST=root@address) drives the handheld over SSH. There var and
-savedata are put back on stop, as the folder is the real one.
+savedata are put back on stop, as the folder is the real one. On a Mac it runs there as on the
+PC (the game's folder ~/rally, or RC2K_REMOTE_INSTALLED).
 """
 import math, os, shutil, struct, subprocess, sys, time, zlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOME = os.path.expanduser(os.environ.get('RC2K_REMOTE_HOME', '~/.cache/rc2k_remote'))  # a second copy: another folder
 GAME = HOME + '/game'
-INSTALLED = os.path.expanduser('~/.local/share/rally-championship')
+# Run on a Mac itself (over SSH from elsewhere: `ssh mac rc2k_src/tools/remote.py ..`): the
+# game's folder there is RC2K_REMOTE_INSTALLED (default ~/rally, as deploy_standalone.sh mac).
+MAC = sys.platform == 'darwin'
+INSTALLED = os.path.expanduser(os.environ.get('RC2K_REMOTE_INSTALLED',
+                                              '~/rally' if MAC else '~/.local/share/rally-championship'))
 SHOTS = HOME + '/shots'
+# The Mac build in Darling on Linux (RC2K_REMOTE_DARLING=its prefix; a test build linked with
+# RC2K_MAC_WEAK_FRAMEWORKS): started by `darling shell`, it sees this machine's files under
+# /Volumes/SystemRoot. Its game folder needs its own files (a symlink's target would be
+# Darling's).
+DARLING = os.environ.get('RC2K_REMOTE_DARLING')
 DEVICE_GAME = '/mnt/mmc/Roms/APPS/rally'
 DEVICE_REMOTE = '/tmp/rc2k_remote'
 KEY = os.path.expanduser('~/.ssh/rg34xxsp')
@@ -63,13 +73,45 @@ def replies():
         return ''
 
 
+def process(pid):
+    """A local process's state letter and program name; None when it is gone (/proc on Linux,
+    ps on macOS)."""
+    if MAC:
+        out = subprocess.run(['ps', '-o', 'stat=,comm=', '-p', str(pid)], capture_output=True, text=True).stdout
+        if not out.strip():
+            return None
+        state, comm = out.split(None, 1)
+        return state[0], os.path.basename(comm.strip())
+    try:
+        stat = open(f'/proc/{pid}/stat').read()
+        return stat.split(') ')[1][0], open(f'/proc/{pid}/comm').read().strip()
+    except OSError:
+        return None
+
+
 def running():
     if HOST:
         return ssh('pgrep -x rc2k_remote').returncode == 0
+    if DARLING:
+        return darling_game() is not None
     try:
-        return open(f"/proc/{open(HOME + '/pid').read()}/stat").read().split(') ')[1][0] != 'Z'
-    except OSError:
+        found = process(int(open(HOME + '/pid').read()))
+    except (OSError, ValueError):
         return False
+    return found is not None and found[0] != 'Z'
+
+
+def darling_game():
+    """The program under `darling shell` (named `main` there, its starter gone at once): found
+    by its command line and folder; None when it is gone."""
+    for entry in os.listdir('/proc'):
+        try:
+            line = open(f'/proc/{entry}/cmdline', 'rb').read()
+            if line.startswith(b'./rc2k\0') and os.readlink(f'/proc/{entry}/cwd') == GAME:
+                return int(entry)
+        except (OSError, ValueError):
+            pass
+    return None
 
 
 def ask(command, timeout=20):
@@ -136,11 +178,14 @@ def build():
         data = open(ROOT + '/target/a64-linux/aarch64-unknown-linux-gnu/release/rc2k', 'rb').read()
         ssh(f'cat > {DEVICE_GAME}/rc2k_remote; chmod +x {DEVICE_GAME}/rc2k_remote', data)
     else:
-        env = dict(os.environ, CARGO_TARGET_DIR='target/linux-remote')
-        subprocess.run(['cargo', 'build', '--release', '--target', 'x86_64-unknown-linux-gnu', '--features', 'remote',
+        target, folder = ('x86_64-unknown-linux-gnu', 'target/linux-remote')
+        if MAC:
+            target, folder = (os.uname().machine.replace('arm64', 'aarch64') + '-apple-darwin', 'target/mac-remote')
+        env = dict(os.environ, CARGO_TARGET_DIR=folder)
+        subprocess.run(['cargo', 'build', '--release', '--target', target, '--features', 'remote',
                         '--bin', 'rc2k'], cwd=ROOT, env=env, check=True)
         os.makedirs(GAME, exist_ok=True)
-        shutil.copy(ROOT + '/target/linux-remote/x86_64-unknown-linux-gnu/release/rc2k', GAME + '/rc2k.new')
+        shutil.copy(f'{ROOT}/{folder}/{target}/release/rc2k', GAME + '/rc2k.new')
         os.replace(GAME + '/rc2k.new', GAME + '/rc2k')
 
 
@@ -173,8 +218,16 @@ def start(gpu, fresh, profile=False):
         env = dict(os.environ, RC2K_REMOTE=FOLDER)
         if gpu:
             env['RC2K_RENDERER'] = 'gpu'
+        command = ['./rc2k']
+        if DARLING:
+            env['DPREFIX'] = DARLING
+            # SDL's controller back ends lean on frameworks Darling only stubs.
+            passed = {k: v for k, v in env.items() if k.startswith(('RC2K_', 'SDL_'))}
+            passed.update(RC2K_REMOTE='/Volumes/SystemRoot' + FOLDER, SDL_JOYSTICK_MFI='0',
+                          SDL_JOYSTICK_HIDAPI='0', SDL_JOYSTICK_IOKIT='0', SDL_HAPTIC='0')
+            command = ['darling', 'shell', 'env'] + [f'{k}={v}' for k, v in passed.items()] + command
         with open(HOME + '/rc2k.out', 'w') as out:
-            process = subprocess.Popen(['./rc2k'], cwd=GAME, env=env, stdout=out, stderr=out, start_new_session=True)
+            process = subprocess.Popen(command, cwd=GAME, env=env, stdout=out, stderr=out, start_new_session=True)
         open(HOME + '/pid', 'w').write(str(process.pid))
     print('started')
 
@@ -193,10 +246,13 @@ def stop():
         time.sleep(3)
         try:
             pid = int(open(HOME + '/pid').read())
-            if open(f'/proc/{pid}/comm').read().strip() == 'rc2k':
+            found = process(pid)
+            if found and found[1] == 'rc2k':
                 os.kill(pid, 15)
         except (OSError, ValueError):
             pass
+        if DARLING and (pid := darling_game()):
+            os.kill(pid, 15)
     print('stopped')
 
 

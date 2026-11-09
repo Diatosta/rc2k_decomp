@@ -1,4 +1,4 @@
-//! The GPU backend, on SDL's GPU API (Vulkan on the PC). The calls into SDL are
+//! The GPU backend, on SDL's GPU API (Vulkan on the PC, Metal on macOS). The calls into SDL are
 //! `ffi::sdl_gpu`'s: each handle here was made by the same device and lives as long as `Gpu`,
 //! or until the line that replaces it.
 //!
@@ -10,7 +10,7 @@
 use super::batches::{Batch, Batches, PipelineKey};
 use super::{Command, Target, TextureNote};
 use crate::ffi::sdl_gpu::{
-    self, Buffer, Device, Pipeline, PipelineSpec, Sampler, Shader, Texture, Transfer,
+    self, Buffer, Device, Pipeline, PipelineSpec, Sampler, Shader, ShaderCode, Texture, Transfer,
 };
 use crate::framework::log;
 #[cfg(test)]
@@ -23,10 +23,21 @@ use std::sync::Mutex;
 /// not written with (`overlay.frag`).
 pub const UNWRITTEN: u32 = 0xA5FF_00FF;
 
-const SCENE_VERT: &[u8] = include_bytes!("shaders/scene.vert.spv");
-const SCENE_FRAG: &[u8] = include_bytes!("shaders/scene.frag.spv");
-const OVERLAY_VERT: &[u8] = include_bytes!("shaders/overlay.vert.spv");
-const OVERLAY_FRAG: &[u8] = include_bytes!("shaders/overlay.frag.spv");
+/// A shader's code from `shaders/`: its SPIR-V, and on macOS its MSL.
+macro_rules! shader_code {
+    ($name:literal) => {
+        ShaderCode {
+            spirv: include_bytes!(concat!("shaders/", $name, ".spv")),
+            #[cfg(target_os = "macos")]
+            msl: include_bytes!(concat!("shaders/", $name, ".msl")),
+        }
+    };
+}
+
+const SCENE_VERT: ShaderCode = shader_code!("scene.vert");
+const SCENE_FRAG: ShaderCode = shader_code!("scene.frag");
+const OVERLAY_VERT: ShaderCode = shader_code!("overlay.vert");
+const OVERLAY_FRAG: ShaderCode = shader_code!("overlay.frag");
 
 const COLOUR_FORMAT: SDL_GPUTextureFormat = SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
 const DEPTH_FORMAT: SDL_GPUTextureFormat = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
@@ -98,7 +109,7 @@ fn sdl_error() -> String {
 
 /// A device that takes our shaders; `None` (logged) when the system has none.
 pub fn make_device() -> Option<Device> {
-    let device = Device::create_spirv();
+    let device = Device::create();
     if device.is_none() {
         log(&format!("render: no GPU device: {}", sdl_error()));
     }
@@ -161,7 +172,7 @@ impl Gpu {
 
     fn shader(
         &self,
-        code: &[u8],
+        code: ShaderCode,
         stage: SDL_GPUShaderStage,
         samplers: u32,
         uniforms: u32,

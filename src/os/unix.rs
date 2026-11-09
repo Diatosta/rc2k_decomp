@@ -1,13 +1,14 @@
-//! The system's own facts on Unix (phase 11, the native Linux build): the questions
-//! `windows.rs` answers on Windows, answered from `/proc`, the environment and libc.
+//! The system's own facts on Unix (phase 11, the native Linux build; macOS since
+//! 2026-11-08): the questions `windows.rs` answers on Windows, answered from the
+//! environment and libc (`ffi::unix`, which has each system's own calls where they differ).
 //! Where Unix has no such thing (a drive's serial, a keyboard's subtype, an error mode, a
 //! priority class) the answer is the one a plain Windows machine gives, or none.
 
 /// A record shaped as `OSVERSIONINFOA` (0x94 bytes): the kernel's release as the version
-/// (major, minor, build), platform 2 (NT's), and "Linux <release>" as its text. Only the
-/// log's head reads it.
+/// (major, minor, build), platform 2 (NT's), and "<system> <release>" as its text ("Linux
+/// 6.17.1", "Darwin 25.0.0"). Only the log's head reads it.
 pub fn version_record() -> [u8; 0x94] {
-    let release = std::fs::read_to_string("/proc/sys/kernel/osrelease").unwrap_or_default();
+    let (system, release) = crate::ffi::unix::system_release().unwrap_or_default();
     let release = release.trim();
     let mut numbers = release
         .split(|c: char| !c.is_ascii_digit())
@@ -23,7 +24,7 @@ pub fn version_record() -> [u8; 0x94] {
     for (n, d) in dwords.iter().enumerate() {
         record[4 * n..4 * n + 4].copy_from_slice(&d.to_le_bytes());
     }
-    let text = format!("Linux {release}");
+    let text = format!("{system} {release}");
     let len = text.len().min(127);
     record[0x14..0x14 + len].copy_from_slice(&text.as_bytes()[..len]);
     record
@@ -48,10 +49,7 @@ fn cut(name: &str, room: u32) -> Option<Vec<u8>> {
 
 /// The computer's name (the host name), in at most `room` bytes with its NUL.
 pub fn computer_name(room: u32) -> Option<Vec<u8>> {
-    cut(
-        &std::fs::read_to_string("/proc/sys/kernel/hostname").ok()?,
-        room,
-    )
+    cut(&crate::ffi::unix::host_name()?, room)
 }
 
 /// The user's name (`$USER`), in at most `room` bytes with its NUL.
@@ -144,6 +142,27 @@ pub fn set_error_mode(_mode: u32) -> u32 {
 pub fn set_priority_class(_class: u32) {}
 
 pub use crate::ffi::unix::{discard_pages, image, map_pages, thread_stack};
+
+/// On macOS a program started from its `.app` bundle (from Finder, or `open`) runs in `/`:
+/// a program inside a bundle (`<folder>/<name>.app/Contents/MacOS/rc2k`) makes the folder
+/// that holds the bundle current, as `linux/rc2k` is started in the game's folder. The folder
+/// made current; None for a program outside a bundle (started where it is to run); the error
+/// when the folder cannot be made current.
+#[cfg(target_os = "macos")]
+pub fn enter_bundle_folder() -> std::io::Result<Option<std::path::PathBuf>> {
+    use std::path::Path;
+    let exe = std::env::current_exe()?;
+    let programs = exe.parent().filter(|p| p.ends_with("Contents/MacOS"));
+    let bundle = programs
+        .and_then(Path::parent)
+        .and_then(Path::parent)
+        .filter(|b| b.extension().is_some_and(|e| e.eq_ignore_ascii_case("app")));
+    let Some(folder) = bundle.and_then(Path::parent) else {
+        return Ok(None);
+    };
+    std::env::set_current_dir(folder)?;
+    Ok(Some(folder.to_path_buf()))
+}
 
 /// The process ended at once with `code` (no library's leave-taking).
 pub fn terminate(code: u32) -> ! {

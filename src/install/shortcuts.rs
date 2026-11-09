@@ -12,7 +12,10 @@
 //! - the removal deletes the three and the group's folder (the original's `DeleteGroup`).
 //!
 //! On Unix (phase 11) the items are desktop entries in the user's applications folder
-//! (`~/.local/share/applications`, as Wine makes them from Start menu items).
+//! (`~/.local/share/applications`, as Wine makes them from Start menu items). On macOS
+//! (2026-11-08) they are small application bundles in `~/Applications/Rally Championship/`
+//! (Launchpad and Spotlight list them), each running a shell script that starts the item in
+//! the installed folder.
 //!
 //! And the program installed: `rc2k.exe` and its DLLs copied from the running program's
 //! folder into the current one (the original copies the program named on its command line
@@ -115,7 +118,88 @@ mod start_menu {
     }
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "macos")]
+mod start_menu {
+    use super::{GROUP, items};
+    use std::path::{Path, PathBuf};
+
+    /// The group's folder in the user's applications folder.
+    fn group_folder() -> Option<PathBuf> {
+        let home = std::env::var_os("HOME")?;
+        Some(PathBuf::from(home).join("Applications").join(GROUP))
+    }
+
+    /// A path quoted for the shell (`'..'`, a `'` inside closed, escaped and reopened).
+    fn quoted(path: &Path) -> String {
+        format!("'{}'", path.display().to_string().replace('\'', r"'\''"))
+    }
+
+    /// An item's bundle: `<name>.app` with its property list and its script.
+    fn write_bundle(at: &Path, name: &str, script: &str) -> std::io::Result<()> {
+        use std::os::unix::fs::PermissionsExt;
+        let programs = at.join("Contents/MacOS");
+        std::fs::create_dir_all(&programs)?;
+        let plist = format!(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+             <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \
+             \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
+             <plist version=\"1.0\">\n<dict>\n\
+             <key>CFBundleName</key><string>{name}</string>\n\
+             <key>CFBundleExecutable</key><string>run</string>\n\
+             <key>CFBundleIdentifier</key><string>org.rc2k.item.{id}</string>\n\
+             <key>CFBundlePackageType</key><string>APPL</string>\n\
+             </dict>\n</plist>\n",
+            id = name.to_lowercase().replace(' ', "-"),
+        );
+        std::fs::write(at.join("Contents/Info.plist"), plist)?;
+        let run = programs.join("run");
+        std::fs::write(&run, script)?;
+        std::fs::set_permissions(&run, std::fs::Permissions::from_mode(0o755))
+    }
+
+    pub fn add(installed: &Path) {
+        let Some(group) = group_folder() else {
+            crate::framework::log("install: no home folder; no applications added");
+            return;
+        };
+        for (name, target, arguments) in items(installed) {
+            let at = group.join(format!("{name}.app"));
+            let start = if target
+                .extension()
+                .is_some_and(|e| e.eq_ignore_ascii_case("txt"))
+            {
+                format!("exec open {}", quoted(&target))
+            } else {
+                format!("exec {} {arguments}", quoted(&target))
+                    .trim_end()
+                    .to_string()
+            };
+            let script = format!("#!/bin/sh\ncd {} || exit 1\n{start}\n", quoted(installed));
+            let done = write_bundle(&at, name, &script);
+            crate::framework::log(&format!(
+                "install: application {} -> {start}: {}",
+                at.display(),
+                match &done {
+                    Ok(()) => "written".to_string(),
+                    Err(e) => e.to_string(),
+                }
+            ));
+        }
+    }
+
+    pub fn remove() {
+        let Some(group) = group_folder() else {
+            return;
+        };
+        let gone = std::fs::remove_dir_all(&group);
+        crate::framework::log(&format!(
+            "install: applications group {} removed: {gone:?}",
+            group.display()
+        ));
+    }
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
 mod start_menu {
     use super::{GROUP, items};
     use std::path::{Path, PathBuf};
