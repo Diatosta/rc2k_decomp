@@ -67,6 +67,7 @@ pub fn pick_pictures(menus: &Menus) -> Result<(), Refused> {
 pub fn draw_shown_car(
     shared: &Shared,
     cars: &crate::race::car_draw_state::CarDrawState,
+    object_place: &crate::scene::object_place::ObjectPlace,
     screens: &Screens,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
     scene: &crate::scene::owner::Scene,
@@ -78,7 +79,7 @@ pub fn draw_shown_car(
     }
     let clock: u32 = shared.physics_tables.scene_clock.bits();
     drawing.object_work.angles[1].set((clock << 3) & 0xFFFF);
-    drawing.object_work.place[2].set(screens.state.carousel.z.get());
+    object_place.place[2].set(screens.state.carousel.z.get());
     let kind = screens.state.carousel.kinds[car as usize].get();
     screens.state.carousel.kind.set(kind);
     let object = find_object_of_kind(kind, scene);
@@ -113,6 +114,7 @@ pub fn run() -> Result<(), crate::errors::Refused> {
     draw_shown_car(
         &race.shared,
         &ctx.view.cars,
+        &ctx.view.object,
         &menus.screens,
         &mut || draw_menu_object_in_game(&ctx),
         scene,

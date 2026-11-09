@@ -10,9 +10,17 @@
 //!
 //! Left in `ObjectWork` because a drawing reads them before the same view has written them:
 //! `object_place` and `only_object` (the first shown object of a view reads what the last
-//! described object left), and `place`, `size` and `angles` (the front end's shown car and
-//! highlighted object read the ones the earlier menu draws left; the physics' contact
-//! tests use `angles` and `size` as their own).
+//! described object left), and `angles` (the physics' contact tests use it as their own).
+//!
+//! `place`, `size` and `light_strength` are here too since F6: every reading of a view's
+//! drawing finds them written by the same view's drawing first (the sky, the slot objects,
+//! the flares, the described objects and the cars each set them before the matrix and the
+//! light read them), and the front end's menu draws all go through the front end's slot
+//! (`view_scratch::front_end()`), so what its set-ups leave (`set_up_carousel`,
+//! `prepare_menu_scene`, `set_up_lit_engine`, the main menu's loop) is what its shown car
+//! and highlighted object read. The physics' contact tests keep `ObjectWork.size` as their
+//! own (`face_contact` writes it before `object_turn_matrix` reads it); `ObjectWork.place`
+//! and `ObjectWork.light_strength` are read by none now.
 
 use crate::session::Dword;
 
@@ -28,6 +36,12 @@ pub struct ObjectPlace {
     pub car_switches: Dword,
     /// `ObjectWork.turned_place` (0x63502C): the place turned.
     pub turned_place: [Dword; 3],
+    /// `ObjectWork.place` (0x63501C): the matrix's place, x y z.
+    pub place: [Dword; 3],
+    /// `ObjectWork.size` (0x635038): the object's size (16 = natural).
+    pub size: Dword,
+    /// `ObjectWork.light_strength` (`g_lightStrength`, 0x635090).
+    pub light_strength: Dword,
     /// `ObjectWork.object_first_face` (`g_objectFirstFace`, 0x6350BC).
     pub first_face: Dword,
     /// `ObjectWork.object_face_count` (`g_objectFaceCount`, 0x6350C0).
@@ -63,6 +77,9 @@ impl ObjectPlace {
             face_depth: Dword::new(0),
             car_switches: Dword::new(0),
             turned_place: [const { Dword::new(0) }; 3],
+            place: [const { Dword::new(0) }; 3],
+            size: Dword::new(0),
+            light_strength: Dword::new(0),
             first_face: Dword::new(0),
             face_count: Dword::new(0),
             normal_work: [const { Dword::new(0) }; 15],

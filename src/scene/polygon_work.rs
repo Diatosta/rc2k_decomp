@@ -5,7 +5,7 @@
 //! (`race::view_scratch::ViewScratch::polygon`); the HUD, the loading bar and the menus use
 //! the front end's. In the original these were `SceneDraw`'s `polygon_*`, `texture_page`,
 //! `face_word`, `face_shine`, `clip_work`, `clip_work_2`, `clip_kept_mask`, `clip_plane`,
-//! `screen_clipped`, `depth_clipped`, `entry_third` and `face_sort_key`, written and read by every view in turn. Not here:
+//! `screen_clipped`, `depth_clipped`, `entry_third` and `face_sort_key`, `quad_vertices`, written and read by every view in turn. Not here:
 //! `LevelGrid`'s `smooth`, `plain_first` and `plain_second` (the HUD sets the plain switches
 //! and leaves them set into the next frame's views until their first face resets them) and
 //! `polygon_alpha` (set by the HUD's strips only, read by every view's drawing).
@@ -58,6 +58,11 @@ pub struct PolygonWork {
     pub clip_work: [Float; 12],
     /// `scene::clip`'s second work run; `race::car_shadow` keeps a vertex's byte +0x20 in [0].
     pub clip_work_2: [Dword; 5],
+    /// The four quad vertices (8 dwords each; `scene::point_records::of_quad`): the screen
+    /// quads', the halfway vertices' and the skidmarks' own. In the original
+    /// `RaceVars.quad_vertices`; every writer sets dwords 3, 6, 7 of the vertices it names
+    /// just before the polygon is clipped and drawn.
+    pub quad_vertices: [Dword; 32],
 }
 
 impl PolygonWork {
@@ -85,6 +90,7 @@ impl PolygonWork {
             clip_kept_mask: Dword::new(0),
             clip_work: [const { Float::from_bits(0) }; 12],
             clip_work_2: [const { Dword::new(0) }; 5],
+            quad_vertices: [const { Dword::new(0) }; 32],
         }
     }
 }

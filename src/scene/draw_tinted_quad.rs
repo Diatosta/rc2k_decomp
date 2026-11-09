@@ -39,7 +39,7 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     ]
     .map(float);
     let v = |n: usize, o: usize, x: u32| {
-        shared.vars.quad_vertices[8 * n + o / 4].set_bits(x);
+        ctx.view.polygon.quad_vertices[8 * n + o / 4].set_bits(x);
     };
     for (n, x, y) in [
         (0, left, top),

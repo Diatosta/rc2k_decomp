@@ -76,7 +76,10 @@ const CARS_TAIL: [Op; 9] = [
         0x20000,
     ),
     Op::Run(|| &scene().drawing.object_work.angles[0], 0x10FF),
-    Op::Run(|| &scene().drawing.object_work.place[1], 0xFFFE_6000),
+    Op::Run(
+        || &crate::race::view_scratch::front_end().object.place[1],
+        0xFFFE_6000,
+    ),
 ];
 
 /// 0x48FF83's six kinds.
@@ -171,7 +174,10 @@ fn cars(menus: &Menus, list: CarList, size: u32) -> Result<(), BadInput> {
         menus.screens.state.carousel.count.set(n as u32);
         let last = (n as u32).wrapping_sub(1);
         menus.cars.table.last_car.set(last);
-        scene().drawing.object_work.size.set_bits(size);
+        crate::race::view_scratch::front_end()
+            .object
+            .size
+            .set_bits(size);
         for op in CARS_TAIL {
             run_op(op);
         }
@@ -183,10 +189,7 @@ fn cars(menus: &Menus, list: CarList, size: u32) -> Result<(), BadInput> {
 /// 0xE; the other menus' own). What the original leaves in the registers (above) is read by
 /// none of its callers.
 // Converted: `rc2k_core::scene::carousel::{check_cars, list_end}`
-pub fn set_up_carousel(
-    list: Option<CarList>,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn set_up_carousel(list: Option<CarList>) -> Result<(), Refused> {
     let menus = menus();
     let given = || list.ok_or(BadInput("no list of cars"));
     {
@@ -202,7 +205,10 @@ pub fn set_up_carousel(
             0xC => {
                 menus.screens.state.carousel.set_up.set(1);
                 menus.screens.state.carousel.set_list(CarList::A8);
-                scene.drawing.object_work.size.set_bits(0xCu32);
+                crate::race::view_scratch::front_end()
+                    .object
+                    .size
+                    .set_bits(0xCu32);
                 write_prefix(&menus.screens.state.carousel.kinds, &FIXED_KINDS);
                 menus.screens.state.carousel.count.set(6u32);
                 menus.cars.table.last_car.set(5u32);

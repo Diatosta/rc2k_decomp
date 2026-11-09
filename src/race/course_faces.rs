@@ -586,9 +586,15 @@ pub fn draw_whole_quad(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
     };
     for slot in 0..4 {
         let v = entry(slot).record.get();
-        if !inside(crate::scene::point_records::vertex(v, 0xC), left, right)
-            || !inside(crate::scene::point_records::vertex(v, 0x1C), top, bottom)
-        {
+        if !inside(
+            crate::scene::point_records::vertex(&ctx.view.polygon.quad_vertices, v, 0xC),
+            left,
+            right,
+        ) || !inside(
+            crate::scene::point_records::vertex(&ctx.view.polygon.quad_vertices, v, 0x1C),
+            top,
+            bottom,
+        ) {
             return Ok(true);
         }
     }
@@ -706,15 +712,23 @@ pub fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 /// the original's store of the depth to `dword_62400C` is not kept; centre `flt_62409C`, `flt_6240A0`).
 fn halfway_vertex(
     course: &Course,
+    quad: &[crate::session::Dword; 32],
     a: u32,
     b: u32,
     v: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
-    use crate::scene::point_records::{get, set};
-    let mut made = get(v)?;
-    halfway_record(course, &get(a)?, &get(b)?, &mut made, scene);
-    set(v, made)
+    use crate::scene::point_records::{get_in, set_in};
+    let quad = Some(quad);
+    let mut made = get_in(quad, v)?;
+    halfway_record(
+        course,
+        &get_in(quad, a)?,
+        &get_in(quad, b)?,
+        &mut made,
+        scene,
+    );
+    set_in(quad, v, made)
 }
 
 /// `halfway_vertex` on the records themselves (`a`, `b` point records of any kind).
@@ -814,11 +828,17 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             let (a, b) = (at_a[n], at_b[n]);
             let m = ((b.wrapping_sub(a) as i32) >> 1) as u32;
             let m = m.wrapping_add(a);
-            crate::scene::point_records::put_field(v, o, m)?;
+            crate::scene::point_records::put_field_in(
+                Some(&ctx.view.polygon.quad_vertices),
+                v,
+                o,
+                m,
+            )?;
             lit.set(m);
         }
         halfway_vertex(
             &race.course,
+            &ctx.view.polygon.quad_vertices,
             entry(first).record.get(),
             entry(second).record.get(),
             v,

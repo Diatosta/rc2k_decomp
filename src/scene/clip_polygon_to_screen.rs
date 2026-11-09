@@ -36,8 +36,16 @@ fn outside_mask(
     let mut mask = 0;
     for entry in &entries {
         let record = entry.record.get();
-        let x = f32::from_bits(crate::scene::point_records::vertex(record, 0xC)) as f64;
-        let y = f32::from_bits(crate::scene::point_records::vertex(record, 0x1C)) as f64;
+        let x = f32::from_bits(crate::scene::point_records::vertex(
+            &poly.quad_vertices,
+            record,
+            0xC,
+        )) as f64;
+        let y = f32::from_bits(crate::scene::point_records::vertex(
+            &poly.quad_vertices,
+            record,
+            0x1C,
+        )) as f64;
         if !below(x, right) {
             mask |= 2;
         } else if below(x, left) {

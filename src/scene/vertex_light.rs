@@ -73,8 +73,9 @@ fn set_normal(
 fn light_number(
     scene: &crate::scene::owner::Scene,
     light: &crate::scene::object_light::ObjectLight,
+    object: &crate::scene::object_place::ObjectPlace,
 ) -> i32 {
-    let strength = scene.drawing.object_work.light_strength.bits() as i32;
+    let strength = object.light_strength.bits() as i32;
     if strength == 0 {
         return 0;
     }
@@ -90,9 +91,10 @@ fn light_number(
 fn table_place(
     scene: &crate::scene::owner::Scene,
     light: &crate::scene::object_light::ObjectLight,
+    object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<usize, BadInput> {
     let place = held(
-        light_number(scene, light).wrapping_add(light.light_level.bits() as i32),
+        light_number(scene, light, object).wrapping_add(light.light_level.bits() as i32),
         light.light_lowest.bits() as i32,
         light.light_highest.bits() as i32,
     );
@@ -107,10 +109,11 @@ fn lit(
     number: u32,
     mmx: bool,
     light: &crate::scene::object_light::ObjectLight,
+    object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<u32, BadInput> {
     let scene = scene();
     // The checks first, on a copy of what they would write.
-    let place = set_normal(number, light).and_then(|()| table_place(scene, light));
+    let place = set_normal(number, light).and_then(|()| table_place(scene, light, object));
     let place = place?;
     let colour = plus(
         scene.light_tables.light_table[place].get(),
@@ -125,9 +128,10 @@ fn lit(
 fn blend(
     course: &crate::race::owner_course::Course,
     light: &crate::scene::object_light::ObjectLight,
+    object: &crate::scene::object_place::ObjectPlace,
 ) {
     let scene = crate::scene::owner::scene();
-    let amount = held(light_number(scene, light), -255, 255);
+    let amount = held(light_number(scene, light, object), -255, 255);
     let (amount, towards) = if amount < 0 {
         (amount.wrapping_neg(), &course.stage_prefs.dark_colour)
     } else {
@@ -150,6 +154,7 @@ pub fn vertex_light(
     number: u32,
     scene: &crate::scene::owner::Scene,
     light: &crate::scene::object_light::ObjectLight,
+    object: &crate::scene::object_place::ObjectPlace,
     system: &crate::system::owner::System,
 ) -> Result<u32, BadInput> {
     let course = &race.course;
@@ -157,7 +162,7 @@ pub fn vertex_light(
     let mmx = system.session.machine.has_mmx.get() != 0;
     if kind == 4 {
         // 0 plus the lit colour.
-        return Ok(plus(0, lit(number, mmx, light)?, mmx));
+        return Ok(plus(0, lit(number, mmx, light, object)?, mmx));
     }
     let lit_at_all =
         race.shared.switches.other_way.bits() != 0 || course.stage_prefs.lit_b.bits() != 0;
@@ -166,7 +171,11 @@ pub fn vertex_light(
     }
     let added: u32 = light.light_added.bits();
     match kind {
-        2 | 5 => Ok(plus(plus(0, lit(number, mmx, light)?, mmx), added, mmx)),
+        2 | 5 => Ok(plus(
+            plus(0, lit(number, mmx, light, object)?, mmx),
+            added,
+            mmx,
+        )),
         1 => {
             let level: u32 = light.light_level.bits();
             if level >= TABLE_LEN {
@@ -187,7 +196,7 @@ pub fn vertex_light(
                 mmx,
             );
             light.light_colour.set_bits(colour);
-            blend(course, light);
+            blend(course, light, object);
             Ok(light.light_colour.bits())
         }
         _ => Ok(number),

@@ -86,10 +86,8 @@ pub struct GroundWork {
     pub _gap_2c4: Bytes<20>,
     /// +0x2d8 (0x639954): `g_objectTextureSet`: added to an object's face texture numbers (`scene::draw_scene_object`, `scene::draw_object_faces`).
     pub object_texture_set: Dword,
-    /// +0x2dc (0x639958): `dword_639958`: the strength of the lamp light worked out (`scene::add_point_lights`, `race::frame_draw`).
-    pub point_light_strength: Dword,
-    /// +0x2e0 (0x63995C): unreferenced bytes (0x4 of them).
-    pub _gap_2e0: Bytes<4>,
+    /// +0x2dc (0x639958): unreferenced bytes (0x8 of them); `dword_639958`, the strength of the lamp light worked out, was here (`scene::add_point_lights`, `race::frame_draw`): the lamps' sum keeps it in a local.
+    pub _gap_2dc: Bytes<8>,
     /// +0x2e4 (0x639960): `dword_639960`: polygons drawn whole this frame (`scene::draw_object_polygon`; zeroed by `race::draw_race_scene`) (a reading); now each view's (`ctx.view.object.whole_polygon_count`); unused.
     pub whole_polygon_count: Dword,
     /// +0x2e8 (0x639964): `dword_639964`: polygons drawn split this frame (`scene::draw_object_polygon`; zeroed by `race::draw_race_scene`) (a reading); now each view's (`ctx.view.object.split_polygon_count`); unused.

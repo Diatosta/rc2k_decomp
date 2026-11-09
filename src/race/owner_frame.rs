@@ -23,9 +23,6 @@ pub struct Frame {
     pub frame_work: crate::workers::PerWorker<FrameWork>,
     /// One copy per drawing thread (`workers`).
     pub matrices: crate::workers::PerWorker<SceneMatrices>,
-    /// The alpha of the car being drawn (`dword_606284`: `race::car_draw` sets it for the car,
-    /// `scene::draw_polygon` and `scene::draw_object_face` read it), one per drawing thread.
-    pub fade_alpha: crate::workers::PerWorker<crate::session::Dword>,
     /// One copy per drawing thread (`workers`).
     pub scratch: crate::workers::PerWorker<FrameScratch>,
     pub counter: FrameCounter,
@@ -51,9 +48,6 @@ impl Frame {
         Frame {
             frame_work: crate::workers::PerWorker::new(
                 [const { FrameWork::new() }; crate::workers::COPIES],
-            ),
-            fade_alpha: crate::workers::PerWorker::new(
-                [const { crate::session::Dword::new(0) }; crate::workers::COPIES],
             ),
             matrices: crate::workers::PerWorker::new(
                 [const { SceneMatrices::new() }; crate::workers::COPIES],

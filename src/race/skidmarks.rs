@@ -66,15 +66,15 @@ fn skid_vertex(
     v: u32,
 ) -> Result<Turned, BadInput> {
     let turned = turn_skid_point(ctx, matrix, n)?;
-    put_turned(v, turned)?;
+    put_turned(&ctx.view.polygon.quad_vertices, v, turned)?;
     Ok(turned)
 }
 
 /// A point as `skid_vertex` turns it, put into the vertex record `v` again.
-fn put_turned(v: u32, turned: Turned) -> Result<(), BadInput> {
-    let mut made = crate::scene::point_records::get(v)?;
+fn put_turned(quad: &[crate::session::Dword; 32], v: u32, turned: Turned) -> Result<(), BadInput> {
+    let mut made = crate::scene::point_records::get_in(Some(quad), v)?;
     made[3..8].copy_from_slice(&turned.words);
-    crate::scene::point_records::set(v, made)
+    crate::scene::point_records::set_in(Some(quad), v, made)
 }
 
 /// Skidmark point `n` turned and projected, as `skid_vertex` does it.
@@ -176,8 +176,8 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
         let second = skid_vertex(ctx, &matrix, 2 * n + 1, of_quad(2))?;
         match last {
             Some((m, a, b)) if m == before => {
-                put_turned(of_quad(0), a)?;
-                put_turned(of_quad(1), b)?;
+                put_turned(&ctx.view.polygon.quad_vertices, of_quad(0), a)?;
+                put_turned(&ctx.view.polygon.quad_vertices, of_quad(1), b)?;
             }
             _ => {
                 skid_vertex(ctx, &matrix, before.wrapping_mul(2), of_quad(0))?;

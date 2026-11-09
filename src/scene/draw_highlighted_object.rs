@@ -39,6 +39,7 @@ use crate::scene::map_texture_places::map_texture_places;
 pub fn draw_highlighted(
     menus: &Menus,
     cars: &crate::race::car_draw_state::CarDrawState,
+    object_place: &crate::scene::object_place::ObjectPlace,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
@@ -56,13 +57,13 @@ pub fn draw_highlighted(
     }
     let clock: u32 = shared.physics_tables.scene_clock.bits();
     drawing.object_work.angles[1].set((clock << 3) & 0xFFFF);
-    drawing.object_work.place[2].set(screens.state.carousel.z.get());
-    drawing.object_work.place[0].set_bits(0u32);
+    object_place.place[2].set(screens.state.carousel.z.get());
+    object_place.place[0].set_bits(0u32);
     if let Some(own) = own {
         let [size, y, angle] = own_place(&menus.tables, own)?;
-        drawing.object_work.size.set_bits(size);
+        object_place.size.set_bits(size);
         if y != u32::MAX {
-            drawing.object_work.place[1].set(y);
+            object_place.place[1].set(y);
         }
         if angle != u32::MAX {
             drawing.object_work.angles[0].set_bits(angle);
@@ -94,7 +95,7 @@ pub fn run() -> Result<(), crate::errors::Refused> {
         crate::race::view_scratch::front_end(),
     );
     let _held = ctx.view.matrices.hold(&race.frame.matrices);
-    draw_highlighted(menus, &ctx.view.cars, &mut || {
+    draw_highlighted(menus, &ctx.view.cars, &ctx.view.object, &mut || {
         draw_menu_object_in_game(&ctx)
     })
 }

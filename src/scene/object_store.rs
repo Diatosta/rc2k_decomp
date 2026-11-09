@@ -35,13 +35,13 @@ pub struct ObjectWork {
     pub face_depth: Dword,
     /// +0x74 (0x635014): cleared by `race::draw_view_scene`.
     pub view_cleared: [Dword; 2],
-    /// +0x7c (0x63501C): the matrix's place, x y z (`scene::matrix`).
+    /// +0x7c (0x63501C): the matrix's place, x y z (`scene::matrix`); now each view's (`ctx.view.object.place`); read by none.
     pub place: [Dword; 3],
     /// +0x88 (0x635028): (`race::car_draw`); now each view's (`ctx.view.object.car_switches`); unused.
     pub car_switches: Dword,
     /// +0x8c (0x63502C): the place turned (`race::frame_draw`); now each view's (`ctx.view.object.turned_place`); unused.
     pub turned_place: [Dword; 3],
-    /// +0x98 (0x635038): the object's size (`scene::matrix`).
+    /// +0x98 (0x635038): the object's size (`scene::matrix`); each view's drawing uses `ctx.view.object.size`; this one is the physics' contact tests' own.
     pub size: Dword,
     /// +0x9c (0x63503C): its angles, x y z (`scene::matrix`, `physics::object_turn_matrix`).
     pub angles: [Dword; 3],
@@ -65,7 +65,7 @@ pub struct ObjectWork {
     pub light_highest: Dword,
     /// +0xec (0x63508C): `g_lightLevel`; now each view's (`scene::object_light`); unused.
     pub light_level: Dword,
-    /// +0xf0 (0x635090): `g_lightStrength`.
+    /// +0xf0 (0x635090): `g_lightStrength`; now each view's (`ctx.view.object.light_strength`); read by none.
     pub light_strength: Dword,
     /// +0xf4 (0x635094): the light's turns, y then x (`scene::matrix`); now each view's (`scene::object_light`); unused.
     pub light_turns: [Dword; 2],

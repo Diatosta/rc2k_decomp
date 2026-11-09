@@ -128,9 +128,9 @@ fn draw_description(
     let byte = |o: u32| desc[o as usize] as u32;
     let get = |o: usize| u32::from_le_bytes(desc[o..o + 4].try_into().unwrap());
     let at: [u32; 3] = crate::race::scene_points::point_number(place)?;
-    scene.drawing.object_work.place[0].set(at[0].wrapping_add(get(0x30)));
-    scene.drawing.object_work.place[1].set(at[1].wrapping_add(get(0x34)));
-    scene.drawing.object_work.place[2].set(at[2].wrapping_add(get(0x38)));
+    ctx.view.object.place[0].set(at[0].wrapping_add(get(0x30)));
+    ctx.view.object.place[1].set(at[1].wrapping_add(get(0x34)));
+    ctx.view.object.place[2].set(at[2].wrapping_add(get(0x38)));
     scene.drawing.object_work.angles[0].set((byte(8) << 8) & 0xFFFF);
     scene.drawing.object_work.angles[1].set(byte(0xC) << 8);
     scene.drawing.object_work.angles[2].set(byte(0x10) << 8);
@@ -152,13 +152,13 @@ fn draw_description(
         ctx.view.light.light_lowest.set(lowest);
         ctx.view.light.light_highest.set(highest);
         ctx.view.light.light_level.set(level);
-        scene.drawing.object_work.light_strength.set(strength);
+        ctx.view.object.light_strength.set(strength);
     };
     if object == 0x38 || (0x3A..0x40).contains(&object) {
         scene.drawing.object_work.angles[0].set(0x2000u32);
         scene.drawing.object_work.angles[1].set(0u32);
         scene.drawing.object_work.angles[2].set(0u32);
-        scene.drawing.object_work.size.set(byte(0x18));
+        ctx.view.object.size.set(byte(0x18));
         light(0xFF, 0xFF, 0xFF, 0);
         ctx.view.light.light_turns[0].set(0u32);
         ctx.view.light.light_turns[1].set(0u32);
@@ -170,7 +170,7 @@ fn draw_description(
             ctx.view.light.light_highest.set(0x80u32);
         }
     } else {
-        scene.drawing.object_work.size.set(byte(0x18));
+        ctx.view.object.size.set(byte(0x18));
         light(byte(0x14), byte(0x15), byte(0x16), byte(0x17));
         ctx.view.light.light_turns[0].set(byte(0x22));
         ctx.view.light.light_turns[1].set(byte(0x23));
@@ -181,9 +181,8 @@ fn draw_description(
                 .light
                 .light_level
                 .set(course.stage_prefs.light_level.get());
-            scene
-                .drawing
-                .object_work
+            ctx.view
+                .object
                 .light_strength
                 .set(course.stage_prefs.light_strength_kept.get());
             ctx.view.light.light_lowest.set(0u32);

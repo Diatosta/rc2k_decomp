@@ -31,6 +31,7 @@ pub enum Step {
 
 /// `scene::needs_clipping` on the work table's records.
 fn needs_clipping(
+    poly: &crate::scene::polygon_work::PolygonWork,
     course: &crate::race::owner_course::Course,
     count: u32,
     scene: &crate::scene::owner::Scene,
@@ -50,7 +51,13 @@ fn needs_clipping(
         if record == 0 {
             return Err(BadInput("an entry without its record"));
         }
-        let value = |at: u32| f32::from_bits(crate::scene::point_records::vertex(record, at));
+        let value = |at: u32| {
+            f32::from_bits(crate::scene::point_records::vertex(
+                &poly.quad_vertices,
+                record,
+                at,
+            ))
+        };
         Ok(Vertex {
             x: value(0xC),
             y: value(0x1C),
@@ -79,7 +86,7 @@ pub fn draw_object_polygon(
     }
     poly.polygon_next_entry.set_bits(count);
     step(Step::Project)?;
-    if drawn_whole(count, needs_clipping(&race.course, count, scene)?) {
+    if drawn_whole(count, needs_clipping(poly, &race.course, count, scene)?) {
         object
             .whole_polygon_count
             .set_bits(object.whole_polygon_count.bits().wrapping_add(1));

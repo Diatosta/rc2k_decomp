@@ -36,6 +36,7 @@ pub fn set_object_light(
     gather: &mut dyn FnMut() -> Result<(), Refused>,
     scene: &crate::scene::owner::Scene,
     light: &crate::scene::object_light::ObjectLight,
+    object: &crate::scene::object_place::ObjectPlace,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
@@ -54,11 +55,11 @@ pub fn set_object_light(
         ObjectLight::Nothing => return Ok(()),
     };
     if clear_strength {
-        scene.drawing.object_work.light_strength.set_bits(0u32);
+        object.light_strength.set_bits(0u32);
     }
     crate::session::write_bits(
         &light.lit_place,
-        crate::session::read_bits::<_, 3>(&scene.drawing.object_work.place),
+        crate::session::read_bits::<_, 3>(&object.place),
     );
     if own_car {
         race.physics
@@ -98,6 +99,7 @@ pub fn set_object_light_in_game(
         },
         scene,
         &ctx.view.light,
+        &ctx.view.object,
         system,
     )
 }

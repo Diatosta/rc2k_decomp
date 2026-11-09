@@ -55,7 +55,7 @@ pub fn draw_carousel_in_game(
     draw_carousel(&menus.screens, lone_row, &mut |e, place| {
         draw_carousel_entry(
             &race.shared,
-            &ctx.view.cars,
+            ctx.view,
             menus,
             e,
             place,

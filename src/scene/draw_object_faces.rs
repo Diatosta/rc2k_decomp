@@ -51,8 +51,8 @@ pub fn draw_object_faces(
         poly.polygon_textures[0].set_bits(
             texture.wrapping_add(race.physics.ground.object_texture_set.bits()) | 0x8000_0000,
         );
-        race.frame.sound_spots.face_kind.set_bits(head[6] as u32);
-        race.frame.sound_spots.face_unlit.set_bits(head[0xB] as u32);
+        work.face_kind.set_bits(head[6] as u32);
+        work.face_unlit.set_bits(head[0xB] as u32);
         let shade = head[0xA] as u32;
         poly.polygon_colour.set_bits(if shade == 0 {
             0x00FF_FFFF

@@ -210,6 +210,7 @@ fn entries(count: u32) -> Result<smallvec::SmallVec<[Listed; 32]>, BadInput> {
 
 /// 0x450147 with 0x4501B6: the hit test.
 fn hit_test(
+    quad: &[crate::session::Dword; 32],
     frame: &crate::race::owner_frame::Frame,
     entries: &[Listed],
     scene: &crate::scene::owner::Scene,
@@ -227,8 +228,8 @@ fn hit_test(
         let corner = |(_, entry): Listed| {
             let vertex = entry.record.get();
             [
-                x87::to_int(crate::scene::point_records::vertex(vertex, 0x0C)),
-                x87::to_int(crate::scene::point_records::vertex(vertex, 0x1C)),
+                x87::to_int(crate::scene::point_records::vertex(quad, vertex, 0x0C)),
+                x87::to_int(crate::scene::point_records::vertex(quad, vertex, 0x1C)),
             ]
         };
         let (from, to) = (corner(entries[n]), corner(entries[(n + 1) % entries.len()]));
@@ -247,7 +248,12 @@ fn hit_test(
 }
 
 /// 0x44C9A9, and 0x44E6F4 for a mirrored view: the positions.
-fn place(race: &crate::race::owner::Race, entries: &[Listed], mirrored: bool) {
+fn place(
+    quad: &[crate::session::Dword; 32],
+    race: &crate::race::owner::Race,
+    entries: &[Listed],
+    mirrored: bool,
+) {
     let scene = scene();
     let (x_offset, y_offset): (u32, u32) = (
         scene.drawing.scene.view_offset_float[0].bits(),
@@ -259,19 +265,22 @@ fn place(race: &crate::race::owner::Race, entries: &[Listed], mirrored: bool) {
     for (n, &(_, entry)) in entries.iter().enumerate() {
         let vertex = entry.record.get();
         let out = out(n);
-        let mut x = x87::add(crate::scene::point_records::vertex(vertex, 0x0C), x_offset);
+        let mut x = x87::add(
+            crate::scene::point_records::vertex(quad, vertex, 0x0C),
+            x_offset,
+        );
         let depth = x87::mul(
-            crate::scene::point_records::vertex(vertex, 0x18),
+            crate::scene::point_records::vertex(quad, vertex, 0x18),
             depth_factor,
         );
         out.y.set_bits(x87::add(
-            crate::scene::point_records::vertex(vertex, 0x1C),
+            crate::scene::point_records::vertex(quad, vertex, 0x1C),
             y_offset,
         ));
         out.z.set_bits(depth);
         out.rhw.set_bits(if sse {
             x87::rcpss_times(
-                crate::scene::point_records::vertex(vertex, 0x18),
+                crate::scene::point_records::vertex(quad, vertex, 0x18),
                 race.course.numbers.k65536.bits(),
             )
         } else {
@@ -412,7 +421,7 @@ pub fn draw_polygon(
     }
     let mut entries = entries(count)?;
     // Nothing has been written up to here.
-    hit_test(&race.frame, &entries, scene);
+    hit_test(&poly.quad_vertices, &race.frame, &entries, scene);
     let kept: [u32; 3] = [
         poly.polygon_sides[0].bits(),
         poly.polygon_sides[1].bits(),
@@ -427,12 +436,12 @@ pub fn draw_polygon(
             crate::scene::polygon::list_cell(n).set(number);
         }
     }
-    place(race, &entries, mirrored);
+    place(&poly.quad_vertices, race, &entries, mirrored);
 
-    if scene.lights.state.faded.bits() != 0 {
+    if face.faded.bits() != 0 {
         let (mode, texture): (u32, u32) = (face.polygon_mode.bits(), poly.texture_page.bits());
         // 0x44CAD5.
-        let (from, alpha): (u32, u32) = (d3d().cards.fade_from.get(), race.frame.fade_alpha.bits());
+        let (from, alpha): (u32, u32) = (d3d().cards.fade_from.get(), face.fade_alpha.bits());
         let uv = crate::session::read_bits(&race.shared.vars.fade_uv);
         for (n, &(_, entry)) in entries.iter().enumerate() {
             let out = out(n);

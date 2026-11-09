@@ -109,7 +109,7 @@ fn settings(shared: &Shared, menus: &Menus, entry: u32, row: u32) -> Result<Sett
 /// up and drawn by `draw`.
 pub fn draw_carousel_entry(
     shared: &Shared,
-    cars: &crate::race::car_draw_state::CarDrawState,
+    view: &crate::race::view_scratch::ViewScratch,
     menus: &Menus,
     entry: u32,
     row: u32,
@@ -118,14 +118,14 @@ pub fn draw_carousel_entry(
 ) -> Result<(), Refused> {
     let drawing = &scene.drawing;
     let set = settings(shared, menus, entry, row)?;
-    crate::session::write_bits(&drawing.object_work.place, set.place);
+    crate::session::write_bits(&view.object.place, set.place);
     if let Some(size) = set.size {
-        drawing.object_work.size.set_bits(size);
+        view.object.size.set_bits(size);
     }
     drawing.object_work.angles[0].set_bits(set.angle_x);
     drawing.object_work.angles[1].set_bits(set.angle_y);
     crate::session::write_bits(&drawing.scene.view_offset, [0u32; 2]);
     menus.screens.state.carousel.kind.set(set.kind);
-    cars.object_number.set_bits(set.object);
+    view.cars.object_number.set_bits(set.object);
     draw()
 }

@@ -58,7 +58,6 @@ pub fn add_point_lights(
     let out = lamps::add_point_lights(list, place, at, ctx.view.light.light_colour.bits(), mmx);
     reading.finish()?;
     for (to, value) in [
-        (&race.physics.ground.point_light_strength, out.strength),
         (&ctx.view.light.lamp_tint, out.colour),
         (&ctx.view.light.light_colour, out.light),
     ] {

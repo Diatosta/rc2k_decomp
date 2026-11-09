@@ -9,9 +9,11 @@ use crate::session::{Dword, Float};
 pub struct SoundSpotBlock {
     /// +0x0 (0x6D18C8): `g_workVectorLength` (a reading: float, stored by fst/movss).
     pub work_vector_length: Float,
-    /// +0x4 (0x6D18CC): `g_faceKind` (`scene::draw_object_face`, `scene::draw_object_faces`).
+    /// +0x4 (0x6D18CC): `g_faceKind`; the drawing's is the view's (`race::face_work`), this one
+    /// not used.
     pub face_kind: Dword,
-    /// +0x8 (0x6D18D0): `dword_6D18D0` (`scene::draw_object_face`, `scene::draw_object_faces`).
+    /// +0x8 (0x6D18D0): `dword_6D18D0`, the face's unlit byte; the drawing's is the view's
+    /// (`race::face_work`), this one not used.
     pub face_unlit: Dword,
     /// +0xc (0x6D18D4): `dword_6D18D4` (`scene::list_object_face`, `race::car_draw`).
     pub groups_which: Dword,

@@ -122,7 +122,7 @@ pub struct CameraWork {
     pub _gap_170: Bytes<48>,
     /// +0x1a0 (0x608CA8): `dword_608CA8`, set to 0x2100000 while a car is drawn (`race::car_draw`); now each view's (`ctx.view.cars.car_draw_kept`); unused.
     pub car_draw_kept: Dword,
-    /// +0x1a4 (0x608CAC): the car's faded bits (record +0x10), -1 after (`race::car_draw`, `scene::draw_object_face`).
+    /// +0x1a4 (0x608CAC): the car's faded bits (record +0x10), -1 after; the drawing's is the view's (`race::face_work`), this one not used.
     pub faded_bits: Dword,
     /// +0x1a8 (0x608CB0): 1 while the car body is drawn (`race::car_draw`).
     pub drawing_car: Dword,

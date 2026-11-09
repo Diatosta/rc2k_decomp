@@ -103,14 +103,15 @@ fn cut(
     if record == 0 {
         return Err(BadInput("no pool of records"));
     }
-    let mut made = crate::scene::point_records::get(record)?;
+    let mut made = crate::scene::point_records::get_in(Some(&poly.quad_vertices), record)?;
     let new = crate::scene::polygon::entry(number as usize)?;
     let mut w: Work = [0; 0x51];
     for (entry, record_at, entry_at, bytes_at) in [
         (a, RECORD_A, ENTRY_A, BYTES_A),
         (b, RECORD_B, ENTRY_B, BYTES_B),
     ] {
-        let from = crate::scene::point_records::vertex_bytes(entry.record.get())?;
+        let from =
+            crate::scene::point_records::vertex_bytes(&poly.quad_vertices, entry.record.get())?;
         put_bytes(&mut w, record_at, &from[..RECORD_LEN]);
         put_bytes(&mut w, entry_at, &entry.bytes()[..ENTRY_LEN]);
         for (k, at) in BYTES.into_iter().enumerate() {
@@ -167,7 +168,7 @@ fn cut(
     made[4..7].copy_from_slice(&out_1[2..5]);
     made[3] = out_1[0];
     made[7] = out_1[1];
-    crate::scene::point_records::set(record, made)?;
+    crate::scene::point_records::set_in(Some(&poly.quad_vertices), record, made)?;
     for k in 0..4 {
         new.set_word(8 + k * 4, out_1[8 + k]);
     }
@@ -210,6 +211,7 @@ pub fn clip_pass(
     };
     let inside = |entry: &PolygonEntry| {
         let value = f32::from_bits(crate::scene::point_records::vertex(
+            &poly.quad_vertices,
             entry.record.get(),
             coordinate,
         ));

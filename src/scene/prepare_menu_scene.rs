@@ -27,7 +27,10 @@ pub fn prepare_menu_scene(scene: &crate::scene::owner::Scene) {
     light.light_lowest.set(0x50);
     light.light_highest.set(0xFF);
     light.light_level.set(0xB4);
-    drawing.object_work.light_strength.set(0xB4);
+    crate::race::view_scratch::front_end()
+        .object
+        .light_strength
+        .set(0xB4);
     crate::session::write_bits(&light.light_turns, [0x6Eu32, 0x1E]);
     set_view_matrices(
         &race.course,

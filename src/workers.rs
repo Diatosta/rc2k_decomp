@@ -121,12 +121,11 @@ impl<T: crate::pointers::Cells + crate::pointers::Store> Carried for PerWorker<T
 /// The stores of the drawing's working state a run reads as the list began (the write
 /// watch's list, `notes/conversion.md`): copied into each run's copy, the changes merged
 /// back.
-fn carried_stores() -> [&'static dyn Carried; 21] {
+fn carried_stores() -> [&'static dyn Carried; 20] {
     let race = crate::race::owner::race();
     let scene = crate::scene::owner::scene();
     [
         &race.frame.matrices,
-        &race.frame.fade_alpha,
         &race.frame.scratch,
         &race.frame.sound_spots,
         &race.physics.camera,

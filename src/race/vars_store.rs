@@ -170,6 +170,7 @@ pub struct RaceVars {
     /// +0x848 (0x623E30): not named.
     pub unknown_848: [Dword; 4],
     /// +0x858 (0x623E40): four vertices of 0x20 (`scene::draw_flat_quad`, `race::course_faces`).
+    /// No longer used by the drawing: each view's are `PolygonWork::quad_vertices`.
     pub quad_vertices: [Dword; 32],
     /// +0x8d8 (0x623EC0): not named.
     pub unknown_8d8: [Dword; 48],

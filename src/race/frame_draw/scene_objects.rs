@@ -67,9 +67,8 @@ pub fn draw_slot_object(
         .light
         .light_level
         .set_bits(race.course.stage_prefs.light_level.bits());
-    scene
-        .drawing
-        .object_work
+    ctx.view
+        .object
         .light_strength
         .set_bits(race.course.stage_prefs.light_strength.bits());
     ctx.view.light.light_turns[0].set_bits(race.course.stage_prefs.sun_turn.get().wrapping_neg());
@@ -83,7 +82,7 @@ pub fn draw_slot_object(
         slot.place[2].get(),
     ];
     for (k, &p) in place.iter().enumerate() {
-        scene.drawing.object_work.place[k].set_bits(p);
+        ctx.view.object.place[k].set_bits(p);
     }
     matrix::set_place(&ctx.view.matrices.placed_matrix, place);
     matrix::copy_matrix_with_place(
@@ -175,7 +174,7 @@ pub fn draw_screen_quad(
         shared.vars.quad_corners[5].bits() as i32,
     );
     for (k, (x, y)) in corners.into_iter().enumerate() {
-        let v = &shared.vars.quad_vertices[8 * k..8 * k + 8];
+        let v = &poly.quad_vertices[8 * k..8 * k + 8];
         v[3].set_bits(x.to_bits());
         v[7].set_bits(y.to_bits());
         v[6].set_bits(course.numbers.k4096_b.bits());
@@ -239,12 +238,9 @@ pub fn draw_view_tint(
 /// of the key with the car's `number` plus 0x2000000. Refuses (before anything) a depth
 /// entry past the 0x1000.
 pub fn add_car_depth_entry(ctx: &DrawCtx, car: u32, number: u32) -> Result<(), Refused> {
-    let DrawCtx {
-        race, scene, view, ..
-    } = *ctx;
+    let DrawCtx { race, view, .. } = *ctx;
     let frame = &race.frame;
     let shared = &race.shared;
-    let drawing = &scene.drawing;
     use crate::math::x87::from_int;
     let n: u32 = view.lists.depth_entry_count.bits();
     if n >= SORT_MAX {
@@ -252,15 +248,15 @@ pub fn add_car_depth_entry(ctx: &DrawCtx, car: u32, number: u32) -> Result<(), R
     }
     let place = crate::session::read_bits(&car_view(car)?.position);
     for (k, &p) in place.iter().enumerate() {
-        drawing.object_work.place[k].set_bits(p);
+        ctx.view.object.place[k].set_bits(p);
     }
     let matrix: [u32; 16] = crate::session::read_bits(&frame.matrices.view_matrix);
     let t = crate::math::x87_load::rotate_rounding(place.map(|v| v as i32), &matrix);
     for (k, &v) in t.iter().enumerate() {
         view.object.turned_place[k].set_bits(v);
     }
-    drawing.object_work.place[0].set(from_int(t[0] as i32));
-    drawing.object_work.place[1].set(from_int(t[1] as i32));
+    ctx.view.object.place[0].set(from_int(t[0] as i32));
+    ctx.view.object.place[1].set(from_int(t[1] as i32));
     let key = t[2].wrapping_add(0x200_0000) >> 10;
     shared.view.face_depth_key.set_bits(key);
     let second = number.wrapping_add(0x200_0000);
@@ -289,9 +285,9 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
         return Ok(());
     }
     let place = [
-        drawing.object_work.place[0].get(),
-        drawing.object_work.place[1].bits(),
-        drawing.object_work.place[2].bits(),
+        ctx.view.object.place[0].get(),
+        ctx.view.object.place[1].bits(),
+        ctx.view.object.place[2].bits(),
     ];
     for (table, v) in [
         (
@@ -301,10 +297,7 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
         (&race.course.level_grid.flare_place_x, place[0]),
         (&race.course.flare_tables.place_y, place[1]),
         (&race.course.flare_tables.place_z, place[2]),
-        (
-            &race.course.flare_tables.size,
-            drawing.object_work.size.bits(),
-        ),
+        (&race.course.flare_tables.size, ctx.view.object.size.bits()),
         (
             &race.course.flare_tables.other_light,
             drawing.object_work.other_light.bits(),
@@ -316,8 +309,8 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
         place.map(|v| v as i32),
         &crate::session::read_bits(&race.frame.matrices.view_matrix),
     );
-    drawing.object_work.place[0].set(out[0]);
-    drawing.object_work.place[1].set(out[1]);
+    ctx.view.object.place[0].set(out[0]);
+    ctx.view.object.place[1].set(out[1]);
     let key = out[2].wrapping_add(0x200_0000) >> 10;
     race.shared.view.face_depth_key.set_bits(key);
     let entry: u32 = view.lists.depth_entry_count.bits();
@@ -332,14 +325,12 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
 /// 0x4572B0: a flare at `point` in the frame of the car block at `car` (its matrix +0xB4,
 /// each part rounded, plus its place +0x134 ..), object 0x39, by `add_flare`.
 pub(super) fn place_flare(ctx: &DrawCtx, car: u32, point: [u32; 3]) -> Result<(), BadInput> {
-    let DrawCtx { scene, .. } = *ctx;
-    let drawing = &scene.drawing;
     let t = crate::math::x87_load::rotate_rounding(
         point.map(|v| v as i32),
         &crate::session::read_bits(&car_view(car)?.crash_matrix),
     );
     for (k, v) in t.iter().enumerate() {
-        drawing.object_work.place[k].set_bits(v.wrapping_add(car_view(car)?.position[k].bits()));
+        ctx.view.object.place[k].set_bits(v.wrapping_add(car_view(car)?.position[k].bits()));
     }
     ctx.view.cars.object_number.set(0x39u32);
     add_flare(ctx)?;
@@ -406,7 +397,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: u32) -> Result<(), Refused> {
         return Err(BadInput("the depth list has no room for a car's flares").into());
     }
     if race.shared.switches.mask_kind.get() == 8 {
-        scene.drawing.object_work.size.set(2u32);
+        ctx.view.object.size.set(2u32);
         let point = [
             race.frame.frame_work.part_place[0].bits(),
             race.frame.frame_work.part_place[1]
@@ -447,7 +438,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: u32) -> Result<(), Refused> {
     let record = LIGHT_RECORDS.record_ptr(index);
     ctx.view.light.view_kind.set(1u32);
     ctx.view.light.light_kind.set(3u32);
-    scene.drawing.object_work.size.set(2u32);
+    ctx.view.object.size.set(2u32);
     scene.drawing.object_work.other_light.set(0x0060_6060u32);
     let pair = |at: u32, left: u32, right: u32| light_pair(ctx, car, record, at, left, right);
     pair(0xA4, 0xAC0, 0xAC1)?;
@@ -510,12 +501,12 @@ pub fn car_lights(ctx: &DrawCtx) -> Result<(), Refused> {
 /// `g_placedMatrix`, moved by the view (0x5EA1CC into `ctx.view.matrices.matrix_scratch`), `ctx.view.matrices.object_turn_matrix` with it
 /// (`g_turnedMatrix`), times the view's turn into `g_madeObjectMatrix`.
 pub(super) fn placed_object_tail(ctx: &DrawCtx) {
-    let (frame, drawing) = (&ctx.race.frame, &ctx.scene.drawing);
+    let frame = &ctx.race.frame;
     use crate::scene::matrix;
     let place = [
-        drawing.object_work.place[0].get(),
-        drawing.object_work.place[1].bits(),
-        drawing.object_work.place[2].bits(),
+        ctx.view.object.place[0].get(),
+        ctx.view.object.place[1].bits(),
+        ctx.view.object.place[2].bits(),
     ];
     matrix::set_place(&ctx.view.matrices.placed_matrix, place);
     matrix::copy_matrix_with_place(
@@ -537,9 +528,8 @@ pub(super) fn placed_object_tail(ctx: &DrawCtx) {
 
 /// `ctx.view.matrices.object_turn_matrix`'s sixteen floats times `OBJECT_WORK.size` / 16.
 pub(super) fn scale_object_turn(ctx: &DrawCtx) -> Result<(), BadInput> {
-    let drawing = &ctx.scene.drawing;
     {
-        let scale = crate::math::x87::int_over_16(drawing.object_work.size.get() as i32);
+        let scale = crate::math::x87::int_over_16(ctx.view.object.size.get() as i32);
         for cell in &ctx.view.matrices.object_turn_matrix {
             cell.set_bits(crate::math::x87::mul(cell.bits(), scale));
         }
@@ -717,19 +707,10 @@ pub fn draw_flare(
     let (race, scene) = (ctx.race, ctx.scene);
     let course = &race.course;
     for (table, to) in [
-        (
-            &course.level_grid.flare_place_x,
-            &scene.drawing.object_work.place[0],
-        ),
-        (
-            &course.flare_tables.place_y,
-            &scene.drawing.object_work.place[1],
-        ),
-        (
-            &course.flare_tables.place_z,
-            &scene.drawing.object_work.place[2],
-        ),
-        (&course.flare_tables.size, &scene.drawing.object_work.size),
+        (&course.level_grid.flare_place_x, &ctx.view.object.place[0]),
+        (&course.flare_tables.place_y, &ctx.view.object.place[1]),
+        (&course.flare_tables.place_z, &ctx.view.object.place[2]),
+        (&course.flare_tables.size, &ctx.view.object.size),
         (
             &course.flare_tables.other_light,
             &scene.drawing.object_work.other_light,
@@ -763,10 +744,10 @@ pub fn draw_lamp_flare(
     let (race, scene) = (ctx.race, ctx.scene);
     let edi = self::lamp(&race.course, lamp)?;
     let [x, y, z] = crate::race::scene_points::point_number(edi[0].get())?;
-    scene.drawing.object_work.place[0].set(x);
-    scene.drawing.object_work.place[1].set(y);
-    scene.drawing.object_work.place[2].set(z);
-    scene.drawing.object_work.size.set(edi[1].get() << 3);
+    ctx.view.object.place[0].set(x);
+    ctx.view.object.place[1].set(y);
+    ctx.view.object.place[2].set(z);
+    ctx.view.object.size.set(edi[1].get() << 3);
     scene.drawing.object_work.other_light.set(edi[2].get());
     ctx.view
         .cars

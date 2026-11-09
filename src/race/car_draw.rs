@@ -268,7 +268,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     let shown = shown_groups(&race.course, switches);
     race.shared.switches.group_mask.set(shown);
     let field = |offset: u32| model_field(model, offset);
-    race.physics.camera.faded_bits.set(field(0x10)?);
+    ctx.view.face.faded_bits.set(field(0x10)?);
     race.course.course.group_masks[4].set(
         u32::MAX
             .wrapping_sub(race.course.course.group_masks[0].bits())
@@ -355,7 +355,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
         }
         ecx = 0xF0;
     }
-    race.frame.fade_alpha.set(ecx);
+    ctx.view.face.fade_alpha.set(ecx);
     // The original stored the group mask into the car's block +0xF04 here (0x461CD8),
     // which nothing ever reads: dropped (`notes/bugs.md`).
     // `view_cars[drawn_view]`: past the two, read on by address as the original does.
@@ -380,9 +380,8 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
         .light
         .light_level
         .set(race.course.stage_prefs.light_level.bits());
-    scene
-        .drawing
-        .object_work
+    ctx.view
+        .object
         .light_strength
         .set(race.course.stage_prefs.light_strength.bits());
     ctx.view.light.light_turns[0].set(race.course.stage_prefs.sun_turn.bits().wrapping_neg());
@@ -391,12 +390,12 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     ctx.view.light.light_kind.set(3);
     let this_car = car_view(car)?;
     let place = || {
-        scene.drawing.object_work.place[0].set(this_car.position[0].bits());
-        scene.drawing.object_work.place[1].set(this_car.position[1].bits());
-        scene.drawing.object_work.place[2].set(this_car.position[2].bits());
+        ctx.view.object.place[0].set(this_car.position[0].bits());
+        ctx.view.object.place[1].set(this_car.position[1].bits());
+        ctx.view.object.place[2].set(this_car.position[2].bits());
     };
     place();
-    scene.drawing.object_work.size.set(0x10);
+    ctx.view.object.size.set(0x10);
     crate::scene::matrix::set_light_direction(
         &ctx.view.matrices,
         &scene.drawing.scene.light_direction,
@@ -445,7 +444,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
         }
     }
     race.physics.camera.drawing_car.set(0);
-    race.physics.camera.faded_bits.set(u32::MAX);
+    ctx.view.face.faded_bits.set(u32::MAX);
     Ok(())
 }
 

@@ -90,13 +90,9 @@ pub fn car_part_matrices(
     race.physics.camera.axle_height.set(height);
     race.physics.camera.axle_front_z.set(front_z);
     race.physics.camera.car_axles.set(ax[4]);
-    scene.drawing.object_work.size.set(0x10);
     scene.drawing.object_work.part_values[2].set(c.shown_steering.get());
     scene.drawing.object_work.part_values[0].set_bits(p.driven_wheel_turns[0].bits());
     scene.drawing.object_work.part_values[1].set_bits(p.driven_wheel_turns[1].bits());
-    for i in 0..3 {
-        scene.drawing.object_work.place[i].set_bits(p.position[i].bits());
-    }
     copy_cells(&p.crash_matrix, &race.frame.matrices.body_turn_matrix, 16);
     for i in 0..4 {
         scene.drawing.object_work.part_weights[i].set_bits(p.wheel_spring_force[i].bits());
@@ -104,9 +100,9 @@ pub fn car_part_matrices(
     set_place(
         &race.frame.matrices.placed_matrix,
         [
-            scene.drawing.object_work.place[0].get(),
-            scene.drawing.object_work.place[1].get(),
-            scene.drawing.object_work.place[2].get(),
+            p.position[0].get(),
+            p.position[1].get(),
+            p.position[2].get(),
         ],
     );
     crate::math::cells::copy_cells(

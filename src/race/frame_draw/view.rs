@@ -230,13 +230,13 @@ pub fn sky_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Ba
     let m = &ctx.view.matrices;
     matrix::set_turn_y(&m.turn_y_matrix, &m.turn_y_work, angle);
     let height = race.course.stage_prefs.sky_height.get() << 8;
-    drawing.object_work.place[0].set(0u32);
-    drawing.object_work.place[2].set(0u32);
-    drawing.object_work.place[1].set(height);
+    ctx.view.object.place[0].set(0u32);
+    ctx.view.object.place[2].set(0u32);
+    ctx.view.object.place[1].set(height);
     matrix::set_place(&m.placed_matrix, [0, height, 0]);
     matrix::copy_matrix_with_place(&m.turn_y_matrix, &m.placed_matrix, &m.turned_matrix);
     let size = drawing.scene.farthest_scaled.get() << 4;
-    drawing.object_work.size.set(size);
+    ctx.view.object.size.set(size);
     let scale = crate::math::x87::int_over_16(size as i32);
     for cell in &m.turned_matrix {
         cell.set_bits(crate::math::x87::mul(cell.bits(), scale));

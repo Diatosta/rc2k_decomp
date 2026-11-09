@@ -107,6 +107,8 @@ pub enum Step {
     WriteSceneF32(fn(&Scene) -> &Float, f32),
     /// Writes a variable of the front end's object lighting.
     WriteLight(fn(&crate::scene::object_light::ObjectLight) -> &Dword, u32),
+    /// A cell of the front end's slot's object placing.
+    WriteObject(fn(&crate::scene::object_place::ObjectPlace) -> &Dword, u32),
     /// Calls the game function, and if it fails (the original's carry flag), that is the
     /// fatal error with this code (and no message).
     CallOrFatal(Callee, u32),
@@ -278,8 +280,9 @@ pub fn prepare_scene(scene: &Scene) {
 }
 
 /// `scene::set_up_carousel` (0x4904DD), with the list of cars menus 0xD and 0xE show.
-pub fn carousel(cars: Option<CarList>, scene: &Scene) -> Result<(), Refused> {
-    crate::scene::set_up_carousel::set_up_carousel(cars, scene)
+/// (`_scene`: the loops pass it; the carousel's set-up writes the front end's slot.)
+pub fn carousel(cars: Option<CarList>, _scene: &Scene) -> Result<(), Refused> {
+    crate::scene::set_up_carousel::set_up_carousel(cars)
 }
 
 /// A line for the game's log at level 1 with its line break (`logfile::log_write_l1_nl`,
@@ -514,6 +517,9 @@ fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
             }
             Step::Write(variable, value) => variable(menus).set(value),
             Step::WriteScene(variable, value) => variable(entry.scene).set(value),
+            Step::WriteObject(variable, value) => {
+                variable(&crate::race::view_scratch::front_end().object).set(value);
+            }
             Step::WriteSceneF32(variable, value) => variable(entry.scene).set(value),
             Step::WriteLight(variable, value) => {
                 variable(&crate::race::view_scratch::front_end().light).set(value);

@@ -49,7 +49,7 @@ pub fn draw_flat_quad(
     ]
     .map(float);
     let v = |n: usize, o: usize, x: u32| {
-        shared.vars.quad_vertices[8 * n + o / 4].set_bits(x);
+        poly.quad_vertices[8 * n + o / 4].set_bits(x);
     };
     for (n, x, y) in [
         (0, left, top),

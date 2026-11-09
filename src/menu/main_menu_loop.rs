@@ -137,7 +137,7 @@ pub const SCREEN: Screen = Screen {
         Step::WriteLight(|l| &l.light_lowest, 0x50),
         Step::WriteLight(|l| &l.light_highest, 0xFF),
         Step::WriteLight(|l| &l.light_level, 0),
-        Step::WriteScene(|s| &s.drawing.object_work.light_strength, 0xFF),
+        Step::WriteObject(|o| &o.light_strength, 0xFF),
         Step::WriteLight(|l| &l.light_turns[0], 0x6E),
         Step::WriteLight(|l| &l.light_turns[1], 0x1E),
         Step::Call(Callee::PlayTune4),

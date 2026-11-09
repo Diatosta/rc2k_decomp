@@ -140,6 +140,7 @@ pub fn make_object_matrix(
     view_turn: &[Float; 16],
     scene: &crate::scene::owner::Scene,
     light: &crate::scene::object_light::ObjectLight,
+    object: &crate::scene::object_place::ObjectPlace,
 ) {
     let drawing = &scene.drawing;
     set_light_direction(v, &scene.drawing.scene.light_direction, view_turn, light);
@@ -153,10 +154,10 @@ pub fn make_object_matrix(
         &v.turn_x_work,
         drawing.object_work.angles[0].bits().wrapping_neg(),
     );
-    let place: [u32; 3] = crate::session::read_bits(&drawing.object_work.place);
+    let place: [u32; 3] = crate::session::read_bits(&object.place);
     set_place(&v.placed_matrix, place);
     multiply_matrices(&v.turn_y_matrix, &v.turn_x_matrix, &v.turned_matrix);
-    let size: u32 = drawing.object_work.size.bits();
+    let size: u32 = object.size.bits();
     let factor = x87::int_over_16(size as i32);
     for cell in &v.turned_matrix {
         cell.set_bits(x87::mul(cell.bits(), factor));

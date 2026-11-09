@@ -53,6 +53,7 @@ pub fn draw_menu_object_in_game(
                     &race.frame.matrices.view_turn_matrix,
                     scene,
                     &ctx.view.light,
+                    &ctx.view.object,
                 );
                 Ok(())
             }

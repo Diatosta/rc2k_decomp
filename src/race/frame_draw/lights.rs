@@ -87,13 +87,11 @@ pub(super) fn lamp(course: &Course, n: u32) -> Result<&'_ [Dword], BadInput> {
 /// entry of that key with `g_lampCount` + 0x3000000; `race().frame.frame_work.lamp_entry_count` + 1. The caller checks
 /// the room.
 pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
-    let DrawCtx {
-        race, scene, view, ..
-    } = *ctx;
+    let DrawCtx { race, view, .. } = *ctx;
     let frame = &race.frame;
     let point = self::lamp(&race.course, lamp)?[0].get();
     let place = crate::race::scene_points::point_number(point)?;
-    let turned = &scene.drawing.object_work.place;
+    let turned = &view.object.place;
     for (cell, &v) in turned.iter().zip(&place) {
         cell.set(v);
     }
@@ -260,15 +258,13 @@ pub(super) fn car_lights_on_point(
     Ok(())
 }
 
-/// 0x44F863: the lamps' light on the lit place: each lamp with a strength (+4,
-/// `GROUND_WORK.point_light_strength`) gives ((0x200000 - its approximate distance) x strength) >> 17 (held to
+/// 0x44F863: the lamps' light on the lit place: each lamp with a strength (+4) gives ((0x200000 - its approximate distance) x strength) >> 17 (held to
 /// 0 .. 0xFF) as a grey, times its colour (+8, `LIGHT_WORK.lamp_tint`) byte by byte, added to
 /// `g_lightColour`.
 pub(super) fn lamp_lights_on_point(
     race: &Race,
     object_light: &crate::scene::object_light::ObjectLight,
 ) -> Result<(), BadInput> {
-    let physics = &race.physics;
     {
         let count: u32 = race.shared.view.lamp_count.bits();
         if count == 0 {
@@ -278,7 +274,6 @@ pub(super) fn lamp_lights_on_point(
         for n in 0..count {
             let lamp = self::lamp(&race.course, n)?;
             let strength = lamp[1].get();
-            physics.ground.point_light_strength.set(strength);
             if strength == 0 {
                 continue;
             }
@@ -288,10 +283,7 @@ pub(super) fn lamp_lights_on_point(
             let at = crate::race::scene_points::point_number(point)?;
             let d: [u32; 3] = std::array::from_fn(|k| at[k].wrapping_sub(place[k].get()));
             let [distance, _, _] = crate::scene::approximate_distance::approximate_distance(d);
-            let (grey, _) = rc2k_core::race::lights::lamp_grey(
-                distance,
-                physics.ground.point_light_strength.bits(),
-            );
+            let (grey, _) = rc2k_core::race::lights::lamp_grey(distance, strength);
             let light = add_colours(
                 rc2k_core::race::lights::multiply_colours(grey, tint),
                 object_light.light_colour.bits(),

@@ -39,7 +39,7 @@ pub struct LightState {
     pub unknown_70: [Dword; 4],
     /// +0x80 (0x636608): `dword_636608`: the face bits of the object being drawn (`scene::draw_object_face`); now each view's (`scene::object_light`); unused.
     pub face_bits: Dword,
-    /// +0x84 (0x63660C): `dword_63660C`: the faded flag (`scene::draw_polygon`, `scene::draw_object_face`).
+    /// +0x84 (0x63660C): `dword_63660C`: the faded flag; the drawing's is the view's (`race::face_work`), this one not used.
     pub faded: Dword,
     /// +0x88 (0x636610): `dword_636610`: the fog's next step, now each view's (`scene::fog::Fog::next`); unused.
     pub fog_next: Dword,

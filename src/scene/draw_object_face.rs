@@ -107,10 +107,7 @@ pub fn draw_object_face(
         return Ok(());
     }
 
-    let (face_kind, face_unlit): (u32, u32) = (
-        race.frame.sound_spots.face_kind.bits(),
-        race.frame.sound_spots.face_unlit.bits(),
-    );
+    let (face_kind, face_unlit): (u32, u32) = (work.face_kind.bits(), work.face_unlit.bits());
     let lit = view_kind != 4
         && (face_kind == 0x1C || (face_kind != 5 && (face_kind < 0xA || face_unlit == 0)));
     let table = crate::scene::reading::PointRecords::new()?;
@@ -121,7 +118,7 @@ pub fn draw_object_face(
         entry.u.set(fw(vertex + 4));
         entry.v.set(fw(vertex + 8));
         let light = if lit {
-            vertex_light(race, fw(vertex + 0xC), scene, light, system)?
+            vertex_light(race, fw(vertex + 0xC), scene, light, object, system)?
         } else {
             0x00FF_FFFF
         };
@@ -147,9 +144,8 @@ pub fn draw_object_face(
         }
         ctx.view.polygon.polygon_textures[1].set_bits(REFLECTION_TEXTURE);
     }
-    let faded = race.frame.fade_alpha.bits() != 0
-        && light.face_bits.bits() == race.physics.camera.faded_bits.bits();
-    scene.lights.state.faded.set_bits(faded as u32);
+    let faded = work.fade_alpha.bits() != 0 && light.face_bits.bits() == work.faded_bits.bits();
+    work.faded.set_bits(faded as u32);
     if race.shared.switches.face_any_shine.bits() == 0 {
         race.shared.switches.face_reflects.set_bits(0u32);
     }
@@ -171,7 +167,7 @@ pub fn draw_object_face(
     }
     step(Step::Draw)?;
     work.polygon_mode.set_bits(0u32);
-    scene.lights.state.faded.set_bits(0u32);
+    work.faded.set_bits(0u32);
     Ok(())
 }
 

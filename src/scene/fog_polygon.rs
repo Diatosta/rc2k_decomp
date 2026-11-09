@@ -45,7 +45,11 @@ pub fn fog_entries(
     let fixed = (light.view_kind.bits() == 4).then(|| fog.next.bits());
     for entry in entries {
         let record = entry.record.get();
-        let depth = x87::to_int(crate::scene::point_records::vertex(record, 0x18));
+        let depth = x87::to_int(crate::scene::point_records::vertex(
+            &view.polygon.quad_vertices,
+            record,
+            0x18,
+        ));
         // A place past the length is the last one; with no length (the menus)
         // that is the byte before the table, as in the original.
         let place = depth.max(0) as u32 >> 13;
