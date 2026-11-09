@@ -10,7 +10,7 @@ use crate::session::Dword;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ObjectTables {
-    /// +0x0 (0x62DB5C): `g_listedFaces`: the faces listed for drawing, 0x10 bytes each (number, sort key, third word, see-through; `scene::list_object_face`, `scene::sort_listed_faces`, `scene::draw_object_faces`).
+    /// +0x0 (0x62DB5C): `g_listedFaces`: the original's faces listed for drawing, no longer used: each object's drawing has its own (`scene::face_list`). Kept for the store's layout.
     pub listed_faces: [Dword; 4096],
     /// +0x4000 (0x631B5C): `dword_631B5C` .. `dword_631B64`: the material's length, time and phase (`scene::set_object_material`, `scene::step_object_shape`).
     pub phase_work: [Dword; 3],

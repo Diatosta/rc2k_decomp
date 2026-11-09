@@ -60,6 +60,7 @@ pub mod draw_tinted_quad;
 pub mod end_scene;
 pub mod engine_tables_store;
 pub mod face_faces_away;
+pub mod face_list;
 pub mod face_sort_key;
 pub mod faces_store;
 pub mod file_numbers_store;

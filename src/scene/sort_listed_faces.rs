@@ -12,68 +12,28 @@
 //! the list (never met in the core's tests), before changing anything.
 
 use crate::errors::BadInput;
-
-const MOST: u32 = 0x1000;
+use crate::scene::face_list::FaceList;
 
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::scene::face_order::sort_listed_faces`.
-pub fn sort_listed_faces(scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
-    let listed: u32 = scene.lights.work.listed_face_count.bits();
-    if listed > MOST {
-        return Err(BadInput("more faces listed than the list holds"));
-    }
-    // The list runs on past `listed_faces` into the store's next fields, as
-    // `scene::list_object_face` writes it.
-    let (slots, cells) = (&*scene.objects.slots, &scene.objects.slots.listed_faces);
-    let mut list = Vec::with_capacity(listed as usize);
-    for n in 0..listed as usize {
-        let mut face: rc2k_core::scene::face_order::ListedFace = [0; 4];
-        for (w, word) in face.iter_mut().enumerate() {
-            *word = crate::session::read_on_in(slots, cells, 4 * n + w, "the list of faces")?;
-        }
-        list.push(face);
-    }
-    rc2k_core::scene::face_order::sort_listed_faces(&mut list)?;
-    for (n, face) in list.iter().enumerate() {
-        for (w, &word) in face.iter().enumerate() {
-            crate::session::write_on_in(slots, cells, 4 * n + w, word, "the list of faces")?;
-        }
-    }
-    Ok(())
+pub fn sort_listed_faces(list: &mut FaceList) -> Result<(), BadInput> {
+    Ok(rc2k_core::scene::face_order::sort_listed_faces(list)?)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scene::owner::scene;
-    use crate::session::{read_on_in, write_on_in};
 
-    /// A list longer than `listed_faces`' 0x400 entries runs on into the store's next fields.
+    /// A list longer than the original's 0x400 entries (it ran on into the next tables there)
+    /// is sorted whole.
     #[test]
-    fn sorts_a_list_past_the_field() {
-        let scene = scene();
-        let _lock = crate::store::test_lock();
-        const LISTED: usize = 0x408;
-        let cells = &scene.objects.slots.listed_faces;
-        let word = |n: usize| read_on_in(&*scene.objects.slots, cells, n, "a test").unwrap();
-        let put = |n: usize, v: u32| {
-            write_on_in(&*scene.objects.slots, cells, n, v, "a test").unwrap();
-        };
-        let kept: Vec<u32> = (0..4 * LISTED).map(word).collect();
-        let count = scene.lights.work.listed_face_count.bits();
-        for n in 0..LISTED {
-            put(4 * n, n as u32);
-            put(4 * n + 1, n as u32);
-        }
-        scene.lights.work.listed_face_count.set_bits(LISTED as u32);
-        let sorted = sort_listed_faces(crate::scene::owner::scene());
-        let keys: Vec<u32> = (0..LISTED).map(|n| word(4 * n + 1)).collect();
-        for (n, &v) in kept.iter().enumerate() {
-            put(n, v);
-        }
-        scene.lights.work.listed_face_count.set_bits(count);
-        sorted.unwrap();
+    fn sorts_a_long_list() {
+        const LISTED: u32 = 0x408;
+        let mut list: FaceList = (0..LISTED).map(|n| [n, n, 0, 0]).collect();
+        sort_listed_faces(&mut list).unwrap();
+        let keys: Vec<u32> = list.iter().map(|face| face[1]).collect();
+        assert_eq!(keys.len(), LISTED as usize);
         assert!(keys.windows(2).all(|k| k[0] >= k[1]), "largest key first");
     }
 }

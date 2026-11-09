@@ -35,6 +35,7 @@ use crate::errors::{BadInput, Refused};
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::scene::face_faces_away::face_faces_away;
+use crate::scene::face_list::FaceList;
 use crate::scene::face_sort_key::face_sort_key;
 use crate::scene::owner::scene;
 use rc2k_core::scene::face_tests::{Face, FaceWorld, dropped, listed_key};
@@ -166,13 +167,13 @@ pub fn list_object_face(
     race: &crate::race::owner::Race,
     face: usize,
     scene: &crate::scene::owner::Scene,
+    list: &mut FaceList,
 ) -> Result<(), Refused> {
     let physics = &race.physics;
     if face == 0 {
         return Err(BadInput("no face").into());
     }
-    let listed: u32 = scene.lights.work.listed_face_count.bits();
-    if listed >= LIST_ROOM {
+    if list.len() as u32 >= LIST_ROOM {
         return Err(BadInput("no room in the list of faces").into());
     }
     physics.ground.object_see_through.set_bits(0x100u32);
@@ -195,26 +196,14 @@ pub fn list_object_face(
     scene.drawing.scene.polygon_vertex_count.set_bits(count);
     scene.drawing.scene.face_sort_key.set_bits(0u32);
     face_sort_key(&race.course, face, count, scene)?;
-    // The room is 0x1000 entries but 0x400 lie before the next table (a slip, kept).
-    let entry = listed as usize * 4;
+    // The original's room was 0x1000 entries but its list 0x400 long, the rest written over
+    // the next tables (fixed: `wiki/Fixed-bugs.md`).
     let key = listed_key(bytes, scene.drawing.scene.face_sort_key.bits());
-    for (k, v) in [
+    list.push([
         race.shared.vars.face_number.bits(),
         key,
         scene.drawing.scene.entry_third.bits(),
         physics.ground.object_see_through.bits(),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        crate::session::write_on_in(
-            &*scene.objects.slots,
-            &scene.objects.slots.listed_faces,
-            entry + k,
-            v,
-            "the list of faces",
-        )?;
-    }
-    scene.lights.work.listed_face_count.set_bits(listed + 1);
+    ]);
     Ok(())
 }

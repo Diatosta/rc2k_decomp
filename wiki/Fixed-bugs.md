@@ -505,3 +505,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read in `physics::place_car_sound` (0x45CC5C), `physics::car_sound_state` (0x45CACE) and the car's sound places (`physics::car_sounds`), which read `g_viewTurnMatrix` during the race's ticks; found 2026-11-08 by the conversion's frame census.
 
 **Fix:** the first view's matrix is kept once that view is drawn, and the race's sounds are placed by it.
+
+## An object with many faces writes over the object tables
+
+**What it is:** before drawing an object the game lists the faces it will draw, 16 bytes each. The list has room for 1,024 faces, but the check before adding one allows 4,096. From the 1,025th face on, the entries are written over what follows the list in memory: the material's timing, the list of textures, and each object slot's first point and point count.
+
+**In game:** only an object with more than 1,024 faces facing the camera at once would do it; none of the game's own objects came near it in the drives and replays measured. If one did, the objects drawn after it would take their points and textures from the wrong places until the stage was loaded again: broken or missing objects.
+
+**Seen or read:** read in `scene::list_object_face` (0x4504CB), `scene::sort_listed_faces` (0x45098C) and `scene::draw_object_faces` (0x450A4B); found 2026-11-09 by the conversion's survey of the drawing's working state.
+
+**Fix:** each object's drawing has its own list, with room for the 4,096 faces the check allows. Nothing past it is touched.

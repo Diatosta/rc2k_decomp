@@ -80,6 +80,9 @@ pub fn draw_object_in_game(
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
+    // The object's listed faces: filled, sorted and drawn here alone (the original's
+    // `g_listedFaces`, one for every drawing).
+    let mut faces = crate::scene::face_list::FaceList::new();
     draw_object(&mut |step| {
         match step {
             Step::Light => set_object_light_in_game(race, scene, system)?,
@@ -89,14 +92,16 @@ pub fn draw_object_in_game(
             Step::List => {
                 list_object_faces(
                     &race.shared,
-                    &mut |face| list_object_face(race, face, scene),
+                    &mut faces,
+                    &mut |list, face| list_object_face(race, face, scene, list),
                     scene,
                 )?;
             }
-            Step::Sort => sort_listed_faces(scene)?,
+            Step::Sort => sort_listed_faces(&mut faces)?,
             Step::Faces => {
                 draw_object_faces(
                     race,
+                    &faces,
                     &mut |face| draw_object_face_in_game(race, face, scene, system),
                     scene,
                 )?;
