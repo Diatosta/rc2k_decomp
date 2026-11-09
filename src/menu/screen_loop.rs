@@ -105,6 +105,8 @@ pub enum Step {
     /// Writes a scene variable.
     WriteScene(fn(&Scene) -> &Dword, u32),
     WriteSceneF32(fn(&Scene) -> &Float, f32),
+    /// Writes a variable of the front end's object lighting.
+    WriteLight(fn(&crate::scene::object_light::ObjectLight) -> &Dword, u32),
     /// Calls the game function, and if it fails (the original's carry flag), that is the
     /// fatal error with this code (and no message).
     CallOrFatal(Callee, u32),
@@ -513,6 +515,9 @@ fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
             Step::Write(variable, value) => variable(menus).set(value),
             Step::WriteScene(variable, value) => variable(entry.scene).set(value),
             Step::WriteSceneF32(variable, value) => variable(entry.scene).set(value),
+            Step::WriteLight(variable, value) => {
+                variable(&crate::race::view_scratch::front_end().light).set(value);
+            }
             Step::CallOrFatal(function, code) => call_or_fatal(entry, function, code)?,
             Step::Do(what) => what(entry)?,
         }

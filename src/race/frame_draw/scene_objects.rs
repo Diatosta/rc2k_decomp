@@ -63,11 +63,10 @@ pub fn draw_slot_object(
         }
     }
     scene.drawing.object_work.other_light.set_bits(0);
-    scene.drawing.object_work.light_lowest.set_bits(0);
-    scene.drawing.object_work.light_highest.set_bits(0xFF);
-    scene
-        .drawing
-        .object_work
+    ctx.view.light.light_lowest.set_bits(0);
+    ctx.view.light.light_highest.set_bits(0xFF);
+    ctx.view
+        .light
         .light_level
         .set_bits(race.course.stage_prefs.light_level.bits());
     scene
@@ -75,11 +74,10 @@ pub fn draw_slot_object(
         .object_work
         .light_strength
         .set_bits(race.course.stage_prefs.light_strength.bits());
-    scene.drawing.object_work.light_turns[0]
-        .set_bits(race.course.stage_prefs.sun_turn.get().wrapping_neg());
-    scene.drawing.object_work.light_turns[1].set_bits(race.course.stage_prefs.sun_height.bits());
-    scene.lights.state.view_kind.set_bits(1);
-    scene.lights.work.light_kind.set_bits(2);
+    ctx.view.light.light_turns[0].set_bits(race.course.stage_prefs.sun_turn.get().wrapping_neg());
+    ctx.view.light.light_turns[1].set_bits(race.course.stage_prefs.sun_height.bits());
+    ctx.view.light.view_kind.set_bits(1);
+    ctx.view.light.light_kind.set_bits(2);
     crate::math::cells::copy_cells(&slot.matrix, &race.frame.matrices.object_turn_matrix, 16);
     let place = [
         slot.place[0].get(),
@@ -451,8 +449,8 @@ pub fn car_light_flares(ctx: &DrawCtx, car: u32) -> Result<(), Refused> {
     // 0x41F4E1: the kind held to 0 ..= 0x21 (by sign), through `KIND_TABLES.kind_light_records`.
     let index = KIND_TABLES.kind_light_records[(kind as i32).clamp(0, 0x21) as usize].bits();
     let record = LIGHT_RECORDS.record_ptr(index);
-    scene.lights.state.view_kind.set(1u32);
-    scene.lights.work.light_kind.set(3u32);
+    ctx.view.light.view_kind.set(1u32);
+    ctx.view.light.light_kind.set(3u32);
     scene.drawing.object_work.size.set(2u32);
     scene.drawing.object_work.other_light.set(0x0060_6060u32);
     let pair = |at: u32, left: u32, right: u32| light_pair(ctx, car, record, at, left, right);
@@ -582,7 +580,7 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         &frame.matrices.lit_matrix,
         &frame.matrices.object_turn_matrix,
     );
-    set_light_direction(&race.frame.matrices, scene);
+    set_light_direction(&race.frame.matrices, scene, &ctx.view.light);
     if scene.lights.state.light_turn_off.get() == 0 {
         set_turn_y(
             &race.frame.matrices,
@@ -604,7 +602,7 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         placed_object_tail(frame, scene);
         return Ok(());
     }
-    if scene.lights.state.view_kind.get() == 4 {
+    if ctx.view.light.view_kind.get() == 4 {
         return Ok(());
     }
     let kind = scene
@@ -747,9 +745,9 @@ pub fn draw_flare(
                 .bits(),
         );
     }
-    scene.lights.state.view_kind.set(2u32);
+    ctx.view.light.view_kind.set(2u32);
     place_object_matrix(ctx)?;
-    scene.lights.work.light_kind.set(0u32);
+    ctx.view.light.light_kind.set(0u32);
     crate::scene::draw_scene_object::draw_scene_object_in_game(ctx, Some(entry))
 }
 
@@ -773,9 +771,9 @@ pub fn draw_lamp_flare(
         .switches
         .object_number
         .set(race.shared.switches.marker_object.get());
-    scene.lights.state.view_kind.set(2u32);
+    ctx.view.light.view_kind.set(2u32);
     place_object_matrix(ctx)?;
-    scene.lights.work.light_kind.set(0u32);
+    ctx.view.light.light_kind.set(0u32);
     // esi `g_turnedMatrix`, as `place_object_matrix` leaves it (`LIGHT_STATE.view_kind` is 2 here,
     // so it always ends by placing the object).
     crate::scene::draw_scene_object::draw_scene_object_in_game(
@@ -801,7 +799,7 @@ pub fn draw_list_entry(
     at: Description<'_>,
     flags_word: u32,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     let course = &race.course;
     let word = flags_word & 0x7FFF_FFFF;
     if word >= 0x400_0000 {
@@ -833,7 +831,7 @@ pub fn draw_list_entry(
         2 => crate::race::car_draw::draw_car_entry(ctx, low)?,
         _ => draw_lamp_flare(ctx, low)?,
     }
-    scene.lights.state.view_kind.set(0u32);
+    ctx.view.light.view_kind.set(0u32);
     Ok(())
 }
 

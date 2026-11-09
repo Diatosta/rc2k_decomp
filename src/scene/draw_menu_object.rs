@@ -25,14 +25,13 @@ pub enum Step {
 pub fn draw_menu_object(
     course: &crate::race::owner_course::Course,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
-    scene: &crate::scene::owner::Scene,
+    light: &crate::scene::object_light::ObjectLight,
 ) -> Result<(), Refused> {
-    let lights = &scene.lights;
     {
         course.course.shine.set_bits(0x200u32);
         step(Step::Matrix)?;
-        lights.state.view_kind.set_bits(5u32);
-        lights.work.light_kind.set_bits(4u32);
+        light.view_kind.set_bits(5u32);
+        light.light_kind.set_bits(4u32);
         step(Step::Draw)?;
         course.course.shine.set_bits(0x100u32);
         Ok(())
@@ -49,11 +48,11 @@ pub fn draw_menu_object_in_game(
         &race.course,
         &mut |step| match step {
             Step::Matrix => {
-                make_object_matrix(&race.frame, scene);
+                make_object_matrix(&race.frame, scene, &ctx.view.light);
                 Ok(())
             }
             Step::Draw => crate::scene::draw_scene_object::draw_scene_object_in_game(ctx, None),
         },
-        scene,
+        &ctx.view.light,
     )
 }

@@ -397,11 +397,10 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
             .group_mask
             .set(u32::MAX);
     }
-    scene.drawing.object_work.light_lowest.set(0);
-    scene.drawing.object_work.light_highest.set(0xFF);
-    scene
-        .drawing
-        .object_work
+    ctx.view.light.light_lowest.set(0);
+    ctx.view.light.light_highest.set(0xFF);
+    ctx.view
+        .light
         .light_level
         .set(race.course.stage_prefs.light_level.bits());
     scene
@@ -409,11 +408,10 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
         .object_work
         .light_strength
         .set(race.course.stage_prefs.light_strength.bits());
-    scene.drawing.object_work.light_turns[0]
-        .set(race.course.stage_prefs.sun_turn.bits().wrapping_neg());
-    scene.drawing.object_work.light_turns[1].set(race.course.stage_prefs.sun_height.bits());
-    scene.lights.state.view_kind.set(1);
-    scene.lights.work.light_kind.set(3);
+    ctx.view.light.light_turns[0].set(race.course.stage_prefs.sun_turn.bits().wrapping_neg());
+    ctx.view.light.light_turns[1].set(race.course.stage_prefs.sun_height.bits());
+    ctx.view.light.view_kind.set(1);
+    ctx.view.light.light_kind.set(3);
     let this_car = car_view(car)?;
     let place = || {
         scene.drawing.object_work.place[0].set(this_car.position[0].bits());
@@ -422,13 +420,13 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     };
     place();
     scene.drawing.object_work.size.set(0x10);
-    crate::scene::matrix::set_light_direction(&race.frame.matrices, scene);
+    crate::scene::matrix::set_light_direction(&race.frame.matrices, scene, &ctx.view.light);
     place();
     ctx.view.object.car_switches.set(switches);
     race.physics.camera.drawing_car.set(1);
     scene.drawing.object_work.other_light.set(0);
-    scene.lights.work.light_kind.set(3);
-    scene.lights.work.light_kind_extra.set(0);
+    ctx.view.light.light_kind.set(3);
+    ctx.view.light.light_kind_extra.set(0);
     race.shared.switches.object_number.set(
         race.frame
             .view_and_records
@@ -445,7 +443,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
         Some(lit_place(&race.frame).into()),
     )?;
     crate::race::frame_draw::end_kept_reflections(&race.shared);
-    scene.lights.work.light_kind_extra.set(1);
+    ctx.view.light.light_kind_extra.set(1);
     if below(race.frame.frame_work.car_depth.bits(), 0x3C_0000) {
         for (bit, matrix) in [0x20u32, 0x40, 0x80, 0x100]
             .into_iter()

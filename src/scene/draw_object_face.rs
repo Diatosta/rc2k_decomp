@@ -51,6 +51,7 @@ pub fn draw_object_face(
     face: usize,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
     scene: &crate::scene::owner::Scene,
+    light: &crate::scene::object_light::ObjectLight,
     system: &crate::system::owner::System,
     object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<(), Refused> {
@@ -72,15 +73,11 @@ pub fn draw_object_face(
     let fw = |at: usize| u32::from_le_bytes(words[at..at + 4].try_into().unwrap());
     let entries = &crate::scene::polygon_store::POLYGON_WORK.entries;
     let vertices = (0..count as usize).map(|n| (&entries[n], 0x10 + n * 0x10));
-    let view_kind: u32 = scene.lights.state.view_kind.bits();
+    let view_kind: u32 = light.view_kind.bits();
     let shine: u32 = race.course.course.shine.bits();
 
     scene.drawing.scene.face_word.set_bits(fw(0xC));
-    scene
-        .lights
-        .state
-        .face_bits
-        .set_bits(words[7] as u32 & 0x1F);
+    light.face_bits.set_bits(words[7] as u32 & 0x1F);
     let face_shine = words[9] as u32;
     scene.drawing.scene.face_shine.set_bits(face_shine);
     let reflects = shine != 0
@@ -123,11 +120,11 @@ pub fn draw_object_face(
     for (entry, vertex) in vertices.clone() {
         let point = fw(vertex);
         entry.point.set(point.wrapping_neg());
-        crate::session::write_bits(&scene.lights.work.point_place, table.place(point)?);
+        crate::session::write_bits(&light.point_place, table.place(point)?);
         entry.u.set(fw(vertex + 4));
         entry.v.set(fw(vertex + 8));
         let light = if lit {
-            vertex_light(race, fw(vertex + 0xC), scene, system)?
+            vertex_light(race, fw(vertex + 0xC), scene, light, system)?
         } else {
             0x00FF_FFFF
         };
@@ -154,7 +151,7 @@ pub fn draw_object_face(
         scene.drawing.scene.polygon_textures[1].set_bits(REFLECTION_TEXTURE);
     }
     let faded = race.frame.fade_alpha.bits() != 0
-        && scene.lights.state.face_bits.bits() == race.physics.camera.faded_bits.bits();
+        && light.face_bits.bits() == race.physics.camera.faded_bits.bits();
     scene.lights.state.faded.set_bits(faded as u32);
     if race.shared.switches.face_any_shine.bits() == 0 {
         race.shared.switches.face_reflects.set_bits(0u32);
@@ -207,6 +204,7 @@ pub fn draw_object_face_in_game(
             }
         },
         scene,
+        &ctx.view.light,
         system,
         &ctx.view.object,
     )

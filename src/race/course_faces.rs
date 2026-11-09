@@ -182,7 +182,7 @@ pub fn face_materials(race: &Race, face: &Face) -> Result<(), BadInput> {
 pub fn draw_marked_face(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
     crate::scene::scale_texture_coordinates::scale_texture_coordinates(scene)?;
-    crate::scene::fog_polygon::fog_polygon(scene, &ctx.view.fog)?;
+    crate::scene::fog_polygon::fog_polygon(ctx.view)?;
     crate::scene::draw_marked_polygon::draw_marked_polygon(race, &mut || {
         crate::scene::draw_polygon::draw_polygon_in_game(race, scene)
     })?;
@@ -213,11 +213,11 @@ fn point_light(ctx: &crate::race::view_scratch::DrawCtx<'_>, n: u32) -> Result<u
         return Ok(0);
     }
     let [x, y, z] = crate::race::scene_points::point_number(n)?;
-    scene.lights.state.lit_place[0].set(x);
-    scene.lights.state.lit_place[1].set(y);
-    scene.lights.state.lit_place[2].set(z);
-    crate::race::frame_draw::light_colour_at(race, scene)?;
-    let light: u32 = scene.lights.work.light_colour.get();
+    ctx.view.light.lit_place[0].set(x);
+    ctx.view.light.lit_place[1].set(y);
+    ctx.view.light.lit_place[2].set(z);
+    crate::race::frame_draw::light_colour_at(race, scene, &ctx.view.light)?;
+    let light: u32 = ctx.view.light.light_colour.get();
     Ok(light)
 }
 
@@ -783,7 +783,7 @@ pub fn draw_lit_triangle(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result
         return Ok(());
     }
     crate::scene::scale_texture_coordinates::scale_texture_coordinates(scene)?;
-    crate::scene::fog_polygon::fog_polygon(scene, &ctx.view.fog)?;
+    crate::scene::fog_polygon::fog_polygon(ctx.view)?;
     for k in 0..3 {
         entry(3 + k)
             .record
@@ -797,7 +797,7 @@ pub fn draw_lit_triangle(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result
             crate::race::scene_points::point_number(pa)?,
             crate::race::scene_points::point_number(pb)?,
         );
-        for (n, lit) in scene.lights.state.lit_place.iter().enumerate() {
+        for (n, lit) in ctx.view.light.lit_place.iter().enumerate() {
             let o = 4 * n as u32;
             let (a, b) = (at_a[n], at_b[n]);
             let m = ((b.wrapping_sub(a) as i32) >> 1) as u32;
@@ -814,8 +814,8 @@ pub fn draw_lit_triangle(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result
         )?;
         let to = entry(3 + k as u32);
         halfway_entry(&race.course, entry(first), entry(second), to);
-        crate::race::frame_draw::light_colour_at(race, scene)?;
-        let light: u32 = scene.lights.work.light_colour.get();
+        crate::race::frame_draw::light_colour_at(race, scene, &ctx.view.light)?;
+        let light: u32 = ctx.view.light.light_colour.get();
         to.lamp_light.set(light);
     }
     let mode5 = race.shared.view.polygon_mode.get() == 5;

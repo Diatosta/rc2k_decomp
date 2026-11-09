@@ -34,7 +34,7 @@ pub fn draw_view_scene(
     camera_view(race, scene)?;
     draw_sky(&ctx)?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
-    view_light(race, scene)?;
+    view_light(race, scene, &view.light)?;
     reset_lamps(&ctx)?;
     race.shared.view.view_lamps.set_bits(0u32);
     prepare_course_view(race)?;

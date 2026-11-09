@@ -35,15 +35,16 @@ pub fn set_object_light(
     race: &crate::race::owner::Race,
     gather: &mut dyn FnMut() -> Result<(), Refused>,
     scene: &crate::scene::owner::Scene,
+    light: &crate::scene::object_light::ObjectLight,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
-    scene.drawing.object_work.light_added.set_bits(0u32);
-    let (clear_strength, own_car) = match object_light(scene.lights.work.light_kind.bits(), || {
+    light.light_added.set_bits(0u32);
+    let (clear_strength, own_car) = match object_light(light.light_kind.bits(), || {
         input().devices.keys_now.get(0x18) != 0 // byte_4F6B74
     }) {
         ObjectLight::White => {
-            scene.drawing.object_work.light_added.set_bits(WHITE);
+            light.light_added.set_bits(WHITE);
             return Ok(());
         }
         ObjectLight::Gathered {
@@ -56,7 +57,7 @@ pub fn set_object_light(
         scene.drawing.object_work.light_strength.set_bits(0u32);
     }
     crate::session::write_bits(
-        &scene.lights.state.lit_place,
+        &light.lit_place,
         crate::session::read_bits::<_, 3>(&scene.drawing.object_work.place),
     );
     if own_car {
@@ -65,14 +66,14 @@ pub fn set_object_light(
             .drawn_car_light
             .set_bits(race.frame.view_and_records.view_vars.drawn_car.bits());
     }
-    scene.lights.work.light_colour.set_bits(0u32);
+    light.light_colour.set_bits(0u32);
     gather()?;
     if own_car {
         race.physics.ground.drawn_car_light.set_bits(u32::MAX);
     }
     let mmx = system.session.machine.has_mmx.get() != 0;
-    scene.drawing.object_work.light_added.set_bits(plus(
-        scene.lights.work.light_colour.bits(),
+    light.light_added.set_bits(plus(
+        light.light_colour.bits(),
         scene.drawing.object_work.other_light.bits(),
         mmx,
     ));
@@ -89,13 +90,14 @@ pub fn set_object_light_in_game(
         race,
         &mut || {
             add_car_lights(race, &mut |car, marks| {
-                add_car_light(&race.course, car, marks, scene, system);
+                add_car_light(&race.course, car, marks, scene, &ctx.view.light, system);
                 Ok(())
             })?;
             add_point_lights(ctx, system)?;
             Ok(())
         },
         scene,
+        &ctx.view.light,
         system,
     )
 }

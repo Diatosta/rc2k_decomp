@@ -22,19 +22,16 @@ const TABLE_LEN: u32 = crate::scene::fog::TABLE_LEN as u32;
 
 // ---- Rust version ----
 
-pub fn fog_polygon(
-    scene: &crate::scene::owner::Scene,
-    fog: &crate::scene::fog::Fog,
-) -> Result<(), Refused> {
-    fog_entries(&listed()?, scene, fog)
+pub fn fog_polygon(view: &crate::race::view_scratch::ViewScratch) -> Result<(), Refused> {
+    fog_entries(&listed()?, view)
 }
 
 /// `fog_polygon` on the polygon's entries as listed.
 pub fn fog_entries(
     entries: &Listed,
-    scene: &crate::scene::owner::Scene,
-    fog: &crate::scene::fog::Fog,
+    view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
+    let (fog, light) = (&view.fog, &view.light);
     if entries.is_empty() {
         return Err(BadInput("a polygon of no vertices").into());
     }
@@ -45,7 +42,7 @@ pub fn fog_entries(
     if length > TABLE_LEN {
         return Err(BadInput("a fog table longer than its room").into());
     }
-    let fixed = (scene.lights.state.view_kind.bits() == 4).then(|| fog.next.bits());
+    let fixed = (light.view_kind.bits() == 4).then(|| fog.next.bits());
     for entry in entries {
         let record = entry.record.get();
         let depth = x87::to_int(crate::scene::point_records::vertex(record, 0x18));

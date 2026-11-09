@@ -56,42 +56,45 @@ fn held(value: i32, low: i32, high: i32) -> i32 {
 }
 
 /// The normal's place in the view to the light's work variables, the colour set to 0.
-fn set_normal(number: u32, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
-    let lights = &scene.lights;
+fn set_normal(
+    number: u32,
+    light: &crate::scene::object_light::ObjectLight,
+) -> Result<(), BadInput> {
     if !crate::scene::point_records::held() {
         return Err(BadInput("no records for the points"));
     }
     let place = crate::scene::reading::PointRecords::new()?.place(number)?;
-    lights.work.light_colour.set_bits(0u32);
-    crate::session::write_bits(&lights.work.light_dot_point, place);
+    light.light_colour.set_bits(0u32);
+    crate::session::write_bits(&light.light_dot_point, place);
     Ok(())
 }
 
 /// The start of 0x4511F1 and of 0x451296: the light on the normal as a number.
-fn light(scene: &crate::scene::owner::Scene) -> i32 {
+fn light_number(
+    scene: &crate::scene::owner::Scene,
+    light: &crate::scene::object_light::ObjectLight,
+) -> i32 {
     let strength = scene.drawing.object_work.light_strength.bits() as i32;
     if strength == 0 {
         return 0;
     }
     crate::session::write_bits(
-        &scene.lights.work.light_dot_light,
+        &light.light_dot_light,
         crate::session::read_bits::<_, 3>(&scene.drawing.scene.light_direction),
     );
-    scene
-        .lights
-        .work
-        .light_dot_factor
-        .set_bits(x87::from_int(strength));
-    light_dot(scene)
+    light.light_dot_factor.set_bits(x87::from_int(strength));
+    light_dot(light)
 }
 
 /// Where 0x4511F1 would look in the table, checked.
-fn table_place(scene: &crate::scene::owner::Scene) -> Result<usize, BadInput> {
-    let drawing = &scene.drawing;
+fn table_place(
+    scene: &crate::scene::owner::Scene,
+    light: &crate::scene::object_light::ObjectLight,
+) -> Result<usize, BadInput> {
     let place = held(
-        light(scene).wrapping_add(drawing.object_work.light_level.bits() as i32),
-        drawing.object_work.light_lowest.bits() as i32,
-        drawing.object_work.light_highest.bits() as i32,
+        light_number(scene, light).wrapping_add(light.light_level.bits() as i32),
+        light.light_lowest.bits() as i32,
+        light.light_highest.bits() as i32,
     );
     if !(0..TABLE_LEN as i32).contains(&place) {
         return Err(BadInput("a place outside the light table"));
@@ -100,32 +103,38 @@ fn table_place(scene: &crate::scene::owner::Scene) -> Result<usize, BadInput> {
 }
 
 /// 0x45112D / 0x451170 with 0x4511F1: the lit colour, left in `dword_62DAC4`.
-fn lit(number: u32, mmx: bool) -> Result<u32, BadInput> {
+fn lit(
+    number: u32,
+    mmx: bool,
+    light: &crate::scene::object_light::ObjectLight,
+) -> Result<u32, BadInput> {
     let scene = scene();
     // The checks first, on a copy of what they would write.
-    let place = set_normal(number, scene).and_then(|()| table_place(scene));
+    let place = set_normal(number, light).and_then(|()| table_place(scene, light));
     let place = place?;
     let colour = plus(
         scene.light_tables.light_table[place].get(),
-        scene.lights.work.light_colour.bits(),
+        light.light_colour.bits(),
         mmx,
     );
-    scene.lights.work.light_colour.set_bits(colour);
+    light.light_colour.set_bits(colour);
     Ok(colour)
 }
 
 /// 0x451296: the colour in `dword_62DAC4` blended by the light.
-fn blend(course: &crate::race::owner_course::Course) {
+fn blend(
+    course: &crate::race::owner_course::Course,
+    light: &crate::scene::object_light::ObjectLight,
+) {
     let scene = crate::scene::owner::scene();
-    let lights = &scene.lights;
-    let amount = held(light(scene), -255, 255);
+    let amount = held(light_number(scene, light), -255, 255);
     let (amount, towards) = if amount < 0 {
         (amount.wrapping_neg(), &course.stage_prefs.dark_colour)
     } else {
         (amount, &course.stage_prefs.lit_colour)
     };
     let towards = crate::session::read_bits::<_, 3>(towards).map(|bits| bits as i32);
-    let mut colour: u32 = lights.work.light_colour.bits();
+    let mut colour: u32 = light.light_colour.bits();
     // The third byte first, towards the first of the three.
     for (n, to) in towards.into_iter().enumerate() {
         let at = (2 - n) * 8;
@@ -133,32 +142,33 @@ fn blend(course: &crate::race::owner_course::Course) {
         let moved = (amount.wrapping_mul(to.wrapping_sub(byte)) >> 8).wrapping_add(byte);
         colour = colour & !(0xFF << at) | (moved.clamp(0, 0xFF) as u32) << at;
     }
-    lights.work.light_colour.set_bits(colour);
+    light.light_colour.set_bits(colour);
 }
 
 pub fn vertex_light(
     race: &crate::race::owner::Race,
     number: u32,
     scene: &crate::scene::owner::Scene,
+    light: &crate::scene::object_light::ObjectLight,
     system: &crate::system::owner::System,
 ) -> Result<u32, BadInput> {
     let course = &race.course;
-    let kind: u32 = scene.lights.work.light_kind.bits();
+    let kind: u32 = light.light_kind.bits();
     let mmx = system.session.machine.has_mmx.get() != 0;
     if kind == 4 {
         // 0 plus the lit colour.
-        return Ok(plus(0, lit(number, mmx)?, mmx));
+        return Ok(plus(0, lit(number, mmx, light)?, mmx));
     }
     let lit_at_all =
         race.shared.switches.other_way.bits() != 0 || course.stage_prefs.lit_b.bits() != 0;
     if !lit_at_all || kind == 0 {
         return Ok(0x00FF_FFFF);
     }
-    let added: u32 = scene.drawing.object_work.light_added.bits();
+    let added: u32 = light.light_added.bits();
     match kind {
-        2 | 5 => Ok(plus(plus(0, lit(number, mmx)?, mmx), added, mmx)),
+        2 | 5 => Ok(plus(plus(0, lit(number, mmx, light)?, mmx), added, mmx)),
         1 => {
-            let level: u32 = scene.drawing.object_work.light_level.bits();
+            let level: u32 = light.light_level.bits();
             if level >= TABLE_LEN {
                 return Err(BadInput("a place outside the light table"));
             }
@@ -169,16 +179,16 @@ pub fn vertex_light(
             ))
         }
         3 => {
-            set_normal(number, scene)?;
+            set_normal(number, light)?;
             // The colour was just set to 0.
             let colour = plus(
                 plus(scene.lights.work.view_light_base.bits(), 0, mmx),
                 added,
                 mmx,
             );
-            scene.lights.work.light_colour.set_bits(colour);
-            blend(course);
-            Ok(scene.lights.work.light_colour.bits())
+            light.light_colour.set_bits(colour);
+            blend(course, light);
+            Ok(light.light_colour.bits())
         }
         _ => Ok(number),
     }

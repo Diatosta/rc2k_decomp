@@ -183,13 +183,14 @@ pub(super) fn car_light_on_point(
     car: &crate::race::frame_view::CarView,
     marks_count: u32,
     scene: &crate::scene::owner::Scene,
+    object_light: &crate::scene::object_light::ObjectLight,
 ) -> Result<(), BadInput> {
     use crate::math::x87_load::{int_square_sum_scaled_to_int, rotate_rounding};
     use rc2k_core::race::lights::headlight_index;
     if car.lights_on.bits() == 0 {
         return Ok(());
     }
-    let place = &scene.lights.state.lit_place;
+    let place = &object_light.lit_place;
     let d = [
         place[0].get().wrapping_sub(car.position[0].bits()),
         place[1].get().wrapping_sub(car.position[1].bits()),
@@ -199,7 +200,7 @@ pub(super) fn car_light_on_point(
         d.map(|v| v as i32),
         &crate::session::read_bits(&car.car_inverse_matrix),
     );
-    crate::session::write_bits(&scene.lights.state.turned_light, t);
+    crate::session::write_bits(&object_light.turned_light, t);
     let k: u32 = course.numbers.one_over_65536.bits();
     let s1 = int_square_sum_scaled_to_int(
         t[2].wrapping_sub(0x20_0000) as i32,
@@ -210,11 +211,9 @@ pub(super) fn car_light_on_point(
     // The original worked out a second spread and stored it in `g_scratch`; nothing read it, so it is not kept.
     let index = headlight_index(s1, t[1], marks_count);
     let colour = scene.light_tables.car_light_table[index as usize].get();
-    scene
-        .lights
-        .work
+    object_light
         .light_colour
-        .set_bits(add_colours(colour, scene.lights.work.light_colour.bits()));
+        .set_bits(add_colours(colour, object_light.light_colour.bits()));
     Ok(())
 }
 
@@ -225,6 +224,7 @@ pub(super) fn car_light_on_point(
 pub(super) fn car_lights_on_point(
     race: &Race,
     scene: &crate::scene::owner::Scene,
+    object_light: &crate::scene::object_light::ObjectLight,
 ) -> Result<(), BadInput> {
     let course = &race.course;
     let vars = &net().vars;
@@ -263,6 +263,7 @@ pub(super) fn car_lights_on_point(
                 crate::race::frame_view::car(n as usize)?,
                 shared.work.car(n as usize)?.marks_count.bits(),
                 scene,
+                object_light,
             )?;
         }
     }
@@ -275,7 +276,7 @@ pub(super) fn car_lights_on_point(
 /// `g_lightColour`.
 pub(super) fn lamp_lights_on_point(
     race: &Race,
-    scene: &crate::scene::owner::Scene,
+    object_light: &crate::scene::object_light::ObjectLight,
 ) -> Result<(), BadInput> {
     let physics = &race.physics;
     {
@@ -283,7 +284,7 @@ pub(super) fn lamp_lights_on_point(
         if count == 0 {
             return Ok(());
         }
-        let place = &scene.lights.state.lit_place;
+        let place = &object_light.lit_place;
         for n in 0..count {
             let lamp = self::lamp(&race.course, n)?;
             let strength = lamp[1].get();
@@ -292,7 +293,7 @@ pub(super) fn lamp_lights_on_point(
                 continue;
             }
             let tint = lamp[2].get();
-            scene.lights.work.lamp_tint.set(tint);
+            object_light.lamp_tint.set(tint);
             let point = lamp[0].get();
             let at = crate::race::scene_points::point_number(point)?;
             let d: [u32; 3] = std::array::from_fn(|k| at[k].wrapping_sub(place[k].get()));
@@ -303,9 +304,9 @@ pub(super) fn lamp_lights_on_point(
             );
             let light = add_colours(
                 rc2k_core::race::lights::multiply_colours(grey, tint),
-                scene.lights.work.light_colour.bits(),
+                object_light.light_colour.bits(),
             );
-            scene.lights.work.light_colour.set_bits(light);
+            object_light.light_colour.set_bits(light);
         }
     }
     Ok(())
@@ -326,29 +327,37 @@ pub fn check_light_colour(shared: &Shared) -> Result<(), Refused> {
 /// (0x44F601) and the lamps (0x44F863) on the lit place (`g_litPlace`,
 /// `LIGHT_STATE.lit_place[1]`, `LIGHT_STATE.lit_place[2]`), added up. Refuses as
 /// `check_light_colour`.
-pub fn light_colour_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn light_colour_at(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    object_light: &crate::scene::object_light::ObjectLight,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::lights::{check_light_colour, headlights_light,
     // headlight_index, lamp_grey, add_colours, multiply_colours}` (the turned place, the
     // spreads and the lamps' distances the x87's and the scene's).
     check_light_colour(&race.shared)?;
-    scene.lights.work.light_colour.set_bits(0u32);
-    car_lights_on_point(race, scene)?;
-    lamp_lights_on_point(race, scene)?;
+    object_light.light_colour.set_bits(0u32);
+    car_lights_on_point(race, scene, object_light)?;
+    lamp_lights_on_point(race, object_light)?;
     Ok(())
 }
 
 /// `race::view_light` (0x455896): the lit place the view's car's (`race::frame::drawn_car`, the original's `g_car` +0x134 ..);
 /// `light_colour_at`; `race().frame.frame_work.view_light` = `LIGHT_WORK.view_light_base` plus the light
 /// (`add_colours`).
-pub fn view_light(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn view_light(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    object_light: &crate::scene::object_light::ObjectLight,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::lights::add_colours` (through `light_colour_at`'s).
     check_light_colour(&race.shared)?;
     crate::session::write_bits(
-        &scene.lights.state.lit_place,
+        &object_light.lit_place,
         crate::session::read_bits(&crate::race::frame::drawn_car().position),
     );
-    light_colour_at(race, scene)?;
-    let light: u32 = scene.lights.work.light_colour.bits();
+    light_colour_at(race, scene, object_light)?;
+    let light: u32 = object_light.light_colour.bits();
     race.frame
         .frame_work
         .view_light

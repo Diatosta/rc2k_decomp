@@ -123,19 +123,20 @@ pub fn add_car_light(
     car: &crate::race::frame_view::CarView,
     marks_count: u32,
     scene: &crate::scene::owner::Scene,
+    light: &crate::scene::object_light::ObjectLight,
     system: &crate::system::owner::System,
 ) {
     if car.lights_on.get() == 0 {
         return;
     }
-    let place: [u32; 3] = crate::session::read_bits(&scene.lights.state.lit_place);
+    let place: [u32; 3] = crate::session::read_bits(&light.lit_place);
     let mut from = [0u32; 3];
     for k in 0..3 {
         from[k] = place[k].wrapping_sub(car.position[k].bits());
     }
     let matrix = crate::session::read_bits(&car.car_inverse_matrix);
     let seen = turned(from, &matrix);
-    crate::session::write_bits(&scene.lights.state.turned_light, seen);
+    crate::session::write_bits(&light.turned_light, seen);
     let [x, y, z] = seen;
     let factor: u32 = course.numbers.one_over_65536.bits();
     let ahead = squares(z.wrapping_sub(0x20_0000), x.wrapping_add(x), factor, true);
@@ -147,11 +148,9 @@ pub fn add_car_light(
     let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(marks_count) >> 8;
     let colour: u32 = scene.light_tables.car_light_table[held(amount as i32) as usize].get();
     let mmx = system.session.machine.has_mmx.get() != 0;
-    scene
-        .lights
-        .work
+    light
         .light_colour
-        .set(plus(colour, scene.lights.work.light_colour.bits(), mmx));
+        .set(plus(colour, light.light_colour.bits(), mmx));
 }
 
 #[cfg(all(test, target_arch = "x86"))]

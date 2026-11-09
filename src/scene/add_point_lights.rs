@@ -24,7 +24,7 @@ pub fn add_point_lights(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     use rc2k_core::scene::lamps::{self, Lamp};
 
     let lamps: u32 = race.shared.view.lamp_count.bits();
@@ -36,7 +36,7 @@ pub fn add_point_lights(
         return Err(BadInput("more lamps than the list holds, or no points").into());
     }
     let mmx = system.session.machine.has_mmx.get() != 0;
-    let place: [u32; 3] = crate::session::read_bits(&scene.lights.state.lit_place);
+    let place: [u32; 3] = crate::session::read_bits(&ctx.view.light.lit_place);
     let reading = crate::scene::reading::Reading::new();
     let list = (0..lamps as usize).map(|n| {
         // The list holds 16 lamps, the refusal allows `MOST`: read by address.
@@ -55,12 +55,12 @@ pub fn add_point_lights(
         }
     });
     let at = |point: u32| reading.keep(crate::race::scene_points::point_number(point));
-    let out = lamps::add_point_lights(list, place, at, scene.lights.work.light_colour.bits(), mmx);
+    let out = lamps::add_point_lights(list, place, at, ctx.view.light.light_colour.bits(), mmx);
     reading.finish()?;
     for (to, value) in [
         (&race.physics.ground.point_light_strength, out.strength),
-        (&scene.lights.work.lamp_tint, out.colour),
-        (&scene.lights.work.light_colour, out.light),
+        (&ctx.view.light.lamp_tint, out.colour),
+        (&ctx.view.light.light_colour, out.light),
     ] {
         if let Some(v) = value {
             to.set_bits(v);

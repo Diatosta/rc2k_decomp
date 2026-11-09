@@ -149,9 +149,9 @@ fn draw_description(
         .only_object
         .set((byte(0x25) >> 1) & 3);
     let light = |lowest: u32, highest: u32, level: u32, strength: u32| {
-        scene.drawing.object_work.light_lowest.set(lowest);
-        scene.drawing.object_work.light_highest.set(highest);
-        scene.drawing.object_work.light_level.set(level);
+        ctx.view.light.light_lowest.set(lowest);
+        ctx.view.light.light_highest.set(highest);
+        ctx.view.light.light_level.set(level);
         scene.drawing.object_work.light_strength.set(strength);
     };
     if object == 0x38 || (0x3A..0x40).contains(&object) {
@@ -160,27 +160,25 @@ fn draw_description(
         scene.drawing.object_work.angles[2].set(0u32);
         scene.drawing.object_work.size.set(byte(0x18));
         light(0xFF, 0xFF, 0xFF, 0);
-        scene.drawing.object_work.light_turns[0].set(0u32);
-        scene.drawing.object_work.light_turns[1].set(0u32);
+        ctx.view.light.light_turns[0].set(0u32);
+        ctx.view.light.light_turns[1].set(0u32);
         if (object == 0x3E || object == 0x3D)
             && [0x28u32, 0x29, 0x2A, 0x2B, 0x19, 0x1A, 0x1B, 0x20]
                 .iter()
                 .any(|&o| byte(o) != 0)
         {
-            scene.drawing.object_work.light_highest.set(0x80u32);
+            ctx.view.light.light_highest.set(0x80u32);
         }
     } else {
         scene.drawing.object_work.size.set(byte(0x18));
         light(byte(0x14), byte(0x15), byte(0x16), byte(0x17));
-        scene.drawing.object_work.light_turns[0].set(byte(0x22));
-        scene.drawing.object_work.light_turns[1].set(byte(0x23));
+        ctx.view.light.light_turns[0].set(byte(0x22));
+        ctx.view.light.light_turns[1].set(byte(0x23));
         if byte(0x24) != 0 {
-            scene.drawing.object_work.light_turns[0]
-                .set(course.stage_prefs.sun_turn.get().wrapping_neg());
-            scene.drawing.object_work.light_turns[1].set(course.stage_prefs.sun_height.get());
-            scene
-                .drawing
-                .object_work
+            ctx.view.light.light_turns[0].set(course.stage_prefs.sun_turn.get().wrapping_neg());
+            ctx.view.light.light_turns[1].set(course.stage_prefs.sun_height.get());
+            ctx.view
+                .light
                 .light_level
                 .set(course.stage_prefs.light_level.get());
             scene
@@ -188,18 +186,18 @@ fn draw_description(
                 .object_work
                 .light_strength
                 .set(course.stage_prefs.light_strength_kept.get());
-            scene.drawing.object_work.light_lowest.set(0u32);
-            scene.drawing.object_work.light_highest.set(0xFFu32);
+            ctx.view.light.light_lowest.set(0u32);
+            ctx.view.light.light_highest.set(0xFFu32);
         }
     }
-    scene.lights.state.view_kind.set(2u32);
+    ctx.view.light.view_kind.set(2u32);
     crate::race::frame_draw::place_object_matrix(ctx)?;
-    scene.lights.work.light_kind.set(2u32);
+    ctx.view.light.light_kind.set(2u32);
     let object: u32 = shared.switches.object_number.bits();
     let kind: u32 = scene.objects.tables.object_kind(object);
     let record = crate::scene::polygon::materials_ptr().offset(kind.wrapping_mul(0x80));
     if record.offset(0x1F).read::<u8>("an object's material")? != 0 {
-        scene.lights.work.light_kind.set(1u32);
+        ctx.view.light.light_kind.set(1u32);
     }
     crate::scene::draw_scene_object::draw_scene_object_in_game(ctx, Some(record.into()))?;
     end();

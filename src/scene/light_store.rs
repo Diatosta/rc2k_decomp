@@ -9,15 +9,15 @@ use crate::session::{Dword, Float};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct LightState {
-    /// +0x0 (0x636588): `g_litPlace`, `dword_63658C`, `dword_636590`: the place (x, y, z) being lit, a car or a point (`scene::add_point_lights`, `race::frame_draw`, `race::course_faces`).
+    /// +0x0 (0x636588): `g_litPlace`, `dword_63658C`, `dword_636590`: the place (x, y, z) being lit, a car or a point (`scene::add_point_lights`, `race::frame_draw`, `race::course_faces`); now each view's (`scene::object_light`); unused.
     pub lit_place: [Dword; 3],
     /// +0xc (0x636594): not named.
     pub unknown_c: [Dword; 9],
-    /// +0x30 (0x6365B8): `dword_6365B8` .. `dword_6365C0`: the turned light direction seen by the car lights (`scene::add_car_light`, `race::frame_draw`).
+    /// +0x30 (0x6365B8): `dword_6365B8` .. `dword_6365C0`: the turned light direction seen by the car lights (`scene::add_car_light`, `race::frame_draw`); now each view's (`scene::object_light`); unused.
     pub turned_light: [Dword; 3],
     /// +0x3c (0x6365C4): `dword_6365C4`: the scene mode / lowered-point flag read by the object and face drawers (`scene::project_point`, `scene::draw_object_face`, `scene::draw_car_object`) (a reading).
     pub draw_mode: Dword,
-    /// +0x40 (0x6365C8): `dword_6365C8`: the view kind (2 in described objects) (`scene::draw_object_face`, `scene::fog_polygon`, `race::frame_draw`).
+    /// +0x40 (0x6365C8): `dword_6365C8`: the view kind (2 in described objects) (`scene::draw_object_face`, `scene::fog_polygon`, `race::frame_draw`); now each view's (`scene::object_light`); unused.
     pub view_kind: Dword,
     /// +0x44 (0x6365CC): `dword_6365CC`: the scene state / loading-bar mark (`menu::frame_callback`, `race::loading_bar_frame`).
     pub scene_state: Dword,
@@ -37,7 +37,7 @@ pub struct LightState {
     pub fog_far: Dword,
     /// +0x70 (0x6365F8): not named.
     pub unknown_70: [Dword; 4],
-    /// +0x80 (0x636608): `dword_636608`: the face bits of the object being drawn (`scene::draw_object_face`).
+    /// +0x80 (0x636608): `dword_636608`: the face bits of the object being drawn (`scene::draw_object_face`); now each view's (`scene::object_light`); unused.
     pub face_bits: Dword,
     /// +0x84 (0x63660C): `dword_63660C`: the faded flag (`scene::draw_polygon`, `scene::draw_object_face`).
     pub faded: Dword,

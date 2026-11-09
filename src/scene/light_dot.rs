@@ -15,18 +15,10 @@ use crate::scene::x87_mem::{Base, cells, fistp, fld};
 
 // ---- Rust version ----
 
-pub fn light_dot(scene: &crate::scene::owner::Scene) -> i32 {
-    let [p0, p1, p2] = crate::session::read_bits(&scene.lights.work.light_dot_point);
-    let [l0, l1, l2] = crate::session::read_bits(&scene.lights.work.light_dot_light);
-    let v = [
-        p0,
-        p1,
-        p2,
-        l0,
-        l1,
-        l2,
-        scene.lights.work.light_dot_factor.bits(),
-    ];
+pub fn light_dot(light: &crate::scene::object_light::ObjectLight) -> i32 {
+    let [p0, p1, p2] = crate::session::read_bits(&light.light_dot_point);
+    let [l0, l1, l2] = crate::session::read_bits(&light.light_dot_light);
+    let v = [p0, p1, p2, l0, l1, l2, light.light_dot_factor.bits()];
     let mut out = [0u32];
     dot(&v[..], cells(&mut out));
     out[0] as i32

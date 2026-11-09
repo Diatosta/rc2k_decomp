@@ -53,21 +53,21 @@ pub struct ObjectWork {
     pub only_object: Dword,
     /// +0xbc (0x63505C): cleared by `scene::draw_described_object`.
     pub described_cleared: [Dword; 3],
-    /// +0xc8 (0x635068): (`scene::vertex_light`).
+    /// +0xc8 (0x635068): (`scene::vertex_light`); now each view's (`scene::object_light`); unused.
     pub light_added: Dword,
     /// +0xcc (0x63506C): not named.
     pub unknown_cc: [Dword; 2],
     /// +0xd4 (0x635074): (`race::car_parts`).
     pub part_weights: [Dword; 4],
-    /// +0xe4 (0x635084): `g_lightLowest`.
+    /// +0xe4 (0x635084): `g_lightLowest`; now each view's (`scene::object_light`); unused.
     pub light_lowest: Dword,
-    /// +0xe8 (0x635088): `g_lightHighest`.
+    /// +0xe8 (0x635088): `g_lightHighest`; now each view's (`scene::object_light`); unused.
     pub light_highest: Dword,
-    /// +0xec (0x63508C): `g_lightLevel`.
+    /// +0xec (0x63508C): `g_lightLevel`; now each view's (`scene::object_light`); unused.
     pub light_level: Dword,
     /// +0xf0 (0x635090): `g_lightStrength`.
     pub light_strength: Dword,
-    /// +0xf4 (0x635094): the light's turns, y then x (`scene::matrix`).
+    /// +0xf4 (0x635094): the light's turns, y then x (`scene::matrix`); now each view's (`scene::object_light`); unused.
     pub light_turns: [Dword; 2],
     /// +0xfc (0x63509C): not named.
     pub unknown_fc: [Dword; 8],

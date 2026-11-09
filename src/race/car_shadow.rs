@@ -591,7 +591,7 @@ pub fn shadow_on_face(
         )?;
     }
     crate::scene::project_polygon::project_polygon(race, scene)?;
-    crate::scene::fog_polygon::fog_polygon(scene, &ctx.view.fog)?;
+    crate::scene::fog_polygon::fog_polygon(ctx.view)?;
     drawing
         .scene
         .polygon_next_record

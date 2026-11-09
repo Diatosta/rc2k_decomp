@@ -100,18 +100,14 @@ pub fn copy_matrix_with_place(
 }
 
 /// `scene::set_light_direction` (0x427326).
-pub fn set_light_direction(m: &SceneMatrices, scene: &crate::scene::owner::Scene) {
+pub fn set_light_direction(
+    m: &SceneMatrices,
+    scene: &crate::scene::owner::Scene,
+    light: &crate::scene::object_light::ObjectLight,
+) {
     let drawing = &scene.drawing;
-    set_turn_x(
-        m,
-        (drawing.object_work.light_turns[1].bits() << 8).wrapping_neg(),
-        scene,
-    );
-    set_turn_y(
-        m,
-        (drawing.object_work.light_turns[0].bits() << 8).wrapping_neg(),
-        scene,
-    );
+    set_turn_x(m, (light.light_turns[1].bits() << 8).wrapping_neg(), scene);
+    set_turn_y(m, (light.light_turns[0].bits() << 8).wrapping_neg(), scene);
     multiply_matrices(&m.turn_x_matrix, &m.turn_y_matrix, &m.turned_matrix);
     multiply_matrices(&m.turned_matrix, &m.view_turn_matrix, &m.lit_matrix);
     // `fld1; fldz; fldz; call scene::rotate_point`, the results popped in turn.
@@ -133,10 +129,11 @@ pub fn set_light_direction(m: &SceneMatrices, scene: &crate::scene::owner::Scene
 pub fn make_object_matrix(
     frame: &crate::race::owner_frame::Frame,
     scene: &crate::scene::owner::Scene,
+    light: &crate::scene::object_light::ObjectLight,
 ) {
     let drawing = &scene.drawing;
     let m = &frame.matrices;
-    set_light_direction(m, scene);
+    set_light_direction(m, scene, light);
     set_turn_y(
         m,
         drawing.object_work.angles[1].bits().wrapping_neg(),

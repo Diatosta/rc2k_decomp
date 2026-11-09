@@ -23,11 +23,11 @@ pub fn prepare_menu_scene(scene: &crate::scene::owner::Scene) {
     );
     crate::session::write_bits(&drawing.scene.view_size, [0x320u32, 0x258]);
     set_view_window(race, scene);
-    let o = &drawing.object_work;
-    o.light_lowest.set(0x50);
-    o.light_highest.set(0xFF);
-    o.light_level.set(0xB4);
-    o.light_strength.set(0xB4);
-    crate::session::write_bits(&drawing.object_work.light_turns, [0x6Eu32, 0x1E]);
+    let light = &crate::race::view_scratch::front_end().light;
+    light.light_lowest.set(0x50);
+    light.light_highest.set(0xFF);
+    light.light_level.set(0xB4);
+    drawing.object_work.light_strength.set(0xB4);
+    crate::session::write_bits(&light.light_turns, [0x6Eu32, 0x1E]);
     set_view_matrices(&race.course, frame);
 }
