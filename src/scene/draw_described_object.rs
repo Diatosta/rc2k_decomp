@@ -105,7 +105,7 @@ fn draw_description(
     if shown {
         check_object(race, object)?;
     }
-    shared.switches.object_number.set_bits(object);
+    ctx.view.cars.object_number.set_bits(object);
     let end = || {
         scene.drawing.object_work.only_object.set(0u32);
         scene.drawing.object_work.object_place.set_bits(u32::MAX);
@@ -193,7 +193,7 @@ fn draw_description(
     ctx.view.light.view_kind.set(2u32);
     crate::race::frame_draw::place_object_matrix(ctx)?;
     ctx.view.light.light_kind.set(2u32);
-    let object: u32 = shared.switches.object_number.bits();
+    let object: u32 = ctx.view.cars.object_number.bits();
     let kind: u32 = scene.objects.tables.object_kind(object);
     let record = crate::scene::polygon::materials_ptr().offset(kind.wrapping_mul(0x80));
     if record.offset(0x1F).read::<u8>("an object's material")? != 0 {

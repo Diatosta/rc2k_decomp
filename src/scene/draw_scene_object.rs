@@ -34,11 +34,12 @@ pub use rc2k_core::scene::shown::Way;
 fn texture_set(
     race: &crate::race::owner::Race,
     scene: &crate::scene::owner::Scene,
+    cars: &crate::race::car_draw_state::CarDrawState,
 ) -> Result<(u32, u32), Refused> {
     let shared = &race.shared;
     use rc2k_core::scene::shown::SetError;
     {
-        let object: u32 = shared.switches.object_number.bits();
+        let object: u32 = cars.object_number.bits();
         let t = rc2k_core::scene::shown::texture_set(
             object,
             race.course.numbers.in_race.bits() != 0,
@@ -66,8 +67,11 @@ pub fn draw_scene_object(
     race: &crate::race::owner::Race,
     draw: &mut dyn FnMut(Way) -> Result<(), Refused>,
     scene: &crate::scene::owner::Scene,
+    cars: &crate::race::car_draw_state::CarDrawState,
 ) -> Result<(), Refused> {
-    let (set, object) = texture_set(race, scene)?;
+    let (set, object) = texture_set(race, scene, cars)?;
+    // Read by `scene::log_bad_polygon`, outside the view.
+    race.shared.switches.object_number.set_bits(object);
     race.physics.ground.object_texture_set.set_bits(set);
     let faces: u32 = scene.objects.slots.face_counts[object as usize].get();
     match rc2k_core::scene::shown::way(faces, scene.lights.state.draw_mode.bits()) {
@@ -100,12 +104,19 @@ pub fn draw_scene_object_in_game(
                         ..*ctx
                     }
                 };
-                draw_shown_object(race, &mut || draw_object_in_game(ctx, system), scene).map(|_| ())
+                draw_shown_object(
+                    race,
+                    &mut || draw_object_in_game(ctx, system),
+                    scene,
+                    &ctx.view.cars,
+                )
+                .map(|_| ())
             }
             Way::Described => {
                 crate::scene::draw_described_object::draw_described_object(ctx, description)
             }
         },
         scene,
+        &ctx.view.cars,
     )
 }

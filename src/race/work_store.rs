@@ -60,7 +60,7 @@ pub struct RaceWork {
     pub number_texture_names: [Dword; 384],
     /// +0xa50 (0x71BA08): the drawn car's nearness (`race::car_draw`).
     pub car_nearness: Float,
-    /// +0xa54 (0x71BA0C): (`race::car_draw`).
+    /// +0xa54 (0x71BA0C): (`race::car_draw`); now each view's (`ctx.view.cars.car_draw_word`); unused.
     pub car_draw_word: Dword,
     /// +0xa58 (0x71BA10): the number's tens' textures (`race::car_draw`).
     pub number_tens_textures: [Dword; 7],

@@ -52,7 +52,7 @@ pub fn draw_slot_object(
     use crate::scene::matrix;
     check_slot_object(&race.shared, slot)?;
     let object = slot.part.get();
-    race.shared.switches.object_number.set(object);
+    ctx.view.cars.object_number.set(object);
     let mode: u32 = race.shared.vars.run_kind.bits();
     if race.shared.view.players.bits() != 1 && mode != 0 && mode != 2 {
         let n = object.wrapping_sub(0x50);
@@ -308,7 +308,7 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
     for (table, v) in [
         (
             &race.course.flare_tables.object_number,
-            race.shared.switches.object_number.get(),
+            ctx.view.cars.object_number.get(),
         ),
         (&race.course.level_grid.flare_place_x, place[0]),
         (&race.course.flare_tables.place_y, place[1]),
@@ -344,7 +344,7 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
 /// 0x4572B0: a flare at `point` in the frame of the car block at `car` (its matrix +0xB4,
 /// each part rounded, plus its place +0x134 ..), object 0x39, by `add_flare`.
 pub(super) fn place_flare(ctx: &DrawCtx, car: u32, point: [u32; 3]) -> Result<(), BadInput> {
-    let DrawCtx { race, scene, .. } = *ctx;
+    let DrawCtx { scene, .. } = *ctx;
     let drawing = &scene.drawing;
     let t = crate::math::x87_load::rotate_rounding(
         point.map(|v| v as i32),
@@ -353,7 +353,7 @@ pub(super) fn place_flare(ctx: &DrawCtx, car: u32, point: [u32; 3]) -> Result<()
     for (k, v) in t.iter().enumerate() {
         drawing.object_work.place[k].set_bits(v.wrapping_add(car_view(car)?.position[k].bits()));
     }
-    race.shared.switches.object_number.set(0x39u32);
+    ctx.view.cars.object_number.set(0x39u32);
     add_flare(ctx)?;
     Ok(())
 }
@@ -616,7 +616,7 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     let kind = scene
         .objects
         .tables
-        .object_kind(race.shared.switches.object_number.get());
+        .object_kind(ctx.view.cars.object_number.get());
     let material = crate::scene::polygon_store::POLYGON_TABLES
         .object_materials
         .get(kind as usize)
@@ -743,7 +743,7 @@ pub fn draw_flare(
         ),
         (
             &course.flare_tables.object_number,
-            &race.shared.switches.object_number,
+            &ctx.view.cars.object_number,
         ),
     ] {
         to.set_bits(
@@ -775,8 +775,8 @@ pub fn draw_lamp_flare(
     scene.drawing.object_work.place[2].set(z);
     scene.drawing.object_work.size.set(edi[1].get() << 3);
     scene.drawing.object_work.other_light.set(edi[2].get());
-    race.shared
-        .switches
+    ctx.view
+        .cars
         .object_number
         .set(race.shared.switches.marker_object.get());
     ctx.view.light.view_kind.set(2u32);

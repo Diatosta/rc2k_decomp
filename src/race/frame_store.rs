@@ -15,13 +15,13 @@ pub struct FrameWork {
     pub flare_count: Dword,
     /// +0x4 (0x641590): `g_lampEntryCount`.
     pub lamp_entry_count: Dword,
-    /// +0x8 (0x641594): `g_carsDrawn`.
+    /// +0x8 (0x641594): `g_carsDrawn`; now each view's (`ctx.view.cars.cars_drawn`); unused.
     pub cars_drawn: Dword,
     /// +0xc (0x641598): `g_carsCulled`.
     pub cars_culled: Dword,
-    /// +0x10 (0x64159C): (`race::car_draw`).
+    /// +0x10 (0x64159C): (`race::car_draw`); now each view's (`ctx.view.cars.car_kept`); unused.
     pub car_kept: [Dword; 2],
-    /// +0x18 (0x6415A4): the car's depth (0x50000 at first, `race::car_draw`).
+    /// +0x18 (0x6415A4): the car's depth (0x50000 at first, `race::car_draw`); now each view's (`ctx.view.cars.car_depth`); unused.
     pub car_depth: Dword,
     /// +0x1c (0x6415A8): (`race::frame_draw`).
     pub sun_depth: Float,

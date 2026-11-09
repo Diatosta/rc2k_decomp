@@ -491,7 +491,7 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
         &race.frame.matrices.object_matrix_slots,
         16,
     );
-    race.shared.switches.object_number.set_bits(1);
+    ctx.view.cars.object_number.set_bits(1);
     ctx.view.light.view_kind.set_bits(4);
     ctx.view.light.light_lowest.set_bits(0xFF);
     ctx.view.light.light_highest.set_bits(0xFF);

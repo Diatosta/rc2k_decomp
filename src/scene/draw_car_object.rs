@@ -66,6 +66,7 @@ pub fn pick_pictures(menus: &Menus) -> Result<(), Refused> {
 /// 0x49040D: the car shown's object set up and drawn by `draw`.
 pub fn draw_shown_car(
     shared: &Shared,
+    cars: &crate::race::car_draw_state::CarDrawState,
     screens: &Screens,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
     scene: &crate::scene::owner::Scene,
@@ -81,7 +82,7 @@ pub fn draw_shown_car(
     let kind = screens.state.carousel.kinds[car as usize].get();
     screens.state.carousel.kind.set(kind);
     let object = find_object_of_kind(kind, scene);
-    shared.switches.object_number.set_bits(object);
+    cars.object_number.set_bits(object);
     draw()
 }
 
@@ -110,6 +111,7 @@ pub fn run() -> Result<(), crate::errors::Refused> {
     );
     draw_shown_car(
         &race.shared,
+        &ctx.view.cars,
         &menus.screens,
         &mut || draw_menu_object_in_game(&ctx),
         scene,

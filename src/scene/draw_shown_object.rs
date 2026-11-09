@@ -31,11 +31,11 @@ use rc2k_core::scene::shown::OBJECTS;
 // ---- Rust version ----
 
 /// The game's variables for the race's tests.
-struct Game<'a>(&'a Race);
+struct Game<'a>(&'a Race, &'a crate::race::car_draw_state::CarDrawState);
 
 impl rc2k_core::scene::shown::RaceObject for Game<'_> {
     fn object(&self) -> u32 {
-        self.0.shared.switches.object_number.bits()
+        self.1.object_number.bits()
     }
     fn kind_switch(&self) -> u32 {
         self.0.shared.work.in_credits.bits()
@@ -70,14 +70,15 @@ pub fn draw_shown_object(
     race: &Race,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
     scene: &crate::scene::owner::Scene,
+    cars: &crate::race::car_draw_state::CarDrawState,
 ) -> Result<bool, Refused> {
     let in_race = race.course.numbers.in_race.bits() != 0;
-    if in_race && race.shared.switches.object_number.bits() >= OBJECTS {
+    if in_race && cars.object_number.bits() >= OBJECTS {
         return Err(BadInput("an object's number past the tables").into());
     }
     scene.lights.work.drawing_object.set_bits(1u32);
     let show = if in_race {
-        rc2k_core::scene::shown::race_shown(&Game(race))
+        rc2k_core::scene::shown::race_shown(&Game(race, cars))
     } else {
         // The original set the 0x100 kind dwords here (`scene::clear_kind_bytes`): the
         // caller's context has the menus' marks (`scene::car_marks`).

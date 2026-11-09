@@ -38,6 +38,7 @@ use crate::scene::map_texture_places::map_texture_places;
 /// 0x49007F: the highlighted item's object set up and drawn by `draw`.
 pub fn draw_highlighted(
     menus: &Menus,
+    cars: &crate::race::car_draw_state::CarDrawState,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
@@ -69,7 +70,7 @@ pub fn draw_highlighted(
     }
     screens.state.carousel.kind.set(kind);
     let object = find_object_of_kind(kind, scene);
-    shared.switches.object_number.set_bits(object);
+    cars.object_number.set_bits(object);
     draw()
 }
 
@@ -92,5 +93,7 @@ pub fn run() -> Result<(), crate::errors::Refused> {
         scene,
         crate::race::view_scratch::front_end(),
     );
-    draw_highlighted(menus, &mut || draw_menu_object_in_game(&ctx))
+    draw_highlighted(menus, &ctx.view.cars, &mut || {
+        draw_menu_object_in_game(&ctx)
+    })
 }

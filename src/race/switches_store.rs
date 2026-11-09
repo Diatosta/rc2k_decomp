@@ -11,9 +11,9 @@ pub struct FrameSwitches {
     pub other_way: Dword,
     /// +0x4 (0x621484): not named.
     pub unknown_4: [Dword; 22],
-    /// +0x5c (0x6214DC): `dword_6214DC`: set by `scene::set_object_material`, read by `scene::draw_object_face`.
+    /// +0x5c (0x6214DC): `dword_6214DC`: set by `scene::set_object_material`, read by `scene::draw_object_face`; now each view's (`ctx.view.cars.other_way_kind`); unused.
     pub other_way_kind: Dword,
-    /// +0x60 (0x6214E0): `qword_6214E0`: the other kind and the distance, written as a pair (`scene::set_object_fade`).
+    /// +0x60 (0x6214E0): `qword_6214E0`: the other kind and the distance, written as a pair (`scene::set_object_fade`); now each view's (`ctx.view.cars.fade_words`); unused.
     pub fade_words: [Dword; 2],
     /// +0x68 (0x6214E8): `dword_6214E8`: the clock now (`race::measure_frame_rate`).
     pub frame_now: Dword,
@@ -23,7 +23,7 @@ pub struct FrameSwitches {
     pub frame_rate: Float,
     /// +0x74 (0x6214F4): not named.
     pub unknown_74: [Dword; 2],
-    /// +0x7c (0x6214FC): `g_objectNumber`: the object being drawn or set up (`scene::draw_object_face`, `race::frame_draw`, `race::car_draw`).
+    /// +0x7c (0x6214FC): `g_objectNumber`: the object being drawn or set up (`scene::draw_object_face`, `race::frame_draw`, `race::car_draw`); now each view's (`ctx.view.cars.object_number`); still written for `scene::log_bad_polygon`.
     pub object_number: Dword,
     /// +0x80 (0x621500): `g_faceReflects` (`scene::draw_object_face`).
     pub face_reflects: Dword,

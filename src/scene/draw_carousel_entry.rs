@@ -109,6 +109,7 @@ fn settings(shared: &Shared, menus: &Menus, entry: u32, row: u32) -> Result<Sett
 /// up and drawn by `draw`.
 pub fn draw_carousel_entry(
     shared: &Shared,
+    cars: &crate::race::car_draw_state::CarDrawState,
     menus: &Menus,
     entry: u32,
     row: u32,
@@ -125,6 +126,6 @@ pub fn draw_carousel_entry(
     drawing.object_work.angles[1].set_bits(set.angle_y);
     crate::session::write_bits(&drawing.scene.view_offset, [0u32; 2]);
     menus.screens.state.carousel.kind.set(set.kind);
-    shared.switches.object_number.set_bits(set.object);
+    cars.object_number.set_bits(set.object);
     draw()
 }

@@ -37,10 +37,12 @@ fn record_at() -> Option<u32> {
 
 /// The two words of the object's kind, and whether the object's place is looked at;
 /// None for an object's number past the tables.
-fn words(shared: &crate::race::owner_shared::Shared) -> Result<Option<(u32, u32, bool)>, BadInput> {
+fn words(
+    cars: &crate::race::car_draw_state::CarDrawState,
+) -> Result<Option<(u32, u32, bool)>, BadInput> {
     let scene = scene();
     {
-        let object: u32 = shared.switches.object_number.bits();
+        let object: u32 = cars.object_number.bits();
         if object >= OBJECTS {
             return Ok(None);
         }
@@ -62,7 +64,7 @@ fn words(shared: &crate::race::owner_shared::Shared) -> Result<Option<(u32, u32,
 
 pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
     let (race, scene) = (ctx.race, ctx.scene);
-    let Some((other_kind, distance, needs_record)) = words(&race.shared)? else {
+    let Some((other_kind, distance, needs_record)) = words(&ctx.view.cars)? else {
         return Err(BadInput("an object's number past the tables"));
     };
     let place: u32 = scene.drawing.object_work.object_place.bits();
@@ -77,7 +79,7 @@ pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
             record
         }
     };
-    crate::session::write_bits(&race.shared.switches.fade_words, [other_kind, distance]);
+    crate::session::write_bits(&ctx.view.cars.fade_words, [other_kind, distance]);
     ctx.view.object.position[0].set_bits(0u32);
     ctx.view.object.position[2].set_bits(0u32);
     ctx.view.object.fading.set_bits(0u32);
@@ -101,6 +103,8 @@ pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
     if other_kind != 0 {
         let kinds: [u32; 0x100] = crate::session::read_bits(&scene.objects.tables.object_kinds);
         if let Some(other) = (1..0x100).find(|&n| kinds[n] == other_kind) {
+            ctx.view.cars.object_number.set_bits(other as u32);
+            // Read by `scene::log_bad_polygon`.
             race.shared.switches.object_number.set_bits(other as u32);
         }
     }

@@ -54,6 +54,7 @@ struct GameFace<'a>(
     crate::scene::reading::Reading,
     &'a crate::scene::car_marks::CarMarks,
     &'a crate::scene::object_place::ObjectPlace,
+    &'a crate::race::car_draw_state::CarDrawState,
 );
 
 impl FaceWorld for GameFace<'_> {
@@ -61,7 +62,7 @@ impl FaceWorld for GameFace<'_> {
         self.0.course.numbers.in_race.bits() != 0
     }
     fn object(&self) -> u32 {
-        self.0.shared.switches.object_number.bits()
+        self.4.object_number.bits()
     }
     fn object_kind(&self, object: u32) -> u32 {
         scene().objects.tables.object_kind(object)
@@ -183,6 +184,7 @@ pub fn list_object_face(
         crate::scene::reading::Reading::new(),
         marks,
         &ctx.view.object,
+        &ctx.view.cars,
     );
     let answer = dropped(&mut world, bytes);
     world.1.finish()?;

@@ -7,6 +7,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
+use crate::race::car_draw_state::CarDrawState;
 use crate::race::frame_view::car_at as car_view;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::owner::Race;
@@ -298,7 +299,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
             .wrapping_sub(race.course.course.group_masks[2].bits())
             .wrapping_sub(race.course.course.group_masks[3].bits()),
     );
-    race.physics.camera.car_draw_kept.set(0x210_0000);
+    ctx.view.cars.car_draw_kept.set(0x210_0000);
     for (to, offset) in [
         (13usize, 0x18u32),
         (14, 0x1C),
@@ -342,15 +343,15 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     }
     let record = ViewVars::record_of(stage as usize)?;
     if record.fixed_zoom.get() != 0 {
-        race.frame.frame_work.car_depth.set(0x5_0000);
+        ctx.view.cars.car_depth.set(0x5_0000);
     }
     let and = |mask: u32| {
         let view = &race.frame.view_and_records.view_vars;
         view.group_mask.set(view.group_mask.bits() & mask);
     };
     if state & 0x10 == 0 {
-        nearness(race);
-        let depth = race.frame.frame_work.car_depth.bits();
+        nearness(race, &ctx.view.cars);
+        let depth = ctx.view.cars.car_depth.bits();
         if !below(depth, 0x14_0000) {
             and(with_bit(field(0x40)?, bit));
             for var in [13usize, 14, 15, 16] {
@@ -370,7 +371,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
         }
     }
     let mut ecx = 0x60u32.wrapping_add(near_size(&race.shared));
-    race.shared.work.car_draw_word.set(ecx);
+    ctx.view.cars.car_draw_word.set(ecx);
     if state & 0x100 != 0 {
         if state & 6 == 0 {
             and(with_bit(field(0x40)?, bit));
@@ -427,7 +428,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     scene.drawing.object_work.other_light.set(0);
     ctx.view.light.light_kind.set(3);
     ctx.view.light.light_kind_extra.set(0);
-    race.shared.switches.object_number.set(
+    ctx.view.cars.object_number.set(
         race.frame
             .view_and_records
             .view_vars
@@ -444,15 +445,15 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     )?;
     crate::race::frame_draw::end_kept_reflections(&race.shared);
     ctx.view.light.light_kind_extra.set(1);
-    if below(race.frame.frame_work.car_depth.bits(), 0x3C_0000) {
+    if below(ctx.view.cars.car_depth.bits(), 0x3C_0000) {
         for (bit, matrix) in [0x20u32, 0x40, 0x80, 0x100]
             .into_iter()
             .zip(part_matrices(&race.frame))
         {
-            race.shared
-                .switches
+            ctx.view
+                .cars
                 .object_number
-                .set(race.shared.switches.object_number.bits().wrapping_add(1));
+                .set(ctx.view.cars.object_number.bits().wrapping_add(1));
             if ctx.view.object.car_switches.bits() & bit != 0 {
                 car_part_matrix(&race.frame, matrix);
                 crate::scene::draw_scene_object::draw_scene_object_in_game(
@@ -470,11 +471,11 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
 /// `race::draw_car`'s nearness: `dword_71BA08` = (`dword_6415A4` - 0xA0000) / 0x140000 held to 0 ..
 /// 1 (`flt_5C5D90`, `flt_5C5D38`), `g_shine` (and `dword_5CCE78`) times 1 less it (the
 /// original's stores to `dword_62400C` are not kept).
-fn nearness(race: &Race) {
+fn nearness(race: &Race, cars: &CarDrawState) {
     use crate::math::x87_float::{ONE, int, ld, st, to_int};
     use crate::math::x87_load::below_or_unordered;
     {
-        let depth = int(race.frame.frame_work.car_depth.get() as i32);
+        let depth = int(cars.car_depth.get() as i32);
         race.shared
             .work
             .car_nearness
@@ -570,9 +571,9 @@ pub fn draw_car_entry(
         ],
     );
     let place = t.map(tbyte_to_int);
-    frame.frame_work.car_kept[0].set_bits(place[0]);
-    frame.frame_work.car_kept[1].set_bits(place[1]);
-    frame.frame_work.car_depth.set_bits(place[2]);
+    ctx.view.cars.car_kept[0].set_bits(place[0]);
+    ctx.view.cars.car_kept[1].set_bits(place[1]);
+    ctx.view.cars.car_depth.set_bits(place[2]);
     let depth = place[2];
     let mut x = place[0];
     if below(depth, 0xFFFC_0000) {
@@ -593,10 +594,10 @@ pub fn draw_car_entry(
             .set(frame.frame_work.cars_culled.get().wrapping_add(1));
         return Ok(());
     }
-    frame
-        .frame_work
+    ctx.view
+        .cars
         .cars_drawn
-        .set(frame.frame_work.cars_drawn.get().wrapping_add(1));
+        .set(ctx.view.cars.cars_drawn.get().wrapping_add(1));
     draw_car_shined(ctx, car)
 }
 
@@ -730,7 +731,9 @@ mod asm_reference {
                 r.0 = seed;
                 fill(&mut r);
                 assert_eq!(state(), before);
-                nearness(race);
+                let cars = CarDrawState::new();
+                cars.car_depth.set(race.frame.frame_work.car_depth.get());
+                nearness(race, &cars);
                 assert_eq!(state(), want, "nearness from {before:x?}");
                 let size_got = near_size(&race.shared);
                 assert_eq!(size_got, size_want, "size from {before:x?}");

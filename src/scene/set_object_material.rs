@@ -88,7 +88,7 @@ fn step_shape(
 pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
     let (race, scene) = (ctx.race, ctx.scene);
     let shared = &race.shared;
-    let object: u32 = shared.switches.object_number.bits();
+    let object: u32 = ctx.view.cars.object_number.bits();
     if object >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
     }
@@ -102,7 +102,7 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     }
     shared.vars.move_by.set_bits(0u32);
     scene.drawing.scene.polygon_colour.set_bits(0x00FF_FFFFu32);
-    shared.switches.other_way_kind.set_bits(way);
+    ctx.view.cars.other_way_kind.set_bits(way);
     if let (4, Some(state)) = (way, state) {
         let points: [u32; 2] = [
             scene.objects.slots.first_point[object as usize].get(),

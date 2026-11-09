@@ -8,6 +8,7 @@ pub mod blit_map_tiles;
 pub mod blocks_store;
 pub mod buffers_store;
 pub mod car_draw;
+pub mod car_draw_state;
 pub mod car_grades;
 pub mod car_parts;
 pub mod car_shadow;

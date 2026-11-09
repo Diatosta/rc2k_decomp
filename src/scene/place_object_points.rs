@@ -139,9 +139,12 @@ struct Object {
     table: u32,
 }
 
-fn object(race: &crate::race::owner::Race) -> Result<Object, BadInput> {
+fn object(
+    race: &crate::race::owner::Race,
+    cars: &crate::race::car_draw_state::CarDrawState,
+) -> Result<Object, BadInput> {
     let objects = &scene().objects;
-    let number: u32 = race.shared.switches.object_number.bits();
+    let number: u32 = cars.object_number.bits();
     if number >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
     }
@@ -165,7 +168,7 @@ fn object(race: &crate::race::owner::Race) -> Result<Object, BadInput> {
 pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
     let drawing = &scene.drawing;
-    let object = object(race)?;
+    let object = object(race, &ctx.view.cars)?;
     if object.points <= 0 {
         return Ok(());
     }
@@ -238,9 +241,10 @@ fn sse_lanes(p: [f32; 3], m: &[f32; 16], place: bool) -> [u32; 4] {
 pub fn place_object_points_sse(
     race: &crate::race::owner::Race,
     scene: &crate::scene::owner::Scene,
+    cars: &crate::race::car_draw_state::CarDrawState,
 ) -> Result<(), Refused> {
     let drawing = &scene.drawing;
-    let object = object(race)?;
+    let object = object(race, cars)?;
     let m: [f32; 16] = std::array::from_fn(|n| race.frame.matrices.made_object_matrix[n].get());
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));

@@ -204,7 +204,15 @@ pub fn draw_race_scene(
     ] {
         cell.set(0);
     }
-    race.frame.frame_work.cars_drawn.set(0); // g_carsDrawn
+    // `g_carsDrawn`, now counted in each view's own state.
+    for slot in [
+        crate::race::view_scratch::main_view(0),
+        crate::race::view_scratch::main_view(1),
+        crate::race::view_scratch::mirror(0),
+        crate::race::view_scratch::mirror(1),
+    ] {
+        slot.cars.cars_drawn.set(0);
+    }
     race.frame.frame_work.cars_culled.set(0); // g_carsCulled
     scene
         .lights

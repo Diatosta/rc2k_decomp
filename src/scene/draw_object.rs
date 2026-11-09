@@ -66,7 +66,11 @@ fn place_object_points_any(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         return Err(BadInput("the 3DNow way of placing points is not ported").into());
     }
     if draw_switches.use_sse.bits() != 0 {
-        return crate::scene::place_object_points::place_object_points_sse(race, scene);
+        return crate::scene::place_object_points::place_object_points_sse(
+            race,
+            scene,
+            &ctx.view.cars,
+        );
     }
     place_object_points(ctx)?;
     Ok(())
