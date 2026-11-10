@@ -535,3 +535,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read in `race::eax_environment` (0x45C7EE) and the sound thread's voice update; found 2026-11-09 by the conversion's work on what each view hands on.
 
 **Fix:** the weight is summed apart and handed to the sound whole, at the end of each view.
+
+## The mirror's backdrop drawn with whatever the last polygon left
+
+**What it is:** before the rear-view mirror's scene, the game draws a dark rectangle behind it. It sets the rectangle's corners, texture place and colour, but not their depth and two other values: those are whatever the polygon drawn before it left in the same memory.
+
+**In game:** nothing visible: fog is off for that rectangle, the leftover depths were close enough to the front to pass, and its colour is the same at every corner, so the other values cannot change a pixel. It would only have mattered had the polygon before left a depth behind what the main view drew there.
+
+**Seen or read:** read in `race::draw_view_backdrop`; found 2026-11-10 when the mirror was first drawn on a thread of its own, where the leftovers were different ones.
+
+**Fix:** the three values are set (to 0) with the rest, so the rectangle no longer depends on what was drawn before it.

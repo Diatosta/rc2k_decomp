@@ -164,6 +164,15 @@ pub fn draw_view_backdrop(
     for vertex in &v[..4] {
         vertex.colour.set(0xFF00_0000);
     }
+    // The original left the depth, 1/w and specular as the buffer held them (the drawing
+    // before's: 0 on the first three vertices, a leftover on the fourth, depth tested
+    // against the view's); 0 here, so that the backdrop does not hang on what was drawn
+    // before it (frame plan F7: the mirror drawn on a thread of its own).
+    for vertex in &v[..4] {
+        vertex.z.set_bits(0);
+        vertex.rhw.set_bits(0);
+        vertex.specular.set(0);
+    }
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
         .set(4);
