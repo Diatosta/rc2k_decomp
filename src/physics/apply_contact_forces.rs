@@ -6,11 +6,11 @@
 
 use crate::errors::Refused;
 use crate::physics::apply_forces::apply_forces;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 const COUNT: usize = 7;
 
 pub fn apply_contact_forces(
-    shared: &Shared,
+    shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     apply_forces(shared, &shared.physics_tables.contacts[..COUNT], scene)

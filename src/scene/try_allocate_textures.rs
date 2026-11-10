@@ -24,7 +24,7 @@
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::owner::scene;
 use crate::scene::texture_needs::TEXTURES;
 use crate::scene::texture_places_store::cell_at;
@@ -38,7 +38,7 @@ pub use rc2k_core::scene::textures::Call;
 // ---- Rust version ----
 
 /// The game's tables.
-struct GameMemory<'a>(&'a Shared);
+struct GameMemory<'a>(&'a RaceShared);
 
 impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
     fn level(&self, video: bool, texture: u32) -> u32 {
@@ -88,7 +88,7 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
 /// Whether all the memory was had.
 // Converted: `rc2k_core::scene::textures::try_allocate`
 pub fn try_allocate_textures(
-    shared: &Shared,
+    shared: &RaceShared,
     call: &mut dyn FnMut(Call) -> Option<u32>,
 ) -> Result<bool, BadInput> {
     Ok(rc2k_core::scene::textures::try_allocate(
@@ -98,7 +98,7 @@ pub fn try_allocate_textures(
 }
 
 /// With the game's log and the game's allocation.
-pub fn try_allocate_textures_in_game(shared: &Shared) -> Result<bool, BadInput> {
+pub fn try_allocate_textures_in_game(shared: &RaceShared) -> Result<bool, BadInput> {
     try_allocate_textures(shared, &mut |call| {
         match call {
             Call::Text(text, newline) => crate::logfile::log_write::log_nul(&text, newline, 1),

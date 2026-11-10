@@ -20,7 +20,7 @@ pub fn choose_view_window(
     use rc2k_core::scene::view_window::{ViewSettings, choose};
     let settings = ViewSettings {
         framed: shared.switches.editor_mode.bits() != 0,
-        wide: shared.switches.other_way.bits() != 0,
+        wide: shared.switches.scene_set_up.bits() != 0,
         mode: scene.light_tables.view_mode.get(),
     };
     // The front end's window: the menus, the loading bar and the HUD's full view.

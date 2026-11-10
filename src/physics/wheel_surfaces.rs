@@ -39,7 +39,7 @@ use crate::physics::flip_cell_index::flip_cell_index;
 use crate::physics::tables_store::{PhysicsTables, Surface};
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Dword;
 use std::cmp::Ordering;
 
@@ -257,7 +257,7 @@ fn x87_2(race: &Race, c: usize, scene: &crate::scene::owner::Scene) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + c * 4 + 0x2142C0] = [s + 0x28] + (([d + 0x28] - [s + 0x28]) * [rc + c * 4 + 0x31A984])`
 /// `[rc + c * 4 + 0x31A920] = [s + 0x2C] + (([d + 0x2C] - [s + 0x2C]) * [rc + c * 4 + 0x31A984])`
-fn x87_3(shared: &Shared, s: &Surface, d: &Surface, c: usize) {
+fn x87_3(shared: &RaceShared, s: &Surface, d: &Surface, c: usize) {
     let t0 = ld(s.grip.bits());
     let t1 = ld(d.grip.bits());
     let t2 = t1 - t0;

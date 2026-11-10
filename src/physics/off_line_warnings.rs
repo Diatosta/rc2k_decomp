@@ -15,14 +15,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::progress::{
     LAST_CHECKPOINT, OFF_LINE_CUE, TURNED_CUE, Warnings, cue_due, off_line, spread,
 };
 use rc2k_core::physics::x87::below as x87_below;
 
 /// The counters: off, turned, their times.
-fn counters(shared: &Shared) -> [&crate::session::Dword; 4] {
+fn counters(shared: &RaceShared) -> [&crate::session::Dword; 4] {
     [
         &shared.car.off_line_steps,
         &shared.car.turned_steps,
@@ -31,7 +31,7 @@ fn counters(shared: &Shared) -> [&crate::session::Dword; 4] {
     ]
 }
 
-fn load(shared: &Shared) -> Warnings {
+fn load(shared: &RaceShared) -> Warnings {
     let [off, turned, off_time, turned_time] =
         counters(shared).map(super::super::session::Dword::get);
     Warnings {
@@ -42,7 +42,7 @@ fn load(shared: &Shared) -> Warnings {
     }
 }
 
-fn store(shared: &Shared, w: &Warnings) {
+fn store(shared: &RaceShared, w: &Warnings) {
     for (c, v) in counters(shared)
         .into_iter()
         .zip([w.off, w.turned, w.off_time, w.turned_time])

@@ -10,10 +10,10 @@
 //! above are the original's, for reference.
 
 use crate::physics::cells::set_changed;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::notices::Notice;
 
-pub fn count_down_notice(shared: &Shared) {
+pub fn count_down_notice(shared: &RaceShared) {
     let was = Notice {
         shown: shared.car.notice_shown.get(),
         time: shared.car.notice_time.get(),

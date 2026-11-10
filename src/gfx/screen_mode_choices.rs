@@ -28,7 +28,7 @@
 
 use crate::d3d::owner::d3d;
 use crate::errors::{BadInput, Refused};
-use crate::framework::Flags;
+use crate::framework::CarryZeroFlags;
 use crate::gfx::modes::Modes;
 use crate::gfx::owner::Display;
 use crate::pointers::GamePtr;
@@ -92,10 +92,10 @@ fn modes_of(display: &Display, kind: u32) -> Option<Vec<GamePtr>> {
 
 /// With `try_choice` (eax not 0) the choice tried, else the list made
 /// again; the flags it leaves (see the header).
-pub fn screen_mode_choices(display: &Display, try_choice: bool) -> Result<Flags, Refused> {
+pub fn screen_mode_choices(display: &Display, try_choice: bool) -> Result<CarryZeroFlags, Refused> {
     // Converted: `rc2k_core::gfx::mode_choices`.
     let failed = || {
-        Ok(Flags {
+        Ok(CarryZeroFlags {
             carry: true,
             zero: false,
         })
@@ -152,7 +152,7 @@ pub fn screen_mode_choices(display: &Display, try_choice: bool) -> Result<Flags,
                 return failed();
             }
             // The eax the three calls leave: the mode (they keep it).
-            return Ok(Flags {
+            return Ok(CarryZeroFlags {
                 carry: false,
                 zero: mode == 0,
             });
@@ -169,11 +169,15 @@ pub fn screen_mode_choices(display: &Display, try_choice: bool) -> Result<Flags,
 }
 
 /// The list made again (`loc_40468A` on), `current` the mode kept in ebp.
-fn rebuild(display: &Display, current: u32, modes: Option<Vec<GamePtr>>) -> Result<Flags, Refused> {
+fn rebuild(
+    display: &Display,
+    current: u32,
+    modes: Option<Vec<GamePtr>>,
+) -> Result<CarryZeroFlags, Refused> {
     display.choices.listed.set(0);
     display.choices.resolutions.set(0);
     let Some(modes) = modes else {
-        return Ok(Flags {
+        return Ok(CarryZeroFlags {
             carry: true,
             zero: false,
         });
@@ -231,7 +235,7 @@ fn rebuild(display: &Display, current: u32, modes: Option<Vec<GamePtr>>) -> Resu
     );
     display.choices.mipmapping.set(figure);
     display.choices.made.set(1);
-    Ok(Flags {
+    Ok(CarryZeroFlags {
         carry: false,
         zero: figure == 0,
     })

@@ -10,9 +10,9 @@
 use crate::effects::spawn_windscreen_flake::spawn_windscreen_flake;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
-pub fn pick_windscreen_flake(shared: &Shared, fl: &WindscreenFlakes) -> Result<(), Refused> {
+pub fn pick_windscreen_flake(shared: &RaceShared, fl: &WindscreenFlakes) -> Result<(), Refused> {
     {
         let s = fl
             .state

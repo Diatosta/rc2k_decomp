@@ -1,7 +1,9 @@
-//! The frame text's state in the race block, 0x5C6604 .. 0x5C6610: `dword_5C6604`, set to 2 by
-//! `race::draw_frame_rate` (the text drawing mode, a reading: also the debug font's colour,
-//! `debug::draw`), and the two dwords after it (the debug font's pixel, kept per depth).
-//! Names are readings unless IDA's.
+//! The frame text's state in the race block, 0x5C6604 .. 0x5C6610: `dword_5C6604`, the original's
+//! debug drawing colour number (IDA: read by `debug::fill_rect_16/32`, `debug::draw_glyph_16/32`, the
+//! wear-bar and watch-page drawers, which pick the pixel from it), and the two dwords after it
+//! (that colour as a 16-bit and as a 32-bit pixel, `g_debugPixel16/32`, read by the glyph
+//! drawers only). `race::draw_frame_rate` sets the number to 2 each frame; the port's debug
+//! overlay (`debug::ui`) reads none of the three, so they are written and never read here.
 
 #[cfg(test)]
 use crate::race::owner::race;
@@ -10,7 +12,7 @@ use crate::session::Dword;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct TextState {
-    /// +0x0 (0x5C6604): `dword_5C6604`: set to 2 by `race::draw_frame_rate` before the frame-rate text; the debug font's colour number (`debug::draw::COLOURS`).
+    /// +0x0 (0x5C6604): `dword_5C6604`: the original's debug drawing colour number (read by its fill-rectangle and glyph drawers); `race::draw_frame_rate` sets it to 2 before the frame-rate text. Nothing in the port reads it.
     pub text_mode: Dword,
     /// +0x4 (0x5C6608): `g_debugPixel16`: the debug font's colour made a 16-bit pixel
     /// (`debug::draw`).

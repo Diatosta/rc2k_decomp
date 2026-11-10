@@ -16,7 +16,7 @@
 use crate::install::installer::{rb, rd, refuse, rl, rw, wb, wd, ww};
 use crate::install::page_links::PageLink;
 use crate::menu::list_handle::{ListItem, ListMenu};
-use crate::place::Place;
+use crate::place::BytePlace;
 use crate::pointers::GamePtr;
 
 /// A page entry (a place in the pages' tables).
@@ -25,7 +25,7 @@ pub struct PageEntry(GamePtr);
 
 impl PageEntry {
     /// The entry at a table's start.
-    pub fn of(place: impl Into<Place>) -> Self {
+    pub fn of(place: impl Into<BytePlace>) -> Self {
         Self(place.into().game_ptr())
     }
 
@@ -62,12 +62,12 @@ pub fn piece_count(install: &'static crate::install::owner::Install) -> u32 {
 }
 
 pub fn set_piece_count(install: &'static crate::install::owner::Install, count: u32) {
-    wd(Place::from(&install.pages.layout), count);
+    wd(BytePlace::from(&install.pages.layout), count);
 }
 
 /// A piece of the layout.
 #[derive(Clone, Copy)]
-pub struct Piece(Place);
+pub struct Piece(BytePlace);
 
 /// A piece's bytes.
 pub const PIECE: u32 = rc2k_core::install::layout::PIECE;
@@ -77,7 +77,7 @@ impl Piece {
     /// when it is read or written.
     pub fn nth(n: u32) -> Self {
         let install = crate::install::owner::install();
-        Self(Place::from(&install.pages.layout).add(4 + PIECE.wrapping_mul(n)))
+        Self(BytePlace::from(&install.pages.layout).add(4 + PIECE.wrapping_mul(n)))
     }
 
     /// +0: the item's kind and marks.
@@ -155,16 +155,18 @@ impl Piece {
 
 /// A box `{x, y, width, height}` of dwords.
 #[derive(Clone, Copy)]
-pub struct BoxRecord(Place);
+pub struct BoxRecord(BytePlace);
 
 impl BoxRecord {
     /// The box a link names; none is the title's box.
     pub fn linked(link: PageLink) -> Self {
         let install = crate::install::owner::install();
         if link.is_none() {
-            return Self(Place::from(&install.pages.title_box));
+            return Self(BytePlace::from(&install.pages.title_box));
         }
-        Self(Place::from(link.in_pages().unwrap_or_else(|e| refuse(e))))
+        Self(BytePlace::from(
+            link.in_pages().unwrap_or_else(|e| refuse(e)),
+        ))
     }
 
     pub fn x(self) -> u32 {

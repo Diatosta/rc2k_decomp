@@ -23,7 +23,7 @@ use crate::framework::log;
 use crate::menu::owner::Panels;
 use crate::menu::owner::menus;
 use crate::system::owner::system;
-use rc2k_core::menu::films::{self, Film, Flags, Step};
+use rc2k_core::menu::films::{self, Film, Step, StepAnswer};
 
 // ---- game data ----
 
@@ -80,10 +80,10 @@ fn play(path: &dyn crate::session::TextPlace) -> bool {
 }
 
 impl Game {
-    fn run(&mut self, s: Step) -> Result<Flags, Refused> {
+    fn run(&mut self, s: Step) -> Result<StepAnswer, Refused> {
         let scene = crate::scene::owner::scene();
         let panels = &menus().panels;
-        let mut flags = Flags::default();
+        let mut flags = StepAnswer::default();
         match s {
             Step::StopMusic => crate::sound::stop_music::stop_music(),
             Step::Step4059F4 => crate::gfx::clear_front_surface::clear_front_surface()?,
@@ -143,10 +143,10 @@ impl films::Films for Game {
         system().session.screen.bits.get()
     }
 
-    fn step(&mut self, s: Step) -> Flags {
+    fn step(&mut self, s: Step) -> StepAnswer {
         if self.failed.is_some() {
             // "A key was pressed", which ends the loop.
-            return Flags {
+            return StepAnswer {
                 carry: true,
                 zero: false,
             };
@@ -155,7 +155,7 @@ impl films::Films for Game {
             Ok(flags) => flags,
             Err(e) => {
                 self.failed = Some(e);
-                Flags {
+                StepAnswer {
                     carry: true,
                     zero: false,
                 }

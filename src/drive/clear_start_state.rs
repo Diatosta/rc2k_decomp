@@ -4,7 +4,7 @@
 //!
 //! Caller: `drive::start_cars_behind` (0x4371BC, 0x43729B).
 
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
 
 fn core(v: &[&dyn Cell32]) {
@@ -13,7 +13,7 @@ fn core(v: &[&dyn Cell32]) {
     }
 }
 
-fn game(shared: &Shared) -> Vec<&dyn Cell32> {
+fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
     vec![
         &shared.car.driver_kind,
         &shared.car.checkpoint,
@@ -24,6 +24,6 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     ]
 }
 
-pub fn clear_start_state(shared: &Shared) {
+pub fn clear_start_state(shared: &RaceShared) {
     core(&game(shared));
 }

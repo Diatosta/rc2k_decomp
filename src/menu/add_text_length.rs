@@ -11,7 +11,7 @@ use rc2k_core::menu::text_entry::text_length;
 
 pub fn add_text_length(
     menus: &Menus,
-    text: impl Into<crate::place::Place>,
+    text: impl Into<crate::place::BytePlace>,
 ) -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::text_entry::{text_length, Entry::add_length}`.
     let text = text.into();

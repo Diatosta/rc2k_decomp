@@ -6,7 +6,7 @@
 //!
 //! Caller: `physics::car_physics_step` (0x43B9AE), its last call, every physics step.
 
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
 use rc2k_core::physics::notices::Notice;
 
@@ -27,7 +27,7 @@ fn core(v: &[&dyn Cell32]) {
     crate::physics::cells::set_changed(v[2], was.last, n.last);
 }
 
-fn game(shared: &Shared) -> Vec<&dyn Cell32> {
+fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
     vec![
         &shared.car.turned_steps as &dyn Cell32,
         &shared.car.notice_shown,
@@ -37,6 +37,6 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     ]
 }
 
-pub fn value_notice(shared: &Shared) {
+pub fn value_notice(shared: &RaceShared) {
     core(&game(shared));
 }

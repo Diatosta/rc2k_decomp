@@ -22,7 +22,7 @@ use crate::install::installer::{
 };
 use crate::install::vars::InstallerPages;
 use crate::menu::list_handle::{EditField, ListItem};
-use crate::place::Place;
+use crate::place::BytePlace;
 use rc2k_core::install::edits::{self, EDITING, EditKey};
 
 /// The font of an edit record's kind.
@@ -35,7 +35,7 @@ pub fn edit_font(
 }
 
 /// How many bytes the text takes with its NUL (the offset past the NUL).
-fn past_nul(text: Place) -> u32 {
+fn past_nul(text: BytePlace) -> u32 {
     let mut n = 0;
     loop {
         let b = rb(text.add(n));
@@ -46,7 +46,7 @@ fn past_nul(text: Place) -> u32 {
     }
 }
 
-fn clear(text: Place, most: u32) {
+fn clear(text: BytePlace, most: u32) {
     for n in 0..most + 2 {
         wb(text.add(n), 0);
     }
@@ -94,7 +94,7 @@ pub fn edit_key(
                 record.set_flags(record.flags() & !EDITING);
                 let backup = &install.paths.script_path;
                 for n in 0..most + 2 {
-                    wb(text.add(n), rb(Place::from(backup).add(n)));
+                    wb(text.add(n), rb(BytePlace::from(backup).add(n)));
                 }
                 return Ok(ended);
             }

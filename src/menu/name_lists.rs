@@ -4,7 +4,7 @@
 //! the code that reads `savedata\savegame\svgameNN` and `savedata\replay\replayNN` into them.
 
 use crate::errors::BadInput;
-use crate::place::Place;
+use crate::place::BytePlace;
 use crate::race::owner::race;
 use crate::saves::owner::saves;
 use crate::service::state::menu_item;
@@ -23,7 +23,7 @@ fn highlighted<const N: usize>(
     names: &'static Bytes<N>,
     page: &Dword,
     per_page: u32,
-) -> Result<Place, BadInput> {
+) -> Result<BytePlace, BadInput> {
     let index = page
         .get()
         .wrapping_mul(per_page)
@@ -32,11 +32,11 @@ fn highlighted<const N: usize>(
     if index >= NAMES {
         return Err(BadInput("highlighted name past the list"));
     }
-    Ok(Place::In(names, index as usize * NAME_LEN))
+    Ok(BytePlace::In(names, index as usize * NAME_LEN))
 }
 
 /// The name of the highlighted saved game.
-pub fn savegame_name() -> Result<Place, BadInput> {
+pub fn savegame_name() -> Result<BytePlace, BadInput> {
     highlighted(
         &saves().save_games.names,
         SAVEGAME_PAGE_RVA,
@@ -45,7 +45,7 @@ pub fn savegame_name() -> Result<Place, BadInput> {
 }
 
 /// The name of the highlighted replay.
-pub fn replay_name() -> Result<Place, BadInput> {
+pub fn replay_name() -> Result<BytePlace, BadInput> {
     highlighted(
         &race().shared.replays.names,
         REPLAY_PAGE_RVA,

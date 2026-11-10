@@ -14,7 +14,7 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::menus;
 use crate::menu::player_settings::current;
 use crate::menu::text_entry::{TEXT_LEN, length, set_length};
-use crate::place::Place;
+use crate::place::BytePlace;
 
 /// The current player's name as a place bounded by the names' store (the original runs on
 /// past a name that lacks its end).
@@ -22,8 +22,8 @@ pub fn name_place(menus: &Menus) -> Result<crate::pointers::GamePtr, Refused> {
     Ok(crate::menu::player_names::name_ptr(menus, name()?))
 }
 
-pub fn kept() -> Place {
-    Place::from(&menus().play.names.kept_name)
+pub fn kept() -> BytePlace {
+    BytePlace::from(&menus().play.names.kept_name)
 }
 
 /// Whose name the current player has.
@@ -31,12 +31,12 @@ pub fn name() -> Result<usize, Refused> {
     Ok(crate::menu::player_names::name_of(&current()?.get())?)
 }
 
-pub fn bring_back_name(name: impl Into<Place>) -> Result<(), BadInput> {
+pub fn bring_back_name(name: impl Into<BytePlace>) -> Result<(), BadInput> {
     let kept = kept().read(TEXT_LEN, "the kept name")?;
     name.into().write(&kept, "a player's name")
 }
 
-pub fn backspace_name(menus: &Menus, name: impl Into<Place>) -> Result<(), BadInput> {
+pub fn backspace_name(menus: &Menus, name: impl Into<BytePlace>) -> Result<(), BadInput> {
     let length = length();
     if length != 0 {
         set_length(menus, length.wrapping_sub(1));

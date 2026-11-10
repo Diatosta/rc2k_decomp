@@ -25,7 +25,7 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
 use crate::input::types::InputDevice;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
 use crate::strings::owner::strings;
@@ -72,7 +72,7 @@ fn build_text(
 
 /// The rectangle at `dword_5C2A1C` filled with colour 0 (`gfx::fill_rect`, palette
 /// `unk_5BEC2C`).
-fn fill(shared: &Shared, x: u32, y: u32, width: u32, height: u32) -> Result<(), Refused> {
+fn fill(shared: &RaceShared, x: u32, y: u32, width: u32, height: u32) -> Result<(), Refused> {
     for (cell, v) in VIEWER_PANEL.texture_rect.iter().zip([x, y, width, height]) {
         cell.set(v);
     }
@@ -86,7 +86,7 @@ fn fill(shared: &Shared, x: u32, y: u32, width: u32, height: u32) -> Result<(), 
 /// A text (`text::draw_text_keep_regs` on the game's surface) in `font` at (`x`, `y`).
 fn text(
     font: &crate::gfx::typefaces::FontObject,
-    text: impl Into<crate::place::Place>,
+    text: impl Into<crate::place::BytePlace>,
     x: u32,
     y: u32,
 ) -> Result<(), Refused> {
@@ -116,7 +116,7 @@ fn three_times(
 /// For the device `device`.
 pub fn draw_tyre_change(
     race: &'static Race,
-    shared: &Shared,
+    shared: &RaceShared,
     device: &InputDevice,
 ) -> Result<(), Refused> {
     let gfx = gfx();

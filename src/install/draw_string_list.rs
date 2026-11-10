@@ -13,11 +13,11 @@ use rc2k_core::install::layout;
 /// `count` records of `table` drawn at (x, y) on.
 pub fn draw_string_list(
     count: u32,
-    table: impl Into<crate::place::Place>,
+    table: impl Into<crate::place::BytePlace>,
     x: u32,
     y: u32,
 ) -> Result<(), Refused> {
-    let table: crate::place::Place = table.into();
+    let table: crate::place::BytePlace = table.into();
     // Converted: `rc2k_core::install::layout` (`list_records`, `list_place`).
     for (offset, _) in layout::list_records(count)? {
         let record = table.add(offset);

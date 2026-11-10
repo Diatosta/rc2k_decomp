@@ -12,9 +12,9 @@ use rc2k_core::install::script;
 /// The name at the script's `cursor` written at `to`, NUL-ended. Returns the
 /// cursor at the stop byte (not past it) and where the NUL went.
 pub fn script_name(
-    cursor: crate::place::Place,
-    to: impl Into<crate::place::Place>,
-) -> Result<(crate::place::Place, crate::place::Place), Refused> {
+    cursor: crate::place::BytePlace,
+    to: impl Into<crate::place::BytePlace>,
+) -> Result<(crate::place::BytePlace, crate::place::BytePlace), Refused> {
     // Converted: `rc2k_core::install::script::script_name` (read whole, then written; a
     // name with no end is refused before anything is written).
     let words = cursor.game_ptr().bytes("the installer's script")?;

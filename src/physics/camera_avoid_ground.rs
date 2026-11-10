@@ -28,7 +28,7 @@ use crate::physics::camera_over_ground::camera_over_ground;
 use crate::physics::camera_view::record;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Dword;
 use rc2k_core::physics::camera_ground;
 
@@ -37,7 +37,7 @@ fn place(race: &Race, scene: &crate::scene::owner::Scene) {
 }
 
 /// Turned to face from checkpoint `back` before the car's; false when there is none.
-fn face_checkpoint(course: &Course, shared: &Shared, back: u32) -> bool {
+fn face_checkpoint(course: &Course, shared: &RaceShared, back: u32) -> bool {
     let Some(checkpoint) = camera_ground::back_checkpoint(shared.car.checkpoint.get(), back) else {
         return false;
     };
@@ -62,7 +62,7 @@ fn face_checkpoint(course: &Course, shared: &Shared, back: u32) -> bool {
 }
 
 /// The five ground faces from 0x71AEC8 the loop below saves.
-fn ground_faces(shared: &Shared) -> [&Dword; 5] {
+fn ground_faces(shared: &RaceShared) -> [&Dword; 5] {
     let f = &shared.car.camera_ground_faces;
     [&f[0], &f[1], &f[2], &f[3], &f[4]]
 }

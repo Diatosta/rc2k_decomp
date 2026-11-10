@@ -25,7 +25,7 @@ pub fn draw_number_value(
     // Converted: `rc2k_core::net::screens` (`number_value`, `Number`, `NOTHING`).
     let shown = screens::number_value(item == vars.edited.get(), number);
     let text = if shown == Number::Typed {
-        crate::place::Place::from(&install.paths.path_a).text("a setting's text")?
+        crate::place::BytePlace::from(&install.paths.path_a).text("a setting's text")?
     } else {
         let mut built = Vec::new();
         if shown == Number::Nothing {

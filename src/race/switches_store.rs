@@ -7,8 +7,8 @@ use crate::session::{Dword, Float};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct FrameSwitches {
-    /// +0x0 (0x621480): `dword_621480`: nonzero in a race, 0 in the front end scene; 1 set by `race::stage_loading` (`scene::vertex_light`, `scene::draw_object_face`, `race::course_faces` branch on it).
-    pub other_way: Dword,
+    /// +0x0 (0x621480): `dword_621480`: the 3D scene is set up for drawing through the light tables: written 1 only, by `scene::set_up_front_end_scene` (twice), `race::stage_loading` and, for the length of `scene::fill_light_tables`, `scene::fill_scene_light_tables` (IDA writers 0x475027, 0x475BF0, 0x444213, 0x4433B3/C2; none writes 0). So it is 1 whenever a scene is drawn, front end or race, and its 0 branches (`scene::vertex_light`, `scene::draw_object_face`, `scene::choose_view_window`, `race::course_faces`, `race::draw_mirror_view`, the plain light ramp of `fill_light_tables`) are never taken in play. Not "the mirror on" nor "in a race".
+    pub scene_set_up: Dword,
     /// +0x4 (0x621484): holds the text `files\fmv\intro.avi` (0x6214AC), used only by the unported `sub_442FDB`.
     pub unknown_4: [Dword; 22],
     /// +0x5c (0x6214DC): `dword_6214DC`: set by `scene::set_object_material`, read by `scene::draw_object_face`; now each view's (`ctx.view.cars.other_way_kind`); unused.
@@ -103,7 +103,7 @@ mod tests {
             piece_addr(),
             crate::framework::game_addr(crate::framework::rva(START))
         );
-        assert_eq!(offset_of!(FrameSwitches, other_way), 0x621480 - START);
+        assert_eq!(offset_of!(FrameSwitches, scene_set_up), 0x621480 - START);
         assert_eq!(offset_of!(FrameSwitches, object_number), 0x6214FC - START);
         assert_eq!(offset_of!(FrameSwitches, editor_mode), 0x621514 - START);
         assert_eq!(offset_of!(FrameSwitches, service_cleared), 0x6218AC - START);

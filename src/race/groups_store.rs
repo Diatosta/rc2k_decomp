@@ -198,8 +198,8 @@ impl ViewAndRecords {
 }
 
 /// The panel and the overlay without the two lead bytes: the group's home in `moved::MOVED`.
-pub static PANEL_WINDOW: crate::race::store::Window<PanelAndOverlay> =
-    crate::race::store::Window::new(&crate::race::owner::RACE.frame.panel_and_overlay, 2);
+pub static PANEL_TAIL: crate::race::store::RecordTail<PanelAndOverlay> =
+    crate::race::store::RecordTail::new(&crate::race::owner::RACE.frame.panel_and_overlay, 2);
 
 /// Where each group is (`moved::MOVED`'s homes).
 #[cfg(test)]

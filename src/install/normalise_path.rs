@@ -27,7 +27,7 @@ pub fn current_directory() -> Result<Option<Vec<u8>>, BadInput> {
 /// The path as it is written, with its NUL; None if it is not one that is taken.
 /// `current` is the current directory, asked for only if the path is empty.
 pub fn normalised(
-    path: crate::place::Place,
+    path: crate::place::BytePlace,
     current: &mut dyn FnMut() -> Result<Option<Vec<u8>>, BadInput>,
 ) -> Result<Option<Vec<u8>>, BadInput> {
     let path = path.text("a path")?;
@@ -46,8 +46,8 @@ pub fn normalised_bytes(
 
 /// For Rust callers: writes the path at `to`. Returns whether it was written.
 pub fn normalise_path(
-    path: crate::place::Place,
-    to: crate::place::Place,
+    path: crate::place::BytePlace,
+    to: crate::place::BytePlace,
 ) -> Result<bool, BadInput> {
     let Some(text) = normalised(path, &mut || current_directory())? else {
         return Ok(false);

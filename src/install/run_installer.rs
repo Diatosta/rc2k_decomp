@@ -18,7 +18,7 @@ use crate::install::installer::{
     copy_picture, draw_string, fatal, load_language, lock, normalise, push_string_by_id, rb,
     set_cd, show, sleep, store_text, unlock, wb,
 };
-use crate::place::Place;
+use crate::place::BytePlace;
 use crate::system::owner::system;
 
 const FONT_BE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BOX_TEXT;
@@ -33,7 +33,7 @@ pub fn run_installer(install: &'static crate::install::owner::Install) -> Result
     #[cfg(unix)]
     crate::install::installer::wd(
         // 0x51DBD0.
-        crate::place::Place::from(&install.pages.folder_page).add(0x30),
+        crate::place::BytePlace::from(&install.pages.folder_page).add(0x30),
         // A link to `InstallerPaths::typed` from its first byte (`byte_95EBF8`).
         crate::install::page_links::PageLink::of_ida(0x95EBF8).raw(),
     );
@@ -66,8 +66,8 @@ pub fn run_installer(install: &'static crate::install::owner::Install) -> Result
             let n = install.names.source_size.get();
             for k in 0..n {
                 wb(
-                    Place::from(&install.paths.typed).add(k),
-                    rb(Place::from(&install.names.source).add(k)),
+                    BytePlace::from(&install.paths.typed).add(k),
+                    rb(BytePlace::from(&install.names.source).add(k)),
                 );
             }
         }

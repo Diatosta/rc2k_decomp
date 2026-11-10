@@ -47,7 +47,7 @@ pub enum Step {
 
 /// What a step answered.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Flags {
+pub struct StepAnswer {
     pub carry: bool,
     pub zero: bool,
 }
@@ -57,7 +57,7 @@ pub trait Films {
     fn no_fmv(&mut self) -> bool;
     /// `g_screenBits`.
     fn screen_bits(&mut self) -> u32;
-    fn step(&mut self, s: Step) -> Flags;
+    fn step(&mut self, s: Step) -> StepAnswer;
 }
 
 /// The screen depth that shows the first logo.
@@ -137,18 +137,18 @@ mod tests {
         fn screen_bits(&mut self) -> u32 {
             self.bits
         }
-        fn step(&mut self, s: Step) -> Flags {
+        fn step(&mut self, s: Step) -> StepAnswer {
             self.steps.push(s);
             match s {
-                Step::FileExists(_) => Flags {
+                Step::FileExists(_) => StepAnswer {
                     carry: !self.intro,
                     zero: false,
                 },
-                Step::TakeKey | Step::Player(Some(Film::Intro)) => Flags {
+                Step::TakeKey | Step::Player(Some(Film::Intro)) => StepAnswer {
                     carry: false,
                     zero: !self.keys.remove(0),
                 },
-                _ => Flags::default(),
+                _ => StepAnswer::default(),
             }
         }
     }

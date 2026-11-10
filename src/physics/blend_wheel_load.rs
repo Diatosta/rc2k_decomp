@@ -13,7 +13,7 @@
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, toward_one};
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
 
 /// On the variables' cells `v`.
@@ -43,7 +43,7 @@ pub fn blend_at(race: &Race, v: &[&dyn Cell32]) {
     put(slot, toward_one(get(slot), get(4)));
 }
 
-fn game<'a>(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
+fn game<'a>(shared: &'a RaceShared, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
     vec![
         &shared.car.contact_depth as &dyn Cell32,
         &shared.car.contact_point[0],

@@ -8,10 +8,10 @@ use crate::menu::owner::menus;
 use crate::net::owner::net;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::owner::scene;
 
-fn block(shared: &Shared, n: u32) -> u32 {
+fn block(shared: &RaceShared, n: u32) -> u32 {
     shared.work.car_block(n as usize)
 }
 
@@ -57,7 +57,7 @@ pub fn set_both_counters(value: u32) {
 }
 
 /// The view car `n`'s number: `dword_63DBA8`, `dword_63DBAC`, `dword_63DBA0`.
-pub fn view_car(shared: &Shared, n: usize) -> &crate::session::Dword {
+pub fn view_car(shared: &RaceShared, n: usize) -> &crate::session::Dword {
     match n {
         0 => &shared.view.view_cars[0],
         1 => &shared.view.view_cars[1],
@@ -70,7 +70,7 @@ pub fn view_car(shared: &Shared, n: usize) -> &crate::session::Dword {
 /// block copied into `view`'s car (`ViewScratch::car`). Refuses a null block (the original's
 /// copy faults) before anything.
 pub fn load_view_car(
-    shared: &Shared,
+    shared: &RaceShared,
     n: usize,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
@@ -81,8 +81,9 @@ pub fn load_view_car(
     Ok(())
 }
 
-// The race keys, by scan code in `g_keysPressed`; the second view's keys is `g_keysNow`'s 0x1D
-// (`byte_4F6B79`, a reading).
+// The race keys, by PC scan code (set 1) in `g_keysPressed`: F1 .. F5 (0x3B ..), F6 .. F12 for the
+// view block's option bits; `g_keysNow`'s 0x1D (`byte_4F6B79`, the Left Ctrl scan code) held makes
+// them act on the second view's block (`second` below).
 const VIEW_MODE_KEY: usize = 0x1D;
 const NEXT_VIEW_KEY: usize = 0x3B; // byte_4F6D17
 const SPLIT_KEY: usize = 0x3C; // byte_4F6D18

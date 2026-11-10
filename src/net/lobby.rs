@@ -37,8 +37,8 @@ pub const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HE
 
 /// `rep movsb` of `n` bytes, forwards (the places do not overlap).
 pub fn movsb(
-    to: impl Into<crate::place::Place>,
-    from: impl Into<crate::place::Place>,
+    to: impl Into<crate::place::BytePlace>,
+    from: impl Into<crate::place::BytePlace>,
     n: u32,
 ) -> Result<(), Refused> {
     let bytes = from.into().read(n as usize, "a network record's bytes")?;
@@ -73,7 +73,7 @@ pub fn blit(glyph: u32, x: u32, y: u32) -> Result<(), Refused> {
 }
 
 /// `logfile::log_write_l<level>[_nl]` on the text at the address `text`.
-pub fn log(text: impl Into<crate::place::Place>, newline: bool, level: u8) {
+pub fn log(text: impl Into<crate::place::BytePlace>, newline: bool, level: u8) {
     crate::logfile::log_write::log_at(text, newline, level);
 }
 
@@ -94,7 +94,7 @@ pub fn log_int_nl(value: u32, level: u8) {
 }
 
 /// `system::zero_memory`.
-pub fn zero(at: impl Into<crate::place::Place>, length: u32) -> Result<(), Refused> {
+pub fn zero(at: impl Into<crate::place::BytePlace>, length: u32) -> Result<(), Refused> {
     at.into()
         .write(&vec![0; length as usize], "memory to zero")?;
     Ok(())

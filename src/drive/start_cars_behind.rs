@@ -17,7 +17,12 @@
 //! - the four cars' +0x674 0, and for the two when within 8 checkpoints of each other (not
 //!   0) a push apart of 8 less the gap (times `flt_604EC4`, as floats).
 //!
-//! By the look of it a time trial's pace cars (a reading).
+//! These are the arcade race's opponents (run kind 2 = "arcade" in the developers' mode list, and
+//! the only kind `race::set_up_arcade_cars` and `race::panel_neighbours` act on): the game lists up
+//! to 89 opponents by start number (`arcade_cars`), but only these two are simulated at a time, one
+//! kept behind the player and one ahead, and each is put back at the line behind or ahead of the
+//! player when passed or left far behind. The HUD's gaps to the neighbours (`race::panel_neighbours`)
+//! are the eased wanted gaps (`pace_gaps_eased`), not measured times.
 //!
 //! Caller: `drive::race_mode_cars` (0x436758). Refuses a start count (`dword_6051B4`) above 0x58
 //! (the start tables' room) or a start table car past the eight blocks, before anything; the calls'
@@ -29,7 +34,7 @@ use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Dword;
 use rc2k_core::drive::pace_cars::{
     ahead_of_lead, ease_jump, ease_step, first_starts, gap_start, gaps, passed, push_apart,
@@ -37,13 +42,13 @@ use rc2k_core::drive::pace_cars::{
 };
 
 /// The block of the car in start slot `slot`, or the refusal for none.
-fn car(shared: &Shared, slot: u32) -> Result<&'static Car, BadInput> {
+fn car(shared: &RaceShared, slot: u32) -> Result<&'static Car, BadInput> {
     crate::race::blocks_store::block_at(block(shared, slot), "a car's block")
 }
 
 /// `dword_604ECC`[k]: the car of each start. The table holds 89; the refusal below reads
 /// one past it (the start count's 0x58 + 1), the next variable, as the original.
-fn car_by_start(shared: &Shared, k: u32) -> Result<u32, BadInput> {
+fn car_by_start(shared: &RaceShared, k: u32) -> Result<u32, BadInput> {
     crate::session::read_on_in(
         &shared.tables,
         &shared.tables.arcade_car_kinds,
@@ -52,12 +57,12 @@ fn car_by_start(shared: &Shared, k: u32) -> Result<u32, BadInput> {
     )
 }
 
-fn block(shared: &Shared, car: u32) -> u32 {
+fn block(shared: &RaceShared, car: u32) -> u32 {
     shared.work.car_block(car as usize)
 }
 
 /// The refusals worked out before anything.
-fn refusal(shared: &Shared) -> Result<Option<&'static str>, BadInput> {
+fn refusal(shared: &RaceShared) -> Result<Option<&'static str>, BadInput> {
     let lead = &CAR_BLOCKS.cars[0];
     let count = shared.tables.arcade_cars.get();
     if count > 0x58 {
@@ -98,7 +103,7 @@ fn put_car(
 }
 
 /// A car taken off the line: made the work car, its start values cleared, stored back.
-fn clear_car(shared: &Shared, car: u32) -> Result<(), Refused> {
+fn clear_car(shared: &RaceShared, car: u32) -> Result<(), Refused> {
     shared.work.current_car.set(car);
     crate::drive::load_car::load_car(shared)?;
     crate::drive::clear_start_state::clear_start_state(shared);

@@ -7,7 +7,7 @@
 //! Caller `install::install_files`.
 
 /// Whether `path` has a bad character or `\\` (the original's carry).
-pub fn check_folder_name(path: impl Into<crate::place::Place>) -> bool {
+pub fn check_folder_name(path: impl Into<crate::place::BytePlace>) -> bool {
     // The system's rules (`install::folders`; Windows: `rc2k_core::install::paths::
     // bad_folder_name`, RAL.EXE's `unk_51DE18`).
     use crate::install::folders::{Folders, Native};

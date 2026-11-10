@@ -4,10 +4,10 @@
 //! Callers: `drive::finish_run`, 0x4293CB (twice). Refuses what `store_car` refuses.
 
 use crate::errors::Refused;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
 /// The Rust version.
-pub fn store_first_car(shared: &Shared) -> Result<(), Refused> {
+pub fn store_first_car(shared: &RaceShared) -> Result<(), Refused> {
     shared.work.current_car.set(0);
 
     crate::drive::store_car::store_car(shared)?;

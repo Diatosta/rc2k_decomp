@@ -98,7 +98,7 @@ pub fn read_sample(
 }
 
 /// A table of two {flag, value} entries, as the core takes it.
-pub fn flags(table: &[Dword; 4]) -> rc2k_core::audio::samples::Flags {
+pub fn flags(table: &[Dword; 4]) -> rc2k_core::audio::samples::FormatBitTable {
     [
         (table[0].get(), table[1].get()),
         (table[2].get(), table[3].get()),

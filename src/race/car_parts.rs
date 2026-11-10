@@ -7,14 +7,14 @@ use crate::errors::{BadInput, Refused};
 use crate::math::cells::copy_cells;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::trap::car_at;
 use crate::scene::matrix::{multiply_matrices, set_place, set_turn_x, set_turn_y};
 use crate::session::Float;
 
 /// The five axle values (`rc2k_core::race::car_parts::axles`) from the model's record
 /// (`dword_5C9098` .. of its 0x134-byte record) and the lift.
-fn axles(shared: &Shared, model: u32) -> Result<Option<[u32; 5]>, BadInput> {
+fn axles(shared: &RaceShared, model: u32) -> Result<Option<[u32; 5]>, BadInput> {
     let axles = &LIGHT_RECORDS
         .records
         .get(model as usize)

@@ -38,7 +38,7 @@ const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 // ---- Rust version ----
 
 /// Writes the cursor and a NUL after the name's `len` characters.
-fn put_cursor(screens: &Screens, name: crate::place::Place) -> Result<(), BadInput> {
+fn put_cursor(screens: &Screens, name: crate::place::BytePlace) -> Result<(), BadInput> {
     let mut tail = Vec::new();
     push_string(&mut tail, CURSOR_STRING)?;
     tail.push(0);
@@ -48,12 +48,12 @@ fn put_cursor(screens: &Screens, name: crate::place::Place) -> Result<(), BadInp
 }
 
 /// `c` at the name's character `at`.
-fn put_char(name: crate::place::Place, at: i32, c: u8) -> Result<(), BadInput> {
+fn put_char(name: crate::place::BytePlace, at: i32, c: u8) -> Result<(), BadInput> {
     name.add(at as u32).write(&[c], "the setup name")
 }
 
 /// The name cut at its length.
-fn end_name(screens: &Screens, name: crate::place::Place) -> Result<(), BadInput> {
+fn end_name(screens: &Screens, name: crate::place::BytePlace) -> Result<(), BadInput> {
     put_char(name, screens.loop_flags.text_length.get() as i32, 0)
 }
 

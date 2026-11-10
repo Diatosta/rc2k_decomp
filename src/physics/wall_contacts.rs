@@ -19,7 +19,7 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::walls;
 
 fn word(face: u32) -> Result<u32, Refused> {
@@ -94,7 +94,7 @@ pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
 }
 
 /// The probe count checked: 0 or past 0x40 refused.
-pub fn check(shared: &Shared) -> Result<(), Refused> {
+pub fn check(shared: &RaceShared) -> Result<(), Refused> {
     Ok(walls::check_probe_count(shared.car.probe_count.get())?)
 }
 

@@ -581,12 +581,12 @@ pub fn piece_of(ida: usize) -> &'static str {
 /// A part of a record of cells, from byte `offset` to its end: a moved range that starts
 /// inside a store (`SealWork`'s fields past its alignment lead, the panel past its two lead
 /// bytes). Reads and writes go through the whole record's cells.
-pub struct Window<T: crate::pointers::Cells + Sync + 'static> {
+pub struct RecordTail<T: crate::pointers::Cells + Sync + 'static> {
     whole: &'static T,
     offset: usize,
 }
 
-impl<T: crate::pointers::Cells + Sync + 'static> Window<T> {
+impl<T: crate::pointers::Cells + Sync + 'static> RecordTail<T> {
     pub const fn new(whole: &'static T, offset: usize) -> Self {
         Self { whole, offset }
     }
@@ -597,7 +597,7 @@ impl<T: crate::pointers::Cells + Sync + 'static> Window<T> {
     unsafe_code,
     reason = "Store's promise: the window's bytes are the record's"
 )]
-unsafe impl<T: crate::pointers::Cells + Sync + 'static> crate::pointers::Store for Window<T> {
+unsafe impl<T: crate::pointers::Cells + Sync + 'static> crate::pointers::Store for RecordTail<T> {
     fn size(&self) -> usize {
         size_of::<T>() - self.offset
     }

@@ -15,7 +15,7 @@
 
 use crate::effects::expire_windscreen_flakes::{ITEM_LEN, ITEMS};
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -24,7 +24,7 @@ const WINDOW: u32 = 32;
 
 /// Ecx as it leaves it.
 pub fn spawn_windscreen_flake(
-    shared: &Shared,
+    shared: &RaceShared,
     fl: &WindscreenFlakes,
     x: u32,
     z: u32,

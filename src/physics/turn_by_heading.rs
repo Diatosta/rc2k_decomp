@@ -7,10 +7,10 @@
 //! Caller: `physics::point_hits_car` (0x45E8A9).
 
 use crate::math::turn_float_point_xz::turn_float_point_xz;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
 /// `point` is the three floats (x, y, z); x and z are turned.
-pub fn turn_by_heading(shared: &Shared, point: &[crate::session::Float; 3], ebx: u32) {
+pub fn turn_by_heading(shared: &RaceShared, point: &[crate::session::Float; 3], ebx: u32) {
     let angle = shared.car.car_heading.get().wrapping_neg();
     let [x, _, z, _] = turn_float_point_xz(point[0].bits(), ebx, point[2].bits(), angle);
     point[0].set_bits(x);

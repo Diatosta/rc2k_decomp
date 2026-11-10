@@ -41,7 +41,7 @@ const NAMES: [usize; 4] = [
 // Converted: `rc2k_core::scene::car_icons`
 pub fn load_hud_car_icons(
     scene: &crate::scene::owner::Scene,
-    shared: &crate::race::owner_shared::Shared,
+    shared: &crate::race::owner_shared::RaceShared,
 ) -> Result<(), Refused> {
     let vars = &net().vars;
     use rc2k_core::scene::car_icons;

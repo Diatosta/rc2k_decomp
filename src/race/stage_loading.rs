@@ -117,7 +117,7 @@ pub fn load_stage(race: &Race) -> Result<(), Refused> {
     for car in &CAR_BLOCKS.cars[..8] {
         car.value_jump_steps.set(8);
     }
-    race.shared.switches.other_way.set(1);
+    race.shared.switches.scene_set_up.set(1);
     race.shared.switches.view_marks_on.set(1);
     race.physics.ground.stage_loading.set(0);
     race.shared.view.view_on[0].set(1);

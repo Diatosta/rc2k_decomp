@@ -8,7 +8,7 @@
 
 use crate::math::x87;
 use crate::math::x87_run::mul2_plus;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
 
 fn put(a: &dyn Cell32, v: u32) {
@@ -16,7 +16,7 @@ fn put(a: &dyn Cell32, v: u32) {
 }
 
 /// The core on the variables' cells.
-pub fn add_drive_forces_at(shared: &Shared, v: &[&dyn Cell32]) {
+pub fn add_drive_forces_at(shared: &RaceShared, v: &[&dyn Cell32]) {
     let mut factor = shared.physics_tables.drive_force_factor[0].bits();
     if v[1].bits() != 0 {
         v[0].set_bits(x87::loaded(factor));
@@ -31,7 +31,7 @@ pub fn add_drive_forces_at(shared: &Shared, v: &[&dyn Cell32]) {
     v[10].set_bits(mul2_plus(v[8].bits(), v[6].bits(), scale, v[10].bits()));
 }
 
-fn game<'a>(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
+fn game<'a>(shared: &'a RaceShared, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
     vec![
         &scene.drawing.scene.scratch as &dyn Cell32,
         &shared.car.drive_kind,
@@ -48,6 +48,6 @@ fn game<'a>(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> Vec<&'
 }
 
 /// The exact version, for `physics::drive_wheels_step`.
-pub fn add_drive_forces(shared: &Shared, scene: &crate::scene::owner::Scene) {
+pub fn add_drive_forces(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     add_drive_forces_at(shared, &game(shared, scene));
 }

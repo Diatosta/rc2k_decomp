@@ -9,11 +9,11 @@
 
 use crate::d3d::texture_lock::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::Flags;
+use crate::framework::CarryZeroFlags;
 
 /// Texture `texture` unlocked; the flags it leaves
 /// (every register is kept).
-pub fn unlock_texture(texture: u32) -> Result<Flags, Refused> {
+pub fn unlock_texture(texture: u32) -> Result<CarryZeroFlags, Refused> {
     use rc2k_core::d3d::textures::{UNLOCK_FAILED, Unlock, unlock};
     // Converted: `rc2k_core::d3d::textures::unlock`.
     let r = record(texture);
@@ -28,5 +28,5 @@ pub fn unlock_texture(texture: u32) -> Result<Flags, Refused> {
             (false, true)
         }
     };
-    Ok(Flags { carry, zero })
+    Ok(CarryZeroFlags { carry, zero })
 }

@@ -12,7 +12,7 @@ use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::input::types::InputDevice;
 use crate::math::x87_float::{int, ld, st};
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::tyre_store::TyreChange;
 use crate::session::{Dword, Float};
 
@@ -50,7 +50,7 @@ fn turn(ty: &TyreChange, e: &InputDevice, d: &[Float; 4], v: &[Vertex], t: &Dwor
 /// The texture rectangle `uv`, the screen rectangle `rect`, the colour `colour`, the input device
 /// `device`.
 pub fn tyre_turned_quad(
-    shared: &Shared,
+    shared: &RaceShared,
     uv: [u32; 4],
     rect: &[Float; 4],
     colour: u32,

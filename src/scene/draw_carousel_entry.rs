@@ -23,7 +23,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::{Menus, Tables};
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
 // ---- game data ----
 
@@ -61,7 +61,12 @@ pub(crate) fn own_place(tables: &Tables, own: u32) -> Result<[u32; 3], BadInput>
 }
 
 /// Reads only.
-fn settings(shared: &Shared, menus: &Menus, entry: u32, row: u32) -> Result<Settings, BadInput> {
+fn settings(
+    shared: &RaceShared,
+    menus: &Menus,
+    entry: u32,
+    row: u32,
+) -> Result<Settings, BadInput> {
     let scene = crate::scene::owner::scene();
     let screens = &menus.screens;
     if entry >= ENTRIES {
@@ -108,7 +113,7 @@ fn settings(shared: &Shared, menus: &Menus, entry: u32, row: u32) -> Result<Sett
 /// Carousel entry `entry` in row place `row` (ebx and ecx at the original's entry) set
 /// up and drawn by `draw`.
 pub fn draw_carousel_entry(
-    shared: &Shared,
+    shared: &RaceShared,
     view: &crate::race::view_scratch::ViewScratch,
     menus: &Menus,
     entry: u32,

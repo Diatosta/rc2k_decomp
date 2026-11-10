@@ -7,7 +7,7 @@
 //! then `xor` 0x87654321. `math::next_random`'s step with that last `xor` added. Five callers
 //! (two in the engine's tables, three unread).
 
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
 // ---- Rust version ----
 
@@ -17,7 +17,7 @@ pub fn noise_step(state: u32) -> u32 {
 }
 
 /// Converted: `rc2k_core::scene::noise::Noise::draw`.
-pub fn next_noise(shared: &Shared) -> u32 {
+pub fn next_noise(shared: &RaceShared) -> u32 {
     let mut n = rc2k_core::scene::noise::Noise {
         state: shared.physics_tables.noise_state.bits(),
     };

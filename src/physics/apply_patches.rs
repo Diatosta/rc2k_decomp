@@ -28,12 +28,12 @@
 
 use crate::physics::tables_store::Surface;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Float;
 use rc2k_core::physics::patches::{Patches, apply_patches as apply_patches_core};
 
 /// The twelve ground records patched: `PHYSICS.surfaces[1 ..= 12]`.
-fn records(shared: &Shared) -> &[Surface] {
+fn records(shared: &RaceShared) -> &[Surface] {
     &shared.physics_tables.surfaces[1..13]
 }
 
@@ -43,7 +43,7 @@ fn grips(r: &Surface) -> [&Float; 3] {
 }
 
 /// The two drags (10.0) the sticky grass setting keeps: grass, records 7 and 8.
-fn tens(shared: &Shared) -> [&Float; 2] {
+fn tens(shared: &RaceShared) -> [&Float; 2] {
     [
         &shared.physics_tables.surfaces[7].drag,
         &shared.physics_tables.surfaces[8].drag,
@@ -51,7 +51,7 @@ fn tens(shared: &Shared) -> [&Float; 2] {
 }
 
 /// The game's patch state.
-fn load(shared: &Shared) -> Patches {
+fn load(shared: &RaceShared) -> Patches {
     let w = &shared.work;
     Patches {
         switch: w.patch_switch.get(),
@@ -66,7 +66,7 @@ fn load(shared: &Shared) -> Patches {
 
 /// The places that changed written back (the original writes only these, or the same
 /// value again).
-fn store(shared: &Shared, before: &Patches, after: &Patches) {
+fn store(shared: &RaceShared, before: &Patches, after: &Patches) {
     let w = &shared.work;
     if before.applied != after.applied {
         w.patches_applied.set(after.applied);

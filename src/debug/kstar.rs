@@ -17,7 +17,7 @@
 
 use crate::debug::wear_page::value_at;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::session::Dword;
 use dear_imgui_rs::{TreeNodeFlags, Ui};
@@ -148,7 +148,7 @@ pub fn tab(race: &Race, ui: &Ui) {
 }
 
 /// The value of `g_maskKind` itself: only 5 and 8 change what the game draws.
-fn mode_choice(shared: &Shared, ui: &Ui) {
+fn mode_choice(shared: &RaceShared, ui: &Ui) {
     let now = shared.switches.mask_kind.get();
     ui.text("The game's own mode:");
     for (name, mode) in [

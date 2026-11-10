@@ -31,7 +31,7 @@ use crate::errors::{BadInput, Refused};
 use crate::input::types::InputDevice;
 use crate::menu::owner::menus;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 
@@ -46,7 +46,7 @@ fn p(x: usize, v: u32) {
 
 /// The press time's constants: `TyreChange::{time_base, time_scale, gauge_unit,
 /// log_two_ten}` and flt_5C2C60.
-fn constants(shared: &Shared) -> [u32; 5] {
+fn constants(shared: &RaceShared) -> [u32; 5] {
     [
         shared.tyre_change.time_base.bits(),
         shared.tyre_change.time_scale.bits(),
@@ -57,7 +57,7 @@ fn constants(shared: &Shared) -> [u32; 5] {
 }
 
 /// 0x41C2C7 .. 0x41C320: the time of a press, from s = 0x10000 less the gauge.
-pub fn press_time(shared: &Shared, s: i32) -> i32 {
+pub fn press_time(shared: &RaceShared, s: i32) -> i32 {
     use crate::math::x87_float::{X, int, ld, to_int};
     let f = constants(shared).map(ld);
     // `fyl2x` (libm's log2): the product and the sum are the x87's

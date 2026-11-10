@@ -12,8 +12,8 @@ use crate::install::installer::copy_file;
 /// Clio's stop on it). Until 2026-10-23 the port dropped it, so a failed copy went unseen.
 pub fn copy_counted(
     install: &'static crate::install::owner::Install,
-    from: impl Into<crate::place::Place>,
-    to: impl Into<crate::place::Place>,
+    from: impl Into<crate::place::BytePlace>,
+    to: impl Into<crate::place::BytePlace>,
 ) -> Result<bool, Refused> {
     let from: u32 = from.into().game();
     let to: u32 = to.into().game();

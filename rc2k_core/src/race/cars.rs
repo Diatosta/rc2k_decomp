@@ -33,15 +33,15 @@ pub const KINDS: u32 = 0x17;
 pub const UNUSABLE_KIND: u32 = 6;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Flags {
+pub struct KindCheckFlags {
     pub carry: bool,
     pub zero: bool,
 }
 
 /// `race::kind_past_table`: carry for a kind of 0x17 or more; zero as `cmp eax, 17h`
 /// leaves it.
-pub fn kind_past_table(kind: u32) -> Flags {
-    Flags {
+pub fn kind_past_table(kind: u32) -> KindCheckFlags {
+    KindCheckFlags {
         carry: kind >= KINDS,
         zero: kind == KINDS,
     }
@@ -49,13 +49,13 @@ pub fn kind_past_table(kind: u32) -> Flags {
 
 /// `race::kind_unusable`: carry for a kind past the table or 6; zero as the last `cmp`
 /// leaves it (against 0x17 when past, else against 6).
-pub fn kind_unusable(kind: u32) -> Flags {
+pub fn kind_unusable(kind: u32) -> KindCheckFlags {
     let past = kind_past_table(kind);
     if past.carry {
         return past;
     }
     let six = kind == UNUSABLE_KIND;
-    Flags {
+    KindCheckFlags {
         carry: six,
         zero: six,
     }
@@ -444,7 +444,7 @@ mod tests {
         assert_eq!(table_entry(5), 5);
         assert_eq!(table_entry(0x30), 0x21);
         assert_eq!(table_entry(0x8000_0000), 0);
-        let f = |carry, zero| Flags { carry, zero };
+        let f = |carry, zero| KindCheckFlags { carry, zero };
         assert_eq!(kind_past_table(0x16), f(false, false));
         assert_eq!(kind_past_table(0x17), f(true, true));
         assert_eq!(kind_past_table(u32::MAX), f(true, false));

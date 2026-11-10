@@ -8,11 +8,11 @@
 //! Caller: `drive::replay_step`.
 
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::drive::places;
 
 // Converted: `rc2k_core::drive::places::two_car_order`.
-pub fn two_car_order(shared: &Shared) -> Result<(), crate::errors::BadInput> {
+pub fn two_car_order(shared: &RaceShared) -> Result<(), crate::errors::BadInput> {
     // g_carBlockStore: the figures of car block `car`.
     let figure = |car: usize, o: u32| {
         let block = &CAR_BLOCKS.cars[car];

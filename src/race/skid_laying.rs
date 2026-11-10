@@ -6,7 +6,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::trap::car_at;
 use crate::session::Dword;
 
@@ -114,7 +114,7 @@ pub fn add_skid_point(race: &Race, slot: &Dword) -> Result<(), Refused> {
 }
 
 /// What `lay_skidmarks` reads: the cars' blocks.
-fn cars_refuse(shared: &Shared) -> Result<(), Refused> {
+fn cars_refuse(shared: &RaceShared) -> Result<(), Refused> {
     for n in 0..shared.view.race_cars.get().min(8) {
         if shared.work.car_block(n as usize) == 0 {
             return Err(BadInput("a race car without its block").into());

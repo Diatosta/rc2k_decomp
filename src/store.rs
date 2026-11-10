@@ -82,7 +82,7 @@ pub struct BlockRange {
     len: usize,
 }
 
-// SAFETY: raw access only, under the original's discipline (as `Place`).
+// SAFETY: raw access only, under the original's discipline (as `FixedBlock`).
 unsafe impl Sync for BlockRange {}
 
 impl BlockRange {
@@ -132,7 +132,7 @@ unsafe impl crate::pointers::Store for BlockRange {
 macro_rules! block {
     ($vis:vis mod $name:ident { start: $start:expr, end: $end:expr, runs: $runs:expr $(,)? }) => {
         $vis mod $name {
-            use $crate::moved::Place;
+            use $crate::moved::FixedBlock;
 
             /// IDA's address of the block's first byte.
             pub const START: usize = $start;
@@ -161,7 +161,7 @@ macro_rules! block {
             }
 
             /// The block (its first values are the image's bytes).
-            pub static STORE: Place<Store> = Place::new(initial());
+            pub static STORE: FixedBlock<Store> = FixedBlock::new(initial());
 
             #[derive(Clone, Copy)]
             pub struct Zone;

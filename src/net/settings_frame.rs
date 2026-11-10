@@ -49,7 +49,7 @@ pub fn settings_frame() -> Result<(), Refused> {
         y = match value {
             Value::Number(n) => draw_number_value(install, &net.vars, n, item, y)?,
             Value::Text(text) => {
-                let text = crate::place::Place::from(text).text("a setting's text")?;
+                let text = crate::place::BytePlace::from(text).text("a setting's text")?;
                 draw_setting_value(&net.vars, &text, item, y)?
             }
         };

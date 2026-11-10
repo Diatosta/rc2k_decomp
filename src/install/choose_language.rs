@@ -10,7 +10,7 @@
 //! texts do not end inside it.
 
 use crate::errors::BadInput;
-use crate::place::Place;
+use crate::place::BytePlace;
 use rc2k_core::install::config;
 
 // ---- game data ----
@@ -27,7 +27,7 @@ pub fn choose_language(
         let Some(slot) = config::language_slot(number, install.names.language_count.get())? else {
             return Ok(());
         };
-        let slot = Place::from(&install.names.languages)
+        let slot = BytePlace::from(&install.names.languages)
             .add((slot * LANGUAGE_SLOT) as u32)
             .read(LANGUAGE_SLOT, "a language's slot")?;
         let directory = config::language_directory(&slot)?;

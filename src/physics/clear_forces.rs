@@ -5,9 +5,9 @@
 
 use crate::errors::Refused;
 use crate::physics::clear_records::clear_records;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 const COUNT: u32 = 0x17;
 
-pub fn clear_forces(shared: &Shared) -> Result<(), Refused> {
+pub fn clear_forces(shared: &RaceShared) -> Result<(), Refused> {
     clear_records(&shared.physics_tables.forces, COUNT)
 }

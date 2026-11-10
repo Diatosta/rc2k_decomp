@@ -101,7 +101,7 @@ fn draw_description(
     let place = u32::from_le_bytes([head[4], head[5], head[6], head[7]]);
     let shown = object <= 0x64
         && place < course.course.scene_point_count.get()
-        && !(shared.switches.other_way.get() != 0 && object == 0x3F);
+        && !(shared.switches.scene_set_up.get() != 0 && object == 0x3F);
     if shown {
         check_object(race, object)?;
     }

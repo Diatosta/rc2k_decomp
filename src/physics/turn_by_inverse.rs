@@ -13,8 +13,8 @@
 
 use crate::math::cells::Cells;
 use crate::physics::turn_by_car_matrix::turn_cells;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
-pub fn turn_by_inverse(shared: &Shared, v: &(impl Cells + ?Sized)) {
+pub fn turn_by_inverse(shared: &RaceShared, v: &(impl Cells + ?Sized)) {
     turn_cells(&shared.car.car_inverse_matrix, v);
 }

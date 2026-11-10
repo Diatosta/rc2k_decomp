@@ -19,29 +19,29 @@ use crate::install::installer::{
     unlock, wb,
 };
 use crate::install::name_tables::{FILES, FOLDERS};
-use crate::place::Place;
+use crate::place::BytePlace;
 use crate::system::owner::system;
 
-fn game_dir(install: &'static crate::install::owner::Install) -> Place {
-    Place::from(&install.paths.game_dir)
+fn game_dir(install: &'static crate::install::owner::Install) -> BytePlace {
+    BytePlace::from(&install.paths.game_dir)
 }
 
-fn installed(install: &'static crate::install::owner::Install) -> Place {
-    Place::from(&install.paths.installed)
+fn installed(install: &'static crate::install::owner::Install) -> BytePlace {
+    BytePlace::from(&install.paths.installed)
 }
 
-fn path_a(install: &'static crate::install::owner::Install) -> Place {
-    Place::from(&install.paths.path_a)
+fn path_a(install: &'static crate::install::owner::Install) -> BytePlace {
+    BytePlace::from(&install.paths.path_a)
 }
 
-fn path_b(install: &'static crate::install::owner::Install) -> Place {
-    Place::from(&install.paths.path_b)
+fn path_b(install: &'static crate::install::owner::Install) -> BytePlace {
+    BytePlace::from(&install.paths.path_b)
 }
 
 /// `to` = `base` + name `index` of `table`, NUL-ended.
 fn build(
-    base: Place,
-    to: Place,
+    base: BytePlace,
+    to: BytePlace,
     table: &crate::memory::owned::Owned<crate::install::name_tables::NameTable>,
     index: u32,
 ) -> Result<(), Refused> {
@@ -54,7 +54,7 @@ fn build(
 
 /// The error (count 2, `unk_51D453`, y 0) or cancel (count 1, `unk_51D463`, y -0x32)
 /// message shown, then a wait for a key.
-fn message(count: u32, table: impl Into<crate::place::Place>, y: u32) -> Result<(), Refused> {
+fn message(count: u32, table: impl Into<crate::place::BytePlace>, y: u32) -> Result<(), Refused> {
     let table: u32 = table.into().game();
     crate::platform_events::hold_quit(false);
     run_frame(None)?;
@@ -97,7 +97,7 @@ pub fn install_files(install: &'static crate::install::owner::Install) -> Result
     install.run.copy_spare.set(0);
     install.run.files_to_copy.set(install.run.file_count.get());
     let room = crate::install::installer::rd(
-        crate::place::Place::from(&install.names.room_by_mode)
+        crate::place::BytePlace::from(&install.names.room_by_mode)
             .add(4 * crate::install::installer::media_mode()),
     );
     install.run.room_needed.set(room);
@@ -115,7 +115,7 @@ pub fn install_files(install: &'static crate::install::owner::Install) -> Result
     }
     // The room where it goes, by the system's rules (`install::folders`; the original
     // reads the drive's, not a network path's).
-    let folder = Place::from(&install.paths.installed).text("the install folder")?;
+    let folder = BytePlace::from(&install.paths.installed).text("the install folder")?;
     match <i::folders::Native as i::folders::Folders>::room(&folder) {
         i::folders::Room::Unreadable => return bad_path(),
         i::folders::Room::Kb(free)
@@ -183,11 +183,11 @@ pub fn install_files(install: &'static crate::install::owner::Install) -> Result
         for (full, base) in [
             (
                 &install.names.readme,
-                Place::from(&install.names.readme).add(0xE),
+                BytePlace::from(&install.names.readme).add(0xE),
             ),
             (
                 &install.names.manual,
-                Place::from(&install.names.manual).add(0xE),
+                BytePlace::from(&install.names.manual).add(0xE),
             ),
         ] {
             let mut path = text_at(&install.paths.game_dir);
@@ -205,8 +205,8 @@ pub fn install_files(install: &'static crate::install::owner::Install) -> Result
     // byte_95E7F8 copied to g_installSource; dword_51BC90 its length with the NUL
     let mut n = 0;
     loop {
-        let b = rb(Place::from(&install.paths.installed).add(n));
-        wb(Place::from(&install.names.source).add(n), b);
+        let b = rb(BytePlace::from(&install.paths.installed).add(n));
+        wb(BytePlace::from(&install.names.source).add(n), b);
         n += 1;
         if b == 0 {
             break;

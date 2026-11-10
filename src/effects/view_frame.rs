@@ -12,9 +12,9 @@ use crate::effects::{
     aim_vector, keep_vectors, run_splines, scale_kept_vectors, shapes_frame, view_step,
 };
 use crate::errors::{BadInput, Refused};
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
-pub fn view_frame(shared: &Shared, effects: &Effects) -> Result<(), Refused> {
+pub fn view_frame(shared: &RaceShared, effects: &Effects) -> Result<(), Refused> {
     if effects.setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }

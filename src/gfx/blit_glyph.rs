@@ -186,7 +186,7 @@ pub fn blit_glyph_on_surface(
     let record = glyph_record(&surface, table, glyph)?;
     let mut scratch = read_scratch(gfx);
     let target = surface.target.ok_or(NO_SURFACE)?;
-    let surface_window = crate::pointers::Window::new();
+    let surface_window = crate::pointers::RegionCache::new();
     {
         blit_glyph(
             &record,

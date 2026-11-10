@@ -19,8 +19,8 @@ use crate::race::owner::race;
 const HEAD_LEN: usize = 0x430;
 const SLOTS: u32 = 100;
 
-fn slot_name(slot: u32) -> crate::place::Place {
-    crate::place::Place::In(&race().shared.replays.names, slot as usize * NAME_LEN)
+fn slot_name(slot: u32) -> crate::place::BytePlace {
+    crate::place::BytePlace::In(&race().shared.replays.names, slot as usize * NAME_LEN)
 }
 
 /// True if the slot's file was read and accepted.

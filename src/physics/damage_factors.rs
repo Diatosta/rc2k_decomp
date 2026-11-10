@@ -18,7 +18,7 @@ use crate::physics::flow::{
 };
 use crate::physics::store::DamageModel;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
 
 /// The damage model's figures for this step.
@@ -167,7 +167,7 @@ fn side_hit(race: &Race) -> u32 {
 /// `[m + 0x35B3F8] = int [rc + 0x31A008] / [m + 0x35B35C]`
 /// `[m + 0x35B3FC] = int [rc + 0x31A00C] / [m + 0x35B35C]`
 /// `[m + 0x35B400] = int [rc + 0x319FF8] / [m + 0x35B35C]`
-fn scale_car_figures(shared: &Shared, m: &DamageModel) {
+fn scale_car_figures(shared: &RaceShared, m: &DamageModel) {
     let t0 = int(shared.car.ride_height.bits() as i32);
     let t1 = ld(m.fixed_point_scale.bits());
     let t2 = t0 / t1;
@@ -221,7 +221,7 @@ fn fail_wheel(m: &DamageModel, o1: &impl crate::session::Cell32, o3: &impl crate
 /// `[rc + 0x31A430] = ((([rc + 0x31A420] + [rc + 0x31A424]) + [rc + 0x31A428]) + [rc + 0x31A42C]) * [m + 0x35B364]`
 /// `[m + 0x35B3E4] = [rc + 0x31A018]`
 /// `[m + 0x35B36C] = |[rc + 0x31A1B0]|`
-fn means_and_engine_speed(shared: &Shared, m: &DamageModel) {
+fn means_and_engine_speed(shared: &RaceShared, m: &DamageModel) {
     let t0 = ld(shared.car.wheel_ride_height[0].bits());
     let t1 = ld(shared.car.wheel_ride_height[1].bits());
     let t2 = t0 + t1;
@@ -253,7 +253,7 @@ fn means_and_engine_speed(shared: &Shared, m: &DamageModel) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B398] = ([m + 0x35B36C] / [rc + 0x31A1B4]) * [m + 0x35B34C]`
 /// `[m + 0x35B36C] = |[rc + 0x31A184]|`
-fn engine_speed_share_step(shared: &Shared, m: &DamageModel) {
+fn engine_speed_share_step(shared: &RaceShared, m: &DamageModel) {
     let t0 = ld(m.scratch.bits());
     let t1 = ld(shared.car.engine_speed_limit.bits());
     let t2 = t0 / t1;
@@ -270,7 +270,7 @@ fn engine_speed_share_step(shared: &Shared, m: &DamageModel) {
 /// `[m + 0x35B39C] = ([m + 0x35B36C] / [m + 0x35B378]) * [m + 0x35B34C]`
 /// `[m + 0x35B3E0] = [rc + 0x31A930]`
 /// `[m + 0x35B36C] = |([rc + 0x31A184] - [rc + 0x31A190])|`
-fn speed_share_step(shared: &Shared, m: &DamageModel) {
+fn speed_share_step(shared: &RaceShared, m: &DamageModel) {
     let t0 = ld(m.scratch.bits());
     let t1 = ld(m.speed_range.bits());
     let t2 = t0 / t1;
@@ -290,7 +290,7 @@ fn speed_share_step(shared: &Shared, m: &DamageModel) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B3A0] = [m + 0x35B36C] / [m + 0x35B378]`
 /// `[m + 0x35B36C] = |([rc + 0x31A184] - [rc + 0x31A194])|`
-fn drive_a_slip_step(shared: &Shared, m: &DamageModel) {
+fn drive_a_slip_step(shared: &RaceShared, m: &DamageModel) {
     let t0 = ld(m.scratch.bits());
     let t1 = ld(m.speed_range.bits());
     let t2 = t0 / t1;
@@ -307,7 +307,7 @@ fn drive_a_slip_step(shared: &Shared, m: &DamageModel) {
 /// `[m + o2] = [m + 0x35B36C] / [m + 0x35B378]`
 /// `[m + 0x35B36C] = |((([rc + o3] - [rc + 0x31A184]) * [m + 0x35B6F4]) + [rc + o6])|`
 fn drive_extrapolation_step(
-    shared: &Shared,
+    shared: &RaceShared,
     m: &DamageModel,
     o2: &impl Cell32,
     o3: &impl crate::session::Cell32,
@@ -360,7 +360,7 @@ fn clear_cell(o0: &impl Cell32) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B3B0] = int [rc + 0x31A614] / [m + 0x35B35C]`
-fn brake_share_step(shared: &Shared, m: &DamageModel) {
+fn brake_share_step(shared: &RaceShared, m: &DamageModel) {
     let t0 = int(shared.car.brake.bits() as i32);
     let t1 = ld(m.fixed_point_scale.bits());
     let t2 = t0 / t1;
@@ -370,7 +370,7 @@ fn brake_share_step(shared: &Shared, m: &DamageModel) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `status [s + 0] = status`
-fn engine_over_limit_status(shared: &Shared, m: &DamageModel) -> u16 {
+fn engine_over_limit_status(shared: &RaceShared, m: &DamageModel) -> u16 {
     let t0 = ld(shared.car.engine_speed_limit.bits());
     let t1 = ld(m.engine_limit_factor.bits());
     let t2 = t0 * t1;
@@ -382,7 +382,7 @@ fn engine_over_limit_status(shared: &Shared, m: &DamageModel) -> u16 {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B3C8] = (([rc + 0x31A208] * [rc + 0x31A208]) / [m + 0x35B394]) / [m + 0x35B378]`
 /// `[m + 0x35B36C] = -[rc + 0x31A180] - [m + 0x35B624]`
-fn hit_size_and_dive(shared: &Shared, m: &DamageModel) {
+fn hit_size_and_dive(shared: &RaceShared, m: &DamageModel) {
     let t0 = ld(shared.car.contact_depth.bits());
     let t1 = ld(shared.car.contact_depth.bits());
     let t2 = t0 * t1;

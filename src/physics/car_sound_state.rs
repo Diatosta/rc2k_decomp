@@ -20,7 +20,7 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::{X, st};
 use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Dword;
@@ -38,7 +38,7 @@ fn shares(race: &Race, so: &crate::sound::store::SoundObject) {
 
 /// The car the sound is heard from: view 0's block with one player (none if it has no
 /// block), else the work car.
-fn listener(shared: &Shared) -> Option<&crate::physics::car_store::Car> {
+fn listener(shared: &RaceShared) -> Option<&crate::physics::car_store::Car> {
     if shared.view.players.get() == 1 {
         crate::race::blocks_store::car_of(shared.view.view_blocks[0].get())
     } else {
@@ -102,7 +102,7 @@ pub fn car_sound_state(race: &Race) -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A264] = [rc + 0x31A260] / [rc + 0x213EE0]`
 /// `[rc + 0x31A268] = 1`
-fn x87_1(shared: &Shared) {
+fn x87_1(shared: &RaceShared) {
     let t0 = ld(shared.car.slip_speed.bits());
     let t1 = ld(shared.physics_tables.sound_speed_scale.bits());
     let t2 = t0 / t1;

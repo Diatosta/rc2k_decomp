@@ -2,8 +2,9 @@
 //! `physics::take_second_view` 0x438024, `physics::ease_view_angles` 0x43846D,
 //! `physics::ease_view_blend` 0x4385EB, `physics::camera_height_bias` 0x43852D and
 //! `physics::ease_view_turn` 0x438B4F): a view's place, the share of a change done, the
-//! eased angles, turns, blend and height. What the figures are (the camera's mode,
-//! place, turns, a view's figures) is a reading. The camera's step chooses (converted
+//! eased angles, turns, blend and height. The figures are the car block's camera fields
+//! (`Car::camera_view` the mode, `camera_position`, `camera_heading`, `camera_pitch`,
+//! `camera_offset_turns`, the shares) and the camera mode records' (`off_606320`) offsets and turns. The camera's step chooses (converted
 //! 2026-10-21 from `physics::update_camera` 0x437A53 and `physics::camera_frame`
 //! 0x44FF1B; their x87 sums stay the hooks'): the fixed cameras, the end of a switch,
 //! the modes the views' table holds, and when the camera shakes.

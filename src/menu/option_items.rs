@@ -32,7 +32,7 @@ use crate::errors::Refused;
 use crate::gfx::owner::GFX;
 use crate::gfx::owner::gfx;
 use crate::menu::owner::MENUS;
-use crate::race::settings_copy::{Place, var};
+use crate::race::settings_copy::{StepOperand, var};
 use crate::sound::owner::SOUND;
 
 /// After a volume step.
@@ -41,7 +41,7 @@ pub enum Then {
     /// `sound::send_command_8` with eax the value.
     Send,
     /// eax the value, stored there.
-    Store(Place),
+    Store(StepOperand),
     /// `sound::play_menu_sound` with eax this.
     Sound(u32),
 }
@@ -52,12 +52,12 @@ pub enum Kind {
     Switch,
     /// Flipped, eax the value, `other` flipped (true) or given eax (false).
     SwitchCopy {
-        other: Place,
+        other: StepOperand,
         flip: bool,
     },
     /// 0x470017.
     SwitchModes {
-        other: Place,
+        other: StepOperand,
     },
     /// Flipped, then `menu::apply_audio_choices`.
     SwitchAudio,
@@ -76,7 +76,7 @@ pub enum Kind {
     },
     /// 0x46FFDB: `other` is how many modes there are.
     PreviousMode {
-        other: Place,
+        other: StepOperand,
     },
 }
 
@@ -84,17 +84,17 @@ pub enum Kind {
 /// (for the test's copy), the dword it changes (IDA address) and its kind.
 #[derive(Clone, Copy)]
 pub struct Item {
-    pub var: Place,
+    pub var: StepOperand,
     pub kind: Kind,
 }
 
-/// The items name their variables by a `Place`: a typed cell, or an IDA address
+/// The items name their variables by a `StepOperand`: a typed cell, or an IDA address
 /// (`moved::place` answers where each lives now) for what is not typed yet.
-fn get(x: Place) -> i32 {
+fn get(x: StepOperand) -> i32 {
     x.get() as i32
 }
 
-fn set(x: Place, v: i32) {
+fn set(x: StepOperand, v: i32) {
     x.set(v as u32);
 }
 

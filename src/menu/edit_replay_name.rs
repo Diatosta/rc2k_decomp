@@ -40,7 +40,7 @@ use crate::text::measure_text::measure_text_at;
 const CURSOR_STRING: u32 = 4;
 const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE;
 
-fn end_name(name: crate::place::Place) -> Result<(), BadInput> {
+fn end_name(name: crate::place::BytePlace) -> Result<(), BadInput> {
     name.add(length() as u32).write(&[0], "a replay's name")
 }
 

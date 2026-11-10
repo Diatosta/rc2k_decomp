@@ -17,7 +17,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::session::Dword;
 use crate::sound::store::{CueQueue, SoundObject};
-use rc2k_core::physics::sound_queue::{ENTRY_DWORDS, Place, check_cue, place, sounds};
+use rc2k_core::physics::sound_queue::{CuePlacement, ENTRY_DWORDS, check_cue, place, sounds};
 
 const WHAT: &str = "physics::queue_sound_cue's operand";
 
@@ -59,9 +59,9 @@ pub fn queue_sound_cue(first: bool, cue: u32, object: &SoundObject) -> Result<()
     // The entry's first dword (the original's +0x10 + n x 0x20, in dwords).
     let mut entry = 4u32;
     match place(count, first) {
-        Place::Full => return Ok(()),
-        Place::At(n) => entry = entry.wrapping_add(n.wrapping_mul(ENTRY_DWORDS)),
-        Place::First { count } => {
+        CuePlacement::Full => return Ok(()),
+        CuePlacement::At(n) => entry = entry.wrapping_add(n.wrapping_mul(ENTRY_DWORDS)),
+        CuePlacement::First { count } => {
             // The playing sound: the first cue's sound at its place (+0x18 + place x 4).
             let playing = dword(q, q.place.get().wrapping_add(6))?.get();
             crate::sound::turn_parts::play(playing, 0, 0, [0; 3]);

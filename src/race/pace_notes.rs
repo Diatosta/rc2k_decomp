@@ -28,7 +28,7 @@ use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_physics::Physics;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 pub use rc2k_core::race::pace_notes::IMAGE_START;
 use rc2k_core::race::pace_notes::{IMAGE_LEN, Notes, Stage};
 
@@ -39,7 +39,7 @@ pub type Course = rc2k_core::race::pace_notes::Course;
 /// offsets into it, face n at 0x40 n, read by number in `face_byte`) and the checkpoints'
 /// count. Without the table (the walk runs only after `race::load_level` has taken it) the
 /// window is empty and a face read refused.
-pub fn game_course(shared: &Shared) -> Course {
+pub fn game_course(shared: &RaceShared) -> Course {
     let len = if crate::race::course_places::held() {
         crate::race::course_places::FACES
             .len()

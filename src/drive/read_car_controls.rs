@@ -3,7 +3,7 @@
 //!   held-before into `dword_5C694C` and the newly pressed (`dword_71A44C`, bits not held
 //!   before); steering, throttle and brake into 0x613890 .. 0x613898, and three bits as
 //!   0x61389C (bit 2 times 0x60), 0x6138A0, 0x6138A4;
-//! - for a player's car (or in a replay, `dword_52A910`): bit 3 newly pressed flips
+//! - for a player's car (or in a network game, `dword_52A910`, whatever the car): bit 3 newly pressed flips
 //!   `dword_71A05C`, bit 5 changes the view (`drive::next_camera_view` on `g_car`);
 //! - for a computer's car (`dword_71C3E0` set, or `dword_62389C` and `dword_71A234` 2):
 //!   `drive::start_blend`, `flt_71BFA4` = `flt_71A658`, `drive::drive_computer_car`, and
@@ -22,11 +22,11 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::net::owner::net;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::drive::controls::{FLIP_BIT, VIEW_BIT, computer_drives, flipped, read_keys};
 
 /// Does a computer drive this step?
-fn computer(shared: &Shared) -> bool {
+fn computer(shared: &RaceShared) -> bool {
     // A test's switch (`tools/remote.py pilot`): the computer at a player's wheel.
     #[cfg(feature = "remote")]
     if crate::remote::autodrive() && shared.work.current_car.get() < shared.view.players.get() {

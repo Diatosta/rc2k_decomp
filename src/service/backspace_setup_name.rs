@@ -14,7 +14,7 @@ use crate::service::read_setup_slot::{NAME_LEN, SLOT_COUNT, slot_name};
 // ---- Rust version ----
 
 /// The name of the highlighted slot, and the text entry's length if it is usable.
-pub fn entry(menus: &Menus) -> Result<(crate::place::Place, usize), BadInput> {
+pub fn entry(menus: &Menus) -> Result<(crate::place::BytePlace, usize), BadInput> {
     let slot = highlighted_slot(menus);
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table"));

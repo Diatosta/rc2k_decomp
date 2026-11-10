@@ -11,9 +11,9 @@
 
 use crate::errors::Refused;
 use crate::physics::gearing::*;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
 /// The exact version, for the gearbox's Rust callers, on the game's variables.
-pub fn wheels_from_revs(shared: &Shared) -> Result<(), Refused> {
+pub fn wheels_from_revs(shared: &RaceShared) -> Result<(), Refused> {
     wheels_from_revs_at(&GearPlaces::game(shared))
 }

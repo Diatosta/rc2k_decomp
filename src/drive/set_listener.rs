@@ -26,14 +26,14 @@ use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::rotate_point::rotate_point;
 use crate::session::{Dword, Float};
 use rc2k_core::drive::listener;
 
 /// The car file's six figures times 65536 over 1000, or the refusal (before anything).
-fn figures(shared: &Shared, viewed: u32) -> Result<[i32; 6], Refused> {
+fn figures(shared: &RaceShared, viewed: u32) -> Result<[i32; 6], Refused> {
     listener::check_viewed(viewed, || shared.work.car_block(viewed as usize) != 0)?;
     let n = car_file_number(crate::race::blocks_store::own_car().car_kind.get());
     rc2k_core::drive::sharing::check_light_record(n)?;

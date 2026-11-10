@@ -5,12 +5,12 @@
 //!
 //! Caller: `drive::race_step` (0x4454D2).
 
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::drive::clocks::RaceClock;
 
 /// After the clock's reading `now` (already in `g_sceneClock`).
 // Converted: `rc2k_core::drive::clocks::RaceClock::tick`.
-pub fn tick_from(shared: &Shared, now: u32) {
+pub fn tick_from(shared: &RaceShared, now: u32) {
     let mut c = RaceClock {
         counted: shared.physics_tables.race_clock_base.get(),
         ..RaceClock::default()
@@ -21,7 +21,7 @@ pub fn tick_from(shared: &Shared, now: u32) {
     shared.physics_tables.race_clock_base.set(c.counted);
 }
 
-pub fn race_clock_tick(shared: &Shared) {
+pub fn race_clock_tick(shared: &RaceShared) {
     let now =
         crate::scene::restart_clock::restart_clock(shared, crate::system::tick_count::tick_count());
     tick_from(shared, now);

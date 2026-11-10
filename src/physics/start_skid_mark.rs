@@ -8,7 +8,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
 use rc2k_core::physics::ground::SkidStart;
 
@@ -38,7 +38,7 @@ pub fn start_at(v: &[&dyn Cell32]) {
     }
 }
 
-fn game(shared: &Shared) -> Vec<&dyn Cell32> {
+fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
     vec![
         &shared.car.wheel_squeeze[0] as &dyn Cell32,
         &shared.car.wheel_squeeze[1],
@@ -54,6 +54,6 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     ]
 }
 
-pub fn start_skid_mark(shared: &Shared) {
+pub fn start_skid_mark(shared: &RaceShared) {
     start_at(&game(shared));
 }

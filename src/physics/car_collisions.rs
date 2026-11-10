@@ -21,11 +21,11 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
 use crate::physics::corner_hits_car::corner_hits_car;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::matrix::{multiply_matrices, set_place};
 
 /// The cars looked at: `g_raceCars`, at least one (the loop runs once).
-fn cars(shared: &Shared) -> u32 {
+fn cars(shared: &RaceShared) -> u32 {
     shared.view.race_cars.get().max(1)
 }
 

@@ -609,7 +609,7 @@ pub const SCREEN_LEN: usize = core::mem::size_of::<Screen>();
 /// The window's state and the main loop's: 0x518370 .. 0x51839C.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
-pub struct Flags {
+pub struct WindowLoopState {
     pub f370: Dword,           // dword_518370
     pub window_active: Dword,  // g_windowActive
     pub window_focused: Dword, // g_windowFocused
@@ -623,9 +623,9 @@ pub struct Flags {
     pub paused: Dword, // dword_518398
 }
 
-impl Flags {
+impl WindowLoopState {
     pub const fn new() -> Self {
-        Flags {
+        WindowLoopState {
             f370: Dword::new(0),
             window_active: Dword::new(0),
             window_focused: Dword::new(0),
@@ -641,7 +641,7 @@ impl Flags {
 }
 
 pub const FLAGS_IDA: usize = 0x518370;
-pub const FLAGS_LEN: usize = core::mem::size_of::<Flags>();
+pub const FLAGS_LEN: usize = core::mem::size_of::<WindowLoopState>();
 
 /// What the machine is and has, and the window handles: 0x5183A8 .. 0x5184A8.
 #[repr(C)]
@@ -897,8 +897,8 @@ mod tests {
         assert_eq!(SCREEN_LEN, 0x4F4984 - 0x4F494C);
         assert_eq!(offset_of!(Screen, format), 0x4F496C - 0x4F494C);
         assert_eq!(FLAGS_LEN, 0x51839C - 0x518370);
-        assert_eq!(offset_of!(Flags, quitting), 0x51837C - 0x518370);
-        assert_eq!(offset_of!(Flags, paused), 0x518398 - 0x518370);
+        assert_eq!(offset_of!(WindowLoopState, quitting), 0x51837C - 0x518370);
+        assert_eq!(offset_of!(WindowLoopState, paused), 0x518398 - 0x518370);
         assert_eq!(MACHINE_LEN, 0x5184A8 - 0x5183A8);
         assert_eq!(offset_of!(Machine, scratch), 0x5183CC - 0x5183A8);
         assert_eq!(offset_of!(Machine, cpu_vendor), 0x5183D8 - 0x5183A8);

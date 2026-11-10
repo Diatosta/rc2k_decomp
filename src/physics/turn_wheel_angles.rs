@@ -1,5 +1,7 @@
-//! `physics::turn_wheel_angles` (0x449EE9): the wheels' turning angles moved on by the
-//! speed (a reading: their spin, for the drawing). Only when the car's kind (`g_car`
+//! `physics::turn_wheel_angles` (0x449EE9): the mud amounts moved on by the speed:
+//! the four floats at `dword_623D60` / `623D70` are `mud_thrown_in` / `mud_splashes_in` (per car
+//! texture, read and emptied by `race::update_mud_texture`), not turning angles; the name is the
+//! early reading, kept (a lead for a rename to the mud accumulation). Only when the car's kind (`g_car`
 //! +0x24, `dword_719FFC`) is below 0x22 and its entry in `dword_5C5B48` is not 0 (else CF
 //! and nothing). Then, with `dword_71A22C` 0, s = `g_carDriveSpeed` (else 0), held at
 //! 0 or more (`flt_5C5D90`), times `flt_623DA8` and `flt_623DB0`, added to the four
@@ -56,7 +58,7 @@ fn add_turn(
 /// The exact version, for `physics::car_physics_step`.
 pub fn turn_wheel_angles(race: &Race, scene: &crate::scene::owner::Scene) {
     let kind = race.shared.car.car_kind.get();
-    if kind >= 0x22 || KIND_TABLES.kind_turns_wheels[kind as usize].get() == 0 {
+    if kind >= 0x22 || KIND_TABLES.kind_gets_mud[kind as usize].get() == 0 {
         return;
     }
     let still = race.shared.car.all_wheels_off.get() != 0;

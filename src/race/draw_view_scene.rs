@@ -1,5 +1,5 @@
-//! `race::draw_view_scene` (0x4557AB): a view's 3D scene. With `unk_71AF80` set (a reading: the
-//! view covered) only `race::draw_view_tint`. Else `dword_635014`, `dword_635018` 0 and in turn,
+//! `race::draw_view_scene` (0x4557AB): a view's 3D scene. With `unk_71AF80` set (`view_covered`: the player of this view is out of a two-player
+//! race, `race::drop_absent_player`) only `race::draw_view_tint`. Else `dword_635014`, `dword_635018` 0 and in turn,
 //! with the race's sound tick between the groups: the car lights' modes, the point records cleared,
 //! the fog, the camera's view, the sky and the draw batch flushed, the view's light; the lamps
 //! reset, `dword_63DB6C` 0, the course's view prepared, its visible faces, the EAX environment, the

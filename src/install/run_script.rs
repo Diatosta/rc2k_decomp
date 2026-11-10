@@ -16,22 +16,22 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{fatal, media_mode, rb, wb};
-use crate::place::Place;
+use crate::place::BytePlace;
 use rc2k_core::install::script::{self, Op};
 
 /// The script at `script` run.
 pub fn run_script(
     install: &'static crate::install::owner::Install,
-    script: impl Into<crate::place::Place>,
+    script: impl Into<crate::place::BytePlace>,
 ) -> Result<(), Refused> {
     use crate::install as i;
     // Bounded by the script's allocation, not by the field it starts in: the uninstall
     // script runs on from `INSTALLER_NAMES.script` through `script_mark` into the fields
     // after it, as the original reads it.
-    let mut cursor = Place::from(script.into().game_ptr().unbounded());
-    let mut end = Place::from(&install.paths.script_path);
+    let mut cursor = BytePlace::from(script.into().game_ptr().unbounded());
+    let mut end = BytePlace::from(&install.paths.script_path);
     wb(end, 0);
-    let mut stack: Vec<Place> = Vec::new();
+    let mut stack: Vec<BytePlace> = Vec::new();
     let media = media_mode() as u8;
     let mut guard = 0usize;
     // Converted: `rc2k_core::install::script` (`Op`, `skipped`, `skip`).
@@ -71,7 +71,7 @@ pub fn run_script(
                 }
                 end = stack
                     .pop()
-                    .unwrap_or(Place::from(&install.paths.script_path)); // pushed just above
+                    .unwrap_or(BytePlace::from(&install.paths.script_path)); // pushed just above
                 wb(end, 0);
             }
             Op::Media => {

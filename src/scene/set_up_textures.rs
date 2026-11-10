@@ -8,7 +8,7 @@
 //! above are the original's; a call by address goes through `routes.rs`, which maps them.
 
 use crate::errors::Refused;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::build_texture_catalogue::build_texture_catalogue_in_game;
 
 // ---- game data ----
@@ -22,7 +22,10 @@ use crate::scene::build_texture_catalogue::build_texture_catalogue_in_game;
 /// leaves the carry clear and eax, ebx as the allocation leaves them; no caller reads
 /// those registers (register liveness, 2026-10-23: `race::textures_alloc` and
 /// `race::loadlevel_init` after it), the carry the register-threaded callers set.
-pub fn set_up_textures(shared: &Shared, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn set_up_textures(
+    shared: &RaceShared,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let drawing = &scene.drawing;
     build_texture_catalogue_in_game(shared, scene)?;
     drawing.scene.mirror_picture.set_bits(0u32);

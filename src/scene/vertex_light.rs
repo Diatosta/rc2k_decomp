@@ -162,7 +162,7 @@ pub fn vertex_light(
         return Ok(plus(0, lit(number, mmx, light, object)?, mmx));
     }
     let lit_at_all =
-        race.shared.switches.other_way.bits() != 0 || course.stage_prefs.lit_b.bits() != 0;
+        race.shared.switches.scene_set_up.bits() != 0 || course.stage_prefs.lit_b.bits() != 0;
     if !lit_at_all || kind == 0 {
         return Ok(0x00FF_FFFF);
     }

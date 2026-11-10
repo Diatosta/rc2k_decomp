@@ -14,7 +14,7 @@ use crate::physics::gear_bit::gear_bit_at;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, wheels_from_revs_at};
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
 use rc2k_core::physics::gear_shifts::Change;
 
@@ -29,7 +29,7 @@ pub struct ChangePlaces<'a> {
 }
 
 impl<'a> ChangePlaces<'a> {
-    pub fn game(shared: &'a Shared) -> Self {
+    pub fn game(shared: &'a RaceShared) -> Self {
         Self {
             wanted: &shared.physics_tables.gear_asked,
             bits: &shared.car.lost_gear_bits,

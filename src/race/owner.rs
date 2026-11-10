@@ -8,7 +8,7 @@ use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_replay::Replay;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
 /// The race's state.
 pub struct Race {
@@ -17,7 +17,7 @@ pub struct Race {
     pub frame: Frame,
     pub replay: Replay,
     /// The stores the menus, the network and the audio side read too.
-    pub shared: Shared,
+    pub shared: RaceShared,
 }
 
 /// The one instance. Reached through `race()`.
@@ -26,7 +26,7 @@ pub static RACE: Race = Race {
     course: Course::new(),
     frame: Frame::new(),
     replay: Replay::new(),
-    shared: Shared::new(),
+    shared: RaceShared::new(),
 };
 
 /// The race's state, for a caller that does not take it as a parameter yet.

@@ -344,7 +344,7 @@ pub struct Car {
     pub pace_placed: Dword,
     /// +0x670 (0x71A648): the checkpoints between the two pace cars.
     pub pace_apart: Dword,
-    /// +0x674 (0x71A64C): push between the pace cars (reading).
+    /// +0x674 (0x71A64C): push apart of the two pace cars (`start_cars_behind`: +-(8 - gap) x scale), added to the start blend; 0 when they are 8 or more checkpoints apart.
     pub pace_push: Float,
     /// +0x678 (0x71A650): grid-place share.
     pub start_share: Float,
@@ -537,13 +537,13 @@ pub struct Car {
     pub car_event_codes: [Dword; 8],
     /// +0xf98 (0x71AF70): queued events (max 7).
     pub car_event_count: Dword,
-    /// +0xf9c (0x71AF74): event queue limit (reading).
+    /// +0xf9c (0x71AF74): the pace-note symbols' scroll target (`rc2k_core::physics::car_events`: 0x20 less per queued entry).
     pub car_event_limit: Dword,
-    /// +0xfa0 (0x71AF78): event queue position (reading).
+    /// +0xfa0 (0x71AF78): the symbols' scroll position (y offset from 400 on the HUD, `race::panel_marks`), eased 4 a step to the target.
     pub car_event_position: Dword,
     /// +0xfa4 (0x71AF7C): the car's place on the panel (`drive::two_car_order` writes it, `race::frame_draw::panel` reads it).
     pub two_car_place: Dword,
-    /// +0xfa8 (0x71AF80): set when the view is covered (reading).
+    /// +0xfa8 (0x71AF80): set to 1 by `race::drop_absent_player` for the player who is out of a two-player race (the first whose `stop_state` is set; also clears `driver_kind`): the view is then not drawn (`draw_view_scene` and `draw_view_overlays` only tint it) and its notice strip stays hidden (`hud::strips`). Zeroed by the block reset. (The only IDA readers are `draw_view_scene` and `draw_view_overlays`; the hud reads it too.)
     pub view_covered: Dword,
     /// +0xfac (0x71AF84): set to 10 by the resets; no reader.
     pub reset_marker: Dword,

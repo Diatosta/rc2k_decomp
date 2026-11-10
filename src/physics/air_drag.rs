@@ -8,7 +8,7 @@
 use crate::math::x87;
 use crate::math::x87_run::{abs_of, compare_full, square_times_over};
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
 
 /// On the variables' cells `v`.
@@ -28,7 +28,7 @@ pub fn drag_at(race: &Race, v: &[&dyn Cell32]) {
     }
 }
 
-fn game(shared: &Shared) -> Vec<&dyn Cell32> {
+fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
     vec![
         &shared.car.local_velocity[0] as &dyn Cell32,
         &shared.car.local_velocity[1],

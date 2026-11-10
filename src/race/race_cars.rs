@@ -10,13 +10,13 @@ use crate::net::owner::net;
 use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::{Cell32, Dword};
 
 /// The eight car blocks (fixed; `g_carBlocks` lists them), 0xFE0 apart.
 /// Player n's (0, 1) kind, tyre and colours word: `car_kinds[n]`, `car_tyres[n]`,
 /// `car_colours[n]`.
-fn player_kinds(shared: &Shared, n: usize) -> [&Dword; 3] {
+fn player_kinds(shared: &RaceShared, n: usize) -> [&Dword; 3] {
     let v = &shared.vars;
     [&v.race_car_kinds[n], &v.car_tyres[n], &v.car_colours[n]]
 }
@@ -92,7 +92,7 @@ pub fn reset_car_blocks(race: &Race) -> Result<(), BadInput> {
 /// `race::drop_absent_player` (0x436402): unless `dword_62389C` is 2 or 4, with `dword_63DB94` 2
 /// (two players): the first player whose block's +0xB0 is not 0 (the first, else the second) is
 /// out: +0x25C 0, +0xFA8 1.
-pub fn drop_absent_player(shared: &Shared) {
+pub fn drop_absent_player(shared: &RaceShared) {
     // Converted: `rc2k_core::race::cars::absent_player`.
     {
         let out = rc2k_core::race::cars::absent_player(
@@ -109,7 +109,7 @@ pub fn drop_absent_player(shared: &Shared) {
 
 /// `race::set_player_car_kinds` (0x43670F): the two players' blocks' +0x24, +0x2C, +0x38 from
 /// `PLAYER_KINDS`.
-pub fn set_player_car_kinds(shared: &Shared) {
+pub fn set_player_car_kinds(shared: &RaceShared) {
     for n in 0..2 {
         let car = &CAR_BLOCKS.cars[n];
         let to = [&car.car_kind, &car.tyre_kind, &car.gearbox_kind];
@@ -121,7 +121,7 @@ pub fn set_player_car_kinds(shared: &Shared) {
 
 /// The cars' data text from its start, as the original reads it (past the buffer's end
 /// too).
-fn text_data(shared: &Shared) -> crate::pointers::StoreBytes<'_> {
+fn text_data(shared: &RaceShared) -> crate::pointers::StoreBytes<'_> {
     crate::pointers::StoreBytes(&shared.tables.car_data_text)
 }
 
@@ -333,7 +333,7 @@ pub fn set_up_mode_4_cars(race: &Race) -> Result<(), BadInput> {
 
 /// `race::clear_race_tables` (0x4632D4): entries 9 .. 0 of the thirteen tables 0 (four of them
 /// overlap, one dword apart: the points' tables from entries 0 .. 3).
-pub fn clear_race_tables(shared: &Shared) {
+pub fn clear_race_tables(shared: &RaceShared) {
     let w = &shared.work;
     let tables: [(&[Dword], usize); 13] = [
         (&w.driver_bend_to, 0),
@@ -645,7 +645,7 @@ const SETUP_ARCADE_WORD_RVA: &std::ffi::CStr = c"SETUPARCADECARS"; // "SETUPARCA
 
 /// The kinds a draw (0 .. 0x21) can give that `choose_arcade_opponents` takes: usable
 /// (`kind_unusable` clear) and within 5 places (`index_of_kind`) of the first car's.
-fn opponent_kinds(shared: &Shared, first: u32) -> Result<Vec<u32>, BadInput> {
+fn opponent_kinds(shared: &RaceShared, first: u32) -> Result<Vec<u32>, BadInput> {
     use crate::race::race_shell::{index_of_kind, kind_unusable};
     {
         let first_place = index_of_kind(shared, first)?;
@@ -669,7 +669,7 @@ fn opponent_kinds(shared: &Shared, first: u32) -> Result<Vec<u32>, BadInput> {
 /// first's and not taken: the second, third and fourth cars' (`dword_62385C`, `60`, `64`), each
 /// logged with its place. Refuses, before anything, a first kind with fewer than three such kinds
 /// (the original draws for ever).
-pub fn choose_arcade_opponents(shared: &Shared) -> Result<(), Refused> {
+pub fn choose_arcade_opponents(shared: &RaceShared) -> Result<(), Refused> {
     use crate::race::race_shell::{index_of_kind, kind_unusable};
     if shared.vars.run_kind.bits() != 2 {
         return Ok(());

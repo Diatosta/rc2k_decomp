@@ -15,7 +15,7 @@ use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::{record, share_done};
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
 /// The exact version, for `physics::update_camera`.
 pub fn ease_view_blend(
@@ -39,7 +39,7 @@ pub fn ease_view_blend(
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x205260] = 1 - [rc + 0x205260]`
-fn x87_1(shared: &Shared) {
+fn x87_1(shared: &RaceShared) {
     let t0 = X(1.0);
     let t1 = ld(shared.tables.view_share.bits());
     let t2 = t0 - t1;

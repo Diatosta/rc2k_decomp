@@ -13,7 +13,7 @@ use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner::race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::state_store::RaceCar;
 use crate::session::{Dword, Float};
 use std::ffi::{CStr, CString};
@@ -36,7 +36,7 @@ pub enum Routine {
 /// An operand of the steps: one of the physics block's cells, a field of a car's block, a
 /// store's dword, or (for `Call` only) a routine.
 #[derive(Clone, Copy)]
-pub enum Place {
+pub enum StepOperand {
     Routine(Routine),
     Cell(&'static Dword),
     /// A float of the physics block, by its bits.
@@ -48,13 +48,13 @@ pub enum Place {
     /// A dword of an overlay store on the race block (`var!`: `RACE_VARS.stage_number`).
     Var(fn() -> &'static Dword),
 }
-use Place::{Bits, CarBits, CarCell, Cell, Var};
+use StepOperand::{Bits, CarBits, CarCell, Cell, Var};
 
-impl Place {
+impl StepOperand {
     /// Its dword (a float's bits).
     pub fn get(self) -> u32 {
         match self {
-            Place::Routine(r) => unreachable!("{r:?} is a routine, read as a variable"),
+            StepOperand::Routine(r) => unreachable!("{r:?} is a routine, read as a variable"),
             Cell(cell) => cell.get(),
             Bits(cell) => cell.bits(),
             CarCell(n, f) => f(&CAR_BLOCKS.cars[n]).get(),
@@ -66,7 +66,7 @@ impl Place {
     /// Its dword set (a float's bits).
     pub fn set(self, v: u32) {
         match self {
-            Place::Routine(r) => unreachable!("{r:?} is a routine, written as a variable"),
+            StepOperand::Routine(r) => unreachable!("{r:?} is a routine, written as a variable"),
             Cell(cell) => cell.set(v),
             Bits(cell) => cell.set_bits(v),
             CarCell(n, f) => f(&CAR_BLOCKS.cars[n]).set(v),
@@ -76,11 +76,11 @@ impl Place {
     }
 }
 
-/// `car!(n, field)`: car block n's dword `field` as a `Place` (a `fn` item, so the tables
+/// `car!(n, field)`: car block n's dword `field` as a `StepOperand` (a `fn` item, so the tables
 /// stay `const`).
 macro_rules! car {
     ($n:literal, $($f:tt)+) => {
-        $crate::race::settings_copy::Place::CarCell($n, {
+        $crate::race::settings_copy::StepOperand::CarCell($n, {
             fn f(c: &$crate::physics::car_store::Car) -> &$crate::session::Dword {
                 &c.$($f)+
             }
@@ -92,7 +92,7 @@ macro_rules! car {
 /// `car_bits!(n, field)`: car block n's float `field`, by its bits.
 macro_rules! car_bits {
     ($n:literal, $($f:tt)+) => {
-        $crate::race::settings_copy::Place::CarBits($n, {
+        $crate::race::settings_copy::StepOperand::CarBits($n, {
             fn f(c: &$crate::physics::car_store::Car) -> &$crate::session::Float {
                 &c.$($f)+
             }
@@ -101,10 +101,10 @@ macro_rules! car_bits {
     };
 }
 
-/// `var!(STATIC.field)`: a dword of an overlay store as a `Place` (a `fn` item, as `car!`).
+/// `var!(STATIC.field)`: a dword of an overlay store as a `StepOperand` (a `fn` item, as `car!`).
 macro_rules! var {
     ($($s:ident)::+ . $($f:tt)+) => {
-        $crate::race::settings_copy::Place::Var({
+        $crate::race::settings_copy::StepOperand::Var({
             fn f() -> &'static $crate::session::Dword {
                 &$($s)::+.$($f)+
             }
@@ -123,12 +123,12 @@ struct Game<'a> {
     ebx: u32,
 }
 
-impl rc2k_core::race::settings_copy::Machine<Place> for Game<'_> {
+impl rc2k_core::race::settings_copy::Machine<StepOperand> for Game<'_> {
     type Error = Refused;
-    fn get(&mut self, a: Place) -> u32 {
+    fn get(&mut self, a: StepOperand) -> u32 {
         a.get()
     }
-    fn set(&mut self, a: Place, v: u32) {
+    fn set(&mut self, a: StepOperand, v: u32) {
         a.set(v);
     }
     fn eax(&self) -> u32 {
@@ -168,9 +168,9 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game<'_> {
         crate::logfile::log_float::log_float(f32::from_bits(v), 2, true, 1);
         Ok(())
     }
-    fn call(&mut self, a: Place) -> Result<(), Refused> {
+    fn call(&mut self, a: StepOperand) -> Result<(), Refused> {
         let race = self.race;
-        let Place::Routine(routine) = a else {
+        let StepOperand::Routine(routine) = a else {
             unreachable!("a call of a variable");
         };
         use crate::race::race_shell::{
@@ -188,7 +188,7 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game<'_> {
 }
 
 /// The steps from the first, in the original's order.
-pub fn run(race: &Race, steps: &[Step<Place>]) -> Result<(), Refused> {
+pub fn run(race: &Race, steps: &[Step<StepOperand>]) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::settings_copy::run` (the x87's conversions and the
     // brake's product kept, through `Machine`).
     rc2k_core::race::settings_copy::run(
@@ -335,7 +335,7 @@ const OPTION_BITS: [(SettingWord, u32); 9] = [
 ];
 
 /// The race's settings that are logged after the copy: the log text and the variable.
-const SHAUN_LOGS: [(&CStr, Place); 14] = [
+const SHAUN_LOGS: [(&CStr, StepOperand); 14] = [
     (
         c"[shaunnumplayers]",
         var!(crate::race::owner::RACE.shared.view.players),
@@ -395,10 +395,10 @@ const SHAUN_LOGS: [(&CStr, Place); 14] = [
 ];
 
 /// The steps in building: pushes, and jumps patched to where they land.
-struct Builder(Vec<Step<Place>>);
+struct Builder(Vec<Step<StepOperand>>);
 
 impl Builder {
-    fn push(&mut self, step: Step<Place>) {
+    fn push(&mut self, step: Step<StepOperand>) {
         self.0.push(step);
     }
 
@@ -467,13 +467,13 @@ const IMPACT_MARKS: [CarFloat; 8] = [
 ];
 
 /// Car `car`'s eight impact marks in the results record (`results[car].impact_marks`).
-fn result_marks(shared: &Shared, car: usize) -> &[Dword; 8] {
+fn result_marks(shared: &RaceShared, car: usize) -> &[Dword; 8] {
     &shared.state.results.results[car].impact_marks
 }
 
 /// The steps of `copy_settings_in` (the front end's settings into the race's), in the
 /// original's order.
-pub fn graham_to_shaun() -> Vec<Step<Place>> {
+pub fn graham_to_shaun() -> Vec<Step<StepOperand>> {
     let shared = &race().shared;
     let mut b = Builder(Vec::with_capacity(446));
     let rule = c"-------------------------------------";
@@ -558,7 +558,7 @@ pub fn graham_to_shaun() -> Vec<Step<Place>> {
 }
 
 /// The front end's settings that the race's variables overwrite first (`GRAHAM_TO_SHAUN`).
-static HEAD_IN: [Step<Place>; 21] = [
+static HEAD_IN: [Step<StepOperand>; 21] = [
     Copy(
         var!(crate::race::owner::RACE.shared.vars.no_replay),
         Cell(&crate::race::owner::RACE.shared.state.settings.no_replay),
@@ -655,7 +655,7 @@ static HEAD_IN: [Step<Place>; 21] = [
 ];
 
 /// The cars' part flags and the arcade start place into the results.
-static FLAGS_IN: [Step<Place>; 4] = [
+static FLAGS_IN: [Step<StepOperand>; 4] = [
     Copy(
         car!(0, parts_present),
         Cell(&crate::race::owner::RACE.shared.state.results.flags_current),
@@ -676,8 +676,8 @@ static FLAGS_IN: [Step<Place>; 4] = [
 
 /// The end of the copy: the players' absences cleared, the results into the cars' stop
 /// states, the arcade positions logged, the league table copied.
-static TAIL_IN: [Step<Place>; 15] = [
-    Call(Place::Routine(Routine::ClearPlayerAbsences)),
+static TAIL_IN: [Step<StepOperand>; 15] = [
+    Call(StepOperand::Routine(Routine::ClearPlayerAbsences)),
     Load(Cell(
         &crate::race::owner::RACE.shared.state.results.results[0].result,
     )),
@@ -698,14 +698,14 @@ static TAIL_IN: [Step<Place>; 15] = [
         Cell(&crate::race::owner::RACE.shared.state.results.figure_000),
         Kind::Int,
     ),
-    Call(Place::Routine(Routine::CopyLeagueTable)),
+    Call(StepOperand::Routine(Routine::CopyLeagueTable)),
     Text(c"COPY GRAHAM TO SHAUN", true),
     Text(c"-------------------------------------", true),
     Return,
 ];
 
 /// The arcade positions logged at the end of the copy back.
-static TAIL_OUT: [Step<Place>; 6] = [
+static TAIL_OUT: [Step<StepOperand>; 6] = [
     Text(c"[arcadestartposition]", false),
     Value(
         var!(crate::race::owner::RACE.shared.tables.start_place),
@@ -722,7 +722,7 @@ static TAIL_OUT: [Step<Place>; 6] = [
 
 /// The steps of `copy_settings_out` (the race's settings back to the front end's), in the
 /// original's order; skipped while a replay is shown.
-pub fn shaun_to_graham() -> Vec<Step<Place>> {
+pub fn shaun_to_graham() -> Vec<Step<StepOperand>> {
     let shared = &race().shared;
     let mut b = Builder(Vec::with_capacity(344));
     b.push(Text(c"-------------------------------------", true));
@@ -752,7 +752,7 @@ pub fn shaun_to_graham() -> Vec<Step<Place>> {
             b.push(Copy(Cell(cell), CarBits(car, mark)));
         }
     }
-    b.push(Call(Place::Routine(Routine::StoreResultsByMode)));
+    b.push(Call(StepOperand::Routine(Routine::StoreResultsByMode)));
     for car in 0..2 {
         b.push(Load(CarCell(car, |c| &c.stop_state)));
         b.push(Store(Cell(

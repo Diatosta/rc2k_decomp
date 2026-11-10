@@ -17,7 +17,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::list_handle::ListMenu;
-use crate::place::Place;
+use crate::place::BytePlace;
 use crate::system::owner::system;
 
 // ---- the variables (IDA addresses) ----
@@ -89,21 +89,21 @@ pub fn refuse(e: crate::errors::BadInput) -> ! {
 }
 
 #[track_caller]
-pub fn rb(at: impl Into<Place>) -> u8 {
+pub fn rb(at: impl Into<BytePlace>) -> u8 {
     at.into()
         .read(1, "an installer byte")
         .unwrap_or_else(|e| refuse(e))[0]
 }
 
 #[track_caller]
-pub fn wb(at: impl Into<Place>, v: u8) {
+pub fn wb(at: impl Into<BytePlace>, v: u8) {
     at.into()
         .write(&[v], "an installer byte")
         .unwrap_or_else(|e| refuse(e));
 }
 
 #[track_caller]
-pub fn rw(at: impl Into<Place>) -> u16 {
+pub fn rw(at: impl Into<BytePlace>) -> u16 {
     let b = at
         .into()
         .read(2, "an installer word")
@@ -112,14 +112,14 @@ pub fn rw(at: impl Into<Place>) -> u16 {
 }
 
 #[track_caller]
-pub fn ww(at: impl Into<Place>, v: u16) {
+pub fn ww(at: impl Into<BytePlace>, v: u16) {
     at.into()
         .write(&v.to_le_bytes(), "an installer word")
         .unwrap_or_else(|e| refuse(e));
 }
 
 #[track_caller]
-pub fn rd(at: impl Into<Place>) -> u32 {
+pub fn rd(at: impl Into<BytePlace>) -> u32 {
     let b = at
         .into()
         .read(4, "an installer dword")
@@ -129,12 +129,12 @@ pub fn rd(at: impl Into<Place>) -> u32 {
 
 /// The link (`page_links::PageLink`) the dword at `at` holds.
 #[track_caller]
-pub fn rl(at: impl Into<Place>) -> crate::install::page_links::PageLink {
+pub fn rl(at: impl Into<BytePlace>) -> crate::install::page_links::PageLink {
     crate::install::page_links::PageLink::from_raw(rd(at))
 }
 
 #[track_caller]
-pub fn wd(at: impl Into<Place>, v: u32) {
+pub fn wd(at: impl Into<BytePlace>, v: u32) {
     at.into()
         .write(&v.to_le_bytes(), "an installer dword")
         .unwrap_or_else(|e| refuse(e));
@@ -147,7 +147,7 @@ pub fn fatal(code: u32) -> Refused {
 // ---- pure text work ----
 
 /// The NUL-ended text at `place` (a refused read ends the installer, as every wrapper here).
-pub fn text_at(place: impl Into<Place>) -> Vec<u8> {
+pub fn text_at(place: impl Into<BytePlace>) -> Vec<u8> {
     place
         .into()
         .text("an installer text")
@@ -155,14 +155,14 @@ pub fn text_at(place: impl Into<Place>) -> Vec<u8> {
 }
 
 /// The text at `place` with its NUL, as the text drawers and measurers read it (to its NUL).
-pub fn text_with_nul(place: impl Into<Place>) -> Vec<u8> {
+pub fn text_with_nul(place: impl Into<BytePlace>) -> Vec<u8> {
     let mut text = text_at(place);
     text.push(0);
     text
 }
 
 /// `bytes`, the whole text a builder made (its NULs too), written at `at`.
-pub fn store_text(at: impl Into<Place>, bytes: &[u8]) {
+pub fn store_text(at: impl Into<BytePlace>, bytes: &[u8]) {
     at.into()
         .write(bytes, "an installer text")
         .unwrap_or_else(|e| refuse(e));
@@ -177,32 +177,32 @@ pub fn push_string_by_id(out: &mut Vec<u8>, id: u32) {
 // ---- the game's other functions the installer calls ----
 
 /// A path place read as text (a refused read ends the installer, as every wrapper here).
-fn path_text(path: impl Into<Place>) -> Vec<u8> {
+fn path_text(path: impl Into<BytePlace>) -> Vec<u8> {
     path.into().text("a path").unwrap_or_else(|e| refuse(e))
 }
 
 /// `files::set_current_directory` (0x403105): whether it worked.
-pub fn set_cd(path: impl Into<Place>) -> bool {
+pub fn set_cd(path: impl Into<BytePlace>) -> bool {
     crate::files::directories::set_current_directory(&path_text(path))
 }
 
 /// `files::make_directory` (0x403113): whether it worked.
-pub fn make_dir(path: impl Into<Place>) -> bool {
+pub fn make_dir(path: impl Into<BytePlace>) -> bool {
     crate::files::directories::make_directory(&path_text(path))
 }
 
 /// `files::remove_directory` (remove a directory): whether it worked.
-pub fn remove_dir(path: impl Into<Place>) -> bool {
+pub fn remove_dir(path: impl Into<BytePlace>) -> bool {
     crate::files::directories::remove_directory(&path_text(path))
 }
 
 /// `files::delete_file` (0x402E8C): whether it worked.
-pub fn delete_file(path: impl Into<Place>) -> bool {
+pub fn delete_file(path: impl Into<BytePlace>) -> bool {
     crate::files::directories::delete_file(&path_text(path))
 }
 
 /// `install::normalise_path` (0x4139EC): `path` written at `to`; whether it was.
-pub fn normalise(path: impl Into<Place>, to: impl Into<Place>) -> Result<bool, Refused> {
+pub fn normalise(path: impl Into<BytePlace>, to: impl Into<BytePlace>) -> Result<bool, Refused> {
     Ok(crate::install::normalise_path::normalise_path(
         path.into(),
         to.into(),
@@ -210,7 +210,7 @@ pub fn normalise(path: impl Into<Place>, to: impl Into<Place>) -> Result<bool, R
 }
 
 /// `files::copy_file` (0x402C28): whether it worked.
-pub fn copy_file(from: impl Into<Place>, to: impl Into<Place>) -> Result<bool, Refused> {
+pub fn copy_file(from: impl Into<BytePlace>, to: impl Into<BytePlace>) -> Result<bool, Refused> {
     Ok(crate::files::copy_file::copy_file(
         &from.into().text("a file to copy")?,
         &to.into().text("a copy's path")?,
@@ -218,7 +218,7 @@ pub fn copy_file(from: impl Into<Place>, to: impl Into<Place>) -> Result<bool, R
 }
 
 /// `files::resolve_path` (0x403206): the path the game opens (without its NUL).
-pub fn resolve_path(path: impl Into<Place>) -> Result<Vec<u8>, Refused> {
+pub fn resolve_path(path: impl Into<BytePlace>) -> Result<Vec<u8>, Refused> {
     Ok(crate::files::resolve_path::resolve(
         &path.into().text("a path")?,
     )?)

@@ -15,13 +15,13 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::system::owner::system;
 use rc2k_core::hud::strips;
 
 /// The quad's input at byte offset `o` from `dword_623DE8`: its colour and see-through,
 /// texture coordinates, then corners (three consecutive fields).
-fn quad_input(shared: &Shared, o: usize) -> &crate::session::Dword {
+fn quad_input(shared: &RaceShared, o: usize) -> &crate::session::Dword {
     match o {
         0..0x8 => &shared.vars.quad_colour[o / 4],
         0x8..0x28 => &crate::race::view_scratch::front_end().quad.uv[(o - 8) / 4],

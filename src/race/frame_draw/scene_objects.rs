@@ -7,7 +7,7 @@ use crate::race::frame_view::car_at as car_view;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::trap::car_at;
 use crate::race::view_scratch::DrawCtx;
 use crate::scene::draw_described_object::Description;
@@ -110,7 +110,7 @@ pub fn draw_slot_object(
 /// What `scene::draw_scene_object` would refuse for slot `at`'s object, before anything:
 /// a car's object (0x50 .. 0xEF) without its block.
 pub fn check_slot_object(
-    shared: &Shared,
+    shared: &RaceShared,
     slot: &crate::race::work_store::RaceSlot,
 ) -> Result<(), Refused> {
     let n = slot.part.get().wrapping_sub(0x50);
@@ -402,7 +402,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: u32) -> Result<(), Refused> {
         }
         return Ok(());
     }
-    if race.shared.switches.other_way.bits() == 0 {
+    if race.shared.switches.scene_set_up.bits() == 0 {
         return Ok(());
     }
     let kind = car_view(car)?.car_kind.bits();
@@ -453,13 +453,13 @@ pub fn car_light_flares(ctx: &DrawCtx, car: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::car_lights` (0x455CFF): with `FRAME_SWITCHES.other_way` set, for each race car: with
+/// `race::car_lights` (0x455CFF): with `FRAME_SWITCHES.scene_set_up` set, for each race car: with
 /// +0x6FC bit 5 (lights on, `car_light_modes`) its depth entry (`add_car_depth_entry`) and then
 /// `car_light_flares`. Refuses (before anything) no cars (the loop tests at its end) or more than
 /// eight, a null block, or a depth list without room for every car's entries.
 pub fn car_lights(ctx: &DrawCtx) -> Result<(), Refused> {
     let race = ctx.race;
-    if race.shared.switches.other_way.bits() == 0 {
+    if race.shared.switches.scene_set_up.bits() == 0 {
         return Ok(());
     }
     // Converted: `rc2k_core::race::lights::{check_car_lights, lights_on}` (the null

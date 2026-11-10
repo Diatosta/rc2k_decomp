@@ -27,7 +27,7 @@ fn find_attributes() -> u32 {
 const DIRS_ROOM: u32 = 0x10000;
 const FILES_ROOM: u32 = 0x40000;
 
-fn same_name(a1: impl Into<crate::place::Place>, name: &[u8]) -> bool {
+fn same_name(a1: impl Into<crate::place::BytePlace>, name: &[u8]) -> bool {
     let mut b = name.to_vec();
     b.push(0);
     crate::menu::event_flow::refuse_here(
@@ -46,7 +46,7 @@ fn found_path(search: &[u8]) -> Result<Vec<u8>, Refused> {
 
 fn walk(
     install: &'static crate::install::owner::Install,
-    folder: crate::place::Place,
+    folder: crate::place::BytePlace,
 ) -> Result<(), Refused> {
     let mut folder = resolve_path(folder)?;
     if !folder.is_empty() {
@@ -128,7 +128,7 @@ fn walk(
 
 /// `folder` and every folder under it added to the folders' table, their files to
 /// the files'.
-pub fn list_folder_tree(folder: impl Into<crate::place::Place>) -> Result<(), Refused> {
+pub fn list_folder_tree(folder: impl Into<crate::place::BytePlace>) -> Result<(), Refused> {
     let install = crate::install::owner::install();
     let folder = folder.into();
     use crate::files::state::SKIPPED_ATTRIBUTES;

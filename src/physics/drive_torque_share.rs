@@ -10,7 +10,7 @@
 use crate::math::x87;
 use crate::math::x87_run::{abs_fidiv, int_fidiv, one_less_times_plus};
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
 use std::cmp::Ordering;
 
@@ -50,7 +50,7 @@ pub fn drive_torque_share_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
     eax
 }
 
-fn game<'a>(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
+fn game<'a>(shared: &'a RaceShared, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
     let drawing = &scene.drawing;
     vec![
         &drawing.scene.scratch as &dyn Cell32,

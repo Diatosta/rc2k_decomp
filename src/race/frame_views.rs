@@ -8,7 +8,7 @@ use crate::pointers::GamePtr;
 use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::trap::{Trap, car_at};
 use crate::scene::owner::scene;
 
@@ -60,7 +60,7 @@ pub fn mirror_view_window(
     let drawn_view = view.drawn_view(race);
     let session = &system.session;
     // Converted: `rc2k_core::race::view::{mirror_entry, mirror_window}`.
-    use rc2k_core::race::view::{Window, mirror_entry, mirror_window};
+    use rc2k_core::race::view::{MirrorRect, mirror_entry, mirror_window};
     let n = mirror_entry(
         race.shared.vars.split.get(),
         drawn_view,
@@ -84,7 +84,7 @@ pub fn mirror_view_window(
             super::super::session::Dword::get,
         )
     };
-    let Some(Window {
+    let Some(MirrorRect {
         x,
         y,
         width: sx,
@@ -188,7 +188,7 @@ pub fn draw_marks_overlays(
 /// `race::load_first_car` (0x460C7A): `g_currentCar` 0, `drive::load_car`. (Its callers,
 /// `race::draw_race_scene` and `drive::finish_run`, read no register it leaves.) Refuses
 /// (before anything) car 0 without its block.
-pub fn load_first_car(shared: &Shared) -> Result<(), Refused> {
+pub fn load_first_car(shared: &RaceShared) -> Result<(), Refused> {
     if shared.work.car_block(0) == 0 {
         return Err(BadInput("car 0 without its block").into());
     }
@@ -245,8 +245,8 @@ pub fn copy_mirror_picture(
         let mut surfaces = GameSurfaces {
             screen: &screen,
             format,
-            reads: crate::pointers::Window::new(),
-            writes: crate::pointers::Window::new(),
+            reads: crate::pointers::RegionCache::new(),
+            writes: crate::pointers::RegionCache::new(),
         };
         // What the first pixel's high half is under: the destination's slot, as the lock was
         // given it.
@@ -263,8 +263,8 @@ struct GameSurfaces<'a> {
     format: &'a crate::gfx::pixel_format::PixelFormat,
     /// The surfaces' pixels checked (the screen's and the textures' buffers are regions),
     /// a window for the one read and one for the one written.
-    reads: crate::pointers::Window,
-    writes: crate::pointers::Window,
+    reads: crate::pointers::RegionCache,
+    writes: crate::pointers::RegionCache,
 }
 
 impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
@@ -478,7 +478,7 @@ pub fn draw_own_car(
     let (race, scene) = (ctx.race, ctx.scene);
     // Converted: `rc2k_core::race::view_steps::{car_number, seen_inside, clears_depth}`.
     use rc2k_core::race::view_steps::{car_number, clears_depth, seen_inside};
-    if race.shared.switches.other_way.get() == 0 {
+    if race.shared.switches.scene_set_up.get() == 0 {
         return Ok(());
     }
     let number = race.shared.view.view_cars[ctx.view.drawn_view(race) as usize].get();

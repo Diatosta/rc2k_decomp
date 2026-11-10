@@ -9,10 +9,10 @@
 
 use crate::physics::cells::set_changed;
 use crate::physics::queue_notice::{load, store};
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::notices::Notice;
 
-pub fn take_notice(shared: &Shared) {
+pub fn take_notice(shared: &RaceShared) {
     let was = Notice {
         id: shared.car.notice_id.get(),
         shown: shared.car.notice_shown.get(),

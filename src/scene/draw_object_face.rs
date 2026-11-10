@@ -86,7 +86,7 @@ pub fn draw_object_face(
     ctx.view.face.reflects.set_bits(reflects as u32);
     ctx.view.polygon.polygon_vertex_count.set_bits(count);
 
-    if race.shared.switches.other_way.bits() != 0 && ctx.view.cars.other_way_kind.bits() == 2 {
+    if race.shared.switches.scene_set_up.bits() != 0 && ctx.view.cars.other_way_kind.bits() == 2 {
         for (entry, vertex) in vertices {
             entry.point.set(fw(vertex).wrapping_neg());
             entry.u2.set(fw(vertex + 4));

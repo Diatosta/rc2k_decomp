@@ -4,7 +4,7 @@
 use crate::files::scratch::Scratch as FileScratch;
 use crate::logfile::numeric::SCRATCH_LEN;
 use crate::records::stages_store::StageTables;
-use crate::session::{Bytes, Clocks, Flags, Machine, Screen};
+use crate::session::{Bytes, Clocks, Machine, Screen, WindowLoopState};
 use crate::system::keep_start_time::KEPT_LEN;
 use crate::system::load_game_data::RunCount;
 use crate::system::read_command_line::CommandLine;
@@ -14,7 +14,7 @@ use crate::system::start_texts::StartTexts;
 /// The screen's figures, the window's flags, what the machine is and the clocks.
 pub struct Session {
     pub screen: Screen,
-    pub flags: Flags,
+    pub flags: WindowLoopState,
     pub machine: Machine,
     pub clocks: Clocks,
 }
@@ -23,7 +23,7 @@ impl Session {
     pub const fn new() -> Self {
         Session {
             screen: Screen::new(),
-            flags: Flags::new(),
+            flags: WindowLoopState::new(),
             machine: Machine::new(),
             clocks: Clocks::new(),
         }

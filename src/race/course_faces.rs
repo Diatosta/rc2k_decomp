@@ -9,7 +9,7 @@ use crate::pointers::GamePtr;
 use crate::race::face_work::FaceWork;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
 use crate::race::view_scratch::DrawCtx;
 use crate::scene::polygon_store::{POLYGON_WORK, PolygonEntry};
@@ -95,7 +95,7 @@ fn turned_to_view(
 ) -> Result<u32, BadInput> {
     use crate::math::x87_float::{X, compare, int, ld};
     {
-        if race.shared.switches.other_way.get() == 0 {
+        if race.shared.switches.scene_set_up.get() == 0 {
             return Ok(0);
         }
         let p = f.point(1 + triangle);
@@ -444,7 +444,7 @@ fn info_bytes<const N: usize>(texture: u32, offset: u32) -> Result<[u8; N], BadI
 /// scene x and z shifted by (mapping & 3) + 2 instead, less the first corner's top byte (the fourth
 /// corner read even when it is -1: `notes/bugs.md`).
 pub fn face_texture_coordinates(
-    shared: &Shared,
+    shared: &RaceShared,
     work: &FaceWork,
     set: &TextureSet<'_>,
 ) -> Result<(), BadInput> {
@@ -637,7 +637,7 @@ pub fn draw_face_triangles(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 pub fn draw_face_polygons(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let race = ctx.race;
     // Converted: `rc2k_core::race::face_drawing::tries_quad`.
-    let in_race: u32 = race.shared.switches.other_way.get();
+    let in_race: u32 = race.shared.switches.scene_set_up.get();
     if in_race != 0
         && rc2k_core::race::face_drawing::tries_quad(
             in_race,
@@ -974,7 +974,7 @@ pub fn draw_face_sides(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::face_drawing::{has_objects, two_sided, side_drawn,
     // flipped}`.
     use rc2k_core::race::face_drawing::{flipped, has_objects, side_drawn, two_sided};
-    if race.shared.switches.other_way.get() == 0 {
+    if race.shared.switches.scene_set_up.get() == 0 {
         face_materials(ctx, face)?;
         ctx.view.face.turned[0].set(0u32);
         ctx.view.face.turned[1].set(0u32);
@@ -1074,7 +1074,13 @@ mod asm_reference {
     // The original functions, verbatim.
     pub(super) unsafe fn face_turned_to_view_asm(face: u32, half: u32) -> u32 {
         unsafe {
-            if crate::race::owner::race().shared.switches.other_way.get() == 0 {
+            if crate::race::owner::race()
+                .shared
+                .switches
+                .scene_set_up
+                .get()
+                == 0
+            {
                 return 0;
             }
             let e = face + half;
@@ -1284,7 +1290,7 @@ mod asm_reference {
         let mut face = [0u32; 0x20];
         at_each_control_word(|| {
             for _ in 0..20000 {
-                race.shared.switches.other_way.set(r.below(8));
+                race.shared.switches.scene_set_up.set(r.below(8));
                 race.course
                     .course
                     .scene_points

@@ -5,7 +5,7 @@
 /// A car block's figures `two_car_order` reads.
 pub const FINISHED: u32 = 0xA8;
 pub const CHECKPOINT: u32 = 0x94;
-/// The tie-break (+0x624; a reading: the distance along the stage).
+/// The tie-break (+0x624 = `checkpoint_offset[1]`: the car's z in its checkpoint's frame, `physics::checkpoint_offset`).
 pub const TIE_BREAK: u32 = 0x624;
 
 /// `two_car_order`'s result: the places to give the two cars (`None`: left as they are)

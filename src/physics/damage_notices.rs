@@ -17,12 +17,12 @@ use crate::errors::Refused;
 use crate::math::x87::from_int;
 use crate::physics::queue_notice::queue_notice;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Float;
 use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notices_core};
 
 /// `unk_71A284` .. `unk_71A33C`: the gauges, 47 dwords in a row in the car's record.
-fn gauge(shared: &Shared, mut k: usize) -> u32 {
+fn gauge(shared: &RaceShared, mut k: usize) -> u32 {
     use std::slice::from_ref as one;
     let groups: [&[Float]; 24] = [
         &shared.car.brake_heat,

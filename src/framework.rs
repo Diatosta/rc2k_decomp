@@ -95,9 +95,9 @@ pub fn log(msg: &str) {
 /// The carry and zero flags a function leaves, for Rust callers that still read them
 /// (a function returns these for callers that read the carry or zero result).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Flags {
+pub struct CarryZeroFlags {
     pub carry: bool,
     pub zero: bool,
 }
 
-impl Flags {}
+impl CarryZeroFlags {}

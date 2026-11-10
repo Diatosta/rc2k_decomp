@@ -9,9 +9,9 @@ use crate::math::x87;
 use crate::race::best_line::MOST_CHECKS;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
-fn count(shared: &Shared) -> Result<u32, Refused> {
+fn count(shared: &RaceShared) -> Result<u32, Refused> {
     let n: u32 = shared.vars.checkpoint_count.bits();
     if n > MOST_CHECKS {
         return Err(BadInput("more checkpoints than the lists hold").into());

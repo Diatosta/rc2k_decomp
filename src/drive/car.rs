@@ -5,14 +5,14 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
 pub const CAR_LEN: usize = 0xFE0;
 const _: () = assert!(core::mem::size_of::<Car>() == CAR_LEN);
 
 /// The current car's block (`g_carBlocks[g_currentCar & 7]`, by its handle), refused when
 /// null (the original's `rep movsd` would fault there).
-pub fn current_block(shared: &Shared) -> Result<&'static Car, Refused> {
+pub fn current_block(shared: &RaceShared) -> Result<&'static Car, Refused> {
     use rc2k_core::drive::work_car::{car_block, car_slot};
     let slot = car_slot(shared.work.current_car.get());
     let block = car_block(shared.work.car_block(slot as usize))?;

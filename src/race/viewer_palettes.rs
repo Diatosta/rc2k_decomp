@@ -8,7 +8,7 @@
 //! Caller: `race::viewer_load_stage`.
 
 use crate::errors::BadInput;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
 /// The replay viewer's panel fonts, whose palettes are pointed at the colours, in the
 /// original's order.
@@ -18,7 +18,7 @@ const PALETTES: [crate::gfx::typefaces::FontId; 6] = {
 };
 
 pub fn viewer_palettes(
-    shared: &Shared,
+    shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
     let gfx = crate::gfx::owner::gfx();

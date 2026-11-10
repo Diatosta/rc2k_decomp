@@ -4,10 +4,10 @@
 //!
 //! Callers: `race::viewer_action` (six places), `race::edit_camera_1`, `edit_camera_2`.
 
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
 
-pub fn keep_undo(shared: &Shared) {
+pub fn keep_undo(shared: &RaceShared) {
     // As `rc2k_core::race::viewer_flow::copy_tables`, cell by cell.
     VIEWER_BUFFERS
         .undo_blocks

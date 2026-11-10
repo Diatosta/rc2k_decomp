@@ -8,11 +8,11 @@
 //! outside the tables).
 
 use crate::errors::Refused;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::viewer::move_cells;
 
 /// The count copied, none when the marks are not in order.
-pub fn copy_marked(shared: &Shared) -> Result<Option<u32>, Refused> {
+pub fn copy_marked(shared: &RaceShared) -> Result<Option<u32>, Refused> {
     // Converted: `rc2k_core::race::viewer::clip`.
     let first = crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .mark_in

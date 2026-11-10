@@ -7,7 +7,7 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_div_add_mul};
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
 
 fn at(a: &dyn Cell32) -> u32 {
@@ -20,7 +20,7 @@ fn put(a: &dyn Cell32, v: u32) {
 
 /// The core: the factor, the speed and the two forces at these places.
 pub fn ease_low_speed_forces_at(
-    shared: &Shared,
+    shared: &RaceShared,
     factor: &dyn Cell32,
     speed: &dyn Cell32,
     forces: [&dyn Cell32; 2],
@@ -45,7 +45,7 @@ pub fn ease_low_speed_forces_at(
 }
 
 /// The exact version, for `physics::drive_wheels_step`.
-pub fn ease_low_speed_forces(shared: &Shared) {
+pub fn ease_low_speed_forces(shared: &RaceShared) {
     ease_low_speed_forces_at(
         shared,
         &shared.physics_tables.low_speed_share,

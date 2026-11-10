@@ -78,7 +78,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             let mut x = 0x18;
             blit(screens::flag_sprite(block.record.head.get(3)), x, y)?;
             x += 0x28;
-            let name = store_text(crate::place::Place::from(&block.name).text("a text")?)?;
+            let name = store_text(crate::place::BytePlace::from(&block.name).text("a text")?)?;
             let font = if block.record.state() & READY != 0 {
                 READY_FONT
             } else {

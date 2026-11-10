@@ -6,12 +6,12 @@ use crate::effects::owner::effects;
 use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::replay_work_store::REPLAY_WORK;
 
 /// Where a header setting lives in the race's variables (its first place).
 pub fn setting_cell(
-    shared: &Shared,
+    shared: &RaceShared,
     s: rc2k_core::race::replay::Setting,
 ) -> &crate::session::Dword {
     use rc2k_core::race::replay::Setting::*;

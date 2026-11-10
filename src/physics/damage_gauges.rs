@@ -17,11 +17,11 @@ use crate::physics::flow::{below_or_unordered, c0};
 use crate::physics::store::DamageModel;
 use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::{Cell32, Float};
 
 /// `unk_71A2AC[gear]` (the gear -1 .. 7 as the original indexes it, `gear_wear` by gear + 1).
-fn gear_gauge(shared: &Shared, gear: u32) -> &Float {
+fn gear_gauge(shared: &RaceShared, gear: u32) -> &Float {
     shared
         .car
         .gear_wear
@@ -516,7 +516,7 @@ fn gear_wear_from_speed(m: &DamageModel, t: &impl Cell32, v: &impl Cell32) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B43C] = 1 - [m + 0x35B400]`
 /// `[rc + 0x31A320] = ((([m + 0x35B5F4] * [m + 0x35B400]) * [m + 0x35B3B0]) * [m + 0x35B38C]) + [rc + 0x31A320]`
-fn brake_wear_step(shared: &Shared, m: &DamageModel) {
+fn brake_wear_step(shared: &RaceShared, m: &DamageModel) {
     let t0 = X(1.0);
     let t1 = ld(m.brake_balance_share.bits());
     let t2 = t0 - t1;
@@ -589,7 +589,7 @@ fn scale_part_hit_figures(m: &DamageModel, t: &impl Cell32, u: &impl Cell32) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A290] = (([rc + 0x31A28C] * [m + 0x35B608]) * [m + 0x35B370]) + [rc + 0x31A290]`
-fn engine_damage_carry(shared: &Shared, m: &DamageModel) {
+fn engine_damage_carry(shared: &RaceShared, m: &DamageModel) {
     let t0 = ld(shared.car.engine_heat.bits());
     let t1 = ld(m.gauge_rates[14].bits());
     let t2 = t0 * t1;
@@ -603,7 +603,7 @@ fn engine_damage_carry(shared: &Shared, m: &DamageModel) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A2A0] = [rc + 0x31A2A0] + [m + o1]`
-fn add_rate_to_clutch(shared: &Shared, o1: &impl Cell32) {
+fn add_rate_to_clutch(shared: &RaceShared, o1: &impl Cell32) {
     let t0 = ld(shared.car.clutch_damage.bits());
     let t1 = ld(o1.bits());
     let t2 = t0 + t1;
@@ -623,7 +623,7 @@ fn add_rate_to_gauge(v: &impl Cell32, o1: &impl Cell32) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B3C8] = [m + 0x35B3C8] * [rc + 0x31C708]`
-fn scale_hit_size(shared: &Shared, m: &DamageModel) {
+fn scale_hit_size(shared: &RaceShared, m: &DamageModel) {
     let t0 = ld(m.hit_size.bits());
     let t1 = ld(shared.work.patch_factors[1].bits());
     let t2 = t0 * t1;
@@ -653,7 +653,7 @@ fn add_hit_to_gear_gauge(m: &DamageModel, v: &impl Cell32) {
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// `[rc + 0x31A31C] = ((([rc + 0x31A30C] + [rc + 0x31A310]) + [rc + 0x31A314]) + [rc + 0x31A318]) * [m + 0x35B364]`
 /// `[rc + 0x31A430] = ((([rc + 0x31A420] + [rc + 0x31A424]) + [rc + 0x31A428]) + [rc + 0x31A42C]) * [m + 0x35B364]`
-fn gauge_totals(shared: &Shared, m: &DamageModel) {
+fn gauge_totals(shared: &RaceShared, m: &DamageModel) {
     let t0 = ld(shared.car.light_damage[0].bits());
     let t1 = ld(shared.car.light_damage[1].bits());
     let t2 = t0 + t1;

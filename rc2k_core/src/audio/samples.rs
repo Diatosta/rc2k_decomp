@@ -7,15 +7,15 @@ use crate::strings::bytes::Bytes;
 
 /// A table of two (flag, value) pairs: the format bits for 8 and 16 bits, for one and two
 /// channels.
-pub type Flags = [(u32, u32); 2];
+pub type FormatBitTable = [(u32, u32); 2];
 
 /// The value a table has for `flag`.
-pub fn value_for(table: &Flags, flag: u32) -> Option<u32> {
+pub fn value_for(table: &FormatBitTable, flag: u32) -> Option<u32> {
     table.iter().find(|e| e.0 == flag).map(|e| e.1)
 }
 
 /// The flag a table has for `value`.
-pub fn flag_for(table: &Flags, value: u32) -> Option<u32> {
+pub fn flag_for(table: &FormatBitTable, value: u32) -> Option<u32> {
     table.iter().find(|e| e.1 == value).map(|e| e.0)
 }
 
@@ -46,8 +46,8 @@ pub enum FormatError {
 pub fn wave_format(
     format: u32,
     frequency: u32,
-    bits_table: &Flags,
-    channel_table: &Flags,
+    bits_table: &FormatBitTable,
+    channel_table: &FormatBitTable,
 ) -> Result<WaveFormat, FormatError> {
     let channels = value_for(channel_table, format & 0xF00).ok_or(FormatError::Channels)?;
     let bits = value_for(bits_table, format & 0xF0).ok_or(FormatError::Bits)?;
@@ -101,8 +101,8 @@ pub fn parse(
     file: &dyn Bytes,
     read: u32,
     f: &mut SampleFile,
-    bits_table: &Flags,
-    channel_table: &Flags,
+    bits_table: &FormatBitTable,
+    channel_table: &FormatBitTable,
 ) -> Result<bool, Invalid> {
     let past = Invalid("a sample file read past the work buffer");
     let dword = |at: u32| file.u32_le(at as usize).ok_or(past);
@@ -465,8 +465,8 @@ pub fn prepare(v: &mut Shape, mode: u32, data: &mut dyn SampleData) -> Result<()
 mod tests {
     use super::*;
 
-    const BITS: Flags = [(0x10, 8), (0, 16)];
-    const CHANNELS: Flags = [(0x100, 1), (0, 2)];
+    const BITS: FormatBitTable = [(0x10, 8), (0, 16)];
+    const CHANNELS: FormatBitTable = [(0x100, 1), (0, 2)];
 
     #[test]
     fn formats_and_files() {

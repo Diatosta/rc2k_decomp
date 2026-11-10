@@ -6,14 +6,14 @@
 //!
 //! Callers: `race::viewer_load_stage`, 0x44401B (the replay run of `sub_443FxF`).
 
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::race_end::{header_cell, setting_cell};
 use crate::session::Dword;
 use rc2k_core::race::replay::{HEADER_SETTINGS, Setting, read_logged};
 
 /// The race's places a header setting goes back to, in the original's order (a kind
 /// into its block and into `g_raceCarKinds`).
-fn targets(shared: &Shared, s: Setting) -> Vec<&Dword> {
+fn targets(shared: &RaceShared, s: Setting) -> Vec<&Dword> {
     match s {
         Setting::Kind(n) => vec![
             setting_cell(shared, s),
@@ -45,7 +45,7 @@ fn log_text(text: &std::ffi::CStr, newline: bool) {
     crate::logfile::log_write::log_nul(text.to_bytes(), newline, 1);
 }
 
-pub fn read_replay_header(shared: &Shared) {
+pub fn read_replay_header(shared: &RaceShared) {
     // Converted: `rc2k_core::race::replay::{HEADER_SETTINGS, read_logged}`.
     log_text(TITLE, true);
     for s in HEADER_SETTINGS {

@@ -1,6 +1,6 @@
 //! `drive::car_input_words` (0x43A27E): the current car's input words (`dword_6138C4` .. `6138D0`):
 //! 0, then, for a car with a device (`dword_641680[g_currentCar]` not -1), its readings
-//! (`drive::device_axes`). With a replay on (`dword_52A910`): the car's block
+//! (`drive::device_axes`). In a network game (`dword_52A910`): the car's block
 //! (`g_carBlocks[g_currentCar]`) +0xFD0 .. gives them, or, for the car recorded (`dword_52A920`),
 //! takes them.
 //!

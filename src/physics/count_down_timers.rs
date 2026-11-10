@@ -11,7 +11,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
 
@@ -51,7 +51,7 @@ pub fn count_at(v: &[&dyn Cell32]) {
     }
 }
 
-fn game(shared: &Shared) -> Vec<&dyn Cell32> {
+fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
     vec![
         &shared.car.light_hold_steps as &dyn Cell32,
         &shared.car.value_jump_steps,
@@ -73,6 +73,6 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
 }
 
 /// One compare and copy of floats: the same at any precision.
-pub fn count_down_timers(shared: &Shared) {
+pub fn count_down_timers(shared: &RaceShared) {
     count_at(&game(shared));
 }

@@ -1,6 +1,6 @@
 //! Which cars the views show (converted 2026-10-21 from `drive::choose_shown_cars`
-//! 0x4560EA): the split screen's set-up by the players, the screen layout and a replay
-//! (a reading).
+//! 0x4560EA): the cars the views show, by the players, a network game (this machine's
+//! car only) and a playing replay's layout (the replay frame head's byte +5).
 
 use crate::Invalid;
 
@@ -9,14 +9,15 @@ use crate::Invalid;
 pub struct ShownSetup {
     /// `dword_63DB94`: the players (views).
     pub players: u32,
-    /// `dword_5C5CE0`: 2 lays out by `layout`.
-    pub screen_mode: u32,
-    /// `dword_63DB88`: the layout (1 .. 3).
+    /// `dword_5C5CE0`: the replay's mode (2 playing: the views are laid out by `layout`).
+    pub replay_mode: u32,
+    /// `dword_63DB88`: the playing replay's layout (1 .. 3), the replay frame head's byte +5: 1 one view
+    /// of car 1, 2 two views with split 1 (side by side), 3 two views with split 2.
     pub layout: u32,
-    /// `dword_52A910`: a replay on.
-    pub replay: u32,
-    /// `dword_63DBA0`: the replay's car.
-    pub replay_car: u32,
+    /// `dword_52A910` (`g_netSession`): a network game on (only this machine's car is shown).
+    pub network: u32,
+    /// `dword_63DBA0`: this machine's car in a network game.
+    pub local_car: u32,
 }
 
 /// What it sets.
@@ -39,19 +40,19 @@ pub const BLOCK: u32 = 0xFE0;
 
 impl ShownCars {
     /// `drive::choose_shown_cars`: the blocks from `first_block` on. The original's eax:
-    /// the replay's car, or the second view's block. A replay car past 7 is refused
+    /// this machine's car (network game), or the second view's block. A car past 7 is refused
     /// before anything (it would write past the eight).
     pub fn choose(&mut self, s: &ShownSetup, first_block: u32) -> Result<u32, Invalid> {
-        let replay = s.replay != 0;
-        if replay && s.replay_car > 7 {
-            return Err(Invalid("a replay car above 7 (past dword_641680's eight)"));
+        let network = s.network != 0;
+        if network && s.local_car > 7 {
+            return Err(Invalid("a network car above 7 (past dword_641680's eight)"));
         }
         self.cars = [0, 0];
         self.views = s.players;
         if self.views != 1 {
             self.cars[1] = 1;
         }
-        if s.screen_mode == 2 {
+        if s.replay_mode == 2 {
             let (views, first, second, split) = match s.layout {
                 1 => (1, 1, None, 0),
                 2 => (2, 0, Some(1), 1),
@@ -65,16 +66,16 @@ impl ShownCars {
             }
             self.split = split;
         }
-        if replay {
-            self.cars = [s.replay_car, 0];
+        if network {
+            self.cars = [s.local_car, 0];
         }
         self.blocks = self
             .cars
             .map(|c| first_block.wrapping_add(c.wrapping_mul(BLOCK)));
         self.listed = [u32::MAX; 8];
-        Ok(if replay {
-            self.listed[s.replay_car as usize] = 0;
-            s.replay_car
+        Ok(if network {
+            self.listed[s.local_car as usize] = 0;
+            s.local_car
         } else {
             self.listed[0] = 0;
             if s.players != 1 {
@@ -103,23 +104,23 @@ mod tests {
         );
         let laid = ShownSetup {
             players: 2,
-            screen_mode: 2,
+            replay_mode: 2,
             layout: 1,
             ..Default::default()
         };
         c.choose(&laid, 0).unwrap();
         assert_eq!((c.cars, c.views, c.split), ([1, 1], 1, 0));
-        let replay = ShownSetup {
+        let network = ShownSetup {
             players: 1,
-            replay: 1,
-            replay_car: 5,
+            network: 1,
+            local_car: 5,
             ..Default::default()
         };
-        assert_eq!(c.choose(&replay, 0), Ok(5));
+        assert_eq!(c.choose(&network, 0), Ok(5));
         assert_eq!((c.cars, c.listed[5], c.listed[0]), ([5, 0], 0, u32::MAX));
         let bad = ShownSetup {
-            replay_car: 8,
-            ..replay
+            local_car: 8,
+            ..network
         };
         assert!(c.choose(&bad, 0).is_err());
     }

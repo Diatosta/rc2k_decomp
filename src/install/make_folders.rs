@@ -13,7 +13,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{make_dir, rb, rw, set_cd, wb};
-use crate::place::Place;
+use crate::place::BytePlace;
 
 const LIMIT: u32 = 0x400;
 
@@ -23,7 +23,7 @@ const PAST_END: BadInput =
 
 /// The folders of `path` gone into, made where missing; whether it worked (the
 /// original's carry clear).
-pub fn make_folders(path: impl Into<Place>) -> Result<bool, Refused> {
+pub fn make_folders(path: impl Into<BytePlace>) -> Result<bool, Refused> {
     use crate::install::folders::{Folders, Native};
     <Native as Folders>::make(path.into())
 }
@@ -31,7 +31,7 @@ pub fn make_folders(path: impl Into<Place>) -> Result<bool, Refused> {
 /// The original's walk (`install::folders`' Windows rules); `at` the byte the original's
 /// esi is on, as an offset from the path's start.
 #[cfg_attr(not(windows), allow(dead_code))] // reason: the Windows rules' and the tests'
-pub fn walk(path: Place) -> Result<bool, Refused> {
+pub fn walk(path: BytePlace) -> Result<bool, Refused> {
     let byte = |n: u32| rb(path.add(n));
     let put = |n: u32, b: u8| wb(path.add(n), b);
     let mut at = 0u32;
@@ -84,7 +84,7 @@ pub fn walk(path: Place) -> Result<bool, Refused> {
             }
         }
         // Each call with the path cut at the `\\`, put back after it.
-        let cut = |call: fn(Place) -> bool| {
+        let cut = |call: fn(BytePlace) -> bool| {
             put(at, 0);
             let done = call(path);
             put(at, b'\\');

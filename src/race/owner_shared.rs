@@ -15,7 +15,7 @@ use crate::race::view_store::RaceView;
 use crate::race::work_store::RaceWork;
 
 /// The race's stores the menus, the network and the audio side read too.
-pub struct Shared {
+pub struct RaceShared {
     /// `RACE_WORK` (`race`).
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
     pub work: RaceWork,
@@ -50,9 +50,9 @@ pub struct Shared {
     pub car: Car,
 }
 
-impl Shared {
+impl RaceShared {
     pub const fn new() -> Self {
-        Shared {
+        RaceShared {
             work: RaceWork::new(),
             state: RaceState::new(),
             tables: RaceTables::new(),

@@ -17,13 +17,13 @@
 use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::session::Dword;
 
 const DOOR_TEXT: &std::ffi::CStr = c"doornr="; // "doornr="
 /// (to, from): the header's settings.
-fn settings(shared: &Shared) -> [(&Dword, &'static Dword); 5] {
+fn settings(shared: &RaceShared) -> [(&Dword, &'static Dword); 5] {
     [
         (&shared.state.settings.run_kind, &REPLAY_WORK.header_mode),
         (

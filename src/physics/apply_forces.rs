@@ -9,11 +9,11 @@
 use crate::errors::Refused;
 use crate::physics::apply_force::apply_force;
 use crate::physics::tables_store::ForceRecord;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
 /// `records` (a whole table, the wheels' 0x17 or the contacts' 7) on the work car.
 pub fn apply_forces(
-    shared: &Shared,
+    shared: &RaceShared,
     records: &[ForceRecord],
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {

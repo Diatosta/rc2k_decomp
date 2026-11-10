@@ -15,13 +15,13 @@ use crate::physics::car_store::Car;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::ForceRecord;
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 
 /// The exact version, for `physics::apply_forces`: `rec` on the car block `car`.
 pub fn apply_force(
-    shared: &Shared,
+    shared: &RaceShared,
     rec: &ForceRecord,
     car: &Car,
     scene: &crate::scene::owner::Scene,

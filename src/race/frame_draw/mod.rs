@@ -1,5 +1,5 @@
 //! The race's drawing (`drive::race_frame`'s tree, IDA 2026-10-17): its leaves that are game logic,
-//! not platform. The panel's fields at 0x6D14xx are a reading.
+//! not platform. The panel's fields at 0x6D14xx are the HUD record the frame fills for the HUD drawers (`g_hudRecord`, `race::panel_store`).
 
 use crate::errors::BadInput;
 

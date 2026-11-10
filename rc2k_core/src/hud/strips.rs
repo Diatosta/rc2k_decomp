@@ -1,6 +1,7 @@
 //! The players' view strips (converted 2026-10-21 from `hud::draw_view_strips` 0x45B7B1
 //! and `hud::draw_view_strip` 0x45B86E): a view block's strip is shown while its flash is
-//! on, as three flat quads side by side (a reading: a strip of the screen's overlay)
+//! on, as three flat quads side by side (the banner a view shows while a notice of its car is shown,
+//! `notice_shown` / the notice's time: the strip flashes with the notice's period)
 //! scaled from 800 x 600 to the screen; then two more at the top corners.
 
 /// Each strip's texture: the first player's, the second's.

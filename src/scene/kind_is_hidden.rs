@@ -9,11 +9,11 @@
 //! original reads past the table).
 
 use crate::errors::Refused;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
 /// The Rust version: the object's (hidden, eax left).
 pub fn kind_is_hidden(
-    shared: &Shared,
+    shared: &RaceShared,
     object: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(bool, u32), Refused> {

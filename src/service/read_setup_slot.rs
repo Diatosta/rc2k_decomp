@@ -57,8 +57,8 @@ pub const fn template() -> Bytes<27> {
 }
 
 // "CRSU"
-pub fn slot_name(slot: u32) -> crate::place::Place {
-    crate::place::Place::In(&service().set_ups.names, slot as usize * NAME_LEN)
+pub fn slot_name(slot: u32) -> crate::place::BytePlace {
+    crate::place::BytePlace::In(&service().set_ups.names, slot as usize * NAME_LEN)
 }
 
 // ---- Rust version ----
@@ -79,7 +79,7 @@ pub fn read_setup_slot(service: &'static Service, slot: u32) -> Result<bool, Ref
         let name = rc2k_core::saves::kept::setup_name(&file.read());
         match name {
             Some(name) if read.ok => {
-                crate::place::Place::In(&service.set_ups.names, slot as usize * NAME_LEN)
+                crate::place::BytePlace::In(&service.set_ups.names, slot as usize * NAME_LEN)
                     .write(&name[..NAME_LEN], "a setup's name")?;
                 Ok(true)
             }

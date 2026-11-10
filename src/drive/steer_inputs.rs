@@ -16,7 +16,7 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
 use crate::physics::flow::c0;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Dword;
 
 /// `fild dword [from]; fmul dword [by]; fistp dword [to]`.
@@ -36,7 +36,7 @@ fn sign(v: u32) -> bool {
 }
 
 /// The key step: 0xA00000 x `flt_614C0C`, through `dword_62400C`.
-fn key_step(shared: &Shared, scene: &crate::scene::owner::Scene) -> u32 {
+fn key_step(shared: &RaceShared, scene: &crate::scene::owner::Scene) -> u32 {
     let drawing = &scene.drawing;
     drawing.scene.scratch.set(0xA0_0000);
     scale(
@@ -48,7 +48,7 @@ fn key_step(shared: &Shared, scene: &crate::scene::owner::Scene) -> u32 {
 }
 
 /// One steering value moved by the key step (0x439DFA .. / 0x439E95 ..).
-fn steer(shared: &Shared, cell: &Dword, step: u32) {
+fn steer(shared: &RaceShared, cell: &Dword, step: u32) {
     let word = shared.physics_tables.input_steer.get();
     let v = cell.get();
     if word != 0 {

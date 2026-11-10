@@ -33,7 +33,7 @@ use crate::math::x87_run::{
 };
 use crate::race::norms::normalise_work_vector;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::view_matrix::cross_product;
 use crate::session::{Dword, Float};
 use rc2k_core::drive::computer_driver as driver;
@@ -41,7 +41,7 @@ use rc2k_core::drive::computer_driver as driver;
 /// `table[n + k]`, the index held to the count less one (unsigned) as the original holds
 /// it (through `lea`, `sub` and `shr 2`).
 fn held(
-    shared: &Shared,
+    shared: &RaceShared,
     table: fn(usize) -> &'static crate::session::Dword,
     n: u32,
     k: u32,

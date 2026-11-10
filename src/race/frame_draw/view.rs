@@ -381,7 +381,7 @@ fn rolled_angle(race: &Race, car: &crate::physics::car_store::Car) -> u32 {
 
 /// `race::camera_view` (0x438325): the view for the frame: `race().frame.view_and_records.view_vars.view_car_flag_b`,
 /// `race().frame.view_and_records.view_vars.view_car_flag_a`, `race().frame.view_and_records.view_vars.view_car_stage` from `g_car` +0x6F0, +0x69C, +0x684;
-/// then without `FRAME_SWITCHES.other_way` `race::place_view`; else the place from the car's
+/// then without `FRAME_SWITCHES.scene_set_up` `race::place_view`; else the place from the car's
 /// camera (`g_car` +0x6A4 .., the angles from +0x6B0 .., `race().frame.view_and_records.view_vars.view_scale` from +0x6C8)
 /// or, with `GROUND_WORK.view_mirrored`, from the crash (the kept turn made from
 /// `race().frame.matrices.view_work` and `g_crashMatrix`, the place the car's raised by 0x8000), written as
@@ -409,7 +409,7 @@ pub fn camera_view(
         .view_car_flag_a
         .set(view.car.camera_switch_share.bits());
     view.vars.view_car_stage.set(view.car.camera_view.get());
-    if race.shared.switches.other_way.get() == 0 {
+    if race.shared.switches.scene_set_up.get() == 0 {
         place_view(race, view)?;
         view_matrices(race, m, view)?;
         return Ok(());

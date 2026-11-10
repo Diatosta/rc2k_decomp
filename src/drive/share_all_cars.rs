@@ -16,11 +16,11 @@ use crate::errors::{BadInput, Refused};
 use crate::race::effects_settings_store::{CarEffects, EFFECTS_SETTINGS};
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::drive::sharing;
 
 fn cars(
-    shared: &Shared,
+    shared: &RaceShared,
 ) -> Result<
     [(
         u32,
@@ -40,7 +40,7 @@ fn cars(
 }
 
 /// The refusals, worked out before anything is written.
-fn refusal(shared: &Shared) -> Result<Option<&'static str>, BadInput> {
+fn refusal(shared: &RaceShared) -> Result<Option<&'static str>, BadInput> {
     for (block, _, _) in cars(shared)? {
         if block == 0 {
             return Ok(Some("a null car block or record"));

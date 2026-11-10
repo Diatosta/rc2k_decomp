@@ -10,7 +10,7 @@
 //! 0x46C33E .. 0x46CF7C).
 
 use crate::errors::Refused;
-use crate::framework::Flags;
+use crate::framework::CarryZeroFlags;
 use crate::menu::owner::Menus;
 use crate::platform::{lock_surface, show_frame_now, unlock_surface};
 
@@ -18,9 +18,9 @@ use crate::platform::{lock_surface, show_frame_now, unlock_surface};
 /// lock's carry is `cmp g_surfaceLocked, 1`'s (its zero clear then). On a frame not shown
 /// (quitting) the zero flag was what the call's way back left, nothing meaningful: clear
 /// here. On the way through, the show's eax is the 0 the scene's begin left: zero set.
-pub fn service_area_frame(menus: &Menus) -> Result<Flags, Refused> {
+pub fn service_area_frame(menus: &Menus) -> Result<CarryZeroFlags, Refused> {
     use crate::screens::{draw_service_area, draw_service_boxes};
-    const FAILED: Flags = Flags {
+    const FAILED: CarryZeroFlags = CarryZeroFlags {
         carry: true,
         zero: false,
     };
@@ -42,7 +42,7 @@ pub fn service_area_frame(menus: &Menus) -> Result<Flags, Refused> {
     if !show_frame_now() {
         return Ok(FAILED);
     }
-    Ok(Flags {
+    Ok(CarryZeroFlags {
         carry: false,
         zero: true,
     })

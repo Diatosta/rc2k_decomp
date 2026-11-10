@@ -9,7 +9,7 @@
 
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::stop_timers;
 
@@ -30,7 +30,7 @@ pub fn count_stop_timers_at(course: &Course, v: &[&dyn Cell32]) {
     }
 }
 
-fn game(shared: &Shared) -> Vec<&dyn Cell32> {
+fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
     vec![
         &shared.car.started_stand_timer as &dyn Cell32,
         &shared.car.go_stand_timer,

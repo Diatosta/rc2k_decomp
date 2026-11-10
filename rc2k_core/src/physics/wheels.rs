@@ -1,5 +1,6 @@
-//! The wheels' turning angles for the drawing (converted 2026-10-21 from
-//! `physics::turn_wheel_angles` 0x449EE9; a reading: their spin).
+//! The mud amounts the wheels add (converted 2026-10-21 from
+//! `physics::turn_wheel_angles` 0x449EE9; despite the name it adds the mud thrown and splashed
+//! per car texture, `mud_thrown_in` / `mud_splashes_in`, for `race::update_mud_texture`).
 //!
 //! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
 //! original stores (`physics::x87`): the same bits at the game's double precision.

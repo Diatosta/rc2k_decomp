@@ -9,7 +9,7 @@
 
 use crate::math::x87_run::div_mul3_to_int;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
 
 fn get(v: &[&dyn Cell32], k: usize) -> u32 {
@@ -37,7 +37,7 @@ pub fn spin_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
     last
 }
 
-fn game<'a>(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
+fn game<'a>(shared: &'a RaceShared, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
     vec![
         &shared.car.drive_speed_a as &dyn Cell32,
         &shared.car.drive_speed_b,

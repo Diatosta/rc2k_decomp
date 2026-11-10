@@ -1,5 +1,5 @@
 //! `race::draw_mirror_view` (0x454806): the mirror's view, unless `dword_64BB18` or `dword_71C3E0`
-//! is set or `dword_621480` (the mirror on, a reading) is 0: `dword_63DC58` kept in `dword_63E170`;
+//! is set or `dword_621480` (`scene_set_up`, always 1 once a scene is set up: it never stops the mirror) is 0: `dword_63DC58` kept in `dword_63E170`;
 //! `dword_606294` saved, made `flt_5C5E2C`'s value (the mirror's own view variables,
 //! `ViewScratch::vars`, taken first); the mirror's window (`race::mirror_view_window`),
 //! `dword_63DC58` back from `dword_63E170`, the backdrop (`race::draw_view_backdrop`), the scene
@@ -34,7 +34,7 @@ pub fn draw_mirror_view(
     view.take_vars(race);
     if race.replay.finish.no_place.get() != 0
         || race.shared.work.in_credits.get() != 0
-        || (race.shared.switches.other_way.get() == 0 && !always())
+        || (race.shared.switches.scene_set_up.get() == 0 && !always())
     {
         return Ok(None);
     }

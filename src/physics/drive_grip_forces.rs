@@ -28,12 +28,12 @@ use crate::math::x87_float::to_int;
 use crate::math::x87_run::mul_status;
 use crate::physics::flow::{abs_below_or_unordered, c3, ease_zero, hold_high, hold_low, negate};
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::engine_tables_store::ENGINE_TABLES;
 use crate::session::Float;
 
 /// The steer angle's table index (the angle >> 20).
-fn steer_index(shared: &Shared) -> u32 {
+fn steer_index(shared: &RaceShared) -> u32 {
     shared.car.steer_angle.get() >> 20
 }
 
@@ -227,7 +227,7 @@ pub fn drive_grip_forces(race: &Race, scene: &crate::scene::owner::Scene) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A1E8] = ([bf + e * 4 + 0x623AE4] * [rc + 0x31A184]) / [rc + 0x214BA0]`
-fn steer_sine_force(shared: &Shared, e: usize) {
+fn steer_sine_force(shared: &RaceShared, e: usize) {
     let t0 = ld(ENGINE_TABLES.sines[e].bits());
     let t1 = ld(shared.car.local_velocity[2].bits());
     let t2 = t0 * t1;
@@ -252,7 +252,7 @@ fn lever_share_from_timer(race: &Race, scene: &crate::scene::owner::Scene) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214260] = |(((([rc + 0x2142A8] * [rc + 0x213FC8]) * [f + 0]) * [rc + 0x214B74]) / [rc + 0x31A184])|`
-fn grip_limit_for(shared: &Shared, f: &Float) {
+fn grip_limit_for(shared: &RaceShared, f: &Float) {
     let t0 = ld(shared.physics_tables.wheel_grips[4].bits());
     let t1 = ld(shared.physics_tables.gravity.bits());
     let t2 = t0 * t1;
@@ -283,7 +283,7 @@ fn divide_into_scratch(
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x31A61C] = [rc + 0x22400C] * int [rc + 0x31A61C]`
-fn scale_steering(shared: &Shared, scene: &crate::scene::owner::Scene) {
+fn scale_steering(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     let t0 = ld(scene.drawing.scene.scratch.bits());
     let t1 = int(shared.car.steering.bits() as i32);
     let t2 = t0 * t1;
@@ -293,7 +293,7 @@ fn scale_steering(shared: &Shared, scene: &crate::scene::owner::Scene) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = sqrt((([rc + 0x31A17C] * [rc + 0x31A17C]) + ([rc + 0x31A184] * [rc + 0x31A184])))`
-fn ground_speed_into_scratch(shared: &Shared, scene: &crate::scene::owner::Scene) {
+fn ground_speed_into_scratch(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     let t0 = ld(shared.car.local_velocity[0].bits());
     let t1 = t0 * t0;
     let t2 = ld(shared.car.local_velocity[2].bits());
@@ -344,7 +344,7 @@ fn braking_count_geared(race: &Race, scene: &crate::scene::owner::Scene) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = ([rc + 0x214BF0] * int [rc + 0x31A614]) + ([rc + 0x214BF0] * int [rc + 0x31A614])`
-fn braking_count_neutral(shared: &Shared, scene: &crate::scene::owner::Scene) {
+fn braking_count_neutral(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     let t0 = ld(shared.physics_tables.handling[1].bits());
     let t1 = int(shared.car.brake.bits() as i32);
     let t2 = t0 * t1;
@@ -372,7 +372,7 @@ fn engine_braking_force(race: &Race) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22401C] = |[rc + 0x31A184]|`
-fn abs_speed_into_work(shared: &Shared, scene: &crate::scene::owner::Scene) {
+fn abs_speed_into_work(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     let t0 = ld(shared.car.local_velocity[2].bits());
     let t1 = t0.abs();
     scene.drawing.scene.work_float_a.set_bits(st(t1));
@@ -381,7 +381,7 @@ fn abs_speed_into_work(shared: &Shared, scene: &crate::scene::owner::Scene) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22401C] = ([rc + 0x213E7C] - [rc + 0x22401C]) / [rc + 0x213E7C]`
-fn yaw_share_from_limit(shared: &Shared, scene: &crate::scene::owner::Scene) {
+fn yaw_share_from_limit(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let t0 = ld(shared.physics_tables.grip_slip_limit.bits());
     let t1 = ld(drawing.scene.work_float_a.bits());
@@ -415,7 +415,7 @@ fn yaw_force(race: &Race, e: usize, scene: &crate::scene::owner::Scene) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A1DC] = (([rc + 0x31A1E8] + [rc + 0x31A1EC]) + [rc + 0x31A1F0]) + [rc + 0x31A1F4]`
-fn sum_grip_forces(shared: &Shared) {
+fn sum_grip_forces(shared: &RaceShared) {
     let t0 = ld(shared.car.grip_forces[0].bits());
     let t1 = ld(shared.car.grip_forces[1].bits());
     let t2 = t0 + t1;

@@ -17,17 +17,17 @@ use crate::scene::owner::scene;
 const FIRST_PART: u32 = 0xF0_0000;
 const INFO_PART: u32 = 0x40_0000;
 /// The path strings the course's number is written into: the tens' and the units' places.
-pub fn number_places(scene: &crate::scene::owner::Scene) -> [crate::place::Place; 9] {
+pub fn number_places(scene: &crate::scene::owner::Scene) -> [crate::place::BytePlace; 9] {
     let file_numbers = &scene.file_numbers;
-    use crate::place::Place;
+    use crate::place::BytePlace;
     let p = &race().course.level_paths;
     [
-        Place::from(&p.edit_path).add(0xD),
-        Place::from(&p.cdat_src).add(0xD),
-        Place::from(&p.cdat_files).add(0x12),
-        Place::from(&p.cdat_src_copy).add(0xD),
-        Place::from(&p.localdat_src).add(0xD),
-        Place::from(&p.localdat_files).add(0x12),
+        BytePlace::from(&p.edit_path).add(0xD),
+        BytePlace::from(&p.cdat_src).add(0xD),
+        BytePlace::from(&p.cdat_files).add(0x12),
+        BytePlace::from(&p.cdat_src_copy).add(0xD),
+        BytePlace::from(&p.localdat_src).add(0xD),
+        BytePlace::from(&p.localdat_files).add(0x12),
         file_numbers.text_ptr(texts::NUMBER_PLACE_A).into(),
         file_numbers.text_ptr(texts::NUMBER_PLACE_B).into(),
         file_numbers.text_ptr(texts::NUMBER_PLACE_C).into(),

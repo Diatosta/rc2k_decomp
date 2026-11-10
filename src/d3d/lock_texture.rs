@@ -12,12 +12,12 @@
 
 use crate::d3d::texture_lock::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::Flags;
+use crate::framework::CarryZeroFlags;
 use crate::gfx::owner::gfx;
 
 /// Texture `texture` locked; the flags it leaves
 /// (every register is kept).
-pub fn lock_texture(texture: u32) -> Result<Flags, Refused> {
+pub fn lock_texture(texture: u32) -> Result<CarryZeroFlags, Refused> {
     use rc2k_core::d3d::textures::{LOCK_FAILED, LOCKED_TWICE, Lock, lock};
     // Converted: `rc2k_core::d3d::textures::lock`.
     let r = record(texture);
@@ -34,5 +34,5 @@ pub fn lock_texture(texture: u32) -> Result<Flags, Refused> {
         }
     }
     let (carry, zero) = compared_with_one(field(r, 0x60));
-    Ok(Flags { carry, zero })
+    Ok(CarryZeroFlags { carry, zero })
 }

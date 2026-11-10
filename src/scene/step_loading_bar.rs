@@ -10,7 +10,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::owner::scene;
 
 // ---- game data ----
@@ -21,14 +21,14 @@ const NOTHING: u32 = 0x4467C6; // nullsub_8
 
 // ---- Rust version ----
 
-fn ends(shared: &Shared) -> rc2k_core::scene::loading::BarEnds {
+fn ends(shared: &RaceShared) -> rc2k_core::scene::loading::BarEnds {
     let [low, high] = crate::session::read_bits(&shared.vars.bar_span);
     rc2k_core::scene::loading::BarEnds { low, high }
 }
 
 /// The progress, or None where it is left as it is. Converted:
 /// `rc2k_core::scene::loading::BarEnds::progress`.
-fn progress(shared: &Shared, done: u32) -> Option<u32> {
+fn progress(shared: &RaceShared, done: u32) -> Option<u32> {
     let textures: u32 = scene().textures.places.totals[3].get();
     ends(shared).progress(done, textures)
 }

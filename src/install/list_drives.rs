@@ -19,7 +19,7 @@ use core::mem::offset_of;
 use rc2k_core::install::drives::{self, DriveMenu};
 
 pub fn list_drives(install: &'static crate::install::owner::Install) {
-    let drives = crate::place::Place::from(crate::pointers::GamePtr::to(&install.run.drives));
+    let drives = crate::place::BytePlace::from(crate::pointers::GamePtr::to(&install.run.drives));
     let mut letter = install.run.first_drive.get();
     loop {
         // Converted: `rc2k_core::install::drives` (`offered`, `LISTED`, `free`, `text`,
@@ -38,7 +38,7 @@ pub fn list_drives(install: &'static crate::install::owner::Install) {
         }
     }
     install.run.drive_count.set(0);
-    let mut ebx = crate::place::Place::from(&install.drive_rows.drive_rows);
+    let mut ebx = crate::place::BytePlace::from(&install.drive_rows.drive_rows);
     // 'a' .. 'y': the loop's `cmp ecx, 7Ah; jb` leaves 'z' out (the game's slip, section 16)
     for letter in drives::LISTED {
         let slot = drives.add(8 * (letter - b'a') as u32);
@@ -68,15 +68,15 @@ pub fn list_drives(install: &'static crate::install::owner::Install) {
     let count = install.run.drive_count.get();
     let (menu, name) = match drives::menu(count) {
         DriveMenu::Eight => (
-            crate::place::Place::from(&install.pages.drive_menu_8),
+            crate::place::BytePlace::from(&install.pages.drive_menu_8),
             offset_of!(InstallerPages, drive_menu_8),
         ),
         DriveMenu::Sixteen => (
-            crate::place::Place::from(&install.pages.drive_menu_16),
+            crate::place::BytePlace::from(&install.pages.drive_menu_16),
             offset_of!(InstallerPages, drive_menu_16),
         ),
         DriveMenu::More => (
-            crate::place::Place::from(&install.pages.menu_more),
+            crate::place::BytePlace::from(&install.pages.menu_more),
             offset_of!(InstallerPages, menu_more),
         ),
     };
@@ -88,6 +88,6 @@ pub fn list_drives(install: &'static crate::install::owner::Install) {
     crate::menu::list_handle::ListMenu::of(menu).set_count(drives::items(count));
 }
 
-fn g_at(at: crate::place::Place) -> u32 {
+fn g_at(at: crate::place::BytePlace) -> u32 {
     crate::install::installer::rd(at)
 }

@@ -1,8 +1,8 @@
 //! `physics::queue_car_event` (0x4419EB): an entry added to the work car's queue of up
 //! to 7 (`g_car` +0xF98 the count): eax = `g_sceneClock` + esi; unless the count is 7,
 //! the time into +0xF58[count], ebx into +0xF78[count], the count up by one; then +0xF9C
-//! 0 and +0xFA0 0 for the first entry, else +0xF9C less 0x20. A reading: timed events
-//! of the car (under `physics::pace_notes_step`).
+//! 0 and +0xFA0 0 for the first entry, else +0xF9C less 0x20. The events are the pace-note
+//! symbols the HUD stacks (`race::panel_marks`), each shown for 3000 of the scene clock.
 //!
 //! Takes: a delay, the event
 //!
@@ -12,7 +12,7 @@
 use crate::errors::Refused;
 use crate::physics::cells::{set_changed, set_values_changed, values};
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::car_events::CarEvents;
 
 /// The work car's queue.
@@ -27,7 +27,7 @@ pub fn load(race: &Race) -> CarEvents {
 }
 
 /// What changed from `was` to `now` stored back.
-pub fn store(shared: &Shared, was: &CarEvents, now: &CarEvents) {
+pub fn store(shared: &RaceShared, was: &CarEvents, now: &CarEvents) {
     set_values_changed(&shared.car.car_event_times, &was.times, &now.times);
     set_values_changed(&shared.car.car_event_codes, &was.events, &now.events);
     set_changed(&shared.car.car_event_count, was.count, now.count);

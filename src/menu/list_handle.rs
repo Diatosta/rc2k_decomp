@@ -38,7 +38,7 @@ impl ListMenu {
     }
 
     /// The list at a place in the game's data.
-    pub fn of(place: impl Into<crate::place::Place>) -> Self {
+    pub fn of(place: impl Into<crate::place::BytePlace>) -> Self {
         Self(place.into().game_ptr())
     }
 
@@ -209,8 +209,8 @@ impl ListItem {
     }
 
     /// +8 as the text the item edits or shows (a link).
-    pub fn text(self) -> crate::place::Place {
-        crate::place::Place::from(self.link_place(8))
+    pub fn text(self) -> crate::place::BytePlace {
+        crate::place::BytePlace::from(self.link_place(8))
     }
 
     /// +8 as the byte the item sets (a choice, a value; a link).

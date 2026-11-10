@@ -24,8 +24,8 @@ pub struct KindTables {
     pub car_icon_numbers: [Dword; 34],
     /// +0x49c (0x5C5AC0): `dword_5C5AC0`: per kind, non-zero when it has views / keeps the light figure (`drive::next_camera_view`, `physics::update_camera`, `race::race_shell`).
     pub kind_has_views: [Dword; 34],
-    /// +0x524 (0x5C5B48): `dword_5C5B48`: per kind, non-zero when its wheels turn (`physics::turn_wheel_angles`).
-    pub kind_turns_wheels: [Dword; 34],
+    /// +0x524 (0x5C5B48): `dword_5C5B48`: per kind, non-zero when the car collects mud (`physics::turn_wheel_angles` adds the mud amounts only for such kinds; the amounts are `mud_thrown_in` / `mud_splashes_in`, used by `race::update_mud_texture`).
+    pub kind_gets_mud: [Dword; 34],
     /// +0x5ac (0x5C5BD0): `dword_5C5BD0`: per kind, non-zero when its hits sound (`physics::sound_hit_parts`).
     pub kind_hit_sounds: [Dword; 34],
     /// +0x634 (0x5C5C58): `dword_5C5C58`: per kind, non-zero when its parts show (`race::frame_draw`).

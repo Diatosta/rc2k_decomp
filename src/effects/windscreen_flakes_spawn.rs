@@ -16,7 +16,7 @@ use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
 const MOST: i32 = 0x80;
 
@@ -26,7 +26,7 @@ fn rate(drops: &WindscreenDrops, fl: &WindscreenFlakes, effects: &crate::effects
 }
 
 pub fn windscreen_flakes_spawn(
-    shared: &Shared,
+    shared: &RaceShared,
     drops: &WindscreenDrops,
     fl: &WindscreenFlakes,
     effects: &crate::effects::owner::Effects,

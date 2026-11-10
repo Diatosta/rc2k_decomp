@@ -136,7 +136,7 @@ pub fn build_texture_catalogue(
 
 /// With the game's log, and the Rust versions of what it calls.
 pub fn build_texture_catalogue_in_game(
-    shared: &crate::race::owner_shared::Shared,
+    shared: &crate::race::owner_shared::RaceShared,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     build_texture_catalogue(

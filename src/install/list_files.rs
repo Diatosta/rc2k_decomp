@@ -21,7 +21,7 @@ fn find_name() -> Vec<u8> {
 /// The files of `pattern` added to the files' table.
 pub fn list_files(
     install: &'static crate::install::owner::Install,
-    pattern: impl Into<crate::place::Place>,
+    pattern: impl Into<crate::place::BytePlace>,
 ) -> Result<(), Refused> {
     let pattern = resolve_path(pattern)?;
     if find_first(&pattern) {

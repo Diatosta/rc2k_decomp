@@ -1,13 +1,13 @@
 //! `physics::mark_car_started` (0x436AA7): `g_car` +0xA0 (`unk_71A078`) set to 1 when
-//! it is 0 and +0x29C (`unk_71A274`) is not (a reading: the car has got going).
+//! it is 0 and +0x29C (`unk_71A274`) is not (`started` after `moving`: the car has begun to move).
 //!
 //! Caller: `physics::race_timers` (four calls).
 
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
 use rc2k_core::physics::start::CarStart;
 
-fn game(shared: &Shared) -> Vec<&dyn Cell32> {
+fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
     vec![
         &shared.car.started_stand_timer as &dyn Cell32,
         &shared.car.damage_failed,
@@ -27,6 +27,6 @@ fn core(v: &[&dyn Cell32]) {
     crate::physics::cells::set_changed(v[0], was.started, c.started);
 }
 
-pub fn mark_car_started(shared: &Shared) {
+pub fn mark_car_started(shared: &RaceShared) {
     core(&game(shared));
 }

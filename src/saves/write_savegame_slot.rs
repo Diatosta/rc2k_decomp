@@ -59,8 +59,8 @@ impl SaveGames {
 pub const TEMPLATE_START: usize = 0x5296FB;
 
 // "R5SG"
-pub fn slot_name(slot: u32) -> crate::place::Place {
-    crate::place::Place::In(&saves().save_games.names, slot as usize * NAME_LEN)
+pub fn slot_name(slot: u32) -> crate::place::BytePlace {
+    crate::place::BytePlace::In(&saves().save_games.names, slot as usize * NAME_LEN)
 }
 
 /// True if the file was written.

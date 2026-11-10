@@ -1,6 +1,8 @@
 //! The work car's timed events (converted 2026-10-21 from `physics::queue_car_event`
-//! 0x4419EB, `expire_car_events` 0x44196B and `queue_listed_event` 0x44194D): a queue of
-//! up to 7 under the pace notes (a reading), aged against the scene clock; the events by
+//! 0x4419EB, `expire_car_events` 0x44196B and `queue_listed_event` 0x44194D): the queue of
+//! up to 7 pace-note symbols the HUD stacks for a view (`queue_pace_note` queues the codes of the
+//! group called at a checkpoint; `race::panel_marks` draws them at y = 400 + `shown`, 32 pixels
+//! an entry; probable on "symbols", sure that only pace notes feed it), aged against the scene clock; the events by
 //! number from a table of 0x20 (`dword_614C7C`).
 
 use crate::Invalid;
@@ -20,9 +22,10 @@ pub struct CarEvents {
     pub events: [u32; 8],
     /// +0xF98: how many.
     pub count: u32,
-    /// +0xF9C: a level the queue's length sets (down 0x20 an entry).
+    /// +0xF9C: the scroll target: 0 for the first entry, 0x20 less for each further one, 0x20 more
+    /// for each expired (one symbol's height).
     pub level: u32,
-    /// +0xFA0: eased towards `level`.
+    /// +0xFA0: the scroll position drawn (`panel_marks`' base - 400), eased 4 a step towards `level`.
     pub shown: u32,
 }
 

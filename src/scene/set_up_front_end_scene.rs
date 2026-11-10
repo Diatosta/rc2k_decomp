@@ -121,7 +121,7 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     course.stage_prefs.fog_start.set_bits(0u32);
     course.stage_prefs.fog_end.set_bits(0u32);
     crate::race::view_scratch::front_end().fog.clear();
-    shared.switches.other_way.set_bits(1u32);
+    shared.switches.scene_set_up.set_bits(1u32);
     fill_light_tables(scene, race)?;
 
     scene.objects.tables.slot_kinds[0].set(1);
@@ -160,7 +160,7 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     );
     reload_slot_textures(frame, scene)?;
     colours(course, 0x7F);
-    shared.switches.other_way.set_bits(1u32);
+    shared.switches.scene_set_up.set_bits(1u32);
     fill_light_tables(scene, race)?;
     shared.vars.settings_words[1].set_bits(1u32);
     Ok(())

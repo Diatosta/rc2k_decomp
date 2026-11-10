@@ -1,5 +1,7 @@
-//! `race::replay_screenshot` (0x41F3DB): while the replay's frames are being recorded
-//! (`dword_5C2CCC` 1, a reading), the frame saved as a picture: the clock started at the first
+//! `race::replay_screenshot` (0x41F3DB): while the replay viewer's frame-picture saving is on
+//! (`dword_5C2CCC` = `g_replayRecording` 1, set by `race::start_frame_pictures` from the viewer's
+//! actions 0x25 .. 0x28, cleared by `race::stop_frame_pictures`; the "recording" is of pictures,
+//! not of the replay), the frame saved as a picture: the clock started at the first
 //! (`dword_5C2CD4` 1, `dword_5C2CD0` = `GetTickCount`); the six digits of the name `rpl\000000.pcx`
 //! (0x5C2CDC) one more (each past '9' back to '0' and the one before raised; all six at most); the
 //! name as `dword_4F49C8` while the surface is locked, written (`gfx::write_screen_pcx`, the PCX

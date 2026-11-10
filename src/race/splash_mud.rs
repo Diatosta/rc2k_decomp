@@ -16,12 +16,12 @@ use crate::gfx::fade_colour::fade_colour;
 use crate::math::next_random::next_drawing_random;
 use crate::race::mud_texel::mud_texel;
 use crate::race::muddy_texel::{strength_at, texture_and_mud};
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::put_mud_texel::put_mud_texel;
 
 pub const LAST_SPLASHED: u32 = 0x1000;
 
-pub fn splash_mud(shared: &Shared) -> Result<(), Refused> {
+pub fn splash_mud(shared: &RaceShared) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::{splash_place, splash_lands, splash_pattern}`.
     use rc2k_core::race::mud::{
         MUD_TOP, SPLASH_SIDE, muddy, splash_lands, splash_pattern, splash_place,

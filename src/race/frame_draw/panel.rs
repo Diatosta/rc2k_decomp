@@ -5,7 +5,7 @@ use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::frame_view::car_at as car_view;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::trap::car_at;
 use crate::scene::faces_store::FACES;
 use crate::session::Dword;
@@ -96,7 +96,7 @@ pub fn panel_players(race: &Race) -> Result<(), BadInput> {
 /// race car has +0x25C and +0x84 both set. Refuses (before anything) more than eight cars (past
 /// `g_carBlocks`).
 pub fn lamps_wanted(
-    shared: &Shared,
+    shared: &RaceShared,
     lamps: &crate::race::lamp_work::LampWork,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame::{car_lit, lamps_wanted}`.
@@ -120,7 +120,7 @@ pub fn lamps_wanted(
 /// The view block the drawn view `n` names (`off_63DBB0[]`; the original read
 /// `RACE_VIEW.drawn_view`, now the view's own: `ViewScratch::drawn_view`); refuses an index
 /// past the two.
-pub(super) fn drawn_view(shared: &Shared, n: u32) -> Result<u32, Refused> {
+pub(super) fn drawn_view(shared: &RaceShared, n: u32) -> Result<u32, Refused> {
     if n > 1 {
         return Err(BadInput("a view past the two").into());
     }
@@ -639,7 +639,7 @@ pub fn both_split_colours(race: &Race) -> Result<(), Refused> {
 }
 
 /// `panel_neighbours`' refusal, before anything is written.
-pub(super) fn check_panel_neighbours(shared: &Shared) -> Result<(), Refused> {
+pub(super) fn check_panel_neighbours(shared: &RaceShared) -> Result<(), Refused> {
     if shared.vars.run_kind.bits() != 2 {
         return Ok(());
     }
@@ -683,7 +683,7 @@ pub fn reset_lamps(ctx: &crate::race::view_scratch::DrawCtx) -> Result<(), BadIn
 }
 
 /// `race::hold_to_limit` (0x4650A9): `value` held to `RACE_WORK.patch_settings` (unsigned).
-pub fn hold_to_limit(shared: &Shared, value: u32) -> u32 {
+pub fn hold_to_limit(shared: &RaceShared, value: u32) -> u32 {
     // Converted: `rc2k_core::race::frame::hold_to_limit`.
     rc2k_core::race::frame::hold_to_limit(value, shared.work.patch_settings[0].bits())
 }

@@ -12,7 +12,7 @@ use crate::net::owner::net;
 use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
 use crate::session::{Bytes, Dword};
@@ -184,7 +184,7 @@ fn write(handle: u32, bytes: &[u8]) -> (u32, bool) {
 /// `dword_5BEC80` is 1 they are packed (`race::pack_runs` into `g_pngInfo`, rounded up to a dword)
 /// and the packing written when smaller. Both callers write the whole replay block (`dword_9613A4`,
 /// 0x2810 bytes): here it is that block.
-pub fn write_replay_chunk(shared: &Shared, handle: u32) -> Result<(u32, bool), Refused> {
+pub fn write_replay_chunk(shared: &RaceShared, handle: u32) -> Result<(u32, bool), Refused> {
     let system = crate::system::owner::system();
     let block = VIEWER_BUFFERS.block_bytes();
     if shared.replay_file.chunks_plain.get() == 1 {

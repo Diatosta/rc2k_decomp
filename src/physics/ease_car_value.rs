@@ -11,10 +11,10 @@
 //! above are the original's, for reference.
 
 use crate::physics::cells::set_changed;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::easing::ease_value;
 
-pub fn ease_car_value(shared: &Shared) {
+pub fn ease_car_value(shared: &RaceShared) {
     let was = shared.car.eased_value.get();
     let mut value = was;
     ease_value(

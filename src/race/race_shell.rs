@@ -5,7 +5,7 @@ use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
 use crate::session::Dword;
 
@@ -34,7 +34,7 @@ pub fn kind_unusable(eax: u32) -> (bool, bool) {
 
 /// `race::index_of_kind` (0x437720): the place of kind `kind` in `dword_6051E0` (the first of
 /// equals), 0 for none.
-pub fn index_of_kind(shared: &Shared, kind: u32) -> Result<u32, BadInput> {
+pub fn index_of_kind(shared: &RaceShared, kind: u32) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::cars::index_of_kind`; the table read entry by entry.
     // dword_6051E0: 0x22 kinds, but `kind_order` holds 32: the last two are the two dwords
     // after it (`view_share`, `camera_turn_step`), read as the original does.

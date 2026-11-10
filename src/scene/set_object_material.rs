@@ -25,7 +25,7 @@
 use crate::errors::BadInput;
 use crate::math::next_random::next_drawing_random;
 use crate::math::x87;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
 // ---- game data ----
 const OBJECTS: u32 = 0xFF;
@@ -55,7 +55,7 @@ const STATE: u32 = 0x30;
 /// 0x45079A, on the state of face `face`.
 /// The fraction into `fraction_out` (the view's `ObjectPlace::move_fraction`).
 fn step_shape(
-    shared: &Shared,
+    shared: &RaceShared,
     face: u32,
     scene: &crate::scene::owner::Scene,
     fraction_out: &crate::session::Dword,

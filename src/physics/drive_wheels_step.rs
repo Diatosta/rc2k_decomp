@@ -26,7 +26,7 @@ use crate::physics::flow::{c0, ease_zero, hold_high, hold_low};
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::matrix3::extended;
 use crate::session::{Cell32, Float};
 
@@ -57,7 +57,7 @@ fn settle_slip(race: &Race, drive: &Float, slip: &Float, ratio: &Float, f1: &Flo
 
 /// The slip's first limit (0x43E58B / 0x43E649): |drive - speed| / `dword_614BA8` into
 /// `ratio`, and `slip` the lesser of it and `force` (by `fcompp`).
-fn slip_limit(shared: &Shared, drive: &Float, ratio: &Float, force: &Float, slip: &Float) {
+fn slip_limit(shared: &RaceShared, drive: &Float, ratio: &Float, force: &Float, slip: &Float) {
     slip_ratio_size(shared, drive, ratio);
     let pick = if c0(ratio.bits(), force.bits()) {
         ratio
@@ -325,7 +325,7 @@ fn abs_status(v: [u32; 2]) -> u16 {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[r + 0] = ([d + 0] - [rc + 0x31A184]) / [rc + 0x214BA8]`
-fn slip_ratio(shared: &Shared, d: &dyn Cell32, r: &dyn Cell32) {
+fn slip_ratio(shared: &RaceShared, d: &dyn Cell32, r: &dyn Cell32) {
     let t0 = ld(d.bits());
     let t1 = ld(shared.car.local_velocity[2].bits());
     let t2 = t0 - t1;
@@ -366,7 +366,7 @@ fn apply_slip_to_drive(
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[r + 0] = |(([d + 0] - [rc + 0x31A184]) / [rc + 0x214BA8])|`
-fn slip_ratio_size(shared: &Shared, d: &dyn Cell32, r: &dyn Cell32) {
+fn slip_ratio_size(shared: &RaceShared, d: &dyn Cell32, r: &dyn Cell32) {
     let t0 = ld(d.bits());
     let t1 = ld(shared.car.local_velocity[2].bits());
     let t2 = t0 - t1;
@@ -392,7 +392,7 @@ fn signed_share(race: &Race) {
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn drive_forces_from_grips(shared: &Shared, grips: &[Float; 5]) {
+fn drive_forces_from_grips(shared: &RaceShared, grips: &[Float; 5]) {
     let t0 = ld(grips[0].bits());
     let t1 = ld(shared.physics_tables.forces[0].force[1].bits());
     let t2 = t0 * t1;
@@ -493,7 +493,7 @@ fn push_both_drive_speeds(race: &Race) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A190] = (([rc + 0x214750] * [rc + 0x21388C]) * [rc + 0x214BA8]) + [rc + 0x31A190]`
-fn push_drive_speed_a(shared: &Shared) {
+fn push_drive_speed_a(shared: &RaceShared) {
     let t0 = ld(shared.physics_tables.drive_torque.bits());
     let t1 = ld(shared.physics_tables.step_time.bits());
     let t2 = t0 * t1;
@@ -589,7 +589,7 @@ fn handbrake_stop_status(v: [u32; 3]) -> u16 {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214238] = |([rc + 0x31A194] - [rc + 0x31A184])|`
 /// `[rc + 0x214234] = |([rc + 0x31A190] - [rc + 0x31A184])|`
-fn slip_gaps(shared: &Shared) {
+fn slip_gaps(shared: &RaceShared) {
     let t0 = ld(shared.car.drive_speed_b.bits());
     let t1 = ld(shared.car.local_velocity[2].bits());
     let t2 = t0 - t1;
@@ -607,7 +607,7 @@ fn slip_gaps(shared: &Shared) {
 /// `[rc + 0x214244] = [rc + 0x214244] * [rc + 0x2140B0]`
 /// `[rc + 0x214248] = [rc + 0x214248] * [rc + 0x2140B4]`
 /// `[rc + 0x21424C] = [rc + 0x21424C] * [rc + 0x2140B4]`
-fn scale_axle_forces(shared: &Shared) {
+fn scale_axle_forces(shared: &RaceShared) {
     let t0 = ld(shared.physics_tables.drive_limits[2].bits());
     let t1 = ld(shared.physics_tables.drive_shares[0].bits());
     let t2 = t0 * t1;
@@ -648,7 +648,7 @@ fn side_slip_forces(race: &Race, scene: &crate::scene::owner::Scene) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214254] = ((|[rc + 0x214250]| - [rc + 0x214264]) * [rc + 0x213ED0]) + [rc + 0x214264]`
 /// `[rc + 0x2141D4] = |([rc + 0x214254] / [rc + 0x214250])| * [rc + 0x214BFC]`
-fn slip_side_share(shared: &Shared) {
+fn slip_side_share(shared: &RaceShared) {
     let t0 = ld(shared.physics_tables.drive_slip[0].bits());
     let t1 = t0.abs();
     let t2 = ld(shared.physics_tables.slip_limit.bits());
@@ -670,7 +670,7 @@ fn slip_side_share(shared: &Shared) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x2141D8] = [rc + 0x214BFC] * [rc + 0x213ED4]`
-fn spin_push_b(shared: &Shared) {
+fn spin_push_b(shared: &RaceShared) {
     let t0 = ld(shared.physics_tables.handling[4].bits());
     let t1 = ld(shared.physics_tables.slip_share.bits());
     let t2 = t0 * t1;
@@ -681,7 +681,7 @@ fn spin_push_b(shared: &Shared) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = sqrt((([rc + 0x31A17C] * [rc + 0x31A17C]) + ([rc + 0x31A184] * [rc + 0x31A184])))`
 /// `status [s + 0] = status`
-fn speed_over_ground(shared: &Shared, scene: &crate::scene::owner::Scene) -> u16 {
+fn speed_over_ground(shared: &RaceShared, scene: &crate::scene::owner::Scene) -> u16 {
     let t0 = ld(shared.car.local_velocity[0].bits());
     let t1 = t0 * t0;
     let t2 = ld(shared.car.local_velocity[2].bits());
@@ -697,7 +697,7 @@ fn speed_over_ground(shared: &Shared, scene: &crate::scene::owner::Scene) -> u16
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x2148B0] = -(([rc + 0x214760] / [rc + 0x22400C]) * [rc + 0x31A17C])`
 /// `[rc + 0x2148B8] = -(([rc + 0x214760] / [rc + 0x22400C]) * [rc + 0x31A184])`
-fn rolling_drag_forces(shared: &Shared, scene: &crate::scene::owner::Scene) {
+fn rolling_drag_forces(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let t0 = ld(shared.physics_tables.wheel_drag[0].bits());
     let t1 = ld(drawing.scene.scratch.bits());
@@ -752,7 +752,7 @@ fn share_wheel_forces(race: &Race) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A158] = [rc + 0x31A190] - [rc + 0x31A184]`
 /// `[rc + 0x22401C] = |([rc + 0x31A190] - [rc + 0x31A184])| - [rc + 0x213EDC]`
-fn slip_figure_a(shared: &Shared, scene: &crate::scene::owner::Scene) {
+fn slip_figure_a(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     let t0 = ld(shared.car.drive_speed_a.bits());
     let t1 = ld(shared.car.local_velocity[2].bits());
     let t2 = t0 - t1;
@@ -766,7 +766,7 @@ fn slip_figure_a(shared: &Shared, scene: &crate::scene::owner::Scene) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x224020] = |[rc + 0x31A17C]| - [rc + 0x213ED8]`
-fn slip_figure_b(shared: &Shared, scene: &crate::scene::owner::Scene) {
+fn slip_figure_b(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     let t0 = ld(shared.car.local_velocity[0].bits());
     let t1 = t0.abs();
     let t2 = ld(shared.physics_tables.wheel_speed_margin.bits());
@@ -782,7 +782,7 @@ fn slip_figure_b(shared: &Shared, scene: &crate::scene::owner::Scene) {
 /// `[rc + 0x31AF18] = sqrt((([rc + 0x22401C] * [rc + 0x22401C]) + ([rc + 0x224020] * [rc + 0x224020])))`
 /// `[rc + 0x22401C] = |([rc + 0x31A194] - [rc + 0x31A184])|`
 /// `[rc + 0x31AF1C] = sqrt((([rc + 0x22401C] * [rc + 0x22401C]) + ([rc + 0x224020] * [rc + 0x224020])))`
-fn slip_lengths(shared: &Shared, scene: &crate::scene::owner::Scene) {
+fn slip_lengths(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let t0 = ld(drawing.scene.work_float_a.bits());
     let t1 = t0 * t0;

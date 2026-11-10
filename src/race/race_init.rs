@@ -8,7 +8,7 @@ use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
 use crate::race::trap::car_at;
 use crate::session::Dword;
@@ -16,7 +16,7 @@ use crate::session::Dword;
 /// The car blocks `g_carBlocks` lists (all eight, whatever the race's count).
 pub const BLOCKS: u32 = 8;
 /// Car block n (`g_carBlocks`[n]).
-pub fn block(shared: &Shared, n: u32) -> u32 {
+pub fn block(shared: &RaceShared, n: u32) -> u32 {
     shared.work.car_block(n as usize)
 }
 
@@ -42,7 +42,7 @@ pub fn state_cell(car: &Car, off: u32) -> Result<&Dword, BadInput> {
 }
 
 /// `race::clear_race_slots` (0x4621CD): the eight `g_raceSlots` records' first dword 0.
-pub fn clear_race_slots(shared: &Shared) {
+pub fn clear_race_slots(shared: &RaceShared) {
     for slot in &shared.work.race_slots {
         slot.part.set(0);
     }
@@ -50,7 +50,7 @@ pub fn clear_race_slots(shared: &Shared) {
 
 /// `race::reset_car_starts` (0x444BBC): each car block's +0x14 and +8 0 (0x320 while `dword_71C3E0`
 /// is set), +0x18 and +0x1C 0.
-pub fn reset_car_starts(shared: &Shared) -> Result<(), BadInput> {
+pub fn reset_car_starts(shared: &RaceShared) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::cars::start_value`.
     let value = rc2k_core::race::cars::start_value(shared.work.in_credits.bits() != 0);
     for n in 0..BLOCKS {
@@ -66,7 +66,7 @@ pub fn reset_car_starts(shared: &Shared) -> Result<(), BadInput> {
 }
 
 /// `race::seed_car_randoms` (0x444BF6): each car block's +0x10 and +0xC one `nonzero_random`.
-pub fn seed_car_randoms(shared: &Shared) -> Result<(), BadInput> {
+pub fn seed_car_randoms(shared: &RaceShared) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::cars::car_seeds`.
     use crate::math::next_random::{DRAWS, wait_for_random, with_random};
     wait_for_random();
@@ -120,7 +120,7 @@ pub fn reset_car_race_state(race: &Race) -> Result<(), BadInput> {
 /// 0, looked for up to `g_lastCheckpoint` (not included); 0 for none or with `g_checkpointCount` -
 /// 2 negative. Refuses a look that would run past the list (the original runs on until it finds
 /// one: `g_lastCheckpoint` 0 or 1).
-pub fn first_check_checkpoint(shared: &Shared) -> Result<u32, Refused> {
+pub fn first_check_checkpoint(shared: &RaceShared) -> Result<u32, Refused> {
     // Converted: `rc2k_core::race::checkpoints::first_check_checkpoint`.
     let count: u32 = shared.vars.checkpoint_count.bits();
     let last = || shared.vars.last_checkpoint.bits();

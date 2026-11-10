@@ -30,12 +30,12 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::owner::scene;
 const SLOTS: u32 = 0x400;
 
 /// The two view blocks, or the refusal.
-fn view_blocks(shared: &Shared) -> Result<[u32; 2], Refused> {
+fn view_blocks(shared: &RaceShared) -> Result<[u32; 2], Refused> {
     let blocks: [u32; 2] = [shared.view.view_block(0), shared.view.view_block(1)];
     if blocks.contains(&0) {
         return Err(BadInput("a null view block").into());

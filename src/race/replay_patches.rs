@@ -9,13 +9,13 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
 
 /// `g_patchSwitch` and the twelve settings after it (13 dwords from 0x71C6D0).
-pub fn switches(shared: &Shared) -> impl Iterator<Item = &Dword> {
+pub fn switches(shared: &RaceShared) -> impl Iterator<Item = &Dword> {
     std::iter::once(&shared.work.patch_switch).chain(shared.work.patch_settings.iter())
 }
 

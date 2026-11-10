@@ -26,12 +26,12 @@ use std::cell::UnsafeCell;
 /// writes keeps to one thread or the lock the original used (the log's buffers: the log's
 /// lock).
 #[repr(transparent)]
-pub struct Place<T>(UnsafeCell<T>);
+pub struct FixedBlock<T>(UnsafeCell<T>);
 
 // SAFETY: as the image's memory: raw access only, under the original's discipline (above).
-unsafe impl<T> Sync for Place<T> {}
+unsafe impl<T> Sync for FixedBlock<T> {}
 
-impl<T> Place<T> {
+impl<T> FixedBlock<T> {
     pub const fn new(value: T) -> Self {
         Self(UnsafeCell::new(value))
     }
@@ -451,7 +451,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::install::store::InstallVars::START, // InstallVars
         len: crate::install::store::InstallVars::LEN,
-        home: Home::Store(&crate::race::store::Window::new(
+        home: Home::Store(&crate::race::store::RecordTail::new(
             &crate::install::owner::INSTALL.vars,
             1,
         )),
@@ -818,7 +818,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::texts_store::START,
         len: crate::menu::texts_store::END - crate::menu::texts_store::START,
-        home: Home::Store(&crate::race::store::Window::new(
+        home: Home::Store(&crate::race::store::RecordTail::new(
             &crate::menu::owner::MENUS.tables.texts,
             2,
         )),
@@ -826,7 +826,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::records::stages_store::START,
         len: crate::records::stages_store::END - crate::records::stages_store::START,
-        home: Home::Store(&crate::race::store::Window::new(
+        home: Home::Store(&crate::race::store::RecordTail::new(
             &crate::system::owner::SYSTEM.records.stage_tables,
             2,
         )),
@@ -876,7 +876,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::seal_store::SealWork::START,
         len: crate::race::seal_store::SealWork::LEN,
-        home: Home::Store(&crate::race::store::Window::new(
+        home: Home::Store(&crate::race::store::RecordTail::new(
             &crate::race::owner::RACE.replay.seal_work,
             12,
         )),
@@ -894,7 +894,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::input::guids::InputGuids::START,
         len: crate::input::guids::InputGuids::LEN,
-        home: Home::Store(&crate::race::store::Window::new(
+        home: Home::Store(&crate::race::store::RecordTail::new(
             &crate::input::owner::INPUT.guids,
             8,
         )),
@@ -902,7 +902,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::sound::sets_store::MenuSounds::START,
         len: crate::sound::sets_store::MenuSounds::LEN,
-        home: Home::Store(&crate::race::store::Window::new(
+        home: Home::Store(&crate::race::store::RecordTail::new(
             &crate::sound::owner::SOUND.menu.menu_sounds,
             4,
         )),
@@ -915,7 +915,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::sound::sets_store::CueLists::START,
         len: crate::sound::sets_store::CueLists::LEN,
-        home: Home::Store(&crate::race::store::Window::new(
+        home: Home::Store(&crate::race::store::RecordTail::new(
             &crate::sound::owner::SOUND.race.cue_lists,
             8,
         )),
@@ -928,7 +928,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::sound::sets_store::SurfaceSets::START,
         len: crate::sound::sets_store::SurfaceSets::LEN,
-        home: Home::Store(&crate::race::store::Window::new(
+        home: Home::Store(&crate::race::store::RecordTail::new(
             &crate::sound::owner::SOUND.race.surface_sets,
             12,
         )),
@@ -941,7 +941,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::install::vars::InstallerRun::START,
         len: crate::install::vars::InstallerRun::LEN,
-        home: Home::Store(&crate::race::store::Window::new(
+        home: Home::Store(&crate::race::store::RecordTail::new(
             &crate::install::owner::INSTALL.run,
             8,
         )),
@@ -949,7 +949,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::install::vars::InstallerNames::START,
         len: crate::install::vars::InstallerNames::LEN,
-        home: Home::Store(&crate::race::store::Window::new(
+        home: Home::Store(&crate::race::store::RecordTail::new(
             &crate::install::owner::INSTALL.names,
             0,
         )),
@@ -957,7 +957,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::install::vars::InstallerPages::START,
         len: crate::install::vars::InstallerPages::LEN,
-        home: Home::Store(&crate::race::store::Window::new(
+        home: Home::Store(&crate::race::store::RecordTail::new(
             &crate::install::owner::INSTALL.pages,
             7,
         )),
@@ -965,7 +965,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::install::vars::InstallerPaths::START,
         len: crate::install::vars::InstallerPaths::LEN,
-        home: Home::Store(&crate::race::store::Window::new(
+        home: Home::Store(&crate::race::store::RecordTail::new(
             &crate::install::owner::INSTALL.paths,
             8,
         )),
@@ -973,7 +973,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::install::vars::InstallerPalette::START,
         len: crate::install::vars::InstallerPalette::LEN,
-        home: Home::Store(&crate::race::store::Window::new(
+        home: Home::Store(&crate::race::store::RecordTail::new(
             &crate::install::owner::INSTALL.palette,
             4,
         )),
@@ -1001,7 +1001,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::screen_state::ScreenMode::START,
         len: crate::gfx::screen_state::ScreenMode::LEN,
-        home: Home::Store(&crate::race::store::Window::new(
+        home: Home::Store(&crate::race::store::RecordTail::new(
             &crate::gfx::owner::GFX.display.mode,
             12,
         )),
@@ -1009,7 +1009,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::screen_state::DrawSurface::START,
         len: crate::gfx::screen_state::DrawSurface::LEN,
-        home: Home::Store(&crate::race::store::Window::new(
+        home: Home::Store(&crate::race::store::RecordTail::new(
             &crate::gfx::owner::GFX.drawing.draw_surface,
             4,
         )),
@@ -1017,7 +1017,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::d3d::cards_store::Cards3d::START,
         len: crate::d3d::cards_store::Cards3d::LEN,
-        home: Home::Store(&crate::race::store::Window::new(
+        home: Home::Store(&crate::race::store::RecordTail::new(
             &crate::d3d::owner::D3D.cards,
             4,
         )),
@@ -1030,7 +1030,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::audio::names_store::SampleNames::START,
         len: crate::audio::names_store::SampleNames::LEN,
-        home: Home::Store(&crate::race::store::Window::new(
+        home: Home::Store(&crate::race::store::RecordTail::new(
             &crate::audio::owner::AUDIO_OWNER.sample_names,
             12,
         )),
@@ -1043,7 +1043,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::jade_store::JadeFont::START,
         len: crate::gfx::jade_store::JadeFont::LEN,
-        home: Home::Store(&crate::race::store::Window::new(
+        home: Home::Store(&crate::race::store::RecordTail::new(
             &crate::gfx::owner::GFX.fonts.jade,
             4,
         )),
@@ -1193,7 +1193,7 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::race::groups_store::PANEL_AND_OVERLAY_RANGE.0,
         len: crate::race::groups_store::PANEL_AND_OVERLAY_RANGE.1
             - crate::race::groups_store::PANEL_AND_OVERLAY_RANGE.0,
-        home: Home::Store(&crate::race::groups_store::PANEL_WINDOW),
+        home: Home::Store(&crate::race::groups_store::PANEL_TAIL),
     },
     // race: the pieces that left the race core for statics of their own (`race::store::LEFT`)
     Moved {

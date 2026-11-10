@@ -25,14 +25,14 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::load_picture_to_texture::load_picture_to_texture_in_game;
 use crate::logfile::log_int::log_int;
-use crate::place::Place;
+use crate::place::BytePlace;
 
 // ---- game data ----
 
 /// `dword_60AF04` the picture's number, `dword_60AF08` the texture, then the twelve
 /// names up to the end of `files\s\extr\txxxxx.pcx`.
 /// The six folders' names and second names, and where the number is in the name.
-fn folders(course: &'static crate::race::owner_course::Course) -> [(Place, Place, u32); 6] {
+fn folders(course: &'static crate::race::owner_course::Course) -> [(BytePlace, BytePlace, u32); 6] {
     let p = &course.level_paths;
     [
         ((&p.picture_a).into(), (&p.second_a).into(), 0x0A), // files\a
@@ -51,9 +51,9 @@ pub enum Call {
     Text(Vec<u8>),
     Number(u32),
     /// Answers whether the file is there.
-    Exists(Place),
+    Exists(BytePlace),
     /// The name, the second name, the texture.
-    Load(Place, Place, u32),
+    Load(BytePlace, BytePlace, u32),
 }
 
 // ---- Rust version ----

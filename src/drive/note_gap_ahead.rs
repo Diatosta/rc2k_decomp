@@ -1,5 +1,7 @@
 //! `drive::note_gap_ahead` (0x4373A4): this car's checkpoint less the lead car's, plus one, into
-//! `dword_70FA14` when below it (unsigned): by the look of it the nearest car ahead (a reading).
+//! `dword_70FA14` (`pace_gaps[0]`) when below it (unsigned): the arcade race's gap in checkpoints to
+//! the nearest kept opponent ahead of the lead car (the least over the two kept cars, which
+//! `start_cars_behind` starts at -1 = none).
 //!
 //! Takes: a car block
 //! Returns: the difference plus one

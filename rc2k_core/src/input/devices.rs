@@ -109,7 +109,7 @@ pub fn hat_direction(record: &Record, state: &State) -> u32 {
 /// device, the axis (bit 0x400: +0x2C negated, 0x800: +0x2C, 0x200: +0x34, 0x100: +0x30,
 /// else none) and the button (the low byte n: bit n - 1; 0 none).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Place {
+pub struct BindingSource {
     /// The axis's place (0 none).
     pub axis: u32,
     /// Its sign (1, -1; 0 when not acquired).
@@ -120,9 +120,9 @@ pub struct Place {
     pub ecx: Option<u32>,
 }
 
-pub fn binding_place(word: u32, acquired: bool) -> Place {
+pub fn binding_place(word: u32, acquired: bool) -> BindingSource {
     if !acquired {
-        return Place {
+        return BindingSource {
             axis: 0,
             sign: 0,
             button: 0,
@@ -146,7 +146,7 @@ pub fn binding_place(word: u32, acquired: bool) -> Place {
     } else {
         (1u32.wrapping_shl(low - 1), low - 1)
     };
-    Place {
+    BindingSource {
         axis,
         sign,
         button,
@@ -529,7 +529,7 @@ mod tests {
         assert!(read_device(&record, &keys, &state).is_err());
         assert_eq!(
             binding_place(0x403, true),
-            Place {
+            BindingSource {
                 axis: 0x2C,
                 sign: u32::MAX,
                 button: 4,

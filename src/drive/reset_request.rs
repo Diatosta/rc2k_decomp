@@ -11,12 +11,12 @@
 use crate::errors::Refused;
 use crate::physics::flow::c0;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::drive::controls::{
     RESET_NOTICE, reset_counts, reset_held, reset_penalty, reset_step,
 };
 
-fn clear_notice(shared: &Shared) {
+fn clear_notice(shared: &RaceShared) {
     for cell in [
         &shared.car.notice_last,
         &shared.car.notice_id,

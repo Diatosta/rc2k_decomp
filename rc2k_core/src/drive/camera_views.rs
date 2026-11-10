@@ -1,6 +1,7 @@
 //! A car block's camera view (converted 2026-10-21 from `drive::set_camera_view`
 //! 0x43A9BA and `next_camera_view` 0x43AA38): the view wanted taken, and the next one
-//! the change-view key asks for (a reading).
+//! the change-view key asks for: views 0 .. 6 cycle, 2 and 3 only for cars with their
+//! own views (`kind_has_views`) and with one player; 7 and above are the fixed replay cameras.
 
 /// The block's view fields (+0x684 .. +0x69C).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

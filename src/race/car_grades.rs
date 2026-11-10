@@ -4,7 +4,7 @@
 
 use crate::errors::BadInput;
 use crate::physics::car_store::Car;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::{Dword, Float};
 
 /// A car's grade: the block's value (a float), where its grade goes, the thresholds, in the
@@ -123,7 +123,10 @@ pub fn grade_car_values(block: u32, scene: &crate::scene::owner::Scene) -> Resul
 }
 
 /// `race::grade_all_cars` (0x43FDFE): `grade_car_values` of the eight blocks (`g_carBlocks`).
-pub fn grade_all_cars(shared: &Shared, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+pub fn grade_all_cars(
+    shared: &RaceShared,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     for n in 0..8usize {
         grade_car_values(shared.work.car_block(n), scene)?;
     }

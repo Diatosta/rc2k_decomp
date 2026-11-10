@@ -13,13 +13,13 @@
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
 /// The HUD's layout: `dword_6238A4`, or 0 while one view is drawn (`dword_63DB98` 1).
 /// The original reads `dword_6238A4` alone, which a replay after a split-screen race
 /// leaves at 1 / 2 while its one view fills the screen: the divider, the second
 /// player's bars and strip stayed drawn (section 16, fixed 2026-10-23).
-pub fn shown_layout(shared: &Shared) -> u32 {
+pub fn shown_layout(shared: &RaceShared) -> u32 {
     {
         if shared.view.views.bits() == 1 {
             0

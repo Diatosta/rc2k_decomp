@@ -19,13 +19,13 @@ use crate::effects::pick_shapes::pick_shapes;
 use crate::effects::shape_points::turn_all_shapes;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
 use crate::math::x87;
 const MASK_COUNT: u32 = 9;
 
 pub fn run_shapes(
-    shared: &Shared,
+    shared: &RaceShared,
     masks: &Masks,
     drops: &WindscreenDrops,
     effects: &crate::effects::owner::Effects,

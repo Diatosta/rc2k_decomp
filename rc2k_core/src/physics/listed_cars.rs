@@ -33,7 +33,7 @@ pub enum CuePlace {
     Last = 1,
 }
 
-/// A sound object's +8: 1 when it takes cues (a reading: ready).
+/// A sound object's +8: 1 when the object is in use (`SoundObject::in_use`), so it takes cues.
 pub const READY: u32 = 1;
 
 /// `physics::cue_car_sound` and `_last`: for `which` 0 or 1 (unsigned; else nothing), the
@@ -56,8 +56,8 @@ pub fn cue_object<O: Copy>(
     Ok((ready_of(object) == READY).then_some(object))
 }
 
-/// `physics::sound_cue_e5`'s stores into the current car's sound object (a reading: the
-/// sound 0xE5 to play): (offset, value) in the original's order.
+/// `physics::sound_cue_e5`'s stores into the current car's sound object (`SoundObject::cue_sound` 0xE5, `cue_volume` 0, and +0x10, which
+/// `new_revs` shares, 1): (offset, value) in the original's order.
 pub const CUE_E5: [(u32, u32); 3] = [(0x24C, 0xE5), (0x250, 0), (0x10, 1)];
 
 /// `physics::sound_cue_e5`: the current car's sound object number (`car & 7`) when the

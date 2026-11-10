@@ -15,7 +15,7 @@ use crate::physics::engine_torque::engine_torque;
 use crate::physics::gear_store::GEAR;
 use crate::physics::revs_from_wheels::revs_from_wheels;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
 use dear_imgui_rs::Ui;
@@ -77,7 +77,7 @@ struct Measured {
 static MEASURED: Mutex<Option<Measured>> = Mutex::new(None);
 
 /// Every variable the measuring writes.
-fn places(shared: &Shared) -> [&dyn Cell32; 15] {
+fn places(shared: &RaceShared) -> [&dyn Cell32; 15] {
     let drawing = &scene().drawing;
     [
         &shared.car.gear,
@@ -99,7 +99,7 @@ fn places(shared: &Shared) -> [&dyn Cell32; 15] {
 }
 
 /// `f` run, the variables put back after it.
-fn kept<T>(shared: &Shared, f: impl FnOnce() -> T) -> T {
+fn kept<T>(shared: &RaceShared, f: impl FnOnce() -> T) -> T {
     let places = places(shared);
     let saved = places.map(super::super::session::Cell32::bits);
     let result = f();

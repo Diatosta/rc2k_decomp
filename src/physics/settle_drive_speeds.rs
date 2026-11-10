@@ -14,7 +14,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
 
 /// The switches and the scratch: the game's or a test's.
@@ -31,7 +31,7 @@ pub struct SettlePlaces<'a> {
 }
 
 impl<'a> SettlePlaces<'a> {
-    pub fn game(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> Self {
+    pub fn game(shared: &'a RaceShared, scene: &'a crate::scene::owner::Scene) -> Self {
         Self {
             first: &shared.car.front_wheels_off,
             second: &shared.car.rear_wheels_off,

@@ -24,7 +24,7 @@ fn scaled(sample: u32, lo: u32, hi: u32) -> u32 {
 /// The noise map `x` bytes into `g_noiseBytes`: its sample under the work car (what
 /// `race::sample_noise` leaves in eax).
 fn sample(
-    shared: &crate::race::owner_shared::Shared,
+    shared: &crate::race::owner_shared::RaceShared,
     x: usize,
 ) -> Result<u32, crate::errors::BadInput> {
     sample_noise(&shared.car, x)

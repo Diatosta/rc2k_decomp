@@ -14,12 +14,12 @@ use rc2k_core::install::layout;
 /// `count` records of `table` blitted at (x, y) on, from the glyph table `glyphs`.
 pub fn blit_glyph_list(
     count: u32,
-    table: impl Into<crate::place::Place>,
+    table: impl Into<crate::place::BytePlace>,
     x: u32,
     y: u32,
     glyphs: u32,
 ) -> Result<(), Refused> {
-    let table: crate::place::Place = table.into();
+    let table: crate::place::BytePlace = table.into();
     // Converted: `rc2k_core::install::layout` (`list_records`, `list_place`).
     for (offset, _) in layout::list_records(count)? {
         let record = table.add(offset);

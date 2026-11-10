@@ -15,7 +15,7 @@ use rc2k_core::install::pages;
 
 /// `state` which call of the list action this is (0 the start, negative the end), `list` the page's.
 pub fn drive_page(install: &'static crate::install::owner::Install, state: u32, list: ListMenu) {
-    let letters = crate::place::Place::from(&install.drive_rows.drive_rows);
+    let letters = crate::place::BytePlace::from(&install.drive_rows.drive_rows);
     if state == 0 {
         let letter = crate::strings::same_text::lower(install.paths.typed.get(0)); // g_lowerCase
         // Converted: `rc2k_core::install::pages` (`drive_highlight`, `chosen_drive`).

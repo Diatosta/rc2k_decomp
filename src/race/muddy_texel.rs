@@ -12,7 +12,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::mud_texel::mud_texel;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::put_mud_texel::put_mud_texel;
 use crate::race::tint_to_mud_colour::tint_to_mud_colour;
 
@@ -27,7 +27,7 @@ pub fn shuffled_place(n: u32) -> (u32, u32) {
 }
 
 /// The texture worked on, or the refusal (also without the mud).
-pub fn texture_and_mud(shared: &Shared) -> Result<u32, Refused> {
+pub fn texture_and_mud(shared: &RaceShared) -> Result<u32, Refused> {
     let n: u32 = shared.vars.mud_texture.bits();
     if n > rc2k_core::race::mud::MOST_TEXTURE {
         return Err(BadInput("a mud texture past 3 (the map would be read past its end)").into());

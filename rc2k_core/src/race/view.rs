@@ -230,7 +230,7 @@ pub fn device_fog_colour(colour: u32) -> u32 {
 
 /// The mirror's window on the screen (each even).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Window {
+pub struct MirrorRect {
     pub x: u32,
     pub y: u32,
     pub width: u32,
@@ -256,8 +256,8 @@ fn scaled(n: u32, size: u32, of: u32) -> Option<u32> {
 
 /// `race::mirror_view_window`'s window: its corner (`place`, on 800 x 600) and size scaled
 /// to the screen. None where the scaling would fault.
-pub fn mirror_window(place: (u32, u32), screen: (u32, u32)) -> Option<Window> {
-    Some(Window {
+pub fn mirror_window(place: (u32, u32), screen: (u32, u32)) -> Option<MirrorRect> {
+    Some(MirrorRect {
         x: scaled(place.0, screen.0, 800)?,
         y: scaled(place.1, screen.1, 600)?,
         width: scaled(MIRROR_SIZE.0, screen.0, 800)?,
@@ -292,7 +292,7 @@ mod tests {
         assert_eq!(mirror_entry(4, 1, true), 13);
         assert_eq!(
             mirror_window((0x139, 0x10), (1024, 768)),
-            Some(Window {
+            Some(MirrorRect {
                 x: 0x190,
                 y: 0x14,
                 width: 0xE4,

@@ -6,12 +6,12 @@
 //!
 //! Caller: `physics::car_physics_step` (0x43B966), every physics step.
 
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::gearing::drops_to_neutral;
 
 /// A compare of floats only: the same at any precision.
 // Converted: `rc2k_core::physics::gearing::drops_to_neutral`.
-pub fn drop_to_neutral(shared: &Shared) {
+pub fn drop_to_neutral(shared: &RaceShared) {
     if !drops_to_neutral(
         shared.car.contact_flag.get(),
         shared.car.gear.get(),

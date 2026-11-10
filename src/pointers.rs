@@ -411,7 +411,7 @@ impl<T: ?Sized> HostPointer for *mut T {
 
 /// The refusal for an address that is not where the game's memory is (logged with it).
 /// Ranges of game memory watched while a store moves out of them: each access
-/// through the checked paths (`GamePtr`, `check_or_end`, `read_or_end`, `Window`) that
+/// through the checked paths (`GamePtr`, `check_or_end`, `read_or_end`, `RegionCache`) that
 /// touches one is logged once per source line of its first caller outside this file (with
 /// `#[track_caller]` up to there) and then goes on as before, so one run lists every
 /// reader by address. Up to four: (start, end, name).
@@ -1619,9 +1619,9 @@ pub fn write_or_end<T: Plain>(addr: u32, value: T, what: &str) {
 /// read inside it costs a compare, one outside looks its region up again. Keep a window for
 /// one pass only: a block can be given back between passes.
 #[derive(Default)]
-pub struct Window(std::cell::Cell<(u32, u32, Backing)>);
+pub struct RegionCache(std::cell::Cell<(u32, u32, Backing)>);
 
-impl Window {
+impl RegionCache {
     pub fn new() -> Self {
         Self::default()
     }
@@ -1817,7 +1817,7 @@ mod tests {
     fn a_window_keeps_its_region() {
         let block = LentBytes::from_vec(vec![5u8; 32]);
         let start = block.addr();
-        let window = Window::new();
+        let window = RegionCache::new();
         assert_eq!(window.read_or_end::<u8>(start, "test"), 5);
         assert_eq!((window.0.get().0, window.0.get().1), (start, start + 32));
         window.write_or_end(start + 28, 0x0102_0304u32, "test");

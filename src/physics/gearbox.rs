@@ -15,7 +15,7 @@ use crate::physics::gearing::{
     GearPlaces, revs_from_speed_at, revs_from_wheels_at, wheels_from_revs_at,
 };
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use std::cmp::Ordering;
 
 /// C0 of comparing `a` with `b`: below, or unordered.
@@ -47,12 +47,12 @@ pub fn neutral(race: &Race) {
 }
 
 /// `gear_bit`: true for CF (the gear cannot be taken).
-pub fn bit(shared: &Shared, gear: u32) -> Result<bool, Refused> {
+pub fn bit(shared: &RaceShared, gear: u32) -> Result<bool, Refused> {
     Ok({ gear_bit(shared, gear) }?.carry)
 }
 
 /// `wheels_from_revs`.
-pub fn wheels(shared: &Shared) -> Result<(), Refused> {
+pub fn wheels(shared: &RaceShared) -> Result<(), Refused> {
     { wheels_from_revs_at(&GearPlaces::game(shared)) }?;
     Ok(())
 }
@@ -64,7 +64,7 @@ pub fn revs(race: &Race) -> Result<(), Refused> {
 }
 
 /// `revs_from_speed`.
-pub fn revs_speed(shared: &Shared) -> Result<(), Refused> {
+pub fn revs_speed(shared: &RaceShared) -> Result<(), Refused> {
     { revs_from_speed_at(&GearPlaces::game(shared)) }?;
     Ok(())
 }
@@ -78,7 +78,7 @@ pub fn over_top(race: &Race) -> u32 {
 }
 
 /// A gear's ratio; refused outside -1 ..= 7.
-pub fn ratio(shared: &Shared, gear: u32) -> Result<u32, Refused> {
+pub fn ratio(shared: &RaceShared, gear: u32) -> Result<u32, Refused> {
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }

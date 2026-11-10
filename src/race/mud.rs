@@ -9,7 +9,7 @@ use crate::errors::Refused;
 use crate::gfx::owner::gfx;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
 pub const MUD_LEN: u32 = 0x1_0000;
 
@@ -73,7 +73,7 @@ pub fn mud_pixel(x: u32, y: u32) -> Result<u32, BadInput> {
 
 /// `race::load_mud` (0x449D95): the car's file number's two digits (`div 10`, each + '0', as bytes)
 /// into the path, the file (0x10000 bytes at most) into the mud.
-pub fn load_mud(shared: &Shared) -> Result<(), Refused> {
+pub fn load_mud(shared: &RaceShared) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::file_digits`.
     let (tens, units) = rc2k_core::race::mud::file_digits(car_file_number(
         crate::race::blocks_store::own_car().car_kind.get(),
@@ -87,7 +87,7 @@ pub fn load_mud(shared: &Shared) -> Result<(), Refused> {
 }
 
 /// `race::clear_mud_state` (0x449E01): the 18 dwords at 0x623D58 and the two more 0.
-pub fn clear_mud_state(shared: &Shared) {
+pub fn clear_mud_state(shared: &RaceShared) {
     // The 18 dwords from `mud_frames` to the end of `mud_splash_counts`.
     let v = &shared.vars;
     v.mud_frames.set(0);
@@ -106,7 +106,7 @@ pub fn clear_mud_state(shared: &Shared) {
 /// n's at (0x89 + (n & 3) + (n >> 5) * 4, 0x68 + ((n & 0x1C) >> 2)) by `mud_pixel`, unlocked
 /// (`d3d::unlock_texture`).
 pub fn sample_mud_colours(
-    shared: &Shared,
+    shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let textures = &scene.textures;

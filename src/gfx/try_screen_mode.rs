@@ -13,12 +13,12 @@
 //! three calls (set the mode, allocate, release: the platform's) are direct.
 
 use crate::errors::Refused;
-use crate::framework::Flags;
+use crate::framework::CarryZeroFlags;
 use crate::gfx::owner::Display;
 use crate::gfx::owner::gfx;
 
 /// Tries `mode`: the flags it leaves (carry: it does not work).
-pub fn try_screen_mode(display: &Display, mode: u32) -> Result<Flags, Refused> {
+pub fn try_screen_mode(display: &Display, mode: u32) -> Result<CarryZeroFlags, Refused> {
     let gfx = gfx();
     let reports: u32 = gfx.reports.on.get();
     gfx.reports.on.set(0);
@@ -51,10 +51,10 @@ pub fn try_screen_mode(display: &Display, mode: u32) -> Result<Flags, Refused> {
     gfx.card.upload.trying.set(0);
     gfx.reports.on.set(reports);
     Ok(match tried {
-        Ok(eax) => Flags {
+        Ok(eax) => CarryZeroFlags {
             carry: false,
             zero: eax == 0,
         },
-        Err(zero) => Flags { carry: true, zero },
+        Err(zero) => CarryZeroFlags { carry: true, zero },
     })
 }

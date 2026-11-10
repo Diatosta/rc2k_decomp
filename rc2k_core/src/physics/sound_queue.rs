@@ -18,7 +18,7 @@ pub const LIST_END: u32 = u32::MAX;
 
 /// Where a cue goes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Place {
+pub enum CuePlacement {
     /// The queue is full: nothing.
     Full,
     /// At entry `n` (0 into an empty queue or last).
@@ -36,15 +36,15 @@ pub fn check_cue(cue: u32) -> Result<(), Invalid> {
 }
 
 /// The place of a cue (`first`: eax 0) in a queue of `count`.
-pub fn place(count: u32, first: bool) -> Place {
+pub fn place(count: u32, first: bool) -> CuePlacement {
     if count == ROOM {
-        Place::Full
+        CuePlacement::Full
     } else if count == 0 {
-        Place::At(0)
+        CuePlacement::At(0)
     } else if first {
-        Place::First { count }
+        CuePlacement::First { count }
     } else {
-        Place::At(count)
+        CuePlacement::At(count)
     }
 }
 
@@ -77,10 +77,10 @@ mod tests {
 
     #[test]
     fn places() {
-        assert_eq!(place(16, true), Place::Full);
-        assert_eq!(place(0, true), Place::At(0));
-        assert_eq!(place(4, true), Place::First { count: 4 });
-        assert_eq!(place(4, false), Place::At(4));
+        assert_eq!(place(16, true), CuePlacement::Full);
+        assert_eq!(place(0, true), CuePlacement::At(0));
+        assert_eq!(place(4, true), CuePlacement::First { count: 4 });
+        assert_eq!(place(4, false), CuePlacement::At(4));
         assert!(check_cue(0x70).is_ok());
         assert!(check_cue(0x71).is_err());
     }

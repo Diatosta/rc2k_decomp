@@ -6,8 +6,8 @@
 //! whether the car's checkpoint has one after it. The checkpoint looked for near the
 //! last one and the next split's point passed (converted 2026-10-21 from
 //! `physics::find_car_checkpoint` 0x44139D and `physics::passed_split_point` 0x44165E;
-//! their x87 distance and angle stay the hooks'). What the fields are is a reading (the
-//! hooks' headers say which).
+//! their x87 distance and angle stay the hooks'). Each field is the car block's field of that
+//! offset (`Car` in `physics::car_store`); the hooks' headers name them.
 
 use crate::Invalid;
 
@@ -79,7 +79,7 @@ pub fn spread(a: u32, b: u32) -> u32 {
     if (d as i32) < 0 { d.wrapping_neg() } else { d }
 }
 
-/// The highest checkpoint `off_line_warnings` takes (`dword_9ED808`'s size not worked out).
+/// The highest checkpoint `off_line_warnings` takes (`dword_9ED808` holds 0x1418 = 5144 angles, `CHECKPOINTS.angles[2..]`; the check lets index 0x1418 itself through, one past the table, into the gap that follows it, as the original).
 pub const LAST_CHECKPOINT: u32 = 0x1418;
 
 /// Whether the car's checkpoint has one after it (the next below the count, by the sign

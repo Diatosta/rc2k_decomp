@@ -20,7 +20,7 @@ use crate::errors::{BadInput, Refused};
 use crate::net::owner::net;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Dword;
 
 fn view_bit(view: &Dword) -> Result<bool, BadInput> {
@@ -29,7 +29,9 @@ fn view_bit(view: &Dword) -> Result<bool, BadInput> {
 }
 
 /// The network player's car block.
-fn net_player_car(shared: &Shared) -> Result<&'static crate::physics::car_store::Car, BadInput> {
+fn net_player_car(
+    shared: &RaceShared,
+) -> Result<&'static crate::physics::car_store::Car, BadInput> {
     let handle = shared
         .work
         .car_blocks
@@ -39,7 +41,7 @@ fn net_player_car(shared: &Shared) -> Result<&'static crate::physics::car_store:
 }
 
 /// The quit answer `answer` put into the cars (0x444EB5 ..).
-fn put_answer(shared: &Shared, answer: u32) -> Result<(), BadInput> {
+fn put_answer(shared: &RaceShared, answer: u32) -> Result<(), BadInput> {
     if net().vars.session.get() != 0 {
         net_player_car(shared)?.stop_state.set_bits(answer);
         return Ok(());

@@ -13,7 +13,9 @@ pub const LAST_START: u32 = 0x400;
 /// The start number checked.
 pub fn check_start(n: u32) -> Result<(), Invalid> {
     if n > LAST_START {
-        return Err(Invalid("a start number above 0x400 (not worked out)"));
+        return Err(Invalid(
+            "a start number above 0x400 (the table holds 90; the original's check lets 0x400 through)",
+        ));
     }
     Ok(())
 }

@@ -12,7 +12,7 @@
 
 use crate::errors::Refused;
 use crate::physics::flag_result::FlagResult;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::gearbox::GearBits;
 
 /// The gear bits in the dword at `bits`.
@@ -33,6 +33,6 @@ pub fn gear_bit_at(bits: &dyn crate::session::Cell32, gear: u32) -> Result<FlagR
     })
 }
 
-pub fn gear_bit(shared: &Shared, gear: u32) -> Result<FlagResult, Refused> {
+pub fn gear_bit(shared: &RaceShared, gear: u32) -> Result<FlagResult, Refused> {
     gear_bit_at(&shared.car.lost_gear_bits, gear)
 }

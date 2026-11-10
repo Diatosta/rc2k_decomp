@@ -12,7 +12,7 @@ use crate::errors::{BadInput, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::owner::{RACE, Race, race};
-use crate::race::settings_copy::Place;
+use crate::race::settings_copy::StepOperand;
 use crate::race::settings_copy::var;
 use crate::race::view_vars_store::ViewVars;
 use rc2k_core::drive::finish_routine::{self, Set, Var};
@@ -26,7 +26,7 @@ fn log_number(v: u32) {
 }
 
 /// A variable's place.
-fn var(v: Var) -> Place {
+fn var(v: Var) -> StepOperand {
     match v {
         Var::D60101C => var!(RACE.physics.split_tables.arcade_kind),
         Var::D621514 => var!(crate::race::owner::RACE.shared.switches.editor_mode),
@@ -44,11 +44,11 @@ fn var(v: Var) -> Place {
         Var::D621890 => var!(crate::race::owner::RACE.shared.switches.view_marks_on),
         Var::D6238CC => var!(crate::race::owner::RACE.shared.vars.race_level),
         Var::D6238D0 => var!(crate::race::owner::RACE.shared.vars.race_stage),
-        Var::D64BB18 => Place::Var(|| &race().replay.finish.no_place),
+        Var::D64BB18 => StepOperand::Var(|| &race().replay.finish.no_place),
         Var::D5C2F88 => var!(EFFECTS_SETTINGS.race_done),
         // View record 6's first two angles (the finish camera's).
-        Var::D606744 => Place::Var(|| &ViewVars::record(6).angles[0]),
-        Var::D606748 => Place::Var(|| &ViewVars::record(6).angles[1]),
+        Var::D606744 => StepOperand::Var(|| &ViewVars::record(6).angles[0]),
+        Var::D606748 => StepOperand::Var(|| &ViewVars::record(6).angles[1]),
         Var::D63DB84 => var!(crate::race::owner::RACE.shared.view.after_credits),
     }
 }

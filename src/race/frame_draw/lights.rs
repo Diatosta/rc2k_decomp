@@ -5,7 +5,7 @@ use crate::errors::{BadInput, Refused};
 use crate::net::owner::net;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
 use crate::race::view_scratch::DrawCtx;
 use crate::session::Dword;
@@ -296,7 +296,7 @@ pub(super) fn lamp_lights_on_point(
 /// What `light_colour_at` refuses, before anything: no cars (its loop tests at the end),
 /// more than eight, a null block it would read, more than 16 lamps.
 pub fn check_light_colour(
-    shared: &Shared,
+    shared: &RaceShared,
     lamps: &crate::race::lamp_work::LampWork,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::lights::check_light_colour`.

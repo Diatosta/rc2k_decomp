@@ -1,8 +1,9 @@
-//! Race mode 2's two computer cars kept near the lead car (converted 2026-10-21 from
+//! The arcade race's (run kind 2) two computer opponents kept near the lead car (converted 2026-10-21 from
 //! `drive::start_cars_behind` 0x43703E, its rules; the moves and calls stay the
 //! adapter's): their first starts, the gaps by how many cars are ahead, the wanted gaps
-//! eased toward, and the push apart of two cars too close. By the look of it a time
-//! trial's pace cars (a reading). Every comparison takes the sign of the difference, as
+//! eased toward (what the arcade HUD shows as the gaps to the cars ahead and behind), and
+//! the push apart of two cars too close. Only two of the arcade race's opponents are
+//! simulated at a time (the rest are numbers in `arcade_cars`). Every comparison takes the sign of the difference, as
 //! the original.
 
 /// The first two starts: the last start (`dword_6051BC`) less 2 and less 1, put 80 and 40

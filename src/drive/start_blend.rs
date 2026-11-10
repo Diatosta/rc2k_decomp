@@ -1,7 +1,12 @@
 //! `drive::start_blend` (0x43773D): the checkpoints the work car is past the lead's start
 //! (`dword_71A070` - `dword_70F484`, held to 0 .. 100 by the signs), through `dword_62400C` times
 //! `flt_604EC0` into `flt_71A654`; `flt_71A658` = `flt_71A650` + that + `flt_71A64C`, held to
-//! `flt_5C5D90` .. `flt_5C5D38` (0 .. 1). By the look of it a share used at a start (a reading).
+//! `flt_5C5D90` .. `flt_5C5D38` (0 .. 1). The result is the computer
+//! driver's skill share (`driver_start_blend`, read by `drive::read_car_controls` and used by
+//! `drive_computer_car` to ease the wanted speed from 30 up to the table's speed:
+//! `30 + (wanted - 30) x blend`): the start's grid share (`start_share`, high for the first
+//! start) rising with the checkpoints past the lead, plus the pace push (`pace_push`, the arcade
+//! opponents' push apart). A player's car under test is given blend 1 (`remote`).
 //!
 //! Returns: the held count
 //!
@@ -11,7 +16,7 @@ use crate::math::x87;
 use crate::math::x87_run::{add3, compare_full};
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
 
@@ -52,7 +57,7 @@ pub fn blend_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
     n
 }
 
-fn game(shared: &Shared) -> Vec<&dyn Cell32> {
+fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
     vec![
         &shared.car.checkpoint,
         &CAR_BLOCKS.cars[0].checkpoint,

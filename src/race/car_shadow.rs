@@ -1,5 +1,8 @@
-//! The car's shadow (the tree under `cast_car_shadows`, IDA 2026-10-18; a reading: a dark polygon under
-//! each car, the hull of its corners on the ground, cut by the course's faces). Its
+//! The car's shadow (the tree under `cast_car_shadows`, IDA 2026-10-18; a dark polygon under
+//! each car, the hull of its corners on the ground, cut by the course's faces; drawn per car whose
+//! +0x6FC is set, once for the "reduced" car shadows option and twice for "full" (strings 0x396 /
+//! 0x397, `settings_words[2]`): once cast along the stage's sun height, once with the sun straight
+//! above at height 0x40. Settled 2026-11-10 from `cast_car_shadows` and the options page). Its
 //! leaves and shared code. Its working values are a `ShadowWork` of its own (frame plan F4):
 //! the point records of 0x20 bytes at `work.points` (+0 x, +4 y, +8 z as whole numbers, +0xC
 //! the angle, +0x10 the distance, +0x14 0), their count `work.point_count`, the hull's

@@ -132,7 +132,7 @@ pub fn note_face_drawn(slot: usize) {
 /// read by `race::norms` at a stage's start-up as the original read `dword_63D9F8` (it
 /// should be the face's own: a slip kept, `notes/bugs.md`); before any face was drawn the
 /// image's first value.
-pub fn last_fourth_corner(shared: &crate::race::owner_shared::Shared) -> u32 {
+pub fn last_fourth_corner(shared: &crate::race::owner_shared::RaceShared) -> u32 {
     match LAST_FACE_VIEW.load(Ordering::Relaxed) {
         usize::MAX => shared.view.corners[3].bits(),
         slot => crate::race::view_scratch::slot(slot).face.corners[3].bits(),

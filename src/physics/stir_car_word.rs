@@ -8,7 +8,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::next_noise::noise_step;
 
 /// On the word at `at`: the new word.
@@ -18,6 +18,6 @@ pub fn stir_word_at(at: &crate::session::Dword) -> u32 {
     w
 }
 
-pub fn stir_car_word(shared: &Shared) -> u32 {
+pub fn stir_car_word(shared: &RaceShared) -> u32 {
     stir_word_at(&shared.car.noise_word)
 }

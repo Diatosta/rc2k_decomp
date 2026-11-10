@@ -8,12 +8,12 @@
 
 use crate::errors::Refused;
 use crate::math::next_random::next_random;
-use crate::race::owner_shared::Shared;
-use crate::race::settings_copy::Place;
+use crate::race::owner_shared::RaceShared;
+use crate::race::settings_copy::StepOperand;
 use crate::race::settings_copy::{car, car_bits, var};
 
 /// The stores after the two draws, in order (the place, the value).
-pub const WRITES: [(Place, u32); 74] = [
+pub const WRITES: [(StepOperand, u32); 74] = [
     (var!(crate::race::owner::RACE.shared.vars.direction), 0),
     (var!(crate::race::owner::RACE.shared.vars.run_kind), 3),
     (car!(0, start_slot_value), 1),
@@ -113,7 +113,7 @@ fn drawn_index(n: u32) -> u32 {
     rc2k_core::race::credits::drawn_place(next_random(), n)
 }
 
-pub fn set_up_credits_race(shared: &Shared) -> Result<(), Refused> {
+pub fn set_up_credits_race(shared: &RaceShared) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::credits::drawn_place`.
     use rc2k_core::race::credits::{RACE_KINDS, RACE_STAGES};
     let stage = drawn_index(RACE_STAGES);

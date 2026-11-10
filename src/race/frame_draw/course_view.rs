@@ -83,7 +83,7 @@ pub fn points_there(course: &Course) -> Result<(), Refused> {
 }
 
 /// `race::face_hidden` (0x454D92): whether the face record is hidden from the shown view:
-/// when the view's `race().frame.view_and_records.view_vars.view_hides` entry is 0, `FRAME_SWITCHES.other_way` is set and the face's +2 word
+/// when the view's `race().frame.view_and_records.view_vars.view_hides` entry is 0, `FRAME_SWITCHES.scene_set_up` is set and the face's +2 word
 /// has a bit of `race().frame.frame_work.face_hide_mask`; else by its first point's record (+4): `OBJECT_WORK.object_position` = |x|
 /// and `OBJECT_WORK.face_depth` = depth + `LEVEL_GRID.depth_shift` as whole numbers, hidden when the depth is below
 /// |x| (the sign of the difference). Refuses (before anything) no point records or points.
@@ -106,7 +106,7 @@ pub fn face_hidden(
         "the view hides",
     )?;
     let hiding = if shows == 0 {
-        race.shared.switches.other_way.bits()
+        race.shared.switches.scene_set_up.bits()
     } else {
         0
     };
@@ -393,7 +393,7 @@ pub fn mark_far_cells(
 }
 
 /// `race::prepare_course_view` (0x4548A8): `face_hide_mask`, `course_grid`; with
-/// `FRAME_SWITCHES.other_way` set, `mark_far_cells` with the limit `checkpoint_colours` gives with
+/// `FRAME_SWITCHES.scene_set_up` set, `mark_far_cells` with the limit `checkpoint_colours` gives with
 /// two checkpoints or more (`g_checkpointCount`), else 0x10 (the original kept it in
 /// `LEVEL_GRID.far_cell_limit`, set to 0x10 first, which nothing else read). Refuses (before
 /// anything) what `course_grid` would.
@@ -405,7 +405,7 @@ pub fn prepare_course_view(
     check_course_grid(course)?;
     face_hide_mask(race, view)?;
     course_grid(race, &view.grid, &view.vars)?;
-    if race.shared.switches.other_way.bits() == 0 {
+    if race.shared.switches.scene_set_up.bits() == 0 {
         return Ok(());
     }
     let limit = if race.shared.vars.checkpoint_count.get() >= 2 {

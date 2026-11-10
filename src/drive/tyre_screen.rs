@@ -10,7 +10,7 @@
 
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::read_all;
 use rc2k_core::drive::tyre_screen::{layout, wheel_place};
 
@@ -31,7 +31,7 @@ const STATES: [(u32, u32); 11] = [
 /// The mode `mode`, the car `car`.
 // Converted: `rc2k_core::drive::tyre_screen::{layout, wheel_place}`.
 pub fn tyre_screen(
-    shared: &Shared,
+    shared: &RaceShared,
     mode: u32,
     car: u32,
     input: &crate::input::owner::Input,

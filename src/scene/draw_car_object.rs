@@ -20,7 +20,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::{Menus, Screens, menus};
 use crate::race::owner::race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::carousel_pictures::update;
 use crate::scene::clear_depth_buffer::clear_depth_buffer;
@@ -65,7 +65,7 @@ pub fn pick_pictures(menus: &Menus) -> Result<(), Refused> {
 
 /// 0x49040D: the car shown's object set up and drawn by `draw`.
 pub fn draw_shown_car(
-    shared: &Shared,
+    shared: &RaceShared,
     cars: &crate::race::car_draw_state::CarDrawState,
     object_place: &crate::scene::object_place::ObjectPlace,
     screens: &Screens,

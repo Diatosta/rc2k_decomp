@@ -18,7 +18,7 @@ use crate::math::x87_float::st;
 use crate::physics::flow::{hold_high, hold_low, negate};
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
 // Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
 fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
@@ -62,7 +62,7 @@ pub fn camera_frame(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x23763C] = [rc + 0x31A8E4] * [rc + 0x214098]`
-fn x87_1(shared: &Shared, scene: &crate::scene::owner::Scene) {
+fn x87_1(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     let t0 = ld(shared.car.vertical_speed_change.bits());
     let t1 = ld(shared.physics_tables.camera_frame_scale.bits());
     let t2 = t0 * t1;

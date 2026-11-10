@@ -10,7 +10,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner_course::Course;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::{Cell32, Float};
 
 /// The variables: the car's work copy's and the ratio table (gear -1 first).
@@ -26,7 +26,7 @@ pub struct GearPlaces<'a> {
 }
 
 impl<'a> GearPlaces<'a> {
-    pub fn game(shared: &'a Shared) -> Self {
+    pub fn game(shared: &'a RaceShared) -> Self {
         Self {
             gear: &shared.car.gear,
             engine_speed: &shared.car.engine_speed,

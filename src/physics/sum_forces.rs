@@ -8,7 +8,7 @@
 
 use crate::math::x87_run::sum_over;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use crate::session::Cell32;
 
 /// On the variables' cells `v`.
@@ -27,7 +27,7 @@ pub fn sum_at(race: &Race, v: &[&dyn Cell32]) {
     );
 }
 
-fn game(shared: &Shared) -> Vec<&dyn Cell32> {
+fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
     vec![
         &shared.physics_tables.drive_slip[0] as &dyn Cell32,
         &shared.physics_tables.drive_slip[1],

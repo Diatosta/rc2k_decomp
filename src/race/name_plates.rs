@@ -16,7 +16,7 @@ use crate::strings::owner::strings;
 /// (`d3d::lock_texture`, nothing when it fails): three lines' height cleared, text `text` drawn
 /// three times in the name font (box 0x168 wide) at x 4, -0x74, -0xEC and y 0, a line, two lines (a
 /// long name wrapped over the plate's three rows).
-pub fn draw_name_plate(slot: u32, text: impl Into<crate::place::Place>) -> Result<(), Refused> {
+pub fn draw_name_plate(slot: u32, text: impl Into<crate::place::BytePlace>) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
     let fonts = &gfx.fonts;
     let text = text.into();
@@ -167,7 +167,7 @@ pub fn update_name_plates(race: &Race, scene: &crate::scene::owner::Scene) -> Re
 /// (the original's carry).
 pub fn draw_text_in_game(
     font: &crate::gfx::typefaces::FontObject,
-    text: impl Into<crate::place::Place>,
+    text: impl Into<crate::place::BytePlace>,
     x: u32,
     y: u32,
 ) -> Result<bool, Refused> {
