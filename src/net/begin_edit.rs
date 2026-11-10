@@ -45,8 +45,6 @@ impl EditedText {
         })
     }
 }
-
-/// The Rust version.
 pub fn begin_edit(
     vars: &NetVars,
     item: u32,

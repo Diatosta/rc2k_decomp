@@ -7,8 +7,8 @@
 
 use crate::errors::Refused;
 
-/// The Rust version. Whether the copy and the showing worked is not
-/// looked at (the original's carries are not).
+/// Whether the copy and the showing worked is not looked at (the original's carries are
+/// not).
 pub fn inspection_screen() -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
     crate::scene::polygon_work::front_end().window.view_offset[0].set_bits(0u32);

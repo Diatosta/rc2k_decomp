@@ -19,8 +19,6 @@ use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 /// `ebp` is not used: the stage comes from the record.
 pub fn default_checkpoint_times(_ebp: u32, log: Log) -> Result<(), Refused> {
     let screens = &crate::menu::owner::menus().screens;

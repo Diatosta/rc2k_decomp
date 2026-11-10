@@ -8,7 +8,5 @@
 
 pub const COPY_PIXEL_ROWS: u32 = 0x407540;
 
-// ---- Rust version ----
-
-// None (phase 12, 2026-10-27): its one call left, `gfx::convert_picture`'s, has esi = edi,
+// None: its one call left, `gfx::convert_picture`'s, has esi = edi,
 // where the original does nothing; the picture buffer is Rust's and not reached by address.

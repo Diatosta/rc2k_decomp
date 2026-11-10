@@ -12,8 +12,6 @@ use crate::menu::name_lists::replay_name;
 use crate::menu::owner::Menus;
 use crate::menu::text_entry::begin_logged;
 
-// ---- Rust version ----
-
 /// `log` = false leaves the log lines out.
 pub fn begin_replay_name(menus: &Menus, log: bool) -> Result<(), BadInput> {
     let name = replay_name()?;

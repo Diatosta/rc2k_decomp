@@ -12,9 +12,7 @@ use crate::gfx::read_picture_file::read_picture_file;
 use crate::pointers::GamePtr;
 use rc2k_core::gfx::picture_size as sizes;
 
-// ---- Rust version ----
-
-/// The registers it leaves: the pixels (a picture buffer's number, `gfx::picture`), their
+/// Returns the pixels (a picture buffer's number, `gfx::picture`), their
 /// width and height, and whether the reading failed.
 pub fn read_texture_picture(path: GamePtr) -> Result<(u32, u32, u32, bool), Refused> {
     let gfx = crate::gfx::owner::gfx();

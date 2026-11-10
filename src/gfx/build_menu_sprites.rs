@@ -5,9 +5,7 @@
 //! (that sheet and `mbuts01.pcx`), the table's address to `g_spriteTable` (0x755581),
 //! `end_glyph_tables`. The list is not rewound: every call takes new memory after what
 //! is there. Callers: `menu::set_up_front_end` (the main menu's start), 0x4154CD,
-//! `menu::apply_screen_mode`. The registers above are the original's, for reference; a call by
-//! address goes through
-//! `routes.rs`.
+//! `menu::apply_screen_mode`.
 
 use crate::errors::Refused;
 use crate::gfx::build_glyphs::{SheetVars, build_glyphs};
@@ -16,8 +14,6 @@ use crate::gfx::glyph_tables::{begin_glyph_table, begin_glyph_tables, end_glyph_
 use crate::menu::owner::menus;
 
 // ---- game data ----
-
-// ---- Rust version ----
 
 /// The table's address goes to `sprite_table`.
 pub fn build_menu_sprites(

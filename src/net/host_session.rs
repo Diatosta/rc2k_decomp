@@ -35,8 +35,6 @@ pub fn open(flags: u32, name: &[u8]) -> u32 {
 pub fn posted_open_host() -> u32 {
     open(OPEN_CREATE, &net().vars.machine_name.read())
 }
-
-/// The Rust version.
 pub fn host_session(net: &Net) -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_ptr(texts::NET_HOST), false, 2);
     log_bytes(&net.vars.machine_name.read(), true, 2);

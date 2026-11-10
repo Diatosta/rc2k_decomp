@@ -14,7 +14,7 @@ use crate::framework::Flags;
 use crate::menu::owner::Menus;
 use crate::platform::{lock_surface, show_frame_now, unlock_surface};
 
-/// The Rust version (see the header): the flags it leaves (the registers are kept). The
+/// The flags it leaves (the registers are kept). The
 /// lock's carry is `cmp g_surfaceLocked, 1`'s (its zero clear then). On a frame not shown
 /// (quitting) the zero flag was what the call's way back left, nothing meaningful: clear
 /// here. On the way through, the show's eax is the 0 the scene's begin left: zero set.

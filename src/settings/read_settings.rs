@@ -442,8 +442,6 @@ fn table_bytes() -> Vec<u8> {
     out
 }
 
-// ---- Rust version ----
-
 /// `settings::apply_settings`: the settings a text names. Converted:
 /// `rc2k_core::files::settings::table` and
 /// `apply`; here the variables (the table's dwords are their addresses) are stored.

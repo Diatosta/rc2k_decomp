@@ -4,8 +4,6 @@
 //!
 //! Takes the script cursor, where to write.
 //! Caller `install::run_script` (three times).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::wb;

@@ -21,7 +21,7 @@ const DRAW_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.draw_list; 
 const SCENE_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.scene_list; // g_sceneList
 const OVERLAY_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.overlay_list; // g_overlayList
 
-/// The Rust version, `menu` being edi at entry: whether the frame was made.
+/// Whether the frame of `menu` was made.
 pub fn inspection_frame(
     menus: &Menus,
     menu: crate::menu::menus_store::MenuId,

@@ -27,8 +27,6 @@ use crate::text::measure_text::measure_text_at;
 
 const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE;
 
-// ---- Rust version ----
-
 pub fn edit_player_name(
     menus: &Menus,
     screens: &Screens,

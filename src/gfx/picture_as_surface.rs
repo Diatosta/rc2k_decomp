@@ -12,8 +12,6 @@
 //! rectangle is set to the block's rectangle (`set_clip`).
 //! Five callers, `menu::load_background` among them.
 //! The name is a reading.
-//! The registers above are the original's, for reference; a call by address goes through
-//! `routes.rs`.
 
 use crate::errors::{FatalError, Refused};
 use crate::gfx::set_clip::set_clip;
@@ -27,8 +25,6 @@ use crate::system::find_entry::entries;
 pub const SURFACE_DWORDS: usize = 12;
 const SIZE_COUNT: u32 = 8;
 const PIXEL_KIND_COUNT: u32 = 2;
-
-// ---- Rust version ----
 
 /// The surface block for a picture with these flags, from its third dword on (the corner
 /// is not touched).

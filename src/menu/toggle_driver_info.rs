@@ -12,8 +12,6 @@ fn field(player: &mut Player) -> &mut u32 {
     &mut player.driver_info
 }
 
-// ---- Rust version ----
-
 pub fn toggle_driver_info() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::player::stepped`.
     change(field, |value| {

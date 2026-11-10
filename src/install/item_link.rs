@@ -4,8 +4,6 @@
 //!
 //! Takes the item.
 //! Caller `install::item_enter`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::item_action_at;

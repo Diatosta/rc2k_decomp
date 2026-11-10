@@ -11,7 +11,7 @@ use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::screens::service_boxes::quad;
 
-/// The Rust version: every register kept. Parts: 1 the quads, 2 the rules, 3 the boxes.
+/// Parts: 1 the quads, 2 the rules, 3 the boxes.
 pub fn draw_two_column_panel(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     // Converted: `rc2k_core::screens::panels::two_column_panel`.

@@ -15,8 +15,6 @@ const LABEL_LEN: u32 = 0x10;
 const END: u32 = u32::MAX;
 const LABEL_LIMIT: u32 = 256;
 
-// ---- Rust version ----
-
 /// Whether a label among the first `LABEL_LIMIT` after the first has the end mark.
 fn has_end(dword: &impl Fn(u32) -> Result<u32, BadInput>) -> Result<bool, BadInput> {
     for n in 1..=LABEL_LIMIT {

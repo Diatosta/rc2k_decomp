@@ -7,8 +7,6 @@
 
 use crate::screens::setup_markers::{LOWER_RIGHT_CHOSEN, LOWER_RIGHT_INSTALLED, Marker, RIGHT_X};
 
-// ---- Rust version: `setup_markers::draw_marker` with this ----
-
 pub const MARKER: Marker = Marker::Lower {
     item: 0x13,
     x: RIGHT_X,

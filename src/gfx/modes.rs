@@ -1,6 +1,5 @@
-//! The screen mode tables (the pixel kinds' and thirds' bits, the pixel kinds, the sizes,
-//! the modes listed), out of RAL.EXE's image (phase 5; typed in phase 7,
-//! `notes/conversion.md`): IDA 0x4F4E30 .. 0x4F503C. The thirds table (`byte_4F4B30`) that
+//! The screen mode tables (the pixel kinds' and thirds' bits, the pixel kinds, the sizes, the modes
+//! listed), out of RAL.EXE's image: IDA 0x4F4E30 .. 0x4F503C. The thirds table (`byte_4F4B30`) that
 //! came before it in the image is `THIRDS`.
 //!
 //! The tables are walked by address (`system::find_entry`: the entry whose first dword is

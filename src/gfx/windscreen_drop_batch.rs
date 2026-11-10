@@ -1,5 +1,5 @@
 //! The marks' windscreen drop batch drawn by d3d (the index and vertex counts, the fans, the
-//! records), out of RAL.EXE's image (phase 5; typed in phase 7, `notes/conversion.md`): IDA
+//! records), out of RAL.EXE's image: IDA
 //! 0x62423C .. 0x628A44. `effects::shapes` makes the fans (indices) and the records' fixed
 //! parts once; `effects::windscreen_drops_top` / `windscreen_drops_frame` fill the records and ask
 //! `d3d::draw_marks_windscreen_drops` to draw.

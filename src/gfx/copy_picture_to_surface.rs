@@ -8,12 +8,10 @@
 //! are read after the lock, which sets them (0x405726).
 //! Callers: `menu::frame_callback`, `menu::draw_frame` and a dozen more.
 //! The lock and the unlock are the game's (`gfx::lock_surface` 0x4058AD,
-//! `gfx::unlock_surface` 0x405949, DirectDraw calls); the Rust version reaches them through
+//! `gfx::unlock_surface` 0x405949, DirectDraw calls); it reaches them through
 //! `PictureSurface`, which is where a build without the game puts its own surface.
 //! Refuses a row count of 0 (the original counts through all 32 bits) and null pointers. The
 //! name is a reading.
-//! The registers above are the original's, for reference; a call by address goes through
-//! `routes.rs`.
 
 use crate::errors::BadInput;
 use crate::gfx::owner::gfx;
@@ -23,8 +21,6 @@ use crate::gfx::picture::{has_picture, with_picture};
 
 // The surface's height (dword_4F49A4: rows), row_dwords (dword_4F49B4) and row_gap
 // (dword_4F49C4: surface bytes after a row's pixels) are `DRAW_SURFACE`'s.
-
-// ---- Rust version ----
 
 /// The surface the picture goes to, and the picture.
 pub trait PictureSurface {

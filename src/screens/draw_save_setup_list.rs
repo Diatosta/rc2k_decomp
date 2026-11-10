@@ -12,8 +12,6 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 pub fn draw_save_setup_list(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::slot_lists::setup_page`.
     let page: u32 = menus.tables.pages.setup_slot_page.get();

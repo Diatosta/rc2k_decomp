@@ -8,8 +8,6 @@
 
 use crate::errors::Refused;
 use crate::net::owner::net;
-
-/// The Rust version.
 pub fn free_messages() -> Result<(), Refused> {
     let vars = &net().vars;
     { crate::memory::free_list::free_list(&vars.memory) }?;

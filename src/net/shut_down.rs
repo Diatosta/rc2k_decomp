@@ -9,8 +9,6 @@
 use crate::errors::Refused;
 use crate::net::owner::net;
 use std::sync::atomic::Ordering;
-
-/// The Rust version.
 pub fn shut_down() -> Result<(), Refused> {
     let vars = &net().vars;
     crate::net::stop::stop(vars)?;

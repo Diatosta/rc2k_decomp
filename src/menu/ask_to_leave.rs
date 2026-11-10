@@ -3,8 +3,6 @@
 //!
 //! An item action in six menu tables (the review menus). The menus and draw lists run its `entry`
 //! (`menu::table_calls`).
-
-/// The Rust version.
 pub fn ask_to_leave() {
     // Converted: `rc2k_core::menu::leaving::Leaving::ask_to_leave`.
     crate::menu::leaving::with_leaving(rc2k_core::menu::leaving::Leaving::ask_to_leave);

@@ -15,11 +15,8 @@ use crate::menu::screen_loop::{
     screen_entry,
 };
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
-    // Between `pusha` and `popa`: no register changes.
     log_line(c"InfoScr: Start");
     crate::scene::polygon_work::front_end().window.view_offset[0].set(0xFFFFFF64u32);
     crate::scene::polygon_work::front_end().window.view_offset[1].set(0x27u32);
@@ -44,7 +41,6 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
 }
 
 fn after(_: &Entry) -> Result<(), Refused> {
-    // Between `pusha` and `popa`: no register changes.
     log_line(c"InfoScr: End");
     Ok(())
 }
@@ -111,8 +107,7 @@ pub const SCREEN: Screen = Screen {
     always_asks: false,
 };
 
-/// The Rust version where the typed tables run it (a refusal is the
-/// caller's).
+/// Runs the screen (a refusal is the caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
     screen_entry("menu::information_loop", &SCREEN)
 }

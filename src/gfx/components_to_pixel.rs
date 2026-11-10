@@ -15,8 +15,6 @@
 use crate::gfx::owner::gfx;
 use crate::gfx::pixel_format::PixelFormat;
 
-// ---- Rust version ----
-
 /// The pixel, and what is left in the scratch bytes if they are used (converted:
 /// `rc2k_core::gfx::pixels::pack`).
 pub use rc2k_core::gfx::pixels::pack as packed;

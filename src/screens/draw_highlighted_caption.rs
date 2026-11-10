@@ -29,8 +29,6 @@ const LISTS: [usize; 7] = [0, 6, 29, 36, 40, 44, 52];
 const CAPTION_LEN: usize = 0x100;
 const ITEMS: u32 = 32;
 
-// ---- Rust version ----
-
 pub fn draw_highlighted_caption(
     menus: &Menus,
     measured_at: u32,

@@ -2,8 +2,6 @@
 //!
 //! Returns new cursor.
 
-// ---- Rust version ----
-
 pub fn append_percent(value: u32) -> Vec<u8> {
     rc2k_core::strings::format::percent(value)
 }

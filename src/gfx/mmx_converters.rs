@@ -31,7 +31,7 @@ pub struct Converter {
     pub format: u32,
     pub constants: usize,
     // The original's next-row step differs for the 3DNow ones; its one call (one row) never
-    // takes it since phase 12.
+    // takes it now.
     #[allow(dead_code)]
     pub three_dnow: bool,
 }
@@ -45,9 +45,8 @@ fn masks(table: &Converters, c: &Converter) -> [u64; 5] {
     std::array::from_fn(|n| constant(table, c.constants + n))
 }
 
-/// The Rust version, in place on the picture's bytes: its one caller, `gfx::convert_picture`,
-/// gives esi = edi = the buffer, one row (edx 1) of `pixels` pixels (ecx), ebp 0, and reads
-/// nothing it leaves in the registers. Each step's 16 bytes are read before its 8 are
+/// Converts in place on the picture's bytes: its one caller, `gfx::convert_picture`,
+/// gives the buffer as source and target, one row of `pixels` pixels. Each step's 16 bytes are read before its 8 are
 /// written, behind them.
 pub fn convert_in_place(
     table: &Converters,

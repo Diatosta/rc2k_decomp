@@ -16,8 +16,6 @@ use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, screen_entry,
 };
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
     let screens = &entry.menus.screens;
     if screens.option_work.typing.get() == 0x1 {
@@ -110,8 +108,7 @@ pub const SCREEN: Screen = Screen {
     always_asks: false,
 };
 
-/// The Rust version where the typed tables run it (a refusal is the
-/// caller's).
+/// Runs the screen (a refusal is the caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
     screen_entry("menu::player1_details_loop", &SCREEN)
 }

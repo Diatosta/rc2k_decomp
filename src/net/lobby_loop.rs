@@ -107,7 +107,7 @@ fn step_item(install: &'static crate::install::owner::Install, vars: &NetVars, s
     }
 }
 
-/// The Rust version: 1 when the race is on, -1 (`u32::MAX`) when the lobby was left.
+/// 1 when the race is on, -1 (`u32::MAX`) when the lobby was left.
 pub fn lobby_loop(
     install: &'static crate::install::owner::Install,
     race: &Race,

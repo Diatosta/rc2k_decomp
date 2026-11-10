@@ -66,8 +66,6 @@ impl GameFontsMemory {
 // glyph table of `FONTS.game_fonts[0]`; the five font objects after it (IDA 0x51E2E4) are
 // `game_fonts[1 ..]`. The second palette's place is the palette of `game_fonts[3]`.
 
-// ---- Rust version ----
-
 fn fatal(code: u32) -> Refused {
     FatalError { code, message: "" }.into()
 }

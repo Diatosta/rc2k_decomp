@@ -16,8 +16,6 @@ use crate::errors::{BadInput, Refused};
 use crate::net::sort_players::{bubble_blocks, swap_blocks};
 use crate::net::store::NetVars;
 use rc2k_core::net::players;
-
-/// The Rust version.
 pub fn list_players(vars: &NetVars) -> Result<bool, Refused> {
     if vars.dplay.get() == 0 {
         return Ok(false);

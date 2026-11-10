@@ -42,8 +42,6 @@ use crate::text::draw_text::Canvas;
 
 const PAYLOAD_OFFSET: usize = 0x30; // 0x51EBE4
 
-// ---- Rust version ----
-
 /// Returns the carry flag of the last text drawn.
 pub fn draw_savegame_details(tables: &Tables, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let saves = saves();

@@ -11,8 +11,6 @@
 use crate::errors::Refused;
 use crate::net::store::NetVars;
 use crate::system::owner::system;
-
-/// The Rust version.
 pub fn stop(vars: &NetVars) -> Result<(), Refused> {
     vars.session.set(0);
     while vars.receiving.get() != 0 {

@@ -8,8 +8,6 @@
 
 use crate::gfx::owner::gfx;
 
-// ---- Rust version ----
-
 /// (left, top, right, bottom) for a rectangle of x, y, width, height. Converted:
 /// `rc2k_core::gfx::raster::clip_of`.
 pub use rc2k_core::gfx::raster::clip_of;

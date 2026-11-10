@@ -1,10 +1,9 @@
-//! The picture decoders' and glyph builder's variables (the builder's flags, the decoded
-//! picture's layout, the glyph pixel format, the decoded palette), out of RAL.EXE's image
-//! (phase 5; typed in phase 7, `notes/conversion.md`): IDA 0x519118 .. 0x519554. The PCX
-//! decoding's own variables (`PCX`), the sheet table's (`gfx::build_glyphs::SHEET`)
-//! and the glyph tables' (`TABLES`) follow in the image; the glyph
-//! builder reads and writes this block's too, so it is one block (they are one subsystem:
-//! the sheets of glyphs are PCX pictures).
+//! The picture decoders' and glyph builder's variables (the builder's flags, the decoded picture's
+//! layout, the glyph pixel format, the decoded palette), out of RAL.EXE's image: IDA 0x519118 ..
+//! 0x519554. The PCX decoding's own variables (`PCX`), the sheet table's
+//! (`gfx::build_glyphs::SHEET`) and the glyph tables' (`TABLES`) follow in the image; the glyph
+//! builder reads and writes this block's too, so it is one block (they are one subsystem: the
+//! sheets of glyphs are PCX pictures).
 
 use crate::session::Dword;
 

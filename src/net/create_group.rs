@@ -20,8 +20,6 @@ pub fn join(vars: &NetVars) -> bool {
         vars.player_id.get(),
     ) == 0
 }
-
-/// The Rust version (see the header).
 pub fn create_group() -> Result<bool, Refused> {
     let vars = &net().vars;
     let made = crate::net::dp_objects::create_group(vars.dplay.get(), &vars.group_name.read(), &[]);

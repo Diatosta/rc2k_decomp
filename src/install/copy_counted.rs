@@ -3,8 +3,6 @@
 //!
 //! Takes the source path, destination path.
 //! Callers `install::install_files`, `install::install_clio`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::copy_file;

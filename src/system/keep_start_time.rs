@@ -3,11 +3,11 @@
 //! `GetLocalTime` into the game's `SystemTime` (0x518988), and from it the weekday to
 //! `byte_51839F`, day, month and year (a word) to `dword_5183A0`, hour, minute, second and
 //! hundredths to `dword_5183A4`: what `logfile::date_text` and `math::seed_random` read. One
-//! caller, `start`, as its first call (directly since 2026-10-23).
+//! caller, `start`, as its first call.
 
 // ---- game data ----
 
-/// The nine bytes kept: out of the image since 2026-10-24 (phase 5; they were `byte_51839F`,
+/// The nine bytes kept: out of the image since 2026-10-24 (they were `byte_51839F`,
 /// `dword_5183A0`, `dword_5183A4`). Written once, by `start`'s first call.
 pub const KEPT_LEN: usize = 9;
 
@@ -16,8 +16,6 @@ pub fn start_time() -> [u8; KEPT_LEN] {
     let system = crate::system::owner::system();
     system.start.kept.read()
 }
-
-// ---- Rust version ----
 
 /// The nine bytes kept: weekday, day, month, year (two), hour, minute, second,
 /// hundredths.

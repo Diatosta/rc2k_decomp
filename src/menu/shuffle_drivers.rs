@@ -33,7 +33,7 @@ const TABLES: [(usize, &Dword); 4] = [
         &crate::menu::owner::MENUS.screens.state.menus.class_counts[0],
     ),
 ];
-/// The Rust version.
+
 pub fn shuffle_drivers(menus: &Menus) -> Result<(), Refused> {
     use crate::math::random_below::random_below;
     if TABLES.iter().any(|&(_, c)| c.get() == 0) {

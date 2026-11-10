@@ -8,7 +8,7 @@
 //! the log level is 3 or more, and gives the memory back. There must be 0x757 messages, or it is
 //! fatal error 0x80E18052; an error in the file is logged with its line and ends in fatal error
 //! 0x80E18051 (the original's error paths jump back to its own start with `dword_94EAB0` set, and
-//! it ends there). The Rust version leaves the work variables that are pointers into the given-back
+//! it ends there). It leaves the work variables that are pointers into the given-back
 //! memory 0 (the original leaves them dangling), and raises the fatal errors itself (`compiled`).
 //! Callers: `strings::load_language` (from `start` and the installer) and
 //! `strings::maybe_compile_lexicon`.
@@ -88,8 +88,6 @@ pub const EMPTY_MESSAGE_LEN: usize = 0x10;
 const PATTERN: &[u8] = b"files\\%locale\\*.txt";
 const FILE_ROOM: u32 = 0x40000;
 const MESSAGE_COUNT: u32 = 0x757;
-
-// ---- Rust version ----
 
 /// The original's fatal errors (`loc_4D815E`, `loc_4D812C`, `loc_4D8145`); the `\\n` is the
 /// reporter's, as in RAL.EXE.

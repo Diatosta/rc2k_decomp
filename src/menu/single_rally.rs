@@ -17,7 +17,6 @@
 use crate::errors::Refused;
 use crate::menu::flow_game::Game;
 
-/// The Rust version.
 pub fn single_rally(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::rounds::single_rally`.
     Game::new(menus).run(rc2k_core::menu::rounds::single_rally)

@@ -2,8 +2,8 @@
 //! `files::read` (0x402E3D), `files::write` (0x402E57), `files::seek` (0x402E75),
 //! `files::handle_size` (0x402EA9), `files::close` (0x402E23), and `files::file_time` /
 //! `files::set_file_time` (a file's time read and set, for `files::copy_file`). Each was a few
-//! instructions around one Win32 call; since phase 6 (2026-10-24) they go through
-//! `std::fs::File` on the game's handle (`with_file`). Since phase 11 a handle is a key in
+//! instructions around one Win32 call; here they go through
+//! `std::fs::File` on the game's handle (`with_file`). A handle is a key in
 //! a table of `File`s (no Win32 handle): `close` takes the file out (whether it was there).
 //! `read_file` and `write_file` have them written out inline; the buffered streams use these.
 

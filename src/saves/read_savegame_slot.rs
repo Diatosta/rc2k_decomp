@@ -17,8 +17,6 @@ use crate::menu::name_lists::NAME_LEN;
 use crate::saves::owner::saves;
 use crate::saves::write_savegame_slot::{FILE_LEN, SLOTS, slot_name};
 
-// ---- Rust version ----
-
 /// True if the slot's file was read and accepted.
 pub fn read_savegame_slot(slot: u32) -> Result<bool, Refused> {
     let saves = saves();

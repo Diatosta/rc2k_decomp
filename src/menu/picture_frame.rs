@@ -6,7 +6,7 @@
 
 use crate::errors::Refused;
 
-/// The Rust version: whether the frame was made (the original's carry clear): the surface
+/// Whether the frame was made (the original's carry clear): the surface
 /// locked (else no frame), the picture copied onto it, unlocked, shown.
 pub fn picture_frame() -> Result<bool, Refused> {
     if crate::platform::lock_surface() < 1 {

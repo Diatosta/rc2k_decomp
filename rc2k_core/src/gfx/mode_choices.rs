@@ -9,7 +9,7 @@
 
 /// The list's room (up to 0x4F51F0's constants).
 pub const ROOM: u32 = 16;
-/// A size's place the Rust version takes: the original reads 16 x the place past the list.
+/// A size's place taken: the original reads 16 x the place past the list.
 pub const PLACE_LIMIT: u32 = 0x1000;
 /// What every mode tried has.
 pub const TRIED: u32 = 0x30_0000;

@@ -11,8 +11,7 @@ use crate::net::lobby::PALETTE;
 use crate::net::store::NetVars;
 use rc2k_core::net::editing::{self, Setting};
 
-/// The Rust version. The registers the original leaves when an edit starts (eax the item,
-/// ebx the text, ecx the width, edx the font) are read by no caller (`settings_loop`).
+/// Starts a setting's edit (item, text, width and font as the original passes them).
 pub fn begin_setting_edit(
     install: &'static crate::install::owner::Install,
     vars: &NetVars,

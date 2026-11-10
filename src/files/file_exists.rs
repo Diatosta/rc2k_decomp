@@ -6,8 +6,6 @@
 
 use crate::errors::BadInput;
 
-// ---- Rust version ----
-
 /// `path` without its NUL.
 pub fn file_exists(path: &[u8]) -> Result<bool, BadInput> {
     Ok(rc2k_core::files::io::file_exists(

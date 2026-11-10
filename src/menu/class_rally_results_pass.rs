@@ -4,7 +4,7 @@
 //! count into `dword_75597C`) and its page shown (`menu::show_class_rally_results`), stopping when the
 //! leaving is answered yes (`g_yesNoAnswer` 1). `dword_755565` the class's flag.
 //!
-//! Callers: the event drivers. The steps are their Rust versions. Refuses a table
+//! Callers: the event drivers. Refuses a table
 //! without its end entry and a class count the loop would run past (at or below the first, or past
 //! 0x100), before anything; what the steps refuse.
 
@@ -22,7 +22,6 @@ fn first_class() -> u32 {
     class_pages::FIRST_RALLY_CLASS
 }
 
-/// The Rust version.
 pub fn class_rally_results_pass(menus: &Menus) -> Result<(), Refused> {
     crate::menu::sort_standings_by_total::sort_standings_by_total(menus)?;
     let first = first_class();

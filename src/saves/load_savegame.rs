@@ -52,9 +52,7 @@ fn highlighted_slot(menus: &Menus) -> u32 {
     )
 }
 
-// ---- Rust version ----
-
-/// The Rust version (see the header). The players' own records and names come back when
+/// The players' own records and names come back when
 /// the loaded championship is over or left (`menu::own_settings`; not the original's).
 pub fn load_savegame(menus: &Menus) -> Result<(), Refused> {
     crate::menu::own_settings::around_championship(menus, || load_and_run(menus))

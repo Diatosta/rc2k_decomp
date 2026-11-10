@@ -89,7 +89,6 @@ pub fn glyph_record(surface: &Surface, table: u32, glyph: u32) -> Result<Glyphs,
     })
 }
 
-// ---- Rust version ----
 // Converted: `rc2k_core::gfx::blit`. Here the record is read as raw game memory; the core's
 // offsets from the surface's start go to its target (`gfx::surface::Target`).
 

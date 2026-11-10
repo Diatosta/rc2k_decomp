@@ -12,8 +12,6 @@ fn field(player: &mut Player) -> &mut u32 {
     &mut player.map_area
 }
 
-// ---- Rust version ----
-
 pub fn toggle_map_area() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::player::stepped`.
     change(field, |value| {

@@ -15,7 +15,6 @@ use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 
-/// The Rust version. The original keeps every register of its caller.
 pub fn arcade_finale(
     menus: &Menus,
     play: &Play,

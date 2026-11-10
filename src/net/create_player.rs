@@ -14,8 +14,6 @@ use crate::errors::Refused;
 use crate::net::lobby::{log, log_bytes};
 use crate::net::owner::net;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
-
-/// The Rust version (see the header).
 pub fn create_player() -> Result<bool, Refused> {
     let vars = &net().vars;
     log(VIEWER_PANEL.text_ptr(texts::NET_CREATE_PLAYER), false, 2);

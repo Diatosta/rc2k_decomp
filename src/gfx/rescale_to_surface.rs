@@ -11,8 +11,6 @@
 //! Three call sites, all in `gfx::show_picture_file`, with the surface locked.
 //! Refuses a decoded picture or a surface without width or height, more rows than the row
 //! table holds, and missing pixels or format.
-//! The registers above are the original's, for reference; a call by address goes through
-//! `routes.rs`.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::components_to_pixel::components_to_pixel;
@@ -28,8 +26,6 @@ const BITS: usize = 0x10;
 const FORMAT: usize = 0x20;
 const PIXELS: usize = 0x28;
 const ROW_GAP: usize = 0x2C;
-
-// ---- Rust version ----
 
 /// `surface` is where the twelve dwords of a surface's description are.
 pub fn rescale_to_surface(

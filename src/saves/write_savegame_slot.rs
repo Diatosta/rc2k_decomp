@@ -63,8 +63,6 @@ pub fn slot_name(slot: u32) -> crate::place::Place {
     crate::place::Place::In(&saves().save_games.names, slot as usize * NAME_LEN)
 }
 
-// ---- Rust version ----
-
 /// True if the file was written.
 pub fn write_savegame_slot(menus: &Menus, slot: u32) -> Result<bool, Refused> {
     let saves = saves();

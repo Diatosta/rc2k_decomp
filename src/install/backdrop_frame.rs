@@ -4,8 +4,6 @@
 //! nothing more), the backdrop picture copied to it, unlocked and shown.
 //!
 //! Caller `screens::run_frame` (eax this address).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::{copy_picture, lock, show, unlock};

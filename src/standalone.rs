@@ -26,7 +26,7 @@ use rc2k_core::fatal::Context;
 use std::path::Path;
 use std::sync::atomic::Ordering;
 
-// ---- the hooks, and no execution of anything else ----
+// ---- calls by address that are done or answered by SDL ----
 
 /// The game's empty functions (a lone `retn`; from IDA, 2026-10-19; and 0x48558A, `pusha;
 /// popa; retn` in a draw list): a call to one is done.
@@ -172,7 +172,7 @@ pub fn leave_on_close() -> ! {
     finish("the game was closed", 0)
 }
 
-/// A function of the game's with no Rust version, reached from Rust (`from`): the program
+/// A function of the game's not ported, reached from Rust (`from`): the program
 /// ends, naming it (owner, 2026-10-23: nothing not ported passes unnoticed).
 pub fn not_ported(at: usize, from: &str) -> ! {
     finish(&format!("not ported: {at:#x}, called from {from}"), 1)
@@ -199,7 +199,7 @@ const SDL_DOES: [(usize, &str); 5] = [
 ];
 
 /// For calls by address of a function that needs nothing done here
-/// (`menu::table_calls`): SDL's and the lone `retn`s (conversion phase 3, 2026-10-23).
+/// (`menu::table_calls`): the ones SDL does and the lone `retn`s.
 /// `at` is the address as IDA shows it. (SDL's leave the carry clear, which a menu
 /// item's caller does not read.)
 pub fn answers(at: usize) -> bool {
@@ -225,13 +225,12 @@ pub(crate) fn report_fault(host: usize, data: usize, write: bool, sp: usize) -> 
 
 // ---- `start` (0x401000) ----
 
-/// `start`'s call of a function whose hook is gone (conversion phase 4): its Rust version
-/// runs; every one of them keeps the registers.
+/// Logs that `start` calls the Rust function `name`.
 fn rust(name: &str) {
     log(&format!("standalone: start calls {name}"));
 }
 
-/// A Rust version's refusal in `start`: a refused input ends the program, a fatal error is
+/// A refusal in `start`: a refused input ends the program, a fatal error is
 /// raised.
 fn refused(name: &str, e: Refused, r: &Context) {
     crate::fatal::raise::refused_in(name, e, r);
@@ -289,7 +288,7 @@ fn start() {
     crate::system::read_keyboard_type::read_keyboard_type(system);
     rust("system::read_windows_version");
     crate::system::read_windows_version::read_windows_version(system);
-    // `CoInitialize` (no COM is used on this thread since phase 11).
+    // `CoInitialize` (no COM is used on this thread).
     // `memory::open_own_heap` (0x40298A): the own heap was removed (2026-11-07).
     rust("system::set_error_mode");
     crate::system::set_error_mode::set_error_mode();
@@ -371,7 +370,7 @@ fn start() {
     {
         refused("install::read_record", e, &r);
     }
-    // `strings::load_language` (0x40331F): Rust, its hook gone (it keeps every register).
+    // `strings::load_language` (0x40331F).
     rust("strings::load_language");
     let compile = &mut || crate::strings::compile_lexicon::compile_lexicon();
     if let Err(e) = crate::strings::load_language::load_language(compile) {
@@ -472,7 +471,7 @@ fn start() {
     crate::fatal::show_report_at_exit::show_report_at_exit();
 }
 
-/// Maps the game's file, installs the hooks and goes through `start`. The current
+/// Starts the platform and goes through `start`. The current
 /// directory has to be the game's. Does not come back.
 /// `frames`, if not 0: the program ends itself after that many frames were shown.
 pub fn run(log_file: &Path, frames: u32) -> ! {
@@ -483,8 +482,8 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     let log_file = &std::path::absolute(log_file).unwrap_or_else(|_| log_file.to_path_buf());
     let _ = std::fs::File::create(log_file);
     let _ = LOG_PATH.set(log_file.to_path_buf());
-    // A panic in a hook's dispatch ends the program at once (it cannot unwind out of an
-    // `extern "C"` function): say where first.
+    // A panic ends the program at once (it cannot unwind out of an `extern "C"` function):
+    // say where first.
     std::panic::set_hook(Box::new(|info| {
         log(&format!("standalone: panic: {info}"));
     }));
@@ -495,7 +494,7 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
         start_watchdog();
         crate::ffi::win32::install_fault_reporter();
     }
-    // The audio thread runs (its Rust version), on DirectSound over SDL
+    // The audio thread runs on DirectSound over SDL
     // (`platform_sound`).
     // SAFETY: once, here, on the main thread.
     start();

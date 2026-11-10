@@ -9,7 +9,7 @@
 
 use crate::screens::owner::screens;
 
-/// The Rust version: control `control` learns from now.
+/// Control `control` learns from now.
 pub fn learn_binding(control: u32) {
     let screens = screens();
     // Converted: `rc2k_core::input::devices::Learning`.

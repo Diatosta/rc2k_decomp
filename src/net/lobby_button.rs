@@ -12,9 +12,8 @@ use crate::net::draw_button::draw_button;
 use crate::net::owner::Net;
 use rc2k_core::net::screens;
 
-/// The Rust version: the button `string` for item `item` at (`x`, `y`); returns the next
-/// button's x (the original's edi; its ebx, ecx and edx are read by no caller:
-/// `net::lobby_frame`).
+/// The button `string` for item `item` at (`x`, `y`); returns the next
+/// button's x.
 pub fn lobby_button(net: &Net, string: u32, item: u32, x: u32, y: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens` (`lobby_button_flags`, `next_button_x`).
     let flags = screens::lobby_button_flags(net.vars.own.state(), item, net.vars.after_race.get());

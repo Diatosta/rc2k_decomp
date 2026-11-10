@@ -31,8 +31,6 @@ use rc2k_core::menu::keys::Pressed;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 /// `eax` is the caller's eax, whose bits 8 .. 15 are read on Enter (the screen loops: the
 /// elapsed time).
 pub fn handle_keys(menus: &Menus, eax: u32) -> Result<Pressed, Refused> {

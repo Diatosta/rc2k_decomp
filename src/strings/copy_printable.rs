@@ -13,8 +13,6 @@ use crate::strings::same_text::case_table;
 /// 1 there). `input::joystick_found` sets it to 0 for a while.
 pub static KEEP_CASE: crate::session::Dword = crate::session::Dword::new(1);
 
-// ---- Rust version ----
-
 /// What is written for the text `text` (as far as the original reads: room - 1 characters
 /// or the NUL, or the slice's end), with its NUL.
 pub fn printable_from(text: &[u8], room: u32) -> Result<Vec<u8>, BadInput> {

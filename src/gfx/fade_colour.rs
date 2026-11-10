@@ -10,7 +10,7 @@
 /// `rc2k_core::gfx::pixels::fade_step`.
 use rc2k_core::gfx::pixels::fade_step as step;
 
-/// The Rust version (see the header): `colour` (ebx) toward `to` (ecx) by `amount` (ebp);
+/// `colour` (ebx) toward `to` (ecx) by `amount` (ebp);
 /// the colour (eax = ebx). Its one caller, `race::splash_mud`, reads nothing else it
 /// leaves (esi, edx).
 pub fn fade_colour(colour: u32, to: u32, amount: u32) -> u32 {

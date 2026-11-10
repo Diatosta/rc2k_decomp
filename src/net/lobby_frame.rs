@@ -39,7 +39,7 @@ fn time_text(time: u32, gaps: bool, first: u32) -> Vec<u8> {
     text
 }
 
-/// The Rust version (the original keeps every register). Called through
+/// Called through
 /// `screens::run_frame` by `net::lobby_loop`.
 pub fn lobby_frame() -> Result<(), Refused> {
     let net = net();

@@ -20,8 +20,6 @@ pub fn text_at() -> crate::pointers::GamePtr {
     crate::pointers::GamePtr::to(&strings().text.buffer.text)
 }
 
-// ---- Rust version ----
-
 /// The bytes the original leaves in the text buffer, including the NUL (converted:
 /// `rc2k_core::strings::table::text_from_ids`).
 pub fn text_from_ids(first_id: u32, count: u32) -> Result<Vec<u8>, BadInput> {

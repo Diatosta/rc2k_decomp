@@ -8,7 +8,7 @@
 use crate::errors::Refused;
 use crate::menu::drivers_store::Driver;
 
-/// The Rust version: the driver.
+/// The driver.
 pub fn find_cpu_team(team: u32) -> Result<&'static Driver, Refused> {
     crate::menu::standings::drivers()?
         .iter()

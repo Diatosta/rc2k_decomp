@@ -6,7 +6,7 @@
 
 use crate::menu::list_handle::ListMenu;
 
-/// The Rust version: carry.
+/// Carry.
 pub fn list_item_unusable(list: ListMenu) -> bool {
     // Converted: `rc2k_core::menu::list_menu::unusable`.
     rc2k_core::menu::list_menu::unusable(

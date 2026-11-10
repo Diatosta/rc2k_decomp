@@ -5,8 +5,6 @@
 //!
 //! `install::read_record` reads it back. Caller `install::install_files`. The write through
 //! `part` (`files::write_file`).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::media_mode;

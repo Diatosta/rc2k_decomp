@@ -12,9 +12,7 @@ use crate::menu::owner::Menus;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
-/// The Rust version: the highlighted item's action, with its value. (The original hands
+/// The highlighted item's action, with its value. (The original hands
 /// the action the screen loop's other registers too, which no action reads; what the
 /// action leaves is nobody's.)
 pub fn run_item_action(menus: &Menus, menu: MenuId) -> Result<(), crate::errors::Refused> {

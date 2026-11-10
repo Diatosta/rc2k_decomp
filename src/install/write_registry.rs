@@ -9,8 +9,6 @@
 //! `install::run_installer`). The registry calls through `api` (`installer::game_api` in the game:
 //! `windows-sys`
 //! `Win32_System_Registry`); the standalone makes them too .
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::fatal;

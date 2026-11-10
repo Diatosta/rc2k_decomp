@@ -8,9 +8,8 @@
 use crate::errors::Refused;
 use crate::net::owner::Net;
 
-/// The Rust version: the key `key` for the chat message being typed; once it ends the
-/// editing, a message typed is sent and the input cleared. The registers the original
-/// leaves (eax the player, ebx the input) are read by no caller (`lobby_loop`).
+/// The key `key` for the chat message being typed; once it ends the
+/// editing, a message typed is sent and the input cleared.
 pub fn chat_key(net: &Net, key: u8) -> Result<(), Refused> {
     let vars = &net.vars;
     if !crate::net::edit_key::edit_key(net, key)? {

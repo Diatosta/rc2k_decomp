@@ -16,7 +16,7 @@ use crate::session::Dword;
 const CLEARED: &Dword = &crate::menu::owner::MENUS.screens.event.current_player; // dword_75598C
 pub const ESCAPED: &Dword = &crate::menu::owner::MENUS.screens.draw_work.escaped; // dword_755A3C: the screen was left with Escape
 
-/// The Rust version. The car screen is handed the list of cars (the original's esi); the
+/// The car screen is handed the list of cars; the
 /// car it starts from its set-up finds itself (the current player's record,
 /// `menu::car_choice::find_player_car`).
 pub fn choose_car(vars: &NetVars) -> Result<(), Refused> {

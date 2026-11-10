@@ -1,6 +1,5 @@
-//! The screenshot writer's plane buffer, out of RAL.EXE's image (phase 5; typed in phase 7,
-//! `notes/conversion.md`): IDA 0x94F6F8 .. 0x9526F8. `byte_94F6F8`: the three planes of the
-//! row being written (3 * width bytes, up to 1920 wide).
+//! The screenshot writer's plane buffer, out of RAL.EXE's image: IDA 0x94F6F8 .. 0x9526F8.
+//! `byte_94F6F8`: the three planes of the row being written (3 * width bytes, up to 1920 wide).
 
 /// IDA's address of the block's first byte.
 pub const START: usize = 0x94F6F8;

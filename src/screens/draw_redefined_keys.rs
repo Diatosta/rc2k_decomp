@@ -21,8 +21,6 @@ use crate::text::draw_text::Canvas;
 // byte_A8BC54
 // up to byte_A8BD54
 
-// ---- Rust version ----
-
 /// Returns the carry.
 pub fn draw_redefined_keys(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let screens = &menus.screens;

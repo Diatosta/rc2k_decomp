@@ -1,6 +1,6 @@
 //! The game's font objects, their palettes and glyph tables (`gfx::build_fonts`,
-//! `gfx::build_game_fonts`, the screens that draw text), out of RAL.EXE's image (phase 5),
-//! typed (phase 7): the menus' four fonts and their palette and glyph-table pointers, the
+//! `gfx::build_game_fonts`, the screens that draw text), out of RAL.EXE's image,
+//! typed: the menus' four fonts and their palette and glyph-table pointers, the
 //! palette sheet, and the race's six fonts. A font is the 0x20-byte object `rc2k_core::text::Font`
 //! describes, held in a `Shared` cell. Placed in a file of its own beside the graphics
 //! module's stores (converted in parallel); its users keep naming the fonts by IDA address

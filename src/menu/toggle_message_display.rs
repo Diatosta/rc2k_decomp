@@ -12,8 +12,6 @@ fn field(player: &mut Player) -> &mut u32 {
     &mut player.message_display
 }
 
-// ---- Rust version ----
-
 pub fn toggle_message_display() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::player::stepped`.
     change(field, |value| {

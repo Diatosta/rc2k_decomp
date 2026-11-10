@@ -18,8 +18,6 @@ use crate::gfx::formats::Formats;
 // ---- game data ----
 
 const NUMBERS: usize = 6;
-// ---- Rust version ----
-
 /// Converted: `rc2k_core::gfx::pixels::describe`.
 pub use rc2k_core::gfx::pixels::describe;
 

@@ -22,7 +22,7 @@ use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
 use crate::menu::screen_loop::{Entry, run_screen};
 
-// ---- the Rust versions ----
+// ---- the functions ----
 
 /// `menu::show_intro`: the films (idle mode), then back.
 pub fn show_intro() -> Result<(), Refused> {

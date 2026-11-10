@@ -12,8 +12,6 @@ use crate::menu::owner::Menus;
 const END: u32 = u32::MAX;
 const LIST_LIMIT: usize = 256;
 
-// ---- Rust version ----
-
 /// Runs the functions of `list` in order. They are the typed tables' screen functions
 /// (`menu::table_calls::call_listed`), which take no register: the registers the original
 /// hands each (esi the place in the list, the rest as the one before left them) are

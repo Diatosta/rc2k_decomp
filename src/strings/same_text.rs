@@ -9,8 +9,6 @@ use rc2k_core::strings::bytes::Bytes;
 use rc2k_core::strings::case::CaseTable;
 use std::cmp::Ordering;
 
-// ---- Rust version ----
-
 /// The language's lower-case table: out of the image since 2026-10-24 (phase 5; it was
 /// `g_lowerCase`, 0x4F0BC8). Until `strings::load_language` sets it up it is the image's:
 /// every character itself, but A .. Z and 0xC0 .. 0xDE (not 0xD7) in lower case.

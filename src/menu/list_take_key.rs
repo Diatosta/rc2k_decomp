@@ -8,7 +8,7 @@
 //!
 //! Callers: `race::replay_viewer`.
 
-/// The Rust version: the key, 0 for none.
+/// The key, 0 for none.
 pub fn list_take_key() -> u8 {
     let key = crate::input::take_key::take_key();
     if key == 0 {

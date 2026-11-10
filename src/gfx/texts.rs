@@ -1,7 +1,7 @@
-//! The picture and font file names and the one message of the graphics code (phase 5,
-//! `notes/conversion.md`): the texts RAL.EXE's read-only data held, now Rust's. Nothing
-//! writes them; `build_glyphs` makes a numbered path of a template in a buffer of its own.
-//! `tests::texts_are_the_games` compares each to the image while it exists.
+//! The picture and font file names and the one message of the graphics code: the texts RAL.EXE's
+//! read-only data held, now Rust's. Nothing writes them; `build_glyphs` makes a numbered path of a
+//! template in a buffer of its own. `tests::texts_are_the_games` compares each to the image while
+//! it exists.
 
 /// IDA 0x732C93: the text files\g\graphics\sprites\mbuts00.pcx (a NUL ends it).
 pub static MBUTS: [u8; 37] = *b"files\\g\\graphics\\sprites\\mbuts00.pcx\0";

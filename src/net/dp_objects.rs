@@ -19,7 +19,7 @@
 //! - The lobby object: `CreateCompoundAddress` (the original never takes a lobby's launch:
 //!   `net::open_lobby`).
 //!
-//! The game calls the methods as the functions here (phase 11, 2026-10-26: before, through
+//! The game calls the methods as the functions here (the original went through
 //! COM method tables), on objects held as ids; the enumerations' callbacks are Rust
 //! functions. The methods the game does not call are not here. Since 2026-10-29 they take
 //! and give typed values (GUIDs, names, the session's `Desc`, byte buffers, results

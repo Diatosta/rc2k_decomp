@@ -7,8 +7,6 @@
 use crate::errors::BadInput;
 use crate::gfx::picture::{PICTURE_DWORDS, has_picture, with_picture};
 
-// ---- Rust version ----
-
 pub fn clear_picture() -> Result<(), BadInput> {
     if !has_picture() {
         return Err(BadInput("no picture buffer"));
@@ -18,4 +16,4 @@ pub fn clear_picture() -> Result<(), BadInput> {
 }
 
 // Written out: the buffer is nearly two megabytes, and what the function leaves is known
-// without running the original. The Rust version writes zeros.
+// without running the original. It writes zeros.

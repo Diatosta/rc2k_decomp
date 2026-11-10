@@ -41,7 +41,7 @@ pub fn class_entry(class: u32) -> Result<BestTime, BadInput> {
     })?
 }
 
-/// The Rust version: table A's.
+/// Table A's.
 pub fn find_class_time(class: u32, second: bool) -> Result<u32, BadInput> {
     let e = class_entry(class)?;
     Ok(if second {

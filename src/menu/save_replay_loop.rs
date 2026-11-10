@@ -15,8 +15,6 @@ use crate::menu::owner::Menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, Flow, FrameRoutine, List, Screen, Step};
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
     let menus = entry.menus;
     if menus.screens.option_work.typing.get() == 0x1 {

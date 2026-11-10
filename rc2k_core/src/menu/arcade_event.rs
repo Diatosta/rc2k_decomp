@@ -51,7 +51,7 @@ pub enum Var {
     Player0Entry,
 }
 
-/// The steps, by the place the hook crate calls them at.
+/// The steps, by the place they are called at.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum Step {

@@ -22,7 +22,7 @@ pub const fn rva(addr: usize) -> usize {
 
 #[cfg(test)]
 /// The address of the game's variable at `rva`: in the image, or for a variable that has
-/// left it (phase 5, `crate::moved`) its new home, so an address the code still names by its
+/// left it (`crate::moved`) its new home, so an address the code still names by its
 /// RVA reaches the variable wherever it lives (owner, 2026-10-24: the resolver).
 pub fn game_addr(rva: usize) -> u32 {
     match crate::moved::home_of_rva(rva) {
@@ -93,8 +93,7 @@ pub fn log(msg: &str) {
 }
 
 /// The carry and zero flags a function leaves, for Rust callers that still read them
-/// (conversion phase 3: a function whose callers hold registers returns these, and they
-/// go into the callers' registers with `apply`).
+/// (a function returns these for callers that read the carry or zero result).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Flags {
     pub carry: bool,

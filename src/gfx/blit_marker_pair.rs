@@ -18,8 +18,6 @@ pub fn sprite_table() -> u32 {
     menus().screens.loop_flags.sprite_table.get()
 }
 
-// ---- Rust version ----
-
 /// The two blitter calls the original makes for `record`.
 pub fn marker_calls(record: &Record) -> [BlitCall; 2] {
     let [(x0, y0), (x1, y1)] = record.markers();

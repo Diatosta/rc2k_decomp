@@ -132,13 +132,12 @@ impl Record {
         let mut bytes = self.holder_name(h);
         bytes[..name.len()].copy_from_slice(name);
         let first = h.name_at() as usize / 4;
-        for (k, w) in self.words[first..first + HOLDER_NAME_LEN / 4]
+        let (chunks, _) = bytes.as_chunks::<4>();
+        for (w, c) in self.words[first..first + HOLDER_NAME_LEN / 4]
             .iter()
-            .enumerate()
+            .zip(chunks)
         {
-            w.set(u32::from_le_bytes(
-                bytes[4 * k..4 * k + 4].try_into().unwrap(),
-            ));
+            w.set(u32::from_le_bytes(*c));
         }
     }
 

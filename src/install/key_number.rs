@@ -4,8 +4,6 @@
 //!
 //! Takes the key, item. Returns the key less 2, kind.
 //! Caller `install::page_key`, reading zero.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::key_up::item_key;

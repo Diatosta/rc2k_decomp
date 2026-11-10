@@ -7,14 +7,12 @@
 //! puts it when the processor has no MMX; with MMX 0x407276 stands there instead (not
 //! ported). So on a machine of today it is never called.
 //! Refuses a row or a row count of 0 (the original counts through all 32 bits). The name
-//! is a reading. Since phase 12 the Rust version works in place on the picture's bytes,
+//! is a reading. The Rust version works in place on the picture's bytes,
 //! its only call (from = to, one row, ebp 0).
 
 use crate::errors::BadInput;
 
 pub const COMPONENTS_TO_4444_ROWS: u32 = 0x40750D;
-
-// ---- Rust version ----
 
 /// In place on the picture's bytes (`gfx::convert_picture`'s call: one row of `pixels`, from
 /// and to the buffer's start; each pixel's two bytes written after its four are read).

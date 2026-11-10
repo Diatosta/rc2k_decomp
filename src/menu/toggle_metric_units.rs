@@ -12,8 +12,6 @@ fn field(player: &mut Player) -> &mut u32 {
     &mut player.metric_units
 }
 
-// ---- Rust version ----
-
 pub fn toggle_metric_units() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::player::stepped`.
     change(field, |value| {

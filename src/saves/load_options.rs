@@ -194,8 +194,6 @@ let menus = menus();
     ]
 }
 
-// ---- Rust version ----
-
 /// Where the function works: the game's own places, or a test's.
 pub struct Places<'a> {
     pub loaded: &'a crate::session::Dword,

@@ -9,8 +9,6 @@ use crate::race::viewer_screen_store::VIEWER_PANEL;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 pub fn tick_count() -> u32 {
     #[cfg(feature = "remote")]
     if let Some(held) = crate::remote::held_clock() {

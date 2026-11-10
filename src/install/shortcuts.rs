@@ -11,7 +11,7 @@
 //! - "View Readme": `<installed folder>readme.txt` (named in the case the folder holds it);
 //! - the removal deletes the three and the group's folder (the original's `DeleteGroup`).
 //!
-//! On Unix (phase 11) the items are desktop entries in the user's applications folder
+//! On Unix the items are desktop entries in the user's applications folder
 //! (`~/.local/share/applications`, as Wine makes them from Start menu items).
 //!
 //! And the program installed: `rc2k.exe` and its DLLs copied from the running program's

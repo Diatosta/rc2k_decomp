@@ -17,7 +17,6 @@ pub const START_A8_SPLIT: Starter = Starter {
     },
 };
 
-/// The Rust version.
 pub fn start_a8_split(menus: &Menus) -> Result<(), Refused> {
     start_event(menus, &START_A8_SPLIT)
 }

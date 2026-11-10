@@ -13,7 +13,6 @@ use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 
-/// The Rust version.
 pub fn arcade_level_end(menus: &Menus, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let race = crate::race::owner::race();
     let play = &menus.play;

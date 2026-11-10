@@ -13,8 +13,6 @@
 //!
 //! Takes the script.
 //! Callers `install::install_files`, `uninstall`, `install_clio`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{fatal, media_mode, rb, wb};

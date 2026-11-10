@@ -1,7 +1,6 @@
 //! The lobby's chat and settings (converted 2026-10-21 from `net::clear_chat` 0x419411
 //! and `net::setting_key` 0x416C76): eight lines of text ended by line feeds in 0x300
-//! bytes. (`net::add_chat_line` keeps its register-exact Rust version: its calls see the
-//! registers its cutting and scrolling leave.)
+//! bytes.
 
 /// The chat with eight empty lines.
 pub const EMPTY: [u8; 8] = *b"\n\n\n\n\n\n\n\0";

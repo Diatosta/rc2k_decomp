@@ -13,8 +13,6 @@ use crate::errors::{BadInput, FatalError, Refused};
 
 const BUFFER_LEN: usize = 0x100; // up to the path buffer at 0x94E9B0
 
-// ---- Rust version ----
-
 /// What the buffer holds afterwards, from its start to the last byte written. `template`
 /// excludes the NUL.
 pub fn numbered_path(template: &[u8], number: u32) -> Result<Vec<u8>, Refused> {

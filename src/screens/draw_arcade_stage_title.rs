@@ -8,10 +8,8 @@
 use crate::errors::Refused;
 use crate::text::draw_text::Canvas;
 
-// ---- Rust version ----
-
 pub fn draw_arcade_stage_title(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::notes::ARCADE_STAGE_TITLE`; the registers are kept (`pusha`).
+    // Converted: `rc2k_core::screens::notes::ARCADE_STAGE_TITLE`.
     crate::screens::game_screen::draw_note(canvas, &rc2k_core::screens::notes::ARCADE_STAGE_TITLE)?;
     Ok(())
 }

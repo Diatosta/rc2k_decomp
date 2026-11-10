@@ -9,8 +9,6 @@ use crate::errors::Refused;
 use crate::net::{send_extra, send_inputs, send_position};
 use crate::race::owner::Race;
 use rc2k_core::net::race::SENT;
-
-/// The Rust version.
 pub fn send_turn(race: &Race) -> Result<(), Refused> {
     let sends: [fn() -> Result<(), Refused>; 3] = [
         send_inputs::send_inputs,

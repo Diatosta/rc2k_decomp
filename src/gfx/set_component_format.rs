@@ -2,7 +2,7 @@
 //! component pixels.
 //!
 //! The format at `unk_4F3FAC` gets the masks 0xFF, 0xFF00, 0xFF0000 and 0xFF000000 and
-//! is described by `gfx::describe_format`. One caller, `start`, which calls it directly (2026-10-23).
+//! is described by `gfx::describe_format`. One caller, `start`, which calls it directly.
 
 use crate::errors::Refused;
 use crate::gfx::describe_format::describe_format;
@@ -12,8 +12,6 @@ use crate::gfx::formats::Formats;
 
 /// Converted: `rc2k_core::gfx::pixels::COMPONENT_MASKS`.
 const MASKS: [u32; 4] = rc2k_core::gfx::pixels::COMPONENT_MASKS;
-
-// ---- Rust version ----
 
 pub fn set_component_format(formats: &Formats) -> Result<(), Refused> {
     let format = &formats.component_format;

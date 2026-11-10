@@ -1,4 +1,4 @@
-//! The fonts, out of RAL.EXE's image (phase 5; typed in phase 7, `notes/conversion.md`):
+//! The fonts, out of RAL.EXE's image:
 //! IDA 0x51E3A4 .. 0x51EB84, 63 font objects of 0x20 bytes (`rc2k_core::text::Font`). Their
 //! palettes (+0x14) and glyph tables (+0x18) are hung on by `gfx::build_fonts`; the
 //! drawing functions take a font by its place (`FontId::addr`). The game's own fonts (the
@@ -301,8 +301,7 @@ impl FontRef {
 }
 
 /// A font a table of the game's keeps (a menu item's): the object by number, where the
-/// original kept its address (phase 13, handles: `moved::point_into_homes` passes these
-/// places over).
+/// original kept its address.
 #[repr(transparent)]
 #[derive(rc2k_derive::Cells)]
 pub struct FontCell(crate::session::Dword);

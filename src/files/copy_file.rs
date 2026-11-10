@@ -18,7 +18,7 @@ use crate::system::owner::system;
 
 const CHUNK: u32 = 0x1_0000;
 
-/// The Rust version: whether it was all done.
+/// Whether it was all done.
 /// The paths without their NULs.
 pub fn copy_file(from: &[u8], to: &[u8]) -> Result<bool, BadInput> {
     let system = system();

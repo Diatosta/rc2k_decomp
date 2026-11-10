@@ -5,8 +5,6 @@
 //!
 //! Takes the state, list.
 //! A page action. Caller `install::run_page`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::menu::list_handle::ListMenu;
 use rc2k_core::install::pages;

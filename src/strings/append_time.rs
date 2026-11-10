@@ -14,8 +14,6 @@ pub fn show_hours() -> bool {
     SHOW_HOURS.get() == 1
 }
 
-// ---- Rust version ----
-
 pub fn append_time(hundredths: u32, show_hours: bool) -> Vec<u8> {
     rc2k_core::strings::format::time(hundredths, show_hours)
 }

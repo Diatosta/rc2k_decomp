@@ -23,8 +23,6 @@ pub fn status(id: u32) -> Result<(), Refused> {
     crate::system::sleep::sleep(1000);
     Ok(())
 }
-
-/// The Rust version.
 pub fn connecting(net: &Net, connection: u32) -> Result<bool, Refused> {
     status(0x14F)?;
     crate::net::init_connection::init_connection(net, connection)

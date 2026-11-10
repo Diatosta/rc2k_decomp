@@ -25,8 +25,6 @@ fn slot_name(slot: u32) -> crate::place::Place {
     crate::place::Place::In(&race().shared.replays.names, slot as usize * NAME_LEN)
 }
 
-// ---- Rust version ----
-
 pub fn draw_replay_slot_names(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::slot_lists::names`.
     let page = REPLAY_PAGE_RVA.get();

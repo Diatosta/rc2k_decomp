@@ -12,8 +12,6 @@ use crate::saves::owner::Saves;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 pub fn free_best_times(best_times: &BestTimes) -> Result<(), BadInput> {
     free_list(best_times.list())?;
     crate::saves::best_times::give_back_all();

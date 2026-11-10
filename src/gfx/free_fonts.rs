@@ -9,8 +9,6 @@
 use crate::errors::BadInput;
 use crate::memory::free_list::free_list;
 
-// ---- Rust version ----
-
 pub fn free_fonts(
     list: &dyn crate::pointers::Store,
     palettes: &crate::session::Dword,

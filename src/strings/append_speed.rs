@@ -12,8 +12,6 @@
 use crate::errors::BadInput;
 use crate::strings::units::{figure_bytes, setting};
 
-// ---- Rust version ----
-
 /// `units` is the game's unit setting (0 = imperial). Refuses what `miles_to_km` refuses, and
 /// a setting past 1. Converted: `rc2k_core::math::units::speed`.
 pub fn append_speed(tenths: u32, with_label: bool, units: u32) -> Result<Vec<u8>, BadInput> {

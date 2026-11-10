@@ -15,8 +15,6 @@
 //! `menu::apply_screen_mode`, `race::viewer_load_stage`, `install::run_installer`, 0x443104.
 //! A refusal from one of the steps leaves the work half done; none can come with the
 //! game's own files.
-//! The registers above are the original's, for reference; a call by address goes through
-//! `routes.rs`.
 
 use crate::errors::{FatalError, Refused};
 use crate::gfx::build_glyphs::SheetVars;
@@ -211,8 +209,6 @@ const HUNG: [(usize, Field, Source, u32); 125] = [
     (62, Palette, P, 0x0),
     (62, GlyphTable, F21, 0x0),
 ];
-
-// ---- Rust version ----
 
 /// The part with the calls; `palettes` is where the palettes' place is kept. (The
 /// original's fatal error 0x80E48023 for a failed allocation cannot come: the allocator

@@ -11,8 +11,6 @@ fn field(player: &mut Player) -> &mut u32 {
     &mut player.controller_sensitivity
 }
 
-// ---- Rust version ----
-
 pub fn lower_sensitivity() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::player::stepped`.
     change(field, |value| {

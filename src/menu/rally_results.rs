@@ -5,7 +5,7 @@
 //! page (`menu::show_overall_rally_results`); in it: table A from all and the class pages
 //! (`menu::class_rally_results_pass`).
 //!
-//! The steps are their Rust versions. Refuses what the steps refuse. The
+//! Refuses what the steps refuse. The
 //! menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
@@ -13,7 +13,6 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::Which;
 use crate::menu::standings_steps::{clear_standings, number_all};
 
-/// The Rust version.
 pub fn rally_results(menus: &Menus) -> Result<(), Refused> {
     menus.screens.state.menus.which_title.set(1u32);
     crate::menu::standings_a_from_all::standings_a_from_all(menus)?;

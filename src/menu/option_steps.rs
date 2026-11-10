@@ -13,10 +13,9 @@
 //! - `menu::next_colour_a` .. `previous_colour_b` (0x471AE4, 0x471B16, 0x471B48, 0x471B7A):
 //!   `dword_7554C0` (or `dword_7554C4`) cycled through 0 .. 6 and the entry of
 //!   `dword_758A66` (or `dword_758A46`) it picks into `unk_758A2E` (or `unk_758A32`).
-//!   Every register kept.
 //! - `menu::apply_audio_choices` (0x470766): the advanced audio page's six work values
 //!   (quality, channels, Dolby, A3D, EAX, DS3D) into `g_audioOptions`' choices,
-//!   `audio::choose_modes`, and the six as applied back. Every register kept.
+//!   `audio::choose_modes`, and the six as applied back.
 //!
 //! The names of the texture and colour steps are readings of their variables.
 
@@ -48,8 +47,7 @@ pub const MUSIC_LEVEL_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_wo
 pub const SPEECH_LEVEL_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.speech_level; // dword_755698
 pub const SOUNDS_A_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.sounds_a; // dword_75569C
 pub const SOUNDS_B_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.sounds_b; // dword_7556A0
-/// The Rust version of a volume step. What it leaves in registers is read by none of its
-/// callers (the item call sites have nothing live after the call).
+/// One volume step.
 pub fn volume_step(screens: &Screens, v: Volume) {
     let audio = crate::audio::owner::audio();
     // Converted: `rc2k_core::menu::steps::volume`.

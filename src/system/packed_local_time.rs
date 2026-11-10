@@ -6,8 +6,6 @@
 //! it). The save files carry this stamp.
 //!
 
-// ---- Rust version ----
-
 pub fn pack(t: &rc2k_core::system::time::LocalTime) -> u32 {
     // Converted: `rc2k_core::system::time::pack`.
     rc2k_core::system::time::pack(t.year, t.month, t.day, t.hour, t.minute)

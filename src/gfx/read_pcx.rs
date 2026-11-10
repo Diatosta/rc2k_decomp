@@ -12,8 +12,6 @@ use crate::gfx::pcx::read_header;
 use crate::gfx::read_pcx_8bit::read_pcx_8bit;
 use crate::gfx::read_pcx_24bit::read_pcx_24bit;
 
-// ---- Rust version ----
-
 /// Returns whether the picture was decoded.
 pub fn read_pcx(path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<bool, BadInput> {
     if !read_header(path, gfx)? {

@@ -12,8 +12,6 @@
 //! (0 bad path, 3 no room / not a CD) or show an error/cancel message.
 //!
 //! A list action (`off_51DD18`). Caller `install::run_page`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::{

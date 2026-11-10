@@ -14,8 +14,6 @@ pub const POSITION: Message = Message {
     text: c"send p", // "send p"
     kind: rc2k_core::net::race::Kind::Position,
 };
-
-/// The Rust version.
 pub fn send_position() -> Result<(), Refused> {
     let net = net();
     // Converted: `rc2k_core::net::race::Kind::pack` (in `send_fields`).

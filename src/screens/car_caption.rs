@@ -16,8 +16,6 @@ use crate::strings::append_string_by_id::append_string_by_id;
 // dword_755990
 const CAPTION_LEN: usize = 0x100;
 
-// ---- Rust version ----
-
 /// A string and its NUL into a text buffer of the game's, if it fits.
 pub fn put_string(
     id: u32,

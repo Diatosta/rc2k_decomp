@@ -135,7 +135,6 @@ pub fn score(menus: &Menus, n: usize) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust versions as the harness runs them.
 pub fn rank_stage_times(menus: &Menus) -> Result<(), Refused> {
     rank(menus, false)
 }

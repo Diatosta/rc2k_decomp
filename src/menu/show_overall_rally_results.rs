@@ -3,7 +3,7 @@
 //! `menu::first_page_stage`, `menu::stage_range_caption`; then the page
 //! (`menu::overall_rally_results_loop`).
 //!
-//! The steps are their Rust versions. Refuses what the
+//! Refuses what the
 //! steps refuse, before anything; raises the search's fatal error as the original.
 
 use crate::errors::Refused;
@@ -14,8 +14,6 @@ use rc2k_core::menu::results_pages::{Page, held_figure};
 
 // dword_7558F4
 // g_eventMode
-
-/// The Rust version.
 pub fn show_overall_rally_results(menus: &Menus) -> Result<(), Refused> {
     let play = &menus.play;
     let found = crate::menu::first_player_a::first_player_a(ANY_GROUP)?;

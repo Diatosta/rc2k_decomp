@@ -14,8 +14,6 @@ use crate::screens::car_caption::put_string;
 const TITLE_LEN: usize = 0x100;
 const PAGES: u32 = 4;
 
-// ---- Rust version ----
-
 pub fn car_page_title(menus: &Menus) -> Result<(), Refused> {
     let page: u32 = menus.screens.event.car_page.get();
     if page >= PAGES {

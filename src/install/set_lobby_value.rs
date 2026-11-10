@@ -5,15 +5,13 @@
 //! Takes the value's name and the data (NUL-terminated). Returns `RegSetValueExA`'s result.
 //! Caller `install::register_lobby` (five times). The call through `api`
 //! (`installer::game_api`: `RegSetValueExA`).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::read_registry::Registry;
 
 const REG_SZ: u32 = 1;
 
-/// The Rust version: the text `data` (its NUL added) as the value `name` of the lobby's key.
+/// The text `data` (its NUL added) as the value `name` of the lobby's key.
 pub fn set_lobby_value(
     install: &'static crate::install::owner::Install,
     name: &[u8],

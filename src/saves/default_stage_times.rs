@@ -17,8 +17,6 @@ use rc2k_core::saves::defaults::stage_times;
 
 const TABLES: usize = 6;
 
-// ---- Rust version ----
-
 pub fn default_stage_times(ebp: u32, log: Log) -> Result<(), Refused> {
     let screens = &crate::menu::owner::menus().screens;
     // Converted: `rc2k_core::saves::defaults::stage_times`.

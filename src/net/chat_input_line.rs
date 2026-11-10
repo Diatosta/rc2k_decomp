@@ -12,7 +12,7 @@ use crate::text::draw_text::GameCanvas;
 
 pub const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NAME;
 
-/// The Rust version: the chat's input `text` (up to its NUL) for item `item` at `y` (x 0xA),
+/// The chat's input `text` (up to its NUL) for item `item` at `y` (x 0xA),
 /// with the caret while it is the item being edited (built in the game's text buffer);
 /// returns the next y (y + 0x1E, the original's ebp).
 pub fn chat_input_line(vars: &NetVars, text: &[u8], item: u32, y: u32) -> Result<u32, Refused> {

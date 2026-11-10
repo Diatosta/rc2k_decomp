@@ -1,5 +1,5 @@
-//! The "jade" font's glyph table and colour (`gfx::load_jade`), out of RAL.EXE's image (phase 5),
-//! typed (phase 7). Placed in a file of its own beside the graphics module's stores (converted in
+//! The "jade" font's glyph table and colour (`gfx::load_jade`), out of RAL.EXE's image,
+//! typed. Placed in a file of its own beside the graphics module's stores (converted in
 //! parallel). `#[repr(C)]` struct with the image's layout, first values the image's (`tests`);
 //! `moved::MOVED` points the image's addresses at it: the fonts' glyph-table pointers name it.
 

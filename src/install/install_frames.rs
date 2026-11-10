@@ -18,8 +18,6 @@
 //! there faulted, 2026-10-20). Callers: `screens::run_frame` from `install_files` (0x41318D, 0x413248, 0x413255).
 //! Refuses (before anything) no files to copy, and a bar width past 32 bits (the original's
 //! `div` faults).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
@@ -39,7 +37,7 @@ fn bar_width(install: &'static crate::install::owner::Install) -> Result<u32, Re
         .map_err(|_| BadInput("a bar width past 32 bits: the original's div faults").into())
 }
 
-/// `install::progress_frame`'s Rust version: its carry (the last lock's or show's).
+/// The progress frame: its carry (the last lock's or show's).
 pub fn progress_frame(install: &'static crate::install::owner::Install) -> Result<bool, Refused> {
     let strings = strings();
     let drawing = &gfx().drawing;
@@ -90,7 +88,7 @@ pub fn progress_frame(install: &'static crate::install::owner::Install) -> Resul
     Ok(carry)
 }
 
-/// `install::copying_frame`'s Rust version: its carry (the last lock's or show's).
+/// The copying frame: its carry (the last lock's or show's).
 pub fn copying_frame(install: &'static crate::install::owner::Install) -> Result<bool, Refused> {
     let mut carry = false;
     for _ in 0..2 {

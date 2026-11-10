@@ -9,7 +9,7 @@ use crate::menu::owner::Screens;
 use crate::menu::standings::*;
 use crate::race::owner::race;
 
-/// The Rust version: `byte` the original's eax (its low byte sealed);
+/// `byte` the original's eax (its low byte sealed);
 /// the sealed block's two dwords (its eax, ebx) out.
 pub fn sealed_player_time(screens: &Screens, byte: u32) -> Result<[u32; 2], Refused> {
     let n: u32 = screens.event.current_player.get();

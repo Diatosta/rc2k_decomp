@@ -17,13 +17,9 @@ use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, quitting, screen_entry,
 };
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 fn before(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
-    // The player's twelve bytes at +0x1C copied to `dword_755595` (`rep movsb` between
-    // `pusha` and `popa`; eax pushed and popped around the player's address: no carried
-    // value changes).
+    // The player's twelve bytes at +0x1C copied to `dword_755595`.
     {
         let keys = menus.play.players.players[2].get().keys;
         for (n, key) in keys.into_iter().enumerate() {
@@ -126,8 +122,7 @@ pub const SCREEN: Screen = Screen {
     always_asks: false,
 };
 
-/// The Rust version where the typed tables run it (a refusal is the
-/// caller's).
+/// Runs the screen (a refusal is the caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
     screen_entry("menu::redefine_keys_player3_loop", &SCREEN)
 }

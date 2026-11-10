@@ -5,7 +5,7 @@
 //! overall page (`menu::show_championship_standings`); in it: sorted by figure twice and
 //! by points (`_by_points`), the class pages (`menu::class_championship_pass`).
 //!
-//! The steps are their Rust versions. Refuses what the steps refuse. The
+//! Refuses what the steps refuse. The
 //! menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
@@ -13,7 +13,6 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::Which;
 use crate::menu::standings_steps::number_all;
 
-/// The Rust version.
 pub fn championship_standings(menus: &Menus) -> Result<(), Refused> {
     use crate::menu::{sort_standings_b_by_figure as fig, sort_standings_b_by_points as pts};
     // Converted: `rc2k_core::menu::results_pages` (`class_pages_only`, `standings_sorts`).

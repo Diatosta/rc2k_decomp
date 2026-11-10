@@ -17,8 +17,6 @@ use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, carousel, prepare_scene,
 };
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     screens.loop_flags.ended_a.set(0x0u32);

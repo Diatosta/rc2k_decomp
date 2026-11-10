@@ -13,8 +13,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::formats::Formats;
 
-// ---- Rust version ----
-
 /// The surface as the function reads it.
 #[derive(Clone, Copy, Debug)]
 pub struct Target {
@@ -36,7 +34,7 @@ pub fn game_target(gfx: &crate::gfx::owner::Gfx) -> Result<Target, BadInput> {
 
 /// What the original gets in its registers: ebx the piece's rectangle (x, y, width,
 /// height), ecx, edx where it goes on the surface, esi the picture's pixels (a picture
-/// buffer's number since phase 12, `gfx::picture`), eax the picture's row bytes.
+/// buffer's number now, `gfx::picture`), eax the picture's row bytes.
 #[derive(Clone, Copy, Debug)]
 pub struct Piece {
     pub rectangle: crate::pointers::GamePtr,

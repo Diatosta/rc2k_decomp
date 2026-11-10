@@ -6,7 +6,7 @@
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
 
-/// The Rust version: the cheat cars' list (`off_75A412`) when the cheat is on.
+/// The cheat cars' list (`off_75A412`) when the cheat is on.
 pub fn cheat_car_list(menus: &Menus) -> Option<CarList> {
     // Converted: `rc2k_core::menu::car_lists::cheat_cars`.
     let on = rc2k_core::menu::car_lists::cheat_cars(menus.play.cheats.cheats.get());

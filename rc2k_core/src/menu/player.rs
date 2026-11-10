@@ -56,7 +56,7 @@ pub struct Player {
     /// The device's strength, 0 .. 100 in tens (`menu::raise_player_48`,
     /// `lower_player_48`; shown for a device that has it).
     pub strength: u32,
-    /// Record +0x4C: the word between `strength` and the bindings; no page, hook or race
+    /// Record +0x4C: the word between `strength` and the bindings; no page or race
     /// copy reads it (the device set-up reads the car's copy of it as a gap).
     pub unused_4c: u32,
     /// The controller's bindings (`ControlsBlock`), which the controller pages copy out

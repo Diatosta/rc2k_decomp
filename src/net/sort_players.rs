@@ -54,7 +54,6 @@ pub fn bubble_blocks(
     refused.take().map_or(Ok(()), Err)
 }
 
-/// The Rust version (the original keeps every register).
 pub fn sort_players(vars: &NetVars) -> Result<(), Refused> {
     let players = vars.players.get();
     if players > players::MOST {

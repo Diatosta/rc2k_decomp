@@ -14,8 +14,6 @@ use crate::net::lobby_loop::{all_states, sync};
 use crate::net::owner::Net;
 use crate::net::store::PlayerRecord;
 use rc2k_core::net::players;
-
-/// The Rust version.
 pub fn race_wait(net: &Net) -> Result<u32, Refused> {
     let vars = &net.vars;
     // Converted: `rc2k_core::net::players` (`waiting`, `all_in_state` in `all_states`).

@@ -6,8 +6,6 @@
 
 use crate::screens::setup_markers::{LOWER_RIGHT_INSTALLED, Marker, RIGHT_X};
 
-// ---- Rust version: `setup_markers::draw_marker` with this ----
-
 pub const MARKER: Marker = Marker::Always {
     x: RIGHT_X,
     percent: LOWER_RIGHT_INSTALLED,

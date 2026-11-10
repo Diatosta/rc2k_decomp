@@ -10,8 +10,6 @@ use crate::pointers::GamePtr;
 use crate::settings::TEXT_ROOM;
 use crate::system::owner::system;
 
-// ---- Rust version ----
-
 /// The text (NUL-terminated) and its length, or None if the file was not read.
 /// Refuses what `read_file` refuses.
 pub fn read_text(path: &[u8]) -> Result<Option<(GamePtr, u32)>, BadInput> {

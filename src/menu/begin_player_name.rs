@@ -11,8 +11,6 @@ use crate::menu::owner::Menus;
 use crate::menu::player_name::{kept, name_place};
 use crate::menu::text_entry::{Text, field, put_field, with_entry};
 
-// ---- Rust version ----
-
 pub fn begin_player_name(menus: &Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::text_entry::Entry::begin_player_name`.
     let with_4 = { menus.screens.flow.enter_skips_name_entry.get() } == 1;

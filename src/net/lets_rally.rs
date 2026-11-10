@@ -22,7 +22,7 @@ use crate::race::owner::Race;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use rc2k_core::net::record;
 
-/// The Rust version: true when the original ends with the carry set (no player but the
+/// True when the original ends with the carry set (no player but the
 /// host, Escape, or the car not finished: the link ends).
 pub fn lets_rally(race: &Race, net: &Net) -> Result<bool, Refused> {
     let sound = crate::sound::owner::sound();

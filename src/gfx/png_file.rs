@@ -1,6 +1,5 @@
-//! The PNG decoder's file, out of RAL.EXE's image (phase 5; typed in phase 7,
-//! `notes/conversion.md`): IDA 0x5BEC30 .. 0x5BEC48. `read_png` reads the file into memory
-//! it takes from the list kept here, and gives the list back on every way out.
+//! The PNG decoder's file, out of RAL.EXE's image: IDA 0x5BEC30 .. 0x5BEC48. `read_png` reads the
+//! file into memory it takes from the list kept here, and gives the list back on every way out.
 
 use crate::memory::MemoryList;
 use crate::session::Dword;
@@ -15,7 +14,7 @@ pub const LEN: usize = 0x5BEC48 - START;
 #[derive(rc2k_derive::Cells)]
 pub struct PngFile {
     /// `dword_5BEC30`: the file's memory (the game's address; unused since the file's
-    /// bytes are Rust's, phase 12).
+    /// bytes are Rust's).
     pub file: Dword,
     /// `dword_5BEC34`: the file's length.
     pub length: Dword,

@@ -58,8 +58,6 @@ impl Films {
     }
 }
 
-// ---- Rust version ----
-
 /// The game for `rc2k_core::menu::films`: the settings, the steps their Rust versions.
 /// A step that refuses ends the films: its error is kept (`failed`), every step after it
 /// does nothing and answers "a key was pressed", and `play_films` returns the error.
@@ -166,8 +164,7 @@ impl films::Films for Game {
     }
 }
 
-/// The Rust version (`idle`: from the main menu when it has stood idle, else the game's
-/// start). The original keeps every register of its caller.
+/// `idle`: from the main menu when it has stood idle, else the game's start.
 pub fn play_films(idle: bool) -> Result<(), Refused> {
     log(&format!(
         "menu::play_films: the Rust version runs (mode {})",

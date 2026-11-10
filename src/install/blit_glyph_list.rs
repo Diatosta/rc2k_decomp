@@ -6,8 +6,6 @@
 //! Caller the copy-progress frame (the install bar). Refuses a count of 0
 //! (the original's loop is a do-while: it
 //! would blit 2^32 records).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::{rd, rl};

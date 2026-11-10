@@ -1,4 +1,4 @@
-//! The system's own facts on Unix (phase 11, the native Linux build): the questions
+//! The system's own facts on Unix (the native Linux build): the questions
 //! `windows.rs` answers on Windows, answered from `/proc`, the environment and libc.
 //! Where Unix has no such thing (a drive's serial, a keyboard's subtype, an error mode, a
 //! priority class) the answer is the one a plain Windows machine gives, or none.

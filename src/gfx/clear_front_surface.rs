@@ -15,7 +15,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
 
-/// The Rust version (see the header): in the standalone the lock fails, so only the
+/// In the standalone the lock fails, so only the
 /// checks are made.
 pub fn clear_front_surface() -> Result<(), Refused> {
     let system = crate::system::owner::system();

@@ -40,8 +40,6 @@ fn write_out(path: &[u8]) -> Result<(), BadInput> {
     }
 }
 
-// ---- Rust version ----
-
 /// Ok(None) = the path is used as it is. `path` excludes the NUL; the result includes one.
 /// A result that does not fit the 0x100-byte buffer is refused: the original writes past it.
 pub fn resolve_path(

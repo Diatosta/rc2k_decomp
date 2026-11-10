@@ -13,8 +13,6 @@ pub const EXTRA: Message = Message {
     text: c"send x", // "send x"
     kind: rc2k_core::net::race::Kind::Extra,
 };
-
-/// The Rust version.
 pub fn send_extra() -> Result<(), Refused> {
     let net = net();
     // Converted: `rc2k_core::net::race::Kind::pack` (in `send_fields`).

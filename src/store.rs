@@ -1,12 +1,10 @@
-//! Phase 5: a region of RAL.EXE's variables kept in one block of Rust-owned memory with the
-//! image's layout (`effects::store` was the first; this is the same pattern for the audio,
-//! sound and input modules).
+//! A region of RAL.EXE's variables kept in one block of Rust-owned memory with the image's
+//! layout (`effects::store` was the first; the audio, sound and input modules follow the
+//! same pattern).
 //!
 //! A block (`block!`) is a byte array whose first values are the image's bytes (generated
-//! runs of the non-zero ones); its variables are typed overlays (phase 7) or named by IDA
-//! address through `moved::place`. The functions here take a typed cell or, as the
-//! framework's, an RVA of the image. (The checked `Slot` places went once the last user was
-//! typed, 2026-10-25.)
+//! runs of the non-zero ones); its variables are typed overlays or named by IDA address
+//! through `moved::place`. The functions here take a typed cell or an RVA of the image.
 //!
 //! The block keeps gaps and unreferenced bytes, so a slip that reads past a variable reads
 //! what the original read. 16-byte alignment holds relative to IDA's address (the block
@@ -39,7 +37,7 @@ impl Where for usize {
     }
 }
 
-/// A typed cell (phase 7) is its own place: the helpers that take a variable by `Where`
+/// A typed cell is its own place: the helpers that take a variable by `Where`
 /// or `Ida` (`session.rs`) take the typed field as well, so a module's call sites move to fields one
 /// by one.
 macro_rules! typed_places {

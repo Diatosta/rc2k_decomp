@@ -3,8 +3,7 @@
 //! `file_size` 0x402ED4 and the buffered streams: `open_stream` 0x402CDD, `close_stream`
 //! 0x402CFA, `read_stream_byte` 0x402D16, `write_stream_byte` 0x402D53, `read_stream_block`
 //! 0x402DA3, `write_stream_block` 0x402DC9). The file system is the platform's
-//! (`Files`): the game's own primitives in the hooked game, the same Win32 calls in the
-//! standalone.
+//! (`Files`).
 
 use crate::Invalid;
 

@@ -18,7 +18,6 @@ pub const START_CHAMPIONSHIP_ONE: Starter = Starter {
     },
 };
 
-/// The Rust version.
 pub fn start_championship_one(menus: &Menus) -> Result<(), Refused> {
     start_event(menus, &START_CHAMPIONSHIP_ONE)
 }

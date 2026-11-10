@@ -12,7 +12,6 @@ use crate::menu::owner::Menus;
 use crate::screens::players_results::{WITHOUT_POINTS, draw_players_results};
 use crate::text::draw_text::Canvas;
 
-/// The Rust version (see the header).
 pub fn draw(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     draw_players_results(menus, &WITHOUT_POINTS, canvas)
 }

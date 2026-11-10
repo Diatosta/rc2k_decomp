@@ -3,8 +3,6 @@
 //!
 //! Takes the state.
 //! Caller `install::run_page`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 /// `state` which call of the list action this is (0 the start, negative the end).
 pub fn finish_page(install: &'static crate::install::owner::Install, state: u32) {

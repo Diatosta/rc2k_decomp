@@ -6,8 +6,6 @@
 
 use crate::menu::owner::Tables;
 
-// ---- Rust version ----
-
 pub fn flip_yes_no(tables: &Tables) -> u32 {
     // Converted: `rc2k_core::menu::steps::flip`.
     let answer = rc2k_core::menu::steps::flip(tables.pages.yes_no_answer.get());

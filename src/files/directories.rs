@@ -9,7 +9,7 @@
 //!
 //! The paths are used as they are (not through `files::resolve_path`).
 
-// Phase 6 (2026-10-24): `std::fs` / `std::env` in place of the Win32 calls (`SetCurrentDirectoryA`,
+// `std::fs` / `std::env` stand in for the Win32 calls (`SetCurrentDirectoryA`,
 // `CreateDirectoryA`, `RemoveDirectoryA`, `DeleteFileA`): the same cases fail (a folder
 // already there, one not empty, a read-only file), the answer 1 or 0 as the BOOL was.
 

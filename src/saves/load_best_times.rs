@@ -34,8 +34,6 @@ const HEAD_LEN: u32 = 0x10;
 /// The tables of `allocate_best_times` the file holds, in the file's order.
 const READ: [usize; 6] = [1, 2, 3, 4, 7, 8];
 
-// ---- Rust version ----
-
 /// Reads exactly `count` bytes into `to`, or closes the file and says false.
 fn read_or_close(file: u32, to: &dyn crate::pointers::Store, count: u32) -> Result<bool, BadInput> {
     let (got, ok) = crate::files::handle::read_into_store(file, to, count)?;

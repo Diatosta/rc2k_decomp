@@ -12,8 +12,6 @@ use crate::input::owner::input;
 use crate::menu::owner::Menus;
 use crate::menu::player_names::cars;
 
-// ---- Rust version ----
-
 pub fn drop_missing_controllers(menus: &Menus) -> Result<(), BadInput> {
     let play = &menus.play;
     // Converted: `rc2k_core::menu::steps::kept_controller`.

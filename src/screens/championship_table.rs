@@ -42,7 +42,7 @@ pub fn find_history_entry(
 /// and flag's sprites; the player's own (+4 above 0) in the highlight fonts; each text from
 /// the last one's y, rows 0x19 apart from y 0xF0. The sprites' palettes ebx as the original
 /// leaves it. (It also looks the section's first record up and never uses it: left out.)
-/// Every register kept. Refuses (before anything) no history table; a position not in it is
+/// Refuses (before anything) no history table; a position not in it is
 /// the original's fatal error.
 pub fn draw_championship_table(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let walked = crate::menu::standings::walked_entries_b()?;

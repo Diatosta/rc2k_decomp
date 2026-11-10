@@ -9,7 +9,6 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 use crate::session::write_prefix;
 
-/// The Rust version.
 pub fn inspection_faults(menus: &Menus) -> Result<(), Refused> {
     let n: u32 = menus.screens.event.current_player.get();
     if n >= 4 {

@@ -5,30 +5,30 @@
 //! Once, on entry: the screen's `before` steps.
 //!
 //! Set-up (again after every action that does not leave the screen): the `set_up_first`
-//! steps; `dword_758806` = 0; the highlight comes back from the screen's own variable; the
+//! steps; `screen_left` = 0; the highlight comes back from the screen's own variable; the
 //! `prepare` steps; the menu and the function lists are put in place (a list marked `run`
-//! is run once, here); `dword_7556A4` = 0x6F and `dword_755561` = 0; the `background` steps;
+//! is run once, here); `option_work.menu_sound` = 0x6F and `loop_flags.back` = 0; the `background` steps;
 //! one frame is drawn (`menu::draw_frame`, `menu::update_blink`, then `screens::run_frame`
 //! with the screen's frame callback, before which the lists are put in place again: the
-//! `first_frame_lists` if the screen has any), with the time noted in `dword_5189A0`; the
+//! `first_frame_lists` if the screen has any), with the time noted in `clocks.setup_time`; the
 //! `after_first_frame` steps.
 //!
 //! Every frame: `menu::update_blink`; leave if the game is quitting; `screens::run_frame`;
-//! `dword_613830` = milliseconds since set-up; then `menu::handle_keys`:
+//! the milliseconds since set-up noted; then `menu::handle_keys`:
 //!   1  next frame
 //!   2  (Escape) leave
 //!   3  (Enter) the highlighted item's action runs (`menu::run_item_action`, with the
 //!      highlight saved to the screen's variable before and taken back from it after).
-//!      Then: leave if `dword_755569` or `dword_755980` is 1, or if `dword_755561` is 1
-//!      (which is cleared); else next frame if `dword_755A38` is 2; else leave if
-//!      `dword_75555D` is 1 (clearing `dword_755561`); else set up again.
+//!      Then: leave if `loop_flags.ended_a` or `event.event_done` is 1, or if `loop_flags.back` is 1
+//!      (which is cleared); else next frame if `draw_work.action_value` is 2; else leave if
+//!      `loop_flags.went_back` is 1 (clearing `loop_flags.back`); else set up again.
 //!   else leave
-//! The same action check is made at the top of a frame whose `dword_7556A4` is 0x14D.
+//! The same action check is made at the top of a frame whose `option_work.menu_sound` is 0x14D.
 //! Three things a screen may have besides (`escape_leaves`, `each_frame`,
 //! `short_action_check`) are described at those fields of `Screen`.
 //!
 //! Leaving: nothing more happens if the screen's `leave_at_once` variable is 1. On a screen
-//! that asks (`confirm`), if `dword_758806` is 1,
+//! that asks (`confirm`), if `screen_left` is 1,
 //! `menu::confirm_leaving` puts the question; unless the answer (`g_yesNoAnswer`) is 1, the
 //! `on_refusal` steps run and the screen is set up again; after a "yes" the `confirmed`
 //! steps run. Otherwise the highlight is saved and the `after` steps run. Two variants: the
@@ -36,10 +36,10 @@
 //! `unasked_skips_save`, a screen left without the question only runs its `after` steps.
 //! More of the same kind are at their fields of `Screen`: `before_asking`, `ask_unless`,
 //! `leaving`, `leave_saved_item`, `keys_menu`, `after_restored` and `result` (two loops
-//! return a value in eax).
+//! return a value).
 //!
-//! Wherever the highlight is saved or taken back, `dword_755A3C` and `dword_755561` are
-//! cleared if `dword_7558D8` and `dword_755A3C` are both 1.
+//! Wherever the highlight is saved or taken back, `draw_work.escaped` and `loop_flags.back` are
+//! cleared if `dword_7558D8` and `draw_work.escaped` are both 1.
 //!
 //! What the loop calls is called directly: its own functions (`Callee` below, what the
 //! steps name), the frame callbacks, `handle_keys` and the item's action
@@ -210,7 +210,7 @@ pub struct Screen {
     pub keys_menu: Option<fn(&Menus) -> MenuId>,
     /// What runs last of all, with the carried values back as they were at entry.
     pub after_restored: &'static [Step],
-    /// What the loop returns (in eax), where it returns something: read from the game's
+    /// What the loop returns, where it returns something: read from the game's
     /// variables as the loop leaves them.
     pub result: Option<fn(&Menus) -> u32>,
     /// `dword_758806` is cleared and the highlight put in place (with the Escape check) after
@@ -299,7 +299,7 @@ pub enum Callee {
     TakeKey,
     /// 0x471391 and 0x4713DD (nullsub_83, nullsub_84: a lone `retn`)
     NoOp,
-    /// 0x47EFFF, with the picture's path (the original's eax).
+    /// 0x47EFFF, with the picture's path.
     LoadBackground(Text),
     /// 0x46F7FD
     PrepareScene,
@@ -321,7 +321,7 @@ pub enum Callee {
     StepCarStream,
     /// 0x469AA1
     PlayCarStream,
-    /// 0x40939F, with the axis (the original's eax).
+    /// 0x40939F, with the axis.
     AxisMoved(u32),
     /// 0x48340B
     RankStageTimes,
@@ -363,7 +363,7 @@ pub enum Callee {
     LoadSlideshowPicture,
     /// 0x468482
     LoadCarBackground,
-    /// 0x411863, with the picture's path (the original's eax).
+    /// 0x411863, with the picture's path.
     LoadPicture(Text),
     /// 0x406126
     ConvertPicture,
@@ -409,7 +409,6 @@ impl Callee {
                 &mut crate::sound::start_stream::start_stream,
                 sound,
             )?,
-            // What it leaves (eax, the carry) is read by none of the screens.
             Self::AxisMoved(axis) => {
                 crate::input::axes::axis_moved(axis, input)?;
             }
@@ -455,7 +454,6 @@ impl Callee {
             }
             Self::ConvertPicture => return Ok(crate::gfx::convert_picture::convert_picture_now()?),
             Self::SetUpFrontEnd => crate::menu::set_up_front_end::set_up_front_end(menus, sound)?,
-            // What it leaves in eax, ebx, ecx and edx is read by none of the screens.
             Self::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
             Self::SetUpFrontEndScene => {
                 crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
@@ -464,8 +462,6 @@ impl Callee {
         Ok(false)
     }
 }
-
-// ---- Rust version ----
 
 /// Where the loop goes next.
 #[derive(Clone, Copy)]

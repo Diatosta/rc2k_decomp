@@ -7,8 +7,6 @@
 //! white in the surface's format (0x407629: `gfx::components_to_pixel` of 0xFFFFFF).
 //! One caller, `system::main_loop`.
 //! Refuses what `read_file` refuses.
-//! The registers above are the original's, for reference; a call by address goes through
-//! `routes.rs`.
 
 use crate::errors::{FatalError, Refused};
 use crate::files::read_file::read_file_to_store;
@@ -18,8 +16,6 @@ use crate::gfx::pixel_format::surface_format;
 // ---- game data ----
 
 const ROOM: u32 = rc2k_core::gfx::screenshot::JADE_ROOM;
-
-// ---- Rust version ----
 
 pub fn load_jade(path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     let fonts = &gfx.fonts;

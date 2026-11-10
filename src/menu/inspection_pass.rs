@@ -8,7 +8,7 @@
 //! sleep. When every player has failed (`dword_755978` the player count), `dword_75592C`
 //! 0 (the event is over).
 //!
-//! Callers: the event drivers. The figures, verdict and faults are their Rust versions. Refuses a
+//! Callers: the event drivers. Refuses a
 //! player count of 0 or past 4, a player missing, a taking-part player's car without its table,
 //! before anything.
 
@@ -17,7 +17,6 @@ use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
-/// The Rust version.
 pub fn inspection_pass(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     // Converted: `rc2k_core::menu::passes` (who is looked at, the pauses, `goes_on`).

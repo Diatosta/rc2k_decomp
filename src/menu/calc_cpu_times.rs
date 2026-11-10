@@ -10,8 +10,7 @@
 //! gets that plus the class's time plus the gaps so far into its +0xC and added to its
 //! +0x10; the gap added for each driver of the class.
 //!
-//! The steps are their Rust versions (the random numbers
-//! `math::random_below`'s). Fatal error 0x80701010 as the original's checks (a hundredfold of 0, a
+//! The random numbers are `math::random_below`'s. Fatal error 0x80701010 as the original's checks (a hundredfold of 0, a
 //! half time of 0: the original tests the dividend), before anything; refuses a record past the
 //! table, a class count of 0 or past 0x100, a class's driver count of 0 (the original's `div`
 //! traps), a drivers table without its end, before anything.
@@ -46,6 +45,7 @@ fn class_count_at(screens: &Screens, c: u32) -> Result<u32, BadInput> {
         "a class driver count",
     )
 }
+
 const DIVIDE_BY_ZERO: FatalError = FatalError {
     code: 0x80701010,
     message: "",
@@ -63,7 +63,7 @@ pub fn record(screens: &Screens) -> Result<RecordRef, BadInput> {
     crate::records::find_record::find_record_in(table, index as i32, section)
 }
 
-/// What the Rust version refuses for the record `rec` (or its fatal error), before
+/// What is refused for the record `rec` (or its fatal error), before
 /// anything: the class count, the drivers and the pack entry's length.
 pub fn check(screens: &Screens, rec: RecordRef) -> Result<(u32, &'_ [Driver], u32), Refused> {
     let classes: u32 = screens.event.classes.get();
@@ -101,7 +101,6 @@ pub fn check(screens: &Screens, rec: RecordRef) -> Result<(u32, &'_ [Driver], u3
     Ok((classes, drivers, length))
 }
 
-/// The Rust version.
 pub fn calc_cpu_times(screens: &Screens) -> Result<(), Refused> {
     let race = crate::race::owner::race();
     let rec = record(screens)?;

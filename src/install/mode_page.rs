@@ -4,8 +4,6 @@
 //!
 //! Takes the state, list.
 //! Caller `install::run_page`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::install::installer::{media_mode, set_media_mode};
 

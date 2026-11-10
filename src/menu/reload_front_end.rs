@@ -7,7 +7,6 @@
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
 
-/// The Rust version.
 pub fn reload_front_end(menus: &Menus) -> Result<(), Refused> {
     if { menus.play.arcade.scene_let_go.get() } == 1 {
         crate::scene::set_up_engine::set_up_engine()?;

@@ -5,8 +5,6 @@
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 pub fn set_priority_class(class: u32) {
     let system = crate::system::owner::system();
     if system.session.flags.keep_priority.get() == 0 {

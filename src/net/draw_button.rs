@@ -50,8 +50,6 @@ pub fn item_font(
         plain
     }
 }
-
-/// The Rust version.
 pub fn draw_button(
     net: &Net,
     string: u32,

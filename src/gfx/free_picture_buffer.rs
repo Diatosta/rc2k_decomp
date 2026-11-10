@@ -3,13 +3,10 @@
 //! (`memory::free_list`; the buffer, Rust's, given back). The other half of
 //! `gfx::allocate_picture_buffer`.
 //!
-//! One caller, `start`'s way out, which calls it directly (2026-10-23). Refuses (before
-//! anything) what `free_list` refuses: a list holding a block. The
-//! registers above are the original's, for reference.
+//! One caller, `start`'s way out, which calls it directly. Refuses (before
+//! anything) what `free_list` refuses: a list holding a block.
 
 use crate::errors::BadInput;
-
-/// The Rust version (see the header).
 pub fn free_picture_buffer(gfx: &crate::gfx::owner::Gfx) -> Result<(), BadInput> {
     let pictures = &gfx.pictures;
     if pictures.picture.list.get().head != 0 {

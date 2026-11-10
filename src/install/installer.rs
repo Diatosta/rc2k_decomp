@@ -10,10 +10,10 @@
 //! from +0x18 (+0 kind and marks, +1 the next list or the choices, +2 the text, +8 and +0xC
 //! the kind's pointers). `install::run_pages` goes from list to list by the answer.
 //!
-//! Conversion phase 3 (2026-10-23): the parts call each other and the game's other
-//! functions directly with typed arguments; the functions the tables hold (by address in
-//! RAL.EXE's data) are run by `page_action`, `key_action`, `item_action_at`, `text_action`
-//! and `draw_action`, each knowing the functions the game's tables put in that place.
+//! The parts call each other and the game's other functions directly with typed arguments; the
+//! functions the tables hold (by address in RAL.EXE's data) are run by `page_action`, `key_action`,
+//! `item_action_at`, `text_action` and `draw_action`, each knowing the functions the game's tables
+//! put in that place.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::list_handle::ListMenu;

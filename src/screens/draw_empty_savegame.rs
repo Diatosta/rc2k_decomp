@@ -9,8 +9,6 @@
 use crate::errors::Refused;
 use crate::text::draw_text::Canvas;
 
-// ---- Rust version ----
-
 /// Returns the carry flag of the last text drawn.
 pub fn draw_empty_savegame(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // Converted: `rc2k_core::screens::savegame_preview::empty`.

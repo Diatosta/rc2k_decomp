@@ -55,8 +55,6 @@ pub fn posted_or_called(net: &Net, code: fn() -> u32) -> u32 {
         code()
     }
 }
-
-/// The Rust version.
 pub fn find_sessions(net: &Net) -> Result<bool, Refused> {
     let vars = &net.vars;
     log(VIEWER_PANEL.text_ptr(texts::NET_FIND_SESSIONS), true, 2);

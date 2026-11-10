@@ -18,7 +18,7 @@ pub const BUILT_LEN: usize = 0x40;
 /// The line, from pieces of the two: two characters of the second from its eleventh on,
 /// "2000", fourteen of it from its twelfth on, " and", 0x26 of the first from its twelfth
 /// on, a space and a NUL (`first` and `second` the bytes read). The game's lines make "(c) 2000 Actualize Ltd and Magnetic Fields
-/// (Software Design) Ltd, " (the hook's header).
+/// (Software Design) Ltd, ".
 pub fn notice(first: &[u8; FIRST_READ], second: &[u8; SECOND_READ]) -> [u8; BUILT_LEN] {
     let mut built = [0; BUILT_LEN];
     let pieces: [&[u8]; 6] = [&second[..2], b"2000", &second[1..], b" and", first, b" \0"];

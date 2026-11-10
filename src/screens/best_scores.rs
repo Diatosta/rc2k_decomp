@@ -98,7 +98,7 @@ pub type ScoresScreen<'a> = GameScreen<
 /// 0x21C), its rank (x 0xC8, the rank font), the car's sprite 0x1C + car (x 0xD2) and the
 /// flag's 0x44 + flag (24 and 25 swapped, x 0x1CC) on the rank's line; each text starting at
 /// the last one's y (`draw_text` leaves it), the next row 0x19 below; the sprites' palette
-/// the line buffer past its NUL (ebx after the rank's `draw_text`). Every register kept.
+/// the line buffer past its NUL (ebx after the rank's `draw_text`).
 /// Refuses (before anything) no table.
 pub fn draw_scores(tables: &Tables, t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::best_scores::scores`.
@@ -200,7 +200,7 @@ pub fn draw_best_scores_page(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(
 }
 
 /// `screens::best_scores_caption` (0x46D128): the caption (`g_captionText`) string
-/// `dword_75A2A6[page]` and its NUL. Every register kept.
+/// `dword_75A2A6[page]` and its NUL.
 pub fn best_scores_caption(menus: &Menus) -> Result<(), Refused> {
     let tables = &menus.tables;
     // Converted: `rc2k_core::screens::captions::fit` (through `car_caption::put_string`); refused
@@ -219,7 +219,7 @@ pub fn best_scores_caption(menus: &Menus) -> Result<(), Refused> {
 }
 
 /// `screens::replay_range_caption` (0x470501): the caption "n-m", n = `dword_755248` x 20,
-/// m = n + 19 (`strings::append_u32`, `append_minus`). Every register kept.
+/// m = n + 19 (`strings::append_u32`, `append_minus`).
 pub fn replay_range_caption(menus: &Menus) -> Result<(), BadInput> {
     // Converted: `rc2k_core::screens::best_scores::range_caption`.
     let mut bytes =
@@ -288,7 +288,7 @@ pub const RALLY_STAGE_TIMES: StageTimes = StageTimes {
 /// `screens::draw_stage_times_heading` (0x48D295) / `screens::draw_rally_times_heading`
 /// (0x48AAF6): the stage's name (string +0x38 of the records) at (0x2EB, 0x77) and its stage
 /// line (string 0x482 ..., built in the line buffer) at (0x2EB, 0x91), in the font at
-/// 0x51E9A4. Every register kept. Refuses (before anything) no stage records.
+/// 0x51E9A4. Refuses (before anything) no stage records.
 pub fn draw_times_heading(
     menus: &Menus,
     p: &StageTimes,
@@ -319,7 +319,7 @@ fn stage_line_without_nul(id: u32, record: RecordRef) -> Result<Vec<u8>, Refused
 /// heading, then up to ten times of the stage's group (+0x3C, its stage in the table): name
 /// (x 0xF0), time (`strings::append_time`, drawn in fixed columns ending at x 0x276), rank (x
 /// 0xC8), the car's and flag's sprites; the player's own in the highlight fonts; rows 0x19
-/// apart from the last text's y. Every register kept. Refuses (before anything) no stage
+/// apart from the last text's y. Refuses (before anything) no stage
 /// records or no times table.
 pub fn draw_stage_times(
     menus: &Menus,
@@ -414,7 +414,7 @@ pub fn section_there() -> Result<bool, crate::errors::BadInput> {
 /// `screens::draw_record_heading` (0x4A247D): the section's heading at (0x2EB, 0x77) in the
 /// font at 0x51E9A4 (in event mode 0x13 `dword_75A28A[section]`, else the section's first
 /// record's +0x38 string), then record `index`'s stage line (string 0x481 ...) in the line
-/// buffer at (0x2EB, 0x91). Every register kept. Refuses (before anything) a section the
+/// buffer at (0x2EB, 0x91). Refuses (before anything) a section the
 /// table has not.
 pub fn draw_record_heading(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::best_scores::heading`.
@@ -443,7 +443,7 @@ pub fn draw_record_heading(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(),
 /// +0x3C of `g_stageBestTimes`, the rows' y kept in `dword_7559B0`), and, when the list ran its
 /// ten rows, the fastest line (string 0x1A2 at (0x142, 0x1FB), the car's sprite +0x74, the
 /// name +0x54, the flag's sprite +0x78, the speed +0x30 with its unit; a list that ended early
-/// leaves it out: `notes/bugs.md`). Every register kept. Refuses (before anything) a section
+/// leaves it out: `notes/bugs.md`). Refuses (before anything) a section
 /// the table has not, no times table, and what `strings::append_speed` refuses.
 pub fn draw_record_times(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let times = &crate::saves::best_times::STAGE_TIMES;
@@ -496,7 +496,7 @@ pub const OVERALL_BEST_SCORES: Table = Table {
 /// (`g_eventMode`) the section's name (`dword_75A28A[section]`), else string `other` (the
 /// first: 0x35E + `dword_7558F4`, kept in `dword_7559EC`; the second 0x362); then the scores
 /// as `draw_scores`. (Both first look the section's first record up with
-/// `records::find_record` and do not use it: left out.) Every register kept. Refuses
+/// `records::find_record` and do not use it: left out.) Refuses
 /// (before anything) no table.
 pub fn draw_scores_with_heading(
     menus: &Menus,

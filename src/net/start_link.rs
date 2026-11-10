@@ -88,7 +88,7 @@ fn link(install: &'static crate::install::owner::Install, net: &Net) -> Result<W
     })
 }
 
-/// The Rust version: a network game in `mode` (1 host, 2 join).
+/// A network game in `mode` (1 host, 2 join).
 pub fn start_link(mode: u32) -> Result<(), Refused> {
     let install = crate::install::owner::install();
     let net = net();

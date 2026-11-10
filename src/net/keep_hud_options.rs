@@ -6,8 +6,6 @@
 use crate::net::set_hud_options::own_block;
 use crate::net::store::NetVars;
 use crate::race::owner_shared::Shared;
-
-/// The Rust version.
 pub fn keep_hud_options(shared: &Shared, vars: &NetVars) -> Result<(), crate::errors::BadInput> {
     shared.state.results.hud_bits_current.set(
         crate::race::trap::car_at(own_block(shared, vars))?

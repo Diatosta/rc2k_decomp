@@ -59,8 +59,6 @@ pub fn text_in(bytes: &[u8]) -> Result<&[u8], BadInput> {
         .map(|end| &bytes[..end])
         .ok_or(BadInput("a text without its end in its block"))
 }
-
-/// The Rust version.
 pub fn add_chat_line(net: &Net, player: u32, message: &[u8]) -> Result<(), Refused> {
     let message = text_in(message)?;
     if message.is_empty() {

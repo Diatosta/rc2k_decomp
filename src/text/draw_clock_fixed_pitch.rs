@@ -12,8 +12,6 @@ use crate::text::draw_text_keep_regs::draw_text_keep_regs;
 use crate::text::font::Font;
 use rc2k_core::text::{CLOCK_STEPS, columns};
 
-// ---- Rust version ----
-
 /// Returns the flags the original leaves: (carry, zero) of its last `add` (draw_text's
 /// own carry is lost there).
 pub fn draw_clock_fixed_pitch(

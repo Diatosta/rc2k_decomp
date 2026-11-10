@@ -21,8 +21,6 @@ use rc2k_core::saves::defaults::best_scores;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 pub fn default_best_scores() -> Result<(), Refused> {
     let screens = &menus().screens;
     if !SCORES.is_taken() {

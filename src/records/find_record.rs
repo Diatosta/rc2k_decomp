@@ -6,8 +6,6 @@
 use crate::errors::BadInput;
 use crate::records::stages_store::{RECORD_LEN, RecordRef, RecordTable};
 
-// ---- Rust version ----
-
 /// The record, as the original finds it (converted: `rc2k_core::files::records::find_record`, on
 /// the table in game memory: no end test, as the original; a table running past its block
 /// is refused).

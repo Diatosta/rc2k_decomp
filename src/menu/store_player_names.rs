@@ -11,8 +11,6 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::menu::player_names::{cars, name_bytes};
 
-// ---- Rust version ----
-
 /// `log` gets each line's text.
 pub fn store_player_names(
     menus: &Menus,

@@ -10,8 +10,6 @@ use crate::net::apply_message::{glide_steps, place, three, wanted};
 use crate::net::store::NetVars;
 use crate::race::owner::Race;
 use rc2k_core::net::race;
-
-/// The Rust version.
 pub fn follow_remote(race: &Race, vars: &NetVars) -> Result<(), crate::errors::BadInput> {
     let car = &race.shared.car;
     // Converted: `rc2k_core::net::race::glide` (the block read only with the race on).

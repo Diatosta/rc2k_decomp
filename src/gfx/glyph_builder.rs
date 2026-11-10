@@ -1,7 +1,7 @@
 //! The sprite and font builder's work on one sheet: converted 2026-10-20 to
 //! `rc2k_core::gfx::glyphs` (finding, coding and tabling a sheet's glyphs, in the original's
 //! order). Here the game's side: the sheet's pixels through the row table (`g_rowTable`,
-//! offsets in the decoded buffer since phase 12).
+//! offsets in the decoded buffer now).
 
 use crate::gfx::fill_row_table::row_address;
 

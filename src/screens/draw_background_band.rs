@@ -12,8 +12,6 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 pub fn draw_background_band(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::controller_page::background_band`.
     use rc2k_core::screens::controller_page::{Font, Work, background_band};

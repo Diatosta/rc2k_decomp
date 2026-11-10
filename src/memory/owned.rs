@@ -1,4 +1,4 @@
-//! A typed value Rust owns in place of a block of the game's heap (phase 12): the table is
+//! A typed value Rust owns in place of a block of the game's heap: the table is
 //! a struct with named fields, not bytes at offsets. It is
 //! taken as `memory::allocate` took the block (counted on the same list, so the game's
 //! "MEM:" lines are unchanged) and given back with that list.

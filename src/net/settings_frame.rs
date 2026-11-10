@@ -19,7 +19,7 @@ use crate::net::setting_label::setting_label;
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::net::screens;
 
-/// The Rust version (the original keeps every register). Called through
+/// Called through
 /// `screens::run_frame` by `net::settings_loop`.
 pub fn settings_frame() -> Result<(), Refused> {
     let install = crate::install::owner::install();

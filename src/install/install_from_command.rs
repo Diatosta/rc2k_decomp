@@ -8,8 +8,6 @@
 //! (`install::install_files`). Any failing directory change or normalise ends it early.
 //!
 //! Caller `install::run_installer`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::{load_language, logged, normalise, set_cd, set_media_mode};

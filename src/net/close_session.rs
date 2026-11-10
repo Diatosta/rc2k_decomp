@@ -5,8 +5,6 @@
 //! nothing.
 
 use crate::net::store::NetVars;
-
-/// The Rust version.
 pub fn close_session(vars: &NetVars) {
     if vars.session_open.get() == 1 {
         vars.session_open.set(0);

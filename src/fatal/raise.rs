@@ -28,11 +28,11 @@ pub fn raise(error: FatalError, regs: &Context) {
     crate::fatal::report::report_now(regs);
 }
 
-/// What the program does when the Rust version `name` refuses a call it has nowhere to
+/// What the program does when the function `name` refuses a call it has nowhere to
 /// hand on to. A refused input (`BadInput`) ends it, saying which function refused and
 /// why (owner, 2026-10-23: no hidden fallbacks). A fatal error is raised from Rust (`raise`),
 /// so that it shows: the game ends with the report, and the log says which function raised
-/// it. If that ever happens where the original would have carried on, the Rust version is
+/// it. If that ever happens where the original would have carried on, the Rust code is
 /// wrong.
 pub fn refused_in(name: &str, reason: impl Into<Refused>, r: &Context) {
     let error = match reason.into() {

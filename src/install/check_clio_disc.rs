@@ -12,7 +12,7 @@
 //! error. Otherwise the installer's script is set up (as in `check_at_start`, with
 //! string 0x1038), the car's name `aRenaultClioSpo` is put in capitals up to its `(`,
 //! where a line feed ends it, and `off_51DD48` becomes `install::install_clio`.
-//! One caller, `start`, which calls it directly (2026-10-23).
+//! One caller, `start`, which calls it directly.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::install::check_at_start::set_script_entry;
@@ -24,8 +24,6 @@ const CAR_NAME_LEN: usize = 0x1B;
 // ---- game data ----
 
 const CLIO_STEP: u32 = 0x41675B; // `install::install_clio`
-
-// ---- Rust version ----
 
 pub fn check_clio_disc(
     g: &'static crate::install::owner::Install,

@@ -10,16 +10,14 @@
 //!
 //! Callers: `gfx::choose_screen_modes` (its list of modes), `gfx::screen_mode_choices`,
 //! `gfx::keep_race_screen_mode`, and two in the race's set-up (0x442D2C, 0x4432B6). Its
-//! three calls (set the mode, allocate, release: the platform's) are direct (2026-10-23).
+//! three calls (set the mode, allocate, release: the platform's) are direct.
 
 use crate::errors::Refused;
 use crate::framework::Flags;
 use crate::gfx::owner::Display;
 use crate::gfx::owner::gfx;
 
-// ---- Rust version ----
-
-/// The Rust version on `mode`: the flags it leaves (carry: it does not work).
+/// Tries `mode`: the flags it leaves (carry: it does not work).
 pub fn try_screen_mode(display: &Display, mode: u32) -> Result<Flags, Refused> {
     let gfx = gfx();
     let reports: u32 = gfx.reports.on.get();

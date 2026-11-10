@@ -9,7 +9,7 @@
 use crate::errors::Refused;
 use crate::net::owner::net;
 
-/// The Rust version (see the header): the group's id, type and short name.
+/// The group's id, type and short name.
 pub fn group_found(id: u32, kind: u32, short: &[u8]) -> Result<u32, Refused> {
     let vars = &net().vars;
     if kind != 0 {

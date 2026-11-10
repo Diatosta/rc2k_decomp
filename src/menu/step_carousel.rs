@@ -18,8 +18,6 @@ use crate::race::owner::race;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 pub fn step_carousel(screens: &Screens) -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::navigation` (`passed`, `spin`), worked out before
     // anything is written.

@@ -11,8 +11,6 @@ use crate::errors::BadInput;
 use crate::memory::MemoryList;
 use crate::pointers::{load_value, store_value};
 
-// ---- Rust version ----
-
 /// The address of the bytes, or None if the list has not that many left.
 pub fn take_from_list(
     list: &dyn crate::pointers::Store,

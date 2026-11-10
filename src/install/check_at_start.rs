@@ -15,7 +15,7 @@
 //!   ends the search with `g_runningFromCd` (0x529DB0) = 1. If there is none: "Update
 //!   cannot find RC CD-ROM" in the log and the fatal error.
 //!
-//! One caller, `start`, which calls it directly (2026-10-23). This is not the copy protection's CD check (that one is in the
+//! One caller, `start`, which calls it directly. This is not the copy protection's CD check (that one is in the
 //! main loop and `nop`ped out in this build).
 //! Refuses a scratch path that is not a text when the source cannot be put there.
 
@@ -38,8 +38,6 @@ pub fn set_script_entry(install: &'static crate::install::owner::Install, text_i
     install.pages.entry_text.set(text_id);
     install.pages.script_set_up.set(0xBD);
 }
-
-// ---- Rust version ----
 
 /// `no_audio` is the sound's switch.
 pub fn check_at_start(

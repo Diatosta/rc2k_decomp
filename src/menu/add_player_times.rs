@@ -7,7 +7,6 @@ use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
-/// The Rust version.
 pub fn add_player_times(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     // Converted: `rc2k_core::menu::player::Player::add_time`.

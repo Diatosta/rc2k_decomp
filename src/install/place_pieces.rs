@@ -3,8 +3,6 @@
 //! box `unk_51DD98`) go to `install::place_row` together.
 //!
 //! No pieces would go round 2^32 times: refused. Caller `install::run_page`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::page_links::PageLink;

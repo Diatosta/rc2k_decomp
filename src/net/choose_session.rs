@@ -65,8 +65,6 @@ fn refresh(install: &'static crate::install::owner::Install, net: &Net) -> Resul
     install.pages.choice_before.set(top);
     Ok(true)
 }
-
-/// The Rust version.
 pub fn choose_session(
     install: &'static crate::install::owner::Install,
     net: &Net,

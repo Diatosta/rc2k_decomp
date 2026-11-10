@@ -1,4 +1,4 @@
-//! The stage panel's body (converted 2026-10-20 from the hook crate's
+//! The stage panel's body (converted 2026-10-20 from
 //! `screens::stage_panel::draw_stage_body_in`, the layout `draw_stage_info`,
 //! `draw_service_stage_info`, `draw_time_trial_stage_info`, `draw_selected_stage_menu` and
 //! `draw_rally_stage_info` each carry a copy of): the start, finish and total times, the

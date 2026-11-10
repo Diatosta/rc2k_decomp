@@ -7,7 +7,6 @@ use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
-/// The Rust version.
 pub fn reset_player_totals(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     // Converted: `rc2k_core::menu::player::Player::reset_totals`.

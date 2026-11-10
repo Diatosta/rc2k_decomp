@@ -9,8 +9,6 @@
 use crate::errors::Refused;
 use crate::net::owner::Net;
 use crate::net::store::PlayerRecord;
-
-/// The Rust version.
 pub fn race_over(net: &Net, time: u32) -> Result<(), Refused> {
     net.vars.all_raced.set(0);
     net.vars.race_over.set(0);

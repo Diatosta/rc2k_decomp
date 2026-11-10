@@ -14,8 +14,6 @@ use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
     crate::strings::units::set_units(menus.play.players.players[0].get().metric_units); // g_isImperialUnits
@@ -96,8 +94,7 @@ pub const SCREEN: Screen = Screen {
     always_asks: false,
 };
 
-/// The Rust version where the typed tables run it (a refusal is the
-/// caller's).
+/// Runs the screen (a refusal is the caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
     screen_entry("menu::options_loop", &SCREEN)
 }

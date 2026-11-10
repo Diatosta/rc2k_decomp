@@ -16,7 +16,6 @@ use crate::screens::best_scores::{RALLY_STAGE_TIMES, draw_times_heading};
 use crate::text::draw_text::Canvas;
 
 /// (id, x, y, font) of the labels.
-/// The Rust version.
 pub fn draw_player_rally_result(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let play = &menus.play;
     let player = crate::menu::player_settings::current()?.get();

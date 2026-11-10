@@ -99,8 +99,6 @@ const MORE: [(&Dword, &Dword); 5] = [
         &crate::menu::owner::MENUS.screens.option_work.setting_4,
     ),
 ];
-
-/// The Rust version.
 pub fn fill_own_player(
     race: &Race,
     net: &'static Net,

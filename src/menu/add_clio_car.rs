@@ -22,8 +22,6 @@ const LISTS: [List; 3] = [
     (&crate::menu::owner::MENUS.tables.lists.cars_with_clio, 0x3E), // off_759E52
 ];
 
-// ---- Rust version ----
-
 pub fn add_clio_car() -> Result<(), BadInput> {
     let clio = crate::menu::cars_store::car_handle(33);
     let mut ends = Vec::new();

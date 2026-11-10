@@ -12,8 +12,6 @@
 //! Any other kind is fatal error 0x80A97451. More pieces than the 0xFFC bytes hold (85) is
 //! refused (the original writes over the list variables after them). Caller
 //! `install::run_page`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::fatal;

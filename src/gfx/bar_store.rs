@@ -1,6 +1,5 @@
-//! The progress bar's variables, out of RAL.EXE's image (phase 5; typed in phase 7,
-//! `notes/conversion.md`): IDA 0x755224 .. 0x75523C. Set by the callers of
-//! `gfx::blit_bar` / `gfx::blit_bar_marker` (`blit_bar::Bar` reads and writes the six).
+//! The progress bar's variables, out of RAL.EXE's image: IDA 0x755224 .. 0x75523C. Set by the
+//! callers of `gfx::blit_bar` / `gfx::blit_bar_marker` (`blit_bar::Bar` reads and writes the six).
 
 use crate::session::Dword;
 

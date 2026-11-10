@@ -11,8 +11,6 @@ use crate::errors::BadInput;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 use crate::files::handle::GameFiles;
 pub use rc2k_core::files::io::WriteResult;
 

@@ -26,8 +26,6 @@ use crate::text::draw_text::Canvas;
 // dword_75AC80
 // dword_7559EC: a work variable, here the weights' sum
 
-// ---- Rust version ----
-
 /// The percentage and the item of the last damaged part looked at (its repair flag's address
 /// is what the original leaves in esi). Converted: `rc2k_core::screens::inspection::status`.
 pub fn inspection_status(

@@ -97,7 +97,7 @@ pub const ALT: Kind = Kind {
 pub const ALIGN_CENTRE: u32 = 1;
 pub const ALIGN_RIGHT: u32 = 3;
 
-// ---- Rust version of the three button functions ----
+// ---- the three button functions ----
 
 /// What the three functions do: the item is only read for its sprites (`set`, its +0x20).
 pub fn draw_button(
@@ -156,7 +156,7 @@ pub fn draw_button(
     }
 }
 
-// ---- Rust version of the five that choose for an item ----
+// ---- the five that choose for an item ----
 
 /// `screens::draw_item_button` (0x469283): the button an item describes itself (width at
 /// +8, alignment at +0xC), highlighted if the item is.

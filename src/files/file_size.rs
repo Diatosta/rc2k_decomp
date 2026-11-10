@@ -7,8 +7,6 @@
 
 use crate::errors::BadInput;
 
-// ---- Rust version ----
-
 /// (eax, whether it worked).
 pub fn file_size(path: &[u8]) -> Result<(u32, bool), BadInput> {
     Ok(rc2k_core::files::io::file_size(

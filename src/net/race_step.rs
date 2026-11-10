@@ -11,8 +11,6 @@ use crate::errors::Refused;
 use crate::net::owner::net;
 use crate::net::{apply_received, follow_remote, send_turn};
 use crate::race::owner::Race;
-
-/// The Rust version.
 pub fn race_step(race: &Race) -> Result<(), Refused> {
     let vars = &net().vars;
     if vars.session.get() == 0 {

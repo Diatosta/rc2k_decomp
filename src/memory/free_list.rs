@@ -13,8 +13,6 @@ use crate::errors::BadInput;
 use crate::memory::{MemoryList, with_figures};
 use crate::pointers::{load_value, store_value};
 
-// ---- Rust version ----
-
 /// The list's blocks given back, the list a store (or a field of one).
 pub fn free_list(list: &dyn crate::pointers::Store) -> Result<(), BadInput> {
     free_with(
@@ -50,8 +48,8 @@ fn free_with(
     // The palettes and glyph tables carved off it (`gfx::glyph_store`) go with it.
     crate::gfx::glyph_store::give_back(key);
     let mut l = read()?;
-    // No block of the system's is put on a list any more (every user's memory is Rust's,
-    // phase 12; the original gave each back with `VirtualFree`, or to its own heap): a list
+    // No block of the system's is put on a list any more (every user's memory is Rust's;
+    // the original gave each back with `VirtualFree`, or to its own heap): a list
     // holding one is refused.
     if l.head != 0 {
         return Err(BadInput("a memory list holding a block"));

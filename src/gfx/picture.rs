@@ -2,7 +2,7 @@
 //! components, before it is converted to the surface's format and drawn. The background of
 //! every menu screen goes through it. Its variables are `PICTURE`.
 //!
-//! Phase 12 (2026-10-27): the buffers are Rust's (`Buffer`: the game's, the overlay's of
+//! The buffers are Rust's (`Buffer`: the game's, the overlay's of
 //! `load_picture_with_overlay`, the map key sheet's), counted on their lists as the game's
 //! blocks were and given back with them. `PICTURE.buffer` and `DECODER.pixels` hold a
 //! buffer's number (0 none), and its users work on its bytes (`with_buffer`, `read_bytes`,

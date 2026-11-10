@@ -13,8 +13,6 @@ use crate::errors::BadInput;
 use crate::files::state::BYTES_READ;
 use crate::pointers::GamePtr;
 
-// ---- Rust version ----
-
 /// Reads the whole file at `path` into `buffer` (`count` bytes at most). The bytes read
 /// go to `BYTES_READ` (0 after any failure but a failed read's own count).
 pub fn read_whole_file(path: &[u8], to: GamePtr, count: u32) -> Result<(), BadInput> {

@@ -14,8 +14,6 @@ use rc2k_core::menu::items::{Font, choosable};
 
 use crate::gfx::typefaces::fonts::{ITEM_GREY as GREY_FONT, ITEM_PLAIN as PLAIN_FONT};
 
-// ---- Rust version ----
-
 // Converted: `rc2k_core::menu::items::choosable`.
 
 /// The item's +0x48 and font set: what both twins do.

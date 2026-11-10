@@ -7,8 +7,6 @@
 //! Refuses nothing.
 
 use crate::net::store::NetVars;
-
-/// The Rust version.
 pub fn destroy_player(vars: &NetVars) {
     let id = vars.player_id.get();
     if id == 0 {

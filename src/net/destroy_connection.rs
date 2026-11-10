@@ -12,8 +12,6 @@ use crate::errors::Refused;
 use crate::net::store::NetVars;
 use crate::net::{close_session, destroy_player, free_messages, release_dplay, release_lobby};
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
-
-/// The Rust version.
 pub fn destroy_connection(vars: &NetVars) -> Result<(), Refused> {
     if vars.dplay.get() != 0 {
         vars.session.set(0);

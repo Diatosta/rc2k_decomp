@@ -23,5 +23,3 @@ pub fn with_stream<R>(f: impl FnOnce(&mut Stream) -> R) -> R {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner))
 }
-
-// ---- for the self-tests: a file of the test's own in the game's `var` folder ----

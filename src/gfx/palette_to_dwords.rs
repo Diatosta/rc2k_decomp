@@ -11,8 +11,6 @@ use crate::pointers::Store;
 
 pub const ENTRIES: usize = 256;
 
-// ---- Rust version ----
-
 /// The palette is read at byte `from_at` of `from`; the dwords go to the start of `to`.
 pub fn palette_to_dwords(from: &dyn Store, from_at: usize, to: &dyn Store) -> Result<(), BadInput> {
     // From the last entry down, as the original goes: it matters if the two overlap. The

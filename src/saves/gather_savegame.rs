@@ -31,6 +31,7 @@ pub fn head(menus: &Menus) -> [&Dword; 7] {
         &menus.screens.state.menus.class_mode,
     ]
 }
+
 pub use rc2k_core::saves::savegame::{CAR_LEN, CARS, RECORDS_LEN};
 
 /// The four players, if every one has its pointer at +0x18.
@@ -49,8 +50,6 @@ pub fn cars(
     }
     Ok(&play.players.players)
 }
-
-// ---- Rust version ----
 
 /// The saved game's bytes put into `file` from byte `base` on.
 pub fn gather_savegame(menus: &Menus, file: &dyn Store, base: usize) -> Result<(), BadInput> {

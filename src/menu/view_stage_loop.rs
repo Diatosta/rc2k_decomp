@@ -12,8 +12,6 @@ use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step};
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 // The original pushes `dword_75595C` and `dword_755958` at its entry and pops them at its
 // end, with the whole screen in between: the two are kept here across the loop's steps
 // (written by hand; the generated functions each have a stack of their own).

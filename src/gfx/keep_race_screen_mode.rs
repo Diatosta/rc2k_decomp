@@ -6,13 +6,13 @@
 //! Takes: the mode
 //!
 //! One caller, `gfx::screen_mode_choices`, which calls it directly, as it calls
-//! `try_screen_mode` (2026-10-23).
+//! `try_screen_mode`.
 
 use crate::errors::Refused;
 use crate::framework::Flags;
 use crate::gfx::owner::Display;
 
-/// The Rust version on the race's mode `mode`: the flags it leaves (`try_screen_mode`'s).
+/// Keeps the race's mode `mode`: the flags it leaves (`try_screen_mode`'s).
 pub fn keep_race_screen_mode(display: &Display, mode: u32) -> Result<Flags, Refused> {
     display.mode.race_mode.set(mode);
     // Converted: `rc2k_core::gfx::screen_modes::menu_mode_for`.

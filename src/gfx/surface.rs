@@ -1,6 +1,6 @@
 //! The global drawing surface and clip rectangle that the game's blitters read.
 //!
-//! Phase 12 (2026-10-27): the surface is a `Target`. The screen's and a locked texture's
+//! The surface is a `Target`. The screen's and a locked texture's
 //! pixels are still reached by address (`DRAW_SURFACE.pixels`, set by the platform's lock and
 //! `d3d::texture_surface_info`); the picture buffer, the menus' surface after
 //! `gfx::picture_as_surface`, by its number (`ON_PICTURE`, `DRAW_SURFACE.pixels` 0 then).

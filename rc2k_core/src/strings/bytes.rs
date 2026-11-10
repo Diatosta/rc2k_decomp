@@ -1,6 +1,5 @@
 //! Reading the game's packed data (texts, glyph tables) a byte at a time. A slice answers
-//! `None` past its end, so the core never reads out of bounds; while the hooked game runs,
-//! the hook crate also answers from game memory, whose extent it does not know.
+//! `None` past its end, so the core never reads out of bounds.
 
 /// Bytes at offsets from a start.
 pub trait Bytes {

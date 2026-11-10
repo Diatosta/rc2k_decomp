@@ -39,8 +39,6 @@ const COPIED_WORDS: [&Dword; 5] = [
 pub fn own_block(shared: &Shared, vars: &NetVars) -> u32 {
     shared.work.car_block(vars.player.get() as usize)
 }
-
-/// The Rust version.
 pub fn set_hud_options(race: &Race, vars: &NetVars) -> Result<(), crate::errors::BadInput> {
     let block = own_block(&race.shared, vars);
     let mut bits = race.shared.state.results.hud_bits_current.get();

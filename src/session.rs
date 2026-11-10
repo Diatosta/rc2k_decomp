@@ -1,4 +1,4 @@
-//! Phase 5, the session core: the variables many modules and the game's threads share,
+//! The session core: the variables many modules and the game's threads share,
 //! moved out of RAL.EXE's image (`moved.rs`). The screen's size and format, the window's
 //! state (`g_windowActive`, `g_quitting`, ...), what the processor is and has, the window
 //! handles, and the clocks the key thread and the menus keep.
@@ -49,12 +49,12 @@ impl Dword {
         crate::pointers::game_address(self.as_ptr())
     }
 
-    /// The bits, for the x87 model's loads (as `Float::bits`).
+    /// The cell's 32 bits (as `Float::bits`).
     pub fn bits(&self) -> u32 {
         self.get()
     }
 
-    /// Stores the bits, for the x87 model's stores (as `Float::set_bits`).
+    /// Stores the 32 bits (as `Float::set_bits`).
     pub fn set_bits(&self, bits: u32) {
         self.set(bits);
     }
@@ -106,7 +106,7 @@ pub fn write_prefix(cells: &[Dword], values: &[u32]) {
     }
 }
 
-/// One of the game's floats: an atomic cell holding its bits (phase 7, typed state).
+/// One of the game's floats: an atomic cell holding its bits.
 #[repr(transparent)]
 pub struct Float(AtomicU32);
 
@@ -131,13 +131,13 @@ impl Float {
         &self.0
     }
 
-    /// The bits, for the x87 model's loads (`x87_float::ld`).
+    /// The cell's 32 bits (read by `x87_float::ld`).
     pub fn bits(&self) -> u32 {
         crate::write_watch::read(self.0.as_ptr().cast::<u8>(), 4);
         self.0.load(Relaxed)
     }
 
-    /// Stores the bits, for the x87 model's stores (`x87_float::st`).
+    /// Stores the 32 bits (written by `x87_float::st`).
     pub fn set_bits(&self, bits: u32) {
         crate::write_watch::wrote(self.0.as_ptr().cast::<u8>(), 4);
         self.0.store(bits, Relaxed);
@@ -230,8 +230,8 @@ pub fn copy_on_in<F: crate::pointers::Cells, T: crate::pointers::Cells, A: Cell3
     Ok(())
 }
 
-/// A 32-bit cell the x87 model loads and stores by its bits: a `Dword` or a `Float` (a
-/// parameter that may be either, the damage model's).
+/// A 32-bit cell read and written by its bits (the float code's loads and stores): a `Dword` or a
+/// `Float` (a parameter that may be either, the damage model's).
 pub trait Cell32 {
     fn bits(&self) -> u32;
     fn set_bits(&self, bits: u32);
@@ -295,7 +295,7 @@ impl Word {
     }
 }
 
-/// One of the game's bytes: an atomic cell (phase 7, typed state).
+/// One of the game's bytes: an atomic cell.
 #[repr(transparent)]
 pub struct Byte(AtomicU8);
 
@@ -656,7 +656,7 @@ pub struct Machine {
     pub work: Dword,             // dword_5183C0
     pub work_float: Dword,       // flt_5183C4
     pub gap_c8: Dword,           // 0x5183C8
-    pub scratch: Dword,          // g_soundScratch: the x87 code's scratch dword
+    pub scratch: Dword,          // g_soundScratch: a scratch dword
     pub cpu_family: Dword,       // g_cpuFamily
     pub cpu_signature: Dword,    // g_cpuSignature
     pub cpu_vendor: [Dword; 3],  // g_cpuVendor: the vendor's text

@@ -32,8 +32,6 @@ fn find(play: &Play, coded: &[u8]) -> Result<Option<(u32, u32)>, Refused> {
     Ok(found.map(|f| (f.at as u32, f.bit as u32)))
 }
 
-/// The Rust version. The original's calls get their registers as noted, of which only the
-/// sound reads one (eax 8).
 pub fn check_cheat_name(menus: &Menus) -> Result<(), Refused> {
     let race = crate::race::owner::race();
     let play = &menus.play;

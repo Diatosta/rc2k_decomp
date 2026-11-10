@@ -10,8 +10,6 @@ use crate::menu::name_lists::{NAME_LEN, savegame_name};
 use crate::menu::owner::Menus;
 use crate::menu::text_entry::{entry as text_entry, length, put_entry};
 
-// ---- Rust version ----
-
 pub fn backspace_savegame_name(menus: &Menus) -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::text_entry::Entry::backspace`.
     if length() == 0 {

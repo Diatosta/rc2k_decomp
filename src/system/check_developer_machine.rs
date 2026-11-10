@@ -3,7 +3,7 @@
 //! `dword_529D94` = 0; the computer's name is asked for into the text buffer (`GetComputerNameA`,
 //! through `system::computer_name`; if that fails the buffer is looked at as it is); if its first
 //! six characters are "andrew" in any case, `dword_529D94` = 1. (`race::tyre_change_gauge` reads
-//! it.) One caller, `start`, which calls it directly (2026-10-23).
+//! it.) One caller, `start`, which calls it directly.
 
 /// IDA's address of the switch.
 pub const DEVELOPER_START: usize = 0x529D94;
@@ -13,8 +13,6 @@ pub static DEVELOPER: crate::session::Dword = crate::session::Dword::new(0);
 
 const NAME_ROOM: u32 = 0x40;
 
-// ---- Rust version ----
-
 /// `system::computer_name`: the computer's name with its NUL (room for 0x40 bytes), if it can be
 /// had; the callers store it where the original did.
 pub fn computer_name() -> Option<Vec<u8>> {
@@ -22,8 +20,6 @@ pub fn computer_name() -> Option<Vec<u8>> {
     name.push(0);
     Some(name)
 }
-
-/// The Rust version (see the header).
 pub fn check_developer_machine() {
     DEVELOPER.set(0);
     let text = &crate::strings::owner::strings().text.buffer.text;

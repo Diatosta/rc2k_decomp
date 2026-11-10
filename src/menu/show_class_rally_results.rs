@@ -3,7 +3,7 @@
 //! `menu::first_page_stage`, `menu::stage_range_caption`; then the page
 //! (`menu::class_rally_results_loop`).
 //!
-//! The steps are their Rust versions. Refuses what the steps refuse, before
+//! Refuses what the steps refuse, before
 //! anything; raises the search's fatal error as the original.
 
 use crate::errors::Refused;
@@ -11,7 +11,6 @@ use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use rc2k_core::menu::results_pages::{Page, held_figure};
 
-/// The Rust version.
 pub fn show_class_rally_results(menus: &Menus, class: u32) -> Result<(), Refused> {
     menus.screens.event.class.set(class);
     let found = crate::menu::first_player_a::first_player_a(class)?;

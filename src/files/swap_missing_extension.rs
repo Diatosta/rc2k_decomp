@@ -10,8 +10,6 @@ use crate::errors::BadInput;
 use crate::files::file_exists::file_exists;
 use crate::session::TextPlace;
 
-// ---- Rust version ----
-
 /// The path at `at`, its ending swapped there when the file is missing: the text as it is
 /// afterwards.
 pub fn swap_missing_extension(at: &dyn TextPlace) -> Result<Vec<u8>, BadInput> {

@@ -148,7 +148,7 @@ pub struct Drawing {
     pub draw_surface: DrawSurface,
     pub surfaces: Surfaces,
     /// `dword_4F3FC4`: each row of a picture (602 of them), zero at the start: its offset in
-    /// the decoded buffer since phase 12 (the original's addresses).
+    /// the decoded buffer now (the original's addresses).
     pub row_table: [Dword; ROW_TABLE_ROOM as usize],
     /// `byte_4F4B30`: n / 3 for the sums of three components (zero until filled).
     pub thirds: Bytes<TABLE_LEN>,
@@ -228,7 +228,7 @@ pub static GFX: Gfx = Gfx {
     card: Card3d::new(),
 };
 
-/// The module's state, for a caller that does not take it as a parameter yet.
+/// The module's state; pass it down where a function reaches it more than once.
 pub fn gfx() -> &'static Gfx {
     &GFX
 }

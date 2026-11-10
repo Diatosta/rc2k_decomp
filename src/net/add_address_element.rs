@@ -19,7 +19,7 @@ use std::sync::Mutex;
 /// The elements added since the last `clear`.
 static ELEMENTS: Mutex<Vec<Element>> = Mutex::new(Vec::new());
 
-/// The Rust version: the element of type `data_type` with `data`.
+/// The element of type `data_type` with `data`.
 pub fn add_address_element(net: &Net, data_type: &Bytes<16>, data: &[u8]) {
     net.vars
         .elements

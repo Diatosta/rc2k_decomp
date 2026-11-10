@@ -11,13 +11,11 @@
 //! go to `g_pictureBuffer`. Last, `palette_to_dwords` on the file's palette.
 //! All of it lands in the variables listed in `gfx/pcx.rs`. Three callers, the PCX readers.
 //! The high half of the two sizes is what the instruction before left there (16-bit moves
-//! into eax), which the Rust version follows.
+//! into eax), which this follows.
 //! The name is a reading.
 
 use crate::errors::BadInput;
 use crate::gfx::palette_to_dwords::palette_to_dwords;
-
-// ---- Rust version ----
 
 /// Converted: `rc2k_core::gfx::pcx::lay_out`, on the header and the variables in game memory.
 /// Returns the layout it stored.

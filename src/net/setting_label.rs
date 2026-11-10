@@ -9,7 +9,7 @@ use crate::errors::Refused;
 use crate::net::draw_button::draw_button;
 use crate::net::owner::Net;
 
-/// The Rust version: the label `string` for item `item` at `y`; returns the next y (the
+/// The label `string` for item `item` at `y`; returns the next y (the
 /// original's ebp + 0x20; its other registers are kept).
 pub fn setting_label(net: &Net, string: u32, item: u32, y: u32) -> Result<u32, Refused> {
     draw_button(net, string, 0, 0x190, y, item)?;

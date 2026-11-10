@@ -12,7 +12,7 @@ pub enum Film {
     Intro,
 }
 
-/// The steps, at the game's addresses in the hook crate.
+/// The steps, by the game's address of each.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Step {
     /// 0x40F826 (`sound::stop_music`).

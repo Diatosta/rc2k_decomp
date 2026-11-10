@@ -22,8 +22,6 @@ use rc2k_core::gfx::picture_size as sizes;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 /// Returns whether the file was read.
 pub fn load_picture(path: &dyn crate::session::TextPlace) -> Result<bool, Refused> {
     let system = system();

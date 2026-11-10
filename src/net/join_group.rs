@@ -8,8 +8,6 @@
 
 use crate::net::create_group::join;
 use crate::net::owner::net;
-
-/// The Rust version.
 pub fn join_group() -> bool {
     let vars = &net().vars;
     let result = {

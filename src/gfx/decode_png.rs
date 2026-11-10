@@ -9,9 +9,9 @@
 //! gets 0 or 1 in its first byte, the width and the height, and with a palette 0x300 bytes
 //! from the PLTE chunk. Check sums are not looked at, nor is what the inflating returns.
 //! For the first row the "row above" of filters 2, 3 and 4 is the memory before the pixel
-//! area, not zeros as the PNG standard has it; fixed in phase 12 (2026-10-27): zeros
+//! area, not zeros as the PNG standard has it; fixed (2026-10-27): zeros
 //! (`notes/bugs.md`, `wiki/Fixed-bugs.md`).
-//! The Rust version inflates with the `miniz_oxide` crate and does the rest as the original
+//! It inflates with the `miniz_oxide` crate and does the rest as the original
 //! does. What it does not do: use the info block and what follows it as zlib's work area
 //! (the original's zlib takes its memory from there), so that memory is left alone; and
 //! keep zlib's own variables (0xA8C1A4 on).
@@ -31,7 +31,6 @@ use crate::pointers::GamePtr;
 
 // ---- game data ----
 
-// ---- Rust version ----
 // Converted: `rc2k_core::gfx::png`. Here the game's variables for the header, the pixel area
 // and the info block.
 
@@ -72,7 +71,7 @@ pub fn decode_png(png: &Png, file: &[u8], pixels: u32, info_at: GamePtr) -> Resu
         // The area as it is now, worked on as a copy and put back.
         let mut buffer = crate::gfx::picture::read_bytes(pixels, 0, area)?;
         png::inflate(&file[start..start + length], &mut buffer)?;
-        // The row above the first is zeros, as PNG has it. Our fix (phase 12): the original
+        // The row above the first is zeros, as PNG has it. Our fix: the original
         // reads the memory before the picture buffer there (its heap block's header and the
         // page before), which a first row filtered Up, Average or Paeth adds in.
         png::unfilter(&mut buffer, row_bytes, header.height, step, &|_| 0)?;

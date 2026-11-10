@@ -13,8 +13,6 @@ use crate::menu::owner::Menus;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 /// A number with a 0 before it under 10.
 pub fn savegame_page_numbers(menus: &Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::captions::savegame_numbers`.

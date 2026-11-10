@@ -6,8 +6,6 @@
 
 use crate::errors::Refused;
 use crate::net::owner::Net;
-
-/// The Rust version.
 pub fn joining(net: &Net, session: u32) -> Result<bool, Refused> {
     crate::net::connecting::status(0x153)?;
     crate::net::join_session::join_session(net, session)

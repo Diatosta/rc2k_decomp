@@ -12,8 +12,6 @@
 use crate::errors::BadInput;
 use crate::install::folders::{Folders, Native};
 
-// ---- Rust version ----
-
 /// 0x4030D1's asking: the current directory, or None if it cannot be had.
 pub fn current_directory() -> Result<Option<Vec<u8>>, BadInput> {
     // The game's place for it is 0x100 bytes, 0xFF asked for.

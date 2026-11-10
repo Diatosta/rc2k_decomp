@@ -19,8 +19,6 @@
 //! A page whose every item cannot be chosen would go round for ever: refused. Caller
 //! `install::run_pages`.
 //! The quitting way is not tested (it would set the game's `g_quitting`).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{

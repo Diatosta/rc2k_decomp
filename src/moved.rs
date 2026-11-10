@@ -1,5 +1,5 @@
-//! Phase 5, the image gone (`notes/conversion.md`): the game's variables that have left
-//! RAL.EXE's image for memory Rust owns, and the one place that knows where each went.
+//! The game's variables that have left RAL.EXE's image for memory Rust owns, and the one
+//! place that knows where each went (`notes/conversion.md`).
 //!
 //! Code that names a moved variable asks its owner (`logfile::write_line::state`,
 //! `strings::units::units`, ...), never this file. Only the game's address tables still
@@ -7,11 +7,11 @@
 //! its variable, `settings::read_settings`) and copy lists such as `race::replay`'s
 //! `HEADER_MOVES`. They go through `place` (an IDA address), which answers a moved
 //! variable's new home and anything else's place in the image. The game's own pointers stay
-//! as the image has them, IDA's addresses: each reader resolves its names or runs its code
-//! by them, and a table that needs real addresses has them set at start (`standalone::start`).
-//! `framework::game_addr` resolves a moved address through `home_of_rva`. The image itself
-//! is gone (2026-10-24): its addresses stay reserved without access, so a read of one that
-//! has no home ends the program naming it (`standalone`'s fault handler).
+//! as the image has them, IDA's addresses: each reader resolves its names where it reads
+//! them (`named`, `named_in`). The image itself is gone: its addresses stay reserved
+//! without access, so a read of one that has no home ends the program naming it
+//! (`standalone`'s fault handler). Only the tests use `framework::game_addr`, which
+//! resolves a moved address through `home_of_rva`.
 
 #![allow(unsafe_code)]
 
@@ -317,7 +317,7 @@ pub(crate) const MOVED: &[Moved] = &[
         len: crate::files::state::DIRECTORIES_LEN,
         home: Home::Store(&crate::files::state::DIRECTORIES),
     },
-    // gfx / hud / d3d (phase 5; typed in phase 7)
+    // gfx / hud / d3d
     Moved {
         ida: crate::hud::store::START, // the HUD's variables, batch included
         len: crate::hud::store::LEN,
@@ -715,7 +715,7 @@ pub(crate) const MOVED: &[Moved] = &[
         len: 12,
         home: Home::Store(&crate::sound::owner::SOUND.race.car_stream),
     },
-    // menu: the front end's variables, typed (phase 7): the savegame preview (`saves::preview_store`),
+    // menu: the front end's variables, typed: the savegame preview (`saves::preview_store`),
     // the controller screen (`screens::controls_store`), the pages, car numbers, screen flow, loop
     // flags, key tables, option copies, championship view, names, event state and drawing work
     // variables (`menu::*_store`), the players, cars, cheats, results, arcade and captions
@@ -811,9 +811,10 @@ pub(crate) const MOVED: &[Moved] = &[
         len: crate::menu::draw_work_store::END - crate::menu::draw_work_store::START,
         home: Home::Store(&crate::menu::owner::MENUS.screens.draw_work),
     },
-    // the race block's tail (phase 7): the menus' texts (`menu::texts_store`), the stages' tables (`records::stages_store`), the drivers (`menu::drivers_store`), the rallies' best times and the best times' memory (`saves::best_times_store`),
-    // the screens' kept items (`menu::screen_items_store`), the items' sprite lists
-    // (`menu::item_sprites_store`)
+    // the race block's tail: the menus' texts (`menu::texts_store`), the stages' tables
+    // (`records::stages_store`), the drivers (`menu::drivers_store`), the rallies' best times and
+    // the best times' memory (`saves::best_times_store`), the screens' kept items
+    // (`menu::screen_items_store`), the items' sprite lists (`menu::item_sprites_store`)
     Moved {
         ida: crate::menu::texts_store::START,
         len: crate::menu::texts_store::END - crate::menu::texts_store::START,
@@ -2305,9 +2306,9 @@ pub fn home_of_rva(rva: usize) -> Option<usize> {
     (ida < end).then(|| home + (ida - start))
 }
 
-/// Where a table's entry names (phase 13: the tables keep IDA's addresses as names, and
-/// `point_into_homes` passes them over): IDA's `ida`, which must lie in `start .. start + len`
-/// (the moved piece it names), at its new home. A name off the piece is refused with `what`.
+/// Where a table's entry names (the tables keep IDA's addresses as names): IDA's `ida`, which must
+/// lie in `start .. start + len` (the moved piece it names), at its new home. A name off the piece
+/// is refused with `what`.
 pub fn named_in(
     ida: u32,
     start: usize,

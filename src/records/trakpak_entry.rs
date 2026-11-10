@@ -19,8 +19,6 @@ pub fn loaded_pack_id() -> u32 {
     system().records.stage_tables.trak_pak.pack_id.get()
 }
 
-// ---- Rust version ----
-
 /// What the original reports when a record belongs to another track pack.
 pub const INVALID_HEADER: FatalError = FatalError {
     code: 0x8070_DA00,

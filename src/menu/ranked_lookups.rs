@@ -62,7 +62,7 @@ fn search<T: Walked + Copy + Default>(
     }
 }
 
-/// `find_ranked_entry`'s Rust version: table A's entry of `class` at `position`.
+/// Table A's entry of `class` at `position`.
 pub fn find_ranked_entry(position: u32, class: u32) -> Result<BestTime, Refused> {
     with_a(|t| {
         search(
@@ -73,17 +73,17 @@ pub fn find_ranked_entry(position: u32, class: u32) -> Result<BestTime, Refused>
     })?
 }
 
-/// `find_ranked_position`'s Rust version: table A's entry at `position`.
+/// Table A's entry at `position`.
 pub fn find_ranked_position(position: u32) -> Result<BestTime, Refused> {
     with_a(|t| search(t, |e| e.head.figure == position, NOT_FOUND))?
 }
 
-/// `find_champ_position`'s Rust version: the history's entry at `position`.
+/// The history's entry at `position`.
 pub fn find_champ_position(position: u32) -> Result<HistoryEntry, Refused> {
     with_b(|t| search(t, |e| e.position == position, NOT_IN_CHAMP))?
 }
 
-/// `first_overall_time`'s Rust version: table A's time (`rally` the total, else the time).
+/// Table A's time (`rally` the total, else the time).
 pub fn first_overall_time(kind: u32, rally: bool) -> Result<u32, Refused> {
     let e = if kind == 2 {
         with_a(|t| search(t, |e| e.head.group != 0, NO_CLASS))??

@@ -8,7 +8,6 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Screens;
 use crate::menu::standings::*;
 
-/// The Rust version.
 pub fn set_player_entry_kind(screens: &Screens) -> Result<(), Refused> {
     let n: u32 = screens.event.current_player.get();
     if n >= 4 {

@@ -25,8 +25,7 @@ pub fn stage_record(play: &Play) -> Result<RecordRef, BadInput> {
 /// (`rc2k_core::screens::stage_panel::records`, converted 2026-10-20): the best of the times at edi
 /// and the stage record's fastest (+0x74 nationality, +0x54 name, +0x78 car, +0x30 speed).
 /// The fastest's flag sprite gets `dword_7587EC` as its palette (ebx as the original loads
-/// it). The speed is formatted before anything is drawn (its refusals first). Every
-/// register kept.
+/// it). The speed is formatted before anything is drawn (its refusals first).
 pub fn draw_stage_best_and_fastest(
     play: &Play,
     times: &rc2k_core::saves::entries::BestTime,
@@ -75,7 +74,7 @@ pub fn draw_stage_best_and_fastest(
 /// (`stage_panel::draw_stage_body`: the map's markers with `dword_7587EC` as their palette,
 /// times, length, surface, weather, description and number; entry +0x34 kept in
 /// `dword_75ACD0`'s second dword), then `draw_stage_best_and_fastest` on its times
-/// (`g_courseBestTimes`, the stage the record's +0x3C). Every register kept. Refuses (before anything) no
+/// (`g_courseBestTimes`, the stage the record's +0x3C). Refuses (before anything) no
 /// stage record or times table.
 pub fn draw_rally_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let play = &menus.play;

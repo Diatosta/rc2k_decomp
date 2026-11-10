@@ -139,7 +139,6 @@ impl Game<'_> {
     }
 }
 
-/// The Rust version.
 pub fn arcade_event(menus: &Menus) -> Result<(), Refused> {
     let player0 = crate::menu::standings::player(0);
     let mut game = Game {

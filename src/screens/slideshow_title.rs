@@ -10,8 +10,6 @@ use crate::screens::car_caption::put_string;
 const TITLE_LEN: usize = 0x100;
 const TITLE: u32 = 0x33D;
 
-// ---- Rust version ----
-
 pub fn slideshow_title() -> Result<(), Refused> {
     put_string(
         TITLE,

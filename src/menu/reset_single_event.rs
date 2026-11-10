@@ -9,7 +9,6 @@ use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
-/// The Rust version.
 pub fn reset_single_event(menus: &Menus) -> Result<(), Refused> {
     let drivers = drivers()?;
 

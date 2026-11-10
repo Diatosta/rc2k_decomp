@@ -10,7 +10,7 @@
 
 use crate::errors::Refused;
 
-/// The Rust version (see the header): the time text at `text` in `font` at (`x`, `y`).
+/// The time text at `text` in `font` at (`x`, `y`).
 /// The flags the original leaves are read by neither caller (register liveness,
 /// 2026-10-23: after the two calls DF, ebp, ebx/edi, edx, esi, all kept).
 pub fn draw_time_text(

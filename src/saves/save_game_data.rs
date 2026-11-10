@@ -6,8 +6,6 @@
 use crate::errors::Refused;
 use crate::saves::owner::Saves;
 
-// ---- Rust version ----
-
 /// The two parts, each saying whether it wrote its file. Returns what the second said.
 pub fn save_game_data(
     save_options: &mut dyn FnMut() -> Result<bool, Refused>,

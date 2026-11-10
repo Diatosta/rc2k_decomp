@@ -8,7 +8,7 @@
 //! Then each entry's total of its six stage points (+0x54 .., the negative ones left out)
 //! into its +0x6C and its driver's +0x90 or player's +0xB0.
 //!
-//! Callers: the event drivers. The search is its Rust version; it logs through `logfile::log_write`
+//! Callers: the event drivers. It logs through `logfile::log_write`
 //! and `log_int` (level 1). Refuses no table, one without its end entry, a class count of 0 or past
 //! 0x100, a section past 5, a player past 4 or missing, before anything; a driver not found is the
 //! search's fatal error, before anything.
@@ -35,7 +35,6 @@ fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<Owner, Refused>
     }
 }
 
-/// The Rust version.
 pub fn award_stage_points(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     let classes: u32 = screens.event.classes.get();

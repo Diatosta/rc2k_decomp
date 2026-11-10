@@ -1,4 +1,4 @@
-//! The system's own facts on Windows (phase 11): what has no std or SDL form, each a plain
+//! The system's own facts on Windows: what has no std or SDL form, each a plain
 //! call with a typed answer; the calls themselves are `ffi::win32`'s. A Linux build answers
 //! the same questions in its own file.
 

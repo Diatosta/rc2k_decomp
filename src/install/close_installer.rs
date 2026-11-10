@@ -3,8 +3,6 @@
 //! `dword_51BB44`) zeroed.
 //!
 //! Caller `install::run_installer`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 

@@ -19,8 +19,6 @@ use crate::saves::drivers::Driver;
 /// More records than any table has.
 const MOST_RECORDS: usize = 0x1000;
 
-// ---- Rust version ----
-
 /// How many records the table has before its -1 (the first is not looked at for the
 /// end, as in the original).
 fn records(table: RecordTable) -> Result<usize, BadInput> {

@@ -6,11 +6,9 @@
 //! the caller's own value comes back (`notes/bugs.md`). Worked: the three dwords at +4, +8, +0xC
 //! are returned and the serial may be 0. Failed: they are 0. One caller, `start` (0x40100B), before
 //! `math::stir_random`, which stirs in eax. The Win32 call is made from Rust.
-//! `start` calls it directly (2026-10-23).
+//! `start` calls it directly.
 
 // ---- game data ----
-
-// ---- Rust version ----
 
 /// The serial and name written (see the header). Its one caller, `start`, reads eax
 /// after it (register liveness, 2026-10-23: eax only), which is `start`'s own esi at

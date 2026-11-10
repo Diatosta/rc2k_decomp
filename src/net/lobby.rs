@@ -176,10 +176,9 @@ pub const fn fatal(code: u32) -> crate::errors::FatalError {
 
 // ---- DirectPlay's callbacks (`stdcall`, their arguments on the stack) ----
 
-/// A callback's Rust version where DirectPlay calls it (2026-10-23): a refused
-/// input ends the program with its reason (there is no game code to run in its place:
-/// before 2026-10-23 it called the game's callback at `ral`, which in the standalone would
-/// fault), a fatal error is raised. Its eax out.
+/// Runs a callback where DirectPlay calls it: a refused
+/// input ends the program with its reason (there is no game code to run in its place), a
+/// fatal error is raised. Its eax out.
 pub fn callback_entry(name: &str, ral: u32, rust: impl FnOnce() -> Result<u32, Refused>) -> u32 {
     match rust() {
         Ok(eax) => eax,

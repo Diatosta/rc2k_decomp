@@ -9,8 +9,6 @@ use crate::system::owner::system;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 /// SEM_FAILCRITICALERRORS.
 const FAIL_CRITICAL_ERRORS: u32 = 1;
 

@@ -14,7 +14,6 @@ use crate::errors::Refused;
 use crate::menu::owner::Screens;
 use crate::menu::screen_items_store::slot;
 
-/// The Rust version. (The original keeps every register of its caller.)
 pub fn apply_screen_mode(screens: &Screens) -> Result<(), Refused> {
     let system = crate::system::owner::system();
     let gfx = crate::gfx::owner::gfx();

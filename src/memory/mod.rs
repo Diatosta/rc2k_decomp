@@ -63,7 +63,7 @@ impl ListCells {
 /// asked for; the rest is not used.
 pub const HEADER_LEN: u32 = rc2k_core::memory::HEADER_LEN;
 
-/// The allocator's variables, out of the image since 2026-10-24 (phase 5; they were
+/// The allocator's variables, out of the image since 2026-10-24 (they were
 /// `dword_4E0578` .. `dword_4E0588`, 5 dwords). Atomics: any thread allocates. `OWN_HEAP` and
 /// `OWN_HEAP_KB` are `var\ral.cfg` settings (`altmemenable`, `altmemsize`, through
 /// `crate::moved::place`). Each has its own entry in `moved::MOVED`.
@@ -87,7 +87,7 @@ pub mod state {
 }
 
 /// `bytes` of Rust's memory counted on `list` as `allocate` counts a block it takes (the
-/// list's total, the figures), for a user whose blocks are Rust's own (phase 12); the
+/// list's total, the figures), for a user whose blocks are Rust's own; the
 /// list's `free_list` gives them back. The list holds no block of the game's for them.
 pub fn count_owned(list: &crate::session::Shared<MemoryList>, bytes: u32) {
     list.update(|l| l.total = l.total.wrapping_add(bytes));

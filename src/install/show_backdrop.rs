@@ -2,8 +2,6 @@
 //! installer's backdrop alone (`install::backdrop_frame`), as a page opens and closes.
 //!
 //! Caller `install::run_page` (twice).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::run_frame;

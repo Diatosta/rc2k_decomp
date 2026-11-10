@@ -20,8 +20,6 @@ const HEAD_LEN: u32 = 0x10;
 /// The tables of `allocate_best_times` the file holds, in the file's order.
 const WRITTEN: [usize; 6] = [1, 2, 3, 4, 7, 8];
 
-// ---- Rust version ----
-
 /// `saves::save_best_times` on the game's own file and tables: true if the file was opened
 /// (and so, as far as the function knows, written).
 pub fn in_game(saves: &Saves) -> Result<bool, Refused> {

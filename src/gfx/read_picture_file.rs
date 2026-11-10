@@ -10,8 +10,6 @@
 //! replaced by `files\d\gfx\chatzone.pcx`, and other paths go to `read_pcx` alone.
 //! 14 callers. Refuses a path of fewer than four characters (the original looks at the four
 //! bytes before the text's end) and what the readers refuse. The name is a reading.
-//! The registers above are the original's, for reference; a call by address goes through
-//! `routes.rs`.
 
 use crate::errors::Refused;
 use crate::files::swap_missing_extension::swap_missing_extension;
@@ -22,8 +20,6 @@ use crate::gfx::read_png::read_png;
 
 /// IDA's address of the PNG setting.
 pub const PNG_SETTING_START: usize = 0x51B97C;
-
-// ---- Rust version ----
 
 /// Returns whether a picture was read. Converted: `rc2k_core::gfx::loading::{ending,
 /// reader}`.

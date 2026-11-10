@@ -10,8 +10,6 @@ use crate::screens::draw_menu_items::draw_menu_items;
 use crate::screens::draw_menu_labels::draw_menu_labels;
 use crate::text::draw_text::Canvas;
 
-// ---- Rust version ----
-
 /// `menu` (edi in the original).
 pub fn draw_menu(
     menus: &Menus,

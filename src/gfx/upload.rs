@@ -1,5 +1,5 @@
 //! The texture upload's surface description (DDSURFACEDESC) and the mode-trial switch, out
-//! of RAL.EXE's image (phase 5; typed in phase 7, `notes/conversion.md`): IDA 0x5ABA18 ..
+//! of RAL.EXE's image: IDA 0x5ABA18 ..
 //! 0x5ABA8C. A surface's `Lock` fills the description; `d3d::texture_lock` and
 //! `upload_texture_picture` hand its address on and read the pitch and the pixels.
 

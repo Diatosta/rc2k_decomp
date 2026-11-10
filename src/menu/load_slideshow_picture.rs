@@ -35,8 +35,6 @@ pub enum Step {
     Convert,
 }
 
-// ---- Rust version ----
-
 pub fn load_slideshow_picture(
     menus: &Menus,
     way: u32,
@@ -83,7 +81,7 @@ pub fn load_slideshow_picture(
     Ok(())
 }
 
-/// With the Rust versions of what it calls.
+/// With the game's own steps for what it calls.
 pub fn load_slideshow_picture_in_game(menus: &Menus, way: u32) -> Result<(), Refused> {
     load_slideshow_picture(menus, way, &mut |step| match step {
         Step::Overlay(path, over) => load_picture_with_overlay(&MirroredPath::new(path), &over),

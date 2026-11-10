@@ -7,8 +7,6 @@ use crate::errors::Refused;
 use crate::menu::disable_item::set_item;
 use crate::menu::owner::menus;
 
-// ---- Rust version ----
-
 pub fn enable_item(number: u32) -> Result<(), Refused> {
     let screens = &menus().screens;
     // Converted: `rc2k_core::menu::items::choosable`.

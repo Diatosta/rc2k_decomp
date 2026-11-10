@@ -28,8 +28,6 @@ const LISTS: [(&[Dword], &[Dword]); 2] = [
     ), // unk_7552F8, off_75A12E
 ];
 
-// ---- Rust version ----
-
 pub fn list_car_numbers() -> Result<(), BadInput> {
     // Converted: `rc2k_core::saves::cars::numbers`, both lists worked out before either is
     // written.

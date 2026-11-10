@@ -59,8 +59,6 @@ pub fn list_frame(
     crate::platform::show_frame_now();
     Ok(())
 }
-
-/// The Rust version.
 pub fn connections_frame() -> Result<(), Refused> {
     list_frame(screens::CONNECTIONS_TITLE, &net().vars.connections, |n| {
         crate::net::tables::with_connection(n, |c| c.name)

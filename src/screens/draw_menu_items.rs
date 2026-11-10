@@ -43,8 +43,6 @@ use crate::text::draw_text::Canvas;
 const END: u32 = u32::MAX;
 const ITEM_LIMIT: u32 = 256;
 
-// ---- Rust version ----
-
 pub fn draw_menu_items(
     menus: &Menus,
     menu: crate::menu::menus_store::MenuId,

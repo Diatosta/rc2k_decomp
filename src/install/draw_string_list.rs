@@ -5,8 +5,6 @@
 //! Takes the count, table, x, y.
 //! Callers `install::install_files` and the copy-progress and page frames. Refuses a count of 0 (the original's loop is a do-while: it would draw
 //! 2^32 records).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::{draw_string, rd, rl};

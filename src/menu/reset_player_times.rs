@@ -6,7 +6,6 @@ use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
-/// The Rust version.
 pub fn reset_player_times(menus: &Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::player::Player::reset_times`.
     for n in 0..4 {

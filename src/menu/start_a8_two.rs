@@ -17,7 +17,6 @@ pub const START_A8_TWO: Starter = Starter {
     },
 };
 
-/// The Rust version.
 pub fn start_a8_two(menus: &Menus) -> Result<(), Refused> {
     start_event(menus, &START_A8_TWO)
 }

@@ -12,8 +12,6 @@ use crate::pointers::GamePtr;
 
 pub const ENTRY_LEN: u32 = 8;
 
-// ---- Rust version ----
-
 /// The entry, if the key is in the table.
 pub fn find_entry(key: u32, table: GamePtr, count: u32) -> Result<Option<GamePtr>, BadInput> {
     // Converted: `rc2k_core::system::tables::by_key`.

@@ -18,8 +18,6 @@ use crate::net::lobby::log;
 use crate::net::owner::Net;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use rc2k_core::net::address::{self, Provider};
-
-/// The Rust version (see the header).
 pub fn build_address(net: &Net, connection_number: u32) -> Result<bool, Refused> {
     let vars = &net.vars;
     log(VIEWER_PANEL.text_ptr(texts::NET_DPCA), true, 2);

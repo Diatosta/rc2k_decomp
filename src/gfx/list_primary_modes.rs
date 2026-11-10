@@ -8,16 +8,13 @@
 //! table), `gfx::mark_3d_modes` with eax 0x1000 if `dword_5AB4AC` (a 3D primary card) is
 //! 1, then 0x404935 (DirectDraw closed). DirectDraw is the platform's: in the standalone
 //! the modes are every size the game knows in both pixel kinds (`standalone_modes`), and
-//! the opening and closing nothing. One caller, `start` (0x401098), which calls it directly
-//! (2026-10-23).
+//! the opening and closing nothing. One caller, `start` (0x401098), which calls it directly.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::mark_3d_modes::mark_3d_modes;
 use crate::gfx::owner::Display;
 
 pub const PRIMARY: u32 = 0x1000;
-
-/// The Rust version (see the header).
 pub fn list_primary_modes(display: &Display) -> Result<(), Refused> {
     standalone_modes(display, PRIMARY)?;
     if display.cards.primary.get() == 1 {

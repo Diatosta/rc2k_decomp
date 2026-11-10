@@ -19,8 +19,6 @@ use crate::session::Dword;
 
 const STAGE_SLOT: &Dword = &crate::menu::owner::MENUS.screens.draw_work.figure; // dword_7559EC
 // hhmm
-
-/// The Rust version.
 pub fn enter_time_trial_best(menus: &Menus) -> Result<(), Refused> {
     let play = &menus.play;
     let screens = &menus.screens;

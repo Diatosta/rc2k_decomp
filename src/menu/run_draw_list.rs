@@ -10,8 +10,6 @@ use crate::menu::run_list::run_list;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 pub fn run_draw_list(menus: &Menus) -> Result<(), Refused> {
     run_list(menus, menus.screens.flow.draw_list.get()?)
 }

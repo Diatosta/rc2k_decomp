@@ -13,8 +13,6 @@ use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 // ---- game data ----
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 pub const SCREEN: Screen = Screen {
     menu: |m| m.tables.menus.rally_stages.id(),
     saved_item: |m| &m.screens.items.current[slot::RALLY_STAGES], // dword_747770

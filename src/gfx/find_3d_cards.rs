@@ -9,13 +9,11 @@
 //! break in the log. The enumeration (and the callback, DirectDraw throughout) is the
 //! platform's: in the standalone its rasteriser is the one card, a 3D primary one (unless
 //! `dword_5AB950`), as the callback would set it. One caller, `start` (0x401093), which
-//! calls it directly (2026-10-23).
+//! calls it directly.
 
 use crate::d3d::owner::d3d;
 use crate::gfx::owner::Display;
 use crate::logfile::log_write::log_newline_l1;
-
-/// The Rust version (see the header).
 pub fn find_3d_cards(display: &Display) {
     let d3d = d3d();
     display.cards.primary.set(0);

@@ -34,8 +34,6 @@ pub fn list_move(install: &'static crate::install::owner::Install, key: u8, coun
     install.pages.choice_before.set(top);
     true
 }
-
-/// The Rust version.
 pub fn choose_connection(
     install: &'static crate::install::owner::Install,
     vars: &NetVars,

@@ -40,8 +40,6 @@ pub fn write_list(list: List, entries: &[u32]) {
     list.0[entries.len()].set(car_lists::END);
 }
 
-// ---- Rust version ----
-
 pub fn remove_secret_cars(menus: &Menus) -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::car_lists` (`entries`, `without_secret`).
     {

@@ -5,7 +5,6 @@
 use crate::errors::Refused;
 use crate::menu::standings::*;
 
-/// The Rust version.
 pub fn clear_players_288() -> Result<(), Refused> {
     for n in 0..4 {
         player(n).update(|q| q.service_spent = 0);

@@ -11,8 +11,6 @@ use crate::menu::name_lists::savegame_name;
 use crate::menu::owner::Menus;
 use crate::menu::text_entry::begin_logged;
 
-// ---- Rust version ----
-
 /// `log` = false leaves the log lines out.
 pub fn begin_savegame_name(menus: &Menus, log: bool) -> Result<(), BadInput> {
     let name = savegame_name()?;

@@ -16,8 +16,6 @@ use rc2k_core::net::inbox;
 
 /// The records' room: 16 players.
 pub const MOST_PLAYERS: u32 = 16;
-
-/// The Rust version.
 pub fn copy_received(vars: &NetVars) -> Result<(), Refused> {
     let count = || vars.players.get();
     if count() > MOST_PLAYERS {

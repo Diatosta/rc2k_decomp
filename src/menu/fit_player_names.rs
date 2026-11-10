@@ -25,8 +25,6 @@ use rc2k_core::strings::bytes::Bytes;
 /// More characters than a name is looked through for its end.
 const LONGEST: usize = 0x1000;
 
-// ---- Rust version ----
-
 /// `menu::fit_name` (0x411474). Returns the width of the name as it is left.
 pub fn fit_name(text: GamePtr) -> Result<u32, Refused> {
     let name = text.bytes("a name")?;

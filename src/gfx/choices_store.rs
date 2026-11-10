@@ -1,5 +1,5 @@
 //! The graphics settings page's choices (the screen mode chosen and the modes to choose from, and
-//! the switches the page's items copy), out of RAL.EXE's image (phase 5), typed (phase 7).
+//! the switches the page's items copy), out of RAL.EXE's image .
 //! Placed in a file of its own beside the graphics module's stores (converted in parallel). The
 //! options' item tables (`menu::option_items`) name these variables by IDA address, through
 //! `moved::MOVED`. `#[repr(C)]` struct of atomic cells with the image's layout, first values the

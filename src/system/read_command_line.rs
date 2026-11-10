@@ -18,7 +18,7 @@
 //!
 //! The line ends at a word of no length that starts where the reading stands. One caller, `start`.
 //! Refuses a word for `-i` of 0x100 bytes or more. The `-v` part cannot be run in a test: it was
-//! looked at by the owner. `start` calls it directly (2026-10-23).
+//! looked at by the owner. `start` calls it directly.
 
 use crate::audio::owner::audio;
 use crate::d3d::owner::d3d;
@@ -29,8 +29,6 @@ use crate::system::owner::Start;
 // ---- game data ----
 
 const EXIT_PATH: usize = 0x401116;
-
-// ---- Rust version ----
 
 /// What the line asks for besides its switches.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -70,7 +68,7 @@ pub fn show_version_and_leave(start: &Start) -> ! {
     crate::standalone::finish(&format!("the game's way out {EXIT_PATH:#x} was reached"), 0)
 }
 
-/// The Rust version on a command line (its text with the NUL; kept for the program's
+/// Reads a command line (its text with the NUL; kept for the program's
 /// life, as the game keeps a pointer into it).
 pub fn read_command_line(start: &Start, line: &[u8]) -> Result<Asked, BadInput> {
     let install = crate::install::owner::install();
@@ -116,7 +114,7 @@ pub fn read_command_line(start: &Start, line: &[u8]) -> Result<Asked, BadInput> 
     })
 }
 
-/// The Rust version on the program's own command line (`os::command_line`, for
+/// Reads the program's own command line (`os::command_line`, for
 /// `GetCommandLineA`; kept as a region); `-v` shows the version and leaves through
 /// `start`'s exit path.
 pub fn read_own_command_line(system: &crate::system::owner::System) -> Result<(), BadInput> {

@@ -17,8 +17,6 @@ use crate::system::owner::system;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 // Converted: `rc2k_core::menu::blink::blink_states`.
 pub use rc2k_core::menu::blink::blink_states;
 

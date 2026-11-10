@@ -12,8 +12,6 @@ use crate::text::draw_text_keep_regs::draw_text_keep_regs;
 use crate::text::font::Font;
 use rc2k_core::text::{TIME_STEPS, columns};
 
-// ---- Rust version ----
-
 /// Where the one-character text is built, relative to the text.
 pub const CELL_OFFSET: usize = 0x40;
 

@@ -8,8 +8,6 @@
 //! `dword_51B9CC` and `dword_51B9D0` are cleared after a second.
 //!
 //! A list action (`off_51DD48` for the Clio disc). Caller `install::run_page`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::{

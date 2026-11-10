@@ -26,8 +26,6 @@ fn reset_fields(car: u32) -> [Reset; 7] {
         (|c| &c.steering_sensitivity, 0x80),
     ]
 }
-
-/// The Rust version.
 pub fn reset_cars(race: &Race) -> Result<(), crate::errors::BadInput> {
     for car in 0..cars::CARS {
         let block = crate::race::trap::car_at(race.shared.work.car_block(car as usize))?;

@@ -8,8 +8,6 @@
 //! Callers: `install::read_languages`, `install::install_from_command`, `install::language_page`.
 //! Refuses number 0 (the original takes the slot before the first) and a slot whose two
 //! texts do not end inside it.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::BadInput;
 use crate::place::Place;
@@ -19,8 +17,6 @@ use rc2k_core::install::config;
 
 pub const LANGUAGE_SLOT: usize = config::SLOT;
 pub const LANGUAGE_SLOTS: usize = config::SLOTS;
-
-// ---- Rust version ----
 
 pub fn choose_language(
     install: &'static crate::install::owner::Install,

@@ -6,8 +6,6 @@
 
 use crate::strings::string_table::table;
 
-// ---- Rust version ----
-
 /// Whether a bad entry has been logged (once).
 static WARNED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 

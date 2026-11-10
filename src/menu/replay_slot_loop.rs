@@ -10,7 +10,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 
-/// The Rust version: the slot chosen (-1 for none), on the saving screen when `saving`
+/// The slot chosen (-1 for none), on the saving screen when `saving`
 /// (the original's eax non-zero), else on the loading one.
 pub fn replay_slot_loop(menus: &Menus, saving: bool) -> Result<u32, Refused> {
     let screen = if saving {

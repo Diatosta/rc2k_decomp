@@ -102,7 +102,7 @@ pub const OVERALL_STAGE: Page = Page {
     keep_overall: true,
 };
 
-/// The Rust version of one page.
+/// Draws one page.
 pub fn draw_results_page(
     menus: &Menus,
     page: &Page,
@@ -205,7 +205,7 @@ macro_rules! results_page_entry {
     ($module:ident, $name:literal, $address:expr, $page:expr) => {
         pub mod $module {
             use super::*;
-            /// The Rust version the typed tables run (`menu::table_calls`).
+            /// Run by the typed tables (`menu::table_calls`).
             pub fn draw(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
                 draw_results_page(menus, &$page, &mut crate::text::draw_text::GameCanvas)
             }

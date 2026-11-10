@@ -13,8 +13,6 @@ use crate::text::draw_text::Canvas;
 use crate::text::font::Font;
 use crate::text::measure_text::{Measured, measure_text};
 
-// ---- Rust version ----
-
 /// `buffer` is where the text is built: the game's text buffer, or a private one of at least
 /// `TEXT_LEN` bytes. `font` is changed as the original changes the font object.
 pub fn measure_string_by_id(

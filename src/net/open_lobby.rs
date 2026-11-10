@@ -14,8 +14,6 @@ use crate::errors::Refused;
 use crate::net::lobby::{co_create, log};
 use crate::net::store::NetVars;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
-
-/// The Rust version.
 pub fn open_lobby(vars: &NetVars) -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_ptr(texts::NET_CREATE_DLOBBY), true, 2);
     Ok(co_create(&vars.clsid_lobby, &vars.iid_lobby2a, &vars.lobby) == 0)

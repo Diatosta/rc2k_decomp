@@ -17,7 +17,7 @@
 //!
 //! One caller, `start`'s way out. Refuses (before anything, where the way could lead there) a game
 //! folder too long for "ereg\" in its 0x100 bytes, and a command line's program of 0x100 bytes or
-//! more. Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! more.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::runs_from_source::{scratch_put, scratch_text};
@@ -38,8 +38,6 @@ fn set_cd(path: &[u8]) -> bool {
 fn run(command: &[u8]) {
     crate::install::shortcuts::run_program(&crate::files::host_path(command));
 }
-
-/// The Rust version (see the header).
 pub fn run_after_exit(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
     let run_vars = &install.run;
     // `g_addStartItems` .. `g_runRegistration`.

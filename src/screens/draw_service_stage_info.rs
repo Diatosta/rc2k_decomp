@@ -24,8 +24,6 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 /// Returns the carry flag of `draw_stage_records`.
 pub fn draw_service_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let screens = &menus.screens;

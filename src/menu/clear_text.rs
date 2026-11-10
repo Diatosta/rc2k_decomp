@@ -4,8 +4,6 @@
 use crate::menu::owner::Menus;
 use crate::menu::text_entry::{Text, put_field, with_entry};
 
-// ---- Rust version ----
-
 pub fn clear_text(
     menus: &Menus,
     at: impl Into<crate::place::Place>,

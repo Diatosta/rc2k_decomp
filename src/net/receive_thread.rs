@@ -9,7 +9,7 @@
 //! (a network session) 1, `net::take_messages`; then `dword_52A918` 0; with
 //! `dword_52ACE4` 1 the call posted in `dword_52ACE8` (taken with an `xchg`) is made and
 //! its eax kept in `dword_52ACEC`, `dword_52ACF0` 1 (`net::post_call` posts them and
-//! waits; what it posts are Rust versions, `net::lobby_calls`); until `g_quitting` is 1.
+//! waits; what it posts are Rust functions, `net::lobby_calls`); until `g_quitting` is 1.
 //! The end: done 1, "NETRXTDB:QUIT", not running, `ExitThread(0)`.
 //! The original hands the starter's registers on from call to call; the calls' Rust
 //! versions read none of them (`take_messages` and the posted calls take no arguments).

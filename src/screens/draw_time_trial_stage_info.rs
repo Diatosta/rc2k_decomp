@@ -35,8 +35,6 @@ const GROUP_TITLE_Y: i32 = 0x77;
 const TABLE_TITLE_Y: i32 = 0x94;
 const HEADING_Y: i32 = 0xB1;
 
-// ---- Rust version ----
-
 /// Returns the carry flag. Refuses a missing selection: the original reads through null.
 pub fn draw_time_trial_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let tables = &menus.tables;

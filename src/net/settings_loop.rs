@@ -16,8 +16,6 @@ use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};
 use crate::net::owner::net;
 use crate::system::owner::system;
-
-/// The Rust version.
 pub fn settings_loop() -> Result<(), Refused> {
     let install = crate::install::owner::install();
     let net = net();

@@ -1,8 +1,7 @@
-//! The operating system's services the game asks for, on std and SDL3 (phase 11,
-//! `notes/conversion.md`): the clock, the local time, the command line, the current folder,
-//! message boxes. Nothing here is Windows-only; the game's texts go in and out as
-//! Windows-1252 bytes, as the Win32 `A` functions took them. The system's own facts (its
-//! version, names, drives, memory) are each system's file: `windows.rs`, `unix.rs`.
+//! The operating system's services the game asks for, on std and SDL3: the clock, the local time,
+//! the command line, the current folder, message boxes. Nothing here is Windows-only; the game's
+//! texts go in and out as Windows-1252 bytes, as the Win32 `A` functions took them. The system's
+//! own facts (its version, names, drives, memory) are each system's file: `windows.rs`, `unix.rs`.
 
 #[cfg(windows)]
 mod windows;

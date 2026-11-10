@@ -1,4 +1,4 @@
-//! The sprite and font builder's work on one sheet: `gfx::build_glyphs` is the hook; what
+//! The sprite and font builder's work on one sheet: `gfx::build_glyphs` calls it; what
 //! the original's functions under `gfx::build_glyphs` do with a loaded sheet is here, in their
 //! order. A sheet is a picture with glyphs drawn on a backdrop. The builder finds each
 //! glyph's rectangle (0x41226B), codes it (0x41255F), fills the rectangle with the
@@ -8,7 +8,7 @@
 //!
 //! The sheet is read through `SheetPixels` (in the game, the row table `g_rowTable`), as
 //! bytes that are palette numbers or as dwords of four components, by bit 1 of the
-//! builder's flags. Converted 2026-10-20 from `gfx/glyph_builder.rs` of the hook crate.
+//! builder's flags. Converted 2026-10-20 from `gfx/glyph_builder.rs`.
 //! A glyph is coded as the blitter reads it (CLAUDE.md, section 11): a head with the offsets
 //! and the size left after blank edges are cut off, then for every row runs of count, gap
 //! and pixels, a count of 0 ending the row. Blank is the backdrop or the transparent

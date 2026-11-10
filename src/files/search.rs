@@ -1,4 +1,4 @@
-//! The game's file search on std (phase 11; it was `FindFirstFileA` / `FindNextFileA` /
+//! The game's file search on std (it was `FindFirstFileA` / `FindNextFileA` /
 //! `FindClose`): the folder listed with `std::fs::read_dir`, its names matched as Windows
 //! matched them (`rc2k_core::files::wildcard`) in NTFS's order. One search at a time, as
 //! the game kept one (`hFindFile`, now 1 while a search is open). Each name found is put in

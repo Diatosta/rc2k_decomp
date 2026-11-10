@@ -20,7 +20,7 @@
 //! pixels become the top four of the other's (both must be palette sheets: fatal errors
 //! 0x80E4F412 and 0x80E4F422; with the one-file flag 0x80E4F411). If that first file is
 //! not there, the alpha is made from each glyph's own shape (`Sheet::soften`).
-//! The Rust version keeps its glyphs in memory of its own and only counts them off the work memory, where
+//! The glyphs are kept in memory of its own and only counts them off the work memory, where
 //! it puts the sheet's table as the original does. It leaves alone: the list of glyph
 //! records (`unk_5195AC`), the five work variables of the row scan (`dword_5195B8` ..
 //! `dword_5195C8`), and the up to three bytes after a first table that the original's copy
@@ -105,8 +105,6 @@ impl SheetVars {
 const RECORD_HEAD: u32 = 0x1C;
 /// Half the picture buffer: where a sheet lies, and what an alpha sheet is kept behind.
 const HALF_PICTURE_DWORDS: usize = 0x3A980;
-
-// ---- Rust version ----
 
 fn fatal(code: u32, message: &'static str) -> Refused {
     FatalError { code, message }.into()

@@ -92,8 +92,6 @@ const KEYBOARD_LEN: usize = rc2k_core::input::layouts::FILE_LEN;
 /// Where the file is read to (the layouts own the result).
 static KEYBOARD_BUFFER: Bytes<KEYBOARD_LEN> = Bytes::new([0; KEYBOARD_LEN]);
 
-// ---- Rust version ----
-
 fn fatal(code: u32, message: &'static str) -> Refused {
     FatalError { code, message }.into()
 }

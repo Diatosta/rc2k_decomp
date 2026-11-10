@@ -17,7 +17,7 @@ use crate::text::draw_text::{Canvas, draw_text_at};
 
 const CELLS_LEN: usize = 0x100;
 
-/// The Rust version: the `digits`, the column of the last character at `x` + 0x32.
+/// The `digits`, the column of the last character at `x` + 0x32.
 pub fn draw_spaced_number(
     screens: &Screens,
     font: impl Into<crate::gfx::typefaces::FontRef>,

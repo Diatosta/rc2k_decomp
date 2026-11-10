@@ -7,8 +7,6 @@
 //!
 //! Takes the state, list.
 //! A page action. Caller `install::run_page`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::load_language;

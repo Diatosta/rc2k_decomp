@@ -22,7 +22,7 @@ use crate::strings::append_time::show_hours;
 use crate::text::draw_text::Canvas;
 
 const SECTIONS: u32 = 6;
-/// The Rust version.
+
 pub fn draw_section_best_times(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let section: u32 = menus.screens.event.section.get();
     if section >= SECTIONS {

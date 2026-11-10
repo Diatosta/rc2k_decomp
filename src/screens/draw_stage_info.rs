@@ -32,8 +32,6 @@ use crate::text::draw_text::Canvas;
 pub const TITLE_X: i32 = 0x2EB;
 pub const TITLE_Y: i32 = 0x77;
 
-// ---- Rust version ----
-
 /// The record of the event's stage, and its section.
 pub fn event_stage(screens: &Screens) -> Result<(RecordRef, u32), crate::errors::BadInput> {
     let table = system().records.stage_tables.championship();

@@ -31,7 +31,6 @@ const NAMES: [(&Dword, u32); 6] = [
     (&crate::menu::owner::MENUS.screens.option_work.dolby, 0x56D),
 ];
 
-/// The Rust version (the registers the last name leaves: the menus read none of them).
 pub fn draw_sound_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::{sound_items, sound}`.
     use crate::screens::game_screen::SettingsScreen;

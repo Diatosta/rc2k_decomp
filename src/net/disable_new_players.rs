@@ -10,8 +10,6 @@ use crate::net::owner::Net;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 const CLOSED: u32 = 0x21; // DPSESSION_NEWPLAYERSDISABLED | DPSESSION_JOINDISABLED
-
-/// The Rust version.
 pub fn disable_new_players(net: &Net) {
     if net.vars.own.state() & 0x10 == 0 {
         return;

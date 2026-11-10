@@ -28,8 +28,6 @@ const OVERLAY_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.overlay_
 const NOTICE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NOTICE;
 const END: u32 = u32::MAX;
 
-// ---- Rust version ----
-
 /// Runs the functions of the list `list` points at (the original keeps the registers
 /// around each of the scene list's; its functions take none either way).
 pub fn run_listed(menus: &Menus, list: &ListCell) -> Result<(), Refused> {

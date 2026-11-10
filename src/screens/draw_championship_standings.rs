@@ -30,7 +30,6 @@ use crate::text::draw_text::Canvas;
 
 // g_champRow
 // g_champRowEnd
-/// The Rust version.
 pub fn draw_championship_standings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let play = &menus.play;
     if !section_there()? {

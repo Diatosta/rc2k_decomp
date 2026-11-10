@@ -11,8 +11,6 @@ use crate::strings::string_table::{ptr_high, ptr_low};
 use rc2k_core::strings::bytes::Bytes;
 use rc2k_core::strings::table::Source;
 
-// ---- Rust version ----
-
 /// `emit` receives each run of bytes to append. Returns the `eax` the original leaves behind.
 pub fn append_string_by_id(id: u32, emit: &mut impl FnMut(&[u8])) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::strings::table::Source`.

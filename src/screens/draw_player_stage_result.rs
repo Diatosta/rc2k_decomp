@@ -16,7 +16,6 @@ use crate::menu::owner::Menus;
 use crate::screens::best_scores::{STAGE_TIMES, draw_times_heading};
 use crate::text::draw_text::Canvas;
 
-/// The Rust version.
 pub fn draw_player_stage_result(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let player = crate::menu::player_settings::current()?.get();
     let name =

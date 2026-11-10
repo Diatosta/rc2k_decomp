@@ -149,7 +149,7 @@ pub enum Cheat {
     Stores,
 }
 
-/// By bit (see `menu::apply_cheats`' hook for their names).
+/// By bit (see `menu::apply_cheats` for their names).
 pub const CHEATS: [Cheat; 19] = [
     Cheat::Stays,      // 1 Unlock Arcade
     Cheat::Stays,      // 2 Unlock Cars

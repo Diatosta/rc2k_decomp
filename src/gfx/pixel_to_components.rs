@@ -11,8 +11,6 @@
 
 use crate::gfx::pixel_format::PixelFormat;
 
-// ---- Rust version ----
-
 pub fn pixel_to_components(format: &PixelFormat, pixel: u32) -> u32 {
     // Converted: `rc2k_core::gfx::pixels::unpack`.
     rc2k_core::gfx::pixels::unpack(format, pixel)

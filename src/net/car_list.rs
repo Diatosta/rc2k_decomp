@@ -40,8 +40,6 @@ pub fn any_won(tables: &Tables, secret: &[Dword], won: &[Dword]) -> Result<bool,
     }
     Ok(answer?)
 }
-
-/// The Rust version.
 pub fn car_list(tables: &Tables) -> Result<CarList, Refused> {
     Ok(
         if any_won(tables, &tables.lists.cars_second, &tables.lists.secret_cars)? {

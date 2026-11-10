@@ -64,8 +64,6 @@ fn font_of(font: AreaFont) -> crate::gfx::typefaces::FontId {
     }
 }
 
-// ---- Rust version ----
-
 /// Returns the carry flag of the last text drawn. Refuses a missing player and a title
 /// that does not fit the text buffer.
 pub fn draw_service_area(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {

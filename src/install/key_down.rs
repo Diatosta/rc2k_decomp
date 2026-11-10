@@ -3,8 +3,6 @@
 //!
 //! Takes the item. Returns the kind (`[item] & 0x2F`).
 //! Caller `install::page_key`, reading zero.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::key_up::item_key;

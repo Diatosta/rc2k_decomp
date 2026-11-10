@@ -41,7 +41,7 @@ impl Direction {
     }
 }
 
-// ---- Rust version of the four moves ----
+// ---- the four moves ----
 
 /// The click is 0x40F059 with sound 1 (`sound::play_menu_sound`); the callback gets
 /// the item (edi in the original, the only register its callbacks read).

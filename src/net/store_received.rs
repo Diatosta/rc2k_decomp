@@ -23,8 +23,6 @@
 use crate::errors::Refused;
 use crate::net::store::PlayerBlock;
 use rc2k_core::net::inbox;
-
-/// The Rust version.
 pub fn store_received(
     sequence: u8,
     block: &PlayerBlock,

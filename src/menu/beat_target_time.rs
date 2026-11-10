@@ -8,7 +8,6 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Screens;
 use crate::menu::standings::*;
 
-/// The Rust version.
 pub fn beat_target_time(screens: &Screens) -> Result<(), Refused> {
     let event = current_event(screens)?;
     let n: u32 = screens.event.current_player.get();

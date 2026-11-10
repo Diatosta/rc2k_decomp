@@ -9,7 +9,7 @@ use crate::system::owner::system;
 
 /// `screens::pick_player_1` .. `_4` (0x46AEC5, 0x46AF21, 0x46AF58, 0x46AF8F): player `n`
 /// the current one (`dword_75598C`), its +0x2C into `dword_7558C4` and its 0x2C bytes at
-/// +0x50 into the page's copy (`unk_7555B1`). Every register kept. Refuses (before
+/// +0x50 into the page's copy (`unk_7555B1`). Refuses (before
 /// anything) a player without its record.
 pub fn pick_player(menus: &Menus, n: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::page_values` (`Player::picked`).
@@ -25,8 +25,7 @@ pub fn pick_player(menus: &Menus, n: u32) -> Result<(), Refused> {
 
 /// `screens::load_audio_settings` (0x4707E6): the audio options (`g_audioOptions`: quality,
 /// channels, Dolby, A3D, EAX, DS3D) into the sound page's work variables (`dword_75566C`,
-/// `dword_755680`, `dword_75567C`, `dword_755678`, `dword_755674`, `dword_755670`). Every
-/// register kept.
+/// `dword_755680`, `dword_75567C`, `dword_755678`, `dword_755674`, `dword_755670`).
 pub fn load_audio_settings(menus: &Menus) {
     // Converted: `rc2k_core::screens::page_values::audio_page`.
     let options: rc2k_core::audio::modes::AudioOptions = audio().state.audio_options.get();
@@ -86,7 +85,7 @@ fn stage_refuses(a: u32, b: u32) -> Result<(), Refused> {
 /// `screens::stage_options_texts` (0x4692A9): the stage options page's items in the table at
 /// `off_74DCE0` (its address: items 1 and 2 string 0x19C / 0x19B by `dword_7556F8`, 0x19E /
 /// 0x19D by `dword_7556FC`, item 3 the record's +0x38), the stage line (string 0x481) and the
-/// caption string 0x4FC + `dword_75AB30`. Every register kept. Refuses (before anything) no
+/// caption string 0x4FC + `dword_75AB30`. Refuses (before anything) no
 /// stage records; a record of another track pack is the original's fatal error.
 pub fn stage_options_texts(menus: &Menus) -> Result<(), Refused> {
     let (a, b) = (
@@ -119,7 +118,7 @@ pub fn stage_options_texts(menus: &Menus) -> Result<(), Refused> {
 /// table at `off_74DB68` (its address) `dword_758718[dword_7558C8]`, item 1 of the table it
 /// points to the record's +0x38 (the original reads the table both ways: `notes/bugs.md`),
 /// then the stage line (string 0x482) for record `dword_7558CC` of `off_735512[dword_7558C8]
-/// [dword_7558D0]`. Every register kept. Refuses (before anything) no stage records or no
+/// [dword_7558D0]`. Refuses (before anything) no stage records or no
 /// item table; another track pack is the original's fatal error.
 pub fn stage_choice_texts(menus: &Menus) -> Result<(), Refused> {
     let (a, b) = (

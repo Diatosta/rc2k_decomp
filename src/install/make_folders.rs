@@ -10,8 +10,6 @@
 //! (`notes/bugs.md`), to the same effect. Refuses (as met) a scan of 0x400 bytes from the
 //! path's start, and a UNC path without its share's `\\`.
 //! Callers `install::install_files`, `install::install_clio`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{make_dir, rb, rw, set_cd, wb};

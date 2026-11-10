@@ -16,8 +16,6 @@ use crate::strings::append_string_by_id::append_string_by_id;
 const CAPTION_LEN: usize = 0x100;
 const FIRST: u32 = 0x56B;
 
-// ---- Rust version ----
-
 /// Puts the answer's caption in the caption buffer.
 pub fn yes_no_caption(tables: &Tables) -> Result<(), Refused> {
     let id = tables.pages.yes_no_answer.get().wrapping_add(FIRST);
@@ -31,8 +29,6 @@ pub fn yes_no_caption(tables: &Tables) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust version the typed tables run (what it leaves in registers is read by
-/// none of its callers).
 pub fn run(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
     let tables = &menus.tables;
     yes_no_caption(tables)?;

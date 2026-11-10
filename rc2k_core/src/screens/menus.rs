@@ -46,7 +46,7 @@ const LINE_LEN: usize = 0x100;
 /// asked for each byte past the string the original reads, n < 0x100). At the buffer's end
 /// it reads the one-character text: its first byte the character drawn last, then the 0
 /// written over it. Refused: a string of 0x100 bytes or more with its NUL.
-#[allow(clippy::too_many_arguments)] // the original's registers: eax .. ebp
+#[allow(clippy::too_many_arguments)] // the item's id, fonts, position and spacing, as the original takes them
 pub fn item_text<S: Screen<Work = Work>>(
     s: &mut S,
     id: u32,

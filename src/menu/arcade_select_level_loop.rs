@@ -15,8 +15,6 @@ use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     crate::scene::polygon_work::front_end().window.view_offset[0].set(0x7u32);
@@ -106,8 +104,7 @@ pub const SCREEN: Screen = Screen {
     always_asks: false,
 };
 
-/// The Rust version where the typed tables run it (a refusal is the
-/// caller's).
+/// Runs the screen (a refusal is the caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
     screen_entry("menu::arcade_select_level_loop", &SCREEN)
 }

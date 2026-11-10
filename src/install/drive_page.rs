@@ -8,8 +8,6 @@
 //!
 //! Takes the state, list.
 //! Caller `install::run_page`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::install::installer::rb;
 use crate::menu::list_handle::ListMenu;

@@ -20,8 +20,6 @@ use crate::text::draw_text::Canvas;
 const NO: u32 = 0x56B;
 const IMPERIAL: u32 = 0x373;
 
-// ---- Rust version ----
-
 /// The rows, in the order drawn: the setting and the string it counts from.
 fn rows(p: &Player) -> [(u32, u32); 9] {
     [

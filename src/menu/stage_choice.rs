@@ -78,7 +78,7 @@ pub fn draw_stage_map(menus: &Menus) -> Result<(), Refused> {
     Ok(())
 }
 
-/// How a setting draws the map: the Rust version in the game, a counter in the tests.
+/// How a setting draws the map: the game's drawing, or a counter in the tests.
 pub type Draw<'a> = &'a mut dyn FnMut() -> Result<(), Refused>;
 /// The choice's settings (converted: `rc2k_core::menu::steps::stage_sub` and
 /// `stage_number`): the variable stepped, then the map drawn again (`draw`: the Rust

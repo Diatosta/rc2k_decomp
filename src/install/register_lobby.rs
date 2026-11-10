@@ -8,8 +8,6 @@
 //!
 //! Caller `install::install_files`. The registry calls through `api`; the GUID formatting
 //! (0x40171A) done here.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::read_registry::Registry;

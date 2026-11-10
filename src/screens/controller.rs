@@ -16,7 +16,7 @@ use crate::screens::owner::screens as screens_owner;
 /// each of left (x below 0), right (x above 0), y and z shifted into its history
 /// (`dword_7551E4` ..: a 1 for "under 0x80"); a direction held over 0x1D of the last 32 polls
 /// while the others were not (its history empty) gives 0x400 / 0x800 / 0x100 / 0x200 with the
-/// button, else 0; into `dword_7559EC`. Every register kept.
+/// button, else 0; into `dword_7559EC`.
 pub fn classify_controller(
     controls: &ControlsScreen,
     screens: &Screens,
@@ -136,7 +136,7 @@ pub fn controller_page_refuses(
 /// fills clipped in, their ends at `dword_7559DC` .. `dword_7559E8`); and the stick's place
 /// now (x of the first device's state, x 100 / 256 from 0x21A; a pressed button sprite 9,
 /// else 8; `hhmm` the buttons). The sprites' palettes are ebx as the original leaves it.
-/// Every register kept. Refuses (before anything) no current player record, or no input
+/// Refuses (before anything) no current player record, or no input
 /// device for a player that has one; an x whose x 100 is 0 is the original's fatal error
 /// 0x80701010.
 pub fn draw_controller_page(

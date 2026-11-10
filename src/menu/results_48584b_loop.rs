@@ -10,8 +10,6 @@
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 pub const SCREEN: Screen = Screen {
     menu: |m| m.tables.menus.results_48584b.id(),
     saved_item: |m| &m.screens.items.current[slot::RESULTS_48584B],

@@ -14,8 +14,6 @@ use crate::errors::Refused;
 use crate::net::dplay_send::dplay_send;
 use crate::net::owner::Net;
 use rc2k_core::net::inbox;
-
-/// The Rust version.
 pub fn send_message(net: &Net, bytes: &[u8]) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::inbox` (`next_sequence`, `outgoing`: a message too long
     // refused before anything is written).

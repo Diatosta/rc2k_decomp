@@ -11,8 +11,6 @@ fn field(player: &mut Player) -> &mut u32 {
     &mut player.codriver_sex
 }
 
-// ---- Rust version ----
-
 pub fn flip_codriver() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::player::stepped`.
     change(field, |value| {

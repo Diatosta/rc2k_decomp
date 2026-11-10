@@ -9,7 +9,6 @@ use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::screens::service_boxes::quad;
 
-/// The Rust version (see the header).
 pub fn draw_fade_overlay(menus: &Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::panels::fade_overlay`.
     let a = rc2k_core::screens::panels::fade_overlay(menus.screens.state.menus.fade_see.get());

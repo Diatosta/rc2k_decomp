@@ -5,8 +5,6 @@
 //! The step up is `inc cl; cmp cl, [esi+1]; jb` (else 0). A chosen byte past the choices
 //! with every choice marked never ends: refused (the original goes round for ever).
 //! Callers `install::key_down`, `install::key_right`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::choice_back::{choice_places, store_choice};

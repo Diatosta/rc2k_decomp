@@ -18,10 +18,6 @@ use crate::menu::screen_loop::{Entry, run_screen};
 const STARTING_RVA: &std::ffi::CStr = c"BEV: Starting GB_Front"; // "BEV: Starting GB_Front"
 const FINISHED_RVA: &std::ffi::CStr = c"BEV: Finished GB_Front"; // "BEV: Finished GB_Front"
 
-// ---- Rust version ----
-
-/// The Rust version (the original keeps ebp, ecx, edi and edx; it leaves eax 0 and esi
-/// as the main menu does, which its callers do not read).
 pub fn run_front_end(menus: &Menus, audio: &crate::audio::owner::Audio) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
     let fonts = &gfx.fonts;

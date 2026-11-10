@@ -8,8 +8,6 @@
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 pub const SCREEN: Screen = Screen {
     menu: |m| m.tables.menus.time_trial_select_stage.id(),
     saved_item: |m| &m.screens.items.current[slot::TIME_TRIAL_SELECT_STAGE],

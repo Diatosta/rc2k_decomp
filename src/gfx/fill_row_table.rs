@@ -6,7 +6,7 @@
 //! and two picture functions not yet read.
 //! Refuses a count of 0 (the original counts through all 32 bits) and one above the table's
 //! room. The name is a reading.
-//! Since phase 12 (2026-10-27) the decoded picture is a Rust buffer (`gfx::picture`) and the
+//! The decoded picture is a Rust buffer (`gfx::picture`) and the
 //! table holds each row's offset in it: its callers give 0 for the first row.
 
 use crate::errors::BadInput;
@@ -37,8 +37,6 @@ pub fn row_address(row: u32, gfx: &crate::gfx::owner::Gfx) -> u32 {
         ),
     }
 }
-
-// ---- Rust version ----
 
 pub fn fill_row_table(
     first: u32,

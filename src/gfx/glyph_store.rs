@@ -1,5 +1,5 @@
-//! The fonts' and the sprites' palettes and glyph tables, Rust's (phase 13, the font model,
-//! 2026-10-27). The game carved them from heap blocks (`build_fonts`, `build_game_fonts`,
+//! The fonts' and the sprites' palettes and glyph tables, Rust's (the font model).
+//! The game carved them from heap blocks (`build_fonts`, `build_game_fonts`,
 //! `build_glyphs`, `build_menu_sprites`, the installer's bar glyphs) and held their
 //! addresses in the font objects (+0x14 palette, +0x18 glyph table), the sprite tables'
 //! variables and the screens' palettes. Here each is bytes of its own, named by a place
@@ -120,7 +120,7 @@ pub fn give_back(list: u32) {
 }
 
 /// Where `place` is: when it is an IDA address of the jade font's block (the four menu
-/// fonts name its glyphs and colour by the image's numbers, phase 13), a place in
+/// fonts name its glyphs and colour by the image's numbers), a place in
 /// `JADE_FONT`, bounded to it; else the game address itself (the image's palettes, a
 /// screen's own: numbers the font objects keep). No game address lies in the jade range:
 /// the image's range is reserved.

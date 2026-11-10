@@ -12,7 +12,7 @@ use crate::net::lobby::{push_id, store_text};
 use crate::net::store::NetVars;
 use rc2k_core::net::screens::{self, Number};
 
-/// The Rust version: the number `number` for item `item` at `y`, as the text being typed,
+/// The number `number` for item `item` at `y`, as the text being typed,
 /// "nothing" or its digits (the last two built in the game's text buffer); returns the next
 /// y (`draw_setting_value`'s).
 pub fn draw_number_value(

@@ -11,7 +11,7 @@
 //! (the last row is its own row below). Three bytes of each pixel are made that way; the
 //! fourth is left as it was. The memory is given back.
 //! The right neighbour of a row's last pixel is the next row's first, and for the last row
-//! four bytes past the copy: the Rust version reads the same bytes, from memory it takes
+//! four bytes past the copy: this reads the same bytes, from memory it takes
 //! from the same allocator.
 //! One caller, the picture loader `gfx::load_picture`, when the decoded width is not the screen's.
 //! Leaves the steps in `dword_4F509C` .. `dword_4F50A8`, the last weights in `dword_4F50AC`
@@ -85,8 +85,6 @@ impl Rescaler {
     }
 }
 
-// ---- Rust version ----
-
 // Converted: `rc2k_core::gfx::picture` (the arithmetic); here the copy, the row table and the
 // work variables.
 
@@ -104,7 +102,7 @@ pub fn rescale_picture(rescaler: &Rescaler, gfx: &crate::gfx::owner::Gfx) -> Res
     }
     // The original calls a failed allocation fatal error 0x80A01112, but the allocator
     // never comes back failed: it raises its own.
-    // The copy is Rust's memory (phase 12), counted on the list as the game's block
+    // The copy is Rust's memory, counted on the list as the game's block
     // was; its rows are read in it, not through the row table (which the original
     // fills with the copy's rows and nothing reads before it is filled again).
     let list = &rescaler.copy_memory;

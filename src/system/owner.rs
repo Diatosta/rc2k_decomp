@@ -1,5 +1,5 @@
 //! Module system's owner (step 11, owned state): the program-wide state in one struct, reached
-//! through `system()` by the code that does not take it as a parameter.
+//! through `system()` by code that has no reference to it.
 
 use crate::files::scratch::Scratch as FileScratch;
 use crate::logfile::numeric::SCRATCH_LEN;
@@ -99,7 +99,7 @@ pub static SYSTEM: System = System {
     records: Records::new(),
 };
 
-/// The program-wide state, for a caller that does not take it as a parameter yet.
+/// The program-wide state; pass it down where a function reaches it more than once.
 pub fn system() -> &'static System {
     &SYSTEM
 }

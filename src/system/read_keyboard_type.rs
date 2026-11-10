@@ -2,12 +2,9 @@
 //! keyboard's subtype (`GetKeyboardType(1)`) is 0xD01 .. 0xD06 (a Japanese keyboard's);
 //! otherwise it is left as it is.
 //!
-//! One caller, `start` (0x40101F); The Win32 call is made from Rust. `start` calls it directly
-//! (2026-10-23).
+//! One caller, `start` (0x40101F); The Win32 call is made from Rust. `start` calls it directly.
 
 // ---- game data ----
-
-// ---- Rust version ----
 
 /// The value the variable is given for a subtype, if any.
 pub fn keyboard_type(subtype: u32) -> Option<u32> {

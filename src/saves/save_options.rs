@@ -20,8 +20,6 @@ pub fn file_len() -> usize {
     HEAD_LEN + PIECES_LEN + 4
 }
 
-// ---- Rust version ----
-
 /// True if the file was written.
 pub fn save_options(path: &dyn crate::pointers::Store) -> Result<bool, Refused> {
     let file = &system().work.files.buffer;

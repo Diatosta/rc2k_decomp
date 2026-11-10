@@ -8,8 +8,6 @@
 use crate::errors::Refused;
 use crate::net::connections_frame::list_frame;
 use crate::net::owner::net;
-
-/// The Rust version.
 pub fn sessions_frame() -> Result<(), Refused> {
     let vars = &net().vars;
     // Converted: `rc2k_core::net::screens::sessions_title`.

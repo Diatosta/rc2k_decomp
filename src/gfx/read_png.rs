@@ -28,8 +28,6 @@ use crate::memory::free_list::free_list;
 
 const HEAD_LEN: u32 = 0x80;
 
-// ---- Rust version ----
-
 /// What comes before the memory is taken: whether the file's head is a PNG the game takes.
 fn head_is_taken(path: &[u8], system: &crate::system::owner::System) -> Result<bool, Refused> {
     let scratch = &system.work.files.buffer;
@@ -54,7 +52,7 @@ fn read_held(
     system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
     let pictures = &gfx.pictures;
-    // The file's memory Rust's (phase 12), counted on the list as the game's block was.
+    // The file's memory Rust's, counted on the list as the game's block was.
     let mut file = crate::memory::owned::counted(&png.file.memory, size)?;
     let file = &mut file[..size as usize];
     let read = crate::files::read_file::read_file_into(path, file, 0)?;

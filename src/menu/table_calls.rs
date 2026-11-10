@@ -1,15 +1,13 @@
 //! The calls the menus' items (their keys' and actions' functions) and the screens' draw
-//! lists make (typed tables, 2026-10-22): the function named by its RAL address, as the
-//! tables hold it, run by its Rust version (`table_routes.rs`; `crate::routes`, for
-//! the few others, went 2026-10-24: nothing could reach them by address). Callers: `menu::run_list` and the frame
-//! callbacks (`call_listed`: screen functions, no registers), `menu::run_item_action`
+//! lists make: the function named by its RAL address, as the tables hold it, run by the
+//! Rust function that replaces it (`table_routes.rs`). Callers: `menu::run_list` and the
+//! frame callbacks (`call_listed`: screen functions, no arguments), `menu::run_item_action`
 //! (`call_action`: an `ItemCall`, the item's value, the item and the menu),
 //! `menu::navigation`'s moves (`call_key`).
 //!
-//! A refused input (`BadInput`) ends the program, saying which function refused and why
-//! (2026-10-23); a fatal error is raised from Rust. An address in no table: the empty
-//! functions are done here (`standalone::answers`); anything else ends the program, "not
-//! ported" (2026-10-24).
+//! A refused input (`BadInput`) ends the program, saying which function refused and why; a
+//! fatal error is raised from Rust. An address in no table: the empty functions are
+//! answered here (`standalone::answers`); anything else ends the program, "not ported".
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::log;

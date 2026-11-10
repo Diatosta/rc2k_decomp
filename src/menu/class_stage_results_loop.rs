@@ -16,8 +16,6 @@ use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step};
 
 // ---- game data ----
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 fn set_first_item(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
     let title = if menus.screens.state.menus.which_title.get() == 1 {

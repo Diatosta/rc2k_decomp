@@ -11,7 +11,6 @@ use crate::menu::owner::Menus;
 use rc2k_core::menu::items::{HIDDEN, IN_GAME_OPTIONS};
 
 // off_750724
-/// The Rust version.
 pub fn reset_cars_750724(menus: &Menus) -> Result<(), Refused> {
     let tables = &menus.tables;
     // Converted: `rc2k_core::menu::items::HIDDEN` (the four items `hide_in_game_options`

@@ -8,7 +8,6 @@
 use crate::errors::Refused;
 use crate::menu::owner::Screens;
 
-/// The Rust version.
 pub fn fade_in(screens: &Screens) -> Result<(), Refused> {
     crate::menu::fades::fade(screens, false)
 }

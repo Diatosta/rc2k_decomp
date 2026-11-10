@@ -18,8 +18,6 @@ use rc2k_core::saves::defaults::class_times;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 pub fn default_class_times() -> Result<(), Refused> {
     if !LEVEL_SCORES.is_taken() {
         return Err(crate::errors::BadInput("no table").into());

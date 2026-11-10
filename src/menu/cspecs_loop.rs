@@ -10,8 +10,6 @@ use crate::menu::screen_loop::{
 /// `unk_7476E4`'s slot, the item kept between visits.
 const SLOT: usize = (0x7476E4 - 0x747660) / 4;
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 fn before(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     screens.items.current[SLOT].set(screens.items.first[SLOT].get());

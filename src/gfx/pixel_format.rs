@@ -5,7 +5,7 @@ use crate::errors::BadInput;
 use crate::gfx::owner::gfx;
 
 /// A pixel layout the game keeps a pointer to (`g_surface.format`, `g_glyphPixelFormat`),
-/// by handle (phase 13): `SCREEN_FORMAT` the screen's record (`g_surfaceFormat`, the
+/// by handle: `SCREEN_FORMAT` the screen's record (`g_surfaceFormat`, the
 /// session's), `TEXTURE_FORMAT | k` texture description `k`'s layout (its +8); 0 none.
 pub const SCREEN_FORMAT: u32 = 0xCD00_0000;
 pub const TEXTURE_FORMAT: u32 = 0xCD00_0100;

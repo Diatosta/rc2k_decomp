@@ -22,7 +22,6 @@ pub fn seal_code(a: u32, b: u32) -> Vec<u8> {
     rc2k_core::strings::format::seal_code(a, b)
 }
 
-/// The Rust version on the game's variables.
 pub fn format_seal_code(a: u32, b: u32) -> Result<(), crate::errors::BadInput> {
     let replay = &race().replay;
     replay.seal_work.sealed[0].set(a);

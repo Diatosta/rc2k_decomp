@@ -23,8 +23,6 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 /// Returns the carry flag of the panel drawn.
 pub fn draw_savegame_preview(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let savegame_preview = &saves().savegame_preview;

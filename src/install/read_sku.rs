@@ -14,8 +14,6 @@ use rc2k_core::install::config;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 pub fn read_sku(
     install: &'static crate::install::owner::Install,
     path: &[u8],

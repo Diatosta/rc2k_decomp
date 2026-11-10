@@ -9,8 +9,6 @@
 //! failed open the path stays.
 
 use crate::errors::BadInput;
-// ---- Rust version ----
-
 use crate::files::handle::GameFiles;
 use crate::pointers::GamePtr;
 pub use rc2k_core::files::io::ReadResult;

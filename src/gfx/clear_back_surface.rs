@@ -4,12 +4,10 @@
 //! zeroed and unlocked (`gfx::unlock_surface`).
 //!
 //! Callers: `race::viewer_frame` (at the replay's end), `gfx::set_screen_mode`,
-//! 0x405B10. The lock and unlock (the platform's) are called directly (2026-10-23). A
+//! 0x405B10. The lock and unlock (the platform's) are called directly. A
 //! height of 0 is refused (the original goes round 2^32 times), before anything.
 
 use crate::errors::{BadInput, Refused};
-
-/// The Rust version (see the header).
 pub fn clear_back_surface(
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,

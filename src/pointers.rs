@@ -17,7 +17,8 @@
 //! statics are reached as stores or as values, its locals as slices or values, so a game
 //! address into the program's sections or a thread's stack is refused, naming its caller.
 //! Tests alone keep the coarse regions (each section of the image, the running thread's
-//! stack), for the assembly references, which take their buffers by address.
+//! stack), for the tests' references to the original's code, which take their buffers by
+//! address.
 
 #![allow(unsafe_code)]
 
@@ -409,7 +410,7 @@ impl<T: ?Sized> HostPointer for *mut T {
 }
 
 /// The refusal for an address that is not where the game's memory is (logged with it).
-/// Ranges of game memory watched while a store moves out of them (phase 13): each access
+/// Ranges of game memory watched while a store moves out of them: each access
 /// through the checked paths (`GamePtr`, `check_or_end`, `read_or_end`, `Window`) that
 /// touches one is logged once per source line of its first caller outside this file (with
 /// `#[track_caller]` up to there) and then goes on as before, so one run lists every

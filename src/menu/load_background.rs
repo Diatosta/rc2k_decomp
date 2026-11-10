@@ -23,8 +23,6 @@ use crate::text::draw_text::Canvas;
 
 const FRAME_SPRITE: u32 = 0xA0;
 
-// ---- Rust version ----
-
 pub fn load_background(
     path: &dyn crate::session::TextPlace,
     canvas: &mut dyn Canvas,

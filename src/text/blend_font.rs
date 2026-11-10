@@ -42,8 +42,6 @@ pub static BLENDED_FONT: FontObject = FontObject::from_font(Font {
 pub static BLENDED_PALETTE: [Dword; 256] = [const { Dword::new(0) }; 256];
 const PALETTE_ENTRIES: u32 = 15;
 
-// ---- Rust version ----
-
 pub fn blend_font(
     time: u32,
     half_pulse: u32,

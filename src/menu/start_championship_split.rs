@@ -17,7 +17,6 @@ pub const START_CHAMPIONSHIP_SPLIT: Starter = Starter {
     },
 };
 
-/// The Rust version.
 pub fn start_championship_split(menus: &Menus) -> Result<(), Refused> {
     start_event(menus, &START_CHAMPIONSHIP_SPLIT)
 }

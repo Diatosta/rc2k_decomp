@@ -6,8 +6,6 @@
 
 use crate::errors::Refused;
 use crate::net::store::NetVars;
-
-/// The Rust version.
 pub fn settings_link(
     install: &'static crate::install::owner::Install,
     vars: &NetVars,

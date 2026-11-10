@@ -1,4 +1,4 @@
-//! The installer's variables, out of RAL.EXE's image (phase 5), typed (phase 7): the flags
+//! The installer's variables, out of RAL.EXE's image : the flags
 //! and counters of its run, the folder and file lists, the registry names and scripts, the
 //! language list, and the pages' tables. Split by owner (2026-10-25) from the rest of the
 //! image's scattered variables (`rest::low`); the network's and the strings' neighbours are
@@ -6,8 +6,8 @@
 //!
 //! `#[repr(C)]` structs of atomic cells with the image's layout, first values the image's
 //! (`tests`); `moved::MOVED` points the image's addresses at them (`home`): the pages'
-//! tables hold pointers into each other and into the installer's texts, which are repointed
-//! at start (`moved::point_into_homes`). The pages' lists are walked by pointer
+//! tables hold pointers into each other and into the installer's texts, as IDA addresses
+//! resolved where they are read (`moved::named_in`). The pages' lists are walked by pointer
 //! (`install::installer`'s `rd`/`rb`), so their tables stay byte buffers.
 
 use crate::install::page_links::PageLink;
@@ -67,21 +67,21 @@ pub struct InstallerRun {
     pub buffers: Bytes<64>,
     /// 0x51BB3C: `g_installBarGlyphs`: the progress bar's glyph table.
     pub bar_glyphs: Dword,
-    /// 0x51BB40: `g_dirNames`: the folders' names (a 0x10000-byte buffer; 0 since phase 12:
+    /// 0x51BB40: `g_dirNames`: the folders' names (a 0x10000-byte buffer; 0 now:
     /// `install::name_tables::FOLDERS`).
     pub dirs: Dword,
-    /// 0x51BB44: `g_fileNames`: the files' names (a 0x40000-byte buffer; 0 since phase 12:
+    /// 0x51BB44: `g_fileNames`: the files' names (a 0x40000-byte buffer; 0 now:
     /// `install::name_tables::FILES`).
     pub files: Dword,
     /// 0x51BB48: `g_dirCount`: the folders listed.
     pub dir_count: Dword,
     /// 0x51BB4C: `g_fileCount`: the files listed.
     pub file_count: Dword,
-    /// 0x51BB50: `g_dirScan`: the next folder to search (since phase 12 its number).
+    /// 0x51BB50: `g_dirScan`: the next folder to search (its number).
     pub dir_scan: Dword,
-    /// 0x51BB54: `g_dirCursor`: the folders' table's end (since phase 12 its bytes).
+    /// 0x51BB54: `g_dirCursor`: the folders' table's end (its bytes).
     pub dir_cursor: Dword,
-    /// 0x51BB58: `g_fileCursor`: the files' table's end (since phase 12 its bytes).
+    /// 0x51BB58: `g_fileCursor`: the files' table's end (its bytes).
     pub file_cursor: Dword,
     /// 0x51BB5C: `phkResult`: the open registry key.
     pub reg_key: Dword,
@@ -442,8 +442,8 @@ impl InstallerPages {
         install.pages.kind_fonts.get(index as usize)
     }
 
-    /// Where font `index` of the page's fonts is (phase 13: the table keeps IDA's addresses
-    /// as names, `moved::point_into_homes` passes them over). A slot that names no font
+    /// Where font `index` of the page's fonts is (the table keeps IDA's addresses as
+    /// names). A slot that names no font
     /// object (the unused slot 0, an index off the table) is refused.
     pub fn font_of(index: u32) -> Result<crate::gfx::typefaces::FontId, crate::errors::BadInput> {
         let install = crate::install::owner::install();

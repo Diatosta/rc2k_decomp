@@ -7,8 +7,6 @@
 //!
 //! Takes the pattern.
 //! Caller `install::run_script` (opcode 3).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::{close_search, fatal, find_first, find_next, resolve_path};

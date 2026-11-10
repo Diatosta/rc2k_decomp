@@ -64,8 +64,6 @@ fn word_at(message: &[u8], at: usize) -> Result<u32, BadInput> {
         .ok_or(BadInput("a received message"))?;
     Ok(u32::from_le_bytes([word[0], word[1], word[2], word[3]]))
 }
-
-/// The Rust version.
 pub fn apply_message(
     race: &Race,
     vars: &NetVars,

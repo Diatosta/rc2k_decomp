@@ -9,7 +9,6 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
-/// The Rust version.
 pub fn inspection_verdict(menus: &Menus) -> Result<(), Refused> {
     let n: u32 = menus.screens.event.current_player.get();
     if n >= 4 {

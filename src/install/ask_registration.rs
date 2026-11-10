@@ -2,8 +2,6 @@
 //! program runs after the game.
 //!
 //! A list action (`off_51DD60`). Caller `install::run_page` through a page's item.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 pub fn ask_registration(install: &'static crate::install::owner::Install) {
     install.run.run_registration.set(1);

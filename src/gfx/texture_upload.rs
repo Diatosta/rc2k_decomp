@@ -270,7 +270,7 @@ const fn pool() -> Pool {
     }
 }
 
-/// A texture format by handle (phase 13): `FORMAT_TAG | n` for `descriptions[n]`, 0 none.
+/// A texture format by handle: `FORMAT_TAG | n` for `descriptions[n]`, 0 none.
 pub const FORMAT_TAG: u32 = 0xCC00_0000;
 /// IDA's address of `descriptions`.
 const DESCRIPTIONS_IDA: u32 = 0x5ABAD4;

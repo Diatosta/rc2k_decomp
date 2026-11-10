@@ -5,8 +5,6 @@
 //! Refuses nothing.
 
 use crate::net::store::NetVars;
-
-/// The Rust version.
 pub fn release_lobby(vars: &NetVars) {
     if vars.lobby.get() != 0 {
         crate::net::dp_objects::release(vars.lobby.get());

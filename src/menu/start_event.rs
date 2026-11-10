@@ -92,7 +92,7 @@ fn var(v: starters::Var) -> &'static Dword {
     }
 }
 
-/// The Rust version of a starter.
+/// Starts the event of a starter.
 pub fn start_event(menus: &Menus, s: &Starter) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::starters::start`. The players' own settings come back
     // afterwards (`menu::own_settings`; not the original's).

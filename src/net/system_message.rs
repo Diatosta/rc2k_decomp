@@ -16,7 +16,6 @@ use crate::net::store::NetVars;
 use crate::net::store::PlayerRecord;
 use rc2k_core::net::players::{A_PLAYER, System, made_host};
 
-/// The Rust version.
 /// The message is in `crate::net::owner::net().vars.receive_data` (`unk_52A968`).
 pub fn system_message(vars: &NetVars) -> Result<(), Refused> {
     let get = |at: usize| vars.receive_data.get_u32(at);

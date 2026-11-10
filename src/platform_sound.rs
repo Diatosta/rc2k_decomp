@@ -1,8 +1,8 @@
 //! DirectSound for the standalone program, on one SDL3 audio stream (the owner chose it,
 //! 2026-10-15: "Emulate DirectSound").
 //!
-//! The ported audio code calls DirectSound's methods as the functions here (phase 11,
-//! 2026-10-26: before, through COM method tables), on objects held as ids: a device, its
+//! The ported audio code calls DirectSound's methods as the functions here (the original went
+//! through COM method tables), on objects held as ids: a device, its
 //! buffers (the primary one and the secondary ones, with duplicates sharing their data),
 //! the buffers' 3D interfaces and the 3D listener. Results are DirectSound's codes, which
 //! the game checks and logs. A small
@@ -72,7 +72,7 @@ pub struct DeviceCaps {
 }
 
 /// A buffer's bytes, shared by a buffer and its duplicates; written while locked through
-/// `with_parts` (phase 12: no longer by address).
+/// `with_parts` (not by address).
 type SoundData = Mutex<Vec<u8>>;
 
 /// A buffer's bytes, a poisoned lock taken as it is.

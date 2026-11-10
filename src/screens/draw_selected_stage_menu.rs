@@ -26,8 +26,6 @@ use crate::screens::stage_panel::{
 };
 use crate::text::draw_text::Canvas;
 
-// ---- Rust version ----
-
 /// The string ids this function gives menu items 0 and 1: the group's and the table's titles.
 pub fn menu_titles(menus: &Menus, play: &Play) -> Result<Option<(u32, u32)>, BadInput> {
     let Some(sel) = selection(menus)? else {

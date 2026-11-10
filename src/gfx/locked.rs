@@ -1,5 +1,4 @@
-//! The surface-locked switch, out of RAL.EXE's image (phase 5; typed in phase 7,
-//! `notes/conversion.md`): IDA 0x4F3870 .. 0x4F3874.
+//! The surface-locked switch, out of RAL.EXE's image: IDA 0x4F3870 .. 0x4F3874.
 
 use crate::session::Dword;
 

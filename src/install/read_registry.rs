@@ -6,16 +6,12 @@
 //! the key nothing changes; if `status` cannot be read, `source` is not asked for. The
 //! registry's own answers are left in `Type` (0x51BC94) and `dword_51BC90` (the size).
 //! Three callers: the two installation checks and the installer.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 // ---- game data ----
 
 const SOURCE_ROOM: u32 = 0xFF;
 const REG_SZ: u32 = 1;
 const REG_BINARY: u32 = 3;
-
-// ---- Rust version ----
 
 /// What `RegQueryValueExA` gave: its result, the value's type and size when the value is
 /// there, its bytes when they fitted.

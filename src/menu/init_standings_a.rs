@@ -5,7 +5,6 @@
 use crate::errors::Refused;
 use crate::menu::standings::*;
 
-/// The Rust version.
 pub fn init_standings_a() -> Result<(), Refused> {
     // Converted: `rc2k_core::saves::rankings::empty_a` on the first `ROOM` entries.
     use rc2k_core::menu::standings::ROOM;

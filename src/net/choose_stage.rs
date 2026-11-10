@@ -12,8 +12,8 @@ use crate::net::store::NetVars;
 use crate::net::store::PlayerRecord;
 use crate::race::owner::Race;
 
-/// The Rust version. The stage screen is handed the lobby loop's leftovers in its carried
-/// registers (see `net::choose_car`): all 0 here.
+/// The stage screen; the lobby loop's leftovers it carries (see `net::choose_car`) are all 0
+/// here.
 pub fn choose_stage(race: &Race, vars: &NetVars) -> Result<(), Refused> {
     ESCAPED.set(0);
     {

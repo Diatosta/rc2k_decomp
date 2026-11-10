@@ -8,7 +8,7 @@
 //! `menu::handle_keys`, `install::page_key`, `net::settings_loop`, `net::choose_connection`,
 //! `net::choose_session`,
 //! `net::lobby_loop`, 0x471CA6. The lock and unlock (the platform's) and the writer are
-//! called directly (2026-10-23).
+//! called directly.
 
 use crate::errors::Refused;
 
@@ -52,8 +52,6 @@ impl rc2k_core::gfx::screenshot::Shooting for Shot<'_> {
         Ok(())
     }
 }
-
-/// The Rust version (see the header).
 pub fn take_screenshot() -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
     // Converted: `rc2k_core::gfx::screenshot::take_screenshot`.

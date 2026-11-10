@@ -6,8 +6,6 @@
 
 use crate::errors::Refused;
 use crate::net::store::NetVars;
-
-/// The Rust version.
 pub fn stopping(vars: &NetVars) -> Result<(), Refused> {
     if vars.session.get() == 1 {
         crate::net::show_background::show_background(vars)?;

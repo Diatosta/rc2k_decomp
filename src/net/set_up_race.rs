@@ -46,8 +46,6 @@ enum Count {
     LocalPlayer,
     Kind(usize),
 }
-
-/// The Rust version.
 pub fn set_up_race(race: &Race, vars: &NetVars) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::record` (`race_players`, `seat`).
     let players = record::race_players(vars.players.get())?;

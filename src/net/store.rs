@@ -1,5 +1,5 @@
-//! The network's variables, out of RAL.EXE's image (phase 5, `notes/conversion.md`), typed
-//! (phase 7): `NetVars` (IDA 0x52A4B0 .. 0x5AB419): `nonetwork` and `inetport`, the edited
+//! The network's variables, out of RAL.EXE's image, typed:
+//! `NetVars` (IDA 0x52A4B0 .. 0x5AB419): `nonetwork` and `inetport`, the edited
 //! item, the chat lines, the session's state (`session`, 1 while a network game runs, which
 //! the race code reads too) and this machine's player, the send and receive buffers, the
 //! connections and sessions listed, the received and sorted message stores (8 `PlayerBlock`s
@@ -313,12 +313,12 @@ pub struct NetVars {
     /// 0x52AC34: `g_netConnections`: the connections listed.
     pub connections: Dword,
     /// 0x52AC38: `g_netConnectionTable`: the connection records (0x54 bytes each; an address,
-    /// 0 since phase 12: `net::tables::NET_TABLES`).
+    /// 0 now: `net::tables::NET_TABLES`).
     pub connection_table: Dword,
     /// 0x52AC3C: `dword_52AC3C`: the address elements added.
     pub elements: Dword,
-    /// 0x52AC40: `dword_52AC40`: the compound address (memory of the network's list; 0 since
-    /// phase 12: `net::tables::NET_TABLES`).
+    /// 0x52AC40: `dword_52AC40`: the compound address (memory of the network's list; 0 now:
+    /// `net::tables::NET_TABLES`).
     pub address: Dword,
     /// 0x52AC44: `bytes`: the compound address's size.
     pub address_size: Dword,
@@ -339,7 +339,7 @@ pub struct NetVars {
     /// 0x52ACF4: `g_netSessions`: the sessions listed.
     pub sessions: Dword,
     /// 0x52ACF8: `g_netSessionTable`: the session records (0x68 bytes each; an address, 0
-    /// since phase 12: `net::tables::NET_TABLES`).
+    /// now: `net::tables::NET_TABLES`).
     pub session_table: Dword,
     /// 0x52ACFC: `g_netSessionOpen`.
     pub session_open: Dword,

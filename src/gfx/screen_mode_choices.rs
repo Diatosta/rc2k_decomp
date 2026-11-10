@@ -90,7 +90,7 @@ fn modes_of(display: &Display, kind: u32) -> Option<Vec<GamePtr>> {
     Some(modes)
 }
 
-/// The Rust version: with `try_choice` (eax not 0) the choice tried, else the list made
+/// With `try_choice` (eax not 0) the choice tried, else the list made
 /// again; the flags it leaves (see the header).
 pub fn screen_mode_choices(display: &Display, try_choice: bool) -> Result<Flags, Refused> {
     // Converted: `rc2k_core::gfx::mode_choices`.

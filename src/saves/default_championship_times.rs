@@ -23,8 +23,6 @@ use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 pub fn default_championship_times(
     saves: &'static Saves,
     ebp: u32,

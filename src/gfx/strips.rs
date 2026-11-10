@@ -1,6 +1,5 @@
-//! The HUD's view strips' places (sizes, tops, lefts), out of RAL.EXE's image (phase 5;
-//! typed in phase 7, `notes/conversion.md`): IDA 0x6D1870 .. 0x6D18C8. Used by
-//! `hud::draw_view_strip` only.
+//! The HUD's view strips' places (sizes, tops, lefts), out of RAL.EXE's image: IDA 0x6D1870 ..
+//! 0x6D18C8. Used by `hud::draw_view_strip` only.
 
 use crate::gfx::dwords;
 use crate::session::Dword;

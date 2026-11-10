@@ -12,9 +12,7 @@ use crate::net::lobby::movsb;
 use crate::net::owner::Net;
 use rc2k_core::net::chat;
 
-/// The Rust version: the key `key` for the setting being edited. The registers the
-/// original leaves (the item or the number in eax, the copy's esi, edi and ecx) are read by
-/// no caller (`settings_loop`).
+/// The key `key` for the setting being edited.
 pub fn setting_key(
     install: &'static crate::install::owner::Install,
     net: &'static Net,

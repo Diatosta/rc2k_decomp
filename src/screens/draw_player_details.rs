@@ -61,7 +61,6 @@ pub const SHORT: Layout = Layout {
 const NATIONALITIES: u32 = 40;
 const VIEWS: u32 = 7;
 const SECOND_VIEWS: u32 = 6;
-// ---- Rust version ----
 
 fn string(table: &[Dword], index: u32, count: u32) -> Result<u32, Refused> {
     if index >= count {

@@ -11,8 +11,6 @@ use crate::input::yes_no_for_key::yes_no_for_key;
 use crate::input::yes_no_key::{NO, YES};
 use crate::menu::leaving::{question, with_question};
 
-// ---- Rust version ----
-
 pub fn handle_yes_no(eax: u32) -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::leaving::Question::answer_key`.
     // A gamepad's button (not the original's), taken with the key it sent. Only Back answers:

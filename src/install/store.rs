@@ -1,4 +1,4 @@
-//! The installer's variables, out of RAL.EXE's image (phase 5), typed (phase 7); split from
+//! The installer's variables, out of RAL.EXE's image ; split from
 //! the network's block, which they sat around in the image (2026-10-25; the build notice
 //! between them is `menu::build_notice`'s):
 //! - `InstallVars` (IDA 0x529DAD .. 0x52A263): run from the CD, the Clio's car (file, script,

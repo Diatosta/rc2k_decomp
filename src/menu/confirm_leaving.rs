@@ -7,8 +7,6 @@
 
 use crate::menu::leaving::with_question;
 
-// ---- Rust version ----
-
 /// `ask` puts the question (its screen); the answer (`g_yesNoAnswer`, 1 yes).
 pub fn confirm_leaving(ask: &mut dyn FnMut()) -> u32 {
     // Converted: `rc2k_core::menu::leaving::Question` (`begin`, `confirm`).

@@ -6,8 +6,6 @@
 //! `files::is_cd_drive`, the main loop's "is the base directory on a CD" check (whose answer this
 //! build no longer looks at: nine `nop`s follow its call at 0x415448).
 
-// ---- Rust version ----
-
 /// The root that is asked about: `x:\`, or none for the current drive.
 pub fn drive_root(letter: u8) -> Option<[u8; 4]> {
     // Converted: `rc2k_core::files::paths::drive_root`.

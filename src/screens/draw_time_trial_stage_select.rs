@@ -31,8 +31,6 @@ use crate::screens::draw_stage_records::{TIME_TRIAL_ROWS, draw_records_rows};
 use crate::screens::stage_panel::{build_second_heading, draw_stage_body, menu_item_id};
 use crate::text::draw_text::Canvas;
 
-// ---- Rust version ----
-
 use crate::menu::event_flow::StageTable;
 const GROUP_1_TIMES: &StageTable = &crate::saves::best_times::STAGE_TIMES_ALT; // g_stageBestTimesAlt
 const TIMES: &StageTable = &crate::saves::best_times::TIME_TRIAL_TIMES; // dword_7556E8

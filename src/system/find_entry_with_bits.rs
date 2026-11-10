@@ -7,8 +7,6 @@
 //! 0x4046B7, 0x40471F, 0x404AE6). Refuses a null table with a count (before anything).
 //!
 
-// ---- Rust version ----
-
 /// (found, ebx, ecx): the entry found (or the place past the table) and the entries left.
 pub fn find_entry_with_bits(
     bits: u32,

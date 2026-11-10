@@ -60,8 +60,6 @@ fn get8(vars: &NetVars, at: usize) -> Result<u8, BadInput> {
 fn after_first(vars: &NetVars, length: usize) -> Result<Vec<u8>, BadInput> {
     vars.receive_data.read_at(1, length, "a received message")
 }
-
-/// The Rust version.
 pub fn take_messages(net: &Net) -> Result<(), Refused> {
     if net.vars.players.get() > MOST_PLAYERS {
         return Err(BadInput("take_messages: more than 16 players").into());

@@ -10,7 +10,7 @@
 use crate::errors::Refused;
 use crate::net::owner::net;
 
-/// The Rust version (see the header): the player's id and short name.
+/// The player's id and short name.
 pub fn player_found(id: u32, short: &[u8]) -> Result<u32, Refused> {
     let vars = &net().vars;
     let Some(count) = rc2k_core::net::lists::player_found(vars.players.get()) else {

@@ -43,7 +43,7 @@ fn next_shot_name(shots: &Shots) {
     }
 }
 
-/// The Rust version: whether it worked (carry clear). `name` the file's path (without its
+/// Whether it worked (carry clear). `name` the file's path (without its
 /// NUL), or None for the next numbered screenshot.
 pub fn write_screen_pcx(
     shots: &Shots,

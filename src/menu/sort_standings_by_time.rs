@@ -7,8 +7,6 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 // dword_75598C
-
-/// The Rust version.
 pub fn sort_standings_by_time(menus: &Menus) -> Result<(), Refused> {
     sort_table_a(menus, rc2k_core::saves::entries::Field::Key)?;
     Ok(())

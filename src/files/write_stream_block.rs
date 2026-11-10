@@ -8,7 +8,7 @@
 use crate::errors::BadInput;
 use crate::files::stream::Stream;
 
-/// The Rust version: the bytes written, and the original's two flags.
+/// The bytes written, and the original's two flags.
 pub fn write_stream_block(
     stream: &mut Stream,
     bytes: &[u8],

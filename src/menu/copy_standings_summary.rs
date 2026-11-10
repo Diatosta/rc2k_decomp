@@ -10,7 +10,6 @@ use crate::menu::owner::Screens;
 use crate::menu::standings::*;
 use crate::saves::best_times::SUMMARY;
 
-/// The Rust version.
 pub fn copy_standings_summary(screens: &Screens) -> Result<(), Refused> {
     if !SUMMARY.is_taken() {
         return Err(BadInput("no standings summary").into());

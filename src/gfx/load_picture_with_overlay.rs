@@ -4,7 +4,7 @@
 //! Takes: the picture's path, the overlay's
 //!
 //! `gfx::load_picture` of the first; if it was read, memory of 0x1D4C00 + 0xC80 bytes from the
-//! work list (`g_lexiconMemory`; Rust's since phase 12, `gfx::picture::Buffer::Overlay`),
+//! work list (`g_lexiconMemory`; Rust's now, `gfx::picture::Buffer::Overlay`),
 //! the picture's size, row length and buffer kept while
 //! `gfx::read_picture_file` reads the overlay into that memory, then put back; if the overlay
 //! was read, each of its pixels that is not 0xFF00FF, row by row from the memory's start (rows
@@ -22,8 +22,6 @@ use crate::strings::owner::strings;
 
 const MEMORY: u32 = 0x1D4C00 + 0xC80;
 
-// ---- Rust version ----
-
 /// Returns the carry: true if the picture could not be read.
 pub fn load_picture_with_overlay(
     path: &dyn crate::session::TextPlace,
@@ -35,7 +33,7 @@ pub fn load_picture_with_overlay(
         return Ok(true);
     }
     let list = &strings().lexicon.memory.memory;
-    // The overlay's buffer is Rust's (phase 12, `gfx::picture`), counted on the list as
+    // The overlay's buffer is Rust's (`gfx::picture`), counted on the list as
     // the game's block was, given back with it.
     let free = || -> Result<(), Refused> {
         crate::gfx::picture::give_back(Buffer::Overlay);

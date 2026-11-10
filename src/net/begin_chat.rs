@@ -9,9 +9,7 @@ use crate::net::store::NetVars;
 
 const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CHAT_LINE;
 
-/// The Rust version. The registers the original leaves (eax the item, ebx the input, ecx
-/// 0x30C, edx the font) are read by no caller (`lobby_loop` only; liveness: ebp, edi, edx,
-/// esi live after, edx the caller's own).
+/// Starts the chat line's edit (item, input, width 0x30C and font as the original passes them).
 pub fn begin_chat(
     install: &'static crate::install::owner::Install,
     vars: &NetVars,

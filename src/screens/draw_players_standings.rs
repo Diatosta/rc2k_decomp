@@ -16,7 +16,6 @@ use crate::menu::captions_store::CaptionTables;
 use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
-/// The Rust version.
 pub fn draw_players_standings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let rows = if menus.screens.event.player_count.get() == 3 {
         3

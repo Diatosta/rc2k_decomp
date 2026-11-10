@@ -7,5 +7,3 @@
 //! 0x51E8C4. Three callers (the player details screens). Refuses no player or no name.
 
 // ---- game data ----
-
-// ---- Rust version ----

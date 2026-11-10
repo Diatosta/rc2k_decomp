@@ -29,8 +29,6 @@ const LISTS: [(&[Dword], &[Dword], usize); 2] = [
     ), // unk_7552F8, off_75A12E
 ];
 
-// ---- Rust version ----
-
 pub fn rebuild_car_lists(menus: &Menus) -> Result<(), BadInput> {
     // Converted: `rc2k_core::saves::cars::pointers`, both lists worked out before either
     // is written.

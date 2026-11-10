@@ -29,7 +29,6 @@ const NAMES: [Name; 8] = [
     (|| menus().screens.option_work.setting_4.get(), 0x394, 8),
 ];
 
-/// The Rust version (the registers the last name leaves: the menus read none of them).
 pub fn draw_graphics_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let display = &gfx().display;
     // Converted: `rc2k_core::screens::settings_pages::{graphics_item, graphics}`.

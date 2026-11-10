@@ -14,8 +14,6 @@ use crate::text::draw_text::{Adapt, Canvas, Outcome, refusal};
 use crate::text::font::Font;
 use rc2k_core::strings::bytes::Bytes;
 
-// ---- Rust version ----
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Measured {
     pub outcome: Outcome,

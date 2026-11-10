@@ -5,8 +5,7 @@
 //! becomes what `%` stands for in a path (`byte_518AA8`). The two texts get a `\` after them unless
 //! they are empty or end in `\` or `/`. Without the file nothing changes. Callers: `start`,
 //! `install::run_installer`, `install::check_clio_disc`. Refuses a text of 0xFE bytes or more (the
-//! original writes past the 0x100 bytes). Conversion phase 3 (2026-10-23): plain Rust with typed
-//! arguments.
+//! original writes past the 0x100 bytes).
 
 use crate::errors::BadInput;
 use crate::settings::read_text::read_text;
@@ -14,8 +13,6 @@ use crate::strings::same_text::case_table;
 use rc2k_core::install::config;
 
 // ---- game data ----
-
-// ---- Rust version ----
 
 pub fn read_record(path: &[u8]) -> Result<(), BadInput> {
     {

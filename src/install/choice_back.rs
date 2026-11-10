@@ -5,8 +5,6 @@
 //! The step down is `dec cl; jns`: from 0x80 .. 0xFF (and 0) it goes to the last choice.
 //! A chosen byte past the choices with every choice marked never ends: refused (the
 //! original goes round for ever). Callers `install::key_up`, `install::key_left`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::menu::list_handle::{ItemByte, ListItem};

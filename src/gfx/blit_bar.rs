@@ -61,8 +61,6 @@ pub fn set_bar_x(x: i32) {
     gfx().drawing.bar.x.set(x as u32);
 }
 
-// ---- Rust version ----
-
 /// Where a blitter call goes: the game's surface, or a list.
 pub type Blit<'a> = &'a mut dyn FnMut(BlitCall) -> Result<(), Refused>;
 

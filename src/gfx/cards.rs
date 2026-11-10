@@ -1,5 +1,4 @@
-//! The 3D primary and secondary card switches, out of RAL.EXE's image (phase 5; typed in
-//! phase 7, `notes/conversion.md`): IDA 0x5AB4AC .. 0x5AB4B4.
+//! The 3D primary and secondary card switches, out of RAL.EXE's image: IDA 0x5AB4AC .. 0x5AB4B4.
 
 use crate::session::Dword;
 

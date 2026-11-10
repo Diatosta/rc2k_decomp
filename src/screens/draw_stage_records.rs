@@ -64,8 +64,6 @@ fn selected_record(menus: &Menus) -> Result<Option<(RecordRef, u32)>, BadInput> 
     Ok(selection(menus)?.map(|s| (s.record, s.sub)))
 }
 
-// ---- Rust version ----
-
 /// Where the top-speed row's values are in the selected record, and the y its car's sprite
 /// is drawn at: the stage panels' (`draw_stage_records`) and the time trial's
 /// (`screens::draw_time_trial_records` 0x48DE45, whose car sprite sits on the first row's

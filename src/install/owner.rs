@@ -40,7 +40,7 @@ pub static INSTALL: Install = Install {
     lobby_keys: LobbyKeys::new(),
 };
 
-/// The installation's state, for a caller that does not take it as a parameter yet.
+/// The installation's state; pass it down where a function reaches it more than once.
 pub fn install() -> &'static Install {
     &INSTALL
 }

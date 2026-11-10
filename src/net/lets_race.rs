@@ -12,7 +12,7 @@ use crate::net::store::NetVars;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 
-/// The Rust version: this machine's car's time (+0x88) and whether it did not finish
+/// This machine's car's time (+0x88) and whether it did not finish
 /// (+0xB0 is -1: `u32::MAX`, else 0).
 pub fn lets_race(race: &Race, vars: &NetVars) -> Result<(u32, u32), Refused> {
     race.shared.view.after_credits.set(0);

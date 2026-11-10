@@ -7,10 +7,8 @@
 use crate::errors::BadInput;
 use crate::files::stream::Stream;
 
-// ---- Rust version ----
-
 /// Returns whether the file was opened.
-/// The Rust version: whether the file `path` opened.
+/// Whether the file `path` opened.
 pub fn open_stream(stream: &mut Stream, path: &[u8], mode: u32) -> Result<bool, BadInput> {
     // Converted: `rc2k_core::files::io::open_stream`.
     Ok(rc2k_core::files::io::open_stream(

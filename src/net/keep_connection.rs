@@ -9,8 +9,6 @@
 use crate::errors::Refused;
 use crate::net::owner::net;
 use crate::net::tables::with_connection;
-
-/// The Rust version.
 pub fn keep_connection(number: u32) -> Result<(), Refused> {
     let net = net();
     let (provider, name) = with_connection(number, |c| (c.provider, c.name))?;

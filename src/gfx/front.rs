@@ -1,6 +1,6 @@
-//! The DirectDraw front and back surface handles, out of RAL.EXE's image (phase 5; typed in
-//! phase 7, `notes/conversion.md`): IDA 0x4F32B4 .. 0x4F32BC. The platform layer sets both
-//! to 1 ("there are surfaces"); the clear functions test the front one.
+//! The DirectDraw front and back surface handles, out of RAL.EXE's image: IDA 0x4F32B4 .. 0x4F32BC.
+//! The platform layer sets both to 1 ("there are surfaces"); the clear functions test the front
+//! one.
 
 use crate::session::Dword;
 

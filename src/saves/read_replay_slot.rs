@@ -23,8 +23,6 @@ fn slot_name(slot: u32) -> crate::place::Place {
     crate::place::Place::In(&race().shared.replays.names, slot as usize * NAME_LEN)
 }
 
-// ---- Rust version ----
-
 /// True if the slot's file was read and accepted.
 pub fn read_replay_slot(slot: u32, race: &crate::race::owner::Race) -> Result<bool, Refused> {
     if slot >= SLOTS {

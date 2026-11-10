@@ -4,8 +4,6 @@
 //!
 //! Takes 0 (a list action's start), list.
 //! Callers `install::folder_page` (the folder page's action), `install::mark_page`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::menu::list_handle::ListMenu;
 

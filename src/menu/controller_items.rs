@@ -5,7 +5,7 @@
 //! held at 90).
 //! - `menu::apply_controller` (0x46B47C): with a listed controller (`controller - 1` below
 //!   the count, unsigned), `input::request_device_setup` with it less 1, +0x34, +0x38, edx and
-//!   ebp 0. Every register kept.
+//!   ebp 0.
 //! - `menu::release_controller` (0x46B4B4): `input::request_device_release`.
 //! - `menu::next_controller` (0x46A3BF), `previous_controller` (0x46A40B): the controller
 //!   up (after the count, 0) or down (0 or less: the count); then with 0 the release, else

@@ -33,9 +33,7 @@ pub const SHOWING_START: usize = 0x51B9C4;
 
 const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::LOADING;
 
-// ---- Rust version ----
-
-/// The Rust version on the picture at `path`.
+/// Shows the picture at `path`.
 pub fn show_picture_file(
     path: &dyn crate::session::TextPlace,
     gfx: &crate::gfx::owner::Gfx,

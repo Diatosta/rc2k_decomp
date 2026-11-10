@@ -18,8 +18,6 @@ use rc2k_core::menu::notice::{
     BUILDS, BUILT_LEN, FIRST_FROM, FIRST_READ, SECOND_FROM, SECOND_READ, notice,
 };
 
-// ---- Rust version ----
-
 pub fn build_notice(menus: &Menus) {
     let panels = &menus.panels;
     // Converted: `rc2k_core::menu::notice::notice`.

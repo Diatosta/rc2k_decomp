@@ -6,8 +6,7 @@
 //! than `:` and have a `:` are kept, moved together to the front, the `:` made a NUL, and counted
 //! in `dword_51BEEA`; then `choose_language` for the first of them. Without the file nothing
 //! changes, not even the count. Callers: `start` and `install::run_installer`. Refuses a value of
-//! 0x80 bytes or more (the original writes on into the next slot). Conversion phase 3 (2026-10-23):
-//! plain Rust with typed arguments.
+//! 0x80 bytes or more (the original writes on into the next slot).
 
 use crate::errors::BadInput;
 use crate::install::choose_language::{LANGUAGE_SLOT, LANGUAGE_SLOTS, choose_language};
@@ -16,8 +15,6 @@ use crate::strings::same_text::case_table;
 use rc2k_core::install::config;
 
 // ---- game data ----
-
-// ---- Rust version ----
 
 pub fn read_languages(
     install: &'static crate::install::owner::Install,

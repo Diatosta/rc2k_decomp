@@ -14,7 +14,6 @@ pub struct SectionPlayer {
     pub record: PlayerCell,
 }
 
-/// The Rust version.
 pub fn find_section_player(screens: &Screens) -> Result<SectionPlayer, Refused> {
     // Converted: `rc2k_core::menu::points::section_player`.
     let section: u32 = screens.event.section.get();

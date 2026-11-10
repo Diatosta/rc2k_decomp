@@ -14,8 +14,6 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, Flow, FrameRoutine, List, Screen, Step};
 use crate::net::owner::net;
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
     let tables = &entry.menus.tables;
     if tables.captions.screen_left.get() == 0x1 {

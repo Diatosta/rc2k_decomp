@@ -55,8 +55,6 @@ fn quit_and_leave() -> Result<(), Refused> {
     log_line(c"Leaving main loop...");
     Ok(())
 }
-
-/// The Rust version.
 pub fn main_loop(session: &Session, saves: &crate::saves::owner::Saves) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
     let audio = crate::audio::owner::audio();
@@ -119,7 +117,7 @@ pub fn main_loop(session: &Session, saves: &crate::saves::owner::Saves) -> Resul
     quit_and_leave()
 }
 
-/// The Rust version, logged on the way in and out.
+/// The main loop, logged on the way in and out.
 pub fn main_loop_in_game(system: &crate::system::owner::System) -> Result<(), Refused> {
     log("system::main_loop: the Rust version runs");
     main_loop(&system.session, crate::saves::owner::saves())?;

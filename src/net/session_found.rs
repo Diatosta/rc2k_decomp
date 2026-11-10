@@ -17,7 +17,7 @@ use crate::net::tables::{copy_printable_into, with_session};
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use rc2k_core::net::lists::{self, Found};
 
-/// The Rust version (see the header): the session (none at the end) and the flags.
+/// The session (none at the end) and the flags.
 pub fn session_found(desc: Option<&Desc>, flags: u32) -> Result<u32, Refused> {
     let vars = &net().vars;
     log(VIEWER_PANEL.text_ptr(texts::NET_FOUND), false, 2);

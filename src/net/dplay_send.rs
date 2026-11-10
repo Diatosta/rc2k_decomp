@@ -8,8 +8,6 @@
 //! (no check of `g_dplay`, as the original).
 
 use crate::net::store::NetVars;
-
-/// The Rust version.
 pub fn dplay_send(vars: &NetVars, to: u32, data: &[u8]) {
     crate::net::dp_objects::send(vars.dplay.get(), vars.player_id.get(), to, data);
 }

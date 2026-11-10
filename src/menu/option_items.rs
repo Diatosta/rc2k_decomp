@@ -93,13 +93,11 @@ pub struct Item {
 fn get(x: Place) -> i32 {
     x.get() as i32
 }
+
 fn set(x: Place, v: i32) {
     x.set(v as u32);
 }
 
-/// The Rust version. What it leaves in registers is read by none of its
-/// callers (the item call sites have nothing live after the call; register liveness,
-/// 2026-10-23).
 pub fn option_item(item: Item) -> Result<(), Refused> {
     let audio = crate::audio::owner::audio();
     // Converted: `rc2k_core::menu::steps` (`flip`, `quality`, `volume`, `counter`,
@@ -158,7 +156,7 @@ macro_rules! option_item {
 
             const ITEM: Item = $item;
 
-            /// The Rust version the typed tables run (`menu::table_calls`).
+            /// Run by the typed tables (`menu::table_calls`).
             pub fn run() -> Result<(), crate::errors::Refused> {
                 option_item(ITEM)
             }

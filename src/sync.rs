@@ -1,4 +1,4 @@
-//! The game's threads, events and mutexes on std (phase 11, `notes/conversion.md`; they
+//! The game's threads, events and mutexes on std (they
 //! were Win32's `CreateThread`, `CreateEventA`, `CreateMutexA`, `WaitForSingleObject`,
 //! `WaitForMultipleObjects`, `SetEvent`, `ReleaseMutex`, `CloseHandle`, `ExitThread`,
 //! `GetCurrentThreadId`, `SetThreadPriority`).

@@ -7,7 +7,6 @@ use crate::errors::Refused;
 use crate::menu::drivers_store::Driver;
 use crate::menu::standings::drivers;
 
-/// The Rust version.
 pub fn reset_driver_condition() -> Result<(), Refused> {
     drivers()?.iter().for_each(Driver::reset_condition);
     Ok(())

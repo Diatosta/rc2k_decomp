@@ -2,8 +2,6 @@
 //! seven 0x0A and a NUL.
 //!
 //! Caller: `net::start_link` (with the received messages' lock held).
-
-/// The Rust version.
 pub fn clear_chat() {
     // Converted: `rc2k_core::net::chat::EMPTY`.
     if let Err(e) = crate::net::owner::NET_OWNER.vars.chat.write_at(

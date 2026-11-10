@@ -8,7 +8,6 @@ use crate::errors::Refused;
 use crate::menu::drivers_store::Driver;
 use crate::menu::standings::*;
 
-/// The Rust version.
 pub fn clear_result_slots() -> Result<(), Refused> {
     let drivers = drivers()?;
     for n in 0..4 {

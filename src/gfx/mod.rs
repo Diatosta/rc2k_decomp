@@ -102,7 +102,7 @@ pub mod typefaces;
 pub mod upload;
 pub mod windscreen_drop_batch;
 
-/// The test of every typed block of this module: the static's bytes are the image's (phase 7).
+/// The test of every typed block of this module: the static's bytes are the image's.
 #[cfg(test)]
 pub(crate) fn first_values_are_the_games<T>(block: &'static T, start: usize, end: usize) {
     let _g = crate::store::test_lock();

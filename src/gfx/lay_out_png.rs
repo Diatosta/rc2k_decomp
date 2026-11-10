@@ -12,8 +12,6 @@ use crate::errors::BadInput;
 use crate::gfx::palette_to_dwords::palette_to_dwords;
 use crate::gfx::png::{PngInfo, info_dword};
 
-// ---- Rust version ----
-
 pub fn lay_out_png(
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,

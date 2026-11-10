@@ -23,8 +23,6 @@ use crate::gfx::lay_out_pcx::lay_out_pcx;
 use crate::gfx::pcx::{FILE_PALETTE_LEN, on_stream, read_stream_header};
 use crate::gfx::picture::{put_or_end, with_buffer};
 
-// ---- Rust version ----
-
 /// The file's palette read with a seek and a plain read on the stream's handle, and the
 /// handle back at the start: whether it worked.
 pub fn read_file_palette(stream: &Stream, gfx: &crate::gfx::owner::Gfx) -> bool {

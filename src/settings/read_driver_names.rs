@@ -41,8 +41,6 @@ pub fn path() -> &'static [u8] {
     &PATH[..PATH.len() - 1]
 }
 
-// ---- Rust version ----
-
 pub fn read_driver_names(menus: &Menus, path: &[u8]) -> Result<(), BadInput> {
     let strings = strings();
     let cars = &menus.cars;

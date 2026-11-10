@@ -17,8 +17,6 @@ use crate::system::owner::system;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 /// None if nothing matched, else what the reading of the file found came to: `pattern`
 /// (without its NUL) read into `into` (what the file does not reach over kept, as the
 /// game's buffer). Refuses what `resolve_path` and `read_file` refuse.

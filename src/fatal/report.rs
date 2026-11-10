@@ -18,7 +18,7 @@
 //!
 //! Since 2026-10-24 it is called directly (`report_now`, from `fatal::raise`), and its
 //! two ways out are Rust's: the program ended (`standalone::finish`), or the slot's
-//! routine (its Rust version) run again and the thread ended. A text that does not fit
+//! routine run again and the thread ended. A text that does not fit
 //! `Text` ends the program, saying so.
 
 use crate::errors::BadInput;
@@ -32,8 +32,6 @@ use std::sync::atomic::Ordering;
 
 // The variables: `crate::fatal::state`. "Guru Meditation" is the caption from +7.
 // threading::request_quit: asks the game to quit, once
-
-// ---- Rust version ----
 
 pub use rc2k_core::fatal::{Context, Leave, TEXT_ONLY, register_dump, report_text};
 
@@ -90,10 +88,10 @@ pub fn report(context: &Context, outside: &mut Outside) -> Result<Leave, BadInpu
 }
 
 /// The reporter called directly by `fatal::raise` with the registers of the place that
-/// refused (2026-10-24: no longer by its address through the fault handler). A code
+/// refused (not by its address through the fault handler). A code
 /// without the fatal bit returns; with it the game is asked to quit and this thread ends
 /// as the original's two ways out end it: with no thread slot the program at `start`'s way
-/// out, on a slot's thread its routine (the Rust version) run again, which finds the game
+/// out, on a slot's thread its routine run again, which finds the game
 /// quitting, and the thread ended.
 pub fn report_now(context: &Context) {
     log(&format!(
@@ -134,9 +132,3 @@ pub fn report_now(context: &Context) {
         ),
     }
 }
-
-// ---- self-test: a copy of the original that cannot end the game ----
-
-// pusha; pushf; pop edx; mov ebp, esp
-// what the stand-in for find_thread_slot returns
-// a slot: its first dword is the routine

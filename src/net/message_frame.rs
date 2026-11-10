@@ -37,8 +37,6 @@ pub fn string_frame_locked(
     crate::platform::show_frame_now();
     Ok(())
 }
-
-/// The Rust version.
 pub fn message_frame(message: u32) -> Result<(), Refused> {
     string_frame(message, FONT_B, 0x190, 0x12C)
 }

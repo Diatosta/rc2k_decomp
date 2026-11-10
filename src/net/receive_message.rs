@@ -23,8 +23,6 @@ pub struct Received {
     pub from: u32,
     pub size: u32,
 }
-
-/// The Rust version.
 pub fn receive_message(net: &Net) -> Received {
     net.vars.received_size.set(ROOM);
     let mut data = [0u8; ROOM as usize];

@@ -5,7 +5,7 @@
 //! section, the record's +0x40, "a7x" and the first factor, "a8x" and the second, "times
 //! a8-a5" and the four times).
 //!
-//! Caller: `menu::calc_cpu_times`. Logs through the `logfile::` Rust versions (level 1).
+//! Caller: `menu::calc_cpu_times`. Logs through `logfile::` (level 1).
 use crate::errors::Refused;
 use crate::menu::owner::Screens;
 use crate::menu::standings::*;

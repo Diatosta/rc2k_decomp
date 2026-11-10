@@ -1,5 +1,5 @@
-//! The screenshot switch, its lock and the file name's template, out of RAL.EXE's image
-//! (phase 5; typed in phase 7, `notes/conversion.md`): IDA 0x4F52B4 .. 0x4F52C4.
+//! The screenshot switch, its lock and the file name's template, out of RAL.EXE's image: IDA
+//! 0x4F52B4 .. 0x4F52C4.
 
 use crate::gfx::owner::gfx;
 use crate::session::{Bytes, Dword};

@@ -8,7 +8,7 @@
 
 use rc2k_core::system::time::{time_up, wait_end};
 
-/// The Rust version (see the header): the key, 0 when the time ran out. The original
+/// The key, 0 when the time ran out. The original
 /// leaves it in eax with zero set for none and carry clear, ebx kept; the rest are as the
 /// calls leave them, which its one caller (`menu::championship_welcome`) does not read
 /// (register liveness, 2026-10-23: after the call ZF and eax).

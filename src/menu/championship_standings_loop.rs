@@ -19,8 +19,6 @@ use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 // ---- game data ----
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 pub const SCREEN: Screen = Screen {
     menu: |m| m.tables.menus.championship_standings.id(),
     saved_item: |m| &m.screens.items.current[slot::CHAMPIONSHIP_STANDINGS], // dword_7477BC

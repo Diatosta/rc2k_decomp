@@ -1,5 +1,5 @@
 //! The blitters' variables (the clip rectangle and the skips of the visible part), out of
-//! RAL.EXE's image (phase 5; typed in phase 7, `notes/conversion.md`): IDA 0x4F503C ..
+//! RAL.EXE's image: IDA 0x4F503C ..
 //! 0x4F505C. The rescaler's own variables follow (`gfx::rescale_picture::RESCALE`).
 
 use crate::session::Dword;

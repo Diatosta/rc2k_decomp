@@ -8,8 +8,6 @@ use crate::errors::Refused;
 use crate::net::owner::net;
 use crate::net::tables::with_connection;
 use rc2k_core::net::lists;
-
-/// The Rust version.
 pub fn find_saved_connection() -> Result<Option<u32>, Refused> {
     let vars = &net().vars;
     // Converted: `rc2k_core::net::lists::find_listed`.

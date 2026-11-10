@@ -32,8 +32,6 @@ use rc2k_core::gfx::uploads::{self};
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 /// A level's surface locked and unlocked; an error is what DirectDraw returned.
 pub trait Surfaces {
     /// The pixels and the pitch.

@@ -24,8 +24,6 @@ const NO_MUTEX: FatalError = FatalError {
     code: 0x8016_8502,
     message: "",
 };
-
-/// The Rust version.
 pub fn set_up() -> Result<(), Refused> {
     let vars = &net().vars;
     if notice_kind() == 2 && vars.most_players.get() as i32 > 4 {

@@ -24,7 +24,6 @@ const GOES_ON: &Dword = &crate::menu::owner::MENUS.screens.event.event_goes_on; 
 const OUT: &Dword = &crate::menu::owner::MENUS.screens.event.event_out; // dword_755978
 const DUE: &Dword = &crate::menu::owner::MENUS.screens.event.service_due; // dword_755938
 
-/// The Rust version.
 pub fn time_trial_service(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     // Converted: `rc2k_core::menu::passes` (the minutes, the pauses, who is out,

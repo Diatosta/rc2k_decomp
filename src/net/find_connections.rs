@@ -14,8 +14,6 @@ use crate::net::lobby::log;
 use crate::net::store::NetVars;
 use crate::net::{allocate_lists, create_dplay, open_lobby};
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
-
-/// The Rust version.
 pub fn find_connections(vars: &NetVars) -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_ptr(texts::NET_FIND_CONNECTIONS), true, 2);
     if vars.receive_done.get() == 1 || !open_lobby::open_lobby(vars)? {

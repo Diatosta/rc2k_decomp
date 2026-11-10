@@ -5,8 +5,6 @@
 //!
 //! Returns 0 (or the next entry when quitting), last page's list, its answer.
 //! Caller 0x412DE0 (`install::run_installer`, twice).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::page_records::PageEntry;

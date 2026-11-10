@@ -11,8 +11,6 @@
 //!
 //! A list action (`off_51DD30`). Caller `install::run_page`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
-//!
 //! "Remove all" (2026-11-03, a decided difference): the original removed only what its
 //! script lists, so files the game made (its log, `rc2k.log`, the program and its
 //! libraries) kept the folder. With every folder chosen (`script_mark` not 5, "keep saved

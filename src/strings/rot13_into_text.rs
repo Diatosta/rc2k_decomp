@@ -17,7 +17,7 @@ pub fn rot13(b: u8) -> u8 {
     rc2k_core::strings::format::rot13(b)
 }
 
-/// The Rust version: the coded text with its NUL, also left in the text buffer.
+/// The coded text with its NUL, also left in the text buffer.
 pub fn rot13_into_text(from: GamePtr) -> Result<Vec<u8>, BadInput> {
     let source = from.bytes("a text to code")?;
     let mut coded = Vec::new();

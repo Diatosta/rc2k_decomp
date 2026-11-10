@@ -65,8 +65,6 @@ const CLEARED: [(Field, u32); 52] = [
     (|c| &c.impact_octant_marks[7], 0),
     (|c| &c.parts_present, u32::MAX),
 ];
-
-/// The Rust version.
 pub fn clear_car_state(block: &Car) -> Result<(), crate::errors::BadInput> {
     for (field, v) in CLEARED {
         field(block).set_bits(v);

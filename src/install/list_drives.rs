@@ -11,8 +11,6 @@
 //!
 //! Caller `install::run_installer`. Its two probes: `files::drive_type`,
 //! `files::drive_free_space_kb`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::install::installer::{wb, wd};
 use crate::install::page_links::PageLink;

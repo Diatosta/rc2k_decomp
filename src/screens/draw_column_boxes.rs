@@ -17,7 +17,6 @@ const ROW: &Dword = &crate::menu::owner::MENUS.screens.draw_work.figure; // dwor
 const MARKER_X: &Dword = &crate::menu::owner::MENUS.screens.draw_work.marker_x; // g_markerX
 const MARKER_Y: &Dword = &crate::menu::owner::MENUS.screens.draw_work.marker_y; // g_markerY
 
-/// The Rust version: every register kept.
 pub fn draw_column_boxes(screens: &Screens) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::panels::row_box`; the row and marker variables
     // are left as the original leaves them.

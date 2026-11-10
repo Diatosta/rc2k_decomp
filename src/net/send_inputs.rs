@@ -127,8 +127,6 @@ pub fn send_fields(net: &Net, m: &Message) -> Result<(), Refused> {
     let bytes: Vec<u8> = dwords.iter().flat_map(|v| v.to_le_bytes()).collect();
     send_message(net, &bytes)
 }
-
-/// The Rust version.
 pub fn send_inputs() -> Result<(), Refused> {
     let net = net();
     send_fields(net, &INPUTS)

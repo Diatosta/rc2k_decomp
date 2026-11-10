@@ -5,8 +5,6 @@
 //!
 //! Takes the path. Returns true if a bad character or `\\` is found.
 //! Caller `install::install_files`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 /// Whether `path` has a bad character or `\\` (the original's carry).
 pub fn check_folder_name(path: impl Into<crate::place::Place>) -> bool {

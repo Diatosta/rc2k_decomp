@@ -36,8 +36,6 @@ use crate::system::owner::Start;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 // Converted: `rc2k_core::system::game_data` (the choices, the default names, the drawn
 // driver's name).
 use crate::menu::owner::menus;
@@ -214,7 +212,7 @@ pub fn load_game_data(start: &Start, outside: Outside) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The calls done by the Rust versions.
+/// The calls the loading makes, done by the game's Rust functions.
 fn in_game(call: Call) -> Result<u32, Refused> {
     let race = crate::race::owner::race();
     let menus = menus();
@@ -277,7 +275,7 @@ fn in_game(call: Call) -> Result<u32, Refused> {
     Ok(0)
 }
 
-/// The Rust version on the game's own calls.
+/// Loads with the game's own calls.
 pub fn load_in_game(system: &crate::system::owner::System) -> Result<(), Refused> {
     load_game_data(&system.start, &mut in_game)
 }

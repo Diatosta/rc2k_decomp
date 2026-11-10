@@ -6,8 +6,6 @@
 //! `net::send_chat`, `net::chat_line_locked`, `net::take_messages`). Refuses nothing.
 
 use crate::net::store::NetVars;
-
-/// The Rust version.
 pub fn lock_received(vars: &NetVars) {
     crate::sync::wait(vars.mutex.get(), crate::sync::INFINITE);
 }

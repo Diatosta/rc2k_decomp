@@ -23,7 +23,7 @@ const INVALID_STAGE: FatalError = FatalError {
 /// `index` in the highlight fonts) its track-pack entry's name, its length (hundredths of a
 /// mile, `strings::append_distance_2dp` and the unit's string 0x56F / 0x570; none for 0), its
 /// number, and its time; tags 3 and 4 end the list, any other is fatal error 0x8070D91A
-/// "Invalid Stage ID". Every register kept. Refuses (before anything) a section past the
+/// "Invalid Stage ID". Refuses (before anything) a section past the
 /// table.
 pub fn draw_itinerary(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::itinerary`.

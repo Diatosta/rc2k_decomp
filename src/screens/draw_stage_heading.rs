@@ -20,8 +20,6 @@ use rc2k_core::screens::stage_panel::stage_line;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 /// The same line starting with another label string (the stage panels build one with 0x482).
 /// Converted: `rc2k_core::screens::stage_panel::stage_line`.
 pub fn heading_text(record: RecordRef, label: u32) -> Result<Vec<u8>, Refused> {

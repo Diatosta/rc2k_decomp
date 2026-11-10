@@ -40,8 +40,6 @@ fn record_tables() -> [crate::records::stages_store::RecordTable; 13] {
     all
 }
 
-// ---- Rust version ----
-
 /// The original's ebp and ecx at entry reach the made-up times as their stage and
 /// `fit_player_names` as its x. Neither is looked at: the stage only while `dword_755A0C` is
 /// 1, which it is only for `default_checkpoint_times`, which does not read it; the x is

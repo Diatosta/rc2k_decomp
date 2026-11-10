@@ -1,5 +1,5 @@
-//! The MMX converters' masks and the converters table, out of RAL.EXE's image (phase 5;
-//! typed in phase 7, `notes/conversion.md`): IDA 0x4F51F0 .. 0x4F52A4.
+//! The MMX converters' masks and the converters table, out of RAL.EXE's image: IDA 0x4F51F0 ..
+//! 0x4F52A4.
 
 use crate::session::Dword;
 

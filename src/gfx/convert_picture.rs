@@ -10,12 +10,10 @@
 //! row length is halved.
 //! 14 callers. Of the converters (the table is filled by `gfx::install_converters`) two are
 //! ported and called as Rust, `copy_pixel_rows` (the owner's 32-bit screen: nothing to do)
-//! and `components_to_4444_rows`; the eight MMX and 3DNow ones are not: the Rust version
+//! and `components_to_4444_rows`; the eight MMX and 3DNow ones are not: this
 //! calls the one the table names. Refuses a null
 //! buffer and a width or height of 0 (the original's loops count through all 32 bits). No
 //! limit on width * height, as in the original. The name is a reading.
-//! The registers above are the original's, for reference; a call by address goes through
-//! `routes.rs`.
 
 use crate::errors::BadInput;
 use crate::gfx::components_to_4444_rows::{COMPONENTS_TO_4444_ROWS, components_to_4444_in_place};
@@ -39,8 +37,6 @@ fn converter(converters: &Converters) -> u32 {
     let system = crate::system::owner::system();
     converters.table[format_number(system) as usize].get()
 }
-
-// ---- Rust version ----
 
 /// The carry flag the original leaves (true: set).
 pub type CarryLeft = bool;
@@ -78,7 +74,7 @@ pub fn convert_picture(
             return Ok(screen_bits < 16);
         }
     } else if converter != 0 {
-        // The table's converter: an MMX / 3DNow one by its Rust version (the table
+        // The table's converter: an MMX / 3DNow one (the table
         // holds no other: `gfx::install_converters`).
         let Some(c) = crate::gfx::mmx_converters::converter_at(converter) else {
             return Err(BadInput("a converter with no Rust version in the table"));

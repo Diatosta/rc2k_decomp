@@ -10,8 +10,6 @@
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step, screen_entry};
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 pub const SCREEN: Screen = Screen {
     menu: |m| m.tables.menus.advanced_audio.id(),
     saved_item: |m| &m.screens.items.current[slot::ADVANCED_AUDIO],
@@ -76,8 +74,7 @@ pub const SCREEN: Screen = Screen {
     always_asks: false,
 };
 
-/// The Rust version where the typed tables run it (a refusal is the
-/// caller's).
+/// Runs the screen (a refusal is the caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
     screen_entry("menu::advanced_audio_loop", &SCREEN)
 }

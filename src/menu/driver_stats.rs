@@ -16,7 +16,7 @@
 //!   that limit, its penalty (`dword_75AC48`[k]) the wear / `flt_75AB5C` times the weight.
 //!   Each figure also passes through `dword_7559EC`.
 //!
-//! Logs through the `logfile::` Rust versions
+//! Logs through `logfile::`
 //! (level 1). Refuses a current player past 3 or missing, a car past 0xFF or without its table,
 //! before anything.
 use crate::errors::{BadInput, Refused};
@@ -71,7 +71,6 @@ pub fn car_table(menus: &Menus, p: PlayerCell) -> Result<crate::pointers::GamePt
     crate::menu::cars_store::description_table(crate::menu::cars_store::car_entry(menus, car)?)
 }
 
-/// The Rust version.
 pub fn driver_stats(menus: &Menus, screens: &Screens) -> Result<(), Refused> {
     use crate::logfile::log_int::log_int;
     // Converted: `rc2k_core::menu::driver_figures` (float: exact at the game's 0x027F).

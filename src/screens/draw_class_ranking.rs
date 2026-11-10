@@ -56,7 +56,6 @@ fn rows(menus: &Menus) -> Result<Rows, Refused> {
     })?
 }
 
-/// The Rust version.
 pub fn draw_class_ranking(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let (rows, last_place) = rows(menus)?;
     let first_time = find_class_time(menus.screens.event.class.get(), true)?;

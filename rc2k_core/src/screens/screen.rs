@@ -1,7 +1,7 @@
 //! What a menu screen draws with (2026-10-20, the screens' conversion): texts and sprites,
 //! and the work variables the original leaves behind. Each screen family names its own
-//! fonts, texts and work variables (`Screen`'s associated types); the hook crate's adapter
-//! draws them with the game's fonts and blitter.
+//! fonts, texts and work variables (`Screen`'s associated types); the crate's adapter draws
+//! them with the game's fonts and blitter.
 
 use crate::Invalid;
 

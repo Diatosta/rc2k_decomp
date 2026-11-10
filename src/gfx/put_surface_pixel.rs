@@ -11,7 +11,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::components_to_pixel::components_to_pixel;
 
-/// The Rust version (see the header): `components` made a pixel and put at (`x`, `y`);
+/// `components` made a pixel and put at (`x`, `y`);
 /// the pixel (the original's eax).
 pub fn put_surface_pixel(
     components: u32,

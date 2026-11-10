@@ -7,8 +7,6 @@
 use crate::errors::Refused;
 use crate::gfx::blit_bar::Blit;
 
-// ---- Rust version ----
-
 /// The marker of the bar the bar globals describe.
 pub fn blit_bar_marker(blit: Blit) -> Result<(), Refused> {
     // Converted: `rc2k_core::gfx::bars::marker`.

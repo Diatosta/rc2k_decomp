@@ -14,8 +14,6 @@ use crate::menu::owner::Menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step};
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 fn before(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     screens.items.current[slot::LOAD_REPLAY].set(screens.items.first[slot::LOAD_REPLAY].get());

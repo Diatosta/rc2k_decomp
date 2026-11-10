@@ -6,8 +6,6 @@
 
 use crate::files::drive_type::drive_type;
 
-// ---- Rust version ----
-
 /// (carry, zero): `cmp` of the drive's kind with a CD-ROM's.
 pub fn is_cd_drive(letter: u8) -> (bool, bool) {
     // Converted: `rc2k_core::files::io::is_cd`.

@@ -18,7 +18,7 @@ use crate::net::tables::{copy_printable_into, with_connection};
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use rc2k_core::net::lists;
 
-/// The Rust version (see the header): the provider's GUID, the connection's address, its
+/// The provider's GUID, the connection's address, its
 /// short name.
 pub fn connection_found(guid: &[u8; 16], data: &[u8], short: &[u8]) -> Result<u32, Refused> {
     let vars = &net().vars;

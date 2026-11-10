@@ -15,7 +15,6 @@ use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
 /// (id, x, y, font) of the page's lines.
-/// The Rust version.
 pub fn draw_options_checklist(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::options_checklist`.
     {

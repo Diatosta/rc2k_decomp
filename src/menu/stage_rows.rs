@@ -12,7 +12,7 @@ use crate::menu::owner::Menus;
 
 // g_captionText
 
-/// The Rust version: `of_90` the fixed count, `on` the direction.
+/// `of_90` the fixed count, `on` the direction.
 pub fn step_rows(menus: &Menus, of_90: bool, on: bool) -> Result<(), Refused> {
     let count = if of_90 {
         0x5A

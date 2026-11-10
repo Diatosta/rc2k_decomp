@@ -13,8 +13,6 @@ use crate::gfx::formats::Formats;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::pointers::GamePtr;
 
-// ---- Rust version ----
-
 pub fn blend_palette(
     formats: &Formats,
     first: u32,

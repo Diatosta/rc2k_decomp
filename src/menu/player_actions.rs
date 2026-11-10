@@ -1,7 +1,7 @@
 //! More item actions the standalone could reach unported (2026-10-19, the survey of the
 //! menu and draw-list tables):
-//! - the current player's (`g_players`[`g_currentPlayer`]) settings, every register kept
-//!   unless said: `menu::keep_player_keys` (0x46AEFC): the 0x2C bytes at `unk_7555B1` to
+//! - the current player's (`g_players`[`g_currentPlayer`]) settings:
+//!   `menu::keep_player_keys` (0x46AEFC): the 0x2C bytes at `unk_7555B1` to
 //!   +0x50; `menu::lower_player_40` (0x46B386, `lower_dead_zone_1`): the first dead zone (+0x40) one less while above 0
 //!   (signed); `menu::lower_player_44` (0x46B3CB, `lower_dead_zone_2`): the second one less
 //!   unless 0; `menu::raise_player_48` (0x46B528) / `lower_player_48` (0x46B54C): the
@@ -34,7 +34,7 @@ fn player(screens: &Screens) -> Result<crate::menu::standings::PlayerCell, Refus
         .ok_or_else(|| BadInput("no current player (or one past the four)").into())
 }
 
-// ---- the Rust versions ----
+// ---- the functions ----
 
 // Converted: `rc2k_core::menu::player` (the player's fields) and `rc2k_core::menu::steps`
 // (`scores_page`, `replay_range`, `flip`).

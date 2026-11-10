@@ -21,8 +21,6 @@ use crate::text::font::Font;
 use crate::text::glyph_kerning::{STATE, State};
 use rc2k_core::strings::bytes::Bytes;
 
-// ---- Rust version ----
-
 /// What drawing text needs from outside: the kerning row table and the blitter.
 pub trait Canvas {
     /// False for a canvas that only predicts: font objects in game memory are then left alone.

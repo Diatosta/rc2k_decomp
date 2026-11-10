@@ -9,7 +9,7 @@
 use crate::errors::Refused;
 use crate::net::lobby::run_frame;
 
-/// The Rust version: the message shown until a key is pressed.
+/// The message shown until a key is pressed.
 pub fn show_message(message: u32) -> Result<(), Refused> {
     run_frame(|| crate::net::message_frame::message_frame(message))?;
     crate::system::sleep::sleep(250);

@@ -13,8 +13,6 @@ use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step, screen_entry};
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 fn before(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     screens.items.current[slot::AUDIO_SETUP].set(screens.items.first[slot::AUDIO_SETUP].get());
@@ -96,8 +94,7 @@ pub const SCREEN: Screen = Screen {
     always_asks: false,
 };
 
-/// The Rust version where the typed tables run it (a refusal is the
-/// caller's).
+/// Runs the screen (a refusal is the caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
     screen_entry("menu::audio_setup_loop", &SCREEN)
 }

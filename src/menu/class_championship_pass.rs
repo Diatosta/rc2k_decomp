@@ -4,7 +4,7 @@
 //! count into `dword_75597C`) and its page shown (`menu::show_class_championship_standings`), stopping when the
 //! leaving is answered yes (`g_yesNoAnswer` 1). `dword_755565` the class's flag.
 //!
-//! Callers: the event drivers. The steps are their Rust versions. Refuses a table
+//! Callers: the event drivers. Refuses a table
 //! without its end entry and a class count the loop would run past (at or below the first, or past
 //! 0x100), before anything; what the steps refuse.
 
@@ -21,7 +21,6 @@ fn first_class(menus: &Menus) -> u32 {
     })
 }
 
-/// The Rust version.
 pub fn class_championship_pass(menus: &Menus) -> Result<(), Refused> {
     let first = first_class(menus);
     // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).

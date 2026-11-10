@@ -11,7 +11,6 @@ use crate::menu::owner::Menus;
 use crate::screens::best_scores::*;
 use crate::text::draw_text::Canvas;
 
-/// The Rust version (see the header).
 pub fn draw(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let tables = &menus.tables;
     draw_scores(tables, &MARKED_CLASS_TIMES, canvas)

@@ -24,8 +24,6 @@ pub fn posted_open_join() -> u32 {
 fn join_group() -> Result<bool, Refused> {
     Ok(crate::net::join_group::join_group())
 }
-
-/// The Rust version.
 pub fn join_session(net: &Net, number: u32) -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_ptr(texts::NET_JOIN_SESSION), false, 2);
     log_int_nl(number, 1);

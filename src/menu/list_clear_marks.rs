@@ -9,7 +9,6 @@
 use crate::menu::list_handle::ListMenu;
 use rc2k_core::menu::list_menu::{has_choices, rounds, unmarked};
 
-/// The Rust version.
 pub fn list_clear_marks(list: ListMenu) {
     // Converted: `rc2k_core::menu::list_menu` (`unmarked`, `has_choices`, `rounds`).
     // Its count is a byte, but the original counts it down as a dword: 0 goes round

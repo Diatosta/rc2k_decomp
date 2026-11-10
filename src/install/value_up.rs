@@ -3,8 +3,6 @@
 //!
 //! Returns the value's address, most, new value.
 //! Callers `install::key_right`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::menu::list_handle::ListItem;
 

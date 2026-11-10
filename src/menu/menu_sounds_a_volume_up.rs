@@ -11,7 +11,6 @@ const STEP: Volume = Volume {
     then: Then::Sound(0x20),
 };
 
-/// The Rust version the typed tables run.
 pub fn run(menus: &crate::menu::owner::Menus) {
     let screens = &menus.screens;
     volume_step(screens, STEP);

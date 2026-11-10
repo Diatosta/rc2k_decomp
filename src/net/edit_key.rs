@@ -18,8 +18,6 @@ use crate::pointers::{StoreBytes, copy_between, store_value};
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
 use rc2k_core::net::editing::{self, EditKey};
-
-/// The Rust version.
 pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
     let install = crate::install::owner::install();
     // Converted: `rc2k_core::net::editing` (`EditKey`, `last_char`, `takes`,

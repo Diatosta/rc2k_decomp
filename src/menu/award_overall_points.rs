@@ -6,7 +6,7 @@
 //! Then each entry's total of its six (+0x38 .., the negative ones left out) into its
 //! +0x50 and its driver's +0x74 or player's +0xCC.
 //!
-//! The search is its Rust version. Refuses no table, one without its end
+//! Refuses no table, one without its end
 //! entry, a section past 5, a player past 4 or missing, before anything; a driver not found is the
 //! search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
@@ -31,7 +31,6 @@ fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<Owner, Refused>
     }
 }
 
-/// The Rust version.
 pub fn award_overall_points(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     {

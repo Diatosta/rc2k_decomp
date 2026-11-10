@@ -14,10 +14,8 @@ use crate::text::draw_text::GameCanvas;
 const PLAIN: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CENTRED_PLAIN;
 const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CENTRED_LIT;
 
-/// The Rust version: the string `string` for item `item` at (`x`, `y`) in the item's font;
-/// returns the next y (y plus the font's line height; the original's ebp). The registers it
-/// leaves (ebx the font, edx the y, eax .. edx as the drawing leaves them) are read by no
-/// caller (`net::settings_frame` only).
+/// The string `string` for item `item` at (`x`, `y`) in the item's font;
+/// returns the next y (y plus the font's line height).
 pub fn draw_centred_item(
     install: &'static crate::install::owner::Install,
     vars: &NetVars,

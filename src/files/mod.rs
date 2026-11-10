@@ -33,7 +33,7 @@ const CP1252_HIGH: [char; 32] = [
 ];
 
 /// The game's bytes as text, read the way the Win32 `A` functions read them (the ANSI code
-/// page, Windows-1252: phase 6, the file calls through `std`).
+/// page, Windows-1252).
 pub fn ansi_text(bytes: &[u8]) -> String {
     bytes
         .iter()
@@ -98,7 +98,7 @@ pub fn host_path(path: &[u8]) -> std::path::PathBuf {
 }
 
 /// A path in the game's bytes (no NUL) as a `PathBuf`: the one place a game path becomes
-/// the system's. On Unix (phase 11) as Windows read it: `\` a separator as `/` is, a drive
+/// the system's. On Unix as Windows read it: `\` a separator as `/` is, a drive
 /// letter (`c:`) the root, and each name found in its folder without regard to case (the
 /// game's files are named in any case); a name that is not there (a file to be made) is
 /// kept as written.
@@ -183,13 +183,13 @@ mod ansi_tests {
     }
 }
 
-/// The file code's variables, out of the image since 2026-10-24 (phase 5; each has its own
+/// The file code's variables, out of the image since 2026-10-24 (each has its own
 /// entry in `moved::MOVED`).
 pub mod state {
 
     /// g_lastFilePath (0x4F52B0): the path of the last file opened or searched for, or
     /// none (the fatal-error report names it). The original holds the path's address (and
-    /// the report reads what is there then); its text since 2026-10-29 (phase 13).
+    /// the report reads what is there then); its text since 2026-10-29.
     static LAST_FILE_PATH: std::sync::Mutex<Option<Vec<u8>>> = std::sync::Mutex::new(None);
 
     /// `g_lastFilePath` set to `path` (without its NUL), or to none.

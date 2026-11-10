@@ -9,8 +9,6 @@ use crate::menu::owner::Menus;
 use crate::menu::text_entry::with_entry;
 use rc2k_core::menu::text_entry::text_length;
 
-// ---- Rust version ----
-
 pub fn add_text_length(
     menus: &Menus,
     text: impl Into<crate::place::Place>,

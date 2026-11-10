@@ -1,7 +1,6 @@
-//! The picture loader's variables (the name, flags, size, rows and buffer of the picture, the
-//! list its memory is on), out of RAL.EXE's image (phase 5; typed in phase 7,
-//! `notes/conversion.md`): IDA 0x4F49C8 .. 0x4F4A24. The texture grades that follow in the
-//! image are `gfx::texture_pixels::GRADING`.
+//! The picture loader's variables (the name, flags, size, rows and buffer of the picture, the list
+//! its memory is on), out of RAL.EXE's image: IDA 0x4F49C8 .. 0x4F4A24. The texture grades that
+//! follow in the image are `gfx::texture_pixels::GRADING`.
 
 use crate::memory::MemoryList;
 use crate::session::Dword;

@@ -8,8 +8,6 @@ use crate::system::tick_count::tick_count;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 pub fn update_frame_clock() -> u32 {
     let now = tick_count();
     system().session.clocks.frame.set(now);

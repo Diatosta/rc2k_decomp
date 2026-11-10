@@ -12,8 +12,6 @@ use crate::strings::text_from_ids::{TEXT_LEN, text_at};
 use crate::text::draw_text::{Canvas, Outcome, draw_text};
 use crate::text::font::Font;
 
-// ---- Rust version ----
-
 /// The text of string `id` with its NUL, as the original leaves it in the text buffer.
 pub fn string_text(id: u32) -> Result<Vec<u8>, BadInput> {
     let mut out = Vec::new();

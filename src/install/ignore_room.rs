@@ -2,8 +2,6 @@
 //! `dword_51BA04` 1, the answer (`byte_51D415`) 1 and the page left.
 //!
 //! An item action (kind 6). Caller `install::item_action` through a page's item.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 pub fn ignore_room(install: &'static crate::install::owner::Install) {
     install.run.ignore_room.set(1);

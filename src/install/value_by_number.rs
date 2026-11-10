@@ -3,8 +3,6 @@
 //!
 //! Takes the item (+8 the value's byte, +0xC the least, +0xD the most) and the number.
 //! Callers `install::key_number` (ecx the key less 2: 0 .. 8).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::menu::list_handle::ListItem;

@@ -8,8 +8,6 @@
 //!
 //! No pieces would go round 2^32 times: refused. Caller `install::run_page` (the surface
 //! locked).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{

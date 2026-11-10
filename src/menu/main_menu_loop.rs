@@ -14,7 +14,7 @@
 //!   (`always_asks`); the quit switch leads to the question too.
 //!
 //! The five calls and three stores between the last jump and the end (0x474CD9 ..
-//! 0x474D0F) are never reached and are not in the Rust version. The name is a reading from the menu
+//! 0x474D0F) are never reached and are not ported. The name is a reading from the menu
 //! (0x748CB8): its items open `start_rally_loop`, `load_championship_loop`, `network_rally_loop`
 //! and `options_loop`, and the fifth is `menu::go_back`. Screen: the main menu. Rust callers run
 //! its `entry` (`routes.rs`).
@@ -28,8 +28,6 @@ use crate::menu::screen_loop::{
 use crate::menu::update_blink::update_blink;
 
 // ---- game data ----
-
-// ---- Rust version: `menu::screen_loop` with this ----
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
@@ -82,8 +80,7 @@ fn idle(entry: &Entry) -> Result<Flow, Refused> {
         return Ok(Flow::On);
     }
     log("menu::main_menu_loop: idle, `menu::play_films` is called");
-    // `menu::play_films` with mode 1 in eax; it keeps every register. edi is the menu
-    // here (the loop's last store to it); ebp it does not read.
+    // `menu::play_films` with mode 1.
     crate::menu::play_films::play_films(true)?;
     log("menu::main_menu_loop: `menu::play_films` has come back");
     menus.screens.loop_flags.idle.set(0u32);

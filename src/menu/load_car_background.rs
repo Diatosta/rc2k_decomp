@@ -18,8 +18,6 @@ use crate::text::draw_text::GameCanvas;
 // dword_755990
 // menu::load_background
 
-// ---- Rust version ----
-
 /// The car of the entry shown, 0x21 counting as 0x17.
 pub fn shown_car(menus: &Menus) -> Result<u32, Refused> {
     let car = read(shown_description(menus)?)?.car;

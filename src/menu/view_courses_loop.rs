@@ -14,16 +14,12 @@ use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, log_line, screen_entry,
 };
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 fn set_up_first(_: &Entry) -> Result<(), Refused> {
-    // Between `pusha` and `popa`: no register changes.
     log_line(c"VCoursesScr: Start");
     Ok(())
 }
 
 fn after(_: &Entry) -> Result<(), Refused> {
-    // Between `pusha` and `popa`: no register changes.
     log_line(c"VCoursesScr: End");
     Ok(())
 }
@@ -99,8 +95,7 @@ pub const SCREEN: Screen = Screen {
     always_asks: false,
 };
 
-/// The Rust version where the typed tables run it (a refusal is the
-/// caller's).
+/// Runs the screen (a refusal is the caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
     screen_entry("menu::view_courses_loop", &SCREEN)
 }

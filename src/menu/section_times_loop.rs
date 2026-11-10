@@ -7,8 +7,6 @@ use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 /// `unk_747798`'s slot, the item kept between visits.
 const SLOT: usize = (0x747798 - 0x747660) / 4;
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 pub const SCREEN: Screen = Screen {
     menu: |m| m.tables.menus.menu_74fea8.id(),
     saved_item: |m| &m.screens.items.current[SLOT],

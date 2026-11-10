@@ -17,8 +17,6 @@ use crate::menu::screen_loop::{
     Entry, FrameRoutine, List, Screen, Step, prepare_scene, screen_entry,
 };
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
 fn prepare(entry: &Entry) -> Result<(), Refused> {
     crate::scene::polygon_work::front_end().window.view_offset[0].set(0x0u32);
     crate::scene::polygon_work::front_end().window.view_offset[1].set(0x0u32);
@@ -93,8 +91,7 @@ pub const SCREEN: Screen = Screen {
     always_asks: false,
 };
 
-/// The Rust version where the typed tables run it (a refusal is the
-/// caller's).
+/// Runs the screen (a refusal is the caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
     screen_entry("menu::load_championship_46e899_loop", &SCREEN)
 }

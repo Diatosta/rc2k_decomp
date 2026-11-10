@@ -4,15 +4,13 @@
 //! picture's start, or +0x5C made 0 if there is none or it cannot be read
 //! (`gfx/texture_upload.rs`); then the picture is read (`gfx::read_texture_picture`, 256 x 256
 //! of -1 if it cannot be) and `gfx::upload_texture_picture` puts it in. Three call sites in
-//! `scene::load_texture_picture`, which calls the Rust version now. Refuses a texture of 0x140
+//! `scene::load_texture_picture`, which calls this. Refuses a texture of 0x140
 //! or more, a record without its format, and what its parts refuse.
 
 use crate::errors::Refused;
 use crate::gfx::read_texture_picture::read_texture_picture;
 use crate::gfx::texture_upload::{Record, keep_second_picture};
 use crate::gfx::upload_texture_picture::{GameSurfaces, upload_texture_picture};
-
-// ---- Rust version ----
 
 /// `upload` gets the texture and what the reading left: the pixels, the width and the
 /// height.

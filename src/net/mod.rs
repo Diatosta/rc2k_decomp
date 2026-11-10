@@ -17,10 +17,9 @@
 //! The way out: `net::shut_down` (the network ended, the connection destroyed, the two
 //! handles closed).
 //!
-//! The race's messages, the receiving thread, the way out and the DirectPlay set-up are
-//! plain functions calling each other directly (conversion phase 3, 2026-10-23); the
-//! screens' loops and frames of the lobby too (conversion phase 3, 2026-10-24: no registers,
-//! no calls by place). DirectPlay's methods from Rust (`net::dplay`).
+//! The race's messages, the receiving thread, the way out and the DirectPlay set-up are plain
+//! functions calling each other directly; the screens' loops and frames of the lobby too (no
+//! registers, no calls by place). DirectPlay's methods from Rust (`net::dplay`).
 
 use crate::net::store::NetVars;
 use crate::race::owner::race;

@@ -4,8 +4,6 @@
 use crate::menu::owner::Menus;
 use crate::menu::text_entry::{field, with_entry};
 
-// ---- Rust version ----
-
 pub fn backup_text(
     menus: &Menus,
     at: impl Into<crate::place::Place>,

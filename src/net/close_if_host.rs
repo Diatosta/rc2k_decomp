@@ -4,8 +4,6 @@
 //! Caller: `net::start_link`, before each race.
 
 use crate::net::owner::Net;
-
-/// The Rust version.
 pub fn close_if_host(net: &Net) {
     // Converted: `rc2k_core::net::record::is_host`.
     if rc2k_core::net::record::is_host(net.vars.own.state()) {

@@ -5,8 +5,6 @@
 //!
 //! Takes the folder path.
 //! Caller `install::run_script` (opcode 1).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::{fatal, resolve_path};

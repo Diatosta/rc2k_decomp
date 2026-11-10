@@ -10,7 +10,6 @@ use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::screens::service_boxes::quad;
 
-/// The Rust version: every register kept.
 pub fn draw_bottom_panel(menus: &Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::panels::bottom_panel`.
     for a in

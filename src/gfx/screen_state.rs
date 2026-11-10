@@ -1,6 +1,6 @@
 //! The screen mode's choice and the draw surface's description (what `gfx::try_screen_mode` leaves
 //! of the mode chosen, `platform` presents, the race's drawing code writes pixels through), out
-//! of RAL.EXE's image (phase 5), typed (phase 7). Placed in a file of its own beside the
+//! of RAL.EXE's image . Placed in a file of its own beside the
 //! graphics module's stores (the graphics module is converted in parallel; its users keep
 //! naming these by IDA address through `moved::MOVED` until they are rewritten).
 //!

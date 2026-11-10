@@ -3,7 +3,7 @@
 //! `menu::first_page_stage`, `menu::stage_range_caption`; then the page
 //! (`menu::championship_standings_loop`).
 //!
-//! The steps are their Rust versions. Refuses what the steps
+//! Refuses what the steps
 //! refuse, before anything; raises the search's fatal error as the original.
 
 use crate::errors::Refused;
@@ -13,8 +13,6 @@ use rc2k_core::menu::results_pages::{Page, held_figure};
 
 // dword_7558F4
 // g_eventMode
-
-/// The Rust version.
 pub fn show_championship_standings(menus: &Menus) -> Result<(), Refused> {
     let play = &menus.play;
     let found = crate::menu::first_player_unplaced::first_player_unplaced()?;

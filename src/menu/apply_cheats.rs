@@ -48,8 +48,6 @@ const CHEATS: [(&std::ffi::CStr, Option<usize>); 19] = [
     (c"Cheat 19 (Reverse Sim Tracks)", None),
 ];
 
-// ---- Rust version ----
-
 /// `log` gets each line's text.
 pub fn apply_cheats(
     menus: &Menus,

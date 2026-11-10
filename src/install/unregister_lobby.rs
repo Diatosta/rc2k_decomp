@@ -2,8 +2,6 @@
 //! `RegDeleteKeyA(HKEY_LOCAL_MACHINE, "SOFTWARE\Microsoft\DirectPlay\Applications\RC")`.
 //!
 //! Caller `install::uninstall`. The call through `api`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::install::read_registry::Registry;
 

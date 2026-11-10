@@ -1,6 +1,6 @@
 //! The network's lists (`g_netConnectionTable`, `g_netSessionTable`, each connection's
 //! data and the connection's compound address: blocks of the game's heap on `g_netMemory`),
-//! Rust's since phase 12 (2026-10-27): taken counted on the list as the game's blocks
+//! Rust's (2026-10-27): taken counted on the list as the game's blocks
 //! were (`allocate_lists`, `connection_found`, `build_address`), given back with it
 //! (`free_messages`). The counts stay in `crate::net::owner::net().vars.connections` / `crate::net::owner::net().vars.sessions`.
 

@@ -8,7 +8,7 @@ use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 
-/// The Rust version for `level` (1 .. 5).
+/// Arcade level `level` (1 .. 5).
 pub fn arcade_level(menus: &Menus, play: &Play, level: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::arcade::level_open`.
     use rc2k_core::menu::arcade::{CLOSED_SOUND, level_open};

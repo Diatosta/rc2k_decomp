@@ -38,8 +38,6 @@ use crate::text::draw_text::Canvas;
 // dword_7559EC
 const PAGES: u32 = 4;
 
-// ---- Rust version ----
-
 /// Returns the carry of the last text drawn.
 pub fn draw_car_figures(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let page: u32 = menus.screens.event.car_page.get();

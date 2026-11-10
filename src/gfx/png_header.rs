@@ -1,6 +1,5 @@
-//! The PNG header's fields, out of RAL.EXE's image (phase 5; typed in phase 7,
-//! `notes/conversion.md`): IDA 0xA8C190 .. 0xA8C1A4. `decode_png` writes them from the
-//! file's header chunk and, without one in the file, reads what the last file left.
+//! The PNG header's fields, out of RAL.EXE's image: IDA 0xA8C190 .. 0xA8C1A4. `decode_png` writes
+//! them from the file's header chunk and, without one in the file, reads what the last file left.
 
 use crate::session::{Byte, Bytes, Dword};
 

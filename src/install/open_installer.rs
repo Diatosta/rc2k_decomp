@@ -8,8 +8,6 @@
 //! allocation or read is fatal error 0x80AF7121/7122/7022/7444/7445.
 //!
 //! Caller `install::run_installer`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;
@@ -42,7 +40,7 @@ fn read<const N: usize>(
 
 pub fn open_installer(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
     let gfx = gfx();
-    // The names' tables are Rust's (phase 12), counted on the list as the game's blocks
+    // The names' tables are Rust's, counted on the list as the game's blocks
     // were; the scan and cursors count names and bytes from 0.
     use crate::install::name_tables::{FILES, FOLDERS, NameTable};
     let list = &install.run.buffers;
