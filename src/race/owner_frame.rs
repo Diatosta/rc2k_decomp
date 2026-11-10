@@ -23,8 +23,8 @@ pub struct Frame {
     pub frame_work: crate::workers::PerWorker<FrameWork>,
     /// One copy per drawing thread (`workers`).
     pub matrices: crate::workers::PerWorker<SceneMatrices>,
-    /// One copy per drawing thread (`workers`).
-    pub scratch: crate::workers::PerWorker<FrameScratch>,
+    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
+    pub scratch: FrameScratch,
     pub counter: FrameCounter,
     pub draw_batches: DrawBatches,
     pub panel_clock: PanelClock,
@@ -52,9 +52,7 @@ impl Frame {
             matrices: crate::workers::PerWorker::new(
                 [const { SceneMatrices::new() }; crate::workers::COPIES],
             ),
-            scratch: crate::workers::PerWorker::new(
-                [const { FrameScratch::new() }; crate::workers::COPIES],
-            ),
+            scratch: FrameScratch::new(),
             counter: FrameCounter::new(),
             draw_batches: DrawBatches::new(),
             panel_clock: PanelClock::new(),

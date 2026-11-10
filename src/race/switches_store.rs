@@ -83,7 +83,7 @@ const _: () = assert!(END - START == core::mem::size_of::<FrameSwitches>());
 /// Where IDA 0x621480 is now (the piece's static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(race().shared.switches.first()))
+    crate::pointers::game_address(std::ptr::from_ref(&race().shared.switches))
 }
 
 #[cfg(test)]
@@ -93,7 +93,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(race().shared.switches.first(), START, END);
+        crate::gfx::first_values_are_the_games(&race().shared.switches, START, END);
     }
 
     #[test]

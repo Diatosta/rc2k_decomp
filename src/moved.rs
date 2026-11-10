@@ -1278,7 +1278,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::scratch_store::START,
         len: crate::race::scratch_store::END - crate::race::scratch_store::START,
-        home: Home::Store(crate::race::owner::RACE.frame.scratch.first()),
+        home: Home::Store(&crate::race::owner::RACE.frame.scratch),
     },
     Moved {
         ida: crate::race::course_lists_store::START,
@@ -1364,7 +1364,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::level_grid_store::START,
         len: crate::race::level_grid_store::END - crate::race::level_grid_store::START,
-        home: Home::Store(crate::race::owner::RACE.course.level_grid.first()),
+        home: Home::Store(&crate::race::owner::RACE.course.level_grid),
     },
     Moved {
         ida: crate::race::frame_store::START,
@@ -1424,7 +1424,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::switches_store::START,
         len: crate::race::switches_store::END - crate::race::switches_store::START,
-        home: Home::Store(crate::race::owner::RACE.shared.switches.first()),
+        home: Home::Store(&crate::race::owner::RACE.shared.switches),
     },
     Moved {
         ida: crate::scene::draw_switches_store::START,
@@ -1434,7 +1434,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::scene::light_work_store::START,
         len: crate::scene::light_work_store::END - crate::scene::light_work_store::START,
-        home: Home::Store(crate::scene::owner::SCENE.lights.work.first()),
+        home: Home::Store(&crate::scene::owner::SCENE.lights.work),
     },
     Moved {
         ida: crate::scene::object_store::START,

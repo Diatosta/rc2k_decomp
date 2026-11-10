@@ -57,7 +57,7 @@ const _: () = assert!(END - START == core::mem::size_of::<FrameScratch>());
 /// Where IDA 0x5C5F48 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(race().frame.scratch.first()))
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.scratch))
 }
 
 #[cfg(test)]
@@ -67,7 +67,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(race().frame.scratch.first(), START, END);
+        crate::gfx::first_values_are_the_games(&race().frame.scratch, START, END);
     }
 
     #[test]

@@ -62,7 +62,7 @@ pub struct LightWork {
     pub plain_light_colours: [Dword; 8],
     /// +0xec (0x62DB30): `dword_62DB30` (nine dwords to 0x62DB54): four bases, four random parts and a 0, initial 200, 400, 200, 400, 400, 400, 400, 400, 0 (`scene::set_object_material`).
     pub phase_lengths: [Dword; 9],
-    /// +0x110 (0x62DB54): `dword_62DB54`: the clock when `scene::set_object_material` was last here.
+    /// +0x110 (0x62DB54): `dword_62DB54`: the clock when `scene::set_object_material` was last here (read by nothing, no longer written).
     pub phase_clock: Dword,
     /// +0x114 (0x62DB58): `g_listedFaceCount`: faces in the list (`scene::list_object_face`, `scene::draw_object_faces`, `scene::sort_listed_faces`).
     pub listed_face_count: Dword,
@@ -102,7 +102,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(scene().lights.work.first(), START, END);
+        crate::gfx::first_values_are_the_games(&scene().lights.work, START, END);
     }
 
     #[test]

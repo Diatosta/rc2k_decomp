@@ -63,7 +63,7 @@ impl ViewGrid {
         match self.cells.get(n as usize) {
             Some(cell) => Ok(cell.get()),
             None => crate::session::read_on_in(
-                &*course.level_grid,
+                &course.level_grid,
                 &course.level_grid.course_grid,
                 n as usize,
                 "the variables after the course grid",

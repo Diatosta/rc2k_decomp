@@ -120,24 +120,20 @@ impl<T: crate::pointers::Cells + crate::pointers::Store> Carried for PerWorker<T
 /// The stores of the drawing's working state a run reads as the list began (the write
 /// watch's list, `notes/conversion.md`): copied into each run's copy, the changes merged
 /// back.
-fn carried_stores() -> [&'static dyn Carried; 20] {
+fn carried_stores() -> [&'static dyn Carried; 16] {
     let race = crate::race::owner::race();
     let scene = crate::scene::owner::scene();
     [
         &race.frame.matrices,
-        &race.frame.scratch,
         &race.frame.sound_spots,
         &race.physics.camera,
         &race.physics.ground,
         &race.course.course,
-        &race.course.level_grid,
         &race.shared.vars,
         &race.shared.view,
-        &race.shared.switches,
         &scene.drawing.scene,
         &scene.drawing.object_work,
         &scene.lights.state,
-        &scene.lights.work,
         &crate::d3d::owner::d3d().cards,
         // The stores the mirror shares with its view (`draw_beside`, the write watch's list).
         &race.frame.frame_work,
@@ -205,13 +201,14 @@ fn register_copies() {
     });
 }
 
-/// The other drawing threads: with `mirror_beside` one besides the game's on a machine of two
-/// cores or more (the handheld: 25 to 30 frames a second).
+/// The other drawing threads: with `mirror_beside`, one fewer than the cores, up to the
+/// copies (the mirror beside its view uses one: the handheld at 25 to 30 frames a second; the
+/// players' views and mirrors beside each other up to three).
 fn pool() -> Option<&'static rayon::ThreadPool> {
     static POOL: OnceLock<Option<rayon::ThreadPool>> = OnceLock::new();
     POOL.get_or_init(|| {
         let cores = std::thread::available_parallelism().map_or(1, usize::from);
-        let all = if mirror_beside() { cores.min(2) } else { 1 };
+        let all = if mirror_beside() { cores.min(COUNT) } else { 1 };
         (all > 1)
             .then(|| {
                 rayon::ThreadPoolBuilder::new()
@@ -256,21 +253,55 @@ pub fn wait_for_earlier_runs() {
 }
 
 /// `first` drawn on the game's thread and `second` beside it on a drawing thread, each from
-/// the working state as it is now (the mirror beside its view, `race::draw_race_scene`):
-/// `second`'s drawing goes after `first`'s, which may flush, and its changes to the working
-/// state over `first`'s. With fewer than two drawing threads both on the game's thread, one
-/// after the other, each on its own copy as on its own thread, so that what is drawn is the
-/// same however many threads draw.
+/// the working state as it is now (the mirror beside its view, `race::draw_race_scene`), then
+/// `then` on the game's thread: `then`'s drawing goes after `first`'s, which may flush, and
+/// `second`'s after `then`'s, its changes to the working state over theirs. With fewer than
+/// two drawing threads both on the game's thread, one after the other, each on its own copy
+/// as on its own thread, so that what is drawn is the same however many threads draw.
 pub fn draw_beside(
     first: impl Fn() -> Result<(), Refused> + Sync,
     second: impl Fn() -> Result<(), Refused> + Sync,
+    mut then: impl FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    draw_side_by_side(
+        2,
+        |n| if n == 0 { first() } else { second() },
+        |n| if n == 0 { then() } else { Ok(()) },
+    )
+}
+
+/// Parts 0 .. `k` (`part(n)`, at most `COUNT`) drawn beside each other as `draw_beside` draws
+/// two: the first on the game's thread, each other on a drawing thread, each from the working
+/// state as it is now; their drawing put together and their changes put back in their order.
+/// `after(n)` runs on the game's thread once part `n` is put back (part 0: once every part
+/// has ended), before the next is: what the drawing does there goes after part `n`'s, on the
+/// working state as the parts so far left it, and no part runs meanwhile (what it writes that
+/// has no copy per part, the cars' crumpled points, no part reads while it changes).
+pub fn draw_side_by_side(
+    k: usize,
+    part: impl Fn(usize) -> Result<(), Refused> + Sync,
+    after: impl FnMut(usize) -> Result<(), Refused>,
+) -> Result<(), Refused> {
+    if k > COUNT {
+        return Err(BadInput("more parts beside each other than drawing copies").into());
+    }
     carried_census("parts beside", || {
         let pool = pool();
         BESIDE.store(true, std::sync::atomic::Ordering::Relaxed);
-        let drawn = draw_parts(pool, 2, |n| if n == 0 { first() } else { second() });
+        let drawn = draw_parts(pool, k, part, after);
         BESIDE.store(false, std::sync::atomic::Ordering::Relaxed);
         drawn
+    })
+}
+
+/// The two players' views and their mirrors drawn beside each other in split screen
+/// (`draw_side_by_side`, `race::draw_race_scene`): with the mirror beside its view
+/// (`mirror_beside`). `RC2K_PLAYERS_BESIDE=0` turns it off, any other value on.
+pub fn players_beside() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| match std::env::var_os("RC2K_PLAYERS_BESIDE") {
+        Some(v) => v != "0",
+        None => mirror_beside(),
     })
 }
 
@@ -373,11 +404,13 @@ fn carried_census(
 /// Parts 0 .. `k` of a drawing (`part`), part 0 on the game's thread and each other on a
 /// drawing thread with its own copy of the working state, all set from the game's own at the
 /// start; the other parts' noted drawing put after part 0's in their order, and each copy's
-/// changes put into the game's own in that order.
+/// changes put into the game's own in that order, `after(n)` run after part `n`'s (part 0's
+/// once all have ended).
 fn draw_parts(
     pool: Option<&rayon::ThreadPool>,
     k: usize,
     part: impl Fn(usize) -> Result<(), Refused> + Sync,
+    mut after: impl FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     register_copies();
     // One after another on the game's thread without a pool or with `RC2K_DRAW_SERIAL`.
@@ -475,9 +508,14 @@ fn draw_parts(
             watched.push(crate::write_watch::end());
         }
         crate::write_watch::shared::add(&watched);
+        note_carried_writes(&stores, k, &watched);
         watched.clear();
     }
     let mut result = first;
+    // Part 0 is put back: what follows it draws on the game's thread, every part ended.
+    if result.is_ok() {
+        result = after(0);
+    }
     for (n, mut run) in others.into_iter().enumerate() {
         result = result.and(run.result);
         // Its fans before it set a state draw with what the earlier runs left.
@@ -488,10 +526,54 @@ fn draw_parts(
             s.merge_run(n + 1);
         }
         crate::d3d::run_states::carry(&run.states, n + 1);
+        if result.is_ok() {
+            // What it draws takes the merged states.
+            crate::platform_3d::forget_states();
+            result = after(n + 1);
+        }
     }
     // The game's thread drew run 0 with its own states: the next fan takes the merged ones.
     crate::platform_3d::forget_states();
     result
+}
+
+/// With the feature `write_watch`: how many of the drawings beside each other wrote into each
+/// carried store's copies at all (a store no part writes needs no copies; the carried census
+/// sees only changed bytes), logged by `carried_stores`' numbers every 300.
+#[cfg(feature = "write_watch")]
+fn note_carried_writes(stores: &[&dyn Carried], k: usize, watched: &[crate::write_watch::Seen]) {
+    static WRITTEN: Mutex<(Vec<u32>, u32)> = Mutex::new((Vec::new(), 0));
+    let mut w = WRITTEN
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if w.0.len() != stores.len() {
+        w.0 = vec![0; stores.len()];
+    }
+    for (i, s) in stores.iter().enumerate() {
+        let written = (0..k).any(|n| {
+            let copy = s.copy(n);
+            let words = copy.first().addr() / 4..(copy.first().addr() + copy.size()).div_ceil(4);
+            watched
+                .iter()
+                .any(|seen| seen.written.iter().any(|d| words.contains(d)))
+        });
+        if written {
+            w.0[i] += 1;
+        }
+    }
+    w.1 += 1;
+    if w.1.is_multiple_of(300) {
+        let counts: Vec<String> =
+            w.0.iter()
+                .enumerate()
+                .map(|(i, c)| format!("{i}:{c}"))
+                .collect();
+        crate::framework::log(&format!(
+            "workers: carried stores written (of {} drawings): {}",
+            w.1,
+            counts.join(" ")
+        ));
+    }
 }
 
 /// What a drawing thread's run left.

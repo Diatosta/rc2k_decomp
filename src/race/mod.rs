@@ -98,6 +98,7 @@ pub mod replay_mode_2;
 pub mod replay_screenshot;
 pub mod replay_work_store;
 pub mod save_seal;
+pub mod scene_hand_off;
 pub mod scene_points;
 pub mod scratch_store;
 pub mod seal_store;

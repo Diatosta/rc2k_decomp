@@ -17,8 +17,8 @@ pub struct Course {
     pub course: crate::workers::PerWorker<CourseWork>,
     /// One copy: the drawing only reads it (frame plan F4).
     pub lists: CourseLists,
-    /// One copy per drawing thread (`workers`).
-    pub level_grid: crate::workers::PerWorker<LevelGrid>,
+    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
+    pub level_grid: LevelGrid,
     pub level_paths: LevelPaths,
     pub kind_records: KindRecords,
     pub lights_data: LightsData,
@@ -37,9 +37,7 @@ impl Course {
                 [const { CourseWork::new() }; crate::workers::COPIES],
             ),
             lists: CourseLists::new(),
-            level_grid: crate::workers::PerWorker::new(
-                [const { LevelGrid::new() }; crate::workers::COPIES],
-            ),
+            level_grid: LevelGrid::new(),
             level_paths: LevelPaths::new(),
             kind_records: KindRecords::new(),
             lights_data: LightsData::new(),

@@ -80,7 +80,6 @@ fn step_shape(
         _ => 0f32.to_bits(),
     };
     shared.vars.move_fraction.set_bits(fraction);
-    scene.lights.work.phase_clock.set_bits(clock);
     crate::session::write_first(&scene.objects.slots.phase_work, &[length, time, phase]);
     let mut b = [0u8; 16];
     for (k, v) in [clock, time, length, phase].into_iter().enumerate() {

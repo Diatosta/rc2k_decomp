@@ -115,6 +115,8 @@ pub struct ViewScratch {
     /// the physics' own, and set `g_currentCar`; neither is touched now. (The drawing's
     /// headers name its fields as the original's `g_car` +offsets.)
     pub car: crate::physics::car_store::Car,
+    /// What the view's scene left its overlays (`race::scene_hand_off`).
+    pub hand_off: crate::race::scene_hand_off::SceneHandOff,
 }
 
 impl ViewScratch {
@@ -134,6 +136,7 @@ impl ViewScratch {
             lamps: crate::race::lamp_work::LampWork::new(),
             state: crate::race::view_state::ViewState::new(),
             car: crate::physics::car_store::Car::new(),
+            hand_off: crate::race::scene_hand_off::SceneHandOff::new(),
         }
     }
 

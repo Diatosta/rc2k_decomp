@@ -65,9 +65,9 @@ impl<'a> ListenerView<'a> {
         }
     }
 
-    /// What the last view drawn left (`drive::race_init`'s settling steps, before any view of
-    /// the race).
-    pub fn last_drawn(frame: &'a crate::race::owner_frame::Frame) -> Self {
+    /// Before any view of the race (`drive::race_init`'s settling steps): what the last view
+    /// drawn left, as the original read.
+    pub fn before_any_view(frame: &'a crate::race::owner_frame::Frame) -> Self {
         Self {
             view_matrix: &frame.matrices.view_matrix,
             view_turn_matrix: &frame.matrices.view_turn_matrix,

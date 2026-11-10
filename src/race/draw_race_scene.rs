@@ -43,98 +43,180 @@ fn view_blocks(shared: &Shared) -> Result<[u32; 2], Refused> {
     Ok(blocks)
 }
 
+/// The frame's owners a view's drawing takes.
+#[derive(Clone, Copy)]
+struct Owners<'a> {
+    race: &'a Race,
+    scene: &'a crate::scene::owner::Scene,
+    system: &'a crate::system::owner::System,
+    effects: &'a crate::effects::owner::Effects,
+}
+
+/// Whether the view with `flags` has its mirror (the flags' bit 3).
+fn mirrored(race: &Race, flags: usize) -> bool {
+    race.frame.panel_and_overlay.panel.hud_flags[flags].get() & 8 != 0
+        || crate::race::draw_mirror_view::always()
+}
+
+/// View `car`'s car loaded into its own state (`race::load_car_a` / `_b`).
+fn load_car(o: Owners<'_>, car: usize) -> Result<(), Refused> {
+    let _setup = crate::write_watch::step(["view0_setup", "view1_setup"][car]);
+    crate::race::frame::load_view_car(
+        &o.race.shared,
+        car,
+        crate::race::view_scratch::main_view(car),
+    )
+}
+
+/// View `car`'s value fetched (`race().frame.frame_work.view_out`, the drawn view's).
+fn fetch_value(o: Owners<'_>, car: usize) -> Result<(), Refused> {
+    let _setup = crate::write_watch::step(["view0_setup", "view1_setup"][car]);
+    crate::race::frame_draw::fetch_view_value(o.race)
+}
+
+/// View `car`'s scene, and what it leaves its overlays kept (`race::scene_hand_off`).
+fn view_scene(o: Owners<'_>, car: usize) -> Result<(), Refused> {
+    let c = crate::moved::census::before();
+    let _step = crate::write_watch::step(["view0_scene", "view1_scene"][car]);
+    let view = crate::race::view_scratch::main_view(car);
+    let output = crate::race::draw_view_scene::draw_view_scene(o.race, o.scene, view)?;
+    // The race's reverb from the first player's view only (not the original's: every view
+    // drawn set it, the mirror's or the second player's last; `notes/bugs.md`).
+    if car == 0 {
+        output.publish();
+    }
+    view.hand_off.keep(o.race, o.scene);
+    crate::moved::census::after(if car == 0 { "view0" } else { "view1" }, c);
+    Ok(())
+}
+
+/// What follows view `car`'s scene: the platform's blit (`blit`, the full view only), the
+/// overlays; for the first view its sound spots, from its own camera and grid, and its turn
+/// for the race's placed sounds (not the original's: both came from what the last view drawn
+/// left, the mirror's when there was one; `notes/bugs.md`; the race's sounds are heard around
+/// the first car).
+fn view_rest(o: Owners<'_>, car: usize, blit: bool) -> Result<(), Refused> {
+    let _step = crate::write_watch::step(["view0_rest", "view1_rest"][car]);
+    let view = crate::race::view_scratch::main_view(car);
+    // Not the original's: the debug UI's probe points need this view.
+    if car == 0 {
+        crate::debug::imgui_sdl::view_drawn(&o.race.frame);
+    }
+    if blit {
+        crate::d3d::copy_screen_to_texture::copy_screen_to_texture(&o.race.frame);
+    }
+    let c = crate::moved::census::before();
+    let ctx = crate::race::view_scratch::DrawCtx::new(o.race, o.scene, view);
+    crate::race::draw_view_overlays::draw_view_overlays(&ctx, o.system, o.effects)?;
+    crate::moved::census::after("overlays", c);
+    if car == 0 {
+        crate::race::sound_spots::find_sound_spots(o.race, view)?;
+        crate::race::heard_turn::keep(&view.matrices);
+    }
+    Ok(())
+}
+
+/// View `car`'s mirror.
+fn view_mirror(o: Owners<'_>, car: usize) -> Result<(), Refused> {
+    let _step = crate::write_watch::step(["mirror0", "mirror1"][car]);
+    let mirror = crate::race::view_scratch::mirror(car);
+    crate::race::frame::load_view_car(&o.race.shared, car, mirror)?;
+    let c = crate::moved::census::before();
+    let begun = crate::debug::timing::start();
+    crate::race::draw_mirror_view::draw_mirror_view(o.race, o.scene, o.system, mirror)?;
+    crate::debug::timing::stop(crate::debug::timing::Stage::Mirror, begun);
+    crate::moved::census::after("mirror", c);
+    Ok(())
+}
+
 /// One view drawn: `car` (0 or 1: `race::load_car_a` / `_b`), its value fetched, its scene,
 /// the sound tick (0xD), the platform's blit (the full view only), the tick (0xE, the full
 /// view only), the overlays, the tick (0xF), and with the view's flags' bit 3 its mirror.
-fn draw_view(
-    race: &Race,
-    car: usize,
-    flags: usize,
-    blit: bool,
-    scene: &crate::scene::owner::Scene,
-    system: &crate::system::owner::System,
-    effects: &crate::effects::owner::Effects,
-) -> Result<(), Refused> {
-    use crate::race::frame::load_view_car;
-    let setup = crate::write_watch::step(["view0_setup", "view1_setup"][car]);
-    load_view_car(&race.shared, car, crate::race::view_scratch::main_view(car))?;
-    crate::race::frame_draw::fetch_view_value(race)?;
-    drop(setup);
+fn draw_view(o: Owners<'_>, car: usize, flags: usize, blit: bool) -> Result<(), Refused> {
+    load_car(o, car)?;
+    fetch_value(o, car)?;
     let view = || -> Result<(), Refused> {
-        let c = crate::moved::census::before();
-        {
-            let _step = crate::write_watch::step(["view0_scene", "view1_scene"][car]);
-            let output = crate::race::draw_view_scene::draw_view_scene(
-                race,
-                scene,
-                crate::race::view_scratch::main_view(car),
-            )?;
-            // The race's reverb from the first player's view only (not the original's: every
-            // view drawn set it, the mirror's or the second player's last; `notes/bugs.md`).
-            if car == 0 {
-                output.publish();
-            }
-        }
-        let _step = crate::write_watch::step(["view0_rest", "view1_rest"][car]);
-        crate::moved::census::after(if car == 0 { "view0" } else { "view1" }, c);
-        // Not the original's: the debug UI's probe points need this view.
-        if car == 0 {
-            crate::debug::imgui_sdl::view_drawn(&race.frame);
-        }
-        if blit {
-            crate::d3d::copy_screen_to_texture::copy_screen_to_texture(&race.frame);
-        }
-        let c = crate::moved::census::before();
-        let ctx = crate::race::view_scratch::DrawCtx::new(
-            race,
-            scene,
-            crate::race::view_scratch::main_view(car),
-        );
-        crate::race::draw_view_overlays::draw_view_overlays(&ctx, system, effects)?;
-        crate::moved::census::after("overlays", c);
-        Ok(())
+        view_scene(o, car)?;
+        view_rest(o, car, blit)
     };
-    let mirror = || -> Result<(), Refused> {
-        let _step = crate::write_watch::step(["mirror0", "mirror1"][car]);
-        load_view_car(&race.shared, car, crate::race::view_scratch::mirror(car))?;
-        let c = crate::moved::census::before();
-        let begun = crate::debug::timing::start();
-        crate::race::draw_mirror_view::draw_mirror_view(
-            race,
-            scene,
-            system,
-            crate::race::view_scratch::mirror(car),
-        )?;
-        crate::debug::timing::stop(crate::debug::timing::Stage::Mirror, begun);
-        crate::moved::census::after("mirror", c);
-        Ok(())
-    };
-    // The first view's sound spots, from its own camera and grid, and its turn for the race's
-    // placed sounds (not the original's: both came from what the last view drawn left, the
-    // mirror's when there was one; `notes/bugs.md`). The race's sounds are heard around the
-    // first car.
-    let view = || -> Result<(), Refused> {
-        view()?;
-        if car == 0 {
-            let own = crate::race::view_scratch::main_view(car);
-            crate::race::sound_spots::find_sound_spots(race, own)?;
-            crate::race::heard_turn::keep(&own.matrices);
-        }
-        Ok(())
-    };
-    let mirrored = race.frame.panel_and_overlay.panel.hud_flags[flags].get() & 8 != 0
-        || crate::race::draw_mirror_view::always();
-    if !mirrored {
+    let mirror = || view_mirror(o, car);
+    if !mirrored(o.race, flags) {
         return view();
     }
-    // The mirror drawn beside its view (`workers::draw_beside`, `workers::mirror_beside`),
-    // each on its own state (`race::view_scratch`), the mirror's changes to the stores they
-    // share put over the view's as when drawn after it.
+    // The mirror drawn beside its view's scene (`workers::draw_beside`,
+    // `workers::mirror_beside`), each on its own state (`race::view_scratch`), the view's
+    // overlays once both have ended (they crumple the cars' points, which the mirror reads),
+    // the mirror's changes to the stores they share put over theirs as when drawn after them.
     if crate::workers::mirror_beside() {
-        return crate::workers::draw_beside(view, mirror);
+        return crate::workers::draw_beside(
+            || view_scene(o, car),
+            mirror,
+            || view_rest(o, car, blit),
+        );
     }
     view()?;
     mirror()
+}
+
+/// A piece of the players' views drawn beside each other: a player's scene or its mirror.
+#[derive(Clone, Copy)]
+enum Piece {
+    Scene(usize),
+    Mirror(usize),
+}
+
+/// The `players` players' views and their mirrors beside each other
+/// (`workers::draw_side_by_side`): the first player's scene on the game's thread, its mirror
+/// and every other player's scene and mirror each on a drawing thread, every part from the
+/// frame's state with its player's part of the screen set up (`player`). Then, once all have
+/// ended, in the order the views are drawn in, the parts' changes put back and each player's
+/// overlays drawn between its scene and its mirror, on its scene's window and what the scene
+/// left (`race::scene_hand_off`): no overlays while a scene draws (they crumple the cars'
+/// points). So every view's scene starts from the frame's
+/// state, not from what the views before it left (the wake counts, the cars' crumpling and the
+/// sun the overlays work out reach the other views a frame later than in the original),
+/// however many threads draw.
+fn draw_players_beside(
+    o: Owners<'_>,
+    players: usize,
+    player: &(dyn Fn(u32) + Sync),
+) -> Result<(), Refused> {
+    for p in 0..players {
+        load_car(o, p)?;
+    }
+    let own = |p: usize| {
+        player(p as u32);
+        fetch_value(o, p)
+    };
+    let mut pieces = Vec::new();
+    for p in 0..players {
+        pieces.push(Piece::Scene(p));
+        if mirrored(o.race, p) {
+            pieces.push(Piece::Mirror(p));
+        }
+    }
+    let part = |n: usize| -> Result<(), Refused> {
+        match pieces[n] {
+            Piece::Scene(p) => {
+                own(p)?;
+                view_scene(o, p)
+            }
+            Piece::Mirror(p) => {
+                own(p)?;
+                view_mirror(o, p)
+            }
+        }
+    };
+    crate::workers::draw_side_by_side(pieces.len(), part, |n| {
+        let Piece::Scene(p) = pieces[n] else {
+            return Ok(());
+        };
+        own(p)?;
+        crate::race::view_scratch::main_view(p)
+            .hand_off
+            .put(o.race, o.scene);
+        view_rest(o, p, false)
+    })
 }
 
 /// The Rust version (see the header).
@@ -146,6 +228,12 @@ pub fn draw_race_scene(
     let session = &system.session;
     let scene = scene();
     let effects = crate::effects::owner::effects();
+    let owners = Owners {
+        race,
+        scene,
+        system,
+        effects,
+    };
     let frame = &race.frame;
     use crate::scene::set_render_state::set_render_state;
     use crate::sound::race_sound_tick::race_sound_tick;
@@ -303,10 +391,11 @@ pub fn draw_race_scene(
     drop(before_views);
     if race.shared.view.views.get() == 1 {
         race.shared.view.drawn_view.set(0);
-        draw_view(race, 0, 0, true, scene, system, effects)?;
+        draw_view(owners, 0, 0, true)?;
     } else {
         let side_by_side = race.shared.vars.split.bits() == 1;
-        for view in 0..2u32 {
+        // A player's half of the screen.
+        let player = |view: u32| {
             race.shared.view.drawn_view.set(view);
             let (w, h) = (session.screen.width.get(), session.screen.height.get());
             // (width, x, height, y).
@@ -323,15 +412,14 @@ pub fn draw_race_scene(
             }
             scene.drawing.scene.view_zoom.set_bits(0x100);
             crate::scene::set_view_window::set_view_window_plain(race, scene, system);
-            draw_view(
-                race,
-                view as usize,
-                view as usize,
-                false,
-                scene,
-                system,
-                effects,
-            )?;
+        };
+        if crate::workers::players_beside() {
+            draw_players_beside(owners, 2, &player)?;
+        } else {
+            for view in 0..2u32 {
+                player(view);
+                draw_view(owners, view as usize, view as usize, false)?;
+            }
         }
     }
     let _step = crate::write_watch::step("after_views");
