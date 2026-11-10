@@ -29,6 +29,7 @@ use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::rotate_point::rotate_point;
+use crate::session::{Dword, Float};
 use rc2k_core::drive::listener;
 
 /// The car file's six figures times 65536 over 1000, or the refusal (before anything).
@@ -45,10 +46,44 @@ fn figures(shared: &Shared) -> Result<[i32; 6], Refused> {
     Ok(out)
 }
 
+/// The view the listener is placed by: its matrix, its turn and its place (the original's
+/// `g_viewMatrix`, `g_viewTurnMatrix`, `g_viewPlace`, as the last view drawn left them).
+#[derive(Clone, Copy)]
+pub struct ListenerView<'a> {
+    pub view_matrix: &'a [Float; 16],
+    pub view_turn_matrix: &'a [Float; 16],
+    pub view_place: &'a [Dword; 3],
+}
+
+impl<'a> ListenerView<'a> {
+    /// A view's own, from its overlays (`race::run_view_marks`).
+    pub fn of(view: &'a crate::race::view_scratch::ViewScratch) -> Self {
+        Self {
+            view_matrix: &view.matrices.view_matrix,
+            view_turn_matrix: &view.matrices.view_turn_matrix,
+            view_place: &view.state.view_place,
+        }
+    }
+
+    /// What the last view drawn left (`drive::race_init`'s settling steps, before any view of
+    /// the race).
+    pub fn last_drawn(frame: &'a crate::race::owner_frame::Frame) -> Self {
+        Self {
+            view_matrix: &frame.matrices.view_matrix,
+            view_turn_matrix: &frame.matrices.view_turn_matrix,
+            view_place: &frame.view_and_records.view_vars.view_place,
+        }
+    }
+}
+
 /// The Rust version. The registers it leaves are read by no caller (liveness: eax and
 /// ebx after `share_all_cars`' call have no read point).
 // Converted: `rc2k_core::drive::listener` (the matrices, turns and x87 sums stay).
-pub fn set_listener(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn set_listener(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    view: ListenerView<'_>,
+) -> Result<(), Refused> {
     let physics = &race.physics;
     let f = figures(&race.shared)?;
     let car = crate::race::blocks_store::own_car();
@@ -67,15 +102,10 @@ pub fn set_listener(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
         .listener_near
         .set(u32::from(listener::car_ahead(strength)));
     for k in 0..3 {
-        MARKS_SETTINGS.listener_place[k].set(
-            race.frame.view_and_records.view_vars.view_place[k]
-                .get()
-                .wrapping_neg(),
-        );
+        MARKS_SETTINGS.listener_place[k].set(view.view_place[k].get().wrapping_neg());
     }
     for (k, o) in listener::TURN_OFFSETS.into_iter().enumerate() {
-        MARKS_SETTINGS.listener_turn[k]
-            .set_bits(race.frame.matrices.view_turn_matrix[o as usize / 4].bits());
+        MARKS_SETTINGS.listener_turn[k].set_bits(view.view_turn_matrix[o as usize / 4].bits());
     }
     MARKS_SETTINGS.listener_figures[0].set(listener::first_figure(
         race.shared.vars.settings_words[0].get(),
@@ -98,7 +128,7 @@ pub fn set_listener(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
     );
     multiply_matrices(
         &race.frame.matrices.lit_matrix,
-        &race.frame.matrices.view_matrix,
+        view.view_matrix,
         &race.frame.matrices.made_object_matrix,
     );
     for k in 0..16 {

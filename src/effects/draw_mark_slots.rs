@@ -55,6 +55,7 @@ pub fn draw_mark_slots(
     paths: &Paths,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
+    view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<(), Refused> {
     if let Some(why) = refusal(effects) {
         return Err(BadInput(why).into());
@@ -101,7 +102,7 @@ pub fn draw_mark_slots(
             slot_matrix(&race.frame, s.matrix.get())?,
             [extended(z), extended(y), extended(x)],
         );
-        let twice = rotate_point(&race.frame.matrices.view_matrix, once);
+        let twice = rotate_point(view.view_matrix, once);
         let [z, y, x] = twice.map(rounded);
         for (n, v) in [z, y, x].into_iter().enumerate() {
             effects.blocks.slots.work[n].set(v);

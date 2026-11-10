@@ -109,7 +109,13 @@ fn refusal(
 }
 
 /// The step of the kind at e (see the header): whether the entry dies.
-fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<bool, Refused> {
+fn step(
+    frame: &Frame,
+    view_matrix: &[crate::session::Float; 16],
+    particles: &Particles,
+    ring: &Ring,
+    e: u32,
+) -> Result<bool, Refused> {
     let scene = crate::scene::owner::scene();
     let effects = effects();
     use crate::effects::{burst_particles, draw_particle, trail_particles};
@@ -223,7 +229,7 @@ fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<boo
                 let alpha = particle(particles, e, 0x3C)? & 0xFF00_0000;
                 let colour = (TRAIL_PALETTE.colours[i as usize] & 0xFF_FFFF) | alpha;
                 draw_particle::draw_particle(
-                    frame,
+                    view_matrix,
                     place()?,
                     colour,
                     particle(particles, e, 0x38)?,
@@ -288,7 +294,7 @@ fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<boo
                         size = size.wrapping_add(BIGGER);
                     }
                 }
-                draw_particle::draw_particle(frame, place()?, colour, size, effects, scene);
+                draw_particle::draw_particle(view_matrix, place()?, colour, size, effects, scene);
             }
         }
     }
@@ -301,6 +307,7 @@ pub fn run_particles(
     particles: &Particles,
     ring: &Ring,
     effects: &crate::effects::owner::Effects,
+    view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<(), Refused> {
     if let Some(why) = refusal(particles, ring, effects)? {
         return Err(BadInput(why).into());
@@ -331,7 +338,7 @@ pub fn run_particles(
                 effects.setup.work.fpu_status.set(s as u32);
                 dies = s == 0x100;
                 if !dies {
-                    dies = step(frame, particles, ring, e)?;
+                    dies = step(frame, view.view_matrix, particles, ring, e)?;
                 }
             }
             if dies {

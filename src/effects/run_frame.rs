@@ -43,14 +43,42 @@ fn share(at: usize, start: u32, effects: &crate::effects::owner::Effects) {
     ));
 }
 
-/// The Rust version (see the header).
-/// `view_light`: the view's light colour (`ObjectLight::view_light`, `race::view_light`), which
-/// the snow tints by.
-pub fn run_frame(
-    race: &Race,
-    fog: &crate::scene::fog::Fog,
-    view_light: u32,
-) -> Result<(), Refused> {
+/// The view the effects are drawn for (a player's main view, from its overlays): its fog, its
+/// matrix (the original's `g_viewMatrix`) and its light (`g_viewLight`), which the original
+/// read from what the last view drawn left.
+#[derive(Clone, Copy)]
+pub struct EffectsView<'a> {
+    pub fog: &'a crate::scene::fog::Fog,
+    pub view_matrix: &'a [Float; 16],
+    pub light: u32,
+}
+
+impl<'a> EffectsView<'a> {
+    /// `view`'s own.
+    pub fn of(view: &'a crate::race::view_scratch::ViewScratch) -> Self {
+        Self {
+            fog: &view.fog,
+            view_matrix: &view.matrices.view_matrix,
+            light: view.light.view_light.bits(),
+        }
+    }
+
+    /// Before any view of the race (`drive::race_init`'s settling steps): the matrix the last
+    /// view drawn left, as the original read; the front end's fog and light (frame plan F4; the
+    /// snow's fades worked out from the light are worked out again at every frame before they
+    /// are drawn).
+    pub fn before_any_view(race: &'a Race) -> Self {
+        let front_end = crate::race::view_scratch::front_end();
+        Self {
+            fog: &front_end.fog,
+            view_matrix: &race.frame.matrices.view_matrix,
+            light: front_end.light.view_light.bits(),
+        }
+    }
+}
+
+/// The Rust version (see the header), for `view`.
+pub fn run_frame(race: &Race, view: EffectsView<'_>) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
     let scene = crate::scene::owner::scene();
     use crate::effects::*;
@@ -66,27 +94,26 @@ pub fn run_frame(
             set_render_state(value, state);
         }
         run_rain::run_rain(race, weather, scene, effects)?;
-        run_snow::run_snow(race, weather, scene, effects, view_light)?;
+        run_snow::run_snow(race, weather, scene, effects, view)?;
         let start = rdtsc();
         share(0, start, effects);
         draw_frame::draw_frame(race, effects)?;
         let start = rdtsc();
         ring_frame::ring_frame(
-            &race.frame,
             &effects.masks,
             weather,
             particles,
             ring,
             scene,
             effects,
-            fog,
+            view,
         )?;
         share(1, start, effects);
         set_render_state(2, 0x14);
         flare_frame::flare_frame(paths, scene, effects)?;
         set_render_state(1, 3);
-        draw_mark_slots::draw_mark_slots(race, paths, scene, effects)?;
-        run_particles::run_particles(&race.frame, particles, ring, effects)?;
+        draw_mark_slots::draw_mark_slots(race, paths, scene, effects, view)?;
+        run_particles::run_particles(&race.frame, particles, ring, effects, view)?;
         share(2, whole, effects);
         stage_record::stage_record(&race.frame)?;
         draw_glow::draw_glow(scene, effects)?;

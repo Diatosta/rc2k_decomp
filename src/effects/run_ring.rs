@@ -34,7 +34,6 @@ use crate::effects::tuning::MarksFloats;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::marks_settings_store::{MarkCar, MarksSettings, car_or_none};
-use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::extended;
 use crate::session::Float;
 
@@ -436,7 +435,6 @@ struct Sprite {
     reason = "the original's registers, the effects' groups and the owners"
 )]
 fn draw(
-    frame: &Frame,
     masks: &Masks,
     ring: &Ring,
     effects: &crate::effects::owner::Effects,
@@ -444,7 +442,7 @@ fn draw(
     sprite: Sprite,
     e: u32,
     p: [[u8; 10]; 3],
-    fog: &crate::scene::fog::Fog,
+    view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
     use crate::effects::{draw_cell_sprite, draw_subcell_sprite};
@@ -457,10 +455,10 @@ fn draw(
     {
         match place {
             3 => draw_subcell_sprite::draw_subcell_sprite(
-                frame, masks, ring, effects, cell, size, e, p, scene, fog,
+                masks, ring, effects, cell, size, e, p, scene, view,
             ),
             _ => draw_cell_sprite::draw_cell_sprite(
-                frame, masks, ring, effects, cell, angle, alpha, size, e, p, scene, fog,
+                masks, ring, effects, cell, angle, alpha, size, e, p, scene, view,
             ),
         }
     }
@@ -472,14 +470,13 @@ fn draw(
     reason = "the effects' groups, the owners and the view's fog"
 )]
 fn drift_kind(
-    frame: &Frame,
     masks: &Masks,
     ring: &Ring,
     e: u32,
     place: u32,
     ks: [&f32; 3],
     effects: &crate::effects::owner::Effects,
-    fog: &crate::scene::fog::Fog,
+    view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<bool, Refused> {
     {
         if aged(ring, e, true, effects)? {
@@ -494,7 +491,6 @@ fn drift_kind(
                 entry(ring, e)?.size,
             ];
             draw(
-                frame,
                 masks,
                 ring,
                 effects,
@@ -507,7 +503,7 @@ fn drift_kind(
                 },
                 e,
                 p,
-                fog,
+                view,
             )?;
         }
         spin_and_move(ring, e, true, effects)?;
@@ -535,14 +531,13 @@ fn drift_kind(
     reason = "the effects' groups, the owners and the view's fog"
 )]
 fn fading_kind(
-    frame: &Frame,
     masks: &Masks,
     ring: &Ring,
     e: u32,
     kind: u32,
     c: &Kind,
     effects: &crate::effects::owner::Effects,
-    fog: &crate::scene::fog::Fog,
+    view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<bool, Refused> {
     {
         if aged(ring, e, true, effects)? {
@@ -570,7 +565,6 @@ fn fading_kind(
             };
             let size = whole(ring, size);
             draw(
-                frame,
                 masks,
                 ring,
                 effects,
@@ -583,7 +577,7 @@ fn fading_kind(
                 },
                 e,
                 p,
-                fog,
+                view,
             )?;
         }
         spin_and_move(ring, e, true, effects)?;
@@ -656,14 +650,13 @@ fn pull_toward(
     reason = "the effects' groups, the owners and the view's fog"
 )]
 fn boxed_kind(
-    frame: &Frame,
     masks: &Masks,
     ring: &Ring,
     e: u32,
     gain: &f32,
     both: bool,
     effects: &crate::effects::owner::Effects,
-    fog: &crate::scene::fog::Fog,
+    view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<bool, Refused> {
     if aged(ring, e, true, effects)? {
         return Ok(true);
@@ -681,7 +674,6 @@ fn boxed_kind(
         ring.work.whole.set(f as u32);
         let subcell = ((f as u32) & 3).wrapping_add(entry(ring, e)?.cell);
         draw(
-            frame,
             masks,
             ring,
             effects,
@@ -694,7 +686,7 @@ fn boxed_kind(
             },
             e,
             p,
-            fog,
+            view,
         )?;
     }
     box_place(ring, e, entry_car(ring, e)?);
@@ -710,13 +702,12 @@ fn boxed_kind(
 
 /// The Rust version (see the header).
 pub fn run_ring(
-    frame: &Frame,
     masks: &Masks,
     ring: &Ring,
     effects: &crate::effects::owner::Effects,
-    fog: &crate::scene::fog::Fog,
+    view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<(), Refused> {
-    if let Some(why) = refusal(ring, fog)? {
+    if let Some(why) = refusal(ring, view.fog)? {
         return Err(BadInput(why).into());
     }
     {
@@ -730,7 +721,6 @@ pub fn run_ring(
             let next = entry(ring, e)?.next;
             let dies = match entry(ring, e)?.kind {
                 5 => drift_kind(
-                    frame,
                     masks,
                     ring,
                     e,
@@ -741,10 +731,9 @@ pub fn run_ring(
                         &ring.kinds.drift5[2],
                     ],
                     effects,
-                    fog,
+                    view,
                 )?,
                 0xB => drift_kind(
-                    frame,
                     masks,
                     ring,
                     e,
@@ -755,34 +744,16 @@ pub fn run_ring(
                         &ring.kinds.drift_b[2],
                     ],
                     effects,
-                    fog,
+                    view,
                 )?,
-                6 => fading_kind(frame, masks, ring, e, 6, &K6, effects, fog)?,
-                0x15 => fading_kind(frame, masks, ring, e, 0x15, &K15, effects, fog)?,
-                1 => fading_kind(frame, masks, ring, e, 1, &K1, effects, fog)?,
-                0xD => fading_kind(frame, masks, ring, e, 0xD, &KD, effects, fog)?,
-                0x13 => fading_kind(frame, masks, ring, e, 0x13, &K13, effects, fog)?,
-                0x16 => fading_kind(frame, masks, ring, e, 0x16, &K16, effects, fog)?,
-                0x10 => boxed_kind(
-                    frame,
-                    masks,
-                    ring,
-                    e,
-                    &ring.kinds.k10_gain,
-                    true,
-                    effects,
-                    fog,
-                )?,
-                0x11 => boxed_kind(
-                    frame,
-                    masks,
-                    ring,
-                    e,
-                    &ring.kinds.k11_gain,
-                    false,
-                    effects,
-                    fog,
-                )?,
+                6 => fading_kind(masks, ring, e, 6, &K6, effects, view)?,
+                0x15 => fading_kind(masks, ring, e, 0x15, &K15, effects, view)?,
+                1 => fading_kind(masks, ring, e, 1, &K1, effects, view)?,
+                0xD => fading_kind(masks, ring, e, 0xD, &KD, effects, view)?,
+                0x13 => fading_kind(masks, ring, e, 0x13, &K13, effects, view)?,
+                0x16 => fading_kind(masks, ring, e, 0x16, &K16, effects, view)?,
+                0x10 => boxed_kind(masks, ring, e, &ring.kinds.k10_gain, true, effects, view)?,
+                0x11 => boxed_kind(masks, ring, e, &ring.kinds.k11_gain, false, effects, view)?,
                 _ => false,
             };
             if dies {

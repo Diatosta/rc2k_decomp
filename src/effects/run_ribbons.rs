@@ -25,8 +25,8 @@ use crate::effects::ring_store::Ring;
 use crate::effects::setup::MarksClock;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::owner_frame::Frame;
 use crate::scene::fog_at::fog_at;
+use crate::session::Float;
 
 const STREAK: u32 = 0x12;
 
@@ -66,8 +66,19 @@ impl Colours257 {
 }
 
 /// The original's 0x4CF890 .. 0x4CF94D: a new streak's place turned into its last (+0x1C ..), and a first move.
-fn first_frame(frame: &Frame, ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) {
-    first_frame_x87(frame, ring, e, &effects.setup.clock, ring.kinds.ribbon_a);
+fn first_frame(
+    view_matrix: &[Float; 16],
+    ring: &Ring,
+    e: u32,
+    effects: &crate::effects::owner::Effects,
+) {
+    first_frame_x87(
+        view_matrix,
+        ring,
+        e,
+        &effects.setup.clock,
+        ring.kinds.ribbon_a,
+    );
 }
 
 /// The original's 0x4CF94D .. 0x4CF98C: the place moved by the motion, the motion's y by `flt_93A572`.
@@ -76,8 +87,13 @@ fn move_(ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) {
 }
 
 /// The original's 0x4CF9A6 .. 0x4CFA2D: the place turned by the view into `flt_8EB8D5` ...
-fn turn_place(frame: &Frame, ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) {
-    turn_place_x87(frame, ring, e, &effects.frame.draw_work);
+fn turn_place(
+    view_matrix: &[Float; 16],
+    ring: &Ring,
+    e: u32,
+    effects: &crate::effects::owner::Effects,
+) {
+    turn_place_x87(view_matrix, ring, e, &effects.frame.draw_work);
 }
 
 /// The size of the colour table in use: 128 colours (`SURFACE.colours`) while
@@ -150,7 +166,7 @@ fn refusal(
 
 /// The streak step at e (see the header): whether the entry dies.
 fn streak(
-    frame: &Frame,
+    view_matrix: &[Float; 16],
     ring: &Ring,
     e: u32,
     scene: &crate::scene::owner::Scene,
@@ -167,13 +183,13 @@ fn streak(
         return Ok(true);
     }
     if entry(ring, e)?.place[0] == 0 {
-        first_frame(frame, ring, e, effects);
+        first_frame(view_matrix, ring, e, effects);
     }
     move_on(ring, e, effects);
     effects.frame.draw_work.second[0].set_bits(entry(ring, e)?.last_place[0]);
     effects.frame.draw_work.second[1].set_bits(entry(ring, e)?.last_place[1]);
     effects.frame.draw_work.second[2].set_bits(entry(ring, e)?.last_place[2]);
-    turn_place(frame, ring, e, effects);
+    turn_place(view_matrix, ring, e, effects);
     let marks = crate::effects::setup::marks()?;
     if marks.own_marks_shown.get() != 0 || marks.other_marks_shown.get() == 1 {
         set(ring, e, effects.frame.draw_work.turned[0].bits(), |en| {
@@ -210,12 +226,12 @@ fn move_on(ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) {
 
 /// The Rust version (see the header).
 pub fn run_ribbons(
-    frame: &Frame,
     ring: &Ring,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
-    fog: &crate::scene::fog::Fog,
+    view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<(), Refused> {
+    let (view_matrix, fog) = (view.view_matrix, view.fog);
     if let Some(why) = refusal(ring, effects, fog)? {
         return Err(BadInput(why).into());
     }
@@ -231,7 +247,7 @@ pub fn run_ribbons(
             // The settings' +0x60: the first car record's first word.
             if crate::effects::setup::marks()?.cars[0].streaks_on.get() != 0
                 && entry(ring, e)?.kind == STREAK
-                && streak(frame, ring, e, scene, effects, fog)?
+                && streak(view_matrix, ring, e, scene, effects, fog)?
             {
                 ring.work.count.set(ring.work.count.get().wrapping_sub(1));
                 if e == ring.work.cursor.get() {
@@ -261,43 +277,43 @@ use crate::math::x87_float::int;
 
 /// The entry's place turned by the view matrix (its rows' x, y, z columns plus the translation
 /// in cells 12 .. 14), in the x87's order: the three results unrounded to a stored float.
-fn view_turned(frame: &Frame, ring: &Ring, e: u32) -> [bh::X; 3] {
+fn view_turned(view_matrix: &[Float; 16], ring: &Ring, e: u32) -> [bh::X; 3] {
     let t0 = ld(ring, e, |en| en.place[2]);
     let t1 = ld(ring, e, |en| en.place[1]);
     let t2 = ld(ring, e, |en| en.place[0]);
-    let t3 = bh::ld(frame.matrices.view_matrix[0].bits());
+    let t3 = bh::ld(view_matrix[0].bits());
     let t4 = t3 * t2;
-    let t5 = bh::ld(frame.matrices.view_matrix[4].bits());
+    let t5 = bh::ld(view_matrix[4].bits());
     let t6 = t5 * t1;
-    let t7 = bh::ld(frame.matrices.view_matrix[8].bits());
+    let t7 = bh::ld(view_matrix[8].bits());
     let t8 = t7 * t0;
     let t9 = t6 + t8;
     let t10 = t4 + t9;
-    let t11 = t10 + bh::ld(frame.matrices.view_matrix[12].bits());
-    let t12 = bh::ld(frame.matrices.view_matrix[1].bits());
+    let t11 = t10 + bh::ld(view_matrix[12].bits());
+    let t12 = bh::ld(view_matrix[1].bits());
     let t13 = t12 * t2;
-    let t14 = bh::ld(frame.matrices.view_matrix[5].bits());
+    let t14 = bh::ld(view_matrix[5].bits());
     let t15 = t14 * t1;
-    let t16 = bh::ld(frame.matrices.view_matrix[9].bits());
+    let t16 = bh::ld(view_matrix[9].bits());
     let t17 = t16 * t0;
     let t18 = t15 + t17;
     let t19 = t13 + t18;
-    let t20 = t19 + bh::ld(frame.matrices.view_matrix[13].bits());
-    let t21 = bh::ld(frame.matrices.view_matrix[2].bits());
+    let t20 = t19 + bh::ld(view_matrix[13].bits());
+    let t21 = bh::ld(view_matrix[2].bits());
     let t22 = t2 * t21;
-    let t23 = bh::ld(frame.matrices.view_matrix[6].bits());
+    let t23 = bh::ld(view_matrix[6].bits());
     let t24 = t1 * t23;
-    let t25 = bh::ld(frame.matrices.view_matrix[10].bits());
+    let t25 = bh::ld(view_matrix[10].bits());
     let t26 = t0 * t25;
     let t27 = t26 + t24;
     let t28 = t22 + t27;
-    let t29 = t28 + bh::ld(frame.matrices.view_matrix[14].bits());
+    let t29 = t28 + bh::ld(view_matrix[14].bits());
     [t11, t20, t29]
 }
 
 /// `first_frame`'s x87 block as plain Rust on the x87 model (52 instructions), same order and memory places.
-fn first_frame_x87(frame: &Frame, ring: &Ring, e: u32, c: &MarksClock, ribbon_a: f32) {
-    let [turned_x, turned_y, turned_z] = view_turned(frame, ring, e);
+fn first_frame_x87(view_matrix: &[Float; 16], ring: &Ring, e: u32, c: &MarksClock, ribbon_a: f32) {
+    let [turned_x, turned_y, turned_z] = view_turned(view_matrix, ring, e);
     st(ring, e, turned_x, |en| &mut en.last_place[0]);
     st(ring, e, turned_y, |en| &mut en.last_place[1]);
     st(ring, e, turned_z, |en| &mut en.last_place[2]);
@@ -325,8 +341,8 @@ fn move_x87(ring: &Ring, e: u32, c: &MarksClock, y_gain: f32) {
 }
 
 /// `turn_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
-fn turn_place_x87(frame: &Frame, ring: &Ring, e: u32, dw: &DrawWork) {
-    let [x, y, z] = view_turned(frame, ring, e);
+fn turn_place_x87(view_matrix: &[Float; 16], ring: &Ring, e: u32, dw: &DrawWork) {
+    let [x, y, z] = view_turned(view_matrix, ring, e);
     dw.turned[0].set_bits(bh::st(x));
     dw.turned[1].set_bits(bh::st(y));
     dw.turned[2].set_bits(bh::st(z));
@@ -341,7 +357,7 @@ mod old {
     use crate::math::x87_float::int;
     /// The previous version of `first_frame`'s x87 block as plain Rust on the x87 model (52 instructions), same order and memory places.
     pub(super) fn first_frame_x87(
-        frame: &Frame,
+        view_matrix: &[Float; 16],
         ring: &Ring,
         e: u32,
         c: &MarksClock,
@@ -350,33 +366,33 @@ mod old {
         let t0 = ld(ring, e, |en| en.place[2]);
         let t1 = ld(ring, e, |en| en.place[1]);
         let t2 = ld(ring, e, |en| en.place[0]);
-        let t3 = crate::math::x87_float::ld(frame.matrices.view_matrix[0].bits());
+        let t3 = crate::math::x87_float::ld(view_matrix[0].bits());
         let t4 = t3 * t2;
-        let t5 = crate::math::x87_float::ld(frame.matrices.view_matrix[4].bits());
+        let t5 = crate::math::x87_float::ld(view_matrix[4].bits());
         let t6 = t5 * t1;
-        let t7 = crate::math::x87_float::ld(frame.matrices.view_matrix[8].bits());
+        let t7 = crate::math::x87_float::ld(view_matrix[8].bits());
         let t8 = t7 * t0;
         let t9 = t6 + t8;
         let t10 = t4 + t9;
-        let t11 = t10 + crate::math::x87_float::ld(frame.matrices.view_matrix[12].bits());
-        let t12 = crate::math::x87_float::ld(frame.matrices.view_matrix[1].bits());
+        let t11 = t10 + crate::math::x87_float::ld(view_matrix[12].bits());
+        let t12 = crate::math::x87_float::ld(view_matrix[1].bits());
         let t13 = t12 * t2;
-        let t14 = crate::math::x87_float::ld(frame.matrices.view_matrix[5].bits());
+        let t14 = crate::math::x87_float::ld(view_matrix[5].bits());
         let t15 = t14 * t1;
-        let t16 = crate::math::x87_float::ld(frame.matrices.view_matrix[9].bits());
+        let t16 = crate::math::x87_float::ld(view_matrix[9].bits());
         let t17 = t16 * t0;
         let t18 = t15 + t17;
         let t19 = t13 + t18;
-        let t20 = t19 + crate::math::x87_float::ld(frame.matrices.view_matrix[13].bits());
-        let t21 = crate::math::x87_float::ld(frame.matrices.view_matrix[2].bits());
+        let t20 = t19 + crate::math::x87_float::ld(view_matrix[13].bits());
+        let t21 = crate::math::x87_float::ld(view_matrix[2].bits());
         let t22 = t2 * t21;
-        let t23 = crate::math::x87_float::ld(frame.matrices.view_matrix[6].bits());
+        let t23 = crate::math::x87_float::ld(view_matrix[6].bits());
         let t24 = t1 * t23;
-        let t25 = crate::math::x87_float::ld(frame.matrices.view_matrix[10].bits());
+        let t25 = crate::math::x87_float::ld(view_matrix[10].bits());
         let t26 = t0 * t25;
         let t27 = t26 + t24;
         let t28 = t22 + t27;
-        let t29 = t28 + crate::math::x87_float::ld(frame.matrices.view_matrix[14].bits());
+        let t29 = t28 + crate::math::x87_float::ld(view_matrix[14].bits());
         st(ring, e, t11, |en| &mut en.last_place[0]);
         st(ring, e, t20, |en| &mut en.last_place[1]);
         st(ring, e, t29, |en| &mut en.last_place[2]);
@@ -419,37 +435,37 @@ mod old {
     }
 
     /// The previous version of `turn_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
-    pub(super) fn turn_place_x87(frame: &Frame, ring: &Ring, e: u32, dw: &DrawWork) {
+    pub(super) fn turn_place_x87(view_matrix: &[Float; 16], ring: &Ring, e: u32, dw: &DrawWork) {
         let t0 = ld(ring, e, |en| en.place[2]);
         let t1 = ld(ring, e, |en| en.place[1]);
         let t2 = ld(ring, e, |en| en.place[0]);
-        let t3 = crate::math::x87_float::ld(frame.matrices.view_matrix[0].bits());
+        let t3 = crate::math::x87_float::ld(view_matrix[0].bits());
         let t4 = t3 * t2;
-        let t5 = crate::math::x87_float::ld(frame.matrices.view_matrix[4].bits());
+        let t5 = crate::math::x87_float::ld(view_matrix[4].bits());
         let t6 = t5 * t1;
-        let t7 = crate::math::x87_float::ld(frame.matrices.view_matrix[8].bits());
+        let t7 = crate::math::x87_float::ld(view_matrix[8].bits());
         let t8 = t7 * t0;
         let t9 = t6 + t8;
         let t10 = t4 + t9;
-        let t11 = t10 + crate::math::x87_float::ld(frame.matrices.view_matrix[12].bits());
-        let t12 = crate::math::x87_float::ld(frame.matrices.view_matrix[1].bits());
+        let t11 = t10 + crate::math::x87_float::ld(view_matrix[12].bits());
+        let t12 = crate::math::x87_float::ld(view_matrix[1].bits());
         let t13 = t12 * t2;
-        let t14 = crate::math::x87_float::ld(frame.matrices.view_matrix[5].bits());
+        let t14 = crate::math::x87_float::ld(view_matrix[5].bits());
         let t15 = t14 * t1;
-        let t16 = crate::math::x87_float::ld(frame.matrices.view_matrix[9].bits());
+        let t16 = crate::math::x87_float::ld(view_matrix[9].bits());
         let t17 = t16 * t0;
         let t18 = t15 + t17;
         let t19 = t13 + t18;
-        let t20 = t19 + crate::math::x87_float::ld(frame.matrices.view_matrix[13].bits());
-        let t21 = crate::math::x87_float::ld(frame.matrices.view_matrix[2].bits());
+        let t20 = t19 + crate::math::x87_float::ld(view_matrix[13].bits());
+        let t21 = crate::math::x87_float::ld(view_matrix[2].bits());
         let t22 = t2 * t21;
-        let t23 = crate::math::x87_float::ld(frame.matrices.view_matrix[6].bits());
+        let t23 = crate::math::x87_float::ld(view_matrix[6].bits());
         let t24 = t1 * t23;
-        let t25 = crate::math::x87_float::ld(frame.matrices.view_matrix[10].bits());
+        let t25 = crate::math::x87_float::ld(view_matrix[10].bits());
         let t26 = t0 * t25;
         let t27 = t26 + t24;
         let t28 = t22 + t27;
-        let t29 = t28 + crate::math::x87_float::ld(frame.matrices.view_matrix[14].bits());
+        let t29 = t28 + crate::math::x87_float::ld(view_matrix[14].bits());
         dw.turned[0].set_bits(bh::st(t11));
         dw.turned[1].set_bits(bh::st(t20));
         dw.turned[2].set_bits(bh::st(t29));
@@ -483,11 +499,9 @@ mod same_as_old {
     fn the_ribbon_blocks_match_the_previous_versions() {
         let _lock = crate::store::test_lock();
         let ring = &effects().ring;
-        let frame = &crate::race::owner::race().frame;
+        let view_matrix = &crate::race::owner::race().frame.matrices.view_matrix;
         let clock = &MarksClock::new();
-        let kept_matrix: Vec<u32> = frame
-            .matrices
-            .view_matrix
+        let kept_matrix: Vec<u32> = view_matrix
             .iter()
             .map(crate::session::Float::bits)
             .collect();
@@ -503,7 +517,7 @@ mod same_as_old {
             .collect();
         let mut state = 0x9E37_79B9_7F4A_7C15u64;
         for case in 0..12_000 {
-            for c in &frame.matrices.view_matrix {
+            for c in view_matrix {
                 c.set_bits(word(&mut state));
             }
             clock.frame_ticks.set(next(&mut state) % 40);
@@ -520,12 +534,12 @@ mod same_as_old {
                     c.set_bits(0xAAAA_AAAA);
                 }
                 match (case % 3, which) {
-                    (0, 0) => old::first_frame_x87(frame, ring, 1, clock, gain),
-                    (0, _) => first_frame_x87(frame, ring, 1, clock, gain),
+                    (0, 0) => old::first_frame_x87(view_matrix, ring, 1, clock, gain),
+                    (0, _) => first_frame_x87(view_matrix, ring, 1, clock, gain),
                     (1, 0) => old::move_x87(ring, 1, clock, gain),
                     (1, _) => move_x87(ring, 1, clock, gain),
-                    (_, 0) => old::turn_place_x87(frame, ring, 1, &effects().frame.draw_work),
-                    (_, _) => turn_place_x87(frame, ring, 1, &effects().frame.draw_work),
+                    (_, 0) => old::turn_place_x87(view_matrix, ring, 1, &effects().frame.draw_work),
+                    (_, _) => turn_place_x87(view_matrix, ring, 1, &effects().frame.draw_work),
                 }
                 let mut bytes = ring.entries.with(|r| r[0].words().to_vec()).unwrap();
                 bytes.extend(turned.iter().map(crate::session::Float::bits));
@@ -533,7 +547,7 @@ mod same_as_old {
             }
             assert_eq!(results[0], results[1], "case {case}");
         }
-        for (c, w) in frame.matrices.view_matrix.iter().zip(kept_matrix) {
+        for (c, w) in view_matrix.iter().zip(kept_matrix) {
             c.set_bits(w);
         }
         for (c, w) in effects().frame.draw_work.turned.iter().zip(kept_turned) {
@@ -770,7 +784,7 @@ mod asm_differential {
             |b| {
                 crate::effects::ring_entries::with_entry_at(ring, b[2], 0x10, 0x38, |e| {
                     super::first_frame_x87(
-                        &crate::race::owner::race().frame,
+                        &crate::race::owner::race().frame.matrices.view_matrix,
                         ring,
                         e,
                         crate::effects::setup::clock_at(b[1]),
@@ -873,7 +887,12 @@ mod asm_differential {
             |b| {
                 with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| {
                     crate::effects::ring_entries::with_entry_at(ring, b[2], 0x10, 0x1C, |e| {
-                        super::turn_place_x87(&crate::race::owner::race().frame, ring, e, dw);
+                        super::turn_place_x87(
+                            &crate::race::owner::race().frame.matrices.view_matrix,
+                            ring,
+                            e,
+                            dw,
+                        );
                     });
                 });
             },

@@ -25,6 +25,7 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
+use crate::session::Float;
 
 const MOST: i32 = 0x800;
 use crate::d3d::vertices_store::VERTICES;
@@ -32,8 +33,8 @@ use crate::d3d::vertices_store::VERTICES;
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
 /// The original's 0x4C2605 .. 0x4C276E: the light's place and way turned.
-fn turn_light(frame: &Frame, weather: &Weather) {
-    turn_light_x87(frame, &weather.snow_light);
+fn turn_light(frame: &Frame, view_matrix: &[Float; 16], weather: &Weather) {
+    turn_light_x87(frame, view_matrix, &weather.snow_light);
 }
 
 /// The Rust version (see the header).
@@ -42,7 +43,7 @@ pub fn run_snow(
     weather: &Weather,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
-    view_light: u32,
+    view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<(), Refused> {
     let frame = &race.frame;
     use crate::scene::set_render_state::set_render_state;
@@ -50,8 +51,8 @@ pub fn run_snow(
     {
         let marks = crate::effects::setup::marks()?;
         l.kept.set(marks.unknown_6bc[1].get());
-        turn_light(frame, weather);
-        crate::effects::make_fade_colours::make_fade_colours(view_light, weather, effects);
+        turn_light(frame, view.view_matrix, weather);
+        crate::effects::make_fade_colours::make_fade_colours(view.light, weather, effects);
         let mut flakes = marks.listener_switch_4.get() as i32;
         s.flakes.set(flakes as u32);
         if flakes == 0 {
@@ -76,7 +77,7 @@ pub fn run_snow(
             set_render_state(value, state);
         }
         let rhw = l.rhw.get();
-        let light = view_light | 0xFF00_0000;
+        let light = view.light | 0xFF00_0000;
         let [u0, v0, u1, v1] = l.uv.each_ref().map(super::super::session::Dword::get);
         let uv = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)];
         for (n, (u, v)) in uv.into_iter().enumerate() {
@@ -129,7 +130,7 @@ use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;
 
 /// `turn_light`'s x87 block as plain Rust on the x87 model (126 instructions), same order and memory places.
-fn turn_light_x87(frame: &Frame, l: &SnowLight) {
+fn turn_light_x87(frame: &Frame, view_matrix: &[Float; 16], l: &SnowLight) {
     let t0 = bh::ld(l.light_source[0].bits());
     let t1 = bh::ld(l.light_source[1].bits());
     let t2 = bh::ld(l.light_source[2].bits());
@@ -160,33 +161,33 @@ fn turn_light_x87(frame: &Frame, l: &SnowLight) {
     let t27 = t26 + t24;
     let t28 = t22 + t27;
     let t29 = t28 + ld(frame.matrices.view_place[14].bits());
-    let t30 = ld(frame.matrices.view_matrix[0].bits());
+    let t30 = ld(view_matrix[0].bits());
     let t31 = t30 * t11;
-    let t32 = ld(frame.matrices.view_matrix[4].bits());
+    let t32 = ld(view_matrix[4].bits());
     let t33 = t32 * t20;
-    let t34 = ld(frame.matrices.view_matrix[8].bits());
+    let t34 = ld(view_matrix[8].bits());
     let t35 = t34 * t29;
     let t36 = t33 + t35;
     let t37 = t31 + t36;
-    let t38 = t37 + ld(frame.matrices.view_matrix[12].bits());
-    let t39 = ld(frame.matrices.view_matrix[1].bits());
+    let t38 = t37 + ld(view_matrix[12].bits());
+    let t39 = ld(view_matrix[1].bits());
     let t40 = t39 * t11;
-    let t41 = ld(frame.matrices.view_matrix[5].bits());
+    let t41 = ld(view_matrix[5].bits());
     let t42 = t41 * t20;
-    let t43 = ld(frame.matrices.view_matrix[9].bits());
+    let t43 = ld(view_matrix[9].bits());
     let t44 = t43 * t29;
     let t45 = t42 + t44;
     let t46 = t40 + t45;
-    let t47 = t46 + ld(frame.matrices.view_matrix[13].bits());
-    let t48 = ld(frame.matrices.view_matrix[2].bits());
+    let t47 = t46 + ld(view_matrix[13].bits());
+    let t48 = ld(view_matrix[2].bits());
     let t49 = t11 * t48;
-    let t50 = ld(frame.matrices.view_matrix[6].bits());
+    let t50 = ld(view_matrix[6].bits());
     let t51 = t20 * t50;
-    let t52 = ld(frame.matrices.view_matrix[10].bits());
+    let t52 = ld(view_matrix[10].bits());
     let t53 = t29 * t52;
     let t54 = t53 + t51;
     let t55 = t49 + t54;
-    let t56 = t55 + ld(frame.matrices.view_matrix[14].bits());
+    let t56 = t55 + ld(view_matrix[14].bits());
     l.light_place[0].set_bits(bh::st(t38));
     l.light_place[1].set_bits(bh::st(t47));
     l.light_place[2].set_bits(bh::st(t56));
@@ -217,27 +218,27 @@ fn turn_light_x87(frame: &Frame, l: &SnowLight) {
     let t81 = t57 * t80;
     let t82 = t81 + t79;
     let t83 = t77 + t82;
-    let t84 = ld(frame.matrices.view_matrix[0].bits());
+    let t84 = ld(view_matrix[0].bits());
     let t85 = t84 * t67;
-    let t86 = ld(frame.matrices.view_matrix[4].bits());
+    let t86 = ld(view_matrix[4].bits());
     let t87 = t86 * t75;
-    let t88 = ld(frame.matrices.view_matrix[8].bits());
+    let t88 = ld(view_matrix[8].bits());
     let t89 = t88 * t83;
     let t90 = t87 + t89;
     let t91 = t85 + t90;
-    let t92 = ld(frame.matrices.view_matrix[1].bits());
+    let t92 = ld(view_matrix[1].bits());
     let t93 = t92 * t67;
-    let t94 = ld(frame.matrices.view_matrix[5].bits());
+    let t94 = ld(view_matrix[5].bits());
     let t95 = t94 * t75;
-    let t96 = ld(frame.matrices.view_matrix[9].bits());
+    let t96 = ld(view_matrix[9].bits());
     let t97 = t96 * t83;
     let t98 = t95 + t97;
     let t99 = t93 + t98;
-    let t100 = ld(frame.matrices.view_matrix[2].bits());
+    let t100 = ld(view_matrix[2].bits());
     let t101 = t67 * t100;
-    let t102 = ld(frame.matrices.view_matrix[6].bits());
+    let t102 = ld(view_matrix[6].bits());
     let t103 = t75 * t102;
-    let t104 = ld(frame.matrices.view_matrix[10].bits());
+    let t104 = ld(view_matrix[10].bits());
     let t105 = t83 * t104;
     let t106 = t105 + t103;
     let t107 = t101 + t106;
@@ -459,7 +460,7 @@ mod asm_differential {
             |b| reference::turn_light_x87(b[0], b[1]),
             |b| {
                 with_copy(b[1], SnowLight::START, |l| {
-                    super::turn_light_x87(&race().frame, l);
+                    super::turn_light_x87(&race().frame, &race().frame.matrices.view_matrix, l);
                 });
             },
         );

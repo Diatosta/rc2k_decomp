@@ -527,7 +527,6 @@ pub fn run_view_marks(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,
     effects: &crate::effects::owner::Effects,
-    fog: &crate::scene::fog::Fog,
 ) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
     let session = &system.session;
@@ -563,7 +562,11 @@ pub fn run_view_marks(
         &race.frame.matrices.view_place,
         16,
     );
-    crate::drive::share_all_cars::share_all_cars(race, scene)?;
+    crate::drive::share_all_cars::share_all_cars(
+        race,
+        scene,
+        crate::drive::set_listener::ListenerView::of(ctx.view),
+    )?;
     let first = first_word(race.shared.vars.run_kind.get());
     for b in 0..CAR_RECORDS {
         race.shared
@@ -595,7 +598,10 @@ pub fn run_view_marks(
     // Neither reads a register nor leaves one read after it (0x456464, 0x456472).
     let done = crate::effects::frame_marks::frame_marks(race, effects).and_then(|_| {
         if race.frame.frame_work.drawing.get() == 0 {
-            crate::effects::run_frame::run_frame(race, fog, ctx.view.light.view_light.bits())
+            crate::effects::run_frame::run_frame(
+                race,
+                crate::effects::run_frame::EffectsView::of(ctx.view),
+            )
         } else {
             Ok(())
         }

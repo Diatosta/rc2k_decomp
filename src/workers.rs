@@ -488,7 +488,6 @@ fn draw_parts(
             s.merge_run(n + 1);
         }
         crate::d3d::run_states::carry(&run.states, n + 1);
-        crate::race::view_grid::publish_part(n + 1);
     }
     // The game's thread drew run 0 with its own states: the next fan takes the merged ones.
     crate::platform_3d::forget_states();

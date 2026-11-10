@@ -116,8 +116,9 @@ fn draw_view(
     let view = || -> Result<(), Refused> {
         view()?;
         if car == 0 {
-            crate::race::sound_spots::find_sound_spots(race, crate::race::view_grid::last_drawn())?;
-            crate::race::heard_turn::keep(race);
+            let own = crate::race::view_scratch::main_view(car);
+            crate::race::sound_spots::find_sound_spots(race, own)?;
+            crate::race::heard_turn::keep(&own.matrices);
         }
         Ok(())
     };
@@ -128,8 +129,7 @@ fn draw_view(
     }
     // The mirror drawn beside its view (`workers::draw_beside`, `workers::mirror_beside`),
     // each on its own state (`race::view_scratch`), the mirror's changes to the stores they
-    // share and the grid it made (`race::view_grid::publish_part`) put over the view's as when
-    // drawn after it.
+    // share put over the view's as when drawn after it.
     if crate::workers::mirror_beside() {
         return crate::workers::draw_beside(view, mirror);
     }

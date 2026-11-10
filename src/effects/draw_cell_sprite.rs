@@ -18,7 +18,6 @@ use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
 use crate::effects::ring_store::RingWork;
 use crate::errors::{BadInput, Refused};
-use crate::race::owner_frame::Frame;
 use crate::scene::fog_at::fog_at;
 
 use crate::d3d::vertices_store::VERTICES;
@@ -27,8 +26,13 @@ const CELLS: u32 = 0x41;
 const ANGLES: u32 = 0x1000;
 
 /// The original's 0x4CB796 .. 0x4CB81A: the place turned by the view.
-fn turn(frame: &Frame, ring: &Ring, p: &[[u8; 10]; 3], effects: &crate::effects::owner::Effects) {
-    turn_x87(frame, p, &ring.work, &effects.frame.draw_work);
+fn turn(
+    view_matrix: &[Float; 16],
+    ring: &Ring,
+    p: &[[u8; 10]; 3],
+    effects: &crate::effects::owner::Effects,
+) {
+    turn_x87(view_matrix, p, &ring.work, &effects.frame.draw_work);
 }
 
 /// The original's 0x4CB84C .. 0x4CBA37 (its integer moves done before but those it does
@@ -56,7 +60,6 @@ fn square(
     reason = "the original's five registers and the cell places, and now the two owners"
 )]
 pub fn draw_cell_sprite(
-    frame: &Frame,
     masks: &Masks,
     ring: &Ring,
     effects: &crate::effects::owner::Effects,
@@ -67,7 +70,7 @@ pub fn draw_cell_sprite(
     entry: u32,
     place: [[u8; 10]; 3],
     scene: &crate::scene::owner::Scene,
-    fog: &crate::scene::fog::Fog,
+    view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<(), Refused> {
     if cell >= CELLS {
         return Err(BadInput("a mark cell past g_marksCellPlaces").into());
@@ -79,16 +82,16 @@ pub fn draw_cell_sprite(
         return Err(BadInput("a null ring entry").into());
     }
     // The fog's and the clip's refusals, before anything.
-    fog_at(fog, 0)?;
+    fog_at(view.fog, 0)?;
     if effects.setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    turn(frame, ring, &place, effects);
+    turn(view.view_matrix, ring, &place, effects);
     if effects.frame.draw_work.turned[2].bits() as i32 <= effects.frame.draw_work.near.bits() as i32
     {
         return Ok(());
     }
-    let fogged = fog_at(fog, ring.work.whole.get())?;
+    let fogged = fog_at(view.fog, ring.work.whole.get())?;
     let colour = (alpha & 0xFF00_0000) | crate::effects::ring_entries::entry(ring, entry)?.car_tag;
     for n in 0..4 {
         VERTICES.vertices[n].specular.set(fogged);
@@ -124,37 +127,37 @@ use crate::scene::engine_tables_store::{cosine, sine};
 use crate::session::Float;
 
 /// `turn`'s x87 block as plain Rust on the x87 model (37 instructions), same order and memory places.
-fn turn_x87(frame: &Frame, p: &[[u8; 10]; 3], w: &RingWork, dw: &DrawWork) {
+fn turn_x87(view_matrix: &[Float; 16], p: &[[u8; 10]; 3], w: &RingWork, dw: &DrawWork) {
     let t0 = bh::from_f80(p[2]);
     let t1 = bh::from_f80(p[1]);
     let t2 = bh::from_f80(p[0]);
-    let t3 = crate::math::x87_float::ld(frame.matrices.view_matrix[0].bits());
+    let t3 = crate::math::x87_float::ld(view_matrix[0].bits());
     let t4 = t3 * t2;
-    let t5 = crate::math::x87_float::ld(frame.matrices.view_matrix[4].bits());
+    let t5 = crate::math::x87_float::ld(view_matrix[4].bits());
     let t6 = t5 * t1;
-    let t7 = crate::math::x87_float::ld(frame.matrices.view_matrix[8].bits());
+    let t7 = crate::math::x87_float::ld(view_matrix[8].bits());
     let t8 = t7 * t0;
     let t9 = t6 + t8;
     let t10 = t4 + t9;
-    let t11 = t10 + crate::math::x87_float::ld(frame.matrices.view_matrix[12].bits());
-    let t12 = crate::math::x87_float::ld(frame.matrices.view_matrix[1].bits());
+    let t11 = t10 + crate::math::x87_float::ld(view_matrix[12].bits());
+    let t12 = crate::math::x87_float::ld(view_matrix[1].bits());
     let t13 = t12 * t2;
-    let t14 = crate::math::x87_float::ld(frame.matrices.view_matrix[5].bits());
+    let t14 = crate::math::x87_float::ld(view_matrix[5].bits());
     let t15 = t14 * t1;
-    let t16 = crate::math::x87_float::ld(frame.matrices.view_matrix[9].bits());
+    let t16 = crate::math::x87_float::ld(view_matrix[9].bits());
     let t17 = t16 * t0;
     let t18 = t15 + t17;
     let t19 = t13 + t18;
-    let t20 = t19 + crate::math::x87_float::ld(frame.matrices.view_matrix[13].bits());
-    let t21 = crate::math::x87_float::ld(frame.matrices.view_matrix[2].bits());
+    let t20 = t19 + crate::math::x87_float::ld(view_matrix[13].bits());
+    let t21 = crate::math::x87_float::ld(view_matrix[2].bits());
     let t22 = t2 * t21;
-    let t23 = crate::math::x87_float::ld(frame.matrices.view_matrix[6].bits());
+    let t23 = crate::math::x87_float::ld(view_matrix[6].bits());
     let t24 = t1 * t23;
-    let t25 = crate::math::x87_float::ld(frame.matrices.view_matrix[10].bits());
+    let t25 = crate::math::x87_float::ld(view_matrix[10].bits());
     let t26 = t0 * t25;
     let t27 = t26 + t24;
     let t28 = t22 + t27;
-    let t29 = t28 + crate::math::x87_float::ld(frame.matrices.view_matrix[14].bits());
+    let t29 = t28 + crate::math::x87_float::ld(view_matrix[14].bits());
     dw.turned[0].set_bits(bh::st(t11));
     dw.turned[1].set_bits(bh::st(t20));
     w.whole.set_bits(bh::to_int(t29) as u32);
@@ -488,7 +491,12 @@ mod asm_differential {
             |b| {
                 with_copy(b[1], RingWork::START, |w| {
                     with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| {
-                        super::turn_x87(&crate::race::owner::race().frame, &values(b[2]), w, dw);
+                        super::turn_x87(
+                            &crate::race::owner::race().frame.matrices.view_matrix,
+                            &values(b[2]),
+                            w,
+                            dw,
+                        );
                     });
                 });
             },

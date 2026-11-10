@@ -16,9 +16,9 @@ static TURN: [Float; 16] = [const { Float::from_bits(0) }; 16];
 /// `TURN` holds the first view's turn of this stage.
 static KEPT: AtomicBool = AtomicBool::new(false);
 
-/// After car 0's view: its turn kept for the sounds.
-pub fn keep(race: &Race) {
-    for (kept, now) in TURN.iter().zip(&race.frame.matrices.view_turn_matrix) {
+/// After car 0's view: its turn (`view`, its own) kept for the sounds.
+pub fn keep(view: &crate::scene::view_matrices::ViewMatrices) {
+    for (kept, now) in TURN.iter().zip(&view.view_turn_matrix) {
         kept.set_bits(now.bits());
     }
     KEPT.store(true, Ordering::Relaxed);

@@ -403,7 +403,6 @@ pub fn prepare_course_view(
     check_course_grid(course)?;
     face_hide_mask(race, view)?;
     course_grid(race, &view.grid)?;
-    crate::race::view_grid::note_drawn(view.number());
     if race.shared.switches.other_way.bits() == 0 {
         return Ok(());
     }
