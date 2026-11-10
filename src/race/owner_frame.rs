@@ -32,8 +32,8 @@ pub struct Frame {
     pub clock_ticks: ClockTicks,
     /// One copy: the drawing only reads it (frame plan F4).
     pub shadow_skids: ShadowSkids,
-    /// One copy per drawing thread (`workers`).
-    pub sound_spots: crate::workers::PerWorker<SoundSpotBlock>,
+    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
+    pub sound_spots: SoundSpotBlock,
     pub error_list: ErrorList,
     pub credits: Credits,
     pub map: MapVars,
@@ -59,9 +59,7 @@ impl Frame {
             text_state: TextState::new(),
             clock_ticks: ClockTicks::new(),
             shadow_skids: ShadowSkids::new(),
-            sound_spots: crate::workers::PerWorker::new(
-                [const { SoundSpotBlock::new() }; crate::workers::COPIES],
-            ),
+            sound_spots: SoundSpotBlock::new(),
             error_list: ErrorList::new(),
             credits: Credits::new(),
             map: MapVars::new(),

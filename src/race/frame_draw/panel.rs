@@ -127,12 +127,18 @@ pub(super) fn drawn_view(shared: &Shared) -> Result<u32, Refused> {
 }
 
 /// `race::store_view_value` (0x455528): the drawn view's block +0xFB8 =
-/// `race().frame.frame_work.sun_on_screen`.
-pub fn store_view_value(race: &Race) -> Result<(), Refused> {
-    let b = drawn_view(&race.shared)?;
-    car_at(b)?
-        .eased_target
-        .set_bits(race.frame.frame_work.sun_on_screen.bits());
+/// `race().frame.frame_work.sun_on_screen`. Worked out at the scene's end (the block and the
+/// value), stored by the game's thread in the views' order (`ViewOutput::store_view_value`).
+pub fn view_value(race: &Race) -> Result<(u32, u32), Refused> {
+    Ok((
+        drawn_view(&race.shared)?,
+        race.frame.frame_work.sun_on_screen.bits(),
+    ))
+}
+
+/// The value into the view's block +0xFB8 (`view_value`).
+pub fn store_view_value(block: u32, value: u32) -> Result<(), Refused> {
+    car_at(block)?.eased_target.set_bits(value);
     Ok(())
 }
 

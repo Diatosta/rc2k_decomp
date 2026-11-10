@@ -181,6 +181,18 @@ static FRESH: ViewScratch = ViewScratch::new();
 /// How many slots there are.
 pub const SLOT_COUNT: usize = 5;
 
+/// The slot and offset a host address falls in (the write watch's names).
+#[cfg(feature = "write_watch")]
+pub fn place_of(host: usize) -> Option<(usize, usize)> {
+    let size = core::mem::size_of::<ViewScratch>();
+    SLOTS.iter().enumerate().find_map(|(n, s)| {
+        let start = core::ptr::from_ref(s) as usize;
+        (start..start + size)
+            .contains(&host)
+            .then(|| (n, host - start))
+    })
+}
+
 /// Slot `n` (below `SLOT_COUNT`).
 pub fn slot(n: usize) -> &'static ViewScratch {
     &SLOTS[n]

@@ -120,27 +120,20 @@ impl<T: crate::pointers::Cells + crate::pointers::Store> Carried for PerWorker<T
 /// The stores of the drawing's working state a run reads as the list began (the write
 /// watch's list, `notes/conversion.md`): copied into each run's copy, the changes merged
 /// back.
-fn carried_stores() -> [&'static dyn Carried; 16] {
+fn carried_stores() -> [&'static dyn Carried; 9] {
     let race = crate::race::owner::race();
     let scene = crate::scene::owner::scene();
     [
         &race.frame.matrices,
-        &race.frame.sound_spots,
-        &race.physics.camera,
         &race.physics.ground,
-        &race.course.course,
         &race.shared.vars,
         &race.shared.view,
         &scene.drawing.scene,
         &scene.drawing.object_work,
-        &scene.lights.state,
         &crate::d3d::owner::d3d().cards,
         // The stores the mirror shares with its view (`draw_beside`, the write watch's list).
         &race.frame.frame_work,
         &race.frame.view_and_records,
-        &race.shared.work,
-        &crate::race::blocks_store::CAR_BLOCKS,
-        &crate::audio::store::ENVIRONMENT,
     ]
 }
 
@@ -255,18 +248,20 @@ pub fn wait_for_earlier_runs() {
 /// `first` drawn on the game's thread and `second` beside it on a drawing thread, each from
 /// the working state as it is now (the mirror beside its view, `race::draw_race_scene`), then
 /// `then` on the game's thread: `then`'s drawing goes after `first`'s, which may flush, and
-/// `second`'s after `then`'s, its changes to the working state over theirs. With fewer than
-/// two drawing threads both on the game's thread, one after the other, each on its own copy
-/// as on its own thread, so that what is drawn is the same however many threads draw.
+/// `second`'s after `then`'s, its changes to the working state over theirs; then
+/// `then_second`. With fewer than two drawing threads both on the game's thread, one after
+/// the other, each on its own copy as on its own thread, so that what is drawn is the same
+/// however many threads draw.
 pub fn draw_beside(
     first: impl Fn() -> Result<(), Refused> + Sync,
     second: impl Fn() -> Result<(), Refused> + Sync,
     mut then: impl FnMut() -> Result<(), Refused>,
+    mut then_second: impl FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     draw_side_by_side(
         2,
         |n| if n == 0 { first() } else { second() },
-        |n| if n == 0 { then() } else { Ok(()) },
+        |n| if n == 0 { then() } else { then_second() },
     )
 }
 
@@ -549,14 +544,24 @@ fn note_carried_writes(stores: &[&dyn Carried], k: usize, watched: &[crate::writ
     if w.0.len() != stores.len() {
         w.0 = vec![0; stores.len()];
     }
+    static PLACES: Mutex<Vec<std::collections::BTreeSet<usize>>> = Mutex::new(Vec::new());
+    let mut places = PLACES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    places.resize_with(stores.len(), Default::default);
     for (i, s) in stores.iter().enumerate() {
-        let written = (0..k).any(|n| {
+        let mut written = false;
+        for n in 0..k {
             let copy = s.copy(n);
-            let words = copy.first().addr() / 4..(copy.first().addr() + copy.size()).div_ceil(4);
-            watched
-                .iter()
-                .any(|seen| seen.written.iter().any(|d| words.contains(d)))
-        });
+            let start = copy.first().addr();
+            let words = start / 4..(start + copy.size()).div_ceil(4);
+            for d in watched.iter().flat_map(|seen| seen.written.iter()) {
+                if words.contains(d) {
+                    written = true;
+                    places[i].insert((d * 4).saturating_sub(start));
+                }
+            }
+        }
         if written {
             w.0[i] += 1;
         }
@@ -573,6 +578,24 @@ fn note_carried_writes(stores: &[&dyn Carried], k: usize, watched: &[crate::writ
             w.1,
             counts.join(" ")
         ));
+        // Where in each store (byte offsets of the written words, runs joined).
+        for (i, set) in places.iter().enumerate() {
+            let mut runs: Vec<(usize, usize)> = Vec::new();
+            for &o in set {
+                match runs.last_mut() {
+                    Some(r) if r.1 + 4 >= o => r.1 = o,
+                    _ => runs.push((o, o)),
+                }
+            }
+            let runs: Vec<String> = runs
+                .iter()
+                .map(|(a, b)| format!("{a:#x}..{:#x}", b + 4))
+                .collect();
+            crate::framework::log(&format!(
+                "workers: carried store {i} written at {}",
+                runs.join(" ")
+            ));
+        }
     }
 }
 

@@ -621,7 +621,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x6D1DD4, // g_eaxEnvironment
         len: 4,
-        home: Home::Store(crate::audio::store::ENVIRONMENT.first()),
+        home: Home::Store(&crate::audio::store::ENVIRONMENT),
     },
     // sound: the race sounds' clock, and the spot picks .. CD audio block (`sound::store`)
     Moved {
@@ -1293,7 +1293,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::course_store::START,
         len: crate::race::course_store::END - crate::race::course_store::START,
-        home: Home::Store(crate::race::owner::RACE.course.course.first()),
+        home: Home::Store(&crate::race::owner::RACE.course.course),
     },
     Moved {
         ida: crate::scene::object_tables_store::START,
@@ -1324,7 +1324,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::physics::camera_store::START,
         len: crate::physics::camera_store::END - crate::physics::camera_store::START,
-        home: Home::Store(crate::race::owner::RACE.physics.camera.first()),
+        home: Home::Store(&crate::race::owner::RACE.physics.camera),
     },
     Moved {
         ida: crate::race::prefs_store::START,
@@ -1354,7 +1354,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::scene::light_store::START,
         len: crate::scene::light_store::END - crate::scene::light_store::START,
-        home: Home::Store(crate::scene::owner::SCENE.lights.state.first()),
+        home: Home::Store(&crate::scene::owner::SCENE.lights.state),
     },
     Moved {
         ida: crate::race::view_store::START,
@@ -1374,7 +1374,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::sound_spots_store::START,
         len: crate::race::sound_spots_store::END - crate::race::sound_spots_store::START,
-        home: Home::Store(crate::race::owner::RACE.frame.sound_spots.first()),
+        home: Home::Store(&crate::race::owner::RACE.frame.sound_spots),
     },
     Moved {
         ida: crate::physics::contact_store::START,
@@ -1394,7 +1394,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::work_store::START,
         len: crate::race::work_store::END - crate::race::work_store::START,
-        home: Home::Store(crate::race::owner::RACE.shared.work.first()),
+        home: Home::Store(&crate::race::owner::RACE.shared.work),
     },
     Moved {
         ida: crate::race::text_state_store::START,

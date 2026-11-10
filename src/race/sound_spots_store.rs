@@ -15,7 +15,7 @@ pub struct SoundSpotBlock {
     /// +0x8 (0x6D18D0): `dword_6D18D0`, the face's unlit byte; the drawing's is the view's
     /// (`race::face_work`), this one not used.
     pub face_unlit: Dword,
-    /// +0xc (0x6D18D4): `dword_6D18D4` (`scene::list_object_face`, `race::car_draw`).
+    /// +0xc (0x6D18D4): `g_groupsWhich` (`scene::list_object_face`, `race::car_draw`); now each view's (`CarDrawState::groups_which`); unused.
     pub groups_which: Dword,
     /// +0x10 (0x6D18D8): not named.
     pub unknown_10: Dword,
@@ -25,7 +25,7 @@ pub struct SoundSpotBlock {
     pub flag_18e0: Dword,
     /// +0x1c (0x6D18E4): `dword_6D18E4`: tested and set to 1 (a reading, unused by Rust).
     pub flag_18e4: Dword,
-    /// +0x20 (0x6D18E8): `flt_6D18E8`, `flt_6D18EC`: view-window limits (`scene::set_view_window`).
+    /// +0x20 (0x6D18E8): `g_lessOne`, `flt_6D18EC`: the view window's size less one (`scene::set_view_window`), read only by code nothing reaches (0x45BF11); no longer written.
     pub less_one: [Float; 2],
     /// +0x28 (0x6D18F0): not named.
     pub unknown_28: [Dword; 104],
@@ -78,7 +78,7 @@ const _: () = assert!(END - START == core::mem::size_of::<SoundSpotBlock>());
 /// Where IDA 0x6D18C8 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(race().frame.sound_spots.first()))
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.sound_spots))
 }
 
 #[cfg(test)]
@@ -88,7 +88,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(race().frame.sound_spots.first(), START, END);
+        crate::gfx::first_values_are_the_games(&race().frame.sound_spots, START, END);
     }
 
     #[test]

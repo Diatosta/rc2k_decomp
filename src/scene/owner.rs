@@ -45,8 +45,8 @@ pub struct Drawing {
 /// The light state and the lights' work variables.
 pub struct Lights {
     /// The light state (`LIGHT_STATE`).
-    /// One copy per drawing thread (`workers`).
-    pub state: crate::workers::PerWorker<LightState>,
+    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
+    pub state: LightState,
     /// The lights' work variables (`LIGHT_WORK`).
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
     pub work: LightWork,
@@ -83,9 +83,7 @@ pub static SCENE: Scene = Scene {
         ),
     },
     lights: Lights {
-        state: crate::workers::PerWorker::new(
-            [const { LightState::new() }; crate::workers::COPIES],
-        ),
+        state: LightState::new(),
         work: LightWork::new(),
     },
     objects: Objects {

@@ -116,10 +116,9 @@ fn probe_points(
         }
         q.x.set(work.probe_x[i].get());
         q.z.set(work.probe_z[i].get());
-        race.course
-            .course
-            .ground_face_last
-            .set(car.probe_point_face[b as usize].get());
+        // The search tries this face first (`dword_5CCC78`: the physics' query's own cell,
+        // a drawing's its own).
+        q.last.set(car.probe_point_face[b as usize].get());
         q.settle_mark.set(0x80);
         ground_search_at(race, q, scene)?;
         work.probe_ground_height[i].set(0);

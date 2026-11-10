@@ -28,6 +28,11 @@ pub struct CarDrawState {
     pub car_draw_kept: Dword,
     /// The car's drawing word (0x60 plus its nearness size).
     pub car_draw_word: Dword,
+    /// The drawn car's nearness, 0 .. 1 (`dword_71BA08`).
+    pub car_nearness: crate::session::Float,
+    /// The drawn car's mode (`g_groupsWhich`, 0x6D18D4: its block's `mode_on`), read by the
+    /// face tests (`scene::list_object_face`).
+    pub groups_which: Dword,
     /// The material way of the object being drawn (`dword_6214DC`).
     pub other_way_kind: Dword,
     /// The other kind and the distance of the object's fade (`qword_6214E0`).
@@ -59,6 +64,8 @@ impl CarDrawState {
             car_depth: Dword::new(0),
             car_draw_kept: Dword::new(0),
             car_draw_word: Dword::new(0),
+            car_nearness: crate::session::Float::from_bits(0),
+            groups_which: Dword::new(0),
             other_way_kind: Dword::new(0),
             fade_words: [const { Dword::new(0) }; 2],
             object_number: Dword::new(0),

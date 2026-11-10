@@ -17,7 +17,7 @@ use crate::scene::owner::scene;
 /// `dword_623FB4` 0, `dword_624080` 0x100, `scene::set_view_window`), `dword_63993C` 0; the
 /// first also `dword_6365C4` 0. Its callers (`race::draw_race_scene`,
 /// `race::draw_mirror_view`) read no register it leaves.
-pub fn full_view_window(race: &Race, first: bool) {
+pub fn full_view_window(race: &Race) {
     let system = crate::system::owner::system();
     let physics = &race.physics;
     let session = &system.session;
@@ -28,9 +28,9 @@ pub fn full_view_window(race: &Race, first: bool) {
     scene.drawing.scene.view_offset[1].set(0);
     scene.drawing.scene.view_zoom.set(0x100);
     crate::scene::set_view_window::set_view_window(race, scene);
-    if first {
-        scene.lights.state.draw_mode.set(0);
-    }
+    // The original stores 0 in `g_drawMode` here for the frame's first view: never anything
+    // else anywhere (it starts at 0; modes 1 and 2 are only read), so not kept (the drawing
+    // parts leave the light state alone).
     physics.ground.view_mirrored.set(0);
 }
 
@@ -104,7 +104,7 @@ pub fn mirror_view_window(
     scene.drawing.scene.view_zoom.set(0x100);
     crate::scene::set_view_window::set_view_window_reaching(race, scene, MIRROR_REACH);
     crate::race::frame_draw::set_up_fog(race, fog, poly, car)?;
-    scene.lights.state.draw_mode.set(0);
+    // (The original's 0 into `g_drawMode`: see `full_view_window`.)
     race.physics.ground.view_mirrored.set(1);
     Ok(())
 }

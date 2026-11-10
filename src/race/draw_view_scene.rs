@@ -12,20 +12,32 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::view_scratch::{DrawCtx, ViewScratch};
 
-/// What a view's drawing hands on (frame plan F6): its EAX weight (`race::eax_environment`),
-/// none for a covered view (`draw_view_tint` only, which leaves the last one).
+/// What a view's drawing hands on (frame plan F6), none for a covered view
+/// (`draw_view_tint` only, which leaves the last ones): its EAX weight
+/// (`race::eax_environment`) and its value for its block (`race::store_view_value`: the
+/// block and the sun on the screen). Applied by the game's thread once the view is drawn, in
+/// the views' order (the drawing parts write neither).
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ViewOutput {
     pub environment: Option<u32>,
+    pub view_value: Option<(u32, u32)>,
 }
 
 impl ViewOutput {
-    /// The output where the audio reads it: the view's EAX weight as the race's environment
-    /// (`audio::store::ENVIRONMENT`), at the view's end as the original left it (its sum was
-    /// made there in place, the audio thread reading it at any time).
-    pub fn publish(self) {
+    /// The view's EAX weight as the race's environment (`audio::store::ENVIRONMENT`), where
+    /// the audio reads it (the original made its sum there in place, the audio thread
+    /// reading it at any time).
+    pub fn publish_environment(self) {
         if let Some(weight) = self.environment {
             crate::audio::store::ENVIRONMENT.set(weight);
+        }
+    }
+
+    /// The view's value into its block (`race::store_view_value`).
+    pub fn store_view_value(self) -> Result<(), Refused> {
+        match self.view_value {
+            Some((block, value)) => crate::race::frame_draw::store_view_value(block, value),
+            None => Ok(()),
         }
     }
 }
@@ -90,7 +102,7 @@ pub fn draw_view_scene(
     crate::debug::timing::stop(crate::debug::timing::Stage::DepthEntries, begun);
     crate::moved::census::after("depth", c);
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
-    store_view_value(race)?;
+    let view_value = view_value(race)?;
     // The lamps the next view starts from (`race::lamp_work::PUBLISHED`).
     {
         use crate::pointers::Cells;
@@ -98,5 +110,6 @@ pub fn draw_view_scene(
     }
     Ok(ViewOutput {
         environment: Some(environment),
+        view_value: Some(view_value),
     })
 }

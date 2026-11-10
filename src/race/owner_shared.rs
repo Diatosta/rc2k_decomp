@@ -17,8 +17,8 @@ use crate::race::work_store::RaceWork;
 /// The race's stores the menus, the network and the audio side read too.
 pub struct Shared {
     /// `RACE_WORK` (`race`).
-    /// One copy per drawing thread (`workers`).
-    pub work: crate::workers::PerWorker<RaceWork>,
+    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
+    pub work: RaceWork,
     /// `RACE_STATE` (`race`).
     pub state: RaceState,
     /// `RACE_TABLES` (`race`).
@@ -53,9 +53,7 @@ pub struct Shared {
 impl Shared {
     pub const fn new() -> Self {
         Shared {
-            work: crate::workers::PerWorker::new(
-                [const { RaceWork::new() }; crate::workers::COPIES],
-            ),
+            work: RaceWork::new(),
             state: RaceState::new(),
             tables: RaceTables::new(),
             buffers: Buffers::new(),

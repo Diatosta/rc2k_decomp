@@ -54,7 +54,7 @@ pub fn update_voices(audio: &Audio) -> Result<(), Refused> {
     let mut room = Room {
         asked: audio.state.eax_room.get(),
         set: audio.state.eax_room_set.get(),
-        environment: ENVIRONMENT.first().get(),
+        environment: ENVIRONMENT.get(),
         kept: audio.state.environment_kept.get(),
         commit: audio.state.commit_3d.get(),
     };

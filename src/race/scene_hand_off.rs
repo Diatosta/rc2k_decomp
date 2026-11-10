@@ -6,6 +6,7 @@
 //! merged stores hold what the last part left there, and a part that set a value back to
 //! the frame's first is not merged at all.
 
+use crate::race::draw_view_scene::ViewOutput;
 use crate::race::owner::Race;
 use crate::session::Dword;
 
@@ -22,6 +23,10 @@ pub struct SceneHandOff {
     lit: [Dword; 16],
     /// `SceneMatrices.made_object_matrix`.
     made: [Dword; 16],
+    /// The view's output (`ViewOutput`), applied by the game's thread: the EAX weight and the
+    /// block and value for `store_view_value`, each with a word saying it is there.
+    environment: [Dword; 2],
+    view_value: [Dword; 3],
 }
 
 impl SceneHandOff {
@@ -32,6 +37,28 @@ impl SceneHandOff {
             clock: Dword::new(0),
             lit: [const { Dword::new(0) }; 16],
             made: [const { Dword::new(0) }; 16],
+            environment: [const { Dword::new(0) }; 2],
+            view_value: [const { Dword::new(0) }; 3],
+        }
+    }
+
+    /// The view's output kept (on its part).
+    pub fn keep_output(&self, output: ViewOutput) {
+        let (there, weight) = output.environment.map_or((0, 0), |w| (1, w));
+        self.environment[0].set(there);
+        self.environment[1].set(weight);
+        let (there, (block, value)) = output.view_value.map_or((0, (0, 0)), |v| (1, v));
+        self.view_value[0].set(there);
+        self.view_value[1].set(block);
+        self.view_value[2].set(value);
+    }
+
+    /// The kept output.
+    pub fn output(&self) -> ViewOutput {
+        ViewOutput {
+            environment: (self.environment[0].get() != 0).then(|| self.environment[1].get()),
+            view_value: (self.view_value[0].get() != 0)
+                .then(|| (self.view_value[1].get(), self.view_value[2].get())),
         }
     }
 

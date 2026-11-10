@@ -118,7 +118,7 @@ impl FaceWorld for GameFace<'_> {
         scene().lights.work.marks_mask.bits()
     }
     fn groups_which(&self) -> u32 {
-        self.0.frame.sound_spots.groups_which.bits()
+        self.4.groups_which.bits()
     }
     fn see_through_on(&self) -> u32 {
         self.3.fading.bits()

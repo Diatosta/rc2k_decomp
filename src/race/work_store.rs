@@ -58,7 +58,7 @@ pub struct RaceWork {
     pub work_block: Dword,
     /// +0x450 (0x71B408): 32 names of 0x30 bytes by car kind: the cars' number textures (`race::car_draw`).
     pub number_texture_names: [Dword; 384],
-    /// +0xa50 (0x71BA08): the drawn car's nearness (`race::car_draw`).
+    /// +0xa50 (0x71BA08): the drawn car's nearness (`race::car_draw`); now each view's (`ctx.view.cars.car_nearness`); unused.
     pub car_nearness: Float,
     /// +0xa54 (0x71BA0C): (`race::car_draw`); now each view's (`ctx.view.cars.car_draw_word`); unused.
     pub car_draw_word: Dword,

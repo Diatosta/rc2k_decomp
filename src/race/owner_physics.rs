@@ -12,8 +12,8 @@ use crate::race::car_specs_store::CarSpecs;
 
 /// The race's physics state (step 11, owned state: the stores move in as fields).
 pub struct Physics {
-    /// One copy per drawing thread (`workers`).
-    pub camera: crate::workers::PerWorker<CameraWork>,
+    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
+    pub camera: CameraWork,
     /// One copy: the drawing's searches have their own (frame plan F4).
     pub contact: ContactWork,
     /// One copy: the drawing's searches have their own (frame plan F4).
@@ -29,9 +29,7 @@ pub struct Physics {
 impl Physics {
     pub const fn new() -> Self {
         Physics {
-            camera: crate::workers::PerWorker::new(
-                [const { CameraWork::new() }; crate::workers::COPIES],
-            ),
+            camera: CameraWork::new(),
             contact: ContactWork::new(),
             ground_probe: GroundProbe::new(),
             ground: crate::workers::PerWorker::new(

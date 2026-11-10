@@ -4,7 +4,8 @@
 //! the mirror's window (`race::mirror_view_window`), `dword_63DC58` back from
 //! `dword_63E170`, the backdrop (`race::draw_view_backdrop`), the scene
 //! (`race::draw_view_scene`); `dword_606294` put back; the full view's window again
-//! (`race::full_view_window_2`).
+//! (`race::full_view_window_2`). Returns the scene's output (`ViewOutput`: its view value
+//! for its block; its EAX weight goes nowhere, the race's is the first player's view's).
 //!
 //! The original also set `g_gridReach` to 2 and put it back after. Only the mirror's
 //! `scene::set_view_window` read the 2 (the fog's `race::draw_distance_settings` then sets the
@@ -29,12 +30,12 @@ pub fn draw_mirror_view(
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
     view: &crate::race::view_scratch::ViewScratch,
-) -> Result<(), Refused> {
+) -> Result<crate::race::draw_view_scene::ViewOutput, Refused> {
     if race.replay.finish.no_place.get() != 0
         || race.shared.work.in_credits.get() != 0
         || (race.shared.switches.other_way.get() == 0 && !always())
     {
-        return Ok(());
+        return Ok(Default::default());
     }
     view.course
         .view_value_kept
@@ -56,15 +57,14 @@ pub fn draw_mirror_view(
         )?;
         race.shared.view.view_depth[1].set_bits(view.course.view_value_kept.bits());
         crate::race::frame_flush::draw_view_backdrop(race, scene, view);
-        // Its EAX weight goes nowhere: the race's is the first player's view's.
-        crate::race::draw_view_scene::draw_view_scene(race, scene, view).map(|_| ())
+        crate::race::draw_view_scene::draw_view_scene(race, scene, view)
     })();
     race.frame
         .view_and_records
         .view_vars
         .view_scale
         .set_bits(saved);
-    drawn?;
-    crate::race::frame_views::full_view_window(race, false);
-    Ok(())
+    let output = drawn?;
+    crate::race::frame_views::full_view_window(race);
+    Ok(output)
 }

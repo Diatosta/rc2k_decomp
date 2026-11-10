@@ -13,8 +13,8 @@ use crate::race::prefs_store::StagePrefs;
 
 /// The race's course state (step 11, owned state: the stores move in as fields).
 pub struct Course {
-    /// One copy per drawing thread (`workers`).
-    pub course: crate::workers::PerWorker<CourseWork>,
+    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
+    pub course: CourseWork,
     /// One copy: the drawing only reads it (frame plan F4).
     pub lists: CourseLists,
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
@@ -33,9 +33,7 @@ pub struct Course {
 impl Course {
     pub const fn new() -> Self {
         Course {
-            course: crate::workers::PerWorker::new(
-                [const { CourseWork::new() }; crate::workers::COPIES],
-            ),
+            course: CourseWork::new(),
             lists: CourseLists::new(),
             level_grid: LevelGrid::new(),
             level_paths: LevelPaths::new(),

@@ -13,7 +13,6 @@ use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
-use crate::race::owner_shared::Shared;
 use crate::race::trap::car_at;
 use crate::race::view_vars_store::ViewVars;
 use crate::scene::matrix::multiply_matrices;
@@ -258,10 +257,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     ]) {
         crate::math::cells::copy_cells(from, to, 16);
     }
-    race.frame
-        .sound_spots
-        .groups_which
-        .set(car_at(car)?.mode_on.bits());
+    ctx.view.cars.groups_which.set(car_at(car)?.mode_on.bits());
     let model = car_view(car)?.car_kind.bits();
     ctx.view.matrices.known_object.set(model);
     set_group_masks(&ctx.view.cars.group_masks, model)?;
@@ -296,8 +292,8 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     if state & 4 != 0 {
         ctx.view.cars.group_mask.set(with_bit(field(0x44)?, bit));
     }
-    race.shared
-        .work
+    ctx.view
+        .cars
         .car_nearness
         .set_bits(race.course.numbers.zero.bits());
     let mut stage = ctx.view.state.view_car_stage.bits();
@@ -336,7 +332,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
             and(!ctx.view.cars.group_masks[11].bits());
         }
     }
-    let mut ecx = 0x60u32.wrapping_add(near_size(&race.shared));
+    let mut ecx = 0x60u32.wrapping_add(near_size(&ctx.view.cars));
     ctx.view.cars.car_draw_word.set(ecx);
     if state & 0x100 != 0 {
         if state & 6 == 0 {
@@ -436,27 +432,18 @@ fn nearness(race: &Race, cars: &CarDrawState, mine: &crate::race::view_course::V
     use crate::math::x87_load::below_or_unordered;
     {
         let depth = int(cars.car_depth.get() as i32);
-        race.shared
-            .work
-            .car_nearness
+        cars.car_nearness
             .set_bits(st((depth - int(0xA_0000)) / int(0x14_0000)));
-        let near: u32 = race.shared.work.car_nearness.bits();
+        let near: u32 = cars.car_nearness.bits();
         // `fld zero; fld near; fcompp`: near below 0 (or no number) -> 0.
         if below_or_unordered(near, race.course.numbers.zero.bits()) {
-            race.shared
-                .work
-                .car_nearness
-                .set_bits(race.course.numbers.zero.bits());
+            cars.car_nearness.set_bits(race.course.numbers.zero.bits());
         }
-        let near: u32 = race.shared.work.car_nearness.bits();
+        let near: u32 = cars.car_nearness.bits();
         if !below_or_unordered(near, race.course.numbers.one.bits()) {
-            race.shared
-                .work
-                .car_nearness
-                .set_bits(race.course.numbers.one.bits());
+            cars.car_nearness.set_bits(race.course.numbers.one.bits());
         }
-        let shine =
-            (ONE - ld(race.shared.work.car_nearness.bits())) * int(mine.shine.bits() as i32);
+        let shine = (ONE - ld(cars.car_nearness.bits())) * int(mine.shine.bits() as i32);
         let whole = to_int(shine);
         mine.shine.set(whole as u32);
     }
@@ -464,10 +451,10 @@ fn nearness(race: &Race, cars: &CarDrawState, mine: &crate::race::view_course::V
 
 /// `race::draw_car`'s size: 0x90 times `dword_71BA08`, rounded (the original's stores to
 /// `dword_62400C` are not kept).
-fn near_size(shared: &Shared) -> u32 {
+fn near_size(cars: &CarDrawState) -> u32 {
     use crate::math::x87_float::{int, ld, to_int};
     {
-        let size = to_int(int(0x90) * ld(shared.work.car_nearness.bits()));
+        let size = to_int(int(0x90) * ld(cars.car_nearness.bits()));
         size as u32
     }
 }
@@ -697,8 +684,12 @@ mod asm_reference {
                 mine.shine.set(race.course.course.shine.get());
                 nearness(race, &cars, &mine);
                 race.course.course.shine.set(mine.shine.get());
+                race.shared
+                    .work
+                    .car_nearness
+                    .set_bits(cars.car_nearness.bits());
                 assert_eq!(state(), want, "nearness from {before:x?}");
-                let size_got = near_size(&race.shared);
+                let size_got = near_size(&cars);
                 assert_eq!(size_got, size_want, "size from {before:x?}");
                 assert_eq!(state(), want_size_place);
             }

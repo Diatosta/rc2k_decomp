@@ -80,7 +80,7 @@ pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Re
         }
         let put = |o: u32, v: u32| {
             crate::session::write_on_in(
-                &*race.frame.sound_spots,
+                &race.frame.sound_spots,
                 &race.frame.sound_spots.sound_spots,
                 spot + (o / 4) as usize,
                 v,

@@ -92,11 +92,8 @@ pub fn set_view_window_reaching(race: &Race, scene: &crate::scene::owner::Scene,
     crate::session::write_bits(&drawing.scene.view_offset_float, offsets.map(float));
     crate::session::write_bits(&drawing.scene.clip_screen, edges.map(float));
     crate::session::write_bits(&drawing.scene.view_centre, middle.map(float));
-    let one: u32 = race.course.numbers.one.bits();
-    crate::session::write_bits(
-        &race.frame.sound_spots.less_one,
-        [width, height].map(|size| x87::int_less(size as i32, one)),
-    );
+    // The original's size less one (`g_lessOne`, `flt_6D18EC`) is read only by code nothing
+    // reaches (0x45BF11): not kept.
 }
 
 /// The converted `set_view_window` (plain floats). The x87 version above
@@ -146,5 +143,4 @@ pub fn set_view_window_plain(
     set(&drawing.scene.view_offset_float, &w.offset_floats);
     set(&drawing.scene.clip_screen, &w.edge_floats);
     set(&drawing.scene.view_centre, &w.middle_floats);
-    set(&race.frame.sound_spots.less_one, &w.less_one);
 }

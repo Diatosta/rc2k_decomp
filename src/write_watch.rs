@@ -294,6 +294,11 @@ pub(crate) mod shared {
             let len = (words[k] - first + 1) * 4;
             let host = first * 4;
             let game = crate::address_map::game_of(host).map(|g| g as usize);
+            if let Some((slot, at)) = crate::race::view_scratch::place_of(host) {
+                text += &format!(" [view slot {slot} +{at:#x}+{len:#x}]");
+                k += 1;
+                continue;
+            }
             if let Some((what, at)) = crate::memory::shared_table::table_of(host) {
                 text += &format!(" [{what} +{at:#x}+{len:#x}]");
                 k += 1;
