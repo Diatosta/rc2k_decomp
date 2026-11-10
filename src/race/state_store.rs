@@ -86,10 +86,10 @@ pub struct RaceCar {
     pub axis_codes: Dword,
     /// `Player.controller_mode` (+0x3C).
     pub controller_mode: Dword,
-    /// `Player.dead_zone_1` (+0x40).
-    pub dead_zone_1: Dword,
-    /// `Player.dead_zone_2` (+0x44).
-    pub dead_zone_2: Dword,
+    /// `Player.end_zone_pct` (+0x40): the end zone, percent.
+    pub end_zone_pct: Dword,
+    /// `Player.centre_dead_zone_pct` (+0x44): the centre dead zone, percent.
+    pub centre_dead_zone_pct: Dword,
     /// `Player.strength` (+0x48).
     pub strength: Dword,
     /// The record's +0x4C: not taken.
@@ -157,26 +157,26 @@ pub struct RaceSettings {
     pub car_kind_first: Dword,
     /// `dword_75ACF0`: the stage's direction (the selected group's copy).
     pub direction: Dword,
-    /// `unk_75ACF4`: not worked out.
+    /// `unk_75ACF4`: no IDA xref and no Rust use; 0 at start.
     pub unk_75acf4: Dword,
     /// `dword_75ACF8`: the track entry's +0x1C.
     pub track_1c: Dword,
     /// `dword_75ACFC`: the track entry's +0x20.
     pub track_20: Dword,
-    /// `dword_75AD00`: a settings word copied from `dword_755650`.
-    pub setting_0: Dword,
-    /// `dword_75AD04`: not worked out.
+    /// `dword_75AD00`: the lens flare option, copied from `dword_755650`.
+    pub lens_flare: Dword,
+    /// `dword_75AD04`: read only in dead code outside any function (0x470060 .. 0x4700A1, beside the options toggles); 100 (0x64) at start.
     pub dword_75ad04: Dword,
-    /// `dword_75AD08`: not worked out.
+    /// `dword_75AD08`: read only in dead code outside any function (0x4700C0 ..); 100 (0x64) at start.
     pub dword_75ad08: Dword,
-    /// `dword_75AD0C`: a settings word copied from `dword_75565C`.
-    pub setting_1: Dword,
-    /// `dword_75AD10`: copied from `dword_755660`.
-    pub setting_2: Dword,
-    /// `dword_75AD14`: copied from `dword_755664`.
-    pub setting_3: Dword,
-    /// `dword_75AD18`: copied from `dword_755668`.
-    pub setting_4: Dword,
+    /// `dword_75AD0C`: the reflections option (graphics page), copied from `dword_75565C`.
+    pub reflections: Dword,
+    /// `dword_75AD10`: the car shadows option, copied from `dword_755660`.
+    pub car_shadows: Dword,
+    /// `dword_75AD14`: the car detail option, copied from `dword_755664`.
+    pub car_detail: Dword,
+    /// `dword_75AD18`: the headlights option (all cars' lamps), copied from `dword_755668`.
+    pub headlights: Dword,
     /// The two players' settings: [0] the current player's (the "second set", 0x75AD1C),
     /// [1] player 1's (the "first set", 0x75AE88).
     pub cars: [RaceCar; 2],
@@ -248,13 +248,13 @@ impl RaceState {
                 unk_75acf4: Dword::new(0),
                 track_1c: Dword::new(0x2d),
                 track_20: Dword::new(0x19),
-                setting_0: Dword::new(0),
+                lens_flare: Dword::new(0),
                 dword_75ad04: Dword::new(0x64),
                 dword_75ad08: Dword::new(0x64),
-                setting_1: Dword::new(0),
-                setting_2: Dword::new(0),
-                setting_3: Dword::new(0),
-                setting_4: Dword::new(0),
+                reflections: Dword::new(0),
+                car_shadows: Dword::new(0),
+                car_detail: Dword::new(0),
+                headlights: Dword::new(0),
                 cars: [
                     RaceCar {
                         tyre: Dword::new(0),
@@ -282,8 +282,8 @@ impl RaceState {
                         sensitivity_level: Dword::new(0),
                         axis_codes: Dword::new(0x2011000),
                         controller_mode: Dword::new(0),
-                        dead_zone_1: Dword::new(0),
-                        dead_zone_2: Dword::new(0xa),
+                        end_zone_pct: Dword::new(0),
+                        centre_dead_zone_pct: Dword::new(0xa),
                         strength: Dword::new(0),
                         _unused_4c: Dword::new(0),
                         bindings: [
@@ -334,8 +334,8 @@ impl RaceState {
                         sensitivity_level: Dword::new(0),
                         axis_codes: Dword::new(0x2011000),
                         controller_mode: Dword::new(0),
-                        dead_zone_1: Dword::new(0),
-                        dead_zone_2: Dword::new(0xa),
+                        end_zone_pct: Dword::new(0),
+                        centre_dead_zone_pct: Dword::new(0xa),
                         strength: Dword::new(0),
                         _unused_4c: Dword::new(0),
                         bindings: [
@@ -473,8 +473,8 @@ mod tests {
         assert_eq!(offset_of!(RaceCar, sensitivity_level), 0x148 - 0x34);
         assert_eq!(offset_of!(RaceCar, axis_codes), 0x14C - 0x34);
         assert_eq!(offset_of!(RaceCar, controller_mode), 0x150 - 0x34);
-        assert_eq!(offset_of!(RaceCar, dead_zone_1), 0x154 - 0x34);
-        assert_eq!(offset_of!(RaceCar, dead_zone_2), 0x158 - 0x34);
+        assert_eq!(offset_of!(RaceCar, end_zone_pct), 0x154 - 0x34);
+        assert_eq!(offset_of!(RaceCar, centre_dead_zone_pct), 0x158 - 0x34);
         assert_eq!(offset_of!(RaceCar, strength), 0x15C - 0x34);
         assert_eq!(offset_of!(RaceCar, bindings), 0x164 - 0x34);
         assert_eq!(offset_of!(RaceCar, bindings) + 4 * 10, 0x18C - 0x34);

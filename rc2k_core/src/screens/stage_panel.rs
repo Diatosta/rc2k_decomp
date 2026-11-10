@@ -55,7 +55,8 @@ pub struct Entry {
     pub wind: u32,
     /// The surface percentages, entry +0x24, +0x28, +0x2C, +0x30.
     pub surfaces: [u32; 4],
-    pub entry_34: u32,
+    /// Entry +0x34: the stage's number (what `race::single_rally` looks the entry up by); kept in `Work::Entry34` by two of the panels.
+    pub stage_number: u32,
     pub number: u32,
     /// The number's label is string 0x358 (else 0x359).
     pub number_label_one: bool,
@@ -106,7 +107,7 @@ pub fn body<S: Screen<Font = Font, Work = Work>>(
     s.line(Font::Value, &time_of_day(e.duration), LEFT_VALUE_X, 0xE8)?;
     s.string(Font::Label, 0x356, LEFT_LABEL_X, 0xE8)?;
     if keep_entry_34 {
-        s.keep(Work::Entry34, e.entry_34);
+        s.keep(Work::Entry34, e.stage_number);
     }
 
     // Length and its unit; a length of 0 leaves the line empty (the original writes two

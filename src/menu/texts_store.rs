@@ -165,8 +165,8 @@ pub struct MenuTexts {
     pub results1_png: Bytes<38>,
     /// 0x7325AC: "files\g\graphics\screens\results1.png".
     pub results1_png_2: Bytes<38>,
-    /// 0x7325D2: "files\g\graphics\screens\results1.png".
-    pub results1_png_3: Bytes<38>,
+    /// 0x7325D2: the copy `menu::section_times_loop` loads as its background: "files\g\graphics\screens\results1.png".
+    pub section_times_png: Bytes<38>,
     /// 0x7325F8: "files\g\graphics\screens\service.png".
     pub inspection_area_picture: Bytes<37>,
     /// 0x73261D: "files\g\graphics\screens\roptions.png".
@@ -923,7 +923,7 @@ impl MenuTexts {
                 0,
                 b"files\\g\\graphics\\screens\\results1.png",
             )])),
-            results1_png_3: Bytes::new(with_runs::<38>(&[(
+            section_times_png: Bytes::new(with_runs::<38>(&[(
                 0,
                 b"files\\g\\graphics\\screens\\results1.png",
             )])),

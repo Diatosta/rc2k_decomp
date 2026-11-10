@@ -1,5 +1,5 @@
 //! `menu::arcade_retry_review_loop` (0x48861D): the menu after the results screens, by its
-//! title "OPÇÕES DE REVISÃO" (a reading)
+//! title "OPÇÕES DE REVISÃO" (named from its title string and callers; the original's name is lost)
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `roptions.png`; leaving is asked about; also

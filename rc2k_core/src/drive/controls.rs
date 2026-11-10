@@ -11,9 +11,9 @@ pub struct Keys {
     pub pressed: u32,
     /// The handbrake's input (`dword_61389C`): bit 2 held times 0x60.
     pub hand: u32,
-    /// Bit 0 newly pressed (`dword_6138A0`; a reading: gear up).
+    /// Bit 0 newly pressed (`dword_6138A0`, `input_gear_up`).
     pub up: u32,
-    /// Bit 1 newly pressed (`dword_6138A4`; a reading: gear down).
+    /// Bit 1 newly pressed (`dword_6138A4`, `input_gear_down`).
     pub down: u32,
 }
 

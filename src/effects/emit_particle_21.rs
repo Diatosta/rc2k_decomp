@@ -41,7 +41,7 @@ fn rate(
             .each_ref()
             .map(super::super::session::Float::bits);
         x87::speed_rate_to_int(
-            wheel.speed_c.bits(),
+            wheel.driven_speed.bits(),
             k1,
             k2,
             k3,
@@ -123,9 +123,9 @@ pub fn emit_particle_21(
             );
             let f = [0, 1, 2].map(|i| particles.kind21_set.motion_k[3 * k + i].bits());
             Ok(x87::three_products([
-                [first, wheel.speed_10.bits(), f[0]],
-                [third, wheel.speed_18.bits(), f[1]],
-                [third, wheel.speed_c.bits(), f[2]],
+                [first, wheel.local_velocity_x.bits(), f[0]],
+                [third, wheel.local_velocity_z.bits(), f[1]],
+                [third, wheel.driven_speed.bits(), f[2]],
             ]))
         })?;
         slot.put(|en| &mut en.motion[2], motion[2])?;

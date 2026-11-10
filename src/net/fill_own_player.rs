@@ -79,24 +79,24 @@ const SETTINGS: [Setting; 13] = [
 /// Copied after the HUD's bits: (to, from).
 const MORE: [(&Dword, &Dword); 5] = [
     (
-        &crate::race::owner::RACE.shared.state.settings.setting_0,
-        &crate::menu::owner::MENUS.screens.option_work.setting_0,
+        &crate::race::owner::RACE.shared.state.settings.lens_flare,
+        &crate::menu::owner::MENUS.screens.option_work.lens_flare,
     ),
     (
-        &crate::race::owner::RACE.shared.state.settings.setting_1,
-        &crate::menu::owner::MENUS.screens.option_work.setting_1,
+        &crate::race::owner::RACE.shared.state.settings.reflections,
+        &crate::menu::owner::MENUS.screens.option_work.reflections,
     ),
     (
-        &crate::race::owner::RACE.shared.state.settings.setting_2,
-        &crate::menu::owner::MENUS.screens.option_work.setting_2,
+        &crate::race::owner::RACE.shared.state.settings.car_shadows,
+        &crate::menu::owner::MENUS.screens.option_work.car_shadows,
     ),
     (
-        &crate::race::owner::RACE.shared.state.settings.setting_3,
-        &crate::menu::owner::MENUS.screens.option_work.setting_3,
+        &crate::race::owner::RACE.shared.state.settings.car_detail,
+        &crate::menu::owner::MENUS.screens.option_work.car_detail,
     ),
     (
-        &crate::race::owner::RACE.shared.state.settings.setting_4,
-        &crate::menu::owner::MENUS.screens.option_work.setting_4,
+        &crate::race::owner::RACE.shared.state.settings.headlights,
+        &crate::menu::owner::MENUS.screens.option_work.headlights,
     ),
 ];
 pub fn fill_own_player(

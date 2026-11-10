@@ -1,7 +1,7 @@
 //! `physics::air_drag` (0x43F2DA): for the motion's three (`dword_71A17C`,
 //! `dword_71A180`, `g_carSpeed`): its square times `flt_613FCC` over `flt_5C5E34` into
 //! `flt_614810` .. `flt_614818`, made against the motion (|it| when the motion is below 0
-//! or no number, else -|it|). By the look of it the air's drag (a reading).
+//! or no number, else -|it|). This is the air's drag: a force against the motion that grows with the square of the speed.
 //!
 //! Caller: `physics::car_physics_step` (0x43B80E), every physics step.
 

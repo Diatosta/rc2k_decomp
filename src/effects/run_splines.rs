@@ -24,7 +24,7 @@ fn step_made(paths: &Paths, half: u32) -> Result<(), Refused> {
     {
         let mut m = paths.spline_head.made.get() as i32;
         let h = half as i32;
-        if marks.spline_switch.get() != 0 {
+        if marks.spline_handbrake.get() != 0 {
             marks.spline_gear_changed.set(0);
             if m < 0x80 {
                 m = m.wrapping_add(h);

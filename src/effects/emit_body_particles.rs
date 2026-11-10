@@ -36,8 +36,11 @@ fn prepare(
         if flip & 1 == 0 {
             effects.kinds.emitter.record.set(3);
         }
-        record.speed_c.set_bits(0);
-        let chance = x87::mul_to_int(record.chance.bits(), effects.setup.floats.two_pow_16.bits());
+        record.driven_speed.set_bits(0);
+        let chance = x87::mul_to_int(
+            record.chance.bits(),
+            effects.setup.floats.fixed_16_scale.bits(),
+        );
         ring.work.whole.set(chance as u32);
         let r = next_c5(&effects.kinds.emitter.body_random);
         if ((r & 0xFFFF) as i32) < chance {

@@ -209,7 +209,7 @@ impl GearInputs {
     }
 }
 
-/// A gear change heard (a reading).
+/// A gear change whose sound is to be played (`physics::gear_change_sound`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GearChange {
     Up,

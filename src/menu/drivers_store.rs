@@ -30,7 +30,8 @@ pub struct Driver {
     /// +0x18: the car (a time entry's +0x10; `name.cfg`'s second number).
     pub car: Dword,
     pub field_1c: Dword,
-    pub field_20: Dword,
+    /// +0x20: 0 in all 180 shipped records and put back to 0 at an event's start (`begin`); read by no code (saved with the record).
+    pub unread_zero_20: Dword,
     /// +0x24: 1 while in the event (`IN_EVENT`), 4 once dropped out
     /// (`rc2k_core::menu::event_races::DROPPED`).
     pub in_event: Dword,
@@ -64,7 +65,7 @@ impl Driver {
             nation: Dword::new(v[5]),
             car: Dword::new(v[6]),
             field_1c: Dword::new(v[7]),
-            field_20: Dword::new(v[8]),
+            unread_zero_20: Dword::new(v[8]),
             in_event: Dword::new(v[9]),
             field_28: Dword::new(v[10]),
             condition,
@@ -90,7 +91,7 @@ impl Driver {
     /// 0, in the event.
     pub fn begin(&self) {
         self.reset();
-        self.field_20.set(0);
+        self.unread_zero_20.set(0);
     }
 
     /// The twelve condition figures back at 100 (`menu::reset_driver_condition`).

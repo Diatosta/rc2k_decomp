@@ -32,7 +32,7 @@ pub struct PolygonEntry {
     pub fog: Byte,
     /// +0x21: the amount (alpha) byte.
     pub amount: Byte,
-    /// +0x22: not named.
+    /// +0x22: the two top bytes of the dword holding `fog` and `amount`; copied along with the entry, never given a meaning (padding).
     pub pad_22: Bytes<2>,
     /// +0x24: work space of the clip (`scene::clip`).
     pub work: Bytes<32>,
@@ -156,7 +156,7 @@ pub struct PolygonWork {
     pub list: [Dword; 64],
     /// +0x2300 (0x977810): `g_polygonOldList`: the list before a clip (`scene::clip`, `race::car_shadow`).
     pub old_list: [Dword; 64],
-    /// +0x2400 (0x977910): not named: nothing reads it.
+    /// +0x2400 (0x977910): 0x600 bytes between the old list and the record pool; nothing reads or writes them (a gap).
     pub unknown_2400: [Dword; 0x180],
     /// +0x2a00 (0x977F10): `g_polygonRecordPool`: the point records a clip makes, 0x2020 bytes (`scene::clip`, `scene::draw_flat_quad`).
     pub record_pool: [Dword; 0x808],

@@ -10,13 +10,13 @@ use crate::session::{Dword, Float};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewVars {
-    /// +0x0 (0x60626C): car +0x69C copied at the frame start (`race::frame_draw`; `car_draw` tests it against the drawn car) (a reading).
+    /// +0x0 (0x60626C): the car block's +0x69C copied at the frame start (`race::frame_draw`); `race::car_draw` tests it against the drawn car, so it marks which car the view follows.
     pub view_car_flag_a: Dword,
-    /// +0x4 (0x606270): car +0x684 copied at the frame start; index into the stage records (`race::car_draw`, `race::frame_draw`) (a reading).
+    /// +0x4 (0x606270): the car block's +0x684 copied at the frame start; the car's index into the stage records (`race::car_draw`, `race::frame_draw`).
     pub view_car_stage: Dword,
-    /// +0x8 (0x606274): car +0x6F0 copied at the frame start (`race::frame_draw`) (a reading).
+    /// +0x8 (0x606274): the car block's +0x6F0 copied at the frame start (`race::frame_draw`); IDA: read by `camera_view` (0x43832A) and written by `race::car_light_modes` (0x455C44).
     pub view_car_flag_b: Dword,
-    /// +0xc (0x606278): `dword_606278`: copied to `view_scale` by `race::frame_draw` (a reading).
+    /// +0xc (0x606278): `dword_606278`: copied to `view_scale` by `race::frame_draw` (the view's size scale).
     pub view_scale_kept: Float,
     /// +0x10 (0x60627C): `g_drawnCar`: the car being drawn (`race::car_draw`, `scene::set_object_light`, `scene::list_object_face`).
     pub drawn_car: Dword,
@@ -46,19 +46,19 @@ pub struct ViewVars {
     pub view_angles: [Dword; 6],
     /// +0x64 (0x6062D0): `flt_6062D0` (`physics::update_camera`).
     pub camera_zoom_hold: Float,
-    /// +0x68 (0x6062D4): not named.
+    /// +0x68 (0x6062D4): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_68: Dword,
-    /// +0x6c (0x6062D8): `flt_6062D8` ..: vector whose length is taken (`physics::update_camera`) (a reading).
+    /// +0x6c (0x6062D8): `flt_6062D8` ..: the camera vector (three floats) whose length `physics::update_camera` takes.
     pub camera_vector: [Float; 3],
-    /// +0x78 (0x6062E4): not named.
+    /// +0x78 (0x6062E4): used only by the unported `sub_427DB4` and `sub_43B177` (0x6062E4: compared with 0 and cleared); the port never reaches it.
     pub unknown_78: [Dword; 14],
     /// +0xb0 (0x60631C): `flt_60631C`: held to 0 ..= 1 (`physics::camera_height_bias`, `physics::update_camera`).
     pub camera_distance: Float,
     /// +0xb4 (0x606320): `off_606320`: 0x34 pointers to view records (`physics::camera_view`, `drive::pick_replay_camera`, `effects::stage_record`, `race::car_draw`).
     pub view_records: [Dword; 52],
-    /// +0x184 (0x6063F0): `dword_6063F0`: the view kind (`drive::set_camera_view`) (a reading).
+    /// +0x184 (0x6063F0): `dword_6063F0`: the view kind, the camera mode number (`drive::set_camera_view`; `race::frame_draw::scene_objects` and `car_draw` branch on it).
     pub view_kind: Dword,
-    /// +0x188 (0x6063F4): not named.
+    /// +0x188 (0x6063F4): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_188: [Dword; 33],
     /// +0x20c (0x606478): `dword_606478[]`: by camera view (`race::frame_draw`).
     pub view_hides: [Dword; 34],
@@ -83,7 +83,7 @@ pub struct ViewRecord {
     pub angles: [Dword; 3],
     /// +0x28: `mspx`, `mspy`, `mspz` (floats; the views' shares).
     pub speeds: [Dword; 3],
-    /// +0x34: not named (taken with the rest).
+    /// +0x34: the camera mode record's dword before `fish`; copied with the rest of the record and named nowhere else (the code shows no use).
     pub unknown_34: Dword,
     /// +0x38: `fish` (a whole number).
     pub fish: Dword,

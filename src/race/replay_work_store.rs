@@ -10,11 +10,11 @@ use crate::session::Dword;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ReplayWork {
-    /// +0x0 (0x7194BC): `dword_7194BC` / `dword_7194C0`: the replay's input tape, 16 bytes a tenth, 8 a car for cars 0 and 1, 100 tenths (`drive::record_inputs`, `drive::play_inputs`); extent to `unk_719AFC` (a reading).
+    /// +0x0 (0x7194BC): `dword_7194BC` / `dword_7194C0`: the replay's input tape, 16 bytes a tenth, 8 a car for cars 0 and 1, 100 tenths (`drive::record_inputs`, `drive::play_inputs`); extent to `unk_719AFC`.
     pub replay_tape: [Dword; 400],
-    /// +0x640 (0x719AFC): not named.
+    /// +0x640 (0x719AFC): only pointed to by data offsets in the table at 0x5ECBC6 .. (a pointer table nothing ported reads).
     pub unknown_640: [Dword; 6],
-    /// +0x658 (0x719B14): `dword_719B14`: the car header's stage setting, header offset 0 (`race::replay`, `race::race_end`, `race::viewer`) (a reading of the name).
+    /// +0x658 (0x719B14): `dword_719B14`: the car header's stage setting, header offset 0 (`race::replay`, `race::race_end`, `race::viewer`).
     pub header_stage: Dword,
     /// +0x65c (0x719B18): `dword_719B18`: the header's mode, offset 4; the viewer copies it to the run kind (`race::viewer_load_stage`).
     pub header_mode: Dword,
@@ -52,7 +52,7 @@ pub struct ReplayWork {
     pub patches_in_header: Dword,
     /// +0x79c (0x719C58): `unk_719C58`: the 13 patch switches copied into the header (0x34 bytes, `race::replay_patches`, `race::replay`).
     pub header_patches: [Dword; 13],
-    /// +0x7d0 (0x719C8C): not named.
+    /// +0x7d0 (0x719C8C): `byte_719C8C`: the low byte of the first dword is the first car's door (race) number the viewer reads (`race::viewer_load_stage`); the rest is read by no code.
     pub unknown_7d0: [Dword; 162],
     /// +0xa58 (0x719F14): `dword_719F14`: the wished camera per head byte, indexed by a byte of the frame head (`drive::replay_cameras`).
     pub replay_camera_wishes: [Dword; 47],

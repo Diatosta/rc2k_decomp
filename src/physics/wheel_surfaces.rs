@@ -260,13 +260,13 @@ fn x87_3(shared: &Shared, s: &Surface, d: &Surface, c: usize) {
     let t4 = t2 * t3;
     let t5 = t0 + t4;
     shared.physics_tables.point_grips[c].set_bits(st(t5));
-    let t6 = ld(s.blend_2c.bits());
-    let t7 = ld(d.blend_2c.bits());
+    let t6 = ld(s.wear_factor.bits());
+    let t7 = ld(d.wear_factor.bits());
     let t8 = t7 - t6;
     let t9 = ld(shared.car.wheel_surface_blend[c].bits());
     let t10 = t8 * t9;
     let t11 = t6 + t10;
-    shared.car.point_surface_2c[c].set_bits(st(t11));
+    shared.car.point_wear_factor[c].set_bits(st(t11));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -350,22 +350,22 @@ fn x87_5(race: &Race, s: &Surface, d: &Surface, c: usize) {
     let t40 = t38 * t39;
     let t41 = t36 + t40;
     race.shared.physics_tables.surface_blends[c].set_bits(st(t41));
-    let t42 = ld(s.blend_24.bits());
-    let t43 = ld(d.blend_24.bits());
+    let t42 = ld(s.rolling_drag_min_speed.bits());
+    let t43 = ld(d.rolling_drag_min_speed.bits());
     let t44 = t43 - t42;
     let t45 = ld(race.shared.car.wheel_surface_blend[c].bits());
     let t46 = t44 * t45;
     let t47 = t42 + t46;
     race.shared.physics_tables.surface_blends[5 + c].set_bits(st(t47));
-    let t48 = ld(s.blend_10[1].bits());
-    let t49 = ld(d.blend_10[1].bits());
+    let t48 = ld(s.mud_rates[1].bits());
+    let t49 = ld(d.mud_rates[1].bits());
     let t50 = t49 - t48;
     let t51 = ld(race.shared.car.wheel_surface_blend[c].bits());
     let t52 = t50 * t51;
     let t53 = t48 + t52;
     race.shared.physics_tables.surface_blends[10 + c].set_bits(st(t53));
-    let t54 = ld(s.blend_10[0].bits());
-    let t55 = ld(d.blend_10[0].bits());
+    let t54 = ld(s.mud_rates[0].bits());
+    let t55 = ld(d.mud_rates[0].bits());
     let t56 = t55 - t54;
     let t57 = ld(race.shared.car.wheel_surface_blend[c].bits());
     let t58 = t56 * t57;

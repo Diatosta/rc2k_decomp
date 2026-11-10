@@ -12,7 +12,7 @@ use crate::session::{Bytes, Dword};
 pub struct ErrorList {
     /// +0x0 (0x637660): `unk_637660`: the error list read from the file named at 0x60AE02 (`race::load_error_list`).
     pub list: Bytes<0x2000>,
-    /// +0x2000 (0x639660): `dword_639660` .. `dword_639678`: not worked out.
+    /// +0x2000 (0x639660): `dword_639660` .. `dword_639678`: used only by the unported `sub_427DB4` and dead code outside any function (0x43B07E ..); the port never reaches it.
     pub unknown_2000: [Dword; 7],
 }
 

@@ -1,6 +1,7 @@
 //! `physics::probe_ground` (0x45D305): the ground under each of the car's
 //! `dword_71A238` probe points (the work copy's lists x `flt_71AAC8`, y `flt_71ABC8`, z
-//! `flt_71ACC8`, 0x40 each; the first four by the look of it the wheels, a reading).
+//! `flt_71ACC8`, 0x40 each; the first four are the wheels' points: they alone get their y
+//! replaced below, and they feed `wheel_ground_x / height / z` and `wheel_lifted`).
 //! Nothing when the count is 0. Else `dword_6D3B84` = -1 and for each point b:
 //! - for b < 4 its y is replaced: `flt_71ABE0` (the list's seventh y) less `flt_614BF4`,
 //!   plus `flt_613E8C` unless bit b + 5 of `dword_71A270` is set and then unless bit

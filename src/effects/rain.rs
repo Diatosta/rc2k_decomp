@@ -50,7 +50,7 @@ pub struct RainState {
     pub kept: [[Dword; 256]; 3],
     /// 0x8BDD11: Not named: 24 bytes (a gap, or unreferenced data).
     pub _gap_8bdd11: Bytes<24>,
-    /// 0x8BDD29: `flt_8BDD29`, `flt_8BDD2D`: the streak's first end's side offset (y, x), the line across the screen scaled by the half width and the end's scale (a reading).
+    /// 0x8BDD29: `flt_8BDD29`, `flt_8BDD2D`: the streak's half-width offset (x, y) at its first end: the line across the streak's screen direction (the direction turned a quarter: -dy, dx) normalised, times the kind's half width and the first end's perspective scale (`effects::draw_rain_streak`: the quad's corners are the ends' points less / plus it).
     pub edge_a: [Float; 2],
     /// 0x8BDD31: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_8bdd31: Bytes<4>,

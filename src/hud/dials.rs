@@ -1,9 +1,9 @@
 //! The HUD's dials: a layout's discs (rev counter and speedometer dials, `hud::draw_disc`)
 //! and needles (`hud::draw_needle`). Each is drawn from the shape's variables, which a
 //! set-up first fills from fields of the panel (`race::panel_store::Panel`) and from variables of
-//! the layout's own (the originals: `disc_0` 0x4B6BFD, `disc_1a` 0x4B6B5B, `disc_1b` 0x4B6BAC,
-//! `disc_2a` 0x4B6AA4, `disc_2b` 0x4B6B0A; `needle_0` 0x4B6DB9, `needle_1a` 0x4B6E67,
-//! `needle_1b` 0x4B6E9A, `needle_2a` 0x4B6DEC, `needle_2b` 0x4B6E34). The layouts are the
+//! the layout's own (the originals: `disc_setup_layout0` 0x4B6BFD, `disc_setup_layout1_first` 0x4B6B5B, `disc_setup_layout1_second` 0x4B6BAC,
+//! `disc_setup_layout2_first` 0x4B6AA4, `disc_setup_layout2_second` 0x4B6B0A; `needle_setup_layout0` 0x4B6DB9, `needle_setup_layout1_first` 0x4B6E67,
+//! `needle_setup_layout1_second` 0x4B6E9A, `needle_setup_layout2_first` 0x4B6DEC, `needle_setup_layout2_second` 0x4B6E34). The layouts are the
 //! HUD's three (`Panel::players`).
 
 use crate::errors::Refused;
@@ -40,53 +40,53 @@ pub struct NeedleStyle {
 
 pub static DISC_0: DiscStyle = DiscStyle {
     shift: |p| &p.view_a.motion,
-    vars: |h| &h.disc_0,
+    vars: |h| &h.disc_setup_layout0,
     lifted_centre: false,
 };
 pub static DISC_1A: DiscStyle = DiscStyle {
     shift: |p| &p.view_a.motion,
-    vars: |h| &h.disc_1a,
+    vars: |h| &h.disc_setup_layout1_first,
     lifted_centre: false,
 };
 pub static DISC_1B: DiscStyle = DiscStyle {
     shift: |p| &p.view_b.motion,
-    vars: |h| &h.disc_1b,
+    vars: |h| &h.disc_setup_layout1_second,
     lifted_centre: false,
 };
 pub static DISC_2A: DiscStyle = DiscStyle {
     shift: |p| &p.view_a.motion,
-    vars: |h| &h.disc_2a,
+    vars: |h| &h.disc_setup_layout2_first,
     lifted_centre: true,
 };
 pub static DISC_2B: DiscStyle = DiscStyle {
     shift: |p| &p.view_b.motion,
-    vars: |h| &h.disc_2b,
+    vars: |h| &h.disc_setup_layout2_second,
     lifted_centre: false,
 };
 
 pub static NEEDLE_0: NeedleStyle = NeedleStyle {
     value: |p| &p.view_a.whole,
-    vars: |h| &h.needle_0,
+    vars: |h| &h.needle_setup_layout0,
     lifted_centre: false,
 };
 pub static NEEDLE_1A: NeedleStyle = NeedleStyle {
     value: |p| &p.view_a.whole,
-    vars: |h| &h.needle_1a,
+    vars: |h| &h.needle_setup_layout1_first,
     lifted_centre: false,
 };
 pub static NEEDLE_1B: NeedleStyle = NeedleStyle {
     value: |p| &p.view_b.whole,
-    vars: |h| &h.needle_1b,
+    vars: |h| &h.needle_setup_layout1_second,
     lifted_centre: false,
 };
 pub static NEEDLE_2A: NeedleStyle = NeedleStyle {
     value: |p| &p.view_a.whole,
-    vars: |h| &h.needle_2a,
+    vars: |h| &h.needle_setup_layout2_first,
     lifted_centre: true,
 };
 pub static NEEDLE_2B: NeedleStyle = NeedleStyle {
     value: |p| &p.view_b.whole,
-    vars: |h| &h.needle_2b,
+    vars: |h| &h.needle_setup_layout2_second,
     lifted_centre: false,
 };
 

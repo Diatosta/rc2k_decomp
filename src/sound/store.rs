@@ -77,13 +77,13 @@ pub struct EngineVoice {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundObject {
-    /// +0: added to a sound set's first sound to pick the car's sound; negative for a computer's car (a reading).
+    /// +0: added to a sound set's first sound to pick the car's sound; negative for a computer's car (the sets are picked in `sound::revs_sound` and `surface_sound`).
     pub sound_offset: Dword,
     /// +4: the car's sound kind, an index into `off_514F90` (36 of 0x88 bytes).
     pub kind: Dword,
     /// +8: 1 when the object is in use (`sound::car_sounds_all`).
     pub in_use: Dword,
-    /// +0xC: `g_car` +0x6F0 xor 1; the engine, throttle and speed sounds' volume is scaled by a constant when it is 0 (a reading).
+    /// +0xC: `g_car` +0x6F0 xor 1; the engine, throttle and speed sounds' volume is scaled by a constant when it is 0 (`sound::revs_sound`, `throttle_sound`, `car_slot_sounds`: 1 is the view of the car itself, which gets the surface's gain instead).
     pub view_flag: Dword,
     /// +0x10: 1 when a new revs reading (+0x14) came (`sound::car_engine_state`).
     pub new_revs: Dword,
@@ -95,9 +95,9 @@ pub struct SoundObject {
     pub speed: Float,
     /// +0x20: set by the physics when the gear changed (cleared by `sound::car_engine_state`).
     pub gear_event: Dword,
-    /// +0x24: 1 when the car is in no gear (a reading).
+    /// +0x24: 1 when the car is in neutral (gear 0, or the gear cue's random bits 0: `sound::car_engine_state`); 1 from the set-up.
     pub no_gear: Dword,
-    /// +0x28: not worked out (1 dwords).
+    /// +0x28: one dword no code reads or writes (0 in the image).
     pub _gap_28: [Dword; 1],
     /// +0x2C: the car's place less the listener's, turned by the view and scaled (`physics::car_sound_state`).
     pub place: [Float; 3],
@@ -109,23 +109,23 @@ pub struct SoundObject {
     pub reading_times: [Dword; 2],
     /// +0x9C: the revs of the last two readings.
     pub reading_revs: [Dword; 2],
-    /// +0xA4: cleared by the set-up (`race::set_up_race_sound_objects`); nothing else reads or writes them.
-    pub cleared_a4: [Dword; 2],
+    /// +0xA4: two dwords cleared by the set-up (`race::set_up_race_sound_objects`); nothing else reads or writes them.
+    pub unused_a4: [Dword; 2],
     /// +0xAC: set by the physics (`g_car` +0x248 and +0x24C); the speed sound stops when it is not 0.
     pub flag_ac: Dword,
-    /// +0xB0: the force feedback's inputs (`input::update_car_effects`): +0x1A4 x 10, (+0x1B8 - +0x1AC) x 10, +0x1A4 x 10, +0x1AC x 10 of the view block.
+    /// +0xB0: the force feedback's inputs (`input::update_car_effects`; of the view block +0x1A4 the sideways speed, +0x1AC the forward speed, +0x1B8 the driven wheels' speed): +0x1A4 x 10, (+0x1B8 - +0x1AC) x 10, +0x1A4 x 10, +0x1AC x 10 of the view block.
     pub effect_in: [Dword; 4],
     /// +0xC0: the knock's force (`input::update_car_effects`); cleared by the set-up.
     pub knock: Dword,
     /// +0xC4: the knock's inputs (cleared after each use; +0xCC and +0xC4 give the angle, +0xD0 the weight).
     pub knock_in: [Dword; 4],
-    /// +0xD4: set by `physics::share_engine_sound` (a reading: nothing in the ported code reads it).
-    pub knock_d4: Dword,
-    /// +0xD8: the third value of the effect requests (a reading).
-    pub effect_d8: Dword,
+    /// +0xD4: a copy of the car's steering trim (`g_car` `steer_trim`) made by `physics::share_engine_sound`; nothing reads it.
+    pub steer_trim_copy: Dword,
+    /// +0xD8: the `b` number of the Fourth, Steering and Landing force-feedback requests (`input::update_car_effects`: the request word's bits 20 ..); never written, so 0 (read only by that function).
+    pub effect_request_b: Dword,
     /// +0xDC: counts the knocks to 4 before the next effect 3.
     pub knock_count: Dword,
-    /// +0xE0: not worked out (2 dwords).
+    /// +0xE0: two dwords no code reads or writes (0 in the image).
     pub _gap_e0: [Dword; 2],
     /// +0xE8: the gear.
     pub gear: Dword,
@@ -135,8 +135,8 @@ pub struct SoundObject {
     pub gear_notice: Dword,
     /// +0xF4: counts down to 0; the speed sound waits for it.
     pub countdown: Dword,
-    /// +0xF8: back-fire wait flag (a reading).
-    pub wait_f8: Dword,
+    /// +0xF8: 1 once the throttle-drop sound has been triggered in this downward run of the throttle (set when the throttle falls more than 0x14 below its follower, cleared when it rises; `rc2k_core::sound::engine`), so it plays once per lift; 1 from the set-up.
+    pub drop_latched: Dword,
     /// +0xFC: the last direction of the revs.
     pub last_direction: Dword,
     /// +0x100: the revs sound's input, (+0x14 - kind +4) x kind +0xC.
@@ -149,13 +149,13 @@ pub struct SoundObject {
     pub state: Dword,
     /// +0x110: the last state.
     pub last_state: Dword,
-    /// +0x114: not worked out (1 dwords).
+    /// +0x114: one dword no code reads or writes (0 in the image).
     pub _gap_114: [Dword; 1],
     /// +0x118: follows +0x18.
     pub smooth_throttle: Dword,
-    /// +0x11C: the gap (a reading).
-    pub gap_time: Dword,
-    /// +0x120: not worked out (2 dwords).
+    /// +0x11C: the throttle's lead over its follower, `throttle` - `smooth_throttle` (negative on a lift; a gear cue needs 0x32 or more, the drop sound -0x14 or less).
+    pub throttle_lead: Dword,
+    /// +0x120: two dwords no code reads or writes (0 in the image).
     pub _gap_120: [Dword; 2],
     /// +0x128: the turns going up.
     pub turns_up: Dword,
@@ -203,13 +203,13 @@ pub struct SoundObject {
     pub slot_c: SoundSlot,
     /// +0x278: 1 after a landing's effects (`input::update_car_effects`).
     pub landed: Dword,
-    /// +0x27C: the last +0xBC, for effect 5 (a reading).
-    pub last_effect_bc: Dword,
+    /// +0x27C: the last forward speed x 10 (`effect_in[3]`, +0xBC), kept for the next turn's speed-change effect (effect 5, `input::update_car_effects`); cleared by the set-up.
+    pub last_forward_speed: Dword,
     /// +0x280: cleared by the set-up; nothing else reads or writes it.
-    pub cleared_280: Dword,
+    pub unused_280: Dword,
     /// +0x284: the first wheel sum x 0.4 (a whole number).
     pub sum_a: Dword,
-    /// +0x288: not worked out (1 dwords).
+    /// +0x288: one dword no code reads or writes (0 in the image).
     pub _gap_288: [Dword; 1],
     /// +0x28C: the second wheel sum x 64 (a whole number).
     pub sum_b: Dword,
@@ -296,20 +296,20 @@ const fn initial_object(sound_offset: u32) -> SoundObject {
         }; 4],
         reading_times: [Dword::new(0), Dword::new(0)],
         reading_revs: [Dword::new(0), Dword::new(0)],
-        cleared_a4: [Dword::new(0), Dword::new(0)],
+        unused_a4: [Dword::new(0), Dword::new(0)],
         flag_ac: Dword::new(0),
         effect_in: [const { Dword::new(0) }; 4],
         knock: Dword::new(0),
         knock_in: [const { Dword::new(0) }; 4],
-        knock_d4: Dword::new(0),
-        effect_d8: Dword::new(0),
+        steer_trim_copy: Dword::new(0),
+        effect_request_b: Dword::new(0),
         knock_count: Dword::new(0),
         _gap_e0: [Dword::new(0), Dword::new(0)],
         gear: Dword::new(0),
         last_gear: Dword::new(0),
         gear_notice: Dword::new(0),
         countdown: Dword::new(0),
-        wait_f8: Dword::new(1),
+        drop_latched: Dword::new(1),
         last_direction: Dword::new(0),
         revs_input: Float::from_bits(0),
         throttle_input: Float::from_bits(0),
@@ -318,7 +318,7 @@ const fn initial_object(sound_offset: u32) -> SoundObject {
         last_state: Dword::new(0),
         _gap_114: [Dword::new(0)],
         smooth_throttle: Dword::new(0),
-        gap_time: Dword::new(0),
+        throttle_lead: Dword::new(0),
         _gap_120: [Dword::new(0), Dword::new(0)],
         turns_up: Dword::new(0),
         direction: Dword::new(0),
@@ -433,8 +433,8 @@ const fn initial_object(sound_offset: u32) -> SoundObject {
             rate: Dword::new(0xFFFFFF91),
         },
         landed: Dword::new(0),
-        last_effect_bc: Dword::new(0),
-        cleared_280: Dword::new(0),
+        last_forward_speed: Dword::new(0),
+        unused_280: Dword::new(0),
         sum_a: Dword::new(0),
         _gap_288: [Dword::new(0)],
         sum_b: Dword::new(0),
@@ -540,7 +540,7 @@ pub struct RaceClock {
     pub turns: Dword,
     /// `flt_5124F8` (337.52) and `flt_5124FC` (its inverse, 0.002963): a moving sound's
     /// pitch is (speed of approach + the first) times the second, the Doppler factor
-    /// with the speed of sound (a reading).
+    /// with the speed of sound (the Doppler factor, `sound::turn_parts`).
     pub sound_speed: Float,
     pub over_sound_speed: Float,
     /// `flt_512500` (64) and `flt_512504` (128 / pi): a placed sound's pan, the centre and
@@ -806,9 +806,9 @@ pub struct SpotPicks {
     pub kind_sounds: [Dword; 22],
     /// `g_spotKindRepeats` (`unk_517FAC`): a kind's repeats, 8 bytes, kind 1 first.
     pub kind_repeats: [KindRepeats; 21],
-    /// `dword_518054`: cleared at a race's start (`race::reset_race_sounds`); read by a sound function not ported by name (0x40EC85); a reading.
+    /// `dword_518054`: cleared at a race's start (`race::reset_race_sounds`); the only code that touches it; no ported code reads it (the original's 0x40EC85 did).
     pub spot_work_a: Dword,
-    /// `dword_518058`: read at 0x40EC8E (a reading).
+    /// `dword_518058`: read by the original at 0x40EC8E; no ported code reads or writes it (0 in the image).
     pub spot_work_b: Dword,
     /// `0x51805C`: nine dwords nothing ported reads or writes (1, 2, 3, 4, 5, 6, 9, 7, 8 at start).
     pub _gap_5c: [Dword; 9],
@@ -1035,8 +1035,8 @@ impl SettingsApplied {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundOptions {
-    /// `dword_5180F0`: kept in `var\ral.dat` (`saves::load_options`); what it sets is not worked out.
-    pub kept_f0: Dword,
+    /// +0 (0x5180F0) `dword_5180F0`: kept in `var\ral.dat` (`saves::load_options`), 1 at start; read and written by no other code, so what it sets is unknown.
+    pub unread_option_f0: Dword,
     /// `dword_5180F4`: the driver names switch (`menu::toggle_5180f4`), kept in `var\ral.dat`.
     pub name_switch: Dword,
     /// `g_tuneTurn`: which of tunes 10 .. 15 the next tune 0xA is (0 .. 5), kept.
@@ -1050,7 +1050,7 @@ pub struct SoundOptions {
 impl SoundOptions {
     pub const fn new() -> Self {
         SoundOptions {
-            kept_f0: Dword::new(1),
+            unread_option_f0: Dword::new(1),
             name_switch: Dword::new(0),
             tune_turn: Dword::new(0),
             music_volume: Dword::new(0x20),
@@ -1082,11 +1082,11 @@ pub struct CdAudio {
     pub _gap_10c: Dword,
     /// `g_cdTrack`.
     pub track: Dword,
-    /// `dword_518114` (a reading).
+    /// `dword_518114`: no code reads or writes it.
     pub work_114: Dword,
     /// `mciId`: the CD audio device.
     pub mci_id: Dword,
-    /// `dword_51811C` (a reading).
+    /// `dword_51811C`: no code reads or writes it.
     pub work_11c: Dword,
 }
 

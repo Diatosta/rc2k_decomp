@@ -11,25 +11,25 @@ use crate::session::{Bytes, Dword};
 pub struct MarksWork {
     /// +0x0 (0x71C814): `g_fpuStatus`: the last compare's C0 .. C2 (`scene::vector3`, the marks' compares).
     pub fpu_status: Dword,
-    /// +0x4 (0x71C818): not named or used (a gap of 0x58 bytes).
+    /// +0x4 (0x71C818): an unreferenced gap (0x58 bytes).
     pub unknown_4: Bytes<88>,
     /// +0x5c (0x71C870): `flt_71C870`: 1 / 65536, the pixel shake (`effects::pixels`).
     pub shake: Dword,
-    /// +0x60 (0x71C874): not named or used (a gap of 0xc bytes).
+    /// +0x60 (0x71C874): an unreferenced gap (0xc bytes).
     pub unknown_60: Bytes<12>,
     /// +0x6c (0x71C880): `dword_71C880`: the scratch of the edge pair (`effects::spans`), the rows' lengths (`effects::turns`) and the windscreen drop cell's x (`effects::windscreen_drops_frame`).
     pub scratch: Dword,
-    /// +0x70 (0x71C884): not named or used (a gap of 0x48 bytes).
+    /// +0x70 (0x71C884): an unreferenced gap (0x48 bytes).
     pub unknown_70: Bytes<72>,
     /// +0xb8 (0x71C8CC): `g_marksSeed`: the marks' random seed (times 0x9D plus 0x47 each draw).
     pub seed: Dword,
-    /// +0xbc (0x71C8D0): not named or used (a gap of 0x12 bytes).
+    /// +0xbc (0x71C8D0): an unreferenced gap (0x12 bytes).
     pub unknown_bc: Bytes<18>,
     /// +0xce (0x71C8E2): `dword_71C8E2`: the sound the frame plays (`effects::draw_frame`).
     pub sound_source: Loose32,
     /// +0xd2 (0x71C8E6): `dword_71C8E6`: set to 0 with it (`effects::draw_frame`).
     pub sound_zero: Loose32,
-    /// +0xd6 (0x71C8EA): not named or used (a gap of 0x14c bytes).
+    /// +0xd6 (0x71C8EA): an unreferenced gap (0x14c bytes).
     pub unknown_d6: Bytes<332>,
     /// +0x222 (0x71CA36): `flt_71CA36`: pi / 2, the cosine search's start (`scene::vector3`).
     pub cosine_start: Loose32,
@@ -37,7 +37,7 @@ pub struct MarksWork {
     pub cosine_step: Loose32,
     /// +0x22a (0x71CA3E): `flt_71CA3E`: 0.5.
     pub cosine_half: Loose32,
-    /// +0x22e (0x71CA42): not named or used (a gap of 0x1e bytes).
+    /// +0x22e (0x71CA42): an unreferenced gap (0x1e bytes).
     pub unknown_22e: Bytes<30>,
 }
 

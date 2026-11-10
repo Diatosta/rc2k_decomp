@@ -100,7 +100,7 @@ pub fn set_handling(race: &Race) -> Result<(), Refused> {
     ));
     race.shared.physics_tables.handling[4].set_bits(x87::mul(
         race.shared.physics_tables.handling[4].bits(),
-        race.shared.physics_tables.spec_a0.get(),
+        race.shared.physics_tables.ride_height_handling_scale.get(),
     ));
     for v in after(race) {
         lerp(v);

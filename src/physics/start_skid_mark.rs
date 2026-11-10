@@ -1,7 +1,7 @@
 //! `physics::start_skid_mark` (0x43F272): when either of the two qwords at
 //! `qword_71A5D8`, `qword_71A5E0` is not 0 and `dword_71A664` is: `dword_71A660` = it less
 //! 1, `dword_71A66C` 1, `dword_71A674` 0, `dword_71A670` 10, `dword_71A668` the step count
-//! `dword_719FE0`; then `dword_71A664` 0. By the look of it a mark's start (a reading).
+//! `dword_719FE0`; then `dword_71A664` 0. This starts a skid mark (the start's place, a count of 10, the step it began).
 //!
 //! Caller: `physics::car_physics_step` (0x43B6FB), every physics step.
 //!

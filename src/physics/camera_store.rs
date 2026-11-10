@@ -26,7 +26,7 @@ pub struct CameraWork {
     pub camera_offset_y: Dword,
     /// +0x30 (0x608B38): the camera's offset, z (`physics::update_camera`, `physics::place_camera`).
     pub camera_offset_z: Dword,
-    /// +0x34 (0x608B3C): not named.
+    /// +0x34 (0x608B3C): no instruction of the game refers to it (IDA, 2026-11-10); unused.
     pub unknown_34: [Dword; 5],
     /// +0x48 (0x608B50): the start's heading, also the heading the camera eases to (`race::car_starts`, `physics::ease_view_turn`).
     pub start_heading: Dword,
@@ -96,7 +96,7 @@ pub struct CameraWork {
     pub pitch_ceiling: Dword,
     /// +0x11c (0x608C24): the last pitch step, 0 ends the search (`physics::ease_pitch_up`, `physics::ease_pitch_down`).
     pub pitch_step: Dword,
-    /// +0x120 (0x608C28): not named.
+    /// +0x120 (0x608C28): no instruction of the game refers to it (IDA, 2026-11-10); unused.
     pub unknown_120: [Dword; 5],
     /// +0x134 (0x608C3C): ground probes made, `physics::count_ground_probe` (a reading: statistics).
     pub ground_probes: Dword,

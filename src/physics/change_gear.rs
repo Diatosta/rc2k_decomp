@@ -25,7 +25,7 @@ pub struct ChangePlaces<'a> {
     /// By address: `bt` on memory, its bit number past the first dword.
     pub bits: &'a dyn Cell32,
     pub changed: &'a dyn Cell32,
-    pub changed_2: &'a dyn Cell32,
+    pub pending: &'a dyn Cell32,
 }
 
 impl<'a> ChangePlaces<'a> {
@@ -34,7 +34,7 @@ impl<'a> ChangePlaces<'a> {
             wanted: &shared.physics_tables.gear_asked,
             bits: &shared.car.lost_gear_bits,
             changed: &shared.car.gear_changed,
-            changed_2: &shared.car.gear_changed_2,
+            pending: &shared.car.gear_change_pending,
         }
     }
 }
@@ -62,7 +62,7 @@ pub fn change_gear_at(
     }
     let mark = || {
         c.changed.set_bits(1);
-        c.changed_2.set_bits(1);
+        c.pending.set_bits(1);
     };
     let neutral = || {
         gp.gear.set_bits(0);

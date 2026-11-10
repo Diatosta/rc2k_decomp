@@ -64,15 +64,15 @@ pub struct FrameWork {
     pub view_layouts: [Dword; 6],
     /// +0x12c (0x6416B8): (`race::show_replay_still`, `race::skidmarks`, `race::frame_views`).
     pub drawing: Dword,
-    /// +0x130 (0x6416BC): (`race::show_replay_still`, `race::skid_laying`).
-    pub still_2: Dword,
+    /// +0x130 (0x6416BC): `dword_6416BC`: 1 while the replay's still frame is shown (set and cleared by `race::show_replay_still`); `race::lay_skidmarks_if_on` lays no skid marks while it is set.
+    pub replay_still_on: Dword,
     /// +0x134 (0x6416C0): by layout (`race::frame_views`).
     pub view_scale_x: [Float; 5],
     /// +0x148 (0x6416D4): by layout.
     pub view_scale_y: [Float; 5],
     /// +0x15c (0x6416E8): the car's place for the camera (`physics::update_camera`, `physics::place_camera`).
     pub camera_car: [Dword; 3],
-    /// +0x168 (0x6416F4): not named.
+    /// +0x168 (0x6416F4): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_168: Dword,
     /// +0x16c (0x6416F8): `g_carDecalPlaces`.
     pub car_decal_places: [Dword; 18],
@@ -94,7 +94,7 @@ pub struct FrameWork {
     /// +0x254 (0x6417E0): the car parts' four matrices (`race::car_parts`); the drawing's are the
     /// view's (`CarDrawState::part_matrices`).
     pub part_matrices: [Float; 64],
-    /// +0x354 (0x6418E0): not named.
+    /// +0x354 (0x6418E0): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_354: [Dword; 18],
     /// +0x39c (0x641928): (`race::car_shadow`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_strength: Dword,
@@ -102,11 +102,11 @@ pub struct FrameWork {
     pub shadow_point_count: Dword,
     /// +0x3a4 (0x641930): (`race::car_shadow`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_texture: Dword,
-    /// +0x3a8 (0x641934): not named.
+    /// +0x3a8 (0x641934): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_3a8: Dword,
     /// +0x3ac (0x641938): (`race::car_shadow`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_light: [Dword; 3],
-    /// +0x3b8 (0x641944): not named.
+    /// +0x3b8 (0x641944): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_3b8: Dword,
     /// +0x3bc (0x641948): the shadow's corners, x and z twice (`race::car_shadow`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_corners: [Dword; 4],

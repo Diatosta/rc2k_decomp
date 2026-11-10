@@ -115,7 +115,7 @@ pub struct RaceSoundSets {
 pub struct SoundRequest {
     /// +0: the sound (bit 0x8000: none).
     pub sound: Dword,
-    /// +4: the pitch, a float (a reading), then the whole number sent.
+    /// +4: the pitch, a float (`sound::revs_sound::fill_pitch_and_volume`), then the whole number sent.
     pub pitch: Dword,
     /// +8: the volume, a float, then (without 3D) the whole number sent.
     pub volume: Dword,
@@ -914,12 +914,13 @@ impl CueLists {
 pub struct SoundSet {
     /// +0: the sound's number, added to the object's `sound_offset`.
     pub sound: Dword,
-    /// +4: a value made a float by `race::sound_tables::sound_row`, read by no sound code.
-    pub unknown_04: Dword,
-    /// +8: as +4.
-    pub unknown_08: Dword,
-    /// +0xC: as +4.
-    pub unknown_0c: Dword,
+    /// +4: a float made from a whole number by `race::sound_tables::sound_row` and read by no
+    /// sound code; 0 in every set of the shipped data (a spare word, probably an input range's start).
+    pub unused_float_04: Dword,
+    /// +8: as +4 (probably the range's end).
+    pub unused_float_08: Dword,
+    /// +0xC: as +4 (probably the range's span).
+    pub unused_float_0c: Dword,
     /// +0x10: the pitch at input 0.
     pub pitch_low: Dword,
     /// +0x14: the pitch's end (the span's second value).
@@ -945,9 +946,9 @@ impl SoundSet {
         }
         Self {
             sound: word(b, at),
-            unknown_04: word(b, at + 0x04),
-            unknown_08: word(b, at + 0x08),
-            unknown_0c: word(b, at + 0x0C),
+            unused_float_04: word(b, at + 0x04),
+            unused_float_08: word(b, at + 0x08),
+            unused_float_0c: word(b, at + 0x0C),
             pitch_low: word(b, at + 0x10),
             pitch_high: word(b, at + 0x14),
             pitch_scale: word(b, at + 0x18),

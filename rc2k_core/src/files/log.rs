@@ -269,7 +269,7 @@ pub struct Machine {
     pub clock: i32,
     pub fpu: i32,
     pub mmx: i32,
-    pub amd_3d: i32,
+    pub has_3dnow: i32,
     pub katmai: i32,
     /// The keyboard type.
     pub machine_type: i32,
@@ -305,7 +305,7 @@ pub fn head(m: &Machine) -> Vec<(Message, bool)> {
         (&b"clk="[..], m.clock),
         (b"fpu=", m.fpu),
         (b"mmx=", m.mmx),
-        (b"amdk3d=", m.amd_3d),
+        (b"amdk3d=", m.has_3dnow),
         (b"katmai=", m.katmai),
         (b"machinetype=", m.machine_type),
     ] {

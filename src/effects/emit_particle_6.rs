@@ -35,43 +35,43 @@ const MOTION: [[(&Float, Speed); 3]; 3] = [
     [
         (
             &crate::effects::owner::EFFECTS.kinds.emitter.side_a[0],
-            |w| &w.speed_10,
+            |w| &w.local_velocity_x,
         ),
         (
             &crate::effects::owner::EFFECTS.kinds.emitter.side_b[0],
-            |w| &w.speed_18,
+            |w| &w.local_velocity_z,
         ),
         (
             &crate::effects::owner::EFFECTS.kinds.emitter.side_b[0],
-            |w| &w.speed_c,
+            |w| &w.driven_speed,
         ),
     ],
     [
         (
             &crate::effects::owner::EFFECTS.kinds.emitter.side_a[1],
-            |w| &w.speed_10,
+            |w| &w.local_velocity_x,
         ),
         (
             &crate::effects::owner::EFFECTS.kinds.emitter.side_b[1],
-            |w| &w.speed_18,
+            |w| &w.local_velocity_z,
         ),
         (
             &crate::effects::owner::EFFECTS.kinds.emitter.side_b[1],
-            |w| &w.speed_c,
+            |w| &w.driven_speed,
         ),
     ],
     [
         (
             &crate::effects::owner::EFFECTS.kinds.emitter.side_a[2],
-            |w| &w.speed_10,
+            |w| &w.local_velocity_x,
         ),
         (
             &crate::effects::owner::EFFECTS.kinds.emitter.side_b[2],
-            |w| &w.speed_18,
+            |w| &w.local_velocity_z,
         ),
         (
             &crate::effects::owner::EFFECTS.kinds.emitter.side_b[2],
-            |w| &w.speed_c,
+            |w| &w.driven_speed,
         ),
     ],
 ];
@@ -91,8 +91,8 @@ fn refusal(
         if !gate(
             wheel,
             object,
-            &wheel.speed_c,
-            &wheel.speed_18,
+            &wheel.driven_speed,
+            &wheel.local_velocity_z,
             &particles.kind6_set.rate_k,
         )?
         .passes
@@ -132,8 +132,8 @@ pub fn emit_particle_6(
         let g = gate(
             wheel,
             object,
-            &wheel.speed_c,
-            &wheel.speed_18,
+            &wheel.driven_speed,
+            &wheel.local_velocity_z,
             &particles.kind6_set.rate_k,
         )?;
         ring.work.rate.set(g.rate as u32);

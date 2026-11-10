@@ -92,33 +92,33 @@ pub fn next_screen_mode(screens: &Screens) {
 /// step down or up.
 pub fn step_texture_setting(screens: &Screens, up: bool, race: &crate::race::owner::Race) {
     // Converted: `rc2k_core::menu::steps::texture`.
-    let v = rc2k_core::menu::steps::texture(screens.option_work.setting_3.get(), up);
-    screens.option_work.setting_3.set(v);
-    race.shared.state.settings.setting_3.set(v);
+    let v = rc2k_core::menu::steps::texture(screens.option_work.car_detail.get(), up);
+    screens.option_work.car_detail.set(v);
+    race.shared.state.settings.car_detail.set(v);
 }
 
-/// One of the colour choices: (its number, the table, where the pick goes).
+/// One of the two start-section picks (IDA's "colour" choices): (its number, the table, where the pick goes).
 #[derive(Clone, Copy)]
-pub struct Colour {
+pub struct StartPick {
     pub number: &'static Dword,
     /// The table of the pictures' string ids, in `CAPTIONS.caption_lists`, from `table_at`.
     pub table_at: usize,
     pub pick: &'static Dword,
 }
 
-pub const COLOUR_A: Colour = Colour {
+pub const START_PICK_A: StartPick = StartPick {
     number: &crate::menu::owner::MENUS.screens.flow.start_section,
     table_at: 21,                                                      // dword_758A66
     pick: &crate::menu::owner::MENUS.tables.captions.caption_lists[7], // dword_758A2E
 };
-pub const COLOUR_B: Colour = Colour {
+pub const START_PICK_B: StartPick = StartPick {
     number: &crate::menu::owner::MENUS.screens.flow.start_section_a8,
     table_at: 13,                                                      // dword_758A46
     pick: &crate::menu::owner::MENUS.tables.captions.caption_lists[8], // dword_758A32
 };
 
 /// `menu::next_colour_a` and the three others.
-pub fn step_colour(tables: &Tables, c: Colour, up: bool) {
+pub fn step_start_pick(tables: &Tables, c: StartPick, up: bool) {
     // Converted: `rc2k_core::menu::steps::colour`.
     let n = rc2k_core::menu::steps::colour(c.number.get() as i32, up);
     c.number.set(n as u32);

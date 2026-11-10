@@ -25,12 +25,12 @@ fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
             }
             if menus.tables.captions.screen_left.get() == 0x1 {
                 menus.tables.captions.screen_left.set(0x0u32);
-                menus.screens.draw_work.work_0c.set(0xFFFFFFFFu32);
+                menus.screens.draw_work.scratch_0c.set(0xFFFFFFFFu32);
                 return Ok(Flow::Leave);
             }
             // 0x14 replays a page; the items count from 1.
             let replay = menus.tables.pages.replay_page.get().wrapping_mul(0x14);
-            menus.screens.draw_work.work_0c.set(
+            menus.screens.draw_work.scratch_0c.set(
                 replay
                     .wrapping_add(menus.screens.loop_flags.item.get())
                     .wrapping_sub(1),
@@ -43,7 +43,7 @@ fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
 
 /// What the loop returns, written by hand from the end of the listing: `dword_755A0C`, which the step above leaves at -1 or at the replay's number.
 fn result(menus: &Menus) -> u32 {
-    menus.screens.draw_work.work_0c.get()
+    menus.screens.draw_work.scratch_0c.get()
 }
 
 pub const SCREEN: Screen = Screen {

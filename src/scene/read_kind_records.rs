@@ -25,22 +25,22 @@ struct KindFile {
 /// In the order they are read.
 const FILES: [KindFile; 4] = [
     KindFile {
-        path: texts::OBJECTS_INFO, // an IDA address in `unknown_14`
+        path: texts::OBJECTS_INFO, // an IDA address in `path_texts`
         first_kind: 0,
         kinds: 0x190,
     },
     KindFile {
-        path: texts::FRONT_INFO, // an IDA address in `unknown_14`
+        path: texts::FRONT_INFO, // an IDA address in `path_texts`
         first_kind: 0x258,
         kinds: 0xC8,
     },
     KindFile {
-        path: texts::CARS_INFO, // an IDA address in `unknown_14`
+        path: texts::CARS_INFO, // an IDA address in `path_texts`
         first_kind: 0x190,
         kinds: 0xC8,
     },
     KindFile {
-        path: texts::EXTRAS_INFO, // an IDA address in `unknown_14`
+        path: texts::EXTRAS_INFO, // an IDA address in `path_texts`
         first_kind: 0x320,
         kinds: 0x190,
     },

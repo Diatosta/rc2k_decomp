@@ -136,7 +136,7 @@ pub fn loadlevel_init(
     race.frame.map.use_packed.set(1u32);
     race.frame
         .map
-        .packed_2
+        .packed_unless_editor
         .set((race.shared.switches.editor_mode.bits() == 0) as u32);
     let mut direction: u32 = race.shared.vars.direction.bits();
     if [0x1F, 0x22, 0x51].contains(&race.shared.vars.stage_number.bits()) {

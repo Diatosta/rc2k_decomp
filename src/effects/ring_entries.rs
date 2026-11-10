@@ -76,7 +76,9 @@ pub struct Entry {
     pub box_limit: [u32; 2],
     /// 0x84: The ticks of life left.
     pub life: u32,
+    /// 0x88: no emitter writes it and no ring step reads it (only the tests' word copies touch it); an unused word.
     pub unknown_88: u32,
+    /// 0x8C: as 0x88, an unused word.
     pub unknown_8c: u32,
     /// 0x90: The emitting car's tag (its object's +0x1C, 24 bits), for the draw lists.
     pub car_tag: u32,

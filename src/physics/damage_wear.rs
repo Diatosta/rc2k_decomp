@@ -28,7 +28,7 @@ pub fn steps(race: &Race) {
         &race.physics.damage.engine_speed_share,
         &race.physics.damage.lerp_tables[0],
         &race.physics.damage.gauge_low,
-        &race.physics.damage.unknown_11c,
+        &race.physics.damage.engine_speed_wear_factor,
     );
     for k in 0..2 {
         raise(&race.physics, &race.shared.car.brake_heat[k], |g| {
@@ -106,18 +106,18 @@ pub fn steps(race: &Race) {
         &race.shared.car.cooling_damage,
         &race.physics.damage.lerp_tables[1],
         &race.physics.damage.gauge_low,
-        &race.physics.damage.unknown_120,
+        &race.physics.damage.cooling_capacity,
     );
     lerp_gap(&race.physics.damage);
     hold_low(
-        &race.physics.damage.unknown_124,
+        &race.physics.damage.overheat_excess,
         &race.physics.damage.gauge_low,
     );
     raise(&race.physics, &race.shared.car.engine_heat, |g| {
         add_wear(
             &race.physics.damage,
             &race.physics.damage.wear_rates[0],
-            &race.physics.damage.unknown_124,
+            &race.physics.damage.overheat_excess,
             g,
             g,
         );
@@ -143,43 +143,43 @@ pub fn steps(race: &Race) {
         &race.shared.car.stiffness_mean,
         &race.physics.damage.lerp_tables_b[2],
         &race.physics.damage.gauge_low,
-        &race.physics.damage.unknown_10c,
+        &race.physics.damage.stiffness_body_factor,
     );
     square_into(
-        &race.physics.damage.unknown_10c,
-        &race.physics.damage.unknown_10c,
+        &race.physics.damage.stiffness_body_factor,
+        &race.physics.damage.stiffness_body_factor,
     );
     table_lerp(
         &race.shared.car.stiffness_mean,
         &race.physics.damage.lerp_tables_b[0],
         &race.physics.damage.gauge_low,
-        &race.physics.damage.unknown_108,
+        &race.physics.damage.stiffness_suspension_factor,
     );
     square_into(
-        &race.physics.damage.unknown_108,
-        &race.physics.damage.unknown_108,
+        &race.physics.damage.stiffness_suspension_factor,
+        &race.physics.damage.stiffness_suspension_factor,
     );
     table_lerp(
         &race.shared.car.ride_height_mean,
         &race.physics.damage.lerp_tables_b[1],
         &race.physics.damage.gauge_low,
-        &race.physics.damage.unknown_128,
+        &race.physics.damage.ride_height_body_factor,
     );
     square_into(
-        &race.physics.damage.unknown_128,
-        &race.physics.damage.unknown_128,
+        &race.physics.damage.ride_height_body_factor,
+        &race.physics.damage.ride_height_body_factor,
     );
     table_lerp(
         &race.physics.damage.drive_a_slip_share,
         &race.physics.damage.lerp_tables[3],
         &race.physics.damage.gauge_low,
-        &race.physics.damage.unknown_12c,
+        &race.physics.damage.slip_wear_factor_a,
     );
     table_lerp(
         &race.physics.damage.drive_b_slip_share,
         &race.physics.damage.lerp_tables[3],
         &race.physics.damage.gauge_low,
-        &race.physics.damage.unknown_130,
+        &race.physics.damage.slip_wear_factor_b,
     );
     hit_figures(&race.physics.damage);
     // 0x4AC7C9: two figures of the table `dword_75B73C` (row `dword_75B3E8`, columns
@@ -272,9 +272,9 @@ fn subtract_wear(
 /// `[m + 0x35B464] = [m + 0x35B398] - [m + 0x35B460]`
 fn lerp_gap(m: &DamageModel) {
     let t0 = ld(m.engine_speed_share.bits());
-    let t1 = ld(m.unknown_120.bits());
+    let t1 = ld(m.cooling_capacity.bits());
     let t2 = t0 - t1;
-    m.unknown_124.set_bits(st(t2));
+    m.overheat_excess.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -297,13 +297,13 @@ fn hit_figures(m: &DamageModel) {
     let t2 = t0 * t1;
     let t3 = ld(m.figures[32].bits());
     let t4 = t2 * t3;
-    let t5 = ld(m.unknown_10c.bits());
+    let t5 = ld(m.stiffness_body_factor.bits());
     let t6 = t4 * t5;
-    let t7 = ld(m.unknown_128.bits());
+    let t7 = ld(m.ride_height_body_factor.bits());
     let t8 = t6 * t7;
     let t9 = ld(m.wheels_down.bits());
     let t10 = t8 * t9;
-    m.unknown_114.set_bits(st(t10));
+    m.body_roughness_wear.set_bits(st(t10));
     let t11 = ld(m.point_surface_copy.bits());
     let t12 = ld(m.speed_share.bits());
     let t13 = t11 * t12;
@@ -311,10 +311,10 @@ fn hit_figures(m: &DamageModel) {
     let t15 = t13 * t14;
     let t16 = ld(m.wheels_down.bits());
     let t17 = t15 * t16;
-    m.unknown_110.set_bits(st(t17));
-    let t18 = ld(m.unknown_108.bits());
+    m.roughness_wear_base.set_bits(st(t17));
+    let t18 = ld(m.stiffness_suspension_factor.bits());
     let t19 = t17 * t18;
-    m.unknown_118.set_bits(st(t19));
+    m.suspension_roughness_wear.set_bits(st(t19));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -658,7 +658,7 @@ mod asm_reference {
                     add_wear(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[0],
-                        &dm(a[0]).unknown_124,
+                        &dm(a[0]).overheat_excess,
                         &crate::race::owner::race().shared.car.engine_heat,
                         &crate::race::owner::race().shared.car.engine_heat,
                     );
@@ -719,7 +719,12 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_15(a[0]) },
-                plain: |a| square_into(&dm(a[0]).unknown_10c, &dm(a[0]).unknown_10c),
+                plain: |a| {
+                    square_into(
+                        &dm(a[0]).stiffness_body_factor,
+                        &dm(a[0]).stiffness_body_factor,
+                    );
+                },
             },
             Block {
                 name: "damage_wear line 208",
@@ -729,7 +734,12 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_16(a[0]) },
-                plain: |a| square_into(&dm(a[0]).unknown_108, &dm(a[0]).unknown_108),
+                plain: |a| {
+                    square_into(
+                        &dm(a[0]).stiffness_suspension_factor,
+                        &dm(a[0]).stiffness_suspension_factor,
+                    );
+                },
             },
             Block {
                 name: "damage_wear line 215",
@@ -739,7 +749,12 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_17(a[0]) },
-                plain: |a| square_into(&dm(a[0]).unknown_128, &dm(a[0]).unknown_128),
+                plain: |a| {
+                    square_into(
+                        &dm(a[0]).ride_height_body_factor,
+                        &dm(a[0]).ride_height_body_factor,
+                    );
+                },
             },
             Block {
                 name: "damage_wear line 223",

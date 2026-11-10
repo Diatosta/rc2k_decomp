@@ -62,11 +62,11 @@ pub fn draw_savegame_details(tables: &Tables, canvas: &mut dyn Canvas) -> Result
         let players = saves.savegame_preview.saved[0].get() as i32;
         let index = saves.savegame_preview.saved[2].get() as i32;
         let section = saves.savegame_preview.saved[3].get();
-        let mode_13 = saves.savegame_preview.saved[5].get() == 0x13;
+        let a8_mode = saves.savegame_preview.saved[5].get() == 0x13;
         let table = system().records.stage_tables.championship();
         let title = Title {
-            mode_13,
-            section: if mode_13 {
+            a8_mode,
+            section: if a8_mode {
                 table_dword_at(&tables.lists, &tables.lists.section_titles, section)?
             } else {
                 find_record_in(table, 0, section)?.record()?.name()

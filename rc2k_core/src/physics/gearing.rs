@@ -93,7 +93,7 @@ pub struct GearSetup {
     /// `flt_5C5DA4`, `flt_5C5D00`, `flt_71A1B4`: the gearing's factor and two divisors.
     pub factor: f32,
     pub divisor: f32,
-    pub divisor_2: f32,
+    pub engine_speed_limit: f32,
     /// `flt_5C5D38` (1.0).
     pub one: f32,
     /// `flt_613FE8`: neutral's.
@@ -103,8 +103,9 @@ pub struct GearSetup {
 /// `fld a; fsub b; fmul k; fimul i; fadd b; fdiv d; fdiv w; fstp`.
 fn setup_ratio(ends: [f32; 2], s: &GearSetup) -> f32 {
     let (a, b) = (ends[0] as f64, ends[1] as f64);
-    (((a - b) * s.factor as f64 * s.gearing as f64 + b) / s.divisor as f64 / s.divisor_2 as f64)
-        as f32
+    (((a - b) * s.factor as f64 * s.gearing as f64 + b)
+        / s.divisor as f64
+        / s.engine_speed_limit as f64) as f32
 }
 
 /// `physics::make_gear_ratios`: the ratios (reverse ..= gear 7) and the step between
@@ -174,7 +175,7 @@ mod tests {
             gearing: 0,
             factor: 1.0,
             divisor: 1.0,
-            divisor_2: 1.0,
+            engine_speed_limit: 1.0,
             one: 1.0,
             neutral: 0.0,
         };

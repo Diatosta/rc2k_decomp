@@ -26,7 +26,7 @@ pub struct ShadowPoint {
     pub length: Dword,
     /// +0x14: 0 once the angles are laid (`race::car_shadow::shadow_angles`).
     pub zeroed: Dword,
-    /// +0x18: not worked out (swapped with the farthest point's, sorted with the record).
+    /// +0x18: the record's last two dwords; only moved with the record when points are swapped or sorted, never read for a value.
     pub unknown_18: [Dword; 2],
 }
 
@@ -66,7 +66,7 @@ impl ShadowPoint {
 pub struct ShadowSkids {
     /// +0x0 (0x641AA4): `g_shadowPoints`: the shadow's points, records of 0x20 bytes (x, y, z, angle, length, ...; 0x40 at most) and the hull's records after (`race::car_shadow`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_points: [ShadowPoint; 0x100],
-    /// +0x2000 (0x643AA4): `flt_643AA4` .. `dword_643AB4`: not worked out.
+    /// +0x2000 (0x643AA4): `flt_643AA4` .. `dword_643AB4`: unused since the shadow keeps its own work; kept for the layout.
     pub shadow_work: [Dword; 5],
     /// +0x2014 (0x643AB8): `flt_643AB8`: the length of the farthest point (`race::car_shadow::shadow_points`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub farthest_length: Float,

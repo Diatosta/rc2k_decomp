@@ -17,7 +17,7 @@ use crate::session::Dword;
 pub struct CarBlocks {
     /// +0x0 (0x70F3EC): the blocks, 0xFE0 apart.
     pub cars: [Car; 10],
-    /// +0x9ec0 (0x7192AC): not named.
+    /// +0x9ec0 (0x7192AC): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_tail: [Dword; 0x84],
 }
 

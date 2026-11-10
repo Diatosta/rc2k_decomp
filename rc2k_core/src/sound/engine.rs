@@ -6,7 +6,7 @@
 //! The object's dwords the engine reads and writes (a reading of the code, names by use) are
 //! an `Engine`, taken from the sound object and put back by the game crate: `new_revs` a new
 //! revs reading (`revs`) came, `reading_times` / `reading_revs` the last two readings';
-//! `throttle`, `smooth_throttle` following it, `gap_time` the gap, `direction` its direction
+//! `throttle`, `smooth_throttle` following it, `throttle_lead` the gap, `direction` its direction
 //! (0 level, 1 up, 2 down), `turns_up` / `turns_down` the turns going each way; `state` the
 //! engine's state (0 no revs, 1 up to 1000, 2, 3 cut), `last_state` the last; `gear` and
 //! `last_gear`, `no_gear` 1 in neutral; `countdown` a hold-off counted down, `wait_flag` and
@@ -51,7 +51,7 @@ pub struct Engine {
     /// +0x118: follows the throttle.
     pub smooth_throttle: u32,
     /// +0x11C: the gap.
-    pub gap_time: u32,
+    pub throttle_lead: u32,
     /// +0x128: the turns going up.
     pub turns_up: u32,
     /// +0x12C: the direction.
@@ -163,7 +163,7 @@ pub fn state(o: &mut Engine, kind: impl Fn() -> u32, clock: u32) -> Option<u32> 
     if o.gear != o.last_gear {
         o.last_gear = o.gear;
         o.countdown = o.countdown.wrapping_add(7);
-        if kind() & GEAR_CUE != 0 && o.gear as i32 > 1 && o.gap_time as i32 >= 0x32 {
+        if kind() & GEAR_CUE != 0 && o.gear as i32 > 1 && o.throttle_lead as i32 >= 0x32 {
             o.gear_slot_start = 1;
             o.gear_notice = 1;
             gear_or_cue = clock & 0xF;
@@ -187,7 +187,7 @@ fn follow_throttle(o: &mut Engine) {
     let throttle = o.throttle;
     let followed = o.smooth_throttle;
     let gap = throttle.wrapping_sub(followed);
-    o.gap_time = gap;
+    o.throttle_lead = gap;
     if gap == 0 {
         o.direction = 0;
         if o.turns_up == 1 {
@@ -239,7 +239,7 @@ fn back_fires(o: &mut Engine, kind: &impl Fn() -> u32, clock: u32) {
     }
     if o.direction == 1 {
         o.wait_flag = 0;
-    } else if o.wait_flag != 1 && o.direction == 2 && (o.gap_time as i32) < -0x14 {
+    } else if o.wait_flag != 1 && o.direction == 2 && (o.throttle_lead as i32) < -0x14 {
         if o.revs >= 0xFA0 {
             o.drop_sound = kind() & 0xFFF;
             o.drop_start = 1;

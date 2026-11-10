@@ -7,9 +7,9 @@ use crate::session::{Dword, Float};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct FrameSwitches {
-    /// +0x0 (0x621480): `dword_621480`: nonzero in a race, 0 in the front end scene; 1 set by `race::stage_loading` (`scene::vertex_light`, `scene::draw_object_face`, `race::course_faces`) (a reading).
+    /// +0x0 (0x621480): `dword_621480`: nonzero in a race, 0 in the front end scene; 1 set by `race::stage_loading` (`scene::vertex_light`, `scene::draw_object_face`, `race::course_faces` branch on it).
     pub other_way: Dword,
-    /// +0x4 (0x621484): not named.
+    /// +0x4 (0x621484): holds the text `files\fmv\intro.avi` (0x6214AC), used only by the unported `sub_442FDB`.
     pub unknown_4: [Dword; 22],
     /// +0x5c (0x6214DC): `dword_6214DC`: set by `scene::set_object_material`, read by `scene::draw_object_face`; now each view's (`ctx.view.cars.other_way_kind`); unused.
     pub other_way_kind: Dword,
@@ -21,7 +21,7 @@ pub struct FrameSwitches {
     pub frame_last: Dword,
     /// +0x70 (0x6214F0): `g_frameRate`: the measured frame rate (`race::measure_frame_rate`, `race::frame_text`).
     pub frame_rate: Float,
-    /// +0x74 (0x6214F4): not named.
+    /// +0x74 (0x6214F4): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_74: [Dword; 2],
     /// +0x7c (0x6214FC): `g_objectNumber`: the object being drawn or set up (`scene::draw_object_face`, `race::frame_draw`, `race::car_draw`); now each view's (`ctx.view.cars.object_number`; the bad polygon's log reads the view's); this one not used.
     pub object_number: Dword,
@@ -36,27 +36,27 @@ pub struct FrameSwitches {
     pub group_mask: Dword,
     /// +0x90 (0x621510): `dword_621510`: set by `race::frame_draw` for the sky (`scene::clip_polygon_by_depth`); now each view's (`race::face_work::FaceWork`); unused.
     pub no_far_clip: Dword,
-    /// +0x94 (0x621514): `dword_621514`: nonzero in the editor / framed loading (`race::loadlevel`, `race::loading_bar_frame`, `scene::choose_view_window`, `scene::texture_levels`) (a reading).
+    /// +0x94 (0x621514): `dword_621514`: nonzero in the editor / framed loading (`race::loadlevel`, `race::loading_bar_frame`, `scene::choose_view_window`, `scene::texture_levels`).
     pub editor_mode: Dword,
     /// +0x98 (0x621518): `g_coursePresent`: one flag per course found (`race::find_present_courses`).
     pub course_present: [Dword; 100],
-    /// +0x228 (0x6216A8): not named.
+    /// +0x228 (0x6216A8): the developers' front end's table (`dev_front_end::draw`, `sub_442F87`, `sub_442FB1` use 0x6216A8 .. 0x62183C); the port keeps those values in `debug::dev_front_end`, not here.
     pub unknown_228: [Dword; 103],
     /// +0x3c4 (0x621844): `dword_621844`: copied to `dword_5CCF7C` (`race::objects`).
     pub kept_kind: Dword,
-    /// +0x3c8 (0x621848): not named.
+    /// +0x3c8 (0x621848): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_3c8: [Dword; 10],
     /// +0x3f0 (0x621870): `dword_621870`: the mask kind, 8 tested by `race::frame_draw`, cleared by `race::race_end` (`scene::list_object_face`).
     pub mask_kind: Dword,
-    /// +0x3f4 (0x621874): not named.
+    /// +0x3f4 (0x621874): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_3f4: [Dword; 4],
-    /// +0x404 (0x621884): `dword_621884`: 1 lets the levers push (`physics::lever_pushes`, `drive::race_tick`) (a reading).
+    /// +0x404 (0x621884): `dword_621884`: 1 lets the levers push the car (`physics::lever_pushes`, `drive::race_tick`).
     pub levers_on: Dword,
-    /// +0x408 (0x621888): not named.
+    /// +0x408 (0x621888): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_408: [Dword; 2],
     /// +0x410 (0x621890): `dword_621890`: the view marks (`race::frame_views`, `race::stage_loading`, `drive::finish_race`).
     pub view_marks_on: Dword,
-    /// +0x414 (0x621894): not named.
+    /// +0x414 (0x621894): holds 0x6218A0, used by `dev_front_end::draw` / `set_up_race` and the unported `sub_4431B7` (the developers' front end); the port keeps it in `debug::dev_front_end`, not here.
     pub unknown_414: [Dword; 6],
     /// +0x42c (0x6218AC): `dword_6218AC`: set to 0 by `screens::draw_service_area`, read nowhere known.
     pub service_cleared: Dword,

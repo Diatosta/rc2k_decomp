@@ -494,12 +494,12 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     race.shared.tables.arcade_cars.set_bits(cars);
     race.shared
         .tables
-        .arcade_a
-        .set_bits(by_rally(&race.shared.tables.arcade_a_by_rally)?);
+        .start_share_last
+        .set_bits(by_rally(&race.shared.tables.start_share_last_by_rally)?);
     race.shared
         .tables
-        .arcade_b
-        .set_bits(by_rally(&race.shared.tables.arcade_b_by_rally)?);
+        .start_share_first
+        .set_bits(by_rally(&race.shared.tables.start_share_first_by_rally)?);
     // Converted: `rc2k_core::race::cars::{arcade_start_is_last, arcade_number,
     // arcade_type_draw, arcade_swap_draw}`.
     use crate::scene::next_noise::next_noise;

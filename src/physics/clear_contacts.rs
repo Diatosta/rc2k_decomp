@@ -1,5 +1,5 @@
-//! `physics::clear_contacts` (0x43F3D6): `physics::clear_records` on 7 records of 0x20 bytes at `unk_614A50` (by the look of
-//! it the step's contacts, a reading).
+//! `physics::clear_contacts` (0x43F3D6): `physics::clear_records` on 7 records of 0x20 bytes at `unk_614A50` (`g_contactRecords`, the
+//! step's contact forces).
 //!
 //! Caller: `physics::car_physics_step` (0x43B85B), every physics step.
 

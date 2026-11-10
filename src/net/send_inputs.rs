@@ -45,10 +45,10 @@ pub fn fields(kind: Kind) -> &'static [Field] {
 
 /// +0xFD0 .. +0xFDC.
 const INPUT_FIELDS: [Field; 4] = [
-    (|c| &c.unknown_fc0[4], Free),
-    (|c| &c.unknown_fc0[5], Free),
-    (|c| &c.unknown_fc0[6], Free),
-    (|c| &c.unknown_fc0[7], Free),
+    (|c| &c.kept_throttle_word, Free),
+    (|c| &c.kept_keys_word, Free),
+    (|c| &c.kept_steering_word, Free),
+    (|c| &c.kept_brake_word, Free),
 ];
 
 /// +0x134 .. +0x13C (the place, put where the car is to be on arrival), the matrix's first

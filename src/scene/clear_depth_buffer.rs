@@ -15,7 +15,7 @@
 pub fn clear_depth_buffer(scene: &crate::scene::owner::Scene) {
     let system = crate::system::owner::system();
     let session = &system.session;
-    if scene.objects.tables.has_3d.get() == 0 {
+    if scene.objects.tables.d3d_drawing_on.get() == 0 {
         return;
     }
     let (width, height): (u32, u32) = (session.screen.width.get(), session.screen.height.get());

@@ -8,7 +8,7 @@
 //! `flt_8C5FE9`, centre `flt_62409C`, `flt_6240A0`) into `flt_8BDD41` .., the half width
 //! `flt_8C5FED` over the screen length across the line, the four vertices' x, y and depth
 //! (times `flt_8BDD61`), `effects::clip_quad`, and unless all is outside `scene::draw_fan`
-//! and `g_polygonVertexCount` 4. Rain, by the look of it (a reading).
+//! and `g_polygonVertexCount` 4. Rain: its caller is `effects::run_rain`.
 //!
 //! Caller: `effects::run_rain` (0x4C1AD0). The arithmetic is plain Rust on the x87 model
 //! (`math::x87_float`), in the original's order, over the game's variables. Refuses null marks

@@ -115,12 +115,12 @@ pub struct ViewVars {
     pub ribbon_way: [Float; 2],
     /// 0x8F398D: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_8f398d: Bytes<4>,
-    /// 0x8F3991: `flt_8F3991`, `flt_8F3995`: the sides times the half width and the first end's scale.
-    pub ribbon_sides: [Float; 2],
+    /// 0x8F3991: `flt_8F3991`, `flt_8F3995`: the ribbon's screen-space half-width offset (x, y) at its first end: the way turned a quarter times the half width times the first end's perspective scale; the quad's corners 0 and 1 are the first end's point less / plus it (`effects::draw_ribbon`).
+    pub first_end_half_width: [Float; 2],
     /// 0x8F3999: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_8f3999: Bytes<4>,
-    /// 0x8F399D: `flt_8F399D`, `flt_8F39A1`: the same for the second end.
-    pub ribbon_sides_2: [Float; 2],
+    /// 0x8F399D: `flt_8F399D`, `flt_8F39A1`: the same half-width offset at the second end (its own perspective scale); corners 2 and 3 are the second end's point plus / less it.
+    pub second_end_half_width: [Float; 2],
     /// 0x8F39A5: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_8f39a5: Bytes<4>,
     /// 0x8F39A9: `flt_8F39A9` ..: three points turned by the view matrix (`effects::draw_frame`; x, y, z each).
@@ -136,9 +136,9 @@ impl ViewVars {
             cleared: Dword::new(0x0),
             ribbon_way: [Float::from_bits(0x0), Float::from_bits(0x0)],
             _gap_8f398d: Bytes::new([0; 4]),
-            ribbon_sides: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            first_end_half_width: [Float::from_bits(0x0), Float::from_bits(0x0)],
             _gap_8f3999: Bytes::new([0; 4]),
-            ribbon_sides_2: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            second_end_half_width: [Float::from_bits(0x0), Float::from_bits(0x0)],
             _gap_8f39a5: Bytes::new([0; 4]),
             turned_points: [const {
                 [
@@ -456,11 +456,11 @@ mod typed_tests {
         assert_eq!(offset_of!(ViewVars, cleared), 0x8F3981 - ViewVars::START);
         assert_eq!(offset_of!(ViewVars, ribbon_way), 0x8F3985 - ViewVars::START);
         assert_eq!(
-            offset_of!(ViewVars, ribbon_sides),
+            offset_of!(ViewVars, first_end_half_width),
             0x8F3991 - ViewVars::START
         );
         assert_eq!(
-            offset_of!(ViewVars, ribbon_sides_2),
+            offset_of!(ViewVars, second_end_half_width),
             0x8F399D - ViewVars::START
         );
         assert_eq!(

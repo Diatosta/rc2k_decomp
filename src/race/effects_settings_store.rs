@@ -114,16 +114,16 @@ pub struct MarkRecord {
     /// +0x4: the pace counter the emitters' rate gates keep (an integer count, or a float
     /// remainder after `emit_kind_1`).
     pub pace: Dword,
-    /// +0x8: not named.
+    /// +0x8: read and written by no code.
     pub unknown_8: Dword,
-    /// +0xc: a speed figure (`emit_kind_1`, the bursts, kind 6, kind 21); the body's is cleared.
-    pub speed_c: Float,
-    /// +0x10: a speed figure; the gates test it for 0.
-    pub speed_10: Float,
-    /// +0x14: not named.
-    pub unknown_14: Dword,
-    /// +0x18: a speed figure; the gates test it for 0.
-    pub speed_18: Float,
+    /// +0xc: the driven wheels' speed (the block's `drive_speed_a` / `_b` for the front / rear pair of wheel records; `emit_kind_1`, the bursts, kind 6, kind 21); the body's is cleared.
+    pub driven_speed: Float,
+    /// +0x10: the car's local velocity x, sideways (the body's: `velocity[0]`), copied by `drive::share_car_state`; the emitters' gates test it for 0.
+    pub local_velocity_x: Float,
+    /// +0x14: the local velocity y, always written 0 by `drive::share_car_state`; read by nothing.
+    pub local_velocity_y: Dword,
+    /// +0x18: the car's local velocity z, forward (the body's: `velocity[2]`), copied by `drive::share_car_state`; the emitters' gates test it for 0.
+    pub local_velocity_z: Float,
     /// +0x1c: the surface kind the emitters go by (copied from +0x28).
     pub kind: Dword,
     /// +0x20: the surface flags (copied from +0x2c); bits 6 and up count entries.
@@ -152,8 +152,8 @@ pub const RECORDS: usize = 5;
 
 const _: () = assert!(std::mem::size_of::<MarkRecord>() == RECORD_LEN);
 const _: () = assert!(std::mem::offset_of!(MarkRecord, pace) == 0x4);
-const _: () = assert!(std::mem::offset_of!(MarkRecord, speed_c) == 0xC);
-const _: () = assert!(std::mem::offset_of!(MarkRecord, speed_18) == 0x18);
+const _: () = assert!(std::mem::offset_of!(MarkRecord, driven_speed) == 0xC);
+const _: () = assert!(std::mem::offset_of!(MarkRecord, local_velocity_z) == 0x18);
 const _: () = assert!(std::mem::offset_of!(MarkRecord, kind) == 0x1C);
 const _: () = assert!(std::mem::offset_of!(MarkRecord, under_kind) == 0x28);
 const _: () = assert!(std::mem::offset_of!(MarkRecord, chance) == 0x34);
@@ -217,9 +217,9 @@ pub const CARS: usize = 8;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct EffectsSettings {
-    /// +0x0 (0x5C2F84): `asc_5C2F84`: a 2-byte tab text, a pointer taken in place by `effects::init_mark_step` (a reading).
+    /// +0x0 (0x5C2F84): `asc_5C2F84`: a 2-byte tab text, a pointer taken in place by `effects::init_mark_step` (probably the settings' text path start).
     pub settings_text: Dword,
-    /// +0x4 (0x5C2F88): `dword_5C2F88`: set by `drive::finish_timing`, cleared twice by `drive::finish_race` (a reading).
+    /// +0x4 (0x5C2F88): `dword_5C2F88`: set by `drive::finish_timing` when the race ends, cleared twice by `drive::finish_race`; also read by `effects::run_particles`.
     pub race_done: Dword,
     /// +0x8 (0x5C2F8C): `dword_5C2F8C`: the view's marks layout (`race::frame_views`).
     pub marks_layout: Dword,
@@ -227,8 +227,8 @@ pub struct EffectsSettings {
     pub own_marks_shown: Dword,
     /// +0x10 (0x5C2F94): `dword_5C2F94`: the other view's marks show; `drive::race_init` sets it (`race::frame_views`).
     pub other_marks_shown: Dword,
-    /// +0x14 (0x5C2F98): not named.
-    pub unknown_67c: [Dword; 2],
+    /// +0x14 (0x5C2F98): [0] read and written by no code; [1] (+0x18, 0x5C2F9C) the marks were just set up: `effects::init_marks` sets it to 1, `effects::frame_marks` copies it into the clock's `settings_copies[0]` and clears it after the frame's view step.
+    pub fresh_marks_flags: [Dword; 2],
     /// +0x1c (0x5C2FA0): `dword_5C2FA0` ..: the view's place negated, three whole numbers (`drive::set_listener`).
     pub listener_place: [Dword; 3],
     /// +0x28 (0x5C2FAC): `dword_5C2FAC` ..: the view's turn matrix, nine floats, popped from the x87 (image value identity) (`drive::set_listener`).
@@ -237,16 +237,16 @@ pub struct EffectsSettings {
     pub after_loading_copy: Dword,
     /// +0x50 (0x5C2FD4): `dword_5C2FD4`: the viewed car's +0xABC >= 0x10; image value 1 (`drive::set_listener`).
     pub listener_near: Dword,
-    /// +0x54 (0x5C2FD8): not named.
-    pub unknown_6bc: [Dword; 2],
+    /// +0x54 (0x5C2FD8): [0] read and written by no code; [1] (+0x58, 0x5C2FDC) copied into the snow light's `kept` word by `effects::run_snow` (never written by ported code: the image's value).
+    pub snow_light_words: [Dword; 2],
     /// +0x5c (0x5C2FE0): `dword_5C2FE0`: a copy of the race's cars (`effects::init_mark_step`).
     pub cars_copy: Dword,
     /// +0x60 (0x5C2FE4): the cars' records.
     pub cars: [CarEffects; CARS],
-    /// +0x26a0 (0x5C5624): `flt_5C5624`: a float copied from `dword_70F5C4` (`drive::set_listener`; a reading).
-    pub listener_float_a: Float,
-    /// +0x26a4 (0x5C5628): `flt_5C5628`: a float copied from `dword_7102F4` (`drive::set_listener`; a reading).
-    pub listener_float_b: Float,
+    /// +0x26a0 (0x5C5624): `flt_5C5624`: the viewed car's `engine_speed` (float), copied by `drive::set_listener`.
+    pub engine_speed_copy: Float,
+    /// +0x26a4 (0x5C5628): `flt_5C5628`: the viewed car's `engine_speed_scaled` (float), copied by `drive::set_listener`.
+    pub engine_speed_scaled_copy: Float,
     /// +0x26a8 (0x5C562C): `dword_5C562C`: the work car's file number (`effects::init_mark_step`). The effects' marks kind (`effects::init_marks` refuses 0x22 or more).
     pub mark_car_file_number: Dword,
     /// +0x26ac (0x5C5630): `flt_5C5630` ..: the viewed car's three whole numbers +0x134 .. +0x13C as floats (`drive::set_listener`).
@@ -255,16 +255,16 @@ pub struct EffectsSettings {
     pub object_count: Dword,
     /// +0x26bc (0x5C5640): `dword_5C5640`: the settings' first object (0x50 in the mark set-up, `effects::init_mark_step`).
     pub first_object: Dword,
-    /// +0x26c0 (0x5C5644): not named.
+    /// +0x26c0 (0x5C5644): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_20: [Dword; 7],
-    /// +0x26dc (0x5C5660): `flt_5C5660`: `dword_70FA3C` / 2^29 + `flt_637644` (`drive::set_listener`; a reading). The effects: the splines' size (`effects::place_spline`).
+    /// +0x26dc (0x5C5660): `flt_5C5660`: the car's visual steering angle / 2^29 plus the listener camera's value (`drive::set_listener`). The effects: the splines' size (`effects::place_spline`).
     pub listener_scale: Float,
-    /// +0x26e0 (0x5C5664): not named.
+    /// +0x26e0 (0x5C5664): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_40: [Dword; 7],
-    /// +0x26fc (0x5C5680): `dword_5C5680`: the old `dword_70F628`, 0 with `dword_601024` (`drive::set_listener`; a reading). The effects: a spline switch cleared when used (`effects::run_splines`).
+    /// +0x26fc (0x5C5680): `dword_5C5680`: the car's `gear_changed_2` kept when set (the car's copy is cleared), 0 while the replay still frame is shown (`drive::set_listener`). The effects: a spline switch cleared when used (`effects::run_splines`).
     pub spline_gear_changed: Dword,
-    /// +0x2700 (0x5C5684): `dword_5C5684`: `dword_70FA2C` != 0, 0 with `dword_601024` (`drive::set_listener`; a reading). The effects: a spline switch (`effects::run_splines`).
-    pub spline_switch: Dword,
+    /// +0x2700 (0x5C5684): `dword_5C5684`: 1 while the car's handbrake is on, 0 while the replay still frame is shown (`drive::set_listener`). The effects: a spline switch (`effects::run_splines`).
+    pub spline_handbrake: Dword,
     /// +0x2704 (0x5C5688): `dword_5C5688`: 1 after the race sound objects are shared, else 0 (`drive::share_all_cars`). The effects: the mask switch (`effects::swap_mask`).
     pub sound_objects_shown: Dword,
     /// +0x2708 (0x5C568C): `dword_5C568C` ..: the first light point turned, x negated, as whole numbers (`drive::set_listener`). Written with the next three groups as 12 dwords.
@@ -277,23 +277,23 @@ pub struct EffectsSettings {
     pub light_point_b: [Dword; 3],
     /// +0x2738 (0x5C56BC): `dword_5C56BC`: surface noise a << 2 while the mirror is wanted, else 0 (`drive::set_listener`); the windscreen drops' rate factor (`effects::windscreen_drops_top`).
     pub windscreen_drops_rate_factor: Dword,
-    /// +0x273c (0x5C56C0): `dword_5C56C0`: a switch (`drive::set_listener`; a reading). The effects: the windscreen drops wanted (`effects::windscreen_drops_frame`).
+    /// +0x273c (0x5C56C0): `dword_5C56C0`: twice the car's surface noise a (`drive::set_listener`). The effects: the windscreen drops wanted (`effects::windscreen_drops_frame`).
     pub windscreen_drops_wanted: Dword,
     /// +0x2740 (0x5C56C4): `dword_5C56C4`: surface noise b >> 3 while the mirror is wanted, else 0 (`drive::set_listener`); the windscreen flakes' rate factor (`effects::windscreen_flakes_frame`, `effects::draw_plane`).
     pub windscreen_flakes_rate_factor: Dword,
-    /// +0x2744 (0x5C56C8): `dword_5C56C8`: a switch (`drive::set_listener`; a reading). The effects: the windscreen drops and flakes on (`effects::windscreen_drops_top`, `effects::windscreen_flakes_frame`).
+    /// +0x2744 (0x5C56C8): `dword_5C56C8`: always 1 (`drive::set_listener`). The effects: the windscreen drops and flakes on (`effects::windscreen_drops_top`, `effects::windscreen_flakes_frame`).
     pub windscreen_wet: Dword,
     /// +0x2748 (0x5C56CC): `dword_5C56CC`: always 0 (`drive::set_listener`); the mask number `effects::run_shapes` picks with.
     pub mask_number: Dword,
     /// +0x274c (0x5C56D0): `dword_5C56D0`: 0 while a surface noise sounds and the mirror is wanted, else 1 (`drive::set_listener`); `effects::run_shapes` tests it for 1.
     pub mask_rate_switch: Dword,
-    /// +0x2750 (0x5C56D4): not named. The effects: a number `effects::scale_setting` scales.
+    /// +0x2750 (0x5C56D4): an unnamed setting; the effects: a number `effects::scale_setting` scales.
     pub setting_to_scale: Dword,
     /// +0x2754 (0x5C56D8): `dword_5C56D8` ..: the first figure and `dword_6415D0`, `dword_6415D4` (`drive::set_listener`). The effects: the lens flare's strength, then its place on the screen (`effects::draw_lens_flare`).
     pub listener_figures: [Dword; 3],
-    /// +0x2760 (0x5C56E4): `dword_5C56E4`: a switch (`drive::set_listener`; a reading). The effects: the snow's flakes (`effects::run_snow`).
+    /// +0x2760 (0x5C56E4): `dword_5C56E4`: the car's surface noise b times 8 (`drive::set_listener`), the snow flakes' count. The effects: the snow's flakes (`effects::run_snow`).
     pub snow_flakes: Dword,
-    /// +0x2764 (0x5C56E8): `dword_5C56E8`: a switch (`drive::set_listener`; a reading). The effects: the rain's drops (`effects::run_rain`).
+    /// +0x2764 (0x5C56E8): `dword_5C56E8`: twice the car's surface noise a (`drive::set_listener`), the rain drops' count. The effects: the rain's drops (`effects::run_rain`).
     pub rain_drops: Dword,
 }
 
@@ -412,7 +412,7 @@ mod tests {
 
     #[test]
     fn fields_sit_where_the_effects_read_them() {
-        assert_eq!(offset_of!(EffectsSettings, unknown_67c), 0x14);
+        assert_eq!(offset_of!(EffectsSettings, fresh_marks_flags), 0x14);
         assert_eq!(offset_of!(EffectsSettings, listener_place), 0x1C);
         assert_eq!(offset_of!(EffectsSettings, listener_turn), 0x28);
         assert_eq!(offset_of!(EffectsSettings, cars_copy), 0x5C);

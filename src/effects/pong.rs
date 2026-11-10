@@ -37,15 +37,15 @@ pub struct PongState {
     pub bat_size: [Float; 2],
     /// 0x7686D8: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_7686d8: Bytes<4>,
-    /// 0x7686DC: `flt_7686DC`, `flt_7686E0`: the ball's centre (a reading), worked out by the court's steps.
+    /// 0x7686DC: `flt_7686DC`, `flt_7686E0`: the ball's centre, worked out by the court's steps (`effects::pong_ball_hits`).
     pub ball_centre: [Float; 2],
     /// 0x7686E4: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_7686e4: Bytes<4>,
-    /// 0x7686E8: `flt_7686E8`, `flt_7686EC`: the bat's centre (a reading).
+    /// 0x7686E8: `flt_7686E8`, `flt_7686EC`: the bat's centre (`effects::pong_ball_hits`).
     pub bat_centre: [Float; 2],
     /// 0x7686F0: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_7686f0: Bytes<4>,
-    /// 0x7686F4: `flt_7686F4`, `flt_7686F8`: the ball's centre less the bat's (a reading); the way after a hit.
+    /// 0x7686F4: `flt_7686F4`, `flt_7686F8`: the ball's centre less the bat's (`effects::pong_ball_hits`); it becomes the ball's way after a hit.
     pub difference: [Float; 2],
     /// 0x7686FC: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_7686fc: Bytes<4>,
@@ -135,7 +135,7 @@ pub struct PongRules {
     pub cell_size: [Float; 2],
     /// 0x76920A: `dword_76920A` .. `dword_769216`: the texture places of a pong box (`effects::draw_pong_box`; 0.99 four times, as bits).
     pub box_places: [Float; 4],
-    /// 0x76921A: `flt_76921A`: 16384: a box whose third corner value is under it is not drawn (a reading).
+    /// 0x76921A: `flt_76921A`: 16384: `effects::draw_pong_box` draws nothing when the first corner's third value (its depth) compares below it.
     pub near: Float,
     /// 0x76921E: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_76921e: Bytes<4>,

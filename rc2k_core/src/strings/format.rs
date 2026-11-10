@@ -114,7 +114,8 @@ pub fn time(hundredths: u32, show_hours: bool) -> Vec<u8> {
 }
 
 /// The low `digits` hex digits of `value`, upper case, most significant first; `None` for
-/// more than 8 (not worked out in the original).
+/// more than 8 (no caller asks for them: `hex_append`'s callers use 2 and 8; the
+/// original's result for more is not modelled).
 pub fn hex(value: u32, digits: u32) -> Option<Vec<u8>> {
     const DIGITS: &[u8; 16] = b"0123456789ABCDEF";
     (digits <= 8).then(|| {

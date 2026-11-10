@@ -37,7 +37,7 @@ pub fn settle(race: &Race) {
         .gear_change_hold
         .set(rc2k_core::physics::gear_shifts::HOLD);
     race.shared.car.gear_changed.set(1);
-    race.shared.car.gear_changed_2.set(1);
+    race.shared.car.gear_change_pending.set(1);
 }
 
 /// Neutral, then `settle`.

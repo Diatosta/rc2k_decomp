@@ -85,17 +85,17 @@ pub fn set_up_front_end(menus: &Menus, sound: &crate::sound::owner::Sound) -> Re
         .summary
         .set(u32::from(crate::saves::best_times::SUMMARY.is_taken()));
     if best_times.loaded.get() != 1 {
-        menus.screens.draw_work.work_0c.set(0u32);
+        menus.screens.draw_work.scratch_0c.set(0u32);
         default_best_scores::default_best_scores()?;
-        menus.screens.draw_work.work_0c.set(0u32);
+        menus.screens.draw_work.scratch_0c.set(0u32);
         default_championship_times::default_championship_times(saves, stage, &mut to_the_log)?;
-        menus.screens.draw_work.work_0c.set(1u32);
+        menus.screens.draw_work.scratch_0c.set(1u32);
         default_checkpoint_times::default_checkpoint_times(stage, &mut to_the_log)?;
-        menus.screens.draw_work.work_0c.set(0u32);
+        menus.screens.draw_work.scratch_0c.set(0u32);
         default_class_times::default_class_times()?;
-        menus.screens.draw_work.work_0c.set(0u32);
+        menus.screens.draw_work.scratch_0c.set(0u32);
         default_stage_times::default_stage_times(stage, &mut to_the_log)?;
-        menus.screens.draw_work.work_0c.set(0u32);
+        menus.screens.draw_work.scratch_0c.set(0u32);
         default_stage_times_alt::default_stage_times_alt(stage, &mut to_the_log)?;
         best_times.loaded.set(1);
     }

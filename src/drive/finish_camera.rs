@@ -18,21 +18,21 @@ fn record() -> &'static ViewRecord {
 /// constants, over the race block at `rc` (the dwords at RVA offsets).
 fn lines(replay: &Replay) {
     record().angles[1].set_bits(st(
-        ld(replay.finish.eased.bits()) * ld(replay.finish.unknown_2c[0].bits())
+        ld(replay.finish.eased.bits()) * ld(replay.finish.camera_yaw_rate.bits())
     ));
-    let a = ld(replay.finish.eased.bits()) * ld(replay.finish.unknown_2c[4].bits())
-        + ld(replay.finish.unknown_2c[2].bits());
-    let b = ld(replay.finish.share.bits()) * ld(replay.finish.unknown_64.bits());
+    let a = ld(replay.finish.eased.bits()) * ld(replay.finish.camera_height_rate.bits())
+        + ld(replay.finish.camera_height_start.bits());
+    let b = ld(replay.finish.share.bits()) * ld(replay.finish.camera_height_per_share.bits());
     record().offset[1].set_bits(st(a + b));
     record().offset[2].set_bits(st(ld(replay.finish.eased.bits())
-        * ld(replay.finish.unknown_2c[3].bits())
-        + ld(replay.finish.unknown_2c[1].bits())));
+        * ld(replay.finish.camera_distance_rate.bits())
+        + ld(replay.finish.camera_distance_start.bits())));
 }
 
 /// `dword_606744` from the share and its constant.
 fn last_line(replay: &Replay) {
     record().angles[0].set_bits(st(
-        ld(replay.finish.share.bits()) * ld(replay.finish.unknown_60.bits())
+        ld(replay.finish.share.bits()) * ld(replay.finish.camera_pitch_per_share.bits())
     ));
 }
 

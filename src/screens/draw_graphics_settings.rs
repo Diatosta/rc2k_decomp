@@ -22,11 +22,11 @@ const NAMES: [Name; 8] = [
     (|| gfx().display.choices.card.get(), 0x38F, 0),
     (|| gfx().display.choices.buffering.get(), 0x391, 2),
     (|| gfx().display.choices.mipmapping.get(), 0x56D, 3),
-    (|| menus().screens.option_work.setting_0.get(), 0x56D, 4),
-    (|| menus().screens.option_work.setting_1.get(), 0x56D, 5),
-    (|| menus().screens.option_work.setting_2.get(), 0x396, 6),
-    (|| menus().screens.option_work.setting_3.get(), 0x393, 7),
-    (|| menus().screens.option_work.setting_4.get(), 0x394, 8),
+    (|| menus().screens.option_work.lens_flare.get(), 0x56D, 4),
+    (|| menus().screens.option_work.reflections.get(), 0x56D, 5),
+    (|| menus().screens.option_work.car_shadows.get(), 0x396, 6),
+    (|| menus().screens.option_work.car_detail.get(), 0x393, 7),
+    (|| menus().screens.option_work.headlights.get(), 0x394, 8),
 ];
 
 pub fn draw_graphics_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {

@@ -71,7 +71,9 @@ use crate::menu::option_items::toggle_channels;
 use crate::menu::option_items::toggle_dolby;
 use crate::menu::option_items::toggle_ds3d;
 use crate::menu::option_items::toggle_eax;
-use crate::menu::option_steps::{COLOUR_A, COLOUR_B, next_screen_mode, step_texture_setting};
+use crate::menu::option_steps::{
+    START_PICK_A, START_PICK_B, next_screen_mode, step_texture_setting,
+};
 use crate::menu::options_loop;
 use crate::menu::owner::Menus;
 use crate::menu::player;
@@ -400,9 +402,9 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
             learn_bindings::learn_binding(10);
             Ok(())
         }
-        ItemFn::LowerPlayer40 => player_actions::lower_dead_zone_1(&menus.screens),
+        ItemFn::LowerPlayer40 => player_actions::lower_end_zone(&menus.screens),
         ItemFn::RaiseDeadZoneA => controller_items::raise_dead_zone(false),
-        ItemFn::LowerPlayer44 => player_actions::lower_dead_zone_2(&menus.screens),
+        ItemFn::LowerPlayer44 => player_actions::lower_centre_dead_zone(&menus.screens),
         ItemFn::RaiseDeadZoneB => controller_items::raise_dead_zone(true),
         ItemFn::LowerControllerSensitivity => {
             controller_items::lower_controller_sensitivity().map(|_| ())
@@ -515,10 +517,10 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::PreviousCarNumber => step_items::player_setting(Setting::RaceNumber, false),
         ItemFn::RaiseSensitivity => raise_sensitivity::raise_sensitivity().map(|_| ()),
         ItemFn::LowerSensitivity => lower_sensitivity::lower_sensitivity().map(|_| ()),
-        ItemFn::NextColourA => step_items::colour(&menus.tables, COLOUR_A, true),
-        ItemFn::PreviousColourA => step_items::colour(&menus.tables, COLOUR_A, false),
-        ItemFn::NextColourB => step_items::colour(&menus.tables, COLOUR_B, true),
-        ItemFn::PreviousColourB => step_items::colour(&menus.tables, COLOUR_B, false),
+        ItemFn::NextColourA => step_items::colour(&menus.tables, START_PICK_A, true),
+        ItemFn::PreviousColourA => step_items::colour(&menus.tables, START_PICK_A, false),
+        ItemFn::NextColourB => step_items::colour(&menus.tables, START_PICK_B, true),
+        ItemFn::PreviousColourB => step_items::colour(&menus.tables, START_PICK_B, false),
         ItemFn::Nothing => Ok(()),
         ItemFn::GoBack => {
             go_back::go_back();

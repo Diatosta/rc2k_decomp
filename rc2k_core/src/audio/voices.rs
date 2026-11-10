@@ -71,6 +71,7 @@ pub struct Voice {
     /// Its sample record's number.
     pub sound: u32,
     pub buffer: u32,
+    /// The voice's DirectSound 3D buffer interface; 0 without one (`audio::buffer_settings`, `set_buffer_min_distance`).
     pub buffer_3d: u32,
     pub data_key: u32,
     /// The voice whose sample data this one shares.
@@ -122,7 +123,8 @@ pub struct MixerChannel {
     pub step_fraction: u32,
     pub left: i32,
     pub right: i32,
-    pub gap_44: [u32; 5],
+    /// +0x44 .. +0x58: five dwords nothing reads (cleared when the channel is released).
+    pub unused_44: [u32; 5],
 }
 
 const _: () = assert!(std::mem::size_of::<SampleRecord>() == 0x40);
@@ -242,7 +244,7 @@ pub fn clear_channels<P: Pool>(pool: &mut P) {
         pool.update_channel(at, |c| {
             c.used = 0;
             c.voice = 0;
-            c.gap_44 = [0; 5];
+            c.unused_44 = [0; 5];
         });
     }
 }

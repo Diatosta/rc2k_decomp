@@ -117,7 +117,7 @@ fn cut(
         }
     }
     let out_1 = crate::session::read_bits(&poly.clip_work);
-    let out_2 = crate::session::read_bits(&poly.clip_work_2);
+    let out_2 = crate::session::read_bits(&poly.clip_out_words);
     w[OUT_1 / 4..OUT_1 / 4 + 12].copy_from_slice(&out_1);
     w[OUT_2 / 4..OUT_2 / 4 + 5].copy_from_slice(&out_2);
     w[PLANE / 4] = poly.clip_plane.bits();
@@ -156,7 +156,7 @@ fn cut(
     let out_1: [u32; 12] = w[OUT_1 / 4..OUT_1 / 4 + 12].try_into().expect("12 dwords");
     let out_2: [u32; 5] = w[OUT_2 / 4..OUT_2 / 4 + 5].try_into().expect("5 dwords");
     crate::session::write_bits(&poly.clip_work, out_1);
-    crate::session::write_bits(&poly.clip_work_2, out_2);
+    crate::session::write_bits(&poly.clip_out_words, out_2);
 
     poly.polygon_next_record.set_bits(record.wrapping_add(1));
     new.record.set(record);

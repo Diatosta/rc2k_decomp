@@ -19,7 +19,7 @@ pub fn pick_shapes(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused
     for n in 0..2 {
         let picked = steps::pick_shapes(drops.picks.table[index].get() as i32);
         drops.picks.flags[n].set(picked.flag);
-        masks.vars.shapes[n].step.set(picked.shapes);
+        masks.vars.shapes[n].ease_step.set(picked.shapes);
     }
     Ok(())
 }

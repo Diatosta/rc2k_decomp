@@ -180,13 +180,13 @@ fn all_steps<'a>(
 ) -> [(&'a Dword, usize, &'a Dword, &'a Dword); 2] {
     [
         (
-            &masks.vars.shapes[0].step,
+            &masks.vars.shapes[0].ease_step,
             0,                               // `dword_89C974`, `ShapeSetTuning::turn_angles`
             &drops.shape_work.work.steps[0], // dword_884FC4
             &drops.picks.flags[0],           // dword_844604
         ),
         (
-            &masks.vars.shapes[1].step,
+            &masks.vars.shapes[1].ease_step,
             2,                               // `dword_89C97C`
             &drops.shape_work.work.steps[1], // dword_884FC8
             &drops.picks.flags[1],           // dword_844608

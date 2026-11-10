@@ -14,29 +14,29 @@ use crate::session::{Bytes, Dword, Float};
 pub struct GroundWork {
     /// +0x0 (0x63967C): `dword_63967C`: a count kept up by one for each frame drawn (`race::draw_race_scene`).
     pub frames_drawn: Dword,
-    /// +0x4 (0x639680): not named.
+    /// +0x4 (0x639680): no instruction of the game refers to it (IDA, 2026-11-10); unused.
     pub unknown_4: Dword,
     /// +0x8 (0x639684): `dword_639684`: set to 0 at the end of loading a stage (`race::stage_loading`, a reading: 1 while one loads).
     pub stage_loading: Dword,
-    /// +0xc (0x639688): not named.
+    /// +0xc (0x639688): no instruction of the game refers to it (IDA, 2026-11-10); unused.
     pub unknown_c: [Dword; 6],
     /// +0x24 (0x6396A0): `face_normal`'s work: the three points (9 dwords) and the six differences (`race::norms`, `scene::face_faces_away`); the drawing's is each view's (`ctx.view.object.normal_work`); this one is written by `race::face_normal` and read by none.
     pub normal_work: [Dword; 15],
-    /// +0x60 (0x6396DC): not named.
+    /// +0x60 (0x6396DC): no instruction of the game refers to it (IDA, 2026-11-10); unused.
     pub unknown_60: [Dword; 8],
     /// +0x80 (0x6396FC): the point's x, copied from `ground_x` by `physics::face_shares` (`physics::ground`).
     pub face_point_x: Dword,
-    /// +0x84 (0x639700): not named.
+    /// +0x84 (0x639700): between the point's x and z: the slot of its y, which no instruction of the game uses (IDA, 2026-11-10).
     pub unknown_84: Dword,
     /// +0x88 (0x639704): the point's z, copied from `ground_z` by `physics::face_shares` (`physics::ground`).
     pub face_point_z: Dword,
     /// +0x8c (0x639708): the face's three corners (x, y, z each) copied by `physics::face_shares`; the y's are `physics::plane_height`'s inputs (`physics::ground`).
     pub face_corners: [Dword; 9],
-    /// +0xb0 (0x63972C): not named.
+    /// +0xb0 (0x63972C): no instruction of the game refers to it (IDA, 2026-11-10); unused.
     pub unknown_b0: [Dword; 3],
     /// +0xbc (0x639738): point x - corner 0 x, corner 1 x - corner 0 x, corner 2 x - corner 0 x (`physics::ground`).
     pub corner_x_differences: [Dword; 3],
-    /// +0xc8 (0x639744): not named.
+    /// +0xc8 (0x639744): between the x and y differences: the slot of the point's y less corner 0's y, which no instruction of the game uses (IDA, 2026-11-10).
     pub unknown_c8: Dword,
     /// +0xcc (0x639748): corner 1 y - corner 0 y, corner 2 y - corner 0 y (`physics::ground`).
     pub corner_y_differences: [Dword; 2],
@@ -74,11 +74,11 @@ pub struct GroundWork {
     pub ground_z: Dword,
     /// +0x1b4 (0x639830): `g_groundFound`: 1 when `physics::ground_search` finds a face, else 0 (`physics::count_ground_probe`).
     pub ground_found: Dword,
-    /// +0x1b8 (0x639834): not named.
+    /// +0x1b8 (0x639834): no instruction of the game refers to it (IDA, 2026-11-10); unused.
     pub unknown_1b8: [Dword; 23],
     /// +0x214 (0x639890): the three corner point numbers of the face now looked at (`physics::face_shares`, `race::car_shadow::raise_onto_face`).
     pub face_corner_numbers: [Dword; 3],
-    /// +0x220 (0x63989C): not named.
+    /// +0x220 (0x63989C): no instruction of the game refers to it (IDA, 2026-11-10); unused.
     pub unknown_220: [Dword; 40],
     /// +0x2c0 (0x63993C): `dword_63993C`: set while a mirrored view is drawn (`race::frame_views`, `scene::draw_polygon`, `race::frame_draw`) (a reading); now each view's (`PolygonWork::view_mirrored`); unused.
     pub view_mirrored: Dword,

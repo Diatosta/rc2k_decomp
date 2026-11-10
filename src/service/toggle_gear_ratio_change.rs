@@ -1,8 +1,8 @@
 //! `service::toggle_gear_ratio_change` (0x46C08D): flips the flag of the highlighted menu item
-//! and, if the flag is then not 1, puts the chosen gear ratio (`dword_75AC90`, a reading)
+//! and, if the flag is then not 1, puts the chosen gear ratio (`dword_75AC90`, setup item 0)
 //! back to the installed value (`dword_75AC94`).
 //!
-//! Refuses a highlighted item past the flag table. "Toggle change" is a reading of that.
+//! Refuses a highlighted item past the flag table. "Toggle change" names what it does: the item's change flag is flipped.
 
 use crate::service::setup_values::Change;
 

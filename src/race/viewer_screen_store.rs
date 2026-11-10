@@ -6,7 +6,7 @@ use crate::session::{Dword, Float};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewerPanelBlock {
-    /// +0x0 (0x5C291C): not named.
+    /// +0x0 (0x5C291C): `word_5C291C` / `g_cameraNameIds`: 16-bit text ids of the camera names, read and written by `race::draw_viewer_panel`, `next_camera`, `previous_camera`; the port reaches them through another path, not by this field.
     pub unknown_0: [Dword; 24],
     /// +0x60 (0x5C297C): `dword_5C297C`: rectangle (0,0,800,32) of the viewer bar's frame (`race::viewer_frame`).
     pub bar_frame_rect: [Dword; 4],
@@ -30,15 +30,15 @@ pub struct ViewerPanelBlock {
     pub screen_rect: [Dword; 4],
     /// +0x100 (0x5C2A1C): `dword_5C2A1C`: the quad's texture rectangle, scratch, zero in the image (`race::draw_viewer_panel`, `drive::tyre_screen_parts`, `race::draw_tyre_change`).
     pub texture_rect: [Dword; 4],
-    /// +0x110 (0x5C2A2C): not named.
+    /// +0x110 (0x5C2A2C): texture rectangles the viewer list's items point to (relocated pointers at 0x5C2580 ..); read by no code by name.
     pub unknown_110: [Dword; 40],
     /// +0x1b0 (0x5C2ACC): `dword_5C2ACC`: texture rectangle (249,0,7,29) of a mark (`race::viewer_frame`).
     pub mark_picture_rect: [Dword; 4],
-    /// +0x1c0 (0x5C2ADC): not named.
+    /// +0x1c0 (0x5C2ADC): a rectangle the viewer list points to (pointer at 0x5C25D0); read by no code by name.
     pub unknown_1c0: [Dword; 4],
     /// +0x1d0 (0x5C2AEC): `dword_5C2AEC`: texture rectangle (48,48,48,48) of the place marker (`race::viewer_frame`).
     pub place_picture_rect: [Dword; 4],
-    /// +0x1e0 (0x5C2AFC): not named.
+    /// +0x1e0 (0x5C2AFC): texture rectangles the viewer list's items point to (pointers at 0x5C25F0 ..); read by no code by name.
     pub unknown_1e0: [Dword; 76],
     /// +0x310 (0x5C2C2C): `dword_5C2C2C`: texture rectangle (0,240,16,16) of a button end (`race::viewer_frame`).
     pub button_picture_rect: [Dword; 4],
@@ -50,10 +50,10 @@ pub struct ViewerPanelBlock {
     pub one: Float,
     /// +0x348 (0x5C2C64): `flt_5C2C64`: 1/256 (`drive::tyre_quad`, `drive::tyre_turned_quad`).
     pub texel_scale: Float,
-    /// +0x34c (0x5C2C68): `flt_5C2C68`: 0.00125 (a reading) (`drive::tyre_quad`, `drive::tyre_turned_quad`).
-    pub texel_scale_small: Float,
-    /// +0x350 (0x5C2C6C): `flt_5C2C6C`: 0.00167 (a reading) (`drive::tyre_quad`, `drive::tyre_turned_quad`).
-    pub texel_scale_smaller: Float,
+    /// +0x34c (0x5C2C68): `flt_5C2C68`: 0.00125 = 1/800, what the screen's width is multiplied by to scale the tyre quad's x (`drive::tyre_quad`, `drive::tyre_turned_quad`).
+    pub reciprocal_width_800: Float,
+    /// +0x350 (0x5C2C6C): `flt_5C2C6C`: 0.00167 = 1/600, what the screen's height is multiplied by to scale the tyre quad's y (`drive::tyre_quad`, `drive::tyre_turned_quad`).
+    pub reciprocal_height_600: Float,
     /// +0x354 (0x5C2C70): `off_5C2C70`: two relocated pointers to texture rectangles, a camera byte 2 or 3 picks one (`race::draw_viewer_item`).
     pub switch_pictures_a: [Dword; 2],
     /// +0x35c (0x5C2C78): `off_5C2C78`: four relocated pointers to texture rectangles, by camera byte 5 (`race::draw_viewer_item`).
@@ -74,7 +74,7 @@ pub struct ViewerPanelBlock {
     pub picture_folder: Dword,
     /// +0x3c0 (0x5C2CDC): `aRpl000000Pcx`: the 15-byte name rpl\000000.pcx, taken in place; the last 3 bytes (0x5C2CE8 .. 0x5C2CEB) are not a whole dword (`race::replay_screenshot`).
     pub picture_name: [Dword; 3],
-    /// +0x3cc (0x5C2CE8): not named.
+    /// +0x3cc (0x5C2CE8): the untyped tail: the viewer's texts and unaligned values, reached through `text_ptr` and the unaligned readers below.
     pub unknown_3cc: [Dword; 167],
 }
 
@@ -350,7 +350,7 @@ mod tests {
             0x5C2AEC - START
         );
         assert_eq!(
-            offset_of!(ViewerPanelBlock, texel_scale_small),
+            offset_of!(ViewerPanelBlock, reciprocal_width_800),
             0x5C2C68 - START
         );
         assert_eq!(

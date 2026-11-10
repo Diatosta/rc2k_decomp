@@ -52,11 +52,11 @@ pub fn frame_marks(race: &Race, effects: &Effects) -> Result<(), Refused> {
         for (from, to) in copies(marks) {
             to.set(from.get());
         }
-        effects.setup.clock.settings_copies[0].set(marks.unknown_67c[1].get());
+        effects.setup.clock.settings_copies[0].set(marks.fresh_marks_flags[1].get());
         scale_vectors_by::scale_vectors_by(effects);
         morph_object_points::morph_object_points(course, &effects.paths, effects)?;
         view_frame::view_frame(shared, effects)?;
-        marks.unknown_67c[1].set(0);
+        marks.fresh_marks_flags[1].set(0);
         effects
             .setup
             .frame

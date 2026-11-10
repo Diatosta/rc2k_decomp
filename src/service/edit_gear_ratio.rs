@@ -1,4 +1,4 @@
-//! `service::edit_gear_ratio` (0x46B91A): the keys while the gear ratio (a reading) is being edited
+//! `service::edit_gear_ratio` (0x46B91A): the keys while the gear ratio is being edited
 //! (edit page 1): step down, step up, confirm.
 //!
 //! What confirming does, and what is refused, is in `pages.rs` (`change_page`).

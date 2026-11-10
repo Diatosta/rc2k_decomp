@@ -42,7 +42,7 @@ pub struct TexturePlaces {
     pub point_marks: [Dword; 4096],
     /// +0x133d4 (0x5E5EBC): `dword_5E5EBC`: the normals' marks (`scene::add_object_shape`); three dwords more follow.
     pub normal_marks: [Dword; 4096],
-    /// +0x173d4 (0x5E9EBC): not named.
+    /// +0x173d4 (0x5E9EBC): three dwords past the normals' marks; nothing reads or writes them (an overrun space for the marks table, probably padding).
     pub unknown_173d4: [Dword; 3],
 }
 

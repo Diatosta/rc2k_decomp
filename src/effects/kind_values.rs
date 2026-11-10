@@ -47,9 +47,14 @@ pub static FIRST: KindSet = KindSet {
     ],
     count: &TABLES_1.count,
     consts: &CONSTS_1,
-    quad: &crate::effects::owner::EFFECTS.kinds.quad_1,
-    extra: &crate::effects::owner::EFFECTS.kinds.extras_1.extra,
-    divisor_copy: Some(&crate::effects::owner::EFFECTS.kinds.extras_1.divisor_copy),
+    quad: &crate::effects::owner::EFFECTS.kinds.overlay_quad,
+    extra: &crate::effects::owner::EFFECTS.kinds.overlay_extras.extra,
+    divisor_copy: Some(
+        &crate::effects::owner::EFFECTS
+            .kinds
+            .overlay_extras
+            .divisor_copy,
+    ),
 };
 
 pub static SECOND: KindSet = KindSet {
@@ -67,8 +72,8 @@ pub static SECOND: KindSet = KindSet {
     ],
     count: &TABLES_2.count,
     consts: &CONSTS_2,
-    quad: &crate::effects::owner::EFFECTS.kinds.quad_2,
-    extra: &crate::effects::owner::EFFECTS.kinds.extra_2.extra,
+    quad: &crate::effects::owner::EFFECTS.kinds.shadow_quad,
+    extra: &crate::effects::owner::EFFECTS.kinds.shadow_extra.extra,
     divisor_copy: None,
 };
 

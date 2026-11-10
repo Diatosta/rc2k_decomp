@@ -19,7 +19,7 @@ pub struct GearPlaces<'a> {
     pub gear: &'a dyn Cell32,
     pub engine_speed: &'a dyn Cell32,
     pub drive_speed: &'a dyn Cell32,
-    pub drive_speed_2: &'a dyn Cell32,
+    pub drive_speed_b: &'a dyn Cell32,
     pub drive_kind: &'a dyn Cell32,
     pub ratios: &'a [Float; 9],
     pub speed: &'a dyn Cell32,
@@ -31,7 +31,7 @@ impl<'a> GearPlaces<'a> {
             gear: &shared.car.gear,
             engine_speed: &shared.car.engine_speed,
             drive_speed: &shared.car.drive_speed_a,
-            drive_speed_2: &shared.car.drive_speed_b,
+            drive_speed_b: &shared.car.drive_speed_b,
             drive_kind: &shared.car.drive_kind,
             ratios: &shared.physics_tables.gear_ratios,
             speed: &shared.car.local_velocity[2],
@@ -60,7 +60,7 @@ pub fn revs_from_wheels_at(course: &Course, p: &GearPlaces<'_>) -> Result<(), Re
     let speed = if p.drive_kind.bits() == 1 {
         crate::math::x87_run::sum_times_over(
             p.drive_speed.bits(),
-            p.drive_speed_2.bits(),
+            p.drive_speed_b.bits(),
             course.numbers.half.bits(),
             ratio,
         )
@@ -81,7 +81,7 @@ pub fn wheels_from_revs_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
     let speed = x87::mul(p.engine_speed.bits(), ratio);
     p.drive_speed.set_bits(speed);
     if p.drive_kind.bits() == 1 {
-        p.drive_speed_2.set_bits(x87::loaded(speed));
+        p.drive_speed_b.set_bits(x87::loaded(speed));
     }
     Ok(())
 }

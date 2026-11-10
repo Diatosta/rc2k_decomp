@@ -17,7 +17,7 @@ pub struct SceneDraw {
     pub work_dword: Dword,
     /// +0x3c (0x623FBC): the motion's length (`physics::limit_motion`).
     pub motion_length: Float,
-    /// +0x40 (0x623FC0): not named.
+    /// +0x40 (0x623FC0): five dwords; the original's only reference is the debug wear-bar code at 0x429936 (`sub_4298BD`, now `debug::`), the scene's code has none (a gap).
     pub unknown_40: [Dword; 5],
     /// +0x54 (0x623FD4): the camera's heading, saved round a step (`physics::camera_avoid_ground`).
     pub camera_heading_saved: Dword,
@@ -25,33 +25,33 @@ pub struct SceneDraw {
     pub camera_heading_kept: Dword,
     /// +0x5c (0x623FDC): five words kept from 0x71AEC8 (`physics::camera_avoid_ground`).
     pub camera_saved: [Dword; 5],
-    /// +0x70 (0x623FF0): not named.
+    /// +0x70 (0x623FF0): four dwords; no code references them (a gap).
     pub unknown_70: [Dword; 4],
     /// +0x80 (0x624000): `g_fogColour` (`race::frame_draw`); now each view's (`scene::fog::Fog`); unused.
     pub fog_colour: Dword,
-    /// +0x84 (0x624004): not named.
+    /// +0x84 (0x624004): one dword between the fog colour and the clip's kept mask; no code references it (a gap).
     pub unknown_84: Dword,
     /// +0x88 (0x624008): the clip's kept mask (`scene::clip`); now each view's (`scene::polygon_work`); unused.
     pub clip_kept_mask: Dword,
     /// +0x8c (0x62400C): the x87 code's shared work dword (IDA `g_scratch`): every converted helper that stored to it still does.
     pub scratch: Dword,
-    /// +0x90 (0x624010): not named.
+    /// +0x90 (0x624010): three dwords after `scratch`; no code references them (a gap).
     pub unknown_90: [Dword; 3],
     /// +0x9c (0x62401C): a work float (`physics::drive_torque_share`, `physics::drive_grip_forces`, `physics::drive_wheels_step`).
     pub work_float_a: Float,
     /// +0xa0 (0x624020): a work float (the same); `race::frame_draw`'s far limit (`dword_63F17C` as a float).
     pub work_float_b: Float,
-    /// +0xa4 (0x624024): not named.
+    /// +0xa4 (0x624024): seven dwords; the original's only reference is the debug wear bars (`debug::draw_wear_bars` at 0x62403C), the scene's code has none (a gap).
     pub unknown_a4: [Dword; 7],
     /// +0xc0 (0x624040): a wheel's surface point: x, then y and z less x (`physics::wheel_surfaces`).
     pub surface_point: [Dword; 3],
-    /// +0xcc (0x62404C): not named.
+    /// +0xcc (0x62404C): 12 dwords after the wheel's surface point; no code references them (a gap).
     pub unknown_cc: [Dword; 12],
     /// +0xfc (0x62407C): `g_faceSortKey` (`scene::face_sort_key`); now each view's (`scene::polygon_work`); unused.
     pub face_sort_key: Dword,
     /// +0x100 (0x624080): the view's zoom, a whole number (0x100; the menus set it), in the scale; now each view's (`scene::view_window`); unused.
     pub view_zoom: Dword,
-    /// +0x104 (0x624084): not named; now each view's (`scene::view_window`); unused.
+    /// +0x104 (0x624084): one dword between the zoom and the scale; no code of the original or the port references it (a gap); the view's copy (`scene::view_window`) is never read either.
     pub unknown_104: Dword,
     /// +0x108 (0x624088): the view's scale (`scene::set_view_window`, `scene::project_point`); now each view's (`scene::view_window`); unused.
     pub view_scale: Float,
@@ -66,13 +66,13 @@ pub struct SceneDraw {
     /// +0x128 (0x6240A8): `g_lightDirection`; now each view's (`scene::object_light`), this
     /// one not used.
     pub light_direction: [Float; 3],
-    /// +0x134 (0x6240B4): not named.
+    /// +0x134 (0x6240B4): two dwords after the light direction; no code references them (a gap).
     pub unknown_134: [Dword; 2],
     /// +0x13c (0x6240BC): the polygon's two texture words (`scene::draw_polygon`); now each view's (`scene::polygon_work`); unused.
     pub polygon_textures: [Dword; 2],
     /// +0x144 (0x6240C4): the texture page ("tpage"; `scene::look_up_texture`; the loading bar's switch); now each view's (`scene::polygon_work`); unused.
     pub texture_page: Dword,
-    /// +0x148 (0x6240C8): not named.
+    /// +0x148 (0x6240C8): one dword between the texture page and the polygon colour; no code references it (a gap).
     pub unknown_148: Dword,
     /// +0x14c (0x6240CC): `g_polygonColour`; now each view's (`scene::polygon_work`); unused.
     pub polygon_colour: Dword,
@@ -92,7 +92,7 @@ pub struct SceneDraw {
     pub polygon_outside_count: Dword,
     /// +0x178 (0x6240F8): `g_polygonVertexCount`; now each view's (`scene::polygon_work`); unused.
     pub polygon_vertex_count: Dword,
-    /// +0x17c (0x6240FC): not named.
+    /// +0x17c (0x6240FC): six dwords before the next entry; no code references them (a gap).
     pub unknown_17c: [Dword; 6],
     /// +0x194 (0x624114): `g_polygonNextEntry`; now each view's (`scene::polygon_work`); unused.
     pub polygon_next_entry: Dword,
@@ -104,7 +104,7 @@ pub struct SceneDraw {
     pub screen_clipped: Dword,
     /// +0x1a4 (0x624124): clipped by depth ("donezcut"); now each view's (`scene::polygon_work`); unused.
     pub depth_clipped: Dword,
-    /// +0x1a8 (0x624128): not named.
+    /// +0x1a8 (0x624128): two dwords after the depth-clipped flag; no code references them (a gap).
     pub unknown_1a8: [Dword; 2],
     /// +0x1b0 (0x624130): a list entry's third word (`scene::list_object_face`); now each view's (`scene::polygon_work`); unused.
     pub entry_third: Dword,
@@ -118,15 +118,15 @@ pub struct SceneDraw {
     pub turn_y_work: [Float; 2],
     /// +0x1d8 (0x624158): the same, z (`scene::view_matrix`).
     pub turn_z_work: [Float; 2],
-    /// +0x1e0 (0x624160): not named.
+    /// +0x1e0 (0x624160): 15 dwords after the turns' sines; no code references them (a gap).
     pub unknown_1e0: [Dword; 15],
-    /// +0x21c (0x62419C): a vertex's byte +0x21 kept (`race::car_shadow`); now each view's (`scene::polygon_work::PolygonWork`); unused.
-    pub vertex_byte_21: Dword,
-    /// +0x220 (0x6241A0): not named.
+    /// +0x21c (0x62419C): the amount (alpha) byte, +0x21, of the vertex a clip crossing makes: the two ends' bytes blended by the crossing's share (`race::car_shadow`); now each view's (`scene::polygon_work::PolygonWork`); unused.
+    pub crossing_amount: Dword,
+    /// +0x220 (0x6241A0): three dwords after the vertex byte; no code references them (a gap).
     pub unknown_220: [Dword; 3],
-    /// +0x22c (0x6241AC): `scene::clip`'s second work run; `race::car_shadow` keeps a vertex's byte +0x20 in [0]; now each view's (`scene::polygon_work`); unused.
-    pub clip_work_2: [Dword; 5],
-    /// +0x240 (0x6241C0): not named.
+    /// +0x22c (0x6241AC): `scene::clip`'s second output run (five words written back from its work); `race::car_shadow` keeps the new crossing vertex's fog byte (+0x20, blended like the amount) in [0]; now each view's (`scene::polygon_work`); unused.
+    pub clip_out_words: [Dword; 5],
+    /// +0x240 (0x6241C0): two dwords before the farthest depth; no code references them (a gap).
     pub unknown_240: [Dword; 2],
     /// +0x248 (0x6241C8): the farthest depth (`scene::set_view_window`); now each view's (`scene::view_window`); unused.
     pub farthest: Float,
@@ -140,11 +140,11 @@ pub struct SceneDraw {
     pub clip_screen: [Float; 4],
     /// +0x274 (0x6241F4): `view_offset` as floats; now each view's (`scene::view_window`); unused.
     pub view_offset_float: [Float; 2],
-    /// +0x27c (0x6241FC): not named.
+    /// +0x27c (0x6241FC): two dwords after the offsets as floats; no code references them (a gap).
     pub unknown_27c: [Dword; 2],
     /// +0x284 (0x624204): (`scene::draw_object_faces`); now each view's (`scene::view_window`); unused.
     pub faces_done: Dword,
-    /// +0x288 (0x624208): not named.
+    /// +0x288 (0x624208): six dwords before `fade_b`; no code references them (a gap).
     pub unknown_288: [Dword; 6],
     /// +0x2a0 (0x624220): (`scene::set_view_window`).
     pub fade_b: Float,

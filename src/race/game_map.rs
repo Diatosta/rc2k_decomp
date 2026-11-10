@@ -63,8 +63,8 @@ pub struct MapVars {
     pub black: Loose,
     /// `g_usePackedMaps` (`0x5BE9B5`).
     pub use_packed: Loose,
-    /// `dword_5BE9B9`.
-    pub packed_2: Loose,
+    /// `dword_5BE9B9`: set by `race::loadlevel` to 1 outside the editor (0 in it) next to `use_packed`; IDA reads it at 0x44428F / 0x4442A2 (outside the ported path), no ported code does.
+    pub packed_unless_editor: Loose,
 }
 
 /// The map's variables; the first values are the image's.
@@ -86,7 +86,7 @@ impl MapVars {
             row_gap: Loose::new(0),
             black: Loose::new(0),
             use_packed: Loose::new(1),
-            packed_2: Loose::new(1),
+            packed_unless_editor: Loose::new(1),
         }
     }
 }

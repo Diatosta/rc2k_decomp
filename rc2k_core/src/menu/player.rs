@@ -49,10 +49,15 @@ pub struct Player {
     pub axis_codes: [u8; 4],
     /// The controller's mode (bit 0; string 0x56D + it; `menu::toggle_player_3c`).
     pub controller_mode: u32,
-    /// The controller page's two sliders, the dead zones: their sum leaves the rest of
-    /// 100 (`menu::lower_player_40`, `menu::lower_player_44`, `raise_dead_zone`).
-    pub dead_zone_1: u32,
-    pub dead_zone_2: u32,
+    /// +0x40: the stick's end zone in percent of its travel (0 at start): the share at the
+    /// far end that counts as full. The controller page's first slider; with the centre dead
+    /// zone it leaves the rest of 100 (`menu::lower_player_40`, `raise_dead_zone`).
+    /// `input::set_up_device` copies it to the device's `end_zone` (+0x14). Sure: the
+    /// device fields' names and the defaults (0 here, 10 below).
+    pub end_zone_pct: u32,
+    /// +0x44: the stick's centre dead zone in percent (10 at start): the share around the
+    /// middle that reads as 0. The second slider; copied to the device's `dead_zone` (+0x18).
+    pub centre_dead_zone_pct: u32,
     /// The device's strength, 0 .. 100 in tens (`menu::raise_player_48`,
     /// `lower_player_48`; shown for a device that has it).
     pub strength: u32,
@@ -133,8 +138,8 @@ pub struct Player {
     pub impact_marks: [u32; 8],
     /// Record +0x26C .. +0x274: nothing reads or writes it.
     pub unused_26c: [u8; 8],
-    /// The other start section (`SCREEN_FLOW.start_section_a8`; player 0's, kept in the
-    /// saved game).
+    /// +0x274: the A8 championship's start section, 0 .. 6 (`SCREEN_FLOW.start_section_a8`;
+    /// player 0's, kept in the saved game).
     pub saved_start_section_a8: u32,
     /// The car's state bits (the tyres' and the body's are set by a repair, `workshop`; -1
     /// after `repair_car`; the race's `flags`).
@@ -339,8 +344,8 @@ layout! {
     0x034 word sensitivity_level,
     0x038 bytes axis_codes,
     0x03C word controller_mode,
-    0x040 word dead_zone_1,
-    0x044 word dead_zone_2,
+    0x040 word end_zone_pct,
+    0x044 word centre_dead_zone_pct,
     0x048 word strength,
     0x04C word unused_4c,
     0x050 controls bindings,
@@ -416,16 +421,16 @@ pub enum Setting {
 
 impl Player {
     /// `menu::lower_player_40`: the first dead zone one less while above 0 (signed).
-    pub fn lower_dead_zone_1(&mut self) {
-        if (self.dead_zone_1 as i32) > 0 {
-            self.dead_zone_1 -= 1;
+    pub fn lower_end_zone(&mut self) {
+        if (self.end_zone_pct as i32) > 0 {
+            self.end_zone_pct -= 1;
         }
     }
 
     /// `menu::lower_player_44`: the second dead zone one less unless 0.
-    pub fn lower_dead_zone_2(&mut self) {
-        if self.dead_zone_2 != 0 {
-            self.dead_zone_2 = self.dead_zone_2.wrapping_sub(1);
+    pub fn lower_centre_dead_zone(&mut self) {
+        if self.centre_dead_zone_pct != 0 {
+            self.centre_dead_zone_pct = self.centre_dead_zone_pct.wrapping_sub(1);
         }
     }
 
@@ -884,16 +889,16 @@ mod tests {
     #[test]
     fn small_fields() {
         let mut p = Player::from_le_bytes([0; 0x28c]);
-        p.lower_dead_zone_1();
-        assert_eq!(p.dead_zone_1, 0);
-        p.dead_zone_1 = 2;
-        p.lower_dead_zone_1();
-        assert_eq!(p.dead_zone_1, 1);
-        p.dead_zone_1 = u32::MAX;
-        p.lower_dead_zone_1();
-        assert_eq!(p.dead_zone_1, u32::MAX);
-        p.lower_dead_zone_2();
-        assert_eq!(p.dead_zone_2, 0);
+        p.lower_end_zone();
+        assert_eq!(p.end_zone_pct, 0);
+        p.end_zone_pct = 2;
+        p.lower_end_zone();
+        assert_eq!(p.end_zone_pct, 1);
+        p.end_zone_pct = u32::MAX;
+        p.lower_end_zone();
+        assert_eq!(p.end_zone_pct, u32::MAX);
+        p.lower_centre_dead_zone();
+        assert_eq!(p.centre_dead_zone_pct, 0);
         p.step_strength(false);
         assert_eq!(p.strength, 0);
         p.strength = 100;

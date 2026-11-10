@@ -140,13 +140,13 @@ pub fn raise_controller_sensitivity(gate: u32) -> Result<(), Refused> {
 pub fn raise_dead_zone(second: bool) -> Result<(), Refused> {
     let p = player()?;
     let q = p.get();
-    let (_, grows) = rc2k_core::menu::steps::dead_zone_room(q.dead_zone_1, q.dead_zone_2);
+    let (_, grows) = rc2k_core::menu::steps::dead_zone_room(q.end_zone_pct, q.centre_dead_zone_pct);
     if grows {
         p.update(|q| {
             let zone = if second {
-                &mut q.dead_zone_2
+                &mut q.centre_dead_zone_pct
             } else {
-                &mut q.dead_zone_1
+                &mut q.end_zone_pct
             };
             *zone = zone.wrapping_add(1);
         });

@@ -16,7 +16,7 @@ pub struct GroundProbe {
     pub unknown_4: Dword,
     /// +0x8 (0x620460): `qword_620460`: the product of the edge test, low then high dword (`physics::crossed_edge_contact`, `physics::ground`, `race::car_shadow`).
     pub product: [Dword; 2],
-    /// +0x10 (0x620468): not named (the qword's neighbour).
+    /// +0x10 (0x620468): no instruction of the game refers to it (IDA, 2026-11-10); unused.
     pub unknown_10: [Dword; 2],
     /// +0x18 (0x620470): `dword_620470`: 0x40 or 0x80 by the caller of the ground search (`physics::count_ground_probe`, `physics::move_slot`, `physics::probe_ground`, `race::car_starts`).
     pub settle_mark: Dword,

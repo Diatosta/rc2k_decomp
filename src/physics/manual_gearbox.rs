@@ -77,7 +77,7 @@ fn down(race: &Race) -> Result<Shift, Refused> {
         revs(race)?;
         race.shared.car.gear_change_hold.set(shifts::HOLD);
         race.shared.car.gear_changed.set(u32::MAX);
-        race.shared.car.gear_changed_2.set(1);
+        race.shared.car.gear_change_pending.set(1);
         return Ok(Shift::Done);
     }
     settle(race);

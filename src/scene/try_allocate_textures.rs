@@ -72,8 +72,8 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
     }
     fn set_asked(&mut self, asked: [u32; 2]) {
         let textures = &scene().textures;
-        textures.kinds.textures_asked.set(asked[0]);
-        textures.kinds.textures_asked_other.set(asked[1]);
+        textures.kinds.video_memory_asked.set(asked[0]);
+        textures.kinds.system_memory_asked.set(asked[1]);
     }
     fn set_first_slot(&mut self, texture: u32, slot: u32) {
         scene().textures.kinds.kind_first_slots[texture as usize].set(slot);

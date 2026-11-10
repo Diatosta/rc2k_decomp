@@ -15,7 +15,8 @@
 //! steps in Rust.
 //!
 //! Callers: `physics::car_physics_step` (0x43B63A), `physics::test_drive`. Refuses (before
-//! anything) a drive kind past 3 (`flt_613FB8`'s size not worked out).
+//! anything) a drive kind past 3 (`rev_limits` holds two floats; kinds 0 ..= 2 are read as the original does, kind 2 into
+//! `camera_drop`).
 
 use crate::errors::Refused;
 use crate::math::x87;
@@ -55,12 +56,18 @@ fn words(race: &Race, spec: &CarSpec) {
     {
         to.set(from.get());
     }
-    race.shared.physics_tables.spec_a0.set(spec.spec_a0.get());
+    race.shared
+        .physics_tables
+        .ride_height_handling_scale
+        .set(spec.ride_height_handling_scale.get());
     race.shared
         .physics_tables
         .gear_count
         .set(gear_count(spec.gear_count.get()));
-    race.shared.physics_tables.spec_20.set(spec.copy_20.get());
+    race.shared
+        .physics_tables
+        .unused_spec_20
+        .set(spec.unused_20.get());
     let places: [(&dyn Cell32, &Dword); 5] = [
         (
             &race.shared.physics_tables.spec_surface[0],

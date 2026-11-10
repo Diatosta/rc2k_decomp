@@ -60,8 +60,8 @@ pub const THE_END: &Dword = &crate::menu::owner::MENUS.screens.event.championshi
 pub const GOES_ON: &Dword = &crate::menu::owner::MENUS.screens.event.event_goes_on; // dword_75592C
 pub const WELCOME_FIGURE: &Dword = &crate::menu::owner::MENUS.screens.event.welcome_figure; // dword_755924
 pub const WELCOMED: &Dword = &crate::menu::owner::MENUS.screens.event.welcomed; // dword_755934
-pub const SERVICE_940: &Dword = &crate::menu::owner::MENUS.screens.event.service_940; // dword_755940
-pub const SERVICE_944: &Dword = &crate::menu::owner::MENUS.screens.event.service_944; // dword_755944
+pub const SERVICE_RECORD_C: &Dword = &crate::menu::owner::MENUS.screens.event.service_record_c; // dword_755940
+pub const CPU_SPREAD_FIRST: &Dword = &crate::menu::owner::MENUS.screens.event.cpu_spread_first; // dword_755944
 pub const SERVICE_NEXT: &Dword = &crate::menu::owner::MENUS.screens.event.service_next; // dword_75594C
 // dword_755920
 

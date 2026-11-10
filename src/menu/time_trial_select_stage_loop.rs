@@ -1,5 +1,5 @@
 //! `menu::time_trial_select_stage_loop` (0x48BFCB): the stage selection of the time trial, by
-//! its title "ESCOLHA ETAPA" and its callers (a reading)
+//! its title "ESCOLHA ETAPA" and its callers (named from its title string and callers; the original's name is lost)
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: leaving is asked about; left without the question, the

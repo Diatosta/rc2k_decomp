@@ -36,10 +36,10 @@ pub fn kind_unusable(eax: u32) -> (bool, bool) {
 /// equals), 0 for none.
 pub fn index_of_kind(shared: &Shared, kind: u32) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::cars::index_of_kind`; the table read entry by entry.
-    // dword_6051E0: 0x22 kinds, but `unknown_ba4` holds 32: the last two are the two dwords
+    // dword_6051E0: 0x22 kinds, but `kind_order` holds 32: the last two are the two dwords
     // after it (`view_share`, `camera_turn_step`), read as the original does.
     // Bounded by the whole store: the last two entries are past the table.
-    let first = core::mem::offset_of!(crate::race::tables_store::RaceTables, unknown_ba4);
+    let first = core::mem::offset_of!(crate::race::tables_store::RaceTables, kind_order);
     let trap = Trap::new();
     let order =
         (0..KIND_ORDER_LEN).map(|n| trap.load_at::<u32>(&shared.tables, first + 4 * n as usize));

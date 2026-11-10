@@ -74,7 +74,7 @@ impl Vertex {
 pub struct HudBlock {
     /// `g_hudRects` (92 rectangles) and `dword_75BF00` (the last five): the texture's rectangles, 16 bytes each (left, top, width, height), picked by number (`hud::layout_*` sprites, markers, signs). Sign `v` is rectangle 0x4C + (v - 1) & 0xF.
     pub rects: [Rect; 0x61],
-    /// `dword_75BF50`, `dword_75BF54` (the stage marker's two colours, `draw_markers`) and the six dwords after them (colours too, a reading; nothing ported reads them).
+    /// `dword_75BF50`, `dword_75BF54` (the stage marker's two colours, `draw_markers`) and the six dwords after them (probably colours too; nothing ported reads them).
     pub marker_colours: [Dword; 8],
     /// `dword_75BF70`: the stage bar's four part colours, read at the byte offset the kind table gives (`draw_stage_bar`).
     pub stage_colours: [Dword; 4],
@@ -128,7 +128,7 @@ pub struct HudBlock {
     pub pick: Dword,
     /// `dword_75C044`, `dword_75C048`: the disc's / needle's centre (x, y), copied from a set-up.
     pub disc_centre: [Float; 2],
-    /// `dword_75C04C`: the disc entry's texture scale (a reading).
+    /// `dword_75C04C`: the disc's texture scale: the ring's (sine x size) is multiplied by it to get the texture offsets (`hud::disc_vertex`); set from the layout's disc set-up (`dials::set_up_disc`).
     pub disc_texture_scale: Float,
     /// `dword_75C050`: the disc's size (the ring entries are times it).
     pub disc_size: Float,
@@ -156,20 +156,20 @@ pub struct HudBlock {
     pub unused_c0b0: [Float; 2],
     /// `dword_75C0B8`, `dword_75C0BC`, `dword_75C0C0`: the icon scale of layouts 0, 2 and 1 (`icons_*`).
     pub icon_scales: [Float; 3],
-    /// `dword_75C0C4` .. `0x75C120`: whole numbers in fours (a table of places, a reading); nothing ported reads them.
+    /// `dword_75C0C4` .. `0x75C120`: whole numbers in fours, probably six screen rectangles (x, y, width, height; e.g. 0x25d, 0x30, 0xd6, 0x24); nothing ported reads them; in IDA only the first two are touched, written by code outside any function (0x4B6968).
     pub unused_c0c4: [Dword; 0x18],
     /// `dword_75C124` .. `dword_75C130`: nothing reads or writes them.
     pub unused_c124: [Dword; 4],
     /// `dword_75C134` .. `dword_75C144`: the set-up of layout 2's first disc (copied by `dials::set_up`; the fifth only with `dword_6D1502` 0).
-    pub disc_2a: [Float; 5],
+    pub disc_setup_layout2_first: [Float; 5],
     /// `dword_75C148` .. `dword_75C154`: the set-up of layout 2's second disc.
-    pub disc_2b: [Float; 4],
+    pub disc_setup_layout2_second: [Float; 4],
     /// `dword_75C158` .. `dword_75C164`: the set-up of layout 1's first disc.
-    pub disc_1a: [Float; 4],
+    pub disc_setup_layout1_first: [Float; 4],
     /// `dword_75C168` .. `dword_75C174`: the set-up of layout 1's second disc.
-    pub disc_1b: [Float; 4],
+    pub disc_setup_layout1_second: [Float; 4],
     /// `dword_75C178` .. `dword_75C184`: the set-up of layout 0's disc.
-    pub disc_0: [Float; 4],
+    pub disc_setup_layout0: [Float; 4],
     /// `flt_75C188`: the disc's ring, sines of the entries (1 .. 16 written; entry 0 stays 0).
     pub ring_sines: [Float; 17],
     /// `flt_75C1CC`: the ring's cosines.
@@ -193,15 +193,15 @@ pub struct HudBlock {
     /// `dword_75C2E0`: the needle's value (a whole number, from the record).
     pub needle_value: Dword,
     /// `dword_75C2E4` .. `dword_75C2EC`: the set-up of layout 0's needle (centre x, y, size).
-    pub needle_0: [Float; 3],
+    pub needle_setup_layout0: [Float; 3],
     /// `dword_75C2F0` .. `dword_75C2FC`: the set-up of layout 2's first needle (the third only with `dword_6D1502` 0).
-    pub needle_2a: [Float; 4],
+    pub needle_setup_layout2_first: [Float; 4],
     /// `dword_75C300` .. `dword_75C308`: the set-up of layout 2's second needle.
-    pub needle_2b: [Float; 3],
+    pub needle_setup_layout2_second: [Float; 3],
     /// `dword_75C30C` .. `dword_75C314`: the set-up of layout 1's first needle.
-    pub needle_1a: [Float; 3],
+    pub needle_setup_layout1_first: [Float; 3],
     /// `dword_75C318` .. `dword_75C320`: the set-up of layout 1's second needle.
-    pub needle_1b: [Float; 3],
+    pub needle_setup_layout1_second: [Float; 3],
     /// `unk_75C324`: the batch's vertices (transformed and lit, 0x20 bytes each).
     pub vertices: [Vertex; 0x400],
     /// `unk_764324`: the batch's indices (16 bits, a triangle list).
@@ -425,32 +425,32 @@ impl HudBlock {
                 Dword::new(0x131),
             ],
             unused_c124: [const { Dword::new(0x0) }; 4],
-            disc_2a: [
+            disc_setup_layout2_first: [
                 Float::from_bits(0x42380000),
                 Float::from_bits(0x3f400000),
                 Float::from_bits(0x4435c000),
                 Float::from_bits(0x43530000),
                 Float::from_bits(0x43630000),
             ],
-            disc_2b: [
+            disc_setup_layout2_second: [
                 Float::from_bits(0x42380000),
                 Float::from_bits(0x3f400000),
                 Float::from_bits(0x4435c000),
                 Float::from_bits(0x44038000),
             ],
-            disc_1a: [
+            disc_setup_layout1_first: [
                 Float::from_bits(0x42380000),
                 Float::from_bits(0x3f400000),
                 Float::from_bits(0x43a30000),
                 Float::from_bits(0x44038000),
             ],
-            disc_1b: [
+            disc_setup_layout1_second: [
                 Float::from_bits(0x42380000),
                 Float::from_bits(0x3f400000),
                 Float::from_bits(0x4435c000),
                 Float::from_bits(0x44038000),
             ],
-            disc_0: [
+            disc_setup_layout0: [
                 Float::from_bits(0x42780000),
                 Float::from_bits(0x3f400000),
                 Float::from_bits(0x44308000),
@@ -480,28 +480,28 @@ impl HudBlock {
             ],
             unused_c2d8: [Float::from_bits(0x453b8000), Float::from_bits(0x473b8000)],
             needle_value: Dword::new(0x0),
-            needle_0: [
+            needle_setup_layout0: [
                 Float::from_bits(0x42c00000),
                 Float::from_bits(0x43fb8000),
                 Float::from_bits(0x3f800000),
             ],
-            needle_2a: [
+            needle_setup_layout2_first: [
                 Float::from_bits(0x42900000),
                 Float::from_bits(0x43520000),
                 Float::from_bits(0x43620000),
                 Float::from_bits(0x3f400000),
             ],
-            needle_2b: [
+            needle_setup_layout2_second: [
                 Float::from_bits(0x42900000),
                 Float::from_bits(0x44034000),
                 Float::from_bits(0x3f400000),
             ],
-            needle_1a: [
+            needle_setup_layout1_first: [
                 Float::from_bits(0x42900000),
                 Float::from_bits(0x44034000),
                 Float::from_bits(0x3f400000),
             ],
-            needle_1b: [
+            needle_setup_layout1_second: [
                 Float::from_bits(0x43ec8000),
                 Float::from_bits(0x44034000),
                 Float::from_bits(0x3f400000),

@@ -86,7 +86,7 @@ pub fn settle_drive_speeds_at(
     }
     if s.second.bits() != 0 {
         s.scratch.set_bits(step());
-        settle(g.drive_speed_2, s.scratch);
+        settle(g.drive_speed_b, s.scratch);
     }
     if gear != 0 {
         return revs_from_wheels_at(&race.course, g);

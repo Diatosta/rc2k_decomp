@@ -1965,27 +1965,27 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::kind_store::Quad1::START,
         len: crate::effects::kind_store::Quad1::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.quad_1),
+        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.overlay_quad),
     },
     Moved {
         ida: crate::effects::kind_store::KindExtras1::START,
         len: crate::effects::kind_store::KindExtras1::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.extras_1),
+        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.overlay_extras),
     },
     Moved {
         ida: crate::effects::kind_store::Quad2::START,
         len: crate::effects::kind_store::Quad2::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.quad_2),
+        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.shadow_quad),
     },
     Moved {
         ida: crate::effects::kind_store::KindExtra2::START,
         len: crate::effects::kind_store::KindExtra2::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.extra_2),
+        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.shadow_extra),
     },
     Moved {
         ida: crate::effects::kind_store::Quad3::START,
         len: crate::effects::kind_store::Quad3::LEN,
-        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.quad_3),
+        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.plane_quad),
     },
     Moved {
         ida: crate::effects::mask_store::GroundNames::START,

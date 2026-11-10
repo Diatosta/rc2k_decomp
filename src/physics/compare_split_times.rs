@@ -6,8 +6,8 @@
 //! `dword_6043F8` the time; for car 0 or 1 the time kept in `unk_75B02C` / `unk_75B09C`
 //! [split].
 //!
-//! Caller: `physics::split_by_mode`. Refuses (before anything) a split past 27 (the kept
-//! tables' size not worked out).
+//! Caller: `physics::split_by_mode`. Refuses (before anything) a split past 27 (each kept
+//! table is 0x70 bytes: `unk_75B02C` .. `unk_75B09C`, 28 dwords, IDA).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

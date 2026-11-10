@@ -278,7 +278,7 @@ fn inside_edge(work: &ShadowWork, n: u32) -> Result<bool, BadInput> {
 /// `work.crossing[11]` - `work.crossing[10]` x `work.crossing[9]`) over the difference of the two cross
 /// products, rounded to a float into `GROUND_WORK.plane_f` and used as read back), the crossing's
 /// place (x and z whole numbers into `DRAW.clip_work[2]` / `DRAW.clip_work[4]`) and the entry's
-/// texture floats (`DRAW.clip_work[10]`, `DRAW.clip_work[11]`) and two bytes (`DRAW.vertex_byte_21`, `DRAW.clip_work_2`)
+/// texture floats (`DRAW.clip_work[10]`, `DRAW.clip_work[11]`) and two bytes (`DRAW.crossing_amount`, `DRAW.clip_out_words`)
 /// shared the same way between the scene points numbered `pa`, `pb` and the entries `ea`, `eb`;
 /// The original's store of the share's bits to `g_scratch` is not kept (nothing read it).
 fn crossing_block(
@@ -312,8 +312,8 @@ fn crossing_block(
         let (a, b) = (int(a.get().into()), int(b.get().into()));
         to_int(a + (b - a) * share) as u32
     };
-    poly.vertex_byte_21.set(byte(&ea.amount, &eb.amount));
-    poly.clip_work_2[0].set(byte(&ea.fog, &eb.fog));
+    poly.crossing_amount.set(byte(&ea.amount, &eb.amount));
+    poly.clip_out_words[0].set(byte(&ea.fog, &eb.fog));
     Ok(())
 }
 
@@ -358,8 +358,8 @@ fn edge_crossing(
     work.next_point.set(n.wrapping_add(1));
     ed.u2.set(ctx.view.polygon.clip_work[10].bits());
     ed.v2.set(ctx.view.polygon.clip_work[11].bits());
-    ed.amount.set(rd(&ctx.view.polygon.vertex_byte_21) as u8);
-    ed.fog.set(rd(&ctx.view.polygon.clip_work_2[0]) as u8);
+    ed.amount.set(rd(&ctx.view.polygon.crossing_amount) as u8);
+    ed.fog.set(rd(&ctx.view.polygon.clip_out_words[0]) as u8);
     Ok(())
 }
 
@@ -1346,8 +1346,8 @@ mod asm_reference {
                 for k in [2, 4, 10, 11] {
                     old.clip_work[k].set_bits(poly.clip_work[k].bits());
                 }
-                old.clip_work_2[0].set(poly.clip_work_2[0].get());
-                old.vertex_byte_21.set(poly.vertex_byte_21.get());
+                old.clip_out_words[0].set(poly.clip_out_words[0].get());
+                old.crossing_amount.set(poly.crossing_amount.get());
                 let mut got = read();
                 // `plane_f` (0x639810) the Rust version keeps in the shadow's own search fields.
                 got[7] = work.search.query().plane_f.bits();

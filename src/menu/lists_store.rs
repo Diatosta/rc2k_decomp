@@ -93,8 +93,8 @@ pub struct MenuLists {
     pub inspection_faults: [Dword; 14],
     /// `g_championshipCars`: the championship's car list (`menu::event_flow`).
     pub cars_championship: [Dword; 26],
-    /// `g_a8Cars`: the A8 game's car list.
-    pub cars_a8: [Dword; 45],
+    /// `g_a8Cars`: the A8 rally championship's car list (45 entries ended by -1; `menu::remove_secret_cars` edits it with the first list).
+    pub a8_championship_cars: [Dword; 45],
     /// `off_759DCA`: the car list without the Clio, the first.
     pub cars_first: [Dword; 34],
     /// `off_759E52`: the car list with the Clio and the extra cars.
@@ -216,7 +216,7 @@ impl MenuLists {
             CarList::Second => offset_of!(MenuLists, cars_second),
             CarList::WithClio => offset_of!(MenuLists, cars_with_clio),
             CarList::Championship => offset_of!(MenuLists, cars_championship),
-            CarList::A8 => offset_of!(MenuLists, cars_a8),
+            CarList::A8 => offset_of!(MenuLists, a8_championship_cars),
             CarList::Cheat => offset_of!(MenuLists, cheat_cars),
             CarList::Shown => offset_of!(MenuLists, shown_cars),
         };
@@ -922,7 +922,7 @@ impl MenuLists {
                 car_cell(0xffffffff),
                 car_cell(0xffffffff),
             ],
-            cars_a8: [
+            a8_championship_cars: [
                 car_cell(0x756bf8),
                 car_cell(0x756748),
                 car_cell(0x7568b0),
@@ -1511,7 +1511,7 @@ const CAR_LISTS: [(usize, usize); 9] = {
     use core::mem::offset_of;
     [
         (START + offset_of!(MenuLists, cars_championship), 26),
-        (START + offset_of!(MenuLists, cars_a8), 45),
+        (START + offset_of!(MenuLists, a8_championship_cars), 45),
         (START + offset_of!(MenuLists, cars_first), 34),
         (START + offset_of!(MenuLists, cars_with_clio), 62),
         (START + offset_of!(MenuLists, secret_cars), 12),

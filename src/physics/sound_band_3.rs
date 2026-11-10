@@ -13,6 +13,6 @@ use crate::physics::sound_bands::Twin;
 pub const TWIN: Twin = (
     0x45D0F1,
     |race| &race.physics.contact.bump_speed_length,
-    |race| &race.frame.sound_spots.band_scale_3,
+    |race| &race.frame.sound_spots.bump_band_scale,
     10,
 );

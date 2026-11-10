@@ -165,8 +165,8 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                         let time = e.get(Var::Record(0x14));
                         e.set(Var::ServiceTime, time);
                         let figure = e.get(Var::Record(0xC));
-                        e.set(Var::Service940, figure);
-                        e.set(Var::Service944, 1);
+                        e.set(Var::ServiceRecordC, figure);
+                        e.set(Var::CpuSpreadFirst, 1);
                         e.set(Var::ServiceNext, 1);
                         e.inc(Var::Services);
                         e.inc(Var::Index);
@@ -317,7 +317,7 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                     THE_END => false,
                     SECTION_END => break 'races At::Standings,
                     SERVICE => {
-                        e.set(Var::Service944, 1);
+                        e.set(Var::CpuSpreadFirst, 1);
                         e.set(Var::ServiceNext, 1);
                         true
                     }

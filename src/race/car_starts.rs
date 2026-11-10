@@ -264,7 +264,7 @@ pub fn start_cars(race: &Race) -> Result<(), Refused> {
             .car
             .part_damage_limits
             .iter()
-            .chain(&shared.car.unknown_a58[..18])
+            .chain(&shared.car.saved_point_figures[..18])
         {
             cell.set(0);
         }

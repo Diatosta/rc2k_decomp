@@ -16,13 +16,13 @@ pub struct RaceTables {
     pub stage_time_factors_first: [Float; 6],
     /// +0x30 (0x60466C): `dword_60466C`: the arcade cars count by rally (`race::set_up_mode_2_cars`).
     pub arcade_cars_by_rally: [Dword; 6],
-    /// +0x48 (0x604684): `dword_604684`: the best place by stage (`race::set_up_mode_2_cars`) (a reading).
+    /// +0x48 (0x604684): `dword_604684`: the best place wanted by arcade stage (six stages); `race::set_up_mode_2_cars` copies the stage's entry to `best_place`.
     pub arcade_best_place_by_stage: [Dword; 6],
-    /// +0x60 (0x60469C): `dword_60469C`: copied to `arcade_a` (`race::set_up_mode_2_cars`) (a reading).
-    pub arcade_a_by_rally: [Dword; 6],
-    /// +0x78 (0x6046B4): `dword_6046B4`: copied to `arcade_b` (`race::set_up_mode_2_cars`) (a reading).
-    pub arcade_b_by_rally: [Dword; 6],
-    /// +0x90 (0x6046CC): `dword_6046CC`: the time percentage by difficulty (`race::race_cars`); 36 is the IDA item (a reading).
+    /// +0x60 (0x60469C): `dword_60469C`: the share a car gets on the last start place by arcade rally (six rallies); `race::set_up_mode_2_cars` copies the rally's entry to `start_share_last`.
+    pub start_share_last_by_rally: [Dword; 6],
+    /// +0x78 (0x6046B4): `dword_6046B4`: the share on the first start place by arcade rally; copied to `start_share_first` by `race::set_up_mode_2_cars`.
+    pub start_share_first_by_rally: [Dword; 6],
+    /// +0x90 (0x6046CC): `dword_6046CC`: the time percentage by difficulty level (`race::race_cars` prints it); the IDA item holds 36 entries.
     pub time_percentages: [Dword; 36],
     /// +0x120 (0x60475C): `flt_60475C`: 0x17 floats by car kind (`race::race_cars`).
     pub kind_time_factors: [Float; 23],
@@ -32,9 +32,8 @@ pub struct RaceTables {
     pub start_blend_step: Float,
     /// +0x888 (0x604EC4): `flt_604EC4`: scale of the push apart of the pace cars (`drive::start_cars_behind`).
     pub pace_push_scale: Float,
-    /// +0x88c (0x604EC8): not named: read as a number by `drive::drive_computer_car`; also the first
-    /// of the cars by place (`dword_604EC8[]`, continued by `arcade_car_kinds`; `race::panel_neighbours`).
-    pub unknown_88c: Dword,
+    /// +0x88c (0x604EC8): the first of the cars by place (probably the car at place 0), also read by `drive::drive_computer_car` as the target `int_toward_to_int` eases the wanted speed toward: the original uses the array's first element as a scalar, a likely slip. Cars by place (`dword_604EC8[]`, continued by `arcade_car_kinds`; `race::panel_neighbours`).
+    pub first_car_by_place: Dword,
     /// +0x890 (0x604ECC): `dword_604ECC`: each car's type 1 .. 3, 89 rooms; also the cars by start (`race::set_up_mode_2_cars`, `drive::start_cars_behind`, `race::panel_neighbours`).
     pub arcade_car_kinds: [Dword; 89],
     /// +0x9f4 (0x605030): `dword_605030`: read as the number at place -1 by `race::panel_neighbours`; `arcade_car_numbers` follows it.
@@ -45,17 +44,17 @@ pub struct RaceTables {
     pub noise_seed: Dword,
     /// +0xb64 (0x6051A0): `dword_6051A0`: the start in use (`drive::start_car_on_line`, `drive::start_cars_behind`).
     pub start_slot: Dword,
-    /// +0xb68 (0x6051A4): `dword_6051A4`: set by `race::set_up_mode_2_cars`, read as a float by `drive::start_car_on_line`.
-    pub arcade_a: Float,
-    /// +0xb6c (0x6051A8): `dword_6051A8`: set by `race::set_up_mode_2_cars`, read as a float by `drive::start_car_on_line`.
-    pub arcade_b: Float,
+    /// +0xb68 (0x6051A4): `dword_6051A4`: the share of the last start place (`lo` of `rc2k_core::drive::start_places::start_share`, which blends it to `start_share_first` by the start's place); set by `race::set_up_mode_2_cars`.
+    pub start_share_last: Float,
+    /// +0xb6c (0x6051A8): `dword_6051A8`: the share of the first start place (`hi` of `start_share`); set by `race::set_up_mode_2_cars`.
+    pub start_share_first: Float,
     /// +0xb70 (0x6051AC): `flt_6051AC`: the start's share (`drive::start_car_on_line`).
     pub start_share: Float,
     /// +0xb74 (0x6051B0): `dword_6051B0`: the start speed, loaded as a float (`drive::start_car_on_line`, `drive::start_cars_behind`).
     pub start_speed: Float,
     /// +0xb78 (0x6051B4): `dword_6051B4`: "NUM arcadecars", the starts count (`race::set_up_mode_2_cars`, `race::panel_neighbours`, `drive::start_cars_behind`).
     pub arcade_cars: Dword,
-    /// +0xb7c (0x6051B8): not named.
+    /// +0xb7c (0x6051B8): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_b7c: Dword,
     /// +0xb80 (0x6051BC): `dword_6051BC`: "arc start pos (1-n)" (`race::set_up_mode_2_cars`, `race::settings_copy`, `race::race_shell`).
     pub start_place: Dword,
@@ -75,13 +74,13 @@ pub struct RaceTables {
     pub pace_back_gap: Dword,
     /// +0xba0 (0x6051DC): `dword_6051DC`: the sum of the two gaps (`drive::start_cars_behind`).
     pub pace_gap_sum: Dword,
-    /// +0xba4 (0x6051E0): not named.
-    pub unknown_ba4: [Dword; 32],
+    /// +0xba4 (0x6051E0): `dword_6051E0`: the order of the car kinds, 0x22 entries (the last two overlap `view_share` and `camera_turn_step`); `race::index_of_kind` searches it.
+    pub kind_order: [Dword; 32],
     /// +0xc24 (0x605260): `flt_605260`: the share of a view change done (`physics::ease_view_angles`, `ease_view_blend`, `physics::camera_view`).
     pub view_share: Float,
     /// +0xc28 (0x605264): `dword_605264`: the camera's turn step, -1 or 0x4000000 and down (`physics::camera_avoid_ground`).
     pub camera_turn_step: Dword,
-    /// +0xc2c (0x605268): `dword_605268`: 0 / -1 flag of the ground check (`physics::camera_avoid_ground`) (a reading).
+    /// +0xc2c (0x605268): `dword_605268`: 0 / -1 flag set by the camera's ground check (`physics::camera_avoid_ground`).
     pub camera_ground_flag: Dword,
 }
 

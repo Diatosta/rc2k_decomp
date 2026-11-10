@@ -1,5 +1,5 @@
 //! `menu::main_menu_loop` (0x4748D9): the loop of the main menu, the screen the game starts
-//! on (a reading)
+//! on (named from its title string and callers; the original's name is lost)
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! - background `mainscr.png`, loaded first thing at set-up, and its carry is not looked at;

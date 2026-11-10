@@ -9,7 +9,7 @@ RECORDS = {
         (0x4, 'place', 'Dword', 3, 'its place, whole numbers.'),
         (0x10, 'matrix', 'Float', 16, 'its matrix.'),
         (0x50, 'motion', 'Float', 3, 'its motion.'),
-        (0x5C, 'unknown_5c', 'Dword', 1, 'not named.'),
+        (0x5C, 'draw_height_offset', 'Dword', 1, 'not named.'),
         (0x60, 'car_word', 'Dword', 1, 'the car\'s +0xE00 when it broke off.'),
         (0x64, 'age', 'Dword', 1, 'the car\'s step clock when it broke off (the lowest is reused).'),
         (0x68, 'spin', 'Float', 3, 'its spin.'),

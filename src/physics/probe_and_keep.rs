@@ -1,7 +1,7 @@
 //! `physics::probe_and_keep` (0x45DC12): `physics::probe_ground`, then its three
 //! whole-number lists (x, y, z at 0x6D1E14, 0xC0 dwords) copied to 0x6D2C14 and the probe
-//! points' faces (`dword_71ADC8`, 0x40 dwords) to 0x6D2F14 (`rep movsd`): by the look of
-//! it the step's starting points kept (a reading).
+//! points' faces (`dword_71ADC8`, 0x40 dwords) to 0x6D2F14 (`rep movsd`): the probe lists
+//! as they were before the step (`saved_probe_x` ..., read by `crossed_edge_contact`).
 //!
 //! Caller: `physics::car_physics_step` (0x43B700), every physics step; next a call (no flags read).
 //! Refuses what `probe_ground` refuses (nothing written).

@@ -78,15 +78,15 @@ fn copies() -> [fn(&CameraWork, u32); 11] {
 fn x87_1(physics: &Physics, offset: [u32; 3], scene: &crate::scene::owner::Scene) {
     let lights = &scene.lights;
     let t0 = ld(offset[0]);
-    let t1 = ld(lights.state.camera_frame_a.bits());
+    let t1 = ld(lights.state.camera_shake_x.bits());
     let t2 = t0 + t1;
     physics.camera.view_a_offset[0].set_bits(st(t2));
     let t3 = ld(offset[1]);
-    let t4 = ld(lights.state.camera_frame_b.bits());
+    let t4 = ld(lights.state.camera_shake_y.bits());
     let t5 = t3 + t4;
     physics.camera.view_a_offset[1].set_bits(st(t5));
     let t6 = ld(offset[2]);
-    let t7 = ld(lights.state.camera_frame_c.bits());
+    let t7 = ld(lights.state.camera_shake_z.bits());
     let t8 = t6 + t7;
     physics.camera.view_a_offset[2].set_bits(st(t8));
 }

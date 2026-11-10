@@ -63,8 +63,8 @@ pub fn start_car_on_line(
         start as i32,
         race.shared.tables.arcade_cars.get() as i32,
         race.course.numbers.one.get(),
-        race.shared.tables.arcade_b.get(),
-        race.shared.tables.arcade_a.get(),
+        race.shared.tables.start_share_first.get(),
+        race.shared.tables.start_share_last.get(),
     )
     .to_bits();
     race.shared.tables.start_share.set_bits(share);

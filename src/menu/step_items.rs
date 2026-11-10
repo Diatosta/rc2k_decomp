@@ -4,7 +4,7 @@
 
 use crate::errors::Refused;
 use crate::menu::car_buttons::{Which, call_in_game, press};
-use crate::menu::option_steps::{Colour, step_colour};
+use crate::menu::option_steps::{StartPick, step_start_pick};
 use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
 use crate::menu::player_settings::current;
@@ -21,8 +21,8 @@ pub fn player_setting(setting: Setting, forward: bool) -> Result<(), Refused> {
 }
 
 /// An options page's colour pick one step on or back.
-pub fn colour(tables: &Tables, colour: Colour, forward: bool) -> Result<(), Refused> {
-    step_colour(tables, colour, forward);
+pub fn colour(tables: &Tables, colour: StartPick, forward: bool) -> Result<(), Refused> {
+    step_start_pick(tables, colour, forward);
     Ok(())
 }
 

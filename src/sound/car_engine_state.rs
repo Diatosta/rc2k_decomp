@@ -54,12 +54,12 @@ fn load(o: &crate::sound::store::SoundObject) -> Engine {
         last_gear: o.last_gear.get(),
         gear_notice: o.gear_notice.get(),
         countdown: o.countdown.get(),
-        wait_flag: o.wait_f8.get(),
+        wait_flag: o.drop_latched.get(),
         last_direction: o.last_direction.get(),
         state: o.state.get(),
         last_state: o.last_state.get(),
         smooth_throttle: o.smooth_throttle.get(),
-        gap_time: o.gap_time.get(),
+        throttle_lead: o.throttle_lead.get(),
         turns_up: o.turns_up.get(),
         direction: o.direction.get(),
         turns_down: o.turns_down.get(),
@@ -101,7 +101,7 @@ fn store(o: &crate::sound::store::SoundObject, before: &Engine, now: &Engine) {
     put(&o.last_gear, before.last_gear, now.last_gear);
     put(&o.gear_notice, before.gear_notice, now.gear_notice);
     put(&o.countdown, before.countdown, now.countdown);
-    put(&o.wait_f8, before.wait_flag, now.wait_flag);
+    put(&o.drop_latched, before.wait_flag, now.wait_flag);
     put(&o.last_direction, before.last_direction, now.last_direction);
     put(&o.state, before.state, now.state);
     put(&o.last_state, before.last_state, now.last_state);
@@ -110,7 +110,7 @@ fn store(o: &crate::sound::store::SoundObject, before: &Engine, now: &Engine) {
         before.smooth_throttle,
         now.smooth_throttle,
     );
-    put(&o.gap_time, before.gap_time, now.gap_time);
+    put(&o.throttle_lead, before.throttle_lead, now.throttle_lead);
     put(&o.turns_up, before.turns_up, now.turns_up);
     put(&o.direction, before.direction, now.direction);
     put(&o.turns_down, before.turns_down, now.turns_down);
@@ -264,12 +264,12 @@ mod tests {
             at(&o.last_gear),
             at(&o.gear_notice),
             at(&o.countdown),
-            at(&o.wait_f8),
+            at(&o.drop_latched),
             at(&o.last_direction),
             at(&o.state),
             at(&o.last_state),
             at(&o.smooth_throttle),
-            at(&o.gap_time),
+            at(&o.throttle_lead),
             at(&o.turns_up),
             at(&o.direction),
             at(&o.turns_down),

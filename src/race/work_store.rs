@@ -23,8 +23,8 @@ pub struct RaceSlot {
     pub matrix: [Float; 16],
     /// +0x50: its motion.
     pub motion: [Float; 3],
-    /// +0x5c: not named.
-    pub unknown_5c: Dword,
+    /// +0x5c: added to the part's height when it is drawn (`race::frame_draw::scene_objects`); no ported code writes it (0 from the start).
+    pub draw_height_offset: Dword,
     /// +0x60: the car's +0xE00 when it broke off.
     pub car_word: Dword,
     /// +0x64: the car's step clock when it broke off (the lowest is reused).
@@ -40,7 +40,7 @@ const _: () = assert!(core::mem::size_of::<RaceSlot>() == 0x78);
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceWork {
-    /// +0x0 (0x71AFB8): not named.
+    /// +0x0 (0x71AFB8): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_0: [Dword; 256],
     /// +0x400 (0x71B3B8): `g_carBlocks`: the eight cars' blocks (`CarBlock`, by handle:
     /// `blocks_store::block_ref`).
@@ -50,7 +50,7 @@ pub struct RaceWork {
     pub car_records: [Dword; 8],
     /// +0x440 (0x71B3F8): `g_currentCar`: the car being stepped.
     pub current_car: Dword,
-    /// +0x444 (0x71B3FC): not named.
+    /// +0x444 (0x71B3FC): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_444: Dword,
     /// +0x448 (0x71B400): `g_stageDirection`: the stage run forwards or backwards ("dir").
     pub stage_direction: Dword,
@@ -108,7 +108,7 @@ pub struct RaceWork {
     pub driver_turn: Dword,
     /// +0x1048 (0x71C000): the bend's index.
     pub driver_bend_index: Dword,
-    /// +0x104c (0x71C004): not named.
+    /// +0x104c (0x71C004): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_104c: Dword,
     /// +0x1050 (0x71C008): the speed wanted.
     pub driver_wanted_speed: Dword,
@@ -122,7 +122,7 @@ pub struct RaceWork {
     pub driver_reverse_tries: [Dword; 10],
     /// +0x10d0 (0x71C088): the noted bend's turn by car.
     pub driver_bend_turn: [Dword; 10],
-    /// +0x10f8 (0x71C0B0): not named.
+    /// +0x10f8 (0x71C0B0): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_10f8: [Dword; 3],
     /// +0x1104 (0x71C0BC): (`drive::drive_computer_car`).
     pub driver_flag_bc: Dword,
@@ -154,7 +154,7 @@ pub struct RaceWork {
     pub driver_from: [Dword; 4],
     /// +0x1280 (0x71C238): (x, 0, z).
     pub driver_to: [Dword; 4],
-    /// +0x1290 (0x71C248): not named.
+    /// +0x1290 (0x71C248): only pointed to by a data offset at 0x5EDB0A (a pointer table nothing ported reads).
     pub unknown_1290: [Dword; 4],
     /// +0x12a0 (0x71C258): the way from here to `driver_to` on the flat.
     pub driver_way: [Float; 4],
@@ -162,7 +162,7 @@ pub struct RaceWork {
     pub driver_way_unit: [Float; 4],
     /// +0x12c0 (0x71C278): the way ahead normalised.
     pub driver_ahead: [Float; 4],
-    /// +0x12d0 (0x71C288): not named.
+    /// +0x12d0 (0x71C288): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_12d0: [Dword; 4],
     /// +0x12e0 (0x71C298): `driver_from` to `driver_to` on the flat.
     pub driver_flat: [Float; 4],
@@ -198,7 +198,7 @@ pub struct RaceWork {
     pub guessed_checkpoints: [Dword; 16],
     /// +0x1848 (0x71C800): the `noprecipitation` setting.
     pub no_precipitation: Dword,
-    /// +0x184c (0x71C804): not named.
+    /// +0x184c (0x71C804): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_184c: [Dword; 4],
 }
 

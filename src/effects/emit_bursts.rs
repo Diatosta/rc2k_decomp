@@ -102,11 +102,15 @@ fn strength(set: &BurstSet, n: usize, wheel: &MarkRecord) -> Result<(u32, i32), 
     Ok({
         let scale: u32 = effects().setup.floats.thirty_two.bits();
         if n == 0 {
-            x87::times_kept_abs_to_int(wheel.speed_10.bits(), set.tuning.strength_k.bits(), scale)
+            x87::times_kept_abs_to_int(
+                wheel.local_velocity_x.bits(),
+                set.tuning.strength_k.bits(),
+                scale,
+            )
         } else {
             x87::blend_kept_abs_to_int(
-                wheel.speed_c.bits(),
-                wheel.speed_18.bits(),
+                wheel.driven_speed.bits(),
+                wheel.local_velocity_z.bits(),
                 set.tuning.blend_k[0].bits(),
                 set.tuning.blend_k[1].bits(),
                 scale,
@@ -188,7 +192,7 @@ pub fn emit_bursts_with(
                 continue;
             }
             let car = emitting_car(effects)?;
-            let k: u32 = effects.setup.floats.minus_65_536.bits();
+            let k: u32 = effects.setup.floats.burst_direction_k.bits();
             let s: u32 = h.strength.bits();
             let scale = h.scaled.then(|| effects.setup.floats.half.bits());
             let direction = [

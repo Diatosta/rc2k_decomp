@@ -383,7 +383,7 @@ pub fn draw_race_scene(
                 .get(),
         );
     }
-    scene.objects.tables.has_3d.set(1);
+    scene.objects.tables.d3d_drawing_on.set(1);
     // The frame's one sound turn (`sound::race_turn`, when 20 ms of the scene clock have
     // passed since the last): the original polled 28 places through the frame, but the clock
     // moves only here before (`restart_clock` above and in `show_frame` after the present),

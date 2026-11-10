@@ -195,15 +195,15 @@ pub struct WindscreenFlakeItem {
     pub born: Dword,
     /// +8: its age in frame ticks.
     pub age: Dword,
-    /// +0xC: its size (from its kind; also added to its texture places).
-    pub size: Float,
-    /// +0x10: a second size (0 at first; also added to its texture places).
-    pub size_2: Float,
-    /// +0x14: three dwords, 0.
+    /// +0xC: the flake's texture u offset: its kind (0 .. 7) / 16 + 1/512, the tile across the sheet (set at spawn, added to the four vertices' u by `run_windscreen_flakes`).
+    pub texture_u: Float,
+    /// +0x10: the flake's texture v offset: 0 (from the third constant of `tile_offset_k`), added to the four vertices' v.
+    pub texture_v: Float,
+    /// +0x14: three dwords set to 0 at spawn and never read (padding in the item).
     pub spare_14: [Dword; 3],
     /// +0x20, +0x24: its place (x, z) as floats.
     pub place: [Float; 2],
-    /// +0x28: five dwords, 0.
+    /// +0x28: five dwords set to 0 at spawn and never read (padding in the item).
     pub spare_28: [Dword; 5],
 }
 
@@ -215,8 +215,8 @@ impl WindscreenFlakeItem {
             live: Dword::new(0),
             born: Dword::new(0),
             age: Dword::new(0),
-            size: Float::from_bits(0),
-            size_2: Float::from_bits(0),
+            texture_u: Float::from_bits(0),
+            texture_v: Float::from_bits(0),
             spare_14: [const { Dword::new(0) }; 3],
             place: [const { Float::from_bits(0) }; 2],
             spare_28: [const { Dword::new(0) }; 5],
@@ -288,8 +288,8 @@ pub struct WindscreenFlakeState {
     pub fade: Dword,
     /// 0x8BC236: `flt_8BC236`: 1024.0, what a flake's z is taken from (`effects::run_windscreen_flakes`).
     pub far: Float,
-    /// 0x8BC23A: `flt_8BC23A`, `flt_8BC23E`, `flt_8BC242`: a new flake's size is its kind times the first plus the second; the third is its +0x10 (`effects::spawn_windscreen_flake`).
-    pub size_k: [Float; 3],
+    /// 0x8BC23A: `flt_8BC23A`, `flt_8BC23E`, `flt_8BC242`: a new flake's texture u offset is its kind times the first (1/16) plus the second (1/512); the third (0) is its v offset (+0x10) (`effects::spawn_windscreen_flake`).
+    pub tile_offset_k: [Float; 3],
     /// 0x8BC246: `flt_8BC246`, `flt_8BC24A`: 0.1 and 0 (`effects::windscreen_flakes_spawn`).
     pub rate_constants: [Float; 2],
     /// 0x8BC24E: `flt_8BC24E`: 65536.0, what the rate's fraction is multiplied by (`effects::windscreen_flakes_spawn`).
@@ -359,7 +359,7 @@ impl WindscreenFlakeState {
             ],
             fade: Dword::new(0x10),
             far: Float::from_bits(0x44800000),
-            size_k: [
+            tile_offset_k: [
                 Float::from_bits(0x3D800000),
                 Float::from_bits(0x3B000000),
                 Float::from_bits(0x0),
@@ -588,7 +588,7 @@ mod typed_tests {
             0x8BC236 - WindscreenFlakeState::START
         );
         assert_eq!(
-            offset_of!(WindscreenFlakeState, size_k),
+            offset_of!(WindscreenFlakeState, tile_offset_k),
             0x8BC23A - WindscreenFlakeState::START
         );
         assert_eq!(

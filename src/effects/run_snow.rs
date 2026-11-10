@@ -49,7 +49,7 @@ pub fn run_snow(
     let (s, l) = (&weather.snow, &weather.snow_light);
     {
         let marks = crate::effects::setup::effects_settings()?;
-        l.kept.set(marks.unknown_6bc[1].get());
+        l.kept.set(marks.snow_light_words[1].get());
         turn_light(frame, view.view_matrix, weather);
         crate::effects::make_fade_colours::make_fade_colours(view.light, weather, effects);
         let mut flakes = marks.snow_flakes.get() as i32;

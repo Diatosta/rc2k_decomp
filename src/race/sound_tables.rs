@@ -37,7 +37,11 @@ pub fn sound_span(first: &Dword, second: &Dword, span: &Dword) {
 /// and +0x1C.
 // Converted: `rc2k_core::race::sound_tables::{whole_to_float, span}`.
 pub fn sound_row(row: &SoundSet) {
-    for cell in [&row.unknown_04, &row.unknown_08, &row.unknown_0c] {
+    for cell in [
+        &row.unused_float_04,
+        &row.unused_float_08,
+        &row.unused_float_0c,
+    ] {
         whole_to_float(cell);
     }
     sound_span(&row.pitch_low, &row.pitch_high, &row.pitch_scale);
@@ -163,7 +167,7 @@ fn set_up_object(o: &crate::sound::store::SoundObject) {
         .reading_times
         .iter()
         .chain(&o.reading_revs)
-        .chain(&o.cleared_a4)
+        .chain(&o.unused_a4)
     {
         d.set(0);
     }
@@ -174,8 +178,8 @@ fn set_up_object(o: &crate::sound::store::SoundObject) {
     o.knock_count.set(0);
     o.flag_ac.set(0);
     o.landed.set(0);
-    o.last_effect_bc.set(0);
-    o.cleared_280.set(0);
+    o.last_forward_speed.set(0);
+    o.unused_280.set(0);
     o.state.set(0);
 }
 

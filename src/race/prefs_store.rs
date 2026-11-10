@@ -20,13 +20,13 @@ pub struct StagePrefs {
     pub lit_colour: [Dword; 3],
     /// +0x618 (0x6092CC): the fog's colour (`race::frame_draw::set_up_fog`; cleared in `scene::set_up_front_end_scene`).
     pub fog_colour: [Dword; 3],
-    /// +0x624 (0x6092D8): not named.
+    /// +0x624 (0x6092D8): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_624: [Dword; 3],
     /// +0x630 (0x6092E4): the light's level for the lit objects (`scene::draw_described_object`, `race::car_draw`).
     pub light_level: Dword,
     /// +0x634 (0x6092E8): the light's strength for the lit objects (`scene::draw_described_object`).
     pub light_strength_kept: Dword,
-    /// +0x638 (0x6092EC): not named.
+    /// +0x638 (0x6092EC): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_638: [Dword; 5],
     /// +0x64c (0x609300): the scene's size, 0x100 at start (`scene::reload_system_textures`, `scene::set_up_front_end_scene`).
     pub scene_size_a: Dword,
@@ -38,17 +38,17 @@ pub struct StagePrefs {
     pub fog_end: Dword,
     /// +0x65c (0x609310): fog setting: near (`race::frame_draw`).
     pub fog_near: Dword,
-    /// +0x660 (0x609314): not named.
+    /// +0x660 (0x609314): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_660: Dword,
     /// +0x664 (0x609318): the sky's height, << 8 (`race::frame_draw::sky_matrix`).
     pub sky_height: Dword,
-    /// +0x668 (0x60931C): `dword_60931C`: a lighting switch (a reading; `scene::vertex_light`, `scene::fill_light_tables`).
+    /// +0x668 (0x60931C): `dword_60931C`: a lighting switch (`scene::vertex_light`, `scene::fill_light_tables`; its exact meaning is not shown by those uses).
     pub lit_b: Dword,
     /// +0x66c (0x609320): fog setting, picked by the draw distance (`race::frame_draw`).
     pub fog_high: Dword,
     /// +0x670 (0x609324): the shine handed to `draw_race_scene` (`race::draw_race_scene`).
     pub shine_from: Dword,
-    /// +0x674 (0x609328): the car shadow's alpha, >> 1 (a reading; `race::car_shadow`).
+    /// +0x674 (0x609328): the car shadow's alpha, >> 1 (`race::car_shadow`).
     pub shadow_alpha: Dword,
     /// +0x678 (0x60932C): flat-depth switch of the projection (`scene::project_point`, `race::skidmarks`, `race::course_faces`).
     pub flat_depth: Dword,
@@ -60,7 +60,7 @@ pub struct StagePrefs {
     pub sun_turn: Dword,
     /// +0x688 (0x60933C): the sun's height (`race::frame_draw`, `race::car_shadow`).
     pub sun_height: Dword,
-    /// +0x68c (0x609340): not named.
+    /// +0x68c (0x609340): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_68c: Dword,
     /// +0x690 (0x609344): `qword_609344`: cleared by the stage prefs, tested by `race::draw_race_scene`, scaling factor of `physics::surface_noise`.
     pub blit_cleared: [Dword; 2],
@@ -76,7 +76,7 @@ pub struct StagePrefs {
     pub light_strength: Dword,
     /// +0x6ac (0x609360): fog setting: far (`race::frame_draw`).
     pub fog_far: Dword,
-    /// +0x6b0 (0x609364): not named.
+    /// +0x6b0 (0x609364): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_6b0: [Dword; 7],
     /// +0x6cc (0x609380): `g_cdatNumber` (`race::course_data`).
     pub cdat_number: Dword,
@@ -92,8 +92,8 @@ pub struct StagePrefs {
     pub car_light_table: [Dword; 3],
     /// +0x18bc (0x60A570): `dword_60A570` and two bytes: the glare colour (`scene::fill_light_tables`, `race::frame_views`).
     pub lamp_table_c: Dword,
-    /// +0x18c0 (0x60A574): not named.
-    pub unknown_18c0: [Dword; 2],
+    /// +0x18c0 (0x60A574): `byte_60A574`, `byte_60A578`: the sun glare's two colour bytes (the low byte of each dword; `race::frame_views`, with `lamp_table_c`).
+    pub glare_bytes: [Dword; 2],
     /// +0x18c8 (0x60A57C): `dword_60A57C`: picture lists (`scene::texture_levels`, `race::set_all_plates`), extent to the next list.
     pub picture_lists_a: [Dword; 64],
     /// +0x19c8 (0x60A67C): `dword_60A67C`: more picture lists; 0x40 kinds swapped in (`race::stage_prefs`, `race::set_all_plates`).
@@ -126,7 +126,7 @@ pub struct StagePrefs {
     pub shine_scale: Dword,
     /// +0x205c (0x60AD10): the rough floor of the surface noise (`physics::surface_noise`).
     pub surface_floor: Dword,
-    /// +0x2060 (0x60AD14): not named.
+    /// +0x2060 (0x60AD14): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_2060: Dword,
     /// +0x2064 (0x60AD18): the second noise's scale pair (`physics::surface_noise`).
     pub surface_scale: [Dword; 2],

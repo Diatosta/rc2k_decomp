@@ -62,7 +62,7 @@ pub fn walk_section_records(menus: &Menus) -> Result<(), Refused> {
             _ => {}
         }
         if let Some(first) = step.first() {
-            screens.event.service_944.set(first);
+            screens.event.cpu_spread_first.set(first);
         }
         INDEX_RVA.set(INDEX_RVA.get().wrapping_add(1));
         screens

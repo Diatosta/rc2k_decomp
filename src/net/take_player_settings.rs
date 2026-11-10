@@ -61,8 +61,8 @@ fn copy_player_settings(p: &Player, state: &RaceState) {
     car.sensitivity_level.set(p.sensitivity_level);
     car.axis_codes.set(u32::from_le_bytes(p.axis_codes));
     car.controller_mode.set(p.controller_mode);
-    car.dead_zone_1.set(p.dead_zone_1);
-    car.dead_zone_2.set(p.dead_zone_2);
+    car.end_zone_pct.set(p.end_zone_pct);
+    car.centre_dead_zone_pct.set(p.centre_dead_zone_pct);
     car.strength.set(p.strength);
     for (cell, word) in car.recorded_bindings().zip(p.bindings.words()) {
         cell.set(word);

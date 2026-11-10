@@ -4,7 +4,7 @@
 //! the object face's word and shine, and the sort key. One per view slot
 //! (`race::view_scratch::ViewScratch::polygon`); the HUD, the loading bar and the menus use
 //! the front end's. In the original these were `SceneDraw`'s `polygon_*`, `texture_page`,
-//! `face_word`, `face_shine`, `clip_work`, `clip_work_2`, `clip_kept_mask`, `clip_plane`,
+//! `face_word`, `face_shine`, `clip_work`, `clip_out_words`, `clip_kept_mask`, `clip_plane`,
 //! `screen_clipped`, `depth_clipped`, `entry_third` and `face_sort_key`, `quad_vertices`, written and read by every view in turn. Not here:
 //! `LevelGrid`'s `smooth`, `plain_first` and `plain_second` (the HUD sets the plain switches
 //! and leaves them set into the next frame's views until their first face resets them) and
@@ -58,8 +58,8 @@ pub struct PolygonWork {
     /// `scene::clip`'s work (`flt_623F80` ..); `race::car_shadow` keeps a vertex's pieces in
     /// [2], [4], [10], [11].
     pub clip_work: [Float; 12],
-    /// `scene::clip`'s second work run; `race::car_shadow` keeps a vertex's byte +0x20 in [0].
-    pub clip_work_2: [Dword; 5],
+    /// `scene::clip`'s second output run (five words written back from its work); `race::car_shadow` keeps the new crossing vertex's fog byte (+0x20) in [0].
+    pub clip_out_words: [Dword; 5],
     /// The four quad vertices (8 dwords each; `scene::point_records::of_quad`): the screen
     /// quads', the halfway vertices' and the skidmarks' own. In the original
     /// `RaceVars.quad_vertices`; every writer sets dwords 3, 6, 7 of the vertices it names
@@ -76,9 +76,9 @@ pub struct PolygonWork {
     /// The clear's rectangle (`DRAW.cleared_rectangle`, 0x624138: left, top, right, bottom),
     /// each view's own.
     pub cleared_rectangle: [Dword; 4],
-    /// The crossing's amount byte, as a dword (`DRAW.vertex_byte_21`, `race::car_shadow`),
+    /// The amount (alpha) byte of the vertex a clip crossing makes, blended between its two ends, as a dword (`DRAW.crossing_amount`, `race::car_shadow`),
     /// each view's own.
-    pub vertex_byte_21: Dword,
+    pub crossing_amount: Dword,
     /// The colour the faded polygons fade from (`d3d().cards.fade_from`, the fog colour
     /// `scene::set_fog_colour` was given), each view's own.
     pub fade_from: Dword,
@@ -145,7 +145,7 @@ impl PolygonWork {
             face_sort_key: Dword::new(0),
             clip_kept_mask: Dword::new(0),
             clip_work: [const { Float::from_bits(0) }; 12],
-            clip_work_2: [const { Dword::new(0) }; 5],
+            clip_out_words: [const { Dword::new(0) }; 5],
             quad_vertices: [const { Dword::new(0) }; 32],
             smooth: Dword::new(0),
             plain_first: Dword::new(0),
@@ -156,7 +156,7 @@ impl PolygonWork {
                 Dword::new(0x31F),
                 Dword::new(0x257),
             ],
-            vertex_byte_21: Dword::new(0),
+            crossing_amount: Dword::new(0),
             fade_from: Dword::new(0),
             view_mirrored: Dword::new(0),
             sun: ViewSun::new(),

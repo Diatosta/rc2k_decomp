@@ -2,7 +2,7 @@
 //! three also over the step `flt_61388C`: `flt_614C2C` = `flt_614250`, `flt_614C30` =
 //! `flt_614254`, `flt_614C34` = `flt_614258` + `flt_61425C`, `flt_614C38` = the four at
 //! 0x614834 + 0x20 k, `flt_614C3C` = the five at 0x614774 + 0x20 k (the records
-//! `physics::clear_forces` clears). By the look of it the step's forces in g (a reading).
+//! `physics::clear_forces` clears). The step's forces summed, over gravity (so in g).
 //!
 //! Caller: `physics::car_physics_step` (0x43B995), every physics step.
 

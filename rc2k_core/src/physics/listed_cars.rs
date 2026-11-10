@@ -13,7 +13,7 @@ use crate::Invalid;
 pub const NOT_LISTED: u32 = u32::MAX;
 
 /// The current car's entry, `entry(car)` asked once the car is known to be one of the
-/// eight (past 7 is refused: the table's size is not worked out); and whether the flag
+/// eight (past 7 is refused: the table holds eight); and whether the flag
 /// is set by it (the entry not -1).
 pub fn listed_entry(car: u32, entry: impl FnOnce(u32) -> u32) -> Result<(u32, bool), Invalid> {
     if car > 7 {

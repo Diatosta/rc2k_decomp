@@ -418,9 +418,9 @@ switch!(
     "menu::toggle_755650",
     0x470035,
     0x12,
-    var!(MENUS.screens.option_work.setting_0),
+    var!(MENUS.screens.option_work.lens_flare),
     Kind::SwitchCopy {
-        other: var!(crate::race::owner::RACE.shared.state.settings.setting_0),
+        other: var!(crate::race::owner::RACE.shared.state.settings.lens_flare),
         flip: false
     }
 );
@@ -429,9 +429,9 @@ switch!(
     "menu::toggle_75565c",
     0x470107,
     0x12,
-    var!(MENUS.screens.option_work.setting_1),
+    var!(MENUS.screens.option_work.reflections),
     Kind::SwitchCopy {
-        other: var!(crate::race::owner::RACE.shared.state.settings.setting_1),
+        other: var!(crate::race::owner::RACE.shared.state.settings.reflections),
         flip: false
     }
 );
@@ -440,9 +440,9 @@ switch!(
     "menu::toggle_755660",
     0x470119,
     0x12,
-    var!(MENUS.screens.option_work.setting_2),
+    var!(MENUS.screens.option_work.car_shadows),
     Kind::SwitchCopy {
-        other: var!(crate::race::owner::RACE.shared.state.settings.setting_2),
+        other: var!(crate::race::owner::RACE.shared.state.settings.car_shadows),
         flip: false
     }
 );
@@ -451,9 +451,9 @@ switch!(
     "menu::toggle_755668",
     0x47018B,
     0x12,
-    var!(MENUS.screens.option_work.setting_4),
+    var!(MENUS.screens.option_work.headlights),
     Kind::SwitchCopy {
-        other: var!(crate::race::owner::RACE.shared.state.settings.setting_4),
+        other: var!(crate::race::owner::RACE.shared.state.settings.headlights),
         flip: false
     }
 );

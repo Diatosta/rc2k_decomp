@@ -1,5 +1,5 @@
 //! `menu::championship_new_simulation_loop` (0x4764DC): the start screen of the normal
-//! championship, by its title "NOVA SIMULAÇÃO" and its place in the mode menu (a reading)
+//! championship, by its title "NOVA SIMULAÇÃO" and its place in the mode menu (named from its title string and callers; the original's name is lost)
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `sral.png`; leaving is not asked about; the

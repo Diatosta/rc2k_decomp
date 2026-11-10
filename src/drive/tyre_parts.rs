@@ -67,7 +67,7 @@ fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch
         vertex.v.set_bits(st(if at_bottom { bottom } else { top }));
     }
     scratch.set_bits(st(
-        int(screen[0] as i32) * ld(VIEWER_PANEL.texel_scale_small.bits())
+        int(screen[0] as i32) * ld(VIEWER_PANEL.reciprocal_width_800.bits())
     ));
     for vertex in &vertices[..4] {
         vertex
@@ -75,7 +75,7 @@ fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch
             .set_bits(st(ld(vertex.x.bits()) * ld(scratch.bits())));
     }
     scratch.set_bits(st(
-        int(screen[1] as i32) * ld(VIEWER_PANEL.texel_scale_smaller.bits())
+        int(screen[1] as i32) * ld(VIEWER_PANEL.reciprocal_height_600.bits())
     ));
     for vertex in &vertices[..4] {
         vertex

@@ -391,8 +391,8 @@ impl GameWork for rc2k_core::screens::best_scores::Work {
         let screens = &menus().screens;
         match self {
             W::Rank => &screens.draw_work.seconds,
-            W::RowY => &screens.draw_work.work_b0,
-            W::CarGlyph => &screens.draw_work.work_b4,
+            W::RowY => &screens.draw_work.scratch_b0,
+            W::CarGlyph => &screens.draw_work.scratch_b4,
             W::Heading => &screens.draw_work.figure,
         }
     }
@@ -445,10 +445,10 @@ impl GameWork for rc2k_core::screens::itinerary::Work {
         let screens = &menus().screens;
         match self {
             W::Y => &screens.draw_work.seconds,
-            W::Row => &screens.draw_work.work_b0,
-            W::Stage => &screens.draw_work.work_b4,
-            W::Service => &screens.draw_work.work_0c,
-            W::ServiceString => &screens.draw_work.work_08,
+            W::Row => &screens.draw_work.scratch_b0,
+            W::Stage => &screens.draw_work.scratch_b4,
+            W::Service => &screens.draw_work.scratch_0c,
+            W::ServiceString => &screens.draw_work.scratch_08,
         }
     }
 }
@@ -572,7 +572,7 @@ impl GameWork for rc2k_core::screens::players_results::Work {
     fn cell(self) -> &'static Dword {
         let screens = &menus().screens;
         match self {
-            rc2k_core::screens::players_results::Work::Gap => &screens.draw_work.work_b8,
+            rc2k_core::screens::players_results::Work::Gap => &screens.draw_work.scratch_b8,
             rc2k_core::screens::players_results::Work::FirstTime => {
                 &screens.draw_work.first_player_time
             }
@@ -601,7 +601,7 @@ impl GameWork for rc2k_core::screens::stage_results::Work {
             W::Scratch => &screens.draw_work.figure,
             W::FirstTime => &screens.state.menus.first_row_time,
             W::Gap => &screens.draw_work.hhmm,
-            W::RowY => &screens.draw_work.work_b0,
+            W::RowY => &screens.draw_work.scratch_b0,
         }
     }
 }
@@ -644,7 +644,7 @@ impl GameWork for rc2k_core::screens::results_pages::RankingWork {
             W::FirstTime => &screens.draw_work.first_player_time,
             W::Place => &screens.draw_work.seconds,
             W::Gap => &screens.draw_work.glyph,
-            W::SpriteY => &screens.draw_work.work_b0,
+            W::SpriteY => &screens.draw_work.scratch_b0,
         }
     }
 }
@@ -862,10 +862,10 @@ impl GameWork for rc2k_core::screens::highlighted_caption::Work {
             Work::MarkerX => &screens.draw_work.marker_x,
             Work::MarkerY => &screens.draw_work.marker_y,
             Work::Width => &screens.draw_work.seconds,
-            Work::X => &screens.draw_work.work_b0,
-            Work::Y => &screens.draw_work.work_b4,
+            Work::X => &screens.draw_work.scratch_b0,
+            Work::Y => &screens.draw_work.scratch_b4,
             Work::Left => &screens.draw_work.glyph,
-            Work::Right => &screens.draw_work.work_c4,
+            Work::Right => &screens.draw_work.scratch_c4,
             Work::LeftX => &screens.draw_work.marker_end_a,
             Work::LeftY => &screens.draw_work.marker_end_b,
             Work::RightX => &screens.draw_work.marker_end_c,
@@ -942,7 +942,7 @@ impl GameWork for rc2k_core::screens::controller_page::Work {
         let screens = &menus().screens;
         match self {
             Work::Seconds => &screens.draw_work.seconds,
-            Work::Record => &screens.draw_work.work_0c,
+            Work::Record => &screens.draw_work.scratch_0c,
             Work::FirstLeft => &screens.draw_work.slider_a_start,
             Work::FirstRight => &screens.draw_work.slider_a_end,
             Work::SecondLeft => &screens.draw_work.slider_b_start,

@@ -17,9 +17,9 @@ pub struct CaptionTables {
     pub screen_left: Dword,
     /// `dword_75880A`: Not read.
     pub dword_75880a: Dword,
-    /// `dword_75880E`: The stage group of the stage shown (the record table's index; a reading).
+    /// `dword_75880E`: The stage group of the stage shown (the record table's index; set by menu::option_items).
     pub shown_group: Dword,
-    /// `dword_758812`: The index of the stage shown in its group (times 0xA4 into the group's records; a reading).
+    /// `dword_758812`: The index of the stage shown in its group (times 0xA4 into the group's records; set by the stage pages' steps in menu::option_items and read by screens::stage_results).
     pub shown_stage: Dword,
     /// `dword_758816`: The nationalities' name string ids (`screens::draw_player_details`).
     pub nationalities: [Dword; 47],

@@ -1,4 +1,4 @@
-//! `effects::draw_shadow` (0x4C8168): the car's ground shadow (a reading), unless
+//! `effects::draw_shadow` (0x4C8168): the car's ground shadow (probably: the quad is drawn flat on the ground under the car), unless
 //! `dword_933F64` (its corner) is -1: `scene::depth_buffer_on`, `scene::depth_test_on`,
 //! render states 0x15 = 4, 0x13 = 5, 0x14 = 6, 0x1C = 0, 0x1B = 1; two sides
 //! (`dword_933F1C` .., `dword_933F28` ..) made one long and square (`scene::cross_product3`,
@@ -42,18 +42,18 @@ pub struct Shadow<'a> {
 
 /// `draw_shadow`'s.
 pub static FIRST: Shadow<'static> = Shadow {
-    quad: &crate::effects::owner::EFFECTS.kinds.quad_2,
+    quad: &crate::effects::owner::EFFECTS.kinds.shadow_quad,
     consts: &CONSTS_2,
-    up: &crate::effects::owner::EFFECTS.kinds.extra_2.extra,
-    field: |marks| &marks.listener_float_b,
+    up: &crate::effects::owner::EFFECTS.kinds.shadow_extra.extra,
+    field: |marks| &marks.engine_speed_scaled_copy,
 };
 
 /// `effects::draw_overlays`'s.
 pub static SECOND: Shadow<'static> = Shadow {
-    quad: &crate::effects::owner::EFFECTS.kinds.quad_1,
+    quad: &crate::effects::owner::EFFECTS.kinds.overlay_quad,
     consts: &CONSTS_1,
-    up: &crate::effects::owner::EFFECTS.kinds.extras_1.extra,
-    field: |marks| &marks.listener_float_a,
+    up: &crate::effects::owner::EFFECTS.kinds.overlay_extras.extra,
+    field: |marks| &marks.engine_speed_copy,
 };
 
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
@@ -1196,9 +1196,9 @@ mod asm_differential {
                         consts,
                         up,
                         field: if l.3 == 0x26A0 {
-                            |marks| &marks.listener_float_a
+                            |marks| &marks.engine_speed_copy
                         } else {
-                            |marks| &marks.listener_float_b
+                            |marks| &marks.engine_speed_scaled_copy
                         },
                     })
                 })

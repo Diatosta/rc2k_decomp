@@ -10,8 +10,8 @@ use crate::session::{Bytes, Dword, with_runs};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Event {
-    /// `dword_7558C4`: Not worked out.
-    pub dword_7558c4: Dword,
+    /// +0 (0x7558C4) `dword_7558C4`: the controller (0 the keyboard, n the input device n - 1) of the player picked on the controller page, written by `screens::pick_player_n` (player +0x2C); read by no code.
+    pub picked_controller: Dword,
     /// `dword_7558C8`: The stage chosen: its group, 0 or 1 (`menu::stage_choice`).
     pub stage_group: Dword,
     /// `dword_7558CC`: The stage chosen: its number in its group, 1 .. 6.
@@ -72,12 +72,12 @@ pub struct Event {
     pub service_due: Dword,
     /// `g_serviceMinutes`: The service time left.
     pub service_minutes: Dword,
-    /// `dword_755940`: The service's work value (`menu::run_championship`).
-    pub service_940: Dword,
-    /// `dword_755944`: The first / service work value.
-    pub service_944: Dword,
-    /// `dword_755948`: The step of `menu::calc_cpu_times`.
-    pub dword_755948: Dword,
+    /// +0x7C (0x755940) `dword_755940`: the +0xC word of the service record the championship has reached (`menu::run_championship`); written there, read by no code.
+    pub service_record_c: Dword,
+    /// +0x80 (0x755944) `dword_755944`: 1 when the next computer drivers' times start a batch (set by a service record and the condition-reset step), 0 once `menu::calc_cpu_times` has drawn the first spread: with `cpu_spread_step` the state of `rc2k_core::menu::event::Spread`.
+    pub cpu_spread_first: Dword,
+    /// +0x84 (0x755948) `dword_755948`: how many spreads of the batch `menu::calc_cpu_times` has drawn after the first: the multiplier of its second random number (under 1000); 0 while the batch starts.
+    pub cpu_spread_step: Dword,
     /// `dword_75594C`: The next service.
     pub service_next: Dword,
     /// `g_stagesDone`: The stages done in the event.
@@ -90,8 +90,8 @@ pub struct Event {
     pub section: Dword,
     /// `dword_755960`: The first stage of the page shown.
     pub first_page_stage: Dword,
-    /// `dword_755964`: Not worked out.
-    pub dword_755964: Dword,
+    /// +0xA0 (0x755964) `dword_755964`: the section of the stage list being viewed (a copy of `section` made by `menu::view_stage_loop`); read by no code.
+    pub viewed_section: Dword,
     /// `g_stagePages`: The stage pages.
     pub stage_pages: Dword,
     /// `g_stagePage`: The stage page shown.
@@ -126,7 +126,7 @@ impl Event {
     /// First values the image's (`tests::event_state_starts_as_the_games`).
     pub const fn new() -> Self {
         Event {
-            dword_7558c4: Dword::new(0x0),
+            picked_controller: Dword::new(0x0),
             stage_group: Dword::new(0x0),
             stage_number: Dword::new(0x1),
             stage_sub: Dword::new(0x0),
@@ -157,16 +157,16 @@ impl Event {
             welcomed: Dword::new(0x0),
             service_due: Dword::new(0x0),
             service_minutes: Dword::new(0x0),
-            service_940: Dword::new(0x0),
-            service_944: Dword::new(0x0),
-            dword_755948: Dword::new(0x0),
+            service_record_c: Dword::new(0x0),
+            cpu_spread_first: Dword::new(0x0),
+            cpu_spread_step: Dword::new(0x0),
             service_next: Dword::new(0x0),
             stages_done: Dword::new(0x0),
             event_type: Dword::new(0x1),
             index: Dword::new(0x0),
             section: Dword::new(0x0),
             first_page_stage: Dword::new(0x0),
-            dword_755964: Dword::new(0x0),
+            viewed_section: Dword::new(0x0),
             stage_pages: Dword::new(0x0),
             stage_page: Dword::new(0x0),
             continuing_save: Dword::new(0x0),
@@ -216,7 +216,7 @@ mod tests {
         };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(Event, dword_7558c4), 0x7558C4);
+        at(offset_of!(Event, picked_controller), 0x7558C4);
         at(offset_of!(Event, stage_group), 0x7558C8);
         at(offset_of!(Event, stage_number), 0x7558CC);
         at(offset_of!(Event, stage_sub), 0x7558D0);
@@ -247,16 +247,16 @@ mod tests {
         at(offset_of!(Event, welcomed), 0x755934);
         at(offset_of!(Event, service_due), 0x755938);
         at(offset_of!(Event, service_minutes), 0x75593C);
-        at(offset_of!(Event, service_940), 0x755940);
-        at(offset_of!(Event, service_944), 0x755944);
-        at(offset_of!(Event, dword_755948), 0x755948);
+        at(offset_of!(Event, service_record_c), 0x755940);
+        at(offset_of!(Event, cpu_spread_first), 0x755944);
+        at(offset_of!(Event, cpu_spread_step), 0x755948);
         at(offset_of!(Event, service_next), 0x75594C);
         at(offset_of!(Event, stages_done), 0x755950);
         at(offset_of!(Event, event_type), 0x755954);
         at(offset_of!(Event, index), 0x755958);
         at(offset_of!(Event, section), 0x75595C);
         at(offset_of!(Event, first_page_stage), 0x755960);
-        at(offset_of!(Event, dword_755964), 0x755964);
+        at(offset_of!(Event, viewed_section), 0x755964);
         at(offset_of!(Event, stage_pages), 0x755968);
         at(offset_of!(Event, stage_page), 0x75596C);
         at(offset_of!(Event, continuing_save), 0x755970);

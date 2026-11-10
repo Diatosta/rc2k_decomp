@@ -7,7 +7,7 @@
 /// How near the stage's start and end (in checkpoints) no car is put.
 pub const END_MARGIN: u32 = 8;
 
-/// A block's +0x25C when the car is in the stage (a reading) for `reset_point_blocked`.
+/// A block's +0x25C when the block is a computer car's (`grade_mode` 2) for `reset_point_blocked`.
 pub const IN_STAGE: u32 = 2;
 
 /// Whether a checkpoint is less than `END_MARGIN` from the start (by the sign).

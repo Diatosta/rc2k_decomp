@@ -53,7 +53,7 @@ pub struct Carousel {
     pub last_clock: Dword,
     /// `dword_75AA88`: the time since, held to 100.
     pub passed: Dword,
-    /// `dword_75AA8C`: 1 when a set-up has been made (a reading).
+    /// `dword_75AA8C`: set to 1 by `scene::set_up_carousel` when the carousel's set-up is done; only the carousel set-up lists (scene::carousel_set_ups) name it.
     pub set_up: Dword,
 }
 
@@ -109,7 +109,7 @@ pub struct Menus {
     pub which_title: Dword,
     /// `dword_75AAE0`: 1 = leave the service area's edit variables alone.
     pub skip_edit_values: Dword,
-    /// `dword_75AAE4`: not worked out.
+    /// `dword_75AAE4`: no code reads or writes it (its first value is 0).
     pub dword_75aae4: Dword,
     /// `dword_75AAE8`: the class times (`menu::calc_cpu_times`), by class.
     pub class_times: [Dword; 4],
@@ -123,7 +123,7 @@ pub struct Menus {
     pub rally_done: Dword,
     /// `g_firstRowTime`: the first row's time, kept for the others' gap to it.
     pub first_row_time: Dword,
-    /// `unk_75AB28`: eight bytes, not worked out.
+    /// `unk_75AB28`: eight bytes no code reads or writes.
     pub pair_ab28: [Dword; 2],
     /// `dword_75AB30`: bit 0 turned over by `menu::toggle_caption_choice`.
     pub caption_choice: Dword,
@@ -131,7 +131,7 @@ pub struct Menus {
     pub standings_shown: Dword,
     /// `dword_75AB38`: set to 1 by the repairs, 0 by the service pass.
     pub service_flag: Dword,
-    /// `unk_75AB3C`: not worked out.
+    /// `unk_75AB3C`: no code reads or writes it.
     pub unk_75ab3c: Dword,
     /// `dword_75AB40`: 2 in event mode 0x13 (`menu::class_championship_pass`).
     pub class_mode: Dword,

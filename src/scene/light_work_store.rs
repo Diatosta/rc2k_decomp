@@ -11,11 +11,11 @@ use crate::session::{Dword, Float};
 pub struct LightWork {
     /// +0x0 (0x62DA44): `g_drawingObject`: the object being drawn; now each view's (`scene::object_place`); unused.
     pub drawing_object: Dword,
-    /// +0x4 (0x62DA48): not named.
+    /// +0x4 (0x62DA48): 13 dwords after the drawing object; no code references them (a gap).
     pub unknown_4: [Dword; 13],
     /// +0x38 (0x62DA7C): `dword_62DA7C`: the lamp's tint taken from its entry (`scene::add_point_lights`, `race::frame_draw`); now each view's (`scene::object_light`); unused.
     pub lamp_tint: Dword,
-    /// +0x3c (0x62DA80): not named.
+    /// +0x3c (0x62DA80): three dwords before the point's place; the original's only references are from undefined (non-function) code, the port has none (a gap).
     pub unknown_3c: [Dword; 3],
     /// +0x48 (0x62DA8C): `dword_62DA8C` ..: the point's place (`scene::draw_object_face`; read by `fsub`); now each view's (`scene::object_light`); unused.
     pub point_place: [Float; 3],
@@ -23,13 +23,13 @@ pub struct LightWork {
     pub light_work_floats: [Float; 4],
     /// +0x64 (0x62DAA8): `dword_62DAA8` ..: the point of `scene::light_dot`'s inputs (a reading: floats, loaded by `fld`); now each view's (`scene::object_light`); unused.
     pub light_dot_point: [Float; 3],
-    /// +0x70 (0x62DAB4): `dword_62DAB4` ..: the light's vector in `scene::light_dot`'s inputs (a reading); now each view's (`scene::object_light`); unused.
+    /// +0x70 (0x62DAB4): `dword_62DAB4` ..: the light's direction vector, the second input of `scene::light_dot`; now each view's (`scene::object_light`); unused.
     pub light_dot_light: [Float; 3],
     /// +0x7c (0x62DAC0): `flt_62DAC0`: the factor in `scene::light_dot`'s inputs; now each view's (`scene::object_light`); unused.
     pub light_dot_factor: Float,
     /// +0x80 (0x62DAC4): `g_lightColour`: the light's colour (`scene::vertex_light`, `scene::add_point_lights`, `race::course_faces`, `race::frame_draw`); now each view's (`scene::object_light`); unused.
     pub light_colour: Dword,
-    /// +0x84 (0x62DAC8): not named.
+    /// +0x84 (0x62DAC8): one dword between the light's colour and the lamps' mask; no code references it (a gap).
     pub unknown_84: Dword,
     /// +0x88 (0x62DACC): `dword_62DACC`: the lamp parts' mask (`race::car_parts`, `race::draw_race_scene`, `race::loadlevel`).
     pub lamps_mask: Dword,
@@ -38,7 +38,7 @@ pub struct LightWork {
     /// +0x90 (0x62DAD4): `dword_62DAD4`: the base light colour of the view or car; now each view's
     /// (`scene::object_light::ObjectLight::car_light`), this one not used.
     pub view_light_base: Dword,
-    /// +0x94 (0x62DAD8): not named.
+    /// +0x94 (0x62DAD8): the 8 bytes of padding before `sse_fill`; no code references them.
     pub unknown_94: [Dword; 2],
     /// +0x9c (0x62DAE0): `xmmword_62DAE0`: 16 bytes the point records are cleared with by SSE (`race::frame_draw`); 8 bytes of padding before it are unused.
     pub sse_fill: [Dword; 4],
@@ -46,7 +46,7 @@ pub struct LightWork {
     pub fog_step: Dword,
     /// +0xb0 (0x62DAF4): `g_lightKind`: the kind of light being set (`scene::set_object_light`, `scene::vertex_light`, `race::car_draw`, `scene::draw_described_object`, `scene::draw_menu_object`, `race::frame_draw`); now each view's (`scene::object_light`); unused.
     pub light_kind: Dword,
-    /// +0xb4 (0x62DAF8): `dword_62DAF8`: set with the light kind, 0 for a car (`race::car_draw`) (a reading); now each view's (`scene::object_light`); unused.
+    /// +0xb4 (0x62DAF8): `dword_62DAF8`: set along with the light kind, 0 for a car (`race::car_draw`); no reader shows what it selects; now each view's (`scene::object_light`); unused.
     pub light_kind_extra: Dword,
     /// +0xb8 (0x62DAFC): `dword_62DAFC`: the car's light colour (`physics::car_lighting`).
     pub car_light_colour: Dword,

@@ -1,13 +1,13 @@
 //! `physics::rate_damage` (0x4AF1EC): the current car's damage figures (the work copy's
 //! 0x71A278 .. 0x71A328) made into its working grades and failures (IDA, 2026-10-17;
-//! what each figure is, is a reading at best). In the original's order:
+//! what each figure is, is in `physics/store.rs`). In the original's order:
 //! - `dword_71A3CC` = 1 - `dword_71A290` k k694 - `flt_71A294` k k698 (k = `flt_75B388`;
 //!   80 bits), times `flt_75B5A0` when `flt_75B3E4`'s bits are not 0 and `flt_71A298` is
 //!   not below `flt_75B34C`; held to `flt_75B350` .. `flt_75B348`;
 //! - `flt_71A3D0`, `flt_71A3D4`: 1 less four products each (`flt_71A284` / `flt_71A288`,
 //!   `flt_71A320` / `flt_71A324`, `flt_71A278`, `dword_75B3F0`), held the same way;
 //! - 23 ramps (`math::x87_run::ramp`, tables of (x0, y0, x1, y1) at 0x75B4E8 .. 0x75B568)
-//!   into 0x71A3D8 .. 0x71A3E0 and 0x75B404 .. 0x75B49C, two of them times
+//!   into 0x71A3D8 .. 0x71A3E0 and the model's failure chances (0x75B404 .. 0x75B438, 0x75B490 .. 0x75B49C), two of them times
 //!   `flt_75B43C` k k, one squared;
 //! - failures by chance: a figure times `flt_75B340` (`fistp` into `flt_75B36C`) against
 //!   the random `dword_75B4A0` turned right by 4 .. 0x19, low word (the sign of the
@@ -45,92 +45,92 @@ fn ramps_a(race: &Race) -> [(&Float, &Float, &[Float; 4]); 2] {
 fn ramps_c(race: &Race) -> [(&Float, &Float, &[Float; 4]); 18] {
     [
         (
-            &race.physics.damage.unknown_150,
+            &race.physics.damage.clutch_block_chance,
             &race.shared.car.clutch_damage,
             &race.physics.damage.lerp_tables[7],
         ),
         (
-            &race.physics.damage.unknown_154,
+            &race.physics.damage.gearbox_block_chance,
             &race.shared.car.gearbox_damage,
             &race.physics.damage.lerp_tables[8],
         ),
         (
-            &race.physics.damage.unknown_158,
+            &race.physics.damage.gearbox_neutral_chance,
             &race.shared.car.gearbox_damage,
             &race.physics.damage.lerp_tables[9],
         ),
         (
-            &race.physics.damage.unknown_15c,
+            &race.physics.damage.handbrake_fail_chance,
             &race.shared.car.brake_damage,
             &race.physics.damage.lerp_tables[10],
         ),
         (
-            &race.physics.damage.unknown_c4,
+            &race.physics.damage.electrics_fail_chance,
             &race.shared.car.electrics_damage,
             &race.physics.damage.lerp_tables[11],
         ),
         (
-            &race.physics.damage.unknown_c8,
+            &race.physics.damage.light_fail_chance_0,
             &race.shared.car.light_damage[0],
             &race.physics.damage.lerp_tables[11],
         ),
         (
-            &race.physics.damage.unknown_cc,
+            &race.physics.damage.light_fail_chance_1,
             &race.shared.car.light_damage[1],
             &race.physics.damage.lerp_tables[11],
         ),
         (
-            &race.physics.damage.unknown_d0,
+            &race.physics.damage.light_fail_chance_2,
             &race.shared.car.light_damage[2],
             &race.physics.damage.lerp_tables[11],
         ),
         (
-            &race.physics.damage.unknown_d4,
+            &race.physics.damage.light_fail_chance_3,
             &race.shared.car.light_damage[3],
             &race.physics.damage.lerp_tables[11],
         ),
         (
-            &race.physics.damage.unknown_d8,
+            &race.physics.damage.light_fail_chance_4,
             &race.shared.car.light_damage[4],
             &race.physics.damage.lerp_tables[11],
         ),
         (
-            &race.physics.damage.unknown_dc,
+            &race.physics.damage.light_fail_chance_5,
             &race.shared.car.light_damage[5],
             &race.physics.damage.lerp_tables[11],
         ),
         (
-            &race.physics.damage.unknown_e0,
+            &race.physics.damage.electrics_recover_chance,
             &race.shared.car.electrics_damage,
             &race.physics.damage.lerp_tables[11],
         ),
         (
-            &race.physics.damage.unknown_e4,
+            &race.physics.damage.light_recover_chance_0,
             &race.shared.car.light_damage[0],
             &race.physics.damage.lerp_tables[12],
         ),
         (
-            &race.physics.damage.unknown_e8,
+            &race.physics.damage.light_recover_chance_1,
             &race.shared.car.light_damage[1],
             &race.physics.damage.lerp_tables[12],
         ),
         (
-            &race.physics.damage.unknown_ec,
+            &race.physics.damage.light_recover_chance_2,
             &race.shared.car.light_damage[2],
             &race.physics.damage.lerp_tables[12],
         ),
         (
-            &race.physics.damage.unknown_f0,
+            &race.physics.damage.light_recover_chance_3,
             &race.shared.car.light_damage[3],
             &race.physics.damage.lerp_tables[12],
         ),
         (
-            &race.physics.damage.unknown_f4,
+            &race.physics.damage.light_recover_chance_4,
             &race.shared.car.light_damage[4],
             &race.physics.damage.lerp_tables[12],
         ),
         (
-            &race.physics.damage.unknown_f8,
+            &race.physics.damage.light_recover_chance_5,
             &race.shared.car.light_damage[5],
             &race.physics.damage.lerp_tables[12],
         ),
@@ -141,44 +141,44 @@ fn failures(race: &Race) -> [(&Dword, &Float, &Float, u32); 7] {
     [
         (
             &race.shared.car.electrical_failures[0],
-            &race.physics.damage.unknown_e0,
-            &race.physics.damage.unknown_c4,
+            &race.physics.damage.electrics_recover_chance,
+            &race.physics.damage.electrics_fail_chance,
             0x4,
         ),
         (
             &race.shared.car.electrical_failures[1],
-            &race.physics.damage.unknown_e4,
-            &race.physics.damage.unknown_c8,
+            &race.physics.damage.light_recover_chance_0,
+            &race.physics.damage.light_fail_chance_0,
             0x5,
         ),
         (
             &race.shared.car.electrical_failures[2],
-            &race.physics.damage.unknown_e8,
-            &race.physics.damage.unknown_cc,
+            &race.physics.damage.light_recover_chance_1,
+            &race.physics.damage.light_fail_chance_1,
             0x6,
         ),
         (
             &race.shared.car.electrical_failures[3],
-            &race.physics.damage.unknown_ec,
-            &race.physics.damage.unknown_d0,
+            &race.physics.damage.light_recover_chance_2,
+            &race.physics.damage.light_fail_chance_2,
             0x7,
         ),
         (
             &race.shared.car.electrical_failures[4],
-            &race.physics.damage.unknown_f0,
-            &race.physics.damage.unknown_d4,
+            &race.physics.damage.light_recover_chance_3,
+            &race.physics.damage.light_fail_chance_3,
             0x8,
         ),
         (
             &race.shared.car.electrical_failures[5],
-            &race.physics.damage.unknown_f4,
-            &race.physics.damage.unknown_d8,
+            &race.physics.damage.light_recover_chance_4,
+            &race.physics.damage.light_fail_chance_4,
             0x9,
         ),
         (
             &race.shared.car.electrical_failures[6],
-            &race.physics.damage.unknown_f8,
-            &race.physics.damage.unknown_dc,
+            &race.physics.damage.light_recover_chance_5,
+            &race.physics.damage.light_fail_chance_5,
             0xA,
         ),
     ]
@@ -225,15 +225,15 @@ pub fn rate_damage(race: &Race) {
         out.set_bits(ramp(x.bits(), table_of(t), d.gauge_low.bits()));
     }
     for (out, x) in [
-        (&c.drive_efficiency[0], &d.unknown_100),
-        (&c.drive_efficiency[1], &d.unknown_104),
+        (&c.drive_efficiency[0], &d.tyre_wear_mean_a),
+        (&c.drive_efficiency[1], &d.tyre_wear_mean_b),
     ] {
-        d.unknown_fc.set_bits(ramp(
+        d.brake_balance_complement.set_bits(ramp(
             x.bits(),
             table_of(&d.lerp_tables[5]),
             d.gauge_low.bits(),
         ));
-        out.set_bits(mul3(d.unknown_fc.bits(), k, k, out.bits()));
+        out.set_bits(mul3(d.brake_balance_complement.bits(), k, k, out.bits()));
     }
     c.steering_efficiency.set_bits(ramp(
         c.steering_damage.bits(),
@@ -252,7 +252,7 @@ pub fn rate_damage(race: &Race) {
         let r = d.clock.get().rotate_right(turn) & 0xFFFF;
         (r.wrapping_sub(t) as i32) < 0
     };
-    if c.handbrake_failed.get() == 0 && chance(&d.unknown_15c, 0xD) {
+    if c.handbrake_failed.get() == 0 && chance(&d.handbrake_fail_chance, 0xD) {
         c.handbrake_failed.set(1);
     }
     for (flag, set, clear, turn) in failures(race) {
@@ -265,14 +265,14 @@ pub fn rate_damage(race: &Race) {
         }
     }
     c.gear_change_blocked.set(0);
-    if chance(&d.unknown_150, 0xB) {
+    if chance(&d.clutch_block_chance, 0xB) {
         c.gear_change_blocked.set(1);
     }
-    if chance(&d.unknown_154, 0x19) {
+    if chance(&d.gearbox_block_chance, 0x19) {
         c.gear_change_blocked.set(1);
     }
     c.forced_neutral.set(0);
-    if chance(&d.unknown_158, 0x12) {
+    if chance(&d.gearbox_neutral_chance, 0x12) {
         c.forced_neutral.set(1);
     }
     c.gear_wear[1].set_bits(0);

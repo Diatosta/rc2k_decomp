@@ -239,8 +239,8 @@ pub fn copy_mirror_picture(
             height: gfx_drawing.draw_surface.height.get(),
             from_pitch: ebp,
             to_pitch: gfx_drawing.draw_surface.pitch.get(),
-            from_16: system.session.screen.bits.get() == 0x10,
-            to_16: gfx_drawing.draw_surface.bits_per_pixel.get() == 0x10,
+            from_16_bit: system.session.screen.bits.get() == 0x10,
+            to_16_bit: gfx_drawing.draw_surface.bits_per_pixel.get() == 0x10,
         };
         let mut surfaces = GameSurfaces {
             screen: &screen,
@@ -432,7 +432,7 @@ pub fn draw_screen_tint(
     if a != 0 {
         window_corners(ctx.view);
         // The two glare bytes (byte_60A574, byte_60A578): the low bytes of two dwords.
-        let byte = |k: usize| race.course.stage_prefs.unknown_18c0[k].get() as u8;
+        let byte = |k: usize| race.course.stage_prefs.glare_bytes[k].get() as u8;
         race.shared.vars.quad_colour[0].set(glare_colour(
             race.course.stage_prefs.lamp_table_c.get(),
             byte(0),
@@ -453,7 +453,7 @@ pub fn clear_view_depth(
     poly: &crate::scene::polygon_work::PolygonWork,
 ) {
     let session = &system.session;
-    if scene.objects.tables.has_3d.get() == 0 {
+    if scene.objects.tables.d3d_drawing_on.get() == 0 {
         return;
     }
     poly.cleared_rectangle[0].set(0);

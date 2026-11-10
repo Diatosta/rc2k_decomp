@@ -1,4 +1,4 @@
-//! `service::step_gear_ratio_down` (0x46BEDF): steps `dword_75AC90`, read as the chosen gear ratio (five pictures on the screen; a reading), one
+//! `service::step_gear_ratio_down` (0x46BEDF): steps `dword_75AC90`, the chosen gear ratio (setup item 0, `menu::state_store`; five pictures on the screen), one
 //! down, stopping at 0.
 //!
 //! The exact rule at the limits is in `setup_values.rs` (`Stepper`).

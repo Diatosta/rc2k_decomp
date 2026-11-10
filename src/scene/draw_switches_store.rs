@@ -9,11 +9,11 @@ pub struct DrawSwitches {
     pub far_on: Dword,
     /// +0x4 (0x621904): `dword_621904` (`scene::draw_polygon`).
     pub clears_switch: Dword,
-    /// +0x8 (0x621908): not named.
+    /// +0x8 (0x621908): 11 dwords after the polygon switch: the original's developer front end keeps its mode (0x621920), mipmapping (0x621924), cars (0x621928) and screens (0x62192C) here; the port keeps them in `debug::dev_front_end`, so nothing reads or writes these cells.
     pub unknown_8: [Dword; 11],
     /// +0x34 (0x621934): `dword_621934`: the group table word (`scene::list_object_face`).
     pub group_table: Dword,
-    /// +0x38 (0x621938): not named.
+    /// +0x38 (0x621938): 71 dwords after the group table word; the original's developer front end keeps its rally (0x6219B8) and stage (0x6219BC) in them, and a few more cells (0x621A38, 0x621A50) belong to its drawing code; the port keeps those in `debug::dev_front_end`, so nothing here is read or written. (`group_table` is the first of a table indexed by group: `scene::list_object_face` reads it on past the one dword.)
     pub unknown_38: [Dword; 71],
     /// +0x154 (0x621A54): `g_loadingGroupMask` (`scene::add_object_shape`).
     pub loading_group_mask: Dword,
@@ -21,7 +21,7 @@ pub struct DrawSwitches {
     pub use_sse: Dword,
     /// +0x15c (0x621A5C): `g_use3dNow` (`scene::draw_object`).
     pub use_3dnow: Dword,
-    /// +0x160 (0x621A60): not named.
+    /// +0x160 (0x621A60): eight dwords after `use_3dnow`; the first, `dword_621A60`, is `g_useMmx` (shown by the debug Switches tab, `debug::switches`); the rest are unreferenced.
     pub unknown_160: [Dword; 8],
     /// +0x180 (0x621A80): `dword_621A80` (`effects::draw_frame`).
     pub marks_source: Dword,

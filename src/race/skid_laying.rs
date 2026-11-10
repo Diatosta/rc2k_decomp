@@ -193,7 +193,7 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
 /// is set.
 pub fn lay_skidmarks_if_on(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;
-    if race.shared.vars.scene_switch.get() != 0 || frame.frame_work.still_2.get() != 0 {
+    if race.shared.vars.scene_switch.get() != 0 || frame.frame_work.replay_still_on.get() != 0 {
         return Ok(());
     }
     lay_skidmarks(race)

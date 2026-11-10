@@ -36,7 +36,7 @@ use crate::session::{Dword, Float};
 /// flt_765168, flt_7651D0, flt_765164: the strength's factors and its least.
 static STRENGTH_K: [&Float; 3] = [
     &crate::effects::owner::EFFECTS.setup.floats.three_tenths,
-    &crate::effects::owner::EFFECTS.setup.floats.over_32,
+    &crate::effects::owner::EFFECTS.setup.floats.thirty_second,
     &crate::effects::owner::EFFECTS.setup.floats.fifth,
 ];
 /// flt_7651F0, flt_7651E8: the life's factor and base.
@@ -58,9 +58,9 @@ struct Pace {
 fn pace(wheel: &MarkRecord) -> Result<Pace, Refused> {
     Ok({
         let grown = x87::abs_sum_to_int_kept(
-            wheel.speed_18.bits(),
-            wheel.speed_10.bits(),
-            wheel.speed_c.bits(),
+            wheel.local_velocity_z.bits(),
+            wheel.local_velocity_x.bits(),
+            wheel.driven_speed.bits(),
             wheel.pace.get(),
         );
         if grown.0 < STEP {
@@ -71,10 +71,10 @@ fn pace(wheel: &MarkRecord) -> Result<Pace, Refused> {
         }
         let [k1, k2, least] = STRENGTH_K.map(super::super::session::Float::bits);
         let (kept, status) = x87::abs_blend_compare(
-            wheel.speed_10.bits(),
+            wheel.local_velocity_x.bits(),
             k1,
-            wheel.speed_c.bits(),
-            wheel.speed_18.bits(),
+            wheel.driven_speed.bits(),
+            wheel.local_velocity_z.bits(),
             k2,
             least,
         );
@@ -158,7 +158,7 @@ pub fn emit_particle_1(
         slot.put(|en| &mut en.place[1], rounded(place[1]))?;
         slot.put(
             |en| &mut en.ground_y,
-            x87::ext_less(place[1], effects.setup.floats.two_pow_16.bits()),
+            x87::ext_less(place[1], effects.setup.floats.fixed_16_scale.bits()),
         )?;
         slot.put(|en| &mut en.place[2], rounded(place[2]))?;
         let motion: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
@@ -166,11 +166,15 @@ pub fn emit_particle_1(
                 let k4 = 4 * k as u32;
                 let f = [0, 1, 2].map(|i| particles.kind1_set.motion_k[3 * k + i].bits());
                 x87::three_products_80([
-                    [matrix_cell(m, k4)?, wheel.speed_10.bits(), f[0]],
-                    [matrix_cell(m, 0x20 + k4)?, wheel.speed_18.bits(), f[1]],
+                    [matrix_cell(m, k4)?, wheel.local_velocity_x.bits(), f[0]],
+                    [
+                        matrix_cell(m, 0x20 + k4)?,
+                        wheel.local_velocity_z.bits(),
+                        f[1],
+                    ],
                     [
                         effects.kinds.emitter.side_b[k].bits(),
-                        wheel.speed_c.bits(),
+                        wheel.driven_speed.bits(),
                         f[2],
                     ],
                 ])

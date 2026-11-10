@@ -1,5 +1,5 @@
 //! `menu::arcade_next_stage_loop` (0x48980C): a screen titled "ETAPA SEGUINTE" under the mode
-//! menu's third entry (a reading)
+//! menu's third entry (named from its title string and callers; the original's name is lost)
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: leaving is asked about; left without the question, the

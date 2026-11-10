@@ -88,12 +88,12 @@ fn plane_facing(drops: &WindscreenDrops, fl: &WindscreenFlakes) {
 
 /// The original's 0x4C915A .. 0x4C9244: the plane's centre and corners (`flt_934C98` .. `flt_934CC4`) from the axes.
 fn plane_corners(fl: &WindscreenFlakes, effects: &crate::effects::owner::Effects) {
-    plane_corners_x87(&fl.tables, &effects.kinds.quad_3);
+    plane_corners_x87(&fl.tables, &effects.kinds.plane_quad);
 }
 
 /// The original's 0x4C93FA .. 0x4C94CA: the four corners projected.
 fn plane_projected(effects: &crate::effects::owner::Effects) {
-    plane_projected_x87(&effects.kinds.quad_3);
+    plane_projected_x87(&effects.kinds.plane_quad);
 }
 
 pub fn draw_plane(
@@ -105,7 +105,7 @@ pub fn draw_plane(
     let (race, scene) = (ctx.race, ctx.scene);
     use crate::scene::set_render_state::set_render_state;
     let m = crate::effects::setup::effects_settings()?;
-    let corner: u32 = effects.kinds.quad_3.corner.get();
+    let corner: u32 = effects.kinds.plane_quad.corner.get();
     plane_axes(fl, m);
     let [a0, a1, a2] = [0, 1, 2].map(|n| &fl.tables.axes[n]);
     normalise(a0);
@@ -155,7 +155,7 @@ pub fn draw_plane(
         VERTICES.vertices[n].colour.set(light);
     }
     for n in 0..4 {
-        if (effects.kinds.quad_3.corners[n][2].bits() as i32)
+        if (effects.kinds.plane_quad.corners[n][2].bits() as i32)
             <= (race.course.numbers.k4096_a.bits() as i32)
         {
             return Ok(());
@@ -167,7 +167,7 @@ pub fn draw_plane(
         effects.frame.draw_work.z_k.bits(),
     ];
     for n in 0..4 {
-        let c = &effects.kinds.quad_3.corners[n];
+        let c = &effects.kinds.plane_quad.corners[n];
         let vertex = &VERTICES.vertices[n];
         vertex.x.set_bits(c[0].bits());
         vertex.y.set_bits(c[1].bits());
@@ -180,7 +180,7 @@ pub fn draw_plane(
         ));
     }
     for n in 0..4 {
-        let depth: u32 = effects.kinds.quad_3.corners[n][2].bits();
+        let depth: u32 = effects.kinds.plane_quad.corners[n][2].bits();
         VERTICES.vertices[n].rhw.set_bits(x87::reciprocal_times(
             depth,
             PLANE_TUNING.rhw_k[n].to_bits(),

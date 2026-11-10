@@ -175,8 +175,8 @@ pub fn draw_controller_page(
             mode: p.controller_mode,
             strength: p.strength,
             sensitivity: p.sensitivity_level,
-            first: p.dead_zone_1,
-            second: p.dead_zone_2,
+            first: p.end_zone_pct,
+            second: p.centre_dead_zone_pct,
             stick_x,
             buttons,
         };

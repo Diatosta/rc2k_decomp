@@ -186,7 +186,7 @@
 0x614BCC	kept_vectors	D	8	the motion and spin kept (`physics::keep_motion_vectors`).
 0x614BEC	handling	F	9	`physics::set_handling`'s figures (0x614BEC .. 0x614C0C) by the set-up.
 0x614C10	gear_count	D	1	`g_gearCount`: forward gears.
-0x614C18	spec_a0	D	1	the spec's +0xA0.
+0x614C18	ride_height_handling_scale	D	1	the spec's +0xA0.
 0x614C1C	axle_slip_limits	F	2	(`physics::drive_wheels_step`).
 0x614C24	ground_spin	F	1	(`physics::hold_spin_on_ground`).
 0x614C28	clear_place_mark	D	1	(`physics::find_clear_place`).

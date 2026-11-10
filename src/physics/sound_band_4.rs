@@ -13,6 +13,6 @@ use crate::physics::sound_bands::Twin;
 pub const TWIN: Twin = (
     0x45D121,
     |race| &race.shared.car.speed,
-    |race| &race.frame.sound_spots.band_scale_2,
+    |race| &race.frame.sound_spots.crash_band_scale,
     1,
 );

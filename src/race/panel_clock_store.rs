@@ -10,7 +10,7 @@ use crate::session::Dword;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PanelClock {
-    /// +0x0 (0x62290C): `dword_62290C`: the scene clock the panel's motion shows from (`race::panel_motion`; a reading).
+    /// +0x0 (0x62290C): `dword_62290C`: the scene clock the panel's motion shows from (`race::panel_motion`).
     pub shown_since: Dword,
 }
 

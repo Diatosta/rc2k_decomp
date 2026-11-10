@@ -112,8 +112,8 @@ const MOVES_B: [(RecordField, BlockField); 9] = [
     (rec!(4, chance), blk!(wheel_surface_blend[4])),
     (rec!(4, kind), blk!(wheel_surface_a[4])),
     (rec!(4, under_kind), blk!(wheel_surface_b[4])),
-    (rec!(4, speed_10), blk!(velocity[0])),
-    (rec!(4, speed_18), blk!(velocity[2])),
+    (rec!(4, local_velocity_x), blk!(velocity[0])),
+    (rec!(4, local_velocity_z), blk!(velocity[2])),
 ];
 
 /// The dword at `offset` of the block, for the offsets the core's tables give (bounded by the
@@ -182,10 +182,10 @@ pub fn share_car_state_at(
         );
         for wheel in records {
             let w = &o.records[wheel];
-            w.speed_c.set_bits(a);
-            w.speed_10.set_bits(bb);
-            w.unknown_14.set(0);
-            w.speed_18.set_bits(c);
+            w.driven_speed.set_bits(a);
+            w.local_velocity_x.set_bits(bb);
+            w.local_velocity_y.set(0);
+            w.local_velocity_z.set_bits(c);
         }
     }
     for (k, r) in WHEELS.into_iter().enumerate() {
@@ -230,7 +230,7 @@ pub fn share_car_state_at(
         cell.set(v);
     }
     // +0xA3C .. (eight dwords, past `part_damage_limits`' seven) and +0xA5C .. (inside
-    // `unknown_a58`): by offset in the block.
+    // `saved_point_figures`): by offset in the block.
     for (k, cell) in o.slot_sums.iter().enumerate() {
         put(car, 0xA3C + 4 * k as u32, cell.get())?;
     }
@@ -319,10 +319,10 @@ mod tests {
                 let atf = |f: &crate::session::Float| {
                     core::ptr::from_ref(f).addr() - core::ptr::from_ref(o).addr()
                 };
-                assert_eq!(atf(&w.speed_c), base);
-                assert_eq!(atf(&w.speed_10), base + 4);
-                assert_eq!(at(&w.unknown_14), base + 8);
-                assert_eq!(atf(&w.speed_18), base + 0xC);
+                assert_eq!(atf(&w.driven_speed), base);
+                assert_eq!(atf(&w.local_velocity_x), base + 4);
+                assert_eq!(at(&w.local_velocity_y), base + 8);
+                assert_eq!(atf(&w.local_velocity_z), base + 0xC);
             }
         }
         for (r, wo) in WHEELS.into_iter().zip([0xF0, 0x138, 0x180, 0x1C8]) {

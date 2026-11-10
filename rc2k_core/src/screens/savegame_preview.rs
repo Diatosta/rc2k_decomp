@@ -86,8 +86,8 @@ pub struct Car<T> {
 /// The title line's parts.
 #[derive(Clone, Copy, Debug)]
 pub struct Title {
-    /// The saved mode is 0x13 (string 0x1DA, else 0x1D9).
-    pub mode_13: bool,
+    /// The saved event mode is 0x13, the A8 rally championship's (string 0x1DA, else 0x1D9: the Mobil One championship).
+    pub a8_mode: bool,
     /// The saved section's title string.
     pub section: u32,
     /// The saved stage's number (its record's +0x40): "n/6" after the title unless 0.
@@ -120,7 +120,7 @@ pub fn details<S: Screen<Font = Font, Work = Work>>(
     cars: &[Car<S::Text>; 4],
 ) -> Result<bool, S::Error> {
     frame(s)?;
-    let mut line = s.string_bytes(if title.mode_13 { 0x1DA } else { 0x1D9 });
+    let mut line = s.string_bytes(if title.a8_mode { 0x1DA } else { 0x1D9 });
     line.extend_from_slice(b" - ");
     line.extend(s.string_bytes(title.section));
     line.push(b' ');
@@ -269,7 +269,7 @@ mod tests {
         let cars = [car(0), car(1), car(2), car(3)];
         let mut s = Record::default();
         let title = Title {
-            mode_13: true,
+            a8_mode: true,
             section: 0x300,
             stage: 2,
         };

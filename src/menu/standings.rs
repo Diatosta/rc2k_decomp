@@ -259,8 +259,8 @@ pub fn sort_table_a(menus: &Menus, key: rc2k_core::saves::entries::Field) -> Res
         });
     })?;
 
-    screens.draw_work.work_b4.set(SORTED - 1);
-    screens.draw_work.work_b8.set(SORTED);
+    screens.draw_work.scratch_b4.set(SORTED - 1);
+    screens.draw_work.scratch_b8.set(SORTED);
 
     Ok(())
 }
@@ -322,8 +322,8 @@ pub fn sort_table_b(menus: &Menus, key: BKey, down: bool) -> Result<(), BadInput
         });
     })?;
 
-    screens.draw_work.work_b4.set(SORTED - 1);
-    screens.draw_work.work_b8.set(SORTED);
+    screens.draw_work.scratch_b4.set(SORTED - 1);
+    screens.draw_work.scratch_b8.set(SORTED);
 
     Ok(())
 }

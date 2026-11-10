@@ -5,8 +5,8 @@
 //! for each class c (0 .. `dword_7558F8`) and each driver of that class (+8), in order:
 //! half the class's time (`dword_75AAE8`[c]) / its driver count (`dword_75AB00`[c]) into
 //! `hhmm` (the gap); `dword_7559EC` a random number under 3000, plus (when `dword_755944`
-//! is not 1) one under 1000 times `dword_755948` (then `dword_755944` 0 and
-//! `dword_755948` up by one; when it is 1, `dword_755948` 0); a driver whose +0x24 is 1
+//! is not 1) one under 1000 times `cpu_spread_step` (then `dword_755944` 0 and
+//! `cpu_spread_step` up by one; when it is 1, `cpu_spread_step` 0); a driver whose +0x24 is 1
 //! gets that plus the class's time plus the gaps so far into its +0xC and added to its
 //! +0x10; the gap added for each driver of the class.
 //!
@@ -125,13 +125,13 @@ pub fn calc_cpu_times(screens: &Screens) -> Result<(), Refused> {
             let gap = cpu_gap(time, count);
             screens.draw_work.hhmm.set(gap);
             let mut spread = Spread {
-                first: screens.event.service_944.get(),
-                step: screens.event.dword_755948.get(),
+                first: screens.event.cpu_spread_first.get(),
+                step: screens.event.cpu_spread_step.get(),
             };
             let own = spread.next(crate::math::random_below::random_below)?;
             screens.draw_work.figure.set(own);
-            screens.event.service_944.set(spread.first);
-            screens.event.dword_755948.set(spread.step);
+            screens.event.cpu_spread_first.set(spread.first);
+            screens.event.cpu_spread_step.set(spread.step);
             if d.in_event.get() == IN_EVENT {
                 let own = cpu_time(own, gaps, time);
                 d.time.set(own);

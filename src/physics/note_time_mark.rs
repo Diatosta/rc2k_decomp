@@ -1,8 +1,9 @@
 //! `physics::note_time_mark` (0x440C38): when `flt_71AEE0` is not below `flt_5C5D5C`
 //! (60.0; `fcomp`, C0 clear: also not unordered) and `dword_6140EC` is 0:
 //! `dword_6140EC` = `dword_719FE0` (the work copy's +8, a step count by `race::step_replay_cars`'s
-//! `inc`) less `dword_6140F0`. By the look of it the step at which a figure first
-//! reached 60 (a reading).
+//! `inc`) less `dword_6140F0`. The step count at which the engine-sound speed first
+//! reached 60 since `copy_step_clock_to_mark`; the two marks (`time_marks`) are touched only by
+//! these two functions and read by nothing else (IDA, 2026-11-10), so the result is never used.
 //!
 //! Caller: `physics::car_physics_step` (0x43B9A4), every physics step.
 //!

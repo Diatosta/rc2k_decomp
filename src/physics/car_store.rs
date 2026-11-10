@@ -43,10 +43,10 @@ pub struct Car {
     pub steering_sensitivity: Dword,
     /// +0x40 (0x71A018): drive layout (1 both axles).
     pub drive_kind: Dword,
-    /// +0x44 (0x71A01C): only cleared at the start.
+    /// +0x44 (0x71A01C): only cleared at the start (`drive::clear_start_state`); nothing else uses it.
     pub unknown_44: Dword,
-    /// +0x48 (0x71A020): not named.
-    pub unknown_48: [Dword; 6],
+    /// +0x48 (0x71A020): per part (six): 1 once the part's wake count (+0x700) reached 10 and the part's sound object was woken (`race::wake_part_sounds`). Never cleared but with the block.
+    pub part_woken: [Dword; 6],
     /// +0x60 (0x71A038): least wheel grip scaled; scales the ground's bumps.
     pub ground_bump_scale: Float,
     /// +0x64 (0x71A03C): eight 0 .. 1 gauges, one per octant of a hit's direction.
@@ -124,7 +124,7 @@ pub struct Car {
     pub engine_sound_revs: Dword,
     /// +0x1e8 (0x71A1C0): steps stuck.
     pub stuck_count: Dword,
-    /// +0x1ec (0x71A1C4): sent with the position.
+    /// +0x1ec (0x71A1C4): sent and received with the position message (`net::send_position`); nothing else reads or writes it.
     pub unknown_1ec: Dword,
     /// +0x1f0 (0x71A1C8): limiter cut counter.
     pub rev_cut_count: Dword,
@@ -152,8 +152,8 @@ pub struct Car {
     pub contact_flag: Dword,
     /// +0x238 (0x71A210): 1 a gear change happened, -1 refused.
     pub gear_changed: Dword,
-    /// +0x23c (0x71A214): set with every gear change; no reader (reading).
-    pub gear_changed_2: Dword,
+    /// +0x23c (0x71A214): 1 from every gear change until `drive::set_listener` hands it to the effects' splines (`spline_gear_changed`) and clears it.
+    pub gear_change_pending: Dword,
     /// +0x240 (0x71A218): the colour the face's light gives the car.
     pub light_colour: Dword,
     /// +0x244 (0x71A21C): light index 0..0xFF from the face's corner lights.
@@ -379,8 +379,8 @@ pub struct Car {
     pub camera_offset_turns: [Dword; 3],
     /// +0x6c8 (0x71A6A0): zoom of the view.
     pub camera_zoom: Float,
-    /// +0x6cc (0x71A6A4): not named.
-    pub unknown_6cc: [Dword; 9],
+    /// +0x6cc (0x71A6A4): the first three: the view's focus point kept, the car's position with y + 0x8000 (`race::frame_draw::view`); the other six unused.
+    pub kept_focus_point: [Dword; 9],
     /// +0x6f0 (0x71A6C8): 1 when the camera mode is 2 or 3.
     pub camera_mode_is_2_or_3: Dword,
     /// +0x6f4 (0x71A6CC): unreferenced bytes (0x8 of them).
@@ -428,17 +428,17 @@ pub struct Car {
     pub surface_noise_b: Dword,
     /// +0x908 (0x71A8E0): noise sample 2 scaled.
     pub surface_noise_second: Dword,
-    /// +0x90c (0x71A8E4): not named.
-    pub unknown_90c: Dword,
+    /// +0x90c (0x71A8E4): the car's vertical velocity less the vertical speed kept from the step before (`physics::car_physics_step`); `physics::camera_frame` scales it into the camera's shake. Probable.
+    pub vertical_speed_change: Dword,
     /// +0x910 (0x71A8E8): per-wheel whole-number value from the wheel's squeeze.
     pub wheel_spring_force: [Dword; 4],
     /// +0x920 (0x71A8F8): per ground point: surface kind of the first cell (5 wet).
     pub wheel_surface_a: [Dword; 5],
     /// +0x934 (0x71A90C): per ground point: surface kind of the second cell.
     pub wheel_surface_b: [Dword; 5],
-    /// +0x948 (0x71A920): per point: the surface's `blend_2c` figure blended between the two
+    /// +0x948 (0x71A920): per point: the surface's `wear_factor` figure blended between the two
     /// surfaces by `wheel_surface_blend`.
-    pub point_surface_2c: [Dword; 5],
+    pub point_wear_factor: [Dword; 5],
     /// +0x95c (0x71A934): per point: byte +0x18 of the first cell's record.
     pub wheel_cell_a_byte18: [Dword; 5],
     /// +0x970 (0x71A948): same for the second cell.
@@ -471,8 +471,8 @@ pub struct Car {
     pub contact_value: Dword,
     /// +0xa3c (0x71AA14): seven parts' damage figures.
     pub part_damage_limits: [Dword; 7],
-    /// +0xa58 (0x71AA30): not named.
-    pub unknown_a58: [Dword; 20],
+    /// +0xa58 (0x71AA30): the block's copy of the physics tables' 0x614280 .. (the five points' loads, grips and the like); `drive::share_car_state` fills +0xA5C .., `race::car_starts` clears them. Probable.
+    pub saved_point_figures: [Dword; 20],
     /// +0xaa8 (0x71AA80): the start position's table entry (unknown).
     pub start_slot_value: Dword,
     /// +0xaac (0x71AA84): the steering drawn (from +0x650, `race::car_parts`).
@@ -554,8 +554,21 @@ pub struct Car {
     pub eased_target: Dword,
     /// +0xfbc (0x71AF94): the value eased towards eased_target << 8.
     pub eased_value: Dword,
-    /// +0xfc0 (0x71AF98): not named.
-    pub unknown_fc0: [Dword; 8],
+    /// +0xfc0 (0x71AF98): where a position received from the network is to be glided to
+    /// (x, y, z; `net::apply_message`, stepped towards by `net::follow_remote`).
+    pub glide_target: [Dword; 3],
+    /// +0xfcc (0x71AFA4): the steps of the glide left (set to 32 by `net::apply_message`,
+    /// one less each step in `net::follow_remote`).
+    pub glide_steps_left: Dword,
+    /// +0xfd0 (0x71AFA8): the throttle input word kept for the network and replays (first of the
+    /// four `drive::car_input_words` copies; the car's `input_throttle`).
+    pub kept_throttle_word: Dword,
+    /// +0xfd4: the key bits word (the car's `input_keys`).
+    pub kept_keys_word: Dword,
+    /// +0xfd8: the steering word (the car's `input_steering`).
+    pub kept_steering_word: Dword,
+    /// +0xfdc: the brake word (the car's `input_brake`).
+    pub kept_brake_word: Dword,
 }
 
 const _: () = assert!(core::mem::size_of::<Car>() == 0xFE0);

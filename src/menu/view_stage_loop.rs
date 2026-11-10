@@ -1,6 +1,6 @@
 //! `menu::view_stage_loop` (0x47FD37): the stage details opened from the service area of a
 //! championship, by its title "VER ETAPA" and its draw list, which is that of
-//! `screens::draw_service_stage_info` (a reading)
+//! `screens::draw_service_stage_info` (named from its title string and callers; the original's name is lost)
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: leaving is asked about; it has a step of its own once a
@@ -29,7 +29,10 @@ fn before(entry: &Entry) -> Result<(), Refused> {
         stack.push(screens.event.section.get());
     });
     KEPT.with_borrow_mut(|stack| stack.push(screens.event.index.get()));
-    screens.event.dword_755964.set(screens.event.section.get());
+    screens
+        .event
+        .viewed_section
+        .set(screens.event.section.get());
     screens
         .event
         .first_page_stage

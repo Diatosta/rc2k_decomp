@@ -3,8 +3,8 @@
 //! `dword_62400C`); when not 0 (C3 clear), `flt_6140AC` = the motion (0x71A17C ..) dot it
 //! (`physics::dot_product`) over the length twice. Then, unless the length's size is
 //! below `flt_613E40`, with `flt_6140AC` below `flt_613E44` and `dword_61416C` 0: gear 0
-//! and both drive speeds 0. By the look of it the engine stalling when the car turns
-//! back on itself (a reading).
+//! and both drive speeds 0. Probably the engine stalling when the car is
+//! stopped or turned back on itself: the motion's dot product against its own length.
 //!
 //! Caller: `physics::car_physics_step` (0x43B896), every physics step.
 //!

@@ -98,9 +98,9 @@ pub fn set_up_surface(
 
     let [eighth, edge, pixel, step]: [u32; 4] = [
         setup.floats.eighth.bits(),
-        setup.floats.over_512.bits(),
-        setup.floats.over_256.bits(),
-        setup.floats.over_32.bits(),
+        setup.floats.surface_edge.bits(),
+        setup.floats.surface_pixel.bits(),
+        setup.floats.thirty_second.bits(),
     ];
     let places = &masks.surface.places;
     let end = size_of_val(places);

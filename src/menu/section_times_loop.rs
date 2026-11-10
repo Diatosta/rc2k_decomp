@@ -35,7 +35,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|m| {
-        &m.tables.texts.results1_png_3
+        &m.tables.texts.section_times_png
     }))],
     after_first_frame: &[],
     confirm: None,

@@ -1906,15 +1906,15 @@ mod tests {
         let image = crate::moved::image_bytes;
         assert_eq!(size_of::<QuadWork>(), 0xF8);
         assert!(
-            bytes(&kinds.quad_1) == image(Quad1::START, Quad1::LEN),
+            bytes(&kinds.overlay_quad) == image(Quad1::START, Quad1::LEN),
             "QUAD_1"
         );
         assert!(
-            bytes(&kinds.quad_2) == image(Quad2::START, Quad2::LEN),
+            bytes(&kinds.shadow_quad) == image(Quad2::START, Quad2::LEN),
             "QUAD_2"
         );
         assert!(
-            bytes(&kinds.quad_3) == image(Quad3::START, Quad3::LEN),
+            bytes(&kinds.plane_quad) == image(Quad3::START, Quad3::LEN),
             "QUAD_3"
         );
         assert_eq!(size_of::<KindTables<0x1AC>>(), Tables1::LEN);
@@ -1930,11 +1930,11 @@ mod tests {
         assert_eq!(size_of::<KindExtras1>(), KindExtras1::LEN);
         assert_eq!(size_of::<KindExtra2>(), KindExtra2::LEN);
         assert!(
-            bytes(&kinds.extras_1) == image(KindExtras1::START, KindExtras1::LEN),
+            bytes(&kinds.overlay_extras) == image(KindExtras1::START, KindExtras1::LEN),
             "EXTRAS_1"
         );
         assert!(
-            bytes(&kinds.extra_2) == image(KindExtra2::START, KindExtra2::LEN),
+            bytes(&kinds.shadow_extra) == image(KindExtra2::START, KindExtra2::LEN),
             "EXTRA_2"
         );
         assert_eq!(size_of::<KindConsts>(), Consts1::LEN);

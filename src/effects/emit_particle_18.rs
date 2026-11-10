@@ -32,7 +32,7 @@ fn count(record: &MarkRecord) -> Result<(i32, i32), Refused> {
     let setup = &effects().setup;
     Ok({
         let n = ((record.flags.get() >> 6) << 2) as i32;
-        let (size, k) = (record.size.bits(), setup.floats.over_32.bits());
+        let (size, k) = (record.size.bits(), setup.floats.thirty_second.bits());
         let under = x87::times_compare(size, k, setup.floats.one.bits()) & 0x700 == 0x100;
         let count = if under {
             x87::times_int_to_int(size, k, n)
@@ -96,7 +96,7 @@ pub fn emit_particle_18(
                 |en| &mut en.ground_y,
                 x87::sub(
                     record.place[1].bits(),
-                    effects.setup.floats.two_pow_16.bits(),
+                    effects.setup.floats.fixed_16_scale.bits(),
                 ),
             )?;
             slot.put(|en| &mut en.place[2], x87::loaded(record.place[2].bits()))?;

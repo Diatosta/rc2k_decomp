@@ -634,23 +634,23 @@ static HEAD_IN: [Step<Place>; 21] = [
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.settings_words[0]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.setting_0),
+        Cell(&crate::race::owner::RACE.shared.state.settings.lens_flare),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.settings_words[1]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.setting_1),
+        Cell(&crate::race::owner::RACE.shared.state.settings.reflections),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.settings_words[2]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.setting_2),
+        Cell(&crate::race::owner::RACE.shared.state.settings.car_shadows),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.settings_words[3]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.setting_3),
+        Cell(&crate::race::owner::RACE.shared.state.settings.car_detail),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.settings_words[4]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.setting_4),
+        Cell(&crate::race::owner::RACE.shared.state.settings.headlights),
     ),
 ];
 

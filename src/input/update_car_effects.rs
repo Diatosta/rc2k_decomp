@@ -32,7 +32,7 @@ enum Effect {
     Surface = 1,
     Landing = 2,
     Knock = 3,
-    /// Set together with the steering effect by the surface kind (not worked out further).
+    /// Effect 4: set with the steering effect on every surface kind, to the same figure on kinds 5, 9, 0 (0x100) and 7 (0x55), else 0 (probably a second force on the same device; nothing else shows what it drives).
     Fourth = 4,
     SpeedChange = 5,
 }
@@ -125,7 +125,7 @@ fn update_car_effects_with(
     }
     let speed = speed.min(0x100);
     out.set(Effect::Surface, kind, speed)?;
-    let strength = || o.effect_d8.get();
+    let strength = || o.effect_request_b.get();
     let mut landed_now = false;
     match kind {
         5 | 9 | 0 => {
@@ -196,8 +196,8 @@ fn update_car_effects_with(
     }
     // The change of `effect_in[3]` since the last time.
     let now = o.effect_in[3].get();
-    let before = o.last_effect_bc.get();
-    o.last_effect_bc.set(now);
+    let before = o.last_forward_speed.get();
+    o.last_forward_speed.set(now);
     let change = (now.wrapping_sub(before) as i32).clamp(-0x200, 0x200) >> 1;
     let carried = out.last_strength;
     out.set(Effect::SpeedChange, change as u32, carried)

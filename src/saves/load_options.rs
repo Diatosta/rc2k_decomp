@@ -129,7 +129,7 @@ let menus = menus();
         Piece::whole(&audio.state.menu_sound_mode),                     // the menus' sound mode
         Piece::whole(&audio.state.race_sound_mode),                     // the race's sound mode
         Piece::whole(&audio.state.master_volume),                       // the master volume
-        Piece::whole(&crate::sound::owner::sound().menu.options.kept_f0),                     // a sound option, not worked out
+        Piece::whole(&crate::sound::owner::sound().menu.options.unread_option_f0),                     // a sound option kept in the file and read by no other code
         Piece::whole(&crate::sound::owner::sound().menu.options.name_switch),                 // the driver names switch
         Piece::whole(&crate::sound::owner::sound().menu.options.tune_turn),                   // which tune comes next
         Piece::whole(&crate::sound::owner::sound().menu.options.music_volume),                // the music volume
@@ -139,9 +139,9 @@ let menus = menus();
         Piece::whole(&net.vars.host_address),                         // the host's address (TCP/IP)
         Piece::whole(&net.vars.port),                                  // the TCP/IP port
         Piece::whole(&net.vars.saved_connection),                     // the saved connection's GUID
-        Piece::whole(&saves.save_games.kept_a),                         // a saved-games word, not worked out
-        Piece::whole(&saves.save_games.kept_b),                         // a saved-games word, not worked out
-        Piece::whole(&service().set_ups.kept),                              // a car set-ups word, not worked out
+        Piece::whole(&saves.save_games.kept_a),                         // a saved-games word kept in the file and read by no other code
+        Piece::whole(&saves.save_games.kept_b),                         // a saved-games word kept in the file and read by no other code
+        Piece::whole(&service().set_ups.kept),                              // a car set-ups word kept in the file and read by no other code
         Piece::whole(&race.shared.tyre_change.record_name),                  // the tyre change record holder's name
         Piece::whole(&race.shared.tyre_change.record),                        // the tyre change record time
         Piece::whole(&saves.files.options_kept[0]),                                   // four dwords nothing else reads
@@ -160,7 +160,7 @@ let menus = menus();
         Piece::whole(&menus.screens.option_work.speech_level),                  // the speech level
         Piece::whole(&menus.screens.option_work.sounds_a),                      // the sounds' first level
         Piece::whole(&menus.screens.option_work.sounds_b),                      // the sounds' second level
-        Piece::past(GamePtr::to(&menus.screens.option_work.switch_0).unbounded(), 0x2C),      // the options pages' work copies, switch_0 .. setting_4
+        Piece::past(GamePtr::to(&menus.screens.option_work.switch_0).unbounded(), 0x2C),      // the options pages' work copies, switch_0 .. headlights
         Piece::past(GamePtr::to(&menus.screens.option_work.audio_quality).unbounded(), 0x18),    // the audio quality, the 3D switches and the channels
         Piece::whole(&menus.tables.pages.services),                       // the services counted
         Piece::whole(&menus.screens.flow.kept),                          // kept by the event races

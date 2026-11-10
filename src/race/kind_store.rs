@@ -6,7 +6,7 @@ use crate::session::Dword;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct KindTables {
-    /// +0xc8 (0x5C56EC): not named.
+    /// +0xc8 (0x5C56EC): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_c8: [Dword; 7],
     /// +0xe4 (0x5C5708): `dword_5C5708`: a known kind's first picture, 0x22 kinds (`scene::known_kind_picture`).
     pub known_kind_pictures: [Dword; 34],
@@ -18,7 +18,7 @@ pub struct KindTables {
     pub kind_11_table: [Dword; 34],
     /// +0x304 (0x5C5928): `g_carFileNumbers`: each known kind's file number (`race::mud`).
     pub car_file_numbers: [Dword; 34],
-    /// +0x38c (0x5C59B0): `dword_5C59B0`: per kind, the light record index (`race::frame_draw`; a reading).
+    /// +0x38c (0x5C59B0): `dword_5C59B0`: per car kind, the index of its light record (`race::frame_draw::scene_objects` picks the record by it).
     pub kind_light_records: [Dword; 34],
     /// +0x414 (0x5C5A38): `g_carIconNumbers`: each known kind's icon number (`scene::car_icon_number`).
     pub car_icon_numbers: [Dword; 34],

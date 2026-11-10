@@ -25,7 +25,7 @@ pub fn number_places(scene: &crate::scene::owner::Scene) -> [crate::place::Place
         Place::from(&p.edit_path).add(0xD),
         Place::from(&p.cdat_src).add(0xD),
         Place::from(&p.cdat_files).add(0x12),
-        Place::from(&p.cdat_src_2).add(0xD),
+        Place::from(&p.cdat_src_copy).add(0xD),
         Place::from(&p.localdat_src).add(0xD),
         Place::from(&p.localdat_files).add(0x12),
         file_numbers.text_ptr(texts::NUMBER_PLACE_A).into(),

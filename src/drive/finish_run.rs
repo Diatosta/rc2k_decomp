@@ -23,7 +23,7 @@ use crate::race::owner::Race;
 /// race block at `rc`.
 fn lift_car(race: &Race) {
     CAR_BLOCKS.cars[0].position[1].set_bits(to_int(
-        ld(race.replay.finish.unknown_20.bits()) * ld(race.course.numbers.k65536.bits())
+        ld(race.replay.finish.car_lift.bits()) * ld(race.course.numbers.k65536.bits())
             + int(CAR_BLOCKS.cars[0].position[1].bits() as i32),
     ) as u32);
 }

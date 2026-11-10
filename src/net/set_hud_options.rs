@@ -28,11 +28,11 @@ const SWITCHES: [&Dword; 9] = [
 ];
 /// The settings words copied to the race's variables (`crate::race::owner::race().shared.vars.settings_words`).
 const COPIED_WORDS: [&Dword; 5] = [
-    &crate::race::owner::RACE.shared.state.settings.setting_0,
-    &crate::race::owner::RACE.shared.state.settings.setting_1,
-    &crate::race::owner::RACE.shared.state.settings.setting_2,
-    &crate::race::owner::RACE.shared.state.settings.setting_3,
-    &crate::race::owner::RACE.shared.state.settings.setting_4,
+    &crate::race::owner::RACE.shared.state.settings.lens_flare,
+    &crate::race::owner::RACE.shared.state.settings.reflections,
+    &crate::race::owner::RACE.shared.state.settings.car_shadows,
+    &crate::race::owner::RACE.shared.state.settings.car_detail,
+    &crate::race::owner::RACE.shared.state.settings.headlights,
 ];
 
 /// This machine's car's block.

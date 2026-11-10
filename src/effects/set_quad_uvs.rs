@@ -1,7 +1,7 @@
 //! `effects::set_quad_uvs` (0x4CFD6A): writing to the depth buffer off, and the four texture
 //! places of the 0x20-byte set at `dword_920738` + 0xC60 put into the four vertices'
 //! texture places at `flt_9605B8` (0x20 bytes apart: +0x18 of Direct3D vertices from
-//! 0x9605A0, a reading).
+//! 0x9605A0: the u, v of a transformed-and-lit Direct3D vertex, 0x20 bytes each).
 //!
 //! One caller, `effects::run_particles` (the marks' frame).
 

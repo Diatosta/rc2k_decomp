@@ -34,12 +34,12 @@ pub fn place(car: &Car) -> &[Dword; 3] {
 
 /// Where a place received goes, to be glided to (+0xFC0 .. +0xFC8; then the glide's 32nd).
 pub fn wanted(car: &Car) -> &[Dword] {
-    &car.unknown_fc0[..3]
+    &car.glide_target
 }
 
 /// The glide's steps left (+0xFCC).
 pub fn glide_steps(car: &Car) -> &Dword {
-    &car.unknown_fc0[3]
+    &car.glide_steps_left
 }
 
 /// The three dwords' values.

@@ -13,7 +13,7 @@ fn leaving_cells() -> [&'static Dword; 5] {
         &screens.loop_flags.back,
         &screens.loop_flags.ended_b,
         &screens.loop_flags.ended_a,
-        &screens.draw_work.work_0c,
+        &screens.draw_work.scratch_0c,
     ]
 }
 
@@ -39,13 +39,13 @@ fn put<const N: usize>(at: [&'static Dword; N], v: [u32; N]) {
 }
 
 pub fn leaving() -> Leaving {
-    let [leave_event, leave_screen, leave_too, ask, field_a0c] = get(leaving_cells());
+    let [leave_event, leave_screen, leave_too, ask, scratch_0c] = get(leaving_cells());
     Leaving {
         leave_event,
         leave_screen,
         leave_too,
         ask,
-        field_a0c,
+        scratch_0c,
     }
 }
 
@@ -57,7 +57,7 @@ pub fn put_leaving(l: &Leaving) {
             l.leave_screen,
             l.leave_too,
             l.ask,
-            l.field_a0c,
+            l.scratch_0c,
         ],
     );
 }

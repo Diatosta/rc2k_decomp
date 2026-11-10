@@ -1,4 +1,4 @@
-//! `effects::run_pong` (0x4B7EDA): the pong game over the race (a reading), with cheat bit
+//! `effects::run_pong` (0x4B7EDA): the pong game over the race (an Easter egg: a ball, a bat and a score; seen on the windscreen), with cheat bit
 //! 0x8000 (`g_cheats`) and `dword_641678` only: `effects::pong_setup`, `effects::move_pong_bat`,
 //! `effects::move_pong_ball` `g_pongSteps` times (read once), `effects::draw_pong_box`
 //! for the ball and for the bat (st(0) height, st(1) width, st(2) y, st(3) x), then

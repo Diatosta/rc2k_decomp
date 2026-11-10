@@ -68,8 +68,8 @@ pub struct PictureCopy {
     pub from_pitch: u32,
     pub to_pitch: u32,
     /// Two bytes a pixel (else four).
-    pub from_16: bool,
-    pub to_16: bool,
+    pub from_16_bit: bool,
+    pub to_16_bit: bool,
 }
 
 /// What the copy reads and writes, the pixels by place, and the formats' conversions.
@@ -95,7 +95,7 @@ pub fn copy_picture(c: &PictureCopy, from: u32, to: u32, carried: u32, s: &mut i
     for _ in 0..c.height {
         let (row_from, row_to) = (read_at, write_at);
         for _ in 0..c.width {
-            if c.from_16 {
+            if c.from_16_bit {
                 pixel = (pixel & 0xFFFF_0000) | s.read16(read_at) as u32;
                 read_at = read_at.wrapping_add(2);
             } else {
@@ -104,7 +104,7 @@ pub fn copy_picture(c: &PictureCopy, from: u32, to: u32, carried: u32, s: &mut i
             }
             let components = s.components(pixel);
             pixel = s.pixel(components | 0xFF00_0000);
-            if c.to_16 {
+            if c.to_16_bit {
                 s.write16(write_at, pixel as u16);
                 write_at = write_at.wrapping_add(2);
             } else {
@@ -272,8 +272,8 @@ mod tests {
             height: 2,
             from_pitch: 8,
             to_pitch: 8,
-            from_16: true,
-            to_16: false,
+            from_16_bit: true,
+            to_16_bit: false,
         };
         copy_picture(&c, 0, 32, 0xABCD_0000, &mut t);
         // The first pixel: 0x0100 under 0xABCD's high half.

@@ -1,8 +1,8 @@
 //! `physics::car_angles` (0x43BEF4): `physics::matrix_angles` of `g_crashMatrix`, then
 //! each angle times 65536 (`flt_5C5D98`), 4096 (`flt_5C5E28`) and 1 / 2pi (`flt_5C5DD4`),
 //! `fistp`, shifted left 4: `flt_5C70D4` into `dword_71A99C`, `D8` into `dword_71A998`,
-//! `DC` into `dword_71A9A0` (`g_car` +0x9C4, +0x9C0, +0x9C8): the car's angles in the
-//! game's whole-number units (a reading).
+//! `DC` into `dword_71A9A0` (`g_car` +0x9C4, +0x9C0, +0x9C8): the car's heading, pitch and
+//! roll (`car_heading`, `car_pitch`, `car_roll`) in the game's whole-number units (<< 4).
 //!
 //! Returns: `g_crashMatrix`
 //!

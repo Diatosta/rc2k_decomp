@@ -41,8 +41,8 @@ pub struct Entry {
     pub mark: u32,
     /// +0x44.
     pub figure: u32,
-    /// +0x48.
-    pub field_48: u32,
+    /// +0x48: read by no code but as the name's tail (`name_text` reads on into it).
+    pub unread_48: u32,
     /// +0x4C: the records' taking part.
     pub entered: u32,
 }
@@ -93,7 +93,7 @@ impl Entry {
             name: b[0x20..0x40].try_into().expect("the name's room"),
             mark: dword(b, 0x40),
             figure: dword(b, 0x44),
-            field_48: dword(b, 0x48),
+            unread_48: dword(b, 0x48),
             entered: dword(b, 0x4C),
         }
     }
@@ -112,7 +112,7 @@ impl Entry {
         b[0x20..0x40].copy_from_slice(&self.name);
         put(b, 0x40, self.mark);
         put(b, 0x44, self.figure);
-        put(b, 0x48, self.field_48);
+        put(b, 0x48, self.unread_48);
         put(b, 0x4C, self.entered);
     }
 
@@ -140,7 +140,7 @@ impl Entry {
     /// the head's end.
     pub fn name_text(&self) -> Option<Vec<u8>> {
         let mut bytes = self.name.to_vec();
-        for v in [self.mark, self.figure, self.field_48, self.entered] {
+        for v in [self.mark, self.figure, self.unread_48, self.entered] {
             bytes.extend(v.to_le_bytes());
         }
         let end = bytes.iter().position(|&c| c == 0)?;

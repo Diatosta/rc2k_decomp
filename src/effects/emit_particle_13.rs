@@ -66,7 +66,7 @@ pub fn emit_particle_13(
     let t: [u32; 3] = read_first(&paths.spline_head.points[3 * model..]);
     let [x, y, y_less, z] = x87::turned_place_less(
         t,
-        effects.setup.floats.plus_65_536.bits(),
+        effects.setup.floats.particle_13_place_k.bits(),
         effects.setup.floats.seven_hundred.bits(),
         particles.kind13_set.lift.bits(),
         car.whole()?,

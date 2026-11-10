@@ -37,7 +37,7 @@ pub struct ReplayFileBlock {
     pub viewer_sound: Dword,
     /// +0x30 (0x5BECA8): `g_viewerEditing`: the `replaykeys` setting, the editing keys work (`race::viewer`, `settings::read_settings`).
     pub viewer_editing: Dword,
-    /// +0x34 (0x5BECAC): `unk_5BECAC`: the `seasoncode` setting (`settings::read_settings`, `race::replay`: the header's season code) (a reading).
+    /// +0x34 (0x5BECAC): `unk_5BECAC`: the `seasoncode` setting (`settings::read_settings`, `race::replay`: the header's season code).
     pub season_code: Dword,
     /// +0x38 (0x5BECB0): `dword_5BECB0`: kind 0x35's first texture kept (`race::viewer_palettes`).
     pub viewer_first_texture_a: Dword,

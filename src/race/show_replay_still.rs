@@ -40,7 +40,7 @@ pub fn show_replay_still(
         return Err(BadInput("a cars' count of 0 or past 8").into());
     }
     race.physics.split_tables.still.set(1);
-    race.frame.frame_work.still_2.set(1);
+    race.frame.frame_work.replay_still_on.set(1);
     load_frame(&race.replay);
     load_replay_cars::load_replay_cars(race);
     replay_cameras::replay_cameras(race)?;
@@ -85,7 +85,7 @@ pub fn show_replay_still(
     crate::race::draw_race_scene::draw_race_scene(race, input, system)?;
     race.shared.vars.scene_switch.set(kept);
     race.frame.frame_work.drawing.set(0);
-    race.frame.frame_work.still_2.set(0);
+    race.frame.frame_work.replay_still_on.set(0);
     race.physics.split_tables.still.set(0);
     Ok(())
 }

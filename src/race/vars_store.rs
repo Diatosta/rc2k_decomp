@@ -29,7 +29,7 @@ pub struct RaceVars {
     pub face_mark: Dword,
     /// +0x38 (0x623620): `g_faceNumber` ("objfaced"); now each view's (`race::face_work::FaceWork`; the bad polygon's log reads the view's); this one not used.
     pub face_number: Dword,
-    /// +0x3c (0x623624): not named.
+    /// +0x3c (0x623624): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_3c: [Dword; 4],
     /// +0x4c (0x623634): the loading bar's span, from and to (`scene::step_loading_bar`; `race::loadlevel`'s object span).
     pub bar_span: [Dword; 2],
@@ -39,7 +39,7 @@ pub struct RaceVars {
     pub checkpoint_count: Dword,
     /// +0x5c (0x623644): `g_lastCheckpoint` ("numsortedm1").
     pub last_checkpoint: Dword,
-    /// +0x60 (0x623648): not named.
+    /// +0x60 (0x623648): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_60: [Dword; 3],
     /// +0x6c (0x623654): `g_lineFaceKind`.
     pub line_face_kind: Dword,
@@ -62,7 +62,7 @@ pub struct RaceVars {
     pub bar_share: Dword,
     /// +0x11c (0x623704): the loading bar's function (0: none).
     pub bar_function: Dword,
-    /// +0x120 (0x623708): not named.
+    /// +0x120 (0x623708): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_120: [Dword; 82],
     /// +0x268 (0x623850): `g_stageNumber` (`settings.stage`).
     pub stage_number: Dword,
@@ -76,17 +76,17 @@ pub struct RaceVars {
     pub mip_setting: Dword,
     /// +0x2b4 (0x62389C): the race's run kind (`settings.run_kind`; 2: the cars by place; splits, views, hidden kinds).
     pub run_kind: Dword,
-    /// +0x2b8 (0x6238A0): not named.
+    /// +0x2b8 (0x6238A0): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_2b8: Dword,
     /// +0x2bc (0x6238A4): `settings.kept`: the screen split / players (`race::frame`, `hud::overlay_pass`, the gear choice).
     pub split: Dword,
-    /// +0x2c0 (0x6238A8): `settings.setting_0` .. `4` ([1] the shine and the front end's set-up, [4] all cars' lights).
+    /// +0x2c0 (0x6238A8): the graphics options (`settings.lens_flare`, `reflections`, `car_shadows`, `car_detail`, `headlights`; the ini keys `[shaunlensflare]`, `[shaunreflections]`, `[shauncarshadow]`, `[shauncardetail]`, `[shaunheadlights]`): [0] only feeds `listener_figures[0]`, [1] the faces' shine, [2] car shadows, [3] see-through windows 0 / 1 / 2 (none, the viewed car, all cars), [4] all cars' lamps light objects.
     pub settings_words: [Dword; 5],
     /// +0x2d4 (0x6238BC): `g_rivals` (`settings.rivals`: the standings summary's block id).
     pub rivals: Dword,
     /// +0x2d8 (0x6238C0): `settings.no_replay`.
     pub no_replay: Dword,
-    /// +0x2dc (0x6238C4): not named.
+    /// +0x2dc (0x6238C4): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_2dc: [Dword; 2],
     /// +0x2e4 (0x6238CC): `results.race_level`.
     pub race_level: Dword,
@@ -96,11 +96,11 @@ pub struct RaceVars {
     pub start_numbers: [Dword; 8],
     /// +0x30c (0x6238F4): "files\b\mudfile.0xx" (`race::mud`; the digits at +0x11).
     pub mud_path: crate::session::Bytes<20>,
-    /// +0x320 (0x623908): not named.
+    /// +0x320 (0x623908): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_320: Dword,
     /// +0x324 (0x62390C): [0] turned into [1] (`race::mud_texture_turn`).
     pub mud_turn_a: [Dword; 2],
-    /// +0x32c (0x623914): not named.
+    /// +0x32c (0x623914): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_32c: Dword,
     /// +0x330 (0x623918): the same.
     pub mud_turn_b: [Dword; 2],
@@ -108,7 +108,7 @@ pub struct RaceVars {
     pub mud_throws: Dword,
     /// +0x33c (0x623924): (`race::update_mud_texture`).
     pub mud_splashes: Dword,
-    /// +0x340 (0x623928): not named.
+    /// +0x340 (0x623928): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_340: [Dword; 2],
     /// +0x348 (0x623930): `g_mudColours`.
     pub mud_colours: [Dword; 256],
@@ -120,7 +120,7 @@ pub struct RaceVars {
     pub mud_column: Dword,
     /// +0x754 (0x623D3C): (`race::splash_mud`).
     pub mud_row: Dword,
-    /// +0x758 (0x623D40): not named.
+    /// +0x758 (0x623D40): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_758: [Dword; 4],
     /// +0x768 (0x623D50): `g_mud`: the mud file's memory (the game's address; unused
     /// since the mud is Rust's, `race::mud::MUD`).
@@ -139,7 +139,7 @@ pub struct RaceVars {
     pub mud_thrown_counts: [Dword; 4],
     /// +0x7a8 (0x623D90): `g_mudSplashCounts`.
     pub mud_splash_counts: [Dword; 4],
-    /// +0x7b8 (0x623DA0): not named.
+    /// +0x7b8 (0x623DA0): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_7b8: [Dword; 2],
     /// +0x7c0 (0x623DA8): [0] the drive's, [1] the slip's (`physics::turn_wheel_angles`).
     pub wheel_turn_a: [Float; 2],
@@ -150,7 +150,7 @@ pub struct RaceVars {
     pub polygon_mark: Dword,
     /// +0x7d4 (0x623DBC): (`scene::draw_polygon`, `race::skidmarks`).
     pub fade_uv: [Dword; 2],
-    /// +0x7dc (0x623DC4): not named.
+    /// +0x7dc (0x623DC4): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_7dc: [Dword; 2],
     /// +0x7e4 (0x623DCC): a factor of the view's scale (`scene::set_view_window`).
     pub scale_factor: Float,
@@ -168,12 +168,12 @@ pub struct RaceVars {
     pub quad_uv: [Dword; 8],
     /// +0x828 (0x623E10): [0] left, [1] right, [4] top, [5] bottom; now each view's (`race::quad_work::QuadWork`); unused.
     pub quad_corners: [Dword; 8],
-    /// +0x848 (0x623E30): not named.
+    /// +0x848 (0x623E30): IDA touches it only in code outside any function (0x44A5F1 .. 0x44A61E, dead); the port never reaches it.
     pub unknown_848: [Dword; 4],
     /// +0x858 (0x623E40): four vertices of 0x20 (`scene::draw_flat_quad`, `race::course_faces`).
     /// No longer used by the drawing: each view's are `PolygonWork::quad_vertices`.
     pub quad_vertices: [Dword; 32],
-    /// +0x8d8 (0x623EC0): not named.
+    /// +0x8d8 (0x623EC0): IDA reads and writes it only in code outside any function (0x44FABB .. 0x44FBC8, dead); the port never reaches it.
     pub unknown_8d8: [Dword; 48],
 }
 

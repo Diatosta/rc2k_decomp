@@ -22,7 +22,10 @@ pub type List = (&'static [Dword], usize);
 /// off_75A042: the cars of one kind of event (0x28 entries are kept in `var\ral.dat`).
 pub const FIRST: List = (&crate::menu::owner::MENUS.tables.lists.cars_second, 0x28);
 /// off_759D16: the next variable is 0xB4 bytes on.
-pub const SECOND: List = (&crate::menu::owner::MENUS.tables.lists.cars_a8, 0x2D);
+pub const SECOND: List = (
+    &crate::menu::owner::MENUS.tables.lists.a8_championship_cars,
+    0x2D,
+);
 /// off_759F4A: the secret cars.
 const SECRET: List = (&crate::menu::owner::MENUS.tables.lists.secret_cars, 0x0C);
 /// unk_759F7A: where a list is copied to and back from.

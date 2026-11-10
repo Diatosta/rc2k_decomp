@@ -2,8 +2,9 @@
 //! 0x45EB06, all but kind 4's move, which turns a point and looks for the ground, and
 //! `physics::touch_face` 0x45E9E0, a face the car touches listed and marked): each
 //! listed face's bytes stepped by its object's kind, at a pace by its distance from the
-//! lead car; a face that is done leaves the list (the list's last takes its place). By
-//! the look of it lights blinking and things falling (a reading).
+//! lead car; a face that is done leaves the list (the list's last takes its place). The
+//! listed faces are the ones the car has touched (`physics::touch_face`): roadside objects
+//! that blink, rise or are knocked away for a while.
 
 /// The object whose faces only count down (+0x11).
 pub const COUNTDOWN_OBJECT: u8 = 0x3B;

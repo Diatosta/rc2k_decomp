@@ -18,8 +18,10 @@
 //!   - others: nothing.
 //!
 //! A face leaves by the list's last taking its place (the count less 1), and the next
-//! one is looked at (so the one moved in waits a step). By the look of it the stage's
-//! animated objects: lights blinking, things falling (a reading).
+//! one is looked at (so the one moved in waits a step). These are the course faces the
+//! car has touched (`physics::touch_face` lists them): roadside objects that react for a
+//! while by their object's kind, blinking (1, 9), rising (2, 3, 8) or being knocked away
+//! along the ground (4).
 //!
 //! Caller: `drive::animate_stage` (0x45E9CA). Refuses (before anything) more than 0x100 lit faces
 //! (the list's room) and a face number past `g_courseFaceCount`; `find_ground`'s refusals mid-way

@@ -17,18 +17,18 @@ pub struct DrawWork {
     pub cursor_on: Dword,
     /// `seconds`: A work variable: points, a button's width, the fill's end x (`gfx::blit_bar`).
     pub seconds: Dword,
-    /// `dword_7559B0`: A work variable: a button's x.
-    pub work_b0: Dword,
-    /// `dword_7559B4`: A work variable: a button's y, the sorts' outer counter.
-    pub work_b4: Dword,
-    /// `dword_7559B8`: A work variable: the sorts' inner counter, a number's length.
-    pub work_b8: Dword,
+    /// +0xC (0x7559B0): a scratch variable the screens' routines pass values in (the original used a global where a register would do): a button's x, a row's y, a sprite's y, a sum of times (`saves::default_times`).
+    pub scratch_b0: Dword,
+    /// +0x10 (0x7559B4): scratch: a button's y, the sorts' outer counter (SORTED - 1), a car glyph, a stage, a player-results extra glyph.
+    pub scratch_b4: Dword,
+    /// +0x14 (0x7559B8): scratch: the sorts' inner counter (SORTED), a number's length (`draw_spaced_number`), a gap, a time.
+    pub scratch_b8: Dword,
     /// `g_firstPlayerTime`: The first player's time.
     pub first_player_time: Dword,
     /// `glyph`: A work variable: a button's left glyph.
     pub glyph: Dword,
-    /// `dword_7559C4`: A work variable: a button's right glyph.
-    pub work_c4: Dword,
+    /// +0x20 (0x7559C4): scratch: a button's right glyph (`screens::buttons`, `game_screen`).
+    pub scratch_c4: Dword,
     /// `dword_7559C8`: Not worked out.
     pub dword_7559c8: Dword,
     /// `| Not worked out.`:
@@ -51,20 +51,20 @@ pub struct DrawWork {
     pub figure: Dword,
     /// `hhmm`: A work variable: the hours and minutes, a gap, an x.
     pub hhmm: Dword,
-    /// `dword_7559F4`: A work variable: a button's y.
-    pub work_f4: Dword,
+    /// +0x50 (0x7559F4): scratch: the second kind of button's y (`screens::buttons`).
+    pub scratch_f4: Dword,
     /// `| Not worked out.`:
     pub work_f8: Dword,
     /// `| Not worked out.`:
     pub work_fc: Dword,
-    /// `dword_755A00`: A work variable: a button's left glyph.
-    pub work_00: Dword,
-    /// `dword_755A04`: A work variable: a button's right glyph.
-    pub work_04: Dword,
-    /// `dword_755A08`: A work variable.
-    pub work_08: Dword,
-    /// `dword_755A0C`: A work variable: the device record the controller page draws, the saved-game slot picked, the checkpoints switch of the default times, `Leaving::field_a0c`.
-    pub work_0c: Dword,
+    /// +0x5C (0x755A00): scratch: the second kind of button's left glyph (`screens::buttons`).
+    pub scratch_00: Dword,
+    /// +0x60 (0x755A04): scratch: the second kind of button's right glyph (`screens::buttons`).
+    pub scratch_04: Dword,
+    /// +0x64 (0x755A08): scratch: a service row's string (`game_screen`, the service page).
+    pub scratch_08: Dword,
+    /// +0x68 (0x755A0C): scratch: the device record the controller page draws, the saved-game slot picked (`save_replay_loop` returns it), the checkpoints switch of the default times (1: guess them; `set_up_front_end`), a service row, a record, and `Leaving`'s last word (-1 on going back).
+    pub scratch_0c: Dword,
     /// Unreferenced bytes (IDA 0x755A10 .. 0x755A18).
     pub _gap_755a10: Bytes<8>,
     /// `g_markerX`: The marker's x (`gfx::blit_marker_pair`).
@@ -98,12 +98,12 @@ impl DrawWork {
             blink: Dword::new(0x1),
             cursor_on: Dword::new(0x1),
             seconds: Dword::new(0x0),
-            work_b0: Dword::new(0x0),
-            work_b4: Dword::new(0x0),
-            work_b8: Dword::new(0x0),
+            scratch_b0: Dword::new(0x0),
+            scratch_b4: Dword::new(0x0),
+            scratch_b8: Dword::new(0x0),
             first_player_time: Dword::new(0x0),
             glyph: Dword::new(0x0),
-            work_c4: Dword::new(0x0),
+            scratch_c4: Dword::new(0x0),
             dword_7559c8: Dword::new(0x0),
             dword_7559cc: Dword::new(0x0),
             drawing_highlighted_item: Dword::new(0x0),
@@ -115,13 +115,13 @@ impl DrawWork {
             slider_b_end: Dword::new(0x0),
             figure: Dword::new(0x0),
             hhmm: Dword::new(0x0),
-            work_f4: Dword::new(0x0),
+            scratch_f4: Dword::new(0x0),
             work_f8: Dword::new(0x0),
             work_fc: Dword::new(0x0),
-            work_00: Dword::new(0x0),
-            work_04: Dword::new(0x0),
-            work_08: Dword::new(0x0),
-            work_0c: Dword::new(0x0),
+            scratch_00: Dword::new(0x0),
+            scratch_04: Dword::new(0x0),
+            scratch_08: Dword::new(0x0),
+            scratch_0c: Dword::new(0x0),
             _gap_755a10: Bytes::new([0; 8]),
             marker_x: Dword::new(0x0),
             marker_y: Dword::new(0x0),
@@ -172,12 +172,12 @@ mod tests {
         at(offset_of!(DrawWork, blink), 0x7559A4);
         at(offset_of!(DrawWork, cursor_on), 0x7559A8);
         at(offset_of!(DrawWork, seconds), 0x7559AC);
-        at(offset_of!(DrawWork, work_b0), 0x7559B0);
-        at(offset_of!(DrawWork, work_b4), 0x7559B4);
-        at(offset_of!(DrawWork, work_b8), 0x7559B8);
+        at(offset_of!(DrawWork, scratch_b0), 0x7559B0);
+        at(offset_of!(DrawWork, scratch_b4), 0x7559B4);
+        at(offset_of!(DrawWork, scratch_b8), 0x7559B8);
         at(offset_of!(DrawWork, first_player_time), 0x7559BC);
         at(offset_of!(DrawWork, glyph), 0x7559C0);
-        at(offset_of!(DrawWork, work_c4), 0x7559C4);
+        at(offset_of!(DrawWork, scratch_c4), 0x7559C4);
         at(offset_of!(DrawWork, dword_7559c8), 0x7559C8);
         at(offset_of!(DrawWork, dword_7559cc), 0x7559CC);
         at(offset_of!(DrawWork, drawing_highlighted_item), 0x7559D0);
@@ -189,13 +189,13 @@ mod tests {
         at(offset_of!(DrawWork, slider_b_end), 0x7559E8);
         at(offset_of!(DrawWork, figure), 0x7559EC);
         at(offset_of!(DrawWork, hhmm), 0x7559F0);
-        at(offset_of!(DrawWork, work_f4), 0x7559F4);
+        at(offset_of!(DrawWork, scratch_f4), 0x7559F4);
         at(offset_of!(DrawWork, work_f8), 0x7559F8);
         at(offset_of!(DrawWork, work_fc), 0x7559FC);
-        at(offset_of!(DrawWork, work_00), 0x755A00);
-        at(offset_of!(DrawWork, work_04), 0x755A04);
-        at(offset_of!(DrawWork, work_08), 0x755A08);
-        at(offset_of!(DrawWork, work_0c), 0x755A0C);
+        at(offset_of!(DrawWork, scratch_00), 0x755A00);
+        at(offset_of!(DrawWork, scratch_04), 0x755A04);
+        at(offset_of!(DrawWork, scratch_08), 0x755A08);
+        at(offset_of!(DrawWork, scratch_0c), 0x755A0C);
         at(offset_of!(DrawWork, marker_x), 0x755A18);
         at(offset_of!(DrawWork, marker_y), 0x755A1C);
         at(offset_of!(DrawWork, marker_end_a), 0x755A20);

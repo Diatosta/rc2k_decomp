@@ -73,7 +73,9 @@ pub fn draw_slot_object(
     crate::math::cells::copy_cells(&slot.matrix, &ctx.view.matrices.object_turn_matrix, 16);
     let place = [
         slot.place[0].get(),
-        slot.place[1].get().wrapping_add(slot.unknown_5c.get()),
+        slot.place[1]
+            .get()
+            .wrapping_add(slot.draw_height_offset.get()),
         slot.place[2].get(),
     ];
     for (k, &p) in place.iter().enumerate() {

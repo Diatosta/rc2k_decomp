@@ -1,5 +1,5 @@
 //! `menu::arcade_best_scores_loop` (0x48A69E): a best scores screen, by its title "MELHORES
-//! CLASSIFICAÇÕES" (a reading)
+//! CLASSIFICAÇÕES" (named from its title string and callers; the original's name is lost)
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `bascores.png`; leaving is asked about; left

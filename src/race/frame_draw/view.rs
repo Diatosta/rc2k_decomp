@@ -435,7 +435,7 @@ pub fn camera_view(
             &m.turned_matrix,
         );
         crate::scene::view_matrix::invert_turn(&race.course, &m.turned_matrix, &m.view_turn_copy);
-        let kept = &view.car.unknown_6cc;
+        let kept = &view.car.kept_focus_point;
         kept[0].set(view.car.position[0].get());
         kept[1].set(view.car.position[1].get().wrapping_add(0x8000));
         kept[2].set(view.car.position[2].get());

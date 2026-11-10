@@ -154,7 +154,7 @@ pub fn gate_with(
         }
         // `xor edx, edx; idiv`: the dividend the unsigned total.
         let rest = (total as i64 % limit as i32 as i64) as u32;
-        let moving = wheel.speed_10.bits() != 0 || wheel.speed_18.bits() != 0;
+        let moving = wheel.local_velocity_x.bits() != 0 || wheel.local_velocity_z.bits() != 0;
         Gate {
             rate,
             count: Some(rest),

@@ -24,9 +24,9 @@ pub struct ObjectTables {
     pub car_mark_textures: [Dword; 256],
     /// +0xc0c (0x5CDA88): `dword_5CDA88`: the car's letter number, a second copy, never read; unused.
     pub car_letter_b: Dword,
-    /// +0xc10 (0x5CDA8C): `dword_5CDA8C`: the 3D switch the texture and polygon functions test (`scene::clear_depth_buffer`, `scene::submit_polygon`, `race::draw_race_scene`, `race::frame_views`).
-    pub has_3d: Dword,
-    /// +0xc14 (0x5CDA90): not named.
+    /// +0xc10 (0x5CDA8C): `dword_5CDA8C`: whether the Direct3D device is drawing: 0 until `race::draw_race_scene` first sets it to 1 (nothing sets it back); while 0 the texture, depth-clear and polygon functions skip the device. The switch the texture and polygon functions test (`scene::clear_depth_buffer`, `scene::submit_polygon`, `race::draw_race_scene`, `race::frame_views`).
+    pub d3d_drawing_on: Dword,
+    /// +0xc14 (0x5CDA90): seven dwords between the 3D switch and the level sizes; nothing reads or writes them (a gap).
     pub unknown_c14: [Dword; 7],
     /// +0xc30 (0x5CDAAC): `g_textureLevelSizes`: what a texture of each level takes, in k (`scene::texture_needs`).
     pub level_sizes: [Dword; 4],
@@ -105,7 +105,7 @@ mod tests {
             (piece_addr() + (END - START) as u32 - 1) as usize
         );
         assert_eq!(offset_of!(ObjectTables, slot_kinds), 0x5CCE7C - START);
-        assert_eq!(offset_of!(ObjectTables, has_3d), 0x5CDA8C - START);
+        assert_eq!(offset_of!(ObjectTables, d3d_drawing_on), 0x5CDA8C - START);
         assert_eq!(offset_of!(ObjectTables, video_levels), 0x5CFAE0 - START);
     }
 }

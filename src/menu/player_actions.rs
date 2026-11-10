@@ -2,8 +2,8 @@
 //! menu and draw-list tables):
 //! - the current player's (`g_players`[`g_currentPlayer`]) settings:
 //!   `menu::keep_player_keys` (0x46AEFC): the 0x2C bytes at `unk_7555B1` to
-//!   +0x50; `menu::lower_player_40` (0x46B386, `lower_dead_zone_1`): the first dead zone (+0x40) one less while above 0
-//!   (signed); `menu::lower_player_44` (0x46B3CB, `lower_dead_zone_2`): the second one less
+//!   +0x50; `menu::lower_player_40` (0x46B386, `lower_end_zone`): the first dead zone (+0x40) one less while above 0
+//!   (signed); `menu::lower_player_44` (0x46B3CB, `lower_centre_dead_zone`): the second one less
 //!   unless 0; `menu::raise_player_48` (0x46B528) / `lower_player_48` (0x46B54C): the
 //!   strength (+0x48) ten more unless 100 / ten less unless 0; `menu::toggle_player_3c`
 //!   (0x4704EC, `toggle_controller_mode`): the mode's (+0x3C) bit 0 turned over;
@@ -54,13 +54,13 @@ pub fn keep_player_keys(menus: &Menus) -> Result<(), Refused> {
 }
 
 /// `menu::lower_player_40`.
-pub fn lower_dead_zone_1(screens: &Screens) -> Result<(), Refused> {
-    with_player(screens, Player::lower_dead_zone_1)
+pub fn lower_end_zone(screens: &Screens) -> Result<(), Refused> {
+    with_player(screens, Player::lower_end_zone)
 }
 
 /// `menu::lower_player_44`.
-pub fn lower_dead_zone_2(screens: &Screens) -> Result<(), Refused> {
-    with_player(screens, Player::lower_dead_zone_2)
+pub fn lower_centre_dead_zone(screens: &Screens) -> Result<(), Refused> {
+    with_player(screens, Player::lower_centre_dead_zone)
 }
 
 /// `menu::raise_player_48`.

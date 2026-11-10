@@ -121,8 +121,8 @@ pub struct MarksFloats {
     pub pull_limit: Dword,
     /// 0x765144: Not named: 8 bytes (a gap, or unreferenced data).
     pub _gap_765144: Bytes<8>,
-    /// 0x76514C: `flt_76514C`: -65.536, the burst's half scale (`effects::emit_bursts`).
-    pub minus_65_536: Float,
+    /// 0x76514C: `flt_76514C`: -65.536, multiplied with a burst's strength and direction factors to make the burst's direction vector (`effects::emit_bursts`).
+    pub burst_direction_k: Float,
     /// 0x765150: `flt_765150`: -0.125, the burst's turn scale (`effects::emit_bursts`).
     pub minus_eighth: Float,
     /// 0x765154: Not named: 4 bytes (a gap, or unreferenced data).
@@ -167,18 +167,18 @@ pub struct MarksFloats {
     pub eighth: Float,
     /// 0x7651C4: `flt_7651C4`: 0.0625 (`effects::make_fade_colours`).
     pub sixteenth: Float,
-    /// 0x7651C8: `flt_7651C8`: 1/512 (`effects::set_up_surface`).
-    pub over_512: Float,
-    /// 0x7651CC: `flt_7651CC`: 1/256 (`effects::set_up_surface`).
-    pub over_256: Float,
-    /// 0x7651D0: `flt_7651D0`: 1/32.
-    pub over_32: Float,
-    /// 0x7651D4: `flt_7651D4`: 65.536 (`effects::emit_particle_13`).
-    pub plus_65_536: Float,
+    /// 0x7651C8: `flt_7651C8`: 1/512, the surface places' edge value (`effects::set_up_surface`'s `edge`).
+    pub surface_edge: Float,
+    /// 0x7651CC: `flt_7651CC`: 1/256, the surface places' pixel value (`effects::set_up_surface`'s `pixel`).
+    pub surface_pixel: Float,
+    /// 0x7651D0: `flt_7651D0`: 1/32: the surface places' step (`effects::set_up_surface`), the emitters' size factor (`effects::emit_particle_18`, `effects::emit_kind_1`'s count) and the least strength.
+    pub thirty_second: Float,
+    /// 0x7651D4: `flt_7651D4`: 65.536, the scale `effects::emit_particle_13` turns the spline point's place with (probably the model units to metres).
+    pub particle_13_place_k: Float,
     /// 0x7651D8: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_7651d8: Bytes<4>,
-    /// 0x7651DC: `flt_7651DC`: 65536.0.
-    pub two_pow_16: Float,
+    /// 0x7651DC: `flt_7651DC`: 65536.0, the 16-bit fixed-point one: a chance (0 .. 1) times it is compared with a 16-bit random, and the ring's fractions are scaled by it.
+    pub fixed_16_scale: Float,
     /// 0x7651E0: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_7651e0: Bytes<4>,
     /// 0x7651E4: `flt_7651E4`: 700.0 (`effects::emit_particle_13`).
@@ -206,7 +206,7 @@ impl MarksFloats {
         Self {
             pull_limit: Dword::new(0x10000),
             _gap_765144: Bytes::new([0x00, 0x00, 0x80, 0xBF, 0x00, 0x00, 0x80, 0xC7]),
-            minus_65_536: Float::from_bits(0xC283126F),
+            burst_direction_k: Float::from_bits(0xC283126F),
             minus_eighth: Float::from_bits(0xBE000000),
             _gap_765154: Bytes::new([0x00, 0x00, 0x80, 0x3E]),
             half: Float::from_bits(0x3F000000),
@@ -235,12 +235,12 @@ impl MarksFloats {
             quarter: Float::from_bits(0x3E800000),
             eighth: Float::from_bits(0x3E000000),
             sixteenth: Float::from_bits(0x3D800000),
-            over_512: Float::from_bits(0x3B000000),
-            over_256: Float::from_bits(0x3B800000),
-            over_32: Float::from_bits(0x3D000000),
-            plus_65_536: Float::from_bits(0x4283126F),
+            surface_edge: Float::from_bits(0x3B000000),
+            surface_pixel: Float::from_bits(0x3B800000),
+            thirty_second: Float::from_bits(0x3D000000),
+            particle_13_place_k: Float::from_bits(0x4283126F),
             _gap_7651d8: Bytes::new([0x0A, 0xD7, 0x23, 0x44]),
-            two_pow_16: Float::from_bits(0x47800000),
+            fixed_16_scale: Float::from_bits(0x47800000),
             _gap_7651e0: Bytes::new([0x00, 0x00, 0x00, 0x47]),
             seven_hundred: Float::from_bits(0x442F0000),
             hundred: Float::from_bits(0x42C80000),
@@ -288,7 +288,7 @@ mod marks_floats_tests {
             0x765140 - MarksFloats::START
         );
         assert_eq!(
-            offset_of!(MarksFloats, minus_65_536),
+            offset_of!(MarksFloats, burst_direction_k),
             0x76514C - MarksFloats::START
         );
         assert_eq!(
@@ -350,23 +350,23 @@ mod marks_floats_tests {
             0x7651C4 - MarksFloats::START
         );
         assert_eq!(
-            offset_of!(MarksFloats, over_512),
+            offset_of!(MarksFloats, surface_edge),
             0x7651C8 - MarksFloats::START
         );
         assert_eq!(
-            offset_of!(MarksFloats, over_256),
+            offset_of!(MarksFloats, surface_pixel),
             0x7651CC - MarksFloats::START
         );
         assert_eq!(
-            offset_of!(MarksFloats, over_32),
+            offset_of!(MarksFloats, thirty_second),
             0x7651D0 - MarksFloats::START
         );
         assert_eq!(
-            offset_of!(MarksFloats, plus_65_536),
+            offset_of!(MarksFloats, particle_13_place_k),
             0x7651D4 - MarksFloats::START
         );
         assert_eq!(
-            offset_of!(MarksFloats, two_pow_16),
+            offset_of!(MarksFloats, fixed_16_scale),
             0x7651DC - MarksFloats::START
         );
         assert_eq!(

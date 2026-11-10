@@ -34,9 +34,14 @@ pub fn car_input_words(race: &Race, input: &crate::input::owner::Input) -> Resul
             race_owner.shared.work.car_block(car as usize),
             "a car's block",
         )?;
-        // +0xFD0: the second half of `unknown_fc0`.
-        for k in 0..4usize {
-            let at = &block.unknown_fc0[4 + k];
+        // +0xFD0 .. +0xFDC: the kept throttle, key bits, steering and brake words.
+        let kept = [
+            &block.kept_throttle_word,
+            &block.kept_keys_word,
+            &block.kept_steering_word,
+            &block.kept_brake_word,
+        ];
+        for (k, at) in kept.into_iter().enumerate() {
             match replay_words(car, vars.player.get()) {
                 ReplayWords::FromBlock => {
                     race_owner.shared.physics_tables.input_words[k].set(at.get());

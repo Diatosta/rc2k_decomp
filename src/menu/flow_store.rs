@@ -12,9 +12,9 @@ use crate::session::{Bytes, Dword, with_runs};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ScreenFlow {
-    /// `g_startSection`: The section an event starts at (`menu::run_championship`); the same variable is the first car colour `menu::next_colour_a` chooses, which `saves::gather_savegame` puts in car 0 at +0x14.
+    /// +0 (0x7554C0) `g_startSection`: the rally of the Mobil One championship to start at, 0 .. 6 (0: from the first, with the welcome; n: section n - 1, `rc2k_core::menu::championship`). Chosen on the options page by `menu::next_colour_a` / `previous_colour_a` (IDA's names: nothing here is a colour; the pictures are string 0x1D9, the championship's name, then the six rallies' names, 0x3DC .. 0x3E1). `saves::gather_savegame` keeps it in car 0 at +0x14 and `load_savegame` puts it back.
     pub start_section: Dword,
-    /// `g_startSectionA8`: The A8 game's start section; also the second car colour (`menu::next_colour_b`), car 0 at +0x274.
+    /// +4 (0x7554C4) `g_startSectionA8`: the same for the A8 rally championship, 0 .. 6 (the pictures are string 0x1DA, "Campeonato de Rali A8", then "ronda um" .. "ronda seis", 0x3D6 .. 0x3DB; chosen by `menu::next_colour_b` / `previous_colour_b`). Kept in car 0 at +0x274 by the saved games.
     pub start_section_a8: Dword,
     /// `dword_7554C8`: Kept by `menu::run_event_races`.
     pub kept: Dword,

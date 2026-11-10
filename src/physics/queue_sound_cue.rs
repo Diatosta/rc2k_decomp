@@ -8,7 +8,8 @@
 //!
 //! Caller: `physics::cue_car_sound`. The object is a reference; the queue is its typed
 //! +0x298 (`CueQueue`), walked by dword as the original does (a dword past it refused).
-//! Refuses (before anything) a cue past 0x5F (the list's size not worked out).
+//! Refuses (before anything) a cue past 0x70, the end of `off_512508`'s 113 sound lists (the
+//! original does not check).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

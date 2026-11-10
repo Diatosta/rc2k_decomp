@@ -65,8 +65,8 @@ pub fn rank(menus: &Menus, by_totals: bool) -> Result<(), Refused> {
         menus.play.results.pairs[2 * k + 1].set(v);
         menus.play.results.order[k].set(o);
     }
-    menus.screens.draw_work.work_b4.set(3);
-    menus.screens.draw_work.work_b8.set(4);
+    menus.screens.draw_work.scratch_b4.set(3);
+    menus.screens.draw_work.scratch_b8.set(4);
     for (k, to) in targets.iter().enumerate() {
         to.set(k as u32 + 1);
     }
@@ -113,7 +113,7 @@ pub fn score(menus: &Menus, n: usize) -> Result<(), Refused> {
         menus.play.results.before[k].set(menus.play.results.totals[k].get());
     }
     if n == 2 {
-        menus.screens.draw_work.work_b8.set(times[0]);
+        menus.screens.draw_work.scratch_b8.set(times[0]);
         menus.play.results.positions[0].set(positions[0]);
         menus.play.results.positions[1].set(positions[1]);
     }

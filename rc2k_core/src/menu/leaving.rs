@@ -14,8 +14,8 @@ pub struct Leaving {
     pub leave_too: u32,
     /// `dword_755569`: the screen loop asks whether to leave.
     pub ask: u32,
-    /// `dword_755A0C`: -1 on going back (other screens keep their own values there).
-    pub field_a0c: u32,
+    /// `dword_755A0C` (`DrawWork::scratch_0c`, a scratch variable the screens share): -1 on going back; the screens after it use it for their own values.
+    pub scratch_0c: u32,
 }
 
 impl Leaving {
@@ -23,7 +23,7 @@ impl Leaving {
     pub fn go_back(&mut self) {
         self.leave_event = 0;
         self.leave_screen = 1;
-        self.field_a0c = u32::MAX;
+        self.scratch_0c = u32::MAX;
     }
 
     /// `menu::ask_to_leave`.
@@ -100,7 +100,7 @@ mod tests {
         };
         l.go_back();
         assert_eq!(
-            (l.leave_event, l.leave_screen, l.field_a0c),
+            (l.leave_event, l.leave_screen, l.scratch_0c),
             (0, 1, u32::MAX)
         );
         l.leave_with_carry();

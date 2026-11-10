@@ -277,7 +277,7 @@ fn speed_share_step(shared: &Shared, m: &DamageModel) {
     let t3 = ld(m.gauge_top.bits());
     let t4 = t2 * t3;
     m.speed_share.set_bits(st(t4));
-    let t5 = ld(shared.car.point_surface_2c[4].bits());
+    let t5 = ld(shared.car.point_wear_factor[4].bits());
     m.point_surface_copy.set_bits(st(t5));
     let t6 = ld(shared.car.local_velocity[2].bits());
     let t7 = ld(shared.car.drive_speed_a.bits());

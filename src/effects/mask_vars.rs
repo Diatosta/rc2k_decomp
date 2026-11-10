@@ -6,8 +6,8 @@ use crate::session::{Bytes, Dword, Float, Word};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Shape {
-    /// 0x0: the shape picked (`pick_shapes` sets it) and the eased step count `turn_all_shapes` reads (a reading)
-    pub step: Dword,
+    /// 0x0: the step number of the shape's eased turn: `pick_shapes` sets it to the absolute value of the picks table's entry; `turn_all_shapes` passes it (and one more) to the cosine easing between the set's turn angle and the work step; `expire_windscreen_flakes` reads its low byte as the square-ends test input. Probable: indirect, from these uses.
+    pub ease_step: Dword,
     /// 0x4: the shape's count of ring quads (0x80)
     pub count: Dword,
     /// 0x8: the offset in `run_table` of its runs of rows (`span_ring` puts the runs' place here; the original kept the address)
@@ -161,7 +161,7 @@ impl MaskVars {
             corners_b: Bytes::new([0; 3096]),
             shapes: [
                 Shape {
-                    step: Dword::new(0x0),
+                    ease_step: Dword::new(0x0),
                     count: Dword::new(0x80),
                     rows: Dword::new(0x0),
                     middle: [Float::from_bits(0x41900000), Float::from_bits(0x43000000)],
@@ -169,7 +169,7 @@ impl MaskVars {
                     radii: [Float::from_bits(0x42DC0000), Float::from_bits(0x41F00000)],
                 },
                 Shape {
-                    step: Dword::new(0x0),
+                    ease_step: Dword::new(0x0),
                     count: Dword::new(0x80),
                     rows: Dword::new(0x0),
                     middle: [Float::from_bits(0x42C40000), Float::from_bits(0x43000000)],

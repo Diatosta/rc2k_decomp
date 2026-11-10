@@ -88,7 +88,8 @@ pub struct TimeEntry {
     pub is_player: Dword,
     /// +0x44: a figure.
     pub figure: Dword,
-    pub field_48: [Dword; 2],
+    /// +0x48 .. +0x50: read by no code but as the name's tail (a name without a NUL reads on into it); 0 in the shipped data.
+    pub unread_48: [Dword; 2],
     /// +0x50: 0xB in a made-up entry.
     pub field_50: Dword,
     pub field_54: [Dword; 2],
@@ -117,7 +118,7 @@ impl TimeEntry {
             name: Bytes::new(name),
             is_player: Dword::new(w[8]),
             figure: Dword::new(w[9]),
-            field_48: [Dword::new(w[10]), Dword::new(w[11])],
+            unread_48: [Dword::new(w[10]), Dword::new(w[11])],
             field_50: Dword::new(w[12]),
             field_54: [Dword::new(w[13]), Dword::new(w[14])],
             checkpoints,

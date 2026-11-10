@@ -116,7 +116,7 @@ pub fn draw_stage_body_in(
             temperature: f(0x1C) as i32,
             wind: f(0x20),
             surfaces: [f(0x24), f(0x28), f(0x2C), f(0x30)],
-            entry_34: f(0x34),
+            stage_number: f(0x34),
             number: f(0x38),
             number_label_one: f(0x3C) == 1,
         };

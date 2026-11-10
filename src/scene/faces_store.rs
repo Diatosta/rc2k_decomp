@@ -22,7 +22,7 @@ pub struct SortLists {
     pub depth_entries: [Dword; 0x2000],
     /// +0x8000 (0x9DB730): `g_sortEntries`: 0x1000 entries of 8 bytes: +0 the key, +4 the second word (`race::frame_draw`, `race::draw_view_scene`).
     pub sort_entries: [Dword; 0x2000],
-    /// +0x10000 (0x9E3730): not named (`dword_9E3734` is the second).
+    /// +0x10000 (0x9E3730): two dwords (`dword_9E3730`, `dword_9E3734`) after the sort entries; nothing reads or writes them (an overrun space, probably).
     pub unknown_40000: [Dword; 2],
 }
 

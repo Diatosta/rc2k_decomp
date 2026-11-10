@@ -2,7 +2,7 @@
 //! size and the scene's settings.
 //!
 //! From the window's width and height (`dword_62408C`, `dword_624090`), its offsets
-//! (`dword_623FB0`, `dword_623FB4`) and `dword_60A87C` (how far is seen, a reading):
+//! (`dword_623FB0`, `dword_623FB4`) and `dword_60A87C` (`g_gridReach`, how far the grid reaches; the view's depth is it times 0x20):
 //! - `dword_63DC58` = `dword_63DC54` = `dword_60A87C` times 0x20;
 //! - the middle (`dword_624094`, `dword_624098`) = half of each, unsigned;
 //! - the clip rectangle as whole numbers `dword_6241D4` (top), `D8` (bottom), `DC`

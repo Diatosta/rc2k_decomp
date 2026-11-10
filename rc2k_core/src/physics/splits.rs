@@ -28,7 +28,7 @@ pub fn kept_split_slot(checks: u32, count: u32) -> Result<u32, Invalid> {
     Ok(k)
 }
 
-/// The highest split `compare_split_times` takes (the kept tables' size not worked out).
+/// The highest split `compare_split_times` takes (each kept table is 28 dwords).
 pub const LAST_COMPARED_SPLIT: u32 = 27;
 
 /// The split's figures (`g_car` +0xA0C .. +0xA1C).

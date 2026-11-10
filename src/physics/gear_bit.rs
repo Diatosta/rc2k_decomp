@@ -1,7 +1,7 @@
 //! `physics::gear_bit` (0x43C5B7): eax = ecx + 1, CF = bit eax of `g_carGearBits`
 //! (0x71A40C, the work copy's +0x434; `bt` on memory, so a bit string). The callers pass
-//! a gear (-1 .. 7, so bits 0 .. 8) and test CF (`jb`/`jnb`): a gear that cannot be
-//! taken, by the look of `physics::change_gear` (a reading).
+//! a gear (-1 .. 7, so bits 0 .. 8) and test CF (`jb`/`jnb`): a gear that is barred
+//! (`lost_gear_bits`, read by `physics::change_gear`).
 //!
 //! Takes: the gear
 //!

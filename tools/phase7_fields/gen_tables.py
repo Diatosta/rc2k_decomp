@@ -33,17 +33,17 @@ w("    pub accel_grip: Float,")
 w("    /// +0xc: brake grip (`patchbrakegrip`).")
 w("    pub brake_grip: Float,")
 w("    /// +0x10, +0x14: blended into the points' figures.")
-w("    pub blend_10: [Float; 2],")
+w("    pub mud_rates: [Float; 2],")
 w("    /// +0x18: not named.")
 w("    pub unknown_18: [Dword; 2],")
 w("    /// +0x20: the drag (10.0 on two grasses, `patchstickygrass`).")
 w("    pub drag: Float,")
 w("    /// +0x24: blended into the points' figures.")
-w("    pub blend_24: Float,")
+w("    pub rolling_drag_min_speed: Float,")
 w("    /// +0x28: the grip blended into `point_grips`.")
 w("    pub grip: Float,")
 w("    /// +0x2c: blended into the car's +0x948.")
-w("    pub blend_2c: Float,")
+w("    pub wear_factor: Float,")
 w("}")
 w("")
 w("/// A force on the car (0x20 bytes): `physics::apply_force` takes it, the step clears its")
@@ -137,7 +137,7 @@ for a, n, k, c in fields:
             amap[a + 4 * i] = (f'{n}[{i}]' if c > 1 else n, 'Dword' if k == 'D' else 'Float')
         elif k == 'S':
             base = a + 0x30 * i
-            for off, f, t in [(0, 'table', 'Dword'), (4, 'slide_grip', 'Float'), (8, 'accel_grip', 'Float'), (0xC, 'brake_grip', 'Float'), (0x10, 'blend_10[0]', 'Float'), (0x14, 'blend_10[1]', 'Float'), (0x18, 'unknown_18[0]', 'Dword'), (0x1C, 'unknown_18[1]', 'Dword'), (0x20, 'drag', 'Float'), (0x24, 'blend_24', 'Float'), (0x28, 'grip', 'Float'), (0x2C, 'blend_2c', 'Float')]:
+            for off, f, t in [(0, 'table', 'Dword'), (4, 'slide_grip', 'Float'), (8, 'accel_grip', 'Float'), (0xC, 'brake_grip', 'Float'), (0x10, 'mud_rates[0]', 'Float'), (0x14, 'mud_rates[1]', 'Float'), (0x18, 'unknown_18[0]', 'Dword'), (0x1C, 'unknown_18[1]', 'Dword'), (0x20, 'drag', 'Float'), (0x24, 'rolling_drag_min_speed', 'Float'), (0x28, 'grip', 'Float'), (0x2C, 'wear_factor', 'Float')]:
                 amap[base + off] = (f'{n}[{i}].{f}', t)
         else:
             base = a + 0x20 * i

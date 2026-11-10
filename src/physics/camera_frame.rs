@@ -22,22 +22,22 @@ use crate::race::owner_shared::Shared;
 
 // Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
 fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    scene.lights.state.listener_camera.set_bits(0);
-    scene.lights.state.camera_frame_a.set(0);
-    scene.lights.state.camera_frame_b.set(0);
-    scene.lights.state.camera_frame_c.set(0);
+    scene.lights.state.camera_shake_listener.set_bits(0);
+    scene.lights.state.camera_shake_x.set(0);
+    scene.lights.state.camera_shake_y.set(0);
+    scene.lights.state.camera_shake_z.set(0);
     if rc2k_core::physics::camera_view::shakes(
         race.shared.car.camera_view.get(),
         race.shared.car.all_wheels_off.get(),
     ) {
         x87_1(&race.shared, scene);
         hold_high(
-            &scene.lights.state.camera_frame_b,
+            &scene.lights.state.camera_shake_y,
             &race.shared.physics_tables.camera_frame_limit,
         );
         negate(&race.shared.physics_tables.camera_frame_limit);
         hold_low(
-            &scene.lights.state.camera_frame_b,
+            &scene.lights.state.camera_shake_y,
             &race.shared.physics_tables.camera_frame_limit,
         );
         negate(&race.shared.physics_tables.camera_frame_limit);
@@ -48,8 +48,8 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
             .set(crate::math::next_random::next_random());
         x87_2(&race.course, scene);
         if race.physics.split_tables.still.get() != 0 {
-            scene.lights.state.camera_frame_b.set(0);
-            scene.lights.state.listener_camera.set_bits(0);
+            scene.lights.state.camera_shake_y.set(0);
+            scene.lights.state.camera_shake_listener.set_bits(0);
         }
     }
     crate::physics::update_camera::steps(race, scene)
@@ -65,10 +65,10 @@ pub fn camera_frame(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x23763C] = [rc + 0x31A8E4] * [rc + 0x214098]`
 fn x87_1(shared: &Shared, scene: &crate::scene::owner::Scene) {
-    let t0 = ld(shared.car.unknown_90c.bits());
+    let t0 = ld(shared.car.vertical_speed_change.bits());
     let t1 = ld(shared.physics_tables.camera_frame_scale.bits());
     let t2 = t0 * t1;
-    scene.lights.state.camera_frame_b.set_bits(st(t2));
+    scene.lights.state.camera_shake_y.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -82,9 +82,9 @@ fn x87_2(course: &Course, scene: &crate::scene::owner::Scene) {
     let t4 = t2 / t3;
     let t5 = ld(course.numbers.three.bits());
     let t6 = t4 * t5;
-    let t7 = ld(scene.lights.state.camera_frame_b.bits());
+    let t7 = ld(scene.lights.state.camera_shake_y.bits());
     let t8 = t6 * t7;
-    scene.lights.state.listener_camera.set_bits(st(t8));
+    scene.lights.state.camera_shake_listener.set_bits(st(t8));
 }
 
 #[cfg(all(test, target_arch = "x86"))]

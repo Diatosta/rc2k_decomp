@@ -17,7 +17,7 @@ pub const ITEM_LEN: u32 = 0x3C;
 pub fn expire_windscreen_flakes(masks: &Masks, drops: &WindscreenDrops, fl: &WindscreenFlakes) {
     use rc2k_core::effects::expiry;
 
-    let al = masks.vars.shapes[0].step.get() as u8;
+    let al = masks.vars.shapes[0].ease_step.get() as u8;
     for item in &fl.items.items {
         if item.live.get() != 1 {
             continue;

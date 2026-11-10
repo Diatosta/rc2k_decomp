@@ -75,7 +75,7 @@ pub fn stopped(request: u32) -> Option<u32> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Music {
     pub tune: u32,
-    /// The tune to go on with (a reading).
+    /// The tune to go on with when this one ends (the "then" tune of the music command).
     pub then: u32,
     pub volume: u32,
     /// 2 play, 3 change the volume, 0 stop.

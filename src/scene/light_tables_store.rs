@@ -18,11 +18,11 @@ pub struct LightTables {
     pub car_light_table: [Dword; 256],
     /// +0x1000 (0x636118): `unk_636118`: a third lamp table of 256 colours (`scene::fill_light_tables`).
     pub lamp_table_c: [Dword; 256],
-    /// +0x1400 (0x636518): not named.
+    /// +0x1400 (0x636518): 14 bytes between the lamp tables and `view_mode`; nothing reads or writes them (a gap, probably padding).
     pub unknown_400: Bytes<0xE>,
     /// +0x140e (0x636526): `word_636526`: the view window's mode (`scene::choose_view_window`, `scene::full_view_window`).
     pub view_mode: Word,
-    /// +0x1410 (0x636528): not named.
+    /// +0x1410 (0x636528): 24 dwords after `view_mode`; nothing in the Rust port reads or writes them (a gap).
     pub unknown_410: [Dword; 24],
 }
 

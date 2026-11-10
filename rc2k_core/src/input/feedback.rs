@@ -9,8 +9,8 @@ use crate::math::geometry::fistp64;
 /// The sound object's feedback fields (their offsets in the object).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Feel {
-    /// +0x14: a speed whose square >> 19 is the rumble at low speed.
-    pub speed_14: u32,
+    /// +0x14: the engine revs (the sound object's `revs`); their square >> 19 is the rumble when the car is nearly still.
+    pub revs: u32,
     /// +0xAC: 1 while the car is off the ground, it seems (the view's +0x248).
     pub airborne: u32,
     /// +0xB0 .. +0xBC: the view's figures times 10, as whole numbers.
@@ -113,7 +113,7 @@ pub fn update_car_effects(feel: &mut Feel, view: &View, k: &Constants) -> Result
     }
     if rumble <= 5 {
         kind = 0;
-        rumble = feel.speed_14.wrapping_mul(feel.speed_14) >> 19;
+        rumble = feel.revs.wrapping_mul(feel.revs) >> 19;
     }
     rumble = rumble.min(0x100);
 

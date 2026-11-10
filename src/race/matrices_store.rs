@@ -26,7 +26,7 @@ pub struct SceneMatrices {
     pub placed_matrix: [Float; 16],
     /// +0x1c4 (0x5EA08C): `flt_5EA08C`: the car body's turn matrix copied from the car (`race::car_parts`, `race::car_draw`).
     pub body_turn_matrix: [Float; 16],
-    /// +0x204 (0x5EA0CC): unnamed buffer used in place (`drive::set_listener`, `effects::draw_shadow`) (a reading).
+    /// +0x204 (0x5EA0CC): `drive::set_listener` copies the made object matrix into it; `effects::draw_shadow` turns the shadow's corners by it.
     pub listener_matrix: [Float; 16],
     /// +0x244 (0x5EA10C): `g_turnedMatrix`: the turned matrix (`race::frame_draw`, `physics::move_slot`, `scene::matrix`).
     pub turned_matrix: [Float; 16],
@@ -34,13 +34,13 @@ pub struct SceneMatrices {
     pub lit_matrix: [Float; 16],
     /// +0x2c4 (0x5EA18C): `flt_5EA18C`: the inverted view turn (`race::frame_draw`); now each view's (`scene::view_matrices::ViewMatrices::view_turn_copy`); unused.
     pub view_turn_copy: [Float; 16],
-    /// +0x304 (0x5EA1CC): unnamed buffer used in place (`race::frame_draw`, `scene::view_matrix`) (a reading).
+    /// +0x304 (0x5EA1CC): the view's place matrix: the copy of `placed_matrix` (the view's place negated) made in `race::frame_draw::view_place_tail`.
     pub view_place_matrix: [Float; 16],
     /// +0x344 (0x5EA20C): `g_viewBackMatrix`: the view turned back (`scene::view_matrix`, `scene::reflect_vector`).
     pub view_back_matrix: [Float; 16],
     /// +0x384 (0x5EA24C): `g_viewTurnMatrix`: the view's turn (`drive::set_listener`, `physics::car_sounds`, `race::frame_draw`).
     pub view_turn_matrix: [Float; 16],
-    /// +0x3c4 (0x5EA28C): not named.
+    /// +0x3c4 (0x5EA28C): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_3c4: [Dword; 16],
     /// +0x404 (0x5EA2CC): `g_viewMatrix` and its elements `flt_5EA2D0`..: the view matrix, used in place (`scene::project_point`, `effects::draw_particle`, `race::skidmarks`).
     pub view_matrix: [Float; 16],
@@ -52,11 +52,11 @@ pub struct SceneMatrices {
     pub view_place: [Float; 16],
     /// +0x544 (0x5EA40C): `g_objectMatrix`: pointer to the object matrix in use (`scene::place_object_points`).
     pub object_matrix_ptr: Dword,
-    /// +0x548 (0x5EA410): not named.
+    /// +0x548 (0x5EA410): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_548: [Dword; 6],
     /// +0x560 (0x5EA428): `dword_5EA428`..: the vector reflected (`scene::reflect_vector`); now each view's (`scene::view_matrices`); unused.
     pub reflect_vector: [Float; 3],
-    /// +0x56c (0x5EA434): not named.
+    /// +0x56c (0x5EA434): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_56c: Dword,
     /// +0x570 (0x5EA438): `qword_5EA438`, `dword_5EA440`: the normal (`scene::reflect_vector`); now each view's (`scene::view_matrices`); unused.
     pub reflect_normal: [Float; 3],

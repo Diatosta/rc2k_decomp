@@ -1,7 +1,7 @@
 //! `physics::spin_wheels` (0x43CD1A): the driven wheels' turns (`dword_71A1D0`,
 //! `dword_71A1D4`) on by `g_carDriveSpeed` / `g_carDriveSpeed2` over `flt_613EBC`, times
-//! the step `flt_61388C`, 65536 and `flt_5C5DC8` (`fistp` through `dword_62400C`). By the
-//! look of it the wheels' angles for the drawing (a reading).
+//! the step `flt_61388C`, 65536 and `flt_5C5DC8` (`fistp` through `dword_62400C`). These are the
+//! driven wheels' turn angles (`driven_wheel_turns`, for the drawing).
 //!
 //! Returns: the second's turn
 //!

@@ -15,7 +15,8 @@
 //!   matrix from `unk_71BA88` (12 dwords), or from `unk_71BA48` when +0 mod 20 is 5 .. 8;
 //!   else `dword_62400C` = |y's speed| (and a call to an empty function).
 //!
-//! By the look of it debris thrown about in a crash (a reading).
+//! The slots (`race_slots`, eight) are loose objects that move on their own, fall, bounce on the
+//! ground and spin; probably debris thrown off in a crash (the code does not say which object).
 //!
 //! Refuses (before anything) what `find_ground` would refuse where the slot moves to.
 //!

@@ -12,7 +12,7 @@ pub fn surface_flag(mode: u32) -> u32 {
     u32::from(mode == 2 || mode == 3)
 }
 
-/// A skid mark's start (`dword_71A660` .. `dword_71A674`; by the look of it, a reading).
+/// A skid mark's start (`dword_71A660` .. `dword_71A674`; a skid mark's start: its place, a count of 10 and the step it began).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct SkidStart {
     /// `dword_71A660`: the pending value less one.

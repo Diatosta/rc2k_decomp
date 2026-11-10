@@ -180,27 +180,27 @@ pub fn set_listener(
     {
         cell.set(v);
     }
-    let old = car.gear_changed_2.get();
+    let old = car.gear_change_pending.get();
     if old != 0 {
         EFFECTS_SETTINGS.spline_gear_changed.set(old);
     }
-    car.gear_changed_2.set(0);
+    car.gear_change_pending.set(0);
     EFFECTS_SETTINGS
-        .spline_switch
+        .spline_handbrake
         .set(u32::from(car.handbrake.get() != 0));
     EFFECTS_SETTINGS.listener_scale.set_bits(int_over_int_plus(
         car.steer_angle_visual.get() as i32,
         0x2000_0000,
-        scene.lights.state.listener_camera.bits(),
+        scene.lights.state.camera_shake_listener.bits(),
     ));
     EFFECTS_SETTINGS
-        .listener_float_a
+        .engine_speed_copy
         .set_bits(x87::loaded(car.engine_speed.bits()));
     EFFECTS_SETTINGS
-        .listener_float_b
+        .engine_speed_scaled_copy
         .set_bits(x87::loaded(car.engine_speed_scaled.bits()));
     if physics.split_tables.still.get() != 0 {
-        EFFECTS_SETTINGS.spline_switch.set(0);
+        EFFECTS_SETTINGS.spline_handbrake.set(0);
         EFFECTS_SETTINGS.spline_gear_changed.set(0);
     }
     Ok(())

@@ -7,7 +7,7 @@
 //! +0x30, then (so a record's -0x70 chains) -0x70 the buffer's +0x24, then is held to
 //! 100 .. 200000 (signed).
 //! Five callers (the race sounds' turn). Refuses a sample past the 0x1CD records (the
-//! original reads past them; not worked out).
+//! original reads past them, into the next table; refused).
 
 use crate::audio::owner::audio;
 use crate::audio::voices::{SampleRecord, voice};

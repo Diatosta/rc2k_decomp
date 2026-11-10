@@ -1,7 +1,7 @@
 //! `physics::reset_point_blocked` (0x43F0DF): whether the checkpoint `dword_614C50` is no
 //! place to put a reset car, as `physics::reset_car` ("cant reset car anywhere - waiting a
 //! second") asks it of the other cars' blocks (esi 0x7103CC, 0x7113AC, 0x71238C, ...).
-//! Only when the block's +0x25C is 2 (by the look of it, a car in the stage; a reading):
+//! Only when the block's +0x25C is 2 (`grade_mode` 2: a computer car):
 //! CF when the checkpoint is within 8 of the start or the end (`g_checkpointCount` - 8),
 //! or within -8 .. 7 of the block's +0x94 (its checkpoint). The comparisons take the sign
 //! of the difference (`js`/`jns`), as here.

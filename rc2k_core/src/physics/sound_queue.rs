@@ -8,8 +8,9 @@ use crate::Invalid;
 pub const ROOM: u32 = 16;
 pub const ENTRY_DWORDS: u32 = 8;
 
-/// The highest cue (`off_512508`'s size not worked out).
-pub const LAST_CUE: u32 = 0x5F;
+/// The highest cue: `off_512508` holds 113 sound lists, cues 0 ..= 0x70, ended by -1. The
+/// original does not check; a cue past the table would read past it.
+pub const LAST_CUE: u32 = 0x70;
 
 /// The most sounds a cue lists, and the end of a list.
 pub const MOST_SOUNDS: u32 = 6;
@@ -29,7 +30,7 @@ pub enum Place {
 /// A cue past `LAST_CUE` is refused (before anything is read).
 pub fn check_cue(cue: u32) -> Result<(), Invalid> {
     if cue > LAST_CUE {
-        return Err(Invalid("a sound cue past 0x5F"));
+        return Err(Invalid("a sound cue past 0x70"));
     }
     Ok(())
 }
@@ -80,8 +81,8 @@ mod tests {
         assert_eq!(place(0, true), Place::At(0));
         assert_eq!(place(4, true), Place::First { count: 4 });
         assert_eq!(place(4, false), Place::At(4));
-        assert!(check_cue(0x5F).is_ok());
-        assert!(check_cue(0x60).is_err());
+        assert!(check_cue(0x70).is_ok());
+        assert!(check_cue(0x71).is_err());
     }
 
     #[test]

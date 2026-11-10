@@ -70,8 +70,8 @@ pub enum Var {
     },
     /// `dword_75593C`, `dword_755940`, `dword_755944`, `dword_75594C`: the service's.
     ServiceTime,
-    Service940,
-    Service944,
+    ServiceRecordC,
+    CpuSpreadFirst,
     ServiceNext,
     /// `dword_755928`: the championship's end.
     TheEnd,

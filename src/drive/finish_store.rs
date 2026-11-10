@@ -14,16 +14,26 @@ pub struct Finish {
     pub no_place: Dword,
     /// +0x4 (0x64BB1C): `dword_64BB1C`: the stage number for each finish stage index (`drive::finish_race`).
     pub finish_stages: [Dword; 7],
-    /// +0x20 (0x64BB38): `flt_64BB38`: not used by the Rust side as a variable (an x87 run reads it by RVA).
-    pub unknown_20: Float,
+    /// +0x20 (0x64BB38): `flt_64BB38`: how far the lead car is lifted at the finish's start, in
+    /// units of 1/65536 of the world's unit (x 65536 added to the car's height, `drive::finish_run`). Sure.
+    pub car_lift: Float,
     /// +0x24 (0x64BB3C): `flt_64BB3C`: the time the finish lasts, by `finished` 0 or 1 (`drive::finish_run`).
     pub finish_lengths: [Float; 2],
     /// +0x2c (0x64BB44): `flt_64BB44`: the first limit of the eased time (`drive::finish_timing`).
     pub limit_a: Float,
     /// +0x30 (0x64BB48): `flt_64BB48`: the second limit.
     pub limit_b: Float,
-    /// +0x34 (0x64BB4C): `flt_64BB4C` .. `flt_64BB5C`: not worked out.
-    pub unknown_2c: [Float; 5],
+    /// +0x34 (0x64BB4C): `flt_64BB4C`: the finish camera's yaw turned per unit of eased time
+    /// (`drive::finish_camera`: `angles[1]` = eased x this). Sure by the formula.
+    pub camera_yaw_rate: Float,
+    /// +0x38 (0x64BB50): `flt_64BB50`: the camera's distance offset (z) when the eased time is 0.
+    pub camera_distance_start: Float,
+    /// +0x3c (0x64BB54): `flt_64BB54`: the camera's height offset (y) when the eased time is 0.
+    pub camera_height_start: Float,
+    /// +0x40 (0x64BB58): `flt_64BB58`: the camera's distance offset (z) added per unit of eased time.
+    pub camera_distance_rate: Float,
+    /// +0x44 (0x64BB5C): `flt_64BB5C`: the camera's height offset (y) added per unit of eased time.
+    pub camera_height_rate: Float,
     /// +0x48 (0x64BB60): `dword_64BB60`: the scene clock at the finish's start (`drive::finish_run`, `drive::finish_timing`).
     pub start_clock: Dword,
     /// +0x4c (0x64BB64): `flt_64BB64`: the time since the start (`drive::finish_timing`, `drive::finish_run`).
@@ -36,12 +46,16 @@ pub struct Finish {
     pub limit_c: Float,
     /// +0x5c (0x64BB74): `flt_64BB74`: the share's second limit.
     pub limit_d: Float,
-    /// +0x60 (0x64BB78): `flt_64BB78`: not worked out.
-    pub unknown_60: Float,
-    /// +0x64 (0x64BB7C): `flt_64BB7C`: not worked out.
-    pub unknown_64: Float,
-    /// +0x68 (0x64BB80): `dword_64BB80`, `dword_64BB84`: not worked out.
-    pub unknown_68: [Dword; 2],
+    /// +0x60 (0x64BB78): `flt_64BB78`: the camera's pitch (`angles[0]`) added per unit of the share
+    /// (`drive::finish_camera`).
+    pub camera_pitch_per_share: Float,
+    /// +0x64 (0x64BB7C): `flt_64BB7C`: the camera's height offset added per unit of the share.
+    pub camera_height_per_share: Float,
+    /// +0x68 (0x64BB80): `dword_64BB80`, `dword_64BB84`: the addresses of a loading buffer (0x3E8000
+    /// bytes, or 1 MB / 0xF4240 in other places) and of its second half (+0x1F4000), set only by the
+    /// loaders at 0x459764, 0x4599D4 and 0x459C1B (`dword_64BB80` with `memory::allocate`); the port
+    /// reaches none of them and reads neither.
+    pub unreached_loader_buffers: [Dword; 2],
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
@@ -92,6 +106,9 @@ mod tests {
         assert_eq!(offset_of!(Finish, time), 0x64BB64 - START);
         assert_eq!(offset_of!(Finish, share), 0x64BB6C - START);
         assert_eq!(offset_of!(Finish, limit_d), 0x64BB74 - START);
-        assert_eq!(offset_of!(Finish, unknown_68), 0x64BB80 - START);
+        assert_eq!(
+            offset_of!(Finish, unreached_loader_buffers),
+            0x64BB80 - START
+        );
     }
 }

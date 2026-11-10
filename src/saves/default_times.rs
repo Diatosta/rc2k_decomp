@@ -141,7 +141,7 @@ pub fn apply(screens: &Screens, filled: &Filled, tables: &[Target]) -> Result<()
         }
         screens.draw_work.seconds.set(filled.seconds);
         if let Some(sum) = filled.sum {
-            screens.draw_work.work_b0.set(sum);
+            screens.draw_work.scratch_b0.set(sum);
         }
         if let Some(c) = filled.checkpoints {
             for (cell, v) in race().shared.work.guessed_checkpoints.iter().zip(c) {
@@ -154,7 +154,7 @@ pub fn apply(screens: &Screens, filled: &Filled, tables: &[Target]) -> Result<()
 
 /// Whether the game's switch for the checkpoint times is on.
 pub fn with_checkpoints(screens: &Screens) -> bool {
-    screens.draw_work.work_0c.get() == 1
+    screens.draw_work.scratch_0c.get() == 1
 }
 
 /// How many records a table has before its -1 (the first is not looked at for the end).

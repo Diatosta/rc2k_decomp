@@ -68,12 +68,12 @@ pub fn list_drives(install: &'static crate::install::owner::Install) {
     let count = install.run.drive_count.get();
     let (menu, name) = match drives::menu(count) {
         DriveMenu::Eight => (
-            crate::place::Place::from(&install.pages.menu_8),
-            offset_of!(InstallerPages, menu_8),
+            crate::place::Place::from(&install.pages.drive_menu_8),
+            offset_of!(InstallerPages, drive_menu_8),
         ),
         DriveMenu::Sixteen => (
-            crate::place::Place::from(&install.pages.menu_16),
-            offset_of!(InstallerPages, menu_16),
+            crate::place::Place::from(&install.pages.drive_menu_16),
+            offset_of!(InstallerPages, drive_menu_16),
         ),
         DriveMenu::More => (
             crate::place::Place::from(&install.pages.menu_more),

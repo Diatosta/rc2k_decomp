@@ -46,15 +46,15 @@ pub const COURSE: Freeing = Freeing {
 /// `race::free_course_list_2` (0x41F94D).
 pub const COURSE_2: Freeing = Freeing {
     // stru_5C6D90
-    list: |race| &race.course.lists.course_list_2,
+    list: |race| &race.course.lists.second_course_list,
     counted: true,
     // dword_5C6F98, dword_5C6F9C
     cleared: &[
         |race| {
-            race.course.lists.course_list_2_a.set(0);
+            race.course.lists.second_course_list_a.set(0);
         },
         |race| {
-            race.course.lists.course_list_2_b.set(0);
+            race.course.lists.second_course_list_b.set(0);
         },
     ],
     given_back: || {},

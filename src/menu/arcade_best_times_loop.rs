@@ -1,5 +1,5 @@
 //! `menu::arcade_best_times_loop` (0x48A3F4): a best times screen, by its title "MELHORES
-//! TEMPOS" (a reading)
+//! TEMPOS" (named from its title string and callers; the original's name is lost)
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`), as
 //! extracted from the disassembly: background `btimes.png`; leaving is asked about; left without

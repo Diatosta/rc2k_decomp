@@ -1,6 +1,6 @@
 //! `physics::copy_step_clock_to_mark` (0x440C66): `g_car` +8 (`dword_719FE0`) into
-//! `dword_6140F0`, and `dword_6140EC` 0 (in the gearbox: by the look of it the moment a
-//! gear change began; a reading).
+//! `dword_6140F0`, and `dword_6140EC` 0 (called in the gearbox: it starts the
+//! timing `note_time_mark` finishes, which nothing reads).
 //!
 //! Returns: the word
 //!

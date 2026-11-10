@@ -31,7 +31,7 @@ pub struct GearFigures {
     pub test_gears: [Dword; 256],
     /// +0x838 (0x5CC190): `dword_5CC190`: the engine power factor the test drive sets (`physics::test_drive`).
     pub test_power_factor: Float,
-    /// +0x83c (0x5CC194): not named.
+    /// +0x83c (0x5CC194): read at 0x421ADC (`physics::make_gear_ratios`' neighbour) as a switch; no port code names it.
     pub unknown_83c: Dword,
 }
 

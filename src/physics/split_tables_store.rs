@@ -14,7 +14,7 @@ use crate::session::{Dword, Float};
 pub struct SplitTables {
     /// +0x0 (0x60101C): `dword_60101C`: the arcade kind (1 or 2: `race::race_end`, `race::credits_race`, `race::race_cars`).
     pub arcade_kind: Dword,
-    /// +0x4 (0x601020): not named.
+    /// +0x4 (0x601020): no instruction of the game refers to it (IDA, 2026-11-10); unused.
     pub unknown_4: Dword,
     /// +0x8 (0x601024): `dword_601024`: the replay still / marks flag (`race::show_replay_still`, `race::frame_views`, `physics::camera_frame`, `drive::set_listener`).
     pub still: Dword,
@@ -26,13 +26,13 @@ pub struct SplitTables {
     pub stage_numbers: [Dword; 256],
     /// +0x814 (0x601830): `g_splitColourCount`: the splits' count ("numcheckposits"; `physics::splits`, `race::frame_draw`, `race::level_init`).
     pub split_colour_count: Dword,
-    /// +0x818 (0x601834): not named.
+    /// +0x818 (0x601834): no instruction of the game refers to it (IDA, 2026-11-10); unused.
     pub unknown_818: [Dword; 262],
     /// +0xc30 (0x601C4C): `g_stageCarTotal`: the sum of the stage's numbers (`race::race_cars`, `race::race_shell`).
     pub stage_car_total: Dword,
     /// +0xc34 (0x601C50): `dword_601C50`: the extra time (`race::race_cars::set_car_times`).
     pub extra_time: Dword,
-    /// +0xc38 (0x601C54): not named.
+    /// +0xc38 (0x601C54): no instruction of the game refers to it (IDA, 2026-11-10); unused.
     pub unknown_c38: [Dword; 4],
     /// +0xc48 (0x601C64): `flt_601C64`: the kind's time factor (`race::race_cars::set_car_times`).
     pub kind_factor: Float,

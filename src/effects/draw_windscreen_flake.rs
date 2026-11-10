@@ -64,28 +64,28 @@ use crate::math::x87_float as bh;
 
 /// `shifted_places`'s x87 block as plain Rust on the x87 model (24 instructions), same order and memory places.
 fn shifted_places_x87(item: &WindscreenFlakeItem) {
-    let t0 = ld_cell(&item.size);
+    let t0 = ld_cell(&item.texture_u);
     let t1 = t0 + ld_cell(&VERTICES.vertices[0].u);
     st_cell(&VERTICES.vertices[0].u, t1);
-    let t2 = ld_cell(&item.size);
+    let t2 = ld_cell(&item.texture_u);
     let t3 = t2 + ld_cell(&VERTICES.vertices[1].u);
     st_cell(&VERTICES.vertices[1].u, t3);
-    let t4 = ld_cell(&item.size);
+    let t4 = ld_cell(&item.texture_u);
     let t5 = t4 + ld_cell(&VERTICES.vertices[2].u);
     st_cell(&VERTICES.vertices[2].u, t5);
-    let t6 = ld_cell(&item.size);
+    let t6 = ld_cell(&item.texture_u);
     let t7 = t6 + ld_cell(&VERTICES.vertices[3].u);
     st_cell(&VERTICES.vertices[3].u, t7);
-    let t8 = ld_cell(&item.size_2);
+    let t8 = ld_cell(&item.texture_v);
     let t9 = t8 + ld_cell(&VERTICES.vertices[0].v);
     st_cell(&VERTICES.vertices[0].v, t9);
-    let t10 = ld_cell(&item.size_2);
+    let t10 = ld_cell(&item.texture_v);
     let t11 = t10 + ld_cell(&VERTICES.vertices[1].v);
     st_cell(&VERTICES.vertices[1].v, t11);
-    let t12 = ld_cell(&item.size_2);
+    let t12 = ld_cell(&item.texture_v);
     let t13 = t12 + ld_cell(&VERTICES.vertices[2].v);
     st_cell(&VERTICES.vertices[2].v, t13);
-    let t14 = ld_cell(&item.size_2);
+    let t14 = ld_cell(&item.texture_v);
     let t15 = t14 + ld_cell(&VERTICES.vertices[3].v);
     st_cell(&VERTICES.vertices[3].v, t15);
 }
@@ -520,8 +520,8 @@ mod asm_differential {
                         .read_unaligned()
                 };
                 let item = WindscreenFlakeItem::new();
-                item.size.set_bits(word(0xC));
-                item.size_2.set_bits(word(0x10));
+                item.texture_u.set_bits(word(0xC));
+                item.texture_v.set_bits(word(0x10));
                 staged(
                     b[1],
                     &[0x18, 0x1C, 0x38, 0x3C, 0x58, 0x5C, 0x78, 0x7C],

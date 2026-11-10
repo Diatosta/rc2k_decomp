@@ -43,8 +43,8 @@ pub struct LevelPaths {
     pub localdat_files: Bytes<0x1e>,
     /// +0x16e (0x60B07A): `files\levels\level01\cdat00c.sq`.
     pub cdat_files: Bytes<0x20>,
-    /// +0x18e (0x60B09A): `srclvls\level01\cdat00c`, a second copy.
-    pub cdat_src_2: Bytes<0x18>,
+    /// +0x18e (0x60B09A): `srclvls\level01\cdat00c`, a second copy of `cdat_src`, whose number `race::level_init::number_places` writes too.
+    pub cdat_src_copy: Bytes<0x18>,
     /// +0x1a6 (0x60B0B2): `files\s\!!`.
     pub files_s: Bytes<0xb>,
 }

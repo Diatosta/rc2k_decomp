@@ -154,7 +154,7 @@ impl Record {
         [[17, 18], [19, 20]].map(|[x, y]| (self.words[x].get() as i32, self.words[y].get() as i32))
     }
 
-    /// The dword at byte `at` (a field not named yet; refused off the record).
+    /// The dword at byte `at` of the record, for callers that name a field by its offset (refused off a dword or past the record).
     pub fn word_at(&self, at: u32) -> Result<u32, BadInput> {
         if !at.is_multiple_of(4) {
             return Err(BadInput("a record's field off a dword"));
@@ -194,7 +194,8 @@ pub struct TrackEntry {
     /// +0x00: the track's name (a string id; also the first word `race::single_rally`
     /// checks for the pack's closing -1).
     pub name: Loose,
-    pub unknown_04: Loose,
+    /// +0x04: 0 in all 36 entries and read by no code (probably a spare word between the name and the duration).
+    pub unread_zero_04: Loose,
     /// +0x08: the index into `MENU_LISTS.durations`.
     pub duration: Loose,
     /// +0x0C: the stage's length.
@@ -203,7 +204,8 @@ pub struct TrackEntry {
     pub description: Loose,
     /// +0x14: the weather.
     pub weather: Loose,
-    pub unknown_18: Loose,
+    /// +0x18: 1 in all 36 entries and read by no code (probably a spare word after the weather).
+    pub unread_one_18: Loose,
     /// +0x1C: the temperature (signed).
     pub temperature: Loose,
     /// +0x20: the wind.
@@ -229,12 +231,12 @@ const _: () = assert!(core::mem::offset_of!(TrackEntry, number_label_one) == 0x3
 const fn track(v: [u32; 16]) -> TrackEntry {
     TrackEntry {
         name: Loose::new(v[0]),
-        unknown_04: Loose::new(v[1]),
+        unread_zero_04: Loose::new(v[1]),
         duration: Loose::new(v[2]),
         length: Loose::new(v[3]),
         description: Loose::new(v[4]),
         weather: Loose::new(v[5]),
-        unknown_18: Loose::new(v[6]),
+        unread_one_18: Loose::new(v[6]),
         temperature: Loose::new(v[7]),
         wind: Loose::new(v[8]),
         surfaces: [

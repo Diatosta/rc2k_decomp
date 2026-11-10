@@ -90,7 +90,7 @@ pub fn refusal(
 /// Whether the wheel's +0x18 passes the set's test.
 fn emits(set: &JitterSet, wheel: &MarkRecord) -> Result<bool, Refused> {
     Ok({
-        let speed = wheel.speed_18.bits() & 0x7FFF_FFFF;
+        let speed = wheel.local_velocity_z.bits() & 0x7FFF_FFFF;
         if set.over_one {
             x87::to_int(speed) > 1
         } else {
@@ -120,7 +120,7 @@ pub fn emit_particle_5_with(
         if let Some(why) = refusal(ring, set, wheel)? {
             return Err(BadInput(why).into());
         }
-        let strength = x87::loaded(wheel.speed_18.bits()) & 0x7FFF_FFFF;
+        let strength = x87::loaded(wheel.local_velocity_z.bits()) & 0x7FFF_FFFF;
         kinds.emitter.strength.set_bits(strength);
         if !emits(set, wheel)? || next_entry(ring)?.is_none() {
             return Ok(());
@@ -128,9 +128,9 @@ pub fn emit_particle_5_with(
         let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, set.kind)?;
         let slot = crate::effects::ring_entries::Slot::new(ring, e);
         let (sign, strength) = if kinds.emitter.record.get() & 1 == 0 {
-            (-1i32, x87::sub(strength, wheel.speed_10.bits()))
+            (-1i32, x87::sub(strength, wheel.local_velocity_x.bits()))
         } else {
-            (1, x87::add(strength, wheel.speed_10.bits()))
+            (1, x87::add(strength, wheel.local_velocity_x.bits()))
         };
         kinds.emitter.sign.set(sign as u32);
         kinds.emitter.strength.set_bits(strength);
@@ -173,7 +173,7 @@ pub fn emit_particle_5_with(
             [extended(set.spread.bits()), motion[2], motion[1], motion[0]],
             effects,
         );
-        let speed = wheel.speed_18.bits();
+        let speed = wheel.local_velocity_z.bits();
         // (Motion z first, then y, then x.)
         for (n, moved) in moved.into_iter().enumerate() {
             let row = matrix_cell(m, 0x28 - 4 * n as u32)?;

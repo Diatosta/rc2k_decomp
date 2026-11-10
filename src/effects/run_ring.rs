@@ -638,9 +638,12 @@ fn pull_toward(
         }
         pull_strength(ring, e, car, effects);
         if (ring.work.whole.get() as i32) > (setup.floats.pull_limit.bits() as i32) {
-            set(ring, e, x87::loaded(setup.floats.two_pow_16.bits()), |en| {
-                &mut en.size_factor
-            })?;
+            set(
+                ring,
+                e,
+                x87::loaded(setup.floats.fixed_16_scale.bits()),
+                |en| &mut en.size_factor,
+            )?;
         }
     }
     Ok(())
@@ -954,7 +957,7 @@ fn pull_strength_x87(
     let t3 = bh::ld(f.one.bits()) / t2;
     let t4 = bh::ld(f.one.bits()) - t3;
     w.whole.set_bits(bh::st(t4));
-    let t5 = bh::ld(f.two_pow_16.bits());
+    let t5 = bh::ld(f.fixed_16_scale.bits());
     let t6 = t5 - ld(ring, e, |en| en.size_factor);
     let t7 = bh::ld(rk.near_rate.to_bits());
     let t8 = t7 * bh::ld(w.whole.bits());

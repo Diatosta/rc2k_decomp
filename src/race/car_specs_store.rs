@@ -20,11 +20,11 @@ pub struct CarSpec {
     pub drive_kind: Dword,
     /// +0x1C: the gear count by its sign, held to 3 ..= 7 (`physics::load_car_specs`).
     pub gear_count: Dword,
-    /// +0x20: copied to `dword_614C14`.
-    pub copy_20: Dword,
-    /// +0x24: copied to the physics `grip_scale` (a reading).
+    /// +0x20: copied to `dword_614C14` (`unused_spec_20`) by `physics::load_car_specs`; nothing reads that copy (IDA: one write at 0x421692, no reader), so the figure is unused.
+    pub unused_20: Dword,
+    /// +0x24: copied to the physics `grip_scale`, the factor `physics::drive_grip_forces` multiplies the driving grip force by.
     pub grip_scale: Dword,
-    /// +0x28: copied to the physics `side_grip_scale` (a reading).
+    /// +0x28: copied to the physics `side_grip_scale`, the factor `physics::drive_grip_forces` multiplies the sideways grip force by.
     pub side_grip_scale: Dword,
     /// +0x2C .. +0x34: copied to the physics `spec_surface` 0, 1, 2 (+0x2C, +0x30, +0x34).
     pub surface: [Dword; 3],
@@ -48,8 +48,8 @@ pub struct CarSpec {
     pub over_top: Dword,
     /// +0x7C: the torque curve, copied to the physics `spec_torque`.
     pub torque_curve: [Dword; 9],
-    /// +0xA0: into the physics `spec_a0`.
-    pub spec_a0: Dword,
+    /// +0xA0: into the physics `ride_height_handling_scale` (`g_specA0`, 0x614C18): `physics::set_handling` multiplies the lerped ride-height handling value (`handling[4]`) by it.
+    pub ride_height_handling_scale: Dword,
     /// +0xA4: the shift points (`flt_5CB958` ..; the first x `flt_613E88`, the others +
     /// `flt_5C5DDC`).
     pub shift_points: [Float; 3],

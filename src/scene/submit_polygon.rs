@@ -9,7 +9,7 @@
 //! inlined, each of which has this as its only caller on the way here.
 //! The texture: 0xFFFFFC43 means none; a number of 0x400 or more counts as 0; one that
 //! is not `g_currentTexture` is set first. Both go to Direct3D only if there is 3D
-//! (`dword_5CDA8C` not 0; a reading).
+//! (`dword_5CDA8C` not 0: the device is drawing, set by `race::draw_race_scene`).
 //! The vertices: each must have x in 0 .. the screen's width, y in 0 .. its height
 //! and z in 0 .. 1 (compared on the x87; one that is not a number fails), else "Error"
 //! is logged, the buffer shown by `scene::show_bad_polygon` and nothing drawn. Then, with 3D, the
@@ -56,15 +56,15 @@ pub fn submit_polygon(poly: &crate::scene::polygon_work::PolygonWork, outside: &
     let system = crate::system::owner::system();
     let session = &system.session;
     let scene = scene();
-    let has_3d = scene.objects.tables.has_3d.get() != 0;
+    let device_on = scene.objects.tables.d3d_drawing_on.get() != 0;
     let texture: u32 = poly.polygon_texture.bits();
     if texture == NO_TEXTURE {
-        if has_3d {
+        if device_on {
             outside.set_texture(NO_TEXTURE);
         }
     } else {
         let texture = if texture >= TEXTURES { 0 } else { texture };
-        if texture != crate::d3d::render_cache::texture() && has_3d {
+        if texture != crate::d3d::render_cache::texture() && device_on {
             outside.set_texture(texture);
         }
     }
@@ -77,7 +77,7 @@ pub fn submit_polygon(poly: &crate::scene::polygon_work::PolygonWork, outside: &
         outside.bad_vertex(poly);
         return;
     }
-    if has_3d {
+    if device_on {
         let result = outside.draw_fan(&vertices);
         if result != 0 {
             outside.not_drawn(result);

@@ -51,12 +51,13 @@ pub fn spawn_windscreen_flake(
                 e.place[0].set_bits(x87::int_to_float(x as i32));
                 e.place[1].set_bits(x87::int_to_float(z as i32));
                 let k = kind & 7;
-                e.size.set_bits(x87::int_times_plus(
+                e.texture_u.set_bits(x87::int_times_plus(
                     k as i32,
-                    fl.state.size_k[0].bits(),
-                    fl.state.size_k[1].bits(),
+                    fl.state.tile_offset_k[0].bits(),
+                    fl.state.tile_offset_k[1].bits(),
                 ));
-                e.size_2.set_bits(x87::loaded(fl.state.size_k[2].bits()));
+                e.texture_v
+                    .set_bits(x87::loaded(fl.state.tile_offset_k[2].bits()));
                 for d in e.spare_28.iter().chain(&e.spare_14) {
                     d.set(0);
                 }

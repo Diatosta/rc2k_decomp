@@ -4,8 +4,7 @@
 //! (0x45D16D, `dword_5165A0`), `physics::set_flag_5165A4` (0x45D189, `dword_5165A4`).
 //!
 //! Callers: `physics::take_split_counted`, `physics::count_down_start`, `physics::start_go_notice`
-//! (under `physics::race_timers`). Refuses (before anything) a current car past 7 (the table's size
-//! not worked out).
+//! (under `physics::race_timers`). Refuses (before anything) a current car past 7 (`listed_car_sounds` holds eight).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

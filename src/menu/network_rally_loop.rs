@@ -1,5 +1,5 @@
 //! `menu::network_rally_loop` (0x475F1A): the network rally menu, by its title "RALI EM REDE"
-//! (a reading)
+//! (named from its title string and callers; the original's name is lost)
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `nral.png`; leaving is not asked about; the

@@ -80,7 +80,7 @@ pub fn start_log() -> Result<(), BadInput> {
         clock: system.session.machine.cpu_mhz.get() as i32,
         fpu: system.session.machine.has_fpu.get() as i32,
         mmx: system.session.machine.found_mmx.get() as i32,
-        amd_3d: system.session.machine.found_3dnow.get() as i32,
+        has_3dnow: system.session.machine.found_3dnow.get() as i32,
         katmai: system.session.machine.found_sse.get() as i32,
         machine_type: system.session.machine.keyboard_type.get() as i32,
         platform: [

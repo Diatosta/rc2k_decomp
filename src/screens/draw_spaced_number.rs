@@ -30,7 +30,7 @@ pub fn draw_spaced_number(
     let font = font.into();
     let n = digits.len() as u32;
     let places = rc2k_core::screens::captions::spaced_places(n, x, CELLS_LEN)?;
-    screens.draw_work.work_b8.set(n);
+    screens.draw_work.scratch_b8.set(n);
     let mut spaced = Vec::with_capacity(2 * digits.len());
     for &digit in digits {
         spaced.extend([digit, 0]);

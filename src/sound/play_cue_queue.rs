@@ -9,7 +9,7 @@
 //! +4) the cue is dropped (`sound::drop_cue`, place 0) and the next begun at 0, or with
 //! none left the place is -1. Else its sound: due again after
 //! `sound::sample_duration` (the sample's own rate) + 25 ms (sounds 0x13F and 0x140:
-//! 0x1000000 later, so never: a reading), and `sound::play_sound` with ebx (the volume)
+//! 0x1000000 later, so never), and `sound::play_sound` with ebx (the volume)
 //! and edx -0x6F, ecx, edi, ebp 0.
 //! Two callers, `sound::play_cue_queues`.
 //! Refuses a null object, a queue of more than 16 or a cue of more than six sounds

@@ -1,5 +1,5 @@
 //! `menu::time_trial_results_loop` (0x48DB7D): the results screen of the time trial, by its
-//! title "RESULTADOS" and its callers (a reading)
+//! title "RESULTADOS" and its callers (named from its title string and callers; the original's name is lost)
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `results1.png`; leaving is asked about; left

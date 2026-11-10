@@ -268,7 +268,7 @@ fn x87_1(race: &Race) {
     let t5 = ld(race.shared.car.velocity[1].bits());
     let t6 = ld(race.shared.physics_tables.vertical_speed.bits());
     let t7 = t5 - t6;
-    race.shared.car.unknown_90c.set_bits(st(t7));
+    race.shared.car.vertical_speed_change.set_bits(st(t7));
 }
 
 #[cfg(all(test, target_arch = "x86"))]

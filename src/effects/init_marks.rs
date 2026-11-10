@@ -57,7 +57,7 @@ pub fn init_marks(
         set_up_surface::set_up_surface(ring, masks, scene, gfx, effects)?;
         blocks::allocate_ring(&effects.particles, ring)?;
         lines::set_up_blocks(course, paths, scene, effects)?;
-        marks.unknown_67c[1].set(1);
+        marks.fresh_marks_flags[1].set(1);
         for r in &effects.setup.clock.settings_copies {
             r.set(1);
         }

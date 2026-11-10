@@ -6,7 +6,7 @@ const DRAWTRI_RVA: &std::ffi::CStr = c"drawtri"; // aDrawtri_0
 /// 2026-10-23: the 24 sites through 0x44EA65 read only SF, which the original's `cmp`
 /// leaves and the Rust version never set).
 pub fn draw_fan(poly: &crate::scene::polygon_work::PolygonWork) {
-    if scene().objects.tables.has_3d.get() == 0 {
+    if scene().objects.tables.d3d_drawing_on.get() == 0 {
         return;
     }
     let result = crate::d3d::draw_fan::draw_fan(poly);

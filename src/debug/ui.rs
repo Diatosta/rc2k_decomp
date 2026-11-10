@@ -256,7 +256,7 @@ pub fn build(race: &Race, ui: &Ui) {
             if ui.is_item_hovered() {
                 ui.tooltip_text(
                     "Where the physics asks for the ground (the last car simulated): green \
-                     the first four (the wheels, a reading), red at or under the ground, \
+                     the first four (the wheels: their points feed `wheel_ground_*` and `wheel_lifted`), red at or under the ground, \
                      white the rest; the yellow line goes down to the ground found",
                 );
             }

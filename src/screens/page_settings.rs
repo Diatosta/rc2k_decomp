@@ -18,7 +18,7 @@ pub fn pick_player(menus: &Menus, n: u32) -> Result<(), Refused> {
         .get()
         .picked();
     menus.screens.event.current_player.set(n);
-    menus.screens.event.dword_7558c4.set(value);
+    menus.screens.event.picked_controller.set(value);
     menus.keys.tables.controls.write(&copy);
     Ok(())
 }

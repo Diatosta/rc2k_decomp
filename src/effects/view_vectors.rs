@@ -19,7 +19,7 @@ pub struct VectorSource {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewSources {
-    /// 0x764F90: `dword_764F90` (a factor), `dword_764F94` .. (a vector), `flt_764FA0` .. (the vector scaled by the factor; `effects::scale_vectors_by`), then the same at `dword_764FAC` ..: what `effects::keep_vectors` keeps and the car view sets (a reading).
+    /// 0x764F90: `dword_764F90` (a factor), `dword_764F94` .. (a vector), `flt_764FA0` .. (the vector scaled by the factor; `effects::scale_vectors_by`), then the same at `dword_764FAC` ..: two direction vectors with a length factor (the image starts them as 5.0 with (0, -1, 0), and 0 with (0, 0, -1)); `effects::keep_vectors` copies them (with a third, `pushed`) into `KeptView` each frame, `effects::scale_kept_vectors` scales them, and `effects::aim_vector` / `view_step` read the scaled results (probably the directions the marks' view is aimed along).
     pub sources: [VectorSource; 2],
 }
 

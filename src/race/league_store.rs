@@ -12,7 +12,7 @@ pub struct League {
     pub names: [Dword; 10],
     /// +0x28 (0x604134): `unk_604134`: sixteen rows of ten kept times, 0x28 bytes each (`race::copy_league_table`; `physics::compare_split_times` reads up to split 27, rows past the sixteenth: a slip, kept).
     pub rows: [Dword; 160],
-    /// +0x2a8 (0x6043B4): not named.
+    /// +0x2a8 (0x6043B4): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_2a8: [Dword; 17],
     /// +0x2ec (0x6043F8): `dword_6043F8`: the car's time (`physics::compare_split_times`).
     pub car_time: Dword,

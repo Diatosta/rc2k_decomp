@@ -148,24 +148,24 @@ const UNKNOWN_TRACK: FatalError = FatalError {
 /// Five settings words copied to the race variables (from, to).
 const SETTINGS_TO_RACE: [(&Dword, &Dword); 5] = [
     (
-        &crate::menu::owner::MENUS.screens.option_work.setting_0,
-        &crate::race::owner::RACE.shared.state.settings.setting_0,
+        &crate::menu::owner::MENUS.screens.option_work.lens_flare,
+        &crate::race::owner::RACE.shared.state.settings.lens_flare,
     ),
     (
-        &crate::menu::owner::MENUS.screens.option_work.setting_1,
-        &crate::race::owner::RACE.shared.state.settings.setting_1,
+        &crate::menu::owner::MENUS.screens.option_work.reflections,
+        &crate::race::owner::RACE.shared.state.settings.reflections,
     ),
     (
-        &crate::menu::owner::MENUS.screens.option_work.setting_2,
-        &crate::race::owner::RACE.shared.state.settings.setting_2,
+        &crate::menu::owner::MENUS.screens.option_work.car_shadows,
+        &crate::race::owner::RACE.shared.state.settings.car_shadows,
     ),
     (
-        &crate::menu::owner::MENUS.screens.option_work.setting_3,
-        &crate::race::owner::RACE.shared.state.settings.setting_3,
+        &crate::menu::owner::MENUS.screens.option_work.car_detail,
+        &crate::race::owner::RACE.shared.state.settings.car_detail,
     ),
     (
-        &crate::menu::owner::MENUS.screens.option_work.setting_4,
-        &crate::race::owner::RACE.shared.state.settings.setting_4,
+        &crate::menu::owner::MENUS.screens.option_work.headlights,
+        &crate::race::owner::RACE.shared.state.settings.headlights,
     ),
 ];
 
@@ -189,8 +189,8 @@ fn take_controls(p: &Player, car: &RaceCar) {
     car.sensitivity_level.set(p.sensitivity_level);
     car.axis_codes.set(u32::from_le_bytes(p.axis_codes));
     car.controller_mode.set(p.controller_mode);
-    car.dead_zone_1.set(p.dead_zone_1);
-    car.dead_zone_2.set(p.dead_zone_2);
+    car.end_zone_pct.set(p.end_zone_pct);
+    car.centre_dead_zone_pct.set(p.centre_dead_zone_pct);
     car.strength.set(p.strength);
     for (cell, word) in car.recorded_bindings().zip(p.bindings.words()) {
         cell.set(word);

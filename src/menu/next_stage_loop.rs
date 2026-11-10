@@ -1,6 +1,6 @@
 //! `menu::next_stage_loop` (0x473B21): the stage details screen before a stage of a
 //! championship, by its title "ETAPA SEGUINTE" and its draw list, which is that of
-//! `screens::draw_stage_info` (a reading)
+//! `screens::draw_stage_info` (named from its title string and callers; the original's name is lost)
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: leaving is asked about; it has a step of its own once a

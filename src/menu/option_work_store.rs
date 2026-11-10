@@ -18,20 +18,20 @@ pub struct OptionWork {
     pub mode_changed: Dword,
     /// `dword_75564C`: The screen modes' switch (`menu::toggle_75564c`).
     pub modes_switch: Dword,
-    /// `dword_755650`: A race setting's work copy (the race's `setting_0`).
-    pub setting_0: Dword,
+    /// `dword_755650`: The graphics page's lens flare option, work copy (the race's `lens_flare`).
+    pub lens_flare: Dword,
     /// `dword_755654`: Not worked out.
     pub dword_755654: Dword,
     /// `dword_755658`: Not worked out.
     pub dword_755658: Dword,
-    /// `dword_75565C`: A race setting's work copy (`setting_1`).
-    pub setting_1: Dword,
-    /// `dword_755660`: A race setting's work copy (`setting_2`).
-    pub setting_2: Dword,
-    /// `dword_755664`: A race setting's work copy (`setting_3`: the texture setting, `menu::next_texture_setting`).
-    pub setting_3: Dword,
-    /// `dword_755668`: A race setting's work copy (`setting_4`).
-    pub setting_4: Dword,
+    /// `dword_75565C`: The graphics page's reflections option, work copy.
+    pub reflections: Dword,
+    /// +0x10 (0x755660) `dword_755660`: the options page's car shadows setting (row 6 of the visual options, strings 0x396 "reduzido" / 0x397 "completo"); copied to the race's `settings.car_shadows` (0x75AD10) and `settings_words[2]` (0x6238B0). Probable: the debug tab reads the race copy as "Car shadows".
+    pub car_shadows: Dword,
+    /// +0x14 (0x755664) `dword_755664`: the options page's car detail setting, 0 .. 2 (row 7, strings 0x393 "nenhum carro" / "o seu carro" / "todos os carros": which cars get the detailed textures; stepped by `menu::next_texture_setting`); copied to the race's `settings.car_detail` (0x75AD14) and `settings_words[3]` (0x6238B4). Probable, from the string and the page's row order.
+    pub car_detail: Dword,
+    /// `dword_755668`: The graphics page's headlights option, work copy.
+    pub headlights: Dword,
     /// `dword_75566C`: The audio quality chosen (`menu::next_audio_quality`).
     pub audio_quality: Dword,
     /// `dword_755670`: The DirectSound 3D switch.
@@ -78,13 +78,13 @@ impl OptionWork {
             switch_1: Dword::new(0x0),
             mode_changed: Dword::new(0x0),
             modes_switch: Dword::new(0x1),
-            setting_0: Dword::new(0x1),
+            lens_flare: Dword::new(0x1),
             dword_755654: Dword::new(0x64),
             dword_755658: Dword::new(0x64),
-            setting_1: Dword::new(0x1),
-            setting_2: Dword::new(0x1),
-            setting_3: Dword::new(0x1),
-            setting_4: Dword::new(0x0),
+            reflections: Dword::new(0x1),
+            car_shadows: Dword::new(0x1),
+            car_detail: Dword::new(0x1),
+            headlights: Dword::new(0x0),
             audio_quality: Dword::new(0x3),
             ds3d: Dword::new(0x0),
             eax: Dword::new(0x0),
@@ -160,13 +160,13 @@ mod tests {
         at(offset_of!(OptionWork, switch_1), 0x755644);
         at(offset_of!(OptionWork, mode_changed), 0x755648);
         at(offset_of!(OptionWork, modes_switch), 0x75564C);
-        at(offset_of!(OptionWork, setting_0), 0x755650);
+        at(offset_of!(OptionWork, lens_flare), 0x755650);
         at(offset_of!(OptionWork, dword_755654), 0x755654);
         at(offset_of!(OptionWork, dword_755658), 0x755658);
-        at(offset_of!(OptionWork, setting_1), 0x75565C);
-        at(offset_of!(OptionWork, setting_2), 0x755660);
-        at(offset_of!(OptionWork, setting_3), 0x755664);
-        at(offset_of!(OptionWork, setting_4), 0x755668);
+        at(offset_of!(OptionWork, reflections), 0x75565C);
+        at(offset_of!(OptionWork, car_shadows), 0x755660);
+        at(offset_of!(OptionWork, car_detail), 0x755664);
+        at(offset_of!(OptionWork, headlights), 0x755668);
         at(offset_of!(OptionWork, audio_quality), 0x75566C);
         at(offset_of!(OptionWork, ds3d), 0x755670);
         at(offset_of!(OptionWork, eax), 0x755674);

@@ -1,8 +1,8 @@
 //! `physics::drop_to_neutral` (0x43FD71): with `dword_71A20C` set, in gear, the engine
 //! speed below `flt_6140FC` (`fcomp`, C0: also when unordered) and `dword_61416C` 0: gear
 //! 0, `dword_71A1A8` = `dword_613FA4`, `dword_71A1A4` = 0x14, `dword_71A210` and
-//! `dword_71A214` 1 (as the gear changes of `physics::change_gear` set them). By the look of it the
-//! engine stalling into neutral (a reading).
+//! `dword_71A214` 1 (as the gear changes of `physics::change_gear` set them). Probably the engine
+//! stalling into neutral: the engine speed below the stall limit, the gear dropped to 0.
 //!
 //! Caller: `physics::car_physics_step` (0x43B966), every physics step.
 
@@ -28,5 +28,5 @@ pub fn drop_to_neutral(shared: &Shared) {
         .set(shared.physics_tables.drive_cut_steps.get());
     shared.car.gear_change_hold.set(0x14);
     shared.car.gear_changed.set(1);
-    shared.car.gear_changed_2.set(1);
+    shared.car.gear_change_pending.set(1);
 }
