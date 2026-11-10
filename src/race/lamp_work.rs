@@ -1,7 +1,8 @@
 //! A view's own lamps and flares (frame plan F7): the sixteen lamps the view gathers, the
-//! flare places' x, the counts and the lamps wanted. One per view slot
+//! flares' six tables, the counts and the lamps wanted. One per view slot
 //! (`race::view_scratch::ViewScratch::lamps`). In the original these were the level grid's
-//! `g_lamps` (0x63E05C) and `flare_place_x` (0x63F18C), the race view's `g_lampsWanted`
+//! `g_lamps` (0x63E05C), `flare_place_x` (0x63F18C) and the other five flare tables
+//! (`race::flares_store`, 0x63F58C ..), the race view's `g_lampsWanted`
 //! (0x63DB58) and `g_lampCount` (0x63DC48) and the frame work's `g_flareCount` (0x64158C),
 //! shared by every view in turn. Each race view starts from the lamps the one before it left
 //! (`PUBLISHED`). The original also counted the lamps' depth entries (`g_lampEntryCount`,
@@ -20,6 +21,9 @@ pub struct LampWork {
     pub lamps: [Dword; 64],
     /// The flares' places' x (`LEVEL_GRID.flare_place_x`), each view's own.
     pub flare_place_x: [Dword; 256],
+    /// The flares' y, z, colour, size and object number (`race::flares_store::FlareTables`),
+    /// each view's own.
+    pub flares: crate::race::flares_store::FlareTables,
     /// `g_lampsWanted` (`RACE_VIEW.lamps_wanted`), each view's own.
     pub lamps_wanted: Dword,
     /// `g_lampCount` (`RACE_VIEW.lamp_count`), each view's own.
@@ -45,6 +49,7 @@ impl LampWork {
         Self {
             lamps,
             flare_place_x,
+            flares: crate::race::flares_store::FlareTables::new(),
             lamps_wanted,
             lamp_count,
             flare_count,

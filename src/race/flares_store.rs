@@ -5,6 +5,8 @@
 //! original's: it writes into the tables that follow, so its code reaches them by address).
 //! `#[repr(C)]` with the image's layout, over the race block's bytes (`FLARE_TABLES`).
 //! Names are readings unless IDA's.
+//! The race's own copy is unused: each view draws its flares in its own
+//! (`race::lamp_work::LampWork::flares`).
 
 use crate::session::Dword;
 

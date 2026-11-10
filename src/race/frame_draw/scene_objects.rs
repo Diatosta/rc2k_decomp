@@ -270,7 +270,7 @@ pub const FLARES_MAX: u32 = 0x100;
 /// `LEVEL_GRID.flare_place_x`) and, turned by `g_viewMatrix` (x and y back as floats, z rounded into
 /// the key), a depth entry with the flare's number + 0x1000000; none past `FLARES_MAX`.
 pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
-    let DrawCtx { race, view, .. } = *ctx;
+    let DrawCtx { view, .. } = *ctx;
     let n: u32 = view.lamps.flare_count.bits();
     if n == FLARES_MAX {
         return Ok(());
@@ -282,15 +282,15 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
     ];
     for (table, v) in [
         (
-            &race.course.flare_tables.object_number,
+            &view.lamps.flares.object_number,
             ctx.view.cars.object_number.get(),
         ),
         (&view.lamps.flare_place_x, place[0]),
-        (&race.course.flare_tables.place_y, place[1]),
-        (&race.course.flare_tables.place_z, place[2]),
-        (&race.course.flare_tables.size, ctx.view.object.size.bits()),
+        (&view.lamps.flares.place_y, place[1]),
+        (&view.lamps.flares.place_z, place[2]),
+        (&view.lamps.flares.size, ctx.view.object.size.bits()),
         (
-            &race.course.flare_tables.other_light,
+            &view.lamps.flares.other_light,
             ctx.view.light.other_light.bits(),
         ),
     ] {
@@ -690,19 +690,17 @@ pub fn draw_flare(
     flare: u32,
     entry: Description<'_>,
 ) -> Result<(), Refused> {
-    let race = ctx.race;
-    let course = &race.course;
     for (table, to) in [
         (&ctx.view.lamps.flare_place_x, &ctx.view.object.place[0]),
-        (&course.flare_tables.place_y, &ctx.view.object.place[1]),
-        (&course.flare_tables.place_z, &ctx.view.object.place[2]),
-        (&course.flare_tables.size, &ctx.view.object.size),
+        (&ctx.view.lamps.flares.place_y, &ctx.view.object.place[1]),
+        (&ctx.view.lamps.flares.place_z, &ctx.view.object.place[2]),
+        (&ctx.view.lamps.flares.size, &ctx.view.object.size),
         (
-            &course.flare_tables.other_light,
+            &ctx.view.lamps.flares.other_light,
             &ctx.view.light.other_light,
         ),
         (
-            &course.flare_tables.object_number,
+            &ctx.view.lamps.flares.object_number,
             &ctx.view.cars.object_number,
         ),
     ] {
