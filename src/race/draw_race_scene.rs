@@ -122,11 +122,11 @@ fn draw_view(
     if !mirrored {
         return view();
     }
-    // With `RC2K_MIRROR_BESIDE` (an experiment): the mirror drawn beside its view
-    // (`workers::draw_beside`), from the working state the view starts from. Not the default:
-    // what the steps after it read of the mirror's leftovers then differs (the sound spots'
-    // places: wrong pitches, 2026-11-08); the frame's steps get explicit inputs and outputs
-    // instead (`notes/frame_plan.md`).
+    // With `RC2K_MIRROR_BESIDE` (`workers::mirror_beside`): the mirror drawn beside its view
+    // (`workers::draw_beside`),
+    // each on its own state (`race::view_scratch`), the mirror's changes to the stores they
+    // share and the grid it made (`race::view_grid::publish_part`) put over the view's as when
+    // drawn after it.
     if crate::workers::mirror_beside() {
         return crate::workers::draw_beside(view, mirror);
     }

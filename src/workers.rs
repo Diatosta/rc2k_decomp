@@ -178,11 +178,12 @@ pub fn threads() -> usize {
     })
 }
 
-/// With `RC2K_MIRROR_BESIDE` (an experiment): the rear-view mirror drawn beside its view
-/// (`draw_beside`, `race::draw_race_scene`).
+/// With `RC2K_MIRROR_BESIDE` (an experiment; `0` off): the rear-view mirror drawn beside its
+/// view (`draw_beside`, `race::draw_race_scene`). Not the default yet: held races in rain draw
+/// one frame differently now and then (two in six; the sound the same).
 pub fn mirror_beside() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();
-    *ON.get_or_init(|| std::env::var_os("RC2K_MIRROR_BESIDE").is_some())
+    *ON.get_or_init(|| std::env::var_os("RC2K_MIRROR_BESIDE").is_some_and(|v| v != "0"))
 }
 
 /// Whether parts are being drawn beside each other (`draw_beside`): a list inside one of them
@@ -216,9 +217,8 @@ fn register_copies() {
     });
 }
 
-/// The other drawing threads.
-/// `threads()`, and with `mirror_beside` at least one besides the game's on a machine of two
-/// cores or more (the handheld: 24 to 29 frames a second).
+/// The other drawing threads: `threads()`, and with `mirror_beside` at least one besides the
+/// game's on a machine of two cores or more (the handheld: 25 to 30 frames a second).
 fn pool() -> Option<&'static rayon::ThreadPool> {
     static POOL: OnceLock<Option<rayon::ThreadPool>> = OnceLock::new();
     POOL.get_or_init(|| {
@@ -299,7 +299,7 @@ fn draw_in_runs_now(
     let ranges: Vec<Range<usize>> = (0..k).map(|i| i * count / k..(i + 1) * count / k).collect();
     begin_runs(view, k);
     let drawn = flushes_before(|| {
-        draw_parts(Some(pool), k, |n| {
+        draw_parts(Some(pool), k, Merged::ChangedInLists, |n| {
             draw(ranges[n].clone(), if n == 0 { view } else { run_copy(n) })
         })
     });
@@ -332,10 +332,18 @@ pub fn draw_beside(
     carried_census("parts beside", || {
         let pool = pool();
         BESIDE.store(true, std::sync::atomic::Ordering::Relaxed);
-        let drawn = draw_parts(pool, 2, |n| if n == 0 { first() } else { second() });
+        let drawn = draw_parts(pool, 2, Merged::All, |n| {
+            if n == 0 { first() } else { second() }
+        });
         BESIDE.store(false, std::sync::atomic::Ordering::Relaxed);
         drawn
     })
+}
+
+/// Whether `RC2K_CARRIED_CENSUS` is set (`carried_census`).
+fn census() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("RC2K_CARRIED_CENSUS").is_some())
 }
 
 /// With `RC2K_CARRIED_CENSUS` (frame plan F4): which carried stores the drawing changes. The
@@ -346,8 +354,7 @@ fn carried_census(
     label: &str,
     drawing: impl FnOnce() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    static ON: OnceLock<bool> = OnceLock::new();
-    if !*ON.get_or_init(|| std::env::var_os("RC2K_CARRIED_CENSUS").is_some()) {
+    if !census() {
         return drawing();
     }
     static CHANGED: Mutex<(u32, Vec<Vec<bool>>)> = Mutex::new((0, Vec::new()));
@@ -429,6 +436,24 @@ fn carried_census(
     drawn
 }
 
+/// Which carried stores' copies are merged back after the runs.
+#[derive(Clone, Copy, PartialEq)]
+enum Merged {
+    /// Every one (parts beside each other: the mirror changes much of what its view does).
+    All,
+    /// Those a list's drawing changes (`changed_in_lists`); with `RC2K_CARRIED_CENSUS` every
+    /// one, so that a change in another shows.
+    ChangedInLists,
+}
+
+/// Of the carried stores, whether a list's drawing changes `store` (the carried census, frame
+/// plan F7: only the render states set last, `Cards3d::kept_states` and `current_texture`).
+/// The others' copies are only read by the runs of a list.
+fn changed_in_lists(store: &dyn Carried) -> bool {
+    let cards: &dyn Carried = &crate::d3d::owner::d3d().cards;
+    std::ptr::addr_eq(store, cards)
+}
+
 /// Parts 0 .. `k` of a drawing (`part`), part 0 on the game's thread and each other on a
 /// drawing thread with its own copy of the working state, all set from the game's own at the
 /// start; the other parts' noted drawing put after part 0's in their order, and each copy's
@@ -436,6 +461,7 @@ fn carried_census(
 fn draw_parts(
     pool: Option<&rayon::ThreadPool>,
     k: usize,
+    merged: Merged,
     part: impl Fn(usize) -> Result<(), Refused> + Sync,
 ) -> Result<(), Refused> {
     register_copies();
@@ -544,9 +570,12 @@ fn draw_parts(
         crate::d3d::run_states::patch(&mut run.noted, &run.states, &carried);
         crate::platform_3d::put_noted(run.noted);
         for s in stores {
-            s.merge_run(n + 1);
+            if merged == Merged::All || census() || changed_in_lists(s) {
+                s.merge_run(n + 1);
+            }
         }
         crate::d3d::run_states::carry(&run.states, n + 1);
+        crate::race::view_grid::publish_part(n + 1);
     }
     // The game's thread drew run 0 with its own states: the next fan takes the merged ones.
     crate::platform_3d::forget_states();

@@ -77,9 +77,32 @@ impl ViewGrid {
 /// what the shared grid held after the views.
 static LAST_DRAWN: AtomicUsize = AtomicUsize::new(0);
 
+/// What a drawing thread's part noted (`note_drawn`), by its copy number: put into
+/// `LAST_DRAWN` when its part is merged, after the parts before it (`publish_part`), so that
+/// the sound spots of a view drawn beside its mirror read what they read with the mirror drawn
+/// after it.
+static NOTED_IN_PART: [AtomicUsize; crate::workers::COUNT] =
+    [const { AtomicUsize::new(NONE) }; crate::workers::COUNT];
+
+/// No slot noted.
+const NONE: usize = usize::MAX;
+
 /// The view in slot `slot` has made its grid.
 pub fn note_drawn(slot: usize) {
-    LAST_DRAWN.store(slot, Ordering::Relaxed);
+    match crate::workers::index() {
+        0 => LAST_DRAWN.store(slot, Ordering::Relaxed),
+        n => NOTED_IN_PART[n].store(slot, Ordering::Relaxed),
+    }
+}
+
+/// What part `n` (drawn on a drawing thread) noted, as the last made grid now.
+pub fn publish_part(n: usize) {
+    if let Some(noted) = NOTED_IN_PART.get(n) {
+        let slot = noted.swap(NONE, Ordering::Relaxed);
+        if slot != NONE {
+            LAST_DRAWN.store(slot, Ordering::Relaxed);
+        }
+    }
 }
 
 /// The grid the last view made (the sound spots').
