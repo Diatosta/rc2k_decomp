@@ -99,9 +99,8 @@ impl Outside for Game {
         0
     }
     fn bad_vertex(&mut self, poly: &crate::scene::polygon_work::PolygonWork) {
-        let scene = crate::scene::owner::scene();
         crate::logfile::log_write::log_nul(&ERROR_TEXT, true, 1);
-        if let Err(e) = crate::scene::show_bad_polygon::show_bad_polygon(poly, scene) {
+        if let Err(e) = crate::scene::show_bad_polygon::show_bad_polygon(poly) {
             crate::fatal::raise::end("scene::show_bad_polygon", e);
         }
     }

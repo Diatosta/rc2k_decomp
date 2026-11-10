@@ -105,7 +105,6 @@ pub fn draw_scene_object_in_game(
                 draw_shown_object(
                     race,
                     &mut || draw_object_in_game(ctx, system),
-                    scene,
                     &ctx.view.cars,
                     &ctx.view.object,
                 )

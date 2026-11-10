@@ -331,7 +331,7 @@ pub fn light_colour_at(
     Ok(())
 }
 
-/// `race::view_light` (0x455896): the lit place the view's car's (`race::frame::drawn_car`, the original's `g_car` +0x134 ..);
+/// `race::view_light` (0x455896): the lit place the view's car's (`ViewScratch::car`, the original's `g_car` +0x134 ..);
 /// `light_colour_at`; `race().frame.frame_work.view_light` = the view's car's light colour plus the
 /// light (`add_colours`). The original added `LIGHT_WORK.view_light_base`, the light colour of
 /// the last car the previous view drew (a slip fixed: the views' order showed in the
@@ -341,22 +341,22 @@ pub fn view_light(
     scene: &crate::scene::owner::Scene,
     lamps: &crate::race::lamp_work::LampWork,
     object_light: &crate::scene::object_light::ObjectLight,
+    car: &crate::physics::car_store::Car,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::lights::add_colours` (through `light_colour_at`'s).
     check_light_colour(&race.shared, lamps)?;
     crate::session::write_bits(
         &object_light.lit_place,
-        crate::session::read_bits(&crate::race::frame::drawn_car().position),
+        crate::session::read_bits(&car.position),
     );
     light_colour_at(race, scene, lamps, object_light)?;
     let light: u32 = object_light.light_colour.bits();
-    race.frame.frame_work.view_light.set(add_colours(
-        crate::race::frame::drawn_car().light_colour.bits(),
-        light,
-    ));
-    object_light.view_light.set(add_colours(
-        crate::race::frame::drawn_car().light_colour.bits(),
-        light,
-    ));
+    race.frame
+        .frame_work
+        .view_light
+        .set(add_colours(car.light_colour.bits(), light));
+    object_light
+        .view_light
+        .set(add_colours(car.light_colour.bits(), light));
     Ok(())
 }

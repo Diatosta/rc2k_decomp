@@ -55,6 +55,7 @@ struct GameFace<'a>(
     &'a crate::scene::car_marks::CarMarks,
     &'a crate::scene::object_place::ObjectPlace,
     &'a crate::race::car_draw_state::CarDrawState,
+    &'a crate::physics::car_store::Car,
 );
 
 impl FaceWorld for GameFace<'_> {
@@ -105,7 +106,7 @@ impl FaceWorld for GameFace<'_> {
         ))
     }
     fn no_second_mask(&self) -> u32 {
-        crate::race::frame::drawn_car().camera_switch_active.bits()
+        self.5.camera_switch_active.bits()
     }
     fn second_mask(&self) -> u32 {
         self.4.group_mask.bits()
@@ -185,6 +186,7 @@ pub fn list_object_face(
         marks,
         &ctx.view.object,
         &ctx.view.cars,
+        &ctx.view.car,
     );
     let answer = dropped(&mut world, bytes);
     world.1.finish()?;

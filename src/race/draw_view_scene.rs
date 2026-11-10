@@ -46,14 +46,12 @@ pub fn draw_view_scene(
         .shine
         .set(race.course.stage_prefs.shine_from.get());
     let input = crate::race::view_scratch::filter_input(view);
-    view.light
-        .car_light
-        .set(crate::race::frame::drawn_car().light_colour.bits());
+    view.light.car_light.set(view.car.light_colour.bits());
     view.polygon.smooth.set(input[0]);
     view.polygon.plain_first.set(input[1]);
     view.polygon.plain_second.set(input[2]);
     let lists = &view.lists;
-    if crate::race::frame::drawn_car().view_covered.get() != 0 {
+    if view.car.view_covered.get() != 0 {
         draw_view_tint(&view.polygon, race, &view.face, scene, view)?;
         return Ok(ViewOutput::default());
     }
@@ -63,11 +61,11 @@ pub fn draw_view_scene(
     }
     car_light_modes(race, &view.cars)?;
     clear_point_records(race, scene)?;
-    set_up_fog(race, &view.fog, &view.polygon)?;
+    set_up_fog(race, &view.fog, &view.polygon, &view.car)?;
     camera_view(race, scene, &view.matrices, view)?;
     draw_sky(&ctx)?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
-    view_light(race, scene, &view.lamps, &view.light)?;
+    view_light(race, scene, &view.lamps, &view.light, &view.car)?;
     reset_lamps(&ctx)?;
     race.shared.view.view_lamps.set_bits(0u32);
     prepare_course_view(race, view)?;

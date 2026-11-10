@@ -57,7 +57,7 @@ fn draw_view(
 ) -> Result<(), Refused> {
     use crate::race::frame::load_view_car;
     let setup = crate::write_watch::step(["view0_setup", "view1_setup"][car]);
-    load_view_car(&race.shared, car)?;
+    load_view_car(&race.shared, car, crate::race::view_scratch::main_view(car))?;
     crate::race::frame_draw::fetch_view_value(race)?;
     drop(setup);
     let view = || -> Result<(), Refused> {
@@ -96,7 +96,7 @@ fn draw_view(
     };
     let mirror = || -> Result<(), Refused> {
         let _step = crate::write_watch::step(["mirror0", "mirror1"][car]);
-        load_view_car(&race.shared, car)?;
+        load_view_car(&race.shared, car, crate::race::view_scratch::mirror(car))?;
         let c = crate::moved::census::before();
         let begun = crate::debug::timing::start();
         crate::race::draw_mirror_view::draw_mirror_view(

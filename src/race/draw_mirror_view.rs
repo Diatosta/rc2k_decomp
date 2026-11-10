@@ -52,6 +52,7 @@ pub fn draw_mirror_view(
             system,
             &view.fog,
             &view.polygon,
+            &view.car,
         )?;
         race.shared.view.view_depth[1].set_bits(view.course.view_value_kept.bits());
         crate::race::frame_flush::draw_view_backdrop(race, scene, view);

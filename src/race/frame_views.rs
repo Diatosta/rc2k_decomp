@@ -51,6 +51,7 @@ pub fn mirror_view_window(
     system: &crate::system::owner::System,
     fog: &crate::scene::fog::Fog,
     poly: &crate::scene::polygon_work::PolygonWork,
+    car: &crate::physics::car_store::Car,
 ) -> Result<(), Refused> {
     let session = &system.session;
     // Converted: `rc2k_core::race::view::{mirror_entry, mirror_window}`.
@@ -102,7 +103,7 @@ pub fn mirror_view_window(
     poly.cleared_rectangle[3].set(y.wrapping_add(sy));
     scene.drawing.scene.view_zoom.set(0x100);
     crate::scene::set_view_window::set_view_window_reaching(race, scene, MIRROR_REACH);
-    crate::race::frame_draw::set_up_fog(race, fog, poly)?;
+    crate::race::frame_draw::set_up_fog(race, fog, poly, car)?;
     scene.lights.state.draw_mode.set(0);
     race.physics.ground.view_mirrored.set(1);
     Ok(())

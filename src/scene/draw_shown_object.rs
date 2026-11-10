@@ -73,7 +73,6 @@ impl rc2k_core::scene::shown::RaceObject for Game<'_> {
 pub fn draw_shown_object(
     race: &Race,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
-    scene: &crate::scene::owner::Scene,
     cars: &crate::race::car_draw_state::CarDrawState,
     object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<bool, Refused> {
@@ -81,7 +80,7 @@ pub fn draw_shown_object(
     if in_race && cars.object_number.bits() >= OBJECTS {
         return Err(BadInput("an object's number past the tables").into());
     }
-    scene.lights.work.drawing_object.set_bits(1u32);
+    object.drawing_object.set_bits(1u32);
     let show = if in_race {
         rc2k_core::scene::shown::race_shown(&Game(race, cars, object))
     } else {
@@ -92,6 +91,6 @@ pub fn draw_shown_object(
     if show {
         draw()?;
     }
-    scene.lights.work.drawing_object.set_bits(0u32);
+    object.drawing_object.set_bits(0u32);
     Ok(show)
 }

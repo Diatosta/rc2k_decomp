@@ -80,6 +80,9 @@ pub struct ObjectPlace {
     /// `GroundWork.kept_reflections` (0x6399B8): four caches of 1024 by point number: the
     /// normals (cleared to -999 by `race::start_kept_reflections`), the points, u and v.
     pub kept_reflections: [Dword; KEPT_REFLECTIONS],
+    /// `LightWork.drawing_object` (`g_drawingObject`, 0x62DA44): 1 while an object is drawn
+    /// (`scene::draw_shown_object`), read by `scene::log_bad_polygon`.
+    pub drawing_object: Dword,
 }
 
 impl ObjectPlace {
@@ -107,6 +110,7 @@ impl ObjectPlace {
             reflection_point_number: Dword::new(0),
             reflection_coordinates: [const { Dword::new(0) }; 2],
             kept_reflections: [const { Dword::new(0) }; KEPT_REFLECTIONS],
+            drawing_object: Dword::new(0),
         }
     }
 }

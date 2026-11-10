@@ -81,14 +81,18 @@ pub fn sample_noise(car: &crate::physics::car_store::Car, map: usize) -> Result<
 /// original kept them in the light state (`scene::fog`), and also stored the step
 /// (`dword_62DAF0`) and the near value (`dword_6365F0`), which nothing read. Refuses (before
 /// anything) a table length of 0 or past 0x1000.
-pub fn fog_table(race: &Race, fog: &crate::scene::fog::Fog) -> Result<(), Refused> {
+pub fn fog_table(
+    race: &Race,
+    fog: &crate::scene::fog::Fog,
+    car: &crate::physics::car_store::Car,
+) -> Result<(), Refused> {
     let length = race.shared.view.view_depth[1].get().wrapping_shl(3);
     if length == 0 || length > 0x1000 {
         return Err(BadInput("a fog table length of 0 or past 0x1000").into());
     }
     // Converted: `rc2k_core::race::view::fog_table`.
     draw_distance_settings(&race.course);
-    let noise = sample_noise(crate::race::frame::drawn_car(), 0)?;
+    let noise = sample_noise(car, 0)?;
     let set = rc2k_core::race::view::fog_table(
         noise,
         &rc2k_core::race::view::FogSettings {
@@ -123,6 +127,7 @@ pub fn set_up_fog(
     race: &Race,
     fog: &crate::scene::fog::Fog,
     poly: &crate::scene::polygon_work::PolygonWork,
+    car: &crate::physics::car_store::Car,
 ) -> Result<(), Refused> {
     let course = &race.course;
     let length = race.shared.view.view_depth[1].get().wrapping_shl(3);
@@ -140,7 +145,7 @@ pub fn set_up_fog(
         course.stage_prefs.fog_colour[2].bits(),
     );
     fog.colour.set_bits(colour);
-    fog_table(race, fog)?;
+    fog_table(race, fog, car)?;
     crate::scene::set_fog_colour::set_fog_colour(
         rc2k_core::race::view::device_fog_colour(fog.colour.bits()),
         poly,
@@ -177,7 +182,7 @@ pub fn place_view(
         }
     };
     if race.course.stage_prefs.flat_depth.get() != 0 {
-        let at = &crate::race::frame::drawn_car().camera_position[1];
+        let at = &view.car.camera_position[1];
         at.set(at.get().wrapping_add(race.course.course.flat_depth.bits()));
         race.frame.view_and_records.view_vars.view_angles[0]
             .set_bits(race.course.course.place_heading.get());
@@ -272,7 +277,7 @@ pub fn view_matrices(
     m: &ViewMatrices,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), BadInput> {
-    view_own_matrices(race, m, &view.state)?;
+    view_own_matrices(race, m, &view.state, &view.car)?;
     // Handed on to what reads them outside the drawing (the effects, the listener, the car
     // sounds), as the original's were.
     let shared = &race.frame.matrices;
@@ -288,7 +293,12 @@ pub fn view_matrices(
 }
 
 /// `view_matrices` into the view's own matrices.
-fn view_own_matrices(race: &Race, m: &ViewMatrices, state: &ViewState) -> Result<(), BadInput> {
+fn view_own_matrices(
+    race: &Race,
+    m: &ViewMatrices,
+    state: &ViewState,
+    car: &crate::physics::car_store::Car,
+) -> Result<(), BadInput> {
     use crate::scene::matrix::multiply_matrices;
     use crate::scene::view_matrix::{Axis, invert_turn, set_fine_turn};
     let (view_turn, turn_y, turn_x, turn_z) = (
@@ -302,13 +312,9 @@ fn view_own_matrices(race: &Race, m: &ViewMatrices, state: &ViewState) -> Result
         crate::math::cells::copy_cells(&m.view_turn_copy, view_turn, 16);
         return view_place_tail(&race.course, m, state);
     }
-    let view: u32 = crate::race::frame::drawn_car().camera_view.get();
+    let view: u32 = car.camera_view.get();
     if view <= 3 {
-        invert_turn(
-            &race.course,
-            &crate::race::frame::drawn_car().crash_matrix,
-            view_turn,
-        );
+        invert_turn(&race.course, &car.crash_matrix, view_turn);
     } else {
         crate::math::cells::copy_cells(&race.frame.matrices.identity_matrix, &view_turn, 16);
         for angles in [[0usize, 1, 2], [3, 4, 5]] {
@@ -336,7 +342,7 @@ fn view_own_matrices(race: &Race, m: &ViewMatrices, state: &ViewState) -> Result
         }
     }
     if view == 1 || view == 2 {
-        set_fine_turn(&race.course, m, Axis::Z, rolled_angle(race));
+        set_fine_turn(&race.course, m, Axis::Z, rolled_angle(race, car));
         multiply_matrices(view_turn, turn_z, turned);
         crate::math::cells::copy_cells(&turned, &view_turn, 16);
     }
@@ -344,12 +350,9 @@ fn view_own_matrices(race: &Race, m: &ViewMatrices, state: &ViewState) -> Result
 }
 
 /// The angle views 1 and 2 roll by: the car's speed and steering eased into the camera roll.
-fn rolled_angle(race: &Race) -> u32 {
+fn rolled_angle(race: &Race, car: &crate::physics::car_store::Car) -> u32 {
     use crate::math::x87_load::{below_or_unordered, eased_roll, product4_to_int};
-    let mut v = crate::math::x87::div(
-        crate::race::frame::drawn_car().local_velocity[2].bits(),
-        race.course.numbers.ten.bits(),
-    );
+    let mut v = crate::math::x87::div(car.local_velocity[2].bits(), race.course.numbers.ten.bits());
     if below_or_unordered(v, race.course.numbers.zero.bits()) {
         v = race.course.numbers.zero.bits();
     }
@@ -357,15 +360,15 @@ fn rolled_angle(race: &Race) -> u32 {
         v = race.course.numbers.one.bits();
     }
     let roll = eased_roll(
-        crate::race::frame::drawn_car().steering_raw.get() as i32,
+        car.steering_raw.get() as i32,
         race.course.numbers.k65536.bits(),
         race.course.numbers.one_over_two_pi.bits(),
         v,
         race.course.numbers.tenth.bits(),
-        crate::race::frame::drawn_car().camera_roll.bits(),
+        car.camera_roll.bits(),
         race.course.numbers.half.bits(),
     );
-    crate::race::frame::drawn_car().camera_roll.set_bits(roll);
+    car.camera_roll.set_bits(roll);
     product4_to_int(
         roll,
         race.course.numbers.k65536.bits(),
@@ -395,25 +398,23 @@ pub fn camera_view(
     let vars = &race.frame.view_and_records.view_vars;
     crate::math::cells::copy_cells(&vars.view_place, &own.view_place, 3);
     crate::math::cells::copy_cells(&vars.view_angles, &own.view_angles, 6);
-    own.view_car_flag_a
-        .set(crate::race::frame::drawn_car().camera_switch_share.bits());
-    own.view_car_stage
-        .set(crate::race::frame::drawn_car().camera_view.get());
+    own.view_car_flag_a.set(view.car.camera_switch_share.bits());
+    own.view_car_stage.set(view.car.camera_view.get());
     race.frame
         .view_and_records
         .view_vars
         .view_car_flag_b
-        .set(crate::race::frame::drawn_car().camera_mode_is_2_or_3.get());
+        .set(view.car.camera_mode_is_2_or_3.get());
     race.frame
         .view_and_records
         .view_vars
         .view_car_flag_a
-        .set(crate::race::frame::drawn_car().camera_switch_share.bits());
+        .set(view.car.camera_switch_share.bits());
     race.frame
         .view_and_records
         .view_vars
         .view_car_stage
-        .set(crate::race::frame::drawn_car().camera_view.get());
+        .set(view.car.camera_view.get());
     if race.shared.switches.other_way.get() == 0 {
         place_view(race, view)?;
         view_matrices(race, m, view)?;
@@ -424,34 +425,30 @@ pub fn camera_view(
             .view_and_records
             .view_vars
             .view_scale
-            .set_bits(crate::race::frame::drawn_car().camera_zoom.bits());
+            .set_bits(view.car.camera_zoom.bits());
         for (from, to) in [
-            (&crate::race::frame::drawn_car().camera_heading, 0usize),
-            (&crate::race::frame::drawn_car().camera_pitch, 1),
-            (&crate::race::frame::drawn_car().camera_roll_turn, 2),
-            (&crate::race::frame::drawn_car().camera_offset_turns[1], 3),
-            (&crate::race::frame::drawn_car().camera_offset_turns[0], 4),
-            (&crate::race::frame::drawn_car().camera_offset_turns[2], 5),
+            (&view.car.camera_heading, 0usize),
+            (&view.car.camera_pitch, 1),
+            (&view.car.camera_roll_turn, 2),
+            (&view.car.camera_offset_turns[1], 3),
+            (&view.car.camera_offset_turns[0], 4),
+            (&view.car.camera_offset_turns[2], 5),
         ] {
             race.frame.view_and_records.view_vars.view_angles[to].set_bits(from.get());
             own.view_angles[to].set_bits(from.get());
         }
-        crate::session::read_bits(&crate::race::frame::drawn_car().camera_position)
+        crate::session::read_bits(&view.car.camera_position)
     } else {
         crate::scene::matrix::multiply_matrices(
             &race.frame.matrices.view_work,
-            &crate::race::frame::drawn_car().crash_matrix,
+            &view.car.crash_matrix,
             &m.turned_matrix,
         );
         crate::scene::view_matrix::invert_turn(&race.course, &m.turned_matrix, &m.view_turn_copy);
-        let kept = &crate::race::frame::drawn_car().unknown_6cc;
-        kept[0].set(crate::race::frame::drawn_car().position[0].get());
-        kept[1].set(
-            crate::race::frame::drawn_car().position[1]
-                .get()
-                .wrapping_add(0x8000),
-        );
-        kept[2].set(crate::race::frame::drawn_car().position[2].get());
+        let kept = &view.car.unknown_6cc;
+        kept[0].set(view.car.position[0].get());
+        kept[1].set(view.car.position[1].get().wrapping_add(0x8000));
+        kept[2].set(view.car.position[2].get());
         race.frame
             .view_and_records
             .view_vars
@@ -460,7 +457,7 @@ pub fn camera_view(
         [kept[0].get(), kept[1].get(), kept[2].get()]
     };
     for (k, &p) in place.iter().enumerate() {
-        crate::race::frame::drawn_car().kept_view_place[k].set(p);
+        view.car.kept_view_place[k].set(p);
         race.frame.view_and_records.view_vars.view_place[k].set(p);
     }
     race.frame.view_and_records.view_vars.view_x.set(place[0]);

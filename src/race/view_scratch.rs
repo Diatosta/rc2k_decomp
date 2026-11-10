@@ -110,6 +110,11 @@ pub struct ViewScratch {
     pub lamps: crate::race::lamp_work::LampWork,
     /// The camera values and the drawn car (`race::view_state`).
     pub state: crate::race::view_state::ViewState,
+    /// The view's car: a copy of its block that the view's camera, matrices, course and lights
+    /// read (`race::frame::load_view_car`). The original loaded it into the work car `g_car`,
+    /// the physics' own, and set `g_currentCar`; neither is touched now. (The drawing's
+    /// headers name its fields as the original's `g_car` +offsets.)
+    pub car: crate::physics::car_store::Car,
 }
 
 impl ViewScratch {
@@ -128,6 +133,7 @@ impl ViewScratch {
             quad: crate::race::quad_work::QuadWork::new(),
             lamps: crate::race::lamp_work::LampWork::new(),
             state: crate::race::view_state::ViewState::new(),
+            car: crate::physics::car_store::Car::new(),
         }
     }
 

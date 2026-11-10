@@ -36,22 +36,21 @@ pub fn add_sort_entry(lists: &SortLists, kind: u32, face: u32) -> Result<(), Ref
 /// (the original's `LEVEL_GRID.far_cell_limit`): the low (twice the distance below 0x40000000
 /// as signed), the high (from 0xC0000000), else the larger. The tables are read unchecked, as
 /// the original.
-pub fn checkpoint_colours(race: &Race) -> Result<u32, BadInput> {
+pub fn checkpoint_colours(
+    race: &Race,
+    car: &crate::physics::car_store::Car,
+) -> Result<u32, BadInput> {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::frame::checkpoint_colours`.
     {
-        let n: u32 = crate::race::frame::drawn_car().checkpoint.get();
+        let n: u32 = car.checkpoint.get();
         let face =
             crate::race::checkpoints_store::cell_in(&CHECKPOINTS.checkpoint_faces, n as usize)
                 .get();
         let byte: u8 = face_field(face, 0x10)?;
         let along =
             crate::race::checkpoints_store::cell_in(&CHECKPOINTS.angles[2..], n as usize).get();
-        let c = rc2k_core::race::frame::checkpoint_colours(
-            byte,
-            along,
-            crate::race::frame::drawn_car().car_heading.bits(),
-        );
+        let c = rc2k_core::race::frame::checkpoint_colours(byte, along, car.car_heading.bits());
         shared.physics_tables.checkpoint_colours[0].set(c.near);
         shared.physics_tables.checkpoint_colours[1].set(c.far);
         shared.physics_tables.checkpoint_colours[2].set(c.distance);
@@ -96,7 +95,7 @@ pub fn face_hidden(
     // Converted: `rc2k_core::race::faces::{hidden_by_switches, hidden_by_depth}`; the
     // depths' roundings the x87's.
     use rc2k_core::race::faces::{hidden_by_depth, hidden_by_switches};
-    let view: u32 = crate::race::frame::drawn_car().camera_view.bits();
+    let view: u32 = ctx.view.car.camera_view.bits();
     // race().frame.view_and_records.view_vars.view_hides[]: by camera view. Its 34 entries cover views 0 .. 0x21; the views up
     // to 0x33 (the viewer's cameras) read on into the variables after it, as the original
     // (notes/bugs.md); 0x33 is still inside `race().frame.view_and_records.view_vars`.
@@ -330,10 +329,10 @@ pub fn face_hide_mask(
 ) -> Result<(), Refused> {
     crate::physics::probe_ground::probe_ground_in_view(
         race,
-        crate::race::frame::drawn_car(),
+        &view.car,
         crate::scene::owner::scene(),
     )?;
-    let ground: u32 = crate::race::frame::drawn_car().probe_point_face[4].bits();
+    let ground: u32 = view.car.probe_point_face[4].bits();
     if ground == u32::MAX {
         return Ok(());
     }
@@ -409,7 +408,7 @@ pub fn prepare_course_view(
         return Ok(());
     }
     let limit = if race.shared.vars.checkpoint_count.get() >= 2 {
-        checkpoint_colours(race)?
+        checkpoint_colours(race, &view.car)?
     } else {
         0x10
     };

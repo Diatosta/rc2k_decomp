@@ -67,29 +67,19 @@ pub fn view_car(shared: &Shared, n: usize) -> &crate::session::Dword {
     }
 }
 
-/// The view's car: a copy of its block that the view's camera, matrices, course and lights
-/// read (`drawn_car`), one per drawing thread. The original loaded it into the work car
-/// `g_car`, the physics' own, and set `g_currentCar`; neither is touched now. (The drawing's
-/// headers name its fields as the original's `g_car` +offsets.)
-static VIEW_CAR: crate::workers::PerWorker<crate::physics::car_store::Car> =
-    crate::workers::PerWorker::new(
-        [const { crate::physics::car_store::Car::new() }; crate::workers::COPIES],
-    );
-
 /// `race::load_car_a` / `_b` / `_c` (0x45422F, 0x454241, 0x454277): the view car `n`'s
-/// block copied into the view's car (`drawn_car`). Refuses a null block (the original's
+/// block copied into `view`'s car (`ViewScratch::car`). Refuses a null block (the original's
 /// copy faults) before anything.
-pub fn load_view_car(shared: &Shared, n: usize) -> Result<(), Refused> {
+pub fn load_view_car(
+    shared: &Shared,
+    n: usize,
+    view: &crate::race::view_scratch::ViewScratch,
+) -> Result<(), Refused> {
     use rc2k_core::drive::work_car::{car_block, car_slot};
     let slot = car_slot(view_car(shared, n).get());
     let block = car_block(shared.work.car_block(slot as usize))?;
-    crate::drive::car::copy_car(crate::physics::car_store::Car::at(block), &VIEW_CAR);
+    crate::drive::car::copy_car(crate::physics::car_store::Car::at(block), &view.car);
     Ok(())
-}
-
-/// The car of the view being drawn (`load_view_car`).
-pub fn drawn_car() -> &'static crate::physics::car_store::Car {
-    &VIEW_CAR
 }
 
 // The race keys, by scan code in `g_keysPressed`; the second view's keys is `g_keysNow`'s 0x1D

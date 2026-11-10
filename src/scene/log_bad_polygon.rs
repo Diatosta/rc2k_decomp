@@ -80,7 +80,6 @@ const PT: &std::ffi::CStr = c"pt"; // "pt"
 pub fn log_bad_polygon(
     poly: &crate::scene::polygon_work::PolygonWork,
     vertices: &dyn Store,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
     let count: u32 = poly.polygon_vertex_count.bits();
     if count > MOST {
@@ -91,7 +90,8 @@ pub fn log_bad_polygon(
         log(kind, at(poly));
     }
     poly.polygon_clip_mask.set_bits(0u32);
-    let object = scene.lights.work.drawing_object.bits() == 1;
+    let object = crate::race::view_scratch::of_polygon(poly)
+        .is_some_and(|v| v.object.drawing_object.bits() == 1);
     let tail: &[(&std::ffi::CStr, u32, Value)] = if object { &OBJECT } else { &POLYGON_NUMBER };
     for &(label, kind, at) in AFTER.iter().chain(tail) {
         write(label);

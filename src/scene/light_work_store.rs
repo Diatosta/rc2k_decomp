@@ -9,7 +9,7 @@ use crate::session::{Dword, Float};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct LightWork {
-    /// +0x0 (0x62DA44): `g_drawingObject`: the object being drawn (`scene::draw_shown_object`, `scene::log_bad_polygon`).
+    /// +0x0 (0x62DA44): `g_drawingObject`: the object being drawn; now each view's (`scene::object_place`); unused.
     pub drawing_object: Dword,
     /// +0x4 (0x62DA48): not named.
     pub unknown_4: [Dword; 13],
