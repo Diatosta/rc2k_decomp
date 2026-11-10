@@ -24,7 +24,9 @@ import math, os, shutil, struct, subprocess, sys, time, zlib
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOME = os.path.expanduser(os.environ.get('RC2K_REMOTE_HOME', '~/.cache/rc2k_remote'))  # a second copy: another folder
 GAME = HOME + '/game'
-INSTALLED = os.path.expanduser('~/.local/share/rally-championship')
+# The installed copy a test copy starts from (RC2K_REMOTE_INSTALLED: a frozen one, for runs that
+# must start alike on every machine).
+INSTALLED = os.path.expanduser(os.environ.get('RC2K_REMOTE_INSTALLED', '~/.local/share/rally-championship'))
 SHOTS = HOME + '/shots'
 DEVICE_GAME = '/mnt/mmc/Roms/APPS/rally'
 DEVICE_REMOTE = '/tmp/rc2k_remote'
