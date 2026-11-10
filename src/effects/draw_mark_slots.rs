@@ -130,12 +130,15 @@ pub fn draw_mark_slots(
             continue;
         }
         let [px, py, half] = x87::slot_project(
-            scene.drawing.scene.view_scale.bits(),
+            crate::scene::polygon_work::front_end()
+                .window
+                .view_scale
+                .bits(),
             x,
             z,
-            scene.drawing.scene.view_centre[0].bits(),
+            crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
             y,
-            scene.drawing.scene.view_centre[1].bits(),
+            crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
             effects.blocks.slots.slots[0].size.bits(),
         );
         effects.blocks.slots.work[0].set(px);

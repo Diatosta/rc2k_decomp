@@ -48,7 +48,7 @@ pub fn init_marks(
         setup::make_wave_tables(paths)?;
         profiles::make_profiles(course, paths, profiles::RESUME, effects)?;
         setup::seed_noise(weather, effects);
-        setup::make_noise_curve(weather, scene, effects)?;
+        setup::make_noise_curve(weather, effects)?;
         blocks::allocate_places(effects)?;
         kind_values::set_kind_values(&kind_values::FIRST, effects)?;
         kind_values::set_kind_values(&kind_values::SECOND, effects)?;

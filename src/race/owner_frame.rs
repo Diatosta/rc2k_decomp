@@ -21,8 +21,9 @@ use crate::race::text_state_store::TextState;
 pub struct Frame {
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
     pub frame_work: FrameWork,
-    /// One copy per drawing thread (`workers`).
-    pub matrices: crate::workers::PerWorker<SceneMatrices>,
+    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7;
+    /// the held columns are each part's own, `scene::view_matrices::Held`).
+    pub matrices: SceneMatrices,
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
     pub scratch: FrameScratch,
     pub counter: FrameCounter,
@@ -38,8 +39,9 @@ pub struct Frame {
     pub credits: Credits,
     pub map: MapVars,
     pub panel_and_overlay: PanelAndOverlay,
-    /// One copy per drawing thread (`workers`).
-    pub view_and_records: crate::workers::PerWorker<ViewAndRecords>,
+    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
+    /// Each view draws on its own view variables (`ViewScratch::vars`).
+    pub view_and_records: ViewAndRecords,
     pub lights_and_gear: LightsAndGear,
 }
 
@@ -47,9 +49,7 @@ impl Frame {
     pub const fn new() -> Self {
         Frame {
             frame_work: FrameWork::new(),
-            matrices: crate::workers::PerWorker::new(
-                [const { SceneMatrices::new() }; crate::workers::COPIES],
-            ),
+            matrices: SceneMatrices::new(),
             scratch: FrameScratch::new(),
             counter: FrameCounter::new(),
             draw_batches: DrawBatches::new(),
@@ -62,9 +62,7 @@ impl Frame {
             credits: Credits::new(),
             map: MapVars::new(),
             panel_and_overlay: PanelAndOverlay::new(),
-            view_and_records: crate::workers::PerWorker::new(
-                [const { ViewAndRecords::new() }; crate::workers::COPIES],
-            ),
+            view_and_records: ViewAndRecords::new(),
             lights_and_gear: LightsAndGear::new(),
         }
     }

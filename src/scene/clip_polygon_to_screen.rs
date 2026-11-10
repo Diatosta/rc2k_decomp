@@ -22,16 +22,14 @@ use crate::session::Float;
 /// The polygon's entries and the mask of the edges some vertex is past.
 fn outside_mask(
     poly: &crate::scene::polygon_work::PolygonWork,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(crate::scene::polygon::Listed, u32), BadInput> {
-    let drawing = &scene.drawing;
     let entries = listed_with_records(poly)?;
     let edge = |cell: &Float| cell.get() as f64;
     let (left, right, top, bottom) = (
-        edge(&drawing.scene.clip_screen[2]),
-        edge(&drawing.scene.clip_screen[3]),
-        edge(&drawing.scene.clip_screen[0]),
-        edge(&drawing.scene.clip_screen[1]),
+        edge(&poly.window.clip_screen[2]),
+        edge(&poly.window.clip_screen[3]),
+        edge(&poly.window.clip_screen[0]),
+        edge(&poly.window.clip_screen[1]),
     );
     let mut mask = 0;
     for entry in &entries {
@@ -63,11 +61,9 @@ fn outside_mask(
 pub fn clip_polygon_to_screen(
     poly: &crate::scene::polygon_work::PolygonWork,
     race: &Race,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
-    let drawing = &scene.drawing;
     let course = &race.course;
-    let (entries, mask) = outside_mask(poly, scene)?;
+    let (entries, mask) = outside_mask(poly)?;
     poly.screen_clipped.set_bits(1u32);
     if mask == 0 {
         return Ok(());
@@ -76,10 +72,10 @@ pub fn clip_polygon_to_screen(
     or_undone(|| {
         let mut listed = Some(entries);
         for (bit, edge, inside_past) in [
-            (1, Edge::X(drawing.scene.clip_screen[2].bits()), true),
-            (2, Edge::X(drawing.scene.clip_screen[3].bits()), false),
-            (4, Edge::Y(drawing.scene.clip_screen[0].bits()), true),
-            (8, Edge::Y(drawing.scene.clip_screen[1].bits()), false),
+            (1, Edge::X(poly.window.clip_screen[2].bits()), true),
+            (2, Edge::X(poly.window.clip_screen[3].bits()), false),
+            (4, Edge::Y(poly.window.clip_screen[0].bits()), true),
+            (8, Edge::Y(poly.window.clip_screen[1].bits()), false),
         ] {
             if mask & bit != 0 {
                 listed = clip_pass(poly, course, listed, edge, inside_past, mask)?;

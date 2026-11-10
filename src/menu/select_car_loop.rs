@@ -15,7 +15,6 @@ use crate::menu::screen_loop::{
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
-    let drawing = &entry.scene.drawing;
     let menus = entry.menus;
     let screens = &menus.screens;
     // The current player's +0x30 (its car).
@@ -26,7 +25,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     screens.flow.shown_gearing.set(player.get().gearing);
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0xDu32);
-    carousel(entry.cars, entry.scene)?;
+    carousel(entry.cars)?;
     let item = screens.items.current[slot::SELECT_CAR].get();
     screens.loop_flags.item.set(item);
     screens.state.carousel.front.set(item.wrapping_sub(1));
@@ -34,9 +33,12 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     screens.state.carousel.front.set(0x0u32);
     screens.event.shown_car.set(0x0u32);
     crate::menu::car_choice::find_player_car(menus)?;
-    drawing.scene.view_offset[0].set(0x7u32);
-    drawing.scene.view_offset[1].set(0xFFFFFFCEu32);
-    drawing.scene.view_zoom.set(0x100u32);
+    crate::scene::polygon_work::front_end().window.view_offset[0].set(0x7u32);
+    crate::scene::polygon_work::front_end().window.view_offset[1].set(0xFFFFFFCEu32);
+    crate::scene::polygon_work::front_end()
+        .window
+        .view_zoom
+        .set(0x100u32);
     prepare_scene(entry.scene);
     Ok(())
 }

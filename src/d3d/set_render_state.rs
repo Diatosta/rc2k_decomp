@@ -9,8 +9,6 @@
 //! the standalone program the value is kept and nothing more, until a renderer is
 //! there.
 
-use crate::d3d::owner::d3d;
-
 /// The states the game uses are all below this.
 const STATES: u32 = 0x40;
 
@@ -19,9 +17,8 @@ pub fn set_render_state(value: u32, state: u32) {
     if state < STATES {
         // Noted for the drawing threads' runs whether or not it changes (`run_states`).
         crate::d3d::run_states::note_set(state as usize);
-        let kept = &d3d().cards.kept_states[state as usize];
-        if kept.get() != value {
-            kept.set(value);
+        if crate::d3d::render_cache::kept(state as usize) != value {
+            crate::d3d::render_cache::set_kept(state as usize, value);
             crate::platform_3d::forget_states();
         }
     }

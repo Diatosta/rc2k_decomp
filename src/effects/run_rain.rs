@@ -147,7 +147,7 @@ pub fn run_rain(
                 x87_run::int_80(y as i32, false),
                 x87_run::int_80(x as i32, false),
             ];
-            crate::effects::draw_rain_streak::draw_rain_streak(weather, place, scene, effects)?;
+            crate::effects::draw_rain_streak::draw_rain_streak(weather, place, effects)?;
             let marks = crate::effects::setup::marks()?;
             if marks.other_marks_shown.get() != 0 {
                 for (n, kept) in r.kept.iter().enumerate() {

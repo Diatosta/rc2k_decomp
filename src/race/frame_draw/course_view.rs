@@ -209,17 +209,18 @@ pub fn add_depth_entry(ctx: &DrawCtx, face: u32) -> Result<(), Refused> {
 /// the corner (& 0x7FF) is within the span on both axes goes in at row z, column x.
 /// Refuses (before anything is written) no records when the grid
 /// is to be made (the original's loop would run on: it tests `jnz` after the first).
-pub fn course_grid(race: &Race, view: &crate::race::view_grid::ViewGrid) -> Result<(), Refused> {
+/// `vars`: the view's variables (its place, `ViewScratch::vars`).
+pub fn course_grid(
+    race: &Race,
+    view: &crate::race::view_grid::ViewGrid,
+    vars: &crate::race::view_vars_store::ViewVars,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame::{hold_to_limit, grid_corner, record_cell,
     // grid_cell}`.
     use rc2k_core::race::frame::{GRID_EMPTY, GRID_SIDE, grid_cell, grid_corner, record_cell};
     let half = hold_to_limit(&race.shared, race.course.stage_prefs.grid_reach.bits());
     let span = half.wrapping_add(half);
-    let (gx, gz) = grid_corner(
-        race.frame.view_and_records.view_vars.view_x.bits(),
-        race.frame.view_and_records.view_vars.view_z.bits(),
-        half,
-    );
+    let (gx, gz) = grid_corner(vars.view_x.bits(), vars.view_z.bits(), half);
     let unchanged = gx == view.x.bits() && gz == view.z.bits();
     let count: u32 = race.course.course.course_record_count.bits();
     if !unchanged && count == 0 {
@@ -402,7 +403,7 @@ pub fn prepare_course_view(
     let course = &race.course;
     check_course_grid(course)?;
     face_hide_mask(race, view)?;
-    course_grid(race, &view.grid)?;
+    course_grid(race, &view.grid, &view.vars)?;
     if race.shared.switches.other_way.bits() == 0 {
         return Ok(());
     }

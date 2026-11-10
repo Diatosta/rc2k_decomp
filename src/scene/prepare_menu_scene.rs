@@ -13,7 +13,6 @@ use crate::scene::view_matrix::set_view_matrices;
 // ---- Rust version ----
 
 pub fn prepare_menu_scene(scene: &crate::scene::owner::Scene) {
-    let drawing = &scene.drawing;
     let race = race();
     let frame = &race.frame;
     crate::session::write_bits(&race.frame.view_and_records.view_vars.view_place, [0u32; 3]);
@@ -21,8 +20,16 @@ pub fn prepare_menu_scene(scene: &crate::scene::owner::Scene) {
         &race.frame.view_and_records.view_vars.view_angles,
         &[0u32; 3],
     );
-    crate::session::write_bits(&drawing.scene.view_size, [0x320u32, 0x258]);
-    set_view_window(race, scene);
+    crate::session::write_bits(
+        &crate::scene::polygon_work::front_end().window.view_size,
+        [0x320u32, 0x258],
+    );
+    set_view_window(
+        race,
+        scene,
+        &crate::scene::polygon_work::front_end().window,
+        &race.frame.view_and_records.view_vars,
+    );
     let light = &crate::race::view_scratch::front_end().light;
     light.light_lowest.set(0x50);
     light.light_highest.set(0xFF);

@@ -24,7 +24,7 @@ pub fn flare_frame(
         crate::scene::depth_test_off::depth_test_off();
         let marks = crate::effects::setup::marks()?;
         if marks.listener_figures[0].get() != 0 {
-            crate::effects::draw_lens_flare::draw_lens_flare(paths, scene, effects)?;
+            crate::effects::draw_lens_flare::draw_lens_flare(paths, effects)?;
         }
     }
     Ok(())

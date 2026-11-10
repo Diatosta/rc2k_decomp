@@ -77,7 +77,6 @@ pub fn draw_object_in_game(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let scene = ctx.scene;
     // The object's listed faces: filled, sorted and drawn here alone (the original's
     // `g_listedFaces`, one for every drawing).
     let mut faces = crate::scene::face_list::FaceList::new();
@@ -103,7 +102,6 @@ pub fn draw_object_in_game(
                     &ctx.view.face,
                     &faces,
                     &mut |face| draw_object_face_in_game(ctx, face, system),
-                    scene,
                 )?;
             }
         }

@@ -117,6 +117,13 @@ pub struct ViewScratch {
     pub car: crate::physics::car_store::Car,
     /// What the view's scene left its overlays (`race::scene_hand_off`).
     pub hand_off: crate::race::scene_hand_off::SceneHandOff,
+    /// The view variables as the view's drawing has them (`race().frame.view_and_records.
+    /// view_vars`, the original's, shared by every view in turn): taken from the shared ones
+    /// as the view's drawing begins (`take_vars`), what it changed handed back on the game's
+    /// thread in the views' order (`hand_on_vars`; frame plan F7).
+    pub vars: crate::race::view_vars_store::ViewVars,
+    /// `vars` as taken.
+    vars_taken: crate::race::view_vars_store::ViewVars,
 }
 
 impl ViewScratch {
@@ -137,7 +144,27 @@ impl ViewScratch {
             state: crate::race::view_state::ViewState::new(),
             car: crate::physics::car_store::Car::new(),
             hand_off: crate::race::scene_hand_off::SceneHandOff::new(),
+            vars: first_vars(),
+            vars_taken: first_vars(),
         }
+    }
+
+    /// The shared view variables into the view's (`vars`), as its drawing begins.
+    pub fn take_vars(&self, race: &crate::race::owner::Race) {
+        use crate::pointers::Cells;
+        let shared = &race.frame.view_and_records.view_vars;
+        self.vars.copy_from(shared);
+        self.vars_taken.copy_from(shared);
+    }
+
+    /// What the view's drawing changed in its view variables into the shared ones (the game's
+    /// thread, once it is drawn).
+    pub fn hand_on_vars(&self, race: &crate::race::owner::Race) {
+        use crate::pointers::Cells;
+        race.frame
+            .view_and_records
+            .view_vars
+            .merge_changes(&self.vars, &self.vars_taken);
     }
 
     /// Every part but the sort lists (their counts are set at each view's start,
@@ -153,14 +180,15 @@ impl ViewScratch {
         self.cars.copy_from(&FRESH.cars);
         self.matrices.copy_from(&FRESH.matrices);
         // What the view's set-up gave before its scene, kept: the mirror's flag
-        // (`race::mirror_view_window`) and the view's value (`race::fetch_view_value`).
-        let (mirrored, view_out) = (
-            self.polygon.view_mirrored.get(),
-            self.polygon.sun.view_out.get(),
-        );
-        self.polygon.copy_from(&FRESH.polygon);
-        self.polygon.view_mirrored.set(mirrored);
-        self.polygon.sun.view_out.set(view_out);
+        // (`race::mirror_view_window`), the view's value (`race::fetch_view_value`) and its
+        // window (`scene::view_window`). Made beside and copied in whole, so the window is
+        // never seen reset: the mirror's part reads its view's depth while the view begins.
+        let fresh = crate::scene::polygon_work::PolygonWork::new();
+        fresh.copy_from(&FRESH.polygon);
+        fresh.window.copy_from(&self.polygon.window);
+        fresh.view_mirrored.set(self.polygon.view_mirrored.get());
+        fresh.sun.view_out.set(self.polygon.sun.view_out.get());
+        self.polygon.copy_from(&fresh);
         self.grid.copy_from(&FRESH.grid);
         self.course.copy_from(&FRESH.course);
         self.quad.copy_from(&FRESH.quad);
@@ -177,6 +205,23 @@ impl ViewScratch {
                 crate::fatal::raise::end("a view's slot", BadInput("not one of the slots"))
             })
     }
+
+    /// The view drawn (`RACE_VIEW.drawn_view`, the original's `g_drawnView`): the player
+    /// whose view or mirror the slot is; the front end's slot reads the store, which only the
+    /// game thread writes (the race's views set it before each is drawn, frame plan F7).
+    pub fn drawn_view(&self, race: &crate::race::owner::Race) -> u32 {
+        match self.number() {
+            4 => race.shared.view.drawn_view.get(),
+            n => (n % 2) as u32,
+        }
+    }
+}
+
+/// The view variables' first values.
+const fn first_vars() -> crate::race::view_vars_store::ViewVars {
+    let crate::race::groups_store::ViewAndRecords { view_vars, .. } =
+        crate::race::groups_store::ViewAndRecords::new();
+    view_vars
 }
 
 /// The view slots: the two players' views, then their mirrors, then the front end's 3D (the
@@ -199,6 +244,15 @@ pub fn place_of(host: usize) -> Option<(usize, usize)> {
             .contains(&host)
             .then(|| (n, host - start))
     })
+}
+
+/// The offsets in a slot that the view's window (`scene::view_window`) takes (the write
+/// watch's names).
+#[cfg(feature = "write_watch")]
+pub fn window_range() -> std::ops::Range<usize> {
+    let start = core::mem::offset_of!(ViewScratch, polygon)
+        + core::mem::offset_of!(crate::scene::polygon_work::PolygonWork, window);
+    start..start + core::mem::size_of::<crate::scene::view_window::ViewWindow>()
 }
 
 /// Slot `n` (below `SLOT_COUNT`).

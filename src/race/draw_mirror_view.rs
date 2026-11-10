@@ -1,10 +1,11 @@
 //! `race::draw_mirror_view` (0x454806): the mirror's view, unless `dword_64BB18` or
 //! `dword_71C3E0` is set or `dword_621480` (the mirror on, a reading) is 0:
-//! `dword_63DC58` kept in `dword_63E170`; `dword_606294` saved, made `flt_5C5E2C`'s value;
+//! `dword_63DC58` kept in `dword_63E170`; `dword_606294` saved, made `flt_5C5E2C`'s value
+//! (the mirror's own view variables, `ViewScratch::vars`, taken first);
 //! the mirror's window (`race::mirror_view_window`), `dword_63DC58` back from
 //! `dword_63E170`, the backdrop (`race::draw_view_backdrop`), the scene
 //! (`race::draw_view_scene`); `dword_606294` put back; the full view's window again
-//! (`race::full_view_window_2`). Returns the scene's output (`ViewOutput`: its view value
+//! (`race::full_view_window_2`, now the front end's window: `race::draw_race_scene`). Returns the scene's output (`ViewOutput`: its view value
 //! for its block; its EAX weight goes nowhere, the race's is the first player's view's).
 //!
 //! The original also set `g_gridReach` to 2 and put it back after. Only the mirror's
@@ -30,41 +31,31 @@ pub fn draw_mirror_view(
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
     view: &crate::race::view_scratch::ViewScratch,
-) -> Result<crate::race::draw_view_scene::ViewOutput, Refused> {
+) -> Result<Option<crate::race::draw_view_scene::ViewOutput>, Refused> {
+    view.take_vars(race);
     if race.replay.finish.no_place.get() != 0
         || race.shared.work.in_credits.get() != 0
         || (race.shared.switches.other_way.get() == 0 && !always())
     {
-        return Ok(Default::default());
+        return Ok(None);
     }
+    // The main view's depth (`RACE_VIEW.view_depth[1]` as its `scene::set_view_window` left
+    // it: the level's grid reach times 0x20), worked out here, not read from the main view's
+    // window while its own part may be writing it.
     view.course
         .view_value_kept
-        .set_bits(race.shared.view.view_depth[1].bits());
-    let saved = race.frame.view_and_records.view_vars.view_scale.bits();
-    race.frame
-        .view_and_records
-        .view_vars
+        .set_bits(race.course.stage_prefs.grid_reach.bits().wrapping_mul(0x20));
+    let saved = view.vars.view_scale.bits();
+    view.vars
         .view_scale
         .set_bits(race.course.numbers.k256.bits());
     let drawn = (|| {
-        crate::race::frame_views::mirror_view_window(
-            race,
-            scene,
-            system,
-            &view.fog,
-            &view.polygon,
-            &view.car,
-        )?;
-        race.shared.view.view_depth[1].set_bits(view.course.view_value_kept.bits());
+        crate::race::frame_views::mirror_view_window(race, scene, system, view)?;
+        view.polygon.window.view_depth[1].set_bits(view.course.view_value_kept.bits());
         crate::race::frame_flush::draw_view_backdrop(race, scene, view);
         crate::race::draw_view_scene::draw_view_scene(race, scene, view)
     })();
-    race.frame
-        .view_and_records
-        .view_vars
-        .view_scale
-        .set_bits(saved);
-    let output = drawn?;
-    crate::race::frame_views::full_view_window(race);
-    Ok(output)
+    view.vars.view_scale.set_bits(saved);
+    // (The original's full window again after the mirror is the front end's: `race::draw_race_scene`.)
+    drawn.map(Some)
 }

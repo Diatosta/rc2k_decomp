@@ -345,9 +345,9 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     // which nothing ever reads: dropped (`notes/bugs.md`).
     // `view_cars[drawn_view]`: past the two, read on by address as the original does.
     let view_car = crate::session::read_on_in(
-        &*race.shared.view,
+        &race.shared.view,
         &race.shared.view.view_cars,
-        race.shared.view.drawn_view.bits() as usize,
+        ctx.view.drawn_view(race) as usize,
         "the view cars",
     )?;
     if view_car == ctx.view.state.drawn_car.bits() && ctx.view.state.view_car_flag_a.bits() != 0 {
@@ -502,7 +502,7 @@ pub fn draw_car_entry(
     if car == 0 {
         return Err(BadInput("a car without its block").into());
     }
-    frame.view_and_records.view_vars.drawn_car.set(n);
+    ctx.view.vars.drawn_car.set(n);
     ctx.view.state.drawn_car.set(n);
     ctx.view
         .light

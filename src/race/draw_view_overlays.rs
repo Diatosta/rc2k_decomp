@@ -15,7 +15,7 @@ pub fn draw_view_overlays(
     system: &crate::system::owner::System,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     use crate::hud::overlay_states::overlay_states;
     use crate::race::frame_views::{draw_flat_triangle, draw_own_car, draw_screen_tint};
     use crate::scene::set_filters::set_filters;
@@ -28,7 +28,7 @@ pub fn draw_view_overlays(
     crate::race::frame_views::run_view_marks(ctx, system, effects)?;
     crate::debug::timing::stop(crate::debug::timing::Stage::Effects, begun);
     overlay_states();
-    draw_flat_triangle(scene);
+    draw_flat_triangle();
     crate::scene::depth_buffer_on::depth_buffer(true);
     set_filters();
     {

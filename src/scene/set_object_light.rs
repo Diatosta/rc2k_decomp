@@ -32,11 +32,11 @@ use crate::scene::vertex_light::plus;
 /// `gather`: what stands for `scene::add_car_lights` and `scene::add_point_lights`.
 // Converted: `rc2k_core::scene::lamps::object_light`
 pub fn set_object_light(
-    race: &crate::race::owner::Race,
     gather: &mut dyn FnMut() -> Result<(), Refused>,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
     system: &crate::system::owner::System,
+    vars: &crate::race::view_vars_store::ViewVars,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
     light.light_added.set_bits(0u32);
@@ -61,9 +61,7 @@ pub fn set_object_light(
         crate::session::read_bits::<_, 3>(&object.place),
     );
     if own_car {
-        light
-            .drawn_car_light
-            .set_bits(race.frame.view_and_records.view_vars.drawn_car.bits());
+        light.drawn_car_light.set_bits(vars.drawn_car.bits());
     }
     light.light_colour.set_bits(0u32);
     gather()?;
@@ -86,11 +84,11 @@ pub fn set_object_light_in_game(
 ) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
     set_object_light(
-        race,
         &mut || {
             add_car_lights(
                 race,
                 ctx.view.light.drawn_car_light.get(),
+                ctx.view.drawn_view(race),
                 &mut |car, marks| {
                     add_car_light(&race.course, car, marks, scene, &ctx.view.light, system);
                     Ok(())
@@ -102,5 +100,6 @@ pub fn set_object_light_in_game(
         &ctx.view.light,
         &ctx.view.object,
         system,
+        &ctx.view.vars,
     )
 }

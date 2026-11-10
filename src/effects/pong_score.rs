@@ -16,14 +16,13 @@ fn number(
     fl: &WindscreenFlakes,
     at: &Dword,
     effects: &crate::effects::owner::Effects,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     use crate::effects::pong_digit::pong_digit;
     let (n, [hundreds, tens, ones]) = rc2k_core::effects::pong::score_digits(at.get());
     at.set(n);
-    pong_digit(pong, fl, hundreds, effects, scene)?;
-    pong_digit(pong, fl, tens, effects, scene)?;
-    pong_digit(pong, fl, ones, effects, scene)?;
+    pong_digit(pong, fl, hundreds, effects)?;
+    pong_digit(pong, fl, tens, effects)?;
+    pong_digit(pong, fl, ones, effects)?;
     Ok(())
 }
 
@@ -33,7 +32,6 @@ pub fn pong_score(
     pong: &Pong,
     fl: &WindscreenFlakes,
     effects: &crate::effects::owner::Effects,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     use rc2k_core::effects::pong::{SCORE_AT, SCORE_GAP, best};
     let p = &pong.state;
@@ -44,8 +42,8 @@ pub fn pong_score(
     }
     p.digit_at[0].set(SCORE_AT[0]);
     p.digit_at[1].set(SCORE_AT[1]);
-    number(pong, fl, &p.hits, effects, scene)?;
+    number(pong, fl, &p.hits, effects)?;
     p.digit_at[0].set(p.digit_at[0].get().wrapping_add(SCORE_GAP));
-    number(pong, fl, &p.best, effects, scene)?;
+    number(pong, fl, &p.best, effects)?;
     Ok(())
 }

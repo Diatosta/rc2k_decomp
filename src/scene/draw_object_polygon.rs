@@ -34,17 +34,15 @@ fn needs_clipping(
     poly: &crate::scene::polygon_work::PolygonWork,
     course: &crate::race::owner_course::Course,
     count: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<bool, BadInput> {
-    let drawing = &scene.drawing;
     use rc2k_core::scene::polygons::{Edges, Vertex};
     if (count as i32).wrapping_sub(3) < 0 {
         return Ok(false);
     }
     let edges = Edges {
         least: course.numbers.zero.get(),
-        right: drawing.scene.clip_screen[3].get(),
-        bottom: drawing.scene.clip_screen[1].get(),
+        right: poly.window.clip_screen[3].get(),
+        bottom: poly.window.clip_screen[1].get(),
     };
     rc2k_core::scene::polygons::needs_clipping(count, &edges, |n| {
         let record = crate::scene::polygon::entry(n)?.record.get();
@@ -73,7 +71,6 @@ pub fn draw_object_polygon(
     object: &crate::scene::object_place::ObjectPlace,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
     use rc2k_core::scene::polygons::{drawn_whole, fan, first_list, fits};
     let count: u32 = poly.polygon_vertex_count.bits();
     if !fits(count) {
@@ -86,7 +83,7 @@ pub fn draw_object_polygon(
     }
     poly.polygon_next_entry.set_bits(count);
     step(Step::Project)?;
-    if drawn_whole(count, needs_clipping(poly, &race.course, count, scene)?) {
+    if drawn_whole(count, needs_clipping(poly, &race.course, count)?) {
         object
             .whole_polygon_count
             .set_bits(object.whole_polygon_count.bits().wrapping_add(1));

@@ -1017,7 +1017,7 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::d3d::cards_store::Cards3d::START,
         len: crate::d3d::cards_store::Cards3d::LEN,
         home: Home::Store(&crate::race::store::Window::new(
-            crate::d3d::owner::D3D.cards.first(),
+            &crate::d3d::owner::D3D.cards,
             4,
         )),
     },
@@ -1308,7 +1308,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::matrices_store::START,
         len: crate::race::matrices_store::END - crate::race::matrices_store::START,
-        home: Home::Store(crate::race::owner::RACE.frame.matrices.first()),
+        home: Home::Store(&crate::race::owner::RACE.frame.matrices),
     },
     Moved {
         ida: crate::race::tables_store::START,
@@ -1319,7 +1319,7 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::race::groups_store::VIEW_AND_RECORDS_RANGE.0,
         len: crate::race::groups_store::VIEW_AND_RECORDS_RANGE.1
             - crate::race::groups_store::VIEW_AND_RECORDS_RANGE.0,
-        home: Home::Store(crate::race::owner::RACE.frame.view_and_records.first()),
+        home: Home::Store(&crate::race::owner::RACE.frame.view_and_records),
     },
     Moved {
         ida: crate::physics::camera_store::START,
@@ -1349,7 +1349,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::scene::draw_store::START,
         len: crate::scene::draw_store::END - crate::scene::draw_store::START,
-        home: Home::Store(crate::scene::owner::SCENE.drawing.scene.first()),
+        home: Home::Store(&crate::scene::owner::SCENE.drawing.scene),
     },
     Moved {
         ida: crate::scene::light_store::START,
@@ -1359,7 +1359,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::view_store::START,
         len: crate::race::view_store::END - crate::race::view_store::START,
-        home: Home::Store(crate::race::owner::RACE.shared.view.first()),
+        home: Home::Store(&crate::race::owner::RACE.shared.view),
     },
     Moved {
         ida: crate::race::level_grid_store::START,

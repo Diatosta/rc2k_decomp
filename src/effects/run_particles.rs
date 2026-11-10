@@ -116,7 +116,6 @@ fn step(
     ring: &Ring,
     e: u32,
 ) -> Result<bool, Refused> {
-    let scene = crate::scene::owner::scene();
     let effects = effects();
     use crate::effects::{burst_particles, draw_particle, trail_particles};
     {
@@ -234,7 +233,6 @@ fn step(
                     colour,
                     particle(particles, e, 0x38)?,
                     effects,
-                    scene,
                 );
                 keep_last()?;
             }
@@ -294,7 +292,7 @@ fn step(
                         size = size.wrapping_add(BIGGER);
                     }
                 }
-                draw_particle::draw_particle(view_matrix, place()?, colour, size, effects, scene);
+                draw_particle::draw_particle(view_matrix, place()?, colour, size, effects);
             }
         }
     }

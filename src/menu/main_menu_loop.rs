@@ -32,14 +32,16 @@ use crate::menu::update_blink::update_blink;
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
-    let drawing = &entry.scene.drawing;
     let menus = entry.menus;
     menus.screens.event.event_done.set(0u32);
     // menu::load_background (whether it failed is not looked at)
     Callee::LoadBackground(|m| &m.tables.texts.main_menu_picture).run(entry)?;
-    drawing.scene.view_offset[0].set(7u32);
-    drawing.scene.view_offset[1].set(0xAu32);
-    drawing.scene.view_zoom.set(0x100u32);
+    crate::scene::polygon_work::front_end().window.view_offset[0].set(7u32);
+    crate::scene::polygon_work::front_end().window.view_offset[1].set(0xAu32);
+    crate::scene::polygon_work::front_end()
+        .window
+        .view_zoom
+        .set(0x100u32);
     prepare_scene(entry.scene); // scene::prepare_menu_scene
     menus.screens.loop_flags.ended_a.set(0u32);
     Callee::TakeKey.run(entry)?; // input::take_key
@@ -47,7 +49,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     menus.screens.option_work.menu_sound.set(0x6Fu32);
     menus.screens.flow.turning.set(1u32);
     menus.screens.state.carousel.menu.set(0u32);
-    carousel(None, entry.scene)?;
+    carousel(None)?;
     let item = menus.screens.items.current[slot::MAIN_MENU].get();
     menus.screens.loop_flags.item.set(item);
     menus.screens.state.carousel.front.set(item.wrapping_sub(1));

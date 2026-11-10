@@ -14,13 +14,15 @@ use crate::race::view_scratch::{DrawCtx, ViewScratch};
 
 /// What a view's drawing hands on (frame plan F6), none for a covered view
 /// (`draw_view_tint` only, which leaves the last ones): its EAX weight
-/// (`race::eax_environment`) and its value for its block (`race::store_view_value`: the
-/// block and the sun on the screen). Applied by the game's thread once the view is drawn, in
-/// the views' order (the drawing parts write neither).
+/// (`race::eax_environment`), its value for its block (`race::store_view_value`: the
+/// block and the sun on the screen) and whether its camera set its view matrices
+/// (`race::camera_view`, handed on by `race::hand_on_view_matrices`). Applied by the game's
+/// thread once the view is drawn, in the views' order (the drawing parts write none).
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ViewOutput {
     pub environment: Option<u32>,
     pub view_value: Option<(u32, u32)>,
+    pub view_matrices: bool,
 }
 
 impl ViewOutput {
@@ -71,13 +73,25 @@ pub fn draw_view_scene(
     for cell in &view.object.view_cleared {
         cell.set(0);
     }
-    car_light_modes(race, &view.cars, view.polygon.view_mirrored.get() != 0)?;
+    car_light_modes(
+        race,
+        &view.cars,
+        view.polygon.view_mirrored.get() != 0,
+        view.drawn_view(race),
+    )?;
     clear_point_records(race, scene)?;
     set_up_fog(race, &view.fog, &view.polygon, &view.car)?;
     camera_view(race, scene, &view.matrices, view)?;
     draw_sky(&ctx)?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
-    view_light(race, scene, &view.lamps, &view.light, &view.car)?;
+    view_light(
+        race,
+        scene,
+        &view.lamps,
+        &view.light,
+        &view.car,
+        view.drawn_view(race),
+    )?;
     reset_lamps(&ctx)?;
     // (The original's 0 into `g_viewLamps`, 0x63DB6C: read by nothing.)
     prepare_course_view(race, view)?;
@@ -102,7 +116,7 @@ pub fn draw_view_scene(
     crate::debug::timing::stop(crate::debug::timing::Stage::DepthEntries, begun);
     crate::moved::census::after("depth", c);
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
-    let view_value = view_value(race, &view.polygon.sun)?;
+    let view_value = view_value(race, &view.polygon.sun, view.drawn_view(race))?;
     // The lamps the next view starts from (`race::lamp_work::PUBLISHED`).
     {
         use crate::pointers::Cells;
@@ -111,5 +125,6 @@ pub fn draw_view_scene(
     Ok(ViewOutput {
         environment: Some(environment),
         view_value: Some(view_value),
+        view_matrices: true,
     })
 }

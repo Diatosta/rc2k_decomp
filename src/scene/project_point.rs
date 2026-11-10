@@ -202,9 +202,9 @@ pub(crate) fn make_scene_record(
     r[7] = 0;
     if f32::from_bits(r[6]) >= NEAR {
         let v = [
-            scene.drawing.scene.view_scale.bits(),
-            scene.drawing.scene.view_centre[0].bits(),
-            scene.drawing.scene.view_centre[1].bits(),
+            view.polygon.window.view_scale.bits(),
+            view.polygon.window.view_centre[0].bits(),
+            view.polygon.window.view_centre[1].bits(),
             race.course.course.flat_depth.bits(),
         ];
         let flat = race.course.stage_prefs.flat_depth.bits() != 0;

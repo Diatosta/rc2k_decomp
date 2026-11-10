@@ -603,7 +603,7 @@ pub fn shadow_on_face(
             return Ok(());
         }
     }
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(&ctx.view.polygon, race, scene)?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(&ctx.view.polygon, race)?;
     if ctx.view.polygon.polygon_vertex_count.bits() < 3 {
         return Ok(());
     }

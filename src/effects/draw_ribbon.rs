@@ -23,9 +23,9 @@ use crate::d3d::vertices_store::VERTICES;
 const CELLS: u32 = 0x41;
 
 /// The original's 0x4C5EF7 .. 0x4C60E9: the two projected and the ribbon's corners.
-fn ribbon(effects: &crate::effects::owner::Effects, scene: &crate::scene::owner::Scene) {
+fn ribbon(effects: &crate::effects::owner::Effects) {
     let frame = &effects.frame;
-    ribbon_x87(&frame.draw_work, &frame.view_vars, scene);
+    ribbon_x87(&frame.draw_work, &frame.view_vars);
 }
 
 /// The Rust version (see the header): `cell` (eax), `alpha` (ecx), `width` (edx),
@@ -36,7 +36,6 @@ pub fn draw_ribbon(
     alpha: u32,
     width: u32,
     colour: u32,
-    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     if cell >= CELLS {
@@ -69,8 +68,8 @@ pub fn draw_ribbon(
                 return Ok(());
             }
         }
-        ribbon(effects, scene);
-        if clip_quad(scene, effects)? {
+        ribbon(effects);
+        if clip_quad(effects)? {
             return Ok(());
         }
         draw_fan();
@@ -87,25 +86,31 @@ use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;
 
 /// `ribbon`'s x87 block as plain Rust on the x87 model (93 instructions), same order and memory places.
-fn ribbon_x87(dw: &DrawWork, vv: &ViewVars, scene: &crate::scene::owner::Scene) {
-    let t0 = ld(scene.drawing.scene.view_scale.bits());
+fn ribbon_x87(dw: &DrawWork, vv: &ViewVars) {
+    let t0 = ld(crate::scene::polygon_work::front_end()
+        .window
+        .view_scale
+        .bits());
     let t1 = t0 / bh::ld(dw.turned[2].bits());
     let t2 = t1 * bh::ld(dw.turned[0].bits());
     let t3 = t1 * bh::ld(dw.turned[1].bits());
     let t4 = -t3;
-    let t5 = t4 + ld(scene.drawing.scene.view_centre[1].bits());
+    let t5 = t4 + ld(crate::scene::polygon_work::front_end().window.view_centre[1].bits());
     dw.turned[1].set_bits(bh::st(t5));
-    let t6 = t2 + ld(scene.drawing.scene.view_centre[0].bits());
+    let t6 = t2 + ld(crate::scene::polygon_work::front_end().window.view_centre[0].bits());
     dw.turned[0].set_bits(bh::st(t6));
     dw.ends_scale[0].set_bits(bh::st(t1));
-    let t7 = ld(scene.drawing.scene.view_scale.bits());
+    let t7 = ld(crate::scene::polygon_work::front_end()
+        .window
+        .view_scale
+        .bits());
     let t8 = t7 / bh::ld(dw.second[2].bits());
     let t9 = t8 * bh::ld(dw.second[0].bits());
     let t10 = t8 * bh::ld(dw.second[1].bits());
     let t11 = -t10;
-    let t12 = t11 + ld(scene.drawing.scene.view_centre[1].bits());
+    let t12 = t11 + ld(crate::scene::polygon_work::front_end().window.view_centre[1].bits());
     dw.second[1].set_bits(bh::st(t12));
-    let t13 = t9 + ld(scene.drawing.scene.view_centre[0].bits());
+    let t13 = t9 + ld(crate::scene::polygon_work::front_end().window.view_centre[0].bits());
     dw.second[0].set_bits(bh::st(t13));
     dw.ends_scale[1].set_bits(bh::st(t8));
     let t14 = bh::ld(dw.second[0].bits());
@@ -404,7 +409,7 @@ mod asm_differential {
                             &[
                                 0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
                             ],
-                            || super::ribbon_x87(dw, vv, crate::scene::owner::scene()),
+                            || super::ribbon_x87(dw, vv),
                         );
                     });
                 });

@@ -18,7 +18,6 @@ pub fn pong_digit(
     fl: &WindscreenFlakes,
     digit: u32,
     effects: &crate::effects::owner::Effects,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     use rc2k_core::effects::pong as core;
     let first = core::pattern(digit)? as usize;
@@ -30,7 +29,6 @@ pub fn pong_digit(
             col,
             row,
             effects,
-            scene,
         )?;
     }
     pong.state.digit_at[0].set(pong.state.digit_at[0].get().wrapping_add(core::DIGIT_STEP));

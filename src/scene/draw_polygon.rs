@@ -246,15 +246,16 @@ fn place(
     race: &crate::race::owner::Race,
     entries: &[Listed],
     mirrored: bool,
+    window: &crate::scene::view_window::ViewWindow,
 ) {
     let scene = scene();
     let (x_offset, y_offset): (u32, u32) = (
-        scene.drawing.scene.view_offset_float[0].bits(),
-        scene.drawing.scene.view_offset_float[1].bits(),
+        window.view_offset_float[0].bits(),
+        window.view_offset_float[1].bits(),
     );
-    let depth_factor: u32 = scene.drawing.scene.one_over_farthest.bits();
+    let depth_factor: u32 = window.one_over_farthest.bits();
     let sse = scene.draw_switches.use_sse.bits() != 0;
-    let mirror_at: u32 = scene.drawing.scene.view_centre[0].bits();
+    let mirror_at: u32 = window.view_centre[0].bits();
     for (n, &(_, entry)) in entries.iter().enumerate() {
         let vertex = entry.record.get();
         let out = out(n);
@@ -428,7 +429,7 @@ pub fn draw_polygon(
             crate::scene::polygon::list_cell(n).set(number);
         }
     }
-    place(&poly.quad_vertices, race, &entries, mirrored);
+    place(&poly.quad_vertices, race, &entries, mirrored, &poly.window);
 
     if face.faded.bits() != 0 {
         let (mode, texture): (u32, u32) = (face.polygon_mode.bits(), poly.texture_page.bits());

@@ -19,7 +19,6 @@ pub fn draw_particle(
     colour: u32,
     size: u32,
     effects: &crate::effects::owner::Effects,
-    scene: &crate::scene::owner::Scene,
 ) {
     let effects_frame = &effects.frame;
     let turned = x87::column_turn(&place, view_matrix);
@@ -31,9 +30,12 @@ pub fn draw_particle(
         return;
     }
     let k = [
-        scene.drawing.scene.view_scale.bits(),
-        scene.drawing.scene.view_centre[0].bits(),
-        scene.drawing.scene.view_centre[1].bits(),
+        crate::scene::polygon_work::front_end()
+            .window
+            .view_scale
+            .bits(),
+        crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
+        crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
         effects_frame.draw_work.z_k.bits(),
     ];
     let sq = x87::particle_square(a, b, c, k, size as i32);

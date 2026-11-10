@@ -24,7 +24,6 @@ use crate::scene::clip_asm::{
     BYTES_A, BYTES_B, CHECKED, ENTRY_A, ENTRY_B, OUT_1, OUT_2, PLANE, RECORD_A, RECORD_B, Work,
     cut_at_depth, cut_at_x, cut_at_y,
 };
-use crate::scene::owner::scene;
 use crate::scene::polygon::{ENTRIES, ENTRY_LEN, listed};
 use crate::scene::polygon_store::PolygonEntry;
 use crate::scene::project_point::{RECORD_LEN, to_screen};
@@ -93,7 +92,6 @@ fn cut(
     b: &PolygonEntry,
     mask: u32,
 ) -> Result<u32, BadInput> {
-    let drawing = &scene().drawing;
     let number: u32 = poly.polygon_next_entry.bits();
     if number >= ENTRIES {
         return Err(BadInput("no entry left for a new vertex"));
@@ -140,9 +138,9 @@ fn cut(
             let mut point = [0u32; 8];
             point[4..7].copy_from_slice(&w[OUT_1 / 4 + 2..OUT_1 / 4 + 5]);
             let v = [
-                drawing.scene.view_scale.bits(),
-                drawing.scene.view_centre[0].bits(),
-                drawing.scene.view_centre[1].bits(),
+                poly.window.view_scale.bits(),
+                poly.window.view_centre[0].bits(),
+                poly.window.view_centre[1].bits(),
                 course.course.flat_depth.bits(),
             ];
             let flat = course.stage_prefs.flat_depth.bits() != 0;

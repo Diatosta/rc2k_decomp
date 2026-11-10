@@ -91,7 +91,12 @@ pub fn run_snow(
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
             .set_bits(4u32);
-        let inverse = x87::reciprocal(scene.drawing.scene.farthest.bits());
+        let inverse = x87::reciprocal(
+            crate::scene::polygon_work::front_end()
+                .window
+                .farthest
+                .bits(),
+        );
         for r in &s.inverses {
             r.set_bits(inverse);
         }
@@ -116,11 +121,14 @@ pub fn run_snow(
                 s.wide_turn[n][m].set_bits(v.bits());
             }
         }
-        let focal: u32 = scene.drawing.scene.view_scale.bits();
+        let focal: u32 = crate::scene::polygon_work::front_end()
+            .window
+            .view_scale
+            .bits();
         for m in 0..4 {
             s.wide_focal[m].set_bits(focal);
         }
-        crate::effects::draw_snow::draw_snow(weather, scene, effects)?;
+        crate::effects::draw_snow::draw_snow(weather, effects)?;
         crate::scene::depth_test_on::depth_test_on();
     }
     Ok(())

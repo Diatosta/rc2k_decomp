@@ -159,8 +159,7 @@ fn object(
 /// The object's points placed and projected, its normals turned. What the original
 /// leaves in the registers its one caller's callers never read (`draw_object`).
 pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
-    let drawing = &scene.drawing;
+    let race = ctx.race;
     let object = object(race, &ctx.view.cars)?;
     if object.points <= 0 {
         return Ok(());
@@ -193,9 +192,9 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         r[7] = 0;
         if f32::from_bits(r[6]) >= NEAR {
             let v = [
-                drawing.scene.view_scale.bits(),
-                drawing.scene.view_centre[0].bits(),
-                drawing.scene.view_centre[1].bits(),
+                ctx.view.polygon.window.view_scale.bits(),
+                ctx.view.polygon.window.view_centre[0].bits(),
+                ctx.view.polygon.window.view_centre[1].bits(),
                 race.course.course.flat_depth.bits(),
             ];
             let flat = race.course.stage_prefs.flat_depth.bits() != 0;
@@ -234,8 +233,7 @@ fn sse_lanes(p: [f32; 3], m: &[f32; 16], place: bool) -> [u32; 4] {
 pub fn place_object_points_sse(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
-    let drawing = &scene.drawing;
+    let race = ctx.race;
     let object = object(race, &ctx.view.cars)?;
     let m: [f32; 16] = std::array::from_fn(|n| ctx.view.matrices.made_object_matrix[n].get());
     let mut number = object.first;
@@ -253,9 +251,9 @@ pub fn place_object_points_sse(
         r[7] = 0;
         if f32::from_bits(r[6]) >= NEAR {
             let v = [
-                drawing.scene.view_scale.bits(),
-                drawing.scene.view_centre[0].bits(),
-                drawing.scene.view_centre[1].bits(),
+                ctx.view.polygon.window.view_scale.bits(),
+                ctx.view.polygon.window.view_centre[0].bits(),
+                ctx.view.polygon.window.view_centre[1].bits(),
                 race.course.course.flat_depth.bits(),
             ];
             let flat = race.course.stage_prefs.flat_depth.bits() != 0;

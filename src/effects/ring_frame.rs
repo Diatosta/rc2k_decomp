@@ -46,7 +46,7 @@ pub fn ring_frame(
         particles.kind1_choice.choice.set(weather.rain.drops.get());
         crate::effects::run_ring::run_ring(masks, ring, effects, view)?;
         set_render_state(2, 0x14);
-        crate::effects::run_ribbons::run_ribbons(ring, scene, effects, view)?;
+        crate::effects::run_ribbons::run_ribbons(ring, effects, view)?;
     }
     Ok(())
 }

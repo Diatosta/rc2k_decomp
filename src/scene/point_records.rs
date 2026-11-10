@@ -32,8 +32,7 @@ pub type Record = [u32; 8];
 /// by another thread that needs it.
 static RECORDS: crate::workers::PerWorker<[[Dword; 8]; COUNT as usize]> =
     crate::workers::PerWorker::new(
-        [const { [const { [const { Dword::new(0) }; 8] }; COUNT as usize] };
-            crate::workers::COPIES],
+        [const { [const { [const { Dword::new(0) }; 8] }; COUNT as usize] }; crate::workers::COUNT],
     );
 /// The records' copies (`workers`).
 pub fn copies() -> &'static dyn crate::workers::Copies {

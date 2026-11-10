@@ -117,9 +117,10 @@ pub fn lamps_wanted(
     Ok(())
 }
 
-/// The view block `RACE_VIEW.drawn_view` names (`off_63DBB0[]`); refuses an index past the two.
-pub(super) fn drawn_view(shared: &Shared) -> Result<u32, Refused> {
-    let n: u32 = shared.view.drawn_view.bits();
+/// The view block the drawn view `n` names (`off_63DBB0[]`; the original read
+/// `RACE_VIEW.drawn_view`, now the view's own: `ViewScratch::drawn_view`); refuses an index
+/// past the two.
+pub(super) fn drawn_view(shared: &Shared, n: u32) -> Result<u32, Refused> {
     if n > 1 {
         return Err(BadInput("a view past the two").into());
     }
@@ -132,8 +133,9 @@ pub(super) fn drawn_view(shared: &Shared) -> Result<u32, Refused> {
 pub fn view_value(
     race: &Race,
     sun: &crate::scene::polygon_work::ViewSun,
+    view: u32,
 ) -> Result<(u32, u32), Refused> {
-    Ok((drawn_view(&race.shared)?, sun.on_screen.get()))
+    Ok((drawn_view(&race.shared, view)?, sun.on_screen.get()))
 }
 
 /// The value into the view's block +0xFB8 (`view_value`).
@@ -147,8 +149,9 @@ pub fn store_view_value(block: u32, value: u32) -> Result<(), Refused> {
 pub fn fetch_view_value(
     race: &Race,
     sun: &crate::scene::polygon_work::ViewSun,
+    view: u32,
 ) -> Result<(), Refused> {
-    let b = drawn_view(&race.shared)?;
+    let b = drawn_view(&race.shared, view)?;
     sun.view_out.set(car_view(b)?.eased_value.get());
     Ok(())
 }

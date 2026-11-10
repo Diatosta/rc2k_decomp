@@ -78,16 +78,75 @@ pub struct ViewMatrices {
 /// matrix, `physics::move_slot` into a slot's, `drive::set_listener` into the listener's),
 /// and the descriptions the drawing reads (0x3C bytes) take what the physics left. The other
 /// columns are written before they are read on both sides. Exact while the views are drawn
-/// one after another.
+/// one after another. A drawing part other than the first (`workers::draw_parts`) holds from
+/// and puts back into its own columns (`Columns`), started as the list began; what it changed
+/// goes into the store in the parts' order (`merge_columns`).
 pub struct Held<'a> {
     view: &'a ViewMatrices,
     store: &'a SceneMatrices,
 }
 
-fn copy_matrices(from: [&[Float; 16]; 3], to: [&[Float; 16]; 3]) {
-    for (from, to) in from.into_iter().zip(to) {
-        for cell in [3, 7, 11, 15] {
-            to[cell].set_bits(from[cell].bits());
+/// The fourth columns of the turned, lit and made-object matrices, in that order.
+#[derive(Clone, Copy, PartialEq)]
+pub struct Columns([u32; 12]);
+
+const CELLS: [usize; 4] = [3, 7, 11, 15];
+
+fn held(m: &SceneMatrices) -> [&[Float; 16]; 3] {
+    [&m.turned_matrix, &m.lit_matrix, &m.made_object_matrix]
+}
+
+fn view_held(m: &ViewMatrices) -> [&[Float; 16]; 3] {
+    [&m.turned_matrix, &m.lit_matrix, &m.made_object_matrix]
+}
+
+fn read_columns(from: [&[Float; 16]; 3]) -> Columns {
+    Columns(std::array::from_fn(|n| from[n / 4][CELLS[n % 4]].bits()))
+}
+
+fn write_columns(c: &Columns, to: [&[Float; 16]; 3]) {
+    for (n, &value) in c.0.iter().enumerate() {
+        to[n / 4][CELLS[n % 4]].set_bits(value);
+    }
+}
+
+thread_local! {
+    /// The running part's columns, if the thread is drawing a part other than the first.
+    static OWN: std::cell::Cell<Option<Columns>> = const { std::cell::Cell::new(None) };
+}
+
+/// Matrix `m` (0 turned, 1 lit, 2 made-object) as this thread's part has it: the store's
+/// first three columns, the fourth the part's own (`OWN`) in a part other than the first.
+pub fn current_matrix(store: &SceneMatrices, m: usize) -> [u32; 16] {
+    let c = OWN.get();
+    std::array::from_fn(|cell| match (c, CELLS.iter().position(|&k| k == cell)) {
+        (Some(c), Some(row)) => c.0[m * 4 + row],
+        _ => held(store)[m][cell].bits(),
+    })
+}
+
+/// The store's columns now.
+pub fn columns(store: &SceneMatrices) -> Columns {
+    read_columns(held(store))
+}
+
+/// A part begins on this thread, its columns `start`.
+pub fn begin_part(start: Columns) {
+    OWN.set(Some(start));
+}
+
+/// The part on this thread is over: the columns it leaves.
+pub fn end_part() -> Option<Columns> {
+    OWN.take()
+}
+
+/// A part's columns `left` into the store where they differ from `start` (as the copies'
+/// byte merge did).
+pub fn merge_columns(store: &SceneMatrices, start: &Columns, left: &Columns) {
+    let to = held(store);
+    for (n, (&s, &l)) in start.0.iter().zip(&left.0).enumerate() {
+        if s != l {
+            to[n / 4][CELLS[n % 4]].set_bits(l);
         }
     }
 }
@@ -96,29 +155,20 @@ impl ViewMatrices {
     /// The shared turned, lit and made-object matrices' fourth columns taken into the view's
     /// until the returned hold is dropped.
     pub fn hold<'a>(&'a self, store: &'a SceneMatrices) -> Held<'a> {
-        copy_matrices(
-            [
-                &store.turned_matrix,
-                &store.lit_matrix,
-                &store.made_object_matrix,
-            ],
-            [
-                &self.turned_matrix,
-                &self.lit_matrix,
-                &self.made_object_matrix,
-            ],
-        );
+        let c = OWN.get().unwrap_or_else(|| columns(store));
+        write_columns(&c, view_held(self));
         Held { view: self, store }
     }
 }
 
 impl Drop for Held<'_> {
     fn drop(&mut self) {
-        let (v, s) = (self.view, self.store);
-        copy_matrices(
-            [&v.turned_matrix, &v.lit_matrix, &v.made_object_matrix],
-            [&s.turned_matrix, &s.lit_matrix, &s.made_object_matrix],
-        );
+        let c = read_columns(view_held(self.view));
+        if OWN.get().is_some() {
+            OWN.set(Some(c));
+        } else {
+            write_columns(&c, held(self.store));
+        }
     }
 }
 

@@ -35,19 +35,18 @@ fn float_of_80(t: [u8; 10]) -> u32 {
 pub(crate) fn project_record(
     course: &Course,
     v: &mut crate::scene::point_records::Record,
-    scene: &crate::scene::owner::Scene,
+    window: &crate::scene::view_window::ViewWindow,
 ) {
-    let drawing = &scene.drawing;
     use crate::math::x87_float::{ONE, int, ld, st};
     let (x, y, z) = (ld(v[4]), ld(v[5]), ld(v[6]));
-    let reach = ld(drawing.scene.view_scale.bits());
+    let reach = ld(window.view_scale.bits());
     let scale = if course.stage_prefs.flat_depth.get() != 0 {
         reach / (int(course.course.flat_depth.get() as i32) + ONE)
     } else {
         reach / z
     };
-    v[3] = st(x * scale + ld(drawing.scene.view_centre[0].bits()));
-    v[7] = st(-(y * scale) + ld(drawing.scene.view_centre[1].bits()));
+    v[3] = st(x * scale + ld(window.view_centre[0].bits()));
+    v[7] = st(-(y * scale) + ld(window.view_centre[1].bits()));
 }
 
 /// A skidmark point turned and projected: its vertex record's +0xC .. +0x20.
@@ -83,7 +82,7 @@ fn turn_skid_point(
     matrix: &[u32; 15],
     n: u32,
 ) -> Result<Turned, BadInput> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     {
         let points = &race.frame.shadow_skids.skid_points;
         let at = n as usize * 0xC;
@@ -102,7 +101,7 @@ fn turn_skid_point(
         let mut made = [0u32; 8];
         made[4..7].copy_from_slice(&t.map(st));
         if !crate::math::x87_load::below_or_unordered(made[6], race.course.numbers.k4096_a.bits()) {
-            project_record(&race.course, &mut made, scene);
+            project_record(&race.course, &mut made, &ctx.view.polygon.window);
         }
         Ok(Turned {
             words: made[3..8].try_into().expect("5 dwords"),
@@ -123,7 +122,7 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
     let mut views = u32::MAX;
     let mode: u32 = race.shared.vars.run_kind.get();
     if mode != 0 && mode != 2 {
-        views = 1u32.wrapping_shl(race.shared.view.drawn_view.get() & 0x1F);
+        views = 1u32.wrapping_shl(ctx.view.drawn_view(race) & 0x1F);
     }
     frame.shadow_skids.skid_views.set(views);
     let entries = &crate::scene::polygon_store::POLYGON_WORK.entries[..4];
@@ -214,11 +213,7 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
         if ctx.view.polygon.polygon_vertex_count.get() < 3 {
             continue;
         }
-        crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(
-            &ctx.view.polygon,
-            race,
-            scene,
-        )?;
+        crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(&ctx.view.polygon, race)?;
         if ctx.view.polygon.polygon_vertex_count.get() >= 3 {
             ctx.view.polygon.polygon_colour.set(0u32);
             crate::scene::depth_test_off::depth_test_off();
@@ -383,15 +378,23 @@ mod asm_reference {
         let _l = lock();
         let _saved = Saved::new(&[0x62400C, 0x5CCD80, 0x624088, 0x6240A0, 0x62409C, 0x60932C]);
         let mut r = Rng(4);
+        let win = crate::scene::view_window::ViewWindow::new();
         at_each_control_word(|| {
             for n in 0..20000 {
                 let flat = n % 2 == 0;
                 {
                     course.stage_prefs.flat_depth.set(flat as u32);
                     course.course.flat_depth.set(r.int() as u32);
-                    drawing.scene.view_scale.set_bits(r.float());
-                    drawing.scene.view_centre[1].set_bits(r.float());
-                    drawing.scene.view_centre[0].set_bits(r.float());
+                    // The assembly reads the old window; the Rust version the window it is given.
+                    for (old, own) in [
+                        (&drawing.scene.view_scale, &win.view_scale),
+                        (&drawing.scene.view_centre[1], &win.view_centre[1]),
+                        (&drawing.scene.view_centre[0], &win.view_centre[0]),
+                    ] {
+                        let value = r.float();
+                        old.set_bits(value);
+                        own.set_bits(value);
+                    }
                     drawing.scene.scratch.set(0xAAAA_AAAAu32);
                 }
                 let mut a = [0xAAAA_AAAAu32; 8];
@@ -401,7 +404,7 @@ mod asm_reference {
                 let mut b = a;
                 let _r = crate::race::trap::test_region(&a);
                 unsafe { project_vertex_asm(crate::pointers::game_address(a.as_mut_ptr()), flat) };
-                project_record(course, &mut b, crate::scene::owner::scene());
+                project_record(course, &mut b, &win);
                 for k in 0..8 {
                     assert!(
                         same_bits(a[k], b[k]),

@@ -18,15 +18,17 @@ use crate::menu::screen_loop::{
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
-    let drawing = &entry.scene.drawing;
     let screens = &entry.menus.screens;
-    drawing.scene.view_offset[0].set(0xFFFFFF64u32);
-    drawing.scene.view_offset[1].set(0x29u32);
-    drawing.scene.view_zoom.set(0x140u32);
+    crate::scene::polygon_work::front_end().window.view_offset[0].set(0xFFFFFF64u32);
+    crate::scene::polygon_work::front_end().window.view_offset[1].set(0x29u32);
+    crate::scene::polygon_work::front_end()
+        .window
+        .view_zoom
+        .set(0x140u32);
     prepare_scene(entry.scene);
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0x8u32);
-    carousel(None, entry.scene)?;
+    carousel(None)?;
     let item = screens.items.current[slot::PLAYER_DETAILS].get();
     screens.loop_flags.item.set(item);
     screens.state.carousel.front.set(item.wrapping_sub(1));

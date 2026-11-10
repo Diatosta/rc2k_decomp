@@ -27,7 +27,6 @@ pub fn draw_turned_sprite(
     colour: u32,
     size: u32,
     place: [[u8; 10]; 3],
-    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     if angle >= ANGLES {
@@ -49,9 +48,12 @@ pub fn draw_turned_sprite(
         }
         let colour = colour | 0xFF_FFFF;
         let k = [
-            scene.drawing.scene.view_scale.bits(),
-            scene.drawing.scene.view_centre[0].bits(),
-            scene.drawing.scene.view_centre[1].bits(),
+            crate::scene::polygon_work::front_end()
+                .window
+                .view_scale
+                .bits(),
+            crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
+            crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
             effects.frame.draw_work.z_k.bits(),
         ];
         let sin = crate::scene::engine_tables_store::sine(angle as usize).bits();
@@ -69,7 +71,7 @@ pub fn draw_turned_sprite(
         for (n, v) in sq[2..6].iter().enumerate() {
             effects.frame.draw_work.sprite_half[n].set_bits(*v);
         }
-        if clip_quad(scene, effects)? {
+        if clip_quad(effects)? {
             return Ok(());
         }
         draw_fan();

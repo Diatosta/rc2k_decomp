@@ -239,6 +239,51 @@ fn block_put(off: usize, bytes: &[u8]) {
         .unwrap();
 }
 
+/// The view window's fields the assembly reads in the scene draw store (IDA 0x623F80 ..) and the
+/// race view (`view_depth`, 0x63DC54), and their twins in the front end's window
+/// (`scene::view_window`), which the Rust versions read: (RVA, length, twin's game
+/// address).
+fn window_twins() -> Vec<(usize, usize, u32)> {
+    use crate::race::view_store::RaceView;
+    use crate::scene::draw_store::SceneDraw;
+    use core::mem::{offset_of, size_of_val};
+    let w = &crate::scene::polygon_work::front_end().window;
+    let twin =
+        |ida: usize, len: usize, cell: *const u8| (ida, len, crate::pointers::game_address(cell));
+    macro_rules! scene_field {
+        ($f:ident) => {
+            twin(
+                0x223F80 + offset_of!(SceneDraw, $f),
+                size_of_val(&w.$f),
+                core::ptr::from_ref(&w.$f).cast(),
+            )
+        };
+    }
+    vec![
+        scene_field!(view_offset),
+        scene_field!(view_zoom),
+        scene_field!(unknown_104),
+        scene_field!(view_scale),
+        scene_field!(view_size),
+        scene_field!(view_middle),
+        scene_field!(view_centre),
+        scene_field!(farthest),
+        scene_field!(one_over_farthest),
+        scene_field!(farthest_scaled),
+        scene_field!(clip_edges),
+        scene_field!(clip_screen),
+        scene_field!(view_offset_float),
+        scene_field!(faces_done),
+        scene_field!(depth_divisor),
+        scene_field!(clip_farthest),
+        twin(
+            0x23D9B8 + offset_of!(RaceView, view_depth),
+            size_of_val(&w.view_depth),
+            core::ptr::from_ref(&w.view_depth).cast(),
+        ),
+    ]
+}
+
 /// Each listed write of the race block operands: its place and kind, and its bytes now.
 #[allow(clippy::type_complexity)] // reason: a test's one-off list
 fn block_outputs(spec: &Spec) -> Vec<((usize, Kind), Vec<u8>)> {
@@ -255,6 +300,15 @@ fn block_outputs(spec: &Spec) -> Vec<((usize, Kind), Vec<u8>)> {
 
 /// The race block's listed places as they were before a test (put back when it ends).
 struct PutBack(Vec<(usize, Vec<u8>)>);
+
+/// The front end's window as it was before a test (put back when it ends).
+struct WindowBack(crate::scene::view_window::ViewWindow);
+
+impl Drop for WindowBack {
+    fn drop(&mut self) {
+        crate::pointers::Cells::copy_from(&crate::scene::polygon_work::front_end().window, &self.0);
+    }
+}
 
 impl Drop for PutBack {
     fn drop(&mut self) {
@@ -285,6 +339,10 @@ pub fn differential<R: PartialEq + std::fmt::Debug>(
         }
     }
     let _put_back = PutBack(saved);
+    // The front end's window, which the laid inputs' twins overwrite, put back at the end.
+    let window = crate::scene::view_window::ViewWindow::new();
+    crate::pointers::Cells::copy_from(&window, &crate::scene::polygon_work::front_end().window);
+    let _window_back = WindowBack(window);
     // The race block's places the reference reads or writes (IDA's addresses), laid into
     // their old places around it (`race::store::OldPlaces`).
     let old_places: Vec<usize> = spec
@@ -356,9 +414,17 @@ pub fn differential<R: PartialEq + std::fmt::Debug>(
                     }
                 }
             }
+            let twins = window_twins();
             let lay = || {
                 for (off, b) in &block_in {
                     block_put(*off, b);
+                }
+                // What the assembly reads of the window, the Rust versions read in its twin.
+                for &(ida, len, twin) in &twins {
+                    let bytes = block_get(ida, len);
+                    crate::pointers::GamePtr::new(twin)
+                        .write_bytes(&bytes, "the front end's window")
+                        .unwrap();
                 }
             };
             lay();

@@ -386,11 +386,10 @@ pub fn forget_states() {
 }
 
 fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
-    let d3d = d3d();
     if vertices.len() < 3 {
         return;
     }
-    let current: u32 = d3d.cards.current_texture.get();
+    let current: u32 = crate::d3d::render_cache::texture();
     let record = (current < MOST)
         .then(|| record_at(1, current).get())
         .filter(|r| r.format != 0);
@@ -427,9 +426,11 @@ fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
             })
         }),
         vertices: vertices.into(),
-        states: std::sync::Arc::clone(pending.states.get_or_insert_with(|| {
-            std::sync::Arc::new(std::array::from_fn(|n| d3d.cards.kept_states[n].get()))
-        })),
+        states: std::sync::Arc::clone(
+            pending
+                .states
+                .get_or_insert_with(|| std::sync::Arc::new(crate::d3d::render_cache::all_kept())),
+        ),
         bounds,
     });
 }
@@ -892,7 +893,7 @@ pub fn begin_layer() {
         crate::d3d::set_render_state::set_render_state(value, state);
     }
     // 0x41ACDE: no texture is the current one, then none is set.
-    d3d.cards.current_texture.set(0xFFFF_FC44u32);
+    crate::d3d::render_cache::set_texture(0xFFFF_FC44u32);
     crate::d3d::set_texture::set_texture(NO_TEXTURE);
 }
 

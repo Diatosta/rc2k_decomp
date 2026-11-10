@@ -53,10 +53,7 @@ fn copy_vertex(from: &Vertex, to: &Vertex) {
 /// The quad is the polygon vertices' first four (`g_polygonVertices`, every caller's);
 /// the original stepped its vertex offsets by 0x20 and masked them with 0x7F, here the
 /// vertex numbers wrap at 4.
-pub fn clip_quad(
-    _scene: &crate::scene::owner::Scene,
-    effects: &crate::effects::owner::Effects,
-) -> Result<bool, Refused> {
+pub fn clip_quad(effects: &crate::effects::owner::Effects) -> Result<bool, Refused> {
     {
         let settings: u32 = effects.setup.settings.is_set.get();
         if settings == 0 {

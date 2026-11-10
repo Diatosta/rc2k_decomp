@@ -9,11 +9,7 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 
 /// The Rust version (see the header).
-pub fn loading_bar_quad(
-    race: &Race,
-    _scene: &crate::scene::owner::Scene,
-    system: &crate::system::owner::System,
-) -> Result<(), Refused> {
+pub fn loading_bar_quad(race: &Race, system: &crate::system::owner::System) -> Result<(), Refused> {
     let shared = &race.shared;
     let session = &system.session;
     // Converted: `rc2k_core::race::loading::loading_bar`.

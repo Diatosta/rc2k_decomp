@@ -25,15 +25,14 @@ fn turn(weather: &Weather, p: &[[u8; 10]; 3]) {
 }
 
 /// The original's 0x4C1F4A .. 0x4C20B3: both projected and the quad's x, y and depth.
-fn project(weather: &Weather, scene: &crate::scene::owner::Scene) {
-    project_x87(&weather.rain, &weather.rain_rules, scene);
+fn project(weather: &Weather) {
+    project_x87(&weather.rain, &weather.rain_rules);
 }
 
 /// The Rust version (see the header).
 pub fn draw_rain_streak(
     weather: &Weather,
     place: [[u8; 10]; 3],
-    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let rain = &weather.rain;
@@ -48,8 +47,8 @@ pub fn draw_rain_streak(
         {
             return Ok(());
         }
-        project(weather, scene);
-        if clip_quad(scene, effects)? {
+        project(weather);
+        if clip_quad(effects)? {
             return Ok(());
         }
         draw_fan();
@@ -126,11 +125,21 @@ fn turn_x87(p: &[[u8; 10]; 3], r: &RainState) {
 }
 
 /// `project`'s x87 block as plain Rust on the x87 model (85 instructions), same order and memory places.
-fn project_x87(r: &RainState, k: &RainRules, scene: &crate::scene::owner::Scene) {
+fn project_x87(r: &RainState, k: &RainRules) {
     let t0 = bh::ld(r.second[2].bits());
-    let t1 = bh::ld(scene.drawing.scene.view_scale.bits()) / t0;
+    let t1 = bh::ld(
+        crate::scene::polygon_work::front_end()
+            .window
+            .view_scale
+            .bits(),
+    ) / t0;
     let t2 = bh::ld(r.turned[2].bits());
-    let t3 = bh::ld(scene.drawing.scene.view_scale.bits()) / t2;
+    let t3 = bh::ld(
+        crate::scene::polygon_work::front_end()
+            .window
+            .view_scale
+            .bits(),
+    ) / t2;
     let t4 = bh::ld(r.second[0].bits());
     let t5 = bh::ld(r.second[1].bits());
     let t6 = bh::ld(r.turned[0].bits());
@@ -141,20 +150,26 @@ fn project_x87(r: &RainState, k: &RainRules, scene: &crate::scene::owner::Scene)
     let t11 = t7 * t3;
     let t12 = t1 * bh::ld(k.view_scale[0].to_bits());
     let t13 = t3 * bh::ld(k.view_scale[1].to_bits());
-    let t14 = t8 + bh::ld(scene.drawing.scene.view_centre[0].bits());
+    let t14 = t8 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[0].bits());
     r.ends[0][0].set_bits(bh::st(t14));
     let t15 = -t9;
-    let t16 = t15 + bh::ld(scene.drawing.scene.view_centre[1].bits());
+    let t16 = t15 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[1].bits());
     r.ends[0][1].set_bits(bh::st(t16));
-    let t17 = t10 + bh::ld(scene.drawing.scene.view_centre[0].bits());
+    let t17 = t10 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[0].bits());
     r.ends[1][0].set_bits(bh::st(t17));
     let t18 = -t11;
-    let t19 = t18 + bh::ld(scene.drawing.scene.view_centre[1].bits());
+    let t19 = t18 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[1].bits());
     r.ends[1][1].set_bits(bh::st(t19));
     r.ends[0][2].set_bits(bh::st(t12));
     r.ends[1][2].set_bits(bh::st(t13));
     let t20 = bh::ONE;
-    let t21 = t20 / bh::ld(scene.drawing.scene.farthest.bits());
+    let t21 = t20
+        / bh::ld(
+            crate::scene::polygon_work::front_end()
+                .window
+                .farthest
+                .bits(),
+        );
     let t22 = bh::ld(r.ends[1][0].bits());
     let t23 = t22 - bh::ld(r.ends[0][0].bits());
     r.edge_a[1].set_bits(bh::st(t23));
@@ -579,7 +594,7 @@ mod asm_differential {
                         &[
                             0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
                         ],
-                        || super::project_x87(r, k, crate::scene::owner::scene()),
+                        || super::project_x87(r, k),
                     );
                 });
             },

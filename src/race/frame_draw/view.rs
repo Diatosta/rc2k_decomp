@@ -86,8 +86,9 @@ pub fn fog_table(
     fog: &crate::scene::fog::Fog,
     car: &crate::physics::car_store::Car,
     sun: &crate::scene::polygon_work::ViewSun,
+    window: &crate::scene::view_window::ViewWindow,
 ) -> Result<(), Refused> {
-    let length = race.shared.view.view_depth[1].get().wrapping_shl(3);
+    let length = window.view_depth[1].get().wrapping_shl(3);
     if length == 0 || length > 0x1000 {
         return Err(BadInput("a fog table length of 0 or past 0x1000").into());
     }
@@ -128,7 +129,7 @@ pub fn set_up_fog(
     car: &crate::physics::car_store::Car,
 ) -> Result<(), Refused> {
     let course = &race.course;
-    let length = race.shared.view.view_depth[1].get().wrapping_shl(3);
+    let length = poly.window.view_depth[1].get().wrapping_shl(3);
     if length == 0 || length > 0x1000 {
         return Err(BadInput("a fog table length of 0 or past 0x1000").into());
     }
@@ -143,7 +144,7 @@ pub fn set_up_fog(
         course.stage_prefs.fog_colour[2].bits(),
     );
     fog.colour.set_bits(colour);
-    fog_table(race, fog, car, &poly.sun)?;
+    fog_table(race, fog, car, &poly.sun, &poly.window)?;
     crate::scene::set_fog_colour::set_fog_colour(
         rc2k_core::race::view::device_fog_colour(fog.colour.bits()),
         poly,
@@ -165,7 +166,7 @@ pub fn place_view(
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), BadInput> {
     use crate::math::x87::from_int;
-    let place = &race.frame.view_and_records.view_vars.view_place;
+    let place = &view.vars.view_place;
     let own = &view.state;
     place[0].set(race.course.course.place_x.bits());
     place[1].set(race.course.course.place_y.bits());
@@ -175,16 +176,15 @@ pub fn place_view(
     own.view_place[2].set(race.course.course.place_z.bits());
     let zero = || {
         for a in [2, 4, 3, 5] {
-            race.frame.view_and_records.view_vars.view_angles[a].set_bits(0);
+            view.vars.view_angles[a].set_bits(0);
             own.view_angles[a].set_bits(0);
         }
     };
     if race.course.stage_prefs.flat_depth.get() != 0 {
         let at = &view.car.camera_position[1];
         at.set(at.get().wrapping_add(race.course.course.flat_depth.bits()));
-        race.frame.view_and_records.view_vars.view_angles[0]
-            .set_bits(race.course.course.place_heading.get());
-        race.frame.view_and_records.view_vars.view_angles[1].set(0x4000_0000u32);
+        view.vars.view_angles[0].set_bits(race.course.course.place_heading.get());
+        view.vars.view_angles[1].set(0x4000_0000u32);
         own.view_angles[0].set_bits(race.course.course.place_heading.get());
         own.view_angles[1].set(0x4000_0000u32);
         zero();
@@ -201,24 +201,16 @@ pub fn place_view(
     own.view_place[0].set(own.view_place[0].get().wrapping_add(x2));
     own.view_place[1].set(own.view_place[1].get().wrapping_add(z1));
     own.view_place[2].set(own.view_place[2].get().wrapping_add(z2));
-    race.frame.view_and_records.view_vars.view_angles[0].set_bits(second);
-    race.frame.view_and_records.view_vars.view_angles[1].set(first);
+    view.vars.view_angles[0].set_bits(second);
+    view.vars.view_angles[1].set(first);
     own.view_angles[0].set_bits(second);
     own.view_angles[1].set(first);
     zero();
-    race.frame
-        .view_and_records
-        .view_vars
-        .view_x
-        .set(place[0].get());
-    race.frame.view_and_records.view_vars.view_place_f[0].set_bits(from_int(place[0].get() as i32));
-    race.frame.view_and_records.view_vars.view_place_f[1].set_bits(from_int(place[1].get() as i32));
-    race.frame
-        .view_and_records
-        .view_vars
-        .view_z
-        .set(place[2].get());
-    race.frame.view_and_records.view_vars.view_place_f[2].set_bits(from_int(place[2].get() as i32));
+    view.vars.view_x.set(place[0].get());
+    view.vars.view_place_f[0].set_bits(from_int(place[0].get() as i32));
+    view.vars.view_place_f[1].set_bits(from_int(place[1].get() as i32));
+    view.vars.view_z.set(place[2].get());
+    view.vars.view_place_f[2].set_bits(from_int(place[2].get() as i32));
     Ok(())
 }
 
@@ -227,8 +219,7 @@ pub fn place_view(
 /// the copy with the place (`g_turnedMatrix`) scaled by (`DRAW.farthest_scaled` << 4) / 16
 /// (`OBJECT_WORK.size`), times `g_viewTurnMatrix`.
 pub fn sky_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
-    let (race, scene) = (ctx.race, ctx.scene);
-    let drawing = &scene.drawing;
+    let race = ctx.race;
     use crate::scene::matrix;
     let angle = (race.course.stage_prefs.sky_turn.get() << 8).wrapping_neg();
     let m = &ctx.view.matrices;
@@ -239,7 +230,7 @@ pub fn sky_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Ba
     ctx.view.object.place[1].set(height);
     matrix::set_place(&m.placed_matrix, [0, height, 0]);
     matrix::copy_matrix_with_place(&m.turn_y_matrix, &m.placed_matrix, &m.turned_matrix);
-    let size = drawing.scene.farthest_scaled.get() << 4;
+    let size = ctx.view.polygon.window.farthest_scaled.get() << 4;
     ctx.view.object.size.set(size);
     let scale = crate::math::x87::int_over_16(size as i32);
     for cell in &m.turned_matrix {
@@ -275,15 +266,22 @@ pub fn view_matrices(
     m: &ViewMatrices,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), BadInput> {
+    // (Handed on to what reads them outside the drawing, the listener and the car sounds,
+    // on the game's thread in the views' order: `hand_on_view_matrices`.)
     view_own_matrices(
         race,
         m,
         &view.state,
         &view.car,
         view.polygon.view_mirrored.get() != 0,
-    )?;
-    // Handed on to what reads them outside the drawing (the effects, the listener, the car
-    // sounds), as the original's were.
+    )
+}
+
+/// A drawn view's matrices into the shared ones (`race().frame.matrices`), read outside the
+/// drawing (the listener before any view, the car sounds before the first view's turn is
+/// kept) as the original's were: the game's thread, once the view is drawn, in the views'
+/// order (`race::draw_race_scene`'s `view_drawn`; no drawing part reads them).
+pub fn hand_on_view_matrices(race: &Race, m: &ViewMatrices) {
     let shared = &race.frame.matrices;
     for (own, to) in [
         (&m.view_turn_matrix, &shared.view_turn_matrix),
@@ -293,7 +291,6 @@ pub fn view_matrices(
     ] {
         crate::math::cells::copy_cells(own, to, 16);
     }
-    Ok(())
 }
 
 /// `view_matrices` into the view's own matrices.
@@ -400,37 +397,25 @@ pub fn camera_view(
     let own = &view.state;
     // The place and angles as they are (the camera's, or what the view before left: the
     // mirror's way sets neither, and its objects turn by the main view's angles).
-    let vars = &race.frame.view_and_records.view_vars;
+    let vars = &view.vars;
     crate::math::cells::copy_cells(&vars.view_place, &own.view_place, 3);
     crate::math::cells::copy_cells(&vars.view_angles, &own.view_angles, 6);
     own.view_car_flag_a.set(view.car.camera_switch_share.bits());
     own.view_car_stage.set(view.car.camera_view.get());
-    race.frame
-        .view_and_records
-        .view_vars
+    view.vars
         .view_car_flag_b
         .set(view.car.camera_mode_is_2_or_3.get());
-    race.frame
-        .view_and_records
-        .view_vars
+    view.vars
         .view_car_flag_a
         .set(view.car.camera_switch_share.bits());
-    race.frame
-        .view_and_records
-        .view_vars
-        .view_car_stage
-        .set(view.car.camera_view.get());
+    view.vars.view_car_stage.set(view.car.camera_view.get());
     if race.shared.switches.other_way.get() == 0 {
         place_view(race, view)?;
         view_matrices(race, m, view)?;
         return Ok(());
     }
     let place: [u32; 3] = if view.polygon.view_mirrored.get() == 0 {
-        race.frame
-            .view_and_records
-            .view_vars
-            .view_scale
-            .set_bits(view.car.camera_zoom.bits());
+        view.vars.view_scale.set_bits(view.car.camera_zoom.bits());
         for (from, to) in [
             (&view.car.camera_heading, 0usize),
             (&view.car.camera_pitch, 1),
@@ -439,7 +424,7 @@ pub fn camera_view(
             (&view.car.camera_offset_turns[0], 4),
             (&view.car.camera_offset_turns[2], 5),
         ] {
-            race.frame.view_and_records.view_vars.view_angles[to].set_bits(from.get());
+            view.vars.view_angles[to].set_bits(from.get());
             own.view_angles[to].set_bits(from.get());
         }
         crate::session::read_bits(&view.car.camera_position)
@@ -454,26 +439,24 @@ pub fn camera_view(
         kept[0].set(view.car.position[0].get());
         kept[1].set(view.car.position[1].get().wrapping_add(0x8000));
         kept[2].set(view.car.position[2].get());
-        race.frame
-            .view_and_records
-            .view_vars
+        view.vars
             .view_scale
-            .set_bits(race.frame.view_and_records.view_vars.view_scale_kept.bits());
+            .set_bits(view.vars.view_scale_kept.bits());
         [kept[0].get(), kept[1].get(), kept[2].get()]
     };
     for (k, &p) in place.iter().enumerate() {
         view.car.kept_view_place[k].set(p);
-        race.frame.view_and_records.view_vars.view_place[k].set(p);
+        view.vars.view_place[k].set(p);
     }
-    race.frame.view_and_records.view_vars.view_x.set(place[0]);
-    race.frame.view_and_records.view_vars.view_z.set(place[2]);
+    view.vars.view_x.set(place[0]);
+    view.vars.view_z.set(place[2]);
     for (k, &p) in place.iter().enumerate() {
         own.view_place[k].set(p);
     }
-    race.frame.view_and_records.view_vars.view_place_f[0].set_bits(from_int(place[0] as i32));
-    race.frame.view_and_records.view_vars.view_place_f[1].set_bits(from_int(place[1] as i32));
-    race.frame.view_and_records.view_vars.view_place_f[2].set_bits(from_int(place[2] as i32));
-    crate::scene::set_view_window::set_view_window(race, scene);
+    view.vars.view_place_f[0].set_bits(from_int(place[0] as i32));
+    view.vars.view_place_f[1].set_bits(from_int(place[1] as i32));
+    view.vars.view_place_f[2].set_bits(from_int(place[2] as i32));
+    crate::scene::set_view_window::set_view_window(race, scene, &view.polygon.window, &view.vars);
     view_matrices(race, m, view)?;
     Ok(())
 }
@@ -491,7 +474,7 @@ pub fn camera_view(
 pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
     let system = crate::system::owner::system();
-    fetch_view_value(race, &ctx.view.polygon.sun)?;
+    fetch_view_value(race, &ctx.view.polygon.sun, ctx.view.drawn_view(race))?;
     // Not left from the previous view's last object (the original's slip, fixed:
     // `wiki/Fixed-bugs.md`).
     ctx.view.light.other_light.set_bits(0);
@@ -534,9 +517,8 @@ fn place_sun(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     let session = &system.session;
-    let drawing = &scene.drawing;
     use crate::math::x87_load::{sun_direction, sun_on_screen, sun_size, tbyte_to_int, to_tbyte};
     let sun = &ctx.view.polygon.sun;
     sun.on_screen.set(0);
@@ -582,9 +564,9 @@ fn place_sun(
         place[1],
         place[2],
         race.course.course.flat_depth.get(),
-        drawing.scene.view_scale.bits(),
-        drawing.scene.view_centre[1].bits(),
-        drawing.scene.view_centre[0].bits(),
+        ctx.view.polygon.window.view_scale.bits(),
+        ctx.view.polygon.window.view_centre[1].bits(),
+        ctx.view.polygon.window.view_centre[0].bits(),
     ];
     let [fx, ix, fy, iy] = sun_on_screen(&v, flat, &crate::session::Dword::new(0));
     sun.place[0].set(fx);
@@ -595,9 +577,9 @@ fn place_sun(
     sun.on_screen.set(u32::from(on));
     let size = sun_size(
         fx,
-        drawing.scene.view_centre[0].bits(),
+        ctx.view.polygon.window.view_centre[0].bits(),
         fy,
-        drawing.scene.view_centre[1].bits(),
+        ctx.view.polygon.window.view_centre[1].bits(),
         race.course.numbers.half.bits(),
         race.course.numbers.k256.bits(),
     );

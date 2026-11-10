@@ -31,8 +31,8 @@ pub struct Shared {
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
     pub vars: RaceVars,
     /// `RACE_VIEW` (`race`).
-    /// One copy per drawing thread (`workers`).
-    pub view: crate::workers::PerWorker<RaceView>,
+    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
+    pub view: RaceView,
     /// `FRAME_SWITCHES` (`race`).
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
     pub switches: FrameSwitches,
@@ -59,9 +59,7 @@ impl Shared {
             buffers: Buffers::new(),
             tyre_change: TyreChange::new(),
             vars: RaceVars::new(),
-            view: crate::workers::PerWorker::new(
-                [const { RaceView::new() }; crate::workers::COPIES],
-            ),
+            view: RaceView::new(),
             switches: FrameSwitches::new(),
             replay_file: ReplayFileBlock::new(),
             replay_templates: Templates::new(),

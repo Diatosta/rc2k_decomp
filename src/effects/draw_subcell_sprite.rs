@@ -36,8 +36,8 @@ fn turn(
 
 /// The original's 0x4CC009 .. 0x4CC140 (its integer moves done before): the square about
 /// the projected place.
-fn square(effects: &crate::effects::owner::Effects, scene: &crate::scene::owner::Scene) {
-    square_x87(&effects.frame.draw_work, scene);
+fn square(effects: &crate::effects::owner::Effects) {
+    square_x87(&effects.frame.draw_work);
 }
 
 /// The Rust version (see the header): `subcell` (eax), `size` (edx, a float's bits),
@@ -54,7 +54,6 @@ pub fn draw_subcell_sprite(
     size: u32,
     entry: u32,
     place: [[u8; 10]; 3],
-    scene: &crate::scene::owner::Scene,
     view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<(), Refused> {
     if subcell >= SUBCELLS {
@@ -89,8 +88,8 @@ pub fn draw_subcell_sprite(
         VERTICES.vertices[n].u.set_bits(u);
         VERTICES.vertices[n].v.set_bits(v);
     }
-    square(effects, scene);
-    if clip_quad(scene, effects)? {
+    square(effects);
+    if clip_quad(effects)? {
         return Ok(());
     }
     draw_fan();
@@ -144,8 +143,11 @@ fn turn_x87(view_matrix: &[Float; 16], p: &[[u8; 10]; 3], w: &RingWork, dw: &Dra
 }
 
 /// `square`'s x87 block as plain Rust on the x87 model (41 instructions), same order and memory places.
-fn square_x87(dw: &DrawWork, scene: &crate::scene::owner::Scene) {
-    let t0 = ld(scene.drawing.scene.view_scale.bits());
+fn square_x87(dw: &DrawWork) {
+    let t0 = ld(crate::scene::polygon_work::front_end()
+        .window
+        .view_scale
+        .bits());
     let t1 = t0 / bh::ld(dw.turned[2].bits());
     let t2 = bh::ld(dw.turned[2].bits());
     let t3 = t2 * bh::ld(dw.z_k.bits());
@@ -160,7 +162,7 @@ fn square_x87(dw: &DrawWork, scene: &crate::scene::owner::Scene) {
     let t6 = t1 * bh::ld(dw.turned[0].bits());
     let t7 = t1 * bh::ld(dw.turned[1].bits());
     let t8 = -t7;
-    let t9 = t8 + ld(scene.drawing.scene.view_centre[1].bits());
+    let t9 = t8 + ld(crate::scene::polygon_work::front_end().window.view_centre[1].bits());
     let t10 = t9 - bh::ld(dw.half[1].bits());
     st_cell(&VERTICES.vertices[0].y, t10);
     let t11 = t9 - bh::ld(dw.half[1].bits());
@@ -169,7 +171,7 @@ fn square_x87(dw: &DrawWork, scene: &crate::scene::owner::Scene) {
     st_cell(&VERTICES.vertices[2].y, t12);
     let t13 = t9 + bh::ld(dw.half[1].bits());
     st_cell(&VERTICES.vertices[3].y, t13);
-    let t14 = t6 + ld(scene.drawing.scene.view_centre[0].bits());
+    let t14 = t6 + ld(crate::scene::polygon_work::front_end().window.view_centre[0].bits());
     let t15 = t14 - bh::ld(dw.half[0].bits());
     st_cell(&VERTICES.vertices[0].x, t15);
     let t16 = t14 + bh::ld(dw.half[0].bits());
@@ -443,7 +445,7 @@ mod asm_differential {
                         &[
                             0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
                         ],
-                        || super::square_x87(dw, crate::scene::owner::scene()),
+                        || super::square_x87(dw),
                     );
                 });
             },

@@ -25,7 +25,6 @@ pub fn draw_object_faces(
     work: &crate::race::face_work::FaceWork,
     list: &crate::scene::face_list::FaceList,
     draw: &mut dyn FnMut(usize) -> Result<(), Refused>,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     if list.is_empty() {
         return Ok(());
@@ -58,6 +57,6 @@ pub fn draw_object_faces(
         draw(face)?;
         poly.polygon_colour.set_bits(0x00FF_FFFFu32);
     }
-    scene.drawing.scene.faces_done.set_bits(0u32);
+    poly.window.faces_done.set_bits(0u32);
     Ok(())
 }

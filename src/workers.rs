@@ -1,14 +1,14 @@
 //! The drawing's threads (the optimisation phase's multi-core drawing, `notes/conversion.md`):
-//! parts of a frame (the rear-view mirror and its view) drawn by several threads at once, each
-//! on its own copy of the drawing's working state, the copies' changes put back in the parts'
-//! order afterwards, so the frame is what one thread draws.
+//! parts of a frame (the players' views and their mirrors) drawn by several threads at once,
+//! so the frame is what one thread draws. Each view draws on its own working state
+//! (`race::view_scratch`); what a view hands on to the shared stores is applied on the game's
+//! thread in the views' order (`race::draw_race_scene`'s `view_drawn`), and the render
+//! states' cache and the held matrix columns a part keeps are put back in the parts' order
+//! (frame plan F7: no drawing part writes a shared store).
 //!
-//! A store of that working state is a `PerWorker<T>`: one copy per drawing thread, and code
-//! reaches the copy of the thread it runs on through `Deref`, so it reads as any other store
-//! (`frame.matrices.turned_matrix`). Copy 0 is the game's own thread's (and every thread's
-//! that is not a drawing one): with one thread drawing, it is the only copy used and the
-//! program runs as before. The stores in this state are those the write watch found two
-//! threads reaching (`notes/conversion.md`, "the write watch and the private set").
+//! A scratch store each run makes for itself before reading is a `PerWorker<T>`: one copy per
+//! drawing thread, and code reaches the copy of the thread it runs on through `Deref`. Copy 0
+//! is the game's own thread's (and every thread's that is not a drawing one).
 
 use crate::errors::{BadInput, Refused};
 use std::cell::Cell;
@@ -16,10 +16,6 @@ use std::sync::{Condvar, Mutex, OnceLock};
 
 /// The most drawing threads, the game's own one with them.
 pub const COUNT: usize = 4;
-
-/// A store's copies: one per drawing thread, and the state the runs of a list start from
-/// (copy `COUNT`), against which their changes are found.
-pub const COPIES: usize = COUNT + 1;
 
 thread_local! {
     /// The running thread's copy: 0 unless it is one of the drawing threads.
@@ -44,20 +40,15 @@ pub fn index() -> usize {
 
 /// A store with one copy per drawing thread (see the module's header), and one of the state
 /// the runs start from.
-pub struct PerWorker<T>([T; COPIES]);
+pub struct PerWorker<T>([T; COUNT]);
 
 impl<T> PerWorker<T> {
-    pub const fn new(copies: [T; COPIES]) -> Self {
+    pub const fn new(copies: [T; COUNT]) -> Self {
         Self(copies)
     }
 
-    /// The game's own thread's copy (the one every other thread's starts from).
-    pub const fn first(&self) -> &T {
-        &self.0[0]
-    }
-
     /// Every copy (what is set up for all threads at once: a stage's records zeroed).
-    pub fn all(&self) -> &[T; COPIES] {
+    pub fn all(&self) -> &[T; COUNT] {
         &self.0
     }
 }
@@ -92,45 +83,6 @@ impl<T: crate::pointers::Store> Copies for PerWorker<T> {
     fn copy(&self, n: usize) -> &dyn crate::pointers::Store {
         &self.0[n]
     }
-}
-
-/// A store whose copies are set from the game's own and merged back (`carried_stores`), cell
-/// by cell with no run searched.
-pub trait Carried: Copies {
-    /// Copy 0 kept as the runs' start, and into copies 1 .. `runs`.
-    fn begin_runs(&self, runs: usize);
-    /// What copy `n` changed since the start put into copy 0.
-    fn merge_run(&self, n: usize);
-}
-
-impl<T: crate::pointers::Cells + crate::pointers::Store> Carried for PerWorker<T> {
-    fn begin_runs(&self, runs: usize) {
-        let [first, rest @ ..] = &self.0;
-        rest[COUNT - 1].copy_from(first);
-        for copy in &rest[..runs - 1] {
-            copy.copy_from(first);
-        }
-    }
-
-    fn merge_run(&self, n: usize) {
-        self.0[0].merge_changes(&self.0[n], &self.0[COUNT]);
-    }
-}
-
-/// The stores of the drawing's working state a run reads as the list began (the write
-/// watch's list, `notes/conversion.md`): copied into each run's copy, the changes merged
-/// back.
-fn carried_stores() -> [&'static dyn Carried; 5] {
-    let race = crate::race::owner::race();
-    let scene = crate::scene::owner::scene();
-    [
-        &race.frame.matrices,
-        &race.shared.view,
-        &scene.drawing.scene,
-        &crate::d3d::owner::d3d().cards,
-        // The stores the mirror shares with its view (`draw_beside`, the write watch's list).
-        &race.frame.view_and_records,
-    ]
 }
 
 /// The stores each run makes for itself before reading (neither copied in nor merged; the
@@ -181,8 +133,7 @@ fn serial() -> bool {
 fn register_copies() {
     static DONE: OnceLock<()> = OnceLock::new();
     DONE.get_or_init(|| {
-        let carried = carried_stores().map(|s| -> &'static dyn Copies { s });
-        for s in carried.into_iter().chain(scratch_stores()) {
+        for s in scratch_stores() {
             for n in 1..COUNT {
                 crate::pointers::register_store(s.copy(n));
             }
@@ -276,13 +227,11 @@ pub fn draw_side_by_side(
     if k > COUNT {
         return Err(BadInput("more parts beside each other than drawing copies").into());
     }
-    carried_census("parts beside", || {
-        let pool = pool();
-        BESIDE.store(true, std::sync::atomic::Ordering::Relaxed);
-        let drawn = draw_parts(pool, k, part, after);
-        BESIDE.store(false, std::sync::atomic::Ordering::Relaxed);
-        drawn
-    })
+    let pool = pool();
+    BESIDE.store(true, std::sync::atomic::Ordering::Relaxed);
+    let drawn = draw_parts(pool, k, part, after);
+    BESIDE.store(false, std::sync::atomic::Ordering::Relaxed);
+    drawn
 }
 
 /// The two players' views and their mirrors drawn beside each other in split screen
@@ -294,102 +243,6 @@ pub fn players_beside() -> bool {
         Some(v) => v != "0",
         None => mirror_beside(),
     })
-}
-
-/// Whether `RC2K_CARRIED_CENSUS` is set (`carried_census`).
-fn census() -> bool {
-    static ON: OnceLock<bool> = OnceLock::new();
-    *ON.get_or_init(|| std::env::var_os("RC2K_CARRIED_CENSUS").is_some())
-}
-
-/// With `RC2K_CARRIED_CENSUS` (frame plan F4): which carried stores the drawing changes. The
-/// game's copy of each before and after `drawing`, the changed bytes unioned per store over
-/// the run and logged every 200 calls: a store never changed needs no copy per run. Other
-/// threads' writes in the same time show too (the audio thread's environment).
-fn carried_census(
-    label: &str,
-    drawing: impl FnOnce() -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    if !census() {
-        return drawing();
-    }
-    static CHANGED: Mutex<(u32, Vec<Vec<bool>>)> = Mutex::new((0, Vec::new()));
-    let bytes = || -> Vec<Vec<u8>> {
-        carried_stores()
-            .iter()
-            .map(|s| {
-                let store = s.copy(0);
-                let mut v = vec![0u8; store.size()];
-                let _ = store.load(0, &mut v);
-                v
-            })
-            .collect()
-    };
-    let before = bytes();
-    let drawn = drawing();
-    let after = bytes();
-    let mut c = CHANGED
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if c.1.is_empty() {
-        c.1 = before.iter().map(|b| vec![false; b.len()]).collect();
-    }
-    for ((b, a), m) in before.iter().zip(&after).zip(&mut c.1) {
-        for (k, flag) in m.iter_mut().enumerate() {
-            *flag |= b[k] != a[k];
-        }
-    }
-    c.0 += 1;
-    if c.0.is_multiple_of(200) {
-        let lines: Vec<String> =
-            c.1.iter()
-                .enumerate()
-                .map(|(n, m)| {
-                    let changed = m.iter().filter(|&&f| f).count();
-                    let first = m.iter().position(|&f| f);
-                    let last = m.iter().rposition(|&f| f);
-                    format!(
-                        "{n}:{changed}/{}{}",
-                        m.len(),
-                        match (first, last) {
-                            (Some(f), Some(l)) => format!("@{f:#x}..{l:#x}"),
-                            _ => String::new(),
-                        }
-                    )
-                })
-                .collect();
-        crate::framework::log(&format!(
-            "workers: carried census after {} calls ({label} last): {}",
-            c.0,
-            lines.join(" ")
-        ));
-        // The changed bytes as runs, for naming the fields (`first..end` each).
-        let runs: Vec<String> =
-            c.1.iter()
-                .enumerate()
-                .filter(|(_, m)| m.contains(&true))
-                .map(|(n, m)| {
-                    let mut out = Vec::new();
-                    let mut k = 0;
-                    while k < m.len() {
-                        if m[k] {
-                            let start = k;
-                            while k < m.len() && m[k] {
-                                k += 1;
-                            }
-                            out.push(format!("{start:#x}..{k:#x}"));
-                        }
-                        k += 1;
-                    }
-                    format!("{n}:{}", out.join(","))
-                })
-                .collect();
-        crate::framework::log(&format!(
-            "workers: carried runs ({label} last): {}",
-            runs.join(" ")
-        ));
-    }
-    drawn
 }
 
 /// Parts 0 .. `k` of a drawing (`part`), part 0 on the game's thread and each other on a
@@ -406,10 +259,11 @@ fn draw_parts(
     register_copies();
     // One after another on the game's thread without a pool or with `RC2K_DRAW_SERIAL`.
     let pool = pool.filter(|_| !serial());
-    let stores = carried_stores();
-    for s in stores {
-        s.begin_runs(k);
-    }
+    // The render states' cache as the list began, what each other part starts from.
+    let cache_start = crate::d3d::render_cache::current();
+    // The held matrix columns likewise (`scene::view_matrices::Held`).
+    let matrices = &crate::race::owner::race().frame.matrices;
+    let columns_start = crate::scene::view_matrices::columns(matrices);
     *ENDED
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = [false; COUNT];
@@ -422,9 +276,11 @@ fn draw_parts(
         crate::race::scene_points::forget_own();
         #[cfg(feature = "write_watch")]
         crate::write_watch::begin();
-        crate::d3d::run_states::begin_run();
+        crate::d3d::run_states::begin_run(&cache_start);
+        crate::scene::view_matrices::begin_part(columns_start);
         let result = part(n);
         let states = crate::d3d::run_states::end_run();
+        let columns = crate::scene::view_matrices::end_part().unwrap_or(columns_start);
         #[cfg(feature = "write_watch")]
         WATCHED
             .lock()
@@ -438,6 +294,7 @@ fn draw_parts(
             result,
             noted,
             states,
+            columns,
         }
     };
     #[cfg(feature = "write_watch")]
@@ -499,7 +356,6 @@ fn draw_parts(
             watched.push(crate::write_watch::end());
         }
         crate::write_watch::shared::add(&watched);
-        note_carried_writes(&stores, k, &watched);
         watched.clear();
     }
     let mut result = first;
@@ -513,10 +369,8 @@ fn draw_parts(
         let carried = crate::d3d::run_states::carried();
         crate::d3d::run_states::patch(&mut run.noted, &run.states, &carried);
         crate::platform_3d::put_noted(run.noted);
-        for s in stores {
-            s.merge_run(n + 1);
-        }
-        crate::d3d::run_states::carry(&run.states, n + 1);
+        crate::d3d::run_states::carry(&run.states, &cache_start);
+        crate::scene::view_matrices::merge_columns(matrices, &columns_start, &run.columns);
         if result.is_ok() {
             // What it draws takes the merged states.
             crate::platform_3d::forget_states();
@@ -528,79 +382,14 @@ fn draw_parts(
     result
 }
 
-/// With the feature `write_watch`: how many of the drawings beside each other wrote into each
-/// carried store's copies at all (a store no part writes needs no copies; the carried census
-/// sees only changed bytes), logged by `carried_stores`' numbers every 300.
-#[cfg(feature = "write_watch")]
-fn note_carried_writes(stores: &[&dyn Carried], k: usize, watched: &[crate::write_watch::Seen]) {
-    static WRITTEN: Mutex<(Vec<u32>, u32)> = Mutex::new((Vec::new(), 0));
-    let mut w = WRITTEN
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if w.0.len() != stores.len() {
-        w.0 = vec![0; stores.len()];
-    }
-    static PLACES: Mutex<Vec<std::collections::BTreeSet<usize>>> = Mutex::new(Vec::new());
-    let mut places = PLACES
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    places.resize_with(stores.len(), Default::default);
-    for (i, s) in stores.iter().enumerate() {
-        let mut written = false;
-        for n in 0..k {
-            let copy = s.copy(n);
-            let start = copy.first().addr();
-            let words = start / 4..(start + copy.size()).div_ceil(4);
-            for d in watched.iter().flat_map(|seen| seen.written.iter()) {
-                if words.contains(d) {
-                    written = true;
-                    places[i].insert((d * 4).saturating_sub(start));
-                }
-            }
-        }
-        if written {
-            w.0[i] += 1;
-        }
-    }
-    w.1 += 1;
-    if w.1.is_multiple_of(300) {
-        let counts: Vec<String> =
-            w.0.iter()
-                .enumerate()
-                .map(|(i, c)| format!("{i}:{c}"))
-                .collect();
-        crate::framework::log(&format!(
-            "workers: carried stores written (of {} drawings): {}",
-            w.1,
-            counts.join(" ")
-        ));
-        // Where in each store (byte offsets of the written words, runs joined).
-        for (i, set) in places.iter().enumerate() {
-            let mut runs: Vec<(usize, usize)> = Vec::new();
-            for &o in set {
-                match runs.last_mut() {
-                    Some(r) if r.1 + 4 >= o => r.1 = o,
-                    _ => runs.push((o, o)),
-                }
-            }
-            let runs: Vec<String> = runs
-                .iter()
-                .map(|(a, b)| format!("{a:#x}..{:#x}", b + 4))
-                .collect();
-            crate::framework::log(&format!(
-                "workers: carried store {i} written at {}",
-                runs.join(" ")
-            ));
-        }
-    }
-}
-
 /// What a drawing thread's run left.
 struct OtherRun {
     result: Result<(), Refused>,
     noted: Vec<crate::render::Command>,
     /// Where it set the render states.
     states: crate::d3d::run_states::RunStates,
+    /// The held matrix columns it left.
+    columns: crate::scene::view_matrices::Columns,
 }
 
 /// With the feature `write_watch`: what each run of the list being drawn reached.

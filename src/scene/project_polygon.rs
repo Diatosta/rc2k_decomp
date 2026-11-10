@@ -38,7 +38,6 @@ pub fn project_entries(
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     let course = &race.course;
-    let drawing = &scene.drawing;
     if entries.is_empty() {
         return Err(BadInput("a polygon of no vertices").into());
     }
@@ -50,7 +49,7 @@ pub fn project_entries(
     {
         return Err(BadInput("no points or no records for them").into());
     }
-    let far = f32::from_bits(drawing.scene.farthest.bits());
+    let far = f32::from_bits(view.polygon.window.farthest.bits());
     let mut outside = 0u32;
     for entry in entries {
         let point = project_point(race, entry.point.get(), scene, view)?;

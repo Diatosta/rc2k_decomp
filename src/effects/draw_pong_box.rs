@@ -33,8 +33,8 @@ fn corners(pong: &Pong, fl: &WindscreenFlakes, v: &[[u8; 10]; 4]) {
 }
 
 /// The original's 0x4B87A5 .. 0x4B88A9: the corners projected, their depth.
-fn projected(fl: &WindscreenFlakes, scene: &crate::scene::owner::Scene) {
-    projected_x87(&fl.tables, scene);
+fn projected(fl: &WindscreenFlakes) {
+    projected_x87(&fl.tables);
 }
 
 /// The Rust version (see the header).
@@ -43,7 +43,6 @@ pub fn draw_pong_box(
     fl: &WindscreenFlakes,
     v: [[u8; 10]; 4],
     effects: &crate::effects::owner::Effects,
-    scene: &crate::scene::owner::Scene,
 ) {
     sides(pong, fl, &v, effects);
     let [pa, pb, pc, pd] = pong
@@ -62,7 +61,7 @@ pub fn draw_pong_box(
     if x87::compare_status(fl.tables.corners[0][2].bits(), pong.rules.near.bits()) == 0x100 {
         return;
     }
-    projected(fl, scene);
+    projected(fl);
     for n in 0..4 {
         VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
     }
@@ -165,46 +164,66 @@ fn corners_x87(v: &[[u8; 10]; 4], p: &PongState, sq: &WindscreenFlakeTables) {
 }
 
 /// `projected`'s x87 block as plain Rust on the x87 model (60 instructions), same order and memory places.
-fn projected_x87(sq: &WindscreenFlakeTables, scene: &crate::scene::owner::Scene) {
-    let t0 = bh::ld(scene.drawing.scene.view_scale.bits());
+fn projected_x87(sq: &WindscreenFlakeTables) {
+    let t0 = bh::ld(
+        crate::scene::polygon_work::front_end()
+            .window
+            .view_scale
+            .bits(),
+    );
     let t1 = t0 / bh::ld(sq.corners[3][2].bits());
-    let t2 = bh::ld(scene.drawing.scene.view_scale.bits());
+    let t2 = bh::ld(
+        crate::scene::polygon_work::front_end()
+            .window
+            .view_scale
+            .bits(),
+    );
     let t3 = t2 / bh::ld(sq.corners[2][2].bits());
-    let t4 = bh::ld(scene.drawing.scene.view_scale.bits());
+    let t4 = bh::ld(
+        crate::scene::polygon_work::front_end()
+            .window
+            .view_scale
+            .bits(),
+    );
     let t5 = t4 / bh::ld(sq.corners[1][2].bits());
-    let t6 = bh::ld(scene.drawing.scene.view_scale.bits());
+    let t6 = bh::ld(
+        crate::scene::polygon_work::front_end()
+            .window
+            .view_scale
+            .bits(),
+    );
     let t7 = t6 / bh::ld(sq.corners[0][2].bits());
     let t8 = bh::ld(sq.corners[0][1].bits());
     let t9 = t8 * t7;
     let t10 = t7 * bh::ld(sq.corners[0][0].bits());
     let t11 = -t9;
-    let t12 = t11 + bh::ld(scene.drawing.scene.view_centre[1].bits());
+    let t12 = t11 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[1].bits());
     st_cell(&VERTICES.vertices[0].y, t12);
-    let t13 = t10 + bh::ld(scene.drawing.scene.view_centre[0].bits());
+    let t13 = t10 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[0].bits());
     st_cell(&VERTICES.vertices[0].x, t13);
     let t14 = bh::ld(sq.corners[1][1].bits());
     let t15 = t14 * t5;
     let t16 = t5 * bh::ld(sq.corners[1][0].bits());
     let t17 = -t15;
-    let t18 = t17 + bh::ld(scene.drawing.scene.view_centre[1].bits());
+    let t18 = t17 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[1].bits());
     st_cell(&VERTICES.vertices[1].y, t18);
-    let t19 = t16 + bh::ld(scene.drawing.scene.view_centre[0].bits());
+    let t19 = t16 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[0].bits());
     st_cell(&VERTICES.vertices[1].x, t19);
     let t20 = bh::ld(sq.corners[2][1].bits());
     let t21 = t20 * t3;
     let t22 = t3 * bh::ld(sq.corners[2][0].bits());
     let t23 = -t21;
-    let t24 = t23 + bh::ld(scene.drawing.scene.view_centre[1].bits());
+    let t24 = t23 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[1].bits());
     st_cell(&VERTICES.vertices[2].y, t24);
-    let t25 = t22 + bh::ld(scene.drawing.scene.view_centre[0].bits());
+    let t25 = t22 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[0].bits());
     st_cell(&VERTICES.vertices[2].x, t25);
     let t26 = bh::ld(sq.corners[3][1].bits());
     let t27 = t26 * t1;
     let t28 = t1 * bh::ld(sq.corners[3][0].bits());
     let t29 = -t27;
-    let t30 = t29 + bh::ld(scene.drawing.scene.view_centre[1].bits());
+    let t30 = t29 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[1].bits());
     st_cell(&VERTICES.vertices[3].y, t30);
-    let t31 = t28 + bh::ld(scene.drawing.scene.view_centre[0].bits());
+    let t31 = t28 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[0].bits());
     st_cell(&VERTICES.vertices[3].x, t31);
     let t32 = bh::ld(sq.corners[0][2].bits());
     let t33 = t32 * bh::ld(sq.inverse.bits());
@@ -650,7 +669,7 @@ mod asm_differential {
                         &[
                             0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
                         ],
-                        || super::projected_x87(sq, crate::scene::owner::scene()),
+                        || super::projected_x87(sq),
                     );
                 });
             },

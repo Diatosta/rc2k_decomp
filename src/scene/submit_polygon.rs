@@ -16,7 +16,6 @@
 //! fan; a result other than 0 is logged as "drawtri" and the number.
 
 use crate::d3d::draw_fan_unclipped::polygon;
-use crate::d3d::owner::d3d;
 use crate::d3d::{NO_TEXTURE, Vertex};
 use crate::logfile::log_hex8::log_hex8;
 use crate::scene::owner::scene;
@@ -65,7 +64,7 @@ pub fn submit_polygon(poly: &crate::scene::polygon_work::PolygonWork, outside: &
         }
     } else {
         let texture = if texture >= TEXTURES { 0 } else { texture };
-        if texture != d3d().cards.current_texture.get() && has_3d {
+        if texture != crate::d3d::render_cache::texture() && has_3d {
             outside.set_texture(texture);
         }
     }

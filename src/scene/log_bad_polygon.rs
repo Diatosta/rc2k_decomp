@@ -16,7 +16,6 @@
 
 use crate::errors::BadInput;
 use crate::pointers::Store;
-use crate::scene::owner::scene;
 
 const HEX8: u32 = 1;
 /// The value column: what the line shows.
@@ -38,13 +37,13 @@ const HEAD: [(&std::ffi::CStr, u32, Value); 10] = [
     (c"videoy", HEX8, |_| {
         crate::system::owner::system().session.screen.height.get()
     }), // "videoy" g_screenHeight
-    (c"r", FLOAT, |_| scene().drawing.scene.clip_screen[3].bits()), // "r" g_clipScreenRight
-    (c"l", FLOAT, |_| scene().drawing.scene.clip_screen[2].bits()), // "l" g_clipScreenLeft
-    (c"b", FLOAT, |_| scene().drawing.scene.clip_screen[1].bits()), // "b" g_clipScreenBottom
-    (c"t", FLOAT, |_| scene().drawing.scene.clip_screen[0].bits()), // "t" g_clipScreenTop
-    (c"donezcut", INT, |poly| poly.depth_clipped.bits()),           // "donezcut"
-    (c"donesuth", INT, |poly| poly.screen_clipped.bits()),          // "donesuth"
-    (c"cuttest", INT_NL, |poly| poly.polygon_clip_mask.bits()),     // "cuttest" g_polygonClipMask
+    (c"r", FLOAT, |poly| poly.window.clip_screen[3].bits()), // "r" g_clipScreenRight
+    (c"l", FLOAT, |poly| poly.window.clip_screen[2].bits()), // "l" g_clipScreenLeft
+    (c"b", FLOAT, |poly| poly.window.clip_screen[1].bits()), // "b" g_clipScreenBottom
+    (c"t", FLOAT, |poly| poly.window.clip_screen[0].bits()), // "t" g_clipScreenTop
+    (c"donezcut", INT, |poly| poly.depth_clipped.bits()),    // "donezcut"
+    (c"donesuth", INT, |poly| poly.screen_clipped.bits()),   // "donesuth"
+    (c"cuttest", INT_NL, |poly| poly.polygon_clip_mask.bits()), // "cuttest" g_polygonClipMask
 ];
 const AFTER: [(&std::ffi::CStr, u32, Value); 2] = [
     (c"tpage", HEX8, |poly| poly.texture_page.bits()), // "tpage"

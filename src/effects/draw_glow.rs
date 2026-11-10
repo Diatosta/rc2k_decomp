@@ -44,7 +44,6 @@ pub fn draw_glow(
             0xFFFF_FFFF,
             0x1_0000,
             place,
-            scene,
             effects,
         )?;
     }

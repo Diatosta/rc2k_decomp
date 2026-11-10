@@ -77,12 +77,22 @@ pub fn face_corners(view: &crate::race::view_scratch::ViewScratch, face: &Face) 
 #[cfg(all(test, target_arch = "x86"))]
 fn face_turned_to_view(race: &Race, face: u32, half: u32) -> Result<u32, BadInput> {
     let bytes = crate::pointers::GamePtr::new(face).read::<[u8; 64]>("a test's face")?;
-    turned_to_view(race, &Face(bytes), (half / 4) as usize)
+    turned_to_view(
+        race,
+        &Face(bytes),
+        (half / 4) as usize,
+        &race.frame.view_and_records.view_vars.view_place_f,
+    )
 }
 
 /// 0x4525F8 on a read face, its triangle 0 or 1.
-fn turned_to_view(race: &Race, f: &Face, triangle: usize) -> Result<u32, BadInput> {
-    let frame = &race.frame;
+/// `place`: the view's place as floats (`ViewScratch::vars`).
+fn turned_to_view(
+    race: &Race,
+    f: &Face,
+    triangle: usize,
+    place: &[Float; 3],
+) -> Result<u32, BadInput> {
     use crate::math::x87_float::{X, compare, int, ld};
     {
         if race.shared.switches.other_way.get() == 0 {
@@ -94,7 +104,6 @@ fn turned_to_view(race: &Race, f: &Face, triangle: usize) -> Result<u32, BadInpu
         let along = |k: usize, view_at: &Float, normal: u32| -> Result<_, BadInput> {
             Ok((int(at[k] as i32) - ld(view_at.bits())) * ld(normal))
         };
-        let place = &frame.view_and_records.view_vars.view_place_f;
         let (x, y, z) = (
             along(0, &place[0], normal[0])?,
             along(1, &place[1], normal[1])?,
@@ -112,10 +121,10 @@ fn turned_to_view(race: &Race, f: &Face, triangle: usize) -> Result<u32, BadInpu
 pub fn face_sides(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
     let (race, work) = (ctx.race, &ctx.view.face);
     {
-        work.turned[0].set(turned_to_view(race, face, 0)?);
+        work.turned[0].set(turned_to_view(race, face, 0, &ctx.view.vars.view_place_f)?);
         work.turned[1].set(1u32);
         if work.corners[3].get() != u32::MAX {
-            work.turned[1].set(turned_to_view(race, face, 1)?);
+            work.turned[1].set(turned_to_view(race, face, 1, &ctx.view.vars.view_place_f)?);
         }
     }
     Ok(())
@@ -214,7 +223,13 @@ fn point_light(ctx: &DrawCtx<'_>, n: u32) -> Result<u32, Refused> {
     ctx.view.light.lit_place[0].set(x);
     ctx.view.light.lit_place[1].set(y);
     ctx.view.light.lit_place[2].set(z);
-    crate::race::frame_draw::light_colour_at(race, scene, &ctx.view.lamps, &ctx.view.light)?;
+    crate::race::frame_draw::light_colour_at(
+        race,
+        scene,
+        &ctx.view.lamps,
+        &ctx.view.light,
+        ctx.view.drawn_view(race),
+    )?;
     let light: u32 = ctx.view.light.light_colour.get();
     Ok(light)
 }
@@ -269,7 +284,7 @@ pub fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             return Ok(());
         }
     }
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(&ctx.view.polygon, race, scene)?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(&ctx.view.polygon, race)?;
     if !draws_polygon(ctx.view.polygon.polygon_vertex_count.bits()) {
         return Ok(());
     }
@@ -326,7 +341,6 @@ pub fn face_out_of_view(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
 /// its polygons away at the end: the same picture, without the face's colours, lights and
 /// polygons made for nothing). The corners' records are there: `face_out_of_view` made them.
 fn face_off_screen(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
-    let scene = ctx.scene;
     use rc2k_core::race::face_drawing::{ScreenCorner, ScreenEdges, off_screen};
     let mut corners = [ScreenCorner {
         depth: 0,
@@ -348,7 +362,7 @@ fn face_off_screen(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
         };
         n += 1;
     }
-    let clip = &scene.drawing.scene.clip_screen;
+    let clip = &ctx.view.polygon.window.clip_screen;
     let edges = ScreenEdges {
         top: clip[0].bits(),
         bottom: clip[1].bits(),
@@ -554,7 +568,6 @@ fn plain_list(poly: &crate::scene::polygon_work::PolygonWork, count: u32, next: 
 /// (true: draw it as triangles).
 pub fn draw_whole_quad(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
-    let drawing = &scene.drawing;
     // Converted: `rc2k_core::race::face_drawing::{QUAD_ENTRIES, quad_by_outside,
     // screen_inside, inside}` (the roundings the x87's).
     use rc2k_core::race::face_drawing::{QUAD_ENTRIES, quad_by_outside, screen_inside};
@@ -572,10 +585,10 @@ pub fn draw_whole_quad(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
         return Ok(triangles);
     }
     let [left, right, top, bottom] = screen_inside(
-        drawing.scene.clip_edges[2].bits(),
-        drawing.scene.clip_edges[3].bits(),
-        drawing.scene.clip_edges[0].bits(),
-        drawing.scene.clip_edges[1].bits(),
+        ctx.view.polygon.window.clip_edges[2].bits(),
+        ctx.view.polygon.window.clip_edges[3].bits(),
+        ctx.view.polygon.window.clip_edges[0].bits(),
+        ctx.view.polygon.window.clip_edges[1].bits(),
     );
     let inside = |v: u32, low: u32, high: u32| {
         let n = crate::math::x87::to_int(v) as u32;
@@ -713,7 +726,7 @@ fn halfway_vertex(
     a: u32,
     b: u32,
     v: u32,
-    scene: &crate::scene::owner::Scene,
+    window: &crate::scene::view_window::ViewWindow,
 ) -> Result<(), BadInput> {
     use crate::scene::point_records::{get_in, set_in};
     let quad = Some(quad);
@@ -723,7 +736,7 @@ fn halfway_vertex(
         &get_in(quad, a)?,
         &get_in(quad, b)?,
         &mut made,
-        scene,
+        window,
     );
     set_in(quad, v, made)
 }
@@ -734,7 +747,7 @@ fn halfway_record(
     a: &crate::scene::point_records::Record,
     b: &crate::scene::point_records::Record,
     v: &mut crate::scene::point_records::Record,
-    scene: &crate::scene::owner::Scene,
+    window: &crate::scene::view_window::ViewWindow,
 ) {
     use crate::math::x87_float::{ld, st};
     use crate::math::x87_load::below_or_unordered;
@@ -747,7 +760,7 @@ fn halfway_record(
     if below_or_unordered(v[6], course.numbers.k4096_a.bits()) {
         return;
     }
-    crate::race::skidmarks::project_record(course, v, scene);
+    crate::race::skidmarks::project_record(course, v, window);
 }
 
 /// `race::draw_lit_triangle`'s new entry between entries `first` and `second` into `to`: the
@@ -839,11 +852,17 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             entry(first).record.get(),
             entry(second).record.get(),
             v,
-            scene,
+            &ctx.view.polygon.window,
         )?;
         let to = entry(3 + k as u32);
         halfway_entry(&race.course, entry(first), entry(second), to);
-        crate::race::frame_draw::light_colour_at(race, scene, &ctx.view.lamps, &ctx.view.light)?;
+        crate::race::frame_draw::light_colour_at(
+            race,
+            scene,
+            &ctx.view.lamps,
+            &ctx.view.light,
+            ctx.view.drawn_view(race),
+        )?;
         let light: u32 = ctx.view.light.light_colour.get();
         to.lamp_light.set(light);
     }
@@ -1344,13 +1363,21 @@ mod asm_reference {
             0x62400C, 0x5CCD80, 0x624088, 0x6240A0, 0x62409C, 0x60932C, 0x5C5E40, 0x5C5E18,
         ]);
         let mut r = Rng(13);
+        let win = crate::scene::view_window::ViewWindow::new();
         at_each_control_word(|| {
             for n in 0..20000 {
                 course.stage_prefs.flat_depth.set((n % 2) as u32);
                 course.course.flat_depth.set(r.int() as u32);
-                drawing.scene.view_scale.set_bits(r.float());
-                drawing.scene.view_centre[1].set_bits(r.float());
-                drawing.scene.view_centre[0].set_bits(r.float());
+                // The assembly reads the old window; the Rust version the window it is given.
+                for (old, own) in [
+                    (&drawing.scene.view_scale, &win.view_scale),
+                    (&drawing.scene.view_centre[1], &win.view_centre[1]),
+                    (&drawing.scene.view_centre[0], &win.view_centre[0]),
+                ] {
+                    let value = r.float();
+                    old.set_bits(value);
+                    own.set_bits(value);
+                }
                 course.numbers.half.set_bits(if r.below(2) == 0 {
                     0x3F00_0000
                 } else {
@@ -1377,7 +1404,7 @@ mod asm_reference {
                         crate::pointers::game_address(v1.as_mut_ptr()),
                     );
                 };
-                halfway_record(course, &a, &b, &mut v2, crate::scene::owner::scene());
+                halfway_record(course, &a, &b, &mut v2, &win);
                 same_all(&v1, &v2, "vertex");
                 // The assembly's depth store to 0x62400C is not kept by the Rust version.
             }

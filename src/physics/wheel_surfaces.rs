@@ -110,7 +110,7 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
             let kind_index = info_byte(t2, 0x2C)?;
             // The index is a byte: past the four kinds the original reads on (a slip).
             let kind = crate::session::read_on_in(
-                &*race.shared.view,
+                &race.shared.view,
                 &race.shared.view.surface_kinds,
                 kind_index as usize,
                 "the surface kinds (a byte index past the table)",

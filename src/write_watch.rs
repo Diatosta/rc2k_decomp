@@ -295,7 +295,16 @@ pub(crate) mod shared {
             let host = first * 4;
             let game = crate::address_map::game_of(host).map(|g| g as usize);
             if let Some((slot, at)) = crate::race::view_scratch::place_of(host) {
-                text += &format!(" [view slot {slot} +{at:#x}+{len:#x}]");
+                let window = crate::race::view_scratch::window_range();
+                if window.contains(&at) {
+                    // The view's window (`scene::view_window`), from its own start.
+                    text += &format!(
+                        " [view slot {slot} window +{:#x}+{len:#x}]",
+                        at - window.start
+                    );
+                } else {
+                    text += &format!(" [view slot {slot} +{at:#x}+{len:#x}]");
+                }
                 k += 1;
                 continue;
             }

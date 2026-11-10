@@ -3,11 +3,10 @@
 //! n (n > 0) starts from the states as the list began, not as run n - 1 ends, so its fans
 //! up to its own first setting of a state carry a value the game in one run would not
 //! have drawn with (z-writes on after a shadow had turned them off, replay 01). And the
-//! runs' copies are merged into copy 0 by the bytes that changed from the list's start, so
-//! a state a later run sets back to its opening value would be lost. Each run therefore
-//! notes where it first sets each state; when the runs are joined, its fans before that
-//! point get the value the earlier runs left (`patch`), and the states it set go into
-//! copy 0 whatever their value (`carry`).
+//! runs each keep their own cache of the states (`d3d::render_cache`), and what they left
+//! is put back in their order. Each run therefore notes where it first sets each state;
+//! when the runs are joined, its fans before that point get the value the earlier runs
+//! left (`patch`), and the states it set go into the store whatever their value (`carry`).
 
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -20,6 +19,8 @@ type States = [u32; STATES];
 /// never).
 pub struct RunStates {
     first_set: [usize; STATES],
+    /// The cache the run left.
+    left: crate::d3d::render_cache::Cache,
 }
 
 struct Current {
@@ -32,8 +33,9 @@ thread_local! {
     static CURRENT: RefCell<Option<Current>> = const { RefCell::new(None) };
 }
 
-/// A run begins on this thread.
-pub fn begin_run() {
+/// A run begins on this thread, its cache starting as `start`.
+pub fn begin_run(start: &crate::d3d::render_cache::Cache) {
+    crate::d3d::render_cache::begin(start);
     let base = crate::platform_3d::noted_len();
     CURRENT.set(Some(Current {
         base,
@@ -44,7 +46,10 @@ pub fn begin_run() {
 /// The run on this thread is over: where it set its states.
 pub fn end_run() -> RunStates {
     let first_set = CURRENT.take().map_or([usize::MAX; STATES], |c| c.first_set);
-    RunStates { first_set }
+    RunStates {
+        first_set,
+        left: crate::d3d::render_cache::end(),
+    }
 }
 
 /// `state` set (whatever its value, and whether it changed or not) in the run on this
@@ -93,21 +98,23 @@ pub fn patch(noted: &mut [Command], run: &RunStates, carried: &[u32; STATES]) {
     }
 }
 
-/// The states run `n` set, as it left them, into copy 0 (after the byte merge, which loses
-/// a state set back to its opening value).
-pub fn carry(run: &RunStates, n: usize) {
-    let cards = crate::d3d::owner::d3d().cards.all();
+/// The states a run set, as it left them, into the store, and its texture if it changed
+/// from `start`'s.
+pub fn carry(run: &RunStates, start: &crate::d3d::render_cache::Cache) {
     for (i, &f) in run.first_set.iter().enumerate() {
         if f != usize::MAX {
-            cards[0].kept_states[i].set(cards[n].kept_states[i].get());
+            crate::d3d::render_cache::put_kept(
+                i,
+                crate::d3d::render_cache::left_kept(&run.left, i),
+            );
         }
     }
+    crate::d3d::render_cache::merge_texture(&run.left, start);
 }
 
-/// Copy 0's states now: what the runs merged so far left.
+/// The store's states now: what the runs merged so far left.
 pub fn carried() -> [u32; STATES] {
-    let cards = crate::d3d::owner::d3d().cards.all();
-    std::array::from_fn(|i| cards[0].kept_states[i].get())
+    crate::d3d::render_cache::all_kept()
 }
 
 #[cfg(test)]
@@ -131,7 +138,10 @@ mod tests {
         let mut noted = vec![fan(&start), fan(&start), fan(&start)];
         let mut first_set = [usize::MAX; STATES];
         first_set[14] = 2; // set before the third fan
-        let run = RunStates { first_set };
+        let run = RunStates {
+            first_set,
+            left: crate::d3d::render_cache::current(),
+        };
         let mut carried = [1; STATES];
         carried[14] = 0;
         carried[3] = 3;

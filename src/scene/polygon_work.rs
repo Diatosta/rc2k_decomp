@@ -88,6 +88,9 @@ pub struct PolygonWork {
     pub view_mirrored: Dword,
     /// The view's sun (`race::place_sun`; the hit test covers it).
     pub sun: ViewSun,
+    /// The view's window, scale and depths (`scene::view_window`): set before the view's
+    /// scene begins, so `ViewScratch::begin` keeps it.
+    pub window: crate::scene::view_window::ViewWindow,
 }
 
 /// A view's sun (`FrameWork`'s sun words in the original, written by every view in turn):
@@ -157,6 +160,7 @@ impl PolygonWork {
             fade_from: Dword::new(0),
             view_mirrored: Dword::new(0),
             sun: ViewSun::new(),
+            window: crate::scene::view_window::ViewWindow::new(),
         }
     }
 }

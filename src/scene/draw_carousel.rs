@@ -51,16 +51,10 @@ pub fn draw_carousel_in_game(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     lone_row: u32,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     draw_carousel(&menus.screens, lone_row, &mut |e, place| {
-        draw_carousel_entry(
-            &race.shared,
-            ctx.view,
-            menus,
-            e,
-            place,
-            &mut || draw_menu_object_in_game(ctx),
-            scene,
-        )
+        draw_carousel_entry(&race.shared, ctx.view, menus, e, place, &mut || {
+            draw_menu_object_in_game(ctx)
+        })
     })
 }

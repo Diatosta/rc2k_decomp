@@ -23,13 +23,21 @@ pub fn choose_view_window(
         wide: shared.switches.other_way.bits() != 0,
         mode: scene.light_tables.view_mode.get(),
     };
-    let window = choose(settings, || {
+    // The front end's window: the menus, the loading bar and the HUD's full view.
+    let view = crate::scene::polygon_work::front_end();
+    let window = &view.window;
+    let chosen = choose(settings, || {
         [session.screen.width.get(), session.screen.height.get()]
     });
-    scene.drawing.scene.view_size[0].set_bits(window.size[0]);
-    scene.drawing.scene.view_size[1].set_bits(window.size[1]);
-    scene.drawing.scene.view_offset[0].set_bits(window.offset[0]);
-    scene.drawing.scene.view_offset[1].set_bits(window.offset[1]);
-    scene.drawing.scene.view_zoom.set_bits(window.scale);
-    crate::scene::set_view_window::set_view_window(race, scene);
+    window.view_size[0].set_bits(chosen.size[0]);
+    window.view_size[1].set_bits(chosen.size[1]);
+    window.view_offset[0].set_bits(chosen.offset[0]);
+    window.view_offset[1].set_bits(chosen.offset[1]);
+    window.view_zoom.set_bits(chosen.scale);
+    crate::scene::set_view_window::set_view_window(
+        race,
+        scene,
+        window,
+        &race.frame.view_and_records.view_vars,
+    );
 }

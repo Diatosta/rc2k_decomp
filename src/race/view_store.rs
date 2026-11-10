@@ -116,7 +116,7 @@ pub struct RaceView {
     pub depth_entry_count: Dword,
     /// +0x298 (0x63DC50): `g_sortEntryCount`.
     pub sort_entry_count: Dword,
-    /// +0x29c (0x63DC54): how far is seen times 0x20, twice (`scene::set_view_window`).
+    /// +0x29c (0x63DC54): how far is seen times 0x20, twice (`scene::set_view_window`); now each view's (`scene::view_window`); unused.
     pub view_depth: [Dword; 2],
 }
 
@@ -157,7 +157,7 @@ const _: () = assert!(END - START == core::mem::size_of::<RaceView>());
 /// Where IDA 0x63D9B8 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(race().shared.view.first()))
+    crate::pointers::game_address(core::ptr::from_ref(&race().shared.view))
 }
 
 #[cfg(test)]

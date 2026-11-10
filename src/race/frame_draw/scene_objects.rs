@@ -49,7 +49,7 @@ pub fn draw_slot_object(
     if race.shared.view.players.bits() != 1 && mode != 0 && mode != 2 {
         let n = object.wrapping_sub(0x50);
         if race.frame.frame_work.listed_car_sounds[((n / 0x14) & 7) as usize].get()
-            != race.shared.view.drawn_view.bits()
+            != ctx.view.drawn_view(race)
         {
             return Ok(());
         }
@@ -189,7 +189,7 @@ pub fn draw_screen_quad(
     poly.polygon_next_entry.set(4u32);
     // No callee reads a register (the clip keeps them; the depth buffer's switches and
     // the polygon's drawing take none).
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(poly, race, scene)?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(poly, race)?;
     if poly.polygon_vertex_count.get() >= 3 {
         crate::scene::depth_buffer_on::depth_buffer(false);
         poly.polygon_textures[0].set(u32::MAX);
@@ -216,11 +216,10 @@ pub fn draw_view_tint(
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
-    let drawing = &scene.drawing;
     view.quad.corners[0].set(0u32);
-    view.quad.corners[1].set(drawing.scene.view_size[0].get());
+    view.quad.corners[1].set(view.polygon.window.view_size[0].get());
     view.quad.corners[4].set(0u32);
-    view.quad.corners[5].set(drawing.scene.view_size[1].get());
+    view.quad.corners[5].set(view.polygon.window.view_size[1].get());
     shared.vars.quad_colour[0].set(0x20_4080u32);
     poly.polygon_textures[0].set(u32::MAX);
     poly.polygon_sides[0].set(1u32);

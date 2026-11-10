@@ -77,7 +77,7 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     }
     crate::scene::polygon::list_cell(4).set(0);
     ctx.view.polygon.polygon_next_entry.set_bits(4);
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(&ctx.view.polygon, race, scene)?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(&ctx.view.polygon, race)?;
     if ctx.view.polygon.polygon_vertex_count.bits() >= 3 {
         crate::scene::depth_buffer_on::depth_buffer(false);
         ctx.view.face.polygon_mode.set_bits(3);

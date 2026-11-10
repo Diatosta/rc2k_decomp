@@ -60,10 +60,12 @@ pub fn windscreen_drops_setup(drops: &WindscreenDrops, scene: &crate::scene::own
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
             .set_bits(6u32);
-        drops
-            .work
-            .inverse
-            .set_bits(x87::reciprocal(scene.drawing.scene.farthest.bits()));
+        drops.work.inverse.set_bits(x87::reciprocal(
+            crate::scene::polygon_work::front_end()
+                .window
+                .farthest
+                .bits(),
+        ));
     }
 }
 

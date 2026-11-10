@@ -281,7 +281,7 @@ pub fn prepare_scene(scene: &Scene) {
 
 /// `scene::set_up_carousel` (0x4904DD), with the list of cars menus 0xD and 0xE show.
 /// (`_scene`: the loops pass it; the carousel's set-up writes the front end's slot.)
-pub fn carousel(cars: Option<CarList>, _scene: &Scene) -> Result<(), Refused> {
+pub fn carousel(cars: Option<CarList>) -> Result<(), Refused> {
     crate::scene::set_up_carousel::set_up_carousel(cars)
 }
 

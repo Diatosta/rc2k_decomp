@@ -444,7 +444,6 @@ fn draw(
     p: [[u8; 10]; 3],
     view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
     use crate::effects::{draw_cell_sprite, draw_subcell_sprite};
     let Sprite {
         cell,
@@ -455,10 +454,10 @@ fn draw(
     {
         match place {
             3 => draw_subcell_sprite::draw_subcell_sprite(
-                masks, ring, effects, cell, size, e, p, scene, view,
+                masks, ring, effects, cell, size, e, p, view,
             ),
             _ => draw_cell_sprite::draw_cell_sprite(
-                masks, ring, effects, cell, angle, alpha, size, e, p, scene, view,
+                masks, ring, effects, cell, angle, alpha, size, e, p, view,
             ),
         }
     }

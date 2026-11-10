@@ -56,6 +56,7 @@ struct GameFace<'a>(
     &'a crate::scene::object_place::ObjectPlace,
     &'a crate::race::car_draw_state::CarDrawState,
     &'a crate::physics::car_store::Car,
+    &'a crate::race::view_vars_store::ViewVars,
 );
 
 impl FaceWorld for GameFace<'_> {
@@ -131,7 +132,7 @@ impl FaceWorld for GameFace<'_> {
     }
     fn line_value(&self, extra: u32) -> Result<u32, rc2k_core::Invalid> {
         {
-            let which: u32 = self.0.frame.view_and_records.view_vars.drawn_car.bits();
+            let which: u32 = self.6.drawn_car.bits();
             let block: u32 = if which < BLOCKS {
                 self.0.shared.work.car_block(which as usize)
             } else {
@@ -187,6 +188,7 @@ pub fn list_object_face(
         &ctx.view.object,
         &ctx.view.cars,
         &ctx.view.car,
+        &ctx.view.vars,
     );
     let answer = dropped(&mut world, bytes);
     world.1.finish()?;

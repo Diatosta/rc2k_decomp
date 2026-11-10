@@ -88,7 +88,7 @@ fn run(
                 extended(item.place[0].bits()),
             ];
             crate::effects::draw_windscreen_flake::draw_windscreen_flake(
-                fl, item, colour, values, effects, scene,
+                fl, item, colour, values, effects,
             );
         }
         crate::scene::depth_buffer_on::depth_buffer(true);

@@ -11,7 +11,7 @@ use crate::session::{Dword, Float};
 pub struct SceneDraw {
     /// +0x0 (0x623F80): `scene::clip`'s work (`flt_623F80` ..); `race::car_shadow` keeps a vertex's pieces in [2], [4], [10], [11]; now each view's (`scene::polygon_work`); unused.
     pub clip_work: [Float; 12],
-    /// +0x30 (0x623FB0): the view window's offsets x, y (`scene::set_view_window`; the menus and `race::frame_views` set them).
+    /// +0x30 (0x623FB0): the view window's offsets x, y (`scene::set_view_window`; the menus and `race::frame_views` set them); now each view's (`scene::view_window`); unused.
     pub view_offset: [Dword; 2],
     /// +0x38 (0x623FB8): a work dword (`physics::engine_torque`, `physics::wheel_springs`); `race::find_present_courses`' four-byte probe.
     pub work_dword: Dword,
@@ -49,17 +49,17 @@ pub struct SceneDraw {
     pub unknown_cc: [Dword; 12],
     /// +0xfc (0x62407C): `g_faceSortKey` (`scene::face_sort_key`); now each view's (`scene::polygon_work`); unused.
     pub face_sort_key: Dword,
-    /// +0x100 (0x624080): the view's zoom, a whole number (0x100; the menus set it), in the scale.
+    /// +0x100 (0x624080): the view's zoom, a whole number (0x100; the menus set it), in the scale; now each view's (`scene::view_window`); unused.
     pub view_zoom: Dword,
-    /// +0x104 (0x624084): not named.
+    /// +0x104 (0x624084): not named; now each view's (`scene::view_window`); unused.
     pub unknown_104: Dword,
-    /// +0x108 (0x624088): the view's scale (`scene::set_view_window`, `scene::project_point`).
+    /// +0x108 (0x624088): the view's scale (`scene::set_view_window`, `scene::project_point`); now each view's (`scene::view_window`); unused.
     pub view_scale: Float,
-    /// +0x10c (0x62408C): the view window's width and height.
+    /// +0x10c (0x62408C): the view window's width and height; now each view's (`scene::view_window`); unused.
     pub view_size: [Dword; 2],
-    /// +0x114 (0x624094): the window's middle, x and y (half of each, unsigned).
+    /// +0x114 (0x624094): the window's middle, x and y (half of each, unsigned); now each view's (`scene::view_window`); unused.
     pub view_middle: [Dword; 2],
-    /// +0x11c (0x62409C): the middle as floats (`scene::project_point`'s centre; `draw_polygon`'s mirror).
+    /// +0x11c (0x62409C): the middle as floats (`scene::project_point`'s centre; `draw_polygon`'s mirror); now each view's (`scene::view_window`); unused.
     pub view_centre: [Float; 2],
     /// +0x124 (0x6240A4): `g_polygonNextRecord`; now each view's (`scene::polygon_work`); unused.
     pub polygon_next_record: Dword,
@@ -128,33 +128,33 @@ pub struct SceneDraw {
     pub clip_work_2: [Dword; 5],
     /// +0x240 (0x6241C0): not named.
     pub unknown_240: [Dword; 2],
-    /// +0x248 (0x6241C8): the farthest depth (`scene::set_view_window`).
+    /// +0x248 (0x6241C8): the farthest depth (`scene::set_view_window`); now each view's (`scene::view_window`); unused.
     pub farthest: Float,
-    /// +0x24c (0x6241CC): 1 over it.
+    /// +0x24c (0x6241CC): 1 over it; now each view's (`scene::view_window`); unused.
     pub one_over_farthest: Float,
-    /// +0x250 (0x6241D0): it times `fade_a` over `fade_b` over 65536.
+    /// +0x250 (0x6241D0): it times `fade_a` over `fade_b` over 65536; now each view's (`scene::view_window`); unused.
     pub farthest_scaled: Dword,
-    /// +0x254 (0x6241D4): the clip rectangle as whole numbers: top, bottom, left, right.
+    /// +0x254 (0x6241D4): the clip rectangle as whole numbers: top, bottom, left, right; now each view's (`scene::view_window`); unused.
     pub clip_edges: [Dword; 4],
-    /// +0x264 (0x6241E4): the same as floats (`g_clipScreenTop` .. `Right`).
+    /// +0x264 (0x6241E4): the same as floats (`g_clipScreenTop` .. `Right`); now each view's (`scene::view_window`); unused.
     pub clip_screen: [Float; 4],
-    /// +0x274 (0x6241F4): `view_offset` as floats.
+    /// +0x274 (0x6241F4): `view_offset` as floats; now each view's (`scene::view_window`); unused.
     pub view_offset_float: [Float; 2],
     /// +0x27c (0x6241FC): not named.
     pub unknown_27c: [Dword; 2],
-    /// +0x284 (0x624204): (`scene::draw_object_faces`).
+    /// +0x284 (0x624204): (`scene::draw_object_faces`); now each view's (`scene::view_window`); unused.
     pub faces_done: Dword,
     /// +0x288 (0x624208): not named.
     pub unknown_288: [Dword; 6],
     /// +0x2a0 (0x624220): (`scene::set_view_window`).
     pub fade_b: Float,
-    /// +0x2a4 (0x624224): (100 less `dword_60AC80`, held) times `flt_5C5CFC`.
+    /// +0x2a4 (0x624224): (100 less `dword_60AC80`, held) times `flt_5C5CFC`; now each view's (`scene::view_window`); unused.
     pub depth_divisor: Float,
     /// +0x2a8 (0x624228): (`scene::set_view_window`).
     pub fade_a: Float,
     /// +0x2ac (0x62422C): `clip_farthest` is the farthest times it.
     pub clip_factor: Float,
-    /// +0x2b0 (0x624230): `g_clipFarthest`, rounded.
+    /// +0x2b0 (0x624230): `g_clipFarthest`, rounded; now each view's (`scene::view_window`); unused.
     pub clip_farthest: Dword,
     /// +0x2b4 (0x624234): `g_mirrorPicture`: the mirror picture's texture.
     pub mirror_picture: Dword,
@@ -196,7 +196,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(scene().drawing.scene.first(), START, END);
+        crate::gfx::first_values_are_the_games(&scene().drawing.scene, START, END);
     }
 
     #[test]

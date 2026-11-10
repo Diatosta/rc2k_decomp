@@ -19,20 +19,22 @@ use crate::menu::screen_loop::{
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
-    let drawing = &entry.scene.drawing;
     let screens = &entry.menus.screens;
     Callee::NoOp.run(entry)?;
     screens.loop_flags.ended_a.set(0x0u32);
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0x14u32);
-    carousel(None, entry.scene)?;
+    carousel(None)?;
     let item = screens.items.current[slot::REVIEW_OPTIONS_481429].get();
     screens.loop_flags.item.set(item);
     screens.state.carousel.front.set(item.wrapping_sub(1));
     screens.flow.turning.set(0x0u32);
-    drawing.scene.view_offset[0].set(0xFFFFFF64u32);
-    drawing.scene.view_offset[1].set(0x27u32);
-    drawing.scene.view_zoom.set(0x140u32);
+    crate::scene::polygon_work::front_end().window.view_offset[0].set(0xFFFFFF64u32);
+    crate::scene::polygon_work::front_end().window.view_offset[1].set(0x27u32);
+    crate::scene::polygon_work::front_end()
+        .window
+        .view_zoom
+        .set(0x140u32);
     prepare_scene(entry.scene);
     Ok(())
 }

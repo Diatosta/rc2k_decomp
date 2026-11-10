@@ -135,12 +135,12 @@ pub fn draw_view_backdrop(
     let course = &race.course;
     view.quad.uv[0].set(0xF8_0000);
     view.quad.uv[4].set(0x8_0000);
-    let left = scene.drawing.scene.view_offset[0].get();
+    let left = view.polygon.window.view_offset[0].get();
     view.quad.corners[0].set(left);
-    view.quad.corners[1].set(left.wrapping_add(scene.drawing.scene.view_size[0].get()));
-    let top = scene.drawing.scene.view_offset[1].get();
+    view.quad.corners[1].set(left.wrapping_add(view.polygon.window.view_size[0].get()));
+    let top = view.polygon.window.view_offset[1].get();
     view.quad.corners[4].set(top);
-    view.quad.corners[5].set(top.wrapping_add(scene.drawing.scene.view_size[1].get()));
+    view.quad.corners[5].set(top.wrapping_add(view.polygon.window.view_size[1].get()));
     let v = &crate::d3d::vertices_store::VERTICES.vertices;
     let x0 = int_and_one(course, view.quad.corners[0].get(), false);
     v[0].x.set_bits(x0);
