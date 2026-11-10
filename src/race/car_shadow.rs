@@ -848,7 +848,7 @@ pub fn cast_car_shadows(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         // `drive::load_car`, and left the last one there for the rest of the view:
         // `notes/bugs.md`).
         let car = crate::race::blocks_store::block_at(block(n), "a car's block")?;
-        if !casts_shadow(car.state_bits.get()) {
+        if !casts_shadow(ctx.view.cars.state_of(block(n))?.get()) {
             continue;
         }
         work.point_count.set_bits(car.probe_count.bits());

@@ -477,7 +477,7 @@ pub fn car_lights(ctx: &DrawCtx) -> Result<(), Refused> {
     for n in 0..cars {
         let b = block(n);
         // Both only with the lights on: the `jz` skips to the `popa`.
-        if lights_on(car_at(b)?.state_bits.bits()) {
+        if lights_on(ctx.view.cars.state_of(b)?.bits()) {
             add_car_depth_entry(ctx, b, n)?;
             car_light_flares(ctx, b)?;
         }

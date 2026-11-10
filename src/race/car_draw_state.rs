@@ -6,13 +6,18 @@
 //! the car's kept place and depth), `CameraWork` (the car's kept word), `RaceWork` (the car's
 //! drawing word) and `FrameSwitches` (the object's material way, the fade words and the
 //! number of the object being drawn), `CourseWork` and `FrameSwitches` (the car's group
-//! masks) and `ViewVars` (`g_groupMask`). The old fields stay in the stores, unused.
+//! masks) and `ViewVars` (`g_groupMask`), and each car block's +0x6FC (the state bits). The
+//! old fields stay in the stores, unused.
 
 use crate::session::Dword;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CarDrawState {
+    /// Each car block's state bits as the view draws it (+0x6FC of the block in the original:
+    /// lights, seen from inside 0x10, casts a shadow, ...), set at the view's start
+    /// (`race::car_light_modes`), by block number.
+    pub car_states: [Dword; crate::race::blocks_store::BLOCK_COUNT],
     /// The cars drawn this frame (`g_carsDrawn`).
     pub cars_drawn: Dword,
     /// The car's kept place (`dword_64159C` ..).
@@ -48,6 +53,7 @@ pub struct CarDrawState {
 impl CarDrawState {
     pub const fn new() -> Self {
         Self {
+            car_states: [const { Dword::new(0) }; crate::race::blocks_store::BLOCK_COUNT],
             cars_drawn: Dword::new(0),
             car_kept: [const { Dword::new(0) }; 2],
             car_depth: Dword::new(0),
@@ -63,5 +69,16 @@ impl CarDrawState {
             light_left: Dword::new(0),
             light_right: Dword::new(0),
         }
+    }
+}
+
+impl CarDrawState {
+    /// The state bits of the car whose block is at `block`.
+    pub fn state_of(&self, block: u32) -> Result<&Dword, crate::errors::BadInput> {
+        crate::physics::car_store::Car::block_number(block)
+            .map(|n| &self.car_states[n])
+            .ok_or(crate::errors::BadInput(
+                "a car's state bits not of a car block",
+            ))
     }
 }

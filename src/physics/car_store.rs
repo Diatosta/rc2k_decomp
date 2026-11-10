@@ -386,7 +386,8 @@ pub struct Car {
     /// +0x6f4 (0x71A6CC): unreferenced bytes (0x8 of them).
     pub _gap_6f4: Bytes<8>,
     /// +0x6fc (0x71A6D4): the car's state bits (lights, seen from inside 0x10, casts a
-    /// shadow; `race::car_draw`, `race::car_shadow`, `race::frame_views`).
+    /// shadow; `race::car_draw`, `race::car_shadow`, `race::frame_views`); now each view's
+    /// (`race::car_draw_state::CarDrawState::car_states`); unused.
     pub state_bits: Dword,
     /// +0x700 (0x71A6D8): the six parts' wake counts (`race::frame_draw`'s lights,
     /// `drive::share_car_state`).

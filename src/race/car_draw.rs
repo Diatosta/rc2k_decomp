@@ -286,7 +286,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     ] {
         ctx.view.cars.group_masks[to].set(field(offset)?);
     }
-    let state = car_at(car)?.state_bits.bits();
+    let state = ctx.view.cars.state_of(car)?.bits();
     let bit = ctx.view.cars.group_masks[17].bits();
     ctx.view.cars.group_mask.set(u32::MAX);
     if state & 2 != 0 {

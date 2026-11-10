@@ -61,7 +61,7 @@ pub fn draw_view_scene(
     for cell in &scene.drawing.object_work.view_cleared {
         cell.set(0);
     }
-    car_light_modes(race)?;
+    car_light_modes(race, &view.cars)?;
     clear_point_records(race, scene)?;
     set_up_fog(race, &view.fog, &view.polygon)?;
     camera_view(race, scene, &view.matrices)?;

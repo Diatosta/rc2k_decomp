@@ -7,7 +7,6 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::Trap;
-use crate::race::trap::car_at;
 use crate::race::view_scratch::DrawCtx;
 use crate::session::Dword;
 
@@ -18,7 +17,10 @@ use crate::session::Dword;
 /// nibbles set step by step: 0x21; for the shown car with `race().frame.view_and_records.view_vars.view_car_flag_b`, 0x12, then 0x14
 /// unless `race().frame.view_and_records.view_vars.view_car_stage` is 1, then 0x11 unless it is 2 or 3; then 0x100 in the third
 /// nibble, 0x200 with `crate::race::owner::race().shared.vars.settings_words[3]` (1: the shown car only). Refuses (before anything) a null block among the eight or more than eight cars.
-pub fn car_light_modes(race: &Race) -> Result<(), Refused> {
+pub fn car_light_modes(
+    race: &Race,
+    states: &crate::race::car_draw_state::CarDrawState,
+) -> Result<(), Refused> {
     let block = |n: u32| race.shared.work.car_block(n as usize);
     let cars: u32 = race.shared.view.race_cars.bits();
     if (0..8).any(|n| block(n) == 0) {
@@ -37,15 +39,15 @@ pub fn car_light_modes(race: &Race) -> Result<(), Refused> {
         .get();
     race.shared.view.shown_car.set_bits(shown);
     for n in 0..8 {
-        car_at(block(n))?.state_bits.set(0);
+        states.state_of(block(n))?.set(0);
     }
     // Converted: `rc2k_core::race::lights::{lights_drawn, light_word}`.
     use rc2k_core::race::lights::{light_word, lights_drawn};
     let mode: u32 = race.shared.vars.run_kind.bits();
     for n in 0..cars {
-        // The state bits are the drawing's own (in the block); what decides them, the physics'.
+        // The state bits are the view's own; what decides them, the physics'.
         let this_car = crate::race::frame_view::car_at(block(n))?;
-        let at = &car_at(block(n))?.state_bits;
+        let at = states.state_of(block(n))?;
         let me = n == shown;
         let drawn = lights_drawn(
             this_car.driver_kind.bits() != 0,

@@ -480,8 +480,8 @@ pub fn draw_own_car(
         return Err(BadInput("the drawn car without its block").into());
     }
     frame.view_and_records.view_vars.drawn_car.set(number);
-    // The state bits are the drawing's own (in the block); the rest, the car as seen.
-    if !seen_inside(car_at(car)?.state_bits.get()) {
+    // The state bits are the view's own; the rest, the car as seen.
+    if !seen_inside(ctx.view.cars.state_of(car)?.get()) {
         return Ok(());
     }
     let block = crate::race::frame_view::car_at(car)?;
