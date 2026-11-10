@@ -565,3 +565,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read in `race::car_light_modes` (0x455B70) and `race::camera_view`; found 2026-11-10 when each view was given its own camera values.
 
 **Fix:** the lights follow the shown car's own camera settings, read from the car itself.
+
+## The reverb chosen by the mirror or the other player
+
+**What it is:** the race's reverb (the EAX "room": open road, forest, tunnel...) is worked out while each view is drawn, from the course around that view's camera. Every view drawn sets it, so the rear-view mirror's, or in split screen the second player's view, replaced the first player's; the sound took whichever was set when it ran.
+
+**In game:** with an EAX sound card of the time, the reverb could follow the mirror's view or the other player's surroundings instead of the player's own. Today nothing is heard either way: EAX hardware reverb is not available on Windows since Vista, nor in this port yet.
+
+**Seen or read:** read in `race::eax_environment` (0x45C7EE) and the frame's views; found 2026-11-10 while drawing the views on several threads.
+
+**Fix:** the reverb comes from the first player's main view only.

@@ -64,12 +64,16 @@ fn draw_view(
         let c = crate::moved::census::before();
         {
             let _step = crate::write_watch::step(["view0_scene", "view1_scene"][car]);
-            crate::race::draw_view_scene::draw_view_scene(
+            let output = crate::race::draw_view_scene::draw_view_scene(
                 race,
                 scene,
                 crate::race::view_scratch::main_view(car),
-            )?
-            .publish();
+            )?;
+            // The race's reverb from the first player's view only (not the original's: every
+            // view drawn set it, the mirror's or the second player's last; `notes/bugs.md`).
+            if car == 0 {
+                output.publish();
+            }
         }
         let _step = crate::write_watch::step(["view0_rest", "view1_rest"][car]);
         crate::moved::census::after(if car == 0 { "view0" } else { "view1" }, c);

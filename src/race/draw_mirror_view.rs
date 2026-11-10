@@ -55,8 +55,8 @@ pub fn draw_mirror_view(
         )?;
         race.shared.view.view_depth[1].set_bits(view.course.view_value_kept.bits());
         crate::race::frame_flush::draw_view_backdrop(race, scene, view);
-        crate::race::draw_view_scene::draw_view_scene(race, scene, view)
-            .map(crate::race::draw_view_scene::ViewOutput::publish)
+        // Its EAX weight goes nowhere: the race's is the first player's view's.
+        crate::race::draw_view_scene::draw_view_scene(race, scene, view).map(|_| ())
     })();
     race.frame
         .view_and_records
