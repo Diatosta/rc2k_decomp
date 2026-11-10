@@ -41,7 +41,7 @@ pub struct FrameWork {
     pub sun_size: Dword,
     /// +0x54 (0x6415E0): the mirror's picture wanted (`d3d::copy_screen_to_texture`, `race::draw_race_scene`).
     pub mirror_wanted: Dword,
-    /// +0x58 (0x6415E4): `g_viewLight`.
+    /// +0x58 (0x6415E4): `g_viewLight`; now each view's (`scene::object_light`); unused.
     pub view_light: Dword,
     /// +0x5c (0x6415E8): (`race::frame_views`).
     pub mirror_switch: Dword,

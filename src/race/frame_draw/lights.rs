@@ -332,7 +332,7 @@ pub fn light_colour_at(
 }
 
 /// `race::view_light` (0x455896): the lit place the view's car's (`ViewScratch::car`, the original's `g_car` +0x134 ..);
-/// `light_colour_at`; `race().frame.frame_work.view_light` = the view's car's light colour plus the
+/// `light_colour_at`; the view's `ObjectLight::view_light` = the view's car's light colour plus the
 /// light (`add_colours`). The original added `LIGHT_WORK.view_light_base`, the light colour of
 /// the last car the previous view drew (a slip fixed: the views' order showed in the
 /// snowflakes' tint; `wiki/Fixed-bugs.md`).
@@ -351,10 +351,6 @@ pub fn view_light(
     );
     light_colour_at(race, scene, lamps, object_light)?;
     let light: u32 = object_light.light_colour.bits();
-    race.frame
-        .frame_work
-        .view_light
-        .set(add_colours(car.light_colour.bits(), light));
     object_light
         .view_light
         .set(add_colours(car.light_colour.bits(), light));

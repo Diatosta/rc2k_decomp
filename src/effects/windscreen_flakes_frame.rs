@@ -24,7 +24,6 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::marks_settings_store::MarksSettings;
-use crate::race::owner_frame::Frame;
 use crate::scene::cross_product3::cross;
 use crate::scene::vector3::normalise;
 
@@ -48,16 +47,16 @@ fn frame_facing(drops: &WindscreenDrops, fl: &WindscreenFlakes) {
     frame_facing_x87(drops, &fl.tables);
 }
 
-/// The Rust version (see the header).
+/// The Rust version (see the header). The flakes are tinted by `ctx`'s view's light.
 pub fn windscreen_flakes_frame(
-    frame: &Frame,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     masks: &Masks,
     drops: &WindscreenDrops,
     pong: &crate::effects::pong::Pong,
     fl: &WindscreenFlakes,
-    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
+    let (frame, scene) = (&ctx.race.frame, ctx.scene);
     let m = crate::effects::setup::marks()?;
     frame_axes(fl, m);
     let [a0, a1, a2] = [0, 1, 2].map(|n| &fl.tables.axes[n]);
@@ -78,7 +77,12 @@ pub fn windscreen_flakes_frame(
     if x87::mul_to_int(fl.timing.rate.bits(), fl.state.share.bits()) == 0 {
         return Ok(());
     }
-    crate::effects::run_windscreen_flakes::run_windscreen_flakes(frame, masks, drops, fl)?;
+    crate::effects::run_windscreen_flakes::run_windscreen_flakes(
+        masks,
+        drops,
+        fl,
+        ctx.view.light.view_light.bits(),
+    )?;
     let marks = crate::effects::setup::marks()?;
     if marks.listener_switch_6.get() == 0 {
         return Ok(());

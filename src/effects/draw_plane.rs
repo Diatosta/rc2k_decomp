@@ -151,7 +151,7 @@ pub fn draw_plane(
             .v
             .set_bits(x87::loaded(PLANE_TUNING.places[n][1].to_bits()));
     }
-    let light: u32 = race.frame.frame_work.view_light.bits();
+    let light: u32 = ctx.view.light.view_light.bits();
     for n in 0..4 {
         VERTICES.vertices[n].colour.set(light);
     }

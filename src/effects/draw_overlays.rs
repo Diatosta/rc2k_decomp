@@ -53,12 +53,11 @@ pub fn draw_overlays(
         let fl = &effects.windscreen_flakes;
         crate::effects::draw_plane::draw_plane(ctx, drops, fl, effects)?;
         crate::effects::windscreen_flakes_frame::windscreen_flakes_frame(
-            &race.frame,
+            ctx,
             masks,
             drops,
             &effects.pong,
             fl,
-            scene,
             effects,
         )?;
         crate::effects::windscreen_drops_top::windscreen_drops_top(

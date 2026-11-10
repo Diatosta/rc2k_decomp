@@ -595,7 +595,7 @@ pub fn run_view_marks(
     // Neither reads a register nor leaves one read after it (0x456464, 0x456472).
     let done = crate::effects::frame_marks::frame_marks(race, effects).and_then(|_| {
         if race.frame.frame_work.drawing.get() == 0 {
-            crate::effects::run_frame::run_frame(race, fog)
+            crate::effects::run_frame::run_frame(race, fog, ctx.view.light.view_light.bits())
         } else {
             Ok(())
         }

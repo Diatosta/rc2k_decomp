@@ -42,6 +42,7 @@ pub fn run_snow(
     weather: &Weather,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
+    view_light: u32,
 ) -> Result<(), Refused> {
     let frame = &race.frame;
     use crate::scene::set_render_state::set_render_state;
@@ -50,7 +51,7 @@ pub fn run_snow(
         let marks = crate::effects::setup::marks()?;
         l.kept.set(marks.unknown_6bc[1].get());
         turn_light(frame, weather);
-        crate::effects::make_fade_colours::make_fade_colours(frame, weather, effects);
+        crate::effects::make_fade_colours::make_fade_colours(view_light, weather, effects);
         let mut flakes = marks.listener_switch_4.get() as i32;
         s.flakes.set(flakes as u32);
         if flakes == 0 {
@@ -75,7 +76,7 @@ pub fn run_snow(
             set_render_state(value, state);
         }
         let rhw = l.rhw.get();
-        let light = frame.frame_work.view_light.bits() | 0xFF00_0000;
+        let light = view_light | 0xFF00_0000;
         let [u0, v0, u1, v1] = l.uv.each_ref().map(super::super::session::Dword::get);
         let uv = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)];
         for (n, (u, v)) in uv.into_iter().enumerate() {

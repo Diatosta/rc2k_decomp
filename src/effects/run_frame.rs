@@ -44,7 +44,13 @@ fn share(at: usize, start: u32, effects: &crate::effects::owner::Effects) {
 }
 
 /// The Rust version (see the header).
-pub fn run_frame(race: &Race, fog: &crate::scene::fog::Fog) -> Result<(), Refused> {
+/// `view_light`: the view's light colour (`ObjectLight::view_light`, `race::view_light`), which
+/// the snow tints by.
+pub fn run_frame(
+    race: &Race,
+    fog: &crate::scene::fog::Fog,
+    view_light: u32,
+) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
     let scene = crate::scene::owner::scene();
     use crate::effects::*;
@@ -60,7 +66,7 @@ pub fn run_frame(race: &Race, fog: &crate::scene::fog::Fog) -> Result<(), Refuse
             set_render_state(value, state);
         }
         run_rain::run_rain(race, weather, scene, effects)?;
-        run_snow::run_snow(race, weather, scene, effects)?;
+        run_snow::run_snow(race, weather, scene, effects, view_light)?;
         let start = rdtsc();
         share(0, start, effects);
         draw_frame::draw_frame(race, effects)?;

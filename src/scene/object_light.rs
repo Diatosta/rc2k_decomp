@@ -41,8 +41,8 @@ pub struct ObjectLight {
     /// (`scene::vertex_light`).
     pub car_light: Dword,
     /// The view's light colour (`FRAME_WORK.view_light`, `g_viewLight`, 0x6415E4): the view's
-    /// car's light colour plus the light (`race::view_light`), each view's own; the effects
-    /// after the views read the shared one.
+    /// car's light colour plus the light (`race::view_light`), each view's own; its effects
+    /// (snow, windscreen flakes, the plane) are given it.
     pub view_light: Dword,
     /// The other light of the object being drawn (`OBJECT_WORK.other_light`, 0x635054):
     /// 0 from the sky on, a described object's or lamp's or flare's own; added to the light

@@ -97,9 +97,16 @@ pub fn race_init(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
         { crate::drive::share_all_cars::share_all_cars(race, scene) }?;
         MARKS_SETTINGS.other_marks_shown.set(0);
         crate::effects::frame_marks::frame_marks(race, effects())?;
-        // No view has set up its fog yet: the original's effects here read what the front end
-        // left (`scene::clear_fog`), the front end's own fog here (frame plan F4).
-        crate::effects::run_frame::run_frame(race, &crate::race::view_scratch::front_end().fog)?;
+        // No view has set up its fog or light yet: the original's effects here read what the
+        // front end left (`scene::clear_fog`; `g_viewLight` the last race view's), the front
+        // end's own here (frame plan F4; the snow's fades worked out from the light are worked
+        // out again at every frame before they are drawn).
+        let front_end = crate::race::view_scratch::front_end();
+        crate::effects::run_frame::run_frame(
+            race,
+            &front_end.fog,
+            front_end.light.view_light.bits(),
+        )?;
     }
     crate::race::race_init::clear_race_slots(&race.shared);
     indent_by(race_steps::LOG_INDENT.wrapping_neg());
