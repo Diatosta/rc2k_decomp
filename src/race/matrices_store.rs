@@ -32,7 +32,7 @@ pub struct SceneMatrices {
     pub turned_matrix: [Float; 16],
     /// +0x284 (0x5EA14C): `g_litMatrix`: the lit matrix (`race::frame_draw`, `race::car_parts`).
     pub lit_matrix: [Float; 16],
-    /// +0x2c4 (0x5EA18C): `flt_5EA18C`: the inverted view turn (`race::frame_draw`).
+    /// +0x2c4 (0x5EA18C): `flt_5EA18C`: the inverted view turn (`race::frame_draw`); now each view's (`scene::view_matrices::ViewMatrices::view_turn_copy`); unused.
     pub view_turn_copy: [Float; 16],
     /// +0x304 (0x5EA1CC): unnamed buffer used in place (`race::frame_draw`, `scene::view_matrix`) (a reading).
     pub view_place_matrix: [Float; 16],

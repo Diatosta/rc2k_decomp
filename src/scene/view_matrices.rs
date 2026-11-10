@@ -57,6 +57,17 @@ pub struct ViewMatrices {
     pub turn_y_work: [Float; 2],
     /// The z turning's.
     pub turn_z_work: [Float; 2],
+    /// The view matrix (`g_viewMatrix`, 0x5EA2CC), each view's own (written by
+    /// `race::camera_view`; the shared one is kept for the effects drawn after the views).
+    pub view_matrix: [Float; 16],
+    /// The view's turn (`g_viewTurnMatrix`, 0x5EA24C), each view's own.
+    pub view_turn_matrix: [Float; 16],
+    /// The view turned back (`g_viewBackMatrix`, 0x5EA20C), each view's own.
+    pub view_back_matrix: [Float; 16],
+    /// The view's place matrix (0x5EA1CC), each view's own.
+    pub view_place_matrix: [Float; 16],
+    /// The inverted view turn kept for the mirror (`flt_5EA18C`), each view's own.
+    pub view_turn_copy: [Float; 16],
 }
 
 /// The fourth columns (cells 3, 7, 11, 15) of the turned, lit and made-object matrices, held
@@ -130,6 +141,11 @@ impl ViewMatrices {
             reflect_normal,
             object_turn_matrix,
             matrix_scratch,
+            view_matrix,
+            view_turn_matrix,
+            view_back_matrix,
+            view_place_matrix,
+            view_turn_copy,
             ..
         } = s;
         let [
@@ -172,6 +188,11 @@ impl ViewMatrices {
             turn_x_work: [const { Float::from_bits(0) }; 2],
             turn_y_work: [const { Float::from_bits(0) }; 2],
             turn_z_work: [const { Float::from_bits(0) }; 2],
+            view_matrix,
+            view_turn_matrix,
+            view_back_matrix,
+            view_place_matrix,
+            view_turn_copy,
         }
     }
 }

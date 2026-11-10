@@ -84,7 +84,7 @@ pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
         return Ok(());
     }
     if field(record, 0)? != place {
-        make_scene_record(ctx.race, place, record, ctx.scene)?;
+        make_scene_record(ctx.race, place, record, ctx.scene, ctx.view)?;
     }
     ctx.view.object.position[0].set_bits(x87::to_int(field(record, 0x10)?) as u32);
     let depth = x87::to_int(field(record, 0x18)?);

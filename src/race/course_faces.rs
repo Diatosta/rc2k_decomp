@@ -567,7 +567,7 @@ pub fn draw_whole_quad(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
         }
     }
     plain_list(&ctx.view.polygon, 4, 4);
-    crate::scene::project_polygon::project_polygon(&ctx.view.polygon, race, scene)?;
+    crate::scene::project_polygon::project_polygon(&ctx.view.polygon, race, scene, ctx.view)?;
     if let Some(triangles) = quad_by_outside(ctx.view.polygon.polygon_outside_count.bits()) {
         return Ok(triangles);
     }
@@ -801,7 +801,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         ctx.view.polygon.polygon_vertex_count.bits(),
         6,
     );
-    crate::scene::project_polygon::project_polygon(&ctx.view.polygon, race, scene)?;
+    crate::scene::project_polygon::project_polygon(&ctx.view.polygon, race, scene, ctx.view)?;
     if ctx.view.polygon.polygon_outside_count.get() == ctx.view.polygon.polygon_vertex_count.get() {
         return Ok(());
     }

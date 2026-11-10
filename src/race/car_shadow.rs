@@ -581,7 +581,7 @@ pub fn shadow_on_face(
             read_on_in(&race.shared.buffers, list, k as usize, "the polygon list")?,
         )?;
     }
-    crate::scene::project_polygon::project_polygon(&ctx.view.polygon, race, scene)?;
+    crate::scene::project_polygon::project_polygon(&ctx.view.polygon, race, scene, ctx.view)?;
     crate::scene::fog_polygon::fog_polygon(ctx.view)?;
     ctx.view
         .polygon

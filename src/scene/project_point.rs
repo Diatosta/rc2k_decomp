@@ -179,6 +179,7 @@ pub(crate) fn make_scene_record(
     point: u32,
     record: u32,
     scene: &crate::scene::owner::Scene,
+    view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), BadInput> {
     let points: u32 = race.course.course.scene_points.bits();
     if points == 0 {
@@ -190,8 +191,7 @@ pub(crate) fn make_scene_record(
     let place = crate::race::scene_points::point_number(point)?;
     rotate(
         &place,
-        &race
-            .frame
+        &view
             .matrices
             .view_matrix
             .each_ref()
@@ -222,6 +222,7 @@ pub fn project_point(
     race: &Race,
     point: u32,
     scene: &crate::scene::owner::Scene,
+    view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<Projected, Refused> {
     let course = &race.course;
     let offset = record_offset(course, point, scene)?;
@@ -230,7 +231,7 @@ pub fn project_point(
     }
     let record = point_records::at_offset(offset);
     if (point as i32) >= 0 && point_records::field(record, 0)? != point {
-        make_scene_record(race, point, record, scene)?;
+        make_scene_record(race, point, record, scene, view)?;
     }
     Ok(Projected { record })
 }

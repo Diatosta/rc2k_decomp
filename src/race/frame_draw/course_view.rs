@@ -68,7 +68,9 @@ pub fn point_record(
 ) -> Result<u32, Refused> {
     let record = crate::scene::point_records::of_scene_point(point);
     if crate::scene::point_records::field(record, 0)? != point {
-        crate::scene::project_point::make_scene_record(ctx.race, point, record, ctx.scene)?;
+        crate::scene::project_point::make_scene_record(
+            ctx.race, point, record, ctx.scene, ctx.view,
+        )?;
     }
     Ok(record)
 }
@@ -352,9 +354,10 @@ pub fn face_hide_mask(
 /// `turned_z`) and the limit as a float (`DRAW.work_float_b`), which nothing read after.
 pub fn mark_far_cells(
     race: &Race,
-    view: &crate::race::view_grid::ViewGrid,
+    scratch: &crate::race::view_scratch::ViewScratch,
     limit: u32,
 ) -> Result<(), BadInput> {
+    let view = &scratch.grid;
     use crate::math::x87_load::{below_or_unordered, float_hypot, scaled_abs_less_below};
     let grid = &view.cells;
     for k in 0..0x400 {
@@ -362,7 +365,7 @@ pub fn mark_far_cells(
     }
     let half: u32 = view.half.bits();
     // Nothing in the loop writes the matrix: its floats read once.
-    let matrix = crate::session::read_bits(&race.frame.matrices.view_turn_matrix);
+    let matrix = crate::session::read_bits(&scratch.matrices.view_turn_matrix);
     let two: u32 = race.course.numbers.two.bits();
     let zero: u32 = race.course.numbers.zero.bits();
     let point_five: u32 = race.course.numbers.half.bits();
@@ -410,7 +413,7 @@ pub fn prepare_course_view(
     } else {
         0x10
     };
-    mark_far_cells(race, &view.grid, limit)?;
+    mark_far_cells(race, view, limit)?;
     Ok(())
 }
 

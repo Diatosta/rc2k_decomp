@@ -92,15 +92,14 @@ pub(super) fn own_lamp(
 /// read by nothing). The caller checks
 /// the room.
 pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
-    let DrawCtx { race, view, .. } = *ctx;
-    let frame = &race.frame;
+    let DrawCtx { view, .. } = *ctx;
     let point = own_lamp(&view.lamps, lamp)?[0].get();
     let place = crate::race::scene_points::point_number(point)?;
     let turned = &view.object.place;
     for (cell, &v) in turned.iter().zip(&place) {
         cell.set(v);
     }
-    let matrix: [u32; 16] = crate::session::read_bits(&frame.matrices.view_matrix);
+    let matrix: [u32; 16] = crate::session::read_bits(&view.matrices.view_matrix);
     let out = crate::math::x87_load::rotate_rounding_z(place.map(|v| v as i32), &matrix);
     turned[0].set(out[0]);
     turned[1].set(out[1]);

@@ -81,7 +81,7 @@ pub fn draw_slot_object(
     matrix::set_place(&ctx.view.matrices.placed_matrix, place);
     matrix::copy_matrix_with_place(
         &ctx.view.matrices.placed_matrix,
-        &race.frame.matrices.view_place_matrix,
+        &ctx.view.matrices.view_place_matrix,
         &ctx.view.matrices.matrix_scratch,
     );
     matrix::copy_matrix_with_place(
@@ -91,7 +91,7 @@ pub fn draw_slot_object(
     );
     matrix::multiply_matrices(
         &ctx.view.matrices.turned_matrix,
-        &race.frame.matrices.view_turn_matrix,
+        &ctx.view.matrices.view_turn_matrix,
         &ctx.view.matrices.made_object_matrix,
     );
     start_kept_reflections(ctx.view);
@@ -234,8 +234,7 @@ pub fn draw_view_tint(
 /// of the key with the car's `number` plus 0x2000000. Refuses (before anything) a depth
 /// entry past the 0x1000.
 pub fn add_car_depth_entry(ctx: &DrawCtx, car: u32, number: u32) -> Result<(), Refused> {
-    let DrawCtx { race, view, .. } = *ctx;
-    let frame = &race.frame;
+    let DrawCtx { view, .. } = *ctx;
     use crate::math::x87::from_int;
     let n: u32 = view.lists.depth_entry_count.bits();
     if n >= SORT_MAX {
@@ -245,7 +244,7 @@ pub fn add_car_depth_entry(ctx: &DrawCtx, car: u32, number: u32) -> Result<(), R
     for (k, &p) in place.iter().enumerate() {
         ctx.view.object.place[k].set_bits(p);
     }
-    let matrix: [u32; 16] = crate::session::read_bits(&frame.matrices.view_matrix);
+    let matrix: [u32; 16] = crate::session::read_bits(&view.matrices.view_matrix);
     let t = crate::math::x87_load::rotate_rounding(place.map(|v| v as i32), &matrix);
     for (k, &v) in t.iter().enumerate() {
         view.object.turned_place[k].set_bits(v);
@@ -299,7 +298,7 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
     }
     let out = crate::math::x87_load::rotate_rounding_z(
         place.map(|v| v as i32),
-        &crate::session::read_bits(&race.frame.matrices.view_matrix),
+        &crate::session::read_bits(&view.matrices.view_matrix),
     );
     ctx.view.object.place[0].set(out[0]);
     ctx.view.object.place[1].set(out[1]);
@@ -489,7 +488,6 @@ pub fn car_lights(ctx: &DrawCtx) -> Result<(), Refused> {
 /// `g_placedMatrix`, moved by the view (0x5EA1CC into `ctx.view.matrices.matrix_scratch`), `ctx.view.matrices.object_turn_matrix` with it
 /// (`g_turnedMatrix`), times the view's turn into `g_madeObjectMatrix`.
 pub(super) fn placed_object_tail(ctx: &DrawCtx) {
-    let frame = &ctx.race.frame;
     use crate::scene::matrix;
     let place = [
         ctx.view.object.place[0].get(),
@@ -499,7 +497,7 @@ pub(super) fn placed_object_tail(ctx: &DrawCtx) {
     matrix::set_place(&ctx.view.matrices.placed_matrix, place);
     matrix::copy_matrix_with_place(
         &ctx.view.matrices.placed_matrix,
-        &frame.matrices.view_place_matrix,
+        &ctx.view.matrices.view_place_matrix,
         &ctx.view.matrices.matrix_scratch,
     );
     matrix::copy_matrix_with_place(
@@ -509,7 +507,7 @@ pub(super) fn placed_object_tail(ctx: &DrawCtx) {
     );
     matrix::multiply_matrices(
         &ctx.view.matrices.turned_matrix,
-        &frame.matrices.view_turn_matrix,
+        &ctx.view.matrices.view_turn_matrix,
         &ctx.view.matrices.made_object_matrix,
     );
 }
@@ -554,7 +552,7 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     set_light_direction(
         &ctx.view.matrices,
         &ctx.view.light.light_direction,
-        &race.frame.matrices.view_turn_matrix,
+        &ctx.view.matrices.view_turn_matrix,
         &ctx.view.light,
     );
     if scene.lights.state.light_turn_off.get() == 0 {
@@ -596,7 +594,7 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         .get() as u8; // the record's byte +0x20
     match material {
         1 | 2 => {
-            crate::math::cells::copy_cells(&frame.matrices.view_back_matrix, &object, 16);
+            crate::math::cells::copy_cells(&ctx.view.matrices.view_back_matrix, &object, 16);
         }
         5 => {
             crate::math::cells::copy_cells(&frame.matrices.identity_matrix, &object, 16);

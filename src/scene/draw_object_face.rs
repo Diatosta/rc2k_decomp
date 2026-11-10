@@ -184,7 +184,7 @@ pub fn draw_object_face_in_game(
                 draw_object_polygon(&ctx.view.polygon, race, &ctx.view.object, &mut |step| {
                     match step {
                         draw_object_polygon::Step::Project => {
-                            project_polygon(&ctx.view.polygon, race, scene)
+                            project_polygon(&ctx.view.polygon, race, scene, ctx.view)
                         }
                         draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(ctx),
                     }

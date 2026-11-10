@@ -147,7 +147,7 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
     }
     ctx.view.polygon.polygon_textures[0].set(0xC0u32);
     ctx.view.polygon.polygon_textures[1].set(0xC0u32);
-    let matrix: [u32; 15] = crate::math::cells::load(&frame.matrices.view_matrix);
+    let matrix: [u32; 15] = crate::math::cells::load(&ctx.view.matrices.view_matrix);
     // The last quad's two points (its link's number and the points as turned): a skidmark's
     // next quad has them as its two before, and nothing it is drawn with changes what they
     // are turned from.

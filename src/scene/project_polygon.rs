@@ -24,8 +24,9 @@ pub fn project_polygon(
     poly: &crate::scene::polygon_work::PolygonWork,
     race: &Race,
     scene: &crate::scene::owner::Scene,
+    view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
-    project_entries(poly, race, &listed(poly)?, scene)
+    project_entries(poly, race, &listed(poly)?, scene, view)
 }
 
 /// `project_polygon` on the polygon's entries as listed.
@@ -34,6 +35,7 @@ pub fn project_entries(
     race: &Race,
     entries: &Listed,
     scene: &crate::scene::owner::Scene,
+    view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     let course = &race.course;
     let drawing = &scene.drawing;
@@ -51,7 +53,7 @@ pub fn project_entries(
     let far = f32::from_bits(drawing.scene.farthest.bits());
     let mut outside = 0u32;
     for entry in entries {
-        let point = project_point(race, entry.point.get(), scene)?;
+        let point = project_point(race, entry.point.get(), scene, view)?;
         entry.record.set(point.record);
         let depth = f32::from_bits(crate::scene::point_records::field(point.record, 0x18)?);
         // Two compares, each taking "no number" for "below".

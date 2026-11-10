@@ -71,7 +71,7 @@ pub fn reflection_coordinates(
     normalise_vector(race, &m.work_vector)?;
     let to_eye: [u32; 3] = crate::session::read_first(&m.work_vector);
     crate::session::write_bits(&m.reflect_normal, to_eye);
-    reflect_vector(m, &race.frame.matrices.view_back_matrix);
+    reflect_vector(m, &m.view_back_matrix);
     let mirrored: [u32; 3] = crate::session::read_bits(&m.reflect_vector);
     crate::session::write_first(
         &m.work_vector,

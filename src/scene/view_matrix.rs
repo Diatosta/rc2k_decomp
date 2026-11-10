@@ -188,6 +188,16 @@ pub fn set_view_matrices(
         &frame.matrices.view_turn_matrix,
         &frame.matrices.view_back_matrix,
     );
+    // The front end's own (its drawing reads them).
+    let m = &frame.matrices;
+    for (own, shared) in [
+        (&scratch.view_turn_matrix, &m.view_turn_matrix),
+        (&scratch.view_place_matrix, &m.view_place_matrix),
+        (&scratch.view_matrix, &m.view_matrix),
+        (&scratch.view_back_matrix, &m.view_back_matrix),
+    ] {
+        crate::math::cells::copy_cells(shared, own, 16);
+    }
 }
 
 // ---- the converted versions (`rc2k_core::scene::matrices`) ----

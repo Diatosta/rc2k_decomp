@@ -20,9 +20,6 @@ use crate::scene::matrix::multiply_matrices;
 use crate::scene::view_matrices::ViewMatrices;
 use crate::session::Float;
 
-fn view_matrix(frame: &Frame) -> &'_ [Float] {
-    &frame.matrices.view_matrix // g_viewMatrix
-}
 fn car_turn(frame: &Frame) -> &'_ [Float] {
     &frame.frame_work.placed_matrices[..16] // flt_641760: the car's +0x880
 }
@@ -39,7 +36,11 @@ pub fn part_matrices(frame: &Frame) -> [&'_ [Float]; 4] {
 pub fn car_part_matrix(frame: &Frame, m: &ViewMatrices, a: &[Float]) {
     multiply_matrices(a, &m.body_turn_matrix, &m.turned_matrix);
     multiply_matrices(&m.turned_matrix, car_turn(frame), &m.lit_matrix);
-    multiply_matrices(&m.lit_matrix, view_matrix(frame), &m.made_object_matrix);
+    multiply_matrices(
+        &m.lit_matrix,
+        &m.view_matrix, // g_viewMatrix
+        &m.made_object_matrix,
+    );
 }
 
 /// `race::car_body_matrix` (0x461EA1): the turns about x and z by 0 (`scene::set_fine_turn_x`,
@@ -383,7 +384,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     crate::scene::matrix::set_light_direction(
         &ctx.view.matrices,
         &ctx.view.light.light_direction,
-        &race.frame.matrices.view_turn_matrix,
+        &ctx.view.matrices.view_turn_matrix,
         &ctx.view.light,
     );
     place();
@@ -525,7 +526,7 @@ pub fn draw_car_entry(
         .car_light
         .set(car_view(car)?.light_colour.bits());
     let t = crate::scene::rotate_point::rotate_point(
-        view_matrix(&race.frame),
+        &ctx.view.matrices.view_matrix,
         [
             int_80(car_view(car)?.position[0].bits()),
             int_80(car_view(car)?.position[1].bits()),

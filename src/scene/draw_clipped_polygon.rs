@@ -94,7 +94,7 @@ pub fn draw_clipped_polygon_in_game(
         match step {
             Step::Project => {
                 let listed = entries.insert(crate::scene::polygon::listed(poly)?);
-                project_entries(poly, race, listed, scene)?;
+                project_entries(poly, race, listed, scene, ctx.view)?;
             }
             Step::ScaleTextureCoordinates => match &entries {
                 Some(listed) if !listed.is_empty() => scale_entries(poly, listed)?,
