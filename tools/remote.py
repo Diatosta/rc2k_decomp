@@ -156,8 +156,6 @@ def start(gpu, fresh, profile=False):
         renderer += f"RC2K_SLOW_FRAMES={int(os.environ['RC2K_SLOW_FRAMES'])} "
     if os.environ.get('RC2K_DUMP'):  # the n-th big flush's commands to rc2k_frame_dump.bin
         renderer += f"RC2K_DUMP={int(os.environ['RC2K_DUMP'])} "
-    if os.environ.get('RC2K_DRAW_THREADS'):  # the scene drawn on this many threads
-        renderer += f"RC2K_DRAW_THREADS={int(os.environ['RC2K_DRAW_THREADS'])} "
     for switch in ('RC2K_MIRROR_BESIDE', 'RC2K_MIRROR_ALWAYS', 'RC2K_DRAW_SERIAL'):  # the mirror beside (0: after), shown, runs serial
         if os.environ.get(switch):
             renderer += f'{switch}={int(os.environ[switch] != "0")} '

@@ -1,4 +1,4 @@
-//! The render states across the drawing threads' runs (`workers::draw_in_runs`). The game
+//! The render states across the drawing threads' parts (`workers::draw_parts`). The game
 //! sets a state only when it changes and draws on with whatever the last object left: run
 //! n (n > 0) starts from the states as the list began, not as run n - 1 ends, so its fans
 //! up to its own first setting of a state carry a value the game in one run would not

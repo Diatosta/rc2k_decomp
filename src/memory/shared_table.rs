@@ -4,7 +4,7 @@
 //!
 //! The bytes are atomic words (relaxed, which compile to plain loads and stores), so threads
 //! drawing at once can read and write them with no lock; what they write is the same as one
-//! thread's in the list's order wherever `race::draw_chunks` found the order does not matter.
+//! thread's in the parts' order wherever the write watch found the order does not matter.
 //! Each table's words are allocated once, as many as its most bytes (zeroed memory: pages the
 //! system gives only when touched), and kept for the program's life; a step is a check of the
 //! length (`len`) and the words' loads or stores, as cheap as the thread's own storage was.
@@ -140,7 +140,8 @@ impl SharedTable {
         Ok(self.read(at, &mut to)?.map(|()| to))
     }
 
-    /// Every byte.
+    /// Every byte (the tests' save and restore).
+    #[cfg(test)]
     pub fn all(&self) -> Result<Vec<u8>, BadInput> {
         let mut to = vec![0; self.len()?];
         self.read(0, &mut to)?;

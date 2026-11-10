@@ -233,11 +233,10 @@ struct NotedLevel {
 /// The noted drawing's way to the backend: nothing noted is left behind.
 fn draw_noted(pending: &mut Pending) {
     if crate::workers::index() != 0 {
-        // The runs' drawing is put together on the game's thread: a flush here would draw
-        // this run's part ahead of the earlier runs'.
+        // The parts' drawing is put together on the game's thread: a flush here would draw
+        // this part ahead of the earlier parts.
         crate::framework::log("platform: a flush on a drawing thread (its drawing out of order)");
     }
-    FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     // Room for as many as there has been: growing to them shows in a profile.
     let room = pending.noted.capacity();
     let commands = std::mem::replace(&mut pending.noted, Vec::with_capacity(room));
@@ -310,20 +309,13 @@ fn note(what: impl FnOnce(&mut Pending) -> Command) {
     });
 }
 
-/// The commands noted since the last flush (`race::draw_chunks`' mark).
+/// The commands noted since the last flush (a part's mark, `workers`).
 pub fn noted_len() -> usize {
     PENDING.with_borrow(|p| p.noted.len())
 }
 
-/// The flushes so far (`race::draw_chunks`: none may come inside a chunk).
-pub fn flushes() -> u64 {
-    FLUSHES.load(std::sync::atomic::Ordering::Relaxed)
-}
-
-static FLUSHES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-
 /// The commands noted from `mark` on, taken out, the states and level as the last fan had them
-/// forgotten (`race::draw_chunks`: each chunk notes as from nothing).
+/// forgotten (`workers`: each part notes as from nothing).
 pub fn take_noted_from(mark: usize) -> Vec<Command> {
     PENDING.with_borrow_mut(|p| {
         p.states = None;
@@ -332,7 +324,7 @@ pub fn take_noted_from(mark: usize) -> Vec<Command> {
     })
 }
 
-/// `commands` noted after those so far (`race::draw_chunks`), their textures with them.
+/// `commands` noted after those so far (`workers`), their textures with them.
 pub fn put_noted(commands: Vec<Command>) {
     PENDING.with_borrow_mut(|p| {
         for c in &commands {

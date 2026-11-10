@@ -24,7 +24,6 @@ pub mod course_store;
 pub mod create_controls;
 pub mod credits_race;
 pub mod draw_batches_store;
-pub mod draw_chunks;
 pub mod draw_mirror_view;
 pub mod draw_race_scene;
 pub mod draw_tyre_change;

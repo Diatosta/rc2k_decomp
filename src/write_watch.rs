@@ -1,5 +1,5 @@
 //! The audit build's record of the game state's reads and writes (cargo feature `write_watch`;
-//! `race::draw_chunks` uses it to find what two runs of a list's entries both reach). Every
+//! `workers` uses it to find what two drawing parts both reach). Every
 //! cell's load and store (`session`'s cells, `pointers`' cell runs, `shared_memory`) calls
 //! `read` or `wrote`; without the feature they are empty and cost nothing. With it, while a
 //! thread watches (`begin` .. `end`), each place reached is noted by its dword (a byte noted
@@ -253,5 +253,58 @@ mod on {
     pub fn end() -> Seen {
         ON.set(false);
         SEEN.with_borrow_mut(std::mem::take)
+    }
+}
+
+/// The places one part writes and another reads or writes (what threads drawing the parts at
+/// once race on), gathered over the drawings and
+/// logged as IDA ranges (the moved ranges) or game addresses (Rust's own state) at the 300th.
+#[cfg(feature = "write_watch")]
+pub(crate) mod shared {
+    use std::collections::BTreeSet;
+    use std::sync::Mutex;
+
+    static SHARED: Mutex<(BTreeSet<usize>, u32)> = Mutex::new((BTreeSet::new(), 0));
+
+    pub fn add(seen: &[crate::write_watch::Seen]) {
+        let mut s = SHARED.lock().unwrap();
+        for (i, a) in seen.iter().enumerate() {
+            for w in &a.written {
+                if seen
+                    .iter()
+                    .enumerate()
+                    .any(|(j, b)| j != i && (b.written.contains(w) || b.read.contains(w)))
+                {
+                    s.0.insert(*w);
+                }
+            }
+        }
+        s.1 += 1;
+        if !s.1.is_multiple_of(300) {
+            return;
+        }
+        let mut text = String::from("workers: shared places:");
+        let words: Vec<usize> = s.0.iter().copied().collect();
+        let mut k = 0;
+        while k < words.len() {
+            let first = words[k];
+            while k + 1 < words.len() && words[k + 1] == words[k] + 1 {
+                k += 1;
+            }
+            let len = (words[k] - first + 1) * 4;
+            let host = first * 4;
+            let game = crate::address_map::game_of(host).map(|g| g as usize);
+            if let Some((what, at)) = crate::memory::shared_table::table_of(host) {
+                text += &format!(" [{what} +{at:#x}+{len:#x}]");
+                k += 1;
+                continue;
+            }
+            match game.and_then(crate::moved::ida_of) {
+                Some(ida) => text += &format!(" {ida:#x}+{len:#x}"),
+                None => text += &format!(" game:{:#x}+{len:#x}", game.unwrap_or(0)),
+            }
+            k += 1;
+        }
+        crate::framework::log(&text);
     }
 }

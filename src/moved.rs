@@ -2538,18 +2538,8 @@ mod tests {
     }
 }
 
-/// A write census (the multi-core audit, `notes/conversion.md`, optimisation phase): with
-/// `RC2K_WRITE_CENSUS` set, the bytes of every moved range a stretch of code changes, unioned
-/// over 200 calls, logged as IDA address runs per label. Other threads' writes in the same
-/// time show too (the audio thread's voices and commands): read the runs with that in mind.
-/// The moved ranges by IDA address, in the order `load_moved` and `store_moved` number them
-/// (`race::draw_chunks`' check).
-pub fn moved_ranges() -> Vec<std::ops::Range<usize>> {
-    sorted().iter().map(|&(start, end, _)| start..end).collect()
-}
-
 /// The IDA address of game address `game` when a moved range's home holds it (the audit's
-/// names, `race::draw_chunks`).
+/// names, `write_watch::shared`).
 #[cfg(feature = "write_watch")]
 pub fn ida_of(game: usize) -> Option<usize> {
     sorted()
@@ -2558,22 +2548,10 @@ pub fn ida_of(game: usize) -> Option<usize> {
         .map(|&(start, _, home)| start + (game - home))
 }
 
-/// Range `n`'s bytes into `to` (its length).
-pub fn load_moved(n: usize, to: &mut [u8]) {
-    let (_, _, home) = sorted()[n];
-    if let Some((store, off)) = store_of(home) {
-        let _ = store.load(off, to);
-    }
-}
-
-/// Range `n` given `bytes` (its length).
-pub fn store_moved(n: usize, bytes: &[u8]) {
-    let (_, _, home) = sorted()[n];
-    if let Some((store, off)) = store_of(home) {
-        let _ = store.store(off, bytes);
-    }
-}
-
+/// A write census (the multi-core audit, `notes/conversion.md`, optimisation phase): with
+/// `RC2K_WRITE_CENSUS` set, the bytes of every moved range a stretch of code changes, unioned
+/// over 200 calls, logged as IDA address runs per label. Other threads' writes in the same
+/// time show too (the audio thread's voices and commands): read the runs with that in mind.
 pub mod census {
     use std::sync::Mutex;
     /// A label, its changed bytes per moved range, its calls so far.

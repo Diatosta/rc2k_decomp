@@ -86,22 +86,6 @@ pub fn first_records_everywhere(
     Ok(copies.iter().flat_map(move |copy| &copy[..n]))
 }
 
-/// Every record's bytes (`race::draw_chunks`' check).
-pub fn all_bytes() -> Vec<u8> {
-    RECORDS
-        .iter()
-        .flatten()
-        .flat_map(|c| c.get().to_le_bytes())
-        .collect()
-}
-
-/// Every record from `all_bytes`' kind of list.
-pub fn put_all_bytes(bytes: &[u8]) {
-    for (cell, b) in RECORDS.iter().flatten().zip(bytes.as_chunks::<4>().0) {
-        cell.set(u32::from_le_bytes(*b));
-    }
-}
-
 /// Whether the records are taken.
 pub fn held() -> bool {
     race().course.lists.point_records.get() != 0
