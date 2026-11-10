@@ -26,6 +26,8 @@ const CELLS: usize = 4 * ENTRIES + 0x10;
 /// (lamps, flares, cars, faces drawn by depth) and the sort entries (the course faces); then
 /// 0x10 dwords that a flare's entry is read on into as a description of 0x3C bytes
 /// (`scene::draw_described_object`), past the last sort entry as past the original's.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SortLists {
     cells: [Dword; CELLS],
     pub depth_entry_count: Dword,
@@ -80,6 +82,8 @@ impl SortLists {
 }
 
 /// A view slot's working state.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ViewScratch {
     pub lists: SortLists,
     /// The view's fog, set up at the start of its drawing (`race::set_up_fog`).
@@ -144,14 +148,75 @@ impl ViewScratch {
     }
 
     /// The slot's number (`slot`).
+    /// A run's copy (`run_copy`) answers with the slot it was copied from.
     pub fn number(&self) -> usize {
-        SLOTS
+        if let Some(n) = SLOTS.iter().position(|s| std::ptr::eq(s, self)) {
+            return n;
+        }
+        RUN_COPIES
             .iter()
             .position(|s| std::ptr::eq(s, self))
+            .map(|n| RUN_SOURCES[n].load(std::sync::atomic::Ordering::Relaxed))
             .unwrap_or_else(|| {
                 crate::fatal::raise::end("a view's slot", BadInput("not one of the slots"))
             })
     }
+}
+
+/// The copies of a view's state the runs of a list drawn on several threads work on
+/// (`workers::draw_in_runs`): run `n`'s at `n` (run 0 draws on the view itself), the state the
+/// runs start from at `workers::COUNT`.
+static RUN_COPIES: [ViewScratch; crate::workers::COPIES] =
+    [const { ViewScratch::new() }; crate::workers::COPIES];
+
+/// The slot each run copy was taken from.
+static RUN_SOURCES: [std::sync::atomic::AtomicUsize; crate::workers::COPIES] =
+    [const { std::sync::atomic::AtomicUsize::new(0) }; crate::workers::COPIES];
+
+/// Run `n`'s copy of the view being drawn in runs (`n` from 1).
+pub fn run_copy(n: usize) -> &'static ViewScratch {
+    &RUN_COPIES[n]
+}
+
+/// Each part of a view's state but the sort lists: the runs read the lists of the view they
+/// draw (`draw_entries`' `from`) and add nothing to them, so the lists are neither copied nor
+/// merged (the largest part by far).
+macro_rules! for_each_part {
+    ($f:ident, $to:expr, $from:expr $(, $start:expr)?) => {{
+        use crate::pointers::Cells;
+        let (to, from) = ($to, $from);
+        to.fog.$f(&from.fog $(, &$start.fog)?);
+        to.object.$f(&from.object $(, &$start.object)?);
+        to.light.$f(&from.light $(, &$start.light)?);
+        to.face.$f(&from.face $(, &$start.face)?);
+        to.cars.$f(&from.cars $(, &$start.cars)?);
+        to.matrices.$f(&from.matrices $(, &$start.matrices)?);
+        to.polygon.$f(&from.polygon $(, &$start.polygon)?);
+        to.grid.$f(&from.grid $(, &$start.grid)?);
+        to.course.$f(&from.course $(, &$start.course)?);
+        to.quad.$f(&from.quad $(, &$start.quad)?);
+        to.lamps.$f(&from.lamps $(, &$start.lamps)?);
+    }};
+}
+
+/// `view` kept as the runs' start, and copied for runs 1 .. `runs`.
+pub fn begin_runs(view: &ViewScratch, runs: usize) {
+    let slot = view.number();
+    for_each_part!(copy_from, &RUN_COPIES[crate::workers::COUNT], view);
+    for (copy, source) in RUN_COPIES[1..runs].iter().zip(&RUN_SOURCES[1..runs]) {
+        for_each_part!(copy_from, copy, view);
+        source.store(slot, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+/// What run `n`'s copy changed since the start put into `view` (after the runs before it).
+pub fn merge_run(view: &ViewScratch, n: usize) {
+    for_each_part!(
+        merge_changes,
+        view,
+        &RUN_COPIES[n],
+        &RUN_COPIES[crate::workers::COUNT]
+    );
 }
 
 /// The view slots: the two players' views, then their mirrors, then the front end's 3D (the
@@ -240,5 +305,6 @@ pub fn filter_input(view: &ViewScratch) -> [u32; 3] {
 pub fn of_polygon(poly: &crate::scene::polygon_work::PolygonWork) -> Option<&'static ViewScratch> {
     SLOTS
         .iter()
+        .chain(&RUN_COPIES)
         .find(|s| std::ptr::eq(&raw const s.polygon, poly))
 }

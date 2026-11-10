@@ -272,26 +272,41 @@ pub fn wait_for_earlier_runs() {
 /// on its own copy of the working state, set from the game's own at the start. The noted
 /// drawing is put together in the runs' order, and each copy's changes put into the game's
 /// own in that order (`race::draw_chunks` showed this draws what one thread does).
+///
+/// `view` is the view's state: run 0 draws on it, each other run on a copy of it
+/// (`view_scratch::run_copy`), whose changes are put into it in the runs' order.
 pub fn draw_in_runs(
+    view: &crate::race::view_scratch::ViewScratch,
     count: usize,
-    draw: impl Fn(Range<usize>) -> Result<(), Refused> + Sync,
+    draw: impl Fn(Range<usize>, &crate::race::view_scratch::ViewScratch) -> Result<(), Refused> + Sync,
 ) -> Result<(), Refused> {
-    carried_census("a list", || draw_in_runs_now(count, &draw))
+    carried_census("a list", || draw_in_runs_now(view, count, &draw))
 }
 
 fn draw_in_runs_now(
+    view: &crate::race::view_scratch::ViewScratch,
     count: usize,
-    draw: &(impl Fn(Range<usize>) -> Result<(), Refused> + Sync),
+    draw: &(
+         impl Fn(Range<usize>, &crate::race::view_scratch::ViewScratch) -> Result<(), Refused> + Sync
+     ),
 ) -> Result<(), Refused> {
+    use crate::race::view_scratch::{begin_runs, merge_run, run_copy};
     let k = threads().min(count);
     let beside = BESIDE.load(std::sync::atomic::Ordering::Relaxed);
     let Some(pool) = pool().filter(|_| k > 1 && !beside) else {
-        return draw(0..count);
+        return draw(0..count, view);
     };
     let ranges: Vec<Range<usize>> = (0..k).map(|i| i * count / k..(i + 1) * count / k).collect();
-    if crate::platform_3d::flushes()
-        != flushes_before(|| draw_parts(Some(pool), k, |n| draw(ranges[n].clone())))?
-    {
+    begin_runs(view, k);
+    let drawn = flushes_before(|| {
+        draw_parts(Some(pool), k, |n| {
+            draw(ranges[n].clone(), if n == 0 { view } else { run_copy(n) })
+        })
+    });
+    for n in 1..k {
+        merge_run(view, n);
+    }
+    if crate::platform_3d::flushes() != drawn? {
         crate::framework::log("workers: a flush while the runs were drawn");
     }
     Ok(())

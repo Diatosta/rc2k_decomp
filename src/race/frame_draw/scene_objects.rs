@@ -817,14 +817,19 @@ pub fn draw_entries<'a>(
     {
         return Err(BadInput("a list entry of 0x4000000 or more").into());
     }
-    let draw = |range: std::ops::Range<usize>| -> Result<(), Refused> {
+    let draw = |range: std::ops::Range<usize>,
+                view: &crate::race::view_scratch::ViewScratch|
+     -> Result<(), Refused> {
+        let ctx = crate::race::view_scratch::DrawCtx { view, ..*ctx };
         for (k, entry) in entries.iter().enumerate().take(range.end).skip(range.start) {
-            draw_list_entry(ctx, Description::Cells(from(k)), entry[1].get())?;
+            draw_list_entry(&ctx, Description::Cells(from(k)), entry[1].get())?;
         }
         Ok(())
     };
     if crate::race::draw_chunks::chunks() > 1 {
-        return crate::race::draw_chunks::draw_in_chunks(entries.len(), draw);
+        return crate::race::draw_chunks::draw_in_chunks(entries.len(), |range| {
+            draw(range, ctx.view)
+        });
     }
-    crate::workers::draw_in_runs(entries.len(), draw)
+    crate::workers::draw_in_runs(ctx.view, entries.len(), draw)
 }

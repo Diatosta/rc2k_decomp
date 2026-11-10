@@ -156,6 +156,9 @@ def start(gpu, fresh, profile=False):
         renderer += f"RC2K_SLOW_FRAMES={int(os.environ['RC2K_SLOW_FRAMES'])} "
     if os.environ.get('RC2K_DRAW_THREADS'):  # the scene drawn on this many threads
         renderer += f"RC2K_DRAW_THREADS={int(os.environ['RC2K_DRAW_THREADS'])} "
+    for switch in ('RC2K_MIRROR_BESIDE', 'RC2K_MIRROR_ALWAYS'):  # the mirror beside its view, forced on
+        if os.environ.get(switch):
+            renderer += f'{switch}=1 '
     if HOST:
         ssh(f'rm -rf {FOLDER}; mkdir -p {FOLDER}; cd {DEVICE_GAME}; '
             '[ -d .remote_kept ] || { mkdir .remote_kept; cp -r var savedata .remote_kept/; }; '
