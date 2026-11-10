@@ -33,8 +33,7 @@ use crate::session::{Dword, Float};
 use rc2k_core::drive::listener;
 
 /// The car file's six figures times 65536 over 1000, or the refusal (before anything).
-fn figures(shared: &Shared) -> Result<[i32; 6], Refused> {
-    let viewed = shared.view.drawn_view.get();
+fn figures(shared: &Shared, viewed: u32) -> Result<[i32; 6], Refused> {
     listener::check_viewed(viewed, || shared.work.car_block(viewed as usize) != 0)?;
     let n = car_file_number(crate::race::blocks_store::own_car().car_kind.get());
     rc2k_core::drive::sharing::check_light_record(n)?;
@@ -46,10 +45,13 @@ fn figures(shared: &Shared) -> Result<[i32; 6], Refused> {
     Ok(out)
 }
 
-/// The view the listener is placed by: its matrix, its turn and its place (the original's
-/// `g_viewMatrix`, `g_viewTurnMatrix`, `g_viewPlace`, as the last view drawn left them).
+/// The view the listener is placed by: its number, its matrix, its turn and its place (the
+/// original's `g_drawnView`, `g_viewMatrix`, `g_viewTurnMatrix`, `g_viewPlace`, as the last
+/// view drawn left them).
 #[derive(Clone, Copy)]
 pub struct ListenerView<'a> {
+    /// Which car's view (0 or 1).
+    pub drawn_view: u32,
     pub view_matrix: &'a [Float; 16],
     pub view_turn_matrix: &'a [Float; 16],
     pub view_place: &'a [Dword; 3],
@@ -59,8 +61,9 @@ pub struct ListenerView<'a> {
 
 impl<'a> ListenerView<'a> {
     /// A view's own, from its overlays (`race::run_view_marks`).
-    pub fn of(view: &'a crate::race::view_scratch::ViewScratch) -> Self {
+    pub fn of(view: &'a crate::race::view_scratch::ViewScratch, race: &Race) -> Self {
         Self {
+            drawn_view: view.drawn_view(race),
             view_matrix: &view.matrices.view_matrix,
             view_turn_matrix: &view.matrices.view_turn_matrix,
             view_place: &view.state.view_place,
@@ -71,8 +74,10 @@ impl<'a> ListenerView<'a> {
     /// Before any view of the race (`drive::race_init`'s settling steps): what the last view
     /// drawn left, as the original read; the sun the first player's view's (the original's
     /// was the last view drawn's: all 0 before a session's first race either way).
-    pub fn before_any_view(frame: &'a crate::race::owner_frame::Frame) -> Self {
+    pub fn before_any_view(race: &'a Race) -> Self {
+        let frame = &race.frame;
         Self {
+            drawn_view: race.shared.view.drawn_view.get(),
             view_matrix: &frame.matrices.view_matrix,
             view_turn_matrix: &frame.matrices.view_turn_matrix,
             view_place: &frame.view_and_records.view_vars.view_place,
@@ -90,12 +95,10 @@ pub fn set_listener(
     view: ListenerView<'_>,
 ) -> Result<(), Refused> {
     let physics = &race.physics;
-    let f = figures(&race.shared)?;
+    let f = figures(&race.shared, view.drawn_view)?;
     let car = crate::race::blocks_store::own_car();
     let s = crate::race::blocks_store::block_at(
-        race.shared
-            .work
-            .car_block(race.shared.view.drawn_view.get() as usize),
+        race.shared.work.car_block(view.drawn_view as usize),
         "a car's block",
     )?;
     let place: [u32; 3] = crate::session::read_all(&s.position);

@@ -570,7 +570,7 @@ pub fn run_view_marks(
     crate::drive::share_all_cars::share_all_cars(
         race,
         scene,
-        crate::drive::set_listener::ListenerView::of(ctx.view),
+        crate::drive::set_listener::ListenerView::of(ctx.view, race),
     )?;
     let first = first_word(race.shared.vars.run_kind.get());
     for b in 0..CAR_RECORDS {

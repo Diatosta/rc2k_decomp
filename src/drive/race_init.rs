@@ -95,7 +95,7 @@ pub fn race_init(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
         { crate::drive::race_cars_step::race_cars_step(race) }?;
         MARKS_SETTINGS.other_marks_shown.set(1);
         {
-            let view = crate::drive::set_listener::ListenerView::before_any_view(&race.frame);
+            let view = crate::drive::set_listener::ListenerView::before_any_view(race);
             crate::drive::share_all_cars::share_all_cars(race, scene, view)
         }?;
         MARKS_SETTINGS.other_marks_shown.set(0);
