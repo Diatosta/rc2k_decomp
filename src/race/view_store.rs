@@ -33,7 +33,7 @@ pub struct RaceView {
     pub unknown_4c: Dword,
     /// +0x50 (0x63DA08): the frame the face was drawn in (`race::course_faces`).
     pub face_frame: Dword,
-    /// +0x54 (0x63DA0C): the first texture's coordinates by corner, x then y
+    /// +0x54 (0x63DA0C): the first texture's coordinates by corner, x then y; now each view's (`race::face_work::FaceWork`); unused.
     pub corner_uv: [Dword; 8],
     /// +0x74 (0x63DA2C): the first texture (`race::course_faces`); now each view's (`race::face_work::FaceWork`); unused.
     pub texture_a: Dword,
@@ -59,7 +59,7 @@ pub struct RaceView {
     pub turned_corner_order: [Dword; 14],
     /// +0xfc (0x63DAB4): `g_polygonMode`; now each view's (`race::face_work::FaceWork`); unused.
     pub polygon_mode: Dword,
-    /// +0x100 (0x63DAB8): the second texture's coordinates by corner, x then y
+    /// +0x100 (0x63DAB8): the second texture's coordinates by corner, x then y; now each view's (`race::face_work::FaceWork`); unused.
     pub corner_uv_b: [Dword; 8],
     /// +0x120 (0x63DAD8): `g_cornerUvOffsets`: by order, four.
     pub corner_uv_offsets: [Dword; 32],

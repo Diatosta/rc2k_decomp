@@ -5,9 +5,11 @@
 //! original these were `RACE_VIEW`'s fields (`face_turned` .. `polygon_mode`), `RaceVars`'s
 //! `face_number`, `mapping_a` and `mapping_b`, the sound spot block's `face_kind` and
 //! `face_unlit`, and `dword_606284`, `dword_608CAC`, `dword_63660C` (the fade), written and
-//! read by every view in turn; and the current course face (`g_currentCourseFace`). Not here:
-//! the texture coordinates by corner (`RACE_VIEW.corner_uv`, `corner_uv_b`: the faces without
-//! a texture read the last face's), read before a view's own write.
+//! read by every view in turn; the current course face (`g_currentCourseFace`); and the
+//! texture coordinates by corner (`RACE_VIEW.corner_uv`, `corner_uv_b`). A face without a second
+//! texture copies the second set into its entries unwritten, the last such face's in the
+//! original, whichever view drew it; now the same view's last (none drawn: zeros). Nothing
+//! reads them on such a face: the fans' hashes are the same (2026-11-09).
 
 use crate::session::Dword;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -53,6 +55,11 @@ pub struct FaceWork {
     /// +0x30 .. (`scene::set_object_material`), but no kind in the game's files has that
     /// material (way 4: none in objsinfo, carsinfo, frntinfo or extrinfo, 2026-11-09).
     pub course_face: Dword,
+    /// The two textures' coordinates by corner, x then y (`RACE_VIEW.corner_uv`, 0x63DA0C,
+    /// and `corner_uv_b`, 0x63DAB8): set for a face's textured sets
+    /// (`race::face_texture_coordinates`), read into its polygon entries.
+    pub uv_a: [Dword; 8],
+    pub uv_b: [Dword; 8],
 }
 
 impl FaceWork {
@@ -79,6 +86,8 @@ impl FaceWork {
             faded_bits: Dword::new(u32::MAX),
             faded: Dword::new(0),
             course_face: Dword::new(0),
+            uv_a: [const { Dword::new(0) }; 8],
+            uv_b: [const { Dword::new(0) }; 8],
         }
     }
 }

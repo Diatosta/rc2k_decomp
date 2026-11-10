@@ -381,27 +381,27 @@ pub struct TextureSet<'a> {
 
 /// The first triangle's set.
 pub fn first_set<'a>(ctx: &DrawCtx<'a>) -> TextureSet<'a> {
-    let (race, work) = (ctx.race, &ctx.view.face);
+    let work = &ctx.view.face;
     TextureSet {
         texture: &work.texture_a,
         order: &work.order_a,
         size: &ctx.view.polygon.polygon_textures[0],
         mapping: &work.mapping_a[0],
         plain: &ctx.view.polygon.plain_first,
-        uv: &race.shared.view.corner_uv,
+        uv: &work.uv_a,
     }
 }
 
 /// The second triangle's set.
 pub fn second_set<'a>(ctx: &DrawCtx<'a>) -> TextureSet<'a> {
-    let (race, work) = (ctx.race, &ctx.view.face);
+    let work = &ctx.view.face;
     TextureSet {
         texture: &work.texture_b,
         order: &work.order_b,
         size: &ctx.view.polygon.polygon_textures[1],
         mapping: &work.mapping_b[0],
         plain: &ctx.view.polygon.plain_second,
-        uv: &race.shared.view.corner_uv_b,
+        uv: &work.uv_b,
     }
 }
 
@@ -510,17 +510,17 @@ fn entry(slot: u32) -> &'static PolygonEntry {
 /// One polygon entry filled from one of the face's corners: +0 its point, +8 / +0xC the
 /// first texture's u, v, +0x10 / +0x14 the second's, +0x18 its colour, +0x1C its light,
 /// +0x21 its fog byte (`dword_63DA64` ..).
-fn fill_entry(shared: &Shared, work: &FaceWork, slot: u32, corner: u32) -> Result<(), BadInput> {
+fn fill_entry(work: &FaceWork, slot: u32, corner: u32) -> Result<(), BadInput> {
     {
         let e = entry(slot);
         let c = corner as usize;
         e.point.set(work.corners[c].get());
-        e.u.set(shared.view.corner_uv[2 * c].get());
-        e.v.set(shared.view.corner_uv[2 * c + 1].get());
+        e.u.set(work.uv_a[2 * c].get());
+        e.v.set(work.uv_a[2 * c + 1].get());
         e.light.set(work.corner_colours[c].get());
         e.lamp_light.set(work.corner_lights[c].get());
-        e.u2.set(shared.view.corner_uv_b[2 * c].get());
-        e.v2.set(shared.view.corner_uv_b[2 * c + 1].get());
+        e.u2.set(work.uv_b[2 * c].get());
+        e.v2.set(work.uv_b[2 * c + 1].get());
         e.amount.set(work.corner_alphas[c].get() as u8);
     }
     Ok(())
@@ -558,7 +558,7 @@ pub fn draw_whole_quad(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
     // screen_inside, inside}` (the roundings the x87's).
     use rc2k_core::race::face_drawing::{QUAD_ENTRIES, quad_by_outside, screen_inside};
     for (slot, corner) in QUAD_ENTRIES {
-        fill_entry(&ctx.race.shared, &ctx.view.face, slot, corner)?;
+        fill_entry(&ctx.view.face, slot, corner)?;
     }
     for s in 0..4 {
         if lamp_byte(s)? != 0 {
@@ -610,7 +610,7 @@ pub fn draw_face_triangles(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     };
     if draws_first(ctx.view.face.turned[0].bits()) {
         for (slot, corner) in FIRST_TRIANGLE {
-            fill_entry(&ctx.race.shared, &ctx.view.face, slot, corner)?;
+            fill_entry(&ctx.view.face, slot, corner)?;
         }
         ctx.view.polygon.polygon_vertex_count.set(3u32);
         draw_lit_triangle(ctx)?;
@@ -618,7 +618,7 @@ pub fn draw_face_triangles(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let fourth: u32 = ctx.view.face.corners[3].get();
     if fourth != u32::MAX && draws_second(fourth, ctx.view.face.turned[1].bits()) {
         for (slot, corner) in SECOND_TRIANGLE {
-            fill_entry(&ctx.race.shared, &ctx.view.face, slot, corner)?;
+            fill_entry(&ctx.view.face, slot, corner)?;
         }
         ctx.view.polygon.polygon_vertex_count.set(3u32);
         draw_lit_triangle(ctx)?;
