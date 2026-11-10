@@ -137,8 +137,8 @@ pub fn set_up_fog(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     fog: &crate::scene::fog::Fog,
+    poly: &crate::scene::polygon_work::PolygonWork,
 ) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
     let course = &race.course;
     let length = race.shared.view.view_depth[1].get().wrapping_shl(3);
     if length == 0 || length > 0x1000 {
@@ -154,11 +154,12 @@ pub fn set_up_fog(
         course.stage_prefs.fog_colour[1].bits(),
         course.stage_prefs.fog_colour[2].bits(),
     );
-    drawing.scene.fog_colour.set_bits(colour);
+    fog.colour.set_bits(colour);
     fog_table(race, scene, fog)?;
-    crate::scene::set_fog_colour::set_fog_colour(rc2k_core::race::view::device_fog_colour(
-        drawing.scene.fog_colour.bits(),
-    ));
+    crate::scene::set_fog_colour::set_fog_colour(
+        rc2k_core::race::view::device_fog_colour(fog.colour.bits()),
+        poly,
+    );
     Ok(())
 }
 
@@ -498,7 +499,7 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
     ctx.view.light.light_level.set_bits(0xFF);
     ctx.view.light.light_turns[0].set_bits(0);
     ctx.view.light.light_turns[1].set_bits(0);
-    race.shared.switches.no_far_clip.set_bits(1);
+    ctx.view.face.no_far_clip.set_bits(1);
     crate::scene::glow_render_states::glow_render_states();
     ctx.view.light.light_kind.set(0u32);
     // esi as the `rep movsd` of the matrix's copy leaves it: past `g_madeObjectMatrix`.
@@ -509,7 +510,7 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
     crate::scene::depth_buffer_on::depth_buffer(true);
     ctx.view.light.view_kind.set_bits(0);
-    race.shared.switches.no_far_clip.set_bits(0);
+    ctx.view.face.no_far_clip.set_bits(0);
     place_sun(ctx, system)
 }
 

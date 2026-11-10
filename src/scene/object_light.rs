@@ -38,6 +38,10 @@ pub struct ObjectLight {
     /// as it is drawn (`race::draw_car_entry`, `race::draw_own_car`); read by the light kind 3
     /// (`scene::vertex_light`).
     pub car_light: Dword,
+    /// The view's light colour (`FRAME_WORK.view_light`, `g_viewLight`, 0x6415E4): the view's
+    /// car's light colour plus the light (`race::view_light`), each view's own; the effects
+    /// after the views read the shared one.
+    pub view_light: Dword,
     /// The other light of the object being drawn (`OBJECT_WORK.other_light`, 0x635054):
     /// 0 from the sky on, a described object's or lamp's or flare's own; added to the light
     /// (`scene::set_object_light`) or the faces' light in the material way 2.
@@ -79,6 +83,7 @@ impl ObjectLight {
             light_dot_factor: Float::from_bits(0),
             light_colour: Dword::new(0),
             car_light: Dword::new(0),
+            view_light: Dword::new(0),
             other_light: Dword::new(0),
             light_direction: [const { Float::from_bits(0) }; 3],
             light_kind: Dword::new(0),

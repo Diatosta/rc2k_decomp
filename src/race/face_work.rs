@@ -60,6 +60,17 @@ pub struct FaceWork {
     /// (`race::face_texture_coordinates`), read into its polygon entries.
     pub uv_a: [Dword; 8],
     pub uv_b: [Dword; 8],
+    /// `g_faceDepthKey` (`RACE_VIEW.face_depth_key`): the face's depth key, each view's own.
+    pub depth_key: Dword,
+    /// `g_reflectionsKept` (`RACE_VIEW.reflections_kept`): each view's own.
+    pub reflections_kept: Dword,
+    /// `g_faceReflects` (`FRAME_SWITCHES.face_reflects`): each view's own.
+    pub reflects: Dword,
+    /// `dword_621510` (`FRAME_SWITCHES.no_far_clip`): the sky is drawn uncut, each view's own.
+    pub no_far_clip: Dword,
+    /// The faces hidden from the shown view (`FRAME_WORK.face_hide_mask`, `g_faceHideMask`,
+    /// 0x64167C): set from the face under the car (`race::face_hide_mask`), each view's own.
+    pub face_hide_mask: Dword,
 }
 
 impl FaceWork {
@@ -88,6 +99,11 @@ impl FaceWork {
             course_face: Dword::new(0),
             uv_a: [const { Dword::new(0) }; 8],
             uv_b: [const { Dword::new(0) }; 8],
+            depth_key: Dword::new(0),
+            reflections_kept: Dword::new(0),
+            reflects: Dword::new(0),
+            no_far_clip: Dword::new(0),
+            face_hide_mask: Dword::new(0),
         }
     }
 }

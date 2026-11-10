@@ -50,6 +50,7 @@ pub fn mirror_view_window(
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
     fog: &crate::scene::fog::Fog,
+    poly: &crate::scene::polygon_work::PolygonWork,
 ) -> Result<(), Refused> {
     let session = &system.session;
     // Converted: `rc2k_core::race::view::{mirror_entry, mirror_window}`.
@@ -95,13 +96,13 @@ pub fn mirror_view_window(
     scene.drawing.scene.view_offset[1].set(y);
     scene.drawing.scene.view_size[0].set(sx);
     scene.drawing.scene.view_size[1].set(sy);
-    scene.drawing.scene.cleared_rectangle[0].set(x);
-    scene.drawing.scene.cleared_rectangle[1].set(y);
-    scene.drawing.scene.cleared_rectangle[2].set(x.wrapping_add(sx));
-    scene.drawing.scene.cleared_rectangle[3].set(y.wrapping_add(sy));
+    poly.cleared_rectangle[0].set(x);
+    poly.cleared_rectangle[1].set(y);
+    poly.cleared_rectangle[2].set(x.wrapping_add(sx));
+    poly.cleared_rectangle[3].set(y.wrapping_add(sy));
     scene.drawing.scene.view_zoom.set(0x100);
     crate::scene::set_view_window::set_view_window_reaching(race, scene, MIRROR_REACH);
-    crate::race::frame_draw::set_up_fog(race, scene, fog)?;
+    crate::race::frame_draw::set_up_fog(race, scene, fog, poly)?;
     scene.lights.state.draw_mode.set(0);
     race.physics.ground.view_mirrored.set(1);
     Ok(())
@@ -387,12 +388,15 @@ pub fn forget_view_textures(
 }
 
 /// The quad's corners the view window's size from (0, 0).
-fn window_corners(shared: &Shared, scene: &crate::scene::owner::Scene) {
+fn window_corners(
+    scene: &crate::scene::owner::Scene,
+    view: &crate::race::view_scratch::ViewScratch,
+) {
     let drawing = &scene.drawing;
-    shared.vars.quad_corners[0].set(0);
-    shared.vars.quad_corners[4].set(0);
-    shared.vars.quad_corners[1].set(drawing.scene.view_size[0].get());
-    shared.vars.quad_corners[5].set(drawing.scene.view_size[1].get());
+    view.quad.corners[0].set(0);
+    view.quad.corners[4].set(0);
+    view.quad.corners[1].set(drawing.scene.view_size[0].get());
+    view.quad.corners[5].set(drawing.scene.view_size[1].get());
 }
 
 /// `race::draw_screen_tint` (0x455A11): a tinted quad over the view window
@@ -409,7 +413,7 @@ pub fn draw_screen_tint(
     use rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha, glare_colour};
     if race.shared.work.in_credits.get() != 0 {
         race.shared.vars.quad_colour[1].set(NIGHT_ALPHA);
-        window_corners(&race.shared, scene);
+        window_corners(scene, ctx.view);
         race.shared.vars.quad_colour[0].set(NIGHT_COLOUR);
         return crate::scene::draw_tinted_quad::draw_tinted_quad(ctx);
     }
@@ -418,7 +422,7 @@ pub fn draw_screen_tint(
     race.shared.vars.quad_colour[1].set(a);
     let mut done = Ok(());
     if a != 0 {
-        window_corners(&race.shared, scene);
+        window_corners(scene, ctx.view);
         // The two glare bytes (byte_60A574, byte_60A578): the low bytes of two dwords.
         let byte = |k: usize| race.course.stage_prefs.unknown_18c0[k].get() as u8;
         race.shared.vars.quad_colour[0].set(glare_colour(
@@ -435,16 +439,20 @@ pub fn draw_screen_tint(
 /// `race::clear_view_depth` (0x44E9A0): with the device on (`dword_5CDA8C`) the clip
 /// rectangle (`dword_624138` ..) the whole screen and the depth cleared there
 /// (`d3d::clear_viewport_unless_held`, the platform's `Clear`).
-pub fn clear_view_depth(scene: &crate::scene::owner::Scene, system: &crate::system::owner::System) {
+pub fn clear_view_depth(
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+    poly: &crate::scene::polygon_work::PolygonWork,
+) {
     let session = &system.session;
     if scene.objects.tables.has_3d.get() == 0 {
         return;
     }
-    scene.drawing.scene.cleared_rectangle[0].set(0);
-    scene.drawing.scene.cleared_rectangle[1].set(0);
-    scene.drawing.scene.cleared_rectangle[2].set(session.screen.width.get());
-    scene.drawing.scene.cleared_rectangle[3].set(session.screen.height.get());
-    clear_viewport_unless_held(scene);
+    poly.cleared_rectangle[0].set(0);
+    poly.cleared_rectangle[1].set(0);
+    poly.cleared_rectangle[2].set(session.screen.width.get());
+    poly.cleared_rectangle[3].set(session.screen.height.get());
+    clear_viewport_unless_held(scene, &poly.cleared_rectangle);
 }
 
 /// `race::draw_own_car` (0x455AD3): in a race, when the drawn view's car (`g_drawnCar`) is
@@ -484,7 +492,7 @@ pub fn draw_own_car(
         || scene.drawing.object_work.view_cleared[0].get(),
     );
     if clears {
-        clear_view_depth(scene, system);
+        clear_view_depth(scene, system, &ctx.view.polygon);
         crate::scene::depth_buffer_on::depth_buffer(true);
     }
     // `race::draw_car_shined` reads only esi, the car's block.
@@ -598,9 +606,12 @@ pub fn run_view_marks(
 /// `d3d::clear_viewport_unless_held` (0x44E9EE, was 0x44E9EE; ported 2026-10-23, the
 /// game's was called before): `d3d::clear_viewport` (0x44E9D9, the same `Clear` of
 /// `dword_624138` with flag 2) unless `dword_624238` is not 0.
-pub fn clear_viewport_unless_held(scene: &crate::scene::owner::Scene) {
+pub fn clear_viewport_unless_held(
+    scene: &crate::scene::owner::Scene,
+    own: &[crate::session::Dword; 4],
+) {
     if scene.drawing.scene.v3_driver_fix.get() == 0 {
-        crate::platform_3d::clear_viewport();
+        crate::platform_3d::clear_viewport(own);
     }
 }
 

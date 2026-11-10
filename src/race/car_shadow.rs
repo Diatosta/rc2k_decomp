@@ -288,9 +288,7 @@ fn crossing_block(
     pb: u32,
     ea: &PolygonEntry,
     eb: &PolygonEntry,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
-    let drawing = &scene.drawing;
     use crate::math::x87_float::{int, ld, st, to_int};
     let word = |n: usize| int(work.crossing[n].bits() as i32);
     let first = word(11) * word(8) - word(10) * word(9);
@@ -314,10 +312,7 @@ fn crossing_block(
         let (a, b) = (int(a.get().into()), int(b.get().into()));
         to_int(a + (b - a) * share) as u32
     };
-    drawing
-        .scene
-        .vertex_byte_21
-        .set(byte(&ea.amount, &eb.amount));
+    poly.vertex_byte_21.set(byte(&ea.amount, &eb.amount));
     poly.clip_work_2[0].set(byte(&ea.fog, &eb.fog));
     Ok(())
 }
@@ -334,8 +329,7 @@ fn edge_crossing(
     eb: &PolygonEntry,
     ed: &PolygonEntry,
 ) -> Result<(), BadInput> {
-    let (race, scene) = (ctx.race, ctx.scene);
-    let drawing = &scene.drawing;
+    let race = ctx.race;
     let (pa, pb) = (ea.point.get(), eb.point.get());
     let c = &work.edge;
     let w = &work.crossing;
@@ -355,7 +349,7 @@ fn edge_crossing(
     w[11].set(rd(&w[4]).wrapping_sub(rd(&w[6])));
     w[12].set(rd(&w[1]).wrapping_sub(rd(&w[2])));
     w[13].set(rd(&w[5]).wrapping_sub(rd(&w[6])));
-    crossing_block(&ctx.view.polygon, work, pa, pb, ea, eb, scene)?;
+    crossing_block(&ctx.view.polygon, work, pa, pb, ea, eb)?;
     let n = rd(&work.next_point);
     put_point_word(&race.course, n, 0, ctx.view.polygon.clip_work[2].bits())?;
     put_point_word(&race.course, n, 1, 0)?;
@@ -364,7 +358,7 @@ fn edge_crossing(
     work.next_point.set(n.wrapping_add(1));
     ed.u2.set(ctx.view.polygon.clip_work[10].bits());
     ed.v2.set(ctx.view.polygon.clip_work[11].bits());
-    ed.amount.set(rd(&drawing.scene.vertex_byte_21) as u8);
+    ed.amount.set(rd(&ctx.view.polygon.vertex_byte_21) as u8);
     ed.fog.set(rd(&ctx.view.polygon.clip_work_2[0]) as u8);
     Ok(())
 }
@@ -603,6 +597,7 @@ pub fn shadow_on_face(
             race,
             scene,
             ctx.far_clip,
+            ctx.view,
         )?;
         if ctx.view.polygon.polygon_vertex_count.bits() < 3 {
             return Ok(());
@@ -692,8 +687,6 @@ pub fn shadow_faces(
         ])) else {
             continue;
         };
-        course.course.record_place[0].set(x);
-        course.course.record_place[1].set(z);
         if cell_near_car((car.position[0].bits(), car.position[2].bits()), (x, z)) {
             shadow_on_record(ctx, work, car, n)?;
         }
@@ -1350,15 +1343,7 @@ mod asm_reference {
                             .record::<PolygonEntry>("the test's entry")
                             .expect("the test's memory is registered")
                     };
-                    crossing_block(
-                        &poly,
-                        &work,
-                        0,
-                        1,
-                        entry(args.2),
-                        entry(args.3),
-                        crate::scene::owner::scene(),
-                    )
+                    crossing_block(&poly, &work, 0, 1, entry(args.2), entry(args.3))
                 })
                 .expect("the test's memory is registered");
                 // The Rust version writes the view's work: put its pieces where `read` looks.
@@ -1367,6 +1352,7 @@ mod asm_reference {
                     old.clip_work[k].set_bits(poly.clip_work[k].bits());
                 }
                 old.clip_work_2[0].set(poly.clip_work_2[0].get());
+                old.vertex_byte_21.set(poly.vertex_byte_21.get());
                 let mut got = read();
                 // `plane_f` (0x639810) the Rust version keeps in the shadow's own search fields.
                 got[7] = work.search.query().plane_f.bits();

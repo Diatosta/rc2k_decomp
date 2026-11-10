@@ -1,11 +1,9 @@
 //! The race panel: the HUD values, the start lights and the sound spots shared with the audio side.
 
-use super::*;
 use crate::errors::{BadInput, Refused};
 use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::frame_view::car_at as car_view;
 use crate::race::owner::Race;
-use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::car_at;
@@ -202,8 +200,11 @@ pub fn clear_point_records(
 /// bit 0), out0 = the record's +0xE bit 0, out1 = 1, out2 = the kinds' byte
 /// (`TEXTURE_PLACES.place_slot`) of the record's kind, out3 = 0xFF, or with faces
 /// (`OBJECT_SLOTS.face_counts`, first `OBJECT_SLOTS.first_face` in `g_faces`) the kinds' byte of
-/// the first face's +4 word. Outputs: the four face tables `LEVEL_GRID.face_table_a` ...
-pub fn object_bytes(course: &Course, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+/// the first face's +4 word. Outputs: the view's four face tables (`race::view_course`; the original's `LEVEL_GRID.face_table_a` ...)
+pub fn object_bytes(
+    scene: &crate::scene::owner::Scene,
+    mine: &crate::race::view_course::ViewCourse,
+) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::frame::object_bytes`.
     let kind = |n: u32| -> Result<u32, BadInput> {
         scene
@@ -214,7 +215,6 @@ pub fn object_bytes(course: &Course, scene: &crate::scene::owner::Scene) -> Resu
             .map(crate::session::Dword::get)
             .ok_or(BadInput("an object kind past the kinds' table"))
     };
-    let outputs = face_tables(course);
     for n in 0..0x100usize {
         let record = &crate::scene::polygon_store::POLYGON_TABLES.texture_infos[n].words[8..];
         let flags = record[3].get().to_le_bytes()[2];
@@ -234,8 +234,8 @@ pub fn object_bytes(course: &Course, scene: &crate::scene::owner::Scene) -> Resu
             None
         };
         let bytes = rc2k_core::race::frame::object_bytes(flags, record_kind, face_kind);
-        for (out, b) in outputs.iter().zip(bytes) {
-            out.set(n, b);
+        for (own, b) in mine.tables().into_iter().zip(bytes) {
+            own.set(n, b);
         }
     }
     Ok(())
@@ -663,12 +663,11 @@ pub fn reset_lamps(ctx: &crate::race::view_scratch::DrawCtx) -> Result<(), BadIn
         race, scene, view, ..
     } = *ctx;
     let shared = &race.shared;
-    let course = &race.course;
     shared.view.lamp_count.set_bits(0);
     view.lists.depth_entry_count.set_bits(0);
     view.lists.sort_entry_count.set_bits(0);
     race.frame.frame_work.flare_count.set_bits(0);
-    object_bytes(course, scene)
+    object_bytes(scene, &view.course)
 }
 
 /// `race::hold_to_limit` (0x4650A9): `value` held to `RACE_WORK.patch_settings` (unsigned).

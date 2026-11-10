@@ -27,7 +27,7 @@ pub struct SceneDraw {
     pub camera_saved: [Dword; 5],
     /// +0x70 (0x623FF0): not named.
     pub unknown_70: [Dword; 4],
-    /// +0x80 (0x624000): `g_fogColour` (`race::frame_draw`).
+    /// +0x80 (0x624000): `g_fogColour` (`race::frame_draw`); now each view's (`scene::fog::Fog`); unused.
     pub fog_colour: Dword,
     /// +0x84 (0x624004): not named.
     pub unknown_84: Dword,
@@ -110,7 +110,7 @@ pub struct SceneDraw {
     pub entry_third: Dword,
     /// +0x1b4 (0x624134): `g_polygonDrawn`; now each view's (`scene::polygon_work`); unused.
     pub polygon_drawn: Dword,
-    /// +0x1b8 (0x624138): the rectangle to clear: left, top, right, bottom (`race::frame_views`).
+    /// +0x1b8 (0x624138): the rectangle to clear: left, top, right, bottom (`race::frame_views`); now each view's (`scene::polygon_work::PolygonWork`); unused.
     pub cleared_rectangle: [Dword; 4],
     /// +0x1c8 (0x624148): sine and cosine of the x turn (`scene::matrix`).
     pub turn_x_work: [Float; 2],
@@ -120,7 +120,7 @@ pub struct SceneDraw {
     pub turn_z_work: [Float; 2],
     /// +0x1e0 (0x624160): not named.
     pub unknown_1e0: [Dword; 15],
-    /// +0x21c (0x62419C): a vertex's byte +0x21 kept (`race::car_shadow`).
+    /// +0x21c (0x62419C): a vertex's byte +0x21 kept (`race::car_shadow`); now each view's (`scene::polygon_work::PolygonWork`); unused.
     pub vertex_byte_21: Dword,
     /// +0x220 (0x6241A0): not named.
     pub unknown_220: [Dword; 3],

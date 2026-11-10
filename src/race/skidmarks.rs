@@ -207,6 +207,7 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
             race,
             scene,
             ctx.far_clip,
+            ctx.view,
         )?;
         // Each quad inside the original's `pusha` .. `popa`; the depth test's switches
         // and the polygon's drawing read no register.

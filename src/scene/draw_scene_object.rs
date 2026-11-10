@@ -107,6 +107,7 @@ pub fn draw_scene_object_in_game(
                     &mut || draw_object_in_game(ctx, system),
                     scene,
                     &ctx.view.cars,
+                    &ctx.view.object,
                 )
                 .map(|_| ())
             }

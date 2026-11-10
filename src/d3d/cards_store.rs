@@ -39,7 +39,7 @@ pub struct Cards3d {
     pub agp_mode: Dword,
     /// 0x5AB960: `dword_5AB960`: the 3D scene is begun.
     pub in_scene: Dword,
-    /// 0x5AB964: `dword_5AB964`: the fade's start (`scene::draw_polygon`).
+    /// 0x5AB964: `dword_5AB964`: the fade's start (`scene::draw_polygon`); now each view's (`scene::polygon_work::PolygonWork`); unused.
     pub fade_from: Dword,
     /// 0x5AB968: Not named: 20 bytes (a gap, or data nothing reads here).
     pub _gap_5ab968: Bytes<20>,

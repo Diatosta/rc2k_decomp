@@ -164,9 +164,9 @@ pub struct RaceVars {
     pub mapping_b: [Dword; 2],
     /// +0x800 (0x623DE8): the quad's colour and see-through (`scene::draw_flat_quad`, `scene::draw_tinted_quad`).
     pub quad_colour: [Dword; 2],
-    /// +0x808 (0x623DF0): the quad's texture coordinates (`race::frame_flush`).
+    /// +0x808 (0x623DF0): the quad's texture coordinates (`race::frame_flush`); now each view's (`race::quad_work::QuadWork`); unused.
     pub quad_uv: [Dword; 8],
-    /// +0x828 (0x623E10): [0] left, [1] right, [4] top, [5] bottom.
+    /// +0x828 (0x623E10): [0] left, [1] right, [4] top, [5] bottom; now each view's (`race::quad_work::QuadWork`); unused.
     pub quad_corners: [Dword; 8],
     /// +0x848 (0x623E30): not named.
     pub unknown_848: [Dword; 4],

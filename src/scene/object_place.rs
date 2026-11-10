@@ -47,6 +47,11 @@ pub struct ObjectPlace {
     pub light_strength: Dword,
     /// `ObjectWork.angles` (0x63503C): the object's x, y and z turns.
     pub angles: [Dword; 3],
+    /// `ObjectWork.object_place` (`g_objectPlace`, 0x634FFC): the scene point of the object
+    /// being drawn, -1 none, each view's own.
+    pub object_place: Dword,
+    /// `ObjectWork.only_object` (0x635058): the described object's mode bits, each view's own.
+    pub only_object: Dword,
     /// `ObjectWork.object_first_face` (`g_objectFirstFace`, 0x6350BC).
     pub first_face: Dword,
     /// `ObjectWork.object_face_count` (`g_objectFaceCount`, 0x6350C0).
@@ -86,6 +91,8 @@ impl ObjectPlace {
             size: Dword::new(0),
             light_strength: Dword::new(0),
             angles: [const { Dword::new(0) }; 3],
+            object_place: Dword::new(u32::MAX),
+            only_object: Dword::new(0),
             first_face: Dword::new(0),
             face_count: Dword::new(0),
             normal_work: [const { Dword::new(0) }; 15],

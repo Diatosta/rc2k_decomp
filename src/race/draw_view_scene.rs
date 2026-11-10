@@ -45,6 +45,9 @@ pub fn draw_view_scene(
         .course
         .shine
         .set(race.course.stage_prefs.shine_from.get());
+    view.course
+        .shine
+        .set(race.course.stage_prefs.shine_from.get());
     let input = crate::race::view_scratch::filter_input(view);
     view.light
         .car_light
@@ -54,7 +57,7 @@ pub fn draw_view_scene(
     view.polygon.plain_second.set(input[2]);
     let lists = &view.lists;
     if crate::race::frame::drawn_car().view_covered.get() != 0 {
-        draw_view_tint(&view.polygon, race, &view.face, scene)?;
+        draw_view_tint(&view.polygon, race, &view.face, scene, view)?;
         return Ok(ViewOutput::default());
     }
     // dword_635014, dword_635018.
@@ -63,7 +66,7 @@ pub fn draw_view_scene(
     }
     car_light_modes(race)?;
     clear_point_records(race, scene)?;
-    set_up_fog(race, scene, &view.fog)?;
+    set_up_fog(race, scene, &view.fog, &view.polygon)?;
     camera_view(race, scene, &view.matrices)?;
     draw_sky(&ctx)?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;

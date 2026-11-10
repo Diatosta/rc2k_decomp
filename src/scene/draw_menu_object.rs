@@ -23,17 +23,17 @@ pub enum Step {
 /// `step`: what stands for the two calls. The original's eax (0x200, then 0x100: the
 /// shine) is read by neither call nor by its callers.
 pub fn draw_menu_object(
-    course: &crate::race::owner_course::Course,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
     light: &crate::scene::object_light::ObjectLight,
+    mine: &crate::race::view_course::ViewCourse,
 ) -> Result<(), Refused> {
     {
-        course.course.shine.set_bits(0x200u32);
+        mine.shine.set_bits(0x200u32);
         step(Step::Matrix)?;
         light.view_kind.set_bits(5u32);
         light.light_kind.set_bits(4u32);
         step(Step::Draw)?;
-        course.course.shine.set_bits(0x100u32);
+        mine.shine.set_bits(0x100u32);
         Ok(())
     }
 }
@@ -45,7 +45,6 @@ pub fn draw_menu_object_in_game(
 ) -> Result<(), Refused> {
     let race = ctx.race;
     draw_menu_object(
-        &race.course,
         &mut |step| match step {
             Step::Matrix => {
                 make_object_matrix(
@@ -59,5 +58,6 @@ pub fn draw_menu_object_in_game(
             Step::Draw => crate::scene::draw_scene_object::draw_scene_object_in_game(ctx, None),
         },
         &ctx.view.light,
+        &ctx.view.course,
     )
 }

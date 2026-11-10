@@ -85,6 +85,7 @@ pub mod panel_clock_store;
 pub mod panel_store;
 pub mod prefs_store;
 pub mod put_mud_texel;
+pub mod quad_work;
 pub mod race_cars;
 pub mod race_end;
 pub mod race_init;
@@ -139,6 +140,7 @@ pub mod viewer_state_store;
 pub mod work_store;
 
 pub mod vars_store;
+pub mod view_course;
 pub mod view_grid;
 pub mod view_scratch;
 pub mod view_store;

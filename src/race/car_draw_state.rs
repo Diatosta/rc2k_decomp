@@ -35,6 +35,12 @@ pub struct CarDrawState {
     pub shown_groups: Dword,
     /// The face group mask of the car being drawn (`g_groupMask`, 0x606280; -1 after a car).
     pub group_mask: Dword,
+    /// The car's parts present (`FRAME_WORK.parts_present`, 0x641754), each view's own.
+    pub parts_present: Dword,
+    /// The left light's byte (`FRAME_WORK.light_left`, 0x641758), each view's own.
+    pub light_left: Dword,
+    /// The right light's byte (`FRAME_WORK.light_right`, 0x64175C), each view's own.
+    pub light_right: Dword,
 }
 
 impl CarDrawState {
@@ -51,6 +57,9 @@ impl CarDrawState {
             group_masks: [const { Dword::new(0) }; 18],
             shown_groups: Dword::new(0),
             group_mask: Dword::new(0),
+            parts_present: Dword::new(0),
+            light_left: Dword::new(0),
+            light_right: Dword::new(0),
         }
     }
 }

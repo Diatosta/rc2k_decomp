@@ -30,6 +30,7 @@ pub fn draw_flat_quad(
     face: &crate::race::face_work::FaceWork,
     course: &Course,
     scene: &crate::scene::owner::Scene,
+    view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
     poly.polygon_drawn.set_bits(0);
@@ -37,15 +38,15 @@ pub fn draw_flat_quad(
         let rec = &crate::scene::polygon_store::POLYGON_WORK.entries[n];
         rec.record
             .set(crate::scene::point_records::of_quad(n as u32));
-        rec.u.set(shared.vars.quad_uv[n].bits());
-        rec.v.set(shared.vars.quad_uv[4 + n].bits());
+        rec.u.set(view.quad.uv[n].bits());
+        rec.v.set(view.quad.uv[4 + n].bits());
     }
     let float = |cell: &Dword| x87::from_int(cell.bits() as i32);
     let [left, right, top, bottom] = [
-        &shared.vars.quad_corners[0],
-        &shared.vars.quad_corners[1],
-        &shared.vars.quad_corners[4],
-        &shared.vars.quad_corners[5],
+        &view.quad.corners[0],
+        &view.quad.corners[1],
+        &view.quad.corners[4],
+        &view.quad.corners[5],
     ]
     .map(float);
     let v = |n: usize, o: usize, x: u32| {

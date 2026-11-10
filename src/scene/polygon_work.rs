@@ -71,6 +71,15 @@ pub struct PolygonWork {
     pub smooth: Dword,
     pub plain_first: Dword,
     pub plain_second: Dword,
+    /// The clear's rectangle (`DRAW.cleared_rectangle`, 0x624138: left, top, right, bottom),
+    /// each view's own.
+    pub cleared_rectangle: [Dword; 4],
+    /// The crossing's amount byte, as a dword (`DRAW.vertex_byte_21`, `race::car_shadow`),
+    /// each view's own.
+    pub vertex_byte_21: Dword,
+    /// The colour the faded polygons fade from (`d3d().cards.fade_from`, the fog colour
+    /// `scene::set_fog_colour` was given), each view's own.
+    pub fade_from: Dword,
 }
 
 impl PolygonWork {
@@ -102,6 +111,14 @@ impl PolygonWork {
             smooth: Dword::new(0),
             plain_first: Dword::new(0),
             plain_second: Dword::new(0),
+            cleared_rectangle: [
+                Dword::new(0),
+                Dword::new(0),
+                Dword::new(0x31F),
+                Dword::new(0x257),
+            ],
+            vertex_byte_21: Dword::new(0),
+            fade_from: Dword::new(0),
         }
     }
 }

@@ -100,7 +100,7 @@ pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
     turned[0].set(out[0]);
     turned[1].set(out[1]);
     let key = out[2].wrapping_add(0x200_0000) >> 10;
-    race.shared.view.face_depth_key.set_bits(key);
+    view.face.depth_key.set_bits(key);
     let second = race.shared.view.lamp_count.bits().wrapping_add(0x300_0000);
     let n: u32 = view.lists.depth_entry_count.bits();
     let at = view.lists.depth_entry(n)?;
@@ -343,6 +343,10 @@ pub fn view_light(
     light_colour_at(race, scene, object_light)?;
     let light: u32 = object_light.light_colour.bits();
     race.frame.frame_work.view_light.set(add_colours(
+        crate::race::frame::drawn_car().light_colour.bits(),
+        light,
+    ));
+    object_light.view_light.set(add_colours(
         crate::race::frame::drawn_car().light_colour.bits(),
         light,
     ));

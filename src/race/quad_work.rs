@@ -1,0 +1,22 @@
+//! The screen quad's inputs, a view's own working values (frame plan F7): the texture
+//! coordinates and the corners (`RACE_VARS.quad_uv` 0x623DF0, `quad_corners` 0x623E10: [0]
+//! left, [1] right, [4] top, [5] bottom), each view's own. One per view slot
+//! (`race::view_scratch::ViewScratch::quad`).
+
+use crate::session::Dword;
+
+pub struct QuadWork {
+    /// The quad's texture coordinates (`race::frame_flush`, `hud::draw_view_strip`).
+    pub uv: [Dword; 8],
+    /// The quad's corners.
+    pub corners: [Dword; 8],
+}
+
+impl QuadWork {
+    pub const fn new() -> Self {
+        Self {
+            uv: [const { Dword::new(0) }; 8],
+            corners: [const { Dword::new(0) }; 8],
+        }
+    }
+}

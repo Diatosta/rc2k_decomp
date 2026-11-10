@@ -25,9 +25,10 @@ pub fn cached_reflection_coordinates(
     race: &crate::race::owner::Race,
     object: &crate::scene::object_place::ObjectPlace,
     m: &crate::scene::view_matrices::ViewMatrices,
+    view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::reflection::{cache_place, cached};
-    if race.shared.view.reflections_kept.bits() == 0 {
+    if view.face.reflections_kept.bits() == 0 {
         return Ok(reflection_coordinates(race, object, m)?);
     }
     let asked: [u32; 2] = [

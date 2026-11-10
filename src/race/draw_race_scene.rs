@@ -248,10 +248,7 @@ pub fn draw_race_scene(
     let begun = crate::debug::timing::start();
     race_sound_tick(frame)?;
     crate::debug::timing::stop(crate::debug::timing::Stage::SoundTick, begun);
-    race.course
-        .course
-        .shine
-        .set(race.course.stage_prefs.shine_from.get());
+    // `g_shine` from `dword_609324`: each view's from it now (`race::draw_view_scene`).
     // pusha; pushf .. popf; popa
     crate::scene::set_filters::set_filters();
     for (value, state) in [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1, 0x1B)] {

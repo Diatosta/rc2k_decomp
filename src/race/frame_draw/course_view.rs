@@ -110,7 +110,7 @@ pub fn face_hidden(
         0
     };
     let (_, hidden) = hidden_by_switches(shows, hiding, || {
-        face.switches() as u32 & race.frame.frame_work.face_hide_mask.bits()
+        face.switches() as u32 & ctx.view.face.face_hide_mask.bits()
     });
     if hidden {
         return Ok(true);
@@ -135,7 +135,6 @@ pub fn face_hidden(
 pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Result<(), Refused> {
     let race = ctx.race;
     let course = &race.course;
-    let shared = &race.shared;
     use crate::math::x87::{add, to_int};
     points_there(course)?;
     let depth = |k: u32| -> Result<u32, Refused> {
@@ -158,13 +157,7 @@ pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Re
     let key = match by {
         DepthBy::First => {
             let record = point_record(ctx, face_field(face, 4)?)?;
-            let key = to_int(crate::scene::point_records::field(record, 0x18)?) as u32;
-            shared.view.face_depth_key.set_bits(key);
-            shared
-                .view
-                .face_side
-                .set_bits(to_int(crate::scene::point_records::field(record, 0x10)?) as u32);
-            key
+            to_int(crate::scene::point_records::field(record, 0x18)?) as u32
         }
         DepthBy::Deepest => {
             let mut key = to_int(depth(0)?) as u32;
@@ -182,10 +175,8 @@ pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Re
             average_key(crate::math::x87_load::add_to_int(depth(3)?, sum))
         }
     };
-    shared
-        .view
-        .face_depth_key
-        .set_bits(rc2k_core::race::faces::depth_key(key));
+    let key = rc2k_core::race::faces::depth_key(key);
+    ctx.view.face.depth_key.set_bits(key);
     Ok(())
 }
 
@@ -193,13 +184,13 @@ pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Re
 /// the view's depth entries: +0 the key, +4 the face; the count + 1. Refuses (before anything) an
 /// entry past the 0x1000, or what `face_depth` refuses.
 pub fn add_depth_entry(ctx: &DrawCtx, face: u32) -> Result<(), Refused> {
-    let DrawCtx { race, view, .. } = *ctx;
+    let DrawCtx { view, .. } = *ctx;
     let lists = &view.lists;
     // Converted: `rc2k_core::race::faces::depth_entry_room`.
     let n: u32 = lists.depth_entry_count.bits();
     rc2k_core::race::faces::depth_entry_room(n)?;
     face_depth(ctx, face)?;
-    let key: u32 = race.shared.view.face_depth_key.bits();
+    let key: u32 = ctx.view.face.depth_key.bits();
     let at = lists.depth_entry(n)?;
     at[0].set(key);
     at[1].set(face);
@@ -248,8 +239,6 @@ pub fn course_grid(race: &Race, view: &crate::race::view_grid::ViewGrid) -> Resu
         let Some((cx, cz)) = record_cell(record_field(n, 0)?) else {
             continue;
         };
-        race.course.course.record_place[0].set_bits(cx);
-        race.course.course.record_place[1].set_bits(cz);
         if let Some(cell) = grid_cell(cx, cz, (gx, gz), span) {
             view.cell(cell)?.set(n);
         }
@@ -260,21 +249,15 @@ pub fn course_grid(race: &Race, view: &crate::race::view_grid::ViewGrid) -> Resu
 /// `object_bytes`' outputs (byte tables, walked by pointer: absolute addresses).
 /// Byte `n` of a face table (an object number: one past the 0x100 is refused, where the
 /// original reads on into the next table).
-pub(super) fn byte_at(table: &crate::session::Bytes<256>, n: u32) -> Result<u32, BadInput> {
+pub(super) fn byte_at(
+    mine: &crate::race::view_course::ViewCourse,
+    which: usize,
+    n: u32,
+) -> Result<u32, BadInput> {
     if n >= 0x100 {
         return Err(BadInput("an object number past the face tables"));
     }
-    Ok(table.get(n as usize) as u32)
-}
-
-/// The four face tables (`object_bytes`' outputs).
-pub(super) fn face_tables(course: &Course) -> [&'_ crate::session::Bytes<256>; 4] {
-    [
-        &course.level_grid.face_table_a,
-        &course.level_grid.face_table_b,
-        &course.level_grid.face_table_c,
-        &course.level_grid.face_table_d,
-    ]
+    Ok(mine.tables()[which].get(n as usize) as u32)
 }
 
 /// A course record's faces (+8 first, +0xC last; -1 none), or None.
@@ -291,7 +274,7 @@ pub(super) fn record_faces(record: u32) -> Result<Option<(u32, u32)>, BadInput> 
 /// Refuses a last face of -1 (the loop would not end); the full tables and missing points
 /// are refused where they are met.
 pub fn gather_record_faces(ctx: &DrawCtx, record: u32) -> Result<(), Refused> {
-    let DrawCtx { race, view, .. } = *ctx;
+    let DrawCtx { view, .. } = *ctx;
     let Some((first, last)) = record_faces(record)? else {
         return Ok(());
     };
@@ -309,16 +292,11 @@ pub fn gather_record_faces(ctx: &DrawCtx, record: u32) -> Result<(), Refused> {
         let how = gathered(kind);
         if how != Gathered::No && !face_hidden(ctx, &read)? {
             let object = face_object(how, read.object(), || read.second_object());
-            let tables = face_tables(&race.course);
-            let (depth_table, kind_table) = if how == Gathered::Lit {
-                (tables[1], tables[3])
-            } else {
-                (tables[0], tables[2])
-            };
-            if byte_at(depth_table, object)? != 0 {
+            let (depth, kind) = if how == Gathered::Lit { (1, 3) } else { (0, 2) };
+            if byte_at(&view.course, depth, object)? != 0 {
                 add_depth_entry(ctx, face)?;
             } else {
-                add_sort_entry(&view.lists, byte_at(kind_table, object)?, face)?;
+                add_sort_entry(&view.lists, byte_at(&view.course, kind, object)?, face)?;
             }
         }
         face = face.wrapping_add(1);
@@ -344,8 +322,10 @@ pub fn gather_visible_faces(ctx: &DrawCtx) -> Result<(), Refused> {
 /// `race::face_hide_mask` (0x456056): `physics::probe_ground`, then, unless the face under
 /// the car (`g_car` +0xE00) is -1, `race().frame.frame_work.face_hide_mask` = its +2 word's bits 1 and 3 flipped
 /// when any is set (0xA), or'd with bits 4 and 5 likewise (0x30).
-pub fn face_hide_mask(race: &Race) -> Result<(), Refused> {
-    let frame = &race.frame;
+pub fn face_hide_mask(
+    race: &Race,
+    view: &crate::race::view_scratch::ViewScratch,
+) -> Result<(), Refused> {
     crate::physics::probe_ground::probe_ground_in_view(
         race,
         crate::race::frame::drawn_car(),
@@ -357,8 +337,7 @@ pub fn face_hide_mask(race: &Race) -> Result<(), Refused> {
     }
     // Converted: `rc2k_core::race::faces::hide_mask`.
     let word: u16 = face_field(ground, 2)?;
-    frame
-        .frame_work
+    view.face
         .face_hide_mask
         .set_bits(rc2k_core::race::faces::hide_mask(word));
     Ok(())
@@ -420,7 +399,7 @@ pub fn prepare_course_view(
 ) -> Result<(), Refused> {
     let course = &race.course;
     check_course_grid(course)?;
-    face_hide_mask(race)?;
+    face_hide_mask(race, view)?;
     course_grid(race, &view.grid)?;
     crate::race::view_grid::note_drawn(view.number());
     if race.shared.switches.other_way.bits() == 0 {

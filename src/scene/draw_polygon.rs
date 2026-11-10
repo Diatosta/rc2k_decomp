@@ -35,7 +35,6 @@
 //! work table and an entry without its vertex.
 
 use crate::d3d::NO_TEXTURE;
-use crate::d3d::owner::d3d;
 use crate::errors::BadInput;
 use crate::math::x87;
 use crate::race::owner::Race;
@@ -440,7 +439,7 @@ pub fn draw_polygon(
     if face.faded.bits() != 0 {
         let (mode, texture): (u32, u32) = (face.polygon_mode.bits(), poly.texture_page.bits());
         // 0x44CAD5.
-        let (from, alpha): (u32, u32) = (d3d().cards.fade_from.get(), face.fade_alpha.bits());
+        let (from, alpha): (u32, u32) = (poly.fade_from.get(), face.fade_alpha.bits());
         let uv = crate::session::read_bits(&race.shared.vars.fade_uv);
         for (n, &(_, entry)) in entries.iter().enumerate() {
             let out = out(n);

@@ -73,7 +73,7 @@ pub fn draw_object_face(
     let entries = &crate::scene::polygon_store::POLYGON_WORK.entries;
     let vertices = (0..count as usize).map(|n| (&entries[n], 0x10 + n * 0x10));
     let view_kind: u32 = light.view_kind.bits();
-    let shine: u32 = race.course.course.shine.bits();
+    let shine: u32 = ctx.view.course.shine.bits();
 
     ctx.view.polygon.face_word.set_bits(fw(0xC));
     light.face_bits.set_bits(words[7] as u32 & 0x1F);
@@ -83,7 +83,7 @@ pub fn draw_object_face(
         && race.shared.vars.settings_words[1].bits() != 0
         && view_kind != 4
         && face_shine != 0;
-    race.shared.switches.face_reflects.set_bits(reflects as u32);
+    ctx.view.face.reflects.set_bits(reflects as u32);
     ctx.view.polygon.polygon_vertex_count.set_bits(count);
 
     if race.shared.switches.other_way.bits() != 0 && ctx.view.cars.other_way_kind.bits() == 2 {
@@ -129,7 +129,7 @@ pub fn draw_object_face(
             object
                 .reflection_point_number
                 .set_bits(fw(vertex).wrapping_neg());
-            cached_reflection_coordinates(race, object, &ctx.view.matrices)?;
+            cached_reflection_coordinates(race, object, &ctx.view.matrices, ctx.view)?;
             let coordinates: [u32; 2] = crate::session::read_bits(&object.reflection_coordinates);
             entry.u2.set(coordinates[0]);
             entry.v2.set(coordinates[1]);
@@ -145,10 +145,10 @@ pub fn draw_object_face(
     let faded = work.fade_alpha.bits() != 0 && light.face_bits.bits() == work.faded_bits.bits();
     work.faded.set_bits(faded as u32);
     if race.shared.switches.face_any_shine.bits() == 0 {
-        race.shared.switches.face_reflects.set_bits(0u32);
+        ctx.view.face.reflects.set_bits(0u32);
     }
     ctx.view.polygon.polygon_sides[0].set_bits(1u32);
-    ctx.view.polygon.polygon_sides[1].set_bits(race.shared.switches.face_reflects.bits());
+    ctx.view.polygon.polygon_sides[1].set_bits(ctx.view.face.reflects.bits());
     let see_through: u32 = object.see_through.bits();
     if see_through != 0x100 {
         for entry in &entries[..0x10] {

@@ -127,40 +127,39 @@ fn int_over_two(i: u32, a: u32, b: u32) -> u32 {
 /// the glow's render states (0x44E44D), texture `dword_5D1DE8` (`scene::set_texture`),
 /// the device's unclipped fan (`d3d::draw_fan_unclipped`), then the depth buffer on. Its one
 /// caller, `race::draw_mirror_view`, reads no register it leaves.
-pub fn draw_view_backdrop(race: &Race, scene: &crate::scene::owner::Scene) {
+pub fn draw_view_backdrop(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    view: &crate::race::view_scratch::ViewScratch,
+) {
     let course = &race.course;
-    let shared = &race.shared;
-    shared.vars.quad_uv[0].set(0xF8_0000);
-    shared.vars.quad_uv[4].set(0x8_0000);
+    view.quad.uv[0].set(0xF8_0000);
+    view.quad.uv[4].set(0x8_0000);
     let left = scene.drawing.scene.view_offset[0].get();
-    shared.vars.quad_corners[0].set(left);
-    shared.vars.quad_corners[1].set(left.wrapping_add(scene.drawing.scene.view_size[0].get()));
+    view.quad.corners[0].set(left);
+    view.quad.corners[1].set(left.wrapping_add(scene.drawing.scene.view_size[0].get()));
     let top = scene.drawing.scene.view_offset[1].get();
-    shared.vars.quad_corners[4].set(top);
-    shared.vars.quad_corners[5].set(top.wrapping_add(scene.drawing.scene.view_size[1].get()));
+    view.quad.corners[4].set(top);
+    view.quad.corners[5].set(top.wrapping_add(scene.drawing.scene.view_size[1].get()));
     let v = &crate::d3d::vertices_store::VERTICES.vertices;
-    let x0 = int_and_one(course, shared.vars.quad_corners[0].get(), false);
+    let x0 = int_and_one(course, view.quad.corners[0].get(), false);
     v[0].x.set_bits(x0);
     v[3].x.set_bits(x0);
-    let x1 = int_and_one(course, shared.vars.quad_corners[1].get(), true);
+    let x1 = int_and_one(course, view.quad.corners[1].get(), true);
     v[1].x.set_bits(x1);
     v[2].x.set_bits(x1);
-    let y0 = int_and_one(course, shared.vars.quad_corners[4].get(), false);
+    let y0 = int_and_one(course, view.quad.corners[4].get(), false);
     v[0].y.set_bits(y0);
     v[1].y.set_bits(y0);
-    let y1 = int_and_one(course, shared.vars.quad_corners[5].get(), true);
+    let y1 = int_and_one(course, view.quad.corners[5].get(), true);
     v[2].y.set_bits(y1);
     v[3].y.set_bits(y1);
     let (a, b) = (course.numbers.k256.bits(), course.numbers.k65536.bits());
     for vertex in &v[..4] {
-        vertex
-            .u
-            .set_bits(int_over_two(shared.vars.quad_uv[0].get(), a, b));
+        vertex.u.set_bits(int_over_two(view.quad.uv[0].get(), a, b));
     }
     for vertex in &v[..4] {
-        vertex
-            .v
-            .set_bits(int_over_two(shared.vars.quad_uv[4].get(), a, b));
+        vertex.v.set_bits(int_over_two(view.quad.uv[4].get(), a, b));
     }
     for vertex in &v[..4] {
         vertex.colour.set(0xFF00_0000);

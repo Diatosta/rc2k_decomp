@@ -56,7 +56,7 @@ pub struct FrameWork {
     pub mirror_places: [Dword; 24],
     /// +0xd0 (0x64165C): the lead car's camera kept (`drive::lead_car_values`); [0] also `effects::stage_record`'s number, [7] `effects::draw_plane`'s switch and `effects::pong`'s shown.
     pub lead_kept: [Dword; 8],
-    /// +0xf0 (0x64167C): `g_faceHideMask`.
+    /// +0xf0 (0x64167C): `g_faceHideMask`; now each view's (`race::face_work::FaceWork`); unused.
     pub face_hide_mask: Dword,
     /// +0xf4 (0x641680): each car's listed sound, -1 none (`physics::cue_listed_car_sound`, `drive::choose_shown_cars`).
     pub listed_car_sounds: [Dword; 8],
@@ -80,13 +80,13 @@ pub struct FrameWork {
     pub decal_limit: Float,
     /// +0x1b8 (0x641744): (`race::frame_draw`).
     pub part_place: [Dword; 3],
-    /// +0x1c4 (0x641750): (`race::frame_draw`).
+    /// +0x1c4 (0x641750): (`race::frame_draw`); written only, by nothing now (a dead store); unused.
     pub part_kind: Dword,
-    /// +0x1c8 (0x641754): the car's parts present (`race::frame_draw`).
+    /// +0x1c8 (0x641754): the car's parts present (`race::frame_draw`); now each view's (`race::car_draw_state::CarDrawState`); unused.
     pub parts_present: Dword,
-    /// +0x1cc (0x641758): (`race::frame_draw`).
+    /// +0x1cc (0x641758): (`race::frame_draw`); now each view's (`race::car_draw_state::CarDrawState`); unused.
     pub light_left: Dword,
-    /// +0x1d0 (0x64175C): (`race::frame_draw`).
+    /// +0x1d0 (0x64175C): (`race::frame_draw`); now each view's (`race::car_draw_state::CarDrawState`); unused.
     pub light_right: Dword,
     /// +0x1d4 (0x641760): the car's placed matrix and the next (`race::car_parts`).
     pub placed_matrices: [Float; 32],

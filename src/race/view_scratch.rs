@@ -96,6 +96,10 @@ pub struct ViewScratch {
     pub polygon: crate::scene::polygon_work::PolygonWork,
     /// The view's course grid (`race::view_grid`).
     pub grid: crate::race::view_grid::ViewGrid,
+    /// The course working values (`race::view_course`).
+    pub course: crate::race::view_course::ViewCourse,
+    /// The screen quad's texture coordinates and corners (`race::quad_work`).
+    pub quad: crate::race::quad_work::QuadWork,
 }
 
 impl ViewScratch {
@@ -110,6 +114,8 @@ impl ViewScratch {
             matrices: crate::scene::view_matrices::ViewMatrices::new(),
             polygon: crate::scene::polygon_work::PolygonWork::new(),
             grid: crate::race::view_grid::ViewGrid::new(),
+            course: crate::race::view_course::ViewCourse::new(),
+            quad: crate::race::quad_work::QuadWork::new(),
         }
     }
 

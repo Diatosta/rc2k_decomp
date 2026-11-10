@@ -12,7 +12,7 @@ use crate::session::{Dword, Float};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceView {
-    /// +0x0 (0x63D9B8): `g_reflectionsKept` (`scene::cached_reflection_coordinates`).
+    /// +0x0 (0x63D9B8): `g_reflectionsKept` (`scene::cached_reflection_coordinates`); now each view's (`race::face_work::FaceWork`); unused.
     pub reflections_kept: Dword,
     /// +0x4 (0x63D9BC): not named.
     pub unknown_4: [Dword; 5],
@@ -106,9 +106,9 @@ pub struct RaceView {
     pub clock_base: Dword,
     /// +0x284 (0x63DC3C): (`race::show_frame`).
     pub frame_time: Dword,
-    /// +0x288 (0x63DC40): `g_faceDepthKey`.
+    /// +0x288 (0x63DC40): `g_faceDepthKey`; now each view's (`race::face_work::FaceWork`); unused.
     pub face_depth_key: Dword,
-    /// +0x28c (0x63DC44): (`race::frame_draw`).
+    /// +0x28c (0x63DC44): (`race::frame_draw`); written only, by nothing now (a dead store); unused.
     pub face_side: Dword,
     /// +0x290 (0x63DC48): `g_lampCount`.
     pub lamp_count: Dword,

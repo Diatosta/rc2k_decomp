@@ -19,9 +19,7 @@ pub fn clear_depth_buffer(scene: &crate::scene::owner::Scene) {
         return;
     }
     let (width, height): (u32, u32) = (session.screen.width.get(), session.screen.height.get());
-    crate::session::write_bits(
-        &scene.drawing.scene.cleared_rectangle,
-        [0, 0, width, height],
-    );
-    crate::platform_3d::clear_viewport();
+    let own = &crate::scene::polygon_work::front_end().cleared_rectangle;
+    crate::session::write_bits(own, [0, 0, width, height]);
+    crate::platform_3d::clear_viewport(own);
 }

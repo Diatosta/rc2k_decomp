@@ -107,8 +107,8 @@ fn draw_description(
     }
     ctx.view.cars.object_number.set_bits(object);
     let end = || {
-        scene.drawing.object_work.only_object.set(0u32);
-        scene.drawing.object_work.object_place.set_bits(u32::MAX);
+        ctx.view.object.only_object.set(0u32);
+        ctx.view.object.object_place.set_bits(u32::MAX);
     };
     if object > 0x64 {
         end();
@@ -118,7 +118,7 @@ fn draw_description(
         end();
         return Ok(());
     }
-    scene.drawing.object_work.object_place.set_bits(place);
+    ctx.view.object.object_place.set_bits(place);
     if !shown {
         end();
         return Ok(());
@@ -143,11 +143,7 @@ fn draw_description(
         scene.drawing.object_work.described_cleared[1].set(byte(0x13) << 8);
     }
     ctx.view.light.other_light.set_bits(get(0x2C));
-    scene
-        .drawing
-        .object_work
-        .only_object
-        .set((byte(0x25) >> 1) & 3);
+    ctx.view.object.only_object.set((byte(0x25) >> 1) & 3);
     let light = |lowest: u32, highest: u32, level: u32, strength: u32| {
         ctx.view.light.light_lowest.set(lowest);
         ctx.view.light.light_highest.set(highest);

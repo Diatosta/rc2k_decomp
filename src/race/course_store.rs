@@ -9,7 +9,7 @@ use crate::session::Dword;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CourseWork {
-    /// +0x0 (0x5CCBF0): a course record's x and z (`race::frame_draw`, `race::car_shadow`).
+    /// +0x0 (0x5CCBF0): a course record's x and z (`race::frame_draw`, `race::car_shadow`); written only, by nothing now (a dead store); unused.
     pub record_place: [Dword; 2],
     /// +0x8 (0x5CCBF8): not named.
     pub unknown_8: [Dword; 26],
@@ -101,7 +101,7 @@ pub struct CourseWork {
     pub group_masks: [Dword; 18],
     /// +0x274 (0x5CCE64): not named.
     pub unknown_274: [Dword; 4],
-    /// +0x284 (0x5CCE74): `g_shine`.
+    /// +0x284 (0x5CCE74): `g_shine`; now each view's (`race::view_course::ViewCourse`); unused.
     pub shine: Dword,
     /// +0x288 (0x5CCE78): the shine as a whole number (`race::car_draw` stored it beside
     /// `shine`); read by nothing, not kept.

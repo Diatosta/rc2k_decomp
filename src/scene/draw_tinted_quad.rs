@@ -32,10 +32,10 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     }
     let float = |cell: &Dword| x87::from_int(cell.bits() as i32);
     let [left, right, top, bottom] = [
-        &shared.vars.quad_corners[0],
-        &shared.vars.quad_corners[1],
-        &shared.vars.quad_corners[4],
-        &shared.vars.quad_corners[5],
+        &ctx.view.quad.corners[0],
+        &ctx.view.quad.corners[1],
+        &ctx.view.quad.corners[4],
+        &ctx.view.quad.corners[5],
     ]
     .map(float);
     let v = |n: usize, o: usize, x: u32| {

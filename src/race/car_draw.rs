@@ -315,7 +315,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
         view.group_mask.set(view.group_mask.bits() & mask);
     };
     if state & 0x10 == 0 {
-        nearness(race, &ctx.view.cars);
+        nearness(race, &ctx.view.cars, &ctx.view.course);
         let depth = ctx.view.cars.car_depth.bits();
         if !below(depth, 0x14_0000) {
             and(with_bit(field(0x40)?, bit));
@@ -402,12 +402,12 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
             .wrapping_add(0x50),
     );
     car_body_matrix(&race.course, &race.frame, &ctx.view.matrices);
-    crate::race::frame_draw::start_kept_reflections(race, ctx.view)?;
+    crate::race::frame_draw::start_kept_reflections(ctx.view);
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         ctx,
         Some(GamePtr::to(&ctx.view.matrices.lit_matrix).into()),
     )?;
-    crate::race::frame_draw::end_kept_reflections(&race.shared);
+    crate::race::frame_draw::end_kept_reflections(ctx.view);
     ctx.view.light.light_kind_extra.set(1);
     if below(ctx.view.cars.car_depth.bits(), 0x3C_0000) {
         for (bit, matrix) in [0x20u32, 0x40, 0x80, 0x100]
@@ -435,7 +435,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
 /// `race::draw_car`'s nearness: `dword_71BA08` = (`dword_6415A4` - 0xA0000) / 0x140000 held to 0 ..
 /// 1 (`flt_5C5D90`, `flt_5C5D38`), `g_shine` (and `dword_5CCE78`) times 1 less it (the
 /// original's stores to `dword_62400C` are not kept).
-fn nearness(race: &Race, cars: &CarDrawState) {
+fn nearness(race: &Race, cars: &CarDrawState, mine: &crate::race::view_course::ViewCourse) {
     use crate::math::x87_float::{ONE, int, ld, st, to_int};
     use crate::math::x87_load::below_or_unordered;
     {
@@ -459,10 +459,10 @@ fn nearness(race: &Race, cars: &CarDrawState) {
                 .car_nearness
                 .set_bits(race.course.numbers.one.bits());
         }
-        let shine = (ONE - ld(race.shared.work.car_nearness.bits()))
-            * int(race.course.course.shine.get() as i32);
+        let shine =
+            (ONE - ld(race.shared.work.car_nearness.bits())) * int(mine.shine.bits() as i32);
         let whole = to_int(shine);
-        race.course.course.shine.set(whole as u32);
+        mine.shine.set(whole as u32);
     }
 }
 
@@ -486,7 +486,7 @@ pub fn draw_car_shined(
 ) -> Result<(), Refused> {
     let race = ctx.race;
     let course = &race.course;
-    let shine: u32 = course.course.shine.get();
+    let shine: u32 = ctx.view.course.shine.bits();
     let mut eax = 0x3_FCE0u32.wrapping_sub(race.shared.vars.mud_thrown_counts[0].bits());
     if (eax as i32) < 0 {
         eax = 0;
@@ -495,9 +495,9 @@ pub fn draw_car_shined(
         eax = 0x4_0000;
     }
     let product = eax as u64 * course.stage_prefs.shine_scale.get() as u64;
-    course.course.shine.set((product as u32) >> 18);
+    ctx.view.course.shine.set((product as u32) >> 18);
     let done = draw_car(ctx, car);
-    course.course.shine.set(shine);
+    ctx.view.course.shine.set(shine);
     done
 }
 
@@ -696,7 +696,10 @@ mod asm_reference {
                 assert_eq!(state(), before);
                 let cars = CarDrawState::new();
                 cars.car_depth.set(race.frame.frame_work.car_depth.get());
-                nearness(race, &cars);
+                let mine = crate::race::view_course::ViewCourse::new();
+                mine.shine.set(race.course.course.shine.get());
+                nearness(race, &cars, &mine);
+                race.course.course.shine.set(mine.shine.get());
                 assert_eq!(state(), want, "nearness from {before:x?}");
                 let size_got = near_size(&race.shared);
                 assert_eq!(size_got, size_want, "size from {before:x?}");

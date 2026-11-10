@@ -26,8 +26,8 @@ use rc2k_core::hud::strips;
 fn quad_input(shared: &Shared, o: usize) -> &crate::session::Dword {
     match o {
         0..0x8 => &shared.vars.quad_colour[o / 4],
-        0x8..0x28 => &shared.vars.quad_uv[(o - 8) / 4],
-        _ => &shared.vars.quad_corners[(o - 0x28) / 4],
+        0x8..0x28 => &crate::race::view_scratch::front_end().quad.uv[(o - 8) / 4],
+        _ => &crate::race::view_scratch::front_end().quad.corners[(o - 0x28) / 4],
     }
 }
 
@@ -73,6 +73,7 @@ fn quad(
         &crate::race::view_scratch::front_end().face,
         course,
         scene,
+        crate::race::view_scratch::front_end(),
     )
 }
 

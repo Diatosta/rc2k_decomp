@@ -9,13 +9,13 @@ use crate::session::{Bytes, Dword, Float};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct LevelGrid {
-    /// +0x0 (0x63DC5C): the first of four 256-byte tables `object_bytes` fills (`race::frame_draw` `FACE_TABLES`); used in place (`byte_63DC5C`).
+    /// +0x0 (0x63DC5C): the first of four 256-byte tables `object_bytes` fills (`race::frame_draw` `FACE_TABLES`); used in place (`byte_63DC5C`); now each view's (`race::view_course::ViewCourse`); unused.
     pub face_table_a: Bytes<256>,
-    /// +0x100 (0x63DD5C): the second face table (`byte_63DD5C`).
+    /// +0x100 (0x63DD5C): the second face table (`byte_63DD5C`); now each view's (`race::view_course::ViewCourse`); unused.
     pub face_table_b: Bytes<256>,
-    /// +0x200 (0x63DE5C): the third face table (`byte_63DE5C`).
+    /// +0x200 (0x63DE5C): the third face table (`byte_63DE5C`); now each view's (`race::view_course::ViewCourse`); unused.
     pub face_table_c: Bytes<256>,
-    /// +0x300 (0x63DF5C): the fourth face table (`byte_63DF5C`).
+    /// +0x300 (0x63DF5C): the fourth face table (`byte_63DF5C`); now each view's (`race::view_course::ViewCourse`); unused.
     pub face_table_d: Bytes<256>,
     /// +0x400 (0x63E05C): `g_lamps`: 16 lamps of 0x10 bytes (`race::frame_draw`, `scene::add_point_lights`); IDA splits `dword_63E060` / `dword_63E064` out of it.
     pub lamps: [Dword; 64],
@@ -32,7 +32,7 @@ pub struct LevelGrid {
     /// +0x510 (0x63E16C): "plain" flag of the second triangle's set; now each view's
     /// (`scene::polygon_work`), this one not used.
     pub plain_second: Dword,
-    /// +0x514 (0x63E170): the view value kept by `race::draw_mirror_view` (pushed and popped around it; `dword_63E170`).
+    /// +0x514 (0x63E170): the view value kept by `race::draw_mirror_view` (pushed and popped around it; `dword_63E170`); now each view's (`race::view_course::ViewCourse`); unused.
     pub view_value_kept: Dword,
     /// +0x518 (0x63E174): grid cell x of the view, a refresh value; now each view's (`race::view_grid`); unused.
     pub grid_x: Dword,

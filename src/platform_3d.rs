@@ -39,7 +39,6 @@ use crate::gfx::owner::gfx;
 use crate::gfx::texture_upload::TextureFormat;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use crate::render::{Command, STATES, Target, TextureNote};
-use crate::scene::owner::scene;
 use crate::system::find_entry::find_entry;
 use rc2k_core::fatal::Context;
 use std::sync::Mutex;
@@ -923,9 +922,8 @@ pub fn end_layer() -> bool {
 
 /// `d3d::clear_viewport` for Rust callers: the depth buffer cleared over the rectangle
 /// `DRAW.cleared_rectangle` holds (the original leaves eax 0).
-pub fn clear_viewport() {
-    let [left, top, right, bottom] =
-        crate::session::read_bits(&scene().drawing.scene.cleared_rectangle).map(|v| v as i32);
+pub fn clear_viewport(own: &[crate::session::Dword; 4]) {
+    let [left, top, right, bottom] = crate::session::read_bits(own).map(|v| v as i32);
     let c = |v: i32| v.max(0) as usize;
     note(|_| Command::Clear([c(left), c(top), c(right), c(bottom)]));
 }

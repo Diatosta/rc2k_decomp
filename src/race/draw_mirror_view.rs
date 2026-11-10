@@ -36,8 +36,7 @@ pub fn draw_mirror_view(
     {
         return Ok(());
     }
-    race.course
-        .level_grid
+    view.course
         .view_value_kept
         .set_bits(race.shared.view.view_depth[1].bits());
     let saved = race.frame.view_and_records.view_vars.view_scale.bits();
@@ -47,9 +46,15 @@ pub fn draw_mirror_view(
         .view_scale
         .set_bits(race.course.numbers.k256.bits());
     let drawn = (|| {
-        crate::race::frame_views::mirror_view_window(race, scene, system, &view.fog)?;
-        race.shared.view.view_depth[1].set_bits(race.course.level_grid.view_value_kept.bits());
-        crate::race::frame_flush::draw_view_backdrop(race, scene);
+        crate::race::frame_views::mirror_view_window(
+            race,
+            scene,
+            system,
+            &view.fog,
+            &view.polygon,
+        )?;
+        race.shared.view.view_depth[1].set_bits(view.course.view_value_kept.bits());
+        crate::race::frame_flush::draw_view_backdrop(race, scene, view);
         crate::race::draw_view_scene::draw_view_scene(race, scene, view)
             .map(crate::race::draw_view_scene::ViewOutput::publish)
     })();

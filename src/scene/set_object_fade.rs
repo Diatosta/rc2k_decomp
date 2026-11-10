@@ -27,18 +27,15 @@ const OBJECTS: u32 = 0x100;
 
 // ---- Rust version ----
 
-fn record_at() -> Option<u32> {
-    {
-        let place: u32 = scene().drawing.object_work.object_place.bits();
-        crate::scene::point_records::held()
-            .then(|| crate::scene::point_records::of_scene_point(place))
-    }
+fn record_at(place: u32) -> Option<u32> {
+    crate::scene::point_records::held().then(|| crate::scene::point_records::of_scene_point(place))
 }
 
 /// The two words of the object's kind, and whether the object's place is looked at;
 /// None for an object's number past the tables.
 fn words(
     cars: &crate::race::car_draw_state::CarDrawState,
+    place: u32,
 ) -> Result<Option<(u32, u32, bool)>, BadInput> {
     let scene = scene();
     {
@@ -56,20 +53,19 @@ fn words(
                 .map(u32::from)
         };
         let (other_kind, distance) = (word(0x1D)?, word(0x22)?);
-        let looked_at = (other_kind | distance) != 0
-            && scene.drawing.object_work.object_place.bits() != u32::MAX;
+        let looked_at = (other_kind | distance) != 0 && place != u32::MAX;
         Ok(Some((other_kind, distance, looked_at)))
     }
 }
 
 pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
     let (race, scene) = (ctx.race, ctx.scene);
-    let Some((other_kind, distance, needs_record)) = words(&ctx.view.cars)? else {
+    let place: u32 = ctx.view.object.object_place.bits();
+    let Some((other_kind, distance, needs_record)) = words(&ctx.view.cars, place)? else {
         return Err(BadInput("an object's number past the tables"));
     };
-    let place: u32 = scene.drawing.object_work.object_place.bits();
     // What can refuse is asked before anything is written.
-    let record = match (needs_record, record_at()) {
+    let record = match (needs_record, record_at(place)) {
         (false, _) => 0,
         (true, None) => return Err(BadInput("no records for the points")),
         (true, Some(record)) => {

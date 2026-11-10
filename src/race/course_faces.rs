@@ -263,6 +263,7 @@ pub fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             race,
             scene,
             ctx.far_clip,
+            ctx.view,
         )?;
         if !draws_polygon(ctx.view.polygon.polygon_vertex_count.bits()) {
             return Ok(());

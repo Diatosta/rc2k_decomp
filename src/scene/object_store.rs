@@ -25,7 +25,7 @@ pub struct ObjectWork {
     pub loading_slot: Dword,
     /// +0x50 (0x634FF0): the car being loaded, its part, the car's first slot (`scene::load_object`; [1] read by `scene::add_object_shape`).
     pub loading_car: [Dword; 3],
-    /// +0x5c (0x634FFC): `g_objectPlace` (`scene::draw_described_object`, `scene::set_object_fade`).
+    /// +0x5c (0x634FFC): `g_objectPlace` (`scene::draw_described_object`, `scene::set_object_fade`); now each view's (`scene::object_place::ObjectPlace`); unused.
     pub object_place: Dword,
     /// +0x60 (0x635000): not named.
     pub unknown_60: Dword,
@@ -51,7 +51,7 @@ pub struct ObjectWork {
     /// +0xb4 (0x635054): the other light; now each view's (`scene::object_light`), this one
     /// not used.
     pub other_light: Dword,
-    /// +0xb8 (0x635058): (`scene::draw_shown_object`).
+    /// +0xb8 (0x635058): (`scene::draw_shown_object`); now each view's (`scene::object_place::ObjectPlace`); unused.
     pub only_object: Dword,
     /// +0xbc (0x63505C): cleared by `scene::draw_described_object`.
     pub described_cleared: [Dword; 3],

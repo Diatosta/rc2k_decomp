@@ -25,7 +25,7 @@ pub struct FrameSwitches {
     pub unknown_74: [Dword; 2],
     /// +0x7c (0x6214FC): `g_objectNumber`: the object being drawn or set up (`scene::draw_object_face`, `race::frame_draw`, `race::car_draw`); now each view's (`ctx.view.cars.object_number`; the bad polygon's log reads the view's); this one not used.
     pub object_number: Dword,
-    /// +0x80 (0x621500): `g_faceReflects` (`scene::draw_object_face`).
+    /// +0x80 (0x621500): `g_faceReflects` (`scene::draw_object_face`); now each view's (`race::face_work::FaceWork`); unused.
     pub face_reflects: Dword,
     /// +0x84 (0x621504): `g_faceAnyShine` (`scene::draw_object_face`).
     pub face_any_shine: Dword,
@@ -34,7 +34,7 @@ pub struct FrameSwitches {
     /// +0x8c (0x62150C): `dword_62150C`: the face groups shown, built per car; the drawing's is the view's
     /// (`race::car_draw_state`), this one not used.
     pub group_mask: Dword,
-    /// +0x90 (0x621510): `dword_621510`: set by `race::frame_draw` for the sky (`scene::clip_polygon_by_depth`).
+    /// +0x90 (0x621510): `dword_621510`: set by `race::frame_draw` for the sky (`scene::clip_polygon_by_depth`); now each view's (`race::face_work::FaceWork`); unused.
     pub no_far_clip: Dword,
     /// +0x94 (0x621514): `dword_621514`: nonzero in the editor / framed loading (`race::loadlevel`, `race::loading_bar_frame`, `scene::choose_view_window`, `scene::texture_levels`) (a reading).
     pub editor_mode: Dword,

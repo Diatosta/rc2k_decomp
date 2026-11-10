@@ -31,7 +31,11 @@ use rc2k_core::scene::shown::OBJECTS;
 // ---- Rust version ----
 
 /// The game's variables for the race's tests.
-struct Game<'a>(&'a Race, &'a crate::race::car_draw_state::CarDrawState);
+struct Game<'a>(
+    &'a Race,
+    &'a crate::race::car_draw_state::CarDrawState,
+    &'a crate::scene::object_place::ObjectPlace,
+);
 
 impl rc2k_core::scene::shown::RaceObject for Game<'_> {
     fn object(&self) -> u32 {
@@ -56,7 +60,7 @@ impl rc2k_core::scene::shown::RaceObject for Game<'_> {
         self.0.shared.work.stage_direction.bits()
     }
     fn only(&self) -> u32 {
-        scene().drawing.object_work.only_object.bits()
+        self.2.only_object.bits()
     }
     fn faces(&self, object: u32) -> u32 {
         scene().objects.slots.face_counts[object as usize].get()
@@ -71,6 +75,7 @@ pub fn draw_shown_object(
     draw: &mut dyn FnMut() -> Result<(), Refused>,
     scene: &crate::scene::owner::Scene,
     cars: &crate::race::car_draw_state::CarDrawState,
+    object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<bool, Refused> {
     let in_race = race.course.numbers.in_race.bits() != 0;
     if in_race && cars.object_number.bits() >= OBJECTS {
@@ -78,7 +83,7 @@ pub fn draw_shown_object(
     }
     scene.lights.work.drawing_object.set_bits(1u32);
     let show = if in_race {
-        rc2k_core::scene::shown::race_shown(&Game(race, cars))
+        rc2k_core::scene::shown::race_shown(&Game(race, cars, object))
     } else {
         // The original set the 0x100 kind dwords here (`scene::clear_kind_bytes`): the
         // caller's context has the menus' marks (`scene::car_marks`).

@@ -23,6 +23,8 @@ pub struct Fog {
     pub length: Dword,
     /// The fog levels by depth (`g_fogTable`).
     table: Bytes<TABLE_LEN>,
+    /// The fog's colour (`DRAW.fog_colour`, `g_fogColour` 0x624000), each view's own.
+    pub colour: Dword,
 }
 
 impl Fog {
@@ -32,6 +34,7 @@ impl Fog {
             next: Dword::new(0),
             length: Dword::new(0),
             table: Bytes::new([0; TABLE_LEN]),
+            colour: Dword::new(0),
         }
     }
 
