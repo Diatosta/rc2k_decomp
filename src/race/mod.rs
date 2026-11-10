@@ -144,6 +144,7 @@ pub mod vars_store;
 pub mod view_course;
 pub mod view_grid;
 pub mod view_scratch;
+pub mod view_state;
 pub mod view_store;
 pub mod viewer;
 

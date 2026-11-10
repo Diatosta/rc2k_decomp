@@ -64,7 +64,7 @@ pub fn draw_view_scene(
     car_light_modes(race, &view.cars)?;
     clear_point_records(race, scene)?;
     set_up_fog(race, &view.fog, &view.polygon)?;
-    camera_view(race, scene, &view.matrices)?;
+    camera_view(race, scene, &view.matrices, view)?;
     draw_sky(&ctx)?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
     view_light(race, scene, &view.lamps, &view.light)?;

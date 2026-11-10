@@ -108,6 +108,8 @@ pub struct ViewScratch {
     pub quad: crate::race::quad_work::QuadWork,
     /// The lamps and flares (`race::lamp_work`).
     pub lamps: crate::race::lamp_work::LampWork,
+    /// The camera values and the drawn car (`race::view_state`).
+    pub state: crate::race::view_state::ViewState,
 }
 
 impl ViewScratch {
@@ -125,6 +127,7 @@ impl ViewScratch {
             course: crate::race::view_course::ViewCourse::new(),
             quad: crate::race::quad_work::QuadWork::new(),
             lamps: crate::race::lamp_work::LampWork::new(),
+            state: crate::race::view_state::ViewState::new(),
         }
     }
 
@@ -144,6 +147,7 @@ impl ViewScratch {
         self.grid.copy_from(&FRESH.grid);
         self.course.copy_from(&FRESH.course);
         self.quad.copy_from(&FRESH.quad);
+        self.state.copy_from(&FRESH.state);
         self.lamps.copy_from(&crate::race::lamp_work::PUBLISHED);
     }
 
@@ -196,6 +200,7 @@ macro_rules! for_each_part {
         to.course.$f(&from.course $(, &$start.course)?);
         to.quad.$f(&from.quad $(, &$start.quad)?);
         to.lamps.$f(&from.lamps $(, &$start.lamps)?);
+        to.state.$f(&from.state $(, &$start.state)?);
     }};
 }
 

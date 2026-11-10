@@ -555,3 +555,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** seen on the handheld (2026-11-10); traced to `effects::run_rain` (0x4C16F9), whose `fild` loads the float constant at 0x8C5F91 as an integer, where the windscreen drops and flakes load a true integer 256.
 
 **Fix:** the constant is used as the decimal number it holds (256), as for the drops and flakes. The rain shows on the handheld; nothing changes on the PC.
+
+## A car's lights chosen by the other player's camera
+
+**What it is:** before drawing a view, the game decides which of the shown car's lights to draw from that view's camera (from inside the car some are not drawn). But it reads the camera values before the view has set them, so it takes whatever the view drawn before left there.
+
+**In game:** with one player, after a camera change the car's lights follow the old camera for one frame. In split screen, the first player's view takes its car's lights from the second player's camera, drawn last in the frame before. Not reported.
+
+**Seen or read:** read in `race::car_light_modes` (0x455B70) and `race::camera_view`; found 2026-11-10 when each view was given its own camera values.
+
+**Fix:** the lights follow the shown car's own camera settings, read from the car itself.

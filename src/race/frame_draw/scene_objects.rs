@@ -602,14 +602,14 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
                 &race.course,
                 &ctx.view.matrices,
                 Axis::Y,
-                frame.view_and_records.view_vars.view_angles[3].get(),
+                ctx.view.state.view_angles[3].get(),
             );
             multiply_matrices(object, turn_y, turned);
             set_fine_turn(
                 &race.course,
                 &ctx.view.matrices,
                 Axis::Y,
-                frame.view_and_records.view_vars.view_angles[0].get(),
+                ctx.view.state.view_angles[0].get(),
             );
             multiply_matrices(turned, turn_y, object);
         }

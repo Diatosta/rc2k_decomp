@@ -480,6 +480,7 @@ pub fn draw_own_car(
         return Err(BadInput("the drawn car without its block").into());
     }
     frame.view_and_records.view_vars.drawn_car.set(number);
+    ctx.view.state.drawn_car.set(number);
     // The state bits are the view's own; the rest, the car as seen.
     if !seen_inside(ctx.view.cars.state_of(car)?.get()) {
         return Ok(());

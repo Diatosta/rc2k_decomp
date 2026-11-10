@@ -221,7 +221,7 @@ fn shown_groups(masks: &[crate::session::Dword; 18], switches: u32) -> u32 {
 /// `dword_60627C` (below eight) without its block.
 pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Result<(), Refused> {
     let race = ctx.race;
-    let n: u32 = race.frame.view_and_records.view_vars.drawn_car.get();
+    let n: u32 = ctx.view.state.drawn_car.get();
     if race.course.numbers.in_race.bits() != 0
         && n < 8
         && race.shared.work.car_block(n as usize) == 0
@@ -300,7 +300,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
         .work
         .car_nearness
         .set_bits(race.course.numbers.zero.bits());
-    let mut stage = race.frame.view_and_records.view_vars.view_car_stage.bits();
+    let mut stage = ctx.view.state.view_car_stage.bits();
     if (stage as i32) < 0 {
         stage = 0;
     }
@@ -354,9 +354,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
         race.shared.view.drawn_view.bits() as usize,
         "the view cars",
     )?;
-    if view_car == race.frame.view_and_records.view_vars.drawn_car.bits()
-        && race.frame.view_and_records.view_vars.view_car_flag_a.bits() != 0
-    {
+    if view_car == ctx.view.state.drawn_car.bits() && ctx.view.state.view_car_flag_a.bits() != 0 {
         ctx.view.cars.group_mask.set(u32::MAX);
     }
     ctx.view.light.light_lowest.set(0);
@@ -389,14 +387,12 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     );
     place();
     ctx.view.object.car_switches.set(switches);
-    race.physics.camera.drawing_car.set(1);
     ctx.view.light.other_light.set_bits(0);
     ctx.view.light.light_kind.set(3);
     ctx.view.light.light_kind_extra.set(0);
     ctx.view.cars.object_number.set(
-        race.frame
-            .view_and_records
-            .view_vars
+        ctx.view
+            .state
             .drawn_car
             .bits()
             .wrapping_mul(0x14)
@@ -428,7 +424,6 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
             }
         }
     }
-    race.physics.camera.drawing_car.set(0);
     ctx.view.face.faded_bits.set(u32::MAX);
     Ok(())
 }
@@ -521,6 +516,7 @@ pub fn draw_car_entry(
         return Err(BadInput("a car without its block").into());
     }
     frame.view_and_records.view_vars.drawn_car.set(n);
+    ctx.view.state.drawn_car.set(n);
     ctx.view
         .light
         .car_light

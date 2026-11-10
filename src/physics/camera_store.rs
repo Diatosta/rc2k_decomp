@@ -124,7 +124,8 @@ pub struct CameraWork {
     pub car_draw_kept: Dword,
     /// +0x1a4 (0x608CAC): the car's faded bits (record +0x10), -1 after; the drawing's is the view's (`race::face_work`), this one not used.
     pub faded_bits: Dword,
-    /// +0x1a8 (0x608CB0): 1 while the car body is drawn (`race::car_draw`).
+    /// +0x1a8 (0x608CB0): 1 while the car body is drawn (`race::car_draw`); read by nothing, no
+    /// longer written.
     pub drawing_car: Dword,
 }
 

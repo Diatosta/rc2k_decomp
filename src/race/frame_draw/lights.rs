@@ -14,9 +14,13 @@ use crate::session::Dword;
 /// (`crate::race::owner::race().shared.view.view_cars[g_drawnView]`); every car block's +0x6FC 0; then for each race car with
 /// lights (+0x25C) that is drawn (any car in modes 0 and 2, else the shown car only; the
 /// shown car not with +0x69C and +0x684 both 0, nor with `GROUND_WORK.view_mirrored` set): +0x6FC's
-/// nibbles set step by step: 0x21; for the shown car with `race().frame.view_and_records.view_vars.view_car_flag_b`, 0x12, then 0x14
-/// unless `race().frame.view_and_records.view_vars.view_car_stage` is 1, then 0x11 unless it is 2 or 3; then 0x100 in the third
+/// nibbles set step by step: 0x21; for the shown car with `view_car_flag_b`, 0x12, then 0x14
+/// unless `view_car_stage` is 1, then 0x11 unless it is 2 or 3; then 0x100 in the third
 /// nibble, 0x200 with `crate::race::owner::race().shared.vars.settings_words[3]` (1: the shown car only). Refuses (before anything) a null block among the eight or more than eight cars.
+/// Not the original's: the camera flag and stage (`view_car_flag_b`, `view_car_stage`) are
+/// the shown car's own (`camera_mode_is_2_or_3`, +0x684 `camera_view`), where the original read
+/// what the view drawn before had set from them: one frame late after a camera change
+/// (`notes/bugs.md`).
 pub fn car_light_modes(
     race: &Race,
     states: &crate::race::car_draw_state::CarDrawState,
@@ -63,8 +67,8 @@ pub fn car_light_modes(
         let word = light_word(
             at.get(),
             me,
-            || race.frame.view_and_records.view_vars.view_car_flag_b.get() != 0,
-            || race.frame.view_and_records.view_vars.view_car_stage.bits(),
+            || this_car.camera_mode_is_2_or_3.get() != 0,
+            || this_car.camera_view.bits(),
             race.shared.vars.settings_words[3].bits(),
         );
         at.set(word);
