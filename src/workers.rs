@@ -178,12 +178,15 @@ pub fn threads() -> usize {
     })
 }
 
-/// With `RC2K_MIRROR_BESIDE` (an experiment; `0` off): the rear-view mirror drawn beside its
-/// view (`draw_beside`, `race::draw_race_scene`). Not the default yet: held races in rain draw
-/// one frame differently now and then (two in six; the sound the same).
+/// The rear-view mirror drawn beside its view (`draw_beside`, `race::draw_race_scene`): on a
+/// machine of two cores or more, drawing and sounding the same as one after the other.
+/// `RC2K_MIRROR_BESIDE=0` turns it off, any other value on.
 pub fn mirror_beside() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();
-    *ON.get_or_init(|| std::env::var_os("RC2K_MIRROR_BESIDE").is_some_and(|v| v != "0"))
+    *ON.get_or_init(|| match std::env::var_os("RC2K_MIRROR_BESIDE") {
+        Some(v) => v != "0",
+        None => std::thread::available_parallelism().map_or(1, usize::from) >= 2,
+    })
 }
 
 /// Whether parts are being drawn beside each other (`draw_beside`): a list inside one of them

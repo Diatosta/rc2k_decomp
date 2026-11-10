@@ -97,32 +97,13 @@ pub fn cross_product(
     out.set_bits(2, part(1, 0));
 }
 
-/// The squared rows' work (`flt_5C6FA4` ..: 16 floats over three fields, as one run).
-struct Squared<'a>(&'a Course);
-
-impl Cells for Squared<'_> {
-    fn bits(&self, n: usize) -> u32 {
-        let course = self.0;
-        match n {
-            0..4 => course.lists.squared_row_0[n].bits(),
-            4..8 => course.lists.squared_row_1[n - 4].bits(),
-            _ => course.lists.squared_row_2_and_after[n - 8].bits(),
-        }
-    }
-    fn set_bits(&self, n: usize, bits: u32) {
-        let course = self.0;
-        match n {
-            0..4 => course.lists.squared_row_0[n].set_bits(bits),
-            4..8 => course.lists.squared_row_1[n - 4].set_bits(bits),
-            _ => course.lists.squared_row_2_and_after[n - 8].set_bits(bits),
-        }
-    }
-}
-
 /// `scene::square_matrix` (0x420E94): a turning's three rows made one long and at right
 /// angles again, from its third row and its second. Returns the second `unit_vector`'s length.
+/// The original worked in `flt_5C6FD0` .. (16 floats, the last four never made: zeros, as the
+/// image has them, copied back); here a local, so that views drawn beside each other do not
+/// work in each other's rows.
 pub fn square_matrix(course: &Course, at: &(impl Cells + ?Sized)) -> u32 {
-    let squared = Squared(course);
+    let squared = [const { Float::from_bits(0) }; 0x10];
     let (first, second, third) = (Off(&squared, 0), Off(&squared, 4), Off(&squared, 8));
     unit_vector(course, &Off(at, 8), &third);
     cross_product(&Off(at, 4), &third, &first);
@@ -145,7 +126,6 @@ pub fn invert_turn(
     for (n, value) in m.iter_mut().enumerate() {
         *value = x87::loaded(from.bits((n / 3) * 4 + n % 3));
     }
-    crate::session::write_bits(&course.lists.invert_copy, m);
     let [a, b, c, d, e, f, g, h, i] = m;
     let plain = x87::product_difference;
     let negated = x87::negated_product_difference;
@@ -160,7 +140,6 @@ pub fn invert_turn(
         negated(a, h, b, g),
         plain(a, e, b, d),
     ];
-    crate::session::write_bits(&course.lists.invert_made, made);
     for (n, value) in made.into_iter().enumerate() {
         out.set_bits((n / 3) * 4 + n % 3, x87::loaded(value));
     }

@@ -122,8 +122,7 @@ fn draw_view(
     if !mirrored {
         return view();
     }
-    // With `RC2K_MIRROR_BESIDE` (`workers::mirror_beside`): the mirror drawn beside its view
-    // (`workers::draw_beside`),
+    // The mirror drawn beside its view (`workers::draw_beside`, `workers::mirror_beside`),
     // each on its own state (`race::view_scratch`), the mirror's changes to the stores they
     // share and the grid it made (`race::view_grid::publish_part`) put over the view's as when
     // drawn after it.

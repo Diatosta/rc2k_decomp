@@ -66,17 +66,17 @@ pub struct CourseLists {
     pub first_part: Dword,
     /// +0x680 (0x5C6FCC): not named.
     pub unknown_680: Dword,
-    /// +0x684 (0x5C6FD0): `flt_5C6FD0`: work of `scene::square_matrix`, row 0 (`scene::view_matrix`).
+    /// +0x684 (0x5C6FD0): `flt_5C6FD0`: work of `scene::square_matrix`, row 0 (`scene::view_matrix`); now a local there; unused.
     pub squared_row_0: [Float; 4],
-    /// +0x694 (0x5C6FE0): `flt_5C6FE0`: work of `scene::square_matrix`, row 1.
+    /// +0x694 (0x5C6FE0): `flt_5C6FE0`: work of `scene::square_matrix`, row 1; now a local there; unused.
     pub squared_row_1: [Float; 4],
-    /// +0x6a4 (0x5C6FF0): `flt_5C6FF0`: row 2 and the four dwords after, copied back (`scene::square_matrix`).
+    /// +0x6a4 (0x5C6FF0): `flt_5C6FF0`: row 2 and the four dwords after, copied back (`scene::square_matrix`); now a local there; unused.
     pub squared_row_2_and_after: [Float; 8],
     /// +0x6c4 (0x5C7010): `flt_5C7010`: the turn matrix `physics::move_slot` and `physics::spin_matrix` make with `physics::axis_turn_matrix`.
     pub turn_matrix: [Float; 16],
-    /// +0x704 (0x5C7050): `flt_5C7050`: the nine floats copied by `scene::invert_turn` (`scene::view_matrix`).
+    /// +0x704 (0x5C7050): `flt_5C7050`: the nine floats copied by `scene::invert_turn` (`scene::view_matrix`); no reader: unused.
     pub invert_copy: [Float; 9],
-    /// +0x728 (0x5C7074): `flt_5C7074`: the nine floats made by `scene::invert_turn`.
+    /// +0x728 (0x5C7074): `flt_5C7074`: the nine floats made by `scene::invert_turn`; no reader: unused.
     pub invert_made: [Float; 9],
     /// +0x74c (0x5C7098): `flt_5C7098`: sine of the angle (`physics::axis_turn_matrix`). 0x5C7098 .. 0x5C70B8 are its work values.
     pub turn_sine: Float,
