@@ -21,7 +21,6 @@ const FACES: u32 = 0xC000;
 
 pub fn draw_object_faces(
     poly: &crate::scene::polygon_work::PolygonWork,
-    race: &crate::race::owner::Race,
     object: &crate::scene::object_place::ObjectPlace,
     work: &crate::race::face_work::FaceWork,
     list: &crate::scene::face_list::FaceList,
@@ -46,9 +45,8 @@ pub fn draw_object_faces(
         work.face_number.set_bits(listed[0]);
         let head: [u8; 0xC] = crate::scene::object_faces::array(face as u32)?;
         let texture = u16::from_le_bytes([head[4], head[5]]) as u32;
-        poly.polygon_textures[0].set_bits(
-            texture.wrapping_add(race.physics.ground.object_texture_set.bits()) | 0x8000_0000,
-        );
+        poly.polygon_textures[0]
+            .set_bits(texture.wrapping_add(object.texture_set.bits()) | 0x8000_0000);
         work.face_kind.set_bits(head[6] as u32);
         work.face_unlit.set_bits(head[0xB] as u32);
         let shade = head[0xA] as u32;

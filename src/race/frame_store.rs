@@ -25,19 +25,19 @@ pub struct FrameWork {
     pub car_depth: Dword,
     /// +0x1c (0x6415A8): (`race::frame_draw`).
     pub sun_depth: Float,
-    /// +0x20 (0x6415AC): (`race::frame_draw`).
+    /// +0x20 (0x6415AC): the sun's direction (`race::place_sun`), read by nothing; no longer written.
     pub sun_floats: [Float; 3],
-    /// +0x2c (0x6415B8): (`race::frame_draw`).
+    /// +0x2c (0x6415B8): the sun's turned point (`race::place_sun`), read by nothing; no longer written.
     pub sun_points: [Dword; 3],
-    /// +0x38 (0x6415C4): `g_sunOnScreen` (`scene::draw_polygon`'s hit test).
+    /// +0x38 (0x6415C4): `g_sunOnScreen` (`scene::draw_polygon`'s hit test); now each view's (`ViewSun`); unused.
     pub sun_on_screen: Dword,
-    /// +0x3c (0x6415C8): the sun's point on the screen, x and y (`scene::draw_polygon`).
+    /// +0x3c (0x6415C8): the sun's point on the screen, x and y (`scene::draw_polygon`); now each view's (`ViewSun::hit`); unused.
     pub sun_hit: [Dword; 2],
-    /// +0x44 (0x6415D0): its x and y as floats' bits (`drive::set_listener` reads them).
+    /// +0x44 (0x6415D0): its x and y as floats' bits (`drive::set_listener` reads them); now each view's (`ViewSun::place`); unused.
     pub sun_place: [Dword; 2],
-    /// +0x4c (0x6415D8): (`race::frame_draw`, `drive::set_listener`).
+    /// +0x4c (0x6415D8): the view's value (`race::frame_draw`, `drive::set_listener`); now each view's (`ViewSun::view_out`); unused.
     pub view_out: Dword,
-    /// +0x50 (0x6415DC): `g_sunSize`.
+    /// +0x50 (0x6415DC): `g_sunSize`; now each view's (`ViewSun::size`); unused.
     pub sun_size: Dword,
     /// +0x54 (0x6415E0): the mirror's picture wanted (`d3d::copy_screen_to_texture`, `race::draw_race_scene`).
     pub mirror_wanted: Dword,
@@ -88,9 +88,11 @@ pub struct FrameWork {
     pub light_left: Dword,
     /// +0x1d0 (0x64175C): (`race::frame_draw`); now each view's (`race::car_draw_state::CarDrawState`); unused.
     pub light_right: Dword,
-    /// +0x1d4 (0x641760): the car's placed matrix and the next (`race::car_parts`).
+    /// +0x1d4 (0x641760): the car's placed matrix and the next (`race::car_parts`); the drawing's
+    /// are the view's (`CarDrawState::car_turn`).
     pub placed_matrices: [Float; 32],
-    /// +0x254 (0x6417E0): the car parts' four matrices (`race::car_draw::PART_MATRICES`).
+    /// +0x254 (0x6417E0): the car parts' four matrices (`race::car_parts`); the drawing's are the
+    /// view's (`CarDrawState::part_matrices`).
     pub part_matrices: [Float; 64],
     /// +0x354 (0x6418E0): not named.
     pub unknown_354: [Dword; 18],
@@ -153,7 +155,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(race().frame.frame_work.first(), START, END);
+        crate::gfx::first_values_are_the_games(&race().frame.frame_work, START, END);
     }
 
     #[test]

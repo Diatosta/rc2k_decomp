@@ -38,8 +38,8 @@ pub struct Drawing {
     /// One copy per drawing thread (`workers`).
     pub scene: crate::workers::PerWorker<SceneDraw>,
     /// The scene objects' work variables (`OBJECT_WORK`).
-    /// One copy per drawing thread (`workers`).
-    pub object_work: crate::workers::PerWorker<ObjectWork>,
+    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
+    pub object_work: ObjectWork,
 }
 
 /// The light state and the lights' work variables.
@@ -78,9 +78,7 @@ pub static SCENE: Scene = Scene {
     icon_upload: IconUploadCell::new(),
     drawing: Drawing {
         scene: crate::workers::PerWorker::new([const { SceneDraw::new() }; crate::workers::COPIES]),
-        object_work: crate::workers::PerWorker::new(
-            [const { ObjectWork::new() }; crate::workers::COPIES],
-        ),
+        object_work: ObjectWork::new(),
     },
     lights: Lights {
         state: LightState::new(),

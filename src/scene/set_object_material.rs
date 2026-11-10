@@ -53,10 +53,12 @@ fn state(
 const STATE: u32 = 0x30;
 
 /// 0x45079A, on the state of face `face`.
+/// The fraction into `fraction_out` (the view's `ObjectPlace::move_fraction`).
 fn step_shape(
     shared: &Shared,
     face: u32,
     scene: &crate::scene::owner::Scene,
+    fraction_out: &crate::session::Dword,
 ) -> Result<(), BadInput> {
     use crate::race::course_places::{face_field, write_face_field};
     let b: [u8; 16] = face_field(face, STATE, "an object's state")?;
@@ -79,7 +81,7 @@ fn step_shape(
         3 => x87::one_less_int_ratio(time as i32, length as i32),
         _ => 0f32.to_bits(),
     };
-    shared.vars.move_fraction.set_bits(fraction);
+    fraction_out.set(fraction);
     crate::session::write_first(&scene.objects.slots.phase_work, &[length, time, phase]);
     let mut b = [0u8; 16];
     for (k, v) in [clock, time, length, phase].into_iter().enumerate() {
@@ -104,7 +106,7 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     if way == 4 && state.is_none() {
         return Err(BadInput("a moving object without its state"));
     }
-    shared.vars.move_by.set_bits(0u32);
+    ctx.view.object.move_by.set(0);
     ctx.view.polygon.polygon_colour.set_bits(0x00FF_FFFFu32);
     ctx.view.cars.other_way_kind.set_bits(way);
     if let (4, Some(state)) = (way, state) {
@@ -112,11 +114,11 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             scene.objects.slots.first_point[object as usize].get(),
             scene.objects.slots.first_point[object as usize + 1].get(),
         ];
-        shared
-            .vars
+        ctx.view
+            .object
             .move_by
-            .set_bits(points[1].wrapping_sub(points[0]).wrapping_mul(12));
-        step_shape(shared, state, scene)?;
+            .set(points[1].wrapping_sub(points[0]).wrapping_mul(12));
+        step_shape(shared, state, scene, &ctx.view.object.move_fraction)?;
     }
     ctx.view
         .object

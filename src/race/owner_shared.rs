@@ -28,8 +28,8 @@ pub struct Shared {
     /// `TYRE_CHANGE` (`race`).
     pub tyre_change: TyreChange,
     /// `RACE_VARS` (`race`).
-    /// One copy per drawing thread (`workers`).
-    pub vars: crate::workers::PerWorker<RaceVars>,
+    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
+    pub vars: RaceVars,
     /// `RACE_VIEW` (`race`).
     /// One copy per drawing thread (`workers`).
     pub view: crate::workers::PerWorker<RaceView>,
@@ -58,9 +58,7 @@ impl Shared {
             tables: RaceTables::new(),
             buffers: Buffers::new(),
             tyre_change: TyreChange::new(),
-            vars: crate::workers::PerWorker::new(
-                [const { RaceVars::new() }; crate::workers::COPIES],
-            ),
+            vars: RaceVars::new(),
             view: crate::workers::PerWorker::new(
                 [const { RaceView::new() }; crate::workers::COPIES],
             ),

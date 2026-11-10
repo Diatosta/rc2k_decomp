@@ -61,15 +61,14 @@ pub fn set_object_light(
         crate::session::read_bits::<_, 3>(&object.place),
     );
     if own_car {
-        race.physics
-            .ground
+        light
             .drawn_car_light
             .set_bits(race.frame.view_and_records.view_vars.drawn_car.bits());
     }
     light.light_colour.set_bits(0u32);
     gather()?;
     if own_car {
-        race.physics.ground.drawn_car_light.set_bits(u32::MAX);
+        light.drawn_car_light.set_bits(u32::MAX);
     }
     let mmx = system.session.machine.has_mmx.get() != 0;
     light.light_added.set_bits(plus(
@@ -89,10 +88,14 @@ pub fn set_object_light_in_game(
     set_object_light(
         race,
         &mut || {
-            add_car_lights(race, &mut |car, marks| {
-                add_car_light(&race.course, car, marks, scene, &ctx.view.light, system);
-                Ok(())
-            })?;
+            add_car_lights(
+                race,
+                ctx.view.light.drawn_car_light.get(),
+                &mut |car, marks| {
+                    add_car_light(&race.course, car, marks, scene, &ctx.view.light, system);
+                    Ok(())
+                },
+            )?;
             add_point_lights(ctx, system)?;
             Ok(())
         },

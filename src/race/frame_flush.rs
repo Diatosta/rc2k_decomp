@@ -173,12 +173,12 @@ pub fn draw_view_backdrop(
         vertex.rhw.set_bits(0);
         vertex.specular.set(0);
     }
-    crate::scene::polygon_work::front_end()
-        .polygon_vertex_count
-        .set(4);
+    // The count in the view's own polygon work (the original's is the one shared; the
+    // mirror's backdrop is drawn on the mirror's part, frame plan F7).
+    view.polygon.polygon_vertex_count.set(4);
     crate::scene::glow_render_states::glow_render_states();
     crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[192].get());
-    crate::d3d::draw_fan_unclipped::draw_fan_unclipped(crate::scene::polygon_work::front_end());
+    crate::d3d::draw_fan_unclipped::draw_fan_unclipped(&view.polygon);
     crate::scene::depth_buffer_on::depth_buffer(true);
 }
 

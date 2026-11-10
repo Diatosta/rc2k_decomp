@@ -210,16 +210,14 @@ fn entries(count: u32) -> Result<smallvec::SmallVec<[Listed; 32]>, BadInput> {
 /// 0x450147 with 0x4501B6: the hit test.
 fn hit_test(
     quad: &[crate::session::Dword; 32],
-    frame: &crate::race::owner_frame::Frame,
+    sun: &crate::scene::polygon_work::ViewSun,
     entries: &[Listed],
-    scene: &crate::scene::owner::Scene,
 ) {
-    let lights = &scene.lights;
-    if frame.frame_work.sun_on_screen.bits() == 0 {
+    if sun.on_screen.get() == 0 {
         return;
     }
-    let point = crate::session::read_bits(&frame.frame_work.sun_hit).map(|v| v as i32);
-    crate::session::write_first(&lights.state.hit_work, &point.map(|v| v as u32));
+    let point = crate::session::read_bits(&sun.hit).map(|v| v as i32);
+    // (The original kept the point and each edge in `LightState.hit_work`, read by nothing.)
     if entries.len() < 3 {
         return;
     }
@@ -232,10 +230,6 @@ fn hit_test(
             ]
         };
         let (from, to) = (corner(entries[n]), corner(entries[(n + 1) % entries.len()]));
-        crate::session::write_first(
-            &lights.state.hit_work[2..6],
-            &[from[0] as u32, from[1] as u32, to[0] as u32, to[1] as u32],
-        );
         let along = point[1].wrapping_sub(from[1]) as i64 * to[0].wrapping_sub(from[0]) as i64;
         let across = point[0].wrapping_sub(from[0]) as i64 * to[1].wrapping_sub(from[1]) as i64;
         // Not on the inner side of this edge: the switch stays.
@@ -243,7 +237,7 @@ fn hit_test(
             return;
         }
     }
-    frame.frame_work.sun_on_screen.set_bits(0u32);
+    sun.on_screen.set(0);
 }
 
 /// 0x44C9A9, and 0x44E6F4 for a mirrored view: the positions.
@@ -419,14 +413,14 @@ pub fn draw_polygon(
     }
     let mut entries = entries(count)?;
     // Nothing has been written up to here.
-    hit_test(&poly.quad_vertices, &race.frame, &entries, scene);
+    hit_test(&poly.quad_vertices, &poly.sun, &entries);
     let kept: [u32; 3] = [
         poly.polygon_sides[0].bits(),
         poly.polygon_sides[1].bits(),
         face.polygon_mode.bits(),
     ];
     crate::session::write_bits(&poly.polygon_kept, kept);
-    let mirrored = race.physics.ground.view_mirrored.bits() != 0;
+    let mirrored = poly.view_mirrored.get() != 0;
     if mirrored && count > 2 {
         // 0x44E6B9: the list's entries after the first, turned round.
         entries[1..].reverse();

@@ -47,7 +47,7 @@ pub fn splash_mud(shared: &Shared) -> Result<(), Refused> {
             eax = mud_texel(eax, x, y)?;
             if muddy(eax) {
                 let colour = crate::session::read_on_in(
-                    &*shared.vars,
+                    &shared.vars,
                     &shared.vars.mud_colours,
                     colours,
                     "the mud colours",

@@ -25,7 +25,7 @@ const BLOCKS: u32 = 8;
 // ---- Rust version ----
 
 /// The game's variables the choice reads.
-struct GameCars<'a>(&'a Race, crate::scene::reading::Reading);
+struct GameCars<'a>(&'a Race, crate::scene::reading::Reading, u32);
 
 impl rc2k_core::scene::lamps::CarLights for GameCars<'_> {
     fn one_car(&self) -> bool {
@@ -44,7 +44,7 @@ impl rc2k_core::scene::lamps::CarLights for GameCars<'_> {
         self.0.shared.vars.run_kind.bits()
     }
     fn drawn(&self) -> u32 {
-        self.0.physics.ground.drawn_car_light.bits()
+        self.2
     }
     fn viewed(&self) -> u32 {
         let shared = &self.0.shared;
@@ -59,8 +59,10 @@ impl rc2k_core::scene::lamps::CarLights for GameCars<'_> {
 }
 
 // Converted: `rc2k_core::scene::lamps::car_lights`
+/// `drawn`: the car whose lights are skipped, or -1 (`ObjectLight::drawn_car_light`).
 pub fn add_car_lights(
     race: &Race,
+    drawn: u32,
     add: &mut dyn FnMut(&CarView, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
@@ -69,7 +71,7 @@ pub fn add_car_lights(
         if cars == 0 || cars > BLOCKS {
             return Err(BadInput("no cars, or more than their blocks").into());
         }
-        let lights = GameCars(race, crate::scene::reading::Reading::new());
+        let lights = GameCars(race, crate::scene::reading::Reading::new(), drawn);
         for car in 0..cars {
             let block = shared.work.car_block(car as usize);
             let lit = rc2k_core::scene::lamps::car_lights(&lights, car);

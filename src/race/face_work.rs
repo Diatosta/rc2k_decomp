@@ -76,6 +76,9 @@ pub struct FaceWork {
     /// `g_faceAnyShine` (`FRAME_SWITCHES.face_any_shine`, 0x621504): whether a vertex of the
     /// object face being drawn shines (`scene::draw_object_face`), each view's own.
     pub face_any_shine: Dword,
+    /// `g_depthTest` (`RaceView.depth_test`, 0x63D9E0): the face turned the depth test off
+    /// (`race::face_depth_test_off`), each view's own.
+    pub depth_test: Dword,
 }
 
 impl FaceWork {
@@ -112,6 +115,7 @@ impl FaceWork {
             no_far_clip: Dword::new(0),
             face_hide_mask: Dword::new(0),
             face_any_shine,
+            depth_test: Dword::new(0),
         }
     }
 }

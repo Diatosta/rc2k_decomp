@@ -68,10 +68,10 @@ pub fn draw_view_scene(
         return Ok(ViewOutput::default());
     }
     // dword_635014, dword_635018.
-    for cell in &scene.drawing.object_work.view_cleared {
+    for cell in &view.object.view_cleared {
         cell.set(0);
     }
-    car_light_modes(race, &view.cars)?;
+    car_light_modes(race, &view.cars, view.polygon.view_mirrored.get() != 0)?;
     clear_point_records(race, scene)?;
     set_up_fog(race, &view.fog, &view.polygon, &view.car)?;
     camera_view(race, scene, &view.matrices, view)?;
@@ -79,7 +79,7 @@ pub fn draw_view_scene(
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
     view_light(race, scene, &view.lamps, &view.light, &view.car)?;
     reset_lamps(&ctx)?;
-    race.shared.view.view_lamps.set_bits(0u32);
+    // (The original's 0 into `g_viewLamps`, 0x63DB6C: read by nothing.)
     prepare_course_view(race, view)?;
     gather_visible_faces(&ctx)?;
     let environment = eax_environment(race, &view.grid)?;
@@ -102,7 +102,7 @@ pub fn draw_view_scene(
     crate::debug::timing::stop(crate::debug::timing::Stage::DepthEntries, begun);
     crate::moved::census::after("depth", c);
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
-    let view_value = view_value(race)?;
+    let view_value = view_value(race, &view.polygon.sun)?;
     // The lamps the next view starts from (`race::lamp_work::PUBLISHED`).
     {
         use crate::pointers::Cells;

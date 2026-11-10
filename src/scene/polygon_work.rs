@@ -82,6 +82,40 @@ pub struct PolygonWork {
     /// The colour the faded polygons fade from (`d3d().cards.fade_from`, the fog colour
     /// `scene::set_fog_colour` was given), each view's own.
     pub fade_from: Dword,
+    /// `GroundWork.view_mirrored` (0x63993C): 1 while the rear-view mirror is drawn (set by
+    /// `race::mirror_view_window`; a main view's stays 0): its polygons' vertices turned
+    /// round, its car lights and turn the mirror's.
+    pub view_mirrored: Dword,
+    /// The view's sun (`race::place_sun`; the hit test covers it).
+    pub sun: ViewSun,
+}
+
+/// A view's sun (`FrameWork`'s sun words in the original, written by every view in turn):
+/// on the screen and not covered (`g_sunOnScreen`, 0x6415C4: `race::place_sun` sets it, the
+/// polygons' hit test, `scene::draw_polygon`, clears it), its size (`g_sunSize`, 0x6415DC),
+/// its place on the screen as whole numbers and as floats' bits (0x6415C8, 0x6415D0), and the
+/// view's value fetched from its block (0x6415D8, `race::fetch_view_value`), which scales the
+/// fog with the size.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct ViewSun {
+    pub on_screen: Dword,
+    pub size: Dword,
+    pub hit: [Dword; 2],
+    pub place: [Dword; 2],
+    pub view_out: Dword,
+}
+
+impl ViewSun {
+    pub const fn new() -> Self {
+        Self {
+            on_screen: Dword::new(0),
+            size: Dword::new(0),
+            hit: [const { Dword::new(0) }; 2],
+            place: [const { Dword::new(0) }; 2],
+            view_out: Dword::new(0),
+        }
+    }
 }
 
 impl PolygonWork {
@@ -121,6 +155,8 @@ impl PolygonWork {
             ],
             vertex_byte_21: Dword::new(0),
             fade_from: Dword::new(0),
+            view_mirrored: Dword::new(0),
+            sun: ViewSun::new(),
         }
     }
 }

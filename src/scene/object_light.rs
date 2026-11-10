@@ -73,6 +73,9 @@ pub struct ObjectLight {
     pub light_level: Dword,
     /// The light direction's two turns (`dword_635094`, `dword_635098`).
     pub light_turns: [Dword; 2],
+    /// `GroundWork.drawn_car_light` (0x639968): the car whose object is being lit, or -1
+    /// (`scene::set_object_light`); `scene::add_car_lights` skips its lights.
+    pub drawn_car_light: Dword,
 }
 
 impl ObjectLight {
@@ -99,6 +102,7 @@ impl ObjectLight {
             light_highest: Dword::new(0),
             light_level: Dword::new(0),
             light_turns: [const { Dword::new(0) }; 2],
+            drawn_car_light: Dword::new(u32::MAX),
         }
     }
 }

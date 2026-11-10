@@ -640,37 +640,31 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
                 );
                 multiply_matrices(turned, turn_y, object);
             }
-            if scene.drawing.object_work.described_cleared[2].get() != 0
-                || scene.drawing.object_work.described_cleared[1].get() != 0
+            if ctx.view.object.described_turns[2].get() != 0
+                || ctx.view.object.described_turns[1].get() != 0
             {
                 set_turn_y(
                     &ctx.view.matrices.turn_y_matrix,
                     &ctx.view.matrices.turn_y_work,
-                    scene.drawing.object_work.described_cleared[2]
-                        .bits()
-                        .wrapping_neg(),
+                    ctx.view.object.described_turns[2].bits().wrapping_neg(),
                 );
                 multiply_matrices(object, turn_y, lit);
                 set_turn_y(
                     &ctx.view.matrices.turn_y_matrix,
                     &ctx.view.matrices.turn_y_work,
-                    scene.drawing.object_work.described_cleared[0]
-                        .bits()
-                        .wrapping_neg(),
+                    ctx.view.object.described_turns[0].bits().wrapping_neg(),
                 );
                 multiply_matrices(lit, turn_y, turned);
                 set_turn_x(
                     &ctx.view.matrices.turn_x_matrix,
                     &ctx.view.matrices.turn_x_work,
-                    scene.drawing.object_work.described_cleared[1]
-                        .bits()
-                        .wrapping_neg(),
+                    ctx.view.object.described_turns[1].bits().wrapping_neg(),
                 );
                 multiply_matrices(turned, turn_x, lit);
                 set_turn_y(
                     &ctx.view.matrices.turn_y_matrix,
                     &ctx.view.matrices.turn_y_work,
-                    scene.drawing.object_work.described_cleared[0].get(),
+                    ctx.view.object.described_turns[0].get(),
                 );
                 multiply_matrices(lit, turn_y, object);
             }

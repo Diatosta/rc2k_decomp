@@ -18,7 +18,7 @@ pub struct RaceView {
     pub unknown_4: [Dword; 5],
     /// +0x18 (0x63D9D0): the face's surface kinds (`race::course_faces`, `physics::wheel_surfaces`, `race::best_line`).
     pub surface_kinds: [Dword; 4],
-    /// +0x28 (0x63D9E0): the depth test on (`race::course_faces`).
+    /// +0x28 (0x63D9E0): `g_depthTest` (`race::course_faces`); now each view's (`FaceWork::depth_test`); unused.
     pub depth_test: Dword,
     /// +0x2c (0x63D9E4): the face's halves turned to the view (`race::course_faces`); now each view's (`race::face_work::FaceWork`); unused.
     pub face_turned: [Dword; 2],
@@ -69,7 +69,7 @@ pub struct RaceView {
     pub level_from: Float,
     /// +0x1a8 (0x63DB60): not named.
     pub unknown_1a8: [Dword; 3],
-    /// +0x1b4 (0x63DB6C): (`race::draw_view_scene`).
+    /// +0x1b4 (0x63DB6C): `g_viewLamps`: 0 from `race::draw_view_scene`, read by nothing; no longer written.
     pub view_lamps: Dword,
     /// +0x1b8 (0x63DB70): not named.
     pub unknown_1b8: Dword,
@@ -93,7 +93,7 @@ pub struct RaceView {
     pub drawn_view: Dword,
     /// +0x1e8 (0x63DBA0): this machine's car (`net::lets_race`).
     pub local_car: Dword,
-    /// +0x1ec (0x63DBA4): `g_shownCar`: the drawn view's car.
+    /// +0x1ec (0x63DBA4): `g_shownCar`: the drawn view's car, read only by `race::car_light_modes`, which keeps it itself; no longer written.
     pub shown_car: Dword,
     /// +0x1f0 (0x63DBA8): each view's car.
     pub view_cars: [Dword; 2],

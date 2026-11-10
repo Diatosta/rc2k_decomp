@@ -134,13 +134,13 @@ fn draw_description(
     ctx.view.object.angles[0].set((byte(8) << 8) & 0xFFFF);
     ctx.view.object.angles[1].set(byte(0xC) << 8);
     ctx.view.object.angles[2].set(byte(0x10) << 8);
-    scene.drawing.object_work.described_cleared[1].set(0u32);
-    scene.drawing.object_work.described_cleared[0].set(0u32);
-    scene.drawing.object_work.described_cleared[2].set(0u32);
+    ctx.view.object.described_turns[1].set(0u32);
+    ctx.view.object.described_turns[0].set(0u32);
+    ctx.view.object.described_turns[2].set(0u32);
     if byte(0x11) != 0 {
-        scene.drawing.object_work.described_cleared[2].set(byte(9) << 8);
-        scene.drawing.object_work.described_cleared[0].set(byte(0x12) << 8);
-        scene.drawing.object_work.described_cleared[1].set(byte(0x13) << 8);
+        ctx.view.object.described_turns[2].set(byte(9) << 8);
+        ctx.view.object.described_turns[0].set(byte(0x12) << 8);
+        ctx.view.object.described_turns[1].set(byte(0x13) << 8);
     }
     ctx.view.light.other_light.set_bits(get(0x2C));
     ctx.view.object.only_object.set((byte(0x25) >> 1) & 3);

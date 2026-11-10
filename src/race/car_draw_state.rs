@@ -33,6 +33,12 @@ pub struct CarDrawState {
     /// The drawn car's mode (`g_groupsWhich`, 0x6D18D4: its block's `mode_on`), read by the
     /// face tests (`scene::list_object_face`).
     pub groups_which: Dword,
+    /// The drawn car's four parts' matrices (`FrameWork.part_matrices`, 0x6417E0 ..: copied
+    /// from its block's +0x740 by `race::draw_car`).
+    pub part_matrices: [crate::session::Float; 64],
+    /// The drawn car's turn (`FrameWork.placed_matrices`' first, 0x641760: its block's
+    /// +0x880).
+    pub car_turn: [crate::session::Float; 16],
     /// The material way of the object being drawn (`dword_6214DC`).
     pub other_way_kind: Dword,
     /// The other kind and the distance of the object's fade (`qword_6214E0`).
@@ -66,6 +72,8 @@ impl CarDrawState {
             car_draw_word: Dword::new(0),
             car_nearness: crate::session::Float::from_bits(0),
             groups_which: Dword::new(0),
+            part_matrices: [const { crate::session::Float::from_bits(0) }; 64],
+            car_turn: [const { crate::session::Float::from_bits(0) }; 16],
             other_way_kind: Dword::new(0),
             fade_words: [const { Dword::new(0) }; 2],
             object_number: Dword::new(0),

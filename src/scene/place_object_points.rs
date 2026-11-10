@@ -39,25 +39,18 @@ const OBJECTS: u32 = 0x100;
 
 /// 0x45C29B: the point at `from` moved towards the one `by` bytes on, into
 /// `unk_5CCE18`.
-fn moved(race: &crate::race::owner::Race, from: usize, by: u32) -> Result<(), BadInput> {
+fn moved(
+    race: &crate::race::owner::Race,
+    from: usize,
+    by: u32,
+    fraction: u32,
+) -> Result<(), BadInput> {
     let course = &race.course;
     let other = from.wrapping_add(by as usize);
     let read = |at: usize| crate::scene::object_points::point(at as u32);
     let (a, b) = (read(from)?, read(other)?);
     // The fraction, the two points, the result, the fraction as it is stored.
-    let mut w = [
-        race.shared.vars.move_fraction.bits(),
-        a[0],
-        a[1],
-        a[2],
-        b[0],
-        b[1],
-        b[2],
-        0,
-        0,
-        0,
-        0,
-    ];
+    let mut w = [fraction, a[0], a[1], a[2], b[0], b[1], b[2], 0, 0, 0, 0];
     moved_at(cells(&mut w));
     // The original stores the three from `point_moved`, y and z on over the first two
     // group masks (`notes/bugs.md`).
@@ -175,7 +168,8 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     // A copy: nothing the loop writes is the matrix (`off_5EA40C`'s, the object's own).
     // (`g_objectMatrix` is only ever `g_madeObjectMatrix`, never written.)
     let matrix: [u32; 16] = std::array::from_fn(|n| ctx.view.matrices.made_object_matrix[n].bits());
-    let move_by: u32 = race.shared.vars.move_by.bits();
+    let move_by: u32 = ctx.view.object.move_by.get();
+    let fraction: u32 = ctx.view.object.move_fraction.get();
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
     for _ in 0..object.points {
@@ -184,7 +178,7 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         let mut r = point_records::get(record)?;
         r[0] = number;
         let point = if move_by != 0 {
-            moved(race, from as usize, move_by)?;
+            moved(race, from as usize, move_by, fraction)?;
             // x, y, z read on into `group_masks[0]`, `[1]`, as stored.
             [
                 race.course.course.point_moved.get(),

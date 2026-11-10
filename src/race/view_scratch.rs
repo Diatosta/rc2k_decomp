@@ -152,7 +152,15 @@ impl ViewScratch {
         self.face.copy_from(&FRESH.face);
         self.cars.copy_from(&FRESH.cars);
         self.matrices.copy_from(&FRESH.matrices);
+        // What the view's set-up gave before its scene, kept: the mirror's flag
+        // (`race::mirror_view_window`) and the view's value (`race::fetch_view_value`).
+        let (mirrored, view_out) = (
+            self.polygon.view_mirrored.get(),
+            self.polygon.sun.view_out.get(),
+        );
         self.polygon.copy_from(&FRESH.polygon);
+        self.polygon.view_mirrored.set(mirrored);
+        self.polygon.sun.view_out.set(view_out);
         self.grid.copy_from(&FRESH.grid);
         self.course.copy_from(&FRESH.course);
         self.quad.copy_from(&FRESH.quad);

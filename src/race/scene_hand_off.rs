@@ -1,5 +1,5 @@
 //! What a race view's scene leaves its overlays in the shared stores (the frame census,
-//! `RC2K_FRAME_CENSUS`: `viewN_scene` -> `viewN_rest`): the view window, the sun, the clock
+//! `RC2K_FRAME_CENSUS`: `viewN_scene` -> `viewN_rest`): the view window, the clock
 //! and the scratch matrices' rows that `scene::multiply_matrices` never writes. Kept from the
 //! scene's own copies at its end, and set again before its overlays when they run after
 //! other views' parts (the players' views beside each other, `race::draw_race_scene`): the
@@ -15,8 +15,6 @@ use crate::session::Dword;
 pub struct SceneHandOff {
     /// `SceneDraw.view_centre`, `view_scale`, `farthest` (the view window).
     window: [Dword; 4],
-    /// `FrameWork.sun_on_screen`, `view_out`.
-    sun: [Dword; 2],
     /// `PhysicsTables.scene_clock` (restarted at the view's fog).
     clock: Dword,
     /// `SceneMatrices.lit_matrix`.
@@ -33,7 +31,6 @@ impl SceneHandOff {
     pub const fn new() -> Self {
         Self {
             window: [const { Dword::new(0) }; 4],
-            sun: [const { Dword::new(0) }; 2],
             clock: Dword::new(0),
             lit: [const { Dword::new(0) }; 16],
             made: [const { Dword::new(0) }; 16],
@@ -74,9 +71,6 @@ impl SceneHandOff {
         for (cell, v) in self.window.iter().zip(window) {
             cell.set(v);
         }
-        let work = &race.frame.frame_work;
-        self.sun[0].set(work.sun_on_screen.get());
-        self.sun[1].set(work.view_out.get());
         self.clock.set(race.shared.physics_tables.scene_clock.get());
         let m = &race.frame.matrices;
         for (kept, now) in [&self.lit, &self.made]
@@ -96,9 +90,6 @@ impl SceneHandOff {
         s.view_centre[1].set_bits(self.window[1].get());
         s.view_scale.set_bits(self.window[2].get());
         s.farthest.set_bits(self.window[3].get());
-        let work = &race.frame.frame_work;
-        work.sun_on_screen.set(self.sun[0].get());
-        work.view_out.set(self.sun[1].get());
         race.shared.physics_tables.scene_clock.set(self.clock.get());
         let m = &race.frame.matrices;
         for (kept, now) in [&self.lit, &self.made]

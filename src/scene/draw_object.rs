@@ -77,7 +77,7 @@ pub fn draw_object_in_game(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let scene = ctx.scene;
     // The object's listed faces: filled, sorted and drawn here alone (the original's
     // `g_listedFaces`, one for every drawing).
     let mut faces = crate::scene::face_list::FaceList::new();
@@ -89,7 +89,6 @@ pub fn draw_object_in_game(
             Step::Points => place_object_points_any(ctx)?,
             Step::List => {
                 list_object_faces(
-                    &race.shared,
                     &ctx.view.object,
                     &ctx.view.face,
                     &mut faces,
@@ -100,7 +99,6 @@ pub fn draw_object_in_game(
             Step::Faces => {
                 draw_object_faces(
                     &ctx.view.polygon,
-                    race,
                     &ctx.view.object,
                     &ctx.view.face,
                     &faces,

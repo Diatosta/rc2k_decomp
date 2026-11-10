@@ -12,19 +12,19 @@ use crate::race::frame_view::car_at as car_view;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::race::owner_frame::Frame;
 use crate::race::trap::car_at;
 use crate::race::view_vars_store::ViewVars;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::view_matrices::ViewMatrices;
 use crate::session::Float;
 
-fn car_turn(frame: &Frame) -> &'_ [Float] {
-    &frame.frame_work.placed_matrices[..16] // flt_641760: the car's +0x880
+/// The drawn car's turn (`flt_641760`: its +0x880), the view's own.
+fn car_turn(cars: &CarDrawState) -> &'_ [Float] {
+    &cars.car_turn
 }
-/// The four parts' matrices (`flt_6417E0` .., the car's +0x740 ..).
-pub fn part_matrices(frame: &Frame) -> [&'_ [Float]; 4] {
-    [0, 16, 32, 48].map(|k| &frame.frame_work.part_matrices[k..k + 16])
+/// The drawn car's four parts' matrices (`flt_6417E0` .., its +0x740 ..), the view's own.
+pub fn part_matrices(cars: &CarDrawState) -> [&'_ [Float]; 4] {
+    [0, 16, 32, 48].map(|k| &cars.part_matrices[k..k + 16])
 }
 
 /// `race::car_part_matrix_1` .. `_4` (0x461F12, 0x461F58, 0x461F9E, 0x461FE4): matrix `a`
@@ -32,9 +32,9 @@ pub fn part_matrices(frame: &Frame) -> [&'_ [Float]; 4] {
 /// (`flt_641760`) into `g_litMatrix`, times `g_viewMatrix` into `g_madeObjectMatrix`. The
 /// original leaves esi `g_litMatrix` (which `draw_car`'s drawing takes, see there), edi
 /// and ebp the last product's other two.
-pub fn car_part_matrix(frame: &Frame, m: &ViewMatrices, a: &[Float]) {
+pub fn car_part_matrix(cars: &CarDrawState, m: &ViewMatrices, a: &[Float]) {
     multiply_matrices(a, &m.body_turn_matrix, &m.turned_matrix);
-    multiply_matrices(&m.turned_matrix, car_turn(frame), &m.lit_matrix);
+    multiply_matrices(&m.turned_matrix, car_turn(cars), &m.lit_matrix);
     multiply_matrices(
         &m.lit_matrix,
         &m.view_matrix, // g_viewMatrix
@@ -44,12 +44,12 @@ pub fn car_part_matrix(frame: &Frame, m: &ViewMatrices, a: &[Float]) {
 
 /// `race::car_body_matrix` (0x461EA1): the turns about x and z by 0 (`scene::set_fine_turn_x`,
 /// `scene::set_turn_z`) multiplied into `g_litMatrix`, then as `car_part_matrix` on it.
-pub fn car_body_matrix(course: &Course, frame: &Frame, m: &ViewMatrices) {
+pub fn car_body_matrix(course: &Course, cars: &CarDrawState, m: &ViewMatrices) {
     use crate::scene::view_matrix::{Axis, set_fine_turn};
     set_fine_turn(course, m, Axis::X, 0);
     set_fine_turn(course, m, Axis::Z, 0);
     multiply_matrices(&m.turn_x_matrix, &m.turn_z_matrix, &m.lit_matrix);
-    car_part_matrix(frame, m, &m.lit_matrix);
+    car_part_matrix(cars, m, &m.lit_matrix);
 }
 
 /// `race::car_number_textures` (0x46203D): car `car`'s (esi) marks' textures into `marks`
@@ -235,7 +235,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
         marks: &marks,
         ..*ctx
     };
-    let [p0, p1, p2, p3] = part_matrices(&race.frame);
+    let [p0, p1, p2, p3] = part_matrices(&ctx.view.cars);
     let c = car_at(car)?;
     let kept = &c.part_matrices;
     for (from, to) in [
@@ -253,7 +253,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
         p2,
         p3,
         &ctx.view.matrices.body_turn_matrix,
-        car_turn(&race.frame),
+        car_turn(&ctx.view.cars),
     ]) {
         crate::math::cells::copy_cells(from, to, 16);
     }
@@ -394,7 +394,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
             .wrapping_mul(0x14)
             .wrapping_add(0x50),
     );
-    car_body_matrix(&race.course, &race.frame, &ctx.view.matrices);
+    car_body_matrix(&race.course, &ctx.view.cars, &ctx.view.matrices);
     crate::race::frame_draw::start_kept_reflections(ctx.view);
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         ctx,
@@ -405,14 +405,14 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     if below(ctx.view.cars.car_depth.bits(), 0x3C_0000) {
         for (bit, matrix) in [0x20u32, 0x40, 0x80, 0x100]
             .into_iter()
-            .zip(part_matrices(&race.frame))
+            .zip(part_matrices(&ctx.view.cars))
         {
             ctx.view
                 .cars
                 .object_number
                 .set(ctx.view.cars.object_number.bits().wrapping_add(1));
             if ctx.view.object.car_switches.bits() & bit != 0 {
-                car_part_matrix(&race.frame, &ctx.view.matrices, matrix);
+                car_part_matrix(&ctx.view.cars, &ctx.view.matrices, matrix);
                 crate::scene::draw_scene_object::draw_scene_object_in_game(
                     ctx,
                     Some(GamePtr::to(&ctx.view.matrices.lit_matrix).into()),

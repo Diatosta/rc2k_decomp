@@ -14,12 +14,12 @@ use crate::scene::owner::scene;
 
 /// `race::full_view_window` (0x455ECB) / `race::full_view_window_2` (0x456004): the view
 /// window the whole screen (`dword_62408C` / `dword_624090` its size, `dword_623FB0` /
-/// `dword_623FB4` 0, `dword_624080` 0x100, `scene::set_view_window`), `dword_63993C` 0; the
-/// first also `dword_6365C4` 0. Its callers (`race::draw_race_scene`,
+/// `dword_623FB4` 0, `dword_624080` 0x100, `scene::set_view_window`); the original's
+/// `dword_63993C` 0 (the mirrored flag, now the mirror's own `PolygonWork::view_mirrored`)
+/// and the first's `dword_6365C4` 0 not kept. Its callers (`race::draw_race_scene`,
 /// `race::draw_mirror_view`) read no register it leaves.
 pub fn full_view_window(race: &Race) {
     let system = crate::system::owner::system();
-    let physics = &race.physics;
     let session = &system.session;
     let scene = scene();
     scene.drawing.scene.view_size[0].set(session.screen.width.get());
@@ -31,7 +31,6 @@ pub fn full_view_window(race: &Race) {
     // The original stores 0 in `g_drawMode` here for the frame's first view: never anything
     // else anywhere (it starts at 0; modes 1 and 2 are only read), so not kept (the drawing
     // parts leave the light state alone).
-    physics.ground.view_mirrored.set(0);
 }
 
 /// The mirror's grid reach.
@@ -70,7 +69,7 @@ pub fn mirror_view_window(
         places.get(k).map_or_else(
             || {
                 trap.keep_read(crate::session::read_on_in(
-                    &*race.frame.frame_work,
+                    &race.frame.frame_work,
                     places,
                     k,
                     "the mirror places",
@@ -105,7 +104,7 @@ pub fn mirror_view_window(
     crate::scene::set_view_window::set_view_window_reaching(race, scene, MIRROR_REACH);
     crate::race::frame_draw::set_up_fog(race, fog, poly, car)?;
     // (The original's 0 into `g_drawMode`: see `full_view_window`.)
-    race.physics.ground.view_mirrored.set(1);
+    poly.view_mirrored.set(1);
     Ok(())
 }
 
@@ -418,7 +417,7 @@ pub fn draw_screen_tint(
         race.shared.vars.quad_colour[0].set(NIGHT_COLOUR);
         return crate::scene::draw_tinted_quad::draw_tinted_quad(ctx);
     }
-    let sun = race.frame.frame_work.sun_on_screen.get();
+    let sun = ctx.view.polygon.sun.on_screen.get();
     let a = glare_alpha(fog.far.get());
     race.shared.vars.quad_colour[1].set(a);
     let mut done = Ok(());
@@ -491,7 +490,7 @@ pub fn draw_own_car(
     let clears = clears_depth(
         block.surface_noise_a.get(),
         || block.surface_noise_b.get(),
-        || scene.drawing.object_work.view_cleared[0].get(),
+        || ctx.view.object.view_cleared[0].get(),
     );
     if clears {
         clear_view_depth(scene, system, &ctx.view.polygon);

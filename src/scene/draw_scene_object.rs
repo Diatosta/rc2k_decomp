@@ -68,9 +68,10 @@ pub fn draw_scene_object(
     draw: &mut dyn FnMut(Way) -> Result<(), Refused>,
     scene: &crate::scene::owner::Scene,
     cars: &crate::race::car_draw_state::CarDrawState,
+    place: &crate::scene::object_place::ObjectPlace,
 ) -> Result<(), Refused> {
     let (set, object) = texture_set(race, scene, cars)?;
-    race.physics.ground.object_texture_set.set_bits(set);
+    place.texture_set.set_bits(set);
     let faces: u32 = scene.objects.slots.face_counts[object as usize].get();
     match rc2k_core::scene::shown::way(faces, scene.lights.state.draw_mode.bits()) {
         Some(way) => draw(way),
@@ -116,5 +117,6 @@ pub fn draw_scene_object_in_game(
         },
         scene,
         &ctx.view.cars,
+        &ctx.view.object,
     )
 }

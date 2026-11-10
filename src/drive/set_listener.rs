@@ -53,6 +53,8 @@ pub struct ListenerView<'a> {
     pub view_matrix: &'a [Float; 16],
     pub view_turn_matrix: &'a [Float; 16],
     pub view_place: &'a [Dword; 3],
+    /// The view's sun (its place and the view's value, `ViewSun`).
+    pub sun: &'a crate::scene::polygon_work::ViewSun,
 }
 
 impl<'a> ListenerView<'a> {
@@ -62,16 +64,19 @@ impl<'a> ListenerView<'a> {
             view_matrix: &view.matrices.view_matrix,
             view_turn_matrix: &view.matrices.view_turn_matrix,
             view_place: &view.state.view_place,
+            sun: &view.polygon.sun,
         }
     }
 
     /// Before any view of the race (`drive::race_init`'s settling steps): what the last view
-    /// drawn left, as the original read.
+    /// drawn left, as the original read; the sun the first player's view's (the original's
+    /// was the last view drawn's: all 0 before a session's first race either way).
     pub fn before_any_view(frame: &'a crate::race::owner_frame::Frame) -> Self {
         Self {
             view_matrix: &frame.matrices.view_matrix,
             view_turn_matrix: &frame.matrices.view_turn_matrix,
             view_place: &frame.view_and_records.view_vars.view_place,
+            sun: &crate::race::view_scratch::main_view(0).polygon.sun,
         }
     }
 }
@@ -109,10 +114,10 @@ pub fn set_listener(
     }
     MARKS_SETTINGS.listener_figures[0].set(listener::first_figure(
         race.shared.vars.settings_words[0].get(),
-        || race.frame.frame_work.view_out.get(),
+        || view.sun.view_out.get(),
     ));
-    MARKS_SETTINGS.listener_figures[1].set(race.frame.frame_work.sun_place[0].get());
-    MARKS_SETTINGS.listener_figures[2].set(race.frame.frame_work.sun_place[1].get());
+    MARKS_SETTINGS.listener_figures[1].set(view.sun.place[0].get());
+    MARKS_SETTINGS.listener_figures[2].set(view.sun.place[1].get());
     let f = listener::listener_points(f, race.shared.physics_tables.ground_drop.get());
     for (k, &v) in f.iter().enumerate() {
         physics.camera.listener_points[k].set(v as u32);

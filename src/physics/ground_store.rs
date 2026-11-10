@@ -80,11 +80,11 @@ pub struct GroundWork {
     pub face_corner_numbers: [Dword; 3],
     /// +0x220 (0x63989C): not named.
     pub unknown_220: [Dword; 40],
-    /// +0x2c0 (0x63993C): `dword_63993C`: set while a mirrored view is drawn (`race::frame_views`, `scene::draw_polygon`, `race::frame_draw`) (a reading).
+    /// +0x2c0 (0x63993C): `dword_63993C`: set while a mirrored view is drawn (`race::frame_views`, `scene::draw_polygon`, `race::frame_draw`) (a reading); now each view's (`PolygonWork::view_mirrored`); unused.
     pub view_mirrored: Dword,
     /// +0x2c4 (0x639940): unreferenced bytes (0x14 of them).
     pub _gap_2c4: Bytes<20>,
-    /// +0x2d8 (0x639954): `g_objectTextureSet`: added to an object's face texture numbers (`scene::draw_scene_object`, `scene::draw_object_faces`).
+    /// +0x2d8 (0x639954): `g_objectTextureSet`: added to an object's face texture numbers (`scene::draw_scene_object`, `scene::draw_object_faces`); now each view's (`ObjectPlace::texture_set`); unused.
     pub object_texture_set: Dword,
     /// +0x2dc (0x639958): unreferenced bytes (0x8 of them); `dword_639958`, the strength of the lamp light worked out, was here (`scene::add_point_lights`, `race::frame_draw`): the lamps' sum keeps it in a local.
     pub _gap_2dc: Bytes<8>,
@@ -92,7 +92,7 @@ pub struct GroundWork {
     pub whole_polygon_count: Dword,
     /// +0x2e8 (0x639964): `dword_639964`: polygons drawn split this frame (`scene::draw_object_polygon`; zeroed by `race::draw_race_scene`) (a reading); now each view's (`ctx.view.object.split_polygon_count`); unused.
     pub split_polygon_count: Dword,
-    /// +0x2ec (0x639968): `dword_639968`: the car whose object is being drawn, or -1; `scene::add_car_lights` skips it (`scene::set_object_light`).
+    /// +0x2ec (0x639968): `dword_639968`: the car whose object is being drawn, or -1; `scene::add_car_lights` skips it (`scene::set_object_light`); now each view's (`ObjectLight::drawn_car_light`); unused.
     pub drawn_car_light: Dword,
     /// +0x2f0 (0x63996C): `g_objectFading`: the object being drawn fades (`scene::set_object_fade`, `scene::list_object_face`); now each view's (`ctx.view.object.fading`); unused.
     pub object_fading: Dword,
@@ -133,7 +133,7 @@ const _: () = assert!(END - START == core::mem::size_of::<GroundWork>());
 /// Where IDA 0x63967C is now (the piece's static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(race().physics.ground.first()))
+    crate::pointers::game_address(std::ptr::from_ref(&race().physics.ground))
 }
 
 #[cfg(test)]
@@ -143,7 +143,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(race().physics.ground.first(), START, END);
+        crate::gfx::first_values_are_the_games(&race().physics.ground, START, END);
     }
 
     #[test]

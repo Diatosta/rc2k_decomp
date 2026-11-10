@@ -25,7 +25,7 @@ pub struct RaceVars {
     /// +0x14 (0x6235FC): each car's tyres (the players' `settings.cars[n].tyre`); the car's gravel
     /// texture switch (`scene::load_texture_picture` reads eight).
     pub car_tyres: [Dword; 8],
-    /// +0x34 (0x62361C): (`scene::list_object_faces`).
+    /// +0x34 (0x62361C): `g_faceMark`: -1 from `scene::list_object_faces`, read by nothing; no longer written.
     pub face_mark: Dword,
     /// +0x38 (0x623620): `g_faceNumber` ("objfaced"); now each view's (`race::face_work::FaceWork`; the bad polygon's log reads the view's); this one not used.
     pub face_number: Dword,
@@ -154,9 +154,9 @@ pub struct RaceVars {
     pub unknown_7dc: [Dword; 2],
     /// +0x7e4 (0x623DCC): a factor of the view's scale (`scene::set_view_window`).
     pub scale_factor: Float,
-    /// +0x7e8 (0x623DD0): (`scene::place_object_points`, `scene::set_object_material`).
+    /// +0x7e8 (0x623DD0): (`scene::place_object_points`, `scene::set_object_material`); now each view's (`ObjectPlace::move_by`); unused.
     pub move_by: Dword,
-    /// +0x7ec (0x623DD4): the same.
+    /// +0x7ec (0x623DD4): the same's fraction; now each view's (`ObjectPlace::move_fraction`); unused.
     pub move_fraction: Float,
     /// +0x7f0 (0x623DD8): a texture mapping (`race::course_faces`); now each view's (`race::face_work::FaceWork`); unused.
     pub mapping_a: [Dword; 2],
@@ -198,7 +198,7 @@ const _: () = assert!(END - START == core::mem::size_of::<RaceVars>());
 /// Where IDA 0x6235E8 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(race().shared.vars.first()))
+    crate::pointers::game_address(core::ptr::from_ref(&race().shared.vars))
 }
 
 #[cfg(test)]
@@ -208,7 +208,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(race().shared.vars.first(), START, END);
+        crate::gfx::first_values_are_the_games(&race().shared.vars, START, END);
     }
 
     #[test]

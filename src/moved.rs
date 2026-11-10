@@ -1344,7 +1344,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::vars_store::START,
         len: crate::race::vars_store::END - crate::race::vars_store::START,
-        home: Home::Store(crate::race::owner::RACE.shared.vars.first()),
+        home: Home::Store(&crate::race::owner::RACE.shared.vars),
     },
     Moved {
         ida: crate::scene::draw_store::START,
@@ -1369,7 +1369,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::frame_store::START,
         len: crate::race::frame_store::END - crate::race::frame_store::START,
-        home: Home::Store(crate::race::owner::RACE.frame.frame_work.first()),
+        home: Home::Store(&crate::race::owner::RACE.frame.frame_work),
     },
     Moved {
         ida: crate::race::sound_spots_store::START,
@@ -1439,12 +1439,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::scene::object_store::START,
         len: crate::scene::object_store::END - crate::scene::object_store::START,
-        home: Home::Store(crate::scene::owner::SCENE.drawing.object_work.first()),
+        home: Home::Store(&crate::scene::owner::SCENE.drawing.object_work),
     },
     Moved {
         ida: crate::physics::ground_store::START,
         len: crate::physics::ground_store::END - crate::physics::ground_store::START,
-        home: Home::Store(crate::race::owner::RACE.physics.ground.first()),
+        home: Home::Store(&crate::race::owner::RACE.physics.ground),
     },
     Moved {
         ida: crate::race::draw_batches_store::START,

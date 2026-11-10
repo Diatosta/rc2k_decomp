@@ -83,6 +83,21 @@ pub struct ObjectPlace {
     /// `LightWork.drawing_object` (`g_drawingObject`, 0x62DA44): 1 while an object is drawn
     /// (`scene::draw_shown_object`), read by `scene::log_bad_polygon`.
     pub drawing_object: Dword,
+    /// `RaceVars.move_by` (0x623DD0): a moving object's points' step to their other places
+    /// (bytes; 0 when it does not move), set by `scene::set_object_material`.
+    pub move_by: Dword,
+    /// `RaceVars.move_fraction` (0x623DD4): how far the moving object has gone (a float).
+    pub move_fraction: Dword,
+    /// `GroundWork.object_texture_set` (`g_objectTextureSet`, 0x639954): added to the
+    /// object's face texture numbers (`scene::draw_scene_object`, `scene::draw_object_faces`).
+    pub texture_set: Dword,
+    /// `ObjectWork.view_cleared` (0x635014, 0x635018): 0 at each race view's scene's start
+    /// (`race::draw_view_scene`), the first read by its cars' drawing (`clears_depth`).
+    pub view_cleared: [Dword; 2],
+    /// `ObjectWork.described_cleared` (0x63505C ..): a described object's three extra turns
+    /// (`scene::draw_described_object`; 0 unless its description has them), read as its
+    /// matrix is made (`race::frame_draw`).
+    pub described_turns: [Dword; 3],
 }
 
 impl ObjectPlace {
@@ -111,6 +126,11 @@ impl ObjectPlace {
             reflection_coordinates: [const { Dword::new(0) }; 2],
             kept_reflections: [const { Dword::new(0) }; KEPT_REFLECTIONS],
             drawing_object: Dword::new(0),
+            move_by: Dword::new(0),
+            move_fraction: Dword::new(0),
+            texture_set: Dword::new(0),
+            view_cleared: [const { Dword::new(0) }; 2],
+            described_turns: [const { Dword::new(0) }; 3],
         }
     }
 }

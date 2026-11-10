@@ -18,8 +18,8 @@ pub struct Physics {
     pub contact: ContactWork,
     /// One copy: the drawing's searches have their own (frame plan F4).
     pub ground_probe: GroundProbe,
-    /// One copy per drawing thread (`workers`).
-    pub ground: crate::workers::PerWorker<GroundWork>,
+    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
+    pub ground: GroundWork,
     pub pace: PaceNotes,
     pub split_tables: SplitTables,
     pub damage: DamageModel,
@@ -32,9 +32,7 @@ impl Physics {
             camera: CameraWork::new(),
             contact: ContactWork::new(),
             ground_probe: GroundProbe::new(),
-            ground: crate::workers::PerWorker::new(
-                [const { GroundWork::new() }; crate::workers::COPIES],
-            ),
+            ground: GroundWork::new(),
             pace: PaceNotes::new(),
             split_tables: SplitTables::new(),
             damage: DamageModel::new(),

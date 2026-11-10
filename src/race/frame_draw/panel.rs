@@ -126,14 +126,14 @@ pub(super) fn drawn_view(shared: &Shared) -> Result<u32, Refused> {
     Ok(shared.view.view_block(n as usize))
 }
 
-/// `race::store_view_value` (0x455528): the drawn view's block +0xFB8 =
-/// `race().frame.frame_work.sun_on_screen`. Worked out at the scene's end (the block and the
-/// value), stored by the game's thread in the views' order (`ViewOutput::store_view_value`).
-pub fn view_value(race: &Race) -> Result<(u32, u32), Refused> {
-    Ok((
-        drawn_view(&race.shared)?,
-        race.frame.frame_work.sun_on_screen.bits(),
-    ))
+/// `race::store_view_value` (0x455528): the drawn view's block +0xFB8 = the view's sun on
+/// the screen (`g_sunOnScreen`). Worked out at the scene's end (the block and the value),
+/// stored by the game's thread in the views' order (`ViewOutput::store_view_value`).
+pub fn view_value(
+    race: &Race,
+    sun: &crate::scene::polygon_work::ViewSun,
+) -> Result<(u32, u32), Refused> {
+    Ok((drawn_view(&race.shared)?, sun.on_screen.get()))
 }
 
 /// The value into the view's block +0xFB8 (`view_value`).
@@ -142,14 +142,14 @@ pub fn store_view_value(block: u32, value: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::fetch_view_value` (0x45550E): `race().frame.frame_work.view_out` = the drawn view's block
-/// +0xFBC. Every register kept.
-pub fn fetch_view_value(race: &Race) -> Result<(), Refused> {
+/// `race::fetch_view_value` (0x45550E): the view's value (`ViewSun::view_out`, the
+/// original's `FrameWork.view_out`) = the drawn view's block +0xFBC.
+pub fn fetch_view_value(
+    race: &Race,
+    sun: &crate::scene::polygon_work::ViewSun,
+) -> Result<(), Refused> {
     let b = drawn_view(&race.shared)?;
-    race.frame
-        .frame_work
-        .view_out
-        .set_bits(car_view(b)?.eased_value.bits());
+    sun.view_out.set(car_view(b)?.eased_value.get());
     Ok(())
 }
 

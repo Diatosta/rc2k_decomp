@@ -33,7 +33,7 @@ pub struct ObjectWork {
     pub object_position: [Dword; 3],
     /// +0x70 (0x635010): (`race::frame_draw`); now each view's (`ctx.view.object.face_depth`); unused.
     pub face_depth: Dword,
-    /// +0x74 (0x635014): cleared by `race::draw_view_scene`.
+    /// +0x74 (0x635014): cleared by `race::draw_view_scene`; now each view's (`ObjectPlace::view_cleared`); unused.
     pub view_cleared: [Dword; 2],
     /// +0x7c (0x63501C): the matrix's place, x y z (`scene::matrix`); now each view's (`ctx.view.object.place`); read by none.
     pub place: [Dword; 3],
@@ -53,7 +53,7 @@ pub struct ObjectWork {
     pub other_light: Dword,
     /// +0xb8 (0x635058): (`scene::draw_shown_object`); now each view's (`scene::object_place::ObjectPlace`); unused.
     pub only_object: Dword,
-    /// +0xbc (0x63505C): cleared by `scene::draw_described_object`.
+    /// +0xbc (0x63505C): cleared by `scene::draw_described_object`; now each view's (`ObjectPlace::described_turns`); unused.
     pub described_cleared: [Dword; 3],
     /// +0xc8 (0x635068): (`scene::vertex_light`); now each view's (`scene::object_light`); unused.
     pub light_added: Dword,
@@ -117,7 +117,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(scene().drawing.object_work.first(), START, END);
+        crate::gfx::first_values_are_the_games(&scene().drawing.object_work, START, END);
     }
 
     #[test]

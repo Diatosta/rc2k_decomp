@@ -35,7 +35,7 @@ fn table_byte(
 
 /// `race::face_depth_test_off` (0x452358): with no texture animation (`dword_63DA2C` 0)
 /// and `g_polygonMode` 4, the depth test off and `dword_63D9E0` 1.
-pub fn face_depth_test_off(shared: &Shared, face: &FaceWork) {
+pub fn face_depth_test_off(face: &FaceWork) {
     {
         // Converted: `rc2k_core::race::faces::depth_test_off`.
         if !rc2k_core::race::faces::depth_test_off(face.texture_a.bits(), face.polygon_mode.bits())
@@ -43,20 +43,20 @@ pub fn face_depth_test_off(shared: &Shared, face: &FaceWork) {
             return;
         }
         crate::scene::depth_test_off::depth_test_off();
-        shared.view.depth_test.set(1u32);
+        face.depth_test.set(1u32);
     }
 }
 
 /// `race::face_depth_test_on` (0x45237A): depth writing back on when `face_depth_test_off`
 /// turned it off (`dword_63D9E0` set), then `dword_63D9E0` 0. Fixed: the original's test is
 /// the wrong way round (on only when it was not turned off), `wiki/Fixed-bugs.md`.
-pub fn face_depth_test_on(shared: &Shared) {
+pub fn face_depth_test_on(face: &FaceWork) {
     {
         // Converted: `rc2k_core::race::faces::depth_test_on`.
-        if rc2k_core::race::faces::depth_test_on(shared.view.depth_test.bits()) {
+        if rc2k_core::race::faces::depth_test_on(face.depth_test.bits()) {
             crate::scene::depth_test_on::depth_test_on();
         }
-        shared.view.depth_test.set(0u32);
+        face.depth_test.set(0u32);
     }
 }
 
@@ -696,9 +696,9 @@ pub fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         face_texture_coordinates(&race.shared, &ctx.view.face, &second_set(ctx))?;
     }
     face_lights(ctx)?;
-    face_depth_test_off(&race.shared, &ctx.view.face);
+    face_depth_test_off(&ctx.view.face);
     draw_face_polygons(ctx)?;
-    face_depth_test_on(&race.shared);
+    face_depth_test_on(&ctx.view.face);
     Ok(())
 }
 

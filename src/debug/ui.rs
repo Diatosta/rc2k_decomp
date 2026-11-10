@@ -202,7 +202,7 @@ pub fn build(race: &Race, ui: &Ui) {
     if PROBES.load(Relaxed) {
         draw_probes(race, ui);
     }
-    crate::debug::kstar::over_picture(&race.frame, ui);
+    crate::debug::kstar::over_picture(ui);
     // The window keeps its share of the screen when the mode changes (the menus' 640 x 480,
     // the race's own; owner, 2026-10-30).
     let screen = ui.io().display_size();

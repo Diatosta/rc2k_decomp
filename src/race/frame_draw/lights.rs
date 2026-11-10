@@ -10,10 +10,10 @@ use crate::race::trap::Trap;
 use crate::race::view_scratch::DrawCtx;
 use crate::session::Dword;
 
-/// `race::car_light_modes` (0x455B70): `crate::race::owner::race().shared.view.shown_car` = the drawn view's car
+/// `race::car_light_modes` (0x455B70): the shown car (`g_shownCar` in the original) = the drawn view's car
 /// (`crate::race::owner::race().shared.view.view_cars[g_drawnView]`); every car block's +0x6FC 0; then for each race car with
 /// lights (+0x25C) that is drawn (any car in modes 0 and 2, else the shown car only; the
-/// shown car not with +0x69C and +0x684 both 0, nor with `GROUND_WORK.view_mirrored` set): +0x6FC's
+/// shown car not with +0x69C and +0x684 both 0, nor in the mirror, `mirrored`): +0x6FC's
 /// nibbles set step by step: 0x21; for the shown car with `view_car_flag_b`, 0x12, then 0x14
 /// unless `view_car_stage` is 1, then 0x11 unless it is 2 or 3; then 0x100 in the third
 /// nibble, 0x200 with `crate::race::owner::race().shared.vars.settings_words[3]` (1: the shown car only). Refuses (before anything) a null block among the eight or more than eight cars.
@@ -24,6 +24,7 @@ use crate::session::Dword;
 pub fn car_light_modes(
     race: &Race,
     states: &crate::race::car_draw_state::CarDrawState,
+    mirrored: bool,
 ) -> Result<(), Refused> {
     let block = |n: u32| race.shared.work.car_block(n as usize);
     let cars: u32 = race.shared.view.race_cars.bits();
@@ -41,7 +42,7 @@ pub fn car_light_modes(
         .get(view as usize)
         .ok_or(BadInput("a drawn view past the two"))?
         .get();
-    race.shared.view.shown_car.set_bits(shown);
+    // (The original kept it in `g_shownCar`, read only here.)
     for n in 0..8 {
         states.state_of(block(n))?.set(0);
     }
@@ -58,7 +59,7 @@ pub fn car_light_modes(
             mode,
             me,
             || this_car.camera_switch_share.bits() == 0 && this_car.camera_view.bits() == 0,
-            || race.physics.ground.view_mirrored.get() != 0,
+            || mirrored,
         );
         if !drawn {
             at.set(0);

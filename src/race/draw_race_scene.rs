@@ -69,9 +69,16 @@ fn load_car(o: Owners<'_>, car: usize) -> Result<(), Refused> {
 }
 
 /// View `car`'s value fetched (`race().frame.frame_work.view_out`, the drawn view's).
-fn fetch_value(o: Owners<'_>, car: usize) -> Result<(), Refused> {
+/// Into the scene's slot, and with `mirror` the mirror's.
+fn fetch_value(o: Owners<'_>, car: usize, mirror: bool) -> Result<(), Refused> {
+    use crate::race::view_scratch::{main_view, mirror as mirror_view};
     let _setup = crate::write_watch::step(["view0_setup", "view1_setup"][car]);
-    crate::race::frame_draw::fetch_view_value(o.race)
+    let slot = if mirror {
+        mirror_view(car)
+    } else {
+        main_view(car)
+    };
+    crate::race::frame_draw::fetch_view_value(o.race, &slot.polygon.sun)
 }
 
 /// View `car`'s scene, and what it leaves its overlays kept (`race::scene_hand_off`).
@@ -151,7 +158,8 @@ fn view_drawn(car: usize, mirror: bool) -> Result<(), Refused> {
 /// view only), the overlays, the tick (0xF), and with the view's flags' bit 3 its mirror.
 fn draw_view(o: Owners<'_>, car: usize, flags: usize, blit: bool) -> Result<(), Refused> {
     load_car(o, car)?;
-    fetch_value(o, car)?;
+    fetch_value(o, car, false)?;
+    fetch_value(o, car, true)?;
     let view = || -> Result<(), Refused> {
         view_scene(o, car)?;
         view_drawn(car, false)?;
@@ -207,9 +215,9 @@ fn draw_players_beside(
     for p in 0..players {
         load_car(o, p)?;
     }
-    let own = |p: usize| {
+    let own = |p: usize, mirror: bool| {
         player(p as u32);
-        fetch_value(o, p)
+        fetch_value(o, p, mirror)
     };
     let mut pieces = Vec::new();
     for p in 0..players {
@@ -221,18 +229,18 @@ fn draw_players_beside(
     let part = |n: usize| -> Result<(), Refused> {
         match pieces[n] {
             Piece::Scene(p) => {
-                own(p)?;
+                own(p, false)?;
                 view_scene(o, p)
             }
             Piece::Mirror(p) => {
-                own(p)?;
+                own(p, true)?;
                 view_mirror(o, p)
             }
         }
     };
     crate::workers::draw_side_by_side(pieces.len(), part, |n| match pieces[n] {
         Piece::Scene(p) => {
-            own(p)?;
+            own(p, false)?;
             crate::race::view_scratch::main_view(p)
                 .hand_off
                 .put(o.race, o.scene);

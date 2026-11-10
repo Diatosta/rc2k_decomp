@@ -17,7 +17,6 @@
 
 use crate::debug::wear_page::value_at;
 use crate::race::owner::Race;
-use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::Shared;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::session::Dword;
@@ -111,7 +110,6 @@ fn section(ui: &Ui, name: &str) -> bool {
 
 /// The tab.
 pub fn tab(race: &Race, ui: &Ui) {
-    let frame = &race.frame;
     mode_choice(&race.shared, ui);
     if section(ui, "Car's faces by group (mode 5)") {
         groups(ui);
@@ -138,9 +136,13 @@ pub fn tab(race: &Race, ui: &Ui) {
         }
         ui.text(format!(
             "On the screen: {}; at ({}, {})",
-            frame.frame_work.sun_on_screen.get(),
-            frame.frame_work.sun_hit[0].get() as i32,
-            frame.frame_work.sun_hit[1].get() as i32
+            crate::race::view_scratch::main_view(0)
+                .polygon
+                .sun
+                .on_screen
+                .get(),
+            crate::race::view_scratch::main_view(0).polygon.sun.hit[0].get() as i32,
+            crate::race::view_scratch::main_view(0).polygon.sun.hit[1].get() as i32
         ));
     }
 }
@@ -374,15 +376,24 @@ fn course_map(race: &Race, ui: &Ui) {
 }
 
 /// What goes over the picture (once a UI frame).
-pub fn over_picture(frame: &Frame, ui: &Ui) {
-    if !SUN.load(Relaxed) || frame.frame_work.sun_on_screen.get() == 0 {
+pub fn over_picture(ui: &Ui) {
+    if !SUN.load(Relaxed)
+        || crate::race::view_scratch::main_view(0)
+            .polygon
+            .sun
+            .on_screen
+            .get()
+            == 0
+    {
         return;
     }
     let [w, h] = ui.io().display_size();
     let (width, height) = crate::platform::screen_size();
     let at = [
-        frame.frame_work.sun_hit[0].get() as i32 as f32 * w / width.max(1) as f32,
-        frame.frame_work.sun_hit[1].get() as i32 as f32 * h / height.max(1) as f32,
+        crate::race::view_scratch::main_view(0).polygon.sun.hit[0].get() as i32 as f32 * w
+            / width.max(1) as f32,
+        crate::race::view_scratch::main_view(0).polygon.sun.hit[1].get() as i32 as f32 * h
+            / height.max(1) as f32,
     ];
     let size = ui.current_font_size() / 2.0;
     ui.get_foreground_draw_list()

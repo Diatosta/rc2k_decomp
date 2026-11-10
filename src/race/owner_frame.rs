@@ -19,8 +19,8 @@ use crate::race::text_state_store::TextState;
 /// variables, the panel and the overlay are fields of `view_and_records` and
 /// `panel_and_overlay` (`view_vars_store`, `panel_store`, `overlay_store` read them there).
 pub struct Frame {
-    /// One copy per drawing thread (`workers`).
-    pub frame_work: crate::workers::PerWorker<FrameWork>,
+    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
+    pub frame_work: FrameWork,
     /// One copy per drawing thread (`workers`).
     pub matrices: crate::workers::PerWorker<SceneMatrices>,
     /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
@@ -46,9 +46,7 @@ pub struct Frame {
 impl Frame {
     pub const fn new() -> Self {
         Frame {
-            frame_work: crate::workers::PerWorker::new(
-                [const { FrameWork::new() }; crate::workers::COPIES],
-            ),
+            frame_work: FrameWork::new(),
             matrices: crate::workers::PerWorker::new(
                 [const { SceneMatrices::new() }; crate::workers::COPIES],
             ),
