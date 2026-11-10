@@ -4,11 +4,9 @@
 #![allow(unsafe_code)]
 
 #[cfg(target_arch = "x86")]
-pub use core::arch::x86::{__cpuid, _mm_cvtss_f32, _mm_rcp_ss, _mm_rsqrt_ss, _mm_set_ss, _rdtsc};
+pub use core::arch::x86::{__cpuid, _rdtsc};
 #[cfg(target_arch = "x86_64")]
-pub use core::arch::x86_64::{
-    __cpuid, _mm_cvtss_f32, _mm_rcp_ss, _mm_rsqrt_ss, _mm_set_ss, _rdtsc,
-};
+pub use core::arch::x86_64::{__cpuid, _rdtsc};
 
 /// The processor's time-stamp counter.
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -29,27 +27,38 @@ pub fn rdtsc() -> u64 {
         / 2
 }
 
-/// `rcpss`: an approximation on x86, whose result differs between processors; exact elsewhere.
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+/// `rcpss`: the 5800X's estimate on every machine (the processors' own differ).
 pub fn rcpss(a: f32) -> f32 {
-    // SAFETY: SSE is part of every x86 target's baseline.
-    unsafe { _mm_cvtss_f32(_mm_rcp_ss(_mm_set_ss(a))) }
-}
-#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-pub fn rcpss(a: f32) -> f32 {
-    1.0 / a
+    rc2k_core::math::estimates::reciprocal_estimate(a)
 }
 
-/// `rsqrtss`: an approximation on x86, whose result differs between processors; exact
-/// elsewhere.
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+/// `rsqrtss`: the 5800X's estimate on every machine.
 pub fn rsqrtss(a: f32) -> f32 {
-    // SAFETY: SSE is part of every x86 target's baseline.
-    unsafe { _mm_cvtss_f32(_mm_rsqrt_ss(_mm_set_ss(a))) }
+    rc2k_core::math::estimates::reciprocal_root_estimate(a)
 }
-#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-pub fn rsqrtss(a: f32) -> f32 {
-    1.0 / a.sqrt()
+
+/// Whether this processor's own `rcpss` / `rsqrtss` give the tables' results (on the
+/// octaves the tables were made from): the tests that run the original's instructions
+/// compare with the tables only where they do.
+#[cfg(all(test, any(target_arch = "x86", target_arch = "x86_64")))]
+pub fn estimates_are_the_processors() -> bool {
+    #[cfg(target_arch = "x86")]
+    use core::arch::x86::{_mm_cvtss_f32, _mm_rcp_ss, _mm_rsqrt_ss, _mm_set_ss};
+    #[cfg(target_arch = "x86_64")]
+    use core::arch::x86_64::{_mm_cvtss_f32, _mm_rcp_ss, _mm_rsqrt_ss, _mm_set_ss};
+    (0..4096u32).all(|i| {
+        [127u32, 128].iter().all(|&e| {
+            let a = f32::from_bits((e << 23) | (i << 11));
+            // SAFETY: SSE is part of every x86 target's baseline.
+            let (r, s) = unsafe {
+                (
+                    _mm_cvtss_f32(_mm_rcp_ss(_mm_set_ss(a))),
+                    _mm_cvtss_f32(_mm_rsqrt_ss(_mm_set_ss(a))),
+                )
+            };
+            r.to_bits() == rcpss(a).to_bits() && s.to_bits() == rsqrtss(a).to_bits()
+        })
+    })
 }
 
 #[cfg(windows)]

@@ -221,7 +221,7 @@ mod asm_reference {
             |rng, m| {
                 m[0] = rng.angle();
                 m[1] = match rng.below(3) {
-                    0 => (f32::from_bits(m[0]) as f64).cos() as f32,
+                    0 => rc2k_core::math::portable::cos(f32::from_bits(m[0]) as f64) as f32,
                     1 => rng.unit(),
                     _ => f32::from_bits(rng.fl()),
                 }

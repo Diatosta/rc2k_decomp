@@ -41,7 +41,7 @@ pub fn sines() -> ([f32; SINES], f32) {
     let mut x = 0.0f32;
     let mut table = [0.0f32; SINES];
     for v in &mut table {
-        *v = ((x as f64).sin() * WOBBLE as f64 + 1.0) as f32;
+        *v = (crate::math::portable::sin(x as f64) * WOBBLE as f64 + 1.0) as f32;
         x = (x as f64 + step as f64) as f32;
     }
     (table, x)

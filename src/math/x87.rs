@@ -1,7 +1,7 @@
 //! Arithmetic the original did with the x87, where a result has to be the original's to
 //! the last bit: plain Rust on `X` (`x87_float.rs`), an `f64` that rounds as the control
 //! word says, in the original's order of operations; `rcpss` is an approximation that
-//! differs between processors and stays an instruction (an SSE intrinsic). No x87
+//! differs between processors, taken from one processor's tables (`arch::rcpss`). No x87
 //! instruction runs outside the tests (2026-10-25).
 //! All values are floats given and returned as their bits.
 
@@ -97,8 +97,8 @@ pub fn one_less_int_ratio(a: i32, b: i32) -> u32 {
     bh::st(bh::ONE - bh::int(a) / bh::int(b))
 }
 
-/// `rcpss xmm0, a; mulss xmm0, b` (an SSE approximation, kept as the instruction: its
-/// result differs between processors).
+/// `rcpss xmm0, a; mulss xmm0, b` (`rcpss` an SSE approximation, from the tables of
+/// `arch::rcpss`: the processors' own results differ).
 pub fn rcpss_times(a: u32, b: u32) -> u32 {
     (crate::arch::rcpss(f32::from_bits(a)) * f32::from_bits(b)).to_bits()
 }

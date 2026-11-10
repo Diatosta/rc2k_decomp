@@ -136,7 +136,7 @@ fn random_float(r: &mut Rng, sincos: bool) -> f32 {
         0 => 0.0,
         1 => (r.below(2001) as i64 - 1000) as f64,
         2 => (r.below(2001) as i64 - 1000) as f64 / 2.0,
-        3 => 2f64.powf(r.unit() * 40.0 - 20.0),
+        3 => rc2k_core::math::portable::exp2(r.unit() * 40.0 - 20.0),
         4 => r.unit() * 1e-6,
         5 if !sincos => r.unit() * 1e9,
         6 => r.unit(),

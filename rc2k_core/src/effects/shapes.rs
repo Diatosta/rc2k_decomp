@@ -107,7 +107,10 @@ mod tests {
         assert_eq!(p[0], [0.0, 2.0]);
         assert_eq!(
             p[1],
-            [2.0, (std::f64::consts::FRAC_PI_2.cos() * 2.0) as f32]
+            [
+                2.0,
+                (crate::math::portable::cos(std::f64::consts::FRAC_PI_2) * 2.0) as f32
+            ]
         );
         assert_eq!(fan(1), [[6, 7, 8], [6, 8, 9], [6, 9, 10], [6, 10, 11]]);
         assert_eq!(scaled(2.0, &[3.0, 0.5]), 3.0);

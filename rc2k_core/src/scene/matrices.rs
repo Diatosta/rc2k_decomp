@@ -466,8 +466,8 @@ mod tests {
         let mut p = TestPlaces(vec![0; (l.cosines as usize + 0x4000) / 4]);
         for n in 0..0x1000u32 {
             let a = n as f64 * std::f64::consts::TAU / 4096.0;
-            p.set_float(l.sines + 4 * n, a.sin() as f32);
-            p.set_float(l.cosines + 4 * n, a.cos() as f32);
+            p.set_float(l.sines + 4 * n, crate::math::portable::sin(a) as f32);
+            p.set_float(l.cosines + 4 * n, crate::math::portable::cos(a) as f32);
         }
         let identity = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0];
         for at in [l.identity, l.turn_x, l.turn_y, l.turn_z] {

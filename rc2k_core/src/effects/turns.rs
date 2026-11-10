@@ -136,7 +136,10 @@ mod tests {
         let (c, b) = smooth_pair(0, 1.0, 3.0, 0.5, [4, 4]);
         assert_eq!(b, 1.0);
         let t = 1.0f64;
-        assert_eq!(c, (-std::f64::consts::FRAC_PI_4.cos() * t + 1.0 + t) as f32);
+        assert_eq!(
+            c,
+            (-crate::math::portable::cos(std::f64::consts::FRAC_PI_4) * t + 1.0 + t) as f32
+        );
         // The last step reaches a + 2t.
         assert_eq!(smooth_pair(3, 1.0, 3.0, 0.5, [4, 4]).0, 3.0);
     }

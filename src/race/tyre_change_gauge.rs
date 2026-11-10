@@ -62,7 +62,7 @@ pub fn press_time(shared: &Shared, s: i32) -> i32 {
     let f = constants(shared).map(ld);
     // `fyl2x` (libm's log2): the product and the sum are the x87's
     let log = (int(s) * f[2]).sqrt() + f[4];
-    let r = f[1] * f[3] * X(log.0.log2());
+    let r = f[1] * f[3] * X(rc2k_core::math::portable::log2(log.0));
     let t = (r / f[3] + f[0]) * ld(0x447A_0000) / ld(0x4120_0000);
     to_int(t)
 }

@@ -39,16 +39,34 @@ fn fpu_words() -> (u16, u16) {
     (0, 0x037F)
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+/// The features every machine reports (leaf 1's edx): an FPU, a counter, `cmov`, MMX and
+/// SSE, as every x86 these builds run on has, and no 3DNow!. The game picks its MMX and
+/// SSE paths by them (lighting, polygon depths, the ground's face shares), which compute
+/// differently: one answer everywhere, so the handheld, the Mac and every PC run the same
+/// arithmetic and replays and network games agree (the estimates themselves are tables,
+/// `arch::rcpss`). The vendor, the signature and the clock stay the machine's (the log and
+/// the frame rate shown).
+const FEATURES: u32 = 1 | 1 << 4 | 1 << 15 | 1 << 23 | 1 << 25;
+
 fn cpuid(leaf: u32) -> (u32, u32, u32, u32) {
+    let (a, b, c, d) = machine_cpuid(leaf);
+    match leaf {
+        1 => (a, b, c, FEATURES),
+        0x8000_0001 => (a, b, c, d & !0x8000_0000),
+        _ => (a, b, c, d),
+    }
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+fn machine_cpuid(leaf: u32) -> (u32, u32, u32, u32) {
     let r = crate::arch::__cpuid(leaf);
     (r.eax, r.ebx, r.ecx, r.edx)
 }
 
-/// The handheld's answer: a processor with an FPU, a counter and `cmov`, no SIMD of any kind,
-/// so the game takes its plain paths (no x86 there).
+/// The handheld's (and an ARM Mac's) answer: an Intel of family 6 (the features are
+/// `FEATURES`, as everywhere).
 #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-fn cpuid(leaf: u32) -> (u32, u32, u32, u32) {
+fn machine_cpuid(leaf: u32) -> (u32, u32, u32, u32) {
     match leaf {
         0 => (
             1,
@@ -56,7 +74,7 @@ fn cpuid(leaf: u32) -> (u32, u32, u32, u32) {
             u32::from_le_bytes(*b"ntel"),
             u32::from_le_bytes(*b"ineI"),
         ),
-        1 => (0x680, 0, 0, 1 | 1 << 4 | 1 << 15),
+        1 => (0x680, 0, 0, 0),
         _ => (0, 0, 0, 0),
     }
 }

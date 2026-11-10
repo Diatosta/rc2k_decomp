@@ -23,12 +23,12 @@ fn x87(x: f64, f: fn(f64) -> f64) -> f64 {
 
 /// `fsin`.
 pub fn sine(x: f64) -> f64 {
-    x87(x, f64::sin)
+    x87(x, crate::math::portable::sin)
 }
 
 /// `fcos`.
 pub fn cosine(x: f64) -> f64 {
-    x87(x, f64::cos)
+    x87(x, crate::math::portable::cos)
 }
 
 #[cfg(test)]

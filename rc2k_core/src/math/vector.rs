@@ -81,7 +81,7 @@ pub fn turn_matrix(axis: Axis, angle: f64) -> [f32; 9] {
     } else if angle.is_infinite() {
         (f32::from_bits(INDEFINITE), f32::from_bits(INDEFINITE))
     } else {
-        let (s, c) = angle.sin_cos();
+        let (s, c) = super::portable::sin_cos(angle);
         (s as f32, c as f32)
     };
     match axis {
@@ -111,7 +111,7 @@ pub fn search_angle(cosine: f32, k: Search) -> (f32, u32) {
     let d = cosine as f64;
     let (mut angle, mut step, mut status) = (k.start, k.step, 0);
     for _ in 0..16 {
-        let c = (angle as f64).cos();
+        let c = super::portable::cos(angle as f64);
         status = if c.is_nan() || d.is_nan() {
             0x500
         } else if c < d {

@@ -15,6 +15,7 @@
 //! `fsin`, `fcos`, `fpatan` are libm's (within the last bit of the double).
 
 use crate::math::x87::{Rounding, rounding, rounds_to_nearest};
+use rc2k_core::math::portable;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 /// What the x87 holds in a register: an `f64` whose arithmetic rounds as the (emulated)
@@ -197,14 +198,14 @@ impl X {
         X(crate::math::x87::round_f64(self.0))
     }
 
-    /// `fsin` (libm's: within the last bit of the double).
+    /// `fsin` (libm's: within the last bit of the double, the same on every machine).
     pub(crate) fn sin(self) -> X {
-        X(toward_zero_below_one(self.0.sin(), true))
+        X(toward_zero_below_one(portable::sin(self.0), true))
     }
 
     /// `fcos` (libm's).
     pub(crate) fn cos(self) -> X {
-        X(toward_zero_below_one(self.0.cos(), self.0 != 0.0))
+        X(toward_zero_below_one(portable::cos(self.0), self.0 != 0.0))
     }
 
     /// `fsincos` (libm's): the sine and the cosine.
@@ -214,7 +215,7 @@ impl X {
 
     /// `fpatan` (libm's `atan2`): the angle of (`x`, `self`), `atan2(self, x)`.
     pub(crate) fn atan2(self, x: X) -> X {
-        X(self.0.atan2(x.0))
+        X(portable::atan2(self.0, x.0))
     }
 
     /// `fldpi; fmulp`: `self` times `fldpi`'s 64-bit pi, rounded once.

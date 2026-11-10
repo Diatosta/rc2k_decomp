@@ -25,6 +25,7 @@
 //! offered: `query_interface` answers `E_NOINTERFACE`, as a DirectSound without them).
 
 use crate::system::owner::system;
+use rc2k_core::math::portable;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -131,7 +132,7 @@ impl Space {
         let level = if held <= least {
             1.0
         } else {
-            (least / held).powf(rolloff.max(0.0))
+            portable::powf(least / held, rolloff.max(0.0))
         };
         // -1 all left .. 1 all right, by the direction's x.
         let side = if distance > 1.0e-6 {
@@ -141,7 +142,10 @@ impl Space {
         };
         let angle = (side + 1.0) * std::f32::consts::FRAC_PI_4;
         let both = std::f32::consts::SQRT_2;
-        Some((level * angle.cos() * both, level * angle.sin() * both))
+        Some((
+            level * portable::cosf(angle) * both,
+            level * portable::sinf(angle) * both,
+        ))
     }
 }
 
@@ -549,7 +553,7 @@ pub fn commit_deferred(_listener: u32) -> i32 {
 
 /// Hundredths of a decibel to a gain.
 fn gain(centibels: i32) -> f32 {
-    10f32.powf(centibels.clamp(-10000, 0) as f32 / 2000.0)
+    portable::powf(10.0, centibels.clamp(-10000, 0) as f32 / 2000.0)
 }
 
 /// The secondary buffers' gain: a quarter (-12 dB), the level the game's own mixer gives

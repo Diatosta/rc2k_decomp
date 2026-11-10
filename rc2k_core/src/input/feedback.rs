@@ -72,7 +72,7 @@ pub struct Plan {
 
 /// `fpatan`: the angle of (x, y), as the stack keeps it.
 fn fpatan(y: f32, x: f32) -> f64 {
-    (y as f64).atan2(x as f64)
+    crate::math::portable::atan2(y as f64, x as f64)
 }
 
 /// The feedback of one call. Refused (before anything): a surface number past the 16.

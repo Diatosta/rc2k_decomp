@@ -14,7 +14,7 @@
 //! - SSE: the four floats squared to `xmmword_5C5F70`, the first three added,
 //!   `rsqrtss`, `rcpss` of that to `flt_6D18C8`, and all four (the fourth too) times
 //!   the `rsqrtss`. Both instructions are approximations that differ between
-//!   processors: the instructions themselves are used.
+//!   processors: one processor's results, as tables (`arch::rsqrtss`), on every machine.
 //!
 //! Three callers. In two pieces in the image (the entry lies after the bodies).
 
@@ -100,6 +100,10 @@ mod tests {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     #[test]
     fn the_sse_path_equals_the_instructions() {
+        if !crate::arch::estimates_are_the_processors() {
+            eprintln!("SKIPPED: this processor's rsqrtss / rcpss are not the tables'");
+            return;
+        }
         fn by_instructions(w: &mut [u32; 9]) {
             // SAFETY: reads and writes only `w`'s 36 bytes and the three xmm registers named.
             unsafe {

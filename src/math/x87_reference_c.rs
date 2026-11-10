@@ -2459,7 +2459,16 @@ mod tests {
 
     #[test]
     fn run_face_shares() {
+        // The SSE path's `rcpss` is the tables' (`arch::rcpss`): compared only where this
+        // processor's is the same.
+        let sse_too = crate::arch::estimates_are_the_processors();
         for sse in [false, true] {
+            if sse && !sse_too {
+                eprintln!(
+                    "SKIPPED: face_shares' SSE path, this processor's rcpss is not the tables'"
+                );
+                continue;
+            }
             check_all(
                 "face_shares",
                 |g| {

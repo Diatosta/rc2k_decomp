@@ -6,6 +6,8 @@ edition = "2024"
 # The game's logic as plain Rust: no platform, no hooks; builds and tests on Linux and
 # Windows (`notes/conversion.md`).
 [dependencies]
+# Maths functions that give the same bits on every machine (`math::portable`).
+libm = { version = "0.2", default-features = false }
 miniz_oxide = "0.8"
 
 [lints]
