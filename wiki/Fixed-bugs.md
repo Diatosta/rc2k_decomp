@@ -545,3 +545,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read in `race::draw_view_backdrop`; found 2026-11-10 when the mirror was first drawn on a thread of its own, where the leftovers were different ones.
 
 **Fix:** the three values are set (to 0) with the rest, so the rectangle no longer depends on what was drawn before it.
+
+## The rain's streaks given an absurd depth value
+
+**What it is:** each raindrop is drawn as a thin four-cornered streak. The game sets its corners' perspective value (1/w) from a constant meant to be 256, but reads the constant's bytes as a whole number instead of as the decimal number they hold, so every streak gets 1,132,462,080.
+
+**In game:** nothing on the original's Direct3D, nor in our PC builds: all four corners share the value and the depth buffer is off for the rain, so it cannot change a pixel. On the handheld's OpenGL ES the value made the streaks vanish entirely: the rain could be heard but not seen.
+
+**Seen or read:** seen on the handheld (2026-11-10); traced to `effects::run_rain` (0x4C16F9), whose `fild` loads the float constant at 0x8C5F91 as an integer, where the windscreen drops and flakes load a true integer 256.
+
+**Fix:** the constant is used as the decimal number it holds (256), as for the drops and flakes. The rain shows on the handheld; nothing changes on the PC.

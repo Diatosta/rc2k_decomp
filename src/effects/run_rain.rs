@@ -2,7 +2,8 @@
 //! (the drops; none: `dword_8BC405` 0 and back), held to 0x100; the settings' +0x28 ..
 //! +0x48 into `dword_8BC441` .., +0x1C .. +0x24 into `dword_8BC435` ..; `effects::place_view`,
 //! `scene::depth_buffer_off`, render states 0x15 = 4, 0x13 = 5, 0x14 = 6, 0x1C = 0, 0x1B = 1,
-//! `scene::clear_texture`; the four vertices' rhw `dword_8C5F91` (through `dword_62400C`),
+//! `scene::clear_texture`; the four vertices' rhw `dword_8C5F91` (through `dword_62400C`;
+//! loaded as a whole number there, as a float here: a fixed bug),
 //! colours 0xFFFFFF, 0, 0x28000000, 0x28FFFFFF, the rest 0, `g_polygonVertexCount` 4;
 //! `effects::drift_offsets` when `dword_7652A0` is set; the view's entry (the settings' +8,
 //! 12 bytes at `flt_8BC489` and `dword_8BC4C5`): when the settings' +0xC or
@@ -92,10 +93,12 @@ pub fn run_rain(
         }
         // `clear_texture`: what it returns went only to eax, which nothing here reads.
         crate::scene::clear_texture::clear_texture(scene);
+        // Not the original's: it loaded 256.0's bits as a whole number (`fild`), an rhw of
+        // 1132462080.0 that the handheld's GL clipped the streaks away by (`notes/bugs.md`).
         let rhw = weather.rain_rules.rhw;
         for (n, colour) in COLOURS.into_iter().enumerate() {
             let v = &VERTICES.vertices[n];
-            v.rhw.set_bits(x87::int_to_float(rhw as i32));
+            v.rhw.set_bits(rhw);
             v.colour.set(colour);
             v.specular.set(0);
             v.u.set_bits(0);

@@ -205,7 +205,8 @@ impl RainState {
 /// The rain's constants (IDA 0x8C5F91 .. 0x8C5FFD, the image's layout; phase 7, typed state).
 #[repr(C)]
 pub struct RainRules {
-    /// 0x8C5F91: `dword_8C5F91`: the quad vertices' rhw (a whole number's bits).
+    /// 0x8C5F91: `dword_8C5F91`: the quad vertices' rhw, 256.0 (the original loaded its bits as a
+    /// whole number: `run_rain`).
     pub rhw: u32,
     /// 0x8C5F95: `flt_8C5F95` ..: the view's move since the last frame is scaled by them (30.0 each).
     pub move_scale: [f32; 3],

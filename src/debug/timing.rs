@@ -24,10 +24,12 @@ pub enum Stage {
     DepthEntries,
     /// `race::draw_mirror_view`, the whole of it.
     Mirror,
+    /// A view's effects (`race::run_view_marks`: `effects::frame_marks`, `effects::run_frame`).
+    Effects,
 }
 
 /// Stages.
-pub const STAGES: usize = 8;
+pub const STAGES: usize = 9;
 
 static NANOS: [AtomicU64; STAGES] = [const { AtomicU64::new(0) }; STAGES];
 static RUNS: [AtomicU64; STAGES] = [const { AtomicU64::new(0) }; STAGES];

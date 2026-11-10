@@ -65,6 +65,8 @@ mod windscreen_drop_state_tests {
     fn windscreen_drop_state_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<WindscreenDropState>(), WindscreenDropState::LEN);
+        // The x87 tests put their buffer's bytes here for a while (`typed_sync::with_overlays`).
+        let _lock = crate::store::test_lock();
         let p = (&raw const crate::effects::owner::EFFECTS.windscreen_drops.state).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<WindscreenDropState>())
             .map(|i| unsafe { p.add(i).read() })
@@ -243,6 +245,8 @@ mod windscreen_drop_work_tests {
     fn windscreen_drop_work_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<WindscreenDropWork>(), WindscreenDropWork::LEN);
+        // The x87 tests put their buffer's bytes here for a while (`typed_sync::with_overlays`).
+        let _lock = crate::store::test_lock();
         let p = (&raw const crate::effects::owner::EFFECTS.windscreen_drops.work).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<WindscreenDropWork>())
             .map(|i| unsafe { p.add(i).read() })

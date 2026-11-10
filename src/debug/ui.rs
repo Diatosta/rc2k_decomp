@@ -653,6 +653,10 @@ fn profiler(race: &Race, ui: &Ui) {
                 "  of which the mirror",
                 ms(t.stages[Stage::Mirror as usize]),
             ),
+            (
+                "  of which the effects",
+                ms(t.stages[Stage::Effects as usize]),
+            ),
             ("  of which the rasteriser", ms(t.frame[0])),
             ("  of which noting the triangles", ms(t.frame[1])),
             ("Sound commands", ms(t.stages[Stage::SoundTick as usize])),

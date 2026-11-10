@@ -335,6 +335,8 @@ mod tests_hex {
             offset_of!(WindscreenDropVars, result_k),
             0x82E336 - WindscreenDropVars::START
         );
+        // The x87 tests put their buffer's bytes in HEX for a while (`typed_sync::with_overlays`).
+        let _lock = crate::store::test_lock();
         let p =
             core::ptr::addr_of!(crate::effects::owner::EFFECTS.windscreen_drops.hex).cast::<u8>();
         let now: Vec<u8> = (0..WindscreenDropVars::LEN)

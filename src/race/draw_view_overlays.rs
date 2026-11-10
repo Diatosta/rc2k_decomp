@@ -24,7 +24,9 @@ pub fn draw_view_overlays(
     }
     overlay_states();
     crate::scene::set_render_state::set_render_state(3, 3);
+    let begun = crate::debug::timing::start();
     crate::race::frame_views::run_view_marks(ctx, system, effects, &ctx.view.fog)?;
+    crate::debug::timing::stop(crate::debug::timing::Stage::Effects, begun);
     overlay_states();
     draw_flat_triangle(scene);
     crate::scene::depth_buffer_on::depth_buffer(true);
