@@ -27,7 +27,7 @@ pub struct FrameSwitches {
     pub object_number: Dword,
     /// +0x80 (0x621500): `g_faceReflects` (`scene::draw_object_face`); now each view's (`race::face_work::FaceWork`); unused.
     pub face_reflects: Dword,
-    /// +0x84 (0x621504): `g_faceAnyShine` (`scene::draw_object_face`).
+    /// +0x84 (0x621504): `g_faceAnyShine` (`scene::draw_object_face`); now each view's (`race::face_work::FaceWork`); unused.
     pub face_any_shine: Dword,
     /// +0x88 (0x621508): `dword_621508`: the marker object (`race::loadlevel`, `race::frame_draw`).
     pub marker_object: Dword,

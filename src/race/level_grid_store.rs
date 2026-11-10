@@ -17,7 +17,7 @@ pub struct LevelGrid {
     pub face_table_c: Bytes<256>,
     /// +0x300 (0x63DF5C): the fourth face table (`byte_63DF5C`); now each view's (`race::view_course::ViewCourse`); unused.
     pub face_table_d: Bytes<256>,
-    /// +0x400 (0x63E05C): `g_lamps`: 16 lamps of 0x10 bytes (`race::frame_draw`, `scene::add_point_lights`); IDA splits `dword_63E060` / `dword_63E064` out of it.
+    /// +0x400 (0x63E05C): `g_lamps`: 16 lamps of 0x10 bytes (`race::frame_draw`, `scene::add_point_lights`); IDA splits `dword_63E060` / `dword_63E064` out of it; now each view's (`race::lamp_work::LampWork`); unused.
     pub lamps: [Dword; 64],
     /// +0x500 (0x63E15C): the course grid's half size; now each view's (`race::view_grid`); unused.
     pub grid_half: Dword,
@@ -48,7 +48,7 @@ pub struct LevelGrid {
     pub turned_z: Float,
     /// +0x152c (0x63F188): the depth shift (`race::frame_draw`, `flt_63F188`).
     pub depth_shift: Float,
-    /// +0x1530 (0x63F18C): `dword_63F18C`: per-flare x place (`race::frame_draw` flare list, indexed by flare number; 0x400 bytes, a table of its own).
+    /// +0x1530 (0x63F18C): `dword_63F18C`: per-flare x place (`race::frame_draw` flare list, indexed by flare number; 0x400 bytes, a table of its own); now each view's (`race::lamp_work::LampWork`); unused.
     pub flare_place_x: [Dword; 256],
 }
 

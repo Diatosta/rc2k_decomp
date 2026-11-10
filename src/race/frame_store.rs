@@ -11,9 +11,9 @@ use crate::session::{Dword, Float};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct FrameWork {
-    /// +0x0 (0x64158C): `g_flareCount`: the flares this frame.
+    /// +0x0 (0x64158C): `g_flareCount`: the flares this frame; now each view's (`race::lamp_work::LampWork`); unused.
     pub flare_count: Dword,
-    /// +0x4 (0x641590): `g_lampEntryCount`.
+    /// +0x4 (0x641590): `g_lampEntryCount`; read by nothing (no longer written); unused.
     pub lamp_entry_count: Dword,
     /// +0x8 (0x641594): `g_carsDrawn`; now each view's (`ctx.view.cars.cars_drawn`); unused.
     pub cars_drawn: Dword,

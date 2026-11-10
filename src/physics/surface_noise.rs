@@ -26,9 +26,8 @@ fn scaled(sample: u32, lo: u32, hi: u32) -> u32 {
 fn sample(
     shared: &crate::race::owner_shared::Shared,
     x: usize,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<u32, crate::errors::BadInput> {
-    sample_noise(&shared.car, x, scene)
+    sample_noise(&shared.car, x)
 }
 
 /// The Rust version.
@@ -40,14 +39,14 @@ pub fn surface_noise(
 ) -> Result<(), crate::errors::BadInput> {
     {
         let first = scaled(
-            sample(&race.shared, 0x50, scene)?,
+            sample(&race.shared, 0x50)?,
             race.course.stage_prefs.blit_cleared[0].get(),
             race.course.stage_prefs.blit_cleared[1].get(),
         );
         race.shared.car.surface_noise_a.set(first);
         race.shared.car.surface_noise_b.set(first);
         let second = scaled(
-            sample(&race.shared, 0x20, scene)?,
+            sample(&race.shared, 0x20)?,
             race.course.stage_prefs.surface_scale[0].get(),
             race.course.stage_prefs.surface_scale[1].get(),
         );

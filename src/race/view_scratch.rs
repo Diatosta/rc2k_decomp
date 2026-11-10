@@ -102,6 +102,8 @@ pub struct ViewScratch {
     pub course: crate::race::view_course::ViewCourse,
     /// The screen quad's texture coordinates and corners (`race::quad_work`).
     pub quad: crate::race::quad_work::QuadWork,
+    /// The lamps and flares (`race::lamp_work`).
+    pub lamps: crate::race::lamp_work::LampWork,
 }
 
 impl ViewScratch {
@@ -118,6 +120,7 @@ impl ViewScratch {
             grid: crate::race::view_grid::ViewGrid::new(),
             course: crate::race::view_course::ViewCourse::new(),
             quad: crate::race::quad_work::QuadWork::new(),
+            lamps: crate::race::lamp_work::LampWork::new(),
         }
     }
 
@@ -137,6 +140,7 @@ impl ViewScratch {
         self.grid.copy_from(&FRESH.grid);
         self.course.copy_from(&FRESH.course);
         self.quad.copy_from(&FRESH.quad);
+        self.lamps.copy_from(&crate::race::lamp_work::PUBLISHED);
     }
 
     /// The slot's number (`slot`).

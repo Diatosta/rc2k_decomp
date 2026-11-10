@@ -63,18 +63,18 @@ pub fn draw_view_scene(
     }
     car_light_modes(race)?;
     clear_point_records(race, scene)?;
-    set_up_fog(race, scene, &view.fog, &view.polygon)?;
+    set_up_fog(race, &view.fog, &view.polygon)?;
     camera_view(race, scene, &view.matrices)?;
     draw_sky(&ctx)?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
-    view_light(race, scene, &view.light)?;
+    view_light(race, scene, &view.lamps, &view.light)?;
     reset_lamps(&ctx)?;
     race.shared.view.view_lamps.set_bits(0u32);
     prepare_course_view(race, view)?;
     gather_visible_faces(&ctx)?;
     let environment = eax_environment(race, &view.grid)?;
     gather_lamps(&ctx)?;
-    lamps_wanted(&race.shared)?;
+    lamps_wanted(&race.shared, &view.lamps)?;
     sort_entries(&lists.sort_entry_count, lists.sort_entries())?;
     let c = crate::moved::census::before();
     let begun = crate::debug::timing::start();
@@ -93,6 +93,11 @@ pub fn draw_view_scene(
     crate::moved::census::after("depth", c);
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
     store_view_value(race)?;
+    // The lamps the next view starts from (`race::lamp_work::PUBLISHED`).
+    {
+        use crate::pointers::Cells;
+        crate::race::lamp_work::PUBLISHED.copy_from(&view.lamps);
+    }
     Ok(ViewOutput {
         environment: Some(environment),
     })

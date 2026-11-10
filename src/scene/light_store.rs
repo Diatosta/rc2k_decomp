@@ -49,7 +49,7 @@ pub struct LightState {
     pub fog_table: [Dword; 1024],
     /// +0x1094 (0x63761C): `g_fogTableLength`, now each view's (`scene::fog::Fog::length`); unused.
     pub fog_table_length: Dword,
-    /// +0x1098 (0x637620): `dword_637620` .. `dword_637634`: the four corners, then the x blends, of the noise map (`race::frame_draw::sample_noise`).
+    /// +0x1098 (0x637620): `dword_637620` .. `dword_637634`: the four corners, then the x blends, of the noise map: `race::sample_noise`'s own steps, read by nothing else; no longer written (`rc2k_core::race::view::sample_noise` returns the value).
     pub noise_samples: [Dword; 6],
     /// +0x10b0 (0x637638): `dword_637638`: camera frame counter (`physics::camera_frame`) (a reading).
     pub camera_frame_a: Dword,

@@ -27,7 +27,7 @@ pub fn add_point_lights(
     let race = ctx.race;
     use rc2k_core::scene::lamps::{self, Lamp};
 
-    let lamps: u32 = race.shared.view.lamp_count.bits();
+    let lamps: u32 = ctx.view.lamps.lamp_count.bits();
     if lamps == 0 {
         return Ok(());
     }
@@ -42,8 +42,8 @@ pub fn add_point_lights(
         // The list holds 16 lamps, the refusal allows `MOST`: read by address.
         let [point, strength, colour] = [0, 1, 2].map(|k| {
             reading.keep(crate::session::read_on_in(
-                &*race.course.level_grid,
-                &race.course.level_grid.lamps,
+                &ctx.view.lamps,
+                &ctx.view.lamps.lamps,
                 4 * n + k,
                 "a lamp of the level",
             ))

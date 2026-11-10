@@ -272,7 +272,7 @@ pub const FLARES_MAX: u32 = 0x100;
 /// the key), a depth entry with the flare's number + 0x1000000; none past `FLARES_MAX`.
 pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
     let DrawCtx { race, view, .. } = *ctx;
-    let n: u32 = race.frame.frame_work.flare_count.bits();
+    let n: u32 = view.lamps.flare_count.bits();
     if n == FLARES_MAX {
         return Ok(());
     }
@@ -286,7 +286,7 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
             &race.course.flare_tables.object_number,
             ctx.view.cars.object_number.get(),
         ),
-        (&race.course.level_grid.flare_place_x, place[0]),
+        (&view.lamps.flare_place_x, place[0]),
         (&race.course.flare_tables.place_y, place[1]),
         (&race.course.flare_tables.place_z, place[2]),
         (&race.course.flare_tables.size, ctx.view.object.size.bits()),
@@ -310,7 +310,7 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
     at[0].set(key);
     at[1].set(n.wrapping_add(0x100_0000));
     view.lists.depth_entry_count.set_bits(entry + 1);
-    race.frame.frame_work.flare_count.set_bits(n + 1);
+    view.lamps.flare_count.set_bits(n + 1);
     Ok(())
 }
 
@@ -695,7 +695,7 @@ pub fn draw_flare(
     let race = ctx.race;
     let course = &race.course;
     for (table, to) in [
-        (&course.level_grid.flare_place_x, &ctx.view.object.place[0]),
+        (&ctx.view.lamps.flare_place_x, &ctx.view.object.place[0]),
         (&course.flare_tables.place_y, &ctx.view.object.place[1]),
         (&course.flare_tables.place_z, &ctx.view.object.place[2]),
         (&course.flare_tables.size, &ctx.view.object.size),
@@ -730,7 +730,7 @@ pub fn draw_lamp_flare(
     lamp: u32,
 ) -> Result<(), Refused> {
     let race = ctx.race;
-    let edi = self::lamp(&race.course, lamp)?;
+    let edi = lights::own_lamp(&ctx.view.lamps, lamp)?;
     let [x, y, z] = crate::race::scene_points::point_number(edi[0].get())?;
     ctx.view.object.place[0].set(x);
     ctx.view.object.place[1].set(y);

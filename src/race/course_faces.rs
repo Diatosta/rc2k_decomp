@@ -214,7 +214,7 @@ fn point_light(ctx: &DrawCtx<'_>, n: u32) -> Result<u32, Refused> {
     ctx.view.light.lit_place[0].set(x);
     ctx.view.light.lit_place[1].set(y);
     ctx.view.light.lit_place[2].set(z);
-    crate::race::frame_draw::light_colour_at(race, scene, &ctx.view.light)?;
+    crate::race::frame_draw::light_colour_at(race, scene, &ctx.view.lamps, &ctx.view.light)?;
     let light: u32 = ctx.view.light.light_colour.get();
     Ok(light)
 }
@@ -226,7 +226,7 @@ fn point_light(ctx: &DrawCtx<'_>, n: u32) -> Result<u32, Refused> {
 pub fn face_lights(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let race = ctx.race;
     // Converted: `rc2k_core::race::faces::corners_lit`.
-    let wanted: u32 = race.shared.view.lamps_wanted.get();
+    let wanted: u32 = ctx.view.lamps.lamps_wanted.get();
     let lit = wanted != 0
         && rc2k_core::race::faces::corners_lit(
             wanted,
@@ -234,7 +234,7 @@ pub fn face_lights(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             ctx.view.face.polygon_mode.bits(),
         );
     if lit {
-        crate::race::frame_draw::check_light_colour(&race.shared)?;
+        crate::race::frame_draw::check_light_colour(&race.shared, &ctx.view.lamps)?;
     }
     for k in 0..4 {
         ctx.view.face.corner_lights[k].set(0u32);
@@ -679,11 +679,11 @@ pub fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     };
     let mode = face_mode(second, picked);
     trap.finish()?;
-    let wanted: u32 = race.shared.view.lamps_wanted.get();
+    let wanted: u32 = ctx.view.lamps.lamps_wanted.get();
     if wanted != 0
         && rc2k_core::race::faces::corners_lit(wanted, ctx.view.face.texture_a.bits(), mode)
     {
-        crate::race::frame_draw::check_light_colour(&race.shared)?;
+        crate::race::frame_draw::check_light_colour(&race.shared, &ctx.view.lamps)?;
     }
     face_switches(&ctx.view.polygon, &ctx.view.face);
     if ctx.view.face.texture_a.get() != 0 {
@@ -790,7 +790,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         return crate::scene::draw_clipped_polygon::draw_clipped_polygon_in_game(ctx);
     }
     crate::race::frame_draw::points_there(&race.course)?;
-    crate::race::frame_draw::check_light_colour(&race.shared)?;
+    crate::race::frame_draw::check_light_colour(&race.shared, &ctx.view.lamps)?;
     ctx.view.polygon.polygon_drawn.set(0u32);
     ctx.view
         .polygon
@@ -843,7 +843,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         )?;
         let to = entry(3 + k as u32);
         halfway_entry(&race.course, entry(first), entry(second), to);
-        crate::race::frame_draw::light_colour_at(race, scene, &ctx.view.light)?;
+        crate::race::frame_draw::light_colour_at(race, scene, &ctx.view.lamps, &ctx.view.light)?;
         let light: u32 = ctx.view.light.light_colour.get();
         to.lamp_light.set(light);
     }

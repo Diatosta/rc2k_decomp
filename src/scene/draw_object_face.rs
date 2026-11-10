@@ -123,7 +123,7 @@ pub fn draw_object_face(
         entry.light.set(light);
     }
     if reflects {
-        race.shared.switches.face_any_shine.set_bits(0u32);
+        ctx.view.face.face_any_shine.set_bits(0u32);
         for (entry, vertex) in vertices {
             object.reflection_normal_number.set_bits(fw(vertex + 0xC));
             object
@@ -136,7 +136,7 @@ pub fn draw_object_face(
             let first_fog = entries[0].fog.get() as u32;
             let amount = (face_shine.wrapping_mul(shine).wrapping_mul(first_fog) >> 12).min(0xFF);
             if amount != 0 {
-                race.shared.switches.face_any_shine.set_bits(1u32);
+                ctx.view.face.face_any_shine.set_bits(1u32);
             }
             entry.amount.set(amount as u8);
         }
@@ -144,7 +144,7 @@ pub fn draw_object_face(
     }
     let faded = work.fade_alpha.bits() != 0 && light.face_bits.bits() == work.faded_bits.bits();
     work.faded.set_bits(faded as u32);
-    if race.shared.switches.face_any_shine.bits() == 0 {
+    if ctx.view.face.face_any_shine.bits() == 0 {
         ctx.view.face.reflects.set_bits(0u32);
     }
     ctx.view.polygon.polygon_sides[0].set_bits(1u32);

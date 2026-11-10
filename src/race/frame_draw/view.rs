@@ -46,14 +46,10 @@ pub fn draw_distance_settings(course: &Course) {
 /// `race::sample_noise` (0x44FD38): the 64 x 64 byte map `map` bytes into `g_noiseBytes`
 /// sampled at `car`'s camera
 /// place (`g_car` +0x6A4 and +0x6AC: the top byte the cell, the next two the fraction):
-/// the four corners into `LIGHT_STATE.noise_samples` .. `LIGHT_STATE.noise_samples[3]`, blended along x into
-/// `LIGHT_STATE.noise_samples[4]` / `LIGHT_STATE.noise_samples[5]` and then along z, each step `imul` and `shrd` by 16;
-/// the result shifted left 8 is returned.
-pub fn sample_noise(
-    car: &crate::physics::car_store::Car,
-    map: usize,
-    scene: &crate::scene::owner::Scene,
-) -> Result<u32, BadInput> {
+/// the four corners blended along x and then along z, each step `imul` and `shrd` by 16;
+/// the result shifted left 8 is returned (the original kept its steps in
+/// `LIGHT_STATE.noise_samples`, read by nothing else).
+pub fn sample_noise(car: &crate::physics::car_store::Car, map: usize) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::view::sample_noise`.
     let (px, pz) = (car.camera_position[0].get(), car.camera_position[2].get());
     let refused = std::cell::Cell::new(None);
@@ -72,12 +68,6 @@ pub fn sample_noise(
     if let Some(e) = refused.take() {
         return Err(e);
     }
-    let out = &scene.lights.state.noise_samples;
-    for (cell, &c) in out.iter().zip(&s.corners) {
-        cell.set(c);
-    }
-    out[4].set(s.near);
-    out[5].set(s.far);
     Ok(s.value)
 }
 
@@ -91,18 +81,14 @@ pub fn sample_noise(
 /// original kept them in the light state (`scene::fog`), and also stored the step
 /// (`dword_62DAF0`) and the near value (`dword_6365F0`), which nothing read. Refuses (before
 /// anything) a table length of 0 or past 0x1000.
-pub fn fog_table(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
-    fog: &crate::scene::fog::Fog,
-) -> Result<(), Refused> {
+pub fn fog_table(race: &Race, fog: &crate::scene::fog::Fog) -> Result<(), Refused> {
     let length = race.shared.view.view_depth[1].get().wrapping_shl(3);
     if length == 0 || length > 0x1000 {
         return Err(BadInput("a fog table length of 0 or past 0x1000").into());
     }
     // Converted: `rc2k_core::race::view::fog_table`.
     draw_distance_settings(&race.course);
-    let noise = sample_noise(crate::race::frame::drawn_car(), 0, scene)?;
+    let noise = sample_noise(crate::race::frame::drawn_car(), 0)?;
     let set = rc2k_core::race::view::fog_table(
         noise,
         &rc2k_core::race::view::FogSettings {
@@ -135,7 +121,6 @@ pub fn fog_table(
 /// `fog_table` would.
 pub fn set_up_fog(
     race: &Race,
-    scene: &crate::scene::owner::Scene,
     fog: &crate::scene::fog::Fog,
     poly: &crate::scene::polygon_work::PolygonWork,
 ) -> Result<(), Refused> {
@@ -155,7 +140,7 @@ pub fn set_up_fog(
         course.stage_prefs.fog_colour[2].bits(),
     );
     fog.colour.set_bits(colour);
-    fog_table(race, scene, fog)?;
+    fog_table(race, fog)?;
     crate::scene::set_fog_colour::set_fog_colour(
         rc2k_core::race::view::device_fog_colour(fog.colour.bits()),
         poly,

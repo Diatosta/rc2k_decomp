@@ -95,7 +95,10 @@ pub fn panel_players(race: &Race) -> Result<(), BadInput> {
 /// `race::lamps_wanted` (0x4536D7): `RACE_VIEW.lamps_wanted` = `g_lampCount`, with bit 0 set when a
 /// race car has +0x25C and +0x84 both set. Refuses (before anything) more than eight cars
 /// (past `g_carBlocks`).
-pub fn lamps_wanted(shared: &Shared) -> Result<(), Refused> {
+pub fn lamps_wanted(
+    shared: &Shared,
+    lamps: &crate::race::lamp_work::LampWork,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame::{car_lit, lamps_wanted}`.
     use rc2k_core::race::frame::{car_lit, lamps_wanted};
     let cars: u32 = shared.view.race_cars.bits();
@@ -108,10 +111,9 @@ pub fn lamps_wanted(shared: &Shared) -> Result<(), Refused> {
         let this_car = car_view(b)?;
         any_lit |= car_lit(this_car.driver_kind.bits(), || this_car.lights_on.bits());
     }
-    shared
-        .view
+    lamps
         .lamps_wanted
-        .set_bits(lamps_wanted(shared.view.lamp_count.bits(), any_lit));
+        .set_bits(lamps_wanted(lamps.lamp_count.bits(), any_lit));
     Ok(())
 }
 
@@ -659,14 +661,11 @@ pub fn set_up_panel(race: &Race) -> Result<(), Refused> {
 /// `race::reset_lamps` (0x45487A): `g_lampCount`, the view's two sort lists' counts and
 /// `race().frame.frame_work.flare_count` 0, then `race::object_bytes`.
 pub fn reset_lamps(ctx: &crate::race::view_scratch::DrawCtx) -> Result<(), BadInput> {
-    let crate::race::view_scratch::DrawCtx {
-        race, scene, view, ..
-    } = *ctx;
-    let shared = &race.shared;
-    shared.view.lamp_count.set_bits(0);
+    let crate::race::view_scratch::DrawCtx { scene, view, .. } = *ctx;
+    view.lamps.lamp_count.set_bits(0);
     view.lists.depth_entry_count.set_bits(0);
     view.lists.sort_entry_count.set_bits(0);
-    race.frame.frame_work.flare_count.set_bits(0);
+    view.lamps.flare_count.set_bits(0);
     object_bytes(scene, &view.course)
 }
 

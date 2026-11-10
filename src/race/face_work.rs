@@ -73,10 +73,15 @@ pub struct FaceWork {
     /// The faces hidden from the shown view (`FRAME_WORK.face_hide_mask`, `g_faceHideMask`,
     /// 0x64167C): set from the face under the car (`race::face_hide_mask`), each view's own.
     pub face_hide_mask: Dword,
+    /// `g_faceAnyShine` (`FRAME_SWITCHES.face_any_shine`, 0x621504): whether a vertex of the
+    /// object face being drawn shines (`scene::draw_object_face`), each view's own.
+    pub face_any_shine: Dword,
 }
 
 impl FaceWork {
     pub const fn new() -> Self {
+        let crate::race::switches_store::FrameSwitches { face_any_shine, .. } =
+            crate::race::switches_store::FrameSwitches::new();
         Self {
             turned: [const { Dword::new(0) }; 2],
             corners: [const { Dword::new(0) }; 4],
@@ -106,6 +111,7 @@ impl FaceWork {
             reflects: Dword::new(0),
             no_far_clip: Dword::new(0),
             face_hide_mask: Dword::new(0),
+            face_any_shine,
         }
     }
 }

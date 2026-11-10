@@ -50,6 +50,7 @@ pub mod init_overlay;
 pub mod init_pace_notes;
 pub mod kind_records_store;
 pub mod kind_store;
+pub mod lamp_work;
 pub mod league_store;
 pub mod level_grid_store;
 pub mod level_init;

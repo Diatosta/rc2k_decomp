@@ -63,7 +63,7 @@ pub struct RaceView {
     pub corner_uv_b: [Dword; 8],
     /// +0x120 (0x63DAD8): `g_cornerUvOffsets`: by order, four.
     pub corner_uv_offsets: [Dword; 32],
-    /// +0x1a0 (0x63DB58): `g_lampsWanted`.
+    /// +0x1a0 (0x63DB58): `g_lampsWanted`; now each view's (`race::lamp_work::LampWork`); unused.
     pub lamps_wanted: Dword,
     /// +0x1a4 (0x63DB5C): (`drive::share_car_state`).
     pub level_from: Float,
@@ -110,7 +110,7 @@ pub struct RaceView {
     pub face_depth_key: Dword,
     /// +0x28c (0x63DC44): (`race::frame_draw`); written only, by nothing now (a dead store); unused.
     pub face_side: Dword,
-    /// +0x290 (0x63DC48): `g_lampCount`.
+    /// +0x290 (0x63DC48): `g_lampCount`; now each view's (`race::lamp_work::LampWork`); unused.
     pub lamp_count: Dword,
     /// +0x294 (0x63DC4C): `g_depthEntryCount`.
     pub depth_entry_count: Dword,
