@@ -19,8 +19,8 @@ use crate::physics::turn_by_car_matrix::turn_cells;
 use crate::race::owner::Race;
 use crate::scene::view_matrix::cross_product;
 
-/// The Rust version (the exact one, for `physics::apply_torques`): the force record at
-/// `rec` (a record of the wheels' or the contacts' table) on the car block `car`.
+/// The exact version, for `physics::apply_torques`: the force record at `rec` (a record of the
+/// wheels' or the contacts' table) on the car block `car`.
 pub fn apply_torque(race: &Race, rec: &ForceRecord, car: &Car) {
     let work = &race.physics.contact.contact_turn_speed;
     let cross = &race.shared.physics_tables.torque_cross;

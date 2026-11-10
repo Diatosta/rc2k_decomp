@@ -20,7 +20,7 @@ fn put(v: &[&dyn Cell32], k: usize, x: u32) {
     v[k].set_bits(x);
 }
 
-/// The Rust core on the variables' cells `v`: the last turn added.
+/// On the variables' cells `v`: the last turn added.
 pub fn spin_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
     let (wheel, dt, k65536, scale) = (
         race.shared.physics_tables.wheel_spin_share.bits(),
@@ -47,7 +47,7 @@ fn game<'a>(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> Vec<&'
     ]
 }
 
-/// The Rust version (the exact one, for `physics::car_physics_step`).
+/// The exact version, for `physics::car_physics_step`.
 pub fn spin_wheels(race: &Race, scene: &crate::scene::owner::Scene) -> u32 {
     spin_at(race, &game(&race.shared, scene))
 }

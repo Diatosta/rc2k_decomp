@@ -63,7 +63,7 @@ fn settle(v: &dyn Cell32, step: &dyn Cell32) {
     }
 }
 
-/// The Rust core.
+/// The steps.
 pub fn settle_drive_speeds_at(
     race: &Race,
     g: &GearPlaces<'_>,
@@ -94,7 +94,7 @@ pub fn settle_drive_speeds_at(
     Ok(())
 }
 
-/// The Rust version (the exact one, for `physics::car_physics_step`).
+/// The exact version, for `physics::car_physics_step`.
 pub fn settle_drive_speeds(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     settle_drive_speeds_at(
         race,

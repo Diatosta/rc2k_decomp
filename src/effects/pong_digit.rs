@@ -11,7 +11,7 @@ use crate::effects::pong::Pong;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 
-/// The Rust version (see the header): `digit` (eax).
+/// `digit` (eax).
 // Converted: `rc2k_core::effects::pong::{pattern, cells}`
 pub fn pong_digit(
     pong: &Pong,

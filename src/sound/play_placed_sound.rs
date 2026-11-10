@@ -54,8 +54,6 @@ fn angle_and_place(y: u32, x: u32, per_angle: u32, centre: u32) -> (u32, u32) {
     (out[0], out[1])
 }
 
-// ---- Rust version ----
-
 /// `mode` is the sound mode. Outside the
 /// 3D modes, where `sound::play_sound` replaces it, the original hands on its caller's ebp.
 pub fn play_placed_sound(

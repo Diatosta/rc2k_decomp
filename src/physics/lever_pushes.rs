@@ -23,7 +23,6 @@ fn below(share: u32, limit: u32) -> bool {
     )
 }
 
-/// The Rust version.
 pub fn lever_pushes(race: &Race, scene: &crate::scene::owner::Scene) {
     race.shared.physics_tables.lever_pushes[0].set(0);
     race.shared.physics_tables.lever_pushes[1].set(0);

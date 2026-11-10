@@ -16,8 +16,6 @@
 
 use crate::errors::{BadInput, Refused};
 
-// ---- Rust version ----
-
 /// Car `n`'s sounds for the turn.
 pub fn car_sounds(n: u32, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     if n > 7 {

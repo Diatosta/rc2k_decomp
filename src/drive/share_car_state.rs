@@ -19,8 +19,8 @@
 //!
 //! Takes: the block, the record, the sound object
 //!
-//! Caller: `drive::share_all_cars` (0x456484), for each of the eight cars, inside `pusha` /
-//! `popa`. Refuses (before anything) a car file number above 0x21 (past `g_lightRecords`).
+//! Caller: `drive::share_all_cars` (0x456484), for each of the eight cars, inside `pusha` / `popa`.
+//! Refuses (before anything) a car file number above 0x21 (past `g_lightRecords`).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -240,10 +240,7 @@ pub fn share_car_state_at(
     Ok(())
 }
 
-/// The Rust version.
-/// The Rust version: the car block `block` (esi), its record `record` (edi), its sound
-/// object `sound` (ebp). The registers it leaves are read by no caller (liveness: only
-/// DF after `share_all_cars`' call).
+/// The Rust version: the car block `block`, its record `record`, its sound object `sound`.
 pub fn share_car_state(
     race: &Race,
     block: &'static Car,

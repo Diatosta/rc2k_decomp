@@ -1,7 +1,6 @@
-//! `race::mud_texture_turn` (0x44A087): the mud's colour packed into `dword_623D34`
-//! (red `dword_60AD00` << 16, its second byte replaced by green's low byte and its low one by
-//! blue's: `shl eax, 10h; mov ah, bl; mov al, cl`), `dword_62390C` into `dword_623910` and
-//! `dword_623918` into `dword_62391C`, both 0, and `race::update_mud_texture`.
+//! `race::mud_texture_turn` (0x44A087): the mud's colour packed into `dword_623D34`, `dword_62390C`
+//! into `dword_623910` and `dword_623918` into `dword_62391C`, both 0, and
+//! `race::update_mud_texture`.
 //!
 //! See `race/mud.rs`. One caller, `race::mud_frame`. Refuses what `update_mud_texture` refuses,
 //! before anything (its checks first).
@@ -11,7 +10,6 @@ use crate::race::muddy_texel::texture_and_mud;
 use crate::race::owner::Race;
 use crate::race::tint_to_mud_colour::mud_colour;
 
-/// The Rust version (see the header).
 pub fn mud_texture_turn(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     texture_and_mud(&race.shared)?;
     let [red, green, blue] = mud_colour(&race.course);

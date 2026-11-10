@@ -4,16 +4,14 @@
 //! keeps what that function leaves for the game's own code, and does the rest itself.
 //! There is no original to compare with.
 //!
-//! The textures. The game keeps two pools of records of 0x78 bytes, up to 0x140 each:
-//! system textures (`unk_5B521C`, count `dword_5B5218`), into which pictures are put,
-//! and video textures (`unk_5ABC18`, count `dword_5ABC14`), which are drawn with. A
-//! record (`TextureRecord`): +0 its kind (1 system, 2 video), +4 width, +8 height, +0xC its pixel kind's
-//! description, +0x10 levels, +0x14 a surface a level, +0x38 a texture a level, +0x5C
-//! (system) the alpha from a second picture, +0x60 locked, +0x64 (video) the system
-//! texture it holds, +0x68 its texture, +0x6C its handle, +0x70 a material. Here every
-//! surface is an object of ours, a pointer to `VTABLE` and its number, whose `Lock`
-//! hands out memory of ours: so `gfx::upload_texture_picture`, which locks through the
-//! surface's own table, fills it unchanged.
+//! The textures. The game keeps two pools of records, up to 0x140 each: system textures,
+//! into which pictures are put, and video textures, which are drawn with. A record
+//! (`TextureRecord`): +0 its kind (1 system, 2 video), +4 width, +8 height, +0xC its pixel
+//! kind's description, +0x10 levels, +0x14 a surface a level, +0x38 a texture a level,
+//! +0x5C (system) the alpha from a second picture, +0x60 locked, +0x64 (video) the system
+//! texture it holds, +0x68 its texture, +0x6C its handle, +0x70 a material. Here a
+//! surface is a number (the level's place in `LEVELS_MEMORY`, plus 1), whose `Lock` hands
+//! out memory of ours (`lock_surface`): so `gfx::upload_texture_picture` fills it unchanged.
 //!
 //! - `d3d::find_texture_formats` (0x419F5A, under Direct3D's start-up; called here
 //!   when the screen mode is set): the four descriptions as the device would have
@@ -155,9 +153,7 @@ static LEVELS_CHANGED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU
 fn levels_changed() {
     LEVELS_CHANGED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 }
-/// A level's surface as the game holds it: its number and 1 (phase 11, 2026-10-26: before,
-/// an object whose first dword was a method table with `Lock` at +0x64 and `Unlock` at
-/// +0x80, which the game's code called).
+/// A level's surface as the game holds it: its number and 1.
 fn object(number: usize) -> u32 {
     number as u32 + 1
 }

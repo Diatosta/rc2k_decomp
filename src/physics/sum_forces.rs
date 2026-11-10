@@ -11,7 +11,7 @@ use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::session::Cell32;
 
-/// The Rust core on the variables' cells `v`.
+/// On the variables' cells `v`.
 pub fn sum_at(race: &Race, v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
@@ -50,7 +50,7 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     ]
 }
 
-/// The Rust version (the exact x87 one, for `physics::car_physics_step`).
+/// The exact x87 version, for `physics::car_physics_step`.
 pub fn sum_forces(race: &Race) {
     sum_at(race, &game(&race.shared));
 }

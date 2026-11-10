@@ -40,7 +40,6 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     ]
 }
 
-/// The Rust version.
 pub fn count_stop_timers(race: &Race) {
     count_stop_timers_at(&race.course, &game(&race.shared));
 }

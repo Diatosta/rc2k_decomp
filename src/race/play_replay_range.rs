@@ -1,10 +1,9 @@
-//! `race::play_replay_range` (0x41D846): the viewer plays from the block read: its
-//! cameras into the block (`drive::replay_frame_marks`), the race's sounds started unless
-//! the frames are being saved as pictures (`race::start_race_sounds`, not with
-//! `g_replayRecording` 1), the replay played (`race::play_movie`), the sounds reset
-//! (`race::reset_race_sounds`), the key that ended it (`input::take_key`) into
-//! `dword_5C2550`, `dword_5C2554` 1 (keys held), the block shown held to the last
-//! (`dword_5BECD0` at most, unsigned; then frame 0), `dword_5BEC98` 1 (stopped).
+//! `race::play_replay_range` (0x41D846): the viewer plays from the block read: its cameras into the
+//! block (`drive::replay_frame_marks`), the race's sounds started unless the frames are being saved
+//! as pictures (`race::start_race_sounds`, not with `g_replayRecording` 1), the replay played
+//! (`race::play_movie`), the sounds reset (`race::reset_race_sounds`), the key that ended it
+//! (`input::take_key`) into `dword_5C2550`, `dword_5C2554` 1 (keys held), the block shown held to
+//! the last (`dword_5BECD0` at most, unsigned; then frame 0), `dword_5BEC98` 1 (stopped).
 //!
 //! Caller: `race::play_marked`.
 
@@ -12,7 +11,6 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 
-/// The Rust version (every register kept).
 pub fn play_replay_range(
     race: &Race,
     sound: &crate::sound::owner::Sound,

@@ -11,7 +11,6 @@
 use crate::effects::pong::Pong;
 use crate::effects::pong_bat_back::pong_bat_back;
 
-/// The Rust version (see the header).
 pub fn move_pong_bat(pong: &Pong) {
     let p = &pong.state;
     p.saved_bat[0].set(p.bat[0].bits());

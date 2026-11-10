@@ -96,7 +96,6 @@ fn plane_projected(effects: &crate::effects::owner::Effects) {
     plane_projected_x87(&effects.kinds.quad_3);
 }
 
-/// The Rust version (see the header).
 pub fn draw_plane(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     drops: &WindscreenDrops,

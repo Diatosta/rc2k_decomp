@@ -47,7 +47,7 @@ fn prepare(
     Ok(())
 }
 
-/// The Rust version (see the header): `record` the body's record (the original's edi),
+/// `record` the body's record (the original's edi),
 /// `object` the car's object (esi).
 pub fn emit_body_particles(
     effects: &Effects,

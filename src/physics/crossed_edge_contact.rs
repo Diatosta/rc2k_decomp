@@ -52,8 +52,7 @@ fn side(physics: &Physics, x: u32, z: u32) -> bool {
     difference >= 0
 }
 
-/// The steps, not guarded (the probe checked before). The registers the original leaves
-/// are read by none of its callers.
+/// The steps, not guarded (the probe checked before).
 // Converted: `rc2k_core::physics::walls::{path_side, crossed_edge}`.
 pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let race_owner = race;

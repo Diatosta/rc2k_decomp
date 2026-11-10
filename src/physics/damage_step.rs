@@ -9,7 +9,6 @@
 
 use crate::race::owner::Race;
 
-/// The Rust version (the registers the three leave are read by no caller).
 pub fn damage_step(race: &Race) {
     crate::physics::damage_factors::steps(race);
     crate::physics::damage_wear::steps(race);

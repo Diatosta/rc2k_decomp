@@ -9,7 +9,7 @@
 use crate::math::turn_float_point_xz::turn_float_point_xz;
 use crate::race::owner_shared::Shared;
 
-/// The Rust version: `point` is the three floats (x, y, z); x and z are turned.
+/// `point` is the three floats (x, y, z); x and z are turned.
 pub fn turn_by_heading(shared: &Shared, point: &[crate::session::Float; 3], ebx: u32) {
     let angle = shared.car.car_heading.get().wrapping_neg();
     let [x, _, z, _] = turn_float_point_xz(point[0].bits(), ebx, point[2].bits(), angle);

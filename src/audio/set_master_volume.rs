@@ -7,8 +7,6 @@
 
 use crate::audio::store::AudioState;
 
-// ---- Rust version ----
-
 pub fn set_master_volume_in_game(state: &AudioState, volume: u32) {
     if crate::audio::buffer_settings::a3d(state) {
         return;

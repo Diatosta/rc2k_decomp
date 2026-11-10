@@ -15,8 +15,6 @@ use crate::race::owner_shared::Shared;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
 
-/// The converted version (`rc2k_core::physics::motion`) on the variables' cells `v`; `r` as
-/// the original leaves (eax) are read by none of its callers.
 // Converted: `rc2k_core::physics::motion::count_down`.
 pub fn count_at(v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
@@ -74,8 +72,7 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     ]
 }
 
-/// The Rust version (one compare and copy of floats: the same at any precision); `r` as
-/// the registers it leaves are read by none of its callers.
+/// One compare and copy of floats: the same at any precision.
 pub fn count_down_timers(shared: &Shared) {
     count_at(&game(shared));
 }

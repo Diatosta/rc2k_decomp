@@ -1,9 +1,5 @@
-//! `hud::disc_vertex` (0x4B6D10): vertex edi of the HUD's disc from its ring entry ecx:
-//! the texture place (`flt_75C210`[ecx], -`flt_75C254`[ecx], times `dword_75C050` times
-//! `dword_75C04C`, plus `flt_75C01C` and `dword_75C054` / `dword_75C058`, over
-//! `flt_75C020`); the place (`flt_75C188`[ecx], -`flt_75C1CC`[ecx], times `dword_75C050`,
-//! plus `dword_75C044` / `dword_75C048`); colour white under the quad record's alpha,
-//! specular 0.
+//! `hud::disc_vertex` (0x4B6D10): vertex edi of the HUD's disc from its ring entry ecx: the texture
+//! place; the place; colour white under the quad record's alpha, specular 0.
 //!
 //! Takes: the ring entry (0 the centre .. 0x10), the vertex
 //! Returns: the colour
@@ -26,7 +22,7 @@ fn place(h: &HudBlock, k: u32, vertex: &Vertex) {
     x87_1(h, k as usize, vertex);
 }
 
-/// The Rust version (see the header): ring entry `entry` into `vertex`.
+/// Ring entry `entry` into `vertex`.
 pub fn disc_vertex(hud: &Hud, entry: u32, vertex: &Vertex) -> Result<(), Refused> {
     if entry >= ENTRIES {
         return Err(BadInput("a disc entry past the ring").into());

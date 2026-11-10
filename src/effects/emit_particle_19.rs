@@ -83,7 +83,6 @@ pub fn refusal(
     })
 }
 
-/// The Rust version (see the header).
 pub fn emit_particle_19(
     masks: &Masks,
     particles: &Particles,

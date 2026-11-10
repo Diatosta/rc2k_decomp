@@ -24,7 +24,6 @@ use crate::race::owner_shared::Shared;
 use crate::math::x87;
 const MASK_COUNT: u32 = 9;
 
-/// The Rust version (see the header).
 pub fn run_shapes(
     shared: &Shared,
     masks: &Masks,

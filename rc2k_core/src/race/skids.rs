@@ -65,7 +65,6 @@ pub struct Ring<'a> {
     pub links: &'a mut [Link],
 }
 
-/// What `add_skid_point` worked out, for the original's variables and registers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Added {
     /// The angle from the last point (`dword_645B00`; 0 without one).

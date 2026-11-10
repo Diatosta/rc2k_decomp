@@ -7,8 +7,6 @@
 
 use crate::errors::Refused;
 
-// ---- Rust version ----
-
 /// `sound::race_turn` while the race's sounds are on: true when it ran.
 pub fn race_turn_if(
     sound: &crate::sound::owner::Sound,

@@ -50,7 +50,6 @@ fn refusal(paths: &Paths, s: Spline) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust version (see the header).
 pub fn place_graded_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     {
         refusal(paths, s)?;

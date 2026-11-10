@@ -9,7 +9,7 @@
 
 use crate::session::Float;
 
-/// The Rust version (see the header): `s` the matrix, `d` the result (another array).
+/// `s` the matrix, `d` the result (another array).
 pub fn adjugate3(s: &[Float; 9], d: &[Float; 9]) {
     adjugate3_x87(s, d);
 }

@@ -14,7 +14,6 @@ use crate::physics::cells::set_changed;
 use crate::race::owner_shared::Shared;
 use rc2k_core::physics::easing::ease_value;
 
-/// The Rust version.
 pub fn ease_car_value(shared: &Shared) {
     let was = shared.car.eased_value.get();
     let mut value = was;

@@ -1,9 +1,8 @@
-//! `hud::draw_disc` (0x4B6C4E): the HUD's disc of 16 triangles: the ring's 16 entries (1 ..
-//! 0x10 of `flt_75C188` / `flt_75C1CC`) from `g_sines` / `g_cosines` at k * 0x100, and of
-//! the texture ring (`flt_75C210` / `flt_75C254`) at k * 0x100 less `dword_75C05C` times
-//! `flt_75C028` times `flt_75C024` (`fistp`, & 0xFFF); then each triangle (the centre,
-//! entry k + 1, entry k + 2 wrapping past 0x10) from `hud::disc_vertex` and drawn by
-//! `hud::add_triangle`.
+//! `hud::draw_disc` (0x4B6C4E): the HUD's disc of 16 triangles: the ring's 16 entries (1 .. 0x10 of
+//! `flt_75C188` / `flt_75C1CC`) from `g_sines` / `g_cosines` at k * 0x100, and of the texture ring
+//! (`flt_75C210` / `flt_75C254`) at k * 0x100 less `dword_75C05C` times `flt_75C028` times
+//! `flt_75C024` (`fistp`, & 0xFFF); then each triangle (the centre, entry k + 1, entry k + 2
+//! wrapping past 0x10) from `hud::disc_vertex` and drawn by `hud::add_triangle`.
 //!
 //! Callers: 0x4B6B0A, 0x4B6B5B, 0x4B6BAC, 0x4B6BFD.
 //!
@@ -25,7 +24,6 @@ fn negated_times_times_to_int(a: u32, b: u32, c: u32) -> u32 {
     to_int((-ld(a) * ld(b)) * ld(c)) as u32
 }
 
-/// The Rust version (see the header).
 // Converted: `rc2k_core::hud::disc::{ring_angles, disc_triangle}`
 pub fn draw_disc(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     {

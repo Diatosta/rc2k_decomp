@@ -99,7 +99,6 @@ fn emits(set: &JitterSet, wheel: &MarkRecord) -> Result<bool, Refused> {
     })
 }
 
-/// The Rust version (see the header).
 pub fn emit_particle_5(
     ring: &Ring,
     wheel: &MarkRecord,

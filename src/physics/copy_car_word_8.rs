@@ -23,7 +23,6 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     ]
 }
 
-/// The Rust version.
 pub fn copy_car_word_8(shared: &Shared) {
     core(&game(shared));
 }

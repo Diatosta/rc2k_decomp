@@ -52,7 +52,7 @@ fn entries_taken(particles: &Particles, ring: &Ring) -> Result<Vec<u32>, Refused
     })
 }
 
-/// The Rust version (see the header): `p` the particle it trails (esi).
+/// `p` the particle it trails (esi).
 pub fn trail_particles(
     frame: &Frame,
     particles: &Particles,

@@ -1,11 +1,10 @@
-//! `drive::replay_cameras` (0x460949): the two cars' replay cameras from the frame's head
-//! (the first car block, `g_carBlockStore`: its first two dwords into `dword_6EF7D0`,
-//! `6EF7D4`). For each car c (block c, its byte c of the head): the wish
-//! `dword_719F14[byte]`; 0x23 .. 0x25 at least three frames after the last
-//! (`dword_719FD0[c]`, frame `dword_5C2530`): a mode drawn (`drive::pick_replay_camera`)
-//! into +0x684, +0x694 0, +0x690 the block's +8; another wish not already +0x684: it into
-//! +0x688 and +0x684, the same two, the last frame 0. Then the option bits (+0x220) of
-//! both from `dword_63DB7C`, `63DB80`, and the head's bytes 2 .. 5 into `dword_63DB74`,
+//! `drive::replay_cameras` (0x460949): the two cars' replay cameras from the frame's head (the
+//! first car block, `g_carBlockStore`: its first two dwords into `dword_6EF7D0`, `6EF7D4`). For
+//! each car c (block c, its byte c of the head): the wish `dword_719F14[byte]`; 0x23 .. 0x25 at
+//! least three frames after the last (`dword_719FD0[c]`, frame `dword_5C2530`): a mode drawn
+//! (`drive::pick_replay_camera`) into +0x684, +0x694 0, +0x690 the block's +8; another wish not
+//! already +0x684: it into +0x688 and +0x684, the same two, the last frame 0. Then the option bits
+//! (+0x220) of both from `dword_63DB7C`, `63DB80`, and the head's bytes 2 .. 5 into `dword_63DB74`,
 //! `63DB78`, `63DB84`, `63DB88`.
 //!
 //! Callers: `drive::play_replay_frame`, `race::show_replay_still`. Refuses what
@@ -98,7 +97,6 @@ fn steps(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust version.
 pub fn replay_cameras(race: &Race) -> Result<(), Refused> {
     steps(race)
 }

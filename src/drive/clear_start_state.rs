@@ -1,6 +1,6 @@
-//! `drive::clear_start_state` (0x4376E3): six of the work copy's start values 0:
-//! `dword_71A234` (the grades' mode, `physics::grade_or_reset`), `dword_71A070`,
-//! `dword_71AA88`, `flt_71A650`, `flt_71A658`, `dword_71A01C`.
+//! `drive::clear_start_state` (0x4376E3): six of the work copy's start values 0: `dword_71A234`
+//! (the grades' mode, `physics::grade_or_reset`), `dword_71A070`, `dword_71AA88`, `flt_71A650`,
+//! `flt_71A658`, `dword_71A01C`.
 //!
 //! Caller: `drive::start_cars_behind` (0x4371BC, 0x43729B).
 
@@ -24,7 +24,6 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     ]
 }
 
-/// The Rust version.
 pub fn clear_start_state(shared: &Shared) {
     core(&game(shared));
 }

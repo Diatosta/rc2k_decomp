@@ -6,7 +6,6 @@
 use crate::errors::BadInput;
 use crate::race::owner::Race;
 
-/// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::marks_offset`.
 pub fn replay_frame_marks(race: &Race) -> Result<(), BadInput> {
     let replay = &race.replay;

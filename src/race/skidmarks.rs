@@ -109,12 +109,12 @@ fn turn_skid_point(
     }
 }
 
-/// `race::draw_skidmarks` (0x458C03): the skidmarks shown in the drawn view (all in modes
-/// 0 and 2, else those with the view's bit, `dword_643AE4`): the polygon's four work
-/// entries set once (vertices 0x623E40 .., texture places `dword_623DBC` / `dword_623DC0`,
-/// bytes 0 and 0x60, textures 0xC0); then for each link with a link before, its two points
-/// and the two before as a quad (vertices 3, 2, 0, 1), `scene::fog_polygon`, cut by depth
-/// and to the screen and drawn in black in mode 3 without the depth test. Refuses what the scene's functions refuse (mid-way; not
+/// `race::draw_skidmarks` (0x458C03): the skidmarks shown in the drawn view (all in modes 0 and 2,
+/// else those with the view's bit, `dword_643AE4`): the polygon's four work entries set once
+/// (vertices 0x623E40 .., texture places `dword_623DBC` / `dword_623DC0`, bytes 0 and 0x60,
+/// textures 0xC0); then for each link with a link before, its two points and the two before as a
+/// quad (vertices 3, 2, 0, 1), `scene::fog_polygon`, cut by depth and to the screen and drawn in
+/// black in mode 3 without the depth test. Refuses what the scene's functions refuse (mid-way; not
 /// met with four vertices).
 pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
@@ -208,8 +208,7 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
             ctx.far_clip,
             ctx.view,
         )?;
-        // Each quad inside the original's `pusha` .. `popa`; the depth test's switches
-        // and the polygon's drawing read no register.
+        // Each quad inside the original's `pusha` .. `popa`.
         if ctx.view.polygon.polygon_vertex_count.get() < 3 {
             continue;
         }
@@ -236,7 +235,6 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
 }
 
 /// `race::draw_skidmarks_if_on` (0x4585E3): `draw_skidmarks` unless `dword_6416B8` is set.
-/// Its one caller, `race::draw_view_scene`, reads no register it leaves.
 pub fn draw_skidmarks_if_on(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let race = ctx.race;
     if race.frame.frame_work.drawing.get() != 0 {

@@ -1,8 +1,7 @@
-//! `drive::two_car_order` (0x460CDA): the two cars' places in a two-car race (the car
-//! blocks' +0xFA4, `g_carBlockStore`): -1 for both outside mode 0 (`dword_62389C`) or with
-//! one car (`dword_63DB94` 1); left as they are while either has +0xA8 set; else 1 for the
-//! one ahead (checkpoint +0x94, then +0x624, each by the sign of the `cmp`), 2 for the
-//! other.
+//! `drive::two_car_order` (0x460CDA): the two cars' places in a two-car race (the car blocks'
+//! +0xFA4, `g_carBlockStore`): -1 for both outside mode 0 (`dword_62389C`) or with one car
+//! (`dword_63DB94` 1); left as they are while either has +0xA8 set; else 1 for the one ahead
+//! (checkpoint +0x94, then +0x624, each by the sign of the `cmp`), 2 for the other.
 //!
 //! Returns: the last figure compared
 //!
@@ -12,7 +11,6 @@ use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner_shared::Shared;
 use rc2k_core::drive::places;
 
-/// The Rust version.
 // Converted: `rc2k_core::drive::places::two_car_order`.
 pub fn two_car_order(shared: &Shared) -> Result<(), crate::errors::BadInput> {
     // g_carBlockStore: the figures of car block `car`.
@@ -24,7 +22,6 @@ pub fn two_car_order(shared: &Shared) -> Result<(), crate::errors::BadInput> {
             _ => block.checkpoint_offset[1].bits(), // places::TIE_BREAK
         }
     };
-    // The last argument is only handed back as `last` (ebx), which no caller reads.
     let order = places::two_car_order(
         shared.vars.run_kind.get(),
         shared.view.players.get(),

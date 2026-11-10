@@ -6,8 +6,6 @@
 
 use crate::errors::BadInput;
 
-// ---- Rust version ----
-
 pub fn random_below(limit: u32) -> Result<u32, BadInput> {
     if limit == 0 {
         return Err(BadInput(

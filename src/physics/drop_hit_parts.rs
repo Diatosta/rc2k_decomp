@@ -20,8 +20,8 @@ use rc2k_core::physics::parts::{self, DROP_TESTS, Hit, HitTest};
 /// The four tests' timers.
 pub type Timers = [crate::session::Float; 4];
 
-/// The shared steps (`rc2k_core::physics::parts::hit_tests`): `act` the bit's step (with
-/// the bit, the original's ecx). The registers left are read by none of the callers.
+/// The shared steps (`rc2k_core::physics::parts::hit_tests`): `act` the bit's step (with the bit,
+/// the original's ecx).
 pub fn hit_tests(
     race: &Race,
     tests: &[HitTest; 4],
@@ -43,7 +43,6 @@ pub fn hit_tests(
     Ok(())
 }
 
-/// The Rust version.
 // Converted: `rc2k_core::physics::parts::{hit_tests, DROP_TESTS}`.
 pub fn drop_hit_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     if race.shared.car.car_kind.get() >= 0x17 {

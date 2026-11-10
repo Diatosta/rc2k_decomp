@@ -29,8 +29,6 @@ use crate::sound::store::{SoundObject, WHEEL_SURFACES};
 use crate::system::owner::system;
 use rc2k_core::sound::surfaces;
 
-// ---- Rust version ----
-
 /// The surface of the wheel picked (of object `so`), its set and `sound::surface_sound`
 /// (the other wheel of the pair, the original's edx, it does not read).
 fn one(

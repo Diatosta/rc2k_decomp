@@ -9,7 +9,6 @@
 use crate::race::owner_frame::Frame;
 use crate::scene::owner::scene;
 
-/// The Rust version (see the header).
 pub fn copy_screen_to_texture(frame: &Frame) {
     if frame.frame_work.mirror_wanted.bits() != 0 {
         crate::platform_3d::copy_screen_to_system_texture(

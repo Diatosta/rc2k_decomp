@@ -23,8 +23,8 @@
 //! The checkpoint tables' indices are held to `g_checkpointCount` - 1 (unsigned) as the
 //! original holds them. What each value is, is a reading at best.
 //!
-//! Callers: `drive::read_car_controls` (0x43A497, 0x43A4F7). Refuses (before anything) no
-//! checkpoints when the tables are to be read.
+//! Callers: `drive::read_car_controls`. Refuses (before anything) no checkpoints when the tables
+//! are to be read.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -91,7 +91,6 @@ fn slot_point(points: &[Dword; 40], slot: u32) -> Result<&[Dword], BadInput> {
         .ok_or(BadInput("a computer driver's slot past the points"))
 }
 
-/// The Rust version.
 // Converted: `rc2k_core::drive::computer_driver` (the x87 steps stay).
 pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
     let course = &race.course;

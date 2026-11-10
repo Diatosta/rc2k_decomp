@@ -36,7 +36,7 @@ pub fn release_device(devices: &Devices, record: &InputDevice) -> Result<(), Ref
     Ok(())
 }
 
-/// The Rust version for Rust callers.
+/// For Rust callers.
 pub fn release_device_in_game(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
     release_device(devices, record)
 }

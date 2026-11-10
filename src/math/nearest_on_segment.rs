@@ -40,8 +40,6 @@ const SEGMENT_ZERO: u32 = 0;
 const ZERO: u32 = 0;
 const ONE: u32 = 0x3F80_0000;
 
-// ---- Rust version ----
-
 /// The differences (A - O, B - O and A - B in x and z) into the work block `w`, and the
 /// 80-bit dot (A - O).(A - B) less (B - O).(A - B) into `top`, the dot (A - O).(A - B)
 /// into `below` (`fstp tbyte`).

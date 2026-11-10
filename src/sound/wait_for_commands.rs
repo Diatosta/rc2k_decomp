@@ -11,8 +11,6 @@ use crate::system::owner::system;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 // Converted: `rc2k_core::sound::set_up::wait_for_commands` (its parts the trait `Waiting`).
 pub use rc2k_core::sound::set_up::{Waiting as Parts, wait_for_commands};
 

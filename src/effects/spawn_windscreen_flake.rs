@@ -22,7 +22,7 @@ use crate::math::x87;
 
 const WINDOW: u32 = 32;
 
-/// The Rust version (see the header): ecx as it leaves it.
+/// Ecx as it leaves it.
 pub fn spawn_windscreen_flake(
     shared: &Shared,
     fl: &WindscreenFlakes,

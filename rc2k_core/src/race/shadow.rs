@@ -22,7 +22,6 @@ pub struct Cut {
     pub moved: u32,
 }
 
-/// Where `hull` stops, with what the original's registers keep of it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Hull {
     /// The points left (`dword_643ACC`).

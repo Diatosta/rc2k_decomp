@@ -8,8 +8,8 @@
 use crate::physics::car_frame_motion::car_frame_motion;
 use crate::race::owner::Race;
 
-/// The Rust version: the kept motion (`kept_vectors` 0 .. 2) and spin (4 .. 6) back, the
-/// motion turned into the car's frame.
+/// The kept motion (`kept_vectors` 0 .. 2) and spin (4 .. 6) back, the motion turned into the car's
+/// frame.
 pub fn put_back_motion_vectors(race: &Race) {
     for k in 0..3 {
         race.shared.car.velocity[k].set_bits(race.shared.physics_tables.kept_vectors[k].get());

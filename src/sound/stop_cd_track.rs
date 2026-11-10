@@ -12,8 +12,6 @@ const MCI_STOP: u32 = 0x808;
 /// `mciSendCommandA(device, message, parameter 1, parameter 2)`.
 pub type SendCommand<'a> = &'a mut dyn FnMut(u32, u32, u32, u32) -> u32;
 
-// ---- Rust version ----
-
 pub fn stop_cd_track(send: SendCommand, sound: &crate::sound::owner::Sound) {
     if sound.menu.cd_audio.open.get() == 1 {
         send(sound.menu.cd_audio.mci_id.get(), MCI_STOP, 0, 0);

@@ -1,13 +1,11 @@
 //! `race::viewer_frame` (0x41D5FB): one frame of the replay viewer (`screens::run_frame`'s
-//! function): at the replay's end (`dword_5BEC90`) the screen cleared
-//! (`gfx::clear_back_surface`); the scene begun (`d3d::begin_scene`; carry: lost); unless
-//! at the end, the block's cameras into it (`drive::replay_frame_marks`) and the frame
-//! drawn (`race::show_replay_still`). A picture asked (`dword_5C2540`): asked no more,
-//! the scene ended (`d3d::end_scene`), the picture saved (`race::viewer_snapshot`), shown.
-//! Else, stopped (`dword_5BEC98` 1): the list's texture (`dword_5BECB4`,
-//! `d3d::set_texture`), eight render states, each item (`race::draw_viewer_item`, ecx its
-//! number, `[edi+1]` of them), the bar's quads (`drive::tyre_quad`: the frame, with blocks
-//! the bar, the two marks and the place shown along it, the four buttons) and the panel
+//! function): at the replay's end (`dword_5BEC90`) the screen cleared (`gfx::clear_back_surface`);
+//! the scene begun; unless at the end, the block's cameras into it (`drive::replay_frame_marks`)
+//! and the frame drawn (`race::show_replay_still`). A picture asked (`dword_5C2540`): asked no
+//! more, the scene ended (`d3d::end_scene`), the picture saved (`race::viewer_snapshot`), shown.
+//! Else, stopped (`dword_5BEC98` 1): the list's texture (`dword_5BECB4`, `d3d::set_texture`), eight
+//! render states, each item, the bar's quads (`drive::tyre_quad`: the frame, with blocks the bar,
+//! the two marks and the place shown along it, the four buttons) and the panel
 //! (`race::draw_viewer_panel`); the scene ended and the frame shown (`gfx::show_frame`).
 //!
 //! The marks' and the place's positions are `mark * w / blocks` (`mul` / `div`): a quotient
@@ -20,8 +18,7 @@ use crate::race::owner::race;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
 
-/// The Rust version: whether the frame was lost (the carry the original leaves; it
-/// keeps the other registers).
+/// Whether the frame was lost.
 pub fn viewer_frame() -> Result<bool, Refused> {
     let system = crate::system::owner::system();
     let gfx = crate::gfx::owner::gfx();

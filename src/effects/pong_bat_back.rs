@@ -8,7 +8,6 @@
 
 use crate::effects::pong::{self, Pong};
 
-/// The Rust version (see the header).
 pub fn pong_bat_back(pong: &Pong) {
     let (over, _) = pong::overlap(pong);
     if over {

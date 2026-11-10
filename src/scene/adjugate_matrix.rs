@@ -14,7 +14,7 @@
 use crate::math::cells::Cells;
 use crate::math::x87;
 
-/// The Rust version (see the header), the x87's: for `effects::cars_particles`
+/// The x87's: for `effects::cars_particles`
 /// (unconverted). The cells are the matrix's and the result's from their first dword on.
 pub fn adjugate_matrix(matrix: &(impl Cells + ?Sized), out: &(impl Cells + ?Sized)) {
     use rc2k_core::scene::matrices::COFACTORS;

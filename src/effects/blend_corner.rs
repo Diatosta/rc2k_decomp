@@ -11,7 +11,7 @@ use crate::math::x87;
 use crate::race::marks_settings_store::MarkCar;
 use crate::session::Float;
 
-/// The Rust version (see the header): `block` the car record whose block holds the factors (the original's ebp), `to` where
+/// `block` the car record whose block holds the factors (the original's ebp), `to` where
 /// the point goes (esi), `from` the point blended (edi), `base` the base point (edx's).
 pub fn blend_corner(
     block: &MarkCar,

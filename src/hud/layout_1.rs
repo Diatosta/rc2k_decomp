@@ -1,13 +1,11 @@
 //! `hud::layout_1` (0x4B2743): the HUD of layout 1, two players side by side (by
-//! `Panel::hud_flags`, the first's and the second's): the dials (`dials::DISC_1A` / `_1B`),
-//! a black divider, the stage bars (`hud::draw_stage_bars`), the cut calls (0x4B6A78 /
-//! 0x4B6A83: an empty function), the icons (`hud::icons`), each player's sprites scaled
-//! 0xC0 over `uv_scale_x` (`hud::add_scaled_sprite`), the markers (`hud::draw_markers`),
-//! signs (`draw_signs::LAYOUT_1A` / `_1B`), needles (`dials::NEEDLE_1A` / `_1B`), each
-//! player's speed with its leading digits left out, the four clocks (the HUD's `times` 0,
-//! 1, 3 and 4, by the first player's flag 0x40 and `ViewA::back`), and each player's lap
-//! panel (`ViewA::place` / `ViewB::place`, `times` 2 / 5). Textures, alpha and colour set
-//! between, as the original.
+//! `Panel::hud_flags`, the first's and the second's): the dials (`dials::DISC_1A` / `_1B`), a black
+//! divider, the stage bars (`hud::draw_stage_bars`), the cut calls (0x4B6A78 / 0x4B6A83: an empty
+//! function), the icons (`hud::icons`), each player's sprites scaled 0xC0 over `uv_scale_x`
+//! (`hud::add_scaled_sprite`), the markers (`hud::draw_markers`), signs (`draw_signs::LAYOUT_1A` /
+//! `_1B`), needles (`dials::NEEDLE_1A` / `_1B`), each player's speed with its leading digits left
+//! out, the four clocks, and each player's lap panel (`ViewA::place` / `ViewB::place`, `times` 2 /
+//! 5). Textures, alpha and colour set between, as the original.
 
 use crate::errors::Refused;
 use crate::hud::draw_markers::{int_over_80, taken_off};
@@ -39,7 +37,7 @@ pub fn pick(hud: &Hud, field: u32) -> u32 {
     needle_sign(hud, field)
 }
 
-/// The Rust version (see the header): the HUD of two players side by side.
+/// The HUD of two players side by side.
 // Converted: `rc2k_core::hud::panels` (through `layout_0`'s panels and `needle_sign`),
 // `rc2k_core::hud::quads::int_over` (the sprites' scales)
 pub fn layout_1(frame: &Frame, hud: &Hud) -> Result<(), Refused> {

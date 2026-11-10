@@ -16,7 +16,7 @@ use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::session::Cell32;
 
-/// The Rust core on the variables' cells `v`. The registers the original leaves are read by none of its callers (edx the slot).
+/// On the variables' cells `v`.
 pub fn blend_at(race: &Race, v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
@@ -61,8 +61,7 @@ fn game<'a>(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> Vec<&'
     ]
 }
 
-/// The Rust version (the exact one, for `physics::car_physics_step`); `r` as the
-/// original leaves are read by none of its callers.
+/// The exact version, for `physics::car_physics_step`.
 pub fn blend_wheel_load(race: &Race, scene: &crate::scene::owner::Scene) {
     blend_at(race, &game(&race.shared, scene));
 }

@@ -1,10 +1,8 @@
-//! `drive::tyre_screen` (0x41C5FA): the tyre-change screen for the mode eax (0: one table;
-//! 2: two, for car esi, the wheel's place 0xAA further left; else two more) and car esi:
-//! its layout's 0x20 bytes (`TyreChange::layouts`) into `panel` (16) and
-//! `parts` (16), the wheel's place (`wheel`: the panel's middle
-//! less the wheel's half), the car into `player`; the texture (`device_texture`,
-//! place 0) and eleven render states (place 1); the panel and wheel quads (place 2), the
-//! wheel turned by the car's input device (place 3), the fixed parts (place 4). All in
+//! `drive::tyre_screen` (0x41C5FA): the tyre-change screen for the mode eax and car esi: its
+//! layout's 0x20 bytes (`TyreChange::layouts`) into `panel` (16) and `parts` (16), the wheel's
+//! place (`wheel`: the panel's middle less the wheel's half), the car into `player`; the texture
+//! (`device_texture`, place 0) and eleven render states (place 1); the panel and wheel quads (place
+//! 2), the wheel turned by the car's input device (place 3), the fixed parts (place 4). All in
 //! `pusha` / `popa`.
 //!
 //! Caller: `drive::tyre_change_screen`.
@@ -30,7 +28,7 @@ const STATES: [(u32, u32); 11] = [
     (0, 0xF),
 ];
 
-/// The Rust version: the mode `mode` (eax), the car `car` (esi); every register kept.
+/// The mode `mode`, the car `car`.
 // Converted: `rc2k_core::drive::tyre_screen::{layout, wheel_place}`.
 pub fn tyre_screen(
     shared: &Shared,

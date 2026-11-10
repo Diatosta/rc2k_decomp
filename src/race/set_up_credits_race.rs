@@ -1,9 +1,8 @@
-//! `race::set_up_credits_race` (0x463711): the credits' race (the demonstration between
-//! the films) set up: a stage drawn from the 36 of `dword_71C3E4` (`math::next_random`
-//! x 36, the high dword, held to 0 .. 0x23 by the sign) into `g_stageNumber`, a car kind
-//! from the 23 of `dword_71C474` (x 23, 0 .. 0x16) into `g_raceCarKinds`;
-//! `dword_623854` 0, `dword_62389C` 3, and 72 more stores (`WRITES`: the first car
-//! block's settings, the race's switches, -1 into +0x298).
+//! `race::set_up_credits_race` (0x463711): the credits' race (the demonstration between the films)
+//! set up: a stage drawn from the 36 of `dword_71C3E4` (`math::next_random` x 36, the high dword,
+//! held to 0 .. 0x23 by the sign) into `g_stageNumber`, a car kind from the 23 of `dword_71C474` (x
+//! 23, 0 .. 0x16) into `g_raceCarKinds`; `dword_623854` 0, `dword_62389C` 3, and 72 more stores
+//! (`WRITES`: the first car block's settings, the race's switches, -1 into +0x298).
 //!
 //! Caller: `race::credits_race`, which calls the Rust version directly. Refuses nothing.
 
@@ -114,8 +113,6 @@ fn drawn_index(n: u32) -> u32 {
     rc2k_core::race::credits::drawn_place(next_random(), n)
 }
 
-/// The Rust version. (The original leaves eax 3, ebx 0x17 and edx the car kind drawn;
-/// nothing reads them.)
 pub fn set_up_credits_race(shared: &Shared) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::credits::drawn_place`.
     use rc2k_core::race::credits::{RACE_KINDS, RACE_STAGES};

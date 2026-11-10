@@ -1,6 +1,5 @@
 //! The x87 arithmetic of the clippers, in plain Rust over `X` (`math/x87_float.rs`), converted
-//! by hand from the listing on 2026-10-24: the generator `tools/clip_asm/gen_clip.py` is
-//! superseded (it made assembly; do not run it over this file). Every operation is the
+//! by hand from the original's listing. Every operation is the
 //! original's, in its order, with its operands in a `Work` block instead of the game's
 //! entries, records and work variables (a store that a later one overwrites unread is
 //! left out). A byte the original loads through `dword_62400C` is in the block as a

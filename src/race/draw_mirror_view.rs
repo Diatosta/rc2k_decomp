@@ -1,12 +1,12 @@
-//! `race::draw_mirror_view` (0x454806): the mirror's view, unless `dword_64BB18` or
-//! `dword_71C3E0` is set or `dword_621480` (the mirror on, a reading) is 0:
-//! `dword_63DC58` kept in `dword_63E170`; `dword_606294` saved, made `flt_5C5E2C`'s value
-//! (the mirror's own view variables, `ViewScratch::vars`, taken first);
-//! the mirror's window (`race::mirror_view_window`), `dword_63DC58` back from
-//! `dword_63E170`, the backdrop (`race::draw_view_backdrop`), the scene
+//! `race::draw_mirror_view` (0x454806): the mirror's view, unless `dword_64BB18` or `dword_71C3E0`
+//! is set or `dword_621480` (the mirror on, a reading) is 0: `dword_63DC58` kept in `dword_63E170`;
+//! `dword_606294` saved, made `flt_5C5E2C`'s value (the mirror's own view variables,
+//! `ViewScratch::vars`, taken first); the mirror's window (`race::mirror_view_window`),
+//! `dword_63DC58` back from `dword_63E170`, the backdrop (`race::draw_view_backdrop`), the scene
 //! (`race::draw_view_scene`); `dword_606294` put back; the full view's window again
-//! (`race::full_view_window_2`, now the front end's window: `race::draw_race_scene`). Returns the scene's output (`ViewOutput`: its view value
-//! for its block; its EAX weight goes nowhere, the race's is the first player's view's).
+//! (`race::full_view_window_2`, now the front end's window: `race::draw_race_scene`). Returns the
+//! scene's output (`ViewOutput`: its view value for its block; its EAX weight goes nowhere, the
+//! race's is the first player's view's).
 //!
 //! The original also set `g_gridReach` to 2 and put it back after. Only the mirror's
 //! `scene::set_view_window` read the 2 (the fog's `race::draw_distance_settings` then sets the
@@ -25,7 +25,6 @@ pub fn always() -> bool {
     *ON.get_or_init(|| std::env::var_os("RC2K_MIRROR_ALWAYS").is_some())
 }
 
-/// The Rust version (see the header).
 pub fn draw_mirror_view(
     race: &Race,
     scene: &crate::scene::owner::Scene,

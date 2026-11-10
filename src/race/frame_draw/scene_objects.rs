@@ -27,15 +27,16 @@ pub fn end_kept_reflections(view: &crate::race::view_scratch::ViewScratch) {
     view.face.reflections_kept.set_bits(0u32);
 }
 
-/// `race::draw_slot_object` (0x4626D1): the race slot's object (+0, into `g_objectNumber`)
-/// drawn, unless outside one player and modes 0 and 2 its car (object 0x50 + 0x14 x car)
-/// is not the drawn view's (`race().frame.frame_work.listed_car_sounds`): the light (lowest 0, highest 0xFF, level
-/// `STAGE_PREFS.light_level`, strength `STAGE_PREFS.light_strength`, turns -`STAGE_PREFS.sun_turn` / `STAGE_PREFS.sun_height`,
-/// `LIGHT_STATE.view_kind` 1, `g_lightKind` 2), its turn (+0x10, 16 dwords to `ctx.view.matrices.object_turn_matrix`) placed
-/// at +4, +8 + (+0x5C), +0xC (into `OBJECT_WORK.place` ..) and moved by the view (0x5EA1CC,
-/// into `ctx.view.matrices.matrix_scratch`), times the view's turn into `g_madeObjectMatrix`; the reflections
-/// kept around the drawing (`scene::draw_scene_object`). Refuses
-/// (before anything) as `check_slot_object`.
+/// `race::draw_slot_object` (0x4626D1): the race slot's object (+0, into `g_objectNumber`) drawn,
+/// unless outside one player and modes 0 and 2 its car (object 0x50 + 0x14 x car) is not the drawn
+/// view's (`race().frame.frame_work.listed_car_sounds`): the light (lowest 0, highest 0xFF, level
+/// `STAGE_PREFS.light_level`, strength `STAGE_PREFS.light_strength`, turns -`STAGE_PREFS.sun_turn`
+/// / `STAGE_PREFS.sun_height`, `LIGHT_STATE.view_kind` 1, `g_lightKind` 2), its turn (+0x10, 16
+/// dwords to `ctx.view.matrices.object_turn_matrix`) placed at +4, +8 + (+0x5C), +0xC (into
+/// `OBJECT_WORK.place` ..) and moved by the view (0x5EA1CC, into
+/// `ctx.view.matrices.matrix_scratch`), times the view's turn into `g_madeObjectMatrix`; the
+/// reflections kept around the drawing (`scene::draw_scene_object`). Refuses (before anything) as
+/// `check_slot_object`.
 pub fn draw_slot_object(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     slot: &crate::race::work_store::RaceSlot,
@@ -117,9 +118,9 @@ pub fn check_slot_object(
     Ok(())
 }
 
-/// `race::draw_race_slots` (0x4621E5): `draw_slot_object` for each of the eight race slots
-/// (0x78 bytes at `g_raceSlots`) whose +0 is not 0. Refuses (before anything) as
-/// `check_slot_object` for any.
+/// `race::draw_race_slots` (0x4621E5): `draw_slot_object` for each of the eight race slots (0x78
+/// bytes at `g_raceSlots`) whose +0 is not 0. Refuses (before anything) as `check_slot_object` for
+/// any.
 pub fn draw_race_slots(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let race = ctx.race;
     let slots = &race.shared.work.race_slots;
@@ -137,13 +138,13 @@ pub fn draw_race_slots(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
 }
 
 /// `race::draw_screen_quad` (0x44B364): a flat rectangle on the screen from x
-/// `RACE_VARS.quad_corners` .. `RACE_VARS.quad_corners[1]`, y `RACE_VARS.quad_corners[4]` .. `RACE_VARS.quad_corners[5]` (the four vertices
-/// at 0x623E40, 0x20 bytes each, depth `NUMBERS.k4096_b`) in `RACE_VARS.quad_colour`'s colour: the
-/// polygon's four work entries set (0x975510, 0x44 bytes each), clipped
-/// (`scene::clip_polygon_to_screen`), and with three vertices or more drawn with the depth
-/// buffer off (`g_polygonMode` 0, switches -1, 1, 0; `g_polygonDrawn` 1); the colour back
-/// to 0xFFFFFF. Every register kept (its callers return at once). Refuses what the clip
-/// refuses (after the entries are set: never seen with four vertices).
+/// `RACE_VARS.quad_corners` .. `RACE_VARS.quad_corners[1]`, y `RACE_VARS.quad_corners[4]` ..
+/// `RACE_VARS.quad_corners[5]` (the four vertices at 0x623E40, 0x20 bytes each, depth
+/// `NUMBERS.k4096_b`) in `RACE_VARS.quad_colour`'s colour: the polygon's four work entries set
+/// (0x975510, 0x44 bytes each), clipped (`scene::clip_polygon_to_screen`), and with three vertices
+/// or more drawn with the depth buffer off (`g_polygonMode` 0, switches -1, 1, 0; `g_polygonDrawn`
+/// 1); the colour back to 0xFFFFFF. Refuses what the clip refuses (after the entries are set: never
+/// seen with four vertices).
 pub fn draw_screen_quad(
     poly: &crate::scene::polygon_work::PolygonWork,
     race: &Race,
@@ -187,8 +188,6 @@ pub fn draw_screen_quad(
     }
     POLYGON_WORK.list[4].set(0u32);
     poly.polygon_next_entry.set(4u32);
-    // No callee reads a register (the clip keeps them; the depth buffer's switches and
-    // the polygon's drawing take none).
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(poly, race)?;
     if poly.polygon_vertex_count.get() >= 3 {
         crate::scene::depth_buffer_on::depth_buffer(false);
@@ -206,8 +205,8 @@ pub fn draw_screen_quad(
 }
 
 /// `race::draw_view_tint` (0x456092): the whole view (0 .. `DRAW.view_size`, 0 ..
-/// `DRAW.view_size[1]`) as a screen quad in 0x204080 (`RACE_VARS.quad_colour`), switches -1, 1, 0, by
-/// `draw_screen_quad`.
+/// `DRAW.view_size[1]`) as a screen quad in 0x204080 (`RACE_VARS.quad_colour`), switches -1, 1, 0,
+/// by `draw_screen_quad`.
 pub fn draw_view_tint(
     poly: &crate::scene::polygon_work::PolygonWork,
     race: &Race,
@@ -228,10 +227,10 @@ pub fn draw_view_tint(
 }
 
 /// `race::add_car_depth_entry` (0x4574A0): the place (+0x134 .., into `OBJECT_WORK.place` ..) of
-/// the block of car `car` (its address) through `g_viewMatrix` (rounded into `OBJECT_WORK.turned_place`
-/// ..; x and y back as floats, z the key: plus 0x2000000, shifted right 10), a depth entry
-/// of the key with the car's `number` plus 0x2000000. Refuses (before anything) a depth
-/// entry past the 0x1000.
+/// the block of car `car` (its address) through `g_viewMatrix` (rounded into
+/// `OBJECT_WORK.turned_place` ..; x and y back as floats, z the key: plus 0x2000000, shifted right
+/// 10), a depth entry of the key with the car's `number` plus 0x2000000. Refuses (before anything)
+/// a depth entry past the 0x1000.
 pub fn add_car_depth_entry(ctx: &DrawCtx, car: u32, number: u32) -> Result<(), Refused> {
     let DrawCtx { view, .. } = *ctx;
     use crate::math::x87::from_int;
@@ -375,9 +374,8 @@ pub(super) fn light_pair(
     Ok(())
 }
 
-/// `race::car_light_flares` (0x457036): the lights of the car block at `car` as flares.
-/// Refuses (before anything) a flare list or depth list without room for the 24 flares a car
-/// can give.
+/// `race::car_light_flares` (0x457036): the lights of the car block at `car` as flares. Refuses
+/// (before anything) a flare list or depth list without room for the 24 flares a car can give.
 pub fn car_light_flares(ctx: &DrawCtx, car: u32) -> Result<(), Refused> {
     let DrawCtx {
         race, scene, view, ..
@@ -454,9 +452,9 @@ pub fn car_light_flares(ctx: &DrawCtx, car: u32) -> Result<(), Refused> {
 }
 
 /// `race::car_lights` (0x455CFF): with `FRAME_SWITCHES.other_way` set, for each race car: with
-/// +0x6FC bit 5 (lights on, `car_light_modes`) its depth entry (`add_car_depth_entry`) and then `car_light_flares`. Refuses (before anything) no cars (the loop tests at
-/// its end) or more than eight, a null block, or a depth list without room for every car's
-/// entries.
+/// +0x6FC bit 5 (lights on, `car_light_modes`) its depth entry (`add_car_depth_entry`) and then
+/// `car_light_flares`. Refuses (before anything) no cars (the loop tests at its end) or more than
+/// eight, a null block, or a depth list without room for every car's entries.
 pub fn car_lights(ctx: &DrawCtx) -> Result<(), Refused> {
     let race = ctx.race;
     if race.shared.switches.other_way.bits() == 0 {
@@ -523,14 +521,16 @@ pub(super) fn scale_object_turn(ctx: &DrawCtx) -> Result<(), BadInput> {
 }
 
 /// `race::place_object_matrix` (0x42739A): `g_madeObjectMatrix` for an object placed at
-/// `OBJECT_WORK.place` .. (after `scene::set_light_direction`). With `LIGHT_STATE.light_turn_off` 0: turned
-/// about y, x and z (16 bits a turn) by `OBJECT_WORK.angles[1]`, `OBJECT_WORK.angles`, `OBJECT_WORK.angles[2]`
-/// negated, unscaled. Else (nothing more with `LIGHT_STATE.view_kind` 4) by the object's
-/// material (+0x20 of its kind's 0x80-byte record at `g_objectMaterials`): 1 and 2 facing
-/// the view (`g_viewBackMatrix`); 5 turned about y by `race().frame.view_and_records.view_vars.view_angles[3]` and the view's y
-/// angle (fine turns); else about y by -`OBJECT_WORK.angles`, then with `OBJECT_WORK.angles[1]` tilted
-/// about x round the y of `OBJECT_WORK.angles[2]`, and with `OBJECT_WORK.described_cleared[1]` / `OBJECT_WORK.described_cleared[2]` again
-/// round `OBJECT_WORK.described_cleared`; then scaled by `OBJECT_WORK.size` / 16.
+/// `OBJECT_WORK.place` .. (after `scene::set_light_direction`). With `LIGHT_STATE.light_turn_off`
+/// 0: turned about y, x and z (16 bits a turn) by `OBJECT_WORK.angles[1]`, `OBJECT_WORK.angles`,
+/// `OBJECT_WORK.angles[2]` negated, unscaled. Else (nothing more with `LIGHT_STATE.view_kind` 4) by
+/// the object's material (+0x20 of its kind's 0x80-byte record at `g_objectMaterials`): 1 and 2
+/// facing the view (`g_viewBackMatrix`); 5 turned about y by
+/// `race().frame.view_and_records.view_vars.view_angles[3]` and the view's y angle (fine turns);
+/// else about y by -`OBJECT_WORK.angles`, then with `OBJECT_WORK.angles[1]` tilted about x round
+/// the y of `OBJECT_WORK.angles[2]`, and with `OBJECT_WORK.described_cleared[1]` /
+/// `OBJECT_WORK.described_cleared[2]` again round `OBJECT_WORK.described_cleared`; then scaled by
+/// `OBJECT_WORK.size` / 16.
 pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
     let (race, scene) = (ctx.race, ctx.scene);
     let frame = &race.frame;
@@ -675,9 +675,9 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
 }
 
 /// `race::draw_flare` (0x455189): flare `flare` of the six flare tables back into
-/// `OBJECT_WORK.place` .., `OBJECT_WORK.size`, `OBJECT_WORK.other_light`, `g_objectNumber`; `LIGHT_STATE.view_kind` 2,
-/// `place_object_matrix`, `g_lightKind` 0 and the drawing (`scene::draw_scene_object`,
-/// described by `entry`, the draw list entry the flare came from).
+/// `OBJECT_WORK.place` .., `OBJECT_WORK.size`, `OBJECT_WORK.other_light`, `g_objectNumber`;
+/// `LIGHT_STATE.view_kind` 2, `place_object_matrix`, `g_lightKind` 0 and the drawing
+/// (`scene::draw_scene_object`, described by `entry`, the draw list entry the flare came from).
 pub fn draw_flare(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     flare: u32,
@@ -710,10 +710,10 @@ pub fn draw_flare(
     crate::scene::draw_scene_object::draw_scene_object_in_game(ctx, Some(entry))
 }
 
-/// `race::draw_lamp_flare` (0x4551F4): lamp `lamp` (`g_lamps`): its point (`g_scenePoints`)
-/// into `OBJECT_WORK.place` .., its +4 x 8 the size, +8 the colour, object `FRAME_SWITCHES.marker_object`;
-/// `LIGHT_STATE.view_kind` 2, `place_object_matrix`, `g_lightKind` 0 and the drawing. Every
-/// register kept.
+/// `race::draw_lamp_flare` (0x4551F4): lamp `lamp` (`g_lamps`): its point (`g_scenePoints`) into
+/// `OBJECT_WORK.place` .., its +4 x 8 the size, +8 the colour, object
+/// `FRAME_SWITCHES.marker_object`; `LIGHT_STATE.view_kind` 2, `place_object_matrix`, `g_lightKind`
+/// 0 and the drawing.
 pub fn draw_lamp_flare(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     lamp: u32,
@@ -741,13 +741,13 @@ pub fn draw_lamp_flare(
     )
 }
 
-/// `race::draw_list_entry` (0x454FF0): the entry whose cells from it on are `at`, whose second word is `flags_word`
-/// (the original kept it in `g_polygonFlags`, which nothing reads to effect: not kept; the top
-/// bit dropped for the kind): below 0x1000000 a course face
-/// (`g_currentCourseFace`): kind 0xFF part 1, below 0x10 part 2, each with `LEVEL_GRID.smooth` ..
-/// `LEVEL_GRID.plain_second` 1 around it; 0x1000000 .. a flare, 0x2000000 .. a car, 0x3000000 .. a
-/// lamp, each by its low 24 bits; then `LIGHT_STATE.view_kind` 0. Refuses (before anything) a word
-/// of 0x4000000 or more (the original would take it for a face far past the table).
+/// `race::draw_list_entry` (0x454FF0): the entry whose cells from it on are `at`, whose second word
+/// is `flags_word` (the original kept it in `g_polygonFlags`, which nothing reads to effect: not
+/// kept; the top bit dropped for the kind): below 0x1000000 a course face (`g_currentCourseFace`):
+/// kind 0xFF part 1, below 0x10 part 2, each with `LEVEL_GRID.smooth` .. `LEVEL_GRID.plain_second`
+/// 1 around it; 0x1000000 .. a flare, 0x2000000 .. a car, 0x3000000 .. a lamp, each by its low 24
+/// bits; then `LIGHT_STATE.view_kind` 0. Refuses (before anything) a word of 0x4000000 or more (the
+/// original would take it for a face far past the table).
 pub fn draw_list_entry(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     at: Description<'_>,
@@ -786,11 +786,10 @@ pub fn draw_list_entry(
     Ok(())
 }
 
-/// `race::draw_sorted_entries` (0x454EAB) / `race::draw_depth_entries` (0x454E84): each
-/// entry of the list (`count` its count, `entries` its 8-byte entries) by
-/// `draw_list_entry`. Refuses (before anything) what `draw_list_entry` would for any.
-/// `from(n)` the list's cells from entry `n` on (a flare's entry is read there as a
-/// description, past its own 8 bytes).
+/// `race::draw_sorted_entries` (0x454EAB) / `race::draw_depth_entries`: each entry of the list
+/// (`count` its count, `entries` its 8-byte entries) by `draw_list_entry`. Refuses (before
+/// anything) what `draw_list_entry` would for any. `from(n)` the list's cells from entry `n` on (a
+/// flare's entry is read there as a description, past its own 8 bytes).
 pub fn draw_entries<'a>(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     count: &crate::session::Dword,

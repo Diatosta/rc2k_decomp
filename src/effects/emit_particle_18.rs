@@ -43,7 +43,6 @@ fn count(record: &MarkRecord) -> Result<(i32, i32), Refused> {
     })
 }
 
-/// The Rust version (see the header).
 pub fn emit_particle_18(
     masks: &Masks,
     ring: &Ring,

@@ -11,7 +11,6 @@ use crate::physics::listed_car_flags::set_flag;
 use crate::race::owner::Race;
 use rc2k_core::physics::progress::{GO_NOTICE, GoFacts};
 
-/// The Rust version.
 pub fn start_go_notice(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let c = &race.shared.car;
     let facts = GoFacts {

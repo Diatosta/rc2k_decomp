@@ -123,8 +123,7 @@ impl Io for GameIo<'_> {
     }
 }
 
-/// The Rust version: `start` (eax 0) starts the gauge, else runs it, for player `player`
-/// (esi); gives the result (eax; the original keeps the rest).
+/// `start` starts the gauge, else runs it, for player `player`; gives the result.
 pub fn tyre_change_gauge(
     race: &Race,
     start: bool,

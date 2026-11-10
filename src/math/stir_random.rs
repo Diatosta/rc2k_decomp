@@ -6,8 +6,6 @@
 //! and ends with a `pop eax` that takes the esi it had saved: so what is stirred in is
 //! whatever esi was at the process's start, not the volume's number).
 
-// ---- Rust version ----
-
 pub fn stir_random(number: u32) {
     crate::math::next_random::wait_for_random();
     crate::math::next_random::with_random(|r| r.stir(number));

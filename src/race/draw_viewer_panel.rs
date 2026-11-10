@@ -1,10 +1,9 @@
-//! `race::draw_viewer_panel` (0x41DA25): the replay viewer's panel: its texture
-//! (`dword_5BECB8`) locked (`d3d::lock_texture`; failing, nothing), cleared, and written
-//! on: text 0x1A4 and the time at the frame shown (block * 100 + frame, `strings::append_time`),
-//! text 0x1A5 and the replay's length, the names of the block's two cameras
-//! (`word_5C291C` by its bytes 0 and 1, at most 0x2E; `strings::append_string_by_id`),
-//! each three times 0x78 to the left and 0xD down, texts 0x560 and 0x561 (the fonts at
-//! `stru_51EAE4` ..; `text::draw_text_keep_regs`, 0x402368); unlocked
+//! `race::draw_viewer_panel` (0x41DA25): the replay viewer's panel: its texture (`dword_5BECB8`)
+//! locked (`d3d::lock_texture`; failing, nothing), cleared, and written on: text 0x1A4 and the time
+//! at the frame shown (block * 100 + frame, `strings::append_time`), text 0x1A5 and the replay's
+//! length, the names of the block's two cameras (`word_5C291C` by its bytes 0 and 1, at most 0x2E;
+//! `strings::append_string_by_id`), each three times 0x78 to the left and 0xD down, texts 0x560 and
+//! 0x561 (the fonts at `stru_51EAE4` ..; `text::draw_text_keep_regs`, 0x402368); unlocked
 //! (`d3d::unlock_texture`), copied to its device texture (`dword_5BECBC`,
 //! `d3d::copy_to_device_texture`), made the texture (`d3d::set_texture`) and drawn as ten quads
 //! (`drive::tyre_quad`, the texture's and the screen's rectangles `dword_5C2A1C`, `dword_5C2A0C`),
@@ -24,7 +23,6 @@ const FONT_C: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANE
 const FONT_D: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_D;
 const FONT_E: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_E;
 
-/// The Rust version (the original keeps every register of its caller).
 pub fn draw_viewer_panel(race: &Race) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
     let replay = &race.replay;

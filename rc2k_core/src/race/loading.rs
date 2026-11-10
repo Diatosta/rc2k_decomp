@@ -60,9 +60,6 @@ pub fn frame_tried(active: u32, lost: u32) -> bool {
     active != 0 && lost != 1
 }
 
-/// After the surfaces' restore: ebx (lost before ^ 1, or'ed with lost after), and the
-/// flags of its `cmp ebx, 1` (carry, zero): carry when they were neither lost before
-/// nor after.
 pub fn restored(lost_before: u32, lost_after: u32) -> (u32, bool, bool) {
     let ebx = (lost_before ^ 1) | lost_after;
     (ebx, ebx < 1, ebx == 1)

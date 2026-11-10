@@ -10,8 +10,6 @@
 
 use crate::sound::queue::{END_OF_TURN, send_command};
 
-// ---- Rust version ----
-
 /// Command 0xA (the audio thread reads none of its registers: they go as 0).
 pub fn send_end_of_turn() {
     send_command(END_OF_TURN, [0; 7]);

@@ -1,6 +1,6 @@
-//! `hud::draw_marker` (0x4B55AB): a marker sprite (rectangle 0x5C of `dword_75B940`) along
-//! the top at the share +0x6C over +0x68 of the HUD's record, times `flt_75C0A8` plus
-//! `flt_75C0AC` (`fistp` through `dword_75C060`), coloured `dword_75BF50`.
+//! `hud::draw_marker` (0x4B55AB): a marker sprite (rectangle 0x5C of `dword_75B940`) along the top
+//! at the share +0x6C over +0x68 of the HUD's record, times `flt_75C0A8` plus `flt_75C0AC` (`fistp`
+//! through `dword_75C060`), coloured `dword_75BF50`.
 //!
 //! Takes: the HUD's record
 //!
@@ -14,7 +14,6 @@ use rc2k_core::hud::quads::marker_x;
 
 const RECT: u32 = 0x5C;
 
-/// The Rust version (see the header).
 // Converted: `rc2k_core::hud::quads::marker_x`
 pub fn draw_marker(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     hud.block.quad[5].set(hud.block.marker_colours[0].get());

@@ -1,10 +1,9 @@
-//! `drive::finish_run` (0x459360): the championship's finish routine played. The car
-//! lifted (+0x138 + `flt_64BB38` x 65536, `fiadd` / `fistp`); the clock into
-//! `dword_5CC3B4`, `5CC3B0`; 0x20 dwords at `unk_5CC1B0` and `dword_5C2538` -1; the start
-//! `dword_64BB60`. Each frame: `dword_512A44` 0, `input::update`, the time
-//! (`drive::finish_timing`); until the time reaches the length (`flt_64BB3C[n]`, n
-//! `dword_75B108`) or Esc or key 0x1C is down: the car's view 6 (+0x684), the first car
-//! loaded (`race::load_first_car`), the camera (`drive::finish_camera`,
+//! `drive::finish_run` (0x459360): the championship's finish routine played. The car lifted
+//! (+0x138 + `flt_64BB38` x 65536, `fiadd` / `fistp`); the clock into `dword_5CC3B4`, `5CC3B0`;
+//! 0x20 dwords at `unk_5CC1B0` and `dword_5C2538` -1; the start `dword_64BB60`. Each frame:
+//! `dword_512A44` 0, `input::update`, the time (`drive::finish_timing`); until the time reaches the
+//! length (`flt_64BB3C[n]`, n `dword_75B108`) or Esc or key 0x1C is down: the car's view 6
+//! (+0x684), the first car loaded (`race::load_first_car`), the camera (`drive::finish_camera`,
 //! `physics::camera_frame`), the car stored (`drive::store_first_car`), the race's frame
 //! (`drive::race_frame`, stream A's: through the game).
 //!
@@ -29,8 +28,6 @@ fn lift_car(race: &Race) {
     ) as u32);
 }
 
-/// The Rust version. The registers it leaves are read by no caller (liveness: esi after
-/// `drive::finish_race`'s call has no read point).
 pub fn finish_run(
     race: &Race,
     scene: &crate::scene::owner::Scene,

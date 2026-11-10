@@ -12,7 +12,6 @@ use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 
-/// The Rust version (see the header).
 pub fn scale_setting(
     masks: &Masks,
     fl: &WindscreenFlakes,

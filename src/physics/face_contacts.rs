@@ -12,7 +12,6 @@ use crate::errors::Refused;
 use crate::physics::face_contacts_around::face_contacts_around;
 use crate::race::owner::Race;
 
-/// The Rust version.
 pub fn face_contacts(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     face_contacts_around(race, scene)
 }

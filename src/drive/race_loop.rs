@@ -1,16 +1,15 @@
-//! `drive::race_loop` (0x444D46): the race played until it ends. The eight blocks' +0xFAC
-//! 10, `dword_518398` (paused) and `dword_6235E8` 0; the clock (`scene::restart_clock`)
-//! into `dword_5CC3B4`, `5CC3B0`; 0x20 dwords at `unk_5CC1B0` and `dword_5C2538` -1. Then,
-//! with the tenth's base `dword_613840` the clock each time round: a window not active
-//! pauses (`dword_518398` 1); unpaused, `input::update`; in the attract mode
-//! (`dword_71C3E0`) a key (`drive::any_key_down`) or `dword_529854` ends it; key 1 (Esc)
-//! asks to quit (`drive::quit_question`: no goes on, else the answer into the cars' +0xB0
-//! (a replay's car's only), with two cars a finished car's 2) and ends it; the views' bit
-//! 0x40 (+0x468, `g_viewBlocks`; the second with two views) while not holding
-//! (`dword_6235EC` 0) pauses; else `race::race_keys`, `drive::race_step`,
-//! `race::tyre_change`, all out (`race::players_all_out`) ends it, and the race's frame
-//! (`drive::race_frame`, stream A's: through the game). Paused: in a replay its car's +0x468 0,
-//! else `drive::pause_until_key`; unpaused again.
+//! `drive::race_loop` (0x444D46): the race played until it ends. The eight blocks' +0xFAC 10,
+//! `dword_518398` (paused) and `dword_6235E8` 0; the clock (`scene::restart_clock`) into
+//! `dword_5CC3B4`, `5CC3B0`; 0x20 dwords at `unk_5CC1B0` and `dword_5C2538` -1. Then, with the
+//! tenth's base `dword_613840` the clock each time round: a window not active pauses
+//! (`dword_518398` 1); unpaused, `input::update`; in the attract mode (`dword_71C3E0`) a key
+//! (`drive::any_key_down`) or `dword_529854` ends it; key 1 (Esc) asks to quit
+//! (`drive::quit_question`: no goes on, else the answer into the cars' +0xB0 (a replay's car's
+//! only), with two cars a finished car's 2) and ends it; the views' bit 0x40 (+0x468,
+//! `g_viewBlocks`; the second with two views) while not holding (`dword_6235EC` 0) pauses; else
+//! `race::race_keys`, `drive::race_step`, `race::tyre_change`, all out (`race::players_all_out`)
+//! ends it, and the race's frame (`drive::race_frame`, stream A's: through the game). Paused: in a
+//! replay its car's +0x468 0, else `drive::pause_until_key`; unpaused again.
 //!
 //! Caller: `drive::play_race`. Refuses what its calls refuse.
 
@@ -59,8 +58,6 @@ fn put_answer(shared: &Shared, answer: u32) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi,
-/// edx and esi after `drive::play_race`'s call have no read point).
 pub fn race_loop(
     race: &Race,
     input: &'static crate::input::owner::Input,

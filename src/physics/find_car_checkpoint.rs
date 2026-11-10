@@ -12,10 +12,9 @@ use crate::math::x87_run::{ext_div2, int_80};
 use crate::race::owner::Race;
 use rc2k_core::physics::progress;
 
-/// The Rust version: the car's checkpoint (eax): the nearest within the window about the
-/// one it had (`race::nearest_checkpoint_in`), or, when that is too far, of them all
-/// (`race::nearest_checkpoint`). The other registers it leaves are read by none of its
-/// callers.
+/// The car's checkpoint (eax): the nearest within the window about the one it had
+/// (`race::nearest_checkpoint_in`), or, when that is too far, of them all
+/// (`race::nearest_checkpoint`).
 // Converted: `rc2k_core::physics::progress::{near_window, search_all}`.
 pub fn find_car_checkpoint(
     race: &Race,

@@ -1,15 +1,13 @@
 //! `drive::duel_sound_levels` (0x45C596): two sound levels from the first car block
-//! (`g_carBlockStore`): +0x900 / 4 - 4, held 0 ..= 0x40 (by the signs), into
-//! `dword_5165BC`; at 0x38 or more `dword_5165A8` 1 when a random number
-//! (`math::next_random`) x 500 has a high dword of 0 (a rare draw); (+0x908 squared, low
-//! dword) >> 12 - 8, held, into `dword_5165C0`.
+//! (`g_carBlockStore`): +0x900 / 4 - 4, held 0 ..= 0x40 (by the signs), into `dword_5165BC`; at
+//! 0x38 or more `dword_5165A8` 1 when a random number (`math::next_random`) x 500 has a high dword
+//! of 0 (a rare draw); (+0x908 squared, low dword) >> 12 - 8, held, into `dword_5165C0`.
 //!
 //! Caller: `drive::replay_step`.
 
 use crate::race::blocks_store::CAR_BLOCKS;
 use rc2k_core::drive::replay_views::{RARE_FROM, first_level, rare_draw, second_level};
 
-/// The Rust version.
 // Converted: `rc2k_core::drive::replay_views::{first_level, rare_draw, second_level}`.
 pub fn duel_sound_levels(sound: &crate::sound::owner::Sound) {
     let stage = &sound.race.stage;

@@ -47,8 +47,7 @@ fn touch(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
     Ok(())
 }
 
-/// The steps for face `number` (ebx). The registers the original leaves are read by none
-/// of its callers.
+/// The steps for face `number` (ebx).
 // Converted: `rc2k_core::physics::face_contacts` (the x87 steps stay).
 pub fn steps(race: &Race, number: u32, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     race.physics.contact.face_number.set(number);

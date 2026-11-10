@@ -21,8 +21,6 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::{ld, st};
 use crate::sound::store::SoundObject;
 
-// ---- Rust version ----
-
 /// Every car's sounds for the turn: the players' each, of the computer's the two nearest
 /// the listener (each keeping its voice).
 pub fn car_sounds_all(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {

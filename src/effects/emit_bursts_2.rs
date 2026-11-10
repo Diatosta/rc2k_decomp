@@ -21,7 +21,6 @@ pub static SECOND: BurstSet = BurstSet {
     tuning: &crate::effects::owner::EFFECTS.particles.second_tuning,
 };
 
-/// The Rust version (see the header).
 pub fn emit_bursts_2(
     effects: &Effects,
     wheel: &MarkRecord,

@@ -28,7 +28,6 @@ pub fn sound_cue_e5_at(current: &Dword, listed: &[Dword; 8]) -> Result<(), Refus
     Ok(())
 }
 
-/// The Rust version.
 pub fn sound_cue_e5(race: &Race) -> Result<(), Refused> {
     sound_cue_e5_at(
         &race.shared.work.current_car,

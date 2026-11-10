@@ -9,7 +9,6 @@ use crate::physics::apply_forces::apply_forces;
 use crate::race::owner_shared::Shared;
 const COUNT: usize = 7;
 
-/// The Rust version.
 pub fn apply_contact_forces(
     shared: &Shared,
     scene: &crate::scene::owner::Scene,

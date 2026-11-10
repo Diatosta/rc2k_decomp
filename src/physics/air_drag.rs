@@ -11,7 +11,7 @@ use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::session::Cell32;
 
-/// The Rust core on the variables' cells `v`.
+/// On the variables' cells `v`.
 pub fn drag_at(race: &Race, v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
@@ -39,7 +39,7 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     ]
 }
 
-/// The Rust version (the exact one, for `physics::car_physics_step`).
+/// The exact version, for `physics::car_physics_step`.
 pub fn air_drag(race: &Race) {
     drag_at(race, &game(&race.shared));
 }

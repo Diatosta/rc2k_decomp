@@ -32,13 +32,11 @@ fn get(n: u32, k: u32) -> Result<u32, BadInput> {
     crate::race::scene_points::point_word(n, k)
 }
 
-/// `race::place_car_on_line` (0x44666F): checkpoint `dword_6365E4` (held below
-/// `g_checkpointCount`) and the next (held so too); their faces' first points and their
-/// headings (`dword_9ED808`) blended by `dword_6365EC` / 65536 into `dword_5CCDA0` /
-/// `C0` (+ `dword_613FC4`) / `E0` and `dword_5CCD60`, then into the work car's place and
-/// heading; the first face's number in `dword_5CCD28`. The registers it leaves are read
-/// by none of its callers (conversion phase 3, 2026-10-24). Refuses no checkpoints (the
-/// original reads entry -1) or more than the lists.
+/// `race::place_car_on_line` (0x44666F): checkpoint `dword_6365E4` (held below `g_checkpointCount`)
+/// and the next (held so too); their faces' first points and their headings (`dword_9ED808`)
+/// blended by `dword_6365EC` / 65536 into `dword_5CCDA0` / `C0` (+ `dword_613FC4`) / `E0` and
+/// `dword_5CCD60`, then into the work car's place and heading; the first face's number in
+/// `dword_5CCD28`. Refuses no checkpoints (the original reads entry -1) or more than the lists.
 pub fn place_car_on_line(
     race: &Race,
     course: &Course,
@@ -74,10 +72,9 @@ pub fn place_car_on_line(
     }
 }
 
-/// `race::distance_to_checkpoint` (0x44141D): with `c` a checkpoint (0 .. count - 1, by
-/// sign tests), `dword_62400C` the distance in x and z (`x87::int_hypot`) from
-/// (`dword_639824`, `dword_63982C`) to its face's first point; else -1. Refuses a
-/// checkpoint past the list.
+/// `race::distance_to_checkpoint` (0x44141D): with `c` a checkpoint (0 .. count - 1, by sign
+/// tests), `dword_62400C` the distance in x and z (`x87::int_hypot`) from (`dword_639824`,
+/// `dword_63982C`) to its face's first point; else -1. Refuses a checkpoint past the list.
 pub fn distance_to_checkpoint(
     race: &Race,
     c: u32,
@@ -112,10 +109,9 @@ pub struct Nearest {
     pub distance: u32,
 }
 
-/// `race::nearest_checkpoint_in` (0x4413F8): checkpoints `from` up to `to` (once at
-/// least, `jb`) measured by `distance_to_checkpoint`; the nearest (unsigned, the later of
-/// equals) and its distance (-1 and 0 for none). Refuses more than 0x1418 measures or
-/// checkpoints, before anything.
+/// `race::nearest_checkpoint_in` (0x4413F8): checkpoints `from` up to `to` (once at least, `jb`)
+/// measured by `distance_to_checkpoint`; the nearest (unsigned, the later of equals) and its
+/// distance (-1 and 0 for none). Refuses more than 0x1418 measures or checkpoints, before anything.
 pub fn nearest_checkpoint_in(
     race: &Race,
     from: u32,
@@ -251,10 +247,9 @@ fn measure_held(
 }
 
 /// `race::nearest_checkpoint` (0x44134F): the work car's x and z into `dword_639824` /
-/// `dword_63982C`; with checkpoints, the nearest of them all (`nearest_checkpoint_in` 0 ..
-/// count), its distance in `dword_62400C` and / 65536 in `flt_614C68`; else 0. The other
-/// registers it leaves are read by none of its callers. Refuses more checkpoints than the
-/// lists, before anything.
+/// `dword_63982C`; with checkpoints, the nearest of them all (`nearest_checkpoint_in` 0 .. count),
+/// its distance in `dword_62400C` and / 65536 in `flt_614C68`; else 0. Refuses more checkpoints
+/// than the lists, before anything.
 pub fn nearest_checkpoint(race: &Race, scene: &crate::scene::owner::Scene) -> Result<u32, Refused> {
     let count = count(&race.shared)?;
     {
@@ -284,8 +279,6 @@ pub fn nearest_checkpoint(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     }
 }
 
-/// `race::invert_car_matrix` (0x43F16C): `scene::invert_turn` of the work car's matrix
-/// (`g_crashMatrix`, +0xB4) into its inverse (+0x9CC, 0x71A9A4), every register kept.
 pub fn invert_car_matrix(race: &Race) {
     let shared = &race.shared;
     let length = crate::scene::view_matrix::invert_turn(

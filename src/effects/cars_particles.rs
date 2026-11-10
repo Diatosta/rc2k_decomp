@@ -76,7 +76,6 @@ fn refusal(settings: u32) -> Result<Option<&'static str>, Refused> {
     })
 }
 
-/// The Rust version (see the header).
 pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
     let (paths, masks) = (&effects.paths, &effects.masks);
     let (particles, ring) = (&effects.particles, &effects.ring);

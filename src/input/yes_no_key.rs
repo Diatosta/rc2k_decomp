@@ -23,8 +23,6 @@ pub const YES: u32 = 1;
 pub const NO: u32 = u32::MAX;
 pub const THIRD: u32 = 2;
 
-// ---- Rust version ----
-
 /// The answer a key gives. `eax` is the register as the original has it: the key in its low
 /// byte, and 0 as a whole means no key.
 pub fn answer_for_key(eax: u32) -> Result<u32, BadInput> {

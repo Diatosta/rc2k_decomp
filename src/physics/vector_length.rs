@@ -13,7 +13,7 @@
 use crate::math::cells::{Cells, load};
 use crate::math::x87_run::length_80;
 
-/// The Rust version: the length as it is left in st(0).
+/// The length as it is left in st(0).
 pub fn vector_length(v: &(impl Cells + ?Sized)) -> [u8; 10] {
     length_80(load::<3>(v))
 }

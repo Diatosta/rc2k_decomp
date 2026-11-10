@@ -37,8 +37,6 @@ pub fn has_layout() -> bool {
     layouts().current() != Current::None
 }
 
-// ---- Rust version ----
-
 /// eax as the original leaves it; the character is its low byte.
 pub fn key_to_char(eax: u32) -> Result<u32, BadInput> {
     typed(input(), eax, false)

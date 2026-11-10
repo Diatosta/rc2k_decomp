@@ -1,11 +1,9 @@
-//! `hud::draw_view_strip` (0x45B86E): three flat quads side by side for view ebp (a reading:
-//! a strip of the screen's overlay): top `dword_6D1880`[ebp] (or [ebp + 6] with
-//! `dword_6D1502` 0) and height 0x19 scaled from 600 to `g_screenHeight`, left
-//! `dword_6D18B0`[ebp] and width 0x78 scaled from 800 to `g_screenWidth` (into
-//! `dword_6D1870` .. `dword_6D187C`), texture rows 0x320000 apart; then the shared tail
-//! (`overlay_tail`, 0x45B9AA, which `hud::draw_view_strips` jumps to as well): with
-//! `dword_6D14F6` bit 0x40 and `dword_6238A4` 0, two more quads at the top corners
-//! (texture `dword_6240BC` 0xC4).
+//! `hud::draw_view_strip` (0x45B86E): three flat quads side by side for view ebp (a reading: a
+//! strip of the screen's overlay): top `dword_6D1880`[ebp] and height 0x19 scaled from 600 to
+//! `g_screenHeight`, left `dword_6D18B0`[ebp] and width 0x78 scaled from 800 to `g_screenWidth`
+//! (into `dword_6D1870` .. `dword_6D187C`), texture rows 0x320000 apart; then the shared tail
+//! (`overlay_tail`, 0x45B9AA, which `hud::draw_view_strips` jumps to as well): with `dword_6D14F6`
+//! bit 0x40 and `dword_6238A4` 0, two more quads at the top corners (texture `dword_6240BC` 0xC4).
 //!
 //! Takes: the view (0 .. 5)
 //!
@@ -96,7 +94,7 @@ pub fn overlay_tail(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust version (see the header): view `view`'s strip, then the shared tail.
+/// View `view`'s strip, then the shared tail.
 // Converted: `rc2k_core::hud::strips::{VIEWS, top_entry, sizes, quad_inputs}`
 pub fn draw_view_strip(race: &Race, view: u32) -> Result<(), Refused> {
     let frame = &race.frame;

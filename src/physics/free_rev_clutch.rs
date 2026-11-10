@@ -12,7 +12,7 @@ use crate::physics::free_rev::free_rev;
 use crate::physics::gearing::{GearPlaces, wheels_from_revs_at};
 use crate::race::owner::Race;
 
-/// The Rust version (the exact one, for `physics::car_physics_step`).
+/// The exact version, for `physics::car_physics_step`.
 pub fn free_rev_clutch(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let gear = race.shared.car.gear.get();
     if gear == 0 || race.shared.car.driven_wheels_off.get() == 0 {

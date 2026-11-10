@@ -9,7 +9,6 @@ use crate::effects::rain::Weather;
 use crate::math::x87;
 const FADES: usize = 0x11;
 
-/// The Rust version (see the header).
 pub fn make_fade_colours(
     view_light: u32,
     weather: &Weather,

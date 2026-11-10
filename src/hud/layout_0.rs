@@ -1,14 +1,13 @@
-//! `hud::layout_0` (0x4B1D8C): the HUD of layout 0 (`Panel::players` neither 1 nor 2), by
-//! the first view's HUD flags (`Panel::hud_flags`): 0x10 the dial (`dials::DISC_0`) and a
-//! sprite; 0x40 the stage bar (`hud::draw_stage_bar`), the marker (`hud::draw_marker`) and
-//! the two time panels (sprite 0x29 + the cars behind and ahead, `ViewA::back` /
-//! `ViewA::front`, held to 0 .. 0x16; the HUD's `times` 0 and 1 as digits); 8 the cut call
-//! (0x4B6A6D: an empty function); always the icons (`hud::icons`); 0x20 two sprites (the
-//! second by `ViewA::gear`) and `ViewA::speed` with its leading digits left out while they
-//! are 0; 1 the sign by `Panel::start_values` (also into `needle_kind`) and the needle
-//! (`dials::NEEDLE_0`); 0x80 the signs (`draw_signs::LAYOUT_0`); 2 `ViewA::place`'s last
-//! two digits, two sprites and `times` 2. The texture, the quad record's alpha and colour
-//! set between, as the original.
+//! `hud::layout_0` (0x4B1D8C): the HUD of layout 0 (`Panel::players` neither 1 nor 2), by the first
+//! view's HUD flags (`Panel::hud_flags`): 0x10 the dial (`dials::DISC_0`) and a sprite; 0x40 the
+//! stage bar (`hud::draw_stage_bar`), the marker (`hud::draw_marker`) and the two time panels
+//! (sprite 0x29 + the cars behind and ahead, `ViewA::back` / `ViewA::front`, held to 0 .. 0x16; the
+//! HUD's `times` 0 and 1 as digits); 8 the cut call (0x4B6A6D: an empty function); always the icons
+//! (`hud::icons`); 0x20 two sprites (the second by `ViewA::gear`) and `ViewA::speed` with its
+//! leading digits left out while they are 0; 1 the sign by `Panel::start_values` (also into
+//! `needle_kind`) and the needle (`dials::NEEDLE_0`); 0x80 the signs (`draw_signs::LAYOUT_0`); 2
+//! `ViewA::place`'s last two digits, two sprites and `times` 2. The texture, the quad record's
+//! alpha and colour set between, as the original.
 
 use crate::errors::Refused;
 use crate::hud::draw_signs::row;
@@ -97,7 +96,7 @@ pub fn needle_sign(hud: &Hud, field: u32) -> u32 {
     pick
 }
 
-/// The Rust version (see the header): the HUD of one player.
+/// The HUD of one player.
 // Converted: `rc2k_core::hud::panels` (the digits, signs, panels, leading digits, the
 // stage panel and the needle's sign)
 pub fn layout_0(frame: &Frame, hud: &Hud) -> Result<(), Refused> {

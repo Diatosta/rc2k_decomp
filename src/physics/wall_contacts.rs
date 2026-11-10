@@ -37,8 +37,7 @@ fn after(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
     crate::physics::feel_ground::feel_ground(race, scene)
 }
 
-/// The steps, not guarded (`check` before). The registers the original leaves are read by
-/// none of its callers.
+/// The steps, not guarded (`check` before).
 // Converted: `rc2k_core::physics::walls::walk`.
 pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let physics_store = &race.physics;
@@ -99,7 +98,6 @@ pub fn check(shared: &Shared) -> Result<(), Refused> {
     Ok(walls::check_probe_count(shared.car.probe_count.get())?)
 }
 
-/// The Rust version.
 pub fn wall_contacts(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     check(&race.shared)?;
     steps(race, scene)

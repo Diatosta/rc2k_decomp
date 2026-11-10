@@ -13,7 +13,7 @@ use crate::math::x87_float::to_int;
 use crate::physics::camera_view::{record, share_done};
 use crate::race::owner::Race;
 
-/// The Rust version (the exact one, for `physics::update_camera`).
+/// The exact version, for `physics::update_camera`.
 pub fn ease_view_angles(
     race: &Race,
     scene: &crate::scene::owner::Scene,

@@ -17,7 +17,7 @@ use crate::errors::Refused;
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1, 0x1B)];
 
-/// The Rust version (see the header): the render states (`scene::set_render_state`), the
+/// The render states (`scene::set_render_state`), the
 /// texture (`scene::set_texture`), `scene::depth_test_off`, `run_ring`, `run_ribbons`.
 #[allow(
     clippy::too_many_arguments,

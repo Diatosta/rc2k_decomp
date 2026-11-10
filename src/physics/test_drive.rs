@@ -5,15 +5,13 @@
 //! put back.
 //!
 //! Caller: `scene::set_up_engine` (0x442AFB, the car's choice). Refuses what its parts refuse
-//! (everything written put back). The registers it leaves nothing reads (2026-11-03: the main
-//! menu writes ebx at 0x474AC7 before reading it).
+//! (everything written put back).
 
 use crate::errors::Refused;
 use crate::physics::gear_store::GEAR;
 use crate::physics::test_drive_run;
 use crate::race::owner::Race;
 
-/// The Rust version.
 pub fn test_drive(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     crate::physics::load_car_specs::load_car_specs(race, scene)?;
     crate::physics::make_gear_ratios::make_gear_ratios(race, scene)?;

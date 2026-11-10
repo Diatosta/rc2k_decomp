@@ -65,7 +65,6 @@ fn run_at(race: &Race) {
     ));
 }
 
-/// The Rust version.
 // Converted: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
 // and the rounding stay x87).
 pub fn engine_sound(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {

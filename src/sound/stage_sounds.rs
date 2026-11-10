@@ -33,8 +33,6 @@ const RANDOMS: [(usize, u32); 2] = [(0, 0x1AE), (1, 0x1AF)];
 const ONE: u32 = 0x3F80_0000;
 const MINUS_ONE: u32 = 0xBF80_0000;
 
-// ---- Rust version ----
-
 /// The stage's own sounds for the turn.
 pub fn stage_sounds(
     sound: &crate::sound::owner::Sound,

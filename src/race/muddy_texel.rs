@@ -1,9 +1,8 @@
-//! `race::muddy_texel` (0x44A2E1): one texel of the mud texture being worked on
-//! (`dword_623D5C`, 0 .. 3) brought toward the mud's colour: the place is the word
-//! `g_shuffledWords[eax & 0xFFFF]` (x its low byte, y its high one), the strength the mud
-//! map's byte at (x / 2, y / 2) of the texture's 128 x 128 (`g_mud` + 0x4000 n), kept in
-//! `dword_62400C`. When `race::mud_texel` there has its top bit set, it is tinted by
-//! `race::tint_to_mud_colour` (ebp = (strength + 1) / 2), the top byte set, and put back
+//! `race::muddy_texel` (0x44A2E1): one texel of the mud texture being worked on (`dword_623D5C`, 0
+//! .. 3) brought toward the mud's colour: the place is the word `g_shuffledWords[eax & 0xFFFF]` (x
+//! its low byte, y its high one), the strength the mud map's byte at (x / 2, y / 2) of the
+//! texture's 128 x 128 (`g_mud` + 0x4000 n), kept in `dword_62400C`. When `race::mud_texel` there
+//! has its top bit set, it is tinted by `race::tint_to_mud_colour`, the top byte set, and put back
 //! (`race::put_mud_texel`).
 //!
 //! See `race/mud.rs`. Callers: `race::throw_mud_texel` (twice). Refuses a texture past 3 (the
@@ -48,8 +47,7 @@ pub fn strength_at(n: u32, x: u32, y: u32) -> Result<u32, BadInput> {
         .ok_or(BadInput("a mud strength past the mud"))
 }
 
-/// The Rust version (see the header): the texel of place number `number` (its low 16
-/// bits) muddied.
+/// The texel of place number `number` (its low 16 bits) muddied.
 pub fn muddy_texel(race: &Race, number: u32) -> Result<(), Refused> {
     let course = &race.course;
     // Converted: `rc2k_core::race::mud::{shuffled_place, strength_index, muddy,

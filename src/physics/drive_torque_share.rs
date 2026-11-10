@@ -64,8 +64,8 @@ fn game<'a>(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> Vec<&'
     ]
 }
 
-/// The Rust version (the exact one, for `physics::drive_force` and
-/// `physics::test_drive_run`): eax as the original leaves it.
+/// The exact version, for `physics::drive_force` and `physics::test_drive_run`: eax as the original
+/// leaves it.
 pub fn drive_torque_share(race: &Race, scene: &crate::scene::owner::Scene) -> u32 {
     drive_torque_share_at(race, &game(&race.shared, scene))
 }

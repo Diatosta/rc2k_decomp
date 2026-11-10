@@ -10,17 +10,17 @@ use crate::race::trap::Trap;
 use crate::race::view_scratch::DrawCtx;
 use crate::session::Dword;
 
-/// `race::car_light_modes` (0x455B70): the shown car (`g_shownCar` in the original) = the drawn view's car
-/// (`crate::race::owner::race().shared.view.view_cars[g_drawnView]`); every car block's +0x6FC 0; then for each race car with
-/// lights (+0x25C) that is drawn (any car in modes 0 and 2, else the shown car only; the
-/// shown car not with +0x69C and +0x684 both 0, nor in the mirror, `mirrored`): +0x6FC's
-/// nibbles set step by step: 0x21; for the shown car with `view_car_flag_b`, 0x12, then 0x14
-/// unless `view_car_stage` is 1, then 0x11 unless it is 2 or 3; then 0x100 in the third
-/// nibble, 0x200 with `crate::race::owner::race().shared.vars.settings_words[3]` (1: the shown car only). Refuses (before anything) a null block among the eight or more than eight cars.
-/// Not the original's: the camera flag and stage (`view_car_flag_b`, `view_car_stage`) are
-/// the shown car's own (`camera_mode_is_2_or_3`, +0x684 `camera_view`), where the original read
-/// what the view drawn before had set from them: one frame late after a camera change
-/// (`notes/bugs.md`).
+/// `race::car_light_modes` (0x455B70): the shown car (`g_shownCar` in the original) = the drawn
+/// view's car (`crate::race::owner::race().shared.view.view_cars[g_drawnView]`); every car block's
+/// +0x6FC 0; then for each race car with lights (+0x25C) that is drawn (any car in modes 0 and 2,
+/// else the shown car only; the shown car not with +0x69C and +0x684 both 0, nor in the mirror,
+/// `mirrored`): +0x6FC's nibbles set step by step: 0x21; for the shown car with `view_car_flag_b`,
+/// 0x12, then 0x14 unless `view_car_stage` is 1, then 0x11 unless it is 2 or 3; then 0x100 in the
+/// third nibble, 0x200 with `crate::race::owner::race().shared.vars.settings_words[3]` (1: the
+/// shown car only). Refuses (before anything) a null block among the eight or more than eight cars.
+/// Not the original's: the camera flag and stage (`view_car_flag_b`, `view_car_stage`) are the
+/// shown car's own (`camera_mode_is_2_or_3`, +0x684 `camera_view`), where the original read what
+/// the view drawn before had set from them: one frame late after a camera change (`notes/bugs.md`).
 pub fn car_light_modes(
     race: &Race,
     states: &crate::race::car_draw_state::CarDrawState,
@@ -90,12 +90,11 @@ pub(super) fn own_lamp(
         .ok_or(BadInput("a lamp past the sixteen"))
 }
 
-/// `race::add_lamp_entry` (0x4573FA): the lamp's point (`g_lamps` +0) through
-/// `g_viewMatrix` (the point into `OBJECT_WORK.place` .. `OBJECT_WORK.place[2]`, then x and y turned
-/// there, z rounded into `g_faceDepthKey`, + 0x2000000 and shifted right 10), and a depth
-/// entry of that key with `g_lampCount` + 0x3000000 (the original also counted them in `g_lampEntryCount`,
-/// read by nothing). The caller checks
-/// the room.
+/// `race::add_lamp_entry` (0x4573FA): the lamp's point (`g_lamps` +0) through `g_viewMatrix` (the
+/// point into `OBJECT_WORK.place` .. `OBJECT_WORK.place[2]`, then x and y turned there, z rounded
+/// into `g_faceDepthKey`, + 0x2000000 and shifted right 10), and a depth entry of that key with
+/// `g_lampCount` + 0x3000000 (the original also counted them in `g_lampEntryCount`, read by
+/// nothing). The caller checks the room.
 pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
     let DrawCtx { view, .. } = *ctx;
     let point = own_lamp(&view.lamps, lamp)?[0].get();
@@ -121,9 +120,9 @@ pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
 
 /// `race::gather_lamps` (0x454E08): `g_lampCount` 0; each lit face (`g_litFaces`, the count
 /// `g_litFaceCount`) whose object (+1) is 0x3B becomes a lamp while there are fewer than 16:
-/// `g_lamps` entry (+0 the face's first point, +4 its +0x11 byte, +8 0xFFFFFF) and its depth
-/// entry (`add_lamp_entry`. Refuses (before anything) more than 0x100 lit faces, or a depth
-/// list without room for 16.
+/// `g_lamps` entry (+0 the face's first point, +4 its +0x11 byte, +8 0xFFFFFF) and its depth entry
+/// (`add_lamp_entry`. Refuses (before anything) more than 0x100 lit faces, or a depth list without
+/// room for 16.
 pub fn gather_lamps(ctx: &DrawCtx) -> Result<(), Refused> {
     let race = ctx.race;
     let physics = &race.physics;
@@ -308,10 +307,9 @@ pub fn check_light_colour(
     )?)
 }
 
-/// `race::light_colour_at` (0x4537CE): `g_lightColour` 0, then the cars' headlights
-/// (0x44F601) and the lamps (0x44F863) on the lit place (`g_litPlace`,
-/// `LIGHT_STATE.lit_place[1]`, `LIGHT_STATE.lit_place[2]`), added up. Refuses as
-/// `check_light_colour`.
+/// `race::light_colour_at` (0x4537CE): `g_lightColour` 0, then the cars' headlights (0x44F601) and
+/// the lamps (0x44F863) on the lit place (`g_litPlace`, `LIGHT_STATE.lit_place[1]`,
+/// `LIGHT_STATE.lit_place[2]`), added up. Refuses as `check_light_colour`.
 pub fn light_colour_at(
     race: &Race,
     scene: &crate::scene::owner::Scene,
@@ -329,11 +327,11 @@ pub fn light_colour_at(
     Ok(())
 }
 
-/// `race::view_light` (0x455896): the lit place the view's car's (`ViewScratch::car`, the original's `g_car` +0x134 ..);
-/// `light_colour_at`; the view's `ObjectLight::view_light` = the view's car's light colour plus the
-/// light (`add_colours`). The original added `LIGHT_WORK.view_light_base`, the light colour of
-/// the last car the previous view drew (a slip fixed: the views' order showed in the
-/// snowflakes' tint; `wiki/Fixed-bugs.md`).
+/// `race::view_light` (0x455896): the lit place the view's car's (`ViewScratch::car`, the
+/// original's `g_car` +0x134 ..); `light_colour_at`; the view's `ObjectLight::view_light` = the
+/// view's car's light colour plus the light (`add_colours`). The original added
+/// `LIGHT_WORK.view_light_base`, the light colour of the last car the previous view drew (a slip
+/// fixed: the views' order showed in the snowflakes' tint; `wiki/Fixed-bugs.md`).
 pub fn view_light(
     race: &Race,
     scene: &crate::scene::owner::Scene,

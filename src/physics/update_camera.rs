@@ -126,7 +126,7 @@ fn fixed_camera(
     Ok(())
 }
 
-/// The steps. The registers the original leaves are read by none of its callers.
+/// The steps.
 // Converted: `rc2k_core::physics::camera_view::{fixed_camera, keeps_light_figure,
 // switch_over, mode_after_switch, check_modes}` (the x87 sums stay).
 pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {

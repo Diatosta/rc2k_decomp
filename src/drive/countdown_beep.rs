@@ -1,8 +1,7 @@
-//! `drive::countdown_beep` (0x440EA3): one car's count down (the block at esi, its figure
-//! at edi): for a car not finished (+0x1C 0) and running (+0x25C), the time since the
-//! count down's start (+0x14 less `g_countdownStart`; nothing before it) held at 1500,
-//! in seconds (/ 100), -1 from 6 on, into [edi]; on a whole second not -1 the second's
-//! sound (`dword_6D1818[s]`, into `dword_614114`) cued (`drive::countdown_cue`).
+//! `drive::countdown_beep` (0x440EA3): one car's count down: for a car not finished (+0x1C 0) and
+//! running (+0x25C), the time since the count down's start (+0x14 less `g_countdownStart`; nothing
+//! before it) held at 1500, in seconds (/ 100), -1 from 6 on, into [edi]; on a whole second not -1
+//! the second's sound (`dword_6D1818[s]`, into `dword_614114`) cued (`drive::countdown_cue`).
 //!
 //! Takes: the car's block, where its second goes
 //!
@@ -14,7 +13,7 @@ use crate::race::owner::Race;
 use crate::race::panel_store::Loose32;
 use rc2k_core::drive::countdown::{self, Beep};
 
-/// The Rust version: the car block `block`, the second into `to`.
+/// The car block `block`, the second into `to`.
 // Converted: `rc2k_core::drive::countdown::countdown_beep`.
 pub fn countdown_beep(race: &Race, block: &Car, to: &Loose32) -> Result<(), Refused> {
     let beep = countdown::countdown_beep(

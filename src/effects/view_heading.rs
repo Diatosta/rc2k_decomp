@@ -13,7 +13,6 @@ use crate::scene::matrix3::rounded;
 use crate::scene::vector3::angle_between_vectors;
 use crate::session::write_bits;
 
-/// The Rust version (see the header).
 pub fn view_heading(frame: &Frame, effects: &crate::effects::owner::Effects) {
     let effects_frame = &effects.frame;
     let x = x87::loaded(frame.matrices.view_place[2].bits());

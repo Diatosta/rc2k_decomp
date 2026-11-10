@@ -1,24 +1,20 @@
-//! `race::viewer_tidy_stage` (0x41CEB4): the viewer's stage, if loaded (`dword_5BECC0` 1,
-//! then 0), tidied away and the front end back: `race::tidy_everything`, the menus'
-//! screen mode (`gfx::set_menu_screen_mode`), the loading picture
-//! (`menu::show_loading_picture`), `race::clear_race_sound_objects`,
-//! `sound::apply_settings`; the fonts freed (`gfx::free_fonts`) when the viewer built
-//! them (`dword_5BECC4` 1); `scene::set_up_engine`, `scene::set_up_front_end_scene`,
-//! `scene::set_up_engine`. Then (always) the pending key taken (`input::take_key`).
+//! `race::viewer_tidy_stage` (0x41CEB4): the viewer's stage, if loaded (`dword_5BECC0` 1, then 0),
+//! tidied away and the front end back: `race::tidy_everything`, the menus' screen mode
+//! (`gfx::set_menu_screen_mode`), the loading picture (`menu::show_loading_picture`),
+//! `race::clear_race_sound_objects`, `sound::apply_settings`; the fonts freed (`gfx::free_fonts`)
+//! when the viewer built them (`dword_5BECC4` 1); `scene::set_up_engine`,
+//! `scene::set_up_front_end_scene`, `scene::set_up_engine`. Then (always) the pending key taken
+//! (`input::take_key`).
 //!
-//! `dword_5BECC4` is never cleared: where `mov` was meant the original has
-//! `cmp dword_5BECC4, 0` (0x41CEEA). Kept (section 16).
-//! Callers: `race::replay_viewer`, `race::viewer_action` (0x14), `race::choose_save_slot`.
-//! The only register it reads at entry is esi, which goes to `tidy_everything` and
-//! `set_menu_screen_mode` (attrib), whose Rust versions read none.
+//! `dword_5BECC4` is never cleared: where `mov` was meant the original has `cmp dword_5BECC4, 0`
+//! (0x41CEEA). Kept (section 16). Callers: `race::replay_viewer`, `race::viewer_action` (0x14),
+//! `race::choose_save_slot`.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
 use crate::gfx::owner::gfx;
 
-/// The Rust version. `set_up_engine` and `set_up_front_end_scene` run on a scratch
-/// register set (they read none of the caller's: attrib finds only esi read at entry).
 pub fn viewer_tidy_stage(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::viewer_flow::{tidies, TIDY_FIRST, frees_fonts,

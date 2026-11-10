@@ -18,8 +18,6 @@ const VOLUME_A: &Dword = &crate::menu::owner::MENUS.screens.option_work.menu_sou
 const VOLUME_B: &Dword = &crate::menu::owner::MENUS.screens.flow.menu_sounds_volume; // dword_7554E8
 const VOLUME_C: &Dword = &crate::menu::owner::MENUS.screens.option_work.menu_sounds_c; // dword_755690
 
-// ---- Rust version ----
-
 /// `sound` the menu's sound (0: none); `now` is asked for the clock.
 pub fn play_menu_sound(
     sound: u32,

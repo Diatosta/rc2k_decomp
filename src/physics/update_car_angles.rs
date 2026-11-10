@@ -8,7 +8,6 @@ use crate::physics::car_angles::car_angles;
 use crate::race::owner::Race;
 use rc2k_core::physics::motion::angles_wanted as wanted;
 
-/// The Rust version.
 // Converted: `rc2k_core::physics::motion::angles_wanted`.
 pub fn update_car_angles(race: &Race, scene: &crate::scene::owner::Scene) {
     let (force, hold) = (

@@ -8,7 +8,6 @@
 
 use crate::input::owner::Input;
 
-/// The Rust version.
 pub fn list_joysticks(input: &Input) {
     if input.devices.no_joysticks.get() != 0 {
         return;

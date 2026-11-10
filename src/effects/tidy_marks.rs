@@ -57,7 +57,6 @@ fn any_holds_blocks(ring: &Ring, masks: &Masks) -> Result<bool, Refused> {
     })?)
 }
 
-/// The Rust version (see the header).
 pub fn tidy_marks(effects: &Effects) -> Result<(), Refused> {
     let (paths, ring, masks) = (&effects.paths, &effects.ring, &effects.masks);
     let marks = crate::effects::setup::marks()?;

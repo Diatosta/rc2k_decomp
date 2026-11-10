@@ -2,8 +2,8 @@
 //! place where what the 3D code above it draws can be seen.
 //!
 //! Direct3D is used as a rasteriser only: every vertex comes transformed and lit
-//! (`Vertex`, the `D3DTLVERTEX` of DirectX 5). In the standalone program a renderer of
-//! ours will stand where the originals are; until then nothing is drawn there.
+//! (`Vertex`, the `D3DTLVERTEX` of DirectX 5). The standalone program draws them with the
+//! renderers in `render/`; the recorders here note what the 3D code asks for.
 
 pub mod cards_store;
 pub mod copy_screen_to_texture;

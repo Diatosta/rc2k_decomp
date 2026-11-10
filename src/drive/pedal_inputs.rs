@@ -1,9 +1,8 @@
-//! `drive::pedal_inputs` (0x43A004): the work car's pedals from the input words. With the
-//! keys' bit 0x4000 of `unk_71A440`: the throttle `unk_71A610` stepped by 0x10 toward 0x100
-//! (`dword_613894` set) or 0, held there (by the sign of the steps, as the original); else
-//! it is `dword_613894`. The same for the brake `unk_71A614` by bit 0x2000 and
-//! `dword_613898`. The handbrake `unk_71A618` = `dword_61389C`, 0 when that is 0x100 or
-//! less and `unk_71A400` is set.
+//! `drive::pedal_inputs` (0x43A004): the work car's pedals from the input words. With the keys' bit
+//! 0x4000 of `unk_71A440`: the throttle `unk_71A610` stepped by 0x10 toward 0x100 (`dword_613894`
+//! set) or 0, held there (by the sign of the steps, as the original); else it is `dword_613894`.
+//! The same for the brake `unk_71A614` by bit 0x2000 and `dword_613898`. The handbrake `unk_71A618`
+//! = `dword_61389C`, 0 when that is 0x100 or less and `unk_71A400` is set.
 //!
 //! Returns: `dword_61389C`, `unk_71A440`
 //!
@@ -23,7 +22,6 @@ fn step_pedal(shared: &Shared, bit: u32, input: &Dword, at: &Dword) {
     ));
 }
 
-/// The Rust version.
 // Converted: `rc2k_core::drive::controls::{pedal, handbrake}`.
 pub fn pedal_inputs(race: &Race) {
     step_pedal(

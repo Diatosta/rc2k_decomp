@@ -21,7 +21,6 @@ fn rate(drops: &WindscreenDrops, effects: &crate::effects::owner::Effects) {
     rate_x87(drops, &effects.frame.kept_view);
 }
 
-/// The Rust version (see the header).
 pub fn windscreen_drops_spawn(
     drops: &WindscreenDrops,
     effects: &crate::effects::owner::Effects,

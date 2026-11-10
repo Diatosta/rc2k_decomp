@@ -16,8 +16,6 @@ use crate::errors::Refused;
 use crate::sound::sets_store::SoundRequest;
 use rc2k_core::sound::engine::{computers, placed_slots};
 
-// ---- Rust version ----
-
 /// The timed slots of object `so`, through `request`.
 pub fn car_slot_sounds(
     so: &crate::sound::store::SoundObject,

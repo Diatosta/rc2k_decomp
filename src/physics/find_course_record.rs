@@ -19,7 +19,7 @@ use crate::physics::cells::Trap;
 use crate::race::owner_course::Course;
 use rc2k_core::physics::course_records::{Search, find_record, kind_of};
 
-/// The Rust version: the number of the course record with `key`, if any.
+/// The number of the course record with `key`, if any.
 pub fn find_course_record(course: &Course, key: u32) -> Result<Option<u32>, Refused> {
     let course_store = course;
     let (kind, _) = kind_of(key);

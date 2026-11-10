@@ -66,11 +66,10 @@ const REPLAY_WORDS: [&std::ffi::CStr; 13] = [
     c"[replayheader.gameoverflag1]",
     c"[replayheader.gameoverflag2]",
 ];
-/// `race::record_replay_header` (0x460246): the race's settings (the arcade's seed, start
-/// place and count, the stage, the mode, the players, the cars, the first four kinds, the
-/// two players' absences) into the car header (`dword_719B14` ..), each logged as
-/// "[replayheader.x]" (`log_write_l1`) and its value (`log_int_l1_nl`). Every register
-/// kept (the logs inside `pusha`); it reads none.
+/// `race::record_replay_header` (0x460246): the race's settings (the arcade's seed, start place and
+/// count, the stage, the mode, the players, the cars, the first four kinds, the two players'
+/// absences) into the car header (`dword_719B14` ..), each logged as "[replayheader.x]"
+/// (`log_write_l1`) and its value (`log_int_l1_nl`). it reads none.
 pub fn record_replay_header(race: &Race) {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::replay::HEADER_SETTINGS`.
@@ -124,8 +123,6 @@ fn clear_stage_flags(sound: &crate::sound::owner::Sound) {
     }
 }
 
-/// A sound command whose only register the audio thread reads is eax (the others go
-/// as 0).
 pub fn command(number: u32, eax: u32) {
     let mut registers = [0; 7];
     registers[0] = eax;
@@ -138,12 +135,11 @@ pub fn wait_for_commands() {
     wait_for_commands(&mut Game([0; 7]));
 }
 
-/// `race::reset_race_sounds` (0x40D378): the sound commands waited for, command 7 (with
-/// its end of turn), waited again, sounds held back, the race clock started; the eight
-/// race sound objects' 32 fields reset (`OBJECT_VALUES`); eleven variables 0; the 0x48
-/// voices' +0 0x1888FFFF and +0x14 -2; `dword_5165EC`, `dword_518054` 0, the EAX
-/// environment 1.0; command 2 with eax 3; `dword_5124E4` 0. Every register kept; the
-/// commands' registers but those the audio thread reads (command 2's eax) go as 0.
+/// `race::reset_race_sounds` (0x40D378): the sound commands waited for, command 7 (with its end of
+/// turn), waited again, sounds held back, the race clock started; the eight race sound objects' 32
+/// fields reset (`OBJECT_VALUES`); eleven variables 0; the 0x48 voices' +0 0x1888FFFF and +0x14 -2;
+/// `dword_5165EC`, `dword_518054` 0, the EAX environment 1.0; command 2 with eax 3; `dword_5124E4`
+/// 0.
 pub fn reset_race_sounds(v: &SoundVars, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let audio = crate::audio::owner::audio();
     wait_for_commands();
@@ -242,11 +238,10 @@ impl Tidy {
     }
 }
 
-/// `race::tidy_stage` (0x444940, "LOADLEVEL_TIDY"): each step with its word and the log
-/// indented round it: the mud, the point records, the marks' tidy (the log off), the
-/// fonts, the map, the textures, the course's two memories, the objects (then `g_inRace`
-/// 0, `dword_606294` `dword_6235F4`); "finis". What the steps leave in eax, ebx and the
-/// flags is read by no caller (taint at its one site, 0x444B56 in `tidy_everything`: 0 reads).
+/// `race::tidy_stage` (0x444940, "LOADLEVEL_TIDY"): each step with its word and the log indented
+/// round it: the mud, the point records, the marks' tidy (the log off), the fonts, the map, the
+/// textures, the course's two memories, the objects (then `g_inRace` 0, `dword_606294`
+/// `dword_6235F4`); "finis".
 pub fn tidy_stage(race: &Race) -> Result<(), Refused> {
     use crate::race::stage_free::{
         COURSE, COURSE_2, FONTS, MUD, OBJECT_POINTS, POINT_RECORDS, free,
@@ -286,11 +281,9 @@ pub fn tidy_stage(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::tidy_everything` (0x444AC7, "SHAUNTIDYEVERYTHING"): a line break, a rule,
-/// "START" (an empty indent), then each step with its word: the controls, the game mode,
-/// `tidy_stage`, the sounds (then `dword_63DB74` and `dword_63DB78` 1); "finis", a rule, a
-/// line break. Reads no register; of what it leaves its callers read only esi, which it
-/// keeps (taint at all six sites: 0 reads of the rest).
+/// `race::tidy_everything` (0x444AC7, "SHAUNTIDYEVERYTHING"): a line break, a rule, "START" (an
+/// empty indent), then each step with its word: the controls, the game mode, `tidy_stage`, the
+/// sounds (then `dword_63DB74` and `dword_63DB78` 1); "finis", a rule, a line break.
 pub fn tidy_everything(race: &Race) -> Result<(), Refused> {
     let input = crate::input::owner::input();
     let sound = crate::sound::owner::sound();
@@ -321,13 +314,12 @@ pub fn tidy_everything(race: &Race) -> Result<(), Refused> {
 
 // ---- the race ----
 
-/// `race::run_race` (0x443F0B): a race: `dword_60101C` 1, the log's indent 0; for an
-/// arcade race's first stage (`dword_75AFF4` 0, `dword_75ACD8` 2) a new noise seed
-/// (`math::next_random` into `dword_60519C`); `dword_621514` 0, `dword_5C5CE0` 1; the
-/// settings in, the arcade's cars, `dword_6238AC` 1, the start states, the stage loaded,
-/// the replay's header and file, `dword_63DB84` 0, the race run (`drive::play_race`), the
-/// replay closed, everything tidied, the settings out. `indent` is `g_logIndent`'s
-/// address. Its callers read only esi of what it leaves, which every step keeps.
+/// `race::run_race` (0x443F0B): a race: `dword_60101C` 1, the log's indent 0; for an arcade race's
+/// first stage (`dword_75AFF4` 0, `dword_75ACD8` 2) a new noise seed (`math::next_random` into
+/// `dword_60519C`); `dword_621514` 0, `dword_5C5CE0` 1; the settings in, the arcade's cars,
+/// `dword_6238AC` 1, the start states, the stage loaded, the replay's header and file,
+/// `dword_63DB84` 0, the race run (`drive::play_race`), the replay closed, everything tidied, the
+/// settings out. `indent` is `g_logIndent`'s address.
 pub fn run_race(race: &Race) -> Result<(), Refused> {
     race.physics.split_tables.arcade_kind.set(1);
     crate::logfile::write_line::state::INDENT.set(0);
@@ -359,8 +351,7 @@ pub fn run_race(race: &Race) -> Result<(), Refused> {
 // ---- above the race ----
 
 /// `race::release_textures` (0x443396): `race::release_stage_textures`,
-/// `scene::reset_texture_tables`. Reads no register; what it leaves (ecx, edi, eax, the
-/// flags) no caller reads (taint at its ten sites).
+/// `scene::reset_texture_tables`.
 pub fn release_textures() {
     let scene = crate::scene::owner::scene();
     crate::race::race_shell::release_stage_textures();
@@ -373,8 +364,8 @@ pub fn start_race(race: &Race) -> Result<(), Refused> {
     run_race(race)
 }
 
-/// `race::race_from_menu` (0x485570): `race::render3d_tidy`, `race::objects_tidy`,
-/// `nullsub_6`, `race::release_textures`, `race::start_race`.
+/// `race::race_from_menu` (0x485570): `race::render3d_tidy`, `race::objects_tidy`, `nullsub_6`,
+/// `race::release_textures`, `race::start_race`.
 pub fn race_from_menu(race: &Race) -> Result<(), Refused> {
     crate::race::stage_free::render3d_tidy(race)?;
     crate::race::stage_free::objects_tidy(race)?;

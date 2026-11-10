@@ -22,7 +22,6 @@ const STATES: [(u32, u32); 7] = [
     (1, 0x1B),
 ];
 
-/// The Rust version (see the header).
 pub fn windscreen_flakes_setup(fl: &WindscreenFlakes, scene: &crate::scene::owner::Scene) {
     setup_with(fl, read_bits(&fl.state.setup_places), scene);
 }

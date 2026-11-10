@@ -25,10 +25,7 @@ fn any_ending_key(input: &crate::input::owner::Input) -> u32 {
         .fold(0u32, |o, k| o | input.devices.keys_pressed.get(k) as u32)
 }
 
-/// The Rust version.
 // Converted: `rc2k_core::drive::race_ticks::{ends_pause, held_wait}`.
-/// The Rust version. The registers it leaves are read by no caller (liveness: nothing
-/// live after `race_loop`'s call).
 pub fn pause_until_key(
     race: &Race,
     input: &crate::input::owner::Input,

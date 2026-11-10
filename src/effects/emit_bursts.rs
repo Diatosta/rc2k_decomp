@@ -154,7 +154,6 @@ pub fn refusal(set: &BurstSet, wheel: &MarkRecord) -> Result<Option<&'static str
     })
 }
 
-/// The Rust version (see the header).
 pub fn emit_bursts(
     effects: &Effects,
     wheel: &MarkRecord,

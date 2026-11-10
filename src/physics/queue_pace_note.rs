@@ -26,9 +26,8 @@ use rc2k_core::physics::pace_calls::{Code, code, find_group, text_place};
 /// "!!! invalid pace data", "data", "ecx", "pointer".
 const WORDS: [&std::ffi::CStr; 4] = [c"!!! invalid pace data", c"data", c"ecx", c"pointer"];
 
-/// The Rust version: the pace notes of checkpoint `checkpoint` (edx), each cued
-/// (`physics::cue_listed_car_sound_last`) and queued (`physics::queue_listed_event`). The
-/// registers it leaves are read by none of its callers.
+/// The pace notes of checkpoint `checkpoint` (edx), each cued
+/// (`physics::cue_listed_car_sound_last`) and queued (`physics::queue_listed_event`).
 // Converted: `rc2k_core::physics::pace_calls::{find_group, code, text_place}`.
 pub fn queue_pace_note(
     race: &Race,

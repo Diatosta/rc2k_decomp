@@ -21,8 +21,7 @@ use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
 use crate::race::view_vars_store::ViewRecord;
 
-/// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
-/// (esi). The registers it leaves are read by none of its callers.
+/// The exact version, for `physics::update_camera`: `s` the view's record (esi).
 pub fn take_view_a(
     race: &Race,
     s: &ViewRecord,

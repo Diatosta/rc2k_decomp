@@ -14,7 +14,7 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     ]
 }
 
-/// The Rust version on the variables' cells.
+/// On the variables' cells.
 // Converted: `rc2k_core::physics::start::CarStart::mark_started`.
 fn core(v: &[&dyn Cell32]) {
     let was = CarStart {
@@ -27,7 +27,6 @@ fn core(v: &[&dyn Cell32]) {
     crate::physics::cells::set_changed(v[0], was.started, c.started);
 }
 
-/// The Rust version.
 pub fn mark_car_started(shared: &Shared) {
     core(&game(shared));
 }

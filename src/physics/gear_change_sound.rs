@@ -13,7 +13,7 @@ use crate::race::owner_shared::Shared;
 use crate::session::Dword;
 use rc2k_core::physics::gearbox::{GearChange, gear_change};
 
-/// The Rust version on the current car's sound object and the word at this place.
+/// On the current car's sound object and the word at this place.
 // Converted: `rc2k_core::physics::gearbox::gear_change`.
 pub fn gear_change_sound_at(
     o: &crate::sound::store::SoundObject,
@@ -29,7 +29,6 @@ pub fn gear_change_sound_at(
     Ok(())
 }
 
-/// The Rust version.
 pub fn gear_change_sound(shared: &Shared) -> Result<(), Refused> {
     gear_change_sound_at(
         crate::sound::store::current_object(),

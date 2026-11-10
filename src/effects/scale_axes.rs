@@ -4,7 +4,6 @@
 //! arithmetic is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables.
 
-/// The Rust version (see the header).
 pub fn scale_axes(fl: &WindscreenFlakes) {
     scale_axes_x87(&fl.tables, &fl.state);
 }

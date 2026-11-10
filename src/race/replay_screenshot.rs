@@ -1,11 +1,10 @@
 //! `race::replay_screenshot` (0x41F3DB): while the replay's frames are being recorded
-//! (`dword_5C2CCC` 1, a reading), the frame saved as a picture: the clock started at the
-//! first (`dword_5C2CD4` 1, `dword_5C2CD0` = `GetTickCount`); the six digits of the name
-//! `rpl\000000.pcx` (0x5C2CDC) one more (each past '9' back to '0' and the one before
-//! raised; all six at most); the name as `dword_4F49C8` while the surface is locked
-//! (`gfx::lock_surface`; carry: not saved), written (`gfx::write_screen_pcx`, the PCX writer) and
-//! unlocked (`gfx::unlock_surface`), `dword_4F49C8` put back; the clock on by `dword_5C2CF3`
-//! (the recording's frame time) for the next.
+//! (`dword_5C2CCC` 1, a reading), the frame saved as a picture: the clock started at the first
+//! (`dword_5C2CD4` 1, `dword_5C2CD0` = `GetTickCount`); the six digits of the name `rpl\000000.pcx`
+//! (0x5C2CDC) one more (each past '9' back to '0' and the one before raised; all six at most); the
+//! name as `dword_4F49C8` while the surface is locked, written (`gfx::write_screen_pcx`, the PCX
+//! writer) and unlocked (`gfx::unlock_surface`), `dword_4F49C8` put back; the clock on by
+//! `dword_5C2CF3` (the recording's frame time) for the next.
 //!
 //! Caller: `drive::race_frame` (each frame drawn).
 
@@ -13,7 +12,6 @@ use crate::errors::Refused;
 use crate::pointers::Store;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 
-/// The Rust version (see the header). (The original keeps every register.)
 pub fn replay_screenshot() -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
     if VIEWER_PANEL.replay_recording.bits() != 1 {

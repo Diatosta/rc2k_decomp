@@ -9,7 +9,6 @@
 
 use crate::effects::scale_vectors_by::scale_triples;
 
-/// The Rust version (see the header).
 pub fn scale_kept_vectors(effects: &crate::effects::owner::Effects) {
     let frame = &effects.frame;
     scale_triples(&[

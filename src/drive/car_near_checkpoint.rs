@@ -1,6 +1,5 @@
-//! `drive::car_near_checkpoint` (0x4375F2): whether a car (esi) in the stage (+0x25C not
-//! 0) is within 3 checkpoints of eax: CF when |+0x98 - eax| (`neg` of a negative) less 4
-//! has its sign set.
+//! `drive::car_near_checkpoint` (0x4375F2): whether a car in the stage (+0x25C not 0) is within 3
+//! checkpoints of eax: CF when |+0x98 - eax| (`neg` of a negative) less 4 has its sign set.
 //!
 //! Takes: a car block, a checkpoint
 //!
@@ -9,8 +8,7 @@
 use crate::physics::car_store::Car;
 use rc2k_core::physics::line_places::car_near;
 
-/// The Rust core: whether the car block `car` is near `checkpoint` (eax; the CF).
-/// The distance it leaves in ebx is read by no caller (`checkpoint_taken` keeps ebx).
+/// The Rust core: whether the car block `car` is near `checkpoint`.
 // Converted: `rc2k_core::physics::line_places::car_near`.
 pub fn near_at(car: &Car, checkpoint: u32) -> bool {
     car_near(

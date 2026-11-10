@@ -1,10 +1,9 @@
 //! `drive::reset_request` (0x43A0D3): the reset key held. Once the race is past 0x320
 //! (`unk_719FEC`, by the sign): with the keys' bit 0x80 (`unk_71A440`), outside mode 2
-//! (`dword_62389C`) and the car's speed below `flt_613828` (or unordered): a notice set up
-//! on the first step (`unk_71A6F4` 0xCD, `unk_71A708` 0x19, `unk_71A704` 0x12C), the count
-//! `unk_71A23C` + 1, at 100 the time penalty (0x2BC less `unk_71A1C0`) added to
-//! `unk_71A060`, the notice cleared and `physics::reset_car`. Else a count under way is
-//! cleared with the notice.
+//! (`dword_62389C`) and the car's speed below `flt_613828` (or unordered): a notice set up on the
+//! first step (`unk_71A6F4` 0xCD, `unk_71A708` 0x19, `unk_71A704` 0x12C), the count `unk_71A23C` +
+//! 1, at 100 the time penalty (0x2BC less `unk_71A1C0`) added to `unk_71A060`, the notice cleared
+//! and `physics::reset_car`. Else a count under way is cleared with the notice.
 //!
 //! Callers: `drive::car_controls`, `race::step_replay_cars`, `drive::replay_step`. Refuses what
 //! `physics::reset_car` refuses.
@@ -28,7 +27,7 @@ fn clear_notice(shared: &Shared) {
     }
 }
 
-/// The Rust version, then `physics::reset_car`.
+/// Then `physics::reset_car`.
 // Converted: `rc2k_core::drive::controls::{reset_counts, reset_held, reset_step, reset_penalty}`.
 pub fn reset_request(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let race_owner = race;

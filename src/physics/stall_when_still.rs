@@ -18,7 +18,7 @@ use crate::race::owner::Race;
 use crate::scene::matrix3::rounded;
 use crate::session::Cell32;
 
-/// The Rust core on the variables' cells `v`. The registers the original leaves are read by none of its callers (esi, edi).
+/// On the variables' cells `v`.
 pub fn stall_at(race: &Race, v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
@@ -58,7 +58,6 @@ fn game<'a>(race: &'a Race, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dy
     ]
 }
 
-/// The Rust version.
 pub fn stall_when_still(race: &Race, scene: &crate::scene::owner::Scene) {
     stall_at(race, &game(race, scene));
 }

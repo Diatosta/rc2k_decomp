@@ -1,6 +1,6 @@
-//! `race::put_mud_texel` (0x44A5A9): a texel of the locked mud texture (`g_surface`) set
-//! by its place on a 256 x 256 square, the place halved as `race::mud_texel`'s; skipped
-//! when an odd place is halved, or outside the surface; else `gfx::put_surface_pixel`.
+//! `race::put_mud_texel` (0x44A5A9): a texel of the locked mud texture (`g_surface`) set by its
+//! place on a 256 x 256 square, the place halved as `race::mud_texel`'s; skipped when an odd place
+//! is halved, or outside the surface; else `gfx::put_surface_pixel`.
 //!
 //! Takes: the components, x, y (0 .. 0xFF)
 //! Returns: the pixel put, or as it came
@@ -12,7 +12,7 @@ use crate::errors::Refused;
 use crate::gfx::put_surface_pixel::put_surface_pixel;
 use crate::race::mud_texel::texel_place;
 
-/// The Rust version (see the header): eax as it leaves it.
+/// Eax as it leaves it.
 pub fn put_mud_texel(components: u32, x: u32, y: u32) -> Result<u32, Refused> {
     let gfx = crate::gfx::owner::gfx();
     let drawing = &gfx.drawing;

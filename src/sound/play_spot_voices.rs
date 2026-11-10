@@ -24,8 +24,6 @@ use crate::sound::sets_store::SoundRequest;
 use crate::sound::spot_voices::{VOICE_COUNT, set, voice, vw};
 use rc2k_core::sound::spot_voices::{Played, REQUEST_FROM, end_time, going_on, played, time_up};
 
-// ---- Rust version ----
-
 /// The spots' voices played through `request`.
 pub fn play_spot_voices(
     request: &SoundRequest,

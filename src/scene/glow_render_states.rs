@@ -4,7 +4,7 @@
 //!
 //! Callers: `race::draw_sky`, `race::draw_view_backdrop`.
 
-/// The Rust version (see the header): the registers it leaves on `r`.
+/// The registers it leaves on `r`.
 // Converted: `rc2k_core::scene::render_states::GLOW`
 pub fn glow_render_states() {
     for s in rc2k_core::scene::render_states::GLOW {

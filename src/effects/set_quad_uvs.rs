@@ -10,7 +10,6 @@ use crate::d3d::vertices_store::VERTICES;
 /// The record of `g_marksCornerSlopes` whose eight values are the set (0xC60 bytes on).
 const SET_RECORD: usize = 0xC60 / 0x24;
 
-/// The Rust version (see the header).
 pub fn set_quad_uvs(effects: &crate::effects::owner::Effects) {
     {
         crate::scene::depth_test_off::depth_test_off();

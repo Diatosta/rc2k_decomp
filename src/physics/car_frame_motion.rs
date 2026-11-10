@@ -9,7 +9,7 @@ use crate::math::cells::Cells;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 
-/// The Rust core: the motion `from` turned by the matrix `m` into `to`.
+/// The motion `from` turned by the matrix `m` into `to`.
 pub fn car_frame_motion(
     from: &(impl Cells + ?Sized),
     m: &(impl Cells + ?Sized),

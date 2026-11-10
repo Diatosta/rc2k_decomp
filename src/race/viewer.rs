@@ -5,10 +5,9 @@
 //! (`dword_9673F4` ..), the cameras of each block (`unk_963BB4`: 8 bytes a block, the
 //! first 8 of the block's data), and saving the result as a replay slot.
 //!
-//! The tests: a copy of the original whose calls go to `install::stand_ins` (`copy`),
-//! noted by `note` with eax, ebx, ecx and edx and answered by the test's `answer` (eax and
-//! the flags, memory written); the Rust side calls `test_part`, which does the same. Then
-//! `run_both` compares the registers, the flags the callers read, the calls and memory.
+//! The tests: a copy of the original whose calls go to `install::stand_ins` (`copy`), noted by
+//! `note` with eax, ebx, ecx and edx and answered by the test's `answer`; the Rust side calls
+//! `test_part`, which does the same.
 
 use crate::errors::BadInput;
 use crate::math::cells::Cells;

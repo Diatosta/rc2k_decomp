@@ -19,8 +19,7 @@ use crate::race::owner_shared::Shared;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 
-/// The Rust version (the exact one, for `physics::apply_forces`):
-/// `rec` on the car block `car`.
+/// The exact version, for `physics::apply_forces`: `rec` on the car block `car`.
 pub fn apply_force(
     shared: &Shared,
     rec: &ForceRecord,

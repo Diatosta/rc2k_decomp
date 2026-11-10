@@ -13,8 +13,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::sound::spot_voices::{MOST_KIND, MOST_SPOTS, load_voices, store_voices};
 
-// ---- Rust version ----
-
 pub fn match_spot_voices(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     use rc2k_core::sound::spot_voices::Spot;
     // Converted: `rc2k_core::sound::spot_voices::match_spots`.

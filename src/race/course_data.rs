@@ -17,8 +17,8 @@ const KINDS: u32 = 0x100;
 /// The records the course memory's first part (0xF00000 bytes) can hold.
 pub const MOST_RECORDS: u32 = 0x7_8000;
 
-/// `race::set_cdat_number` (0x4456DD): `number`'s two digits (its low byte's `div 10`, +
-/// '0') into both cdat paths.
+/// `race::set_cdat_number` (0x4456DD): `number`'s two digits (its low byte's `div 10`, + '0') into
+/// both cdat paths.
 pub fn set_cdat_number(course: &Course, number: u32) {
     // Converted: `rc2k_core::race::stage::two_digits`.
     let digits = rc2k_core::race::stage::two_digits(number as u8);
@@ -46,9 +46,9 @@ pub fn clear_lit_faces(physics: &Physics) {
     physics.contact.lit_face_count.set_bits(0u32);
 }
 
-/// `race::reset_face_lights` (0x45ED70): each face whose first byte is 0xFF gets its
-/// +0x30 .. +0x38 and bytes +0x11 .. +0x13 0; then `clear_lit_faces`. Refuses no faces
-/// (the original counts round) or 0x100000 or more.
+/// `race::reset_face_lights` (0x45ED70): each face whose first byte is 0xFF gets its +0x30 .. +0x38
+/// and bytes +0x11 .. +0x13 0; then `clear_lit_faces`. Refuses no faces (the original counts round)
+/// or 0x100000 or more.
 pub fn reset_face_lights(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     let physics = &race.physics;
@@ -77,11 +77,11 @@ pub fn reset_face_lights(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::group_records_by_kind` (0x421E42): the course's 0x20-byte records put in order
-/// of kind (low four bits of the first dword, + bits 11 .. 14 times 16), each kind's in
-/// the order met, by swapping each one found into the next place; `g_kindFirstRecords`
-/// and `g_kindLastRecords` each kind's first and last number, -1 for both with none.
-/// Refuses more records than the course memory's first part holds.
+/// `race::group_records_by_kind` (0x421E42): the course's 0x20-byte records put in order of kind
+/// (low four bits of the first dword, + bits 11 .. 14 times 16), each kind's in the order met, by
+/// swapping each one found into the next place; `g_kindFirstRecords` and `g_kindLastRecords` each
+/// kind's first and last number, -1 for both with none. Refuses more records than the course
+/// memory's first part holds.
 pub fn group_records_by_kind(course: &Course) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::stage::group_by_kind`; the records read whole (every
     // one is swapped into place, so the original reads them all).
@@ -156,10 +156,10 @@ fn take_scene_points(course: &Course) -> Result<(), BadInput> {
     )
 }
 
-/// `race::load_level` (0x4455FC): the course data (cdat 0) read into the course memory's
-/// first part (`files::read_level_file`, the bytes in `dword_60B2CC`; a failed read is
-/// fatal error 0x80650210, without a message), its header copied, laid out, the faces'
-/// lights reset, with "loadlevel", "done", "next", "this", "then", "ok" in the log.
+/// `race::load_level` (0x4455FC): the course data (cdat 0) read into the course memory's first part
+/// (`files::read_level_file`, the bytes in `dword_60B2CC`; a failed read is fatal error 0x80650210,
+/// without a message), its header copied, laid out, the faces' lights reset, with "loadlevel",
+/// "done", "next", "this", "then", "ok" in the log.
 pub fn load_level(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     use crate::files::read_level_file;

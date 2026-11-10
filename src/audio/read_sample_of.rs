@@ -8,8 +8,6 @@
 use crate::audio::voices::SampleRecord;
 use crate::errors::Refused;
 
-// ---- Rust version ----
-
 /// `read`: the reading of a path, true for found. Returns true for the carry clear.
 pub fn read_sample_of(
     record: &SampleRecord,

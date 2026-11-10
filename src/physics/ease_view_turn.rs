@@ -15,7 +15,7 @@ use crate::math::x87_float::{int, ld};
 use crate::race::owner::Race;
 use crate::session::Cell32;
 
-/// The Rust version (the exact one, for `physics::camera_avoid_ground`).
+/// The exact version, for `physics::camera_avoid_ground`.
 pub fn ease_view_turn(race: &Race, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     if race.replay.replay_frames.step_first.get() != 0 {

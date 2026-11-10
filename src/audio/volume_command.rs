@@ -5,8 +5,6 @@
 
 use crate::audio::store::AudioState;
 
-// ---- Rust version ----
-
 /// `set`: the master volume's setting.
 pub fn volume_command(state: &AudioState, volume: u32, set: &mut dyn FnMut(u32)) {
     // Converted: `rc2k_core::audio::levels::kept_master_volume`.

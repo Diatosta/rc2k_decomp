@@ -1,20 +1,17 @@
-//! `hud::draw_needle` (0x4B6ECD): a HUD needle: its value (`dword_75C2E0`, as a float
-//! through `dword_75C060`) held to `flt_75C018` at least; with `dword_75BFAC` held to
-//! `flt_75C2C8` at most and made an angle over `flt_75C2CC` plus `flt_75C2BC`; without,
-//! held to `flt_75C2D4`, and below `flt_75C2C4` over `flt_75C2D0` plus `flt_75C2BC`, else
-//! less `flt_75C2C4` over `flt_75C2CC` plus `flt_75C2C0`; times `flt_75C010` times
-//! `flt_75C014` (`fistp`), times -16 the turn; the needle's four corners (x `flt_75C2A8` /
-//! `flt_75C2B0`, y `flt_75C2AC` / `flt_75C2B4`) by `hud::turned_vertex`, then
-//! `hud::add_polygon` on four. (The holds by the compares' C0, an unordered compare
-//! counting as below.)
+//! `hud::draw_needle` (0x4B6ECD): a HUD needle: its value (`dword_75C2E0`, as a float through
+//! `dword_75C060`) held to `flt_75C018` at least; with `dword_75BFAC` held to `flt_75C2C8` at most
+//! and made an angle over `flt_75C2CC` plus `flt_75C2BC`; without, held to `flt_75C2D4`, and below
+//! `flt_75C2C4` over `flt_75C2D0` plus `flt_75C2BC`, else less `flt_75C2C4` over `flt_75C2CC` plus
+//! `flt_75C2C0`; times `flt_75C010` times `flt_75C014` (`fistp`), times -16 the turn; the needle's
+//! four corners (x `flt_75C2A8` / `flt_75C2B0`, y `flt_75C2AC` / `flt_75C2B4`) by
+//! `hud::turned_vertex`, then `hud::add_polygon` on four. (The holds by the compares' C0, an
+//! unordered compare counting as below.)
 //!
 //! Callers: the needles' set-ups (`hud::needle_*`).
 //!
-//! Converted 2026-10-21: the holds, the choice of the angle's way, the turn's register and
-//! the corners through `rc2k_core::hud::disc` (compares of floats only: exact); the value
-//! made a float and the turn's arithmetic and rounding stay the x87's (they follow its
-//! control word). `dword_75C060` is written once, with the turn (the original also holds
-//! the value there between, read by nothing).
+//! The value made a float and the turn's arithmetic and rounding stay the x87's (they follow its
+//! control word). `dword_75C060` is written once, with the turn (the original also holds the value
+//! there between, read by nothing).
 
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
@@ -33,7 +30,6 @@ fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 
     }
 }
 
-/// The Rust version (see the header).
 // Converted: `rc2k_core::hud::disc::{needle_turn, needle_edx, needle_corners}`
 pub fn draw_needle(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     use rc2k_core::hud::disc::{needle_corners, needle_edx, needle_turn};

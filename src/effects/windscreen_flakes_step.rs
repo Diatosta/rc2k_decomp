@@ -14,7 +14,6 @@ use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 
-/// The Rust version (see the header).
 // Converted: `rc2k_core::effects::steps::{steps, next_step}`
 pub fn windscreen_flakes_step(
     masks: &Masks,

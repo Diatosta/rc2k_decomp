@@ -20,7 +20,7 @@ pub struct Race {
     pub shared: Shared,
 }
 
-/// The one instance. Reached through `race()`; `moved` registers its stores' places.
+/// The one instance. Reached through `race()`.
 pub static RACE: Race = Race {
     physics: Physics::new(),
     course: Course::new(),

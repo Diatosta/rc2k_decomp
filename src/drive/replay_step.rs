@@ -1,15 +1,14 @@
 //! `drive::replay_step` (0x460B2F): the two-player / replay race's step (`drive::race_tick`'s).
-//! `drive::choose_shown_cars`; the replay's frame kept (`drive::keep_replay_frame`) and,
-//! playing, read (`drive::play_replay_frame`); the skid marks begun again
-//! (`race::init_skidmarks`) unless the first block's clock (+8) is one past +0xF0C, which
-//! takes it. For each car (`g_currentCar` from 0): its input words
-//! (`drive::car_input_words`, recorded or played: `record_inputs_if`, `play_inputs_if`),
-//! its block into `dword_71B404`, `drive::load_car`; running (`unk_71A234`): controls,
-//! gear rules, steering, pedals, the reset key, `physics::car_physics_step` and the
-//! network's step (`net::race_step`, its Rust version); the work car's clocks
-//! (`unk_719FE0`, `unk_719FEC`) + 1; `drive::store_car`. Then the stage's animation, the
-//! race-mode cars, the duel's sound levels, the count down's beeps, the two cars' order,
-//! the hold count, the replay written at its last tenth, the replay's clock.
+//! `drive::choose_shown_cars`; the replay's frame kept (`drive::keep_replay_frame`) and, playing,
+//! read (`drive::play_replay_frame`); the skid marks begun again (`race::init_skidmarks`) unless
+//! the first block's clock (+8) is one past +0xF0C, which takes it. For each car (`g_currentCar`
+//! from 0): its input words (`drive::car_input_words`, recorded or played: `record_inputs_if`,
+//! `play_inputs_if`), its block into `dword_71B404`, `drive::load_car`; running (`unk_71A234`):
+//! controls, gear rules, steering, pedals, the reset key, `physics::car_physics_step` and the
+//! network's step (`net::race_step`, its Rust version); the work car's clocks (`unk_719FE0`,
+//! `unk_719FEC`) + 1; `drive::store_car`. Then the stage's animation, the race-mode cars, the
+//! duel's sound levels, the count down's beeps, the two cars' order, the hold count, the replay
+//! written at its last tenth, the replay's clock.
 //!
 //! Caller: `drive::race_step`'s `drive::race_tick`. Refuses (before anything) a cars' count of 0
 //! or past 8, and what its calls refuse (the cars' blocks, the work car and the physics'
@@ -38,9 +37,6 @@ fn car_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refus
         crate::drive::pedal_inputs::pedal_inputs(race);
         crate::drive::reset_request::reset_request(race, scene)?;
         crate::physics::car_physics_step::car_physics_step(race)?;
-        // `net::race_step` reads no register at entry (liveness: its esi "read" at
-        // 0x4644AF is `imul esi, ebp, ..`'s destination); its Rust version still takes
-        // the registers: a local scratch.
         crate::net::race_step::race_step(race)?;
     }
     race.shared
@@ -55,8 +51,6 @@ fn car_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refus
     Ok(())
 }
 
-/// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi
-/// and esi after `drive::race_tick`'s call have no read point).
 // Converted: `rc2k_core::drive::race_steps::{check_cars, each_car, block_slot,
 // skids_restart}`.
 pub fn replay_step(
@@ -73,7 +67,6 @@ pub fn replay_step(
         CAR_BLOCKS.cars[0].step_clock.bits(),
         CAR_BLOCKS.cars[0].unknown_f0c.bits(),
     ) {
-        // `race::init_skidmarks` reads no register at entry (liveness): a scratch.
         crate::race::stage_prefs::init_skidmarks(race)?;
     }
     CAR_BLOCKS.cars[0]

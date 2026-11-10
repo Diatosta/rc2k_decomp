@@ -14,7 +14,6 @@ use crate::physics::sound_bands::band_value_plain;
 use crate::race::owner::Race;
 use rc2k_core::physics::sound_places::{FIRST, SOUND_E1};
 
-/// The Rust version.
 // Converted: `rc2k_core::physics::sound_places`.
 pub fn place_sound_e1_other(race: &Race) -> Result<(), Refused> {
     if !listed(&race.frame, race.physics.contact.other_car_number.get())?

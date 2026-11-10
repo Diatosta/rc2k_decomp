@@ -15,7 +15,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-// ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::spot_voices::merge` and `merge_between`. The voices of
 /// `sound` merged.

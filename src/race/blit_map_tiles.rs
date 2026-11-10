@@ -1,10 +1,9 @@
-//! `race::blit_map_tiles` (0x41B931): the map's tiles into its picture: the texture eax
-//! locked (`d3d::lock_texture`; carry: nothing), then 8 x 8 tiles of 16 x 16 pixels from
-//! tile (ecx, edx) on: each the tile's pixels (`g_mapTiles`, 0x80 x 0x80 pointers, 16 x 16
-//! pixels each) or, for a tile without them or outside the 0x80 x 0x80, the colour
-//! `g_mapBlack`, as words on a surface of 2 bytes a pixel and as dwords on any other, at the
+//! `race::blit_map_tiles` (0x41B931): the map's tiles into its picture: the texture eax locked,
+//! then 8 x 8 tiles of 16 x 16 pixels from tile on: each the tile's pixels (`g_mapTiles`, 0x80 x
+//! 0x80 pointers, 16 x 16 pixels each) or, for a tile without them or outside the 0x80 x 0x80, the
+//! colour `g_mapBlack`, as words on a surface of 2 bytes a pixel and as dwords on any other, at the
 //! tile's place on the locked surface (`g_surface`); the gap between a tile's rows kept in
-//! `dword_5BE9AD`; unlocked (`d3d::unlock_texture`, eax as the lock left it).
+//! `dword_5BE9AD`; unlocked.
 //!
 //! Callers: `race::map_tiles_stub`, so `race::map_tiles` (the map's scroll). Refuses (after the
 //! lock, unlocking first) a null surface, and a null tile table with a tile inside the 0x80 x
@@ -17,7 +16,6 @@ use crate::race::game_map::{GAME_MAP, Tile};
 use crate::race::owner_frame::Frame;
 use rc2k_core::race::map::TILE;
 
-/// The Rust version (see the header).
 pub fn blit_map_tiles(
     frame: &Frame,
     texture: u32,

@@ -25,7 +25,7 @@ fn turn_unit(m: &(impl Cells + ?Sized), turned: &[&Float; 3], unit: [u32; 3]) {
     }
 }
 
-/// The Rust version on the matrix `m`; the angles in `COURSE_LISTS`.
+/// On the matrix `m`; the angles in `COURSE_LISTS`.
 pub fn matrix_angles(
     course: &Course,
     m: &(impl Cells + ?Sized),

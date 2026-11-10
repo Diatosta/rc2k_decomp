@@ -28,7 +28,7 @@ fn ribbon(effects: &crate::effects::owner::Effects) {
     ribbon_x87(&frame.draw_work, &frame.view_vars);
 }
 
-/// The Rust version (see the header): `cell` (eax), `alpha` (ecx), `width` (edx),
+/// `cell` (eax), `alpha` (ecx), `width` (edx),
 /// `colour` (esi). Its one caller reads no register after it.
 pub fn draw_ribbon(
     masks: &Masks,

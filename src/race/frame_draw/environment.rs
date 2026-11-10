@@ -38,12 +38,12 @@ pub(super) fn add_eax_weight(race: &Race, sum: &mut u32, v: u32) {
 }
 
 /// `race::eax_face_weight` (0x45C881): the weight of `face` in the EAX sound environment
-/// (`g_eaxEnvironment`), by its distance from car 0 (x and z): kind 0xFF with an object
-/// (+1) below 0x38: its +0x18 byte over the distance to its first point; kinds below 0x10
-/// with |+0x30| below 0.25: 3.0 over the distance to the middle of its second and third
-/// points; each held to 16 (see `add_eax_weight`). Distances by the game's root tables. (The
-/// original kept the middle and the distance in `CONTACT_WORK.eax_mid_x` / `eax_mid_z` /
-/// `eax_distance`, which nothing read: locals here.)
+/// (`g_eaxEnvironment`), by its distance from car 0 (x and z): kind 0xFF with an object (+1) below
+/// 0x38: its +0x18 byte over the distance to its first point; kinds below 0x10 with |+0x30| below
+/// 0.25: 3.0 over the distance to the middle of its second and third points; each held to 16 (see
+/// `add_eax_weight`). Distances by the game's root tables. (The original kept the middle and the
+/// distance in `CONTACT_WORK.eax_mid_x` / `eax_mid_z` / `eax_distance`, which nothing read: locals
+/// here.)
 pub fn eax_face_weight(race: &Race, sum: &mut u32, face: u32) -> Result<(), BadInput> {
     use crate::math::x87::{div, from_int};
     use crate::math::x87_load::{
@@ -84,9 +84,9 @@ pub fn eax_face_weight(race: &Race, sum: &mut u32, face: u32) -> Result<(), BadI
 /// `race::eax_environment` (0x45C7EE): the view's EAX weight, returned (the view's output:
 /// `race::draw_view_scene`): from 0.0, the 3 x 3 grid cells around the middle (from
 /// `hold_to_limit(race().course.stage_prefs.grid_reach)` - 1 on each axis; 0x45C84C each): every
-/// face of each cell's course record (numbers below 0x0FFFFFFF) weighed by `eax_face_weight`.
-/// The original summed straight into `g_eaxEnvironment`, which the audio thread reads at its
-/// own pace (`audio::update_voices`): it could take a sum half made (`notes/bugs.md`).
+/// face of each cell's course record (numbers below 0x0FFFFFFF) weighed by `eax_face_weight`. The
+/// original summed straight into `g_eaxEnvironment`, which the audio thread reads at its own pace
+/// (`audio::update_voices`): it could take a sum half made (`notes/bugs.md`).
 pub fn eax_environment(
     race: &Race,
     view: &crate::race::view_grid::ViewGrid,

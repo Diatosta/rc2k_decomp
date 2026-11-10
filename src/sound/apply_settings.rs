@@ -10,8 +10,6 @@
 use crate::audio::owner::audio;
 use rc2k_core::audio::commands::SoundList;
 
-// ---- Rust version ----
-
 pub use rc2k_core::sound::set_up::Step;
 
 /// A step run: each command sent with its eax, all the audio thread reads of it (the

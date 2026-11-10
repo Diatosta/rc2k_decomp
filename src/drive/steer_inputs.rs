@@ -1,14 +1,13 @@
-//! `drive::steer_inputs` (0x439DB1): the work car's steering from the input word
-//! `dword_613890`. Key steering (the word 0, or a car not driven by device, `unk_71A234`
-//! not 2, with the keys' bit 0x1000 of `unk_71A440`): the step 0xA00000 x `flt_614C0C`
-//! (`fistp`) moves the two steering values `unk_71A620`, `unk_71A61C` toward the side the
-//! word says, held at ± 0x20000000, or, with the word 0, back toward 0 at twice the step
-//! (stopping at 0; each by the sign of the result, as the original). Device steering:
-//! the word x 0x20000000 >> 8 (`imul`, `shrd`) x `flt_614C08`, held ± 0x20000000, into
-//! both (`unk_71A61C` 0 first). Then the trim (0x20000000 x `unk_71A3E0`, negated with
-//! `unk_719FE8` bit 0x10) into `unk_71A1E0`; `unk_71A624` = `unk_71A61C` + it,
-//! `unk_71A628` = `unk_71A620` + 4 x it; both 0 unless `unk_71A308` is below
-//! `flt_5C5D14` (or unordered).
+//! `drive::steer_inputs` (0x439DB1): the work car's steering from the input word `dword_613890`.
+//! Key steering (the word 0, or a car not driven by device, `unk_71A234` not 2, with the keys' bit
+//! 0x1000 of `unk_71A440`): the step 0xA00000 x `flt_614C0C` (`fistp`) moves the two steering
+//! values `unk_71A620`, `unk_71A61C` toward the side the word says, held at ± 0x20000000, or, with
+//! the word 0, back toward 0 at twice the step (stopping at 0; each by the sign of the result, as
+//! the original). Device steering: the word x 0x20000000 >> 8 (`imul`, `shrd`) x `flt_614C08`, held
+//! ± 0x20000000, into both (`unk_71A61C` 0 first). Then the trim (0x20000000 x `unk_71A3E0`,
+//! negated with `unk_719FE8` bit 0x10) into `unk_71A1E0`; `unk_71A624` = `unk_71A61C` + it,
+//! `unk_71A628` = `unk_71A620` + 4 x it; both 0 unless `unk_71A308` is below `flt_5C5D14` (or
+//! unordered).
 //!
 //! Callers: `drive::car_controls`, `race::step_replay_cars`, `drive::replay_step`.
 
@@ -79,8 +78,8 @@ fn steer(shared: &Shared, cell: &Dword, step: u32) {
     }
 }
 
-/// The Rust version (the exact one, for `drive::simple_car_step`, `drive::replay_step`
-/// and `race::step_replay_cars`).
+/// (the exact one, for `drive::simple_car_step`, `drive::replay_step` and
+/// `race::step_replay_cars`).
 pub fn steer_inputs(race: &Race) {
     let scene = crate::scene::owner::scene();
     let race_owner = race;

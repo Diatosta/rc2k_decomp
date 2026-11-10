@@ -1,7 +1,5 @@
-//! `drive::device_axes` (0x409430): an input device's four readings
-//! (`g_inputDevices[esi]`, +0x4DC .. +0x4E8: into ecx, edx, eax, ebx, as
-//! `input_device_read` 0x40930D, inlined), with `dword_4F6900` set the first (eax)
-//! squared / 256 with its sign kept.
+//! `drive::device_axes` (0x409430): an input device's four readings, with `dword_4F6900` set the
+//! first squared / 256 with its sign kept.
 //!
 //! Takes: the device
 //! Returns: the readings
@@ -11,7 +9,7 @@
 use crate::errors::{BadInput, Refused};
 use rc2k_core::drive::controls::device_curve;
 
-/// The Rust version: [eax, ebx, ecx, edx].
+/// [eax, ebx, ecx, edx].
 // Converted: `rc2k_core::drive::controls::device_curve`.
 pub fn device_axes(device: u32, input: &crate::input::owner::Input) -> Result<[u32; 4], Refused> {
     if device > 7 {

@@ -19,8 +19,7 @@ use crate::physics::vector_length::vector_length;
 use crate::race::norms::normalise_work_vector;
 use crate::race::owner::Race;
 
-/// The steps, not guarded. The registers the original leaves are read by none of its
-/// callers.
+/// The steps, not guarded.
 pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let work = &race.frame.scratch.work_vector;
     copy_cells(work, &race.shared.car.velocity);

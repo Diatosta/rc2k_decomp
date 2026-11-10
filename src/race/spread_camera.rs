@@ -1,7 +1,6 @@
-//! `race::spread_camera` (0x41E6BD): a block's camera byte changed (ebx, the old value in
-//! dh): the new value (`[ebx]`) also into the next blocks' same byte (8 bytes on each)
-//! while they held the old one, for the blocks after the one shown
-//! (`dword_5BECD0 - dword_5C2530` less one at most).
+//! `race::spread_camera` (0x41E6BD): a block's camera byte changed: the new value also into the
+//! next blocks' same byte (8 bytes on each) while they held the old one, for the blocks after the
+//! one shown (`dword_5BECD0 - dword_5C2530` less one at most).
 //!
 //! Callers: `race::viewer_action` (four), `race::next_camera`, `race::previous_camera`, with
 //! the block shown not the last. The count is not checked: 0 (or less) is limited only by the
@@ -13,9 +12,7 @@ use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 use crate::race::trap::Trap;
 
-/// The Rust version: `byte` the changed camera byte, `old` its old value. What
-/// the original leaves (dl, eax, ecx) its callers do not read: `viewer_action` and the
-/// camera steps end with it, and `viewer_action` keeps every register.
+/// `byte` the changed camera byte, `old` its old value.
 pub fn spread_camera(race: &Race, byte: GamePtr, old: u8) -> Result<(), Refused> {
     let replay = &race.replay;
     // The camera bytes of the following blocks, 8 bytes apart (a stride over bytes).

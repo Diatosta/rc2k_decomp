@@ -20,10 +20,8 @@ use crate::race::owner::Race;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::contacts;
 
-/// The Rust version: whether one of the object's points is inside the car (CF); `point`
-/// and `object` what esi and ebp hold at entry (`point_hits_car`'s). The registers it
-/// leaves (eax the point's number, ebx the object, ecx the points left, edx the last
-/// address) are read by none of its callers.
+/// Whether one of the object's points is inside the car (CF); `point` and `object` what esi and ebp
+/// hold at entry (`point_hits_car`'s).
 // Converted: `rc2k_core::physics::contacts::{check_object, walk_points}` (the turns stay
 // x87).
 pub fn object_hits_car(

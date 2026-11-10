@@ -6,8 +6,6 @@
 
 use crate::audio::store::AudioState;
 
-// ---- Rust version ----
-
 /// The property set released, and the room asked for and the room set back to 6.
 pub fn release_eax(state: &AudioState) {
     let object = state.eax_properties.get();

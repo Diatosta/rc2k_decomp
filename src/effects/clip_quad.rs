@@ -49,7 +49,7 @@ fn copy_vertex(from: &Vertex, to: &Vertex) {
     to.v.set_bits(from.v.bits());
 }
 
-/// The Rust version (see the header): whether all the quad is outside (the original's CF).
+/// Whether all the quad is outside (the original's CF).
 /// The quad is the polygon vertices' first four (`g_polygonVertices`, every caller's);
 /// the original stepped its vertex offsets by 0x20 and masked them with 0x7F, here the
 /// vertex numbers wrap at 4.

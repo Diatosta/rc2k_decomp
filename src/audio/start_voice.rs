@@ -22,8 +22,6 @@ use crate::audio::owner::Audio;
 use crate::audio::voices::{GamePool, lists, store_lists};
 use crate::errors::Refused;
 
-// ---- Rust version ----
-
 /// Converted: `rc2k_core::audio::voices::start_voice`; nothing is written when it refuses.
 pub fn start_voice(audio: &Audio, sound: i32, cmd: &[u32; 8]) -> Result<(), Refused> {
     let mut l = lists(&audio.state);

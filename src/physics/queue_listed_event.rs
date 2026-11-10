@@ -11,7 +11,6 @@ use crate::physics::queue_car_event::queue_car_event;
 use crate::race::owner::Race;
 use rc2k_core::physics::car_events::listed_event;
 
-/// The Rust version.
 pub fn queue_listed_event(race: &Race, ebx: u32) -> Result<(), Refused> {
     let Some((event, queued)) = listed_event(ebx, |n| {
         race.shared.physics_tables.listed_events[n as usize].get()

@@ -21,7 +21,6 @@ fn limit(pong: &Pong, n: usize) -> u32 {
     pong.rules.walls[n].bits()
 }
 
-/// The Rust version (see the header).
 pub fn move_pong_ball(pong: &Pong, effects: &crate::effects::owner::Effects) {
     let p = &pong.state;
     let limit = |n| limit(pong, n);

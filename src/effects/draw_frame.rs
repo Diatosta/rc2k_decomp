@@ -36,7 +36,7 @@ fn rdtsc() -> u32 {
     crate::arch::rdtsc() as u32
 }
 
-/// The Rust version (see the header): `cars_particles`, `view_heading`, `view_motion`,
+/// `cars_particles`, `view_heading`, `view_motion`,
 /// `begin_quads`, `scene::depth_test_on`.
 pub fn draw_frame(race: &Race, effects: &Effects) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();

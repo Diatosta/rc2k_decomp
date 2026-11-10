@@ -1,21 +1,19 @@
-//! `race::draw_tyre_change` (0x41C38C): the tyre change's texture (`dword_5BEBE0`, then
-//! copied to the device's `dword_5BEBE4`), for the device at esi. ebp = esi; the clip's
-//! left and right kept round it. Its lock (`d3d::lock_texture`); unless that failed or the
-//! texture was drawn before (`dword_5BEBE8` 1), strings 0x129 (font `stru_51E304`, its
-//! +0x1C 0xF8, at 4, 0x80), then with the clip's left 0x80 0x12A (`unk_51E2E4`, at 0xFC, 0)
-//! and 0x12B (`unk_51E2C4`, at 0x84, a line down: `dword_51E2CC`), each by
-//! `text::draw_string_by_id`. Then (also after a failed lock:
-//! section 16) the clip's left 0x80; the rectangle (0x80, 0x32, 0x80, 0x4B) filled with
-//! colour 0 (`gfx::fill_rect`, `dword_5C2A1C`, palette `unk_5BEC2C`); string 0x12E and the
-//! record's time (`g_tyreChangeRecord`) in the text buffer, drawn three times (font +0x1C
-//! 0x168, at 0x84, 0x32; each 0x78 left and a line down: `text::draw_text_keep_regs`);
-//! the clip's left 0; (0, 0x99, 0x100, 0x19) filled; the record's name
-//! (`g_tyreChangeRecordName`, +0x1C 0xF8, at 4, 0x99); for player 0 (`dword_5BEBEC`) the
-//! clip's right 0x7F and x 0, else its left 0x80 and x 0x80; (x, 0xB2, 0x80, 0x4B) filled;
-//! with the device's +0x4F0 1 string 0x12D and the time (+0x4F4), else 0x12C, drawn three
-//! times (+0x1C 0x168, at x + 4, 0xB2, as before); the unlock (`d3d::unlock_texture`), the
-//! copy to the device (`d3d::copy_to_device_texture` 0x41A8F9: the platform's, called in
-//! the game), `dword_5BEBE8` 1.
+//! `race::draw_tyre_change` (0x41C38C): the tyre change's texture (`dword_5BEBE0`, then copied to
+//! the device's `dword_5BEBE4`), for the device at esi. ebp = esi; the clip's left and right kept
+//! round it. Its lock (`d3d::lock_texture`); unless that failed or the texture was drawn before
+//! (`dword_5BEBE8` 1), strings 0x129 (font `stru_51E304`, its +0x1C 0xF8, at 4, 0x80), then with
+//! the clip's left 0x80 0x12A (`unk_51E2E4`, at 0xFC, 0) and 0x12B (`unk_51E2C4`, at 0x84, a line
+//! down: `dword_51E2CC`), each by `text::draw_string_by_id`. Then (also after a failed lock:
+//! section 16) the clip's left 0x80; the rectangle (0x80, 0x32, 0x80, 0x4B) filled with colour 0
+//! (`gfx::fill_rect`, `dword_5C2A1C`, palette `unk_5BEC2C`); string 0x12E and the record's time
+//! (`g_tyreChangeRecord`) in the text buffer, drawn three times (font +0x1C 0x168, at 0x84, 0x32;
+//! each 0x78 left and a line down: `text::draw_text_keep_regs`); the clip's left 0; (0, 0x99,
+//! 0x100, 0x19) filled; the record's name (`g_tyreChangeRecordName`, +0x1C 0xF8, at 4, 0x99); for
+//! player 0 (`dword_5BEBEC`) the clip's right 0x7F and x 0, else its left 0x80 and x 0x80; (x,
+//! 0xB2, 0x80, 0x4B) filled; with the device's +0x4F0 1 string 0x12D and the time (+0x4F4), else
+//! 0x12C, drawn three times (+0x1C 0x168, at x + 4, 0xB2, as before); the unlock
+//! (`d3d::unlock_texture`), the copy to the device (`d3d::copy_to_device_texture` 0x41A8F9: the
+//! platform's, called in the game), `dword_5BEBE8` 1.
 //!
 //! Takes: the device
 //!
@@ -115,8 +113,7 @@ fn three_times(
     Ok(())
 }
 
-/// The Rust version, for the device `device` (esi). The registers it leaves (ebp = esi,
-/// the copy's flags) are read by no caller.
+/// For the device `device`.
 pub fn draw_tyre_change(
     race: &'static Race,
     shared: &Shared,

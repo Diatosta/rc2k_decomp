@@ -13,7 +13,6 @@ use crate::physics::cells::set_changed;
 use crate::race::owner_shared::Shared;
 use rc2k_core::physics::notices::Notice;
 
-/// The Rust version.
 pub fn count_down_notice(shared: &Shared) {
     let was = Notice {
         shown: shared.car.notice_shown.get(),

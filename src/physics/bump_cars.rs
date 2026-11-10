@@ -92,7 +92,7 @@ fn steps(race: &Race, other_car: u32, scene: &crate::scene::owner::Scene) -> Res
     Ok(())
 }
 
-/// The Rust version: `other_car` the other car's block (an address in the game's memory).
+/// `other_car` the other car's block (an address in the game's memory).
 pub fn bump_cars(
     race: &Race,
     other_car: u32,

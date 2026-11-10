@@ -27,7 +27,6 @@ fn less(k: u32, z: u32) -> [u8; 10] {
     less_x87(k, z)
 }
 
-/// The Rust version (see the header).
 pub fn run_windscreen_flakes(
     masks: &Masks,
     drops: &WindscreenDrops,

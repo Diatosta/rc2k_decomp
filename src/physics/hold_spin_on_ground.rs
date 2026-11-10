@@ -13,9 +13,7 @@ use crate::race::owner::Race;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::hold_spin;
 
-/// The converted version (`rc2k_core::physics::motion`) on the variables' cells `v`. The
-/// registers it leaves (ecx the wheels on the ground, ebx 4) are read by none of its
-/// callers.
+/// The converted version (`rc2k_core::physics::motion`) on the variables' cells `v`.
 // Converted: `rc2k_core::physics::motion::hold_spin`.
 pub fn hold_at(v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
@@ -45,8 +43,7 @@ fn game(race: &Race) -> Vec<&dyn Cell32> {
     ]
 }
 
-/// The Rust version (compares and copies of floats only: the same at any precision); `r`
-/// the registers it leaves are read by none of its callers.
+/// Compares and copies of floats only: the same at any precision.
 pub fn hold_spin_on_ground(race: &Race) {
     hold_at(&game(race));
 }

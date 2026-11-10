@@ -14,7 +14,6 @@ use crate::errors::Refused;
 pub const ITEMS: u32 = 0x800;
 pub const ITEM_LEN: u32 = 0x30;
 
-/// The Rust version (see the header).
 // Converted: `rc2k_core::effects::expiry::{cell, windscreen_drop_draw, windscreen_drop_hit}`
 pub fn expire_windscreen_drops(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     use rc2k_core::effects::expiry;

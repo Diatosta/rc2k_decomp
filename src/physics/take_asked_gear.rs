@@ -10,7 +10,6 @@ use crate::physics::allowed_gear::allowed_gear;
 use crate::physics::change_gear::change_gear;
 use crate::race::owner::Race;
 
-/// The Rust version.
 // Converted: `rc2k_core::physics::gearbox::asked_gear`.
 pub fn take_asked_gear(race: &Race) -> Result<(), Refused> {
     let run = || -> Result<(), Refused> {

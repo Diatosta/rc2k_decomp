@@ -1,9 +1,8 @@
-//! `drive::simple_car_step` (0x43A1CA): the free-roaming car's step (no physics, the race
-//! mode `dword_621884` 0). The inputs (`drive::car_input_words`, `drive::read_car_controls`,
-//! `drive::steer_inputs`, `drive::pedal_inputs`, `drive::reset_request`); the car moved
-//! along its heading (+0x9C0) by (+0x638 - +0x63C) << 5 (<< 7 with `byte_4F6B79`,
-//! `math::turn_point_xz` of (0, ebx, it)), turned by +0x644 >> 4; the wheels' surfaces;
-//! the ground under `dword_5CCDA0`, `5CCDE0` (`physics::find_ground`), found: the height
+//! `drive::simple_car_step` (0x43A1CA): the free-roaming car's step (no physics, the race mode
+//! `dword_621884` 0). The inputs (`drive::car_input_words`, `drive::read_car_controls`,
+//! `drive::steer_inputs`, `drive::pedal_inputs`, `drive::reset_request`); the car moved along its
+//! heading (+0x9C0) by (+0x638 - +0x63C) << 5, turned by +0x644 >> 4; the wheels' surfaces; the
+//! ground under `dword_5CCDA0`, `5CCDE0` (`physics::find_ground`), found: the height
 //! `dword_639828` + `flt_613FC4`'s bits into `dword_5CCDC0` and +0x138; pitch and roll 0;
 //! `race::get_mat_crash`. The first car block (`g_carBlockStore`) throughout.
 //!
@@ -14,8 +13,6 @@ use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 
-/// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi
-/// and esi after `drive::race_tick`'s call have no read point).
 // Converted: `rc2k_core::drive::roaming::{roam_distance, roam_turn}`.
 pub fn simple_car_step(
     race: &Race,
@@ -73,7 +70,6 @@ pub fn simple_car_step(
     }
     CAR_BLOCKS.cars[0].car_pitch.set_bits(0);
     CAR_BLOCKS.cars[0].car_roll.set_bits(0);
-    // `race::get_mat_crash` reads no register at entry (liveness): a scratch.
     crate::race::stage_prefs::get_mat_crash(race);
     Ok(())
 }

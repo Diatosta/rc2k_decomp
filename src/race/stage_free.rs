@@ -104,11 +104,8 @@ pub const FONTS: Freeing = Freeing {
     given_back: || {},
 };
 
-/// The freeing: the count down by the list's total (`counted`), `free_list`, the
-/// pointers 0. The original leaves eax the total, ebx the list and carry clear
-/// (`counted`); no caller reads them (taint at every site of `render3d_tidy`,
-/// `objects_tidy` and in `tidy_stage`: 0 reads). Refuses, before anything, a list with a
-/// block (`free_list` refuses it).
+/// The freeing: the count down by the list's total (`counted`), `free_list`, the pointers 0.
+/// Refuses, before anything, a list with a block (`free_list` refuses it).
 pub fn free(race: &Race, f: &Freeing) -> Result<(), Refused> {
     let course = &race.course;
     let l = (f.list)(race);

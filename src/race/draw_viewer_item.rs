@@ -1,12 +1,8 @@
-//! `race::draw_viewer_item` (0x41D94A): one item of the replay viewer's list drawn, unless
-//! hidden (bit 6): its picture (`[esi+0xC]`, a texture rectangle; for the three switch
-//! items, `off_5C2C70` by the block's camera byte 2 for item kind 0xE or 3 otherwise,
-//! `off_5C2C78` by byte 5, `off_5C2C88` by byte 4, the table's entry) as a quad
-//! (`drive::tyre_quad`) on the item's place (`[esi+4]`: x, y, w, h) at the picture's
-//! width (its absolute value), centred (`dword_5C29FC`); grey (0x666666) when marked
-//! unusable (bit 7), else white, or for the highlighted item (ecx `dword_51D407`) red
-//! while a camera is edited, else yellow and red by turns (bit 3 of `dword_51D41F -
-//! dword_51D423`).
+//! `race::draw_viewer_item` (0x41D94A): one item of the replay viewer's list drawn, unless hidden
+//! (bit 6): its picture as a quad (`drive::tyre_quad`) on the item's place at the picture's width
+//! (its absolute value), centred (`dword_5C29FC`); grey (0x666666) when marked unusable (bit 7),
+//! else white, or for the highlighted item red while a camera is edited, else yellow and red by
+//! turns (bit 3 of `dword_51D41F - dword_51D423`).
 //!
 //! Takes: the item (16 bytes), its number
 //!
@@ -25,8 +21,7 @@ fn camera_byte(replay: &Replay, byte: usize) -> Result<u32, BadInput> {
     )? as u32)
 }
 
-/// The Rust version. `item` the list item (the original's esi: its 16 bytes), `index` its number
-/// (ecx). The original keeps every register.
+/// `item` the list item, `index` its number.
 pub fn draw_viewer_item(replay: &Replay, item: &[Dword; 4], index: u32) -> Result<(), Refused> {
     // Its first dword's low bytes: the flags and the switch.
     let byte = |n: u32| (item[0].get() >> (8 * n)) as u8;

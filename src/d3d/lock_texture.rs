@@ -15,7 +15,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::Flags;
 use crate::gfx::owner::gfx;
 
-/// The Rust version (see the header): texture `texture` locked; the flags it leaves
+/// Texture `texture` locked; the flags it leaves
 /// (every register is kept).
 pub fn lock_texture(texture: u32) -> Result<Flags, Refused> {
     use rc2k_core::d3d::textures::{LOCK_FAILED, LOCKED_TWICE, Lock, lock};

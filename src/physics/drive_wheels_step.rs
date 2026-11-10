@@ -283,13 +283,12 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
     Ok(())
 }
 
-/// `revs_from_wheels` (the gear checked before; the ebx it leaves is read by no one).
+/// `revs_from_wheels` (the gear checked before).
 fn revs(race: &Race) -> Result<(), Refused> {
     { revs_from_wheels_at(&race.course, &GearPlaces::game(&race.shared)) }?;
     Ok(())
 }
 
-/// The Rust version. The eax and ebx it leaves are read by none of its callers.
 pub fn drive_wheels_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let gear = race.shared.car.gear.get();
     if gear != 0 && !(-1..=7).contains(&(gear as i32)) {

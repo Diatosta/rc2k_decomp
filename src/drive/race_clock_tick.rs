@@ -1,14 +1,14 @@
-//! `drive::race_clock_tick` (0x445554): the race's clock in tenths. `scene::restart_clock`
-//! (the tick count into `g_sceneClock`), into `dword_61383C`; the last tick kept
-//! (`dword_613840`) brought to within 1000 of it (by the sign of the `cmp`); the tenths
-//! since (`div` by 10) into `dword_613844` and added back (x 10) to `dword_613840`.
+//! `drive::race_clock_tick` (0x445554): the race's clock in tenths. `scene::restart_clock` (the
+//! tick count into `g_sceneClock`), into `dword_61383C`; the last tick kept (`dword_613840`)
+//! brought to within 1000 of it (by the sign of the `cmp`); the tenths since (`div` by 10) into
+//! `dword_613844` and added back (x 10) to `dword_613840`.
 //!
 //! Caller: `drive::race_step` (0x4454D2).
 
 use crate::race::owner_shared::Shared;
 use rc2k_core::drive::clocks::RaceClock;
 
-/// The Rust version after the clock's reading `now` (already in `g_sceneClock`).
+/// After the clock's reading `now` (already in `g_sceneClock`).
 // Converted: `rc2k_core::drive::clocks::RaceClock::tick`.
 pub fn tick_from(shared: &Shared, now: u32) {
     let mut c = RaceClock {
@@ -21,7 +21,6 @@ pub fn tick_from(shared: &Shared, now: u32) {
     shared.physics_tables.race_clock_base.set(c.counted);
 }
 
-/// The Rust version.
 pub fn race_clock_tick(shared: &Shared) {
     let now =
         crate::scene::restart_clock::restart_clock(shared, crate::system::tick_count::tick_count());

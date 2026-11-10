@@ -12,7 +12,7 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 use rc2k_core::physics::splits::kept_split_slot;
 
-/// The Rust version. Converted: `rc2k_core::physics::splits::kept_split_slot` (below 0x40).
+/// Converted: `rc2k_core::physics::splits::kept_split_slot` (below 0x40).
 pub fn keep_split_time(race: &Race) -> Result<(), Refused> {
     let k = kept_split_slot(
         race.shared.car.splits_passed.get(),

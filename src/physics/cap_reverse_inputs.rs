@@ -40,7 +40,7 @@ pub fn cap_reverse_inputs_at(
     }
 }
 
-/// The Rust version (compares and copies of floats only: the same at any precision).
+/// Compares and copies of floats only: the same at any precision.
 pub fn cap_reverse_inputs(race: &Race) {
     cap_reverse_inputs_at(
         &race.course,

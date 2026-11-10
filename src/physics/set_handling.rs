@@ -77,8 +77,7 @@ fn after(race: &Race) -> [(&Float, &Dword, &Float, &Float); 4] {
     ]
 }
 
-/// The Rust version (the exact one, for `race::settle_car` and
-/// `physics::car_physics_step`).
+/// The exact version, for `race::settle_car` and `physics::car_physics_step`.
 pub fn set_handling(race: &Race) -> Result<(), Refused> {
     let kind = race.shared.car.drive_kind.get() as usize;
     if kind > 1 {

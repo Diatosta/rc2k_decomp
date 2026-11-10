@@ -38,7 +38,6 @@ pub static ELEVENTH: JitterSet = JitterSet {
     life: 0x7D0,
 };
 
-/// The Rust version (see the header).
 pub fn emit_particle_11(
     ring: &Ring,
     wheel: &MarkRecord,

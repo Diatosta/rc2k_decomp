@@ -6,7 +6,6 @@ use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::race::owner_frame::Frame;
 
-/// The Rust version (see the header).
 pub fn add_triangle(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count

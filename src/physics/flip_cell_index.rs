@@ -6,6 +6,6 @@
 //!
 //! Caller: `physics::wheel_surfaces` (twice).
 
-/// The Rust version: (eax, ebx, edx) out.
+/// (eax, ebx, edx) out.
 // Converted: `rc2k_core::physics::ground::flip_cell_index`.
 pub use rc2k_core::physics::ground::flip_cell_index;

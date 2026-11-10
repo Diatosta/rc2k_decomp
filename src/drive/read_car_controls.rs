@@ -39,7 +39,7 @@ fn computer(shared: &Shared) -> bool {
     )
 }
 
-/// The Rust version: `r` as the original leaves it.
+/// `r` as the original leaves it.
 // Converted: `rc2k_core::drive::controls::{read_keys, computer_drives, flipped}`.
 pub fn read_car_controls(race: &Race) -> Result<(), Refused> {
     let race_owner = race;

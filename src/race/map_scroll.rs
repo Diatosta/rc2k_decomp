@@ -11,9 +11,8 @@ use crate::physics::car_store::Car;
 use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::owner::Race;
 
-/// `race::map_tiles` (0x45B663): the map picture's slot `dword_5D0E00` (+ `g_currentCar`
-/// unless `dword_52A910`) drawn from tile (corner x >> 4, corner y >> 4)
-/// (0x45B68F -> `race::blit_map_tiles`, ecx / edx the tile, eax the slot).
+/// `race::map_tiles` (0x45B663): the map picture's slot `dword_5D0E00` (+ `g_currentCar` unless
+/// `dword_52A910`) drawn from tile (corner x >> 4, corner y >> 4).
 pub fn map_tiles(
     race: &Race,
     car: &Car,
@@ -49,12 +48,12 @@ fn scroll_refuses(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::scroll_map` (0x45B527): with two checkpoints or more, the car on the map
-/// (`g_mapX` / `g_mapY` at its last checkpoint, plus its distance from that checkpoint's
-/// face's point x 0x60 / 1000, z negated); unless it is still 0x34 .. 0x4B pixels inside the
-/// picture, the picture's corner moved (centred, 16-pixel steps) and redrawn
-/// (`map_tiles`), +0xADC 1; its place in the picture ((place - corner << 16 - 0x300000) x 2).
-/// Refuses (before anything) no course faces or points.
+/// `race::scroll_map` (0x45B527): with two checkpoints or more, the car on the map (`g_mapX` /
+/// `g_mapY` at its last checkpoint, plus its distance from that checkpoint's face's point x 0x60 /
+/// 1000, z negated); unless it is still 0x34 .. 0x4B pixels inside the picture, the picture's
+/// corner moved (centred, 16-pixel steps) and redrawn (`map_tiles`), +0xADC 1; its place in the
+/// picture ((place - corner << 16 - 0x300000) x 2). Refuses (before anything) no course faces or
+/// points.
 pub fn scroll_map(
     race: &Race,
     car: &Car,
@@ -103,11 +102,10 @@ pub fn scroll_map(
     Ok(())
 }
 
-/// `race::scroll_maps` (0x45B4E6): `scroll_map` on each view's car, on its block (the
-/// original loaded it into the work copy and stored it back whole): with `dword_52A910` the third view car only (`race::load_car_c` /
-/// `store_car_c`), else the first and, unless `dword_63DB98` is 1, the second. Refuses
-/// (before anything) a view car without its block, or what `scroll_map` refuses. Its one
-/// caller, `race::draw_race_scene`, reads no register it leaves.
+/// `race::scroll_maps` (0x45B4E6): `scroll_map` on each view's car, on its block (the original
+/// loaded it into the work copy and stored it back whole): with `dword_52A910` the third view car
+/// only (`race::load_car_c` / `store_car_c`), else the first and, unless `dword_63DB98` is 1, the
+/// second. Refuses (before anything) a view car without its block, or what `scroll_map` refuses.
 pub fn scroll_maps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::map::scrolled_views`.
     use crate::race::frame::view_car;

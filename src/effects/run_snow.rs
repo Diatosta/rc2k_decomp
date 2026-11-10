@@ -37,7 +37,6 @@ fn turn_light(frame: &Frame, view_matrix: &[Float; 16], weather: &Weather) {
     turn_light_x87(frame, view_matrix, &weather.snow_light);
 }
 
-/// The Rust version (see the header).
 pub fn run_snow(
     race: &Race,
     weather: &Weather,

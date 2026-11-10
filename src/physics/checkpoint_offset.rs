@@ -13,7 +13,6 @@ use crate::math::turn_point_xz::turn_point_xz;
 use crate::race::owner::Race;
 use rc2k_core::physics::progress::checkpoint_ahead;
 
-/// The Rust version.
 // Converted: `rc2k_core::physics::progress::checkpoint_ahead` (the turn stays
 // `math::turn_point_xz`'s).
 pub fn checkpoint_offset(race: &Race) -> Result<(), Refused> {

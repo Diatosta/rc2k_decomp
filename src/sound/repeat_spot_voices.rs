@@ -13,8 +13,6 @@
 
 use crate::errors::Refused;
 
-// ---- Rust version ----
-
 /// Converted: `rc2k_core::sound::spot_voices::repeat`.
 pub fn repeat_spot_voices(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     use crate::sound::spot_voices::{load_voices, store_voices};

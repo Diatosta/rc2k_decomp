@@ -1,6 +1,5 @@
-//! `drive::play_race` (0x444CEE): "CALLING DOPLAYGAME - START" logged between rules, the
-//! log off (`g_logEnabled` 0) for `drive::race_loop`, back on, "... - FINIS" between
-//! rules.
+//! `drive::play_race` (0x444CEE): "CALLING DOPLAYGAME - START" logged between rules, the log off
+//! (`g_logEnabled` 0) for `drive::race_loop`, back on, "... - FINIS" between rules.
 //!
 //! Callers: `race::run_race`, 0x443F96, 0x44402F, `race::credits_race`, `net::lets_race`.
 //! Refuses what `race_loop` refuses.
@@ -9,9 +8,6 @@ use crate::drive::race_parts::log_line;
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-/// The Rust version. The registers it leaves are read by no caller (liveness: esi after
-/// `race::run_race`'s and 0x443F96's calls, ecx edi edx esi after
-/// `race::credits_race`'s: no read point; only DF after `net::lets_race`'s).
 pub fn play_race(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let system = crate::system::owner::system();
     let input = crate::input::owner::input();

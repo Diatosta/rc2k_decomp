@@ -59,8 +59,8 @@ fn fill3(to: &[Float], v: u32) {
     }
 }
 
-/// The Rust version: `record` the one the contact's force goes to (the original's
-/// `dword_614B40`, set by each caller just before).
+/// `record` the one the contact's force goes to (the original's `dword_614B40`, set by each caller
+/// just before).
 pub fn contact_force(race: &Race, record: &ForceRecord, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     cross_product(

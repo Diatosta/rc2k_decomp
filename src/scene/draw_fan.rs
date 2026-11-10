@@ -1,7 +1,7 @@
 use crate::scene::owner::scene;
 const DRAWTRI_RVA: &std::ffi::CStr = c"drawtri"; // aDrawtri_0
 
-/// The Rust version (see the header). What it leaves in the registers (eax the device's
+/// What it leaves in the registers (eax the device's
 /// result, the zero and carry flags) is read by none of its callers (register liveness,
 /// 2026-10-23: the 24 sites through 0x44EA65 read only SF, which the original's `cmp`
 /// leaves and the Rust version never set).

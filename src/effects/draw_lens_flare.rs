@@ -20,7 +20,6 @@ use crate::math::x87;
 
 const PARTS: u32 = 0x11;
 
-/// The Rust version (see the header).
 pub fn draw_lens_flare(
     paths: &Paths,
     effects: &crate::effects::owner::Effects,

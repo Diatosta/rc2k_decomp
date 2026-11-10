@@ -29,8 +29,6 @@ fn cars(shared: &Shared) -> u32 {
     shared.view.race_cars.get().max(1)
 }
 
-/// The Rust version. The registers it leaves (ebx the cars looked at) are read by none
-/// of its callers.
 pub fn car_collisions(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let physics = &race.physics;
     if !matches!(race.shared.vars.run_kind.get(), 0 | 2) {

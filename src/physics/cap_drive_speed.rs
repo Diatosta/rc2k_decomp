@@ -61,7 +61,7 @@ fn game<'a>(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> CapPla
     ]
 }
 
-/// The Rust version (the exact one, for `physics::drive_wheels_step`).
+/// The exact version, for `physics::drive_wheels_step`.
 pub fn cap_drive_speed(race: &Race, scene: &crate::scene::owner::Scene) {
     cap_drive_speed_at(race, game(&race.shared, scene));
 }

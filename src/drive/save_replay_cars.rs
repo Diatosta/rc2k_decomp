@@ -1,6 +1,6 @@
 //! `drive::save_replay_cars` (0x4600B8): the first 0x1A1 dwords of the four car blocks
-//! (`g_carBlockStore`), the race slots (0xF0) and `unk_71BF84` (0x100) copied in that
-//! order to `unk_7172EC` (`rep movsd`): the replay's starting state.
+//! (`g_carBlockStore`), the race slots (0xF0) and `unk_71BF84` (0x100) copied in that order to
+//! `unk_7172EC` (`rep movsd`): the replay's starting state.
 //!
 //! Caller: `drive::keep_replay_frame`.
 
@@ -66,7 +66,6 @@ fn copy_between<P: Cells>(
     }
 }
 
-/// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::start_layout`.
 pub fn save_replay_cars(race: &Race) {
     for (piece, offset, n) in start_layout() {

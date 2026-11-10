@@ -30,7 +30,6 @@ fn sample(
     sample_noise(&shared.car, x)
 }
 
-/// The Rust version.
 // Converted: `rc2k_core::physics::ground::{noise_level, rough_floor}` (the share / 256
 // stays x87).
 pub fn surface_noise(

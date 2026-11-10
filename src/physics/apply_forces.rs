@@ -11,8 +11,7 @@ use crate::physics::apply_force::apply_force;
 use crate::physics::tables_store::ForceRecord;
 use crate::race::owner_shared::Shared;
 
-/// The Rust version: `records` (a whole table, the wheels' 0x17 or the contacts' 7) on the
-/// work car.
+/// `records` (a whole table, the wheels' 0x17 or the contacts' 7) on the work car.
 pub fn apply_forces(
     shared: &Shared,
     records: &[ForceRecord],

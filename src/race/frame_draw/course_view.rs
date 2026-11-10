@@ -11,10 +11,10 @@ use crate::race::view_scratch::{DrawCtx, SortLists};
 /// The most entries in a sort list (`race::view_scratch`).
 pub const SORT_MAX: u32 = crate::race::view_scratch::ENTRIES as u32;
 
-/// `race::add_sort_entry` (0x454D57): entry `sort_entry_count` of the view's sort entries for `face`:
-/// +4 the face, +0 0, or with the face number (without its top bit) below 0x1000000 the
-/// object `kind` << 16 | the face's low 16 bits; the count + 1. Refuses (before anything)
-/// an entry past the 0x1000.
+/// `race::add_sort_entry` (0x454D57): entry `sort_entry_count` of the view's sort entries for
+/// `face`: +4 the face, +0 0, or with the face number (without its top bit) below 0x1000000 the
+/// object `kind` << 16 | the face's low 16 bits; the count + 1. Refuses (before anything) an entry
+/// past the 0x1000.
 pub fn add_sort_entry(lists: &SortLists, kind: u32, face: u32) -> Result<(), Refused> {
     let n: u32 = lists.sort_entry_count.bits();
     if n >= SORT_MAX {
@@ -30,12 +30,12 @@ pub fn add_sort_entry(lists: &SortLists, kind: u32, face: u32) -> Result<(), Ref
 }
 
 /// `race::checkpoint_colours` (0x4548E3): the current checkpoint's (`CAR.checkpoint`) face
-/// (`g_checkpointFaces`, records of 0x40 at `g_courseFaces`): its +0x10 byte's low and high
-/// nibbles (0 read as 0x10) to `PHYSICS.checkpoint_colours` / `PHYSICS.checkpoint_colours[1]`; `PHYSICS.checkpoint_colours[2]` =
-/// `CHECKPOINTS.angles[2][checkpoint]` - `CAR.car_heading`; the far cells' limit returned
-/// (the original's `LEVEL_GRID.far_cell_limit`): the low (twice the distance below 0x40000000
-/// as signed), the high (from 0xC0000000), else the larger. The tables are read unchecked, as
-/// the original.
+/// (`g_checkpointFaces`, records of 0x40 at `g_courseFaces`): its +0x10 byte's low and high nibbles
+/// (0 read as 0x10) to `PHYSICS.checkpoint_colours` / `PHYSICS.checkpoint_colours[1]`;
+/// `PHYSICS.checkpoint_colours[2]` = `CHECKPOINTS.angles[2][checkpoint]` - `CAR.car_heading`; the
+/// far cells' limit returned (the original's `LEVEL_GRID.far_cell_limit`): the low (twice the
+/// distance below 0x40000000 as signed), the high (from 0xC0000000), else the larger. The tables
+/// are read unchecked, as the original.
 pub fn checkpoint_colours(
     race: &Race,
     car: &crate::physics::car_store::Car,
@@ -128,11 +128,12 @@ pub fn face_hidden(
     Ok(hidden_by_depth(depth as u32, x as u32))
 }
 
-/// `race::face_depth` (0x4552D8): the depth key of `face` (records of 0x40 at
-/// `g_courseFaces`) into `RACE_VIEW.face_depth_key`: for a kind (+0) of 0x10 or more, its first point's
-/// depth (`fistp`; and `RACE_VIEW.face_side` its x); else, with its object's (+1) record +0xE bit
-/// 1, the largest of its four points' depths (+4 .. +0x10, each `fistp`), otherwise their float sum `fistp`'d and shifted right 2. Then + 0x2000000,
-/// shifted right 10 (logical). Refuses (before anything) no point records or points.
+/// `race::face_depth` (0x4552D8): the depth key of `face` (records of 0x40 at `g_courseFaces`) into
+/// `RACE_VIEW.face_depth_key`: for a kind (+0) of 0x10 or more, its first point's depth (`fistp`;
+/// and `RACE_VIEW.face_side` its x); else, with its object's (+1) record +0xE bit 1, the largest of
+/// its four points' depths (+4 .. +0x10, each `fistp`), otherwise their float sum `fistp`'d and
+/// shifted right 2. Then + 0x2000000, shifted right 10 (logical). Refuses (before anything) no
+/// point records or points.
 pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Result<(), Refused> {
     let race = ctx.race;
     let course = &race.course;
@@ -200,16 +201,17 @@ pub fn add_depth_entry(ctx: &DrawCtx, face: u32) -> Result<(), Refused> {
 }
 // LEVEL_GRID.course_grid[0x400]: 32 x 32 course records
 
-/// `race::course_grid` (0x45497E): the course records around the view in a 32 x 32 grid.
-/// The half size `LEVEL_GRID.grid_half` = `hold_to_limit(STAGE_PREFS.grid_reach)`, the span `LEVEL_GRID.grid_span`
-/// twice that; the corner is the view's place (`race().frame.view_and_records.view_vars.view_x` / `race().frame.view_and_records.view_vars.view_z` >> 21,
-/// arithmetic) less the half. Unchanged corner: nothing more. Else the corner kept, the
-/// grid cleared to 0x0FFFFFFF, and each record (0x20 bytes at `g_courseRecords`, +0 two
-/// 11-bit cell numbers, -1 none; each into `COURSE.record_place` / `COURSE.record_place[1]`) whose cell less
-/// the corner (& 0x7FF) is within the span on both axes goes in at row z, column x.
-/// Refuses (before anything is written) no records when the grid
-/// is to be made (the original's loop would run on: it tests `jnz` after the first).
-/// `vars`: the view's variables (its place, `ViewScratch::vars`).
+/// `race::course_grid` (0x45497E): the course records around the view in a 32 x 32 grid. The half
+/// size `LEVEL_GRID.grid_half` = `hold_to_limit(STAGE_PREFS.grid_reach)`, the span
+/// `LEVEL_GRID.grid_span` twice that; the corner is the view's place
+/// (`race().frame.view_and_records.view_vars.view_x` /
+/// `race().frame.view_and_records.view_vars.view_z` >> 21, arithmetic) less the half. Unchanged
+/// corner: nothing more. Else the corner kept, the grid cleared to 0x0FFFFFFF, and each record
+/// (0x20 bytes at `g_courseRecords`, +0 two 11-bit cell numbers, -1 none; each into
+/// `COURSE.record_place` / `COURSE.record_place[1]`) whose cell less the corner (& 0x7FF) is within
+/// the span on both axes goes in at row z, column x. Refuses (before anything is written) no
+/// records when the grid is to be made (the original's loop would run on: it tests `jnz` after the
+/// first). `vars`: the view's variables (its place, `ViewScratch::vars`).
 pub fn course_grid(
     race: &Race,
     view: &crate::race::view_grid::ViewGrid,
@@ -269,12 +271,12 @@ pub(super) fn record_faces(record: u32) -> Result<Option<(u32, u32)>, BadInput> 
 }
 
 /// `race::gather_record_faces` (0x454C99): each face of course record `record` (+8 .. +0xC),
-/// `COURSE.current_course_face` the face: a kind (+0) of 0xFF, or below 0x10, not `face_hidden`, goes to
-/// `add_depth_entry` when its object's flag says so (`LEVEL_GRID.face_table_b` / `LEVEL_GRID.face_table_a`), else
-/// to `add_sort_entry` with the object's kind byte (`LEVEL_GRID.face_table_d` / `LEVEL_GRID.face_table_c`). For
-/// kinds below 0x10 the object is +1, or +0x21 when +1 is 0.
-/// Refuses a last face of -1 (the loop would not end); the full tables and missing points
-/// are refused where they are met.
+/// `COURSE.current_course_face` the face: a kind (+0) of 0xFF, or below 0x10, not `face_hidden`,
+/// goes to `add_depth_entry` when its object's flag says so (`LEVEL_GRID.face_table_b` /
+/// `LEVEL_GRID.face_table_a`), else to `add_sort_entry` with the object's kind byte
+/// (`LEVEL_GRID.face_table_d` / `LEVEL_GRID.face_table_c`). For kinds below 0x10 the object is +1,
+/// or +0x21 when +1 is 0. Refuses a last face of -1 (the loop would not end); the full tables and
+/// missing points are refused where they are met.
 pub fn gather_record_faces(ctx: &DrawCtx, record: u32) -> Result<(), Refused> {
     let DrawCtx { view, .. } = *ctx;
     let Some((first, last)) = record_faces(record)? else {
@@ -309,9 +311,8 @@ pub fn gather_record_faces(ctx: &DrawCtx, record: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::gather_visible_faces` (0x454B71): `gather_record_faces` of each record in
-/// `g_courseGrid` (numbers below 0x0FFFFFFF), then of the last record once more (its "already
-/// done" test sets ebp, so it is lost: `notes/bugs.md`). Refuses as `gather_record_faces`.
+/// `race::gather_visible_faces` (0x454B71): `gather_record_faces` of each record in `g_courseGrid`
+/// (numbers below 0x0FFFFFFF), then of the last record once more. Refuses as `gather_record_faces`.
 pub fn gather_visible_faces(ctx: &DrawCtx) -> Result<(), Refused> {
     let course = &ctx.race.course;
     let todo = visible_records(course, &ctx.view.grid)?;
@@ -321,9 +322,9 @@ pub fn gather_visible_faces(ctx: &DrawCtx) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::face_hide_mask` (0x456056): `physics::probe_ground`, then, unless the face under
-/// the car (`g_car` +0xE00) is -1, `race().frame.frame_work.face_hide_mask` = its +2 word's bits 1 and 3 flipped
-/// when any is set (0xA), or'd with bits 4 and 5 likewise (0x30).
+/// `race::face_hide_mask` (0x456056): `physics::probe_ground`, then, unless the face under the car
+/// (`g_car` +0xE00) is -1, `race().frame.frame_work.face_hide_mask` = its +2 word's bits 1 and 3
+/// flipped when any is set (0xA), or'd with bits 4 and 5 likewise (0x30).
 pub fn face_hide_mask(
     race: &Race,
     view: &crate::race::view_scratch::ViewScratch,
@@ -345,13 +346,13 @@ pub fn face_hide_mask(
     Ok(())
 }
 
-/// `race::mark_far_cells` (0x454A5B): every `g_courseGrid` cell's top bits cleared (&
-/// 0x0FFFFFFF); then each cell (column x, row z, each less the half `LEVEL_GRID.grid_half`) turned
-/// by `g_viewTurnMatrix` (the length of the middle taken): not marked when the length is
-/// below 2.0; marked (bit 31) when the turned z is below 0, or when |x / 2| - 2 is not below
-/// z, or when the length is not below `limit` (as a float). The original kept the limit in
-/// `LEVEL_GRID.far_cell_limit` and stored the turned x and z (`LEVEL_GRID.turned_x` /
-/// `turned_z`) and the limit as a float (`DRAW.work_float_b`), which nothing read after.
+/// `race::mark_far_cells` (0x454A5B): every `g_courseGrid` cell's top bits cleared (& 0x0FFFFFFF);
+/// then each cell (column x, row z, each less the half `LEVEL_GRID.grid_half`) turned by
+/// `g_viewTurnMatrix` (the length of the middle taken): not marked when the length is below 2.0;
+/// marked (bit 31) when the turned z is below 0, or when |x / 2| - 2 is not below z, or when the
+/// length is not below `limit` (as a float). The original kept the limit in
+/// `LEVEL_GRID.far_cell_limit` and stored the turned x and z (`LEVEL_GRID.turned_x` / `turned_z`)
+/// and the limit as a float (`DRAW.work_float_b`), which nothing read after.
 pub fn mark_far_cells(
     race: &Race,
     scratch: &crate::race::view_scratch::ViewScratch,
@@ -392,10 +393,10 @@ pub fn mark_far_cells(
 }
 
 /// `race::prepare_course_view` (0x4548A8): `face_hide_mask`, `course_grid`; with
-/// `FRAME_SWITCHES.other_way` set, `mark_far_cells` with the limit `checkpoint_colours` gives
-/// with two checkpoints or more (`g_checkpointCount`), else 0x10 (the original kept it in
-/// `LEVEL_GRID.far_cell_limit`, set to 0x10 first, which nothing else read). Refuses
-/// (before anything) what `course_grid` would.
+/// `FRAME_SWITCHES.other_way` set, `mark_far_cells` with the limit `checkpoint_colours` gives with
+/// two checkpoints or more (`g_checkpointCount`), else 0x10 (the original kept it in
+/// `LEVEL_GRID.far_cell_limit`, set to 0x10 first, which nothing else read). Refuses (before
+/// anything) what `course_grid` would.
 pub fn prepare_course_view(
     race: &Race,
     view: &crate::race::view_scratch::ViewScratch,
@@ -440,12 +441,10 @@ pub fn visible_records(
     Ok(list)
 }
 
-/// `race::sort_sort_entries` (0x454F62) / `race::sort_depth_entries` (0x454ED4): with two
-/// entries or more, the list's quicksort (0x454F85 / its twin 0x454EF7: 8-byte
-/// entries by their first dword, the largest first) from its first entry to its last.
-/// Refuses (before anything) a sort that would go past the
-/// list.
-/// `entries` the list's cells.
+/// `race::sort_sort_entries` (0x454F62) / `race::sort_depth_entries`: with two entries or more, the
+/// list's quicksort (0x454F85 / its twin 0x454EF7: 8-byte entries by their first dword, the largest
+/// first) from its first entry to its last. Refuses (before anything) a sort that would go past the
+/// list. `entries` the list's cells.
 pub fn sort_entries(
     count: &crate::session::Dword,
     entries: &[crate::session::Dword],

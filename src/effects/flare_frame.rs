@@ -9,7 +9,7 @@
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 
-/// The Rust version (see the header): `scene::set_texture`, `scene::depth_test_off`, and
+/// `scene::set_texture`, `scene::depth_test_off`, and
 /// with the settings' +0x2754 `draw_lens_flare`.
 pub fn flare_frame(
     paths: &Paths,

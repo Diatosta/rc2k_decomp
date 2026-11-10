@@ -5,7 +5,6 @@
 
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 
-/// The Rust version (see the header).
 pub fn copy_first_point(drops: &WindscreenDrops, effects: &crate::effects::owner::Effects) {
     let frame = &effects.frame;
     for (n, to) in drops.tilt.point.iter().enumerate() {

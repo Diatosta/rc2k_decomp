@@ -27,11 +27,9 @@ fn record_faces(record: u32) -> Result<(u32, u32), BadInput> {
     Ok((face(8)?, face(0xC)?))
 }
 
-/// `physics::face_shares` (0x442323): the three corners named by `dword_639890` ..
-/// `98` copied (0x639708 ..), the point (0x6396FC, 0x639704), the differences, and the
-/// shares by the x87 (`math::x87_run::face_shares`; the `rcpss` way with the SSE switch).
-/// The registers it leaves (eax the last difference, ebx, ecx the third corner's y, z)
-/// are read by none of its callers.
+/// `physics::face_shares` (0x442323): the three corners named by `dword_639890` .. `98` copied
+/// (0x639708 ..), the point (0x6396FC, 0x639704), the differences, and the shares by the x87
+/// (`math::x87_run::face_shares`; the `rcpss` way with the SSE switch).
 pub fn face_shares_at(
     race: &Race,
     q: &GroundQuery<'_>,
@@ -93,9 +91,8 @@ pub fn face_refusal(course: &Course, face: u32) -> Option<&'static str> {
         .map(|e| e.0)
 }
 
-/// `physics::face_under_point` (0x442006): whether the point is inside face `number`
-/// (ebx; see `physics/face_under_point.rs`): the carry. The registers it leaves are read
-/// by none of its callers (`search_record_faces`, `try_last_face`).
+/// `physics::face_under_point` (0x442006): whether the point is inside face `number` (ebx; see
+/// `physics/face_under_point.rs`): the carry.
 // Converted: `rc2k_core::physics::ground_search::face_under_point`.
 pub fn face_under_point_at(
     race: &Race,

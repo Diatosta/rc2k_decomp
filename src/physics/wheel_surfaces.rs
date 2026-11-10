@@ -212,7 +212,7 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
     Ok(())
 }
 
-/// The Rust version: what was written is put back on a refusal.
+/// What was written is put back on a refusal.
 pub fn wheel_surfaces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     steps(race, scene)
 }

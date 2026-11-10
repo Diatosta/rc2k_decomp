@@ -12,7 +12,6 @@ use crate::physics::queue_notice::{load, store};
 use crate::race::owner_shared::Shared;
 use rc2k_core::physics::notices::Notice;
 
-/// The Rust version.
 pub fn take_notice(shared: &Shared) {
     let was = Notice {
         id: shared.car.notice_id.get(),

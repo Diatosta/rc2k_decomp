@@ -14,7 +14,7 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 use rc2k_core::physics::saved_car::{restore_count, restored};
 
-/// The Rust version. Converted: `rc2k_core::physics::saved_car::{restore_count, restored}`.
+/// Converted: `rc2k_core::physics::saved_car::{restore_count, restored}`.
 pub fn restore_saved_car(race: &Race) -> Result<(), Refused> {
     let n = restore_count(race.shared.car.probe_count.get())?;
     race.shared

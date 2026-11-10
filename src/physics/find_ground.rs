@@ -15,7 +15,7 @@ use crate::errors::Refused;
 use crate::physics::ground_search::ground_search;
 use crate::race::owner::Race;
 
-/// The Rust version: the carry (the registers are kept).
+/// The carry (the registers are kept).
 pub fn find_ground(race: &Race, scene: &crate::scene::owner::Scene) -> Result<bool, Refused> {
     ground_search(race, scene)
 }

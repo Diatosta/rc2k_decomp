@@ -11,8 +11,8 @@ use crate::physics::flow::fill_cells;
 use crate::physics::point_hits_car::point_hits_car;
 use crate::race::owner::Race;
 
-/// The Rust version for course face `face` (its number: the original's record and object
-/// are both the face): (inside, the point's number).
+/// For course face `face` (its number: the original's record and object are both the face):
+/// (inside, the point's number).
 pub fn scene_point_hits_car(race: &Race, face: u32) -> Result<(bool, u32), Refused> {
     let number = crate::race::course_places::face_field::<u32>(face, 4, "a scene point record")?;
     race.shared.physics_tables.scene_point_hits.set(

@@ -1,6 +1,6 @@
-//! `hud::add_scaled_sprite` (0x4B716A): as `hud::add_sprite` with the width times st(0)
-//! and the height times st(1) (`fistp`ed through `dword_75C060`) before they are made
-//! positive; st(0) and st(1) are read, not popped.
+//! `hud::add_scaled_sprite` (0x4B716A): as `hud::add_sprite` with the width times st(0) and the
+//! height times st(1) (`fistp`ed through `dword_75C060`) before they are made positive; st(0) and
+//! st(1) are read, not popped.
 //!
 //! Callers: the HUD's drawers (code at 0x4B28B0, ...).
 
@@ -12,9 +12,8 @@ use crate::race::owner_frame::Frame;
 use rc2k_core::hud::quads;
 use rc2k_core::math::extended::to_f64;
 
-/// The Rust version (see the header), the scales as `f64`s (what the x87 holds at the
-/// game's double precision): the sprite at `rect` with its corner at `x`, `y` (ebx, ecx,
-/// esi; every register kept).
+/// The scales as `f64`s (what the x87 holds at the game's double precision): the sprite at `rect`
+/// with its corner at `x`, `y`.
 // Converted: `rc2k_core::hud::quads::{sprite_places, scaled_size, sprite_corners}`
 pub fn add_scaled_sprite_plain(
     frame: &Frame,

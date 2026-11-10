@@ -24,8 +24,7 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     ]
 }
 
-/// The converted version (`rc2k_core::physics::motion`) on the variables' cells `v`. The eax
-/// it leaves (the mark) is read by none of its callers.
+/// The converted version (`rc2k_core::physics::motion`) on the variables' cells `v`.
 // Converted: `rc2k_core::physics::motion::time_mark`.
 fn core(course: &Course, v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
@@ -41,8 +40,7 @@ fn core(course: &Course, v: &[&dyn Cell32]) {
     }
 }
 
-/// The Rust version (a compare of floats only: the same at any precision); `r` as the
-/// original leaves are read by none of its callers.
+/// A compare of floats only: the same at any precision.
 pub fn note_time_mark(race: &Race) {
     core(&race.course, &game(&race.shared));
 }

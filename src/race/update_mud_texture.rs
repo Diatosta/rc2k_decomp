@@ -53,7 +53,6 @@ fn take_units(at: &Float, units: &Dword) {
     subtract_units(at, units);
 }
 
-/// The Rust version (see the header).
 pub fn update_mud_texture(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let textures = &scene.textures;
     let frame = &race.frame;

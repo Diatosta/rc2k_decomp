@@ -15,7 +15,6 @@ use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use rc2k_core::physics::splits::{SplitFigure, split_figure};
 
-/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::split_figure`.
 pub fn split_by_mode(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;

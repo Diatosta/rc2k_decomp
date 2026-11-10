@@ -44,8 +44,7 @@ pub fn corner_inside(race: &Race) -> bool {
     })
 }
 
-/// The Rust version: `block` the other car's block (edi). The registers it leaves are
-/// read by none of its callers.
+/// `block` the other car's block (edi).
 pub fn corner_hits_car(
     race: &Race,
     block: u32,

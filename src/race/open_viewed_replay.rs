@@ -1,14 +1,13 @@
 //! `race::open_viewed_replay` (0x41E9FF): a replay opened for the viewer: its file
-//! (`race::replay_path`; the last race's only when one was recorded, `dword_5BEC84`; a
-//! saved one, below 100 after the path's, copied over `var\tmprpl` first,
-//! `files::copy_file`) opened (mode 0) into `h`, `dword_5BEC88` 1, block and frame 0;
-//! its header (0x430 bytes into `dword_528504`: "REPL", version 0x50400) and its index
-//! (the last 0x3850 bytes into "RCIB": its name, the block count held to 0x708, more
-//! than 0) read; each block read (`drive::read_replay_frame_0`) for its first 8 bytes,
-//! the block's cameras (`unk_963BB4`); the marks round the whole; the first block read
-//! again, the cars' header (0x400 bytes from `unk_528534`) into `dword_719B14`, and the
-//! replay's physics patches in force (`race::apply_replay_patches`). Anything failing:
-//! the replay closed (`race::close_viewed_replay`) and carry.
+//! (`race::replay_path`; the last race's only when one was recorded, `dword_5BEC84`; a saved one,
+//! below 100 after the path's, copied over `var\tmprpl` first, `files::copy_file`) opened (mode 0)
+//! into `h`, `dword_5BEC88` 1, block and frame 0; its header (0x430 bytes into `dword_528504`:
+//! "REPL", version 0x50400) and its index (the last 0x3850 bytes into "RCIB": its name, the block
+//! count held to 0x708, more than 0) read; each block read (`drive::read_replay_frame_0`) for its
+//! first 8 bytes, the block's cameras (`unk_963BB4`); the marks round the whole; the first block
+//! read again, the cars' header (0x400 bytes from `unk_528534`) into `dword_719B14`, and the
+//! replay's physics patches in force (`race::apply_replay_patches`). Anything failing: the replay
+//! closed (`race::close_viewed_replay`) and carry.
 //!
 //! Takes: the replay (`race::replay_path`'s number)
 //!
@@ -24,9 +23,7 @@ use crate::race::replay_work_store::REPLAY_WORK;
 
 use rc2k_core::race::viewer_flow::{HEADER_LEN, INDEX_LEN};
 
-/// The Rust version: whether it failed (the carry the original leaves; it keeps the
-/// registers and leaves the zero flag `opened_zero(0)`, which no caller reads). `slot` the
-/// replay (the original's ebx).
+/// Whether it failed. `slot` the replay.
 pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
     let replay = &race.replay;
     let shared = &race.shared;

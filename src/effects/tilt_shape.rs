@@ -11,7 +11,6 @@ use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::math::x87;
 use crate::session::{Dword, Float, read_bits, write_bits};
 
-/// The Rust version (see the header).
 pub fn tilt_shape(drops: &WindscreenDrops) {
     let t = &drops.tilt;
     let (s, c) = x87::sine_and_cosine(t.tilt.bits());

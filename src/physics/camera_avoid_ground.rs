@@ -115,7 +115,7 @@ fn turn_back(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
     }
 }
 
-/// The steps. The registers the original leaves are read by none of its callers.
+/// The steps.
 // Converted: `rc2k_core::physics::camera_ground::{back_checkpoint, turn_step,
 // next_turn_step}`.
 pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {

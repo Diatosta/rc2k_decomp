@@ -10,7 +10,7 @@ use crate::race::owner_shared::Shared;
 use crate::session::Cell32;
 use rc2k_core::physics::ground::surface_flag;
 
-/// The Rust version on the variables' cells `v`.
+/// On the variables' cells `v`.
 // Converted: `rc2k_core::physics::ground::surface_flag`.
 pub fn note_at(v: &[&dyn Cell32]) {
     v[1].set_bits(surface_flag(v[0].bits()));
@@ -23,7 +23,6 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     ]
 }
 
-/// The Rust version.
 pub fn note_surface_mode(shared: &Shared) {
     note_at(&game(shared));
 }

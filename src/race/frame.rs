@@ -15,10 +15,9 @@ fn block(shared: &Shared, n: u32) -> u32 {
     shared.work.car_block(n as usize)
 }
 
-/// `race::players_all_out` (0x445506): carry when every player is out (+0xB0 not 0): the
-/// chosen car's with `dword_52A910` 1, else each of the `dword_63DB94` players' (none: no
-/// carry). Every register kept. Refuses, before anything, a chosen car past 7 or more
-/// than 8 players (the original reads past the table).
+/// `race::players_all_out` (0x445506): carry when every player is out (+0xB0 not 0): the chosen
+/// car's with `dword_52A910` 1, else each of the `dword_63DB94` players'. Refuses, before anything,
+/// a chosen car past 7 or more than 8 players (the original reads past the table).
 pub fn players_all_out(race: &Race) -> Result<bool, Refused> {
     let vars = &net().vars;
     let shared = &race.shared;
@@ -38,8 +37,8 @@ pub fn players_all_out(race: &Race) -> Result<bool, Refused> {
     }
 }
 
-/// `race::set_car_counter` (0x43A96C): block esi's message (+0x71C eax, +0x72C 0x12C,
-/// +0x730 0), written in the original's order (+0x71C, +0x730, +0x72C).
+/// `race::set_car_counter` (0x43A96C): block esi's message, written in the original's order
+/// (+0x71C, +0x730, +0x72C).
 pub fn set_car_counter(car: &Car, value: u32) {
     // Converted: `rc2k_core::race::cars::Message::new`.
     let m = rc2k_core::race::cars::Message::new(value);
@@ -48,8 +47,8 @@ pub fn set_car_counter(car: &Car, value: u32) {
     car.notice_time.set(m.time_left);
 }
 
-/// `race::set_both_counters` (0x43A987): `set_car_counter` of the first two blocks (by
-/// their fixed addresses), each with eax.
+/// `race::set_both_counters` (0x43A987): `set_car_counter` of the first two blocks (by their fixed
+/// addresses), each with eax.
 pub fn set_both_counters(value: u32) {
     // Converted: through `set_car_counter` (`rc2k_core::race::cars::Message`).
     for car in &crate::race::blocks_store::CAR_BLOCKS.cars[..2] {
@@ -97,9 +96,7 @@ fn pressed(devices: &crate::input::store::Devices, key: usize) -> bool {
     devices.keys_pressed.get(key) != 0
 }
 
-/// `race::race_keys` (0x43A649): the race's view and sound keys (see its header). It
-/// reads no register at entry; the ones it leaves are read by none of its callers
-/// (`drive::race_loop`, `drive::pause_until_key`).
+/// `race::race_keys` (0x43A649): the race's view and sound keys (see its header).
 pub fn race_keys(race: &Race) -> Result<(), Refused> {
     let audio = crate::audio::owner::audio();
     let devices = &input().devices;
@@ -188,13 +185,11 @@ pub fn race_keys(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::tyre_change` (0x444F7A): the textures copied (`TyreChange::texture` /
-/// `device_texture` from `dword_5D1444` / `dword_5D2444`); for car 0 (block at 0x70F3EC:
-/// +0x268 "c1 tyrec" count `dword_70F654`, +0x26C the change's state `dword_70F658`,
-/// +0x298 the tyre bits `dword_70F684`, +0x88 the time `dword_70F474`, +0x354 .. +0x360
-/// `dword_70F740` .. `dword_70F74C`, one per bit 1 .. 4) `race::tyre_change_gauge`
-/// started, then run, its time when done added. It reads no register at entry; the eax and
-/// esi it leaves are read by no caller (`drive::race_loop`).
+/// `race::tyre_change` (0x444F7A): the textures copied (`TyreChange::texture` / `device_texture`
+/// from `dword_5D1444` / `dword_5D2444`); for car 0 (block at 0x70F3EC: +0x268 "c1 tyrec" count
+/// `dword_70F654`, +0x26C the change's state `dword_70F658`, +0x298 the tyre bits `dword_70F684`,
+/// +0x88 the time `dword_70F474`, +0x354 .. +0x360 `dword_70F740` .. `dword_70F74C`, one per bit 1
+/// .. 4) `race::tyre_change_gauge` started, then run, its time when done added.
 pub fn tyre_change(
     race: &Race,
     input: &'static crate::input::owner::Input,

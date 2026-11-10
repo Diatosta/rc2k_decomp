@@ -27,8 +27,8 @@ use crate::race::owner::Race;
 use crate::scene::matrix3::rounded;
 use rc2k_core::physics::contacts;
 
-/// The Rust version: whether the point `point` (its three whole numbers, read by the
-/// caller) of the object of course face `face` (its number; its place at +0x30) is inside.
+/// Whether the point `point` (its three whole numbers, read by the caller) of the object of course
+/// face `face` (its number; its place at +0x30) is inside.
 // Converted: `rc2k_core::physics::contacts::{point_part, inside_box, kind_hits}` (the x87
 // steps stay).
 pub fn point_hits_car(race: &Race, point: [u32; 3], face: u32) -> Result<bool, Refused> {

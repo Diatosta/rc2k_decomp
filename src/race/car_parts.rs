@@ -27,16 +27,15 @@ fn axles(shared: &Shared, model: u32) -> Result<Option<[u32; 5]>, BadInput> {
     ))
 }
 
-/// `race::car_part_matrices` (0x460E7C): car esi's marks' switches and its parts' matrices
-/// (see the header): +0x718 the size from +0x1D8 (not below `flt_6140F8`); the switch bytes
-/// from +0x84, `dword_62DAD0` / `dword_62DACC`, +0x63C, +0x684, +0x1D4, each cut by its
-/// broken part (+0x410 .. +0x424; the original cuts them twice); +0xABC the marks' count x
-/// 0x20 (0 when +0x310 is not below `flt_5C5D14` or +0x84 is 0); +0xAAC the steering; the
-/// axles from the model's record; the light and place; the car's turn (+0xB4) and place
-/// into `flt_5EA08C` / `flt_641760`; each wheel placed at minus its axle, turned about x by
-/// its spin (+0x1F8 front, +0x1FC rear) and about y by the steering (front only), placed at
-/// its axle with its height (+0x910 ..), into `flt_6417E0` .. `flt_6418A0`. Refuses (before
-/// anything) axle values whose scaling would fault.
+/// `race::car_part_matrices` (0x460E7C): car esi's marks' switches and its parts' matrices: +0x718
+/// the size from +0x1D8 (not below `flt_6140F8`); the switch bytes from +0x84, `dword_62DAD0` /
+/// `dword_62DACC`, +0x63C, +0x684, +0x1D4, each cut by its broken part (+0x410 .. +0x424; the
+/// original cuts them twice); +0xABC the marks' count x 0x20 (0 when +0x310 is not below
+/// `flt_5C5D14` or +0x84 is 0); +0xAAC the steering; the axles from the model's record; the light
+/// and place; the car's turn (+0xB4) and place into `flt_5EA08C` / `flt_641760`; each wheel placed
+/// at minus its axle, turned about x by its spin (+0x1F8 front, +0x1FC rear) and about y by the
+/// steering (front only), placed at its axle with its height (+0x910 ..), into `flt_6417E0` ..
+/// `flt_6418A0`. Refuses (before anything) axle values whose scaling would fault.
 pub fn car_part_matrices(
     race: &Race,
     car: u32,
@@ -182,10 +181,9 @@ pub fn car_part_matrices(
 }
 
 /// `race::ready_car_parts` (0x460D5C): for each race car with its parts shown (+0x25C):
-/// `car_part_matrices` (esi the block), then the six matrices kept in the block
-/// (+0x740 .. +0x8BF) and the body's turn times the car's (`flt_5EA3CC`) at +0x8C0. Refuses
-/// (before anything) no race cars (the original's loop would run away), more than eight, or
-/// one without its block.
+/// `car_part_matrices`, then the six matrices kept in the block (+0x740 .. +0x8BF) and the body's
+/// turn times the car's (`flt_5EA3CC`) at +0x8C0. Refuses (before anything) no race cars (the
+/// original's loop would run away), more than eight, or one without its block.
 pub fn ready_car_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let frame = &race.frame;
     // Converted: `rc2k_core::race::car_parts::{check_part_cars, parts_shown,

@@ -6,8 +6,6 @@
 //!   (`physics::apply_patches`).
 //! - `race::restore_replay_patches` (0x41F31D): when the header has them and they are in
 //!   force: no longer, the kept switches back, applied again.
-//!
-//! Both keep every register.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

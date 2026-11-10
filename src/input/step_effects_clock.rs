@@ -14,8 +14,6 @@
 
 use crate::errors::{BadInput, Refused};
 
-// ---- Rust version ----
-
 /// The force feedback's clock: once 40 ms have gone, the rate (a second over the gap,
 /// held to 1000 ms) kept and `input::update_effects`.
 pub fn step_effects_clock(input: &crate::input::owner::Input) -> Result<(), Refused> {

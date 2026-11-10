@@ -78,7 +78,7 @@ pub fn emit(
     }
 }
 
-/// The Rust version (see the header): `wheel` the wheel's record (the original's edi),
+/// `wheel` the wheel's record (the original's edi),
 /// `object` the car's object (esi).
 pub fn emit_wheel_particles(
     effects: &Effects,

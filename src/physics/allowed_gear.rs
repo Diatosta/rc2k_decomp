@@ -13,7 +13,7 @@ use crate::physics::gear_bit::bits_at;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 
-/// The Rust version on the word +0x2B8, the word +0x3F4 and the gear bits at these places.
+/// On the word +0x2B8, the word +0x3F4 and the gear bits at these places.
 // Converted: `rc2k_core::physics::gearbox::allowed_gear`.
 pub fn allowed_gear_at(
     course: &Course,
@@ -31,7 +31,6 @@ pub fn allowed_gear_at(
     )?)
 }
 
-/// The Rust version.
 pub fn allowed_gear(race: &Race, eax: u32) -> Result<u32, Refused> {
     allowed_gear_at(
         &race.course,

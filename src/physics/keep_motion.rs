@@ -23,7 +23,6 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     ]
 }
 
-/// The Rust version.
 pub fn keep_motion(shared: &Shared) {
     core(&game(shared));
 }

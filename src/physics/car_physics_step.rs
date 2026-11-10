@@ -52,8 +52,7 @@ fn motion(race: &Race, scene: &crate::scene::owner::Scene) {
     ph::update_car_angles::update_car_angles(race, scene);
 }
 
-/// The steps. What the callees leave in the registers is read by none of them (each reads
-/// what it needs from memory), nor by the callers.
+/// The steps. Each callee reads what it needs from memory.
 pub fn steps(race: &Race) -> Result<(), Refused> {
     let system = crate::system::owner::system();
     let sound = crate::sound::owner::sound();
@@ -246,7 +245,6 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust version.
 pub fn car_physics_step(race: &Race) -> Result<(), Refused> {
     if race.shared.work.current_car.get() > 7 {
         return Err(BadInput("a current car past 7 (dword_641680's room)").into());

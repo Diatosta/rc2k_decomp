@@ -12,8 +12,6 @@ use crate::audio::owner::Audio;
 use crate::audio::voices::{SAMPLES, VOICES};
 use crate::errors::{BadInput, Refused};
 
-// ---- Rust version ----
-
 pub fn free_voices(audio: &Audio) -> Result<(), Refused> {
     let count = audio.state.voice_count.get();
     if count > VOICES {

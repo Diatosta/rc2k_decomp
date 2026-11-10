@@ -1,6 +1,6 @@
-//! `race::reset_marks` (0x41E403): after an edit, the block shown held to the replay's
-//! blocks (`dword_5C2530` at most `dword_5BECD0`, signed), the marks round the whole
-//! replay (`dword_96E478` 0, `dword_96E47C` the count) and the block shown read again
+//! `race::reset_marks` (0x41E403): after an edit, the block shown held to the replay's blocks
+//! (`dword_5C2530` at most `dword_5BECD0`, signed), the marks round the whole replay
+//! (`dword_96E478` 0, `dword_96E47C` the count) and the block shown read again
 //! (`drive::read_replay_frame_0`).
 //!
 //! Callers: `race::viewer_action` (the cut and the paste), `race::undo_edit`. Refuses what
@@ -9,7 +9,6 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-/// The Rust version.
 pub fn reset_marks(race: &Race) -> Result<(), Refused> {
     let replay = &race.replay;
     {

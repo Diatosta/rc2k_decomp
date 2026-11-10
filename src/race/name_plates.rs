@@ -12,10 +12,10 @@ use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::strings::owner::strings;
 
-/// `race::draw_name_plate` (0x45B695): slot `slot`'s (eax) surface, locked and unlocked
-/// (`d3d::lock_texture`, nothing when it fails): three lines' height cleared, text `text`
-/// (ebx) drawn three times in the name font (box 0x168 wide) at x 4, -0x74, -0xEC and y 0, a
-/// line, two lines (a long name wrapped over the plate's three rows). Every register kept.
+/// `race::draw_name_plate` (0x45B695): slot `slot`'s surface, locked and unlocked
+/// (`d3d::lock_texture`, nothing when it fails): three lines' height cleared, text `text` drawn
+/// three times in the name font (box 0x168 wide) at x 4, -0x74, -0xEC and y 0, a line, two lines (a
+/// long name wrapped over the plate's three rows).
 pub fn draw_name_plate(slot: u32, text: impl Into<crate::place::Place>) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
     let fonts = &gfx.fonts;
@@ -36,9 +36,8 @@ pub fn draw_name_plate(slot: u32, text: impl Into<crate::place::Place>) -> Resul
     Ok(())
 }
 
-/// `race::draw_plate_by_id` (0x41B2D4): string id `id` (ebx) into the text buffer (`text`,
-/// with its NUL) and drawn on slot `slot`'s (eax) plate (`draw_name_plate`). Every register
-/// kept.
+/// `race::draw_plate_by_id` (0x41B2D4): string id `id` into the text buffer (`text`, with its NUL)
+/// and drawn on slot `slot`'s plate (`draw_name_plate`).
 pub fn draw_plate_by_id(slot: u32, id: u32) -> Result<(), Refused> {
     let text = &strings().text;
     let mut cursor = 0usize;
@@ -52,10 +51,10 @@ pub fn draw_plate_by_id(slot: u32, id: u32) -> Result<(), Refused> {
     draw_name_plate(slot, &text.buffer.text)
 }
 
-/// `race::draw_time_plate` (0x45B70A): slot `slot`'s (eax) surface, locked and unlocked as
-/// `draw_name_plate`'s, below the name's three lines: two
-/// lines and three rows cleared, the texts at `dword_6D1838` and `dword_6D1844` in the time
-/// font (box 0x80 wide) at x 4, y three and four lines. Every register kept.
+/// `race::draw_time_plate` (0x45B70A): slot `slot`'s surface, locked and unlocked as
+/// `draw_name_plate`'s, below the name's three lines: two lines and three rows cleared, the texts
+/// at `dword_6D1838` and `dword_6D1844` in the time font (box 0x80 wide) at x 4, y three and four
+/// lines.
 pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
     let gfx = gfx();
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
@@ -87,14 +86,13 @@ pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::update_name_plates` (0x45B3B9): when the two time texts (8 bytes each at
-/// `dword_6D1838` / `dword_6D1844`) differ from their last copies (`dword_6D1850` /
-/// `dword_6D185C`): the time plate drawn (`race::draw_time_plate`, slot `dword_5D0DF8`),
-/// the copies made and both views' cars' +0x720 1. Then for each view (slots `dword_5D0DF8` / `dword_5D0DFC`) with
-/// a name asked for at its car's +0x71C: drawn by string id below 0x10000
-/// (`race::draw_plate_by_id`) or as a text pointer (`race::draw_name_plate`), into +0x724,
-/// +0x71C 0, +0x720 and +0x728 1. Its one caller, `race::draw_race_scene`, reads no
-/// register it leaves. Refuses (before anything) a null view block.
+/// `race::update_name_plates` (0x45B3B9): when the two time texts (8 bytes each at `dword_6D1838` /
+/// `dword_6D1844`) differ from their last copies (`dword_6D1850` / `dword_6D185C`): the time plate
+/// drawn (`race::draw_time_plate`, slot `dword_5D0DF8`), the copies made and both views' cars'
+/// +0x720 1. Then for each view (slots `dword_5D0DF8` / `dword_5D0DFC`) with a name asked for at
+/// its car's +0x71C: drawn by string id below 0x10000 (`race::draw_plate_by_id`) or as a text
+/// pointer (`race::draw_name_plate`), into +0x724, +0x71C 0, +0x720 and +0x728 1. Refuses (before
+/// anything) a null view block.
 pub fn update_name_plates(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let frame = &race.frame;
     let shared = &race.shared;

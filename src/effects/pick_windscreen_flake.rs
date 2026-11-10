@@ -12,7 +12,6 @@ use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::race::owner_shared::Shared;
 
-/// The Rust version (see the header).
 pub fn pick_windscreen_flake(shared: &Shared, fl: &WindscreenFlakes) -> Result<(), Refused> {
     {
         let s = fl

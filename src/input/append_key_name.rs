@@ -12,8 +12,6 @@ use crate::input::layouts::layouts;
 use crate::strings::append_string_by_id::append_string_by_id;
 use crate::strings::hex_append::hex_append;
 
-// ---- Rust version ----
-
 /// The name's bytes and the eax the original leaves.
 pub fn append_key_name(key: u32) -> Result<(Vec<u8>, u32), Refused> {
     let key = key & 0x7F;

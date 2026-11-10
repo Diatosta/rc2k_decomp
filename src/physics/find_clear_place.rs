@@ -98,7 +98,6 @@ pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
     Ok(())
 }
 
-/// The Rust version.
 pub fn find_clear_place(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     crate::physics::wall_contacts::check(&race.shared)?;
     steps(race, scene)

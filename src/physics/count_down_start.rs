@@ -11,7 +11,6 @@ use crate::physics::listed_car_flags::set_flag;
 use crate::race::owner::Race;
 use rc2k_core::physics::start::{CarStart, StartCount};
 
-/// The Rust version.
 pub fn count_down_start(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let mut c = CarStart {
         finished: race.shared.car.finish_flag.get(),

@@ -254,10 +254,9 @@ fn take_block(p: &Player, result: &RaceResult) {
     }
 }
 
-/// The total a record keeps in `damage[1]` (+0xD8): a tenth of the sum of the car's four
-/// times, and a tenth of six times the extra word. The original divides with `div ebp` (edx
-/// 0, ebp 10), after a test of the dividend for 0 that skips the division, so its fatal
-/// error 0x80701010 is out of reach.
+/// The total a record keeps in `damage[1]` (+0xD8): a tenth of the sum of the car's four times, and
+/// a tenth of six times the extra word. The original divides with `div ebp`, after a test of the
+/// dividend for 0 that skips the division, so its fatal error 0x80701010 is out of reach.
 fn total(car: &RaceCar) -> u32 {
     let sum = car.wear[10]
         .get()
@@ -313,10 +312,10 @@ fn give_outcome(p: &mut Player, result: &RaceResult) {
     }
 }
 
-/// `race::single_rally_race` (0x4843EC): `start` (eax) the run's start (1: the loading
-/// picture is not shown again after), `kind` (ebx) the kind (3: the rally's times copied
-/// first). Refuses, before anything, a missing player record (`g_players`[1] or
-/// [`dword_75598C`]; the original reads and writes through it).
+/// `race::single_rally_race` (0x4843EC): `start` the run's start (1: the loading picture is not
+/// shown again after), `kind` the kind (3: the rally's times copied first). Refuses, before
+/// anything, a missing player record (`g_players`[1] or [`dword_75598C`]; the original reads and
+/// writes through it).
 pub fn single_rally_race(start: u32, kind: u32) -> Result<(), Refused> {
     guarded(start, kind, &mut step)
 }
@@ -514,7 +513,7 @@ pub enum Call {
     PlayTune3,
 }
 
-/// Does one of the race's calls. What the original's calls leave in registers is never read.
+/// Does one of the race's calls.
 pub fn step(call: Call) -> Result<(), Refused> {
     let sound = crate::sound::owner::sound();
     let race = race();
@@ -557,7 +556,6 @@ mod table {
     use crate::errors::{FatalError, Refused};
     use crate::framework::{game_addr, rva};
 
-    /// The table's own scratch registers and flags.
     #[derive(Clone, Copy, Default)]
     pub struct Regs {
         pub edi: u32,
@@ -570,7 +568,6 @@ mod table {
         pub eflags: u32,
     }
 
-    /// A register of the table's.
     #[derive(Clone, Copy, Debug)]
     pub enum R {
         Eax,
@@ -692,9 +689,7 @@ mod table {
         }
     }
 
-    /// The table from the first op, with eax and ebx the run's start and kind. The registers
-    /// are the table's own scratch (a local `Regs`: the original is `pusha` .. `popa`, it
-    /// leaves every register of its caller as it was).
+    /// The table from the first op, with eax and ebx the run's start and kind.
     pub unsafe fn run(
         ops: &[Op],
         start: u32,
@@ -2022,8 +2017,7 @@ mod tests {
         (result, log, w.image_bytes(), w.range_bytes())
     }
 
-    /// The table, with its own registers; the stand-ins leave junk in the ones the real
-    /// calls leave (eax, ebx, ecx, edx, al).
+    /// The stand-ins leave junk in the ones the real calls leave.
     unsafe fn run_table(w: &World, c: &Case) -> Outcome3 {
         unsafe {
             let mut calls = Calls {

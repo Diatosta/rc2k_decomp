@@ -8,7 +8,7 @@ use crate::errors::Refused;
 use crate::race::owner_frame::Frame;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 
-/// The Rust version (see the header): the record (the original's esi; read by no
+/// The record (the original's esi; read by no
 /// caller).
 // Converted: `rc2k_core::effects::race::stage_record`
 pub fn stage_record(frame: &Frame) -> Result<&'static ViewRecord, Refused> {

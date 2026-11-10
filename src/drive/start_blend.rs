@@ -1,8 +1,7 @@
-//! `drive::start_blend` (0x43773D): the checkpoints the work car is past the lead's
-//! start (`dword_71A070` - `dword_70F484`, held to 0 .. 100 by the signs), through
-//! `dword_62400C` times `flt_604EC0` into `flt_71A654`; `flt_71A658` = `flt_71A650` +
-//! that + `flt_71A64C`, held to `flt_5C5D90` .. `flt_5C5D38` (0 .. 1). By the look of
-//! it a share used at a start (a reading).
+//! `drive::start_blend` (0x43773D): the checkpoints the work car is past the lead's start
+//! (`dword_71A070` - `dword_70F484`, held to 0 .. 100 by the signs), through `dword_62400C` times
+//! `flt_604EC0` into `flt_71A654`; `flt_71A658` = `flt_71A650` + that + `flt_71A64C`, held to
+//! `flt_5C5D90` .. `flt_5C5D38` (0 .. 1). By the look of it a share used at a start (a reading).
 //!
 //! Returns: the held count
 //!
@@ -65,7 +64,7 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     ]
 }
 
-/// The Rust version (the exact one, for `drive::read_car_controls`).
+/// (the exact one, for `drive::read_car_controls`).
 pub fn start_blend(race: &Race) -> u32 {
     blend_at(race, &game(&race.shared))
 }

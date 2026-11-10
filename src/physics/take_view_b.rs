@@ -20,8 +20,7 @@ use crate::race::owner_physics::Physics;
 use crate::race::view_vars_store::ViewRecord;
 use crate::session::Cell32;
 
-/// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
-/// (esi). The eax and ebx it leaves are read by none of its callers.
+/// The exact version, for `physics::update_camera`: `s` the view's record (esi).
 pub fn take_view_b(race: &Race, s: &ViewRecord, scene: &crate::scene::owner::Scene) {
     x87_1(&race.physics, s.offset_bits(), scene);
     for (x, v) in copies(&race.physics).iter().zip(s.taken()) {

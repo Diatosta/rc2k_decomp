@@ -63,7 +63,6 @@ fn point_turned(drops: &WindscreenDrops, p: &[Float; 3]) {
     point_turned_x87(drops, p);
 }
 
-/// The Rust version (see the header).
 pub fn windscreen_drops_top(
     frame: &Frame,
     masks: &Masks,

@@ -16,8 +16,6 @@ use crate::math::x87_float::{ld, st};
 use crate::session::Cell32;
 use crate::sound::spot_voices::{VOICE_COUNT, set, voice, vw};
 
-// ---- Rust version ----
-
 pub fn spot_voice_distances(
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), crate::errors::BadInput> {

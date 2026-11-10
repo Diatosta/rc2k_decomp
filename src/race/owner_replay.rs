@@ -22,7 +22,7 @@ pub struct Replay {
     pub snapshot: Bytes<26>,
     /// `dword_4F66F9`: the race record's seal key (`race::replay`).
     pub seal_key: Dword,
-    /// The seal's work (`race::seal_store`); `moved` registers its window past the lead.
+    /// The seal's work (`race::seal_store`).
     pub seal_work: SealWork,
     /// `aVarTmprpl`: the last race's replay file's name (`race::replay_path`).
     pub last_race: [u8; LAST_RACE_LEN],

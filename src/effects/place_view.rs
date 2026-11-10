@@ -66,7 +66,7 @@ pub fn place_view_with(v: &ViewPlace) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust version (see the header). Refuses as `transform_int_points` (never, ecx 1).
+/// Refuses as `transform_int_points` (never, ecx 1).
 pub fn place_view(weather: &Weather) -> Result<(), Refused> {
     place_view_with(&first(weather))
 }

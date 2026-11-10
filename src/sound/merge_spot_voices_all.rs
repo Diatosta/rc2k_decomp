@@ -9,8 +9,6 @@
 
 use crate::errors::Refused;
 
-// ---- Rust version ----
-
 /// `sound::merge_spot_voices` for each sound merged.
 pub fn merge_spot_voices_all(owner: &crate::sound::owner::Sound) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::spot_voices::MERGED_SOUNDS`.

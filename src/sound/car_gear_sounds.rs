@@ -17,8 +17,6 @@
 use crate::errors::Refused;
 use crate::sound::sets_store::SoundRequest;
 
-// ---- Rust version ----
-
 /// The gear sounds of object `so`, through `request`.
 pub fn car_gear_sounds(
     so: &crate::sound::store::SoundObject,

@@ -11,7 +11,7 @@ use crate::d3d::texture_lock::*;
 use crate::errors::{BadInput, Refused};
 use crate::framework::Flags;
 
-/// The Rust version (see the header): texture `texture` unlocked; the flags it leaves
+/// Texture `texture` unlocked; the flags it leaves
 /// (every register is kept).
 pub fn unlock_texture(texture: u32) -> Result<Flags, Refused> {
     use rc2k_core::d3d::textures::{UNLOCK_FAILED, Unlock, unlock};

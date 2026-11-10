@@ -31,7 +31,6 @@ fn axes(drops: &WindscreenDrops) {
     axes_x87(drops);
 }
 
-/// The Rust version (see the header).
 pub fn windscreen_drops_setup(drops: &WindscreenDrops, scene: &crate::scene::owner::Scene) {
     use crate::scene::set_render_state::set_render_state;
     {

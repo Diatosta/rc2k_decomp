@@ -74,7 +74,6 @@ fn angle(sh: &Shadow) -> Result<[u8; 10], Refused> {
     })
 }
 
-/// The Rust version (see the header).
 pub fn draw_shadow(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     masks: &Masks,

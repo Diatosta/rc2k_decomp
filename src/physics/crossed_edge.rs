@@ -49,7 +49,6 @@ pub fn check(physics: &Physics) -> Result<(), Refused> {
     check_probe(physics)
 }
 
-/// The Rust version. The registers it leaves are read by none of its callers.
 pub fn crossed_edge(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     check(&race.physics)?;
     steps(race, scene)

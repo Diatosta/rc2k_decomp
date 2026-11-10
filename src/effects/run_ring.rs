@@ -699,7 +699,6 @@ fn boxed_kind(
     Ok(x87::compare_status(entry(ring, e)?.place[1], entry(ring, e)?.ground_y) == 0x100)
 }
 
-/// The Rust version (see the header).
 pub fn run_ring(
     masks: &Masks,
     ring: &Ring,

@@ -74,8 +74,6 @@ pub fn place(width: u32, miles: f32, total: f32) -> u32 {
     fistp64(width as i32 as f64 * miles as f64 / total as f64) as u32
 }
 
-/// One quad of a part: the alpha and colour set first (when given), the corners, and the
-/// registers it is drawn with (eax, ebx; edx when given, else as before).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Quad {
     pub alpha: Option<u32>,

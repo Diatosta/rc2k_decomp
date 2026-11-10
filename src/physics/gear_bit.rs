@@ -20,7 +20,7 @@ pub fn bits_at(bits: &dyn crate::session::Cell32) -> GearBits {
     GearBits(bits.bits())
 }
 
-/// The Rust version on the dword at `bits`.
+/// On the dword at `bits`.
 // Converted: `rc2k_core::physics::gearbox::GearBits::test`.
 pub fn gear_bit_at(bits: &dyn crate::session::Cell32, gear: u32) -> Result<FlagResult, Refused> {
     let t = { bits_at(bits) }.test(gear)?;
@@ -33,7 +33,6 @@ pub fn gear_bit_at(bits: &dyn crate::session::Cell32, gear: u32) -> Result<FlagR
     })
 }
 
-/// The Rust version.
 pub fn gear_bit(shared: &Shared, gear: u32) -> Result<FlagResult, Refused> {
     gear_bit_at(&shared.car.lost_gear_bits, gear)
 }

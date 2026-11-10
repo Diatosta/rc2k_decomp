@@ -12,7 +12,7 @@ use crate::race::owner_shared::Shared;
 use crate::session::Cell32;
 use rc2k_core::physics::ground::SkidStart;
 
-/// The Rust version on the variables' cells `v`. The registers the original leaves are read by none of its callers (eax).
+/// On the variables' cells `v`.
 // Converted: `rc2k_core::physics::ground::SkidStart::start`.
 pub fn start_at(v: &[&dyn Cell32]) {
     let wheels = [v[0].bits(), v[1].bits(), v[2].bits(), v[3].bits()];
@@ -54,7 +54,6 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     ]
 }
 
-/// The Rust version.
 pub fn start_skid_mark(shared: &Shared) {
     start_at(&game(shared));
 }

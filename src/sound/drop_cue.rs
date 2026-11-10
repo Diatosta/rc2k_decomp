@@ -11,8 +11,6 @@
 
 use crate::errors::{BadInput, Refused};
 
-// ---- Rust version ----
-
 /// Converted: `rc2k_core::sound::cars::drop_cue`. The cue at `place` dropped from the
 /// queue at `queue`.
 pub fn drop_cue(q: &crate::sound::store::CueQueue, place: u32) -> Result<(), Refused> {

@@ -1,10 +1,10 @@
-//! `drive::quit_question` (0x445069): the "quit?" question in a race. The race's sounds
-//! stopped, `dword_6235E8` 1; the best whole frame less 7 (the first block's +8 / 100)
-//! kept in `dword_70F3E8` when not below it (by the sign); the eight blocks' notice 0xC2
-//! (with `dword_6238C0`) or 0xC1, +0x730 0, +0x72C -1. Then until answered
-//! (`input::yes_no_key`, the race's frame drawn each turn, `drive::race_frame` through the game):
-//! yes -1, no 0, and outside mode 2 with `dword_6238C0` the third answer -2. The notices
-//! cleared, `dword_6235E8` 0 and the sounds woken, the eight blocks' +0x468 0.
+//! `drive::quit_question` (0x445069): the "quit?" question in a race. The race's sounds stopped,
+//! `dword_6235E8` 1; the best whole frame less 7 (the first block's +8 / 100) kept in
+//! `dword_70F3E8` when not below it (by the sign); the eight blocks' notice 0xC2 (with
+//! `dword_6238C0`) or 0xC1, +0x730 0, +0x72C -1. Then until answered (`input::yes_no_key`, the
+//! race's frame drawn each turn, `drive::race_frame` through the game): yes -1, no 0, and outside
+//! mode 2 with `dword_6238C0` the third answer -2. The notices cleared, `dword_6235E8` 0 and the
+//! sounds woken, the eight blocks' +0x468 0.
 //!
 //! Returns: the answer
 //!
@@ -16,11 +16,9 @@ use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use rc2k_core::drive::race_ticks;
 
-/// The Rust version.
 // Converted: `rc2k_core::drive::race_ticks::{best_frame, keeps_frame, quit_notice,
 // quit_answer}`.
-/// The answer (eax): 0 to race on. The other registers it leaves are read by no caller
-/// (liveness: `race_loop` reads eax only).
+/// The answer: 0 to race on.
 pub fn quit_question(race: &Race, input: &crate::input::owner::Input) -> Result<u32, Refused> {
     let shared = &race.shared;
     let replay = &race.replay;

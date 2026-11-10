@@ -12,7 +12,7 @@
 use crate::d3d::vertices_store::VERTICES;
 use crate::math::x87;
 
-/// The Rust version (see the header): `colour` (ecx), `size` (edx).
+/// `colour` (ecx), `size` (edx).
 pub fn draw_particle(
     view_matrix: &[crate::session::Float; 16],
     place: [[u8; 10]; 3],

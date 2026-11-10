@@ -1,11 +1,10 @@
-//! `hud::add_polygon` (0x4B7413): `g_polygonVertices` (`g_polygonVertexCount` of them)
-//! scaled from the virtual screen to the real one (x times `g_screenWidth` over
-//! `flt_75C02C`, y times `g_screenHeight` over `flt_75C030`) and added to the batch: when
-//! the batch holds more than 0x64 vertices or the texture asked for (`dword_75C034`) is not
-//! the batch's (`dword_75C038`), `hud::flush_batch`, the texture made the batch's and the
-//! shown one (`dword_6D14FE`), `hud::set_batch_texture`; the vertices copied after the
-//! batch's; the indices of a triangle (and with other than three vertices a second one
-//! making a quad).
+//! `hud::add_polygon` (0x4B7413): `g_polygonVertices` (`g_polygonVertexCount` of them) scaled from
+//! the virtual screen to the real one (x times `g_screenWidth` over `flt_75C02C`, y times
+//! `g_screenHeight` over `flt_75C030`) and added to the batch: when the batch holds more than 0x64
+//! vertices or the texture asked for (`dword_75C034`) is not the batch's (`dword_75C038`),
+//! `hud::flush_batch`, the texture made the batch's and the shown one (`dword_6D14FE`),
+//! `hud::set_batch_texture`; the vertices copied after the batch's; the indices of a triangle (and
+//! with other than three vertices a second one making a quad).
 //!
 //! In:  nothing (`g_polygonVertices`, `g_polygonVertexCount`)
 //!
@@ -19,8 +18,6 @@ use crate::hud::owner::Hud;
 use crate::race::owner_frame::Frame;
 use crate::system::owner::system;
 
-/// The Rust version (see the header). What the original leaves in eax, ecx, esi and edi
-/// is read by none of its callers (register liveness, 2026-10-23).
 // Converted: `rc2k_core::hud::batch::{flushes, check_polygon, polygon_indices}`,
 // `rc2k_core::hud::quads::screen_scaled`
 pub fn add_polygon(frame: &Frame, hud: &Hud) -> Result<(), Refused> {

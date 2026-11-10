@@ -12,8 +12,6 @@
 
 use crate::errors::Refused;
 
-// ---- Rust version ----
-
 /// The shared spots' voices for the turn.
 pub fn spot_sounds(
     sound: &crate::sound::owner::Sound,

@@ -87,7 +87,6 @@ pub fn draw_batch() -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust version (see the header).
 pub fn windscreen_drops_frame(
     frame: &Frame,
     masks: &Masks,

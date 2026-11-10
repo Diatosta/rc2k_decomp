@@ -8,7 +8,6 @@
 
 use crate::math::x87;
 
-/// The Rust version (see the header).
 pub fn view_step(effects: &crate::effects::owner::Effects) {
     let k = &effects.frame.kept_view;
     // now: `kept_a`'s scaled vector (`flt_76927A` ..)

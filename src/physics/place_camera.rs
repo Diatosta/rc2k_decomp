@@ -106,7 +106,7 @@ fn place_with(
     shared.car.camera_position[2].set(place[2]);
 }
 
-/// The Rust version (the exact one, for `physics::camera_avoid_ground`).
+/// The exact version, for `physics::camera_avoid_ground`.
 pub fn place_camera(race: &Race, scene: &crate::scene::owner::Scene) {
     use crate::math::{turn_point_xz, turn_point_xz_ebx, turn_point_xz_ecx};
     let second = || {

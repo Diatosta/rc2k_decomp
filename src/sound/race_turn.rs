@@ -16,8 +16,6 @@
 use crate::errors::Refused;
 use crate::system::owner::system;
 
-// ---- Rust version ----
-
 /// The race's sounds for the frame.
 pub fn race_turn(
     sound: &crate::sound::owner::Sound,

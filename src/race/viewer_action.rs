@@ -1,5 +1,4 @@
-//! `race::viewer_action` (0x41DE6F): one of the replay viewer's actions, ebx (its body is
-//! 0x41DE81, in chunks, entered only from here; unknown actions `inc ebp`):
+//! `race::viewer_action` (0x41DE6F): one of the replay viewer's actions, ebx:
 //!
 //! | action | what |
 //! | --- | --- |
@@ -36,8 +35,7 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::replay_work_store::REPLAY_WORK;
 
-/// The Rust version: whether the action is one (the zero flag the original leaves; it
-/// keeps the registers). `action` the action (the original's ebx).
+/// Whether the action is one. `action` the action.
 pub fn viewer_action(race: &Race, action: u32) -> Result<bool, Refused> {
     let replay = &race.replay;
     // Converted: `rc2k_core::race::viewer::{Action, goto_block, frame_back, frame_on,
@@ -212,8 +210,6 @@ fn cut(race: &Race) -> Result<(), Refused> {
         return Ok(());
     };
     crate::race::keep_undo::keep_undo(&race.shared);
-    // `copy_marked` copies whenever `cut_marks` cuts (the same order test, the marks
-    // unchanged by `keep_undo`): the original's edx fallback is never taken.
     let Some(count) = crate::race::copy_marked::copy_marked(&race.shared)? else {
         return Err(crate::errors::BadInput("a cut whose marks do not copy").into());
     };

@@ -9,7 +9,6 @@
 
 use crate::math::x87;
 
-/// The Rust version (see the header).
 pub fn aim_vector(effects: &crate::effects::owner::Effects) {
     let k = &effects.frame.kept_view;
     let v: [u32; 3] = std::array::from_fn(|n| {

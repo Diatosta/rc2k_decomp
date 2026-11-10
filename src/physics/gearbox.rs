@@ -2,9 +2,8 @@
 //! `physics::manual_gearbox` (0x43C2AE, and its one-call twin 0x43C2A8),
 //! `physics::auto_gearbox` (0x43C5C2), `physics::pick_start_gear` (0x43C8AC). This file:
 //! the steps they share, on the game's variables (the work car's gear fields,
-//! `physics/gearing.rs`). Plain since 2026-10-23 (phase 3): the registers the originals
-//! leave are read by none of their callers (`physics::car_physics_step`,
-//! `physics::test_drive_run`), so the steps return only what the flow uses.
+//! `physics/gearing.rs`). The steps return only what the flow uses (`physics::car_physics_step`,
+//! `physics::test_drive_run`).
 //!
 //! The shift points `flt_5CB958` .. `flt_5CB964`, `flt_614104` and `flt_6140F8` are set at
 //! run time (0 in the file); the tests set them.
@@ -52,19 +51,19 @@ pub fn bit(shared: &Shared, gear: u32) -> Result<bool, Refused> {
     Ok({ gear_bit(shared, gear) }?.carry)
 }
 
-/// `wheels_from_revs` (its ebx, the gear, read by no caller).
+/// `wheels_from_revs`.
 pub fn wheels(shared: &Shared) -> Result<(), Refused> {
     { wheels_from_revs_at(&GearPlaces::game(shared)) }?;
     Ok(())
 }
 
-/// `revs_from_wheels` (its ebx read by no caller).
+/// `revs_from_wheels`.
 pub fn revs(race: &Race) -> Result<(), Refused> {
     { revs_from_wheels_at(&race.course, &GearPlaces::game(&race.shared)) }?;
     Ok(())
 }
 
-/// `revs_from_speed` (its ebx read by no caller).
+/// `revs_from_speed`.
 pub fn revs_speed(shared: &Shared) -> Result<(), Refused> {
     { revs_from_speed_at(&GearPlaces::game(shared)) }?;
     Ok(())

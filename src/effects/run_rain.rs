@@ -55,7 +55,6 @@ fn keep_y(weather: &Weather, i: usize) {
     keep_y_x87(i, &weather.rain);
 }
 
-/// The Rust version (see the header).
 pub fn run_rain(
     race: &Race,
     weather: &Weather,

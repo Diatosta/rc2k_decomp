@@ -15,7 +15,6 @@ use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use rc2k_core::physics::splits::{LAST_COMPARED_SPLIT, compare_split};
 
-/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::compare_split`.
 pub fn compare_split_times(race: &Race) -> Result<(), Refused> {
     if race.shared.car.splits_recorded.get() > LAST_COMPARED_SPLIT {

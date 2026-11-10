@@ -10,8 +10,6 @@
 
 use crate::sound::spot_voices::{load_voices, store_voices};
 
-// ---- Rust version ----
-
 pub fn exclusive_spot_voices(sound: &crate::sound::owner::Sound) {
     // Converted: `rc2k_core::sound::spot_voices::keep_exclusive`.
     let mut voices = load_voices(sound);

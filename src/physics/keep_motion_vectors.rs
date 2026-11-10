@@ -35,7 +35,6 @@ fn game(race: &Race) -> Vec<&dyn Cell32> {
     ]
 }
 
-/// The Rust version.
 pub fn keep_motion_vectors(race: &Race) {
     core(&game(race));
 }

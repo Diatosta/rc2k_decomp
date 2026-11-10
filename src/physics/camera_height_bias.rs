@@ -17,7 +17,7 @@ use crate::physics::flow::{hold_high, hold_low};
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 
-/// The Rust version (the exact one, for `physics::update_camera`).
+/// The exact version, for `physics::update_camera`.
 pub fn camera_height_bias(
     race: &Race,
     scene: &crate::scene::owner::Scene,

@@ -17,7 +17,6 @@ use crate::physics::flow::c0;
 use crate::race::owner::Race;
 use rc2k_core::physics::camera_ground::{is_low, low_switch, low_switch_looks, over};
 
-/// The Rust version. The eax it leaves is read by none of its callers.
 // Converted: `rc2k_core::physics::camera_ground::{low_switch_looks, is_low, low_switch}`.
 pub fn camera_low_switch(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     if !low_switch_looks(

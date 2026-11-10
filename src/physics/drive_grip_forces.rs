@@ -42,7 +42,6 @@ fn product_below(a: u32, b: u32, c: u32) -> bool {
     mul_status(a, b, c) & 0x100 != 0
 }
 
-/// The Rust version.
 pub fn drive_grip_forces(race: &Race, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let kind = race.shared.car.drive_kind.get();

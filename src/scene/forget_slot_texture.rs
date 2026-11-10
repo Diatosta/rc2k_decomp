@@ -8,7 +8,6 @@
 
 use crate::errors::Refused;
 
-/// The Rust version (see the header).
 pub fn forget_slot_texture(slot: u32, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     // Converted: `rc2k_core::scene::textures::forget_slot_texture`.
     Ok(crate::scene::textures::with_cells(

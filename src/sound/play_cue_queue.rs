@@ -21,8 +21,6 @@
 use crate::errors::Refused;
 use crate::sound::sample_duration::sample_duration;
 
-// ---- Rust version ----
-
 /// Converted: `rc2k_core::sound::cars::cue_turn`; the drops through `sound::drop_cue`, the
 /// queue in the game's memory meanwhile. Object `so`'s queue of cues: the next one played
 /// when it is due.

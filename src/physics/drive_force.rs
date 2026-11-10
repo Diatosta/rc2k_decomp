@@ -13,7 +13,7 @@ use crate::physics::engine_torque_or_cut::engine_torque_or_cut;
 use crate::physics::gear_store::GEAR;
 use crate::race::owner::Race;
 
-/// The Rust version (the exact one, for the Rust callers' exact comparisons).
+/// The exact version, for the Rust callers' exact comparisons.
 pub fn drive_force(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let gear = race.shared.car.gear.get();
     if !(-1..=7).contains(&(gear as i32)) {

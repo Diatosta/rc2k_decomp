@@ -14,8 +14,6 @@ use crate::menu::owner::menus;
 
 // `sound::stream_playing`
 
-// ---- Rust version ----
-
 /// `playing` stands for `sound::stream_playing`, `start` for `sound::start_stream` (the part, the
 /// volume).
 pub fn step_car_stream(

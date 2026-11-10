@@ -19,7 +19,7 @@ const KINDS: u32 = rc2k_core::effects::kind_values::KINDS;
 /// 18240.0, the value of most of the table's kinds: the kinds past it get it (section 16).
 const KIND_FLOAT_PAST: u32 = 0x468E_8000;
 
-/// The Rust version (see the header): `seed` the seed (eax). The original took the settings'
+/// `seed` the seed (eax). The original took the settings'
 /// address in esi; the race hands its one record (`race::marks_settings_store`), so none is
 /// passed. The steps (`nullsub_1` before each, `nullsub_26` for step 7: nothing).
 pub fn init_marks(

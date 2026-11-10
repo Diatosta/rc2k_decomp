@@ -1,8 +1,8 @@
 //! `race::read_replay_header` (0x460428): "READREPLAYHEADER" logged; the replay's header
-//! (`dword_719B14` ..) into the race's variables: the arcade's noise seed, start place
-//! and cars, the stage, the game mode, the players, the cars and their kinds (into the
-//! car blocks too), the two game-over flags (`targets`); then twelve of them logged, each
-//! as its name and its value (`NAMES`).
+//! (`dword_719B14` ..) into the race's variables: the arcade's noise seed, start place and cars,
+//! the stage, the game mode, the players, the cars and their kinds (into the car blocks too), the
+//! two game-over flags (`targets`); then twelve of them logged, each as its name and its value
+//! (`NAMES`).
 //!
 //! Callers: `race::viewer_load_stage`, 0x44401B (the replay run of `sub_443FxF`).
 
@@ -45,8 +45,6 @@ fn log_text(text: &std::ffi::CStr, newline: bool) {
     crate::logfile::log_write::log_nul(text.to_bytes(), newline, 1);
 }
 
-/// The Rust version. Reads no register and keeps every one (liveness), so its only
-/// caller, `race::viewer_load_stage`, calls it plainly.
 pub fn read_replay_header(shared: &Shared) {
     // Converted: `rc2k_core::race::replay::{HEADER_SETTINGS, read_logged}`.
     log_text(TITLE, true);

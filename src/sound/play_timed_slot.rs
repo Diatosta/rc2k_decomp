@@ -17,8 +17,6 @@ use crate::sound::sample_duration::sample_duration;
 use crate::sound::sample_settings::sample_settings;
 use crate::sound::sets_store::SoundRequest;
 
-// ---- Rust version ----
-
 /// Converted: `rc2k_core::sound::cars::slot_turn`.
 pub fn play_timed_slot(
     slot: &crate::sound::store::SoundSlot,

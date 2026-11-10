@@ -1,6 +1,6 @@
 //! `drive::race_step` (0x4454D2): the race's ticks for this frame. The clock in tenths
-//! (`drive::race_clock_tick`); unless paused (`dword_6138F8`), `drive::race_tick` once for
-//! each tenth gone (`dword_613844`, signed), stopping when the players are all out
+//! (`drive::race_clock_tick`); unless paused (`dword_6138F8`), `drive::race_tick` once for each
+//! tenth gone (`dword_613844`, signed), stopping when the players are all out
 //! (`race::players_all_out`).
 //!
 //! Callers: `drive::race_loop`, `race::play_movie_loop`. Refuses what its calls refuse.
@@ -8,9 +8,6 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-/// The Rust version. The registers it leaves are read by no caller (liveness: edi, edx
-/// and esi after `drive::race_loop`'s call have no read point but the false ones of
-/// `imul` and the physics; `race::play_movie_loop` has only DF live after it).
 // Converted: `rc2k_core::drive::race_ticks::run_ticks`.
 pub fn race_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let _step = crate::write_watch::step("physics");

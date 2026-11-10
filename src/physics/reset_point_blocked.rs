@@ -21,9 +21,8 @@ fn at(a: &dyn Cell32) -> u32 {
     a.bits()
 }
 
-/// The Rust core: the candidate and count read at `candidate`, `count`; `block` the car
-/// block tried (esi). Returns the carry (blocked); the eax and ebx it leaves are read by
-/// none of its callers.
+/// The candidate and count read at `candidate`, `count`; `block` the car block tried (esi). Returns
+/// the carry (blocked).
 // Converted: `rc2k_core::physics::line_places::reset_point_blocked`.
 pub fn reset_point_blocked_at(candidate: &dyn Cell32, count: &dyn Cell32, block: u32) -> bool {
     let block = crate::physics::car_store::Car::at(block);
@@ -36,7 +35,6 @@ pub fn reset_point_blocked_at(candidate: &dyn Cell32, count: &dyn Cell32, block:
     .carry()
 }
 
-/// The Rust version.
 pub fn reset_point_blocked(race: &Race, block: u32) -> bool {
     reset_point_blocked_at(
         &race.shared.physics_tables.reset_candidate,

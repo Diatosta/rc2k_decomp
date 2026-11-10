@@ -5,7 +5,7 @@
 use crate::physics::free_rev::free_rev;
 use crate::race::owner::Race;
 
-/// The Rust version (the exact one, for `physics::car_physics_step`).
+/// The exact version, for `physics::car_physics_step`.
 pub fn free_rev_in_neutral(race: &Race, scene: &crate::scene::owner::Scene) {
     if race.shared.car.gear.get() != 0 {
         return;

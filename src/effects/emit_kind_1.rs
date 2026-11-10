@@ -210,7 +210,6 @@ pub fn emit_particle_1(
     Ok(())
 }
 
-/// The Rust version (see the header).
 pub fn emit_kind_1(
     masks: &Masks,
     particles: &Particles,

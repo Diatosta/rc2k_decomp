@@ -184,8 +184,7 @@ fn failures(race: &Race) -> [(&Dword, &Float, &Float, u32); 7] {
     ]
 }
 
-/// The Rust version (the exact one, for `physics::grade_or_reset` and
-/// `physics::rate_current_car`).
+/// The exact version, for `physics::grade_or_reset` and `physics::rate_current_car`.
 pub fn rate_damage(race: &Race) {
     let d = &race.physics.damage;
     let c = &race.shared.car;

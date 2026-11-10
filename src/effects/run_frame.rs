@@ -77,7 +77,7 @@ impl<'a> EffectsView<'a> {
     }
 }
 
-/// The Rust version (see the header), for `view`.
+/// For `view`.
 pub fn run_frame(race: &Race, view: EffectsView<'_>) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
     let scene = crate::scene::owner::scene();

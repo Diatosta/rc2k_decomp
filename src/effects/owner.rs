@@ -1,6 +1,5 @@
 //! The effects' owner (step 11, owned state): the effects' state in one struct, handed by
-//! reference to the code that runs them in place of global stores. The pilot holds the
-//! windscreen flakes; the other effects' stores join it one by one.
+//! reference to the code that runs them in place of global stores.
 //!
 //! `effects()` is the boundary: the callers that do not take the owner yet fetch it there
 //! and pass it down. It rises as their callers take the owner, until the program's top holds

@@ -4,7 +4,7 @@
 //!
 //! Caller: `menu::release_controller`.
 
-/// The Rust version (see the header).
+/// See the header.
 pub fn request_device_release(input: &crate::input::owner::Input) {
     input.devices.input_command.set(2); // g_inputCommand
 }

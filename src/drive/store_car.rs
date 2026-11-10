@@ -1,5 +1,5 @@
-//! `drive::store_car` (0x460C5D): the work copy back into the current car's block:
-//! `g_car` -> `g_carBlocks[g_currentCar & 7]` (0xFE0 bytes, `rep movsd`).
+//! `drive::store_car` (0x460C5D): the work copy back into the current car's block: `g_car` ->
+//! `g_carBlocks[g_currentCar & 7]` (0xFE0 bytes, `rep movsd`).
 //!
 //! Works on `g_currentCar` 0x71B3F8.
 //!
@@ -11,7 +11,6 @@ use crate::drive::car::*;
 use crate::errors::Refused;
 use crate::race::owner_shared::Shared;
 
-/// The Rust version.
 // Converted: `rc2k_core::drive::work_car::{car_slot, car_block}`.
 pub fn store_car(shared: &Shared) -> Result<(), Refused> {
     copy_car(&shared.car, current_block(shared)?);

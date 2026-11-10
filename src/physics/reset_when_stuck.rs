@@ -12,7 +12,6 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 use rc2k_core::physics::start::stuck_tick;
 
-/// The Rust version. The registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::start::stuck_tick`.
 pub fn reset_when_stuck(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let shared = &race.shared;

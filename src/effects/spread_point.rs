@@ -13,7 +13,7 @@ use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::Dword;
 
-/// The Rust version (see the header): the three out and eax.
+/// The three out and eax.
 pub fn spread_point(
     paths: &Paths,
     inputs: [[u8; 10]; 4],

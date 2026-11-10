@@ -40,7 +40,7 @@ fn square(effects: &crate::effects::owner::Effects) {
     square_x87(&effects.frame.draw_work);
 }
 
-/// The Rust version (see the header): `subcell` (eax), `size` (edx, a float's bits),
+/// `subcell` (eax), `size` (edx, a float's bits),
 /// `entry` (esi). No caller reads a register it leaves.
 #[allow(
     clippy::too_many_arguments,

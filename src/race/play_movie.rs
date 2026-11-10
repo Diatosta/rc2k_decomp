@@ -10,8 +10,7 @@ use crate::race::owner::Race;
 const IN_TEXT: &std::ffi::CStr = c"shaunplayrendermovie - in"; // "shaunplayrendermovie - in"
 const OUT_TEXT: &std::ffi::CStr = c"shaunplayrendermovie - out"; // "shaunplayrendermovie - out"
 
-/// The Rust version. Reads no register; its caller (`race::play_replay_range`, which
-/// keeps every register) reads none it leaves.
+/// Its caller reads none it leaves.
 pub fn play_movie(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
     crate::logfile::log_write::log_nul(&IN_TEXT, false, 1);
     crate::drive::race_parts::restart_clock(race);

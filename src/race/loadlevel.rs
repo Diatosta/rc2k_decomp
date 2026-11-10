@@ -110,20 +110,17 @@ impl Steps<'_> {
     }
 }
 
-/// `race::loadlevel_init` (0x44426F): "start"; `g_usePackedMaps` 1, `dword_5BE9B9` 1 but
-/// with `dword_621514`; `g_stageDirection` `dword_623854` (flipped for stages 0x1F, 0x22,
-/// 0x51); `g_inRace` 1; the loading bar's callback `race::loading_bar_frame` (mark 0); then the
-/// steps (`CALLEES` in order, each with its word and mark: objects, course memory (2, 4),
-/// texture info and the course number (6), prefs (7), error list (8), ed textures (0xA),
-/// textures (0xE), texture infos (0xF), the course (0x13), plates cleared (0x14), objects
-/// (0x1E; `dword_623634`/`38` 0x1E/0x50), plates (0x50), the map (0x5A), fonts (0x5C),
-/// init mark with the log off (0x5E), refresh (and the refresh flags from
-/// `dword_609354`/`50` into `dword_62DAD0`, the blocks' +0x84, `dword_62DACC`), skid
-/// marks (0x5F), render3d (0x60), colours (0x62), lights (0x63), mud (0x64 twice); the
-/// callback `nullsub_8`; the crash matrix, the norms; without `dword_64BB18` checkpoints,
-/// pace notes, overlay; `dword_621508` the object of kind 0x7A (else 0x79);
-/// `dword_719FD0`/`D4` 0; "finis". What the original leaves in the registers is read by
-/// no caller (`race::load_stage` calls on; conversion phase 3, 2026-10-24).
+/// `race::loadlevel_init` (0x44426F): "start"; `g_usePackedMaps` 1, `dword_5BE9B9` 1 but with
+/// `dword_621514`; `g_stageDirection` `dword_623854` (flipped for stages 0x1F, 0x22, 0x51);
+/// `g_inRace` 1; the loading bar's callback `race::loading_bar_frame` (mark 0); then the steps
+/// (`CALLEES` in order, each with its word and mark: objects, course memory (2, 4), texture info
+/// and the course number (6), prefs (7), error list (8), ed textures (0xA), textures (0xE), texture
+/// infos (0xF), the course (0x13), plates cleared (0x14), objects (0x1E; `dword_623634`/`38`
+/// 0x1E/0x50), plates (0x50), the map (0x5A), fonts (0x5C), init mark with the log off (0x5E),
+/// refresh, skid marks (0x5F), render3d (0x60), colours (0x62), lights (0x63), mud (0x64 twice);
+/// the callback `nullsub_8`; the crash matrix, the norms; without `dword_64BB18` checkpoints, pace
+/// notes, overlay; `dword_621508` the object of kind 0x7A (else 0x79); `dword_719FD0`/`D4` 0;
+/// "finis". conversion phase 3, 2026-10-24).
 pub fn loadlevel_init(
     race: &Race,
     scene: &crate::scene::owner::Scene,

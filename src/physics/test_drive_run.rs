@@ -89,7 +89,6 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
     Ok(())
 }
 
-/// The Rust version.
 pub fn test_drive_run(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     steps(race, scene)
 }

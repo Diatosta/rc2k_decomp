@@ -67,7 +67,6 @@ pub fn replaces_join(code: u8) -> bool {
 /// A corner's code and what the original leaves of its sums.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Corner {
-    /// 1 .. 5 by how sharp, + the flags.
     pub code: u32,
     /// + 8 for a note of 0x780000 or longer, + 0x10 turning one way (ebp).
     pub flags: u32,

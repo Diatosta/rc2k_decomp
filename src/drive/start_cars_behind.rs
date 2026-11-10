@@ -19,10 +19,10 @@
 //!
 //! By the look of it a time trial's pace cars (a reading).
 //!
-//! Caller: `drive::race_mode_cars` (0x436758). Refuses a start count (`dword_6051B4`) above
-//! 0x58 (the start tables' room) or a start table car past the eight blocks, before
-//! anything; the calls' refusals mid-way (the cars, the starts' variables and the work car
-//! put back first; the calls' scratch is not).
+//! Caller: `drive::race_mode_cars` (0x436758). Refuses a start count (`dword_6051B4`) above 0x58
+//! (the start tables' room) or a start table car past the eight blocks, before anything; the calls'
+//! refusals mid-way (the cars, the starts' variables and the work car put back first; the calls'
+//! scratch is not).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -106,8 +106,6 @@ fn clear_car(shared: &Shared, car: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust version. The registers it leaves are read by no caller (liveness: the
-/// callers' after-sets are kept or dead).
 // Converted: `rc2k_core::drive::pace_cars` (the rules; the moves and calls stay here).
 pub fn start_cars_behind(race: &Race) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();

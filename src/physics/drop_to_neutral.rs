@@ -9,7 +9,7 @@
 use crate::race::owner_shared::Shared;
 use rc2k_core::physics::gearing::drops_to_neutral;
 
-/// The Rust version (a compare of floats only: the same at any precision).
+/// A compare of floats only: the same at any precision.
 // Converted: `rc2k_core::physics::gearing::drops_to_neutral`.
 pub fn drop_to_neutral(shared: &Shared) {
     if !drops_to_neutral(

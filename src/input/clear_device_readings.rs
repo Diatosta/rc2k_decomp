@@ -8,7 +8,7 @@
 
 use crate::input::types::InputDevice;
 
-/// The Rust version (see the header).
+/// See the header.
 pub fn clear_device_readings(record: &InputDevice) {
     // `rc2k_core::input::devices::CLEARED_READINGS`, in its order: the state copies
     // (+0x2C .. +0x38) and the readings 0, the bits reading the hat centred.

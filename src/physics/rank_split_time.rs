@@ -42,7 +42,6 @@ fn name(id: u32, to: &[Dword; 2]) -> Result<(), crate::errors::BadInput> {
     Ok(())
 }
 
-/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::{split_scale, scaled_time, rank, gap}`.
 pub fn rank_split_time(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;

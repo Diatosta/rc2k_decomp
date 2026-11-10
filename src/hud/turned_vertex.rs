@@ -1,7 +1,6 @@
-//! `hud::turned_vertex` (0x4B7058): one vertex of a turned HUD shape at edi: the point
-//! (st(1) x, st(0) y, rounded into `dword_75BFF0` / `dword_75BFF4`); its texture place
-//! (x plus `flt_75C298`, y plus `flt_75C29C`, over `flt_75C00C`); the point turned by edx
-//! (`math::turn_float_point_xz`, ebx the middle value), times `dword_75C2B8` plus
+//! `hud::turned_vertex` (0x4B7058): one vertex of a turned HUD shape at edi: the point (st(1) x,
+//! st(0) y, rounded into `dword_75BFF0` / `dword_75BFF4`); its texture place (x plus `flt_75C298`,
+//! y plus `flt_75C29C`, over `flt_75C00C`); the point turned by edx, times `dword_75C2B8` plus
 //! `dword_75C2A0` / `dword_75C2A4`; colour white under the quad record's alpha, specular 0.
 //!
 //! Callers: `hud::draw_needle`'s four (code at 0x4B6FFE ..). The turn is its Rust version.
@@ -11,10 +10,9 @@ use crate::hud::owner::Hud;
 use crate::math::turn_float_point_xz::turn_float_point_xz_plain;
 use rc2k_core::hud::disc;
 
-/// The Rust version (see the header), the point as `f64`s (what the x87 holds at the
-/// game's double precision): the vertex at `vertex`, turned by `angle` (edx). The
-/// original hands its caller's ebx to `math::turn_float_point_xz` as y; that goes to
-/// `g_scratchY` alone, which is written before it is read everywhere: 0 here.
+/// The point as `f64`s (what the x87 holds at the game's double precision): the vertex at `vertex`,
+/// turned by `angle`. that goes to `g_scratchY` alone, which is written before it is read
+/// everywhere: 0 here.
 // Converted: `rc2k_core::hud::disc::{turned_texture, turned_place, white_under}`
 pub fn turned_vertex(hud: &Hud, vertex: &Vertex, angle: u32, point: [f64; 2]) {
     let [y, x] = point.map(|v| v as f32);

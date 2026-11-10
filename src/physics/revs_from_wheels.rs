@@ -14,8 +14,7 @@ use crate::errors::Refused;
 use crate::physics::gearing::*;
 use crate::race::owner::Race;
 
-/// The Rust version (the exact one, for the gearbox's Rust callers), on the game's
-/// variables.
+/// The exact version, for the gearbox's Rust callers, on the game's variables.
 pub fn revs_from_wheels(race: &Race) -> Result<(), Refused> {
     revs_from_wheels_at(&race.course, &GearPlaces::game(&race.shared))
 }

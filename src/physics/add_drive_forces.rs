@@ -47,7 +47,7 @@ fn game<'a>(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> Vec<&'
     ]
 }
 
-/// The Rust version (the exact one, for `physics::drive_wheels_step`).
+/// The exact version, for `physics::drive_wheels_step`.
 pub fn add_drive_forces(shared: &Shared, scene: &crate::scene::owner::Scene) {
     add_drive_forces_at(shared, &game(shared, scene));
 }

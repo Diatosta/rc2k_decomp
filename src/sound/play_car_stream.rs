@@ -14,8 +14,6 @@ use crate::menu::owner::menus;
 
 // dword_755990
 
-// ---- Rust version ----
-
 /// `start` is `sound::start_stream` (the file, the volume).
 pub fn play_car_stream(
     start: &mut dyn FnMut(u32, u32),

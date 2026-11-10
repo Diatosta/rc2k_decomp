@@ -1,11 +1,10 @@
-//! `drive::read_replay_frame` (0x41EBAB): a replay's frame eax (with the tenth ebx) read,
-//! while a replay plays from its file (`dword_5BEC88` 1; else CF). Frames past 0x708 and
-//! tenths past 100 are the fatal errors 0x80A61151 and 0x80A61152 (raised as the
-//! original). At or past the last frame (`dword_5BECD0`): the last, `dword_5BEC90` 1, the
-//! tenth 0. Else the tenth into `dword_5C2534`, `dword_5BEC90` 0, the frame into
-//! `dword_5C2530`, the file (`h`) put at the frame's place (`lDistanceToMove[frame]`,
-//! `files::seek`) and its bytes (`dword_5BECDC[frame]`, packed when below 0) read into
-//! `dword_9613A4` (`drive::read_packed`).
+//! `drive::read_replay_frame` (0x41EBAB): a replay's frame eax read, while a replay plays from its
+//! file (`dword_5BEC88` 1; else CF). Frames past 0x708 and tenths past 100 are the fatal errors
+//! 0x80A61151 and 0x80A61152 (raised as the original). At or past the last frame (`dword_5BECD0`):
+//! the last, `dword_5BEC90` 1, the tenth 0. Else the tenth into `dword_5C2534`, `dword_5BEC90` 0,
+//! the frame into `dword_5C2530`, the file (`h`) put at the frame's place
+//! (`lDistanceToMove[frame]`, `files::seek`) and its bytes (`dword_5BECDC[frame]`, packed when
+//! below 0) read into `dword_9613A4` (`drive::read_packed`).
 //!
 //! Takes: the frame, the tenth
 //!
@@ -16,7 +15,7 @@ use crate::errors::{FatalError, Refused};
 use crate::race::owner::Race;
 use rc2k_core::drive::replay_frames::{frame_fault, past_end};
 
-/// The Rust version: CF.
+/// CF.
 pub fn read_replay_frame(race: &Race, frame: u32, tenth: u32) -> Result<bool, Refused> {
     let race_owner = race;
     let replay = &race.replay;

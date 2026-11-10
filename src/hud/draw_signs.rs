@@ -1,8 +1,7 @@
-//! `hud::draw_signs` (0x4B4F2B): up to four signs of a view's marks (`Panel::marks`; 0
-//! none): sign v as rectangle 0x4C + (v - 1) & 0xF of the sprite sheet, centred in its
-//! 0x40 wide place by its width (`sign_widths`[(v - 1) & 7]), the places 0x40 apart from
-//! the marks' `base`. Each layout and player has a `SignStyle` for whose marks they are and
-//! the row they are drawn at.
+//! `hud::draw_signs` (0x4B4F2B): up to four signs of a view's marks (`Panel::marks`; 0 none): sign
+//! v as rectangle 0x4C + (v - 1) & 0xF of the sprite sheet, centred in its 0x40 wide place by its
+//! width (`sign_widths`[(v - 1) & 7]), the places 0x40 apart from the marks' `base`. Each layout
+//! and player has a `SignStyle` for whose marks they are and the row they are drawn at.
 
 use crate::errors::Refused;
 use crate::hud::owner::Hud;

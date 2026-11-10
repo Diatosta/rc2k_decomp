@@ -15,8 +15,7 @@ use crate::physics::camera_ground::probe_at;
 use crate::race::owner::Race;
 use rc2k_core::physics::camera_ground::SIDES;
 
-/// The Rust version: whether the camera and both sides are over ground (CF clear). The
-/// registers it leaves are read by none of its callers.
+/// Whether the camera and both sides are over ground (CF clear).
 // Converted: `rc2k_core::physics::camera_ground::SIDES`.
 pub fn camera_over_ground(
     race: &Race,

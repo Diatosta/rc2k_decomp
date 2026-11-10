@@ -40,8 +40,6 @@ pub fn kind_of(
     Ok(n)
 }
 
-// ---- Rust version ----
-
 /// The object's dwords the engine works on, taken as values.
 fn load(o: &crate::sound::store::SoundObject) -> Engine {
     Engine {

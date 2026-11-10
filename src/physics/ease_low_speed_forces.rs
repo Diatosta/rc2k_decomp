@@ -44,7 +44,7 @@ pub fn ease_low_speed_forces_at(
     }
 }
 
-/// The Rust version (the exact one, for `physics::drive_wheels_step`).
+/// The exact version, for `physics::drive_wheels_step`.
 pub fn ease_low_speed_forces(shared: &Shared) {
     ease_low_speed_forces_at(
         shared,

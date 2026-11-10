@@ -48,8 +48,8 @@ pub fn clear_race_slots(shared: &Shared) {
     }
 }
 
-/// `race::reset_car_starts` (0x444BBC): each car block's +0x14 and +8 0 (0x320 while
-/// `dword_71C3E0` is set), +0x18 and +0x1C 0.
+/// `race::reset_car_starts` (0x444BBC): each car block's +0x14 and +8 0 (0x320 while `dword_71C3E0`
+/// is set), +0x18 and +0x1C 0.
 pub fn reset_car_starts(shared: &Shared) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::cars::start_value`.
     let value = rc2k_core::race::cars::start_value(shared.work.in_credits.bits() != 0);
@@ -65,8 +65,7 @@ pub fn reset_car_starts(shared: &Shared) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `race::seed_car_randoms` (0x444BF6): each car block's +0x10 and +0xC one
-/// `nonzero_random`.
+/// `race::seed_car_randoms` (0x444BF6): each car block's +0x10 and +0xC one `nonzero_random`.
 pub fn seed_car_randoms(shared: &Shared) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::cars::car_seeds`.
     use crate::math::next_random::{DRAWS, wait_for_random, with_random};
@@ -84,8 +83,8 @@ pub fn seed_car_randoms(shared: &Shared) -> Result<(), BadInput> {
 }
 
 /// `race::reset_car_race_state` (0x444C1D): each car block's +0x71C 0xCA, +0x72C 0x12C,
-/// +0x720/+0x724/+0x728/+0x730 0, +0xA0C .. +0xA1C -1; the four text dwords at 0x6D1838 ..
-/// spaces, the four at 0x6D1850 .. -1.
+/// +0x720/+0x724/+0x728/+0x730 0, +0xA0C .. +0xA1C -1; the four text dwords at 0x6D1838 .. spaces,
+/// the four at 0x6D1850 .. -1.
 pub fn reset_car_race_state(race: &Race) -> Result<(), BadInput> {
     let (shared, frame) = (&race.shared, &race.frame);
     // Converted: `rc2k_core::race::cars::{RACE_STATE, BLANK_TEXT, UNSET_TEXT}`.
@@ -117,10 +116,10 @@ pub fn reset_car_race_state(race: &Race) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `race::first_check_checkpoint` (0x446280): the first checkpoint from 1 whose face's
-/// +0x26 is not 0, looked for up to `g_lastCheckpoint` (not included); 0 for none or with
-/// `g_checkpointCount` - 2 negative. Refuses a look that would run past the list (the
-/// original runs on until it finds one: `g_lastCheckpoint` 0 or 1).
+/// `race::first_check_checkpoint` (0x446280): the first checkpoint from 1 whose face's +0x26 is not
+/// 0, looked for up to `g_lastCheckpoint` (not included); 0 for none or with `g_checkpointCount` -
+/// 2 negative. Refuses a look that would run past the list (the original runs on until it finds
+/// one: `g_lastCheckpoint` 0 or 1).
 pub fn first_check_checkpoint(shared: &Shared) -> Result<u32, Refused> {
     // Converted: `rc2k_core::race::checkpoints::first_check_checkpoint`.
     let count: u32 = shared.vars.checkpoint_count.bits();

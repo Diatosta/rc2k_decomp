@@ -22,8 +22,7 @@ use crate::race::owner::Race;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::parts::{LAST_PART, choose_slot};
 
-/// The Rust version: part `part` (eax) into a race slot. The registers the original leaves
-/// are read by none of its callers.
+/// Part `part` (eax) into a race slot.
 // Converted: `rc2k_core::physics::parts::choose_slot` (the slot; the floats stay x87).
 pub fn fill_race_slot(
     race: &Race,

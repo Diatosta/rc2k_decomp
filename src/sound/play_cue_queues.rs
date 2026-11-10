@@ -11,8 +11,6 @@
 
 use crate::errors::{BadInput, Refused};
 
-// ---- Rust version ----
-
 /// The players' cars' cue queues played.
 pub fn play_cue_queues(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     if sound.race.sounds.count.get() == 0 {

@@ -1,10 +1,9 @@
-//! `race::credits_race` (0x463666): the credits' race (the demonstration the films play
-//! between them): `dword_5C5CE0` 0, `g_holdCarRevs` 0, `dword_60519C` 0x12345678,
-//! `dword_60101C` 2, `dword_621514` 0; `race::set_up_credits_race`,
-//! `race::set_up_arcade_cars`, `race::set_start_states`; `dword_71C3E0` 1; "INIT CREDITS -
-//! track", the stage, "car", the car kinds logged (level 1, each inside `pusha` /
-//! `popa`); `race::load_stage`; `race::roll_credits` with eax 0; `dword_63DB84` 0;
-//! `drive::play_race`; `dword_71C3E0` 0; `race::tidy_everything`.
+//! `race::credits_race` (0x463666): the credits' race (the demonstration the films play between
+//! them): `dword_5C5CE0` 0, `g_holdCarRevs` 0, `dword_60519C` 0x12345678, `dword_60101C` 2,
+//! `dword_621514` 0; `race::set_up_credits_race`, `race::set_up_arcade_cars`,
+//! `race::set_start_states`; `dword_71C3E0` 1; "INIT CREDITS - track", the stage, "car", the car
+//! kinds logged (level 1, each inside `pusha` / `popa`); `race::load_stage`; `race::roll_credits`
+//! with eax 0; `dword_63DB84` 0; `drive::play_race`; `dword_71C3E0` 0; `race::tidy_everything`.
 //!
 //! Callers: `menu::play_films` (with ebp kept round it), which calls the Rust version directly,
 //! and 0x443104. Its calls by place: 0 `set_up_credits_race`, 1 `set_up_arcade_cars`, 2
@@ -17,8 +16,7 @@ use crate::race::owner::Race;
 
 const WORDS: [&std::ffi::CStr; 2] = [c"INIT CREDITS - track", c"car"]; // "INIT CREDITS - track", "car"
 
-/// The Rust version: the steps in order. (The original keeps ebp, ecx and edi and leaves
-/// esi and edx; no step reads a register of the caller or of an earlier step.)
+/// The steps in order.
 pub fn credits_race(race: &Race) -> Result<(), Refused> {
     let system = crate::system::owner::system();
     let frame = &race.frame;

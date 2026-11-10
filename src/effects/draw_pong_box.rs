@@ -37,7 +37,6 @@ fn projected(fl: &WindscreenFlakes) {
     projected_x87(&fl.tables);
 }
 
-/// The Rust version (see the header).
 pub fn draw_pong_box(
     pong: &Pong,
     fl: &WindscreenFlakes,

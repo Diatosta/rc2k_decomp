@@ -141,8 +141,6 @@ pub fn sample_place(n: u32) -> (u32, u32) {
 /// The colours sampled.
 pub const SAMPLES: u32 = 0x100;
 
-/// The mud file's two digits ("mudfile.0xx") of the car's file number: its quotient and
-/// remainder by 10, each as the original leaves it in a register (the low byte + '0').
 pub fn file_digits(number: u32) -> (u32, u32) {
     let digit = |v: u32| v & !0xFF | (v as u8).wrapping_add(b'0') as u32;
     (digit(number / 10), digit(number % 10))

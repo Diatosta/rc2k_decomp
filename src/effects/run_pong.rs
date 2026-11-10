@@ -22,7 +22,6 @@ fn box_values(place: &[Float; 2], size: &[Float; 2]) -> [[u8; 10]; 4] {
     [&size[1], &size[0], &place[1], &place[0]].map(|f| extended(f.bits()))
 }
 
-/// The Rust version (see the header).
 pub fn run_pong(
     frame: &Frame,
     pong: &Pong,

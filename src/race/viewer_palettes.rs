@@ -1,9 +1,9 @@
-//! `race::viewer_palettes` (0x41D8BF): for the viewer's page, kind 0x35's and 0x2A's first
-//! texture and slot (`g_kindFirstTextures` / `g_kindFirstSlots` +0x350, +0x324) into
-//! `dword_5BECB0` .. `dword_5BECBC`, and the six fonts' palettes pointed at
-//! `unk_960FA0`, which gets the fonts' 256 colours (`g_fontPalettes`) taken apart in the
-//! screen's format (`gfx::pixel_to_components`, `g_surfaceFormat`), made opaque and put
-//! together in the texture format (`gfx::components_to_pixel`, `[off_5ABAC0 + 0xC] + 8`).
+//! `race::viewer_palettes` (0x41D8BF): for the viewer's page, kind 0x35's and 0x2A's first texture
+//! and slot (`g_kindFirstTextures` / `g_kindFirstSlots` +0x350, +0x324) into `dword_5BECB0` ..
+//! `dword_5BECBC`, and the six fonts' palettes pointed at `unk_960FA0`, which gets the fonts' 256
+//! colours (`g_fontPalettes`) taken apart in the screen's format (`gfx::pixel_to_components`,
+//! `g_surfaceFormat`), made opaque and put together in the texture format
+//! (`gfx::components_to_pixel`, `[off_5ABAC0 + 0xC] + 8`).
 //!
 //! Caller: `race::viewer_load_stage`.
 
@@ -17,7 +17,6 @@ const PALETTES: [crate::gfx::typefaces::FontId; 6] = {
     [PANEL_A, PANEL_B, PANEL_C, PANEL_D, PANEL_E, PANEL_F]
 };
 
-/// The Rust version.
 pub fn viewer_palettes(
     shared: &Shared,
     scene: &crate::scene::owner::Scene,

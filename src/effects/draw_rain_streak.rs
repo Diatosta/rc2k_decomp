@@ -29,7 +29,6 @@ fn project(weather: &Weather) {
     project_x87(&weather.rain, &weather.rain_rules);
 }
 
-/// The Rust version (see the header).
 pub fn draw_rain_streak(
     weather: &Weather,
     place: [[u8; 10]; 3],

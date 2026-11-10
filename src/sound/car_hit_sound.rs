@@ -17,8 +17,6 @@ use crate::errors::Refused;
 use crate::sound::sample_settings::{record, sample_settings};
 use crate::sound::sets_store::SoundRequest;
 
-// ---- Rust version ----
-
 /// Converted: `rc2k_core::sound::cars::one_off`.
 ///
 /// The waiting hit sound of object `so`, through `request`.

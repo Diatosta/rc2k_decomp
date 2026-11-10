@@ -1,7 +1,7 @@
 //! `race::replay_path` (0x41EF27): a replay's file by its number: 222 the last race's
-//! (`var\tmprpl`); below 100 a saved one (`savedata\replay\replay00` numbered); else
-//! one of the game's own (`files\replay\replay00` numbered by the number less 100), both
-//! through `files::numbered_path`.
+//! (`var\tmprpl`); below 100 a saved one (`savedata\replay\replay00` numbered); else one of the
+//! game's own (`files\replay\replay00` numbered by the number less 100), both through
+//! `files::numbered_path`.
 //!
 //! Takes: the number
 //!
@@ -68,10 +68,8 @@ pub fn last_race(replay: &Replay) -> Vec<u8> {
     bytes[..bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len())].to_vec()
 }
 
-/// What the original leaves in its registers: eax the path, ebx the number the path was
-/// made with (for a file of the game's own), and whether it is the last race's file (the
-/// zero flag). Here the path's bytes (without the NUL); the original's eax is the last
-/// race's name or `numbered_path`'s buffer, which this still fills.
+/// Here the path's bytes (without the NUL); the original's eax is the last race's name or
+/// `numbered_path`'s buffer, which this still fills.
 #[derive(Clone, Debug)]
 pub struct ReplayPath {
     pub path: Vec<u8>,
@@ -79,7 +77,7 @@ pub struct ReplayPath {
     pub last_race: bool,
 }
 
-/// The Rust version. `slot` the replay (ebx).
+/// `slot` the replay.
 pub fn replay_path(race: &Race, slot: u32) -> Result<ReplayPath, Refused> {
     let replay = &race.replay;
     let shared = &race.shared;

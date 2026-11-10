@@ -12,7 +12,6 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 use rc2k_core::physics::splits::{RIVALS, default_rival};
 
-/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::default_rival`.
 pub fn fill_rival_table(race: &Race) -> Result<(), Refused> {
     for c in 0..RIVALS as u32 {

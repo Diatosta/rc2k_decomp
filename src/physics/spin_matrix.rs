@@ -17,7 +17,6 @@ use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
 
-/// The Rust version.
 pub fn spin_matrix(race: &Race) {
     race.shared
         .car

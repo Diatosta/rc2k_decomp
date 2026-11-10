@@ -33,7 +33,7 @@ fn below(x: u32, b: u32) -> bool {
     )
 }
 
-/// The Rust version (the exact one, for `physics::car_physics_step`).
+/// The exact version, for `physics::car_physics_step`.
 pub fn wheel_springs(race: &Race, scene: &crate::scene::owner::Scene) {
     let shared = &race.shared;
     let drawing = &scene.drawing;

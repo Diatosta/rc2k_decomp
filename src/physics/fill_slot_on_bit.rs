@@ -15,8 +15,7 @@ use crate::physics::fill_race_slot::fill_race_slot;
 use crate::race::owner::Race;
 use rc2k_core::physics::parts::{part_number, take_bit};
 
-/// The Rust version: bit `bit` (cl) of the car's parts taken and its part put in a race
-/// slot. The registers the original leaves are read by none of its callers.
+/// Bit `bit` (cl) of the car's parts taken and its part put in a race slot.
 // Converted: `rc2k_core::physics::parts::{take_bit, part_number}`.
 pub fn fill_slot_on_bit(
     race: &Race,

@@ -12,7 +12,6 @@
 use crate::d3d::texture_lock::field;
 use crate::gfx::owner::gfx;
 
-/// The Rust version (see the header).
 pub fn texture_surface_info(
     record: crate::pointers::GamePtr,
 ) -> Result<(), crate::errors::BadInput> {

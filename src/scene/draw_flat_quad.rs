@@ -22,7 +22,7 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::session::Dword;
 
-/// The Rust version (see the header). It reads no register, and what it leaves is read by
+/// It reads no register, and what it leaves is read by
 /// none of its callers (register liveness, 2026-10-23).
 pub fn draw_flat_quad(
     poly: &crate::scene::polygon_work::PolygonWork,

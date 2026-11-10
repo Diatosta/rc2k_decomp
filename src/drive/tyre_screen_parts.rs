@@ -1,7 +1,7 @@
 //! `drive::tyre_screen_parts` (0x41C790): the tyre-change screen's fixed parts: ten quads
 //! (`drive::tyre_quad`, place 2) from texture rectangles set in `dword_5C2A1C` and screen
-//! rectangles in `dword_5C2A0C`, placed from the layout (`TyreChange::parts`, `wheel`,
-//! the car's half by `player`).
+//! rectangles in `dword_5C2A0C`, placed from the layout (`TyreChange::parts`, `wheel`, the car's
+//! half by `player`).
 //!
 //! Caller: `drive::tyre_screen`.
 
@@ -17,7 +17,7 @@ fn set(cells: &[Dword; 4], v: [u32; 4]) {
     }
 }
 
-/// The Rust version: its quads (`drive::tyre_quad`); every register kept.
+/// Its quads (`drive::tyre_quad`).
 // Converted: `rc2k_core::drive::tyre_screen::fixed_parts`.
 pub fn tyre_screen_parts(shared: &Shared) -> Result<(), Refused> {
     let parts = std::array::from_fn(|k| shared.tyre_change.parts[k].get());

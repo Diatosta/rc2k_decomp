@@ -18,7 +18,6 @@ use crate::race::owner::Race;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::view_matrix::cross_product;
 
-/// The Rust version.
 pub fn lever_push(race: &Race, scene: &crate::scene::owner::Scene) {
     for k in 0..3 {
         race.shared.physics_tables.lever_push_place[k].set(race.shared.car.spin[k].bits());

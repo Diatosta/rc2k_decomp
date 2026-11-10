@@ -1,8 +1,7 @@
-//! `hud::draw_icon` (0x4B587E): a square icon of a view's start lights (`Panel::lights`;
-//! none while `lit` is -1): its width and drop times the icon scale
-//! (`fistp` into `icon_size`), centred on 0x320 / 2 plus the icon shift, its top the row
-//! plus the drop, as tall as wide; texture places 0 / 1; colour white under its alpha;
-//! `hud::add_polygon` on four.
+//! `hud::draw_icon` (0x4B587E): a square icon of a view's start lights (`Panel::lights`; none while
+//! `lit` is -1): its width and drop times the icon scale (`fistp` into `icon_size`), centred on
+//! 0x320 / 2 plus the icon shift, its top the row plus the drop, as tall as wide; texture places 0
+//! / 1; colour white under its alpha; `hud::add_polygon` on four.
 //!
 //! Callers: `hud::icons`.
 
@@ -14,7 +13,7 @@ use crate::race::panel_store::Lights;
 
 use rc2k_core::hud::icons;
 
-/// The Rust version (see the header): the icon of `lights`, `bottom` its row.
+/// The icon of `lights`, `bottom` its row.
 // Converted: `rc2k_core::hud::icons`
 pub fn draw_icon(frame: &Frame, hud: &Hud, lights: &Lights, bottom: u32) -> Result<(), Refused> {
     if !icons::shown(lights.lit.get()) {

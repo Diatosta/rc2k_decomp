@@ -102,7 +102,6 @@ fn refusal(weather: &Weather, effects: &crate::effects::owner::Effects) -> Optio
     None
 }
 
-/// The Rust version (see the header).
 pub fn draw_snow(
     weather: &Weather,
     effects: &crate::effects::owner::Effects,

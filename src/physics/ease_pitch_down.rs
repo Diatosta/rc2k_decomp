@@ -18,7 +18,7 @@ fn game(race: &Race) -> Vec<&dyn Cell32> {
     ]
 }
 
-/// The Rust version on the variables' cells.
+/// On the variables' cells.
 // Converted: `rc2k_core::physics::easing::ease_down`.
 fn core(v: &[&dyn Cell32]) {
     let mut value = v[0].bits();
@@ -27,7 +27,6 @@ fn core(v: &[&dyn Cell32]) {
     v[0].set_bits(value);
 }
 
-/// The Rust version.
 pub fn ease_pitch_down(race: &Race) {
     core(&game(race));
 }

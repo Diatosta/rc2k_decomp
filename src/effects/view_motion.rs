@@ -19,7 +19,6 @@ use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{dot_product3, normalise};
 use crate::session::Dword;
 
-/// The Rust version (see the header).
 pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
     let m = &frame.matrices.view_place;
     // The original's six floats on its stack: the third row, then the step.

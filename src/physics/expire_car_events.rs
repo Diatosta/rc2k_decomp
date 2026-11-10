@@ -14,7 +14,6 @@ use crate::errors::Refused;
 use crate::physics::queue_car_event::{load, store};
 use crate::race::owner::Race;
 
-/// The Rust version.
 pub fn expire_car_events(race: &Race) -> Result<(), Refused> {
     let was = load(race);
     let mut q = was;

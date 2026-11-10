@@ -29,7 +29,6 @@ pub fn turn_cells(m: &(impl Cells + ?Sized), v: &(impl Cells + ?Sized)) {
     }
 }
 
-/// The Rust version.
 pub fn turn_by_car_matrix(shared: &Shared, v: &(impl Cells + ?Sized)) {
     turn_cells(&shared.car.crash_matrix, v);
 }

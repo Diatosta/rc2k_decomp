@@ -26,7 +26,6 @@ fn number(
     Ok(())
 }
 
-/// The Rust version (see the header).
 // Converted: `rc2k_core::effects::pong::{best, score_digits}`
 pub fn pong_score(
     pong: &Pong,

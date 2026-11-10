@@ -8,7 +8,6 @@
 use crate::math::x87_run::{minus_one, square_times_plus_times};
 use crate::race::owner::Race;
 
-/// The Rust version.
 pub fn set_downforce(race: &Race) {
     if race.shared.car.rear_wheels_off.get() != 0 {
         return;

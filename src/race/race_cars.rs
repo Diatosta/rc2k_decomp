@@ -64,10 +64,9 @@ fn reset_block(n: u32, cars: u32, number: u32) -> Vec<(Field, u32)> {
     writes
 }
 
-/// `race::reset_car_blocks` (0x43658A): each of the eight car blocks (by `g_carBlocks`):
-/// +0x25C 1 for the race's cars (`g_raceCars`, unsigned) else 0, +0x38 1, +0x8C
-/// `dword_601430` x 100, the others in `CLEARED` 0; then each block's +0x24 (fixed
-/// addresses) its kind from `g_raceCarKinds`.
+/// `race::reset_car_blocks` (0x43658A): each of the eight car blocks (by `g_carBlocks`): +0x25C 1
+/// for the race's cars (`g_raceCars`, unsigned) else 0, +0x38 1, +0x8C `dword_601430` x 100, the
+/// others in `CLEARED` 0; then each block's +0x24 (fixed addresses) its kind from `g_raceCarKinds`.
 pub fn reset_car_blocks(race: &Race) -> Result<(), BadInput> {
     let physics = &race.physics;
     let shared = &race.shared;
@@ -90,9 +89,9 @@ pub fn reset_car_blocks(race: &Race) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `race::drop_absent_player` (0x436402): unless `dword_62389C` is 2 or 4, with
-/// `dword_63DB94` 2 (two players): the first player whose block's +0xB0 is not 0 (the
-/// first, else the second) is out: +0x25C 0, +0xFA8 1. Every register kept.
+/// `race::drop_absent_player` (0x436402): unless `dword_62389C` is 2 or 4, with `dword_63DB94` 2
+/// (two players): the first player whose block's +0xB0 is not 0 (the first, else the second) is
+/// out: +0x25C 0, +0xFA8 1.
 pub fn drop_absent_player(shared: &Shared) {
     // Converted: `rc2k_core::race::cars::absent_player`.
     {
@@ -108,8 +107,8 @@ pub fn drop_absent_player(shared: &Shared) {
     }
 }
 
-/// `race::set_player_car_kinds` (0x43670F): the two players' blocks' +0x24, +0x2C, +0x38
-/// from `PLAYER_KINDS`. Every register kept.
+/// `race::set_player_car_kinds` (0x43670F): the two players' blocks' +0x24, +0x2C, +0x38 from
+/// `PLAYER_KINDS`.
 pub fn set_player_car_kinds(shared: &Shared) {
     for n in 0..2 {
         let car = &CAR_BLOCKS.cars[n];
@@ -174,12 +173,11 @@ fn word(n: usize) -> &'static std::ffi::CStr {
     SET_UP_WORDS[n]
 }
 
-/// `race::read_stage_car_numbers` (0x437971): `g_stageCarTotal` 0, `g_readBytes` 0x708;
-/// in `g_carDataText` each 'l' or 'L' followed by two digits (`parse_2_digits`, 0 for
-/// none) is a stage's line; on `g_stageNumber`'s, from three places on, three-digit
-/// numbers four apart (`parse_3_digits`) into `g_stageCarNumbers` and summed into
-/// `g_stageCarTotal`, up to the text's end or a non-digit. Refuses more than 0x100
-/// numbers (worked out before anything is written).
+/// `race::read_stage_car_numbers` (0x437971): `g_stageCarTotal` 0, `g_readBytes` 0x708; in
+/// `g_carDataText` each 'l' or 'L' followed by two digits (`parse_2_digits`, 0 for none) is a
+/// stage's line; on `g_stageNumber`'s, from three places on, three-digit numbers four apart
+/// (`parse_3_digits`) into `g_stageCarNumbers` and summed into `g_stageCarTotal`, up to the text's
+/// end or a non-digit. Refuses more than 0x100 numbers (worked out before anything is written).
 pub fn read_stage_car_numbers(race: &Race) -> Result<(), Refused> {
     let physics = &race.physics;
     // Converted: `rc2k_core::race::stage::stage_car_numbers`.
@@ -199,12 +197,12 @@ pub fn read_stage_car_numbers(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::auto_set_up_car` (0x436F08): car block `b`'s set-up: +0x20, +0x3C, +0x30, +0x34
-/// 0x80, +0x2C -1, +0x28 2; "autosetup", "t" and `g_stageNumber` logged; for stages 0x15
-/// .. 0x4F the set-up (stage - 0x15) / 10 x 6 + (stage - 0x15) % 10 of `dword_6043FC`:
-/// +0x30 its h, +0x34 its s, +0x28 its +0xC less one, +0x2C its +8, each logged with its
-/// range, then a line break. Refuses stage 0x14 (the original's `sub` then makes an index
-/// of 0x9999999B: a read far outside), before anything.
+/// `race::auto_set_up_car` (0x436F08): car block `b`'s set-up: +0x20, +0x3C, +0x30, +0x34 0x80,
+/// +0x2C -1, +0x28 2; "autosetup", "t" and `g_stageNumber` logged; for stages 0x15 .. 0x4F the
+/// set-up (stage - 0x15) / 10 x 6 + (stage - 0x15) % 10 of `dword_6043FC`: +0x30 its h, +0x34 its
+/// s, +0x28 its +0xC less one, +0x2C its +8, each logged with its range, then a line break. Refuses
+/// stage 0x14 (the original's `sub` then makes an index of 0x9999999B: a read far outside), before
+/// anything.
 pub fn auto_set_up_car(race: &Race, b: u32) -> Result<(), Refused> {
     let course = &race.course;
     {
@@ -264,11 +262,10 @@ fn brake_value(race: &Race, n: usize) -> u32 {
 }
 
 /// `race::set_up_mode_0_cars` (0x4364BD): `reset_car_blocks`; with `dword_52A910` 0,
-/// `drop_absent_player`, `set_player_car_kinds`, `auto_set_up_car` of the two players,
-/// their +0x3C from `dword_75AD2C` / `dword_75AE98` (`brake_value`); else
-/// `auto_set_up_car` of every car of the race (`pusha` / `popa` round each), then
-/// `set_player_car_kinds`. Refuses, with `dword_52A910` set, no cars or more than 8
-/// (the original's `jnz` runs on), before anything.
+/// `drop_absent_player`, `set_player_car_kinds`, `auto_set_up_car` of the two players, their +0x3C
+/// from `dword_75AD2C` / `dword_75AE98` (`brake_value`); else `auto_set_up_car` of every car of the
+/// race (`pusha` / `popa` round each), then `set_player_car_kinds`. Refuses, with `dword_52A910`
+/// set, no cars or more than 8 (the original's `jnz` runs on), before anything.
 pub fn set_up_mode_0_cars(race: &Race) -> Result<(), Refused> {
     {
         // Converted: `rc2k_core::race::cars::{every_car_set_up, held_brake}`.
@@ -317,8 +314,8 @@ pub fn set_up_mode_1_cars(race: &Race) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `race::set_up_mode_4_cars` (0x43647F): `g_raceCars`, `dword_63DB94`, `dword_63DB98`
-/// 1; `reset_car_blocks`, `drop_absent_player`, `set_player_car_kinds`.
+/// `race::set_up_mode_4_cars` (0x43647F): `g_raceCars`, `dword_63DB94`, `dword_63DB98` 1;
+/// `reset_car_blocks`, `drop_absent_player`, `set_player_car_kinds`.
 pub fn set_up_mode_4_cars(race: &Race) -> Result<(), BadInput> {
     let shared = &race.shared;
     {
@@ -334,9 +331,8 @@ pub fn set_up_mode_4_cars(race: &Race) -> Result<(), BadInput> {
 
 // ---- the times, mode 2, the whole step ----
 
-/// `race::clear_race_tables` (0x4632D4): entries 9 .. 0 of the thirteen tables 0 (four
-/// of them overlap, one dword apart: the points' tables from entries 0 .. 3). Every
-/// register kept.
+/// `race::clear_race_tables` (0x4632D4): entries 9 .. 0 of the thirteen tables 0 (four of them
+/// overlap, one dword apart: the points' tables from entries 0 .. 3).
 pub fn clear_race_tables(shared: &Shared) {
     let w = &shared.work;
     let tables: [(&[Dword], usize); 13] = [
@@ -374,14 +370,13 @@ const TIME_WORDS: [&std::ffi::CStr; 8] = [
     c"car time",
 ];
 
-/// `race::set_car_times` (0x4377D0): `flt_601C64` the factor of the first car's kind
-/// (held to 0 .. 0x16, `fld` / `fstp`); for stages 0x15 .. 0x4E the difficulty (the
-/// stage's place in its rally of ten, plus 6 x the rally's level), its time percentage
-/// (`dword_6046CC`), the extra time (percentage x `g_stageCarTotal` / 100) into
-/// `dword_601C50` and added to the first number; each of the `dword_601830` numbers times
-/// the factor; all logged. Stages below 0x15 go the first way too, their index wrapping
-/// below the table (a read of the tables before it, as the original's). Refuses, with a
-/// stage, a count of 0 or more than 0x100 (the original's `jnz` runs on / past the
+/// `race::set_car_times` (0x4377D0): `flt_601C64` the factor of the first car's kind (held to 0 ..
+/// 0x16, `fld` / `fstp`); for stages 0x15 .. 0x4E the difficulty (the stage's place in its rally of
+/// ten, plus 6 x the rally's level), its time percentage (`dword_6046CC`), the extra time
+/// (percentage x `g_stageCarTotal` / 100) into `dword_601C50` and added to the first number; each
+/// of the `dword_601830` numbers times the factor; all logged. Stages below 0x15 go the first way
+/// too, their index wrapping below the table (a read of the tables before it, as the original's).
+/// Refuses, with a stage, a count of 0 or more than 0x100 (the original's `jnz` runs on / past the
 /// numbers), before anything.
 pub fn set_car_times(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let w = |n: usize| TIME_WORDS[n];
@@ -468,16 +463,15 @@ const ARCADE_WORDS: [&std::ffi::CStr; 8] = [
     c" - cartypes ",
 ];
 
-/// `race::set_up_mode_2_cars` (0x43613A): the arcade race. Logged, from the rally's tables
-/// the cars' count (`dword_6051B4`), `dword_6051A4`, `dword_6051A8`, the start place (the
-/// count with `dword_60101C` 2 or the rally's first stage), the best place; one player,
-/// four cars: `reset_car_blocks`, `drop_absent_player`, cars 1 .. 3 +0x3C 0x80 and +0x25C
-/// 0, `set_player_car_kinds`; from the noise seed `dword_60519C`, each car a type 1 .. 3
-/// (never twice running) and a number (skipping the players' +0xAA8), the numbers then
-/// shuffled; `clear_race_tables`; four `auto_set_up_car`s; the player's +0x3C
-/// (`brake_value`), +0x66C, +0x65C, +0x660 0, +0x658 the cars behind; the types logged.
-/// Refuses a count of 0 or more than 89 (the `jnz` runs on / past the tables), before
-/// anything.
+/// `race::set_up_mode_2_cars` (0x43613A): the arcade race. Logged, from the rally's tables the
+/// cars' count (`dword_6051B4`), `dword_6051A4`, `dword_6051A8`, the start place (the count with
+/// `dword_60101C` 2 or the rally's first stage), the best place; one player, four cars:
+/// `reset_car_blocks`, `drop_absent_player`, cars 1 .. 3 +0x3C 0x80 and +0x25C 0,
+/// `set_player_car_kinds`; from the noise seed `dword_60519C`, each car a type 1 .. 3 (never twice
+/// running) and a number (skipping the players' +0xAA8), the numbers then shuffled;
+/// `clear_race_tables`; four `auto_set_up_car`s; the player's +0x3C (`brake_value`), +0x66C,
+/// +0x65C, +0x660 0, +0x658 the cars behind; the types logged. Refuses a count of 0 or more than 89
+/// (the `jnz` runs on / past the tables), before anything.
 pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     let w = |n: usize| ARCADE_WORDS[n];
     let rally: u32 = race.shared.vars.race_level.bits();
@@ -606,11 +600,10 @@ const PLAYER_RESETS: [(Field, u32); 6] = [
     (|c| &c.split_gaps[3], u32::MAX),
 ];
 
-/// `race::set_up_cars` (0x43603C): race init's "cars": "gamemode" and `dword_62389C`
-/// logged; both players' +0x5FC 0 and +0xA0C .. +0xA1C -1; then by the mode: 2 the
-/// numbers, the times, the arcade set-up, `dword_601C68` (0x40 dwords) 0; 1, 3, 0 (with
-/// the numbers first), 4 their set-ups; others nothing. The registers it leaves are read
-/// by no caller (conversion phase 3, 2026-10-24).
+/// `race::set_up_cars` (0x43603C): race init's "cars": "gamemode" and `dword_62389C` logged; both
+/// players' +0x5FC 0 and +0xA0C .. +0xA1C -1; then by the mode: 2 the numbers, the times, the
+/// arcade set-up, `dword_601C68` (0x40 dwords) 0; 1, 3, 0 (with the numbers first), 4 their
+/// set-ups; others nothing.
 pub fn set_up_cars(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     text(c"gamemode", false);
     number(race.shared.vars.run_kind.bits(), true);
@@ -670,12 +663,12 @@ fn opponent_kinds(shared: &Shared, first: u32) -> Result<Vec<u32>, BadInput> {
     }
 }
 
-/// `race::choose_arcade_opponents` (0x449B79): with `dword_62389C` 2, the first car's
-/// kind's place (`index_of_kind`), logged ("seed", "p1", "power"); from the noise seed
-/// (`dword_60519C`; then `math::next_random`) kinds drawn (x 0x22 >> 32) until one is
-/// usable, within 5 places of the first's and not taken: the second, third and fourth
-/// cars' (`dword_62385C`, `60`, `64`), each logged with its place. Refuses, before
-/// anything, a first kind with fewer than three such kinds (the original draws for ever).
+/// `race::choose_arcade_opponents` (0x449B79): with `dword_62389C` 2, the first car's kind's place
+/// (`index_of_kind`), logged ("seed", "p1", "power"); from the noise seed (`dword_60519C`; then
+/// `math::next_random`) kinds drawn (x 0x22 >> 32) until one is usable, within 5 places of the
+/// first's and not taken: the second, third and fourth cars' (`dword_62385C`, `60`, `64`), each
+/// logged with its place. Refuses, before anything, a first kind with fewer than three such kinds
+/// (the original draws for ever).
 pub fn choose_arcade_opponents(shared: &Shared) -> Result<(), Refused> {
     use crate::race::race_shell::{index_of_kind, kind_unusable};
     if shared.vars.run_kind.bits() != 2 {
@@ -726,10 +719,9 @@ pub fn choose_arcade_opponents(shared: &Shared) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::set_up_arcade_cars` (0x4468FB): with `dword_62389C` 2, "SETUPARCADECARS"
-/// logged, `choose_arcade_opponents` (the log indented round it), `g_raceCars` 4; then
-/// each block's +0x24 its kind (`g_raceCarKinds` and the seven after). The original keeps
-/// every register (liveness): the route leaves its caller's as they were.
+/// `race::set_up_arcade_cars` (0x4468FB): with `dword_62389C` 2, "SETUPARCADECARS" logged,
+/// `choose_arcade_opponents` (the log indented round it), `g_raceCars` 4; then each block's +0x24
+/// its kind (`g_raceCarKinds` and the seven after).
 pub fn set_up_arcade_cars(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     if shared.vars.run_kind.bits() == 2 {

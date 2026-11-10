@@ -9,7 +9,6 @@
 use crate::effects::view_vectors::VectorSource;
 use crate::math::x87;
 
-/// The Rust version (see the header).
 pub fn scale_vectors_by(effects: &crate::effects::owner::Effects) {
     let frame = &effects.frame;
     scale_triples(&[

@@ -26,7 +26,6 @@ pub static TWENTY_SECOND: TwinSet = TwinSet {
         .twenty_second_tuning,
 };
 
-/// The Rust version (see the header).
 pub fn emit_particle_22(
     masks: &Masks,
     particles: &Particles,

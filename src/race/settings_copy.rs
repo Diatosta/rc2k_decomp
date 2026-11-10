@@ -176,7 +176,6 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game<'_> {
         use crate::race::race_shell::{
             clear_player_absences, copy_league_table, store_results_by_mode,
         };
-        // Each keeps the registers the steps read (eax is set again before any use).
         {
             match routine {
                 Routine::ClearPlayerAbsences => clear_player_absences(),

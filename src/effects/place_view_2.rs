@@ -26,7 +26,6 @@ fn second(weather: &Weather) -> ViewPlace<'_> {
     }
 }
 
-/// The Rust version (see the header).
 pub fn place_view_2(weather: &Weather) -> Result<(), Refused> {
     let second = second(weather);
     let snow = &weather.snow;

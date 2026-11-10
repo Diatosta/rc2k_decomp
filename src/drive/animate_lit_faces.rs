@@ -21,9 +21,9 @@
 //! one is looked at (so the one moved in waits a step). By the look of it the stage's
 //! animated objects: lights blinking, things falling (a reading).
 //!
-//! Caller: `drive::animate_stage` (0x45E9CA). Refuses (before anything) more than 0x100 lit
-//! faces (the list's room) and a face number past `g_courseFaceCount`; `find_ground`'s
-//! refusals mid-way (what it wrote is put back first).
+//! Caller: `drive::animate_stage` (0x45E9CA). Refuses (before anything) more than 0x100 lit faces
+//! (the list's room) and a face number past `g_courseFaceCount`; `find_ground`'s refusals mid-way
+//! (what it wrote is put back first).
 
 use crate::errors::{BadInput, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
@@ -90,7 +90,7 @@ fn refusal(race: &Race) -> Option<&'static str> {
     None
 }
 
-/// The Rust core. The registers it leaves are read by no caller.
+/// The Rust core.
 pub fn animate_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     if let Some(why) = refusal(race) {
         return Err(BadInput(why).into());
@@ -201,7 +201,6 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
     }
 }
 
-/// The Rust version.
 pub fn animate_lit_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     animate_at(race, scene)
 }

@@ -14,7 +14,6 @@ pub fn clear_records(at: &dyn crate::pointers::Store, count: u32) -> Result<(), 
     clear_records_at(crate::pointers::GamePtr::of_store(at), count)
 }
 
-/// The Rust version.
 // Converted: `rc2k_core::physics::pushes::{record_count, CLEARED_DWORDS}`.
 pub fn clear_records_at(at: crate::pointers::GamePtr, count: u32) -> Result<(), Refused> {
     use rc2k_core::physics::pushes::{CLEARED_DWORDS, record_count};

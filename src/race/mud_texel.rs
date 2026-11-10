@@ -1,7 +1,7 @@
-//! `race::mud_texel` (0x44A549): a texel of the locked mud texture (`g_surface`) by its
-//! place on a 256 x 256 square: with `dword_5CEEE0` not 0 the place is halved (x, then y;
-//! an odd one skips), and halved again unless it is 1 (a reading: how many times the
-//! texture is smaller); then `race::mud_pixel` (0 outside the surface).
+//! `race::mud_texel` (0x44A549): a texel of the locked mud texture (`g_surface`) by its place on a
+//! 256 x 256 square: with `dword_5CEEE0` not 0 the place is halved (x, then y; an odd one skips),
+//! and halved again unless it is 1 (a reading: how many times the texture is smaller); then
+//! `race::mud_pixel` (0 outside the surface).
 //!
 //! Takes: x, y (0 .. 0xFF)
 //!
@@ -17,7 +17,7 @@ pub fn texel_place(x: u32, y: u32) -> Option<(u32, u32)> {
     rc2k_core::race::mud::texel_place(x, y, scene().objects.tables.system_levels[256].get())
 }
 
-/// The Rust version (see the header): eax as it leaves it.
+/// Eax as it leaves it.
 pub fn mud_texel(eax: u32, x: u32, y: u32) -> Result<u32, BadInput> {
     match texel_place(x, y) {
         Some((x, y)) => mud_pixel(x, y),

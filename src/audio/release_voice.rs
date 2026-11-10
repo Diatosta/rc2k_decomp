@@ -14,8 +14,6 @@ use crate::audio::store::AudioState;
 use crate::audio::voices::*;
 use crate::platform_sound as ds;
 
-// ---- Rust version ----
-
 pub fn release_voice(state: &AudioState, at: u32, a3d: bool) {
     update_voice(state, at, |v| {
         if a3d {

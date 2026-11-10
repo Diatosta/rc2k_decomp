@@ -34,7 +34,6 @@ fn gates(race: &Race) -> [u32; 7] {
 }
 const ONE_F32: u32 = 0x3F80_0000;
 
-/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::pace_calls::{calling, call_target, calls}`.
 pub fn pace_notes_step(
     race: &Race,

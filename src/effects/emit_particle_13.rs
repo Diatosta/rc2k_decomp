@@ -45,7 +45,6 @@ fn refusal(ring: &Ring, object: &'static MarkCar) -> Result<Option<&'static str>
     })
 }
 
-/// The Rust version (see the header).
 pub fn emit_particle_13(
     paths: &Paths,
     particles: &Particles,

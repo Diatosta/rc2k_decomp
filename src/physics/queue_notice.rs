@@ -41,7 +41,6 @@ pub fn store(shared: &Shared, was: &NoticeQueue, now: &NoticeQueue) {
     set_changed(&shared.car.notice_count, was.count, now.count);
 }
 
-/// The Rust version.
 pub fn queue_notice(shared: &Shared, notice: u32, rank: u32, value: u32) -> Result<(), Refused> {
     let was = load(shared);
     let mut q = was;

@@ -25,7 +25,6 @@ fn rate(drops: &WindscreenDrops, fl: &WindscreenFlakes, effects: &crate::effects
     rate_x87(drops, &effects.frame.kept_view, &fl.timing, &fl.state);
 }
 
-/// The Rust version (see the header).
 pub fn windscreen_flakes_spawn(
     shared: &Shared,
     drops: &WindscreenDrops,

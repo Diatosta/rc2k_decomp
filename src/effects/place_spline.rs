@@ -32,7 +32,6 @@ fn sizes(a: u32, k: u32, k2: u32) -> (u32, u32) {
     (abc, d)
 }
 
-/// The Rust version (see the header).
 pub fn place_spline(
     paths: &Paths,
     n: u32,

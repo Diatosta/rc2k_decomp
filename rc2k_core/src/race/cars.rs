@@ -32,7 +32,6 @@ pub const KINDS: u32 = 0x17;
 /// The kind no race uses (`kind_unusable`).
 pub const UNUSABLE_KIND: u32 = 6;
 
-/// A test's answer as the original leaves it in the flags.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Flags {
     pub carry: bool,

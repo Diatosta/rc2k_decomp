@@ -12,7 +12,6 @@ use crate::errors::{FatalError, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 
-/// The Rust version.
 // Converted: `rc2k_core::drive::race_ticks::{tick_runs, NO_CAR_FATAL}`.
 pub fn race_tick(
     race: &Race,

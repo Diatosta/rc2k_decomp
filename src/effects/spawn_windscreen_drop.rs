@@ -17,7 +17,6 @@ use crate::errors::Refused;
 use crate::math::x87;
 const WINDOW: u32 = 32;
 
-/// The Rust version (see the header).
 pub fn spawn_windscreen_drop(
     drops: &WindscreenDrops,
     x: u32,

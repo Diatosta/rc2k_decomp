@@ -1,7 +1,6 @@
-//! `hud::draw_hud` (0x4B1CD0): the race's HUD: `hud::set_batch_depth`; the batch empty and
-//! without a texture (`batch_texture` -1); the panel's times in tenths (`hud::tenths`); by
-//! `Panel::players` `hud::layout_1` (1), `hud::layout_2` (2) or `hud::layout_0`; then
-//! `hud::flush_batch`.
+//! `hud::draw_hud` (0x4B1CD0): the race's HUD: `hud::set_batch_depth`; the batch empty and without
+//! a texture (`batch_texture` -1); the panel's times in tenths (`hud::tenths`); by `Panel::players`
+//! `hud::layout_1` (1), `hud::layout_2` (2) or `hud::layout_0`; then `hud::flush_batch`.
 //!
 //! Caller: `hud::overlay_pass` (0x45A8F0).
 
@@ -9,8 +8,6 @@ use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::race::owner_frame::Frame;
 
-/// The Rust version (see the header). What the original leaves in the registers is read
-/// by none of its callers (register liveness, 2026-10-23).
 // Converted: `rc2k_core::hud::batch::{Layout, NO_TEXTURE}`
 pub fn draw_hud(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     use crate::hud::*;

@@ -44,8 +44,7 @@ use rc2k_core::physics::ground;
 
 pub const MOST_POINTS: u32 = 0x40;
 
-/// The Rust core. The registers the original leaves (ebx the count, eax, ecx, edx, esi
-/// the last point's) are read by none of its callers.
+/// The steps.
 // Converted: `rc2k_core::physics::ground::{wheel_lifted, noise_cell, bump_noise}` (the
 // turns and the bump's scaling stay x87).
 /// `scratch` is the dword the original spills its work values to (`g_scratch`).
@@ -185,7 +184,6 @@ fn probe_points(
     Ok(())
 }
 
-/// The Rust version.
 /// `car` is the work car in the race's ticks, the view's car in the drawing.
 pub fn probe_ground(
     race: &Race,

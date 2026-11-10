@@ -86,12 +86,11 @@ mod block_tests {
     }
 }
 
-/// `race::seal_replay_header` (0x41F0A3): the replay's sealed header part (`dword_719B54`,
-/// 0x40 dwords): version byte 6, the player's name (`strings::copy_printable`, 0x20), the
-/// settings and options copied (`HEADER_MOVES`), a checksum (from dword 1: add, `rol` 5)
-/// into dword 0 and `dword_4F66F9`; then its 32 blocks of 8 chained through
-/// `race::seal_block` with the key "halfmoon" (the game's key put back after). Every
-/// register kept.
+/// `race::seal_replay_header` (0x41F0A3): the replay's sealed header part (`dword_719B54`, 0x40
+/// dwords): version byte 6, the player's name (`strings::copy_printable`, 0x20), the settings and
+/// options copied (`HEADER_MOVES`), a checksum (from dword 1: add, `rol` 5) into dword 0 and
+/// `dword_4F66F9`; then its 32 blocks of 8 chained through `race::seal_block` with the key
+/// "halfmoon" (the game's key put back after).
 pub fn seal_replay_header(replay: &Replay) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::replay::{seal_checksum, chained, SEAL_KEY}`.
     use rc2k_core::race::replay::{SEAL_KEY, SEAL_VERSION, chained, seal_checksum};
@@ -176,18 +175,15 @@ const HEADER_MOVES: [(usize, usize, usize); 31] = [
     (2, 0x719BB2, 0x71C700),
 ];
 
-/// `files::write`: the bytes written and the carry (a failed write).
 fn write(handle: u32, bytes: &[u8]) -> (u32, bool) {
     let (n, ok) = crate::files::handle::write_slice(handle, bytes);
     (n, !ok)
 }
 
-/// `race::write_replay_chunk` (0x41EEE4): `count` bytes at `from` written to file
-/// `handle`; unless `dword_5BEC80` is 1 they are packed (`race::pack_runs` into
-/// `g_pngInfo`, rounded up to a dword) and the packing written when smaller (eax then the
-/// bytes written negated). Gives eax and the carry (a failed write); the original keeps
-/// the rest, and its zero flag is read by no caller. Both callers write
-/// the whole replay block (`dword_9613A4`, 0x2810 bytes): here it is that block.
+/// `race::write_replay_chunk` (0x41EEE4): `count` bytes at `from` written to file `handle`; unless
+/// `dword_5BEC80` is 1 they are packed (`race::pack_runs` into `g_pngInfo`, rounded up to a dword)
+/// and the packing written when smaller. Both callers write the whole replay block (`dword_9613A4`,
+/// 0x2810 bytes): here it is that block.
 pub fn write_replay_chunk(shared: &Shared, handle: u32) -> Result<(u32, bool), Refused> {
     let system = crate::system::owner::system();
     let block = VIEWER_BUFFERS.block_bytes();
@@ -220,11 +216,9 @@ pub fn block_place(race: &Race, k: usize) -> Result<u32, BadInput> {
     crate::session::read_on_in(&shared.replay_file, places, k, "the replay index")
 }
 
-/// `race::write_replay_block` (0x41E9A3): the block (`dword_9613A4`, 0x2810 bytes) written
-/// as a chunk; its offset and size (negative when packed) into the index; the file's
-/// length on; the block count on. A failed write or the index full (0x708 blocks) closes
-/// the replay (`race::close_replay`; the carry it sets is read by no caller). Every
-/// register kept.
+/// `race::write_replay_block` (0x41E9A3): the block (`dword_9613A4`, 0x2810 bytes) written as a
+/// chunk; its offset and size (negative when packed) into the index; the file's length on; the
+/// block count on. A failed write or the index full (0x708 blocks) closes the replay.
 pub fn write_replay_block(race: &Race, replay: &Replay) -> Result<(), Refused> {
     let shared = &race.shared;
     let n = shared.replay_file.index_block_count.get();
@@ -250,12 +244,11 @@ pub fn write_replay_block(race: &Race, replay: &Replay) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::add_replay_frame` (0x41E8DE): with the replay open, `bytes` bytes at `from` (a
-/// frame when 0x10: the frame counts on) put at the cursor (`rep movsd`, `bytes` / 4
-/// dwords); at 100 frames the block written (`race::write_replay_block`) and the cursor
-/// and count back. Every register kept. Refuses frames past the block's room (before
-/// anything). Its one caller adds the padding frame (`REPLAY_VIEW.pad_frame`): here the
-/// frame's cells, `bytes` their size.
+/// `race::add_replay_frame` (0x41E8DE): with the replay open, `bytes` bytes at `from` (a frame when
+/// 0x10: the frame counts on) put at the cursor (`rep movsd`, `bytes` / 4 dwords); at 100 frames
+/// the block written (`race::write_replay_block`) and the cursor and count back. Refuses frames
+/// past the block's room (before anything). Its one caller adds the padding frame
+/// (`REPLAY_VIEW.pad_frame`): here the frame's cells, `bytes` their size.
 pub fn add_replay_frame(race: &Race, frame: &[Dword]) -> Result<(), Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
@@ -291,11 +284,10 @@ pub fn add_replay_frame(race: &Race, frame: &[Dword]) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::close_replay` (0x41E85A): with the replay open, the block filled up with the
-/// padding frame (`race::add_replay_frame`, which writes it at 100); the last block's
-/// frame count (`dword_5C252C`: 100, or for the last block the frames modulo 100 plus
-/// one); the time sealed; the index ("RCIB", 0x3850 bytes) written; the file closed;
-/// `dword_5BEC88` 0, `dword_5BEC84` 1. Every register kept.
+/// `race::close_replay` (0x41E85A): with the replay open, the block filled up with the padding
+/// frame (`race::add_replay_frame`, which writes it at 100); the last block's frame count
+/// (`dword_5C252C`: 100, or for the last block the frames modulo 100 plus one); the time sealed;
+/// the index ("RCIB", 0x3850 bytes) written; the file closed; `dword_5BEC88` 0, `dword_5BEC84` 1.
 pub fn close_replay(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let replay = &race.replay;
@@ -324,12 +316,11 @@ pub fn close_replay(race: &Race) -> Result<(), Refused> {
 }
 
 /// `race::open_replay` (0x41E6EC): `dword_5BEC84` 0; with replays on (`dword_5BEC78` 1,
-/// `dword_5BEC7C` 0, `dword_52A910` not 1, `dword_75ACDC` not 1) and 30 MB free: the
-/// header ("REPL", version 0x50400, the date, "tmpreplay", the race's settings), the
-/// car's header (`seal_replay_header`) copied into it, the index "RCIB" cleared, the
-/// cursor, counts and length 0; `var\tmprpl` created; the header written. A failed open
-/// or write closes it (`race::close_replay`). Every register kept; the carry it leaves is
-/// read by none of its callers (taint at both sites).
+/// `dword_5BEC7C` 0, `dword_52A910` not 1, `dword_75ACDC` not 1) and 30 MB free: the header
+/// ("REPL", version 0x50400, the date, "tmpreplay", the race's settings), the car's header
+/// (`seal_replay_header`) copied into it, the index "RCIB" cleared, the cursor, counts and length
+/// 0; `var\tmprpl` created; the header written. A failed open or write closes it
+/// (`race::close_replay`).
 pub fn open_replay(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let replay = &race.replay;

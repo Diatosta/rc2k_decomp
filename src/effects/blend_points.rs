@@ -12,7 +12,7 @@
 use crate::effects::paths::Paths;
 use crate::math::x87;
 
-/// The Rust version (see the header): the three values (x, y, z).
+/// The three values (x, y, z).
 pub fn blend_points(
     paths: &Paths,
     a: [u32; 3],

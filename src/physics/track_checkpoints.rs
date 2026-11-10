@@ -15,7 +15,7 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 use rc2k_core::physics::splits::{at_split_end, check_tracked, split_ahead};
 
-/// The steps. The registers the original leaves are read by none of its callers.
+/// The steps.
 // Converted: `rc2k_core::physics::splits::{check_tracked, at_split_end, split_ahead}`.
 pub fn track_checkpoints(
     race: &Race,

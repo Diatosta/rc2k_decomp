@@ -9,7 +9,6 @@
 
 use crate::physics::ground_query::GroundQuery;
 
-/// The Rust version.
 pub fn plane_height(q: &GroundQuery<'_>) {
     let h = crate::math::x87_run::plane_height(
         q.corners[4].get() as i32,

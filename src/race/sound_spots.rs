@@ -54,10 +54,10 @@ fn scaled(t: [u8; 10], k: u32) -> u32 {
     st(from_f80(t) * ld(k))
 }
 
-/// `race::face_sound_spot` (0x45C6ED): face `face_number` (ebx) as a sound spot when it is kind 0xFF,
-/// object 0x3F, its sound (+8) 1 .. 0x15 and there is room (fewer than 0x24): its point and
-/// place (point + offset +0x30 .. into `dword_63501C` ..) turned by `g_viewMatrix` (`view`'s
-/// own) and scaled. (Its test for sound 0x1B2 needing lamps can never hold: a byte.)
+/// `race::face_sound_spot` (0x45C6ED): face `face_number` as a sound spot when it is kind 0xFF,
+/// object 0x3F, its sound (+8) 1 .. 0x15 and there is room (fewer than 0x24): its point and place
+/// (point + offset +0x30 .. into `dword_63501C` ..) turned by `g_viewMatrix` (`view`'s own) and
+/// scaled. (Its test for sound 0x1B2 needing lamps can never hold: a byte.)
 pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Result<(), BadInput> {
     use crate::race::skidmarks::int_80;
     {
@@ -104,8 +104,8 @@ pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Re
     Ok(())
 }
 
-/// `race::cell_sound_spots` (0x45C6B8): each face of cell `cell`'s (ecx) record (`g_courseGrid[c]`,
-/// none from 0x0FFFFFFF; the record's +8 .. +0xC, none for -1 or a first past the last) by
+/// `race::cell_sound_spots` (0x45C6B8): each face of cell `cell`'s record (`g_courseGrid[c]`, none
+/// from 0x0FFFFFFF; the record's +8 .. +0xC, none for -1 or a first past the last) by
 /// `face_sound_spot`.
 pub fn cell_sound_spots(
     race: &Race,
@@ -135,10 +135,9 @@ pub fn cell_sound_spots(
 }
 
 /// `race::find_sound_spots` (0x45C605): `g_soundSpotCount` 0, then the 5 x 5 cells from
-/// (`g_gridReach` - 2) x 0x21 (rows 0x20 apart) of `view`'s grid by `cell_sound_spots`, turned
-/// by its matrix. Its one caller,
-/// `race::draw_race_scene`, reads no register it leaves. Refuses (before anything) a cell past the grid, or no
-/// records, faces or points when a cell has a record.
+/// (`g_gridReach` - 2) x 0x21 (rows 0x20 apart) of `view`'s grid by `cell_sound_spots`, turned by
+/// its matrix. Refuses (before anything) a cell past the grid, or no records, faces or points when
+/// a cell has a record.
 pub fn find_sound_spots(
     race: &Race,
     view: &crate::race::view_scratch::ViewScratch,

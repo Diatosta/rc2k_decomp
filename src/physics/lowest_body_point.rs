@@ -16,8 +16,7 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::session::Cell32;
 
-/// The Rust core on the variables' cells `v`. The registers it leaves (ebx the count, eax
-/// the last depth) are read by none of its callers.
+/// On the variables' cells `v`.
 pub fn lowest_at(course: &Course, v: &[&dyn Cell32]) -> Result<(), Refused> {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
@@ -56,8 +55,8 @@ fn game(race: &Race) -> Vec<&dyn Cell32> {
     v
 }
 
-/// The Rust version (the exact one, for `physics::feel_ground`, `ground_contact`,
-/// `find_clear_place`, `crash_contact`).
+/// The exact version, for `physics::feel_ground`, `ground_contact`, `find_clear_place`,
+/// `crash_contact`.
 pub fn lowest_body_point(race: &Race) -> Result<(), Refused> {
     lowest_at(&race.course, &game(race))
 }

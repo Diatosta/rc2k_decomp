@@ -47,7 +47,7 @@ fn frame_facing(drops: &WindscreenDrops, fl: &WindscreenFlakes) {
     frame_facing_x87(drops, &fl.tables);
 }
 
-/// The Rust version (see the header). The flakes are tinted by `ctx`'s view's light.
+/// The flakes are tinted by `ctx`'s view's light.
 pub fn windscreen_flakes_frame(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     masks: &Masks,

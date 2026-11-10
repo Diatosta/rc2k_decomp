@@ -13,8 +13,6 @@ pub fn pending_key() -> &'static AtomicU8 {
     input().devices.keys_down.atomic(0)
 }
 
-// ---- Rust version ----
-
 /// The pending key, or 0. There is none afterwards.
 pub fn take_key() -> u8 {
     pending_key().swap(0, Ordering::SeqCst)

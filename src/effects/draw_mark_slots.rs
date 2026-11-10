@@ -48,7 +48,7 @@ fn refusal(effects: &crate::effects::owner::Effects) -> Option<&'static str> {
     }
 }
 
-/// The Rust version (see the header): `add_mark_slot`, `scene::set_texture`,
+/// `add_mark_slot`, `scene::set_texture`,
 /// `scene::draw_fan`.
 pub fn draw_mark_slots(
     race: &Race,

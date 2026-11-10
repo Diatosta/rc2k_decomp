@@ -1,14 +1,13 @@
-//! `race::show_replay_still` (0x46062E): the viewer's still frame, the block read and the
-//! frame shown (`dword_5C2534`) drawn: `dword_601024` and `dword_6416BC` 1 (a still); the
-//! block (`dword_9613A4`, 0x2810 bytes) into the replay's frame (`unk_7172EC`), its state
-//! loaded (`drive::load_replay_cars`) and its cameras (`drive::replay_cameras`); the cars
-//! stepped to the frame (`race::step_replay_cars` per frame, `dword_6EF7E4` the frame,
-//! `dword_6EF7E0` the block); at frame 0 one step with `dword_6EF7CC` 1 and the block's
-//! state loaded again; then each car (`g_currentCar`) loaded (`drive::load_car`), its
-//! camera worked out when it runs and is not 2 (`physics::camera_frame`, `dword_6EF7CC`
-//! 1), stored (`drive::store_car`); `dword_63DB74`, `dword_63DB78` 0, `dword_6416B8` 1,
-//! the race's scene drawn (0x454229: `race::draw_race_scene`) with `dword_6235E8` 1
-//! (put back after), the three switches 0.
+//! `race::show_replay_still` (0x46062E): the viewer's still frame, the block read and the frame
+//! shown (`dword_5C2534`) drawn: `dword_601024` and `dword_6416BC` 1 (a still); the block
+//! (`dword_9613A4`, 0x2810 bytes) into the replay's frame (`unk_7172EC`), its state loaded
+//! (`drive::load_replay_cars`) and its cameras (`drive::replay_cameras`); the cars stepped to the
+//! frame (`race::step_replay_cars` per frame, `dword_6EF7E4` the frame, `dword_6EF7E0` the block);
+//! at frame 0 one step with `dword_6EF7CC` 1 and the block's state loaded again; then each car
+//! (`g_currentCar`) loaded (`drive::load_car`), its camera worked out when it runs and is not 2
+//! (`physics::camera_frame`, `dword_6EF7CC` 1), stored (`drive::store_car`); `dword_63DB74`,
+//! `dword_63DB78` 0, `dword_6416B8` 1, the race's scene drawn (0x454229: `race::draw_race_scene`)
+//! with `dword_6235E8` 1 (put back after), the three switches 0.
 //!
 //! Caller: `race::viewer_frame`. Refuses (before anything) a cars' count of 0 or past 8.
 
@@ -31,7 +30,6 @@ fn load_frame(replay: &Replay) {
     );
 }
 
-/// The Rust version (the original leaves registers nothing reads).
 pub fn show_replay_still(
     race: &Race,
     input: &crate::input::owner::Input,

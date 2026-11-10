@@ -1,6 +1,6 @@
 //! `drive::finish_camera` (0x45941D): the finish routine's camera from the eased time
-//! (`flt_64BB68`) and the share (`flt_64BB6C`): `dword_606748`, `606730`, `606734`,
-//! `606744` (each a line in them, `flt_64BB4C` .. `flt_64BB7C`), `dword_60672C` 0.
+//! (`flt_64BB68`) and the share (`flt_64BB6C`): `dword_606748`, `606730`, `606734`, `606744` (each
+//! a line in them, `flt_64BB4C` .. `flt_64BB7C`), `dword_60672C` 0.
 //!
 //! Caller: `drive::finish_run`.
 
@@ -36,7 +36,7 @@ fn last_line(replay: &Replay) {
     ));
 }
 
-/// The Rust version (the exact one, for `drive::finish_run`).
+/// (the exact one, for `drive::finish_run`).
 pub fn finish_camera(replay: &Replay) {
     lines(replay);
     record().offset[0].set(0);

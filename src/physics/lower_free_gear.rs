@@ -17,8 +17,7 @@ use crate::errors::Refused;
 use crate::physics::gear_bit::bits_at;
 use crate::race::owner_shared::Shared;
 
-/// The Rust version on the bits at `bits`: the free lower gear (None when neutral is
-/// reached first: CF). The eax it leaves is read by no caller, so none goes in.
+/// On the bits at `bits`: the free lower gear (None when neutral is reached first: CF).
 // Converted: `rc2k_core::physics::gearbox::GearBits::lower_free`.
 pub fn lower_free_gear_at(
     bits: &dyn crate::session::Cell32,
@@ -28,7 +27,6 @@ pub fn lower_free_gear_at(
     Ok(s.found.then_some(s.gear))
 }
 
-/// The Rust version.
 pub fn lower_free_gear(shared: &Shared, gear: u32) -> Result<Option<u32>, Refused> {
     lower_free_gear_at(&shared.car.lost_gear_bits, gear)
 }

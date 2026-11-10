@@ -27,11 +27,9 @@ pub fn part_matrices(cars: &CarDrawState) -> [&'_ [Float]; 4] {
     [0, 16, 32, 48].map(|k| &cars.part_matrices[k..k + 16])
 }
 
-/// `race::car_part_matrix_1` .. `_4` (0x461F12, 0x461F58, 0x461F9E, 0x461FE4): matrix `a`
-/// times the body's turn (`flt_5EA08C`) into `g_turnedMatrix`, times the car's turn
-/// (`flt_641760`) into `g_litMatrix`, times `g_viewMatrix` into `g_madeObjectMatrix`. The
-/// original leaves esi `g_litMatrix` (which `draw_car`'s drawing takes, see there), edi
-/// and ebp the last product's other two.
+/// `race::car_part_matrix_1` .. `_4` (0x461F12, 0x461F58, 0x461F9E, 0x461FE4): matrix `a` times the
+/// body's turn (`flt_5EA08C`) into `g_turnedMatrix`, times the car's turn (`flt_641760`) into
+/// `g_litMatrix`, times `g_viewMatrix` into `g_madeObjectMatrix`.
 pub fn car_part_matrix(cars: &CarDrawState, m: &ViewMatrices, a: &[Float]) {
     multiply_matrices(a, &m.body_turn_matrix, &m.turned_matrix);
     multiply_matrices(&m.turned_matrix, car_turn(cars), &m.lit_matrix);
@@ -52,18 +50,15 @@ pub fn car_body_matrix(course: &Course, cars: &CarDrawState, m: &ViewMatrices) {
     car_part_matrix(cars, m, &m.lit_matrix);
 }
 
-/// `race::car_number_textures` (0x46203D): car `car`'s (esi) marks' textures into `marks`
-/// (the original's `dword_5CD688` ..: `scene::car_marks`): +0x1B8 / +0x1BC (|x| not below `flt_641740`: 1) into
-/// `dword_5CD68C`, `dword_5CD698` / `dword_5CD690`, `dword_5CD694`; the letter of its
-/// model's name (`unk_71B408` + 0x30 x model) at +0x718 (rounded, held to 0 .. 0x2EDF) /
-/// 250, as a digit or letter number, into `dword_5CD69C` (and `dword_5CDA88`, which nothing
-/// read: not kept); its number
-/// +0xAA8 as tens and units (`dword_5CD6A0`, `dword_5CD6A4`, 999 for none; `dword_5CD6AC`
-/// the units alone below ten); the stage's (held to 11 .. 0x50) tens' plate
-/// `dword_71BA10[]` into `dword_5CD6A8`; and while +0x310 is below `flt_5C5D14` its 17
-/// bytes +0xAC0 .. into the places `dword_6416F8[]` names (marks 0xA .. 0x1B; one past the
-/// marks is refused). The registers it leaves are
-/// read by no one (`draw_car` reads only esi, which it keeps).
+/// `race::car_number_textures` (0x46203D): car `car`'s marks' textures into `marks` (the original's
+/// `dword_5CD688` ..: `scene::car_marks`): +0x1B8 / +0x1BC (|x| not below `flt_641740`: 1) into
+/// `dword_5CD68C`, `dword_5CD698` / `dword_5CD690`, `dword_5CD694`; the letter of its model's name
+/// (`unk_71B408` + 0x30 x model) at +0x718 (rounded, held to 0 .. 0x2EDF) / 250, as a digit or
+/// letter number, into `dword_5CD69C` (and `dword_5CDA88`, which nothing read: not kept); its
+/// number +0xAA8 as tens and units (`dword_5CD6A0`, `dword_5CD6A4`, 999 for none; `dword_5CD6AC`
+/// the units alone below ten); the stage's (held to 11 .. 0x50) tens' plate `dword_71BA10[]` into
+/// `dword_5CD6A8`; and while +0x310 is below `flt_5C5D14` its 17 bytes +0xAC0 .. into the places
+/// `dword_6416F8[]` names (marks 0xA .. 0x1B; one past the marks is refused).
 pub fn car_number_textures(
     race: &Race,
     car: u32,
@@ -203,20 +198,18 @@ fn shown_groups(masks: &[crate::session::Dword; 18], switches: u32) -> u32 {
     shown
 }
 
-/// `race::draw_car` (0x4616AA): car `car` (esi, its block) drawn: its marks' textures
-/// (`race::car_number_textures`); its six matrices (+0x740 ..) to `flt_6417E0` .. /
-/// `flt_5EA08C` / `flt_641760`; its model's parts' bits (`dword_5CCE1C` ..; the shown mask
-/// `dword_62150C` by +0x298, `dword_606280` by +0x6FC, the view's depth `dword_6415A4` and
-/// the stage's fog, `dword_71BA08` the nearness (0 .. 1) dimming `g_shine`), `dword_606284`,
-/// +0xF04; all parts for the drawn view's own car when `dword_60626C`; the light and place;
-/// `scene::set_light_direction`; the body (`g_objectNumber` 0x50 + 0x14 x car,
-/// `race::car_body_matrix`, `scene::draw_scene_object` between the kept reflections), and
-/// nearer than 0x3C0000 its four parts by +0x298's bits 5 .. 8 (each `car_part_matrix`,
-/// `scene::draw_scene_object`); then `race::clear_car_marks` (here the marks are the
-/// drawing's own: `scene::car_marks`). Each drawing gets esi
-/// `g_litMatrix`, as the matrices leave it (the object's description, read only on the
-/// described way). Refuses (before anything) what
-/// `scene::draw_scene_object` would for the car's objects: in a race (`g_inRace`) car
+/// `race::draw_car` (0x4616AA): car `car` drawn: its marks' textures (`race::car_number_textures`);
+/// its six matrices (+0x740 ..) to `flt_6417E0` .. / `flt_5EA08C` / `flt_641760`; its model's
+/// parts' bits (`dword_5CCE1C` ..; the shown mask `dword_62150C` by +0x298, `dword_606280` by
+/// +0x6FC, the view's depth `dword_6415A4` and the stage's fog, `dword_71BA08` the nearness (0 .. 1)
+/// dimming `g_shine`), `dword_606284`, +0xF04; all parts for the drawn view's own car when
+/// `dword_60626C`; the light and place; `scene::set_light_direction`; the body (`g_objectNumber`
+/// 0x50 + 0x14 x car, `race::car_body_matrix`, `scene::draw_scene_object` between the kept
+/// reflections), and nearer than 0x3C0000 its four parts by +0x298's bits 5 .. 8 (each
+/// `car_part_matrix`, `scene::draw_scene_object`); then `race::clear_car_marks` (here the marks are
+/// the drawing's own: `scene::car_marks`). Each drawing gets esi `g_litMatrix`, as the matrices
+/// leave it (the object's description, read only on the described way). Refuses (before anything)
+/// what `scene::draw_scene_object` would for the car's objects: in a race (`g_inRace`) car
 /// `dword_60627C` (below eight) without its block.
 pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Result<(), Refused> {
     let race = ctx.race;
@@ -459,10 +452,9 @@ fn near_size(cars: &CarDrawState) -> u32 {
     }
 }
 
-/// `race::draw_car_shined` (0x461669): `g_shine` for the car (0x3FCE0 less `dword_623D80`,
-/// held to 0 .. 0x40000, times `dword_60AD0C`, >> 18), the car `car` (esi, its block)
-/// drawn (`race::draw_car`), `g_shine` put back. Of its callers' registers only esi is
-/// read (by `draw_car`).
+/// `race::draw_car_shined` (0x461669): `g_shine` for the car (0x3FCE0 less `dword_623D80`, held to
+/// 0 .. 0x40000, times `dword_60AD0C`, >> 18), the car `car` drawn (`race::draw_car`), `g_shine`
+/// put back.
 pub fn draw_car_shined(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     car: u32,
@@ -484,10 +476,10 @@ pub fn draw_car_shined(
     done
 }
 
-/// `race::draw_car_entry` (0x455105): car `entry` (ebx) & 7 (into `dword_60627C`; `dword_62DAD4` its
+/// `race::draw_car_entry` (0x455105): car `entry` & 7 (into `dword_60627C`; `dword_62DAD4` its
 /// +0x240): its place turned by `g_viewMatrix` (`scene::rotate_point`) into `dword_64159C` ..
-/// `dword_6415A4`; drawn (`race::draw_car_shined`, counted in `dword_641594`) unless
-/// behind (depth + 0x40000 below 0) or aside (|x| - 0x80000 not below the depth), counted in
+/// `dword_6415A4`; drawn (`race::draw_car_shined`, counted in `dword_641594`) unless behind
+/// (depth + 0x40000 below 0) or aside (|x| - 0x80000 not below the depth), counted in
 /// `dword_641598`. Refuses (before anything) a car without its block.
 pub fn draw_car_entry(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,

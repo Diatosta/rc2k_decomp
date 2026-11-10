@@ -35,7 +35,6 @@ fn rdtsc() -> (u32, u32) {
     (t as u32, (t >> 32) as u32)
 }
 
-/// The Rust version (see the header).
 pub fn frame_marks(race: &Race, effects: &Effects) -> Result<(), Refused> {
     let shared = &race.shared;
     let course = &race.course;

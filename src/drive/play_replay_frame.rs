@@ -1,14 +1,13 @@
-//! `drive::play_replay_frame` (0x460049): while playing a replay (`dword_5C5CE0` 2): the
-//! replay's frame and tenth (`dword_5C2530`, `5C2534`) into `dword_6EF7E0`, `6EF7E4`; at
-//! a whole frame the frame read and its state loaded (`drive::load_replay_frame`,
-//! `drive::load_replay_cars`); then the cameras (`drive::replay_cameras`).
+//! `drive::play_replay_frame` (0x460049): while playing a replay (`dword_5C5CE0` 2): the replay's
+//! frame and tenth (`dword_5C2530`, `5C2534`) into `dword_6EF7E0`, `6EF7E4`; at a whole frame the
+//! frame read and its state loaded (`drive::load_replay_frame`, `drive::load_replay_cars`); then
+//! the cameras (`drive::replay_cameras`).
 //!
 //! Caller: `drive::replay_step`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-/// The Rust version.
 // Converted: `rc2k_core::drive::race_steps::play_frame`.
 pub fn play_replay_frame(race: &Race) -> Result<(), Refused> {
     let Some(whole) =

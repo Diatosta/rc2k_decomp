@@ -9,9 +9,9 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 
-/// `race::normalise_work_vector` (0x41FC4D): `g_workVector` made one long by its 80-bit
-/// length (`math::x87::normalise_in_place`); a length equal to 0 makes it 0; -0.0 parts
-/// become 0. The length rounded into `dword_62400C`.
+/// `race::normalise_work_vector` (0x41FC4D): `g_workVector` made one long by its 80-bit length
+/// (`math::x87::normalise_in_place`); a length equal to 0 makes it 0; -0.0 parts become 0. The
+/// length rounded into `dword_62400C`.
 pub fn normalise_work_vector(race: &Race) {
     let mut v = race
         .frame
@@ -34,10 +34,9 @@ pub fn normalise_work_vector(race: &Race) {
     }
 }
 
-/// `race::face_normal` (0x422144): the points `a`, `b`, `c` (eax, ebx, ecx) of
-/// `g_scenePoints` kept, the differences b - a and c - a (whole numbers), their cross
-/// product into `g_workVector` (each part as `math::x87::int_product_difference`),
-/// normalised. Its caller (`store_face_normal`) keeps every register round it.
+/// `race::face_normal` (0x422144): the points `a`, `b`, `c` of `g_scenePoints` kept, the
+/// differences b - a and c - a (whole numbers), their cross product into `g_workVector` (each part
+/// as `math::x87::int_product_difference`), normalised.
 pub fn face_normal(race: &Race, a: u32, b: u32, c: u32) -> Result<(), BadInput> {
     {
         let point = |n: u32| -> Result<[i32; 3], BadInput> {
@@ -70,12 +69,11 @@ pub fn face_normal(race: &Race, a: u32, b: u32, c: u32) -> Result<(), BadInput> 
     Ok(())
 }
 
-/// `race::store_face_normal` (0x421F72): face ebx. Nothing for a face whose first byte is
-/// 0x10 or more; else bit 0x200 of its word +2 set when two of its points (+4, +8, +0xC,
-/// and +0x10 unless `dword_63D9F8` is -1) are the same in their low twelve bits, cleared
-/// otherwise; then, when all three are below `g_scenePointCount`, the normal of +4, +8,
-/// +0xC (else `g_workVector` as it was) into +0x18, +0x30, +0x38, and of +0x10, +0xC, +8
-/// into +0x1C, +0x34, +0x3C. Every register preserved (`face` gives the callee).
+/// `race::store_face_normal` (0x421F72): face ebx. Nothing for a face whose first byte is 0x10 or
+/// more; else bit 0x200 of its word +2 set when two of its points (+4, +8, +0xC, and +0x10 unless
+/// `dword_63D9F8` is -1) are the same in their low twelve bits, cleared otherwise; then, when all
+/// three are below `g_scenePointCount`, the normal of +4, +8, +0xC (else `g_workVector` as it was)
+/// into +0x18, +0x30, +0x38, and of +0x10, +0xC, +8 into +0x1C, +0x34, +0x3C.
 pub fn store_face_normal(
     race: &Race,
     face_number: u32,
@@ -121,10 +119,10 @@ pub fn store_face_normal(
     Ok(())
 }
 
-/// `race::lay_out_course` (0x421BE3): from `g_courseMemory` + 0x100, `dword_5CCD18`
-/// records of 0x20, the faces (`dword_5CCCBC`, `dword_5CCD1C` of 0x40), the points
-/// (`g_scenePoints`, `g_scenePointCount` of 12), and what follows (`dword_5CCCC4`, and its
-/// offset in `dword_5CCCC8`); the first at `dword_5CCCB8`. Every register preserved.
+/// `race::lay_out_course` (0x421BE3): from `g_courseMemory` + 0x100, `dword_5CCD18` records of
+/// 0x20, the faces (`dword_5CCCBC`, `dword_5CCD1C` of 0x40), the points (`g_scenePoints`,
+/// `g_scenePointCount` of 12), and what follows (`dword_5CCCC4`, and its offset in `dword_5CCCC8`);
+/// the first at `dword_5CCCB8`.
 pub fn lay_out_course(course: &Course) {
     {
         // Converted: `rc2k_core::race::faces::CourseLayout`.
@@ -160,8 +158,8 @@ pub fn lay_out_course(course: &Course) {
     }
 }
 
-/// `race::store_norms` (0x421F02): `lay_out_course`, then `store_face_normal` for every
-/// face. Refuses no faces (the original counts round) or 0x100000 or more.
+/// `race::store_norms` (0x421F02): `lay_out_course`, then `store_face_normal` for every face.
+/// Refuses no faces (the original counts round) or 0x100000 or more.
 pub fn store_norms(
     race: &Race,
     normal: &mut dyn FnMut(u32, u32, u32) -> Result<(), BadInput>,

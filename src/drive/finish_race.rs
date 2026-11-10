@@ -1,9 +1,9 @@
 //! `drive::finish_race` (0x459116): the championship's finish routine: the stage
-//! (`dword_64BB1C[dword_75B0FC]` into `g_stageNumber`), the cars' kind (`dword_75B104`
-//! into `g_raceCarKinds` and the first block's +0x24) and +0xAA8 (`dword_75B100`)
-//! logged; one car in mode 3 set up (some thirty settings and block words); the stage
-//! loaded (`race::load_stage`); `dword_63DB84` 0; `drive::finish_run`; everything tidied
-//! (`race::tidy_everything`); `dword_5C2F88`, `64BB18`, `606744`, `606748` 0; logged.
+//! (`dword_64BB1C[dword_75B0FC]` into `g_stageNumber`), the cars' kind (`dword_75B104` into
+//! `g_raceCarKinds` and the first block's +0x24) and +0xAA8 (`dword_75B100`) logged; one car in
+//! mode 3 set up (some thirty settings and block words); the stage loaded (`race::load_stage`);
+//! `dword_63DB84` 0; `drive::finish_run`; everything tidied (`race::tidy_everything`);
+//! `dword_5C2F88`, `64BB18`, `606744`, `606748` 0; logged.
 //!
 //! Callers: `drive::finish_race_0`, 0x442FEF. Refuses what its calls refuse.
 
@@ -67,14 +67,8 @@ fn set_up() -> Result<(), BadInput> {
     Ok(())
 }
 
-/// The Rust version.
 // Converted: `rc2k_core::drive::finish_routine`.
-///
-/// The caller's ecx, which the original hands through `race::load_stage` and
-/// `drive::race_init` to `race::checkpoint_distances`, is never read there (that function
-/// is reached only with two checkpoints or more; conversion phase 3, 2026-10-24). The
-/// registers this leaves are read by no caller (liveness: esi after the menus' calls has
-/// no read point).
+/// Conversion phase 3, 2026-10-24).
 pub fn finish_race(race: &Race) -> Result<(), Refused> {
     let input = crate::input::owner::input();
     let sound = crate::sound::owner::sound();

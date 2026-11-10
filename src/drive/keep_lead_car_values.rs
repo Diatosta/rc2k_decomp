@@ -7,7 +7,6 @@
 use crate::drive::lead_car_values::pairs;
 use crate::race::owner_frame::Frame;
 
-/// The Rust version.
 pub fn keep_lead_car_values(frame: &Frame) {
     for (field, place) in pairs(frame) {
         place.set(field.get());

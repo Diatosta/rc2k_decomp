@@ -7,8 +7,6 @@
 use crate::input::key_to_char::has_layout;
 use crate::input::yes_no_key::answer_for_key;
 
-// ---- Rust version ----
-
 pub fn yes_no_for_key(eax: u32) -> Result<u32, crate::errors::BadInput> {
     if !has_layout() {
         return Err(crate::errors::BadInput("no keyboard layout"));

@@ -1,15 +1,12 @@
-//! `race::draw_view_overlays` (0x4559A6): what a view draws over its scene, unless
-//! `unk_71AF80` is set (as `race::draw_view_scene`): the HUD's overlay states, render
-//! state 3 = 3, the view's marks (`race::run_view_marks`), the overlay states again, the
-//! race's sound tick (eax 0xE in the original), a flat triangle
+//! `race::draw_view_overlays` (0x4559A6): what a view draws over its scene, unless `unk_71AF80` is
+//! set (as `race::draw_view_scene`): the HUD's overlay states, render state 3 = 3, the view's marks
+//! (`race::run_view_marks`), the overlay states again, the race's sound tick, a flat triangle
 //! (`race::draw_flat_triangle`), the depth buffer on, the filters; the own car drawn
-//! (`race::draw_own_car`) without the far clip (the original set `dword_621900` 0 meanwhile
-//! and put it back after: `DrawCtx::far_clip`), the screen's tint, the draw batch flushed,
-//! the filters.
+//! (`race::draw_own_car`) without the far clip (the original set `dword_621900` 0 meanwhile and put
+//! it back after: `DrawCtx::far_clip`), the screen's tint, the draw batch flushed, the filters.
 
 use crate::errors::Refused;
 
-/// The Rust version (see the header).
 pub fn draw_view_overlays(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,

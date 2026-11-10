@@ -9,7 +9,7 @@
 
 use crate::errors::BadInput;
 
-/// The Rust version (see the header).
+/// See the header.
 pub fn request_device_setup(
     controller: u32,
     sensitivity: u32,

@@ -44,8 +44,6 @@ pub fn loaded(record: &SampleRecord) -> Option<rc2k_core::audio::samples::Loaded
     })
 }
 
-// ---- Rust version ----
-
 /// (volume, rate).
 pub fn sample_settings(sample: u32, volume: u32, rate: u32) -> Result<(u32, u32), BadInput> {
     // Converted: `rc2k_core::audio::samples::settings`.

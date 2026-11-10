@@ -1,9 +1,9 @@
-//! `drive::race_cars_step` (0x4608BB): every car's physics step. `drive::choose_shown_cars`;
-//! for each car n of `g_raceCars` (`g_currentCar` = n, from 0), the
-//! four `dword_6138C4` .. 0, its block (`g_carBlocks[n & 7]`) into `dword_71B404`,
-//! `drive::load_car`; with the car running (`unk_71A234` set) `drive::read_car_controls`,
-//! `physics::gear_input_rules` and `physics::car_physics_step`; `drive::store_car`. Then
-//! `drive::animate_stage` and `drive::race_mode_cars`.
+//! `drive::race_cars_step` (0x4608BB): every car's physics step. `drive::choose_shown_cars`; for
+//! each car n of `g_raceCars` (`g_currentCar` = n, from 0), the four `dword_6138C4` .. 0, its block
+//! (`g_carBlocks[n & 7]`) into `dword_71B404`, `drive::load_car`; with the car running
+//! (`unk_71A234` set) `drive::read_car_controls`, `physics::gear_input_rules` and
+//! `physics::car_physics_step`; `drive::store_car`. Then `drive::animate_stage` and
+//! `drive::race_mode_cars`.
 //!
 //! Caller: `drive::race_init` (its fifty settling steps). Refuses (before anything) a cars'
 //! count of 0 or past 8 (the original's `jnz` loop runs on), and what its calls refuse; the
@@ -35,8 +35,6 @@ fn car_step(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust version. The registers it leaves are read by no caller (liveness: only DF
-/// is live after `drive::race_init`'s call).
 // Converted: `rc2k_core::drive::race_steps::{check_cars, each_car, block_slot}`.
 pub fn race_cars_step(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;

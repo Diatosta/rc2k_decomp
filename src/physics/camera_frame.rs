@@ -55,8 +55,6 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
     crate::physics::update_camera::steps(race, scene)
 }
 
-/// The Rust version. The registers the original leaves are read by none of its callers
-/// (`physics::car_physics_step`, `drive::finish_run`, `race::show_replay_still`).
 pub fn camera_frame(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     steps(race, scene)
 }

@@ -53,7 +53,7 @@ fn entries_taken(particles: &Particles, ring: &Ring) -> Result<Vec<u32>, Refused
     })
 }
 
-/// The Rust version (see the header): `record` the particle it bursts from (esi).
+/// `record` the particle it bursts from (esi).
 pub fn burst_particles(
     particles: &Particles,
     ring: &Ring,

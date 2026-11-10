@@ -20,7 +20,7 @@ use crate::scene::matrix3::rounded;
 use crate::d3d::vertices_store::VERTICES;
 const ANGLES: u32 = 0x1000;
 
-/// The Rust version (see the header): `angle` (the original's ebx), `colour` (ecx, its
+/// `angle` (the original's ebx), `colour` (ecx, its
 /// low three bytes made 0xFF), `size` (edx), `place` (st(0) .. st(2)).
 pub fn draw_turned_sprite(
     angle: u32,

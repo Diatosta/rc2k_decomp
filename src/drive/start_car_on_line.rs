@@ -1,12 +1,11 @@
-//! `drive::start_car_on_line` (0x437613): the work car put at a start on the line:
-//! `dword_71AA80` = `dword_605034[dword_6051A0]` (the start's number's entry); the grades'
-//! mode `dword_71A234` 2; the checkpoint (`dword_70F484`, the lead car's, + ebx) into
-//! `dword_71A070`, `6C`, `74`, `dword_6365E4` and `dword_6365EC`; a share `flt_6051AC` /
-//! `flt_71A650` = lo + ((m - 1) - n) / (m - 1) (hi - lo) (n `dword_6051A0`, m
+//! `drive::start_car_on_line` (0x437613): the work car put at a start on the line: `dword_71AA80` =
+//! `dword_605034[dword_6051A0]` (the start's number's entry); the grades' mode `dword_71A234` 2;
+//! the checkpoint into `dword_71A070`, `6C`, `74`, `dword_6365E4` and `dword_6365EC`; a share
+//! `flt_6051AC` / `flt_71A650` = lo + ((m - 1) - n) / (m - 1) (hi - lo) (n `dword_6051A0`, m
 //! `dword_6051B4`, lo / hi `flt_6051A4` / `flt_6051A8`); `race::place_car_on_line`,
 //! `race::reset_car_motion`; then the motion: 0, 0 and the speed `flt_6051B0` turned by
-//! `g_crashMatrix` (`scene::rotate_point`) into 0x71A170 .. 0x71A178 (`g_carSpeed` the
-//! speed). By the look of it a computer car placed at the start of a run (a reading).
+//! `g_crashMatrix` (`scene::rotate_point`) into 0x71A170 .. 0x71A178 (`g_carSpeed` the speed). By
+//! the look of it a computer car placed at the start of a run (a reading).
 //!
 //! Takes: the checkpoints on from the lead's
 //!
@@ -34,8 +33,7 @@ pub fn car_number(shared: &Shared, start: usize) -> Result<u32, BadInput> {
     )
 }
 
-/// The Rust version: `distance` (ebx) checkpoints on from the lead car. The registers it
-/// leaves are read by no caller (`drive::start_cars_behind` sets them again).
+/// `distance` checkpoints on from the lead car.
 // Converted: `rc2k_core::drive::start_places` (the share in plain floats; the motion's
 // turn stays x87).
 pub fn start_car_on_line(

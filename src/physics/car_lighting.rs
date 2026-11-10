@@ -35,7 +35,6 @@ fn corners(race: &Race) -> u32 {
     v
 }
 
-/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::lighting`.
 pub fn car_lighting(
     race: &Race,

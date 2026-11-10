@@ -1,8 +1,8 @@
 //! `drive::keep_replay_frame` (0x45FFB6): the replay's frame and tenth (`dword_6EF7D8`,
-//! `dword_6EF7DC`, 0 when playing, `dword_5C5CE0` 2; else the first block's +8 / 100 and
-//! its remainder); at a whole frame the four car blocks (0x3F80 bytes from
-//! `g_carBlockStore`) kept in slot frame & 7 of `unk_6EF7E8`, and while recording
-//! (`dword_5C5CE0` 1) `drive::save_replay_cars`.
+//! `dword_6EF7DC`, 0 when playing, `dword_5C5CE0` 2; else the first block's +8 / 100 and its
+//! remainder); at a whole frame the four car blocks (0x3F80 bytes from `g_carBlockStore`) kept in
+//! slot frame & 7 of `unk_6EF7E8`, and while recording (`dword_5C5CE0` 1)
+//! `drive::save_replay_cars`.
 //!
 //! Caller: `drive::replay_step`.
 
@@ -16,7 +16,6 @@ use rc2k_core::drive::replay_frames::{
 
 const SIZE: usize = SLOT_SIZE as usize;
 
-/// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{frame_and_tenth, slot_offset}`.
 pub fn keep_replay_frame(race: &Race) -> Result<(), BadInput> {
     race.replay.replay_frames.frame.set(0);

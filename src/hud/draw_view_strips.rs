@@ -1,9 +1,8 @@
 //! `hud::draw_view_strips` (0x45B7B1): unless `dword_5BEC94`, for each player's view block
-//! (`g_viewBlocks`, `+4` for the second when `dword_6238A4` is not 0) whose +0xFA8 is 0 and
-//! +0x728 is set: while its flash is on (+0x730 at most 0, or +0x72C modulo +0x730 below
-//! half of +0x730), `hud::draw_view_strip` for view `dword_6238A4` (the second's plus 3)
-//! with texture `dword_6240BC` 0xC4 (0xC5); then the strips' shared tail (the original
-//! jumps to 0x45B9AA).
+//! (`g_viewBlocks`, `+4` for the second when `dword_6238A4` is not 0) whose +0xFA8 is 0 and +0x728
+//! is set: while its flash is on (+0x730 at most 0, or +0x72C modulo +0x730 below half of +0x730),
+//! `hud::draw_view_strip` for view `dword_6238A4` (the second's plus 3) with texture `dword_6240BC`
+//! 0xC4 (0xC5); then the strips' shared tail (the original jumps to 0x45B9AA).
 //!
 //! Caller: `hud::overlay_pass` (0x45A92E).
 
@@ -23,8 +22,6 @@ fn flashing(handle: u32) -> Result<bool, BadInput> {
     .shown())
 }
 
-/// The Rust version (see the header). What the original leaves in the registers is read
-/// by none of its callers (register liveness, 2026-10-23).
 // Converted: `rc2k_core::hud::strips`
 pub fn draw_view_strips(race: &Race) -> Result<(), Refused> {
     use crate::hud::draw_view_strip::{draw_view_strip, overlay_tail};

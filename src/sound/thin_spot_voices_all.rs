@@ -10,8 +10,6 @@
 
 use crate::errors::Refused;
 
-// ---- Rust version ----
-
 /// `sound::thin_spot_voices` for each sound thinned.
 pub fn thin_spot_voices_all(owner: &crate::sound::owner::Sound) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::spot_voices::THINNED_SOUNDS`.

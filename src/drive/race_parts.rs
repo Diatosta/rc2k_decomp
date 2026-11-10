@@ -1,12 +1,6 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-// What these calls leave in the registers is read by none of their callers (liveness at
-// each call site in `race_loop`, `quit_question`, `pause_until_key`, `finish_run` and
-// `race::play_movie_loop` / `play_movie`).
-
-/// `drive::race_frame`: the race's frame (drawing and the sound tick), for the callers that do
-/// not read the eax it leaves (any value in, as their eax is not read past it either).
 pub fn race_frame(race: &Race) -> Result<(), Refused> {
     crate::drive::race_frame::race_frame(race, 0)?;
     Ok(())

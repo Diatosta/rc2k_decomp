@@ -8,7 +8,6 @@
 use crate::math::cells::Cells;
 use crate::math::x87;
 
-/// The Rust version.
 pub fn multiply_parts(
     a: &(impl Cells + ?Sized),
     b: &(impl Cells + ?Sized),

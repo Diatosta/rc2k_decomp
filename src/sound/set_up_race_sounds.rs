@@ -8,8 +8,6 @@
 use crate::audio::owner::audio;
 use crate::sound::apply_settings::run_step;
 
-// ---- Rust version ----
-
 pub fn set_up_race_sounds(
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), crate::errors::Refused> {

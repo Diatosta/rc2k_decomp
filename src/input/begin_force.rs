@@ -39,7 +39,7 @@ pub fn dword_property(data: u32) -> DiPropDword {
     }
 }
 
-/// The Rust version (see the header).
+/// See the header.
 pub fn begin_force(input: &Input, record: &InputDevice) -> Result<(), Refused> {
     if entry_of(&input.devices, record)?.force_feedback.get() != 1 {
         return Ok(());

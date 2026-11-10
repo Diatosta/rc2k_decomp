@@ -22,8 +22,6 @@ use crate::sound::sample_settings::{OWN, record, sample_settings};
 use crate::sound::sets_store::SoundRequest;
 use rc2k_core::sound::surfaces;
 
-// ---- Rust version ----
-
 /// Object `o`'s sound of the surface's sound `set`, through `request`.
 pub fn surface_sound(
     o: &crate::sound::store::SoundObject,

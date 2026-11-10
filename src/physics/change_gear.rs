@@ -92,7 +92,6 @@ pub fn change_gear_at(
     Ok(())
 }
 
-/// The Rust version.
 pub fn change_gear(race: &Race) -> Result<(), Refused> {
     change_gear_at(
         &race.course,

@@ -12,7 +12,7 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-/// The steps, not guarded. The registers left are read by none of the callers.
+/// The steps, not guarded.
 // Converted: `rc2k_core::physics::ground_search::cells_around`.
 pub fn face_contacts_around(
     race: &Race,

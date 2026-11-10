@@ -299,7 +299,6 @@ fn step(
     Ok(false)
 }
 
-/// The Rust version (see the header).
 pub fn run_particles(
     frame: &Frame,
     particles: &Particles,

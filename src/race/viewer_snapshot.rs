@@ -1,8 +1,8 @@
-//! `race::viewer_snapshot` (0x41EFAB): the viewer's frame saved as a picture: the three
-//! digits of `savedata\snapshot\000.pcx` one more (999 round to 000; the number found by
+//! `race::viewer_snapshot` (0x41EFAB): the viewer's frame saved as a picture: the three digits of
+//! `savedata\snapshot\000.pcx` one more (999 round to 000; the number found by
 //! `race::find_snapshot_number`), the name as `dword_4F49C8` while the surface is locked
-//! (`gfx::lock_surface`; failing, nothing), written (`gfx::write_screen_pcx`) and
-//! unlocked (`gfx::unlock_surface`); `dword_4F49C8` put back.
+//! (`gfx::lock_surface`; failing, nothing), written (`gfx::write_screen_pcx`) and unlocked
+//! (`gfx::unlock_surface`); `dword_4F49C8` put back.
 //!
 //! Caller: `race::viewer_frame` (when `dword_5C2540` asks), which calls it directly; the
 //! lock and unlock (the platform's) and the writer are called directly (2026-10-23).
@@ -11,7 +11,6 @@ use crate::errors::Refused;
 use crate::race::find_snapshot_number::DIGITS_AT;
 use crate::race::owner_replay::Replay;
 
-/// The Rust version (see the header).
 pub fn viewer_snapshot(replay: &Replay) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
     // Converted: `rc2k_core::race::viewer::next_snapshot`.

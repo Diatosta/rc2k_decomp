@@ -15,7 +15,6 @@ use crate::physics::splits::put_split_time;
 use crate::race::owner::Race;
 use rc2k_core::physics::progress::{FINISH_NOTICE, finished_at, split_due};
 
-/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::progress::{split_due, finished_at}`.
 pub fn take_split(race: &Race) -> Result<(), Refused> {
     if race.shared.car.finish_flag.get() != 0 {

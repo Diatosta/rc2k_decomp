@@ -21,8 +21,6 @@ use core::mem::{offset_of, size_of};
 #[repr(C, align(16))]
 #[derive(rc2k_derive::Cells)]
 pub struct Buffers {
-    /// +0x0 (0x960000): `unk_960000`, the room `hud::draw_view_strip`'s original passes in ecx
-    /// (the Rust version reads none of it).
     pub strip_room: Bytes<0x5A0>,
     /// +0x5A0 (0x9605A0): `d3d::vertices_store`.
     pub vertices: PolygonVertices,

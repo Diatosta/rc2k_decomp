@@ -110,7 +110,6 @@ fn refusal(course: &Course, paths: &Paths) -> Result<Option<&'static str>, Refus
     })
 }
 
-/// The Rust version (see the header).
 pub fn morph_object_points(
     course: &Course,
     paths: &Paths,

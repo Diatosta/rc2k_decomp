@@ -1,10 +1,7 @@
-//! `race::replay_viewer` (0x41CF0C): the replay viewer, by mode (eax, `Mode`):
-//! 1 the last race's replay (222); 2 a saved one chosen (`menu::replay_slot_loop` 0; none:
-//! nothing); 3 the last race's saved into a slot chosen (`replay_slot_loop` 1,
-//! `race::save_last_replay`) and nothing else. `dword_5BEC9C` the mode, `dword_5BECA0` the
-//! replay, `g_holdCarRevs` 1 while it runs. (Modes 4 and 5, the game's own replay ebx + 100
-//! only shown, 5 with the keys ignored, are entered only at 0x41CDA8 and 0x41CDB5, which
-//! nothing references: not kept.)
+//! `race::replay_viewer` (0x41CF0C): the replay viewer, by mode: 1 the last race's replay (222); 2
+//! a saved one chosen (`menu::replay_slot_loop` 0; none: nothing); 3 the last race's saved into a
+//! slot chosen (`replay_slot_loop` 1, `race::save_last_replay`) and nothing else. `dword_5BEC9C`
+//! the mode, `dword_5BECA0` the replay, `g_holdCarRevs` 1 while it runs.
 //!
 //! Then the replay opened (`race::open_viewed_replay`; failing: the end), no camera edit,
 //! `dword_5C2544` whether it is the last race's, the snapshots' number found
@@ -95,7 +92,6 @@ enum Next {
     Action(u32),
 }
 
-/// The Rust version.
 pub fn replay_viewer(race: &Race, mode: Mode) -> Result<(), Refused> {
     view(race, mode)?;
     // The end (0x41D436).

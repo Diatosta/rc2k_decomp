@@ -8,7 +8,6 @@ use crate::effects::pong::Pong;
 use crate::effects::windscreen_flakes_setup::setup_with;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 
-/// The Rust version (see the header).
 pub fn pong_setup(pong: &Pong, fl: &WindscreenFlakes, scene: &crate::scene::owner::Scene) {
     setup_with(
         fl,

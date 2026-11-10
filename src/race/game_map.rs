@@ -192,7 +192,6 @@ fn put_pixels(at: usize, bytes: &[u8]) -> Result<(), BadInput> {
 }
 
 /// `race::free_game_map` (0x41B907): both map lists freed, the sheet, tiles and pixels 0.
-/// Every register preserved.
 pub fn free_game_map(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;
     crate::gfx::picture::give_back(crate::gfx::picture::Buffer::Key);
@@ -209,13 +208,11 @@ pub fn free_game_map(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::load_packed_game_map` (0x41B785): the map from a packed file (eax the path; see
-/// the header). `g_mapBlack` and `g_mapTiles` (0x10000 bytes) first; a file that does not
-/// open, read, say "SQSM" or have version 0x50000 leaves the tiles as allocated and the
-/// count 0. Each read of the pixels is of 0x40 tiles at most. Every register preserved.
-/// Refuses a count of 0 or past 0xFFFF and a short read not of whole pixels (the original
-/// counts round).
-/// `path` without its NUL.
+/// `race::load_packed_game_map` (0x41B785): the map from a packed file. `g_mapBlack` and
+/// `g_mapTiles` (0x10000 bytes) first; a file that does not open, read, say "SQSM" or have version
+/// 0x50000 leaves the tiles as allocated and the count 0. Each read of the pixels is of 0x40 tiles
+/// at most. Refuses a count of 0 or past 0xFFFF and a short read not of whole pixels (the original
+/// counts round). `path` without its NUL.
 pub fn load_packed_game_map(
     frame: &Frame,
     path: &[u8],
@@ -303,11 +300,8 @@ pub fn load_packed_game_map(
     result
 }
 
-/// `race::load_game_map` (0x41B480): the map (`picture` the picture's path, `key_path` the
-/// key's; see the header). The eax it leaves (`g_packedPath` when it reads the packed
-/// file) is read by no caller (conversion phase 3, 2026-10-24). A key not 8-bit is fatal
-/// error 0x80E48073. The key's list freed and `g_mapKeyPixels` 0 at the end; the picture
-/// limits and buffer put back.
+/// `race::load_game_map` (0x41B480): the map. A key not 8-bit is fatal error 0x80E48073. The key's
+/// list freed and `g_mapKeyPixels` 0 at the end; the picture limits and buffer put back.
 pub fn load_game_map(
     frame: &Frame,
     picture: GamePtr,

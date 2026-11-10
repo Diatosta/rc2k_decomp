@@ -19,7 +19,7 @@ fn put(v: &[&dyn Cell32], k: usize, x: u32) {
     v[k].set_bits(x);
 }
 
-/// The Rust core on the variables' cells `v`: the last move.
+/// On the variables' cells `v`: the last move.
 pub fn move_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
     let k65536: u32 = race.course.numbers.k65536.bits();
     let dt: u32 = race.shared.physics_tables.step_time.bits();
@@ -44,8 +44,7 @@ fn game<'a>(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> Vec<&'
     ]
 }
 
-/// The Rust version (the exact one, for `physics::car_physics_step` and
-/// `physics::apply_wheel_torques`).
+/// The exact version, for `physics::car_physics_step` and `physics::apply_wheel_torques`.
 pub fn move_car(race: &Race, scene: &crate::scene::owner::Scene) -> u32 {
     move_at(race, &game(&race.shared, scene))
 }

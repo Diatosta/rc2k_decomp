@@ -20,7 +20,7 @@ impl Hud {
     }
 }
 
-/// The one instance. Reached through `hud()`; `moved` registers its block's place.
+/// The one instance. Reached through `hud()`.
 pub static HUD: Hud = Hud::new();
 
 /// The HUD's state, for a caller that does not take it as a parameter yet.

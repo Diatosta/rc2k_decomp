@@ -24,7 +24,7 @@ use crate::session::Cell32;
 
 const RATIO: usize = 8; // index of gear 0 in `game()`'s list
 
-/// The Rust core on the variables' cells `v`: the gear count.
+/// On the variables' cells `v`: the gear count.
 pub fn ratios_at(course: &Course, v: &[&dyn Cell32]) -> Result<u32, Refused> {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
@@ -86,8 +86,7 @@ fn game<'a>(race: &'a Race, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dy
     ]
 }
 
-/// The Rust version (the exact one, for `physics::car_physics_step` and
-/// `physics::test_drive`): the gear count.
+/// The exact version, for `physics::car_physics_step` and `physics::test_drive`: the gear count.
 pub fn make_gear_ratios(race: &Race, scene: &crate::scene::owner::Scene) -> Result<u32, Refused> {
     ratios_at(&race.course, &game(race, scene))
 }

@@ -13,8 +13,7 @@ use crate::errors::Refused;
 use crate::physics::probe_ground::probe_ground_at;
 use crate::race::owner::Race;
 
-/// The Rust core. The registers it leaves (esi, edi past the copies, ecx 0) are read by
-/// none of its callers.
+/// The steps.
 pub fn probe_and_keep_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let physics = &race.physics;
     probe_ground_at(
@@ -40,7 +39,6 @@ pub fn probe_and_keep_at(race: &Race, scene: &crate::scene::owner::Scene) -> Res
     Ok(())
 }
 
-/// The Rust version.
 pub fn probe_and_keep(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     probe_and_keep_at(race, scene)
 }

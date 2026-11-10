@@ -27,7 +27,7 @@ use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::{read_bits, write_bits};
 
-/// The Rust version (see the header): `o` the car's object (the original's esi).
+/// `o` the car's object (the original's esi).
 pub fn emit_car_particles(effects: &Effects, o: &'static MarkCar) -> Result<(), Refused> {
     o.whole()?;
     let k = read_bits(&effects.kinds.emitter.place_k);

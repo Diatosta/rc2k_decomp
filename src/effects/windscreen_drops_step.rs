@@ -11,7 +11,6 @@ use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
 
-/// The Rust version (see the header).
 // Converted: `rc2k_core::effects::steps::steps`
 pub fn windscreen_drops_step(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     {

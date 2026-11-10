@@ -5,8 +5,6 @@
 
 use crate::audio::store::AudioState;
 
-// ---- Rust version ----
-
 pub fn release_voice_manager(state: &AudioState) {
     let object = state.voice_manager.get();
     if object != 0 {

@@ -22,8 +22,7 @@ fn run(race: &Race, scene: &crate::scene::owner::Scene) {
     x87_1(race, scene);
 }
 
-/// The Rust version (the exact one, for `physics::free_rev_in_neutral`,
-/// `free_rev_clutch` and their callers).
+/// The exact version, for `physics::free_rev_in_neutral`, `free_rev_clutch` and their callers.
 pub fn free_rev(race: &Race, scene: &crate::scene::owner::Scene) {
     engine_torque(race, scene);
     run(race, scene);

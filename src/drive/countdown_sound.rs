@@ -1,12 +1,10 @@
-//! `drive::countdown_sound` (0x40EC9C): for a listed car (eax 0 or 1) the count down's
-//! sound ebx played on its channel (`sound::play_sound`: eax + ebx, ebx and edx -0x6F,
-//! ecx, edi, ebp 0).
+//! `drive::countdown_sound` (0x40EC9C): for a listed car the count down's sound ebx played on its
+//! channel.
 //!
 //! Takes: the car's sound slot, the sound
 //!
 //! Caller: `drive::countdown_cue`.
 
-/// The Rust version.
 // Converted: `rc2k_core::drive::countdown::beep_sound`.
 pub fn countdown_sound(slot: u32, sound: u32) {
     let Some(beep) = rc2k_core::drive::countdown::beep_sound(slot, sound) else {

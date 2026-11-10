@@ -1,6 +1,5 @@
-//! `drive::unpack_rle` (0x41F080): run-length unpacking from esi to edi: a signed count
-//! byte; below 0, that many bytes copied; above 0, the next byte repeated count + 1
-//! times; 0 ends it.
+//! `drive::unpack_rle` (0x41F080): run-length unpacking from esi to edi: a signed count byte; below
+//! 0, that many bytes copied; above 0, the next byte repeated count + 1 times; 0 ends it.
 //!
 //! Takes: the packed bytes, where they go
 //!
@@ -11,8 +10,8 @@ use crate::errors::Refused;
 use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
 use rc2k_core::drive::rle;
 
-/// The Rust version, from the packed bytes into the replay block (the edi of its one
-/// caller): the bytes written. Bytes past the block are refused before anything.
+/// From the packed bytes into the replay block: the bytes written. Bytes past the block are refused
+/// before anything.
 // Converted: `rc2k_core::drive::rle::unpack_rle`.
 pub fn unpack_rle(packed: &[u8]) -> Result<u32, Refused> {
     // The bytes come in order; they are put in one write (the core checks the whole first).

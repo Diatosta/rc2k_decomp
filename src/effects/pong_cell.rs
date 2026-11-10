@@ -16,7 +16,7 @@ use crate::errors::Refused;
 use crate::scene::matrix3::extended;
 use rc2k_core::math::extended::from_f64;
 
-/// The Rust version (see the header): `pattern` the pattern byte (eax),
+/// `pattern` the pattern byte (eax),
 /// `column` (ebx), `row` (ecx).
 // Converted: `rc2k_core::effects::pong::cell_place`
 pub fn pong_cell(

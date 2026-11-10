@@ -31,7 +31,6 @@ fn shadow_refuses(effects: &crate::effects::owner::Effects) -> Option<Refused> {
     SECOND.angle_refuses()
 }
 
-/// The Rust version (see the header).
 pub fn draw_overlays(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     masks: &Masks,

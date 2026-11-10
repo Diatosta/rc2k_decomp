@@ -11,13 +11,12 @@ use crate::session::Dword;
 
 pub const KIND_ORDER_LEN: u32 = rc2k_core::race::cars::KIND_ORDER_LEN;
 
-/// `race::release_controls` (0x409425): `dword_4F7DE4` 2. Every register kept.
+/// `race::release_controls` (0x409425): `dword_4F7DE4` 2.
 pub fn release_controls(input: &crate::input::owner::Input) {
     input.devices.input_command.set(2); // g_inputCommand
 }
 
-/// `race::clear_player_absences` (0x449D44): the eight blocks' +0xB0 0. Every register
-/// kept.
+/// `race::clear_player_absences` (0x449D44): the eight blocks' +0xB0 0.
 pub fn clear_player_absences() {
     // Each car block's +0xB0: the player absent.
     for car in &CAR_BLOCKS.cars[..8] {
@@ -25,16 +24,16 @@ pub fn clear_player_absences() {
     }
 }
 
-/// `race::kind_unusable` (0x449D34): carry for a kind past the table or 6; zero as the
-/// last `cmp` leaves it (against 0x17 when past, else against 6). (carry, zero).
+/// `race::kind_unusable` (0x449D34): carry for a kind past the table or 6; zero as the last `cmp`
+/// leaves it (against 0x17 when past, else against 6)..
 pub fn kind_unusable(eax: u32) -> (bool, bool) {
     // Converted: `rc2k_core::race::cars::kind_unusable`.
     let f = rc2k_core::race::cars::kind_unusable(eax);
     (f.carry, f.zero)
 }
 
-/// `race::index_of_kind` (0x437720): the place of kind `kind` in `dword_6051E0` (the
-/// first of equals), 0 for none.
+/// `race::index_of_kind` (0x437720): the place of kind `kind` in `dword_6051E0` (the first of
+/// equals), 0 for none.
 pub fn index_of_kind(shared: &Shared, kind: u32) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::cars::index_of_kind`; the table read entry by entry.
     // dword_6051E0: 0x22 kinds, but `unknown_ba4` holds 32: the last two are the two dwords
@@ -50,8 +49,7 @@ pub fn index_of_kind(shared: &Shared, kind: u32) -> Result<u32, BadInput> {
 }
 
 /// `race::set_race_screen_mode` (0x404830): `gfx::set_screen_mode` (the platform's) with
-/// `g_raceScreenMode`; every register and flag kept (`pusha` / `popa`; its carry is read
-/// by nobody).
+/// `g_raceScreenMode`.
 pub fn set_race_screen_mode() {
     let gfx = crate::gfx::owner::gfx();
     crate::platform::set_mode_now(gfx.display.mode.race_mode.get(), gfx);
@@ -61,15 +59,15 @@ pub fn set_race_screen_mode() {
 
 use crate::errors::{BadInput, Refused};
 
-/// `race::release_stage_textures` (0x44E79F): `gfx::release_all_textures` (the
-/// platform's; a `call` and a `retn`).
+/// `race::release_stage_textures` (0x44E79F): `gfx::release_all_textures` (the platform's; a `call`
+/// and a `retn`).
 pub fn release_stage_textures() {
     crate::platform_3d::release_textures();
 }
 
-/// `race::seal_stage_time` (0x41F29D): the first block's time (+0x88, held to
-/// 0x22550FF unsigned; its +0xB0 if that is negative) `xor` `dword_4F66F9` and turned
-/// right by its low five bits, into the dword at 0x5BECCC. Every register kept.
+/// `race::seal_stage_time` (0x41F29D): the first block's time (+0x88, held to 0x22550FF unsigned;
+/// its +0xB0 if that is negative) `xor` `dword_4F66F9` and turned right by its low five bits, into
+/// the dword at 0x5BECCC.
 pub fn seal_stage_time(race: &Race) -> Result<(), BadInput> {
     let replay = &race.replay;
     // Converted: `rc2k_core::race::seal::seal_time`.
@@ -85,10 +83,9 @@ pub fn seal_stage_time(race: &Race) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `race::copy_league_table` (0x4650B7): with a source (`dword_75ACD0`), its ten records'
-/// +8 into `dword_60410C` and their sixteen dwords from +0x10 into column n of the
-/// sixteen rows at 0x604134. The registers it leaves are read by no caller (taint at its
-/// one call site, 0x4486DB; conversion phase 3, 2026-10-24).
+/// `race::copy_league_table` (0x4650B7): with a source (`dword_75ACD0`), its ten records' +8 into
+/// `dword_60410C` and their sixteen dwords from +0x10 into column n of the sixteen rows at
+/// 0x604134. conversion phase 3, 2026-10-24).
 pub fn copy_league_table(race: &Race) -> Result<(), BadInput> {
     let course = &race.course;
     // Converted: `rc2k_core::race::results::league`.
@@ -141,15 +138,13 @@ fn settle_state(view: &Dword) {
     }
 }
 
-/// `race::set_start_states` (0x446D2E): `dword_6D14CA` / `CE` the start values of the
-/// first car's kind (the chosen car's, `dword_52A920`, with `dword_52A910` 1) and of
-/// `dword_62385C`; then with `dword_52A910` 1: `dword_6238A4` 0 and, unless the chosen
-/// car's kind is flagged, its block's +0x684 2 or 3 made 4; else `dword_6238A4` 0 (one
-/// player) or held to 1 .. 2 (two), and, when the first car's kind is not flagged or
-/// there are two players, the first two blocks' +0x684 2 or 3 made 4. The eax and ebx it
-/// leaves are read by none of its four callers (taint at each site; it keeps the rest).
-/// Refuses, with `dword_52A910` 1, a chosen car past 7 (the original reads past the
-/// tables), before anything.
+/// `race::set_start_states` (0x446D2E): `dword_6D14CA` / `CE` the start values of the first car's
+/// kind (the chosen car's, `dword_52A920`, with `dword_52A910` 1) and of `dword_62385C`; then with
+/// `dword_52A910` 1: `dword_6238A4` 0 and, unless the chosen car's kind is flagged, its block's
+/// +0x684 2 or 3 made 4; else `dword_6238A4` 0 (one player) or held to 1 .. 2 (two), and, when the
+/// first car's kind is not flagged or there are two players, the first two blocks' +0x684 2 or 3
+/// made 4. it keeps the rest). Refuses, with `dword_52A910` 1, a chosen car past 7 (the original
+/// reads past the tables), before anything.
 pub fn set_start_states(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let vars = &net().vars;
@@ -193,12 +188,11 @@ pub fn set_start_states(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::store_results_by_mode` (0x449957): by `dword_62389C`: 2 the first block's +0x8C
-/// to `dword_75AFFC`, its +0x654 to `dword_75B000` and `dword_6051BC`, its +0x88 to
-/// `dword_75B01C`; 0 the first two blocks' +0x88 to `dword_75B01C` / `dword_75B08C` and
-/// `g_stageCarTotal` x 100 less each, held to 0 .. 300000, to `dword_75B020` /
-/// `dword_75B090` (ebx the stage held to 0 .. 0x4C); 1 and 3 the two +0x88s; others
-/// nothing. The registers it leaves are read by no caller (taint at 0x448C02).
+/// `race::store_results_by_mode` (0x449957): by `dword_62389C`: 2 the first block's +0x8C to
+/// `dword_75AFFC`, its +0x654 to `dword_75B000` and `dword_6051BC`, its +0x88 to `dword_75B01C`; 0
+/// the first two blocks' +0x88 to `dword_75B01C` / `dword_75B08C` and `g_stageCarTotal` x 100 less
+/// each, held to 0 .. 300000, to `dword_75B020` / `dword_75B090`; 1 and 3 the two +0x88s; others
+/// nothing.
 pub fn store_results_by_mode(race: &Race) {
     let physics = &race.physics;
     let shared = &race.shared;

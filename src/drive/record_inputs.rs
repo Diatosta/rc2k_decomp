@@ -1,7 +1,6 @@
-//! `drive::record_inputs` (0x4601A8): for cars 0 and 1 the input words onto the replay's
-//! tape: ebx and the packed rest (`drive::pack_inputs`) into frame `dword_6EF7DC` (the
-//! car's 8 of its 16 bytes), and the words given back as the tape keeps them
-//! (`drive::unpack_inputs`).
+//! `drive::record_inputs` (0x4601A8): for cars 0 and 1 the input words onto the replay's tape: ebx
+//! and the packed rest (`drive::pack_inputs`) into frame `dword_6EF7DC` (the car's 8 of its 16
+//! bytes), and the words given back as the tape keeps them (`drive::unpack_inputs`).
 //!
 //! Caller: `drive::record_inputs_if`.
 
@@ -11,7 +10,6 @@ use crate::race::owner::Race;
 use crate::race::replay_work_store::REPLAY_WORK;
 use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
 
-/// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{on_tape, tape_offset}`.
 pub fn record_inputs(race: &Race) -> Result<(), BadInput> {
     let shared = &race.shared;

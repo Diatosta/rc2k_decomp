@@ -7,8 +7,6 @@
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 pub fn seed_random() {
     crate::math::next_random::wait_for_random();
     // `byte_51839F`, `dword_5183A0`, `dword_5183A4` (`system::keep_start_time`).

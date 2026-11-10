@@ -12,7 +12,6 @@ use crate::effects::{copy_first_point, run_shapes, scale_setting, tilt_shape};
 use crate::errors::{BadInput, Refused};
 use crate::race::owner_shared::Shared;
 
-/// The Rust version (see the header).
 pub fn shapes_frame(
     shared: &Shared,
     masks: &Masks,

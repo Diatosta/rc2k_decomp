@@ -13,7 +13,6 @@ use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 pub const ITEMS: u32 = 0x800;
 pub const ITEM_LEN: u32 = 0x3C;
 
-/// The Rust version (see the header).
 // Converted: `rc2k_core::effects::expiry::{cell, square_ends}`
 pub fn expire_windscreen_flakes(masks: &Masks, drops: &WindscreenDrops, fl: &WindscreenFlakes) {
     use rc2k_core::effects::expiry;

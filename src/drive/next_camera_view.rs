@@ -1,12 +1,11 @@
-//! `drive::next_camera_view` (0x43AA38): unless the block's (esi) view is held (+0x694),
-//! the next view: +0x684 + 1, but views 2 and 3 become 4 when the car has none
-//! (`dword_5C5AC0[car]` 0, or the car number +0x24 past 0x21) or with two players
-//! (`dword_63DB94` 2); 7 and above wrap to 0; into +0x688, then
-//! `drive::set_camera_view`. A reading: the change-view key.
+//! `drive::next_camera_view` (0x43AA38): unless the block's view is held (+0x694), the next view:
+//! +0x684 + 1, but views 2 and 3 become 4 when the car has none (`dword_5C5AC0[car]` 0, or the car
+//! number +0x24 past 0x21) or with two players (`dword_63DB94` 2); 7 and above wrap to 0; into
+//! +0x688, then `drive::set_camera_view`. A reading: the change-view key.
 //!
 //! Takes: the block
 //!
-//! Callers: `drive::read_car_controls` (0x43A454), `race::race_keys` (0x43A66C).
+//! Callers: `drive::read_car_controls`, `race::race_keys`.
 
 use crate::drive::set_camera_view::set_view_at;
 use crate::errors::BadInput;
@@ -16,9 +15,8 @@ use crate::race::owner::Race;
 use crate::session::Dword;
 use rc2k_core::drive::camera_views::next_view;
 
-/// The Rust version on block `car`, the players `players`, the step count `step`.
+/// On block `car`, the players `players`, the step count `step`.
 // Converted: `rc2k_core::drive::camera_views::next_view`.
-/// The eax it leaves is read by no caller (liveness: not live after either call).
 pub fn next_view_at(car: &Car, players: &Dword, step: &Dword) -> Result<(), BadInput> {
     if car.camera_switch_active.get() != 0 {
         return Ok(());
@@ -33,7 +31,7 @@ pub fn next_view_at(car: &Car, players: &Dword, step: &Dword) -> Result<(), BadI
     set_view_at(car, step)
 }
 
-/// The Rust version, on the block at `s`.
+/// On the block at `s`.
 pub fn next_camera_view(race: &Race, s: u32) -> Result<(), BadInput> {
     let shared = &race.shared;
     let car = crate::race::blocks_store::block_at(s, "a car's block")?;

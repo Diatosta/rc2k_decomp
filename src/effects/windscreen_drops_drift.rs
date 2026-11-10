@@ -38,7 +38,6 @@ fn move_kept(drops: &WindscreenDrops, m: &MarksSettings, effects: &crate::effect
     move_kept_x87(drops, m, &effects.setup.clock);
 }
 
-/// The Rust version (see the header).
 pub fn windscreen_drops_drift(
     frame: &Frame,
     drops: &WindscreenDrops,

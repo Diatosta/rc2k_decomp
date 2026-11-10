@@ -9,10 +9,8 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-/// The Rust version: the nearest checkpoint (`race::nearest_checkpoint`), the car placed
-/// there (`race::place_car_on_line`) and its motion reset (`race::reset_car_motion`).
-/// Those take no register (they are called with none); the registers left are read by
-/// none of the callers.
+/// The nearest checkpoint (`race::nearest_checkpoint`), the car placed there
+/// (`race::place_car_on_line`) and its motion reset (`race::reset_car_motion`).
 pub fn reset_car_on_line(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let lights = &scene.lights;
     let nearest = crate::race::start_place::nearest_checkpoint(race, scene)?;

@@ -85,8 +85,7 @@ fn words(race: &Race, spec: &CarSpec) {
     }
 }
 
-/// The Rust version (the exact one, for `physics::car_physics_step` and
-/// `physics::test_drive`).
+/// The exact version, for `physics::car_physics_step` and `physics::test_drive`.
 pub fn load_car_specs(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race.course;
     let kind = race.shared.car.car_kind.get();

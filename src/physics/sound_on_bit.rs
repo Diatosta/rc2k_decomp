@@ -11,7 +11,6 @@ use crate::physics::place_car_sound::place_car_sound;
 use crate::race::owner::Race;
 use rc2k_core::physics::parts::take_bit;
 
-/// The Rust version.
 // Converted: `rc2k_core::physics::parts::take_bit`.
 pub fn sound_on_bit(race: &Race, cl: u32) -> Result<(), Refused> {
     let (_, cleared) = take_bit(race.shared.car.parts_present.bits(), cl);

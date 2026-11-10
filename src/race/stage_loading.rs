@@ -22,15 +22,13 @@ const WORDS: [&std::ffi::CStr; 9] = [
     c"----------------------------",
 ];
 
-/// `race::load_stage` (0x444040): a line break, a rule, "START", "loading screen" (indent
-/// in): the loading picture (`menu::show_loading_picture`) unless `dword_71C3E0`,
-/// `dword_70F3E8` -1, `race::wake_car_sounds`; then each with its word and the indent round
-/// it: `loadlevel_init`, the music (`game_music` with `dword_64BB18`, else
-/// `game_music_8`), `create_controls`, race init (`drive::race_init`) and
-/// `scene::restart_clock`; the starting values (`STARTS` with the clock, the blocks'
-/// +0xFB4 3 and +0xFB0 8, `LAST_STARTS`); "FINIS", a rule, a line break. The registers
-/// and flags it leaves (eax the clock, carry clear) are read by none of its seven callers
-/// (`taint.py` at each site: no read point; conversion phase 3, 2026-10-24).
+/// `race::load_stage` (0x444040): a line break, a rule, "START", "loading screen" (indent in): the
+/// loading picture (`menu::show_loading_picture`) unless `dword_71C3E0`, `dword_70F3E8` -1,
+/// `race::wake_car_sounds`; then each with its word and the indent round it: `loadlevel_init`, the
+/// music (`game_music` with `dword_64BB18`, else `game_music_8`), `create_controls`, race init
+/// (`drive::race_init`) and `scene::restart_clock`; the starting values (`STARTS` with the clock,
+/// the blocks' +0xFB4 3 and +0xFB0 8, `LAST_STARTS`); "FINIS", a rule, a line break. conversion
+/// phase 3, 2026-10-24).
 pub fn load_stage(race: &Race) -> Result<(), Refused> {
     let system = crate::system::owner::system();
     let gfx = crate::gfx::owner::gfx();

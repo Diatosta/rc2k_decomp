@@ -53,8 +53,6 @@ fn lengths(list: GamePtr) -> Result<Vec<u32>, BadInput> {
     Ok(lengths)
 }
 
-// ---- Rust version ----
-
 /// `send` gets each command 3's list (by handle: the audio thread resolves it).
 /// The variables (`sound::owner::Sound::race`'s `sounds`): dword_514F70 and dword_514F74 the
 /// two cars' numbers, dword_514F78, dword_514F7C the counts, off_512A10 the eight sound

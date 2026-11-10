@@ -44,8 +44,7 @@ fn copy<A: Cell32, B: Cell32>(from: &[A], to: &[B]) {
     }
 }
 
-/// The Rust version: the slot `s` (the registers it leaves are dropped by its caller's
-/// `popa`).
+/// The slot `s` (the registers it leaves are dropped by its caller's `popa`).
 pub fn move_slot(
     race: &Race,
     s: &RaceSlot,

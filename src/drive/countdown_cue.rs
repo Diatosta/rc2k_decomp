@@ -1,5 +1,5 @@
-//! `drive::countdown_cue` (0x45D1A5): `drive::countdown_sound` for the current car when it
-//! has a sound slot (`dword_641680[g_currentCar]` not -1), ebx the sound.
+//! `drive::countdown_cue` (0x45D1A5): `drive::countdown_sound` for the current car when it has a
+//! sound slot (`dword_641680[g_currentCar]` not -1), ebx the sound.
 //!
 //! Takes: the sound
 //! Returns: the slot
@@ -9,7 +9,7 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-/// The Rust version: eax.
+/// Eax.
 // Converted: `rc2k_core::physics::listed_cars::listed_entry`.
 pub fn countdown_cue(race: &Race, sound: u32) -> Result<u32, Refused> {
     let (slot, listed) =

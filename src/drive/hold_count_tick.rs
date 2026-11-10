@@ -1,11 +1,10 @@
-//! `drive::hold_count_tick` (0x460C10): `dword_6235EC` counted down to 0 (a reading: a
-//! hold after the start).
+//! `drive::hold_count_tick` (0x460C10): `dword_6235EC` counted down to 0 (a reading: a hold after
+//! the start).
 //!
 //! Caller: `drive::replay_step`.
 
 use crate::race::owner_shared::Shared;
 
-/// The Rust version.
 // Converted: `rc2k_core::drive::countdown::hold_tick`.
 pub fn hold_count_tick(shared: &Shared) {
     let was = shared.vars.hold_count.get();

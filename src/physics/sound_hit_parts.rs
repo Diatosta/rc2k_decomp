@@ -14,7 +14,6 @@ use crate::race::kind_store::KIND_TABLES;
 use crate::race::owner::Race;
 use rc2k_core::physics::parts::{SOUND_TESTS, has_hit_sounds};
 
-/// The Rust version (its CF, set when the car has no hit sounds, is read by no caller).
 // Converted: `rc2k_core::physics::parts::{has_hit_sounds, hit_tests, SOUND_TESTS}`.
 pub fn sound_hit_parts(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;

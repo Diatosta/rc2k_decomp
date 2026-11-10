@@ -5,7 +5,6 @@
 
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 
-/// The Rust version.
 pub fn stop_frame_pictures() {
     VIEWER_PANEL.replay_recording.set(0);
     VIEWER_PANEL.pictures_started.set(0);

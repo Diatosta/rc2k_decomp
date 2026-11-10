@@ -21,7 +21,6 @@ use rc2k_core::physics::progress::{
     FINISH_NOTICE, SPLIT_NOTICE, finished_at, split_bonus, split_due,
 };
 
-/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::progress::{split_due, finished_at}`.
 pub fn take_split_counted(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let physics_store = &race.physics;

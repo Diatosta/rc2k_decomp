@@ -1,6 +1,5 @@
-//! `drive::flush_replay` (0x46022D): the replay's starting state (0xA04 dwords at
-//! `unk_7172EC`) copied into the frame `dword_9613A4` and the frames written
-//! (`drive::write_replay_frames`).
+//! `drive::flush_replay` (0x46022D): the replay's starting state (0xA04 dwords at `unk_7172EC`)
+//! copied into the frame `dword_9613A4` and the frames written (`drive::write_replay_frames`).
 //!
 //! Caller: `drive::flush_replay_if`. Refuses what `write_replay_frames` refuses.
 
@@ -12,7 +11,6 @@ use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
 
 const DWORDS: usize = 0xA04;
 
-/// The Rust version.
 pub fn flush_replay(race: &Race) -> Result<(), Refused> {
     copy_cells(
         (&race.replay.cars_and_replay, REPLAY_STATE_OFFSET),

@@ -1,16 +1,12 @@
-//! `race::show_frame` (0x4547AE): the race frame's end, after its 3D scene: the frame
-//! locked (`scene::lock_frame`; carry: lost), the race's sound tick (eax 0x13), the credits
-//! rolled while `dword_71C3E0` is set (`race::roll_credits`, eax 1), the frame rate drawn
-//! (`race::draw_frame_rate`), the frame unlocked and shown (`scene::unlock_frame`,
-//! `scene::present_frame`; carry: lost); the sound tick (eax 0x14), the clock restarted
-//! (`scene::restart_clock`) and its time less `dword_63DC38` into `dword_63DC3C`, the frame
-//! rate measured (`race::measure_frame_rate`); carry clear.
+//! `race::show_frame` (0x4547AE): the race frame's end, after its 3D scene: the frame locked, the
+//! race's sound tick, the credits rolled while `dword_71C3E0` is set, the frame rate drawn
+//! (`race::draw_frame_rate`), the frame unlocked and shown; the sound tick, the clock restarted
+//! (`scene::restart_clock`) and its time less `dword_63DC38` into `dword_63DC3C`, the frame rate
+//! measured (`race::measure_frame_rate`); carry clear.
 //!
-//! Caller: `drive::race_frame`. Its calls are the Rust versions: `scene::lock_frame`
-//! (0x44E837), `sound::race_sound_tick` (0x421BA9), `race::roll_credits` (0x415FC2),
-//! `race::draw_frame_rate` (0x4562B2), `scene::unlock_frame` (0x44E851),
-//! `scene::present_frame` (0x44E895), `scene::restart_clock` (0x450381),
-//! `race::measure_frame_rate` (0x42009E).
+//! Caller: `drive::race_frame`. Its calls are the Rust versions: `scene::lock_frame`,
+//! `sound::race_sound_tick`, `race::roll_credits`, `race::draw_frame_rate`, `scene::unlock_frame`,
+//! `scene::present_frame`, `scene::restart_clock`, `race::measure_frame_rate`.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
@@ -21,7 +17,6 @@ pub struct Shown {
     pub eax: u32,
 }
 
-/// The Rust version (see the header).
 pub fn show_frame(race: &Race) -> Result<Shown, Refused> {
     let system = crate::system::owner::system();
     let scene = crate::scene::owner::scene();

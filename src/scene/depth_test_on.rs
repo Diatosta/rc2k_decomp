@@ -5,7 +5,6 @@
 
 use crate::scene::set_render_state::set_render_state;
 
-/// The Rust version (see the header).
 pub fn depth_test_on() {
     set_render_state(1, 0xE);
 }

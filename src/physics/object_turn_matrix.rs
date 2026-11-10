@@ -17,7 +17,6 @@ use crate::math::x87_run::{ext_div2, int_80};
 use crate::race::owner::Race;
 use crate::scene::matrix::{multiply_matrices, set_turn_x, set_turn_y};
 
-/// The Rust version. The registers it leaves are read by none of its callers.
 pub fn object_turn_matrix(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let drawing = &scene.drawing;
     let object = race.physics.contact.face_object.get();

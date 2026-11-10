@@ -1,16 +1,14 @@
-//! The game's quicksort of fixed-size records by one dword, compared unsigned (converted
-//! 2026-10-21 from `race::sort_depth_entries` 0x454ED4 with 0x454EF7,
-//! `race::sort_sort_entries` 0x454F62 with 0x454F85, `race::sort_points_by_y` 0x426BE6,
-//! `sort_points_by_z` 0x426CA2, `sort_points_by_x_down` 0x426D5E and its twin 0x426E16, and
-//! the shadow's 0x4582AC). Every one is the same steps on a record size, a key and a
-//! direction: the key in the middle is the pivot; the left place moves on one record if
-//! its key belongs before the pivot, the right place moves back while its key belongs
-//! after it; unless the two places meet the records change places, and the left one moves
-//! on once more if their keys are now equal; then the part before the meeting place and
-//! the part after it are sorted the same way. Which of two equal keys comes first is the
-//! original's doing, so its steps are kept; its recursion (as deep as the list is long on
-//! equal keys) is a list of returns here, in the same order. The registers the original
-//! leaves are given as places (record numbers from the first, -1 before it) and values.
+//! The game's quicksort of fixed-size records by one dword, compared unsigned (converted 2026-10-21
+//! from `race::sort_depth_entries` 0x454ED4 with 0x454EF7, `race::sort_sort_entries` 0x454F62 with
+//! 0x454F85, `race::sort_points_by_y` 0x426BE6, `sort_points_by_z` 0x426CA2,
+//! `sort_points_by_x_down` 0x426D5E and its twin 0x426E16, and the shadow's 0x4582AC). Every one is
+//! the same steps on a record size, a key and a direction: the key in the middle is the pivot; the
+//! left place moves on one record if its key belongs before the pivot, the right place moves back
+//! while its key belongs after it; unless the two places meet the records change places, and the
+//! left one moves on once more if their keys are now equal; then the part before the meeting place
+//! and the part after it are sorted the same way. Which of two equal keys comes first is the
+//! original's doing, so its steps are kept; its recursion (as deep as the list is long on equal
+//! keys) is a list of returns here, in the same order.
 
 use crate::Invalid;
 
@@ -41,7 +39,7 @@ impl Order {
     }
 }
 
-/// What the last partition left in the registers.
+/// What the last partition left: the pivot and the two places.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Scan {
     /// eax: the pivot.
@@ -54,13 +52,12 @@ pub struct Scan {
     pub right: i64,
 }
 
-/// Where the sort leaves the registers.
+/// Where the sort ends: the last part's first and last places.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Ends {
     /// esi and edi: the last part's first and last places.
     pub first: i64,
     pub last: i64,
-    /// The last partition's registers (none when nothing was partitioned).
     pub scan: Option<Scan>,
     /// ebp: the last record's last dword before it was swapped (none without a swap).
     pub swapped: Option<u32>,
@@ -232,8 +229,6 @@ mod tests {
         assert!(quick_sort(&mut one, 2, Order::Down).is_err());
     }
 
-    /// The original's steps on registers over a byte memory (records of `n` dwords from
-    /// address 0x1000), recursing as it does: (eax, ebx, ecx, edx, esi, edi, ebp).
     fn reference(mem: &mut [u32], n: u32, key: u32, down: bool, r: &mut [u32; 7]) {
         let size = 4 * n;
         let get = |m: &[u32], a: u32| m[((a - 0x1000) / 4) as usize];

@@ -1,8 +1,8 @@
-//! `race::measure_frame_rate` (0x42009E): every 16th call (`dword_613838` counting, back to 0
-//! at 0x10) the time-stamp counter (`rdtsc`) into `dword_6214E8`; with the cycles since the
-//! last time (`dword_6214EC`, into `dword_62400C`) above 0 (signed), the frame rate
-//! `flt_6214F0` = the CPU's clock `dword_5183E8` x `flt_5C5D18` x `flt_5C5D18` x
-//! `flt_5C5D08` / the cycles (x87, as the original); the time kept for the next.
+//! `race::measure_frame_rate` (0x42009E): every 16th call (`dword_613838` counting, back to 0 at
+//! 0x10) the time-stamp counter (`rdtsc`) into `dword_6214E8`; with the cycles since the last time
+//! (`dword_6214EC`, into `dword_62400C`) above 0 (signed), the frame rate `flt_6214F0` = the CPU's
+//! clock `dword_5183E8` x `flt_5C5D18` x `flt_5C5D18` x `flt_5C5D08` / the cycles (x87, as the
+//! original); the time kept for the next.
 //!
 //! Returns: unchanged but on the 16th: and the counter, the cycles
 //!
@@ -29,9 +29,6 @@ fn frame_rate_plain(race: &Race, cycles: u64, system: &crate::system::owner::Sys
     race.shared.switches.frame_rate.set_bits(rate.to_bits());
 }
 
-/// The Rust version: the eax the original leaves when it changes it (on the 16th call, the
-/// time-stamp counter's low half, `dword_6214E8`); its edx and ebx (the counter's high
-/// half, the cycles) are read by no caller.
 pub fn measure_frame_rate(
     race: &Race,
     scene: &crate::scene::owner::Scene,

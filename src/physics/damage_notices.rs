@@ -79,7 +79,6 @@ fn steps(race: &Race) -> Result<(), Refused> {
     result
 }
 
-/// The Rust version. The registers the original leaves are read by none of its callers.
 pub fn damage_notices(race: &Race) -> Result<(), Refused> {
     steps(race)
 }

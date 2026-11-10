@@ -1,16 +1,15 @@
-//! `race::loading_bar_frame` (0x4467C7): one frame of the loading bar while a stage loads
-//! (the loading's callback `dword_623704`), with `dword_71C3E0` only: `dword_6365CC` 8;
-//! nothing while quitting; with the window active and the surfaces not lost
-//! (`dword_518380` not 1): `scene::begin_scene`, the view window chosen as unframed
-//! (`dword_621514` 0 for `scene::choose_view_window`, put back), `race::loading_bar_quad`,
-//! `scene::end_scene`, `scene::lock_frame`, an empty function, `scene::unlock_frame`,
-//! `scene::present_frame`, carry clear. A failed step (or the window inactive, or the
-//! surfaces lost) instead, unless quitting, restores the surfaces (0x405B10, the
-//! platform's) and leaves carry set when they were neither lost before nor after.
+//! `race::loading_bar_frame` (0x4467C7): one frame of the loading bar while a stage loads (the
+//! loading's callback `dword_623704`), with `dword_71C3E0` only: `dword_6365CC` 8; nothing while
+//! quitting; with the window active and the surfaces not lost (`dword_518380` not 1):
+//! `scene::begin_scene`, the view window chosen as unframed (`dword_621514` 0 for
+//! `scene::choose_view_window`, put back), `race::loading_bar_quad`, `scene::end_scene`,
+//! `scene::lock_frame`, an empty function, `scene::unlock_frame`, `scene::present_frame`, carry
+//! clear. A failed step (or the window inactive, or the surfaces lost) instead, unless quitting,
+//! restores the surfaces (0x405B10, the platform's) and leaves carry set when they were neither
+//! lost before nor after.
 //!
 //! Caller: the stage's loading (through `dword_623704`). Its calls are the Rust versions (the
-//! restore the platform's call). The registers above are the original's, for reference; a call
-//! by address goes through `routes.rs`.
+//! restore the platform's call). a call by address goes through `routes.rs`.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
@@ -34,7 +33,7 @@ pub fn shown() -> (u64, u64) {
     (FRAMES[0].swap(0, Relaxed), FRAMES[1].swap(0, Relaxed))
 }
 
-/// The Rust version (see the header), timed.
+/// Timed.
 pub fn loading_bar_frame(race: &Race) -> Result<(), Refused> {
     use std::sync::atomic::Ordering::Relaxed;
     // Not the original's: some 30 frames a second at most, and the last. Every step's frame
@@ -80,7 +79,6 @@ fn frame(race: &Race) -> Result<(), Refused> {
         if active == 0 || !frame_tried(active, session.flags.lost.get()) {
             break 'frame false;
         }
-        // `scene::begin_scene` leaves the carry clear.
         begin_scene::begin_scene();
         let framed: u32 = shared.switches.editor_mode.bits();
         shared.switches.editor_mode.set_bits(0u32);

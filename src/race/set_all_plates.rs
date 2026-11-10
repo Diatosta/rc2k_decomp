@@ -1,5 +1,5 @@
-//! `race::set_all_plates` (0x42518B): the texture kinds' pictures for the stage
-//! (`LOADLEVEL_INIT : setplatesall`), then the system and slot textures reloaded.
+//! `race::set_all_plates` (0x42518B): the texture kinds' pictures for the stage (`LOADLEVEL_INIT :
+//! setplatesall`), then the system and slot textures reloaded.
 //!
 //! - The stage prefs' (`localdat`) picture lists copied to `g_kindPictures` (0x5D7968), 0x32C14
 //!   bytes below: 0x60A57C .. 0x60A64C, 0x60A67C .. 0x60A73C, 0x60A77C .. 0x60A79C (the

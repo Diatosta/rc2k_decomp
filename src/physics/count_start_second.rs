@@ -21,7 +21,7 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     ]
 }
 
-/// The Rust version on the variables' cells.
+/// On the variables' cells.
 // Converted: `rc2k_core::physics::start::CarStart::count_start_second`.
 fn core(v: &[&dyn Cell32]) {
     let was = CarStart {
@@ -37,7 +37,6 @@ fn core(v: &[&dyn Cell32]) {
     crate::physics::cells::set_changed(v[4], was.time, c.time);
 }
 
-/// The Rust version.
 pub fn count_start_second(shared: &Shared) {
     core(&game(shared));
 }

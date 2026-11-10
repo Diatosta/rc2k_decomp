@@ -5,7 +5,6 @@
 
 use crate::race::owner::Race;
 
-/// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::records_inputs`.
 pub fn record_inputs_if(race: &Race) -> Result<(), crate::errors::BadInput> {
     let shared = &race.shared;

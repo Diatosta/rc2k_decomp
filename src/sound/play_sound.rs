@@ -17,8 +17,6 @@ use crate::sound::queue::send_command;
 
 const PLAY_1: u32 = 1;
 
-// ---- Rust version ----
-
 /// `sound` at `volume` and `rate`; `place` its ecx, edi and ebp (the pan, or in the 3D
 /// modes the place). The audio thread reads every register of command 1.
 pub fn play_sound(sound: u32, volume: u32, rate: u32, place: [u32; 3]) {

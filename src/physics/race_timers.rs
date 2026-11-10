@@ -21,7 +21,6 @@ use crate::physics::take_split::take_split;
 use crate::physics::take_split_counted::take_split_counted;
 use crate::race::owner::Race;
 
-/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
 pub fn race_timers(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     use rc2k_core::physics::splits::{TimerRun, timer_rate, timer_run};

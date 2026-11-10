@@ -12,8 +12,8 @@ use crate::session::Cell32;
 // dword_62400C
 // flt_5C5D38, 1.0
 
-/// The Rust core: the scratch float and the limit in `scratch`, `limit` (both written, in
-/// that order, as the original does).
+/// The scratch float and the limit in `scratch`, `limit` (both written, in that order, as the
+/// original does).
 pub fn clamped_asin_at(x: [u8; 10], scratch: &dyn Cell32, limit: &dyn Cell32) -> [u8; 10] {
     let mut s = scratch.bits();
     let mut l = limit.bits();

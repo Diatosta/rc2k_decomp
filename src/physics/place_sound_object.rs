@@ -15,7 +15,6 @@ use crate::physics::sound_bands::band_value_plain;
 use crate::race::owner::Race;
 use rc2k_core::physics::sound_places::{FIRST, object_sound};
 
-/// The Rust version.
 // Converted: `rc2k_core::physics::sound_places::{object_sound, place}`.
 pub fn place_sound_object(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let physics_store = &race.physics;

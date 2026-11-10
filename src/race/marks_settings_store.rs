@@ -132,7 +132,6 @@ pub struct MarkRecord {
     pub flags2: Dword,
     /// +0x28: the kind of the surface under the wheel.
     pub under_kind: Dword,
-    /// +0x2c: the flags of the surface under the wheel.
     pub under_flags: Dword,
     /// +0x30: the second flags of the surface under the wheel.
     pub under_flags2: Dword,

@@ -59,8 +59,6 @@ pub fn volume_key(up: bool, music: bool) -> (i32, u32) {
     if up { (4, base + 1) } else { (-4, base) }
 }
 
-/// A bit of the flags flipped (`(bit, clear, set)`): the flags and the counter for the
-/// bit's new state.
 pub fn flip_bit(flags: u32, (bit, clear, set): (u32, u32, u32)) -> (u32, u32) {
     let flags = flags ^ bit;
     (flags, if flags & bit != 0 { set } else { clear })

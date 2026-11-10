@@ -1,10 +1,9 @@
-//! `drive::choose_shown_cars` (0x4560EA): which car blocks the two views show
-//! (`off_63DBB0`, `off_63DBB4` = 0x70F3EC + n 0xFE0 for `dword_63DBA8`, `dword_63DBAC`),
-//! `dword_63DB98` (the views' number, from `dword_63DB94`, by `dword_63DB88` when
-//! `dword_5C5CE0` is 2, also setting `dword_6238A4`), the replay's car when
-//! `dword_52A910` is set (`dword_63DBA0`, then the second view 0), and the eight of
-//! `dword_641680` .. -1 but the shown ones' 0 (the first, and the second when there are
-//! two views). By the look of it the split screen's set-up (a reading).
+//! `drive::choose_shown_cars` (0x4560EA): which car blocks the two views show (`off_63DBB0`,
+//! `off_63DBB4` = 0x70F3EC + n 0xFE0 for `dword_63DBA8`, `dword_63DBAC`), `dword_63DB98` (the
+//! views' number, from `dword_63DB94`, by `dword_63DB88` when `dword_5C5CE0` is 2, also setting
+//! `dword_6238A4`), the replay's car when `dword_52A910` is set (`dword_63DBA0`, then the second
+//! view 0), and the eight of `dword_641680` .. -1 but the shown ones' 0 (the first, and the second
+//! when there are two views). By the look of it the split screen's set-up (a reading).
 //!
 //! Callers (5): race init's loop (`drive::race_cars_step`), `race::step_replay_cars`,
 //! `drive::replay_step`, `race::race_keys`,
@@ -25,9 +24,8 @@ fn put(v: &[&Dword], k: usize, x: u32) {
     v[k].set_bits(x);
 }
 
-/// The Rust version on the variables at `v` (`game`'s order).
+/// On the variables at `v` (`game`'s order).
 // Converted: `rc2k_core::drive::shown_cars::ShownCars::choose`.
-/// The eax it leaves is read by no caller (liveness at its five call sites).
 pub fn choose_at(v: &[&Dword]) -> Result<(), Refused> {
     let setup = ShownSetup {
         players: get(v, 2),
@@ -77,7 +75,6 @@ fn game(race: &Race) -> Vec<&Dword> {
     cells
 }
 
-/// The Rust version.
 pub fn choose_shown_cars(race: &Race) -> Result<(), Refused> {
     choose_at(&game(race))
 }

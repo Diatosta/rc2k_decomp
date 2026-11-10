@@ -1,7 +1,7 @@
-//! `race::copy_marked` (0x41E2F6): the marked blocks (from `dword_96E478` up to
-//! `dword_96E47C`) onto the clipboard: their count into `dword_96E484`, their places
-//! (`lDistanceToMove`) into `unk_96E488` and their cameras (`unk_963BB4`) into
-//! `unk_971CC8`. Nothing when the marks are not in order (`jle`, signed).
+//! `race::copy_marked` (0x41E2F6): the marked blocks (from `dword_96E478` up to `dword_96E47C`)
+//! onto the clipboard: their count into `dword_96E484`, their places (`lDistanceToMove`) into
+//! `unk_96E488` and their cameras (`unk_963BB4`) into `unk_971CC8`. Nothing when the marks are not
+//! in order (`jle`, signed).
 //!
 //! Callers: `race::viewer_action` (action 0x1B, and in 0x11 before the cut). Refused, before
 //! anything is written: a first mark below 0 or a second past 0x708 (the original copies from
@@ -11,8 +11,7 @@ use crate::errors::Refused;
 use crate::race::owner_shared::Shared;
 use crate::race::viewer::move_cells;
 
-/// The Rust version: the count copied (edx), none when the marks are not in order. Of
-/// what the original leaves, its caller `viewer_action` reads only edx, in the cut.
+/// The count copied, none when the marks are not in order.
 pub fn copy_marked(shared: &Shared) -> Result<Option<u32>, Refused> {
     // Converted: `rc2k_core::race::viewer::clip`.
     let first = crate::race::viewer_buffers_store::VIEWER_BUFFERS

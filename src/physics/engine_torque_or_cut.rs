@@ -8,7 +8,7 @@
 use crate::physics::engine_torque::{below, engine_torque};
 use crate::race::owner::Race;
 
-/// The Rust version (the exact one, for `physics::drive_force`).
+/// The exact version, for `physics::drive_force`.
 pub fn engine_torque_or_cut(race: &Race, scene: &crate::scene::owner::Scene) {
     let shared = &race.shared;
     if !below(

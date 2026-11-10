@@ -22,7 +22,6 @@ fn new_way(pong: &Pong, effects: &crate::effects::owner::Effects) {
     new_way_x87(&pong.state, &pong.rules, effects.setup.floats.one.bits());
 }
 
-/// The Rust version (see the header).
 pub fn pong_ball_hits(pong: &Pong, effects: &crate::effects::owner::Effects) {
     let (over, _) = pong::overlap(pong);
     if !over {

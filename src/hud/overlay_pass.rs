@@ -1,16 +1,14 @@
 //! `hud::overlay_pass` (0x45A893): the race frame's 2D pass: `dword_6D14F2` the players
-//! (`dword_6238A4`); `scene::depth_buffer_off`; `hud::overlay_states`; with `dword_63DB98`
-//! 2, a player whose car block's +0xFA8 is set (`dword_710394` / `dword_711374`) keeps only
-//! bit 0x40 of its HUD flags (`dword_6D14F6` / `dword_6D14FA`, put back after) and its
-//! `unk_6D1486` / `unk_6D1496` is 0; `hud::draw_hud`; `scene::depth_buffer_on`;
-//! `scene::full_view_window`; render state 3 = 3; `dword_63E168` and `dword_63E16C` 1;
-//! `hud::draw_view_strips`; an empty function (`nullsub_9`); `scene::depth_buffer_off`;
-//! `scene::set_filters`.
+//! (`dword_6238A4`); `scene::depth_buffer_off`; `hud::overlay_states`; with `dword_63DB98` 2, a
+//! player whose car block's +0xFA8 is set (`dword_710394` / `dword_711374`) keeps only bit 0x40 of
+//! its HUD flags (`dword_6D14F6` / `dword_6D14FA`, put back after) and its `unk_6D1486` /
+//! `unk_6D1496` is 0; `hud::draw_hud`; `scene::depth_buffer_on`; `scene::full_view_window`; render
+//! state 3 = 3; `dword_63E168` and `dword_63E16C` 1; `hud::draw_view_strips`; an empty function
+//! (`nullsub_9`); `scene::depth_buffer_off`; `scene::set_filters`.
 //!
 //! Out: as the last call leaves them
 //!
-//! Caller: `race::show_frame` (0x454786). The registers above are the original's, for reference; a
-//! call by address goes through `routes.rs`.
+//! Caller: `race::show_frame` (0x454786). a call by address goes through `routes.rs`.
 
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
@@ -31,8 +29,6 @@ pub fn shown_layout(shared: &Shared) -> u32 {
     }
 }
 
-/// The Rust version (see the header). What the original leaves in the registers is read
-/// by none of its callers (register liveness, 2026-10-23).
 pub fn overlay_pass(hud: &Hud, race: &Race) -> Result<(), Refused> {
     use crate::scene::depth_buffer_on::depth_buffer;
     race.frame

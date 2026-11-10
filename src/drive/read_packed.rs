@@ -1,7 +1,6 @@
-//! `drive::read_packed` (0x41EEB5): ecx bytes from the file eax into ebx: a count of 0 or
-//! more is a plain read (its `jns` goes straight to `files::read`); below 0, -ecx packed
-//! bytes read into `g_pngInfo` and unpacked into ebx (`drive::unpack_rle`), eax the bytes
-//! unpacked.
+//! `drive::read_packed` (0x41EEB5): ecx bytes from the file eax into ebx: a count of 0 or more is a
+//! plain read (its `jns` goes straight to `files::read`); below 0, -ecx packed bytes read into
+//! `g_pngInfo` and unpacked into ebx (`drive::unpack_rle`), eax the bytes unpacked.
 //!
 //! Takes: the file, the buffer, the count (below 0: packed)
 //!
@@ -12,9 +11,8 @@ use crate::errors::{BadInput, Refused};
 use crate::files::handle::read_slice;
 use crate::race::viewer_buffers_store::{BLOCK_BYTES, VIEWER_BUFFERS};
 
-/// The Rust version, into the replay block (`dword_9613A4`, the ebx of both callers):
-/// (eax, CF, ZF when it unpacked). A plain read of more than the block holds is refused
-/// before anything (the original reads on past it), as is a packed one past the scratch.
+/// Into the replay block:. A plain read of more than the block holds is refused before anything
+/// (the original reads on past it), as is a packed one past the scratch.
 // Converted: `rc2k_core::drive::race_steps::packed_bytes` (the unpacking:
 // `rc2k_core::drive::rle`).
 pub fn read_packed(file: u32, count: u32) -> Result<(u32, bool, Option<bool>), Refused> {

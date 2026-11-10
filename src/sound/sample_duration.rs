@@ -10,8 +10,6 @@
 use crate::errors::BadInput;
 use crate::sound::sample_settings::{loaded, record};
 
-// ---- Rust version ----
-
 pub fn sample_duration(sample: u32, rate: u32) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::audio::samples::duration_ms`.
     let record = record(sample)?;

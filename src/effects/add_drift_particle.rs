@@ -19,7 +19,6 @@ use crate::scene::matrix3::rounded;
 const FULL: u32 = 0xFFF;
 const LIFE: u32 = 0xC350;
 
-/// The Rust version (see the header).
 pub fn add_drift_particle(
     frame: &Frame,
     particles: &Particles,

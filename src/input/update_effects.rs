@@ -49,9 +49,8 @@ impl<'a> Vars<'a> {
     }
 }
 
-/// The Rust version on the variables in `v`.
-/// Converted: `rc2k_core::input::effects::loads` (the way worked out before any call:
-/// nothing a call changes decides it).
+/// On the variables in `v`. Converted: `rc2k_core::input::effects::loads` (the way worked out
+/// before any call: nothing a call changes decides it).
 pub fn update_effects_with(input: &Input, v: &Vars<'_>) -> Result<(), Refused> {
     use rc2k_core::input::effects::{Players, loads};
     if v.count.get() == 0 {

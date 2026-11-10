@@ -8,9 +8,8 @@ use crate::race::owner::Race;
 use crate::session::{Dword, Float};
 use crate::sound::sets_store::SoundSet;
 
-/// `race::whole_to_float` (0x40D706): the dword at ebx made a float (`fild` / `fstp`)
-/// when it looks like a whole number (its top byte 0 or 0xFF). Leaves eax its top byte's
-/// mask (`and 0xFF000000`).
+/// `race::whole_to_float` (0x40D706): the dword at ebx made a float (`fild` / `fstp`) when it looks
+/// like a whole number (its top byte 0 or 0xFF). Leaves eax its top byte's mask (`and 0xFF000000`).
 pub fn whole_to_float(at: &Dword) -> u32 {
     // Converted: `rc2k_core::race::sound_tables::whole_to_float` (one rounding: the same
     // at every precision, so no exact twin).
@@ -25,9 +24,8 @@ fn span_plain(second: u32, first: u32) -> u32 {
     rc2k_core::race::sound_tables::span(f32::from_bits(first), f32::from_bits(second)).to_bits()
 }
 
-/// `race::sound_span` (0x40D71B), converted: the two dwords `first` and `second` made
-/// floats, `span` (the dword after them) their difference (`fld` / `fsub` / `fstp`). Its
-/// leftovers (eax, ebx) are read by no caller (`prepare_sound_tables` and `sound_row` only).
+/// `race::sound_span` (0x40D71B), converted: the two dwords `first` and `second` made floats,
+/// `span` (the dword after them) their difference (`fld` / `fsub` / `fstp`).
 // Converted: `rc2k_core::race::sound_tables::span`.
 pub fn sound_span(first: &Dword, second: &Dword, span: &Dword) {
     whole_to_float(first);
@@ -35,8 +33,8 @@ pub fn sound_span(first: &Dword, second: &Dword, span: &Dword) {
     span.set(span_plain(second.get(), first.get()));
 }
 
-/// `race::sound_row` (0x40D731), converted: a set `row`: +4, +8, +0xC made floats, spans
-/// at +0x10 and +0x1C. Its leftovers are read by no caller.
+/// `race::sound_row` (0x40D731), converted: a set `row`: +4, +8, +0xC made floats, spans at +0x10
+/// and +0x1C.
 // Converted: `rc2k_core::race::sound_tables::{whole_to_float, span}`.
 pub fn sound_row(row: &SoundSet) {
     for cell in [&row.unknown_04, &row.unknown_08, &row.unknown_0c] {
@@ -73,11 +71,11 @@ impl TableVars {
 }
 
 pub const RECORDS: u32 = 0x22;
-/// `race::prepare_sound_tables` (0x40D636), converted (`set_up_race_sound_objects`'s too): once (`dword_516358`): each of the 0x22 records
-/// (`off_514F90`) its span at +4 (`sound_span`), +0xC made its reciprocal (`fld1` /
-/// `fdiv`), its three rows (`sound_row`, 0x28 apart from +0x10); then the 0x40 floats at
-/// 0x516258 1 + 0.05 sin(x) for x from 0 by pi / 32 (the scratch `dword_5183CC` left the
-/// last x). Every register kept.
+/// `race::prepare_sound_tables` (0x40D636), converted (`set_up_race_sound_objects`'s too): once
+/// (`dword_516358`): each of the 0x22 records (`off_514F90`) its span at +4 (`sound_span`), +0xC
+/// made its reciprocal (`fld1` / `fdiv`), its three rows (`sound_row`, 0x28 apart from +0x10); then
+/// the 0x40 floats at 0x516258 1 + 0.05 sin(x) for x from 0 by pi / 32 (the scratch `dword_5183CC`
+/// left the last x).
 // Converted: `rc2k_core::race::sound_tables::{reciprocal, sines}`.
 pub fn prepare_sound_tables_plain(v: &TableVars) -> Result<(), BadInput> {
     use rc2k_core::race::sound_tables::{reciprocal, sines};
@@ -104,8 +102,8 @@ pub fn prepare_sound_tables_plain(v: &TableVars) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `race::restart_race_sounds`: the commands waited for, the race's sounds reset, let
-/// play, `dword_5124E4` 1. Every register kept.
+/// `race::restart_race_sounds`: the commands waited for, the race's sounds reset, let play,
+/// `dword_5124E4` 1.
 pub fn restart_race_sounds(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     use crate::race::race_end::{SoundVars, reset_race_sounds, wait_for_commands};
     wait_for_commands();
@@ -115,8 +113,8 @@ pub fn restart_race_sounds(sound: &crate::sound::owner::Sound) -> Result<(), Ref
     Ok(())
 }
 
-/// `race::silence_race_sounds` (0x40D366): the race's sounds reset, command 4, the
-/// commands waited for. Every register kept.
+/// `race::silence_race_sounds` (0x40D366): the race's sounds reset, command 4, the commands waited
+/// for.
 pub fn silence_race_sounds(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     use crate::race::race_end::{SoundVars, command, reset_race_sounds, wait_for_commands};
     reset_race_sounds(&SoundVars::game(), sound)?;
@@ -181,15 +179,14 @@ fn set_up_object(o: &crate::sound::store::SoundObject) {
     o.state.set(0);
 }
 
-/// `race::set_up_race_sound_objects` (0x415C93): `prepare_sound_tables`; the players'
-/// count (`dword_514F78`: 1, 2 with `dword_75ACE0` not 1), the objects' count
-/// (`dword_514F7C`: that, 4 in mode 2 with `dword_514F8C` 1), the players' objects
-/// (`dword_514F70` 0 or the chosen car `dword_52A920` with `dword_52A910` 1, which also
-/// gives the count `dword_52AD98`; `dword_514F74` 1); each object's first dword -1 .. -8;
-/// the players' objects their number, kind and setting; each object's 0x68 bytes from
-/// +0x2C and 24 fields reset; `dword_5BEBE8` 0; `restart_race_sounds`. Every register
-/// kept. Refuses, before anything, a chosen car past 7 (the original reads past the
-/// table)
+/// `race::set_up_race_sound_objects` (0x415C93): `prepare_sound_tables`; the players' count
+/// (`dword_514F78`: 1, 2 with `dword_75ACE0` not 1), the objects' count (`dword_514F7C`: that, 4 in
+/// mode 2 with `dword_514F8C` 1), the players' objects (`dword_514F70` 0 or the chosen car
+/// `dword_52A920` with `dword_52A910` 1, which also gives the count `dword_52AD98`; `dword_514F74`
+/// 1); each object's first dword -1 .. -8; the players' objects their number, kind and setting;
+/// each object's 0x68 bytes from +0x2C and 24 fields reset; `dword_5BEBE8` 0;
+/// `restart_race_sounds`. Refuses, before anything, a chosen car past 7 (the original reads past
+/// the table)
 pub fn set_up_race_sound_objects(
     race: &Race,
     v: &ObjectVars,
@@ -251,7 +248,7 @@ pub fn set_up_race_sound_objects(
 }
 
 /// `race::clear_race_sound_objects` (0x415C6D): `silence_race_sounds`; `dword_514F78`,
-/// `dword_514F7C`, `dword_514F8C` 0. Every register kept.
+/// `dword_514F7C`, `dword_514F8C` 0.
 pub fn clear_race_sound_objects(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     silence_race_sounds(sound)?;
     let sounds = &sound.race.sounds;

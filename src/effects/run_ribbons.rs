@@ -222,7 +222,6 @@ fn move_on(ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) {
     move_(ring, e, effects);
 }
 
-/// The Rust version (see the header).
 pub fn run_ribbons(
     ring: &Ring,
     effects: &crate::effects::owner::Effects,

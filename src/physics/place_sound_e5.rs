@@ -12,7 +12,6 @@ use crate::physics::sound_bands::band_value_plain;
 use crate::race::owner::Race;
 use rc2k_core::physics::sound_places::{SECOND, SOUND_E5};
 
-/// The Rust version.
 // Converted: `rc2k_core::physics::sound_places`.
 pub fn place_sound_e5(race: &Race) -> Result<(), Refused> {
     if !listed(&race.frame, race.shared.work.current_car.bits())? {

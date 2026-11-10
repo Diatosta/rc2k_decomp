@@ -15,8 +15,6 @@ use crate::errors::{BadInput, Refused};
 use crate::race::owner::race;
 use crate::sound::store::SoundObject;
 
-// ---- Rust version ----
-
 /// The (object, car) pairs in use, or a refusal.
 fn pairs() -> Result<Vec<(&'static SoundObject, u32)>, BadInput> {
     let count = crate::sound::owner::sound().race.sounds.count.get();

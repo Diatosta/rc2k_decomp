@@ -18,8 +18,7 @@ fn put(b: &dyn crate::pointers::Store, offset: u32, v: u32) {
         .unwrap_or_else(|e| crate::fatal::raise::end("physics::reset_car_grades", e));
 }
 
-/// The Rust core: the block at `b`, the two settings read at `s0c`, `s08` (the same at
-/// any precision).
+/// The block at `b`, the two settings read at `s0c`, `s08` (the same at any precision).
 // Converted: `rc2k_core::physics::grades::{percentage, reset_writes}`.
 pub fn reset_grades_at(
     course: &Course,

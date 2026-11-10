@@ -81,8 +81,7 @@ pub fn edge_normal(
     Ok(out)
 }
 
-/// The steps, not guarded. The registers the original leaves are read by none of its
-/// callers.
+/// The steps, not guarded.
 // Converted: `rc2k_core::physics::walls::shared_edge` (the edge's heading stays x87).
 pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let face_corners = corners(race.physics.contact.wall_face_now.get())?;

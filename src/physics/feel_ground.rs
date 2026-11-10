@@ -22,8 +22,6 @@ use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use rc2k_core::physics::walls::WheelsOff;
 
-/// The Rust version. The registers it leaves (eax the face's word +0x26, ebx the face,
-/// esi its address) are read by none of its callers.
 // Converted: `rc2k_core::physics::walls::WheelsOff`.
 pub fn feel_ground(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     if race.shared.car.probe_count.get() > rc2k_core::physics::walls::PROBE_ROOM {

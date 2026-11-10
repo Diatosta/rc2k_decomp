@@ -13,8 +13,7 @@ use crate::physics::camera_ground::probe_at;
 use crate::race::owner::Race;
 use rc2k_core::physics::camera_ground::{is_clear, over};
 
-/// The Rust version: whether the camera is clear of the ground (CF clear). The registers it
-/// leaves are read by none of its callers.
+/// Whether the camera is clear of the ground (CF clear).
 // Converted: `rc2k_core::physics::camera_ground::{over, is_clear}`.
 pub fn camera_clear_of_ground(
     race: &Race,

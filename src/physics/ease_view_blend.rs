@@ -17,7 +17,7 @@ use crate::physics::camera_view::{record, share_done};
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 
-/// The Rust version (the exact one, for `physics::update_camera`).
+/// The exact version, for `physics::update_camera`.
 pub fn ease_view_blend(
     race: &Race,
     scene: &crate::scene::owner::Scene,

@@ -1,13 +1,12 @@
-//! `drive::share_all_cars` (0x456484): `drive::keep_lead_car_values`,
-//! `drive::set_listener`, then for each of the eight cars (`g_currentCar` = n)
-//! `drive::share_car_state` with its block, its record (`off_71B3D8[n]`) and its sound
-//! object (`g_raceSoundObjects[n]`); then `dword_5C5688` = 1
-//! when `dword_70F410` is not 0x21 and the first record's +0x258 is 10 or more (else 0);
-//! then `drive::put_back_lead_car_values`.
+//! `drive::share_all_cars` (0x456484): `drive::keep_lead_car_values`, `drive::set_listener`, then
+//! for each of the eight cars (`g_currentCar` = n) `drive::share_car_state` with its block, its
+//! record (`off_71B3D8[n]`) and its sound object (`g_raceSoundObjects[n]`); then `dword_5C5688` = 1
+//! when `dword_70F410` is not 0x21 and the first record's +0x258 is 10 or more (else 0); then
+//! `drive::put_back_lead_car_values`.
 //!
-//! Callers: race init's loop (`drive::race_init`, 0x4463F4) and `race::run_view_marks` (0x4563C8).
-//! Refuses (before anything) what `set_listener` refuses, a car whose file number is above 0x21,
-//! and a null record or block. Its pieces have their own tests on test memory.
+//! Callers: race init's loop (`drive::race_init`, 0x4463F4) and `race::run_view_marks`. Refuses
+//! (before anything) what `set_listener` refuses, a car whose file number is above 0x21, and a null
+//! record or block. Its pieces have their own tests on test memory.
 
 use crate::drive::keep_lead_car_values::keep_lead_car_values;
 use crate::drive::put_back_lead_car_values::put_back_lead_car_values;
@@ -54,8 +53,6 @@ fn refusal(shared: &Shared) -> Result<Option<&'static str>, BadInput> {
     Ok(None)
 }
 
-/// The Rust version. The registers it leaves are read by no caller (liveness: no read
-/// point after `drive::race_init`'s or `race::run_view_marks`' call).
 // Converted: `rc2k_core::drive::sharing::{check_light_record, cars_shown}`.
 pub fn share_all_cars(
     race: &Race,

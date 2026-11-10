@@ -14,7 +14,6 @@ use crate::effects::{
 use crate::errors::{BadInput, Refused};
 use crate::race::owner_shared::Shared;
 
-/// The Rust version (see the header).
 pub fn view_frame(shared: &Shared, effects: &Effects) -> Result<(), Refused> {
     if effects.setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());

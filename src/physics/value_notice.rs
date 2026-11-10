@@ -37,7 +37,6 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     ]
 }
 
-/// The Rust version.
 pub fn value_notice(shared: &Shared) {
     core(&game(shared));
 }

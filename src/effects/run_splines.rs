@@ -61,7 +61,6 @@ fn step_made(paths: &Paths, half: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust version (see the header).
 pub fn run_splines(paths: &Paths, effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
     let setup = &effects.setup;
     let settings: u32 = setup.settings.is_set.get();

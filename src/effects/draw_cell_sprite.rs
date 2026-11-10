@@ -47,7 +47,7 @@ fn square(k: u32, angle: u32, effects: &crate::effects::owner::Effects) -> u32 {
     )
 }
 
-/// The Rust version (see the header): `cell` (eax), `angle` (ebx), `alpha` (ecx, its top
+/// `cell` (eax), `angle` (ebx), `alpha` (ecx, its top
 /// byte), `size` (edx), `entry` (esi). No caller reads a register it leaves.
 #[allow(
     clippy::too_many_arguments,

@@ -24,8 +24,7 @@ pub fn record_faces(n: u32) -> Result<(u32, u32), Refused> {
     Ok((rd(8)?, rd(0xC)?))
 }
 
-/// The steps for course record `record` (ebx), not guarded: each of its faces by
-/// `face_contact`. The registers left are read by none of the callers.
+/// The steps for course record `record` (ebx), not guarded: each of its faces by `face_contact`.
 // Converted: `rc2k_core::physics::ground_search::each_face`.
 pub fn steps(race: &Race, record: u32, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let (first, last) = record_faces(record)?;

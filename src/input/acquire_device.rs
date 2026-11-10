@@ -179,7 +179,7 @@ fn properties(record: &D) {
     }
 }
 
-/// The Rust version (see the header).
+/// See the header.
 pub fn acquire_device(input: &Input, record: &D) -> Result<(), Refused> {
     // Converted: `rc2k_core::input::acquire::acquire`.
     let late = Deferred::default();

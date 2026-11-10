@@ -1,11 +1,11 @@
-//! `race::splash_mud` (0x44A35F): one splash of mud onto the texture worked on
-//! (`dword_623D5C`, n): its count `dword_623D90[n]` one more; a random place (x the low
-//! byte, y the next of the drawing's random numbers, `next_drawing_random`); unless the mud map's strength there (as
-//! `race::muddy_texel`'s) is below 0x20, or a random byte is above it, the 4 x 4 texels
-//! from that place are faded (`gfx::fade_colour`, by each colour's top byte) toward one of
-//! 16 patterns of `g_mudColours` (4 x 4 colours each, picked at random), their top bytes set,
-//! and put back (`race::mud_texel`, `race::put_mud_texel`; untouched without the top bit).
-//! The columns and rows counted in `dword_623D38`, `dword_623D3C` (4 each after).
+//! `race::splash_mud` (0x44A35F): one splash of mud onto the texture worked on (`dword_623D5C`, n):
+//! its count `dword_623D90[n]` one more; a random place (x the low byte, y the next of the
+//! drawing's random numbers, `next_drawing_random`); unless the mud map's strength there (as
+//! `race::muddy_texel`'s) is below 0x20, or a random byte is above it, the 4 x 4 texels from that
+//! place are faded (`gfx::fade_colour`, by each colour's top byte) toward one of 16 patterns of
+//! `g_mudColours` (4 x 4 colours each, picked at random), their top bytes set, and put back
+//! (`race::mud_texel`, `race::put_mud_texel`; untouched without the top bit). The columns and rows
+//! counted in `dword_623D38`, `dword_623D3C` (4 each after).
 //!
 //! See `race/mud.rs`. One caller, `race::update_mud_texture`, once per splash. Refuses what
 //! `muddy_texel` refuses before anything, and `put_mud_texel`'s later refusals (the counts, the
@@ -21,7 +21,6 @@ use crate::race::put_mud_texel::put_mud_texel;
 
 pub const LAST_SPLASHED: u32 = 0x1000;
 
-/// The Rust version (see the header).
 pub fn splash_mud(shared: &Shared) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::{splash_place, splash_lands, splash_pattern}`.
     use rc2k_core::race::mud::{

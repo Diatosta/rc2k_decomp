@@ -17,7 +17,6 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87_run::ext_to_int;
 use crate::session::write_first;
 
-/// The Rust version (see the header).
 pub fn bend_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     {
         let switch: u32 = paths.spline_head.switch.get();

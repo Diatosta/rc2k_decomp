@@ -51,7 +51,7 @@ fn store(shared: &Shared, w: &Warnings) {
     }
 }
 
-/// The steps. The registers the original leaves are read by none of its callers.
+/// The steps.
 // Converted: `rc2k_core::physics::progress::{Warnings, off_line, cue_due}`.
 pub fn off_line_warnings(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     if race.shared.car.finish_flag.get() != 0 || race.shared.car.go_stand_timer.get() != 0 {

@@ -11,8 +11,7 @@ use crate::physics::apply_torque::apply_torque;
 use crate::physics::tables_store::ForceRecord;
 use crate::race::owner::Race;
 
-/// The Rust version: `records` (a whole table, the wheels' 0x17 or the contacts' 7) on the
-/// work car.
+/// `records` (a whole table, the wheels' 0x17 or the contacts' 7) on the work car.
 pub fn apply_torques(race: &Race, records: &[ForceRecord]) -> Result<(), Refused> {
     for rec in records {
         apply_torque(race, rec, &race.shared.car);

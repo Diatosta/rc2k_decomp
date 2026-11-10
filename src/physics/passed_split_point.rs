@@ -94,7 +94,7 @@ fn point(race: &Race) -> Result<(u32, u32), Refused> {
     Ok((cp, index))
 }
 
-/// The Rust version: whether the car has passed the split's point (CF).
+/// Whether the car has passed the split's point (CF).
 // Converted: `rc2k_core::physics::progress::{check_split_point, face_known, passed_point}`
 // (the distance and the angle stay x87).
 pub fn passed_split_point(

@@ -33,7 +33,7 @@ fn projected(fl: &WindscreenFlakes, effects: &crate::effects::owner::Effects) {
     projected_x87(&effects.setup.kind_floats, &fl.tables);
 }
 
-/// The Rust version (see the header): `item` (esi), `colour` (edx).
+/// `item` (esi), `colour` (edx).
 pub fn draw_windscreen_flake(
     fl: &WindscreenFlakes,
     item: &WindscreenFlakeItem,

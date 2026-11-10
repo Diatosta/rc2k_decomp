@@ -1,8 +1,7 @@
-//! The tyre-change screen's drawing (stream B, 2026-10-18): `drive::tyre_change_screen`
-//! (0x445047), `drive::tyre_screen` (0x41C5FA), `drive::tyre_screen_parts` (0x41C790),
-//! `drive::tyre_turned_quad` (0x41C969), `drive::tyre_quad` (0x41DD3B). Their calls by
-//! place: 0 `d3d::set_texture` (0x41ACF5), 1 `d3d::set_render_state` (0x41AB5B), 2
-//! `tyre_quad`, 3 `tyre_turned_quad`, 4 `tyre_screen_parts`, 5 the device's DrawPrimitive
+//! The tyre-change screen's drawing (stream B, 2026-10-18): `drive::tyre_change_screen`,
+//! `drive::tyre_screen`, `drive::tyre_screen_parts`, `drive::tyre_turned_quad`, `drive::tyre_quad`.
+//! Their calls by place: 0 `d3d::set_texture`, 1 `d3d::set_render_state`, 2 `tyre_quad`, 3
+//! `tyre_turned_quad`, 4 `tyre_screen_parts`, 5 the device's DrawPrimitive
 //! (`d3d::draw_vertex_strip`: platform, a call into the game), 6 `tyre_screen`. In the game the
 //! Rust versions and the game's three.
 //!
@@ -85,9 +84,7 @@ fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch
     }
 }
 
-/// The draw (`d3d::draw_vertex_strip`, 0x41ADE1) of 4 vertices at `g_polygonVertices`;
-/// its result (Direct3D's, always 0) is read by no one: the quads keep every register
-/// round it.
+/// The draw (`d3d::draw_vertex_strip`, 0x41ADE1) of 4 vertices at `g_polygonVertices`.
 pub fn draw() -> Result<(), Refused> {
     crate::d3d::draw_vertex_strip::draw_vertex_strip(&VERTICES.vertices, 4)?;
     Ok(())

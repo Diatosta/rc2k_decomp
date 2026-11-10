@@ -1,12 +1,11 @@
-//! `race::draw_view_scene` (0x4557AB): a view's 3D scene. With `unk_71AF80` set (a reading:
-//! the view covered) only `race::draw_view_tint`. Else `dword_635014`, `dword_635018` 0 and
-//! in turn, with the race's sound tick (`sound::race_sound_tick`, eax 0x14 .. 0x1A in the
-//! original: the Rust tick takes none) between the groups: the car lights' modes, the point
-//! records cleared, the fog, the camera's view, the sky and the draw batch flushed, the
-//! view's light; the lamps reset, `dword_63DB6C` 0, the course's view prepared, its visible
-//! faces, the EAX environment, the lamps gathered and wanted; the sort entries sorted and
-//! drawn, the race's slots; the cars' shadows, the skidmarks, the car lights; the depth
-//! entries sorted and drawn, the batch flushed, the view's value stored.
+//! `race::draw_view_scene` (0x4557AB): a view's 3D scene. With `unk_71AF80` set (a reading: the
+//! view covered) only `race::draw_view_tint`. Else `dword_635014`, `dword_635018` 0 and in turn,
+//! with the race's sound tick between the groups: the car lights' modes, the point records cleared,
+//! the fog, the camera's view, the sky and the draw batch flushed, the view's light; the lamps
+//! reset, `dword_63DB6C` 0, the course's view prepared, its visible faces, the EAX environment, the
+//! lamps gathered and wanted; the sort entries sorted and drawn, the race's slots; the cars'
+//! shadows, the skidmarks, the car lights; the depth entries sorted and drawn, the batch flushed,
+//! the view's value stored.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
@@ -44,7 +43,7 @@ impl ViewOutput {
     }
 }
 
-/// The Rust version (see the header), on `view`'s own working state.
+/// On `view`'s own working state.
 pub fn draw_view_scene(
     race: &Race,
     scene: &crate::scene::owner::Scene,

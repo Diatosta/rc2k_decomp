@@ -1,9 +1,8 @@
-//! `race::step_viewed_replay` (0x41EC47): the viewed replay one frame on while it plays:
-//! the frame (`dword_5C2534`) one more; past 99 the next block from frame 0, which past
-//! the end of the play (`dword_5C2538`) stops it, and is read
-//! (`drive::read_replay_frame`). Not open (`dword_5BEC88`), at or past the last block, or
-//! the read failing: `dword_5BEC90` 1 and carry. Else the block and frame stored and ebx
-//! the frame's inputs (`dword_9613A4 + 0x2000 + frame * 16`).
+//! `race::step_viewed_replay` (0x41EC47): the viewed replay one frame on while it plays: the frame
+//! (`dword_5C2534`) one more; past 99 the next block from frame 0, which past the end of the play
+//! (`dword_5C2538`) stops it, and is read (`drive::read_replay_frame`). Not open (`dword_5BEC88`),
+//! at or past the last block, or the read failing: `dword_5BEC90` 1 and carry. Else the block and
+//! frame stored and ebx the frame's inputs (`dword_9613A4 + 0x2000 + frame * 16`).
 //!
 //! Caller: `race::replay_viewer` (each frame played; it reads carry). Refuses what
 //! `read_replay_frame` refuses (the fatal errors of a block past 0x708).
@@ -11,8 +10,7 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-/// The Rust version: whether it stopped (the carry the original leaves; it leaves ebx and
-/// the zero flag too, and no caller reads them).
+/// Whether it stopped.
 pub fn step_viewed_replay(race: &Race) -> Result<bool, Refused> {
     let replay = &race.replay;
     let shared = &race.shared;

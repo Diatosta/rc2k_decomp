@@ -28,7 +28,7 @@ fn abs16(a: u32, b: u32) -> u32 {
     (if (d as i16) < 0 { d.wrapping_neg() } else { d }) as u32
 }
 
-/// The Rust version (see the header): `corner` (the original's eax), `angle` (ebx, << 20),
+/// `corner` (the original's eax), `angle` (ebx, << 20),
 /// `alpha` (ecx), `size` (edx), `colour` (esi), `centre` (st(0) x, st(1) y).
 #[allow(
     clippy::too_many_arguments,

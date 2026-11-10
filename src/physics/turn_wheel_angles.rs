@@ -53,7 +53,7 @@ fn add_turn(
     }
 }
 
-/// The Rust version (the exact one, for `physics::car_physics_step`).
+/// The exact version, for `physics::car_physics_step`.
 pub fn turn_wheel_angles(race: &Race, scene: &crate::scene::owner::Scene) {
     let kind = race.shared.car.car_kind.get();
     if kind >= 0x22 || KIND_TABLES.kind_turns_wheels[kind as usize].get() == 0 {

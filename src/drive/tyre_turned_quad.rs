@@ -1,8 +1,7 @@
-//! `drive::tyre_turned_quad` (0x41C969): the tyre-change screen's turning quad (the
-//! steering wheel): the device's turn (esi +0x4EC, x `TyreChange::gauge_unit` x 2 pi, `fsincos` into
-//! `turn_cos`, `turn_sin`) turning the half-sizes of the rectangle at ebx
-//! (floats: x, y, w, h) round its place plus `TyreChange::wheel`'s place, the colour ecx, the
-//! texture rectangle at eax (`quad_tail`), drawn (place 5).
+//! `drive::tyre_turned_quad` (0x41C969): the tyre-change screen's turning quad (the steering
+//! wheel): the device's turn turning the half-sizes of the rectangle at ebx (floats: x, y, w, h)
+//! round its place plus `TyreChange::wheel`'s place, the colour ecx, the texture rectangle at eax
+//! (`quad_tail`), drawn (place 5).
 //!
 //! Takes: the texture rectangle, the rectangle, the colour, the input device
 //!
@@ -48,9 +47,8 @@ fn turn(ty: &TyreChange, e: &InputDevice, d: &[Float; 4], v: &[Vertex], t: &Dwor
     v[1].y.set_bits(st(y + ld(ty.neg_half_h_cos.bits())));
 }
 
-/// The Rust version: the texture rectangle `uv` (eax), the screen rectangle `rect`
-/// (ebx), the colour `colour` (ecx), the input device `device` (esi; its +0x4EC turns
-/// the quad); every register kept.
+/// The texture rectangle `uv`, the screen rectangle `rect`, the colour `colour`, the input device
+/// `device`.
 pub fn tyre_turned_quad(
     shared: &Shared,
     uv: [u32; 4],

@@ -13,8 +13,6 @@
 use crate::errors::Refused;
 use crate::sound::sets_store::SoundRequest;
 
-// ---- Rust version ----
-
 /// Converted: `rc2k_core::sound::spot_voices::free_unheard`; each stop through `request`
 /// (its sound written first).
 pub fn free_spot_voices(

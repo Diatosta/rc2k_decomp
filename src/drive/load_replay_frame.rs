@@ -1,6 +1,6 @@
 //! `drive::load_replay_frame` (0x46020A): the replay's frame `dword_6EF7E0` read
-//! (`drive::read_replay_frame_0`), its marks (`drive::replay_frame_marks`), and the frame
-//! (0xA04 dwords at `dword_9613A4`) copied to the replay's starting state `unk_7172EC`.
+//! (`drive::read_replay_frame_0`), its marks (`drive::replay_frame_marks`), and the frame (0xA04
+//! dwords at `dword_9613A4`) copied to the replay's starting state `unk_7172EC`.
 //!
 //! Caller: `drive::play_replay_frame`. Refuses what `read_replay_frame` refuses.
 
@@ -12,7 +12,6 @@ use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
 
 const DWORDS: usize = 0xA04;
 
-/// The Rust version.
 pub fn load_replay_frame(race: &Race) -> Result<(), Refused> {
     let replay = &race.replay;
     let frame = replay.replay_frames.step_block.get();

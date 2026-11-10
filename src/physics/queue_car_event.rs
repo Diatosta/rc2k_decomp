@@ -35,7 +35,6 @@ pub fn store(shared: &Shared, was: &CarEvents, now: &CarEvents) {
     set_changed(&shared.car.car_event_position, was.shown, now.shown);
 }
 
-/// The Rust version.
 pub fn queue_car_event(race: &Race, esi: u32, ebx: u32) -> Result<(), Refused> {
     let was = load(race);
     let mut q = was;

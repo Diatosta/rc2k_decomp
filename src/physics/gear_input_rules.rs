@@ -29,8 +29,7 @@ fn put(v: &[&dyn Cell32], k: usize, x: u32) {
     v[k].set_bits(x);
 }
 
-/// The Rust version on the variables' cells `v`; what the rules change is written back. The
-/// eax it leaves (the joined input) is read by none of its callers.
+/// On the variables' cells `v`; what the rules change is written back.
 // Converted: `rc2k_core::physics::gearbox::GearInputs::apply_rules`.
 pub fn rules_at(v: &[&dyn Cell32]) {
     let car = GearCar {
@@ -88,7 +87,6 @@ fn game(race: &Race) -> Vec<&dyn Cell32> {
     ]
 }
 
-/// The Rust version.
 pub fn gear_input_rules(race: &Race) {
     rules_at(&game(race));
 }

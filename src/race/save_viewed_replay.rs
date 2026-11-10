@@ -1,14 +1,13 @@
-//! `race::save_viewed_replay` (0x41ED1C): the viewed (and edited) replay saved as replay
-//! ebx: with blocks to save, the header made ("REPL", 0, version 0x50400, the date
-//! `system::packed_local_time`, the slot's name: 32 bytes of `byte_528934`); the last
-//! race's file (`var\tmprpl`) opened to read (mode 0, `dword_975508`) and the slot's
-//! (`race::replay_path`) made (mode 1, `dword_97550C`); the undo emptied
-//! (`dword_9673F4` 0, its places zeroed: they become the new index); the header written,
-//! then each block in the viewer's order: read from its place (`files::seek`,
-//! `drive::read_packed` into `dword_9613A4`, neither checked), its first 8 bytes the
-//! block's cameras, written packed (`race::write_replay_chunk`), its offset and size
-//! (negative when packed) into the new index; then "RCIB" and the count (16 bytes) and the
-//! new index (0x3840 bytes). Both closed; the undo emptied again.
+//! `race::save_viewed_replay` (0x41ED1C): the viewed (and edited) replay saved as replay ebx: with
+//! blocks to save, the header made ("REPL", 0, version 0x50400, the date
+//! `system::packed_local_time`, the slot's name: 32 bytes of `byte_528934`); the last race's file
+//! (`var\tmprpl`) opened to read (mode 0, `dword_975508`) and the slot's (`race::replay_path`) made
+//! (mode 1, `dword_97550C`); the undo emptied (`dword_9673F4` 0, its places zeroed: they become the
+//! new index); the header written, then each block in the viewer's order: read from its place
+//! (`files::seek`, `drive::read_packed` into `dword_9613A4`, neither checked), its first 8 bytes
+//! the block's cameras, written packed (`race::write_replay_chunk`), its offset and size (negative
+//! when packed) into the new index; then "RCIB" and the count (16 bytes) and the new index (0x3840
+//! bytes). Both closed; the undo emptied again.
 //!
 //! Takes: the slot (`race::replay_path`'s number)
 //!
@@ -22,9 +21,7 @@ use crate::race::owner::Race;
 use crate::race::replay_path::{last_race, replay_path};
 use crate::race::viewer::{TABLE_LEN, move_cells};
 
-/// The Rust version: whether it was saved (the original leaves the carry clear and the
-/// zero flag set for a yes, and keeps the registers). `slot` the slot to save into (the
-/// original's ebx).
+/// Whether it was saved. `slot` the slot to save into.
 pub fn save_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
     let done = save(race, slot)?;
     crate::race::viewer_buffers_store::VIEWER_BUFFERS

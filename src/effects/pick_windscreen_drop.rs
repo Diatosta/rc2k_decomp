@@ -11,7 +11,6 @@ use crate::effects::spawn_windscreen_drop::spawn_windscreen_drop;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
 
-/// The Rust version (see the header).
 pub fn pick_windscreen_drop(
     drops: &WindscreenDrops,
     effects: &crate::effects::owner::Effects,

@@ -38,8 +38,7 @@ fn hold(v: &impl Cell32, l: &impl Cell32) {
     l.set_bits(st(-ld(l.bits())));
 }
 
-/// The Rust version (the exact one, for `physics::car_physics_step` and
-/// `physics::find_clear_place`).
+/// The exact version, for `physics::car_physics_step` and `physics::find_clear_place`.
 pub fn limit_motion(race: &Race, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let mut bad = false;

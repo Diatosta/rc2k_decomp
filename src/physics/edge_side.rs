@@ -12,8 +12,7 @@ use crate::physics::flag_result::FlagResult;
 use crate::physics::ground_query::GroundQuery;
 use rc2k_core::physics::faces;
 
-/// The Rust version: the ground point's side of the edge from scene point `from` to `to`
-/// (their numbers).
+/// The ground point's side of the edge from scene point `from` to `to` (their numbers).
 pub fn edge_side(
     q: &GroundQuery<'_>,
     from: u32,

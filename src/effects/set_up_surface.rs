@@ -46,7 +46,7 @@ fn unlock_refusing(why: &'static str, scene: &crate::scene::owner::Scene) -> Res
     Err(BadInput(why).into())
 }
 
-/// The Rust version (see the header): `memory::allocate`, `d3d::lock_texture` /
+/// `memory::allocate`, `d3d::lock_texture` /
 /// `unlock_texture`, `gfx::read_picture_file`, `gfx::put_surface_pixel`,
 /// `scene::forget_slot_texture`, `memory::free_list`, `nullsub_33` (nothing).
 pub fn set_up_surface(

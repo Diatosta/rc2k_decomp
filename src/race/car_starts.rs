@@ -53,13 +53,12 @@ fn matrix_and_wheels(race: &Race) -> Result<[u32; 4], Refused> {
     Ok(wheels(&race.physics))
 }
 
-/// `race::settle_car` (0x43FC32): 0x43EB5D (`physics::set_handling`); the work car's
-/// pitch and roll (+0x9C4, +0x9C8) 0, both steps 0x20000000, `dword_620470` 0x80; eight
-/// times the matrix (`get_mat_crash`) and the wheels (`physics::probe_ground`), the roll moved by
-/// the step towards wheels 0 + 2 against 1 + 3, the pitch towards 0 + 1 against 2 + 3, each
-/// step halved; once more the matrix and the wheels, then the car's y, the four wheels and
-/// the four at 0x6D1F14 lowered by the lowest wheel (from 0x640000). The registers it
-/// leaves are read by no caller (conversion phase 3, 2026-10-24).
+/// `race::settle_car` (0x43FC32): 0x43EB5D (`physics::set_handling`); the work car's pitch and roll
+/// (+0x9C4, +0x9C8) 0, both steps 0x20000000, `dword_620470` 0x80; eight times the matrix
+/// (`get_mat_crash`) and the wheels (`physics::probe_ground`), the roll moved by the step towards
+/// wheels 0 + 2 against 1 + 3, the pitch towards 0 + 1 against 2 + 3, each step halved; once more
+/// the matrix and the wheels, then the car's y, the four wheels and the four at 0x6D1F14 lowered by
+/// the lowest wheel (from 0x640000).
 pub fn settle_car(race: &Race) -> Result<(), Refused> {
     let physics = &race.physics;
     let shared = &race.shared;
@@ -103,11 +102,11 @@ pub fn settle_car(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::reset_car_motion` (0x43FB47): `settle_car`, `invert_car_matrix`; the work car's
-/// +0x198 .. +0x1A0 0, +0x1A4 1.0, +0x1A8 0, `g_carSpeed` (+0x1AC) 0, +0x184 .. +0x18C 0;
-/// heading, pitch and roll copied to `dword_608B50` / `58` / `54` and +0x6B0 / +0x6B8 /
-/// +0x6B4; +0x1E8, `g_carDriveSpeed`, `g_carDriveSpeed2`, `g_carGear`, +0x200, +0x204,
-/// +0x1C4, +0x1F4 0; with +0x68C not 0, +0x688 and +0x684 it less one and +0x68C 0.
+/// `race::reset_car_motion` (0x43FB47): `settle_car`, `invert_car_matrix`; the work car's +0x198 ..
+/// +0x1A0 0, +0x1A4 1.0, +0x1A8 0, `g_carSpeed` (+0x1AC) 0, +0x184 .. +0x18C 0; heading, pitch and
+/// roll copied to `dword_608B50` / `58` / `54` and +0x6B0 / +0x6B8 / +0x6B4; +0x1E8,
+/// `g_carDriveSpeed`, `g_carDriveSpeed2`, `g_carGear`, +0x200, +0x204, +0x1C4, +0x1F4 0; with
+/// +0x68C not 0, +0x688 and +0x684 it less one and +0x68C 0.
 pub fn reset_car_motion(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let physics = &race.physics;
@@ -148,9 +147,8 @@ pub fn reset_car_motion(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `math::turn_point_xz` of (x, 0, z) by the start place's heading: x and z moved. The
-/// original's y there is a leftover in ebx; it lands only in `g_scratchY`, which every
-/// reader writes first.
+/// `math::turn_point_xz` of (x, 0, z) by the start place's heading: x and z moved. The original's y
+/// there is a leftover in ebx; it lands only in `g_scratchY`, which every reader writes first.
 fn move_turned(race: &Race, x: u32, z: u32) {
     let course = &race.course;
     let shared = &race.shared;
@@ -164,16 +162,15 @@ fn move_turned(race: &Race, x: u32, z: u32) {
     add(&shared.car.position[2], z);
 }
 
-/// `race::start_car` (0x4464AD): the work car's +0x478, +0x694 0, +0xAD4/+0xAD8
-/// 0x80000000, +0x1E4, +0x1D8, +0x1D4 0, +0x644 .. +0x650 and +0x638 .. +0x640 0. Unless
-/// `dword_62389C` is 4: its checkpoint `first_check_checkpoint` (less the car's number /
-/// 2 but with `dword_62389C` 1 or 3) into `dword_6365E4`, `dword_6365EC` 0 (both 0 with
-/// `dword_64BB18`); `place_car_on_line`; without `dword_64BB18` moved back (0, -0x20000
-/// turned by `dword_5CCD60`) and, with `dword_52A910` or (`dword_62389C` 0 and
-/// `dword_63DB94` not 1), to the side (+-0x14000 by the car's number's low bit). Then
-/// `nearest_checkpoint` into +0x98, +0x94, +0x9C; its check count less one held to 0 ..
-/// 100 into +0x90 and +0xAC; `reset_car_motion`; +0x264 .. +0x26C 0. The registers it
-/// leaves are read by no caller. Refuses a nearest checkpoint past the lists (when met).
+/// `race::start_car` (0x4464AD): the work car's +0x478, +0x694 0, +0xAD4/+0xAD8 0x80000000, +0x1E4,
+/// +0x1D8, +0x1D4 0, +0x644 .. +0x650 and +0x638 .. +0x640 0. Unless `dword_62389C` is 4: its
+/// checkpoint `first_check_checkpoint` (less the car's number / 2 but with `dword_62389C` 1 or 3)
+/// into `dword_6365E4`, `dword_6365EC` 0 (both 0 with `dword_64BB18`); `place_car_on_line`; without
+/// `dword_64BB18` moved back (0, -0x20000 turned by `dword_5CCD60`) and, with `dword_52A910` or
+/// (`dword_62389C` 0 and `dword_63DB94` not 1), to the side (+-0x14000 by the car's number's low
+/// bit). Then `nearest_checkpoint` into +0x98, +0x94, +0x9C; its check count less one held to 0 ..
+/// 100 into +0x90 and +0xAC; `reset_car_motion`; +0x264 .. +0x26C 0. Refuses a nearest checkpoint
+/// past the lists (when met).
 pub fn start_car(race: &Race) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
     let lights = &scene.lights;
@@ -248,10 +245,10 @@ pub fn start_car(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::start_cars` (0x446463): for each car of the race (`g_raceCars`), `g_currentCar`
-/// it, `drive::load_car`, `start_car`, the work car's +0xA3C (8 dwords) and +0xA5C (0x11)
-/// 0, `drive::store_car`; every register kept round each car. Refuses
-/// no cars (the original's `jnz` runs on) or more than 8, before anything.
+/// `race::start_cars` (0x446463): for each car of the race (`g_raceCars`), `g_currentCar` it,
+/// `drive::load_car`, `start_car`, the work car's +0xA3C (8 dwords) and +0xA5C (0x11) 0,
+/// `drive::store_car`; Refuses no cars (the original's `jnz` runs on) or more than 8, before
+/// anything.
 pub fn start_cars(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let cars: u32 = shared.view.race_cars.bits();

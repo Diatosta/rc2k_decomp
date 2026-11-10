@@ -9,8 +9,6 @@ use crate::audio::owner::Audio;
 use crate::audio::voices::{GamePool, lists, store_lists};
 use crate::errors::Refused;
 
-// ---- Rust version ----
-
 pub fn stop_all_voices(audio: &Audio) -> Result<(), Refused> {
     // Converted: `rc2k_core::audio::voices::stop_all`.
     let mut l = lists(&audio.state);

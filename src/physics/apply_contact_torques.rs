@@ -23,7 +23,6 @@ pub fn apply_contact_torques_with<'a>(
     run(records)
 }
 
-/// The Rust version.
 pub fn apply_contact_torques(race: &Race) -> Result<(), Refused> {
     apply_contact_torques_with(
         race.shared.physics_tables.contact_step.get(),

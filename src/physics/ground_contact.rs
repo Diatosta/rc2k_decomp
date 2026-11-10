@@ -67,7 +67,6 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
     Ok(())
 }
 
-/// The Rust version. The registers it leaves are read by none of its callers.
 pub fn ground_contact(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     steps(race, scene)
 }

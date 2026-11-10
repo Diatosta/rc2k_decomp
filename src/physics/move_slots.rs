@@ -12,7 +12,7 @@ use crate::errors::Refused;
 use crate::physics::move_slot::move_slot;
 use crate::race::owner::Race;
 
-/// The Rust version: the eight slots, those in use moved, `slot_count` the number done so far.
+/// The eight slots, those in use moved, `slot_count` the number done so far.
 pub fn move_slots(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let shared = &race.shared;
     let slots = &shared.work.race_slots;

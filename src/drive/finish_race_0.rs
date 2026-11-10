@@ -6,7 +6,6 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-/// The Rust version.
 pub fn finish_race_0(race: &Race) -> Result<(), Refused> {
     race.shared.switches.mask_kind.set(0);
     crate::drive::finish_race::finish_race(race)

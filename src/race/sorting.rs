@@ -7,9 +7,8 @@ use crate::pointers::Store;
 use rc2k_core::race::quick_sort::{Order, quick_sort};
 
 /// The `count` records of `N` dwords from `first` (a store) sorted by dword `key` in `order`
-/// (nothing done with fewer than two, as the original's first test). The registers the
-/// original leaves are read by none of its callers (conversion phase 3, 2026-10-24).
-/// Refuses (before anything) a sort that would go past the records' bound.
+/// (nothing done with fewer than two, as the original's first test). Refuses (before anything) a
+/// sort that would go past the records' bound.
 pub fn sort_records<const N: usize>(
     first: &dyn Store,
     count: u32,

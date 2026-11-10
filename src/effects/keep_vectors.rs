@@ -5,7 +5,6 @@
 //!
 //! Caller: `effects::view_frame`.
 
-/// The Rust version (see the header).
 pub fn keep_vectors(effects: &crate::effects::owner::Effects) {
     let frame = &effects.frame;
     let (k, s) = (&frame.kept_view, &frame.view_sources.sources);

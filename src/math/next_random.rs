@@ -6,8 +6,6 @@
 //! right by one, and what is mixed in is `xor`ed on. 23 callers, and
 //! `math::random_below` (73 more).
 
-// ---- Rust version ----
-
 /// The generator's state: out of the image since 2026-10-24 (phase 5; it was
 /// `g_randomState`, 0x4E0140, whose first value it keeps until `seed_random`).
 pub static STATE: crate::session::Dword = crate::session::Dword::new(0x9570_1114);
