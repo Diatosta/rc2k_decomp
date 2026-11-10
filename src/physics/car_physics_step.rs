@@ -239,7 +239,6 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     ph::sum_forces::sum_forces(race);
     ph::blend_wheel_load::blend_wheel_load(race, scene);
     ph::share_engine_sound::share_engine_sound(race)?;
-    ph::note_time_mark::note_time_mark(race);
     ph::false_start::false_start(race)?;
     ph::value_notice::value_notice(&race.shared);
     Ok(())

@@ -189,10 +189,10 @@ pub fn steps(race: &Race) {
         kind(&race.physics.damage.kind_table_b, part),
     );
     for k in 0..2 {
-        raise(&race.physics, &race.shared.car.part_hit_damage[k], |g| {
+        raise(&race.physics, &race.shared.car.tyre_wears[k], |g| {
             add_triple_product(
-                &race.physics.damage.slip_wear_factor_a,
-                &race.physics.damage.tyre_wear_rate_a,
+                &race.physics.damage.front_slip_wear_factor,
+                &race.physics.damage.front_tyre_wear_rate,
                 &race.physics.damage.hundredth,
                 g,
                 g,
@@ -200,10 +200,10 @@ pub fn steps(race: &Race) {
         });
     }
     for k in 2..4 {
-        raise(&race.physics, &race.shared.car.part_hit_damage[k], |g| {
+        raise(&race.physics, &race.shared.car.tyre_wears[k], |g| {
             add_triple_product(
-                &race.physics.damage.slip_wear_factor_b,
-                &race.physics.damage.tyre_wear_rate_b,
+                &race.physics.damage.rear_slip_wear_factor,
+                &race.physics.damage.rear_tyre_wear_rate,
                 &race.physics.damage.hundredth,
                 g,
                 g,
@@ -567,8 +567,8 @@ fn part_hit_figures(m: &DamageModel) {
     let t6 = t4 * t5;
     let t7 = ld(m.wheels_down.bits());
     let t8 = t6 * t7;
-    m.tyre_wear_rate_a.set_bits(st(t8));
-    m.tyre_wear_rate_b.set_bits(st(t8));
+    m.front_tyre_wear_rate.set_bits(st(t8));
+    m.rear_tyre_wear_rate.set_bits(st(t8));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -576,14 +576,14 @@ fn part_hit_figures(m: &DamageModel) {
 /// `[m + 0x35B488] = [m + 0x35B488] * [t + 0]`
 /// `[m + 0x35B48C] = [m + 0x35B48C] * [u + 0]`
 fn scale_part_hit_figures(m: &DamageModel, t: &impl Cell32, u: &impl Cell32) {
-    let t0 = ld(m.tyre_wear_rate_a.bits());
+    let t0 = ld(m.front_tyre_wear_rate.bits());
     let t1 = ld(t.bits());
     let t2 = t0 * t1;
-    m.tyre_wear_rate_a.set_bits(st(t2));
-    let t3 = ld(m.tyre_wear_rate_b.bits());
+    m.front_tyre_wear_rate.set_bits(st(t2));
+    let t3 = ld(m.rear_tyre_wear_rate.bits());
     let t4 = ld(u.bits());
     let t5 = t3 * t4;
-    m.tyre_wear_rate_b.set_bits(st(t5));
+    m.rear_tyre_wear_rate.set_bits(st(t5));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -674,20 +674,20 @@ fn gauge_totals(shared: &Shared, m: &DamageModel) {
     let t16 = ld(m.half.bits());
     let t17 = t15 * t16;
     shared.car.brake_damage.set_bits(st(t17));
-    let t18 = ld(shared.car.part_hit_damage[0].bits());
-    let t19 = ld(shared.car.part_hit_damage[1].bits());
+    let t18 = ld(shared.car.tyre_wears[0].bits());
+    let t19 = ld(shared.car.tyre_wears[1].bits());
     let t20 = t18 + t19;
     let t21 = ld(m.half.bits());
     let t22 = t20 * t21;
-    m.tyre_wear_mean_a.set_bits(st(t22));
-    let t23 = ld(shared.car.part_hit_damage[2].bits());
-    let t24 = ld(shared.car.part_hit_damage[3].bits());
+    m.front_tyre_wear.set_bits(st(t22));
+    let t23 = ld(shared.car.tyre_wears[2].bits());
+    let t24 = ld(shared.car.tyre_wears[3].bits());
     let t25 = t23 + t24;
     let t26 = ld(m.half.bits());
     let t27 = t25 * t26;
-    m.tyre_wear_mean_b.set_bits(st(t27));
-    let t28 = ld(m.tyre_wear_mean_a.bits());
-    let t29 = ld(m.tyre_wear_mean_b.bits());
+    m.rear_tyre_wear.set_bits(st(t27));
+    let t28 = ld(m.front_tyre_wear.bits());
+    let t29 = ld(m.rear_tyre_wear.bits());
     let t30 = t28 + t29;
     let t31 = ld(m.half.bits());
     let t32 = t30 * t31;
@@ -1598,11 +1598,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_30(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).slip_wear_factor_a,
-                        &dm(a[0]).tyre_wear_rate_a,
+                        &dm(a[0]).front_slip_wear_factor,
+                        &dm(a[0]).front_tyre_wear_rate,
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car.part_hit_damage[0],
-                        &crate::race::owner::race().shared.car.part_hit_damage[0],
+                        &crate::race::owner::race().shared.car.tyre_wears[0],
+                        &crate::race::owner::race().shared.car.tyre_wears[0],
                     );
                 },
             },
@@ -1622,11 +1622,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_31(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).slip_wear_factor_a,
-                        &dm(a[0]).tyre_wear_rate_a,
+                        &dm(a[0]).front_slip_wear_factor,
+                        &dm(a[0]).front_tyre_wear_rate,
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car.part_hit_damage[1],
-                        &crate::race::owner::race().shared.car.part_hit_damage[1],
+                        &crate::race::owner::race().shared.car.tyre_wears[1],
+                        &crate::race::owner::race().shared.car.tyre_wears[1],
                     );
                 },
             },
@@ -1646,11 +1646,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_32(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).slip_wear_factor_b,
-                        &dm(a[0]).tyre_wear_rate_b,
+                        &dm(a[0]).rear_slip_wear_factor,
+                        &dm(a[0]).rear_tyre_wear_rate,
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car.part_hit_damage[2],
-                        &crate::race::owner::race().shared.car.part_hit_damage[2],
+                        &crate::race::owner::race().shared.car.tyre_wears[2],
+                        &crate::race::owner::race().shared.car.tyre_wears[2],
                     );
                 },
             },
@@ -1670,11 +1670,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_33(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).slip_wear_factor_b,
-                        &dm(a[0]).tyre_wear_rate_b,
+                        &dm(a[0]).rear_slip_wear_factor,
+                        &dm(a[0]).rear_tyre_wear_rate,
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car.part_hit_damage[3],
-                        &crate::race::owner::race().shared.car.part_hit_damage[3],
+                        &crate::race::owner::race().shared.car.tyre_wears[3],
+                        &crate::race::owner::race().shared.car.tyre_wears[3],
                     );
                 },
             },

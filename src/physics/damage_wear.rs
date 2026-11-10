@@ -173,18 +173,20 @@ pub fn steps(race: &Race) {
         &race.physics.damage.drive_a_slip_share,
         &race.physics.damage.lerp_tables[3],
         &race.physics.damage.gauge_low,
-        &race.physics.damage.slip_wear_factor_a,
+        &race.physics.damage.front_slip_wear_factor,
     );
     table_lerp(
         &race.physics.damage.drive_b_slip_share,
         &race.physics.damage.lerp_tables[3],
         &race.physics.damage.gauge_low,
-        &race.physics.damage.slip_wear_factor_b,
+        &race.physics.damage.rear_slip_wear_factor,
     );
     hit_figures(&race.physics.damage);
-    // 0x4AC7C9: two figures of the table `dword_75B73C` (row `dword_75B3E8`, columns
-    // from `dword_75B8C0` by `dword_75B3EC` & 0xF, then from `dword_75B8C4` by that
-    // column, as the original), blended by `dword_75B3F0`, x `flt_75B8BC`.
+    // 0x4AC7C9: two figures of the table `dword_75B73C` (row `dword_75B3E8`), blended by
+    // `dword_75B3F0`, x `flt_75B8BC`. Their columns are the surface's pair (8 bytes a
+    // surface from `dword_75B8C0`: the first column, then the second). The original reads
+    // the second at the first column's pair instead of the surface's (fixed: see
+    // wiki/Fixed-bugs.md); its weight, `surface_blend`, is 0 on every shipped stage.
     let row = race.physics.damage.tyre_kind.bits() << 6;
     // The original runs on through the store, whatever the columns hold.
     let at = |field: usize, n: u32| (field as u32).wrapping_add(n);
@@ -193,15 +195,10 @@ pub fn steps(race: &Race) {
             .unwrap_or_else(|e| crate::fatal::raise::end("a car block's field", e))
     };
     let wear = offset_of!(DamageModel, wear_table);
-    let column = read(at(
-        offset_of!(DamageModel, wear_first_columns),
-        (race.physics.damage.surface.bits() & 0xF).wrapping_mul(8),
-    ));
+    let pair = (race.physics.damage.surface.bits() & 0xF).wrapping_mul(8);
+    let column = read(at(offset_of!(DamageModel, wear_first_columns), pair));
     let first = read(at(wear, row.wrapping_add(column.wrapping_mul(4))));
-    let column = read(at(
-        offset_of!(DamageModel, wear_second_columns),
-        column.wrapping_mul(8),
-    ));
+    let column = read(at(offset_of!(DamageModel, wear_second_columns), pair));
     let second = read(at(wear, row.wrapping_add(column.wrapping_mul(4))));
     blend_wear_figures(first, &race.physics.damage, second);
 }

@@ -77,7 +77,7 @@ pub fn tab(race: &Race, ui: &Ui) {
         6,
         "Setting 0",
         &words[0],
-        "only `listener_figures[0]`, which nothing reads: no change",
+        "the lens flare: `listener_figures[0]` gates and fades `draw_lens_flare`",
     );
     ui.text("7: See-through windows: none, the viewed car, all cars");
     for (name, value) in [("0", 0), ("1", 1), ("2", 2)] {

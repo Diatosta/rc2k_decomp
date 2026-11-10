@@ -22,13 +22,8 @@ pub fn sound_hit_parts(race: &Race) -> Result<(), Refused> {
     }) {
         return Ok(());
     }
-    hit_tests(
-        race,
-        &SOUND_TESTS,
-        &shared.car.part_hit_damage,
-        &mut |bit| {
-            { sound_on_bit(race, bit & 0xFF) }?;
-            Ok(())
-        },
-    )
+    hit_tests(race, &SOUND_TESTS, &shared.car.tyre_wears, &mut |bit| {
+        { sound_on_bit(race, bit & 0xFF) }?;
+        Ok(())
+    })
 }

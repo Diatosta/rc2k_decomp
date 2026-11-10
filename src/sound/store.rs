@@ -806,7 +806,7 @@ pub struct SpotPicks {
     pub kind_sounds: [Dword; 22],
     /// `g_spotKindRepeats` (`unk_517FAC`): a kind's repeats, 8 bytes, kind 1 first.
     pub kind_repeats: [KindRepeats; 21],
-    /// `dword_518054`: cleared at a race's start (`race::reset_race_sounds`); the only code that touches it; no ported code reads it (the original's 0x40EC85 did).
+    /// `dword_518054`: the original cleared it at a race's start (`race::reset_race_sounds`); no ported code reads or writes it (the original's 0x40EC85 read it).
     pub spot_work_a: Dword,
     /// `dword_518058`: read by the original at 0x40EC8E; no ported code reads or writes it (0 in the image).
     pub spot_work_b: Dword,

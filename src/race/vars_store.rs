@@ -80,7 +80,7 @@ pub struct RaceVars {
     pub unknown_2b8: Dword,
     /// +0x2bc (0x6238A4): `settings.kept`: the screen split / players (`race::frame`, `hud::overlay_pass`, the gear choice).
     pub split: Dword,
-    /// +0x2c0 (0x6238A8): the graphics options (`settings.lens_flare`, `reflections`, `car_shadows`, `car_detail`, `headlights`; the ini keys `[shaunlensflare]`, `[shaunreflections]`, `[shauncarshadow]`, `[shauncardetail]`, `[shaunheadlights]`): [0] only feeds `listener_figures[0]`, [1] the faces' shine, [2] car shadows, [3] see-through windows 0 / 1 / 2 (none, the viewed car, all cars), [4] all cars' lamps light objects.
+    /// +0x2c0 (0x6238A8): the graphics options (`settings.lens_flare`, `reflections`, `car_shadows`, `car_detail`, `headlights`; the ini keys `[shaunlensflare]`, `[shaunreflections]`, `[shauncarshadow]`, `[shauncardetail]`, `[shaunheadlights]`): [0] the lens flare (through `listener_figures[0]`, which gates and fades `effects::draw_lens_flare`), [1] the faces' shine, [2] car shadows, [3] see-through windows 0 / 1 / 2 (none, the viewed car, all cars), [4] all cars' lamps light objects.
     pub settings_words: [Dword; 5],
     /// +0x2d4 (0x6238BC): `g_rivals` (`settings.rivals`: the standings summary's block id).
     pub rivals: Dword,

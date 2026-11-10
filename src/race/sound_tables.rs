@@ -33,17 +33,11 @@ pub fn sound_span(first: &Dword, second: &Dword, span: &Dword) {
     span.set(span_plain(second.get(), first.get()));
 }
 
-/// `race::sound_row` (0x40D731), converted: a set `row`: +4, +8, +0xC made floats, spans at +0x10
-/// and +0x1C.
+/// `race::sound_row` (0x40D731), converted: a set `row`'s spans at +0x10 and +0x1C. The original
+/// also made +4, +8 and +0xC floats: 0 in every set of the image and read by no sound code, so
+/// they are left alone.
 // Converted: `rc2k_core::race::sound_tables::{whole_to_float, span}`.
 pub fn sound_row(row: &SoundSet) {
-    for cell in [
-        &row.unused_float_04,
-        &row.unused_float_08,
-        &row.unused_float_0c,
-    ] {
-        whole_to_float(cell);
-    }
     sound_span(&row.pitch_low, &row.pitch_high, &row.pitch_scale);
     sound_span(&row.volume_low, &row.volume_high, &row.volume_scale);
 }

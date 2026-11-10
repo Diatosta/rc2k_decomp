@@ -1,7 +1,7 @@
 //! The work car's step of motion in floats (converted 2026-10-21 from `physics::sum_forces`
 //! 0x43BBCB, `move_car` 0x43CCB0, `spin_wheels` 0x43CD1A, `air_drag` 0x43F2DA,
-//! `hold_spin_on_ground` 0x43BAA4, `blend_wheel_load` 0x440F70, `note_time_mark`
-//! 0x440C38, `lowest_body_point` 0x45D6DB, `count_down_timers` 0x43D4B5,
+//! `hold_spin_on_ground` 0x43BAA4, `blend_wheel_load` 0x440F70,
+//! `lowest_body_point` 0x45D6DB, `count_down_timers` 0x43D4B5,
 //! `count_stop_timers` 0x436978, `store_motion_length` 0x43BD2D; `update_car_angles`'
 //! switch 0x43BEDC). What most of
 //! the figures are is a reading (the hooks' headers say which).
@@ -144,22 +144,6 @@ pub fn blend_load(b: &LoadBlend, slots: &mut [f32; 8]) -> Option<(u32, f32)> {
     let a = slots[slot as usize] as f64;
     slots[slot as usize] = ((1.0 - a) * share as f64 + a) as f32;
     Some((slot, share))
-}
-
-/// `physics::note_time_mark`: when the figure is not below the limit (60; nor no number)
-/// and no mark is kept (`mark`, asked then): the count less the start (`count`, asked
-/// then; the mark, and the original's eax).
-pub fn time_mark(
-    figure: f32,
-    limit: f32,
-    mark: impl FnOnce() -> u32,
-    count: impl FnOnce() -> (u32, u32),
-) -> Option<u32> {
-    if below(figure as f64, limit as f64) || mark() != 0 {
-        return None;
-    }
-    let (count, start) = count();
-    Some(count.wrapping_sub(start))
 }
 
 /// `physics::lowest_body_point`: with more than four probe points, the deepest of the
@@ -356,11 +340,6 @@ mod tests {
             ),
             None
         );
-        let count = || (100, 40);
-        assert_eq!(time_mark(60.0, 60.0, || 0, count), Some(60));
-        assert_eq!(time_mark(59.0, 60.0, || 0, count), None);
-        assert_eq!(time_mark(f32::NAN, 60.0, || 0, count), None);
-        assert_eq!(time_mark(61.0, 60.0, || 3, count), None);
     }
 
     #[test]

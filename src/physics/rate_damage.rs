@@ -225,8 +225,8 @@ pub fn rate_damage(race: &Race) {
         out.set_bits(ramp(x.bits(), table_of(t), d.gauge_low.bits()));
     }
     for (out, x) in [
-        (&c.drive_efficiency[0], &d.tyre_wear_mean_a),
-        (&c.drive_efficiency[1], &d.tyre_wear_mean_b),
+        (&c.drive_efficiency[0], &d.front_tyre_wear),
+        (&c.drive_efficiency[1], &d.rear_tyre_wear),
     ] {
         d.brake_balance_complement.set_bits(ramp(
             x.bits(),

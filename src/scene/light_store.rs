@@ -51,11 +51,11 @@ pub struct LightState {
     pub fog_table_length: Dword,
     /// +0x1098 (0x637620): `dword_637620` .. `dword_637634`: the four corners, then the x blends, of the noise map: `race::sample_noise`'s own steps, read by nothing else; no longer written (`rc2k_core::race::view::sample_noise` returns the value).
     pub noise_samples: [Dword; 6],
-    /// +0x10b0 (0x637638): `dword_637638`: the camera shake's first component, added to view A's / view B's camera offset (`physics::take_first_view`, `physics::take_second_view`). `physics::camera_frame` only ever sets it to 0 (the shake is all in `camera_shake_y`). Probably x.
+    /// +0x10b0 (0x637638): `dword_637638`: the camera shake's first component, added to view A's / view B's camera offset (`physics::take_first_view`, `physics::take_second_view`). Never written (0 from the image, nothing stores to it; the original's `physics::camera_frame` cleared it each call): the shake is all in `camera_shake_y`. Probably x.
     pub camera_shake_x: Dword,
     /// +0x10b4 (0x63763C): `dword_63763C`: the camera shake's second component: the car's bump value (`unknown_90c`) times the physics table's scale, held within plus / minus its limit, 0 when the car stands still; added to the camera offsets. Probably y, the vertical (`physics::camera_frame`).
     pub camera_shake_y: Dword,
-    /// +0x10b8 (0x637640): `dword_637640`: the camera shake's third component; only ever 0 (`physics::camera_frame`), added to the camera offsets. Probably z.
+    /// +0x10b8 (0x637640): `dword_637640`: the camera shake's third component; never written (0 from the image; the original's `physics::camera_frame` cleared it each call), added to the camera offsets. Probably z.
     pub camera_shake_z: Dword,
     /// +0x10bc (0x637644): `flt_637644`: the shake's strength for the sound: a random number / 65536 / 4096 times 3 times `camera_shake_y`; 0 outside the shaking camera modes. Read by `drive::set_listener`: added to the steering angle / 0x20000000 to make `listener_scale` (`physics::camera_frame`).
     pub camera_shake_listener: Float,

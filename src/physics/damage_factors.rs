@@ -418,6 +418,14 @@ fn square_dive(m: &DamageModel) {
 /// `[m + 0x35B3D4] = ([m + 0x35B3D4] * [m + 0x35B360]) + [m + 0x35B36C]`
 /// `[m + 0x35B3D8] = ([m + 0x35B3D8] * [m + 0x35B360]) + [m + 0x35B36C]`
 fn blend_wheel_loads(m: &DamageModel) {
+    // No wheel just landed (the usual step): the four loads are +0.0, so the sum, the mean
+    // (`quarter` 0.25) and the half-mean (`half` 0.5, both constants of the model) are +0.0 in
+    // every rounding mode, and each load is +0.0 x 0.5 + +0.0 = +0.0: set the results at once.
+    if m.wheel_loads.iter().all(|load| load.bits() == 0) {
+        m.wheel_load_mean.set_bits(0);
+        m.scratch.set_bits(0);
+        return;
+    }
     let t0 = ld(m.wheel_loads[0].bits());
     let t1 = ld(m.wheel_loads[1].bits());
     let t2 = t0 + t1;

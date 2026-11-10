@@ -32,8 +32,12 @@ pub struct RaceTables {
     pub start_blend_step: Float,
     /// +0x888 (0x604EC4): `flt_604EC4`: scale of the push apart of the pace cars (`drive::start_cars_behind`).
     pub pace_push_scale: Float,
-    /// +0x88c (0x604EC8): the first of the cars by place (probably the car at place 0), also read by `drive::drive_computer_car` as the target `int_toward_to_int` eases the wanted speed toward: the original uses the array's first element as a scalar, a likely slip. Cars by place (`dword_604EC8[]`, continued by `arcade_car_kinds`; `race::panel_neighbours`).
-    pub first_car_by_place: Dword,
+    /// +0x88c (0x604EC8): `g_carByPlace`'s first word, the float 30.0, never written: the speed
+    /// `drive::drive_computer_car` eases the computer's wanted speed toward (`int_toward_to_int`).
+    /// It is also slot 0 of the cars-by-place table that runs on into `arcade_car_kinds`
+    /// (`race::panel_neighbours` reads `[place]` and `[place + 1]`): only a place of 0 would read
+    /// the 30.0 as a car (refused there).
+    pub computer_ease_speed: Dword,
     /// +0x890 (0x604ECC): `dword_604ECC`: each car's type 1 .. 3, 89 rooms; also the cars by start (`race::set_up_mode_2_cars`, `drive::start_cars_behind`, `race::panel_neighbours`).
     pub arcade_car_kinds: [Dword; 89],
     /// +0x9f4 (0x605030): `dword_605030`: read as the number at place -1 by `race::panel_neighbours`; `arcade_car_numbers` follows it.

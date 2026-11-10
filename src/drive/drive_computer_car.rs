@@ -211,7 +211,7 @@ pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
     if driver::eased(want) {
         race.shared.work.driver_wanted_speed.set(int_toward_to_int(
             want as i32,
-            race.shared.tables.first_car_by_place.get(),
+            race.shared.tables.computer_ease_speed.get(),
             race.shared.work.driver_start_blend.bits(),
         ) as u32);
     }

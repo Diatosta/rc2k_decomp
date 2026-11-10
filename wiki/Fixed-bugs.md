@@ -575,3 +575,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read in `race::eax_environment` (0x45C7EE) and the frame's views; found 2026-11-10 while drawing the views on several threads.
 
 **Fix:** the reverb comes from the first player's main view only.
+
+## Tyre wear on snow, ice, water, dust and grass taken from the wrong surface
+
+**What it is:** the tyres' life comes from a table of figures per tyre type and surface. Each surface has two figure columns, blended by how much of a "surface noise" the ground has there. The game picks the first column by the surface, but looks the second one up as if the first column's number were a surface. Tarmac, gravel, mud and rough ground come out right by chance; on snow, water, ice, thick snow and snow gravel the second figure is the one for dust and grass (half the tyre life), and on dust and grass it is the snow one (double).
+
+**In game:** nothing. The blend comes from each stage's surface noise, and every stage of the game has its noise scale and floor at 0, so the second column always has no weight. It would only show on a stage made with surface noise.
+
+**Seen or read:** read in `physics::damage_wear` (0x4AC7C9: `dword_75B8C4[column * 8]`); checked 2026-11-10 with a build that worked out both figures on six rallies' stages (the blend was 0 everywhere) and by reading every stage's LOCALDAT.
+
+**Fix:** both columns are taken from the surface's own pair.

@@ -340,13 +340,18 @@ pub fn wake_part_sounds(race: &Race) -> Result<(), Refused> {
         let b: u32 = shared.work.car_block(car as usize);
         let object = crate::sound::store::SoundObject::number(car & 7)?;
         let mut wake = false;
+        if b == 0 {
+            return Err(BadInput("a null car block").into());
+        }
+        let block = car_at(b)?;
+        // Every flag set: each slot is `Left` whatever its count, nothing to plan (the flags only
+        // go 0 -> 1, `part_woken` has no other writer).
+        if block.part_woken.iter().all(|flag| flag.get() != 0) {
+            continue;
+        }
         for slot in 0..6usize {
-            if b == 0 {
-                return Err(BadInput("a null car block").into());
-            }
             // Converted: `rc2k_core::race::lights::part_wake`.
             use rc2k_core::race::lights::{PartWake, part_wake};
-            let block = car_at(b)?;
             let count = block.part_wake_counts[slot].get();
             let part = part_wake(block.part_woken[slot].get(), count);
             if part == PartWake::Left {
@@ -393,9 +398,9 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
     }
     let a = car_view(shared.view.view_block(0))?;
     let place = a.mode2_place.get();
-    // The place indexes unchecked, as the original does: `RACE_TABLES.first_car_by_place[]`, the car at
-    // each place, is `first_car_by_place` run on into `arcade_car_kinds`; the numbers'
-    // `number_before_first` is the entry at place -1.
+    // The place indexes unchecked, as the original does: the cars by place start at
+    // `computer_ease_speed` (slot 0, the float 30.0) and run on into `arcade_car_kinds`; the
+    // numbers' `number_before_first` is the entry at place -1.
     let on = |first: &Dword, n: u32| {
         crate::session::read_on_in(
             &shared.tables,
@@ -415,10 +420,10 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
         Ok(car_view(b)?)
     };
     let behind = block_of(on(
-        &shared.tables.first_car_by_place,
+        &shared.tables.computer_ease_speed,
         place.wrapping_add(1),
     )?)?;
-    let ahead = block_of(on(&shared.tables.first_car_by_place, place)?)?;
+    let ahead = block_of(on(&shared.tables.computer_ease_speed, place)?)?;
     frame.panel_and_overlay.panel.view_a.place.set(place);
     frame
         .panel_and_overlay
@@ -639,8 +644,8 @@ pub(super) fn check_panel_neighbours(shared: &Shared) -> Result<(), Refused> {
         return Ok(());
     }
     let place = car_view(shared.view.view_block(0))?.mode2_place.get();
-    // `RACE_TABLES.first_car_by_place[]` (see `panel_neighbours`) at the place and the one after.
-    let first = std::slice::from_ref(&shared.tables.first_car_by_place);
+    // The cars by place (from `computer_ease_speed`, see `panel_neighbours`) at the place and the one after.
+    let first = std::slice::from_ref(&shared.tables.computer_ease_speed);
     for n in [place, place.wrapping_add(1)] {
         let car = crate::session::read_on_in(&shared.tables, first, n as usize, "a place table")?;
         if car > 7 || shared.work.car_block(car as usize) == 0 {

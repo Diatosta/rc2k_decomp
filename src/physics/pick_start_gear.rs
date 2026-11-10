@@ -16,7 +16,6 @@
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_run::sub_mul_add;
-use crate::physics::copy_step_clock_to_mark::copy_step_clock_to_mark;
 use crate::physics::gear_store::GEAR;
 use crate::physics::gearbox::*;
 use crate::race::owner::Race;
@@ -26,7 +25,6 @@ use rc2k_core::physics::gear_shifts as shifts;
 // Converted: `rc2k_core::physics::gear_shifts::pick_start` (the engine's sums and compares
 // stay x87).
 pub fn pick_start_gear(race: &Race) -> Result<(), Refused> {
-    copy_step_clock_to_mark(&race.shared);
     race.shared.physics_tables.start_gear_figures[2].set(race.shared.car.engine_speed.bits());
     revs_speed(&race.shared)?;
     race.shared.physics_tables.start_gear_figures[1].set(0);

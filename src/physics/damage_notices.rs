@@ -47,7 +47,7 @@ fn gauge(shared: &Shared, mut k: usize) -> u32 {
         one(&shared.car.brake_wear_a),
         one(&shared.car.brake_wear_b),
         one(&shared.car.brake_damage),
-        &shared.car.part_hit_damage,
+        &shared.car.tyre_wears,
         one(&shared.car.tyre_wear),
     ];
     for group in groups {

@@ -260,10 +260,10 @@ const GAUGES: [(CarFloat, SettingWord); 43] = [
     (|c| &c.suspension_damage[3], |r| &r.wear[26]),
     (|c| &c.brake_wear_a, |r| &r.wear[28]),
     (|c| &c.brake_wear_b, |r| &r.wear[29]),
-    (|c| &c.part_hit_damage[0], |r| &r.wear[31]),
-    (|c| &c.part_hit_damage[1], |r| &r.wear[32]),
-    (|c| &c.part_hit_damage[2], |r| &r.wear[33]),
-    (|c| &c.part_hit_damage[3], |r| &r.wear[34]),
+    (|c| &c.tyre_wears[0], |r| &r.wear[31]),
+    (|c| &c.tyre_wears[1], |r| &r.wear[32]),
+    (|c| &c.tyre_wears[2], |r| &r.wear[33]),
+    (|c| &c.tyre_wears[3], |r| &r.wear[34]),
 ];
 
 /// The log names of the gauges in `GAUGES` (`[carN.name]`).

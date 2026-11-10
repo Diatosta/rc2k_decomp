@@ -199,11 +199,11 @@ pub struct WindscreenFlakeItem {
     pub texture_u: Float,
     /// +0x10: the flake's texture v offset: 0 (from the third constant of `tile_offset_k`), added to the four vertices' v.
     pub texture_v: Float,
-    /// +0x14: three dwords set to 0 at spawn and never read (padding in the item).
+    /// +0x14: three dwords, always 0 (the original set them at spawn; nothing read them, so they are no longer written).
     pub spare_14: [Dword; 3],
     /// +0x20, +0x24: its place (x, z) as floats.
     pub place: [Float; 2],
-    /// +0x28: five dwords set to 0 at spawn and never read (padding in the item).
+    /// +0x28: five dwords, always 0 (the original set them at spawn; nothing read them, so they are no longer written).
     pub spare_28: [Dword; 5],
 }
 

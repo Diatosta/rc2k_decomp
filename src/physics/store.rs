@@ -149,10 +149,10 @@ pub struct DamageModel {
     pub light_recover_chance_5: Float,
     /// `flt_75B43C`: 1 - `brake_balance_share`, the other axle's brake share: `brake_wear_b` rises by its rate times this. `physics::rate_damage` reuses the cell as the scratch of the drive-efficiency ramp.
     pub brake_balance_complement: Float,
-    /// `flt_75B440`: the mean of tyre gauges 0 and 1 (`part_hit_damage`, probably the tyres, as their rate depends on the tyre kind and surface): the input of the drive-efficiency ramp for drive speed A, 0 ..= 100.
-    pub tyre_wear_mean_a: Float,
-    /// `flt_75B444`: the mean of tyre gauges 2 and 3: as `tyre_wear_mean_a` for drive speed B.
-    pub tyre_wear_mean_b: Float,
+    /// `flt_75B440`: the front tyres' wear, the mean of `tyre_wears` 0 and 1 (FL, FR; "Front tyres" on the developers' wear page): the input of the drive-efficiency ramp for drive speed A, 0 ..= 100.
+    pub front_tyre_wear: Float,
+    /// `flt_75B444`: the rear tyres' wear, the mean of `tyre_wears` 2 and 3 (RL, RR; "Rear tyres"): as `front_tyre_wear` for drive speed B.
+    pub rear_tyre_wear: Float,
     /// `flt_75B448`: the stiffness mean through `lerp_tables_b[0]`, squared: scales the suspension's roughness wear (`suspension_roughness_wear`).
     pub stiffness_suspension_factor: Float,
     /// `flt_75B44C`: the stiffness mean through `lerp_tables_b[2]`, squared: scales the body roughness wear.
@@ -171,19 +171,19 @@ pub struct DamageModel {
     pub overheat_excess: Float,
     /// `flt_75B468`: the ride-height mean through `lerp_tables_b[1]`, squared: scales the body roughness wear.
     pub ride_height_body_factor: Float,
-    /// `flt_75B46C`: the drive-A slip share through `lerp_tables[3]`: how much slip adds to tyre gauges 0 and 1.
-    pub slip_wear_factor_a: Float,
+    /// `flt_75B46C`: the drive-A slip share through `lerp_tables[3]`: how much slip adds to the front tyres' wear.
+    pub front_slip_wear_factor: Float,
     /// `flt_75B470`: the drive-B slip share through `lerp_tables[3]`: the same for tyre gauges 2 and 3.
-    pub slip_wear_factor_b: Float,
+    pub rear_slip_wear_factor: Float,
     /// `flt_75B474` ..: the four wheels' table lerps of the suspension damage
     /// (`physics::damage_factors`).
     pub wheel_stiffness_lerp: [Float; 4],
     /// `flt_75B484`: The tyre durability on this ground: the two columns of `wear_table` (whole numbers, e.g. 100, 20, 60, 5) blended by `surface_blend`, times `wear_figure_scale`; the tyre wear rates divide by it, so a bigger figure wears slower.
     pub wear_figure: Float,
-    /// `flt_75B488`: the speed share over (`wear_figure` times `metres_per_mile`) times `gauge_top` times `wheels_down`, times the kind table A entry: the speed part of tyre gauges 0 and 1's wear rate.
-    pub tyre_wear_rate_a: Float,
-    /// `flt_75B48C`: as `tyre_wear_rate_a`, times the kind table B entry: the speed part of tyre gauges 2 and 3's wear rate.
-    pub tyre_wear_rate_b: Float,
+    /// `flt_75B488`: the speed share over (`wear_figure` times `metres_per_mile`) times `gauge_top` times `wheels_down`, times the kind table A entry: the speed part of the front tyres' wear rate.
+    pub front_tyre_wear_rate: Float,
+    /// `flt_75B48C`: as `front_tyre_wear_rate`, times the kind table B entry: the speed part of the rear tyres' wear rate.
+    pub rear_tyre_wear_rate: Float,
     /// `flt_75B490`: the chance gear changes are blocked this step (ramp of `clutch_damage`, table 7; sets `gear_change_blocked`).
     pub clutch_block_chance: Float,
     /// `flt_75B494`: the chance gear changes are blocked (ramp of `gearbox_damage`, table 8; sets `gear_change_blocked`).
@@ -225,9 +225,12 @@ pub struct DamageModel {
     pub wear_table: [Float; 96],
     /// `flt_75B8BC`: 2.5: `wear_figure` is the blended table figure times it.
     pub wear_figure_scale: Float,
-    /// `dword_75B8C0`: Start of the table of wear-table column numbers by surface kind (8 bytes a surface; the first dword, for surface 0, is 0, the rest sit in `_gap_75b8c8`); the original indexes it past this field.
+    /// `dword_75B8C0`: the wear table's columns by surface kind, a pair of dwords a surface
+    /// (first column, second column; the rest of the pairs sit in `_gap_75b8c8`): here the
+    /// first of surface 0's pair; `physics::damage_wear` reads past it.
     pub wear_first_columns: Dword,
-    /// `dword_75B8C4`: Start of the table the second column is read from, indexed by the first column (8 bytes an entry; its entries sit in `_gap_75b8c8`: the partner column of the pair, e.g. 1 / 2, 3 / 4): the original indexes it by the first column and not by the surface, probably a slip.
+    /// `dword_75B8C4`: the second of surface 0's column pair (the original read the second
+    /// column at the first column's pair, not the surface's: fixed in `physics::damage_wear`).
     pub wear_second_columns: Dword,
     /// Unreferenced bytes (IDA 0X75B8C8 .. 0X75B940).
     pub _gap_75b8c8: Bytes<120>,
@@ -298,8 +301,8 @@ impl DamageModel {
             light_recover_chance_4: Float::from_bits(0),
             light_recover_chance_5: Float::from_bits(0),
             brake_balance_complement: Float::from_bits(0),
-            tyre_wear_mean_a: Float::from_bits(0),
-            tyre_wear_mean_b: Float::from_bits(0),
+            front_tyre_wear: Float::from_bits(0),
+            rear_tyre_wear: Float::from_bits(0),
             stiffness_suspension_factor: Float::from_bits(0),
             stiffness_body_factor: Float::from_bits(0),
             roughness_wear_base: Float::from_bits(0),
@@ -309,12 +312,12 @@ impl DamageModel {
             cooling_capacity: Float::from_bits(0),
             overheat_excess: Float::from_bits(0),
             ride_height_body_factor: Float::from_bits(0),
-            slip_wear_factor_a: Float::from_bits(0),
-            slip_wear_factor_b: Float::from_bits(0),
+            front_slip_wear_factor: Float::from_bits(0),
+            rear_slip_wear_factor: Float::from_bits(0),
             wheel_stiffness_lerp: [const { Float::from_bits(0) }; 4],
             wear_figure: Float::from_bits(0),
-            tyre_wear_rate_a: Float::from_bits(0),
-            tyre_wear_rate_b: Float::from_bits(0),
+            front_tyre_wear_rate: Float::from_bits(0),
+            rear_tyre_wear_rate: Float::from_bits(0),
             clutch_block_chance: Float::from_bits(0),
             gearbox_block_chance: Float::from_bits(0),
             gearbox_neutral_chance: Float::from_bits(0),

@@ -914,8 +914,8 @@ impl CueLists {
 pub struct SoundSet {
     /// +0: the sound's number, added to the object's `sound_offset`.
     pub sound: Dword,
-    /// +4: a float made from a whole number by `race::sound_tables::sound_row` and read by no
-    /// sound code; 0 in every set of the shipped data (a spare word, probably an input range's start).
+    /// +4: the original's `race::sound_tables::sound_row` made it a float; read by no
+    /// sound code and 0 in every set of the shipped data, so no longer converted (a spare word, probably an input range's start).
     pub unused_float_04: Dword,
     /// +8: as +4 (probably the range's end).
     pub unused_float_08: Dword,

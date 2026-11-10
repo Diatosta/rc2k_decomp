@@ -250,8 +250,9 @@ pub struct Car {
     pub brake_wear_b: Float,
     /// +0x350 (0x71A328): brake damage gauge (handbrake failure ramp).
     pub brake_damage: Float,
-    /// +0x354 (0x71A32C): four loose body parts' hit gauges.
-    pub part_hit_damage: [Float; 4],
+    /// +0x354 (0x71A32C): the four tyres' wear, FL, FR, RL, RR, 0 ..= 100 (the developers' wear
+    /// page's "tyre1" .. "tyre4"); `tyre_wear` is their overall figure.
+    pub tyre_wears: [Float; 4],
     /// +0x364 (0x71A33C): tyre wear gauge.
     pub tyre_wear: Float,
     /// +0x368 (0x71A340): warning levels 0 .. 4, one per gauge group.

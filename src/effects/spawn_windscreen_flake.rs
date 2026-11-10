@@ -2,7 +2,7 @@
 //! cursor `dword_89D166` on (wrapping at 0x800), the first free one (+0 0) gets +0 1, its
 //! place (eax, ebx as floats at +0x20, +0x24), its size from its kind (ecx & 7, times
 //! `flt_8BC23A` plus `flt_8BC23E`, +0xC), `flt_8BC242` at +0x10, the clock (`g_sceneClock`,
-//! +4), +8 0 and the rest 0; the cursor the item after it. With none free, the cursor
+//! +4), +8 0 (the spare dwords are always 0 and not written); the cursor the item after it. With none free, the cursor
 //! moves on 32.
 //!
 //! Takes: x, z, the kind
@@ -58,9 +58,6 @@ pub fn spawn_windscreen_flake(
                 ));
                 e.texture_v
                     .set_bits(x87::loaded(fl.state.tile_offset_k[2].bits()));
-                for d in e.spare_28.iter().chain(&e.spare_14) {
-                    d.set(0);
-                }
                 e.born.set(shared.physics_tables.scene_clock.bits());
                 e.age.set(0);
                 step(&mut at);

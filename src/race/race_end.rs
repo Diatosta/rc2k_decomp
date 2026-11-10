@@ -157,7 +157,6 @@ pub fn reset_race_sounds(v: &SoundVars, sound: &crate::sound::owner::Sound) -> R
         voice[5].set(0xFFFF_FFFE);
     }
     sound.race.stage.shared_count.set(0);
-    sound.race.spot_picks.spot_work_a.set(0);
     crate::audio::store::ENVIRONMENT.set(0x3F80_0000u32);
     command(2, 3);
     sound.race.clock.started.set(0);

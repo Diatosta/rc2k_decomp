@@ -228,7 +228,7 @@ pub fn tyre_change(
         let bits = car.parts_present.get();
         car.parts_present.set(bits | 1 << bit);
         if bits & 1 << bit == 0 {
-            car.part_hit_damage[bit - 1].set_bits(0);
+            car.tyre_wears[bit - 1].set_bits(0);
         }
     }
     Ok(())

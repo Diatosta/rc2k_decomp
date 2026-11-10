@@ -12,7 +12,8 @@
 //! both surfaces 5 (wet, by the look) and the bytes 0x3C, 0. Then each figure blended
 //! between the two surface records (`off_613978`, 0x30 each): grip, two more, the record's
 //! scaled tables by `g_car` +0x2C and +0x280, into `flt_6142C0`, +0x948, `flt_614284`,
-//! `flt_614298`, `flt_6142AC`, `flt_6146C0` .. [c].
+//! `flt_614298`, `flt_6142AC`, `flt_6146C0` .. [c] (the last four, `flt_6146C0` ..,
+//! only for the centre point, the only one read).
 //!
 //! After the five: `flt_614268` = (the first four `flt_614284`) x `flt_613FEC`; the count
 //! of points on hard surfaces (1, 2, 3, 0xC) into +0x258 (`dword_614150` ..); +0x60 the
@@ -163,7 +164,11 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
                 &race.shared.physics_tables.surface_tables[pd..],
                 k as usize,
             );
-            x87_5(race, esi, edi, cc);
+            x87_5_grips(race, esi, edi, cc);
+            // Only the centre point's (4) drag, minimum speed and mud blends are read (`x87_7`).
+            if cc == 4 {
+                x87_5_blends(race, esi, edi, cc);
+            }
         }
     }
     x87_6(race);
@@ -303,7 +308,14 @@ fn x87_4(race: &Race, s: &[Dword], d: &[Dword], k: usize) {
 /// `[rc + c * 4 + 0x2146D4] = [s + 0x24] + (([d + 0x24] - [s + 0x24]) * [rc + c * 4 + 0x31A984])`
 /// `[rc + c * 4 + 0x2146E8] = [s + 0x14] + (([d + 0x14] - [s + 0x14]) * [rc + c * 4 + 0x31A984])`
 /// `[rc + c * 4 + 0x2146FC] = [s + 0x10] + (([d + 0x10] - [s + 0x10]) * [rc + c * 4 + 0x31A984])`
+#[cfg(all(test, target_arch = "x86"))]
 fn x87_5(race: &Race, s: &Surface, d: &Surface, c: usize) {
+    x87_5_grips(race, s, d, c);
+    x87_5_blends(race, s, d, c);
+}
+
+/// `x87_5`'s first three blends (the point's three grip figures), needed for every point.
+fn x87_5_grips(race: &Race, s: &Surface, d: &Surface, c: usize) {
     let t0 = ld(s.slide_grip.bits());
     let t1 = ld(race.shared.physics_tables.surface_scales[0].bits());
     let t2 = t0 * t1;
@@ -343,6 +355,11 @@ fn x87_5(race: &Race, s: &Surface, d: &Surface, c: usize) {
     let t34 = ld(race.shared.physics_tables.spec_surface[1].bits());
     let t35 = t33 * t34;
     race.shared.physics_tables.wheel_grips_b[c].set_bits(st(t35));
+}
+
+/// `x87_5`'s last four blends (`surface_blends`: drag, minimum speed, two mud rates), read only
+/// for the centre point (4) by `x87_7`; the other points' are not computed.
+fn x87_5_blends(race: &Race, s: &Surface, d: &Surface, c: usize) {
     let t36 = ld(s.drag.bits());
     let t37 = ld(d.drag.bits());
     let t38 = t37 - t36;

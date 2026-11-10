@@ -290,7 +290,7 @@ pub struct PhysicsTables {
     pub unknown_8b8: Dword,
     /// +0x8bc (0x6140E4): the two lever pushes (`physics::lever_push`).
     pub lever_pushes: [Dword; 2],
-    /// +0x8c4 (0x6140EC): the time marks noted (`physics::note_time_mark`).
+    /// +0x8c4 (0x6140EC): the time marks the original's `physics::note_time_mark` / `copy_step_clock_to_mark` kept; read by nothing, no longer written.
     pub time_marks: [Dword; 2],
     /// +0x8cc (0x6140F4): `physics::add_drive_forces`'.
     pub drive_force_scale: Float,
