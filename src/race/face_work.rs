@@ -14,6 +14,8 @@
 use crate::session::Dword;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct FaceWork {
     /// The face's halves turned to the view (`race::course_faces`).
     pub turned: [Dword; 2],

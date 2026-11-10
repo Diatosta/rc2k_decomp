@@ -18,6 +18,7 @@ use crate::race::matrices_store::SceneMatrices;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ViewMatrices {
     /// The model last set up for drawing (`scene::load_object`, `race::car_draw`).
     pub known_object: Dword,

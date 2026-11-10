@@ -1,7 +1,9 @@
 //! A view's own working state (frame plan F4, `notes/frame_plan.md`): what a view's drawing
 //! writes and reads within itself, one `ViewScratch` per view slot (each player's view and
-//! each one's mirror), kept from frame to frame, passed down the drawing in a `DrawCtx`
-//! rather than reached through statics. Never read by another step.
+//! each one's mirror), set back to its first values as each race view's scene begins
+//! (`ViewScratch::begin`; the front end's slot keeps its values between the menus' draws),
+//! passed down the drawing in a `DrawCtx` rather than reached through statics. Never read by
+//! another step.
 //!
 //! Holds so far the two sort lists the view's drawing fills, sorts and draws (the original's
 //! `g_depthEntries` / `g_sortEntries` at 0x9D3730 in the buffers block, one for every view)
@@ -119,6 +121,24 @@ impl ViewScratch {
         }
     }
 
+    /// Every part but the sort lists (their counts are set at each view's start,
+    /// `race::reset_lamps`) set back to its first values: a race view's drawing starts from
+    /// nothing a frame or another view before it left (frame plan F7; with the parts reset at
+    /// every race view, held races draw and sound the same as when each kept its last).
+    pub fn begin(&self) {
+        use crate::pointers::Cells;
+        self.fog.copy_from(&FRESH.fog);
+        self.object.copy_from(&FRESH.object);
+        self.light.copy_from(&FRESH.light);
+        self.face.copy_from(&FRESH.face);
+        self.cars.copy_from(&FRESH.cars);
+        self.matrices.copy_from(&FRESH.matrices);
+        self.polygon.copy_from(&FRESH.polygon);
+        self.grid.copy_from(&FRESH.grid);
+        self.course.copy_from(&FRESH.course);
+        self.quad.copy_from(&FRESH.quad);
+    }
+
     /// The slot's number (`slot`).
     pub fn number(&self) -> usize {
         SLOTS
@@ -133,6 +153,9 @@ impl ViewScratch {
 /// The view slots: the two players' views, then their mirrors, then the front end's 3D (the
 /// menus' objects and carousel).
 static SLOTS: [ViewScratch; SLOT_COUNT] = [const { ViewScratch::new() }; SLOT_COUNT];
+
+/// The slots' parts as they start (`ViewScratch::begin`).
+static FRESH: ViewScratch = ViewScratch::new();
 
 /// How many slots there are.
 pub const SLOT_COUNT: usize = 5;

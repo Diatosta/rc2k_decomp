@@ -9,6 +9,8 @@ use crate::race::course_store::CourseWork;
 use crate::race::level_grid_store::LevelGrid;
 use crate::session::{Bytes, Dword};
 
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ViewCourse {
     /// The four face tables (`byte_63DC5C` .. `byte_63DF5C`), each view's own: the depth flag
     /// of an object (a, b) and its kind byte (c, d).

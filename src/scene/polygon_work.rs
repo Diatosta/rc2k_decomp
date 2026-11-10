@@ -12,6 +12,8 @@
 
 use crate::session::{Dword, Float};
 
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PolygonWork {
     /// `g_polygonNextRecord`.
     pub polygon_next_record: Dword,

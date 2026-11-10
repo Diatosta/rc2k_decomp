@@ -15,6 +15,8 @@ use crate::race::owner_course::Course;
 use crate::session::Dword;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ViewGrid {
     /// The course records by cell (`g_courseGrid`), 0x0FFFFFFF where none; bit 31 a far
     /// cell's mark.

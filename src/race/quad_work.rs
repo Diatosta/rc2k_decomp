@@ -5,6 +5,8 @@
 
 use crate::session::Dword;
 
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct QuadWork {
     /// The quad's texture coordinates (`race::frame_flush`, `hud::draw_view_strip`).
     pub uv: [Dword; 8],

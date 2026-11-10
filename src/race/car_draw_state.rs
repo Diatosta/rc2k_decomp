@@ -10,6 +10,8 @@
 
 use crate::session::Dword;
 
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CarDrawState {
     /// The cars drawn this frame (`g_carsDrawn`).
     pub cars_drawn: Dword,
