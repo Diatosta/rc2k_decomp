@@ -1,5 +1,5 @@
 //! The cars listed for a device or sound slot (converted 2026-10-21 from the three
-//! twins `physics::set_flag_51659c` 0x45D151, `set_flag_5165a0` 0x45D16D and
+//! twins `physics::flag_current_car_listed` 0x45D151, `set_flag_5165a0` 0x45D16D and
 //! `set_flag_5165a4` 0x45D189): a flag set when the current car has an entry in
 //! `dword_641680` (eight, by car; -1 none). And the cues sent to a listed car's sound
 //! object (converted 2026-10-21 from `physics::cue_car_sound` 0x40ECE7,

@@ -1,7 +1,7 @@
 //! The camera's view steps under `physics::update_camera` (stream B, 2026-10-18): the mode record
 //! (`off_606320[mode]`, the mode `unk_71A65C` held to 0 ..= 0x33), the share of a
 //! change done (`unk_719FE0` - `unk_71A668` held to 0 ..= the record's +0x3C, over it,
-//! into `flt_605260`), and the tests' frame of `physics::take_view_a`, `take_view_b`,
+//! into `flt_605260`), and the tests' frame of `physics::take_first_view`, `take_second_view`,
 //! `ease_view_angles`, `ease_view_blend`, `camera_height_bias`, `ease_view_turn`,
 //! `place_camera`. The converted ones run `share_done_plain`, `record_plain` and
 //! `view_test_floats` (`rc2k_core::physics::camera_view`). What the variables are (the

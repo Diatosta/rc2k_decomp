@@ -45,92 +45,92 @@ fn ramps_a(race: &Race) -> [(&Float, &Float, &[Float; 4]); 2] {
 fn ramps_c(race: &Race) -> [(&Float, &Float, &[Float; 4]); 18] {
     [
         (
-            &race.physics.damage.flt_75b490,
+            &race.physics.damage.unknown_150,
             &race.shared.car.clutch_damage,
             &race.physics.damage.lerp_tables[7],
         ),
         (
-            &race.physics.damage.flt_75b494,
+            &race.physics.damage.unknown_154,
             &race.shared.car.gearbox_damage,
             &race.physics.damage.lerp_tables[8],
         ),
         (
-            &race.physics.damage.flt_75b498,
+            &race.physics.damage.unknown_158,
             &race.shared.car.gearbox_damage,
             &race.physics.damage.lerp_tables[9],
         ),
         (
-            &race.physics.damage.flt_75b49c,
+            &race.physics.damage.unknown_15c,
             &race.shared.car.brake_damage,
             &race.physics.damage.lerp_tables[10],
         ),
         (
-            &race.physics.damage.flt_75b404,
+            &race.physics.damage.unknown_c4,
             &race.shared.car.electrics_damage,
             &race.physics.damage.lerp_tables[11],
         ),
         (
-            &race.physics.damage.flt_75b408,
+            &race.physics.damage.unknown_c8,
             &race.shared.car.light_damage[0],
             &race.physics.damage.lerp_tables[11],
         ),
         (
-            &race.physics.damage.flt_75b40c,
+            &race.physics.damage.unknown_cc,
             &race.shared.car.light_damage[1],
             &race.physics.damage.lerp_tables[11],
         ),
         (
-            &race.physics.damage.flt_75b410,
+            &race.physics.damage.unknown_d0,
             &race.shared.car.light_damage[2],
             &race.physics.damage.lerp_tables[11],
         ),
         (
-            &race.physics.damage.flt_75b414,
+            &race.physics.damage.unknown_d4,
             &race.shared.car.light_damage[3],
             &race.physics.damage.lerp_tables[11],
         ),
         (
-            &race.physics.damage.flt_75b418,
+            &race.physics.damage.unknown_d8,
             &race.shared.car.light_damage[4],
             &race.physics.damage.lerp_tables[11],
         ),
         (
-            &race.physics.damage.flt_75b41c,
+            &race.physics.damage.unknown_dc,
             &race.shared.car.light_damage[5],
             &race.physics.damage.lerp_tables[11],
         ),
         (
-            &race.physics.damage.flt_75b420,
+            &race.physics.damage.unknown_e0,
             &race.shared.car.electrics_damage,
             &race.physics.damage.lerp_tables[11],
         ),
         (
-            &race.physics.damage.flt_75b424,
+            &race.physics.damage.unknown_e4,
             &race.shared.car.light_damage[0],
             &race.physics.damage.lerp_tables[12],
         ),
         (
-            &race.physics.damage.flt_75b428,
+            &race.physics.damage.unknown_e8,
             &race.shared.car.light_damage[1],
             &race.physics.damage.lerp_tables[12],
         ),
         (
-            &race.physics.damage.flt_75b42c,
+            &race.physics.damage.unknown_ec,
             &race.shared.car.light_damage[2],
             &race.physics.damage.lerp_tables[12],
         ),
         (
-            &race.physics.damage.flt_75b430,
+            &race.physics.damage.unknown_f0,
             &race.shared.car.light_damage[3],
             &race.physics.damage.lerp_tables[12],
         ),
         (
-            &race.physics.damage.flt_75b434,
+            &race.physics.damage.unknown_f4,
             &race.shared.car.light_damage[4],
             &race.physics.damage.lerp_tables[12],
         ),
         (
-            &race.physics.damage.flt_75b438,
+            &race.physics.damage.unknown_f8,
             &race.shared.car.light_damage[5],
             &race.physics.damage.lerp_tables[12],
         ),
@@ -141,44 +141,44 @@ fn failures(race: &Race) -> [(&Dword, &Float, &Float, u32); 7] {
     [
         (
             &race.shared.car.electrical_failures[0],
-            &race.physics.damage.flt_75b420,
-            &race.physics.damage.flt_75b404,
+            &race.physics.damage.unknown_e0,
+            &race.physics.damage.unknown_c4,
             0x4,
         ),
         (
             &race.shared.car.electrical_failures[1],
-            &race.physics.damage.flt_75b424,
-            &race.physics.damage.flt_75b408,
+            &race.physics.damage.unknown_e4,
+            &race.physics.damage.unknown_c8,
             0x5,
         ),
         (
             &race.shared.car.electrical_failures[2],
-            &race.physics.damage.flt_75b428,
-            &race.physics.damage.flt_75b40c,
+            &race.physics.damage.unknown_e8,
+            &race.physics.damage.unknown_cc,
             0x6,
         ),
         (
             &race.shared.car.electrical_failures[3],
-            &race.physics.damage.flt_75b42c,
-            &race.physics.damage.flt_75b410,
+            &race.physics.damage.unknown_ec,
+            &race.physics.damage.unknown_d0,
             0x7,
         ),
         (
             &race.shared.car.electrical_failures[4],
-            &race.physics.damage.flt_75b430,
-            &race.physics.damage.flt_75b414,
+            &race.physics.damage.unknown_f0,
+            &race.physics.damage.unknown_d4,
             0x8,
         ),
         (
             &race.shared.car.electrical_failures[5],
-            &race.physics.damage.flt_75b434,
-            &race.physics.damage.flt_75b418,
+            &race.physics.damage.unknown_f4,
+            &race.physics.damage.unknown_d8,
             0x9,
         ),
         (
             &race.shared.car.electrical_failures[6],
-            &race.physics.damage.flt_75b438,
-            &race.physics.damage.flt_75b41c,
+            &race.physics.damage.unknown_f8,
+            &race.physics.damage.unknown_dc,
             0xA,
         ),
     ]
@@ -202,7 +202,7 @@ pub fn rate_damage(race: &Race) {
         [c.engine_damage.bits(), k, d.figures[7].bits()],
         [c.exhaust_damage.bits(), k, d.figures[8].bits()],
     ]);
-    if d.flt_75b3e4.bits() != 0 && !less(c.turbo_damage.bits(), d.gauge_top.bits()) {
+    if d.drive_kind.bits() != 0 && !less(c.turbo_damage.bits(), d.gauge_top.bits()) {
         e = ext_times(e, d.wear_rates[10].bits());
     }
     c.engine_power_factor.set_bits(rounded(e));
@@ -215,7 +215,7 @@ pub fn rate_damage(race: &Race) {
             [a.bits(), k, d.figures[10].bits()],
             [b.bits(), k, d.figures[9].bits()],
             [c.brake_fade.bits(), k, d.figures[11].bits()],
-            [d.dword_75b3f0.bits(), k, d.figures[12].bits()],
+            [d.surface_blend.bits(), k, d.figures[12].bits()],
         ]);
         out.set_bits(rounded(e));
         hold(out);
@@ -225,15 +225,15 @@ pub fn rate_damage(race: &Race) {
         out.set_bits(ramp(x.bits(), table_of(t), d.gauge_low.bits()));
     }
     for (out, x) in [
-        (&c.drive_efficiency[0], &d.flt_75b440),
-        (&c.drive_efficiency[1], &d.flt_75b444),
+        (&c.drive_efficiency[0], &d.unknown_100),
+        (&c.drive_efficiency[1], &d.unknown_104),
     ] {
-        d.flt_75b43c.set_bits(ramp(
+        d.unknown_fc.set_bits(ramp(
             x.bits(),
             table_of(&d.lerp_tables[5]),
             d.gauge_low.bits(),
         ));
-        out.set_bits(mul3(d.flt_75b43c.bits(), k, k, out.bits()));
+        out.set_bits(mul3(d.unknown_fc.bits(), k, k, out.bits()));
     }
     c.steering_efficiency.set_bits(ramp(
         c.steering_damage.bits(),
@@ -252,7 +252,7 @@ pub fn rate_damage(race: &Race) {
         let r = d.clock.get().rotate_right(turn) & 0xFFFF;
         (r.wrapping_sub(t) as i32) < 0
     };
-    if c.handbrake_failed.get() == 0 && chance(&d.flt_75b49c, 0xD) {
+    if c.handbrake_failed.get() == 0 && chance(&d.unknown_15c, 0xD) {
         c.handbrake_failed.set(1);
     }
     for (flag, set, clear, turn) in failures(race) {
@@ -265,14 +265,14 @@ pub fn rate_damage(race: &Race) {
         }
     }
     c.gear_change_blocked.set(0);
-    if chance(&d.flt_75b490, 0xB) {
+    if chance(&d.unknown_150, 0xB) {
         c.gear_change_blocked.set(1);
     }
-    if chance(&d.flt_75b494, 0x19) {
+    if chance(&d.unknown_154, 0x19) {
         c.gear_change_blocked.set(1);
     }
     c.forced_neutral.set(0);
-    if chance(&d.flt_75b498, 0x12) {
+    if chance(&d.unknown_158, 0x12) {
         c.forced_neutral.set(1);
     }
     c.gear_wear[1].set_bits(0);

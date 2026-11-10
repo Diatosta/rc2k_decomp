@@ -1,5 +1,5 @@
 //! `physics::pick_start_gear` (0x43C8AC): from neutral, the gear to start in.
-//! `physics::copy_car_word_8`; the engine speed kept in `dword_614144`;
+//! `physics::copy_step_clock_to_mark`; the engine speed kept in `dword_614144`;
 //! `physics::revs_from_speed`; `dword_614140` 0 and `flt_61413C` 100.0; then gears 1 .. 6
 //! (ebx) in turn: one `physics::gear_bit` does not refuse is set, `revs_from_speed`, the
 //! engine speed over its top (+0x1DC) stored; the first below `flt_5CB958` is taken: set,
@@ -16,7 +16,7 @@
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_run::sub_mul_add;
-use crate::physics::copy_car_word_8::copy_car_word_8;
+use crate::physics::copy_step_clock_to_mark::copy_step_clock_to_mark;
 use crate::physics::gear_store::GEAR;
 use crate::physics::gearbox::*;
 use crate::race::owner::Race;
@@ -26,7 +26,7 @@ use rc2k_core::physics::gear_shifts as shifts;
 // Converted: `rc2k_core::physics::gear_shifts::pick_start` (the engine's sums and compares
 // stay x87).
 pub fn pick_start_gear(race: &Race) -> Result<(), Refused> {
-    copy_car_word_8(&race.shared);
+    copy_step_clock_to_mark(&race.shared);
     race.shared.physics_tables.start_gear_figures[2].set(race.shared.car.engine_speed.bits());
     revs_speed(&race.shared)?;
     race.shared.physics_tables.start_gear_figures[1].set(0);

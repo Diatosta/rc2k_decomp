@@ -40,7 +40,7 @@ fn lists<'a>(ring: &'a Ring, masks: &'a Masks) -> [&'a dyn Store; 6] {
 }
 /// Each car's list, worked out without writing (none for a count past the refusals).
 fn car_lists() -> Result<Vec<GamePtr>, BadInput> {
-    let marks = crate::effects::setup::marks()?;
+    let marks = crate::effects::setup::effects_settings()?;
     let count = (marks.cars_copy.get() as i32).clamp(0, MOST_CARS) as u32;
     Ok((0..count)
         .map(|n| GamePtr::to(&marks.cars[n as usize].points_list))
@@ -59,7 +59,7 @@ fn any_holds_blocks(ring: &Ring, masks: &Masks) -> Result<bool, Refused> {
 
 pub fn tidy_marks(effects: &Effects) -> Result<(), Refused> {
     let (paths, ring, masks) = (&effects.paths, &effects.ring, &effects.masks);
-    let marks = crate::effects::setup::marks()?;
+    let marks = crate::effects::setup::effects_settings()?;
     let count = marks.cars_copy.get() as i32;
     if !(0..=MOST_CARS).contains(&count) {
         return Err(BadInput("a cars' count below 0 or above 8").into());

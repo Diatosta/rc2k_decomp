@@ -14,8 +14,8 @@
 
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
+use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::light_records_store::LIGHT_RECORDS;
-use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::owner::Race;
 // Converted: `rc2k_core::effects::race::{check_cars, kind_row, car_fields}`
 pub fn init_mark_step(
@@ -38,17 +38,17 @@ pub fn init_mark_step(
         // `check_cars` holds the count to 8 before `record` is asked.
         let record = |n: u32| records[n as usize];
         race::check_cars(count, |n| block(n) != 0)?;
-        MARKS_SETTINGS
+        EFFECTS_SETTINGS
             .cars_copy
             .set_bits(race.shared.view.race_cars.bits());
         // The one object the effects' shapes are made from: the player's car (the original's
         // fixed 0x50 is the first car, not a joined machine's).
         let own = crate::race::blocks_store::own_car_number() as u32;
-        MARKS_SETTINGS.first_object.set_bits(0x50 + 0x14 * own);
-        MARKS_SETTINGS.object_count.set_bits(1u32);
+        EFFECTS_SETTINGS.first_object.set_bits(0x50 + 0x14 * own);
+        EFFECTS_SETTINGS.object_count.set_bits(1u32);
         let file =
             crate::race::mud::car_file_number(crate::race::blocks_store::own_car().car_kind.bits());
-        MARKS_SETTINGS.mark_car_file_number.set_bits(file);
+        EFFECTS_SETTINGS.mark_car_file_number.set_bits(file);
         for n in 0..count {
             let kind = crate::physics::car_store::Car::at(block(n)).car_kind.get() as i32;
             // `dword_5C90D8 ..`: rows of 0x134 (`groups[5]` of the kind's record on).

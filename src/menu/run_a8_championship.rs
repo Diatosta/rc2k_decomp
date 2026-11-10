@@ -1,6 +1,6 @@
 //! `menu::run_a8_championship` (0x4AA4D7): a whole A8 championship (event type 5,
 //! `g_eventMode` 0x13), from its start or a saved game. `menu::run_championship`'s
-//! driver (`run_championship::run_event`) with these differences: `clear_players_284`
+//! driver (`run_championship::run_event`) with these differences: `clear_hud_bits`
 //! before `dword_755254` 0; `g_eventMode` 0x13 (so the welcome is `menu::a8_welcome`) and
 //! `dword_75AB40` 1; the section to start at is `dword_7554C4`; `dword_755970` is not set
 //! back to 0; `menu::reset_single_event` where the other calls `menu::begin_event` (the

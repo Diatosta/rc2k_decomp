@@ -103,7 +103,7 @@ fn read(at: At) -> Option<u32> {
             if value_at(SETTINGS)? == 0 {
                 return None;
             }
-            crate::race::marks_settings_store::MARKS_SETTINGS
+            crate::race::effects_settings_store::EFFECTS_SETTINGS
                 .at(offset)
                 .read::<u32>("the effects' page")
                 .ok()

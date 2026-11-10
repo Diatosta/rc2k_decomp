@@ -94,15 +94,15 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
             ],
         )?;
         if a8 {
-            e.run(Call::ClearPlayers284)?;
+            e.run(Call::ClearHudBits)?;
             e.set(Var::Services, 0);
         } else {
             e.set(Var::Services, 0);
-            e.run(Call::ClearPlayers284)?;
+            e.run(Call::ClearHudBits)?;
         }
     }
     e.run(Call::TakePlayer1Units)?;
-    e.run(Call::ResetCars750724)?;
+    e.run(Call::HideAllInGameOptions)?;
     e.set(Var::Answer, 0);
     e.set(Var::Leave561, 0);
     e.set(Var::Leave, 0);
@@ -235,7 +235,7 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                 if screens(e, &[Call::SectionFinish])? {
                     break 'standings At::End;
                 }
-                e.run(Call::Review480D46)?;
+                e.run(Call::ChampionshipStandingsReview)?;
                 e.set(Var::ResetTimes, 0);
                 e.set(Var::GoesOn, 1);
                 if e.yes() || e.get(Var::Ended569) == 1 || e.get(Var::LeftA3C) == 1 {
@@ -334,9 +334,9 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                 };
                 if reviewed {
                     let review = if e.get(Var::ReviewKind) != 0 || e.get(Var::ServiceNext) == 1 {
-                        Call::Review47D5A5
+                        Call::ChampionshipServiceReview
                     } else {
-                        Call::Review48108E
+                        Call::ChampionshipRacesReview
                     };
                     e.run(review)?;
                     if e.yes() || e.get(Var::LeftA3C) == 1 || e.get(Var::Ended569) == 1 {
@@ -362,7 +362,7 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                         e.run(Call::BestOverallScores)?;
                     }
                 }
-                e.run(Call::Review481429)?;
+                e.run(Call::ChampionshipEndReview)?;
                 At::End
             }
             At::End => {

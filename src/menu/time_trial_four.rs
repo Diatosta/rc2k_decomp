@@ -1,5 +1,5 @@
 //! `menu::time_trial_four` (0x48B90F): the time trial for four players in turn (event mode
-//! 0x17). `g_eventMode` 3, `menu::begin_event`, `clear_players_284`,
+//! 0x17). `g_eventMode` 3, `menu::begin_event`, `clear_hud_bits`,
 //! `take_player1_units`; `dword_755984` 4, `dword_755988` 0x17, `dword_755954` 3,
 //! `dword_75555D` 0 (no other variables cleared); the four car choices (player 0's list
 //! made again before its car is taken; left, it ends at once). Then each stage as

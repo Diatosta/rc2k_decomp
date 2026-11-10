@@ -19,7 +19,7 @@
 //!   part counts -1; all -1 ends the event (0xD also gives the fourth player +0x88
 //!   0x36EE80 and +0xD0 6).
 //!
-//! Then the players' +0x288 cleared (`menu::clear_players_288`).
+//! Then the players' +0x288 cleared (`menu::clear_service_spent`).
 //!
 //! Callers: the event drivers. Refuses fewer than 0xB2 drivers
 //! or fewer than four still running among them (the drop-out loop would run on), a missing player
@@ -125,8 +125,8 @@ impl races::EventRaces for Game {
                 crate::race::single_rally_race::single_rally_race(u32::from(next), 1)?;
             }
             Step::ReloadFrontEnd => crate::menu::reload_front_end::reload_front_end(menus)?,
-            Step::ClearPlayers288 => {
-                crate::menu::clear_players_288::clear_players_288()?;
+            Step::ClearServiceSpent => {
+                crate::menu::clear_service_spent::clear_service_spent()?;
             }
         }
 

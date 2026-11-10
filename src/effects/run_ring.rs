@@ -33,13 +33,13 @@ use crate::effects::setup::MarksClock;
 use crate::effects::tuning::MarksFloats;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::marks_settings_store::{MarkCar, MarksSettings, car_or_none};
+use crate::race::effects_settings_store::{CarEffects, EffectsSettings, car_or_none};
 use crate::scene::matrix3::extended;
 use crate::session::Float;
 
 /// The settings' flag for a ring entry's tag (its +8, a car's number times 0x4C8 for the
 /// cars' emitters): the word at the tag + 0x60 in the settings.
-fn entry_flag(marks: &MarksSettings, tag: u32) -> Result<u32, BadInput> {
+fn entry_flag(marks: &EffectsSettings, tag: u32) -> Result<u32, BadInput> {
     marks.at(tag.wrapping_add(0x60)).read("a mark's field")
 }
 
@@ -48,24 +48,24 @@ fn k(cell: &f32) -> u32 {
 }
 
 /// The original's 0x4CE9AF .. 0x4CEA40 (and 0x4CEC77 ..): the place less the object's (`[p + 0x30]` ..) into `flt_935718` .., turned by the object's matrix (`m`), |x| and |z| `fistp`ed into `dword_935680` / `dword_935684`.
-/// The car a ring entry is on (its +0x68, a `marks_settings_store::car_handle`).
-fn entry_car(ring: &Ring, e: u32) -> Result<&'static MarkCar, Refused> {
+/// The car a ring entry is on (its +0x68, a `effects_settings_store::car_handle`).
+fn entry_car(ring: &Ring, e: u32) -> Result<&'static CarEffects, Refused> {
     car_or_none(entry(ring, e)?.car).ok_or_else(|| BadInput("a ring entry without its car").into())
 }
 
-fn box_(ring: &Ring, e: u32, whole: &[Float; 16], car: &MarkCar) {
+fn box_(ring: &Ring, e: u32, whole: &[Float; 16], car: &CarEffects) {
     box_x87(ring, &ring.work, e, whole, car);
 }
 
 /// The car's whole matrix (its block's), refused where the original would read address 0.
-fn whole_of(car: &MarkCar) -> Result<&'static [Float; 16], BadInput> {
+fn whole_of(car: &CarEffects) -> Result<&'static [Float; 16], BadInput> {
     crate::race::blocks_store::car_of(car.whole_block.get())
         .map(|b| &b.whole_matrix)
         .ok_or(BadInput("a ring entry without its object"))
 }
 
 /// The original's 0x4CEA5E .. 0x4CEAD4 (and 0x4CED26 ..): that way made one long (`flt_76516C` over its length), dotted with the object's +0x4C .. into `flt_9356B4`.
-fn facing(ring: &Ring, car: &MarkCar, effects: &crate::effects::owner::Effects) {
+fn facing(ring: &Ring, car: &CarEffects, effects: &crate::effects::owner::Effects) {
     facing_x87(car, &effects.setup.floats, &ring.work);
 }
 
@@ -77,7 +77,7 @@ fn pull_length(ring: &Ring, e: u32, whole: &[Float; 16], length: &mut [u8; 10]) 
 /// The original's 0x4CEFEC .. 0x4CF07F: the way made one long by the kept length, the object's +0x4C .. over its +0x88, minus their dot into `flt_9356B4`.
 fn pull_facing(
     ring: &Ring,
-    car: &MarkCar,
+    car: &CarEffects,
     length: &[u8; 10],
     effects: &crate::effects::owner::Effects,
 ) {
@@ -85,7 +85,7 @@ fn pull_facing(
 }
 
 /// The original's 0x4CF08B .. 0x4CF0D8: the entry's +0x64 pulled toward `flt_7651DC` (`fist` into `dword_9356C0`).
-fn pull_strength(ring: &Ring, e: u32, car: &MarkCar, effects: &crate::effects::owner::Effects) {
+fn pull_strength(ring: &Ring, e: u32, car: &CarEffects, effects: &crate::effects::owner::Effects) {
     let setup = &effects.setup;
     pull_strength_x87(
         ring,
@@ -99,7 +99,7 @@ fn pull_strength(ring: &Ring, e: u32, car: &MarkCar, effects: &crate::effects::o
 }
 
 /// The original's 0x4CF65C .. 0x4CF6B7 (and 0x4CF7C4 ..): the place turned by the object's matrix (`m`), |x| and |z| into `dword_935680` / `dword_935684`.
-fn box_place(ring: &Ring, e: u32, car: &MarkCar) {
+fn box_place(ring: &Ring, e: u32, car: &CarEffects) {
     box_place_x87(ring, &ring.work, e, car);
 }
 
@@ -183,7 +183,7 @@ static K16: Kind = Kind {
 /// Why it refuses, if it does: the walk's pointers checked, nothing written.
 fn refusal(ring: &Ring, fog: &crate::scene::fog::Fog) -> Result<Option<&'static str>, Refused> {
     Ok({
-        let Ok(marks) = crate::effects::setup::marks() else {
+        let Ok(marks) = crate::effects::setup::effects_settings() else {
             return Ok(Some("no marks settings"));
         };
         let mut e: u32 = ring.work.cursor.get();
@@ -200,7 +200,7 @@ fn refusal(ring: &Ring, fog: &crate::scene::fog::Fog) -> Result<Option<&'static 
                 let obj = car_or_none(entry(ring, e)?.car);
                 let needs = matches!(kind, 6 | 0x15 | 1 | 0x10 | 0x11)
                     || entry_flag(marks, entry(ring, e)?.emitter_tag)? != 0;
-                if needs && !obj.is_some_and(MarkCar::has_whole) {
+                if needs && !obj.is_some_and(CarEffects::has_whole) {
                     return Ok(Some("a ring entry without its object"));
                 }
                 // The draws' own refusals, for an entry that may be drawn.
@@ -266,7 +266,10 @@ fn at_place(ring: &Ring, e: u32) -> Result<[[u8; 10]; 3], Refused> {
 
 /// The settings' flag for the entry.
 fn shown(ring: &Ring, e: u32) -> Result<bool, Refused> {
-    Ok(entry_flag(crate::effects::setup::marks()?, entry(ring, e)?.emitter_tag)? != 0)
+    Ok(entry_flag(
+        crate::effects::setup::effects_settings()?,
+        entry(ring, e)?.emitter_tag,
+    )? != 0)
 }
 
 /// The alpha (top byte) as a whole number (`fistp` through `dword_9356C0`).
@@ -785,12 +788,12 @@ fn car_float(cell: &Float) -> bh::X {
 }
 
 /// The car's 3 x 3 turning matrix (the record's `matrix`, 4 floats a row): cell `n`.
-fn turn(car: &MarkCar, n: usize) -> bh::X {
+fn turn(car: &CarEffects, n: usize) -> bh::X {
     car_float(&car.matrix[n])
 }
 
 /// `box_`'s x87 block as plain Rust on the x87 model (45 instructions), same order and memory places.
-fn box_x87(ring: &Ring, w: &RingWork, e: u32, whole: &[Float; 16], car: &MarkCar) {
+fn box_x87(ring: &Ring, w: &RingWork, e: u32, whole: &[Float; 16], car: &CarEffects) {
     let t0 = ld(ring, e, |en| en.place[0]);
     let t1 = t0 - ld_cell(&whole[12]);
     w.away[0].set_bits(bh::st(t1));
@@ -834,7 +837,7 @@ fn box_x87(ring: &Ring, w: &RingWork, e: u32, whole: &[Float; 16], car: &MarkCar
 }
 
 /// `facing`'s x87 block as plain Rust on the x87 model (28 instructions), same order and memory places.
-fn facing_x87(car: &MarkCar, f: &MarksFloats, w: &RingWork) {
+fn facing_x87(car: &CarEffects, f: &MarksFloats, w: &RingWork) {
     let t0 = bh::ld(w.away[0].bits());
     let t1 = t0 * t0;
     let t2 = bh::ld(w.away[1].bits());
@@ -899,7 +902,7 @@ fn pull_length_x87(
 }
 
 /// `pull_facing`'s x87 block as plain Rust on the x87 model (32 instructions), same order and memory places.
-fn pull_facing_x87(car: &MarkCar, l: &[u8; 10], f: &MarksFloats, w: &RingWork) {
+fn pull_facing_x87(car: &CarEffects, l: &[u8; 10], f: &MarksFloats, w: &RingWork) {
     let t0 = bh::from_f80(*l);
     let t1 = bh::ld(f.one.bits()) / t0;
     let t2 = bh::ld(w.away[0].bits());
@@ -939,7 +942,7 @@ fn pull_facing_x87(car: &MarkCar, l: &[u8; 10], f: &MarksFloats, w: &RingWork) {
 fn pull_strength_x87(
     ring: &Ring,
     e: u32,
-    car: &MarkCar,
+    car: &CarEffects,
     c: &MarksClock,
     f: &MarksFloats,
     w: &RingWork,
@@ -963,7 +966,7 @@ fn pull_strength_x87(
 }
 
 /// `box_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
-fn box_place_x87(ring: &Ring, w: &RingWork, e: u32, car: &MarkCar) {
+fn box_place_x87(ring: &Ring, w: &RingWork, e: u32, car: &CarEffects) {
     let t0 = ld(ring, e, |en| en.place[2]);
     let t1 = ld(ring, e, |en| en.place[1]);
     let t2 = ld(ring, e, |en| en.place[0]);
@@ -1445,7 +1448,7 @@ mod asm_differential {
     use crate::effects::owner::effects;
     use crate::effects::ring_store::RingWork;
     use crate::effects::tuning::MarksFloats;
-    use crate::race::marks_settings_store::MarkCar;
+    use crate::race::effects_settings_store::CarEffects;
     use crate::session::Float;
 
     fn word(at: usize) -> u32 {
@@ -1453,8 +1456,8 @@ mod asm_differential {
     }
 
     /// A car record whose words at the record `offsets` hold the test buffer's dwords at `at + offset - base`.
-    fn car_with(at: usize, base: usize, offsets: &[usize]) -> MarkCar {
-        let car = MarkCar::zeroed();
+    fn car_with(at: usize, base: usize, offsets: &[usize]) -> CarEffects {
+        let car = CarEffects::zeroed();
         for &o in offsets {
             crate::pointers::GamePtr::to(&car)
                 .offset(o as u32)
@@ -1465,7 +1468,7 @@ mod asm_differential {
     }
 
     /// The car's 3 x 3 matrix (the record's +0x94) from the buffer at `at`.
-    fn car_matrix(at: usize) -> MarkCar {
+    fn car_matrix(at: usize) -> CarEffects {
         let offsets: Vec<usize> = [0x0, 0x4, 0x8, 0x10, 0x14, 0x18, 0x20, 0x24, 0x28]
             .iter()
             .map(|o| 0x94 + o)

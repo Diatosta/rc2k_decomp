@@ -1,15 +1,14 @@
-//! `menu::review_options_485f5e_loop` (0x485F5E): the menu after the results screens, by its
+//! `menu::championship_end_review_loop` (0x481429): the menu after the results screens, by its
 //! title "OPÇÕES DE REVISÃO" (a reading)
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `roptions.png`; leaving is asked about; also
-//! when `dword_755569` is 1; the next frame begins with the steps after the first frame; the
-//! steps that are more than a call or a store are the functions below, generated from the
-//! listing.
+//! when `dword_755569` is 1; the Escape flag is looked at at the top of every frame; around an
+//! action the highlight is kept in `dword_7477A4`; the action run is that of the item of
+//! another menu, 0x754C88 (the original's slip); the steps that are more than a call or a store
+//! are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "OPÇÕES DE REVISÃO", not yet a
 //! visit.
-//! Rust callers run its `entry`
-//! (`routes.rs`).
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
@@ -19,7 +18,15 @@ use crate::menu::screen_loop::{
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
+    Callee::NoOp.run(entry)?;
     screens.loop_flags.ended_a.set(0x0u32);
+    screens.flow.turning.set(0x1u32);
+    screens.state.carousel.menu.set(0x14u32);
+    carousel(None)?;
+    let item = screens.items.current[slot::CHAMPIONSHIP_END_REVIEW].get();
+    screens.loop_flags.item.set(item);
+    screens.state.carousel.front.set(item.wrapping_sub(1));
+    screens.flow.turning.set(0x0u32);
     crate::scene::polygon_work::front_end().window.view_offset[0].set(0xFFFFFF64u32);
     crate::scene::polygon_work::front_end().window.view_offset[1].set(0x27u32);
     crate::scene::polygon_work::front_end()
@@ -27,62 +34,55 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
         .view_zoom
         .set(0x140u32);
     prepare_scene(entry.scene);
-    screens.flow.turning.set(0x1u32);
-    screens.state.carousel.menu.set(0xFu32);
-    carousel(None)?;
-    let item = screens.items.current[slot::REVIEW_OPTIONS_485F5E].get();
-    screens.loop_flags.item.set(item);
-    screens.state.carousel.front.set(item.wrapping_sub(1));
-    screens.flow.turning.set(0x0u32);
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.review_options_485f5e.id(),
-    saved_item: |m| &m.screens.items.current[slot::REVIEW_OPTIONS_485F5E],
+    menu: |m| m.tables.menus.championship_end_review.id(),
+    saved_item: |m| &m.screens.items.current[slot::CHAMPIONSHIP_END_REVIEW],
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list, // g_sceneList
-            table: |m| m.tables.draw_lists.review_options_485f5e_scene.id(),
+            table: |m| m.tables.draw_lists.championship_end_review_scene.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list, // g_drawList
-            table: |m| m.tables.draw_lists.review_options_485f5e_draw.id(),
+            table: |m| m.tables.draw_lists.championship_end_review_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
-            table: |m| m.tables.draw_lists.review_options_485f5e_overlay.id(),
+            table: |m| m.tables.draw_lists.championship_end_review_overlay.id(),
             run: false,
         },
     ],
     first_frame_lists: None,
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
-    before: &[
-        Step::Write(|m| &m.screens.loop_flags.went_back, 0x0),
-        Step::Write(|m| &m.screens.event.event_done, 0x0),
-    ],
+    before: &[Step::Write(|m| &m.screens.draw_work.escaped, 0x0)],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|m| {
-        &m.tables.texts.review_options_485f5e_picture
+        &m.tables.texts.championship_end_review_picture
     }))],
-    after_first_frame: &[Step::Write(|m| &m.screens.draw_work.action_value, 0x0)],
+    after_first_frame: &[],
     confirm: Some(&[]),
     ask_also_if: Some(|m| &m.screens.loop_flags.ended_a),
-    confirmed: &[],
+    confirmed: &[
+        Step::Write(|m| &m.screens.loop_flags.ended_a, 0x0),
+        Step::Write(|m| &m.tables.captions.screen_left, 0x0),
+    ],
     unasked_skips_save: false,
-    after: &[Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F)],
-    escape_leaves: false,
+    after: &[Step::Call(Callee::NoOp)],
+    escape_leaves: true,
     each_frame: &[],
     short_action_check: false,
     leave_at_once: None,
-    next_frame_repeats_first: true,
-    action_saved_item: None,
-    action_menu: None,
+    next_frame_repeats_first: false,
+    action_saved_item: Some(|m| &m.screens.items.current[slot::CHAMPIONSHIP_RACES_REVIEW]),
+    action_menu: Some(|m| m.tables.menus.championship_races_review.id()),
     no_quit_check: false,
     before_asking: &[],
     ask_unless: None,

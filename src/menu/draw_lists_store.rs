@@ -56,8 +56,8 @@ pub struct DrawLists {
     pub draw_758ba6: DrawList<4>,
     /// List at IDA 0x758BB6 (the draw list of `save_setup`): 0 entries and the -1 that ends it.
     pub save_setup_draw: DrawList<1>,
-    /// List at IDA 0x758BBA (the draw list of `load_championship_46e899`): 0 entries and the -1 that ends it.
-    pub load_championship_46e899_draw: DrawList<1>,
+    /// List at IDA 0x758BBA (the draw list of `load_championship_table`): 0 entries and the -1 that ends it.
+    pub load_championship_table_draw: DrawList<1>,
     /// List at IDA 0x758BBE (screens: save_championship): 3 entries and the -1 that ends it.
     pub draw_758bbe: DrawList<4>,
     /// List at IDA 0x758BCE (screens: save_replay): 1 entry and the -1 that ends it.
@@ -80,8 +80,8 @@ pub struct DrawLists {
     pub network_rally_draw: DrawList<3>,
     /// List at IDA 0x758C32 (the draw list of `select_car`): 3 entries and the -1 that ends it.
     pub select_car_draw: DrawList<4>,
-    /// List at IDA 0x758C42 (the draw list of `car_specs_47af4c`): 3 entries and the -1 that ends it.
-    pub car_specs_47af4c_draw: DrawList<4>,
+    /// List at IDA 0x758C42 (the draw list of `car_specs_display`): 3 entries and the -1 that ends it.
+    pub car_specs_display_draw: DrawList<4>,
     /// List at IDA 0x758C52 (named by no screen): 3 entries and the -1 that ends it.
     pub list_758c52: DrawList<4>,
     /// List at IDA 0x758C62 (named by no screen): 1 entry and the -1 that ends it.
@@ -138,7 +138,7 @@ pub struct DrawLists {
     pub draw_758d22: DrawList<2>,
     /// List at IDA 0x758D2A (screens: time_trial_best_times): 1 entry and the -1 that ends it.
     pub draw_758d2a: DrawList<2>,
-    /// List at IDA 0x758D32 (screens: best_scores_48a69e): 1 entry and the -1 that ends it.
+    /// List at IDA 0x758D32 (screens: arcade_best_scores): 1 entry and the -1 that ends it.
     pub draw_758d32: DrawList<2>,
     /// List at IDA 0x758D3A (screens: best_class_scores): 1 entry and the -1 that ends it.
     pub draw_758d3a: DrawList<2>,
@@ -152,14 +152,14 @@ pub struct DrawLists {
     pub list_758d52: DrawList<1>,
     /// List at IDA 0x758D56 (named by no screen): 1 entry and the -1 that ends it.
     pub list_758d56: DrawList<2>,
-    /// List at IDA 0x758D5E (the draw list of `review_options_47d5a5`): 0 entries and the -1 that ends it.
-    pub review_options_47d5a5_draw: DrawList<1>,
-    /// List at IDA 0x758D62 (the draw list of `review_options_480d46`): 0 entries and the -1 that ends it.
-    pub review_options_480d46_draw: DrawList<1>,
-    /// List at IDA 0x758D66 (the draw list of `review_options_48108e`): 0 entries and the -1 that ends it.
-    pub review_options_48108e_draw: DrawList<1>,
-    /// List at IDA 0x758D6A (the draw list of `review_options_481429`): 0 entries and the -1 that ends it.
-    pub review_options_481429_draw: DrawList<1>,
+    /// List at IDA 0x758D5E (the draw list of `championship_service_review`): 0 entries and the -1 that ends it.
+    pub championship_service_review_draw: DrawList<1>,
+    /// List at IDA 0x758D62 (the draw list of `championship_standings_review`): 0 entries and the -1 that ends it.
+    pub championship_standings_review_draw: DrawList<1>,
+    /// List at IDA 0x758D66 (the draw list of `championship_races_review`): 0 entries and the -1 that ends it.
+    pub championship_races_review_draw: DrawList<1>,
+    /// List at IDA 0x758D6A (the draw list of `championship_end_review`): 0 entries and the -1 that ends it.
+    pub championship_end_review_draw: DrawList<1>,
     /// List at IDA 0x758D6E (the draw list of `service_area`): 1 entry and the -1 that ends it.
     pub service_area_draw: DrawList<2>,
     /// List at IDA 0x758D76 (named by no screen): 0 entries and the -1 that ends it.
@@ -214,17 +214,17 @@ pub struct DrawLists {
     pub class_championship_standings_draw: DrawList<2>,
     /// List at IDA 0x758E5E (named by no screen): 1 entry and the -1 that ends it.
     pub list_758e5e: DrawList<2>,
-    /// List at IDA 0x758E66 (the draw list of `screen_488f4c`): 1 entry and the -1 that ends it.
-    pub screen_488f4c_draw: DrawList<2>,
+    /// List at IDA 0x758E66 (the draw list of `arcade_level_end_results`): 1 entry and the -1 that ends it.
+    pub arcade_level_end_results_draw: DrawList<2>,
     /// List at IDA 0x758E6E (named by no screen): 1 entry and the -1 that ends it.
     pub list_758e6e: DrawList<2>,
     /// List at IDA 0x758E76 (screens: arcade_results): 1 entry and the -1 that ends it.
     pub draw_758e76: DrawList<2>,
     /// List at IDA 0x758E7E (screens: stage_result): 1 entry and the -1 that ends it.
     pub draw_758e7e: DrawList<2>,
-    /// List at IDA 0x758E86 (screens: results_48584b): 1 entry and the -1 that ends it.
+    /// List at IDA 0x758E86 (screens: single_rally_two_results): 1 entry and the -1 that ends it.
     pub draw_758e86: DrawList<2>,
-    /// List at IDA 0x758E8E (screens: results_482e9b): 1 entry and the -1 that ends it.
+    /// List at IDA 0x758E8E (screens: single_rally_three_four_results): 1 entry and the -1 that ends it.
     pub draw_758e8e: DrawList<2>,
     /// List at IDA 0x758E96 (screens: time_trial_results): 1 entry and the -1 that ends it.
     pub draw_758e96: DrawList<2>,
@@ -234,17 +234,17 @@ pub struct DrawLists {
     pub time_trial_select_stage_draw: DrawList<2>,
     /// List at IDA 0x758EAE (named by no screen): 2 entries and the -1 that ends it.
     pub list_758eae: DrawList<3>,
-    /// List at IDA 0x758EBA (the draw list of `review_options_485f5e`): 0 entries and the -1 that ends it.
-    pub review_options_485f5e_draw: DrawList<1>,
-    /// List at IDA 0x758EBE (the draw list of `review_options_4882e2`): 0 entries and the -1 that ends it.
-    pub review_options_4882e2_draw: DrawList<1>,
-    /// List at IDA 0x758EC2 (the draw list of `review_options_48861d`): 0 entries and the -1 that ends it.
-    pub review_options_48861d_draw: DrawList<1>,
+    /// List at IDA 0x758EBA (the draw list of `single_rally_review`): 0 entries and the -1 that ends it.
+    pub single_rally_review_draw: DrawList<1>,
+    /// List at IDA 0x758EBE (the draw list of `arcade_next_level_review`): 0 entries and the -1 that ends it.
+    pub arcade_next_level_review_draw: DrawList<1>,
+    /// List at IDA 0x758EC2 (the draw list of `arcade_retry_review`): 0 entries and the -1 that ends it.
+    pub arcade_retry_review_draw: DrawList<1>,
     /// List at IDA 0x758EC6 (the draw list of `arcade_review_options`): 0 entries and the -1 that ends it.
     pub arcade_review_options_draw: DrawList<1>,
     /// List at IDA 0x758ECA (named by no screen): 0 entries and the -1 that ends it.
     pub list_758eca: DrawList<1>,
-    /// List at IDA 0x758ECE (screens: screen_483163): 1 entry and the -1 that ends it.
+    /// List at IDA 0x758ECE (screens: single_rally_overall_results): 1 entry and the -1 that ends it.
     pub draw_758ece: DrawList<2>,
     /// List at IDA 0x758ED6 (named by no screen): 0 entries and the -1 that ends it.
     pub list_758ed6: DrawList<1>,
@@ -264,8 +264,8 @@ pub struct DrawLists {
     pub load_championship_scene: DrawList<1>,
     /// List at IDA 0x758F12 (the scene list of `save_setup`): 1 entry and the -1 that ends it.
     pub save_setup_scene: DrawList<2>,
-    /// List at IDA 0x758F1A (the scene list of `load_championship_46e899`): 1 entry and the -1 that ends it.
-    pub load_championship_46e899_scene: DrawList<2>,
+    /// List at IDA 0x758F1A (the scene list of `load_championship_table`): 1 entry and the -1 that ends it.
+    pub load_championship_table_scene: DrawList<2>,
     /// List at IDA 0x758F22 (the scene list of `save_championship`): 0 entries and the -1 that ends it.
     pub save_championship_scene: DrawList<1>,
     /// List at IDA 0x758F26 (the scene list of `save_replay`): 0 entries and the -1 that ends it.
@@ -286,32 +286,32 @@ pub struct DrawLists {
     pub network_rally_scene: DrawList<2>,
     /// List at IDA 0x758F5E (the scene list of `select_car`): 1 entry and the -1 that ends it.
     pub select_car_scene: DrawList<2>,
-    /// List at IDA 0x758F66 (the scene list of `car_specs_47af4c`): 1 entry and the -1 that ends it.
-    pub car_specs_47af4c_scene: DrawList<2>,
+    /// List at IDA 0x758F66 (the scene list of `car_specs_display`): 1 entry and the -1 that ends it.
+    pub car_specs_display_scene: DrawList<2>,
     /// List at IDA 0x758F6E (named by no screen): 1 entry and the -1 that ends it.
     pub list_758f6e: DrawList<2>,
     /// List at IDA 0x758F76 (the scene list of `car_specification`): 1 entry and the -1 that ends it.
     pub car_specification_scene: DrawList<2>,
     /// List at IDA 0x758F7E (the scene list of `slideshow`): 0 entries and the -1 that ends it.
     pub slideshow_scene: DrawList<1>,
-    /// List at IDA 0x758F82 (the scene list of `screen_483163`): 0 entries and the -1 that ends it.
-    pub screen_483163_scene: DrawList<1>,
-    /// List at IDA 0x758F86 (the scene list of `results_48584b`): 0 entries and the -1 that ends it.
-    pub results_48584b_scene: DrawList<1>,
-    /// List at IDA 0x758F8A (the scene list of `review_options_485f5e`): 1 entry and the -1 that ends it.
-    pub review_options_485f5e_scene: DrawList<2>,
+    /// List at IDA 0x758F82 (the scene list of `single_rally_overall_results`): 0 entries and the -1 that ends it.
+    pub single_rally_overall_results_scene: DrawList<1>,
+    /// List at IDA 0x758F86 (the scene list of `single_rally_two_results`): 0 entries and the -1 that ends it.
+    pub single_rally_two_results_scene: DrawList<1>,
+    /// List at IDA 0x758F8A (the scene list of `single_rally_review`): 1 entry and the -1 that ends it.
+    pub single_rally_review_scene: DrawList<2>,
     /// List at IDA 0x758F92 (named by no screen): 0 entries and the -1 that ends it.
     pub list_758f92: DrawList<1>,
-    /// List at IDA 0x758F96 (the scene list of `review_options_4882e2`): 1 entry and the -1 that ends it.
-    pub review_options_4882e2_scene: DrawList<2>,
-    /// List at IDA 0x758F9E (the scene list of `review_options_48861d`): 1 entry and the -1 that ends it.
-    pub review_options_48861d_scene: DrawList<2>,
+    /// List at IDA 0x758F96 (the scene list of `arcade_next_level_review`): 1 entry and the -1 that ends it.
+    pub arcade_next_level_review_scene: DrawList<2>,
+    /// List at IDA 0x758F9E (the scene list of `arcade_retry_review`): 1 entry and the -1 that ends it.
+    pub arcade_retry_review_scene: DrawList<2>,
     /// List at IDA 0x758FA6 (the scene list of `arcade_review_options`): 1 entry and the -1 that ends it.
     pub arcade_review_options_scene: DrawList<2>,
     /// List at IDA 0x758FAE (named by no screen): 0 entries and the -1 that ends it.
     pub list_758fae: DrawList<1>,
-    /// List at IDA 0x758FB2 (the scene list of `best_scores_48a69e`): 0 entries and the -1 that ends it.
-    pub best_scores_48a69e_scene: DrawList<1>,
+    /// List at IDA 0x758FB2 (the scene list of `arcade_best_scores`): 0 entries and the -1 that ends it.
+    pub arcade_best_scores_scene: DrawList<1>,
     /// List at IDA 0x758FB6 (the scene list of `best_class_scores`): 0 entries and the -1 that ends it.
     pub best_class_scores_scene: DrawList<1>,
     /// List at IDA 0x758FBA (the scene list of `best_overall_scores`): 0 entries and the -1 that ends it.
@@ -384,20 +384,20 @@ pub struct DrawLists {
     pub in_game_options_scene: DrawList<2>,
     /// List at IDA 0x759052 (the scene list of `select_stage`): 0 entries and the -1 that ends it.
     pub select_stage_scene: DrawList<1>,
-    /// List at IDA 0x759056 (the scene list of `results_482e9b`): 0 entries and the -1 that ends it.
-    pub results_482e9b_scene: DrawList<1>,
+    /// List at IDA 0x759056 (the scene list of `single_rally_three_four_results`): 0 entries and the -1 that ends it.
+    pub single_rally_three_four_results_scene: DrawList<1>,
     /// List at IDA 0x75905A (the scene list of `welcome`): 0 entries and the -1 that ends it.
     pub welcome_scene: DrawList<1>,
     /// List at IDA 0x75905E (the scene list of `rally_stages`): 0 entries and the -1 that ends it.
     pub rally_stages_scene: DrawList<1>,
-    /// List at IDA 0x759062 (the scene list of `review_options_47d5a5`): 1 entry and the -1 that ends it.
-    pub review_options_47d5a5_scene: DrawList<2>,
-    /// List at IDA 0x75906A (the scene list of `review_options_480d46`): 1 entry and the -1 that ends it.
-    pub review_options_480d46_scene: DrawList<2>,
-    /// List at IDA 0x759072 (the scene list of `review_options_48108e`): 1 entry and the -1 that ends it.
-    pub review_options_48108e_scene: DrawList<2>,
-    /// List at IDA 0x75907A (the scene list of `review_options_481429`): 1 entry and the -1 that ends it.
-    pub review_options_481429_scene: DrawList<2>,
+    /// List at IDA 0x759062 (the scene list of `championship_service_review`): 1 entry and the -1 that ends it.
+    pub championship_service_review_scene: DrawList<2>,
+    /// List at IDA 0x75906A (the scene list of `championship_standings_review`): 1 entry and the -1 that ends it.
+    pub championship_standings_review_scene: DrawList<2>,
+    /// List at IDA 0x759072 (the scene list of `championship_races_review`): 1 entry and the -1 that ends it.
+    pub championship_races_review_scene: DrawList<2>,
+    /// List at IDA 0x75907A (the scene list of `championship_end_review`): 1 entry and the -1 that ends it.
+    pub championship_end_review_scene: DrawList<2>,
     /// List at IDA 0x759082 (the scene list of `service_area`): 1 entry and the -1 that ends it.
     pub service_area_scene: DrawList<2>,
     /// List at IDA 0x75908A (named by no screen): 0 entries and the -1 that ends it.
@@ -446,8 +446,8 @@ pub struct DrawLists {
     pub list_7590e2: DrawList<1>,
     /// List at IDA 0x7590E6 (named by no screen): 0 entries and the -1 that ends it.
     pub list_7590e6: DrawList<1>,
-    /// List at IDA 0x7590EA (the scene list of `screen_488f4c`): 0 entries and the -1 that ends it.
-    pub screen_488f4c_scene: DrawList<1>,
+    /// List at IDA 0x7590EA (the scene list of `arcade_level_end_results`): 0 entries and the -1 that ends it.
+    pub arcade_level_end_results_scene: DrawList<1>,
     /// List at IDA 0x7590EE (named by no screen): 0 entries and the -1 that ends it.
     pub list_7590ee: DrawList<1>,
     /// List at IDA 0x7590F2 (the scene list of `class_championship_standings`): 0 entries and the -1 that ends it.
@@ -490,8 +490,8 @@ pub struct DrawLists {
     pub overlay_759152: DrawList<1>,
     /// List at IDA 0x759156 (the overlay list of `save_setup`): 1 entry and the -1 that ends it.
     pub save_setup_overlay: DrawList<2>,
-    /// List at IDA 0x75915E (the overlay list of `load_championship_46e899`): 1 entry and the -1 that ends it.
-    pub load_championship_46e899_overlay: DrawList<2>,
+    /// List at IDA 0x75915E (the overlay list of `load_championship_table`): 1 entry and the -1 that ends it.
+    pub load_championship_table_overlay: DrawList<2>,
     /// List at IDA 0x759166 (named by no screen): 1 entry and the -1 that ends it.
     pub list_759166: DrawList<2>,
     /// List at IDA 0x75916E (the overlay list of `arcade_select_level`): 2 entries and the -1 that ends it.
@@ -508,8 +508,8 @@ pub struct DrawLists {
     pub network_rally_overlay: DrawList<2>,
     /// List at IDA 0x7591A2 (the overlay list of `select_car`): 1 entry and the -1 that ends it.
     pub select_car_overlay: DrawList<2>,
-    /// List at IDA 0x7591AA (the overlay list of `car_specs_47af4c`): 1 entry and the -1 that ends it.
-    pub car_specs_47af4c_overlay: DrawList<2>,
+    /// List at IDA 0x7591AA (the overlay list of `car_specs_display`): 1 entry and the -1 that ends it.
+    pub car_specs_display_overlay: DrawList<2>,
     /// List at IDA 0x7591B2 (named by no screen): 1 entry and the -1 that ends it.
     pub list_7591b2: DrawList<2>,
     /// List at IDA 0x7591BA (named by no screen): 0 entries and the -1 that ends it.
@@ -562,7 +562,7 @@ pub struct DrawLists {
     pub overlay_75921a: DrawList<1>,
     /// List at IDA 0x75921E (screens: time_trial_best_times): 0 entries and the -1 that ends it.
     pub overlay_75921e: DrawList<1>,
-    /// List at IDA 0x759222 (screens: best_scores_48a69e): 0 entries and the -1 that ends it.
+    /// List at IDA 0x759222 (screens: arcade_best_scores): 0 entries and the -1 that ends it.
     pub overlay_759222: DrawList<1>,
     /// List at IDA 0x759226 (screens: best_class_scores): 0 entries and the -1 that ends it.
     pub overlay_759226: DrawList<1>,
@@ -574,14 +574,14 @@ pub struct DrawLists {
     pub welcome_overlay: DrawList<1>,
     /// List at IDA 0x759236 (the overlay list of `rally_stages`): 0 entries and the -1 that ends it.
     pub rally_stages_overlay: DrawList<1>,
-    /// List at IDA 0x75923A (the overlay list of `review_options_47d5a5`): 0 entries and the -1 that ends it.
-    pub review_options_47d5a5_overlay: DrawList<1>,
-    /// List at IDA 0x75923E (the overlay list of `review_options_480d46`): 0 entries and the -1 that ends it.
-    pub review_options_480d46_overlay: DrawList<1>,
-    /// List at IDA 0x759242 (the overlay list of `review_options_48108e`): 0 entries and the -1 that ends it.
-    pub review_options_48108e_overlay: DrawList<1>,
-    /// List at IDA 0x759246 (the overlay list of `review_options_481429`): 0 entries and the -1 that ends it.
-    pub review_options_481429_overlay: DrawList<1>,
+    /// List at IDA 0x75923A (the overlay list of `championship_service_review`): 0 entries and the -1 that ends it.
+    pub championship_service_review_overlay: DrawList<1>,
+    /// List at IDA 0x75923E (the overlay list of `championship_standings_review`): 0 entries and the -1 that ends it.
+    pub championship_standings_review_overlay: DrawList<1>,
+    /// List at IDA 0x759242 (the overlay list of `championship_races_review`): 0 entries and the -1 that ends it.
+    pub championship_races_review_overlay: DrawList<1>,
+    /// List at IDA 0x759246 (the overlay list of `championship_end_review`): 0 entries and the -1 that ends it.
+    pub championship_end_review_overlay: DrawList<1>,
     /// List at IDA 0x75924A (the overlay list of `service_area`): 1 entry and the -1 that ends it.
     pub service_area_overlay: DrawList<2>,
     /// List at IDA 0x759252 (named by no screen): 0 entries and the -1 that ends it.
@@ -634,17 +634,17 @@ pub struct DrawLists {
     pub class_championship_standings_overlay: DrawList<1>,
     /// List at IDA 0x7592B6 (screens: championship_standings): 0 entries and the -1 that ends it.
     pub overlay_7592b6: DrawList<1>,
-    /// List at IDA 0x7592BA (the overlay list of `screen_488f4c`): 0 entries and the -1 that ends it.
-    pub screen_488f4c_overlay: DrawList<1>,
+    /// List at IDA 0x7592BA (the overlay list of `arcade_level_end_results`): 0 entries and the -1 that ends it.
+    pub arcade_level_end_results_overlay: DrawList<1>,
     /// List at IDA 0x7592BE (screens: arcade_results): 0 entries and the -1 that ends it.
     pub overlay_7592be: DrawList<1>,
     /// List at IDA 0x7592C2 (screens: stage_result): 0 entries and the -1 that ends it.
     pub overlay_7592c2: DrawList<1>,
     /// List at IDA 0x7592C6 (named by no screen): 0 entries and the -1 that ends it.
     pub list_7592c6: DrawList<1>,
-    /// List at IDA 0x7592CA (screens: results_48584b): 0 entries and the -1 that ends it.
+    /// List at IDA 0x7592CA (screens: single_rally_two_results): 0 entries and the -1 that ends it.
     pub overlay_7592ca: DrawList<1>,
-    /// List at IDA 0x7592CE (screens: results_482e9b): 0 entries and the -1 that ends it.
+    /// List at IDA 0x7592CE (screens: single_rally_three_four_results): 0 entries and the -1 that ends it.
     pub overlay_7592ce: DrawList<1>,
     /// List at IDA 0x7592D2 (screens: time_trial_results): 0 entries and the -1 that ends it.
     pub overlay_7592d2: DrawList<1>,
@@ -658,17 +658,17 @@ pub struct DrawLists {
     pub list_7592e2: DrawList<1>,
     /// List at IDA 0x7592E6 (the overlay list of `in_game_options`): 0 entries and the -1 that ends it.
     pub in_game_options_overlay: DrawList<1>,
-    /// List at IDA 0x7592EA (the overlay list of `review_options_485f5e`): 0 entries and the -1 that ends it.
-    pub review_options_485f5e_overlay: DrawList<1>,
-    /// List at IDA 0x7592EE (the overlay list of `review_options_4882e2`): 0 entries and the -1 that ends it.
-    pub review_options_4882e2_overlay: DrawList<1>,
-    /// List at IDA 0x7592F2 (the overlay list of `review_options_48861d`): 0 entries and the -1 that ends it.
-    pub review_options_48861d_overlay: DrawList<1>,
+    /// List at IDA 0x7592EA (the overlay list of `single_rally_review`): 0 entries and the -1 that ends it.
+    pub single_rally_review_overlay: DrawList<1>,
+    /// List at IDA 0x7592EE (the overlay list of `arcade_next_level_review`): 0 entries and the -1 that ends it.
+    pub arcade_next_level_review_overlay: DrawList<1>,
+    /// List at IDA 0x7592F2 (the overlay list of `arcade_retry_review`): 0 entries and the -1 that ends it.
+    pub arcade_retry_review_overlay: DrawList<1>,
     /// List at IDA 0x7592F6 (the overlay list of `arcade_review_options`): 0 entries and the -1 that ends it.
     pub arcade_review_options_overlay: DrawList<1>,
     /// List at IDA 0x7592FA (named by no screen): 0 entries and the -1 that ends it.
     pub list_7592fa: DrawList<1>,
-    /// List at IDA 0x7592FE (screens: screen_483163): 0 entries and the -1 that ends it.
+    /// List at IDA 0x7592FE (screens: single_rally_overall_results): 0 entries and the -1 that ends it.
     pub overlay_7592fe: DrawList<1>,
     /// List at IDA 0x759302 (named by no screen): 1 entry and the -1 that ends it.
     pub list_759302: DrawList<2>,
@@ -774,8 +774,8 @@ pub struct DrawLists {
     pub list_7593fa: DrawList<1>,
     /// List at IDA 0x7593FE (the setup list of `select_car`): 3 entries and the -1 that ends it.
     pub select_car_setup: DrawList<4>,
-    /// List at IDA 0x75940E (the setup list of `car_specs_47af4c`): 2 entries and the -1 that ends it.
-    pub car_specs_47af4c_setup: DrawList<3>,
+    /// List at IDA 0x75940E (the setup list of `car_specs_display`): 2 entries and the -1 that ends it.
+    pub car_specs_display_setup: DrawList<3>,
     /// List at IDA 0x75941A (named by no screen): 2 entries and the -1 that ends it.
     pub list_75941a: DrawList<3>,
     /// List at IDA 0x759426 (named by no screen): 0 entries and the -1 that ends it.
@@ -840,7 +840,7 @@ impl DrawLists {
         list_758b9a: DrawList::new([0x46989B, 0x4695C6, 0xFFFFFFFF]),
         draw_758ba6: DrawList::new([0x46D262, 0x46D45A, 0x46D88F, 0xFFFFFFFF]),
         save_setup_draw: DrawList::new([0xFFFFFFFF]),
-        load_championship_46e899_draw: DrawList::new([0xFFFFFFFF]),
+        load_championship_table_draw: DrawList::new([0xFFFFFFFF]),
         draw_758bbe: DrawList::new([0x46D262, 0x46D45A, 0x46D88F, 0xFFFFFFFF]),
         draw_758bce: DrawList::new([0x46F41A, 0xFFFFFFFF]),
         draw_758bd6: DrawList::new([0x46F41A, 0xFFFFFFFF]),
@@ -852,7 +852,7 @@ impl DrawLists {
         new_simulation_draw: DrawList::new([0x46989B, 0x4695C6, 0xFFFFFFFF]),
         network_rally_draw: DrawList::new([0x46989B, 0x4695C6, 0xFFFFFFFF]),
         select_car_draw: DrawList::new([0x46989B, 0x469873, 0x46A359, 0xFFFFFFFF]),
-        car_specs_47af4c_draw: DrawList::new([0x46989B, 0x469873, 0x46A359, 0xFFFFFFFF]),
+        car_specs_display_draw: DrawList::new([0x46989B, 0x469873, 0x46A359, 0xFFFFFFFF]),
         list_758c52: DrawList::new([0x46989B, 0x469873, 0x46A359, 0xFFFFFFFF]),
         list_758c62: DrawList::new([0x4881F8, 0xFFFFFFFF]),
         arcade_next_stage_draw: DrawList::new([0x489AC8, 0xFFFFFFFF]),
@@ -888,10 +888,10 @@ impl DrawLists {
         welcome_draw: DrawList::new([0xFFFFFFFF]),
         list_758d52: DrawList::new([0xFFFFFFFF]),
         list_758d56: DrawList::new([0x472C8C, 0xFFFFFFFF]),
-        review_options_47d5a5_draw: DrawList::new([0xFFFFFFFF]),
-        review_options_480d46_draw: DrawList::new([0xFFFFFFFF]),
-        review_options_48108e_draw: DrawList::new([0xFFFFFFFF]),
-        review_options_481429_draw: DrawList::new([0xFFFFFFFF]),
+        championship_service_review_draw: DrawList::new([0xFFFFFFFF]),
+        championship_standings_review_draw: DrawList::new([0xFFFFFFFF]),
+        championship_races_review_draw: DrawList::new([0xFFFFFFFF]),
+        championship_end_review_draw: DrawList::new([0xFFFFFFFF]),
         service_area_draw: DrawList::new([0x46B890, 0xFFFFFFFF]),
         list_758d76: DrawList::new([0xFFFFFFFF]),
         list_758d7a: DrawList::new([0xFFFFFFFF]),
@@ -919,7 +919,7 @@ impl DrawLists {
         list_758e4e: DrawList::new([0x46762B, 0xFFFFFFFF]),
         class_championship_standings_draw: DrawList::new([0x4A4E1E, 0xFFFFFFFF]),
         list_758e5e: DrawList::new([0x4A5410, 0xFFFFFFFF]),
-        screen_488f4c_draw: DrawList::new([0x488F2F, 0xFFFFFFFF]),
+        arcade_level_end_results_draw: DrawList::new([0x488F2F, 0xFFFFFFFF]),
         list_758e6e: DrawList::new([0x48558A, 0xFFFFFFFF]),
         draw_758e76: DrawList::new([0x4894AD, 0xFFFFFFFF]),
         draw_758e7e: DrawList::new([0x486299, 0xFFFFFFFF]),
@@ -929,9 +929,9 @@ impl DrawLists {
         select_stage_draw: DrawList::new([0x481A78, 0xFFFFFFFF]),
         time_trial_select_stage_draw: DrawList::new([0x48C2A0, 0xFFFFFFFF]),
         list_758eae: DrawList::new([0x4A94E9, 0x4A94E9, 0xFFFFFFFF]),
-        review_options_485f5e_draw: DrawList::new([0xFFFFFFFF]),
-        review_options_4882e2_draw: DrawList::new([0xFFFFFFFF]),
-        review_options_48861d_draw: DrawList::new([0xFFFFFFFF]),
+        single_rally_review_draw: DrawList::new([0xFFFFFFFF]),
+        arcade_next_level_review_draw: DrawList::new([0xFFFFFFFF]),
+        arcade_retry_review_draw: DrawList::new([0xFFFFFFFF]),
         arcade_review_options_draw: DrawList::new([0xFFFFFFFF]),
         list_758eca: DrawList::new([0xFFFFFFFF]),
         draw_758ece: DrawList::new([0x483FDE, 0xFFFFFFFF]),
@@ -944,7 +944,7 @@ impl DrawLists {
         list_758f06: DrawList::new([0x490106, 0xFFFFFFFF]),
         load_championship_scene: DrawList::new([0xFFFFFFFF]),
         save_setup_scene: DrawList::new([0x49FE4B, 0xFFFFFFFF]),
-        load_championship_46e899_scene: DrawList::new([0x49FE4B, 0xFFFFFFFF]),
+        load_championship_table_scene: DrawList::new([0x49FE4B, 0xFFFFFFFF]),
         save_championship_scene: DrawList::new([0xFFFFFFFF]),
         save_replay_scene: DrawList::new([0xFFFFFFFF]),
         load_replay_scene: DrawList::new([0xFFFFFFFF]),
@@ -955,19 +955,19 @@ impl DrawLists {
         new_simulation_scene: DrawList::new([0x490106, 0xFFFFFFFF]),
         network_rally_scene: DrawList::new([0x490106, 0xFFFFFFFF]),
         select_car_scene: DrawList::new([0x490106, 0xFFFFFFFF]),
-        car_specs_47af4c_scene: DrawList::new([0x490106, 0xFFFFFFFF]),
+        car_specs_display_scene: DrawList::new([0x490106, 0xFFFFFFFF]),
         list_758f6e: DrawList::new([0x490106, 0xFFFFFFFF]),
         car_specification_scene: DrawList::new([0x49017B, 0xFFFFFFFF]),
         slideshow_scene: DrawList::new([0xFFFFFFFF]),
-        screen_483163_scene: DrawList::new([0xFFFFFFFF]),
-        results_48584b_scene: DrawList::new([0xFFFFFFFF]),
-        review_options_485f5e_scene: DrawList::new([0x49004E, 0xFFFFFFFF]),
+        single_rally_overall_results_scene: DrawList::new([0xFFFFFFFF]),
+        single_rally_two_results_scene: DrawList::new([0xFFFFFFFF]),
+        single_rally_review_scene: DrawList::new([0x49004E, 0xFFFFFFFF]),
         list_758f92: DrawList::new([0xFFFFFFFF]),
-        review_options_4882e2_scene: DrawList::new([0x49004E, 0xFFFFFFFF]),
-        review_options_48861d_scene: DrawList::new([0x49004E, 0xFFFFFFFF]),
+        arcade_next_level_review_scene: DrawList::new([0x49004E, 0xFFFFFFFF]),
+        arcade_retry_review_scene: DrawList::new([0x49004E, 0xFFFFFFFF]),
         arcade_review_options_scene: DrawList::new([0x49004E, 0xFFFFFFFF]),
         list_758fae: DrawList::new([0xFFFFFFFF]),
-        best_scores_48a69e_scene: DrawList::new([0xFFFFFFFF]),
+        arcade_best_scores_scene: DrawList::new([0xFFFFFFFF]),
         best_class_scores_scene: DrawList::new([0xFFFFFFFF]),
         best_overall_scores_scene: DrawList::new([0xFFFFFFFF]),
         time_trial_select_stage_scene: DrawList::new([0xFFFFFFFF]),
@@ -1004,13 +1004,13 @@ impl DrawLists {
         list_759046: DrawList::new([0xFFFFFFFF]),
         in_game_options_scene: DrawList::new([0x49004E, 0xFFFFFFFF]),
         select_stage_scene: DrawList::new([0xFFFFFFFF]),
-        results_482e9b_scene: DrawList::new([0xFFFFFFFF]),
+        single_rally_three_four_results_scene: DrawList::new([0xFFFFFFFF]),
         welcome_scene: DrawList::new([0xFFFFFFFF]),
         rally_stages_scene: DrawList::new([0xFFFFFFFF]),
-        review_options_47d5a5_scene: DrawList::new([0x49004E, 0xFFFFFFFF]),
-        review_options_480d46_scene: DrawList::new([0x49004E, 0xFFFFFFFF]),
-        review_options_48108e_scene: DrawList::new([0x49004E, 0xFFFFFFFF]),
-        review_options_481429_scene: DrawList::new([0x49004E, 0xFFFFFFFF]),
+        championship_service_review_scene: DrawList::new([0x49004E, 0xFFFFFFFF]),
+        championship_standings_review_scene: DrawList::new([0x49004E, 0xFFFFFFFF]),
+        championship_races_review_scene: DrawList::new([0x49004E, 0xFFFFFFFF]),
+        championship_end_review_scene: DrawList::new([0x49004E, 0xFFFFFFFF]),
         service_area_scene: DrawList::new([0x4940BC, 0xFFFFFFFF]),
         list_75908a: DrawList::new([0xFFFFFFFF]),
         list_75908e: DrawList::new([0xFFFFFFFF]),
@@ -1035,7 +1035,7 @@ impl DrawLists {
         overall_rally_results_scene: DrawList::new([0xFFFFFFFF]),
         list_7590e2: DrawList::new([0xFFFFFFFF]),
         list_7590e6: DrawList::new([0xFFFFFFFF]),
-        screen_488f4c_scene: DrawList::new([0xFFFFFFFF]),
+        arcade_level_end_results_scene: DrawList::new([0xFFFFFFFF]),
         list_7590ee: DrawList::new([0xFFFFFFFF]),
         class_championship_standings_scene: DrawList::new([0xFFFFFFFF]),
         championship_standings_scene: DrawList::new([0xFFFFFFFF]),
@@ -1057,7 +1057,7 @@ impl DrawLists {
         overlay_75914e: DrawList::new([0xFFFFFFFF]),
         overlay_759152: DrawList::new([0xFFFFFFFF]),
         save_setup_overlay: DrawList::new([0x46F031, 0xFFFFFFFF]),
-        load_championship_46e899_overlay: DrawList::new([0x46F087, 0xFFFFFFFF]),
+        load_championship_table_overlay: DrawList::new([0x46F087, 0xFFFFFFFF]),
         list_759166: DrawList::new([0x4698C4, 0xFFFFFFFF]),
         arcade_select_level_overlay: DrawList::new([0x4698C4, 0x48ADCE, 0xFFFFFFFF]),
         list_75917a: DrawList::new([0x4698C4, 0xFFFFFFFF]),
@@ -1066,7 +1066,7 @@ impl DrawLists {
         new_simulation_overlay: DrawList::new([0x4698C4, 0xFFFFFFFF]),
         network_rally_overlay: DrawList::new([0x4698C4, 0xFFFFFFFF]),
         select_car_overlay: DrawList::new([0x4698C4, 0xFFFFFFFF]),
-        car_specs_47af4c_overlay: DrawList::new([0x4698C4, 0xFFFFFFFF]),
+        car_specs_display_overlay: DrawList::new([0x4698C4, 0xFFFFFFFF]),
         list_7591b2: DrawList::new([0x4698C4, 0xFFFFFFFF]),
         list_7591ba: DrawList::new([0xFFFFFFFF]),
         arcade_next_stage_overlay: DrawList::new([0xFFFFFFFF]),
@@ -1099,10 +1099,10 @@ impl DrawLists {
         list_75922e: DrawList::new([0xFFFFFFFF]),
         welcome_overlay: DrawList::new([0xFFFFFFFF]),
         rally_stages_overlay: DrawList::new([0xFFFFFFFF]),
-        review_options_47d5a5_overlay: DrawList::new([0xFFFFFFFF]),
-        review_options_480d46_overlay: DrawList::new([0xFFFFFFFF]),
-        review_options_48108e_overlay: DrawList::new([0xFFFFFFFF]),
-        review_options_481429_overlay: DrawList::new([0xFFFFFFFF]),
+        championship_service_review_overlay: DrawList::new([0xFFFFFFFF]),
+        championship_standings_review_overlay: DrawList::new([0xFFFFFFFF]),
+        championship_races_review_overlay: DrawList::new([0xFFFFFFFF]),
+        championship_end_review_overlay: DrawList::new([0xFFFFFFFF]),
         service_area_overlay: DrawList::new([0x4A5FA2, 0xFFFFFFFF]),
         list_759252: DrawList::new([0xFFFFFFFF]),
         next_stage_overlay: DrawList::new([0xFFFFFFFF]),
@@ -1129,7 +1129,7 @@ impl DrawLists {
         list_7592ae: DrawList::new([0xFFFFFFFF]),
         class_championship_standings_overlay: DrawList::new([0xFFFFFFFF]),
         overlay_7592b6: DrawList::new([0xFFFFFFFF]),
-        screen_488f4c_overlay: DrawList::new([0xFFFFFFFF]),
+        arcade_level_end_results_overlay: DrawList::new([0xFFFFFFFF]),
         overlay_7592be: DrawList::new([0xFFFFFFFF]),
         overlay_7592c2: DrawList::new([0xFFFFFFFF]),
         list_7592c6: DrawList::new([0xFFFFFFFF]),
@@ -1141,9 +1141,9 @@ impl DrawLists {
         list_7592de: DrawList::new([0xFFFFFFFF]),
         list_7592e2: DrawList::new([0xFFFFFFFF]),
         in_game_options_overlay: DrawList::new([0xFFFFFFFF]),
-        review_options_485f5e_overlay: DrawList::new([0xFFFFFFFF]),
-        review_options_4882e2_overlay: DrawList::new([0xFFFFFFFF]),
-        review_options_48861d_overlay: DrawList::new([0xFFFFFFFF]),
+        single_rally_review_overlay: DrawList::new([0xFFFFFFFF]),
+        arcade_next_level_review_overlay: DrawList::new([0xFFFFFFFF]),
+        arcade_retry_review_overlay: DrawList::new([0xFFFFFFFF]),
         arcade_review_options_overlay: DrawList::new([0xFFFFFFFF]),
         list_7592fa: DrawList::new([0xFFFFFFFF]),
         overlay_7592fe: DrawList::new([0xFFFFFFFF]),
@@ -1199,7 +1199,7 @@ impl DrawLists {
         list_7593f6: DrawList::new([0xFFFFFFFF]),
         list_7593fa: DrawList::new([0xFFFFFFFF]),
         select_car_setup: DrawList::new([0x4699E0, 0x46A359, 0x490346, 0xFFFFFFFF]),
-        car_specs_47af4c_setup: DrawList::new([0x46A359, 0x490346, 0xFFFFFFFF]),
+        car_specs_display_setup: DrawList::new([0x46A359, 0x490346, 0xFFFFFFFF]),
         list_75941a: DrawList::new([0x4699E0, 0x46A359, 0xFFFFFFFF]),
         list_759426: DrawList::new([0xFFFFFFFF]),
         list_75942a: DrawList::new([0xFFFFFFFF]),
@@ -1265,7 +1265,7 @@ mod tests {
         at(offset_of!(DrawLists, draw_758ba6), 0x758BA6);
         at(offset_of!(DrawLists, save_setup_draw), 0x758BB6);
         at(
-            offset_of!(DrawLists, load_championship_46e899_draw),
+            offset_of!(DrawLists, load_championship_table_draw),
             0x758BBA,
         );
         at(offset_of!(DrawLists, draw_758bbe), 0x758BBE);
@@ -1285,7 +1285,7 @@ mod tests {
         at(offset_of!(DrawLists, new_simulation_draw), 0x758C1A);
         at(offset_of!(DrawLists, network_rally_draw), 0x758C26);
         at(offset_of!(DrawLists, select_car_draw), 0x758C32);
-        at(offset_of!(DrawLists, car_specs_47af4c_draw), 0x758C42);
+        at(offset_of!(DrawLists, car_specs_display_draw), 0x758C42);
         at(offset_of!(DrawLists, list_758c52), 0x758C52);
         at(offset_of!(DrawLists, list_758c62), 0x758C62);
         at(offset_of!(DrawLists, arcade_next_stage_draw), 0x758C6A);
@@ -1324,10 +1324,22 @@ mod tests {
         at(offset_of!(DrawLists, welcome_draw), 0x758D4E);
         at(offset_of!(DrawLists, list_758d52), 0x758D52);
         at(offset_of!(DrawLists, list_758d56), 0x758D56);
-        at(offset_of!(DrawLists, review_options_47d5a5_draw), 0x758D5E);
-        at(offset_of!(DrawLists, review_options_480d46_draw), 0x758D62);
-        at(offset_of!(DrawLists, review_options_48108e_draw), 0x758D66);
-        at(offset_of!(DrawLists, review_options_481429_draw), 0x758D6A);
+        at(
+            offset_of!(DrawLists, championship_service_review_draw),
+            0x758D5E,
+        );
+        at(
+            offset_of!(DrawLists, championship_standings_review_draw),
+            0x758D62,
+        );
+        at(
+            offset_of!(DrawLists, championship_races_review_draw),
+            0x758D66,
+        );
+        at(
+            offset_of!(DrawLists, championship_end_review_draw),
+            0x758D6A,
+        );
         at(offset_of!(DrawLists, service_area_draw), 0x758D6E);
         at(offset_of!(DrawLists, list_758d76), 0x758D76);
         at(offset_of!(DrawLists, list_758d7a), 0x758D7A);
@@ -1358,7 +1370,10 @@ mod tests {
             0x758E56,
         );
         at(offset_of!(DrawLists, list_758e5e), 0x758E5E);
-        at(offset_of!(DrawLists, screen_488f4c_draw), 0x758E66);
+        at(
+            offset_of!(DrawLists, arcade_level_end_results_draw),
+            0x758E66,
+        );
         at(offset_of!(DrawLists, list_758e6e), 0x758E6E);
         at(offset_of!(DrawLists, draw_758e76), 0x758E76);
         at(offset_of!(DrawLists, draw_758e7e), 0x758E7E);
@@ -1371,9 +1386,12 @@ mod tests {
             0x758EA6,
         );
         at(offset_of!(DrawLists, list_758eae), 0x758EAE);
-        at(offset_of!(DrawLists, review_options_485f5e_draw), 0x758EBA);
-        at(offset_of!(DrawLists, review_options_4882e2_draw), 0x758EBE);
-        at(offset_of!(DrawLists, review_options_48861d_draw), 0x758EC2);
+        at(offset_of!(DrawLists, single_rally_review_draw), 0x758EBA);
+        at(
+            offset_of!(DrawLists, arcade_next_level_review_draw),
+            0x758EBE,
+        );
+        at(offset_of!(DrawLists, arcade_retry_review_draw), 0x758EC2);
         at(offset_of!(DrawLists, arcade_review_options_draw), 0x758EC6);
         at(offset_of!(DrawLists, list_758eca), 0x758ECA);
         at(offset_of!(DrawLists, draw_758ece), 0x758ECE);
@@ -1387,7 +1405,7 @@ mod tests {
         at(offset_of!(DrawLists, load_championship_scene), 0x758F0E);
         at(offset_of!(DrawLists, save_setup_scene), 0x758F12);
         at(
-            offset_of!(DrawLists, load_championship_46e899_scene),
+            offset_of!(DrawLists, load_championship_table_scene),
             0x758F1A,
         );
         at(offset_of!(DrawLists, save_championship_scene), 0x758F22);
@@ -1406,19 +1424,28 @@ mod tests {
         at(offset_of!(DrawLists, new_simulation_scene), 0x758F4E);
         at(offset_of!(DrawLists, network_rally_scene), 0x758F56);
         at(offset_of!(DrawLists, select_car_scene), 0x758F5E);
-        at(offset_of!(DrawLists, car_specs_47af4c_scene), 0x758F66);
+        at(offset_of!(DrawLists, car_specs_display_scene), 0x758F66);
         at(offset_of!(DrawLists, list_758f6e), 0x758F6E);
         at(offset_of!(DrawLists, car_specification_scene), 0x758F76);
         at(offset_of!(DrawLists, slideshow_scene), 0x758F7E);
-        at(offset_of!(DrawLists, screen_483163_scene), 0x758F82);
-        at(offset_of!(DrawLists, results_48584b_scene), 0x758F86);
-        at(offset_of!(DrawLists, review_options_485f5e_scene), 0x758F8A);
+        at(
+            offset_of!(DrawLists, single_rally_overall_results_scene),
+            0x758F82,
+        );
+        at(
+            offset_of!(DrawLists, single_rally_two_results_scene),
+            0x758F86,
+        );
+        at(offset_of!(DrawLists, single_rally_review_scene), 0x758F8A);
         at(offset_of!(DrawLists, list_758f92), 0x758F92);
-        at(offset_of!(DrawLists, review_options_4882e2_scene), 0x758F96);
-        at(offset_of!(DrawLists, review_options_48861d_scene), 0x758F9E);
+        at(
+            offset_of!(DrawLists, arcade_next_level_review_scene),
+            0x758F96,
+        );
+        at(offset_of!(DrawLists, arcade_retry_review_scene), 0x758F9E);
         at(offset_of!(DrawLists, arcade_review_options_scene), 0x758FA6);
         at(offset_of!(DrawLists, list_758fae), 0x758FAE);
-        at(offset_of!(DrawLists, best_scores_48a69e_scene), 0x758FB2);
+        at(offset_of!(DrawLists, arcade_best_scores_scene), 0x758FB2);
         at(offset_of!(DrawLists, best_class_scores_scene), 0x758FB6);
         at(offset_of!(DrawLists, best_overall_scores_scene), 0x758FBA);
         at(
@@ -1461,13 +1488,28 @@ mod tests {
         at(offset_of!(DrawLists, list_759046), 0x759046);
         at(offset_of!(DrawLists, in_game_options_scene), 0x75904A);
         at(offset_of!(DrawLists, select_stage_scene), 0x759052);
-        at(offset_of!(DrawLists, results_482e9b_scene), 0x759056);
+        at(
+            offset_of!(DrawLists, single_rally_three_four_results_scene),
+            0x759056,
+        );
         at(offset_of!(DrawLists, welcome_scene), 0x75905A);
         at(offset_of!(DrawLists, rally_stages_scene), 0x75905E);
-        at(offset_of!(DrawLists, review_options_47d5a5_scene), 0x759062);
-        at(offset_of!(DrawLists, review_options_480d46_scene), 0x75906A);
-        at(offset_of!(DrawLists, review_options_48108e_scene), 0x759072);
-        at(offset_of!(DrawLists, review_options_481429_scene), 0x75907A);
+        at(
+            offset_of!(DrawLists, championship_service_review_scene),
+            0x759062,
+        );
+        at(
+            offset_of!(DrawLists, championship_standings_review_scene),
+            0x75906A,
+        );
+        at(
+            offset_of!(DrawLists, championship_races_review_scene),
+            0x759072,
+        );
+        at(
+            offset_of!(DrawLists, championship_end_review_scene),
+            0x75907A,
+        );
         at(offset_of!(DrawLists, service_area_scene), 0x759082);
         at(offset_of!(DrawLists, list_75908a), 0x75908A);
         at(offset_of!(DrawLists, list_75908e), 0x75908E);
@@ -1492,7 +1534,10 @@ mod tests {
         at(offset_of!(DrawLists, overall_rally_results_scene), 0x7590DE);
         at(offset_of!(DrawLists, list_7590e2), 0x7590E2);
         at(offset_of!(DrawLists, list_7590e6), 0x7590E6);
-        at(offset_of!(DrawLists, screen_488f4c_scene), 0x7590EA);
+        at(
+            offset_of!(DrawLists, arcade_level_end_results_scene),
+            0x7590EA,
+        );
         at(offset_of!(DrawLists, list_7590ee), 0x7590EE);
         at(
             offset_of!(DrawLists, class_championship_standings_scene),
@@ -1524,7 +1569,7 @@ mod tests {
         at(offset_of!(DrawLists, overlay_759152), 0x759152);
         at(offset_of!(DrawLists, save_setup_overlay), 0x759156);
         at(
-            offset_of!(DrawLists, load_championship_46e899_overlay),
+            offset_of!(DrawLists, load_championship_table_overlay),
             0x75915E,
         );
         at(offset_of!(DrawLists, list_759166), 0x759166);
@@ -1541,7 +1586,7 @@ mod tests {
         at(offset_of!(DrawLists, new_simulation_overlay), 0x759192);
         at(offset_of!(DrawLists, network_rally_overlay), 0x75919A);
         at(offset_of!(DrawLists, select_car_overlay), 0x7591A2);
-        at(offset_of!(DrawLists, car_specs_47af4c_overlay), 0x7591AA);
+        at(offset_of!(DrawLists, car_specs_display_overlay), 0x7591AA);
         at(offset_of!(DrawLists, list_7591b2), 0x7591B2);
         at(offset_of!(DrawLists, list_7591ba), 0x7591BA);
         at(offset_of!(DrawLists, arcade_next_stage_overlay), 0x7591BE);
@@ -1578,19 +1623,19 @@ mod tests {
         at(offset_of!(DrawLists, welcome_overlay), 0x759232);
         at(offset_of!(DrawLists, rally_stages_overlay), 0x759236);
         at(
-            offset_of!(DrawLists, review_options_47d5a5_overlay),
+            offset_of!(DrawLists, championship_service_review_overlay),
             0x75923A,
         );
         at(
-            offset_of!(DrawLists, review_options_480d46_overlay),
+            offset_of!(DrawLists, championship_standings_review_overlay),
             0x75923E,
         );
         at(
-            offset_of!(DrawLists, review_options_48108e_overlay),
+            offset_of!(DrawLists, championship_races_review_overlay),
             0x759242,
         );
         at(
-            offset_of!(DrawLists, review_options_481429_overlay),
+            offset_of!(DrawLists, championship_end_review_overlay),
             0x759246,
         );
         at(offset_of!(DrawLists, service_area_overlay), 0x75924A);
@@ -1628,7 +1673,10 @@ mod tests {
             0x7592B2,
         );
         at(offset_of!(DrawLists, overlay_7592b6), 0x7592B6);
-        at(offset_of!(DrawLists, screen_488f4c_overlay), 0x7592BA);
+        at(
+            offset_of!(DrawLists, arcade_level_end_results_overlay),
+            0x7592BA,
+        );
         at(offset_of!(DrawLists, overlay_7592be), 0x7592BE);
         at(offset_of!(DrawLists, overlay_7592c2), 0x7592C2);
         at(offset_of!(DrawLists, list_7592c6), 0x7592C6);
@@ -1643,18 +1691,12 @@ mod tests {
         at(offset_of!(DrawLists, list_7592de), 0x7592DE);
         at(offset_of!(DrawLists, list_7592e2), 0x7592E2);
         at(offset_of!(DrawLists, in_game_options_overlay), 0x7592E6);
+        at(offset_of!(DrawLists, single_rally_review_overlay), 0x7592EA);
         at(
-            offset_of!(DrawLists, review_options_485f5e_overlay),
-            0x7592EA,
-        );
-        at(
-            offset_of!(DrawLists, review_options_4882e2_overlay),
+            offset_of!(DrawLists, arcade_next_level_review_overlay),
             0x7592EE,
         );
-        at(
-            offset_of!(DrawLists, review_options_48861d_overlay),
-            0x7592F2,
-        );
+        at(offset_of!(DrawLists, arcade_retry_review_overlay), 0x7592F2);
         at(
             offset_of!(DrawLists, arcade_review_options_overlay),
             0x7592F6,
@@ -1716,7 +1758,7 @@ mod tests {
         at(offset_of!(DrawLists, list_7593f6), 0x7593F6);
         at(offset_of!(DrawLists, list_7593fa), 0x7593FA);
         at(offset_of!(DrawLists, select_car_setup), 0x7593FE);
-        at(offset_of!(DrawLists, car_specs_47af4c_setup), 0x75940E);
+        at(offset_of!(DrawLists, car_specs_display_setup), 0x75940E);
         at(offset_of!(DrawLists, list_75941a), 0x75941A);
         at(offset_of!(DrawLists, list_759426), 0x759426);
         at(offset_of!(DrawLists, list_75942a), 0x75942A);

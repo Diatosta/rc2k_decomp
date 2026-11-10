@@ -11,8 +11,8 @@ use crate::session::{Bytes, Dword, Float};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Car {
-    /// +0x0 (0x719FD8): not named.
-    pub unknown_0: [Dword; 2],
+    /// +0x0 (0x719FD8): the replay frame's head (camera words and bytes, `drive::replay_cameras`).
+    pub frame_head: [Dword; 2],
     /// +0x8 (0x719FE0): the physics step's clock, +1 per running step.
     pub step_clock: Dword,
     /// +0xc (0x719FE4): a random word stirred each step.
@@ -517,8 +517,8 @@ pub struct Car {
     pub group_mask: Dword,
     /// +0xf08 (0x71AEE0): speed scaled (engine sound).
     pub engine_speed_scaled: Float,
-    /// +0xf0c (0x71AEE4): not named.
-    pub unknown_f0c: Dword,
+    /// +0xf0c (0x71AEE4): the step clock as of the last replay step (`drive::replay_step`).
+    pub previous_step_clock: Dword,
     /// +0xf10 (0x71AEE8): world x of the four wheels.
     pub wheel_ground_x: [Dword; 4],
     /// +0xf20 (0x71AEF8): ground height under the four wheels.
@@ -540,8 +540,8 @@ pub struct Car {
     pub car_event_limit: Dword,
     /// +0xfa0 (0x71AF78): event queue position (reading).
     pub car_event_position: Dword,
-    /// +0xfa4 (0x71AF7C): not named.
-    pub unknown_fa4: Dword,
+    /// +0xfa4 (0x71AF7C): the car's place on the panel (`drive::two_car_order` writes it, `race::frame_draw::panel` reads it).
+    pub two_car_place: Dword,
     /// +0xfa8 (0x71AF80): set when the view is covered (reading).
     pub view_covered: Dword,
     /// +0xfac (0x71AF84): set to 10 by the resets; no reader.

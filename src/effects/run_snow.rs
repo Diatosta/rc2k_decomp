@@ -48,11 +48,11 @@ pub fn run_snow(
     use crate::scene::set_render_state::set_render_state;
     let (s, l) = (&weather.snow, &weather.snow_light);
     {
-        let marks = crate::effects::setup::marks()?;
+        let marks = crate::effects::setup::effects_settings()?;
         l.kept.set(marks.unknown_6bc[1].get());
         turn_light(frame, view.view_matrix, weather);
         crate::effects::make_fade_colours::make_fade_colours(view.light, weather, effects);
-        let mut flakes = marks.listener_switch_4.get() as i32;
+        let mut flakes = marks.snow_flakes.get() as i32;
         s.flakes.set(flakes as u32);
         if flakes == 0 {
             s.flag.set(0);
@@ -100,7 +100,7 @@ pub fn run_snow(
             r.set_bits(inverse);
         }
         s.inverse.set_bits(inverse);
-        let marks = crate::effects::setup::marks()?;
+        let marks = crate::effects::setup::effects_settings()?;
         if marks.other_marks_shown.get() != 0 {
             let ticks = race
                 .shared

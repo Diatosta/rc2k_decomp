@@ -28,7 +28,7 @@ pub fn draw_lens_flare(
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    let marks = crate::effects::setup::marks()?;
+    let marks = crate::effects::setup::effects_settings()?;
     if effects
         .frame
         .flare_parts

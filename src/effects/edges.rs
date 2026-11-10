@@ -60,8 +60,8 @@ pub fn load_edges(
         }
         masks.edge_settings.done.set(resume);
     }
-    let marks = crate::effects::setup::marks()?;
-    marks.listener_point_a_negated[0].set(SETTING_VALUE);
+    let marks = crate::effects::setup::effects_settings()?;
+    marks.light_point_a_negated[0].set(SETTING_VALUE);
     let kind = clamped(effects.kinds.marks_kind.kind.bits());
     masks
         .edge_settings
@@ -126,7 +126,7 @@ pub fn load_kind_data(
 ) -> Result<(), Refused> {
     let (masks, drops) = (&effects.masks, &effects.windscreen_drops);
     {
-        let marks = crate::effects::setup::marks()?;
+        let marks = crate::effects::setup::effects_settings()?;
         let kind = marks.mark_car_file_number.get();
         effects.kinds.marks_kind.kind.set_bits(kind);
         load_edges(course, masks, drops, RESUME, scene, gfx, effects)?;

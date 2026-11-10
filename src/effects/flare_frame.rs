@@ -22,7 +22,7 @@ pub fn flare_frame(
         }
         crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].bits());
         crate::scene::depth_test_off::depth_test_off();
-        let marks = crate::effects::setup::marks()?;
+        let marks = crate::effects::setup::effects_settings()?;
         if marks.listener_figures[0].get() != 0 {
             crate::effects::draw_lens_flare::draw_lens_flare(paths, effects)?;
         }

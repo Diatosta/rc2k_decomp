@@ -342,9 +342,9 @@ pub const PIECES: [(usize, usize, &str); 48] = [
         "VIEWER_PANEL",
     ),
     (
-        crate::race::marks_settings_store::START,
-        crate::race::marks_settings_store::END,
-        "MARKS_SETTINGS",
+        crate::race::effects_settings_store::START,
+        crate::race::effects_settings_store::END,
+        "EFFECTS_SETTINGS",
     ),
     (
         crate::race::kind_store::START,
@@ -724,7 +724,7 @@ mod tests {
         assert_eq!(piece_of(0x5CC197), "GEAR");
         assert_eq!(piece_of(0x5CB954), "block");
         assert_eq!(piece_of(0x5C2F80), "VIEWER_PANEL");
-        assert_eq!(piece_of(0x5C2F84), "MARKS_SETTINGS");
+        assert_eq!(piece_of(0x5C2F84), "EFFECTS_SETTINGS");
         assert_eq!(piece_of(0x5C56EC), "KIND_TABLES");
     }
 

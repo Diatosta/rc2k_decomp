@@ -31,7 +31,7 @@ pub fn run_shapes(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let setup = &effects.setup;
-    let marks = crate::effects::setup::marks()?;
+    let marks = crate::effects::setup::effects_settings()?;
     {
         pick_shapes(masks, drops)?;
         turn_all_shapes(masks, drops, effects)?;
@@ -42,7 +42,7 @@ pub fn run_shapes(
                 .picks
                 .next
                 .set((r & 0xFF).wrapping_add(shared.physics_tables.scene_clock.bits()));
-            let mask = marks.listener_switch_7.get();
+            let mask = marks.mask_number.get();
             if mask >= MASK_COUNT {
                 return Err(BadInput("a mask number past dword_844E34's 9").into());
             }
@@ -59,7 +59,7 @@ pub fn run_shapes(
         if drops.picks.moving.get() == 0 {
             return Ok(());
         }
-        let rate = if marks.listener_switch_5.get() == 1 {
+        let rate = if marks.mask_rate_switch.get() == 1 {
             (drops.picks.index.get() >> 3 != 0).then_some(&setup.mask_constants.rates[0])
         } else {
             Some(&setup.mask_constants.rates[1])

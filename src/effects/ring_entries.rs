@@ -61,7 +61,7 @@ pub struct Entry {
     /// 0x64: Kind 1's size factor (a float): the size grows by it times `k1_size`; pulled
     /// toward 65536 while the entry is near the car and faces it.
     pub size_factor: u32,
-    /// 0x68: The car it was emitted for (a `marks_settings_store::car_handle`).
+    /// 0x68: The car it was emitted for (a `effects_settings_store::car_handle`).
     pub car: u32,
     /// 0x6C: The emitting car's +0x88 (its pace), kept by the emitters of kinds 6, 0xD, 0x15.
     pub car_pace: u32,

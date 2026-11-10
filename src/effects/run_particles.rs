@@ -73,7 +73,7 @@ fn refusal(
         if settings == 0 {
             return Ok(Some("no marks settings"));
         }
-        let marks = crate::effects::setup::marks()?;
+        let marks = crate::effects::setup::effects_settings()?;
         if marks.race_done.get() == 0 {
             return Ok(None);
         }
@@ -310,7 +310,7 @@ pub fn run_particles(
         return Err(BadInput(why).into());
     }
     {
-        let marks = crate::effects::setup::marks()?;
+        let marks = crate::effects::setup::effects_settings()?;
         if marks.race_done.get() == 0 {
             return Ok(());
         }

@@ -147,7 +147,7 @@ pub fn scale_corners(effects: &crate::effects::owner::Effects) {
 /// `flt_9354C6`, the last three again at +0x64, +0x70, +0x7C, +0x30 8.
 pub fn reset_settings_blocks(effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
     {
-        let marks = crate::effects::setup::marks()?;
+        let marks = crate::effects::setup::effects_settings()?;
         for n in (0..SETTINGS_BLOCKS).rev() {
             let car = &marks.cars[n as usize];
             for (cell, v) in car

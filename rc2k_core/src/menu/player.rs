@@ -144,11 +144,11 @@ pub struct Player {
     /// The controller's steering sensitivity, 0 .. 100 ("sensibilidade da direcção"; the
     /// player details page shows it as a marker at x + 2 * it).
     pub controller_sensitivity: u32,
-    /// The HUD's bits: set to -1 for every player by `menu::clear_players_284` at an event's
+    /// The HUD's bits: set to -1 for every player by `menu::clear_hud_bits` at an event's
     /// start, taken into the race and given back by `single_rally_race` (`dword_75B010`).
     pub hud_bits: i32,
     /// The money the service spent (the money times 100, `menu::service_pass`); 0 again
-    /// after an event's races (`menu::clear_players_288`).
+    /// after an event's races (`menu::clear_service_spent`).
     pub service_spent: u32,
 }
 

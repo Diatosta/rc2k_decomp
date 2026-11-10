@@ -28,7 +28,7 @@ pub fn steps(race: &Race) {
         &race.physics.damage.engine_speed_share,
         &race.physics.damage.lerp_tables[0],
         &race.physics.damage.gauge_low,
-        &race.physics.damage.flt_75b45c,
+        &race.physics.damage.unknown_11c,
     );
     for k in 0..2 {
         raise(&race.physics, &race.shared.car.brake_heat[k], |g| {
@@ -80,7 +80,7 @@ pub fn steps(race: &Race) {
         add_wear(
             &race.physics.damage,
             &race.physics.damage.wear_rates[7],
-            &race.physics.damage.flt_75b3b4,
+            &race.physics.damage.on_surface_5,
             g,
             g,
         );
@@ -106,18 +106,18 @@ pub fn steps(race: &Race) {
         &race.shared.car.cooling_damage,
         &race.physics.damage.lerp_tables[1],
         &race.physics.damage.gauge_low,
-        &race.physics.damage.flt_75b460,
+        &race.physics.damage.unknown_120,
     );
     lerp_gap(&race.physics.damage);
     hold_low(
-        &race.physics.damage.flt_75b464,
+        &race.physics.damage.unknown_124,
         &race.physics.damage.gauge_low,
     );
     raise(&race.physics, &race.shared.car.engine_heat, |g| {
         add_wear(
             &race.physics.damage,
             &race.physics.damage.wear_rates[0],
-            &race.physics.damage.flt_75b464,
+            &race.physics.damage.unknown_124,
             g,
             g,
         );
@@ -143,49 +143,49 @@ pub fn steps(race: &Race) {
         &race.shared.car.stiffness_mean,
         &race.physics.damage.lerp_tables_b[2],
         &race.physics.damage.gauge_low,
-        &race.physics.damage.flt_75b44c,
+        &race.physics.damage.unknown_10c,
     );
     square_into(
-        &race.physics.damage.flt_75b44c,
-        &race.physics.damage.flt_75b44c,
+        &race.physics.damage.unknown_10c,
+        &race.physics.damage.unknown_10c,
     );
     table_lerp(
         &race.shared.car.stiffness_mean,
         &race.physics.damage.lerp_tables_b[0],
         &race.physics.damage.gauge_low,
-        &race.physics.damage.flt_75b448,
+        &race.physics.damage.unknown_108,
     );
     square_into(
-        &race.physics.damage.flt_75b448,
-        &race.physics.damage.flt_75b448,
+        &race.physics.damage.unknown_108,
+        &race.physics.damage.unknown_108,
     );
     table_lerp(
         &race.shared.car.ride_height_mean,
         &race.physics.damage.lerp_tables_b[1],
         &race.physics.damage.gauge_low,
-        &race.physics.damage.flt_75b468,
+        &race.physics.damage.unknown_128,
     );
     square_into(
-        &race.physics.damage.flt_75b468,
-        &race.physics.damage.flt_75b468,
+        &race.physics.damage.unknown_128,
+        &race.physics.damage.unknown_128,
     );
     table_lerp(
         &race.physics.damage.drive_a_slip_share,
         &race.physics.damage.lerp_tables[3],
         &race.physics.damage.gauge_low,
-        &race.physics.damage.flt_75b46c,
+        &race.physics.damage.unknown_12c,
     );
     table_lerp(
         &race.physics.damage.drive_b_slip_share,
         &race.physics.damage.lerp_tables[3],
         &race.physics.damage.gauge_low,
-        &race.physics.damage.flt_75b470,
+        &race.physics.damage.unknown_130,
     );
     hit_figures(&race.physics.damage);
     // 0x4AC7C9: two figures of the table `dword_75B73C` (row `dword_75B3E8`, columns
     // from `dword_75B8C0` by `dword_75B3EC` & 0xF, then from `dword_75B8C4` by that
     // column, as the original), blended by `dword_75B3F0`, x `flt_75B8BC`.
-    let row = race.physics.damage.dword_75b3e8.bits() << 6;
+    let row = race.physics.damage.tyre_kind.bits() << 6;
     // The original runs on through the store, whatever the columns hold.
     let at = |field: usize, n: u32| (field as u32).wrapping_add(n);
     let read = |at: u32| {
@@ -194,12 +194,12 @@ pub fn steps(race: &Race) {
     };
     let wear = offset_of!(DamageModel, wear_table);
     let column = read(at(
-        offset_of!(DamageModel, dword_75b8c0),
-        (race.physics.damage.dword_75b3ec.bits() & 0xF).wrapping_mul(8),
+        offset_of!(DamageModel, wear_first_columns),
+        (race.physics.damage.surface.bits() & 0xF).wrapping_mul(8),
     ));
     let first = read(at(wear, row.wrapping_add(column.wrapping_mul(4))));
     let column = read(at(
-        offset_of!(DamageModel, dword_75b8c4),
+        offset_of!(DamageModel, wear_second_columns),
         column.wrapping_mul(8),
     ));
     let second = read(at(wear, row.wrapping_add(column.wrapping_mul(4))));
@@ -272,9 +272,9 @@ fn subtract_wear(
 /// `[m + 0x35B464] = [m + 0x35B398] - [m + 0x35B460]`
 fn lerp_gap(m: &DamageModel) {
     let t0 = ld(m.engine_speed_share.bits());
-    let t1 = ld(m.flt_75b460.bits());
+    let t1 = ld(m.unknown_120.bits());
     let t2 = t0 - t1;
-    m.flt_75b464.set_bits(st(t2));
+    m.unknown_124.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -292,29 +292,29 @@ fn square_into(o0: &impl Cell32, o1: &impl Cell32) {
 /// `[m + 0x35B450] = (([m + 0x35B3E0] * [m + 0x35B39C]) * [m + 0x35B6F8]) * [m + 0x35B3F4]`
 /// `[m + 0x35B458] = ((([m + 0x35B3E0] * [m + 0x35B39C]) * [m + 0x35B6F8]) * [m + 0x35B3F4]) * [m + 0x35B448]`
 fn hit_figures(m: &DamageModel) {
-    let t0 = ld(m.flt_75b3e0.bits());
+    let t0 = ld(m.point_surface_copy.bits());
     let t1 = ld(m.speed_share.bits());
     let t2 = t0 * t1;
     let t3 = ld(m.figures[32].bits());
     let t4 = t2 * t3;
-    let t5 = ld(m.flt_75b44c.bits());
+    let t5 = ld(m.unknown_10c.bits());
     let t6 = t4 * t5;
-    let t7 = ld(m.flt_75b468.bits());
+    let t7 = ld(m.unknown_128.bits());
     let t8 = t6 * t7;
     let t9 = ld(m.wheels_down.bits());
     let t10 = t8 * t9;
-    m.flt_75b454.set_bits(st(t10));
-    let t11 = ld(m.flt_75b3e0.bits());
+    m.unknown_114.set_bits(st(t10));
+    let t11 = ld(m.point_surface_copy.bits());
     let t12 = ld(m.speed_share.bits());
     let t13 = t11 * t12;
     let t14 = ld(m.figures[32].bits());
     let t15 = t13 * t14;
     let t16 = ld(m.wheels_down.bits());
     let t17 = t15 * t16;
-    m.flt_75b450.set_bits(st(t17));
-    let t18 = ld(m.flt_75b448.bits());
+    m.unknown_110.set_bits(st(t17));
+    let t18 = ld(m.unknown_108.bits());
     let t19 = t17 * t18;
-    m.flt_75b458.set_bits(st(t19));
+    m.unknown_118.set_bits(st(t19));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -323,16 +323,16 @@ fn hit_figures(m: &DamageModel) {
 fn blend_wear_figures(f: u32, m: &DamageModel, s: u32) {
     let t0 = int(f as i32);
     let t1 = X(1.0);
-    let t2 = ld(m.dword_75b3f0.bits());
+    let t2 = ld(m.surface_blend.bits());
     let t3 = t1 - t2;
     let t4 = t0 * t3;
     let t5 = int(s as i32);
-    let t6 = ld(m.dword_75b3f0.bits());
+    let t6 = ld(m.surface_blend.bits());
     let t7 = t5 * t6;
     let t8 = t4 + t7;
-    let t9 = ld(m.flt_75b8bc.bits());
+    let t9 = ld(m.wear_figure_scale.bits());
     let t10 = t8 * t9;
-    m.flt_75b484.set_bits(st(t10));
+    m.wear_figure.set_bits(st(t10));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -577,7 +577,7 @@ mod asm_reference {
                     add_wear(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[7],
-                        &dm(a[0]).flt_75b3b4,
+                        &dm(a[0]).on_surface_5,
                         &crate::race::owner::race().shared.car.brake_fade,
                         &crate::race::owner::race().shared.car.brake_fade,
                     );
@@ -658,7 +658,7 @@ mod asm_reference {
                     add_wear(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[0],
-                        &dm(a[0]).flt_75b464,
+                        &dm(a[0]).unknown_124,
                         &crate::race::owner::race().shared.car.engine_heat,
                         &crate::race::owner::race().shared.car.engine_heat,
                     );
@@ -719,7 +719,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_15(a[0]) },
-                plain: |a| square_into(&dm(a[0]).flt_75b44c, &dm(a[0]).flt_75b44c),
+                plain: |a| square_into(&dm(a[0]).unknown_10c, &dm(a[0]).unknown_10c),
             },
             Block {
                 name: "damage_wear line 208",
@@ -729,7 +729,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_16(a[0]) },
-                plain: |a| square_into(&dm(a[0]).flt_75b448, &dm(a[0]).flt_75b448),
+                plain: |a| square_into(&dm(a[0]).unknown_108, &dm(a[0]).unknown_108),
             },
             Block {
                 name: "damage_wear line 215",
@@ -739,7 +739,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_17(a[0]) },
-                plain: |a| square_into(&dm(a[0]).flt_75b468, &dm(a[0]).flt_75b468),
+                plain: |a| square_into(&dm(a[0]).unknown_128, &dm(a[0]).unknown_128),
             },
             Block {
                 name: "damage_wear line 223",

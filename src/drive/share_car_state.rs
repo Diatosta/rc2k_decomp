@@ -8,7 +8,7 @@
 //! - the car file's light record (`g_lightRecords`, 0x134 each, by
 //!   `race::car_file_number` of block +0x24) +0x2C .. +0x38 into record +0xC .. +0x18;
 //! - the block named at record +0x24 and +0x28 (the original wrote the addresses of
-//!   block +0x8C0 and +0x740 there; a block handle here: `MarkCar::whole`,
+//!   block +0x8C0 and +0x740 there; a block handle here: `CarEffects::whole`,
 //!   `part_matrix`);
 //! - about eighty fields moved as the original moves them (`MOVES`, the wheels' four
 //!   each), four of them cleared by the block's switches (+0x600 .. and bits 5 .. 8 of
@@ -27,8 +27,8 @@ use crate::math::x87;
 use crate::math::x87_run::{compare_full, sub_div_to_int};
 use crate::physics::car_store::Car;
 use crate::pointers::GamePtr;
+use crate::race::effects_settings_store::CarEffects;
 use crate::race::light_records_store::LIGHT_RECORDS;
-use crate::race::marks_settings_store::MarkCar;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
 use crate::session::Dword;
@@ -41,14 +41,14 @@ use crate::session::Cell32;
 /// A field of a car block, picked out of the block.
 type BlockField = fn(&Car) -> &dyn Cell32;
 /// A field of the effects' car record.
-type RecordField = fn(&MarkCar) -> &dyn Cell32;
+type RecordField = fn(&CarEffects) -> &dyn Cell32;
 /// A field of a light record.
 type LightField = fn(&LightRecord) -> &Dword;
 
 /// The field `$field` of the effects' record number `$i` (the four wheels, then the body 4).
 macro_rules! rec {
     ($i:expr, $field:ident) => {
-        (|o: &MarkCar| &o.records[$i].$field) as RecordField
+        (|o: &CarEffects| &o.records[$i].$field) as RecordField
     };
 }
 
@@ -139,7 +139,7 @@ fn light_record(car: &Car) -> Result<u32, Refused> {
 pub fn share_car_state_at(
     race: &Race,
     car: &'static Car,
-    o: &MarkCar,
+    o: &CarEffects,
     p: &SoundObject,
     scratch: &Dword,
 ) -> Result<(), Refused> {
@@ -244,7 +244,7 @@ pub fn share_car_state_at(
 pub fn share_car_state(
     race: &Race,
     block: &'static Car,
-    record: &MarkCar,
+    record: &CarEffects,
     sound: &SoundObject,
 ) -> Result<(), Refused> {
     share_car_state_at(
@@ -261,9 +261,9 @@ pub fn share_car_state(
 mod tests {
     use super::*;
     use crate::race::blocks_store::own_car;
-    use crate::race::marks_settings_store::MARKS_SETTINGS;
+    use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 
-    fn rec_off(o: &MarkCar, f: RecordField) -> usize {
+    fn rec_off(o: &CarEffects, f: RecordField) -> usize {
         core::ptr::from_ref(f(o)).cast::<u8>().addr() - core::ptr::from_ref(o).addr()
     }
 
@@ -273,7 +273,7 @@ mod tests {
 
     #[test]
     fn the_tables_sit_where_the_original_moved_them() {
-        let o = &MARKS_SETTINGS.cars[0];
+        let o = &EFFECTS_SETTINGS.cars[0];
         let car = own_car();
         let light = &LIGHT_RECORDS.records[0];
         let lbase = core::ptr::from_ref(light).addr();

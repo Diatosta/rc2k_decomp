@@ -11,7 +11,7 @@
 use crate::effects::emit_particle_5::{JitterSet, emit_particle_5_with};
 use crate::effects::ring_store::Ring;
 use crate::errors::Refused;
-use crate::race::marks_settings_store::{MarkCar, MarkRecord};
+use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::session::{Bytes, Dword, Float};
 
 /// Kind 0xB's variables.
@@ -41,7 +41,7 @@ pub static ELEVENTH: JitterSet = JitterSet {
 pub fn emit_particle_11(
     ring: &Ring,
     wheel: &MarkRecord,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
 ) -> Result<(), Refused> {
     emit_particle_5_with(ring, &ELEVENTH, wheel, object)
 }

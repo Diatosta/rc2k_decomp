@@ -25,7 +25,7 @@ use crate::effects::owner::effects;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::marks_settings_store::MarkCar;
+use crate::race::effects_settings_store::CarEffects;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Bytes, Dword, Float};
 
@@ -50,7 +50,7 @@ pub static NINETEENTH: TwinSet = TwinSet {
 
 /// Whether an entry is to be made (the chance and a free entry), worked out without
 /// writing.
-fn makes(ring: &Ring, set: &TwinSet, object: &'static MarkCar) -> Result<bool, Refused> {
+fn makes(ring: &Ring, set: &TwinSet, object: &'static CarEffects) -> Result<bool, Refused> {
     Ok({
         let level = object.levels[set.level].get() as i32;
         let r = set
@@ -67,7 +67,7 @@ fn makes(ring: &Ring, set: &TwinSet, object: &'static MarkCar) -> Result<bool, R
 pub fn refusal(
     ring: &Ring,
     set: &TwinSet,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
 ) -> Result<Option<&'static str>, Refused> {
     Ok({
         if !makes(ring, set, object)? {
@@ -87,7 +87,7 @@ pub fn emit_particle_19(
     masks: &Masks,
     particles: &Particles,
     ring: &Ring,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
 ) -> Result<(), Refused> {
     emit_twin(masks, particles, ring, &NINETEENTH, object)
 }
@@ -98,7 +98,7 @@ pub fn emit_twin(
     particles: &Particles,
     ring: &Ring,
     set: &TwinSet,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
 ) -> Result<(), Refused> {
     let effects = effects();
     if let Some(why) = refusal(ring, set, object)? {

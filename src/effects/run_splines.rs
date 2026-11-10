@@ -20,12 +20,12 @@ const MOST_SPLINES: i32 = 8;
 
 /// The made counter's step (see the header).
 fn step_made(paths: &Paths, half: u32) -> Result<(), Refused> {
-    let marks = crate::effects::setup::marks()?;
+    let marks = crate::effects::setup::effects_settings()?;
     {
         let mut m = paths.spline_head.made.get() as i32;
         let h = half as i32;
-        if marks.listener_flag.get() != 0 {
-            marks.listener_gear_changed.set(0);
+        if marks.spline_switch.get() != 0 {
+            marks.spline_gear_changed.set(0);
             if m < 0x80 {
                 m = m.wrapping_add(h);
                 if m > 0x80 {
@@ -37,10 +37,10 @@ fn step_made(paths: &Paths, half: u32) -> Result<(), Refused> {
                     m = 0x80;
                 }
             }
-        } else if marks.listener_gear_changed.get() != 0 {
+        } else if marks.spline_gear_changed.get() != 0 {
             m = m.wrapping_add(h);
             if m > 0xFF {
-                marks.listener_gear_changed.set(0);
+                marks.spline_gear_changed.set(0);
                 m = 0;
             }
         } else if m != 0 {

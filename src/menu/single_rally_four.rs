@@ -1,5 +1,5 @@
 //! `menu::single_rally_four` (0x482B7A): the single rally for four players in turn (event
-//! mode 8). `menu::begin_event`, `clear_players_284`, `take_player1_units`,
+//! mode 8). `menu::begin_event`, `clear_hud_bits`, `take_player1_units`,
 //! `clear_event_state`; `dword_755984` 4, `dword_755988` 8 (neither `dword_75555D` nor
 //! `dword_758714` set to 0, unlike the three players'); the four car choices (one left
 //! ends it at once). Then each round as `menu::single_rally_three`'s

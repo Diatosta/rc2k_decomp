@@ -1,4 +1,4 @@
-//! `menu::screen_488f4c_loop` (0x488F4C): the loop of a screen with the results background.
+//! `menu::arcade_level_end_results_loop` (0x488F4C): the loop of a screen with the results background.
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`), as extracted from the disassembly: background `results1.png` through
@@ -9,22 +9,22 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.screen_488f4c.id(),
-    saved_item: |m| &m.screens.items.current[slot::SCREEN_488F4C],
+    menu: |m| m.tables.menus.arcade_level_end_results.id(),
+    saved_item: |m| &m.screens.items.current[slot::ARCADE_LEVEL_END_RESULTS],
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list, // g_sceneList
-            table: |m| m.tables.draw_lists.screen_488f4c_scene.id(),
+            table: |m| m.tables.draw_lists.arcade_level_end_results_scene.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list, // g_drawList
-            table: |m| m.tables.draw_lists.screen_488f4c_draw.id(),
+            table: |m| m.tables.draw_lists.arcade_level_end_results_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
-            table: |m| m.tables.draw_lists.screen_488f4c_overlay.id(),
+            table: |m| m.tables.draw_lists.arcade_level_end_results_overlay.id(),
             run: false,
         },
     ],
@@ -36,7 +36,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|m| {
-        &m.tables.texts.screen_488f4c_picture
+        &m.tables.texts.arcade_level_end_results_picture
     }))],
     after_first_frame: &[],
     confirm: None,

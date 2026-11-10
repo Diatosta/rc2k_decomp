@@ -1,4 +1,4 @@
-//! `menu::load_championship_46e899_loop` (0x46E899): a second screen titled "CARREGAR
+//! `menu::load_championship_table_loop` (0x46E899): a second screen titled "CARREGAR
 //! CAMPEONATO", reached through a table.
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
@@ -35,22 +35,22 @@ fn prepare(entry: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.load_championship_46e899.id(),
-    saved_item: |m| &m.screens.items.current[slot::LOAD_CHAMPIONSHIP_46E899],
+    menu: |m| m.tables.menus.load_championship_table.id(),
+    saved_item: |m| &m.screens.items.current[slot::LOAD_CHAMPIONSHIP_TABLE],
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list, // g_sceneList
-            table: |m| m.tables.draw_lists.load_championship_46e899_scene.id(),
+            table: |m| m.tables.draw_lists.load_championship_table_scene.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list, // g_drawList
-            table: |m| m.tables.draw_lists.load_championship_46e899_draw.id(),
+            table: |m| m.tables.draw_lists.load_championship_table_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
-            table: |m| m.tables.draw_lists.load_championship_46e899_overlay.id(),
+            table: |m| m.tables.draw_lists.load_championship_table_overlay.id(),
             run: false,
         },
     ],
@@ -93,5 +93,5 @@ pub const SCREEN: Screen = Screen {
 
 /// Runs the screen (a refusal is the caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::load_championship_46e899_loop", &SCREEN)
+    screen_entry("menu::load_championship_table_loop", &SCREEN)
 }

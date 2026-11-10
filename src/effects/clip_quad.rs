@@ -60,7 +60,7 @@ pub fn clip_quad(effects: &crate::effects::owner::Effects) -> Result<bool, Refus
             return Err(BadInput("null marks settings").into());
         }
         let q = &crate::d3d::vertices_store::VERTICES.vertices;
-        let marks = crate::effects::setup::marks()?;
+        let marks = crate::effects::setup::effects_settings()?;
         let mode = marks.marks_layout.get();
         if !(1..=4).contains(&mode) {
             return Ok(false);

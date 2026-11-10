@@ -1,6 +1,6 @@
 //! `physics::take_split_counted` (0x436833, race mode 2): for car 0 only, when a
 //! checkpoint is past the splits taken (+0xAC below +0x90, unsigned):
-//! `physics::keep_split_time`, `physics::set_flag_51659c`,
+//! `physics::keep_split_time`, `physics::flag_current_car_listed`,
 //! `physics::split_by_mode`, the figure kept at +0x140 [split]; before the last split
 //! the notice 0xC9 (+0x730 0x32, +0x72C 300) and the count-down +0x8C up by
 //! `dword_601434[split]` x 100; +0xA4 0; the splits taken made +0x90; at
@@ -12,8 +12,8 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 use crate::errors::Refused;
+use crate::physics::flag_current_car_listed::flag_current_car_listed;
 use crate::physics::keep_split_time::keep_split_time;
-use crate::physics::set_flag_51659c::set_flag_51659c;
 use crate::physics::split_by_mode::split_by_mode;
 use crate::physics::splits::put_split_time;
 use crate::race::owner::Race;
@@ -34,7 +34,7 @@ pub fn take_split_counted(race: &Race, sound: &crate::sound::owner::Sound) -> Re
         return Ok(());
     }
     { keep_split_time(race) }?;
-    { set_flag_51659c(race, sound) }?;
+    { flag_current_car_listed(race, sound) }?;
     split_by_mode(race)?;
     put_split_time(
         &race.shared,

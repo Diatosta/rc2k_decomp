@@ -42,7 +42,7 @@ pub fn place_spline(
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    let marks = crate::effects::setup::marks()?;
+    let marks = crate::effects::setup::effects_settings()?;
     if n >= SPLINES {
         return Err(BadInput("a spline number of 8 or more").into());
     }

@@ -34,7 +34,7 @@ pub fn ring_frame(
 ) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     {
-        let marks = crate::effects::setup::marks()?;
+        let marks = crate::effects::setup::effects_settings()?;
         for (value, state) in STATES {
             set_render_state(value, state);
         }

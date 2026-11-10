@@ -22,13 +22,13 @@ use crate::effects::emitters::*;
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::race::marks_settings_store::MarkCar;
+use crate::race::effects_settings_store::CarEffects;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::{read_bits, write_bits};
 
 /// `o` the car's object (the original's esi).
-pub fn emit_car_particles(effects: &Effects, o: &'static MarkCar) -> Result<(), Refused> {
+pub fn emit_car_particles(effects: &Effects, o: &'static CarEffects) -> Result<(), Refused> {
     o.whole()?;
     let k = read_bits(&effects.kinds.emitter.place_k);
     let place = |wheel: usize, axis: usize| &o.records[wheel].place[axis];

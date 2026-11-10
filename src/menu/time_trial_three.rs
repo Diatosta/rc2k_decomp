@@ -1,5 +1,5 @@
 //! `menu::time_trial_three` (0x48B54B): the time trial for three players in turn (event
-//! mode 0x16). `g_eventMode` 3, `menu::begin_event`, `clear_players_284`,
+//! mode 0x16). `g_eventMode` 3, `menu::begin_event`, `clear_hud_bits`,
 //! `take_player1_units`; `dword_758714` 0, `dword_755984` 3, `dword_755988` 0x16,
 //! `dword_755954` 3, `dword_75555D` 0, the eight dwords `dword_7587A8` .. `dword_7587C4`
 //! 0; the three car choices (players 1 and 2's list made again before their car is

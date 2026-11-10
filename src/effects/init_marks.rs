@@ -20,7 +20,7 @@ const KINDS: u32 = rc2k_core::effects::kind_values::KINDS;
 const KIND_FLOAT_PAST: u32 = 0x468E_8000;
 
 /// `seed` the seed (eax). The original took the settings'
-/// address in esi; the race hands its one record (`race::marks_settings_store`), so none is
+/// address in esi; the race hands its one record (`race::effects_settings_store`), so none is
 /// passed. The steps (`nullsub_1` before each, `nullsub_26` for step 7: nothing).
 pub fn init_marks(
     race: &Race,
@@ -37,7 +37,7 @@ pub fn init_marks(
     let paths = &effects.paths;
     {
         // Every read through `g_marksSettings` is a field of the race's record.
-        let marks = &*crate::race::marks_settings_store::MARKS_SETTINGS;
+        let marks = &*crate::race::effects_settings_store::EFFECTS_SETTINGS;
         if marks.mark_car_file_number.get() >= KINDS {
             return Err(BadInput("a marks kind of 0x22 or more").into());
         }

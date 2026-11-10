@@ -9,7 +9,7 @@ use crate::effects::owner::effects;
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::race::marks_settings_store::{MarkCar, MarkRecord};
+use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::session::{Bytes, Dword, Float};
 
 pub use crate::effects::ring_store::Ring;
@@ -79,14 +79,14 @@ pub fn matrix_cell(matrix: &[Float], offset: u32) -> Result<u32, Refused> {
 /// The car the emitters are on (`EMITTER.car`, a handle); refused when none is set.
 pub fn emitting_car(
     effects: &crate::effects::owner::Effects,
-) -> Result<&'static MarkCar, BadInput> {
-    crate::race::marks_settings_store::car_or_none(effects.kinds.emitter.car.get())
+) -> Result<&'static CarEffects, BadInput> {
+    crate::race::effects_settings_store::car_or_none(effects.kinds.emitter.car.get())
         .ok_or(BadInput("no car for the emitters"))
 }
 
 /// Whether the emitters are on a car whose matrix is set (the emitters' refusal).
 pub fn car_with_matrix() -> Result<bool, Refused> {
-    match crate::race::marks_settings_store::car_or_none(effects().kinds.emitter.car.get()) {
+    match crate::race::effects_settings_store::car_or_none(effects().kinds.emitter.car.get()) {
         Some(car) => Ok(car.has_whole()),
         None => Ok(false),
     }
@@ -108,7 +108,7 @@ pub struct Gate {
 /// +0x10 or +0x18 not 0.
 pub fn gate(
     wheel: &MarkRecord,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
     a: &Float,
     b: &Float,
     k: &[crate::session::Float; 4],
@@ -129,7 +129,11 @@ pub fn gate(
 }
 
 /// The gate after the rate (see `gate`).
-pub fn gate_with(wheel: &MarkRecord, object: &'static MarkCar, rate: i32) -> Result<Gate, Refused> {
+pub fn gate_with(
+    wheel: &MarkRecord,
+    object: &'static CarEffects,
+    rate: i32,
+) -> Result<Gate, Refused> {
     Ok({
         let sum = object.rate.get().wrapping_add(rate as u32);
         if (sum as i32) < 0x1000 {
@@ -169,7 +173,7 @@ pub struct EmitterVars {
     pub _gap_93541a: Bytes<24>,
     /// 0x935432: `g_marksSign`: -1 or 1 (`effects::emit_particle_5`).
     pub sign: Dword,
-    /// 0x935436: `g_marksCar`: the car object being done (a `marks_settings_store::car_handle`, 0 for none).
+    /// 0x935436: `g_marksCar`: the car object being done (a `effects_settings_store::car_handle`, 0 for none).
     pub car: Dword,
     /// 0x93543A: `g_marksSideB` (`flt_93543A`, `flt_93543E`, `flt_935442`): the second side vector of the emitters.
     pub side_b: [Float; 3],

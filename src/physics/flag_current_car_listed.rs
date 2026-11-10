@@ -1,4 +1,4 @@
-//! `physics::set_flag_51659c` (0x45D151): `dword_51659C` 1 when the current car's entry in
+//! `physics::flag_current_car_listed` (0x45D151): `dword_51659C` 1 when the current car's entry in
 //! `dword_641680` is not -1. See `physics/listed_car_flags.rs` (the core, the test).
 //!
 //! Returns: the entry
@@ -9,6 +9,9 @@ use crate::errors::Refused;
 use crate::physics::listed_car_flags::set_flag;
 use crate::race::owner::Race;
 
-pub fn set_flag_51659c(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+pub fn flag_current_car_listed(
+    race: &Race,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
     set_flag(race, &sound.race.stage.once[0])
 }

@@ -8,13 +8,13 @@
 use crate::effects::owner::effects;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::race::marks_settings_store::MarkCar;
+use crate::race::effects_settings_store::CarEffects;
 use crate::session::Float;
 
 /// `block` the car record whose block holds the factors (the original's ebp), `to` where
 /// the point goes (esi), `from` the point blended (edi), `base` the base point (edx's).
 pub fn blend_corner(
-    block: &MarkCar,
+    block: &CarEffects,
     to: u32,
     from: u32,
     base: [u32; 3],

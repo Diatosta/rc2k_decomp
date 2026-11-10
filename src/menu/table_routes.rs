@@ -29,8 +29,8 @@ use crate::menu::in_game_options_loop;
 use crate::menu::information_loop;
 use crate::menu::item_actions;
 use crate::menu::learn_bindings;
-use crate::menu::load_championship_46e899_loop;
 use crate::menu::load_championship_loop;
+use crate::menu::load_championship_table_loop;
 use crate::menu::lower_sensitivity;
 use crate::menu::menu_sounds_a_volume_down;
 use crate::menu::menu_sounds_a_volume_up;
@@ -455,7 +455,7 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         }
         ItemFn::BeginSavegameName => Ok(begin_savegame_name::begin_savegame_name(menus, true)?),
         ItemFn::LoadSavegame => load_savegame::load_savegame(menus),
-        ItemFn::LoadChampionship46e899Loop => load_championship_46e899_loop::run(),
+        ItemFn::LoadChampionshipTableLoop => load_championship_table_loop::run(),
         ItemFn::SaveSetupLoop => save_setup_loop::run(),
         ItemFn::BeginSetupName => Ok(begin_setup_name::begin_setup_name(menus)?),
         ItemFn::LoadSetupSlot => load_setup_slot::load_setup_slot(menus).map(|_| ()),

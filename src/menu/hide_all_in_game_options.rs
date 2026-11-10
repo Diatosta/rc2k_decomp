@@ -1,4 +1,4 @@
-//! `menu::reset_cars_750724` (0x46FC52): four entries of `off_750724`'s table (0x5C apart
+//! `menu::hide_all_in_game_options` (0x46FC52): four entries of `off_750724`'s table (0x5C apart
 //! from +0x118) given +0x14 0, +0x48 -0x3E4 and +0x1C -0x57 (a reading: the cars on the
 //! front end's carousel at their start).
 //!
@@ -11,7 +11,7 @@ use crate::menu::owner::Menus;
 use rc2k_core::menu::items::{HIDDEN, IN_GAME_OPTIONS};
 
 // off_750724
-pub fn reset_cars_750724(menus: &Menus) -> Result<(), Refused> {
+pub fn hide_all_in_game_options(menus: &Menus) -> Result<(), Refused> {
     let tables = &menus.tables;
     // Converted: `rc2k_core::menu::items::HIDDEN` (the four items `hide_in_game_options`
     // hides, all of them).

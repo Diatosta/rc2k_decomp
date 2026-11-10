@@ -69,7 +69,7 @@ fn sprite_project(drops: &WindscreenDrops, e: u32, inverse_depth: bh::X) {
 /// Why it refuses, if it does.
 fn refusal(drops: &WindscreenDrops) -> Result<Option<&'static str>, Refused> {
     Ok({
-        if crate::effects::setup::marks().is_err() {
+        if crate::effects::setup::effects_settings().is_err() {
             return Ok(Some("no marks settings"));
         }
         let items = &drops.hex.items;
@@ -146,9 +146,9 @@ pub fn windscreen_drops_frame(
                 draw_batch()?;
             }
         }
-        let marks = crate::effects::setup::marks()?;
+        let marks = crate::effects::setup::effects_settings()?;
         let live: u32 = drops.state.live.bits();
-        if (live as i32) < marks.listener_switch_2.get() as i32
+        if (live as i32) < marks.windscreen_drops_wanted.get() as i32
             && setup.kind_floats.running.bits() != 0
         {
             crate::effects::windscreen_drops_spawn::windscreen_drops_spawn(drops, effects)?;

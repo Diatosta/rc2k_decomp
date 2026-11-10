@@ -24,7 +24,7 @@ use crate::effects::jitter_point::jitter_point;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::marks_settings_store::{MarkCar, MarkRecord};
+use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Dword, Float};
 
@@ -102,7 +102,7 @@ fn emits(set: &JitterSet, wheel: &MarkRecord) -> Result<bool, Refused> {
 pub fn emit_particle_5(
     ring: &Ring,
     wheel: &MarkRecord,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
 ) -> Result<(), Refused> {
     emit_particle_5_with(ring, &FIFTH, wheel, object)
 }
@@ -112,7 +112,7 @@ pub fn emit_particle_5_with(
     ring: &Ring,
     set: &JitterSet,
     wheel: &MarkRecord,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
 ) -> Result<(), Refused> {
     let effects = crate::effects::owner::effects();
     let kinds = &effects.kinds;

@@ -157,7 +157,7 @@ fn review<G: Game>(e: &mut G, hide: Option<u32>, ask: bool) -> Result<bool, G::E
         Some(players) => e.run(Call::HideInGameOptions { players })?,
         None => e.run(Call::ShowInGameOptions)?,
     }
-    e.run(Call::Review485F5E)?;
+    e.run(Call::SingleRallyReview)?;
     Ok((ask && e.yes()) || e.get(Var::Ended569) == 1 || e.get(Var::Leave) == 1)
 }
 
@@ -179,7 +179,7 @@ fn stage_chosen<G: Game>(e: &mut G, screen: Call) -> Result<bool, G::Error> {
 /// `menu::single_rally`: one player (event mode 0x18).
 pub fn single_rally<G: Game>(e: &mut G) -> Result<(), G::Error> {
     e.run(Call::BeginEvent)?;
-    e.run(Call::ClearPlayers284)?;
+    e.run(Call::ClearHudBits)?;
     e.run(Call::TakePlayer1Units)?;
     e.set(Var::PlayerCount, 1);
     e.set(Var::EventMode, 0x18);
@@ -214,7 +214,7 @@ pub fn single_rally<G: Game>(e: &mut G) -> Result<(), G::Error> {
             }
         }
         e.run(Call::HideInGameOptions { players: 1 })?;
-        e.run(Call::Review485F5E)?;
+        e.run(Call::SingleRallyReview)?;
         if e.get(Var::LeftA3C) == 1 || e.get(Var::Ended569) == 1 || e.get(Var::Leave) == 1 {
             break;
         }
@@ -225,7 +225,7 @@ pub fn single_rally<G: Game>(e: &mut G) -> Result<(), G::Error> {
 /// The start of the single rally's events for two to four players.
 fn rally_start<G: Game>(e: &mut G) -> Result<(), G::Error> {
     e.run(Call::BeginEvent)?;
-    e.run(Call::ClearPlayers284)?;
+    e.run(Call::ClearHudBits)?;
     e.run(Call::TakePlayer1Units)
 }
 
@@ -257,7 +257,7 @@ pub fn single_rally_split<G: Game>(e: &mut G) -> Result<(), G::Error> {
         }
         e.set(Var::Current, 0);
         if split_race(e, 0)? != NO_RESULT {
-            e.run(Call::Results48584B)?;
+            e.run(Call::SingleRallyTwoResults)?;
             if e.yes() {
                 break;
             }
@@ -289,7 +289,7 @@ pub fn single_rally_two<G: Game>(e: &mut G) -> Result<(), G::Error> {
         if let Some(all) = race_series(e, 2, 0, true)?
             && all != NO_RESULT
         {
-            e.run(Call::Results48584B)?;
+            e.run(Call::SingleRallyTwoResults)?;
             if e.yes() {
                 break;
             }
@@ -319,12 +319,12 @@ fn rally_rounds<G: Game>(e: &mut G, n: u32) -> Result<(), G::Error> {
         if let Some(all) = race_series(e, n, 0, true)?
             && all != NO_RESULT
         {
-            e.run(Call::Results482E9B)?;
+            e.run(Call::SingleRallyThreeFourResults)?;
             if e.yes() {
                 return Ok(());
             }
             if e.get(Var::Round) != 0 {
-                e.run(Call::Screen483163)?;
+                e.run(Call::SingleRallyOverallResults)?;
                 if e.yes() {
                     return Ok(());
                 }
@@ -368,7 +368,7 @@ pub fn single_rally_four<G: Game>(e: &mut G) -> Result<(), G::Error> {
 
 /// `menu::time_trial_one`: one player (event mode 0x14).
 pub fn time_trial_one<G: Game>(e: &mut G) -> Result<(), G::Error> {
-    e.run(Call::ClearPlayers284)?;
+    e.run(Call::ClearHudBits)?;
     e.run(Call::TakePlayer1Units)?;
     e.set(Var::PlayerCount, 1);
     e.set(Var::EventMode, 0x14);
@@ -423,7 +423,7 @@ pub fn time_trial_one<G: Game>(e: &mut G) -> Result<(), G::Error> {
 fn time_trial_start<G: Game>(e: &mut G) -> Result<(), G::Error> {
     e.set(Var::Mode, 3);
     e.run(Call::BeginEvent)?;
-    e.run(Call::ClearPlayers284)?;
+    e.run(Call::ClearHudBits)?;
     e.run(Call::TakePlayer1Units)
 }
 
@@ -651,7 +651,7 @@ mod tests {
         single_rally_three(&mut log).unwrap();
         assert_eq!(log.count("Race { next: true, kind: 0 }"), 2);
         assert!(log.has("ReloadFrontEnd"));
-        assert!(!log.has("Results482E9B"));
+        assert!(!log.has("SingleRallyThreeFourResults"));
         assert!(log.has("Round=1"));
         assert_eq!(log.steps.last().unwrap(), "ShowInGameOptions");
     }

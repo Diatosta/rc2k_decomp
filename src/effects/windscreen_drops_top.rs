@@ -26,7 +26,7 @@ use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::race::marks_settings_store::MarksSettings;
+use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::owner_frame::Frame;
 use crate::scene::cross_product3::cross;
 use crate::scene::vector3::normalise;
@@ -37,19 +37,19 @@ const POINTS: u32 = 0x30;
 /// The original's 0x4BAC91 .. 0x4BAD3F: `flt_81622A` (the ease by the ticks), `flt_814728` (the rate), the place (`flt_814C0E` ..) and the first axis (`flt_814C1A` ..) from the settings, its length over `flt_82E272` into `flt_814C06`.
 fn frame_axes(
     drops: &WindscreenDrops,
-    m: &MarksSettings,
+    m: &EffectsSettings,
     effects: &crate::effects::owner::Effects,
 ) {
     frame_axes_x87(drops, m, &effects.setup.clock);
 }
 
 /// The original's 0x4BAD4C .. 0x4BADAC: the second axis (`flt_814C26` ..) from the settings, its length over `flt_82E276` into `flt_814C0A`.
-fn frame_up(drops: &WindscreenDrops, m: &MarksSettings) {
+fn frame_up(drops: &WindscreenDrops, m: &EffectsSettings) {
     frame_up_x87(drops, m);
 }
 
 /// The original's 0x4BADF8 .. 0x4BAE1C: the place again as floats into `flt_8161A2` ...
-fn frame_place(drops: &WindscreenDrops, m: &MarksSettings) {
+fn frame_place(drops: &WindscreenDrops, m: &EffectsSettings) {
     frame_place_x87(drops, m);
 }
 
@@ -71,7 +71,7 @@ pub fn windscreen_drops_top(
     gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let m = crate::effects::setup::marks()?;
+    let m = crate::effects::setup::effects_settings()?;
     drops.hex.buffer.set(0);
     frame_axes(drops, m, effects);
     let w = &drops.work.axes;
@@ -121,8 +121,8 @@ pub fn windscreen_drops_top(
                 .set(quads.wrapping_mul(6));
             crate::effects::windscreen_drops_frame::draw_batch()?;
         }
-        let marks = crate::effects::setup::marks()?;
-        if marks.listener_switch_6.get() != 0 && effects.setup.kind_floats.running.bits() != 0 {
+        let marks = crate::effects::setup::effects_settings()?;
+        if marks.windscreen_wet.get() != 0 && effects.setup.kind_floats.running.bits() != 0 {
             crate::effects::windscreen_drops_step::windscreen_drops_step(masks, drops)?;
         }
     }
@@ -134,27 +134,27 @@ pub fn windscreen_drops_top(
 }
 
 /// `frame_axes`'s x87 block as plain Rust on the x87 model (32 instructions), same order and memory places.
-fn frame_axes_x87(drops: &WindscreenDrops, m: &MarksSettings, c: &MarksClock) {
+fn frame_axes_x87(drops: &WindscreenDrops, m: &EffectsSettings, c: &MarksClock) {
     let t0 = ld_cell(&drops.hex.top_k[0]);
     let t1 = t0 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
     st_cell(&drops.hex.ease, t1);
-    let t2 = ldi_cell(&m.listener_switch_0);
+    let t2 = ldi_cell(&m.windscreen_drops_rate_factor);
     let t3 = t2 * ld_cell(&drops.hex.top_k[1]);
     drops.state.rate.set_bits(bh::st(t3));
-    let t4 = ldi_cell(&m.listener_point_b_negated[0]);
-    let t5 = ldi_cell(&m.listener_point_b_negated[1]);
-    let t6 = ldi_cell(&m.listener_point_b_negated[2]);
+    let t4 = ldi_cell(&m.light_point_b_negated[0]);
+    let t5 = ldi_cell(&m.light_point_b_negated[1]);
+    let t6 = ldi_cell(&m.light_point_b_negated[2]);
     drops.work.place[2].set_bits(bh::st(t6));
     drops.work.place[1].set_bits(bh::st(t5));
     drops.work.place[0].set_bits(bh::st(t4));
-    let t7 = ldi_cell(&m.listener_point_b[0]);
-    let t8 = t7 - ldi_cell(&m.listener_point_b_negated[0]);
+    let t7 = ldi_cell(&m.light_point_b[0]);
+    let t8 = t7 - ldi_cell(&m.light_point_b_negated[0]);
     drops.work.axes[0].set_bits(bh::st(t8));
-    let t9 = ldi_cell(&m.listener_point_b[1]);
-    let t10 = t9 - ldi_cell(&m.listener_point_b_negated[1]);
+    let t9 = ldi_cell(&m.light_point_b[1]);
+    let t10 = t9 - ldi_cell(&m.light_point_b_negated[1]);
     drops.work.axes[1].set_bits(bh::st(t10));
-    let t11 = ldi_cell(&m.listener_point_b[2]);
-    let t12 = t11 - ldi_cell(&m.listener_point_b_negated[2]);
+    let t11 = ldi_cell(&m.light_point_b[2]);
+    let t12 = t11 - ldi_cell(&m.light_point_b_negated[2]);
     drops.work.axes[2].set_bits(bh::st(t12));
     let t13 = bh::ld(drops.work.axes[0].bits());
     let t14 = t13 * t13;
@@ -170,15 +170,15 @@ fn frame_axes_x87(drops: &WindscreenDrops, m: &MarksSettings, c: &MarksClock) {
 }
 
 /// `frame_up`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
-fn frame_up_x87(drops: &WindscreenDrops, m: &MarksSettings) {
-    let t0 = ldi_cell(&m.listener_point_a_negated[0]);
-    let t1 = t0 - ldi_cell(&m.listener_point_b_negated[0]);
+fn frame_up_x87(drops: &WindscreenDrops, m: &EffectsSettings) {
+    let t0 = ldi_cell(&m.light_point_a_negated[0]);
+    let t1 = t0 - ldi_cell(&m.light_point_b_negated[0]);
     drops.work.axes[3].set_bits(bh::st(t1));
-    let t2 = ldi_cell(&m.listener_point_a_negated[1]);
-    let t3 = t2 - ldi_cell(&m.listener_point_b_negated[1]);
+    let t2 = ldi_cell(&m.light_point_a_negated[1]);
+    let t3 = t2 - ldi_cell(&m.light_point_b_negated[1]);
     drops.work.axes[4].set_bits(bh::st(t3));
-    let t4 = ldi_cell(&m.listener_point_a_negated[2]);
-    let t5 = t4 - ldi_cell(&m.listener_point_b_negated[2]);
+    let t4 = ldi_cell(&m.light_point_a_negated[2]);
+    let t5 = t4 - ldi_cell(&m.light_point_b_negated[2]);
     drops.work.axes[5].set_bits(bh::st(t5));
     let t6 = bh::ld(drops.work.axes[3].bits());
     let t7 = t6 * t6;
@@ -194,12 +194,12 @@ fn frame_up_x87(drops: &WindscreenDrops, m: &MarksSettings) {
 }
 
 /// `frame_place`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
-fn frame_place_x87(drops: &WindscreenDrops, m: &MarksSettings) {
-    let t0 = ldi_cell(&m.listener_point_b_negated[0]);
+fn frame_place_x87(drops: &WindscreenDrops, m: &EffectsSettings) {
+    let t0 = ldi_cell(&m.light_point_b_negated[0]);
     st_cell(&drops.hex.place[0], t0);
-    let t1 = ldi_cell(&m.listener_point_b_negated[1]);
+    let t1 = ldi_cell(&m.light_point_b_negated[1]);
     st_cell(&drops.hex.place[1], t1);
-    let t2 = ldi_cell(&m.listener_point_b_negated[2]);
+    let t2 = ldi_cell(&m.light_point_b_negated[2]);
     st_cell(&drops.hex.place[2], t2);
 }
 

@@ -1,12 +1,10 @@
-//! `menu::review_options_481429_loop` (0x481429): the menu after the results screens, by its
+//! `menu::championship_service_review_loop` (0x47D5A5): the menu after the results screens, by its
 //! title "OPÇÕES DE REVISÃO" (a reading)
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `roptions.png`; leaving is asked about; also
-//! when `dword_755569` is 1; the Escape flag is looked at at the top of every frame; around an
-//! action the highlight is kept in `dword_7477A4`; the action run is that of the item of
-//! another menu, 0x754C88 (the original's slip); the steps that are more than a call or a store
-//! are the functions below, generated from the listing.
+//! when `dword_755569` is 1; the Escape flag is looked at at the top of every frame; the steps
+//! that are more than a call or a store are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "OPÇÕES DE REVISÃO", not yet a
 //! visit.
 
@@ -21,9 +19,9 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     Callee::NoOp.run(entry)?;
     screens.loop_flags.ended_a.set(0x0u32);
     screens.flow.turning.set(0x1u32);
-    screens.state.carousel.menu.set(0x14u32);
+    screens.state.carousel.menu.set(0xAu32);
     carousel(None)?;
-    let item = screens.items.current[slot::REVIEW_OPTIONS_481429].get();
+    let item = screens.items.current[slot::CHAMPIONSHIP_SERVICE_REVIEW].get();
     screens.loop_flags.item.set(item);
     screens.state.carousel.front.set(item.wrapping_sub(1));
     screens.flow.turning.set(0x0u32);
@@ -38,22 +36,22 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.review_options_481429.id(),
-    saved_item: |m| &m.screens.items.current[slot::REVIEW_OPTIONS_481429],
+    menu: |m| m.tables.menus.championship_service_review.id(),
+    saved_item: |m| &m.screens.items.current[slot::CHAMPIONSHIP_SERVICE_REVIEW],
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list, // g_sceneList
-            table: |m| m.tables.draw_lists.review_options_481429_scene.id(),
+            table: |m| m.tables.draw_lists.championship_service_review_scene.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list, // g_drawList
-            table: |m| m.tables.draw_lists.review_options_481429_draw.id(),
+            table: |m| m.tables.draw_lists.championship_service_review_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
-            table: |m| m.tables.draw_lists.review_options_481429_overlay.id(),
+            table: |m| m.tables.draw_lists.championship_service_review_overlay.id(),
             run: false,
         },
     ],
@@ -65,7 +63,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|m| {
-        &m.tables.texts.review_options_481429_picture
+        &m.tables.texts.championship_service_review_picture
     }))],
     after_first_frame: &[],
     confirm: Some(&[]),
@@ -75,14 +73,17 @@ pub const SCREEN: Screen = Screen {
         Step::Write(|m| &m.tables.captions.screen_left, 0x0),
     ],
     unasked_skips_save: false,
-    after: &[Step::Call(Callee::NoOp)],
+    after: &[
+        Step::Call(Callee::NoOp),
+        Step::Write(|m| &m.screens.event.service_next, 0x0),
+    ],
     escape_leaves: true,
     each_frame: &[],
     short_action_check: false,
     leave_at_once: None,
     next_frame_repeats_first: false,
-    action_saved_item: Some(|m| &m.screens.items.current[slot::REVIEW_OPTIONS_48108E]),
-    action_menu: Some(|m| m.tables.menus.review_options_48108e.id()),
+    action_saved_item: None,
+    action_menu: None,
     no_quit_check: false,
     before_asking: &[],
     ask_unless: None,

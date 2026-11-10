@@ -74,7 +74,7 @@ pub struct MenuTexts {
     /// 0x731F19: "files\g\graphics\screens\cspecs.png".
     pub select_car_picture: Bytes<36>,
     /// 0x731F3D: "files\g\graphics\screens\cspecs.png".
-    pub car_specs_47af4c_picture: Bytes<36>,
+    pub car_specs_display_picture: Bytes<36>,
     /// 0x731F61: "files\g\graphics\screens\cspecs.png".
     pub cspecs_png_3: Bytes<36>,
     /// 0x731F85: "files\g\graphics\screens\btimes.png".
@@ -88,7 +88,7 @@ pub struct MenuTexts {
     /// 0x732017: "files\g\graphics\screens\btimes.png".
     pub time_trial_best_times_picture: Bytes<36>,
     /// 0x73203B: "files\g\graphics\screens\bascores.png".
-    pub best_scores_48a69e_picture: Bytes<38>,
+    pub arcade_best_scores_picture: Bytes<38>,
     /// 0x732061: "files\g\graphics\screens\bascores.png".
     pub best_class_scores_picture: Bytes<38>,
     /// 0x732087: "files\g\graphics\screens\bascores.png".
@@ -170,13 +170,13 @@ pub struct MenuTexts {
     /// 0x7325F8: "files\g\graphics\screens\service.png".
     pub inspection_area_picture: Bytes<37>,
     /// 0x73261D: "files\g\graphics\screens\roptions.png".
-    pub review_options_47d5a5_picture: Bytes<38>,
+    pub championship_service_review_picture: Bytes<38>,
     /// 0x732643: "files\g\graphics\screens\roptions.png".
-    pub review_options_480d46_picture: Bytes<38>,
+    pub championship_standings_review_picture: Bytes<38>,
     /// 0x732669: "files\g\graphics\screens\roptions.png".
-    pub review_options_48108e_picture: Bytes<38>,
+    pub championship_races_review_picture: Bytes<38>,
     /// 0x73268F: "files\g\graphics\screens\roptions.png".
-    pub review_options_481429_picture: Bytes<38>,
+    pub championship_end_review_picture: Bytes<38>,
     /// 0x7326B5: "files\g\graphics\screens\opts.png".
     pub in_game_options_picture: Bytes<34>,
     /// 0x7326D7: "files\g\graphics\screens\welcomer.png".
@@ -214,31 +214,31 @@ pub struct MenuTexts {
     /// 0x73290C: "files\g\graphics\screens\arcade1.png".
     pub simple_select_players_picture: Bytes<37>,
     /// 0x732931: "files\g\graphics\screens\roptions.png".
-    pub review_options_485f5e_picture: Bytes<38>,
+    pub single_rally_review_picture: Bytes<38>,
     /// 0x732957: "files\g\graphics\screens\roptions.png".
     pub arcade_review_options_picture: Bytes<38>,
     /// 0x73297D: "files\g\graphics\screens\arcade1.png".
     pub time_trial_select_players_picture: Bytes<37>,
     /// 0x7329A2: "files\g\graphics\screens\roptions.png".
-    pub review_options_4882e2_picture: Bytes<38>,
+    pub arcade_next_level_review_picture: Bytes<38>,
     /// 0x7329C8: "files\g\graphics\screens\roptions.png".
-    pub review_options_48861d_picture: Bytes<38>,
+    pub arcade_retry_review_picture: Bytes<38>,
     /// 0x7329EE: "files\g\graphics\screens\roptions.png".
     pub roptions_png: Bytes<38>,
     /// 0x732A14: "files\g\graphics\screens\results1.png".
-    pub screen_488f4c_picture: Bytes<38>,
+    pub arcade_level_end_results_picture: Bytes<38>,
     /// 0x732A3A: "files\g\graphics\screens\results1.png".
     pub stage_result_picture: Bytes<38>,
     /// 0x732A60: "files\g\graphics\screens\results1.png".
     pub results1_png_4: Bytes<38>,
     /// 0x732A86: "files\g\graphics\screens\results1.png".
-    pub results_48584b_picture: Bytes<38>,
+    pub single_rally_two_results_picture: Bytes<38>,
     /// 0x732AAC: "files\g\graphics\screens\results1.png".
-    pub results_482e9b_picture: Bytes<38>,
+    pub single_rally_three_four_results_picture: Bytes<38>,
     /// 0x732AD2: "files\g\graphics\screens\results1.png".
     pub time_trial_results_picture: Bytes<38>,
     /// 0x732AF8: "files\g\graphics\screens\results1.png".
-    pub screen_483163_picture: Bytes<38>,
+    pub single_rally_overall_results_picture: Bytes<38>,
     /// 0x732B1E: "files\g\graphics\screens\results1.png".
     pub results1_png_5: Bytes<38>,
     /// 0x732B44: "files\g\graphics\screens\selstage.png".
@@ -739,7 +739,7 @@ impl MenuTexts {
                 0,
                 b"files\\g\\graphics\\screens\\cspecs.png",
             )])),
-            car_specs_47af4c_picture: Bytes::new(with_runs::<36>(&[(
+            car_specs_display_picture: Bytes::new(with_runs::<36>(&[(
                 0,
                 b"files\\g\\graphics\\screens\\cspecs.png",
             )])),
@@ -767,7 +767,7 @@ impl MenuTexts {
                 0,
                 b"files\\g\\graphics\\screens\\btimes.png",
             )])),
-            best_scores_48a69e_picture: Bytes::new(with_runs::<38>(&[(
+            arcade_best_scores_picture: Bytes::new(with_runs::<38>(&[(
                 0,
                 b"files\\g\\graphics\\screens\\bascores.png",
             )])),
@@ -931,19 +931,19 @@ impl MenuTexts {
                 0,
                 b"files\\g\\graphics\\screens\\service.png",
             )])),
-            review_options_47d5a5_picture: Bytes::new(with_runs::<38>(&[(
+            championship_service_review_picture: Bytes::new(with_runs::<38>(&[(
                 0,
                 b"files\\g\\graphics\\screens\\roptions.png",
             )])),
-            review_options_480d46_picture: Bytes::new(with_runs::<38>(&[(
+            championship_standings_review_picture: Bytes::new(with_runs::<38>(&[(
                 0,
                 b"files\\g\\graphics\\screens\\roptions.png",
             )])),
-            review_options_48108e_picture: Bytes::new(with_runs::<38>(&[(
+            championship_races_review_picture: Bytes::new(with_runs::<38>(&[(
                 0,
                 b"files\\g\\graphics\\screens\\roptions.png",
             )])),
-            review_options_481429_picture: Bytes::new(with_runs::<38>(&[(
+            championship_end_review_picture: Bytes::new(with_runs::<38>(&[(
                 0,
                 b"files\\g\\graphics\\screens\\roptions.png",
             )])),
@@ -1019,7 +1019,7 @@ impl MenuTexts {
                 0,
                 b"files\\g\\graphics\\screens\\arcade1.png",
             )])),
-            review_options_485f5e_picture: Bytes::new(with_runs::<38>(&[(
+            single_rally_review_picture: Bytes::new(with_runs::<38>(&[(
                 0,
                 b"files\\g\\graphics\\screens\\roptions.png",
             )])),
@@ -1031,11 +1031,11 @@ impl MenuTexts {
                 0,
                 b"files\\g\\graphics\\screens\\arcade1.png",
             )])),
-            review_options_4882e2_picture: Bytes::new(with_runs::<38>(&[(
+            arcade_next_level_review_picture: Bytes::new(with_runs::<38>(&[(
                 0,
                 b"files\\g\\graphics\\screens\\roptions.png",
             )])),
-            review_options_48861d_picture: Bytes::new(with_runs::<38>(&[(
+            arcade_retry_review_picture: Bytes::new(with_runs::<38>(&[(
                 0,
                 b"files\\g\\graphics\\screens\\roptions.png",
             )])),
@@ -1043,7 +1043,7 @@ impl MenuTexts {
                 0,
                 b"files\\g\\graphics\\screens\\roptions.png",
             )])),
-            screen_488f4c_picture: Bytes::new(with_runs::<38>(&[(
+            arcade_level_end_results_picture: Bytes::new(with_runs::<38>(&[(
                 0,
                 b"files\\g\\graphics\\screens\\results1.png",
             )])),
@@ -1055,11 +1055,11 @@ impl MenuTexts {
                 0,
                 b"files\\g\\graphics\\screens\\results1.png",
             )])),
-            results_48584b_picture: Bytes::new(with_runs::<38>(&[(
+            single_rally_two_results_picture: Bytes::new(with_runs::<38>(&[(
                 0,
                 b"files\\g\\graphics\\screens\\results1.png",
             )])),
-            results_482e9b_picture: Bytes::new(with_runs::<38>(&[(
+            single_rally_three_four_results_picture: Bytes::new(with_runs::<38>(&[(
                 0,
                 b"files\\g\\graphics\\screens\\results1.png",
             )])),
@@ -1067,7 +1067,7 @@ impl MenuTexts {
                 0,
                 b"files\\g\\graphics\\screens\\results1.png",
             )])),
-            screen_483163_picture: Bytes::new(with_runs::<38>(&[(
+            single_rally_overall_results_picture: Bytes::new(with_runs::<38>(&[(
                 0,
                 b"files\\g\\graphics\\screens\\results1.png",
             )])),

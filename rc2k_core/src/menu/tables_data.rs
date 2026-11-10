@@ -205,8 +205,8 @@ pub enum ItemFn {
     BeginSavegameName,
     /// `saves::load_savegame` (0x46E6E1)
     LoadSavegame,
-    /// `menu::load_championship_46e899_loop` (0x46E899)
-    LoadChampionship46e899Loop,
+    /// `menu::load_championship_table_loop` (0x46E899)
+    LoadChampionshipTableLoop,
     /// `menu::save_setup_loop` (0x46EB7A)
     SaveSetupLoop,
     /// `service::begin_setup_name` (0x46EE81)
@@ -573,7 +573,7 @@ impl ItemFn {
         ItemFn::NextReplayRange,
         ItemFn::BeginSavegameName,
         ItemFn::LoadSavegame,
-        ItemFn::LoadChampionship46e899Loop,
+        ItemFn::LoadChampionshipTableLoop,
         ItemFn::SaveSetupLoop,
         ItemFn::BeginSetupName,
         ItemFn::LoadSetupSlot,
@@ -809,7 +809,7 @@ impl ItemFn {
             ItemFn::NextReplayRange => 0x46D43B,
             ItemFn::BeginSavegameName => 0x46D571,
             ItemFn::LoadSavegame => 0x46E6E1,
-            ItemFn::LoadChampionship46e899Loop => 0x46E899,
+            ItemFn::LoadChampionshipTableLoop => 0x46E899,
             ItemFn::SaveSetupLoop => 0x46EB7A,
             ItemFn::BeginSetupName => 0x46EE81,
             ItemFn::LoadSetupSlot => 0x46EECC,
@@ -1046,7 +1046,7 @@ impl ItemFn {
             0x46D43B => ItemFn::NextReplayRange,
             0x46D571 => ItemFn::BeginSavegameName,
             0x46E6E1 => ItemFn::LoadSavegame,
-            0x46E899 => ItemFn::LoadChampionship46e899Loop,
+            0x46E899 => ItemFn::LoadChampionshipTableLoop,
             0x46EB7A => ItemFn::SaveSetupLoop,
             0x46EE81 => ItemFn::BeginSetupName,
             0x46EECC => ItemFn::LoadSetupSlot,
@@ -7951,7 +7951,7 @@ pub static MENUS: [Menu; 96] = [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
                 ],
-                action: ItemFn::LoadChampionship46e899Loop,
+                action: ItemFn::LoadChampionshipTableLoop,
                 skip_mark: 0xFFFFFC1B,
                 measuring_font: MenuFont::At51E824,
                 highlight_font: MenuFont::At51E884,

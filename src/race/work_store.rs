@@ -242,30 +242,31 @@ impl RaceWork {
     }
 
     /// Car record `n` (`g_carRecords[n]`, the name of one of the marks' car records,
-    /// `race::marks_settings_store`). Refused past the eight (the original reads on into
+    /// `race::effects_settings_store`). Refused past the eight (the original reads on into
     /// the next variables) and for a name that is not a record's start.
     pub fn car_record(
         &self,
         n: usize,
-    ) -> Result<&'static crate::race::marks_settings_store::MarkCar, BadInput> {
+    ) -> Result<&'static crate::race::effects_settings_store::CarEffects, BadInput> {
         let name = self
             .car_records
             .get(n)
             .ok_or(BadInput("a car record past the eight"))?
             .get() as usize;
         let off = name.wrapping_sub(CAR_RECORDS_IDA);
-        if off >= CAR_RECORDS_LEN || !off.is_multiple_of(crate::race::marks_settings_store::CAR_LEN)
+        if off >= CAR_RECORDS_LEN
+            || !off.is_multiple_of(crate::race::effects_settings_store::CAR_LEN)
         {
             return Err(BadInput("a car record off the view marks' records"));
         }
-        Ok(&crate::race::marks_settings_store::MARKS_SETTINGS.cars
-            [off / crate::race::marks_settings_store::CAR_LEN])
+        Ok(&crate::race::effects_settings_store::EFFECTS_SETTINGS.cars
+            [off / crate::race::effects_settings_store::CAR_LEN])
     }
 
     /// The eight car records.
     pub fn car_records_resolved(
         &self,
-    ) -> Result<[&'static crate::race::marks_settings_store::MarkCar; 8], BadInput> {
+    ) -> Result<[&'static crate::race::effects_settings_store::CarEffects; 8], BadInput> {
         let first = self.car_record(0)?;
         let mut out = [first; 8];
         for (n, record) in out.iter_mut().enumerate() {
@@ -276,7 +277,7 @@ impl RaceWork {
 }
 
 /// IDA 0x5C2FE4, where the eight car records (0x4C8 bytes each, in
-/// `marks_settings_store::MarksSettings::cars`) begin, and their length.
+/// `effects_settings_store::EffectsSettings::cars`) begin, and their length.
 pub const CAR_RECORDS_IDA: usize = 0x5C2FE4;
 pub const CAR_RECORDS_LEN: usize = 8 * 0x4C8;
 

@@ -37,7 +37,7 @@ pub struct Shadow<'a> {
     /// The quad is lifted along it (`flt_934B78`, set 1's `flt_933E70`).
     pub up: &'a Float,
     /// The settings' field the angle comes from.
-    pub field: fn(&MarksSettings) -> &Float,
+    pub field: fn(&EffectsSettings) -> &Float,
 }
 
 /// `draw_shadow`'s.
@@ -63,7 +63,7 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 /// The z turn's angle (see the header), 80 bits.
 fn angle(sh: &Shadow) -> Result<[u8; 10], Refused> {
     Ok({
-        let marks = crate::effects::setup::marks()?;
+        let marks = crate::effects::setup::effects_settings()?;
         let split: u32 = sh.quad.low.bits();
         let v = (sh.field)(marks).bits();
         if (split as i32) <= v as i32 {
@@ -115,7 +115,7 @@ pub fn draw_shadow_with(
     if corner >= 0x100 {
         return Err(BadInput("a shadow corner past g_marksCorners").into());
     }
-    crate::effects::setup::marks()?;
+    crate::effects::setup::effects_settings()?;
     turnable(&angle(sh)?)?;
     let temps = [const { Float::from_bits(0) }; 2];
 
@@ -195,7 +195,7 @@ pub fn draw_shadow_with(
 
 use crate::effects::plain::{ld_cell, st_cell};
 use crate::math::x87_float as bh;
-use crate::race::marks_settings_store::MarksSettings;
+use crate::race::effects_settings_store::EffectsSettings;
 
 /// `light_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
 fn light_turned_x87(s: &Shadow, m: &[Float; 9], t: &[Float; 2]) {

@@ -926,7 +926,7 @@ pub fn screen_entry(name: &str, screen: &Screen) -> Result<(), Refused> {
 
 /// A screen loop run from Rust (the event flows, `confirm_leaving`), entered with what the
 /// screen reads from its caller (`Entry`: the list of cars of `select_car_loop` and
-/// `car_specs_47af4c_loop`). Returns the screen's result where it has one (the original's
+/// `car_specs_display_loop`). Returns the screen's result where it has one (the original's
 /// eax).
 pub fn run_screen(screen: &Screen, entry: &Entry) -> Result<Option<u32>, Refused> {
     let menus = entry.menus;

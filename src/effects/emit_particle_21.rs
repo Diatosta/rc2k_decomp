@@ -21,7 +21,7 @@ use crate::effects::emitters::*;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::marks_settings_store::{MarkCar, MarkRecord};
+use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::scene::matrix3::rounded;
 use crate::session::{Bytes, Dword, Float};
 
@@ -56,7 +56,7 @@ fn refusal(
     particles: &Particles,
     ring: &Ring,
     wheel: &MarkRecord,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
     effects: &crate::effects::owner::Effects,
 ) -> Result<Option<&'static str>, Refused> {
     Ok({
@@ -76,7 +76,7 @@ pub fn emit_particle_21(
     particles: &Particles,
     ring: &Ring,
     wheel: &MarkRecord,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {

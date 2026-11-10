@@ -18,7 +18,7 @@ use crate::effects::blend_corner::blend_corner;
 use crate::effects::lines::measure_lines;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
-use crate::race::marks_settings_store::MarkCar;
+use crate::race::effects_settings_store::CarEffects;
 use crate::race::owner_course::Course;
 use crate::scene::object_slots_store::ObjectTables;
 use crate::scene::objects::SLOTS;
@@ -27,8 +27,8 @@ use crate::session::{Bytes, Dword};
 const MOST_CARS: i32 = 8;
 
 /// The cars' blocks, the last first (none for a count of 0 or less).
-fn blocks() -> Result<Vec<&'static MarkCar>, Refused> {
-    let marks = crate::effects::setup::marks()?;
+fn blocks() -> Result<Vec<&'static CarEffects>, Refused> {
+    let marks = crate::effects::setup::effects_settings()?;
     Ok({
         let count = marks.cars_copy.get() as i32;
         (0..count.clamp(0, MOST_CARS) as u32)
@@ -39,7 +39,7 @@ fn blocks() -> Result<Vec<&'static MarkCar>, Refused> {
 }
 
 /// Whether a block's factors differ from its kept ones.
-fn changed(b: &MarkCar) -> bool {
+fn changed(b: &CarEffects) -> bool {
     b.factors
         .iter()
         .zip(&b.kept_factors)
@@ -47,7 +47,7 @@ fn changed(b: &MarkCar) -> bool {
 }
 
 /// A block's objects' first points (in `g_objectPoints`) and their count.
-fn points(course: &Course, b: &MarkCar) -> Result<(u32, u32, i32), Refused> {
+fn points(course: &Course, b: &CarEffects) -> Result<(u32, u32, i32), Refused> {
     Ok({
         let base: u32 = course.lists.object_points.bits();
         let first = |id: u32| {
@@ -72,7 +72,7 @@ fn points(course: &Course, b: &MarkCar) -> Result<(u32, u32, i32), Refused> {
 
 /// Why the Rust version refuses, if it does (its own checks), worked out without writing.
 fn refusal(course: &Course, paths: &Paths) -> Result<Option<&'static str>, Refused> {
-    let marks = crate::effects::setup::marks()?;
+    let marks = crate::effects::setup::effects_settings()?;
     Ok({
         if marks.cars_copy.get() as i32 > MOST_CARS {
             return Ok(Some("more than 8 cars"));

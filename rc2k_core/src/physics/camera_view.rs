@@ -1,5 +1,5 @@
-//! The camera's view steps (converted 2026-10-21 from `physics::take_view_a` 0x437F53,
-//! `physics::take_view_b` 0x438024, `physics::ease_view_angles` 0x43846D,
+//! The camera's view steps (converted 2026-10-21 from `physics::take_first_view` 0x437F53,
+//! `physics::take_second_view` 0x438024, `physics::ease_view_angles` 0x43846D,
 //! `physics::ease_view_blend` 0x4385EB, `physics::camera_height_bias` 0x43852D and
 //! `physics::ease_view_turn` 0x438B4F): a view's place, the share of a change done, the
 //! eased angles, turns, blend and height. What the figures are (the camera's mode,
@@ -36,13 +36,13 @@ pub fn share_done(now: u32, start: u32, time: u32) -> (u32, f32) {
     (held, (held as i32 as f64 / time as i32 as f64) as f32)
 }
 
-/// `take_view_a` / `take_view_b`: the view's place (its record's +4 .. +0xC) plus the
+/// `take_first_view` / `take_second_view`: the view's place (its record's +4 .. +0xC) plus the
 /// offset (`dword_637638` ..).
 pub fn view_place(record: [f32; 3], offset: [f32; 3]) -> [f32; 3] {
     [0, 1, 2].map(|k| (record[k] as f64 + offset[k] as f64) as f32)
 }
 
-/// `take_view_a` / `take_view_b`: the two turns (`unk_71A99C`, `unk_71A9A0`), halved
+/// `take_first_view` / `take_second_view`: the two turns (`unk_71A99C`, `unk_71A9A0`), halved
 /// (`sar`) when `halve`.
 pub fn view_turns(turns: [u32; 2], halve: bool) -> [u32; 2] {
     if halve {

@@ -112,7 +112,7 @@ pub enum Call {
     /// `menu::select_car_loop` with the list (esi).
     SelectCar(CarList),
     TakeShownCar,
-    ResetCars750724,
+    HideAllInGameOptions,
     RunA8Championship,
     ShowInGameOptions,
     RunChampionship,
@@ -185,7 +185,7 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
     e.set(Var::EventMode, s.mode());
     if s.a8() {
         if s.first() {
-            e.call(Call::ResetCars750724)?;
+            e.call(Call::HideAllInGameOptions)?;
         }
         e.call(Call::RunA8Championship)?;
         if s.first() {

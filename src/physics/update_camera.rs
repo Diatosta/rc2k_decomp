@@ -13,7 +13,7 @@
 //! `flt_5C5D68` with the record's +0x50), the roll and turns 0. Else: the camera at the
 //! car (also into `dword_5CCDA0` .., the heading into `dword_5CCD60`); a switch under way
 //! ends after `unk_71A670` (the mode back, `unk_71AF88` = 8, modes 7 on to 0) or its share
-//! (held 0 ..= 1) into `unk_71A674`; `physics::take_view_a` of the mode and `take_view_b`
+//! (held 0 ..= 1) into `unk_71A674`; `physics::take_first_view` of the mode and `take_second_view`
 //! of the mode before; their figures blended by the share into the turn targets
 //! (`dword_608B50` ..), the offsets (`dword_608B30` .., `608B74` ..) and the turns
 //! (`unk_71A694` .., << 16); the shares (`dword_608BE0` ..); the zoom held at least
@@ -212,8 +212,16 @@ pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
         race.shared.car.camera_blend_view.get(),
     );
     camera_view::check_modes(mode, before)?;
-    crate::physics::take_view_a::take_view_a(race, ViewVars::record_of(mode as usize)?, scene)?;
-    crate::physics::take_view_b::take_view_b(race, ViewVars::record_of(before as usize)?, scene);
+    crate::physics::take_first_view::take_first_view(
+        race,
+        ViewVars::record_of(mode as usize)?,
+        scene,
+    )?;
+    crate::physics::take_second_view::take_second_view(
+        race,
+        ViewVars::record_of(before as usize)?,
+        scene,
+    );
     x87_6(race);
     // The offsets and turns: (to, from b, from a) each a + (b - a) x share, x 65536.
     let (work, offset_turns) = (&race.physics.camera, &race.shared.car.camera_offset_turns);

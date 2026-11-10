@@ -658,7 +658,7 @@ pub fn load_splines(
     if kind >= KINDS {
         return Err(BadInput("a marks' kind of 0x22 or more").into());
     }
-    let marks = crate::effects::setup::marks()?;
+    let marks = crate::effects::setup::effects_settings()?;
     let count = marks.object_count.get() as i32;
     if count > MOST_OBJECTS as i32 {
         return Err(BadInput("more than 19 spline objects").into());

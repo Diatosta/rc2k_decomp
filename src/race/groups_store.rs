@@ -24,9 +24,9 @@
 
 use crate::physics::gear_store::GearFigures;
 use crate::race::blocks_store::CarBlocks;
+use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::kind_store::KindTables;
 use crate::race::light_records_store::LightRecords;
-use crate::race::marks_settings_store::MarksSettings;
 use crate::race::overlay_store::OverlayBlock;
 #[cfg(test)]
 use crate::race::owner::race;
@@ -53,8 +53,8 @@ pub struct CarsAndReplay {
 pub struct ViewerAndKinds {
     /// +0x0 (0x5C291C): `race::viewer_screen_store`.
     pub viewer_panel: ViewerPanelBlock,
-    /// +0x668 (0x5C2F84): `race::marks_settings_store`.
-    pub marks_settings: MarksSettings,
+    /// +0x668 (0x5C2F84): `race::effects_settings_store`.
+    pub marks_settings: EffectsSettings,
     /// +0x2DD0 (0x5C56EC): `race::kind_store`.
     pub kind_tables: KindTables,
 }
@@ -112,10 +112,10 @@ const _: () = {
     assert!(size_of::<ViewerAndKinds>() == VIEWER_AND_KINDS_RANGE.1 - VIEWER_AND_KINDS_RANGE.0);
     assert!(
         offset_of!(ViewerAndKinds, marks_settings)
-            == race::marks_settings_store::START - race::viewer_screen_store::START
+            == race::effects_settings_store::START - race::viewer_screen_store::START
     );
-    assert!(race::viewer_screen_store::END == race::marks_settings_store::START);
-    assert!(race::marks_settings_store::END == race::kind_store::START);
+    assert!(race::viewer_screen_store::END == race::effects_settings_store::START);
+    assert!(race::effects_settings_store::END == race::kind_store::START);
     assert!(
         offset_of!(ViewerAndKinds, kind_tables)
             == race::kind_store::START - race::viewer_screen_store::START

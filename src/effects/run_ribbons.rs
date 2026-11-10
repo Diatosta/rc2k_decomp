@@ -127,7 +127,7 @@ fn refusal(
     fog: &crate::scene::fog::Fog,
 ) -> Result<Option<&'static str>, Refused> {
     Ok({
-        let Ok(marks) = crate::effects::setup::marks() else {
+        let Ok(marks) = crate::effects::setup::effects_settings() else {
             return Ok(Some("no marks settings"));
         };
         let ticks: u32 = effects.setup.clock.frame_ticks.get();
@@ -189,7 +189,7 @@ fn streak(
     effects.frame.draw_work.second[1].set_bits(entry(ring, e)?.last_place[1]);
     effects.frame.draw_work.second[2].set_bits(entry(ring, e)?.last_place[2]);
     turn_place(view_matrix, ring, e, effects);
-    let marks = crate::effects::setup::marks()?;
+    let marks = crate::effects::setup::effects_settings()?;
     if marks.own_marks_shown.get() != 0 || marks.other_marks_shown.get() == 1 {
         set(ring, e, effects.frame.draw_work.turned[0].bits(), |en| {
             &mut en.last_place[0]
@@ -241,7 +241,10 @@ pub fn run_ribbons(
             }
             let next = entry(ring, e)?.next;
             // The settings' +0x60: the first car record's first word.
-            if crate::effects::setup::marks()?.cars[0].streaks_on.get() != 0
+            if crate::effects::setup::effects_settings()?.cars[0]
+                .streaks_on
+                .get()
+                != 0
                 && entry(ring, e)?.kind == STREAK
                 && streak(view_matrix, ring, e, effects, fog)?
             {

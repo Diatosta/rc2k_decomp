@@ -169,7 +169,7 @@ pub fn tick_clock(
         let last = c.last.get();
         c.before.set(last);
         c.last.set(clock);
-        let marks = crate::effects::setup::marks()?;
+        let marks = crate::effects::setup::effects_settings()?;
         let ticks = if marks.other_marks_shown.get() == 1 {
             clock.wrapping_sub(last)
         } else {
@@ -329,7 +329,7 @@ pub fn make_noise_curve(
 /// The marks' settings flag (IDA 0x767A28, phase 7, typed state): `g_marksSettings`, which
 /// held the address of the settings the game hands `effects::init_marks`; it is 1 once they are
 /// handed over and 0 before (nothing runs without them). The settings are the race's one
-/// record, `MARKS_SETTINGS` (the original kept its address).
+/// record, `EFFECTS_SETTINGS` (the original kept its address).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SettingsPointer {
@@ -345,14 +345,15 @@ impl SettingsPointer {
     }
 }
 
-/// The marks' settings the race handed `effects::init_marks` (`race::marks_settings_store`,
+/// The marks' settings the race handed `effects::init_marks` (`race::effects_settings_store`,
 /// the one record `g_marksSettings` points at); refused while it points at none, where the
 /// original's reads through it would fault.
-pub fn marks() -> Result<&'static crate::race::marks_settings_store::MarksSettings, BadInput> {
+pub fn effects_settings()
+-> Result<&'static crate::race::effects_settings_store::EffectsSettings, BadInput> {
     if effects().setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings"));
     }
-    Ok(&crate::race::marks_settings_store::MARKS_SETTINGS)
+    Ok(&crate::race::effects_settings_store::EFFECTS_SETTINGS)
 }
 
 impl SettingsPointer {

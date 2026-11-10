@@ -1,5 +1,5 @@
 //! `menu::time_trial_split` (0x48AFD0): the time trial for two players sharing the screen
-//! (event mode 4). `g_eventMode` 3, `menu::begin_event`, `clear_players_284`,
+//! (event mode 4). `g_eventMode` 3, `menu::begin_event`, `clear_hud_bits`,
 //! `take_player1_units`; `dword_755984` 2, `dword_755988` 4, `dword_755954` 3,
 //! `dword_75555D` 0, `dword_7587B8`, `dword_7587BC`, `dword_7587A8`, `dword_7587AC` 0; the
 //! two car choices (left, it ends at once). Then each stage: the current player 0,

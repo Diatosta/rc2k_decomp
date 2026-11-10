@@ -19,7 +19,7 @@ use crate::effects::{
 };
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::race::marks_settings_store::{MarkCar, MarkRecord};
+use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 
 /// The chance and the random it would be met by, worked out without writing.
 fn chance(wheel: &MarkRecord) -> Result<(i32, u32), Refused> {
@@ -56,7 +56,7 @@ pub fn emit(
     table: Table,
     kind: u32,
     wheel: &MarkRecord,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
 ) -> Result<(), Refused> {
     let (masks, particles, ring) = (&effects.masks, &effects.particles, &effects.ring);
     match kind {
@@ -83,7 +83,7 @@ pub fn emit(
 pub fn emit_wheel_particles(
     effects: &Effects,
     wheel: &MarkRecord,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
 ) -> Result<(), Refused> {
     {
         let (chance, _) = chance(wheel)?;

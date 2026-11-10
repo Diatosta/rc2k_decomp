@@ -65,12 +65,12 @@ pub fn replay_step(
     crate::drive::play_replay_frame::play_replay_frame(race)?;
     if race_steps::skids_restart(
         CAR_BLOCKS.cars[0].step_clock.bits(),
-        CAR_BLOCKS.cars[0].unknown_f0c.bits(),
+        CAR_BLOCKS.cars[0].previous_step_clock.bits(),
     ) {
         crate::race::stage_prefs::init_skidmarks(race)?;
     }
     CAR_BLOCKS.cars[0]
-        .unknown_f0c
+        .previous_step_clock
         .set_bits(CAR_BLOCKS.cars[0].step_clock.bits());
     race_steps::each_car(
         || shared.work.current_car.get(),

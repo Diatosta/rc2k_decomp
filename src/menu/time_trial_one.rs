@@ -1,5 +1,5 @@
 //! `menu::time_trial_one` (0x48AE39): the time trial for one player (event mode 0x14).
-//! `menu::clear_players_284`, `take_player1_units`; `dword_755984` 1, `dword_755988`
+//! `menu::clear_hud_bits`, `take_player1_units`; `dword_755984` 1, `dword_755988`
 //! 0x14, `dword_755954` 3, `dword_75555D` 0, `g_eventMode` 3; `menu::begin_event`; the
 //! car choice (`rc2k_core::menu::rounds::choose_cars`, the time trial's list; left, it ends at once). Then
 //! each stage: the stage choice (`menu::time_trial_select_stage_loop`; a yes or

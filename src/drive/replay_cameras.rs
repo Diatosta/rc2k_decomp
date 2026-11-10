@@ -18,7 +18,7 @@ use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
 /// Byte `k` of the frame's head (the first car block's start, `g_carBlockStore`).
 fn head_byte(k: usize) -> Result<u32, BadInput> {
-    crate::pointers::load_value::<u8>(&CAR_BLOCKS.cars[0].unknown_0, k).map(u32::from)
+    crate::pointers::load_value::<u8>(&CAR_BLOCKS.cars[0].frame_head, k).map(u32::from)
 }
 
 /// `dword_719F14[head byte]`: the table holds 47; a larger byte reads on into the
@@ -40,11 +40,11 @@ fn steps(race: &Race) -> Result<(), Refused> {
     replay
         .replay_frames
         .camera_word_0
-        .set(CAR_BLOCKS.cars[0].unknown_0[0].bits());
+        .set(CAR_BLOCKS.cars[0].frame_head[0].bits());
     replay
         .replay_frames
         .camera_word_1
-        .set(CAR_BLOCKS.cars[0].unknown_0[1].bits());
+        .set(CAR_BLOCKS.cars[0].frame_head[1].bits());
     for c in 0..2usize {
         let car = &CAR_BLOCKS.cars[c];
         let wish = wish_of(head_byte(c)? as usize)?;

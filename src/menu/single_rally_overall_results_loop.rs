@@ -1,4 +1,4 @@
-//! `menu::screen_483163_loop` (0x483163): the loop of a results screen.
+//! `menu::single_rally_overall_results_loop` (0x483163): the loop of a results screen.
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`), as extracted from the disassembly: background `results1.png` through
@@ -10,8 +10,8 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.screen_483163.id(),
-    saved_item: |m| &m.screens.items.current[slot::SCREEN_483163],
+    menu: |m| m.tables.menus.single_rally_overall_results.id(),
+    saved_item: |m| &m.screens.items.current[slot::SINGLE_RALLY_OVERALL_RESULTS],
     lists: &[
         List {
             pointer: |m| &m.screens.flow.unread_list, // g_unreadList
@@ -32,7 +32,7 @@ pub const SCREEN: Screen = Screen {
     first_frame_lists: Some(&[
         List {
             pointer: |m| &m.screens.flow.scene_list, // g_sceneList
-            table: |m| m.tables.draw_lists.screen_483163_scene.id(),
+            table: |m| m.tables.draw_lists.single_rally_overall_results_scene.id(),
             run: false,
         },
         List {
@@ -53,7 +53,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|m| {
-        &m.tables.texts.screen_483163_picture
+        &m.tables.texts.single_rally_overall_results_picture
     }))],
     after_first_frame: &[],
     confirm: None,

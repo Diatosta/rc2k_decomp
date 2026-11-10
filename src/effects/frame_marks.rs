@@ -17,11 +17,11 @@ use crate::effects::run_frame::FRAME_K;
 use crate::effects::{morph_object_points, scale_vectors_by, view_frame};
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::race::marks_settings_store::MarksSettings;
+use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::owner::Race;
 use crate::session::Dword;
 /// (the settings' field, the copy): +0x50, +0x4C and +0x10.
-fn copies(marks: &MarksSettings) -> [(&Dword, &Dword); 3] {
+fn copies(marks: &EffectsSettings) -> [(&Dword, &Dword); 3] {
     let setup = &effects().setup;
     [
         (&marks.listener_near, &setup.kind_floats.fading),
@@ -38,7 +38,7 @@ fn rdtsc() -> (u32, u32) {
 pub fn frame_marks(race: &Race, effects: &Effects) -> Result<(), Refused> {
     let shared = &race.shared;
     let course = &race.course;
-    let marks = crate::effects::setup::marks()?;
+    let marks = crate::effects::setup::effects_settings()?;
     {
         let (start, _) = rdtsc();
         let (now, _) = rdtsc();

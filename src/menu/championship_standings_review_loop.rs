@@ -1,4 +1,4 @@
-//! `menu::review_options_48108e_loop` (0x48108E): the menu after the results screens, by its
+//! `menu::championship_standings_review_loop` (0x480D46): the menu after the results screens, by its
 //! title "OPÇÕES DE REVISÃO" (a reading)
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
@@ -19,9 +19,9 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     Callee::NoOp.run(entry)?;
     screens.loop_flags.ended_a.set(0x0u32);
     screens.flow.turning.set(0x1u32);
-    screens.state.carousel.menu.set(0x13u32);
+    screens.state.carousel.menu.set(0xAu32);
     carousel(None)?;
-    let item = screens.items.current[slot::REVIEW_OPTIONS_48108E].get();
+    let item = screens.items.current[slot::CHAMPIONSHIP_STANDINGS_REVIEW].get();
     screens.loop_flags.item.set(item);
     screens.state.carousel.front.set(item.wrapping_sub(1));
     screens.flow.turning.set(0x0u32);
@@ -36,22 +36,27 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.review_options_48108e.id(),
-    saved_item: |m| &m.screens.items.current[slot::REVIEW_OPTIONS_48108E],
+    menu: |m| m.tables.menus.championship_standings_review.id(),
+    saved_item: |m| &m.screens.items.current[slot::CHAMPIONSHIP_STANDINGS_REVIEW],
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list, // g_sceneList
-            table: |m| m.tables.draw_lists.review_options_48108e_scene.id(),
+            table: |m| m.tables.draw_lists.championship_standings_review_scene.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list, // g_drawList
-            table: |m| m.tables.draw_lists.review_options_48108e_draw.id(),
+            table: |m| m.tables.draw_lists.championship_standings_review_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
-            table: |m| m.tables.draw_lists.review_options_48108e_overlay.id(),
+            table: |m| {
+                m.tables
+                    .draw_lists
+                    .championship_standings_review_overlay
+                    .id()
+            },
             run: false,
         },
     ],
@@ -63,7 +68,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|m| {
-        &m.tables.texts.review_options_48108e_picture
+        &m.tables.texts.championship_standings_review_picture
     }))],
     after_first_frame: &[],
     confirm: Some(&[]),

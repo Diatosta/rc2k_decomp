@@ -70,7 +70,7 @@ pub enum Step {
         next: bool,
     },
     ReloadFrontEnd,
-    ClearPlayers288,
+    ClearServiceSpent,
 }
 
 pub trait EventRaces {
@@ -192,7 +192,7 @@ pub fn run_event_races<E: EventRaces>(
             }
         }
     }
-    e.step(Step::ClearPlayers288)
+    e.step(Step::ClearServiceSpent)
 }
 
 #[cfg(test)]
@@ -279,7 +279,7 @@ mod tests {
         );
         assert!(log.steps.contains(&"fourth".to_string()));
         assert!(log.steps.contains(&"GoesOn=0".to_string()));
-        assert_eq!(log.steps.last().unwrap(), "ClearPlayers288");
+        assert_eq!(log.steps.last().unwrap(), "ClearServiceSpent");
 
         let mut log = Log {
             running: vec![true; 4],

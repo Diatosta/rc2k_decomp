@@ -73,11 +73,11 @@ pub struct ViewVars {
 pub struct ViewRecord {
     /// +0x0: the mode's kind (what a replay camera wish stops at: `drive::pick_replay_camera`).
     pub kind: Dword,
-    /// +0x4: `xoff`, `yoff`, `zoff`: the camera's offset (floats; `take_view_a` / `_b` add the
+    /// +0x4: `xoff`, `yoff`, `zoff`: the camera's offset (floats; `take_first_view` / `take_second_view` add the
     /// camera frame to it).
     pub offset: [Dword; 3],
     /// +0x10: `xfoc`, `yfoc`, `zfoc`: the focus (floats). +0x10 .. +0x38 are the eleven
-    /// figures the views take whole (`take_view_a` / `_b`).
+    /// figures the views take whole (`take_first_view` / `take_second_view`).
     pub focus: [Dword; 3],
     /// +0x1C: `xang`, `yang`, `zang`: the angles.
     pub angles: [Dword; 3],
@@ -92,7 +92,7 @@ pub struct ViewRecord {
     /// +0x40: the three turn figures eased in over a change (floats; `ease_view_angles`).
     pub turn_rates: [Dword; 3],
     /// +0x4C: nonzero: the car's pitch and roll halved and the camera kept off the ground
-    /// (`take_view_a`, `camera_avoid_ground`).
+    /// (`take_first_view`, `camera_avoid_ground`).
     pub halve_tilt: Dword,
     /// +0x50: nonzero: the zoom held at 0x180 (`physics::update_camera`).
     pub fixed_zoom: Dword,

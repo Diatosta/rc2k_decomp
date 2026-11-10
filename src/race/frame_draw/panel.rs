@@ -83,7 +83,7 @@ pub fn panel_players(race: &Race) -> Result<(), BadInput> {
                 .view
                 .view_car(n)
                 .ok_or(BadInput("a view without its car block"))?
-                .unknown_fa4
+                .two_car_place
                 .get())
         };
         frame.panel_and_overlay.panel.view_a.place.set(field(0)?);

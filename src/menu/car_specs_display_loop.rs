@@ -1,4 +1,4 @@
-//! `menu::car_specs_47af4c_loop` (0x47AF4C): a screen over the car specification background,
+//! `menu::car_specs_display_loop` (0x47AF4C): a screen over the car specification background,
 //! called from `menu::show_car_specs` and `menu::arcade_level_end`.
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
@@ -19,7 +19,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0xEu32);
     carousel(entry.cars)?;
-    let item = screens.items.current[slot::CAR_SPECS_47AF4C].get();
+    let item = screens.items.current[slot::CAR_SPECS_DISPLAY].get();
     screens.loop_flags.item.set(item);
     screens.state.carousel.front.set(item.wrapping_sub(1));
     screens.flow.turning.set(0x0u32);
@@ -44,27 +44,27 @@ fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.car_specs_47af4c.id(),
-    saved_item: |m| &m.screens.items.current[slot::CAR_SPECS_47AF4C],
+    menu: |m| m.tables.menus.car_specs_display.id(),
+    saved_item: |m| &m.screens.items.current[slot::CAR_SPECS_DISPLAY],
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list, // g_sceneList
-            table: |m| m.tables.draw_lists.car_specs_47af4c_scene.id(),
+            table: |m| m.tables.draw_lists.car_specs_display_scene.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list, // g_drawList
-            table: |m| m.tables.draw_lists.car_specs_47af4c_draw.id(),
+            table: |m| m.tables.draw_lists.car_specs_display_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.setup_list, // dword_755500
-            table: |m| m.tables.draw_lists.car_specs_47af4c_setup.id(),
+            table: |m| m.tables.draw_lists.car_specs_display_setup.id(),
             run: true,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
-            table: |m| m.tables.draw_lists.car_specs_47af4c_overlay.id(),
+            table: |m| m.tables.draw_lists.car_specs_display_overlay.id(),
             run: false,
         },
     ],
@@ -76,7 +76,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|m| {
-        &m.tables.texts.car_specs_47af4c_picture
+        &m.tables.texts.car_specs_display_picture
     }))],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     confirm: None,

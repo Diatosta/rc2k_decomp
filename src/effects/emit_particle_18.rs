@@ -21,7 +21,7 @@ use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::race::marks_settings_store::{MarkCar, MarkRecord};
+use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::scene::matrix3::{extended, rounded};
 
 const LIFE: u32 = 0x12C;
@@ -47,7 +47,7 @@ pub fn emit_particle_18(
     masks: &Masks,
     ring: &Ring,
     record: &MarkRecord,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {

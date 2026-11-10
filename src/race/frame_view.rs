@@ -77,7 +77,7 @@ car_view! {
     car_event_position: Dword,
     car_event_count: Dword,
     car_event_codes: [Dword; 8],
-    unknown_fa4: Dword,
+    two_car_place: Dword,
     eased_value: Dword,
     step_clock: Dword,
     view_covered: Dword,

@@ -30,7 +30,7 @@ pub struct DamageModel {
     /// `flt_75B340`: a figure times it gives the failure chance (`physics::rate_damage`).
     pub chance_scale: Float,
     /// `flt_75B344`: not worked out.
-    pub flt_75b344: Float,
+    pub light_count_divisor: Float,
     /// `flt_75B348`: the working grades are held up to it.
     pub grade_high: Float,
     /// `flt_75B34C`: the gauges and gears are held 0 ..= it; a gear equal to it is worn out.
@@ -38,79 +38,79 @@ pub struct DamageModel {
     /// `flt_75B350`: the gauges and grades are held down to it.
     pub gauge_low: Float,
     /// `flt_75B354`: not worked out.
-    pub flt_75b354: Float,
+    pub dive_top: Float,
     /// Unreferenced bytes (IDA 0X75B358 .. 0X75B35C).
     pub _gap_75b358: Bytes<4>,
     /// `flt_75B35C`: the divisor (256) that turns the car block's whole-number figures into shares.
     pub fixed_point_scale: Float,
     /// `flt_75B360`: not worked out.
-    pub flt_75b360: Float,
+    pub half: Float,
     /// `flt_75B364`: not worked out.
-    pub flt_75b364: Float,
+    pub quarter: Float,
     /// `flt_75B368`: not worked out.
-    pub flt_75b368: Float,
+    pub tenth: Float,
     /// `flt_75B36C`: the work cell a `fistp` rounds into.
     pub scratch: Float,
     /// `flt_75B370`: not worked out.
-    pub flt_75b370: Float,
+    pub hundredth: Float,
     /// Unreferenced bytes (IDA 0X75B374 .. 0X75B378).
     pub _gap_75b374: Bytes<4>,
     /// `flt_75B378`: not worked out.
-    pub flt_75b378: Float,
+    pub speed_range: Float,
     /// `flt_75B37C`: not worked out.
-    pub flt_75b37c: Float,
+    pub engine_limit_factor: Float,
     /// `flt_75B380`: not worked out.
-    pub flt_75b380: Float,
+    pub metres_per_mile: Float,
     /// Unreferenced bytes (IDA 0X75B384 .. 0X75B388).
     pub _gap_75b384: Bytes<4>,
     /// `flt_75B388`: the factor `physics::rate_damage` multiplies by (80 bits).
     pub grade_k: Float,
     /// `flt_75B38C`: not worked out.
-    pub flt_75b38c: Float,
+    pub gauge_step: Float,
     /// `flt_75B390`: the step the wear rates are multiplied by (`physics::damage_wear`).
     pub wear_step: Float,
     /// `flt_75B394`: not worked out.
-    pub flt_75b394: Float,
+    pub hit_divisor: Float,
     /// `flt_75B398`: the engine speed over its limit, scaled to `gauge_top`.
     pub engine_speed_share: Float,
-    /// `flt_75B39C`: the forward speed over `flt_75b378`, scaled to `gauge_top`.
+    /// `flt_75B39C`: the forward speed over `speed_range`, scaled to `gauge_top`.
     pub speed_share: Float,
-    /// `flt_75B3A0`: the gap between the forward speed and drive speed A over `flt_75b378`.
+    /// `flt_75B3A0`: the gap between the forward speed and drive speed A over `speed_range`.
     pub drive_a_slip_share: Float,
-    /// `flt_75B3A4`: the gap between the forward speed and drive speed B over `flt_75b378`.
+    /// `flt_75B3A4`: the gap between the forward speed and drive speed B over `speed_range`.
     pub drive_b_slip_share: Float,
-    /// `flt_75B3A8`: drive speed A pushed past the forward speed, over `flt_75b378`.
+    /// `flt_75B3A8`: drive speed A pushed past the forward speed, over `speed_range`.
     pub drive_a_extrapolated_share: Float,
-    /// `flt_75B3AC`: drive speed B pushed past the forward speed, over `flt_75b378`.
+    /// `flt_75B3AC`: drive speed B pushed past the forward speed, over `speed_range`.
     pub drive_b_extrapolated_share: Float,
     /// `flt_75B3B0`: the brake figure over `fixed_point_scale` while the car moves and the brake is 0x10 or more.
     pub brake_share: Float,
     /// `flt_75B3B4`: not worked out.
-    pub flt_75b3b4: Float,
+    pub on_surface_5: Float,
     /// `dword_75B3B8`: not worked out.
-    pub dword_75b3b8: Dword,
+    pub gear_changed: Dword,
     /// `dword_75B3BC`: not worked out.
-    pub dword_75b3bc: Dword,
+    pub gear: Dword,
     /// `flt_75B3C0`: not worked out.
-    pub flt_75b3c0: Float,
+    pub engine_over_limit: Float,
     /// `dword_75B3C4`: not worked out.
-    pub dword_75b3c4: Dword,
+    pub hit_side: Dword,
     /// `flt_75B3C8`: not worked out.
-    pub flt_75b3c8: Float,
+    pub hit_size: Float,
     /// `dword_75B3CC` ..: the four wheels' loads, blended by `flt_75B360` (`physics::damage_factors`).
     pub wheel_loads: [Float; 4],
     /// `flt_75B3DC`: not worked out.
-    pub flt_75b3dc: Float,
+    pub wheel_load_mean: Float,
     /// `flt_75B3E0`: not worked out.
-    pub flt_75b3e0: Float,
+    pub point_surface_copy: Float,
     /// `flt_75B3E4`: not worked out.
-    pub flt_75b3e4: Float,
+    pub drive_kind: Float,
     /// `dword_75B3E8`: not worked out.
-    pub dword_75b3e8: Dword,
+    pub tyre_kind: Dword,
     /// `dword_75B3EC`: not worked out.
-    pub dword_75b3ec: Dword,
+    pub surface: Dword,
     /// `dword_75B3F0`: not worked out.
-    pub dword_75b3f0: Dword,
+    pub surface_blend: Dword,
     /// `flt_75B3F4`: 1 when at least one wheel is not off the ground, else 0.
     pub wheels_down: Float,
     /// `flt_75B3F8`: the car's ride-height figure over `fixed_point_scale`.
@@ -120,78 +120,78 @@ pub struct DamageModel {
     /// `flt_75B400`: the car's brake-balance figure over `fixed_point_scale`.
     pub brake_balance_share: Float,
     /// `flt_75B404`: not worked out.
-    pub flt_75b404: Float,
+    pub unknown_c4: Float,
     /// `flt_75B408`: not worked out.
-    pub flt_75b408: Float,
+    pub unknown_c8: Float,
     /// `flt_75B40C`: not worked out.
-    pub flt_75b40c: Float,
+    pub unknown_cc: Float,
     /// `flt_75B410`: not worked out.
-    pub flt_75b410: Float,
+    pub unknown_d0: Float,
     /// `flt_75B414`: not worked out.
-    pub flt_75b414: Float,
+    pub unknown_d4: Float,
     /// `flt_75B418`: not worked out.
-    pub flt_75b418: Float,
+    pub unknown_d8: Float,
     /// `flt_75B41C`: not worked out.
-    pub flt_75b41c: Float,
+    pub unknown_dc: Float,
     /// `flt_75B420`: not worked out.
-    pub flt_75b420: Float,
+    pub unknown_e0: Float,
     /// `flt_75B424`: not worked out.
-    pub flt_75b424: Float,
+    pub unknown_e4: Float,
     /// `flt_75B428`: not worked out.
-    pub flt_75b428: Float,
+    pub unknown_e8: Float,
     /// `flt_75B42C`: not worked out.
-    pub flt_75b42c: Float,
+    pub unknown_ec: Float,
     /// `flt_75B430`: not worked out.
-    pub flt_75b430: Float,
+    pub unknown_f0: Float,
     /// `flt_75B434`: not worked out.
-    pub flt_75b434: Float,
+    pub unknown_f4: Float,
     /// `flt_75B438`: not worked out.
-    pub flt_75b438: Float,
+    pub unknown_f8: Float,
     /// `flt_75B43C`: not worked out.
-    pub flt_75b43c: Float,
+    pub unknown_fc: Float,
     /// `flt_75B440`: not worked out.
-    pub flt_75b440: Float,
+    pub unknown_100: Float,
     /// `flt_75B444`: not worked out.
-    pub flt_75b444: Float,
+    pub unknown_104: Float,
     /// `flt_75B448`: not worked out.
-    pub flt_75b448: Float,
+    pub unknown_108: Float,
     /// `flt_75B44C`: not worked out.
-    pub flt_75b44c: Float,
+    pub unknown_10c: Float,
     /// `flt_75B450`: not worked out.
-    pub flt_75b450: Float,
+    pub unknown_110: Float,
     /// `flt_75B454`: not worked out.
-    pub flt_75b454: Float,
+    pub unknown_114: Float,
     /// `flt_75B458`: not worked out.
-    pub flt_75b458: Float,
+    pub unknown_118: Float,
     /// `flt_75B45C`: not worked out.
-    pub flt_75b45c: Float,
+    pub unknown_11c: Float,
     /// `flt_75B460`: not worked out.
-    pub flt_75b460: Float,
+    pub unknown_120: Float,
     /// `flt_75B464`: not worked out.
-    pub flt_75b464: Float,
+    pub unknown_124: Float,
     /// `flt_75B468`: not worked out.
-    pub flt_75b468: Float,
+    pub unknown_128: Float,
     /// `flt_75B46C`: not worked out.
-    pub flt_75b46c: Float,
+    pub unknown_12c: Float,
     /// `flt_75B470`: not worked out.
-    pub flt_75b470: Float,
+    pub unknown_130: Float,
     /// `flt_75B474` ..: the four wheels' table lerps of the suspension damage
     /// (`physics::damage_factors`).
     pub wheel_stiffness_lerp: [Float; 4],
     /// `flt_75B484`: not worked out.
-    pub flt_75b484: Float,
+    pub wear_figure: Float,
     /// `flt_75B488`: not worked out.
-    pub flt_75b488: Float,
+    pub unknown_148: Float,
     /// `flt_75B48C`: not worked out.
-    pub flt_75b48c: Float,
+    pub unknown_14c: Float,
     /// `flt_75B490`: not worked out.
-    pub flt_75b490: Float,
+    pub unknown_150: Float,
     /// `flt_75B494`: not worked out.
-    pub flt_75b494: Float,
+    pub unknown_154: Float,
     /// `flt_75B498`: not worked out.
-    pub flt_75b498: Float,
+    pub unknown_158: Float,
     /// `flt_75B49C`: not worked out.
-    pub flt_75b49c: Float,
+    pub unknown_15c: Float,
     /// `dword_75B4A0`: the clock / random figure the failures by chance compare against.
     pub clock: Dword,
     /// Unreferenced bytes (IDA 0X75B4A4 .. 0X75B4A8).
@@ -213,7 +213,7 @@ pub struct DamageModel {
     /// Three more tables of four: 0x75B640, 0x75B650, 0x75B660.
     pub lerp_tables_b: [[Float; 4]; 3],
     /// `flt_75B670`: not worked out.
-    pub flt_75b670: Float,
+    pub unknown_330: Float,
     /// Unreferenced bytes (IDA 0X75B674 .. 0X75B678).
     pub _gap_75b674: Bytes<4>,
     /// `flt_75B678` ..: more hit figures and thresholds (`physics::damage_gauges`, `rate_damage`).
@@ -224,11 +224,11 @@ pub struct DamageModel {
     /// indexes them), 0x180 bytes.
     pub wear_table: [Float; 96],
     /// `flt_75B8BC`: not worked out.
-    pub flt_75b8bc: Float,
+    pub wear_figure_scale: Float,
     /// `dword_75B8C0`: not worked out.
-    pub dword_75b8c0: Dword,
+    pub wear_first_columns: Dword,
     /// `dword_75B8C4`: not worked out.
-    pub dword_75b8c4: Dword,
+    pub wear_second_columns: Dword,
     /// Unreferenced bytes (IDA 0X75B8C8 .. 0X75B940).
     pub _gap_75b8c8: Bytes<120>,
 }
@@ -238,27 +238,27 @@ impl DamageModel {
     pub const fn new() -> Self {
         DamageModel {
             chance_scale: Float::from_bits(0x47800000),
-            flt_75b344: Float::from_bits(0x40c00000),
+            light_count_divisor: Float::from_bits(0x40c00000),
             grade_high: Float::from_bits(0x3f800000),
             gauge_top: Float::from_bits(0x42c80000),
             gauge_low: Float::from_bits(0),
-            flt_75b354: Float::from_bits(0x41000000),
+            dive_top: Float::from_bits(0x41000000),
             _gap_75b358: Bytes::new(sparse::<4>(&[(0x2, &[0x20, 0x41])])),
             fixed_point_scale: Float::from_bits(0x43800000),
-            flt_75b360: Float::from_bits(0x3f000000),
-            flt_75b364: Float::from_bits(0x3e800000),
-            flt_75b368: Float::from_bits(0x3dcccccd),
+            half: Float::from_bits(0x3f000000),
+            quarter: Float::from_bits(0x3e800000),
+            tenth: Float::from_bits(0x3dcccccd),
             scratch: Float::from_bits(0),
-            flt_75b370: Float::from_bits(0x3c23d70a),
+            hundredth: Float::from_bits(0x3c23d70a),
             _gap_75b374: Bytes::new(sparse::<4>(&[(0x2, &[0x7a, 0x44])])),
-            flt_75b378: Float::from_bits(0x428c0000),
-            flt_75b37c: Float::from_bits(0x3f000000),
-            flt_75b380: Float::from_bits(0x44c92b10),
+            speed_range: Float::from_bits(0x428c0000),
+            engine_limit_factor: Float::from_bits(0x3f000000),
+            metres_per_mile: Float::from_bits(0x44c92b10),
             _gap_75b384: Bytes::new(sparse::<4>(&[(0x0, &[0x6f, 0x12, 0x83, 0x3a])])),
             grade_k: Float::from_bits(0x3c23d70a),
-            flt_75b38c: Float::from_bits(0x392f1cb9),
+            gauge_step: Float::from_bits(0x392f1cb9),
             wear_step: Float::from_bits(0x3c23d70a),
-            flt_75b394: Float::from_bits(0x42340000),
+            hit_divisor: Float::from_bits(0x42340000),
             engine_speed_share: Float::from_bits(0),
             speed_share: Float::from_bits(0),
             drive_a_slip_share: Float::from_bits(0),
@@ -266,59 +266,59 @@ impl DamageModel {
             drive_a_extrapolated_share: Float::from_bits(0),
             drive_b_extrapolated_share: Float::from_bits(0),
             brake_share: Float::from_bits(0),
-            flt_75b3b4: Float::from_bits(0),
-            dword_75b3b8: Dword::new(0),
-            dword_75b3bc: Dword::new(0),
-            flt_75b3c0: Float::from_bits(0),
-            dword_75b3c4: Dword::new(0),
-            flt_75b3c8: Float::from_bits(0),
+            on_surface_5: Float::from_bits(0),
+            gear_changed: Dword::new(0),
+            gear: Dword::new(0),
+            engine_over_limit: Float::from_bits(0),
+            hit_side: Dword::new(0),
+            hit_size: Float::from_bits(0),
             wheel_loads: [const { Float::from_bits(0) }; 4],
-            flt_75b3dc: Float::from_bits(0),
-            flt_75b3e0: Float::from_bits(0),
-            flt_75b3e4: Float::from_bits(0),
-            dword_75b3e8: Dword::new(0),
-            dword_75b3ec: Dword::new(0),
-            dword_75b3f0: Dword::new(0),
+            wheel_load_mean: Float::from_bits(0),
+            point_surface_copy: Float::from_bits(0),
+            drive_kind: Float::from_bits(0),
+            tyre_kind: Dword::new(0),
+            surface: Dword::new(0),
+            surface_blend: Dword::new(0),
             wheels_down: Float::from_bits(0),
             ride_height_share: Float::from_bits(0x42480000),
             stiffness_share: Float::from_bits(0x42480000),
             brake_balance_share: Float::from_bits(0x42480000),
-            flt_75b404: Float::from_bits(0),
-            flt_75b408: Float::from_bits(0),
-            flt_75b40c: Float::from_bits(0),
-            flt_75b410: Float::from_bits(0),
-            flt_75b414: Float::from_bits(0),
-            flt_75b418: Float::from_bits(0),
-            flt_75b41c: Float::from_bits(0),
-            flt_75b420: Float::from_bits(0),
-            flt_75b424: Float::from_bits(0),
-            flt_75b428: Float::from_bits(0),
-            flt_75b42c: Float::from_bits(0),
-            flt_75b430: Float::from_bits(0),
-            flt_75b434: Float::from_bits(0),
-            flt_75b438: Float::from_bits(0),
-            flt_75b43c: Float::from_bits(0),
-            flt_75b440: Float::from_bits(0),
-            flt_75b444: Float::from_bits(0),
-            flt_75b448: Float::from_bits(0),
-            flt_75b44c: Float::from_bits(0),
-            flt_75b450: Float::from_bits(0),
-            flt_75b454: Float::from_bits(0),
-            flt_75b458: Float::from_bits(0),
-            flt_75b45c: Float::from_bits(0),
-            flt_75b460: Float::from_bits(0),
-            flt_75b464: Float::from_bits(0),
-            flt_75b468: Float::from_bits(0),
-            flt_75b46c: Float::from_bits(0),
-            flt_75b470: Float::from_bits(0),
+            unknown_c4: Float::from_bits(0),
+            unknown_c8: Float::from_bits(0),
+            unknown_cc: Float::from_bits(0),
+            unknown_d0: Float::from_bits(0),
+            unknown_d4: Float::from_bits(0),
+            unknown_d8: Float::from_bits(0),
+            unknown_dc: Float::from_bits(0),
+            unknown_e0: Float::from_bits(0),
+            unknown_e4: Float::from_bits(0),
+            unknown_e8: Float::from_bits(0),
+            unknown_ec: Float::from_bits(0),
+            unknown_f0: Float::from_bits(0),
+            unknown_f4: Float::from_bits(0),
+            unknown_f8: Float::from_bits(0),
+            unknown_fc: Float::from_bits(0),
+            unknown_100: Float::from_bits(0),
+            unknown_104: Float::from_bits(0),
+            unknown_108: Float::from_bits(0),
+            unknown_10c: Float::from_bits(0),
+            unknown_110: Float::from_bits(0),
+            unknown_114: Float::from_bits(0),
+            unknown_118: Float::from_bits(0),
+            unknown_11c: Float::from_bits(0),
+            unknown_120: Float::from_bits(0),
+            unknown_124: Float::from_bits(0),
+            unknown_128: Float::from_bits(0),
+            unknown_12c: Float::from_bits(0),
+            unknown_130: Float::from_bits(0),
             wheel_stiffness_lerp: [const { Float::from_bits(0) }; 4],
-            flt_75b484: Float::from_bits(0),
-            flt_75b488: Float::from_bits(0),
-            flt_75b48c: Float::from_bits(0),
-            flt_75b490: Float::from_bits(0),
-            flt_75b494: Float::from_bits(0),
-            flt_75b498: Float::from_bits(0),
-            flt_75b49c: Float::from_bits(0),
+            wear_figure: Float::from_bits(0),
+            unknown_148: Float::from_bits(0),
+            unknown_14c: Float::from_bits(0),
+            unknown_150: Float::from_bits(0),
+            unknown_154: Float::from_bits(0),
+            unknown_158: Float::from_bits(0),
+            unknown_15c: Float::from_bits(0),
             clock: Dword::new(0),
             _gap_75b4a4: Bytes::new(sparse::<4>(&[(0x0, &[0xcd, 0xcc, 0x4c, 0x3f])])),
             lerp_tables: [
@@ -475,7 +475,7 @@ impl DamageModel {
                     Float::from_bits(0x3f000000),
                 ],
             ],
-            flt_75b670: Float::from_bits(0x3e19999a),
+            unknown_330: Float::from_bits(0x3e19999a),
             _gap_75b674: Bytes::new(sparse::<4>(&[(0x0, &[0xcd, 0xcc, 0xcc, 0x3d])])),
             figures: [
                 Float::from_bits(0x3e000000),
@@ -620,9 +620,9 @@ impl DamageModel {
                 Float::from_bits(0x64),
                 Float::from_bits(0x64),
             ],
-            flt_75b8bc: Float::from_bits(0x40200000),
-            dword_75b8c0: Dword::new(0),
-            dword_75b8c4: Dword::new(0),
+            wear_figure_scale: Float::from_bits(0x40200000),
+            wear_first_columns: Dword::new(0),
+            wear_second_columns: Dword::new(0),
             _gap_75b8c8: Bytes::new(sparse::<120>(&[(
                 0x0,
                 &[

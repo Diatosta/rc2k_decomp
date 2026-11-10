@@ -75,7 +75,7 @@ for s, name in zip("123456789abc", range(1, 13)):
     for k, what in (("s", "steering"), ("a", "acceleration"), ("b", "braking")):
         OUT["s%s.%sgrip" % (s, k)] = ("Grip by surface", "Surface %d: %s grip" % (name, what))
 CAR = [("Cars: inputs and engine", r"^(input_|keys_|throttle|fast_settle|handbrake|steering|gear$|engine|option_bits)"),
-       ("Cars: progress and times", r"^(checkpoint|check_count|split_|time_|step_clock|unknown_f0c|off_line|turned_|.*stand_timer|finish|out$|place$|pace_|mode2|grade_mode|lights_on|heading)"),
+       ("Cars: progress and times", r"^(checkpoint|check_count|split_|time_|step_clock|previous_step_clock|off_line|turned_|.*stand_timer|finish|out$|two_car_place$|pace_|mode2|grade_mode|lights_on|heading)"),
        ("Cars: camera", r"^(camera|pending|start_)"),
        ("Cars: messages", r"^notice"),
        ("Cars: wheels and skids", r"^(skid|slip|wheel_|drive_speed|local_motion|tyre_)"),

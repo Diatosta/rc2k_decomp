@@ -26,7 +26,7 @@ use crate::effects::owner::Effects;
 use crate::effects::{emit_particle_13, emit_particle_19, emit_particle_22};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::marks_settings_store::car_handle;
+use crate::race::effects_settings_store::car_handle;
 use crate::scene::adjugate_matrix::adjugate_matrix;
 use crate::session::{read_bits, write_bits};
 
@@ -40,7 +40,7 @@ const MODELS: u32 = 34;
 /// The cars' numbers, last first, worked out without writing: none when the settings' +0x10
 /// is not 1.
 fn cars() -> Result<Vec<usize>, Refused> {
-    let marks = crate::effects::setup::marks()?;
+    let marks = crate::effects::setup::effects_settings()?;
     Ok({
         if marks.other_marks_shown.get() != 1 {
             return Ok(Vec::new());
@@ -55,7 +55,7 @@ fn cars() -> Result<Vec<usize>, Refused> {
 
 /// Why the Rust version refuses, if it does (its own checks), worked out without writing.
 fn refusal(settings: u32) -> Result<Option<&'static str>, Refused> {
-    let marks = crate::effects::setup::marks()?;
+    let marks = crate::effects::setup::effects_settings()?;
     Ok({
         if settings == 0 {
             return Ok(Some("null marks settings"));
@@ -89,7 +89,7 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
             n as i32,
             effects.kinds.emitter.tag_k.get() as i32,
         ) as u32);
-        let car = &crate::effects::setup::marks()?.cars[n as usize];
+        let car = &crate::effects::setup::effects_settings()?.cars[n as usize];
         effects.kinds.emitter.car.set(car_handle(n as usize));
         let whole = car.whole()?;
         adjugate_matrix(whole, &car.matrix);

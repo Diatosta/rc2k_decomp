@@ -5,7 +5,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
 use crate::pointers::GamePtr;
-use crate::race::marks_settings_store::MARKS_SETTINGS;
+use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::Shared;
@@ -557,11 +557,11 @@ pub fn run_view_marks(
         race.shared.vars.scene_switch.get(),
         race.physics.split_tables.still.get(),
     );
-    MARKS_SETTINGS.other_marks_shown.set(other);
-    MARKS_SETTINGS.own_marks_shown.set(own);
+    EFFECTS_SETTINGS.other_marks_shown.set(other);
+    EFFECTS_SETTINGS.own_marks_shown.set(own);
     let layout_at = layout_index(view, race.shared.vars.split.get());
     let layout = race.frame.frame_work.view_layouts[layout_at as usize].get();
-    MARKS_SETTINGS.marks_layout.set(layout);
+    EFFECTS_SETTINGS.marks_layout.set(layout);
     crate::math::cells::copy_cells(
         &car_at(block)?.whole_matrix,
         &race.frame.matrices.view_place,

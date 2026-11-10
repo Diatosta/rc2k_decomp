@@ -15,14 +15,14 @@ use crate::effects::emitters::*;
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::race::marks_settings_store::{MarkCar, MarkRecord};
+use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 const PACE: u32 = 0x386A0;
 
 /// The first part (see the header), written.
 fn prepare(
     ring: &Ring,
     record: &MarkRecord,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
@@ -52,7 +52,7 @@ fn prepare(
 pub fn emit_body_particles(
     effects: &Effects,
     record: &MarkRecord,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
 ) -> Result<(), Refused> {
     {
         prepare(&effects.ring, record, object, effects)?;

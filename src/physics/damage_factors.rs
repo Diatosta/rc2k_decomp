@@ -51,8 +51,8 @@ pub fn steps(race: &Race) {
         &race.shared.car.engine_speed_limit,
     );
     engine_speed_share_step(&race.shared, &race.physics.damage);
-    // The speed gaps are each held to `flt_75b378` before their share is taken.
-    let speed_range = &race.physics.damage.flt_75b378;
+    // The speed gaps are each held to `speed_range` before their share is taken.
+    let speed_range = &race.physics.damage.speed_range;
     hold_high(&race.physics.damage.scratch, speed_range);
     speed_share_step(&race.shared, &race.physics.damage);
     hold_high(&race.physics.damage.scratch, speed_range);
@@ -91,37 +91,34 @@ pub fn steps(race: &Race) {
         engine_over_limit_status(&race.shared, &race.physics.damage) & 0x100 != 0;
     race.physics
         .damage
-        .flt_75b3c0
+        .engine_over_limit
         .set_bits(if engine_over_limit { ONE } else { 0 });
     race.physics
         .damage
-        .dword_75b3b8
+        .gear_changed
         .set_bits(race.shared.car.gear_changed.get());
     race.physics
         .damage
-        .dword_75b3bc
+        .gear
         .set_bits(race.shared.car.gear.get());
     race.physics
         .damage
-        .dword_75b3e8
+        .tyre_kind
         .set_bits(race.shared.car.tyre_kind.get());
     let surface = race.shared.car.wheel_surface_a[4].get();
-    race.physics.damage.dword_75b3ec.set_bits(surface);
-    clear_cell(&race.physics.damage.flt_75b3b4);
+    race.physics.damage.surface.set_bits(surface);
+    clear_cell(&race.physics.damage.on_surface_5);
     if surface == 5 {
-        race.physics.damage.flt_75b3b4.set_bits(ONE);
+        race.physics.damage.on_surface_5.set_bits(ONE);
     }
     race.physics
         .damage
-        .dword_75b3f0
+        .surface_blend
         .set_bits(race.shared.car.surface_blend.bits());
-    race.physics.damage.dword_75b3c4.set_bits(side_hit(race));
+    race.physics.damage.hit_side.set_bits(side_hit(race));
     hit_size_and_dive(&race.shared, &race.physics.damage);
     hold_low(&race.physics.damage.scratch, &race.physics.damage.gauge_low);
-    hold_high(
-        &race.physics.damage.scratch,
-        &race.physics.damage.flt_75b354,
-    );
+    hold_high(&race.physics.damage.scratch, &race.physics.damage.dive_top);
     square_dive(&race.physics.damage);
     // A wheel that has just touched down carries the dive's load.
     for wheel in 0..4 {
@@ -136,8 +133,8 @@ pub fn steps(race: &Race) {
         }
     }
     blend_wheel_loads(&race.physics.damage);
-    if race.physics.damage.flt_75b3c8.bits() != 0 && race.shared.car.hit_cooldown.get() != 0 {
-        race.physics.damage.flt_75b3c8.set_bits(0);
+    if race.physics.damage.hit_size.bits() != 0 && race.shared.car.hit_cooldown.get() != 0 {
+        race.physics.damage.hit_size.set_bits(0);
         race.shared.car.hit_cooldown.set(0x64);
     }
 }
@@ -232,7 +229,7 @@ fn means_and_engine_speed(shared: &Shared, m: &DamageModel) {
     let t4 = t2 + t3;
     let t5 = ld(shared.car.wheel_ride_height[3].bits());
     let t6 = t4 + t5;
-    let t7 = ld(m.flt_75b364.bits());
+    let t7 = ld(m.quarter.bits());
     let t8 = t6 * t7;
     shared.car.ride_height_mean.set_bits(st(t8));
     let t9 = ld(shared.car.wheel_stiffness[0].bits());
@@ -242,11 +239,11 @@ fn means_and_engine_speed(shared: &Shared, m: &DamageModel) {
     let t13 = t11 + t12;
     let t14 = ld(shared.car.wheel_stiffness[3].bits());
     let t15 = t13 + t14;
-    let t16 = ld(m.flt_75b364.bits());
+    let t16 = ld(m.quarter.bits());
     let t17 = t15 * t16;
     shared.car.stiffness_mean.set_bits(st(t17));
     let t18 = ld(shared.car.drive_kind.bits());
-    m.flt_75b3e4.set_bits(st(t18));
+    m.drive_kind.set_bits(st(t18));
     let t19 = ld(shared.car.engine_speed.bits());
     let t20 = t19.abs();
     m.scratch.set_bits(st(t20));
@@ -275,13 +272,13 @@ fn engine_speed_share_step(shared: &Shared, m: &DamageModel) {
 /// `[m + 0x35B36C] = |([rc + 0x31A184] - [rc + 0x31A190])|`
 fn speed_share_step(shared: &Shared, m: &DamageModel) {
     let t0 = ld(m.scratch.bits());
-    let t1 = ld(m.flt_75b378.bits());
+    let t1 = ld(m.speed_range.bits());
     let t2 = t0 / t1;
     let t3 = ld(m.gauge_top.bits());
     let t4 = t2 * t3;
     m.speed_share.set_bits(st(t4));
     let t5 = ld(shared.car.point_surface_2c[4].bits());
-    m.flt_75b3e0.set_bits(st(t5));
+    m.point_surface_copy.set_bits(st(t5));
     let t6 = ld(shared.car.local_velocity[2].bits());
     let t7 = ld(shared.car.drive_speed_a.bits());
     let t8 = t6 - t7;
@@ -295,7 +292,7 @@ fn speed_share_step(shared: &Shared, m: &DamageModel) {
 /// `[m + 0x35B36C] = |([rc + 0x31A184] - [rc + 0x31A194])|`
 fn drive_a_slip_step(shared: &Shared, m: &DamageModel) {
     let t0 = ld(m.scratch.bits());
-    let t1 = ld(m.flt_75b378.bits());
+    let t1 = ld(m.speed_range.bits());
     let t2 = t0 / t1;
     m.drive_a_slip_share.set_bits(st(t2));
     let t3 = ld(shared.car.local_velocity[2].bits());
@@ -317,7 +314,7 @@ fn drive_extrapolation_step(
     o6: &impl crate::session::Cell32,
 ) {
     let t0 = ld(m.scratch.bits());
-    let t1 = ld(m.flt_75b378.bits());
+    let t1 = ld(m.speed_range.bits());
     let t2 = t0 / t1;
     o2.set_bits(st(t2));
     let t3 = ld(o3.bits());
@@ -337,7 +334,7 @@ fn drive_extrapolation_step(
 /// `[m + 0x35B3F4] = 0`
 fn finish_shares(m: &DamageModel) {
     let t0 = ld(m.scratch.bits());
-    let t1 = ld(m.flt_75b378.bits());
+    let t1 = ld(m.speed_range.bits());
     let t2 = t0 / t1;
     m.drive_b_extrapolated_share.set_bits(st(t2));
     let t3 = X(0.0);
@@ -375,7 +372,7 @@ fn brake_share_step(shared: &Shared, m: &DamageModel) {
 /// `status [s + 0] = status`
 fn engine_over_limit_status(shared: &Shared, m: &DamageModel) -> u16 {
     let t0 = ld(shared.car.engine_speed_limit.bits());
-    let t1 = ld(m.flt_75b37c.bits());
+    let t1 = ld(m.engine_limit_factor.bits());
     let t2 = t0 * t1;
     let t3 = ld(shared.car.engine_speed.bits());
     compare(t2, t3)
@@ -389,11 +386,11 @@ fn hit_size_and_dive(shared: &Shared, m: &DamageModel) {
     let t0 = ld(shared.car.contact_depth.bits());
     let t1 = ld(shared.car.contact_depth.bits());
     let t2 = t0 * t1;
-    let t3 = ld(m.flt_75b394.bits());
+    let t3 = ld(m.hit_divisor.bits());
     let t4 = t2 / t3;
-    let t5 = ld(m.flt_75b378.bits());
+    let t5 = ld(m.speed_range.bits());
     let t6 = t4 / t5;
-    m.flt_75b3c8.set_bits(st(t6));
+    m.hit_size.set_bits(st(t6));
     let t7 = ld(shared.car.local_velocity[1].bits());
     let t8 = -t7;
     let t9 = ld(m.gauge_rates[21].bits());
@@ -428,33 +425,33 @@ fn blend_wheel_loads(m: &DamageModel) {
     let t4 = t2 + t3;
     let t5 = ld(m.wheel_loads[3].bits());
     let t6 = t4 + t5;
-    let t7 = ld(m.flt_75b364.bits());
+    let t7 = ld(m.quarter.bits());
     let t8 = t6 * t7;
-    m.flt_75b3dc.set_bits(st(t8));
-    let t9 = ld(m.flt_75b3dc.bits());
-    let t10 = ld(m.flt_75b360.bits());
+    m.wheel_load_mean.set_bits(st(t8));
+    let t9 = ld(m.wheel_load_mean.bits());
+    let t10 = ld(m.half.bits());
     let t11 = t9 * t10;
     m.scratch.set_bits(st(t11));
     let t12 = ld(m.wheel_loads[0].bits());
-    let t13 = ld(m.flt_75b360.bits());
+    let t13 = ld(m.half.bits());
     let t14 = t12 * t13;
     let t15 = ld(m.scratch.bits());
     let t16 = t14 + t15;
     m.wheel_loads[0].set_bits(st(t16));
     let t17 = ld(m.wheel_loads[1].bits());
-    let t18 = ld(m.flt_75b360.bits());
+    let t18 = ld(m.half.bits());
     let t19 = t17 * t18;
     let t20 = ld(m.scratch.bits());
     let t21 = t19 + t20;
     m.wheel_loads[1].set_bits(st(t21));
     let t22 = ld(m.wheel_loads[2].bits());
-    let t23 = ld(m.flt_75b360.bits());
+    let t23 = ld(m.half.bits());
     let t24 = t22 * t23;
     let t25 = ld(m.scratch.bits());
     let t26 = t24 + t25;
     m.wheel_loads[2].set_bits(st(t26));
     let t27 = ld(m.wheel_loads[3].bits());
-    let t28 = ld(m.flt_75b360.bits());
+    let t28 = ld(m.half.bits());
     let t29 = t27 * t28;
     let t30 = ld(m.scratch.bits());
     let t31 = t29 + t30;
@@ -979,7 +976,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_24(a[0]) },
-                plain: |a| clear_cell(&dm(a[0]).flt_75b3b4),
+                plain: |a| clear_cell(&dm(a[0]).on_surface_5),
             },
             Block {
                 name: "damage_factors line 322",

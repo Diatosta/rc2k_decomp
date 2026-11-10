@@ -30,7 +30,7 @@ pub fn swap_mask(
     if s == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    let marks = crate::effects::setup::marks()?;
+    let marks = crate::effects::setup::effects_settings()?;
     let switch = marks.sound_objects_shown.get();
     let Some(second) = masks::swapped(switch, masks.blocks.seen.get()) else {
         return Ok(());

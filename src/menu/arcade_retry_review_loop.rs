@@ -1,10 +1,10 @@
-//! `menu::review_options_47d5a5_loop` (0x47D5A5): the menu after the results screens, by its
+//! `menu::arcade_retry_review_loop` (0x48861D): the menu after the results screens, by its
 //! title "OPÇÕES DE REVISÃO" (a reading)
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `roptions.png`; leaving is asked about; also
-//! when `dword_755569` is 1; the Escape flag is looked at at the top of every frame; the steps
-//! that are more than a call or a store are the functions below, generated from the listing.
+//! when `dword_755569` is 1; the steps that are more than a call or a store are the functions
+//! below, generated from the listing.
 //! The name is a reading from the title string of its menu, "OPÇÕES DE REVISÃO", not yet a
 //! visit.
 
@@ -16,15 +16,7 @@ use crate::menu::screen_loop::{
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
-    Callee::NoOp.run(entry)?;
     screens.loop_flags.ended_a.set(0x0u32);
-    screens.flow.turning.set(0x1u32);
-    screens.state.carousel.menu.set(0xAu32);
-    carousel(None)?;
-    let item = screens.items.current[slot::REVIEW_OPTIONS_47D5A5].get();
-    screens.loop_flags.item.set(item);
-    screens.state.carousel.front.set(item.wrapping_sub(1));
-    screens.flow.turning.set(0x0u32);
     crate::scene::polygon_work::front_end().window.view_offset[0].set(0xFFFFFF64u32);
     crate::scene::polygon_work::front_end().window.view_offset[1].set(0x27u32);
     crate::scene::polygon_work::front_end()
@@ -32,52 +24,57 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
         .view_zoom
         .set(0x140u32);
     prepare_scene(entry.scene);
+    screens.flow.turning.set(0x1u32);
+    screens.state.carousel.menu.set(0x10u32);
+    carousel(None)?;
+    let item = screens.items.current[slot::ARCADE_RETRY_REVIEW].get();
+    screens.loop_flags.item.set(item);
+    screens.state.carousel.front.set(item.wrapping_sub(1));
+    screens.flow.turning.set(0x0u32);
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.review_options_47d5a5.id(),
-    saved_item: |m| &m.screens.items.current[slot::REVIEW_OPTIONS_47D5A5],
+    menu: |m| m.tables.menus.arcade_retry_review.id(),
+    saved_item: |m| &m.screens.items.current[slot::ARCADE_RETRY_REVIEW],
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list, // g_sceneList
-            table: |m| m.tables.draw_lists.review_options_47d5a5_scene.id(),
+            table: |m| m.tables.draw_lists.arcade_retry_review_scene.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list, // g_drawList
-            table: |m| m.tables.draw_lists.review_options_47d5a5_draw.id(),
+            table: |m| m.tables.draw_lists.arcade_retry_review_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
-            table: |m| m.tables.draw_lists.review_options_47d5a5_overlay.id(),
+            table: |m| m.tables.draw_lists.arcade_retry_review_overlay.id(),
             run: false,
         },
     ],
     first_frame_lists: None,
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
-    before: &[Step::Write(|m| &m.screens.draw_work.escaped, 0x0)],
+    before: &[
+        Step::Write(|m| &m.screens.loop_flags.ended_b, 0x0),
+        Step::Write(|m| &m.screens.loop_flags.went_back, 0x0),
+        Step::Write(|m| &m.screens.event.event_done, 0x0),
+    ],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|m| {
-        &m.tables.texts.review_options_47d5a5_picture
+        &m.tables.texts.arcade_retry_review_picture
     }))],
     after_first_frame: &[],
     confirm: Some(&[]),
     ask_also_if: Some(|m| &m.screens.loop_flags.ended_a),
-    confirmed: &[
-        Step::Write(|m| &m.screens.loop_flags.ended_a, 0x0),
-        Step::Write(|m| &m.tables.captions.screen_left, 0x0),
-    ],
+    confirmed: &[],
     unasked_skips_save: false,
-    after: &[
-        Step::Call(Callee::NoOp),
-        Step::Write(|m| &m.screens.event.service_next, 0x0),
-    ],
-    escape_leaves: true,
+    after: &[Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F)],
+    escape_leaves: false,
     each_frame: &[],
     short_action_check: false,
     leave_at_once: None,

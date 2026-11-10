@@ -49,7 +49,7 @@ pub fn steps(race: &Race) {
     raise(&race.physics, &race.shared.car.engine_damage, |g| {
         add_product(
             &race.physics.damage.gauge_rates[0],
-            &race.physics.damage.flt_75b38c,
+            &race.physics.damage.gauge_step,
             g,
             g,
         );
@@ -57,7 +57,7 @@ pub fn steps(race: &Race) {
     raise(&race.physics, &race.shared.car.exhaust_damage, |g| {
         add_product(
             &race.physics.damage.gauge_rates[1],
-            &race.physics.damage.flt_75b38c,
+            &race.physics.damage.gauge_step,
             g,
             g,
         );
@@ -65,7 +65,7 @@ pub fn steps(race: &Race) {
     raise(&race.physics, &race.shared.car.cooling_damage, |g| {
         add_product(
             &race.physics.damage.gauge_rates[2],
-            &race.physics.damage.flt_75b38c,
+            &race.physics.damage.gauge_step,
             g,
             g,
         );
@@ -73,7 +73,7 @@ pub fn steps(race: &Race) {
     raise(&race.physics, &race.shared.car.clutch_damage, |g| {
         add_product(
             &race.physics.damage.gauge_rates[3],
-            &race.physics.damage.flt_75b38c,
+            &race.physics.damage.gauge_step,
             g,
             g,
         );
@@ -81,7 +81,7 @@ pub fn steps(race: &Race) {
     raise(&race.physics, &race.shared.car.differential_damage, |g| {
         add_product(
             &race.physics.damage.gauge_rates[4],
-            &race.physics.damage.flt_75b38c,
+            &race.physics.damage.gauge_step,
             g,
             g,
         );
@@ -89,7 +89,7 @@ pub fn steps(race: &Race) {
     raise(&race.physics, &race.shared.car.electrics_damage, |g| {
         add_product(
             &race.physics.damage.gauge_rates[5],
-            &race.physics.damage.flt_75b38c,
+            &race.physics.damage.gauge_step,
             g,
             g,
         );
@@ -98,7 +98,7 @@ pub fn steps(race: &Race) {
         raise(&race.physics, &race.shared.car.light_damage[k], |g| {
             add_product(
                 &race.physics.damage.gauge_rates[6],
-                &race.physics.damage.flt_75b38c,
+                &race.physics.damage.gauge_step,
                 g,
                 g,
             );
@@ -107,7 +107,7 @@ pub fn steps(race: &Race) {
     raise(&race.physics, &race.shared.car.steering_damage, |g| {
         add_product(
             &race.physics.damage.gauge_rates[7],
-            &race.physics.damage.flt_75b38c,
+            &race.physics.damage.gauge_step,
             g,
             g,
         );
@@ -116,7 +116,7 @@ pub fn steps(race: &Race) {
         raise(&race.physics, &race.shared.car.suspension_damage[k], |g| {
             add_product(
                 &race.physics.damage.gauge_rates[8],
-                &race.physics.damage.flt_75b38c,
+                &race.physics.damage.gauge_step,
                 g,
                 g,
             );
@@ -126,13 +126,13 @@ pub fn steps(race: &Race) {
         add_scaled_triple(
             &race.physics.damage,
             &race.physics.damage.wear_rates[11],
-            &race.physics.damage.flt_75b3c0,
+            &race.physics.damage.engine_over_limit,
             &race.physics.damage.engine_speed_share,
             g,
             g,
         );
     });
-    let gear = race.physics.damage.dword_75b3bc.bits();
+    let gear = race.physics.damage.gear.bits();
     let gauge = gear_gauge(&race.shared, gear);
     let factor = race
         .physics
@@ -150,7 +150,7 @@ pub fn steps(race: &Race) {
         add_scaled_triple(
             &race.physics.damage,
             &race.physics.damage.gauge_rates[9],
-            &race.physics.damage.flt_75b43c,
+            &race.physics.damage.unknown_fc,
             &race.physics.damage.brake_share,
             g,
             g,
@@ -159,8 +159,8 @@ pub fn steps(race: &Race) {
     raise(&race.physics, &race.shared.car.electrics_damage, |g| {
         add_triple_product(
             &race.physics.damage.gauge_rates[10],
-            &race.physics.damage.flt_75b3b4,
-            &race.physics.damage.flt_75b38c,
+            &race.physics.damage.on_surface_5,
+            &race.physics.damage.gauge_step,
             g,
             g,
         );
@@ -169,15 +169,15 @@ pub fn steps(race: &Race) {
         raise(&race.physics, &race.shared.car.light_damage[k], |g| {
             add_triple_product(
                 &race.physics.damage.gauge_rates[11],
-                &race.physics.damage.flt_75b3b4,
-                &race.physics.damage.flt_75b38c,
+                &race.physics.damage.on_surface_5,
+                &race.physics.damage.gauge_step,
                 g,
                 g,
             );
         });
     }
     part_hit_figures(&race.physics.damage);
-    let part = race.physics.damage.flt_75b3e4.bits();
+    let part = race.physics.damage.drive_kind.bits();
     fn kind(table: &[Float; 2], part: u32) -> &Float {
         table.get(part as usize).unwrap_or_else(|| {
             crate::fatal::raise::end("a kind table", BadInput("the kind is not 0 or 1"))
@@ -191,9 +191,9 @@ pub fn steps(race: &Race) {
     for k in 0..2 {
         raise(&race.physics, &race.shared.car.part_hit_damage[k], |g| {
             add_triple_product(
-                &race.physics.damage.flt_75b46c,
-                &race.physics.damage.flt_75b488,
-                &race.physics.damage.flt_75b370,
+                &race.physics.damage.unknown_12c,
+                &race.physics.damage.unknown_148,
+                &race.physics.damage.hundredth,
                 g,
                 g,
             );
@@ -202,9 +202,9 @@ pub fn steps(race: &Race) {
     for k in 2..4 {
         raise(&race.physics, &race.shared.car.part_hit_damage[k], |g| {
             add_triple_product(
-                &race.physics.damage.flt_75b470,
-                &race.physics.damage.flt_75b48c,
-                &race.physics.damage.flt_75b370,
+                &race.physics.damage.unknown_130,
+                &race.physics.damage.unknown_14c,
+                &race.physics.damage.hundredth,
                 g,
                 g,
             );
@@ -212,60 +212,60 @@ pub fn steps(race: &Race) {
     }
     raise(&race.physics, &race.shared.car.engine_damage, |g| {
         add_triple_product(
-            &race.physics.damage.flt_75b45c,
+            &race.physics.damage.unknown_11c,
             &race.physics.damage.gauge_rates[13],
-            &race.physics.damage.flt_75b370,
+            &race.physics.damage.hundredth,
             g,
             g,
         );
     });
     raise(&race.physics, &race.shared.car.cooling_damage, |g| {
         add_triple_product(
-            &race.physics.damage.flt_75b45c,
+            &race.physics.damage.unknown_11c,
             &race.physics.damage.gauge_rates[12],
-            &race.physics.damage.flt_75b370,
+            &race.physics.damage.hundredth,
             g,
             g,
         );
     });
     if !below_or_unordered(
-        race.physics.damage.flt_75b464.bits(),
+        race.physics.damage.unknown_124.bits(),
         race.physics.damage.gauge_low.bits(),
     ) {
         engine_damage_carry(&race.shared, &race.physics.damage);
         hold_at(&race.physics, &race.shared.car.engine_damage);
         raise(&race.physics, &race.shared.car.cooling_damage, |g| {
             add_triple_product(
-                &race.physics.damage.flt_75b464,
+                &race.physics.damage.unknown_124,
                 &race.physics.damage.gauge_rates[15],
-                &race.physics.damage.flt_75b370,
+                &race.physics.damage.hundredth,
                 g,
                 g,
             );
         });
     }
-    if race.physics.damage.dword_75b3b8.bits() == 0x1 {
+    if race.physics.damage.gear_changed.bits() == 0x1 {
         add_rate_to_clutch(&race.shared, &race.physics.damage.gauge_rates[16]);
     }
-    if race.physics.damage.dword_75b3b8.bits() == 0xFFFFFFFF {
+    if race.physics.damage.gear_changed.bits() == 0xFFFFFFFF {
         add_rate_to_clutch(&race.shared, &race.physics.damage.gauge_rates[17]);
     }
-    let gear = race.physics.damage.dword_75b3bc.bits();
-    if race.physics.damage.dword_75b3b8.bits() == 0x1 {
+    let gear = race.physics.damage.gear.bits();
+    if race.physics.damage.gear_changed.bits() == 0x1 {
         let gauge = gear_gauge(&race.shared, gear);
         add_rate_to_gauge(gauge, &race.physics.damage.gauge_rates[18]);
     }
-    let gear = race.physics.damage.dword_75b3bc.bits();
-    if race.physics.damage.dword_75b3b8.bits() == 0xFFFFFFFF {
+    let gear = race.physics.damage.gear.bits();
+    if race.physics.damage.gear_changed.bits() == 0xFFFFFFFF {
         let gauge = gear_gauge(&race.shared, gear);
         add_rate_to_gauge(gauge, &race.physics.damage.gauge_rates[19]);
     }
     for k in 0..4 {
         raise(&race.physics, &race.shared.car.wheel_hit_damage[k], |g| {
             add_triple_product(
-                &race.physics.damage.flt_75b450,
-                &race.physics.damage.flt_75b670,
-                &race.physics.damage.flt_75b370,
+                &race.physics.damage.unknown_110,
+                &race.physics.damage.unknown_330,
+                &race.physics.damage.hundredth,
                 g,
                 g,
             );
@@ -274,9 +274,9 @@ pub fn steps(race: &Race) {
     for k in 0..4 {
         raise(&race.physics, &race.shared.car.suspension_damage[k], |g| {
             add_triple_product(
-                &race.physics.damage.flt_75b458,
+                &race.physics.damage.unknown_118,
                 &race.physics.damage.figures[0],
-                &race.physics.damage.flt_75b370,
+                &race.physics.damage.hundredth,
                 g,
                 g,
             );
@@ -284,45 +284,45 @@ pub fn steps(race: &Race) {
     }
     raise(&race.physics, &race.shared.car.body_hit_damage, |g| {
         add_triple_product(
-            &race.physics.damage.flt_75b454,
+            &race.physics.damage.unknown_114,
             &race.physics.damage.figures[1],
-            &race.physics.damage.flt_75b370,
+            &race.physics.damage.hundredth,
             g,
             g,
         );
     });
     raise(&race.physics, &race.shared.car.steering_damage, |g| {
         add_triple_product(
-            &race.physics.damage.flt_75b454,
+            &race.physics.damage.unknown_114,
             &race.physics.damage.figures[2],
-            &race.physics.damage.flt_75b370,
+            &race.physics.damage.hundredth,
             g,
             g,
         );
     });
     raise(&race.physics, &race.shared.car.engine_damage, |g| {
         add_triple_product(
-            &race.physics.damage.flt_75b454,
+            &race.physics.damage.unknown_114,
             &race.physics.damage.figures[3],
-            &race.physics.damage.flt_75b370,
+            &race.physics.damage.hundredth,
             g,
             g,
         );
     });
     raise(&race.physics, &race.shared.car.exhaust_damage, |g| {
         add_triple_product(
-            &race.physics.damage.flt_75b454,
+            &race.physics.damage.unknown_114,
             &race.physics.damage.figures[4],
-            &race.physics.damage.flt_75b370,
+            &race.physics.damage.hundredth,
             g,
             g,
         );
     });
     raise(&race.physics, &race.shared.car.gear_wear[0], |g| {
         add_triple_product(
-            &race.physics.damage.flt_75b454,
+            &race.physics.damage.unknown_114,
             &race.physics.damage.figures[5],
-            &race.physics.damage.flt_75b370,
+            &race.physics.damage.hundredth,
             g,
             g,
         );
@@ -330,9 +330,9 @@ pub fn steps(race: &Race) {
     for k in 2..9 {
         raise(&race.physics, &race.shared.car.gear_wear[k], |g| {
             add_triple_product(
-                &race.physics.damage.flt_75b454,
+                &race.physics.damage.unknown_114,
                 &race.physics.damage.figures[5],
-                &race.physics.damage.flt_75b370,
+                &race.physics.damage.hundredth,
                 g,
                 g,
             );
@@ -340,20 +340,20 @@ pub fn steps(race: &Race) {
     }
     raise(&race.physics, &race.shared.car.differential_damage, |g| {
         add_triple_product(
-            &race.physics.damage.flt_75b454,
+            &race.physics.damage.unknown_114,
             &race.physics.damage.figures[6],
-            &race.physics.damage.flt_75b370,
+            &race.physics.damage.hundredth,
             g,
             g,
         );
     });
     if !below_or_unordered(
-        race.physics.damage.flt_75b3c8.bits(),
+        race.physics.damage.hit_size.bits(),
         race.physics.damage.gauge_rates[23].bits(),
     ) {
         raise(&race.physics, &race.shared.car.body_hit_damage, |g| {
             add_product(
-                &race.physics.damage.flt_75b3c8,
+                &race.physics.damage.hit_size,
                 &race.physics.damage.figures[13],
                 g,
                 g,
@@ -361,7 +361,7 @@ pub fn steps(race: &Race) {
         });
     }
     if !below_or_unordered(
-        race.physics.damage.flt_75b3c8.bits(),
+        race.physics.damage.hit_size.bits(),
         race.physics.damage.gauge_rates[22].bits(),
     ) {
         side_hit_wear(race);
@@ -371,7 +371,7 @@ pub fn steps(race: &Race) {
             add_triple_product(
                 &race.physics.damage.wheel_loads[k],
                 &race.physics.damage.figures[14],
-                &race.physics.damage.flt_75b370,
+                &race.physics.damage.hundredth,
                 g,
                 g,
             );
@@ -379,24 +379,24 @@ pub fn steps(race: &Race) {
     }
     raise(&race.physics, &race.shared.car.exhaust_damage, |g| {
         add_triple_product(
-            &race.physics.damage.flt_75b3dc,
+            &race.physics.damage.wheel_load_mean,
             &race.physics.damage.figures[15],
-            &race.physics.damage.flt_75b370,
+            &race.physics.damage.hundredth,
             g,
             g,
         );
     });
     raise(&race.physics, &race.shared.car.steering_damage, |g| {
         add_triple_product(
-            &race.physics.damage.flt_75b3dc,
+            &race.physics.damage.wheel_load_mean,
             &race.physics.damage.figures[16],
-            &race.physics.damage.flt_75b370,
+            &race.physics.damage.hundredth,
             g,
             g,
         );
     });
     gauge_totals(&race.shared, &race.physics.damage);
-    if race.physics.damage.flt_75b3e4.bits() == 0 {
+    if race.physics.damage.drive_kind.bits() == 0 {
         race.shared.car.turbo_damage.set_bits(0x0);
     }
 }
@@ -405,12 +405,12 @@ pub fn steps(race: &Race) {
 /// side it landed on: `side` is 0 .. 3 for the hit figure 1 .. 4, and none for any other.
 fn side_hit_wear(race: &Race) {
     scale_hit_size(&race.shared, &race.physics.damage);
-    let hit = race.physics.damage.dword_75b3c4.bits();
+    let hit = race.physics.damage.hit_side.bits();
     let side = (1..=4).contains(&hit).then(|| hit as usize - 1);
     let wear = |gauge: &Float, figure: usize| {
         raise(&race.physics, gauge, |g| {
             add_product(
-                &race.physics.damage.flt_75b3c8,
+                &race.physics.damage.hit_size,
                 &race.physics.damage.figures[figure],
                 g,
                 g,
@@ -429,7 +429,7 @@ fn side_hit_wear(race: &Race) {
     for gauge in &race.shared.car.gear_wear {
         wear(gauge, 20);
     }
-    let gauge = gear_gauge(&race.shared, race.physics.damage.dword_75b3bc.bits());
+    let gauge = gear_gauge(&race.shared, race.physics.damage.gear.bits());
     add_hit_to_gear_gauge(&race.physics.damage, gauge);
     hold_at(&race.physics, gauge);
     if let Some(side) = side {
@@ -489,7 +489,7 @@ fn add_scaled_triple(
     let t2 = t0 * t1;
     let t3 = ld(o2.bits());
     let t4 = t2 * t3;
-    let t5 = ld(m.flt_75b38c.bits());
+    let t5 = ld(m.gauge_step.bits());
     let t6 = t4 * t5;
     let t7 = ld(o4.bits());
     let t8 = t6 + t7;
@@ -503,7 +503,7 @@ fn gear_wear_from_speed(m: &DamageModel, t: &impl Cell32, v: &impl Cell32) {
     let t0 = ld(m.engine_speed_share.bits());
     let t1 = ld(m.wear_rates[12].bits());
     let t2 = t0 * t1;
-    let t3 = ld(m.flt_75b370.bits());
+    let t3 = ld(m.hundredth.bits());
     let t4 = t2 * t3;
     let t5 = ld(t.bits());
     let t6 = t4 * t5;
@@ -520,13 +520,13 @@ fn brake_wear_step(shared: &Shared, m: &DamageModel) {
     let t0 = X(1.0);
     let t1 = ld(m.brake_balance_share.bits());
     let t2 = t0 - t1;
-    m.flt_75b43c.set_bits(st(t2));
+    m.unknown_fc.set_bits(st(t2));
     let t3 = ld(m.gauge_rates[9].bits());
     let t4 = ld(m.brake_balance_share.bits());
     let t5 = t3 * t4;
     let t6 = ld(m.brake_share.bits());
     let t7 = t5 * t6;
-    let t8 = ld(m.flt_75b38c.bits());
+    let t8 = ld(m.gauge_step.bits());
     let t9 = t7 * t8;
     let t10 = ld(shared.car.brake_wear_a.bits());
     let t11 = t9 + t10;
@@ -559,16 +559,16 @@ fn add_triple_product(
 /// `[m + 0x35B48C] = (([m + 0x35B39C] / ([m + 0x35B484] * [m + 0x35B380])) * [m + 0x35B34C]) * [m + 0x35B3F4]`
 fn part_hit_figures(m: &DamageModel) {
     let t0 = ld(m.speed_share.bits());
-    let t1 = ld(m.flt_75b484.bits());
-    let t2 = ld(m.flt_75b380.bits());
+    let t1 = ld(m.wear_figure.bits());
+    let t2 = ld(m.metres_per_mile.bits());
     let t3 = t1 * t2;
     let t4 = t0 / t3;
     let t5 = ld(m.gauge_top.bits());
     let t6 = t4 * t5;
     let t7 = ld(m.wheels_down.bits());
     let t8 = t6 * t7;
-    m.flt_75b488.set_bits(st(t8));
-    m.flt_75b48c.set_bits(st(t8));
+    m.unknown_148.set_bits(st(t8));
+    m.unknown_14c.set_bits(st(t8));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -576,14 +576,14 @@ fn part_hit_figures(m: &DamageModel) {
 /// `[m + 0x35B488] = [m + 0x35B488] * [t + 0]`
 /// `[m + 0x35B48C] = [m + 0x35B48C] * [u + 0]`
 fn scale_part_hit_figures(m: &DamageModel, t: &impl Cell32, u: &impl Cell32) {
-    let t0 = ld(m.flt_75b488.bits());
+    let t0 = ld(m.unknown_148.bits());
     let t1 = ld(t.bits());
     let t2 = t0 * t1;
-    m.flt_75b488.set_bits(st(t2));
-    let t3 = ld(m.flt_75b48c.bits());
+    m.unknown_148.set_bits(st(t2));
+    let t3 = ld(m.unknown_14c.bits());
     let t4 = ld(u.bits());
     let t5 = t3 * t4;
-    m.flt_75b48c.set_bits(st(t5));
+    m.unknown_14c.set_bits(st(t5));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -593,7 +593,7 @@ fn engine_damage_carry(shared: &Shared, m: &DamageModel) {
     let t0 = ld(shared.car.engine_heat.bits());
     let t1 = ld(m.gauge_rates[14].bits());
     let t2 = t0 * t1;
-    let t3 = ld(m.flt_75b370.bits());
+    let t3 = ld(m.hundredth.bits());
     let t4 = t2 * t3;
     let t5 = ld(shared.car.engine_damage.bits());
     let t6 = t4 + t5;
@@ -624,17 +624,17 @@ fn add_rate_to_gauge(v: &impl Cell32, o1: &impl Cell32) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B3C8] = [m + 0x35B3C8] * [rc + 0x31C708]`
 fn scale_hit_size(shared: &Shared, m: &DamageModel) {
-    let t0 = ld(m.flt_75b3c8.bits());
+    let t0 = ld(m.hit_size.bits());
     let t1 = ld(shared.work.patch_factors[1].bits());
     let t2 = t0 * t1;
-    m.flt_75b3c8.set_bits(st(t2));
+    m.hit_size.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[v + 0] = ([m + 0x35B3C8] * [m + 0x35B6CC]) + [v + 0]`
 fn add_hit_to_gear_gauge(m: &DamageModel, v: &impl Cell32) {
-    let t0 = ld(m.flt_75b3c8.bits());
+    let t0 = ld(m.hit_size.bits());
     let t1 = ld(m.figures[21].bits());
     let t2 = t0 * t1;
     let t3 = ld(v.bits());
@@ -665,31 +665,31 @@ fn gauge_totals(shared: &Shared, m: &DamageModel) {
     let t8 = t6 + t7;
     let t9 = ld(shared.car.light_damage[4].bits());
     let t10 = t8 + t9;
-    let t11 = ld(m.flt_75b344.bits());
+    let t11 = ld(m.light_count_divisor.bits());
     let t12 = t10 / t11;
     shared.car.lights_damage.set_bits(st(t12));
     let t13 = ld(shared.car.brake_wear_a.bits());
     let t14 = ld(shared.car.brake_wear_b.bits());
     let t15 = t13 + t14;
-    let t16 = ld(m.flt_75b360.bits());
+    let t16 = ld(m.half.bits());
     let t17 = t15 * t16;
     shared.car.brake_damage.set_bits(st(t17));
     let t18 = ld(shared.car.part_hit_damage[0].bits());
     let t19 = ld(shared.car.part_hit_damage[1].bits());
     let t20 = t18 + t19;
-    let t21 = ld(m.flt_75b360.bits());
+    let t21 = ld(m.half.bits());
     let t22 = t20 * t21;
-    m.flt_75b440.set_bits(st(t22));
+    m.unknown_100.set_bits(st(t22));
     let t23 = ld(shared.car.part_hit_damage[2].bits());
     let t24 = ld(shared.car.part_hit_damage[3].bits());
     let t25 = t23 + t24;
-    let t26 = ld(m.flt_75b360.bits());
+    let t26 = ld(m.half.bits());
     let t27 = t25 * t26;
-    m.flt_75b444.set_bits(st(t27));
-    let t28 = ld(m.flt_75b440.bits());
-    let t29 = ld(m.flt_75b444.bits());
+    m.unknown_104.set_bits(st(t27));
+    let t28 = ld(m.unknown_100.bits());
+    let t29 = ld(m.unknown_104.bits());
     let t30 = t28 + t29;
-    let t31 = ld(m.flt_75b360.bits());
+    let t31 = ld(m.half.bits());
     let t32 = t30 * t31;
     shared.car.tyre_wear.set_bits(st(t32));
     let t33 = ld(shared.car.gear_wear[0].bits());
@@ -707,11 +707,11 @@ fn gauge_totals(shared: &Shared, m: &DamageModel) {
     let t45 = t43 + t44;
     let t46 = ld(shared.car.gear_wear[8].bits());
     let t47 = t45 + t46;
-    let t48 = ld(m.flt_75b360.bits());
+    let t48 = ld(m.half.bits());
     let t49 = t47 * t48;
-    let t50 = ld(m.flt_75b360.bits());
+    let t50 = ld(m.half.bits());
     let t51 = t49 * t50;
-    let t52 = ld(m.flt_75b360.bits());
+    let t52 = ld(m.half.bits());
     let t53 = t51 * t52;
     shared.car.gearbox_damage.set_bits(st(t53));
     let t54 = ld(shared.car.wheel_hit_damage[0].bits());
@@ -733,7 +733,7 @@ fn gauge_totals(shared: &Shared, m: &DamageModel) {
     let t70 = t68 + t69;
     let t71 = ld(shared.car.body_hit_damage.bits());
     let t72 = t70 + t71;
-    let t73 = ld(m.flt_75b368.bits());
+    let t73 = ld(m.tenth.bits());
     let t74 = t72 * t73;
     shared.car.body_damage.set_bits(st(t74));
     let t75 = ld(shared.car.suspension_damage[0].bits());
@@ -743,7 +743,7 @@ fn gauge_totals(shared: &Shared, m: &DamageModel) {
     let t79 = t77 + t78;
     let t80 = ld(shared.car.suspension_damage[3].bits());
     let t81 = t79 + t80;
-    let t82 = ld(m.flt_75b364.bits());
+    let t82 = ld(m.quarter.bits());
     let t83 = t81 * t82;
     shared.car.overall_suspension_damage.set_bits(st(t83));
     let t84 = ld(shared.car.wheel_stiffness[0].bits());
@@ -753,7 +753,7 @@ fn gauge_totals(shared: &Shared, m: &DamageModel) {
     let t88 = t86 + t87;
     let t89 = ld(shared.car.wheel_stiffness[3].bits());
     let t90 = t88 + t89;
-    let t91 = ld(m.flt_75b364.bits());
+    let t91 = ld(m.quarter.bits());
     let t92 = t90 * t91;
     shared.car.stiffness_mean.set_bits(st(t92));
 }
@@ -903,7 +903,7 @@ mod asm_reference {
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[0],
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.engine_damage,
                         &crate::race::owner::race().shared.car.engine_damage,
                     );
@@ -926,7 +926,7 @@ mod asm_reference {
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[1],
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.exhaust_damage,
                         &crate::race::owner::race().shared.car.exhaust_damage,
                     );
@@ -949,7 +949,7 @@ mod asm_reference {
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[2],
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.cooling_damage,
                         &crate::race::owner::race().shared.car.cooling_damage,
                     );
@@ -972,7 +972,7 @@ mod asm_reference {
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[3],
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.clutch_damage,
                         &crate::race::owner::race().shared.car.clutch_damage,
                     );
@@ -995,7 +995,7 @@ mod asm_reference {
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[4],
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.differential_damage,
                         &crate::race::owner::race().shared.car.differential_damage,
                     );
@@ -1018,7 +1018,7 @@ mod asm_reference {
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[5],
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.electrics_damage,
                         &crate::race::owner::race().shared.car.electrics_damage,
                     );
@@ -1041,7 +1041,7 @@ mod asm_reference {
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[6],
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.light_damage[0],
                         &crate::race::owner::race().shared.car.light_damage[0],
                     );
@@ -1064,7 +1064,7 @@ mod asm_reference {
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[6],
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.light_damage[1],
                         &crate::race::owner::race().shared.car.light_damage[1],
                     );
@@ -1087,7 +1087,7 @@ mod asm_reference {
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[6],
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.light_damage[2],
                         &crate::race::owner::race().shared.car.light_damage[2],
                     );
@@ -1110,7 +1110,7 @@ mod asm_reference {
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[6],
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.light_damage[3],
                         &crate::race::owner::race().shared.car.light_damage[3],
                     );
@@ -1133,7 +1133,7 @@ mod asm_reference {
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[6],
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.light_damage[4],
                         &crate::race::owner::race().shared.car.light_damage[4],
                     );
@@ -1156,7 +1156,7 @@ mod asm_reference {
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[6],
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.light_damage[5],
                         &crate::race::owner::race().shared.car.light_damage[5],
                     );
@@ -1179,7 +1179,7 @@ mod asm_reference {
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[7],
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.steering_damage,
                         &crate::race::owner::race().shared.car.steering_damage,
                     );
@@ -1202,7 +1202,7 @@ mod asm_reference {
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[8],
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.suspension_damage[0],
                         &crate::race::owner::race().shared.car.suspension_damage[0],
                     );
@@ -1225,7 +1225,7 @@ mod asm_reference {
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[8],
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.suspension_damage[1],
                         &crate::race::owner::race().shared.car.suspension_damage[1],
                     );
@@ -1248,7 +1248,7 @@ mod asm_reference {
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[8],
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.suspension_damage[2],
                         &crate::race::owner::race().shared.car.suspension_damage[2],
                     );
@@ -1271,7 +1271,7 @@ mod asm_reference {
                 plain: |a| {
                     add_product(
                         &dm(a[0]).gauge_rates[8],
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.suspension_damage[3],
                         &crate::race::owner::race().shared.car.suspension_damage[3],
                     );
@@ -1300,7 +1300,7 @@ mod asm_reference {
                     add_scaled_triple(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[11],
-                        &dm(a[0]).flt_75b3c0,
+                        &dm(a[0]).engine_over_limit,
                         &dm(a[0]).engine_speed_share,
                         &crate::race::owner::race().shared.car.turbo_damage,
                         &crate::race::owner::race().shared.car.turbo_damage,
@@ -1371,7 +1371,7 @@ mod asm_reference {
                     add_scaled_triple(
                         dm(a[0]),
                         &dm(a[0]).gauge_rates[9],
-                        &dm(a[0]).flt_75b43c,
+                        &dm(a[0]).unknown_fc,
                         &dm(a[0]).brake_share,
                         &crate::race::owner::race().shared.car.brake_wear_b,
                         &crate::race::owner::race().shared.car.brake_wear_b,
@@ -1395,8 +1395,8 @@ mod asm_reference {
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).gauge_rates[10],
-                        &dm(a[0]).flt_75b3b4,
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).on_surface_5,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.electrics_damage,
                         &crate::race::owner::race().shared.car.electrics_damage,
                     );
@@ -1419,8 +1419,8 @@ mod asm_reference {
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).gauge_rates[11],
-                        &dm(a[0]).flt_75b3b4,
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).on_surface_5,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.light_damage[0],
                         &crate::race::owner::race().shared.car.light_damage[0],
                     );
@@ -1443,8 +1443,8 @@ mod asm_reference {
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).gauge_rates[11],
-                        &dm(a[0]).flt_75b3b4,
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).on_surface_5,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.light_damage[1],
                         &crate::race::owner::race().shared.car.light_damage[1],
                     );
@@ -1467,8 +1467,8 @@ mod asm_reference {
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).gauge_rates[11],
-                        &dm(a[0]).flt_75b3b4,
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).on_surface_5,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.light_damage[2],
                         &crate::race::owner::race().shared.car.light_damage[2],
                     );
@@ -1491,8 +1491,8 @@ mod asm_reference {
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).gauge_rates[11],
-                        &dm(a[0]).flt_75b3b4,
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).on_surface_5,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.light_damage[3],
                         &crate::race::owner::race().shared.car.light_damage[3],
                     );
@@ -1515,8 +1515,8 @@ mod asm_reference {
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).gauge_rates[11],
-                        &dm(a[0]).flt_75b3b4,
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).on_surface_5,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.light_damage[4],
                         &crate::race::owner::race().shared.car.light_damage[4],
                     );
@@ -1539,8 +1539,8 @@ mod asm_reference {
                 plain: |a| {
                     add_triple_product(
                         &dm(a[0]).gauge_rates[11],
-                        &dm(a[0]).flt_75b3b4,
-                        &dm(a[0]).flt_75b38c,
+                        &dm(a[0]).on_surface_5,
+                        &dm(a[0]).gauge_step,
                         &crate::race::owner::race().shared.car.light_damage[5],
                         &crate::race::owner::race().shared.car.light_damage[5],
                     );
@@ -1598,9 +1598,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_30(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b46c,
-                        &dm(a[0]).flt_75b488,
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).unknown_12c,
+                        &dm(a[0]).unknown_148,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.part_hit_damage[0],
                         &crate::race::owner::race().shared.car.part_hit_damage[0],
                     );
@@ -1622,9 +1622,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_31(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b46c,
-                        &dm(a[0]).flt_75b488,
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).unknown_12c,
+                        &dm(a[0]).unknown_148,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.part_hit_damage[1],
                         &crate::race::owner::race().shared.car.part_hit_damage[1],
                     );
@@ -1646,9 +1646,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_32(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b470,
-                        &dm(a[0]).flt_75b48c,
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).unknown_130,
+                        &dm(a[0]).unknown_14c,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.part_hit_damage[2],
                         &crate::race::owner::race().shared.car.part_hit_damage[2],
                     );
@@ -1670,9 +1670,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_33(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b470,
-                        &dm(a[0]).flt_75b48c,
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).unknown_130,
+                        &dm(a[0]).unknown_14c,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.part_hit_damage[3],
                         &crate::race::owner::race().shared.car.part_hit_damage[3],
                     );
@@ -1694,9 +1694,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_34(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b45c,
+                        &dm(a[0]).unknown_11c,
                         &dm(a[0]).gauge_rates[13],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.engine_damage,
                         &crate::race::owner::race().shared.car.engine_damage,
                     );
@@ -1718,9 +1718,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_35(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b45c,
+                        &dm(a[0]).unknown_11c,
                         &dm(a[0]).gauge_rates[12],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.cooling_damage,
                         &crate::race::owner::race().shared.car.cooling_damage,
                     );
@@ -1758,9 +1758,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_37(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b464,
+                        &dm(a[0]).unknown_124,
                         &dm(a[0]).gauge_rates[15],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.cooling_damage,
                         &crate::race::owner::race().shared.car.cooling_damage,
                     );
@@ -1846,9 +1846,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_42(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b450,
-                        &dm(a[0]).flt_75b670,
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).unknown_110,
+                        &dm(a[0]).unknown_330,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.wheel_hit_damage[0],
                         &crate::race::owner::race().shared.car.wheel_hit_damage[0],
                     );
@@ -1870,9 +1870,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_43(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b450,
-                        &dm(a[0]).flt_75b670,
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).unknown_110,
+                        &dm(a[0]).unknown_330,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.wheel_hit_damage[1],
                         &crate::race::owner::race().shared.car.wheel_hit_damage[1],
                     );
@@ -1894,9 +1894,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_44(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b450,
-                        &dm(a[0]).flt_75b670,
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).unknown_110,
+                        &dm(a[0]).unknown_330,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.wheel_hit_damage[2],
                         &crate::race::owner::race().shared.car.wheel_hit_damage[2],
                     );
@@ -1918,9 +1918,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_45(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b450,
-                        &dm(a[0]).flt_75b670,
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).unknown_110,
+                        &dm(a[0]).unknown_330,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.wheel_hit_damage[3],
                         &crate::race::owner::race().shared.car.wheel_hit_damage[3],
                     );
@@ -1942,9 +1942,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_46(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b458,
+                        &dm(a[0]).unknown_118,
                         &dm(a[0]).figures[0],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.suspension_damage[0],
                         &crate::race::owner::race().shared.car.suspension_damage[0],
                     );
@@ -1966,9 +1966,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_47(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b458,
+                        &dm(a[0]).unknown_118,
                         &dm(a[0]).figures[0],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.suspension_damage[1],
                         &crate::race::owner::race().shared.car.suspension_damage[1],
                     );
@@ -1990,9 +1990,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_48(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b458,
+                        &dm(a[0]).unknown_118,
                         &dm(a[0]).figures[0],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.suspension_damage[2],
                         &crate::race::owner::race().shared.car.suspension_damage[2],
                     );
@@ -2014,9 +2014,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_49(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b458,
+                        &dm(a[0]).unknown_118,
                         &dm(a[0]).figures[0],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.suspension_damage[3],
                         &crate::race::owner::race().shared.car.suspension_damage[3],
                     );
@@ -2038,9 +2038,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_50(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).unknown_114,
                         &dm(a[0]).figures[1],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.body_hit_damage,
                         &crate::race::owner::race().shared.car.body_hit_damage,
                     );
@@ -2062,9 +2062,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_51(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).unknown_114,
                         &dm(a[0]).figures[2],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.steering_damage,
                         &crate::race::owner::race().shared.car.steering_damage,
                     );
@@ -2086,9 +2086,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_52(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).unknown_114,
                         &dm(a[0]).figures[3],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.engine_damage,
                         &crate::race::owner::race().shared.car.engine_damage,
                     );
@@ -2110,9 +2110,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_53(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).unknown_114,
                         &dm(a[0]).figures[4],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.exhaust_damage,
                         &crate::race::owner::race().shared.car.exhaust_damage,
                     );
@@ -2134,9 +2134,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_54(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).unknown_114,
                         &dm(a[0]).figures[5],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.gear_wear[0],
                         &crate::race::owner::race().shared.car.gear_wear[0],
                     );
@@ -2158,9 +2158,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_55(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).unknown_114,
                         &dm(a[0]).figures[5],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.gear_wear[2],
                         &crate::race::owner::race().shared.car.gear_wear[2],
                     );
@@ -2182,9 +2182,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_56(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).unknown_114,
                         &dm(a[0]).figures[5],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.gear_wear[3],
                         &crate::race::owner::race().shared.car.gear_wear[3],
                     );
@@ -2206,9 +2206,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_57(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).unknown_114,
                         &dm(a[0]).figures[5],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.gear_wear[4],
                         &crate::race::owner::race().shared.car.gear_wear[4],
                     );
@@ -2230,9 +2230,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_58(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).unknown_114,
                         &dm(a[0]).figures[5],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.gear_wear[5],
                         &crate::race::owner::race().shared.car.gear_wear[5],
                     );
@@ -2254,9 +2254,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_59(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).unknown_114,
                         &dm(a[0]).figures[5],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.gear_wear[6],
                         &crate::race::owner::race().shared.car.gear_wear[6],
                     );
@@ -2278,9 +2278,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_60(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).unknown_114,
                         &dm(a[0]).figures[5],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.gear_wear[7],
                         &crate::race::owner::race().shared.car.gear_wear[7],
                     );
@@ -2302,9 +2302,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_61(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).unknown_114,
                         &dm(a[0]).figures[5],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.gear_wear[8],
                         &crate::race::owner::race().shared.car.gear_wear[8],
                     );
@@ -2326,9 +2326,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_62(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).unknown_114,
                         &dm(a[0]).figures[6],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.differential_damage,
                         &crate::race::owner::race().shared.car.differential_damage,
                     );
@@ -2350,7 +2350,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_63(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[13],
                         &crate::race::owner::race().shared.car.body_hit_damage,
                         &crate::race::owner::race().shared.car.body_hit_damage,
@@ -2389,7 +2389,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_65(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[24],
                         &crate::race::owner::race().shared.car.light_damage[0],
                         &crate::race::owner::race().shared.car.light_damage[0],
@@ -2412,7 +2412,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_66(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[24],
                         &crate::race::owner::race().shared.car.light_damage[1],
                         &crate::race::owner::race().shared.car.light_damage[1],
@@ -2435,7 +2435,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_67(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[24],
                         &crate::race::owner::race().shared.car.light_damage[2],
                         &crate::race::owner::race().shared.car.light_damage[2],
@@ -2458,7 +2458,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_68(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[24],
                         &crate::race::owner::race().shared.car.light_damage[3],
                         &crate::race::owner::race().shared.car.light_damage[3],
@@ -2481,7 +2481,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_69(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[25],
                         &crate::race::owner::race().shared.car.light_damage[4],
                         &crate::race::owner::race().shared.car.light_damage[4],
@@ -2504,7 +2504,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_70(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[25],
                         &crate::race::owner::race().shared.car.light_damage[4],
                         &crate::race::owner::race().shared.car.light_damage[4],
@@ -2527,7 +2527,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_71(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[25],
                         &crate::race::owner::race().shared.car.light_damage[5],
                         &crate::race::owner::race().shared.car.light_damage[5],
@@ -2550,7 +2550,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_72(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[25],
                         &crate::race::owner::race().shared.car.light_damage[5],
                         &crate::race::owner::race().shared.car.light_damage[5],
@@ -2573,7 +2573,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_73(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[23],
                         &crate::race::owner::race().shared.car.steering_damage,
                         &crate::race::owner::race().shared.car.steering_damage,
@@ -2596,7 +2596,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_74(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[22],
                         &crate::race::owner::race().shared.car.electrics_damage,
                         &crate::race::owner::race().shared.car.electrics_damage,
@@ -2619,7 +2619,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_75(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[17],
                         &crate::race::owner::race().shared.car.turbo_damage,
                         &crate::race::owner::race().shared.car.turbo_damage,
@@ -2642,7 +2642,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_76(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[18],
                         &crate::race::owner::race().shared.car.clutch_damage,
                         &crate::race::owner::race().shared.car.clutch_damage,
@@ -2665,7 +2665,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_77(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[19],
                         &crate::race::owner::race().shared.car.differential_damage,
                         &crate::race::owner::race().shared.car.differential_damage,
@@ -2688,7 +2688,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_78(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[20],
                         &crate::race::owner::race().shared.car.gear_wear[0],
                         &crate::race::owner::race().shared.car.gear_wear[0],
@@ -2711,7 +2711,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_79(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[20],
                         &crate::race::owner::race().shared.car.gear_wear[1],
                         &crate::race::owner::race().shared.car.gear_wear[1],
@@ -2734,7 +2734,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_80(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[20],
                         &crate::race::owner::race().shared.car.gear_wear[2],
                         &crate::race::owner::race().shared.car.gear_wear[2],
@@ -2757,7 +2757,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_81(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[20],
                         &crate::race::owner::race().shared.car.gear_wear[3],
                         &crate::race::owner::race().shared.car.gear_wear[3],
@@ -2780,7 +2780,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_82(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[20],
                         &crate::race::owner::race().shared.car.gear_wear[4],
                         &crate::race::owner::race().shared.car.gear_wear[4],
@@ -2803,7 +2803,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_83(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[20],
                         &crate::race::owner::race().shared.car.gear_wear[5],
                         &crate::race::owner::race().shared.car.gear_wear[5],
@@ -2826,7 +2826,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_84(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[20],
                         &crate::race::owner::race().shared.car.gear_wear[6],
                         &crate::race::owner::race().shared.car.gear_wear[6],
@@ -2849,7 +2849,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_85(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[20],
                         &crate::race::owner::race().shared.car.gear_wear[7],
                         &crate::race::owner::race().shared.car.gear_wear[7],
@@ -2872,7 +2872,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_86(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[20],
                         &crate::race::owner::race().shared.car.gear_wear[8],
                         &crate::race::owner::race().shared.car.gear_wear[8],
@@ -2911,7 +2911,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_88(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[28],
                         &crate::race::owner::race().shared.car.wheel_hit_damage[0],
                         &crate::race::owner::race().shared.car.wheel_hit_damage[0],
@@ -2934,7 +2934,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_89(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[28],
                         &crate::race::owner::race().shared.car.wheel_hit_damage[1],
                         &crate::race::owner::race().shared.car.wheel_hit_damage[1],
@@ -2957,7 +2957,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_90(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[28],
                         &crate::race::owner::race().shared.car.wheel_hit_damage[2],
                         &crate::race::owner::race().shared.car.wheel_hit_damage[2],
@@ -2980,7 +2980,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_91(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[28],
                         &crate::race::owner::race().shared.car.wheel_hit_damage[3],
                         &crate::race::owner::race().shared.car.wheel_hit_damage[3],
@@ -3003,7 +3003,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_92(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[30],
                         &crate::race::owner::race().shared.car.suspension_damage[0],
                         &crate::race::owner::race().shared.car.suspension_damage[0],
@@ -3026,7 +3026,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_93(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[30],
                         &crate::race::owner::race().shared.car.suspension_damage[1],
                         &crate::race::owner::race().shared.car.suspension_damage[1],
@@ -3049,7 +3049,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_94(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[30],
                         &crate::race::owner::race().shared.car.suspension_damage[2],
                         &crate::race::owner::race().shared.car.suspension_damage[2],
@@ -3072,7 +3072,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_95(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[30],
                         &crate::race::owner::race().shared.car.suspension_damage[3],
                         &crate::race::owner::race().shared.car.suspension_damage[3],
@@ -3095,7 +3095,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_96(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[27],
                         &crate::race::owner::race().shared.car.cooling_damage,
                         &crate::race::owner::race().shared.car.cooling_damage,
@@ -3118,7 +3118,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_97(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[27],
                         &crate::race::owner::race().shared.car.cooling_damage,
                         &crate::race::owner::race().shared.car.cooling_damage,
@@ -3141,7 +3141,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_98(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[26],
                         &crate::race::owner::race().shared.car.engine_damage,
                         &crate::race::owner::race().shared.car.engine_damage,
@@ -3164,7 +3164,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_99(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[26],
                         &crate::race::owner::race().shared.car.engine_damage,
                         &crate::race::owner::race().shared.car.engine_damage,
@@ -3187,7 +3187,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_100(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[29],
                         &crate::race::owner::race().shared.car.brake_wear_a,
                         &crate::race::owner::race().shared.car.brake_wear_a,
@@ -3210,7 +3210,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_101(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[29],
                         &crate::race::owner::race().shared.car.brake_wear_a,
                         &crate::race::owner::race().shared.car.brake_wear_a,
@@ -3233,7 +3233,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_102(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[29],
                         &crate::race::owner::race().shared.car.brake_wear_b,
                         &crate::race::owner::race().shared.car.brake_wear_b,
@@ -3256,7 +3256,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_103(a[0], a[1]) },
                 plain: |a| {
                     add_product(
-                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).hit_size,
                         &dm(a[0]).figures[29],
                         &crate::race::owner::race().shared.car.brake_wear_b,
                         &crate::race::owner::race().shared.car.brake_wear_b,
@@ -3281,7 +3281,7 @@ mod asm_reference {
                     add_triple_product(
                         &dm(a[0]).wheel_loads[0],
                         &dm(a[0]).figures[14],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.suspension_damage[0],
                         &crate::race::owner::race().shared.car.suspension_damage[0],
                     );
@@ -3305,7 +3305,7 @@ mod asm_reference {
                     add_triple_product(
                         &dm(a[0]).wheel_loads[1],
                         &dm(a[0]).figures[14],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.suspension_damage[1],
                         &crate::race::owner::race().shared.car.suspension_damage[1],
                     );
@@ -3329,7 +3329,7 @@ mod asm_reference {
                     add_triple_product(
                         &dm(a[0]).wheel_loads[2],
                         &dm(a[0]).figures[14],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.suspension_damage[2],
                         &crate::race::owner::race().shared.car.suspension_damage[2],
                     );
@@ -3353,7 +3353,7 @@ mod asm_reference {
                     add_triple_product(
                         &dm(a[0]).wheel_loads[3],
                         &dm(a[0]).figures[14],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.suspension_damage[3],
                         &crate::race::owner::race().shared.car.suspension_damage[3],
                     );
@@ -3375,9 +3375,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_108(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b3dc,
+                        &dm(a[0]).wheel_load_mean,
                         &dm(a[0]).figures[15],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.exhaust_damage,
                         &crate::race::owner::race().shared.car.exhaust_damage,
                     );
@@ -3399,9 +3399,9 @@ mod asm_reference {
                 reference: |a| unsafe { ref_109(a[0], a[1]) },
                 plain: |a| {
                     add_triple_product(
-                        &dm(a[0]).flt_75b3dc,
+                        &dm(a[0]).wheel_load_mean,
                         &dm(a[0]).figures[16],
-                        &dm(a[0]).flt_75b370,
+                        &dm(a[0]).hundredth,
                         &crate::race::owner::race().shared.car.steering_damage,
                         &crate::race::owner::race().shared.car.steering_damage,
                     );

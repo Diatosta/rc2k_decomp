@@ -12,7 +12,7 @@ use crate::effects::emit_bursts::BurstTuning;
 use crate::effects::emit_bursts::{BurstSet, HALVES, emit_bursts_with};
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
-use crate::race::marks_settings_store::{MarkCar, MarkRecord};
+use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::session::{Dword, Float};
 
 /// `emit_bursts_2`'s: `emit_bursts`' with its own factors and randoms.
@@ -24,7 +24,7 @@ pub static SECOND: BurstSet = BurstSet {
 pub fn emit_bursts_2(
     effects: &Effects,
     wheel: &MarkRecord,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
 ) -> Result<(), Refused> {
     emit_bursts_with(effects, &SECOND, wheel, object)
 }

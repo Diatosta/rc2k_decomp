@@ -29,7 +29,7 @@ use crate::effects::mask_store::Masks;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::marks_settings_store::{MarkCar, MarkRecord};
+use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Dword, Float};
 
@@ -107,7 +107,7 @@ pub fn emit_particle_1(
     particles: &Particles,
     ring: &Ring,
     wheel: &MarkRecord,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
@@ -215,7 +215,7 @@ pub fn emit_kind_1(
     particles: &Particles,
     ring: &Ring,
     wheel: &MarkRecord,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     if particles.kind1_choice.choice.get() != 0 {

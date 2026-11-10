@@ -11,7 +11,7 @@
 //! end of the file, `cfg(test)` only).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::race::marks_settings_store::MARKS_SETTINGS;
+use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::owner::race;
 use crate::race::state_store::{RaceCar, RaceResult};
 use crate::session::{Bytes, Dword};
@@ -379,7 +379,7 @@ fn single_rally(
     step(Call::StopMusic)?;
     step(Call::SetRaceScreenMode)?;
     step(Call::ShowLoadingPicture)?;
-    MARKS_SETTINGS.after_loading_copy.set(AFTER_LOADING.get());
+    EFFECTS_SETTINGS.after_loading_copy.set(AFTER_LOADING.get());
 
     // The stage's entry in the track list: the tracks, then the pack's closing -1.
     let stage = STAGE.get();

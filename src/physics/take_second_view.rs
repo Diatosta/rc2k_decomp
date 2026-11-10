@@ -1,4 +1,4 @@
-//! `physics::take_view_b` (0x438024): `physics::take_view_a` for the second view: +4 ..
+//! `physics::take_second_view` (0x438024): `physics::take_first_view` for the second view: +4 ..
 //! +0xC plus `dword_637638` .. into `flt_608BB0` ..; +0x10 .. +0x24 into `flt_608B8C`
 //! .., `flt_608BD4` ..; +0x28 .. +0x38 into `dword_608C0C`, `608C10`, `608C14`,
 //! `608C08`, `608C18`; the heading into `dword_608B68`; the next two halved (`sar`)
@@ -21,7 +21,7 @@ use crate::race::view_vars_store::ViewRecord;
 use crate::session::Cell32;
 
 /// The exact version, for `physics::update_camera`: `s` the view's record (esi).
-pub fn take_view_b(race: &Race, s: &ViewRecord, scene: &crate::scene::owner::Scene) {
+pub fn take_second_view(race: &Race, s: &ViewRecord, scene: &crate::scene::owner::Scene) {
     x87_1(&race.physics, s.offset_bits(), scene);
     for (x, v) in copies(&race.physics).iter().zip(s.taken()) {
         x.set_bits(v);
@@ -95,7 +95,7 @@ mod asm_reference {
 
     fn blocks() -> Vec<Block> {
         vec![Block {
-            name: "take_view_b line 22",
+            name: "take_second_view line 22",
             operands: vec![
                 Operand::Buffer {
                     reads: &[(4, In::F), (8, In::F), (0xC, In::F)],

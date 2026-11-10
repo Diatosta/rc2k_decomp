@@ -23,7 +23,7 @@ use crate::effects::paths::Paths;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::marks_settings_store::MarkCar;
+use crate::race::effects_settings_store::CarEffects;
 use crate::session::{Dword, Float, read_first};
 
 const MODELS: u32 = 34;
@@ -31,7 +31,7 @@ const LOOK: u32 = 0x3F;
 const LIFE: u32 = 0xFA;
 
 /// Why the Rust version refuses, if it does, worked out without writing.
-fn refusal(ring: &Ring, object: &'static MarkCar) -> Result<Option<&'static str>, Refused> {
+fn refusal(ring: &Ring, object: &'static CarEffects) -> Result<Option<&'static str>, Refused> {
     Ok({
         // The ring full: nothing more is read.
         next_entry(ring)?;
@@ -49,7 +49,7 @@ pub fn emit_particle_13(
     paths: &Paths,
     particles: &Particles,
     ring: &Ring,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     if let Some(why) = refusal(ring, object)? {

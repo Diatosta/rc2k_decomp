@@ -13,7 +13,7 @@ use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::Refused;
-use crate::race::marks_settings_store::MarkCar;
+use crate::race::effects_settings_store::CarEffects;
 use crate::session::{Dword, Float};
 
 /// `emit_particle_22`'s variables.
@@ -30,7 +30,7 @@ pub fn emit_particle_22(
     masks: &Masks,
     particles: &Particles,
     ring: &Ring,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
 ) -> Result<(), Refused> {
     emit_twin(masks, particles, ring, &TWENTY_SECOND, object)
 }

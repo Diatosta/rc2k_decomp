@@ -24,7 +24,7 @@ use crate::effects::owner::Effects;
 use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::marks_settings_store::{MarkCar, MarkRecord};
+use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Dword, Float, read_bits, write_bits};
 
@@ -157,7 +157,7 @@ pub fn refusal(set: &BurstSet, wheel: &MarkRecord) -> Result<Option<&'static str
 pub fn emit_bursts(
     effects: &Effects,
     wheel: &MarkRecord,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
 ) -> Result<(), Refused> {
     emit_bursts_with(effects, &FIRST, wheel, object)
 }
@@ -167,7 +167,7 @@ pub fn emit_bursts_with(
     effects: &Effects,
     set: &BurstSet,
     wheel: &MarkRecord,
-    object: &'static MarkCar,
+    object: &'static CarEffects,
 ) -> Result<(), Refused> {
     let (paths, masks, ring) = (&effects.paths, &effects.masks, &effects.ring);
     {

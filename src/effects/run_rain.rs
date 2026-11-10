@@ -65,11 +65,11 @@ pub fn run_rain(
     use crate::scene::set_render_state::set_render_state;
     let r = &weather.rain;
     {
-        let marks = crate::effects::setup::marks()?;
+        let marks = crate::effects::setup::effects_settings()?;
         if marks.marks_layout.get() >= ENTRIES {
             return Err(BadInput("a rain view entry past the five").into());
         }
-        let mut drops = marks.listener_switch_1.get() as i32;
+        let mut drops = marks.rain_drops.get() as i32;
         r.drops.set(drops as u32);
         if drops == 0 {
             r.drawn.set(0);
@@ -109,7 +109,7 @@ pub fn run_rain(
         if setup.kind_floats.running.bits() != 0 {
             crate::effects::drift_offsets::drift_offsets(race, weather, effects);
         }
-        let marks = crate::effects::setup::marks()?;
+        let marks = crate::effects::setup::effects_settings()?;
         let e = marks.marks_layout.get() as usize;
         if marks.own_marks_shown.get() != 0 || setup.kind_floats.running.bits() != 0 {
             box_moved(weather, e);
@@ -147,7 +147,7 @@ pub fn run_rain(
                 x87_run::int_80(x as i32, false),
             ];
             crate::effects::draw_rain_streak::draw_rain_streak(weather, place, effects)?;
-            let marks = crate::effects::setup::marks()?;
+            let marks = crate::effects::setup::effects_settings()?;
             if marks.other_marks_shown.get() != 0 {
                 for (n, kept) in r.kept.iter().enumerate() {
                     kept[k].set(x87::to_int(r.turned[n].bits()) as u32);

@@ -23,22 +23,22 @@ use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::race::marks_settings_store::MarksSettings;
+use crate::race::effects_settings_store::EffectsSettings;
 use crate::scene::cross_product3::cross;
 use crate::scene::vector3::normalise;
 
 /// The original's 0x4BF615 .. 0x4BF6AB: the rate (`flt_89CA34`), the place and the first axis from the settings, its length over `flt_8BC1A2` into `flt_89CEEE`.
-fn frame_axes(fl: &WindscreenFlakes, m: &MarksSettings) {
+fn frame_axes(fl: &WindscreenFlakes, m: &EffectsSettings) {
     frame_axes_x87(m, &fl.timing, &fl.tables, &fl.state);
 }
 
 /// The original's 0x4BF6B8 .. 0x4BF718: the second axis, its length over `flt_8BC1A6` into `flt_89CEF2`.
-fn frame_up(fl: &WindscreenFlakes, m: &MarksSettings) {
+fn frame_up(fl: &WindscreenFlakes, m: &EffectsSettings) {
     frame_up_x87(m, &fl.tables, &fl.state);
 }
 
 /// The original's 0x4BF769 .. 0x4BF78D: the place as floats into `flt_8161A2` ...
-fn frame_place(drops: &WindscreenDrops, m: &MarksSettings) {
+fn frame_place(drops: &WindscreenDrops, m: &EffectsSettings) {
     frame_place_x87(drops, m);
 }
 
@@ -57,7 +57,7 @@ pub fn windscreen_flakes_frame(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let (frame, scene) = (&ctx.race.frame, ctx.scene);
-    let m = crate::effects::setup::marks()?;
+    let m = crate::effects::setup::effects_settings()?;
     frame_axes(fl, m);
     let [a0, a1, a2] = [0, 1, 2].map(|n| &fl.tables.axes[n]);
     normalise(a0);
@@ -83,8 +83,8 @@ pub fn windscreen_flakes_frame(
         fl,
         ctx.view.light.view_light.bits(),
     )?;
-    let marks = crate::effects::setup::marks()?;
-    if marks.listener_switch_6.get() == 0 {
+    let marks = crate::effects::setup::effects_settings()?;
+    if marks.windscreen_wet.get() == 0 {
         return Ok(());
     }
     if effects.setup.kind_floats.running.bits() == 0 {
@@ -101,28 +101,28 @@ use crate::effects::windscreen_flakes_store::{
 
 /// `frame_axes`'s x87 block as plain Rust on the x87 model (29 instructions), same order and memory places.
 fn frame_axes_x87(
-    m: &MarksSettings,
+    m: &EffectsSettings,
     sti: &WindscreenFlakeTiming,
     sq: &WindscreenFlakeTables,
     ss: &WindscreenFlakeState,
 ) {
-    let t0 = ldi_cell(&m.listener_switch_3);
+    let t0 = ldi_cell(&m.windscreen_flakes_rate_factor);
     let t1 = t0 * bh::ld(ss.rate_share.bits());
     sti.rate.set_bits(bh::st(t1));
-    let t2 = ldi_cell(&m.listener_point_b_negated[0]);
-    let t3 = ldi_cell(&m.listener_point_b_negated[1]);
-    let t4 = ldi_cell(&m.listener_point_b_negated[2]);
+    let t2 = ldi_cell(&m.light_point_b_negated[0]);
+    let t3 = ldi_cell(&m.light_point_b_negated[1]);
+    let t4 = ldi_cell(&m.light_point_b_negated[2]);
     sq.place[2].set_bits(bh::st(t4));
     sq.place[1].set_bits(bh::st(t3));
     sq.place[0].set_bits(bh::st(t2));
-    let t5 = ldi_cell(&m.listener_point_b[0]);
-    let t6 = t5 - ldi_cell(&m.listener_point_b_negated[0]);
+    let t5 = ldi_cell(&m.light_point_b[0]);
+    let t6 = t5 - ldi_cell(&m.light_point_b_negated[0]);
     sq.axes[0][0].set_bits(bh::st(t6));
-    let t7 = ldi_cell(&m.listener_point_b[1]);
-    let t8 = t7 - ldi_cell(&m.listener_point_b_negated[1]);
+    let t7 = ldi_cell(&m.light_point_b[1]);
+    let t8 = t7 - ldi_cell(&m.light_point_b_negated[1]);
     sq.axes[0][1].set_bits(bh::st(t8));
-    let t9 = ldi_cell(&m.listener_point_b[2]);
-    let t10 = t9 - ldi_cell(&m.listener_point_b_negated[2]);
+    let t9 = ldi_cell(&m.light_point_b[2]);
+    let t10 = t9 - ldi_cell(&m.light_point_b_negated[2]);
     sq.axes[0][2].set_bits(bh::st(t10));
     let t11 = bh::ld(sq.axes[0][0].bits());
     let t12 = t11 * t11;
@@ -138,15 +138,15 @@ fn frame_axes_x87(
 }
 
 /// `frame_up`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
-fn frame_up_x87(m: &MarksSettings, sq: &WindscreenFlakeTables, ss: &WindscreenFlakeState) {
-    let t0 = ldi_cell(&m.listener_point_a_negated[0]);
-    let t1 = t0 - ldi_cell(&m.listener_point_b_negated[0]);
+fn frame_up_x87(m: &EffectsSettings, sq: &WindscreenFlakeTables, ss: &WindscreenFlakeState) {
+    let t0 = ldi_cell(&m.light_point_a_negated[0]);
+    let t1 = t0 - ldi_cell(&m.light_point_b_negated[0]);
     sq.axes[1][0].set_bits(bh::st(t1));
-    let t2 = ldi_cell(&m.listener_point_a_negated[1]);
-    let t3 = t2 - ldi_cell(&m.listener_point_b_negated[1]);
+    let t2 = ldi_cell(&m.light_point_a_negated[1]);
+    let t3 = t2 - ldi_cell(&m.light_point_b_negated[1]);
     sq.axes[1][1].set_bits(bh::st(t3));
-    let t4 = ldi_cell(&m.listener_point_a_negated[2]);
-    let t5 = t4 - ldi_cell(&m.listener_point_b_negated[2]);
+    let t4 = ldi_cell(&m.light_point_a_negated[2]);
+    let t5 = t4 - ldi_cell(&m.light_point_b_negated[2]);
     sq.axes[1][2].set_bits(bh::st(t5));
     let t6 = bh::ld(sq.axes[1][0].bits());
     let t7 = t6 * t6;
@@ -162,12 +162,12 @@ fn frame_up_x87(m: &MarksSettings, sq: &WindscreenFlakeTables, ss: &WindscreenFl
 }
 
 /// `frame_place`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
-fn frame_place_x87(drops: &WindscreenDrops, m: &MarksSettings) {
-    let t0 = ldi_cell(&m.listener_point_b_negated[0]);
+fn frame_place_x87(drops: &WindscreenDrops, m: &EffectsSettings) {
+    let t0 = ldi_cell(&m.light_point_b_negated[0]);
     st_cell(&drops.hex.place[0], t0);
-    let t1 = ldi_cell(&m.listener_point_b_negated[1]);
+    let t1 = ldi_cell(&m.light_point_b_negated[1]);
     st_cell(&drops.hex.place[1], t1);
-    let t2 = ldi_cell(&m.listener_point_b_negated[2]);
+    let t2 = ldi_cell(&m.light_point_b_negated[2]);
     st_cell(&drops.hex.place[2], t2);
 }
 

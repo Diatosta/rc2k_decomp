@@ -1,12 +1,15 @@
-//! `menu::review_options_48861d_loop` (0x48861D): the menu after the results screens, by its
+//! `menu::single_rally_review_loop` (0x485F5E): the menu after the results screens, by its
 //! title "OPÇÕES DE REVISÃO" (a reading)
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `roptions.png`; leaving is asked about; also
-//! when `dword_755569` is 1; the steps that are more than a call or a store are the functions
-//! below, generated from the listing.
+//! when `dword_755569` is 1; the next frame begins with the steps after the first frame; the
+//! steps that are more than a call or a store are the functions below, generated from the
+//! listing.
 //! The name is a reading from the title string of its menu, "OPÇÕES DE REVISÃO", not yet a
 //! visit.
+//! Rust callers run its `entry`
+//! (`routes.rs`).
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
@@ -25,9 +28,9 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
         .set(0x140u32);
     prepare_scene(entry.scene);
     screens.flow.turning.set(0x1u32);
-    screens.state.carousel.menu.set(0x10u32);
+    screens.state.carousel.menu.set(0xFu32);
     carousel(None)?;
-    let item = screens.items.current[slot::REVIEW_OPTIONS_48861D].get();
+    let item = screens.items.current[slot::SINGLE_RALLY_REVIEW].get();
     screens.loop_flags.item.set(item);
     screens.state.carousel.front.set(item.wrapping_sub(1));
     screens.flow.turning.set(0x0u32);
@@ -35,22 +38,22 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.review_options_48861d.id(),
-    saved_item: |m| &m.screens.items.current[slot::REVIEW_OPTIONS_48861D],
+    menu: |m| m.tables.menus.single_rally_review.id(),
+    saved_item: |m| &m.screens.items.current[slot::SINGLE_RALLY_REVIEW],
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list, // g_sceneList
-            table: |m| m.tables.draw_lists.review_options_48861d_scene.id(),
+            table: |m| m.tables.draw_lists.single_rally_review_scene.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list, // g_drawList
-            table: |m| m.tables.draw_lists.review_options_48861d_draw.id(),
+            table: |m| m.tables.draw_lists.single_rally_review_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
-            table: |m| m.tables.draw_lists.review_options_48861d_overlay.id(),
+            table: |m| m.tables.draw_lists.single_rally_review_overlay.id(),
             run: false,
         },
     ],
@@ -58,7 +61,6 @@ pub const SCREEN: Screen = Screen {
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[
-        Step::Write(|m| &m.screens.loop_flags.ended_b, 0x0),
         Step::Write(|m| &m.screens.loop_flags.went_back, 0x0),
         Step::Write(|m| &m.screens.event.event_done, 0x0),
     ],
@@ -66,9 +68,9 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|m| {
-        &m.tables.texts.review_options_48861d_picture
+        &m.tables.texts.single_rally_review_picture
     }))],
-    after_first_frame: &[],
+    after_first_frame: &[Step::Write(|m| &m.screens.draw_work.action_value, 0x0)],
     confirm: Some(&[]),
     ask_also_if: Some(|m| &m.screens.loop_flags.ended_a),
     confirmed: &[],
@@ -78,7 +80,7 @@ pub const SCREEN: Screen = Screen {
     each_frame: &[],
     short_action_check: false,
     leave_at_once: None,
-    next_frame_repeats_first: false,
+    next_frame_repeats_first: true,
     action_saved_item: None,
     action_menu: None,
     no_quit_check: false,

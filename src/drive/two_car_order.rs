@@ -29,8 +29,8 @@ pub fn two_car_order(shared: &Shared) -> Result<(), crate::errors::BadInput> {
         0,
     );
     if let Some([x, y]) = order.places {
-        CAR_BLOCKS.cars[0].unknown_fa4.set_bits(x);
-        CAR_BLOCKS.cars[1].unknown_fa4.set_bits(y);
+        CAR_BLOCKS.cars[0].two_car_place.set_bits(x);
+        CAR_BLOCKS.cars[1].two_car_place.set_bits(y);
     }
     Ok(())
 }

@@ -34,17 +34,17 @@ pub struct CameraWork {
     pub start_roll: Dword,
     /// +0x50 (0x608B58): the start's pitch, and the pitch target (`race::car_starts`, `physics::ease_view_turn`).
     pub start_pitch: Dword,
-    /// +0x54 (0x608B5C): the first view's heading, from the car (`physics::take_view_a`).
+    /// +0x54 (0x608B5C): the first view's heading, from the car (`physics::take_first_view`).
     pub view_a_heading: Dword,
-    /// +0x58 (0x608B60): the first view's roll, halved with the mode's flag (`physics::take_view_a`).
+    /// +0x58 (0x608B60): the first view's roll, halved with the mode's flag (`physics::take_first_view`).
     pub view_a_roll: Dword,
-    /// +0x5c (0x608B64): the first view's pitch, halved with the mode's flag (`physics::take_view_a`).
+    /// +0x5c (0x608B64): the first view's pitch, halved with the mode's flag (`physics::take_first_view`).
     pub view_a_pitch: Dword,
-    /// +0x60 (0x608B68): the second view's heading (`physics::take_view_b`).
+    /// +0x60 (0x608B68): the second view's heading (`physics::take_second_view`).
     pub view_b_heading: Dword,
-    /// +0x64 (0x608B6C): the second view's roll (`physics::take_view_b`).
+    /// +0x64 (0x608B6C): the second view's roll (`physics::take_second_view`).
     pub view_b_roll: Dword,
-    /// +0x68 (0x608B70): the second view's pitch (`physics::take_view_b`).
+    /// +0x68 (0x608B70): the second view's pitch (`physics::take_second_view`).
     pub view_b_pitch: Dword,
     /// +0x6c (0x608B74): the blended view's turn, x (`physics::update_camera`, `physics::place_camera`).
     pub view_turn_x: Dword,
@@ -52,21 +52,21 @@ pub struct CameraWork {
     pub view_turn_y: Dword,
     /// +0x74 (0x608B7C): the blended view's turn, z (same).
     pub view_turn_z: Dword,
-    /// +0x78 (0x608B80): the first view's turn figures (record +0x10 .. +0x18; `physics::take_view_a`).
+    /// +0x78 (0x608B80): the first view's turn figures (record +0x10 .. +0x18; `physics::take_first_view`).
     pub view_a_turn: [Float; 3],
-    /// +0x84 (0x608B8C): the second view's turn figures (`physics::take_view_b`).
+    /// +0x84 (0x608B8C): the second view's turn figures (`physics::take_second_view`).
     pub view_b_turn: [Float; 3],
-    /// +0x90 (0x608B98): the first view's offset: record +4 .. +0xC plus `dword_637638` .. (`physics::take_view_a`).
+    /// +0x90 (0x608B98): the first view's offset: record +4 .. +0xC plus `dword_637638` .. (`physics::take_first_view`).
     pub view_a_offset: [Float; 3],
     /// +0x9c (0x608BA4): unreferenced bytes (0xc of them).
     pub _gap_9c: Bytes<12>,
-    /// +0xa8 (0x608BB0): the second view's offset (`physics::take_view_b`).
+    /// +0xa8 (0x608BB0): the second view's offset (`physics::take_second_view`).
     pub view_b_offset: [Float; 3],
     /// +0xb4 (0x608BBC): unreferenced bytes (0xc of them).
     pub _gap_b4: Bytes<12>,
-    /// +0xc0 (0x608BC8): the first view's point (record +0x1C .. +0x24; `physics::take_view_a`).
+    /// +0xc0 (0x608BC8): the first view's point (record +0x1C .. +0x24; `physics::take_first_view`).
     pub view_a_point: [Float; 3],
-    /// +0xcc (0x608BD4): the second view's point (`physics::take_view_b`).
+    /// +0xcc (0x608BD4): the second view's point (`physics::take_second_view`).
     pub view_b_point: [Float; 3],
     /// +0xd8 (0x608BE0): copied from `dword_608BF4` (a reading; `physics::update_camera`).
     pub view_blend_aux: Dword,
@@ -78,17 +78,17 @@ pub struct CameraWork {
     pub view_share_roll: Float,
     /// +0xe8 (0x608BF0): copied from `dword_608C04`, read by `fild` (a reading; `physics::update_camera`).
     pub view_blend_aux_2: Dword,
-    /// +0xec (0x608BF4): the first view's record +0x34 (a reading; `physics::take_view_a`).
+    /// +0xec (0x608BF4): the first view's record +0x34 (a reading; `physics::take_first_view`).
     pub view_a_aux: Dword,
-    /// +0xf0 (0x608BF8): the first view's shares (record +0x28 .. +0x30), copied to the three shares above (`physics::take_view_a`, `physics::update_camera`).
+    /// +0xf0 (0x608BF8): the first view's shares (record +0x28 .. +0x30), copied to the three shares above (`physics::take_first_view`, `physics::update_camera`).
     pub view_a_shares: [Float; 3],
-    /// +0xfc (0x608C04): the first view's record +0x38 (a reading; `physics::take_view_a`).
+    /// +0xfc (0x608C04): the first view's record +0x38 (a reading; `physics::take_first_view`).
     pub view_a_aux_2: Dword,
-    /// +0x100 (0x608C08): the second view's record +0x34 (a reading; `physics::take_view_b`).
+    /// +0x100 (0x608C08): the second view's record +0x34 (a reading; `physics::take_second_view`).
     pub view_b_aux: Dword,
-    /// +0x104 (0x608C0C): the second view's shares (`physics::take_view_b`).
+    /// +0x104 (0x608C0C): the second view's shares (`physics::take_second_view`).
     pub view_b_shares: [Float; 3],
-    /// +0x110 (0x608C18): the second view's record +0x38 (a reading; `physics::take_view_b`).
+    /// +0x110 (0x608C18): the second view's record +0x38 (a reading; `physics::take_second_view`).
     pub view_b_aux_2: Dword,
     /// +0x114 (0x608C1C): the pitch the camera eases down to (`physics::ease_pitch_down`, `physics::camera_avoid_ground`).
     pub pitch_floor: Dword,

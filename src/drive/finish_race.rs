@@ -10,7 +10,7 @@
 use crate::drive::race_parts::log_line;
 use crate::errors::{BadInput, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::marks_settings_store::MARKS_SETTINGS;
+use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::owner::{RACE, Race, race};
 use crate::race::settings_copy::Place;
 use crate::race::settings_copy::var;
@@ -45,7 +45,7 @@ fn var(v: Var) -> Place {
         Var::D6238CC => var!(crate::race::owner::RACE.shared.vars.race_level),
         Var::D6238D0 => var!(crate::race::owner::RACE.shared.vars.race_stage),
         Var::D64BB18 => Place::Var(|| &race().replay.finish.no_place),
-        Var::D5C2F88 => var!(MARKS_SETTINGS.race_done),
+        Var::D5C2F88 => var!(EFFECTS_SETTINGS.race_done),
         // View record 6's first two angles (the finish camera's).
         Var::D606744 => Place::Var(|| &ViewVars::record(6).angles[0]),
         Var::D606748 => Place::Var(|| &ViewVars::record(6).angles[1]),

@@ -22,8 +22,8 @@
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_run::{ext_to_int, int_80, int_over_int_plus};
+use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::light_records_store::LIGHT_RECORDS;
-use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
@@ -103,24 +103,24 @@ pub fn set_listener(
     )?;
     let place: [u32; 3] = crate::session::read_all(&s.position);
     let strength: u32 = s.marks_count.get();
-    MARKS_SETTINGS.listener_car_place[2].set_bits(x87::from_int(place[2] as i32));
-    MARKS_SETTINGS.listener_car_place[1].set_bits(x87::from_int(place[1] as i32));
-    MARKS_SETTINGS.listener_car_place[0].set_bits(x87::from_int(place[0] as i32));
-    MARKS_SETTINGS
+    EFFECTS_SETTINGS.listener_car_place[2].set_bits(x87::from_int(place[2] as i32));
+    EFFECTS_SETTINGS.listener_car_place[1].set_bits(x87::from_int(place[1] as i32));
+    EFFECTS_SETTINGS.listener_car_place[0].set_bits(x87::from_int(place[0] as i32));
+    EFFECTS_SETTINGS
         .listener_near
         .set(u32::from(listener::car_ahead(strength)));
     for k in 0..3 {
-        MARKS_SETTINGS.listener_place[k].set(view.view_place[k].get().wrapping_neg());
+        EFFECTS_SETTINGS.listener_place[k].set(view.view_place[k].get().wrapping_neg());
     }
     for (k, o) in listener::TURN_OFFSETS.into_iter().enumerate() {
-        MARKS_SETTINGS.listener_turn[k].set_bits(view.view_turn_matrix[o as usize / 4].bits());
+        EFFECTS_SETTINGS.listener_turn[k].set_bits(view.view_turn_matrix[o as usize / 4].bits());
     }
-    MARKS_SETTINGS.listener_figures[0].set(listener::first_figure(
+    EFFECTS_SETTINGS.listener_figures[0].set(listener::first_figure(
         race.shared.vars.settings_words[0].get(),
         || view.sun.view_out.get(),
     ));
-    MARKS_SETTINGS.listener_figures[1].set(view.sun.place[0].get());
-    MARKS_SETTINGS.listener_figures[2].set(view.sun.place[1].get());
+    EFFECTS_SETTINGS.listener_figures[1].set(view.sun.place[0].get());
+    EFFECTS_SETTINGS.listener_figures[2].set(view.sun.place[1].get());
     let f = listener::listener_points(f, race.shared.physics_tables.ground_drop.get());
     for (k, &v) in f.iter().enumerate() {
         physics.camera.listener_points[k].set(v as u32);
@@ -145,10 +145,10 @@ pub fn set_listener(
     }
     let made = &race.frame.matrices.made_object_matrix;
     for (first, out, negate) in [
-        (0, &MARKS_SETTINGS.listener_point_a_negated, true),
-        (0, &MARKS_SETTINGS.listener_point_a, false),
-        (3, &MARKS_SETTINGS.listener_point_b_negated, true),
-        (3, &MARKS_SETTINGS.listener_point_b, false),
+        (0, &EFFECTS_SETTINGS.light_point_a_negated, true),
+        (0, &EFFECTS_SETTINGS.light_point_a, false),
+        (3, &EFFECTS_SETTINGS.light_point_b_negated, true),
+        (3, &EFFECTS_SETTINGS.light_point_b, false),
     ] {
         let p = [
             int_80(f[first], negate),
@@ -166,14 +166,14 @@ pub fn set_listener(
         car.surface_noise_b.get(),
     );
     for (cell, v) in [
-        &MARKS_SETTINGS.listener_switch_0,
-        &MARKS_SETTINGS.listener_switch_1,
-        &MARKS_SETTINGS.listener_switch_2,
-        &MARKS_SETTINGS.listener_switch_3,
-        &MARKS_SETTINGS.listener_switch_4,
-        &MARKS_SETTINGS.listener_switch_5,
-        &MARKS_SETTINGS.listener_switch_6,
-        &MARKS_SETTINGS.listener_switch_7,
+        &EFFECTS_SETTINGS.windscreen_drops_rate_factor,
+        &EFFECTS_SETTINGS.rain_drops,
+        &EFFECTS_SETTINGS.windscreen_drops_wanted,
+        &EFFECTS_SETTINGS.windscreen_flakes_rate_factor,
+        &EFFECTS_SETTINGS.snow_flakes,
+        &EFFECTS_SETTINGS.mask_rate_switch,
+        &EFFECTS_SETTINGS.windscreen_wet,
+        &EFFECTS_SETTINGS.mask_number,
     ]
     .into_iter()
     .zip(switches)
@@ -182,26 +182,26 @@ pub fn set_listener(
     }
     let old = car.gear_changed_2.get();
     if old != 0 {
-        MARKS_SETTINGS.listener_gear_changed.set(old);
+        EFFECTS_SETTINGS.spline_gear_changed.set(old);
     }
     car.gear_changed_2.set(0);
-    MARKS_SETTINGS
-        .listener_flag
+    EFFECTS_SETTINGS
+        .spline_switch
         .set(u32::from(car.handbrake.get() != 0));
-    MARKS_SETTINGS.listener_scale.set_bits(int_over_int_plus(
+    EFFECTS_SETTINGS.listener_scale.set_bits(int_over_int_plus(
         car.steer_angle_visual.get() as i32,
         0x2000_0000,
         scene.lights.state.listener_camera.bits(),
     ));
-    MARKS_SETTINGS
+    EFFECTS_SETTINGS
         .listener_float_a
         .set_bits(x87::loaded(car.engine_speed.bits()));
-    MARKS_SETTINGS
+    EFFECTS_SETTINGS
         .listener_float_b
         .set_bits(x87::loaded(car.engine_speed_scaled.bits()));
     if physics.split_tables.still.get() != 0 {
-        MARKS_SETTINGS.listener_flag.set(0);
-        MARKS_SETTINGS.listener_gear_changed.set(0);
+        EFFECTS_SETTINGS.spline_switch.set(0);
+        EFFECTS_SETTINGS.spline_gear_changed.set(0);
     }
     Ok(())
 }

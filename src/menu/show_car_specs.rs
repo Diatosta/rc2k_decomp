@@ -1,7 +1,7 @@
 //! `menu::show_car_specs` (0x46FD31): the car specifications screen for the kind of event
 //! (`dword_755954`): 1 .. 3 the list `off_75A042`, 4 `off_759CAE`, each through
 //! `menu::secret_car_list` (with cheat bit 1 `off_75A412` instead), then
-//! `menu::car_specs_47af4c_loop` and, unless it was left (`dword_758806` 1),
+//! `menu::car_specs_display_loop` and, unless it was left (`dword_758806` 1),
 //! `take_shown_car`; 5 `off_759D16` and the screen alone. Another kind is the original's
 //! fatal error 0x80713214, "No GameMode Defined".
 //!
@@ -28,7 +28,7 @@ pub fn show_car_specs(menus: &Menus) -> Result<(), Refused> {
         SpecsList::Kind4 => CarList::Championship,
         SpecsList::Kind5 => CarList::A8,
     };
-    let screen = &crate::menu::car_specs_47af4c_loop::SCREEN;
+    let screen = &crate::menu::car_specs_display_loop::SCREEN;
     if !choice {
         { run_screen(screen, &Entry::with_cars(menus, Some(cars))) }?;
         return Ok(());

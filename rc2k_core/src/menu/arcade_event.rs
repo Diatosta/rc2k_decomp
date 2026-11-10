@@ -55,8 +55,8 @@ pub enum Var {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum Step {
-    ClearPlayers284 = 0,
-    ResetCars750724 = 1,
+    ClearHudBits = 0,
+    HideAllInGameOptions = 1,
     /// `menu::secret_car_list` on `off_75A042` (esi).
     SecretCarList = 2,
     SelectCarLoop = 3,
@@ -80,7 +80,7 @@ pub enum Step {
     EnterLevelScore = 18,
     BestScoresLoop = 19,
     LevelEnd = 20,
-    /// `review_options_4882e2_loop` (the next level), `review_options_48861d_loop` (a
+    /// `arcade_next_level_review_loop` (the next level), `arcade_retry_review_loop` (a
     /// retry), `arcade_review_options_loop` (the next stage).
     NextLevelReview = 21,
     RetryReview = 22,
@@ -199,10 +199,10 @@ fn stage<A: Arcade>(e: &mut A) -> Result<At, A::Error> {
 
 /// `menu::arcade_event` (player 0 there, the caller's check).
 pub fn arcade_event<A: Arcade>(e: &mut A) -> Result<(), A::Error> {
-    e.step(Step::ClearPlayers284)?;
+    e.step(Step::ClearHudBits)?;
     e.set(Var::Player0Entry, 1);
     e.set(Var::Failed, 0);
-    e.step(Step::ResetCars750724)?;
+    e.step(Step::HideAllInGameOptions)?;
     for v in [Var::TotalA8, Var::Total798, Var::TotalB8, Var::Figure768] {
         e.set(v, 0);
     }

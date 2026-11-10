@@ -19,7 +19,7 @@ use crate::effects::adjugate3::adjugate3;
 use crate::effects::setup::MarksClock;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
-use crate::race::marks_settings_store::MarksSettings;
+use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3};
 use crate::session::{Bytes, Float};
@@ -27,14 +27,18 @@ use crate::session::{Bytes, Float};
 /// The original's 0x4BCC3D .. 0x4BCD03: the view's move (the settings' +0x26AC .. less the kept `flt_8161D6` .., times `flt_764FE0`) into `flt_8161EE` .., less the last move into `flt_8161FA` .., plus the last move times `flt_82E326` ...
 fn view_moved(
     drops: &WindscreenDrops,
-    m: &MarksSettings,
+    m: &EffectsSettings,
     effects: &crate::effects::owner::Effects,
 ) {
     view_moved_x87(drops, m, &effects.setup.clock);
 }
 
 /// The original's 0x4BCE6A .. 0x4BCEB2: the view's move kept in `flt_8161E2` ...
-fn move_kept(drops: &WindscreenDrops, m: &MarksSettings, effects: &crate::effects::owner::Effects) {
+fn move_kept(
+    drops: &WindscreenDrops,
+    m: &EffectsSettings,
+    effects: &crate::effects::owner::Effects,
+) {
     move_kept_x87(drops, m, &effects.setup.clock);
 }
 
@@ -43,8 +47,8 @@ pub fn windscreen_drops_drift(
     drops: &WindscreenDrops,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let m = crate::effects::setup::marks()?;
-    let marks = crate::effects::setup::marks()?;
+    let m = crate::effects::setup::effects_settings()?;
+    let marks = crate::effects::setup::effects_settings()?;
     for n in 0..3 {
         drops.tilt.point[n].set_bits(0);
     }
@@ -89,7 +93,7 @@ use crate::effects::plain::{ld_cell, ld80_at, st_cell, st80_at};
 use crate::math::x87_float as bh;
 
 /// `view_moved`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places.
-fn view_moved_x87(drops: &WindscreenDrops, m: &MarksSettings, c: &MarksClock) {
+fn view_moved_x87(drops: &WindscreenDrops, m: &EffectsSettings, c: &MarksClock) {
     let t0 = ld_cell(&m.listener_car_place[0]);
     let t1 = t0 - ld_cell(&drops.hex.kept_place[0]);
     let t2 = t1 * crate::math::x87_float::ld(c.reciprocal.bits());
@@ -191,7 +195,7 @@ fn drift_back_x87(drops: &WindscreenDrops, m: &[Float; 9], t: &[Float; 2], l: &B
 }
 
 /// `move_kept`'s x87 block as plain Rust on the x87 model (12 instructions), same order and memory places.
-fn move_kept_x87(drops: &WindscreenDrops, m: &MarksSettings, c: &MarksClock) {
+fn move_kept_x87(drops: &WindscreenDrops, m: &EffectsSettings, c: &MarksClock) {
     let t0 = ld_cell(&m.listener_car_place[0]);
     let t1 = t0 - ld_cell(&drops.hex.kept_place[0]);
     let t2 = t1 * crate::math::x87_float::ld(c.reciprocal.bits());

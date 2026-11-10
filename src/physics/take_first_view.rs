@@ -1,4 +1,4 @@
-//! `physics::take_view_a` (0x437F53): a view's figures (the record at esi) into the
+//! `physics::take_first_view` (0x437F53): a view's figures (the record at esi) into the
 //! first view: +4 .. +0xC plus `dword_637638` .. into `flt_608B98` ..; +0x10 .. +0x24
 //! into `flt_608B80` .., `flt_608BC8` ..; +0x28 .. +0x38 into `dword_608BF8`,
 //! `608BFC`, `608C00`, `608BF4`, `608C04`; the heading (`unk_71A998`) into
@@ -22,7 +22,7 @@ use crate::race::owner_physics::Physics;
 use crate::race::view_vars_store::ViewRecord;
 
 /// The exact version, for `physics::update_camera`: `s` the view's record (esi).
-pub fn take_view_a(
+pub fn take_first_view(
     race: &Race,
     s: &ViewRecord,
     scene: &crate::scene::owner::Scene,
@@ -101,7 +101,7 @@ mod asm_reference {
 
     fn blocks() -> Vec<Block> {
         vec![Block {
-            name: "take_view_a line 22",
+            name: "take_first_view line 22",
             operands: vec![
                 Operand::Buffer {
                     reads: &[(4, In::F), (8, In::F), (0xC, In::F)],

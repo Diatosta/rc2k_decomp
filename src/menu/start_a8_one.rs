@@ -1,6 +1,6 @@
 //! `menu::start_a8_one` (0x4A9C9B): the A8 championship for one player (event mode 9): no
 //! `dword_75649C`; unless a saved game goes on (`dword_755970` 1) `menu::begin_event`,
-//! `reset_drivers`, `reset_driver_condition`; `dword_755970` 0; `menu::reset_cars_750724` before
+//! `reset_drivers`, `reset_driver_condition`; `dword_755970` 0; `menu::hide_all_in_game_options` before
 //! the championship and `menu::show_in_game_options` after it; then `menu::run_a8_championship`.
 //! The shape is `menu::start_event`'s.
 //!

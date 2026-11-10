@@ -22,8 +22,8 @@ pub fn scale_setting(
         if settings == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        let marks = crate::effects::setup::marks()?;
-        let n = marks.unknown_b0.get() as i32;
+        let marks = crate::effects::setup::effects_settings()?;
+        let n = marks.setting_to_scale.get() as i32;
         fl.state
             .scaled_setting
             .set_bits(x87::int_times(n, masks.edge_settings.factor.bits()));

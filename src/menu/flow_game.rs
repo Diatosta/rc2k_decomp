@@ -183,9 +183,11 @@ impl flow::Game for Game<'_> {
             C::ClearResultSlots => m::clear_result_slots::clear_result_slots()?,
             C::ResetDrivers => m::reset_drivers::reset_drivers()?,
             C::ResetDriverCondition => m::reset_driver_condition::reset_driver_condition()?,
-            C::ClearPlayers284 => m::clear_players_284::clear_players_284(menus)?,
+            C::ClearHudBits => m::clear_hud_bits::clear_hud_bits(menus)?,
             C::TakePlayer1Units => m::take_player1_units::take_player1_units(menus)?,
-            C::ResetCars750724 => m::reset_cars_750724::reset_cars_750724(menus)?,
+            C::HideAllInGameOptions => {
+                m::hide_all_in_game_options::hide_all_in_game_options(menus)?;
+            }
             C::ClearEventState => m::clear_event_state::clear_event_state(menus)?,
             C::ReadyPlayers => m::ready_players::ready_players(menus)?,
             C::ResetSingleEvent => m::reset_single_event::reset_single_event(menus)?,
@@ -224,7 +226,9 @@ impl flow::Game for Game<'_> {
                 m::show_championship_standings::show_championship_standings(menus)?;
             }
             C::SectionFinish => m::section_finish::section_finish(self.menus)?,
-            C::Review480D46 => self.screen(&m::review_options_480d46_loop::SCREEN)?,
+            C::ChampionshipStandingsReview => {
+                self.screen(&m::championship_standings_review_loop::SCREEN)?;
+            }
             C::WalkSectionRecords => m::walk_section_records::walk_section_records(menus)?,
             C::StandingsAFromAll => m::standings_a_from_all::standings_a_from_all(menus)?,
             C::ClassRallyResultsPass => {
@@ -249,13 +253,17 @@ impl flow::Game for Game<'_> {
             C::RecordEntriesPass => m::record_entries_pass::record_entries_pass(menus)?,
             C::BestTimesLoop => self.screen(&m::best_times_loop::SCREEN)?,
             C::InspectionPass => m::inspection_pass::inspection_pass(menus)?,
-            C::Review47D5A5 => self.screen(&m::review_options_47d5a5_loop::SCREEN)?,
-            C::Review48108E => self.screen(&m::review_options_48108e_loop::SCREEN)?,
+            C::ChampionshipServiceReview => {
+                self.screen(&m::championship_service_review_loop::SCREEN)?;
+            }
+            C::ChampionshipRacesReview => {
+                self.screen(&m::championship_races_review_loop::SCREEN)?;
+            }
             C::ChampionshipFinish => m::championship_finish::championship_finish(self.menus)?,
             C::ClearScoreMarks => m::clear_score_marks::clear_score_marks()?,
             C::BestClassScores => m::best_class_scores::best_class_scores(menus)?,
             C::BestOverallScores => m::best_overall_scores::best_overall_scores(menus)?,
-            C::Review481429 => self.screen(&m::review_options_481429_loop::SCREEN)?,
+            C::ChampionshipEndReview => self.screen(&m::championship_end_review_loop::SCREEN)?,
             C::ShowInGameOptions => m::in_game_options_items::show_in_game_options(menus)?,
             C::HideInGameOptions { players } => {
                 m::in_game_options_items::hide_in_game_options(menus, players)?;
@@ -278,15 +286,19 @@ impl flow::Game for Game<'_> {
             }
             C::StageResultLoop => self.screen(&m::stage_result_loop::SCREEN)?,
             C::TimeTrialResultsLoop => self.screen(&m::time_trial_results_loop::SCREEN)?,
-            C::Results48584B => self.screen(&m::results_48584b_loop::SCREEN)?,
-            C::Results482E9B => self.screen(&m::results_482e9b_loop::SCREEN)?,
-            C::Screen483163 => self.screen(&m::screen_483163_loop::SCREEN)?,
+            C::SingleRallyTwoResults => self.screen(&m::single_rally_two_results_loop::SCREEN)?,
+            C::SingleRallyThreeFourResults => {
+                self.screen(&m::single_rally_three_four_results_loop::SCREEN)?;
+            }
+            C::SingleRallyOverallResults => {
+                self.screen(&m::single_rally_overall_results_loop::SCREEN)?;
+            }
             C::KeepStageBest => m::keep_stage_best::keep_stage_best(menus)?,
             C::TimeTrialQualifies => m::time_trial_qualifies::time_trial_qualifies()?,
             C::ClearTimeTrialMarks => m::clear_time_trial_marks::clear_time_trial_marks()?,
             C::EnterTimeTrialBest => m::enter_time_trial_best::enter_time_trial_best(menus)?,
             C::TimeTrialBestTimesLoop => self.screen(&m::time_trial_best_times_loop::SCREEN)?,
-            C::Review485F5E => self.screen(&m::review_options_485f5e_loop::SCREEN)?,
+            C::SingleRallyReview => self.screen(&m::single_rally_review_loop::SCREEN)?,
             C::StartStream { channel } => {
                 // ";3files\%speech\rally\rally0.wav"
                 use crate::audio::names_store::SampleNames;

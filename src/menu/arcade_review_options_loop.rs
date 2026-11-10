@@ -25,7 +25,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0xFu32);
     carousel(None)?;
-    let item = screens.items.current[slot::REVIEW_OPTIONS_47D5A5].get();
+    let item = screens.items.current[slot::CHAMPIONSHIP_SERVICE_REVIEW].get();
     screens.loop_flags.item.set(item);
     screens.state.carousel.front.set(item.wrapping_sub(1));
     screens.flow.turning.set(0x0u32);

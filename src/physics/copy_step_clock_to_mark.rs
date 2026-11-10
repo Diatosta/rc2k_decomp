@@ -1,4 +1,4 @@
-//! `physics::copy_car_word_8` (0x440C66): `g_car` +8 (`dword_719FE0`) into
+//! `physics::copy_step_clock_to_mark` (0x440C66): `g_car` +8 (`dword_719FE0`) into
 //! `dword_6140F0`, and `dword_6140EC` 0 (in the gearbox: by the look of it the moment a
 //! gear change began; a reading).
 //!
@@ -23,6 +23,6 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     ]
 }
 
-pub fn copy_car_word_8(shared: &Shared) {
+pub fn copy_step_clock_to_mark(shared: &Shared) {
     core(&game(shared));
 }
