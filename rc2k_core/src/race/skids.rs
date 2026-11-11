@@ -1,4 +1,4 @@
-//! The skidmarks' points (converted 2026-10-21 from `race::add_skid_point` 0x45860C): a
+//! The skidmarks' points (converted from `race::add_skid_point` 0x45860C): a
 //! ring of `POINTS` points (`g_skidPoints`, each the mark's left and right edges) linked
 //! in strips (`g_skidLinks`: the next, the previous, the angle, the car's bit, words).
 //! The angle between two places and the edges' offset for an angle are the game's turns,
@@ -67,20 +67,20 @@ pub struct Ring<'a> {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Added {
-    /// The angle from the last point (`dword_645B00`; 0 without one).
+    /// The angle from the last point (`skid_angle`; 0 without one).
     pub angle: u32,
-    /// The edges' offset last worked out (`dword_645B08`, `dword_645B0C`).
+    /// The edges' offset last worked out (`skid_offset_x`, `skid_offset_z`).
     pub offset: (u32, u32),
-    /// The last point's middle (`dword_645AF4` ..), with a last point.
+    /// The last point's middle (`skid_from` ..), with a last point.
     pub from: Option<[u32; 3]>,
-    /// The halfway angle and the last point's middle (`dword_645B04`, `dword_645AE8` ..),
+    /// The halfway angle and the last point's middle (`skid_turned_angle`, `skid_turned` ..),
     /// when the last point is not the strip's first.
     pub turned: Option<(u32, [u32; 3])>,
     /// Whether the last point was given new edges (the registers then hold them).
     pub last_moved: bool,
-    /// The last edges written: the right edge (eax, ebx, ecx in the original).
+    /// The last edges written: the right edge.
     pub right: [u32; 3],
-    /// The new point's next link as read (ecx without the last point moved).
+    /// The new point's next link as read (without the last point moved).
     pub next_read: u16,
 }
 

@@ -1,5 +1,5 @@
 //! `net::draw_setting_value` (0x416BC4): a setting's value drawn (`text::draw_text` with
-//! `font` at 0x190, y ebp; ebp 0x1E lower): for the item being edited (`dword_52A4B8`) the
+//! `font` at 0x190, at y; y 0x1E lower): for the item being edited (`edited`) the
 //! text with string 4 (the cursor) after it, built in the game's text buffer; an empty text
 //! as string 0x16E; any other as it is.
 //!

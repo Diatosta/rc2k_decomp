@@ -1,11 +1,11 @@
 //! `physics::car_sound_state` (0x45CACE): the work car's engine sound object
 //! (`g_raceSoundObjects[g_currentCar & 7]`) told the car's state: +0x10 1; +0x14 the revs
 //! (+0x1E4); +0x54, +0x68, +0x7C, +0x90 `g_car` +0x930; the share +0x28C =
-//! +0x288 / `flt_613EE0` and +0x290 1.0 (with +0x254 set, those and +0x294 0), into the
+//! +0x288 / `sound_speed_scale` and +0x290 1.0 (with +0x254 set, those and +0x294 0), into the
 //! object's four voices (+0x4C .., x256 at +0x50 .., +0x294 at +0x44 ..); +0x18 +0x638
 //! held to 0 ..= 0x100; +0xE8 the gear; +0x1C +0x1C0; +0xAC +0x248 & +0x24C; +0x0C
 //! +0x6F0 ^ 1; the car's place less the listener's (`g_viewBlocks[0]`'s with
-//! `dword_63DB94` 1, else the work car's own +0x6A4 ..) turned by `g_viewTurnMatrix`, x
+//! `players` 1, else the work car's own +0x6A4 ..) turned by `g_viewTurnMatrix`, x
 //! 1/65536 into +0x2C ..; the car's +0xD4 .. turned into +0x38 ... All in `pusha` /
 //! `popa`.
 //!
@@ -16,9 +16,9 @@
 //! null view block when it is read.
 
 use crate::errors::{BadInput, Refused};
+use crate::math::x87::{ext_times, ints_diff_80};
 use crate::math::x87_float::ld;
 use crate::math::x87_float::{X, st};
-use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
@@ -78,7 +78,7 @@ pub fn car_sound_state(race: &Race) -> Result<(), Refused> {
         d(&race.shared.car.position[1], &l.camera_position[1]),
         d(&race.shared.car.position[2], &l.camera_position[2]),
     ];
-    let m = crate::race::heard_turn::turn(race);
+    let m = crate::race::heard_turn::turn(&race.frame.matrices);
     let out = rotate_point(m, place);
     let k = race.course.numbers.one_over_65536.bits();
     for (i, e) in out.iter().enumerate() {
@@ -100,10 +100,10 @@ pub fn car_sound_state(race: &Race) -> Result<(), Refused> {
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x31A264] = [rc + 0x31A260] / [rc + 0x213EE0]`
-/// `[rc + 0x31A268] = 1`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[sound_slip_share] = [slip_speed] / [sound_speed_scale]`
+/// `[sound_level] = 1`
 fn x87_1(shared: &RaceShared) {
     let t0 = ld(shared.car.slip_speed.bits());
     let t1 = ld(shared.physics_tables.sound_speed_scale.bits());
@@ -113,20 +113,20 @@ fn x87_1(shared: &RaceShared) {
     shared.car.sound_level.set_bits(st(t3));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[o + 0x4C] = [rc + 0x31A268]`
-/// `[o + 0x60] = [rc + 0x31A268]`
-/// `[o + 0x74] = [rc + 0x31A268]`
-/// `[o + 0x88] = [rc + 0x31A268]`
-/// `[o + 0x50] = [rc + 0x31A264] * [rc + 0x1C5E2C]`
-/// `[o + 0x64] = [rc + 0x31A264] * [rc + 0x1C5E2C]`
-/// `[o + 0x78] = [rc + 0x31A264] * [rc + 0x1C5E2C]`
-/// `[o + 0x8C] = [rc + 0x31A264] * [rc + 0x1C5E2C]`
-/// `[o + 0x44] = [rc + 0x31A26C]`
-/// `[o + 0x58] = [rc + 0x31A26C]`
-/// `[o + 0x6C] = [rc + 0x31A26C]`
-/// `[o + 0x80] = [rc + 0x31A26C]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[o + 0x4C] = [sound_level]`
+/// `[o + 0x60] = [sound_level]`
+/// `[o + 0x74] = [sound_level]`
+/// `[o + 0x88] = [sound_level]`
+/// `[o + 0x50] = [sound_slip_share] * [k256]`
+/// `[o + 0x64] = [sound_slip_share] * [k256]`
+/// `[o + 0x78] = [sound_slip_share] * [k256]`
+/// `[o + 0x8C] = [sound_slip_share] * [k256]`
+/// `[o + 0x44] = [sound_speed]`
+/// `[o + 0x58] = [sound_speed]`
+/// `[o + 0x6C] = [sound_speed]`
+/// `[o + 0x80] = [sound_speed]`
 fn x87_2(race: &Race, o: &crate::sound::store::SoundObject) {
     let t0 = ld(race.shared.car.sound_level.bits());
     o.voices[0].share_b.set_bits(st(t0));

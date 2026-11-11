@@ -1,13 +1,13 @@
 //! `net::host_session` (0x418B13): "NET: Host" and the machine's name logged; with
-//! DirectPlay's object there, the session kept (`unk_52AD00`: no GUID yet, the name
-//! `g_machineName`, the most players `dword_52ABD0`, `unk_52ABD4` as its user data) and
-//! described (`dword_5AB2AC`: zeroed, size 0x50, flags 0x44, the game's GUID, the most
+//! DirectPlay's object there, the session kept (`joined`: no GUID yet, the name
+//! `machine_name`, the most players `most_players`, `session_password` as its user data)
+//! and described (the session description: zeroed, size 0x50, flags 0x44, the game's GUID, the most
 //! players, the name, the user data) and made (`Open` with DPOPEN_CREATE, or with
-//! `g_netPosting` 1 posted: the code at 0x418C5A); "NET: Open" and its result logged, the
-//! window restored (`system::restore_window`); then `dword_52ACFC` 1, the player made
+//! `posting` 1 posted); "NET: Open" and its result logged, the
+//! window restored (`system::restore_window`); then the session is marked made, the player made
 //! (`net::create_player`), the group made (`net::create_group`), "NET: Host complete".
 //!
-//! Since 2026-10-29 the session's name goes to `net::dp_objects` as text (`open`): the
+//! The session's name goes to `net::dp_objects` as text (`open`): the
 //! description's name pointer is left 0.
 //!
 //! Returns true when hosted.
@@ -24,7 +24,7 @@ use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 const OPEN_CREATE: u32 = 2; // DPOPEN_CREATE
 pub const OPEN_JOIN: u32 = 1; // DPOPEN_JOIN
 
-/// `Open(dword_5AB2AC, flags)`.
+/// `Open(description, flags)`.
 pub fn open(flags: u32, name: &[u8]) -> u32 {
     let vars = &net().vars;
     let d = crate::net::dp_objects::desc(&vars.session_desc, name);
@@ -63,7 +63,7 @@ pub fn host_session(net: &Net) -> Result<bool, Refused> {
 }
 
 /// The session opened (posted or called: `posted`), "NET: Open" and its result logged, the
-/// window restored; `dword_52ACFC` 1, the player made, then `then` (the group made or
+/// window restored; the session marked made, the player made, then `then` (the group made or
 /// joined) and `done` logged. Shared with `net::join_session`. Whether all of it worked.
 pub fn finish(
     net: &Net,

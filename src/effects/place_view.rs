@@ -9,6 +9,7 @@
 use crate::effects::rain::Weather;
 use crate::errors::Refused;
 use crate::math::x87;
+use crate::math::x87_float as bh;
 use crate::session::{Dword, Float};
 
 /// One of the two near-copies' variables (`place_view`'s and `place_view_2`'s), as addresses.
@@ -53,7 +54,7 @@ pub fn place_view_with(v: &ViewPlace) -> Result<(), Refused> {
         let out = [
             x87::zero_less_int_plus_int(point[0], place[0]),
             x87::zero_less_int_plus_int(point[1], place[1]),
-            x87::less_int_plus_int(v.height, point[2], place[2]),
+            bh::to_int(bh::ld(v.height) - bh::int(point[2]) + bh::int(place[2])),
         ];
         for (cell, x) in v.out.iter().zip(out) {
             cell.set(x as u32);
@@ -66,7 +67,7 @@ pub fn place_view_with(v: &ViewPlace) -> Result<(), Refused> {
     Ok(())
 }
 
-/// Refuses as `transform_int_points` (never, ecx 1).
+/// Refuses as `transform_int_points` (never).
 pub fn place_view(weather: &Weather) -> Result<(), Refused> {
     place_view_with(&first(weather))
 }

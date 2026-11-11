@@ -1,5 +1,5 @@
 //! `service::load_setup_values` (0x47070C): copies three setup values of the current car into
-//! the service area's edit variables, unless `dword_75AAE0` is 1.
+//! the service area's edit variables, unless `skip_edit_values` is 1.
 //!
 //! Each value goes into a pair of variables: car +0x10C into 0x75ACA0 and 0x75AC9C, +0x120 into
 //! 0x75AC94 and 0x75AC90, +0x118 into 0x75ACB8 and 0x75ACB4. A fourth pair is treated differently:

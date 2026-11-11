@@ -3,10 +3,10 @@
 //!
 //! - The stage prefs' (`localdat`) picture lists copied to `g_kindPictures` (0x5D7968), 0x32C14
 //!   bytes below: 0x60A57C .. 0x60A64C, 0x60A67C .. 0x60A73C, 0x60A77C .. 0x60A79C (the
-//!   original in 4-dword `rep movsd` pieces; esi, edi and ecx left as its last).
+//!   original in 4-dword `rep movsd` pieces).
 //! - 23 kinds' pictures fixed (`FIXED_PICTURES`).
 //! - With cars, each car's eight from 0x5D7D68: its kind's picture
-//!   (`scene::known_kind_picture` of `dword_623858`[car]) and the seven after it.
+//!   (`scene::known_kind_picture` of `race_car_kinds`[car]) and the seven after it.
 //! - `scene::reload_system_textures`, `scene::reload_slot_textures`.
 //!
 //! Callers: `race::loadlevel_init` (loadlevel_init) and the code at 0x425B29. Refuses more than 8

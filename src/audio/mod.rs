@@ -12,6 +12,7 @@ pub mod fill_buffer;
 pub mod fill_voice;
 pub mod free_voices;
 pub mod keep_sample;
+pub mod levels;
 pub mod load_sounds;
 pub mod make_buffer;
 pub mod mix;

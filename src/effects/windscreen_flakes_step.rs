@@ -1,9 +1,9 @@
-//! `effects::windscreen_flakes_step` (0x4C0654): `dword_81623A` 0; for each step since the windscreen flakes were
-//! last looked at (`dword_814714` less `dword_84460C`, low byte; `dword_84460C` the clock)
-//! `effects::pick_shapes` and `effects::expire_windscreen_flakes`, `dword_84460C` on one (low byte); then
-//! `dword_814714` it.
+//! `effects::windscreen_flakes_step` (0x4C0654): a frame switch 0; for each step since the
+//! windscreen flakes were last looked at (their last-seen clock less the picks' clock, low
+//! byte) `effects::pick_shapes` and `effects::expire_windscreen_flakes`, the picks' clock on one
+//! (low byte); then the last-seen clock set to it.
 //!
-//! Caller: `effects::windscreen_flakes_frame` (0x4BF809). The calls are their Rust versions.
+//! Caller: `effects::windscreen_flakes_frame`. The calls are the plain functions.
 //! Refuses
 //! `pick_shapes`' refusals (all it may write put back first).
 
@@ -23,7 +23,7 @@ pub fn windscreen_flakes_step(
     use rc2k_core::effects::steps;
     {
         drops.hex.windscreen_flakes_cleared.set(0);
-        let clock: u32 = drops.state.clock.bits();
+        let clock: u32 = drops.state.clock.get();
         let n = steps::steps(drops.picks.index.get(), clock);
         drops.picks.index.set(clock);
         for _ in 0..n {

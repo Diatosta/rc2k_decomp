@@ -1,4 +1,4 @@
-//! `effects::load_edges`'s `effects::make_masks` (IDA, 2026-10-17): the marks' masks. In a work
+//! `effects::load_edges`'s `effects::make_masks` (IDA): the marks' masks. In a work
 //! block of 0x80000 bytes it gathers the points of faces and makes shapes of them; each shape's
 //! rows of spans are filled into a mask of 0x8000 bytes (rows of 0x100) with the shape's
 //! number, 0xFF elsewhere. These are the leaves.
@@ -80,7 +80,7 @@ pub fn reset_mask_cursor(masks: &Masks) {
     masks.vars.run_count.set(c.run_count);
 }
 
-/// Entry `index` of a list of shapes' rows (`ebp` +8; `entries` the offset of the list in `run_table`): 16 bytes each, +0 the spans (x,
+/// Entry `index` of a list of shapes' rows (`entries` is the offset of the list in `run_table`): 16 bytes each, +0 the spans (x,
 /// length; 8 bytes each), +4 the first row, +8 the count (signed).
 fn shape_rows(masks: &Masks, entries: u32, index: u32) -> Result<ShapeRows, Refused> {
     Ok({

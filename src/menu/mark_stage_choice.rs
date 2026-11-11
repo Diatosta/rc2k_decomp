@@ -1,4 +1,4 @@
-//! `menu::mark_stage_choice` (0x486C21): `dword_755700` 1 (the stage screens' map then takes
+//! `menu::mark_stage_choice` (0x486C21): `champ_view.stage_mode` 1 (the stage screens' map then takes
 //! the choice's stage; 2 a championship's, 3 a record's).
 //!
 //! One caller, `menu::select_stage_loop` at its set-up. Rust callers run its `entry` (`routes.rs`);

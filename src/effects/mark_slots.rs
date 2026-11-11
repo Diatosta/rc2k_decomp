@@ -1,4 +1,4 @@
-//! The mark slots' variables, out of the marks' block (phase 7, typed state): `MarkSlots`
+//! The mark slots' variables: `MarkSlots`
 //! (IDA 0x934F7C .. 0x935300: the 0x20 slots and the work places) and `SlotTuning`
 //! (0x9353A6 .. 0x935412: constants and randoms; on an address 2 more than a multiple of 4
 //! in the image).
@@ -43,7 +43,7 @@ pub fn slot_matrix(
     }
 }
 
-/// The mark slots (IDA 0x934F7C .. 0x935300, the image's layout; phase 7, typed state).
+/// The mark slots (IDA 0x934F7C .. 0x935300).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarkSlots {
@@ -64,7 +64,7 @@ impl MarkSlots {
                     point: Dword::new(0),
                     matrix: Dword::new(0),
                     spare: Dword::new(0),
-                    size: Float::from_bits(0x46800000),
+                    size: Float::new(16384.0),
                 }
             }; 32],
             _gap_9351fc: Bytes::new([
@@ -97,7 +97,7 @@ impl MarkSlots {
     pub const LEN: usize = 0x384;
 }
 
-/// The mark slots' constants and randoms (IDA 0x9353A6 .. 0x935412, the image's layout; phase 7, typed state).
+/// The mark slots' constants and randoms (IDA 0x9353A6 .. 0x935412).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SlotTuning {
@@ -122,19 +122,19 @@ pub struct SlotTuning {
 impl SlotTuning {
     pub const fn new() -> Self {
         Self {
-            half: Float::from_bits(0x0),
+            half: Float::new(0.0),
             _gap_9353aa: Bytes::new([0; 68]),
             place_k: [
-                Float::from_bits(0x4283126F),
-                Float::from_bits(0x442F0000),
-                Float::from_bits(0x4283126F),
-                Float::from_bits(0x4283126F),
+                Float::new(65.536),
+                Float::new(700.0),
+                Float::new(65.536),
+                Float::new(65.536),
             ],
             draw_random: Dword::new(0x0),
-            rhw_k: Float::from_bits(0x43800000),
-            first_float: Float::from_bits(0x47000000),
+            rhw_k: Float::new(256.0),
+            first_float: Float::new(32768.0),
             slot_random: Dword::new(0x0),
-            base: Float::from_bits(0x46800000),
+            base: Float::new(16384.0),
         }
     }
 }

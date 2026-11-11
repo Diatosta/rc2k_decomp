@@ -1,20 +1,20 @@
 //! `effects::emit_particle_19` (0x4CE283): by a chance one ring entry of kind 0x13 for a
-//! car each frame; `effects::emit_particle_22` (0x4CE482) is the same code on its own
+//! car each frame; `effects::emit_particle_22` is the same code on its own
 //! variables (`TwinSet`).
 //!
 //! Takes: the car object
 //!
-//! The level (`dword_93A1CE`) the car's +0x4C0 (+0x4C4); a random's bits 16 .. 18 must be
-//! under it (signed). `g_marksWheelFlags` 0x3E (0x33); `dword_93A1C2` .. the car's +0x4C ..
-//! +0x54. The entry: its place `flt_93A1B6` .. turned and placed by `g_marksCar`'s matrix
-//! (`x87::turned_place`), less `flt_93A48E` in y at +0x28; its motion the matrix's second
-//! row by `flt_93A492` .. moved by `effects::jitter_point` (spread `flt_93A49E`) plus
-//! `dword_93A1C2` .. by `flt_764FE0` and `flt_93A4A2` ..; a random spin and turn; the
-//! flags' low 6 bits; a size 0x4000 or 0x8000 by the random's bit 6 (`dword_9356C0`, +0x60
-//! as a float); a life `dword_939B86[level]` (+0x78 `flt_7651A4` over it); +0x74
-//! `dword_76519C`; +0x68 `g_marksCar`. Caller: `effects::cars_particles` (the cars' loop). Refuses
-//! (before anything) a null object, and when an entry is made a null `g_marksCar` or matrix
-//! and a level past `dword_939B86`'s 9 entries (the original reads on).
+//! The level (the twin set's `level`) is the car's +0x4C0 (+0x4C4); a random's bits 16 .. 18
+//! must be under it (signed). The wheel flags get 0x3E (0x33); the set's copy of the car's
+//! +0x4C .. +0x54 is kept. The entry: its place (the set's start point) turned and placed by
+//! the emitting car's matrix (`x87::turned_place`), less the set's lift in y at +0x28; its
+//! motion the matrix's second row by the set's factors, moved by `effects::jitter_point`
+//! (the set's spread) plus the kept car values by two more factors; a random spin and turn;
+//! the flags' low 6 bits; a size 0x4000 or 0x8000 by the random's bit 6 (the strength, +0x60
+//! as a float); a life from the lives table by the level (+0x78 a constant over it); +0x74
+//! the fade constant; +0x68 the emitting car. Caller: `effects::cars_particles` (the cars'
+//! loop). Refuses (before anything) a null object, and when an entry is made a null car or
+//! matrix and a level past the lives table's 9 entries (the original reads on).
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
@@ -63,7 +63,7 @@ fn makes(ring: &Ring, set: &TwinSet, object: &'static CarEffects) -> Result<bool
     })
 }
 
-/// Why the Rust version refuses, if it does, worked out without writing.
+/// Why the emitter refuses, if it does, worked out without writing.
 pub fn refusal(
     ring: &Ring,
     set: &TwinSet,
@@ -166,7 +166,7 @@ pub fn emit_twin(
     slot.put(|en| &mut en.life, life)?;
     slot.put(
         |en| &mut en.alpha_fade,
-        x87::over_int(effects.setup.floats.two_fifty_seven.bits(), life as i32),
+        x87::over_int(&effects.setup.floats.two_fifty_seven, life as i32),
     )?;
     slot.put(
         |en| &mut en.alpha,
@@ -176,7 +176,7 @@ pub fn emit_twin(
     Ok(())
 }
 
-/// The twin car emitters' shared work (`emit_particle_19`, `emit_particle_22`) (IDA 0x93A1B6 .. 0x93A1D6, the image's layout; phase 7, typed state).
+/// The twin car emitters' shared work (`emit_particle_19`, `emit_particle_22`) (IDA 0x93A1B6 .. 0x93A1D6).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct TwinState {
@@ -194,11 +194,7 @@ impl TwinState {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         TwinState {
-            point: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x46000000),
-                Float::from_bits(0x47C56800),
-            ],
+            point: [Float::new(0.0), Float::new(8192.0), Float::new(101072.0)],
             motion: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
             level: Dword::new(0x0),
             _gap_93a1d2: Bytes::new([0x0A, 0xD7, 0xA3, 0x3B]),
@@ -237,7 +233,7 @@ mod twin_state_tests {
     }
 }
 
-/// One twin car emitter's variables (`emit_particle_19`'s at 0x93A48A, `emit_particle_22`'s at 0x93A4B2) (IDA 0x93A48A .. 0x93A4B2, the image's layout; phase 7, typed state).
+/// One twin car emitter's variables (`emit_particle_19`'s at 0x93A48A, `emit_particle_22`'s at 0x93A4B2) (IDA 0x93A48A .. 0x93A4B2).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct TwinTuning {
@@ -260,18 +256,10 @@ impl TwinTuning {
     pub const fn nineteenth() -> Self {
         TwinTuning {
             chance_random: Dword::new(0x0),
-            lift: Float::from_bits(0x47800000),
-            row_k: [
-                Float::from_bits(0x43800000),
-                Float::from_bits(0x43800000),
-                Float::from_bits(0x43800000),
-            ],
-            spread: Float::from_bits(0x43000000),
-            motion_k: [
-                Float::from_bits(0x3F4CCCCD),
-                Float::from_bits(0x3F4CCCCD),
-                Float::from_bits(0x3F4CCCCD),
-            ],
+            lift: Float::new(65536.0),
+            row_k: [Float::new(256.0), Float::new(256.0), Float::new(256.0)],
+            spread: Float::new(128.0),
+            motion_k: [Float::new(0.8), Float::new(0.8), Float::new(0.8)],
             spin_random: Dword::new(0x0),
         }
     }

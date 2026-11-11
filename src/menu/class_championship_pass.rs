@@ -1,8 +1,8 @@
-//! `menu::class_championship_pass` (0x4A4A1C): for each class from 1 (0 outside `dword_75AB40` 2 in event mode 0x13) up to `dword_7558F8`:
+//! `menu::class_championship_pass` (0x4A4A1C): for each class from 1 (0 outside `state.menus.class_mode` 2 in event mode 0x13) up to `event.classes`:
 //! when a player (1 .. 3: the original does not look for player 4, section 16) is in the
 //! class's entries of standings table B, the class numbered (`number_standings`, its
-//! count into `dword_75597C`) and its page shown (`menu::show_class_championship_standings`), stopping when the
-//! leaving is answered yes (`g_yesNoAnswer` 1). `dword_755565` the class's flag.
+//! count into `event.count_a`) and its page shown (`menu::show_class_championship_standings`), stopping when the
+//! leaving is answered yes (`g_yesNoAnswer` 1). `loop_flags.left_with_carry` the class's flag.
 //!
 //! Callers: the event drivers. Refuses a table
 //! without its end entry and a class count the loop would run past (at or below the first, or past
@@ -36,7 +36,7 @@ pub fn class_championship_pass(menus: &Menus) -> Result<(), Refused> {
             continue;
         }
         menus.screens.loop_flags.left_with_carry.set(1u32);
-        let numbered = number_standings(Which::B, class)?;
+        let numbered = number_standings(menus, Which::B, class)?;
         menus.screens.event.count_a.set(numbered.last_number);
         crate::menu::show_class_championship_standings::show_class_championship_standings(
             menus, class,

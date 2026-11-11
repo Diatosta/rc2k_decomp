@@ -1,16 +1,15 @@
 //! `effects::run_shapes` (0x4BDF72): the mask shapes' frame: `effects::pick_shapes`,
-//! `effects::turn_all_shapes`; then when `g_sceneClock` reaches `dword_844E30`, the next
-//! time (the clock plus a random's low byte, `dword_89C994`) and whether the shapes move
-//! (`dword_844E2C`: another random, turned right 16, plus the clock, `and`
-//! `dword_844E34[settings +0x2748]`, not 0); while they move, the shape index
-//! (`dword_84460C`) from a running count (`dword_82E38A` plus `g_marksFrameTicks` by
-//! `flt_89C9A0`, or by `flt_89C99C` when the settings' +0x274C is 1 and the index >> 3 is
-//! not 0), its bits 16 .. 23, and `pick_shapes` again.
+//! `effects::turn_all_shapes`; then when the scene clock reaches the picks' `next`, the next
+//! time (the clock plus a random's low byte) and whether the shapes move (`moving`: another
+//! random, turned right 16, plus the clock, `and` the `masks` entry the settings' +0x2748
+//! picks, not 0); while they move, the shape `index` from a running count (`count` plus the
+//! frame's ticks by one rate, or by another when the settings' +0x274C is 1 and the index >> 3
+//! is not 0), its bits 16 .. 23, and `pick_shapes` again.
 //!
-//! Works on `g_marksSettings`.
+//! Works on the effects settings.
 //!
 //! Caller: `effects::shapes_frame`. Refuses null settings, a +0x2748 of 9 or more when it is read
-//! (`dword_844E34` holds 9), and its steps' refusals; on a refusal nothing stays written
+//! (`masks` holds 9), and its steps' refusals; on a refusal nothing stays written
 //! (all it may write is put back).
 
 use crate::effects::emitters::next_c5;
@@ -31,11 +30,11 @@ pub fn run_shapes(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let setup = &effects.setup;
-    let marks = crate::effects::setup::effects_settings()?;
+    let marks = effects.settings()?;
     {
         pick_shapes(masks, drops)?;
         turn_all_shapes(masks, drops, effects)?;
-        let clock: u32 = shared.physics_tables.scene_clock.bits();
+        let clock: u32 = shared.physics_tables.scene_clock.get();
         if clock as i32 >= drops.picks.next.get() as i32 {
             let r = next_c5(&setup.mask_constants.time_random);
             drops

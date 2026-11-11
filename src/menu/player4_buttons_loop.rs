@@ -15,22 +15,22 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.unread_list, // g_unreadList
-            table: |m| m.tables.draw_lists.unread_758b72.id(),
+            table: |m| m.tables.draw_lists.unread_draw_list.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list, // g_drawList
-            table: |m| m.tables.draw_lists.draw_758dd2.id(),
+            table: |m| m.tables.draw_lists.player4_buttons_draw.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.setup_list, // dword_755500
+            pointer: |m| &m.screens.flow.setup_list,
             table: |_| crate::menu::fn_list::FnList::Menus,
             run: true,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
-            table: |m| m.tables.draw_lists.overlay_75927a.id(),
+            table: |m| m.tables.draw_lists.player4_buttons_overlay.id(),
             run: false,
         },
     ],
@@ -51,12 +51,12 @@ pub const SCREEN: Screen = Screen {
             },
             List {
                 pointer: |m| &m.screens.flow.draw_list, // g_drawList
-                table: |m| m.tables.draw_lists.draw_758dd2.id(),
+                table: |m| m.tables.draw_lists.player4_buttons_draw.id(),
                 run: false,
             },
             List {
                 pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
-                table: |m| m.tables.draw_lists.overlay_75927a.id(),
+                table: |m| m.tables.draw_lists.player4_buttons_overlay.id(),
                 run: false,
             },
         ]),

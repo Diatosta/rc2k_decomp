@@ -1,5 +1,5 @@
-//! `race::load_stage` (0x444040, IDA 2026-10-17): "SHAUNINITEVERYTHING": the loading
-//! picture (unless `dword_71C3E0`), the cars' sounds woken, `race::loadlevel_init`, the
+//! `race::load_stage` (0x444040): "SHAUNINITEVERYTHING": the loading
+//! picture (unless `in_credits`), the cars' sounds woken, `race::loadlevel_init`, the
 //! in-game music, the controls, race init (`drive::race_init`, the game's until ported), the
 //! clock restarted and the race's starting values; each step logged and indented.
 
@@ -23,12 +23,11 @@ const WORDS: [&std::ffi::CStr; 9] = [
 ];
 
 /// `race::load_stage` (0x444040): a line break, a rule, "START", "loading screen" (indent in): the
-/// loading picture (`menu::show_loading_picture`) unless `dword_71C3E0`, `dword_70F3E8` -1,
+/// loading picture (`menu::show_loading_picture`) unless `in_credits`, `last_kept` -1,
 /// `race::wake_car_sounds`; then each with its word and the indent round it: `loadlevel_init`, the
 /// music (`game_music` with `dword_64BB18`, else `game_music_8`), `create_controls`, race init
 /// (`drive::race_init`) and `scene::restart_clock`; the starting values (`STARTS` with the clock,
-/// the blocks' +0xFB4 3 and +0xFB0 8, `LAST_STARTS`); "FINIS", a rule, a line break. conversion
-/// phase 3, 2026-10-24).
+/// the blocks' +0xFB4 3 and +0xFB0 8, `LAST_STARTS`); "FINIS", a rule, a line break.
 pub fn load_stage(race: &Race) -> Result<(), Refused> {
     let system = crate::system::owner::system();
     let gfx = crate::gfx::owner::gfx();

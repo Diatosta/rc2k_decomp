@@ -1,5 +1,5 @@
-//! `scene::kind_is_hidden` (0x452303): with `dword_71C3E0` not 0 or `dword_62389C` at 2,
-//! whether the object eax is of kind 0x30 or 0x4E (`g_objectKinds`): CF set when it is,
+//! `scene::kind_is_hidden` (0x452303): with `in_credits` not 0 or the run kind at 2,
+//! whether the object is of kind 0x30 or 0x4E: CF set when it is,
 //! clear otherwise (and clear without either setting).
 //!
 //! Takes: the object
@@ -11,7 +11,7 @@
 use crate::errors::Refused;
 use crate::race::owner_shared::RaceShared;
 
-/// The Rust version: the object's (hidden, eax left).
+/// Whether the object is hidden.
 pub fn kind_is_hidden(
     shared: &RaceShared,
     object: u32,

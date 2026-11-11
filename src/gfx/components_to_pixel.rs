@@ -1,4 +1,4 @@
-//! `gfx::components_to_pixel` (0x405C8A): puts four 8-bit components, one per byte of eax,
+//! `gfx::components_to_pixel` (0x405C8A): puts four 8-bit components, one per byte of a dword,
 //! together into a pixel. The reverse of `pixel_to_components`.
 //!
 //! Takes: components, pixel format
@@ -7,7 +7,7 @@
 //! counts, the pixel is the four components rotated left by their counts and masked. With
 //! the other kind the pixel is built one bit at a time from the format's top bit down: each
 //! bit takes the next bit, from the top, of the first component whose mask has it; the
-//! components are shifted out of four scratch bytes (`dword_4F3FA8`), which are left as they
+//! components are shifted out of four scratch bytes (`scratch`), which are left as they
 //! end up.
 //! 30 call sites, among them the per-pixel loops that scale and convert pictures. Refuses a
 //! null format.

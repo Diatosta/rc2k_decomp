@@ -1,5 +1,5 @@
 //! `install::write_record` (0x411186): the installation record `var\ral.zog` written: a
-//! header, `cdrom=<folder installed into>` (`byte_95E6F8`), `language=<...>` only if
+//! header, `cdrom=<folder installed into>` (`game_dir`), `language=<...>` only if
 //! `g_localeDirectory` is set, and `installation=<g_mediaMode>`, each line ended CR LF. The
 //! text is built in the shared buffer (`text`) and written (`files::write_file`).
 //!
@@ -11,8 +11,7 @@ use crate::install::installer::media_mode;
 use crate::strings::owner::strings;
 
 /// The record written; whether the write worked (the original passes `write_file`'s carry
-/// on, and `install_files` reads it). Until 2026-10-23 the port
-/// dropped it, and the install was judged by the change of folder before it.
+/// on, and `install_files` reads it).
 pub fn write_record(install: &'static crate::install::owner::Install) -> Result<bool, Refused> {
     let start = crate::place::BytePlace::from(&strings().text.buffer.text);
     // Converted: `rc2k_core::install::config::record_text` (the header and keys as its

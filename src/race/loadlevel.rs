@@ -1,9 +1,7 @@
-//! `race::loadlevel_init` (0x44426F, IDA 2026-10-17): the stage's loading proper, step by step,
+//! `race::loadlevel_init` (0x44426F: the stage's loading proper, step by step,
 //! each step's word logged ("LOADLEVEL_INIT : ...") with the log indented round it and the
-//! loading bar moved on (`dword_623700` the step's mark, then the callback in `dword_623704`,
-//! `race::loading_bar_frame`, called with esi it). The pace notes are `race::init_pace_notes` since
-//! 2026-10-19. A step's refusal is the function's (2026-10-23: no longer handed to the step's
-//! address).
+//! loading bar moved on (the step's mark, then the callback `race::loading_bar_frame`, called with the mark).
+//! The pace notes are set up by `race::init_pace_notes`. A step's refusal is the function's.
 
 use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
@@ -67,7 +65,7 @@ struct Steps<'a> {
 }
 
 impl Steps<'_> {
-    /// `pusha`; eax the next word; the log; `popa`.
+    /// Logs the next word.
     fn log(&mut self) {
         crate::logfile::log_write::log_nul(&WORDS[self.word], true, 1);
         self.word += 1;
@@ -80,7 +78,7 @@ impl Steps<'_> {
             .fetch_add(by as u32, std::sync::atomic::Ordering::Relaxed);
     }
 
-    /// `pusha`; `dword_623700` the mark; `call [dword_623704]`; `popa`. The callback is the
+    /// `pusha`; `bar_share` the mark; `call [`bar_function`]`; `popa`. The callback is the
     /// loading bar `loadlevel_init` puts there before its first mark (it is put away after
     /// the last).
     fn progress(&mut self, mark: u32) -> Result<(), Refused> {
@@ -111,16 +109,16 @@ impl Steps<'_> {
 }
 
 /// `race::loadlevel_init` (0x44426F): "start"; `g_usePackedMaps` 1, `dword_5BE9B9` 1 but with
-/// `dword_621514`; `g_stageDirection` `dword_623854` (flipped for stages 0x1F, 0x22, 0x51);
+/// `editor_mode`; `g_stageDirection` `direction` (flipped for stages 0x1F, 0x22, 0x51);
 /// `g_inRace` 1; the loading bar's callback `race::loading_bar_frame` (mark 0); then the steps
 /// (`CALLEES` in order, each with its word and mark: objects, course memory (2, 4), texture info
 /// and the course number (6), prefs (7), error list (8), ed textures (0xA), textures (0xE), texture
-/// infos (0xF), the course (0x13), plates cleared (0x14), objects (0x1E; `dword_623634`/`38`
+/// infos (0xF), the course (0x13), plates cleared (0x14), objects (0x1E; `bar_span`/`38`
 /// 0x1E/0x50), plates (0x50), the map (0x5A), fonts (0x5C), init mark with the log off (0x5E),
 /// refresh, skid marks (0x5F), render3d (0x60), colours (0x62), lights (0x63), mud (0x64 twice);
 /// the callback `nullsub_8`; the crash matrix, the norms; without `dword_64BB18` checkpoints, pace
-/// notes, overlay; `dword_621508` the object of kind 0x7A (else 0x79); `dword_719FD0`/`D4` 0;
-/// "finis". conversion phase 3, 2026-10-24).
+/// notes, overlay; `marker_object` the object of kind 0x7A (else 0x79); `camera_last_frame`/`D4` 0;
+/// "finis".
 pub fn loadlevel_init(
     race: &Race,
     scene: &crate::scene::owner::Scene,
@@ -143,7 +141,7 @@ pub fn loadlevel_init(
         direction ^= 1;
     }
     race.shared.work.stage_direction.set(direction);
-    race.course.numbers.in_race.set(1);
+    race.course.numbers.in_race.set(true);
     race.shared.vars.bar_function.set(v.bar);
     s.progress(0)?;
     s.indent(-3);
@@ -154,7 +152,7 @@ pub fn loadlevel_init(
         },
         None,
     )?;
-    // alloc coursemem: marks 2 and 4 (the `cmp dword_621514, 0 / jz $+2` between
+    // alloc coursemem: marks 2 and 4 (the `cmp `editor_mode`, 0 / jz $+2` between
     // them changes nothing).
     s.log();
     s.indent(3);
@@ -309,7 +307,7 @@ pub fn loadlevel_init(
         marker = find_object_of_kind(0x79, scene);
         race.shared.switches.marker_object.set(marker);
     }
-    // dword_719FD0 / D4.
+    // `camera_last_frame` / D4.
     for cell in &REPLAY_WORK.camera_last_frame {
         cell.set(0);
     }

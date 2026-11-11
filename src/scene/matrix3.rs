@@ -1,8 +1,8 @@
-//! The game's 3 x 3 matrix helpers at 0x46574E .. 0x46587C (IDA, 2026-10-16), used by the
+//! The game's 3 x 3 matrix helpers at 0x46574E .. 0x46587C (IDA), used by the
 //! marks: floats, rows of 12 bytes. The three that make a turn (0x465783, 0x4657A6, 0x4657C9)
 //! take their angle in st(0) and pop it.
 //!
-//! Plain Rust since 2026-10-24 (the x87's arithmetic in `X`, `math/x87_float.rs`); the
+//! Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the
 //! original's instructions are `asm_reference` in the tests.
 
 use crate::errors::{BadInput, Refused};
@@ -19,9 +19,7 @@ pub fn identity_matrix3(m: &(impl Cells + ?Sized)) {
 
 /// `scene::multiply_matrices3` (0x4657EC): `out` = `a` x `b`, column by column, each written
 /// as made (so an `out` that is one of the two behaves as there): a's row times b's
-/// column, p1 + (p2 + p3) (`math::x87::row_times_column_3`). The registers the original
-/// leaves (ecx and edx 0, edi and ebp 12 on) are read by no caller (liveness at the five
-/// call sites, all the effects', which are Rust).
+/// column, p1 + (p2 + p3) (`math::x87::row_times_column_3`).
 pub fn multiply_matrices3(
     a: &(impl Cells + ?Sized),
     b: &(impl Cells + ?Sized),
@@ -64,8 +62,7 @@ pub(crate) fn turn_int_point(
 }
 
 /// `scene::transform_int_points` (0x465829): `count` points of three whole numbers from
-/// `from` turned by the matrix `m` into `to`. The registers it leaves (ecx -1, esi and edi
-/// past the points) are read by no caller. Refuses a count of 0x80000000 (the count would
+/// `from` turned by the matrix `m` into `to`. Refuses a count of 0x80000000 (the count would
 /// run away) and one past either run's cells.
 pub fn transform_int_points(
     from: &(impl Cells + ?Sized),

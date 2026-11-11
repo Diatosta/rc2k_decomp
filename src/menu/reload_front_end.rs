@@ -1,4 +1,4 @@
-//! `menu::reload_front_end` (0x48140D): when `dword_7587E8` is 1 (the scene was let go for
+//! `menu::reload_front_end` (0x48140D): when `arcade.scene_let_go` is 1 (the scene was let go for
 //! a race), the front end's scene set up again: `scene::set_up_engine`,
 //! `scene::set_up_front_end_scene`, `scene::set_up_engine`.
 //!

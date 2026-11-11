@@ -10,7 +10,7 @@ use rc2k_core::menu::finish::{self, Racer, Step, Var};
 /// edi) the racer fields are read through: a player's.
 pub struct Game<'a> {
     menus: &'a Menus,
-    pub racer: RacerAt,
+    pub racer: RacerAt<'a>,
     /// A refused read or write of the core's variables (checked at each step and at the end).
     fault: Fault,
 }
@@ -36,9 +36,9 @@ impl<'a> Game<'a> {
 /// search edi is a standings entry, but the flows read the racer only after choosing a
 /// player (`Racer::Leader`) or finding one done (`find_done`): no entry is read as one.
 #[derive(Clone, Copy)]
-pub enum RacerAt {
+pub enum RacerAt<'a> {
     None,
-    Player(crate::menu::standings::PlayerCell),
+    Player(crate::menu::standings::PlayerCell<'a>),
 }
 
 const NO_RACER: crate::errors::BadInput = BadInput("a racer's field with no player chosen");
@@ -111,8 +111,7 @@ impl finish::Finish for Game<'_> {
     }
 
     fn find_done(&mut self) -> Result<Option<u32>, Refused> {
-        let screens = &self.menus.screens;
-        let found = crate::menu::find_section_player::find_section_player(screens)?;
+        let found = crate::menu::find_section_player::find_section_player(self.menus)?;
         self.racer = RacerAt::Player(found.record);
         Ok((found.index != u32::MAX).then_some(found.index))
     }
@@ -124,9 +123,9 @@ impl finish::Finish for Game<'_> {
                 if n >= 4 {
                     return Err(BadInput("the leader's ecx past the players").into());
                 }
-                self.racer = RacerAt::Player(player(n));
+                self.racer = RacerAt::Player(player(self.menus, n));
             }
-            Racer::Done(n) => self.racer = RacerAt::Player(player(n)),
+            Racer::Done(n) => self.racer = RacerAt::Player(player(self.menus, n)),
         }
         Ok(())
     }

@@ -1,5 +1,5 @@
 //! `race::read_replay_header` (0x460428): "READREPLAYHEADER" logged; the replay's header
-//! (`dword_719B14` ..) into the race's variables: the arcade's noise seed, start place and cars,
+//! (`header_stage` ..) into the race's variables: the arcade's noise seed, start place and cars,
 //! the stage, the game mode, the players, the cars and their kinds (into the car blocks too), the
 //! two game-over flags (`targets`); then twelve of them logged, each as its name and its value
 //! (`NAMES`).

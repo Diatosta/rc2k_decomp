@@ -2,7 +2,7 @@
 //! reported (`g_fatalReported` 1), its text (`Text`, written by `fatal::report`) shown in
 //! a message box (`MessageBoxA`, no window, caption `Caption`, type 0x2030: an
 //! exclamation, task-modal); for a code with bit 28 the caption ("Rally: Guru Meditation")
-//! is first cut to "Rally" (its byte 5, `byte_4F6702`, 0). Then "END PROCESS" logged.
+//! is first cut to "Rally" (its byte 5 made 0). Then "END PROCESS" logged.
 //!
 //! One caller, `start`'s way out, which calls it directly. The registers
 //! above are the original's, for reference.

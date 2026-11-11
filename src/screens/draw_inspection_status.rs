@@ -6,8 +6,8 @@
 //! of the last damaged part looked at.
 //! The percentage is 100 minus the weights of the parts that are damaged and not chosen for
 //! repair. For menu items 2, 3, 4, 5 and 7 .. 15: the part counts if the car's value at
-//! +0xCC + 4 * item is at least `dword_75ABD0[item]` and the item's repair flag is 0; its
-//! weight is `dword_75AC40[item]`. The result is left in `dword_75AC80`.
+//! +0xCC + 4 * item is at least the repair limits and the item's repair flag is 0; its
+//! weight is the weights. The result is left in the inspection score.
 //! The items are the fourteen parts of the repair section without the turbo (item 6).
 //!
 //! Screen: seen in a screenshot of the championship's service area (2026-10-10): "ESTADO DE INSPECÇÃO" with a
@@ -23,8 +23,8 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-// dword_75AC80
-// dword_7559EC: a work variable, here the weights' sum
+// the inspection score
+// `draw_work.figure`: a work variable, here the weights' sum
 
 /// The percentage and the item of the last damaged part looked at (its repair flag's address
 /// is what the original leaves in esi). Converted: `rc2k_core::screens::inspection::status`.

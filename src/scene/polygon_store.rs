@@ -1,5 +1,5 @@
-//! The polygon work area, typed (phase 7): IDA 0x975510 .. 0x9A3730, in the image's zeroed
-//! tail (`race::buffers_store`): the 64 work entries a polygon is built in, the entries kept
+//! The polygon work area (IDA 0x975510 .. 0x9A3730, in the image's zeroed tail,
+//! `race::buffers_store`): the 64 work entries a polygon is built in, the entries kept
 //! for the fan, the two number lists (the polygon's vertices by entry and the list before a
 //! clip), the pool of point records the clip makes, the textures' records and the objects'
 //! materials. Names are readings unless IDA's.

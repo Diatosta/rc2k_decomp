@@ -1,7 +1,7 @@
 //! `d3d::draw_fan_unclipped` (0x41AD9C): draws the polygon in the vertex buffer.
 //!
-//! In:  nothing: the vertices are at `g_polygonVertices` (0x9605A0), their number in
-//!      `g_polygonVertexCount` (0x6240F8)
+//! In:  nothing: the vertices are in the polygon vertex buffer (`VERTICES`), their number in
+//!      the polygon's vertex count
 //! The device's DrawPrimitive with a triangle fan (6) of transformed and lit vertices
 //! (3) and the flags 0x1C (not to be clipped, lit or measured). Two callers,
 //! `scene::draw_polygon_fan` and `race::draw_view_backdrop`.

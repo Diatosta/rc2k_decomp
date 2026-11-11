@@ -1,6 +1,6 @@
-//! The work car's damage warnings (converted 2026-10-21 from `physics::damage_notices`
-//! 0x4B0241): each damage gauge (a float of the work copy, `unk_71A284` .. `unk_71A33C`)
-//! moves a level (`unk_71A340` .. `unk_71A3C8`) by whole-number thresholds, in the
+//! The work car's damage warnings (converted from `physics::damage_notices`
+//! 0x4B0241): each damage gauge (a float of the work copy, `brake_heat` .. `tyre_wear`)
+//! moves a level (`damage_levels` .. `unk_71A3C8`) by whole-number thresholds, in the
 //! original's order of 82 steps (read from the disassembly): a rising step, the gauge not
 //! below its threshold, sets the level and queues a notice; a falling one (the hysteresis
 //! of some gauges), below it, sets the level back.
@@ -11,7 +11,7 @@
 
 use super::x87::below;
 
-/// The levels (dwords from `unk_71A340`) and the gauges (dwords from `unk_71A284`).
+/// The levels (dwords from `damage_levels`) and the gauges (dwords from `brake_heat`).
 pub const LEVELS: usize = 35;
 pub const GAUGES: usize = 47;
 
@@ -125,7 +125,7 @@ pub const STEPS: [Step; 82] = [
     Up { level: 21, from: 0, limit: 100, gauge: 17, to: 1, notice: 0x10B, rank: 1 },
 ];
 
-/// A notice queued: its id, the gauge (its value is the original's eax) and its rank.
+/// A notice queued: its id, the gauge value and its rank.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Queued {
     pub notice: u32,
@@ -189,7 +189,7 @@ mod tests {
     fn notices() {
         let mut levels = [0u32; LEVELS];
         let mut queued = vec![];
-        // Gauge 2 (the first steps' `unk_71A28C`) at 60: two rising steps.
+        // Gauge 2 (the first steps' `engine_heat`) at 60: two rising steps.
         let gauge = |k: usize| if k == 2 { 60.0 } else { 0.0 };
         damage_notices(
             &mut levels,

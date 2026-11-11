@@ -3,8 +3,8 @@
 //!
 //! One caller, `start` (0x40107E), which leaves at once on the carry. `start` calls it directly. Since phase
 //! 11 (no Win32): no window of that class is ever made (SDL makes the game's, of its own class), so
-//! the original's search found none in the standalone and this says so outright; `hInstance` was
-//! read by nothing and is no longer written. A second copy runs, as it did.
+//! the original's search found none in the standalone and this says so outright; `hInstance` is
+//! read by nothing and is not written. A second copy runs, as it did.
 
 /// True if the game runs already: never (see the header).
 pub fn find_running_game() -> bool {

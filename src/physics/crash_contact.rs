@@ -1,28 +1,25 @@
 //! `physics::crash_contact` (0x45EDB5): the body's deepest point against the ground.
-//! `unk_71AA0C` = 0; `physics::lowest_body_point`; unless the depth (`dword_6D3068`) is
-//! below `dword_613EF8` and, with `unk_71A22C` at 0, below 0 (each by the sign of the
-//! `cmp`), only `physics::sound_cue_e5`. Else, for the point n (`dword_6D306C`): its three
-//! floats from `dword_6D1E14[n]`, `dword_6D2114[n]`, `dword_6D2014[n]` into `unk_71AA00`
-//! .., `unk_71AA0C` = 1; the contact taken (`take_contact`: the car's speed, the face's
-//! normal, the turn speed, the point); the car's up (0, 1, 0 turned by `g_crashMatrix`,
-//! `scene::rotate_point`) into `flt_6D31C4` .., minus its dot with the normal into
-//! `flt_6D31D0`, and from that the slide limit `flt_6D3100`; `physics::contact_force`
-//! into force record 21 (`g_forceRecords` +0x2A0), `physics::place_sound_e5`; the force
-//! into `dword_6D3018` .., the record's point 0; `flt_6D3014` = (`unk_71A0A0` +
-//! `flt_5C5D60`) / `flt_5C5D60` held at most 1, times `unk_71A160`; `unk_71AA10` =
-//! `dword_6D310C`.
+//! `contact_found` = 0; `physics::lowest_body_point` runs; unless the depth (`lowest_depth`) is
+//! below `crash_depth` and, with `all_wheels_off` at 0, below 0 (each by the sign of the
+//! comparison), only `physics::sound_cue_e5` runs. Else, for the point n (`lowest_point`): its
+//! three floats from `probe_x[n]`, `probe_ground_height[n]`, `probe_z[n]` go into the car's contact
+//! point (`contact_point_x` ..), `contact_found` = 1; the contact is taken (`take_contact`: the
+//! car's speed, the face's normal, the turn speed, the point); the car's up (0, 1, 0 turned by
+//! `g_crashMatrix`, `scene::rotate_point`) goes into `crash_car_up`, minus its dot with the normal
+//! into `crash_up_dot`, and from that the slide limit `contact_slide_limit`; `physics::contact_force`
+//! runs into force record 21 (`g_forceRecords` +0x2A0), `physics::place_sound_e5`; the force goes into
+//! `ground_force`, the record's point 0; `crash_ground_scale` = (wheel-load figure + 64) / 64 held
+//! at most 1, times the car's spin figure; the car's `contact_value` = `contact_value` of the
+//! contact work.
 //!
 //! Caller: `physics::car_physics_step`, every physics step. Refuses a point past 0x3F on the long
 //! path (the tables' room), and what its calls refuse; what was written is put back.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::math::x87::neg_rounded;
 use crate::math::x87::{loaded, mul};
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
-use crate::math::x87_run::neg_rounded;
 use crate::physics::contact_force::contact_force;
 use crate::physics::dot_product::dot_product;
 use crate::physics::flow::hold_high;
@@ -43,17 +40,16 @@ fn copy3(to: &[Float], from: &[Float]) {
     }
 }
 
-/// The sign of a `cmp`'s difference (`js`).
+/// The sign of a comparison's difference.
 pub fn sign(v: u32) -> bool {
     (v as i32) < 0
 }
 
-/// The contact of point `n` taken (0x45EE25 / 0x45F02D): the car's speed (`unk_71A170`
-/// ..) into `dword_6D30A8` ..; the normal of its face (`unk_71ADC8[n]` in
-/// `g_courseFaces`: +0x18, +0x30, +0x38, or with `dword_6D2914[n]` at 1 +0x1C, +0x34,
-/// +0x3C) into `qword_6D3078` ..; the turn speed (`unk_71A15C` ..) into `dword_6D30B4`
-/// ..; the point (`flt_6D2214[n]`, `flt_6D2314[n]`, `flt_6D2414[n]`) into
-/// `dword_6D3090` ...
+/// The contact of point `n` taken: the car's `velocity` goes into `contact_car_speed`; the
+/// normal of its face (`probe_point_face[n]` in `g_courseFaces`: +0x18, +0x30, +0x38, or with
+/// `probe_face_flip[n]` at 1 +0x1C, +0x34, +0x3C) into `contact_normal`; the car's `spin` into
+/// `contact_turn_speed`; the point (`probe_turned_x[n]`, `probe_turned_y[n]`, `probe_turned_z[n]`)
+/// into `contact_point`.
 pub fn take_contact(race: &Race, n: usize) -> Result<(), Refused> {
     copy3(
         &race.physics.contact.contact_car_speed,
@@ -62,7 +58,7 @@ pub fn take_contact(race: &Race, n: usize) -> Result<(), Refused> {
     let face = race.shared.car.probe_point_face[n].get();
     let parts = contacts::normal_offsets(race.physics.contact.probe_face_flip[n].get());
     for (k, &o) in parts.iter().enumerate() {
-        let v = crate::race::course_places::face_field::<u32>(face, o, "a face's normal")?;
+        let v = crate::race::course_places::face_field::<u32>(&race.course, face, o)?;
         race.physics.contact.contact_normal[k].set_bits(loaded(v));
     }
     copy3(
@@ -75,7 +71,7 @@ pub fn take_contact(race: &Race, n: usize) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The deepest point's number (`dword_6D306C`) for the long path; refused past 0x3F.
+/// The deepest point's number (`lowest_point`) for the long path; refused past 0x3F.
 pub fn point_number(physics: &Physics) -> Result<usize, Refused> {
     let n = physics.contact.lowest_point.get();
     contacts::check_body_point(n)?;
@@ -148,8 +144,8 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
         &race.course.numbers.one,
     );
     race.shared.car.spin[1].set_bits(mul(
-        race.physics.contact.crash_ground_scale.bits(),
-        race.shared.car.spin[1].bits(),
+        &race.physics.contact.crash_ground_scale,
+        &race.shared.car.spin[1],
     ));
     race.shared
         .car
@@ -164,8 +160,8 @@ pub fn crash_contact(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn x87_1(race: &Race) {
     let t0 = ld(race.physics.contact.crash_up_dot.bits());
@@ -186,9 +182,9 @@ fn x87_1(race: &Race) {
     race.physics.contact.contact_slide_limit.set_bits(st(t14));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x2D3014] = ([rc + 0x31A0A0] + [rc + 0x1C5D60]) / [rc + 0x1C5D60]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[crash_ground_scale] = ([rc + 0x31A0A0] + [sixty_four]) / [sixty_four]`
 fn x87_2(race: &Race) {
     let t0 = ld(race.shared.car.crash_matrix[5].bits());
     let t1 = ld(race.course.numbers.sixty_four.bits());

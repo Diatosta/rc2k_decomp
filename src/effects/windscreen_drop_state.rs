@@ -1,10 +1,10 @@
-//! The windscreen drops' and windscreen flakes' variables, out of the marks' block (phase 7, typed state):
+//! The windscreen drops' and windscreen flakes' variables:
 //! `WindscreenDropState` (IDA 0x814710 .. 0x814770) and `WindscreenDropWork` (0x814772 .. 0x81518A; on an
 //! address 2 more than a multiple of 4 in the image).
 
 use crate::session::{Bytes, Dword, Float};
 
-/// The windscreen drops' and windscreen flakes' frame variables (`effects::windscreen_drops_*`, `effects::squares_*`, `effects::draw_plane`) (IDA 0x814710 .. 0x814770, the image's layout; phase 7, typed state).
+/// The windscreen drops' and windscreen flakes' frame variables (`effects::windscreen_drops_*`, `effects::squares_*`, `effects::draw_plane`) (IDA 0x814710 .. 0x814770).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenDropState {
@@ -35,13 +35,13 @@ impl WindscreenDropState {
         WindscreenDropState {
             live: Dword::new(0x0),
             clock: Dword::new(0x0),
-            facing: Float::from_bits(0x0),
+            facing: Float::new(0.0),
             cell: [Dword::new(0x0), Dword::new(0x0)],
             frames: Dword::new(0x0),
-            rate: Float::from_bits(0x0),
-            spawn_rate: Float::from_bits(0x3F900000),
+            rate: Float::new(0.0),
+            spawn_rate: Float::new(1.125),
             _gap_814730: Bytes::new([0; 4]),
-            depth: Float::from_bits(0x0),
+            depth: Float::new(0.0),
             _gap_814738: Bytes::new([
                 0xC8, 0x00, 0x00, 0x00, 0x40, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x65, 0x3A, 0x5C, 0x72, 0x61, 0x6C, 0x6C, 0x79,
@@ -110,7 +110,7 @@ mod windscreen_drop_state_tests {
     }
 }
 
-/// The windscreen drops' work (`effects::windscreen_drops_*`, `effects::shapes`, `effects::spawn_windscreen_drop`): the drift, the curve, the radii, the axes, the sprite's corners and the windscreen drop points (IDA 0x814772 .. 0x81518A, the image's layout; phase 7, typed state).
+/// The windscreen drops' work (`effects::windscreen_drops_*`, `effects::shapes`, `effects::spawn_windscreen_drop`): the drift, the curve, the radii, the axes, the sprite's corners and the windscreen drop points (IDA 0x814772 .. 0x81518A).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenDropWork {
@@ -155,7 +155,7 @@ pub struct WindscreenDropWork {
 impl WindscreenDropWork {
     pub const fn new() -> Self {
         WindscreenDropWork {
-            drift: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            drift: [Float::new(0.0), Float::new(0.0)],
             _gap_81477a: Bytes::new([
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -164,68 +164,64 @@ impl WindscreenDropWork {
                 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x80, 0x3F,
             ]),
-            curve: [const { Float::from_bits(0x0) }; 256],
+            curve: [const { Float::new(0.0) }; 256],
             radii: [
-                Float::from_bits(0x40E00000),
-                Float::from_bits(0x40C00000),
-                Float::from_bits(0x40A00000),
-                Float::from_bits(0x40800000),
-                Float::from_bits(0x40400000),
-                Float::from_bits(0x40000000),
-                Float::from_bits(0x40800000),
-                Float::from_bits(0x40A00000),
-                Float::from_bits(0x40000000),
-                Float::from_bits(0x3FE66666),
-                Float::from_bits(0x3FCCCCCD),
-                Float::from_bits(0x3FB33333),
-                Float::from_bits(0x3F99999A),
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x3F99999A),
-                Float::from_bits(0x3FB33333),
+                Float::new(7.0),
+                Float::new(6.0),
+                Float::new(5.0),
+                Float::new(4.0),
+                Float::new(3.0),
+                Float::new(2.0),
+                Float::new(4.0),
+                Float::new(5.0),
+                Float::new(2.0),
+                Float::new(1.8),
+                Float::new(1.6),
+                Float::new(1.4),
+                Float::new(1.2),
+                Float::new(1.0),
+                Float::new(1.2),
+                Float::new(1.4),
             ],
-            inverse: Float::from_bits(0x0),
-            shares: [Float::from_bits(0x42666666), Float::from_bits(0x42666666)],
+            inverse: Float::new(0.0),
+            shares: [Float::new(57.6), Float::new(57.6)],
             place: [
-                Float::from_bits(0xC7666666),
-                Float::from_bits(0xC6E66666),
-                Float::from_bits(0x47800000),
+                Float::new(-58982.4),
+                Float::new(-29491.2),
+                Float::new(65536.0),
             ],
             axes: [
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
+                Float::new(1.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(1.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
             ],
             _gap_814c3e: Bytes::new([0; 48]),
             setup_axes: [
-                Float::from_bits(0x44D00000),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0xC4948000),
-                Float::from_bits(0x44948000),
-                Float::from_bits(0x44D00000),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0xC4948000),
-                Float::from_bits(0x44948000),
+                Float::new(1664.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(-1188.0),
+                Float::new(1188.0),
+                Float::new(1664.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(-1188.0),
+                Float::new(1188.0),
             ],
-            screen: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            screen: [Float::new(0.0), Float::new(0.0)],
             _gap_814ca6: Bytes::new([0; 4]),
-            cell: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-            ],
-            corners: [const { Float::from_bits(0x0) }; 18],
-            scaled: [const { Float::from_bits(0x0) }; 144],
-            points: [const { Float::from_bits(0x0) }; 144],
+            cell: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
+            corners: [const { Float::new(0.0) }; 18],
+            scaled: [const { Float::new(0.0) }; 144],
+            points: [const { Float::new(0.0) }; 144],
             cursor: Dword::new(0x0),
             whole: [Dword::new(0x0), Dword::new(0x0)],
         }

@@ -1,5 +1,5 @@
 //! `menu::award_stage_points` (0x4A47EA): the stage's championship points. For each class
-//! (`dword_7558F4`, 0 .. `dword_7558F8`) the points start at 0x14 (`seconds`); each entry
+//! (`event.class`, 0 .. `event.classes`) the points start at 0x14 (`seconds`); each entry
 //! of standings table B in that class, in the table's order, is logged ("Status of
 //! driver" and its +0x74), gets the points into its +0x54 + 4 * `section` and the points
 //! go down by one (not below 0). A computer's driver (+4 0, `menu::find_cpu_team` by its
@@ -20,17 +20,20 @@ use crate::menu::standings::*;
 const STATUS_TEXT_RVA: &std::ffi::CStr = c"Status of driver"; // aStatusOfDriver
 /// The driver (computer, by `find_cpu_team`) or player of an entry, and the field its
 /// stage points go to, and whether it keeps them.
-enum Owner {
-    Driver(&'static Driver),
-    Player(PlayerCell),
+enum Owner<'a> {
+    Driver(&'a Driver),
+    Player(PlayerCell<'a>),
 }
 
-fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<Owner, Refused> {
+fn owner<'a>(
+    menus: &'a Menus,
+    e: &rc2k_core::saves::rankings::HistoryEntry,
+) -> Result<Owner<'a>, Refused> {
     match e.player {
         0 => Ok(Owner::Driver(crate::menu::find_cpu_team::find_cpu_team(
-            e.first,
+            menus, e.first,
         )?)),
-        n if n <= 4 => Ok(Owner::Player(player(n - 1))),
+        n if n <= 4 => Ok(Owner::Player(player(menus, n - 1))),
         _ => Err(BadInput("a player past 4 or missing").into()),
     }
 }
@@ -45,7 +48,7 @@ pub fn award_stage_points(menus: &Menus) -> Result<(), Refused> {
     let mut all = walked_entries_b()?;
     let mut owners = Vec::with_capacity(all.len());
     for e in &all {
-        owners.push(owner(e)?);
+        owners.push(owner(menus, e)?);
     }
     // Converted: `rc2k_core::menu::points` (`Points`, `kept`, `total`).
     use rc2k_core::menu::points::{Points, kept, total};

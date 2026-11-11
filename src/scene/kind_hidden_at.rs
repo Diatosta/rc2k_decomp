@@ -1,5 +1,5 @@
 //! `scene::kind_hidden_at` (0x4522F7): `scene::kind_is_hidden` for the object whose
-//! number is the byte at esi+1, eax kept (`push eax` / `pop eax`).
+//! number is the record's byte +1.
 //!
 //! Takes: the record (its byte +1 the object)
 //!
@@ -17,7 +17,7 @@ pub fn kind_hidden_at(
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, BadInput> {
     // Converted: `rc2k_core::scene::kinds::kind_is_hidden` (through `kind_is_hidden`).
-    let object = crate::race::course_places::face_field::<u8>(face, 1, "a course face")? as u32;
+    let object = crate::race::course_places::face_field::<u8>(&race.course, face, 1)? as u32;
     // A byte: never past the table.
     Ok({ kind_is_hidden(&race.shared, object, scene) }.is_ok_and(|(hidden, _)| hidden))
 }

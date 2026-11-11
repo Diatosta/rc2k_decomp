@@ -5,13 +5,13 @@
 //! of one plane stays palette numbers, one of three becomes components), its backdrop is
 //! what its four corners agree on and its transparent colour magenta, every glyph on it
 //! is found and coded (`gfx/glyph_builder.rs`), and the sheet's table is appended to the
-//! table at `dword_5195A4` (its size in `dword_5195A8`), whose memory comes from the list
-//! in ebx piece by piece. The builder's flags (`dword_519118`): 1 = glyphs are run-length
-//! coded, 0x10 = the path is one file's and not numbered, 0x20 = every sheet has a second
-//! one with its alpha; bits 2 and 4 are set here for a sheet of components. The callers
-//! (`gfx::build_menu_sprites` for the menus' sprites, `gfx::build_fonts` for the fonts,
-//! `gfx::build_game_fonts`) set the flags, take the work memory `g_lexiconMemory` and point
-//! `dword_5195A4` at where the list stands.
+//! table being built (`SheetVars::table`, its size in `table_size`), whose memory comes from
+//! the memory list piece by piece. The builder's flags (`g_glyphBuilderFlags`): 1 = glyphs
+//! are run-length coded, 0x10 = the path is one file's and not numbered, 0x20 = every
+//! sheet has a second one with its alpha; bits 2 and 4 are set here for a sheet of
+//! components. The callers (`gfx::build_menu_sprites` for the menus' sprites,
+//! `gfx::build_fonts` for the fonts, `gfx::build_game_fonts`) set the flags, take the work
+//! memory `g_lexiconMemory` and point the table at where the list stands.
 //! Errors: a sheet that does not read is fatal error 0x80E4F010; no room for a glyph, a
 //! sheet's table or the table's growth 0x80E48001, 0x80E48011, 0x80E48012; a table to
 //! append to that is nowhere 0x80E48077.
@@ -22,9 +22,8 @@
 //! not there, the alpha is made from each glyph's own shape (`Sheet::soften`).
 //! The glyphs are kept in memory of its own and only counts them off the work memory, where
 //! it puts the sheet's table as the original does. It leaves alone: the list of glyph
-//! records (`unk_5195AC`), the five work variables of the row scan (`dword_5195B8` ..
-//! `dword_5195C8`), and the up to three bytes after a first table that the original's copy
-//! by dwords drags along.
+//! records, the five work variables of the row scan, and the up to three bytes after a
+//! first table that the original's copy by dwords drags along.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::file_exists::file_exists;
@@ -61,8 +60,8 @@ pub struct SheetVars {
     pub sheet_table: Dword,
     /// `dword_51959C`: its size.
     pub sheet_table_size: Dword,
-    /// `dword_5195A0`: the list given in ebx. Not used: nothing reads it, so the list is not
-    /// kept here.
+    /// `dword_5195A0`: the memory list the caller gave. Not used: nothing reads it, so the list
+    /// is not kept here.
     pub table_list: Dword,
     /// `g_builtTable` (`dword_5195A4`): the table being built.
     pub table: Dword,
@@ -115,7 +114,7 @@ fn text(text: &[u8], newline: bool) {
     crate::logfile::log_write::log_nul(text, newline, 1);
 }
 
-/// 0x41299B with eax = 1: the two lines about a sheet.
+/// The two lines about a sheet.
 fn log_sheet(
     path: &[u8],
     image: bool,
@@ -140,7 +139,7 @@ fn log_sheet(
     log_hex8(transparent, true, 1);
 }
 
-/// 0x412A86: the line about a glyph, the `number`th of its sheet.
+/// The line about a glyph, the `number`th of its sheet.
 fn log_glyph(glyph: &Glyph, number: u32, flags: u32, pixel_size: u32) {
     let padded = |value: u32| log_int_fmt(value as i32, 0x13, false, 1);
     text(b"\0", false);
@@ -189,7 +188,7 @@ fn log_glyph(glyph: &Glyph, number: u32, flags: u32, pixel_size: u32) {
     }
 }
 
-/// 0x412C92 on the table being built: the sheet's table of `size` bytes at `sheet`
+/// On the table being built: the sheet's table of `size` bytes at `sheet`
 /// becomes part of it.
 fn append_to_table(vars: &SheetVars, sheet: u32, more: &[u8]) -> Result<(), Refused> {
     let size = more.len() as u32;
@@ -372,7 +371,7 @@ pub fn build_glyphs(
             log_sheet(&path, true, backdrop, transparent, gfx);
         }
         if flags & WITH_ALPHA != 0 && vars.alpha_loaded.get() == 1 {
-            // 0x4124E9: the kept sheet's low four bits become the top four here.
+            // The kept sheet's low four bits become the top four here.
             if flags & DIRECT_COLOUR != 0 {
                 return Err(fatal(
                     0x80E4_F422,

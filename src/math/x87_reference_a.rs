@@ -1318,7 +1318,7 @@ fn float_arithmetic() {
             int_float_int_float(a, b, c, d), plain::int_float_int_float(a, b, c, d));
         diff!(g, "int_product_difference", EXACT, a = i, b = i, c = i, d = i;
             int_product_difference(a, b, c, d), plain::int_product_difference(a, b, c, d));
-        diff!(g, "int_div", EXACT, a = i, b = f; int_div(a, b), plain::int_div(a, b));
+        diff!(g, "int_div", EXACT, a = i, b = f; int_div(a, b), plain::int_over(a, b));
         diff!(g, "int_div_div_doubled", EXACT, a = i, b = f, c = f;
             int_div_div_doubled(a, b, c), plain::int_div_div_doubled(a, b, c));
         diff!(g, "surface_share", EXACT, a = i, b = f, c = f, d = i, e = f, f = f;
@@ -1364,7 +1364,7 @@ fn float_arithmetic_b() {
             half_and_middle(b, a, k), plain::half_and_middle(b, a, k));
         diff!(g, "pi_over", EXACT, n = i; pi_over(n), plain::pi_over(n));
         diff!(g, "mul_add", EXACT, a = f, b = f, c = f; mul_add(a, b, c), plain::mul_add(a, b, c));
-        diff!(g, "int_div_int", EXACT, a = i, n = i; int_div_int(a, n), plain::int_div_int(a, n));
+        diff!(g, "int_div_int", EXACT, a = i, n = i; int_div_int(a, n), plain::int_ratio(a, n));
         diff!(g, "sub_80", EXACT, a = f, b = f; sub_80(a, b), plain::sub_80(a, b));
         diff!(g, "int_sub_80", EXACT, a = i, b = f; int_sub_80(a, b), plain::int_sub_80(a, b));
     });

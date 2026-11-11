@@ -4,7 +4,7 @@
 //! Takes the path, the buffer and its size. Returns the bytes unpacked; on a failed read or a
 //! file not "SQSL", 0 and a failure.
 //!
-//! The file (up to ecx bytes, `files::read_file`) begins "SQSL", two dwords, and the count of
+//! The file (up to the given bytes, `files::read_file`) begins "SQSL", two dwords, and the count of
 //! dwords it unpacks to. Its dwords are moved to the buffer's end (backwards, so a file filling the
 //! buffer stays in place); from +0x10 of them a stream of bits (each dword's highest first) is read
 //! and the dwords written from the buffer's start (both + the size's odd bytes: the move shifts the
@@ -30,7 +30,7 @@ pub struct Outcome {
 }
 
 impl Outcome {
-    /// What `files::read_file` leaves on a read: eax the bytes read (the original leaves
+    /// What `files::read_file` leaves on a read: `eax` the bytes read (the original leaves
     /// the path's address when it did not get that far; here 0, nobody reads it then),
     /// carry a failure, zero success.
     pub fn of_read(got: &ReadResult) -> Self {

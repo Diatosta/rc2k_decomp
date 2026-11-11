@@ -1,10 +1,10 @@
-//! The windscreen flakes' variables, out of the marks' block (phase 7, typed state): their frame count
+//! The windscreen flakes' variables: their frame count
 //! and rates (`WindscreenFlakeTiming`), curve, circles and frame (`WindscreenFlakeTables`), the 0x800 items
 //! (`WindscreenFlakeItems`), and the once-only mark, constants and randoms (`WindscreenFlakeState`).
 
 use crate::session::{Bytes, Dword, Float};
 
-/// The windscreen flakes' frame count and rates (IDA 0x89CA30 .. 0x89CA3C, the image's layout; phase 7, typed state).
+/// The windscreen flakes' frame count and rates (IDA 0x89CA30 .. 0x89CA3C).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeTiming {
@@ -21,8 +21,8 @@ impl WindscreenFlakeTiming {
     pub const fn new() -> Self {
         WindscreenFlakeTiming {
             frames: Dword::new(0x0),
-            rate: Float::from_bits(0x41200000),
-            spawn_rate: Float::from_bits(0x0),
+            rate: Float::new(10.0),
+            spawn_rate: Float::new(0.0),
         }
     }
     pub const START: usize = 0x89CA30;
@@ -37,7 +37,7 @@ impl WindscreenFlakeTiming {
     }
 }
 
-/// The windscreen flakes' curve, circles, frame and corners (IDA 0x89CACA .. 0x89D16A, the image's layout; phase 7, typed state).
+/// The windscreen flakes' curve, circles, frame and corners (IDA 0x89CACA .. 0x89D16A).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeTables {
@@ -77,99 +77,57 @@ impl WindscreenFlakeTables {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         WindscreenFlakeTables {
-            curve: [const { Float::from_bits(0x0) }; 256],
+            curve: [const { Float::new(0.0) }; 256],
             radii: [
-                Float::from_bits(0x449E0000),
-                Float::from_bits(0x458EA000),
-                Float::from_bits(0x458B8000),
-                Float::from_bits(0x45886000),
-                Float::from_bits(0x45854000),
-                Float::from_bits(0x45822000),
-                Float::from_bits(0x45898000),
-                Float::from_bits(0x45802000),
+                Float::new(1264.0),
+                Float::new(4564.0),
+                Float::new(4464.0),
+                Float::new(4364.0),
+                Float::new(4264.0),
+                Float::new(4164.0),
+                Float::new(4400.0),
+                Float::new(4100.0),
             ],
-            inverse: Float::from_bits(0x0),
-            lengths: [Float::from_bits(0x42166666), Float::from_bits(0x42166666)],
+            inverse: Float::new(0.0),
+            lengths: [Float::new(37.6), Float::new(37.6)],
             place: [
-                Float::from_bits(0xC7666666),
-                Float::from_bits(0xC6E66666),
-                Float::from_bits(0x480E2000),
+                Float::new(-58982.4),
+                Float::new(-29491.2),
+                Float::new(145536.0),
             ],
             _gap_89cf02: Bytes::new([
                 0x66, 0x66, 0x66, 0xC7, 0x66, 0x66, 0xE6, 0xC6, 0x00, 0x00, 0x80, 0x47, 0x00, 0x00,
                 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             ]),
             axes: [
-                [
-                    Float::from_bits(0x3F800000),
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x0),
-                ],
-                [
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x3F800000),
-                    Float::from_bits(0x0),
-                ],
-                [
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x3F800000),
-                ],
+                [Float::new(1.0), Float::new(0.0), Float::new(0.0)],
+                [Float::new(0.0), Float::new(1.0), Float::new(0.0)],
+                [Float::new(0.0), Float::new(0.0), Float::new(1.0)],
             ],
             scaled_by_radius: [
-                [
-                    Float::from_bits(0x44D00000),
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x0),
-                ],
-                [
-                    Float::from_bits(0x0),
-                    Float::from_bits(0xC4948000),
-                    Float::from_bits(0x44948000),
-                ],
+                [Float::new(1664.0), Float::new(0.0), Float::new(0.0)],
+                [Float::new(0.0), Float::new(-1188.0), Float::new(1188.0)],
             ],
             half_axes: [
-                [
-                    Float::from_bits(0x44D00000),
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x0),
-                ],
-                [
-                    Float::from_bits(0x0),
-                    Float::from_bits(0xC4948000),
-                    Float::from_bits(0x44948000),
-                ],
+                [Float::new(1664.0), Float::new(0.0), Float::new(0.0)],
+                [Float::new(0.0), Float::new(-1188.0), Float::new(1188.0)],
             ],
             scaled_axes: [
+                [Float::new(1.0), Float::new(0.0), Float::new(0.0)],
                 [
-                    Float::from_bits(0x3F800000),
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x0),
-                ],
-                [
-                    Float::from_bits(0x0),
-                    Float::from_bits(0xBF3504E6),
-                    Float::from_bits(0x3F3504E6),
+                    Float::new(0.0),
+                    // Not 1 / sqrt 2: the game's own six digits.
+                    #[allow(clippy::approx_constant)]
+                    Float::new(-0.707106),
+                    #[allow(clippy::approx_constant)]
+                    Float::new(0.707106),
                 ],
             ],
             _gap_89cf86: Bytes::new([0; 12]),
-            corners: [const {
-                [
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x0),
-                ]
-            }; 4],
+            corners: [const { [Float::new(0.0), Float::new(0.0), Float::new(0.0)] }; 4],
             _gap_89cfc2: Bytes::new([0; 36]),
-            points: [const {
-                [const {
-                    [
-                        Float::from_bits(0x0),
-                        Float::from_bits(0x0),
-                        Float::from_bits(0x0),
-                    ]
-                }; 4]
-            }; 8],
+            points: [const { [const { [Float::new(0.0), Float::new(0.0), Float::new(0.0)] }; 4] };
+                8],
             cursor: Dword::new(0x0),
         }
     }
@@ -215,16 +173,16 @@ impl WindscreenFlakeItem {
             live: Dword::new(0),
             born: Dword::new(0),
             age: Dword::new(0),
-            texture_u: Float::from_bits(0),
-            texture_v: Float::from_bits(0),
+            texture_u: Float::new(0.0),
+            texture_v: Float::new(0.0),
             spare_14: [const { Dword::new(0) }; 3],
-            place: [const { Float::from_bits(0) }; 2],
+            place: [const { Float::new(0.0) }; 2],
             spare_28: [const { Dword::new(0) }; 5],
         }
     }
 }
 
-/// The windscreen flakes' 0x800 items (`g_marksWindscreenFlakeItems`) (IDA 0x89E18A .. 0x8BC18A, the image's layout; phase 7, typed state).
+/// The windscreen flakes' 0x800 items (`g_marksWindscreenFlakeItems`) (IDA 0x89E18A .. 0x8BC18A).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeItems {
@@ -250,7 +208,7 @@ impl WindscreenFlakeItems {
     }
 }
 
-/// The windscreen flakes' once-only mark, constants and randoms (IDA 0x8BC18A .. 0x8BC266, the image's layout; phase 7, typed state).
+/// The windscreen flakes' once-only mark, constants and randoms (IDA 0x8BC18A .. 0x8BC266).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeState {
@@ -311,12 +269,12 @@ impl WindscreenFlakeState {
     pub const fn new() -> Self {
         WindscreenFlakeState {
             done: Dword::new(0x0),
-            curve_ends: [Float::from_bits(0x44800000), Float::from_bits(0x3A0EA4A9)],
+            curve_ends: [Float::new(1024.0), Float::new(0.00054414064)],
             steps: Dword::new(0x4),
-            step_angle: Float::from_bits(0x40000000),
-            rate_share: Float::from_bits(0x3F800000),
-            length_divisors: [Float::from_bits(0x45000000), Float::from_bits(0x44800000)],
-            share: Float::from_bits(0x47800000),
+            step_angle: Float::new(2.0),
+            rate_share: Float::new(1.0),
+            length_divisors: [Float::new(2048.0), Float::new(1024.0)],
+            share: Float::new(65536.0),
             places: [
                 Dword::new(0x3B000000),
                 Dword::new(0x3B000000),
@@ -324,10 +282,10 @@ impl WindscreenFlakeState {
                 Dword::new(0x3D840000),
             ],
             unread_floats: [
-                Float::from_bits(0x46800000),
-                Float::from_bits(0x46800000),
-                Float::from_bits(0x46800000),
-                Float::from_bits(0x46800000),
+                Float::new(16384.0),
+                Float::new(16384.0),
+                Float::new(16384.0),
+                Float::new(16384.0),
             ],
             unread_dwords: [
                 Dword::new(0x0),
@@ -336,14 +294,14 @@ impl WindscreenFlakeState {
                 Dword::new(0x3F7FFFFE),
             ],
             axis_factors: [
-                Float::from_bits(0x45000000),
-                Float::from_bits(0x45000000),
-                Float::from_bits(0x45000000),
-                Float::from_bits(0x44800000),
-                Float::from_bits(0x44800000),
-                Float::from_bits(0x44800000),
+                Float::new(2048.0),
+                Float::new(2048.0),
+                Float::new(2048.0),
+                Float::new(1024.0),
+                Float::new(1024.0),
+                Float::new(1024.0),
             ],
-            halves: [const { Float::from_bits(0x3F000000) }; 6],
+            halves: [const { Float::new(0.5) }; 6],
             unread_rhw: Dword::new(0x43800000),
             setup_places: [
                 Dword::new(0x3DE80000),
@@ -358,19 +316,15 @@ impl WindscreenFlakeState {
                 Dword::new(0x3D840000),
             ],
             fade: Dword::new(0x10),
-            far: Float::from_bits(0x44800000),
-            tile_offset_k: [
-                Float::from_bits(0x3D800000),
-                Float::from_bits(0x3B000000),
-                Float::from_bits(0x0),
-            ],
-            rate_constants: [Float::from_bits(0x3DCCCCCD), Float::from_bits(0x0)],
-            share_k: Float::from_bits(0x47800000),
+            far: Float::new(1024.0),
+            tile_offset_k: [Float::new(0.0625), Float::new(0.001953125), Float::new(0.0)],
+            rate_constants: [Float::new(0.1), Float::new(0.0)],
+            share_k: Float::new(65536.0),
             spawn_random: Dword::new(0x0),
             pick_random: Dword::new(0x0),
             _gap_8bc25a: Bytes::new([0; 4]),
-            scaled_setting: Float::from_bits(0x41200000),
-            unread_limit: Float::from_bits(0x4248001A),
+            scaled_setting: Float::new(10.0),
+            unread_limit: Float::new(50.0001),
         }
     }
     pub const START: usize = 0x8BC18A;

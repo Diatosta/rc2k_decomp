@@ -1,4 +1,4 @@
-//! `race::loadlevel_init`'s "reloadobjects" (IDA, 2026-10-16): the object slots' kinds
+//! `race::loadlevel_init`'s "reloadobjects": the object slots' kinds
 //! (the cars' three each), the objects loaded, and each car's collision points: its
 //! points (12 bytes: x, y, z, whole numbers) sorted by four quicksorts of the original's
 //! own (each step of theirs kept: the left side moves one place a pass, keys compared
@@ -131,7 +131,7 @@ pub fn set_up_car_points(
             for n in 0..count {
                 let p = points + n * 12;
                 for (k, list) in lists.into_iter().enumerate() {
-                    // The original goes through `dword_62400C` for each `fild`.
+                    // The original goes through `scratch` for each `fild`.
                     let c = crate::scene::object_points::word(p + 4 * k as u32)?;
                     scene.drawing.scene.scratch.set(c);
                     list[n as usize].set_bits(rc2k_core::race::cars::point_float(c, scale));
@@ -157,7 +157,7 @@ pub fn set_up_car_points(
 }
 
 /// `race::set_object_kinds` (0x425BB4): `scene::clear_slot_kinds`, the eight fixed kinds at
-/// 0x609294, slots 1 .. 0x3F of `g_slotKinds` from `dword_6091B4`, `dword_5CCF7C` = `dword_621844`;
+/// 0x609294, slots 1 .. 0x3F of `g_slotKinds` from `slot_kind_defaults`, `dword_5CCF7C` = `kept_kind`;
 /// with cars, each car's three kinds (its `known_kind`, `car_kind_11`, `car_kind_10` of its block's
 /// +0x24) at slots 0x50 + 0x14 * n, +11, +10; the objects loaded; each car's points set up. Refuses
 /// more than the eight cars' blocks.
@@ -165,7 +165,7 @@ pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
     let course = &race.course;
     // Converted: `rc2k_core::race::stage_objects::{FIXED_KINDS, DEFAULT_SLOTS, CAR_KINDS,
     // car_slot, check_object_cars}` (each car's slots one step on from the first's, as the
-    // original counts edi).
+    // original counts them).
     use rc2k_core::race::stage_objects::{
         CAR_KINDS, CAR_SLOT_STEP, CarKind, DEFAULT_SLOTS, FIRST_CAR_SLOT, FIXED_KINDS, car_slot,
         check_object_cars,
@@ -182,7 +182,7 @@ pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
         };
         scene.objects.tables.slot_kinds[n as usize].set(default);
     }
-    // `dword_5CCF7C` = `dword_621844`.
+    // `dword_5CCF7C` = `kept_kind`.
     scene.objects.tables.slot_kinds[64].set(race.shared.switches.kept_kind.get());
     let cars: u32 = race.shared.view.race_cars.get();
     if cars == 0 {

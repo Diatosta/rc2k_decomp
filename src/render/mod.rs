@@ -74,7 +74,7 @@ static GPU_HOLDS_FRAME: AtomicBool = AtomicBool::new(false);
 
 /// Draws the commands on the backend that holds the frame.
 pub fn draw(target: &Target, commands: Vec<Command>) {
-    let in_race = race().course.numbers.in_race.get() != 0;
+    let in_race = race().course.numbers.in_race.is_set();
     if target.bits == 32 && in_race {
         let mut gpu = gpu::GPU.lock().unwrap();
         if let Some(gpu) = gpu.as_mut() {
@@ -121,7 +121,7 @@ pub fn finish_frame(
     if !GPU_HOLDS_FRAME.load(Relaxed) {
         return None;
     }
-    if course.numbers.in_race.get() == 0 {
+    if !course.numbers.in_race.is_set() {
         give_frame_back(target);
         return None;
     }
@@ -145,7 +145,7 @@ pub fn show_on_panel(
     height: usize,
 ) -> bool {
     gpu::start_if_wanted();
-    if GPU_HOLDS_FRAME.load(Relaxed) && course.numbers.in_race.get() == 0 {
+    if GPU_HOLDS_FRAME.load(Relaxed) && !course.numbers.in_race.is_set() {
         give_frame_back(target);
     }
     let mut gpu = gpu::GPU.lock().unwrap();

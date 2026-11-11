@@ -1,21 +1,21 @@
 //! The two "edit a camera" actions of the replay viewer, and the camera changes they lead
-//! to (IDA 2026-10-19):
+//! to:
 //! - `race::edit_camera_1` (0x41E599), `race::edit_camera_2` (0x41E5BA): the replay kept
-//!   for an undo (`race::keep_undo`); unless the block shown (`dword_5C2530`) is the last
-//!   (`dword_5BECD0`), `dword_96E480` 1 or 2: the keys then change that camera.
+//!   for an undo (`race::keep_undo`); unless the block shown (`replay_block`) is the last
+//!   (`index_block_count`), `camera_edit` 1 or 2: the keys then change that camera.
 //! - `race::next_camera` (0x41E5EB), `race::previous_camera` (0x41E654): unless the block
-//!   shown is the last, its camera byte `dword_96E480 - 1` (`unk_963BB3[edit + block * 8]`)
+//!   shown is the last, its camera byte `camera_edit` - 1` (`unk_963BB3[edit + block * 8]`)
 //!   one on (past 0x2E back to 0) or back (below 0 to 0x2E), skipping the cameras whose
 //!   name (`word_5C291C`) is 0x1C1 or 0x1C2 unless the replay is one player's
-//!   (`dword_719B34` 1) with a first car outside 0x17 .. 0x20; then the change spread on
+//!   (`header_one_player` 1) with a first car outside 0x17 .. 0x20; then the change spread on
 //!   (`race::spread_camera`, dh the old value).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::replay_work_store::REPLAY_WORK;
 
-/// `edit_camera_1` / `_2` (eax the block shown is left; its caller, `viewer_action`,
-/// keeps every register).
+/// `edit_camera_1` / `_2` (the block shown is left in the original's result; its caller, `viewer_action`,
+/// ignores it).
 pub fn edit_camera(race: &Race, camera: u32) {
     let replay = &race.replay;
     // Converted: `rc2k_core::race::viewer_flow::edits_camera`.

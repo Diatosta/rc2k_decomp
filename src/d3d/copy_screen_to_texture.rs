@@ -1,7 +1,7 @@
-//! `d3d::copy_screen_to_texture` (0x455D38): while `dword_6415E0` is set (the view's
-//! mirror picture wanted, from its block's +0x6F0), the back surface (`g_backSurface`)
-//! copied into the mirror picture's system texture (`dword_624234`, its record's surface
-//! +0x14) by DirectDraw's `Blt` without rectangles (stretched to the texture).
+//! `d3d::copy_screen_to_texture` (0x455D38): while the frame's `mirror_wanted` is set (the
+//! view's mirror picture wanted), the back surface is copied into the mirror picture's
+//! system texture (its record's surface +0x14) by DirectDraw's `Blt` without rectangles
+//! (stretched to the texture).
 //!
 //! Caller: `race::draw_race_scene` (one view). Platform: the original always runs. In the
 //! standalone program the screen is copied into the texture's memory of ours

@@ -1,9 +1,9 @@
 //! `input::yes_no_key` (0x407D71): says whether a key answers a yes/no question.
 //!
-//! Takes: the key, if `dword_4F7FD8` is 1; otherwise it takes the pending key itself
+//! Takes: the key, if `yes_no_key_given` is 1; otherwise it takes the pending key itself
 //! The key becomes a character through `key_to_char_for_text` (the keyboard file's first
-//! layout in place for the call when the layout mode (`byte_4F07D2`) is 2), is made lower case with the table at
-//! `byte_4F0BC8`, and is compared with the first character of strings 0xC3, 0xC4 and 0xC5 in
+//! layout in place for the call when the layout mode (`layouts`) is 2), is made lower case with the lower-case
+//! table (`g_lowerCase`), and is compared with the first character of strings 0xC3, 0xC4 and 0xC5 in
 //! turn. Each string is built at the start of the shared text buffer without a NUL, so an
 //! empty one is "compared" through whatever was there.
 //! Two callers: `yes_no_for_key` and `drive::quit_question`.
@@ -23,7 +23,7 @@ pub const YES: u32 = 1;
 pub const NO: u32 = u32::MAX;
 pub const THIRD: u32 = 2;
 
-/// The answer a key gives. `eax` is the register as the original has it: the key in its low
+/// The answer a key gives. `eax` is the key word: the key in its low
 /// byte, and 0 as a whole means no key.
 pub fn answer_for_key(eax: u32) -> Result<u32, BadInput> {
     if eax == 0 {

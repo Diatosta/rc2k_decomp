@@ -1,5 +1,5 @@
 //! The car's probe points against the course's walls and edges, and its wheels on the
-//! ground (converted 2026-10-21 from `physics::wall_contacts` 0x45D7B6,
+//! ground (converted from `physics::wall_contacts` 0x45D7B6,
 //! `wall_edge_contact` 0x45DA14, `crossed_edge_contact` 0x45DC3E, `crossed_edge`
 //! 0x45D737, `feel_ground` 0x43F1A8 and `count_ground_probe` 0x438E22; their x87 steps,
 //! the edge's heading and the contact's force, stay the hooks'). A face's word +2 has
@@ -9,13 +9,13 @@
 use crate::Invalid;
 use crate::physics::faces::has_edge;
 
-/// The probe tables' room (0x40 points: `unk_71AAC8` .., `dword_6D1E14` ..).
+/// The probe tables' room (0x40 points: `probe_point_x` .., `probe_x` ..).
 pub const PROBE_ROOM: u32 = 0x40;
 
 /// The wall bits of a face's word +2.
 pub const WALL_BITS: u32 = 0xC00;
 
-/// No probe point crossed an edge (`dword_6D3B84`).
+/// No probe point crossed an edge (`crossed_probe`).
 pub const NONE_CROSSED: u32 = u32::MAX;
 
 /// A probe point the tables hold.
@@ -26,7 +26,7 @@ pub fn check_probe(n: u32) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// `physics::wall_contacts`' probe count (`unk_71A238`): 1 ..= 0x40 (the original's loop
+/// `physics::wall_contacts`' probe count (`probe_count`): 1 ..= 0x40 (the original's loop
 /// runs on past 0 and reads past the tables beyond 0x40).
 pub fn check_probe_count(n: u32) -> Result<(), Invalid> {
     if n == 0 || n > PROBE_ROOM {
@@ -73,7 +73,7 @@ pub fn walk<E>(count: u32, mut probe: impl FnMut(u32) -> Result<ProbeFaces, E>) 
 /// `physics::wall_edge_contact`: the wall's edges (its corners +4 .. +0x10, `wall(0 ..
 /// 4)`, read as the original reads them) (p1, p2), (p3, p1), (p4, p3), (p2, p4) looked
 /// for in the other face's corners (`face_has_edge`): (whether one is shared, the last
-/// edge tried (its ends, the original's eax and ebx)).
+/// edge tried (its ends)).
 pub fn shared_edge(wall: impl Fn(usize) -> u32, other: [u32; 4]) -> (bool, u32, u32) {
     let mut last = (0, 0);
     for (a, b) in [(0, 1), (2, 0), (3, 2), (1, 3)] {
@@ -87,7 +87,7 @@ pub fn shared_edge(wall: impl Fn(usize) -> u32, other: [u32; 4]) -> (bool, u32, 
 
 /// `physics::crossed_edge_contact`: which side of a probe's path (from `before` to `now`,
 /// whole-number x, z) a corner lies: (the first product (now z - before z)(x - before x),
-/// which the original keeps in `qword_620460`; the second (now x - before x)(z - before
+/// which the original keeps in `product`; the second (now x - before x)(z - before
 /// z) less it). Each difference a 32-bit `sub` taken as signed, each product 64 bits.
 pub fn path_side(before: (u32, u32), now: (u32, u32), corner: (u32, u32)) -> (i64, i64) {
     let d = |a: u32, b: u32| i64::from(a.wrapping_sub(b) as i32);
@@ -116,7 +116,7 @@ pub fn crossed_edge(mut ahead: impl FnMut(usize) -> bool) -> (u32, u32) {
     }
 }
 
-/// The hardest hit of the step (`unk_71A208`) raised to a contact's size (`flt_6D3108`):
+/// The hardest hit of the step (`contact_depth`) raised to a contact's size (`contact_speed_length`):
 /// |hit| when it is not below the kept one (`fabs`, `fcomp`; unordered: kept).
 pub fn raised_hit(hit: f32, kept: f32) -> Option<f32> {
     (hit.abs() >= kept).then_some(hit.abs())
@@ -126,11 +126,11 @@ pub fn raised_hit(hit: f32, kept: f32) -> Option<f32> {
 /// ground dwords (0 off).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WheelsOff {
-    /// `dword_71A220`: the first two off.
+    /// `front_wheels_off`: the first two off.
     pub front: bool,
-    /// `dword_71A224`: the last two off.
+    /// `rear_wheels_off`: the last two off.
     pub back: bool,
-    /// `dword_71A22C`: all four off.
+    /// `all_wheels_off`: all four off.
     pub all: bool,
 }
 
@@ -145,7 +145,7 @@ impl WheelsOff {
         }
     }
 
-    /// `dword_71A228`: the driven wheels off (the first two, or all four with the drive
+    /// `driven_wheels_off`: the driven wheels off (the first two, or all four with the drive
     /// kind not 0).
     pub fn driven(self, drive_kind: u32) -> bool {
         if drive_kind != 0 {
@@ -157,7 +157,7 @@ impl WheelsOff {
 }
 
 /// The camera's ground statistics (`physics::count_ground_probe`): probes
-/// (`dword_608C3C`), found (`dword_608C40`), found on the last face again (`dword_608C44`).
+/// (`ground_probes`), found (`ground_found`), found on the last face again (`ground_same`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ProbeCounts {
     pub tries: u32,
@@ -171,8 +171,8 @@ impl ProbeCounts {
         self.tries = self.tries.wrapping_add(1);
     }
 
-    /// The search's end: found, and then whether the last face (`dword_5CCC78`) is the
-    /// one found (`dword_5CCC74`).
+    /// The search's end: found, and then whether the last face (`ground_face_last`) is the
+    /// one found (`ground_slot`).
     pub fn searched(&mut self, found: bool, last: u32, now: u32) {
         if found {
             self.found = self.found.wrapping_add(1);

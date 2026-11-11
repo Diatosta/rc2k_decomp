@@ -11,8 +11,7 @@
 use crate::errors::Refused;
 
 /// The time text at `text` in `font` at (`x`, `y`).
-/// The flags the original leaves are read by neither caller (register liveness,
-/// 2026-10-23: after the two calls DF, ebp, ebx/edi, edx, esi, all kept).
+/// The flags the original leaves are read by neither caller.
 pub fn draw_time_text(
     font: impl Into<crate::gfx::typefaces::FontRef>,
     text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),

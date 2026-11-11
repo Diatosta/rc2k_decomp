@@ -1,7 +1,7 @@
 //! `net::begin_setting_edit` (0x416C26): Enter on a setting of the settings screen starts
 //! its editing (`net::begin_edit`, width 0x30C, `palette`): item 1 the player's name
-//! (`g_machineName`), item 3 the host's address (`unk_52ABE4`), item 2 the most players as
-//! a text (`strings::format_u32` of `dword_52ABD0` into `byte_95E8F8`); any other nothing.
+//! (`g_machineName`), item 3 the host's address (`host_address`), item 2 the most players as
+//! a text (`strings::format_u32` of `most_players` into `path_a`); any other nothing.
 //!
 //! Takes nothing (the item is `g_listChoice`).
 //! Caller: `net::settings_loop`.

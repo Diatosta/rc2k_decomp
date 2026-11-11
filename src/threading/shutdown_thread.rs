@@ -1,4 +1,4 @@
-//! `threading::shutdown_thread` (0x410C17): the routine of thread slot 3 (`stru_518824`),
+//! `threading::shutdown_thread` (0x410C17): the routine of thread slot 3,
 //! started by `threading::request_quit`: "SHUTDOWN:START" logged, the slot's +0xC 1 (in
 //! its work), the other threads waited for (`threading::wait_for_threads`), "SHUTDOWN:wfmo
 //! rc=" and the wait's result (8 hex digits) logged, the window (`hWnd`, if any) asked to
@@ -9,9 +9,8 @@
 //!
 //! No callers: `CreateThread`'s (`start_slot_thread`, through `routes.rs`: the slot holds
 //! the routine's address), and a fatal error on this thread enters it again
-//! (`fatal::report`'s `jmp [esi]`). In the standalone the window's handle is 0 and nothing
-//! was posted: since phase 11 the post is gone (the window is SDL's; the quit switch ends
-//! its loop). The registers above are the original's, for reference.
+//! (`fatal::report`'s jump to the slot's routine). In the standalone the window is SDL's and
+//! nothing is posted; the quit switch ends its loop.
 
 use crate::logfile::write_line::log_text;
 

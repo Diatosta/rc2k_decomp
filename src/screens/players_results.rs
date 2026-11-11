@@ -1,6 +1,6 @@
 //! The players' stage results pages (`screens::draw_players_results_points` with the points column,
 //! `screens::draw_players_results` without; stream A, part F1, 2026-10-18). Both draw the same
-//! columns, one loop over the rows each (rows in the order `dword_758720` .. `dword_75872C`, byte
+//! columns, one loop over the rows each (rows in the order `results.order` .. the fourth ranked offset, byte
 //! offsets into `g_players`,
 //! 0x17 apart from y 0xFE), shifted 0x1E right on `screens::draw_players_results`'s page; their
 //! differences are
@@ -10,9 +10,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::captions_store::CaptionTables;
+use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::menu::owner::Screens;
-use crate::menu::owner::{Menus, menus};
 use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
@@ -28,13 +28,13 @@ fn offset(play: &Play, row: usize) -> u32 {
 }
 
 /// The row's player record, refused for an offset past the four or a missing record or name.
-fn player(row: usize) -> Result<crate::menu::standings::PlayerCell, Refused> {
-    let play = &menus().play;
+fn player(menus: &Menus, row: usize) -> Result<crate::menu::standings::PlayerCell<'_>, Refused> {
+    let play = &menus.play;
     let o = offset(play, row);
     if o >= 16 || !o.is_multiple_of(4) {
         return Err(BadInput("a row's offset past g_players' four").into());
     }
-    let p = &menus().play.players.players[(o / 4) as usize];
+    let p = &play.players.players[(o / 4) as usize];
     if p.get().name_player().is_none() {
         return Err(BadInput("a row's player without its name").into());
     }
@@ -67,8 +67,8 @@ fn records(screens: &Screens) -> Result<(RecordTable, RecordRef), BadInput> {
 }
 
 /// The rows' players, the section's first record, the stage line and the speeds.
-struct Prepared {
-    players: Vec<crate::menu::standings::PlayerCell>,
+struct Prepared<'a> {
+    players: Vec<crate::menu::standings::PlayerCell<'a>>,
     base: RecordTable,
     stage: Vec<u8>,
     speeds: Vec<Vec<u8>>,
@@ -76,9 +76,11 @@ struct Prepared {
 
 /// What the page needs, checked before anything is written: the rows' players (and points),
 /// the stage line, the speeds (3 .. 0x80 characters for `draw_spaced_number`).
-fn prepare(menus: &Menus, layout: &Layout) -> Result<Prepared, Refused> {
+fn prepare<'a>(menus: &'a Menus, layout: &Layout) -> Result<Prepared<'a>, Refused> {
     let n = rows(menus, layout);
-    let players = (0..n).map(player).collect::<Result<Vec<_>, _>>()?;
+    let players = (0..n)
+        .map(|row| player(menus, row))
+        .collect::<Result<Vec<_>, _>>()?;
     if layout.points {
         for row in 0..n {
             points_at(menus, &menus.play, row)?;

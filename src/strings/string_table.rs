@@ -36,8 +36,7 @@ pub fn ptr_low(id: u32) -> Result<u32, BadInput> {
     table_entry(PTRS_LOW, id)
 }
 
-/// Where `strings::compile_lexicon` puts the table, and its room: out of the image since
-/// 2026-10-24 (phase 5; it was `g_lexicon`, 0x4E07F8 .. the keyboard file at 0x4F07C8).
+/// Where `strings::compile_lexicon` puts the table, and its room (`g_lexicon` in IDA, 0x4E07F8 .. the keyboard file at 0x4F07C8).
 pub const LEXICON_ROOM: usize = rc2k_core::strings::lexicon::TABLE_ROOM;
 pub static LEXICON: crate::session::Bytes<LEXICON_ROOM> =
     crate::session::Bytes::new([0; LEXICON_ROOM]);

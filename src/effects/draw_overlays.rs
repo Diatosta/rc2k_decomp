@@ -28,7 +28,7 @@ fn shadow_refuses(effects: &crate::effects::owner::Effects) -> Option<Refused> {
     if effects.setup.settings.is_set.get() == 0 {
         return Some(BadInput("no marks settings").into());
     }
-    SECOND.angle_refuses()
+    SECOND.angle_refuses(effects)
 }
 
 pub fn draw_overlays(

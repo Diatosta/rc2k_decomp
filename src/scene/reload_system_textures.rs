@@ -15,7 +15,7 @@
 //! Two callers. Refuses no system textures (the original goes through 2^32) or more than 0x400,
 //! and a first texture past the table.
 //!
-//! Converted 2026-10-21: the kinds' pictures and the read sizes through
+//! The logic is in the core crate: the kinds' pictures and the read sizes through
 //! `rc2k_core::scene::pictures`.
 
 use crate::errors::{BadInput, Refused};
@@ -40,11 +40,6 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 
 // ---- Rust version ----
 
-/// The Rust version. The registers the original leaves (those of `load_hud_car_icons`) are
-/// read by no caller (taint at the site in `race::set_all_plates`: 0 read points; the other
-/// is the game's own code, 0x443478, not Rust). It reads no register at entry but edi,
-/// esi (for `load_changed_texture_picture` and `step_loading_bar`, which set them
-/// themselves).
 // Converted: `rc2k_core::scene::pictures::{kind_picture, read_size}`
 pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let gfx_grading = &gfx().grading;

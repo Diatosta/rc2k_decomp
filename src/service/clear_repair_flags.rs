@@ -1,5 +1,5 @@
 //! `service::clear_repair_flags` (0x470DC3): sets every entry of the flag table
-//! (`dword_759B6E`) to 0, up to its -1 end mark: nothing is chosen any more.
+//! (`inspection_flags_a`) to 0, up to its -1 end mark: nothing is chosen any more.
 //!
 //! The first entry is cleared without being checked for the end mark, as in the original. Refuses a
 //! table whose end mark is not where it belongs.

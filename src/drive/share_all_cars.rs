@@ -1,6 +1,6 @@
 //! `drive::share_all_cars` (0x456484): `drive::keep_lead_car_values`, `drive::set_listener`, then
 //! for each of the eight cars (`g_currentCar` = n) `drive::share_car_state` with its block, its
-//! record (`off_71B3D8[n]`) and its sound object (`g_raceSoundObjects[n]`); then `dword_5C5688` = 1
+//! record (`car_records`[n]`) and its sound object (`g_raceSoundObjects[n]`); then `sound_objects_shown` = 1
 //! when `dword_70F410` is not 0x21 and the first record's +0x258 is 10 or more (else 0); then
 //! `drive::put_back_lead_car_values`.
 //!

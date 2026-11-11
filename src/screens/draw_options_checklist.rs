@@ -1,9 +1,9 @@
 //! `screens::draw_options_checklist` (0x47DEA2): a player's options page: its title (string
-//! 0x190, a space and the player's number, in `byte_A8BC54`) at (0x190, 0x14), the page's
+//! 0x190, a space and the player's number, in the cells text buffer) at (0x190, 0x14), the page's
 //! lines (strings 0x524 .. 0x531 at x 0x190 / 0x186, three fonts), the slider (`gfx::blit_bar`
-//! at (0x128, 0x1E3), 0xD0 wide, `dword_75AC80` percent) with its knob and two labels, and a
-//! tick or cross per option (`dword_759C76` .., -1 ends them; sprite 0x9E + (value ^ 1), its
-//! palette the same value) at x 0x190 from y 0x82 every 0x1B (`dword_7559EC`, `hhmm` the
+//! at (0x128, 0x1E3), 0xD0 wide, the inspection score percent) with its knob and two labels, and a
+//! tick or cross per option (the inspection fault flags .., -1 ends them; sprite 0x9E + (value ^ 1), its
+//! palette the same value) at x 0x190 from y 0x82 every 0x1B (`draw_work.figure`, `hhmm` the
 //! glyph, `g_markerX` 0x190).
 //!
 //!

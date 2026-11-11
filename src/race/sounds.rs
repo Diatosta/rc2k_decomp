@@ -1,4 +1,4 @@
-//! The race's sound objects woken at the loading (IDA, 2026-10-15): `off_512A10`, eight
+//! The race's sound objects woken at the loading: `off_512A10`, eight
 //! pointers to the cars' sound objects (`sound::load_race_sounds`), each with a flag at +8.
 
 use crate::errors::{BadInput, Refused};
@@ -32,8 +32,8 @@ pub fn start_race_sounds(sound: &crate::sound::owner::Sound) -> Result<(), Refus
     Ok(())
 }
 
-/// `race::wake_car_sounds` (0x45D255): nothing while `dword_71C3E0` is set; else each car's object
-/// (`dword_63DB90` of them, the table taken round its eight) woken, then `race::start_race_sounds`.
+/// `race::wake_car_sounds` (0x45D255): nothing while `in_credits` is set; else each car's object
+/// (`race_cars` of them, the table taken round its eight) woken, then `race::start_race_sounds`.
 /// Refuses 0x10000 cars or more (the original counts on to them).
 pub fn wake_car_sounds(race: &Race) -> Result<(), Refused> {
     let sound = crate::sound::owner::sound();

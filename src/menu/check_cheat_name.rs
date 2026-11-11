@@ -37,7 +37,7 @@ pub fn check_cheat_name(menus: &Menus) -> Result<(), Refused> {
     let play = &menus.play;
     let name = crate::menu::player_names::name_ptr(
         menus,
-        crate::menu::player_names::name_of(&crate::menu::standings::player(3).get())?,
+        crate::menu::player_names::name_of(&crate::menu::standings::player(menus, 3).get())?,
     );
     let coded = rot13_into_text(name)?;
     let Some((_found, bit)) = find(play, &coded)? else {

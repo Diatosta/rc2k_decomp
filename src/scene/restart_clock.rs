@@ -7,7 +7,7 @@
 
 use crate::race::owner_shared::RaceShared;
 
-/// The clock set to `now`; eax.
+/// The clock set to `now`.
 pub fn restart_clock(shared: &RaceShared, now: u32) -> u32 {
     shared.physics_tables.scene_clock.set(now);
     now

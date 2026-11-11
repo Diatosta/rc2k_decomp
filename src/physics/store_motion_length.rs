@@ -1,5 +1,5 @@
-//! `physics::store_motion_length` (0x43BD2D): `dword_71A19C` = the length of the three
-//! floats at `dword_71A170` (`physics::vector_length`, then `fstp`: rounded to a float).
+//! `physics::store_motion_length` (0x43BD2D): `speed` = the length of the three
+//! floats at `velocity` (`physics::vector_length`, then `fstp`: rounded to a float).
 //! Both are the work copy's (+0x198, +0x1C4); that the vector is the car's motion is a
 //! reading (it sits next to `g_carSpeed`), not seen.
 //!

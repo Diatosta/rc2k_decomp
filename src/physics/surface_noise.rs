@@ -1,17 +1,13 @@
-//! `physics::surface_noise` (0x43BC68): the ground's roughness under the work car from two
-//! noise maps (`race::sample_noise`, esi `unk_A2AB34` and `unk_A2AB04`): each sample
-//! scaled into its range (lo + (hi - lo) x it >> 16, `imul` / `shrd`: `qword_609344` and
-//! `dword_60AD18` .. `1C`) and held to 0 ..= 0xFF (by the sign). The first into +0x900 and
-//! +0x904; the second into +0x908, and at least `dword_60AD10` (unsigned) through
-//! `dword_62400C`, / 256 into +0x280 (`unk_71A258`). Then with `dword_60934C` set +0x900
-//! 0, else +0x904 0.
+//! `physics::surface_noise` (0x43BC68): the ground's roughness under the work car from two noise
+//! maps (`race::sample_noise`): each sample is scaled into its range (lo + (hi - lo) x it >> 16:
+//! `blit_cleared` and `surface_scale`) and held to 0 ..= 0xFF (by the sign). The first goes into
+//! `surface_noise_a` and `surface_noise_b`; the second into `surface_noise_second`, and at least
+//! `surface_floor` (unsigned), / 256, into `surface_blend`. Then with `noise_pick` set
+//! `surface_noise_a` becomes 0, else `surface_noise_b`.
 //!
-//! Caller: `physics::car_physics_step` (0x43B714), every physics step.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Caller: `physics::car_physics_step`, every physics step.
 
-use crate::math::x87_run::{ext_div2, int_80};
+use crate::math::x87::{ext_div2, int_80};
 use crate::race::frame_draw::sample_noise;
 use crate::race::owner::Race;
 use rc2k_core::physics::ground::{noise_level, rough_floor};
@@ -22,7 +18,7 @@ fn scaled(sample: u32, lo: u32, hi: u32) -> u32 {
 }
 
 /// The noise map `x` bytes into `g_noiseBytes`: its sample under the work car (what
-/// `race::sample_noise` leaves in eax).
+/// `race::sample_noise` returns).
 fn sample(
     shared: &crate::race::owner_shared::RaceShared,
     x: usize,

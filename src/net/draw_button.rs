@@ -1,17 +1,17 @@
-//! `net::draw_button` (0x416CE0): a button of the network screens: string eax measured
+//! `net::draw_button` (0x416CE0): a button of the network screens: the string measured
 //! (`text::measure_string_by_id` with `palette`), its frame drawn from the menu sprites
 //! (`g_spriteTable` glyphs 0x11, 0x12 once per 32 pixels of the width, at least once, and
 //! 0x13: `gfx::blit_glyph`), the string drawn on it (`text::draw_string_by_id`) in
-//! `unk_51E704`, or `unk_51E644` when it is the highlighted item (`g_listChoice`) and either
-//! being edited (`dword_52A4B8`) or in the blink's lit half (bit 3 of `dword_51D41F` -
-//! `dword_51D423` clear), or `stru_51E7C4` with flag 2.
+//! `typefaces::BUTTON`, or `typefaces::BUTTON_LIT` when it is the highlighted item
+//! (`g_listChoice`) and either being edited (`edited`) or in the blink's lit half (bit 3
+//! of the frame clock, with the move clock clear), or `typefaces::BUTTON_DIM` with flag 2.
 //!
 //! Takes the string, the flags (1: the frame centred on x, else ending half its width left of x
 //! and the text centred too; 2: the dim font), x, y and the item.
-//! The arguments are kept in `dword_5AB490` .., the width in `dword_5AB4A0`, the frame's
-//! tiles in `dword_5AB4A4`. The blits get ebx as the measuring and the blits before leave
-//! it (the sprites are drawn as they are). Callers: `net::setting_label`,
-//! `net::lobby_button`.
+//! The arguments are kept in the button's variables (`text`, flags, ..), the width in
+//! `width`, the frame's tiles in `tiles`. The blits get the measuring register as the
+//! measuring and the blits before leave it (the sprites are drawn as they are). Callers:
+//! `net::setting_label`, `net::lobby_button`.
 
 use crate::errors::Refused;
 use crate::net::lobby::PALETTE;

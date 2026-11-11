@@ -1,19 +1,18 @@
-//! `menu::run_event_races` (0x473126): an event's races. `dword_75592C` 1 (the event goes
-//! on), `dword_75ACF0` the cheat bit 0x12, `dword_7554C8` 0; the computer drivers' times
+//! `menu::run_event_races`: an event's races. `event_goes_on` is set to 1, the cheat bit 0x12
+//! is copied for the race, the kept value is cleared; the computer drivers' times
 //! (`menu::calc_cpu_times`); eight drivers picked by lot (of the first 0xB2) get 0x4844
 //! plus a random number under 3000 added to their +0xC and +0x10; one to four drivers by
 //! lot still running (+0x24 1) drop out (+0x24 4, +0xC and +0x10 0x36EE8A). With
-//! `dword_755250` 1 the players' times are reset (`menu::reset_player_times`); otherwise
+//! `reset_times` set the players' times are reset (`menu::reset_player_times`); otherwise
 //! standings table A from the drivers (`menu::standings_from_drivers`), sorted by time,
-//! the summary copied (`menu::copy_standings_summary`), `dword_75ACD0` the summary table
-//! and `dword_75ACD4` the record's track pack entry's +0x34; then by the event mode
-//! (`dword_755988`):
-//! - 9, 0xE: one race (`race::single_rally_race`, eax 0, ebx 1); a result
-//!   (`dword_75B028`) of -1 ends the event (`dword_75592C` 0).
-//! - 0xA, 0xF: the same with `dword_75ACE4` `dword_7554C8` (0xA: before and after), the
-//!   result and `dword_75B098` both -1 ending it.
+//! the summary copied (`menu::copy_standings_summary`), the race's summary table and the
+//! record's track pack entry's +0x34 kept; then by the event mode (`event_kind`):
+//! - 9, 0xE: one race (`race::single_rally_race`, eax 0, ebx 1); a result of -1 ends the
+//!   event (`event_goes_on` cleared).
+//! - 0xA, 0xF: the same with the kept value (0xA: before and after), the result and the
+//!   second result both -1 ending it.
 //! - 0xB, 0x10 (two players), 0xC, 0x11 (three), 0xD, 0x12 (four): each player
-//!   (`dword_75598C`) taking part (+0xD0 1) races, eax 1 when the next one takes part
+//!   (`current_player`) taking part (+0xD0 1) races, eax 1 when the next one takes part
 //!   (`menu::player_entered`), 0 for the last; a result of -2 resets the players' times,
 //!   sets the front end up again (`menu::reload_front_end`) and stops; one not taking
 //!   part counts -1; all -1 ends the event (0xD also gives the fourth player +0x88
@@ -29,34 +28,34 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::event_flow::Fault;
 use crate::menu::owner::Menus;
-use crate::menu::owner::menus;
 use crate::menu::standings::*;
 use crate::race::owner::race;
 use crate::session::Dword;
 use rc2k_core::menu::event_races::{self as races, PICKED, Step, Var};
 
-const GOES_ON: &Dword = &crate::menu::owner::MENUS.screens.event.event_goes_on; // dword_75592C
+const GOES_ON: &Dword = &crate::menu::owner::MENUS.screens.event.event_goes_on;
 const CHEATS: &Dword = &crate::menu::owner::MENUS.play.cheats.cheats; // g_cheats
-const KEPT: &Dword = &crate::menu::owner::MENUS.screens.flow.kept; // dword_7554C8
-const CURRENT: &Dword = &crate::menu::owner::MENUS.screens.event.current_player; // dword_75598C
+const KEPT: &Dword = &crate::menu::owner::MENUS.screens.flow.kept;
+const CURRENT: &Dword = &crate::menu::owner::MENUS.screens.event.current_player;
 
 /// The game for `rc2k_core::menu::event_races`: the variables at their addresses, the
 /// steps' Rust versions, the race and the front end.
-struct Game {
+struct Game<'a> {
+    menus: &'a Menus,
     /// The walked drivers.
-    drivers: &'static [Driver],
+    drivers: &'a [Driver],
     /// The stage's track pack entry.
     pack: crate::records::trakpak_entry::Track,
     /// The driver `running` last asked about (the one `drop_out` drops).
-    asked: Option<&'static Driver>,
+    asked: Option<&'a Driver>,
     /// A refused read or write of the core's variables (checked at each step and at the end).
     fault: Fault,
 }
 
-impl Game {
+impl<'a> Game<'a> {
     /// Driver `k` of the walked ones; past them a refusal kept for the next check (the core
     /// picks under `PICKED`, which `run_event_races` checks the walk reaches).
-    fn driver(&self, k: u32) -> Option<&'static Driver> {
+    fn driver(&self, k: u32) -> Option<&'a Driver> {
         let d = self.drivers.get(k as usize);
         if d.is_none() {
             self.fault
@@ -81,7 +80,7 @@ fn cell(v: Var) -> &'static Dword {
     }
 }
 
-impl races::EventRaces for Game {
+impl races::EventRaces for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: Var) -> u32 {
@@ -94,11 +93,11 @@ impl races::EventRaces for Game {
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
         let race = race();
-        let menus = menus();
+        let menus = self.menus;
         let screens = &menus.screens;
         self.fault.check()?;
         match s {
-            Step::CpuTimes => crate::menu::calc_cpu_times::calc_cpu_times(screens)?,
+            Step::CpuTimes => crate::menu::calc_cpu_times::calc_cpu_times(self.menus)?,
             Step::ResetPlayerTimes => {
                 crate::menu::reset_player_times::reset_player_times(menus)?;
             }
@@ -126,7 +125,7 @@ impl races::EventRaces for Game {
             }
             Step::ReloadFrontEnd => crate::menu::reload_front_end::reload_front_end(menus)?,
             Step::ClearServiceSpent => {
-                crate::menu::clear_service_spent::clear_service_spent()?;
+                crate::menu::clear_service_spent::clear_service_spent(menus)?;
             }
         }
 
@@ -159,11 +158,11 @@ impl races::EventRaces for Game {
     }
 
     fn takes_part(&mut self, i: u32) -> bool {
-        player(i).get().entry == races::TAKES_PART
+        player(self.menus, i).get().entry == races::TAKES_PART
     }
 
     fn fourth_out(&mut self) {
-        player(3).update(|q| {
+        player(self.menus, 3).update(|q| {
             q.time = races::FOURTH_TIME;
             q.entry = races::FOURTH_ENTRY;
         });
@@ -172,7 +171,7 @@ impl races::EventRaces for Game {
 
 pub fn run_event_races(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let drivers = drivers()?;
+    let drivers = drivers(menus)?;
     let few_running = drivers.len() < PICKED as usize
         || drivers[..PICKED as usize]
             .iter()
@@ -190,9 +189,10 @@ pub fn run_event_races(menus: &Menus) -> Result<(), Refused> {
     }
     let reset_only = { menus.tables.pages.reset_times.get() } == 1;
     let rec = crate::menu::calc_cpu_times::record(screens)?;
-    crate::menu::calc_cpu_times::check(screens, rec)?;
+    crate::menu::calc_cpu_times::check(menus, rec)?;
     let pack = crate::records::trakpak_entry::track_of(rec)?;
     let mut game = Game {
+        menus,
         drivers,
         pack,
         asked: None,

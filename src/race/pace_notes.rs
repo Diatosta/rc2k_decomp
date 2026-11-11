@@ -1,11 +1,11 @@
-//! The pace notes (IDA 2026-10-19): the co-driver's calls, made at a stage's loading from
+//! The pace notes: the co-driver's calls, made at a stage's loading from
 //! codes kept in the checkpoints' faces ("init pacenotes", `race::init_pace_notes`
 //! 0x441A66) and handed out during the stage, checkpoint by checkpoint, as car events
 //! (`physics::pace_notes_step` 0x4417EC, `physics::queue_pace_note` 0x4418B3).
 //!
 //! Each checkpoint face holds eight slots of code (bytes +0x28, +0x29, +0x2A, +0x2B, +0x19,
-//! +0x1A, +0x1B, +0x20: `dword_614D14`); a place on the line is checkpoint x 8 + slot
-//! (`dword_614D34` the slot). A note runs from a code in 1 .. 0x63 other than 'b' (0x62) to
+//! +0x1A, +0x1B, +0x20: `pace_slot_offsets`); a place on the line is checkpoint x 8 + slot
+//! (`pace_slot` the slot). A note runs from a code in 1 .. 0x63 other than 'b' (0x62) to
 //! the next 'b' or 'd' (0x64). The tables (0x615E10 ..):
 //! - `dword_615E10` the notes' count plus one (entry 0 is the start: the first checkpoint
 //!   with face kind 2, +2), `dword_615E14` the groups' count;
@@ -82,9 +82,9 @@ impl Stage for GameStage {
         // The core asks only inside the course's window; a refusal here is kept for
         // `Machine::init` (the core's trait answers a byte).
         let read = crate::race::course_places::face_field::<u8>(
+            &crate::race::owner::race().course,
             at / 0x40,
             at % 0x40,
-            "a checkpoint face's byte",
         );
         match read {
             Ok(b) => b,

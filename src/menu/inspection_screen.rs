@@ -1,7 +1,7 @@
-//! `menu::inspection_screen` (0x4A1BBF): the inspection's screen shown: `dword_623FB0` /
-//! `dword_623FB4` 0 and `dword_624080` 0x100, the menu scene prepared
-//! (`scene::prepare_menu_scene`), the clip's screen edges 0 and 0x320 (`dword_6241DC` /
-//! `dword_6241E0` and, as floats, `g_clipScreenLeft` / `Right`), the background loaded
+//! `menu::inspection_screen` (0x4A1BBF): the inspection's screen shown: a scene work cell /
+//! a scene work cell 0 and a scene work cell 0x100, the menu scene prepared
+//! (`scene::prepare_menu_scene`), the clip's screen edges 0 and 0x320 (a scene work cell /
+//! a scene work cell and, as floats, `g_clipScreenLeft` / `Right`), the background loaded
 //! (`service::load_background`, 0x470F55; its carry not read), copied to the surface and
 //! the frame shown.
 

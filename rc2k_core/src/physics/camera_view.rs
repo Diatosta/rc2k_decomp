@@ -1,11 +1,11 @@
-//! The camera's view steps (converted 2026-10-21 from `physics::take_first_view` 0x437F53,
+//! The camera's view steps (converted from `physics::take_first_view` 0x437F53,
 //! `physics::take_second_view` 0x438024, `physics::ease_view_angles` 0x43846D,
 //! `physics::ease_view_blend` 0x4385EB, `physics::camera_height_bias` 0x43852D and
 //! `physics::ease_view_turn` 0x438B4F): a view's place, the share of a change done, the
 //! eased angles, turns, blend and height. The figures are the car block's camera fields
 //! (`Car::camera_view` the mode, `camera_position`, `camera_heading`, `camera_pitch`,
-//! `camera_offset_turns`, the shares) and the camera mode records' (`off_606320`) offsets and turns. The camera's step chooses (converted
-//! 2026-10-21 from `physics::update_camera` 0x437A53 and `physics::camera_frame`
+//! `camera_offset_turns`, the shares) and the camera mode records' (`view_records`) offsets and turns. The camera's step chooses (converted
+//! from `physics::update_camera` 0x437A53 and `physics::camera_frame`
 //! 0x44FF1B; their x87 sums stay the hooks'): the fixed cameras, the end of a switch,
 //! the modes the views' table holds, and when the camera shakes.
 //!
@@ -14,18 +14,18 @@
 
 use super::x87::{fistp64, hold_high, hold_low};
 
-/// The camera modes' records (`off_606320`): 0x34.
+/// The camera modes' records (`view_records`): 0x34.
 pub const MODES: u32 = 0x34;
 
-/// The mode (`unk_71A65C`) held to 0 ..= 0x33.
+/// The mode (`camera_view`) held to 0 ..= 0x33.
 pub fn mode_index(mode: u32) -> u32 {
     (mode as i32).clamp(0, MODES as i32 - 1) as u32
 }
 
 /// The share of a change done (0x438498 .. 0x4384BD): the time since its start
-/// (`unk_719FE0` - `unk_71A668`) held to 0 ..= the record's change time (+0x3C, by the
-/// sign, then unsigned): (the time held, the original's eax and kept in `dword_62400C`;
-/// over the change time, `flt_605260`).
+/// (`step_clock` - `camera_switch_clock`) held to 0 ..= the record's change time (+0x3C, by the
+/// sign, then unsigned): (the time held, kept in the scratch dword;
+/// over the change time, `view_share`).
 pub fn share_done(now: u32, start: u32, time: u32) -> (u32, f32) {
     let mut held = now.wrapping_sub(start);
     if (held as i32) < 0 {
@@ -38,12 +38,12 @@ pub fn share_done(now: u32, start: u32, time: u32) -> (u32, f32) {
 }
 
 /// `take_first_view` / `take_second_view`: the view's place (its record's +4 .. +0xC) plus the
-/// offset (`dword_637638` ..).
+/// offset (`camera_shake_x` ..).
 pub fn view_place(record: [f32; 3], offset: [f32; 3]) -> [f32; 3] {
     [0, 1, 2].map(|k| (record[k] as f64 + offset[k] as f64) as f32)
 }
 
-/// `take_first_view` / `take_second_view`: the two turns (`unk_71A99C`, `unk_71A9A0`), halved
+/// `take_first_view` / `take_second_view`: the two turns (`car_pitch`, `car_roll`), halved
 /// (`sar`) when `halve`.
 pub fn view_turns(turns: [u32; 2], halve: bool) -> [u32; 2] {
     if halve {
@@ -54,8 +54,8 @@ pub fn view_turns(turns: [u32; 2], halve: bool) -> [u32; 2] {
 }
 
 /// `ease_view_angles`: each of the record's three angle changes (+0x40 ..) times the
-/// share done and `scale` (`flt_5C5D98`, 65536) `fistp`ed (through `dword_62400C`),
-/// << 16, added to its angle (`unk_71A694` ..): (the last whole number, the last added).
+/// share done and `scale` (`k65536`, 65536) `fistp`ed (through `scratch`),
+/// << 16, added to its angle (`camera_offset_turns` ..): (the last whole number, the last added).
 pub fn ease_angles(changes: [f32; 3], share: f32, scale: f32, angles: &mut [u32; 3]) -> (i32, u32) {
     let (mut n, mut added) = (0, 0);
     for (change, angle) in changes.iter().zip(angles.iter_mut()) {
@@ -69,15 +69,15 @@ pub fn ease_angles(changes: [f32; 3], share: f32, scale: f32, angles: &mut [u32;
 /// What `ease_view_blend` makes.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Blend {
-    /// The share done, 1 less it for a blend below 0 (stored back into `flt_605260`).
+    /// The share done, 1 less it for a blend below 0 (stored back into `view_share`).
     pub share: f32,
-    /// `unk_71A6A0`: between `flt_608B20` and `flt_608B24`.
+    /// `camera_zoom`: between `view_shift_a` and `view_shift_b`.
     pub between: f32,
-    /// `dword_608B38`: between `flt_608B28` and `flt_608B2C`, x `scale`, negated.
+    /// `camera_offset_z`: between `view_shift_c` and `view_shift_d`, x `scale`, negated.
     pub tilt: i32,
 }
 
-/// `ease_view_blend`: `ends` the four (`flt_608B20` .. `flt_608B2C`).
+/// `ease_view_blend`: `ends` the four (`view_shift_a` .. `view_shift_d`).
 pub fn ease_blend(share: f32, below_zero: bool, ends: [f32; 4], scale: f32) -> Blend {
     let share = if below_zero {
         (1.0 - share as f64) as f32
@@ -93,9 +93,9 @@ pub fn ease_blend(share: f32, below_zero: bool, ends: [f32; 4], scale: f32) -> B
     }
 }
 
-/// `camera_height_bias`: `a` (`flt_60631C`) over `b` (`flt_606290`) held to `low` ..=
-/// `high` (`flt_5C5D90`, `flt_5C5D38`), 1 less it for a bias below 0, x `scale`
-/// (`flt_5C5D98`) x `c` (`flt_60628C`), `fistp`ed (through `dword_62400C`).
+/// `camera_height_bias`: `a` (`camera_distance`) over `b` (`camera_bias_limit`) held to `low` ..=
+/// `high` (`zero`, `one`), 1 less it for a bias below 0, x `scale`
+/// (`k65536`) x `c` (`camera_bias_scale`), `fistp`ed (through `scratch`).
 pub fn height_bias(
     a: f32,
     b: f32,
@@ -113,7 +113,7 @@ pub fn height_bias(
 }
 
 /// `ease_view_turn`: each turn moved toward its target by its share: the difference
-/// (whole numbers) times the share `fistp`ed (through `dword_62400C`), added: the last
+/// (whole numbers) times the share `fistp`ed (through `scratch`), added: the last
 /// step.
 pub fn ease_turns(targets: [u32; 3], turns: &mut [u32; 3], shares: [f32; 3]) -> i32 {
     let mut step = 0;
@@ -135,7 +135,7 @@ pub fn fixed_camera(mode: u32) -> Option<bool> {
     }
 }
 
-/// The views' table (`off_606320`) holds modes 0 ..= 0x33.
+/// The views' table (`view_records`) holds modes 0 ..= 0x33.
 pub const LAST_MODE: u32 = 0x33;
 
 /// The mode and the one before checked against the views' table.
@@ -148,8 +148,8 @@ pub fn check_modes(mode: u32, before: u32) -> Result<(), crate::Invalid> {
     Ok(())
 }
 
-/// Whether a switch is over: the clock (`unk_719FE0`) less its start (`unk_71A668`) not
-/// below its length (`unk_71A670`), by the sign.
+/// Whether a switch is over: the clock (`step_clock`) less its start (`camera_switch_clock`) not
+/// below its length (`camera_switch_length`), by the sign.
 pub fn switch_over(clock: u32, began: u32, length: u32) -> bool {
     (clock.wrapping_sub(began).wrapping_sub(length) as i32) >= 0
 }
@@ -159,17 +159,17 @@ pub fn mode_after_switch(before: u32) -> u32 {
     if before >= 7 { 0 } else { before }
 }
 
-/// A switch's end: the views' hold (`unk_71AF88`).
+/// A switch's end: the views' hold (`value_jump_steps`).
 pub const SWITCH_HOLD: u32 = 8;
 
 /// Whether the car's light record keeps its +0x20 figure for `flt_606574`: a car below
-/// 0x22 marked in `dword_5C5AC0` (`marked`, asked only then); else +0x28.
+/// 0x22 marked in `kind_has_views` (`marked`, asked only then); else +0x28.
 pub fn keeps_light_figure(car: u32, marked: impl FnOnce() -> u32) -> bool {
     car < 0x22 && marked() != 0
 }
 
 /// `physics::camera_frame`: whether the camera shakes: modes 1 ..= 3 with a wheel on the
-/// ground (`unk_71A22C` 0).
+/// ground (`all_wheels_off` 0).
 pub fn shakes(mode: u32, all_off: u32) -> bool {
     matches!(mode, 1..=3) && all_off == 0
 }

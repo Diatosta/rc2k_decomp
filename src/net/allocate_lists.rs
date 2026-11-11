@@ -1,5 +1,5 @@
 //! `net::allocate_lists` (0x418576): room for 0x100 connections (0x5400 bytes, to
-//! `dword_52AC38`) and 0x100 sessions (0x6800 bytes, to `dword_52ACF8`) on the network's
+//! `connection_table`) and 0x100 sessions (0x6800 bytes, to `session_table`) on the network's
 //! memory list (`g_netMemory`, `memory::allocate`), and both counts 0.
 //!
 //! `memory::allocate` coming back with carry: fatal error 0x80E68021 for the first, 0x80E68022

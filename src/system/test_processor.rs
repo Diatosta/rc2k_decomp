@@ -1,22 +1,23 @@
 //! `system::test_processor` (0x410883): what the processor is and has, and its clock.
 //!
-//! `dword_5183D0` 3; if the flags' AC bit (0x40000) cannot be changed, the FPU test below. Else 4;
-//! if the ID bit (0x200000) cannot be changed, or `cpuid` 0's highest leaf is 0, the FPU test. Else
-//! the vendor's text (ebx, edx, ecx) to 0x5183D8 .. 0x5183E0; leaf 1's eax to `dword_5183D4` and
-//! its family ((eax >> 8) & 0xF) to `dword_5183D0`; from its edx: bit 0 (FPU) `g_hasFpu` (0x5183EC,
-//! which `start` requires) 1; bit 4 (TSC) `dword_5183F0` 1; bit 15 (CMOV) `dword_5183F4` 1; bit 23
-//! (MMX) `dword_5183F8` 1; bit 25 (SSE) `dword_5183FC` 1; "AuthenticAMD" with an extended leaf
-//! 0x80000001 whose edx has bit 31 (3DNow!) `dword_518400` 1 ("CyrixInstead" is asked the same and
-//! nothing is kept). The FPU test (no `cpuid`): `fninit`, the status word (0x5A5A there before)
-//! and, if its low byte is 0, the control word through the word at 0x93E8B0 (`g_pngInfo`'s, a
-//! scratch place here); `& 0x103F` = 0x3F: `g_hasFpu` 1. Then, if `dword_5183F0` is 1: from the
-//! next change of `GetTickCount` 250 ms are timed by `rdtsc`, and the cycles / 250000 (the clock in
-//! MHz) go to `dword_5183E8`. The original executes `rdtsc`, `emms` and `xorps` once each to see
-//! that they do not fault, with `dword_51849C` the place its exception filter goes on at (0 after
-//! each); this port does not execute them (a processor that says it has them has them) and
-//! leaves `dword_51849C` 0 where the original does. Refuses (with the processor's variables already
-//! written) a clock whose quotient does not fit in 32 bits (the original's `div` traps there). One
-//! caller, `start` (0x40101A), directly since 2026-10-23.
+//! `cpu_family` 3; if the flags' AC bit (0x40000) cannot be changed, the FPU test below.
+//! Else 4; if the ID bit (0x200000) cannot be changed, or `cpuid` 0's highest leaf is 0,
+//! the FPU test. Else the vendor's text goes to `cpu_vendor`; leaf 1's signature to
+//! `cpu_signature` and its family ((signature >> 8) & 0xF) to `cpu_family`; from leaf 1's
+//! feature bits: bit 0 (FPU) `has_fpu` (which `start` requires) 1; bit 4 (TSC) `has_tsc`
+//! 1; bit 15 (CMOV) `has_cmov` 1; bit 23 (MMX) `found_mmx` 1; bit 25 (SSE) `found_sse` 1;
+//! "AuthenticAMD" with an extended leaf 0x80000001 whose bit 31 is set (3DNow!)
+//! `found_3dnow` 1 ("CyrixInstead" is asked the same and nothing is kept). The FPU test (no
+//! `cpuid`): `fninit`, the status word (0x5A5A there before) and, if its low byte is 0, the
+//! control word through a scratch place; `& 0x103F` = 0x3F: `has_fpu` 1. Then, if `has_tsc`
+//! is 1: from the next change of `GetTickCount` 250 ms are timed by `rdtsc`, and the
+//! cycles / 250000 (the clock in MHz) go to `cpu_mhz`. The original executes `rdtsc`,
+//! `emms` and `xorps` once each to see that they do not fault, with `exception_resume` the
+//! place its exception filter goes on at (0 after each); this port does not execute them
+//! (a processor that says it has them has them) and leaves `exception_resume` 0 where the
+//! original does. Refuses (with the processor's variables already written) a clock whose
+//! quotient does not fit in 32 bits (the original's `div` traps there). One caller,
+//! `start`, directly.
 
 use crate::errors::{BadInput, Refused};
 use crate::session::{Dword, Machine};
@@ -39,7 +40,7 @@ fn fpu_words() -> (u16, u16) {
     (0, 0x037F)
 }
 
-/// The features every machine reports (leaf 1's edx): an FPU, a counter, `cmov`, MMX and
+/// The features every machine reports (leaf 1's feature bits): an FPU, a counter, `cmov`, MMX and
 /// SSE, as every x86 these builds run on has, and no 3DNow!. The game picks its MMX and
 /// SSE paths by them (lighting, polygon depths, the ground's face shares), which compute
 /// differently: one answer everywhere, so the handheld, the Mac and every PC run the same

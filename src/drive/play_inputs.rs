@@ -1,6 +1,6 @@
 //! `drive::play_inputs` (0x460162): for cars 0 and 1 the input words from the replay's tape: frame
-//! `dword_6EF7E4` (16 bytes; the car's 8) has ebx and the packed word, taken apart
-//! (`drive::unpack_inputs`) into `dword_6138C4` ...
+//! `step_frame` (16 bytes; the car's 8) has the first word and the packed rest, taken apart
+//! (`drive::unpack_inputs`) into `input_words` ...
 //!
 //! Callers: `drive::play_inputs_if`, `race::step_replay_cars`.
 

@@ -1,7 +1,7 @@
 //! `net::settings_done` (0x416F0B): the connection saved checked: the connections listed
 //! (`net::find_connections_regs`) and the saved one among them
 //! (`net::find_saved_connection`) kept again (`net::keep_connection`, its name fresh);
-//! if either fails the saved connection forgotten (`unk_52AC94` 16 bytes, `unk_52ACA4` 64,
+//! if either fails the saved connection forgotten (`saved_connection` 16 bytes, `saved_name` 64,
 //! `system::zero_memory`); then the network stopped (`net::stop`).
 //!
 //! Caller: `net::settings_loop` (on entering it).

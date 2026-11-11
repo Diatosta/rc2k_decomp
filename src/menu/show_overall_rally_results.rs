@@ -1,5 +1,5 @@
 //! `menu::show_overall_rally_results` (0x4A3BA2): the overall rally results: the first player's entry of any group in standings
-//! table A (`menu::first_player_a`), its figure held to 0x51 when above 0xAB (the original's: section 16) into `dword_7556B4`;
+//! table A (`menu::first_player_a`), its figure held to 0x51 when above 0xAB (the original's: section 16) into `champ_view.count`;
 //! `menu::first_page_stage`, `menu::stage_range_caption`; then the page
 //! (`menu::overall_rally_results_loop`).
 //!
@@ -11,8 +11,6 @@ use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 use rc2k_core::menu::results_pages::{Page, held_figure};
-
-// dword_7558F4
 // g_eventMode
 pub fn show_overall_rally_results(menus: &Menus) -> Result<(), Refused> {
     let play = &menus.play;

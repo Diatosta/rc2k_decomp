@@ -280,6 +280,32 @@ impl Cell32 for Float {
     }
 }
 
+/// One of the game's 0 / 1 dwords (a loop's "done" flag, "in the race"): the same four bytes as
+/// a `Dword`, read as a truth value. Only 0 and 1 are ever stored.
+#[repr(transparent)]
+pub struct Flag(AtomicU32);
+
+impl Flag {
+    pub const fn new(value: bool) -> Self {
+        Self(AtomicU32::new(value as u32))
+    }
+
+    pub fn is_set(&self) -> bool {
+        crate::write_watch::read(self.0.as_ptr().cast::<u8>(), 4);
+        self.0.load(Relaxed) != 0
+    }
+
+    pub fn set(&self, value: bool) {
+        crate::write_watch::wrote(self.0.as_ptr().cast::<u8>(), 4);
+        self.0.store(value as u32, Relaxed);
+    }
+
+    /// The atomic itself, for code that wants more than a load and a store.
+    pub fn atomic(&self) -> &AtomicU32 {
+        &self.0
+    }
+}
+
 /// One of the game's words (16 bits): an atomic cell.
 #[repr(transparent)]
 pub struct Word(AtomicU16);

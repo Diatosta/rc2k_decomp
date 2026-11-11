@@ -1,15 +1,15 @@
 //! `net::take_messages` (0x4194CC): the receiving thread's turn: while there is a DirectPlay
-//! object (`g_dplay`) and `net::receive_message` gives a message (ecx not 0), the messages
-//! taken (`dword_52A91C` counted) and handled:
+//! object (`g_dplay`) and `net::receive_message` gives a message (a size other than 0), the messages
+//! taken (`messages_taken` counted) and handled:
 //! - sender 0: DirectPlay's system message (`net::system_message`);
 //! - a sender not among the players (`g_netReceived` +0x20, `g_netPlayers`; the first
 //!   player compared even with none): dropped;
-//! - first byte 0x22: a chat line (`net::chat_line_locked`, eax the player, ebx the text
-//!   after the byte; a NUL put at the end first, at the bytes + ecx, past the buffer for a
+//! - first byte 0x22: a chat line (`net::chat_line_locked`, with the player and the text
+//!   after the byte; a NUL put at the end first, past the buffer for a
 //!   message of 0x100 bytes: on `g_netSendBuffer`'s first byte, section 16);
 //! - 0x40 / 0x50 (two bytes, the second the round `g_netSync`; on a machine not the host,
 //!   `g_netOwnRecord` bit 0x10 clear): answered 0x41 / 0x51 with the round
-//!   (`word_52A916`, `net::dplay_send` to the sender, flags 0) and `g_netAllRaced` /
+//!   (`sync_answer`, `net::dplay_send` to the sender, flags 0) and `g_netAllRaced` /
 //!   `g_netRaceOver` set; not the original's: a machine that has just joined takes the round
 //!   of the host's first call (`ROUND_UNKNOWN`);
 //! - 0x41 / 0x51 (two bytes, the round; on the host): the player's byte of `g_netSynced` 1;
@@ -36,7 +36,7 @@ use rc2k_core::net::messages::{self, Kind};
 /// The players the blocks have room for.
 pub const MOST_PLAYERS: u32 = 16;
 
-/// Not the original's (2026-11-08): whether this machine has joined a session and not yet
+/// Not the original's: whether this machine has joined a session and not yet
 /// heard the host's round. Every machine counts the rounds up as it enters the lobby, so one
 /// that joins after races (the host lets players in again between them,
 /// `net::enable_new_players`) is behind the others: it takes the round of the host's first
@@ -48,7 +48,7 @@ pub fn joined() {
     ROUND_UNKNOWN.store(true, std::sync::atomic::Ordering::Relaxed);
 }
 
-/// The received message's byte `at` (the buffer's `unk_52A968`).
+/// The received message's byte `at` (the buffer's `receive_data`).
 fn get8(vars: &NetVars, at: usize) -> Result<u8, BadInput> {
     if at >= ROOM as usize {
         return Err(BadInput("a received message past its buffer"));

@@ -37,7 +37,7 @@ pub fn make_fade_colours(
             let fade = (0xFF00_0000 | r << 16 | gr << 8 | b).wrapping_add(view_light);
             l.fade_colours[n].set(fade);
             l.fade_step
-                .set_bits(x87::add(step, effects.setup.floats.sixteenth.bits()));
+                .set_bits(x87::add(step, &effects.setup.floats.sixteenth));
         }
     }
 }

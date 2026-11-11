@@ -4,12 +4,12 @@
 //! An object's number of 0x100 or more is fatal error 0x80600A01. `dword_639954` (added to
 //! every face's texture number) = 0; then 0x108 for, outside a race, an object of kind 0x23A,
 //! and in a race for objects 0x50 .. 0xEF (the cars, 0x14 objects each) whose car's block has
-//! 0x21 at +0x24. Nothing more for an object without faces (`g_objectFaceCounts`). Else by
-//! `dword_6365C4`: 0 `scene::draw_shown_object`; 1 and 2 `scene::draw_described_object` (it
-//! takes an object's description in esi and comes back here); anything else nothing. Twelve
+//! 0x21 at +0x24. Nothing more for an object without faces (the slots' face counts). Else by
+//! the lights' draw mode: 0 `scene::draw_shown_object`; 1 and 2 `scene::draw_described_object` (it
+//! takes an object's description and comes back here); anything else nothing. Twelve
 //! callers. Refuses a car without its block.
 //!
-//! Converted 2026-10-21: the texture set and the way on through
+//! The logic is in the core crate: the texture set and the way on through
 //! `rc2k_core::scene::shown`.
 
 use crate::errors::{BadInput, FatalError, Refused};
@@ -42,7 +42,7 @@ fn texture_set(
         let object: u32 = cars.object_number.get();
         let t = rc2k_core::scene::shown::texture_set(
             object,
-            race.course.numbers.in_race.get() != 0,
+            race.course.numbers.in_race.is_set(),
             |object| scene.objects.tables.object_kind(object),
             |car| {
                 let block: u32 = shared.work.car_block(car as usize);
@@ -59,9 +59,7 @@ fn texture_set(
     }
 }
 
-/// `draw`: what stands for the two calls. What the original leaves in the registers (ebx
-/// the object's number among them) none of its callers reads (register liveness,
-/// 2026-10-23: only the unreached 0x49081A after `scene::draw_menu_object`).
+/// `draw` stands for the two calls.
 // Converted: `rc2k_core::scene::shown::way`
 pub fn draw_scene_object(
     race: &crate::race::owner::Race,
@@ -80,9 +78,9 @@ pub fn draw_scene_object(
 }
 
 /// `draw_scene_object` with the game's parts (`scene::draw_shown_object` and its drawing;
-/// `scene::draw_described_object`, given `description`, esi at the original's entry: the
+/// `scene::draw_described_object`, given `description`: the
 /// object's description, read only on that way, the scene's mode 1 or 2; `None` where the
-/// original's esi is 0).
+/// original has none).
 pub fn draw_scene_object_in_game(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     description: Option<crate::scene::draw_described_object::Description<'_>>,
@@ -95,7 +93,7 @@ pub fn draw_scene_object_in_game(
             Way::Shown => {
                 // Outside a race the faces pick the menus' marks (the original's
                 // `draw_shown_object` set them before every object: `scene::car_marks`).
-                let ctx = &if race.course.numbers.in_race.get() != 0 {
+                let ctx = &if race.course.numbers.in_race.is_set() {
                     *ctx
                 } else {
                     crate::race::view_scratch::DrawCtx {

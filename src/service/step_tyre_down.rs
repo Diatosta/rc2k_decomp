@@ -1,4 +1,4 @@
-//! `service::step_tyre_down` (0x46BE3D): steps the chosen tyre, `dword_75AC9C`, one
+//! `service::step_tyre_down` (0x46BE3D): steps the chosen tyre, `setups[1].chosen`, one
 //! down, stopping at 0.
 //!
 //! The exact rule at the limits is in `setup_values.rs` (`Stepper`).

@@ -1,5 +1,5 @@
-//! The race's split times and timers under `physics::car_physics_step` (IDA 2026-10-18):
-//! `physics::race_timers` (0x436790) by the race mode (`dword_62389C`) runs the start's
+//! The race's split times and timers under `physics::car_physics_step`:
+//! `physics::race_timers` (0x436790) by the race mode (`run_kind`) runs the start's
 //! counters and, at each new checkpoint split, `physics::take_split` (0x436900) or for
 //! mode 2 `physics::take_split_counted` (0x436833); those ask `physics::split_by_mode`
 //! (0x436B99) for the split's figure: mode 2 the car's place, mode 1

@@ -1,4 +1,4 @@
-//! The installer that `RAL.EXE` also is (`install::run_installer` and its tree, read 2026-10-19):
+//! The installer that `RAL.EXE` also is (`install::run_installer` and its tree):
 //! the variables its parts share, the calls they make, the functions its tables hold (its
 //! registry calls: `install::read_registry::Registry`).
 //!
@@ -69,15 +69,9 @@ pub fn media_mode() -> u32 {
 pub fn set_media_mode(mode: u32) {
     crate::files::state::MEDIA_MODE.set(mode);
 }
-// dword_51B9CC (-u)
-// g_removeStartItems
-// dword_51BAF0
-// dword_51BB3C: install.bun
-// dword_51C3F7: KB by installation
-// up to unk_51D407's list variables
-// off_51DD48: the third page's action
-// FindFileData
-// FindFileData+13Eh: attributes passed over
+// The installer's other variables (the update switch, the remove-items switch, the install.bun
+// flag, the room by installation, the list variables, the third page's action, the file
+// search record and its skip mask) are in `install::vars`.
 
 // ---- memory by address ----
 
@@ -330,7 +324,7 @@ pub fn draw_text(
     Ok(())
 }
 
-/// `text::measure_text` (0x40230B), ecx `x`: (the widest line, the last line's y).
+/// `text::measure_text` (0x40230B), at `x`: (the widest line, the last line's y).
 pub fn measure_text(
     font: crate::gfx::typefaces::FontId,
     text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
@@ -341,7 +335,7 @@ pub fn measure_text(
     Ok((m.width, m.outcome.y as u32))
 }
 
-/// `text::measure_string_by_id` (0x40232C), ecx `x`: (the widest line, the last line's y).
+/// `text::measure_string_by_id` (0x40232C), at `x`: (the widest line, the last line's y).
 pub fn measure_string(
     id: u32,
     font: crate::gfx::typefaces::FontId,
@@ -478,7 +472,7 @@ pub fn item_action_at(
     }
 }
 
-/// A text item's action (+0xC), eax its +8: more text at `cursor`; the cursor after. The
+/// A text item's action (+0xC), given its +8: more text at `cursor`; the cursor after. The
 /// game's items hold only `install::end_text_line`.
 pub fn text_action(place: u32, out: &mut Vec<u8>) -> Result<(), Refused> {
     match place {

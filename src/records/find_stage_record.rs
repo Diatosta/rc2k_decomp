@@ -1,6 +1,6 @@
 //! `records::find_stage_record` (0x468289): in a record table (0xA4-byte records, +0 the
-//! tag), past section ebx's start (the ebx-th record of tag 4, none for 0), the eax-th record
-//! of tag 0 (a stage; counted from 1). (Stream A, part F1: the time trial results page.)
+//! tag), past the `section`'s start (the section-th record of tag 4, none for 0), the `number`-th record
+//! of tag 0 (a stage; counted from 1). (the time trial results page.)
 //!
 //! Takes the table, the section and the stage's number. Returns the record.
 //!

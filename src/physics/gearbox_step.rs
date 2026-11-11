@@ -1,16 +1,13 @@
 //! `physics::gearbox_step` (0x43C15C): the gearbox's turn. Unless `g_car` +0xA8 is set,
-//! or (with `dword_62389C` not 1) the start timer +0x14 is below 0x320 (by its sign): in
+//! or (with `run_kind` not 1) the start timer +0x14 is below 0x320 (by its sign): in
 //! grade mode 2 `physics::manual_gearbox`; with a gear asked for (+0x468 bits 8 .. 11
-//! not 0xE) `physics::take_asked_gear` and it ends there; else by +0x38 (`unk_71A010`)
+//! not 0xE) `physics::take_asked_gear` and it ends there; else by +0x38 (`gearbox_kind`)
 //! 1 `manual_gearbox`, 2 `physics::auto_gearbox`, other `manual_gearbox` (by
 //! `physics::manual_gearbox_call`). Then, after a change (+0x238 1), the engine speed x
-//! `flt_613E9C`; `physics::wheels_from_revs`.
+//! `engine_ease`; `physics::wheels_from_revs`.
 //!
 //! Callers: `physics::drive_force` (under `physics::car_physics_step`), `physics::test_drive_run`.
 //! Refuses what the steps refuse; what was written is put back.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::math::x87;
@@ -53,8 +50,8 @@ pub fn gearbox_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
     }
     if race.shared.car.gear_changed.get() == 1 {
         race.shared.car.engine_speed.set_bits(x87::mul(
-            race.shared.car.engine_speed.bits(),
-            race.shared.physics_tables.engine_ease.bits(),
+            &race.shared.car.engine_speed,
+            &race.shared.physics_tables.engine_ease,
         ));
     }
     wheels(&race.shared.car, &race.shared.physics_tables)

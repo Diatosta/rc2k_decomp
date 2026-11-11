@@ -1,44 +1,43 @@
 //! `scene::set_object_material` (0x45170E): what an object's drawing needs from its
 //! kind's record, and for a kind that moves between two shapes, how far it has moved.
 //!
-//! `dword_623DD0` = 0 and the polygon's colour white; the object's kind
-//! (`g_objectKinds[object]`) picks a record of 0x80 bytes at `unk_97DF30`, whose byte +0x20
-//! goes to `dword_6214DC`; then the object's first face and number of faces (`dword_632B70`,
-//! `dword_632F70`) to `g_objectFirstFace` and `g_objectFaceCount`. With that byte at 4 the
-//! object has two shapes, the second right after the first: `dword_623DD0` = the bytes between
-//! them (the next object's first point less this one's, times 12), and 0x45079A works out
-//! the fraction `flt_623DD4` from a state of four dwords (+0x30 .. +0x3C of the record
-//! `dword_5CCCD0` of 0x40 bytes at `dword_5CCCBC`: the clock when last here, the time into the
-//! phase, the phase's length, the phase): the time since last here (the clock `dword_613830`,
-//! at most 100) is added; while the time is not under the length, it loses the length, the
-//! phase goes on by one of four, and the new length is a base (200, 400, 200, 400) plus a
-//! random part of 400 (the drawing's random numbers, `next_drawing_random`, its top half times 400). The fraction: 0 in phase
-//! 0, time over length in phase 1, 1 in phase 2, 1 less that in phase 3. The original has a
-//! second way for when the four random parts are all 0, which they never are (it sets them
-//! itself just before): left out. One caller, `scene::draw_object`. Refuses an object's number past
-//! the tables and, for a moving kind, no state.
+//! `move_by` = 0 and the polygon's colour white; the object's kind picks a record of 0x80
+//! bytes in `object_materials`, whose byte +0x20 goes to `other_way_kind`; then the object's
+//! `first_face` and `face_counts` entries to the current object's first face and face count.
+//! With that byte at 4 the object has two shapes, the second right after the first:
+//! `move_by` = the bytes between them (the next object's first point less this one's, times
+//! 12), and the fraction `move_fraction` is worked out from a state of four dwords (+0x30 ..
+//! +0x3C of the current course face's record of 0x40 bytes: the clock when last here, the
+//! time into the phase, the phase's length, the phase): the time since last here (the scene
+//! clock, at most 100) is added; while the time is not under the length, it loses the length,
+//! the phase goes on by one of four, and the new length is a base (200, 400, 200, 400) plus a
+//! random part of 400 (the drawing's random numbers, `next_drawing_random`, its top half
+//! times 400). The fraction: 0 in phase 0, time over length in phase 1, 1 in phase 2, 1 less
+//! that in phase 3. The original has a second way for when the four random parts are all 0,
+//! which they never are (it sets them itself just before): left out. One caller,
+//! `scene::draw_object`. Refuses an object's number past the tables and, for a moving kind,
+//! no state.
 //!
-//! Converted 2026-10-21: the Rust version is `set_object_material_plain`, through
-//! `rc2k_core::scene::materials` (the fraction a plain float; the x87 version stays for the
-//! Rust callers in unconverted code).
+//! The work is `set_object_material_plain`, through `rc2k_core::scene::materials` (the
+//! fraction a plain float; the x87 version stays for the callers in unconverted code).
 
 use crate::errors::BadInput;
 use crate::math::next_random::next_drawing_random;
 use crate::math::x87;
+use crate::math::x87_float as bh;
 use crate::race::owner_shared::RaceShared;
 
 // ---- game data ----
 const OBJECTS: u32 = 0xFF;
 pub const MATERIAL_LEN: usize = 0x80;
-/// The state as the function works on it: the clock when last here (`dword_62DB54`),
-/// then `dword_631B5C` the phase's length, `dword_631B60` the time into it,
-/// `dword_631B64` the phase.
-/// `dword_62DB30` ..: four bases, four random parts, and a 0.
+/// The state as the function works on it: the clock when last here (`phase_clock`), then
+/// the `phase_work` cells: the phase's length, the time into it, the phase. The
+/// `phase_lengths` table holds four bases, four random parts, and a 0.
 const LENGTHS: [u32; 9] = [200, 400, 200, 400, 400, 400, 400, 400, 0];
 
 // ---- Rust version ----
 
-/// The face whose +0x30 .. +0x40 hold the state (`g_currentCourseFace`, now the view's), or
+/// The face whose +0x30 .. +0x40 hold the state (the view's current course face), or
 /// None without the course faces. (The original read the face the previous view drew last
 /// when an object of two shapes came before the view's first face; no kind in the game's
 /// files has that material, so it never comes into play.)
@@ -52,16 +51,17 @@ fn state(
 /// The state's four dwords from +0x30 of the face.
 const STATE: u32 = 0x30;
 
-/// 0x45079A, on the state of face `face`.
+/// The fraction of the way between the two shapes, on the state of face `face`.
 /// The fraction into `fraction_out` (the view's `ObjectPlace::move_fraction`).
 fn step_shape(
+    course: &crate::race::owner_course::Course,
     shared: &RaceShared,
     face: u32,
     scene: &crate::scene::owner::Scene,
     fraction_out: &crate::session::Dword,
 ) -> Result<(), BadInput> {
     use crate::race::course_places::{face_field, write_face_field};
-    let b: [u8; 16] = face_field(face, STATE, "an object's state")?;
+    let b: [u8; 16] = face_field(course, face, STATE)?;
     let [last, mut time, mut length, mut phase]: [u32; 4] = std::array::from_fn(|k| {
         u32::from_le_bytes([b[4 * k], b[4 * k + 1], b[4 * k + 2], b[4 * k + 3]])
     });
@@ -78,7 +78,7 @@ fn step_shape(
     let fraction = match phase {
         1 => x87::int_ratio(time as i32, length as i32),
         2 => 1f32.to_bits(),
-        3 => x87::one_less_int_ratio(time as i32, length as i32),
+        3 => bh::st(bh::ONE - bh::int(time as i32) / bh::int(length as i32)),
         _ => 0f32.to_bits(),
     };
     fraction_out.set(fraction);
@@ -87,7 +87,7 @@ fn step_shape(
     for (k, v) in [clock, time, length, phase].into_iter().enumerate() {
         b[4 * k..4 * k + 4].copy_from_slice(&v.to_le_bytes());
     }
-    write_face_field(face, STATE, b, "an object's state")?;
+    write_face_field(course, face, STATE, b)?;
     Ok(())
 }
 
@@ -118,7 +118,13 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             .object
             .move_by
             .set(points[1].wrapping_sub(points[0]).wrapping_mul(12));
-        step_shape(shared, state, scene, &ctx.view.object.move_fraction)?;
+        step_shape(
+            &race.course,
+            shared,
+            state,
+            scene,
+            &ctx.view.object.move_fraction,
+        )?;
     }
     ctx.view
         .object

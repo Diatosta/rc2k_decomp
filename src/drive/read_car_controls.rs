@@ -1,12 +1,12 @@
 //! `drive::read_car_controls` (0x43A35A): the work car's controls for this step:
-//! - the keys (`dword_6138C4` .. `D0`) into the car's (`dword_71A43C` .. `48`), the
-//!   held-before into `dword_5C694C` and the newly pressed (`dword_71A44C`, bits not held
+//! - the keys (`input_words` .. `D0`) into the car's (`input_throttle` .. `48`), the
+//!   held-before into `input_keys_mask` and the newly pressed (`keys_pressed`, bits not held
 //!   before); steering, throttle and brake into 0x613890 .. 0x613898, and three bits as
 //!   0x61389C (bit 2 times 0x60), 0x6138A0, 0x6138A4;
-//! - for a player's car (or in a network game, `dword_52A910`, whatever the car): bit 3 newly pressed flips
-//!   `dword_71A05C`, bit 5 changes the view (`drive::next_camera_view` on `g_car`);
-//! - for a computer's car (`dword_71C3E0` set, or `dword_62389C` and `dword_71A234` 2):
-//!   `drive::start_blend`, `flt_71BFA4` = `flt_71A658`, `drive::drive_computer_car`, and
+//! - for a player's car (or in a network game, `session`, whatever the car): bit 3 newly pressed flips
+//!   `lights_on`, bit 5 changes the view (`drive::next_camera_view` on `g_car`);
+//! - for a computer's car (`in_credits` set, or `run_kind` and `driver_kind` 2):
+//!   `drive::start_blend`, `driver_start_blend` = `start_blend`, `drive::drive_computer_car`, and
 //!   its six controls (0x71BF88 ..) into 0x613890 .. 0x6138A4.
 //!
 //! The bytes after its `retn` (0x43A4E5 ..) are another entry that nothing calls.
@@ -50,7 +50,7 @@ pub fn read_car_controls(race: &Race) -> Result<(), Refused> {
         && race_owner.shared.car.run_ticks.get() >= 0x320
     {
         // `drive_computer_car`'s refusal, before anything here is written.
-        let reaches = crate::math::x87_run::compare_full(
+        let reaches = crate::math::x87::compare_full(
             race_owner.shared.car.crash_matrix[5].bits(),
             race_owner.shared.work.driver_tilt_limit.bits(),
         ) & 0x100
@@ -148,7 +148,7 @@ pub fn read_car_controls(race: &Race) -> Result<(), Refused> {
         .shared
         .work
         .driver_start_blend
-        .set_bits(x87::loaded(race_owner.shared.car.start_blend.bits()));
+        .set_bits(x87::loaded(&race_owner.shared.car.start_blend));
     // A test's switch (`tools/remote.py pilot`): a player's car has no computer's skill
     // (its blend near 0 holds the wanted speed down), so it drives at the full blend.
     #[cfg(feature = "remote")]

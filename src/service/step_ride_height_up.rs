@@ -1,4 +1,4 @@
-//! `service::step_ride_height_up` (0x46BE8E): steps the chosen ride height, `dword_75ACA8`, one
+//! `service::step_ride_height_up` (0x46BE8E): steps the chosen ride height, `setups[2].chosen`, one
 //! up, stopping at 100.
 //!
 //! The exact rule at the limits is in `setup_values.rs` (`Stepper`).

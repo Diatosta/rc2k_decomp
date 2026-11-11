@@ -1,7 +1,7 @@
-//! The unit labels' string ids, out of RAL.EXE's image (phase 5; typed in phase 7,
-//! `notes/conversion.md`): IDA 0x51EB84 .. 0x51EBB0, tables of two words, one for each
+//! The unit labels' string ids, kept with the image's layout
+//! (`notes/conversion.md`): IDA 0x51EB84 .. 0x51EBB0, tables of two words, one for each
 //! units setting (0 metric, 1 imperial): `g_temperatureLabelIds`, `g_speedLabelIds`,
-//! `word_51EB8C`, `word_51EB90`, `word_51EB94` and six more tables (the figures' labels).
+//! the tables of the first labels and six more (the figures' labels).
 //! The converted `strings` functions have the ids as constants (`rc2k_core::strings`);
 //! nothing reads these.
 

@@ -1,14 +1,14 @@
 //! `net::add_address_element` (0x41896E): one more element of the compound address being
-//! built (`unk_52AC48`, 0x18 bytes each, `dword_52AC3C` of them: a DPCOMPOUNDADDRESSELEMENT,
+//! built (`element_table`, 0x18 bytes each, `elements` of them: a DPCOMPOUNDADDRESSELEMENT,
 //! the data type's GUID, the data's size, the data).
 //!
 //! Takes `data_type`, `size`, `data`.
 //! No limit on the count. Caller: `net::build_address` (five times; three at most in one
 //! go).
 //!
-//! Since 2026-10-29 the elements are Rust's (`elements`, each its type and its data's
+//! The elements are Rust's (`elements`, each its type and its data's
 //! bytes, as `net::dp_objects` takes them); the count is kept, the game's table
-//! (`unk_52AC48`, which held pointers to the data) is no longer written.
+//! (`element_table`, which held pointers to the data) is not written.
 
 use crate::net::dp_objects::Element;
 use crate::net::owner::Net;

@@ -1,16 +1,16 @@
 //! `race::viewer_frame` (0x41D5FB): one frame of the replay viewer (`screens::run_frame`'s
-//! function): at the replay's end (`dword_5BEC90`) the screen cleared (`gfx::clear_back_surface`);
+//! function): at the replay's end (`replay_at_end`) the screen cleared (`gfx::clear_back_surface`);
 //! the scene begun; unless at the end, the block's cameras into it (`drive::replay_frame_marks`)
-//! and the frame drawn (`race::show_replay_still`). A picture asked (`dword_5C2540`): asked no
+//! and the frame drawn (`race::show_replay_still`). A picture asked (`snapshot_asked`): asked no
 //! more, the scene ended (`d3d::end_scene`), the picture saved (`race::viewer_snapshot`), shown.
-//! Else, stopped (`dword_5BEC98` 1): the list's texture (`dword_5BECB4`, `d3d::set_texture`), eight
+//! Else, stopped (`viewer_stopped` 1): the list's texture (`viewer_list_texture`, `d3d::set_texture`), eight
 //! render states, each item, the bar's quads (`drive::tyre_quad`: the frame, with blocks the bar,
 //! the two marks and the place shown along it, the four buttons) and the panel
 //! (`race::draw_viewer_panel`); the scene ended and the frame shown (`gfx::show_frame`).
 //!
 //! The marks' and the place's positions are `mark * w / blocks` (`mul` / `div`): a quotient
 //! past 32 bits (the original's divide error) is refused, before the bar is drawn. Caller:
-//! `screens::run_frame` (eax, from `race::replay_viewer`).
+//! `screens::run_frame` (called from `race::replay_viewer`).
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
@@ -61,7 +61,7 @@ fn stopped(race: &Race) -> Result<(), Refused> {
     }
     // The list's item count: the byte at +1 of its first dword.
     let items = (replay.replay_view.viewer_list[0].get() >> 8) as u8;
-    // The original counts ecx up to the byte at +1 after each item, from 0: a count of 0
+    // The original counts up to the byte at +1 after each item, from 0: a count of 0
     // goes round 256 times. The items are the list's 16-byte entries from +0x18; one past
     // the 26 there is refused.
     for index in 0..if items == 0 { 256 } else { u32::from(items) } {

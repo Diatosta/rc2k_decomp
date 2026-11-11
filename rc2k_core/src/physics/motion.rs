@@ -1,4 +1,4 @@
-//! The work car's step of motion in floats (converted 2026-10-21 from `physics::sum_forces`
+//! The work car's step of motion in floats (converted from `physics::sum_forces`
 //! 0x43BBCB, `move_car` 0x43CCB0, `spin_wheels` 0x43CD1A, `air_drag` 0x43F2DA,
 //! `hold_spin_on_ground` 0x43BAA4, `blend_wheel_load` 0x440F70,
 //! `lowest_body_point` 0x45D6DB, `count_down_timers` 0x43D4B5,
@@ -30,8 +30,8 @@ pub fn motion_length(motion: [f32; 3]) -> f32 {
     crate::math::vector::length(motion) as f32
 }
 
-/// `physics::sum_forces`: the step's five sums (`flt_614C2C` ..) of the thirteen forces
-/// (`flt_614250`, `614254`, `614258` + `61425C`, the four at 0x614834 + 0x20 k, the five
+/// `physics::sum_forces`: the step's five sums (`force_sums` ..) of the thirteen forces
+/// (`drive_slip`, `614254`, `614258` + `61425C`, the four at 0x614834 + 0x20 k, the five
 /// at 0x614774 + 0x20 k) over gravity, the first three also over the step.
 pub fn sum_forces(f: &[f32; 13], gravity: f32, step: f32) -> [f32; 5] {
     [
@@ -44,7 +44,7 @@ pub fn sum_forces(f: &[f32; 13], gravity: f32, step: f32) -> [f32; 5] {
 }
 
 /// `physics::move_car`: the place (whole numbers) moved by the motion times `scale`
-/// (65536) and the step, x, z, then y; each move is `fistp`ed (through `dword_62400C`):
+/// (65536) and the step, x, z, then y; each move is `fistp`ed (through `scratch`):
 /// the last (y's).
 pub fn move_place(motion: [f32; 3], place: &mut [u32; 3], scale: f32, step: f32) -> i32 {
     let mut last = 0;
@@ -56,7 +56,7 @@ pub fn move_place(motion: [f32; 3], place: &mut [u32; 3], scale: f32, step: f32)
 }
 
 /// `physics::spin_wheels`: the two driven wheels' turns on by their drive speeds over the
-/// wheel's size, times the step, 65536 and `scale` (`fistp`ed through `dword_62400C`):
+/// wheel's size, times the step, 65536 and `scale` (`fistp`ed through `scratch`):
 /// the second's step.
 pub fn spin(
     speeds: [f32; 2],
@@ -108,22 +108,22 @@ pub fn hold_spin(limit: &mut f32, x: &mut f32, z: &mut f32) -> u32 {
 
 /// `physics::blend_wheel_load`'s figures (the constants as read).
 pub struct LoadBlend {
-    /// `flt_71A208`.
+    /// `contact_depth`.
     pub figure: f32,
     /// 0x71A1FC, 0x71A200, 0x71A204: their signs pick the slot.
     pub signs: [f32; 3],
-    /// `flt_614C64`.
+    /// `wheel_load_limit`.
     pub threshold: f32,
-    /// `flt_5C5D60`.
+    /// `sixty_four`.
     pub divisor: f32,
-    /// `flt_5C5D90`, `flt_5C5D38` (0, 1).
+    /// `zero`, `one` (0, 1).
     pub zero: f32,
     pub one: f32,
 }
 
 /// `physics::blend_wheel_load`: unless the figure is below the threshold, the slot (4 +
 /// 2 + 1 for each sign below zero) moved towards 1 by the figure over the divisor held to
-/// 0 .. 1: (the slot, the share kept in `dword_62400C`).
+/// 0 .. 1: (the slot, the share kept in `scratch`).
 pub fn blend_load(b: &LoadBlend, slots: &mut [f32; 8]) -> Option<(u32, f32)> {
     if below(b.figure as f64, b.threshold as f64) {
         return None;
@@ -148,8 +148,8 @@ pub fn blend_load(b: &LoadBlend, slots: &mut [f32; 8]) -> Option<(u32, f32)> {
 
 /// `physics::lowest_body_point`: with more than four probe points, the deepest of the
 /// body's (points 4 .., their depths through `depth`, from 0x640000 down by the sign of
-/// the difference) into `lowest` and its number into `number` (-1 for none): (eax the
-/// last depth looked at, ebx the count). A count above 0x40 (the depths' room) refused.
+/// the difference) into `lowest` and its number into `number` (-1 for none): (the
+/// last depth looked at, the count). A count above 0x40 (the depths' room) refused.
 pub fn lowest_point(
     count: u32,
     depth: impl Fn(u32) -> u32,
@@ -183,36 +183,36 @@ pub fn lowest_share(lowest: u32, scale: f32) -> f32 {
 /// `physics::count_down_timers`' counters (readings, all).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct StepCounters {
-    /// `dword_71AF8C`, `dword_71AF88`: down by one when not 0.
+    /// `light_hold_steps`, `value_jump_steps`: down by one when not 0.
     pub first: [u32; 2],
-    /// `dword_71A240`: the steps standing in neutral in mode 1.
+    /// `stopped_steps`: the steps standing in neutral in mode 1.
     pub standing: u32,
-    /// `dword_71A244`: on by one unless 0, -1 or 1.
+    /// `tyre_change_state`: on by one unless 0, -1 or 1.
     pub running: u32,
-    /// `dword_71A1CC`, `dword_71A1A8`, `dword_71A438`: down by one when not 0.
+    /// `wall_hit_timer`, `drive_cut_steps`, `hit_cooldown`: down by one when not 0.
     pub later: [u32; 3],
-    /// `flt_71A5D4`: the highest of `flt_71AEE0` so far.
+    /// `top_speed`: the highest of `engine_speed_scaled` so far.
     pub highest: f32,
 }
 
 /// What `physics::count_down_timers` reads besides its counters.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct StepFacts {
-    /// `dword_719FEC`.
+    /// `run_ticks`.
     pub steps: u32,
     /// 0x71A080, 0x71A07C, 0x71A078.
     pub switches: [u32; 3],
-    /// `dword_62389C`.
+    /// `run_kind`.
     pub mode: u32,
-    /// `dword_71A270`.
+    /// `parts_present`.
     pub bits: u32,
-    /// `unk_71A1AC`: the gear.
+    /// `gear`: the gear.
     pub gear: u32,
-    /// `flt_71AEE0`.
+    /// `engine_speed_scaled`.
     pub figure: f32,
 }
 
-/// `physics::count_down_timers`: eax as the original leaves it (`dword_71A270` & 0x1E
+/// `physics::count_down_timers`: the leftover value as the original leaves it (`parts_present` & 0x1E
 /// when that is looked at).
 pub fn count_down(c: &mut StepCounters, f: &StepFacts) -> Option<u32> {
     let down = |v: &mut u32| {
@@ -249,9 +249,9 @@ pub fn count_down(c: &mut StepCounters, f: &StepFacts) -> Option<u32> {
     eax
 }
 
-/// `physics::count_stop_timers`: the three counters (`unk_71A078` .. `unk_71A080`) in
+/// `physics::count_stop_timers`: the three counters (`started_stand_timer` .. `finish_flag`) in
 /// turn; one that is not 0: at 300 the result (-1 for the first two, 2 for the third,
-/// into `unk_71A088`) and done; else while `speed` (`unk_71A19C`) is below `one` (or
+/// into `stop_state`) and done; else while `speed` (`speed`) is below `one` (or
 /// unordered) it goes up, and on reaching 300 (unsigned) the same.
 pub fn stop_timers(counters: &mut [u32; 3], speed: f32, one: f32) -> Option<u32> {
     let slow = below(speed as f64, one as f64);
@@ -273,8 +273,8 @@ pub fn stop_timers(counters: &mut [u32; 3], speed: f32, one: f32) -> Option<u32>
     None
 }
 
-/// `physics::update_car_angles` (0x43BEDC, converted 2026-10-21): the car's angles are
-/// made when `dword_71A6C8` is set or `dword_71A22C` is 0.
+/// `physics::update_car_angles` (0x43BEDC): the car's angles are
+/// made when `camera_mode_is_2_or_3` is set or `all_wheels_off` is 0.
 pub fn angles_wanted(force: u32, hold: u32) -> bool {
     force != 0 || hold == 0
 }

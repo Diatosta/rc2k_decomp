@@ -1,17 +1,13 @@
-//! `physics::reset_point_blocked` (0x43F0DF): whether the checkpoint `dword_614C50` is no
+//! `physics::reset_point_blocked` (0x43F0DF): whether the checkpoint `reset_candidate` is no
 //! place to put a reset car, as `physics::reset_car` ("cant reset car anywhere - waiting a
-//! second") asks it of the other cars' blocks (esi 0x7103CC, 0x7113AC, 0x71238C, ...).
-//! Only when the block's +0x25C is 2 (`grade_mode` 2: a computer car):
-//! CF when the checkpoint is within 8 of the start or the end (`g_checkpointCount` - 8),
-//! or within -8 .. 7 of the block's +0x94 (its checkpoint). The comparisons take the sign
-//! of the difference (`js`/`jns`), as here.
+//! second") asks it of the other cars' blocks. Only when the block's `driver_kind` is 2 (a
+//! computer car): blocked when the checkpoint is within 8 of the start or the end
+//! (`g_checkpointCount` - 8), or within -8 .. 7 of the block's `reset_checkpoint`. The comparisons
+//! take the sign of the difference, as here.
 //!
 //! Takes: the block
 //!
 //! Caller: `physics::reset_car` (six calls), when a car is reset onto the line: not every frame.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::vars_store::RaceVars;
@@ -22,7 +18,7 @@ fn at(a: &dyn Cell32) -> u32 {
     a.bits()
 }
 
-/// The candidate and count read at `candidate`, `count`; `block` the car block tried (esi). Returns
+/// The candidate and count read at `candidate`, `count`; `block` the car block tried. Returns
 /// the carry (blocked).
 // Converted: `rc2k_core::physics::line_places::reset_point_blocked`.
 pub fn reset_point_blocked_at(candidate: &dyn Cell32, count: &dyn Cell32, block: u32) -> bool {

@@ -156,7 +156,7 @@ fn driven_car(course: &Course) -> &'_ crate::physics::car_store::Car {
     let race = race();
     let viewed = crate::race::blocks_store::car_of(race.shared.view.view_blocks[0].get());
     match viewed {
-        Some(car) if course.numbers.in_race.get() != 0 => car,
+        Some(car) if course.numbers.in_race.is_set() => car,
         _ => &race.shared.car,
     }
 }
@@ -175,7 +175,7 @@ fn state(course: &Course) -> String {
         "frames={} screen_frames={} race={} menu={:?} item={} focused={} speed={:.0} time={} splits={} finished={} stuck={} checkpoints={} checkpoint={} map={},{} target={},{} near={},{} channels={} mix={} heading={} gear={} box={} driver={} controls={},{},{},{},{},{} matrix={} cars={} shown={}",
         gfx().drawing.draw_surface.frames.get(),
         screen_frames(),
-        course.numbers.in_race.get(),
+        u32::from(course.numbers.in_race.is_set()),
         screens.loop_flags.menu.get().ok(),
         screens.loop_flags.item.get(),
         system().session.flags.window_focused.get(),
@@ -211,7 +211,7 @@ fn state(course: &Course) -> String {
             .join(","),
         // The players' cars and the car the car choice shows, for the menus' checks.
         (0..crate::menu::player::PLAYERS)
-            .filter_map(crate::menu::player::player)
+            .filter_map(|p| crate::menu::player::player(menus(), p))
             .map(|p| p.get().car_number.to_string())
             .collect::<Vec<_>>()
             .join(","),
@@ -342,7 +342,7 @@ static SCREEN: std::sync::Mutex<(Option<crate::menu::menus_store::MenuId>, u32, 
 /// The screen's identity: its menu (none outside the menus) and the race flag.
 fn screen_now(course: &Course) -> (Option<crate::menu::menus_store::MenuId>, u32) {
     let menu = menus().screens.loop_flags.menu.get().ok();
-    (menu, course.numbers.in_race.get())
+    (menu, u32::from(course.numbers.in_race.is_set()))
 }
 
 /// A change of screen noted at its first frame.
@@ -408,7 +408,7 @@ fn note_slow_frame(course: &Course, now: Instant) {
     let before = last.replace(now);
     let Some(before) = before else { return };
     let ms = now.duration_since(before).as_millis();
-    if ms > limit && course.numbers.in_race.get() != 0 {
+    if ms > limit && course.numbers.in_race.is_set() {
         let car = driven_car(course);
         crate::framework::log(&format!(
             "remote: slow frame {ms} ms at checkpoint {} (frame {})",
@@ -508,7 +508,7 @@ fn reseed() {
 /// recording pictures itself (`race::replay_screenshot` moves it then).
 pub fn shot_frame_drawn() {
     use crate::race::viewer_screen_store::VIEWER_PANEL;
-    if held_race() && race().course.numbers.in_race.get() != 0 {
+    if held_race() && race().course.numbers.in_race.is_set() {
         use std::sync::atomic::Ordering::Relaxed;
         let held = HELD_CLOCK.load(Relaxed);
         let next = if held == 0 {

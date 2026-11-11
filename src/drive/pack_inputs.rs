@@ -1,4 +1,4 @@
-//! `drive::pack_inputs` (0x409328): four input words packed into one: eax |, << 4 (as the
+//! `drive::pack_inputs` (0x409328): four input words packed into one: the first |, << 4 (as the
 //! original's `shl`s, high bits lost).
 //!
 //! Takes: the words (not used)

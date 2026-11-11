@@ -38,7 +38,7 @@ pub struct Buffers {
     /// +0x83738 (0x9E3738): `race::checkpoints_store`.
     pub checkpoints: Checkpoints,
     /// +0xB2AE4 (0xA12AE4): `dword_A12AE4`, the mirror picture's room for the platform's
-    /// upload (0x44E828's esi; `race::forget_view_textures`, 0x455E61).
+    /// upload (`race::forget_view_textures`).
     pub mirror_upload: Bytes<0x11000>,
     /// +0xC3AE4 (0xA23AE4): `scene::engine_tables_store`.
     pub engine_tables: EngineTables,

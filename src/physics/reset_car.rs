@@ -1,13 +1,13 @@
 //! `physics::reset_car` (0x43EFEF): the work car put back on the line. Its checkpoint
-//! (`dword_71A06C`, `g_car` +0x94) into `dword_6365E4`, `dword_6365EC` 0. With
-//! `dword_62389C` 2 a free checkpoint is looked for: offsets d = 0, 1, .. 0x3F
-//! (`dword_614C4C`), each tried as +d then -d (`dword_614C50` = the checkpoint + it), a
+//! (`reset_checkpoint`, `g_car` +0x94) into `line_place`, `line_fraction` 0. With
+//! `run_kind` 2 a free checkpoint is looked for: offsets d = 0, 1, .. 0x3F
+//! (`reset_offset`), each tried as +d then -d (`reset_candidate` = the checkpoint + it), a
 //! try failing when `physics::reset_point_blocked` gives CF for any of the blocks at
 //! 0x7103CC, 0x7113AC, 0x71238C (tried in that order, the first CF ends it). The first
-//! free one goes into `dword_6365E4`; with none, "cant reset car anywhere - waiting a sec"
-//! is logged (`log_write_l1_nl`), +0x1E8 (`dword_71A1C0`, the
+//! free one goes into `line_place`; with none, "cant reset car anywhere - waiting a sec"
+//! is logged (`log_write_l1_nl`), +0x1E8 (`stuck_count`, the
 //! stuck count) less 100, and it returns. Else `race::place_car_on_line`,
-//! `physics::reset_car_on_line`, and +0xFAC (`dword_71AF84`) 10.
+//! `physics::reset_car_on_line`, and +0xFAC (`reset_marker`) 10.
 //!
 //! Callers: `physics::reset_when_stuck`, `drive::reset_request`, `physics::find_clear_place`.
 //! Refuses what the calls refuse.
@@ -70,7 +70,7 @@ pub fn reset_car(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
             .line_place
             .set(race.shared.physics_tables.reset_candidate.get());
     }
-    crate::race::start_place::place_car_on_line(race, &race.course, scene)?;
+    crate::race::start_place::place_car_on_line(&race.shared, &race.course, scene)?;
     crate::physics::reset_car_on_line::reset_car_on_line(race, scene)?;
     race.shared.car.reset_marker.set(10);
     Ok(())

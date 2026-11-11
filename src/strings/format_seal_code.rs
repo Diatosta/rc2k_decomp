@@ -1,8 +1,7 @@
 //! `strings::format_seal_code` (0x4026C9): two dwords as "AABB-CCDD-EEFF-GGHH" in
-//! `byte_4E0544`: each dword's bytes from the lowest, two hex digits each
+//! the seal text buffer: each dword's bytes from the lowest, two hex digits each
 //! (`strings::hex_append`), a '-' after every second byte; no NUL (the buffer keeps whatever
-//! follows). The dwords are kept in `value` / `dword_4E0540`. (Stream A, part F1: the stage
-//! results page shows a seal code with it.)
+//! follows). The dwords are kept in the cipher block (`value`). (The stage results page shows a seal code with it.)
 //!
 //! Takes two dwords.
 //!
@@ -12,8 +11,8 @@
 /// was never written by the time the code is read: the text's NUL).
 use crate::race::owner::race;
 pub const SEAL_TEXT_LEN: usize = 0x14;
-/// The code's text: out of the image since 2026-10-24 (phase 5). The two dwords stay in
-/// the image, in `race::save_seal`'s cipher block (`value`, `dword_4E0540`).
+/// The code's text. The two dwords are in `race::save_seal`'s cipher block (`value`,
+/// `dword_4E0540`).
 pub static SEAL_TEXT: crate::session::Bytes<SEAL_TEXT_LEN> =
     crate::session::Bytes::new([0; SEAL_TEXT_LEN]);
 

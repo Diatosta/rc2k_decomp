@@ -5,7 +5,7 @@
 //! (the callees' Rust versions, the screens through `menu::screen_loop`).
 
 use crate::errors::BadInput;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::records::stages_store::RecordRef;
 use crate::session::Dword;
 use crate::system::owner::system;
@@ -66,31 +66,31 @@ pub fn refuse_here<T>(r: Result<T, BadInput>, at: &str) -> T {
 // ---- the variables ----
 
 pub const ANSWER: &Dword = &crate::menu::owner::MENUS.tables.pages.yes_no_answer; // g_yesNoAnswer
-pub const CURRENT: &Dword = &crate::menu::owner::MENUS.screens.event.current_player; // dword_75598C: the current player
-pub const PLAYER_COUNT: &Dword = &crate::menu::owner::MENUS.screens.event.player_count; // dword_755984
-pub const EVENT_MODE: &Dword = &crate::menu::owner::MENUS.screens.event.event_kind; // dword_755988 (9 .. 0x18, `menu::run_event_races`)
-pub const EVENT_TYPE: &Dword = &crate::menu::owner::MENUS.screens.event.event_type; // dword_755954: 3 time trial, 4, 5 the championships
+pub const CURRENT: &Dword = &crate::menu::owner::MENUS.screens.event.current_player; // the current player
+pub const PLAYER_COUNT: &Dword = &crate::menu::owner::MENUS.screens.event.player_count;
+pub const EVENT_MODE: &Dword = &crate::menu::owner::MENUS.screens.event.event_kind; // 9 .. 0x18, `menu::run_event_races`
+pub const EVENT_TYPE: &Dword = &crate::menu::owner::MENUS.screens.event.event_type; // 3 time trial, 4, 5 the championships
 pub const MODE: &Dword = &crate::menu::owner::MENUS.play.champ_view.event_mode; // g_eventMode: 2, 3, 0x13
-pub const LEFT_BY_KEY: &Dword = &crate::menu::owner::MENUS.tables.captions.left_by_key; // dword_758806: the car choice was left
-pub const EVENT_LEFT: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.event_left; // dword_75555D
-pub const LEAVE_SCREEN: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.leave_screen; // dword_755561
-pub const LEFT_WITH_CARRY: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.left_with_carry; // dword_755565
-pub const ASK_LEAVE: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.ask_leave; // dword_755569
-pub const EVENT_OVER: &Dword = &crate::menu::owner::MENUS.screens.event.event_over; // dword_755980: 1 when an event is over
-pub const ESCAPE_PRESSED: &Dword = &crate::menu::owner::MENUS.screens.draw_work.escape_pressed; // dword_755A3C
-pub const CONTINUING: &Dword = &crate::menu::owner::MENUS.screens.event.continuing_save; // dword_755970: 1 when a saved game goes on
+pub const LEFT_BY_KEY: &Dword = &crate::menu::owner::MENUS.tables.captions.left_by_key; // the car choice was left
+pub const EVENT_LEFT: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.event_left;
+pub const LEAVE_SCREEN: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.leave_screen;
+pub const LEFT_WITH_CARRY: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.left_with_carry;
+pub const ASK_LEAVE: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.ask_leave;
+pub const EVENT_OVER: &Dword = &crate::menu::owner::MENUS.screens.event.event_over; // 1 when an event is over
+pub const ESCAPE_PRESSED: &Dword = &crate::menu::owner::MENUS.screens.draw_work.escape_pressed;
+pub const CONTINUING: &Dword = &crate::menu::owner::MENUS.screens.event.continuing_save; // 1 when a saved game goes on
 pub const INDEX: &Dword = &crate::menu::owner::MENUS.screens.event.index; // index
 pub const SECTION: &Dword = &crate::menu::owner::MENUS.screens.event.section; // section
 pub const CHEATS: &Dword = &crate::menu::owner::MENUS.play.cheats.cheats; // g_cheats
-pub const ROUND: &Dword = &crate::menu::owner::MENUS.play.results.round; // dword_758714: the rounds of a multi-player event
+pub const ROUND: &Dword = &crate::menu::owner::MENUS.play.results.round; // the rounds of a multi-player event
 
 /// The car lists: `off_759CAE` (the championship's), `off_759D16` (the A8 championship's),
 /// `off_759DCA` / `off_75A042` (by `dword_7554D8`), `off_75A412` (with cheat bit 1).
-pub const CAR_LIST_KIND: &Dword = &crate::menu::owner::MENUS.screens.flow.car_list_kind; // dword_7554D8: 1 picks the first list
+pub const CAR_LIST_KIND: &Dword = &crate::menu::owner::MENUS.screens.flow.car_list_kind; // 1 picks the first list
 
 /// Player `n`'s record (`g_players`).
-pub fn player(n: u32) -> crate::menu::standings::PlayerCell {
-    &menus().play.players.players[n as usize]
+pub fn player(menus: &Menus, n: u32) -> crate::menu::standings::PlayerCell<'_> {
+    &menus.play.players.players[n as usize]
 }
 
 pub fn yes() -> bool {
@@ -98,31 +98,31 @@ pub fn yes() -> bool {
 }
 
 /// The current player's record, refused past the four.
-pub fn current_player() -> Result<crate::menu::standings::PlayerCell, BadInput> {
+pub fn current_player(menus: &Menus) -> Result<crate::menu::standings::PlayerCell<'_>, BadInput> {
     let n = get(CURRENT);
     if n >= 4 {
         return Err(BadInput("a current player past the four"));
     }
-    Ok(player(n))
+    Ok(player(menus, n))
 }
 
 /// The stage chosen: `off_735512[dword_7558C8][dword_7558D0]` + `dword_7558CC` x 0xA4.
-pub const STAGE_KIND: &Dword = &crate::menu::owner::MENUS.screens.event.stage_group; // dword_7558C8
-pub const STAGE_SUB: &Dword = &crate::menu::owner::MENUS.screens.event.stage_sub; // dword_7558D0
-pub const STAGE_NUMBER: &Dword = &crate::menu::owner::MENUS.screens.event.stage_number; // dword_7558CC
+pub const STAGE_KIND: &Dword = &crate::menu::owner::MENUS.screens.event.stage_group;
+pub const STAGE_SUB: &Dword = &crate::menu::owner::MENUS.screens.event.stage_sub;
+pub const STAGE_NUMBER: &Dword = &crate::menu::owner::MENUS.screens.event.stage_number;
 const KINDS: u32 = 4;
 /// The stages' best times: `g_stageBestTimesAlt` (kind 1) or `dword_7556E8`, ten for each
 /// stage (the record's +0x3C).
 pub type StageTable = crate::memory::owned::Owned<rc2k_core::saves::entries::StageTimes>;
-pub const TIMES_ONE: &StageTable = &crate::saves::best_times::STAGE_TIMES_ALT; // dword_7556E4
-pub const TIMES_OTHER: &StageTable = &crate::saves::best_times::TIME_TRIAL_TIMES; // dword_7556E8
+pub const TIMES_ONE: &StageTable = &crate::saves::best_times::STAGE_TIMES_ALT;
+pub const TIMES_OTHER: &StageTable = &crate::saves::best_times::TIME_TRIAL_TIMES;
 
 /// The chosen stage's record; refused for a kind past the table's four or a null pointer
 /// on the way (the original reads through it).
 pub fn stage_record() -> Result<RecordRef, BadInput> {
     let kind = get(STAGE_KIND);
     if kind >= KINDS {
-        return Err(BadInput("a stage kind past off_735512's four"));
+        return Err(BadInput("a stage kind past the event stage tables' four"));
     }
     let stages = system()
         .records

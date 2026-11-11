@@ -1,13 +1,13 @@
 //! `screens::draw_players_standings` (0x483FDE): the players' standings: the heads (strings
-//! 0x218, 0x219, 0x21B at y 0xE7), then four rows (three when `dword_755984` is 3: two
-//! players still get four, as the original) in the order `dword_758720` .. (byte offsets into
+//! 0x218, 0x219, 0x21B at y 0xE7), then four rows (three when `event.player_count` is 3: two
+//! players still get four, as the original) in the order of `results.order` (byte offsets into
 //! `g_players`): the names at x 0x132, the cars' sprites at 0x114, the flags' at 0x1DA, the
-//! places (strings 0x4FE ..) at 0xEA and the points (`off_7589A6[..]`'s first dword, kept in
-//! `dword_7559B8`) at 0x217; rows 0x17 apart from y 0xFE; the sprites' palette ebx after the
+//! places (strings 0x4FE ..) at 0xEA and the points (the place's first dword of the points list, kept in
+//! `draw_work.scratch_b8`) at 0x217; rows 0x17 apart from y 0xFE; the sprites' palette ebx after the
 //! last name.
 //!
 //!
-//! In a menu loop's draw list (0x758ECE). Refuses (before anything) a row's player without its
+//! In a menu loop's draw list. Refuses (before anything) a row's player without its
 //! record or name, or without its points. The menus and draw lists run its `entry`
 //! (`menu::table_calls`).
 

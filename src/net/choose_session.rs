@@ -1,8 +1,8 @@
 //! `net::choose_session` (0x417726): the list screen of the sessions (`net::sessions_frame`
 //! through `screens::run_frame`), as `net::choose_connection`'s, and once a second
-//! (`system::tick_count` against `dword_52A4C4`) the sessions listed again
+//! (`system::tick_count` against `clock_a`) the sessions listed again
 //! (`net::find_sessions_regs`, with `g_netPosting` 0 for it): the highlighted session's GUID
-//! kept first (`unk_52AD00`) and found again after (`system::same_guid`), the highlight on
+//! kept first (`joined`) and found again after (`system::same_guid`), the highlight on
 //! it (the top moved by as much, from 0 when sixteen or fewer, not below 0), or at the top
 //! when it is gone; a failed listing gives -2. With no session listed only Escape, 'R' and
 //! the lexicon's key work.

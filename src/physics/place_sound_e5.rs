@@ -1,6 +1,6 @@
-//! `physics::place_sound_e5` (0x45CF95): when the current car is listed, `physics::sound_band_4` (ebx)
-//! goes to its sound object with +0x24C 0xE5, +0x250 the band, the place at +0x254 .. and
-//! +0x10 1 (see `physics/car_sounds.rs`).
+//! `physics::place_sound_e5` (0x45CF95): when the current car is listed, `physics::sound_band_4`
+//! gives a band that goes to its sound object as sound 0xE5 (second slot) with that band, the
+//! place and the update flag set (see `physics/car_sounds.rs`).
 //!
 //! Caller: `physics::crash_contact`. Refuses (before anything) a car number past 7, a null sound
 //! object when it is written.

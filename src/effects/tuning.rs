@@ -1,12 +1,11 @@
-//! The marks' frame timing, constants and kind floats, out of the marks' block (phase 7, typed
-//! state): `MarksFrame` (IDA 0x765110 .. 0x765140), `MarksFloats` (0x765140 .. 0x765238) and
+//! The effects' frame timing, constants and kind floats: `MarksFrame` (IDA 0x765110 .. 0x765140), `MarksFloats` (0x765140 .. 0x765238) and
 //! `MarksKindFloats` (0x765238 .. 0x7652A4).
 
 #[cfg(test)]
 use crate::effects::owner::effects;
 use crate::session::{Bytes, Dword, Float};
 
-/// The marks' frame timing and counters (`effects::frame_marks`, `effects::run_frame`, `effects::draw_frame`) (IDA 0x765110 .. 0x765140, the image's layout; phase 7, typed state).
+/// The marks' frame timing and counters (`effects::frame_marks`, `effects::run_frame`, `effects::draw_frame`) (IDA 0x765110 .. 0x765140).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarksFrame {
@@ -39,13 +38,13 @@ impl MarksFrame {
         Self {
             last_count: Dword::new(0x0),
             frame_cycles: Dword::new(0x0),
-            empty_share: Float::from_bits(0x0),
-            ring_share: Float::from_bits(0x0),
-            whole_share: Float::from_bits(0x0),
-            quads_share: Float::from_bits(0x0),
-            step_share: Float::from_bits(0x0),
+            empty_share: Float::new(0.0),
+            ring_share: Float::new(0.0),
+            whole_share: Float::new(0.0),
+            quads_share: Float::new(0.0),
+            step_share: Float::new(0.0),
             _gap_76512c: Bytes::new([0; 8]),
-            draw_share: Float::from_bits(0x0),
+            draw_share: Float::new(0.0),
             emit_side: Dword::new(0x0),
             steps: Dword::new(0x0),
         }
@@ -113,7 +112,7 @@ mod marks_frame_tests {
     }
 }
 
-/// The marks' constants (a pool of integers and floats the effects' code multiplies by) (IDA 0x765140 .. 0x765238, the image's layout; phase 7, typed state).
+/// The marks' constants (a pool of integers and floats the effects' code multiplies by) (IDA 0x765140 .. 0x765238).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarksFloats {
@@ -206,52 +205,52 @@ impl MarksFloats {
         Self {
             pull_limit: Dword::new(0x10000),
             _gap_765144: Bytes::new([0x00, 0x00, 0x80, 0xBF, 0x00, 0x00, 0x80, 0xC7]),
-            burst_direction_k: Float::from_bits(0xC283126F),
-            minus_eighth: Float::from_bits(0xBE000000),
+            burst_direction_k: Float::new(-65.536),
+            minus_eighth: Float::new(-0.125),
             _gap_765154: Bytes::new([0x00, 0x00, 0x80, 0x3E]),
-            half: Float::from_bits(0x3F000000),
-            twentieth: Float::from_bits(0x3D4CCCCD),
+            half: Float::new(0.5),
+            twentieth: Float::new(0.05),
             _gap_765160: Bytes::new([0xCD, 0xCC, 0xCC, 0x3D]),
-            fifth: Float::from_bits(0x3E4CCCCD),
-            three_tenths: Float::from_bits(0x3E99999A),
-            one: Float::from_bits(0x3F800000),
+            fifth: Float::new(0.2),
+            three_tenths: Float::new(0.3),
+            one: Float::new(1.0),
             _gap_765170: Bytes::new([0x00, 0x00, 0x00, 0x40]),
-            three: Float::from_bits(0x40400000),
+            three: Float::new(3.0),
             _gap_765178: Bytes::new([
                 0x00, 0x00, 0x80, 0x40, 0x00, 0x00, 0xA0, 0x40, 0x00, 0x00, 0xC0, 0x40, 0x00, 0x00,
                 0xE0, 0x40, 0x00, 0x00, 0x00, 0x41,
             ]),
-            sixteen: Float::from_bits(0x41800000),
-            thirty_two: Float::from_bits(0x42000000),
+            sixteen: Float::new(16.0),
+            thirty_two: Float::new(32.0),
             _gap_765194: Bytes::new([0x00, 0x00, 0x80, 0x42]),
-            hundred_twenty_eight: Float::from_bits(0x43000000),
-            two_fifty_five: Float::from_bits(0x437F0000),
-            two_fifty_six: Float::from_bits(0x43800000),
-            two_fifty_seven: Float::from_bits(0x43808000),
+            hundred_twenty_eight: Float::new(128.0),
+            two_fifty_five: Float::new(255.0),
+            two_fifty_six: Float::new(256.0),
+            two_fifty_seven: Float::new(257.0),
             _gap_7651a8: Bytes::new([
                 0x00, 0x00, 0x00, 0x44, 0x00, 0x00, 0x80, 0x44, 0x00, 0x00, 0x02, 0x42, 0x00, 0x00,
                 0x7A, 0x42, 0x00, 0x00, 0xFA, 0x42,
             ]),
-            quarter: Float::from_bits(0x3E800000),
-            eighth: Float::from_bits(0x3E000000),
-            sixteenth: Float::from_bits(0x3D800000),
-            surface_edge: Float::from_bits(0x3B000000),
-            surface_pixel: Float::from_bits(0x3B800000),
-            thirty_second: Float::from_bits(0x3D000000),
-            particle_13_place_k: Float::from_bits(0x4283126F),
+            quarter: Float::new(0.25),
+            eighth: Float::new(0.125),
+            sixteenth: Float::new(0.0625),
+            surface_edge: Float::new(0.001953125),
+            surface_pixel: Float::new(0.00390625),
+            thirty_second: Float::new(0.03125),
+            particle_13_place_k: Float::new(65.536),
             _gap_7651d8: Bytes::new([0x0A, 0xD7, 0x23, 0x44]),
-            fixed_16_scale: Float::from_bits(0x47800000),
+            fixed_16_scale: Float::new(65536.0),
             _gap_7651e0: Bytes::new([0x00, 0x00, 0x00, 0x47]),
-            seven_hundred: Float::from_bits(0x442F0000),
-            hundred: Float::from_bits(0x42C80000),
+            seven_hundred: Float::new(700.0),
+            hundred: Float::new(100.0),
             _gap_7651ec: Bytes::new([0x00, 0x00, 0xFA, 0x43]),
-            two_thousand: Float::from_bits(0x44FA0000),
+            two_thousand: Float::new(2000.0),
             _gap_7651f4: Bytes::new([
                 0xF1, 0xF0, 0x70, 0x3D, 0x00, 0x00, 0x00, 0x3B, 0x39, 0xFE, 0x7F, 0x3A, 0xF7, 0xFF,
                 0xFF, 0x39, 0x0D, 0x00, 0x80, 0x39, 0xD5, 0xFF, 0xFF, 0x38, 0xD5, 0xFF, 0x7F, 0x38,
                 0x74, 0x00, 0x00, 0x38,
             ]),
-            over_65536: Float::from_bits(0x37800074),
+            over_65536: Float::new(0.000015259),
             _gap_765218: Bytes::new([0x00, 0x00, 0x00, 0x4F]),
             spread_scale: Bytes::new([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3E]),
             _gap_765224: Bytes::new([
@@ -392,7 +391,7 @@ mod marks_floats_tests {
     }
 }
 
-/// The settings' copies and the kinds' floats (`effects::frame_marks`, `effects::init_marks`) (IDA 0x765238 .. 0x7652A4, the image's layout; phase 7, typed state).
+/// The settings' copies and the kinds' floats (`effects::frame_marks`, `effects::init_marks`) (IDA 0x765238 .. 0x7652A4).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarksKindFloats {
@@ -414,31 +413,31 @@ impl MarksKindFloats {
             other: Dword::new(0x1),
             fading: Dword::new(0x1),
             kind_floats: [
-                Float::from_bits(0x467DC000),
-                Float::from_bits(0x468E8000),
-                Float::from_bits(0x468E8000),
-                Float::from_bits(0x468E8000),
-                Float::from_bits(0x468E8000),
-                Float::from_bits(0x468E8000),
-                Float::from_bits(0x4686B000),
-                Float::from_bits(0x468E8000),
-                Float::from_bits(0x4686B000),
-                Float::from_bits(0x468E8000),
-                Float::from_bits(0x46C53000),
-                Float::from_bits(0x468E8000),
-                Float::from_bits(0x466E2000),
-                Float::from_bits(0x464EE000),
-                Float::from_bits(0x468E8000),
-                Float::from_bits(0x468E8000),
-                Float::from_bits(0x467DC000),
-                Float::from_bits(0x468E8000),
-                Float::from_bits(0x468E8000),
-                Float::from_bits(0x468E8000),
-                Float::from_bits(0x468E8000),
-                Float::from_bits(0x468E8000),
-                Float::from_bits(0x468E8000),
+                Float::new(16240.0),
+                Float::new(18240.0),
+                Float::new(18240.0),
+                Float::new(18240.0),
+                Float::new(18240.0),
+                Float::new(18240.0),
+                Float::new(17240.0),
+                Float::new(18240.0),
+                Float::new(17240.0),
+                Float::new(18240.0),
+                Float::new(25240.0),
+                Float::new(18240.0),
+                Float::new(15240.0),
+                Float::new(13240.0),
+                Float::new(18240.0),
+                Float::new(18240.0),
+                Float::new(16240.0),
+                Float::new(18240.0),
+                Float::new(18240.0),
+                Float::new(18240.0),
+                Float::new(18240.0),
+                Float::new(18240.0),
+                Float::new(18240.0),
             ],
-            kind_float: Float::from_bits(0x0),
+            kind_float: Float::new(0.0),
             running: Dword::new(0x0),
         }
     }

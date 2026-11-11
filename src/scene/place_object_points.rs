@@ -3,28 +3,24 @@
 //!
 //! Takes: only matter for an object with normals and no points (refused)
 //!
-//! The object `g_objectNumber` has `dword_632370[n]` points and then
-//! `dword_632770[n]` normals, numbered from `dword_631F70[n]`, twelve bytes each at
-//! `dword_5C6FA4` + number * 12: a point three whole numbers, a normal three floats.
-//! Each gets the record 0x1000 + (number & 0xFFF) of `g_pointRecords` (its +0 = the
-//! number). A point goes through the matrix `off_5EA40C` points at (0x45C18E, the
-//! same arithmetic as `scene::rotate_point`) and onto the screen as
-//! `scene::project_point` does it (0x45C237: not if it is nearer than 4096). With
-//! `dword_623DD0` not 0 the point is first moved (0x45C29B) towards the one that
-//! many bytes further on in the table, by `flt_623DD4` of the way, rounded to whole
-//! numbers in `unk_5CCE18`; (the original's store of that fraction to `g_scratch` is not kept). A normal goes through
-//! the matrix without its fourth row (0x45C1E7).
-//! One caller, `scene::place_object_points_any`, which takes this way unless `dword_621A5C` (3DNow)
-//! or
-//! `g_useSse` is set: `place_object_points_sse` is the SSE way (0x45C04E); the 3DNow way
-//! (0x45BF89) is not ported.
-//! Refuses an object's number of 0x100 or more, no records, no points' table, no
-//! matrix, and normals without points (the original goes on from whatever eax and
-//! ecx hold).
+//! The object (the car state's `object_number`) has `point_counts[n]` points and then
+//! `normal_counts[n]` normals, numbered from `first_point[n]`, twelve bytes each in the
+//! course's `object_points` table: a point three whole numbers, a normal three floats.
+//! Each gets the point record 0x1000 + (number & 0xFFF) (its +0 = the number). A point goes
+//! through the object matrix (`made_object_matrix`; the same arithmetic as
+//! `scene::rotate_point`) and onto the screen as `scene::project_point` does it (not if it
+//! is nearer than 4096). With the object's `move_by` not 0 the point is first moved towards
+//! the one that many bytes further on in the table, by `move_fraction` of the way, rounded
+//! to whole numbers in `point_moved` (the original's store of that fraction to its shared
+//! work dword is not kept). A normal goes through the matrix without its fourth row.
+//! One caller, `scene::place_object_points_any`, which takes this way unless the 3DNow or
+//! the SSE switch is set: `place_object_points_sse` is the SSE way; the 3DNow way is not
+//! ported. Refuses an object's number of 0x100 or more, no records, no points' table, no
+//! matrix, and normals without points (the original goes on from whatever its registers
+//! hold).
 //!
 //! The arithmetic (the moved point, the rotation, the normals) is the x87's, in plain Rust
-//! over `X` (`math/x87_float.rs`), rounding as the control word says; the original's
-//! instructions are `asm_reference` in the tests (2026-10-24).
+//! over `X` (`math/x87_float.rs`), rounding as the control word says.
 
 use crate::errors::{BadInput, Refused};
 use crate::scene::owner::scene;
@@ -37,8 +33,8 @@ const OBJECTS: u32 = 0x100;
 
 // ---- Rust version ----
 
-/// 0x45C29B: the point at `from` moved towards the one `by` bytes on, into
-/// `unk_5CCE18`.
+/// The point at `from` moved towards the one `by` bytes on, into `point_moved` and the
+/// next two cells.
 fn moved(
     race: &crate::race::owner::Race,
     from: usize,
@@ -52,7 +48,7 @@ fn moved(
     // The fraction, the two points, the result, the fraction as it is stored.
     let mut w = [fraction, a[0], a[1], a[2], b[0], b[1], b[2], 0, 0, 0, 0];
     moved_at(cells(&mut w));
-    // The original stores the three from `point_moved`, y and z on over the first two
+    // The original stores the three from `point_moved` on: y and z land over the first two
     // group masks (`notes/bugs.md`).
     course.course.point_moved.set(w[7]);
     course.course.group_masks[0].set(w[8]);
@@ -85,7 +81,7 @@ fn moved_at(w: impl Base) {
     fstp(w, 0x28, t0);
 }
 
-/// 0x45C1E7: a normal's three floats through the matrix's first three rows, into
+/// A normal's three floats through the matrix's first three rows, into
 /// the record's +0x10, +0x14, +0x18.
 fn turn(normal: &[u32], matrix: &[u32], record: &mut [u32]) {
     turn_normal(normal, matrix, cells(record));
@@ -150,7 +146,7 @@ fn object(
     if object.points <= 0 && object.normals > 0 {
         return Err(BadInput("an object of normals and no points"));
     }
-    if object.points > 0 && (object.table == 0 || !point_records::held()) {
+    if object.points > 0 && (object.table == 0 || !point_records::held(&race.course)) {
         return Err(BadInput("no points' table or no records"));
     }
     Ok(object)
@@ -164,8 +160,8 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     if object.points <= 0 {
         return Ok(());
     }
-    // A copy: nothing the loop writes is the matrix (`off_5EA40C`'s, the object's own).
-    // (`g_objectMatrix` is only ever `g_madeObjectMatrix`, never written.)
+    // A copy: nothing the loop writes is the matrix (it is always the object's own,
+    // `made_object_matrix`, which is never written here).
     let matrix: [u32; 16] = std::array::from_fn(|n| ctx.view.matrices.made_object_matrix[n].bits());
     let move_by: u32 = ctx.view.object.move_by.get();
     let fraction: u32 = ctx.view.object.move_fraction.get();
@@ -226,10 +222,10 @@ fn sse_lanes(p: [f32; 3], m: &[f32; 16], place: bool) -> [u32; 4] {
     })
 }
 
-/// 0x45C04E: the SSE way, reached only with the developers' extensions switch (the debug
-/// UI's Switches tab). Not as the x87 way: the matrix is always `g_madeObjectMatrix`, the
+/// The SSE way, reached only with the developers' extensions switch (the debug UI's
+/// Switches tab). Not as the x87 way: the matrix is always `made_object_matrix`, the
 /// points are never moved, a record's +0x1C holds the fourth lane until the screen's two are
-/// worked out (0x45C237), and the table's point 0 ends as a normal in record 0x1000.
+/// worked out, and the table's point 0 ends as a normal in record 0x1000.
 pub fn place_object_points_sse(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
 ) -> Result<(), Refused> {
@@ -243,10 +239,10 @@ pub fn place_object_points_sse(
         let mut r = point_records::get(record)?;
         r[0] = number;
         let point = crate::scene::object_points::point(from)?;
-        // `cvtsi2ss`: the whole numbers rounded to floats.
+        // The whole numbers rounded to floats.
         let lanes = sse_lanes(point.map(|v| v as i32 as f32), &m, true);
         r[4..8].copy_from_slice(&lanes);
-        // 0x45C237.
+        // The screen position.
         r[3] = 0;
         r[7] = 0;
         if f32::from_bits(r[6]) >= NEAR {

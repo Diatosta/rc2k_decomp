@@ -3,12 +3,12 @@
 //!
 //! A pixel's first byte is the top four bits of its first component in the low half and
 //! of its second in the high half; its second byte the same of the third and fourth.
-//! Reached only through the converter table `dword_4F5288`, where `gfx::install_converters`
+//! Reached only through the converter table the converter table, where `gfx::install_converters`
 //! puts it when the processor has no MMX; with MMX 0x407276 stands there instead (not
 //! ported). So on a machine of today it is never called.
 //! Refuses a row or a row count of 0 (the original counts through all 32 bits). The name
 //! is a reading. The Rust version works in place on the picture's bytes,
-//! its only call (from = to, one row, ebp 0).
+//! its only call (from = to, one row).
 
 use crate::errors::BadInput;
 

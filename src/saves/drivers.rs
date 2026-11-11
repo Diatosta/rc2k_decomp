@@ -1,4 +1,4 @@
-//! The 180 drivers' records (`unk_73B674`, 0x94 bytes each) as the functions that make up
+//! The 180 drivers' records (`g_drivers`, 0x94 bytes each) as the functions that make up
 //! default best times use them, and the table their names come from.
 
 use crate::errors::BadInput;

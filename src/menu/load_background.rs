@@ -5,7 +5,7 @@
 //! drawn with the palette given. The original's callers test the carry flag the blitter leaves
 //! (and call a set carry fatal error 0x80712345), but it is no result of the loading.
 //! `gfx::load_picture`, whose result is not looked at; `gfx::convert_picture`;
-//! `g_pictureFlags` = the screen mode's flags (`dword_4F4934`) and 0xFFF;
+//! `g_pictureFlags` = the screen mode's flags (the screen mode flags) and 0xFFF;
 //! `gfx::picture_as_surface`; sprite 0xA0 of `g_spriteTable` at (0, 0). 76 callers, nearly all of
 //! them screen loops. Refuses what the functions it calls refuse. Rust callers run its `entry`
 //! (`routes.rs`).

@@ -1,8 +1,8 @@
-//! The panel's values of a view (converted 2026-10-21 from `race::panel_values`
-//! 0x45AB5A; its motion converted 2026-10-21 from `race::panel_motion` 0x45AE1D). Floats as
+//! The panel's values of a view (converted from `race::panel_values`
+//! 0x45AB5A; its motion Converted from `race::panel_motion` 0x45AE1D). Floats as
 //! the float pass keeps them: the x87's stack in `f64`, the stored values rounded to `f32`
 //! (exact at the game's double precision; `fldpi`'s 64-bit pi is kept exactly in
-//! `times_pi`). The overlay's stage parts converted 2026-10-21 from `race::init_overlay`
+//! `times_pi`). The overlay's stage parts Converted from `race::init_overlay`
 //! 0x45A9DE (their miles stay the x87's, asked through a closure).
 
 use crate::math::geometry::fistp;
@@ -19,7 +19,7 @@ pub fn travelled(car: u32, start: u32) -> u32 {
 }
 
 /// The distance shown: `travelled` (a whole number) over the distance unit
-/// (`flt_5C5D98`) over the metres in a mile (`g_metresInMile`), doubled (`fild`, `fdiv`,
+/// (`k65536`) over the metres in a mile (`g_metresInMile`), doubled (`fild`, `fdiv`,
 /// `fdiv`, `fadd st, st`, `fstp`).
 pub fn distance_shown(travelled: i32, unit: f32, miles: f32) -> f32 {
     let v = travelled as f64 / unit as f64 / miles as f64;
@@ -65,7 +65,7 @@ pub fn heading(turn: i32, half: f32, big: f32) -> f32 {
 }
 
 /// The time the panel's numbers have been shown past 800 ms (`g_sceneClock` less
-/// `dword_62290C` less 800), 0 when below.
+/// `shown_since` less 800), 0 when below.
 pub fn shown_for(clock: u32, since: u32) -> u32 {
     let t = clock.wrapping_sub(since).wrapping_sub(0x320);
     if (t as i32) < 0 { 0 } else { t }

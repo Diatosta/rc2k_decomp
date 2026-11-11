@@ -1,6 +1,6 @@
 //! `physics::ease_pitch_down` (0x438CD3): half the way from `g_car` +0x6B8
-//! (`unk_71A690`) down to `dword_608C1C` (unsigned halving, `shr`), kept in
-//! `dword_608C24` and taken from +0x6B8. The twin of `physics::ease_pitch_up`.
+//! (`camera_pitch`) down to `pitch_floor` (unsigned halving, `shr`), kept in
+//! `pitch_step` and taken from +0x6B8. The twin of `physics::ease_pitch_up`.
 //!
 //! Returns: the step
 //!

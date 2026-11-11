@@ -1,5 +1,5 @@
-//! `install::finish_page` (0x414347): at the page's end (ebx negative) with the answer
-//! (`byte_51D415`) 2, `byte_51BE21` becomes 5 and the answer 1 (the readme is shown).
+//! `install::finish_page` (0x414347): at the page's end (state negative) with the answer
+//! (`list_answer`) 2, `script_mark` becomes 5 and the answer 1 (the readme is shown).
 //!
 //! Takes the state.
 //! Caller `install::run_page`.

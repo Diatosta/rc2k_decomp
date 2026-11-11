@@ -1,16 +1,16 @@
 //! `scene::load_hud_car_icons` (0x4255AA): the two car icons painted into the HUD's texture (kind 0xC1):
 //! car 0's model and car 1's, from the icon sheets `tx1822` .. `tx1825` (the 34 cars and
 //! the bonus vehicles, 82 x 42 each, with their masks). The game's log calls every texture a
-//! "plate"; this was `scene::load_number_plates` until 2026-10-24.
+//! "plate".
 //!
-//! Unless kind 0xC1's first texture (`dword_5D0DEC`) is none, twice, for the player's
-//! car (`dword_70F410`, or with `dword_52A910` set the block of the car
-//! `dword_52A920`, its +0x24) and then for `dword_7103F0`:
+//! Unless kind 0xC1's first texture is none, twice, for the player's
+//! car (the own car, or in a network session the block of the network player's car, its
+//! +0x24) and then for the second player's car:
 //! - `scene::car_icon_number` of it gives the icon's number;
 //! - under 0x12 the pictures `files\b\tx1822.pcx` and `tx1823.pcx`, else `tx1824.pcx`
-//!   and `tx1825.pcx` (eax, ecx);
-//! - edx, esi = `dword_5DCD9C[number]`, `dword_5DCE2C[number]`, edi = 0xAD, ebp = 0x68
-//!   for the first and 0x94 for the second, ebx = the texture;
+//!   and `tx1825.pcx`;
+//! - the icon's place on the sheet from the icon tables by the number, and its place on the
+//!   texture (0xAD, 0x68 for the first and 0x94 for the second);
 //! - `scene::upload_car_icon`.
 //!
 //! One caller, `scene::reload_system_textures`. Refuses a number of 0x24 or more (the tables'
@@ -35,9 +35,6 @@ const NAMES: [usize; 4] = [
 
 // ---- Rust version ----
 
-/// The Rust version. The registers the original leaves (the last icon's, or ebx -1 when
-/// kind 0xC1 has no texture) are read by no caller (taint at its one site, in
-/// `reload_system_textures`: 0 read points).
 // Converted: `rc2k_core::scene::car_icons`
 pub fn load_hud_car_icons(
     scene: &crate::scene::owner::Scene,

@@ -20,15 +20,15 @@ pub struct CarDrawState {
     pub car_states: [Dword; crate::race::blocks_store::BLOCK_COUNT],
     /// The cars drawn this frame (`g_carsDrawn`).
     pub cars_drawn: Dword,
-    /// The car's kept place (`dword_64159C` ..).
+    /// The car's kept place (`car_kept` ..).
     pub car_kept: [Dword; 2],
-    /// The car's depth (`dword_6415A4`, 0x50000 at first).
+    /// The car's depth (`car_depth`, 0x50000 at first).
     pub car_depth: Dword,
     /// The car's kept word (0x2100000 while a car is drawn).
     pub car_draw_kept: Dword,
     /// The car's drawing word (0x60 plus its nearness size).
     pub car_draw_word: Dword,
-    /// The drawn car's nearness, 0 .. 1 (`dword_71BA08`).
+    /// The drawn car's nearness, 0 .. 1 (`car_nearness`).
     pub car_nearness: crate::session::Float,
     /// The drawn car's mode (`g_groupsWhich`, 0x6D18D4: its block's `mode_on`), read by the
     /// face tests (`scene::list_object_face`).
@@ -39,9 +39,9 @@ pub struct CarDrawState {
     /// The drawn car's turn (`FrameWork.placed_matrices`' first, 0x641760: its block's
     /// +0x880).
     pub car_turn: [crate::session::Float; 16],
-    /// The material way of the object being drawn (`dword_6214DC`).
+    /// The material way of the object being drawn (`other_way_kind`).
     pub other_way_kind: Dword,
-    /// The other kind and the distance of the object's fade (`qword_6214E0`).
+    /// The other kind and the distance of the object's fade (`fade_words`).
     pub fade_words: [Dword; 2],
     /// The object being drawn or set up (`g_objectNumber`).
     pub object_number: Dword,
@@ -49,7 +49,7 @@ pub struct CarDrawState {
     /// groups by slot, set by `race::draw_car` for each car, [13] .. [17] read by
     /// `scene::list_object_face`; outside a race [13], [14] the known kinds' hidden groups).
     pub group_masks: [Dword; 18],
-    /// The groups of the car's parts still on it (`dword_62150C`).
+    /// The groups of the car's parts still on it (`group_mask`).
     pub shown_groups: Dword,
     /// The face group mask of the car being drawn (`g_groupMask`, 0x606280; -1 after a car).
     pub group_mask: Dword,

@@ -1,8 +1,8 @@
 //! `menu::show_car_specs` (0x46FD31): the car specifications screen for the kind of event
-//! (`dword_755954`): 1 .. 3 the list `off_75A042`, 4 `off_759CAE`, each through
-//! `menu::secret_car_list` (with cheat bit 1 `off_75A412` instead), then
-//! `menu::car_specs_display_loop` and, unless it was left (`dword_758806` 1),
-//! `take_shown_car`; 5 `off_759D16` and the screen alone. Another kind is the original's
+//! (`event.event_type`): 1 .. 3 the list the second car list, 4 the championship car list, each through
+//! `menu::secret_car_list` (with cheat bit 1 the cheat car list instead), then
+//! `menu::car_specs_display_loop` and, unless it was left (`captions.left_by_key` 1),
+//! `take_shown_car`; 5 the A8 championship car list and the screen alone. Another kind is the original's
 //! fatal error 0x80713214, "No GameMode Defined".
 //!
 //! An item action (a reading: the main menu's "car specifications").

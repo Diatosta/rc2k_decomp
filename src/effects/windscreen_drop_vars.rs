@@ -1,8 +1,8 @@
-//! The windscreen drops' variables out of the marks' block (phase 7): the item table, the view's moves kept and the drift, the shape constants.
+//! The windscreen drops' variables: the item table, the view's moves kept and the drift, the shape constants.
 
 use crate::session::{Bytes, Dword, Float};
 
-/// The windscreen drops' variables (IDA 0x816192 .. 0x82E342, the image's layout; phase 7, typed state).
+/// The windscreen drops' variables (IDA 0x816192 .. 0x82E342).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenDropVars {
@@ -96,23 +96,23 @@ impl WindscreenDropVars {
     pub const fn new() -> Self {
         WindscreenDropVars {
             scale: [
-                Float::from_bits(0x3A23D70A),
-                Float::from_bits(0x3A5A740E),
-                Float::from_bits(0x3A23D70A),
-                Float::from_bits(0x3A5A740E),
+                Float::new(0.000625),
+                Float::new(0.00083333335),
+                Float::new(0.000625),
+                Float::new(0.00083333335),
             ],
-            place: [const { Float::from_bits(0x0) }; 3],
+            place: [const { Float::new(0.0) }; 3],
             started: Dword::new(0x0),
             moved: Dword::new(0x0),
             spare: [const { Dword::new(0x0) }; 2],
             _gap_8161be: Bytes::new([0; 24]),
-            kept_place: [const { Float::from_bits(0x0) }; 3],
-            kept_move: [const { Float::from_bits(0x0) }; 3],
-            view_move: [const { Float::from_bits(0x0) }; 3],
-            move_change: [const { Float::from_bits(0x0) }; 3],
+            kept_place: [const { Float::new(0.0) }; 3],
+            kept_move: [const { Float::new(0.0) }; 3],
+            view_move: [const { Float::new(0.0) }; 3],
+            move_change: [const { Float::new(0.0) }; 3],
             _gap_816206: Bytes::new([0; 24]),
-            drift: [const { Float::from_bits(0x0) }; 3],
-            ease: Float::from_bits(0x0),
+            drift: [const { Float::new(0.0) }; 3],
+            ease: Float::new(0.0),
             steps: Dword::new(0x0),
             buffer: Dword::new(0x0),
             _gap_816236: Bytes::new([0; 4]),
@@ -120,40 +120,40 @@ impl WindscreenDropVars {
             items: Bytes::new([0; 98304]),
             done: Dword::new(0x0),
             factors: [
-                Float::from_bits(0x40000000),
-                Float::from_bits(0x40000000),
-                Float::from_bits(0xC0000000),
-                Float::from_bits(0x41800000),
-                Float::from_bits(0xC0000000),
-                Float::from_bits(0x41800000),
+                Float::new(2.0),
+                Float::new(2.0),
+                Float::new(-2.0),
+                Float::new(16.0),
+                Float::new(-2.0),
+                Float::new(16.0),
             ],
-            curve_a: Float::from_bits(0x44800000),
-            curve_b: Float::from_bits(0x3A0EA4A9),
+            curve_a: Float::new(1024.0),
+            curve_b: Float::new(0.00054414064),
             step_c: Dword::new(0x6),
-            step_d: Float::from_bits(0x40000000),
+            step_d: Float::new(2.0),
             top_k: [
-                Float::from_bits(0x3B449BA6),
-                Float::from_bits(0x3F333333),
-                Float::from_bits(0x45000000),
-                Float::from_bits(0x44800000),
+                Float::new(0.003),
+                Float::new(0.7),
+                Float::new(2048.0),
+                Float::new(1024.0),
             ],
             per_vertex: Dword::new(0xC0),
             _gap_82e27e: Bytes::new([0x00, 0x00, 0x80, 0x46, 0x00, 0x00, 0x80, 0x46]),
-            axes_k: [const { Float::from_bits(0x3F000000) }; 6],
+            axes_k: [const { Float::new(0.5) }; 6],
             _gap_82e29e: Bytes::new([0x00, 0x00, 0x80, 0x43]),
             side: Dword::new(0x3F000000),
-            frame_k: Float::from_bits(0x44800000),
-            spawn_k: [Float::from_bits(0x3DCCCCCD), Float::from_bits(0x0)],
-            share_k: Float::from_bits(0x47800000),
+            frame_k: Float::new(1024.0),
+            spawn_k: [Float::new(0.1), Float::new(0.0)],
+            share_k: Float::new(65536.0),
             random: Dword::new(0x0),
             _gap_82e2ba: Bytes::new([0; 12]),
-            turn: [const { Float::from_bits(0x0) }; 9],
+            turn: [const { Float::new(0.0) }; 9],
             _gap_82e2ea: Bytes::new([0; 12]),
-            adjugate: [const { Float::from_bits(0x0) }; 9],
+            adjugate: [const { Float::new(0.0) }; 9],
             _gap_82e31a: Bytes::new([0; 12]),
-            decay: [const { Float::from_bits(0x3CA3D70A) }; 3],
-            angle: Float::from_bits(0xC2340000),
-            result_k: [const { Float::from_bits(0x3CA3D70A) }; 3],
+            decay: [const { Float::new(0.02) }; 3],
+            angle: Float::new(-45.0),
+            result_k: [const { Float::new(0.02) }; 3],
         }
     }
 }

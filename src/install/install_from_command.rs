@@ -1,7 +1,7 @@
 //! `install::install_from_command` (0x412F34): the install driven by the `-i` command line
-//! (two paths already in `byte_95E6F8`/`byte_95E7F8` and two digits in `dword_51BA08` /
-//! `dword_51BA0C`). The game folder is made current (`files::set_current_directory`); base
-//! directory B (`unk_5295B4`) and the installed folder are normalised
+//! (two paths already in `game_dir`/`installed` and two digits in `given_mode` /
+//! `given_language`). The game folder is made current (`files::set_current_directory`); base
+//! directory B (`base_b`) and the installed folder are normalised
 //! (`install::normalise_path`); the given media mode is clamped to 0..3 into `g_mediaMode`
 //! (only when above 0), and only then a given language (above 0) chooses and loads it
 //! (`install::choose_language`, `strings::load_language`); then the files are installed

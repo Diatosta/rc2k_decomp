@@ -1,5 +1,5 @@
-//! `drive::replay_frame_marks` (0x41D8A3): the replay frame `dword_5C2530`'s two marks
-//! (`unk_963BB4[frame]`, 8 bytes) into `dword_9613A4` ...
+//! `drive::replay_frame_marks` (0x41D8A3): the replay frame `replay_block`'s two marks
+//! (`block_cameras`[frame]`, 8 bytes) into `block` ...
 //!
 //! Callers: `race::viewer_frame`, `race::play_replay_range`, `drive::load_replay_frame`.
 

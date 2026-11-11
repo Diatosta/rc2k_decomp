@@ -1,13 +1,12 @@
 //! `saves::allocate_best_times` (0x47C4D8): takes the memory of the best times' tables,
 //! once.
 //!
-//! Nothing if `dword_747610` is 1; else that becomes 1 and nine blocks are taken on the
-//! list `stru_7475D0`, each block's size stored before it is asked for and its address
-//! after, in the pairs from `dword_747618` on: 0x1C20, 0xBB8, stages * 0x618, 0x15E0,
+//! Nothing if the tables are already allocated (the flag before `tables` is 1); else that
+//! becomes 1 and nine blocks are taken on the memory list, each block's size stored
+//! before it is asked for and its address after, in the pairs of `tables`: 0x1C20, 0xBB8, stages * 0x618, 0x15E0,
 //! 0xDB60, 0x4C2C4, 0x3A984, 0xDB60, stages * 0x618 bytes. The sixth and the seventh get
 //! -1 in their last dword. "Stages" is the number of records of the championship's table
-//! (`g_recordTable`) whose tag is 0 (`saves::count_stages`, 0x47C95D, a plain function
-//! here). Six of the nine are what `saves::load_best_times` reads `var\hst.dat` into.
+//! (`g_recordTable`) whose tag is 0 (`saves::count_stages`). Six of the nine are what `saves::load_best_times` reads `var\hst.dat` into.
 //! Callers: `saves::load_best_times` and `menu::set_up_front_end`. The original has a fatal error
 //! for each block that cannot be taken (0x807010F1, 0x807010FB, 0x80701000 .. 0x80701005,
 //! 0x8070100A); none can come, the allocator reporting its own first. Refuses a record table

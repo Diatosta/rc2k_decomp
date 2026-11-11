@@ -1,19 +1,18 @@
-//! Network play (DirectPlay), the game's side: its set-up at the start and the receiving
-//! thread (agent A's), the race's messages and the way out (agent B's) (read 2026-10-19; a reading, not seen in
-//! play). `dword_52A910` is 1 while a network race runs, `dword_52A920` this machine's
-//! player (its car's number), `dword_52AD98` the players. Each race step of the player's
+//! Network play (DirectPlay), the game's side: its set-up at the start, the receiving
+//! thread, the race's messages and the way out (a reading, not seen in play). `session` is
+//! 1 while a network race runs, `player` is this machine's player (its car's number),
+//! `players` the players. Each race step of the player's
 //! own car (`net::race_step`, from `drive::replay_step`) sends its inputs ('JGSM', every
 //! fourth step), its place and motion ('PGSM', step 2 of 32) and nine more dwords ('XGSM',
 //! step 1 of 256), and applies what the other players sent; a remote car's steps glide
 //! its place to the one received (`net::follow_remote`).
-//! The messages: `net::send_message` (0x41736D) puts a sequence byte (`byte_52A915`,
-//! counted, top bit set) and the bytes into `byte_52AA68` and sends them to everyone
-//! (`dword_5AB274`) through DirectPlay (`net::dplay_send`). The receiving thread
-//! (`net::receive_thread` 0x4183C3, "NETRXTDB", slot `stru_518714`, and its loop
-//! `net::take_messages` 0x4194CC: IDA's names, agent A's) keeps each player's in
-//! `byte_52AD9C` + player * 0x804C: +0x34 a count, from +0x38 records of 0x100 bytes
+//! The messages: `net::send_message` puts a sequence byte (`sequence`, counted, top bit
+//! set) and the bytes into `send_buffer` and sends them to everyone (`send_to`) through
+//! DirectPlay (`net::dplay_send`). The receiving thread (`net::receive_thread`, "NETRXTDB";
+//! its loop is `net::take_messages`) keeps each player's in `received`, a block of
+//! 0x804C bytes a player: +0x34 a count, from +0x38 records of 0x100 bytes
 //! (+1 the length, +2 the bytes); `net::copy_received` copies that to +0x4040 under the
-//! mutex `dword_52AB6C` for `net::apply_received`.
+//! mutex (`mutex`) for `net::apply_received`.
 //! The way out: `net::shut_down` (the network ended, the connection destroyed, the two
 //! handles closed).
 //!

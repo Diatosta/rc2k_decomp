@@ -1,5 +1,5 @@
 //! `install::ignore_room` (0x4142DA): the not-enough-room page's "go on anyway" action:
-//! `dword_51BA04` 1, the answer (`byte_51D415`) 1 and the page left.
+//! `ignore_room` 1, the answer (`list_answer`) 1 and the page left.
 //!
 //! An item action (kind 6). Caller `install::item_action` through a page's item.
 

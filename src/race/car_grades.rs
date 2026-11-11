@@ -1,4 +1,4 @@
-//! Race init's last step (`race::grade_all_cars`, IDA 2026-10-17): each car block's values (floats,
+//! Race init's last step (`race::grade_all_cars`): each car block's values (floats,
 //! 0 .. 100 by their use) graded against thresholds into whole numbers: `race::grade_car_values`
 //! for one block, `race::grade_all_cars` for the eight.
 
@@ -107,10 +107,10 @@ pub const GRADES: [Grade; 34] = [
 
 /// `race::grade_car_values` (0x43FE24): for each of `GRADES`, the grade (+the second offset) the
 /// number of its thresholds, taken in order, that lie below the block's value (+the first; a NaN
-/// passes them all); each threshold tried goes through `dword_62400C`. its one caller reads nothing
+/// passes them all); each threshold tried goes through `scratch`. its one caller reads nothing
 /// of it.
 pub fn grade_car_values(block: u32, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
-    // Converted: `rc2k_core::race::cars::grade`; `dword_62400C` gets the last threshold
+    // Converted: `rc2k_core::race::cars::grade`; `scratch` gets the last threshold
     // tried (the ones before it are written over at once).
     let car = crate::race::trap::car_at(block)?;
     for &(from, to, thresholds) in &GRADES {

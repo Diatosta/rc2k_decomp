@@ -11,8 +11,7 @@ use crate::scene::map_texture_places::map_texture_places;
 
 // ---- Rust version ----
 
-/// Its three calls in order. What they leave in the registers no caller reads (register
-/// liveness, 2026-10-23: `scene::reload_slot_textures`, whose caller reads none).
+/// Its three calls in order.
 pub fn load_wanted_textures(
     frame: &Frame,
     scene: &crate::scene::owner::Scene,

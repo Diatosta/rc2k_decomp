@@ -1,4 +1,4 @@
-//! The lighting tables (IDA 0x635118 .. 0x636588; phase 7, typed): the colours the lights
+//! The lighting tables (IDA 0x635118 .. 0x636588): the colours the lights
 //! pick from (the light table, two lamp tables, the car light table, a third lamp table),
 //! the view window's mode and the words around it. `#[repr(C)]` with the image's layout,
 //! over the race block's bytes (`scene::owner::Scene::light_tables`). Names are readings unless IDA's.

@@ -3,7 +3,7 @@
 //!
 //! In this order:
 //! - `strings::compile_lexicon`; `g_stringTable` is the lexicon; the keyboard layout
-//!   (`dword_4F07D4`) is the built-in one at 0x4F7FDC, with `byte_4F07D1` and `byte_4F07D2` 1;
+//!   (`input::layouts`) is the built-in one, with the layout flags both 1;
 //! - the first `files\%locale\*.loc`, 0x30 bytes to 0x4E0798: none is fatal error
 //!   0x80E38381, one that does not start "LOCL" 0x80E38382. Its byte +0xF is the units
 //!   (`g_isImperialUnits` and each car's +0x178); its byte +8 (`g_noticeKind`) is read
@@ -13,17 +13,17 @@
 //!   addresses, the layout is the block of 0x14 bytes its byte +0xB chooses, and if its
 //!   byte +8 is 0x0C three entries of that layout's fourth table are set (0x1034, 0x1035,
 //!   0x1036 at +0x34, +0x36, +0x52);
-//! - `strings::make_case_tables`: the case tables. `g_lowerCase` (0x4F0BC8): every character
-//!   itself, A .. Z in lower case, then string 2 as pairs "lower, upper". `byte_4F0CC8`: a copy of
+//! - `strings::make_case_tables`: the case tables. `g_lowerCase`: every character
+//!   itself, A .. Z in lower case, then string 2 as pairs "lower, upper". `g_plainLetters`: a copy of
 //!   that in which string 3's accented letters become the plain letter before them ("aàáâ.." );
-//! - 0x403462: with keyboard type 2 (`dword_518404`) a built-in layout takes the file's
+//! - with keyboard type 2 (`keyboard_type`) a built-in layout takes the file's
 //!   place;
-//! - 0x403495: on a Japanese system (`GetSystemDefaultLCID`, language 0x11) a notice
-//!   kind other than 7 is fatal error 0x90006044; with kind 7 `dword_51B980` is 0x2EE;
+//! - on a Japanese system (`GetSystemDefaultLCID`, language 0x11) a notice
+//!   kind other than 7 is fatal error 0x90006044; with kind 7 the glyph tables' units (`glyph_tables.units`) are 0x2EE;
 //! - `strings::correct_lexicon`: four corrections in the lexicon itself: in string 0x6CA the word
 //!   "Bowland" loses its `w`, in 0x6AB "Laukennen" becomes "Laukkanen", and in 0x23B the
 //!   word "A7" or "(A7)" is replaced by string 0x23A's "A8" or "(A8)";
-//! - `dword_51B9E4` = 1 if the notice kind is 2, string 0x57C is not empty and the file
+//! - `offer_registration` = 1 if the notice kind is 2, string 0x57C is not empty and the file
 //!   `;4ereg\eregip.exe` is there, else 0.
 //!
 //! Callers: `start` and three in the installer.
@@ -50,7 +50,7 @@ use rc2k_core::strings::language::Locale;
 const LOCALE_FILES: &[u8] = b"files\\%locale\\*.loc";
 const KEYBOARD_FILES: &[u8] = b"files\\%locale\\*.kim";
 /// The `.loc` file's 0x30 bytes: +0 "LOCL", +8 the notice kind (`g_noticeKind`), +0xF
-/// units. Out of the image since 2026-10-24 (phase 5; it was `g_localeFile`, 0x4E0798),
+/// units (`g_localeFile`, 0x4E0798),
 /// with the image's first bytes (`tests::first_values_are_the_games`).
 pub const LOCALE_LEN: usize = 0x30;
 pub const LOCALE_INIT: [u8; LOCALE_LEN] = [
@@ -65,8 +65,8 @@ pub fn notice_kind() -> u8 {
     strings().language.locale.get(8)
 }
 
-/// `g_plainLetters` (0x4F0CC8 in the image until 2026-10-24): `g_lowerCase` with the
-/// accented letters made plain; made here, read by nothing now. The image's first values.
+/// `g_plainLetters` (0x4F0CC8 in IDA): `g_lowerCase` with the
+/// accented letters made plain; made here, read by nothing. The image's first values.
 pub const PLAIN_LETTERS_INIT: [u8; 256] = [
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
     0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
@@ -85,7 +85,7 @@ pub const PLAIN_LETTERS_INIT: [u8; 256] = [
     0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x63, 0x65, 0x65, 0x65, 0x65, 0x69, 0x69, 0x69, 0x69,
     0x64, 0x6E, 0x6F, 0x6F, 0x6F, 0x6F, 0x6F, 0xF7, 0x6F, 0x75, 0x75, 0x75, 0x75, 0x79, 0x74, 0x79,
 ];
-/// The `.kim` file (`g_keyboardFile`, dword_4F07C8), 0x400 bytes: +0 "KEYB", +8 a kind, +0xA
+/// The `.kim` file (`g_keyboardFile`), 0x400 bytes: +0 "KEYB", +8 a kind, +0xA
 /// the layout mode, +0xB the layout's number, +0x30 the layouts
 /// (`rc2k_core::input::layouts`).
 const KEYBOARD_LEN: usize = rc2k_core::input::layouts::FILE_LEN;
@@ -195,7 +195,7 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
     correct_lexicon()?;
 
     install.run.offer_registration.set(0u32);
-    // The standalone offers no registration (owner, 2026-10-19).
+    // The standalone offers no registration (owner).
     Ok(())
 }
 

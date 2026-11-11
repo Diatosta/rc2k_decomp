@@ -1,6 +1,6 @@
-//! The variables: `dword_755990` the car shown (an entry of the carousel's records, up
-//! to `dword_75649C`), `dword_755994` the slideshow's picture (0 .. 99),
-//! `dword_755998` the specification's page (0 .. 3), `dword_755561` the screen loop's
+//! The variables: `event.shown_car` the car shown (an entry of the carousel's records, up
+//! to `car_table.last_car`), `event.picture` the slideshow's picture (0 .. 99),
+//! `event.car_page` the specification's page (0 .. 3), `loop_flags.leave_screen` the screen loop's
 //! leaving switch.
 
 use crate::errors::Refused;

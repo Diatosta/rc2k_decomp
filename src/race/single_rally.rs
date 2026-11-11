@@ -1,4 +1,4 @@
-//! `race::single_rally_race` (0x4843EC, `single_rally`'s race, IDA 2026-10-17): the chosen
+//! `race::single_rally_race` (0x4843EC, `single_rally`'s race): the chosen
 //! track looked up (`g_trakPakHeader`), the settings and the players' records
 //! (`g_players`) copied into the front end's race variables, the race run
 //! (`race::race_from_menu`, with the sound objects and the screen modes round it), and the
@@ -19,7 +19,7 @@ use crate::system::owner::system;
 use rc2k_core::menu::player::{Player, TAKES_PART};
 
 /// A player's or a track's record: a game address.
-type Record = crate::menu::standings::PlayerCell;
+type Record = crate::menu::standings::PlayerCell<'static>;
 
 // g_trakPakHeader (0x734BC6, `records::stages_store`): +0x34 the entries, 0x40 apart. An
 // entry (at `edi`) holds its track number at +0x34; the list ends at a dword -1 where the
@@ -28,7 +28,7 @@ type Record = crate::menu::standings::PlayerCell;
 /// dword_7556F4: whether the standings summary is taken (1, `saves::best_times::SUMMARY`),
 /// copied to `RACE_INFO`.
 const SUMMARY: &Dword = &crate::menu::owner::MENUS.play.champ_view.summary;
-/// dword_7558DC, copied to dword_5C2FD0 after the loading picture.
+/// dword_7558DC, copied to `after_loading_copy` after the loading picture.
 const AFTER_LOADING: &Dword = &crate::menu::owner::MENUS.screens.event.sparks_mode;
 /// dword_7554C8: kept over the race (`RACE_KEPT`).
 const KEPT: &Dword = &crate::menu::owner::MENUS.screens.flow.kept;
@@ -177,7 +177,8 @@ fn set_field(rec: Record, off: u32, v: u32) -> Result<(), BadInput> {
 
 /// `g_players`[n].
 pub fn player(n: u32) -> Result<Record, BadInput> {
-    crate::menu::player::player(n).ok_or(BadInput("a player past the four"))
+    crate::menu::player::player(crate::menu::owner::menus(), n)
+        .ok_or(BadInput("a player past the four"))
 }
 
 /// A record's controller settings into a car's: the controller, gearing, sensitivity, axes,
@@ -306,7 +307,7 @@ fn give_outcome(p: &mut Player, result: &RaceResult) {
     } else {
         p.time = result.time.get();
         p.result_word = result.word.get();
-        let secs = crate::math::x87::to_int(result.secs.bits()) as u32;
+        let secs = crate::math::x87::to_int(&result.secs) as u32;
         p.figure = secs.wrapping_mul(10);
         p.best_line = result.data.read();
     }

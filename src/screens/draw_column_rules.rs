@@ -1,6 +1,6 @@
 //! `screens::draw_column_rules` (0x49FFC5): the rules between a two-column page's sixteen
 //! rows: in each column (x 0x43 and 0x192) from y 0x5F every 0x1D a line 0x14C wide and 3
-//! high, see-through blue 0x11166A (`dword_75AA94`; `scene::draw_tinted_quad`).
+//! high, see-through blue 0x11166A (the fade's full see-through; `scene::draw_tinted_quad`).
 //!
 //!
 //! Caller: `screens::draw_two_column_panel`.

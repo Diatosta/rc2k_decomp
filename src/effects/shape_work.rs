@@ -1,4 +1,4 @@
-//! The shape sets' work out of the marks' block (phase 7).
+//! The shape sets' work.
 
 use crate::session::{Bytes, Dword, Float};
 
@@ -44,7 +44,7 @@ pub struct MarkShapes {
     pub _gap_aac: Bytes<12>,
 }
 
-/// The shape sets' work (IDA 0x884E5C .. 0x89BCA4, the image's layout; phase 7, typed state).
+/// The shape sets' work (IDA 0x884E5C .. 0x89BCA4).
 impl MarkShapes {
     /// `other` copied over this one, field by field (`memory::move_bytes` of the 0xAB8
     /// bytes).
@@ -112,11 +112,11 @@ impl ShapeWork {
     pub const fn new() -> Self {
         ShapeWork {
             first_point: Dword::new(0x0),
-            turn_x: [const { Float::from_bits(0x0) }; 9],
+            turn_x: [const { Float::new(0.0) }; 9],
             _gap_884e84: Bytes::new([0; 204]),
-            turn_a: [const { Float::from_bits(0x0) }; 9],
+            turn_a: [const { Float::new(0.0) }; 9],
             _gap_884f74: Bytes::new([0; 12]),
-            turn_b: [const { Float::from_bits(0x0) }; 9],
+            turn_b: [const { Float::new(0.0) }; 9],
             _gap_884fa4: Bytes::new([0; 12]),
             sets_made: Dword::new(0x0),
             work: MarkShapes {
@@ -134,9 +134,9 @@ impl ShapeWork {
                 turned_b: Bytes::new([0; 768]),
                 low_a: [const { Dword::new(0x0) }; 3],
                 low_b: [const { Dword::new(0x0) }; 3],
-                matrix_a: [const { Float::from_bits(0x0) }; 9],
+                matrix_a: [const { Float::new(0.0) }; 9],
                 _gap_a7c: Bytes::new([0; 12]),
-                matrix_b: [const { Float::from_bits(0x0) }; 9],
+                matrix_b: [const { Float::new(0.0) }; 9],
                 _gap_aac: Bytes::new([0; 12]),
             },
             sets: [const {
@@ -155,9 +155,9 @@ impl ShapeWork {
                     turned_b: Bytes::new([0; 768]),
                     low_a: [const { Dword::new(0x0) }; 3],
                     low_b: [const { Dword::new(0x0) }; 3],
-                    matrix_a: [const { Float::from_bits(0x0) }; 9],
+                    matrix_a: [const { Float::new(0.0) }; 9],
                     _gap_a7c: Bytes::new([0; 12]),
-                    matrix_b: [const { Float::from_bits(0x0) }; 9],
+                    matrix_b: [const { Float::new(0.0) }; 9],
                     _gap_aac: Bytes::new([0; 12]),
                 }
             }; 33],

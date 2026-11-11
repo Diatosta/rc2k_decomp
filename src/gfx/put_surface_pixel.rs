@@ -12,7 +12,7 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::components_to_pixel::components_to_pixel;
 
 /// `components` made a pixel and put at (`x`, `y`);
-/// the pixel (the original's eax).
+/// the pixel.
 pub fn put_surface_pixel(
     components: u32,
     x: u32,

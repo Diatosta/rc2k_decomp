@@ -1,4 +1,4 @@
-//! Where a car may be put on the line (converted 2026-10-21 from
+//! Where a car may be put on the line (Converted from
 //! `physics::reset_point_blocked` 0x43F0DF, `physics::reset_car` 0x43EFEF (its search),
 //! `drive::checkpoint_taken` 0x4375A5 and `drive::car_near_checkpoint` 0x4375F2): a
 //! checkpoint too near the stage's ends or another car is no place for it. Every
@@ -25,18 +25,18 @@ pub fn near_end(checkpoint: u32, end: u32) -> bool {
     (checkpoint.wrapping_sub(end) as i32) >= 0
 }
 
-/// `reset_point_blocked`'s answer for one block, with what the original leaves in eax
-/// and ebx.
+/// `reset_point_blocked`'s answer for one block, with the values the original leaves in
+/// its registers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Blocked {
-    /// The block's car is not in the stage: free (eax kept).
+    /// The block's car is not in the stage: free (the candidate kept).
     Away,
-    /// Near the start: blocked (eax the candidate).
+    /// Near the start: blocked (the candidate left).
     Start,
-    /// Near the end: blocked (eax the candidate, ebx `end`).
+    /// Near the end: blocked (the candidate left, `end` the other).
     End { end: u32 },
-    /// Else: blocked when the gap to the block's checkpoint (+0x94) is in -8 ..= 7 (eax the
-    /// gap, ebx `end`).
+    /// Else: blocked when the gap to the block's checkpoint (+0x94) is in -8 ..= 7 (the gap
+    /// left, `end` the other).
     Gap { end: u32, gap: u32, blocked: bool },
 }
 

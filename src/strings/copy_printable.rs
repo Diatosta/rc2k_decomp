@@ -3,14 +3,14 @@
 //! Takes the text (0: none), where to write, room, NUL included.
 //! At most room - 1 characters are looked at, up to the text's end. One whose low seven
 //! bits are under 0x20 is left out; the others are written, in lower case through
-//! `g_lowerCase` unless `dword_4E0144` is 1. A NUL ends what was written. Nine callers.
+//! `g_lowerCase` unless `KEEP_CASE` is 1. A NUL ends what was written. Nine callers.
 //! A room of 0 lets the original look at 2^32 - 1 characters: refused.
 
 use crate::errors::BadInput;
 use crate::strings::same_text::case_table;
 
-/// 1 = the case is kept: out of the image since 2026-10-24 (phase 5; it was `dword_4E0144`,
-/// 1 there). `input::joystick_found` sets it to 0 for a while.
+/// 1 = the case is kept (`dword_4E0144` in IDA,
+/// 1 at the start). `input::joystick_found` sets it to 0 for a while.
 pub static KEEP_CASE: crate::session::Dword = crate::session::Dword::new(1);
 
 /// What is written for the text `text` (as far as the original reads: room - 1 characters

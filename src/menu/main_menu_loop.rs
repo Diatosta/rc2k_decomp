@@ -3,10 +3,10 @@
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! - background `mainscr.png`, loaded first thing at set-up, and its carry is not looked at;
-//! - `dword_758806` is cleared and the highlight put in place only after the first frame
-//!   (`late_highlight`), and `dword_7585D8` = 1 is stored before every frame;
-//! - an idle timer at the top of each frame (`idle`): while `dword_755551` is not 0 (set by
-//!   `menu::update_blink` after 300,000 ms without a key) `dword_755555` counts up, and
+//! - `captions.left_by_key` is cleared and the highlight put in place only after the first frame
+//!   (`late_highlight`), and `cheats.notice_due` = 1 is stored before every frame;
+//! - an idle timer at the top of each frame (`idle`): while `loop_flags.idle` is not 0 (set by
+//!   `menu::update_blink` after 300,000 ms without a key) `loop_flags.idle_frames` counts up, and
 //!   unless `g_noFmv` (0x5BE870, `nofmv` in `var\ral.cfg`) is 1, `menu::play_films` is called with
 //!   eax = 1 (it plays the intro film), the flag cleared and the screen set up again;
 //! - after an action: `restart_action_check`;
@@ -69,7 +69,7 @@ fn before_first_frame(entry: &Entry) -> Result<(), Refused> {
 fn idle(entry: &Entry) -> Result<Flow, Refused> {
     let system = entry.system;
     let menus = entry.menus;
-    if menus.screens.loop_flags.idle.get() == 0 {
+    if !menus.screens.loop_flags.idle.is_set() {
         return Ok(Flow::On);
     }
     menus
@@ -84,7 +84,7 @@ fn idle(entry: &Entry) -> Result<Flow, Refused> {
     // `menu::play_films` with mode 1.
     crate::menu::play_films::play_films(true)?;
     log("menu::main_menu_loop: `menu::play_films` has come back");
-    menus.screens.loop_flags.idle.set(0u32);
+    menus.screens.loop_flags.idle.set(false);
     update_blink(menus);
     let now = system.session.clocks.frame.get();
     menus.play.champ_view.last_key_time.set(now);
@@ -105,7 +105,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.setup_list, // dword_755500
+            pointer: |m| &m.screens.flow.setup_list,
             table: |m| m.tables.draw_lists.main_menu_setup.id(),
             run: true,
         },

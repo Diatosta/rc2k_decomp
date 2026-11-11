@@ -1,6 +1,6 @@
 //! The cars' parts made ready to draw (`race::ready_car_parts` -> `race::car_part_matrices`, part
-//! R3, IDA 2026-10-18): each car's marks' switches (+0xAB4 .. +0xAD0) from its state, and its four
-//! parts' matrices (the wheels: turned about their axles' places) into `flt_6417E0` .., then
+//! R3): each car's marks' switches (+0xAB4 .. +0xAD0) from its state, and its four
+//! parts' matrices (the wheels: turned about their axles' places) into `part_matrices` .., then
 //! kept in the block (+0x740 .. +0x8FF) for `race::draw_car`.
 
 use crate::errors::{BadInput, Refused};
@@ -27,14 +27,14 @@ fn axles(shared: &RaceShared, model: u32) -> Result<Option<[u32; 5]>, BadInput> 
     ))
 }
 
-/// `race::car_part_matrices` (0x460E7C): car esi's marks' switches and its parts' matrices: +0x718
-/// the size from +0x1D8 (not below `flt_6140F8`); the switch bytes from +0x84, `dword_62DAD0` /
-/// `dword_62DACC`, +0x63C, +0x684, +0x1D4, each cut by its broken part (+0x410 .. +0x424; the
+/// `race::car_part_matrices` (0x460E7C): a car's marks' switches and its parts' matrices: +0x718
+/// the size from +0x1D8 (not below `idle_engine_speed`); the switch bytes from +0x84, `marks_mask` /
+/// `lamps_mask`, +0x63C, +0x684, +0x1D4, each cut by its broken part (+0x410 .. +0x424; the
 /// original cuts them twice); +0xABC the marks' count x 0x20 (0 when +0x310 is not below
-/// `flt_5C5D14` or +0x84 is 0); +0xAAC the steering; the axles from the model's record; the light
-/// and place; the car's turn (+0xB4) and place into `flt_5EA08C` / `flt_641760`; each wheel placed
+/// `hundred` or +0x84 is 0); +0xAAC the steering; the axles from the model's record; the light
+/// and place; the car's turn (+0xB4) and place into `body_turn_matrix` / `placed_matrices`; each wheel placed
 /// at minus its axle, turned about x by its spin (+0x1F8 front, +0x1FC rear) and about y by the
-/// steering (front only), placed at its axle with its height (+0x910 ..), into `flt_6417E0` ..
+/// steering (front only), placed at its axle with its height (+0x910 ..), into `part_matrices` ..
 /// `flt_6418A0`. Refuses (before anything) axle values whose scaling would fault.
 pub fn car_part_matrices(
     race: &Race,
@@ -43,8 +43,8 @@ pub fn car_part_matrices(
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::car_parts::{axles, mark_switches, marks_bytes,
     // steering}` (the size's and the speed's floats the x87's).
+    use crate::math::x87::below_or_unordered;
     use crate::math::x87::loaded;
-    use crate::math::x87_load::below_or_unordered;
     use rc2k_core::race::car_parts::{PartState, mark_switches, marks_bytes, steering};
     // `c` the block (what the drawing keeps there: the shown speed and steering, the switches,
     // the marks), `p` the car as the drawing sees it (`race::frame_view`).
@@ -54,12 +54,12 @@ pub fn car_part_matrices(
         return Err(BadInput("a car model whose axle scaling would fault").into());
     };
     let shown = &c.shown_engine_speed;
-    shown.set_bits(loaded(p.engine_speed.bits()));
+    shown.set_bits(loaded(&p.engine_speed));
     if below_or_unordered(
         shown.bits(),
         race.shared.physics_tables.idle_engine_speed.bits(),
     ) {
-        shown.set_bits(loaded(race.shared.physics_tables.idle_engine_speed.bits()));
+        shown.set_bits(loaded(&race.shared.physics_tables.idle_engine_speed));
     }
     let on = p.lights_on.get();
     let s = mark_switches(&PartState {
@@ -182,7 +182,7 @@ pub fn car_part_matrices(
 
 /// `race::ready_car_parts` (0x460D5C): for each race car with its parts shown (+0x25C):
 /// `car_part_matrices`, then the six matrices kept in the block (+0x740 .. +0x8BF) and the body's
-/// turn times the car's (`flt_5EA3CC`) at +0x8C0. Refuses (before anything) no race cars (the
+/// turn times the car's (`view_place`) at +0x8C0. Refuses (before anything) no race cars (the
 /// original's loop would run away), more than eight, or one without its block.
 pub fn ready_car_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let frame = &race.frame;

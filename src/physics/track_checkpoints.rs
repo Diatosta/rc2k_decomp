@@ -1,5 +1,5 @@
 //! `physics::track_checkpoints` (0x44157B): the work car's checkpoints followed.
-//! `physics::find_car_checkpoint` into +0x98 and `dword_6365E4`;
+//! `physics::find_car_checkpoint` into +0x98 and `line_place`;
 //! `physics::checkpoint_offset`; `physics::off_line_warnings`; at the last checkpoint
 //! of the current split (`g_checkCounts[+0x98]` - 1 equal to +0x90) +0x94 = +0x98; then,
 //! below `g_splitColourCount` and when `physics::passed_split_point` gives CF, +0x94 and
@@ -7,9 +7,6 @@
 //!
 //! Caller: `physics::car_physics_step` (0x43B90F), every physics step. Refuses (before writing) a
 //! checkpoint past 0x1418 or a split past 0x40, and what the calls refuse.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

@@ -1,16 +1,13 @@
 //! `physics::compare_split_times` (0x436E11, race mode 3): the car's time (+0x88) against
-//! the ten kept for this split (`unk_604134` + 0x28 x the split +0xAC): the place
+//! the ten kept for this split (`rows` + 0x28 x the split +0xAC): the place
 //! +0xA0C counts down from 11 for each faster one (11 or more becomes -1); the nearest
-//! gap behind (x10, the largest below 0) into +0xA14 with its name `dword_60410C[c]` in
+//! gap behind (x10, the largest below 0) into +0xA14 with its name `names`[c]` in
 //! +0xA1C; the nearest ahead (x10, the smallest) negated into +0xA10, its name in +0xA18;
-//! `dword_6043F8` the time; for car 0 or 1 the time kept in `unk_75B02C` / `unk_75B09C`
+//! `car_time` the time; for car 0 or 1 the time kept in `unk_75B02C` / `unk_75B09C`
 //! [split].
 //!
 //! Caller: `physics::split_by_mode`. Refuses (before anything) a split past 27 (each kept
 //! table is 0x70 bytes: `unk_75B02C` .. `unk_75B09C`, 28 dwords, IDA).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use rc2k_core::physics::splits::{LAST_COMPARED_SPLIT, compare_split};

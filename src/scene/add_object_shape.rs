@@ -1,8 +1,8 @@
 //! `scene::add_object_shape` (0x426695): takes the faces of the file just read that
 //! belong to the part being loaded, with their points and normals, into the objects'
-//! tables as the slot `dword_634FEC`.
+//! tables as the slot being loaded (`loading_slot`).
 //!
-//! Takes: the file (`byte_A2BB54`)
+//! Takes: the file just read (the object file room)
 //!
 //! The file: +4 the number of points, +8 of faces, +0xC of normals; from +0x2C the
 //! points (three whole numbers each); then the faces, each 0x10 bytes (+0 its
@@ -10,20 +10,19 @@
 //! +0xC its normal) and 0x10 bytes a vertex (+0 its point, +4 and +8 texture
 //! coordinates, +0xC its normal); then the normals, twelve bytes each.
 //!
-//! - `dword_634FE0` = -1 and `dword_634FE4` = 0 (the lowest and highest texture met);
+//! - The lowest texture met is set to -1 and the highest to 0 (two cells of `shape_counts`);
 //!   a file of no points or no faces ends it there.
-//! - A face is taken if bit (its group) of the mask `dword_621A54` is set. The points
+//! - A face is taken if bit (its group) of the `loading_group_mask` is set. The points
 //!   and normals of the faces taken are marked; for a slot under 0x50, and for part
-//!   0xB of a car (`dword_634FF4`), every point is. The marks become the numbers the
-//!   points and normals get, in their order (`dword_5E1EBC`, `dword_5E5EBC`; -1 = not
-//!   taken; the faces' marks in `dword_5DDEBC`).
-//! - The marked points are added to the points' memory from `g_objectPointCount` on.
-//!   For kinds 0x190 .. 0x257 a point (x, y, z) becomes (z, y - `dword_613FC4`, -x).
+//!   0xB of a car (`loading_car[1]`), every point is. The marks become the numbers the
+//!   points and normals get, in their order (-1 = not taken; the faces have marks too).
+//! - The marked points are added to the points' memory from the object point count on.
+//!   For kinds 0x190 .. 0x257 a point (x, y, z) becomes (z, y - `ground_drop`, -x).
 //!   The largest distance of a point from the y axis (`fsqrt` of x squared plus z
-//!   squared, as a whole number) is the slot's radius (`dword_634BA0`).
+//!   squared, as a whole number) is the slot's radius (`radii`).
 //! - The faces taken are copied to the faces' memory, each vertex's point and every
 //!   normal renumbered (a file without normals gives normal 0 and counts
-//!   `dword_631F6C` up), and listed in `g_faces`.
+//!   `no_normals` up), and listed in the faces table.
 //! - The marked normals are added after the points.
 //! - The slot's first point and face and its numbers of points, normals and faces are
 //!   set.
@@ -41,8 +40,8 @@ use crate::scene::owner::scene;
 
 // ---- game data ----
 
-/// `face_marks` (`dword_5DDEBC`) the faces', `point_marks` (`dword_5E1EBC`) the points',
-/// `normal_marks` (`dword_5E5EBC`) the normals'.
+/// Entries in the marks tables: `face_marks` the faces', `point_marks` the points',
+/// `normal_marks` the normals'.
 const MARKS: usize = 0x1000;
 
 // ---- Rust version ----

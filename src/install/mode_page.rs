@@ -1,6 +1,6 @@
-//! `install::mode_page` (0x41422B): the installation-kind page. At the start (ebx 0) the
-//! highlight (`g_listChoice`) is `g_mediaMode` (or 2 when it is 0) and `dword_51BA00` is 0.
-//! At the end (ebx negative) `g_mediaMode` becomes the chosen answer (`byte_51D415`).
+//! `install::mode_page` (0x41422B): the installation-kind page. At the start (state 0) the
+//! highlight (`g_listChoice`) is `g_mediaMode` (or 2 when it is 0) and `path_problem` is 0.
+//! At the end (state negative) `g_mediaMode` becomes the chosen answer (`list_answer`).
 //!
 //! Takes the state, list.
 //! Caller `install::run_page`.

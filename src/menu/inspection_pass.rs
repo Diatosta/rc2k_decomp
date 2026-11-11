@@ -1,11 +1,11 @@
-//! `menu::inspection_pass` (0x4A8556): the inspection after a stage. `dword_75592C` 1;
-//! for each counted player (`dword_75598C` 0 .. `dword_755984`, the original's `do ..
+//! `menu::inspection_pass` (0x4A8556): the inspection after a stage. `event.event_goes_on` 1;
+//! for each counted player (`event.current_player` 0 .. `event.player_count`, the original's `do ..
 //! while`) taking part (+0xD0 1): its figures (`menu::driver_stats`), the verdict
 //! (`menu::inspection_verdict`) and the faults (`menu::inspection_faults`); one that fails
-//! (+0xD0 now 2) counts in `dword_755978` and is shown the inspection: its screen
+//! (+0xD0 now 2) counts in `event.event_out` and is shown the inspection: its screen
 //! (`menu::inspection_screen`), a second's sleep, the fade in, the inspection page
 //! (`menu::inspection_area_loop`; a yes to leaving ends it all), the fade out, 1250 ms'
-//! sleep. When every player has failed (`dword_755978` the player count), `dword_75592C`
+//! sleep. When every player has failed (`event.event_out` the player count), `event.event_goes_on`
 //! 0 (the event is over).
 //!
 //! Callers: the event drivers. Refuses a
@@ -21,7 +21,7 @@ pub fn inspection_pass(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     // Converted: `rc2k_core::menu::passes` (who is looked at, the pauses, `goes_on`).
     use rc2k_core::menu::passes;
-    let players = counted_players(screens)?;
+    let players = counted_players(menus)?;
     for &p in &players {
         if passes::takes_part(p.get().entry) {
             crate::menu::driver_stats::car_table(menus, p)?;

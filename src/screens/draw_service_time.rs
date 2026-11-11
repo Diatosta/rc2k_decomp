@@ -5,7 +5,7 @@
 //! and "<string 0x48E>:  <budget - 900 - repairs>" on the right. Below that:
 //! "<string 0x490>:  <overrun>" and "<string 0x491>:  <penalty>", where the overrun is
 //! `900 - (budget - repairs)` and the penalty is 10 for every started 60 of overrun.
-//! All four values are printed with `append_clock`. It leaves the penalty in `dword_75ACC0`.
+//! All four values are printed with `append_clock`. It leaves the penalty in the money.
 //!
 //! Screen: seen in a screenshot of the championship's service area (2026-10-10): "TEMPO DISPONÍVEL: 40:00" at
 //! the top left and "TEMPO RESTANTE: 40:00" at the top right (time available, time left).
@@ -17,9 +17,9 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-// dword_75ACC0
+// the money
 // seconds: a work variable
-// dword_7559EC: a work variable
+// `draw_work.figure`: a work variable
 
 // (label string, font) for the four readouts.
 /// Returns the carry flag of the last `draw_text`.

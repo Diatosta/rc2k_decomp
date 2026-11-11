@@ -1,5 +1,5 @@
 //! `gfx::free_picture_buffer` (0x4060B7): the picture buffer given back at the game's end:
-//! `g_pictureFlags` and `g_pictureBuffer` 0, its list (`stru_4F49E4`) freed
+//! `g_pictureFlags` and `g_pictureBuffer` 0, its list (`list`) freed
 //! (`memory::free_list`; the buffer, Rust's, given back). The other half of
 //! `gfx::allocate_picture_buffer`.
 //!

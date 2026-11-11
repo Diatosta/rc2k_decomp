@@ -1,17 +1,18 @@
 //! `menu::handle_keys` (0x465FCC): takes one key and does what it means on a menu.
 //!
-//! Nothing happens (eax 1) while an item is being edited (`dword_75AA9C` 1) or
-//! `dword_7551F4` is 1. Otherwise `dword_7556A4` = 0x6F, `dword_755561` = 0, and the key
+//! Nothing happens (eax 1) while an item is being edited (a service box turned over) or
+//! the controller page is learning (`controls.learning` 1). Otherwise `option_work.menu_sound`
+//! = 0x6F, `loop_flags.leave_screen` = 0, and the key
 //! taken (`input::take_key`, which changes only al), first through `menu::handle_yes_no`:
 //! - none: eax 1;
 //! - 0x38: nothing;
-//! - 1 (Escape): `dword_755561`, `dword_755A3C` and `dword_758806` 1; eax 2;
-//! - 0x1C (Enter): `dword_7556A4` 0x14D, the last-key time `dword_7556C4` the clock,
+//! - 1 (Escape): `loop_flags.leave_screen`, `draw_work.escape_pressed` and `captions.left_by_key` set to 1; eax 2;
+//! - 0x1C (Enter): `option_work.menu_sound` 0x14D, the last-key time (`champ_view.last_key_time`) the clock,
 //!   `g_enterSkipsNameEntry` 1 if ah (what the caller had in eax) is 4, else 0, the sound
 //!   2; eax 3;
 //! - any other: the last-key time the clock, then 0x66, 0x6B, 0x69, 0x68 the four
-//!   `move_highlight_*`, 0x52 a screenshot (`gfx::take_screenshot`), 0x20 flips `dword_755575`,
-//!   0x14 adds 60 to the service time budget `dword_75593C` if bit 14 of `dword_75870C` is
+//!   `move_highlight_*`, 0x52 a screenshot (`gfx::take_screenshot`), 0x20 flips `loop_flags.toggle`,
+//!   0x14 adds 60 to the service time budget (`event.service_minutes`) if bit 14 of the cheat bits is
 //!   set; eax 1.
 //!
 //! The code after the Escape branch that could return 0 is never reached.
@@ -87,11 +88,8 @@ pub fn handle_keys(menus: &Menus, eax: u32) -> Result<Pressed, Refused> {
             return Ok(nothing);
         }
         Action::Toggle => {
-            menus
-                .screens
-                .loop_flags
-                .toggle
-                .set(menus.screens.loop_flags.toggle.get() ^ 1);
+            let toggle = &menus.screens.loop_flags.toggle;
+            toggle.set(!toggle.is_set());
             return Ok(nothing);
         }
         Action::AddTime => {

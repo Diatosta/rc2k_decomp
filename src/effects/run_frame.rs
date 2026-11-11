@@ -1,13 +1,12 @@
-//! `effects::run_frame` (0x4D1549): the marks' frame drawn: `effects::swap_mask`,
+//! `effects::run_frame` (0x4D1549): the effects' frame drawn: `effects::swap_mask`,
 //! `effects::tick_clock`; render states 0x15 = 4, 0x1C = 0, 0x13 = 5, 0x14 = 6, 0x1B = 1,
-//! 3 = 1; `effects::run_rain`, `effects::run_snow`; `effects::draw_frame` (through the stub at
-//! 0x4C4E28); `effects::ring_frame`; render state 0x14 = 2; `effects::flare_frame`; render
-//! state 3 = 1; `effects::draw_mark_slots`, `effects::run_particles`; `effects::stage_record`,
-//! `effects::draw_glow`, `scene::depth_buffer_on`, `scene::depth_test_on`. Three shares of
-//! the frame's time (`rdtsc` over `dword_765114`, times `flt_93C8C4` / `C8` / `CC`) into
-//! `flt_765134` (the draw), `flt_76511C` (the ring) and `flt_765120` (the whole).
-//!
-//! Caller: the race's frame (`race::run_view_marks`, 0x456464 ..). Its calls the Rust versions, in
+//! 3 = 1; `effects::run_rain`, `effects::run_snow`; `effects::draw_frame`;
+//! `effects::ring_frame`; render state 0x14 = 2; `effects::flare_frame`; render state 3 = 1;
+//! `effects::draw_mark_slots`, `effects::run_particles`; `effects::stage_record`,
+//! `effects::draw_glow`, `scene::depth_buffer_on`, `scene::depth_test_on`. Three shares of the
+//! frame's time (`rdtsc` over the frame's cycles, times three constants) into the draw's, the
+//! ring's and the whole's shares.//!
+//! Caller: the race's frame (`race::run_view_marks`). Its calls are in
 //! the order above.
 
 use crate::errors::Refused;
@@ -97,7 +96,7 @@ pub fn run_frame(race: &Race, view: EffectsView<'_>) -> Result<(), Refused> {
         run_snow::run_snow(race, weather, scene, effects, view)?;
         let start = rdtsc();
         share(0, start, effects);
-        draw_frame::draw_frame(race, effects)?;
+        draw_frame::draw_frame(race, scene, effects)?;
         let start = rdtsc();
         ring_frame::ring_frame(
             &effects.masks,
@@ -123,7 +122,7 @@ pub fn run_frame(race: &Race, view: EffectsView<'_>) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The frame's time constants (IDA 0x93C8C0 .. 0x93C8D0, the image's layout; phase 7, typed state).
+/// The frame's time constants (IDA 0x93C8C0 .. 0x93C8D0).
 #[repr(C)]
 pub struct FrameK {
     /// 0x93C8C0: `flt_93C8C0`: the marks' share factor (`frame_marks`)
@@ -134,12 +133,8 @@ pub struct FrameK {
 
 /// FrameK's first values.
 pub static FRAME_K: FrameK = FrameK {
-    share_k: f32::from_bits(0x42C80000),
-    times: [
-        f32::from_bits(0x42C80000),
-        f32::from_bits(0x42C80000),
-        f32::from_bits(0x42C80000),
-    ],
+    share_k: 100.0_f32,
+    times: [100.0, 100.0, 100.0],
 };
 
 #[cfg(test)]

@@ -12,8 +12,8 @@ use rc2k_core::menu::player::{Setting, stepped};
 
 /// The current player's `setting` (nationality, view, second view, race number) one step on
 /// or back (see `rc2k_core::menu::player::stepped`).
-pub fn player_setting(setting: Setting, forward: bool) -> Result<(), Refused> {
-    current()?.update(|player| {
+pub fn player_setting(menus: &Menus, setting: Setting, forward: bool) -> Result<(), Refused> {
+    current(menus)?.update(|player| {
         let value = player.setting(setting);
         *value = stepped(setting, *value, forward);
     });

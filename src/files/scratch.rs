@@ -45,7 +45,7 @@ impl Scratch {
         self.buffer.write_at(0, &bytes[..got as usize], what)?;
         Ok((got, ok))
     }
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const system().work.files) as usize

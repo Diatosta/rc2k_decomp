@@ -1,5 +1,5 @@
-//! `net::destroy_connection` (0x4187EE): with a DirectPlay object (`dword_5AB288`), the
-//! network race ended (`dword_52A910` 0), "NET: Destroy connection" logged, and through
+//! `net::destroy_connection` (0x4187EE): with a DirectPlay object (`dplay`), the
+//! network race ended (`session` 0), "NET: Destroy connection" logged, and through
 //! DirectPlay the own player destroyed (`net::destroy_player`), the session closed
 //! (`net::close_session`),
 //! the object released (`net::release_dplay`) and the lobby's (`net::release_lobby`); either way

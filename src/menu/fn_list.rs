@@ -2,8 +2,8 @@
 //! (`g_unreadList` .. `g_sceneList`, `menu::flow_store`) hold a `FnList`, and `menu::run_list`
 //! and the frame callbacks walk its functions. The lists are the typed tables' (`LISTS`,
 //! named by `menu::draw_lists_store`); a screen's list may start inside one (at its end
-//! mark: the in-game options' `list_758eae.from(2)`), and the menus' last list
-//! (`dword_7594AA`, empty) is `FnList::Menus`.
+//! mark: the in-game options' `in_game_options_list.from(2)`), and the menus' last list
+//! (the menus' last draw list, empty) is `FnList::Menus`.
 
 use crate::errors::BadInput;
 use rc2k_core::menu::tables::{LISTS, ScreenFn};
@@ -86,9 +86,17 @@ mod tests {
     #[test]
     fn lists_by_handle() {
         let tables = &menus().tables;
-        let l = tables.draw_lists.list_758eae.from(2);
+        let l = tables.draw_lists.in_game_options_list.from(2);
         assert!(l.functions().is_empty());
-        assert_eq!(tables.draw_lists.list_758eae.id().functions().len(), 2);
+        assert_eq!(
+            tables
+                .draw_lists
+                .in_game_options_list
+                .id()
+                .functions()
+                .len(),
+            2
+        );
         let c = ListCell::new();
         assert!(c.get().is_err());
         c.set(l);

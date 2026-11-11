@@ -3,9 +3,9 @@
 //! freed (`gfx::free_fonts`, `gfx::free_glyph_tables`) and built again (`gfx::build_fonts`,
 //! `gfx::build_menu_sprites`), the 3D tidied (`render3d_tidy`, `objects_tidy`,
 //! `nullsub_6`, `release_textures`), `scene::set_up_front_end_scene`, tune 4, the
-//! highlighted item (`dword_755525`) and `dword_74771C` 1, the menu's sound 2. Refused (a
+//! highlighted item (`loop_flags.item`) and the screen mode step 1, the menu's sound 2. Refused (a
 //! set carry): `gfx::screen_mode_choices` with eax 0 (the list made again from the race's screen mode, i.e. the mode before the change), the 3D tidied,
-//! the front end's scene, tune 4, the item and `dword_74771C` 3, the menu's sound 8.
+//! the front end's scene, tune 4, the item and the screen mode step 3, the menu's sound 8.
 //!
 //! An item action of the graphics page (0x7548D4). The menus and draw lists run its `entry`
 //! (`menu::table_calls`).

@@ -12,7 +12,7 @@ use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, Entry, Frames, List, Screen, Step};
 
-// The original pushes `dword_75595C` and `dword_755958` at its entry and pops them at its
+// The original pushes `event.section` and `event.index` at its entry and pops them at its
 // end, with the whole screen in between: the two are kept here across the loop's steps
 // (written by hand; the generated functions each have a stack of their own).
 thread_local! {

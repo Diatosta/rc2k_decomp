@@ -3,7 +3,7 @@
 //!
 //! Takes path, buffer, bytes to read, offset. Returns bytes read if the read was reached, else
 //! unchanged. It fails if the open, the seek, the read or the close fails. A short read is not a
-//! failure: the caller has to look at eax. The file is opened as the original's mode 0 says (table
+//! failure: the caller has to look at the count. The file is opened as the original's mode 0 says (table
 //! at 0x4E06EA). Like the original's `open_by_mode` and `close`, which are inlined here, it sets
 //! `g_lastFilePath` to the resolved path while the file is open and to 0 after closing; after a
 //! failed open the path stays.

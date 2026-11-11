@@ -7,8 +7,7 @@
 //! a triangle list (4) of transformed and lit vertices (3) and no flags. Callers:
 //! `effects::windscreen_drops_top`, `effects::windscreen_drops_frame`.
 //! Platform: the original always runs. In the standalone program the rasteriser draws
-//! each triangle (`platform_3d::draw_triangles`) and the result is 0 (before 2026-10-19
-//! the standalone skipped it).
+//! each triangle (`platform_3d::draw_triangles`) and the result is 0.
 
 /// The windscreen drops drawn: Direct3D's result, always 0 here.
 use crate::gfx::owner::gfx;

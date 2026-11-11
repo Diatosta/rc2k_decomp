@@ -12,8 +12,8 @@
 use crate::system::owner::system;
 
 /// The free KB of drive `letter` (its low byte), or None when `GetDiskFreeSpaceA` failed
-/// (the original's carry; eax -1 then). The bytes a sector the original leaves in ebx are
-/// read by no caller.
+/// (the original's carry). The bytes a sector the original also leaves are read by no
+/// caller.
 pub fn drive_free_space_kb(letter: u32) -> Option<u32> {
     let root = crate::files::drive_type::drive_root(letter as u8);
     let text = root.as_ref().map(|r| {

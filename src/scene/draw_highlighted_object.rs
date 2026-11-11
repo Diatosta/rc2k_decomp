@@ -3,22 +3,18 @@
 //!
 //! `scene::clear_depth_buffer`, `scene::assign_kind_textures`,
 //! `scene::assign_menu_textures`, `scene::map_texture_places`,
-//! `scene::load_slot_textures`, then 0x49006F (one caller): `dword_6365C4` = 0 and
-//! 0x49007F (one caller), between `pusha` and `popa`:
-//! - the turn about y from the clock (`g_sceneClock` times 8, its low sixteen bits)
-//!   to `dword_635040`; the place's x (`dword_63501C`) 0 and its z (`dword_635024`)
-//!   `dword_75A66C`;
-//! - the kind the highlighted item (`dword_755525`, from 1) has in the carousel's
-//!   kinds (`dword_75A674`); a kind above 0x258 takes its size (`dword_635038`) from
-//!   the twelve-byte records at `unk_75950E`, and the y and the turn about x
-//!   (`dword_635020`, `dword_63503C`) unless they are -1 there;
-//! - the kind to `dword_75A658`, its first object (`scene::find_object_of_kind`) to
-//!   `g_objectNumber`, and `scene::draw_menu_object` with eax = it.
+//! `scene::load_slot_textures`, then `draw_highlighted`: the lights' draw mode = 0 and
+//! - the turn about y from the clock (the scene clock times 8, its low sixteen bits), the
+//!   place's x 0 and its z the carousel's z;
+//! - the kind the highlighted item (numbered from 1) has in the carousel's kinds; a kind
+//!   above 0x258 takes its size from the twelve-byte records of the kinds' own places
+//!   (`OWN`), and the y and the turn about x unless they are -1 there;
+//! - the kind to the shown kind, its first object (`scene::find_object_of_kind`) to the
+//!   current object, and `scene::draw_menu_object` with it.
 //!
-//! In twelve of the menus' scene lists (the options and the screens under them, by the
-//! standalone program's run of 2026-10-14). Refuses a highlighted item of 0 or past the 0x100
-//! kinds, a kind past the records, and what its parts refuse. The menus and draw lists run its
-//! `run` (`menu::table_routes`); the registers above are the original's, for reference.
+//! In twelve of the menus' scene lists (the options and the screens under them). Refuses a
+//! highlighted item of 0 or past the 0x100 kinds, a kind past the records, and what its
+//! parts refuse. The menus and draw lists run its `run` (`menu::table_routes`).
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::{Menus, menus};
@@ -35,15 +31,15 @@ use crate::scene::map_texture_places::map_texture_places;
 
 // ---- Rust version ----
 
-/// 0x49007F: the highlighted item's object set up and drawn by `draw`.
+/// The highlighted item's object set up and drawn by `draw`.
 pub fn draw_highlighted(
+    shared: &crate::race::owner_shared::RaceShared,
     menus: &Menus,
     cars: &crate::race::car_draw_state::CarDrawState,
     object_place: &crate::scene::object_place::ObjectPlace,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
-    let shared = &race().shared;
     let screens = &menus.screens;
     let item = screens.loop_flags.item.get().wrapping_sub(1);
     if item >= ENTRIES {
@@ -74,9 +70,7 @@ pub fn draw_highlighted(
     draw()
 }
 
-/// The Rust version the typed tables run: its six calls in order. It reads no register of
-/// its caller's (register liveness, 2026-10-23), and the drawing reads none of what the
-/// calls before it leave (the eax and ebx 0x49007F gives it included).
+/// The six calls in order.
 pub fn run() -> Result<(), crate::errors::Refused> {
     let scene = crate::scene::owner::scene();
     let race = race();
@@ -94,7 +88,11 @@ pub fn run() -> Result<(), crate::errors::Refused> {
         crate::race::view_scratch::front_end(),
     );
     let _held = ctx.view.matrices.hold(&race.frame.matrices);
-    draw_highlighted(menus, &ctx.view.cars, &ctx.view.object, &mut || {
-        draw_menu_object_in_game(&ctx)
-    })
+    draw_highlighted(
+        &race.shared,
+        menus,
+        &ctx.view.cars,
+        &ctx.view.object,
+        &mut || draw_menu_object_in_game(&ctx),
+    )
 }

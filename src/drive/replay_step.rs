@@ -3,10 +3,10 @@
 //! read (`drive::play_replay_frame`); the skid marks begun again (`race::init_skidmarks`) unless
 //! the first block's clock (+8) is one past +0xF0C, which takes it. For each car (`g_currentCar`
 //! from 0): its input words (`drive::car_input_words`, recorded or played: `record_inputs_if`,
-//! `play_inputs_if`), its block into `dword_71B404`, `drive::load_car`; running (`unk_71A234`):
+//! `play_inputs_if`), its block into `work_block`, `drive::load_car`; running (`driver_kind`):
 //! controls, gear rules, steering, pedals, the reset key, `physics::car_physics_step` and the
-//! network's step (`net::race_step`, its Rust version); the work car's clocks (`unk_719FE0`,
-//! `unk_719FEC`) + 1; `drive::store_car`. Then the stage's animation, the race-mode cars, the
+//! network's step (`net::race_step`, its Rust version); the work car's clocks (`step_clock`,
+//! `run_ticks`) + 1; `drive::store_car`. Then the stage's animation, the race-mode cars, the
 //! duel's sound levels, the count down's beeps, the two cars' order, the hold count, the replay
 //! written at its last tenth, the replay's clock.
 //!

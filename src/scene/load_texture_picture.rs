@@ -16,10 +16,10 @@
 //! g being `dword_6235FC[car]`; with g at 3 or more and the file there, the picture
 //! is taken from `files\b\gravel` instead, and its second name logged.
 //!
-//! Then `gfx::load_picture_to_texture` with eax = the name, ecx = the second name, ebx = the
+//! Then `gfx::load_picture_to_texture` with the name, the second name and the
 //! texture. One caller, `scene::load_changed_texture_picture`.
 //!
-//! Converted 2026-10-21: the digits, the names, the folder and the gravel rule through
+//! The logic is in the core crate: the digits, the names, the folder and the gravel rule through
 //! `rc2k_core::scene::pictures`.
 
 use crate::errors::{BadInput, Refused};

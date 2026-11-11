@@ -4,9 +4,9 @@
 //! instead. Every move plays the click, `sound::play_menu_sound` with eax = 1.
 //! The two vertical moves go on along the same link until they reach an item whose +0x48 is
 //! 0xFFFFFC1B, so items that cannot be chosen are stepped over. The two horizontal ones take
-//! one step and, while `dword_7554EC` is 1, first turn a counter: `dword_75AA7C` goes round
-//! 0 .. `dword_75AA78` - 1, and `dword_75A660` and `dword_75AA80` are left at 1 and 0 (right)
-//! or -1 and -1 (left). They click only if `dword_7554D0` is not 1.
+//! one step and, while `flow.turning` is 1, first turn a counter: the object in front goes round
+//! the objects, and the turn direction and the angle are left at 1 and 0 (right)
+//! or -1 and -1 (left). They click only if `flow.quiet` is not 1.
 //!
 //! The click, the callbacks and the screenshot are called directly (2026-10-24: the `Outside` trait
 //! went with the screen loops' registers).

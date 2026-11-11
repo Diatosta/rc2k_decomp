@@ -1,12 +1,11 @@
-//! `input::start_device_effects` (0x409672): the six effects of the record in esi asked to
-//! start (`input::set_effect` with ebx 2, eax 0 .. 5).
+//! `input::start_device_effects` (0x409672): the six effects of the record asked to
+//! start (`input::set_effect` with 2, effects 0 .. 5).
 //!
 //! Takes: the device's record
 //!
 //! See `input/effects.rs`. Two callers, both in `input::start_effects`.
 //!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Its arguments are what it reads.
 
 use crate::errors::Refused;
 use crate::input::store::ForceFeedback;

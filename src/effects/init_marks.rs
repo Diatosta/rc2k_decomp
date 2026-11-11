@@ -1,11 +1,11 @@
 //! `effects::init_marks` (0x4D12F7): the marks set up for a stage: the settings and the
-//! seed kept, then the fifteen steps (each after `nullsub_1` with its number in eax), the
+//! seed kept, then the fifteen steps (each after an empty call with its number), the
 //! screen's middle and the kind's float.
 //!
-//! One caller, init mark's end (0x457030). Refuses a kind (the settings'
-//! +0x26A8, which step 1 makes `g_marksKind`) of 0x22 or more (the kinds' tables); both
-//! before anything. Kinds 0x17 .. 0x21 are past `g_marksKindFloatTable`'s 0x17 entries:
-//! fixed (section 16, 2026-10-23), they get 18240.0.
+//! One caller, the end of the "init mark" step. Refuses a kind (the settings'
+//! +0x26A8, which step 1 makes the effects kind) of 0x22 or more (the kinds' tables); both
+//! before anything. Kinds 0x17 .. 0x21 are past the kind float table's 0x17 entries:
+//! fixed (section 16), they get 18240.0.
 
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
@@ -73,8 +73,8 @@ pub fn init_marks(
             effects.clipping.clip.edges[2 * n].set_bits(x87::from_int(half as i32));
             effects.clipping.clip.edges[2 * n + 1].set_bits(x87::int_less(half as i32, less));
         }
-        let kind: u32 = effects.kinds.marks_kind.kind.bits();
-        // Fixed (section 16, 2026-10-23): the original reads past the table for kinds
+        let kind: u32 = effects.kinds.marks_kind.kind.get();
+        // Fixed (section 16): the original reads past the table for kinds
         // 0x17 .. 0x21 (the next variables: `g_marksKindFloat` itself, a 0/1 flag, 9, ..),
         // so those cars' marks lose their depth bias.
         let float = if kind < KIND_FLOATS {

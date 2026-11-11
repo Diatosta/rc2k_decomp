@@ -1,13 +1,14 @@
-//! `effects::run_windscreen_flakes` (0x4BFFEC): the windscreen flakes' frame, with the x87 rounding set to chop
-//! throughout (put back at the end): `effects::windscreen_flakes_setup`; the vertices' texture places
-//! from `dword_8BC222` ..; with `dword_7652A0` `effects::windscreen_flakes_spawn`; then each live flake
-//! item: with `dword_7652A0` its age (+8) plus `g_marksFrameTicks`, ended at 0xFA0 or more;
-//! ended when its cell's byte in `g_marksEdgeMask` is set (the cell from its place, chopped,
-//! shifted right 3); else drawn by `effects::draw_windscreen_flake` (st(1) its x, st(0) `flt_8BC236`
-//! less its z; colour `g_viewLight`'s low 24 bits under the alpha: not (age over
-//! `dword_8BC232`), shifted left 24). Last `scene::depth_buffer_on`.
+//! `effects::run_windscreen_flakes` (0x4BFFEC): the windscreen flakes' frame, with the x87
+//! rounding set to chop throughout (put back at the end): `effects::windscreen_flakes_setup`;
+//! the vertices' texture places from the flakes' constants; with the drift switch
+//! `effects::windscreen_flakes_spawn`; then each live flake item: with the drift switch its age
+//! (+8) plus the frame's ticks, ended at 0xFA0 or more; ended when its cell's byte in the edge
+//! mask is set (the cell from its place, chopped, shifted right 3); else drawn by
+//! `effects::draw_windscreen_flake` (st(1) its x, st(0) a constant less its z; colour the
+//! view light's low 24 bits under the alpha: not (age over a limit), shifted left 24). Last
+//! `scene::depth_buffer_on`.
 //!
-//! Caller: `effects::windscreen_flakes_frame` (0x4BF7E9). The spawning is its Rust version.
+//! Caller: `effects::windscreen_flakes_frame` The spawning is `windscreen_flakes_spawn`.
 
 use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
@@ -32,9 +33,12 @@ pub fn run_windscreen_flakes(
     drops: &WindscreenDrops,
     fl: &WindscreenFlakes,
     view_light: u32,
+    effects: &crate::effects::owner::Effects,
+    scene: &crate::scene::owner::Scene,
+    shared: &crate::race::owner_shared::RaceShared,
 ) -> Result<(), Refused> {
     let old = x87::set_chop();
-    run(masks, drops, fl, view_light)?;
+    run(masks, drops, fl, view_light, effects, scene, shared)?;
     x87::set_control(old);
     Ok(())
 }
@@ -44,10 +48,10 @@ fn run(
     drops: &WindscreenDrops,
     fl: &WindscreenFlakes,
     view_light: u32,
+    effects: &crate::effects::owner::Effects,
+    scene: &crate::scene::owner::Scene,
+    shared: &crate::race::owner_shared::RaceShared,
 ) -> Result<(), Refused> {
-    let effects = crate::effects::owner::effects();
-    let scene = crate::scene::owner::scene();
-    let shared = &crate::race::owner::race().shared;
     let setup = &effects.setup;
     {
         crate::effects::windscreen_flakes_setup::windscreen_flakes_setup(fl, scene);
@@ -56,14 +60,14 @@ fn run(
             VERTICES.vertices[n].u.set_bits(u);
             VERTICES.vertices[n].v.set_bits(v);
         }
-        if setup.kind_floats.running.bits() != 0 {
+        if setup.kind_floats.running.get() != 0 {
             windscreen_flakes_spawn(shared, drops, fl, effects)?;
         }
         for item in &fl.items.items {
             if item.live.get() != 1 {
                 continue;
             }
-            if setup.kind_floats.running.bits() != 0 {
+            if setup.kind_floats.running.get() != 0 {
                 let age = item.age.get().wrapping_add(setup.clock.frame_ticks.get());
                 item.age.set(age);
                 if age as i32 >= LIFE {
@@ -71,8 +75,8 @@ fn run(
                     continue;
                 }
             }
-            let x = x87::to_int(item.place[0].bits()) as u32;
-            let z = x87::to_int(item.place[1].bits()) as u32;
+            let x = x87::to_int(&item.place[0]) as u32;
+            let z = x87::to_int(&item.place[1]) as u32;
             let column = (x >> 3) & 0xFF;
             let cell = (((z >> 3) & 0x7F) << 8) + column;
             if masks.edge_mask.mask.get(cell as usize) != 0 {

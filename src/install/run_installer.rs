@@ -1,13 +1,13 @@
 //! `install::run_installer` (0x412DE0): the installer's branch of the main loop. The base
 //! directory is cleared, the languages read (`install::read_languages`), the fonts built
 //! (`gfx::build_fonts`) and the installer opened (`install::open_installer`). With the `-i`
-//! paths given (`dword_51B9D0`), `install::install_from_command` does it all; otherwise base
+//! paths given (`run.from_command`), `install::install_from_command` does it all; otherwise base
 //! directory B is normalised (failing: fatal error 0x80AF8101), the drives listed
-//! (`install::list_drives`), a default folder built in `byte_95EBF8` (strings 0x9F, 0xA0, the
+//! (`install::list_drives`), a default folder built in `InstallerPaths::typed` (strings 0x9F, 0xA0, the
 //! first drive letter when `g_keyboardType` is 2), the registry read, the recorded source
 //! copied over it, and the installed version checked (`install::check_installed_version`); if
 //! it is this build, its record is read and language loaded. Then the pages run
-//! (`install::run_pages` with `off_51D5D8` for an update, else `off_51D594`); if installing
+//! (`install::run_pages` with `update_pages` for an update, else `normal_pages`); if installing
 //! from a CD a "please wait" frame is shown. Finally the installer is closed
 //! (`install::close_installer`) and the fonts freed (`gfx::free_fonts`).
 //!
@@ -29,12 +29,12 @@ pub fn run_installer(install: &'static crate::install::owner::Install) -> Result
     crate::platform_events::keep_running_after_close();
     // The folder page's edit item (0x51DBC8) shows the folder from its third byte
     // (0x95EBFA, past the drive's `c:`); a Unix path has no drive, so the item shows it
-    // whole (2026-10-28: it showed `ome/..`).
+    // whole.
     #[cfg(unix)]
     crate::install::installer::wd(
         // 0x51DBD0.
         crate::place::BytePlace::from(&install.pages.folder_page).add(0x30),
-        // A link to `InstallerPaths::typed` from its first byte (`byte_95EBF8`).
+        // A link to `InstallerPaths::typed` from its first byte.
         crate::install::page_links::PageLink::of_ida(0x95EBF8).raw(),
     );
     crate::install::installer::wb(crate::files::state::base_directory_place(), 0);

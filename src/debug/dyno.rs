@@ -9,7 +9,7 @@
 //! writes is put back (the original kept seven; the rest were the frame's scratch).
 
 use crate::debug::ui_plot::Plot;
-use crate::math::x87_run::{mul_div2, sum_times_int_over_minus};
+use crate::math::x87::{mul_div2, sum_times_int_over_minus};
 use crate::physics::drive_torque_share::drive_torque_share;
 use crate::physics::engine_torque::engine_torque;
 use crate::physics::gear_store::GEAR;

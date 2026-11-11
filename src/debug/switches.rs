@@ -5,18 +5,16 @@
 //! are the game's own variables: the race's settings copy (`race::settings_copy`) and a
 //! stage's load may put them back.
 
-use crate::debug::kstar::write_at;
-use crate::debug::wear_page::value_at;
 use crate::race::owner::Race;
+use crate::scene::owner::SCENE;
 use crate::session::Dword;
 use crate::system::owner::system;
 use dear_imgui_rs::Ui;
+use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
-/// `g_debugExtensionsSwitch`, `g_useSse`, `g_use3dNow`, `g_useMmx`.
-const EXTENSIONS: usize = 0x6218B8;
-const USE_SSE: usize = 0x621A58;
-const USE_3DNOW: usize = 0x621A5C;
-const USE_MMX: usize = 0x621A60;
+/// `g_debugExtensionsSwitch` (`dword_6218B8`): the developers' switch, 1 in the image. Only
+/// their handler (not ported) changed it, and nothing else reads it.
+pub static EXTENSIONS: AtomicU32 = AtomicU32::new(1);
 
 /// A tick box over a switch of 0 and 1, with the key it had and what it does.
 fn tick(ui: &Ui, key: u32, name: &str, cell: &Dword, about: &str) {
@@ -43,23 +41,28 @@ pub fn tab(race: &Race, ui: &Ui) {
     );
     ui.text_disabled("2: dword_6218E0: nothing reads it");
     // Key 3: the switch masked with what the processor has.
-    let mut on = value_at(EXTENSIONS).unwrap_or(0) != 0;
+    let use_ = &SCENE.draw_switches;
+    let mut on = EXTENSIONS.load(Relaxed) != 0;
     if ui.checkbox("3: Processor's extensions", &mut on) {
         let v = u32::from(on);
-        write_at(EXTENSIONS, v);
-        write_at(USE_SSE, v & session.machine.has_sse.get());
+        EXTENSIONS.store(v, Relaxed);
+        use_.use_sse.set(v & session.machine.has_sse.get());
         // Not the original's: its 3DNow way (0x45BF89) is not ported and would end the
         // program, so it stays off on a processor that has it.
-        write_at(USE_3DNOW, 0);
-        write_at(USE_MMX, v & session.machine.has_mmx.get());
+        use_.use_3dnow.set(0);
+        use_.use_mmx.set(v & session.machine.has_mmx.get());
     }
     ui.same_line();
-    let used = [(USE_SSE, "SSE"), (USE_3DNOW, "3DNow!"), (USE_MMX, "MMX")]
-        .iter()
-        .filter(|(at, _)| value_at(*at).is_some_and(|v| v != 0))
-        .map(|&(_, name)| name)
-        .collect::<Vec<_>>()
-        .join(", ");
+    let used = [
+        (&use_.use_sse, "SSE"),
+        (&use_.use_3dnow, "3DNow!"),
+        (&use_.use_mmx, "MMX"),
+    ]
+    .iter()
+    .filter(|(cell, _)| cell.get() != 0)
+    .map(|&(_, name)| name)
+    .collect::<Vec<_>>()
+    .join(", ");
     ui.text_disabled(format!(
         "using: {}; the game's SSE paths, physics' ground too: a replay may not match",
         if used.is_empty() { "none" } else { &used }

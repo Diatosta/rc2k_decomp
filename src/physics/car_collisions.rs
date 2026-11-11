@@ -1,21 +1,17 @@
-//! `physics::car_collisions` (0x45F615): the work car against the other cars, in race
-//! modes 0 and 2 (`dword_62389C`; else nothing). `dword_6D3BB4` = 0; for each car n
-//! below `g_raceCars` but the current one (`g_currentCar`), whose block
-//! (`g_carBlocks[n]`, into `dword_6D3BB8`, n into `dword_6D3CD4`) has +0x25C set: the
-//! places' difference as the place (`scene::set_place`), `g_crashMatrix` x that into
-//! `g_turnedMatrix`, that x the block's matrix (+0x9CC) into `flt_6D3C40`
-//! (`scene::multiply_matrices`); then for its eight corners (`dword_6D3BE0[k]`,
-//! `dword_6D3C00[k]`, `dword_6D3C20[k]` into `dword_6D3BD4` ..) `physics::corner_hits_car`.
-//! Every step in `pusha` / `popa`: only ebx, the count, is left.
+//! `physics::car_collisions` (0x45F615): the work car against the other cars, in race modes 0
+//! and 2 (`run_kind`; else nothing). For each car n below `g_raceCars` but the current one
+//! (`g_currentCar`) whose block (`g_carBlocks[n]`, kept in `other_car_block`, n in
+//! `other_car_number`) has `driver_kind` set: the difference of the places becomes the place
+//! (`scene::set_place`), `g_crashMatrix` times that goes into `g_turnedMatrix`, and that times
+//! the block's `car_inverse_matrix` goes into `corner_matrix` (`scene::multiply_matrices`); then
+//! each of its eight corners (`corner_x`, `corner_y`, `corner_z`, into `corner_in`) goes through
+//! `physics::corner_hits_car`; `corner_inside` starts at 0.
 //!
 //! Returns: the cars' count (at least 1) in modes 0 and 2
 //!
 //! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`. Refuses
 //! (before anything) more than eight cars or a null block among them (the original reads past
 //! `g_carBlocks` or through null), and what `corner_hits_car` refuses (what was written put back).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;

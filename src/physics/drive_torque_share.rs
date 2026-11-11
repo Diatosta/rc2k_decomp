@@ -1,14 +1,13 @@
-//! `physics::drive_torque_share` (0x440D56): a share of the drive by speed. n =
-//! `dword_613EEC` (8) with `g_carDriveKind` 1, else `dword_613EF0` (32), into
-//! `dword_62400C`; s = |`g_carSpeed`| / `dword_613EF4` (`fidiv`) into `flt_62401C`, held to
-//! at most `flt_5C5D38` (1.0; one below it, or unordered, is left); d = (n - `g_car`
-//! +0x28, `unk_71A000`) / n (`fild` / `fidiv`) into `dword_624020`; `flt_614758` = d +
-//! (1 - d) s, and `flt_614750` times it.
+//! `physics::drive_torque_share` (0x440D56): a share of the drive by speed. n is `torque_share_a`
+//! (8) with `g_carDriveKind` 1, else `torque_share_b` (32); s = |`g_carSpeed`| / `torque_share_c`
+//! held to at most 1.0 (a value below it, or unordered, is left); d = (n - the car's
+//! `gear_ratio_setting`) / n; `torque_share` = d + (1 - d) s, and `drive_torque` is multiplied by it.
 //!
-//! Callers: `physics::test_drive_run`, 0x43CAAB, `physics::drive_force`.
+//! Callers: `physics::test_drive_run`, `physics::drive_force`.
 
 use crate::math::x87;
-use crate::math::x87_run::{abs_fidiv, int_fidiv, one_less_times_plus};
+use crate::math::x87::toward_one;
+use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
@@ -19,8 +18,7 @@ fn put(a: &dyn Cell32, v: u32) {
     a.set_bits(v);
 }
 
-/// The core on the variables' cells: eax as the original leaves it (n less the
-/// word, its `sub eax, unk_71A000`).
+/// The core on the variables' cells: returns n less the gear ratio setting word.
 pub fn drive_torque_share_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dyn Cell32]) -> u32 {
     let n = if v[1].bits() == 1 {
         tables.torque_share_a.get()
@@ -30,7 +28,7 @@ pub fn drive_torque_share_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dy
     v[0].set_bits(n);
     put(
         v[3],
-        abs_fidiv(v[2].bits(), tables.torque_share_c.get() as i32),
+        bh::st(bh::ld(v[2].bits()).abs() / bh::int(tables.torque_share_c.get() as i32)),
     );
     let one = numbers.one.bits();
     let below = !matches!(
@@ -42,9 +40,9 @@ pub fn drive_torque_share_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dy
     }
     let eax = v[0].bits().wrapping_sub(v[5].bits());
     v[4].set_bits(eax);
-    v[4].set_bits(int_fidiv(v[4].bits() as i32, v[0].bits() as i32));
-    v[6].set_bits(one_less_times_plus(v[4].bits(), v[3].bits()));
-    v[7].set_bits(x87::mul(v[7].bits(), v[6].bits()));
+    v[4].set_bits(x87::int_ratio(v[4].bits() as i32, v[0].bits() as i32));
+    v[6].set_bits(toward_one(v[4].bits(), v[3].bits()));
+    v[7].set_bits(x87::mul(v[7], v[6]));
     eax
 }
 
@@ -66,8 +64,8 @@ fn game<'a>(
     ]
 }
 
-/// The exact version, for `physics::drive_force` and `physics::test_drive_run`: eax as the original
-/// leaves it.
+/// The exact version, for `physics::drive_force` and `physics::test_drive_run`: returns the same
+/// value as the core.
 pub fn drive_torque_share(
     car: &Car,
     tables: &PhysicsTables,

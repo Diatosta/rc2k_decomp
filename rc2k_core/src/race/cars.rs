@@ -1,15 +1,15 @@
 //! The race's cars: their entries in the per-car tables, their kinds, their grades, their
-//! starts and the players' states (converted 2026-10-21 from `race::car_file_number`
+//! starts and the players' states (converted from `race::car_file_number`
 //! 0x41F4FD, `car_kind_10` 0x41F4A1, `car_kind_11` 0x41F485, `kind_past_table` 0x4651AC,
 //! `kind_unusable` 0x449D34, `index_of_kind` 0x437720, `players_all_out` 0x445506,
 //! `reset_car_starts` 0x444BBC, `nonzero_random` 0x444C14, `seed_car_randoms` 0x444BF6,
 //! `drop_absent_player` 0x436402, `grade_car_values` 0x43FE24, `grade_all_cars`
 //! 0x43FDFE, `set_car_counter` 0x43A96C, `set_both_counters` 0x43A987,
 //! `set_start_states` 0x446D2E and `store_results_by_mode` 0x449957; the set-up's
-//! choice converted 2026-10-21 from `auto_set_up_car` 0x436F08, the opponents' draws from
-//! `choose_arcade_opponents` 0x449B79; the blocks' reset converted 2026-10-21 from
+//! choice Converted from `auto_set_up_car` 0x436F08, the opponents' draws from
+//! `choose_arcade_opponents` 0x449B79; the blocks' reset Converted from
 //! `race::reset_car_blocks` 0x43658A; the modes' steps, the brakes and the arcade's draws
-//! converted 2026-10-21 from `race::set_up_cars` 0x43603C, `set_up_mode_0_cars`
+//! Converted from `race::set_up_cars` 0x43603C, `set_up_mode_0_cars`
 //! 0x4364BD and `set_up_mode_2_cars` 0x43613A; the race state's reset from
 //! `race::reset_car_race_state` 0x444C1D; the collision points' floats and their two
 //! new corners from `race::set_up_car_points` 0x426B67).
@@ -17,8 +17,8 @@
 use crate::Invalid;
 use crate::math::random::Random;
 
-/// The cars the per-car tables hold (the file numbers `dword_5C5928`, the kinds
-/// `dword_5C5818` / `dword_5C58A0`, the records at 0x5C790C).
+/// The cars the per-car tables hold (the file numbers `car_file_numbers`, the kinds
+/// `kind_10_table` / `kind_11_table`, the records at 0x5C790C).
 pub const TABLE_CARS: u32 = 0x22;
 
 /// A car's entry in the per-car tables: the car held to 0 ..= 0x21 (signed).
@@ -38,7 +38,7 @@ pub struct KindCheckFlags {
     pub zero: bool,
 }
 
-/// `race::kind_past_table`: carry for a kind of 0x17 or more; zero as `cmp eax, 17h`
+/// `race::kind_past_table`: carry for a kind of 0x17 or more; zero as a comparison with 0x17
 /// leaves it.
 pub fn kind_past_table(kind: u32) -> KindCheckFlags {
     KindCheckFlags {
@@ -61,7 +61,7 @@ pub fn kind_unusable(kind: u32) -> KindCheckFlags {
     }
 }
 
-/// The kinds in the order `dword_6051E0` keeps (0x22).
+/// The kinds in the order `kind_order` keeps (0x22).
 pub const KIND_ORDER_LEN: u32 = 0x22;
 
 /// `race::index_of_kind`: the place of `kind` in the kind order (the first of equals),
@@ -77,9 +77,9 @@ pub fn index_of_kind(kind: u32, order: impl IntoIterator<Item = u32>) -> Option<
 /// Whose state `players_all_out` looks at.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Players {
-    /// The one chosen car (`dword_52A910` 1, the car `dword_52A920`).
+    /// The one chosen car (`session` 1, the car `player`).
     Chosen(u32),
-    /// The first n cars (`dword_63DB94`).
+    /// The first n cars (`players`).
     First(u32),
 }
 
@@ -97,7 +97,7 @@ pub fn players_all_out(players: Players, out: impl Fn(u32) -> bool) -> Result<bo
 }
 
 /// `race::drop_absent_player`: the player who is out of a two-player race: unless the
-/// race's mode (`dword_62389C`) is 2 or 4, with two players (asked then), the first of the
+/// race's mode (`run_kind`) is 2 or 4, with two players (asked then), the first of the
 /// two whose block's +0xB0 is set (`absent`, asked in order).
 pub fn absent_player(
     mode: u32,
@@ -111,7 +111,7 @@ pub fn absent_player(
 }
 
 /// `race::reset_car_starts`: the value each block's +0x14 and +8 start at: 0x320 while a
-/// replay runs (`dword_71C3E0`), else 0.
+/// replay runs (`in_credits`), else 0.
 pub fn start_value(replaying: bool) -> u32 {
     if replaying { 0x320 } else { 0 }
 }
@@ -132,7 +132,7 @@ pub fn car_seeds(random: &mut Random) -> [u32; 8] {
 
 /// A value's grade: how many of the thresholds, taken in order, lie below it (`fild t;
 /// fcomp x` then `jnb` on C0: a NaN, unordered, passes them all); and the last threshold
-/// tried (the original's way in to the x87, `dword_62400C`).
+/// tried (the original's way in to the x87, `scratch`).
 pub fn grade(value: f32, thresholds: &[u32]) -> (u32, u32) {
     let mut grade = 0u32;
     let mut tried = 0;
@@ -188,7 +188,7 @@ pub fn start_state_value(limit: u32, value: impl FnOnce() -> u32) -> u32 {
     if limit > START_LIMIT { 0 } else { value() }
 }
 
-/// `race::set_start_states`: the split choice (`dword_6238A4`) for one player (0) or
+/// `race::set_start_states`: the split choice (`split`) for one player (0) or
 /// two (held to 1 ..= 2 by the original's two sign tests, `cmp` / `jns` / `js`, wrapping
 /// as they do).
 pub fn held_split(two: bool, choice: i32) -> i32 {
@@ -246,7 +246,7 @@ pub const SET_UP_STAGES_END: u32 = 0x50;
 /// The set-up `race::auto_set_up_car` picks.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SetUpPick {
-    /// Its number in `dword_6043FC` (16 bytes each): (stage - 0x15) / 10 x 6 + the rest.
+    /// Its number in `auto_setups` (16 bytes each): (stage - 0x15) / 10 x 6 + the rest.
     pub index: u32,
     /// (stage - 0x15) % 10.
     pub rest: u32,
@@ -345,11 +345,11 @@ pub enum CarsStep {
     Times,
     /// The mode's set-up: 2 the arcade's, 1, 0, 4 theirs, 3 `race::set_up_race_cars`.
     SetUp(u32),
-    /// The arcade's 0x40 dwords at `dword_601C68` cleared.
+    /// The arcade's 0x40 dwords at `kept_times` cleared.
     ClearArcadeTable,
 }
 
-/// `race::set_up_cars`: the steps for a mode (`dword_62389C`); none for others.
+/// `race::set_up_cars`: the steps for a mode (`run_kind`); none for others.
 pub fn cars_steps(mode: u32) -> &'static [CarsStep] {
     use CarsStep::*;
     match mode {
@@ -374,7 +374,7 @@ pub fn held_brake(v: i32, scaled: impl FnOnce(i32) -> u32) -> u32 {
     }
 }
 
-/// `race::set_up_mode_0_cars`: with every car set up automatically (`dword_52A910`) the
+/// `race::set_up_mode_0_cars`: with every car set up automatically (`session`) the
 /// race's cars (`g_raceCars`) must be 1 .. 8 (the original's `jnz` runs on otherwise).
 pub fn every_car_set_up(all: bool, cars: u32) -> Result<bool, Invalid> {
     if all && (cars == 0 || cars > CAR_BLOCKS) {
@@ -383,7 +383,7 @@ pub fn every_car_set_up(all: bool, cars: u32) -> Result<bool, Invalid> {
     Ok(all)
 }
 
-/// The arcade's start place: the cars' count with `dword_60101C` 2 or at the rally's
+/// The arcade's start place: the cars' count with `arcade_kind` 2 or at the rally's
 /// first stage; else it stays.
 pub fn arcade_start_is_last(kind: u32, stage_in_rally: u32) -> bool {
     kind == 2 || stage_in_rally == 0

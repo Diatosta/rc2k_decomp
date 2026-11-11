@@ -1,14 +1,11 @@
-//! `physics::ease_view_turn` (0x438B4F): the camera's three turns (`unk_71A688`,
-//! `71A690`, `71A68C`) each moved toward its target (`dword_608B50`, `608B58`,
-//! `608B54`) by its share (`dword_608BE8`, `608BE4`, `608BEC`; all 1 first when
+//! `physics::ease_view_turn` (0x438B4F): the camera's three turns (`camera_heading`,
+//! `71A690`, `71A68C`) each moved toward its target (`start_heading`, `608B58`,
+//! `608B54`) by its share (`view_share_heading`, `608BE4`, `608BEC`; all 1 first when
 //! `dword_6EF7CC` is set): the difference `fild`ed, times the share, `fistp`ed, added.
 //!
 //! Returns: the last step
 //!
 //! Caller: `physics::camera_avoid_ground`.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::math::x87_float::to_int;
 use crate::math::x87_float::{int, ld};
@@ -55,9 +52,9 @@ pub fn ease_view_turn(race: &Race, scene: &crate::scene::owner::Scene) {
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [rc + 0x22400C] = int [rc + 0x22400C] * [s + 0]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [scratch] = int [scratch] * [s + 0]`
 fn x87_1(s: &impl Cell32, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let t0 = int(drawing.scene.scratch.bits() as i32);

@@ -1,4 +1,4 @@
-//! `physics::sound_on_bit` (0x441324): when bit cl of `g_car` +0x298 (`unk_71A270`) is
+//! `physics::sound_on_bit` (0x441324): when bit cl of `g_car` +0x298 (`parts_present`) is
 //! set, it is cleared and `physics::place_car_sound` runs.
 //!
 //! Takes: the bit

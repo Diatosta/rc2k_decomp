@@ -1,7 +1,7 @@
 //! `input::yes_no_for_key` (0x407E27): `yes_no_key` for a key the caller already has.
 //!
 //! Takes: the key
-//! Sets `dword_4F7FD8` to 1 around the call and puts back what it held. One caller,
+//! Sets `yes_no_key_given` to 1 around the call and puts back what it held. One caller,
 //! `menu::handle_yes_no`.
 
 use crate::input::key_to_char::has_layout;

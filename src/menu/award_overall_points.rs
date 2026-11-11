@@ -16,17 +16,20 @@ use crate::menu::standings::*;
 
 /// An entry's driver (computer) or player.
 #[derive(Clone, Copy)]
-enum Owner {
-    Driver(&'static Driver),
-    Player(PlayerCell),
+enum Owner<'a> {
+    Driver(&'a Driver),
+    Player(PlayerCell<'a>),
 }
 
-fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<Owner, Refused> {
+fn owner<'a>(
+    menus: &'a Menus,
+    e: &rc2k_core::saves::rankings::HistoryEntry,
+) -> Result<Owner<'a>, Refused> {
     match e.player {
         0 => Ok(Owner::Driver(crate::menu::find_cpu_team::find_cpu_team(
-            e.first,
+            menus, e.first,
         )?)),
-        n if n <= 4 => Ok(Owner::Player(player(n - 1))),
+        n if n <= 4 => Ok(Owner::Player(player(menus, n - 1))),
         _ => Err(BadInput("a player past 4 or missing").into()),
     }
 }
@@ -41,7 +44,7 @@ pub fn award_overall_points(menus: &Menus) -> Result<(), Refused> {
         let mut all = walked_entries_b()?;
         let mut owners = Vec::with_capacity(all.len());
         for e in &all {
-            owners.push(owner(e)?);
+            owners.push(owner(menus, e)?);
         }
         // Converted: `rc2k_core::menu::points` (`Points`, `total`).
         use rc2k_core::menu::points::{Points, total};

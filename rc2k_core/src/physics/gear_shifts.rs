@@ -1,4 +1,4 @@
-//! The gearbox's shifts (converted 2026-10-21 from `physics::manual_gearbox` 0x43C2AE,
+//! The gearbox's shifts (converted from `physics::manual_gearbox` 0x43C2AE,
 //! `physics::auto_gearbox` 0x43C5C2, `physics::change_gear` 0x43C20D and
 //! `physics::pick_start_gear` 0x43C8AC; the engine's sums and their compares stay the
 //! hooks' x87, which hand the compares in as answers): where each box goes from a gear
@@ -48,7 +48,7 @@ pub fn manual_down(gear: u32) -> Option<Shift> {
     }
 }
 
-/// The start line's keys (down `dword_6138A4` first, then up `dword_6138A0`): down from
+/// The start line's keys (down `input_gear_down` first, then up `input_gear_up`): down from
 /// neutral into reverse, from a forward gear (or neutral's other) to neutral; up from
 /// neutral a start gear, from reverse to neutral. None: neither applies.
 pub fn start_line_keys(gear: u32, down: bool, up: impl FnOnce() -> bool) -> Option<Shift> {
@@ -93,8 +93,8 @@ pub fn above_first(gear: u32) -> bool {
     (gear.wrapping_sub(2) as i32) >= 0
 }
 
-/// The engine's share for a change down: the clutch's (`flt_5CB960`) with the clutch
-/// down (`unk_71A614`), else the free one (`flt_5CB95C`).
+/// The engine's share for a change down: the clutch's (`shift_down_clutch_point`) with the clutch
+/// down (`brake`), else the free one (`shift_down_point`).
 pub fn down_point_clutch(clutch: u32) -> bool {
     clutch != 0
 }

@@ -1,17 +1,16 @@
-//! `physics::axis_turn_matrix` (0x421019): the matrix at edi of a turn by `flt_5C78F8`
-//! about the axis `flt_5C78FC` .. `flt_5C7904` (Rodrigues' form, with |x| square-rooted
-//! for the diagonal's x x, as the original has it), its work values left in
-//! `flt_5C7098` .. `flt_5C70B8` (sine, cosine, 1 - cosine, three products of two axis
-//! parts and three of one with the sine); the fourth row 0, 0, 0, 1; the fourth column's
-//! three left as they were.
+//! `physics::axis_turn_matrix` (0x421019): fills a matrix with a turn by `spin_angle` about the
+//! axis `spin_axis` (Rodrigues' form, with |x| square-rooted for the diagonal's x x, as the
+//! original has it). The work values (sine `turn_sine` .. `turn_sine_z`: sine, cosine, 1 - cosine,
+//! three products of two axis parts and three of one with the sine) are left in the course
+//! lists store; the fourth row is 0, 0, 0, 1 and the fourth column's three are left as they were.
 //!
 //! Takes: the matrix (0x40 bytes)
 //!
-//! Callers: `physics::move_slot` (0x4624D6) and `physics::spin_matrix` (0x43DD97).
+//! Callers: `physics::move_slot` and `physics::spin_matrix`.
 
 use crate::math::cells::Cells;
 use crate::math::x87;
-use crate::math::x87_run::{abs_sqrt_times_plus, one_less, sine_cosine_of};
+use crate::math::x87::{abs_sqrt_times_plus, one_less, sine_cosine_of};
 use crate::race::owner_course::Course;
 
 /// The matrix into `out` (16 cells).

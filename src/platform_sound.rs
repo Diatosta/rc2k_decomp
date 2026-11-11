@@ -1,5 +1,4 @@
-//! DirectSound for the standalone program, on one SDL3 audio stream (the owner chose it,
-//! 2026-10-15: "Emulate DirectSound").
+//! A stand-in for DirectSound for the standalone program, on one SDL3 audio stream.
 //!
 //! The ported audio code calls DirectSound's methods as the functions here (the original went
 //! through COM method tables), on objects held as ids: a device, its
@@ -11,11 +10,11 @@
 //! stereo; the primary buffer too, which in the Dolby mode is where the game's own mixer
 //! writes, so the music (a secondary buffer) is heard there as well (section 16's Dolby
 //! bug does not happen here). The primary buffer's volume is the whole output's. The
-//! secondary buffers play at `SECONDARY_GAIN` (owner, 2026-10-26): the game's own mixer
-//! leaves 12 dB of headroom, so the effects of the Dolby mode were 12 dB below the other
-//! modes'; every mode, and the music beside the Dolby mode's effects, now sounds alike.
-//! 3D placing (2026-10-19; before, the 3D calls did nothing and every placed sound played
-//! as near): a buffer's 3D interface keeps its place, its least and greatest distances and
+//! secondary buffers play at `SECONDARY_GAIN`: the game's own mixer
+//! leaves 12 dB of headroom, which would put the effects of the Dolby mode 12 dB below the
+//! other modes'; the gain makes every mode, and the music beside the Dolby mode's effects,
+//! sound alike.
+//! 3D placing: a buffer's 3D interface keeps its place, its least and greatest distances and
 //! its mode; the listener stays where the game leaves it (at the origin, facing +z: the
 //! game places the sounds around the listener itself) with its roll-off factor. A placed
 //! buffer is heard at DirectSound 3D's distance (the least distance over the distance,
@@ -490,7 +489,7 @@ pub fn set_format(id: u32, f: Format) -> i32 {
     with(|s| match buffer(s, id) {
         Some(b) if b.flags & PRIMARY != 0 => {
             // Silence in the new format: the 8-bit one's 0x80 bytes read as 16-bit are
-            // -32640, a jump to near full scale (the clicks at the opening, 2026-10-15).
+            // -32640, a jump to near full scale (clicks at the opening).
             let silence = if f.bits == 8 { 0x80 } else { 0 };
             bytes_of(&b.data).fill(silence);
             b.format = f;

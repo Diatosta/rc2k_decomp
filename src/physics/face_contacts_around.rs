@@ -1,13 +1,10 @@
-//! `physics::face_contacts_around` (0x45E196): the car's place (`unk_71A10C`, `unk_71A114`)
-//! into `dword_639824`, `dword_63982C`, then `physics::cell_face_contacts` for its cell
+//! `physics::face_contacts_around` (0x45E196): the car's place (`position`, `unk_71A114`)
+//! into `ground_x`, `ground_z`, then `physics::cell_face_contacts` for its cell
 //! and the eight about it (± 0x200000 each way, in the original's order; the place read
-//! back from `dword_639824` .. before each).
+//! back from `ground_x` .. before each).
 //!
 //! Caller: `physics::face_contacts` (0x45E190, its only code). Refuses what
 //! `cell_face_contacts` refuses.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

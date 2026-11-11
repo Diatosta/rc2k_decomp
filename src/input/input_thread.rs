@@ -1,12 +1,12 @@
 //! `input::input_thread` (0x4078DA): the input thread's routine ("INPUTTDB", its slot
 //! `slot` 0x5184F4). Unless its slot's flag (+0xC) is already 1 (then straight to the end):
-//! the flag 1, "INPUTTDB:START" logged; DirectInput made (0x4079DC, `dword_4F6904`; none:
+//! the flag 1, "INPUTTDB:START" logged; DirectInput made (`direct_input`; none:
 //! to the end), the keyboard, the mouse and the joysticks (0x407A1F, 0x407FFE,
 //! `input::list_joysticks`), the priority 2 (`threading::set_priority`). Then every 20 ms (waits of
-//! 5 ms on `system::tick_count`, kept in `dword_4F68D8`): `dword_518998` one more for each
+//! 5 ms on `system::tick_count`, kept in `last_tick`): `clocks.key_ticks` one more for each
 //! 20 ms gone, the keyboard and the mouse read (0x407AC2, 0x4080F2), a tick of the
 //! devices (`input::input_tick`), a second's sleep while the window is not the active one
-//! (`dword_518378` not 1); until `g_quitting` is 1. The end: both devices given back
+//! (`flags.window_active` not 1); until `g_quitting` is 1. The end: both devices given back
 //! (`input::release_device`), the mouse, the keyboard and DirectInput released
 //! (0x40809E, 0x407A84, 0x4079FE), "INPUTTDB:QUIT" logged, the priority 0, the
 //! flag 0, `ExitThread`.

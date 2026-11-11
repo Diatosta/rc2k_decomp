@@ -1,12 +1,9 @@
-//! `physics::move_slots` (0x462206): `dword_71BE88` = the number of the eight
+//! `physics::move_slots` (0x462206): `slot_count` = the number of the eight
 //! `g_raceSlots` (0x78 bytes each) in use (+0 not 0), each moved by
 //! `physics::move_slot`.
 //!
 //! Caller: `drive::animate_stage` (0x45E9CF), from race init's loop and `drive::replay_step`.
 //! Refuses (before anything) what `move_slot` refuses for a slot in use.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::physics::move_slot::move_slot;

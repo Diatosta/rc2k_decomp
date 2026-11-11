@@ -1,4 +1,4 @@
-//! The drive's forces under the wheels' step (converted 2026-10-21 from
+//! The drive's forces under the wheels' step (Converted from
 //! `physics::ease_low_speed_forces` 0x440CF3, `physics::cap_reverse_inputs` 0x46514A,
 //! `physics::add_drive_forces` 0x440C7B, `physics::cap_drive_speed` 0x440DF3,
 //! `physics::drive_torque_share` 0x440D56 and `physics::set_downforce` 0x43F508). What
@@ -9,7 +9,7 @@
 
 use super::x87::{below, loaded};
 
-/// `physics::ease_low_speed_forces`: the factor (`flt_61475C`) 1, or when |`speed`| is
+/// `physics::ease_low_speed_forces`: the factor (`low_speed_share`) 1, or when |`speed`| is
 /// below `limit` (20; or unordered) (|speed| / limit + `add`) x `times`, and the two
 /// forces times it then (None: the forces left).
 pub fn low_speed_factor(speed: f32, limit: f32, add: f32, times: f32) -> Option<f32> {
@@ -49,11 +49,11 @@ pub fn cap_reverse(
 /// What `physics::add_drive_forces` makes.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DriveForces {
-    /// The first factor kept in `dword_62400C` with drive kind not 0.
+    /// The first factor kept in `scratch` with drive kind not 0.
     pub kept: Option<f32>,
-    /// `flt_6140F4`: the factor times the four's sum.
+    /// `drive_force_scale`: the factor times the four's sum.
     pub drive: f32,
-    /// `flt_614248`, `flt_61424C` with their shares added.
+    /// `drive_forces`, `flt_61424C` with their shares added.
     pub forces: [f32; 2],
 }
 
@@ -84,8 +84,8 @@ pub fn add_drive_forces(
     }
 }
 
-/// What `physics::cap_drive_speed` makes: (the allowance `flt_614168`, the speed plus it
-/// kept in `dword_62400C`, the drive speed).
+/// What `physics::cap_drive_speed` makes: (the allowance `drive_speed_figure`, the speed plus it
+/// kept in `scratch`, the drive speed).
 pub fn cap_drive_speed(
     over: f32,
     speed: f32,
@@ -110,14 +110,14 @@ pub fn cap_drive_speed(
 /// What `physics::drive_torque_share` makes.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TorqueShare {
-    /// n (`dword_613EEC` with drive kind 1, else `dword_613EF0`), kept in `dword_62400C`.
+    /// n (`torque_share_a` with drive kind 1, else `torque_share_b`), kept in `scratch`.
     pub n: u32,
-    /// |speed| / `dword_613EF4`, held to at most 1 (`flt_62401C`).
+    /// |speed| / `torque_share_c`, held to at most 1 (`work_float_a`).
     pub speed_share: f32,
-    /// n less the word (the original's eax), then (that) / n (`dword_624020`).
+    /// n less the word, then (that) / n (`work_float_b`).
     pub less: u32,
     pub drive_share: f32,
-    /// `flt_614758` = d + (1 - d) s; `flt_614750` times it.
+    /// `torque_share` = d + (1 - d) s; `drive_torque` times it.
     pub share: f32,
     pub drive: f32,
 }
@@ -151,7 +151,7 @@ pub fn torque_share(
     }
 }
 
-/// `physics::set_downforce`: (`speed`² `factor` + `offset`) `gravity` (`flt_614174`) and
+/// `physics::set_downforce`: (`speed`² `factor` + `offset`) `gravity` (`downforce`) and
 /// its negative (`flt_6147F4`): the car's weight with downforce
 /// growing with the speed's square.
 pub fn downforce(speed: f32, factor: f32, offset: f32, gravity: f32) -> (f32, f32) {

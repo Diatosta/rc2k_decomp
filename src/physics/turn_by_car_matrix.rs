@@ -1,16 +1,13 @@
-//! `physics::turn_by_car_matrix` (0x43F14E): the three floats at esi turned and placed by
-//! `g_crashMatrix` (0x71A08C, the work copy's +0xB4; rows 0x10 apart, the place at +0x30)
-//! with `scene::rotate_point`, and stored back (rounded to floats).
+//! `physics::turn_by_car_matrix` (0x43F14E): a point (three floats) turned and placed by
+//! `g_crashMatrix` (the work car's `crash_matrix`; rows 0x10 apart, the place at +0x30) with
+//! `scene::rotate_point`, and stored back (rounded to floats).
 //!
 //! Takes: the point
 //! Returns: the point turned
 //!
-//! `physics::turn_by_inverse` (0x43F118) is the same with the matrix at 0x71A9A4
-//! (`g_carInverseMatrix`, made by `race::invert_car_matrix` with `scene::invert_turn`).
+//! `physics::turn_by_inverse` is the same with the car's `car_inverse_matrix` (`g_carInverseMatrix`,
+//! made by `race::invert_car_matrix` with `scene::invert_turn`).
 //! Callers (6): the cars' physics under `drive::race_step`.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::math::cells::Cells;
 use crate::physics::car_store::Car;

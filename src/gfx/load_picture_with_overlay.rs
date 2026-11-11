@@ -4,7 +4,7 @@
 //! Takes: the picture's path, the overlay's
 //!
 //! `gfx::load_picture` of the first; if it was read, memory of 0x1D4C00 + 0xC80 bytes from the
-//! work list (`g_lexiconMemory`; Rust's now, `gfx::picture::Buffer::Overlay`),
+//! work list (`g_lexiconMemory`; Rust's, `gfx::picture::Buffer::Overlay`),
 //! the picture's size, row length and buffer kept while
 //! `gfx::read_picture_file` reads the overlay into that memory, then put back; if the overlay
 //! was read, each of its pixels that is not 0xFF00FF, row by row from the memory's start (rows

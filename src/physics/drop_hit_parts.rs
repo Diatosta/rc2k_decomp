@@ -1,15 +1,11 @@
-//! `physics::drop_hit_parts` (0x4410C8): for cars of kind (+0x24) below 0x17, four parts
-//! in turn (`physics::test_car_word` bits 5, 9, 0xE, 0x19 of +0xC; their timers +0x2F8 ..
-//! +0x304): the first whose bit is set and timer not below 100 (`flt_5C5D14`) loses its
-//! part when its bit of +0x298 (5, 6, 7, 8) is still set (`physics::fill_slot_on_bit`, the
-//! timer 256) and it ends there; a bit of +0x298 already clear ends it too. A reading:
-//! hit parts coming off.
+//! `physics::drop_hit_parts` (0x4410C8): for cars of kind (`car_kind`) below 0x17, four parts in
+//! turn (`physics::test_car_word` bits 5, 9, 0xE, 0x19 of the car flags; their timers from
+//! `wheel_hit_damage`): the first whose bit is set and timer not below 100 loses its part when its
+//! bit of `parts_present` (5, 6, 7, 8) is still set (`physics::fill_slot_on_bit`, the timer 256) and
+//! it ends there; a bit of `parts_present` already clear ends it too. A reading: hit parts coming off.
 //!
 //! Caller: `physics::hit_part_checks`. Refuses what `fill_slot_on_bit` refuses; what was
 //! written is put back.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::math::x87;
@@ -22,8 +18,7 @@ use rc2k_core::physics::parts::{self, DROP_TESTS, Hit, HitTest};
 /// The four tests' timers.
 pub type Timers = [crate::session::Float; 4];
 
-/// The shared steps (`rc2k_core::physics::parts::hit_tests`): `act` the bit's step (with the bit,
-/// the original's ecx).
+/// The shared steps (`rc2k_core::physics::parts::hit_tests`): `act` the bit's step (given the bit).
 pub fn hit_tests(
     car: &Car,
     numbers: &Numbers,
@@ -41,7 +36,7 @@ pub fn hit_tests(
     );
     if let Hit::Act(k) = hit {
         act(tests[k].1)?;
-        timers[k].set_bits(x87::loaded(numbers.k256.bits()));
+        timers[k].set_bits(x87::loaded(&numbers.k256));
     }
     Ok(())
 }

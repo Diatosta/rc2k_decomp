@@ -1,10 +1,10 @@
-//! The marks' wave tables, out of the marks' block (phase 7, typed state): `MarksSines`
+//! The marks' wave tables: `MarksSines`
 //! (IDA 0x92001E .. 0x92051E), `WaveLevels` (0x9205F6 .. 0x92063A: the lens flare's parts'
 //! levels) and `WaveState` (0x9206C2 .. 0x9206D2: the made-once flag and constants).
 
 use crate::session::{Dword, Float};
 
-/// The marks' sine table (IDA 0x92001E .. 0x92051E, the image's layout; phase 7, typed state).
+/// The marks' sine table (IDA 0x92001E .. 0x92051E).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarksSines {
@@ -16,14 +16,14 @@ impl MarksSines {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         MarksSines {
-            table: [const { Float::from_bits(0x0) }; 320],
+            table: [const { Float::new(0.0) }; 320],
         }
     }
     pub const START: usize = 0x92001E;
     pub const LEN: usize = 0x500;
 }
 
-/// The wave levels (IDA 0x9205F6 .. 0x92063A, the image's layout; phase 7, typed state).
+/// The wave levels (IDA 0x9205F6 .. 0x92063A).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WaveLevels {
@@ -60,7 +60,7 @@ impl WaveLevels {
     pub const LEN: usize = 0x44;
 }
 
-/// The wave tables' flag and constants (IDA 0x9206C2 .. 0x9206D2, the image's layout; phase 7, typed state).
+/// The wave tables' flag and constants (IDA 0x9206C2 .. 0x9206D2).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WaveState {
@@ -79,9 +79,9 @@ impl WaveState {
     pub const fn new() -> Self {
         WaveState {
             done: Dword::new(0x0),
-            scale: Float::from_bits(0x43800000),
-            less: Float::from_bits(0x3F800000),
-            sine_step: Float::from_bits(0x3CC90FDB),
+            scale: Float::new(256.0),
+            less: Float::new(1.0),
+            sine_step: Float::new(0.024543693),
         }
     }
     pub const START: usize = 0x9206C2;

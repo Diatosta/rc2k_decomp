@@ -1,20 +1,17 @@
-//! `physics::cue_listed_car_sound` (0x45D1BC): eax the current car's entry in
-//! `dword_641680`; unless -1, `physics::cue_car_sound` with it.
+//! `physics::cue_listed_car_sound` (0x45D1BC): takes the current car's entry in
+//! `listed_car_sounds`; unless it is -1, `physics::cue_car_sound` runs with it.
 //!
 //! Takes: the cue
 //! Returns: the entry
 //!
 //! Caller: `physics::off_line_warnings` (twice). Refuses (before anything) a current car
 //! past 7.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use rc2k_core::physics::listed_cars::listed_entry;
 
-/// `cue` for the listed car, if it is listed: its entry returned (the original's eax).
+/// `cue` for the listed car, if it is listed: its entry returned.
 // Converted: `rc2k_core::physics::listed_cars::listed_entry`.
 pub fn cue_listed_car_sound(
     race: &Race,

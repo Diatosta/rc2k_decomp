@@ -1,16 +1,16 @@
-//! `physics::lever_push` (0x43DEF4): the work car's spin (`dword_71A15C` .., `g_car`
-//! +0x184) copied to `dword_614B64` .. and turned into the car's frame
-//! (`physics::turn_by_inverse`); crossed with the lever `flt_614B44` .. (`scene::cross_product`
-//! into `flt_614B54` ..), turned back (`physics::turn_by_car_matrix`), scaled by the share
-//! `flt_614C48` and by `flt_614768` (`physics::scale_vector`, each factor then stored in
-//! `dword_62400C`); its x and z times 65536 (`flt_5C5D98`) and the step (`flt_61388C`),
-//! `fistp` into `dword_6140E4` / `dword_6140E8` and added to the car's x / z
-//! (`dword_71A10C` / `dword_71A114`). A reading: the car moved by a point's speed about
+//! `physics::lever_push` (0x43DEF4): the work car's spin (`spin` .., `g_car`
+//! +0x184) copied to `lever_push_place` .. and turned into the car's frame
+//! (`physics::turn_by_inverse`); crossed with the lever `lever_push_vector` .. (`scene::cross_product`
+//! into `lever_push_turned` ..), turned back (`physics::turn_by_car_matrix`), scaled by the share
+//! `lever_share_left` and by `lever_share` (`physics::scale_vector`, each factor then stored in
+//! `scratch`); its x and z times 65536 (`k65536`) and the step (`step_time`),
+//! `fistp` into `lever_pushes` / `dword_6140E8` and added to the car's x / z
+//! (`position` / `dword_71A114`). A reading: the car moved by a point's speed about
 //! its spin.
 //!
 //! Caller: `physics::lever_pushes` (twice).
 
-use crate::math::x87_run::mul2_to_int;
+use crate::math::x87::mul2_to_int;
 use crate::physics::car_store::Car;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::PhysicsTables;

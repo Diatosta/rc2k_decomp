@@ -1,8 +1,8 @@
 //! `net::setting_key` (0x416C76): a key for the setting being edited (`net::edit_key`); when
 //! that ends the editing: the player's name (item 1) left empty gets its old text back
-//! (`byte_95EAF8`, 64 bytes); the most players (item 2) read from its text
+//! (`script_path`, 64 bytes); the most players (item 2) read from its text
 //! (`settings::parse_number`), held to 2 .. 8 (signed), and to 4 with `g_noticeKind` 2, into
-//! `dword_52ABD0`.
+//! `most_players`.
 //!
 //! Takes the key.
 //! Caller: `net::settings_loop`.

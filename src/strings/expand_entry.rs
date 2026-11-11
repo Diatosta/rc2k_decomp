@@ -1,7 +1,7 @@
 //! `strings::expand_entry` (0x401FE1): appends entry `id` of the packed string table, expanding
 //! child entries recursively.
 //!
-//! Takes id, cursor. Returns new cursor. The original also clobbers eax, ecx and esi; its callers
+//! Takes id, cursor. Returns new cursor. The original also clobbers three registers; its callers
 //! save those around the call.
 
 use crate::strings::string_table::table;

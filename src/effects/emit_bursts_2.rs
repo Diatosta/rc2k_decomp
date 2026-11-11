@@ -33,9 +33,9 @@ impl BurstTuning {
     /// The values the game starts with (the image's bytes).
     pub const fn second() -> Self {
         BurstTuning {
-            strength_k: Float::from_bits(0xBE800000),
+            strength_k: Float::new(-0.25),
             first: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-            blend_k: [Float::from_bits(0xBE800000), Float::from_bits(0xBE800000)],
+            blend_k: [Float::new(-0.25), Float::new(-0.25)],
             second: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
         }
     }

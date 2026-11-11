@@ -26,8 +26,7 @@ fn prepare(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
-        let size =
-            x87::int_times_to_int(object.rate.get() as i32, effects.setup.floats.three.bits());
+        let size = x87::int_times_to_int(object.rate.get() as i32, &effects.setup.floats.three);
         object.rate.set(size as u32);
         record.pace.set(record.pace.get().wrapping_add(PACE));
         effects.kinds.emitter.record.set(2);
@@ -37,10 +36,7 @@ fn prepare(
             effects.kinds.emitter.record.set(3);
         }
         record.driven_speed.set_bits(0);
-        let chance = x87::mul_to_int(
-            record.chance.bits(),
-            effects.setup.floats.fixed_16_scale.bits(),
-        );
+        let chance = x87::mul_to_int(&record.chance, &effects.setup.floats.fixed_16_scale);
         ring.work.whole.set(chance as u32);
         let r = next_c5(&effects.kinds.emitter.body_random);
         if ((r & 0xFFFF) as i32) < chance {
@@ -50,8 +46,8 @@ fn prepare(
     Ok(())
 }
 
-/// `record` the body's record (the original's edi),
-/// `object` the car's object (esi).
+/// `record` is the body's record,
+/// `object` the car's object.
 pub fn emit_body_particles(
     effects: &Effects,
     record: &MarkRecord,

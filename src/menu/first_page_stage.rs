@@ -1,5 +1,5 @@
-//! `menu::first_page_stage` (0x4A2440): the first stage on the last page (`dword_7556B8`)
-//! for `dword_7556B4` stages, ten a page: 1 up to ten, else (n / 10) * 10 + 1, less ten when
+//! `menu::first_page_stage` (0x4A2440): the first stage on the last page (`champ_view.first_row`)
+//! for `champ_view.count` stages, ten a page: 1 up to ten, else (n / 10) * 10 + 1, less ten when
 //! n is a multiple of ten; n 0 there: the fatal error 0x80701010 (cannot happen past the
 //! first test).
 //!

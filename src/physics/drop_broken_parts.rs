@@ -1,13 +1,10 @@
 //! `physics::drop_broken_parts` (0x462386): seven parts of the work car checked against
 //! their limits: when `g_car` +0xA3C + 4k is not 0x80000000 and not below (unsigned)
-//! `dword_71BA2C` + 4k, `physics::fill_slot_on_bit` with bit 9, 0xD, 0xE, 0x10, 0x11, 0xC,
-//! 0xF (the first only with `dword_62DAD0` set). A reading: damaged parts falling off.
+//! `part_break_limits` + 4k, `physics::fill_slot_on_bit` with bit 9, 0xD, 0xE, 0x10, 0x11, 0xC,
+//! 0xF (the first only with `marks_mask` set). A reading: damaged parts falling off.
 //!
 //! Caller: `physics::car_physics_step` (0x43B98B), every physics step. Refuses what
 //! `fill_slot_on_bit` refuses; what was written is put back.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit;

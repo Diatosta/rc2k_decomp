@@ -1,16 +1,16 @@
 //! The view's surroundings: the draw distance's settings, the noise map sampled at the
-//! car, the fog table, and the course grid's cells round the view (converted 2026-10-21
+//! car, the fog table, and the course grid's cells round the view (converted
 //! from `race::draw_distance_settings` 0x43932A, `sample_noise` 0x44FD38, `fog_table`
 //! 0x44FC33, `eax_environment` 0x45C7EE, `find_sound_spots` 0x45C605,
 //! `cell_sound_spots` 0x45C6B8, `gather_visible_faces` 0x454B71 and the rules of
 //! `face_sound_spot` 0x45C6ED; the fog's colour and the mirror's window converted
-//! 2026-10-21 from `race::set_up_fog` 0x44FBD9 and `race::mirror_view_window` 0x455F17;
-//! the sound spots' sharing converted 2026-10-21 from `race::share_sound_spots` 0x45C7B9).
+//! from `race::set_up_fog` 0x44FBD9 and `race::mirror_view_window` 0x455F17;
+//! the sound spots' sharing Converted from `race::share_sound_spots` 0x45C7B9).
 
 /// The draw distance's highest level.
 pub const MOST_LEVEL: i32 = 4;
 
-/// `race::draw_distance_settings`: the level (`dword_60AC84`) held to 0 ..= 4 by sign.
+/// `race::draw_distance_settings`: the level (`draw_distance_level`) held to 0 ..= 4 by sign.
 pub fn draw_distance_level(level: u32) -> u32 {
     (level as i32).clamp(0, MOST_LEVEL) as u32
 }
@@ -31,7 +31,7 @@ pub const NOISE_SIDE: u32 = 64;
 /// What `sample_noise` works out.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct NoiseSample {
-    /// The four corners round the place (`dword_637620` ..): (x, z), (x + 1, z),
+    /// The four corners round the place (`noise_samples` ..): (x, z), (x + 1, z),
     /// (x, z + 1), (x + 1, z + 1).
     pub corners: [u32; 4],
     /// Blended along x at z and at z + 1 (`dword_637630`, `dword_637634`).
@@ -86,17 +86,17 @@ pub const MOST_FOG: u32 = 0x1000;
 /// What `fog_table` reads besides the noise.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FogSettings {
-    /// The noise's spread: `dword_609308` and `dword_609320`.
+    /// The noise's spread: `fog_low` and `fog_high`.
     pub low: u32,
     pub high: u32,
-    /// `dword_6415DC` and `dword_6415D8`, multiplied (>> 4).
+    /// `sun_size` and `view_out`, multiplied (>> 4).
     pub scale: [u32; 2],
-    /// `dword_609310` and `dword_609360`: the near and far parts of that.
+    /// `fog_near` and `fog_far`: the near and far parts of that.
     pub near: u32,
     pub far: u32,
-    /// `dword_609358`: the table's first level.
+    /// `fog_start`: the table's first level.
     pub start: u32,
-    /// `dword_60930C`: the level past the table.
+    /// `fog_end`: the level past the table.
     pub end: u32,
     /// The table's length (`dword_63DC58` x 8).
     pub length: u32,
@@ -105,18 +105,18 @@ pub struct FogSettings {
 /// What `fog_table` makes.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Fog {
-    /// The step (`dword_62DAF0`): low << 8 plus the noise's share of the spread.
+    /// The step (`fog_step`): low << 8 plus the noise's share of the spread.
     pub step: u32,
     /// The noise times the spread, >> 8.
     pub share: u32,
-    /// `dword_6365F0` / `dword_6365F4`.
+    /// `fog_near` / `fog_far`.
     pub near: u32,
     pub far: u32,
     /// `g_fogTable`.
     pub table: Vec<u8>,
     /// The steps' sum at the end.
     pub sum: u32,
-    /// `dword_636610`: the next level with the end level, plus near, each held.
+    /// `fog_next`: the next level with the end level, plus near, each held.
     pub next: u32,
 }
 
@@ -237,8 +237,8 @@ pub struct MirrorRect {
     pub height: u32,
 }
 
-/// The mirror's place's entry (8 bytes each in its tables): the first (`dword_6238A4`)
-/// plus three a view, six on when the second set is asked for (`dword_6D1502` 0).
+/// The mirror's place's entry (8 bytes each in its tables): the first (`split`)
+/// plus three a view, six on when the second set is asked for (`flat` 0).
 pub fn mirror_entry(first: u32, view: u32, second_set: bool) -> u32 {
     let n = first.wrapping_add(view.wrapping_mul(3));
     if second_set { n.wrapping_add(6) } else { n }

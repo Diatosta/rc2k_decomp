@@ -1,6 +1,6 @@
 //! `physics::engine_torque_or_cut` (0x43CB7D): at or past the engine's top the cut:
-//! +0x1F0 (`unk_71A1C8`) 5 and the torque `flt_614748` 0; below it (an unordered compare
-//! counts as below: C0, `jb`; IDA 2026-10-21), while +0x1F0 counts down the torque stays
+//! `rev_cut_count` 5 and the torque `engine_force` 0; below it (an unordered compare
+//! counts as below), while `rev_cut_count` counts down the torque stays
 //! 0; else `physics::engine_torque`.
 //!
 //! Caller: `physics::drive_force`.

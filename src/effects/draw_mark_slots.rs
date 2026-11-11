@@ -1,24 +1,24 @@
 //! `effects::draw_mark_slots` (0x4C969A): the mark slots drawn, one square sprite each. When
-//! the settings' +0x8C is set, `effects::add_mark_slot` first (eax the settings' +0x64, esi
-//! `flt_5EA3CC`); `scene::set_texture` with `dword_5D1E10`. Then for each slot of
-//! `g_markSlots` from 0x20 down to 0 (one past the 0x20 that `add_mark_slot` fills:
-//! section 16) whose life (+0) is above 0:
-//! - the life less `g_marksFrameTicks`;
-//! - its point (+4, 12 bytes each at `flt_769312`) as z, y, -x into `dword_9352F4` ..
-//!   (z times `flt_9353EE`, (y - `flt_9353F2`) times `flt_9353F6`, -x times `flt_9353FA`),
-//!   turned by the slot's matrix (+8) and the view (`scene::rotate_point` twice);
-//! - one of eight corners of `g_marksCorners` by the slots' random (`dword_9353FE` times
-//!   0xC5 plus 0x5D; entry 0x50 plus its low three bits): the four vertices' texture places
-//!   (its words, times `flt_8EB969`), colours -1;
-//! - unless the turned z is at or below `flt_5C5E18` (a signed compare of the bits): the
-//!   point projected (`flt_624088` over z; centre `flt_62409C`, `flt_6240A0`), half the
-//!   square q times `flt_934F8C` (slot 0's +0x10 for every slot: section 16) in
-//!   `flt_9353A6`, the four vertices around it, their z (times `flt_8EB96D`) and rhw (1 /
-//!   z times `flt_935402`), and `scene::draw_fan` (the vertex count as it is).
+//! the settings' +0x8C is set, `effects::add_mark_slot` first (with the settings' +0x64 and
+//! the view place); `scene::set_texture` with the marks' texture. Then for each slot of the
+//! mark slots from 0x20 down to 0 (one past the 0x20 that `add_mark_slot` fills: section 16)
+//! whose life (+0) is above 0:
+//! - the life less the frame's ticks;
+//! - its point (+4, 12 bytes each) as z, y, -x (z times a scale, (y - a lift) times a scale,
+//!   -x times a scale), turned by the slot's matrix (+8) and the view (`scene::rotate_point`
+//!   twice);
+//! - one of eight corners by the slots' random (the random times 0xC5 plus 0x5D; entry 0x50
+//!   plus its low three bits): the four vertices' texture places (its words, times a
+//!   constant), colours -1;
+//! - unless the turned z is at or below the nearest depth (a signed compare of the bits): the
+//!   point projected (the view scale over z; centre the view's middle), half the square q
+//!   times a size factor (slot 0's +0x10 for every slot: section 16), the four vertices
+//!   around it, their z and rhw (1 / z times a constant), and `scene::draw_fan` (the vertex
+//!   count as it is).
 //!
-//! Works on `g_marksSettings`.
+//! Works on the effects settings.
 //!
-//! Caller: `effects::run_frame` (0x4D1659). Refuses (before anything) null settings and a
+//! Caller: `effects::run_frame` Refuses (before anything) null settings and a
 //! live slot with a null matrix.
 
 use crate::d3d::vertices_store::VERTICES;
@@ -61,7 +61,7 @@ pub fn draw_mark_slots(
         return Err(BadInput(why).into());
     }
     // The settings' +0x8C and +0x64: the first car record's +0x2C and +4.
-    let first = &crate::effects::setup::effects_settings()?.cars[0];
+    let first = &effects.settings()?.cars[0];
     if first.gear_notice.get() != 0 {
         crate::effects::add_mark_slot::add_mark_slot(
             first.model.get(),
@@ -69,7 +69,7 @@ pub fn draw_mark_slots(
             effects,
         );
     }
-    crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].bits());
+    crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].get());
     for s in effects.blocks.slots.slots.iter().rev() {
         if (s.life.get() as i32) <= 0 {
             continue;
@@ -96,7 +96,7 @@ pub fn draw_mark_slots(
             .each_ref()
             .map(super::super::session::Float::bits);
         let z = x87::mul(c, k4[0]);
-        let y = crate::math::x87_run::sub_mul(b, k4[1], k4[2]);
+        let y = x87::sub_mul(b, k4[1], k4[2]);
         let x = x87::mul(a, k4[3]);
         let once = rotate_point(
             slot_matrix(&race.frame, s.matrix.get())?,
@@ -150,7 +150,7 @@ pub fn draw_mark_slots(
             (x87::add(px, half), x87::add(py, half)),
             (x87::sub(px, half), x87::add(py, half)),
         ];
-        let depth = x87::mul(x, effects.frame.draw_work.z_k.bits());
+        let depth = x87::mul(x, &effects.frame.draw_work.z_k);
         let rhw = x87::reciprocal_times(x, effects.blocks.slot_tuning.rhw_k.bits());
         for (n, (vx, vy)) in corners.into_iter().enumerate() {
             let vertex = &VERTICES.vertices[n];

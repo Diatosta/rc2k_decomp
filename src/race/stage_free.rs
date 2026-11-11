@@ -1,6 +1,6 @@
-//! The stage's unloading (`race::tidy_stage`, under `race::tidy_everything`, IDA 2026-10-17): its
+//! The stage's unloading (`race::tidy_stage`, under `race::tidy_everything`): its
 //! lists given back. Each `race::free_*` here: the list's total taken off the course's byte
-//! count (`dword_5C6F90`) but for the fonts', the list freed (`memory::free_list`), its
+//! count (`course_bytes_total`) but for the fonts', the list freed (`memory::free_list`), its
 //! pointers 0.
 
 use crate::errors::{BadInput, Refused};
@@ -48,7 +48,7 @@ pub const COURSE_2: Freeing = Freeing {
     // stru_5C6D90
     list: |race| &race.course.lists.second_course_list,
     counted: true,
-    // dword_5C6F98, dword_5C6F9C
+    // `second_course_list_a`, `second_course_list_b`
     cleared: &[
         |race| {
             race.course.lists.second_course_list_a.set(0);
@@ -114,7 +114,7 @@ pub fn free(race: &Race, f: &Freeing) -> Result<(), Refused> {
         return Err(BadInput("a memory list holding a block").into());
     }
     if f.counted {
-        // dword_5C6F90
+        // `course_bytes_total`
         course.lists.course_bytes_total.set(
             course
                 .lists

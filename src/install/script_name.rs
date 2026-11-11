@@ -1,5 +1,5 @@
-//! `install::script_name` (0x41370C): a name copied from the script (`[ebx]` on) to
-//! `byte_95EAF8` (`[esi]`), byte by byte, until a byte below a space (a control byte or the
+//! `install::script_name` (0x41370C): a name copied from the script (from the cursor on) to
+//! `script_path`, byte by byte, until a byte below a space (a control byte or the
 //! end); a NUL written at the end.
 //!
 //! Takes the script cursor, where to write.

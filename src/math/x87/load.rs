@@ -11,18 +11,15 @@ use crate::math::x87_float::{X, compare, f80, from_f80, int, ld, st, to_int};
 
 /// `(a * b) / c`, rounded once at the end as the x87 is set to round
 /// (`fild a; fimul b; fdiv c; fistp`): a whole number times a whole number over a float.
+#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
 pub fn int_times_int_over_to_int(a: i32, b: i32, c: u32) -> i32 {
     to_int(int(a) * int(b) / ld(c))
 }
 
 /// `|a|` as a whole number (`fld a; fabs; fistp`): the size of a float.
+#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
 pub fn abs_to_int(a: u32) -> i32 {
     to_int(ld(a).abs())
-}
-
-/// `a + b` as a whole number (`fld a; fadd b; fistp`): the sum of two floats.
-pub fn add_to_int(a: u32, b: u32) -> i32 {
-    to_int(ld(a) + ld(b))
 }
 
 /// `sqrt(a a + b b)` as a float (`fld a; fmul st, st; fld b; fmul st, st; faddp; fsqrt;
@@ -80,16 +77,6 @@ pub fn float_square_sum(a: u32, b: u32) -> u32 {
     st(a2 + b2)
 }
 
-/// `a b c`, rounded once (`fld a; fmul b; fmul c; fstp`).
-pub fn product3(a: u32, b: u32, c: u32) -> u32 {
-    st(ld(a) * ld(b) * ld(c))
-}
-
-/// A whole number over a float (`fild a; fdiv b; fstp`).
-pub fn int_over_float(a: i32, b: u32) -> u32 {
-    st(int(a) / ld(b))
-}
-
 /// `(a + b) c`, a whole number plus a float, times a float (`fild a; fadd b; fmul c;
 /// fstp`).
 pub fn int_plus_times(a: i32, b: u32, c: u32) -> u32 {
@@ -131,11 +118,6 @@ pub fn eased_roll(i: i32, a: u32, b: u32, v: u32, c: u32, m: u32, h: u32) -> u32
     x *= ld(h);
     x += ld(m);
     st(x)
-}
-
-/// `a b c d` as a whole number (`fld a; fmul b; fmul c; fmul d; fistp`).
-pub fn product4_to_int(a: u32, b: u32, c: u32, d: u32) -> u32 {
-    to_int(ld(a) * ld(b) * ld(c) * ld(d)) as u32
 }
 
 /// The sun's direction in `race::draw_sky`: with `p = (k - a) s` and `q = b s`, cos p cos q,

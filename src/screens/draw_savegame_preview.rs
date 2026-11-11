@@ -1,9 +1,9 @@
 //! `screens::draw_savegame_preview` (0x46D88F): draws the preview of the highlighted saved
 //! game on the load-game screen, reading its file when the highlight has moved.
 //!
-//! `dword_755148` is the slot the buffer was last filled for and `dword_75514C` is 1 if there
+//! the shown saved game slot is the slot the buffer was last filled for and the nothing-to-show flag is 1 if there
 //! is nothing to show. A highlighted item above 10 is no slot: the empty panel, and the
-//! remembered slot becomes 999. Otherwise the slot is `dword_75523C * 10 + item - 1`; if it
+//! remembered slot becomes 999. Otherwise the slot is ``pages.save_page` * 10 + item - 1`; if it
 //! is not the remembered one it is read with `read_savegame_slot`. Then
 //! `draw_savegame_details` or `draw_empty_savegame`.
 //! Its address is in the draw lists at 0x758BAE and 0x758BC6.

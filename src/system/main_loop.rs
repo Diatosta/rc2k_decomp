@@ -1,34 +1,29 @@
 //! `system::main_loop` (0x415383): what `start` calls once everything is set up: it waits
 //! for the window, runs the game (or the installer) and saves on the way out.
 //!
-//! - If `dword_518390` is not 0 the loop is being entered a second time, by the way out
-//!   at 0x4154B5 (`mov esp, dword_518390; jmp` here, taken by two fatal stubs about the
-//!   CD-ROM): `threading::request_quit`, the log line "Leaving main loop...", and back to
-//!   `start`. Else the stack pointer is kept there.
-//! - An empty log line and "Entering main loop...".
-//! - It sleeps a second at a time until the window is the active one (`dword_518374`)
-//!   and the key thread has run (`dword_518998`); the quit switch (`dword_51837C`) at 1
-//!   ends the wait and the loop, without `request_quit`.
-//! - `dword_51838C` and `dword_518080` = 0; 0x404823, `sound::apply_settings`, `gfx::load_jade`,
-//!   `menu::build_notice` (not ported).
-//! - If the installer's script is set up (`word_51D752` is 0xBD): the installer
-//!   `install::run_installer`, then the way out. Else, unless installing,
-//!   `install::runs_from_source` (its answer is not used); `g_installing`, `dword_51B9CC` and
-//!   `dword_51B9D0` = 0.
-//! - `sound::stop_cd_audio`; `files::is_cd_drive` (0x403310) on the base directory's first
-//!   character, whose answer this build's nine `nop`s throw away.
-//! - If `g_lobbyLaunched` (dword_5AB290) is 1: `net::lobby_launched_game` (0x418DF4), then
-//!   the way out. Else `menu::run_front_end`, `sound::stop_music`, `saves::save_game_data`, and
-//!   unless the quit switch is 1 by then (which leaves at once) `saves::free_best_times`
+//! - A log line "Entering main loop..." (after an empty one).
+//! - It sleeps a second at a time until the window is the active one
+//!   (`flags.window_active`) and the key thread has run (`clocks.key_ticks`); the quit
+//!   switch (`flags.quitting`) at 1 ends the wait and the loop, without `request_quit`.
+//! - Then `sound::apply_settings`, `gfx::load_jade` and `menu::build_notice`.
+//! - If the installer's script is set up (`pages.script_set_up` is 0xBD) or the program
+//!   runs for an update (`run.updating`, the `-u` switch): `install::run_installer`, then
+//!   the way out. Else, unless installing, `install::runs_from_source` (its answer is
+//!   not used); the installing, updating and from-the-command-line switches are cleared.
+//! - `sound::stop_cd_audio`; `files::is_cd_drive` on the base directory's first
+//!   character, whose answer this build throws away.
+//! - Then `menu::run_front_end`, `sound::stop_music`, `saves::save_game_data`, and unless
+//!   the quit switch is 1 by then (which leaves at once) `saves::free_best_times`
 //!   (the original also skips the save then: fixed, section 16).
 //! - The way out: `request_quit` and "Leaving main loop...".
 //!
 //! One caller, `start`.
 //!
-//! Left out, as no Rust code can reach them: the second entry (only the original's way out
-//! at 0x4154B5 jumps back in), so `g_mainLoopStack` is not kept; `dword_51838C` and
-//! `dword_518080` made 0, which nothing reads; and the lobby's branch: the standalone has no lobbies (its own network protocol), so `net::set_up` leaves out the
-//! original's lobby detection (0x418E23) and `g_lobbyLaunched` stays 0.
+//! Left out, as no Rust code can reach them: the second entry the original's fatal stubs
+//! about the CD-ROM took (they jumped back into the loop with the saved stack pointer, to
+//! leave it), and the lobby's branch: the standalone has no lobbies (its own network
+//! protocol), so `net::set_up` leaves out the original's lobby detection and the
+//! "launched from a lobby" flag stays 0.
 
 use crate::errors::Refused;
 use crate::framework::log;
@@ -80,7 +75,7 @@ pub fn main_loop(session: &Session, saves: &crate::saves::owner::Saves) -> Resul
     crate::gfx::load_jade::load_jade_in_game(gfx)?;
     crate::menu::build_notice::build_notice(menus);
     // The standalone in the download folder installs from it (`install::portable`); and
-    // with `-u` (`dword_51B9CC`) it uninstalls where it is: its record is in the installed
+    // with `-u` (`run.updating`) it uninstalls where it is: its record is in the installed
     // folder, so the uninstall runs from there (the original's ran from the CD, through the
     // update's mark).
     if install.pages.script_set_up.get() == INSTALLER_MARK
@@ -106,8 +101,8 @@ pub fn main_loop(session: &Session, saves: &crate::saves::owner::Saves) -> Resul
     crate::sound::stop_music::stop_music();
     if session.flags.quitting.get() == 1 {
         // The original leaves here without saving: the window closed (or any quit by the
-        // switch) lost the options and best times changed since the last save (section 16,
-        // fixed 2026-10-29).
+        // switch) lost the options and best times changed since the last save (section 16);
+        // here they are saved.
         crate::saves::save_game_data::save_in_game(saves)?;
         log_line(c"Leaving main loop...");
         return Ok(());

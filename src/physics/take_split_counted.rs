@@ -8,9 +8,6 @@
 //!
 //! Caller: `physics::race_timers`. Refuses (before anything) a split past 0x3F, and what
 //! the calls refuse.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 use crate::errors::Refused;
 use crate::physics::flag_current_car_listed::flag_current_car_listed;
 use crate::physics::keep_split_time::keep_split_time;

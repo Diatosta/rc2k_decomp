@@ -1,6 +1,6 @@
 //! `physics::revs_from_wheels` (0x43C0C9): in gear, `g_carEngineSpeed` = `g_carDriveSpeed`
 //! over `g_gearRatios[g_carGear]`; with `g_carDriveKind` 1 the two driven speeds' sum
-//! times 0.5 (`flt_5C5E40`) over it. Nothing in neutral.
+//! times 0.5 (`half`) over it. Nothing in neutral.
 //!
 //! In:  nothing (the current car's work copy, `drive/car.rs`)
 //!

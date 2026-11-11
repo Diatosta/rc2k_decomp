@@ -1,4 +1,4 @@
-//! `init_marks`' step 1, its second half (`effects::load_edges`; IDA, 2026-10-17): the kinds'
+//! `init_marks`' step 1, its second half (`effects::load_edges`): the kinds'
 //! records scaled once, the kind's edge picture (`files\m\edgeNN.pcx`, 256 x 128) packed to
 //! a byte a pixel, the shape tilt of the kind, then the masks and the two item kinds.
 
@@ -56,11 +56,11 @@ pub fn load_edges(
                 boxes.set_u32(at + 4 * i, v);
             }
             let f = &masks.kind_boxes.kind_floats[k as usize];
-            f.set_bits(x87::sub(scale[2], f.bits()));
+            f.set_bits(x87::sub(scale[2], f));
         }
         masks.edge_settings.done.set(resume);
     }
-    let marks = crate::effects::setup::effects_settings()?;
+    let marks = effects.settings()?;
     marks.light_point_a_negated[0].set(SETTING_VALUE);
     let kind = clamped(effects.kinds.marks_kind.kind.bits());
     masks
@@ -126,7 +126,7 @@ pub fn load_kind_data(
 ) -> Result<(), Refused> {
     let (masks, drops) = (&effects.masks, &effects.windscreen_drops);
     {
-        let marks = crate::effects::setup::effects_settings()?;
+        let marks = effects.settings()?;
         let kind = marks.mark_car_file_number.get();
         effects.kinds.marks_kind.kind.set_bits(kind);
         load_edges(course, masks, drops, RESUME, scene, gfx, effects)?;
@@ -141,7 +141,7 @@ pub fn load_kind_data(
     Ok(())
 }
 
-/// The edge picture packed to a byte a pixel (`effects::edges`, `effects::run_windscreen_flakes`, `effects::windscreen_drops_frame`) (IDA 0x809BC3 .. 0x811BC3, the image's layout; phase 7, typed state).
+/// The edge picture packed to a byte a pixel (`effects::edges`, `effects::run_windscreen_flakes`, `effects::windscreen_drops_frame`) (IDA 0x809BC3 .. 0x811BC3).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct EdgeMask {
@@ -182,7 +182,7 @@ mod edge_mask_tests {
     }
 }
 
-/// The kinds' boxes and floats (`effects::edges`, `effects::corners`) (IDA 0x811BEB .. 0x8122D3, the image's layout; phase 7, typed state).
+/// The kinds' boxes and floats (`effects::edges`, `effects::corners`) (IDA 0x811BEB .. 0x8122D3).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct KindBoxes {
@@ -340,40 +340,40 @@ impl KindBoxes {
                 (0x659, &[0x60, 0x62, 0x44, 0x66, 0xC6, 0x38, 0xC4]),
             ])),
             kind_floats: [
-                Float::from_bits(0x42073333),
-                Float::from_bits(0x41E40000),
-                Float::from_bits(0x4205999A),
-                Float::from_bits(0x4207999A),
-                Float::from_bits(0x42020000),
-                Float::from_bits(0x420F3333),
-                Float::from_bits(0x420B999A),
-                Float::from_bits(0x4212CCCD),
-                Float::from_bits(0x420CCCCD),
-                Float::from_bits(0x41FF3333),
-                Float::from_bits(0x42166666),
-                Float::from_bits(0x420F3333),
-                Float::from_bits(0x4209999A),
-                Float::from_bits(0x42313333),
-                Float::from_bits(0x41F40000),
-                Float::from_bits(0x42160000),
-                Float::from_bits(0x4208CCCD),
-                Float::from_bits(0x42000000),
-                Float::from_bits(0x42340000),
-                Float::from_bits(0x420D3333),
-                Float::from_bits(0x4208CCCD),
-                Float::from_bits(0x41EB3333),
-                Float::from_bits(0x4212CCCD),
-                Float::from_bits(0x4212CCCD),
-                Float::from_bits(0x4212CCCD),
-                Float::from_bits(0x4212CCCD),
-                Float::from_bits(0x4212CCCD),
-                Float::from_bits(0x4212CCCD),
-                Float::from_bits(0x4212CCCD),
-                Float::from_bits(0x4212CCCD),
-                Float::from_bits(0x4212CCCD),
-                Float::from_bits(0x4212CCCD),
-                Float::from_bits(0x4212CCCD),
-                Float::from_bits(0x4212CCCD),
+                Float::new(33.8),
+                Float::new(28.5),
+                Float::new(33.4),
+                Float::new(33.9),
+                Float::new(32.5),
+                Float::new(35.8),
+                Float::new(34.9),
+                Float::new(36.7),
+                Float::new(35.2),
+                Float::new(31.9),
+                Float::new(37.6),
+                Float::new(35.8),
+                Float::new(34.4),
+                Float::new(44.3),
+                Float::new(30.5),
+                Float::new(37.5),
+                Float::new(34.2),
+                Float::new(32.0),
+                Float::new(45.0),
+                Float::new(35.3),
+                Float::new(34.2),
+                Float::new(29.4),
+                Float::new(36.7),
+                Float::new(36.7),
+                Float::new(36.7),
+                Float::new(36.7),
+                Float::new(36.7),
+                Float::new(36.7),
+                Float::new(36.7),
+                Float::new(36.7),
+                Float::new(36.7),
+                Float::new(36.7),
+                Float::new(36.7),
+                Float::new(36.7),
             ],
         }
     }
@@ -408,7 +408,7 @@ mod kind_boxes_tests {
     }
 }
 
-/// The edges' scales, once-only mark and picture path (IDA 0x8BC39E .. 0x8BC3FD, the image's layout; phase 7, typed state).
+/// The edges' scales, once-only mark and picture path (IDA 0x8BC39E .. 0x8BC3FD).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct EdgeSettings {
@@ -431,7 +431,7 @@ pub struct EdgeSettings {
 impl EdgeSettings {
     pub const fn new() -> Self {
         EdgeSettings {
-            factor: Float::from_bits(0x3F800000),
+            factor: Float::new(1.0),
             _gap_8bc3a2: Bytes::new([
                 0xCD, 0xCC, 0xCC, 0x3D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x47, 0x0D, 0x00,
                 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0xCD, 0xCC, 0xCC, 0x3D, 0x00, 0x00, 0x00, 0x00,
@@ -439,11 +439,7 @@ impl EdgeSettings {
                 0x80, 0x3D, 0x00, 0x00, 0x00, 0x3B, 0x00, 0x00, 0x80, 0x3D,
             ]),
             done: Dword::new(0x0),
-            scale: [
-                Float::from_bits(0x47800000),
-                Float::from_bits(0x447A0000),
-                Float::from_bits(0x42B40000),
-            ],
+            scale: [Float::new(65536.0), Float::new(1000.0), Float::new(90.0)],
             path: Bytes::new([
                 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x65, 0x64, 0x67, 0x65, 0x30, 0x30,
                 0x2E, 0x70, 0x63, 0x78, 0x00,

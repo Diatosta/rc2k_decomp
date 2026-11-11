@@ -1,22 +1,22 @@
 //! `effects::draw_lens_flare` (0x4C4ED3): the lens flare, 0x11 parts along the line from the
 //! glow's place on the screen (the settings' +0x2758, +0x275C) through the screen's
-//! centre. The way out (`flt_91FFDA` x, `flt_91FFDE` -y) also into `flt_92051E` ..
-//! (`flt_920526` 0) and made one long there (`scene::normalise_vector3`); its length
-//! `flt_91FFD6`; the alpha `flt_9206D6` less the length times `flt_9206D2` (`fistp`, at
-//! least 0) times the settings' +0x2754, >> 8. Then for each part k from 0x10 down to 0:
-//! its centre (-x, y times `g_marksWaveLevels`[k] plus the centre, unrounded),
-//! `effects::draw_flare_part` with corner `dword_92052A`[k], size `dword_9205B2`[k] times
-//! `flt_9206DA` (`fistp`), angle 0, colour 0xFFFFFF, that alpha.
+//! centre. The way out (x, -y) also goes into the flare's work vector (z 0) and is made one
+//! long there (`scene::normalise_vector3`); its length is kept; the alpha = the base alpha
+//! less the length times a factor (rounded, at least 0) times the settings' +0x2754, >> 8.
+//! Then for each part k from 0x10 down to 0: its centre (-x, y times the wave level k plus the
+//! centre, unrounded), `effects::draw_flare_part` with the part's corner and size (times a
+//! factor, rounded), angle 0, colour 0xFFFFFF, that alpha.
 //!
-//! Works on `g_marksSettings`.
+//! Works on the effects settings.
 //!
-//! Caller: `effects::flare_frame`. Refuses null settings and a part's corner past `g_marksCorners`,
+//! Caller: `effects::flare_frame`. Refuses null settings and a part's corner past the mark corners table,
 //! before anything.
 
 use crate::effects::draw_flare_part::draw_flare_part;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::math::x87_float as bh;
 
 const PARTS: u32 = 0x11;
 
@@ -28,7 +28,7 @@ pub fn draw_lens_flare(
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    let marks = crate::effects::setup::effects_settings()?;
+    let marks = effects.settings()?;
     if effects
         .frame
         .flare_parts
@@ -50,12 +50,11 @@ pub fn draw_lens_flare(
     effects.frame.flare_parts.unit[1].set_bits(x87::loaded(dy));
     effects.frame.flare_parts.unit[2].set_bits(0);
     crate::scene::vector3::normalise(&effects.frame.flare_parts.unit);
-    let length = crate::math::x87_load::float_hypot(dx, dy);
+    let length = crate::math::x87::float_hypot(dx, dy);
     effects.frame.draw_frame.flare_length.set_bits(length);
-    let alpha = x87::times_subr_to_int(
-        length,
-        effects.frame.flare_scales.fade[0].bits(),
-        effects.frame.flare_scales.fade[1].bits(),
+    let alpha = bh::to_int(
+        bh::ld(effects.frame.flare_scales.fade[1].bits())
+            - bh::ld(length) * bh::ld(effects.frame.flare_scales.fade[0].bits()),
     )
     .max(0);
     let product = u64::from(marks.listener_figures[0].get()) * u64::from(alpha as u32);

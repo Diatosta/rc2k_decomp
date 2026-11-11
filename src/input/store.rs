@@ -1,6 +1,6 @@
-//! The input module's variables, out of RAL.EXE's image (phase 5, `notes/conversion.md`;
-//! typed in phase 7). Three blocks with the image's layout, one `#[repr(C)]` struct each (the keyboard file's
-//! block went in 2026-11-04: its layouts are `input::layouts`):
+//! The input module's variables, kept with the image's layout (`notes/conversion.md`).
+//! Three blocks, one `#[repr(C)]` struct each (the keyboard file's layouts are
+//! `input::layouts`):
 //! - `Devices` (`DEVICES`), 0x4F68D8 .. 0x4F7E18: the settings' switches (`nojoysticks` ...),
 //!   the DirectInput objects, the joystick's state, caps and properties, the key tables (down,
 //!   now, before, pressed, repeat: a byte a key), the mouse word, the two device records
@@ -19,7 +19,7 @@
 //!
 //! `ForceFeedback` (IDA 0x518084 .. 0x5180F0): the force-feedback effects' clock, the race
 //! switch, the surfaces' effect kinds and the effects' constants (split from sound's block
-//! around it, 2026-10-25).
+//! around it).
 //!
 //! Threads: the input thread polls and the game's thread reads, as the image's bytes were
 //! shared (atomic cells and volatile bytes).
@@ -324,7 +324,7 @@ impl Devices {
     }
 }
 
-/// A device record by handle (phase 13): `DEVICE_TAG | n` for `records[n]`.
+/// A device record by handle: `DEVICE_TAG | n` for `records[n]`.
 pub const DEVICE_TAG: u32 = 0xCE00_0000;
 
 /// The record a handle names (`None` for 0). A value that is no handle ends the program.
@@ -347,7 +347,7 @@ pub fn device_of(devices: &Devices, handle: u32) -> Option<&InputDevice> {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Keyboard {
-    /// `g_yesNoKeyGiven`: 1 = the key comes in eax.
+    /// `g_yesNoKeyGiven`: 1 = the key comes from the caller.
     pub yes_no_key_given: Dword,
     /// `unk_4F7FDC`: the built-in layout's five pointers (nothing reads them: `input::layouts`
     /// copies the tables below).
@@ -445,7 +445,7 @@ pub fn mouse_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::input::owner::INPUT.mouse)
 }
 
-/// The force-feedback effects' clock, surface kinds and constants (IDA 0x518084 .. 0x5180f0, the image's layout; phase 7, typed state).
+/// The force-feedback effects' clock, surface kinds and constants (IDA 0x518084 .. 0x5180f0, the image's layout).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ForceFeedback {

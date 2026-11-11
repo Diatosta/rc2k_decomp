@@ -1,12 +1,10 @@
 //! `scene::fill_light_tables` (0x44F0AB): the five tables of colours the lighting
 //! picks from.
 //!
-//! With `dword_621480` and `dword_60931C` both 0 (the plain way): `g_lightTable` a ramp between
-//! the two colours at `unk_62DB10`, and the four lamp tables (`dword_635518`, `dword_635918`,
-//! `g_carLightTable`, `unk_636118`) that first colour scaled. Else: `g_lightTable` a ramp
-//! between the two colours at `dword_6092B4` (the dark and the lit colour of the scene), and
-//! the four lamp tables the colours at `unk_60A54C`, `unk_60A558`, `dword_60A564`,
-//! `dword_60A570` scaled. Four callers.
+//! With `scene_set_up` and the stage's `lit_b` both 0 (the plain way): the light table a ramp
+//! between the two `plain_light_colours`, and the four lamp tables that first colour scaled.
+//! Else: the light table a ramp between the stage's `dark_colour` and `lit_colour`, and the
+//! four lamp tables the stage's lamp colours scaled. Four callers.
 
 use crate::scene::light_tables::{fill_light_ramp, fill_light_scale};
 
@@ -35,7 +33,8 @@ pub fn fill_light_tables(
         rc2k_core::scene::lamps::plain_light(race.shared.switches.scene_set_up.get(), || {
             course.stage_prefs.lit_b.get()
         });
-    // `unk_62DB10`: two colours; `dword_6092B4`: two colours (the dark one and the lit).
+    // The plain colours are two (the light and the dark); the stage's are two (the dark one
+    // and the lit).
     let p = &scene.lights.work.plain_light_colours;
     let ramp: [u32; 6] = if plain {
         std::array::from_fn(|k| p[k].get())

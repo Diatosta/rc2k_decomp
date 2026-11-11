@@ -1,11 +1,10 @@
-//! `effects::expire_windscreen_drops` (0x4BCB1D): each live windscreen drop item (`g_marksWindscreenDropItems`, 0x800
-//! of 0x30 bytes, +0 1 live) ends one time in 0x800 (its own random `dword_82E2B6`, times
-//! 0xC5 plus 0x5D, bits 16 .. 26 0), or when its cell's byte in `g_marksMaskA` or
-//! `g_marksMaskB` (the cell from its place +0x14 / +0x18, `fistp`ed through `dword_81471C` /
-//! `dword_814720`, >> 3) is the low byte of one of the last `dword_81622E` steps' values
-//! (`dword_844A10`[(`dword_84460C` + k) & 0xFF], the latest first).
+//! `effects::expire_windscreen_drops` (0x4BCB1D): each live windscreen drop item (0x800 of 0x30
+//! bytes, +0 1 live) ends one time in 0x800 (its own random, times 0xC5 plus 0x5D, bits
+//! 16 .. 26 0), or when its cell's byte in mask A or mask B (the cell from its place
+//! +0x14 / +0x18, rounded, >> 3) is the low byte of one of the last few steps' values (the
+//! picks' values at (the shape index + k) & 0xFF, the latest first).
 //!
-//! Caller: `effects::windscreen_drops_step` (0x4BCAF1).
+//! Caller: `effects::windscreen_drops_step` .
 
 use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;

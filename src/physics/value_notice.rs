@@ -1,7 +1,7 @@
-//! `physics::value_notice` (0x45B357): notice 0xCE by `dword_71A24C` against 300 (the
-//! sign of the difference): at 300 or more, with no notice shown (`dword_71A700` 0) and
-//! 0xCE not the last (`dword_71A6FC`), `dword_71A6F4` = 0xCE and `dword_71A704` = 0;
-//! below 300 with 0xCE the last, `dword_71A700` and `dword_71A6FC` 0. What the figure is
+//! `physics::value_notice` (0x45B357): notice 0xCE by `turned_steps` against 300 (the
+//! sign of the difference): at 300 or more, with no notice shown (`notice_shown` 0) and
+//! 0xCE not the last (`notice_last`), `notice_id` = 0xCE and `notice_time` = 0;
+//! below 300 with 0xCE the last, `notice_shown` and `notice_last` 0. What the figure is
 //! is not known.
 //!
 //! Caller: `physics::car_physics_step` (0x43B9AE), its last call, every physics step.

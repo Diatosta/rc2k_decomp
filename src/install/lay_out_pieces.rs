@@ -1,11 +1,11 @@
-//! `install::lay_out_pieces` (0x414C7E): a page's pieces (`dword_51C407` of them, 0x30 bytes
+//! `install::lay_out_pieces` (0x414C7E): a page's pieces (`layout` of them, 0x30 bytes
 //! each after it: +0 the item's kind and marks, +1 the piece's kind, +2 its text, +4 its
 //! item, +8 x, +0xC y, +0x10 width, +0x14 height) made from its list. The title (unless the
-//! list's flags are 0x40 of 0xC0: `test; jg`) is kind 0x10 of `unk_51DD78`; then each item
+//! list's flags are 0x40 of 0xC0: `test; jg`) is kind 0x10 of `title`; then each item
 //! not hidden (0x40 of 0xC0): a link a piece of kind 0; a choice a label (1) and a piece
 //! (2) for each of its choices not hidden, its marks from the choice's high bits; a value
 //! a label (1) and a piece (0x12); an edit the same, without the label when the item has
-//! 0x10; a text kind 0x10 with its font's bits (`byte_51D52C`); an action 0x14. The places
+//! 0x10; a text kind 0x10 with its font's bits; an action 0x14. The places
 //! and sizes are zeroed.
 //!
 //! Takes the list.

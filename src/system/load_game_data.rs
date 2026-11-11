@@ -3,17 +3,17 @@
 //!
 //! In this order:
 //! - `saves::load_options`, `saves::load_best_times`, `settings::read_settings` (again:
-//!   the settings file outranks the kept options), `install::read_sku`, `dword_518BB0`
+//!   the settings file outranks the kept options), `install::read_sku`, `runs`
 //!   + 1, `settings::read_driver_names`, `physics::apply_patches`;
 //! - by the setting `allsecretcars` (`g_allSecretCars`): 0 `menu::remove_secret_cars`; 1
 //!   the cheats' bits 0x1FBC set and `menu::apply_cheats`; anything else neither;
-//! - the first player's name (`byte_755784`), if empty: the user's name
-//!   (`system::user_name`, 0x41085A: `GetUserNameA`, 0x1F bytes) cut down by
+//! - the first player's name (`name`), if empty: the user's name
+//!   (`system::user_name`: `GetUserNameA`, 0x1F bytes) cut down by
 //!   `strings::copy_printable` in place, and if that leaves nothing, string 0x18C; the
 //!   other three players' (0x20 bytes apart), if empty: strings 0x18D .. 0x18F;
-//! - the machine's name (`byte_52AB90`), if empty: the computer's name
+//! - the machine's name (`machine_name`), if empty: the computer's name
 //!   (`system::computer_name`, 0x40 bytes) the same way, else string 0x14D;
-//! - the name at `dword_5BEC08`, if empty: a random one of the 180 strings from 0x5A5 on
+//! - the tyre change record's name, if empty: a random one of the 180 strings from 0x5A5 on
 //!   (`math::random_below`), drawn again while what is there starts "andr", and
 //!   `g_tyreChangeRecord` = 0x5208 (210.00 s, the tyre change's best time);
 //! - all 100 saved games are read (`saves::read_savegame_slot`) and every slot's name
@@ -304,7 +304,7 @@ impl RunCount {
     pub const START: usize = 0x518BB0;
     pub const LEN: usize = 0x4;
     #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const crate::system::owner::system().start.run_count)
             as usize

@@ -1,6 +1,6 @@
-//! `scene::set_fog_colour` (0x44E76B): the fog's colour: eax kept in `dword_5AB964` and
-//! given to Direct3D (`d3d_set_fog_colour`, 0x41AE25: inside `pusha`, render state 0x22 =
-//! eax with its top byte set, through `d3d::set_render_state`).
+//! `scene::set_fog_colour` (0x44E76B): the fog's colour: kept as the fade start and
+//! given to Direct3D (render state 0x22 = the colour with its top byte set, through
+//! `d3d::set_render_state`).
 //!
 //! Takes: the colour
 //!

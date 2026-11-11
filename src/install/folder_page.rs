@@ -1,6 +1,6 @@
-//! `install::folder_page` (0x4142F5): the install-folder page. At the start (ebx 0) the
-//! first edit item is begun (`install::next_edit`). At the end (ebx negative) `dword_51BA00`
-//! is 0. Then by `dword_51BA00`: not 1, the items at +0x38 and +0x48 get 0x40 (hidden);
+//! `install::folder_page` (0x4142F5): the install-folder page. At the start (state 0) the
+//! first edit item is begun (`install::next_edit`). At the end (state negative) `path_problem`
+//! is 0. Then by `path_problem`: not 1, the items at +0x38 and +0x48 get 0x40 (hidden);
 //! not 2, +0x58 and +0x68 get 0x40.
 //!
 //! Takes the state, list.

@@ -1,7 +1,7 @@
 //! `physics::share_engine_sound` (0x45D294): the current car's sound object
-//! (`g_raceSoundObjects[g_currentCar & 7]`): when `flt_71A208` is above its +0xD0 (`fcomp`:
+//! (`g_raceSoundObjects[g_currentCar & 7]`): when `contact_depth` is above its +0xD0 (`fcomp`:
 //! not equal, not below, not unordered), the work car's 0x71A1FC .. 0x71A208 into its
-//! +0xC4 .. +0xD0; always `dword_71A1E0` into +0xD4 and +0x10 = 1. So it is not the
+//! +0xC4 .. +0xD0; always `steer_trim` into +0xD4 and +0x10 = 1. So it is not the
 //! engine's figures but the car's contact (its place and size, kept in `knock_in` while it is
 //! the deepest so far) and the steering pull (`knock_d4`, from `steer_trim`) that the sounds read
 //! (the name is the original's).

@@ -1,6 +1,5 @@
-//! The objects' points and normals (`g_objectPoints`, the points' part of
-//! `scene::allocate_object_memory`'s block on `stru_5C6DD0`): Rust's since phase 13
-//! (2026-10-27), counted on the list as the game's block was, given back by
+//! The objects' points and normals (the points' part of `scene::allocate_object_memory`'s
+//! block), counted on the list as the game's block was, given back by
 //! `race::free_object_points`. Twelve bytes each (three whole numbers, or a normal's
 //! three floats), an object's points then its normals (`OBJECT_SLOTS.first_point`).
 //!

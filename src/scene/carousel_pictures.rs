@@ -54,8 +54,6 @@ pub fn update(menus: &Menus, entries: [u32; 4]) -> Result<(), BadInput> {
     for (n, texture) in textures.into_iter().enumerate() {
         scene_textures.places.slot_wanted[first_slot as usize + n].set(texture);
     }
-    // What the original leaves in eax, ebx, ecx, esi and edi its callers' later calls
-    // overwrite or never read (the carousel takes ebx and ecx anew).
     let _ = record;
     Ok(())
 }

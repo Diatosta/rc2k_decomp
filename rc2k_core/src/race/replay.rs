@@ -1,9 +1,9 @@
-//! The replay file's rules (converted 2026-10-21 from `race::open_replay` 0x41E6EC,
+//! The replay file's rules (converted from `race::open_replay` 0x41E6EC,
 //! `add_replay_frame` 0x41E8DE, `write_replay_block` 0x41E9A3, `close_replay` 0x41E85A,
 //! `write_replay_chunk` 0x41EEE4 and `seal_replay_header` 0x41F0A3): when a replay is
 //! recorded, the frames gathered into blocks of 100, the blocks' places in the index,
 //! the chunks packed by runs when that is smaller, and the header's sealed part. The
-//! race's settings in the replay's car header converted 2026-10-21 from
+//! race's settings in the replay's car header Converted from
 //! `race::record_replay_header` 0x460246 and `race::read_replay_header` 0x460428.
 
 /// The frames a block holds.
@@ -28,7 +28,7 @@ pub const SEAL_VERSION: u8 = 6;
 pub const SEAL_KEY: [u32; 2] = [0x666C_6168, 0x6E6F_6F6D];
 
 /// Whether replays are recorded: on (1), not a demonstration (0), and neither of the two
-/// other switches 1 (`dword_5BEC78`, `dword_5BEC7C`, `dword_52A910`, `dword_75ACDC`).
+/// other switches 1 (`replays_on`, `no_replay_switch`, `session`, `dword_75ACDC`).
 pub fn replays_on(on: u32, demo: u32, a: u32, b: u32) -> bool {
     on == 1 && demo == 0 && a != 1 && b != 1
 }
@@ -68,7 +68,7 @@ pub fn block_written(written: u32, block: u32) -> (u32, bool) {
 
 /// The last block's frame count at the close: 100, or for the replay's last block (the
 /// one after `last_block` is the count) the frames modulo 100 plus one. Gives the count
-/// and the original's eax and edx at that point (edx only for the last block).
+/// and the two leftover values at that point (the second only for the last block).
 pub fn closing_frames(last_block: u32, blocks: u32, frames: u32) -> (u32, u32, Option<u32>) {
     let next = last_block.wrapping_add(1);
     if next == blocks {
@@ -100,20 +100,20 @@ pub fn chained(block: [u32; 2], before: [u32; 2]) -> [u32; 2] {
     [block[0] ^ before[0], block[1] ^ before[1]]
 }
 
-/// One of the race's settings the replay's car header (`dword_719B14` ..) keeps.
+/// One of the race's settings the replay's car header (`header_stage` ..) keeps.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Setting {
-    /// The arcade's noise seed (`dword_60519C`).
+    /// The arcade's noise seed (`noise_seed`).
     Seed,
-    /// The arcade's start place (`dword_6051BC`).
+    /// The arcade's start place (`start_place`).
     StartPlace,
-    /// The arcade's cars (`dword_6051B4`).
+    /// The arcade's cars (`arcade_cars`).
     ArcadeCars,
     /// The stage (`g_stageNumber`).
     Stage,
-    /// The game mode (`dword_62389C`).
+    /// The game mode (`run_kind`).
     Mode,
-    /// The players (`dword_63DB94`).
+    /// The players (`players`).
     Players,
     /// The race's cars (`g_raceCars`).
     Cars,

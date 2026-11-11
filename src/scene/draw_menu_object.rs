@@ -20,8 +20,7 @@ pub enum Step {
 
 // ---- Rust version ----
 
-/// `step`: what stands for the two calls. The original's eax (0x200, then 0x100: the
-/// shine) is read by neither call nor by its callers.
+/// `step` stands for the two calls.
 pub fn draw_menu_object(
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
     light: &crate::scene::object_light::ObjectLight,
@@ -38,8 +37,8 @@ pub fn draw_menu_object(
     }
 }
 
-/// With the Rust versions of what it calls. The drawing's esi (the description) is read
-/// only in the scene's modes 1 and 2; the menus draw in mode 0 (each caller writes it).
+/// The object's description is read only in the scene's modes 1 and 2; the menus draw in
+/// mode 0 (each caller writes it).
 pub fn draw_menu_object_in_game(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
 ) -> Result<(), Refused> {

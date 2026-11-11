@@ -81,7 +81,7 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
                 #( crate::pointers::Cells::merge_changes(&self.#names, &now.#names, &start.#names); )*
             }
 
-            #[cfg(test)]
+            #[cfg(any(test, feature = "write_watch"))]
             fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
                 #starts
                 let field = starts.partition_point(|&start| start <= offset).wrapping_sub(1);

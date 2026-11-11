@@ -1,4 +1,4 @@
-//! `effects::init_marks`' steps 8 and 9 (IDA, 2026-10-16): `effects::set_kind_values_1`
+//! `effects::init_marks`' steps 8 and 9 (IDA): `effects::set_kind_values_1`
 //! (0x4C7322) and `effects::set_kind_values_2` (0x4C7FA4), the same code on two sets of
 //! tables: the values of the marks' kind (`g_marksKind`) from tables of 0x22 floats and
 //! of 0x22 three-float entries.
@@ -8,6 +8,7 @@ use crate::effects::kind_store::{CONSTS_1, CONSTS_2, KindConsts, QuadWork, TABLE
 use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::math::x87_float as bh;
 use crate::session::{Dword, Float};
 
 pub const KINDS: u32 = 0x22;
@@ -82,7 +83,7 @@ pub fn set_kind_values(
     k: &KindSet,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let kind: u32 = effects.kinds.marks_kind.kind.bits();
+    let kind: u32 = effects.kinds.marks_kind.kind.get();
     if kind >= KINDS {
         return Err(BadInput("the marks' kind is past the tables (0x22)").into());
     }
@@ -99,15 +100,12 @@ pub fn set_kind_values(
     q.low.set_bits(low);
     q.high.set_bits(high);
     q.start.set_bits(x87::mul(start, c.start_k.to_bits()));
-    q.step
-        .set_bits(x87::sub_div_mul(middle, start, low, c.step_k.to_bits()));
+    q.step.set_bits(bh::st(
+        (bh::ld(middle) - bh::ld(start)) / bh::ld(low) * bh::ld(c.step_k.to_bits()),
+    ));
     q.middle.set_bits(x87::mul(middle, c.middle_k.to_bits()));
-    q.slope.set_bits(x87::diff_ratio_mul(
-        end,
-        middle,
-        high,
-        low,
-        c.slope_k.to_bits(),
+    q.slope.set_bits(bh::st(
+        (bh::ld(end) - bh::ld(middle)) / (bh::ld(high) - bh::ld(low)) * bh::ld(c.slope_k.to_bits()),
     ));
     q.spread.set_bits(x87::mul(spread, c.spread_k.to_bits()));
     k.extra.set_bits(x87::mul(extra, c.extra_k.to_bits()));
@@ -134,11 +132,11 @@ pub fn set_kind_values(
     q.sides[0][2].set_bits(triple(2, 2));
     q.sides[1][0].set_bits(0);
     q.sides[1][1].set_bits(x87::sub(triple(0, 1), triple(1, 1)));
-    q.sides[1][2].set_bits(x87::negated_sub(triple(0, 0), triple(1, 0)));
+    q.sides[1][2].set_bits(x87::negated(x87::sub(triple(0, 0), triple(1, 0))));
     Ok(())
 }
 
-/// The marks' kind (`effects::kind_values`) (IDA 0x769232 .. 0x769236, the image's layout; phase 7, typed state).
+/// The marks' kind (`effects::kind_values`) (IDA 0x769232 .. 0x769236).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarksKind {

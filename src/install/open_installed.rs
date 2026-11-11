@@ -1,8 +1,8 @@
 //! `install::open_installed` (0x413629): the installed folder (`g_installSource` normalised
-//! into `byte_95E7F8`) made the current directory and `g_installing` set; if either the
+//! into `installed`) made the current directory and `g_installing` set; if either the
 //! normalise or the change fails, nothing is set.
 //!
-//! A list action (`off_51DD48` for the update script). Caller `install::run_page`.
+//! A list action (`step` for the update script). Caller `install::run_page`.
 
 use crate::errors::Refused;
 use crate::install::installer::{normalise, set_cd};

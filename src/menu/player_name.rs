@@ -1,10 +1,10 @@
 //! What the players' details pages' name entry shares: the current player's name, and
-//! the copy it is kept in while it is typed (`unk_755884`, 0x1F bytes; the other text
-//! entries keep theirs at `unk_7558A4`).
+//! the copy it is kept in while it is typed (the kept name, 0x1F bytes; the other text
+//! entries keep theirs at the text backup).
 //!
 //! - `menu::player_name`: edi = the current player's name (`Player::name`), eax kept;
 //! - 0x467D34: the name's 0x1F bytes to the copy; 0x467D50: back again;
-//! - 0x467DA5: unless the length typed (`dword_75556D`) is 0, one less, and a NUL
+//! - 0x467DA5: unless the length typed (`loop_flags.text_length`) is 0, one less, and a NUL
 //!   there.
 //!
 //! Inlined into `menu::begin_player_name` and `menu::edit_player_name`.
@@ -19,7 +19,7 @@ use crate::place::BytePlace;
 /// The current player's name as a place bounded by the names' store (the original runs on
 /// past a name that lacks its end).
 pub fn name_place(menus: &Menus) -> Result<crate::pointers::GamePtr, Refused> {
-    Ok(crate::menu::player_names::name_ptr(menus, name()?))
+    Ok(crate::menu::player_names::name_ptr(menus, name(menus)?))
 }
 
 pub fn kept() -> BytePlace {
@@ -27,8 +27,8 @@ pub fn kept() -> BytePlace {
 }
 
 /// Whose name the current player has.
-pub fn name() -> Result<usize, Refused> {
-    Ok(crate::menu::player_names::name_of(&current()?.get())?)
+pub fn name(menus: &Menus) -> Result<usize, Refused> {
+    Ok(crate::menu::player_names::name_of(&current(menus)?.get())?)
 }
 
 pub fn bring_back_name(name: impl Into<BytePlace>) -> Result<(), BadInput> {

@@ -1,4 +1,4 @@
-//! The car's parts repaired whole (IDA, 2026-10-15): for each of five parts a run of the
+//! The car's parts repaired whole: for each of five parts a run of the
 //! current player's car's dwords (as `service::apply_repairs` zeroes them) and its damage
 //! dword zeroed, and `service::repair_car`, which does all of them and more. Converted:
 //! `rc2k_core::service::car`.
@@ -7,7 +7,7 @@ use crate::errors::BadInput;
 use crate::service::state::current_player;
 use rc2k_core::menu::player::Player;
 
-pub fn player() -> Result<crate::menu::standings::PlayerCell, BadInput> {
+pub fn player() -> Result<crate::menu::standings::PlayerCell<'static>, BadInput> {
     current_player().ok_or(BadInput(
         "no current player object: the original writes through null",
     ))

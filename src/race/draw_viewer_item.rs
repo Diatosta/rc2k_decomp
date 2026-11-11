@@ -1,8 +1,8 @@
 //! `race::draw_viewer_item` (0x41D94A): one item of the replay viewer's list drawn, unless hidden
 //! (bit 6): its picture as a quad (`drive::tyre_quad`) on the item's place at the picture's width
-//! (its absolute value), centred (`dword_5C29FC`); grey (0x666666) when marked unusable (bit 7),
+//! (its absolute value), centred (`item_place`); grey (0x666666) when marked unusable (bit 7),
 //! else white, or for the highlighted item red while a camera is edited, else yellow and red by
-//! turns (bit 3 of `dword_51D41F - dword_51D423`).
+//! turns (bit 3 of `frame_clock` - `move_clock`).
 //!
 //! Takes: the item (16 bytes), its number
 //!

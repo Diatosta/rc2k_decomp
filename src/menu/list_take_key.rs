@@ -1,8 +1,7 @@
 //! `menu::list_take_key` (0x41469A): a list menu's key: the pending key taken
 //! (`input::take_key`, eax 0 first); none: a millisecond's sleep (`system::sleep`). A key:
-//! the repeat count `dword_51D40F` reset unless it is the last key again (`byte_51D413`)
-//! and `dword_51D41F - (dword_51D423 + 6)` is negative (`js`), then one more; the key
-//! into `byte_51D413`.
+//! the key repeat count is reset unless it is the last key again and the time since the
+//! last key (less 6) is negative (`js`), then one more; the key is kept as the last key.
 //!
 //! Returns the key, 0 for none.
 //!

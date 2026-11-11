@@ -1,5 +1,5 @@
 //! `service::update_repair_total` (0x46BA2C): adds up the times of the chosen items into
-//! `dword_75AC8C` and, if the time budget minus that total is at least 900, clears the second
+//! the repairs' total and, if the time budget minus that total is at least 900, clears the second
 //! flag table (`clear_repair_marks`).
 //!
 //! Refuses what `state::chosen_repairs_time` refuses.

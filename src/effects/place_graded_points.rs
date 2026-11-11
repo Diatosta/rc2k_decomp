@@ -23,7 +23,7 @@ const POINTERS: u32 = 0x454;
 const GRADES: [(u32, u32, [u32; 3]); 2] =
     [(0, 0xC, [0x20, 0x24, 0x28]), (4, 0x10, [0x20, 0x2C, 0x28])];
 
-/// Why the Rust version refuses, if it does, worked out without writing.
+/// Why the function refuses, if it does, worked out without writing.
 fn refusal(paths: &Paths, s: Spline) -> Result<(), Refused> {
     {
         for (start, count, turns) in GRADES {

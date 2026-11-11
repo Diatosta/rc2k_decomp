@@ -1,13 +1,10 @@
 //! `physics::split_by_mode` (0x436B99): the split's figure by the race mode
-//! (`dword_62389C`): 2 the car's place (`g_carBlockStore`'s first `place`, 0x70FA40)
+//! (`run_kind`): 2 the car's place (`g_carBlockStore`'s first `place`, 0x70FA40)
 //! into +0xA0C; 1 `physics::rank_split_time`; 3 `physics::compare_split_times`; else
 //! nothing.
 //!
 //! Callers: `physics::take_split`, `physics::take_split_counted`. Refuses what the steps
 //! refuse.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 use crate::errors::Refused;
 use crate::physics::compare_split_times::compare_split_times;
 use crate::physics::rank_split_time::rank_split_time;

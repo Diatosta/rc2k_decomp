@@ -1,14 +1,14 @@
 //! `physics::car_angles` (0x43BEF4): `physics::matrix_angles` of `g_crashMatrix`, then
-//! each angle times 65536 (`flt_5C5D98`), 4096 (`flt_5C5E28`) and 1 / 2pi (`flt_5C5DD4`),
-//! `fistp`, shifted left 4: `flt_5C70D4` into `dword_71A99C`, `D8` into `dword_71A998`,
-//! `DC` into `dword_71A9A0` (`g_car` +0x9C4, +0x9C0, +0x9C8): the car's heading, pitch and
+//! each angle times 65536 (`k65536`), 4096 (`k4096`) and 1 / 2pi (`one_over_two_pi`),
+//! `fistp`, shifted left 4: `car_pitch` into `car_pitch`, `D8` into `car_heading`,
+//! `DC` into `car_roll` (`g_car` +0x9C4, +0x9C0, +0x9C8): the car's heading, pitch and
 //! roll (`car_heading`, `car_pitch`, `car_roll`) in the game's whole-number units (<< 4).
 //!
 //! Returns: `g_crashMatrix`
 //!
 //! Caller: `physics::update_car_angles`.
 
-use crate::math::x87_run::mul3_to_int;
+use crate::math::x87::mul3_to_int;
 use crate::physics::matrix_angles::matrix_angles;
 use crate::race::owner::Race;
 

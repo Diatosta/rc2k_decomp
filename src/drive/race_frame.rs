@@ -14,7 +14,8 @@ use crate::system::owner::system;
 
 const RESTORE: usize = 0x405B10; // 0x405B10: the surfaces restored (the platform's)
 
-/// `eax` in, the eax its calls leave out. Only `drive::quit_question` reads it.
+/// Takes and returns the value the frame's calls leave on (the original's register); only
+/// `drive::quit_question` reads it.
 pub fn race_frame(race: &Race, eax: u32) -> Result<u32, Refused> {
     let input = crate::input::owner::input();
     let system = system();
@@ -37,7 +38,7 @@ pub fn race_frame(race: &Race, eax: u32) -> Result<u32, Refused> {
         }?;
         crate::scene::end_scene::end_scene();
         stop(Stage::Scene, begun);
-        // The original's sound tick here (eax 0x12) never found a turn due: the frame's one
+        // The original's sound tick here (tick 0x12) never found a turn due: the frame's one
         // is in `draw_race_scene`.
         { crate::race::replay_screenshot::replay_screenshot() }?;
         #[cfg(feature = "remote")]

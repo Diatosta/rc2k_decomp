@@ -13,14 +13,13 @@ use crate::session::Dword;
 use crate::system::owner::system;
 use rc2k_core::menu::standings::{self, NAME_LEN};
 
-use crate::menu::owner::menus;
 pub use crate::saves::best_times::{CHAMP_HISTORY as TABLE_B, RANKED_TIMES as TABLE_A};
 use rc2k_core::saves::rankings::{BKey, ChampHistory, HistoryEntry, RankedTimes};
 /// "Any group" for the first-player searches.
 pub const ANY_GROUP: u32 = standings::ANY_GROUP;
 
 /// A player's record, typed.
-pub type PlayerCell = &'static crate::session::Shared<rc2k_core::menu::player::Player>;
+pub type PlayerCell<'a> = &'a crate::session::Shared<rc2k_core::menu::player::Player>;
 
 /// Whether any of the players has no name (a null name place).
 pub fn any_unnamed(players: &[PlayerCell]) -> Result<bool, crate::errors::BadInput> {
@@ -28,15 +27,15 @@ pub fn any_unnamed(players: &[PlayerCell]) -> Result<bool, crate::errors::BadInp
 }
 
 /// Player `n`'s record (`n` one of the four).
-pub fn player(n: u32) -> PlayerCell {
-    &menus().play.players.players[n as usize]
+pub fn player(menus: &Menus, n: u32) -> PlayerCell<'_> {
+    &menus.play.players.players[n as usize]
 }
 
 /// The drivers (`g_drivers`) as the original's `do .. while` walks them: the first always,
 /// then each while its first dword is not -1. The walk ends at the latest on the -1 after the
 /// 180 (`DriverTable.end`); refused when that is gone (the original would read on).
-pub fn drivers() -> Result<&'static [Driver], BadInput> {
-    let cars = &menus().cars;
+pub fn drivers(menus: &Menus) -> Result<&[Driver], BadInput> {
+    let cars = &menus.cars;
     let all = &cars.drivers.drivers;
     let count = 1 + all[1..]
         .iter()
@@ -129,8 +128,8 @@ pub struct Found {
 }
 
 /// The walked drivers, for the tables' fills.
-pub fn walked_drivers() -> Result<Vec<rc2k_core::saves::rankings::Driver>, BadInput> {
-    Ok(drivers()?
+pub fn walked_drivers(menus: &Menus) -> Result<Vec<rc2k_core::saves::rankings::Driver>, BadInput> {
+    Ok(drivers(menus)?
         .iter()
         .map(|d| rc2k_core::saves::rankings::Driver {
             number: d.name_entry.get(),
@@ -193,18 +192,18 @@ pub fn with_kept_name<R>(play: &Play, f: impl FnOnce(&mut [u8; NAME_LEN]) -> R) 
     r
 }
 
-pub const PLAYER_COUNT_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.player_count; // dword_755984
+pub const PLAYER_COUNT_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.player_count;
 pub const SECTION_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.section; // section
 pub const INDEX_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.index; // index
 
 /// The players `0 .. dword_755984` (the original's `do .. while`): refused at 0, past 4 or
 /// with one missing.
-pub fn counted_players(screens: &Screens) -> Result<Vec<PlayerCell>, BadInput> {
-    let n: u32 = screens.event.player_count.get();
+pub fn counted_players(menus: &Menus) -> Result<Vec<PlayerCell<'_>>, BadInput> {
+    let n: u32 = menus.screens.event.player_count.get();
     if n == 0 || n > 4 {
         return Err(BadInput("a player count of 0 or past 4"));
     }
-    Ok((0..n).map(player).collect())
+    Ok((0..n).map(|k| player(menus, k)).collect())
 }
 
 /// The current record's event (`g_recordTable`, `section`, `index`; its +0x3C): its place
@@ -280,7 +279,7 @@ pub fn enter_best(
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing"));
     }
-    let p = player(n);
+    let p = player(menus, n);
     let group = group.unwrap_or(p.get().class);
     let scores = &crate::saves::best_times::SCORES;
     let (true, true, false) = (
@@ -346,6 +345,7 @@ pub struct Numbered {
 /// `number` field. Refused, before any write, when a counted entry's player is past 4 or
 /// not there.
 pub fn number_table(
+    menus: &Menus,
     table: Which,
     which: rc2k_core::menu::standings::Numbering,
     number: fn(&mut rc2k_core::menu::player::Player) -> &mut u32,
@@ -374,7 +374,7 @@ pub fn number_table(
         };
         last_number = n;
         if p != 0 {
-            let record = player(p - 1);
+            let record = player(menus, p - 1);
             record.update(|q| *number(q) = n);
         }
     }

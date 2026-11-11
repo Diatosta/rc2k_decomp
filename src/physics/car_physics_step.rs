@@ -1,38 +1,31 @@
-//! `physics::car_physics_step` (0x43B635): one physics step of the work car (the copy at
-//! `g_car`, loaded by `drive::load_car`). In order: the car's word stirred, its specs, gear
-//! ratios, motion length, handling, the race timers; the step's notes cleared (sounds
-//! `dword_6D1AD0` .., the camera's probe counts, contacts `unk_71A1FC` .. `71A20C`, the
-//! hit counters `dword_614108` ..), the height before (`flt_614138`); the inverse matrix,
-//! the ground, skid marks, the probes, the timers, the surfaces and their noise, the state
-//! saved, the forces cleared, wheel weights, downforce, the gearbox, the drive force; the
-//! side speed into `unk_71A1A0` held within ± `flt_613EC8`; the driven wheels (grip, step,
-//! speeds, the free revs); the engine's speed held between `flt_6140F8` (only off the
-//! clutch, `unk_71A614` 0) and `flt_614104`; wheels from revs, air drag, springs, the body
-//! against the ground, the wheels' forces and torques, the motion (move, spin, levers,
-//! matrix, angles); the speed's length into `flt_614100`. Then the contacts, up to
-//! `dword_61414C` rounds (`dword_614148` the count): contacts cleared, the ground, the
-//! crossed edge, the walls, the probes, the other cars, the faces, the motion kept, the
-//! contacts' forces and torques; a round that restored nothing (`dword_614738` 0) ends
-//! it, else the car stalled when still, its motion redone and the round counted; all
-//! rounds used: `physics::limit_motion`, `physics::find_clear_place`, `dword_6141D0` + 1.
-//! With rounds done, the motion put back and limited. Then the ground, the stuck reset,
-//! the engine sound, the wheels' spin, the checkpoints, the pace notes
-//! (`physics::pace_notes_step`), the count down, the wheel angles, the mean drive
-//! speed (`unk_71A198`) and the height change (`unk_71A8E4`), the motion length, the
-//! damage model and its parts and notices, the notices, neutral, the word +0x234, the
-//! camera (`physics::camera_frame`, when the current car is listed in `dword_641680`), the
-//! spin on the ground, broken parts, lights, the forces' sum, the wheel load, the engine
-//! sound's share, the time mark, a false start, the value notice.
+//! `physics::car_physics_step` (0x43B635): one physics step of the work car (the copy at `g_car`,
+//! loaded by `drive::load_car`). In order: the car's word stirred, its specs, gear ratios, motion
+//! length, handling, the race timers; the step's notes cleared (sounds `sound_scratch_a` .., the
+//! camera's probe counts, the car's contact fields, the hit counters `scene_point_hits` ..), the
+//! height before (`vertical_speed`); the inverse matrix, the ground, skid marks, the probes, the
+//! timers, the surfaces and their noise, the state saved, the forces cleared, wheel weights,
+//! downforce, the gearbox, the drive force; the side speed into `side_speed_held` held within ±
+//! `side_speed_limit`; the driven wheels (grip, step, speeds, the free revs); the engine's speed
+//! held between `idle_engine_speed` (only off the clutch, `brake` 0) and `rev_limit`; wheels from
+//! revs, air drag, springs, the body against the ground, the wheels' forces and torques, the motion
+//! (move, spin, levers, matrix, angles); the speed's length into `top_speed`. Then the contacts, up
+//! to `contact_steps` rounds (`contact_step` the count): contacts cleared, the ground, the crossed
+//! edge, the walls, the probes, the other cars, the faces, the motion kept, the contacts' forces and
+//! torques; a round that restored nothing (`clear_place_count` 0) ends it, else the car stalled when
+//! still, its motion redone and the round counted; all rounds used: `physics::limit_motion`,
+//! `physics::find_clear_place`, `step_count` + 1. With rounds done, the motion put back and
+//! limited. Then the ground, the stuck reset, the engine sound, the wheels' spin, the checkpoints,
+//! the pace notes (`physics::pace_notes_step`), the count down, the wheel angles, the mean drive
+//! speed (`mean_drive_speed`) and the height change (`vertical_speed_change`), the motion length,
+//! the damage model and its parts and notices, the notices, neutral, the `contact_flag`, the camera
+//! (`physics::camera_frame`, when the current car is listed in `listed_car_sounds`), the spin on
+//! the ground, broken parts, lights, the forces' sum, the wheel load, the engine sound's share, the
+//! time mark, a false start, the value notice. The holds are `physics/flow.rs`'s.
 //!
-//! the holds are `physics/flow.rs`'s.
-//!
-//! Callers: `physics::race_cars_step` (0x4608BB), `race::step_replay_cars`, `drive::replay_step`.
-//! Refuses (before anything) a current car past 7 (`dword_641680` is read by it), and what its
+//! Callers: `physics::race_cars_step`, `race::step_replay_cars`, `drive::replay_step`.
+//! Refuses (before anything) a current car past 7 (`listed_car_sounds` is read by it), and what its
 //! calls refuse; the work car and the physics' variables (`step_regions`) are put back then
 //! (the callees put back their own other writes).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::loaded;
@@ -53,7 +46,7 @@ fn motion(race: &Race, scene: &crate::scene::owner::Scene) {
     );
     ph::spin_matrix::spin_matrix(race);
     ph::lever_pushes::lever_pushes(race, scene);
-    crate::race::start_place::invert_car_matrix(race);
+    crate::race::start_place::invert_car_matrix(&race.course, &race.shared.car);
     ph::update_car_angles::update_car_angles(race, scene);
 }
 
@@ -92,7 +85,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     race.shared
         .physics_tables
         .vertical_speed
-        .set_bits(loaded(race.shared.car.velocity[1].bits()));
+        .set_bits(loaded(&race.shared.car.velocity[1]));
     for cell in [
         &race.shared.physics_tables.clear_place_mark,
         &race.shared.car.contact_flag,
@@ -111,7 +104,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     {
         figure.set_bits(0);
     }
-    crate::race::start_place::invert_car_matrix(race);
+    crate::race::start_place::invert_car_matrix(&race.course, &race.shared.car);
     ph::feel_ground::feel_ground(race, scene)?;
     ph::start_skid_mark::start_skid_mark(&race.shared.car);
     ph::probe_and_keep::probe_and_keep(race, scene)?;
@@ -315,10 +308,10 @@ pub fn car_physics_step(race: &Race) -> Result<(), Refused> {
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x31A198] = ([rc + 0x31A190] + [rc + 0x31A194]) * [rc + 0x1C5E40]`
-/// `[rc + 0x31A8E4] = [rc + 0x31A174] - [rc + 0x214138]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[mean_drive_speed] = ([drive_speed_a] + [drive_speed_b]) * [half]`
+/// `[vertical_speed_change] = [rc + 0x31A174] - [vertical_speed]`
 fn x87_1(race: &Race) {
     let t0 = ld(race.shared.car.drive_speed_a.bits());
     let t1 = ld(race.shared.car.drive_speed_b.bits());

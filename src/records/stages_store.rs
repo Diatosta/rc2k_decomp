@@ -1,4 +1,4 @@
-//! The stages' tables, out of RAL.EXE's image (IDA 0x734BC6 .. 0x73B674; phase 7, typed):
+//! The stages' tables, with the image's layout (IDA 0x734BC6 .. 0x73B674):
 //! the track pack (`g_trakPakHeader`: its head and the 36 tracks' entries, 0x40 each), the
 //! lists that pick a record table (by stage group `off_735512`, by arcade level
 //! `off_73555A`, ...), the championship's records (`g_recordTable`, 66 of 0xA4 bytes and
@@ -9,7 +9,7 @@
 //! dwords) and a two-byte lead keeps each image address's alignment. `#[repr(C)]`, the
 //! image's layout; `moved::MOVED` points the range at it. The code walks the records by
 //! address (`championship()`, `event_table(k)`); the lists keep IDA's addresses as names
-//! (phase 13; `moved::point_into_homes` passes them over) that `group_event_table`,
+//! (`moved::point_into_homes` passes them over) that `group_event_table`,
 //! `level_table` and `result_table` make real. A list read past its end reads on into the
 //! lists after it, as the original; past the last, or onto a -1, it is refused.
 

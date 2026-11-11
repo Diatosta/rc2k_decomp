@@ -1,6 +1,6 @@
-//! `d3d::lock_texture` (0x41AA4B): system texture eax locked, made the blitters' surface.
+//! `d3d::lock_texture` (0x41AA4B): a system texture locked, made the blitters' surface.
 //! With no surface (+0x14 0) nothing; locked already (+0x60 1): fatal error 0x8021A171;
-//! else its surface's `Lock` (no rectangle, the description `dword_5ABA18`, flags 1): a
+//! else its surface's `Lock` (no rectangle, the surface description, flags 1): a
 //! failure is fatal error 0x8021A172; +0x60 1 and `d3d::texture_surface_info`.
 //!
 //! Takes: the texture

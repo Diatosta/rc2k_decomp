@@ -1,18 +1,19 @@
-//! `effects::drift_offsets` (0x4C1BA9): two whole-number offsets drifting by a wandering
-//! pace. When `dword_8BC40D` ticks of `g_sceneClock` have passed since `dword_8BC409`
-//! (unsigned), new targets by the marks' random (its low 12 bits and the next 12, less
-//! 0x7FF, times `flt_8C5FD1` / `flt_8C5FD5`), a new wait ((its top byte + 0x40) times 5),
-//! the time kept, and a second random's halves times 0x100 in `dword_8BC429` /
-//! `dword_8BC431`. Then each pace eased toward its target (`x87::ease`, by `flt_8C5FD9`
-//! / `flt_8C5FDD`) and added to its offset (`dword_8BDD7D`, `dword_8BDD85`, rounded).
+//! `effects::drift_offsets` (0x4C1BA9): two whole-number offsets drifting by a wandering pace.
+//! When `drift_wait` ticks of the scene clock have passed since `drift_since` (unsigned), new
+//! targets (`drift_target`) by the effects' random (its low 12 bits and the next 12, less
+//! 0x7FF, times the `target_scale`s), a new wait ((its top byte + 0x40) times 5), the time
+//! kept, and a second random's halves times 0x100 in `drift_halves`. Then each pace
+//! (`drift_pace`) eased toward its target (`x87::ease`, by `ease`) and added to its offset
+//! (the view's x and z, rounded).
 //!
-//! One caller, `effects::run_rain` (the marks' frame).
+//! One caller, `effects::run_rain` (the effects' frame).
 //!
 //! the x87 version stays for the Rust callers in unconverted code; the offsets' `fistp`
 //! stays the x87's).
 
 use crate::effects::rain::Weather;
 use crate::math::x87;
+use crate::math::x87_float as bh;
 use crate::race::owner::Race;
 
 /// The marks' random: times 0x9D plus 0x47.
@@ -52,7 +53,7 @@ pub fn drift_offsets(race: &Race, weather: &Weather, effects: &crate::effects::o
                 k.ease[n].to_bits(),
             );
             r.drift_pace[at].set_bits(pace);
-            let offset = x87::int_plus_to_int(r.view[at].get() as i32, pace);
+            let offset = bh::to_int(bh::int(r.view[at].get() as i32) + bh::ld(pace));
             r.view[at].set(offset as u32);
         }
     }

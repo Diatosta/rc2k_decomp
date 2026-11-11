@@ -1,24 +1,22 @@
-//! The way through (`net::start_link`, 0x416F50, eax 1 host, 2 join):
+//! The way through (`net::start_link`, 1 host, 2 join):
 //! the player's record set up (`net::take_player_settings`, `net::fill_own_player`), the
 //! DirectPlay connections listed (`net::find_connections`: the lobby object, DirectPlay,
-//! `EnumConnections` into the 0x54-byte records at `dword_52AC38`), one chosen
-//! (`net::choose_connection`, a list screen) unless the one saved (`unk_52AC94`) is there,
+//! `EnumConnections` into the 0x54-byte records at `connection_table`), one chosen
+//! (`net::choose_connection`, a list screen) unless the one saved (`saved_connection`) is there,
 //! the connection made (`net::init_connection`), then hosting (`net::host_session`) or the
 //! sessions listed (`net::choose_session`, `EnumSessions` into the 0x68-byte records at
-//! `dword_52ACF8`) and one joined (`net::join_session`). Then the lobby screen
+//! `session_table`) and one joined (`net::join_session`). Then the lobby screen
 //! (`net::lobby_loop`: chat, car, stage, ready) and the race (`net::lets_rally`) until a
-//! player leaves. The settings screen before all that is `net::settings_loop` (0x4168CF).
-//! Each player's record is 16 bytes of DirectPlay player data (`byte_52AD64` for this
+//! player leaves. The settings screen before all that is `net::settings_loop`.
+//! Each player's record is 16 bytes of DirectPlay player data (`own` for this
 //! machine: +0 the state bits, 1 ready, 2 waiting, 4 racing, 0x10 the host; +1 the car, +2
 //! its colours, +3 the nationality, +4 the stage, +5 its direction, +6 the race number,
 //! +7 a random number, +8 the race's time, +0xC the total), read into each player's block
 //! of `g_netReceived` (+0x20 the DirectPlay id, +0x24 the record).
 //!
-//! The calls by place: in the game the Rust versions, the logging, DirectPlay's `Send`
-//! through the game (`net::game_part`), the screens' frames and the platform through the
-//! game; DirectPlay's methods are called from Rust (`net::dplay`). In the tests: stand-ins
-//! that note each call with its seven registers and answer what the test says, and test
-//! COM objects whose methods note their arguments.
+//! The calls by place: DirectPlay's methods are called from Rust (`net::dplay`). In the
+//! tests: stand-ins that note each call and answer what the test says, and test COM
+//! objects whose methods note their arguments.
 
 use crate::errors::Refused;
 use crate::session::{Bytes, Dword};
@@ -66,8 +64,8 @@ pub fn store_text(mut text: Vec<u8>) -> Result<Vec<u8>, Refused> {
 }
 
 /// `gfx::blit_glyph` of the sprite `glyph` of the sprite table (`g_spriteTable`) at (`x`,
-/// `y`). (The original hands each the ebx the blit before left as its palette, which the
-/// sprites, direct colour, never look at.)
+/// `y`). (The original hands each the palette the blit before left, which the sprites, direct
+/// colour, never look at.)
 pub fn blit(glyph: u32, x: u32, y: u32) -> Result<(), Refused> {
     crate::gfx::blit_glyph::blit_glyph_on_surface(glyph, SPRITES.get(), x as i32, y as i32, None)
 }
@@ -178,7 +176,7 @@ pub const fn fatal(code: u32) -> crate::errors::FatalError {
 
 /// Runs a callback where DirectPlay calls it: a refused
 /// input ends the program with its reason (there is no game code to run in its place), a
-/// fatal error is raised. Its eax out.
+/// fatal error is raised.
 pub fn callback_entry(name: &str, ral: u32, rust: impl FnOnce() -> Result<u32, Refused>) -> u32 {
     match rust() {
         Ok(eax) => eax,
@@ -187,7 +185,7 @@ pub fn callback_entry(name: &str, ral: u32, rust: impl FnOnce() -> Result<u32, R
         }
         Err(Refused::Fatal(error)) => {
             crate::framework::log(&format!(
-                "{name}: the Rust version raises fatal error {:#x} {:?}",
+                "{name}: raises fatal error {:#x} {:?}",
                 error.code, error.message
             ));
             let r = Context::default();

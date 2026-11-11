@@ -1,4 +1,4 @@
-//! `install::run_pages` (0x4144AA): the installer's pages, from the entry esi on: each entry
+//! `install::run_pages` (0x4144AA): the installer's pages, from the first entry on: each entry
 //! is the page's list and the entries that follow its answers (+4 + 4 x answer); a page
 //! answered 0 or 1 has its highlight put back to 0; an answer of no entry (0) or the game
 //! quitting ends it. (The original calls itself with `jnz` to its start.)
@@ -56,8 +56,8 @@ struct Passed {
 
 /// The pages not shown, passed over as if answered:
 /// - the installation-kind page (small / normal / full): always the full installation,
-///   `g_mediaMode` 3 (owner, 2026-10-28: nobody installs another, and the game no longer
-///   reads a CD); on to its answer 3's entry;
+///   `g_mediaMode` 3 (owner: nobody installs another, and the game does not
+///   read a CD); on to its answer 3's entry;
 /// - the drive page on a system without drives (`install::folders`, `DRIVES` false): on
 ///   to the entry of its answer that is the folder page.
 ///

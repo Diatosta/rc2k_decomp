@@ -1,4 +1,4 @@
-//! `input::take_key` (0x407F95): takes the pending key: returns `byte_4F6ADC` and sets it to 0,
+//! `input::take_key` (0x407F95): takes the pending key: returns the pending key and sets it to 0,
 //! in one `xchg`.
 //!
 //! 65 callers. The

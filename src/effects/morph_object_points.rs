@@ -27,8 +27,8 @@ use crate::session::{Bytes, Dword};
 const MOST_CARS: i32 = 8;
 
 /// The cars' blocks, the last first (none for a count of 0 or less).
-fn blocks() -> Result<Vec<&'static CarEffects>, Refused> {
-    let marks = crate::effects::setup::effects_settings()?;
+fn blocks(effects: &crate::effects::owner::Effects) -> Result<Vec<&'static CarEffects>, Refused> {
+    let marks = effects.settings()?;
     Ok({
         let count = marks.cars_copy.get() as i32;
         (0..count.clamp(0, MOST_CARS) as u32)
@@ -49,7 +49,7 @@ fn changed(b: &CarEffects) -> bool {
 /// A block's objects' first points (in `g_objectPoints`) and their count.
 fn points(course: &Course, b: &CarEffects) -> Result<(u32, u32, i32), Refused> {
     Ok({
-        let base: u32 = course.lists.object_points.bits();
+        let base: u32 = course.lists.object_points.get();
         let first = |id: u32| {
             base.wrapping_add(
                 12 * ObjectTables::slot_value(
@@ -70,16 +70,20 @@ fn points(course: &Course, b: &CarEffects) -> Result<(u32, u32, i32), Refused> {
     })
 }
 
-/// Why the Rust version refuses, if it does (its own checks), worked out without writing.
-fn refusal(course: &Course, paths: &Paths) -> Result<Option<&'static str>, Refused> {
-    let marks = crate::effects::setup::effects_settings()?;
+/// Why the function refuses, if it does, worked out without writing.
+fn refusal(
+    effects: &crate::effects::owner::Effects,
+    course: &Course,
+    paths: &Paths,
+) -> Result<Option<&'static str>, Refused> {
+    let marks = effects.settings()?;
     Ok({
         if marks.cars_copy.get() as i32 > MOST_CARS {
             return Ok(Some("more than 8 cars"));
         }
-        let base: u32 = course.lists.object_points.bits();
-        let room: u32 = course.lists.object_points_room.bits();
-        for b in blocks()? {
+        let base: u32 = course.lists.object_points.get();
+        let room: u32 = course.lists.object_points_room.get();
+        for b in blocks(effects)? {
             if !changed(b) {
                 continue;
             }
@@ -115,11 +119,11 @@ pub fn morph_object_points(
     paths: &Paths,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    if let Some(why) = refusal(course, paths)? {
+    if let Some(why) = refusal(effects, course, paths)? {
         return Err(BadInput(why).into());
     }
     {
-        for b in blocks()? {
+        for b in blocks(effects)? {
             b.morph_kept.set(b.morph_start.get());
             if !changed(b) {
                 continue;
@@ -147,7 +151,7 @@ pub fn morph_object_points(
     Ok(())
 }
 
-/// The object morph's work (IDA 0x93C6CC .. 0x93C6F4, the image's layout; phase 7, typed state).
+/// The object morph's work (IDA 0x93C6CC .. 0x93C6F4).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MorphWork {

@@ -4,7 +4,7 @@
 //! Takes: path, which may be written to (see `files::swap_missing_extension`)
 //! Sets the picture's size to 800 x 600 with rows that follow one another (row length
 //! 0xFFFFFFFD), clears the buffer and calls `read_picture_file`. Whatever that says, the
-//! picture's size then becomes the screen's (`dword_4F494C` x `dword_4F4950`) and its row
+//! picture's size then becomes the screen's (`g_screenWidth` x `g_screenHeight`) and its row
 //! length four bytes a pixel. If the file was read and its decoded width is not the
 //! screen's, `rescale_picture` makes it so.
 //! Ten callers, `menu::load_background` and `service::load_background` among them.

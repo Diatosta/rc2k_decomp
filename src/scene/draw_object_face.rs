@@ -1,28 +1,28 @@
 //! `scene::draw_object_face` (0x450BDA): one face of an object, from its record to the
 //! work table and on to the drawing.
 //!
-//! Nothing at all unless `dword_6365C4` is 0. Then, per vertex, an entry of the work table
-//! (0x450E37): the point's number negated (an object's point), the point's place in the
-//! view copied to `dword_62DA8C` .., the coordinates, and the light: `scene::vertex_light`, or
-//! plain white with `dword_6365C8` at 4, with the face's kind `dword_6D18CC` at 5, or with a
-//! kind of 10 and up other than 0x1C while `dword_6D18D0` is not 0. With reflections
-//! (`dword_5CCE74` and `dword_6238AC` not 0, `dword_6365C8` not 4, the face's own amount not 0)
-//! each entry also gets (0x45188C) a second pair of coordinates from
-//! `scene::cached_reflection_coordinates` and, in its byte +0x21, the face's amount times
-//! `dword_5CCE74` times the first entry's byte +0x20, over 0x1000, held to 255; `dword_621504`
-//! says whether any of them was not 0, and the second texture is 0x87. `dword_621504` is only
-//! cleared when this part runs: a face without it goes by what an earlier one left. Then the
-//! first pass's fade (`dword_63660C`, when `dword_606284` is set and the face's five bits are
-//! `dword_608CAC`), the two switches of `scene::draw_polygon` (the first texture always, the
-//! second with a reflection), mode 4; or, with `dword_639970` not 0x100, the first sixteen
-//! entries get that as their byte +0x21 and their first coordinates as their second, the
-//! switches the other way round, the second texture = the first, mode 3. Then
-//! `scene::draw_object_polygon`, mode 0, the fade off. The other way, with `dword_621480` set
-//! and `dword_6214DC` at 2 (0x450EE2 per vertex): the coordinates as the second pair, 0xFF
-//! in the byte +0x21, the light `dword_635054`; second texture = first, mode 4, and the drawing
-//! with the depth test off around it. One caller, `scene::draw_object_faces`; a second call, at
-//! 0x450B9B, is in code nothing refers to. Refuses a face of no vertices (the original goes
-//! through 2^32) or of more than 64, and when there are no records.
+//! Nothing at all unless the lights' `draw_mode` is 0. Then, per vertex, an entry of the
+//! work table: the point's number negated (an object's point), the point's place in the view
+//! copied to the light's `point_place`, the coordinates, and the light: `scene::vertex_light`,
+//! or plain white with the `view_kind` at 4, with the face's kind (`face_kind`) at 5, or with
+//! a kind of 10 and up other than 0x1C while `face_unlit` is not 0. With reflections (the
+//! course's `shine` and the second `settings_words` entry not 0, `view_kind` not 4, the
+//! face's own shine not 0) each entry also gets a second pair of coordinates from
+//! `scene::cached_reflection_coordinates` and, in its `amount`, the face's shine times
+//! `shine` times the first entry's fog, over 0x1000, held to 255; `face_any_shine` says
+//! whether any of them was not 0, and the second texture is 0x87. `face_any_shine` is only
+//! cleared when this part runs: a face without reflections goes by what an earlier one left.
+//! Then the first pass's fade (`faded`, when `fade_alpha` is set and the face's five bits are
+//! `faded_bits`), the two sides of `scene::draw_polygon` (the first texture always, the
+//! second with a reflection), mode 4; or, with `see_through` not 0x100, the first sixteen
+//! entries get that as their `amount` and their first coordinates as their second, the sides
+//! the other way round, the second texture = the first, mode 3. Then
+//! `scene::draw_object_polygon`, mode 0, the fade off. The other way, with `scene_set_up` set
+//! and `other_way_kind` at 2 (per vertex): the coordinates as the second pair, 0xFF in the
+//! `amount`, the light `other_light`; second texture = first, mode 4, and the drawing with the
+//! depth test off around it. One caller, `scene::draw_object_faces`. Refuses a face of no
+//! vertices (the original goes through 2^32) or of more than 64, and when there are no
+//! records.
 
 use crate::errors::{BadInput, Refused};
 use crate::scene::cached_reflection_coordinates::cached_reflection_coordinates;
@@ -61,7 +61,7 @@ pub fn draw_object_face(
         return Err(BadInput("no face").into());
     }
     let count: u32 = crate::scene::object_faces::word(face as u32)?;
-    if count == 0 || count > MOST || !crate::scene::point_records::held() {
+    if count == 0 || count > MOST || !crate::scene::point_records::held(&race.course) {
         return Err(BadInput("a face of no vertices or more than 64, or no records").into());
     }
     // The whole face in one read: at most `MOST` vertices.
@@ -108,7 +108,7 @@ pub fn draw_object_face(
     let (face_kind, face_unlit): (u32, u32) = (work.face_kind.get(), work.face_unlit.get());
     let lit = view_kind != 4
         && (face_kind == 0x1C || (face_kind != 5 && (face_kind < 0xA || face_unlit == 0)));
-    let table = crate::scene::reading::PointRecords::new()?;
+    let table = crate::scene::reading::PointRecords::new(&race.course)?;
     for (entry, vertex) in vertices.clone() {
         let point = fw(vertex);
         entry.point.set(point.wrapping_neg());

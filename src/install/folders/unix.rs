@@ -1,8 +1,8 @@
 //! Native Unix folders: absolute paths kept as the system names them (a `/` at the end, no
-//! case change), shown whole (the game's font has no `~`: seen 2026-10-28), typed whole
+//! case change), shown whole (the game's font has no `~`), typed whole
 //! or with `~` for the home folder; by default the user's data
 //! folder (`$XDG_DATA_HOME`, `~/.local/share`) + `rally-championship`, not the home
-//! folder's root (owner, 2026-10-28). The installer's file lists name their files with `\`
+//! folder's root (owner). The installer's file lists name their files with `\`
 //! (`files\d\..`): `files::host_path` reads those as `/`.
 
 use super::{Current, Folders, Room};

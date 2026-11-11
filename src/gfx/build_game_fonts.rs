@@ -2,9 +2,9 @@
 //! asks for, and hangs it on five font objects.
 //!
 //! ("LOADLEVEL_INIT : loadgamefonts" in the game's log; one caller, `race::loadlevel_init`.)
-//! Takes `dword_5BE894` * 0x400 * `dword_4F4958` bytes on the list `stru_5BE898` (fatal
+//! Takes `units` * 0x400 * the pixel size bytes on the list `memory` (fatal
 //! error 0x80E48061 if there are none), `begin_glyph_tables`, the builder's flags = 0x21
-//! (run-length coded, with alpha sheets), the pixel layout at `off_5ABACC` + 8, twice
+//! (run-length coded, with alpha sheets), the pixel layout (a fixed table's entry), twice
 //! 0x400 bytes off the list for two palettes, a new table, `gfx::build_glyphs` on
 //! `files\d\fnt\fnt22_00.pcx` (0x80E48062 if that leaves no table), `alpha_palette`, the
 //! palette's pixels to the first palette, `end_glyph_tables`. The fonts at 0x51E2E4 and
@@ -62,7 +62,7 @@ impl GameFontsMemory {
     }
 }
 
-// The first palette's place (dword_51E2D8) and the table (dword_51E2DC) are the palette and
+// The first palette's place and the table are the palette and
 // glyph table of `FONTS.game_fonts[0]`; the five font objects after it (IDA 0x51E2E4) are
 // `game_fonts[1 ..]`. The second palette's place is the palette of `game_fonts[3]`.
 

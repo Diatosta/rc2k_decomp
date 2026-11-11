@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::errors::{BadInput, Refused};
+use crate::math::x87_float as bh;
 use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
@@ -47,7 +48,7 @@ pub fn checkpoint_colours(
         let face =
             crate::race::checkpoints_store::cell_in(&CHECKPOINTS.checkpoint_faces, n as usize)
                 .get();
-        let byte: u8 = face_field(face, 0x10)?;
+        let byte: u8 = face_field(&race.course, face, 0x10)?;
         let along =
             crate::race::checkpoints_store::cell_in(&CHECKPOINTS.angles[2..], n as usize).get();
         let c = rc2k_core::race::frame::checkpoint_colours(byte, along, car.car_heading.get());
@@ -76,7 +77,7 @@ pub fn point_record(
 
 /// What `point_record` needs to make a record: the records and the points.
 pub fn points_there(course: &Course) -> Result<(), Refused> {
-    if !crate::scene::point_records::held() || course.course.scene_points.get() == 0 {
+    if !crate::scene::point_records::held(course) || course.course.scene_points.get() == 0 {
         return Err(BadInput("no point records or no points").into());
     }
     Ok(())
@@ -118,9 +119,9 @@ pub fn face_hidden(
     }
     points_there(&race.course)?;
     let record = point_record(ctx, face.point(0))?;
-    let x = crate::math::x87_load::abs_to_int(crate::scene::point_records::field(record, 0x10)?);
+    let x = bh::to_int(bh::ld(crate::scene::point_records::field(record, 0x10)?).abs());
     ctx.view.object.position[0].set(x as u32);
-    let depth = crate::math::x87_load::add_to_int(
+    let depth = crate::math::x87::add_to_int(
         crate::scene::point_records::field(record, 0x18)?,
         race.course.level_grid.depth_shift.bits(),
     );
@@ -140,16 +141,16 @@ pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Re
     use crate::math::x87::{add, to_int};
     points_there(course)?;
     let depth = |k: u32| -> Result<u32, Refused> {
-        let record = point_record(ctx, face_field(face, 4 + 4 * k)?)?;
+        let record = point_record(ctx, face_field(&ctx.race.course, face, 4 + 4 * k)?)?;
         Ok(crate::scene::point_records::field(record, 0x18)?)
     };
     // Converted: `rc2k_core::race::faces::{depth_by, deeper, average_key, depth_key}`;
     // the roundings and the sum the x87's.
     use rc2k_core::race::faces::{DepthBy, average_key, deeper, depth_by};
-    let kind: u8 = face_field(face, 0)?;
+    let kind: u8 = face_field(&ctx.race.course, face, 0)?;
     let trap = Trap::new();
     let by = depth_by(kind, || {
-        let object = trap.keep_read(face_field::<u8>(face, 1)) as u32;
+        let object = trap.keep_read(face_field::<u8>(&ctx.race.course, face, 1)) as u32;
         // +0x2E of the object's 0x40-byte info (`object` a byte: inside the 0x100).
         crate::scene::polygon_store::POLYGON_TABLES.texture_infos[object as usize].words[11]
             .get()
@@ -158,7 +159,7 @@ pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Re
     trap.finish()?;
     let key = match by {
         DepthBy::First => {
-            let record = point_record(ctx, face_field(face, 4)?)?;
+            let record = point_record(ctx, face_field(&ctx.race.course, face, 4)?)?;
             to_int(crate::scene::point_records::field(record, 0x18)?) as u32
         }
         DepthBy::Deepest => {
@@ -174,7 +175,7 @@ pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Re
             for k in 1..3 {
                 sum = add(depth(k)?, sum);
             }
-            average_key(crate::math::x87_load::add_to_int(depth(3)?, sum))
+            average_key(crate::math::x87::add_to_int(depth(3)?, sum))
         }
     };
     let key = rc2k_core::race::faces::depth_key(key);
@@ -240,7 +241,7 @@ pub fn course_grid(
         grid[k as usize].set(GRID_EMPTY);
     }
     for n in 0..count {
-        let Some((cx, cz)) = record_cell(record_field(n, 0)?) else {
+        let Some((cx, cz)) = record_cell(record_field(&race.course, n, 0)?) else {
             continue;
         };
         if let Some(cell) = grid_cell(cx, cz, (gx, gz), span) {
@@ -265,8 +266,11 @@ pub(super) fn byte_at(
 }
 
 /// A course record's faces (+8 first, +0xC last; -1 none), or None.
-pub(super) fn record_faces(record: u32) -> Result<Option<(u32, u32)>, BadInput> {
-    let (first, last) = (record_field(record, 8)?, record_field(record, 0xC)?);
+pub(super) fn record_faces(course: &Course, record: u32) -> Result<Option<(u32, u32)>, BadInput> {
+    let (first, last) = (
+        record_field(course, record, 8)?,
+        record_field(course, record, 0xC)?,
+    );
     Ok((first != u32::MAX && first <= last).then_some((first, last)))
 }
 
@@ -279,7 +283,7 @@ pub(super) fn record_faces(record: u32) -> Result<Option<(u32, u32)>, BadInput> 
 /// missing points are refused where they are met.
 pub fn gather_record_faces(ctx: &DrawCtx, record: u32) -> Result<(), Refused> {
     let DrawCtx { view, .. } = *ctx;
-    let Some((first, last)) = record_faces(record)? else {
+    let Some((first, last)) = record_faces(&ctx.race.course, record)? else {
         return Ok(());
     };
     if last == u32::MAX {
@@ -289,7 +293,7 @@ pub fn gather_record_faces(ctx: &DrawCtx, record: u32) -> Result<(), Refused> {
     loop {
         ctx.view.face.course_face.set(face);
         // The face read once for its kind, objects, switches and first point.
-        let read = crate::race::course_places::face_number(face, "a course face")?;
+        let read = crate::race::course_places::face_number(&ctx.race.course, face)?;
         let kind = read.kind();
         // Converted: `rc2k_core::race::faces::{gathered, face_object}`.
         use rc2k_core::race::faces::{Gathered, face_object, gathered};
@@ -304,7 +308,7 @@ pub fn gather_record_faces(ctx: &DrawCtx, record: u32) -> Result<(), Refused> {
             }
         }
         face = face.wrapping_add(1);
-        if face > record_field(record, 0xC)? {
+        if face > record_field(&ctx.race.course, record, 0xC)? {
             break;
         }
     }
@@ -339,7 +343,7 @@ pub fn face_hide_mask(
         return Ok(());
     }
     // Converted: `rc2k_core::race::faces::hide_mask`.
-    let word: u16 = face_field(ground, 2)?;
+    let word: u16 = face_field(&race.course, ground, 2)?;
     view.face
         .face_hide_mask
         .set(rc2k_core::race::faces::hide_mask(word));
@@ -359,7 +363,7 @@ pub fn mark_far_cells(
     limit: u32,
 ) -> Result<(), BadInput> {
     let view = &scratch.grid;
-    use crate::math::x87_load::{below_or_unordered, float_hypot, scaled_abs_less_below};
+    use crate::math::x87::{below_or_unordered, float_hypot, scaled_abs_less_below};
     let grid = &view.cells;
     for k in 0..0x400 {
         grid[k as usize].set(grid[k as usize].get() & 0x0FFF_FFFF);

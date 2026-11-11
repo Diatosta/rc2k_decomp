@@ -326,9 +326,9 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
 
     fn item(&mut self, n: u32, on: bool) -> Result<(), Refused> {
         if on {
-            crate::menu::enable_item::enable_item(n)
+            crate::menu::enable_item::enable_item(&self.menus.screens, n)
         } else {
-            crate::menu::disable_item::disable_item(n)
+            crate::menu::disable_item::disable_item(&self.menus.screens, n)
         }
     }
 
@@ -771,8 +771,7 @@ impl GameWork for rc2k_core::screens::menus::Work {
 
 impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
     fn own_button(&mut self, n: usize) -> Result<(), Refused> {
-        let screens = &self.menus.screens;
-        crate::screens::buttons::draw_item_button(screens, self.menu_item(n)?, self.canvas)
+        crate::screens::buttons::draw_item_button(self.menus, self.menu_item(n)?, self.canvas)
     }
     fn text_button(
         &mut self,
@@ -787,7 +786,13 @@ impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
             TextButton::HighlightedRight => (&HIGHLIGHTED, ALIGN_RIGHT),
             TextButton::HighlightedCentred => (&HIGHLIGHTED, ALIGN_CENTRE),
         };
-        crate::screens::buttons::draw_text_button(kind, align, self.menu_item(n)?, self.canvas)
+        crate::screens::buttons::draw_text_button(
+            self.menus,
+            kind,
+            align,
+            self.menu_item(n)?,
+            self.canvas,
+        )
     }
     fn blended(&mut self, since_key: u32, a: MenuFont, b: MenuFont) -> Result<MenuFont, Refused> {
         use crate::text::blend_font::blend_font;

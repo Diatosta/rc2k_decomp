@@ -1,19 +1,19 @@
 //! `effects::emit_particle_6` (0x4CDC74): one ring entry of kind 6 from a wheel, when its
-//! flags (+0x20, kept in `dword_939BAE`) have 0xC0 and the rate gate passes
-//! (`marks/emitters.rs`, the wheel's +0xC less +0x18 by `flt_93A41A` ..).
+//! flags (+0x20, kept as the wheel flags) have 0xC0 and the rate gate passes
+//! (`effects/emitters.rs`, the wheel's +0xC less +0x18 by the set's rate factors).
 //!
 //! Takes: the wheel record, the car object
 //!
 //! The entry: its place the wheel's (+0x3C ..) plus a random side (-1 or 0 times the
-//! object's matrix's first row, 0 or 1 times its third) less 0x93A42E in y at +0x28; its
+//! object's matrix's first row, 0 or 1 times its third) less the set's lift in y at +0x28; its
 //! motion three sums of products of the wheel's speeds; a random spin and turn (+0x54,
-//! +0x50), the flags' low 6 bits (+0x58), a size by the marks' random (+0x60, then
-//! replaced), a life from `dword_939B76` by the flags' bits 6 and 7 (+0x84; +0x78
-//! `flt_7651A4` over it), +0x74 `dword_76519C`, the object (+0x68) and its +0x88, +0x90.
+//! +0x50), the flags' low 6 bits (+0x58), a size by the effects' random (+0x60, then
+//! replaced), a life from the lives table by the flags' bits 6 and 7 (+0x84; +0x78 a constant
+//! over it), +0x74 the fade constant, the object (+0x68) and its +0x88, +0x90.
 //! Callers: `effects::emit_wheel_particles`' kinds 2 .. 4, 6 .. 9, 0xC (after
 //! `effects::emit_bursts` or
 //! `effects::emit_bursts_2`). Refuses (before anything) a null wheel, object or matrix where read,
-//! and flags of 0x100 or more when an entry is made (the life read past `dword_939B76`'s four).
+//! and flags of 0x100 or more when an entry is made (the life read past the lives table's four).
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
@@ -76,7 +76,7 @@ const MOTION: [[(&Float, Speed); 3]; 3] = [
     ],
 ];
 
-/// Why the Rust version refuses these registers, if it does, worked out without writing.
+/// Why the function refuses, if it does, worked out without writing.
 fn refusal(
     particles: &Particles,
     ring: &Ring,
@@ -207,7 +207,7 @@ pub fn emit_particle_6(
         slot.put(|en| &mut en.life, life)?;
         slot.put(
             |en| &mut en.alpha_fade,
-            x87::over_int(effects.setup.floats.two_fifty_seven.bits(), life as i32),
+            x87::over_int(&effects.setup.floats.two_fifty_seven, life as i32),
         )?;
         slot.put(
             |en| &mut en.alpha,
@@ -229,7 +229,7 @@ pub fn emit_particle_6(
     Ok(())
 }
 
-/// Kind 6's emitter variables (`emit_particle_6`) (IDA 0x93A41A .. 0x93A462, the image's layout; phase 7, typed state).
+/// Kind 6's emitter variables (`emit_particle_6`) (IDA 0x93A41A .. 0x93A462).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Kind6Set {
@@ -252,26 +252,26 @@ impl Kind6Set {
     pub const fn new() -> Self {
         Kind6Set {
             rate_k: [
-                Float::from_bits(0x4282AC08),
-                Float::from_bits(0x3951B717),
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x48400000),
+                Float::new(65.336),
+                Float::new(0.0002),
+                Float::new(1.0),
+                Float::new(196608.0),
             ],
             side_random: Dword::new(0x0),
-            lift: Float::from_bits(0x47800000),
+            lift: Float::new(65536.0),
             motion_k: [
-                Float::from_bits(0x4283126F),
-                Float::from_bits(0xC2449BA6),
-                Float::from_bits(0x41D1374C),
-                Float::from_bits(0x4283126F),
-                Float::from_bits(0xC2449BA6),
-                Float::from_bits(0x41D1374C),
-                Float::from_bits(0x4283126F),
-                Float::from_bits(0xC2449BA6),
-                Float::from_bits(0x41D1374C),
+                Float::new(65.536),
+                Float::new(-49.152),
+                Float::new(26.152),
+                Float::new(65.536),
+                Float::new(-49.152),
+                Float::new(26.152),
+                Float::new(65.536),
+                Float::new(-49.152),
+                Float::new(26.152),
             ],
             spin_random: Dword::new(0x0),
-            size_k: [Float::from_bits(0x3E99999A), Float::from_bits(0x46000000)],
+            size_k: [Float::new(0.3), Float::new(8192.0)],
         }
     }
 }

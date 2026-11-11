@@ -1,4 +1,4 @@
-//! The marks' frame state, out of the marks' block (phase 7, typed state): the sprites' and
+//! The marks' frame state: the sprites' and
 //! profiles' work places (`DrawWork`), the view's heading, step and ribbon work (`ViewVars`),
 //! the frame's turned points, view and quads (`DrawFrame`), and the lens flare's tables
 //! (`FlareParts`, `FlareScales`).
@@ -7,7 +7,7 @@
 use crate::effects::owner::effects;
 use crate::session::{Bytes, Dword, Float};
 
-/// The marks' sprites' and profiles' work places (IDA 0x8EB871 .. 0x8EB971, the image's layout; phase 7, typed state).
+/// The marks' sprites' and profiles' work places (IDA 0x8EB871 .. 0x8EB971).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct DrawWork {
@@ -48,7 +48,7 @@ pub struct DrawWork {
 impl DrawWork {
     pub const fn new() -> Self {
         Self {
-            profile_work: [const { Float::from_bits(0x0) }; 11],
+            profile_work: [const { Float::new(0.0) }; 11],
             _gap_8eb89d: Bytes::new([0; 24]),
             half: [Dword::new(0x0), Dword::new(0x0)],
             sprite_half: [
@@ -57,12 +57,8 @@ impl DrawWork {
                 Dword::new(0x0),
                 Dword::new(0x0),
             ],
-            ends_scale: [Float::from_bits(0x0), Float::from_bits(0x0)],
-            turned: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-            ],
+            ends_scale: [Float::new(0.0), Float::new(0.0)],
+            turned: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
             second: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
             _gap_8eb8ed: Bytes::new([
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -72,18 +68,14 @@ impl DrawWork {
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F,
             ]),
-            sides: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            sides: [Float::new(0.0), Float::new(0.0)],
             _gap_8eb949: Bytes::new([0; 8]),
-            step: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-            ],
+            step: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
             _gap_8eb95d: Bytes::new([0; 4]),
             near: Dword::new(0x47800000),
             _gap_8eb965: Bytes::new([0x00, 0x00, 0x80, 0x3B]),
-            uv_k: Float::from_bits(0x37800000),
-            z_k: Float::from_bits(0x0),
+            uv_k: Float::new(0.000015258789),
+            z_k: Float::new(0.0),
         }
     }
 }
@@ -99,7 +91,7 @@ impl DrawWork {
     }
 }
 
-/// The marks' view heading, step and ribbon work (IDA 0x8F3975 .. 0x8F39CD, the image's layout; phase 7, typed state).
+/// The marks' view heading, step and ribbon work (IDA 0x8F3975 .. 0x8F39CD).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewVars {
@@ -130,23 +122,17 @@ pub struct ViewVars {
 impl ViewVars {
     pub const fn new() -> Self {
         Self {
-            heading: Float::from_bits(0x0),
+            heading: Float::new(0.0),
             step: Dword::new(0x0),
-            facing: Float::from_bits(0x0),
+            facing: Float::new(0.0),
             cleared: Dword::new(0x0),
-            ribbon_way: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            ribbon_way: [Float::new(0.0), Float::new(0.0)],
             _gap_8f398d: Bytes::new([0; 4]),
-            first_end_half_width: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            first_end_half_width: [Float::new(0.0), Float::new(0.0)],
             _gap_8f3999: Bytes::new([0; 4]),
-            second_end_half_width: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            second_end_half_width: [Float::new(0.0), Float::new(0.0)],
             _gap_8f39a5: Bytes::new([0; 4]),
-            turned_points: [const {
-                [
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x0),
-                ]
-            }; 3],
+            turned_points: [const { [Float::new(0.0), Float::new(0.0), Float::new(0.0)] }; 3],
         }
     }
 }
@@ -162,7 +148,7 @@ impl ViewVars {
     }
 }
 
-/// The marks' frame: profile mark and steps, turned points, view, quads and flare (IDA 0x91FF3E .. 0x91FFE2, the image's layout; phase 7, typed state).
+/// The marks' frame: profile mark and steps, turned points, view, quads and flare (IDA 0x91FF3E .. 0x91FFE2).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct DrawFrame {
@@ -206,40 +192,28 @@ impl DrawFrame {
     pub const fn new() -> Self {
         Self {
             profiles_done: Dword::new(0x0),
-            profile_steps: [Float::from_bits(0x43800000), Float::from_bits(0x43800000)],
+            profile_steps: [Float::new(256.0), Float::new(256.0)],
             points: [
                 [
-                    Float::from_bits(0xC7BF6800),
-                    Float::from_bits(0xC7333333),
-                    Float::from_bits(0xC7475C00),
+                    Float::new(-98000.0),
+                    Float::new(-45875.2),
+                    Float::new(-51036.0),
                 ],
                 [
-                    Float::from_bits(0xC7BF6800),
-                    Float::from_bits(0xC7333333),
-                    Float::from_bits(0x47475C00),
+                    Float::new(-98000.0),
+                    Float::new(-45875.2),
+                    Float::new(51036.0),
                 ],
-                [
-                    Float::from_bits(0xC7BF6800),
-                    Float::from_bits(0xC7333333),
-                    Float::from_bits(0x0),
-                ],
+                [Float::new(-98000.0), Float::new(-45875.2), Float::new(0.0)],
             ],
             last_source: Dword::new(0x0),
             _gap_91ff72: Bytes::new([
                 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00,
             ]),
-            level: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-            ],
-            other: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x3F800000),
-            ],
+            level: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
+            other: [Float::new(0.0), Float::new(0.0), Float::new(1.0)],
             _gap_91ff96: Bytes::new([0; 4]),
-            times: [Float::from_bits(0x42C80000), Float::from_bits(0x42C80000)],
+            times: [Float::new(100.0), Float::new(100.0)],
             _gap_91ffa2: Bytes::new([0; 4]),
             colour: Dword::new(0x43800000),
             places: [
@@ -249,16 +223,12 @@ impl DrawFrame {
                 Dword::new(0x3EEDCCCD),
             ],
             cleared: Dword::new(0x0),
-            last: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-            ],
+            last: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
             _gap_91ffca: Bytes::new([
                 0x00, 0x00, 0x00, 0x00, 0xCD, 0xCC, 0xA0, 0x41, 0x1A, 0x00, 0x48, 0x42,
             ]),
-            flare_length: Float::from_bits(0x0),
-            flare_way: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            flare_length: Float::new(0.0),
+            flare_way: [Float::new(0.0), Float::new(0.0)],
         }
     }
 }
@@ -274,7 +244,7 @@ impl DrawFrame {
     }
 }
 
-/// The lens flare's unit way and its parts' cells and sizes (IDA 0x92051E .. 0x9205F6, the image's layout; phase 7, typed state).
+/// The lens flare's unit way and its parts' cells and sizes (IDA 0x92051E .. 0x9205F6).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct FlareParts {
@@ -291,11 +261,7 @@ pub struct FlareParts {
 impl FlareParts {
     pub const fn new() -> Self {
         Self {
-            unit: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-            ],
+            unit: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
             corner: [
                 Dword::new(0x40),
                 Dword::new(0x41),
@@ -368,7 +334,7 @@ impl FlareParts {
     }
 }
 
-/// The lens flare's constants (IDA 0x9206D2 .. 0x9206E6, the image's layout; phase 7, typed state).
+/// The lens flare's constants (IDA 0x9206D2 .. 0x9206E6).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct FlareScales {
@@ -383,9 +349,9 @@ pub struct FlareScales {
 impl FlareScales {
     pub const fn new() -> Self {
         Self {
-            fade: [Float::from_bits(0x3F000000), Float::from_bits(0x437F0000)],
-            size_k: Float::from_bits(0x3FC00000),
-            scale: [Float::from_bits(0x3F000000), Float::from_bits(0x3F000000)],
+            fade: [Float::new(0.5), Float::new(255.0)],
+            size_k: Float::new(1.5),
+            scale: [Float::new(0.5), Float::new(0.5)],
         }
     }
 }

@@ -2,12 +2,12 @@
 //! page of the screen: the loading picture.
 //!
 //! Takes: the picture's path
-//! The window's messages are passed on (0x410535); `dword_51B9C4` = 1; the picture's
+//! The window's messages are passed on (0x410535); `showing` = 1; the picture's
 //! size is set to 800 x 600 with row length 0xFFFFFFFD and the file is read
 //! (`gfx::read_picture_file`); the size then becomes the screen's, the row length the
 //! screen's width * 4.
 //! - Not read: `gfx::clear_picture`, and on as for a picture of the screen's width.
-//! - Read: `dword_51B9C4` is taken (set to 0); if it was not 0 and the fonts are built
+//! - Read: `showing` is taken (set to 0); if it was not 0 and the fonts are built
 //!   (`g_fontPalettes`), the picture's flags become 0x802, the picture is made the
 //!   surface (`gfx::picture_as_surface`) and string 0xC0 is drawn on it at (790, 47) with
 //!   the font at 0x51EAA4.

@@ -1,7 +1,7 @@
 //! `race::play_movie_loop` (0x4607A5): the viewer's replay played as a race: the skid marks set up
-//! (`race::init_skidmarks`), "dpg replay", the block played from (`dword_5C2530`) and the one it
-//! stops at (`dword_5C2538`) logged; the race's state 2 (`dword_5C5CE0`), the clock restarted
-//! (`scene::restart_clock`, `g_sceneClock` into `dword_613840`); then each frame the input
+//! (`race::init_skidmarks`), "dpg replay", the block played from (`replay_block`) and the one it
+//! stops at (`play_end`) logged; the race's state 2 (`replay_mode`), the clock restarted
+//! (`scene::restart_clock`, `g_sceneClock` into `race_clock_base`); then each frame the input
 //! (`input::update`), a key pressed (`g_keysPressed + 1`) ending it, the race's step
 //! (`drive::race_step`) and frame (`drive::race_frame`), until the block played is the one to stop
 //! at; "dpg replay exit".

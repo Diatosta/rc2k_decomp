@@ -9,17 +9,15 @@
 //! layout. Here that surface is memory of ours (`Screen::pixels`, rows without a gap),
 //! and `show_frame` copies it to the window, 16-bit pixels made 32-bit on the way.
 //!
-//! - `gfx::choose_screen_modes` (0x404481): the original tries the kept modes and, if
+//! - `gfx::choose_screen_modes`: the original tries the kept modes and, if
 //!   they do not work, a list of others, through DirectDraw. Here the kept modes are
 //!   taken as they are, 800 x 600 in 32 bits when there is none.
-//! - `gfx::set_screen_mode` (0x404B63, eax = the mode): the mode's size and pixel kind
+//! - `gfx::set_screen_mode`: the mode's size and pixel kind
 //!   looked up as the original does and its variables set; the surface made; its pixel
 //!   format described; the texture formats too (`platform_3d.rs`).
-//!   `gfx::set_menu_screen_mode` (0x404823) is it with the menus' mode.
-//! - `gfx::lock_surface` (0x4058AD), `gfx::unlock_surface` (0x405949),
-//!   `gfx::show_frame` (0x4057D1).
-//! - `screens::run_frame` (0x405A71, eax = the frame's function) and
-//!   `system::pump_messages` (0x410535): SDL's events (`platform_events`).
+//!   `gfx::set_menu_screen_mode` is it with the menus' mode.
+//! - `gfx::lock_surface`, `gfx::unlock_surface`, `gfx::show_frame`.
+//! - `screens::run_frame` (given the frame's function) and `system::pump_messages`: SDL's events (`platform_events`).
 //!
 //! Where the time goes: `platform_timing`.
 
@@ -46,8 +44,8 @@ pub(crate) struct Screen {
     /// The pixels a region while the screen lives (the game's code draws on them by
     /// address: `pointers`). (Declared first: fields drop in order, and the region must go before the memory does.)
     pub(crate) window: sdl::Window,
-    /// The window's renderer (`SDL_Renderer`, 2026-10-30: the frame goes up as a texture,
-    /// the debug UI drawn over it) and the frame's texture (XRGB8888, the screen's size).
+    /// The window's renderer (`SDL_Renderer`: the frame goes up as a texture, the
+    /// debug UI drawn over it) and the frame's texture (XRGB8888, the screen's size).
     renderer: sdl::Renderer,
     #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))]
     // the handheld shows frames on its framebuffer
@@ -72,8 +70,7 @@ pub fn quitting() -> bool {
 // ---- gfx::choose_screen_modes (0x404481) ----
 
 /// `gfx::choose_screen_modes`: the menus' and the race's modes (the kept ones, else the
-/// original's choices in order) and the graphics options' choices. Fails (the original's
-/// carry, which its caller makes fatal error 0x90201101) when no mode works.
+/// original's choices in order) and the graphics options' choices. Fails (the error the caller makes fatal error 0x90201101) when no mode works.
 pub fn choose_screen_modes(gfx: &crate::gfx::owner::Gfx) -> Result<(), crate::errors::FatalError> {
     let gfx_display = &gfx.display;
     {
@@ -114,7 +111,7 @@ pub fn choose_screen_modes(gfx: &crate::gfx::owner::Gfx) -> Result<(), crate::er
     }
     // The graphics options' choices made, as the original ends (`loc_4045CA`): the list
     // the options page shows its resolution from (not made yet at the start, so made
-    // whatever eax holds).
+    // whatever the caller holds).
     let made = crate::gfx::screen_mode_choices::screen_mode_choices(gfx_display, false);
     if let Err(e) = made {
         log(&format!(
@@ -148,7 +145,7 @@ fn set_screen_mode(mode: u32, gfx: &crate::gfx::owner::Gfx) -> Result<(), String
     let kind = looked_up(mode & 0xF_0000, crate::gfx::modes::Modes::kinds_ptr(), 3)
         .ok_or("a kind that is not known")?;
     let bytes = bits >> 3;
-    // As the original (0x404C55): every texture given back before the screen changes;
+    // As the original: every texture given back before the screen changes;
     // the game loads again what it needs (a trial's 0x40 more found the pool full).
     crate::platform_3d::release_all_textures(gfx);
     system.session.screen.width.set(width);
@@ -237,7 +234,7 @@ fn set_screen_mode(mode: u32, gfx: &crate::gfx::owner::Gfx) -> Result<(), String
     };
     // Black at once, as a mode change leaves the screen: until the first frame is
     // shown the resized window would show what the window system puts there (white
-    // under Wine, a frame's flash before the loading picture: owner, 2026-10-19).
+    // under Wine, a frame's flash before the loading picture).
     renderer.clear_black();
     renderer.present();
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
@@ -301,7 +298,7 @@ pub fn set_menu_mode_now() -> bool {
 // ---- gfx::lock_surface (0x4058AD), gfx::unlock_surface (0x405949) ----
 
 /// `gfx::lock_surface`: the surface locked for drawing (unless quitting or there is no
-/// screen); `g_surfaceLocked` after it (1: locked).
+/// screen); the locked flag is 1 after it.
 pub fn lock_surface() -> u32 {
     let system = system();
     let gfx = gfx();
@@ -310,7 +307,7 @@ pub fn lock_surface() -> u32 {
     let have = SCREEN.lock().is_ok_and(|screen| screen.is_some());
     if !quitting() && have {
         gfx.locked.surface.set(1);
-        // 0x405726: the surface the blitters draw on, and the clip rectangle.
+        // The surface the blitters draw on, and the clip rectangle.
         let s = &gfx.drawing.draw_surface;
         let (row_bytes, pitch): (u32, u32) = (
             system.session.screen.row_bytes.get(),
@@ -332,8 +329,8 @@ pub fn lock_surface() -> u32 {
     gfx.locked.surface.get()
 }
 
-/// `gfx::unlock_surface`: the surface unlocked if it was locked; `g_surfaceLocked` before
-/// it (1: it was).
+/// `gfx::unlock_surface`: the surface unlocked if it was locked; the locked flag before it
+/// (1: it was) is returned.
 pub fn unlock_surface() -> u32 {
     let gfx_locked = &gfx().locked;
     let locked: u32 = gfx_locked.surface.get();
@@ -556,8 +553,7 @@ pub fn pump_messages_now() {
     crate::platform_events::pump();
 }
 
-/// `screens::run_frame` for Rust callers with a frame of their own (the screen loops,
-/// 2026-10-24): the messages, then the frame unless quitting (None then).
+/// `screens::run_frame` for Rust callers with a frame of their own (the screen loops): the messages, then the frame unless quitting (None then).
 pub fn run_frame_now<T>(frame: impl FnOnce() -> T) -> Option<T> {
     crate::platform_events::pump();
     if quitting() { None } else { Some(frame()) }

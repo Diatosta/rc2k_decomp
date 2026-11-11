@@ -1,4 +1,4 @@
-//! `race::load_stage`'s "race init" (`drive::race_init`, IDA 2026-10-17): after the best line,
+//! `race::load_stage`'s "race init" (`drive::race_init`): after the best line,
 //! the camera's start (`race::start_cars`), the face lights, the cars (`race::set_up_cars`), each
 //! car's race state, the race slots, the cars' starts and randoms, then fifty settling steps
 //! (`drive::race_cars_step`, `drive::share_all_cars`, the marks) and `race::grade_all_cars`. Here
@@ -8,6 +8,7 @@ use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
+use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
 use crate::race::trap::car_at;
@@ -48,7 +49,7 @@ pub fn clear_race_slots(shared: &RaceShared) {
     }
 }
 
-/// `race::reset_car_starts` (0x444BBC): each car block's +0x14 and +8 0 (0x320 while `dword_71C3E0`
+/// `race::reset_car_starts` (0x444BBC): each car block's +0x14 and +8 0 (0x320 while `in_credits`
 /// is set), +0x18 and +0x1C 0.
 pub fn reset_car_starts(shared: &RaceShared) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::cars::start_value`.
@@ -95,7 +96,7 @@ pub fn reset_car_race_state(race: &Race) -> Result<(), BadInput> {
             state_cell(car_at(b)?, off)?.set(v);
         }
     }
-    // dword_6D1838, a64, dword_6D1844, a32: four dwords of spaces.
+    // `label_behind`, a64, `label_ahead`, a32: four dwords of spaces.
     for cell in [
         &frame.panel_and_overlay.overlay.label_behind[0],
         &frame.panel_and_overlay.overlay.label_behind[1],
@@ -104,7 +105,7 @@ pub fn reset_car_race_state(race: &Race) -> Result<(), BadInput> {
     ] {
         cell.set(BLANK_TEXT);
     }
-    // dword_6D1850, a64_0, dword_6D185C, a32_0: four dwords of -1.
+    // `kept_behind`, a64_0, `kept_ahead`, a32_0: four dwords of -1.
     for cell in [
         &frame.panel_and_overlay.overlay.kept_behind[0],
         &frame.panel_and_overlay.overlay.kept_behind[1],
@@ -120,18 +121,15 @@ pub fn reset_car_race_state(race: &Race) -> Result<(), BadInput> {
 /// 0, looked for up to `g_lastCheckpoint` (not included); 0 for none or with `g_checkpointCount` -
 /// 2 negative. Refuses a look that would run past the list (the original runs on until it finds
 /// one: `g_lastCheckpoint` 0 or 1).
-pub fn first_check_checkpoint(shared: &RaceShared) -> Result<u32, Refused> {
+pub fn first_check_checkpoint(course: &Course, shared: &RaceShared) -> Result<u32, Refused> {
     // Converted: `rc2k_core::race::checkpoints::first_check_checkpoint`.
     let count: u32 = shared.vars.checkpoint_count.get();
     let last = || shared.vars.last_checkpoint.get();
     let trap = Trap::new();
     let look = rc2k_core::race::checkpoints::first_check_checkpoint(count, last, |n| {
         let face: u32 = crate::race::checkpoints_store::face(n as usize).get();
-        trap.keep_read(crate::race::course_places::face_number(
-            face,
-            "a checkpoint face",
-        ))
-        .check()
+        trap.keep_read(crate::race::course_places::face_number(course, face))
+            .check()
     })?;
     trap.finish()?;
     Ok(look.and_then(|l| l.found).unwrap_or(0))

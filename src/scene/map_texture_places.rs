@@ -11,8 +11,6 @@ use crate::scene::textures::with_cells;
 
 // ---- Rust version ----
 
-/// What the original leaves in eax, ecx and edi no caller reads (register liveness,
-/// 2026-10-23: its five call sites).
 pub fn map_texture_places(scene: &crate::scene::owner::Scene) {
     let textures = &scene.textures;
     // Converted: `rc2k_core::scene::textures::map_places`.

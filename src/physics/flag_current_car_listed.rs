@@ -1,5 +1,5 @@
 //! `physics::flag_current_car_listed` (0x45D151): `dword_51659C` 1 when the current car's entry in
-//! `dword_641680` is not -1. See `physics/listed_car_flags.rs` (the core, the test).
+//! `listed_car_sounds` is not -1. See `physics/listed_car_flags.rs` (the core, the test).
 //!
 //! Returns: the entry
 //!

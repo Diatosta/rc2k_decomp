@@ -1,10 +1,10 @@
-//! `drive::share_car_state` (0x45699C): one car's state from its block (esi, 0xFE0 bytes)
-//! into its record (edi, `off_71B3D8[n]`, read by the drawing and the sounds) and back:
+//! `drive::share_car_state` (0x45699C): one car's state from its block (0xFE0 bytes)
+//! into its record (`car_records[n]`, read by the drawing and the sounds) and back:
 //! - a count at +0xFAC: when not 0, record +0x30 = 1 and the count less 1;
-//! - record +0x2C = the sound object's (ebp) +0xF0, which is cleared (`xchg`);
+//! - record +0x2C = the sound object's +0xF0, which is cleared (`xchg`);
 //! - two levels (record +0x4C0, +0x4C4) from block +0x2B4, +0x2B8: 0 below
-//!   `flt_63DB5C`, else (x - it) / `flt_5C5D44` `fistp`'d (through `dword_62400C`) held to
-//!   0 .. 7 (the sign of the difference);
+//!   `level_from`, else (x - it) / `four` rounded, held to 0 .. 7 (the sign of the
+//!   difference);
 //! - the car file's light record (`g_lightRecords`, 0x134 each, by
 //!   `race::car_file_number` of block +0x24) +0x2C .. +0x38 into record +0xC .. +0x18;
 //! - the block named at record +0x24 and +0x28 (the original wrote the addresses of
@@ -19,12 +19,13 @@
 //!
 //! Takes: the block, the record, the sound object
 //!
-//! Caller: `drive::share_all_cars` (0x456484), for each of the eight cars, inside `pusha` / `popa`.
+//! Caller: `drive::share_all_cars`, for each of the eight cars.
 //! Refuses (before anything) a car file number above 0x21 (past `g_lightRecords`).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::math::x87_run::{compare_full, sub_div_to_int};
+use crate::math::x87::compare_full;
+use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
 use crate::pointers::GamePtr;
 use crate::race::effects_settings_store::CarEffects;
@@ -155,7 +156,7 @@ pub fn share_car_state_at(
     for (level, field) in o.levels.iter().zip([0x2B4, 0x2B8]) {
         level.set(0);
         if compare_full(at(car, field)?, from) & 0x100 == 0 {
-            let v = sub_div_to_int(at(car, field)?, from, step);
+            let v = bh::to_int((bh::ld(at(car, field)?) - bh::ld(from)) / bh::ld(step));
             scratch.set(v as u32);
             level.set(sharing::level(v));
         }
@@ -168,8 +169,7 @@ pub fn share_car_state_at(
     o.set_block(crate::race::blocks_store::handle_of(
         GamePtr::to(car).addr(),
     ));
-    o.engine_speed
-        .set_bits(x87::loaded(car.engine_speed.bits()));
+    o.engine_speed.set_bits(x87::loaded(&car.engine_speed));
     o.model.set(n);
     for (r, b) in MOVES_A {
         r(o).set_bits(b(car).bits());
@@ -240,7 +240,7 @@ pub fn share_car_state_at(
     Ok(())
 }
 
-/// The Rust version: the car block `block`, its record `record`, its sound object `sound`.
+/// The car block `block`, its record `record`, its sound object `sound`.
 pub fn share_car_state(
     race: &Race,
     block: &'static Car,

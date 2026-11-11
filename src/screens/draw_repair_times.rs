@@ -1,5 +1,5 @@
 //! `screens::draw_repair_times` (0x4A70D7): draws sixteen values of the service area as
-//! clocks, in two columns of eight: `dword_75AB60[0 .. 16]`, left column first in each row.
+//! clocks, in two columns of eight: the repair times, left column first in each row.
 //!
 //! Rows are at y = 110 .. 284 in steps of 29, and a last one at 452; columns at x = 106 and
 //! 441.

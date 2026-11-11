@@ -1,12 +1,11 @@
-//! `physics::count_down_start` (0x436AFB): the start's count-down. Unless `g_car` +0xA8
-//! (`unk_71A080`) is set, and once the timer +0x14 less 0x320 is not below 0 (by its
-//! sign): the count +0x8C (`unk_71A064`), when not 0, goes down by one; at whole
-//! hundreds of 8 or less (`div` by 100, ebx 100) `physics::set_flag_5165a0` (the
-//! stage sound `once[1]` = `dword_5165A0`: `sound::stage_sounds` plays sound 0x1AC once and clears
-//! it, a beep each whole second of the last eight). +0x8C is the car's `time_left`, in hundredths
-//! of a second (the arcade race's clock: `race::panel_neighbours` shows it x 10).
+//! `physics::count_down_start` (0x436AFB): the start's count-down. Unless the car's `finish_flag`
+//! is set, and once `run_ticks` less 0x320 is not below 0 (by its sign): the count `time_left`,
+//! when not 0, goes down by one; at whole hundreds of 8 or less `physics::set_flag_5165a0`
+//! sets the stage sound flag (`sound::stage_sounds` plays sound 0x1AC once and clears it: a beep
+//! each whole second of the last eight). `time_left` is in hundredths of a second (the arcade
+//! race's clock: `race::panel_neighbours` shows it times 10).
 //!
-//! Caller: `physics::race_timers` (0x4367D4). Refuses what `set_flag_5165a0` refuses.
+//! Caller: `physics::race_timers`. Refuses what `set_flag_5165a0` refuses.
 
 use crate::errors::Refused;
 use crate::physics::listed_car_flags::set_flag;

@@ -1,6 +1,6 @@
-//! `net::choose_car` (0x4182FA): the lobby's car item: `dword_75598C` 0, the car screen
+//! `net::choose_car` (0x4182FA): the lobby's car item: the current player 0, the car screen
 //! (`menu::select_car_loop` on `net::car_list`'s list, from player 1's car, the Escape flag
-//! `dword_755A3C` 0 first); unless it was left with Escape, the car taken
+//! `escape_pressed` 0 first); unless it was left with Escape, the car taken
 //! (`menu::take_shown_car`) and this player's record given it (+1 the car, +2 its colours);
 //! then the background again (`net::show_background`).
 //!

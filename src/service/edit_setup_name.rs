@@ -7,9 +7,9 @@
 //! one from before; the entry ends, the name is cut at its length and `write_setup_slot` saves the
 //! slot (whether that worked is not looked at); 0x6E the name is cleared; 0x0E the last character
 //! goes (`backspace_setup_name`); any other `key_to_char`; a character is appended unless the
-//! length is already above the maximum (`dword_755571`), and taken off again if the name then
+//! length is already above the maximum (`text_max`), and taken off again if the name then
 //! measures 0xEC pixels or more in the font at 0x51E824. Called from the screen loop
-//! `menu::save_setup_loop` while `dword_7556A8` is 1. Refuses, before the key is taken: a slot past
+//! `menu::save_setup_loop` while `typing` is 1. Refuses, before the key is taken: a slot past
 //! 99, a length outside 0 .. 0x1F, no car object, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
@@ -99,7 +99,7 @@ pub fn edit_setup_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Ref
             if entry::appends(c, len, screens.loop_flags.text_max.get() as i32) {
                 put_char(name, len, c)?;
                 set_length(menus, len.wrapping_add(1));
-                // x is whatever ecx held: the length before this character.
+                // x is the length before this character.
                 let measured = measure_text_at(
                     MEASURING_FONT,
                     &name.game_ptr().bytes("a setup's name")?,

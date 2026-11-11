@@ -9,9 +9,8 @@
 use crate::gfx::owner::gfx;
 use crate::race::owner::Race;
 
-/// The back surface locked; its pixels and `dword_4F4984` kept for the drawing. Returns
-/// `g_surfaceLocked` after the lock (the original leaves the flags of comparing it with
-/// 1: carry when not locked, the frame lost) and `dword_4F4984` (left in eax).
+/// The back surface locked; its pixels and a second value kept for the drawing. Returns the
+/// locked flag after the lock (1 when locked; otherwise the frame is lost) and that value.
 pub fn lock_frame(race: &Race) -> (u32, u32) {
     let drawing = &gfx().drawing;
     let locked = crate::platform::lock_surface();

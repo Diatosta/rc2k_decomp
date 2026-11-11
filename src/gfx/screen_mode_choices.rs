@@ -1,29 +1,29 @@
 //! `gfx::screen_mode_choices` (0x4045D6): the graphics options' screen mode choices, the
-//! record at `unk_4F50C0` (`gfx::choices_store`: made, the video card (0 primary, 1
+//! record `gfx::choices_store` (`made`: made, the video card (0 primary, 1
 //! secondary), the resolution (a place in the list), the buffering (0 double, 1 triple),
 //! mipmapping, the two cards present, the list made, the mipmapping's limit, the list's
 //! length, the list: 16 bytes a resolution, its width, height, pixel kind's figure and
 //! the mode). The card is the mode's bit `display.modes.kind_bits` (0x1000: the secondary).
 //!
-//! - Made and eax not 0: the mode chosen (0x300000 with `dword_4F4E30[+4]`, the list's
-//!   mode at +8 and `dword_4F4E38[+0xC]`) tried (`gfx::try_screen_mode`); if it works and
-//!   +0x10 is not above `dword_5AB9A4` it is kept (`gfx::keep_race_screen_mode`); either
+//! - Made and the choice to be tried: the mode chosen (0x300000 with `kind_bits[+4]`, the
+//!   list's mode at +8 and `third_bits[+0xC]`) tried (`gfx::try_screen_mode`); if it works and
+//!   +0x10 is not above the texture figure (`cards.mips`) it is kept (`gfx::keep_race_screen_mode`); either
 //!   way the menus' mode set again (`gfx::set_menu_screen_mode`); carry if it did not work.
 //! - Not made: the card from `g_raceScreenMode` (0x1000 or not), the cards present, then
-//!   as made with eax 0, from `g_raceScreenMode`.
-//! - Made and eax 0 (or not made): the list made again from the mode table's modes of the
+//!   as made without a choice to try, from `g_raceScreenMode`.
+//! - Made and no choice to try (or not made): the list made again from the mode table's modes of the
 //!   pixel kind (`system::find_entry_with_bits`, `system::next_entry`), each with its size
 //!   (`g_screenSizes`) and pixel kind's figure (`g_pixelKinds`) by `system::find_entry`
 //!   (a key not there: the place past the table, as the original reads it); +8 the mode's
 //!   place in the list by its low 12 bits (else the first whose width is not below the
 //!   mode's: the original's search keeps 0, its bound never moves); then +8 and +0xC from
 //!   `g_raceScreenMode` (its low 12 bits in the list, else both 0; +0xC from
-//!   `dword_4F4E90` by its fourth nibble, less 1, not below 0); +0x10 masked by +0x20;
+//!   `modes.kinds` by its fourth nibble, less 1, not below 0); +0x10 masked by +0x20;
 //!   made.
 //!
-//! Callers: `gfx::choose_screen_modes` (0x4045CA) and the graphics options' actions
-//! (0x470017, `menu::apply_screen_mode`). Refuses (before anything is written) a list longer than
-//! the record's room (16 modes: the original would write over 0x4F51F0's constants) and a size's
+//! Callers: `gfx::choose_screen_modes` and the graphics options' actions
+//! (`menu::apply_screen_mode`). Refuses (before anything is written) a list longer than
+//! the record's room (16 modes: the original would write over the constants after the record) and a size's
 //! place of 0x1000 or more when made (the original reads that far past the list).
 
 use crate::d3d::owner::d3d;
@@ -90,7 +90,7 @@ fn modes_of(display: &Display, kind: u32) -> Option<Vec<GamePtr>> {
     Some(modes)
 }
 
-/// With `try_choice` (eax not 0) the choice tried, else the list made
+/// With `try_choice` (true) the choice tried, else the list made
 /// again; the flags it leaves (see the header).
 pub fn screen_mode_choices(display: &Display, try_choice: bool) -> Result<CarryZeroFlags, Refused> {
     // Converted: `rc2k_core::gfx::mode_choices`.
@@ -122,7 +122,7 @@ pub fn screen_mode_choices(display: &Display, try_choice: bool) -> Result<CarryZ
         return Err(BadInput("more screen modes than the choices' list holds").into());
     }
     if made {
-        // ebp: the list's mode at the place chosen (read before eax is looked at).
+        // The list's mode at the place chosen (read before the choice flag is looked at).
         if display.choices.resolution.get() >= mc::PLACE_LIMIT {
             return Err(BadInput("a size's place far past the choices' list").into());
         }
@@ -151,7 +151,7 @@ pub fn screen_mode_choices(display: &Display, try_choice: bool) -> Result<CarryZ
             if !worked {
                 return failed();
             }
-            // The eax the three calls leave: the mode (they keep it).
+            // The mode the three calls leave (they keep it).
             return Ok(CarryZeroFlags {
                 carry: false,
                 zero: mode == 0,
@@ -168,7 +168,7 @@ pub fn screen_mode_choices(display: &Display, try_choice: bool) -> Result<CarryZ
     rebuild(display, display.mode.race_mode.get(), modes)
 }
 
-/// The list made again (`loc_40468A` on), `current` the mode kept in ebp.
+/// The list made again, `current` the mode kept.
 fn rebuild(
     display: &Display,
     current: u32,

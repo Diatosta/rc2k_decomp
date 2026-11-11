@@ -1,4 +1,4 @@
-//! `make_masks`' second picture (IDA, 2026-10-17): for each pixel of a shape's rows, its
+//! `make_masks`' second picture (IDA): for each pixel of a shape's rows, its
 //! place against the line pair at 0x82E3DA (two lines: 0x82E3DA -> 0x82E3E6 and 0x82E3F2
 //! -> 0x82E3FE) worked out, shaken by the marks' seed, and kept as four bytes in a table
 //! of 0x400 a row (`dword_8445D2`).
@@ -287,8 +287,8 @@ pub fn map_shapes(
         write_bits(
             &masks.vars.middle,
             [
-                x87::loaded(shapes.middle[0].bits()),
-                x87::loaded(shapes.middle[1].bits()),
+                x87::loaded(&shapes.middle[0]),
+                x87::loaded(&shapes.middle[1]),
             ],
         );
         for k in 0..count as u32 {

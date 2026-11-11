@@ -1,11 +1,11 @@
 //! The stage's loading: its number in the file names, the cars' numbers from the cars'
 //! data text, the stages tweaked, and the course's records grouped by kind (converted
-//! 2026-10-21 from `race::set_cdat_number` 0x4456DD, `set_course_number` 0x43944F,
+//! from `race::set_cdat_number` 0x4456DD, `set_course_number` 0x43944F,
 //! `parse_2_digits` 0x437A25, `parse_3_digits` 0x4379EB, `read_stage_car_numbers`
 //! 0x437971, `tweak_stage` 0x439AAB and `group_records_by_kind` 0x421E42; the texture
-//! swap converted 2026-10-21 from `race::swap_stage_texture` 0x439B03; the difficulty
-//! converted 2026-10-21 from `race::set_car_times` 0x4377D0; the textures' records
-//! converted 2026-10-21 from `race::build_texture_infos` 0x4393A0).
+//! swap Converted from `race::swap_stage_texture` 0x439B03; the difficulty
+//! Converted from `race::set_car_times` 0x4377D0; the textures' records
+//! Converted from `race::build_texture_infos` 0x4393A0).
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;
@@ -38,9 +38,9 @@ pub const MOST_NUMBERS: usize = 0x100;
 pub struct CarNumbers {
     /// The stage's numbers (`g_stageCarNumbers`; their sum is `g_stageCarTotal`).
     pub numbers: Vec<u32>,
-    /// The place reached (ecx).
+    /// The place reached.
     pub place: u32,
-    /// The last number parsed, 0 for a failed one (eax); None when none was.
+    /// The last number parsed, 0 for a failed one; None when none was.
     pub last: Option<u32>,
 }
 
@@ -104,7 +104,7 @@ pub fn stage_car_numbers<B: Bytes + ?Sized>(
     })
 }
 
-/// The stages `race::tweak_stage` tweaks (three dwords from `dword_60A564` 0xFF).
+/// The stages `race::tweak_stage` tweaks (three dwords from `car_light_table` 0xFF).
 pub const TWEAKED_STAGES: [u32; 3] = [0x15, 0x3E, 0x36];
 
 /// `race::tweak_stage`: whether the stage is tweaked.
@@ -121,7 +121,7 @@ pub const TEXTURE_SWAPS: [([u32; 3], u32, u32); 4] = [
 ];
 /// The texture kinds searched (`g_textureKinds`).
 pub const SWAP_KINDS: u32 = 0xFF;
-/// The places of the swapped list (`dword_60A67C`).
+/// The places of the swapped list (`picture_lists_b`).
 pub const SWAPPED_PLACES: u32 = 0x40;
 
 /// How `swap_texture` ended.

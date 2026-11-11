@@ -1,6 +1,6 @@
 //! `net::settings_loop` (0x4168CF): the network settings screen (its menu's action 0x4AAADB):
-//! `dword_52A908` 0, the background (`net::show_background`), the saved connection checked
-//! (`net::settings_done`); the list's clocks from `dword_518998`, no editing, item 0. Each
+//! `mode` 0, the background (`net::show_background`), the saved connection checked
+//! (`net::settings_done`); the list's clocks from `clocks.key_ticks`, no editing, item 0. Each
 //! frame (`net::settings_frame` through `screens::run_frame`): the frame clock noted, a key
 //! (`menu::list_take_key`); while a setting is edited the key goes to it
 //! (`net::setting_key`); else up (0x66) and down (0x6B) move the highlight within 0 .. 4

@@ -1,4 +1,4 @@
-//! `race::undo_edit` (0x41E46B): the viewer's undo: with something kept (`dword_9673F4` not 0) the
+//! `race::undo_edit` (0x41E46B): the viewer's undo: with something kept (`undo_blocks` not 0) the
 //! block count, the places and the cameras back from the undo tables (`race::keep_undo`'s), the
 //! undo emptied and the marks reset (`race::reset_marks`).
 //!

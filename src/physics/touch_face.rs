@@ -1,10 +1,10 @@
-//! `physics::touch_face` (0x45E9E0): the course face touched (`dword_6D3218`, in
+//! `physics::touch_face` (0x45E9E0): the course face touched (`face_number`, in
 //! `g_courseFaces`, 0x40 bytes each) marked and listed. A face whose byte +0x11 is not 0,
 //! or a full list (`g_litFaceCount` at 0x100), is left alone. Else its number goes into
-//! `g_litFaces[count]` and by the contact kind `dword_6D3624`:
-//! - 9 and 1, unless `unk_71A19C` is below `flt_5C5D50` (or unordered; then nothing more),
-//!   and 2, 3, 8: bytes +9 = 0, +0x11 = 1, +0x13 = 0, +0x12 = `dword_6D3B70`'s low byte;
-//! - 4: +0x11 = `dword_6D3B74` >> 14 held to 0x40, +0x13 = 0, +0x12 as above;
+//! `g_litFaces[count]` and by the contact kind `contact_kind`:
+//! - 9 and 1, unless `speed` is below `eight` (or unordered; then nothing more),
+//!   and 2, 3, 8: bytes +9 = 0, +0x11 = 1, +0x13 = 0, +0x12 = `face_angle`'s low byte;
+//! - 4: +0x11 = `face_speed` >> 14 held to 0x40, +0x13 = 0, +0x12 as above;
 //! - 0xFF: one in about 85 (`math::next_random` & 0xFF below 3) +0x11 = 0xF, counted, no
 //!   sound; else nothing more;
 //! - the rest (10, 5, 6, 7, ...): nothing to the face.
@@ -16,6 +16,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
+use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
 
 use crate::math::next_random::next_random;
@@ -23,10 +24,16 @@ use crate::physics::flow::{c0, p};
 use crate::physics::place_sound_object::place_sound_object;
 use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
 
-/// The usual marks: +9 = 0, +0x11 = `mark`, +0x13 = 0, +0x12 `dword_6D3B70`'s low byte.
-fn mark(physics: &Physics, face: u32, mark: u32, clear_9: bool) -> Result<(), BadInput> {
+/// The usual marks: +9 = 0, +0x11 = `mark`, +0x13 = 0, +0x12 `face_angle`'s low byte.
+fn mark(
+    course: &Course,
+    physics: &Physics,
+    face: u32,
+    mark: u32,
+    clear_9: bool,
+) -> Result<(), BadInput> {
     let angle = physics.contact.face_angle.get() as u8;
-    crate::race::course_places::update_face_number(face, "a touched face", |f| {
+    crate::race::course_places::update_face_number(course, face, |f| {
         f.touch(mark as u8, angle, clear_9);
     })
 }
@@ -36,7 +43,7 @@ pub fn touch_face(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(),
     let race_owner = race;
     let number = race_owner.physics.contact.face_number.get();
     let face = number;
-    if crate::race::course_places::face_number(face, "a touched face")?.mark() != 0 {
+    if crate::race::course_places::face_number(&race.course, face)?.mark() != 0 {
         return Ok(());
     }
     let count = race_owner.physics.contact.lit_face_count.get();
@@ -60,10 +67,11 @@ pub fn touch_face(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(),
                 ) {
                     return Ok(());
                 }
-                mark(&race.physics, face, 1, true)?;
+                mark(&race.course, &race.physics, face, 1, true)?;
             }
-            Touch::Mark => mark(&race.physics, face, 1, true)?,
+            Touch::Mark => mark(&race.course, &race.physics, face, 1, true)?,
             Touch::Fall => mark(
+                &race.course,
                 &race.physics,
                 face,
                 fall_mark(race_owner.physics.contact.face_speed.get()),
@@ -72,7 +80,7 @@ pub fn touch_face(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(),
             Touch::Chance => {
                 let (_, lucky) = lucky(next_random());
                 if lucky {
-                    crate::race::course_places::update_face_number(face, "a touched face", |f| {
+                    crate::race::course_places::update_face_number(&race.course, face, |f| {
                         f.set_mark(0xF);
                     })?;
                     race_owner.physics.contact.lit_face_count.set(count + 1);

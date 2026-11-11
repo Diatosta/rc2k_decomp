@@ -1,6 +1,6 @@
 //! `strings::maybe_compile_lexicon` (0x403555): the string table made again from the language
-//! file (`strings::compile_lexicon`) when `dword_4E0758` (signed) is 1 or more and
-//! `byte_4F6B2A` (the state of key 0x4E, the numpad plus in DirectInput's codes: the table
+//! file (`strings::compile_lexicon`) when `RECOMPILE_LEVEL` (signed) is 1 or more and
+//! key 0x4E is down (the numpad plus in DirectInput's codes; the numpad plus in DirectInput's codes: the table
 //! `input`'s `keys_down`) is not 0: a developer's way to see a changed language file at once
 //! (the level is a `var\ral.cfg` setting, 0 unless set).
 //!
@@ -12,14 +12,13 @@ use crate::errors::Refused;
 use crate::input::owner::input;
 use crate::strings::compile_lexicon::compile_lexicon;
 
-/// 1 or more (signed) to recompile on the key: a `var\\ral.cfg` setting, out of the image
-/// since 2026-10-24 (phase 5; it was `dword_4E0758`, 0 there; set through
-/// `crate::moved::place`).
+/// 1 or more (signed) to recompile on the key: a `var\\ral.cfg` setting
+/// (`dword_4E0758` in IDA, 0 unless set; set through `crate::moved::place`).
 pub static RECOMPILE_LEVEL: crate::session::Dword = crate::session::Dword::new(0);
 
 pub fn maybe_compile_lexicon() -> Result<(), Refused> {
     let level = RECOMPILE_LEVEL.get();
-    // byte_4F6B2A: `input`'s key states (key 0x4E).
+    // `input`'s key states (key 0x4E).
     let key = input().devices.keys_down.get(0x4E);
     // Converted: `rc2k_core::strings::lexicon::recompile_wanted`.
     if rc2k_core::strings::lexicon::recompile_wanted(level, key) {

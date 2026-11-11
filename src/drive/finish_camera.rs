@@ -1,6 +1,6 @@
 //! `drive::finish_camera` (0x45941D): the finish routine's camera from the eased time
-//! (`flt_64BB68`) and the share (`flt_64BB6C`): `dword_606748`, `606730`, `606734`, `606744` (each
-//! a line in them, `flt_64BB4C` .. `flt_64BB7C`), `dword_60672C` 0.
+//! (`eased`) and the share (`share`): `dword_606748`, `606730`, `606734`, `606744` (each
+//! a line in them, `camera_yaw_rate` .. `camera_height_per_share`), `dword_60672C` 0.
 //!
 //! Caller: `drive::finish_run`.
 

@@ -1,32 +1,28 @@
-//! `physics::wall_contacts` (0x45D7B6): the probe points (`unk_71A238` of them) against
-//! walls. For each point k, its face now (`unk_71ADC8[k]`, into `dword_6D3174`) and before
-//! (`dword_6D2814[k]`, into `dword_6D3170` when they differ): their words +2 or-ed
+//! `physics::wall_contacts` (0x45D7B6): the probe points (`probe_count` of them) against
+//! walls. For each point k, its face now (`probe_point_face`[k]`, into `wall_face_now`) and before
+//! (`probe_saved_faces`[k]`, into `wall_face_before` when they differ): their words +2 or-ed
 //! together; when they differ and the pair's has both 0x400 and 0x800, the wall met:
-//! `dword_6D3214` = k, the point's three floats from `unk_71AAC8[k]` .. into
-//! `unk_71A1FC` .., `physics::wall_edge_contact`, `unk_71A208` raised to |`flt_6D3108`|,
-//! `unk_71A20C` = 1, `unk_71A1CC` = 0x32, `physics::restore_saved_car`,
-//! `physics::feel_ground`. None met: `dword_6D3174` = `dword_6D3170`, the faces' words
-//! or-ed & 0xC00 into `dword_6D3038`; at 0xC00, the car-frame speed (`unk_71A17C` ..)
-//! into `unk_71A1FC` .., `physics::wall_push_back`, the same two words,
+//! `probe_index` = k, the point's three floats from `probe_point_x`[k]` .. into
+//! `contact_point` .., `physics::wall_edge_contact`, `contact_depth` raised to |`contact_speed_length`|,
+//! `contact_flag` = 1, `wall_hit_timer` = 0x32, `physics::restore_saved_car`,
+//! `physics::feel_ground`. None met: `wall_face_now` = `wall_face_before`, the faces' words
+//! or-ed & 0xC00 into `wall_bits`; at 0xC00, the car-frame speed (`local_velocity` ..)
+//! into `contact_point` .., `physics::wall_push_back`, the same two words,
 //! `restore_saved_car`, `feel_ground`.
 //!
 //! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`. Refuses
 //! (before anything) a count of 0 or past 0x40 (the original's loop runs on, or past the tables),
 //! and what its calls refuse (what was written put back).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
+use crate::race::owner_course::Course;
 use rc2k_core::physics::walls;
 
-fn word(face: u32) -> Result<u32, Refused> {
+fn word(course: &Course, face: u32) -> Result<u32, Refused> {
     Ok(u32::from(crate::race::course_places::face_field::<u16>(
-        face,
-        2,
-        "a face's flags",
+        course, face, 2,
     )?))
 }
 
@@ -51,11 +47,11 @@ pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
         let k = k as usize;
         let now = race.shared.car.probe_point_face[k].get();
         physics_store.contact.wall_face_now.set(now);
-        let now_word = word(now)?;
+        let now_word = word(&race.course, now)?;
         let before = physics_store.contact.probe_saved_faces[k].get();
         let before_word = if now != before {
             physics_store.contact.wall_face_before.set(before);
-            Some(word(before)?)
+            Some(word(&race.course, before)?)
         } else {
             None
         };

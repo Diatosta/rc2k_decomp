@@ -1,6 +1,6 @@
-//! `net::race_over` (0x41732E): this player's race done: `dword_52AD78` and `dword_52AD7C` 0,
-//! the race's time (eax) to the record (+8) and added to its total (+0xC), its state
-//! "raced" (bits 0 and 1 off, bit 2 on), "after a race" (`dword_52AD80` 1), and the players
+//! `net::race_over` (0x41732E): this player's race done: `all_raced` and `race_over` 0,
+//! the race's time to the record (+8) and added to its total (+0xC), its state
+//! "raced" (bits 0 and 1 off, bit 2 on), "after a race" (`after_race` 1), and the players
 //! listed (`net::list_players_regs`: the record sent).
 //!
 //! Takes `time`.

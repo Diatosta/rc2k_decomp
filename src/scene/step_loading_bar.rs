@@ -2,9 +2,9 @@
 //!
 //! Takes: how many of the system textures are done
 //!
-//! Unless there are no system textures (`dword_5DC974`): the progress `dword_623700` = the low
-//! end `dword_623634` plus eax times (the high end `dword_623638` less the low) over the
-//! textures' number, plus 1. Then the function `dword_623704` names is called (the front end's
+//! Unless there are no system textures (the system textures total): the progress = the low
+//! end plus the done count times (the high end less the low) over the
+//! textures' number, plus 1. Then the loading bar's function is called (the front end's
 //! set-up puts `race::loading_bar_frame` there, which draws). One caller,
 //! `scene::reload_system_textures`. Refuses no function to call.
 
@@ -33,10 +33,8 @@ fn progress(shared: &RaceShared, done: u32) -> Option<u32> {
     ends(shared).progress(done, textures)
 }
 
-/// The Rust version: `done` of the system textures are done. The function
-/// `dword_623704` names is one of the two the loading puts there: `race::loading_bar_frame`
-/// (0x4467C7) or the empty function after it (0x4467C6); they read no register, so none of
-/// the original's (ebp the span, eax / edx / ebx the progress, esi the function) is passed.
+/// `done` of the system textures are done. The loading bar's function is one of the two the
+/// loading puts there: `race::loading_bar_frame` or the empty function after it.
 pub fn step_loading_bar(race: &Race, done: u32) -> Result<(), Refused> {
     let shared = &race.shared;
     let show: u32 = shared.vars.bar_function.get();

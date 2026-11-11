@@ -19,8 +19,12 @@ use crate::math::x87;
 const MOST_SPLINES: i32 = 8;
 
 /// The made counter's step (see the header).
-fn step_made(paths: &Paths, half: u32) -> Result<(), Refused> {
-    let marks = crate::effects::setup::effects_settings()?;
+fn step_made(
+    effects: &crate::effects::owner::Effects,
+    paths: &Paths,
+    half: u32,
+) -> Result<(), Refused> {
+    let marks = effects.settings()?;
     {
         let mut m = paths.spline_head.made.get() as i32;
         let h = half as i32;
@@ -72,7 +76,7 @@ pub fn run_splines(paths: &Paths, effects: &crate::effects::owner::Effects) -> R
         return Err(BadInput("more than 8 splines").into());
     }
     {
-        step_made(paths, setup.clock.frame_ticks.get() >> 1)?;
+        step_made(effects, paths, setup.clock.frame_ticks.get() >> 1)?;
         let s = setup.work.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
         setup.work.seed.set(s);
         let k = paths

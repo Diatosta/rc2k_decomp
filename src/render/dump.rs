@@ -115,7 +115,7 @@ pub fn hash_if_asked(noted: &[Command]) {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     static FLUSHES: AtomicU32 = AtomicU32::new(0);
     if !*ON.get_or_init(|| std::env::var_os("RC2K_FAN_HASH").is_some())
-        || crate::race::owner::race().course.numbers.in_race.get() == 0
+        || !crate::race::owner::race().course.numbers.in_race.is_set()
     {
         return;
     }

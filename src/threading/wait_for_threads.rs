@@ -1,6 +1,6 @@
 //! `threading::wait_for_threads` (0x410BA8): the shutdown's wait: the input thread's,
 //! the audio thread's and the network's receiving thread's slots (`g_inputThreadSlot`,
-//! `g_audioThreadSlot`, `stru_518714`) each resumed if suspended (`threading::resume_slot_thread`),
+//! `g_audioThreadSlot`, the net slot) each resumed if suspended (`threading::resume_slot_thread`),
 //! their three handles waited for, all of them, three seconds at most
 //! (`WaitForMultipleObjects`), and closed (`CloseHandle`, the last pushed first). The
 //! handles are the three pushed as `threading::resume_slot_thread`'s arguments, which it leaves on
@@ -10,7 +10,7 @@
 //!
 //! Returns the wait's result.
 //!
-//! One caller, `threading::shutdown_thread`, which calls it directly (2026-10-23).
+//! One caller, `threading::shutdown_thread`, which calls it directly.
 
 use crate::threading::thread_slot::{ThreadSlot, slot_ref};
 

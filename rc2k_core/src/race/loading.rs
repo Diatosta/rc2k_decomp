@@ -1,14 +1,14 @@
-//! The loading bar drawn while a stage loads (converted 2026-10-21 from
+//! The loading bar drawn while a stage loads (Converted from
 //! `race::loading_bar_quad` 0x446861): a red rectangle along the bottom of the screen, as
 //! long as the share loaded, laid out on 800 x 600 and scaled to the screen; and the flat
-//! rectangles' corners (converted 2026-10-21 from `race::draw_screen_quad` 0x44B364);
-//! a frame's way through converted 2026-10-21 from `race::loading_bar_frame` 0x4467C7.
+//! rectangles' corners (converted from `race::draw_screen_quad` 0x44B364);
+//! a frame's way through Converted from `race::loading_bar_frame` 0x4467C7.
 
 /// The bar's colour.
 pub const BAR_COLOUR: u32 = 0xFF_0000;
 
 /// The bar on the screen: its left and right edges, its top and bottom, and the rest of
-/// the right edge's division (the original's edx).
+/// the right edge's division (the division's high half).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Bar {
     pub left: u32,
@@ -51,7 +51,7 @@ pub fn quad_corners(x0: i32, x1: i32, y0: i32, y1: i32) -> [(f32, f32); 4] {
     [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
 }
 
-/// `loading_bar_frame`'s mark (`dword_6365CC`) while the bar is on.
+/// `loading_bar_frame`'s mark (`scene_state`) while the bar is on.
 pub const FRAME_MARK: u32 = 8;
 
 /// A frame is tried with the window active and the surfaces not lost (`dword_518380`

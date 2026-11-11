@@ -1,14 +1,14 @@
-//! `physics::gear_bit` (0x43C5B7): eax = ecx + 1, CF = bit eax of `g_carGearBits`
-//! (0x71A40C, the work copy's +0x434; `bt` on memory, so a bit string). The callers pass
-//! a gear (-1 .. 7, so bits 0 .. 8) and test CF (`jb`/`jnb`): a gear that is barred
-//! (`lost_gear_bits`, read by `physics::change_gear`).
+//! `physics::gear_bit` (0x43C5B7): reports whether gear + 1 is barred: the bit gear + 1 of
+//! `lost_gear_bits` (a bit string in memory). The callers pass a gear (-1 .. 7, so bits 0 .. 8)
+//! and test the result: a barred gear (`lost_gear_bits`, read by `physics::change_gear`).
 //!
 //! Takes: the gear
 //!
-//! Callers (10): the gearbox under `drive::race_step` (0x43C20D, `physics::manual_gearbox` twice,
-//! `physics::lower_free_gear`, `physics::higher_free_gear`, `physics::auto_gearbox` twice,
-//! `physics::pick_start_gear`, `physics::allowed_gear`, unowned code at 0x43C9AE). Refuses a bit
-//! outside 0 ..= 31 (past the dword; the original reads on along the copy).
+//! Callers (10): the gearbox under `drive::race_step` (`physics::change_gear`,
+//! `physics::manual_gearbox` twice, `physics::lower_free_gear`, `physics::higher_free_gear`,
+//! `physics::auto_gearbox` twice, `physics::pick_start_gear`, `physics::allowed_gear`, and
+//! one unowned piece of code). Refuses a bit outside 0 ..= 31 (past the dword; the original
+//! reads on along the car block).
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;

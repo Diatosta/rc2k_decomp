@@ -1,9 +1,9 @@
 //! `net::join_session` (0x418C6D): "NET: Join session" and the session's number logged; with
-//! DirectPlay's object there, session eax's record (`net::session_entry`) kept
-//! (`unk_52AD00`: its GUID, name, most players, user data), a session description
-//! (`dword_5AB2AC`: zeroed, size 0x50, the instance GUID) made and the session joined
-//! (`Open` with DPOPEN_JOIN, or with `g_netPosting` 1 posted: the code at 0x418D77);
-//! "NET: Open" and its result logged, the window restored; then `dword_52ACFC` 1, the player
+//! DirectPlay's object there, the session's record (`net::session_entry`) kept
+//! (`joined`: its GUID, name, most players, user data), a session description
+//! (zeroed, size 0x50, the instance GUID) made and the session joined
+//! (`Open` with DPOPEN_JOIN, or with `posting` 1 posted);
+//! "NET: Open" and its result logged, the window restored; then the session marked made, the player
 //! made (`net::create_player`), the group joined (`net::join_group`), "NET: Join complete".
 //!
 //! Takes `session`. Returns true when joined.

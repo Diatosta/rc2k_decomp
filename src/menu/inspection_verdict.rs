@@ -1,7 +1,7 @@
-//! `menu::inspection_verdict` (0x4A1952): the current player's (`dword_75598C`) inspection
-//! verdict. The penalties (`dword_75AC48` ..) of its inspected parts at or past their
-//! limits whose flag in `dword_759B6E` (index + 2) is 0 added into `dword_7559EC`; 100
-//! less that into `dword_75AC80`; the player's +0xD0 1 when that is at least 100 (no
+//! `menu::inspection_verdict` (0x4A1952): the current player's (`event.current_player`) inspection
+//! verdict. The penalties (the penalties ..) of its inspected parts at or past their
+//! limits whose flag in the service box flags (index + 2) is 0 added into `draw_work.figure`; 100
+//! less that into the inspection score; the player's +0xD0 1 when that is at least 100 (no
 //! penalty), else 2.
 //!
 //! Refuses a current player past 3 or missing, before anything.
@@ -15,7 +15,7 @@ pub fn inspection_verdict(menus: &Menus) -> Result<(), Refused> {
         return Err(BadInput("a current player past 3 or missing").into());
     }
     // Converted: `rc2k_core::menu::inspection::verdict`.
-    let p = player(n);
+    let p = player(menus, n);
 
     let fault = crate::menu::event_flow::Fault::default();
     let v = rc2k_core::menu::inspection::verdict(

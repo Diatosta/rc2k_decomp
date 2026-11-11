@@ -1,4 +1,4 @@
-//! The draw switches, second part (IDA 0x621900 .. 0x621A84; phase 7, typed): the far clip switch, the group table word, the loading group mask, the SSE and 3DNow switches, and a marks source word. `#[repr(C)]` with the image layout over the race block bytes. Names are readings unless IDA's.
+//! The draw switches, second part (IDA 0x621900 .. 0x621A84): the far clip switch, the group table word, the loading group mask, the SSE and 3DNow switches, and a marks source word. `#[repr(C)]` with the image layout over the race block bytes. Names are readings unless IDA's.
 
 use crate::session::Dword;
 
@@ -21,8 +21,10 @@ pub struct DrawSwitches {
     pub use_sse: Dword,
     /// +0x15c (0x621A5C): `g_use3dNow` (`scene::draw_object`).
     pub use_3dnow: Dword,
-    /// +0x160 (0x621A60): eight dwords after `use_3dnow`; the first, `dword_621A60`, is `g_useMmx` (shown by the debug Switches tab, `debug::switches`); the rest are unreferenced.
-    pub unknown_160: [Dword; 8],
+    /// +0x160 (0x621A60): `dword_621A60`, `g_useMmx` (shown by the debug Switches tab, `debug::switches`).
+    pub use_mmx: Dword,
+    /// +0x164 (0x621A64): seven dwords after `use_mmx`, unreferenced.
+    pub unknown_164: [Dword; 7],
     /// +0x180 (0x621A80): `dword_621A80` (`effects::draw_frame`).
     pub marks_source: Dword,
 }

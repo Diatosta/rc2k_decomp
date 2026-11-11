@@ -1,5 +1,4 @@
-//! A buffered file, as the picture readers use it: the block the four stream functions take
-//! in esi (`open_stream`, `close_stream`, `read_stream_byte`, `read_stream_block`; the two
+//! A buffered file, as the picture readers use it: the block the four stream functions take (`open_stream`, `close_stream`, `read_stream_byte`, `read_stream_block`; the two
 //! that write are `files::write_stream_byte` and `files::write_stream_block`).
 
 pub const BUFFER_LEN: usize = 0x2000;
@@ -8,7 +7,7 @@ pub const BUFFER_LEN: usize = 0x2000;
 pub type Stream = rc2k_core::files::io::Stream<u32>;
 
 /// The one stream the picture readers and the screenshot use (the original's at
-/// `g_pcx` + 0x18; Rust's since 2026-10-29, the block there no longer used).
+/// `g_pcx` + 0x18; the block there is unused).
 static STREAM: std::sync::Mutex<Stream> = std::sync::Mutex::new(Stream {
     mode: 0,
     file: u32::MAX,

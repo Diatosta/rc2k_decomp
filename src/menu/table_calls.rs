@@ -23,7 +23,10 @@ pub fn call_key(menus: &Menus, function: ItemFn, item: &MenuItem) -> Result<(), 
     match function {
         // edi the item: its +0x2C, the left link.
         ItemFn::RaiseControllerSensitivity => {
-            crate::menu::controller_items::raise_controller_sensitivity(item.fixed().links[2])
+            crate::menu::controller_items::raise_controller_sensitivity(
+                menus,
+                item.fixed().links[2],
+            )
         }
         f => item_fn(menus, f, &ItemCall::default()),
     }
@@ -59,7 +62,7 @@ pub fn refused(what: &str, e: Refused, r: &Context) {
         }
         Refused::Fatal(error) => {
             log(&format!(
-                "menu::table_calls: {what}: the Rust version raises fatal error {:#x} {:?}",
+                "menu::table_calls: {what}: raises fatal error {:#x} {:?}",
                 error.code, error.message
             ));
             crate::fatal::raise::raise(error, r);

@@ -1,11 +1,10 @@
 //! `net::fill_own_player` (0x4181A3): this machine's player set up for the network game from
-//! player 1 (`g_player1`, 0x755A3C on): its name (`strings::copy_printable`, 0x1F room) to
-//! `byte_52AB70`; its record (`byte_52AD64`): state 0, the car, its colours (+0x30), the
-//! nationality, the stage (`dword_75ACD4`; 0 is made 0x29 with direction 0) and its
-//! direction (`dword_75ACF0`), the race number, a random byte (`math::next_random`), the
-//! time and total 0; and the race's copy of the player's settings (`dword_75AD00` ..
-//! `dword_75AE24`: the co-driver, the race number, the view, the HUD's switches, the
-//! steering), the HUD's bits (`dword_75B00C`) -1, `dword_75B108` 0.
+//! player 1 (`g_player1`): its name (`strings::copy_printable`, 0x1F room) to `player_name`;
+//! its record (`own`): state 0, the car, its colours, the nationality, the stage (0 is made
+//! 0x29 with direction 0) and its direction, the race number, a random byte
+//! (`math::next_random`), the time and total 0; and the race's copy of the player's
+//! settings (the co-driver, the race number, the view, the HUD's switches, the steering),
+//! the HUD's bits -1, and the next field after them 0.
 //!
 //! Takes `name`.
 //! Callers: `net::start_link`, `net::open_lobby`.

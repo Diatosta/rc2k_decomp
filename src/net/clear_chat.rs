@@ -1,4 +1,4 @@
-//! `net::clear_chat` (0x419411): the lobby's chat (`byte_52A508`) made eight empty lines:
+//! `net::clear_chat` (0x419411): the lobby's chat (`chat`) made eight empty lines:
 //! seven 0x0A and a NUL.
 //!
 //! Caller: `net::start_link` (with the received messages' lock held).

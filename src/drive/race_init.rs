@@ -3,11 +3,11 @@
 //! the best line (`race::build_best_line`); with fewer than two checkpoints
 //! (`g_checkpointCount`, by the sign of the `cmp`) the fatal error 0x80600D1E "Race
 //! initialisation failed - no best line" (its third chunk, 0x4D917B), unless
-//! `dword_621514` is set (then it returns); the cars' places (`race::start_cars`), the
+//! `editor_mode` is set (then it returns); the cars' places (`race::start_cars`), the
 //! objects (`race::reset_face_lights`), the game mode (`race::set_up_cars`), the messages
 //! (`race::reset_car_race_state`), the car parts (`race::clear_race_slots`), the timers
 //! (`race::reset_car_starts`, `race::seed_car_randoms`); fifty settling steps (in `pusha`
-//! / `popa`: `drive::race_cars_step`; `drive::share_all_cars` with `dword_5C2F94` 1;
+//! / `popa`: `drive::race_cars_step`; `drive::share_all_cars` with `other_marks_shown` 1;
 //! `effects::frame_marks`, `effects::run_frame`); the slots again; the damage messages
 //! (`race::grade_all_cars`); "RACEINIT : end". Its second chunk (0x40763C ..) is the
 //! fatal-error reporter's, shared, not entered from here.
@@ -43,10 +43,9 @@ fn indented(part: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused
     Ok(())
 }
 
-/// The Rust version. The registers it leaves are read by no caller (liveness: ecx and edx
-/// after `race::load_stage`'s call have no read point). The caller's ecx, which the
-/// original hands on to `race::checkpoint_distances`, is never read there: that function
-/// is reached only with two checkpoints or more (conversion phase 3, 2026-10-24).
+/// The registers the original leaves are read by no caller. A value the
+/// caller hands on to `race::checkpoint_distances` is never read there: that function
+/// is reached only with two checkpoints or more.
 // Converted: `rc2k_core::drive::race_steps::{no_best_line, NO_BEST_LINE, SETTLING_STEPS,
 // LOG_INDENT}`.
 pub fn race_init(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {

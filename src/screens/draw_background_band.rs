@@ -1,6 +1,6 @@
 //! `screens::draw_background_band` (0x4698C4): draws a band of the background again.
 //!
-//! Only while `dword_7554E4` is 1: sprite 0xA0 of the sprite table (the background picture) at (0,
+//! Only while `flow.left_service` is 1: sprite 0xA0 of the sprite table (the background picture) at (0,
 //! 0) with the clip rectangle's top and bottom at 0xCB and 0x1C6 for that one blit, and put back
 //! after it. In 15 lists of screens (the setup and saved game lists, the service area set the
 //! switch). What the band covers has not been seen: the name is a reading. The menus and draw lists

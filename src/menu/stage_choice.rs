@@ -9,9 +9,9 @@ use crate::screens::draw_stage_records::selection;
 use crate::session::Dword;
 use crate::system::owner::system;
 
-pub const GROUP_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.stage_group; // dword_7558C8: 0 or 1
-pub const SUB_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.stage_sub; // dword_7558D0: 0 .. 5
-pub const NUMBER_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.stage_number; // dword_7558CC: 1 .. 6
+pub const GROUP_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.stage_group; // 0 or 1
+pub const SUB_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.stage_sub; // 0 .. 5
+pub const NUMBER_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.stage_number; // 1 .. 6
 const MAP_SPRITE: u32 = 0xA0;
 /// The map that cannot be loaded: no message.
 const NO_MAP: FatalError = FatalError {

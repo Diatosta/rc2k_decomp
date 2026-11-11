@@ -1,13 +1,12 @@
 //! A view's fog (frame plan F4): what `race::set_up_fog` works out for the view and its
 //! drawing reads, one in each view's slot (`race::view_scratch`) and one for the front end.
 //!
-//! The original kept it in the light state for every view at once: `g_fogTable` (0x63661C,
-//! 0x1000 bytes), its length `g_fogTableLength` (0x63761C), the next step `dword_636610` and
-//! the far value `dword_6365F4` (the glare's alpha). Each view set it up before reading it,
-//! and the overlays drawn after a view read that view's own. A length of 0 (no fog set up
-//! since the start) made `scene::fog_polygon` read the byte before the table, which nothing
-//! in the game writes: 0 here. The near value (`dword_6365F0`) and the noise step
-//! (`dword_62DAF0`) were stored but never read: not kept.
+//! The original kept it in the light state for every view at once: the fog table (0x1000
+//! bytes), its length, the next step and the far value (the glare's alpha). Each view set it
+//! up before reading it, and the overlays drawn after a view read that view's own. A length of
+//! 0 (no fog set up since the start) made `scene::fog_polygon` read the byte before the table,
+//! which nothing in the game writes: 0 here. The near value and the noise step were stored
+//! but never read: not kept.
 
 use crate::session::{Bytes, Dword};
 
@@ -17,15 +16,15 @@ pub const TABLE_LEN: usize = 0x1000;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Fog {
-    /// The fog's far value (`dword_6365F4`).
+    /// The fog's far value (the glare's alpha).
     pub far: Dword,
-    /// The fog's next step (`dword_636610`), what every point gets with the view kind 4.
+    /// The fog's next step, what every point gets with the view kind 4.
     pub next: Dword,
     /// The table's length in bytes (`g_fogTableLength`).
     pub length: Dword,
     /// The fog levels by depth (`g_fogTable`).
     table: Bytes<TABLE_LEN>,
-    /// The fog's colour (`DRAW.fog_colour`, `g_fogColour` 0x624000), each view's own.
+    /// The fog's colour (`DRAW.fog_colour`), each view's own.
     pub colour: Dword,
 }
 
@@ -55,7 +54,7 @@ impl Fog {
         }
     }
 
-    /// `scene::clear_fog` (0x44FC19): no fog: the next step and the whole table 0 (the
+    /// `scene::clear_fog`: no fog: the next step and the whole table 0 (the
     /// length kept).
     pub fn clear(&self) {
         self.next.set(0);

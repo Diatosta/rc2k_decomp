@@ -1,17 +1,16 @@
-//! `effects::trail_particles` (0x4CFFE3): eight entries of the marks' particle ring
-//! (`g_marksRingFree`'s +0, each while `g_marksRingUsed` is not 0xFFF) started along the
-//! way the particle at esi came: for each, kind 4; `g_marksBurstRadius` = the marks'
-//! random's low word times `flt_8EB969` times `flt_93C648`; the place (+0xC .. +0x14) the
-//! particle's place moved that share toward its last place (+0x18 .. +0x20); the motion
-//! (+0x28, +0x2C, +0x34) (last - place) times `flt_93C64C` / 54 / 5C plus the particle's
-//! motion times `flt_93C650` / 58 / 60, moved by `effects::jitter_point` (spread
-//! `flt_93C664`); +0x38 the particle's +0x2C times `flt_93C668` plus `flt_93C66C`
-//! (`fistp`), +0x3C 0xFF000000, +0x44 300, +0x40 `flt_93C670` / 300, +0x24 the view's
-//! +0x34.
+//! `effects::trail_particles` (0x4CFFE3): eight entries of the effects' particle ring (the
+//! ring's first free entry, each while the used count is not 0xFFF) started along the way
+//! the particle came: for each, kind 4; the burst radius = the effects' random's low word times
+//! a constant times the trail's random factor; the place (+0xC .. +0x14) the particle's place
+//! moved that share toward its last place (+0x18 .. +0x20); the motion (+0x28, +0x2C, +0x34)
+//! (last - place) times the trail's first axis factors plus the particle's motion times its
+//! second, moved by `effects::jitter_point` (the trail's spread); +0x38 the particle's +0x2C
+//! times the size factor plus the size base (rounded), +0x3C 0xFF000000, +0x44 300, +0x40
+//! the life factor / 300, +0x24 the view's +0x34.
 //!
 //! Takes: the particle
 //!
-//! Caller: the ring's update (code at 0x4D033F, kind 0 particles moving up). Refuses a null
+//! Caller: the ring's update (kind 0 particles moving up). Refuses a null
 //! particle or ring (an entry to take), before anything.
 
 use crate::effects::blocks::{particle, set_particle};
@@ -20,6 +19,7 @@ use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::math::x87_float as bh;
 use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::{extended, rounded};
 
@@ -52,7 +52,7 @@ fn entries_taken(particles: &Particles, ring: &Ring) -> Result<Vec<u32>, Refused
     })
 }
 
-/// `p` the particle it trails (esi).
+/// `p` is the particle it trails.
 pub fn trail_particles(
     frame: &Frame,
     particles: &Particles,
@@ -89,9 +89,9 @@ pub fn trail_particles(
             effects.setup.work.seed.set(s);
             let k1 = effects.frame.draw_work.uv_k.bits();
             let k2 = effects.kinds.particle_tuning.trail_random_k.bits();
-            ring.pool
-                .burst_radius
-                .set_bits(x87::int_times_times((s & 0xFFFF) as i32, k1, k2));
+            ring.pool.burst_radius.set_bits(bh::st(
+                bh::int((s & 0xFFFF) as i32) * bh::ld(k1) * bh::ld(k2),
+            ));
             let radius: u32 = ring.pool.burst_radius.bits();
             for (place, last, _) in AXES {
                 put(
@@ -106,12 +106,14 @@ pub fn trail_particles(
             for (n, (place, last, motion)) in AXES.into_iter().enumerate() {
                 put(
                     motion,
-                    x87::diff_times_plus_times(
-                        particle(particles, p, last)?,
-                        particle(particles, p, place)?,
-                        effects.kinds.particle_tuning.trail_axes[2 * n].bits(),
-                        particle(particles, p, motion)?,
-                        effects.kinds.particle_tuning.trail_axes[2 * n + 1].bits(),
+                    bh::st(
+                        (bh::ld(particle(particles, p, last)?)
+                            - bh::ld(particle(particles, p, place)?))
+                            * bh::ld(effects.kinds.particle_tuning.trail_axes[2 * n].bits())
+                            + bh::ld(particle(particles, p, motion)?)
+                                * bh::ld(
+                                    effects.kinds.particle_tuning.trail_axes[2 * n + 1].bits(),
+                                ),
                     ),
                 )?;
             }
@@ -141,12 +143,9 @@ pub fn trail_particles(
             put(0x44, LIFE)?;
             put(
                 0x40,
-                x87::over_int(
-                    effects.kinds.particle_tuning.trail_life_k.bits(),
-                    LIFE as i32,
-                ),
+                x87::over_int(&effects.kinds.particle_tuning.trail_life_k, LIFE as i32),
             )?;
-            put(0x24, x87::loaded(frame.matrices.view_place[13].bits()))?;
+            put(0x24, x87::loaded(&frame.matrices.view_place[13]))?;
         }
     }
     Ok(())

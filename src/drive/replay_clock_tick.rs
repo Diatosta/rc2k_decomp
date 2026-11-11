@@ -1,5 +1,5 @@
-//! `drive::replay_clock_tick` (0x460C20): the replay's clock: `dword_5C2534` + 1, at 100 back to 0
-//! with the frame `dword_5C2530` + 1.
+//! `drive::replay_clock_tick` (0x460C20): the replay's clock: `replay_frame` + 1, at 100 back to 0
+//! with the frame `replay_block` + 1.
 //!
 //! Caller: `drive::replay_step`.
 

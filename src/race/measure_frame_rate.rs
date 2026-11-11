@@ -1,19 +1,19 @@
-//! `race::measure_frame_rate` (0x42009E): every 16th call (`dword_613838` counting, back to 0 at
-//! 0x10) the time-stamp counter (`rdtsc`) into `dword_6214E8`; with the cycles since the last time
-//! (`dword_6214EC`, into `dword_62400C`) above 0 (signed), the frame rate `flt_6214F0` = the CPU's
-//! clock `dword_5183E8` x `flt_5C5D18` x `flt_5C5D18` x `flt_5C5D08` / the cycles (x87, as the
+//! `race::measure_frame_rate` (0x42009E): every 16th call (`frame_rate_count` counting, back to 0 at
+//! 0x10) the time-stamp counter (`rdtsc`) into `frame_now`; with the cycles since the last time
+//! (`frame_last`, into `scratch`) above 0 (signed), the frame rate `frame_rate` = the CPU's
+//! clock `dword_5183E8` x `thousand` x `thousand` x `sixteen` / the cycles (x87, as the
 //! original); the time kept for the next.
 //!
 //! Returns: unchanged but on the 16th: and the counter, the cycles
 //!
-//! Caller: 0x4547AE (0x4547FD, `race::show_frame`); `flt_6214F0` is shown by
-//! `race::draw_frame_rate`. The rate is worked out in plain floats. Fixed (2026-10-30,
+//! Caller: 0x4547AE (0x4547FD, `race::show_frame`); `frame_rate` is shown by
+//! `race::draw_frame_rate`. The rate is worked out in plain floats. Fixed (see
 //! `wiki/Fixed-bugs.md`): the cycles from the whole counter, not its signed low halves.
 
 use crate::race::owner::Race;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
-/// The whole counter at the last measure (`dword_6214EC` holds its low half).
+/// The whole counter at the last measure (`frame_last` holds its low half).
 static LAST: AtomicU64 = AtomicU64::new(0);
 
 /// The rate worked out in plain floats.

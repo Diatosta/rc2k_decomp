@@ -1,16 +1,14 @@
 //! `menu::record_entries_pass` (0x4A3BE0): the current event's record entries cleared
-//! (`menu::clear_record_entries`), then each counted player (`dword_75598C` 0 ..
-//! `dword_755984`, the original's `do .. while`) that beat the target time
-//! (`menu::beat_target_time`, `dword_755918`) entered (`menu::enter_record_entry`),
-//! `dword_755920` 1 once one is (0 first).
+//! (`menu::clear_record_entries`), then each counted player (`event.current_player` 0 ..
+//! `event.player_count`, the original's `do .. while`) that beat the target time
+//! (`menu::beat_target_time`, `event.time_qualifies`) entered (`menu::enter_record_entry`),
+//! `event.any_time_qualified` 1 once one is (0 first).
 //!
 //! Callers: the event drivers. Refuses what the steps refuse and
 //! a player count of 0 or past 4 or a player missing, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
-
-// dword_7559EC
 // hhmm
 // g_cheats
 /// The steps of `rc2k_core::menu::bests::record_entries`: their Rust versions.
@@ -33,9 +31,8 @@ impl rc2k_core::menu::bests::RecordEntries for Entries<'_> {
     }
 
     fn beats(&mut self, n: u32) -> Result<bool, Refused> {
-        let screens = &self.0.screens;
         let _ = n;
-        crate::menu::beat_target_time::beat_target_time(screens)?;
+        crate::menu::beat_target_time::beat_target_time(self.0)?;
         Ok({ self.0.screens.event.time_qualifies.get() } == 1)
     }
 
@@ -48,7 +45,7 @@ impl rc2k_core::menu::bests::RecordEntries for Entries<'_> {
 
 pub fn record_entries_pass(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let players = counted_players(screens)?;
+    let players = counted_players(menus)?;
     current_event(screens)?;
     if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());

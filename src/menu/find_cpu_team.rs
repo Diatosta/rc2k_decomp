@@ -7,10 +7,11 @@
 
 use crate::errors::Refused;
 use crate::menu::drivers_store::Driver;
+use crate::menu::owner::Menus;
 
 /// The driver.
-pub fn find_cpu_team(team: u32) -> Result<&'static Driver, Refused> {
-    crate::menu::standings::drivers()?
+pub fn find_cpu_team(menus: &Menus, team: u32) -> Result<&Driver, Refused> {
+    crate::menu::standings::drivers(menus)?
         .iter()
         .find(|d| d.name_entry.get() == team)
         .ok_or(

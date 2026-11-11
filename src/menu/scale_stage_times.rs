@@ -1,7 +1,7 @@
-//! `menu::scale_stage_times` (0x46354E): the stage's four record times (`dword_75AAE8` ..
-//! `dword_75AAF4`) scaled for the section (`section` held to 0 .. 5): the last three by
-//! `flt_60463C`[section], the first by `flt_604654`[section] (`fild`, `fmul`, `fistp`; the
-//! two factors kept in `flt_71C3D8` / `flt_71C3DC`); then logged ("stage times info", the
+//! `menu::scale_stage_times` (0x46354E): the stage's four record times (the four
+//! `class_times`) scaled for the section (`section` held to 0 .. 5): the last three by
+//! the section's entry of one factor table, the first by the section's entry of another
+//! (`fild`, `fmul`, `fistp`; the two factors kept in the x87 work cells); then logged ("stage times info", the
 //! section, the record's +0x40, "a7x" and the first factor, "a8x" and the second, "times
 //! a8-a5" and the four times).
 //!
@@ -22,7 +22,7 @@ pub fn held_section() -> u32 {
 /// The four times as scaled (see the header), and the two factors.
 pub fn scaled(times: [u32; 4], section: u32) -> ([u32; 4], [u32; 2]) {
     let race = race();
-    // flt_60463C, flt_604654: 6 each
+    // The two factor tables: six entries each.
     let s = section as usize;
     let f: [u32; 2] = [
         race.shared.tables.stage_time_factors_last[s].bits(),

@@ -1,8 +1,8 @@
-//! The cars listed for a device or sound slot (converted 2026-10-21 from the three
+//! The cars listed for a device or sound slot (converted from the three
 //! twins `physics::flag_current_car_listed` 0x45D151, `set_flag_5165a0` 0x45D16D and
 //! `set_flag_5165a4` 0x45D189): a flag set when the current car has an entry in
-//! `dword_641680` (eight, by car; -1 none). And the cues sent to a listed car's sound
-//! object (converted 2026-10-21 from `physics::cue_car_sound` 0x40ECE7,
+//! `listed_car_sounds` (eight, by car; -1 none). And the cues sent to a listed car's sound
+//! object (converted from `physics::cue_car_sound` 0x40ECE7,
 //! `cue_car_sound_last` 0x40ECBB, `cue_listed_car_sound` 0x45D1BC,
 //! `cue_listed_car_sound_last` 0x45D1D3 and `sound_cue_e5` 0x45D028): the sound objects
 //! (`g_raceSoundObjects`, eight, by car) and which cars' cues are heard.
@@ -23,7 +23,7 @@ pub fn listed_entry(car: u32, entry: impl FnOnce(u32) -> u32) -> Result<(u32, bo
     Ok((e, e != NOT_LISTED))
 }
 
-/// Where a cue goes in the object's queue (the original's eax for
+/// Where a cue goes in the object's queue (the original's leftover value for
 /// `physics::queue_sound_cue`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CuePlace {

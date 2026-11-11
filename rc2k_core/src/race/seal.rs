@@ -1,5 +1,5 @@
 //! The race's results file: its bytes packed by runs, the stage's time sealed, and a
-//! block enciphered by the game's DES-like cipher (converted 2026-10-21 from
+//! block enciphered by the game's DES-like cipher (Converted from
 //! `race::pack_runs` 0x41EFEC, `seal_stage_time` 0x41F29D, `permute_bits` 0x402848 and
 //! `seal_block` 0x402735).
 
@@ -19,9 +19,8 @@ pub fn seal_time(absent: u32, time: impl FnOnce() -> u32, key: u32) -> u32 {
 }
 
 /// `race::permute_bits`: the bits picked by `picks` (a table's count byte n is followed
-/// by n + 1 picks: bit 5 set takes bit (pick & 0x1F) of `eax`, else of `edx`), gathered
-/// from the top down (`adc edi, edi` / `adc esi, esi`): esi in the high half, edi in the
-/// low.
+/// by n + 1 picks: bit 5 set takes bit (pick & 0x1F) of the first input word, else of the second), gathered
+/// from the top down: the first picks in the high half, the rest in the low.
 pub fn permute_bits(picks: &[u8], eax: u32, edx: u32) -> u64 {
     picks.iter().fold(0u64, |bits, &b| {
         let from = if b & 0x20 != 0 { eax } else { edx };
@@ -29,7 +28,7 @@ pub fn permute_bits(picks: &[u8], eax: u32, edx: u32) -> u64 {
     })
 }
 
-/// The halves of a `permute_bits` result: (esi, edi).
+/// The halves of a `permute_bits` result: (high, low).
 pub fn halves(bits: u64) -> (u32, u32) {
     ((bits >> 32) as u32, bits as u32)
 }
@@ -208,7 +207,7 @@ mod tests {
 
     #[test]
     fn permutes() {
-        // eax's bit 0, edx's bit 31, eax's bit 31.
+        // The first word's bit 0, the second's bit 31, the first's bit 31.
         assert_eq!(permute_bits(&[0x20, 0x1F, 0x3F], 1, 0x8000_0000), 0b110);
         assert_eq!(halves(0x1_0000_0002), (1, 2));
         assert_eq!(turn28(0x0800_0001), 3);

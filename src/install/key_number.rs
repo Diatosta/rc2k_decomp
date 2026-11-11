@@ -1,6 +1,6 @@
-//! `install::key_number` (0x4147DC): a number key (al 2 .. 0xA) on an item (`[esi] & 0xF`):
+//! `install::key_number` (0x4147DC): a number key (2 .. 0xA) on an item (`[item] & 0xF`):
 //! kind 2 that choice (`install::choice_by_number`), kind 3 that eighth of the value's
-//! span (`install::value_by_number`); ecx the key less 2.
+//! span (`install::value_by_number`); the number is the key less 2.
 //!
 //! Takes the key, item. Returns the key less 2, kind.
 //! Caller `install::page_key`, reading zero.
@@ -10,7 +10,7 @@ use crate::install::key_up::item_key;
 use crate::menu::list_handle::ListItem;
 use rc2k_core::install::items::ItemKey;
 
-/// `key` the number key (eax); whether it was taken (the original's zero).
+/// `key` the number key; whether it was taken.
 pub fn key_number(
     install: &'static crate::install::owner::Install,
     key: u32,

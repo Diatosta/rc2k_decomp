@@ -1,6 +1,5 @@
 //! `effects::pong_setup` (0x4B88CB): the pong game's frame set up, as
-//! `effects::windscreen_flakes_setup` with the texture places from `dword_769222` .. (the original
-//! also loads `dword_76921E` into eax and drops it).
+//! `effects::windscreen_flakes_setup` with the texture places from the pong's own constants.
 //!
 //! Caller: `effects::run_pong`.
 

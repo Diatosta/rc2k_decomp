@@ -1,7 +1,7 @@
-//! `net::add_chat_line` (0x419428): a message added to the lobby's chat (`byte_52A508`, eight
-//! lines): "name> text" built in `word_52A888` (the player's name from its block of
+//! `net::add_chat_line` (0x419428): a message added to the lobby's chat (`chat`, eight
+//! lines): "name> text" built in `chat_text` (the player's name from its block of
 //! `g_netReceived`), then cut into lines no wider than 0x30C (`text::measure_text` with
-//! `dword_51E424`, one character more at a time into `byte_52A808`), each line going in at
+//! `typefaces::CHAT_LINE`, one character more at a time into `chat_line`), each line going in at
 //! the bottom and the top one dropped.
 //!
 //! Takes `player` and `message` (nothing if empty). The original also reads a register that

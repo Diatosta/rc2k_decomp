@@ -1,5 +1,5 @@
-//! `menu::reset_single_event` (0x4AAA2F): `dword_755254` / `dword_755950` 0; every
-//! driver's +0x10 / +0xC / +0x20 0 and +0x24 1; `dword_75592C` 1, `dword_755978` 0; the
+//! `menu::reset_single_event` (0x4AAA2F): `pages.services` / `event.stages_done` 0; every
+//! driver's +0x10 / +0xC / +0x20 0 and +0x24 1; `event.event_goes_on` 1, `event.event_out` 0; the
 //! four players' `total` and `unread_84` 0 and `entry` 1 (`Player::begin`; a single event's
 //! start).
 //!
@@ -10,7 +10,7 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 pub fn reset_single_event(menus: &Menus) -> Result<(), Refused> {
-    let drivers = drivers()?;
+    let drivers = drivers(menus)?;
 
     menus.tables.pages.services.set(0u32);
     menus.screens.event.stages_done.set(0u32);
@@ -23,7 +23,7 @@ pub fn reset_single_event(menus: &Menus) -> Result<(), Refused> {
     menus.screens.event.event_out.set(0u32);
 
     for n in (0..4).rev() {
-        player(n).update(rc2k_core::menu::player::Player::begin);
+        player(menus, n).update(rc2k_core::menu::player::Player::begin);
     }
     Ok(())
 }

@@ -1,10 +1,7 @@
-//! `physics::note_surface_mode` (0x43F180): `dword_71A6C8` = 1 when `dword_71A65C` is 2
+//! `physics::note_surface_mode` (0x43F180): `camera_mode_is_2_or_3` = 1 when `camera_view` is 2
 //! or 3, else 0. What the mode is is not known.
 //!
 //! Caller: `physics::feel_ground` (0x43F1A8), first.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::physics::car_store::Car;
 use crate::session::Cell32;

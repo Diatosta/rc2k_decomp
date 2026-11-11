@@ -1,4 +1,4 @@
-//! The input update (`input::update`, 0x420115, IDA 2026-10-16): once a frame in the
+//! The input update (`input::update`, 0x420115): once a frame in the
 //! race and its menus, the mouse and the 0x80 key states turned into what was pressed.
 //! `g_keysDown` (0x4F6ADC, by scan code; its first byte the pending key of
 //! `input::take_key`) is what the window's messages keep; `g_keysNow` (0x4F6B5C) its copy
@@ -29,7 +29,7 @@ fn tables(devices: &Devices) -> KeyTables {
 }
 
 /// `input::unpack_mouse` (0x4081FC): `g_mouseWord` as the buttons (low byte), the x
-/// (bits 8 .. 19) and the y (bits 20 .. 31), both signed (the original's ebx, ecx, edx).
+/// (bits 8 .. 19) and the y (bits 20 .. 31), both signed.
 pub fn unpack_mouse(devices: &Devices) -> (u32, i32, i32) {
     rc2k_core::input::frame::unpack_mouse(devices.mouse_word.get())
 }
@@ -48,8 +48,8 @@ pub fn take_mouse(input: &Input) -> (u32, i32, i32) {
     (buttons, x, y)
 }
 
-/// `input::copy_keys` (0x4201EC): `g_keysDown` to `g_keysNow` (the original leaves esi and
-/// edi past them, ecx 0).
+/// `input::copy_keys` (0x4201EC): `g_keysDown` to `g_keysNow` (the original also leaves its
+/// copy pointers past the keys).
 pub fn copy_keys(devices: &Devices) {
     let mut t = tables(devices);
     t.copy_keys(&devices.keys_down.read());
@@ -57,7 +57,7 @@ pub fn copy_keys(devices: &Devices) {
 }
 
 /// `input::buttons_to_keys` (0x420200): `g_leftButton` and `g_rightButton` (their low
-/// bytes) as keys 0x73 and 0x74; `g_rightButton` (the original's eax).
+/// bytes) as keys 0x73 and 0x74; `g_rightButton`, which it returns.
 pub fn buttons_to_keys(input: &Input) -> u32 {
     let (left, right) = (
         input.mouse.left_button.get(),
@@ -71,7 +71,7 @@ pub fn buttons_to_keys(input: &Input) -> u32 {
 
 /// `input::find_pressed_keys` (0x420215): `g_keysPressed` the keys down now and not
 /// before (their low bits only, a dword at a time), `g_keysBefore` = `g_keysNow`; the last
-/// dword's pressed and now (the original's eax, edx; ebx 0x80, ecx 0).
+/// dword's pressed and now, which it returns.
 pub fn find_pressed_keys(devices: &Devices) -> (u32, u32) {
     let mut t = tables(devices);
     let found = t.find_pressed();
@@ -81,8 +81,7 @@ pub fn find_pressed_keys(devices: &Devices) -> (u32, u32) {
 }
 
 /// `input::repeat_keys` (0x420247): for keys 1 .. 0x7F, the count of frames held (0 when
-/// up); at 0x41 the key is pressed again and the count goes back to 0x40 (the original
-/// leaves ebx 0x80).
+/// up); at 0x41 the key is pressed again and the count goes back to 0x40.
 pub fn repeat_keys(devices: &Devices) {
     let mut t = tables(devices);
     t.repeat();
@@ -91,7 +90,7 @@ pub fn repeat_keys(devices: &Devices) {
 }
 
 /// `input::take_mouse_clicks` (0x42028C): `g_leftClick` and `g_rightClick` from keys
-/// 0x73 and 0x74 pressed (low bits); the right (the original's eax).
+/// 0x73 and 0x74 pressed (low bits); the right one is returned.
 pub fn take_mouse_clicks(input: &Input) -> u32 {
     let clicks = tables(&input.devices).clicks();
     input.mouse.left_click.set(clicks[0]);
@@ -134,7 +133,7 @@ pub fn end_frame(check: Screenshot) {
 /// `g_keysPressed` 0; `take_mouse`, `copy_keys`, each pair of keys (0x1D and 0x61, 0x2A
 /// and 0x36) made one (both the `or` of the two), `buttons_to_keys`,
 /// `find_pressed_keys`, `repeat_keys`, `take_mouse_clicks`, `end_frame`. The right click
-/// and the last key dword (the original's eax and edx).
+/// and the last key dword are returned.
 pub fn update_input(shot: Screenshot) -> (u32, u32) {
     let input = input();
     input.mouse.last_x.set(input.mouse.x.get());

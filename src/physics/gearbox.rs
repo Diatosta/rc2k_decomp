@@ -1,11 +1,11 @@
-//! The gearbox (IDA 2026-10-18): `physics::gearbox_step` (0x43C15C) and what it runs,
+//! The gearbox: `physics::gearbox_step` (0x43C15C) and what it runs,
 //! `physics::manual_gearbox` (0x43C2AE, and its one-call twin 0x43C2A8),
 //! `physics::auto_gearbox` (0x43C5C2), `physics::pick_start_gear` (0x43C8AC). This file:
 //! the steps they share, on the game's variables (the work car's gear fields,
 //! `physics/gearing.rs`). The steps return only what the flow uses (`physics::car_physics_step`,
 //! `physics::test_drive_run`).
 //!
-//! The shift points `flt_5CB958` .. `flt_5CB964`, `flt_614104` and `flt_6140F8` are set at
+//! The shift points `flt_5CB958` .. `shift_ratio_figure`, `rev_limit` and `idle_engine_speed` are set at
 //! run time (0 in the file); the tests set them.
 
 use crate::errors::{BadInput, Refused};
@@ -27,7 +27,7 @@ pub fn below(a: u32, b: u32) -> bool {
     )
 }
 
-/// The common end of a change: +0x1D0 = `dword_613FA4`, the hold 20, both words 1.
+/// The common end of a change: +0x1D0 = `drive_cut_steps`, the hold 20, both words 1.
 pub fn settle(car: &Car, tables: &PhysicsTables) {
     car.drive_cut_steps.set(tables.drive_cut_steps.get());
     car.gear_change_hold
@@ -67,7 +67,7 @@ pub fn revs_speed(car: &Car, tables: &PhysicsTables) -> Result<(), Refused> {
 
 /// The engine speed over its top (`fld; fdiv; fstp`).
 pub fn over_top(car: &Car) -> u32 {
-    x87::div(car.engine_speed.bits(), car.engine_speed_limit.bits())
+    x87::div(&car.engine_speed, &car.engine_speed_limit)
 }
 
 /// A gear's ratio; refused outside -1 ..= 7.

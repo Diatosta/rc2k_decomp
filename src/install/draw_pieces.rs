@@ -1,10 +1,10 @@
 //! `install::draw_pieces` (0x415058): each of a page's pieces drawn at its place. A plain
 //! text piece (no 0x10 in its kind) its string (`text::draw_string_by_id`) in the font of
-//! its marks (`byte_51D528`: bits 6, 7 of its first byte, its kind and 0x10); else by the
+//! its marks (`kind_fonts`: bits 6, 7 of its first byte, its kind and 0x10); else by the
 //! item's kind: an edit its text (`text::draw_text`) in the font of its record's kind and
 //! marks, with the caret (string 4) after it while it is edited, lit and its record has
 //! bit 1; a text its string and the item's appended text in `text`; an action its drawing
-//! action (`[item+0xC]`, ecx and edx the place).
+//! action (`[item+0xC]`, given the place).
 //!
 //! No pieces would go round 2^32 times: refused. Caller `install::run_page` (the surface
 //! locked).

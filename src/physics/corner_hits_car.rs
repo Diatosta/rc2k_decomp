@@ -1,21 +1,18 @@
-//! `physics::corner_hits_car` (0x45F703): whether a corner of another car (`dword_6D3BD4`
+//! `physics::corner_hits_car` (0x45F703): whether a corner of another car (`corner_in`
 //! .., floats) lies inside the work car. In `pusha` / `popa`: the corner x 65536
-//! (`flt_5C5D98`, unrounded) turned by `flt_6D3C40` (`scene::rotate_point`) and / 65536
-//! into `flt_6D3BC8` ... Inside when each part's size is below the box's (`flt_6D3BBC`
-//! ..; unordered counts as below, as `fcomp` / `jnb`): `dword_6D3BB4` = 1,
+//! (`k65536`, unrounded) turned by `corner_matrix` (`scene::rotate_point`) and / 65536
+//! into `corner_turned` ... Inside when each part's size is below the box's (`box_size`
+//! ..; unordered counts as below, as `fcomp` / `jnb`): `corner_inside` = 1,
 //! `physics::restore_saved_car`, `physics::bump_cars`.
 //!
 //! Takes: the other car's block (passed to `bump_cars`)
 //!
 //! Caller: `physics::car_collisions` (eight corners a car). Refuses what
 //! `restore_saved_car` and `bump_cars` refuse (what was written put back).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::math::x87::{abs_compare, ext_times};
 use crate::math::x87_float::{from_f80, ld, st};
-use crate::math::x87_run::{abs_compare, ext_times};
 use crate::physics::contact_store::ContactWork;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner::Race;
@@ -23,7 +20,7 @@ use crate::scene::matrix3::extended;
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Cell32;
 
-/// Whether the corner is inside (`flt_6D3BC8` .. written either way).
+/// Whether the corner is inside (`corner_turned` .. written either way).
 pub fn corner_inside(contact: &ContactWork, numbers: &Numbers) -> bool {
     let k = numbers.k65536.bits();
     let corner = contact
@@ -39,7 +36,7 @@ pub fn corner_inside(contact: &ContactWork, numbers: &Numbers) -> bool {
     })
 }
 
-/// `block` the other car's block (edi).
+/// `block` the other car's block.
 pub fn corner_hits_car(
     race: &Race,
     block: u32,
@@ -62,9 +59,9 @@ pub fn corner_hits_car(
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[o + 0] = ext [e + 0] / [rc + 0x1C5D98]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[o + 0] = ext [e + 0] / [k65536]`
 fn x87_1(numbers: &Numbers, e: &[u8; 10], o: &impl Cell32) {
     let t0 = from_f80(*e);
     let t1 = ld(numbers.k65536.bits());

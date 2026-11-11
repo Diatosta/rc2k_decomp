@@ -1,4 +1,4 @@
-//! `physics::apply_contact_forces` (0x43F555): `physics::apply_forces` on the 7 records at `unk_614A50` (`physics::clear_contacts`').
+//! `physics::apply_contact_forces` (0x43F555): `physics::apply_forces` on the 7 records at `contacts` (`physics::clear_contacts`').
 //!
 //! Returns: the first record, the count
 //!

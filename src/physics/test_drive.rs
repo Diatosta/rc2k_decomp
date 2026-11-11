@@ -1,7 +1,7 @@
 //! `physics::test_drive` (0x4217E4): the car's figures from a test drive. Its specs
 //! (`physics::load_car_specs`) and gear ratios (`physics::make_gear_ratios`); the drive
-//! speeds, the car's speed, the gear, the engine and `unk_71A010` kept (pushed), the
-//! drive's setting `dword_5CC190` into `unk_71A3CC`; `physics::test_drive_run`; the six
+//! speeds, the car's speed, the gear, the engine and `gearbox_kind` kept (pushed), the
+//! drive's setting `test_power_factor` into `engine_power_factor`; `physics::test_drive_run`; the six
 //! put back.
 //!
 //! Caller: `scene::set_up_engine` (0x442AFB, the car's choice). Refuses what its parts refuse

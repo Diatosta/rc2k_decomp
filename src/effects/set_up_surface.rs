@@ -42,7 +42,7 @@ fn read(path: &Bytes<21>) -> Result<bool, Refused> {
 
 /// Unlocks the surface and refuses with `why`.
 fn unlock_refusing(why: &'static str, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    lock(scene.textures.kinds.kind_first_textures[211].bits(), false)?;
+    lock(scene.textures.kinds.kind_first_textures[211].get(), false)?;
     Err(BadInput(why).into())
 }
 
@@ -60,7 +60,7 @@ pub fn set_up_surface(
     // The mask's copy is Rust's memory (phase 12), counted on the list as the game's
     // block was.
     let mut mask = crate::memory::owned::counted(&masks.list.list, MASK_BYTES)?;
-    lock(scene.textures.kinds.kind_first_textures[211].bits(), true)?;
+    lock(scene.textures.kinds.kind_first_textures[211].get(), true)?;
     if gfx.drawing.draw_surface.width.get() < SIDE || gfx.drawing.draw_surface.height.get() < SIDE {
         return unlock_refusing("a surface under 256 x 256", scene);
     }
@@ -84,9 +84,9 @@ pub fn set_up_surface(
         let alpha = ((mask << 8) & 0xFF00_0000) ^ 0xFF00_0000;
         put_pixel((data & 0xFF_FFFF) | alpha, n & 0xFF, n >> 8)?;
     }
-    lock(scene.textures.kinds.kind_first_textures[211].bits(), false)?;
+    lock(scene.textures.kinds.kind_first_textures[211].get(), false)?;
     crate::scene::forget_slot_texture::forget_slot_texture(
-        scene.textures.kinds.kind_first_slots[211].bits(),
+        scene.textures.kinds.kind_first_slots[211].get(),
         scene,
     )?;
     crate::memory::free_list::free_list(&masks.list.list)?;
@@ -164,7 +164,7 @@ pub fn set_up_surface(
     Ok(())
 }
 
-/// The surface masks' memory list and the bytes after it (IDA 0x93A1DA .. 0x93A21A, the image's layout; phase 7, typed state).
+/// The surface masks' memory list and the bytes after it (IDA 0x93A1DA .. 0x93A21A).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MaskList {

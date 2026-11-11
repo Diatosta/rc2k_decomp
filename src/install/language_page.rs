@@ -1,7 +1,7 @@
-//! `install::language_page` (0x414199): the language page. At the start (ebx 0) with only
-//! one language (`g_languageCount` <= 1) or this version already installed (`dword_51B9C8`
-//! 1), the list's `[edi]` gets 0x40 (the page is skipped). At the end (ebx negative) with a
-//! chosen answer (`byte_51D415` != 0) the language is chosen (`install::choose_language`)
+//! `install::language_page` (0x414199): the language page. At the start (state 0) with only
+//! one language (`g_languageCount` <= 1) or this version already installed (`same_version`
+//! 1), the list's `[list]` gets 0x40 (the page is skipped). At the end (state negative) with a
+//! chosen answer (`list_answer` != 0) the language is chosen (`install::choose_language`)
 //! and loaded (`strings::load_language`). Then the items past the languages
 //! (`g_languageCount` of them, up to 9) get 0x40 (hidden).
 //!
@@ -21,7 +21,7 @@ pub fn language_page(
 ) -> Result<(), Refused> {
     if state == 0 {
         // The same version, or at most one language (unsigned): the page itself hidden
-        // (`or byte ptr [edi], 40h`). Else on to the hide loop (`loc_4141B4`).
+        // (the list's first byte gets 0x40). Else on to the hide loop.
         // Converted: `rc2k_core::install::pages` (`language_page_skipped`,
         // `hidden_languages`).
         if pages::language_page_skipped(

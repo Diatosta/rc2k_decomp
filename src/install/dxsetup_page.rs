@@ -1,5 +1,5 @@
-//! `install::dxsetup_page` (0x41432F): at the page's end (ebx negative) with the answer
-//! (`byte_51D415`) 1, `g_runDxSetup` is set so DirectX's set-up runs after the game.
+//! `install::dxsetup_page` (0x41432F): at the page's end (state negative) with the answer
+//! (`list_answer`) 1, `g_runDxSetup` is set so DirectX's set-up runs after the game.
 //!
 //! Takes the state.
 //! Caller `install::run_page`.

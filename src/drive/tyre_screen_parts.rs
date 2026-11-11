@@ -1,6 +1,6 @@
 //! `drive::tyre_screen_parts` (0x41C790): the tyre-change screen's fixed parts: ten quads
-//! (`drive::tyre_quad`, place 2) from texture rectangles set in `dword_5C2A1C` and screen
-//! rectangles in `dword_5C2A0C`, placed from the layout (`TyreChange::parts`, `wheel`, the car's
+//! (`drive::tyre_quad`, place 2) from texture rectangles set in `texture_rect` and screen
+//! rectangles in `screen_rect`, placed from the layout (`TyreChange::parts`, `wheel`, the car's
 //! half by `player`).
 //!
 //! Caller: `drive::tyre_screen`.

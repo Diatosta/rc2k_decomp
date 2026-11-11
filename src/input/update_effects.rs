@@ -2,7 +2,7 @@
 //! each 40 ms (`input::step_effects_clock`): with sound objects in use
 //! (`g_raceSoundObjectCount`), `input::update_car_effects` for player A's car on the first
 //! device (`g_inputDevices[0]`, the first view block) if that device has effects; then, if
-//! the two devices are one player's (`dword_4F68FC` not 0), for car A again on the second
+//! the two devices are one player's (`two_devices_one_player` not 0), for car A again on the second
 //! device. Otherwise (no effects on the first device, or one device a player), unless one
 //! player (`g_onePlayer` 1), for player B's car on the second device with the second view
 //! block. Each only if that device has effects (+0x28 1).
@@ -12,8 +12,7 @@
 //! first, nothing it calls changes what decides it) a car number past the eight sound
 //! objects and a null device on the way taken.
 //!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Its arguments are what it reads.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::owner::Input;

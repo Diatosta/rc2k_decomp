@@ -170,8 +170,8 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
     let race = crate::race::owner::race();
     let sound = crate::sound::owner::sound();
     match f {
-        ItemFn::StepSetting { setting, up } => step_items::player_setting(setting, up),
-        ItemFn::Toggle(setting) => step_items::player_setting(setting, true),
+        ItemFn::StepSetting { setting, up } => step_items::player_setting(menus, setting, up),
+        ItemFn::Toggle(setting) => step_items::player_setting(menus, setting, true),
         ItemFn::Volume { which, up } => option_items::volume(menus, which, up),
         ItemFn::OptionSwitch(which) => option_items::switch(which),
         ItemFn::StageCounter { which, up } => option_items::stage_counter(which, up),
@@ -188,7 +188,7 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
             arcade_levels::arcade_level(menus, &menus.play, u32::from(level))
         }
         ItemFn::StartEvent(event, seats) => start_events::start_event_item(menus, event, seats),
-        ItemFn::FlipCodriver => flip_codriver::flip_codriver().map(|_| ()),
+        ItemFn::FlipCodriver => flip_codriver::flip_codriver(menus).map(|_| ()),
         ItemFn::BeginPlayerName => begin_player_name::begin_player_name(menus).map(|_| ()),
         ItemFn::FlipGearing => Ok(flip_gearing::flip_gearing(&menus.screens)?),
         ItemFn::NextGearing => gearing_text::step_gearing(menus, true),
@@ -205,25 +205,26 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
             step_items::car_button(menus, Which::PreviousPicture, sound)
         }
         ItemFn::NextSlideshowPicture => step_items::car_button(menus, Which::NextPicture, sound),
-        ItemFn::NextController => controller_items::next_controller().map(|_| ()),
-        ItemFn::PreviousController => controller_items::previous_controller().map(|_| ()),
+        ItemFn::NextController => controller_items::next_controller(menus).map(|_| ()),
+        ItemFn::PreviousController => controller_items::previous_controller(menus).map(|_| ()),
         ItemFn::KeepPlayerKeys => player_actions::keep_player_keys(menus),
-        ItemFn::LowerPlayer40 => player_actions::lower_end_zone(&menus.screens),
-        ItemFn::RaiseDeadZoneA => controller_items::raise_dead_zone(false),
-        ItemFn::LowerPlayer44 => player_actions::lower_centre_dead_zone(&menus.screens),
-        ItemFn::RaiseDeadZoneB => controller_items::raise_dead_zone(true),
+        ItemFn::LowerPlayer40 => player_actions::lower_end_zone(menus),
+        ItemFn::RaiseDeadZoneA => controller_items::raise_dead_zone(menus, false),
+        ItemFn::LowerPlayer44 => player_actions::lower_centre_dead_zone(menus),
+        ItemFn::RaiseDeadZoneB => controller_items::raise_dead_zone(menus, true),
         ItemFn::LowerControllerSensitivity => {
-            controller_items::lower_controller_sensitivity().map(|_| ())
+            controller_items::lower_controller_sensitivity(menus).map(|_| ())
         }
         ItemFn::RaiseControllerSensitivity => controller_items::raise_controller_sensitivity(
+            menus,
             c.menu
                 .ok_or(BadInput("no menu (the original reads +0x2C of edi)"))?
                 .items()[0]
                 .fixed()
                 .links[1],
         ),
-        ItemFn::RaisePlayer48 => player_actions::raise_strength(&menus.screens),
-        ItemFn::LowerPlayer48 => player_actions::lower_strength(&menus.screens),
+        ItemFn::RaisePlayer48 => player_actions::raise_strength(menus),
+        ItemFn::LowerPlayer48 => player_actions::lower_strength(menus),
         ItemFn::BeginGearRatioEdit => begin_edits::begin_edit(begin_edits::GEAR_RATIO),
         ItemFn::BeginTyreEdit => begin_edits::begin_edit(begin_edits::TYRE),
         ItemFn::OpenSteeringBox => {
@@ -295,7 +296,7 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::PreviousAudioQuality => previous_audio_quality::run(),
         ItemFn::ViewStageDetails => item_actions::view_stage_details(menus, &menus.screens),
         ItemFn::ApplyScreenMode => apply_screen_mode::apply_screen_mode(&menus.screens),
-        ItemFn::TogglePlayer3c => player_actions::toggle_controller_mode(&menus.screens),
+        ItemFn::TogglePlayer3c => player_actions::toggle_controller_mode(menus),
         ItemFn::ReplayItemC => replay_items::replay_item_c(race),
         ItemFn::ReplayItemB => replay_items::replay_item_b(race),
         ItemFn::ReplayItemA => replay_items::replay_item_a(race),
@@ -303,8 +304,8 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
             player_actions::toggle_caption_choice(&menus.screens).map_err(Into::into)
         }
         ItemFn::ShowIntro => item_actions::show_intro(),
-        ItemFn::RaiseSensitivity => raise_sensitivity::raise_sensitivity().map(|_| ()),
-        ItemFn::LowerSensitivity => lower_sensitivity::lower_sensitivity().map(|_| ()),
+        ItemFn::RaiseSensitivity => raise_sensitivity::raise_sensitivity(menus).map(|_| ()),
+        ItemFn::LowerSensitivity => lower_sensitivity::lower_sensitivity(menus).map(|_| ()),
         ItemFn::NextColourA => step_items::colour(&menus.tables, START_PICK_A, true),
         ItemFn::PreviousColourA => step_items::colour(&menus.tables, START_PICK_A, false),
         ItemFn::NextColourB => step_items::colour(&menus.tables, START_PICK_B, true),
@@ -419,7 +420,7 @@ pub fn screen_fn(menus: &Menus, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::StageChoiceTexts => page_settings::stage_choice_texts(menus).map(|_| ()),
         ScreenFn::DrawHighlightedCaption => {
             // The original's x is the ecx `StepCarousel` leaves, which only the measuring
-            // gets, in a font in measure mode (`dword_51E824`): it changes nothing, so 0.
+            // gets, in a font in measure mode (the option font): it changes nothing, so 0.
             draw_highlighted_caption::draw_highlighted_caption(menus, 0, &mut GameCanvas)?;
             Ok(())
         }
@@ -473,9 +474,11 @@ pub fn screen_fn(menus: &Menus, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::YesNoCaption => yes_no_caption::run(menus),
         ScreenFn::DrawLeaveQuestion => draw_leave_question::draw_leave_question(&mut GameCanvas),
         ScreenFn::DrawGraphicsSettings => {
-            draw_graphics_settings::draw_graphics_settings(&mut GameCanvas)
+            draw_graphics_settings::draw_graphics_settings(menus, &mut GameCanvas)
         }
-        ScreenFn::DrawSoundSettings => draw_sound_settings::draw_sound_settings(&mut GameCanvas),
+        ScreenFn::DrawSoundSettings => {
+            draw_sound_settings::draw_sound_settings(menus, &mut GameCanvas)
+        }
         ScreenFn::ReplayRangeCaption => Ok(best_scores::replay_range_caption(menus)?),
         ScreenFn::LoadSetupValues => Ok(load_setup_values::load_setup_values(menus)?),
         ScreenFn::LoadAudioSettings => {
@@ -490,7 +493,7 @@ pub fn screen_fn(menus: &Menus, f: ScreenFn) -> Result<(), Refused> {
             draw_volume_settings::draw_volume_settings(menus, &mut GameCanvas).map(|_| ())
         }
         ScreenFn::DrawVisualPreferences => {
-            draw_visual_preferences::draw_visual_preferences(&mut GameCanvas).map(|_| ())
+            draw_visual_preferences::draw_visual_preferences(menus, &mut GameCanvas).map(|_| ())
         }
         ScreenFn::DrawClassRanking => {
             draw_class_ranking::draw_class_ranking(menus, &mut GameCanvas).map(|_| ())
@@ -501,9 +504,11 @@ pub fn screen_fn(menus: &Menus, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::DrawRedefinedKeys => {
             draw_redefined_keys::draw_redefined_keys(menus, &mut GameCanvas).map(|_| ())
         }
-        ScreenFn::RedefinePlayer1Key => redefine_keys::redefine_key(menus, player::player(0)),
+        ScreenFn::RedefinePlayer1Key => {
+            redefine_keys::redefine_key(menus, player::player(menus, 0))
+        }
         ScreenFn::RedefineKey => {
-            redefine_keys::redefine_key(menus, player_settings::current().ok())
+            redefine_keys::redefine_key(menus, player_settings::current(menus).ok())
         }
         ScreenFn::DrawOptionsChecklist => {
             draw_options_checklist::draw_options_checklist(menus, &mut GameCanvas).map(|_| ())

@@ -1,9 +1,9 @@
 //! `physics::drive_wheels_step` (0x43DFB1): the driven wheels' step: the slip shares from
 //! the car-frame wheel speeds (held 0 ..= 1 and turned into a ±1 share), the clutch and
-//! the gear deciding the drive force (`flt_614750` 0 in neutral), `physics::cap_drive_speed`;
+//! the gear deciding the drive force (`drive_torque` 0 in neutral), `physics::cap_drive_speed`;
 //! the drive speeds stepped by the drive force less the wheels' drag and held toward the
 //! car's speed, `physics::revs_from_wheels` (twice, on the two paths); the slips
-//! `flt_614234` / `614238`; `physics::cap_reverse_inputs`, `physics::add_drive_forces`,
+//! `wheel_slips` / `614238`; `physics::cap_reverse_inputs`, `physics::add_drive_forces`,
 //! `physics::ease_low_speed_forces`; and the rest of the wheels' forces into the force
 //! records.
 //!
@@ -16,12 +16,12 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::math::x87::{abs_compare, abs_of, neg_rounded};
 use crate::math::x87_float::X;
 use crate::math::x87_float::compare;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
-use crate::math::x87_run::{abs_compare, abs_of, neg_rounded};
 use crate::physics::car_store::Car;
 use crate::physics::flow::{ZERO_BITS as ZERO, c0, ease_zero, hold_high, hold_low, hold_low_bits};
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
@@ -39,7 +39,7 @@ fn abs_below(x: u32, y: u32) -> bool {
 
 /// `fld from; fstp to`.
 fn store_loaded(to: &Float, from: &Float) {
-    to.set_bits(x87::loaded(from.bits()));
+    to.set_bits(x87::loaded(from));
 }
 
 /// The cells one wheel's slip step works on (`settle_slip`).
@@ -53,7 +53,7 @@ struct SlipCells<'a> {
 }
 
 /// 0x43E5CF .. 0x43E643 (and the second wheel's at 0x43E68D): the slip `s` (at `slip`)
-/// signed by the slip ratio's sign, the drive speed (`drive`) less it x (`dword_614BA8`
+/// signed by the slip ratio's sign, the drive speed (`drive`) less it x (`spec_wheel`
 /// - 1), and the two force records' parts at `f1`, `f2`.
 fn settle_slip(car: &Car, tables: &PhysicsTables, numbers: &Numbers, cells: &SlipCells) {
     let SlipCells {
@@ -74,7 +74,7 @@ fn settle_slip(car: &Car, tables: &PhysicsTables, numbers: &Numbers, cells: &Sli
     apply_slip_to_drive(tables, numbers, drive, slip, f1, f2);
 }
 
-/// The slip's first limit (0x43E58B / 0x43E649): |drive - speed| / `dword_614BA8` into
+/// The slip's first limit (0x43E58B / 0x43E649): |drive - speed| / `spec_wheel` into
 /// `ratio`, and `slip` the lesser of it and `force` (by `fcompp`).
 fn slip_limit(
     car: &Car,
@@ -260,12 +260,12 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
         scale_axle_forces(&race.shared.physics_tables);
         if race.shared.car.parts_state.get() != 0 {
             race.shared.physics_tables.drive_forces[0].set_bits(x87::mul(
-                race.shared.physics_tables.drive_forces[0].bits(),
-                race.course.numbers.half.bits(),
+                &race.shared.physics_tables.drive_forces[0],
+                &race.course.numbers.half,
             ));
             race.shared.physics_tables.drive_forces[1].set_bits(x87::mul(
-                race.shared.physics_tables.drive_forces[1].bits(),
-                race.course.numbers.half.bits(),
+                &race.shared.physics_tables.drive_forces[1],
+                &race.course.numbers.half,
             ));
         }
         slip_limit(
@@ -381,9 +381,9 @@ pub fn drive_wheels_step(race: &Race, scene: &crate::scene::owner::Scene) -> Res
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[t + 0] = -(|[v + 0]| - [rc + 0x1C5D38])`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[t + 0] = -(|[v + 0]| - [one])`
 fn one_less_abs(course: &Course, v: &dyn Cell32, t: &dyn Cell32) {
     let t0 = ld(v.bits());
     let t1 = t0.abs();
@@ -393,8 +393,8 @@ fn one_less_abs(course: &Course, v: &dyn Cell32, t: &dyn Cell32) {
     t.set_bits(st(t4));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `status [s + 0] = status`
 fn abs_status(v: [u32; 2]) -> u16 {
     let t0 = ld(v[1]);
@@ -404,9 +404,9 @@ fn abs_status(v: [u32; 2]) -> u16 {
     compare(t3, t1)
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[r + 0] = ([d + 0] - [rc + 0x31A184]) / [rc + 0x214BA8]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[r + 0] = ([d + 0] - [rc + 0x31A184]) / [spec_wheel]`
 fn slip_ratio(car: &Car, tables: &PhysicsTables, d: &dyn Cell32, r: &dyn Cell32) {
     let t0 = ld(d.bits());
     let t1 = ld(car.local_velocity[2].bits());
@@ -416,11 +416,11 @@ fn slip_ratio(car: &Car, tables: &PhysicsTables, d: &dyn Cell32, r: &dyn Cell32)
     r.set_bits(st(t4));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[d + 0] = [d + 0] - (([rc + 0x214BA8] - [rc + 0x1C5D38]) * [s + 0])`
-/// `[f1 + 0] = ([s + 0] / [rc + 0x21388C]) * [rc + 0x1C5E40]`
-/// `[f2 + 0] = ([s + 0] / [rc + 0x21388C]) * [rc + 0x1C5E40]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[d + 0] = [d + 0] - (([spec_wheel] - [one]) * [s + 0])`
+/// `[f1 + 0] = ([s + 0] / [step_time]) * [half]`
+/// `[f2 + 0] = ([s + 0] / [step_time]) * [half]`
 fn apply_slip_to_drive(
     tables: &PhysicsTables,
     numbers: &Numbers,
@@ -446,9 +446,9 @@ fn apply_slip_to_drive(
     f2.set_bits(st(t11));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[r + 0] = |(([d + 0] - [rc + 0x31A184]) / [rc + 0x214BA8])|`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[r + 0] = |(([d + 0] - [rc + 0x31A184]) / [spec_wheel])|`
 fn slip_ratio_size(car: &Car, tables: &PhysicsTables, d: &dyn Cell32, r: &dyn Cell32) {
     let t0 = ld(d.bits());
     let t1 = ld(car.local_velocity[2].bits());
@@ -459,9 +459,9 @@ fn slip_ratio_size(car: &Car, tables: &PhysicsTables, d: &dyn Cell32, r: &dyn Ce
     r.set_bits(st(t5));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x2140B8] = ([rc + 0x2140B4] + [rc + 0x2140B4]) - [rc + 0x1C5D38]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x2140B8] = ([rc + 0x2140B4] + [rc + 0x2140B4]) - [one]`
 fn signed_share(tables: &PhysicsTables, numbers: &Numbers) {
     let t0 = ld(tables.drive_shares[1].bits());
     let t1 = t0 + t0;
@@ -470,8 +470,8 @@ fn signed_share(tables: &PhysicsTables, numbers: &Numbers) {
     tables.drive_shares[2].set_bits(st(t3));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// (a long formula: see the instructions in the tests' `asm_reference`)
@@ -523,10 +523,10 @@ fn drive_forces_from_grips(car: &Car, tables: &PhysicsTables, grips: &[Float; 5]
     tables.drive_limits[0].set_bits(st(t41));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x214240] = ((int [rc + 0x22400C] / [rc + 0x1C5E2C]) * |([rc + 0x31A17C] * [rc + 0x214268])|) * [rc + 0x214170]`
-/// `[rc + 0x22400C] = [rc + 0x21423C] * [rc + 0x213EC4]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x214240] = ((int [scratch] / [k256]) * |([local_velocity] * [wheel_load])|) * [weight]`
+/// `[scratch] = [drive_limits] * [drive_speed_scale]`
 fn throttle_drive_limit(
     car: &Car,
     tables: &PhysicsTables,
@@ -551,10 +551,10 @@ fn throttle_drive_limit(
     drawing.scene.scratch.set_bits(st(t12));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x31A190] = ((([rc + 0x214750] * [rc + 0x1C5E40]) * [rc + 0x21388C]) * [rc + 0x214BA8]) + [rc + 0x31A190]`
-/// `[rc + 0x31A194] = ((([rc + 0x214750] * [rc + 0x1C5E40]) * [rc + 0x21388C]) * [rc + 0x214BA8]) + [rc + 0x31A194]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[drive_speed_a] = ((([drive_torque] * [half]) * [step_time]) * [spec_wheel]) + [drive_speed_a]`
+/// `[drive_speed_b] = ((([drive_torque] * [half]) * [step_time]) * [spec_wheel]) + [drive_speed_b]`
 fn push_both_drive_speeds(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t0 = ld(tables.drive_torque.bits());
     let t1 = ld(numbers.half.bits());
@@ -578,9 +578,9 @@ fn push_both_drive_speeds(car: &Car, tables: &PhysicsTables, numbers: &Numbers) 
     car.drive_speed_b.set_bits(st(t17));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x31A190] = (([rc + 0x214750] * [rc + 0x21388C]) * [rc + 0x214BA8]) + [rc + 0x31A190]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[drive_speed_a] = (([drive_torque] * [step_time]) * [spec_wheel]) + [drive_speed_a]`
 fn push_drive_speed_a(car: &Car, tables: &PhysicsTables) {
     let t0 = ld(tables.drive_torque.bits());
     let t1 = ld(tables.step_time.bits());
@@ -592,8 +592,8 @@ fn push_drive_speed_a(car: &Car, tables: &PhysicsTables) {
     car.drive_speed_a.set_bits(st(t6));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn brake_step_for_a(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t0 = X(1.0);
@@ -614,8 +614,8 @@ fn brake_step_for_a(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     tables.wheel_speed_step.set_bits(st(t14));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn brake_step_for_b(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t0 = ld(tables.handling[1].bits());
@@ -634,9 +634,9 @@ fn brake_step_for_b(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     tables.wheel_speed_step.set_bits(st(t12));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x21422C] = (((([rc + 0x214BAC] * int [rc + 0x31A618]) / [rc + 0x1C5E2C]) * [rc + 0x21388C]) * [rc + 0x214BA8]) * [rc + 0x214170]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[wheel_speed_step] = (((([spec_drive] * int [handbrake]) / [k256]) * [step_time]) * [spec_wheel]) * [weight]`
 fn handbrake_step_for_b(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t0 = ld(tables.spec_drive[0].bits());
     let t1 = int(car.handbrake.bits() as i32);
@@ -652,8 +652,8 @@ fn handbrake_step_for_b(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     tables.wheel_speed_step.set_bits(st(t10));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `status [s + 0] = status`
 fn handbrake_stop_status(v: [u32; 3]) -> u16 {
     let t0 = ld(v[0]);
@@ -664,10 +664,10 @@ fn handbrake_stop_status(v: [u32; 3]) -> u16 {
     compare(t3, t4)
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x214238] = |([rc + 0x31A194] - [rc + 0x31A184])|`
-/// `[rc + 0x214234] = |([rc + 0x31A190] - [rc + 0x31A184])|`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x214238] = |([drive_speed_b] - [rc + 0x31A184])|`
+/// `[wheel_slips] = |([drive_speed_a] - [rc + 0x31A184])|`
 fn slip_gaps(car: &Car, tables: &PhysicsTables) {
     let t0 = ld(car.drive_speed_b.bits());
     let t1 = ld(car.local_velocity[2].bits());
@@ -681,10 +681,10 @@ fn slip_gaps(car: &Car, tables: &PhysicsTables) {
     tables.wheel_slips[0].set_bits(st(t7));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x214244] = [rc + 0x214244] * [rc + 0x2140B0]`
-/// `[rc + 0x214248] = [rc + 0x214248] * [rc + 0x2140B4]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x214244] = [rc + 0x214244] * [drive_shares]`
+/// `[drive_forces] = [drive_forces] * [rc + 0x2140B4]`
 /// `[rc + 0x21424C] = [rc + 0x21424C] * [rc + 0x2140B4]`
 fn scale_axle_forces(tables: &PhysicsTables) {
     let t0 = ld(tables.drive_limits[2].bits());
@@ -701,13 +701,13 @@ fn scale_axle_forces(tables: &PhysicsTables) {
     tables.drive_forces[1].set_bits(st(t8));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x214250] = [rc + 0x22400C] - [rc + 0x31A17C]`
-/// `[rc + 0x2148D0] = (([rc + 0x22400C] - [rc + 0x31A17C]) / [rc + 0x21388C]) * [rc + 0x1C5DA4]`
-/// `[rc + 0x2148F0] = (([rc + 0x22400C] - [rc + 0x31A17C]) / [rc + 0x21388C]) * [rc + 0x1C5DA4]`
-/// `[rc + 0x214910] = (([rc + 0x22400C] - [rc + 0x31A17C]) / [rc + 0x21388C]) * [rc + 0x1C5DA4]`
-/// `[rc + 0x214930] = (([rc + 0x22400C] - [rc + 0x31A17C]) / [rc + 0x21388C]) * [rc + 0x1C5DA4]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[drive_slip] = [scratch] - [local_velocity]`
+/// `[rc + 0x2148D0] = (([scratch] - [local_velocity]) / [step_time]) * [quarter]`
+/// `[rc + 0x2148F0] = (([scratch] - [local_velocity]) / [step_time]) * [quarter]`
+/// `[rc + 0x214910] = (([scratch] - [local_velocity]) / [step_time]) * [quarter]`
+/// `[rc + 0x214930] = (([scratch] - [local_velocity]) / [step_time]) * [quarter]`
 fn side_slip_forces(
     car: &Car,
     tables: &PhysicsTables,
@@ -728,10 +728,10 @@ fn side_slip_forces(
     tables.forces[14].force[0].set_bits(st(t6));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x214254] = ((|[rc + 0x214250]| - [rc + 0x214264]) * [rc + 0x213ED0]) + [rc + 0x214264]`
-/// `[rc + 0x2141D4] = |([rc + 0x214254] / [rc + 0x214250])| * [rc + 0x214BFC]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x214254] = ((|[drive_slip]| - [slip_limit]) * [slip_blend]) + [slip_limit]`
+/// `[wheel_spin_push] = |([rc + 0x214254] / [drive_slip])| * [rc + 0x214BFC]`
 fn slip_side_share(tables: &PhysicsTables) {
     let t0 = ld(tables.drive_slip[0].bits());
     let t1 = t0.abs();
@@ -751,9 +751,9 @@ fn slip_side_share(tables: &PhysicsTables) {
     tables.wheel_spin_push[0].set_bits(st(t13));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x2141D8] = [rc + 0x214BFC] * [rc + 0x213ED4]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x2141D8] = [rc + 0x214BFC] * [slip_share]`
 fn spin_push_b(tables: &PhysicsTables) {
     let t0 = ld(tables.handling[4].bits());
     let t1 = ld(tables.slip_share.bits());
@@ -761,9 +761,9 @@ fn spin_push_b(tables: &PhysicsTables) {
     tables.wheel_spin_push[1].set_bits(st(t2));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x22400C] = sqrt((([rc + 0x31A17C] * [rc + 0x31A17C]) + ([rc + 0x31A184] * [rc + 0x31A184])))`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[scratch] = sqrt((([local_velocity] * [local_velocity]) + ([rc + 0x31A184] * [rc + 0x31A184])))`
 /// `status [s + 0] = status`
 fn speed_over_ground(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) -> u16 {
     let t0 = ld(car.local_velocity[0].bits());
@@ -777,10 +777,10 @@ fn speed_over_ground(car: &Car, tables: &PhysicsTables, scene: &crate::scene::ow
     compare(t5, t6)
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x2148B0] = -(([rc + 0x214760] / [rc + 0x22400C]) * [rc + 0x31A17C])`
-/// `[rc + 0x2148B8] = -(([rc + 0x214760] / [rc + 0x22400C]) * [rc + 0x31A184])`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x2148B0] = -(([wheel_drag] / [scratch]) * [local_velocity])`
+/// `[rc + 0x2148B8] = -(([wheel_drag] / [scratch]) * [rc + 0x31A184])`
 fn rolling_drag_forces(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let t0 = ld(tables.wheel_drag[0].bits());
@@ -799,12 +799,12 @@ fn rolling_drag_forces(car: &Car, tables: &PhysicsTables, scene: &crate::scene::
     tables.forces[10].force[2].set_bits(st(t11));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x2148D0] = ([rc + 0x2149D0] * [rc + 0x1C5E40]) + [rc + 0x2148D0]`
-/// `[rc + 0x2148F0] = ([rc + 0x2149D0] * [rc + 0x1C5E40]) + [rc + 0x2148F0]`
-/// `[rc + 0x214910] = ([rc + 0x2149F0] * [rc + 0x1C5E40]) + [rc + 0x214910]`
-/// `[rc + 0x214930] = ([rc + 0x2149F0] * [rc + 0x1C5E40]) + [rc + 0x214930]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x2148D0] = ([rc + 0x2149D0] * [half]) + [rc + 0x2148D0]`
+/// `[rc + 0x2148F0] = ([rc + 0x2149D0] * [half]) + [rc + 0x2148F0]`
+/// `[rc + 0x214910] = ([rc + 0x2149F0] * [half]) + [rc + 0x214910]`
+/// `[rc + 0x214930] = ([rc + 0x2149F0] * [half]) + [rc + 0x214930]`
 fn share_wheel_forces(tables: &PhysicsTables, numbers: &Numbers) {
     let t0 = ld(tables.forces[19].force[0].bits());
     let t1 = ld(numbers.half.bits());
@@ -832,10 +832,10 @@ fn share_wheel_forces(tables: &PhysicsTables, numbers: &Numbers) {
     tables.forces[14].force[0].set_bits(st(t19));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x31A158] = [rc + 0x31A190] - [rc + 0x31A184]`
-/// `[rc + 0x22401C] = |([rc + 0x31A190] - [rc + 0x31A184])| - [rc + 0x213EDC]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[drive_slip_speed] = [drive_speed_a] - [rc + 0x31A184]`
+/// `[work_float_a] = |([drive_speed_a] - [rc + 0x31A184])| - [wheel_speed_gap]`
 fn slip_figure_a(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
     let t0 = ld(car.drive_speed_a.bits());
     let t1 = ld(car.local_velocity[2].bits());
@@ -847,9 +847,9 @@ fn slip_figure_a(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner:
     scene.drawing.scene.work_float_a.set_bits(st(t5));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x224020] = |[rc + 0x31A17C]| - [rc + 0x213ED8]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[work_float_b] = |[local_velocity]| - [wheel_speed_margin]`
 fn slip_figure_b(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
     let t0 = ld(car.local_velocity[0].bits());
     let t1 = t0.abs();
@@ -858,14 +858,14 @@ fn slip_figure_b(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner:
     scene.drawing.scene.work_float_b.set_bits(st(t3));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x31A260] = sqrt((([rc + 0x22401C] * [rc + 0x22401C]) + ([rc + 0x224020] * [rc + 0x224020])))`
-/// `[rc + 0x224020] = |[rc + 0x31A17C]|`
-/// `[rc + 0x22401C] = |([rc + 0x31A190] - [rc + 0x31A184])|`
-/// `[rc + 0x31AF18] = sqrt((([rc + 0x22401C] * [rc + 0x22401C]) + ([rc + 0x224020] * [rc + 0x224020])))`
-/// `[rc + 0x22401C] = |([rc + 0x31A194] - [rc + 0x31A184])|`
-/// `[rc + 0x31AF1C] = sqrt((([rc + 0x22401C] * [rc + 0x22401C]) + ([rc + 0x224020] * [rc + 0x224020])))`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[slip_speed] = sqrt((([work_float_a] * [work_float_a]) + ([work_float_b] * [work_float_b])))`
+/// `[work_float_b] = |[local_velocity]|`
+/// `[work_float_a] = |([drive_speed_a] - [rc + 0x31A184])|`
+/// `[skid_grip] = sqrt((([work_float_a] * [work_float_a]) + ([work_float_b] * [work_float_b])))`
+/// `[work_float_a] = |([drive_speed_b] - [rc + 0x31A184])|`
+/// `[rc + 0x31AF1C] = sqrt((([work_float_a] * [work_float_a]) + ([work_float_b] * [work_float_b])))`
 fn slip_lengths(car: &Car, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let t0 = ld(drawing.scene.work_float_a.bits());

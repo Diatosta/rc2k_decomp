@@ -1,6 +1,6 @@
 //! `net::send_inputs` (0x464194): "send j", the player and the step logged, and the
 //! message 'JGSM' (0x4D53474A) with the car's four input dwords (the current car's block
-//! +0xFD0 .. +0xFDC) built in `unk_71C4D0` and sent (`net::send_race_message`, which is
+//! +0xFD0 .. +0xFDC) built in `net_message` and sent (`net::send_race_message`, which is
 //! `call net::send_message; retn`: `net::send_message` here).
 //!
 //!

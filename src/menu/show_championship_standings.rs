@@ -1,5 +1,5 @@
 //! `menu::show_championship_standings` (0x4A5A47): the championship standings: the first player's entry of a group in standings
-//! table B (`menu::first_player_unplaced`), its figure held to 0xAB into `dword_7556B4`;
+//! table B (`menu::first_player_unplaced`), its figure held to 0xAB into `champ_view.count`;
 //! `menu::first_page_stage`, `menu::stage_range_caption`; then the page
 //! (`menu::championship_standings_loop`).
 //!
@@ -10,8 +10,6 @@ use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use rc2k_core::menu::results_pages::{Page, held_figure};
-
-// dword_7558F4
 // g_eventMode
 pub fn show_championship_standings(menus: &Menus) -> Result<(), Refused> {
     let play = &menus.play;

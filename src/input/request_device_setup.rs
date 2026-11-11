@@ -1,8 +1,9 @@
 //! `input::request_device_setup` (0x409351): the first input device's record
 //! (`g_inputDevices`[0]) given a controller and its settings, and the input thread asked to
 //! give the device back and acquire it again (`g_inputCommand` 1, which
-//! `input::device_command` takes with device 0): +0 eax (the controller), +0x20 ebx, +8
-//! ebx or 2 for 0, +0x18 ecx, +0xC 0, +0x10 edx, +0x14 ebp.
+//! `input::device_command` takes with device 0): `controller` the given controller, `sensitivity` the
+//! given sensitivity, `kind` the sensitivity (2 for 0), `axis_code` the given axes' code,
+//! `strength` 0, `dead_zone` and `end_zone` the given zones.
 //!
 //! Not DirectInput itself: the request is the input thread's to act on. Caller:
 //! `menu::apply_controller`. Refuses (before anything) no first record (null pointer).

@@ -1,8 +1,8 @@
 //! `install::open_installer` (0x414363): the installer's buffers taken and its backdrop
-//! drawn. Three blocks are allocated onto the installer memory list (`stru_51BAFC`): the
-//! folder names (0x10100 bytes -> `dword_51BB40`/`50`/`54`), the file names (0x40100 ->
-//! `dword_51BB44`/`58`), the counts cleared, and the progress glyphs (0x3000 ->
-//! `dword_51BB3C`) filled from `files\d\gfx\install.bun`. `install.pal` becomes the blended
+//! drawn. Three blocks are allocated onto the installer memory list (`buffers`): the
+//! folder names (0x10100 bytes -> `dirs`/`50`/`54`), the file names (0x40100 ->
+//! `files`/`58`), the counts cleared, and the progress glyphs (0x3000 ->
+//! `bar_glyphs`) filled from `files\d\gfx\install.bun`. `install.pal` becomes the blended
 //! palette (`gfx::palette_to_dwords`, `gfx::components_to_pixels`); `backdrop.pcx` is loaded,
 //! converted and made the surface; three strings are drawn and the frame shown. A failed
 //! allocation or read is fatal error 0x80AF7121/7122/7022/7444/7445.

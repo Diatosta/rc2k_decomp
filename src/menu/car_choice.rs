@@ -13,7 +13,7 @@ const MOST_ENTRIES: u32 = 0x100;
 /// entries, or entries without their end within 0x100.
 pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
     let current: u32 = menus.screens.event.current_player.get();
-    let car = player(current)
+    let car = player(menus, current)
         .ok_or(BadInput("a current player past the four"))?
         .get()
         .car_number;

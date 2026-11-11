@@ -1,21 +1,21 @@
 //! The two frames of `install::install_files` (code inside it, given to `screens::run_frame`
-//! in eax; ported 2026-10-20 for the standalone, which has no game code to run them). Each
+//! as the frame callback). Each
 //! starts with `call $+5`: its body runs twice, the second time
 //! from the pushed return, so both buffers of the flip get the frame:
-//! - `install::progress_frame` (0x413295): the surface locked (`gfx::lock_surface`;
-//!   failing: carry, nothing more this time round); the bar's place (`dword_51D4A3`: x, y,
-//!   width, height) filled with colour 0 (`gfx::fill_rect`, esi `g_blendedPalette`); the
+//! - `install::progress_frame`: the surface locked (`gfx::lock_surface`;
+//!   failing: carry, nothing more this time round); the bar's place (`bar`: x, y,
+//!   width, height) filled with colour 0 (`gfx::fill_rect`, with `g_blendedPalette`); the
 //!   bar's width `g_filesCopied * 0x190 / g_filesToCopy`; the bar's glyphs
-//!   (`install::blit_glyph_list`, two at `unk_51D483`, esi `g_installBarGlyphs`) clipped
+//!   (`install::blit_glyph_list`, two from `bar_glyphs_list`, with `g_installBarGlyphs`) clipped
 //!   at x + that + 1 (`g_clipRight`, put back); a quarter of it as a percentage (`text`)
 //!   drawn in `font` (0x51E6A4) at (x + 0xC8, y + 2); unlocked, shown;
-//! - `install::copying_frame` (0x413340): locked; the backdrop (`gfx::copy_picture_to_surface`);
-//!   two texts (`install::draw_string_list`, `unk_51D433`); a frame (`gfx::frame_rect`,
-//!   colour 0x2A, `unk_51D4B3`); unlocked, shown.
+//! - `install::copying_frame`: locked; the backdrop (`gfx::copy_picture_to_surface`);
+//!   two texts (`install::draw_string_list`, `texts`); a frame (`gfx::frame_rect`,
+//!   colour 0x2A, `frame`); unlocked, shown.
 //!
 //!
 //! Every call by `at(..)`: the image is elsewhere in the standalone (a bare IDA address
-//! there faulted, 2026-10-20). Callers: `screens::run_frame` from `install_files` (0x41318D, 0x413248, 0x413255).
+//! there faulted). Callers: `screens::run_frame` from `install_files`.
 //! Refuses (before anything) no files to copy, and a bar width past 32 bits (the original's
 //! `div` faults).
 

@@ -21,7 +21,7 @@
 //!
 //! The game calls the methods as the functions here (the original went through
 //! COM method tables), on objects held as ids; the enumerations' callbacks are Rust
-//! functions. The methods the game does not call are not here. Since 2026-10-29 they take
+//! functions. The methods the game does not call are not here. They take
 //! and give typed values (GUIDs, names, the session's `Desc`, byte buffers, results
 //! returned) in place of the structures' addresses; the callbacks get them the same way.
 

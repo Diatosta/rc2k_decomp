@@ -2,6 +2,7 @@
 //! through `audio()` by the code that does not take it as a parameter. The audio thread
 //! reads them at the same time as the game thread (atomic cells).
 
+use crate::audio::levels::Levels;
 use crate::audio::names_store::SampleNames;
 use crate::audio::store::{AudioState, CommandQueue, SampleRecords};
 
@@ -15,6 +16,8 @@ pub struct Audio {
     pub commands: CommandQueue,
     /// The sample files' names.
     pub sample_names: SampleNames,
+    /// The volume levels shared with the menus.
+    pub levels: Levels,
 }
 
 /// The one instance (not `AUDIO`: that is `store::AUDIO`'s old name). Reached through
@@ -24,6 +27,7 @@ pub static AUDIO_OWNER: Audio = Audio {
     sample_records: SampleRecords::new(),
     commands: CommandQueue::new(),
     sample_names: SampleNames::new(),
+    levels: Levels::new(),
 };
 
 /// The audio's state, for a caller that does not take it as a parameter yet.

@@ -1,6 +1,5 @@
-//! `physics::queue_listed_event` (0x44194D): for ebx below 0x20, the event
-//! `dword_614C7C[ebx]` (into ebx); unless it is -1, `physics::queue_car_event` with no
-//! delay (esi 0).
+//! `physics::queue_listed_event` (0x44194D): for an event number below 0x20, the event
+//! `listed_events[n]`; unless it is -1, `physics::queue_car_event` runs with it and no delay.
 //!
 //! Takes: the event's number
 //!

@@ -10,10 +10,8 @@
 //! Caller: `physics::damage_step`.
 
 use crate::errors::BadInput;
-use crate::math::x87::loaded;
-use crate::math::x87_float::X;
-use crate::math::x87_float::{ld, st};
 use crate::physics::car_store::Car;
+use crate::physics::damage_model::{store, value};
 use crate::physics::flow::{below_or_unordered, c0};
 use crate::physics::store::DamageModel;
 use crate::race::work_store::RaceWork;
@@ -30,13 +28,11 @@ fn gear_gauge(car: &Car, gear: u32) -> &Float {
 
 /// The gauge at `at` held 0 ..= `flt_75B34C` (the two `fcompp` holds).
 fn hold_at(damage: &DamageModel, at: &Float) {
-    let rd = || at.bits();
-    let put = |v: u32| at.set_bits(v);
-    if c0(rd(), damage.gauge_low.bits()) {
-        put(loaded(damage.gauge_low.bits()));
+    if c0(at.bits(), damage.gauge_low.bits()) {
+        store(at, value(&damage.gauge_low));
     }
-    if !c0(rd(), damage.gauge_top.bits()) {
-        put(loaded(damage.gauge_top.bits()));
+    if !c0(at.bits(), damage.gauge_top.bits()) {
+        store(at, value(&damage.gauge_top));
     }
 }
 
@@ -385,308 +381,180 @@ pub(super) fn raise(damage: &DamageModel, gauge: &Float, step: impl FnOnce(&Floa
     hold_at(damage, gauge);
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the arithmetic ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + o3] = ([m + o0] * [m + o1]) + [rc + o2]`
-fn add_product(
-    o0: &impl Cell32,
-    o1: &impl Cell32,
-    o2: &impl crate::session::Cell32,
-    o3: &impl crate::session::Cell32,
-) {
-    let t0 = ld(o0.bits());
-    let t1 = ld(o1.bits());
-    let t2 = t0 * t1;
-    let t3 = ld(o2.bits());
-    let t4 = t2 + t3;
-    o3.set_bits(st(t4));
+/// `to = rate * step + from`.
+fn add_product(rate: &impl Cell32, step: &impl Cell32, from: &impl Cell32, to: &impl Cell32) {
+    store(to, value(rate) * value(step) + value(from));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + o5] = ((([m + o0] * [m + o1]) * [m + o2]) * [m + 0x35B38C]) + [rc + o4]`
+/// `to = rate * a * b * gauge_step + from`.
 fn add_scaled_triple(
     m: &DamageModel,
-    o0: &impl Cell32,
-    o1: &impl Cell32,
-    o2: &impl Cell32,
-    o4: &impl crate::session::Cell32,
-    o5: &impl crate::session::Cell32,
+    rate: &impl Cell32,
+    a: &impl Cell32,
+    b: &impl Cell32,
+    from: &impl Cell32,
+    to: &impl Cell32,
 ) {
-    let t0 = ld(o0.bits());
-    let t1 = ld(o1.bits());
-    let t2 = t0 * t1;
-    let t3 = ld(o2.bits());
-    let t4 = t2 * t3;
-    let t5 = ld(m.gauge_step.bits());
-    let t6 = t4 * t5;
-    let t7 = ld(o4.bits());
-    let t8 = t6 + t7;
-    o5.set_bits(st(t8));
+    store(
+        to,
+        value(rate) * value(a) * value(b) * value(&m.gauge_step) + value(from),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[v + 0] = ((([m + 0x35B398] * [m + 0x35B5A8]) * [m + 0x35B370]) * [t + 0]) + [v + 0]`
-fn gear_wear_from_speed(m: &DamageModel, t: &impl Cell32, v: &impl Cell32) {
-    let t0 = ld(m.engine_speed_share.bits());
-    let t1 = ld(m.wear_rates[12].bits());
-    let t2 = t0 * t1;
-    let t3 = ld(m.hundredth.bits());
-    let t4 = t2 * t3;
-    let t5 = ld(t.bits());
-    let t6 = t4 * t5;
-    let t7 = ld(v.bits());
-    let t8 = t6 + t7;
-    v.set_bits(st(t8));
+/// The gear's gauge raised by the engine's speed share times the wear rate, a hundredth
+/// and the gear's factor.
+fn gear_wear_from_speed(m: &DamageModel, factor: &impl Cell32, gauge: &impl Cell32) {
+    store(
+        gauge,
+        value(&m.engine_speed_share)
+            * value(&m.wear_rates[12])
+            * value(&m.hundredth)
+            * value(factor)
+            + value(gauge),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B43C] = 1 - [m + 0x35B400]`
-/// `[rc + 0x31A320] = ((([m + 0x35B5F4] * [m + 0x35B400]) * [m + 0x35B3B0]) * [m + 0x35B38C]) + [rc + 0x31A320]`
+/// The brake balance's complement, and the first brake wear raised by the rate times the
+/// balance, the brake share and the gauge step.
 fn brake_wear_step(car: &Car, m: &DamageModel) {
-    let t0 = X(1.0);
-    let t1 = ld(m.brake_balance_share.bits());
-    let t2 = t0 - t1;
-    m.brake_balance_complement.set_bits(st(t2));
-    let t3 = ld(m.gauge_rates[9].bits());
-    let t4 = ld(m.brake_balance_share.bits());
-    let t5 = t3 * t4;
-    let t6 = ld(m.brake_share.bits());
-    let t7 = t5 * t6;
-    let t8 = ld(m.gauge_step.bits());
-    let t9 = t7 * t8;
-    let t10 = ld(car.brake_wear_a.bits());
-    let t11 = t9 + t10;
-    car.brake_wear_a.set_bits(st(t11));
+    store(
+        &m.brake_balance_complement,
+        1.0 - value(&m.brake_balance_share),
+    );
+    store(
+        &car.brake_wear_a,
+        value(&m.gauge_rates[9])
+            * value(&m.brake_balance_share)
+            * value(&m.brake_share)
+            * value(&m.gauge_step)
+            + value(&car.brake_wear_a),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + o4] = (([m + o0] * [m + o1]) * [m + o2]) + [rc + o3]`
+/// `to = rate * a * b + from`.
 fn add_triple_product(
-    o0: &impl Cell32,
-    o1: &impl Cell32,
-    o2: &impl Cell32,
-    o3: &impl crate::session::Cell32,
-    o4: &impl crate::session::Cell32,
+    rate: &impl Cell32,
+    a: &impl Cell32,
+    b: &impl Cell32,
+    from: &impl Cell32,
+    to: &impl Cell32,
 ) {
-    let t0 = ld(o0.bits());
-    let t1 = ld(o1.bits());
-    let t2 = t0 * t1;
-    let t3 = ld(o2.bits());
-    let t4 = t2 * t3;
-    let t5 = ld(o3.bits());
-    let t6 = t4 + t5;
-    o4.set_bits(st(t6));
+    store(to, value(rate) * value(a) * value(b) + value(from));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B488] = (([m + 0x35B39C] / ([m + 0x35B484] * [m + 0x35B380])) * [m + 0x35B34C]) * [m + 0x35B3F4]`
-/// `[m + 0x35B48C] = (([m + 0x35B39C] / ([m + 0x35B484] * [m + 0x35B380])) * [m + 0x35B34C]) * [m + 0x35B3F4]`
+/// Both tyre wear rates: the speed share over the wear figure times the length of a mile
+/// (in metres), as a share of the gauge, times the wheels-down switch.
 fn part_hit_figures(m: &DamageModel) {
-    let t0 = ld(m.speed_share.bits());
-    let t1 = ld(m.wear_figure.bits());
-    let t2 = ld(m.metres_per_mile.bits());
-    let t3 = t1 * t2;
-    let t4 = t0 / t3;
-    let t5 = ld(m.gauge_top.bits());
-    let t6 = t4 * t5;
-    let t7 = ld(m.wheels_down.bits());
-    let t8 = t6 * t7;
-    m.front_tyre_wear_rate.set_bits(st(t8));
-    m.rear_tyre_wear_rate.set_bits(st(t8));
+    let rate = value(&m.speed_share) / (value(&m.wear_figure) * value(&m.metres_per_mile))
+        * value(&m.gauge_top)
+        * value(&m.wheels_down);
+    store(&m.front_tyre_wear_rate, rate);
+    store(&m.rear_tyre_wear_rate, rate);
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B488] = [m + 0x35B488] * [t + 0]`
-/// `[m + 0x35B48C] = [m + 0x35B48C] * [u + 0]`
-fn scale_part_hit_figures(m: &DamageModel, t: &impl Cell32, u: &impl Cell32) {
-    let t0 = ld(m.front_tyre_wear_rate.bits());
-    let t1 = ld(t.bits());
-    let t2 = t0 * t1;
-    m.front_tyre_wear_rate.set_bits(st(t2));
-    let t3 = ld(m.rear_tyre_wear_rate.bits());
-    let t4 = ld(u.bits());
-    let t5 = t3 * t4;
-    m.rear_tyre_wear_rate.set_bits(st(t5));
+/// The two tyre wear rates times the given factors.
+fn scale_part_hit_figures(m: &DamageModel, front: &impl Cell32, rear: &impl Cell32) {
+    store(
+        &m.front_tyre_wear_rate,
+        value(&m.front_tyre_wear_rate) * value(front),
+    );
+    store(
+        &m.rear_tyre_wear_rate,
+        value(&m.rear_tyre_wear_rate) * value(rear),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x31A290] = (([rc + 0x31A28C] * [m + 0x35B608]) * [m + 0x35B370]) + [rc + 0x31A290]`
+/// The engine's damage raised by its heat times the rate and a hundredth.
 fn engine_damage_carry(car: &Car, m: &DamageModel) {
-    let t0 = ld(car.engine_heat.bits());
-    let t1 = ld(m.gauge_rates[14].bits());
-    let t2 = t0 * t1;
-    let t3 = ld(m.hundredth.bits());
-    let t4 = t2 * t3;
-    let t5 = ld(car.engine_damage.bits());
-    let t6 = t4 + t5;
-    car.engine_damage.set_bits(st(t6));
+    store(
+        &car.engine_damage,
+        value(&car.engine_heat) * value(&m.gauge_rates[14]) * value(&m.hundredth)
+            + value(&car.engine_damage),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x31A2A0] = [rc + 0x31A2A0] + [m + o1]`
-fn add_rate_to_clutch(car: &Car, o1: &impl Cell32) {
-    let t0 = ld(car.clutch_damage.bits());
-    let t1 = ld(o1.bits());
-    let t2 = t0 + t1;
-    car.clutch_damage.set_bits(st(t2));
+/// The clutch's damage plus a rate.
+fn add_rate_to_clutch(car: &Car, rate: &impl Cell32) {
+    store(&car.clutch_damage, value(&car.clutch_damage) + value(rate));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[v + 0] = [v + 0] + [m + o1]`
-fn add_rate_to_gauge(v: &impl Cell32, o1: &impl Cell32) {
-    let t0 = ld(v.bits());
-    let t1 = ld(o1.bits());
-    let t2 = t0 + t1;
-    v.set_bits(st(t2));
+/// A gauge plus a rate.
+fn add_rate_to_gauge(gauge: &impl Cell32, rate: &impl Cell32) {
+    store(gauge, value(gauge) + value(rate));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B3C8] = [m + 0x35B3C8] * [rc + 0x31C708]`
+/// The size of the hit times the damage setting.
 fn scale_hit_size(work: &RaceWork, m: &DamageModel) {
-    let t0 = ld(m.hit_size.bits());
-    let t1 = ld(work.patch_factors[1].bits());
-    let t2 = t0 * t1;
-    m.hit_size.set_bits(st(t2));
+    store(
+        &m.hit_size,
+        value(&m.hit_size) * value(&work.patch_factors[1]),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[v + 0] = ([m + 0x35B3C8] * [m + 0x35B6CC]) + [v + 0]`
-fn add_hit_to_gear_gauge(m: &DamageModel, v: &impl Cell32) {
-    let t0 = ld(m.hit_size.bits());
-    let t1 = ld(m.figures[21].bits());
-    let t2 = t0 * t1;
-    let t3 = ld(v.bits());
-    let t4 = t2 + t3;
-    v.set_bits(st(t4));
+/// The gear's gauge plus the size of the hit times the gear's hit figure.
+fn add_hit_to_gear_gauge(m: &DamageModel, gauge: &impl Cell32) {
+    store(
+        gauge,
+        value(&m.hit_size) * value(&m.figures[21]) + value(gauge),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x31A304] = ((((([rc + 0x31A2EC] + [rc + 0x31A2F0]) + [rc + 0x31A2F4]) + [rc + 0x31A2F8]) + [rc + 0x31A300]) + [rc + 0x31A2FC]) / [m + 0x35B344]`
-/// `[rc + 0x31A328] = ([rc + 0x31A320] + [rc + 0x31A324]) * [m + 0x35B360]`
-/// `[m + 0x35B440] = ([rc + 0x31A32C] + [rc + 0x31A330]) * [m + 0x35B360]`
-/// `[m + 0x35B444] = ([rc + 0x31A334] + [rc + 0x31A338]) * [m + 0x35B360]`
-/// `[rc + 0x31A33C] = ([m + 0x35B440] + [m + 0x35B444]) * [m + 0x35B360]`
-/// (a long formula: see the instructions in the tests' `asm_reference`)
-/// (a long formula: see the instructions in the tests' `asm_reference`)
-/// `[rc + 0x31A31C] = ((([rc + 0x31A30C] + [rc + 0x31A310]) + [rc + 0x31A314]) + [rc + 0x31A318]) * [m + 0x35B364]`
-/// `[rc + 0x31A430] = ((([rc + 0x31A420] + [rc + 0x31A424]) + [rc + 0x31A428]) + [rc + 0x31A42C]) * [m + 0x35B364]`
+/// The sums of the gauges: the lights' mean, the brakes', the tyres', the gearbox's, the
+/// body's, the suspension's and the stiffness mean.
 fn gauge_totals(car: &Car, m: &DamageModel) {
-    let t0 = ld(car.light_damage[0].bits());
-    let t1 = ld(car.light_damage[1].bits());
-    let t2 = t0 + t1;
-    let t3 = ld(car.light_damage[2].bits());
-    let t4 = t2 + t3;
-    let t5 = ld(car.light_damage[3].bits());
-    let t6 = t4 + t5;
-    let t7 = ld(car.light_damage[5].bits());
-    let t8 = t6 + t7;
-    let t9 = ld(car.light_damage[4].bits());
-    let t10 = t8 + t9;
-    let t11 = ld(m.light_count_divisor.bits());
-    let t12 = t10 / t11;
-    car.lights_damage.set_bits(st(t12));
-    let t13 = ld(car.brake_wear_a.bits());
-    let t14 = ld(car.brake_wear_b.bits());
-    let t15 = t13 + t14;
-    let t16 = ld(m.half.bits());
-    let t17 = t15 * t16;
-    car.brake_damage.set_bits(st(t17));
-    let t18 = ld(car.tyre_wears[0].bits());
-    let t19 = ld(car.tyre_wears[1].bits());
-    let t20 = t18 + t19;
-    let t21 = ld(m.half.bits());
-    let t22 = t20 * t21;
-    m.front_tyre_wear.set_bits(st(t22));
-    let t23 = ld(car.tyre_wears[2].bits());
-    let t24 = ld(car.tyre_wears[3].bits());
-    let t25 = t23 + t24;
-    let t26 = ld(m.half.bits());
-    let t27 = t25 * t26;
-    m.rear_tyre_wear.set_bits(st(t27));
-    let t28 = ld(m.front_tyre_wear.bits());
-    let t29 = ld(m.rear_tyre_wear.bits());
-    let t30 = t28 + t29;
-    let t31 = ld(m.half.bits());
-    let t32 = t30 * t31;
-    car.tyre_wear.set_bits(st(t32));
-    let t33 = ld(car.gear_wear[0].bits());
-    let t34 = ld(car.gear_wear[2].bits());
-    let t35 = t33 + t34;
-    let t36 = ld(car.gear_wear[3].bits());
-    let t37 = t35 + t36;
-    let t38 = ld(car.gear_wear[4].bits());
-    let t39 = t37 + t38;
-    let t40 = ld(car.gear_wear[5].bits());
-    let t41 = t39 + t40;
-    let t42 = ld(car.gear_wear[6].bits());
-    let t43 = t41 + t42;
-    let t44 = ld(car.gear_wear[7].bits());
-    let t45 = t43 + t44;
-    let t46 = ld(car.gear_wear[8].bits());
-    let t47 = t45 + t46;
-    let t48 = ld(m.half.bits());
-    let t49 = t47 * t48;
-    let t50 = ld(m.half.bits());
-    let t51 = t49 * t50;
-    let t52 = ld(m.half.bits());
-    let t53 = t51 * t52;
-    car.gearbox_damage.set_bits(st(t53));
-    let t54 = ld(car.wheel_hit_damage[0].bits());
-    let t55 = ld(car.wheel_hit_damage[1].bits());
-    let t56 = t54 + t55;
-    let t57 = ld(car.wheel_hit_damage[2].bits());
-    let t58 = t56 + t57;
-    let t59 = ld(car.wheel_hit_damage[3].bits());
-    let t60 = t58 + t59;
-    let t61 = ld(car.body_hit_damage.bits());
-    let t62 = t60 + t61;
-    let t63 = ld(car.body_hit_damage.bits());
-    let t64 = t62 + t63;
-    let t65 = ld(car.body_hit_damage.bits());
-    let t66 = t64 + t65;
-    let t67 = ld(car.body_hit_damage.bits());
-    let t68 = t66 + t67;
-    let t69 = ld(car.body_hit_damage.bits());
-    let t70 = t68 + t69;
-    let t71 = ld(car.body_hit_damage.bits());
-    let t72 = t70 + t71;
-    let t73 = ld(m.tenth.bits());
-    let t74 = t72 * t73;
-    car.body_damage.set_bits(st(t74));
-    let t75 = ld(car.suspension_damage[0].bits());
-    let t76 = ld(car.suspension_damage[1].bits());
-    let t77 = t75 + t76;
-    let t78 = ld(car.suspension_damage[2].bits());
-    let t79 = t77 + t78;
-    let t80 = ld(car.suspension_damage[3].bits());
-    let t81 = t79 + t80;
-    let t82 = ld(m.quarter.bits());
-    let t83 = t81 * t82;
-    car.overall_suspension_damage.set_bits(st(t83));
-    let t84 = ld(car.wheel_stiffness[0].bits());
-    let t85 = ld(car.wheel_stiffness[1].bits());
-    let t86 = t84 + t85;
-    let t87 = ld(car.wheel_stiffness[2].bits());
-    let t88 = t86 + t87;
-    let t89 = ld(car.wheel_stiffness[3].bits());
-    let t90 = t88 + t89;
-    let t91 = ld(m.quarter.bits());
-    let t92 = t90 * t91;
-    car.stiffness_mean.set_bits(st(t92));
+    let [l0, l1, l2, l3, l4, l5] = &car.light_damage;
+    store(
+        &car.lights_damage,
+        (value(l0) + value(l1) + value(l2) + value(l3) + value(l5) + value(l4))
+            / value(&m.light_count_divisor),
+    );
+    let half = value(&m.half);
+    store(
+        &car.brake_damage,
+        (value(&car.brake_wear_a) + value(&car.brake_wear_b)) * half,
+    );
+    let [t0, t1, t2, t3] = &car.tyre_wears;
+    store(&m.front_tyre_wear, (value(t0) + value(t1)) * half);
+    store(&m.rear_tyre_wear, (value(t2) + value(t3)) * half);
+    store(
+        &car.tyre_wear,
+        (value(&m.front_tyre_wear) + value(&m.rear_tyre_wear)) * half,
+    );
+    // Every gear's wear but the neutral's (at 1).
+    let [g0, _, g2, g3, g4, g5, g6, g7, g8] = &car.gear_wear;
+    store(
+        &car.gearbox_damage,
+        (value(g0)
+            + value(g2)
+            + value(g3)
+            + value(g4)
+            + value(g5)
+            + value(g6)
+            + value(g7)
+            + value(g8))
+            * half
+            * half
+            * half,
+    );
+    let [w0, w1, w2, w3] = &car.wheel_hit_damage;
+    let body = value(&car.body_hit_damage);
+    store(
+        &car.body_damage,
+        (value(w0) + value(w1) + value(w2) + value(w3) + body + body + body + body + body + body)
+            * value(&m.tenth),
+    );
+    let [s0, s1, s2, s3] = &car.suspension_damage;
+    store(
+        &car.overall_suspension_damage,
+        (value(s0) + value(s1) + value(s2) + value(s3)) * value(&m.quarter),
+    );
+    let [k0, k1, k2, k3] = &car.wheel_stiffness;
+    store(
+        &car.stiffness_mean,
+        (value(k0) + value(k1) + value(k2) + value(k3)) * value(&m.quarter),
+    );
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -700,7 +568,7 @@ mod asm_reference {
     fn dm(base: usize) -> &'static DamageModel {
         unsafe { &*(crate::pointers::host_at(base + 0x35B340) as *const DamageModel) }
     }
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse_at};
 
     // The original's instructions, one function per run.
     reference!(ref_0(m, rc) "fld dword ptr [{m} + 0x35B5D0]", "fmul dword ptr [{m} + 0x35B38C]", "fadd dword ptr [{rc} + 0x31A290]", "fstp dword ptr [{rc} + 0x31A290]");
@@ -3408,6 +3276,140 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        // The plain code rounds to nearest, as the game always runs the damage model.
+        sparse_at(&blocks(), 1200, 100, &[0x027F]);
+    }
+}
+
+#[cfg(test)]
+mod plain_matches_x87 {
+    use super::*;
+    use crate::physics::damage_model::proof::{gauges, prove};
+
+    #[test]
+    fn products_and_triples() {
+        prove(
+            "add_product",
+            |s| {
+                let (d, g) = (&s.damage, &s.car.engine_damage);
+                gauges::add_product(&d.gauge_rates[0], &d.gauge_step, g, g);
+            },
+            |s| {
+                let (d, g) = (&s.damage, &s.car.engine_damage);
+                add_product(&d.gauge_rates[0], &d.gauge_step, g, g);
+            },
+        );
+        prove(
+            "add_scaled_triple",
+            |s| {
+                let (d, g) = (&s.damage, &s.car.turbo_damage);
+                gauges::add_scaled_triple(
+                    d,
+                    &d.wear_rates[11],
+                    &d.engine_over_limit,
+                    &d.engine_speed_share,
+                    g,
+                    g,
+                );
+            },
+            |s| {
+                let (d, g) = (&s.damage, &s.car.turbo_damage);
+                add_scaled_triple(
+                    d,
+                    &d.wear_rates[11],
+                    &d.engine_over_limit,
+                    &d.engine_speed_share,
+                    g,
+                    g,
+                );
+            },
+        );
+        prove(
+            "add_triple_product",
+            |s| {
+                let (d, g) = (&s.damage, &s.car.electrics_damage);
+                gauges::add_triple_product(
+                    &d.gauge_rates[10],
+                    &d.on_surface_5,
+                    &d.gauge_step,
+                    g,
+                    g,
+                );
+            },
+            |s| {
+                let (d, g) = (&s.damage, &s.car.electrics_damage);
+                add_triple_product(&d.gauge_rates[10], &d.on_surface_5, &d.gauge_step, g, g);
+            },
+        );
+        prove(
+            "gear_wear_from_speed",
+            |s| {
+                gauges::gear_wear_from_speed(
+                    &s.damage,
+                    &s.damage.gear_factors[2],
+                    &s.car.gear_wear[2],
+                );
+            },
+            |s| gear_wear_from_speed(&s.damage, &s.damage.gear_factors[2], &s.car.gear_wear[2]),
+        );
+        prove(
+            "brake_wear_step",
+            |s| gauges::brake_wear_step(&s.car, &s.damage),
+            |s| brake_wear_step(&s.car, &s.damage),
+        );
+        prove(
+            "engine_damage_carry",
+            |s| gauges::engine_damage_carry(&s.car, &s.damage),
+            |s| engine_damage_carry(&s.car, &s.damage),
+        );
+    }
+
+    #[test]
+    fn tyre_and_hit_figures() {
+        prove(
+            "part_hit_figures",
+            |s| gauges::part_hit_figures(&s.damage),
+            |s| part_hit_figures(&s.damage),
+        );
+        prove(
+            "scale_part_hit_figures",
+            |s| {
+                gauges::scale_part_hit_figures(
+                    &s.damage,
+                    &s.damage.figures[3],
+                    &s.damage.figures[4],
+                );
+            },
+            |s| scale_part_hit_figures(&s.damage, &s.damage.figures[3], &s.damage.figures[4]),
+        );
+        prove(
+            "add_rate_to_clutch",
+            |s| gauges::add_rate_to_clutch(&s.car, &s.damage.figures[5]),
+            |s| add_rate_to_clutch(&s.car, &s.damage.figures[5]),
+        );
+        prove(
+            "add_rate_to_gauge",
+            |s| gauges::add_rate_to_gauge(&s.car.tyre_wears[1], &s.damage.figures[6]),
+            |s| add_rate_to_gauge(&s.car.tyre_wears[1], &s.damage.figures[6]),
+        );
+        prove(
+            "scale_hit_size",
+            |s| gauges::scale_hit_size(&s.work, &s.damage),
+            |s| scale_hit_size(&s.work, &s.damage),
+        );
+        prove(
+            "add_hit_to_gear_gauge",
+            |s| gauges::add_hit_to_gear_gauge(&s.damage, &s.car.gear_wear[4]),
+            |s| add_hit_to_gear_gauge(&s.damage, &s.car.gear_wear[4]),
+        );
+    }
+
+    #[test]
+    fn totals() {
+        prove(
+            "gauge_totals",
+            |s| gauges::gauge_totals(&s.car, &s.damage),
+            |s| gauge_totals(&s.car, &s.damage),
+        );
     }
 }

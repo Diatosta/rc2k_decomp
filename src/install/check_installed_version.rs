@@ -1,11 +1,11 @@
 //! `install::check_installed_version` (0x413B0B): whether the already-installed `ral.exe` is
-//! this same build (`dword_51B9C8`). Only when installed (`g_installStatus` 1) with a source
-//! (`g_installSource`): the source is normalised into `byte_95E7F8` and made current, then
+//! this same build (`same_version`). Only when installed (`g_installStatus` 1) with a source
+//! (`g_installSource`): the source is normalised into `paths.installed` and made current, then
 //! `.\ral.exe` is read in 0xFF00-byte chunks (`g_pngInfo` the buffer, the last 0x100 bytes of
 //! each chunk carried to the front of the next so a match can span a boundary). Each chunk is
 //! scanned for `$VER: Rally 5`; on a hit the bytes are skipped to the next NUL and compared
-//! against the copyright line (`byte_4E001C`, up to its first `.`); a full match sets
-//! `dword_51B9C8`. The file is closed and the current directory set to `byte_95E6F8`.
+//! against the copyright line (the copyright text, up to its first `.`); a full match sets
+//! `same_version`. The file is closed and the current directory set to `paths.game_dir`.
 //!
 //! Caller `install::run_installer`.
 
@@ -26,7 +26,7 @@ pub fn check_installed_version(
     if install.names.status.get() != 1 || install.names.source.get(0) == 0 {
         return Ok(());
     }
-    // normalise the source into byte_95E7F8, cd there
+    // Normalise the source into the installed folder's path, and go there.
     let normalised = crate::install::normalise_path::normalised_bytes(
         &install.names.source.text(),
         &mut || crate::install::normalise_path::current_directory(),

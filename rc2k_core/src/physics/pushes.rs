@@ -1,9 +1,9 @@
-//! A force record's push and twist on a car (converted 2026-10-21 from
+//! A force record's push and twist on a car (Converted from
 //! `physics::apply_force` 0x45FAE1 and `physics::apply_torque` 0x45FB82; the records'
 //! counts of `apply_forces` 0x43F566, `apply_torques` 0x43F6BF and `clear_records`
 //! 0x43F3A6, the last emptying the first six dwords of each). A force record (0x20 bytes): the force at +0, the point it acts at at
 //! +0xC. A reading: the push moves
-//! the car's motion, the twist its spin, `flt_613FA8` .. the inverse inertia.
+//! the car's motion, the twist its spin, `inertia` .. the inverse inertia.
 //!
 //! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
 //! original stores (`physics::x87`): the same bits at the game's double precision.
@@ -36,9 +36,9 @@ pub fn turned(m: &[f32; 15], v: [f32; 3]) -> [f32; 3] {
 /// What `apply_force` stores, in its order.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Push {
-    /// `flt_614B30` ..: the force times the step, turned into the world.
+    /// `push_record` ..: the force times the step, turned into the world.
     pub work: [f32; 3],
-    /// `dword_62400C`: the step (left in st(0), stored).
+    /// `scratch`: the step (left in st(0), stored).
     pub step: f32,
     /// The car's motion (+0x198 ..) with the force added.
     pub motion: [f32; 3],
@@ -66,7 +66,7 @@ pub fn apply_force(
     }
 }
 
-/// `scene::cross_product` of `b` and `c` (ebx, ecx): c2 b1 - b2 c1, c0 b2 - b0 c2,
+/// `scene::cross_product` of `b` and `c`: c2 b1 - b2 c1, c0 b2 - b0 c2,
 /// c1 b0 - b1 c0, each stored.
 pub fn cross(b: [f32; 3], c: [f32; 3]) -> [f32; 3] {
     [(2, 1), (0, 2), (1, 0)]
@@ -76,9 +76,9 @@ pub fn cross(b: [f32; 3], c: [f32; 3]) -> [f32; 3] {
 /// What `apply_torque` stores, in its order.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Twist {
-    /// `flt_614274` ..: the cross product of the record's two vectors.
+    /// `torque_cross` ..: the cross product of the record's two vectors.
     pub cross: [f32; 3],
-    /// `dword_6D30B4` ..: the spin, in the car's frame, less the twist, turned back (also
+    /// `contact_turn_speed` ..: the spin, in the car's frame, less the twist, turned back (also
     /// the car's new spin, +0x184 ..).
     pub spin: [f32; 3],
 }

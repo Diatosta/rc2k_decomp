@@ -1,5 +1,5 @@
 //! `physics::start_go_notice` (0x436A4B): the start's "go". With the grades' mode
-//! (`g_car` +0x25C) 1, the count +0x8C, +0xA4 (`unk_71A07C`) and +0xA8 all 0, and cheat
+//! (`g_car` +0x25C) 1, the count +0x8C, +0xA4 (`go_stand_timer`) and +0xA8 all 0, and cheat
 //! bit 16 of `g_cheats` clear (`bt`): `physics::set_flag_5165a4`, then +0xA4 1, the
 //! notice +0x71C 0xC7, +0x730 0x32 and +0x72C -1.
 //!

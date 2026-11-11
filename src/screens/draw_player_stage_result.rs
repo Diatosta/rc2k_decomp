@@ -17,9 +17,9 @@ use crate::screens::best_scores::{STAGE_TIMES, draw_times_heading};
 use crate::text::draw_text::Canvas;
 
 pub fn draw_player_stage_result(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let player = crate::menu::player_settings::current()?.get();
+    let player = crate::menu::player_settings::current(menus)?.get();
     let name =
-        crate::screens::game_screen::player_name_of(menus, crate::menu::player_name::name()?);
+        crate::screens::game_screen::player_name_of(menus, crate::menu::player_name::name(menus)?);
     let top_speed = player.figure;
     let mut speed = crate::strings::append_speed::append_speed(
         top_speed,

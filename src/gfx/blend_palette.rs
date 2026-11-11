@@ -1,7 +1,7 @@
 //! `gfx::blend_palette` (0x405F0A): makes a palette that lies between two others.
 //!
 //! For each entry both colours are taken apart with `pixel_to_components`; each of the three
-//! low components becomes first + ((second - first) * eax >> 8), as a byte; and the result
+//! low components becomes first + ((second - first) * the amount >> 8), as a byte; and the result
 //! goes back through `components_to_pixel`. The fourth component is not computed: it is
 //! whatever the top byte of the result's entry held before, which only matters to a format
 //! with a fourth mask.

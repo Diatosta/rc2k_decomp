@@ -1,4 +1,4 @@
-//! The race's sound objects set up (converted 2026-10-21 from
+//! The race's sound objects set up (Converted from
 //! `race::set_up_race_sound_objects` 0x415C93): how many players and objects there are,
 //! and each object's number.
 

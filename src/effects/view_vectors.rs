@@ -1,4 +1,4 @@
-//! The marks' view vectors, out of the marks' block (phase 7, typed state): `ViewSources`
+//! The marks' view vectors: `ViewSources`
 //! (IDA 0x764F90 .. 0x764FC8) and `KeptView` (0x769236 .. 0x769312). A reading: the
 //! vectors the car view hands the marks, kept from frame to frame and turned.
 
@@ -15,7 +15,7 @@ pub struct VectorSource {
     pub scaled: [Float; 3],
 }
 
-/// The marks' view vectors the frame starts from (IDA 0x764F90 .. 0x764FC8, the image's layout; phase 7, typed state).
+/// The marks' view vectors the frame starts from (IDA 0x764F90 .. 0x764FC8).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewSources {
@@ -30,20 +30,12 @@ impl ViewSources {
                 VectorSource {
                     factor: Dword::new(0x40A00000),
                     vector: [Dword::new(0x0), Dword::new(0xBF800000), Dword::new(0x0)],
-                    scaled: [
-                        Float::from_bits(0x0),
-                        Float::from_bits(0xBF800000),
-                        Float::from_bits(0x0),
-                    ],
+                    scaled: [Float::new(0.0), Float::new(-1.0), Float::new(0.0)],
                 },
                 VectorSource {
                     factor: Dword::new(0x0),
                     vector: [Dword::new(0x0), Dword::new(0x0), Dword::new(0xBF800000)],
-                    scaled: [
-                        Float::from_bits(0x0),
-                        Float::from_bits(0x0),
-                        Float::from_bits(0xBF800000),
-                    ],
+                    scaled: [Float::new(0.0), Float::new(0.0), Float::new(-1.0)],
                 },
             ],
         }
@@ -55,7 +47,7 @@ impl ViewSources {
     pub const LEN: usize = 0x38;
 }
 
-/// The kept vectors of the marks' view (IDA 0x769236 .. 0x769312, the image's layout; phase 7, typed state).
+/// The kept vectors of the marks' view (IDA 0x769236 .. 0x769312).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct KeptView {
@@ -96,10 +88,10 @@ pub struct KeptView {
 impl KeptView {
     pub const fn new() -> Self {
         Self {
-            first_sine_cosine: [Float::from_bits(0x0), Float::from_bits(0x0)],
-            first_angle: Float::from_bits(0x0),
-            second_sine_cosine: [Float::from_bits(0x0), Float::from_bits(0x0)],
-            second_angle: Float::from_bits(0x0),
+            first_sine_cosine: [Float::new(0.0), Float::new(0.0)],
+            first_angle: Float::new(0.0),
+            second_sine_cosine: [Float::new(0.0), Float::new(0.0)],
+            second_angle: Float::new(0.0),
             pushed: [
                 Dword::new(0x41800000),
                 Dword::new(0x0),
@@ -112,59 +104,31 @@ impl KeptView {
             kept_a: VectorSource {
                 factor: Dword::new(0x0),
                 vector: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-                scaled: [
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x0),
-                ],
+                scaled: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
             },
             _gap_769286: Bytes::new([
                 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00,
             ]),
-            last: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-            ],
+            last: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
             kept_b: VectorSource {
                 factor: Dword::new(0x3F800000),
                 vector: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-                scaled: [
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x0),
-                ],
+                scaled: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
             },
             kept_c: VectorSource {
                 factor: Dword::new(0x3F800000),
                 vector: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-                scaled: [
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x0),
-                ],
+                scaled: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
             },
             _gap_7692da: Bytes::new([
                 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00,
             ]),
-            step: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-            ],
+            step: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
             length: Dword::new(0x3F800000),
-            unit: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-            ],
-            vector: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-            ],
+            unit: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
+            vector: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
         }
     }
 }

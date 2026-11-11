@@ -399,11 +399,17 @@ impl Drop for PutBack {
 /// writes (floats equal or both NaN, whole numbers and 80-bit values bit for bit, the status
 /// words' condition bits).
 pub fn sparse(blocks: &[Block], cases: u32, seed: u64) {
+    sparse_at(blocks, cases, seed, &CONTROL_WORDS);
+}
+
+/// `sparse` at the control words `words` only: for plain code written for the rounding the
+/// game runs it at (to nearest), which the reference assembly follows in every mode.
+pub fn sparse_at(blocks: &[Block], cases: u32, seed: u64, words: &[u16]) {
     let _g = lock();
     let _restore = Restore(control_word());
     let mut rng = Rng::new(seed);
     const SIMPLE: [f32; 5] = [0.0, -0.0, 1.0, -1.0, 0.5];
-    for &cw in &CONTROL_WORDS {
+    for &cw in words {
         set_control_word(cw);
         for block in blocks {
             let mut buffers: Vec<Mem> = Vec::new();

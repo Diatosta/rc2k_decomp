@@ -1,5 +1,5 @@
-//! `threading::request_quit` (0x410BF9): asks the game to shut down: sets `dword_51837C` to 1
-//! and, if it was not 1 already, starts the thread of slot 3 (`stru_518824`), whose routine
+//! `threading::request_quit` (0x410BF9): asks the game to shut down: sets `flags.quitting` to 1
+//! and, if it was not 1 already, starts the thread of slot 3, whose routine
 //! at 0x410C17 logs "SHUTDOWN:START", waits for the other threads and posts a close message
 //! to the window.
 //!
@@ -43,8 +43,7 @@ pub fn request_quit() -> Result<(), FatalError> {
 
 /// `request_quit`, saying in the log that it ran.
 pub fn request_quit_logged() -> Result<(), FatalError> {
-    // It happens once, while the game is closing, when `stats` can no longer be asked: say
-    // in the log that it ran.
+    // It happens once, while the game is closing: say in the log that it ran.
     let was: u32 = system().session.flags.quitting.get();
     let result = request_quit();
     log(&format!(
@@ -52,5 +51,3 @@ pub fn request_quit_logged() -> Result<(), FatalError> {
     ));
     result
 }
-
-// pusha; mov eax, 1

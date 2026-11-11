@@ -1,5 +1,5 @@
-//! `drive::car_near_checkpoint` (0x4375F2): whether a car in the stage (+0x25C not 0) is within 3
-//! checkpoints of eax: CF when |+0x98 - eax| (`neg` of a negative) less 4 has its sign set.
+//! `drive::car_near_checkpoint` (0x4375F2): whether a car in the stage (`driver_kind` not 0) is
+//! within 3 checkpoints of the given one: |`checkpoint` - given| less 4 is negative.
 //!
 //! Takes: a car block, a checkpoint
 //!

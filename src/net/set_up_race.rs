@@ -1,15 +1,15 @@
 //! `net::set_up_race` (0x463A94): the network race set up from the players' records: this
-//! machine's player to `dword_63DBA0`; each player's car (record +1) to `g_raceCarKinds`,
-//! its colours (+2) to `dword_623878`, its race number (+6) to `dword_6238D4`; the host's
-//! (state bit 0x10) stage (+4, low seven bits) to `g_stageNumber` and direction (+5, bit 0)
-//! to `dword_623854`; `dword_62389C` 0, `g_raceCars` the players, `dword_63DB94` 1,
-//! `dword_621514` 0; the cars' blocks reset (`net::reset_cars`), `race::set_up_arcade_cars`,
-//! `race::set_start_states`; the colours and the race numbers into the eight cars' stored
-//! blocks; the log ("LOADING NETWORK START", the counts, the cars), the stage loaded
-//! (`race::load_stage`), "LOADING NETWORK COMPLETE".
+//! machine's player to the view's local car; each player's car (record +1) to
+//! `g_raceCarKinds`, its colours (+2) to `car_colours`, its race number (+6) to
+//! `start_numbers`; the host's (state bit 0x10) stage (+4, low seven bits) to
+//! `g_stageNumber` and direction (+5, bit 0) to `direction`; the run kind 0, `race_cars`
+//! the players, `players` 1, the editor mode 0; the cars' blocks reset (`net::reset_cars`),
+//! `race::set_up_arcade_cars`, `race::set_start_states`; the colours and the race numbers
+//! into the eight cars' stored blocks; the log ("LOADING NETWORK START", the counts, the
+//! cars), the stage loaded (`race::load_stage`), "LOADING NETWORK COMPLETE".
 //!
-//! The players' loop ends on `jnz` with the count: none, or more than the tables' eight,
-//! would run past them: refused. Caller: `net::lets_rally`.
+//! The players' loop ends on a compare with the count: none, or more than the tables'
+//! eight, would run past them: refused. Caller: `net::lets_rally`.
 
 use crate::errors::Refused;
 use crate::net::lobby::{log_bytes, log_int_nl};

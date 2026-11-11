@@ -42,9 +42,8 @@ pub fn apply_settings() -> Result<(), crate::errors::Refused> {
     let steps = menus(
         audio.state.menu_sound_mode.get(),
         SoundList::Menu,
-        crate::menu::owner::menus()
-            .screens
-            .option_work
+        crate::audio::owner::audio()
+            .levels
             .master_volume_shown
             .get(),
     );

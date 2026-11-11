@@ -1,6 +1,6 @@
-//! The skidmarks' drawing (`race::draw_skidmarks_if_on` / `race::draw_skidmarks`, IDA 2026-10-18).
-//! A skidmark is a chain of up to 0x400 links (`word_643AE8`, 8 bytes each: +0 the link before, -1
-//! none; +6 the views it shows in, a bit each) with two points each (`unk_645B18`, 0xC bytes a
+//! The skidmarks' drawing (`race::draw_skidmarks_if_on` / `race::draw_skidmarks`).
+//! A skidmark is a chain of up to 0x400 links (`skid_links`, 8 bytes each: +0 the link before, -1
+//! none; +6 the views it shows in, a bit each) with two points each (`skid_points`, 0xC bytes a
 //! point: x, y, z whole numbers); each link and the one before give a quad.
 
 use crate::errors::BadInput;
@@ -28,10 +28,10 @@ fn float_of_80(t: [u8; 10]) -> u32 {
 }
 
 /// The projection of a turned vertex record (`v` +0x10 x, +0x14 y, +0x18 depth, floats)
-/// onto the screen (+0xC, +0x1C): flat (`dword_60932C`) by `dword_5CCD80` + 1, else by the
-/// depth (the original's `fdivrp st(1), st` is `dword_624088` over that). x is
-/// x times that scale plus `dword_62409C`, y is `dword_6240A0` less y times it. When flat,
-/// the original also stored the depth at `dword_62400C`; nothing read it, so it is not kept.
+/// onto the screen (+0xC, +0x1C): flat (`flat_depth`) by `flat_depth` + 1, else by the
+/// depth (the original's `fdivrp st(1), st` is `view_scale` over that). x is
+/// x times that scale plus `view_centre`, y is `dword_6240A0` less y times it. When flat,
+/// the original also stored the depth at `scratch`; nothing read it, so it is not kept.
 pub(crate) fn project_record(
     course: &Course,
     v: &mut crate::scene::point_records::Record,
@@ -55,8 +55,8 @@ struct Turned {
     words: [u32; 5],
 }
 
-/// One skidmark point (`unk_645B18` + 0xC x n) into the vertex record `v`: raised by
-/// `flt_643AD4`, turned by `g_viewMatrix` (`scene::rotate_point`), +0xC / +0x1C 0, and
+/// One skidmark point (`skid_points` + 0xC x n) into the vertex record `v`: raised by
+/// `skid_lift`, turned by `g_viewMatrix` (`scene::rotate_point`), +0xC / +0x1C 0, and
 /// projected when its depth is not below 4096.0.
 fn skid_vertex(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
@@ -100,7 +100,7 @@ fn turn_skid_point(
         // Only +0xC .. +0x20 are written; the projection reads +0x10 .. +0x18.
         let mut made = [0u32; 8];
         made[4..7].copy_from_slice(&t.map(st));
-        if !crate::math::x87_load::below_or_unordered(made[6], race.course.numbers.k4096_a.bits()) {
+        if !crate::math::x87::below_or_unordered(made[6], race.course.numbers.k4096_a.bits()) {
             project_record(&race.course, &mut made, &ctx.view.polygon.window);
         }
         Ok(Turned {
@@ -110,8 +110,8 @@ fn turn_skid_point(
 }
 
 /// `race::draw_skidmarks` (0x458C03): the skidmarks shown in the drawn view (all in modes 0 and 2,
-/// else those with the view's bit, `dword_643AE4`): the polygon's four work entries set once
-/// (vertices 0x623E40 .., texture places `dword_623DBC` / `dword_623DC0`, bytes 0 and 0x60,
+/// else those with the view's bit, `skid_views`): the polygon's four work entries set once
+/// (vertices 0x623E40 .., texture places `fade_uv` / `dword_623DC0`, bytes 0 and 0x60,
 /// textures 0xC0); then for each link with a link before, its two points and the two before as a
 /// quad (vertices 3, 2, 0, 1), `scene::fog_polygon`, cut by depth and to the screen and drawn in
 /// black in mode 3 without the depth test. Refuses what the scene's functions refuse (mid-way; not
@@ -234,7 +234,7 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
     Ok(())
 }
 
-/// `race::draw_skidmarks_if_on` (0x4585E3): `draw_skidmarks` unless `dword_6416B8` is set.
+/// `race::draw_skidmarks_if_on` (0x4585E3): `draw_skidmarks` unless `drawing` is set.
 pub fn draw_skidmarks_if_on(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let race = ctx.race;
     if race.frame.frame_work.drawing.get() != 0 {
@@ -383,7 +383,7 @@ mod asm_reference {
                 {
                     course.stage_prefs.flat_depth.set(flat as u32);
                     course.course.flat_depth.set(r.int() as u32);
-                    // The assembly reads the old window; the Rust version the window it is given.
+                    // The assembly reads the old window; this code the window it is given.
                     for (old, own) in [
                         (&drawing.scene.view_scale, &win.view_scale),
                         (&drawing.scene.view_centre[1], &win.view_centre[1]),
@@ -411,7 +411,7 @@ mod asm_reference {
                         b[k]
                     );
                 }
-                // The assembly's depth store at 0x62400C is not kept by the Rust version.
+                // The assembly's depth store at 0x62400C is not kept.
             }
         });
     }

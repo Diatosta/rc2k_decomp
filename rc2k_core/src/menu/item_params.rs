@@ -11,13 +11,13 @@ pub enum VolumeKind {
     Music,
     /// The race music's volume (`option_work.other_volume`), kept for the race.
     RaceMusic,
-    /// The race sounds' volume (`option_work.menu_sounds_a`), heard with a race sound.
+    /// The race sounds' volume (`audio::levels::Levels::menu_sounds_a`), heard with a race sound.
     RaceSounds,
     /// The speech's volume (`option_work.speech_level`).
     Speech,
-    /// The first of the other menu sounds' volumes (`option_work.sounds_a`).
+    /// The first of the other menu sounds' volumes (`audio::levels::Levels::sounds_a`).
     MenuSoundsA,
-    /// The second of the other menu sounds' volumes (`option_work.sounds_b`).
+    /// The second of the other menu sounds' volumes (`audio::levels::Levels::sounds_b`).
     MenuSoundsB,
     /// The menu sounds' volume (`option_work.menu_sounds_c`), heard with a menu sound.
     MenuSounds,

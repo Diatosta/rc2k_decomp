@@ -2,8 +2,7 @@
 //! of at least `LEAST` batches (six times at most) is drawn again in several ways, each
 //! `ROUNDS` times between two `glFinish`es, and the times logged: as drawn, then with one kind
 //! of state change left out at a time. The picture of those frames is wrong (drawn over
-//! itself); the measurement is the point. Found what the handheld's libmali spends its time
-//! on (2026-11-06).
+//! itself); the measurement is the point: it shows what the handheld's libmali spends its time
 
 use super::*;
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};

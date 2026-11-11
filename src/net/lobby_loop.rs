@@ -1,23 +1,24 @@
-//! `net::lobby_loop` (0x417A0D): the lobby: no players, not racing (`dword_52AD84` 0), the
+//! `net::lobby_loop` (0x417A0D): the lobby: no players, not racing (`racing` 0), the
 //! background; the list's clocks, no editing, item 3 (the chat); the clocks of the players'
-//! listing and of the sync noted, the sync table to clear (`dword_52AD8C` 1), the sync
-//! counter (`byte_52A914`) up by one; the car item on, the stage item only for the host.
+//! listing and of the sync noted, the sync table to clear (`sync_first` 1), the sync
+//! counter (`sync`) up by one; the car item on, the stage item only for the host.
 //! Each frame (`net::lobby_frame` through `screens::run_frame`): once a second the players
 //! listed (`net::list_players_regs`); a key (`menu::list_take_key`): to the chat message
 //! while it is typed (`net::chat_key`); else, unless this player is ready (state bit 1),
 //! left (0x69) and right (0x68) move over the items 0 .. 3 skipping those off (and not below
-//! 1 after a race, `dword_52AD80`); Enter on 0 makes this player ready (state & ~6 | 1, the
+//! 1 after a race, `after_race`); Enter on 0 makes this player ready (state & ~6 | 1, the
 //! highlight to 3), on 1 the car (`net::choose_car`), on 2 the stage (`net::choose_stage`),
 //! each then the players listed, on 3 a chat message (`net::begin_chat`); 0x0F switches the
-//! gaps' display (`dword_52AC30`); Escape leaves (-1); 'R' and the lexicon's key as in the
+//! gaps' display (`show_gaps`); Escape leaves (-1); 'R' and the lexicon's key as in the
 //! other lists. On the host, with two players or more all ready (each state's bit 1, those
 //! with bit 0x80 left out), each player not yet answering is sent "@" and the sync counter
-//! once a second ('@' messages, `net::dplay_send` to its id) until all have (`byte_52AD90`,
-//! filled by the receiving thread); then everyone has raced (`dword_52AD78` 1) and it ends
-//! with 1, as on the others when `dword_52AD78` is 1 (set by the host's message). In the
-//! original, all players with state bit 4 (raced) ends the "after a race" (`dword_52AD80` 0);
-//! here (2026-11-08) no player with bit 2 (still racing), as a player who joined since never
-//! has bit 4, and then the host opens the session again (`net::enable_new_players`). The game closing ends it with -1.
+//! once a second ('@' messages, `net::dplay_send` to its id) until all have (`synced`,
+//! filled by the receiving thread); then everyone has raced (`all_raced` 1) and it ends
+//! with 1, as on the others when `all_raced` is 1 (set by the host's message). In the
+//! original, all players with state bit 4 (raced) ends the "after a race" (`after_race`
+//! 0); here no player with bit 2 (still racing), as a player who joined since
+//! never has bit 4, and then the host opens the session again (`net::enable_new_players`).
+//! The game closing ends it with -1.
 //!
 //! Returns 1 (the race) or -1 (left).
 //! A failed listing would give -2, but `net::list_players_regs` never comes back with the
@@ -218,7 +219,7 @@ pub fn lobby_loop(
             install.pages.choice.set(1);
             return Ok(install.pages.choice.get());
         }
-        // Changed (2026-11-08): the original waited for every player to have raced, which a
+        // Changed: the original waited for every player to have raced, which a
         // player who joined since the race never has; now for none to be still racing.
         if net.vars.players.get() >= 1
             && rc2k_core::net::players::none_racing(net.vars.players.get(), |n| {

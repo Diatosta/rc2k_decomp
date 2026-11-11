@@ -1,6 +1,6 @@
 //! The highlighted entry's caption on a button at the bottom of the screen (converted
 //! 2026-10-20 from `screens::draw_highlighted_caption` 0x4695C6): the caption (string
-//! 0x1004, which reads the caption the game put in `byte_A8BE54`) measured, the button as
+//! 0x1004, which reads the caption the game put in the caption buffer) measured, the button as
 //! wide as it plus 12 centred on x 0x197 (sprite 0xF, pieces of 32 of sprite 0xB, the last
 //! drawn over the one before so the width comes out, sprite 0x10), then the caption in the
 //! font blended by the time since the last key.

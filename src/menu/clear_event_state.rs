@@ -1,6 +1,6 @@
 //! `menu::clear_event_state` (0x486C2C): an event's state cleared at its start.
 //!
-//! `dword_755950`, `dword_758714` and the 28 dwords `dword_758758` .. `dword_7587C4` set to 0 (the
+//! `event.stages_done`, `results.round` and the 28 dwords `results.time_bonus` .. the fourth player's total set to 0 (the
 //! results screens and the savegame read them; their meaning is not read). Callers: the event loops
 //! (`menu::single_rally` and four more).
 use crate::menu::owner::Menus;

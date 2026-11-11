@@ -1,6 +1,6 @@
 //! `physics::cap_reverse_inputs` (0x46514A): in reverse (`g_carGear` -1) while the car's
 //! speed (`g_carSpeed`) is not below 0 (an unordered compare counts as below), the two
-//! floats `flt_614234` and `flt_614238` held to at most `flt_5C5D3C` (2.0; one that is
+//! floats `wheel_slips` and `flt_614238` held to at most `two` (2.0; one that is
 //! below it, or unordered, is left).
 //!
 //! Caller: `physics::drive_wheels_step` (0x43E519).

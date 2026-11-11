@@ -1,7 +1,7 @@
-//! `physics::drop_to_neutral` (0x43FD71): with `dword_71A20C` set, in gear, the engine
-//! speed below `flt_6140FC` (`fcomp`, C0: also when unordered) and `dword_61416C` 0: gear
-//! 0, `dword_71A1A8` = `dword_613FA4`, `dword_71A1A4` = 0x14, `dword_71A210` and
-//! `dword_71A214` 1 (as the gear changes of `physics::change_gear` set them). Probably the engine
+//! `physics::drop_to_neutral` (0x43FD71): with `contact_flag` set, in gear, the engine
+//! speed below `stall_engine_speed` (`fcomp`, C0: also when unordered) and `no_auto_neutral` 0: gear
+//! 0, `drive_cut_steps` = `drive_cut_steps`, `gear_change_hold` = 0x14, `gear_changed` and
+//! `gear_change_pending` 1 (as the gear changes of `physics::change_gear` set them). Probably the engine
 //! stalling into neutral: the engine speed below the stall limit, the gear dropped to 0.
 //!
 //! Caller: `physics::car_physics_step` (0x43B966), every physics step.

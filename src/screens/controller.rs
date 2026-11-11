@@ -1,7 +1,7 @@
 //! The controller page's axis learning (`screens::learn_axis` -> 0x46B4AE,
-//! `screens::classify_controller`; stream A, part F1, 2026-10-18): while `dword_7551F4` is 1 (for
+//! `screens::classify_controller`; stream A, part F1, 2026-10-18): while `controls.learning` is 1 (for
 //! at most 3 s from
-//! `dword_7551F8`), the player's control `dword_7551FC` (1 .. ) learns the axis or the
+//! the learning start time), the player's control the control being learnt (1 .. ) learns the axis or the
 //! direction the player moves, into the player's +0x50 table.
 
 use crate::errors::{BadInput, Refused};
@@ -53,7 +53,8 @@ pub fn learn_axis(menus: &Menus) -> Result<(), Refused> {
     if controls.learning.get() != 1 {
         return Ok(());
     }
-    let Some(player) = crate::menu::player::player(screens.event.current_player.get()) else {
+    let Some(player) = crate::menu::player::player(menus, screens.event.current_player.get())
+    else {
         return Err(crate::errors::BadInput("no current player record").into());
     };
     screens.draw_work.figure.set(0);
@@ -116,9 +117,10 @@ pub fn learn_axis(menus: &Menus) -> Result<(), Refused> {
 
 /// What the controller page reads: refused before anything.
 pub fn controller_page_refuses(
-    screens: &Screens,
-) -> Result<crate::menu::standings::PlayerCell, Refused> {
-    let Some(player) = crate::menu::player::player(screens.event.current_player.get()) else {
+    menus: &Menus,
+) -> Result<crate::menu::standings::PlayerCell<'_>, Refused> {
+    let Some(player) = crate::menu::player::player(menus, menus.screens.event.current_player.get())
+    else {
         return Err(crate::errors::BadInput("no current player record").into());
     };
     let device = player.get().controller;
@@ -144,11 +146,10 @@ pub fn draw_controller_page(
     canvas: &mut dyn crate::text::draw_text::Canvas,
 ) -> Result<(), Refused> {
     let input = crate::input::owner::input();
-    let screens = &menus.screens;
     // Converted: `rc2k_core::screens::controller_page::controller_page`.
     use rc2k_core::screens::controller_page::{Controller, Font, Work, controller_page};
     {
-        let player = controller_page_refuses(screens)?;
+        let player = controller_page_refuses(menus)?;
         let p = player.get();
         let device = p.controller;
         use crate::screens::game_screen::HeldText;
@@ -168,7 +169,7 @@ pub fn draw_controller_page(
         let record = crate::pointers::GamePtr::to(entry);
         let [stick_x, _, _, buttons] = crate::input::axes::first_device_state(input)?;
         let c = Controller {
-            // Kept in `dword_755A0C` as the original keeps it.
+            // Kept in `draw_work.scratch_0c` as the original keeps it.
             record: record.addr(),
             name: HeldText::Place(crate::pointers::GamePtr::to(&entry.name)),
             has_strength: entry.force_feedback.get() == 1,

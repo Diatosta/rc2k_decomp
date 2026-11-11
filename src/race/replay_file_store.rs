@@ -29,7 +29,7 @@ pub struct ReplayFileBlock {
     pub hold_car_revs: Dword,
     /// +0x20 (0x5BEC98): `g_viewerStopped`: 1 = the viewer is not playing (`race::viewer`).
     pub viewer_stopped: Dword,
-    /// +0x24 (0x5BEC9C): `g_viewerMode`: the viewer's mode, the eax it is started with (`race::viewer`).
+    /// +0x24 (0x5BEC9C): `g_viewerMode`: the viewer's mode, the mode it is started with (`race::viewer`).
     pub viewer_mode: Dword,
     /// +0x28 (0x5BECA0): `g_viewerSlot`: the replay slot being viewed, 222 the last race's (`race::viewer`).
     pub viewer_slot: Dword,

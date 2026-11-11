@@ -1,26 +1,23 @@
 //! `physics::camera_avoid_ground` (0x43907F): the camera kept out of the ground.
-//! `physics::ease_view_turn`; `dword_605268` = 0, `dword_605264` = -1, the heading
-//! (`unk_71A688`) kept in `dword_623FD8`; `physics::place_camera`. With the mode's record's
+//! `physics::ease_view_turn`; `camera_ground_flag` = 0, `camera_turn_step` = -1, the heading
+//! (`camera_heading`) kept in `camera_heading_kept`; `physics::place_camera`. With the mode's record's
 //! +0x4C set and the camera not over ground (`physics::camera_over_ground`): turned to face
-//! from the checkpoint before (`unk_71A070` - 1, its face's first scene point,
+//! from the checkpoint before (`checkpoint` - 1, its face's first scene point,
 //! `scene::angle_between` << 16), then the one before that, each placed and tried; none
 //! clear: the heading put back. One clear: turned back toward the kept heading in steps of
-//! `dword_605264` (0x4000000, then each an eighth of the last while above 0x1000), each
-//! step placed and tried and undone (the heading and the five last faces `unk_71AEC8` ..
-//! kept in `dword_623FD4` ..) when it leaves the ground. Then `dword_605268` = -1, placed;
+//! `camera_turn_step` (0x4000000, then each an eighth of the last while above 0x1000), each
+//! step placed and tried and undone (the heading and the five last faces `camera_ground_faces` ..
+//! kept in `camera_heading_saved` ..) when it leaves the ground. Then `camera_ground_flag` = -1, placed;
 //! while not clear of the ground (`physics::camera_clear_of_ground`): the pitch eased up
-//! (`physics::ease_pitch_up`, `dword_608C1C` the pitch, `dword_608C20` 0x40000000 first)
-//! or, once clear, down (`ease_pitch_down`, `dword_608C20` the pitch), placed and tried,
-//! until `dword_608C24` is 0.
+//! (`physics::ease_pitch_up`, `pitch_floor` the pitch, `pitch_ceiling` 0x40000000 first)
+//! or, once clear, down (`ease_pitch_down`, `pitch_ceiling` the pitch), placed and tried,
+//! until `pitch_step` is 0.
 //!
 //! Caller: `physics::update_camera`. Refuses what the ground checks refuse.
 //!
-//! Seen in play (owner, 2026-10-27): the camera checks serve the hood camera; when the car
+//! Seen in play: the camera checks serve the hood camera; when the car
 //! flips over, the view changes to chase 1 for a while so the camera does not clip into
 //! the ground. (Which mode's record holds +0x4C, and where the switch is made, not read.)
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::physics::camera_clear_of_ground::camera_clear_of_ground;
@@ -43,10 +40,10 @@ fn face_checkpoint(course: &Course, shared: &RaceShared, back: u32) -> bool {
         return false;
     };
     let face = crate::race::checkpoints_store::face(checkpoint as usize).get();
-    let point = crate::race::course_places::face_field::<u32>(face, 4, "a checkpoint face")
+    let point = crate::race::course_places::face_field::<u32>(course, face, 4)
         .unwrap_or_else(|e| crate::fatal::raise::end("a checkpoint face", e));
     let coordinate = |k| {
-        crate::race::scene_points::point_word(point, k)
+        crate::race::scene_points::point_word(course, point, k)
             .unwrap_or_else(|e| crate::fatal::raise::end("a scene point", e))
     };
     let first = shared.car.position[0].get().wrapping_sub(coordinate(0));

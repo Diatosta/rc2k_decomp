@@ -1,5 +1,5 @@
-//! `install::run_script` (0x41365D): the install script (a byte program at ebx) run to
-//! build the folder- and file-name tables. A name is assembled in `byte_95EAF8` as nested
+//! `install::run_script` (0x41365D): the install script (a byte program) run to
+//! build the folder- and file-name tables. A name is assembled in `script_path` as nested
 //! folders, with a stack of the segment starts (the real stack in the original). Opcodes:
 //! - 1 n: read a name (`install::script_name`), add the whole path as a folder
 //!   (`install::list_folder`), append `\`, and push the level;

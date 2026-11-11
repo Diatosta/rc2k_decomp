@@ -1,10 +1,10 @@
 //! `drive::pedal_inputs` (0x43A004): the work car's pedals from the input words. With the keys' bit
-//! 0x4000 of `unk_71A440`: the throttle `unk_71A610` stepped by 0x10 toward 0x100 (`dword_613894`
-//! set) or 0, held there (by the sign of the steps, as the original); else it is `dword_613894`.
-//! The same for the brake `unk_71A614` by bit 0x2000 and `dword_613898`. The handbrake `unk_71A618`
-//! = `dword_61389C`, 0 when that is 0x100 or less and `unk_71A400` is set.
+//! 0x4000 of `input_keys`: the throttle `throttle` stepped by 0x10 toward 0x100 (`input_throttle`
+//! set) or 0, held there (by the sign of the steps, as the original); else it is `input_throttle`.
+//! The same for the brake `brake` by bit 0x2000 and `input_brake`. The handbrake `handbrake`
+//! = `input_handbrake`, 0 when that is 0x100 or less and `handbrake_failed` is set.
 //!
-//! Returns: `dword_61389C`, `unk_71A440`
+//! Returns: `input_handbrake`, `input_keys`
 //!
 //! Callers: `drive::car_controls`, `race::step_replay_cars`, `drive::replay_step`.
 

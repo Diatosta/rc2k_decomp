@@ -2,7 +2,7 @@
 //! the chosen one that is not marked (bits 6, 7 of its second byte), round from the last to
 //! the first; none: nothing changes.
 //!
-//! The step up is `inc cl; cmp cl, [esi+1]; jb` (else 0). A chosen byte past the choices
+//! The step up goes to the next byte while it is below the choices' count (else 0). A chosen byte past the choices
 //! with every choice marked never ends: refused (the original goes round for ever).
 //! Callers `install::key_down`, `install::key_right`.
 

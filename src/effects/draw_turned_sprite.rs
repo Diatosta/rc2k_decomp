@@ -1,14 +1,13 @@
 //! `effects::draw_turned_sprite` (0x4CBD12): a square sprite at a place already in the
-//! view's frame (st(0) x, st(1) y, st(2) z, rounded into `flt_8EB8D5` .. `flt_8EB8DD`),
-//! turned by the angle ebx. Unless the depth is at or below `dword_8EB961` (a signed
-//! compare of the bits): the four vertices' colour ecx | 0xFFFFFF, texture places from
-//! `flt_93A21A` .. `flt_93A236`, depth times `flt_8EB96D`; half the side (edx times
-//! `flt_624088` / depth) and its turned corners (`g_sines` / `g_cosines`[ebx]) in
-//! `dword_8EB8BD` .. `dword_8EB8C9`; the corners around the projected place;
-//! `effects::clip_quad` on `g_polygonVertices`, and unless all is outside `scene::draw_fan`
-//! and `g_polygonVertexCount` 4.
+//! view's frame (st(0) x, st(1) y, st(2) z, rounded into the draw work's place), turned by
+//! the angle. Unless the depth is at or below the nearest depth (a signed compare of the
+//! bits): the four vertices' colour | 0xFFFFFF, texture places from the sprite's four (u, v)
+//! pairs, depth times the depth scale; half the side (the size times the view scale / depth)
+//! and its turned corners (the sine and cosine tables at the angle); the corners around the
+//! projected place; `effects::clip_quad` on the polygon vertices, and unless all is outside
+//! `scene::draw_fan` and the polygon's vertex count 4.
 //!
-//! Callers: `effects::draw_glow` and its two siblings (0x4D2ECF, 0x4D2F00). Refuses an angle of
+//! Callers: `effects::draw_glow` and its two siblings. Refuses an angle of
 //! 0x1000 or more (the tables' size) and null marks settings (`clip_quad`'s refusal),
 //! before anything.
 
@@ -20,8 +19,8 @@ use crate::scene::matrix3::rounded;
 use crate::d3d::vertices_store::VERTICES;
 const ANGLES: u32 = 0x1000;
 
-/// `angle` (the original's ebx), `colour` (ecx, its
-/// low three bytes made 0xFF), `size` (edx), `place` (st(0) .. st(2)).
+/// `angle` turns the sprite, `colour` has its low three bytes made 0xFF, `size` is the
+/// side, `place` the place (st(0) .. st(2)).
 pub fn draw_turned_sprite(
     angle: u32,
     colour: u32,
@@ -82,7 +81,7 @@ pub fn draw_turned_sprite(
     Ok(())
 }
 
-/// The turned sprite's texture places (IDA 0x93A21A .. 0x93A23A, the image's layout; phase 7, typed state).
+/// The turned sprite's texture places (IDA 0x93A21A .. 0x93A23A).
 #[repr(C)]
 pub struct SpriteUv {
     /// 0x93A21A: `flt_93A21A` .. `flt_93A236`: four (u, v) pairs, one per corner
@@ -91,16 +90,7 @@ pub struct SpriteUv {
 
 /// SpriteUv's first values.
 pub static SPRITE_UV: SpriteUv = SpriteUv {
-    uv: [
-        f32::from_bits(0x0),
-        f32::from_bits(0x0),
-        f32::from_bits(0x3F7FF972),
-        f32::from_bits(0x0),
-        f32::from_bits(0x3F7FF972),
-        f32::from_bits(0x3F7FF972),
-        f32::from_bits(0x0),
-        f32::from_bits(0x3F7FF972),
-    ],
+    uv: [0.0, 0.0, 0.9999, 0.0, 0.9999, 0.9999, 0.0, 0.9999],
 };
 
 #[cfg(test)]

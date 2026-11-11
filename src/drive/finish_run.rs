@@ -1,8 +1,8 @@
 //! `drive::finish_run` (0x459360): the championship's finish routine played. The car lifted
-//! (+0x138 + `flt_64BB38` x 65536, `fiadd` / `fistp`); the clock into `dword_5CC3B4`, `5CC3B0`;
-//! 0x20 dwords at `unk_5CC1B0` and `dword_5C2538` -1; the start `dword_64BB60`. Each frame:
+//! (+0x138 + `car_lift` x 65536, `fiadd` / `fistp`); the clock into `clock_a`, `5CC3B0`;
+//! 0x20 dwords at `marks` and `play_end` -1; the start `start_clock`. Each frame:
 //! `dword_512A44` 0, `input::update`, the time (`drive::finish_timing`); until the time reaches the
-//! length (`flt_64BB3C[n]`, n `dword_75B108`) or Esc or key 0x1C is down: the car's view 6
+//! length (`finish_lengths`[n]`, n `dword_75B108`) or Esc or key 0x1C is down: the car's view 6
 //! (+0x684), the first car loaded (`race::load_first_car`), the camera (`drive::finish_camera`,
 //! `physics::camera_frame`), the car stored (`drive::store_first_car`), the race's frame
 //! (`drive::race_frame`, stream A's: through the game).
@@ -19,7 +19,7 @@ use crate::physics::flow::c0;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 
-/// The car's lift: `dword_70F524` += `flt_64BB38` x `flt_5C5D98` (`fiadd`, `fistp`), over the
+/// The car's lift: `dword_70F524` += `car_lift` x `k65536` (`fiadd`, `fistp`), over the
 /// race block at `rc`.
 fn lift_car(race: &Race) {
     CAR_BLOCKS.cars[0].position[1].set(to_int(

@@ -1,4 +1,4 @@
-//! `install::item_enter` (0x4147FE): Enter on an item, by its kind (`[esi] & 0xF`): 1 a link
+//! `install::item_enter` (0x4147FE): Enter on an item, by its kind (`[item] & 0xF`): 1 a link
 //! (`install::item_link`), 4 an edit begun (`install::start_edit`), 6 an action
 //! (`install::item_action`).
 //!

@@ -1,4 +1,4 @@
-//! The work car's motion held to its limits (converted 2026-10-21 from
+//! The work car's motion held to its limits (Converted from
 //! `physics::limit_motion` 0x43F7AC): a motion part that is no number or infinite zeroes
 //! the motion, its car-frame copy and the spin; then the spin's parts held to ± one limit
 //! and the motion's (x, z, y) to ± another; past the top speed the motion and its copy
@@ -11,7 +11,7 @@ use super::x87::{below, loaded, negated};
 use crate::math::vector::{length, scale};
 
 /// The variables it holds (the work copy's +0x184, +0x198, +0x1A4) and the two limits
-/// (`flt_613E70`, `flt_613E74`: negated in place for the second compare and put back).
+/// (`spin_limit`, `velocity_limit`: negated in place for the second compare and put back).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Moving {
     pub spin: [f32; 3],
@@ -24,11 +24,11 @@ pub struct Moving {
 /// What it leaves besides.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Limited {
-    /// The last motion part's exponent bits looked at (ecx): the first all ones, or z's.
+    /// The last motion part's exponent bits looked at: the first all ones, or z's.
     pub exponent: u32,
-    /// The motion's length after the holds (`flt_623FBC`).
+    /// The motion's length after the holds (`motion_length`).
     pub length: f32,
-    /// The scale past the top (`dword_62400C`), or none.
+    /// The scale past the top (`scratch`), or none.
     pub factor: Option<f32>,
 }
 
@@ -46,7 +46,7 @@ pub fn hold(v: &mut f32, l: &mut f32) {
 }
 
 /// `physics::limit_motion`: `infinite` is told the motion when a part is no number or
-/// infinite (the original logs it), before the three are zeroed; `top` is `flt_614100`.
+/// infinite (the original logs it), before the three are zeroed; `top` is `top_speed`.
 pub fn limit_motion(m: &mut Moving, top: f32, infinite: impl FnOnce([f32; 3])) -> Limited {
     let mut exponent = 0;
     let mut bad = false;

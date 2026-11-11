@@ -6,8 +6,7 @@
 
 // ---- game data ----
 
-/// 1 = always write the hours: out of the image since 2026-10-24 (phase 5; it was
-/// `g_timeShowHours`, 0x4E0148, 0 there). The network's lobby sets it for a while.
+/// 1 = always write the hours (`g_timeShowHours`, 0x4E0148, 0 at the start). The network's lobby sets it for a while.
 pub static SHOW_HOURS: crate::session::Dword = crate::session::Dword::new(0);
 
 pub fn show_hours() -> bool {

@@ -113,7 +113,7 @@ pub fn hold_quit(on: bool) {
 
 /// After the window's closing: the menus, races and films look at the quit switch and leave
 /// (the original's window procedure only shut the screens down and posted `WM_QUIT`, which
-/// `system::pump_messages` swallowed: nothing stopped, IDA 2026-10-28). A safety net for a
+/// `system::pump_messages` swallowed: nothing stopped). A safety net for a
 /// loop that still does not: if the program is running `LEAVING_GRACE` after the first
 /// close, it ends, saving nothing: the game's thread may be in the tables a save reads.
 fn end_if_not_left() {
@@ -222,7 +222,7 @@ fn pad_button(course: &Course, button: SDL_GamepadButton, down: bool) {
         SDL_GAMEPAD_BUTTON_START => B::Start,
         _ => return,
     };
-    let in_race = course.numbers.in_race.get() != 0;
+    let in_race = course.numbers.in_race.is_set();
     let now = u64::from(crate::os::ticks());
     if let Some(action) = lock_menu_pad().button(button, down, in_race, now) {
         menu_action(action);
@@ -264,7 +264,7 @@ fn menu_action(action: crate::input::menu_pad::MenuAction) {
 }
 
 /// SDL's scan code (USB's numbering) as the game's key code: DirectInput's for
-/// 1 .. 0x58, and the key thread's (0x407AC2) own numbers for the extended keys it
+/// 1 .. 0x58, and the key thread's own numbers for the extended keys it
 /// looks at (0x9C .. 0xDD become 0x60 .. 0x7A). 0: a key the game does not know.
 fn game_key(scancode: i32) -> u8 {
     const LETTERS: [u8; 26] = [

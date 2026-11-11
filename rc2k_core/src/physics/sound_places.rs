@@ -1,15 +1,15 @@
-//! The car's sound object placed (converted 2026-10-21 from `physics::place_sound_e1`
+//! The car's sound object placed (converted from `physics::place_sound_e1`
 //! 0x45CEF9, `place_sound_e1_other` 0x45CE32, `place_sound_e5` 0x45CF95 and
 //! `place_sound_object` 0x45CD60): a sound and its band set in one of the object's two
 //! slots, and the place it is heard from: the car's place (with an offset for one) less
-//! the listener's, turned by the view (`g_viewTurnMatrix`) and scaled (`flt_5C5DA0`,
+//! the listener's, turned by the view (`g_viewTurnMatrix`) and scaled (`one_over_65536`,
 //! 1/65536); then the object is told to play (+0x10 1). A reading: the hits' sounds.
 //!
 //! Floats: the place's parts are whole numbers (`fild` / `fiadd` / `fisub`), exact in an
 //! `f64`; the turn is `math::vector::rotate_point`, kept on the stack, each part times the
 //! scale and stored: the same bits at the game's double precision.
 //!
-//! The work car's engine sound object told the car's state (converted 2026-10-21 from
+//! The work car's engine sound object told the car's state (Converted from
 //! `physics::car_sound_state` 0x45CACE): its voices' shares, the volume, the place heard
 //! from (`place`, the listener the view block's or the car's own) and its motion turned
 //! by the view.
@@ -88,7 +88,7 @@ pub fn object_sound(
 /// +0x294).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Voices {
-    /// +0x28C: +0x288 over `flt_613EE0`; the voices' +0x50 .. are it times a scale.
+    /// +0x28C: +0x288 over `sound_speed_scale`; the voices' +0x50 .. are it times a scale.
     pub share: f32,
     /// +0x290: 1.0; the voices' +0x4C ...
     pub full: f32,
@@ -96,7 +96,7 @@ pub struct Voices {
     pub motion: f32,
 }
 
-/// The voices' figures: all three 0 with all four wheels off the ground (`unk_71A22C`).
+/// The voices' figures: all three 0 with all four wheels off the ground (`all_wheels_off`).
 pub fn voices(level: f32, divisor: f32, motion: f32, all_off: bool) -> Voices {
     if all_off {
         return Voices {
@@ -112,7 +112,7 @@ pub fn voices(level: f32, divisor: f32, motion: f32, all_off: bool) -> Voices {
     }
 }
 
-/// A voice's pitch: the share times the scale (`flt_5C5E2C`), one product rounded once.
+/// A voice's pitch: the share times the scale (`k256`), one product rounded once.
 pub fn pitch(share: f32, scale: f32) -> f32 {
     (f64::from(share) * f64::from(scale)) as f32
 }

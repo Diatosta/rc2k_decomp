@@ -12,8 +12,7 @@ use crate::scene::load_wanted_textures::load_wanted_textures;
 // ---- Rust version ----
 
 /// Its calls in order: two log lines, the slots cleared, the wanted textures loaded, two
-/// log lines. What it leaves in the registers no caller reads (register liveness,
-/// 2026-10-23: `race::set_all_plates` and `scene::set_up_front_end_scene`).
+/// log lines.
 pub fn reload_slot_textures(
     frame: &Frame,
     scene: &crate::scene::owner::Scene,

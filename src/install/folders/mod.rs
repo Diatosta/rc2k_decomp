@@ -1,5 +1,5 @@
-//! How the installer names, checks, makes and measures folders on each system (owner,
-//! 2026-10-28: native on each, another system a plug-in). The installer's pages and steps
+//! How the installer names, checks, makes and measures folders on each system (owner:
+//! native on each, another system a plug-in). The installer's pages and steps
 //! are the original's; every folder they handle passes through `Folders`, chosen at build
 //! time as `Native`:
 //! - `windows`: the original's own rules (`c:\..\` lower case, its bad characters, the

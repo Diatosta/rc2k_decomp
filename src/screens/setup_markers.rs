@@ -7,8 +7,8 @@
 //! Screen: seen in a screenshot of the championship's service area (2026-10-10), setup section:
 //! 0x10 is the steering sensitivity (slow .. fast), 0x11 the brake balance (front .. rear), 0x12
 //! the ride height (low .. high), 0x13 the suspension stiffness (soft .. hard). The two lower bars
-//! have two markers each. The other (0x76, yellow) is at the value being chosen (`dword_75ACA8`,
-//! `dword_75ACB4`, which the keys step) and only appears while it differs or its change is
+//! have two markers each. The other (0x76, yellow) is at the value being chosen (a driver figure,
+//! a driver figure, which the keys step) and only appears while it differs or its change is
 //! selected. The steering and brake values are changed in the player directly, so those bars have
 //! one marker.
 

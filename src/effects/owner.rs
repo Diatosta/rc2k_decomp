@@ -14,6 +14,7 @@ use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
+use crate::errors::BadInput;
 
 /// The effects' state.
 pub struct Effects {
@@ -30,6 +31,18 @@ pub struct Effects {
     pub frame: FrameState,
     pub kinds: Kinds,
     pub setup: Setup,
+}
+
+impl Effects {
+    /// The marks' settings the race handed `effects::init_marks`; refused while there are none.
+    pub fn settings(
+        &self,
+    ) -> Result<&'static crate::race::effects_settings_store::EffectsSettings, BadInput> {
+        if self.setup.settings.is_set.get() == 0 {
+            return Err(BadInput("no marks settings"));
+        }
+        Ok(&crate::race::effects_settings_store::EFFECTS_SETTINGS)
+    }
 }
 
 /// The one instance. Reached through `effects()`; `moved` registers its stores' places.

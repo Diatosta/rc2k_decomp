@@ -6,9 +6,6 @@
 //!
 //! Callers: `physics::drop_broken_parts` (seven), `physics::drop_hit_parts` (four). Refuses what
 //! `fill_race_slot` refuses (before anything: the bit is cleared after).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::fill_race_slot::fill_race_slot;

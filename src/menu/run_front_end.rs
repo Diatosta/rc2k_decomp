@@ -1,7 +1,7 @@
 //! `menu::run_front_end` (0x47486C): the game between its start and its end: the films
 //! and the main menu, with everything that is reached from it.
 //!
-//! `dword_755684` = `dword_4F82D8`; `menu::drop_missing_controllers`; `gfx::build_fonts`;
+//! `audio.levels.master_volume_shown` = the master volume; `menu::drop_missing_controllers`; `gfx::build_fonts`;
 //! the films at the start (`menu::play_films` with eax = 0, not ported); the log line "BEV:
 //! Starting GB_Front"; `menu::main_menu_loop`; "BEV: Finished GB_Front";
 //! `menu::store_player_names`; `gfx::free_fonts`; `saves::list_car_numbers`.
@@ -23,9 +23,8 @@ pub fn run_front_end(menus: &Menus, audio: &crate::audio::owner::Audio) -> Resul
     let fonts = &gfx.fonts;
     let play = &menus.play;
     log("menu::run_front_end: the Rust version runs");
-    menus
-        .screens
-        .option_work
+    audio
+        .levels
         .master_volume_shown
         .set(audio.state.master_volume.get());
     crate::menu::drop_missing_controllers::drop_missing_controllers(menus)?;

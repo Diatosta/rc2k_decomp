@@ -1,7 +1,7 @@
 //! `menu::draw_frame` (0x47C420): draws a menu once, without the 3D scene and without
 //! showing the frame: what a screen loop does when it has set a screen up.
 //!
-//! Makes the menu the current one (`dword_75558D`). Unless the game is quitting:
+//! Makes the menu the current one (`loop_flags.menu`). Unless the game is quitting:
 //! `copy_picture_to_surface` (the background), lock the surface, and if that worked `draw_menu`,
 //! `run_draw_list` and unlock. 89 callers, the screen loops. Rust callers run its `entry`
 //! (`routes.rs`).

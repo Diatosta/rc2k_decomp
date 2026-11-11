@@ -2,7 +2,7 @@
 //! and so many steps on from it.
 //!
 //! Takes: the first row's address, the bytes from one row to the next, rows
-//! The table is `dword_4F3FC4`, which has room for 602 rows. Four callers, the rescalers
+//! The table is `row_table`, which has room for 602 rows. Four callers, the rescalers
 //! and two picture functions not yet read.
 //! Refuses a count of 0 (the original counts through all 32 bits) and one above the table's
 //! room. The name is a reading.

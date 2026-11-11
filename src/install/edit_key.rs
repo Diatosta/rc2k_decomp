@@ -1,16 +1,16 @@
 //! `install::edit_key` (0x4148F7): a key while an edit item (kind 4) is being edited.
 //! - bit 8 of the key word set: its low byte is the character itself;
 //! - Escape (1): the edit ended (record bit 0 off) and the text put back from
-//!   `byte_95EAF8` (its most bytes and two); ah gets bit 3;
+//!   `script_path` (its most bytes and two); the key word gets bit 3;
 //! - Enter (0x1C): the edit ended; a text of nothing but spaces and control bytes is cleared
 //!   (its most bytes and two) and the record's default text (`[record+2]`, a string id)
-//!   put in; ah gets bit 3;
+//!   put in; the key word gets bit 3;
 //! - 0x6E: the text cleared; Backspace (0xE): its last byte cut;
 //! - the four arrows: nothing;
-//! - any other: the key's character (`input::key_to_char`, with `dword_4F07F8` as the
-//!   layout while `byte_4F07D2` is 2) added if it is not below a space and there is room
+//! - any other: the key's character (`input::key_to_char`, with the keyboard file's first layout
+//!   while the layout mode is 2) added if it is not below a space and there is room
 //!   (the most bytes), and cut again if the text is then wider than `[record+6]`
-//!   (`text::measure_text` with the font of the record's kind: `byte_51D52D`, `dword_51D4C4`).
+//!   (`text::measure_text` with the font of the record's kind: `fonts`).
 //!
 //! The key word is the key in its low byte and its bits in the next. What comes back is
 //! an `EditOutcome`: the word as the caller goes on reading it, and whether the key was a

@@ -1,20 +1,19 @@
 //! `scene::draw_flat_quad` (0x44AF85): a flat quad on the screen through the polygon
-//! pipeline: `g_polygonDrawn` 0; the four polygon records' vertex pointers
-//! (`dword_623E40` .. 0x20 apart), texture places (`dword_623DF0` .. u, `dword_623E00` ..
-//! v), the corners' x (`dword_623E10` left, `dword_623E14` right) and y (`dword_623E20`
-//! top, `dword_623E24` bottom) as floats (the original passed them through `g_scratch`, not kept), depth `dword_5C5E20`;
-//! the entries -1, colour `dword_623DE8`'s low 24 bits, the records' +0x18 0; four
-//! vertices, the record pool, the list 0 .. 3; then `scene::scale_texture_coordinates`,
-//! `scene::clip_polygon_to_screen` and, with three vertices or more left, mode 6
-//! (`g_polygonMode`), `dword_6240E0` 1, `dword_6240E4` 0, `scene::depth_buffer_off`,
-//! `scene::draw_polygon`, `g_polygonDrawn` 1, `scene::depth_buffer_on`; the colour back to
-//! white.
+//! pipeline: the polygon-drawn flag 0; the four polygon records' vertex pointers
+//! (`quad_vertices`, 0x20 apart), texture places (`quad_uv`), the corners' x (left, right)
+//! and y (top, bottom) from `quad_corners` as floats (the original passed them through its
+//! shared work dword, not kept), the fixed depth; the entries -1, colour `quad_colour`'s low
+//! 24 bits, the records' +0x18 0; four vertices, the record pool, the list 0 .. 3; then
+//! `scene::scale_texture_coordinates`, `scene::clip_polygon_to_screen` and, with three
+//! vertices or more left, mode 6, both `polygon_sides` switches set (1, 0),
+//! `scene::depth_buffer_off`, `scene::draw_polygon`, the polygon-drawn flag 1,
+//! `scene::depth_buffer_on`; the colour back to white.
 //!
-//! In:  nothing (`dword_623DE8` .. `dword_623E24`, set by the caller)
+//! In:  nothing (the quad's cells in the race variables, set by the caller)
 //!
-//! Callers: `hud::draw_view_strip` (three), and code at 0x4436B2, 0x4437C1, 0x45BCD8, 0x45BDD0. The
-//! calls (the scale, the clip, the depth buffer off, the draw, the depth buffer on) are
-//! their Rust versions; a refusal of theirs comes after the writes.
+//! Callers: `hud::draw_view_strip` (three), and four more places in the HUD and the
+//! viewer. The calls (the scale, the clip, the depth buffer off, the draw, the depth buffer
+//! on) are the plain functions; a refusal of theirs comes after the writes.
 
 use crate::errors::Refused;
 use crate::math::x87;
@@ -22,8 +21,6 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::session::Dword;
 
-/// It reads no register, and what it leaves is read by
-/// none of its callers (register liveness, 2026-10-23).
 pub fn draw_flat_quad(
     poly: &crate::scene::polygon_work::PolygonWork,
     race: &Race,

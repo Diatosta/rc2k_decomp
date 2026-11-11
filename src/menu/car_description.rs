@@ -1,6 +1,6 @@
 //! A car's description, 0x78 bytes (`CarDescription` in IDA): 34 of them from 0x756568,
 //! the last the Clio of the update disc (car 0x21), pointed at by the table at
-//! 0x7564A0 and by the carousels' records (`dword_75A65C`). The figures are in imperial
+//! 0x7564A0 and by the carousels' records (the carousel's car list). The figures are in imperial
 //! units, in tenths; the strings are string ids. Read by the car specification screens
 //! (`screens::draw_car_figures`, `car_caption`, `menu::load_car_background`,
 //! `sound::play_car_stream`) and the carousels.

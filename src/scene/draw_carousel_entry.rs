@@ -2,21 +2,20 @@
 //! its place in the row.
 //!
 //! The object's variables for `scene::draw_menu_object`:
-//! - x (`dword_63501C`) = the spacing `dword_75A664` times (place - 1), plus the high
-//!   half of the spacing times the turn `g_carouselAngle` inverted (the turn as a
-//!   fraction of 2^32);
-//! - the angle about y (`dword_635040`) from the clock: its low sixteen bits times 8,
-//!   as sixteen bits; the angle about x (`dword_63503C`) = 0;
-//! - y and z (`dword_635020`, `dword_635024`) = `dword_75A668`, `dword_75A66C`; the
-//!   front entry (place 0) is brought forward by the high half of `dword_75A670` times
-//!   the turn inverted, the next one (place 1) by that of the turn itself: the one
-//!   leaving the front goes back as the one arriving comes forward;
-//! - `dword_623FB0` and `dword_623FB4` = 0;
-//! - the entry's kind `dword_75A674[entry]`, kept in `dword_75A658`; a kind above
-//!   0x258 has a size, a y and an angle about x of its own in the records of twelve
-//!   bytes at `unk_75950E` (by the kind less 0x259);
-//! - `g_objectNumber` = the first object of that kind (`scene::find_object_of_kind`
-//!   0x422298: objects 1 .. 0xFF, else 0).
+//! - x = the carousel's spacing times (place - 1), plus the high half of the spacing times
+//!   the carousel's turn inverted (the turn as a fraction of 2^32);
+//! - the angle about y from the clock: its low sixteen bits times 8, as sixteen bits; the
+//!   angle about x = 0;
+//! - y and z = the carousel's y and z; the front entry (place 0) is brought forward by the
+//!   high half of the carousel's depth step times the turn inverted, the next one (place 1)
+//!   by that of the turn itself: the one leaving the front goes back as the one arriving
+//!   comes forward;
+//! - the view window's offsets = 0;
+//! - the entry's kind from the carousel's kinds, kept as the shown kind; a kind above 0x258
+//!   has a size, a y and an angle about x of its own in the records of twelve bytes (by the
+//!   kind less 0x259);
+//! - the current object = the first object of that kind (`scene::find_object_of_kind`:
+//!   objects 1 .. 0xFF, else 0).
 //!
 //! Then `scene::draw_menu_object`. Five call sites in `scene::draw_carousel`. Refuses an entry
 //! of 0x100 or more and a kind past the records.
@@ -31,7 +30,6 @@ pub(crate) const ENTRIES: u32 = 0x100;
 /// The kinds' own places the original allows (`MENU_LISTS.own_places` holds 73: past them it
 /// reads the lists that follow in the image, as the original does).
 pub(crate) const OWN: u32 = 0x88;
-// g_objectKinds
 
 // ---- Rust version ----
 
@@ -49,7 +47,7 @@ pub struct Settings {
 
 pub(crate) use crate::scene::find_object_of_kind::find_object_of_kind;
 
-/// A kind's own place: its size, y and angle (`unk_75950E`, 12 bytes each). The original
+/// A kind's own place: its size, y and angle (12 bytes each in the menu lists' own places). The original
 /// reads on past the table's 73 for a kind below `OWN` (fixed: refused).
 pub(crate) fn own_place(tables: &Tables, own: u32) -> Result<[u32; 3], BadInput> {
     let place = tables
@@ -110,7 +108,7 @@ fn settings(
     Ok(set)
 }
 
-/// Carousel entry `entry` in row place `row` (ebx and ecx at the original's entry) set
+/// Carousel entry `entry` in row place `row` set
 /// up and drawn by `draw`.
 pub fn draw_carousel_entry(
     shared: &RaceShared,

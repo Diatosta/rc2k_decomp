@@ -1,13 +1,10 @@
-//! `physics::count_down_notice` (0x440F08): while a notice is shown (`dword_71A700` set)
-//! and its time `dword_71A704` is not 0, the time less 1; at 0 the notice is cleared
-//! (`dword_71A700` 0). `physics::take_notice` sets them.
+//! `physics::count_down_notice` (0x440F08): while a notice is shown (`notice_shown` set)
+//! and its time `notice_time` is not 0, the time less 1; at 0 the notice is cleared
+//! (`notice_shown` 0). `physics::take_notice` sets them.
 //!
-//! Returns: the time before (when `dword_71A700` is set)
+//! Returns: the time before (when `notice_shown` is set)
 //!
 //! Caller: `physics::car_physics_step` (0x43B919), every physics step.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::physics::car_store::Car;
 use crate::physics::cells::set_changed;

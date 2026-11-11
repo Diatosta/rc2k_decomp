@@ -1,20 +1,19 @@
 //! `effects::emit_particle_13` (0x4CE05E): one ring entry of kind 0xD for a car each frame,
-//! at its model's point (`flt_769312` .., 12 bytes by the car's +4).
+//! at its model's point (the looks table, 12 bytes by the car's +4).
 //!
 //! Takes: the car object
 //!
-//! The entry: its place the point (x negated; y less `flt_7651E4`; by `flt_7651D4`) turned
-//! by `g_marksCar`'s matrix (placed and the place taken off again, on the x87 stack:
-//! `x87::turned_place_less`), less `flt_93A462` in y at +0x28; the strength
-//! (`dword_9356C0`, a float) 1 - 1 / (the car's +8 by `flt_93A466` plus 1); its motion the
-//! matrix's third row by the strength and `flt_93A46A` ..; then its place moved by the
-//! motion times a random's low word by `flt_765214` times `g_marksFrameTicks`; a random
-//! spin and turn (+0x54, +0x50); +0x58 0x3F; a life of 250 (+0x78 the strength by
-//! `flt_7651A4` over it); +0x74 the strength by `dword_7651A0`; +0x68 `g_marksCar` and its
-//! +0x88; +0x70 `flt_93A47E` by the strength plus `flt_93A482`, rounded, and +0x60 that by
-//! `flt_93A486`. Caller: `effects::cars_particles` (the cars' loop). Refuses (before anything) a
-//! null object, a null `g_marksCar` or matrix, and a model (+4) past the table's 34 entries,
-//! when an entry is made.
+//! The entry: its place the point (x negated; y less a constant; by a constant) turned by the
+//! emitting car's matrix (placed and the place taken off again, on the x87 stack:
+//! `x87::turned_place_less`), less the set's lift in y at +0x28; the strength (a float)
+//! 1 - 1 / (the car's +8 by the set's factor plus 1); its motion the matrix's third row by
+//! the strength and the set's factors; then its place moved by the motion times a random's
+//! low word by a constant times the frame's ticks; a random spin and turn (+0x54, +0x50);
+//! +0x58 0x3F; a life of 250 (+0x78 the strength by a constant over it); +0x74 the strength by
+//! the fade constant; +0x68 the emitting car and its +0x88; +0x70 the set's size factor by the
+//! strength plus its base, rounded, and +0x60 that by its scale. Caller:
+//! `effects::cars_particles` (the cars' loop). Refuses (before anything) a null object, a null
+//! car or matrix, and a model (+4) past the table's 34 entries, when an entry is made.
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
@@ -23,6 +22,7 @@ use crate::effects::paths::Paths;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::math::x87_float as bh;
 use crate::race::effects_settings_store::CarEffects;
 use crate::session::{Dword, Float, read_first};
 
@@ -30,7 +30,7 @@ const MODELS: u32 = 34;
 const LOOK: u32 = 0x3F;
 const LIFE: u32 = 0xFA;
 
-/// Why the Rust version refuses, if it does, worked out without writing.
+/// Why the emitter refuses, if it does, worked out without writing.
 fn refusal(ring: &Ring, object: &'static CarEffects) -> Result<Option<&'static str>, Refused> {
     Ok({
         // The ring full: nothing more is read.
@@ -87,7 +87,7 @@ pub fn emit_particle_13(
             x87::mul2(
                 matrix_cell(cells, 0x20 + 4 * k as u32)?,
                 s,
-                particles.kind13_set.motion_k[k].bits(),
+                &particles.kind13_set.motion_k[k],
             )
         })
     })?;
@@ -112,11 +112,13 @@ pub fn emit_particle_13(
     slot.put(|en| &mut en.life, LIFE)?;
     slot.put(
         |en| &mut en.alpha_fade,
-        x87::times_over_int(s, effects.setup.floats.two_fifty_seven.bits(), LIFE as i32),
+        bh::st(
+            bh::ld(s) * bh::ld(effects.setup.floats.two_fifty_seven.bits()) / bh::int(LIFE as i32),
+        ),
     )?;
     slot.put(
         |en| &mut en.alpha,
-        x87::mul(s, effects.setup.floats.two_fifty_six.bits()),
+        x87::mul(s, &effects.setup.floats.two_fifty_six),
     )?;
     slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
     let size = x87::times_plus_to_int(
@@ -128,12 +130,12 @@ pub fn emit_particle_13(
     slot.put(|en| &mut en.car_pace, car.pace.get())?;
     slot.put(
         |en| &mut en.size,
-        x87::int_times(size, particles.kind13_set.size_k[2].bits()),
+        x87::int_times(size, &particles.kind13_set.size_k[2]),
     )?;
     Ok(())
 }
 
-/// Kind 0xD's emitter variables (`emit_particle_13`) (IDA 0x93A462 .. 0x93A48A, the image's layout; phase 7, typed state).
+/// Kind 0xD's emitter variables (`emit_particle_13`) (IDA 0x93A462 .. 0x93A48A).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Kind13Set {
@@ -155,20 +157,16 @@ impl Kind13Set {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         Kind13Set {
-            lift: Float::from_bits(0x47800000),
-            strength_k: Float::from_bits(0x38D1B717),
+            lift: Float::new(65536.0),
+            strength_k: Float::new(0.0001),
             motion_k: [
-                Float::from_bits(0xC5000000),
-                Float::from_bits(0xC5000000),
-                Float::from_bits(0xC5000000),
+                Float::new(-2048.0),
+                Float::new(-2048.0),
+                Float::new(-2048.0),
             ],
             drift_random: Dword::new(0x0),
             spin_random: Dword::new(0x0),
-            size_k: [
-                Float::from_bits(0x47800000),
-                Float::from_bits(0x45000000),
-                Float::from_bits(0x3E4CCCCD),
-            ],
+            size_k: [Float::new(65536.0), Float::new(2048.0), Float::new(0.2)],
         }
     }
 }

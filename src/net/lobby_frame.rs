@@ -1,10 +1,10 @@
 //! `net::lobby_frame` (0x417D95): the frame of the lobby (`net::lobby_loop`): on the locked
 //! surface the background; the table's headings (strings 0x15F at 0x21A and 0x160 at 0x2C0,
-//! `stru_51E564`, y 0x6F); the players sorted (`net::sort_players`) and one row each from y
-//! 0x8C: the nationality's flag (sprite +0x27 + 0x1C at 0x18), the name (`stru_51E784` when
-//! ready, else `stru_51E6C4`), the car's sprite (+0x25 + 0x44, 0x18 and 0x19 swapped), the
+//! `typefaces::TIME`, y 0x6F); the players sorted (`net::sort_players`) and one row each from y
+//! 0x8C: the nationality's flag (sprite +0x27 + 0x1C at 0x18), the name (`typefaces::READY` when
+//! ready, else `typefaces::VALUES`), the car's sprite (+0x25 + 0x44, 0x18 and 0x19 swapped), the
 //! race's time and the total (`text::draw_time_text` with the hours always shown, or string
-//! 0x161 for no time; with gaps shown, `dword_52AC30` 1, each as its gap to the first row's
+//! 0x161 for no time; with gaps shown, `show_gaps` 1, each as its gap to the first row's
 //! with a '+' over its first character when within 0x36EE7F); the chat's eight lines (under
 //! the received messages' lock) and its input (`net::chat_input_line`, item 3); the four
 //! buttons right to left from 0x310 at 0x223 (`net::lobby_button`: ready 0x15D, the car 0x15B
@@ -92,7 +92,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             use std::sync::atomic::Ordering::Relaxed;
             let kept_hours = SHOW_HOURS.atomic().swap(1, Relaxed);
             let time = block.record.race_time.get();
-            // The total is drawn at the y the drawing before it leaves in edx: the text's,
+            // The total is drawn at the y the drawing before it leaves: the text's,
             // font offset included, when there is no time (the original's slip).
             let mut total_y = y;
             if time == players::NO_TIME {

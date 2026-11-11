@@ -10,8 +10,7 @@
 // ---- Rust version ----
 
 /// The depth buffer cleared over the whole screen (`d3d::clear_viewport`), unless there
-/// is no 3D. What the original leaves (eax 0, ebx the height) its three callers overwrite
-/// before reading (each next calls `scene::assign_kind_textures`, which sets both).
+/// is no 3D.
 pub fn clear_depth_buffer(scene: &crate::scene::owner::Scene) {
     let system = crate::system::owner::system();
     let session = &system.session;

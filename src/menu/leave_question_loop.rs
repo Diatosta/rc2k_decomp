@@ -15,17 +15,17 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.unread_list, // g_unreadList
-            table: |m| m.tables.draw_lists.unread_758b72.id(),
+            table: |m| m.tables.draw_lists.unread_draw_list.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list, // g_drawList
-            table: |m| m.tables.draw_lists.draw_758c9e.id(),
+            table: |m| m.tables.draw_lists.leave_question_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
-            table: |m| m.tables.draw_lists.overlay_7591de.id(),
+            table: |m| m.tables.draw_lists.leave_question_overlay.id(),
             run: false,
         },
     ],
@@ -43,12 +43,12 @@ pub const SCREEN: Screen = Screen {
             },
             List {
                 pointer: |m| &m.screens.flow.draw_list, // g_drawList
-                table: |m| m.tables.draw_lists.draw_758c9e.id(),
+                table: |m| m.tables.draw_lists.leave_question_draw.id(),
                 run: false,
             },
             List {
                 pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
-                table: |m| m.tables.draw_lists.overlay_7591de.id(),
+                table: |m| m.tables.draw_lists.leave_question_overlay.id(),
                 run: false,
             },
         ]),

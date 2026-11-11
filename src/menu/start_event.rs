@@ -1,15 +1,15 @@
 //! The championships' starters (IDA, 2026-10-19): the actions of the start menus' items that set a
 //! championship up for one to four players and run it.
 //!
-//! The common shape: `dword_755954` the event type (4, 5), `dword_758806` 0,
-//! `dword_75649C` 0xF, `menu::reset_driver_condition`, `index`, `section` and
-//! `dword_755950` 0, `dword_755984` the players; for each player (`dword_75598C`, edi its
-//! record) the repairs (`service::repair_car`), the car choice (`menu::select_car_loop`,
-//! esi the championship's car list; leaving it, `dword_758806` 1, ends it all) and the car
-//! taken (`menu::take_shown_car`); `dword_755988` the event mode; the championship
+//! The common shape: `event_type` is set (4, 5), `left_by_key` cleared, the carousel's last car
+//! set to 0xF, `menu::reset_driver_condition`, `index`, `section` and `stages_done` cleared,
+//! `player_count` set; for each player (`current_player`, edi its record) the repairs
+//! (`service::repair_car`), the car choice (`menu::select_car_loop`, esi the championship's
+//! car list; leaving it, `left_by_key` is set and ends it all) and the car taken
+//! (`menu::take_shown_car`); the event mode is set; the championship
 //! (`menu::run_championship` / `menu::run_a8_championship`); then for the first
-//! championship `dword_75555D`, `dword_755569` and `dword_755565` 0, and for both
-//! `dword_755980` 1. The one-player ones differ (see `Starter::first`).
+//! championship `event_left`, `ask_leave` and `left_with_carry` are cleared, and for both
+//! `event_over` is set. The one-player ones differ (see `Starter::first`).
 
 use crate::errors::Refused;
 use crate::menu::event_flow::*;
@@ -19,7 +19,7 @@ use crate::menu::screen_loop::{Entry, run_screen};
 use crate::session::Dword;
 use rc2k_core::menu::starters;
 
-const REPAIR_SET: &Dword = &crate::menu::owner::MENUS.cars.table.last_car; // dword_75649C: 0xF
+const REPAIR_SET: &Dword = &crate::menu::owner::MENUS.cars.table.last_car; // 0xF
 
 pub struct Starter {
     /// The championship and the seats (see `rc2k_core::menu::starters`).
@@ -50,8 +50,10 @@ impl starters::Event for Game<'_> {
         match c {
             C::RepairCar => crate::service::repair_parts::repair_car()?,
             C::BeginEvent => m::begin_event::begin_event(self.menus)?,
-            C::ResetDrivers => m::reset_drivers::reset_drivers()?,
-            C::ResetDriverCondition => m::reset_driver_condition::reset_driver_condition()?,
+            C::ResetDrivers => m::reset_drivers::reset_drivers(self.menus)?,
+            C::ResetDriverCondition => {
+                m::reset_driver_condition::reset_driver_condition(self.menus)?;
+            }
             C::SelectCar(list) => {
                 self.cars = Some(list);
                 {

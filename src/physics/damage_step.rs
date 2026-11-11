@@ -3,15 +3,14 @@
 //! (its only code: three calls and `retn`).
 //!
 //! Caller: `physics::car_physics_step` (0x43B952), every physics step.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::physics::car_store::Car;
 use crate::physics::store::DamageModel;
 use crate::race::work_store::RaceWork;
 
 pub fn damage_step(car: &Car, damage: &DamageModel, work: &RaceWork) {
+    // The steps' arithmetic is written for rounding to nearest, the game's mode here.
+    debug_assert!(crate::math::x87::rounds_to_nearest());
     crate::physics::damage_factors::steps(car, damage);
     crate::physics::damage_wear::steps(car, damage);
     crate::physics::damage_gauges::steps(car, damage, work);

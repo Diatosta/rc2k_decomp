@@ -1,4 +1,4 @@
-//! The gearbox's rules (converted 2026-10-21 from `physics::gear_bit` 0x43C5B7,
+//! The gearbox's rules (converted from `physics::gear_bit` 0x43C5B7,
 //! `higher_free_gear` 0x43C5A0, `lower_free_gear` 0x43C58E, `allowed_gear` 0x4651B5,
 //! `gear_input_rules` 0x439BF6, `gear_change_sound` 0x45C551, `gearbox_step` 0x43C15C
 //! and `take_asked_gear` 0x43C1E3): which gears cannot be taken, the search for the next
@@ -12,14 +12,14 @@ use crate::Invalid;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct GearBits(pub u32);
 
-/// One gear's test: its bit (gear + 1, the original's eax) and whether it is set.
+/// One gear's test: its bit (gear + 1) and whether it is set.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct GearTest {
     pub bit: u32,
     pub barred: bool,
 }
 
-/// A search's end: the gear reached (the original's ecx), the last bit tested (eax; as
+/// A search's end: the gear reached, the last bit tested (as as
 /// it came in when none was) and whether a free gear was found (CF clear).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Search {
@@ -69,7 +69,7 @@ impl GearBits {
     }
 
     /// `physics::lower_free_gear`: from `gear` down, the first gear whose bit is clear;
-    /// not found on reaching 0 (neutral). `bit` is what eax held at entry.
+    /// not found on reaching 0 (neutral). `bit` is the bit tested at entry.
     pub fn lower_free(self, gear: u32, bit: u32) -> Result<Search, Invalid> {
         let (mut at, mut bit) = (gear, bit);
         loop {
@@ -139,15 +139,15 @@ pub struct GearInputs {
 /// What `gear_input_rules` reads of the car (the work copy) and the race.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct GearCar {
-    /// `dword_71A244` (the grades' mode): rules apply when it is 0 or -1.
+    /// `tyre_change_state` (the grades' mode): rules apply when it is 0 or -1.
     pub state: u32,
-    /// `dword_71A010`: 2 joins or swaps the two inputs.
+    /// `gearbox_kind`: 2 joins or swaps the two inputs.
     pub box_mode: u32,
-    /// `dword_719FEC`: the start timer (below 0x320 by its sign: still starting).
+    /// `run_ticks`: the start timer (below 0x320 by its sign: still starting).
     pub timer: u32,
-    /// `dword_62389C`: the race mode (1 keeps the inputs while starting).
+    /// `run_kind`: the race mode (1 keeps the inputs while starting).
     pub race_mode: u32,
-    /// `dword_71A07C`, `dword_71A078`, `dword_71A080`: three switches that clear them.
+    /// `go_stand_timer`, `started_stand_timer`, `finish_flag`: three switches that clear them.
     pub switches: [u32; 3],
 }
 
@@ -162,7 +162,7 @@ impl GearInputs {
     }
 
     /// `physics::gear_input_rules`: the inputs by the car's state; `gear` is `g_carGear`.
-    /// The joined input when the two were joined (the original's eax), else `None`.
+    /// The joined input when the two were joined else `None`.
     pub fn apply_rules(&mut self, gear: &mut u32, car: &GearCar) -> Option<u32> {
         if car.state != 0 && car.state != u32::MAX {
             self.clear(gear);
@@ -216,7 +216,7 @@ pub enum GearChange {
     Down,
 }
 
-/// `physics::gear_change_sound`'s rule: the work copy's +0x238 (`dword_71A210`) 1 is a
+/// `physics::gear_change_sound`'s rule: the work copy's +0x238 (`gear_changed`) 1 is a
 /// change up, -1 down, anything else none.
 pub fn gear_change(word: u32) -> Option<GearChange> {
     match word {
@@ -226,7 +226,7 @@ pub fn gear_change(word: u32) -> Option<GearChange> {
     }
 }
 
-/// What `physics::gearbox_step` (0x43C15C, converted 2026-10-21) runs this turn.
+/// What `physics::gearbox_step` (0x43C15C) runs this turn.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GearboxTurn {
     /// Nothing (finished, or before the start's 0x320 outside race mode 1).
@@ -268,7 +268,7 @@ pub fn gearbox_turn(
     }
 }
 
-/// `physics::take_asked_gear` (0x43C1E3, converted 2026-10-21): the gear asked for,
+/// `physics::take_asked_gear` (0x43C1E3): the gear asked for,
 /// bits 8 .. 11 of the inputs word as a signed nibble.
 pub fn asked_gear(inputs: u32) -> u32 {
     (((inputs & ASKED_MASK) << 20) as i32 >> 28) as u32

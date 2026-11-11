@@ -6,12 +6,13 @@
 //! before anything.
 use crate::errors::Refused;
 use crate::menu::drivers_store::Driver;
+use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
-pub fn clear_result_slots() -> Result<(), Refused> {
-    let drivers = drivers()?;
+pub fn clear_result_slots(menus: &Menus) -> Result<(), Refused> {
+    let drivers = drivers(menus)?;
     for n in 0..4 {
-        player(n).update(rc2k_core::menu::player::Player::clear_results);
+        player(menus, n).update(rc2k_core::menu::player::Player::clear_results);
     }
     drivers.iter().for_each(Driver::clear_results);
     Ok(())

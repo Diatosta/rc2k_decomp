@@ -1,4 +1,4 @@
-//! `system::sleep` (0x41100C): `Sleep(eax)`.
+//! `system::sleep` (0x41100C): `Sleep(milliseconds)`.
 //!
 //! Takes milliseconds. 34 callers.
 

@@ -1,9 +1,9 @@
-//! `hud::turned_vertex` (0x4B7058): one vertex of a turned HUD shape at edi: the point (st(1) x,
-//! st(0) y, rounded into `dword_75BFF0` / `dword_75BFF4`); its texture place (x plus `flt_75C298`,
-//! y plus `flt_75C29C`, over `flt_75C00C`); the point turned by edx, times `dword_75C2B8` plus
-//! `dword_75C2A0` / `dword_75C2A4`; colour white under the quad record's alpha, specular 0.
+//! `hud::turned_vertex` (0x4B7058): one vertex of a turned HUD shape: the point (x and y from the x87
+//! stack, rounded into the vertex scratch pair); its texture place (x and y plus the shape's
+//! texture offsets, over the texture size); the point turned by the given turn, times the
+//! shape's scale plus its centre; colour white under the quad record's alpha, specular 0.
 //!
-//! Callers: `hud::draw_needle`'s four (code at 0x4B6FFE ..). The turn is its Rust version.
+//! Callers: `hud::draw_needle`'s four (four calls). The turn is `math::turn_float_point_xz`.
 
 use crate::d3d::vertices_store::Vertex;
 use crate::hud::owner::Hud;

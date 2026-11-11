@@ -1,13 +1,10 @@
 //! `physics::hold_spin_on_ground` (0x43BAA4): with all four wheels down (the four dwords
-//! from `qword_71A5D8` not 0), the spin's x and z (`dword_71A15C`, `dword_71A164`) held
-//! to -`flt_613EA0` .. `flt_613EA0` (by negating that limit in place, twice for each, so
-//! it comes back), and `dword_614C24` = whether either now has the limit's size (C3: also
+//! from `wheel_squeeze` not 0), the spin's x and z (`spin`, `dword_71A164`) held
+//! to -`ground_spin_limit` .. `ground_spin_limit` (by negating that limit in place, twice for each, so
+//! it comes back), and `ground_spin` = whether either now has the limit's size (C3: also
 //! when no number). A reading: no tumbling on the ground.
 //!
 //! Caller: `physics::car_physics_step` (0x43B986), every physics step.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;

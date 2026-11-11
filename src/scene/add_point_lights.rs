@@ -1,15 +1,14 @@
 //! `scene::add_point_lights` (0x44F471): what the scene's lamps add to the light on an
 //! object.
 //!
-//! For each of the `dword_63DC48` lamps (0x10 bytes each from `dword_63E05C`: a point
-//! of the scene, a strength, a colour; a strength of 0 is skipped): the strength to
-//! `dword_639958` and the colour to `dword_62DA7C`; the lamp's distance from the
-//! place being lit (`dword_636588` ..) by `scene::approximate_distance` (the original
-//! kept it in `g_scratch`, which nothing read: not kept); (0x200000 less the distance) times the strength over 0x20000,
-//! held to 0 .. 255, in all three colour places, each times the lamp's colour's
-//! over 256; and that added to `g_lightColour` byte by byte without overflow (all
-//! four bytes with MMX, the low three without, as in `scene::vertex_light`).
-//! One caller, 0x451425.
+//! For each of the scene's lamps (0x10 bytes each: a point of the scene, a strength, a colour;
+//! a strength of 0 is skipped): the strength and the colour kept; the lamp's distance from the
+//! place being lit by `scene::approximate_distance` (the original kept it in the shared work
+//! dword, which nothing read: not kept); (0x200000 less the distance) times the strength over
+//! 0x20000, held to 0 .. 255, in all three colour places, each times the lamp's colour's over
+//! 256; and that added to the light colour byte by byte without overflow (all four bytes with
+//! MMX, the low three without, as in `scene::vertex_light`).
+//! One caller, `scene::gather_lights`.
 //! Refuses more than 0x100 lamps and lamps without the scene's points.
 
 use crate::errors::{BadInput, Refused};
@@ -54,7 +53,8 @@ pub fn add_point_lights(
             colour,
         }
     });
-    let at = |point: u32| reading.keep(crate::race::scene_points::point_number(point));
+    let at =
+        |point: u32| reading.keep(crate::race::scene_points::point_number(&race.course, point));
     let out = lamps::add_point_lights(list, place, at, ctx.view.light.light_colour.get(), mmx);
     reading.finish()?;
     for (to, value) in [

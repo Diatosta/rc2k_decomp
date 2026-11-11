@@ -1,4 +1,4 @@
-//! The x87 assembly versions of the helpers in `math/x87_run.rs`, `math/x87_load.rs`, `math/normalise_vector.rs`, kept as the reference the
+//! The x87 assembly versions of the helpers in `math/x87/run.rs`, `math/x87/load.rs`, `math/normalise_vector.rs`, kept as the reference the
 //! plain Rust versions are tested against (phase 6, 2026-10-24).
 //!
 //! The assembly is verbatim (modules `load`, `run`, `norm`); the tests below run every
@@ -9,7 +9,7 @@
 
 #![allow(clippy::all, dead_code)]
 
-/// `math/x87_load.rs`'s assembly versions.
+/// `math/x87/load.rs`'s assembly versions.
 pub(super) mod load {
     use crate::math::x87::x87;
 
@@ -385,7 +385,7 @@ pub(super) mod load {
     }
 }
 
-/// `math/x87_run.rs`'s assembly versions.
+/// `math/x87/run.rs`'s assembly versions.
 pub(super) mod run {
     use crate::math::x87::x87;
 
@@ -1284,7 +1284,7 @@ mod tests {
     use super::{load, norm, run};
     use crate::math::x87::set_control_word;
     use crate::math::x87_float::{X, f80, from_f80};
-    use crate::math::{normalise_vector, x87_load, x87_run};
+    use crate::math::{normalise_vector, x87};
 
     /// The control words tried: double precision with nearest (the game's), chop, down and
     /// up. Both the real and the emulated control word are set.
@@ -1610,7 +1610,7 @@ mod tests {
         assert_eq!(f80_to_f64(f64_to_f80(-0.0)).to_bits(), (-0.0f64).to_bits());
     }
 
-    // ---- math/x87_load.rs ----
+    // ---- math/x87/load.rs ----
 
     #[test]
     fn load_whole_number_results() {
@@ -1618,7 +1618,7 @@ mod tests {
             "int_times_int_over_to_int",
             |g| (g.i(), g.i(), g.f()),
             |&(a, b, c)| load::int_times_int_over_to_int(a, b, c),
-            |&(a, b, c)| x87_load::int_times_int_over_to_int(a, b, c),
+            |&(a, b, c)| x87::int_times_int_over_to_int(a, b, c),
             exact,
         );
         check(
@@ -1626,21 +1626,21 @@ mod tests {
             &ROUNDING,
             Rng::f,
             |&a| load::abs_to_int(a),
-            |&a| x87_load::abs_to_int(a),
+            |&a| x87::abs_to_int(a),
             exact,
         );
         check_all(
             "add_to_int",
             |g| (g.f(), g.f()),
             |&(a, b)| load::add_to_int(a, b),
-            |&(a, b)| x87_load::add_to_int(a, b),
+            |&(a, b)| x87::add_to_int(a, b),
             exact,
         );
         check_all(
             "int_square_sum_scaled_to_int",
             |g| (g.i(), g.i(), g.f(), 1 + g.below(2) as u32),
             |&(a, b, k, t)| load::int_square_sum_scaled_to_int(a, b, k, t),
-            |&(a, b, k, t)| x87_load::int_square_sum_scaled_to_int(a, b, k, t),
+            |&(a, b, k, t)| x87::int_square_sum_scaled_to_int(a, b, k, t),
             exact,
         );
         check(
@@ -1648,7 +1648,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, b, c, d)| load::product4_to_int(a, b, c, d),
-            |&(a, b, c, d)| x87_load::product4_to_int(a, b, c, d),
+            |&(a, b, c, d)| x87::mul3_to_int(a, b, c, d) as u32,
             exact,
         );
         check(
@@ -1656,14 +1656,14 @@ mod tests {
             &ROUNDING,
             Rng::e80,
             |&a| load::tbyte_to_int(a),
-            |&a| x87_load::tbyte_to_int(a),
+            |&a| x87::tbyte_to_int(a),
             exact,
         );
         check_all(
             "sun_size",
             |g| (g.f(), g.f(), g.f(), g.f(), g.f(), g.f()),
             |&(x, cx, y, cy, h, k)| load::sun_size(x, cx, y, cy, h, k),
-            |&(x, cx, y, cy, h, k)| x87_load::sun_size(x, cx, y, cy, h, k),
+            |&(x, cx, y, cy, h, k)| x87::sun_size(x, cx, y, cy, h, k),
             exact,
         );
     }
@@ -1675,7 +1675,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f()),
             |&(a, b)| load::float_hypot(a, b),
-            |&(a, b)| x87_load::float_hypot(a, b),
+            |&(a, b)| x87::float_hypot(a, b),
             eqf,
         );
         check(
@@ -1683,7 +1683,7 @@ mod tests {
             &ROUNDING,
             |g| (g.i(), g.i()),
             |&(a, b)| load::int_square_sum(a, b),
-            |&(a, b)| x87_load::int_square_sum(a, b),
+            |&(a, b)| x87::int_square_sum(a, b),
             eqf,
         );
         check(
@@ -1691,7 +1691,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f()),
             |&(a, b)| load::float_square_sum(a, b),
-            |&(a, b)| x87_load::float_square_sum(a, b),
+            |&(a, b)| x87::float_square_sum(a, b),
             eqf,
         );
         check(
@@ -1699,7 +1699,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f()),
             |&(a, b, c)| load::product3(a, b, c),
-            |&(a, b, c)| x87_load::product3(a, b, c),
+            |&(a, b, c)| x87::mul2(a, b, c),
             eqf,
         );
         check(
@@ -1707,7 +1707,7 @@ mod tests {
             &ROUNDING,
             |g| (g.i(), g.f()),
             |&(a, b)| load::int_over_float(a, b),
-            |&(a, b)| x87_load::int_over_float(a, b),
+            |&(a, b)| x87::int_over(a, b),
             eqf,
         );
         check(
@@ -1715,7 +1715,7 @@ mod tests {
             &ROUNDING,
             |g| (g.i(), g.f(), g.f()),
             |&(a, b, c)| load::int_plus_times(a, b, c),
-            |&(a, b, c)| x87_load::int_plus_times(a, b, c),
+            |&(a, b, c)| x87::int_plus_times(a, b, c),
             eqf,
         );
         check(
@@ -1723,7 +1723,7 @@ mod tests {
             &ROUNDING,
             |g| (g.i(), g.f(), g.f(), g.f(), g.f(), g.f(), g.f()),
             |&(i, a, b, v, c, m, h)| load::eased_roll(i, a, b, v, c, m, h),
-            |&(i, a, b, v, c, m, h)| x87_load::eased_roll(i, a, b, v, c, m, h),
+            |&(i, a, b, v, c, m, h)| x87::eased_roll(i, a, b, v, c, m, h),
             eqf,
         );
         check(
@@ -1731,7 +1731,7 @@ mod tests {
             &ROUNDING,
             Rng::f,
             |&a| load::to_tbyte(a),
-            |&a| x87_load::to_tbyte(a),
+            |&a| x87::to_tbyte(a),
             eq80,
         );
     }
@@ -1752,7 +1752,7 @@ mod tests {
                 )
             },
             |&(a, k, s, b, m)| load::sun_direction(a, k, s, b, m),
-            |&(a, k, s, b, m)| x87_load::sun_direction(a, k, s, b, m),
+            |&(a, k, s, b, m)| x87::sun_direction(a, k, s, b, m),
             |a, b| (0..3).all(|k| near_f(&a[k], &b[k], 1)),
         );
     }
@@ -1764,7 +1764,7 @@ mod tests {
             &ROUNDING,
             |g| (g.fw(), g.fw()),
             |&(a, b)| load::below_or_unordered(a, b),
-            |&(a, b)| x87_load::below_or_unordered(a, b),
+            |&(a, b)| x87::below_or_unordered(a, b),
             exact,
         );
         check(
@@ -1772,7 +1772,7 @@ mod tests {
             &ROUNDING,
             |g| (g.fw(), g.f(), g.f(), g.fw()),
             |&(a, h, k, b)| load::scaled_abs_less_below(a, h, k, b),
-            |&(a, h, k, b)| x87_load::scaled_abs_less_below(a, h, k, b),
+            |&(a, h, k, b)| x87::scaled_abs_less_below(a, h, k, b),
             exact,
         );
         check(
@@ -1780,7 +1780,7 @@ mod tests {
             &ROUNDING,
             |g| (g.fw(), g.fw()),
             |&(a, k)| load::abs_below_or_unordered(a, k),
-            |&(a, k)| x87_load::abs_below_or_unordered(a, k),
+            |&(a, k)| x87::abs_below_or_unordered(a, k),
             exact,
         );
     }
@@ -1805,7 +1805,7 @@ mod tests {
                 };
                 o
             },
-            |(p, m)| x87_load::rotate_rounding_z(*p, m),
+            |(p, m)| x87::rotate_rounding_z(*p, m),
             |a, b| eqf(&a[0], &b[0]) && eqf(&a[1], &b[1]) && a[2] == b[2],
         );
         check_all(
@@ -1818,7 +1818,7 @@ mod tests {
                 };
                 o
             },
-            |(p, m)| x87_load::rotate_rounding(*p, m),
+            |(p, m)| x87::rotate_rounding(*p, m),
             exact,
         );
     }
@@ -1848,7 +1848,7 @@ mod tests {
             },
             |&(v, flat)| {
                 let scratch = crate::session::Dword::new(0xAAAA_AAAA);
-                let o = x87_load::sun_on_screen(&v, flat, &scratch);
+                let o = x87::sun_on_screen(&v, flat, &scratch);
                 (o, scratch.get())
             },
             |a, b| {
@@ -1861,7 +1861,7 @@ mod tests {
         );
     }
 
-    // ---- math/x87_run.rs ----
+    // ---- math/x87/run.rs ----
 
     #[test]
     fn run_whole_number_results() {
@@ -1869,7 +1869,7 @@ mod tests {
             "plane_height",
             |g| (g.i(), g.i(), g.i(), g.f(), g.f()),
             |&(a, b, c, f, h)| run::plane_height(a, b, c, f, h),
-            |&(a, b, c, f, h)| x87_run::plane_height(a, b, c, f, h),
+            |&(a, b, c, f, h)| x87::plane_height(a, b, c, f, h),
             exact,
         );
         check(
@@ -1877,14 +1877,14 @@ mod tests {
             &ROUNDING,
             |g| (g.i(), g.f(), g.f(), g.f()),
             |&(i, a, b, c)| run::int_times_times_over_to_int(i, a, b, c),
-            |&(i, a, b, c)| x87_run::int_times_times_over_to_int(i, a, b, c),
+            |&(i, a, b, c)| x87::int_times_times_over_to_int(i, a, b, c),
             exact,
         );
         check_all(
             "sub_div_to_int",
             |g| (g.f(), g.f(), g.f()),
             |&(a, b, c)| run::sub_div_to_int(a, b, c),
-            |&(a, b, c)| x87_run::sub_div_to_int(a, b, c),
+            |&(a, b, c)| x87::sub_div_to_int(a, b, c),
             exact,
         );
         check(
@@ -1892,7 +1892,7 @@ mod tests {
             &ROUNDING,
             Rng::e80,
             |&e| run::ext_to_int(e),
-            |&e| x87_run::ext_to_int(e),
+            |&e| x87::ext_to_int(e),
             exact,
         );
         check(
@@ -1900,21 +1900,21 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f()),
             |&(a, b, c)| run::mul2_to_int(a, b, c),
-            |&(a, b, c)| x87_run::mul2_to_int(a, b, c),
+            |&(a, b, c)| x87::mul2_to_int(a, b, c),
             exact,
         );
         check_all(
             "float_hypot_to_int",
             |g| (g.f(), g.f()),
             |&(a, b)| run::float_hypot_to_int(a, b),
-            |&(a, b)| x87_run::float_hypot_to_int(a, b),
+            |&(a, b)| x87::float_hypot_to_int(a, b),
             exact,
         );
         check_all(
             "int_toward_to_int",
             |g| (g.i(), g.f(), g.f()),
             |&(i, a, k)| run::int_toward_to_int(i, a, k),
-            |&(i, a, k)| x87_run::int_toward_to_int(i, a, k),
+            |&(i, a, k)| x87::int_toward_to_int(i, a, k),
             exact,
         );
         check(
@@ -1922,14 +1922,14 @@ mod tests {
             &ROUNDING,
             |g| (g.fw(), g.f(), g.fw()),
             |&(a, k, z)| run::times_fist_compare(a, k, z),
-            |&(a, k, z)| x87_run::times_fist_compare(a, k, z),
+            |&(a, k, z)| x87::times_fist_compare(a, k, z),
             exact,
         );
         check_all(
             "div_mul3_to_int",
             |g| (g.f(), g.f(), g.f(), g.f(), g.f()),
             |&(a, b, c, d, e)| run::div_mul3_to_int(a, b, c, d, e),
-            |&(a, b, c, d, e)| x87_run::div_mul3_to_int(a, b, c, d, e),
+            |&(a, b, c, d, e)| x87::div_mul3_to_int(a, b, c, d, e),
             exact,
         );
         check(
@@ -1937,14 +1937,14 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, b, c, d)| run::mul3_to_int(a, b, c, d),
-            |&(a, b, c, d)| x87_run::mul3_to_int(a, b, c, d),
+            |&(a, b, c, d)| x87::mul3_to_int(a, b, c, d),
             exact,
         );
         check_all(
             "wheel_int",
             |g| [g.f(), g.f(), g.f(), g.f(), g.f(), g.f(), g.f()],
             |&v| run::wheel_int(v),
-            |&v| x87_run::wheel_int(v),
+            |&v| x87::wheel_int(v),
             exact,
         );
         check(
@@ -1952,7 +1952,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f()),
             |&(a, b)| run::trunc_mul_to_int(a, b),
-            |&(a, b)| x87_run::trunc_mul_to_int(a, b),
+            |&(a, b)| x87::trunc_mul_to_int(a, b),
             exact,
         );
     }
@@ -1964,7 +1964,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, b, h, d)| run::sum_times_over(a, b, h, d),
-            |&(a, b, h, d)| x87_run::sum_times_over(a, b, h, d),
+            |&(a, b, h, d)| x87::sum_times_over(a, b, h, d),
             eqf,
         );
         check(
@@ -1972,7 +1972,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, k, c, h)| run::square_times_plus_times(a, k, c, h),
-            |&(a, k, c, h)| x87_run::square_times_plus_times(a, k, c, h),
+            |&(a, k, c, h)| x87::square_times_plus_times(a, k, c, h),
             eqf2,
         );
         check(
@@ -1980,7 +1980,7 @@ mod tests {
             &ROUNDING,
             |_| (),
             |_| run::minus_one(),
-            |_| x87_run::minus_one(),
+            |_| (-1.0f32).to_bits(),
             exact,
         );
         check(
@@ -1988,7 +1988,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, b, c, d)| run::mul3(a, b, c, d),
-            |&(a, b, c, d)| x87_run::mul3(a, b, c, d),
+            |&(a, b, c, d)| x87::mul3(a, b, c, d),
             eqf,
         );
         check(
@@ -1996,7 +1996,7 @@ mod tests {
             &ROUNDING,
             Rng::f,
             |&a| run::square(a),
-            |&a| x87_run::square(a),
+            |&a| x87::mul(a, a),
             eqf,
         );
         check(
@@ -2004,7 +2004,7 @@ mod tests {
             &ROUNDING,
             |g| (g.i(), g.f(), g.f(), g.f()),
             |&(i, d, hi, lo)| run::int_lerp(i, d, hi, lo),
-            |&(i, d, hi, lo)| x87_run::int_lerp(i, d, hi, lo),
+            |&(i, d, hi, lo)| x87::int_lerp(i, d, hi, lo),
             eqf,
         );
         check(
@@ -2012,7 +2012,7 @@ mod tests {
             &ROUNDING,
             |g| (g.i(), g.i(), g.f()),
             |&(a, b, c)| run::int_over_int_plus(a, b, c),
-            |&(a, b, c)| x87_run::int_over_int_plus(a, b, c),
+            |&(a, b, c)| x87::int_over_int_plus(a, b, c),
             eqf,
         );
         check(
@@ -2020,7 +2020,7 @@ mod tests {
             &ROUNDING,
             Rng::f,
             |&a| run::one_less(a),
-            |&a| x87_run::one_less(a),
+            |&a| x87::one_less(a),
             eqf,
         );
         check(
@@ -2028,7 +2028,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f()),
             |&(x, t, c)| run::abs_sqrt_times_plus(x, t, c),
-            |&(x, t, c)| x87_run::abs_sqrt_times_plus(x, t, c),
+            |&(x, t, c)| x87::abs_sqrt_times_plus(x, t, c),
             eqf,
         );
         check(
@@ -2036,7 +2036,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f()),
             |&(a, b, c)| run::add3(a, b, c),
-            |&(a, b, c)| x87_run::add3(a, b, c),
+            |&(a, b, c)| x87::add3(a, b, c),
             eqf,
         );
         check(
@@ -2044,7 +2044,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f()),
             |&(a, b, c)| run::neg_product_plus(a, b, c),
-            |&(a, b, c)| x87_run::neg_product_plus(a, b, c),
+            |&(a, b, c)| x87::neg_product_plus(a, b, c),
             eqf,
         );
         check(
@@ -2052,7 +2052,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f()),
             |&(a, b)| run::neg_mul(a, b),
-            |&(a, b)| x87_run::neg_mul(a, b),
+            |&(a, b)| x87::neg_mul(a, b),
             eqf,
         );
         check(
@@ -2060,7 +2060,7 @@ mod tests {
             &ROUNDING,
             Rng::f,
             |&a| run::abs_of(a),
-            |&a| x87_run::abs_of(a),
+            |&a| x87::abs_of(a),
             eqf,
         );
         check(
@@ -2068,7 +2068,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f()),
             |&(x, k, d)| run::square_times_over(x, k, d),
-            |&(x, k, d)| x87_run::square_times_over(x, k, d),
+            |&(x, k, d)| x87::square_times_over(x, k, d),
             eqf,
         );
         check(
@@ -2076,7 +2076,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f()),
             |&(a, b)| run::toward_one(a, b),
-            |&(a, b)| x87_run::toward_one(a, b),
+            |&(a, b)| x87::toward_one(a, b),
             eqf,
         );
         check(
@@ -2084,7 +2084,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f(), g.i(), g.f(), g.f()),
             |&(a, b, k, i, d, w)| run::lerp_int_over2(a, b, k, i, d, w),
-            |&(a, b, k, i, d, w)| x87_run::lerp_int_over2(a, b, k, i, d, w),
+            |&(a, b, k, i, d, w)| x87::lerp_int_over2(a, b, k, i, d, w),
             eqf,
         );
         check(
@@ -2092,7 +2092,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f(), g.f(), g.f()),
             |&(v, one, a, h, m)| run::weight_force(v, one, a, h, m),
-            |&(v, one, a, h, m)| x87_run::weight_force(v, one, a, h, m),
+            |&(v, one, a, h, m)| x87::weight_force(v, one, a, h, m),
             eqf,
         );
         check(
@@ -2100,7 +2100,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, b, c, d)| run::neg_product2_plus(a, b, c, d),
-            |&(a, b, c, d)| x87_run::neg_product2_plus(a, b, c, d),
+            |&(a, b, c, d)| x87::neg_product2_plus(a, b, c, d),
             eqf,
         );
         check(
@@ -2108,7 +2108,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f()),
             |&(a, b, c)| run::neg_mul2(a, b, c),
-            |&(a, b, c)| x87_run::neg_mul2(a, b, c),
+            |&(a, b, c)| x87::neg_mul2(a, b, c),
             eqf,
         );
         check(
@@ -2116,7 +2116,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f()),
             |&(a, b, c)| run::sub_mul(a, b, c),
-            |&(a, b, c)| x87_run::sub_mul(a, b, c),
+            |&(a, b, c)| x87::sub_mul(a, b, c),
             eqf,
         );
         check(
@@ -2124,7 +2124,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(x, a, b, c)| run::abs_div_add_mul(x, a, b, c),
-            |&(x, a, b, c)| x87_run::abs_div_add_mul(x, a, b, c),
+            |&(x, a, b, c)| x87::abs_div_add_mul(x, a, b, c),
             eqf,
         );
         check(
@@ -2132,7 +2132,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, b, c, d)| run::mul2_plus(a, b, c, d),
-            |&(a, b, c, d)| x87_run::mul2_plus(a, b, c, d),
+            |&(a, b, c, d)| x87::mul2_plus(a, b, c, d),
             eqf,
         );
         check(
@@ -2140,7 +2140,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, s, b, c)| run::over_abs_plus_minus(a, s, b, c),
-            |&(a, s, b, c)| x87_run::over_abs_plus_minus(a, s, b, c),
+            |&(a, s, b, c)| x87::over_abs_plus_minus(a, s, b, c),
             eqf,
         );
         check(
@@ -2148,7 +2148,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.i()),
             |&(x, n)| run::abs_fidiv(x, n),
-            |&(x, n)| x87_run::abs_fidiv(x, n),
+            |&(x, n)| x87::abs_fidiv(x, n),
             eqf,
         );
         check(
@@ -2156,7 +2156,7 @@ mod tests {
             &ROUNDING,
             |g| (g.i(), g.i()),
             |&(a, b)| run::int_fidiv(a, b),
-            |&(a, b)| x87_run::int_fidiv(a, b),
+            |&(a, b)| x87::int_ratio(a, b),
             eqf,
         );
         check(
@@ -2164,7 +2164,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f()),
             |&(d, s)| run::one_less_times_plus(d, s),
-            |&(d, s)| x87_run::one_less_times_plus(d, s),
+            |&(d, s)| x87::toward_one(d, s),
             eqf,
         );
         check(
@@ -2172,7 +2172,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, b, c, d)| run::sub_mul_add(a, b, c, d),
-            |&(a, b, c, d)| x87_run::sub_mul_add(a, b, c, d),
+            |&(a, b, c, d)| x87::sub_mul_add(a, b, c, d),
             eqf,
         );
         check(
@@ -2180,7 +2180,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f(), g.f(), g.f()),
             |&(s, a0, a1, c0, c1)| run::lerp_table(s, a0, a1, c0, c1),
-            |&(s, a0, a1, c0, c1)| x87_run::lerp_table(s, a0, a1, c0, c1),
+            |&(s, a0, a1, c0, c1)| x87::lerp_table(s, a0, a1, c0, c1),
             eqf,
         );
         check(
@@ -2188,7 +2188,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f()),
             |&(a, b, c)| run::div_then_mul(a, b, c),
-            |&(a, b, c)| x87_run::div_then_mul(a, b, c),
+            |&(a, b, c)| x87::div_then_mul(a, b, c),
             eqf,
         );
         check(
@@ -2196,7 +2196,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.i(), g.f()),
             |&(a, b, n, k)| run::sum_times_int_over_minus(a, b, n, k),
-            |&(a, b, n, k)| x87_run::sum_times_int_over_minus(a, b, n, k),
+            |&(a, b, n, k)| x87::sum_times_int_over_minus(a, b, n, k),
             eqf,
         );
         check(
@@ -2204,7 +2204,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, b, c, d)| run::mul_div2(a, b, c, d),
-            |&(a, b, c, d)| x87_run::mul_div2(a, b, c, d),
+            |&(a, b, c, d)| x87::mul_div2(a, b, c, d),
             eqf,
         );
         check(
@@ -2219,7 +2219,7 @@ mod tests {
                 )
             },
             |&(i, k, a, b)| run::int_mul_add(i, k, a, b),
-            |&(i, k, a, b)| x87_run::int_mul_add(i, k, a, b),
+            |&(i, k, a, b)| x87::int_mul_add(i, k, a, b),
             eqf,
         );
         check(
@@ -2227,7 +2227,7 @@ mod tests {
             &ROUNDING,
             |g| (g.e80(), g.f(), g.f()),
             |&(e, a, b)| run::ext_div2(e, a, b),
-            |&(e, a, b)| x87_run::ext_div2(e, a, b),
+            |&(e, a, b)| x87::ext_div2(e, a, b),
             eqf,
         );
         check(
@@ -2235,7 +2235,7 @@ mod tests {
             &ROUNDING,
             Rng::e80,
             |&x| run::neg_rounded(x),
-            |&x| x87_run::neg_rounded(x),
+            |&x| x87::neg_rounded(x),
             eqf,
         );
         check(
@@ -2243,7 +2243,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f(), g.f(), g.fw()),
             |&(a, d, b, c, z)| run::lever_share(a, d, b, c, z),
-            |&(a, d, b, c, z)| x87_run::lever_share(a, d, b, c, z),
+            |&(a, d, b, c, z)| x87::lever_share(a, d, b, c, z),
             |a, b| eqf(&a.0, &b.0) && a.1 == b.1,
         );
         // Zero sums: the equal-to-zero branch needs them.
@@ -2260,7 +2260,7 @@ mod tests {
                 )
             },
             |&(a, d, b, c, z)| run::lever_share(a, d, b, c, z),
-            |&(a, d, b, c, z)| x87_run::lever_share(a, d, b, c, z),
+            |&(a, d, b, c, z)| x87::lever_share(a, d, b, c, z),
             |a, b| eqf(&a.0, &b.0) && a.1 == b.1,
         );
         // The sums over the divisors: a list each.
@@ -2273,7 +2273,7 @@ mod tests {
                 (t, d)
             },
             |(t, d)| run::sum_over(t, d),
-            |(t, d)| x87_run::sum_over(t, d),
+            |(t, d)| x87::sum_over(t, d),
             eqf,
         );
         check(
@@ -2295,7 +2295,7 @@ mod tests {
                 (x, t, if g.below(4) == 0 { 0 } else { g.fw() })
             },
             |&(x, t, z)| run::ramp(x, t, z),
-            |&(x, t, z)| x87_run::ramp(x, t, z),
+            |&(x, t, z)| x87::ramp(x, t, z),
             eqf,
         );
     }
@@ -2307,7 +2307,7 @@ mod tests {
             &ROUNDING,
             |g| (g.fw(), g.fw()),
             |&(a, b)| run::compare_full(a, b),
-            |&(a, b)| x87_run::compare_full(a, b),
+            |&(a, b)| x87::compare_full(a, b),
             exact,
         );
         check(
@@ -2318,7 +2318,7 @@ mod tests {
                 (a, a)
             },
             |&(a, b)| run::compare_full(a, b),
-            |&(a, b)| x87_run::compare_full(a, b),
+            |&(a, b)| x87::compare_full(a, b),
             exact,
         );
         check(
@@ -2326,7 +2326,7 @@ mod tests {
             &ROUNDING,
             |g| (g.fw(), g.fw()),
             |&(a, b)| run::abs_compare(a, b),
-            |&(a, b)| x87_run::abs_compare(a, b),
+            |&(a, b)| x87::abs_compare(a, b),
             exact,
         );
         check(
@@ -2334,7 +2334,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f(), g.fw()),
             |&(a, b, c, k)| run::mul_div_status(a, b, c, k),
-            |&(a, b, c, k)| x87_run::mul_div_status(a, b, c, k),
+            |&(a, b, c, k)| x87::mul_div_status(a, b, c, k),
             exact,
         );
         check(
@@ -2342,7 +2342,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.fw()),
             |&(a, b, c)| run::mul_status(a, b, c),
-            |&(a, b, c)| x87_run::mul_status(a, b, c),
+            |&(a, b, c)| x87::mul_status(a, b, c),
             exact,
         );
         check(
@@ -2350,7 +2350,7 @@ mod tests {
             &ROUNDING,
             |g| (g.e80(), g.fw()),
             |&(e, b)| run::compare_80(e, b),
-            |&(e, b)| x87_run::compare_80(e, b),
+            |&(e, b)| x87::compare_80(e, b),
             exact,
         );
     }
@@ -2362,7 +2362,7 @@ mod tests {
             &ROUNDING,
             |g| [g.f(), g.f(), g.f()],
             |v| run::length_80(v.as_ptr()),
-            |v| x87_run::length_80(*v),
+            |v| x87::length_80(*v),
             eq80,
         );
         check(
@@ -2376,7 +2376,7 @@ mod tests {
                 };
                 v
             },
-            |&(v, s)| x87_run::scale_by_80(v, s),
+            |&(v, s)| x87::scale_by_80(v, s),
             eqf3,
         );
         check(
@@ -2392,7 +2392,7 @@ mod tests {
                 )
             },
             |&(a, b, c, d, e)| run::less_plus_less_product_80(a, b, c, d, e),
-            |&(a, b, c, d, e)| x87_run::less_plus_less_product_80(a, b, c, d, e),
+            |&(a, b, c, d, e)| x87::less_plus_less_product_80(a, b, c, d, e),
             eq80,
         );
         check(
@@ -2404,7 +2404,7 @@ mod tests {
                     .collect::<Vec<_>>()
             },
             |t| run::one_less_products(t),
-            |t| x87_run::one_less_products(t),
+            |t| x87::one_less_products(t),
             eq80,
         );
         check(
@@ -2412,7 +2412,7 @@ mod tests {
             &ROUNDING,
             |g| (g.e80(), g.f()),
             |&(e, k)| run::ext_times(e, k),
-            |&(e, k)| x87_run::ext_times(e, k),
+            |&(e, k)| x87::ext_times(e, k),
             eq80,
         );
         check(
@@ -2420,7 +2420,7 @@ mod tests {
             &ROUNDING,
             |g| (g.i(), g.below(2) == 0),
             |&(a, n)| run::int_80(a, n),
-            |&(a, n)| x87_run::int_80(a, n),
+            |&(a, n)| x87::int_80(a, n),
             eq80,
         );
         check(
@@ -2428,7 +2428,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.i(), g.f()),
             |&(t, l, n, o)| run::gear_step_80(t, l, n, o),
-            |&(t, l, n, o)| x87_run::gear_step_80(t, l, n, o),
+            |&(t, l, n, o)| x87::gear_step_80(t, l, n, o),
             eq80,
         );
         check(
@@ -2436,7 +2436,7 @@ mod tests {
             &ROUNDING,
             |g| (g.e80(), g.e80()),
             |&(a, b)| run::ext_add(a, b),
-            |&(a, b)| x87_run::ext_add(a, b),
+            |&(a, b)| x87::ext_add(a, b),
             eq80,
         );
         check(
@@ -2444,7 +2444,7 @@ mod tests {
             &ROUNDING,
             |g| (g.i(), g.i()),
             |&(a, b)| run::ints_diff_80(a, b),
-            |&(a, b)| x87_run::ints_diff_80(a, b),
+            |&(a, b)| x87::ints_diff_80(a, b),
             eq80,
         );
         check(
@@ -2452,7 +2452,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f()),
             |&(a, b)| run::div_80(a, b),
-            |&(a, b)| x87_run::div_80(a, b),
+            |&(a, b)| x87::div_80(a, b),
             eq80,
         );
     }
@@ -2493,7 +2493,7 @@ mod tests {
                 |&(i, sse)| {
                     let mut o = [0xAAAA_AAAAu32; 8];
                     {
-                        x87_run::face_shares(&i, &mut o, sse);
+                        x87::face_shares(&i, &mut o, sse);
                     };
                     o
                 },
@@ -2519,7 +2519,7 @@ mod tests {
             &ROUNDING,
             Rng::angle,
             |&a| run::sine_cosine_of(a),
-            |&a| x87_run::sine_cosine_of(a),
+            |&a| x87::sine_cosine_of(a),
             |a, b| near_f(&a.0, &b.0, 1) && near_f(&a.1, &b.1, 1),
         );
     }
@@ -2531,7 +2531,7 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f()),
             |&(y, x)| run::patan(y, x),
-            |&(y, x)| x87_run::patan(y, x),
+            |&(y, x)| x87::patan(y, x),
             |a, b| near_f(a, b, 1),
         );
     }
@@ -2560,7 +2560,7 @@ mod tests {
                 )
             },
             |&(a, b)| (run::over_cos_80(a, b), allow(b)),
-            |&(a, b)| (x87_run::over_cos_80(a, b), allow(b)),
+            |&(a, b)| (x87::over_cos_80(a, b), allow(b)),
             |x, y| {
                 near_80(&x.0, &y.0, 2) || {
                     let (p, q) = (f80_to_f64(x.0), f80_to_f64(y.0));
@@ -2599,7 +2599,7 @@ mod tests {
             |&(x, s, l)| call(run::clamped_asin_80, x, s, l),
             |&(x, s, l)| {
                 let (mut s, mut l) = (s, l);
-                (x87_run::clamped_asin_80(x, &mut s, &mut l), s, l)
+                (x87::clamped_asin_80(x, &mut s, &mut l), s, l)
             },
             |a, b| near_80(&a.0, &b.0, 2) && eqf(&a.1, &b.1) && eqf(&a.2, &b.2),
         );

@@ -1,31 +1,30 @@
-//! `effects::windscreen_drops_top` (0x4BAC87): the windscreen drops' frame from the settings: the vertex
-//! ring from its start (`dword_816232` = `unk_625A44`); the ease and the rate; the place
-//! (the settings' +0x2720 ..) and two axes (+0x272C .. and +0x2708 .. less it), their
-//! lengths' shares (`flt_814C06`, `flt_814C0A`), made one long and square
-//! (`scene::normalise_vector3`, `scene::cross_product3`); nothing more unless the place's way
-//! faces the third axis away (a negative dot, `flt_814718`); the 0x30 points of
-//! `g_marksWindscreenDropPoints` scaled into `flt_814CFE` .. and turned onto the axes; unless the
-//! rate is 0: `effects::windscreen_drops_frame`, the vertices left in the ring drawn (their count by
-//! `dword_82E27A`: `dword_62423C` / `dword_625A40`, `d3d::draw_marks_windscreen_drops`, the
-//! platform's), and with
-//! the settings' +0x2744 and the drift on `effects::windscreen_drops_step`; then `scene::set_texture`
-//! (`dword_5D1E10`) and `g_polygonVertexCount` 4.
+//! `effects::windscreen_drops_top` (0x4BAC87): the windscreen drops' frame from the settings:
+//! the vertex ring from its start (`buffer`); the ease and the rate; the place (the settings'
+//! +0x2720 ..) and two axes (+0x272C .. and +0x2708 .. less it), their lengths' shares
+//! (`shares`), made one long and square (`scene::normalise_vector3`,
+//! `scene::cross_product3`); nothing more unless the place's way faces the third axis away
+//! (a negative `facing` dot); the 0x30 windscreen drop points scaled into `scaled` and turned
+//! onto the axes; unless the rate is 0: `effects::windscreen_drops_frame`, the vertices left
+//! in the ring drawn (their count by `per_vertex`, `d3d::draw_marks_windscreen_drops`, the
+//! platform's), and with the settings' +0x2744 and the drift on
+//! `effects::windscreen_drops_step`; then `scene::set_texture` (the marks' texture) and the
+//! polygon's vertex count 4.
 //!
-//! Screen: the rain drops on the windscreen in the in-car view (owner, 2026-10-29: gone with `d3d::draw_marks_windscreen_drops` cut). Called the hexagons until then (their shape).
+//! Screen: the rain drops on the windscreen in the in-car view (confirmed: gone with `d3d::draw_marks_windscreen_drops` cut). Drawn as hexagons.
 //!
-//! Works on `g_marksSettings`.
+//! Works on the effects settings.
 //!
-//! Caller: `effects::draw_overlays` (0x4C7539). The x87 runs are plain Rust on the x87 model
+//! Caller: `effects::draw_overlays` The x87 runs are plain Rust on the x87 model
 //! (`math::x87_float`), in the original's order, over the game's variables; the vector helpers
 //! their Rust versions. Refuses null settings, before anything.
 
+use crate::effects::cell_x87::CellX87;
 use crate::effects::mask_store::Masks;
 use crate::effects::plain::{ld_cell, ldi_cell, st_cell};
 use crate::effects::setup::MarksClock;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::math::x87_float as bh;
 use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::owner_frame::Frame;
 use crate::scene::cross_product3::cross;
@@ -34,7 +33,8 @@ use crate::session::Float;
 
 const POINTS: u32 = 0x30;
 
-/// The original's 0x4BAC91 .. 0x4BAD3F: `flt_81622A` (the ease by the ticks), `flt_814728` (the rate), the place (`flt_814C0E` ..) and the first axis (`flt_814C1A` ..) from the settings, its length over `flt_82E272` into `flt_814C06`.
+/// The ease (by the ticks), the rate, the place and the first axis from the settings, and
+/// the first axis's length over its divisor into the first share.
 fn frame_axes(
     drops: &WindscreenDrops,
     m: &EffectsSettings,
@@ -43,22 +43,22 @@ fn frame_axes(
     frame_axes_x87(drops, m, &effects.setup.clock);
 }
 
-/// The original's 0x4BAD4C .. 0x4BADAC: the second axis (`flt_814C26` ..) from the settings, its length over `flt_82E276` into `flt_814C0A`.
+/// The second axis from the settings, its length over its divisor into the second share.
 fn frame_up(drops: &WindscreenDrops, m: &EffectsSettings) {
     frame_up_x87(drops, m);
 }
 
-/// The original's 0x4BADF8 .. 0x4BAE1C: the place again as floats into `flt_8161A2` ...
+/// The place again as floats into the drops' `place`.
 fn frame_place(drops: &WindscreenDrops, m: &EffectsSettings) {
     frame_place_x87(drops, m);
 }
 
-/// The original's 0x4BAE27 .. 0x4BAE4D: the place's way dotted with the third axis into `flt_814718`.
+/// The place's way dotted with the third axis into `facing`.
 fn frame_facing(drops: &WindscreenDrops) {
     frame_facing_x87(drops);
 }
 
-/// The original's 0x4BAEAB .. 0x4BAEEC: a point (x, y at p) turned onto the axes (x, y, z back at p).
+/// A point (x, y at p) turned onto the axes (x, y, z back at p).
 fn point_turned(drops: &WindscreenDrops, p: &[Float; 3]) {
     point_turned_x87(drops, p);
 }
@@ -71,7 +71,7 @@ pub fn windscreen_drops_top(
     gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let m = crate::effects::setup::effects_settings()?;
+    let m = effects.settings()?;
     drops.hex.buffer.set(0);
     frame_axes(drops, m, effects);
     let w = &drops.work.axes;
@@ -95,8 +95,8 @@ pub fn windscreen_drops_top(
         .map(super::super::session::Float::bits);
     for n in 0..POINTS as usize {
         let (p, o) = (3 * n, 3 * n);
-        drops.work.scaled[o].set_bits(x87::mul(drops.work.points[p].bits(), kx));
-        drops.work.scaled[o + 1].set_bits(x87::mul(drops.work.points[p + 1].bits(), ky));
+        drops.work.scaled[o].set_bits(x87::mul(&drops.work.points[p], kx));
+        drops.work.scaled[o + 1].set_bits(x87::mul(&drops.work.points[p + 1], ky));
         drops.work.scaled[o + 2].set_bits(0);
     }
     for p in drops.work.scaled.as_chunks::<3>().0 {
@@ -121,12 +121,12 @@ pub fn windscreen_drops_top(
                 .set(quads.wrapping_mul(6));
             crate::effects::windscreen_drops_frame::draw_batch()?;
         }
-        let marks = crate::effects::setup::effects_settings()?;
-        if marks.windscreen_wet.get() != 0 && effects.setup.kind_floats.running.bits() != 0 {
+        let marks = effects.settings()?;
+        if marks.windscreen_wet.get() != 0 && effects.setup.kind_floats.running.get() != 0 {
             crate::effects::windscreen_drops_step::windscreen_drops_step(masks, drops)?;
         }
     }
-    crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].bits());
+    crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].get());
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
         .set_bits(4u32);
@@ -140,57 +140,57 @@ fn frame_axes_x87(drops: &WindscreenDrops, m: &EffectsSettings, c: &MarksClock) 
     st_cell(&drops.hex.ease, t1);
     let t2 = ldi_cell(&m.windscreen_drops_rate_factor);
     let t3 = t2 * ld_cell(&drops.hex.top_k[1]);
-    drops.state.rate.set_bits(bh::st(t3));
+    drops.state.rate.st(t3);
     let t4 = ldi_cell(&m.light_point_b_negated[0]);
     let t5 = ldi_cell(&m.light_point_b_negated[1]);
     let t6 = ldi_cell(&m.light_point_b_negated[2]);
-    drops.work.place[2].set_bits(bh::st(t6));
-    drops.work.place[1].set_bits(bh::st(t5));
-    drops.work.place[0].set_bits(bh::st(t4));
+    drops.work.place[2].st(t6);
+    drops.work.place[1].st(t5);
+    drops.work.place[0].st(t4);
     let t7 = ldi_cell(&m.light_point_b[0]);
     let t8 = t7 - ldi_cell(&m.light_point_b_negated[0]);
-    drops.work.axes[0].set_bits(bh::st(t8));
+    drops.work.axes[0].st(t8);
     let t9 = ldi_cell(&m.light_point_b[1]);
     let t10 = t9 - ldi_cell(&m.light_point_b_negated[1]);
-    drops.work.axes[1].set_bits(bh::st(t10));
+    drops.work.axes[1].st(t10);
     let t11 = ldi_cell(&m.light_point_b[2]);
     let t12 = t11 - ldi_cell(&m.light_point_b_negated[2]);
-    drops.work.axes[2].set_bits(bh::st(t12));
-    let t13 = bh::ld(drops.work.axes[0].bits());
+    drops.work.axes[2].st(t12);
+    let t13 = drops.work.axes[0].ld();
     let t14 = t13 * t13;
-    let t15 = bh::ld(drops.work.axes[1].bits());
+    let t15 = drops.work.axes[1].ld();
     let t16 = t15 * t15;
-    let t17 = bh::ld(drops.work.axes[2].bits());
+    let t17 = drops.work.axes[2].ld();
     let t18 = t17 * t17;
     let t19 = t16 + t18;
     let t20 = t14 + t19;
     let t21 = t20.sqrt();
     let t22 = t21 / ld_cell(&drops.hex.top_k[2]);
-    drops.work.shares[0].set_bits(bh::st(t22));
+    drops.work.shares[0].st(t22);
 }
 
 /// `frame_up`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
 fn frame_up_x87(drops: &WindscreenDrops, m: &EffectsSettings) {
     let t0 = ldi_cell(&m.light_point_a_negated[0]);
     let t1 = t0 - ldi_cell(&m.light_point_b_negated[0]);
-    drops.work.axes[3].set_bits(bh::st(t1));
+    drops.work.axes[3].st(t1);
     let t2 = ldi_cell(&m.light_point_a_negated[1]);
     let t3 = t2 - ldi_cell(&m.light_point_b_negated[1]);
-    drops.work.axes[4].set_bits(bh::st(t3));
+    drops.work.axes[4].st(t3);
     let t4 = ldi_cell(&m.light_point_a_negated[2]);
     let t5 = t4 - ldi_cell(&m.light_point_b_negated[2]);
-    drops.work.axes[5].set_bits(bh::st(t5));
-    let t6 = bh::ld(drops.work.axes[3].bits());
+    drops.work.axes[5].st(t5);
+    let t6 = drops.work.axes[3].ld();
     let t7 = t6 * t6;
-    let t8 = bh::ld(drops.work.axes[4].bits());
+    let t8 = drops.work.axes[4].ld();
     let t9 = t8 * t8;
-    let t10 = bh::ld(drops.work.axes[5].bits());
+    let t10 = drops.work.axes[5].ld();
     let t11 = t10 * t10;
     let t12 = t9 + t11;
     let t13 = t7 + t12;
     let t14 = t13.sqrt();
     let t15 = t14 / ld_cell(&drops.hex.top_k[3]);
-    drops.work.shares[1].set_bits(bh::st(t15));
+    drops.work.shares[1].st(t15);
 }
 
 /// `frame_place`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
@@ -206,30 +206,30 @@ fn frame_place_x87(drops: &WindscreenDrops, m: &EffectsSettings) {
 /// `frame_facing`'s x87 block as plain Rust on the x87 model (9 instructions), same order and memory places.
 fn frame_facing_x87(drops: &WindscreenDrops) {
     let t0 = ld_cell(&drops.hex.place[0]);
-    let t1 = t0 * bh::ld(drops.work.axes[6].bits());
+    let t1 = t0 * drops.work.axes[6].ld();
     let t2 = ld_cell(&drops.hex.place[1]);
-    let t3 = t2 * bh::ld(drops.work.axes[7].bits());
+    let t3 = t2 * drops.work.axes[7].ld();
     let t4 = ld_cell(&drops.hex.place[2]);
-    let t5 = t4 * bh::ld(drops.work.axes[8].bits());
+    let t5 = t4 * drops.work.axes[8].ld();
     let t6 = t3 + t5;
     let t7 = t1 + t6;
-    drops.state.facing.set_bits(bh::st(t7));
+    drops.state.facing.st(t7);
 }
 
 /// `point_turned`'s x87 block as plain Rust on the x87 model (19 instructions), same order and memory places.
 fn point_turned_x87(drops: &WindscreenDrops, p: &[Float; 3]) {
     let t0 = ld_cell(&p[0]);
     let t1 = ld_cell(&p[1]);
-    let t2 = t0 * bh::ld(drops.work.axes[0].bits());
-    let t3 = t1 * bh::ld(drops.work.axes[3].bits());
+    let t2 = t0 * drops.work.axes[0].ld();
+    let t3 = t1 * drops.work.axes[3].ld();
     let t4 = t2 + t3;
     st_cell(&p[0], t4);
-    let t5 = t0 * bh::ld(drops.work.axes[1].bits());
-    let t6 = t1 * bh::ld(drops.work.axes[4].bits());
+    let t5 = t0 * drops.work.axes[1].ld();
+    let t6 = t1 * drops.work.axes[4].ld();
     let t7 = t5 + t6;
     st_cell(&p[1], t7);
-    let t8 = t1 * bh::ld(drops.work.axes[5].bits());
-    let t9 = t0 * bh::ld(drops.work.axes[2].bits());
+    let t8 = t1 * drops.work.axes[5].ld();
+    let t9 = t0 * drops.work.axes[2].ld();
     let t10 = t8 + t9;
     st_cell(&p[2], t10);
 }

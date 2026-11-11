@@ -1,11 +1,12 @@
 //! `effects::make_profiles` (0x4C3B01), the body of `init_marks`' step 3 (0x4C4E1C is
-//! only its call; IDA, 2026-10-16): two rings of 0x100 indexes, once the 13 profile
+//! only its call): two rings of 0x100 indexes, once the 13 profile
 //! tables (0x100 whole numbers and their 0x100 differences each), then the corners from
 //! the course and `allocate_links`, `reset_settings_blocks`.
 
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::math::x87_float as bh;
 use crate::race::owner_course::Course;
 use crate::session::Dword;
 
@@ -34,9 +35,8 @@ fn work(n: usize, v: u32, effects: &crate::effects::owner::Effects) {
 /// second half's first, already a float), the first half made floats.
 fn differences(table: &ProfileTable) {
     for n in 0..0x100 {
-        table[0x100 + n].set(x87::int_less_int(
-            table[n + 1].get() as i32,
-            table[n].get() as i32,
+        table[0x100 + n].set(bh::st(
+            bh::int(table[n + 1].get() as i32) - bh::int(table[n].get() as i32),
         ));
         table[n].set(x87::from_int(table[n].get() as i32));
     }
@@ -48,10 +48,9 @@ fn make_tables(paths: &Paths, effects: &crate::effects::owner::Effects) -> Resul
     {
         for k in 0..3 {
             let t = ida_table(paths, paths.profile_lists.ramps[k].get());
-            let step = x87::int_less_int_over(
-                t[1].get() as i32,
-                t[0].get() as i32,
-                frame.draw_frame.profile_steps[0].bits(),
+            let step = bh::st(
+                (bh::int(t[1].get() as i32) - bh::int(t[0].get() as i32))
+                    / bh::ld(frame.draw_frame.profile_steps[0].bits()),
             );
             work(2, step, effects);
             let mut v = x87::from_int(t[0].get() as i32);
@@ -71,7 +70,7 @@ fn make_tables(paths: &Paths, effects: &crate::effects::owner::Effects) -> Resul
             }
             let mut a = p[0];
             for cell in t.iter().take(0x100) {
-                cell.set(x87::sine_times_plus_to_int(a, p[2], p[1]) as u32);
+                cell.set(bh::to_int(bh::ld(a).sin() * bh::ld(p[2]) + bh::ld(p[1])) as u32);
                 a = x87::add(a, p[3]);
                 work(3, a, effects);
             }
@@ -128,14 +127,10 @@ pub fn make_profiles(
             make_tables(paths, effects)?;
             effects.frame.draw_frame.profiles_done.set(resume);
         }
-        if course.lists.course_info.bits() == 0 {
+        if course.lists.course_info.get() == 0 {
             return Err(BadInput("no course info (g_courseInfo 0)").into());
         }
-        let corners = crate::race::course_places::info_bytes(
-            COURSE_CORNERS,
-            CORNERS_LEN,
-            "the course corners",
-        )?;
+        let corners = crate::race::course_places::info_bytes(COURSE_CORNERS, CORNERS_LEN)?;
         crate::pointers::Store::store(&effects.blocks.corners, 0, &corners)?;
         crate::effects::blocks::allocate_links(effects)?;
         crate::effects::blocks::reset_settings_blocks(effects)?;
@@ -143,7 +138,7 @@ pub fn make_profiles(
     Ok(())
 }
 
-/// The profiles' rings of indexes (IDA 0x8DD061 .. 0x8DD865, the image's layout; phase 7, typed state).
+/// The profiles' rings of indexes (IDA 0x8DD061 .. 0x8DD865).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ProfileRings {
@@ -175,7 +170,7 @@ impl ProfileRings {
     }
 }
 
-/// The profile tables' address lists (IDA 0x9152F6 .. 0x91532A, the image's layout; phase 7, typed state).
+/// The profile tables' address lists (IDA 0x9152F6 .. 0x91532A).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ProfileLists {
@@ -235,7 +230,7 @@ const fn table(first: &[(usize, u32)]) -> ProfileTable {
     t
 }
 
-/// The profile tables (13 of 0x800 bytes: three ramps, two curves, eight sines, in this order of memory) (IDA 0x8E506D .. 0x8EB86D, the image's layout; phase 7, typed state).
+/// The profile tables (13 of 0x800 bytes: three ramps, two curves, eight sines, in this order of memory) (IDA 0x8E506D .. 0x8EB86D).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ProfileTables {

@@ -1,8 +1,8 @@
 //! `menu::confirm_leaving` (0x46FA90): asks whether to leave.
 //!
 //! `g_yesNoAnswer` (0x75524C) = 0; `menu::leave_question_loop` (the "leave?" screen); if that left
-//! `dword_758806` at 1: `dword_75555D`, `dword_755561`, `dword_758806` and the answer 0; then with
-//! the answer at 1, `dword_75555D` and `dword_755561` = 1. 37 callers (the screen loops that ask
+//! `captions.left_by_key` at 1: `loop_flags.event_left`, `loop_flags.leave_screen`, `captions.left_by_key` and the answer 0; then with
+//! the answer at 1, `loop_flags.event_left` and `loop_flags.leave_screen` = 1. 37 callers (the screen loops that ask
 //! before leaving). Rust callers run its `entry` (`routes.rs`).
 
 use crate::menu::leaving::with_question;

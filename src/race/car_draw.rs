@@ -1,6 +1,6 @@
 //! The cars drawn (`race::draw_list_entry` place 5: `race::draw_car_entry` ->
 //! `race::draw_car_shined` ->
-//! `race::draw_car`, part R2, IDA 2026-10-18). A car is block esi (`g_carBlocks`, `CarBlock`):
+//! `race::draw_car`). A car is a block (`g_carBlocks`, `CarBlock`):
 //! +0x24 its model, +0x134 .. +0x13C its place, +0x298 its parts' switches, +0x6FC its
 //! state bits, +0x740 .. +0x8BF six matrices (four parts', the body's, the turn), +0xF04 the
 //! shown parts' mask.
@@ -18,17 +18,17 @@ use crate::scene::matrix::multiply_matrices;
 use crate::scene::view_matrices::ViewMatrices;
 use crate::session::Float;
 
-/// The drawn car's turn (`flt_641760`: its +0x880), the view's own.
+/// The drawn car's turn (`placed_matrices`: its +0x880), the view's own.
 fn car_turn(cars: &CarDrawState) -> &'_ [Float] {
     &cars.car_turn
 }
-/// The drawn car's four parts' matrices (`flt_6417E0` .., its +0x740 ..), the view's own.
+/// The drawn car's four parts' matrices (`part_matrices` .., its +0x740 ..), the view's own.
 pub fn part_matrices(cars: &CarDrawState) -> [&'_ [Float]; 4] {
     [0, 16, 32, 48].map(|k| &cars.part_matrices[k..k + 16])
 }
 
 /// `race::car_part_matrix_1` .. `_4` (0x461F12, 0x461F58, 0x461F9E, 0x461FE4): matrix `a` times the
-/// body's turn (`flt_5EA08C`) into `g_turnedMatrix`, times the car's turn (`flt_641760`) into
+/// body's turn (`body_turn_matrix`) into `g_turnedMatrix`, times the car's turn (`placed_matrices`) into
 /// `g_litMatrix`, times `g_viewMatrix` into `g_madeObjectMatrix`.
 pub fn car_part_matrix(cars: &CarDrawState, m: &ViewMatrices, a: &[Float]) {
     multiply_matrices(a, &m.body_turn_matrix, &m.turned_matrix);
@@ -51,14 +51,14 @@ pub fn car_body_matrix(course: &Course, cars: &CarDrawState, m: &ViewMatrices) {
 }
 
 /// `race::car_number_textures` (0x46203D): car `car`'s marks' textures into `marks` (the original's
-/// `dword_5CD688` ..: `scene::car_marks`): +0x1B8 / +0x1BC (|x| not below `flt_641740`: 1) into
+/// `car_mark_textures` ..: `scene::car_marks`): +0x1B8 / +0x1BC (|x| not below `decal_limit`: 1) into
 /// `dword_5CD68C`, `dword_5CD698` / `dword_5CD690`, `dword_5CD694`; the letter of its model's name
-/// (`unk_71B408` + 0x30 x model) at +0x718 (rounded, held to 0 .. 0x2EDF) / 250, as a digit or
-/// letter number, into `dword_5CD69C` (and `dword_5CDA88`, which nothing read: not kept); its
+/// (`number_texture_names` + 0x30 x model) at +0x718 (rounded, held to 0 .. 0x2EDF) / 250, as a digit or
+/// letter number, into `dword_5CD69C` (and `car_letter_b`, which nothing read: not kept); its
 /// number +0xAA8 as tens and units (`dword_5CD6A0`, `dword_5CD6A4`, 999 for none; `dword_5CD6AC`
-/// the units alone below ten); the stage's (held to 11 .. 0x50) tens' plate `dword_71BA10[]` into
-/// `dword_5CD6A8`; and while +0x310 is below `flt_5C5D14` its 17 bytes +0xAC0 .. into the places
-/// `dword_6416F8[]` names (marks 0xA .. 0x1B; one past the marks is refused).
+/// the units alone below ten); the stage's (held to 11 .. 0x50) tens' plate `number_tens_textures`[]` into
+/// `dword_5CD6A8`; and while +0x310 is below `hundred` its 17 bytes +0xAC0 .. into the places
+/// `car_decal_places`[]` names (marks 0xA .. 0x1B; one past the marks is refused).
 pub fn car_number_textures(
     race: &Race,
     car: u32,
@@ -83,7 +83,7 @@ pub fn car_number_textures(
         let name = GamePtr::to(&race.shared.work.number_texture_names)
             .unbounded()
             .offset(car_view(car)?.car_kind.get().wrapping_mul(0x30));
-        let n = crate::math::x87::to_int(car_at(car)?.shown_engine_speed.bits());
+        let n = crate::math::x87::to_int(&car_at(car)?.shown_engine_speed);
         let (place, _) = letter_place(n);
         let letter = letter_number(
             name.offset(place)
@@ -199,24 +199,22 @@ fn shown_groups(masks: &[crate::session::Dword; 18], switches: u32) -> u32 {
 }
 
 /// `race::draw_car` (0x4616AA): car `car` drawn: its marks' textures (`race::car_number_textures`);
-/// its six matrices (+0x740 ..) to `flt_6417E0` .. / `flt_5EA08C` / `flt_641760`; its model's
-/// parts' bits (`dword_5CCE1C` ..; the shown mask `dword_62150C` by +0x298, `dword_606280` by
-/// +0x6FC, the view's depth `dword_6415A4` and the stage's fog, `dword_71BA08` the nearness (0 .. 1)
-/// dimming `g_shine`), `dword_606284`, +0xF04; all parts for the drawn view's own car when
+/// its six matrices (+0x740 ..) to `part_matrices` .. / `body_turn_matrix` / `placed_matrices`; its model's
+/// parts' bits (`group_masks` ..; the shown mask `group_mask` by +0x298, `group_mask` by
+/// +0x6FC, the view's depth `car_depth` and the stage's fog, `car_nearness` the nearness (0 .. 1)
+/// dimming `g_shine`), `fade_alpha_moved`, +0xF04; all parts for the drawn view's own car when
 /// `dword_60626C`; the light and place; `scene::set_light_direction`; the body (`g_objectNumber`
 /// 0x50 + 0x14 x car, `race::car_body_matrix`, `scene::draw_scene_object` between the kept
 /// reflections), and nearer than 0x3C0000 its four parts by +0x298's bits 5 .. 8 (each
 /// `car_part_matrix`, `scene::draw_scene_object`); then `race::clear_car_marks` (here the marks are
-/// the drawing's own: `scene::car_marks`). Each drawing gets esi `g_litMatrix`, as the matrices
+/// the drawing's own: `scene::car_marks`). Each drawing gets `g_litMatrix`, as the matrices
 /// leave it (the object's description, read only on the described way). Refuses (before anything)
 /// what `scene::draw_scene_object` would for the car's objects: in a race (`g_inRace`) car
-/// `dword_60627C` (below eight) without its block.
+/// `drawn_car` (below eight) without its block.
 pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Result<(), Refused> {
     let race = ctx.race;
     let n: u32 = ctx.view.state.drawn_car.get();
-    if race.course.numbers.in_race.get() != 0
-        && n < 8
-        && race.shared.work.car_block(n as usize) == 0
+    if race.course.numbers.in_race.is_set() && n < 8 && race.shared.work.car_block(n as usize) == 0
     {
         return Err(BadInput("the drawn car without its block").into());
     }
@@ -417,12 +415,12 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: u32) -> Resul
     Ok(())
 }
 
-/// `race::draw_car`'s nearness: `dword_71BA08` = (`dword_6415A4` - 0xA0000) / 0x140000 held to 0 ..
-/// 1 (`flt_5C5D90`, `flt_5C5D38`), `g_shine` (and `dword_5CCE78`) times 1 less it (the
-/// original's stores to `dword_62400C` are not kept).
+/// `race::draw_car`'s nearness: `car_nearness` = (`car_depth` - 0xA0000) / 0x140000 held to 0 ..
+/// 1 (`zero`, `one`), `g_shine` (and `shine_whole`) times 1 less it (the
+/// original's stores to `scratch` are not kept).
 fn nearness(race: &Race, cars: &CarDrawState, mine: &crate::race::view_course::ViewCourse) {
+    use crate::math::x87::below_or_unordered;
     use crate::math::x87_float::{ONE, int, ld, st, to_int};
-    use crate::math::x87_load::below_or_unordered;
     {
         let depth = int(cars.car_depth.get() as i32);
         cars.car_nearness
@@ -442,8 +440,8 @@ fn nearness(race: &Race, cars: &CarDrawState, mine: &crate::race::view_course::V
     }
 }
 
-/// `race::draw_car`'s size: 0x90 times `dword_71BA08`, rounded (the original's stores to
-/// `dword_62400C` are not kept).
+/// `race::draw_car`'s size: 0x90 times `car_nearness`, rounded (the original's stores to
+/// `scratch` are not kept).
 fn near_size(cars: &CarDrawState) -> u32 {
     use crate::math::x87_float::{int, ld, to_int};
     {
@@ -452,8 +450,8 @@ fn near_size(cars: &CarDrawState) -> u32 {
     }
 }
 
-/// `race::draw_car_shined` (0x461669): `g_shine` for the car (0x3FCE0 less `dword_623D80`, held to
-/// 0 .. 0x40000, times `dword_60AD0C`, >> 18), the car `car` drawn (`race::draw_car`), `g_shine`
+/// `race::draw_car_shined` (0x461669): `g_shine` for the car (0x3FCE0 less `mud_thrown_counts`, held to
+/// 0 .. 0x40000, times `shine_scale`, >> 18), the car `car` drawn (`race::draw_car`), `g_shine`
 /// put back.
 pub fn draw_car_shined(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
@@ -476,18 +474,18 @@ pub fn draw_car_shined(
     done
 }
 
-/// `race::draw_car_entry` (0x455105): car `entry` & 7 (into `dword_60627C`; `dword_62DAD4` its
-/// +0x240): its place turned by `g_viewMatrix` (`scene::rotate_point`) into `dword_64159C` ..
-/// `dword_6415A4`; drawn (`race::draw_car_shined`, counted in `dword_641594`) unless behind
+/// `race::draw_car_entry` (0x455105): car `entry` & 7 (into `drawn_car`; `view_light_base` its
+/// +0x240): its place turned by `g_viewMatrix` (`scene::rotate_point`) into `car_kept` ..
+/// `car_depth`; drawn (`race::draw_car_shined`, counted in `cars_drawn`) unless behind
 /// (depth + 0x40000 below 0) or aside (|x| - 0x80000 not below the depth), counted in
-/// `dword_641598`. Refuses (before anything) a car without its block.
+/// `cars_culled`. Refuses (before anything) a car without its block.
 pub fn draw_car_entry(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     entry: u32,
 ) -> Result<(), Refused> {
     let race = ctx.race;
     let frame = &race.frame;
-    use crate::math::x87_load::tbyte_to_int;
+    use crate::math::x87::tbyte_to_int;
     use crate::race::skidmarks::int_80;
     let n = entry & 7;
     let car: u32 = race.shared.work.car_block(n as usize);
@@ -551,7 +549,7 @@ mod asm_reference {
     pub(super) unsafe fn nearness_asm() {
         let shared = &race().shared;
         let course = &race().course;
-        use crate::math::x87_load::below_or_unordered;
+        use crate::math::x87::below_or_unordered;
         unsafe {
             scene().drawing.scene.scratch.set(0xA_0000u32);
             let old = crate::race::store::OldPlaces::lay(&[0x62400c, 0x6415a4, 0x71ba08]);
@@ -595,8 +593,8 @@ mod asm_reference {
         }
     }
 
-    /// `race::draw_car`'s size: 0x90 (into `dword_62400C`) times `dword_71BA08`, rounded (left in
-    /// `dword_62400C`).
+    /// `race::draw_car`'s size: 0x90 (into `scratch`) times `car_nearness`, rounded (left in
+    /// `scratch`).
     pub(super) unsafe fn near_size_asm() -> u32 {
         let drawing = &scene().drawing;
         unsafe {
@@ -620,8 +618,8 @@ mod asm_reference {
         0x62400C, 0x6415A4, 0x71BA08, 0x5CCE78, 0x5CCE74, 0x5C5D90, 0x5C5D38, 0x6415A4,
     ];
 
-    /// The places' values, without `dword_62400C` (the assembly's spill dword) and
-    /// `dword_5CCE78` (the shine as a whole number, read by nothing): neither kept by the Rust
+    /// The places' values, without `scratch` (the assembly's spill dword) and
+    /// `shine_whole` (the shine as a whole number, read by nothing): neither kept by the Rust
     /// versions.
     fn state() -> Vec<u32> {
         let mut v: Vec<u32> = PLACES.iter().map(|&a| game_read(rva(a))).collect();

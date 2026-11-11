@@ -1,5 +1,5 @@
-//! `menu::flip_gearing` (0x469916): `dword_7554F0` flipped (`xor 1`) and its text into
-//! `byte_A8BF54`: string 0x21F, or 0x221 when it is then 0, and a NUL.
+//! `menu::flip_gearing` (0x469916): `flow.shown_gearing` flipped (`xor 1`) and its text into
+//! the title buffer: string 0x21F, or 0x221 when it is then 0, and a NUL.
 //!
 //! Unlike `menu::next_gearing` it does not touch the player's record. Reached from a menu table
 //! (0x74BA9C, a left/right handler of an item of the car choice). The menus and draw lists run its

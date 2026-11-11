@@ -1,13 +1,10 @@
 //! `physics::ease_view_blend` (0x4385EB): with the mode's record's blend (+0x58) and
 //! change time (+0x3C) not 0: the share done (`physics/camera_view.rs`; 1 less it for a
-//! blend below 0) between `flt_608B20` and `flt_608B24` into `unk_71A6A0`, and between
-//! `flt_608B28` and `flt_608B2C`, x `flt_5C5D98`, negated, `fistp`ed into
-//! `dword_608B38`.
+//! blend below 0) between `view_shift_a` and `view_shift_b` into `camera_zoom`, and between
+//! `view_shift_c` and `view_shift_d`, x `k65536`, negated, `fistp`ed into
+//! `camera_offset_z`.
 //!
 //! Caller: `physics::update_camera`.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::math::x87_float::X;
 use crate::math::x87_float::ld;
@@ -36,9 +33,9 @@ pub fn ease_view_blend(
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x205260] = 1 - [rc + 0x205260]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[view_share] = 1 - [view_share]`
 fn x87_1(shared: &RaceShared) {
     let t0 = X(1.0);
     let t1 = ld(shared.tables.view_share.bits());
@@ -46,10 +43,10 @@ fn x87_1(shared: &RaceShared) {
     shared.tables.view_share.set_bits(st(t2));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x31A6A0] = (([rc + 0x208B24] - [rc + 0x208B20]) * [rc + 0x205260]) + [rc + 0x208B20]`
-/// `int [rc + 0x208B38] = -(((([rc + 0x208B2C] - [rc + 0x208B28]) * [rc + 0x205260]) + [rc + 0x208B28]) * [rc + 0x1C5D98])`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[camera_zoom] = (([view_shift_b] - [view_shift_a]) * [view_share]) + [view_shift_a]`
+/// `int [camera_offset_z] = -(((([view_shift_d] - [view_shift_c]) * [view_share]) + [view_shift_c]) * [k65536])`
 fn x87_2(race: &Race) {
     let t0 = ld(race.physics.camera.view_shift_b.bits());
     let t1 = ld(race.physics.camera.view_shift_a.bits());

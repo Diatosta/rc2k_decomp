@@ -1,7 +1,7 @@
 //! `physics::count_stop_timers` (0x436978): three counters of the work car (`g_car`
-//! +0xA0, +0xA4, +0xA8: `unk_71A078` .. `unk_71A080`) in turn. One that is not 0: at 300
-//! `unk_71A088` (+0xB0) is set (-1 for the first two, 2 for the third) and it returns;
-//! else while +0x1C4 (`unk_71A19C`) is below `flt_5C5D38` (1.0; unordered counts as
+//! +0xA0, +0xA4, +0xA8: `started_stand_timer` .. `finish_flag`) in turn. One that is not 0: at 300
+//! `stop_state` (+0xB0) is set (-1 for the first two, 2 for the third) and it returns;
+//! else while +0x1C4 (`speed`) is below `one` (1.0; unordered counts as
 //! below) it goes up, and on reaching 300 (unsigned) the same. A reading: the car has
 //! stood still too long after a start or a finish.
 //!

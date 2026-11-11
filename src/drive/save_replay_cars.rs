@@ -1,5 +1,5 @@
 //! `drive::save_replay_cars` (0x4600B8): the first 0x1A1 dwords of the four car blocks
-//! (`g_carBlockStore`), the race slots (0xF0) and `unk_71BF84` (0x100) copied in that order to
+//! (`g_carBlockStore`), the race slots (0xF0) and `replay_extra` (0x100) copied in that order to
 //! `unk_7172EC` (`rep movsd`): the replay's starting state.
 //!
 //! Caller: `drive::keep_replay_frame`.
@@ -13,7 +13,7 @@ use crate::race::work_store::RaceWork;
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 
 /// Where a piece of the starting state is now: a car's block, the race slots (`g_raceSlots`) or
-/// `unk_71BF84` (its 0x400 bytes run on through the computer driver's fields: bounded to
+/// `replay_extra` (its 0x400 bytes run on through the computer driver's fields: bounded to
 /// the race work). For the replay check, which reads it dword by dword.
 pub fn piece_place(shared: &RaceShared, piece: StartPiece) -> (&dyn crate::pointers::Store, usize) {
     match piece {
@@ -24,7 +24,7 @@ pub fn piece_place(shared: &RaceShared, piece: StartPiece) -> (&dyn crate::point
 }
 
 /// Copies `n` dwords between a piece of the starting state and its place: a car's block, the
-/// race slots (`g_raceSlots`) or `unk_71BF84` (its 0x400 bytes run on through the computer
+/// race slots (`g_raceSlots`) or `replay_extra` (its 0x400 bytes run on through the computer
 /// driver's fields: bounded to the race work). `offset` is the dword where the piece begins in
 /// the state (`CARS_AND_REPLAY` from car block 8); `save` copies the piece into the state,
 /// else the state back into the piece.

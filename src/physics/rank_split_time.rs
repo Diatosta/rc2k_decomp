@@ -1,20 +1,17 @@
 //! `physics::rank_split_time` (0x436C4F, race mode 1): the car's place among the 90
 //! rivals at this split. `physics::fill_rival_table`; the figures +0xA0C .. +0xA1C -1 and
-//! the two name fields (`dword_6D1838` .., `dword_6D1844` ..) blanks; each rival's time
-//! scaled to the split: `dword_601ED0[c]` x (`dword_601030[split]` x 1000 /
-//! `dword_60102C[g_splitColourCount]`) / 1000 into `dword_6021A0[c]` (`mul` / `div`); the
+//! the two name fields (`label_behind` .., `label_ahead` ..) blanks; each rival's time
+//! scaled to the split: `rival_times`[c]` x (`dword_601030[split]` x 1000 /
+//! `checkpoints`[g_splitColourCount]`) / 1000 into `rival_scaled`[c]` (`mul` / `div`); the
 //! place (+0xA0C) one past the first not below the car's time (90 at most);
-//! `dword_602308` the time; but for first place the gap to the one ahead (x10) into
+//! `car_time` the time; but for first place the gap to the one ahead (x10) into
 //! +0xA10, its car +0xA18 and name id +0xA20, the name (`strings::append_string_by_id`
-//! into `text`) into `dword_6D1844` ..; but for last place the gap to the one behind into
-//! +0xA14, its car +0xA1C, name id +0xA24 and name into `dword_6D1838` ...
+//! into `text`) into `label_ahead` ..; but for last place the gap to the one behind into
+//! +0xA14, its car +0xA1C, name id +0xA24 and name into `label_behind` ...
 //!
 //! Caller: `physics::split_by_mode`. Refuses a split or a split count past 0x40, a divisor
 //! of 0 or a quotient past a dword (the original's `div` would fault); what was written is
 //! put back.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 use crate::errors::{BadInput, Refused};
 use crate::physics::fill_rival_table::fill_rival_table;
 use crate::race::owner::Race;

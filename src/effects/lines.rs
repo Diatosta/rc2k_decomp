@@ -1,4 +1,4 @@
-//! `effects::init_marks`' step 14, its measuring (IDA, 2026-10-16): the lengths of the
+//! `effects::init_marks`' step 14, its measuring (IDA): the lengths of the
 //! lines between two objects' faces (each face's points against the other object's same
 //! face's), summed into the eight settings blocks (at `g_marksSettings` + 0x29C, 0x4C8
 //! apart) by the face's kind, and then made shares of what they were.
@@ -51,7 +51,7 @@ fn lines_with(
 ) -> Result<(), Refused> {
     {
         let count = crate::scene::object_faces::word(from)?;
-        let points: u32 = course.lists.object_points.bits();
+        let points: u32 = course.lists.object_points.get();
         let mut n = 0u32;
         while n != count {
             let (a, b) = (
@@ -180,8 +180,11 @@ impl core::Blocks for GameBlocks {
 
 /// The blocks `measure_lines` would measure (`core::measured`): (block's number, its first
 /// faces, its face count).
-fn measured(every: bool) -> Result<Vec<(u32, u32, u32, u32)>, Refused> {
-    let marks = crate::effects::setup::effects_settings()?;
+fn measured(
+    effects: &crate::effects::owner::Effects,
+    every: bool,
+) -> Result<Vec<(u32, u32, u32, u32)>, Refused> {
+    let marks = effects.settings()?;
     let count = marks.cars_copy.get();
     let game = GameBlocks(marks, Default::default());
     let blocks = core::measured(count, every, &game, FACES);
@@ -210,9 +213,9 @@ pub fn measure_lines(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
-        let marks = crate::effects::setup::effects_settings()?;
+        let marks = effects.settings()?;
         let every = paths.lines_work.every.get() == 1;
-        let blocks = measured(every)?;
+        let blocks = measured(effects, every)?;
         paths.lines_work.any.set(0u32);
         let count = marks.cars_copy.get() as i32;
         let mut todo = blocks.into_iter().peekable();
@@ -298,11 +301,11 @@ pub fn measure_starting_sums(
     paths: &Paths,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    measured(true)?;
+    measured(effects, true)?;
     paths.lines_work.every.set(1u32);
     paths.lines_work.shares.set(0u32);
     measure_lines(course, paths, effects)?;
-    let marks = crate::effects::setup::effects_settings()?;
+    let marks = effects.settings()?;
     let count = marks.cars_copy.get() as i32;
     for k in (0..count.max(0) as u32).rev() {
         let block = &marks.cars[k as usize];
@@ -328,8 +331,7 @@ pub fn measure_starting_sums(
 }
 
 /// The settings blocks' base points (each block's +0x8C; `g_marksTaken` the last taken):
-/// 12 bytes a point of the block's object, blocks of the game's heap on the block's +0x4C
-/// until phase 12 (2026-10-27), Rust's since, counted on that list as they were. A block's
+/// 12 bytes a point of the block's object, blocks counted on the block's +0x4C list as the original's were. A block's
 /// +0x8C (and `MORPH_WORK.taken`) holds its table's number + 1; `effects::tidy_marks` gives
 /// them back with the lists.
 /// (`Paths::block_points`.)
@@ -390,9 +392,9 @@ pub fn set_up_blocks(
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    measured(true)?;
+    measured(effects, true)?;
     measure_starting_sums(course, paths, effects)?;
-    let marks = crate::effects::setup::effects_settings()?;
+    let marks = effects.settings()?;
     let count = marks.cars_copy.get() as i32;
     for k in (0..count.max(0) as u32).rev() {
         let block = &marks.cars[k as usize];
@@ -420,14 +422,14 @@ pub fn set_up_blocks(
         block.point_block.set(taken);
         copy_block_points(course, paths, block, scene)?;
         for n in 0..8 {
-            let v = x87::loaded(paths.lines_work.block_start[n].bits());
+            let v = x87::loaded(&paths.lines_work.block_start[n]);
             block.factors[n].set_bits(v);
         }
     }
     Ok(())
 }
 
-/// The block lines' work (`lines`) (IDA 0x93C738 .. 0x93C8C0, the image's layout; phase 7, typed state).
+/// The block lines' work (`lines`) (IDA 0x93C738 .. 0x93C8C0).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct LinesWork {
@@ -456,14 +458,14 @@ impl LinesWork {
     pub const fn new() -> Self {
         LinesWork {
             block_start: [
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
+                Float::new(1.0),
+                Float::new(1.0),
+                Float::new(1.0),
+                Float::new(1.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
             ],
             _gap_93c758: Bytes::new([
                 0x0A, 0xD7, 0x23, 0xBC, 0x0A, 0xD7, 0x23, 0xBC, 0x0A, 0xD7, 0x23, 0xBC, 0x0A, 0xD7,

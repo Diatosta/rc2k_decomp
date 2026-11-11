@@ -98,7 +98,7 @@ pub fn draw_slot_object(
         &ctx.view.matrices.made_object_matrix,
     );
     start_kept_reflections(ctx.view);
-    // esi `g_turnedMatrix`, as the matrices' calls leave it.
+    // The object is placed by `g_turnedMatrix`, as the matrices' calls leave it.
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         ctx,
         Some(GamePtr::to(&ctx.view.matrices.turned_matrix).into()),
@@ -245,7 +245,7 @@ pub fn add_car_depth_entry(ctx: &DrawCtx, car: u32, number: u32) -> Result<(), R
         ctx.view.object.place[k].set(p);
     }
     let matrix: [u32; 16] = crate::session::read_bits(&view.matrices.view_matrix);
-    let t = crate::math::x87_load::rotate_rounding(place.map(|v| v as i32), &matrix);
+    let t = crate::math::x87::rotate_rounding(place.map(|v| v as i32), &matrix);
     for (k, &v) in t.iter().enumerate() {
         view.object.turned_place[k].set(v);
     }
@@ -296,7 +296,7 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
     ] {
         table[n as usize].set(v);
     }
-    let out = crate::math::x87_load::rotate_rounding_z(
+    let out = crate::math::x87::rotate_rounding_z(
         place.map(|v| v as i32),
         &crate::session::read_bits(&view.matrices.view_matrix),
     );
@@ -316,7 +316,7 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
 /// 0x4572B0: a flare at `point` in the frame of the car block at `car` (its matrix +0xB4,
 /// each part rounded, plus its place +0x134 ..), object 0x39, by `add_flare`.
 pub(super) fn place_flare(ctx: &DrawCtx, car: u32, point: [u32; 3]) -> Result<(), BadInput> {
-    let t = crate::math::x87_load::rotate_rounding(
+    let t = crate::math::x87::rotate_rounding(
         point.map(|v| v as i32),
         &crate::session::read_bits(&car_view(car)?.crash_matrix),
     );
@@ -408,7 +408,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: u32) -> Result<(), Refused> {
     let kind = car_view(car)?.car_kind.get();
     let valid = kind < 0x22 && KIND_TABLES.kind_shows_parts[kind as usize].get() != 0;
     if valid {
-        if !crate::math::x87_load::below_or_unordered(
+        if !crate::math::x87::below_or_unordered(
             car_view(car)?.electrics_damage.bits(),
             race.course.numbers.hundred.bits(),
         ) {
@@ -516,7 +516,7 @@ pub(super) fn scale_object_turn(ctx: &DrawCtx) -> Result<(), BadInput> {
     {
         let scale = crate::math::x87::int_over_16(ctx.view.object.size.get() as i32);
         for cell in &ctx.view.matrices.object_turn_matrix {
-            cell.set_bits(crate::math::x87::mul(cell.bits(), scale));
+            cell.set_bits(crate::math::x87::mul(cell, scale));
         }
     }
     Ok(())
@@ -722,7 +722,7 @@ pub fn draw_lamp_flare(
 ) -> Result<(), Refused> {
     let race = ctx.race;
     let edi = lights::own_lamp(&ctx.view.lamps, lamp)?;
-    let [x, y, z] = crate::race::scene_points::point_number(edi[0].get())?;
+    let [x, y, z] = crate::race::scene_points::point_number(&race.course, edi[0].get())?;
     ctx.view.object.place[0].set(x);
     ctx.view.object.place[1].set(y);
     ctx.view.object.place[2].set(z);
@@ -735,7 +735,7 @@ pub fn draw_lamp_flare(
     ctx.view.light.view_kind.set(2u32);
     place_object_matrix(ctx)?;
     ctx.view.light.light_kind.set(0u32);
-    // esi `g_turnedMatrix`, as `place_object_matrix` leaves it (`LIGHT_STATE.view_kind` is 2 here,
+    // The object is placed by `g_turnedMatrix`, as `place_object_matrix` leaves it (`LIGHT_STATE.view_kind` is 2 here,
     // so it always ends by placing the object).
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         ctx,
@@ -764,7 +764,7 @@ pub fn draw_list_entry(
         0 => {
             ctx.view.face.course_face.set(word);
             let face = word;
-            let kind = crate::race::course_places::face_field::<u8>(face, 0, "a course face")?;
+            let kind = crate::race::course_places::face_field::<u8>(&ctx.race.course, face, 0)?;
             if kind == 0xFF || kind < 0x10 {
                 ctx.view.polygon.smooth.set(1);
                 ctx.view.polygon.plain_first.set(1);

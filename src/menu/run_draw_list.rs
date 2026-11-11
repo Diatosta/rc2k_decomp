@@ -1,5 +1,5 @@
 //! `menu::run_draw_list` (0x4681ED): `run_list` on the current screen's draw list, the one
-//! `dword_7554F8` points at.
+//! `flow.draw_list` points at.
 //!
 //! Three callers, the menu's frame step among them. Refuses a list without an end in its first 256
 //! entries. Rust callers run its `entry` (`routes.rs`).

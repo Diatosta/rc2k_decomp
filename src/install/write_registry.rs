@@ -1,7 +1,7 @@
 //! `install::write_registry` (0x413DC5): the installation written to the registry, under
 //! `HKEY_LOCAL_MACHINE\SOFTWARE\Magnetic Fields\RC99`: the value `status` (one byte,
 //! `g_installStatus`, type binary) and, if `g_installSource` is not empty, `source`
-//! (`dword_51BC90` bytes, type string). The key opened (`RegCreateKeyA`) and closed
+//! (`source_size` bytes, type string). The key opened (`RegCreateKeyA`) and closed
 //! (`RegCloseKey`).
 //!
 //! A failed create, or a failed set of either value, is fatal error 0x80108420, 0x80108421

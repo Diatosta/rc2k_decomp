@@ -1,5 +1,5 @@
-//! `make_masks`' corner tables (`g_marksCornersA` / `B`, 0x81 entries of two corners;
-//! IDA, 2026-10-17): shape set 0 turned at 0x81 eased steps, each list's farthest pair
+//! `make_masks`' corner tables (`g_marksCornersA` / `B`, 0x81 entries of two corners):
+//! shape set 0 turned at 0x81 eased steps, each list's farthest pair
 //! taken as an entry's two corners, ordered, scaled into the kind's box, flipped and held
 //! (`clamp_pair`); `span_ring` makes the rings of them.
 
@@ -96,7 +96,7 @@ pub fn make_corners(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
-        let kind: u32 = effects.kinds.marks_kind.kind.bits();
+        let kind: u32 = effects.kinds.marks_kind.kind.get();
         if kind >= 0x22 {
             return Err(BadInput("a marks' kind of 0x22 or more").into());
         }
@@ -171,8 +171,8 @@ pub fn make_corners(
             .each_ref()
             .map(|c| c.get() as i32);
         let scales = [
-            x87::int_div_int(bx(0x24)?.wrapping_sub(bx(0x18)?), divisors[0]),
-            x87::int_div_int(bx(4)?.wrapping_sub(bx(0x1C)?), divisors[1]),
+            x87::int_ratio(bx(0x24)?.wrapping_sub(bx(0x18)?), divisors[0]),
+            x87::int_ratio(bx(4)?.wrapping_sub(bx(0x1C)?), divisors[1]),
         ];
         write_bits(&masks.vars.corner_scale, scales);
         let corners = 2 * ENTRIES;

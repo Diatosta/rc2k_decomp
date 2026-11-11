@@ -2,10 +2,10 @@
 //! part that is no number or infinite (its exponent all ones) logs "*** INFINITY",
 //! "[car0.newxspd] =" and the three (5 decimals) and zeroes the motion (+0x198), its car
 //! frame copy (+0x1A4) and the spin (+0x184). Then the spin's parts held to
-//! ±`flt_613E70` and the motion's (x, z, y) to ±`flt_613E74` (the limit negated in place
+//! ±`spin_limit` and the motion's (x, z, y) to ±`velocity_limit` (the limit negated in place
 //! for the second compare and put back); its length (`physics::vector_length`) into
-//! `flt_623FBC`, and past `flt_614100` the motion and its copy scaled down to it
-//! (`physics::scale_vector`, the factor then in `dword_62400C`).
+//! `motion_length`, and past `top_speed` the motion and its copy scaled down to it
+//! (`physics::scale_vector`, the factor then in `scratch`).
 //!
 //! The x87 compares are the arithmetic of the original's instructions over the game's
 //! variables (from IDA), in plain Rust over `X` (`math/x87_float.rs`); the instructions are
@@ -78,7 +78,7 @@ pub fn limit_motion(car: &Car, tables: &PhysicsTables, scene: &crate::scene::own
     ) || f32::from_bits(top).is_nan()
         || f32::from_bits(length).is_nan();
     if past {
-        let factor = crate::math::x87_run::div_80(top, length);
+        let factor = crate::math::x87::div_80(top, length);
         scale_vector(&car.velocity, factor);
         scale_vector(&car.local_velocity, factor);
         drawing.scene.scratch.set(rounded(factor));

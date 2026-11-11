@@ -1,5 +1,5 @@
 //! The review menus' three replay items (what each starts is a reading of the viewer's
-//! modes 1, 2 and 3). A and B do nothing while `dword_75ACDC` is 1 (a reading: the replay
+//! modes 1, 2 and 3). A and B do nothing while the multi-player flag is 1 (a reading: the replay
 //! not to be had); see `race/replay_mode.rs`.
 
 use crate::errors::Refused;

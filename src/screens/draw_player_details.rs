@@ -5,22 +5,21 @@
 //! - The controller's item (9) of the current menu greyed out when there is no
 //!   controller (`g_controllerCount`), else made choosable (`menu::disable_item`,
 //!   `menu::enable_item`).
-//! - The player of the player `dword_75598C` (`Player`): its name at (0x1BB, 0xD4) in
-//!   the font at 0x51E8C4, and while a name is being typed (`dword_7556A8` not 0) the
-//!   cursor after it (`screens::draw_name_cursor`).
-//! - The nationality's string (`dword_758816[nationality]`, kept in `seconds`,
+//! - The current player (`Player`): its name at (0x1BB, 0xD4) in the font at 0x51E8C4, and
+//!   while a name is being typed (`option_work.typing` not 0) the cursor after it
+//!   (`screens::draw_name_cursor`).
+//! - The nationality's string (`captions.nationalities[nationality]`, kept in `seconds`,
 //!   0x7559AC) at (0x1BB, 0xEF); measured with the font at 0x51E824 from the x the text
 //!   left, its flag (sprite 0x1C + nationality) at 0x1CA + the width, y 0xF3.
-//! - The view `dword_7589BA[view]` at y 0x10A; the second view
-//!   `dword_7589DA[second_view]` at 0x125, a second view of 5 made 0 first (only on the
-//!   pages that have it; on the others the lines below are 0x1B higher).
+//! - The view `captions.views[view]` at y 0x10A; the second view
+//!   `captions.second_views[second_view]` at 0x125, a second view of 5 made 0 first (only on
+//!   the pages that have it; on the others the lines below are 0x1B higher).
 //! - `race_number` as a number at 0x140; the co-driver's sex's string (0x18A + it, kept in
-//!   `dword_7559EC`) at 0x15B.
+//!   the draw work's figure) at 0x15B.
 //! - Sprite 4 at (0x1BA, 0x176) and sprite 6 at (0x1BA + 2 * `controller_sensitivity`,
-//!   0x176), the
-//!   blits' palette being what the last text left in ebx.
+//!   0x176), the blits' palette being what the last text left in ebx.
 //!
-//! In the draw list at 0x758CBA (the four players' details screens). Refuses a player past the
+//! In the draw lists of the four players' details screens. Refuses a player past the
 //! four, a player without its name, an index past its string table, and what its parts refuse;
 //! since the conversion (2026-10-20) before the controller's item is switched (the original
 //! switches it first). The menus and draw lists run its `entry` (`menu::table_calls`).
@@ -34,11 +33,9 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-// seconds
-// dword_7559EC
-const NATIONALITIES_RVA: &[Dword] = &crate::menu::owner::MENUS.tables.captions.nationalities; // dword_758816
-const VIEWS_RVA: &[Dword] = &crate::menu::owner::MENUS.tables.captions.views; // dword_7589BA
-const SECOND_VIEWS_RVA: &[Dword] = &crate::menu::owner::MENUS.tables.captions.second_views; // dword_7589DA
+const NATIONALITIES_RVA: &[Dword] = &crate::menu::owner::MENUS.tables.captions.nationalities;
+const VIEWS_RVA: &[Dword] = &crate::menu::owner::MENUS.tables.captions.views;
+const SECOND_VIEWS_RVA: &[Dword] = &crate::menu::owner::MENUS.tables.captions.second_views;
 /// What differs between the players' pages: players 1 and 2 (`screens::draw_player_details`,
 /// 0x4677B5) have the controller's item at 9 and the second view's line; players 3
 /// and 4 (0x467975) have it at 8 and no second view, the lines below moving up one.
@@ -75,7 +72,7 @@ pub fn draw_player_page(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let Some(cell) = crate::menu::player::player(screens.event.current_player.get()) else {
+    let Some(cell) = crate::menu::player::player(menus, screens.event.current_player.get()) else {
         return Err(BadInput("a player past the four").into());
     };
     let player: Player = cell.get();

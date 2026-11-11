@@ -1,7 +1,7 @@
 //! `gfx::build_menu_sprites` (0x47C4A1): builds the menus' sprite table.
 //!
 //! `begin_glyph_tables`, the builder's flags = 1 (run-length coded), a new table on the
-//! fonts' list `stru_51B984`, `build_glyphs` on `files\g\graphics\sprites\mbuts00.pcx`
+//! fonts' list `glyph_tables.memory`, `build_glyphs` on `files\g\graphics\sprites\mbuts00.pcx`
 //! (that sheet and `mbuts01.pcx`), the table's address to `g_spriteTable` (0x755581),
 //! `end_glyph_tables`. The list is not rewound: every call takes new memory after what
 //! is there. Callers: `menu::set_up_front_end` (the main menu's start), 0x4154CD,

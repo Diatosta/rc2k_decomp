@@ -1,12 +1,12 @@
 //! The replay viewer's rules: its files, the play stepped frame by frame, the edits (the
 //! marked clip, a camera spread over the next blocks), the menu's items marked, the
-//! pictures' numbers (converted 2026-10-21 from `race::replay_path` 0x41EF27,
+//! pictures' numbers (converted from `race::replay_path` 0x41EF27,
 //! `step_viewed_replay` 0x41EC47, `copy_marked` 0x41E2F6, `spread_camera` 0x41E6BD,
 //! `mark_viewer_items` 0x41D456, `find_snapshot_number` 0x41EF51, and the camera step of
 //! `next_camera` 0x41E5EB / `previous_camera`; the marks, the frames' pictures and the
-//! snapshot's number converted 2026-10-21 from `race::reset_marks` 0x41E403,
+//! snapshot's number Converted from `race::reset_marks` 0x41E403,
 //! `start_frame_pictures` 0x41F35E and `viewer_snapshot` 0x41EFAB; the viewer's actions
-//! converted 2026-10-21 from `race::viewer_action` 0x41DE6F, an item's drawing from
+//! Converted from `race::viewer_action` 0x41DE6F, an item's drawing from
 //! `race::draw_viewer_item` 0x41D94A).
 
 use crate::Invalid;
@@ -145,8 +145,8 @@ pub fn camera_skipped(name: u16) -> bool {
     SKIPPED_NAMES.contains(&name)
 }
 
-/// Whether every camera is offered: one player (`dword_719B34` 1) whose first car
-/// (`dword_719B24`, the header's) is not a kind 0x17 .. 0x20.
+/// Whether every camera is offered: one player (`header_one_player` 1) whose first car
+/// (`header_kind_0`, the header's) is not a kind 0x17 .. 0x20.
 pub fn every_camera(one_player: bool, first_car: u32) -> bool {
     one_player && !(0x17..0x21).contains(&first_car)
 }
@@ -184,7 +184,7 @@ pub fn step_camera(
 /// What `race::mark_viewer_items` reads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ViewerState {
-    /// `dword_5C2544`: the last race's replay is viewed.
+    /// `last_race_viewed`: the last race's replay is viewed.
     pub last_race: bool,
     /// The block shown and the blocks.
     pub block: u32,
@@ -197,7 +197,7 @@ pub struct ViewerState {
     pub undo_blocks: u32,
     /// The block's camera (its +5 byte).
     pub camera: u8,
-    /// `dword_719B34` (the replay header's) 1: one player.
+    /// `header_one_player` (the replay header's) 1: one player.
     pub one_player: bool,
 }
 
@@ -276,7 +276,7 @@ pub fn picture_time(asked: u32, rate: u32) -> u32 {
     if asked == 0 { 1000 / rate } else { asked }
 }
 
-/// The camera byte a camera-switch item (`off_5C2C70`) shows: 2 for item kind 0xE, else 3.
+/// The camera byte a camera-switch item (`switch_pictures_a`) shows: 2 for item kind 0xE, else 3.
 pub fn switch_byte(item_kind: u8) -> u32 {
     if item_kind == 0xE { 2 } else { 3 }
 }
@@ -320,7 +320,7 @@ pub enum Goto {
     On(u32),
 }
 
-/// One of the viewer's actions (`race::viewer_action`'s ebx).
+/// One of the viewer's actions (`race::viewer_action`'s argument).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Action {
     /// 0, 1, 0xB, 0xC, 3, 4, 8, 9.
@@ -331,7 +331,7 @@ pub enum Action {
     /// 2, 0xA: the first or the second mark at the block shown.
     MarkIn,
     MarkOut,
-    /// 6, 0x22 (`from_here`: `dword_5C253C` 1 first).
+    /// 6, 0x22 (`from_here`: `play_from_here` 1 first).
     PlayHere {
         from_here: bool,
     },
@@ -557,7 +557,7 @@ pub fn pastes(clip: u32, blocks: u32, block: u32) -> Result<bool, Invalid> {
 }
 
 /// The snapshot's three digits one more (999 round to 000), and where the counting
-/// stopped: the last digit touched and the original's ecx (that digit's place, one less
+/// stopped: the last digit touched and the loop's counter (that digit's place, one less
 /// when it went past '9').
 pub fn next_snapshot(digits: [u8; 3]) -> ([u8; 3], usize, u32) {
     count_up(digits)
@@ -565,9 +565,8 @@ pub fn next_snapshot(digits: [u8; 3]) -> ([u8; 3], usize, u32) {
 
 /// Decimal digits one more from the last (all nines round to zeros), as the original's
 /// loops count them (`inc byte`, past '9' back to '0' and on to the one before): the
-/// digits, the last touched, and the loop's ecx (its place, one less when it went past
-/// '9'). (Converted 2026-10-21 also from the picture name of `race::replay_screenshot`
-/// 0x41F3DB.)
+/// digits, the last touched, and the loop's counter (its place, one less when it went past
+/// '9'). Also used for the picture name of `race::replay_screenshot`.
 pub fn count_up<const N: usize>(mut digits: [u8; N]) -> ([u8; N], usize, u32) {
     let mut ecx = 0;
     let mut last = N - 1;

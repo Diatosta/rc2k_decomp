@@ -3,7 +3,7 @@
 //! `install::show_backdrop`: the surface locked (`gfx::lock_surface`; failing: carry set,
 //! nothing more), the backdrop picture copied to it, unlocked and shown.
 //!
-//! Caller `screens::run_frame` (eax this address).
+//! Caller `screens::run_frame` as the frame callback.
 
 use crate::errors::Refused;
 use crate::install::installer::{copy_picture, lock, show, unlock};

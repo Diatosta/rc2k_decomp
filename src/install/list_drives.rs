@@ -1,12 +1,12 @@
 //! `install::list_drives` (0x413C27): the drives that can be installed to found and their
-//! menu built. Each letter from `dword_51BAE4` ('c') to 'z' that is not a CD-ROM (5) or a
+//! menu built. Each letter from `first_drive` ('c') to 'z' that is not a CD-ROM (5) or a
 //! RAM disk (6) and whose free space can be read (`files::drive_free_space_kb`) is recorded
-//! at `dword_51BA10[letter-'a']` (count 1, free KB). Then for each recorded letter a text is
-//! built in `byte_52A30F` (0x10 bytes each; 'a' to 'y': drive Z is found but never listed,
+//! at `drives[letter-'a']` (count 1, free KB). Then for each recorded letter a text is
+//! built in `drive_rows` (0x10 bytes each; 'a' to 'y': drive Z is found but never listed,
 //! the game's slip): the letter, a space, the free space as KB
 //! (id 0xA6), MB (0xA7) or GB (0xA8, with ">=" before it), NUL. The number is in
-//! `dword_51BAE0`; the drive menu list is chosen (`off_51D7F8` up to 8 drives, `off_51D8B0`
-//! up to 16, else `off_51D9E8`) into `off_51D5F8` with its item count set to the number
+//! `drive_count`; the drive menu list is chosen (the 8-drive menu up to 8 drives, the
+//! 16-drive menu up to 16, else the largest) into `chosen_menu` with its item count set to the number
 //! plus two.
 //!
 //! Caller `install::run_installer`. Its two probes: `files::drive_type`,
@@ -39,7 +39,7 @@ pub fn list_drives(install: &'static crate::install::owner::Install) {
     }
     install.run.drive_count.set(0);
     let mut ebx = crate::place::BytePlace::from(&install.drive_rows.drive_rows);
-    // 'a' .. 'y': the loop's `cmp ecx, 7Ah; jb` leaves 'z' out (the game's slip, section 16)
+    // 'a' .. 'y': the loop's bound leaves 'z' out (the game's slip, section 16)
     for letter in drives::LISTED {
         let slot = drives.add(8 * (letter - b'a') as u32);
         if g_at(slot) == 0 {
@@ -59,7 +59,7 @@ pub fn list_drives(install: &'static crate::install::owner::Install) {
             }),
             "install::list_drives: a string",
         );
-        // the original writes the letter, skips a byte (`add ebx, 2`), then the rest
+        // the original writes the letter, skips a byte, then the rest
         for (n, &b) in drives::text(free, &unit).iter().enumerate() {
             wb(row.add(2 + n as u32), b);
         }

@@ -1,16 +1,15 @@
 //! `input::step_effects_clock` (0x40F257): the force feedback's clock: every 40 ms the
 //! effects brought up to date.
 //!
-//! `system::tick_count` less the last time (`dword_518084`); under 40 ms (`js`)
-//! nothing. Else the last time = now, `dword_518088` = 1000 / now held to 1000 (unsigned
+//! `system::tick_count` less the last time (`last_time`); under 40 ms (`js`)
+//! nothing. Else the last time = now, `rate` = 1000 / now held to 1000 (unsigned
 //! `div`, as a float: the original divides by the clock, not by the time passed, so it
-//! is 1.0 once the clock is past a second; notes' bugs), `dword_51808C` counts up, and
+//! is 1.0 once the clock is past a second; notes' bugs), `steps` counts up, and
 //! `input::update_effects` (its Rust version in the game).
 //! One caller, `sound::race_turn`.
 //! Refuses (before anything) a clock of 0 when due (the original's `div` traps).
 //!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Its arguments are what it reads.
 
 use crate::errors::{BadInput, Refused};
 

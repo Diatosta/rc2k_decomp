@@ -4,7 +4,7 @@
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`), as extracted from the disassembly: leaving is not asked about.
 //! A reading, not yet a visit: its draw list 0x758CFE is the one of
-//! `screens::draw_time_trial_stage_info`, a confirmed screen; it sets `dword_755700` to 1 first.
+//! `screens::draw_time_trial_stage_info`, a confirmed screen; it sets `champ_view.stage_mode` to 1 first.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, List, Screen, Step};
 

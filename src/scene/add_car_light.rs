@@ -15,7 +15,7 @@
 //!
 //! The third times twice the first over 256, times the block's dword +0xABC over 256, held to
 //! 255, picks a colour from the table `dword_635D18`, which is added to `g_lightColour` byte by
-//! byte without overflow. The x87's arithmetic in `X` (plain Rust since 2026-10-24; the
+//! byte without overflow. The x87's arithmetic in `X` (plain Rust; the
 //! original's instructions are `asm_reference` in the tests). Callers: `scene::add_car_lights`,
 //! twice. Takes the car's block as a typed reference.
 
@@ -108,7 +108,7 @@ fn squares_once(v: impl Base, o: impl Base) {
     fistp(o, 0x0, t6);
 }
 
-/// `cmp eax, 0; jns; eax = 0` and `cmp eax, 0FFh; js; eax = 0FFh`.
+/// Held to 0 ..= 255 by the signs of the differences, as the game compares.
 fn held(value: i32) -> u32 {
     let value = value.max(0);
     if value.wrapping_sub(0xFF) < 0 {

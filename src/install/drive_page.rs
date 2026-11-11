@@ -1,10 +1,10 @@
-//! `install::drive_page` (0x41425E): the drive page. At the start (ebx 0) the highlight
-//! (`g_listChoice`) is set to the item of the typed drive letter (`byte_95EBF8`, lowered
-//! through `g_lowerCase`): its place in the drives' texts (`byte_52A30F`, 0x10 bytes each,
-//! first byte the letter; 26 of them) plus 2, unless that is past the items (`[edi+1]`). At
-//! the end (ebx negative) the typed letter becomes the highlighted drive's
-//! (`g_listChoice - 2`, if not below 0, times 0x10 into the texts), `byte_95EBF9` ':' and
-//! `dword_51BA00` 0.
+//! `install::drive_page` (0x41425E): the drive page. At the start the highlight
+//! (`g_listChoice`) is set to the item of the typed drive letter (`typed`, lowered
+//! through `g_lowerCase`): its place in the drives' texts (`drive_rows`, 0x10 bytes each,
+//! first byte the letter; 26 of them) plus 2, unless that is past the items. At
+//! the end the typed letter becomes the highlighted drive's
+//! (`g_listChoice - 2`, if not below 0, times 0x10 into the texts), the byte after it ':' and
+//! `path_problem` 0.
 //!
 //! Takes the state, list.
 //! Caller `install::run_page`.

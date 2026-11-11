@@ -1,8 +1,8 @@
 //! `net::settings_frame` (0x4169E2): the frame of the network settings screen
 //! (`net::settings_loop`): on the locked surface, the background, four settings from y 0x92
-//! (`net::setting_label` and the value): the connection (string 0x163, `unk_52ACA4`), the
-//! player's name (0x164, `g_machineName`), the most players (0x165, `dword_52ABD0`,
-//! `net::draw_number_value`) and the host's address (0x166, `unk_52ABE4`); then the last
+//! (`net::setting_label` and the value): the connection (string 0x163, `saved_name`), the
+//! player's name (0x164, `machine_name`), the most players (0x165, `most_players`,
+//! `net::draw_number_value`) and the host's address (0x166, `host_address`); then the last
 //! item's frame, right to left from 0x311 at y 0x21D (sprites 0x13, 0x12 once per 32 pixels
 //! of string 0x16F's width, 0x11) and its string (`net::draw_centred_item`); unlocked, shown.
 //!

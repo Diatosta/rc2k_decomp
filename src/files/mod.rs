@@ -183,13 +183,12 @@ mod ansi_tests {
     }
 }
 
-/// The file code's variables, out of the image since 2026-10-24 (each has its own
-/// entry in `moved::MOVED`).
+/// The file code's variables (their own entry in `moved::MOVED`).
 pub mod state {
 
     /// g_lastFilePath (0x4F52B0): the path of the last file opened or searched for, or
     /// none (the fatal-error report names it). The original holds the path's address (and
-    /// the report reads what is there then); its text since 2026-10-29.
+    /// the report reads what is there then); here it is the path's text.
     static LAST_FILE_PATH: std::sync::Mutex<Option<Vec<u8>>> = std::sync::Mutex::new(None);
 
     /// `g_lastFilePath` set to `path` (without its NUL), or to none.

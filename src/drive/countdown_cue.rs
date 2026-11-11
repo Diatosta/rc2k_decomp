@@ -1,5 +1,5 @@
 //! `drive::countdown_cue` (0x45D1A5): `drive::countdown_sound` for the current car when it has a
-//! sound slot (`dword_641680[g_currentCar]` not -1), ebx the sound.
+//! sound slot (`listed_car_sounds[g_currentCar]` not -1).
 //!
 //! Takes: the sound
 //! Returns: the slot

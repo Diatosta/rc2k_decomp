@@ -1,18 +1,17 @@
-//! `effects::draw_particle` (0x4CFDD5): one particle of the marks' ring drawn as a square
-//! sprite. Its place (st(0) x, st(1) y, st(2) z) turned by `g_viewMatrix` read by columns
-//! into `flt_8EB8D5` .. `flt_8EB8DD`; unless the turned depth is at or below
-//! `dword_8EB961` (a signed compare of the bits): the four vertices' colour ecx and depth
-//! (times `flt_8EB96D`), half the square (edx times `flt_624088` / depth) in
-//! `dword_8EB8B5` and `dword_8EB8B9`, the corners around the projected place (centre
-//! `flt_62409C`, `flt_6240A0`), and `scene::draw_fan`. The vertices' rhw and texture places
-//! are left as they are (`effects::set_quad_uvs` sets the places once a frame).
+//! `effects::draw_particle` (0x4CFDD5): one particle of the effects' ring drawn as a square
+//! sprite. Its place (st(0) x, st(1) y, st(2) z) turned by the view matrix read by columns
+//! into the draw work's place; unless the turned depth is at or below the nearest depth (a
+//! signed compare of the bits): the four vertices' colour and depth (times the depth scale),
+//! half the square (the size times the view scale / depth), the corners around the projected
+//! place (centre the view's centre), and `scene::draw_fan`. The vertices' rhw and texture
+//! places are left as they are (`effects::set_quad_uvs` sets the places once a frame).
 //!
-//! Callers: the ring's update (code at 0x4D03E7, 0x4D04BE, 0x4D05AC).
+//! Callers: the ring's update.
 
 use crate::d3d::vertices_store::VERTICES;
 use crate::math::x87;
 
-/// `colour` (ecx), `size` (edx).
+/// `colour` is the vertices' colour, `size` the half side.
 pub fn draw_particle(
     view_matrix: &[crate::session::Float; 16],
     place: [[u8; 10]; 3],

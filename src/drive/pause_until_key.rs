@@ -1,10 +1,10 @@
 //! `drive::pause_until_key` (0x445376): the race paused until a key. The hold count
-//! `dword_6235EC` 0x19, five keys taken, the race's sounds stopped (`race::stop_race_sounds`),
-//! `dword_6235E8` 1, the two first blocks' notice 0xCB (+0x71C, +0x730 0, +0x72C -1); the
-//! wait `dword_6235F0` 30, held at 10 or more while the window is not active; each turn a key
+//! `hold_count` 0x19, five keys taken, the race's sounds stopped (`race::stop_race_sounds`),
+//! `scene_switch` 1, the two first blocks' notice 0xCB (+0x71C, +0x730 0, +0x72C -1); the
+//! wait `pause_wait` 30, held at 10 or more while the window is not active; each turn a key
 //! taken and the race's frame drawn (`drive::race_frame`, stream A's: through the game); with the
 //! window active, `input::update` and, the wait over, `race::race_keys` and any key down
-//! but Ctrl, Alt, Tab, F1 .. F10 and F11 ends it. Then the notices cleared, `dword_6235E8`
+//! but Ctrl, Alt, Tab, F1 .. F10 and F11 ends it. Then the notices cleared, `scene_switch`
 //! 0 and the sounds woken (`race::wake_car_sounds`), a key taken, the first block's +0x468
 //! 0.
 //!

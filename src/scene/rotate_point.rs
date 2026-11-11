@@ -1,7 +1,7 @@
 //! `scene::rotate_point` (0x44D110): the point in st(0) .. st(2) turned and placed by the
-//! matrix at esi (rows 0x10 bytes apart, the place at +0x30), left there unrounded.
+//! matrix (rows 0x10 bytes apart, the place at +0x30), left there unrounded.
 //!
-//! Plain Rust since 2026-10-24: the x87's arithmetic in `X` (`math/x87_float.rs`), the point
+//! Plain Rust: the x87's arithmetic in `X` (`math/x87_float.rs`), the point
 //! and the result as 80-bit values (exact for what `X` holds). The original's instructions
 //! are `asm_reference` in the tests. Refuses a null matrix.
 

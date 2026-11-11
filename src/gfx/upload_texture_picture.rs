@@ -8,12 +8,12 @@
 //! - For each of the record's levels (+0x10; one at least): the picture halved (that
 //!   many times for the first, once for each after), the level's surface (+0x14 ..)
 //!   locked through its `Lock` (DirectDraw, vtable +0x64, into the description at
-//!   `dword_5ABA18`), every pixel through `components_to_pixel` with the texture's
+//!   `size`), every pixel through `components_to_pixel` with the texture's
 //!   format into it as words or dwords by the kind's bytes a pixel (another number: a
-//!   fatal error 0x80A18775), rows `dword_5ABA28` apart from `dword_5ABA3C`, and
+//!   fatal error 0x80A18775), rows `pitch` apart from `pixels`, and
 //!   `Unlock` (+0x80).
 //! - A `Lock` or `Unlock` that fails is a fatal error (0x80218772, 0x80218773) when
-//!   `dword_4F52AC` is 1; otherwise the original returns with three dwords still
+//!   `reports.on` is 1; otherwise the original returns with three dwords still
 //!   pushed, so its `popa` and `ret` go astray: refused.
 //!
 //! One caller, `gfx::load_picture_to_texture` (the other reference, 0x425A52, is in code

@@ -1,27 +1,24 @@
 //! `physics::car_lighting` (0x44ECE4): the light on the work car from the face under it.
-//! The car's x / z into the probe point, the old light (+0x244) into `dword_5CCCA8`,
-//! `dword_62DAFC` / `62DB00` 0, the last face (+0xE00) into `dword_5CCC78`;
-//! `physics::find_ground`; no face: done. With `dword_5CCC6C` 1 the shares
-//! (`dword_639800`, `804`) taken from 0x10000; kept in `dword_62DB08` / `0C`. The face's
+//! The car's x / z into the probe point, the old light (+0x244) into `light_kept`,
+//! `car_light_colour` / `62DB00` 0, the last face (+0xE00) into `ground_face_last`;
+//! `physics::find_ground`; no face: done. With `ground_half` 1 the shares
+//! (`share_s`, `804`) taken from 0x10000; kept in `ground_texture_s` / `0C`. The face's
 //! four corner lights (+0x14 ..; with its texture's +0x2C 1 each scaled by
 //! ((byte +0x22 + k) >> 1 ^ 0x7F) + 0x80, `mul`, >> 8) blended by the shares (`imul`,
 //! `shrd` 16) into +0x244; with +0xFB4 set the change held to 10 a step (or none with
-//! `dword_6235E8`); `g_lightTable[it]` into `dword_62DAFC` and +0x240. With bit 2 of the
-//! face's +2 also two colour blends (+0x28 .., +0x2C ..) through `dword_635518[]` /
-//! `dword_635918[]` into `dword_62DB00` / `62DB04`, each added to +0x240 byte by byte
+//! `scene_switch`); `g_lightTable[it]` into `car_light_colour` and +0x240. With bit 2 of the
+//! face's +2 also two colour blends (+0x28 .., +0x2C ..) through `lamp_table_a`[]` /
+//! `lamp_table_b`[]` into `lamp_a_colour` / `62DB04`, each added to +0x240 byte by byte
 //! with saturation (four bytes with `g_hasMmx`, else the low three).
 //!
 //! Caller: `physics::car_physics_step` (0x43B990), every physics step. Refuses a light index past
 //! 0xFF (the tables are 256) and no faces; what was written is put back.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use rc2k_core::physics::lighting;
 
-/// The two-way blend of the four corners now in `dword_5CCC90` ..: into `5CCCA4`,
+/// The two-way blend of the four corners now in `face_light_bytes` ..: into `5CCCA4`,
 /// `5CCCA0`, returned.
 fn corners(race: &Race) -> u32 {
     let c = [0usize, 1, 2, 3].map(|k| race.course.course.face_light_bytes[k].get());
@@ -93,9 +90,9 @@ pub fn car_lighting(
         .set(race_owner.physics.ground.share_t.get());
     let face_byte = |offset| -> Result<u32, BadInput> {
         Ok(u32::from(crate::race::course_places::face_field::<u8>(
+            &race.course,
             face,
             offset,
-            "a course face's byte",
         )?))
     };
     for k in 0..4u32 {

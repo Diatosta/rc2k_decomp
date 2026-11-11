@@ -1,5 +1,4 @@
-//! `make_masks`' shape set (`g_marksShapeSet`, a `MarkShapes` of 0xAAC bytes; IDA,
-//! 2026-10-17): two lists of points (the masks' points lists A and B), turned by two
+//! `make_masks`' shape set (`g_marksShapeSet`, a `MarkShapes` of 0xAAC bytes): two lists of points (the masks' points lists A and B), turned by two
 //! matrices into `g_marksTurnedA` / `B` and, offset, into the points their targets name;
 //! and the two farthest apart of each list on one face.
 
@@ -9,6 +8,7 @@ use crate::effects::shape_work::MarkShapes;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::math::x87_float as bh;
 use crate::race::owner_course::Course;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3, turnable};
 use crate::session::{Bytes, Dword, Float, read_bits, write_bits};
@@ -128,10 +128,9 @@ pub fn turn_shape_checks(drops: &WindscreenDrops, a: u32, b: u32) -> Result<(), 
     Ok(())
 }
 
-/// `effects::turn_shape_points` (0x4BD5ED): the turn about X by `g_marksShapeTilt` and about
-/// Z by `a` and by `b` (floats; the original's ebx and ecx; `dword_764F40` left holding
-/// `b`); X times each into the shape set's two matrices; its two lists of points turned by
-/// them into `g_marksTurnedA` / `B`, and each turned point plus the list's offset
+/// `effects::turn_shape_points` (0x4BD5ED): the turn about X by the shape tilt and about
+/// Z by `a` and by `b` (floats); X times each into the shape set's two matrices; its two lists of points turned by
+/// them into the turned lists A and B, and each turned point plus the list's offset
 /// (`fiadd`) into the point its target names (the last first). Refuses a list of more than
 /// 0x40 or of 0x80000000, or an angle `fsincos` cannot take, before writing.
 pub fn turn_shape_points(drops: &WindscreenDrops, a: u32, b: u32) -> Result<(), Refused> {
@@ -160,9 +159,9 @@ pub fn turn_shape_points(drops: &WindscreenDrops, a: u32, b: u32) -> Result<(), 
         for k in (0..(set.count(n).get() as i32).max(0) as u32).rev() {
             let target = set.ids(n)[k as usize].get();
             for c in 0..3 {
-                let v = x87::int_sum(
-                    part(turned, k, c) as i32,
-                    set.low(n)[c as usize].get() as i32,
+                let v = bh::to_int(
+                    bh::int(part(turned, k, c) as i32)
+                        + bh::int(set.low(n)[c as usize].get() as i32),
                 );
                 // `target` is a place of `scene::object_points` (phase 13).
                 crate::scene::object_points::write(target + 4 * c, &(v as u32).to_le_bytes())?;
@@ -207,7 +206,7 @@ pub fn turn_all_shapes(
 ) -> Result<(), Refused> {
     use crate::effects::turns::{smooth_pair, smooth_steps};
     {
-        let marks = crate::effects::setup::effects_settings()?;
+        let marks = effects.settings()?;
         let count = marks.object_count.get() as i32;
         let all_steps = all_steps(masks, drops);
         let pick = |n: usize, (first, second): (u32, u32)| -> u32 {
@@ -292,9 +291,9 @@ fn shape_set_checks(
 
 /// `effects::make_shape_set` (0x4BD1A1): unless 0x22 are made, in the working block: the
 /// inputs (0x764F60 ..) copied, four scaled; points lists A and B emptied and filled from
-/// object ebp's faces of the two kinds (+7: `dword_89C724`, `_28`; `collect_points_a` /
-/// `_b`); their ids made pointers into `g_objectPoints`, the points copied to
-/// `g_marksTurnedA` / `B`, each list's lowest point (y, the first found lowest) taken from
+/// the object's faces of the two kinds (+7: two kind numbers; `collect_points_a` /
+/// `_b`); their ids made pointers into the object points, the points copied to
+/// the turned lists A and B, each list's lowest point (y, the first found lowest) taken from
 /// all of it (kept at +0xA40 / +0xA4C), all 0x40 turned about X by minus the tilts
 /// (`turn_matrix3_x`, `transform_int_points`); `find_farthest_pairs`; the block copied to
 /// set n (`memory::move_bytes`), n counted. Refuses a set count past 0x22, an object past
@@ -358,7 +357,7 @@ pub fn make_shape_set(
     }
     let lists = [PointList::a(drops), PointList::b(drops)];
     let counts = [listed(lists[0].count)?, listed(lists[1].count)?];
-    let points: u32 = course.lists.object_points.bits();
+    let points: u32 = course.lists.object_points.get();
     for (list, n) in lists.into_iter().zip(counts) {
         for id in list.ids[..n as usize].iter().rev() {
             id.set(id.get().wrapping_mul(12).wrapping_add(points));
@@ -425,11 +424,11 @@ pub fn make_shape_sets(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
-        let kind: u32 = effects.kinds.marks_kind.kind.bits();
+        let kind: u32 = effects.kinds.marks_kind.kind.get();
         if kind >= SETS {
             return Err(BadInput("a marks' kind of 0x22 or more").into());
         }
-        let marks = crate::effects::setup::effects_settings()?;
+        let marks = effects.settings()?;
         let count = marks.object_count.get() as i32;
         if count > 19 {
             return Err(BadInput("more than 19 shape objects").into());
@@ -451,9 +450,9 @@ pub fn make_shape_sets(
         let tilts = [tilt, tilt];
         let ends = [
             by_kind[2],
-            x87::loaded(t.set_ends[0].bits()),
+            x87::loaded(&t.set_ends[0]),
             by_kind[3],
-            x87::loaded(t.set_ends[1].bits()),
+            x87::loaded(&t.set_ends[1]),
         ];
         // Checked as the sets will see them: none made, these tilts.
         let saved: ([u32; 2], u32) = (
@@ -480,7 +479,7 @@ pub fn make_shape_sets(
     Ok(())
 }
 
-/// The shape sets' inputs (`effects::shape_points`, `effects::turns`) (IDA 0x764F40 .. 0x764F7C, the image's layout; phase 7, typed state).
+/// The shape sets' inputs (`effects::shape_points`, `effects::turns`) (IDA 0x764F40 .. 0x764F7C).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ShapeInputs {
@@ -504,10 +503,10 @@ impl ShapeInputs {
             tilts: [Dword::new(0x0), Dword::new(0x0)],
             _gap_764f68: Bytes::new([0; 4]),
             ends: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
             ],
         }
     }
@@ -546,7 +545,7 @@ mod shape_inputs_tests {
     }
 }
 
-/// The shape sets' tables and constants (`effects::make_shape_sets`, `make_shape_set`, `turn_all_shapes`) (IDA 0x89C724 .. 0x89C994, the image's layout; phase 7, typed state).
+/// The shape sets' tables and constants (`effects::make_shape_sets`, `make_shape_set`, `turn_all_shapes`) (IDA 0x89C724 .. 0x89C994).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ShapeSetTuning {
@@ -647,99 +646,99 @@ impl ShapeSetTuning {
                 Dword::new(0x1D),
             ],
             end_b: [
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0x42B40000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0x42B40000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0x42960000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2A00000),
+                Float::new(-80.0),
+                Float::new(-80.0),
+                Float::new(-80.0),
+                Float::new(-80.0),
+                Float::new(-80.0),
+                Float::new(-80.0),
+                Float::new(-80.0),
+                Float::new(-80.0),
+                Float::new(-80.0),
+                Float::new(-80.0),
+                Float::new(90.0),
+                Float::new(-80.0),
+                Float::new(90.0),
+                Float::new(-80.0),
+                Float::new(-80.0),
+                Float::new(-80.0),
+                Float::new(-80.0),
+                Float::new(-80.0),
+                Float::new(-80.0),
+                Float::new(-80.0),
+                Float::new(-80.0),
+                Float::new(-80.0),
+                Float::new(75.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-80.0),
             ],
             end_a: [
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0x42A00000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0x42A00000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2960000),
-                Float::from_bits(0x42C60000),
-                Float::from_bits(0x42B40000),
-                Float::from_bits(0x42B40000),
-                Float::from_bits(0x42B40000),
-                Float::from_bits(0x42B40000),
-                Float::from_bits(0x42B40000),
-                Float::from_bits(0x42B40000),
-                Float::from_bits(0x42B40000),
-                Float::from_bits(0x42B40000),
-                Float::from_bits(0x42B40000),
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0xC2B40000),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(80.0),
+                Float::new(-90.0),
+                Float::new(80.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
+                Float::new(-75.0),
+                Float::new(99.0),
+                Float::new(90.0),
+                Float::new(90.0),
+                Float::new(90.0),
+                Float::new(90.0),
+                Float::new(90.0),
+                Float::new(90.0),
+                Float::new(90.0),
+                Float::new(90.0),
+                Float::new(90.0),
+                Float::new(-90.0),
+                Float::new(-90.0),
             ],
             end_pairs: [
-                Float::from_bits(0xC2B40000),
-                Float::from_bits(0x0),
-                Float::from_bits(0xC2A00000),
-                Float::from_bits(0x0),
-                Float::from_bits(0x42A00000),
-                Float::from_bits(0x0),
-                Float::from_bits(0x42B40000),
-                Float::from_bits(0x0),
+                Float::new(-90.0),
+                Float::new(0.0),
+                Float::new(-80.0),
+                Float::new(0.0),
+                Float::new(80.0),
+                Float::new(0.0),
+                Float::new(90.0),
+                Float::new(0.0),
             ],
-            set_ends: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            set_ends: [Float::new(0.0), Float::new(0.0)],
             turn_angles: [
-                Float::from_bits(0x0),
-                Float::from_bits(0xBFC90FDB),
-                Float::from_bits(0x0),
-                Float::from_bits(0xBFC90FDB),
+                Float::new(0.0),
+                Float::new(-1.5707964),
+                Float::new(0.0),
+                Float::new(-1.5707964),
             ],
             step_scales: [
-                Float::from_bits(0x3C8EFA35),
-                Float::from_bits(0x3C8EFA35),
-                Float::from_bits(0x3C8EFA35),
-                Float::from_bits(0x3C8EFA35),
+                Float::new(0.017453292),
+                Float::new(0.017453292),
+                Float::new(0.017453292),
+                Float::new(0.017453292),
             ],
         }
     }

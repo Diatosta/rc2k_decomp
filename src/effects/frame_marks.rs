@@ -1,14 +1,13 @@
-//! `effects::frame_marks` (0x4D14B4): the marks' frame step. The time stamp counter read
-//! at its start (kept on the stack) and again: `dword_765114` the cycles since the last
-//! frame (`dword_765110` the last count); `dword_76523C` / `dword_765238` / `dword_7652A0`
-//! / `dword_764FF0` the settings' +0x50 / +0x4C / +0x10 / +0x18; `effects::scale_vectors_by`,
-//! `effects::morph_object_points` (through the jumps at 0x4D074D, 0x4D0815),
-//! `effects::view_frame`; the settings' +0x18 0, `dword_76513C` plus 1; `flt_765128` the
-//! cycles this step took over the frame's, by `flt_93C8C0`.
+//! `effects::frame_marks` (0x4D14B4): the effects' frame step. The time stamp counter read at
+//! its start (kept on the stack) and again: the cycles since the last frame kept (with the
+//! last count); the settings' +0x50 / +0x4C / +0x10 / +0x18 copied to the frame's switches;
+//! `effects::scale_vectors_by`, `effects::morph_object_points`, `effects::view_frame`; the
+//! settings' +0x18 0, the step counter plus 1; the cycles this step took over the frame's,
+//! by a constant, kept as the step's share.
 //!
-//! Works on `g_marksSettings`.
+//! Works on the effects settings.
 //!
-//! Callers: race init (`drive::race_init`, 0x446403) and `race::run_view_marks` (0x456464). Refuses
+//! Callers: race init (`drive::race_init`) and `race::run_view_marks`. Refuses
 //! null settings before anything, and its steps' refusals (all it may write is put back first).
 
 use crate::effects::owner::Effects;
@@ -38,11 +37,11 @@ fn rdtsc() -> (u32, u32) {
 pub fn frame_marks(race: &Race, effects: &Effects) -> Result<(), Refused> {
     let shared = &race.shared;
     let course = &race.course;
-    let marks = crate::effects::setup::effects_settings()?;
+    let marks = effects.settings()?;
     {
         let (start, _) = rdtsc();
         let (now, _) = rdtsc();
-        let last: u32 = effects.setup.frame.last_count.bits();
+        let last: u32 = effects.setup.frame.last_count.get();
         effects.setup.frame.last_count.set_bits(now);
         effects
             .setup

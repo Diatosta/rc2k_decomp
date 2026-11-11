@@ -1,12 +1,12 @@
-//! `effects::pong_cell` (0x4B8557): one cell of a score digit: unless the pattern byte at
-//! eax is 0, `effects::draw_pong_box` at (ebx times `flt_7691FA` plus `dword_7687D4`, ecx
-//! times `flt_7691FE` plus `dword_7687D8`) sized `flt_769202` by `flt_769206`; eax on one.
+//! `effects::pong_cell` (0x4B8557): one cell of a score digit: unless the pattern byte is 0, `effects::draw_pong_box` at (the column times a cell width plus the score's x, the
+//! row times a cell height plus the score's y) sized by the cell's width and height; the
+//! pattern pointer then moves on one.
 //!
 //! Takes: the pattern byte, the column, the row
 //!
 //! Caller: `effects::pong_digit` (twenty times).
 //!
-//! Converted 2026-10-21: the box's place through `rc2k_core::effects::pong::cell_place` (a
+//! The box's place is `rc2k_core::effects::pong::cell_place` (a
 //! whole number times a float plus a whole number: exact in `f64`, as the x87's at double
 //! precision; at extended too while the product fits 53 bits, as the score's cells do).
 
@@ -16,8 +16,7 @@ use crate::errors::Refused;
 use crate::scene::matrix3::extended;
 use rc2k_core::math::extended::from_f64;
 
-/// `pattern` the pattern byte (eax),
-/// `column` (ebx), `row` (ecx).
+/// `pattern` is the pattern byte, `column` and `row` the cell's place.
 // Converted: `rc2k_core::effects::pong::cell_place`
 pub fn pong_cell(
     pong: &Pong,

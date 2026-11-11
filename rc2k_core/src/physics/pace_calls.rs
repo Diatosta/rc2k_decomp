@@ -1,4 +1,4 @@
-//! The pace notes called as the car goes (converted 2026-10-21 from
+//! The pace notes called as the car goes (Converted from
 //! `physics::pace_notes_step` 0x4417EC (its whole-number rules; the look-ahead's
 //! `fistp` stays x87) and `physics::queue_pace_note` 0x4418B3): the checkpoints ahead of
 //! the car up to which notes are called, and each checkpoint's group of codes, cued and
@@ -32,7 +32,7 @@ pub fn call_target(checkpoint: u32, ahead: i32, count: u32) -> u32 {
 pub const MOST_CALLED: u32 = 0x10;
 
 /// The checkpoints whose groups are called: (the last called as the calls begin, the
-/// difference when it was worked out: the original's eax); None when the target is not
+/// difference when it was worked out); None when the target is not
 /// past the last called (unsigned). The calls run from the first after it up to the
 /// target, at least one.
 pub fn calls(target: u32, last: u32) -> Option<(u32, u32)> {

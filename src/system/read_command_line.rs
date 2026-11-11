@@ -1,20 +1,19 @@
 //! `system::read_command_line` (0x410684): takes the switches off the command line.
 //!
-//! The first word is the program (its length to `COMMAND_LINE`; the original also kept its
-//! place, `dword_518BA8`, which nothing reads).
+//! The first word is the program (its length goes to `COMMAND_LINE`; the original also
+//! kept its place, which nothing reads).
 //! Of the words after it only those of two characters or more count, by their first two:
 //! - `-v`: a message box with the version ("Rally 5.30 (4.8.2000)", a tab, a line break and
-//!   the second version text `byte_4E0077`, built in the fatal report's `Text`; the title
-//!   is the report's "Rally: Guru Meditation" cut after "Rally"), and the game leaves
-//!   through `start`'s exit path (0x401116) without coming back here. The words after
-//!   it are not read;
-//! - `-u`: `dword_51B9CC` = 1; `-p`: `g_installing` (0x51B9E0) = 1; `-a`: `g_noAudio` = 1;
-//! - `-i`: `dword_51B9D0` and `dword_51BA04` = 1, the next two words are copied (without a
-//!   NUL) to `byte_95E6F8` and `byte_95E7F8`, and the first characters of the two after
-//!   them, less `0`, go to `dword_51BA08` and `dword_51BA0C` (0 for a word that is not
-//!   there);
-//! - `-c`: the next word's first character: `1` sets `dword_5AB954` (`ignoresecondary`),
-//!   `2` sets `dword_5AB950` (`ignoreprimary`).
+//!   the second version text, built in the fatal report's `Text`; the title is the
+//!   report's "Rally: Guru Meditation" cut after "Rally"), and the game leaves through
+//!   `start`'s exit path without coming back here. The words after it are not read;
+//! - `-u`: `run.updating` = 1; `-p`: `run.installing` = 1; `-a`: `no_audio` = 1;
+//! - `-i`: `run.from_command` and `run.ignore_room` = 1, the next two words are copied
+//!   (without a NUL) to the game and installed folder paths, and the first characters of
+//!   the two after them, less `0`, become the given display mode and language (0 for a
+//!   word that is not there);
+//! - `-c`: the next word's first character: `1` sets `cards.ignore_secondary`
+//!   (`ignoresecondary`), `2` sets `cards.not_primary` (`ignoreprimary`).
 //!
 //! The line ends at a word of no length that starts where the reading stands. One caller, `start`.
 //! Refuses a word for `-i` of 0x100 bytes or more. The `-v` part cannot be run in a test: it was
@@ -42,7 +41,7 @@ pub enum Asked {
 pub fn show_version_and_leave(start: &Start) -> ! {
     let leave = |e: BadInput| -> ! { crate::fatal::raise::end("system::read_command_line", e) };
     let caption = &crate::fatal::state::CAPTION;
-    // byte_4F6702: its `:` (a byte of the caption text)
+    // The `:` of the caption text is cut (the title is "Rally" alone).
     caption.set(5, 0);
     let c_text = |at: &dyn crate::pointers::Store, what| {
         crate::files::cstring(at, what).unwrap_or_else(|e| leave(e))
@@ -64,7 +63,7 @@ pub fn show_version_and_leave(start: &Start) -> ! {
     // MB_ICONINFORMATION | MB_TASKMODAL.
     let caption = c_text(caption, "the caption");
     crate::os::message_box(crate::os::Icon::Information, &caption, &text);
-    // The exit path (0x401116) ends in `ExitProcess`; so does the standalone, here.
+    // The exit path ends in `ExitProcess`; so does the standalone, here.
     crate::standalone::finish(&format!("the game's way out {EXIT_PATH:#x} was reached"), 0)
 }
 
@@ -128,9 +127,9 @@ pub fn read_own_command_line(system: &crate::system::owner::System) -> Result<()
 }
 
 /// The program's name on the command line, as `read_command_line` found it (the image had
-/// its place and length at `dword_518BA8` / `dword_518BAC`; nothing reads the place).
+/// its place and length; nothing reads the place).
 pub struct CommandLine {
-    /// `dword_518BAC`: its length.
+    /// Its length (`dword_518BAC`).
     pub program_len: Dword,
 }
 

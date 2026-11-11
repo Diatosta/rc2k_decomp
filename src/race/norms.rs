@@ -1,4 +1,4 @@
-//! `race::loadlevel_init`'s "store norms" (IDA, 2026-10-16): the course memory laid out
+//! `race::loadlevel_init`'s "store norms": the course memory laid out
 //! (faces of 0x40 bytes, points of 12), and each face's two normals (of its first three
 //! points and of its last three) stored in it.
 
@@ -11,7 +11,7 @@ use crate::scene::owner::scene;
 
 /// `race::normalise_work_vector` (0x41FC4D): `g_workVector` made one long by its 80-bit length
 /// (`math::x87::normalise_in_place`); a length equal to 0 makes it 0; -0.0 parts become 0. The
-/// length rounded into `dword_62400C`.
+/// length rounded into `scratch`.
 pub fn normalise_work_vector(race: &Race) {
     let mut v = race
         .frame
@@ -40,7 +40,7 @@ pub fn normalise_work_vector(race: &Race) {
 pub fn face_normal(race: &Race, a: u32, b: u32, c: u32) -> Result<(), BadInput> {
     {
         let point = |n: u32| -> Result<[i32; 3], BadInput> {
-            Ok(crate::race::scene_points::point_number(n)?.map(|v| v as i32))
+            Ok(crate::race::scene_points::point_number(&race.course, n)?.map(|v| v as i32))
         };
         let (a, b, c) = (point(a)?, point(b)?, point(c)?);
         let d = [
@@ -69,9 +69,9 @@ pub fn face_normal(race: &Race, a: u32, b: u32, c: u32) -> Result<(), BadInput> 
     Ok(())
 }
 
-/// `race::store_face_normal` (0x421F72): face ebx. Nothing for a face whose first byte is 0x10 or
+/// `race::store_face_normal` (0x421F72): a face. Nothing for a face whose first byte is 0x10 or
 /// more; else bit 0x200 of its word +2 set when two of its points (+4, +8, +0xC, and +0x10 unless
-/// `dword_63D9F8` is -1) are the same in their low twelve bits, cleared otherwise; then, when all
+/// the view scratch's fourth corner is -1) are the same in their low twelve bits, cleared otherwise; then, when all
 /// three are below `g_scenePointCount`, the normal of +4, +8, +0xC (else `g_workVector` as it was)
 /// into +0x18, +0x30, +0x38, and of +0x10, +0xC, +8 into +0x1C, +0x34, +0x3C.
 pub fn store_face_normal(
@@ -86,8 +86,7 @@ pub fn store_face_normal(
             NORMAL_TRIANGLES, normal_made, repeated_points, takes_normals, with_repeated,
         };
         let face = face_number;
-        let what = "a course face";
-        let f = crate::race::course_places::face_number(face, what)?;
+        let f = crate::race::course_places::face_number(&race.course, face)?;
         if !takes_normals(f.kind()) {
             return Ok(());
         }
@@ -96,7 +95,7 @@ pub fn store_face_normal(
             corners,
             || crate::race::face_work::last_fourth_corner(&race.shared) != u32::MAX, /* dword_63D9F8: -1 for faces of three points, the last face drawn's (the original's slip, kept) */
         );
-        crate::race::course_places::update_face_number(face, what, |f| {
+        crate::race::course_places::update_face_number(&race.course, face, |f| {
             f.set_switches(with_repeated(f.switches(), repeated));
         })?;
         let count: u32 = race.course.course.scene_point_count.get();
@@ -107,22 +106,17 @@ pub fn store_face_normal(
             }
             let work: [u32; 3] = crate::session::read_first(&race.frame.scratch.work_vector);
             for (place, value) in places.into_iter().zip(work) {
-                crate::race::course_places::write_face_field(
-                    face,
-                    place,
-                    value,
-                    "a course face normal",
-                )?;
+                crate::race::course_places::write_face_field(&race.course, face, place, value)?;
             }
         }
     }
     Ok(())
 }
 
-/// `race::lay_out_course` (0x421BE3): from `g_courseMemory` + 0x100, `dword_5CCD18` records of
-/// 0x20, the faces (`dword_5CCCBC`, `dword_5CCD1C` of 0x40), the points (`g_scenePoints`,
-/// `g_scenePointCount` of 12), and what follows (`dword_5CCCC4`, and its offset in `dword_5CCCC8`);
-/// the first at `dword_5CCCB8`.
+/// `race::lay_out_course` (0x421BE3): from `g_courseMemory` + 0x100, `course_record_count` records of
+/// 0x20, the faces (`course_faces`, `course_face_count` of 0x40), the points (`g_scenePoints`,
+/// `g_scenePointCount` of 12), and what follows (`course_tail`, and its offset in `dword_5CCCC8`);
+/// the first at `course_records`.
 pub fn lay_out_course(course: &Course) {
     {
         // Converted: `rc2k_core::race::faces::CourseLayout`.
@@ -151,8 +145,8 @@ pub fn lay_out_course(course: &Course) {
         } else {
             0
         });
-        // The census of phase 13 (`pointers::watch` on the records, faces, info and the
-        // points' old home) ran 2026-10-27: `notes/course_census.md`. Off since.
+        // The census of accesses to the old homes (`pointers::watch` on the records, faces, info
+        // and the points) is in `notes/course_census.md`; it is off.
         c.course_tail[0].set(after);
         c.course_tail[1].set(after_offset);
     }

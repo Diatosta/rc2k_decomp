@@ -6,7 +6,7 @@
 //! Reached through the draw list at 0x758CFE of the screen loop
 //! `menu::time_trial_stage_details_loop`, which the service area's "stage details" action
 //! `menu::view_stage_details` starts when the event type
-//! `dword_755954` is 3 (a time trial); in the other event types that action opens
+//! `event.event_type` is 3 (a time trial); in the other event types that action opens
 //! `draw_service_stage_info`.
 //!
 //! Named `draw_selected_stage` until then.
@@ -28,7 +28,7 @@ use crate::text::draw_text::{Canvas, draw_text_at};
 
 // ---- game data ----
 
-pub const GROUP_TITLES: &[Dword] = &crate::menu::owner::MENUS.play.results.group_titles; // dword_758718[group]: title string ids
+pub const GROUP_TITLES: &[Dword] = &crate::menu::owner::MENUS.play.results.group_titles; // `results.group_titles`[group]: title string ids
 
 const TITLE_X: i32 = 0x2EB;
 const GROUP_TITLE_Y: i32 = 0x77;

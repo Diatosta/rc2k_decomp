@@ -1,7 +1,6 @@
-//! The polygon vertex buffer `g_polygonVertices`, typed (phase 7): IDA 0x9605A0 .. 0x960DA0,
-//! 64 transformed and lit vertices (`TLVertex`, 0x20 bytes) in the image's zeroed tail
+//! The polygon vertex buffer (IDA 0x9605A0 .. 0x960DA0): 64 transformed and lit vertices (`TLVertex`, 0x20 bytes) in the image's zeroed tail
 //! (`race::buffers_store`). The polygon about to be drawn stands in its first vertices
-//! (`g_polygonVertexCount`, `DRAW.polygon_vertex_count`, says how many).
+//! (`DRAW.polygon_vertex_count` says how many).
 
 use crate::race::owner::race;
 use crate::session::{Dword, Float};

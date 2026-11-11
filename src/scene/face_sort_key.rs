@@ -26,7 +26,7 @@ pub fn face_sort_key(
 ) -> Result<(), Refused> {
     let vertices: u32 = poly.polygon_vertex_count.get();
     if face == 0
-        || !crate::scene::point_records::held()
+        || !crate::scene::point_records::held(course)
         || count == 0
         || count > 0x1000
         || vertices >= FACTORS

@@ -1,7 +1,6 @@
-//! `install::draw_string_list` (0x402370): a list of `eax` records (16 bytes each: dx, dy,
+//! `install::draw_string_list` (0x402370): a list of `count` records (16 bytes each: dx, dy,
 //! font, string id) drawn, each at (dx + x, dy + y) with its font (`text::draw_string_by_id`).
-//! The x and y come in ecx and edx (the caller's, read back from the saved slots).
-//!
+//! //!
 //! Takes the count, table, x, y.
 //! Callers `install::install_files` and the copy-progress and page frames. Refuses a count of 0 (the original's loop is a do-while: it would draw
 //! 2^32 records).

@@ -1,9 +1,9 @@
 //! `drive::finish_timing` (0x45948A): the finish routine's time and shares. The clock
-//! (`scene::restart_clock`) less the start `dword_64BB60` / `flt_5C5D18` into `flt_64BB64` (t); the
-//! eased time `flt_64BB68`: t below `flt_64BB44` (or unordered) t; below `flt_64BB48` t less ((t -
-//! a) / (b - a))^2 x (b - a) / 2; else a + (b - a) / 2; the share `flt_64BB6C`: 0, with
-//! `dword_75B108` and t from `flt_64BB70` on 1, below `flt_64BB74` (t - c) / (d - c); and with
-//! `dword_75B108` and t from `flt_64BB70` on, `dword_5C2F88` 1.
+//! (`scene::restart_clock`) less the start `start_clock` / `thousand` into `time` (t); the
+//! eased time `eased`: t below `limit_a` (or unordered) t; below `limit_b` t less ((t -
+//! a) / (b - a))^2 x (b - a) / 2; else a + (b - a) / 2; the share `share`: 0, with
+//! `dword_75B108` and t from `limit_c` on 1, below `limit_d` (t - c) / (d - c); and with
+//! `dword_75B108` and t from `limit_c` on, `race_done` 1.
 //!
 //! Returns: the clock less the start
 //!
@@ -19,7 +19,7 @@ use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
 use crate::scene::owner::scene;
 
-/// `flt_64BB64` = the clock less the start (`dword_62400C`) over `flt_5C5D18`.
+/// `time` = the clock less the start (`scratch`) over `thousand`.
 fn time(race: &Race) {
     race.replay
         .finish
@@ -66,10 +66,7 @@ pub fn timing_from(race: &Race, now: u32, scene: &crate::scene::owner::Scene) {
     scene.drawing.scene.scratch.set(since);
     time(race);
     if c0(replay.finish.time.bits(), replay.finish.limit_a.bits()) {
-        replay
-            .finish
-            .eased
-            .set_bits(loaded(replay.finish.time.bits()));
+        replay.finish.eased.set_bits(loaded(&replay.finish.time));
     } else if c0(replay.finish.time.bits(), replay.finish.limit_b.bits()) {
         eased_middle(race);
     } else {

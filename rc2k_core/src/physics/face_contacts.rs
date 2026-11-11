@@ -1,4 +1,4 @@
-//! A course face tried against the work car (converted 2026-10-21 from
+//! A course face tried against the work car (Converted from
 //! `physics::face_contact` 0x45E3BF; its x87 steps, the contact's angle and speeds, stay
 //! the hook's): which faces are objects' and which of those are tried, the turn words,
 //! the object's reach, and what an inside contact does by the object's contact kind.
@@ -48,7 +48,7 @@ pub fn check_material(kind: u32) -> Result<(), Invalid> {
 }
 
 /// Whether the object's face is tried, by its byte +0x25 (`flags`), the stage's direction
-/// (`g_stageDirection`) and the object: Err(eax as the original leaves it) when left (bit
+/// (`g_stageDirection`) and the object: Err(the leftover value of the original) when left (bit
 /// 0 set: 1; a direction + 1 in bits 1 .. 2 not the stage's: that direction; an object
 /// 0x38 or more but for 0x3A: the object).
 pub fn object_tried(flags: u32, direction: u32, object: u32) -> Result<(), u32> {
@@ -76,8 +76,8 @@ pub fn tries_points(kind: u32) -> bool {
     matches!(kind, 9 | 8 | 6 | 5)
 }
 
-/// The object's reach: its size (`dword_634BA0[n]`) x the scale, the 64-bit product's
-/// low 36 bits >> 4, + 0x28000 (eax), and the product's high dword (edx).
+/// The object's reach: its size (`radii`[n]`) x the scale, the 64-bit product's
+/// low 36 bits >> 4, + 0x28000, and the product's high dword.
 pub fn reach(size: u32, scale: u32) -> (u32, u32) {
     let product = u64::from(size) * u64::from(scale);
     let high = (product >> 32) as u32;

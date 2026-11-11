@@ -5,10 +5,10 @@
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`): before the loop it sets the string of the menu's first item to 0x138 if
-//! `dword_75AADC` is 1 and to 0x139 otherwise, as the stage results screen does;
+//! `state.menus.which_title` is 1 and to 0x139 otherwise, as the stage results screen does;
 //! its background comes from `menu::load_background`, after which a set carry flag is fatal
 //! error 0x80712345; leaving is asked about, and a "no" sets the screen up again.
-//! If `dword_75AB34` is 1 when the screen is left, nothing more is done: no question,
+//! If `state.menus.standings_shown` is 1 when the screen is left, nothing more is done: no question,
 //! and the highlight is not saved.
 
 use crate::errors::Refused;
@@ -40,7 +40,7 @@ pub const SCREEN: Screen = Screen {
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.list_758e36.id(),
+            table: |m| m.tables.draw_lists.overall_rally_results_list.id(),
             run: false,
         },
         List {
@@ -53,9 +53,9 @@ pub const SCREEN: Screen = Screen {
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.overall_rally_results_picture
     }))],
-    leave_at_once: Some(|m| &m.screens.state.menus.standings_shown), // dword_75AB34
+    leave_at_once: Some(|m| &m.screens.state.menus.standings_shown),
     asking: Some(Asking { ..Asking::DEFAULT }),
-    // saved_item is dword_74778C
+    // saved_item is the saved highlight
     ..Screen::new(
         |m| m.tables.menus.overall_rally_results.id(),
         |m| &m.screens.items.current[slot::OVERALL_RALLY_RESULTS],

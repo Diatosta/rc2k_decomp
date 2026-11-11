@@ -38,7 +38,7 @@ pub const SCREEN: Screen = Screen {
         },
         List {
             pointer: |m| &m.screens.flow.draw_list, // g_drawList
-            table: |m| m.tables.draw_lists.list_758eae.from(2),
+            table: |m| m.tables.draw_lists.in_game_options_list.from(2),
             run: false,
         },
         List {

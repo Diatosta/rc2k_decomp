@@ -2,10 +2,10 @@
 //! screen loop hands to `screens::run_frame`.
 //!
 //! In this order: lock the surface; `copy_picture_to_surface` (the background); `draw_menu`; every
-//! function of the draw list (`g_drawList`); unlock; `dword_6365CC` = 4; begin the 3D scene
+//! function of the draw list (`g_drawList`); unlock; the scene state = 4; begin the 3D scene
 //! (`scene::begin_scene`); every function of the scene list (`g_sceneList`); end the scene
 //! (`scene::end_scene`); lock again; every function of the overlay list (`g_overlayList`); if
-//! `byte_4E07A0` is 2 and `dword_7585D8` is 1, clear that and draw string 0x1000 at (800, 587) with
+//! the window-active flag is 2 and `cheats.notice_due` is 1, clear that and draw string 0x1000 at (800, 587) with
 //! the font 0x51E404; unlock; show the frame (0x4057D1). A set carry after either lock, the scene's
 //! beginning or the showing ends it there, with what was locked left locked. The functions of the
 //! draw and overlay lists get the registers as the one before left them; a list ends with -1. Rust

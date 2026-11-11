@@ -1,5 +1,5 @@
 //! `physics::keep_split_time` (0x436B3D): the work car's time (`g_car` +0x88,
-//! `unk_71A060`) kept in `dword_601C68[k]`, k = +0x90 (`unk_71A068`) less one, held to 0
+//! `stage_time`) kept in `kept_times`[k]`, k = +0x90 (`splits_passed`) less one, held to 0
 //! ..= `g_splitColourCount` (both by the sign of the difference). A reading: a split
 //! time at a checkpoint.
 //!

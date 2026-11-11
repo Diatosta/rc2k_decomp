@@ -2,12 +2,12 @@
 //! controls is bound to, on the controller pages.
 //!
 //!
-//! The current player's (`dword_75598C`) bindings at +0x50 .. +0x74 (a dword each: dl a button, dh
+//! The current player's (`event.current_player`) bindings at +0x50 .. +0x74 (a dword each: dl a button, dh
 //! a direction, 0 nothing), at x 0x1B8, y 0xD5 and on every 0x1B, in the font at 0x51E8C4, built in
-//! `byte_A8BC54`: string 0x3BD for nothing; else dh's name (string `word_755200[dh]` for a device
-//! kind, +0x34, below 2, else `word_755212[dh]`), for kind 3 on the first two rows the axis
+//! the cells text buffer: string 0x3BD for nothing; else dh's name (string the pad direction names for a device
+//! kind, +0x34, below 2, else the stick direction names), for kind 3 on the first two rows the axis
 //! (`strings::append_axis_name` of +0x3B, +0x3A), then for a button ('+' after a direction) string
-//! 0x3C0, a space and the button's number. The row being learnt (`dword_7551F4` 1, `dword_7551FC`
+//! 0x3C0, a space and the button's number. The row being learnt (`controls.learning` 1, the control being learnt
 //! the row from 1) is left out. In the draw lists of the four controller pages (0x758D9A ..).
 //! Refuses (before anything) no current player and a direction past the two 9-entry tables (dh
 //! above 8: the original reads past them). The menus and draw lists run its `entry`
@@ -18,8 +18,6 @@ use crate::menu::owner::Menus;
 use crate::screens::game_screen::ControlsScreen;
 use crate::screens::owner::screens;
 use crate::text::draw_text::Canvas;
-
-// byte_A8BC54
 
 /// The directions' names (`word_755200`, `word_755212`).
 fn direction_names(
@@ -59,7 +57,8 @@ pub fn binding_text(
 /// Returns the carry.
 pub fn draw_control_bindings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let controls = &screens().controls;
-    let Some(player) = crate::menu::player::player(menus.screens.event.current_player.get()) else {
+    let Some(player) = crate::menu::player::player(menus, menus.screens.event.current_player.get())
+    else {
         return Err(BadInput("no current player").into());
     };
     let learning: u32 = controls.learning.get();

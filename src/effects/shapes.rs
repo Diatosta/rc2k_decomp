@@ -1,4 +1,4 @@
-//! Two of `effects::load_edges`'s steps (IDA, 2026-10-17): the shape tables of two kinds of marks'
+//! Two of `effects::load_edges`'s steps (IDA): the shape tables of two kinds of marks'
 //! items, named here by their shapes (what draws them is not read yet). Each clears its
 //! 0x800 items, makes a quarter-circle curve of 0x100 floats and 8 circles of points (by
 //! the radii after the curve), and sets up what follows.
@@ -263,8 +263,8 @@ fn windscreen_drops_with(
                     rc2k_core::effects::shapes::scaled(f32::from_bits(v), &by).to_bits()
                 } else {
                     match by.as_slice() {
-                        [b] => x87::mul(v, b.bits()),
-                        [b, c] => x87::mul2(v, b.bits(), c.bits()),
+                        [b] => x87::mul(v, b),
+                        [b, c] => x87::mul2(v, b, c),
                         _ => unreachable!(),
                     }
                 };

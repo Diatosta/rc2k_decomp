@@ -1,12 +1,12 @@
-//! `net::build_address` (0x41882C): "NET: DPCA", and connection eax's DirectPlay address
+//! `net::build_address` (0x41882C): "NET: DPCA", and the connection's DirectPlay address
 //! built with the lobby object (`CreateCompoundAddress`): the address elements cleared
-//! (`dword_52AC3C`, `dword_52AC40`, the size `dword_52AC44`) and `g_netPosting` 0; for IPX
-//! (`unk_5AB350`) the service provider alone; for TCP/IP (`unk_5AB360`) the service
-//! provider, the host's address (`unk_52ABE4`, its length + 1) and, if not 0, the port
-//! (`dword_52AC24`, 2 bytes); for any other the record's service provider and
-//! `g_netPosting` 1 (DirectPlay's calls then made on the receiving thread: a modem's or a
-//! serial link's dialogs, it seems). The size asked (DPERR_BUFFERTOOSMALL), that much memory
-//! taken on the network's list into `dword_52AC40`, the address made there.
+//! (`elements`, `address`, the size `address_size`) and `posting` 0; for IPX (`sp_ipx`) the
+//! service provider alone; for TCP/IP (`sp_tcpip`) the service provider, the host's address
+//! (`host_address`, its length + 1) and, if not 0, the port (`port`, 2 bytes); for any
+//! other the record's service provider and `posting` 1 (DirectPlay's calls then made on
+//! the receiving thread: a modem's or a serial link's dialogs, it seems). The size asked
+//! (DPERR_BUFFERTOOSMALL), that much memory taken on the network's list into `address`,
+//! the address made there.
 //!
 //! Takes `connection`. Returns true when built; false when there is no lobby object, the size
 //! was not asked as expected, or `CreateCompoundAddress` failed.

@@ -1,5 +1,5 @@
 //! `install::value_down` (0x414881): an item of a value (kind 3) lowered by the key's
-//! repeats (`g_listRepeats`), not below its least (`[esi+0Ch]`, signed compare).
+//! repeats (`g_listRepeats`), not below its least (`[item+0Ch]`, signed compare).
 //!
 //! Returns the value's address, least, new value.
 //! Callers `install::key_left`.

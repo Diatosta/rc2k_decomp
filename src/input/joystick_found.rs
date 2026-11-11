@@ -1,16 +1,16 @@
 //! `input::joystick_found` (0x408238): DirectInput's `EnumDevices` callback: with fewer than
 //! 16 controllers (`g_controllerCount`) the found joystick is looked at through a device
-//! made for it (`CreateDevice` with its instance GUID into `dword_4F6910`, its
-//! `IDirectInputDevice2A` into `dword_4F6914`, the joystick data format, the cooperative
-//! level 5 (exclusive, background) for `hWnd`, `GetCapabilities` into `dword_4F6A78`, its
+//! made for it (`CreateDevice` with its instance GUID into `new_joystick`, its
+//! `IDirectInputDevice2A` into `new_joystick2`, the joystick data format, the cooperative
+//! level 5 (exclusive, background) for `hWnd`, `GetCapabilities` into `joystick_caps`, its
 //! axes into the entry's +0x14 bits (`EnumObjects` with `input::axis_found`)), and the next
 //! entry of `g_controllers` (0x50 bytes) filled: +0 the capabilities' flags, +4 the device's
 //! type, +8 its axes, +0xC buttons, +0x10 hats, +0x18 1 if attached, +0x1C 1 if it has force
-//! feedback (only when `dword_4F68F4` is 0: the configuration's switch turns it off), +0x20
+//! feedback (only when `no_force_feedback` is 0: the configuration's switch turns it off), +0x20
 //! its instance GUID, +0x30 its name as "(n) name" (n the count + 1; the name through
-//! `strings::copy_printable`, 0x19 room, `dword_4E0144` 0 meanwhile: lower case), and the
+//! `strings::copy_printable`, 0x19 room, `KEEP_CASE` 0 meanwhile: lower case), and the
 //! count one more. Any failure leaves the entry and the count. Both objects are given back
-//! in the end, whatever happened. With 16 the listing stops (eax 0), else it goes on (1).
+//! in the end, whatever happened. With 16 the listing stops (returns 0), else it goes on (1).
 //!
 //! In:  (stdcall) the `DIDEVICEINSTANCEA`, the context (not read)
 //!
@@ -63,7 +63,7 @@ fn look_over(
     let count = input.devices.controller_count.get();
     let name = name_prefix(count);
     entry.name.write_at(0, &name, "a controller's name")?;
-    use crate::strings::copy_printable::KEEP_CASE; // dword_4E0144
+    use crate::strings::copy_printable::KEEP_CASE;
     use std::sync::atomic::Ordering::Relaxed;
     let kept = KEEP_CASE.atomic().swap(0, Relaxed);
     // room 0x19 is never refused
@@ -94,7 +94,6 @@ fn look_over(
     Ok(true)
 }
 
-/// The Rust version: eax.
 /// `joystick_found` as DirectInput calls it: what Rust callers hand `EnumDevices`.
 pub fn callback(input: &Input, instance: &DiDeviceInstance) -> u32 {
     match joystick_found(input, instance) {

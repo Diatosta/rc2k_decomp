@@ -5,7 +5,7 @@
 //! race block's bytes (`NUMBERS`), as `CAR`: the code reaching them by address reads the
 //! same bytes.
 
-use crate::session::{Dword, Float};
+use crate::session::{Dword, Flag, Float};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -15,7 +15,7 @@ pub struct Numbers {
     /// +0x4 (0x5C5CE4): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unknown_4: [Dword; 2],
     /// +0xc (0x5C5CEC): `g_inRace`.
-    pub in_race: Dword,
+    pub in_race: Flag,
     /// +0x10 (0x5C5CF0): 1609.3457 (`g_metresInMile`).
     pub metres_in_mile: Float,
     /// +0x14 (0x5C5CF4): 0.001.

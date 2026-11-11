@@ -1,12 +1,12 @@
-//! `physics::air_drag` (0x43F2DA): for the motion's three (`dword_71A17C`,
-//! `dword_71A180`, `g_carSpeed`): its square times `flt_613FCC` over `flt_5C5E34` into
+//! `physics::air_drag` (0x43F2DA): for the motion's three (`local_velocity`,
+//! `dword_71A180`, `g_carSpeed`): its square times `air_drag` over `k10000` into
 //! `flt_614810` .. `flt_614818`, made against the motion (|it| when the motion is below 0
 //! or no number, else -|it|). This is the air's drag: a force against the motion that grows with the square of the speed.
 //!
 //! Caller: `physics::car_physics_step` (0x43B80E), every physics step.
 
 use crate::math::x87;
-use crate::math::x87_run::{abs_of, compare_full, square_times_over};
+use crate::math::x87::{abs_of, compare_full, square_times_over};
 use crate::physics::car_store::Car;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::tables_store::PhysicsTables;

@@ -6,7 +6,7 @@
 //! of 0x804C bytes each), DirectPlay's objects, GUIDs and the chat zone's picture; and
 //! `Button` (0x5AB490 .. 0x5AB4AC), `net::draw_button`'s. The installer's variables, the
 //! build notice and the lobby's registry names around them in the image are
-//! `install::store`'s (split 2026-10-25).
+//! `install::store`'s.
 //!
 //! `#[repr(C)]` structs of atomic cells with the image's layout, first values the image's
 //! (`tests`); `moved::MOVED` points the image's addresses at them (`home`), for the tables

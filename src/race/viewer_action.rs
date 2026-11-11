@@ -1,4 +1,4 @@
-//! `race::viewer_action` (0x41DE6F): one of the replay viewer's actions, ebx:
+//! `race::viewer_action` (0x41DE6F): one of the replay viewer's actions:
 //!
 //! | action | what |
 //! | --- | --- |
@@ -6,22 +6,22 @@
 //! | 3, 4, 8, 9 | 10 back, 1 back, 1 on, 10 on (held to 0 .. the count, signed) |
 //! | 5, 7 | a frame back, a frame on (`drive::read_replay_frame`) |
 //! | 2, 0xA | the first mark here (not past the second), the second here (not before the first) |
-//! | 6, 0x22 | play from here (`race::play_from_here`; 0x22 with `dword_5C253C` 1) |
+//! | 6, 0x22 | play from here (`race::play_from_here`; 0x22 with `play_from_here` 1) |
 //! | 0x1A | play between the marks (`race::play_marked`) |
 //! | 0x23 | play from the start again and again until a key ends a play |
 //! | 0x11 | cut the marked blocks (`race::keep_undo`, `race::copy_marked`, the rest moved down, the end zeroed; `race::reset_marks`) |
 //! | 0x1B | copy them (`race::copy_marked`) |
 //! | 0x12 | paste the clipboard here (if it fits in 0x708 blocks; the rest moved up) |
 //! | 0x13, 0x20 | undo (`race::undo_edit`; 0x20 also ends a camera edit) |
-//! | 0x14 | another replay (not for the last race's): tidied, the loading screen (`menu::replay_slot_loop`), the old closed, the new opened (or chosen again), loaded; none chosen: the old reloaded if open, else the viewer left (`byte_51D416` 1) |
+//! | 0x14 | another replay (not for the last race's): tidied, the loading screen (`menu::replay_slot_loop`), the old closed, the new opened (or chosen again), loaded; none chosen: the old reloaded if open, else the viewer left (`list_leave` 1) |
 //! | 0x15 | saved back (a saved slot below 100, else as 0x16) |
 //! | 0x16 | saved as a slot chosen (`race::choose_save_slot`, `race::save_viewed_replay`) |
-//! | 0x17 | a picture of the next frame (`dword_5C2540` 1) |
+//! | 0x17 | a picture of the next frame (`snapshot_asked` 1) |
 //! | 0xE, 0x18 | the block's camera byte 2 / 3 flipped (`xor 1`), spread on (`race::spread_camera`) |
 //! | 0xF | byte 5 one on (0 .. 3, past 3 back to 2) unless one player's; 0x10: byte 4 (0 .. 2) |
 //! | 0xD, 0x19 | camera 1 / 2 edited (`race::edit_camera_1`, `_2`) |
 //! | 0x1C, 0x24, 0x1D | camera 1 on / back, camera 2 on, the edit ended |
-//! | 0x1E, 0x1F | the camera edited back / on; 0x21: the edit ended (`dword_96E480` 0) |
+//! | 0x1E, 0x1F | the camera edited back / on; 0x21: the edit ended (`camera_edit` 0) |
 //! | 0x25 .. 0x28 | play between the marks saving pictures (`race::start_frame_pictures` 0, 0xA0, 0x50, 0x28 ms; `race::stop_frame_pictures`) |
 //!
 //! Takes: the action
@@ -249,7 +249,7 @@ fn paste(race: &Race) -> Result<(), Refused> {
     }
     crate::race::keep_undo::keep_undo(&race.shared);
     // The blocks from the one shown up by the clipboard's count, from the top down.
-    // (The original's `std; rep movsd` from the last dword, `dword_5BECD4` and
+    // (The original's `std; rep movsd` from the last dword, `index_frame_count` and
     // `unk_963BB0` + count * 8, down: a move that may overlap.)
     use crate::race::viewer::{move_cells, move_cells_back};
     let v = &crate::race::viewer_buffers_store::VIEWER_BUFFERS;

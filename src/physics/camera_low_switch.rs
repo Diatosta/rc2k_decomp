@@ -1,15 +1,12 @@
 //! `physics::camera_low_switch` (0x438BF4): with `unk_71A0A0` below 0 (or unordered), no
-//! switch under way (`unk_71A66C` 0) and the camera in mode 0 or 1 (`unk_71A65C`): the
-//! ground under the camera (`unk_71A67C`, `unk_71A684`; `physics/camera_ground.rs`);
-//! found and the camera less than 0x800 above it (`unk_71A680` - `dword_639828`, by the
-//! sign of the `cmp`): the switch begun: `unk_71A664` = the mode before (`unk_71A660`)
-//! plus 1, `unk_71A660` = 4, `unk_71A66C` = 1, `unk_71A674` = 0, `unk_71A670` = 10,
-//! `unk_71A668` = the clock (`unk_719FE0`).
+//! switch under way (`camera_switch_active` 0) and the camera in mode 0 or 1 (`camera_view`): the
+//! ground under the camera (`camera_position`, `unk_71A684`; `physics/camera_ground.rs`);
+//! found and the camera less than 0x800 above it (`unk_71A680` - `ground_height`, by the
+//! sign of the `cmp`): the switch begun: `camera_view_return` = the mode before (`camera_blend_view`)
+//! plus 1, `camera_blend_view` = 4, `camera_switch_active` = 1, `camera_switch_share` = 0, `camera_switch_length` = 10,
+//! `camera_switch_clock` = the clock (`step_clock`).
 //!
 //! Caller: `physics::update_camera`. Refuses what `count_ground_probe` refuses.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::physics::camera_ground::probe_at;

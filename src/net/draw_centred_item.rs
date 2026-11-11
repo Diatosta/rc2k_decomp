@@ -1,6 +1,6 @@
 //! `net::draw_centred_item` (0x416B53): an item's string drawn (`text::draw_string_by_id`)
-//! at x ecx, y ebp, in `unk_51E744`, or `stru_51E684` when it is the highlighted item and
-//! edited or in the blink's lit half (as `net::draw_button`); ebp moves down by the font's
+//! at x, y, in `typefaces::CENTRED_PLAIN`, or `typefaces::CENTRED_LIT` when it is the highlighted item and
+//! edited or in the blink's lit half (as `net::draw_button`); the y moves down by the font's
 //! line height (+8).
 //!
 //! Takes the string, x, the item and y.

@@ -1,11 +1,11 @@
 //! `race::open_viewed_replay` (0x41E9FF): a replay opened for the viewer: its file
-//! (`race::replay_path`; the last race's only when one was recorded, `dword_5BEC84`; a saved one,
+//! (`race::replay_path`; the last race's only when one was recorded, `replay_closed`; a saved one,
 //! below 100 after the path's, copied over `var\tmprpl` first, `files::copy_file`) opened (mode 0)
-//! into `h`, `dword_5BEC88` 1, block and frame 0; its header (0x430 bytes into `dword_528504`:
+//! into `h`, `replay_open` 1, block and frame 0; its header (0x430 bytes into `dword_528504`:
 //! "REPL", version 0x50400) and its index (the last 0x3850 bytes into "RCIB": its name, the block
 //! count held to 0x708, more than 0) read; each block read (`drive::read_replay_frame_0`) for its
-//! first 8 bytes, the block's cameras (`unk_963BB4`); the marks round the whole; the first block
-//! read again, the cars' header (0x400 bytes from `unk_528534`) into `dword_719B14`, and the
+//! first 8 bytes, the block's cameras (`block_cameras`); the marks round the whole; the first block
+//! read again, the cars' header (0x400 bytes from `unk_528534`) into `header_stage`, and the
 //! replay's physics patches in force (`race::apply_replay_patches`). Anything failing: the replay
 //! closed (`race::close_viewed_replay`) and carry.
 //!

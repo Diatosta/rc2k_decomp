@@ -1,7 +1,6 @@
 //! The carousels' set-ups that are only stores, one list a menu (`g_carouselMenu`),
 //! as `scene::set_up_carousel`'s per-menu functions make them. Made by
-//! `tools/carousel_set_ups/gen.py` from the IDA extraction, typed by hand (phase 7) and
-//! compacted by hand on 2026-11-10: every menu stores the same things in the same order
+//! `tools/carousel_set_ups/gen.py` from the IDA extraction, typed and compacted by hand: every menu stores the same things in the same order
 //! (`menu_ops`), only the numbers differ, so each is one `menu!` entry.
 use crate::menu::owner::MENUS;
 use crate::scene::set_up_carousel::Op::{self, Fill, Run, Set};

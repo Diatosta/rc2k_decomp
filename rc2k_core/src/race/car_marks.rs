@@ -1,11 +1,11 @@
-//! A car's marks' textures (converted 2026-10-21 from `race::car_number_textures`
+//! A car's marks' textures (converted from `race::car_number_textures`
 //! 0x46203D): which lamps' sides show, the letter of the model's name by the car's +0x718,
 //! the race number's digits, the stage's plate, whether the decals show.
 
 /// What the number's digits read when there is none.
 pub const NO_DIGIT: u32 = 999;
 
-/// A lamp's side mark (+0x1B8 / +0x1BC): 1 unless |x| is below the limit (`flt_641740`)
+/// A lamp's side mark (+0x1B8 / +0x1BC): 1 unless |x| is below the limit (`decal_limit`)
 /// or not a number (`fabs` / `fcomp`).
 pub fn lamp_side(x: f32, limit: f32) -> u32 {
     u32::from(x.abs() >= limit)
@@ -52,14 +52,14 @@ pub fn number_digits(number: u32) -> Digits {
 }
 
 /// The stage's plate: the stage less 11 held to 0 .. 0x45 (signed), its tens (the
-/// plate's entry, `dword_71BA10[]`) and units.
+/// plate's entry, `number_tens_textures`[]`) and units.
 pub fn stage_plate(stage: u32) -> (u32, u32) {
     let s = (stage.wrapping_sub(0xB) as i32).clamp(0, 0x45) as u32;
     (s / 10, s % 10)
 }
 
 /// Whether the decals' bytes (+0xAC0 ..) go into the marks: while the car's +0x310 is
-/// below the limit (`flt_5C5D14`, 100) or not a number.
+/// below the limit (`hundred`, 100) or not a number.
 pub fn decals_shown(wear: f32, limit: f32) -> bool {
     !matches!(
         wear.partial_cmp(&limit),

@@ -5,12 +5,12 @@
 //! - bits 0, 1, 13 .. 16 stay set and do nothing more here (unlock arcade, unlock cars, no
 //!   damage, damage timer, 16, arcade timer): other code looks at them;
 //! - bits 2 .. 9, 11 and 12 are cleared and each adds one secret car to the list of cars
-//!   at `off_75A042`, unless it is there already (the ten functions 0x470FE9 ..
+//!   at the second car list, unless it is there already (the ten functions 0x470FE9 ..
 //!   0x471332, plain functions here). Bit 6, "Max Power", also adds its car to the
-//!   list at `off_759D16`, but only when it was not in the first. The other nine have
+//!   list at the A8 championship car list, but only when it was not in the first. The other nine have
 //!   the same code for the second list, which is never reached;
 //! - bit 10 is cleared and does nothing;
-//! - bits 17 and 18 stay set and store 1 in `dword_75ACCC` (the A8 game; the reversed
+//! - bits 17 and 18 stay set and store 1 in the leader-found flag (the A8 game; the reversed
 //!   tracks).
 //!
 //! Callers: `system::load_game_data` with the bits 0x1FBC (when the setting `allsecretcars` is 1)

@@ -20,10 +20,8 @@ use crate::scene::map_texture_places::map_texture_places;
 
 // ---- Rust version ----
 
-/// The Rust version the typed tables run: its seven calls in order. It reads no register
-/// of its caller's (register liveness, 2026-10-23). Of what the calls leave in the
-/// registers one value is read: the carousel's ecx, the slots-in-use count the textures'
-/// loading leaves (the row place of a lone entry).
+/// Its seven calls in order. Of what the calls leave in the original's registers one value is
+/// read: the slots-in-use count the textures' loading leaves (the row place of a lone entry).
 pub fn run() -> Result<(), crate::errors::Refused> {
     let scene = crate::scene::owner::scene();
     let race = race();

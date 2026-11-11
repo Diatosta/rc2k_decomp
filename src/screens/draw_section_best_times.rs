@@ -1,5 +1,5 @@
 //! `screens::draw_section_best_times` (0x46762B; IDA had it as code outside any function,
-//! made one 2026-10-19): ten rows of the section's best times (`off_742C98`[section], the
+//! made one 2026-10-19): ten rows of the section's best times (the menu table[section], the
 //! game's own tables of 0x9C-byte entries, six sections), from y 0xF0, 0x19 apart, row n
 //! (1 .. 10, kept in `seconds`): a player's (+0x40 1) in 0x51E524 / 0x51E544, else 0x51E584 /
 //! 0x51E5A4: the name (the text at +0x20) at 0xF0, the time (+0x18, `strings::append_time`,

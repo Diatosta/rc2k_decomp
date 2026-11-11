@@ -1,13 +1,12 @@
-//! The standalone's Start menu items and the program's copy (platform code, owner's decision
-//! 2026-10-19): what `install::add_start_menu_items` (0x413E42) and
-//! `install::remove_start_menu_items` (0x4140C3) ask the Program Manager by DDE is done with
+//! The standalone's Start menu items and the program's copy (platform code, owner's decision):
+//! what `install::add_start_menu_items` and
+//! `install::remove_start_menu_items` ask the Program Manager by DDE is done with
 //! shell shortcuts (`IShellLinkW` saved by `IPersistFile`) in the user's Start menu
 //! Programs folder, group "Rally Championship" (Wine makes them menu entries):
 //! - "Rally": `<installed folder>rc2k.exe` (the original: `ral.exe`);
 //! - "Uninstall Rally": `<installed folder>rc2k.exe` with " -u" (the original names the
 //!   program it ran from, the CD's, which finds the installation in the registry; the
-//!   standalone's record is in the installed folder, so only that copy can remove it;
-//!   2026-10-20);
+//!   standalone's record is in the installed folder, so only that copy can remove it);
 //! - "View Readme": `<installed folder>readme.txt` (named in the case the folder holds it);
 //! - the removal deletes the three and the group's folder (the original's `DeleteGroup`).
 //!
@@ -219,7 +218,7 @@ pub fn copy_program() -> bool {
     all
 }
 
-/// A program started, not waited for (the original's `system::run_program` with ebx 1).
+/// A program started, not waited for (the original's `system::run_program` not waiting).
 pub fn run_program(command: &Path) -> bool {
     let started = std::process::Command::new(command).spawn();
     crate::framework::log(&format!(

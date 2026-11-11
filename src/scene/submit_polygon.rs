@@ -1,15 +1,13 @@
 //! `scene::submit_polygon` (0x44CCC0): hands the polygon in the vertex buffer to
 //! Direct3D with its texture.
 //!
-//! In:  nothing: the vertices are at `g_polygonVertices` (0x9605A0), their number in
-//!      `g_polygonVertexCount` (0x6240F8), the texture's number in `g_polygonTexture`
-//!      (0x6240D4)
-//! With `scene::draw_polygon_fan` (0x44EA36), `scene::check_polygon_vertices`
-//! (0x44EA6A), `scene::set_texture` (0x44E77E) and `scene::clear_texture` (0x44E958)
-//! inlined, each of which has this as its only caller on the way here.
-//! The texture: 0xFFFFFC43 means none; a number of 0x400 or more counts as 0; one that
-//! is not `g_currentTexture` is set first. Both go to Direct3D only if there is 3D
-//! (`dword_5CDA8C` not 0: the device is drawing, set by `race::draw_race_scene`).
+//! In:  nothing: the vertices are in the polygon vertex buffer, their number in the
+//!      polygon's vertex count, the texture's number in `polygon_texture`
+//! With `scene::draw_polygon_fan`, `scene::check_polygon_vertices`, `scene::set_texture` and
+//! `scene::clear_texture` inlined, each of which has this as its only caller on the way here.
+//! The texture: 0xFFFFFC43 means none; a number of 0x400 or more counts as 0; one that is not
+//! the current texture is set first. Both go to Direct3D only if there is 3D (the draw switch
+//! is not 0: the device is drawing, set by `race::draw_race_scene`).
 //! The vertices: each must have x in 0 .. the screen's width, y in 0 .. its height
 //! and z in 0 .. 1 (compared on the x87; one that is not a number fails), else "Error"
 //! is logged, the buffer shown by `scene::show_bad_polygon` and nothing drawn. Then, with 3D, the

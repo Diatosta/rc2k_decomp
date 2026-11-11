@@ -1,4 +1,4 @@
-//! `menu::fade_in` (0x4A1CFA): the inspection's fade in: the see-through from 0 up to `dword_75AA94` with the time gone (`menu::fades::fade`).
+//! `menu::fade_in` (0x4A1CFA): the inspection's fade in: the see-through from 0 up to the fade's full see-through with the time gone (`menu::fades::fade`).
 //!
 //! The clock is `system::tick_count`'s Rust
 //! version; the frames (`menu::fade_frame` through `screens::run_frame`) through the game

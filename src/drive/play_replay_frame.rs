@@ -1,5 +1,5 @@
-//! `drive::play_replay_frame` (0x460049): while playing a replay (`dword_5C5CE0` 2): the replay's
-//! frame and tenth (`dword_5C2530`, `5C2534`) into `dword_6EF7E0`, `6EF7E4`; at a whole frame the
+//! `drive::play_replay_frame` (0x460049): while playing a replay (`replay_mode` 2): the replay's
+//! frame and tenth (`replay_block`, `5C2534`) into `step_block`, `6EF7E4`; at a whole frame the
 //! frame read and its state loaded (`drive::load_replay_frame`, `drive::load_replay_cars`); then
 //! the cameras (`drive::replay_cameras`).
 //!

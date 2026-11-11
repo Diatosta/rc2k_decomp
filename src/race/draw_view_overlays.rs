@@ -1,8 +1,8 @@
-//! `race::draw_view_overlays` (0x4559A6): what a view draws over its scene, unless `unk_71AF80` (`view_covered`, the player is out of a two-player race) is
+//! `race::draw_view_overlays` (0x4559A6): what a view draws over its scene, unless `view_covered` (`view_covered`, the player is out of a two-player race) is
 //! set (as `race::draw_view_scene`): the HUD's overlay states, render state 3 = 3, the view's marks
 //! (`race::run_view_marks`), the overlay states again, the race's sound tick, a flat triangle
 //! (`race::draw_flat_triangle`), the depth buffer on, the filters; the own car drawn
-//! (`race::draw_own_car`) without the far clip (the original set `dword_621900` 0 meanwhile and put
+//! (`race::draw_own_car`) without the far clip (the original set `far_on` 0 meanwhile and put
 //! it back after: `DrawCtx::far_clip`), the screen's tint, the draw batch flushed, the filters.
 
 use crate::errors::Refused;

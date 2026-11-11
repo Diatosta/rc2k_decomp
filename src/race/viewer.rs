@@ -1,12 +1,12 @@
 //! The viewer plays a replay from `var\tmprpl` (the last race's, or a saved one copied
-//! there first), block by block (`dword_5C2530`, 0 .. `dword_5BECD0`; 100 frames a block,
-//! the frame in `dword_5C2534`), and edits it: two marks (`dword_96E478`, `dword_96E47C`),
-//! cut, copy and paste of blocks (the clipboard `unk_96E488`, `unk_971CC8`), one undo
-//! (`dword_9673F4` ..), the cameras of each block (`unk_963BB4`: 8 bytes a block, the
+//! there first), block by block (`replay_block`, 0 .. `index_block_count`; 100 frames a block,
+//! the frame in `replay_frame`), and edits it: two marks (`mark_in`, `mark_out`),
+//! cut, copy and paste of blocks (the clipboard `clip_places`, `clip_cameras`), one undo
+//! (`undo_blocks` ..), the cameras of each block (`block_cameras`: 8 bytes a block, the
 //! first 8 of the block's data), and saving the result as a replay slot.
 //!
 //! The tests: a copy of the original whose calls go to `install::stand_ins` (`copy`), noted by
-//! `note` with eax, ebx, ecx and edx and answered by the test's `answer`; the Rust side calls
+//! `note` with the call's four register values and answered by the test's `answer`; the Rust side calls
 //! `test_part`, which does the same.
 
 use crate::errors::BadInput;

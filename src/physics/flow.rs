@@ -1,16 +1,14 @@
-//! The steps the physics' long functions share once their flow is in Rust (stream B,
-//! 2026-10-18): the game's variables by IDA address, the x87 compares as the originals
+//! The steps the physics' long functions share once their flow is in Rust the game's variables by IDA address, the x87 compares as the originals
 //! read them (`fld; fcomp` / `fcompp` and the status word's C0 / C3), the holds and
 //! eases their patterns repeat.
 
 use crate::math::x87;
+use crate::math::x87::compare_full;
 use crate::math::x87_float::{compare, ld, st};
-use crate::math::x87_run::compare_full;
 use crate::session::Float;
 
 /// The bits of 0.0. The game keeps one such constant in `race.course.numbers.zero`
-/// (flt_5C5D90, 0.0 from the image); nothing in the program writes that cell (no
-/// `set` / `set_bits` on it, no byte write over IDA 0x5C5D90, checked 2026-11-11), so the
+/// (`numbers.zero`, 0.0); nothing in the program writes that cell, so the
 /// physics reads this constant instead of going through the race for it.
 pub const ZERO_BITS: u32 = 0;
 
@@ -49,7 +47,7 @@ pub fn equal_or_unordered(a: u32, b: u32) -> bool {
 /// The size of the float `a` is below `b`, or one of them is not a number (`fabs` then
 /// the comparison's C0).
 pub fn abs_below_or_unordered(a: u32, b: u32) -> bool {
-    crate::math::x87_run::abs_compare(a, b) & 0x100 != 0
+    crate::math::x87::abs_compare(a, b) & 0x100 != 0
 }
 
 /// `fld lim; fld v; fcompp; jnb skip; fld lim; fstp v`: v raised to lim when below it
@@ -77,7 +75,7 @@ pub fn hold_high(v: &impl crate::session::Cell32, lim: &impl crate::session::Cel
 pub fn negate(v: &impl crate::session::Cell32) {
     p(
         v,
-        crate::math::x87_run::neg_rounded(crate::scene::matrix3::extended(g(v))),
+        crate::math::x87::neg_rounded(crate::scene::matrix3::extended(g(v))),
     );
 }
 
@@ -114,15 +112,15 @@ pub fn table_lerp(
     out: &impl crate::session::Cell32,
 ) {
     if c0(g(x), t[0].bits()) {
-        p(out, x87::loaded(t[1].bits()));
+        p(out, x87::loaded(&t[1]));
         return;
     }
     if !c0(g(x), t[2].bits()) {
-        p(out, x87::loaded(t[3].bits()));
+        p(out, x87::loaded(&t[3]));
         return;
     }
     if x87_1(t, g(zero)) & 0x4000 != 0 {
-        p(out, x87::loaded(t[1].bits()));
+        p(out, x87::loaded(&t[1]));
         return;
     }
     p(out, x87_2(g(x), t));
@@ -130,8 +128,8 @@ pub fn table_lerp(
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `status [s + 0] = status`
 fn x87_1(t: &[Float; 4], z: u32) -> u16 {
     let t0 = ld(t[2].bits());
@@ -141,8 +139,8 @@ fn x87_1(t: &[Float; 4], z: u32) -> u16 {
     compare(t2, t3)
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[o + 0] = ((([x + 0] - [t + 0]) / ([t + 8] - [t + 0])) * ([t + 0xC] - [t + 4])) + [t + 4]`
 fn x87_2(x: u32, t: &[Float; 4]) -> u32 {
     let t0 = ld(x);
@@ -161,8 +159,7 @@ fn x87_2(x: u32, t: &[Float; 4]) -> u32 {
     st(t12)
 }
 
-/// The first three cells of `from` copied as integers (`mov eax, [from]; mov [to], eax`,
-/// three times) into the first three of `to`: `copy3` for typed cells (a `Float` goes by
+/// The first three cells of `from` copied as integers (three dword moves) into the first three of `to`: `copy3` for typed cells (a `Float` goes by
 /// its bits).
 pub fn copy_cells<A: crate::session::Cell32, B: crate::session::Cell32>(to: &[A], from: &[B]) {
     for k in 0..3 {

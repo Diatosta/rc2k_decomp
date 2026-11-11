@@ -1,5 +1,5 @@
 //! `drive::flush_replay` (0x46022D): the replay's starting state (0xA04 dwords at `unk_7172EC`)
-//! copied into the frame `dword_9613A4` and the frames written (`drive::write_replay_frames`).
+//! copied into the frame `block` and the frames written (`drive::write_replay_frames`).
 //!
 //! Caller: `drive::flush_replay_if`. Refuses what `write_replay_frames` refuses.
 

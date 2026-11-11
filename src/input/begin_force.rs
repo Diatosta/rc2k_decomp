@@ -1,11 +1,11 @@
 //! `input::begin_force` (0x40945D): a device's force feedback set up, when its controller
 //! has it (the controller's entry, `g_controllers` + 0x50 its number, +0x1C 1): "INP:
-//! using force feedback" logged (level 2); the `DIPROPDWORD` (`dword_4F6AA4`: 0x14, 0x10,
+//! using force feedback" logged (level 2); the `DIPROPDWORD` (`dword_property`: 0x14, 0x10,
 //! the device, 0); with the record's strength (+0xC) 0 only the self-centring turned on
 //! (`DIPROP_AUTOCENTER` 1); else the self-centring off and the gain the strength x 100
 //! (`DIPROP_FFGAIN`), each failure a fatal error (0x80238421, 0x80238422), the device's
 //! effects listed (`EnumEffects` with `input::effect_found`, the record as context), the
-//! six made (`input::make_effect`, ecx the number, edi the effect) and +0x28 1 (effects
+//! six made (`input::make_effect`, with the effect's number and the effect) and +0x28 1 (effects
 //! on).
 //!
 //! Takes: the device's record (+4 its DirectInput device)

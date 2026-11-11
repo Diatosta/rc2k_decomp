@@ -67,8 +67,7 @@ pub struct LightState {
 // them): any bit pattern is a valid value.
 
 impl LightState {
-    /// The piece with the image's first values (a static of its own since 2026-10-29: it left
-    /// the race block, phase 13, `race::store::LEFT`; the owner `scene::owner::Scene` holds it).
+    /// The piece with the image's first values.
     pub const fn new() -> Self {
         crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }

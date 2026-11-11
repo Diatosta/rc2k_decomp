@@ -1,4 +1,4 @@
-//! The replay file (`var\tmprpl`, IDA 2026-10-17): opened with its header at the race's
+//! The replay file (`var\tmprpl`): opened with its header at the race's
 //! start (`race::open_replay`, the header sealed by `race::seal_replay_header`), frames
 //! gathered (`race::add_replay_frame`), written block by block (`race::write_replay_block`
 //! through `race::write_replay_chunk`, which packs by runs), and closed with its index
@@ -17,9 +17,10 @@ use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
 use crate::session::{Bytes, Dword};
 
-/// `dword_4F66F9`: the race record's seal key (the replay header's checksum,
-/// `race::seal_replay_header`; `race::seal_stage_time` turns the first car's time by it).
-/// Split 2026-10-25 from sound's dwords around it; `moved::MOVED` names IDA 0x4F66F9 here
+/// The race record's seal key (the replay header's checksum, `race::seal_replay_header`;
+/// `race::seal_stage_time` turns the first car's time by it). It is what makes a stage time
+/// in the saved results depend on the replay it came from, so a time cannot be edited alone.
+/// Kept apart from the sound dwords around it; `moved::MOVED` names IDA 0x4F66F9 here
 /// (`race::owner_replay::Replay::seal_key`).
 // The index (`crate::race::owner::race().shared.replay_file.index()`) is 0x3850 bytes.
 const _: () = assert!(crate::race::replay_file_store::INDEX_DWORDS * 4 == 0x3850);
@@ -86,7 +87,7 @@ mod block_tests {
     }
 }
 
-/// `race::seal_replay_header` (0x41F0A3): the replay's sealed header part (`dword_719B54`, 0x40
+/// `race::seal_replay_header` (0x41F0A3): the replay's sealed header part (`sealed_header`, 0x40
 /// dwords): version byte 6, the player's name (`strings::copy_printable`, 0x20), the settings and
 /// options copied (`HEADER_MOVES`), a checksum (from dword 1: add, `rol` 5) into dword 0 and
 /// `dword_4F66F9`; then its 32 blocks of 8 chained through `race::seal_block` with the key
@@ -181,8 +182,8 @@ fn write(handle: u32, bytes: &[u8]) -> (u32, bool) {
 }
 
 /// `race::write_replay_chunk` (0x41EEE4): `count` bytes at `from` written to file `handle`; unless
-/// `dword_5BEC80` is 1 they are packed (`race::pack_runs` into `g_pngInfo`, rounded up to a dword)
-/// and the packing written when smaller. Both callers write the whole replay block (`dword_9613A4`,
+/// `chunks_plain` is 1 they are packed (`race::pack_runs` into `g_pngInfo`, rounded up to a dword)
+/// and the packing written when smaller. Both callers write the whole replay block (`block`,
 /// 0x2810 bytes): here it is that block.
 pub fn write_replay_chunk(shared: &RaceShared, handle: u32) -> Result<(u32, bool), Refused> {
     let system = crate::system::owner::system();
@@ -216,7 +217,7 @@ pub fn block_place(race: &Race, k: usize) -> Result<u32, BadInput> {
     crate::session::read_on_in(&shared.replay_file, places, k, "the replay index")
 }
 
-/// `race::write_replay_block` (0x41E9A3): the block (`dword_9613A4`, 0x2810 bytes) written as a
+/// `race::write_replay_block` (0x41E9A3): the block (`block`, 0x2810 bytes) written as a
 /// chunk; its offset and size (negative when packed) into the index; the file's length on; the
 /// block count on. A failed write or the index full (0x708 blocks) closes the replay.
 pub fn write_replay_block(race: &Race, replay: &Replay) -> Result<(), Refused> {
@@ -286,8 +287,8 @@ pub fn add_replay_frame(race: &Race, frame: &[Dword]) -> Result<(), Refused> {
 
 /// `race::close_replay` (0x41E85A): with the replay open, the block filled up with the padding
 /// frame (`race::add_replay_frame`, which writes it at 100); the last block's frame count
-/// (`dword_5C252C`: 100, or for the last block the frames modulo 100 plus one); the time sealed;
-/// the index ("RCIB", 0x3850 bytes) written; the file closed; `dword_5BEC88` 0, `dword_5BEC84` 1.
+/// (`frames_in_block`: 100, or for the last block the frames modulo 100 plus one); the time sealed;
+/// the index ("RCIB", 0x3850 bytes) written; the file closed; `replay_open` 0, `replay_closed` 1.
 pub fn close_replay(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let replay = &race.replay;
@@ -315,8 +316,8 @@ pub fn close_replay(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::open_replay` (0x41E6EC): `dword_5BEC84` 0; with replays on (`dword_5BEC78` 1,
-/// `dword_5BEC7C` 0, `dword_52A910` not 1, `dword_75ACDC` not 1) and 30 MB free: the header
+/// `race::open_replay` (0x41E6EC): `replay_closed` 0; with replays on (`replays_on` 1,
+/// `no_replay_switch` 0, `session` not 1, `dword_75ACDC` not 1) and 30 MB free: the header
 /// ("REPL", version 0x50400, the date, "tmpreplay", the race's settings), the car's header
 /// (`seal_replay_header`) copied into it, the index "RCIB" cleared, the cursor, counts and length
 /// 0; `var\tmprpl` created; the header written. A failed open or write closes it

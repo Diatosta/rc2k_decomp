@@ -1,4 +1,4 @@
-//! `screens::draw_players_results` (0x48D32E): the players' stage results: heads, the stage, and per player (two, three or four rows by `dword_755984`) name, top speed, car, time or the gap to the first, flag (and `dword_7559B4`'s sprite on the third row) and place, 0x1E to the right of the points page's columns (see `screens/players_results.rs`, `WITHOUT_POINTS`).
+//! `screens::draw_players_results` (0x48D32E): the players' stage results: heads, the stage, and per player (two, three or four rows by `event.player_count`) name, top speed, car, time or the gap to the first, flag (and `draw_work.scratch_b4`'s sprite on the third row) and place, 0x1E to the right of the points page's columns (see `screens/players_results.rs`, `WITHOUT_POINTS`).
 //!
 //!
 //! In a menu loop's draw list (0x758E96). The sprites' palettes are ebx as the original leaves it.

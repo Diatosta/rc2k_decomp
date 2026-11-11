@@ -152,14 +152,14 @@ let menus = menus();
         Piece::whole(&menus.play.players.players[1]),
         Piece::whole(&menus.play.players.players[2]),
         Piece::whole(&menus.play.players.players[3]),
-        Piece::whole(&menus.screens.option_work.master_volume_shown),           // the master volume shown
+        Piece::whole(&audio.levels.master_volume_shown),           // the master volume shown
         Piece::whole(&menus.screens.option_work.music_level),                   // the music level
         Piece::whole(&menus.screens.option_work.other_volume),                  // read by the music "up" step
         Piece::whole(&menus.screens.option_work.menu_sounds_c),                 // the menu sounds' third volume
-        Piece::whole(&menus.screens.option_work.menu_sounds_a),                 // the menu sounds' first volume
+        Piece::whole(&audio.levels.menu_sounds_a),                 // the menu sounds' first volume
         Piece::whole(&menus.screens.option_work.speech_level),                  // the speech level
-        Piece::whole(&menus.screens.option_work.sounds_a),                      // the sounds' first level
-        Piece::whole(&menus.screens.option_work.sounds_b),                      // the sounds' second level
+        Piece::whole(&audio.levels.sounds_a),                      // the sounds' first level
+        Piece::whole(&audio.levels.sounds_b),                      // the sounds' second level
         Piece::past(GamePtr::to(&menus.screens.option_work.switch_0).unbounded(), 0x2C),      // the options pages' work copies, switch_0 .. headlights
         Piece::past(GamePtr::to(&menus.screens.option_work.audio_quality).unbounded(), 0x18),    // the audio quality, the 3D switches and the channels
         Piece::whole(&menus.tables.pages.services),                       // the services counted
@@ -196,14 +196,14 @@ let menus = menus();
 
 /// Where the function works: the game's own places, or a test's.
 pub struct Places<'a> {
-    pub loaded: &'a crate::session::Dword,
+    pub loaded: &'a crate::session::Flag,
     pub pieces: &'a [Piece<'a>],
     pub rebuild_car_lists: &'a mut dyn FnMut() -> Result<(), BadInput>,
 }
 
 /// `saves::load_options` (see the header).
 pub fn load_options(path: &dyn Store, places: &mut Places) -> Result<bool, Refused> {
-    places.loaded.set(0);
+    places.loaded.set(false);
     let file = &system().work.files.buffer;
     let read = read_file_to_store(
         &crate::files::cstring(path, "the options file's path")?,
@@ -229,7 +229,7 @@ pub fn load_options(path: &dyn Store, places: &mut Places) -> Result<bool, Refus
         .into());
     }
     (places.rebuild_car_lists)()?;
-    places.loaded.set(1);
+    places.loaded.set(true);
     Ok(true)
 }
 
@@ -332,6 +332,10 @@ mod tests {
         (0x7557E4, 0x20),
     ];
 
+    /// The options' pieces held in `audio::levels::Levels` (the original's option work at these
+    /// addresses): the master volume shown, the menu sounds' and the sounds' levels.
+    const AUDIO_LEVELS: [usize; 4] = [0x755684, 0x755694, 0x75569C, 0x7556A0];
+
     /// Each piece is where its IDA address has gone, with its length, whole in one store.
     #[test]
     fn pieces_are_the_options_places() {
@@ -354,6 +358,10 @@ mod tests {
                 super::Piece::Past { place, len } => (place, len),
             };
             assert_eq!(size, len);
+            // The four audio levels live with the audio now, not in the menus' option work.
+            if AUDIO_LEVELS.contains(&at) {
+                continue;
+            }
             assert_eq!(
                 place.addr() as usize,
                 crate::moved::place(at),

@@ -1,4 +1,4 @@
-//! The pace notes' tables made and their texts written (converted 2026-10-21 from
+//! The pace notes' tables made and their texts written (Converted from
 //! `race::init_pace_notes` 0x441A66 and `race::pace_note_calls` 0x441CB4, with the codes'
 //! rules of `race::pace`). `Notes` works on an image of the tables (0x615E10 .. 0x61FE18:
 //! the notes' count and the groups', the notes' starts, ends, end codes and gaps, the
@@ -50,7 +50,7 @@ pub trait Stage {
     fn distance(&self, k: u32) -> u32;
     /// Checkpoint k's angle (`dword_9ED808`; k below 0x1418).
     fn angle(&self, k: u32) -> u32;
-    /// A slot's byte in the face (`dword_614D14`; the slot below 8).
+    /// A slot's byte in the face (`pace_slot_offsets`; the slot below 8).
     fn slot_offset(&self, slot: u32) -> u32;
     /// The distance's word by tens (`byte_614D38`; at most 40).
     fn word(&self, tens: u32) -> u8;
@@ -67,7 +67,7 @@ pub struct Course {
     pub count: u32,
 }
 
-/// The pace notes' tables being made: the game's slot (`dword_614D34`), the tables' image
+/// The pace notes' tables being made: the game's slot (`pace_slot`), the tables' image
 /// and the text's end.
 pub struct Notes<'a, S: Stage> {
     /// The slot the walk is at; the game keeps it between calls.

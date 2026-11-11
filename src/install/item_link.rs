@@ -1,6 +1,6 @@
-//! `install::item_link` (0x414A28): Enter on a link item (kind 1): its action (`[esi+8]`,
-//! edx its `[esi+0Ch]`) if it has one; else, unless its next list (`[esi+1]`) is negative,
-//! that number into `byte_51D415` and the page left (`g_listLeave` 1).
+//! `install::item_link` (0x414A28): Enter on a link item (kind 1): its action (`[item+8]`,
+//! given its `[item+0Ch]`) if it has one; else, unless its next list (`[item+1]`) is negative,
+//! that number into `list_answer` and the page left (`g_listLeave` 1).
 //!
 //! Takes the item.
 //! Caller `install::item_enter`.

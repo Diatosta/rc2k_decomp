@@ -1,4 +1,4 @@
-//! The camera's place (converted 2026-10-21 from `physics::place_camera` 0x438E5A): the
+//! The camera's place (converted from `physics::place_camera` 0x438E5A): the
 //! first offset turned three times by the camera's angles (the whole-number turns of
 //! `math::turn_point_xz*`, which stay theirs), then the second offset turned with the car
 //! (its matrix, `g_crashMatrix`) and added with the car's place.
@@ -11,8 +11,8 @@
 use crate::math::geometry::fistp64;
 use crate::math::vector::rotate_point;
 
-/// The view mode (`dword_6238A4`) whose figures come from the second record
-/// (`unk_6077CC`; else `unk_6077B0`).
+/// The view mode (`split`) whose figures come from the second record
+/// (`place_second`; else `place_usual`).
 pub const SECOND_RECORD_MODE: u32 = 2;
 
 /// The second offset (whole numbers, `scale` = 65536 a unit) turned by the car's matrix
@@ -22,8 +22,7 @@ pub fn turned_offset(m: &[f32; 15], offset: [i32; 3], scale: f32) -> [i32; 3] {
     rotate_point(m, offset.map(|v| v as f64 / k)).map(|v| fistp64(v * k))
 }
 
-/// The turned offset plus the car's place (`dword_6416E8` ..; the original's eax, ebx,
-/// ecx), and the camera's place with it added.
+/// The turned offset plus the car's place (`camera_car` ..), and the camera's place with it added.
 pub fn add_offset(place: [u32; 3], turned: [i32; 3], car: [u32; 3]) -> ([u32; 3], [u32; 3]) {
     let add: [u32; 3] = std::array::from_fn(|k| (turned[k] as u32).wrapping_add(car[k]));
     (add, std::array::from_fn(|k| place[k].wrapping_add(add[k])))

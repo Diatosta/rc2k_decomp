@@ -1,9 +1,9 @@
 //! `install::register_lobby` (0x419030): the game registered as a DirectPlay lobby program,
 //! under `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\DirectPlay\Applications\RC`: the key opened
 //! (`RegCreateKeyA`; failing: nothing more), then five string values set
-//! (`install::set_lobby_value`): `Guid` the application's GUID (`dword_5AB300`) as
+//! (`install::set_lobby_value`): `Guid` the application's GUID (`app_guid`) as
 //! `{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}` built in `text`, `File` "ral.exe", `CommandLine`
-//! empty, `Path` and `CurrentDirectory` the installed folder (`byte_95E7F8`); the key
+//! empty, `Path` and `CurrentDirectory` the installed folder (`installed`); the key
 //! closed (`RegCloseKey`).
 //!
 //! Caller `install::install_files`. The registry calls through `api`; the GUID formatting

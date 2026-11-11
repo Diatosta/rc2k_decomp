@@ -1,6 +1,6 @@
 //! `race::keep_undo` (0x41E438): the viewed replay kept for one undo before an edit: the block
-//! count into `dword_9673F4`, the index's places (`lDistanceToMove`, 0x3840 bytes) into
-//! `dword_9673F8`, the blocks' cameras (`unk_963BB4`) into `unk_96AC38`.
+//! count into `undo_blocks`, the index's places (`lDistanceToMove`, 0x3840 bytes) into
+//! `undo_places`, the blocks' cameras (`block_cameras`) into `undo_cameras`.
 //!
 //! Callers: `race::viewer_action` (six places), `race::edit_camera_1`, `edit_camera_2`.
 

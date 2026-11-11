@@ -2,8 +2,8 @@
 //! car choice.
 //!
 //!
-//! String 0x191 + the current player's number (`dword_75598C`), a space, string 0x170, a NUL, into
-//! `byte_A8C054`. In six entry and draw lists (the car choice's). Refuses a text longer than its
+//! String 0x191 + the current player's number (`event.current_player`), a space, string 0x170, a NUL, into
+//! the number text buffer. In six entry and draw lists (the car choice's). Refuses a text longer than its
 //! place (0x100). The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;

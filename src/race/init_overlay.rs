@@ -1,14 +1,14 @@
 //! `race::init_overlay` (0x45A9DE): the overlay's stage parts (`initoverlay`).
 //!
 //! The parts are the stretches between the checkpoints `race::init_checkpoints` listed
-//! (`dword_60102C`, `dword_601830` of them): each one's length, the difference of its two
+//! (`checkpoints`, `split_colour_count` of them): each one's length, the difference of its two
 //! checkpoints' `g_checkpointDistances` halved (`shr`, so a negative one comes out huge) /
 //! 65536 / 1609.344 (metres in a mile) and doubled, into `g_overlayPartMiles` (floats, 0x40),
 //! their sum into `g_overlayMiles`, `g_overlayParts` their count, the two dwords of each
-//! part at `dword_6D160C` and `dword_6D170C` 0. With fewer than two checkpoint kinds or no
+//! part at `overlay_part_kinds_a` and `overlay_part_kinds_b` 0. With fewer than two checkpoint kinds or no
 //! parts, one part of 1.0. Then six sizes (0x40, 0x80, 0x50, twice), each car block's
-//! +0xF78 .. +0xF98 and +0xFA0 0, `flt_6D146A` and `flt_6D146E` 0. The x87 steps through
-//! `math::x87`; `dword_62400C` left as the original's `fild` leaves it.
+//! +0xF78 .. +0xF98 and +0xFA0 0, `distance` and `flt_6D146E` 0. The x87 steps through
+//! `math::x87`; `scratch` left as the original's `fild` leaves it.
 //!
 //! One caller, `race::loadlevel_init` ("loadlevel_init : initoverlay"; no `pusha`). Refuses more
 //! than 0x40 parts (the original writes past its three lists).

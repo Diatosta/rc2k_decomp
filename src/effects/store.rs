@@ -1,19 +1,19 @@
-//! The marks' variables, out of RAL.EXE's image (phase 5, `notes/conversion.md`): IDA
-//! 0x764F40 .. 0x93CCC8, the whole of it the marks' (the weather and surface effects: their
-//! settings, floats, work areas, the spline, shape, square, windscreen drop, ring and particle
-//! tables). Nothing outside `marks` reads or writes it but the one setting `race::frame_views`
-//! asks (`SETTINGS`, typed).
+//! The effects' variables (IDA 0x764F40 .. 0x93CCC8), the whole of it the effects' (the
+//! weather and surface effects: their settings, floats, work areas, the spline, shape,
+//! square, windscreen drop, ring and particle tables). Nothing outside `effects` reads or
+//! writes it but the one setting `race::frame_views` asks (`SETTINGS`, typed).
 //!
-//! Phase 7 (typed state) takes the block apart: each piece that has its typed struct and
-//! static (`CARVED`: pong, clock, rain, waves, clip, glow, mark slots, view vectors, snow, the
-//! settings pointer) leaves it, with its own `moved::MOVED` entry; what is left is `SEGS`.
-//! The block's bytes under a carved range are dead (a `Slot` there does not compile).
+//! Each piece that has its typed struct and static (`CARVED`: pong, clock, rain, waves,
+//! clip, glow, mark slots, view vectors, snow, the settings pointer) has left the block,
+//! with its own `moved::MOVED` entry; what is left is `SEGS`. The block's bytes under a
+//! carved range are dead (a `Slot` there does not compile).
 //!
 //! One block with the image's layout (gaps and unreferenced bytes kept, so a slip that
 //! reads past a table reads what the original read, and 16-byte alignment holds for the
-//! `xmmword_8D2000` constants): an address `X` of IDA is at `STORE + (X - START)`. A `Slot`
-//! is such an address (`Slot::at(0x814724)`), checked against the block when it is written.
-//! The x87 blocks (`effects::plain`) reach the block through `base()`: `mk + offset` with `offset` IDA's address less `START`.
+//! 16-byte constants): an address `X` of IDA is at `STORE + (X - START)`. A `Slot` is such
+//! an address (`Slot::at(0x814724)`), checked against the block when it is written. The x87
+//! blocks (`effects::plain`) reach the block through `base()`: `mk + offset` with `offset`
+//! IDA's address less `START`.
 //!
 //! Threads: the marks run on the game's thread alone, as the image's bytes did.
 

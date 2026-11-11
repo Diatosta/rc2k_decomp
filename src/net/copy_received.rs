@@ -1,13 +1,13 @@
 //! `net::copy_received` (0x4173A0): under the mutex of the received messages
-//! (`net::lock_received` / `net::unlock_received`, `dword_52AB6C`), each player's
-//! messages as the receiving thread left them (its record in `byte_52AD9C`, 0x804C bytes:
+//! (`net::lock_received` / `net::unlock_received`, `mutex`), each player's
+//! messages as the receiving thread left them (its record in `received`, 0x804C bytes:
 //! from +0x34, the count and the records, 0x1003 dwords) copied to +0x4040 for
 //! `net::apply_received`, the count made 0 and the byte at +0x4039 copied to +0x4038.
 //! The loop runs at least once (player 0 with no players).
 //!
 //!
 //! See `net/mod.rs`. Two callers: `net::apply_received` and `net::lets_rally`. Refuses
-//! (before anything) more than 16 players (the records' room, up to `dword_5AB270`).
+//! (before anything) more than 16 players (the records' room, up to `player_id`).
 
 use crate::errors::{BadInput, Refused};
 use crate::net::store::NetVars;

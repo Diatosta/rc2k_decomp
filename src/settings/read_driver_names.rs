@@ -3,13 +3,13 @@
 //!
 //! A settings text with the keys `name000` .. `name179` (the key is made in place: the number goes
 //! over the digits of `aName000`), each followed by up to three words as `system::next_argument`
-//! cuts them: a name, of which at most 30 characters are kept in the pool at `unk_95EFC8` (one
-//! after another, each with a NUL) and pointed at by `dword_95ECF8[n]` (here the name's byte offset
-//! in `NAMES`, not its address); a number under 0x28 for the driver's record at `dword_73B688` and
-//! a number under 0x22 for `dword_73B68C` (records of 0x94 bytes). A number that is too large is
+//! cuts them: a name, of which at most 30 characters are kept in the names' pool (one
+//! after another, each with a NUL) and pointed at by the driver's slot (here the name's byte
+//! offset in `NAMES`, not its address); a number under 0x28 for the first of the driver's two
+//! numbers in its record and a number under 0x22 for the second (records of 0x94 bytes). A number that is too large is
 //! left out; a missing third word ends the entry. Without the file nothing changes. One caller,
 //! `system::load_game_data`. The owner's install has no such file. Refuses names that together pass
-//! the pool's end at `unk_960000` (the original writes on; 180 names of 30 characters would).
+//! the pool's end (the original writes on; 180 names of 30 characters would).
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
@@ -22,8 +22,8 @@ use crate::strings::owner::strings;
 /// "var\name.cfg" (0x529D98 in the image), what `system::load_game_data` hands in.
 static PATH: &[u8; 13] = b"var\\name.cfg\0";
 const DRIVERS: usize = 180;
-/// 0x95ECF8 .. 0x960000 in the image (bss): dword_95ECF8, a pointer a driver (`NAMES_LEN`
-/// bytes), then the pool of names, unk_95EFC8, up to unk_960000: room for about 130 names of
+/// The image's block (0x95ECF8 .. 0x960000, bss): a pointer a driver (`NAMES_LEN`
+/// bytes), then the pool of names, up to the block's end: room for about 130 names of
 /// the full length, not for 180. Nothing else reads either.
 const NAMES_LEN: usize = DRIVERS * 4;
 const POOL_ROOM: usize = 0x960000 - 0x95EFC8;

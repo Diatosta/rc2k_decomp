@@ -2,9 +2,9 @@
 //! copyright line of the two.
 //!
 //! Only when `g_noticeKind` (the byte at 0x4E07A0, from the language's `.loc` file) is 2. The first
-//! line (`unk_52A263`, "Copyright (c) Magnetic Fields (Software Design) Ltd, 1999. All rights
+//! line (the first copyright line, "Copyright (c) Magnetic Fields (Software Design) Ltd, 1999. All rights
 //! reserved.") becomes "(c) 2000 Actualize Ltd and Magnetic Fields (Software Design) Ltd, " and the
-//! second (`byte_52A2B1`, "Copyright (c) Actualize Ltd, 1999. ..") is emptied. It is put together
+//! second (the second copyright line, "Copyright (c) Actualize Ltd, 1999. ..") is emptied. It is put together
 //! in the shared text buffer from pieces of the two lines themselves: two characters from the
 //! second line's eleventh on, "2000", fourteen from its twelfth on, " and", 0x26 from the first
 //! line's twelfth on, a space and a NUL; then copied over the first line. One caller,

@@ -4,12 +4,12 @@
 //! - `menu::add_clio_car` if `g_hasClio` is 1; `menu::link_player_names`; the loading
 //!   picture (`menu::show_loading_picture`, not ported); `gfx::build_menu_sprites`;
 //!   `menu::fit_player_names` (with the ecx the loading picture left);
-//! - `dword_5180FC` = `dword_755688` and `dword_518100` = `dword_75568C`;
+//! - the first volume setting = `option_work.music_level` and the game music volume = `option_work.other_volume`;
 //! - `saves::allocate_best_times` (the original then copies the nine tables' addresses to
 //!   the variables the screens read; the tables are typed now, `saves::best_times`, and
 //!   only the summary's variable is set: 1 while it is there, for the race's rivals);
 //! - unless the best times were loaded (`g_bestTimesLoaded`): the six fillers of made-up
-//!   times, `dword_755A0C` (the checkpoints' switch) set before each (1 only for
+//!   times, `draw_work.scratch_0c` (the checkpoints' switch) set before each (1 only for
 //!   `default_checkpoint_times`), then `g_bestTimesLoaded` = 1;
 //! - unless the options were loaded (`g_optionsLoaded`): `records::default_stage_records`
 //!   on each of the thirteen record tables.
@@ -99,7 +99,7 @@ pub fn set_up_front_end(menus: &Menus, sound: &crate::sound::owner::Sound) -> Re
         default_stage_times_alt::default_stage_times_alt(stage, &mut to_the_log)?;
         best_times.loaded.set(1);
     }
-    if menus.screens.loop_flags.options_loaded.get() != 1 {
+    if !menus.screens.loop_flags.options_loaded.is_set() {
         for table in record_tables() {
             crate::records::default_stage_records::default_stage_records(table)?;
         }

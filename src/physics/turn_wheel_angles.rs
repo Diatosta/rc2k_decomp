@@ -1,13 +1,13 @@
 //! `physics::turn_wheel_angles` (0x449EE9): the mud amounts moved on by the speed:
-//! the four floats at `dword_623D60` / `623D70` are `mud_thrown_in` / `mud_splashes_in` (per car
+//! the four floats at `mud_thrown_in` / `623D70` are `mud_thrown_in` / `mud_splashes_in` (per car
 //! texture, read and emptied by `race::update_mud_texture`), not turning angles; the name is the
 //! early reading, kept (a lead for a rename to the mud accumulation). Only when the car's kind (`g_car`
-//! +0x24, `dword_719FFC`) is below 0x22 and its entry in `dword_5C5B48` is not 0 (else CF
-//! and nothing). Then, with `dword_71A22C` 0, s = `g_carDriveSpeed` (else 0), held at
-//! 0 or more (`flt_5C5D90`), times `flt_623DA8` and `flt_623DB0`, added to the four
-//! floats at `dword_623D60`; and s = `g_carDriveSpeed` less `g_carSpeed` (else 0), held
-//! the same, times `flt_623DAC` and `flt_623DB4`, added to the four at `dword_623D70`.
-//! Each s goes through `dword_62400C`.
+//! +0x24, `car_kind`) is below 0x22 and its entry in `kind_gets_mud` is not 0 (else CF
+//! and nothing). Then, with `all_wheels_off` 0, s = `g_carDriveSpeed` (else 0), held at
+//! 0 or more (`zero`), times `wheel_turn_a` and `wheel_turn_b`, added to the four
+//! floats at `mud_thrown_in`; and s = `g_carDriveSpeed` less `g_carSpeed` (else 0), held
+//! the same, times `flt_623DAC` and `flt_623DB4`, added to the four at `mud_splashes_in`.
+//! Each s goes through `scratch`.
 //!
 //! Caller: `physics::car_physics_step` (0x43B91E), every physics step.
 
@@ -46,9 +46,9 @@ fn add_turn(
     drawing
         .scene
         .scratch
-        .set(x87::mul2(drawing.scene.scratch.get(), f1.bits(), f2.bits()));
+        .set(x87::mul2(drawing.scene.scratch.get(), f1, f2));
     for cell in to {
-        cell.set_bits(x87::add(cell.bits(), drawing.scene.scratch.get()));
+        cell.set_bits(x87::add(cell, drawing.scene.scratch.get()));
     }
 }
 
@@ -59,7 +59,7 @@ pub fn turn_wheel_angles(car: &Car, vars: &RaceVars, scene: &crate::scene::owner
         return;
     }
     let still = car.all_wheels_off.get() != 0;
-    let drive = || x87::loaded(car.drive_speed_a.bits());
+    let drive = || x87::loaded(&car.drive_speed_a);
     let v = &vars;
     add_turn(
         (!still).then(drive),
@@ -68,7 +68,7 @@ pub fn turn_wheel_angles(car: &Car, vars: &RaceVars, scene: &crate::scene::owner
         &v.mud_thrown_in,
         scene,
     );
-    let slip = || x87::sub(car.drive_speed_a.bits(), car.local_velocity[2].bits());
+    let slip = || x87::sub(&car.drive_speed_a, &car.local_velocity[2]);
     add_turn(
         (!still).then(slip),
         &v.wheel_turn_a[1],

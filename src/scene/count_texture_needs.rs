@@ -1,10 +1,11 @@
 //! `scene::count_texture_needs` (0x423EB1): how many textures are needed and how much
 //! memory they take, for the log.
 //!
-//! Over the 0x400 textures: those needed in system memory (`dword_5CEAE0` not -1) are counted
-//! in `dword_5DC974` and their levels' sizes (`dword_5CDAAC`) added in `dword_5DC96C`; those
-//! needed in video memory (`dword_5CFAE0`) in `dword_5DC970` and `dword_5DC968`. Then one line
-//! in the game's log: "VID <k> k in <n> texs - SYS <k> k in <n> texs". `dword_5DC970` is also
+//! Over the 0x400 textures: those needed in system memory (the system need not -1) are counted
+//! in the system textures total and their levels' sizes added to the system k total; those
+//! needed in video memory in the video textures total and the video k total. Then one line
+//! in the game's log: "VID <k> k in <n> texs - SYS <k> k in <n> texs". The video textures
+//! total is also
 //! what `scene::load_slot_textures` takes for the slots' number. Two call sites in
 //! `scene::build_texture_catalogue`. Refuses a level past the sizes' table.
 
@@ -14,8 +15,7 @@ use crate::scene::owner::scene;
 
 // ---- game data ----
 
-// `TEXTURE_PLACES.totals`: `dword_5DC968` video k, `dword_5DC96C` system k, `dword_5DC970`
-// video textures, `dword_5DC974` system textures.
+// `TEXTURE_PLACES.totals`: video k, system k, video textures, system textures.
 
 // ---- Rust version ----
 

@@ -1,9 +1,9 @@
 //! The sound spots of the course around the view (`race::find_sound_spots` ->
 //! `race::cell_sound_spots` ->
-//! `race::face_sound_spot`, part R3, IDA 2026-10-18): course faces of kind 0xFF with object 0x3F
+//! `race::face_sound_spot`): course faces of kind 0xFF with object 0x3F
 //! (sound objects) in the 5 x 5 cells of `g_courseGrid` around the view, at most 0x24, into
 //! `g_soundSpots` (0x14 bytes: +0 the point, +4 .. +0xC its place turned by the view and
-//! scaled by `flt_5C5DA0`, +0x10 the sound, the face's +8, 1 .. 0x15).
+//! scaled by `one_over_65536`, +0x10 the sound, the face's +8, 1 .. 0x15).
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
@@ -15,8 +15,8 @@ use crate::scene::view_matrices::ViewMatrices;
 const GRID_DWORDS: u32 = 0x1084 / 4;
 
 /// Field `offset` of course record `record`.
-fn record_field(record: u32, offset: u32) -> Result<u32, BadInput> {
-    crate::race::course_places::record_field(record, offset, "a sound spot record")
+fn record_field(course: &Course, record: u32, offset: u32) -> Result<u32, BadInput> {
+    crate::race::course_places::record_field(course, record, offset)
 }
 
 /// The 25 cells' numbers, in the original's order (five across, then on by 0x1C after
@@ -56,7 +56,7 @@ fn scaled(t: [u8; 10], k: u32) -> u32 {
 
 /// `race::face_sound_spot` (0x45C6ED): face `face_number` as a sound spot when it is kind 0xFF,
 /// object 0x3F, its sound (+8) 1 .. 0x15 and there is room (fewer than 0x24): its point and place
-/// (point + offset +0x30 .. into `dword_63501C` ..) turned by `g_viewMatrix` (`view`'s own) and
+/// (point + offset +0x30 .. into `place` ..) turned by `g_viewMatrix` (`view`'s own) and
 /// scaled. (Its test for sound 0x1B2 needing lamps can never hold: a byte.)
 pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Result<(), BadInput> {
     use crate::race::skidmarks::int_80;
@@ -64,7 +64,7 @@ pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Re
         // Converted: `rc2k_core::race::view::{sound_object, takes_spot, spot_place}`
         // (the turn and scale stay the x87's: the callers compare exactly).
         use rc2k_core::race::view::{MOST_SPOTS, sound_object, spot_place, takes_spot};
-        let f = crate::race::course_places::face_number(face_number, "a sound spot face")?;
+        let f = crate::race::course_places::face_number(&race.course, face_number)?;
         let kind = f.kind();
         if kind != 0xFF || !sound_object(kind, f.object()) {
             return Ok(());
@@ -91,7 +91,7 @@ pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Re
         let point = f.point(0);
         put(0, point)?;
         let place = spot_place(
-            crate::race::scene_points::point_number(point)?,
+            crate::race::scene_points::point_number(&race.course, point)?,
             [f.dword_at(0x30), f.dword_at(0x34), f.dword_at(0x38)],
         );
         let t = { crate::scene::rotate_point::rotate_point(&view.view_matrix, place.map(int_80)) };
@@ -119,14 +119,16 @@ pub fn cell_sound_spots(
         if record >= rc2k_core::race::view::NO_RECORD {
             return Ok(());
         }
-        let mut face = record_field(record, 8)?;
-        if rc2k_core::race::view::record_faces(face, record_field(record, 0xC)?).is_none() {
+        let mut face = record_field(&race.course, record, 8)?;
+        if rc2k_core::race::view::record_faces(face, record_field(&race.course, record, 0xC)?)
+            .is_none()
+        {
             return Ok(());
         }
         loop {
             face_sound_spot(race, view, face)?;
             face = face.wrapping_add(1);
-            if face > record_field(record, 0xC)? {
+            if face > record_field(&race.course, record, 0xC)? {
                 break;
             }
         }

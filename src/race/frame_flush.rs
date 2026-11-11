@@ -1,5 +1,4 @@
-//! The race frame's device batches and the view's backdrop under `race::draw_race_scene` (part R3,
-//! IDA 2026-10-18): two batches of triangles flushed by the device (0x41ADF5, the platform's
+//! The race frame's device batches and the view's backdrop under `race::draw_race_scene`: two batches of triangles flushed by the device (0x41ADF5, the platform's
 //! `DrawPrimitive`), and a quad over the view window.
 
 use crate::errors::Refused;
@@ -12,8 +11,8 @@ use crate::session::Dword;
 /// The render states both batches set: (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (1, 0x1C), (5, 0x13), (2, 0x14), (1, 0x1B)];
 
-/// A batch: its count, its first word (into eax for the draw), the vertices (ebx) and
-/// indices (ecx), where the count is kept, and the second render state's value (+0x14).
+/// A batch: its count, its first word (the draw's first argument), the vertices and
+/// indices, where the count is kept, and the second render state's value (+0x14).
 pub struct Batch<'a> {
     pub count: &'a Dword,
     pub word: &'a Dword,
@@ -117,9 +116,9 @@ fn int_over_two(i: u32, a: u32, b: u32) -> u32 {
     st(int(i as i32) / ld(a) / ld(b))
 }
 
-/// `race::draw_view_backdrop` (0x4651E6): a quad over the view window (`dword_623FB0` .., one pixel
-/// wider each way; its corners kept in `dword_623E10` .. `dword_623E24`) with texture place
-/// (0xF80000, 0x80000) / `flt_5C5E2C` / `flt_5C5D98` at every corner (kept in `dword_623DF0` /
+/// `race::draw_view_backdrop` (0x4651E6): a quad over the view window (`view_offset` .., one pixel
+/// wider each way; its corners kept in `quad_corners` .. `dword_623E24`) with texture place
+/// (0xF80000, 0x80000) / `k256` / `k65536` at every corner (kept in `quad_uv` /
 /// `dword_623E00`), colour 0xFF000000, `g_polygonVertexCount` 4; drawn with the glow's render
 /// states (0x44E44D), texture `dword_5D1DE8` (`scene::set_texture`), the device's unclipped fan
 /// (`d3d::draw_fan_unclipped`), then the depth buffer on.

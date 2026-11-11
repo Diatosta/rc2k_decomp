@@ -1,13 +1,13 @@
-//! `race::muddy_texel` (0x44A2E1): one texel of the mud texture being worked on (`dword_623D5C`, 0
-//! .. 3) brought toward the mud's colour: the place is the word `g_shuffledWords[eax & 0xFFFF]` (x
+//! `race::muddy_texel` (0x44A2E1): one texel of the mud texture being worked on (`mud_texture`, 0
+//! .. 3) brought toward the mud's colour: the place is the word `g_shuffledWords[n & 0xFFFF]` (x
 //! its low byte, y its high one), the strength the mud map's byte at (x / 2, y / 2) of the
-//! texture's 128 x 128 (`g_mud` + 0x4000 n), kept in `dword_62400C`. When `race::mud_texel` there
+//! texture's 128 x 128 (`g_mud` + 0x4000 n), kept in the scratch dword. When `race::mud_texel` there
 //! has its top bit set, it is tinted by `race::tint_to_mud_colour`, the top byte set, and put back
 //! (`race::put_mud_texel`).
 //!
 //! See `race/mud.rs`. Callers: `race::throw_mud_texel` (twice). Refuses a texture past 3 (the
 //! map would be read past its 64 KB) and no mud, before anything; what `put_mud_texel` refuses
-//! (`dword_62400C` put back).
+//! (`scratch` put back).
 
 use crate::errors::{BadInput, Refused};
 use crate::race::mud_texel::mud_texel;

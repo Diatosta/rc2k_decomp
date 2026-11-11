@@ -3,19 +3,20 @@
 //! coded, 8 bits; 300 dpi both ways; right and bottom the size less one; the 16-colour
 //! palette greys 0 .. 15; three planes of `width` bytes), then each row taken apart
 //! (`gfx::pixel_to_components`, 16- or 32-bit pixels) into red, green and blue planes in
-//! `byte_94F6F8` and run coded as one line of `3 * width` bytes (runs to 63, a lone byte
+//! `planes` and run coded as one line of `3 * width` bytes (runs to 63, a lone byte
 //! below 0xC0 as itself), through the stream `g_pictureStream` (`files::open_stream` mode
 //! 1, `files::write_stream_block`, `files::write_stream_byte`, `files::close_stream`).
-//! The file is `dword_4F49C8` when set, else the game's screenshot name `000.pcx`
+//! The file is `name` when set, else the game's screenshot name `000.pcx`
 //! (0x4F52BC), its three digits one more first (999 goes round to 000). Here the callers
-//! that set `dword_4F49C8` (and put it back after) pass the name instead.
+//! that set `name` (and put it back after) pass the name instead.
 //!
 //! In:  nothing (the surface locked)
 //!
-//! A 16-bit pixel is read with `mov ax`: the conversion gets the upper half of eax as it
-//! was (reproduced, eax followed through). Pixels of other sizes are not read: the last
-//! value of eax is used (reproduced). The runs go over the planes' ends (the format wants
-//! each plane's line coded alone; the game's own reader does not mind).
+//! A 16-bit pixel is read into the low half of a register: the conversion gets the upper
+//! half as it was (reproduced; the register is followed through as `eax`). Pixels of other
+//! sizes are not read: the last value of `eax` is used (reproduced). The runs go over the
+//! planes' ends (the format wants each plane's line coded alone; the game's own reader
+//! does not mind).
 //!
 //! Callers: `gfx::take_screenshot`, `race::viewer_snapshot`, `race::replay_screenshot`. Refuses
 //! what `open_stream` refuses.
@@ -78,7 +79,7 @@ pub fn write_screen_pcx(
 fn rows(stream: &mut Stream) -> Result<bool, Refused> {
     let gfx = gfx();
     let rows = crate::gfx::rows::Rows::surface()?;
-    // eax as the original has it: the block's byte count after the header (0x80).
+    // The block's byte count after the header (0x80), as the original's register has it.
     let mut eax: u32 = 0x80;
     let width = gfx.drawing.draw_surface.width.get();
     let mut y = 0u32;

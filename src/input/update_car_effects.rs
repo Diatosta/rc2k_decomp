@@ -89,14 +89,14 @@ fn update_car_effects_with(
     };
     o.flag_ac.set(view.front_wheels_off.get());
     let ten = effects.effect_ten.bits();
-    o.effect_in[0].set(mul_to_int(view.local_velocity[0].bits(), ten) as u32);
+    o.effect_in[0].set(mul_to_int(&view.local_velocity[0], ten) as u32);
     o.effect_in[1].set(sub_mul_to_int(
         view.drive_speed_a.bits(),
         view.local_velocity[2].bits(),
         ten,
     ) as u32);
-    o.effect_in[2].set(mul_to_int(view.local_velocity[0].bits(), ten) as u32);
-    o.effect_in[3].set(mul_to_int(view.local_velocity[2].bits(), ten) as u32);
+    o.effect_in[2].set(mul_to_int(&view.local_velocity[0], ten) as u32);
+    o.effect_in[3].set(mul_to_int(&view.local_velocity[2], ten) as u32);
     // The knock's force from its inputs (angle from y = `knock_in[2]`, x = `knock_in[0]`).
     if o.knock_in[3].get() & 0x7FFF_FFFF != 0 && o.knock_in[0].get() & 0x7FFF_FFFF != 0 {
         let (angle, force) = knock(

@@ -1,7 +1,7 @@
 //! `drive::start_blend` (0x43773D): the checkpoints the work car is past the lead's start
-//! (`dword_71A070` - `dword_70F484`, held to 0 .. 100 by the signs), through `dword_62400C` times
-//! `flt_604EC0` into `flt_71A654`; `flt_71A658` = `flt_71A650` + that + `flt_71A64C`, held to
-//! `flt_5C5D90` .. `flt_5C5D38` (0 .. 1). The result is the computer
+//! (`checkpoint` - `dword_70F484`, held to 0 .. 100 by the signs), through `scratch` times
+//! `start_blend_step` into `start_blend_share`; `start_blend` = `start_share` + that + `pace_push`, held to
+//! `zero` .. `one` (0 .. 1). The result is the computer
 //! driver's skill share (`driver_start_blend`, read by `drive::read_car_controls` and used by
 //! `drive_computer_car` to ease the wanted speed from 30 up to the table's speed:
 //! `30 + (wanted - 30) x blend`): the start's grid share (`start_share`, high for the first
@@ -13,7 +13,8 @@
 //! Caller: `drive::read_car_controls` (0x43A486).
 
 use crate::math::x87;
-use crate::math::x87_run::{add3, compare_full};
+use crate::math::x87::compare_full;
+use crate::math::x87_float as bh;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
@@ -41,9 +42,13 @@ pub fn blend_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
     put(
         v,
         3,
-        x87::int_times(n as i32, race.shared.tables.start_blend_step.bits()),
+        x87::int_times(n as i32, &race.shared.tables.start_blend_step),
     );
-    put(v, 6, add3(get(v, 4), get(v, 3), get(v, 5)));
+    put(
+        v,
+        6,
+        bh::st(bh::ld(get(v, 4)) + bh::ld(get(v, 3)) + bh::ld(get(v, 5))),
+    );
     let (low, high) = (
         race.course.numbers.zero.bits(),
         race.course.numbers.one.bits(),

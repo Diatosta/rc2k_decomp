@@ -1,6 +1,6 @@
 //! `service::load_background` (0x470F55): the service area's picture for the current
-//! player's car: the player (`g_players`[`dword_75598C`]), its car (+8; car 0x21 takes car
-//! 0x17's picture), the picture `off_75A52E`[car] (`files\g\graphics\screens\servNN.png`, 60
+//! player's car: the player (`g_players`[the current player]), its car (+8; car 0x21 takes car
+//! 0x17's picture), the picture of the car (`files\g\graphics\screens\servNN.png`, 60
 //! of them) loaded (`gfx::load_picture`) and converted (`gfx::convert_picture`); a failed
 //! conversion (carry) is fatal error 0x80712435.
 //!
@@ -15,7 +15,8 @@ use crate::menu::owner::menus;
 /// never set by `gfx::convert_picture`'s Rust version, which refuses instead.
 pub fn load_background() -> Result<(), Refused> {
     let menus = menus();
-    let Some(player) = crate::menu::player::player(menus.screens.event.current_player.get()) else {
+    let Some(player) = crate::menu::player::player(menus, menus.screens.event.current_player.get())
+    else {
         return Err(BadInput("no current player (or one past the four)").into());
     };
     // Converted: `rc2k_core::service::car::background`.

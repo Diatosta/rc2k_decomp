@@ -1,6 +1,6 @@
-//! `physics::take_asked_gear` (0x43C1E3): `g_car` +0x238 (`unk_71A210`) 0; the gear
-//! asked for, bits 8 .. 11 of +0x468 (`unk_71A440`) as a signed nibble, through
-//! `physics::allowed_gear` into `dword_614C40`; then `physics::change_gear`.
+//! `physics::take_asked_gear` (0x43C1E3): `g_car` +0x238 (`gear_changed`) 0; the gear
+//! asked for, bits 8 .. 11 of +0x468 (`input_keys`) as a signed nibble, through
+//! `physics::allowed_gear` into `gear_asked`; then `physics::change_gear`.
 //!
 //! Caller: `physics::gearbox_step`. Refuses what the two calls refuse; what was written by then is
 //! put back.

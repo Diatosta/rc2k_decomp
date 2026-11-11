@@ -4,8 +4,7 @@ pub mod raise;
 pub mod report;
 pub mod show_report_at_exit;
 
-/// The reporter's variables, out of the image since 2026-10-24 (each has its own
-/// entry in `moved::MOVED`).
+/// The reporter's variables (their own entry in `moved::MOVED`).
 pub mod state {
     use crate::session::{Byte, Bytes, Dword};
 

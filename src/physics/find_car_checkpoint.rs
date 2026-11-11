@@ -1,18 +1,17 @@
-//! `physics::find_car_checkpoint` (0x44139D): the work car's checkpoint looked for near
-//! the last one. The car's x and z into `dword_639824` / `dword_63982C`; with no
-//! checkpoints eax 0. Else `race::nearest_checkpoint_in` over `g_car` +0x98 - 1 ..
-//! +0x98 + 1 (ecx, edx); its distance (edi) through `dword_62400C`, / 65536 into
-//! `g_nearestCheckpointDistance`; above 0xA0000 (unsigned) `race::nearest_checkpoint`
-//! over them all (eax), else eax the nearest (ebp).
+//! `physics::find_car_checkpoint` (0x44139D): the work car's checkpoint looked for near the last
+//! one. The car's x and z go into `ground_x` / `ground_z`; with no checkpoints the result is 0.
+//! Else `race::nearest_checkpoint_in` runs over the car's `checkpoint` - 1 ..= + 1; its distance
+//! (/ 65536) goes into `g_nearestCheckpointDistance`; above 0xA0000 (unsigned)
+//! `race::nearest_checkpoint` runs over them all, else the nearest of the three is the result.
 //!
 //! Caller: `physics::track_checkpoints`. Refuses what the two calls refuse.
 
 use crate::errors::Refused;
-use crate::math::x87_run::{ext_div2, int_80};
+use crate::math::x87::{ext_div2, int_80};
 use crate::race::owner::Race;
 use rc2k_core::physics::progress;
 
-/// The car's checkpoint (eax): the nearest within the window about the one it had
+/// The car's checkpoint: the nearest within the window about the one it had
 /// (`race::nearest_checkpoint_in`), or, when that is too far, of them all
 /// (`race::nearest_checkpoint`).
 // Converted: `rc2k_core::physics::progress::{near_window, search_all}`.

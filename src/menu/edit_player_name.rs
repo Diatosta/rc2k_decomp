@@ -6,10 +6,10 @@
 //! ends; 0x1C (Enter)  an empty name is replaced by the one kept; the entry ends; 0x6E          the
 //! name is cleared (`menu::clear_text`); 0x0E          the last character goes; any other
 //! `key_to_char`; a character is appended unless the length is already above the maximum
-//! (`dword_755571`, signed), and taken off again if the name then measures 0xEC pixels or more in
+//! (`loop_flags.text_max`, signed), and taken off again if the name then measures 0xEC pixels or more in
 //! the font at 0x51E824 (measured from the x that is the length before the character, as ecx held
 //! it). No cursor is written: the page draws it (`screens::draw_name_cursor`). Called from the four
-//! `player*_details_loop`s while `dword_7556A8` is 1. Refuses, before the key is taken: no current
+//! `player*_details_loop`s while `option_work.typing` is 1. Refuses, before the key is taken: no current
 //! player, a player without a name, a length outside 0 .. 0x1F, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};

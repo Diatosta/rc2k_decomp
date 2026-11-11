@@ -1,6 +1,6 @@
 //! `physics::race_timers` (0x436790): the race's timers for the work car, every physics
-//! step. `flt_614170` 1.0, or `flt_601028` once finished (+0xA8). Then by the race mode
-//! (`dword_62389C`): 2: `physics::count_start_second`, `physics::count_down_start`,
+//! step. `weight` 1.0, or `timer_factor` once finished (+0xA8). Then by the race mode
+//! (`run_kind`): 2: `physics::count_start_second`, `physics::count_down_start`,
 //! `physics::take_split_counted`, `physics::start_go_notice`,
 //! `physics::count_stop_timers`, `physics::mark_car_started`; 0, 1, 3:
 //! `count_start_second`, `physics::take_split`, `count_stop_timers`, `mark_car_started`;
@@ -8,9 +8,6 @@
 //!
 //! Caller: `physics::car_physics_step` (0x43B64E). Refuses what the steps refuse; what was written
 //! is put back.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 use crate::errors::Refused;
 use crate::physics::count_down_start::count_down_start;
 use crate::physics::count_start_second::count_start_second;

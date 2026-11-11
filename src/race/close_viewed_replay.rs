@@ -1,6 +1,6 @@
-//! `race::close_viewed_replay` (0x41EB7C): the viewer's replay closed, if open (`dword_5BEC88` 1):
+//! `race::close_viewed_replay` (0x41EB7C): the viewer's replay closed, if open (`replay_open` 1):
 //! the game's physics patches back (`race::restore_replay_patches`), the file `h` closed
-//! (`files::close`), `dword_5BEC88` 0.
+//! (`files::close`), `replay_open` 0.
 //!
 //! Callers: `race::replay_viewer`, `race::viewer_action` (action 0x14),
 //! `race::open_viewed_replay` (failing), `race::save_last_replay`, 0x444034.

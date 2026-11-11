@@ -4,7 +4,7 @@
 //! (`saves::load_options`). A `#[repr(C)]` struct with the image's layout, one static;
 //! `moved::MOVED` points the range at it. (Split 2026-10-25 from the front end's block `menu::store`.)
 
-use crate::session::Dword;
+use crate::session::{Bytes, Dword};
 
 /// The options' work copies (IDA 0x755640 .. 0x7556B4).
 #[repr(C)]
@@ -44,22 +44,22 @@ pub struct OptionWork {
     pub dolby: Dword,
     /// `dword_755680`: The channels chosen.
     pub channels: Dword,
-    /// `g_masterVolumeShown`: The master volume shown (`audio::primary`, `menu::run_front_end`).
-    pub master_volume_shown: Dword,
+    /// 4 bytes of the image's layout: the master volume shown (now `audio::levels::Levels`).
+    pub _gap_755684: Bytes<4>,
     /// `dword_755688`: The music level (`menu::option_steps`).
     pub music_level: Dword,
     /// `dword_75568C`: Read by the music "up" step (`menu::music_volume_up`).
     pub other_volume: Dword,
     /// `dword_755690`: The menu sounds' third volume (`sound::play_menu_sound`).
     pub menu_sounds_c: Dword,
-    /// `dword_755694`: The menu sounds' first volume.
-    pub menu_sounds_a: Dword,
+    /// 4 bytes of the image's layout: the race sounds' volume (now `audio::levels::Levels`).
+    pub _gap_755694: Bytes<4>,
     /// `dword_755698`: The speech level (`menu::option_steps`, `sound::play_car_stream`).
     pub speech_level: Dword,
-    /// `dword_75569C`: The sounds' first level.
-    pub sounds_a: Dword,
-    /// `dword_7556A0`: The sounds' second level.
-    pub sounds_b: Dword,
+    /// 4 bytes of the image's layout: the sounds' first level (now `audio::levels::Levels`).
+    pub _gap_75569c: Bytes<4>,
+    /// 4 bytes of the image's layout: the sounds' second level (now `audio::levels::Levels`).
+    pub _gap_7556a0: Bytes<4>,
     /// `dword_7556A4`: The menu's sound: 0x6F, or 0x14D after Enter (`menu::handle_keys`).
     pub menu_sound: Dword,
     /// `dword_7556A8`: 1 while a text is being typed (`menu::text_entry`).
@@ -102,14 +102,14 @@ impl OptionWork {
             a3d: Dword::new(0x0),
             dolby: Dword::new(0x0),
             channels: Dword::new(0x1),
-            master_volume_shown: Dword::new(0x40),
+            _gap_755684: Bytes::new([0x40, 0, 0, 0]),
             music_level: Dword::new(0x40),
             other_volume: Dword::new(0x40),
             menu_sounds_c: Dword::new(0x40),
-            menu_sounds_a: Dword::new(0x40),
+            _gap_755694: Bytes::new([0x40, 0, 0, 0]),
             speech_level: Dword::new(0x40),
-            sounds_a: Dword::new(0x40),
-            sounds_b: Dword::new(0x40),
+            _gap_75569c: Bytes::new([0x40, 0, 0, 0]),
+            _gap_7556a0: Bytes::new([0x40, 0, 0, 0]),
             menu_sound: Dword::new(0x6F),
             typing: Dword::new(0x0),
             redefining_key: Dword::new(0x0),
@@ -184,14 +184,14 @@ mod tests {
         at(offset_of!(OptionWork, a3d), 0x755678);
         at(offset_of!(OptionWork, dolby), 0x75567C);
         at(offset_of!(OptionWork, channels), 0x755680);
-        at(offset_of!(OptionWork, master_volume_shown), 0x755684);
+        at(offset_of!(OptionWork, _gap_755684), 0x755684);
         at(offset_of!(OptionWork, music_level), 0x755688);
         at(offset_of!(OptionWork, other_volume), 0x75568C);
         at(offset_of!(OptionWork, menu_sounds_c), 0x755690);
-        at(offset_of!(OptionWork, menu_sounds_a), 0x755694);
+        at(offset_of!(OptionWork, _gap_755694), 0x755694);
         at(offset_of!(OptionWork, speech_level), 0x755698);
-        at(offset_of!(OptionWork, sounds_a), 0x75569C);
-        at(offset_of!(OptionWork, sounds_b), 0x7556A0);
+        at(offset_of!(OptionWork, _gap_75569c), 0x75569C);
+        at(offset_of!(OptionWork, _gap_7556a0), 0x7556A0);
         at(offset_of!(OptionWork, menu_sound), 0x7556A4);
         at(offset_of!(OptionWork, typing), 0x7556A8);
         at(offset_of!(OptionWork, redefining_key), 0x7556AC);

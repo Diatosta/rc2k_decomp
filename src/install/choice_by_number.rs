@@ -1,14 +1,14 @@
-//! `install::choice_by_number` (0x41486A): an item of choices (kind 2) set to choice ecx (a
+//! `install::choice_by_number` (0x41486A): an item of choices (kind 2) set to choice `number` (a
 //! number key's), if there is one and it is not marked.
 //!
 //! Returns the chosen byte's address, table.
-//! The compare is of cl with the choices; the mark is read at `[ebx+ecx*2+1]`, all of ecx.
+//! The compare is of the number's low byte with the choices; the mark is read for the whole number.
 //! Callers `install::key_number`.
 
 use crate::menu::list_handle::ListItem;
 use rc2k_core::install::items::{self, MARKS};
 
-/// `number` the choice (ecx, all 32 bits read for the mark).
+/// `number` the choice (all 32 bits read for the mark).
 pub fn choice_by_number(item: ListItem, number: u32) {
     let chosen_at = item.value();
     let table = item.choices();

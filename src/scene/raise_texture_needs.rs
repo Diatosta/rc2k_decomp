@@ -3,8 +3,8 @@
 //!
 //! Takes: the level, the tag
 //!
-//! For every texture whose tag (`dword_5CDAE0`) is ebx: its level in each of the two tables
-//! (`dword_5CEAE0`, `dword_5CFAE0`) becomes eax if eax is above it, unsigned (so -1, "not
+//! For every texture whose tag is the given tag: its level in each of the two tables
+//! (system and video) becomes the given level if that is above it, unsigned (so -1, "not
 //! needed", is never raised). 57 callers.
 
 // ---- Rust version ----

@@ -1,5 +1,5 @@
 //! `menu::championship_standings` (0x4A9583): the championship's standings pages,
-//! `dword_75AB34` 1 while they show. Standings table B from all
+//! `state.menus.standings_shown` 1 while they show. Standings table B from all
 //! (`menu::standings_b_from_all`); outside event mode 0x13: sorted by figure and by score
 //! (`menu::sort_standings_b_by_figure`, `_by_score`), numbered (`number_all`), the
 //! overall page (`menu::show_championship_standings`); in it: sorted by figure twice and

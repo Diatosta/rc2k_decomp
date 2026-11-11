@@ -1,4 +1,4 @@
-//! `screens::draw_event_best_scores` (0x4A8DBF): a best scores page (group `dword_7558F4`) with its
+//! `screens::draw_event_best_scores` (0x4A8DBF): a best scores page (group `event.class`) with its
 //! heading (the section's name in event mode 0x13, else string 0x35E + the group), the
 //! player's own scores in the highlight fonts (see `screens/best_scores.rs`).
 //!

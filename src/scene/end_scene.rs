@@ -6,7 +6,7 @@
 //! original's; a call by address goes through `routes.rs`, which maps them.
 
 /// The 3D part of a frame ended: true when a scene was open (the original then leaves
-/// eax 0 and the zero flag set; the carry always clear).
+/// nothing a caller reads).
 pub fn end_scene() -> bool {
     crate::platform_3d::end_layer()
 }

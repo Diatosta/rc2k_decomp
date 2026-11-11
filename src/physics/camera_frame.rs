@@ -1,15 +1,12 @@
 //! `physics::camera_frame` (0x44FF1B): the camera's shake, then its step. The shake
-//! (`flt_637644`) and the offset `dword_637638` .. 0; in modes 1 .. 3 (`unk_71A65C`) with
-//! `unk_71A22C` 0: `unk_71A8E4` x `flt_614098` held within ± `flt_614094` (the limit
-//! negated and back, `fchs`) into `dword_63763C`, and the shake a random number
-//! (`math::next_random`) / 65536 / `flt_5C5E28` x `flt_5C5D40` x it; both 0 again with
-//! `dword_601024` set. Then `physics::update_camera`.
+//! (`camera_shake_listener`) and the offset `camera_shake_x` .. 0; in modes 1 .. 3 (`camera_view`) with
+//! `all_wheels_off` 0: `vertical_speed_change` x `camera_frame_scale` held within ± `camera_frame_limit` (the limit
+//! negated and back, `fchs`) into `camera_shake_y`, and the shake a random number
+//! (`math::next_random`) / 65536 / `k4096` x `three` x it; both 0 again with
+//! `still` set. Then `physics::update_camera`.
 //!
 //! Callers: `physics::car_physics_step`, `drive::finish_run`, `race::show_replay_still`. Refuses
 //! what `update_camera` refuses (everything written put back).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::math::x87_float::int;
@@ -59,9 +56,9 @@ pub fn camera_frame(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x23763C] = [rc + 0x31A8E4] * [rc + 0x214098]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[camera_shake_y] = [vertical_speed_change] * [camera_frame_scale]`
 fn x87_1(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     let t0 = ld(shared.car.vertical_speed_change.bits());
     let t1 = ld(shared.physics_tables.camera_frame_scale.bits());
@@ -69,9 +66,9 @@ fn x87_1(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     scene.lights.state.camera_shake_y.set_bits(st(t2));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x237644] = (((int [rc + 0x22400C] / [rc + 0x1C5D98]) / [rc + 0x1C5E28]) * [rc + 0x1C5D40]) * [rc + 0x23763C]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[camera_shake_listener] = (((int [scratch] / [k65536]) / [k4096]) * [three]) * [camera_shake_y]`
 fn x87_2(numbers: &Numbers, scene: &crate::scene::owner::Scene) {
     let t0 = int(scene.drawing.scene.scratch.bits() as i32);
     let t1 = ld(numbers.k65536.bits());

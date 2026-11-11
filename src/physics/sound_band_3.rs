@@ -1,12 +1,9 @@
-//! `physics::sound_band_3` (0x45D0F1): `flt_6D3CD0` x `flt_6D1AE8`, less 10, held to 0 ..= 0x40, in ebx.
+//! `physics::sound_band_3` (0x45D0F1): `bump_speed_length` x `bump_band_scale`, less 10, held to 0 ..= 0x40.
 //! See `physics/sound_bands.rs` (the core and the test).
 //!
 //! Returns: the band
 //!
 //! Caller: `physics::place_sound_e1_other`.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::physics::sound_bands::Twin;
 

@@ -33,7 +33,7 @@ pub struct Pcx {
     /// `g_pcxPlanes` (`dword_5195E0`).
     pub planes: Dword,
     /// `g_pictureStream` (`dword_5195E4`): the stream the readers opened the file as; not
-    /// used since 2026-10-29 (`files::stream::with_stream`), kept for the block's layout.
+    /// used (`files::stream::with_stream`), kept for the block's layout.
     pub stream: Bytes<STREAM_LEN>,
     /// `g_pcxHeader` (`dword_51B5F4`): the header as read from the file, 0x80 bytes.
     pub header: Bytes<HEADER_LEN>,

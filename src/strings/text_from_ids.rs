@@ -1,7 +1,7 @@
 //! `strings::text_from_ids` (0x40229B): builds the text of `count` consecutive string ids in
 //! the shared text buffer and NUL-terminates it.
 //!
-//! Returns the text buffer. The next id is whatever `append_string_by_id` leaves in eax, plus 1.
+//! Returns the text buffer. The next id is whatever `append_string_by_id` returns, plus 1.
 //! That is the previous id for string-table ids, but a string pointer for the pointer-table
 //! branches, so a run only makes sense over string-table ids. A count of 0 wraps and never ends:
 //! refused, as is a text longer than the buffer (the callers pass the refusal on).

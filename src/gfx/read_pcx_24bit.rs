@@ -2,7 +2,7 @@
 //! the picture buffer as 32-bit pixels.
 //!
 //! Takes: path
-//! Opens the file as the stream `dword_5195E4`, reads the header through it, sets
+//! Opens the file as the stream `stream`, reads the header through it, sets
 //! `g_pictureFlags` to 0x800 and calls `lay_out_pcx`. Then the rows. A row in the file is
 //! one plane after the other, each the header's count of bytes; plane n's bytes go to byte
 //! `planes - 1 - n` of the pixels (so the first plane is the third byte), those within the

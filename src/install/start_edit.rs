@@ -1,6 +1,6 @@
 //! `install::start_edit` (0x4148D6): an edit item (kind 4) begins to be edited: its record's
 //! bit 0 set, its text cut at its most bytes (`[record+1]`: a NUL there) and that and two
-//! bytes more kept in `byte_95EAF8` (for Escape, `install::edit_key`).
+//! bytes more kept in `script_path` (for Escape, `install::edit_key`).
 //!
 //! Takes the item.
 //! Callers `install::item_enter`, `install::next_edit`.

@@ -1,10 +1,10 @@
-//! `race::save_viewed_replay` (0x41ED1C): the viewed (and edited) replay saved as replay ebx: with
+//! `race::save_viewed_replay` (0x41ED1C): the viewed (and edited) replay saved as a replay slot: with
 //! blocks to save, the header made ("REPL", 0, version 0x50400, the date
-//! `system::packed_local_time`, the slot's name: 32 bytes of `byte_528934`); the last race's file
-//! (`var\tmprpl`) opened to read (mode 0, `dword_975508`) and the slot's (`race::replay_path`) made
-//! (mode 1, `dword_97550C`); the undo emptied (`dword_9673F4` 0, its places zeroed: they become the
+//! `system::packed_local_time`, the slot's name: 32 bytes of the slot-name table); the last race's file
+//! (`var\tmprpl`) opened to read (mode 0, `from_file`) and the slot's (`race::replay_path`) made
+//! (mode 1, `to_file`); the undo emptied (`undo_blocks` 0, its places zeroed: they become the
 //! new index); the header written, then each block in the viewer's order: read from its place
-//! (`files::seek`, `drive::read_packed` into `dword_9613A4`, neither checked), its first 8 bytes
+//! (`files::seek`, `drive::read_packed` into `block`, neither checked), its first 8 bytes
 //! the block's cameras, written packed (`race::write_replay_chunk`), its offset and size (negative
 //! when packed) into the new index; then "RCIB" and the count (16 bytes) and the new index (0x3840
 //! bytes). Both closed; the undo emptied again.
@@ -30,7 +30,7 @@ pub fn save_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
     Ok(done)
 }
 
-/// Whether it was saved (`edx` 1).
+/// Whether it was saved.
 fn save(race: &Race, slot: u32) -> Result<bool, Refused> {
     let replay = &race.replay;
     let shared = &race.shared;

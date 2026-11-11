@@ -1,16 +1,15 @@
-//! `physics::matrix_angles` (0x4212C3): three angles of the turn matrix at esi. The
-//! matrix turns (0, 0, 1) (`scene::rotate_point`, stored as floats in `flt_5C70E0`,
-//! `E4`, `E8`): `flt_5C70D8` = `fpatan` of E0 over E8; the same turn again, and
-//! `flt_5C70D4` = minus `physics::clamped_asin` of E4; then (1, 0, 0) turned, and
-//! `flt_5C70DC` = `clamped_asin` of E4 over the cosine of D4 (80 bits). A reading: the
-//! car's heading (D8), pitch (D4) and roll (DC).
+//! `physics::matrix_angles` (0x4212C3): three angles of a turn matrix. The matrix turns (0, 0, 1)
+//! (`scene::rotate_point`, stored as floats in `turned_x` ..): `car_heading` is the `fpatan` of
+//! the x over the z; the same turn again, and `car_pitch` is minus `physics::clamped_asin` of the
+//! y; then (1, 0, 0) is turned, and `car_roll` is `clamped_asin` of the y over the cosine of the
+//! pitch (80 bits). A reading: the car's heading, pitch and roll.
 //!
 //! Takes: the matrix
 //!
 //! Callers: `physics::car_angles` (`g_crashMatrix`).
 
 use crate::math::cells::Cells;
-use crate::math::x87_run::{neg_rounded, over_cos_80, patan};
+use crate::math::x87::{neg_rounded, over_cos_80, patan};
 use crate::physics::clamped_asin::clamped_asin_at;
 use crate::race::owner_course::Course;
 use crate::scene::matrix3::{extended, rounded};

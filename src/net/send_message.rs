@@ -1,14 +1,14 @@
 //! `net::send_message` (0x41736D): a message to every player: the sequence byte
-//! (`byte_52A915` + 1, top bit set, kept) and the bytes into `byte_52AA68`, sent
-//! (`net::dplay_send`: to `dword_5AB274`, the bytes and their count, one more than given,
+//! (`sequence` + 1, top bit set, kept) and the bytes into `send_buffer`, sent
+//! (`net::dplay_send`: to `send_to`, the bytes and their count, one more than given,
 //! flags 0).
 //!
 //! Takes `bytes`, `count`.
 //!
 //! See `net/mod.rs`. Callers: `net::send_inputs`, `net::send_position`, `net::send_extra`
-//! (through `net::send_race_message`, `call net::send_message; retn`, folded in). Refuses
+//! (through `net::send_race_message`). Refuses
 //! (before anything) more than 0xFF bytes: the buffer is 0x100 (the original writes on
-//! into `dword_52AB68`).
+//! into the receiving thread's event handle).
 
 use crate::errors::Refused;
 use crate::net::dplay_send::dplay_send;

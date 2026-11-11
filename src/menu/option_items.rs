@@ -1,12 +1,12 @@
 //! The options pages' remaining item handlers (2026-10-19; the standalone program met
 //! them as "not ported" on the sound and visual options pages): thirty small left/right
 //! and action handlers, each named by what it changes. What each does, by its kind:
-//! - a switch: a dword flipped (`xor .., 1`), nothing else (0x467EF8 `dword_5180F4`,
-//!   0x468211 `dword_7556F8`, 0x468219 `dword_7556FC`; what they switch is not read);
+//! - a switch: a dword flipped (`xor .., 1`), nothing else (0x467EF8 a game flag,
+//!   0x468211 `champ_view.switch_f8`, 0x468219 `switch_fc`; what they switch is not read);
 //! - a switch with a copy: flipped, eax its value, then a second dword flipped too
 //!   (0x46FFB3, 0x46FFC7) or given eax (0x470035, 0x470107, 0x470119, 0x47018B: the
-//!   `dword_75AD..` the game's settings read);
-//! - 0x470017: `dword_75564C` flipped, eax its value, `dword_4F50C4` flipped, then the
+//!   settings the game reads);
+//! - 0x470017: `option_work.modes_switch` flipped, eax its value, the display's twin switch flipped, then the
 //!   screen-mode list made again (`gfx::screen_mode_choices` with eax 0);
 //! - the advanced sound page's switches (0x4701E9 DS3D, 0x4701F6 EAX, 0x470203 A3D,
 //!   0x470210 Dolby, 0x47021D the channels): the work value flipped and
@@ -14,13 +14,12 @@
 //!   less, 3 before 0), then the same;
 //! - a volume: its work value one less (below 0: 0) or one more (above 0x40: 0x40), signed;
 //!   then the master's (`g_masterVolumeShown`) is sent (`sound::send_command_8`, eax the
-//!   value), the race music's (`dword_75568C`) stored in `dword_518100` (eax the value),
-//!   the race sounds' (`dword_755694`) and the menu sounds' (`dword_755690`) heard
+//!   value), the race music's (`option_work.other_volume`) stored in the game's music volume (eax the value),
+//!   the race sounds' (`menu_sounds_a`) and the menu sounds' (`menu_sounds_c`) heard
 //!   (`sound::play_menu_sound` with eax 0x80 and 1);
-//! - a counter (0x468221 / 0x46823B: `dword_75880E` 0 .. 5, 0x468255 / 0x46826F:
-//!   `dword_758812` 1 .. 6), one less or one more, past an end the other end (signed);
-//! - 0x46FFDB: the screen mode chosen (`dword_4F50C8`) one less, before 0 the last
-//!   (`dword_4F50E4` - 1); eax the new one.
+//! - a counter (0x468221 / 0x46823B: `captions.shown_group` 0 .. 5, 0x468255 / 0x46826F:
+//!   `captions.shown_stage` 1 .. 6), one less or one more, past an end the other end (signed);
+//! - 0x46FFDB: the screen mode chosen one less, before 0 the last; eax the new one.
 //!
 //! Result as above (the volumes: the value, or the sound when one is heard; the switches
 //! with a copy: the value).
@@ -28,6 +27,7 @@
 //! Which item each is: the page tables' readings (the owner named the sound page's four volumes:
 //! general, race music, race effects, menu effects).
 
+use crate::audio::owner::AUDIO_OWNER;
 use crate::errors::Refused;
 use crate::gfx::owner::GFX;
 use crate::gfx::owner::gfx;
@@ -189,18 +189,16 @@ pub fn volume(
         volume_step,
     };
     let item = match which {
-        VolumeKind::Master => volume_item(
-            var!(MENUS.screens.option_work.master_volume_shown),
-            up,
-            Then::Send,
-        ),
+        VolumeKind::Master => {
+            volume_item(var!(AUDIO_OWNER.levels.master_volume_shown), up, Then::Send)
+        }
         VolumeKind::RaceMusic => volume_item(
             var!(MENUS.screens.option_work.other_volume),
             up,
             Then::Store(var!(SOUND.menu.options.race_music_volume)),
         ),
         VolumeKind::RaceSounds => volume_item(
-            var!(MENUS.screens.option_work.menu_sounds_a),
+            var!(AUDIO_OWNER.levels.menu_sounds_a),
             up,
             Then::Sound(0x80),
         ),

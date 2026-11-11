@@ -10,8 +10,8 @@ use crate::math::x87;
 
 pub fn set_batch_depth(hud: &Hud) {
     {
-        let rhw = x87::loaded(hud.block.rhw.bits());
-        let depth = x87::loaded(hud.block.depth.bits());
+        let rhw = x87::loaded(&hud.block.rhw);
+        let depth = x87::loaded(&hud.block.depth);
         for n in 0..4 {
             let v = &VERTICES.vertices[n];
             v.rhw.set_bits(rhw);

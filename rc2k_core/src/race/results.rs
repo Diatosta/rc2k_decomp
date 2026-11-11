@@ -1,4 +1,4 @@
-//! The front end's tables the race takes in (converted 2026-10-21 from
+//! The front end's tables the race takes in (Converted from
 //! `race::copy_league_table` 0x4650B7 and `race::copy_rally_times` 0x48C997): the league
 //! table's ten records (0x50 bytes) turned into a row of their +8 and sixteen rows of
 //! their sixteen dwords, and the rally's ten best times (records of 0x9C bytes) cut down
@@ -9,7 +9,7 @@ pub const RECORDS: usize = 10;
 /// The dwords each league record has from +0x10 (a row each in the race's table).
 pub const LEAGUE_ROWS: usize = 16;
 
-/// The league table in the race's layout: each record's +8 (`dword_60410C`) and its
+/// The league table in the race's layout: each record's +8 (`names`) and its
 /// sixteen dwords from +0x10 as columns of sixteen rows (0x604134, 0x28 apart).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct League {

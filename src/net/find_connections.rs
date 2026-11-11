@@ -2,7 +2,7 @@
 //! has ended (`g_netReceiveDone` 1): the lobby object made (`net::open_lobby`); then (the
 //! original's lobby-launched branch is left out: `net::open_lobby`) DirectPlay's object made
 //! (`net::create_dplay`), the lists' memory taken (`net::allocate_lists`), and the
-//! connections listed (`EnumConnections` for the game's GUID `dword_5AB300` with
+//! connections listed (`EnumConnections` for the game's GUID `app_guid` with
 //! `net::connection_found`, flags DPCONNECTION_DIRECTPLAY).
 //!
 //! Returns true when connections were listed; false when the receiving thread ended, something
@@ -26,6 +26,6 @@ pub fn find_connections(vars: &NetVars) -> Result<bool, Refused> {
     vars.connections.set(0);
     let result =
         { crate::net::dp_objects::enum_connections(crate::net::connection_found::callback, 0) };
-    // `cmp dword_52AC34, 1`: the carry when none was listed.
+    // The carry is set when none was listed.
     Ok(result == 0 && vars.connections.get() >= 1)
 }

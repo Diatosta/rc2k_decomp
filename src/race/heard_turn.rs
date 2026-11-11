@@ -7,7 +7,7 @@
 //! backwards camera while the listener faced forwards (`notes/bugs.md`). Until the first view
 //! of a stage is drawn, the matrix as it is (what the original used then too).
 
-use crate::race::owner::Race;
+use crate::race::matrices_store::SceneMatrices;
 use crate::session::Float;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -30,10 +30,10 @@ pub fn forget() {
 }
 
 /// The turn the race's sounds are placed by.
-pub fn turn(race: &Race) -> &[Float; 16] {
+pub fn turn(matrices: &SceneMatrices) -> &[Float; 16] {
     if KEPT.load(Ordering::Relaxed) {
         &TURN
     } else {
-        &race.frame.matrices.view_turn_matrix
+        &matrices.view_turn_matrix
     }
 }

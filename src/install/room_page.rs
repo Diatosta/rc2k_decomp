@@ -1,5 +1,5 @@
-//! `install::room_page` (0x4142C7): the not-enough-room page. At the start (ebx 0)
-//! `dword_51BA04` (ignore the room) is set to 0.
+//! `install::room_page` (0x4142C7): the not-enough-room page. At the start (state 0)
+//! `ignore_room` (ignore the room) is set to 0.
 //!
 //! Takes the state.
 //! Caller `install::run_page`.

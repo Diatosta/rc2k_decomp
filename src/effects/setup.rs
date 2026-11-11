@@ -1,4 +1,4 @@
-//! `effects::init_marks`' (0x4D12F7) first leaves (IDA, 2026-10-16): the noise tables, the
+//! `effects::init_marks`' (0x4D12F7) first leaves (IDA): the noise tables, the
 //! wave tables (made once), the slots cleared, and the marks' clock (also run each frame by
 //! `effects::run_frame`, 0x4D1549).
 
@@ -7,10 +7,11 @@ use crate::effects::paths::Paths;
 use crate::effects::rain::Weather;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::math::x87_float as bh;
 use crate::race::owner_shared::RaceShared;
 use crate::session::{Bytes, Dword, Float};
 
-/// The marks' clock (`effects::tick_clock`) (IDA 0x764FC8 .. 0x764FFC, the image's layout; phase 7, typed state).
+/// The marks' clock (`effects::tick_clock`) (IDA 0x764FC8 .. 0x764FFC).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarksClock {
@@ -46,11 +47,11 @@ impl MarksClock {
             started: Dword::new(0x0),
             last: Dword::new(0x0),
             frame_ticks: Dword::new(0x0),
-            ticks_scaled: Float::from_bits(0x0),
+            ticks_scaled: Float::new(0.0),
             sixteenth: Dword::new(0x0),
             quarter: Dword::new(0x0),
-            reciprocal: Float::from_bits(0x0),
-            reciprocal_scaled: Float::from_bits(0x0),
+            reciprocal: Float::new(0.0),
+            reciprocal_scaled: Float::new(0.0),
             now: Dword::new(0x0),
             before: Dword::new(0x0),
             settings_copies: [Dword::new(0x0), Dword::new(0x0)],
@@ -123,7 +124,9 @@ pub fn make_wave_tables(paths: &Paths) -> Result<(), Refused> {
         .take(WAVE_LEVELS as usize)
         .rev()
     {
-        level.set(x87::int_div_less(level.get() as i32, scale, less));
+        level.set(bh::st(
+            bh::int(level.get() as i32) / bh::ld(scale) - bh::ld(less),
+        ));
     }
     let mut sines = vec![0u32; SINES as usize];
     x87::sine_table(paths.wave.sine_step.bits(), &mut sines);
@@ -154,7 +157,7 @@ pub fn tick_clock(
     let setup = &effects.setup;
     let c = &setup.clock;
     {
-        let clock: u32 = shared.physics_tables.scene_clock.bits();
+        let clock: u32 = shared.physics_tables.scene_clock.get();
         if c.started.get() == 0 {
             c.started.set(1);
             for r in [&c.last, &c.now, &c.before] {
@@ -162,7 +165,7 @@ pub fn tick_clock(
             }
             c.frame_ticks.set(0);
             c.reciprocal
-                .set_bits(x87::loaded(setup.clock_k.first_reciprocal.bits()));
+                .set_bits(x87::loaded(&setup.clock_k.first_reciprocal));
             return Ok(());
         }
         c.now.set(clock);
@@ -183,7 +186,7 @@ pub fn tick_clock(
         c.reciprocal.set_bits(reciprocal);
         c.reciprocal_scaled.set_bits(scaled);
         c.ticks_scaled
-            .set_bits(x87::mul(ticks, setup.clock_k.ticks_scale.bits()));
+            .set_bits(x87::mul(ticks, &setup.clock_k.ticks_scale));
     }
     Ok(())
 }
@@ -308,7 +311,7 @@ pub fn make_noise_curve(
             weather.snow_vars.records[n][o as usize / 4].set(v);
         }
     }
-    let first = x87::loaded(weather.snow_light.quad_first.bits());
+    let first = x87::loaded(&weather.snow_light.quad_first);
     for cell in &weather.snow.quad_a {
         cell.set_bits(first);
     }
@@ -350,10 +353,7 @@ impl SettingsPointer {
 /// original's reads through it would fault.
 pub fn effects_settings()
 -> Result<&'static crate::race::effects_settings_store::EffectsSettings, BadInput> {
-    if effects().setup.settings.is_set.get() == 0 {
-        return Err(BadInput("no marks settings"));
-    }
-    Ok(&crate::race::effects_settings_store::EFFECTS_SETTINGS)
+    effects().settings()
 }
 
 impl SettingsPointer {
@@ -361,7 +361,7 @@ impl SettingsPointer {
     pub const LEN: usize = 4;
 }
 
-/// The marks' clock constants (IDA 0x93CC10 .. 0x93CC18, the image's layout; phase 7, typed state).
+/// The marks' clock constants (IDA 0x93CC10 .. 0x93CC18).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ClockK {
@@ -375,8 +375,8 @@ impl ClockK {
     /// ClockK's first values.
     pub const fn new() -> Self {
         Self {
-            first_reciprocal: Float::from_bits(0x358637BD),
-            ticks_scale: Float::from_bits(0x3DCCCCCD),
+            first_reciprocal: Float::new(1e-6),
+            ticks_scale: Float::new(0.1),
         }
     }
 }

@@ -1,15 +1,15 @@
 //! `race::update_mud_texture` (0x44A12E): the mud thrown and splashed since the last turn
-//! put onto the texture worked on (`dword_623D5C`, n). The texture's slot (kind 0x100's
-//! first slot + n) forgotten (`scene::forget_slot_texture`), `dword_6D1508` + 0x10000; the
-//! texture (kind 0x100's first texture + n, into `dword_623D54`; none: nothing more)
+//! put onto the texture worked on (`mud_texture`, n). The texture's slot (kind 0x100's
+//! first slot + n) forgotten (`scene::forget_slot_texture`), `texture_changes` + 0x10000; the
+//! texture (kind 0x100's first texture + n, into `mud_locked`; none: nothing more)
 //! locked (`d3d::lock_texture`, the platform's; carry: nothing more). Then:
-//! - the throws: `dword_623D60[n]` (the wheels' thrown mud, a float) rounded (`fistp`)
-//!   into `dword_623920`, which read back as a float (sic) and below 0.0 becomes 0.0's
-//!   bits: negative counts are 0. Unless the texture's count `dword_623D80[n]` is past
+//! - the throws: `mud_thrown_in`[n]` (the wheels' thrown mud, a float) rounded (`fistp`)
+//!   into `mud_throws`, which read back as a float (sic) and below 0.0 becomes 0.0's
+//!   bits: negative counts are 0. Unless the texture's count `mud_thrown_counts`[n]` is past
 //!   0x60000: held so that its low word plus the throws stays below 0x1000000, taken off
-//!   `dword_623D60[n]` (`fisub`), and above 0 that many `race::throw_mud_texel`;
-//! - the splashes: the same from `dword_623D70[n]` into `dword_623924`, unless the count
-//!   `dword_623D90[n]` has reached 0x1000 (also checked before each): `race::splash_mud`;
+//!   `mud_thrown_in`[n]` (`fisub`), and above 0 that many `race::throw_mud_texel`;
+//! - the splashes: the same from `mud_splashes_in`[n]` into `mud_splashes`, unless the count
+//!   `mud_splash_counts`[n]` has reached 0x1000 (also checked before each): `race::splash_mud`;
 //!
 //! Then the texture is unlocked (`d3d::unlock_texture`).
 //!

@@ -29,7 +29,7 @@ pub fn make_folders(path: impl Into<BytePlace>) -> Result<bool, Refused> {
 }
 
 /// The original's walk (`install::folders`' Windows rules); `at` the byte the original's
-/// esi is on, as an offset from the path's start.
+/// walk is on, as an offset from the path's start.
 #[cfg_attr(not(windows), allow(dead_code))] // reason: the Windows rules' and the tests'
 pub fn walk(path: BytePlace) -> Result<bool, Refused> {
     let byte = |n: u32| rb(path.add(n));
@@ -38,7 +38,7 @@ pub fn walk(path: BytePlace) -> Result<bool, Refused> {
     let start = rw(path);
     if (start >> 8) as u8 == b':' {
         at += 2;
-        // xor cl, cl; xchg cl, [esi+1]
+        // The byte after is taken out and a NUL put in its place.
         let kept = byte(at + 1);
         put(at + 1, 0);
         let done = set_cd(path);

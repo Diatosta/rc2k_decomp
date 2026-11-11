@@ -1,8 +1,8 @@
 //! `menu::load_car_background` (0x468482): the car specification page's background,
 //! the car's own.
 //!
-//! The car is the first dword of the shown entry's record (`dword_755990` through `dword_75A65C`),
-//! 0x21 counting as 0x17; the path is that car's in the page's table (`off_759AD2[dword_755998]`);
+//! The car is the first dword of the shown entry's record (`event.shown_car` through the carousel's car list),
+//! 0x21 counting as 0x17; the path is that car's in the page's table (the four page lists);
 //! `menu::load_background` with it and ebx = the car (the blit's palette). A carry after it is
 //! fatal error 0x80712345. Five call sites, the car specification screens' set-ups. Refuses a page
 //! past the four, and what the record's lookup refuses.
@@ -15,7 +15,7 @@ use crate::text::draw_text::GameCanvas;
 
 // ---- game data ----
 
-// dword_755990
+// `event.shown_car`
 // menu::load_background
 
 /// The car of the entry shown, 0x21 counting as 0x17.

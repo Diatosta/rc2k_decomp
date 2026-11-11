@@ -1,5 +1,5 @@
 //! `net::message_frame` (0x41748D): the frame of `net::show_message`: the surface locked
-//! (`gfx::lock_surface`; failing, nothing), the background copied, the message (string esi)
+//! (`gfx::lock_surface`; failing, nothing), the background copied, the message (string)
 //! drawn with `font_b` at 0x190, 0x12C, unlocked and shown.
 //!
 //! Takes `message`.

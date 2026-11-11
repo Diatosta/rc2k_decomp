@@ -20,7 +20,7 @@ pub fn save_game_data(
 
 /// The two parts on the game's files: whether the best times were written. The original's
 /// flags (carry: not written) are read by neither of its callers (`system::main_loop`,
-/// `menu::arcade_level_end`; register liveness, 2026-10-23).
+/// `menu::arcade_level_end`).
 pub fn save_in_game(saves: &Saves) -> Result<bool, Refused> {
     save_game_data(
         &mut || crate::saves::save_options::save_options(&saves.files.options_path),

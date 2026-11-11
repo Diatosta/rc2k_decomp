@@ -1,7 +1,7 @@
 //! `physics::free_rev` (0x43EA80): the engine revving free. `physics::engine_torque`;
-//! `flt_614750` = `flt_614740` x `flt_5CB968` / gear 0's ratio / 10000 x +0x638 (`fild`) /
-//! 256; the engine speed + it x the step / the ratio; the drag `dword_62400C` = engine
-//! speed x `flt_613FD8` + `flt_613FD4`; then the engine speed brought toward 0 by the drag
+//! `drive_torque` = `drive_ratio` x `drive_torque_figure` / gear 0's ratio / 10000 x +0x638 (`fild`) /
+//! 256; the engine speed + it x the step / the ratio; the drag `scratch` = engine
+//! speed x `free_rev_scale` + `free_rev_add`; then the engine speed brought toward 0 by the drag
 //! (not past it; at 0 or unordered left alone).
 //!
 //! The x87 run is plain Rust over `X` (`math/x87_float.rs`) over the game's variables; the
@@ -51,11 +51,11 @@ pub fn free_rev(race: &Race, scene: &crate::scene::owner::Scene) {
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x214750] = (((([rc + 0x214740] * [rc + 0x1CB968]) / [rc + 0x2140C0]) / [rc + 0x1C5E34]) * int [rc + 0x31A610]) / [rc + 0x1C5E2C]`
-/// `[rc + 0x31A1B0] = (([rc + 0x214750] * [rc + 0x21388C]) / [rc + 0x2140C0]) + [rc + 0x31A1B0]`
-/// `[rc + 0x22400C] = ([rc + 0x31A1B0] * [rc + 0x213FD8]) + [rc + 0x213FD4]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[drive_torque] = (((([drive_ratio] * [drive_torque_figure]) / [rc + 0x2140C0]) / [k10000]) * int [throttle]) / [k256]`
+/// `[engine_speed] = (([drive_torque] * [step_time]) / [rc + 0x2140C0]) + [engine_speed]`
+/// `[scratch] = ([engine_speed] * [free_rev_scale]) + [free_rev_add]`
 fn x87_1(race: &Race, scene: &crate::scene::owner::Scene) {
     let t0 = ld(race.shared.physics_tables.drive_ratio.bits());
     let t1 = ld(GEAR.drive_torque_figure.bits());

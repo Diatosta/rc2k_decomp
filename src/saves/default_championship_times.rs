@@ -1,14 +1,13 @@
 //! `saves::default_championship_times` (0x47C973): made-up best times for the
 //! championship's stages and rallies.
 //!
-//! `dword_755A0C` is 1)
-//! For each stage of the championship's record table (its records with tag 0, counted
-//! into `seconds`, 0x7559AC): the ten entries of the stage in the table at
-//! `dword_7556D8` get the record's +0x24 + 24,000 and 0x9F more each, and a driver
-//! (`saves/default_times.rs`). Then, going through the records once more: a stage adds
-//! its +0x18 + 0xB6 to `dword_7559B0`; a record with tag 3 or 4 (a rally's end) gives the
-//! twenty entries of the next of the six tables of `off_742C98` that sum and 0xB2 more
-//! each at +0x18, and a driver (0x47CB0A), and the sum starts again from 0.
+//! For each stage of the championship's record table (its records with tag 0, counted):
+//! the ten entries of the stage in the stage times table get the record's +0x24 + 24,000
+//! and 0x9F more each, and a driver (`saves/default_times.rs`). Then, going through the
+//! records once more: a stage adds its +0x18 + 0xB6 to the running sum; a record with
+//! tag 3 or 4 (a rally's end) gives the twenty entries of the next of the six rally
+//! tables that sum and 0xB2 more each at +0x18, and a driver, and the sum starts again
+//! from 0. With the checkpoint times asked for, those are made too.
 //! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded.
 //! Refuses missing tables, a record table without stages or without its end, and more
 //! rallies than the six tables. Converted: `rc2k_core::saves::defaults::championship_times`

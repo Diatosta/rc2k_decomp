@@ -1,11 +1,11 @@
 //! `install::mark_main_page` (0x4141EF): the main page's items marked by the installation's
-//! state. Not this version (`dword_51B9C8` != 1): item +0x28 gets 0x80 (unusable); no
+//! state. Not this version (`same_version` != 1): item +0x28 gets 0x80 (unusable); no
 //! installation (`g_installStatus` 0): item +0x38 gets 0x80; registration not offered
-//! (`dword_51B9E4` != 1): item +0x48 gets 0x40 (hidden). If the title word (`[edi+2Ah]`) is
+//! (`offer_registration` != 1): item +0x48 gets 0x40 (hidden). If the title word (`[list+2Ah]`) is
 //! 0xBD (the update script): +0x28 loses 0x80, +0x38 and +0x48 get 0x40.
 //!
 //! Takes the list.
-//! A page action; `ebx` is ignored. Caller `install::run_page`.
+//! A page action; the state is ignored. Caller `install::run_page`.
 
 use crate::menu::list_handle::ListMenu;
 use rc2k_core::install::pages;

@@ -1,17 +1,13 @@
-//! `physics::take_second_view` (0x438024): `physics::take_first_view` for the second view: +4 ..
-//! +0xC plus `dword_637638` .. into `flt_608BB0` ..; +0x10 .. +0x24 into `flt_608B8C`
-//! .., `flt_608BD4` ..; +0x28 .. +0x38 into `dword_608C0C`, `608C10`, `608C14`,
-//! `608C08`, `608C18`; the heading into `dword_608B68`; the next two halved (`sar`)
-//! unless the mode before (`unk_71A660`) is 1, 2 or 3, into `dword_608B70`,
-//! `dword_608B6C`.
+//! `physics::take_second_view` (0x438024): `physics::take_first_view` for the second view: the
+//! offset plus `camera_shake_x` .. into `view_b_offset`; +0x10 .. +0x24 into `view_b_turn` and
+//! `view_b_point`; +0x28 .. +0x38 into `view_b_shares`; the heading into `view_b_heading`; the next
+//! two halved (arithmetic shift) unless the mode before (`camera_blend_view`) is 1, 2 or 3, into
+//! `view_b_pitch` and `view_b_roll`.
 //!
 //! Takes: the view's record
 //! Returns: the two
 //!
 //! Caller: `physics::update_camera`.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
@@ -20,7 +16,7 @@ use crate::race::owner_physics::Physics;
 use crate::race::view_vars_store::ViewRecord;
 use crate::session::Cell32;
 
-/// The exact version, for `physics::update_camera`: `s` the view's record (esi).
+/// The exact version, for `physics::update_camera`: `s` the view's record.
 pub fn take_second_view(race: &Race, s: &ViewRecord, scene: &crate::scene::owner::Scene) {
     x87_1(&race.physics, s.offset_bits(), scene);
     for (x, v) in copies(&race.physics).iter().zip(s.taken()) {
@@ -62,12 +58,12 @@ fn copies(physics: &Physics) -> [&'_ dyn Cell32; 11] {
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (`[s + 4]` .. `[s + 0xC]` the record's offset, passed by value)
-/// `[rc + 0x208BB0] = [s + 4] + [rc + 0x237638]`
-/// `[rc + 0x208BB4] = [s + 8] + [rc + 0x23763C]`
-/// `[rc + 0x208BB8] = [s + 0xC] + [rc + 0x237640]`
+/// `[view_b_offset] = [s + 4] + [camera_shake_x]`
+/// `[rc + 0x208BB4] = [s + 8] + [camera_shake_y]`
+/// `[rc + 0x208BB8] = [s + 0xC] + [camera_shake_z]`
 fn x87_1(physics: &Physics, offset: [u32; 3], scene: &crate::scene::owner::Scene) {
     let lights = &scene.lights;
     let t0 = ld(offset[0]);

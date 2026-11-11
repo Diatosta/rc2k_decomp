@@ -1,18 +1,18 @@
 //! `screens::draw_class_ranking` (0x47C16A): a page of the times of one class
-//! (`dword_7558F4`) from the list at `dword_7556EC` (entries of 0x9C bytes, -1 ends it;
+//! (`event.class`) from the list `champ_view.ranked_times` (entries of 0x9C bytes, -1 ends it;
 //! +4 the driver's kind or player, +8 the nationality, +0xC the name (a string id when +4
 //! is 0, else a text), +0x10 the flag, +0x18 the time, +0x1C the class), ten rows from the
-//! place `dword_7556B4` on.
+//! place `champ_view.count` on.
 //!
 //!
 //! `g_firstPlayerTime` the class's first time (`menu::find_class_time`, ebx 1). The rows
 //! before the place are passed over (counting the class's entries from 1 until the place).
 //! Each row (`seconds` its place, and one past the last when the list ends after it, y from 0xF0, 0x19 apart, each draw's y handed on as edx
 //! is): the name at x 0xFA (font 0x51E584; a string for kind 0, else the text; the player
-//! `dword_7556C0` in 0x51E524 with the fonts below changed to theirs), the time at 0x258
+//! `champ_view.ranked_player` in 0x51E524 with the fonts below changed to theirs), the time at 0x258
 //! (`draw_time_fixed_pitch`, 0x51E564 / 0x51E504), the place at 0xBE (0x51E5A4 / 0x51E544)
 //! and below the first the gap (`glyph`): string 0x579 at 0x276 and the time at 0x2E4;
-//! then `dword_7559B0` = y + 4, the nationality's sprite (0x1C + +8) at x 0xD2 and the
+//! then `draw_work.scratch_b0` = y + 4, the nationality's sprite (0x1C + +8) at x 0xD2 and the
 //! flag's (`+0x10` with 0x18 and 0x19 swapped, + 0x44) at 0x1AE, both from `g_spriteTable`
 //! with ebx as the draws leave it as the palette.
 //!
@@ -32,7 +32,6 @@ use rc2k_core::saves::entries::BestTime;
 // g_firstPlayerTime
 // seconds
 // glyph
-// dword_7559B0
 /// Each row's entry and place, and the place left after the last.
 type Rows = (Vec<(BestTime, u32)>, Option<u32>);
 

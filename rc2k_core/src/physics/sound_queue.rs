@@ -1,4 +1,4 @@
-//! A sound object's queue of cues (converted 2026-10-21 from `physics::queue_sound_cue`
+//! A sound object's queue of cues (converted from `physics::queue_sound_cue`
 //! 0x40EE5C): up to 16 entries of 0x20 bytes (the cue, its sounds' number, up to six
 //! sounds); a cue put first stops the playing sound and moves the others up one.
 
@@ -8,7 +8,7 @@ use crate::Invalid;
 pub const ROOM: u32 = 16;
 pub const ENTRY_DWORDS: u32 = 8;
 
-/// The highest cue: `off_512508` holds 113 sound lists, cues 0 ..= 0x70, ended by -1. The
+/// The highest cue: `table` holds 113 sound lists, cues 0 ..= 0x70, ended by -1. The
 /// original does not check; a cue past the table would read past it.
 pub const LAST_CUE: u32 = 0x70;
 
@@ -35,7 +35,7 @@ pub fn check_cue(cue: u32) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// The place of a cue (`first`: eax 0) in a queue of `count`.
+/// The place of a cue (`first` set) in a queue of `count`.
 pub fn place(count: u32, first: bool) -> CuePlacement {
     if count == ROOM {
         CuePlacement::Full

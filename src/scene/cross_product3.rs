@@ -1,5 +1,5 @@
-//! `scene::cross_product3` (0x465551): the cross product of the three floats at esi and at
-//! edi into ebp's: x = a.y b.z - a.z b.y, y = a.z b.x - a.x b.z, z = a.x b.y - a.y b.x, each
+//! `scene::cross_product3` (0x465551): the cross product of the two vectors of three floats into
+//! a third: x = a.y b.z - a.z b.y, y = a.z b.x - a.x b.z, z = a.x b.y - a.y b.x, each
 //! rounded as it is written (so an output over an input is read back as the original
 //! does).
 //!
@@ -7,7 +7,7 @@
 //!
 //! See `scene/vector3.rs`. 16 callers (the marks' tyre marks and their kin).
 //!
-//! Plain Rust since 2026-10-24 (no assembly): the arithmetic is the x87's, in `X`
+//! Plain Rust (no assembly): the arithmetic is the x87's, in `X`
 //! (`math/x87_float.rs`); the original's instructions are kept as `asm_reference` in the tests.
 
 use crate::math::cells::Cells;

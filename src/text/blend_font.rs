@@ -2,11 +2,11 @@
 //! colours pulse between those of two fonts.
 //!
 //! Takes: font A, font B, the time, the length of a half pulse (0x100)
-//! In the half pulses where `eax & ebx` is not 0 the blend goes from A towards B, in the
+//! In the half pulses where `time & half_pulse` is not 0 the blend goes from A towards B, in the
 //! others from B towards A. The font it starts from is copied (0x20 bytes) to the blended
-//! font `stru_51E384`. Unless `dword_4F3F74` is 0, a 15-entry palette is then made in
-//! `dword_4F3B74` with `gfx::blend_palette` from the two fonts' palettes, `eax & (ebx - 1)`
-//! of the way (with `dword_4F3F74` = 2 that amount t is eased: t * t >> 8, then the same on
+//! font (`BLENDED_FONT`). Unless `blend_mode` is 0, a 15-entry palette is then made in
+//! `BLENDED_PALETTE` with `gfx::blend_palette` from the two fonts' palettes, `time & (half_pulse - 1)`
+//! of the way (with `blend_mode` = 2 that amount t is eased: t * t >> 8, then the same on
 //! 255 - t), and the blended font is given that palette.
 //! Two callers: the menu items and `screens::draw_highlighted_caption`.
 //! Refuses null fonts, and null palettes when a palette is made.
@@ -23,7 +23,7 @@ use crate::text::font::Font;
 
 // ---- game data ----
 
-/// g_blendedFont (stru_51E384, 0x20 bytes, out of the image since 2026-10-24, phase 5): the
+/// `g_blendedFont` (`stru_51E384`, 0x20 bytes): the
 /// font a highlighted item is drawn with. Its first bytes are the image's.
 pub static BLENDED_FONT: FontObject = FontObject::from_font(Font {
     first_char: 0x20,

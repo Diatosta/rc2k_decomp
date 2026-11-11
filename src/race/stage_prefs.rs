@@ -1,4 +1,4 @@
-//! More of `race::loadlevel_init`'s steps (IDA, 2026-10-16): "load prefs" (the stage's
+//! More of `race::loadlevel_init`'s steps: "load prefs" (the stage's
 //! `localdat`, 0x206C bytes at 0x608CB4, which hold `g_textureKinds` at +0x100 and the
 //! lists below), "skidmarks init", "render3d loadlightsdat" and "getmatcrash".
 
@@ -21,7 +21,7 @@ fn kind(race: &Race, n: u32) -> u32 {
     race.course.stage_prefs.texture_kinds[n as usize].get()
 }
 
-/// `dword_60A67C`: 0x40 kinds (>> 4) swapped in.
+/// `picture_lists_b`: 0x40 kinds (>> 4) swapped in.
 fn swapped(race: &Race, n: u32) -> u32 {
     race.course.stage_prefs.picture_lists_b[n as usize].get()
 }
@@ -47,7 +47,7 @@ pub fn swap_stage_texture(race: &Race) {
     course.stage_prefs.texture_kinds[swapped_kind as usize].set(new);
 }
 
-/// `race::tweak_stage` (0x439AAB): for the stages 0x15, 0x3E and 0x36, `dword_60A564` ..
+/// `race::tweak_stage` (0x439AAB): for the stages 0x15, 0x3E and 0x36, `car_light_table` ..
 /// `dword_60A56C` 0xFF.
 pub fn tweak_stage(race: &Race) {
     let course = &race.course;
@@ -59,7 +59,7 @@ pub fn tweak_stage(race: &Race) {
     }
 }
 
-/// `race::clear_prefs_qword` (0x465381): with `dword_71C800` set, `qword_609344` 0.
+/// `race::clear_prefs_qword` (0x465381): with `no_precipitation` set, `blit_cleared` 0.
 pub fn clear_prefs_qword(race: &Race) {
     let course = &race.course;
     {
@@ -94,7 +94,7 @@ pub fn reset_skid_slots(object: &crate::physics::car_store::Car) {
 }
 
 /// `race::init_skidmarks` (0x45857D): the two skid objects' slots, the 0x400 marks' first two words
-/// -1, `dword_645B10` 0.
+/// -1, `skid_next` 0.
 pub fn init_skidmarks(race: &Race) -> Result<(), BadInput> {
     let frame = &race.frame;
     {
@@ -135,9 +135,9 @@ pub fn load_lights_data(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::get_mat_crash` (0x43D43E): the three angles (`dword_71A99C`, `dword_71A998`,
-/// `dword_71A9A0`, each >> 16) kept at `dword_63503C` .., the x, y and z turns made of them, Z x X
-/// into the lit matrix, that x Y into `dword_71A08C`.
+/// `race::get_mat_crash` (0x43D43E): the three angles (`car_pitch`, `car_heading`,
+/// `car_roll`, each >> 16) kept at `angles` .., the x, y and z turns made of them, Z x X
+/// into the lit matrix, that x Y into `crash_matrix`.
 pub fn get_mat_crash(race: &Race) {
     let scene = crate::scene::owner::scene();
     let shared = &race.shared;

@@ -1,7 +1,7 @@
 //! `gfx::read_pcx` (0x411A45): decodes a PCX file into the picture buffer.
 //!
 //! Takes: path
-//! Zeroes the header (`dword_51B5F4`, 0x80 bytes) and reads the file's first 0x80 bytes
+//! Zeroes the header (`header`, 0x80 bytes) and reads the file's first 0x80 bytes
 //! into it with `files::read_file`; then by the header's number of planes: 1 goes to
 //! `read_pcx_8bit`, 3 to `read_pcx_24bit` (each opens the file again), anything else is a
 //! failure. Three callers, all in the picture loader `gfx::read_picture_file`.

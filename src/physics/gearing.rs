@@ -9,6 +9,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
@@ -59,14 +60,13 @@ pub fn revs_from_wheels_at(numbers: &Numbers, p: &GearPlaces<'_>) -> Result<(), 
         return Ok(());
     };
     let speed = if p.drive_kind.bits() == 1 {
-        crate::math::x87_run::sum_times_over(
-            p.drive_speed.bits(),
-            p.drive_speed_b.bits(),
-            numbers.half.bits(),
-            ratio,
+        bh::st(
+            (bh::ld(p.drive_speed.bits()) + bh::ld(p.drive_speed_b.bits()))
+                * bh::ld(numbers.half.bits())
+                / bh::ld(ratio),
         )
     } else {
-        x87::div(p.drive_speed.bits(), ratio)
+        x87::div(p.drive_speed, ratio)
     };
     p.engine_speed.set_bits(speed);
     Ok(())
@@ -79,7 +79,7 @@ pub fn wheels_from_revs_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
-    let speed = x87::mul(p.engine_speed.bits(), ratio);
+    let speed = x87::mul(p.engine_speed, ratio);
     p.drive_speed.set_bits(speed);
     if p.drive_kind.bits() == 1 {
         p.drive_speed_b.set_bits(x87::loaded(speed));
@@ -93,6 +93,6 @@ pub fn revs_from_speed_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
-    p.engine_speed.set_bits(x87::div(p.speed.bits(), ratio));
+    p.engine_speed.set_bits(x87::div(p.speed, ratio));
     Ok(())
 }

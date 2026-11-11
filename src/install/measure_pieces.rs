@@ -1,11 +1,10 @@
 //! `install::measure_pieces` (0x414DF5): each of a page's pieces measured into its width
 //! (+0x10) and height (+0x14). A piece whose item has 0x20 first has bits 0, 1 of its kind
 //! moved to bits 2, 3. A piece of a plain text kind (no 0x10) is its string measured
-//! (`text::measure_string_by_id`) in the font of its marks and kind (`byte_51D52D`,
-//! `dword_51D4C4`); else by the item's kind: an edit its record's width and its font's
-//! height (`byte_51D52F`); a text its string and the item's appended text (`[item+0xC]`
-//! with eax `[item+8]`, if any) in `text`, measured (`text::measure_text`); an action its
-//! box's size; any other what ecx and edx hold.
+//! (`text::measure_string_by_id`) in the font of its marks and kind (`fonts`); else by the item's kind: an edit its record's width and its font's
+//! height (`fonts`); a text its string and the item's appended text (`[item+0xC]`
+//! given `[item+8]`, if any) in `text`, measured (`text::measure_text`); an action its
+//! box's size; any other the size of the pieces before it.
 //!
 //! No pieces would go round 2^32 times: refused. Caller `install::run_page`.
 
@@ -30,8 +29,8 @@ pub fn measure_pieces(
     if count == 0 {
         return Err(BadInput("a page of no pieces").into());
     }
-    // The size each piece gets is what ecx and edx hold: ecx the pieces left (the measures
-    // get it as their x), edx the last height (a piece measured with neither keeps it).
+    // The size each piece gets is the carried one: the pieces left (the measures get it as
+    // their x) and the last height (a piece measured with neither keeps it).
     let mut height = None;
     for k in 0..count {
         let left = count - k;

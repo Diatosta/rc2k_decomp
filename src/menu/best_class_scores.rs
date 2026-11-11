@@ -1,4 +1,4 @@
-//! `menu::best_class_scores` (0x4A8608): each class's (0 .. `dword_7558F8`) new best scores: each counted player of the class whose score (+0xB0) is not below the class's tenth is entered (`menu::enter_best_score`); with one entered, `dword_7558F4` the class and the page (`menu::best_class_scores_loop`), stopping when the leaving is answered yes (`g_yesNoAnswer` 1).
+//! `menu::best_class_scores` (0x4A8608): each class's (0 .. `event.classes`) new best scores: each counted player of the class whose score (+0xB0) is not below the class's tenth is entered (`menu::enter_best_score`); with one entered, `event.class` the class and the page (`menu::best_class_scores_loop`), stopping when the leaving is answered yes (`g_yesNoAnswer` 1).
 //!
 //! Caller: the event drivers. Refuses a player count of 0 or
 //! past 4, a missing player, no classes or more than five, no table, and what an entry refuses,
@@ -9,8 +9,7 @@ use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
 pub fn best_class_scores(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
-    let screens = &menus.screens;
-    let players = counted_players(screens)?;
+    let players = counted_players(menus)?;
     let classes: u32 = menus.screens.event.classes.get();
     let (true, true) = (
         classes != 0 && classes <= 5,

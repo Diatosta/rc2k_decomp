@@ -1,6 +1,6 @@
 //! The cars' parts made ready to draw: the switch bytes of a car's marks and lamps from
 //! its state (+0xAB4 .. +0xAD0), their count, the axles' places from the model's record
-//! (converted 2026-10-21 from `race::car_part_matrices` 0x460E7C and `race::ready_car_parts`
+//! (converted from `race::car_part_matrices` 0x460E7C and `race::ready_car_parts`
 //! 0x460D5C; the matrices stay the x87's).
 
 use crate::Invalid;
@@ -10,9 +10,9 @@ use crate::Invalid;
 pub struct PartState {
     /// +0x84: the lights on.
     pub on: u32,
-    /// `dword_62DAD0`: the marks' mask.
+    /// `marks_mask`: the marks' mask.
     pub marks_mask: u32,
-    /// `dword_62DACC`: the lamps' mask.
+    /// `lamps_mask`: the lamps' mask.
     pub lamps_mask: u32,
     /// +0x63C.
     pub inside: u32,
@@ -117,9 +117,9 @@ pub fn per_thousand(v: i64) -> Option<u32> {
 }
 
 /// The five axle values from the model's record (`dword_5C9098` +0 .. +0x10) and the
-/// lift (`dword_613FC4`): (front x, rear x less the lift, height, front z, rear z less
-/// the lift) as `dword_608C50`, `dword_608C54`, `dword_608C58`, `dword_608C5C`,
-/// `dword_608C48`; None where a scaling would fault.
+/// lift (`ground_drop`): (front x, rear x less the lift, height, front z, rear z less
+/// the lift) as `axle_front`, `axle_rear_lift`, `axle_height`, `axle_front_z`,
+/// `car_axles`; None where a scaling would fault.
 pub fn axles(record: [u32; 5], lift: u32) -> Option<[u32; 5]> {
     let rec = |n: usize| record[n] as i32 as i64;
     Some([

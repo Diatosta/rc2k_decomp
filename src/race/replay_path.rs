@@ -68,7 +68,7 @@ pub fn last_race(replay: &Replay) -> Vec<u8> {
     bytes[..bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len())].to_vec()
 }
 
-/// Here the path's bytes (without the NUL); the original's eax is the last race's name or
+/// Here the path's bytes (without the NUL); the original returns the last race's name or
 /// `numbered_path`'s buffer, which this still fills.
 #[derive(Clone, Debug)]
 pub struct ReplayPath {

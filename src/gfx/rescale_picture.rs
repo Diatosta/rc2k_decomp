@@ -3,7 +3,7 @@
 //!
 //! The decoded picture (`g_decodedWidth` x `g_decodedHeight` dwords at `g_decodedPixels`,
 //! rows `g_decodedRowGap` bytes apart) is first copied to memory of its own (the game's
-//! allocator, `memory::allocate`, on the list `dword_4F505C`), and its rows
+//! allocator, on the list `Rescaler::copy_memory`), and its rows
 //! are listed with `fill_row_table`. Then for every pixel of `g_pictureWidth` x
 //! `g_pictureHeight`, written to `g_pictureBuffer`: its place in the copy as a whole number
 //! and a 32-bit fraction, both stepped by decoded size / picture size; of the fraction the
@@ -14,8 +14,8 @@
 //! four bytes past the copy: this reads the same bytes, from memory it takes
 //! from the same allocator.
 //! One caller, the picture loader `gfx::load_picture`, when the decoded width is not the screen's.
-//! Leaves the steps in `dword_4F509C` .. `dword_4F50A8`, the last weights in `dword_4F50AC`
-//! and `dword_4F50B0`, and 0 in the two counters `dword_4F50B4` and `dword_4F50B8`.
+//! Leaves the steps (`step_x` .. `step_y_fraction`), the last weights (`weight_x`,
+//! `weight_y`), and 0 in the two counters (`columns_left`, `rows_left`).
 //! Refuses sizes of 0 (the original divides by them or counts through all 32 bits), a
 //! decoded height above the row table's room, and null pointers. The name is a reading.
 

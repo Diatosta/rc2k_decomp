@@ -2,13 +2,13 @@
 //! receiving thread's event and the mutex (and in the original whether a lobby launched the
 //! game).
 //!
-//! With `g_noticeKind` (a byte) 2, `dword_52ABD0` (signed) held to 4 at most. An event (auto reset,
-//! not signalled: `threading::create_event` with eax 0, ebx 0) to `dword_52AB68`, none:
-//! fatal error 0x80168501; a mutex (`threading::create_mutex`) to `dword_52AB6C`, none:
-//! fatal error 0x80168502. Then 0x418E23: DirectPlay's lobby asked
-//! (`CoCreateInstance`) whether the game was launched by one ("NET: Lobby launch
-//! detected", `dword_5AB290` 1); left out with the lobbies (`net::open_lobby`).
-//! One caller, `start` (0x4010A2).
+//! With `g_noticeKind` (a byte) 2, `most_players` (signed) held to 4 at most. An event
+//! (auto reset, not signalled: `threading::create_event`) to `event`, none: fatal error
+//! 0x80168501; a mutex (`threading::create_mutex`) to `mutex`, none: fatal error
+//! 0x80168502. Then DirectPlay's lobby asked (`CoCreateInstance`) whether the game was
+//! launched by one ("NET: Lobby launch detected", `g_lobbyLaunched` 1); left out with the
+//! lobbies (`net::open_lobby`).
+//! One caller, `start`.
 
 use crate::errors::{FatalError, Refused};
 use crate::net::owner::net;

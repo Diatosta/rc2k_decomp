@@ -1,7 +1,7 @@
 //! The inspection's two fades (`menu::fade_in`, `menu::fade_out`): frames of
-//! `menu::fade_frame` (`screens::run_frame`) for `dword_75AB44` milliseconds, the fade
-//! quad's see-through `dword_75AB50` going from 0 up to (in) or from `dword_75AA94` down
-//! (out) with the time gone (`dword_75AB4C`, from `dword_75AB48`).
+//! `menu::fade_frame` (`screens::run_frame`) for `state.menus.fade_length` milliseconds, the fade
+//! quad's see-through going from 0 up to (in) or from the fade's full see-through down
+//! (out) with the time gone since the fade started.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::owner::Screens;

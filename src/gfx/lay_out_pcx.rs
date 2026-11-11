@@ -1,17 +1,17 @@
 //! `gfx::lay_out_pcx` (0x411A82): works out from a PCX header how the picture is to be
 //! decoded, and converts its palette.
 //!
-//! From the header at `dword_51B5F4`: the planes and the bytes of a plane's row; the
+//! From the header at `header`: the planes and the bytes of a plane's row; the
 //! picture's width and height (right - left + 1, bottom - top + 1, as words), and those cut
 //! to the picture buffer's size (`g_pictureWidth`, `g_pictureHeight`) and to the limits
-//! `dword_51B974` / `dword_51B978`. Pixels are 8 bits when bit 8 of `g_pictureFlags` is set,
+//! `width_limit` / `height_limit`. Pixels are 8 bits when bit 8 of `g_pictureFlags` is set,
 //! else 32. The stride from one decoded row to the next comes from `g_pictureRowBytes`:
 //! 0xFFFFFFFF = a screen's width of pixels (800), 0xFFFFFFFE = the buffer's width of
 //! pixels, 0xFFFFFFFD = the decoded row itself, anything else = that many bytes. The rows
 //! go to `g_pictureBuffer`. Last, `palette_to_dwords` on the file's palette.
 //! All of it lands in the variables listed in `gfx/pcx.rs`. Three callers, the PCX readers.
-//! The high half of the two sizes is what the instruction before left there (16-bit moves
-//! into eax), which this follows.
+//! The high half of the two sizes is what the instruction before left there (16-bit moves),
+//! which this follows.
 //! The name is a reading.
 
 use crate::errors::BadInput;

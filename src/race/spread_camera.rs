@@ -1,6 +1,6 @@
 //! `race::spread_camera` (0x41E6BD): a block's camera byte changed: the new value also into the
 //! next blocks' same byte (8 bytes on each) while they held the old one, for the blocks after the
-//! one shown (`dword_5BECD0 - dword_5C2530` less one at most).
+//! one shown (`index_block_count` - `replay_block` less one at most).
 //!
 //! Callers: `race::viewer_action` (four), `race::next_camera`, `race::previous_camera`, with
 //! the block shown not the last. The count is not checked: 0 (or less) is limited only by the

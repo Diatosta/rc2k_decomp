@@ -1,15 +1,11 @@
-//! `physics::cue_car_sound_last` (0x40ECBB): `physics::cue_car_sound`'s twin for the pace
-//! notes: for eax 0 or 1 (unsigned), the sound object of car `g_playerCarA[eax]`
-//! (`g_raceSoundObjects`); when its +8 is 1, `physics::queue_sound_cue` with eax 1 (last),
-//! edi its +0x298, the cue in ebx.
+//! `physics::cue_car_sound_last` (0x40ECBB): `physics::cue_car_sound`'s twin for the pace notes:
+//! the cue goes last in the queue of the sound object of car 0 or 1 (`g_playerCarA`,
+//! `g_raceSoundObjects`), when its state word (+8) is 1.
 //!
 //! Takes: which, the cue
 //!
 //! Caller: `physics::cue_listed_car_sound_last`. Refuses (before anything) a car past 7 or
 //! a null sound object.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::sound::store::SoundObject;

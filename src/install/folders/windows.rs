@@ -22,7 +22,7 @@ impl Folders for Windows {
     }
 
     fn bad_name(folder: &[u8]) -> Result<bool, BadInput> {
-        // Converted: `rc2k_core::install::paths::bad_folder_name` (RAL.EXE's `unk_51DE18`),
+        // Converted: `rc2k_core::install::paths::bad_folder_name` (RAL.EXE's list of bad characters),
         // which reads to the NUL the original's place held: `folder` is the text without
         // it. Zeros up to its third byte stand for the place's bytes past a shorter text
         // (the original reads from there on whatever its length).

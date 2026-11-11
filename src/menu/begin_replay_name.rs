@@ -1,6 +1,6 @@
 //! `menu::begin_replay_name` (0x46F715): starts typing the name of the highlighted replay:
 //! the name is copied to the text entry's backup and cleared, the entry's length is 0 and
-//! `dword_7556A8` (an entry is going on) is 1.
+//! `option_work.typing` (an entry is going on) is 1.
 //! It first logs "getrepsaveslotname result=<name>".
 //!
 //! It writes "Backed up name=<the name>" to the game's log (`logfile::log_write`). In six menu

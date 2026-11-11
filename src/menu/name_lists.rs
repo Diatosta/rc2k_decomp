@@ -1,6 +1,6 @@
 //! The two other name lists the text entry works on, each 100 names of 0x20 bytes: the saved
-//! games (`byte_526BB4`, ten to a page, page in `dword_75523C`) and the replays
-//! (`byte_528934`, twenty to a page, page in `dword_755248`). Which list is which comes from
+//! games (the sound file path buffer, ten to a page, page in `pages.save_page`) and the replays
+//! (the picture path buffer, twenty to a page, page in `pages.replay_page`). Which list is which comes from
 //! the code that reads `savedata\savegame\svgameNN` and `savedata\replay\replayNN` into them.
 
 use crate::errors::BadInput;
@@ -13,10 +13,10 @@ use crate::session::{Bytes, Dword};
 pub const NAME_LEN: usize = 0x20;
 const NAMES: u32 = 100;
 
-pub const SAVEGAME_PAGE_RVA: &Dword = &crate::menu::owner::MENUS.tables.pages.save_page; // dword_75523C
+pub const SAVEGAME_PAGE_RVA: &Dword = &crate::menu::owner::MENUS.tables.pages.save_page;
 const SAVEGAMES_PER_PAGE: u32 = 10;
 
-pub const REPLAY_PAGE_RVA: &Dword = &crate::menu::owner::MENUS.tables.pages.replay_page; // dword_755248
+pub const REPLAY_PAGE_RVA: &Dword = &crate::menu::owner::MENUS.tables.pages.replay_page;
 const REPLAYS_PER_PAGE: u32 = 20;
 
 fn highlighted<const N: usize>(

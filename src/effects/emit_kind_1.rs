@@ -1,23 +1,21 @@
-//! `effects::emit_kind_1` (0x4CCCD7, a chunk of `effects::emit_wheel_particles` entered by
-//! `jz` from it for the wheel kind 1): `effects::emit_particle_21` when `dword_93A1D6` is
-//! not 0, else (after `pusha`) the body at 0x4CCF71, `emit_particle_1`: one ring entry of
-//! kind 1.
+//! `effects::emit_kind_1` (0x4CCCD7, a chunk of `effects::emit_wheel_particles` entered from
+//! it for the wheel kind 1): `effects::emit_particle_21` when the kind-1 choice is not 0,
+//! else `emit_particle_1`: one ring entry of kind 1.
 //!
 //! Takes: the wheel record, the car object
 //!
-//! `emit_particle_1`: `g_marksWheelFlags` the wheel's +0x20; the wheel's +4 (a float here)
-//! grows by |+0x18| + |+0x10| + |+0x18 - +0xC|; when that rounded (`fist`) is 0x18 or more
-//! it is kept as its remainder by 0x18 (as a float) and an entry may be made: the strength
-//! (`dword_9356C0`, a float: |+0x10| by `flt_765168` plus |+0xC - +0x18|, by `flt_7651D0`)
-//! must not be under `flt_765164` (compared unrounded), and is held to at most 1
-//! (`flt_76516C`); the life (`dword_93567C`) it by `flt_7651F0` plus `flt_7651E8`, rounded;
-//! the fade (`flt_935678`) it by `dword_76519C`. The entry: its place the wheel's (+0x3C
-//! ..) plus a random side times `flt_93543A` .., less `flt_7651DC` in y at +0x28; its
-//! motion the car matrix's first row by +0x10, its third by +0x18 and `flt_93543A` .. by
-//! +0xC, each by a factor (`flt_93A39E` ..), moved by `effects::jitter_point` (spread
-//! `flt_93A3C2`), y plus `flt_93A3C6`; a random spin and turn; the flags' low 6 bits; the
-//! life and fade (+0x78 fade over life, +0x74 fade); the car and its +0x88; +0x70 0x10000
-//! and +0x60 it by `flt_93A3CE`; +0x64 0. Refuses (before anything) a null wheel, a null
+//! `emit_particle_1`: the wheel flags get the wheel's +0x20; the wheel's +4 (a float here)
+//! grows by |+0x18| + |+0x10| + |+0x18 - +0xC|; when that rounded is 0x18 or more it is kept
+//! as its remainder by 0x18 (as a float) and an entry may be made: the strength (a float:
+//! |+0x10| by one factor plus |+0xC - +0x18|, by another) must not be under the least
+//! strength (compared unrounded), and is held to at most 1; the life is the strength times a
+//! factor plus a base, rounded; the fade is the strength times the fade constant. The entry:
+//! its place the wheel's (+0x3C ..) plus a random side times the side factors, less a lift
+//! in y at +0x28; its motion the car matrix's first row by +0x10, its third by +0x18 and the
+//! side factors by +0xC, each by a factor, moved by `effects::jitter_point` (the set's
+//! spread), y plus a constant; a random spin and turn; the flags' low 6 bits; the life and
+//! fade (+0x78 fade over life, +0x74 fade); the car and its +0x88; +0x70 0x10000 and +0x60
+//! the strength times a size factor; +0x64 0. Refuses (before anything) a null wheel, a null
 //! object where read, a null car or matrix when an entry is made, and `emit_particle_21`'s.
 
 use crate::effects::emit_particle_21::emit_particle_21;
@@ -33,13 +31,13 @@ use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Dword, Float};
 
-/// flt_765168, flt_7651D0, flt_765164: the strength's factors and its least.
+/// The strength's two factors and its least.
 static STRENGTH_K: [&Float; 3] = [
     &crate::effects::owner::EFFECTS.setup.floats.three_tenths,
     &crate::effects::owner::EFFECTS.setup.floats.thirty_second,
     &crate::effects::owner::EFFECTS.setup.floats.fifth,
 ];
-/// flt_7651F0, flt_7651E8: the life's factor and base.
+/// The life's factor and base.
 static LIFE_K: [&Float; 2] = [
     &crate::effects::owner::EFFECTS.setup.floats.two_thousand,
     &crate::effects::owner::EFFECTS.setup.floats.hundred,
@@ -101,7 +99,7 @@ fn refusal(ring: &Ring, wheel: &MarkRecord) -> Result<Option<&'static str>, Refu
     })
 }
 
-/// The body at 0x4CCF71 (see the header).
+/// The kind 1 emitter proper (see the header).
 pub fn emit_particle_1(
     masks: &Masks,
     particles: &Particles,
@@ -136,7 +134,7 @@ pub fn emit_particle_1(
         let strength: u32 = ring.work.whole.get();
         let life = x87::times_plus_to_int(strength, LIFE_K[0].bits(), LIFE_K[1].bits());
         ring.work.life.set(life as u32);
-        let fade = x87::mul(strength, effects.setup.floats.two_fifty_five.bits());
+        let fade = x87::mul(strength, &effects.setup.floats.two_fifty_five);
         ring.work.fade.set_bits(fade);
         if next_entry(ring)?.is_none() {
             return Ok(());
@@ -192,7 +190,7 @@ pub fn emit_particle_1(
         slot.put(|en| &mut en.motion[2], rounded(moved[0]))?;
         slot.put(
             |en| &mut en.motion[1],
-            x87::add(rounded(moved[1]), particles.kind1_set.lift.bits()),
+            x87::add(rounded(moved[1]), &particles.kind1_set.lift),
         )?;
         slot.put(|en| &mut en.motion[0], rounded(moved[2]))?;
         let r = next_c5(&particles.kind1_set.spin_random);
@@ -207,7 +205,7 @@ pub fn emit_particle_1(
         slot.put(|en| &mut en.car_pace, car.pace.get())?;
         slot.put(
             |en| &mut en.size,
-            x87::int_times(SIZE as i32, particles.kind1_set.size_k.bits()),
+            x87::int_times(SIZE as i32, &particles.kind1_set.size_k),
         )?;
         slot.put(|en| &mut en.size_factor, 0)?;
     }
@@ -229,7 +227,7 @@ pub fn emit_kind_1(
     }
 }
 
-/// The wheel kind 1's choice (IDA 0x93A1D6 .. 0x93A1DA, the image's layout; phase 7, typed state).
+/// The wheel kind 1's choice (IDA 0x93A1D6 .. 0x93A1DA).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Kind1Choice {
@@ -278,7 +276,7 @@ mod kind1_choice_tests {
     }
 }
 
-/// Kind 1's emitter variables (`emit_particle_1`) (IDA 0x93A39A .. 0x93A3D2, the image's layout; phase 7, typed state).
+/// Kind 1's emitter variables (`emit_particle_1`) (IDA 0x93A39A .. 0x93A3D2).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Kind1Set {
@@ -302,20 +300,20 @@ impl Kind1Set {
         Kind1Set {
             side_random: Dword::new(0x0),
             motion_k: [
-                Float::from_bits(0x4283126F),
-                Float::from_bits(0x42449BA6),
-                Float::from_bits(0x41426E98),
-                Float::from_bits(0x4283126F),
-                Float::from_bits(0x42449BA6),
-                Float::from_bits(0x41426E98),
-                Float::from_bits(0x4283126F),
-                Float::from_bits(0x42449BA6),
-                Float::from_bits(0x41426E98),
+                Float::new(65.536),
+                Float::new(49.152),
+                Float::new(12.152),
+                Float::new(65.536),
+                Float::new(49.152),
+                Float::new(12.152),
+                Float::new(65.536),
+                Float::new(49.152),
+                Float::new(12.152),
             ],
-            spread: Float::from_bits(0x42C00000),
-            lift: Float::from_bits(0x42800000),
+            spread: Float::new(96.0),
+            lift: Float::new(64.0),
             spin_random: Dword::new(0x0),
-            size_k: Float::from_bits(0x3E4CCCCD),
+            size_k: Float::new(0.2),
         }
     }
 }

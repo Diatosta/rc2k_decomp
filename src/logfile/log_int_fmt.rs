@@ -1,5 +1,5 @@
-//! `logfile::log_int_fmt` (0x40148B): logs eax as a signed decimal number, formatted as the
-//! `format_u32` flags in ecx say (0x10 zero-pad, 0x20 space-pad, low four bits the width).
+//! `logfile::log_int_fmt` (0x40148B): logs the number as a signed decimal number, formatted as the
+//! `format_u32` flags say (0x10 zero-pad, 0x20 space-pad, low four bits the width).
 //!
 //! Takes the number, the flags, 1 for a line break after it and the level - 1. See `numeric.rs`.
 //! The minus sign comes before the padded magnitude.

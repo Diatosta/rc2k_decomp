@@ -3,7 +3,7 @@
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: leaving is not asked about; on leaving the highlight is
-//! saved in `dword_747678`, not in the variable it is taken from (the original's slip); the
+//! saved in the saved highlight, not in the variable it is taken from (the original's slip); the
 //! steps that are more than a call or a store are the functions below, generated from the
 //! listing.
 //! The name is a reading from the title string of its menu, "CARREGAR CAMPEONATO", not yet a

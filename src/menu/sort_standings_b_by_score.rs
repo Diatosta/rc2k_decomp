@@ -5,8 +5,6 @@
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
-
-// dword_75598C
 pub fn sort_standings_b_by_score(menus: &Menus) -> Result<(), Refused> {
     sort_table_b(menus, rc2k_core::saves::rankings::BKey::OverallTotal, true)?;
     Ok(())

@@ -1,16 +1,13 @@
 //! `scene::draw_object` (0x45045D): draws one object, in seven steps.
 //!
-//! In:  nothing (`g_objectNumber` the object)
+//! In:  nothing (the current object number is the object)
 //!
-//! eax = `g_objectNumber`; `scene::set_object_light`; `scene::set_object_material`;
-//! `scene::set_object_fade` (which may make `g_objectNumber` another object); ebx =
-//! `g_objectNumber`; `scene::place_object_points_any` (0x45BDE1, inlined: with `g_use3dNow`
-//! 0x45BF89, else with `g_useSse` 0x45C04E, neither ported, else
+//! The steps: `scene::set_object_light`; `scene::set_object_material`; `scene::set_object_fade`
+//! (which may make the current object another object); `scene::place_object_points_any`
+//! (inlined: with the 3DNow switch on its way, not ported; with SSE on its way; else
 //! `scene::place_object_points`); `scene::list_object_faces`; `scene::sort_listed_faces`;
-//! `scene::draw_object_faces`. One caller, `scene::draw_shown_object`, which reads no register
-//! after it. The Rust versions of the light, the material, the fade and the sorting keep the
-//! registers their originals change, so what is left differs from the original's there. A refusal
-//! of a later step comes with the earlier ones done; the original then does them again.
+//! `scene::draw_object_faces`. One caller, `scene::draw_shown_object`. A refusal of a later step
+//! comes with the earlier ones done; the original then does them again.
 
 use crate::errors::BadInput;
 use crate::errors::Refused;

@@ -1,8 +1,8 @@
 //! `screens::draw_column_boxes` (0x4A0078): a two-column page's 32 boxes: in each column (x
-//! 0x43, then 0x192; rows from y 0x45 every 0x1D, numbered by `dword_7559EC` 1 .. 0x20, the
+//! 0x43, then 0x192; rows from y 0x45 every 0x1D, numbered by `draw_work.figure` 1 .. 0x20, the
 //! place in `g_markerX` / `g_markerY`) a box 0x14D x 0x1B (0x4FCF, see-through
-//! `dword_75AA90`) and its black border; the chosen row (`dword_755525`, while
-//! `dword_7559A4` is 1) also a yellow (0xFFFF00) border and one a pixel outside it. Each a
+//! `state.service_ui`) and its black border; the chosen row (`loop_flags.item`, while
+//! `draw_work.blink` is 1) also a yellow (0xFFFF00) border and one a pixel outside it. Each a
 //! `scene::draw_tinted_quad`.
 //!
 //!
@@ -13,7 +13,7 @@ use crate::menu::owner::Screens;
 use crate::screens::service_boxes::{quad, rd, set};
 use crate::session::Dword;
 
-const ROW: &Dword = &crate::menu::owner::MENUS.screens.draw_work.figure; // dword_7559EC
+const ROW: &Dword = &crate::menu::owner::MENUS.screens.draw_work.figure;
 const MARKER_X: &Dword = &crate::menu::owner::MENUS.screens.draw_work.marker_x; // g_markerX
 const MARKER_Y: &Dword = &crate::menu::owner::MENUS.screens.draw_work.marker_y; // g_markerY
 

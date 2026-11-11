@@ -1,21 +1,18 @@
 //! `physics::find_clear_place` (0x43BDD1): the work car moved to a place where nothing
-//! touches it, after a reset. `dword_614C28` = 0x5A; its speed times `flt_613FDC`
+//! touches it, after a reset. `clear_place_mark` = 0x5A; its speed times `clear_place_share`
 //! (`physics::scale_vector`); `physics::restore_saved_car`;
-//! `physics::lowest_body_point`, the depth into `dword_614118`. Then tries n = 0x70 +
-//! (`unk_719FE0` & 0xF) .. 0xFF: `dword_614738` (counted by `restore_saved_car`) = 0, the
-//! place moved by 2^((n >> 4) + 1) x (`dword_614014[n & 0xF]`, `dword_614054[n & 0xF]`)
+//! `physics::lowest_body_point`, the depth into `clear_place_face`. Then tries n = 0x70 +
+//! (`step_clock` & 0xF) .. 0xFF: `clear_place_count` (counted by `restore_saved_car`) = 0, the
+//! place moved by 2^((n >> 4) + 1) x (`clear_place_steps_a`[n & 0xF]`, `clear_place_steps_b`[n & 0xF]`)
 //! (x, z; `imul`, low dwords), `physics::probe_ground`, `physics::crossed_edge`,
 //! `physics::wall_contacts`, `physics::car_collisions`, `physics::face_contacts`; a try
 //! that restored nothing ends it. None: `physics::reset_car`. Found:
 //! `lowest_body_point`, a depth below 0 taken off the height (+0x800); "porky", n, the
-//! first depth and the last logged (level 1); `dword_61473C` + 1;
+//! first depth and the last logged (level 1); `clear_place_tries` + 1;
 //! `physics::limit_motion`.
 //!
 //! Caller: `physics::car_physics_step` (0x43B8DB). Refuses (before anything) a probe count of 0 or
 //! past 0x40; what its calls refuse.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

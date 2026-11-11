@@ -1,6 +1,6 @@
 //! DirectPlay's `CoCreateInstance`, called from Rust (the platform). The game's objects
 //! (`g_dplay` 0x5AB288, an `IDirectPlay4A`; `g_dplayLobby` 0x5AB28C, an
-//! `IDirectPlayLobby2A`; `dword_5AB284`) are `net::dp_objects`' ids, their methods its
+//! `IDirectPlayLobby2A`; `dplay_2`) are `net::dp_objects`' ids, their methods its
 //! functions (the original called them through the objects' tables by offset:
 //! (IDirectPlay4A) 0 QueryInterface, 8 Release, 0xC AddPlayerToGroup, 0x10 Close, 0x14
 //! CreateGroup, 0x18 CreatePlayer, 0x1C DeletePlayerFromGroup, 0x24 DestroyPlayer, 0x2C

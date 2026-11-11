@@ -2,9 +2,9 @@
 //! state made "waiting" (bit 1 off, bit 2 on), its time -1; once a second the players listed
 //! (`net::list_players_regs`); on the host, with every player waiting (state bit 2, those
 //! with 0x80 left out), the sync of `net::lobby_loop` with 'P' messages, and when all have
-//! answered `dword_52AD7C` 1.
+//! answered `race_over` 1.
 //!
-//! Returns `dword_52AD7C` (1: go). The original sets the carry with no players on the host (or
+//! Returns `race_over` (1: go). The original sets the carry with no players on the host (or
 //! a failed listing, which never comes); its one caller, `net::lets_rally`, reads only the
 //! value (`lq -s 0x4171FE`).
 //! Caller: `net::lets_rally`, once a frame. The sync's registers are its own scratch.

@@ -1,11 +1,10 @@
 //! `scene::allocate_object_memory` (0x41F814): takes the memory the objects' points
 //! and faces are loaded into.
 //!
-//! One block on the list `stru_5C6DD0`, counted in `dword_5C6F90`: in a race 0x300000 bytes,
-//! 0xC0000 of them for the points and 0x240000 for the faces; else 0x580000, 0x180000 and
-//! 0x400000. `g_objectPoints` = the block, `dword_5C6FA8` (the faces' memory) = what follows
-//! the points' part, `dword_5C6FAC` and `dword_5C6FB0` the two rooms. One caller,
-//! `scene::set_up_object_memory`.
+//! One block on the memory list, counted: in a race 0x300000 bytes, 0xC0000 of them for the
+//! points and 0x240000 for the faces; else 0x580000, 0x180000 and 0x400000. The object points
+//! = the block, the faces' memory = what follows the points' part, and the two rooms kept. One
+//! caller, `scene::set_up_object_memory`.
 
 use crate::errors::Refused;
 
@@ -21,7 +20,7 @@ use rc2k_core::scene::objects::object_rooms as rooms;
 pub fn allocate_object_memory_in_game(
     course: &crate::race::owner_course::Course,
 ) -> Result<(), Refused> {
-    let (points, faces) = rooms(course.numbers.in_race.get() != 0);
+    let (points, faces) = rooms(course.numbers.in_race.is_set());
     let list = &course.lists.object_points_list;
     course.lists.course_bytes_total.set(
         course

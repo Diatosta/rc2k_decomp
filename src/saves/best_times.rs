@@ -1,4 +1,4 @@
-//! The best times' tables Rust owns as typed values (phase 12; they were blocks of the
+//! The best times' tables Rust owns as typed values (they were blocks of the
 //! game's heap): taken by `saves::allocate_best_times` on the best
 //! times' list, read from and written to `var\hst.dat` in the original's bytes
 //! (`saves::load_best_times`, `saves::save_best_times`), given back with the list

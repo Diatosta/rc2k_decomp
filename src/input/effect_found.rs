@@ -4,7 +4,7 @@
 //! one (+0xC 1) that is the GUID it wants (+8 points at it): +0xC 1, +0x20 .. +0x28 the
 //! info's type, static and dynamic parameters, +0x10 its GUID. So each effect ends with
 //! its wanted GUID when the device has it, else with the last of its type listed. Always
-//! goes on (eax 1).
+//! goes on (returns 1).
 //!
 //! In:  (stdcall) the `DIEFFECTINFOA`, the context (the device's record)
 //!
@@ -26,7 +26,6 @@ pub fn callback(guids: &InputGuids, info: &DiEffectInfo, record: &InputDevice) -
     }
 }
 
-/// The Rust version: eax.
 pub fn effect_found(
     guids: &InputGuids,
     info: &DiEffectInfo,

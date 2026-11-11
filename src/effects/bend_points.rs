@@ -1,5 +1,5 @@
-//! `effects::bend_points` (0x4BA646): unless `dword_7695CA` is `g_marksSplineChosen`, the
-//! first record ebp +0xC ordered points (`g_marksOrderedCoords`) bent: A the record's point
+//! `effects::bend_points` (0x4BA646): unless the grade flag is the chosen spline, the
+//! first record's +0xC ordered points bent: A the record's point
 //! +0x30 (into `dword_76A1D2` ..), C (+0x44 made 0x2EE0, or -16000 unless `dword_7695CA` is
 //! 1; +0x48, +0x4C) into `dword_76A1EA` .., B (C's x, A's y, C's z) into `dword_76A1DE` ..;
 //! D their blend by `g_marksSplinesMade`'s weights (`effects::blend_points`), rounded
@@ -14,7 +14,7 @@ use crate::effects::blend_points::blend_points;
 use crate::effects::paths::Paths;
 use crate::effects::splines::{MOST_POINTS, Spline};
 use crate::errors::{BadInput, Refused};
-use crate::math::x87_run::ext_to_int;
+use crate::math::x87::ext_to_int;
 use crate::session::write_first;
 
 pub fn bend_points(paths: &Paths, s: Spline) -> Result<(), Refused> {

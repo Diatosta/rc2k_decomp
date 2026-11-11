@@ -1,8 +1,8 @@
 //! `service::apply_repairs` (0x46C14D): carries out the work chosen in the service area, on
 //! leaving it: each chosen repair is shown being done, then the chosen setup is installed.
 //!
-//! What it does, in order (a "chosen" item is one whose flag in `dword_759B6E` is exactly 1):
-//!   - `dword_75AB38` = 1;
+//! What it does, in order (a "chosen" item is one whose flag in `inspection_flags_a` is exactly 1):
+//!   - `service_flag` = 1;
 //!   - runs of the car's dwords are zeroed for five chosen items: gearbox (0xE) ten at +0x17C,
 //!     body (3) six at +0x1A4, lights (7) seven at +0x1BC, suspension (0xB) five at +0x1D8,
 //!     brakes (0xD) three at +0x1EC; for the tyres (0xF) `reset_tyre_wear`, keeping the
@@ -77,7 +77,7 @@ impl Driver for GameDriver {
 /// frames and sleep.
 struct Game<'a> {
     menus: &'a Menus,
-    player: crate::menu::standings::PlayerCell,
+    player: crate::menu::standings::PlayerCell<'a>,
     driver: &'a mut dyn Driver,
 }
 

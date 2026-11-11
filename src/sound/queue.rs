@@ -57,7 +57,7 @@ fn hash_if_asked(command: u32, registers: [u32; 7]) {
     static TURN: Mutex<Option<(std::collections::hash_map::DefaultHasher, u32, u32)>> =
         Mutex::new(None);
     if !*ON.get_or_init(|| std::env::var_os("RC2K_SOUND_HASH").is_some())
-        || crate::race::owner::race().course.numbers.in_race.get() == 0
+        || !crate::race::owner::race().course.numbers.in_race.is_set()
     {
         return;
     }

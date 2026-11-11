@@ -17797,7 +17797,7 @@ pub static LISTS: [DrawList; 301] = [
         at: 0x759116,
         referenced: false,
         functions: &[ScreenFn::DrawMainMenuObjects],
-    }, // list_759116
+    }, // main_menu_objects_list
     DrawList {
         at: 0x759122,
         referenced: true,
@@ -18247,7 +18247,7 @@ pub static LISTS: [DrawList; 301] = [
         at: 0x759302,
         referenced: false,
         functions: &[ScreenFn::DrawBackgroundBand],
-    }, // list_759302
+    }, // background_band_list
     DrawList {
         at: 0x75930A,
         referenced: true,

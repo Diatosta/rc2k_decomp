@@ -1,5 +1,5 @@
 //! The skidmarks laid (`race::lay_skidmarks_if_on` -> `race::lay_skidmarks` ->
-//! `race::add_skid_point`, part R3, IDA 2026-10-18): each car's skidding wheels add a point to the
+//! `race::add_skid_point`): each car's skidding wheels add a point to the
 //! ring of 0x400 skid points (`g_skidPoints`, 0x18 bytes: the mark's left and right edges) linked
 //! in strips (`g_skidLinks`, 8 bytes: +0 the next, +2 the previous, +4 the angle, +6 the car's
 //! bit).
@@ -22,7 +22,7 @@ fn offsets(angle: u32, y: u32) -> (u32, u32) {
 }
 
 /// `race::add_skid_point` (0x45860C): a wheel's next skid point: across the wheel's place
-/// (`dword_643AD8` ..) at the angle from the last point's middle (`scene::angle_between`; 0 for
+/// (`skid_place` ..) at the angle from the last point's middle (`scene::angle_between`; 0 for
 /// none), the point's old links cut, linked after the last; the last point turned to the new angle
 /// (its own when it starts the strip, else halfway between its previous one and this); the ring's
 /// next moved on (0x400 points). Refuses (before anything) a point or a link outside the ring (the
@@ -126,11 +126,11 @@ fn cars_refuse(shared: &RaceShared) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::lay_skidmarks` (0x4588DE): for each race car (its bit in `dword_645B14`) and each of its
+/// `race::lay_skidmarks` (0x4588DE): for each race car (its bit in `skid_cars`) and each of its
 /// four wheels (slot +0xF48 ..): when the wheel skids (+0x600 ..), its axle's grip (+0xF40 front,
-/// +0xF44 rear) is not below `flt_643AD0` and its mark is on (+0x298 bits 5 .. 8), its place
+/// +0xF44 rear) is not below `skid_grip` and its mark is on (+0x298 bits 5 .. 8), its place
 /// (+0xF10 / +0xF20 / +0xF30 ..) plus (+-0x1555, 0, 0) turned by the car's matrix (+0xB4;
-/// `scene::rotate_point`, rounded; the original's stores to `dword_62400C` are not kept) gets a
+/// `scene::rotate_point`, rounded; the original's stores to `scratch` are not kept) gets a
 /// point; else the slot -1. Refuses (before anything) a car without its block.
 pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;
@@ -152,10 +152,7 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
         for wheel in 0..4usize {
             let slot = &slots[wheel];
             let on = car.wheel_squeeze[wheel].bits() != 0
-                && !crate::math::x87_load::below_or_unordered(
-                    car.skid_grip[wheel / 2].bits(),
-                    grip,
-                )
+                && !crate::math::x87::below_or_unordered(car.skid_grip[wheel / 2].bits(), grip)
                 && car.parts_present.get() & (1 << (5 + wheel)) != 0;
             if !on {
                 slot.set(u32::MAX);
@@ -179,7 +176,7 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
                 [int_80(side), zero, zero],
             );
             for (i, v) in t.into_iter().enumerate() {
-                let n = crate::math::x87_load::tbyte_to_int(v);
+                let n = crate::math::x87::tbyte_to_int(v);
                 frame.shadow_skids.skid_place[i]
                     .set(frame.shadow_skids.skid_place[i].get().wrapping_add(n));
             }
@@ -189,7 +186,7 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::lay_skidmarks_if_on` (0x4585F3): `lay_skidmarks` unless `dword_6235E8` or `dword_6416BC`
+/// `race::lay_skidmarks_if_on` (0x4585F3): `lay_skidmarks` unless `scene_switch` or `replay_still_on`
 /// is set.
 pub fn lay_skidmarks_if_on(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;

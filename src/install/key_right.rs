@@ -1,4 +1,4 @@
-//! `install::key_right` (0x4147C0): key 0x69 on an item (`[esi] & 0x2F`): kind 2 the
+//! `install::key_right` (0x4147C0): key 0x69 on an item (`[item] & 0x2F`): kind 2 the
 //! choice after (`install::choice_on`), kind 3 the value up (`install::value_up`).
 //!
 //! Takes the item. Returns the kind.

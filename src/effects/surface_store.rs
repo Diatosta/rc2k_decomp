@@ -1,8 +1,8 @@
-//! The surface's texture places and the emitters' lives and colours (IDA 0x935766 .. 0x939DB2), out of the marks' block (phase 7, typed state).
+//! The surface's texture places and the emitters' lives and colours (IDA 0x935766 .. 0x939DB2).
 
 use crate::session::{Bytes, Dword};
 
-/// The surface's texture places and the emitters' lives and colours (IDA 0x935766 .. 0x939DB2, the image's layout; phase 7, typed state).
+/// The surface's texture places and the emitters' lives and colours (IDA 0x935766 .. 0x939DB2).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SurfaceTables {

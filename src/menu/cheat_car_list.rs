@@ -1,5 +1,5 @@
 //! `menu::cheat_car_list` (0x480D35): with cheat bit 1 of `g_cheats` set, esi becomes the
-//! cheat's car list `off_75A412`; else esi stays.
+//! cheat's car list the cheat car list; else esi stays.
 //!
 //! Callers: the time trial's events, before each car choice.
 

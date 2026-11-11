@@ -1,10 +1,10 @@
 //! The best scores pages (`menu::view_best_scores_loop`'s lists; stream A, part F1,
-//! 2026-10-18): page `dword_755240` 0 .. 4 shows a group of the best scores
-//! (`dword_7556D4`: groups of ten 0x3C-byte entries, 0x258 a group; +8 the nationality, +0xC
-//! the car, +0x18 the name, +0x38 the score), 5 on a group of the class times (`dword_7556DC`:
+//! 2026-10-18): the scores page (`pages.scores_page`) 0 .. 4 shows a group of the best scores
+//! (`champ_view.best_scores`: groups of ten 0x3C-byte entries, 0x258 a group; +8 the nationality, +0xC
+//! the car, +0x18 the name, +0x38 the score), 5 on a group of the class times (`champ_view.level_best_scores`:
 //! groups of ten 0x50-byte entries, 0x320 a group; +8 the nationality, +0x10 the car, +0x14
-//! the time, +0x20 the name); the group by `dword_75A2D6[page]`, the caption string by
-//! `dword_75A2A6[page]`. And the replays' range caption. Converted 2026-10-20:
+//! the time, +0x20 the name); the group by the page's entry of the group list, the caption string by the page's entry
+//! of the caption list. And the replays' range caption. Converted 2026-10-20:
 //! `rc2k_core::screens::best_scores` draws through `game_screen::GameScreen`.
 
 use crate::errors::{BadInput, Refused};
@@ -20,7 +20,7 @@ use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 use rc2k_core::screens::best_scores::{Row, Rows};
 
-const PAGE: &Dword = &crate::menu::owner::MENUS.tables.pages.scores_page; // dword_755240
+const PAGE: &Dword = &crate::menu::owner::MENUS.tables.pages.scores_page;
 /// Which typed table a page shows.
 pub enum Source {
     /// The best scores (`saves::best_times::SCORES`): the name, the score, the
@@ -44,16 +44,16 @@ impl Source {
 /// A scores page: its table and how it is drawn.
 pub struct Table {
     pub at: Source,
-    /// The best scores keep the last row's y in `dword_7559B0`.
+    /// The best scores keep the last row's y in `draw_work.scratch_b0`.
     pub keeps_y: bool,
-    /// Where the group's number is: a dword, or (None) `dword_75A2D6[page]`.
+    /// Where the group's number is: a dword, or (None) the page's entry of the group list.
     pub group_at: Option<&'static Dword>,
     /// A fixed group instead.
     pub group_fixed: Option<u32>,
     /// An entry whose highlight field is 1 is drawn in the highlight fonts (0x51E524 /
     /// 0x51E544).
     pub highlight: bool,
-    /// How far below the rank's y the sprites go (and `dword_7559B0` with them).
+    /// How far below the rank's y the sprites go (and `draw_work.scratch_b0` with them).
     pub sprite_dy: i32,
 }
 
@@ -73,7 +73,7 @@ pub const CLASS_TIMES: Table = Table {
     highlight: false,
     sprite_dy: 0,
 };
-/// `screens::draw_class_times_marked`'s (0x48AB87): the class `dword_7587EC`, the player's
+/// `screens::draw_class_times_marked`'s (0x48AB87): the class `arcade.level`, the player's
 /// own times (`mark` 1) in the highlight fonts, the sprites 4 lower.
 pub const MARKED_CLASS_TIMES: Table = Table {
     at: Source::LevelScores,
@@ -200,7 +200,7 @@ pub fn draw_best_scores_page(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(
 }
 
 /// `screens::best_scores_caption` (0x46D128): the caption (`g_captionText`) string
-/// `dword_75A2A6[page]` and its NUL.
+/// from the page's entry of the caption list and its NUL.
 pub fn best_scores_caption(menus: &Menus) -> Result<(), Refused> {
     let tables = &menus.tables;
     // Converted: `rc2k_core::screens::captions::fit` (through `car_caption::put_string`); refused
@@ -218,7 +218,7 @@ pub fn best_scores_caption(menus: &Menus) -> Result<(), Refused> {
     )
 }
 
-/// `screens::replay_range_caption` (0x470501): the caption "n-m", n = `dword_755248` x 20,
+/// `screens::replay_range_caption` (0x470501): the caption "n-m", n = `pages.replay_page` x 20,
 /// m = n + 19 (`strings::append_u32`, `append_minus`).
 pub fn replay_range_caption(menus: &Menus) -> Result<(), BadInput> {
     // Converted: `rc2k_core::screens::best_scores::range_caption`.
@@ -238,8 +238,8 @@ pub struct StageTimes {
     pub record: &'static Dword,
     /// The times' table (ten for each stage; the record's +0x3C the stage).
     pub table: fn(&Menus) -> &StageTable,
-    /// The rally page keeps the sprites' y (+4) in `dword_7559B0` and the flag's glyph in
-    /// `dword_7559B4`.
+    /// The rally page keeps the sprites' y (+4) in `draw_work.scratch_b0` and the flag's glyph in
+    /// `draw_work.scratch_b4`.
     pub rally: bool,
 }
 
@@ -412,7 +412,7 @@ pub fn section_there() -> Result<bool, crate::errors::BadInput> {
 }
 
 /// `screens::draw_record_heading` (0x4A247D): the section's heading at (0x2EB, 0x77) in the
-/// font at 0x51E9A4 (in event mode 0x13 `dword_75A28A[section]`, else the section's first
+/// font at 0x51E9A4 (in event mode 0x13 the section's entry of the heading list, else the section's first
 /// record's +0x38 string), then record `index`'s stage line (string 0x481 ...) in the line
 /// buffer at (0x2EB, 0x91). Refuses (before anything) a section the
 /// table has not.
@@ -440,7 +440,7 @@ pub fn draw_record_heading(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(),
 }
 
 /// `screens::draw_record_times` (0x4A41AE): the record's heading, its best times (group
-/// +0x3C of `g_stageBestTimes`, the rows' y kept in `dword_7559B0`), and, when the list ran its
+/// +0x3C of `g_stageBestTimes`, the rows' y kept in `draw_work.scratch_b0`), and, when the list ran its
 /// ten rows, the fastest line (string 0x1A2 at (0x142, 0x1FB), the car's sprite +0x74, the
 /// name +0x54, the flag's sprite +0x78, the speed +0x30 with its unit; a list that ended early
 /// leaves it out: `notes/bugs.md`). Refuses (before anything) a section
@@ -477,7 +477,7 @@ pub fn draw_record_times(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), R
     )
 }
 
-/// `screens::draw_event_best_scores`' (0x4A8DBF): group `dword_7558F4`, the player's own
+/// `screens::draw_event_best_scores`' (0x4A8DBF): group `event.class`, the player's own
 /// (+0x14 1) in the highlight fonts.
 pub const EVENT_BEST_SCORES: Table = Table {
     group_at: Some(&crate::menu::owner::MENUS.screens.event.class),
@@ -493,8 +493,8 @@ pub const OVERALL_BEST_SCORES: Table = Table {
 
 /// `screens::draw_event_best_scores` (0x4A8DBF) / `screens::draw_overall_best_scores`
 /// (0x4A8FA2): the heading at (0x2EB, 0x77) in the font at 0x51E9A4: in event mode 0x13
-/// (`g_eventMode`) the section's name (`dword_75A28A[section]`), else string `other` (the
-/// first: 0x35E + `dword_7558F4`, kept in `dword_7559EC`; the second 0x362); then the scores
+/// (`g_eventMode`) the section's name (the section's entry of the heading list), else string `other` (the
+/// first: 0x35E + `event.class`, kept in `draw_work.figure`; the second 0x362); then the scores
 /// as `draw_scores`. (Both first look the section's first record up with
 /// `records::find_record` and do not use it: left out.) Refuses
 /// (before anything) no table.

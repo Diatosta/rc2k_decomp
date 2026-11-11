@@ -6,7 +6,7 @@
 use crate::effects::owner::effects;
 use crate::session::{Dword, Float};
 
-/// The constants and randoms of `make_masks` and the shapes' runs (IDA 0x89C994 .. 0x89CA30, the image's layout; phase 7, typed state).
+/// The constants and randoms of `make_masks` and the shapes' runs (IDA 0x89C994 .. 0x89CA30).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MaskConstants {
@@ -45,51 +45,43 @@ impl MaskConstants {
         Self {
             time_random: Dword::new(0x0),
             move_random: Dword::new(0x0),
-            rates: [Float::from_bits(0x46348400), Float::from_bits(0x46348400)],
-            ones: [
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x3F800000),
-            ],
+            rates: [Float::new(11553.0), Float::new(11553.0)],
+            ones: [Float::new(1.0), Float::new(1.0), Float::new(1.0)],
             ring_scales: [
-                Float::from_bits(0x3C8EFA35),
-                Float::from_bits(0x3C8EFA35),
-                Float::from_bits(0x3F000000),
+                Float::new(0.017453292),
+                Float::new(0.017453292),
+                Float::new(0.5),
             ],
-            row_add: Float::from_bits(0x3F000000),
-            ease: Float::from_bits(0x3F000000),
+            row_add: Float::new(0.5),
+            ease: Float::new(0.5),
             steps: [Dword::new(0x80), Dword::new(0x80)],
             corner_angles: [
-                Float::from_bits(0x0),
-                Float::from_bits(0xBFC90FDB),
-                Float::from_bits(0x0),
-                Float::from_bits(0xBFC90FDB),
-                Float::from_bits(0x0),
-                Float::from_bits(0xBFC90FDB),
-                Float::from_bits(0x0),
-                Float::from_bits(0xBFC90FDB),
+                Float::new(0.0),
+                Float::new(-1.5707964),
+                Float::new(0.0),
+                Float::new(-1.5707964),
+                Float::new(0.0),
+                Float::new(-1.5707964),
+                Float::new(0.0),
+                Float::new(-1.5707964),
             ],
             divisors: [Dword::new(0x100), Dword::new(0x80)],
             flips: [Dword::new(0x80), Dword::new(0x80)],
             pair_scales: [
-                Float::from_bits(0x43800000),
-                Float::from_bits(0x43800000),
-                Float::from_bits(0x43800000),
-                Float::from_bits(0x43800000),
+                Float::new(256.0),
+                Float::new(256.0),
+                Float::new(256.0),
+                Float::new(256.0),
             ],
             pixel_constants: [
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x3F99999A),
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x3F99999A),
+                Float::new(1.0),
+                Float::new(1.0),
+                Float::new(1.2),
+                Float::new(1.0),
+                Float::new(1.0),
+                Float::new(1.2),
             ],
-            row_lengths: [
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x3F800000),
-            ],
+            row_lengths: [Float::new(1.0), Float::new(1.0), Float::new(1.0)],
         }
     }
 }

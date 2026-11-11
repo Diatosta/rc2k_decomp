@@ -1,10 +1,10 @@
 //! `race::set_up_credits_race` (0x463711): the credits' race (the demonstration between the films)
-//! set up: a stage drawn from the 36 of `dword_71C3E4` (`math::next_random` x 36, the high dword,
-//! held to 0 .. 0x23 by the sign) into `g_stageNumber`, a car kind from the 23 of `dword_71C474` (x
-//! 23, 0 .. 0x16) into `g_raceCarKinds`; `dword_623854` 0, `dword_62389C` 3, and 72 more stores
+//! set up: a stage drawn from the 36 of `credit_stages` (`math::next_random` x 36, the high dword,
+//! held to 0 .. 0x23 by the sign) into `g_stageNumber`, a car kind from the 23 of `credit_car_kinds` (x
+//! 23, 0 .. 0x16) into `g_raceCarKinds`; `direction` 0, `run_kind` 3, and 72 more stores
 //! (`WRITES`: the first car block's settings, the race's switches, -1 into +0x298).
 //!
-//! Caller: `race::credits_race`, which calls the Rust version directly. Refuses nothing.
+//! Caller: `race::credits_race`, which calls it directly. Refuses nothing.
 
 use crate::errors::Refused;
 use crate::math::next_random::next_random;

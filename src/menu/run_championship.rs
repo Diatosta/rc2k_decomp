@@ -1,42 +1,44 @@
-//! `menu::run_championship` (0x4A0E60): a whole championship (event type 4), from its
-//! start or from a saved game (`dword_755970` 1, which also makes `dword_755950` 2), to
-//! its end. In order:
-//! - `dword_755250` 0; unless continuing: `menu::begin_event`, `shuffle_drivers`,
-//!   `clear_result_slots`, `reset_drivers`, `reset_driver_condition`, `dword_755254` 0,
-//!   `clear_hud_bits`; then `take_player1_units`, `hide_all_in_game_options`;
-//!   `g_yesNoAnswer`, `dword_755561`, `dword_75555D` 0, `g_eventMode` 2, `dword_75AB40`
-//!   2; with no section to start at (`dword_7554C0` 0) the welcome
-//!   (`menu::championship_welcome`, or `menu::a8_welcome` were `g_eventMode` not 2);
-//!   `sound::stop_stream`; a yes ends it; `dword_755970` 0;
-//! - each section: `dword_755A3C`, `dword_75593C`, `dword_755938`, `dword_755928` 0,
-//!   `dword_75592C` 1, `dword_755250` 0, `section` `dword_7554C0` - 1 when that is set;
-//! - each record of the section (`records::find_record` on `g_recordTable`, `section`,
-//!   `index`; `dword_75AB20` 0 first) by its kind (+0): 3, the championship's end
-//!   (`dword_755928` 1, then the standings below); 5, a welcome (`dword_755924` its
-//!   +0x38, `index` + 1, `dword_755934` 1, `begin_event`, `menu::welcome_loop`); 4, the
-//!   section's end: the championship standings (`standings_b_from_all`, sorted, the stage
-//!   points, sorted twice, `class_championship_pass`), and unless the section was given
-//!   (`dword_7554C0`) or it was the end, the overall points, the table numbered and shown
-//!   (`show_championship_standings`), `section_finish`, `championship_standings_review_loop`,
-//!   and on to the next section (`begin_event`); 1, a service due (`dword_755938` 1,
-//!   `dword_75593C` its +0x14, `dword_755940` its +0xC, `dword_755944` and
-//!   `dword_75594C` 1, `dword_755254` + 1, `index` + 1); 0, a stage: the rally's stages
-//!   (`rally_stages_loop`), the stage (`next_stage_loop`), the service (`service_pass`),
-//!   the races (`run_event_races`, unless `dword_755250`), the times, the stage's and
-//!   (from the second stage on, `dword_755950` >= 1) the rally's results, the record
-//!   bests (`keep_record_best`, `record_entries_pass`, `best_times_loop` when
-//!   `dword_755920`), then by `menu::next_record_kind`: 3 the next stage at once, 4 the
-//!   section's end, 1 a service next (`dword_755944`, `dword_75594C` 1), else the
-//!   inspection (`inspection_pass`, `dword_75594C` 0); then the review
-//!   (`championship_service_review_loop` when `dword_75AAD8` or `dword_75594C`, else
-//!   `championship_races_review_loop`) and the next record (`index`, `dword_755950` + 1,
-//!   `dword_755254` 0). A yes on the stage's screens resets the players' times
-//!   (`dword_755250` 1) and goes to the rally's results (`dword_75AB20` 1, the leave
-//!   flags and `dword_75592C` 0, `walk_section_records`, the rally's tables shown) and
-//!   then the section's end; any other kind is fatal error 0x8070DBA0 "Invalid Level
-//!   Type";
+//! A whole championship (event type 4), from its start or from a saved game (`CONTINUING`
+//! set, which also makes `STAGES_DONE` 2), to its end. In order:
+//! - `RESET_TIMES` cleared; unless continuing: `menu::begin_event`, `shuffle_drivers`,
+//!   `clear_result_slots`, `reset_drivers`, `reset_driver_condition`, `SERVICES` cleared,
+//!   `clear_hud_bits`; then `take_player1_units`, `hide_all_in_game_options`; the yes/no
+//!   answer, `LEAVE_SCREEN` and `EVENT_LEFT` cleared, the event mode set to 2 and the
+//!   class mode to 2. With no section to start at (`START_SECTION` 0) the welcome is shown
+//!   (`menu::championship_welcome`, or `menu::a8_welcome` were the event mode not 2); the
+//!   stream stops (`sound::stop_stream`); a yes ends it; `CONTINUING` is cleared.
+//! - each section: `ESCAPE_PRESSED`, `SERVICE_TIME`, `SERVICE_DUE` and `THE_END` cleared,
+//!   `GOES_ON` set, `RESET_TIMES` cleared, and `section` taken from `START_SECTION` - 1
+//!   when that is set.
+//! - each record of the section (`records::find_record` on the record table, `section`,
+//!   `index`; the rally-done flag cleared first) by its kind (+0):
+//!   - 3, the championship's end: `THE_END` set, then the standings below;
+//!   - 5, a welcome: `WELCOME_FIGURE` takes its +0x38, `index` + 1, `WELCOMED` set,
+//!     `begin_event`, `menu::welcome_loop`;
+//!   - 4, the section's end: the championship standings (`standings_b_from_all`, sorted,
+//!     the stage points, sorted twice, `class_championship_pass`), and unless the section
+//!     was given (`START_SECTION`) or it was the end, the overall points, the table
+//!     numbered and shown (`show_championship_standings`), `section_finish`,
+//!     `championship_standings_review_loop`, and on to the next section (`begin_event`);
+//!   - 1, a service due: `SERVICE_DUE` set, `SERVICE_TIME` takes its +0x14,
+//!     `SERVICE_RECORD_C` its +0xC, `CPU_SPREAD_FIRST` and `SERVICE_NEXT` are set,
+//!     `SERVICES` + 1, `index` + 1;
+//!   - 0, a stage: the rally's stages (`rally_stages_loop`), the stage (`next_stage_loop`),
+//!     the service (`service_pass`), the races (`run_event_races`, unless `RESET_TIMES`),
+//!     the times, the stage's and (from the second stage on, `STAGES_DONE` >= 1) the
+//!     rally's results, the record bests (`keep_record_best`, `record_entries_pass`,
+//!     `best_times_loop` when any time qualified), then by `menu::next_record_kind`: 3 the
+//!     next stage at once, 4 the section's end, 1 a service next (`CPU_SPREAD_FIRST`,
+//!     `SERVICE_NEXT` set), else the inspection (`inspection_pass`, `SERVICE_NEXT`
+//!     cleared); then the review (`championship_service_review_loop` when the review kind
+//!     or `SERVICE_NEXT` is set, else `championship_races_review_loop`) and the next record
+//!     (`index`, `STAGES_DONE` + 1, `SERVICES` cleared). A yes on the stage's screens
+//!     resets the players' times (`RESET_TIMES` set) and goes to the rally's results (the
+//!     rally-done flag set, the leave flags and `GOES_ON` cleared, `walk_section_records`,
+//!     the rally's tables shown) and then the section's end;
+//!   - any other kind is fatal error 0x8070DBA0 "Invalid Level Type".
 //! - the end: unless the section was given, `championship_finish`, `clear_score_marks`,
-//!   `best_class_scores`, `best_overall_scores`; `championship_end_review_loop`;
+//!   `best_class_scores`, `best_overall_scores`; `championship_end_review_loop`.
 //! - a yes to leaving on most screens ends it at once; at the very end,
 //!   `menu::show_in_game_options`.
 //!
@@ -49,21 +51,20 @@ use crate::errors::Refused;
 use crate::menu::flow_game::Game;
 use crate::session::Dword;
 
-pub const STAGES_DONE: &Dword = &crate::menu::owner::MENUS.screens.event.stages_done; // dword_755950
-pub const RESET_TIMES: &Dword = &crate::menu::owner::MENUS.tables.pages.reset_times; // dword_755250
-pub const SERVICES: &Dword = &crate::menu::owner::MENUS.tables.pages.services; // dword_755254
-pub const START_SECTION: &Dword = &crate::menu::owner::MENUS.screens.flow.start_section; // dword_7554C0 (the A8's dword_7554C4)
+pub const STAGES_DONE: &Dword = &crate::menu::owner::MENUS.screens.event.stages_done;
+pub const RESET_TIMES: &Dword = &crate::menu::owner::MENUS.tables.pages.reset_times;
+pub const SERVICES: &Dword = &crate::menu::owner::MENUS.tables.pages.services;
+pub const START_SECTION: &Dword = &crate::menu::owner::MENUS.screens.flow.start_section;
 pub const START_SECTION_A8: &Dword = &crate::menu::owner::MENUS.screens.flow.start_section_a8;
-pub const SERVICE_TIME: &Dword = &crate::menu::owner::MENUS.screens.event.service_minutes; // dword_75593C
-pub const SERVICE_DUE: &Dword = &crate::menu::owner::MENUS.screens.event.service_due; // dword_755938
-pub const THE_END: &Dword = &crate::menu::owner::MENUS.screens.event.championship_end; // dword_755928
-pub const GOES_ON: &Dword = &crate::menu::owner::MENUS.screens.event.event_goes_on; // dword_75592C
-pub const WELCOME_FIGURE: &Dword = &crate::menu::owner::MENUS.screens.event.welcome_figure; // dword_755924
-pub const WELCOMED: &Dword = &crate::menu::owner::MENUS.screens.event.welcomed; // dword_755934
-pub const SERVICE_RECORD_C: &Dword = &crate::menu::owner::MENUS.screens.event.service_record_c; // dword_755940
-pub const CPU_SPREAD_FIRST: &Dword = &crate::menu::owner::MENUS.screens.event.cpu_spread_first; // dword_755944
-pub const SERVICE_NEXT: &Dword = &crate::menu::owner::MENUS.screens.event.service_next; // dword_75594C
-// dword_755920
+pub const SERVICE_TIME: &Dword = &crate::menu::owner::MENUS.screens.event.service_minutes;
+pub const SERVICE_DUE: &Dword = &crate::menu::owner::MENUS.screens.event.service_due;
+pub const THE_END: &Dword = &crate::menu::owner::MENUS.screens.event.championship_end;
+pub const GOES_ON: &Dword = &crate::menu::owner::MENUS.screens.event.event_goes_on;
+pub const WELCOME_FIGURE: &Dword = &crate::menu::owner::MENUS.screens.event.welcome_figure;
+pub const WELCOMED: &Dword = &crate::menu::owner::MENUS.screens.event.welcomed;
+pub const SERVICE_RECORD_C: &Dword = &crate::menu::owner::MENUS.screens.event.service_record_c;
+pub const CPU_SPREAD_FIRST: &Dword = &crate::menu::owner::MENUS.screens.event.cpu_spread_first;
+pub const SERVICE_NEXT: &Dword = &crate::menu::owner::MENUS.screens.event.service_next;
 
 /// The two championships' driver: `a8` for `menu::run_a8_championship`'s differences.
 pub fn run_event(menus: &crate::menu::owner::Menus, a8: bool) -> Result<(), Refused> {

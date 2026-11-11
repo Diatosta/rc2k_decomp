@@ -1,8 +1,8 @@
 //! `gfx::take_screenshot` (0x407897): with screenshots on (`g_screenshotsOn`), the screen
 //! saved as `000.pcx` and on: the surface locked unless it is (`gfx::lock_surface`; a
-//! failed lock ends it; `dword_4F52B8` 1 while it is this function's lock), written
+//! failed lock ends it; `locked_here` 1 while it is this function's lock), written
 //! (`gfx::write_screen_pcx`), unlocked again if it was locked here
-//! (`gfx::unlock_surface`), `dword_4F52B8` 0.
+//! (`gfx::unlock_surface`), `locked_here` 0.
 //!
 //! Callers: `race::replay_viewer` (key 0x52, Numpad 0), `gfx::screenshot_if_key`,
 //! `menu::handle_keys`, `install::page_key`, `net::settings_loop`, `net::choose_connection`,

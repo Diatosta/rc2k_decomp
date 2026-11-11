@@ -1,14 +1,14 @@
-//! `race::viewer_load_stage` (0x41CDC2): with a replay open (`dword_5BEC88` 1), its stage loaded
+//! `race::viewer_load_stage` (0x41CDC2): with a replay open (`replay_open` 1), its stage loaded
 //! for the viewer: the front end's 3D tidied (`race::render3d_tidy`, `race::objects_tidy`,
 //! `nullsub_6`, `race::release_textures`), the race's screen mode (`race::set_race_screen_mode`),
 //! the loading picture (`menu::show_loading_picture`); from the replay's header the game mode,
-//! players, cars and options (`dword_719B18` .. into `dword_75ACD8`, `g_onePlayer`, `dword_75ACE8`,
+//! players, cars and options (`header_mode` .. into `dword_75ACD8`, `g_onePlayer`, `dword_75ACE8`,
 //! `dword_75ACEC`, `dword_75AE20`, `dword_75AF8C`; `dword_75AE28`, `dword_75AF94` 0; `dword_75ACE0`
 //! the players; the co-driver's door `byte_719C8C` into `dword_75AE1C` and the cars' block, logged
 //! "doornr="); the race's sounds (`race::set_up_race_sound_objects`, `sound::set_up_race_sounds`);
-//! the fonts unless there are some (`gfx::build_fonts`, `dword_5BECC4` 1); the header read in
+//! the fonts unless there are some (`gfx::build_fonts`, `viewer_fonts_built` 1); the header read in
 //! (`race::read_replay_header`), the stage (`race::load_stage`), the sounds reset
-//! (`race::reset_race_sounds`), the page's palettes (`race::viewer_palettes`), `dword_5BECC0` 1.
+//! (`race::reset_race_sounds`), the page's palettes (`race::viewer_palettes`), `viewer_stage_loaded` 1.
 //! Then (always) the pending key taken (`input::take_key`).
 //!
 //! Callers: `race::replay_viewer`, `race::viewer_action` (0x14, after another replay is opened),

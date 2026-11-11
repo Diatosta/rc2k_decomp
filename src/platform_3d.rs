@@ -13,16 +13,16 @@
 //! surface is a number (the level's place in `LEVELS_MEMORY`, plus 1), whose `Lock` hands
 //! out memory of ours (`lock_surface`): so `gfx::upload_texture_picture` fills it unchanged.
 //!
-//! - `d3d::find_texture_formats` (0x419F5A, under Direct3D's start-up; called here
-//!   when the screen mode is set): the four descriptions as the device would have
+//! - `d3d::find_texture_formats` (under Direct3D's start-up; called here when the
+//!   screen mode is set): the four descriptions as the device would have
 //!   found its formats, 555, 1555, 4444 and 8888, and the three kinds pointed at them
 //!   the original's way.
-//! - `gfx::allocate_textures` (0x4051ED), `gfx::release_all_textures` (0x4051D3).
-//! - `scene::load_texture` (0x44E778): a system texture into a video texture, level
+//! - `gfx::allocate_textures`, `gfx::release_all_textures`.
+//! - `scene::load_texture`: a system texture into a video texture, level
 //!   for level (the original's `Blt`).
-//! - `d3d::begin_scene` (0x41ABC7), `d3d::end_scene` (0x41AB8A): the layer's own
+//! - `d3d::begin_scene`, `d3d::end_scene`: the layer's own
 //!   states and its "in a scene" switch.
-//! - `d3d::clear_viewport` (0x44E9D9): the depth buffer.
+//! - `d3d::clear_viewport`: the depth buffer.
 //!
 //! The drawing is noted and drawn in tiles over the processor's threads when something is to
 //! see it (see `flush`).
@@ -344,7 +344,7 @@ pub fn flush() {
 }
 
 /// A fan into the screen, with the states and the current texture
-/// (`g_currentTexture`, a video texture's number) as the game set them: noted, drawn at
+/// (the current texture, a video texture's number) as the game set them: noted, drawn at
 /// the next flush.
 /// A triangle strip (`D3DPT_TRIANGLESTRIP`): triangle n of vertices n, n + 1, n + 2, every
 /// second one's first two swapped so that all keep the strip's winding (as Direct3D does).
@@ -594,11 +594,9 @@ pub fn draw_indexed_bytes<const V: usize, const I: usize>(
     );
 }
 
-/// 0x41ADF5 (`d3d::draw_indexed`), the platform's draw of the race's batches: the same
-/// call as `draw_triangles` (DrawIndexedPrimitive, type 4, flags 0x1C; the original takes
-/// edx the index count, ecx the indices, eax the vertex count, ebx the vertices). Returns
-/// Direct3D's result: 0, drawn. Its edx leftover is read by no caller (`lq.py -s`: the
-/// three sites read eax only, as `race::flush_draw_batch` and the two batch flushes do).
+/// `d3d::draw_indexed`, the platform's draw of the race's batches: the same call as
+/// `draw_triangles` (DrawIndexedPrimitive, type 4, flags 0x1C). Returns Direct3D's result:
+/// 0, drawn.
 pub fn draw_indexed<const V: usize, const I: usize>(
     vertices: &crate::session::Bytes<V>,
     vertex_count: u32,
@@ -615,7 +613,7 @@ fn fatal(code: u32) -> FatalError {
     FatalError { code, message: "" }
 }
 
-/// A size by its number in `dword_5ABA98`.
+/// A size by its number in the card's sizes table.
 fn size_of(code: u32) -> Option<u32> {
     let entry = find_entry(
         code,
@@ -774,7 +772,7 @@ pub fn allocate_textures_now(
 
 // ---- gfx::release_all_textures (0x4051D3) ----
 
-/// 0x41A3B2 for every texture of a pool, and the count 0.
+/// Every texture of a pool released, and the count 0.
 fn release_pool(pool: usize, gfx: &crate::gfx::owner::Gfx) {
     let pool_vars = gfx.card.texture_tables.pool(pool);
     let count: u32 = pool_vars.count.get();
@@ -809,7 +807,7 @@ pub fn release_textures() {
 }
 
 /// `gfx::release_all_textures`: the drawing noted flushed, both pools emptied (also what
-/// `gfx::set_screen_mode` does first, 0x404C55).
+/// `gfx::set_screen_mode` does first).
 pub fn release_all_textures(gfx: &crate::gfx::owner::Gfx) {
     flush();
     let what = "the release text";
@@ -878,7 +876,7 @@ const BEGIN_STATES: [(u32, u32); 12] = [
 ];
 
 /// `d3d::begin_scene` for Rust callers: the layer's states at a scene's beginning, no
-/// texture set. It cannot fail (the original leaves eax 0, the carry clear, zero set).
+/// texture set. It cannot fail.
 pub fn begin_layer() {
     let d3d = d3d();
     d3d.cards.in_scene.set(1u32);
@@ -888,13 +886,12 @@ pub fn begin_layer() {
     {
         crate::d3d::set_render_state::set_render_state(value, state);
     }
-    // 0x41ACDE: no texture is the current one, then none is set.
+    // No texture is the current one, then none is set.
     crate::d3d::render_cache::set_texture(0xFFFF_FC44u32);
     crate::d3d::set_texture::set_texture(NO_TEXTURE);
 }
 
-/// `d3d::end_scene` for Rust callers: true when a scene was open and is ended (the
-/// original then leaves eax 0 and the zero flag set; the carry always clear).
+/// `d3d::end_scene` for Rust callers: true when a scene was open and is ended.
 pub fn end_layer() -> bool {
     let d3d = d3d();
     flush();
@@ -910,7 +907,7 @@ pub fn end_layer() -> bool {
 // ---- d3d::clear_viewport (0x44E9D9) ----
 
 /// `d3d::clear_viewport` for Rust callers: the depth buffer cleared over the rectangle
-/// `DRAW.cleared_rectangle` holds (the original leaves eax 0).
+/// `DRAW.cleared_rectangle` holds.
 pub fn clear_viewport(own: &[crate::session::Dword; 4]) {
     let [left, top, right, bottom] = crate::session::read_bits(own).map(|v| v as i32);
     let c = |v: i32| v.max(0) as usize;

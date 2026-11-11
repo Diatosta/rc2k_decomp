@@ -39,7 +39,7 @@
 //! return a value).
 //!
 //! Wherever the highlight is saved or taken back, `draw_work.escape_pressed` and `loop_flags.leave_screen` are
-//! cleared if `dword_7558D8` and `draw_work.escape_pressed` are both 1.
+//! cleared if `event.clears_escape_flag` and `draw_work.escape_pressed` are both 1.
 //!
 //! What the loop calls is called directly: its own functions (`Callee` below, what the
 //! steps name), the frame callbacks, `handle_keys` and the item's action
@@ -145,11 +145,11 @@ pub struct List {
 pub struct Asking {
     /// What runs after a "no" (the screen is then set up again).
     pub on_refusal: &'static [Step],
-    /// A variable that, when it is 1, has the question put as well (`dword_755569` in the
+    /// A variable that, when it is 1, has the question put as well (`loop_flags.ask_leave` in the
     /// menus after the results screens).
     pub also_if: Option<Cell>,
     /// A variable that, when it is 1, keeps the question from being put although
-    /// `dword_758806` is 1.
+    /// `captions.left_by_key` is 1.
     pub unless: Option<fn(&Menus) -> u32>,
     /// The question is put whenever the screen is left, and after a "yes" the loop returns
     /// at once: the highlight is not saved.
@@ -164,7 +164,7 @@ pub struct Asking {
 }
 
 impl Asking {
-    /// Nothing runs around the question, which is put by `dword_758806` alone.
+    /// Nothing runs around the question, which is put by `captions.left_by_key` alone.
     pub const DEFAULT: Asking = Asking {
         on_refusal: &[],
         also_if: None,
@@ -179,24 +179,26 @@ impl Asking {
 /// What the loop looks at after a key opened the highlighted item's action.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ActionCheck {
-    /// Leave if `dword_755569` or `dword_755980` is 1 or `dword_755561` is 1 (cleared); else
-    /// next frame if `dword_755A38` is 2; else leave if `dword_75555D` is 1; else set up again.
+    /// Leave if `loop_flags.ask_leave`, `event.event_over` or `loop_flags.leave_screen` is 1
+    /// (the last is cleared); else next frame if `draw_work.action_mode` is 2; else leave if
+    /// `loop_flags.event_left` is 1; else set up again.
     Standard,
-    /// Only `dword_755569` and `dword_755561` are looked at; unless the screen is left it is
-    /// set up again, whatever `dword_755A38` and `dword_75555D` hold.
+    /// Only `loop_flags.ask_leave` and `loop_flags.leave_screen` are looked at; unless the screen
+    /// is left it is set up again, whatever `draw_work.action_mode` and `loop_flags.event_left`
+    /// hold.
     Short,
-    /// Left when `dword_755569` is 1; when `dword_755980` is 1 the answer `g_yesNoAnswer` is
-    /// cleared, a key taken and the screen set up again; left when `dword_755561` is 1, which
-    /// stays 1; otherwise `dword_7556A4` = 0x6F and set up again.
+    /// Left when `loop_flags.ask_leave` is 1; when `event.event_over` is 1 the answer `g_yesNoAnswer` is
+    /// cleared, a key taken and the screen set up again; left when `loop_flags.leave_screen` is 1, which
+    /// stays 1; otherwise `option_work.menu_sound` = 0x6F and set up again.
     Restart,
 }
 
 /// What differs in how a screen takes its keys and their actions.
 #[derive(Clone, Copy)]
 pub struct Keys {
-    /// The menu stored in `dword_731BBB` before `menu::handle_keys`, where it is not `menu`.
+    /// The menu stored in `menu_texts.keys_menu` before `menu::handle_keys`, where it is not `menu`.
     pub menu: Option<fn(&Menus) -> MenuId>,
-    /// The Escape flag `dword_755A3C` is looked at at the top of every frame, before the quit
+    /// The Escape flag `draw_work.escape_pressed` is looked at at the top of every frame, before the quit
     /// switch, and the screen is left when it is 1.
     pub escape_leaves: bool,
     /// What is looked at after an action.
@@ -232,7 +234,7 @@ pub struct Frames {
     /// set-up and before each frame, and a list of their own in `g_sceneList` only here.
     pub first_frame_lists: Option<&'static [List]>,
     /// "Next frame" (after `handle_keys` returns 1, and after an action that leaves 2 in
-    /// `dword_755A38`) goes to the `after_first_frame` steps, not past them. A `Flow` those
+    /// `draw_work.action_mode`) goes to the `after_first_frame` steps, not past them. A `Flow` those
     /// steps return is honoured on every screen.
     pub next_frame_repeats_first: bool,
     /// Steps before the first frame after set-up.
@@ -243,7 +245,7 @@ pub struct Frames {
     pub after_blink: &'static [Step],
     /// Steps of the screen's own once a frame, after the frame and before the keys.
     pub each_frame: &'static [Step],
-    /// The quit switch is not looked at; `dword_7556A4` = 0x6F is stored once a frame in
+    /// The quit switch is not looked at; `option_work.menu_sound` = 0x6F is stored once a frame in
     /// that place.
     pub no_quit_check: bool,
 }
@@ -286,7 +288,7 @@ pub struct Screen {
     /// no question, the highlight not saved, no `after` steps.
     pub leave_at_once: Option<Cell>,
     /// On a screen that does not ask: what runs first on leaving, before the highlight is
-    /// saved (the mode menu calls `menu::go_back` there when `dword_758806` is 1).
+    /// saved (the mode menu calls `menu::go_back` there when `captions.left_by_key` is 1).
     pub leaving: &'static [Step],
     /// The variable the highlight is saved in on leaving, where it is not `saved_item`.
     pub leave_saved_item: Option<Cell>,
@@ -295,9 +297,9 @@ pub struct Screen {
     /// What the loop returns, where it returns something: read from the game's
     /// variables as the loop leaves them.
     pub result: Option<fn(&Menus) -> u32>,
-    /// `dword_758806` is cleared and the highlight put in place (with the Escape check) after
-    /// the first frame, not at the start of set-up, and set-up stores neither `dword_7556A4`
-    /// nor `dword_755561` after the lists: the main menu.
+    /// `captions.left_by_key` is cleared and the highlight put in place (with the Escape check)
+    /// after the first frame, not at the start of set-up, and set-up stores neither
+    /// `option_work.menu_sound` nor `loop_flags.leave_screen` after the lists: the main menu.
     pub late_highlight: bool,
     pub keys: Keys,
     pub frames: Frames,
@@ -387,7 +389,7 @@ impl<'a> Entry<'a> {
     }
 }
 
-/// Whether the game is quitting (`dword_51837C`).
+/// Whether the game is quitting.
 pub fn quitting() -> bool {
     system().session.flags.quitting.get() == 1
 }
@@ -514,7 +516,7 @@ impl Callee {
                 crate::menu::load_background::load_background(path(menus), &mut GameCanvas)?;
             }
             Self::PrepareScene => prepare_scene(entry.scene),
-            Self::ApplyController => ci::apply_controller()?,
+            Self::ApplyController => ci::apply_controller(menus)?,
             Self::ReleaseController => ci::release_controller(input),
             Self::DrawStageMap => crate::menu::stage_choice::draw_stage_map(menus)?,
             Self::StopStream => crate::sound::stop_stream::stop_stream(),

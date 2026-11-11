@@ -1,21 +1,21 @@
 //! `effects::windscreen_drops_drift` (0x4BCBE9): the windscreen drops' drift from the view's moves.
-//! `flt_811BDF` .. 0; unless this is the first time (`dword_8161AE`, then 1): unless the
-//! second (`dword_8161B2`, then 1), the view's move (the settings' +0x26AC .. less the kept
-//! place, times `flt_764FE0`) less the last move (plus the last times `flt_82E326` ..),
-//! turned by the adjugate of the view's turn (`flt_5EA3CC`'s, copied by columns into
-//! `dword_82E2C6`, `effects::adjugate3` into `unk_82E2F6`), the matrix made a turn about x by
-//! `flt_82E332` (`scene::turn_matrix3_x`) and the move turned back by it, negated, into
-//! `flt_81621E` .. and times `flt_82E336` .. into `flt_811BDF` ..; then the move kept
-//! (`flt_8161E2` ..); and the place kept (`flt_8161D6` ..).
+//! The drift is set to 0; unless this is the first time (a flag, then set), and unless it is
+//! the second (another flag, then set), the view's move (the settings' +0x26AC .. less the
+//! kept place, times the clock constant) less the last move (plus the last times the decay)
+//! is turned by the adjugate of the view's turn (the view matrix copied by columns,
+//! `effects::adjugate3`), the matrix made a turn about x by the drift's angle
+//! (`scene::turn_matrix3_x`) and the move turned back by it, negated, into the drops' move
+//! and times the drift's scales into the drift; then the move is kept, and the place kept.
 //!
-//! Works on `g_marksSettings`.
+//! Works on the effects settings.
 //!
-//! Caller: `effects::windscreen_drops_frame` (0x4BC0BA). The x87 runs are plain Rust on the x87
+//! Caller: `effects::windscreen_drops_frame` The x87 runs are plain Rust on the x87
 //! model (`math::x87_float`), in the original's order, over the game's variables (the three values
 //! it keeps on the x87 stack across the two calls kept as 80 bits); the calls their Rust versions.
 //! Refuses null settings, before anything.
 
 use crate::effects::adjugate3::adjugate3;
+use crate::effects::cell_x87::CellX87;
 use crate::effects::setup::MarksClock;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
@@ -24,7 +24,8 @@ use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3};
 use crate::session::{Bytes, Float};
 
-/// The original's 0x4BCC3D .. 0x4BCD03: the view's move (the settings' +0x26AC .. less the kept `flt_8161D6` .., times `flt_764FE0`) into `flt_8161EE` .., less the last move into `flt_8161FA` .., plus the last move times `flt_82E326` ...
+/// The view's move (the settings' +0x26AC .. less the kept place, times the clock constant),
+/// less the last move, plus the last move times the drift's decay.
 fn view_moved(
     drops: &WindscreenDrops,
     m: &EffectsSettings,
@@ -33,7 +34,7 @@ fn view_moved(
     view_moved_x87(drops, m, &effects.setup.clock);
 }
 
-/// The original's 0x4BCE6A .. 0x4BCEB2: the view's move kept in `flt_8161E2` ...
+/// The view's move kept for the next frame.
 fn move_kept(
     drops: &WindscreenDrops,
     m: &EffectsSettings,
@@ -47,8 +48,8 @@ pub fn windscreen_drops_drift(
     drops: &WindscreenDrops,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let m = crate::effects::setup::effects_settings()?;
-    let marks = crate::effects::setup::effects_settings()?;
+    let m = effects.settings()?;
+    let marks = effects.settings()?;
     for n in 0..3 {
         drops.tilt.point[n].set_bits(0);
     }
@@ -68,7 +69,7 @@ pub fn windscreen_drops_drift(
             }
             adjugate3(&drops.hex.turn, &drops.hex.adjugate);
             // The two temporaries `[esp]` held and the three 80-bit values kept across the two calls.
-            let temps = [Float::from_bits(0), Float::from_bits(0)];
+            let temps = [Float::new(0.0), Float::new(0.0)];
             let kept = Bytes::new([0u8; 30]);
             drift_turned_x87(drops, &drops.hex.adjugate, &temps, &kept);
             turn_matrix3(Axis::X, &drops.hex.turn, extended(drops.hex.angle.bits()))?;
@@ -96,13 +97,13 @@ use crate::math::x87_float as bh;
 fn view_moved_x87(drops: &WindscreenDrops, m: &EffectsSettings, c: &MarksClock) {
     let t0 = ld_cell(&m.listener_car_place[0]);
     let t1 = t0 - ld_cell(&drops.hex.kept_place[0]);
-    let t2 = t1 * crate::math::x87_float::ld(c.reciprocal.bits());
+    let t2 = t1 * c.reciprocal.ld();
     let t3 = ld_cell(&m.listener_car_place[1]);
     let t4 = t3 - ld_cell(&drops.hex.kept_place[1]);
-    let t5 = t4 * crate::math::x87_float::ld(c.reciprocal.bits());
+    let t5 = t4 * c.reciprocal.ld();
     let t6 = ld_cell(&m.listener_car_place[2]);
     let t7 = t6 - ld_cell(&drops.hex.kept_place[2]);
-    let t8 = t7 * crate::math::x87_float::ld(c.reciprocal.bits());
+    let t8 = t7 * c.reciprocal.ld();
     st_cell(&drops.hex.view_move[2], t8);
     st_cell(&drops.hex.view_move[1], t5);
     st_cell(&drops.hex.view_move[0], t2);
@@ -185,26 +186,26 @@ fn drift_back_x87(drops: &WindscreenDrops, m: &[Float; 9], t: &[Float; 2], l: &B
     let t20 = -t19;
     st_cell(&drops.hex.drift[0], t20);
     let t21 = t20 * ld_cell(&drops.hex.result_k[0]);
-    drops.tilt.point[0].set_bits(bh::st(t21));
+    drops.tilt.point[0].st(t21);
     st_cell(&drops.hex.drift[1], t18);
     let t22 = t18 * ld_cell(&drops.hex.result_k[1]);
-    drops.tilt.point[1].set_bits(bh::st(t22));
+    drops.tilt.point[1].st(t22);
     st_cell(&drops.hex.drift[2], t17);
     let t23 = t17 * ld_cell(&drops.hex.result_k[2]);
-    drops.tilt.point[2].set_bits(bh::st(t23));
+    drops.tilt.point[2].st(t23);
 }
 
 /// `move_kept`'s x87 block as plain Rust on the x87 model (12 instructions), same order and memory places.
 fn move_kept_x87(drops: &WindscreenDrops, m: &EffectsSettings, c: &MarksClock) {
     let t0 = ld_cell(&m.listener_car_place[0]);
     let t1 = t0 - ld_cell(&drops.hex.kept_place[0]);
-    let t2 = t1 * crate::math::x87_float::ld(c.reciprocal.bits());
+    let t2 = t1 * c.reciprocal.ld();
     let t3 = ld_cell(&m.listener_car_place[1]);
     let t4 = t3 - ld_cell(&drops.hex.kept_place[1]);
-    let t5 = t4 * crate::math::x87_float::ld(c.reciprocal.bits());
+    let t5 = t4 * c.reciprocal.ld();
     let t6 = ld_cell(&m.listener_car_place[2]);
     let t7 = t6 - ld_cell(&drops.hex.kept_place[2]);
-    let t8 = t7 * crate::math::x87_float::ld(c.reciprocal.bits());
+    let t8 = t7 * c.reciprocal.ld();
     st_cell(&drops.hex.kept_move[2], t8);
     st_cell(&drops.hex.kept_move[1], t5);
     st_cell(&drops.hex.kept_move[0], t2);

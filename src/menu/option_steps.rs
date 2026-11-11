@@ -1,18 +1,18 @@
 //! The options pages' small steps (item and left/right handlers, agent E 2026-10-19):
 //! - the volume steps (`menu::music_volume_down` 0x467F48 .. `menu_sounds_b_volume_up`
 //!   0x46810A): a work value one less (below 0: 0) or one more (above 0x40: 0x40), signed,
-//!   then: the music's (`dword_755688`) into `g_musicVolume` and `sound::set_music_volume`
-//!   (eax the value); the speech's (`dword_755698`) heard with `sound::start_stream` (eax
+//!   then: the music's (`option_work.music_level`) into `g_musicVolume` and `sound::set_music_volume`
+//!   (eax the value); the speech's (`option_work.speech_level`) heard with `sound::start_stream` (eax
 //!   the path ";3files\%speech\rally\st1.wav", ecx the value); two of the menu sounds'
-//!   (`dword_75569C`, `dword_7556A0`) into `dword_7554E8` and `sound::play_menu_sound`
+//!   (`audio.levels.sounds_a`, `sounds_b`) into `screen_flow.menu_sounds_volume` and `sound::play_menu_sound`
 //!   with eax 0x10 / 0x20 (the first's) or 0x40 (the second's).
-//! - `menu::next_screen_mode` (0x46FFEF): `dword_4F50C8` one more, 0 past `dword_4F50E4` -
-//!   1 (signed); `dword_755648` flipped; leaves eax `dword_755648`, ebx the last mode.
+//! - `menu::next_screen_mode` (0x46FFEF): the chosen screen mode one more, 0 past the
+//!   last mode (signed); `option_work.mode_changed` flipped; leaves eax that flag, ebx the last mode.
 //! - `menu::previous_texture_setting` (0x47012B), `next_texture_setting` (0x47015B):
-//!   `dword_755664` cycled through 0 .. 2 and copied to `dword_75AD14`; leave eax it.
+//!   `option_work.car_detail` cycled through 0 .. 2 and copied to the texture setting; leave eax it.
 //! - `menu::next_colour_a` .. `previous_colour_b` (0x471AE4, 0x471B16, 0x471B48, 0x471B7A):
-//!   `dword_7554C0` (or `dword_7554C4`) cycled through 0 .. 6 and the entry of
-//!   `dword_758A66` (or `dword_758A46`) it picks into `unk_758A2E` (or `unk_758A32`).
+//!   `screen_flow.start_section` (or `start_section_a8`) cycled through 0 .. 6 and the entry
+//!   of the colour list it picks into a caption list slot.
 //! - `menu::apply_audio_choices` (0x470766): the advanced audio page's six work values
 //!   (quality, channels, Dolby, A3D, EAX, DS3D) into `g_audioOptions`' choices,
 //!   `audio::choose_modes`, and the six as applied back.
@@ -43,10 +43,10 @@ pub struct Volume {
     pub then: Then,
 }
 
-pub const MUSIC_LEVEL_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.music_level; // dword_755688
-pub const SPEECH_LEVEL_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.speech_level; // dword_755698
-pub const SOUNDS_A_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.sounds_a; // dword_75569C
-pub const SOUNDS_B_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.sounds_b; // dword_7556A0
+pub const MUSIC_LEVEL_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.music_level;
+pub const SPEECH_LEVEL_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.speech_level;
+pub const SOUNDS_A_RVA: &Dword = &crate::audio::owner::AUDIO_OWNER.levels.sounds_a;
+pub const SOUNDS_B_RVA: &Dword = &crate::audio::owner::AUDIO_OWNER.levels.sounds_b;
 /// One volume step.
 pub fn volume_step(screens: &Screens, v: Volume) {
     let audio = crate::audio::owner::audio();
@@ -108,13 +108,13 @@ pub struct StartPick {
 
 pub const START_PICK_A: StartPick = StartPick {
     number: &crate::menu::owner::MENUS.screens.flow.start_section,
-    table_at: 21,                                                      // dword_758A66
-    pick: &crate::menu::owner::MENUS.tables.captions.caption_lists[7], // dword_758A2E
+    table_at: 21,
+    pick: &crate::menu::owner::MENUS.tables.captions.caption_lists[7],
 };
 pub const START_PICK_B: StartPick = StartPick {
     number: &crate::menu::owner::MENUS.screens.flow.start_section_a8,
-    table_at: 13,                                                      // dword_758A46
-    pick: &crate::menu::owner::MENUS.tables.captions.caption_lists[8], // dword_758A32
+    table_at: 13,
+    pick: &crate::menu::owner::MENUS.tables.captions.caption_lists[8],
 };
 
 /// `menu::next_colour_a` and the three others.

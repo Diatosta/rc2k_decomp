@@ -1,5 +1,5 @@
 //! `service::clear_repair_marks` (0x46BA15): sets every entry of the second flag table
-//! (`dword_759BC2`) to 0, up to its -1 end mark.
+//! (`inspection_flags_b`) to 0, up to its -1 end mark.
 //!
 //! The first entry is cleared without being checked for the end mark, as in the original. Refuses a
 //! table whose end mark is not where it belongs. What the marks mean has not been worked out: the

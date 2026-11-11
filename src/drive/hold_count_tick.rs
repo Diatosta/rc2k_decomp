@@ -1,4 +1,4 @@
-//! `drive::hold_count_tick` (0x460C10): `dword_6235EC` counted down to 0 (a reading: a hold after
+//! `drive::hold_count_tick` (0x460C10): `hold_count` counted down to 0 (a reading: a hold after
 //! the start).
 //!
 //! Caller: `drive::replay_step`.

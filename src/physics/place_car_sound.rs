@@ -1,14 +1,14 @@
 //! `physics::place_car_sound` (0x45CC5C): the current car's sound object
 //! (`g_raceSoundObjects[g_currentCar & 7]`) placed: +0x224 1; the car's place (`g_car`
 //! +0x134 x, +0x138 y, +0x13C z) less +0x6A4 .. +0x6AC (`fild` / `fisub`, exact), turned
-//! by `g_viewTurnMatrix` (`scene::rotate_point`), each part times `flt_5C5DA0` (1/65536)
+//! by `g_viewTurnMatrix` (`scene::rotate_point`), each part times `one_over_65536` (1/65536)
 //! into +0x214, +0x218, +0x21C; +0x10 1. A reading: the car's
 //! sound placed against the view (+0x6A4 .. the listener's place).
 //!
 //! Caller: `physics::sound_on_bit` (its tail). Refuses (before anything) a null sound object.
 
 use crate::errors::Refused;
-use crate::math::x87_run::{ext_times, ints_diff_80};
+use crate::math::x87::{ext_times, ints_diff_80};
 use crate::race::owner::Race;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
@@ -25,7 +25,7 @@ pub fn place_car_sound(race: &Race) -> Result<(), Refused> {
         d(&shared.car.position[1], &shared.car.camera_position[1]),
         d(&shared.car.position[2], &shared.car.camera_position[2]),
     ];
-    let out = rotate_point(crate::race::heard_turn::turn(race), p);
+    let out = rotate_point(crate::race::heard_turn::turn(&race.frame.matrices), p);
     let k = race.course.numbers.one_over_65536.bits();
     for (n, e) in out.iter().enumerate() {
         so.place_b[n].set_bits(rounded(ext_times(*e, k)));

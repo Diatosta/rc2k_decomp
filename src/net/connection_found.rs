@@ -1,6 +1,6 @@
 //! `net::connection_found` (0x4186E5): DirectPlay's `EnumConnections` callback: "NET: Found"
 //! and the connection's name logged; with `g_noticeKind` 2, the two service providers
-//! `unk_5AB370` and `unk_5AB380` (`system::same_guid`) left out; else the connection's data
+//! `sp_serial` and `sp_modem` (`system::same_guid`) left out; else the connection's data
 //! copied into memory of the network's list (`memory::allocate`; none: the enumeration
 //! stops) and, if fewer than 0x100 are listed, a record added (`net::connection_entry`):
 //! +0x50 the data, +0x40 the service provider's GUID, +0 the name

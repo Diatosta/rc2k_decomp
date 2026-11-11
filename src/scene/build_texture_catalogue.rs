@@ -3,14 +3,14 @@
 //!
 //! The listing is one list of 432 steps of a few kinds, which
 //! `scene/texture_steps.rs` holds as a table (made by `tools/texture_catalogue`):
-//! log a text or a number; count a reduction in `dword_5DC97C` (0x100 counters);
+//! log a text or a number; count a reduction in the counters (0x100 of them);
 //! raise the level a tag's textures are needed at (`scene::raise_texture_needs`: a
 //! higher level is a smaller texture); try (`scene::try_allocate_textures`), which
 //! ends the list when it succeeds; release what a failed try took
-//! (`gfx::release_all_textures` 0x4051D3, Direct3D: not ported); and a group of steps
+//! (`gfx::release_all_textures`, Direct3D: not ported); and a group of steps
 //! skipped when a flag is set.
 //!
-//! Before the list the counters are zeroed and the eight flags `dword_5DCD7C` .. set: 1 for the
+//! Before the list the counters are zeroed and the eight step flags set: 1 for the
 //! first, 0 for the others. So the list reads: try as things are; else your cars 2 .. 8 down
 //! from 256 to 128, try; and so on through the other cars, the scenery, the sky, the front end,
 //! each time one group one step smaller. After a successful try: "Allocated textures OK -", the
@@ -28,8 +28,8 @@ use std::ffi::CStr;
 
 // ---- game data ----
 
-/// `TEXTURE_PLACES.counters` (`dword_5DC97C`, 0x100 dwords) and `step_flags` (`dword_5DCD7C`
-/// .. `dword_5DCD98`: which of the eight cars keep their size).
+/// `TEXTURE_PLACES.counters` (0x100 dwords) and `step_flags` (which of the eight cars keep
+/// their size).
 const NOT_ENOUGH: FatalError = FatalError {
     code: 0x8060_0403,
     message: "",
@@ -134,7 +134,7 @@ pub fn build_texture_catalogue(
     Err(NOT_ENOUGH.into())
 }
 
-/// With the game's log, and the Rust versions of what it calls.
+/// With the game's log.
 pub fn build_texture_catalogue_in_game(
     shared: &crate::race::owner_shared::RaceShared,
     scene: &crate::scene::owner::Scene,

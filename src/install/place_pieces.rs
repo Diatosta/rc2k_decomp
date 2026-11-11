@@ -1,6 +1,6 @@
 //! `install::place_pieces` (0x414ED1): a page's pieces placed, box by box: the pieces in a
 //! row whose items share a box (the item's +4: `{x, y, width, height}`; none: the title's
-//! box `unk_51DD98`) go to `install::place_row` together.
+//! box `title_box`) go to `install::place_row` together.
 //!
 //! No pieces would go round 2^32 times: refused. Caller `install::run_page`.
 

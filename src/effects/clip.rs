@@ -1,4 +1,4 @@
-//! The clip's and the glow's variables, out of the marks' block (phase 7, typed state):
+//! The clip's and the glow's variables:
 //! `ClipScreen` (IDA 0x7687E4 .. 0x7688B4) and `GlowState` (0x93CC70 .. 0x93CCB0).
 
 use crate::d3d::vertices_store::Vertex;
@@ -6,7 +6,7 @@ use crate::d3d::vertices_store::Vertex;
 use crate::effects::owner::effects;
 use crate::session::{Bytes, Dword, Float};
 
-/// The clip's screen edges and work vertices (IDA 0x7687E4 .. 0x7688B4, the image's layout; phase 7, typed state).
+/// The clip's screen edges and work vertices (IDA 0x7687E4 .. 0x7688B4).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ClipScreen {
@@ -18,14 +18,14 @@ pub struct ClipScreen {
 
 const fn zero_vertex() -> Vertex {
     Vertex {
-        x: Float::from_bits(0),
-        y: Float::from_bits(0),
-        z: Float::from_bits(0),
-        rhw: Float::from_bits(0),
+        x: Float::new(0.0),
+        y: Float::new(0.0),
+        z: Float::new(0.0),
+        rhw: Float::new(0.0),
         colour: Dword::new(0),
         specular: Dword::new(0),
-        u: Float::from_bits(0),
-        v: Float::from_bits(0),
+        u: Float::new(0.0),
+        v: Float::new(0.0),
     }
 }
 
@@ -33,10 +33,10 @@ impl ClipScreen {
     pub const fn new() -> Self {
         Self {
             edges: [
-                Float::from_bits(0x43C80000),
-                Float::from_bits(0x43C78000),
-                Float::from_bits(0x43960000),
-                Float::from_bits(0x43958000),
+                Float::new(400.0),
+                Float::new(399.0),
+                Float::new(300.0),
+                Float::new(299.0),
             ],
             vertices: [const { zero_vertex() }; 6],
         }
@@ -48,7 +48,7 @@ impl ClipScreen {
     pub const LEN: usize = 0xD0;
 }
 
-/// The glow's variables (and the clip's count) (IDA 0x93CC70 .. 0x93CCB0, the image's layout; phase 7, typed state).
+/// The glow's variables (and the clip's count) (IDA 0x93CC70 .. 0x93CCB0).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct GlowState {
@@ -73,15 +73,15 @@ impl GlowState {
         Self {
             off: Dword::new(0x1),
             place: [
-                Float::from_bits(0x48800000),
-                Float::from_bits(0xC7800000),
-                Float::from_bits(0xC7800000),
+                Float::new(262144.0),
+                Float::new(-65536.0),
+                Float::new(-65536.0),
             ],
             _gap_93cc80: Bytes::new([0; 20]),
             clip_count: Dword::new(0x0),
             _gap_93cc98: Bytes::new([0; 12]),
             angle: Dword::new(0x0),
-            offset: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            offset: [Float::new(0.0), Float::new(0.0)],
         }
     }
 }

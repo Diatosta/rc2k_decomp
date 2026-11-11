@@ -4,7 +4,7 @@
 //!
 //! Takes slot, 0 .. 99. It reads 0x48 bytes. The file is accepted if the read did not fail, the
 //! first dword is "CRSU" and the dword at +8 is 0x50000; the 0x20 bytes at +0x10 then go to
-//! `byte_527880[slot * 0x20]`. A file shorter than 0x48 bytes is not noticed as such: what the
+//! the set-ups' names (`names[slot * 0x20]`). A file shorter than 0x48 bytes is not noticed as such: what the
 //! buffer held before decides (reproduced). Refuses a slot past the table's 100 entries. Called for
 //! all 100 slots at start-up (`system::load_game_data`) and by `load_setup_slot`.
 

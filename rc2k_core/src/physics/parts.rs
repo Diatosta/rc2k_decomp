@@ -1,4 +1,4 @@
-//! The work car's loose parts (converted 2026-10-21 from `physics::fill_race_slot`
+//! The work car's loose parts (converted from `physics::fill_race_slot`
 //! 0x462263 (its choice of slot), `physics::fill_slot_on_bit` 0x462237,
 //! `physics::drop_broken_parts` 0x462386, `physics::drop_hit_parts` 0x4410C8,
 //! `physics::sound_hit_parts` 0x4411EC, `physics::hit_part_checks` 0x441046 and
@@ -23,9 +23,9 @@ pub const UNBROKEN: u32 = 0x8000_0000;
 pub struct SlotChoice {
     /// The slot's number.
     pub slot: usize,
-    /// ecx as the search leaves it: the slot's number, 8 when none was empty.
+    /// The slot's number the search ends at, 8 when none was empty.
     pub ecx: u32,
-    /// With no slot empty: the lowest +0x64 (the slot's age, a clock), edx as left.
+    /// With no slot empty: the lowest +0x64 (the slot's age, a clock).
     pub lowest: Option<u32>,
 }
 
@@ -77,7 +77,7 @@ pub fn part_number(car: u32, bit: u32) -> Option<u32> {
 pub const BROKEN_BITS: [u32; 7] = [9, 0xD, 0xE, 0x10, 0x11, 0xC, 0xF];
 
 /// Whether damage figure `k` is checked: the first only with the switch
-/// (`dword_62DAD0`, asked only for it) set.
+/// (`marks_mask`, asked only for it) set.
 pub fn broken_checked(k: usize, switch: impl FnOnce() -> bool) -> bool {
     k != 0 || switch()
 }
@@ -148,7 +148,7 @@ pub fn parts_left(bits: u32) -> u32 {
     }
 }
 
-/// The kinds with a sound table (`dword_5C5BD0`).
+/// The kinds with a sound table (`kind_hit_sounds`).
 pub const SOUND_KINDS: u32 = 0x22;
 
 /// Whether a car kind has sounds for its hit parts: below `SOUND_KINDS` and its entry

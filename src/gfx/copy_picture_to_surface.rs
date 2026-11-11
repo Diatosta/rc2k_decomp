@@ -1,14 +1,14 @@
 //! `gfx::copy_picture_to_surface` (0x4060E3): copies the picture buffer onto the surface, row
 //! by row: the background of a menu frame.
 //!
-//! If the surface is not locked (`dword_4F3870` is 0) it is locked first, and nothing is
+//! If the surface is not locked (`locked.surface` is 0) it is locked first, and nothing is
 //! copied if that fails; it is then unlocked again afterwards. The copy takes
-//! `dword_4F49A4` rows of `dword_4F49B4` dwords from the buffer, which it reads without
-//! gaps, and after each row moves on `dword_4F49C4` more bytes on the surface. All of these
-//! are read after the lock, which sets them (0x405726).
+//! `height` rows of `row_dwords` dwords from the buffer, which it reads without
+//! gaps, and after each row moves on `row_gap` more bytes on the surface. All of these
+//! are read after the lock, which sets them.
 //! Callers: `menu::frame_callback`, `menu::draw_frame` and a dozen more.
-//! The lock and the unlock are the game's (`gfx::lock_surface` 0x4058AD,
-//! `gfx::unlock_surface` 0x405949, DirectDraw calls); it reaches them through
+//! The lock and the unlock are the game's (`gfx::lock_surface`,
+//! `gfx::unlock_surface`, DirectDraw calls); it reaches them through
 //! `PictureSurface`, which is where a build without the game puts its own surface.
 //! Refuses a row count of 0 (the original counts through all 32 bits) and null pointers. The
 //! name is a reading.
@@ -19,8 +19,8 @@ use crate::gfx::picture::{has_picture, with_picture};
 
 // ---- game data ----
 
-// The surface's height (dword_4F49A4: rows), row_dwords (dword_4F49B4) and row_gap
-// (dword_4F49C4: surface bytes after a row's pixels) are `DRAW_SURFACE`'s.
+// The surface's height (rows), `row_dwords` and `row_gap` (surface bytes after a row's
+// pixels) are `DRAW_SURFACE`'s.
 
 /// The surface the picture goes to, and the picture.
 pub trait PictureSurface {

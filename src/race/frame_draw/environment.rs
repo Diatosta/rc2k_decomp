@@ -11,14 +11,14 @@ pub(super) fn table_root(course: &Course, v: u32) -> u32 {
     // g_rootTable: 256 floats by mantissa bits; g_exponentRootTable: by exponent
     let root = course.lists.root_table[((v >> 15) & 0xFF) as usize].bits();
     let scale = course.lists.exponent_root_table[((v & 0x7F80_0000) >> 23) as usize].bits();
-    crate::math::x87_load::product3(root, scale, course.numbers.one_over_65536.bits())
+    crate::math::x87::mul2(root, scale, &course.numbers.one_over_65536)
 }
 
 /// A point's x and z less car 0's (`g_carBlockStore` +0x134, +0x13C), and its y. (The
 /// original also kept x and z in `CONTACT_WORK.eax_point_x` / `eax_point_z`, which nothing
 /// read: locals here.)
-pub(super) fn point_from_car(point: u32) -> Result<(u32, u32, u32), BadInput> {
-    let [px, py, pz] = crate::race::scene_points::point_number(point)?;
+pub(super) fn point_from_car(course: &Course, point: u32) -> Result<(u32, u32, u32), BadInput> {
+    let [px, py, pz] = crate::race::scene_points::point_number(course, point)?;
     let x = px.wrapping_sub(crate::race::frame_view::car(0)?.position[0].get());
     let z = pz.wrapping_sub(crate::race::frame_view::car(0)?.position[2].get());
     Ok((x, py, z))
@@ -29,7 +29,7 @@ pub(super) fn point_from_car(point: u32) -> Result<(u32, u32, u32), BadInput> {
 /// faces in `g_eaxFaceCount`, which nothing read).
 pub(super) fn add_eax_weight(race: &Race, sum: &mut u32, v: u32) {
     let sixteen: u32 = race.course.numbers.sixteen.bits();
-    let w = if crate::math::x87_load::below_or_unordered(v, sixteen) {
+    let w = if crate::math::x87::below_or_unordered(v, sixteen) {
         v
     } else {
         sixteen
@@ -45,38 +45,41 @@ pub(super) fn add_eax_weight(race: &Race, sum: &mut u32, v: u32) {
 /// distance in `CONTACT_WORK.eax_mid_x` / `eax_mid_z` / `eax_distance`, which nothing read: locals
 /// here.)
 pub fn eax_face_weight(race: &Race, sum: &mut u32, face: u32) -> Result<(), BadInput> {
-    use crate::math::x87::{div, from_int};
-    use crate::math::x87_load::{
-        abs_below_or_unordered, float_square_sum, int_over_float, int_plus_times, int_square_sum,
+    use crate::math::x87::{
+        abs_below_or_unordered, float_square_sum, int_plus_times, int_square_sum,
     };
+    use crate::math::x87::{div, from_int, int_over};
     {
         // The face read once for its kind, objects, switches and first point.
-        let read = crate::race::course_places::face_number(face, "a course face")?;
+        let read = crate::race::course_places::face_number(&race.course, face)?;
         let kind = read.kind();
         if kind == 0xFF {
-            if face_field::<u8>(face, 1)? >= 0x38 {
+            if face_field::<u8>(&race.course, face, 1)? >= 0x38 {
                 return Ok(());
             }
-            let (x, _, z) = point_from_car(face_field(face, 4)?)?;
+            let (x, _, z) = point_from_car(&race.course, face_field(&race.course, face, 4)?)?;
             let distance = table_root(&race.course, int_square_sum(x as i32, z as i32));
-            let strength = face_field::<u8>(face, 0x18)? as u32;
-            add_eax_weight(race, sum, int_over_float(strength as i32, distance));
+            let strength = face_field::<u8>(&race.course, face, 0x18)? as u32;
+            add_eax_weight(race, sum, int_over(strength as i32, distance));
             return Ok(());
         }
         if kind >= 0x10 {
             return Ok(());
         }
-        if !abs_below_or_unordered(face_field(face, 0x30)?, race.course.numbers.quarter.bits()) {
+        if !abs_below_or_unordered(
+            face_field(&race.course, face, 0x30)?,
+            race.course.numbers.quarter.bits(),
+        ) {
             return Ok(());
         }
-        let (x1, _, z1) = point_from_car(face_field(face, 8)?)?;
+        let (x1, _, z1) = point_from_car(&race.course, face_field(&race.course, face, 8)?)?;
         let (mx, mz) = (from_int(x1 as i32), from_int(z1 as i32));
-        let (x2, _, z2) = point_from_car(face_field(face, 0xC)?)?;
+        let (x2, _, z2) = point_from_car(&race.course, face_field(&race.course, face, 0xC)?)?;
         let half: u32 = race.course.numbers.half.bits();
         let mx = int_plus_times(x2 as i32, mx, half);
         let mz = int_plus_times(z2 as i32, mz, half);
         let distance = table_root(&race.course, float_square_sum(mx, mz));
-        add_eax_weight(race, sum, div(race.course.numbers.three.bits(), distance));
+        add_eax_weight(race, sum, div(&race.course.numbers.three, distance));
     }
     Ok(())
 }
@@ -104,14 +107,14 @@ pub fn eax_environment(
             if record >= NO_RECORD {
                 continue;
             }
-            let mut face = record_field(record, 8)?;
-            if record_faces(face, record_field(record, 0xC)?).is_none() {
+            let mut face = record_field(&race.course, record, 8)?;
+            if record_faces(face, record_field(&race.course, record, 0xC)?).is_none() {
                 continue;
             }
             loop {
                 eax_face_weight(race, &mut sum, face)?;
                 face = face.wrapping_add(1);
-                if face > record_field(record, 0xC)? {
+                if face > record_field(&race.course, record, 0xC)? {
                     break;
                 }
             }

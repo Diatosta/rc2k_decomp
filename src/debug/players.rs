@@ -4,19 +4,12 @@
 //! are both the first block (a slip: `notes/bugs.md`; here every car). The button
 //! writes the same to the log.
 
-use crate::debug::wear_page::value_at;
+use crate::menu::owner::menus;
+use crate::physics::car_store::Car;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::race;
+use crate::session::Dword;
 use dear_imgui_rs::{TableFlags, Ui};
-
-/// `g_player1`, the records 0x28C apart.
-const PLAYER1: usize = 0x755A4C;
-const PLAYER_LEN: usize = 0x28C;
-/// `g_carBlockStore`, the blocks 0xFE0 apart.
-const CARS: usize = 0x70F3EC;
-const CAR_LEN: usize = 0xFE0;
-/// `g_runKind` ("shaungmode" in the dump).
-const RUN_KIND: usize = 0x62389C;
-/// +0x124: the name's bytes ("NameStore").
-const NAME: usize = 0x124;
 
 /// 0x471412's labels and offsets, in its order.
 const PLAYER_ROWS: [(&str, usize); 51] = [
@@ -73,43 +66,41 @@ const PLAYER_ROWS: [(&str, usize); 51] = [
     ("LastLBoardPosA", 0x150),
 ];
 
-/// 0x449AA3's labels and offsets (it shows `racefinished` twice).
-const CAR_ROWS: [(&str, usize); 7] = [
-    ("driver", 0x25C),
-    ("racefinished", 0xA8),
-    ("currsegment", 0x90),
-    ("nextcheckpoint", 0xAC),
-    ("timetaken", 0x88),
-    ("outoftime", 0xA4),
-    ("gameoverflag", 0xB0),
+/// A car block's cell.
+type CarField = fn(&Car) -> &Dword;
+
+/// 0x449AA3's labels and fields (it shows `racefinished` twice).
+const CAR_ROWS: [(&str, CarField); 7] = [
+    ("driver", |c| &c.driver_kind),
+    ("racefinished", |c| &c.finish_flag),
+    ("currsegment", |c| &c.splits_passed),
+    ("nextcheckpoint", |c| &c.splits_recorded),
+    ("timetaken", |c| &c.stage_time),
+    ("outoftime", |c| &c.go_stand_timer),
+    ("gameoverflag", |c| &c.stop_state),
 ];
 
-fn figure(ida: usize) -> String {
-    value_at(ida).map_or("?".to_owned(), |v| format!("{}", v as i32))
+fn figure(word: u32) -> String {
+    format!("{}", word as i32)
 }
 
 fn player_figure(player: usize, offset: usize) -> String {
-    figure(PLAYER1 + player * PLAYER_LEN + offset)
+    figure(menus().play.players.players[player].get().word(offset))
 }
 
-fn car_figure(car: usize, offset: usize) -> String {
-    figure(CARS + car * CAR_LEN + offset)
+fn car_figure(car: usize, field: CarField) -> String {
+    figure(field(&CAR_BLOCKS.cars[car]).get())
 }
 
 /// The player's name, to its NUL.
 fn name(player: usize) -> String {
-    let mut bytes = Vec::new();
-    'name: for word in 0..8 {
-        let Some(v) = value_at(PLAYER1 + player * PLAYER_LEN + NAME + word * 4) else {
-            break;
-        };
-        for b in v.to_le_bytes() {
-            if b == 0 {
-                break 'name;
-            }
-            bytes.push(b);
-        }
-    }
+    let record = menus().play.players.players[player].get();
+    let bytes: Vec<u8> = record
+        .name_copy
+        .iter()
+        .copied()
+        .take_while(|&b| b != 0)
+        .collect();
     String::from_utf8_lossy(&bytes).into_owned()
 }
 
@@ -123,11 +114,14 @@ fn write_log() {
         }
         log(&format!("NameStore: {}", name(player)));
     }
-    log(&format!("shaungmode: {}", figure(RUN_KIND)));
+    log(&format!(
+        "shaungmode: {}",
+        figure(race().shared.vars.run_kind.get())
+    ));
     for car in 0..10 {
         log(&format!("car {}", car + 1));
-        for (label, offset) in CAR_ROWS {
-            log(&format!("{label}: {}", car_figure(car, offset)));
+        for (label, field) in CAR_ROWS {
+            log(&format!("{label}: {}", car_figure(car, field)));
         }
     }
 }
@@ -168,7 +162,10 @@ pub fn tab(ui: &Ui) {
         write_log();
     }
     ui.same_line();
-    ui.text(format!("shaungmode (run kind): {}", figure(RUN_KIND)));
+    ui.text(format!(
+        "shaungmode (run kind): {}",
+        figure(race().shared.vars.run_kind.get())
+    ));
     if ui.collapsing_header(
         "Cars (the race dump)",
         dear_imgui_rs::TreeNodeFlags::DEFAULT_OPEN,
@@ -178,10 +175,10 @@ pub fn tab(ui: &Ui) {
             "cars",
             10,
             "car",
-            &mut CAR_ROWS.iter().map(|&(label, offset)| {
+            &mut CAR_ROWS.iter().map(|&(label, field)| {
                 (
                     label.to_owned(),
-                    (0..10).map(|c| car_figure(c, offset)).collect(),
+                    (0..10).map(|c| car_figure(c, field)).collect(),
                 )
             }),
         );

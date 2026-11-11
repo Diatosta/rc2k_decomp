@@ -79,7 +79,7 @@ pub fn sample_noise(car: &crate::physics::car_store::Car, map: usize) -> Result<
 /// of steps) >> 16) + `race().course.stage_prefs.fog_start` + the near value held to 0 ..= 0xFF; `fog.next`
 /// the next one's value with `race().course.stage_prefs.fog_end` (held) plus the near value (held). The
 /// original kept them in the light state (`scene::fog`), and also stored the step
-/// (`dword_62DAF0`) and the near value (`dword_6365F0`), which nothing read. Refuses (before
+/// (`fog_step`) and the near value (`fog_near`), which nothing read. Refuses (before
 /// anything) a table length of 0 or past 0x1000.
 pub fn fog_table(
     race: &Race,
@@ -234,7 +234,7 @@ pub fn sky_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Ba
     ctx.view.object.size.set(size);
     let scale = crate::math::x87::int_over_16(size as i32);
     for cell in &m.turned_matrix {
-        cell.set_bits(crate::math::x87::mul(cell.bits(), scale));
+        cell.set_bits(crate::math::x87::mul(cell, scale));
     }
     matrix::multiply_matrices(&m.turned_matrix, &m.view_turn_matrix, &m.made_object_matrix);
     Ok(())
@@ -353,8 +353,8 @@ fn view_own_matrices(
 
 /// The angle views 1 and 2 roll by: the car's speed and steering eased into the camera roll.
 fn rolled_angle(race: &Race, car: &crate::physics::car_store::Car) -> u32 {
-    use crate::math::x87_load::{below_or_unordered, eased_roll, product4_to_int};
-    let mut v = crate::math::x87::div(car.local_velocity[2].bits(), race.course.numbers.ten.bits());
+    use crate::math::x87::{below_or_unordered, eased_roll};
+    let mut v = crate::math::x87::div(&car.local_velocity[2], &race.course.numbers.ten);
     if below_or_unordered(v, race.course.numbers.zero.bits()) {
         v = race.course.numbers.zero.bits();
     }
@@ -371,12 +371,13 @@ fn rolled_angle(race: &Race, car: &crate::physics::car_store::Car) -> u32 {
         race.course.numbers.half.bits(),
     );
     car.camera_roll.set_bits(roll);
-    product4_to_int(
+    (crate::math::x87::mul3_to_int(
         roll,
         race.course.numbers.k65536.bits(),
         race.course.numbers.k4096.bits(),
         race.course.numbers.one_over_two_pi.bits(),
-    ) << 4
+    ) as u32)
+        << 4
 }
 
 /// `race::camera_view` (0x438325): the view for the frame: `race().frame.view_and_records.view_vars.view_car_flag_b`,
@@ -498,7 +499,7 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
     ctx.view.face.no_far_clip.set(1);
     crate::scene::glow_render_states::glow_render_states();
     ctx.view.light.light_kind.set(0u32);
-    // esi as the `rep movsd` of the matrix's copy leaves it: past `g_madeObjectMatrix`.
+    // The matrix pointer is where the matrix's copy leaves it: past `g_madeObjectMatrix`.
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         ctx,
         Some(GamePtr::to(&ctx.view.matrices.object_matrix_slots).into()),
@@ -519,7 +520,7 @@ fn place_sun(
 ) -> Result<(), Refused> {
     let race = ctx.race;
     let session = &system.session;
-    use crate::math::x87_load::{sun_direction, sun_on_screen, sun_size, tbyte_to_int, to_tbyte};
+    use crate::math::x87::{sun_direction, sun_on_screen, sun_size, tbyte_to_int, to_tbyte};
     let sun = &ctx.view.polygon.sun;
     sun.on_screen.set(0);
     sun.size.set(0);
@@ -555,7 +556,7 @@ fn place_sun(
     );
     let place = turned.map(tbyte_to_int);
     let z = crate::math::x87::from_int(place[2] as i32);
-    if crate::math::x87_load::below_or_unordered(z, race.course.numbers.k4096_a.bits()) {
+    if crate::math::x87::below_or_unordered(z, race.course.numbers.k4096_a.bits()) {
         return Ok(());
     }
     let flat = race.course.stage_prefs.flat_depth.get() != 0;

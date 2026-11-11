@@ -9,7 +9,7 @@
 //! gets 0 or 1 in its first byte, the width and the height, and with a palette 0x300 bytes
 //! from the PLTE chunk. Check sums are not looked at, nor is what the inflating returns.
 //! For the first row the "row above" of filters 2, 3 and 4 is the memory before the pixel
-//! area, not zeros as the PNG standard has it; fixed (2026-10-27): zeros
+//! area, not zeros as the PNG standard has it; fixed: zeros
 //! (`notes/bugs.md`, `wiki/Fixed-bugs.md`).
 //! It inflates with the `miniz_oxide` crate and does the rest as the original
 //! does. What it does not do: use the info block and what follows it as zlib's work area
@@ -18,7 +18,7 @@
 //! One caller, `gfx::read_png`. Every PNG file of the game is of colour type 2 with 8 bits
 //! and one IDAT chunk.
 //! Refuses, and leaves to the original: a file whose length is not known (the function is
-//! not told it; `read_png` keeps it in `dword_5BEC34`); a chunk that runs past the end;
+//! not told it; `read_png` keeps it in `length`); a chunk that runs past the end;
 //! more than one IDAT chunk, or one before IHDR; a bit depth other than 8; colour types 4
 //! and 6 (the original takes them for one byte a pixel); a width under 2 or a height of 0
 //! (the original counts through all 32 bits); a row filter above 4; data that does not
@@ -34,7 +34,7 @@ use crate::pointers::GamePtr;
 // Converted: `rc2k_core::gfx::png`. Here the game's variables for the header, the pixel area
 // and the info block.
 
-/// Returns what the original returns in eax. `pixels` names a picture buffer
+/// Returns what the original returns. `pixels` names a picture buffer
 /// (`gfx::picture`, 0 none).
 pub fn decode_png(png: &Png, file: &[u8], pixels: u32, info_at: GamePtr) -> Result<u32, BadInput> {
     use rc2k_core::gfx::png;

@@ -1,7 +1,7 @@
 //! The controller page's binding items (`menu::learn_binding_1` 0x46AFC6 .. `learn_binding_11`
 //! 0x46B110, 0x21 bytes apart): the item clicked starts its control's learning
-//! (`screens::learn_axis` takes it each frame): `dword_7551F4` 1 (learning), `dword_7551F8`
-//! the clock (`system::tick_count`, the 3 s start), `dword_7551FC` the control (1 .. 11).
+//! (`screens::learn_axis` takes it each frame): `controls.learning` 1 (learning), the learning start time
+//! the clock (`system::tick_count`, the 3 s start), the control being learnt the control (1 .. 11).
 //! The eleventh is in no menu, and nothing refers to it (IDA, 2026-10-24).
 //!
 //! Callers: the actions of the four controller pages' items (0x749C70 ..).

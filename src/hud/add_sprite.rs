@@ -1,10 +1,10 @@
-//! `hud::add_sprite` (0x4B70EE): a sprite from the texture's rectangle at esi (left, top, width,
+//! `hud::add_sprite` (0x4B70EE): a sprite from the texture's rectangle (left, top, width,
 //! height) put at: the quad record's texture places (<< 16), its corners (the width and height made
 //! positive), then `hud::add_quad`.
 //!
 //! Takes: the rectangle, x, y
 //!
-//! Callers: the HUD's drawers (code at 0x4B1E42, 0x4B1E62, ...).
+//! Callers: the HUD's drawers (several places).
 
 use crate::errors::Refused;
 use crate::hud::owner::Hud;

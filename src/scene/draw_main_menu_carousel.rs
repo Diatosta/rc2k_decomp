@@ -13,8 +13,7 @@ use crate::scene::draw_carousel::draw_carousel_in_game;
 
 // ---- Rust version ----
 
-/// The scene's mode 0, then the carousel; `lone_row`: ecx at the original's entry (see
-/// `draw_carousel`).
+/// The scene's mode 0, then the carousel; `lone_row`: see `draw_carousel`.
 pub fn draw_main_menu_carousel(
     menus: &crate::menu::owner::Menus,
     ctx: &crate::race::view_scratch::DrawCtx<'_>,

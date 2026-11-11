@@ -5,7 +5,7 @@
 //! For chop, down and up the exact error of the nearest result (an error-free
 //! transformation: two-sum, an fma, the remainder of a division or a root) tells which
 //! way the result steps. `st` is `fstp dword`, `to_int` is `fistp`, `ld` and `int` are
-//! `fld dword` and `fild`. Every helper of `x87.rs`, `x87_run.rs`, `x87_load.rs` and
+//! `fld dword` and `fild`. Every helper of `x87.rs`, `x87/run.rs`, `x87/load.rs` and
 //! `normalise_vector.rs` is written with these, so it rounds as the original does under
 //! whatever control word the game has set.
 //!

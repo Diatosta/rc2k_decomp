@@ -1,7 +1,7 @@
 //! `race::find_present_courses` (0x4394F8): which of the 100 courses are there: for each, its
 //! number in the stage's paths (`race::set_course_number`, `race::set_cdat_number` with 0), its
-//! flag (`dword_621518[n]`) 0, and 4 bytes of `srclvls\levelNN\cdat00c` (0x60B02B) read into
-//! `dword_623FB8` (`files::read_whole_file`, inside two `pusha`); four read (`g_readBytes`), the
+//! flag (`course_present`[n]`) 0, and 4 bytes of `srclvls\levelNN\cdat00c` (0x60B02B) read into
+//! `work_dword` (`files::read_whole_file`, inside two `pusha`); four read (`g_readBytes`), the
 //! flag 1; else the same with `files\levels\levelNN\cdat00c.sq` (0x60B07A).
 //!
 //! Callers: `scene::set_up_lit_engine`, and code at 0x442BF3 (not a function in IDA). Refuses

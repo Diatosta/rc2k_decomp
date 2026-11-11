@@ -1,24 +1,24 @@
-//! The car's notices (converted 2026-10-21 from `physics::queue_notice` 0x4B1BD0,
+//! The car's notices (converted from `physics::queue_notice` 0x4B1BD0,
 //! `take_notice` 0x4B1C56, `count_down_notice` 0x440F08 and `value_notice` 0x45B357):
 //! the one shown (the work copy's +0x71C .. +0x730) and the queue of up to 0x20 waiting
 //! (+0x428 ..: notices: the messages shown for a car, among them damage warnings by the gauges' levels).
 
 use crate::Invalid;
 
-/// The notice shown (`dword_71A6F4` .. `dword_71A708`).
+/// The notice shown (`notice_id` .. `notice_time_b`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Notice {
-    /// `dword_71A6F4`: the notice's id (0: none).
+    /// `notice_id`: the notice's id (0: none).
     pub id: u32,
-    /// `dword_71A6F8`.
+    /// `notice_counter`.
     pub w6f8: u32,
-    /// `dword_71A6FC`: the last one shown.
+    /// `notice_last`: the last one shown.
     pub last: u32,
-    /// `dword_71A700`: one is shown.
+    /// `notice_shown`: one is shown.
     pub shown: u32,
-    /// `dword_71A704`: its time, counted down while shown.
+    /// `notice_time`: its time, counted down while shown.
     pub time: u32,
-    /// `dword_71A708`: a second time (0x32 when taken from the queue).
+    /// `notice_time_b`: a second time (0x32 when taken from the queue).
     pub w708: u32,
 }
 
@@ -27,7 +27,7 @@ pub const VALUE_NOTICE: u32 = 0xCE;
 const VALUE_THRESHOLD: u32 = 300;
 
 impl Notice {
-    /// `physics::value_notice`: notice 0xCE by a figure (`dword_71A24C`) against 300 (by
+    /// `physics::value_notice`: notice 0xCE by a figure (`turned_steps`) against 300 (by
     /// the sign of the difference): at or past it, with none shown and 0xCE not the last,
     /// 0xCE with time 0; below it with 0xCE the last, neither shown nor last.
     pub fn value_notice(&mut self, figure: u32) {
@@ -43,7 +43,7 @@ impl Notice {
     }
 
     /// `physics::count_down_notice`: while one is shown and its time not 0, the time less
-    /// 1, at 0 no longer shown. The time before (the original's eax) when one is shown.
+    /// 1, at 0 no longer shown. The time before when one is shown.
     pub fn count_down(&mut self) -> Option<u32> {
         if self.shown == 0 {
             return None;
@@ -80,8 +80,8 @@ impl Notice {
 /// The queue's room.
 pub const QUEUE_ROOM: u32 = 0x20;
 
-/// The notices waiting (`dword_71A450` the count, then three lists of 0x20 dwords: the
-/// ids at `dword_71A454`, the values at `dword_71A4D4`, the levels at `dword_71A554`).
+/// The notices waiting (`notice_count` the count, then three lists of 0x20 dwords: the
+/// ids at `notice_ids`, the values at `notice_values`, the levels at `notice_ranks`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct NoticeQueue {
     pub count: u32,
@@ -92,9 +92,9 @@ pub struct NoticeQueue {
 
 impl NoticeQueue {
     /// `physics::queue_notice`: notice `id` at `level` (1 .. 4) for `value`, when the car's
-    /// flags (`dword_71A1F8`) have bit 2 and the queue is not full. With a level, an entry
+    /// flags (`option_bits`) have bit 2 and the queue is not full. With a level, an entry
     /// of the same value and a level is kept to the larger level (unsigned, its id with
-    /// it); else a new entry. The entry's index (the original's edx), `None` when nothing
+    /// it); else a new entry. The entry's index, `None` when nothing
     /// was done. A count past the room is refused (the original would write past the
     /// lists).
     pub fn queue(

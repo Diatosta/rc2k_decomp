@@ -1,7 +1,7 @@
 //! `files::read_whole_file` (0x421B54): reads a file's start into a buffer and says how
 //! much it got.
 //!
-//! Takes the path, the buffer and how many bytes at most. Sets `dword_60B2CC` to the bytes read
+//! Takes the path, the buffer and how many bytes at most. Sets the last-read count to the bytes read
 //! (0 after a failed open or close). Fails if the file could not be opened, read or closed; the
 //! original also leaves what `CloseHandle` gave (-1 if the file did not open) and 1 after a
 //! good read, 0 after a failed one, in registers.

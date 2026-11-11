@@ -1,27 +1,25 @@
-//! `effects::run_particles` (0x4CFB49, with its chunk 0x4D02B4 .. 0x4D05BD): the marks'
-//! particle ring's frame. Nothing when the settings' +4 is 0; else `effects::set_quad_uvs`,
-//! then `g_marksRingUsed` (as it is at the start) entries from `g_marksRingFree` along +4:
-//! - the life (+0x44) less `g_marksFrameTicks`; the entry dies when that borrows, or when
-//!   its y (+0x10) is below its ground (+0x24) (`fcomp`, `g_fpuStatus` 0x100), or when
-//!   its kind's step gives 1;
-//! - the kinds' steps (each the place moved by the motion times the ticks): 0 (dust:
-//!   +0x2C gains `flt_93C680` a tick, +0x3C `dword_93C684`; at or above `flt_93C688`
+//! `effects::run_particles` (0x4CFB49, in two pieces): the effects' particle ring's frame.
+//! Nothing when the settings' +4 is 0; else `effects::set_quad_uvs`, then the ring's used count
+//! (as it is at the start) entries from the ring's first free one along +4:
+//! - the life (+0x44) less the frame's ticks; the entry dies when that borrows, or when its y
+//!   (+0x10) is below its ground (+0x24), or when its kind's step gives 1;
+//! - the kinds' steps (each the place moved by the motion times the ticks): 0 (dust: +0x2C
+//!   gains the `dust` gain a tick, +0x3C its whole-number gain; at or above its least
 //!   `effects::burst_particles` and death, else `effects::trail_particles` while it rises,
-//!   the last place kept), 4 (trail: `flt_93C68C`, `dword_93C690`; drawn with colour
-//!   `dword_922B38`[life times +0x40]), 8 and 9 (burst: +0x10 also moved by +0x30, which
-//!   gains `flt_93C694` / `flt_93C6A8`, the motion damped by `flt_93C698` .. / `flt_93C6AC`
-//!   .., colour `dword_93A618`[+0x48 + life times +0x40], none: death; 9 one time in 128
-//!   drawn 0x386A0 bigger), each drawn by `effects::draw_particle`;
-//! - a dead entry: `g_marksRingUsed` less 1, and the entry moved to just before
-//!   `g_marksRingFree` (or that moved on past it when it is the entry).
+//!   the last place kept), 4 (trail: the `trail` gains; drawn with a colour from `colours`
+//!   by the life times +0x40), 8 and 9 (burst: +0x10 also moved by +0x30, which gains the
+//!   `burst8` / `burst9` gain, the motion damped by their dampings, colour from the burst
+//!   colour ramps by +0x48 + life times +0x40, none: death; 9 one time in 128 drawn 0x386A0
+//!   bigger), each drawn by `effects::draw_particle`;
+//! - a dead entry: the ring's used count less 1, and the entry moved to just before the ring's
+//!   first free one (or that moved on past it when it is the entry).
 //!
-//! Every eighth marks step (`dword_76513C`): `dword_5165E4` 1 and a drift puff near the
-//! view (`flt_5EA3CC` + 0x30) from two steps of the marks' random by
-//! `effects::add_drift_particle`.
+//! Every eighth effects step: a flag is set and a drift puff is made near the view (its place
+//! at +0x30) from two steps of the effects' random by `effects::add_drift_particle`.
 //!
-//! Works on `g_marksSettings`.
+//! Works on the effects settings.
 //!
-//! Caller: `effects::run_frame` (0x4D165E). Refuses, before anything, null settings, a null
+//! Caller: `effects::run_frame`. Refuses, before anything, null settings, a null
 //! entry or link on the way, a kind other than 0, 4, 8, 9 (the original's stack goes wrong:
 //! section 16) and a colour index out of its table; mid-way only its callees' own refusals
 //! (a broken ring). its seven calls relocated), manual patch.
@@ -39,6 +37,7 @@ use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::math::x87_float as bh;
 use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::extended;
 use crate::session::{Bytes, Float};
@@ -73,7 +72,7 @@ fn refusal(
         if settings == 0 {
             return Ok(Some("no marks settings"));
         }
-        let marks = crate::effects::setup::effects_settings()?;
+        let marks = effects.settings()?;
         if marks.race_done.get() == 0 {
             return Ok(None);
         }
@@ -132,11 +131,10 @@ fn step(
                 ),
             )?;
             let y = if with_up {
-                x87::plus_sum_times_int(
-                    particle(particles, e, 0x10)?,
-                    particle(particles, e, 0x2C)?,
-                    particle(particles, e, 0x30)?,
-                    t,
+                bh::st(
+                    (bh::ld(particle(particles, e, 0x2C)?) + bh::ld(particle(particles, e, 0x30)?))
+                        * bh::int(t)
+                        + bh::ld(particle(particles, e, 0x10)?),
                 )
             } else {
                 x87::plus_times_int(
@@ -191,7 +189,7 @@ fn step(
                     0x2C,
                     x87::plus_times_int(
                         particle(particles, e, 0x2C)?,
-                        effects.kinds.particle_tuning.dust[0].bits(),
+                        &effects.kinds.particle_tuning.dust[0],
                         t,
                     ),
                 )?;
@@ -218,7 +216,7 @@ fn step(
                     0x2C,
                     x87::plus_times_int(
                         particle(particles, e, 0x2C)?,
-                        effects.kinds.particle_tuning.trail[0].bits(),
+                        &effects.kinds.particle_tuning.trail[0],
                         t,
                     ),
                 )?;
@@ -247,7 +245,7 @@ fn step(
                     particles,
                     e,
                     0x30,
-                    x87::plus_times_int(particle(particles, e, 0x30)?, k[0].bits(), t),
+                    x87::plus_times_int(particle(particles, e, 0x30)?, &k[0], t),
                 )?;
                 set_particle(
                     particles,
@@ -310,7 +308,7 @@ pub fn run_particles(
         return Err(BadInput(why).into());
     }
     {
-        let marks = crate::effects::setup::effects_settings()?;
+        let marks = effects.settings()?;
         if marks.race_done.get() == 0 {
             return Ok(());
         }
@@ -387,12 +385,11 @@ pub fn run_particles(
         let y = x87::loaded(view(0x34));
         let z = wave(&effects.kinds.particle_tuning.puff_z, view(0x38), true);
         let lift = seed();
-        let up = x87::int_times_plus_times_plus(
-            lift as i32,
-            uv_k,
-            effects.kinds.particle_tuning.puff_y[0].bits(),
-            effects.kinds.particle_tuning.puff_y[1].bits(),
-            effects.kinds.particle_tuning.puff_y[2].bits(),
+        let up = bh::st(
+            (bh::int(lift as i32) * bh::ld(uv_k)
+                + bh::ld(effects.kinds.particle_tuning.puff_y[0].bits()))
+                * bh::ld(effects.kinds.particle_tuning.puff_y[1].bits())
+                + bh::ld(effects.kinds.particle_tuning.puff_y[2].bits()),
         );
         let mx = x87::sub_mul(
             view(0x30),
@@ -415,7 +412,7 @@ pub fn run_particles(
     Ok(())
 }
 
-/// The trail particles' colours (IDA 0x922B38 .. 0x922FE0, the image's layout; phase 7, typed state).
+/// The trail particles' colours (IDA 0x922B38 .. 0x922FE0).
 #[repr(C)]
 pub struct TrailColours {
     /// 0x922B38: `dword_922B38`: the trail particles' 298 colours (`effects::run_particles`).
@@ -467,7 +464,7 @@ impl TrailColours {
     pub const LEN: usize = 0x4A8;
 }
 
-/// The puff's work values (IDA 0x93A5F0 .. 0x93A618, the image's layout; phase 7, typed state).
+/// The puff's work values (IDA 0x93A5F0 .. 0x93A618).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PuffWork {
@@ -486,12 +483,12 @@ impl PuffWork {
                 0x00, 0x00,
             ]),
             puff: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
             ],
         }
     }
@@ -604,7 +601,7 @@ const fn burst_colours() -> [u8; 0x2000] {
     table
 }
 
-/// The burst particles' colour ramps (IDA 0x93A618 .. 0x93C618, the image's layout; phase 7, typed state).
+/// The burst particles' colour ramps (IDA 0x93A618 .. 0x93C618).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct BurstColours {
@@ -653,7 +650,7 @@ mod burst_colours_tests {
     }
 }
 
-/// The particle effects' constants (`run_particles`, `trail_particles`, `burst_particles`, `add_drift_particle`) (IDA 0x93C618 .. 0x93C6C8, the image's layout; phase 7, typed state).
+/// The particle effects' constants (`run_particles`, `trail_particles`, `burst_particles`, `add_drift_particle`) (IDA 0x93C618 .. 0x93C6C8).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ParticleTuning {
@@ -698,54 +695,50 @@ impl ParticleTuning {
     pub const fn new() -> Self {
         Self {
             puff_x: [
-                Float::from_bits(0x40490FDB),
-                Float::from_bits(0x40000000),
-                Float::from_bits(0x4A200000),
+                Float::new(std::f32::consts::PI),
+                Float::new(2.0),
+                Float::new(2621440.0),
             ],
             puff_z: [
-                Float::from_bits(0x40490FDB),
-                Float::from_bits(0x40000000),
-                Float::from_bits(0x4A200000),
+                Float::new(std::f32::consts::PI),
+                Float::new(2.0),
+                Float::new(2621440.0),
             ],
-            puff_y: [
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x44FA0000),
-                Float::from_bits(0x43FA0000),
-            ],
-            puff_m: [Float::from_bits(0x38D1B717), Float::from_bits(0x38D1B717)],
-            drift_lower: Float::from_bits(0x447A0000),
-            trail_random_k: Float::from_bits(0xBF000000),
+            puff_y: [Float::new(1.0), Float::new(2000.0), Float::new(500.0)],
+            puff_m: [Float::new(0.0001), Float::new(0.0001)],
+            drift_lower: Float::new(1000.0),
+            trail_random_k: Float::new(-0.5),
             trail_axes: [
-                Float::from_bits(0x3A83126F),
-                Float::from_bits(0x3DCCCCCD),
-                Float::from_bits(0x3A83126F),
-                Float::from_bits(0x3DCCCCCD),
-                Float::from_bits(0x3A83126F),
-                Float::from_bits(0x3DCCCCCD),
+                Float::new(0.001),
+                Float::new(0.1),
+                Float::new(0.001),
+                Float::new(0.1),
+                Float::new(0.001),
+                Float::new(0.1),
             ],
-            trail_spread: Float::from_bits(0x43800000),
-            trail_size_k: [Float::from_bits(0x41800000), Float::from_bits(0x45000000)],
-            trail_life_k: Float::from_bits(0x43800000),
-            burst_scale: [Float::from_bits(0x3F800000), Float::from_bits(0x44800000)],
-            burst_life: Float::from_bits(0x43800000),
+            trail_spread: Float::new(256.0),
+            trail_size_k: [Float::new(16.0), Float::new(2048.0)],
+            trail_life_k: Float::new(256.0),
+            burst_scale: [Float::new(1.0), Float::new(1024.0)],
+            burst_life: Float::new(256.0),
             dust: [
-                Float::from_bits(0xBF99999A),
+                Float::new(-1.2),
                 Float::from_bits(0xFF800000),
-                Float::from_bits(0xC47A0000),
+                Float::new(-1000.0),
             ],
-            trail: [Float::from_bits(0xBDCCCCCD), Float::from_bits(0xFF800000)],
+            trail: [Float::new(-0.1), Float::from_bits(0xFF800000)],
             burst8: [
-                Float::from_bits(0xBDCCCCCD),
-                Float::from_bits(0x3DCCCCCD),
-                Float::from_bits(0x3DCCCCCD),
-                Float::from_bits(0x3DCCCCCD),
+                Float::new(-0.1),
+                Float::new(0.1),
+                Float::new(0.1),
+                Float::new(0.1),
                 Float::from_bits(0xFF800000),
             ],
             burst9: [
-                Float::from_bits(0xBDCCCCCD),
-                Float::from_bits(0x3DCCCCCD),
-                Float::from_bits(0x3DCCCCCD),
-                Float::from_bits(0x3DCCCCCD),
+                Float::new(-0.1),
+                Float::new(0.1),
+                Float::new(0.1),
+                Float::new(0.1),
                 Float::from_bits(0xFF800000),
             ],
             _gap_93c6bc: Bytes::new([0; 12]),

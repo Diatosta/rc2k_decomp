@@ -1,12 +1,12 @@
-//! The viewer's two plays (IDA 2026-10-19), sharing one tail (0x41E231):
-//! - `race::play_marked` (0x41E224): from the first mark (`dword_96E478`, frame 0) to the
-//!   second (`dword_96E47C`).
-//! - `race::play_from_here` (0x41E1E2): from the block and frame shown (`dword_5C2530`,
-//!   `dword_5C2534`) to the end (`dword_5BECD0`); it jumps into `play_marked`'s tail.
+//! The viewer's two plays, sharing one tail (0x41E231):
+//! - `race::play_marked` (0x41E224): from the first mark (`mark_in`, frame 0) to the
+//!   second (`mark_out`).
+//! - `race::play_from_here` (0x41E1E2): from the block and frame shown (`replay_block`,
+//!   `replay_frame`) to the end (`index_block_count`); it jumps into `play_marked`'s tail.
 //!
-//! The tail: the block to stop at into `dword_5C2538`, `dword_5BEC98` 0 (playing), the
-//! start read (`drive::read_replay_frame`, eax the block, ebx the frame; its carry not
-//! looked at), the play (`race::play_replay_range`), `dword_5C253C` 0.
+//! The tail: the block to stop at into `play_end`, `viewer_stopped` 0 (playing), the
+//! start read (`drive::read_replay_frame` with the block and the frame; its failure not
+//! looked at), the play (`race::play_replay_range`), `play_from_here` 0.
 //!
 //! Callers: `race::viewer_action` (0x1A, 0x25 .. 0x28 `play_marked`; 6 and 0x22, 0x23
 //! `play_from_here`).

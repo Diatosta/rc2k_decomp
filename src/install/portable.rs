@@ -1,4 +1,4 @@
-//! The standalone program's installation record in place of the registry (owner, 2026-10-19:
+//! The standalone program's installation record in place of the registry (owner:
 //! the standalone is portable, a folder that needs nothing outside it; a decided difference
 //! from the original).
 //!
@@ -24,8 +24,8 @@ pub const FILE: &str = "var\\install.cfg";
 
 /// Whether the standalone runs in the game's download folder (the CD's files, as it is
 /// bundled), not an installation: the game's data (`files\d\gfx\jade.bun`) but neither
-/// `var\ral.zog` nor `var\install.cfg`. The main loop then enters the installer (owner,
-/// 2026-10-20: the folder in place of a CD).
+/// `var\ral.zog` nor `var\install.cfg`. The main loop then enters the installer (owner:
+/// the folder in place of a CD).
 pub fn is_source_folder() -> bool {
     let here = |p: &str| crate::files::host_path(p.as_bytes()).exists();
     here("files\\d\\gfx\\jade.bun") && !here("var\\ral.zog") && !here(FILE)

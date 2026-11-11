@@ -1,17 +1,13 @@
-//! `physics::take_first_view` (0x437F53): a view's figures (the record at esi) into the
-//! first view: +4 .. +0xC plus `dword_637638` .. into `flt_608B98` ..; +0x10 .. +0x24
-//! into `flt_608B80` .., `flt_608BC8` ..; +0x28 .. +0x38 into `dword_608BF8`,
-//! `608BFC`, `608C00`, `608BF4`, `608C04`; the heading (`unk_71A998`) into
-//! `dword_608B5C`; the next two (`unk_71A99C`, `unk_71A9A0`), halved (`sar`) when the
-//! mode's record has +0x4C set, into `dword_608B64`, `dword_608B60`.
+//! `physics::take_first_view` (0x437F53): a view's figures (a record) copied into the first
+//! view: the offset (+4 .. +0xC) plus `camera_shake_x` .. into `view_a_offset`; +0x10 .. +0x24
+//! into `view_a_turn` and `view_a_point`; +0x28 .. +0x38 into `view_a_shares`; the heading
+//! (`car_heading`) into `view_a_heading`; the next two (`car_pitch`, `car_roll`), halved
+//! (arithmetic shift) when the mode's record has +0x4C set, into `view_a_pitch` and `view_a_roll`.
 //!
 //! Takes: the view's record
 //! Returns: the two, the mode's record
 //!
 //! Caller: `physics::update_camera`.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
@@ -21,7 +17,7 @@ use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
 use crate::race::view_vars_store::ViewRecord;
 
-/// The exact version, for `physics::update_camera`: `s` the view's record (esi).
+/// The exact version, for `physics::update_camera`: `s` the view's record.
 pub fn take_first_view(
     race: &Race,
     s: &ViewRecord,
@@ -69,12 +65,12 @@ fn copies() -> [fn(&CameraWork, u32); 11] {
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (`[s + 4]` .. `[s + 0xC]` the record's offset, passed by value)
-/// `[rc + 0x208B98] = [s + 4] + [rc + 0x237638]`
-/// `[rc + 0x208B9C] = [s + 8] + [rc + 0x23763C]`
-/// `[rc + 0x208BA0] = [s + 0xC] + [rc + 0x237640]`
+/// `[view_a_offset] = [s + 4] + [camera_shake_x]`
+/// `[rc + 0x208B9C] = [s + 8] + [camera_shake_y]`
+/// `[rc + 0x208BA0] = [s + 0xC] + [camera_shake_z]`
 fn x87_1(physics: &Physics, offset: [u32; 3], scene: &crate::scene::owner::Scene) {
     let lights = &scene.lights;
     let t0 = ld(offset[0]);

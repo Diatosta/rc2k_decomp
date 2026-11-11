@@ -8,13 +8,12 @@
 //! before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
-use crate::menu::owner::Screens;
 use crate::menu::standings::*;
 
 /// Each group's (0 .. 3) players, in order, into the table's entries from the group's slot
 /// down (`copy_standing_entry`, ebx the player's index).
-fn players_by_group(menus: &Menus, screens: &Screens, firsts: [usize; 4]) -> Result<(), Refused> {
-    let players = counted_players(screens)?;
+fn players_by_group(menus: &Menus, firsts: [usize; 4]) -> Result<(), Refused> {
+    let players = counted_players(menus)?;
     let groups: Vec<u32> = players.iter().map(|p| p.get().class).collect();
     // Converted: `rc2k_core::menu::standings::by_group`.
     for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
@@ -24,13 +23,12 @@ fn players_by_group(menus: &Menus, screens: &Screens, firsts: [usize; 4]) -> Res
 }
 
 pub fn standings_a_from_all(menus: &Menus) -> Result<(), Refused> {
-    let screens = &menus.screens;
-    let players = counted_players(screens)?;
+    let players = counted_players(menus)?;
     if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());
     }
     crate::menu::standings_from_drivers::standings_from_drivers(menus)?;
     use rc2k_core::menu::standings::A_GROUP_FIRSTS;
-    players_by_group(menus, screens, A_GROUP_FIRSTS)?;
+    players_by_group(menus, A_GROUP_FIRSTS)?;
     Ok(())
 }

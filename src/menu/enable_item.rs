@@ -5,10 +5,9 @@
 
 use crate::errors::Refused;
 use crate::menu::disable_item::set_item;
-use crate::menu::owner::menus;
+use crate::menu::owner::Screens;
 
-pub fn enable_item(number: u32) -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn enable_item(screens: &Screens, number: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::items::choosable`.
     set_item(screens, number, true)
 }

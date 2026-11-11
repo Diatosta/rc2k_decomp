@@ -1,10 +1,10 @@
 //! `install::read_registry` (0x413D14): what the installer left in the registry.
 //!
 //! Under `HKEY_LOCAL_MACHINE\SOFTWARE\Magnetic Fields\RC99`: the value `status` into
-//! `byte_51BB8C` (kept only if it is one byte of binary data, else 0) and the value
-//! `source` into `byte_51BB8D` (up to 0xFF bytes; emptied unless it is a text). Without
+//! `status` (kept only if it is one byte of binary data, else 0) and the value
+//! `source` into `source` (up to 0xFF bytes; emptied unless it is a text). Without
 //! the key nothing changes; if `status` cannot be read, `source` is not asked for. The
-//! registry's own answers are left in `Type` (0x51BC94) and `dword_51BC90` (the size).
+//! registry's own answers are left in `Type` (0x51BC94) and `source_size` (the size).
 //! Three callers: the two installation checks and the installer.
 
 // ---- game data ----

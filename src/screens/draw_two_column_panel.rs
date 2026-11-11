@@ -1,6 +1,6 @@
 //! `screens::draw_two_column_panel` (0x49FE4B): a two-column page's backdrop: the top bar,
 //! the two side bars, the bottom bar and the middle rule (see-through blue 0x11166A,
-//! `dword_75AA94`; `scene::draw_tinted_quad`), then the rows' rules
+//! the fade's full see-through; `scene::draw_tinted_quad`), then the rows' rules
 //! (`screens::draw_column_rules`) and boxes (`screens::draw_column_boxes`).
 //!
 //!

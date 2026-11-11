@@ -1,12 +1,9 @@
 //! `physics::camera_height_bias` (0x43852D): with the mode's record's +0x54 not 0:
-//! `flt_60631C` / `flt_606290` held to 0 ..= 1 (1 less it for +0x54 below 0), x
-//! `flt_5C5D98` x `flt_60628C` (`fistp`) into `dword_606288` and added to the camera's
+//! `camera_distance` / `camera_bias_limit` held to 0 ..= 1 (1 less it for +0x54 below 0), x
+//! `k65536` x `camera_bias_scale` (`fistp`) into `camera_height_bias` and added to the camera's
 //! height `unk_71A680`.
 //!
 //! Caller: `physics::update_camera`.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::math::x87_float::X;
 use crate::math::x87_float::ld;
@@ -47,9 +44,9 @@ pub fn camera_height_bias(
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x22400C] = [rc + 0x20631C] / [rc + 0x206290]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[scratch] = [camera_distance] / [camera_bias_limit]`
 fn x87_1(frame: &Frame, scene: &crate::scene::owner::Scene) {
     let t0 = ld(frame.view_and_records.view_vars.camera_distance.bits());
     let t1 = ld(frame.view_and_records.view_vars.camera_bias_limit.bits());
@@ -57,9 +54,9 @@ fn x87_1(frame: &Frame, scene: &crate::scene::owner::Scene) {
     scene.drawing.scene.scratch.set_bits(st(t2));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x22400C] = 1 - [rc + 0x22400C]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[scratch] = 1 - [scratch]`
 fn x87_2(scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let t0 = X(1.0);
@@ -68,9 +65,9 @@ fn x87_2(scene: &crate::scene::owner::Scene) {
     drawing.scene.scratch.set_bits(st(t2));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [rc + 0x22400C] = ([rc + 0x22400C] * [rc + 0x1C5D98]) * [rc + 0x20628C]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [scratch] = ([scratch] * [k65536]) * [camera_bias_scale]`
 fn x87_3(race: &Race, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let t0 = ld(drawing.scene.scratch.bits());

@@ -1,29 +1,29 @@
 //! `race::replay_viewer` (0x41CF0C): the replay viewer, by mode: 1 the last race's replay (222); 2
 //! a saved one chosen (`menu::replay_slot_loop` 0; none: nothing); 3 the last race's saved into a
-//! slot chosen (`replay_slot_loop` 1, `race::save_last_replay`) and nothing else. `dword_5BEC9C`
-//! the mode, `dword_5BECA0` the replay, `g_holdCarRevs` 1 while it runs.
+//! slot chosen (`replay_slot_loop` 1, `race::save_last_replay`) and nothing else. `viewer_mode`
+//! the mode, `viewer_slot` the replay, `g_holdCarRevs` 1 while it runs.
 //!
 //! Then the replay opened (`race::open_viewed_replay`; failing: the end), no camera edit,
-//! `dword_5C2544` whether it is the last race's, the snapshots' number found
+//! `last_race_viewed` whether it is the last race's, the snapshots' number found
 //! (`race::find_snapshot_number`), the stage loaded (`race::viewer_load_stage`), the list
-//! set up (`unk_5C255C`: no sound, shown, not leaving, the clocks, item 6), the pending key
+//! set up (`viewer_list`: no sound, shown, not leaving, the clocks, item 6), the pending key
 //! dropped, the items marked (`race::mark_viewer_items`). Each frame after (shown by
 //! `screens::run_frame` with 0x41D5FB, `race::viewer_frame`): the clocks, a key
 //! (`menu::list_take_key`); the game quitting ends it; keys
-//! held after a play (`dword_5C2554`, until `byte_4F6ADD` and `byte_4F6AF8` are up) do
-//! nothing; Escape twice in a row ends it. Playing (`dword_5BEC98` 0): a frame on
+//! held after a play (`wait_key_release`, until `byte_4F6ADD` and `byte_4F6AF8` are up) do
+//! nothing; Escape twice in a row ends it. Playing (`viewer_stopped` 0): a frame on
 //! (`race::step_viewed_replay`); its end or any key stops. Stopped: key 0x52 (Numpad 0) a screenshot
 //! (`gfx::take_screenshot`, with screenshots on); while a camera is edited 0x68, 0x69,
 //! Escape, Enter are actions 0x1E, 0x1F, 0x20, 0x21; else the arrows move the highlight
 //! (`menu::list_step`), Enter does the item's action (its byte 1), 0x3B and 0x3C actions 6
 //! and 0x22, the developer's keys (`dword_5C2CEB`) '?', '@', 'A', 'B' 0x26, 0x27, 0x28,
-//! 0x25, and with editing (`dword_5BECA8`) the keys of `KEYS`. After an action or a move
+//! 0x25, and with editing (`viewer_editing`) the keys of `KEYS`. After an action or a move
 //! the items are marked again and a highlight that cannot be chosen
 //! (`menu::list_item_unusable`) moved on the way it went, else back, else to item 6 (or
-//! 0x13 when item 6 is marked); the menu sound asked (`dword_5BECA4`) played
-//! (`sound::play_menu_sound`); `byte_51D416` 1 ends it. At the end the replay closed
+//! 0x13 when item 6 is marked); the menu sound asked (`viewer_sound`) played
+//! (`sound::play_menu_sound`); `list_leave` 1 ends it. At the end the replay closed
 //! (`race::close_viewed_replay`), the front end back (`race::viewer_tidy_stage`),
-//! `dword_5BEC98` and `g_holdCarRevs` 0.
+//! `viewer_stopped` and `g_holdCarRevs` 0.
 //!
 //! Takes: the mode
 //!
@@ -74,7 +74,7 @@ pub const KEYS: [(u8, u32); 30] = [
 const DEVELOPER: [(u8, u32); 4] = [(b'?', 0x26), (b'@', 0x27), (b'A', 0x28), (b'B', 0x25)];
 const MOVES: [u8; 4] = [0x66, 0x6B, 0x68, 0x69];
 
-/// What the viewer is started for (the original's eax).
+/// What the viewer is started for .
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mode {
     /// The last race's replay.

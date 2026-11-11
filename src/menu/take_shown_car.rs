@@ -1,7 +1,7 @@
 //! `menu::take_shown_car` (0x47B29D): the car shown on the car choice given to the current
 //! player.
 //!
-//! The current player (`dword_75598C`) gets the entry `dword_755990` of the list: its +0 as
+//! The current player (`event.current_player`) gets the entry `event.shown_car` of the list: its +0 as
 //! `car_number` (+8), its +8 as `class` (+0x90). Callers: seven more. Refuses a current player
 //! past the four (the original reads past `g_players`) and no list of cars.
 
@@ -11,7 +11,7 @@ use crate::menu::owner::Menus;
 use crate::menu::player::{PLAYERS, Player, player};
 use crate::session::Dword;
 
-pub const CURRENT_PLAYER_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.current_player; // dword_75598C
+pub const CURRENT_PLAYER_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.current_player;
 const _: () = assert!(std::mem::offset_of!(Player, car_number) == 8);
 const _: () = assert!(std::mem::offset_of!(Player, class) == 0x90);
 
@@ -33,7 +33,7 @@ pub fn take_shown_car(menus: &Menus, list: Option<CarList>) -> Result<(), Refuse
         // The entry is a description's handle (`cars_store::car_ref`).
         let description = crate::menu::cars_store::description(entry)?.get();
         let (number, class) = (description.car, description.class);
-        player(current)
+        player(menus, current)
             .ok_or(crate::errors::BadInput("a current player past the four"))?
             .update(|p| p.take_car(number, class));
     }

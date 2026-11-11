@@ -1,5 +1,5 @@
 //! `install::value_up` (0x41489C): an item of a value (kind 3) raised by the key's repeats
-//! (`g_listRepeats`), not above its most (`[esi+0Dh]`, signed compare).
+//! (`g_listRepeats`), not above its most (`[item+0Dh]`, signed compare).
 //!
 //! Returns the value's address, most, new value.
 //! Callers `install::key_right`.

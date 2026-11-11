@@ -1,6 +1,5 @@
-//! The game's four thread slots, out of the image since 2026-10-24 (phase 5; they were
-//! `g_inputThreadSlot`, `g_audioThreadSlot`, `stru_518714` and `stru_518824`, 0x5184F4 ..
-//! 0x518934, four of 0x110 bytes in a row). A slot: +0 the thread's routine, +4 its thread id,
+//! The game's four thread slots (`g_inputThreadSlot`, `g_audioThreadSlot`, the net slot and
+//! the shutdown slot, 0x5184F4 .. 0x518934, four of 0x110 bytes in a row). A slot: +0 the thread's routine, +4 its thread id,
 //! +8 its handle, +0xC its flag (1 running, 0xFF suspended), +0x10 .. +0x110 the path
 //! buffer `files::resolve_path` uses for the thread.
 

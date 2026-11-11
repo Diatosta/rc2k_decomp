@@ -1,12 +1,12 @@
-//! `physics::cap_drive_speed` (0x440DF3): a slip allowance `flt_614168` =
-//! `flt_613E48` / (|`g_carSpeed`| + `flt_613E4C`) - `flt_613E50`, held at 0 or more (an
+//! `physics::cap_drive_speed` (0x440DF3): a slip allowance `drive_speed_figure` =
+//! `drive_speed_cap` / (|`g_carSpeed`| + `drive_speed_cap_a`) - `drive_speed_cap_b`, held at 0 or more (an
 //! unordered one counts as below); `g_carDriveSpeed` held to at most the speed plus it
-//! (through `dword_62400C`; a drive speed below that, or unordered, is left).
+//! (through `scratch`; a drive speed below that, or unordered, is left).
 //!
 //! Caller: `physics::drive_wheels_step` (0x43E0DD).
 
 use crate::math::x87;
-use crate::math::x87_run::over_abs_plus_minus;
+use crate::math::x87::over_abs_plus_minus;
 use crate::physics::car_store::Car;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::tables_store::PhysicsTables;

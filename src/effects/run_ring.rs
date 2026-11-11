@@ -1,27 +1,26 @@
-//! `effects::run_ring` (0x4CB64D, with its chunk 0x4CE681 .. 0x4CF85E): the emitters' ring's
-//! frame. Each of `g_marksRingCount` entries from `g_marksRingCursor` along +4 stepped by
-//! its kind (+0xC; others nothing): the life (+0x84) less `g_marksFrameTicks` (dies when
-//! that borrows) and, but for the boxed kinds' own test, death below its ground (+0x28,
-//! `fcomp`). When the settings' entry flag (`g_marksSettings` + the entry's +8 + 0x60) is
-//! set it is drawn: kinds 5, 0xD with their place on the object's (`[[+0x68] + 0x24] +
-//! 0x30` .., the sums unrounded), 6, 0x15, 1, 0x13, 0x16 at their place, by
-//! `effects::draw_cell_sprite` (0xB by its twin `draw_cell_sprite_2`; cell +0x58, angle
+//! `effects::run_ring` (0x4CB64D, in two pieces): the emitters' ring's frame. Each of the
+//! ring's entries from its cursor along +4 stepped by its kind (+0xC; others nothing): the
+//! life (+0x84) less the frame's ticks (dies when that borrows) and, but for the boxed kinds'
+//! own test, death below its ground (+0x28). When the settings' entry flag (the settings + the
+//! entry's +8 + 0x60) is set it is drawn: kinds 5, 0xD with their place on the object's
+//! (`[[+0x68] + 0x24] + 0x30` .., the sums unrounded), 6, 0x15, 1, 0x13, 0x16 at their place,
+//! by `effects::draw_cell_sprite` (0xB by its twin `draw_cell_sprite_2`; cell +0x58, angle
 //! +0x50, alpha +0x74, size +0x60 as whole numbers or as they are); 0x10, 0x11 by
 //! `effects::draw_subcell_sprite` (subcell +0x58 plus the life's frame of four). Then the
-//! angle on (+0x54 times `flt_764FD4`, kept to 12 bits), the place moved by the motion, the
+//! angle on (+0x54 times a constant, kept to 12 bits), the place moved by the motion, the
 //! kind's gains, dampings (a part that changes sign stops at 0), the size pulled toward
 //! +0x70 (kinds 6, 0x15 only while outside the object's box and not facing it; kind 1 also
-//! its +0x64 pulled toward `flt_7651DC` when near and facing), the alpha faded by +0x78;
-//! kinds 0x10, 0x11 die inside the object's box above `flt_935670`. A dead entry is moved
-//! to just before the cursor (or that moved on past it).
+//! its +0x64 pulled toward a constant when near and facing), the alpha faded by +0x78; kinds
+//! 0x10, 0x11 die inside the object's box above a height. A dead entry is moved to just
+//! before the cursor (or that moved on past it).//!
+//! In:  nothing (the effects settings)
 //!
-//! In:  nothing (`g_marksSettings`)
-//!
-//! Caller: `effects::run_frame` (0x4D163B, after `run_ribbons`' set-up). The longer x87 runs
+//! Caller: `effects::run_frame` (after `run_ribbons`' set-up). The longer x87 runs
 //! are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the entries and the game's variables. Refuses,
 //! before anything, null settings, a null entry or link on the way, a null object where one
 //! is read, and the draws' own refusals for an entry that may be drawn.
 
+use crate::effects::cell_x87::CellX87;
 use crate::effects::emitters::matrix_cell;
 use crate::effects::mask_store::Masks;
 #[cfg(test)]
@@ -181,9 +180,13 @@ static K16: Kind = Kind {
 };
 
 /// Why it refuses, if it does: the walk's pointers checked, nothing written.
-fn refusal(ring: &Ring, fog: &crate::scene::fog::Fog) -> Result<Option<&'static str>, Refused> {
+fn refusal(
+    effects: &crate::effects::owner::Effects,
+    ring: &Ring,
+    fog: &crate::scene::fog::Fog,
+) -> Result<Option<&'static str>, Refused> {
     Ok({
-        let Ok(marks) = crate::effects::setup::effects_settings() else {
+        let Ok(marks) = effects.settings() else {
             return Ok(Some("no marks settings"));
         };
         let mut e: u32 = ring.work.cursor.get();
@@ -265,11 +268,8 @@ fn at_place(ring: &Ring, e: u32) -> Result<[[u8; 10]; 3], Refused> {
 }
 
 /// The settings' flag for the entry.
-fn shown(ring: &Ring, e: u32) -> Result<bool, Refused> {
-    Ok(entry_flag(
-        crate::effects::setup::effects_settings()?,
-        entry(ring, e)?.emitter_tag,
-    )? != 0)
+fn shown(effects: &crate::effects::owner::Effects, ring: &Ring, e: u32) -> Result<bool, Refused> {
+    Ok(entry_flag(effects.settings()?, entry(ring, e)?.emitter_tag)? != 0)
 }
 
 /// The alpha (top byte) as a whole number (`fistp` through `dword_9356C0`).
@@ -298,10 +298,9 @@ fn spin_and_move(
     {
         let t: i32 = setup.clock.frame_ticks.get() as i32;
         if spin {
-            let turn = x87::int_times_to_int(
-                entry(ring, e)?.angle_rate as i32,
-                setup.clock.ticks_scaled.bits(),
-            ) as u32;
+            let turn =
+                x87::int_times_to_int(entry(ring, e)?.angle_rate as i32, &setup.clock.ticks_scaled)
+                    as u32;
             set(
                 ring,
                 e,
@@ -352,7 +351,7 @@ fn damp3(
         for (axis, kk) in ks.into_iter().enumerate() {
             let old = entry(ring, e)?.motion[axis];
             ring.work.whole.set(old);
-            let new = x87::damp(old, k(kk), t);
+            let new = bh::st(bh::ld(old) - bh::ld(old) * bh::ld(k(kk)) * bh::int(t));
             set(ring, e, new, |en| &mut en.motion[axis])?;
             if (old ^ new) & 0x8000_0000 != 0 {
                 set(ring, e, 0, |en| &mut en.motion[axis])?;
@@ -383,7 +382,7 @@ fn pull_size(
             set(
                 ring,
                 e,
-                x87::int_to_float(entry(ring, e)?.size_goal as i32),
+                x87::from_int(entry(ring, e)?.size_goal as i32),
                 |en| &mut en.size,
             )?;
         }
@@ -397,7 +396,7 @@ fn fade(ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) -> Result
         set(
             ring,
             e,
-            x87::less_times_int(entry(ring, e)?.alpha, entry(ring, e)?.alpha_fade, t),
+            bh::st(bh::ld(entry(ring, e)?.alpha) - bh::ld(entry(ring, e)?.alpha_fade) * bh::int(t)),
             |en| &mut en.alpha,
         )?;
     }
@@ -484,7 +483,7 @@ fn drift_kind(
         if aged(ring, e, true, effects)? {
             return Ok(true);
         }
-        if shown(ring, e)? {
+        if shown(effects, ring, e)? {
             let p = on_object(ring, e)?;
             let [cell, angle, alpha, size] = [
                 entry(ring, e)?.cell,
@@ -514,7 +513,7 @@ fn drift_kind(
         set(
             ring,
             e,
-            x87::times_int_plus_int_to_int(k(ks[1]), t, entry(ring, e)?.size as i32) as u32,
+            bh::to_int(bh::ld(k(ks[1])) * bh::int(t) + bh::int(entry(ring, e)?.size as i32)) as u32,
             |en| &mut en.size,
         )?;
         set(
@@ -548,7 +547,7 @@ fn fading_kind(
         if (entry(ring, e)?.alpha as i32) < 0 {
             set(ring, e, 0, |en| &mut en.alpha)?;
         }
-        if shown(ring, e)? {
+        if shown(effects, ring, e)? {
             let p = if kind == 0xD {
                 on_object(ring, e)?
             } else {
@@ -557,10 +556,9 @@ fn fading_kind(
             let [cell, angle] = [entry(ring, e)?.cell, entry(ring, e)?.angle];
             let alpha = whole_alpha(ring, e)?;
             let size = if kind == 1 {
-                x87::plus_product_to_int(
-                    entry(ring, e)?.size,
-                    entry(ring, e)?.size_factor,
-                    k(&ring.kinds.k1_size),
+                bh::to_int(
+                    bh::ld(entry(ring, e)?.size)
+                        + bh::ld(entry(ring, e)?.size_factor) * bh::ld(k(&ring.kinds.k1_size)),
                 )
             } else {
                 x87::to_int(entry(ring, e)?.size)
@@ -638,12 +636,9 @@ fn pull_toward(
         }
         pull_strength(ring, e, car, effects);
         if (ring.work.whole.get() as i32) > (setup.floats.pull_limit.bits() as i32) {
-            set(
-                ring,
-                e,
-                x87::loaded(setup.floats.fixed_16_scale.bits()),
-                |en| &mut en.size_factor,
-            )?;
+            set(ring, e, x87::loaded(&setup.floats.fixed_16_scale), |en| {
+                &mut en.size_factor
+            })?;
         }
     }
     Ok(())
@@ -668,13 +663,13 @@ fn boxed_kind(
     }
     spin_and_move(ring, e, false, effects)?;
     gain_y(ring, e, gain, effects)?;
-    if shown(ring, e)? {
+    if shown(effects, ring, e)? {
         let p = on_object(ring, e)?;
         let size = entry(ring, e)?.size;
-        let f = x87::int_times_times_to_int(
-            entry(ring, e)?.life as i32,
-            effects.setup.floats.twentieth.bits(),
-            entry(ring, e)?.cell_rate,
+        let f = bh::to_int(
+            bh::int(entry(ring, e)?.life as i32)
+                * bh::ld(effects.setup.floats.twentieth.bits())
+                * bh::ld(entry(ring, e)?.cell_rate),
         );
         ring.work.whole.set(f as u32);
         let subcell = ((f as u32) & 3).wrapping_add(entry(ring, e)?.cell);
@@ -711,7 +706,7 @@ pub fn run_ring(
     effects: &crate::effects::owner::Effects,
     view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<(), Refused> {
-    if let Some(why) = refusal(ring, view.fog)? {
+    if let Some(why) = refusal(effects, ring, view.fog)? {
         return Err(BadInput(why).into());
     }
     {
@@ -787,7 +782,7 @@ use crate::math::x87_float as bh;
 
 /// `fld dword ptr` of a float of a car record in the settings.
 fn car_float(cell: &Float) -> bh::X {
-    bh::ld(cell.bits())
+    cell.ld()
 }
 
 /// The car's 3 x 3 turning matrix (the record's `matrix`, 4 floats a row): cell `n`.
@@ -799,16 +794,16 @@ fn turn(car: &CarEffects, n: usize) -> bh::X {
 fn box_x87(ring: &Ring, w: &RingWork, e: u32, whole: &[Float; 16], car: &CarEffects) {
     let t0 = ld(ring, e, |en| en.place[0]);
     let t1 = t0 - ld_cell(&whole[12]);
-    w.away[0].set_bits(bh::st(t1));
+    w.away[0].st(t1);
     let t2 = ld(ring, e, |en| en.place[1]);
     let t3 = t2 - ld_cell(&whole[13]);
-    w.away[1].set_bits(bh::st(t3));
+    w.away[1].st(t3);
     let t4 = ld(ring, e, |en| en.place[2]);
     let t5 = t4 - ld_cell(&whole[14]);
-    w.away[2].set_bits(bh::st(t5));
-    let t6 = bh::ld(w.away[2].bits());
-    let t7 = bh::ld(w.away[1].bits());
-    let t8 = bh::ld(w.away[0].bits());
+    w.away[2].st(t5);
+    let t6 = w.away[2].ld();
+    let t7 = w.away[1].ld();
+    let t8 = w.away[0].ld();
     let t9 = turn(car, 0);
     let t10 = t9 * t8;
     let t11 = turn(car, 4);
@@ -841,34 +836,34 @@ fn box_x87(ring: &Ring, w: &RingWork, e: u32, whole: &[Float; 16], car: &CarEffe
 
 /// `facing`'s x87 block as plain Rust on the x87 model (28 instructions), same order and memory places.
 fn facing_x87(car: &CarEffects, f: &MarksFloats, w: &RingWork) {
-    let t0 = bh::ld(w.away[0].bits());
+    let t0 = w.away[0].ld();
     let t1 = t0 * t0;
-    let t2 = bh::ld(w.away[1].bits());
+    let t2 = w.away[1].ld();
     let t3 = t2 * t2;
-    let t4 = bh::ld(w.away[2].bits());
+    let t4 = w.away[2].ld();
     let t5 = t4 * t4;
     let t6 = t3 + t5;
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
-    let t9 = bh::ld(f.one.bits()) / t8;
-    let t10 = bh::ld(w.away[0].bits());
+    let t9 = f.one.ld() / t8;
+    let t10 = w.away[0].ld();
     let t11 = t10 * t9;
-    w.away[0].set_bits(bh::st(t11));
-    let t12 = bh::ld(w.away[1].bits());
+    w.away[0].st(t11);
+    let t12 = w.away[1].ld();
     let t13 = t12 * t9;
-    w.away[1].set_bits(bh::st(t13));
-    let t14 = bh::ld(w.away[2].bits());
+    w.away[1].st(t13);
+    let t14 = w.away[2].ld();
     let t15 = t9 * t14;
-    w.away[2].set_bits(bh::st(t15));
-    let t16 = bh::ld(w.away[0].bits());
+    w.away[2].st(t15);
+    let t16 = w.away[0].ld();
     let t17 = t16 * car_float(&car.motion[0]);
-    let t18 = bh::ld(w.away[1].bits());
+    let t18 = w.away[1].ld();
     let t19 = t18 * car_float(&car.motion[1]);
-    let t20 = bh::ld(w.away[2].bits());
+    let t20 = w.away[2].ld();
     let t21 = t20 * car_float(&car.motion[2]);
     let t22 = t19 + t21;
     let t23 = t17 + t22;
-    w.facing.set_bits(bh::st(t23));
+    w.facing.st(t23);
 }
 
 /// `pull_length`'s x87 block as plain Rust on the x87 model (22 instructions), same order and memory places.
@@ -883,61 +878,61 @@ fn pull_length_x87(
 ) {
     let t0 = ld(ring, e, |en| en.place[0]);
     let t1 = t0 - ld_cell(&whole[12]);
-    w.away[0].set_bits(bh::st(t1));
+    w.away[0].st(t1);
     let t2 = ld(ring, e, |en| en.place[1]);
     let t3 = t2 - ld_cell(&whole[13]);
-    w.away[1].set_bits(bh::st(t3));
+    w.away[1].st(t3);
     let t4 = ld(ring, e, |en| en.place[2]);
     let t5 = t4 - ld_cell(&whole[14]);
-    w.away[2].set_bits(bh::st(t5));
-    let t6 = bh::ld(w.away[0].bits());
+    w.away[2].st(t5);
+    let t6 = w.away[0].ld();
     let t7 = t6 * t6;
-    let t8 = bh::ld(w.away[1].bits());
+    let t8 = w.away[1].ld();
     let t9 = t8 * t8;
-    let t10 = bh::ld(w.away[2].bits());
+    let t10 = w.away[2].ld();
     let t11 = t10 * t10;
     let t12 = t9 + t11;
     let t13 = t7 + t12;
     let t14 = t13.sqrt();
     let t15 = t14 - bh::ld(rk.near_less.to_bits());
-    w.near.set_bits(bh::st(t15));
+    w.near.st(t15);
     *l = bh::f80(t14);
 }
 
 /// `pull_facing`'s x87 block as plain Rust on the x87 model (32 instructions), same order and memory places.
 fn pull_facing_x87(car: &CarEffects, l: &[u8; 10], f: &MarksFloats, w: &RingWork) {
     let t0 = bh::from_f80(*l);
-    let t1 = bh::ld(f.one.bits()) / t0;
-    let t2 = bh::ld(w.away[0].bits());
+    let t1 = f.one.ld() / t0;
+    let t2 = w.away[0].ld();
     let t3 = t2 * t1;
-    w.away[0].set_bits(bh::st(t3));
-    let t4 = bh::ld(w.away[1].bits());
+    w.away[0].st(t3);
+    let t4 = w.away[1].ld();
     let t5 = t4 * t1;
-    w.away[1].set_bits(bh::st(t5));
-    let t6 = bh::ld(w.away[2].bits());
+    w.away[1].st(t5);
+    let t6 = w.away[2].ld();
     let t7 = t1 * t6;
-    w.away[2].set_bits(bh::st(t7));
+    w.away[2].st(t7);
     let t8 = ldi_cell(&car.pace);
-    let t9 = bh::ld(f.one.bits()) / t8;
+    let t9 = f.one.ld() / t8;
     let t10 = car_float(&car.motion[0]);
     let t11 = t10 * t9;
-    w.turned[0].set_bits(bh::st(t11));
+    w.turned[0].st(t11);
     let t12 = car_float(&car.motion[1]);
     let t13 = t12 * t9;
-    w.turned[1].set_bits(bh::st(t13));
+    w.turned[1].st(t13);
     let t14 = car_float(&car.motion[2]);
     let t15 = t9 * t14;
-    w.turned[2].set_bits(bh::st(t15));
-    let t16 = bh::ld(w.away[0].bits());
-    let t17 = t16 * bh::ld(w.turned[0].bits());
-    let t18 = bh::ld(w.away[1].bits());
-    let t19 = t18 * bh::ld(w.turned[1].bits());
-    let t20 = bh::ld(w.away[2].bits());
-    let t21 = t20 * bh::ld(w.turned[2].bits());
+    w.turned[2].st(t15);
+    let t16 = w.away[0].ld();
+    let t17 = t16 * w.turned[0].ld();
+    let t18 = w.away[1].ld();
+    let t19 = t18 * w.turned[1].ld();
+    let t20 = w.away[2].ld();
+    let t21 = t20 * w.turned[2].ld();
     let t22 = t19 + t21;
     let t23 = t17 + t22;
     let t24 = -t23;
-    w.facing.set_bits(bh::st(t24));
+    w.facing.st(t24);
 }
 
 /// `pull_strength`'s x87 block as plain Rust on the x87 model (15 instructions), same order and memory places.
@@ -953,14 +948,14 @@ fn pull_strength_x87(
 ) {
     let t0 = ldi_cell(&car.pace);
     let t1 = t0 * bh::ld(rk.near_scale.to_bits());
-    let t2 = t1 + bh::ld(f.one.bits());
-    let t3 = bh::ld(f.one.bits()) / t2;
-    let t4 = bh::ld(f.one.bits()) - t3;
-    w.whole.set_bits(bh::st(t4));
-    let t5 = bh::ld(f.fixed_16_scale.bits());
+    let t2 = t1 + f.one.ld();
+    let t3 = f.one.ld() / t2;
+    let t4 = f.one.ld() - t3;
+    w.whole.st(t4);
+    let t5 = f.fixed_16_scale.ld();
     let t6 = t5 - ld(ring, e, |en| en.size_factor);
     let t7 = bh::ld(rk.near_rate.to_bits());
-    let t8 = t7 * bh::ld(w.whole.bits());
+    let t8 = t7 * w.whole.ld();
     let t9 = t6 * t8;
     let t10 = t9 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
     let t11 = t10 + ld(ring, e, |en| en.size_factor);
@@ -1003,7 +998,7 @@ fn box_place_x87(ring: &Ring, w: &RingWork, e: u32, car: &CarEffects) {
     w.extent[1].set_bits(bh::to_int(t28) as u32);
 }
 
-/// The ring kinds' constants (`run_ring`, and the ribbons' two) (IDA 0x93A4DA .. 0x93A576, the image's layout; phase 7, typed state).
+/// The ring kinds' constants (`run_ring`, and the ribbons' two) (IDA 0x93A4DA .. 0x93A576).
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct RingKinds {
@@ -1059,61 +1054,29 @@ pub struct RingKinds {
 impl RingKinds {
     pub const fn new() -> Self {
         RingKinds {
-            drift5: [
-                f32::from_bits(0xC0000000),
-                f32::from_bits(0x42B80000),
-                f32::from_bits(0xFF800000),
-            ],
-            drift_b: [
-                f32::from_bits(0xC0000000),
-                f32::from_bits(0x42B80000),
-                f32::from_bits(0xFF800000),
-            ],
-            k6_damp: [
-                f32::from_bits(0x3A83126F),
-                f32::from_bits(0x3A83126F),
-                f32::from_bits(0x3A83126F),
-            ],
-            k6_pull: f32::from_bits(0x3C23D70A),
-            k15_damp: [
-                f32::from_bits(0x3A83126F),
-                f32::from_bits(0x3A83126F),
-                f32::from_bits(0x3A83126F),
-            ],
-            k15_pull: f32::from_bits(0x3C23D70A),
-            k1_size: f32::from_bits(0x3F800000),
-            k1_damp: [
-                f32::from_bits(0x3B449BA6),
-                f32::from_bits(0x3B449BA6),
-                f32::from_bits(0x3B449BA6),
-            ],
-            k1_pull: f32::from_bits(0x3AC49BA6),
-            near_less: f32::from_bits(0x47D8F000),
-            near_scale: f32::from_bits(0x3951B717),
-            near_rate: f32::from_bits(0x3BA3D70A),
-            kd_gain: f32::from_bits(0x3C23D70A),
-            kd_damp: [
-                f32::from_bits(0x3B83126F),
-                f32::from_bits(0x3B83126F),
-                f32::from_bits(0x3B83126F),
-            ],
-            kd_pull: f32::from_bits(0x3C23D70A),
-            k13_damp: [
-                f32::from_bits(0x3B449BA6),
-                f32::from_bits(0x3B449BA6),
-                f32::from_bits(0x3B449BA6),
-            ],
-            k13_gain: f32::from_bits(0x41800000),
-            k16_damp: [
-                f32::from_bits(0x3B449BA6),
-                f32::from_bits(0x3B449BA6),
-                f32::from_bits(0x3B449BA6),
-            ],
-            k16_gain: f32::from_bits(0x41800000),
-            k10_gain: f32::from_bits(0xBF000000),
-            k11_gain: f32::from_bits(0xBF000000),
-            ribbon_a: f32::from_bits(0xBF000000),
-            ribbon_b: f32::from_bits(0xBF000000),
+            drift5: [-2.0, 92.0, f32::from_bits(0xFF800000)],
+            drift_b: [-2.0, 92.0, f32::from_bits(0xFF800000)],
+            k6_damp: [0.001, 0.001, 0.001],
+            k6_pull: 0.01_f32,
+            k15_damp: [0.001, 0.001, 0.001],
+            k15_pull: 0.01_f32,
+            k1_size: 1.0_f32,
+            k1_damp: [0.003, 0.003, 0.003],
+            k1_pull: 0.0015_f32,
+            near_less: 111072.0_f32,
+            near_scale: 0.0002_f32,
+            near_rate: 0.005_f32,
+            kd_gain: 0.01_f32,
+            kd_damp: [0.004, 0.004, 0.004],
+            kd_pull: 0.01_f32,
+            k13_damp: [0.003, 0.003, 0.003],
+            k13_gain: 16.0_f32,
+            k16_damp: [0.003, 0.003, 0.003],
+            k16_gain: 16.0_f32,
+            k10_gain: -0.5_f32,
+            k11_gain: -0.5_f32,
+            ribbon_a: -0.5_f32,
+            ribbon_b: -0.5_f32,
         }
     }
 }

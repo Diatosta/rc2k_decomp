@@ -1,7 +1,7 @@
-//! `net::stop` (0x41838C): the network race ended (`dword_52A910` 0); while the receiving
-//! thread is busy with a message (`dword_52A918`), a millisecond's sleep and the window's
+//! `net::stop` (0x41838C): the network race ended (`session` 0); while the receiving
+//! thread is busy with a message (`receiving`), a millisecond's sleep and the window's
 //! messages, until it is done, or the game is closing (`g_quitting` 1) and the thread has
-//! ended (`dword_52A4B0` 1); then `net::destroy_connection`.
+//! ended (`receive_done` 1); then `net::destroy_connection`.
 //!
 //!
 //! See `net/mod.rs`. Four callers: `net::shut_down` and three of the network's menus

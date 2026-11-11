@@ -1,9 +1,8 @@
-//! `physics::put_back_motion_vectors` (0x43BD8B): the three dwords at `dword_614BCC` ..
-//! back into the work car's motion (`dword_71A170` .., `g_car` +0x198) and those at
-//! `dword_614BDC` .. into its spin (`dword_71A15C` .., +0x184), eax pushed around; then
-//! `physics::car_frame_motion`. The undoing of `physics::keep_motion_vectors`.
+//! `physics::put_back_motion_vectors` (0x43BD8B): the three dwords of `kept_vectors` go back into
+//! the work car's `velocity`, and the following three into its `spin`; then
+//! `physics::car_frame_motion` runs. The undoing of `physics::keep_motion_vectors`.
 //!
-//! Caller: `physics::car_physics_step` (0x43B8F1, before `physics::limit_motion`).
+//! Caller: `physics::car_physics_step` (before `physics::limit_motion`).
 
 use crate::physics::car_frame_motion::car_frame_motion;
 use crate::physics::car_store::Car;

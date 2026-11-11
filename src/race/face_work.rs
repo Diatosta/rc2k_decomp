@@ -4,12 +4,12 @@
 //! the car being drawn. One per view slot (`race::view_scratch::ViewScratch::face`). In the
 //! original these were `RACE_VIEW`'s fields (`face_turned` .. `polygon_mode`), `RaceVars`'s
 //! `face_number`, `mapping_a` and `mapping_b`, the sound spot block's `face_kind` and
-//! `face_unlit`, and `dword_606284`, `dword_608CAC`, `dword_63660C` (the fade), written and
+//! `face_unlit`, and `fade_alpha_moved`, `faded_bits`, `faded` (the fade), written and
 //! read by every view in turn; the current course face (`g_currentCourseFace`); and the
 //! texture coordinates by corner (`RACE_VIEW.corner_uv`, `corner_uv_b`). A face without a second
 //! texture copies the second set into its entries unwritten, the last such face's in the
 //! original, whichever view drew it; now the same view's last (none drawn: zeros). Nothing
-//! reads them on such a face: the fans' hashes are the same (2026-11-09).
+//! reads them on such a face: the fans' hashes are the same.
 
 use crate::session::Dword;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -42,20 +42,20 @@ pub struct FaceWork {
     pub face_number: Dword,
     /// The object face's kind (its head's byte 6) and unlit byte (byte 0xB), set by
     /// `scene::draw_object_faces` for `scene::draw_object_face` (the original's `g_faceKind`,
-    /// `dword_6D18D0` in the sound spot block).
+    /// `face_unlit` in the sound spot block).
     pub face_kind: Dword,
     pub face_unlit: Dword,
-    /// The fade of the car being drawn: its alpha (`race::car_draw`; `dword_606284`), the
-    /// faded bits of its model (record +0x10, -1 outside a car's drawing: `dword_608CAC`) and
+    /// The fade of the car being drawn: its alpha (`race::car_draw`; `fade_alpha_moved`), the
+    /// faded bits of its model (record +0x10, -1 outside a car's drawing: `faded_bits`) and
     /// whether the face being drawn is faded (`scene::draw_object_face` for
-    /// `scene::draw_polygon`: `dword_63660C`).
+    /// `scene::draw_polygon`: `faded`).
     pub fade_alpha: Dword,
     pub faded_bits: Dword,
     pub faded: Dword,
     /// The course face being drawn or listed (`g_currentCourseFace`, 0x5CCCD0), named by the
     /// bad polygon's log; the objects of two shapes would keep their moving state in its
     /// +0x30 .. (`scene::set_object_material`), but no kind in the game's files has that
-    /// material (way 4: none in objsinfo, carsinfo, frntinfo or extrinfo, 2026-11-09).
+    /// material (way 4: none in objsinfo, carsinfo, frntinfo or extrinfo).
     pub course_face: Dword,
     /// The two textures' coordinates by corner, x then y (`RACE_VIEW.corner_uv`, 0x63DA0C,
     /// and `corner_uv_b`, 0x63DAB8): set for a face's textured sets
@@ -68,7 +68,7 @@ pub struct FaceWork {
     pub reflections_kept: Dword,
     /// `g_faceReflects` (`FRAME_SWITCHES.face_reflects`): each view's own.
     pub reflects: Dword,
-    /// `dword_621510` (`FRAME_SWITCHES.no_far_clip`): the sky is drawn uncut, each view's own.
+    /// `no_far_clip` (`FRAME_SWITCHES.no_far_clip`): the sky is drawn uncut, each view's own.
     pub no_far_clip: Dword,
     /// The faces hidden from the shown view (`FRAME_WORK.face_hide_mask`, `g_faceHideMask`,
     /// 0x64167C): set from the face under the car (`race::face_hide_mask`), each view's own.

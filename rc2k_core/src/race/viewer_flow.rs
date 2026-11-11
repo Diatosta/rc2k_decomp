@@ -1,6 +1,6 @@
 //! The replay viewer's flows: opening a replay and saving one, the undo, the camera
 //! edit's switch, the physics patches a replay was recorded with, the plays, the frame's
-//! bar and the tidying (converted 2026-10-21 from `race::open_viewed_replay` 0x41E9FF,
+//! bar and the tidying (converted from `race::open_viewed_replay` 0x41E9FF,
 //! `save_viewed_replay` 0x41ED1C, `close_viewed_replay` 0x41EB7C, `keep_undo` 0x41E438,
 //! `undo_edit` 0x41E46B, `edit_camera_1` 0x41E599 / `edit_camera_2` 0x41E5BA,
 //! `apply_replay_patches` 0x41F2C9, `restore_replay_patches` 0x41F31D, `play_marked`
@@ -18,10 +18,10 @@ use crate::race::viewer::{MOST_BLOCKS, OWN_FROM};
 pub const HEADER_LEN: u32 = 0x430;
 /// The index at the file's end ("RCIB", the count, the blocks' places).
 pub const INDEX_LEN: u32 = 0x3850;
-/// The cars' header kept from the first block (`unk_528534` into `dword_719B14`).
+/// The cars' header kept from the first block (`unk_528534` into `header_stage`).
 pub const CAR_HEADER_LEN: usize = 0x400;
 
-/// The last race's replay asked for when none was recorded (`dword_5BEC84` not 1, asked
+/// The last race's replay asked for when none was recorded (`replay_closed` not 1, asked
 /// only then): the opening fails at once.
 pub fn last_race_missing(is_last_race: bool, recorded: impl FnOnce() -> u32) -> bool {
     is_last_race && recorded() != 1
@@ -73,7 +73,7 @@ pub fn opened_marks(blocks: u32) -> (u32, u32) {
 /// The block's cameras: the first two dwords of each block read.
 pub const CAMERA_DWORDS: usize = 2;
 
-/// The opening's answer: carry clear, ZF when the patches' call left eax 0.
+/// The opening's answer: carry clear, zero when the patches' call left 0.
 pub fn opened_zero(eax: u32) -> bool {
     eax == 0
 }
@@ -84,7 +84,7 @@ pub fn opened_zero(eax: u32) -> bool {
 pub const SAVED_HEADER: [u32; 3] = [HEADER_MAGIC, 0, HEADER_VERSION];
 /// A slot's name (`byte_528934`): 32 bytes a slot, copied after the date.
 pub const NAME_LEN: usize = 0x20;
-/// A block's data read and written packed (`dword_9613A4`).
+/// A block's data read and written packed (`block`).
 pub const BLOCK_LEN: u32 = 0x2810;
 /// The index's head written after the blocks ("RCIB" and the count).
 pub const INDEX_HEAD_LEN: u32 = 0x10;
@@ -122,12 +122,12 @@ pub fn edits_camera(block: u32, blocks: u32) -> bool {
     block != blocks
 }
 
-/// `close_viewed_replay`: only an open replay (`dword_5BEC88` 1) is closed.
+/// `close_viewed_replay`: only an open replay (`replay_open` 1) is closed.
 pub fn closes(open: u32) -> bool {
     open == 1
 }
 
-/// `replay_mode_1` / `_3`: the viewer runs only with a replay there (`dword_5BEC84`).
+/// `replay_mode_1` / `_3`: the viewer runs only with a replay there (`replay_closed`).
 pub fn views_replay(there: u32) -> bool {
     there != 0
 }
@@ -292,8 +292,8 @@ pub enum TidyStep {
     TakeKey,
 }
 
-/// With the stage loaded (`dword_5BECC0` 1): the race tidied, then the fonts freed when
-/// the viewer built them (`dword_5BECC4` 1, asked after these), then `TIDY_AFTER`; the
+/// With the stage loaded (`viewer_stage_loaded` 1): the race tidied, then the fonts freed when
+/// the viewer built them (`viewer_fonts_built` 1, asked after these), then `TIDY_AFTER`; the
 /// key always last.
 pub fn tidies(loaded: u32) -> bool {
     loaded == 1
@@ -355,7 +355,7 @@ pub const RUN_STEPS: [RunStep; 6] = [
     RunStep::Physics,
 ];
 
-/// Whether the loaded car runs (`unk_71A234`, read after the loading).
+/// Whether the loaded car runs (`driver_kind`, read after the loading).
 pub fn car_runs(running: u32) -> bool {
     running != 0
 }

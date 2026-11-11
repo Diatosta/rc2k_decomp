@@ -5,7 +5,7 @@
 //! they come (see below).
 //! Items are 0x5C bytes after a 4-byte head and end with -1; the first is drawn without
 //! being checked for the end. An item is the highlighted one when its type (+0x10) equals
-//! `dword_755525`; `dword_7559D0` is left at 1 or 0 for the last item accordingly.
+//! `loop_flags.item`; `draw_work.drawing_highlighted_item` is left at 1 or 0 for the last item accordingly.
 //!
 //! What goes behind the text depends on the item's +0x1C:
 //! 0xFFFFFFA9  nothing
@@ -25,7 +25,7 @@
 //! item's +0 and +4 minus 3 for the three button kinds (4 further left for the right-aligned
 //! one), else at +8 and +0xC; the place is left in `g_markerX` and `g_markerY`. Its font is
 //! the one at +0x18; for the highlighted item it is `text::blend_font` of that one and the
-//! one at +0x50, by the time since the last key (0 while `dword_7556AC` is 1).
+//! one at +0x50, by the time since the last key (0 while `option_work.redefining_key` is 1).
 //!
 //! One caller, `menu::draw_menu`. Refuses a menu without an end in its first 256 items.
 
@@ -36,7 +36,7 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-// dword_7559D0: 1 while the highlighted item is drawn
+// `draw_work.drawing_highlighted_item`: 1 while the highlighted item is drawn
 
 // What an item's +0x1C says goes behind its text.
 

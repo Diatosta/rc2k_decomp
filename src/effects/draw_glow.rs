@@ -1,11 +1,10 @@
-//! `effects::draw_glow` (0x4D2DED): unless `dword_93CC70` is 1, render states 0x15 = 4, 0x13 =
-//! 5, 0x14 = 6, 0x1C = 0, 0x1B = 1 (`scene::set_render_state`), `scene::set_texture` with
-//! `dword_5D1E34`, and `effects::draw_turned_sprite` at (`flt_93CC7C` + `flt_93CCA8`,
-//! `flt_93CC78` + `flt_93CCAC`, `flt_93CC74`) (st(0) first, the sums unrounded), angle
-//! `dword_93CCA4`, colour -1, size 0x10000. A glow over the scene, by the look of it (a
-//! reading). (Its first lines, a developer's key for the switch, are jumped over.)
-//!
-//! Caller: `effects::run_frame` (0x4D1693).
+//! `effects::draw_glow` (0x4D2DED): unless the glow switch is 1, render states 0x15 = 4, 0x13 =
+//! 5, 0x14 = 6, 0x1C = 0, 0x1B = 1 (`scene::set_render_state`), `scene::set_texture` with the
+//! glow texture, and `effects::draw_turned_sprite` at the glow's place plus its offsets (st(0)
+//! first, the sums unrounded), its angle, colour -1, size 0x10000. A glow over the scene, by the
+//! look of it (a reading). (Its first lines, a developer's key for the switch, are jumped
+//! over.)//!
+//! Caller: `effects::run_frame`.
 
 use crate::errors::Refused;
 use crate::math::x87;
@@ -27,7 +26,7 @@ pub fn draw_glow(
         for (value, state) in STATES {
             crate::scene::set_render_state::set_render_state(value, state);
         }
-        crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[211].bits());
+        crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[211].get());
         let place = [
             x87::add_80(
                 clipping.glow.place[2].bits(),

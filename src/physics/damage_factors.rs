@@ -10,15 +10,14 @@
 //!
 //! Caller: `physics::damage_step`.
 
-use crate::math::x87::mul;
-use crate::math::x87_float::{X, compare, int, ld, st};
 use crate::physics::car_store::Car;
-use crate::physics::damage_model::ONE;
+use crate::physics::damage_model::{ONE, store, value, whole};
 use crate::physics::flow::{
     abs_below_or_unordered, below_or_unordered, equal_or_unordered, hold_high, hold_low, table_lerp,
 };
 use crate::physics::store::DamageModel;
 use crate::session::Cell32;
+use core::cmp::Ordering;
 
 /// The damage model's figures for this step.
 pub fn steps(car: &Car, damage: &DamageModel) {
@@ -67,25 +66,28 @@ pub fn steps(car: &Car, damage: &DamageModel) {
     hold_high(&damage.scratch, speed_range);
     finish_shares(damage);
     if car.all_wheels_off.get() == 0 {
-        mark_wheels_down(damage);
+        damage.wheels_down.set_bits(ONE);
     }
-    clear_cell(&damage.brake_share);
+    damage.brake_share.set_bits(0);
     if !abs_below_or_unordered(car.local_velocity[2].bits(), damage.grade_high.bits())
         && (car.brake.get().wrapping_sub(0x10) as i32) >= 0
     {
         brake_share_step(car, damage);
     }
     // 1 when the engine's speed is above the limit times `flt_75B37C`.
-    let engine_over_limit = engine_over_limit_status(car, damage) & 0x100 != 0;
     damage
         .engine_over_limit
-        .set_bits(if engine_over_limit { ONE } else { 0 });
+        .set_bits(if engine_over_limit(car, damage) {
+            ONE
+        } else {
+            0
+        });
     damage.gear_changed.set_bits(car.gear_changed.get());
     damage.gear.set_bits(car.gear.get());
     damage.tyre_kind.set_bits(car.tyre_kind.get());
     let surface = car.wheel_surface_a[4].get();
     damage.surface.set_bits(surface);
-    clear_cell(&damage.on_surface_5);
+    damage.on_surface_5.set_bits(0);
     if surface == 5 {
         damage.on_surface_5.set_bits(ONE);
     }
@@ -99,8 +101,10 @@ pub fn steps(car: &Car, damage: &DamageModel) {
     for wheel in 0..4 {
         damage.wheel_loads[wheel].set_bits(0);
         if car.wheel_squeeze_last[wheel].bits() == 0 && car.wheel_squeeze[wheel].bits() != 0 {
-            damage.wheel_loads[wheel]
-                .set_bits(mul(car.wheel_squeeze[wheel].bits(), damage.scratch.bits()));
+            store(
+                &damage.wheel_loads[wheel],
+                value(&car.wheel_squeeze[wheel]) * value(&damage.scratch),
+            );
         }
     }
     blend_wheel_loads(damage);
@@ -125,263 +129,161 @@ fn side_hit(car: &Car, damage: &DamageModel) -> u32 {
     hit
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the arithmetic ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B3F8] = int [rc + 0x31A008] / [m + 0x35B35C]`
-/// `[m + 0x35B3FC] = int [rc + 0x31A00C] / [m + 0x35B35C]`
-/// `[m + 0x35B400] = int [rc + 0x319FF8] / [m + 0x35B35C]`
+/// The ride height, stiffness and brake balance of the car, which it holds as whole numbers
+/// over 256, as shares.
 fn scale_car_figures(car: &Car, m: &DamageModel) {
-    let t0 = int(car.ride_height.bits() as i32);
-    let t1 = ld(m.fixed_point_scale.bits());
-    let t2 = t0 / t1;
-    m.ride_height_share.set_bits(st(t2));
-    let t3 = int(car.suspension_stiffness.bits() as i32);
-    let t4 = ld(m.fixed_point_scale.bits());
-    let t5 = t3 / t4;
-    m.stiffness_share.set_bits(st(t5));
-    let t6 = int(car.brake_balance.bits() as i32);
-    let t7 = ld(m.fixed_point_scale.bits());
-    let t8 = t6 / t7;
-    m.brake_balance_share.set_bits(st(t8));
+    let scale = value(&m.fixed_point_scale);
+    store(&m.ride_height_share, whole(&car.ride_height) / scale);
+    store(&m.stiffness_share, whole(&car.suspension_stiffness) / scale);
+    store(&m.brake_balance_share, whole(&car.brake_balance) / scale);
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + o3] = ([m + 0x35B3FC] * [m + 0x35B34C]) - [m + o2]`
-fn wheel_stiffness_from_share(m: &DamageModel, o2: &impl Cell32, o3: &impl crate::session::Cell32) {
-    let t0 = ld(m.stiffness_share.bits());
-    let t1 = ld(m.gauge_top.bits());
-    let t2 = t0 * t1;
-    let t3 = ld(o2.bits());
-    let t4 = t2 - t3;
-    o3.set_bits(st(t4));
+/// A wheel's stiffness: the stiffness share times the top of the gauge, less the lerp of its
+/// suspension damage.
+fn wheel_stiffness_from_share(m: &DamageModel, lerp: &impl Cell32, stiffness: &impl Cell32) {
+    store(
+        stiffness,
+        value(&m.stiffness_share) * value(&m.gauge_top) - value(lerp),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + o2] = [m + 0x35B3F8] * [m + 0x35B34C]`
-fn wheel_ride_height_from_share(m: &DamageModel, o2: &impl crate::session::Cell32) {
-    let t0 = ld(m.ride_height_share.bits());
-    let t1 = ld(m.gauge_top.bits());
-    let t2 = t0 * t1;
-    o2.set_bits(st(t2));
+/// A wheel's ride height: the ride height share times the top of the gauge.
+fn wheel_ride_height_from_share(m: &DamageModel, ride_height: &impl Cell32) {
+    store(
+        ride_height,
+        value(&m.ride_height_share) * value(&m.gauge_top),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + o1] = [m + 0x35B34C]`
-/// `[rc + o3] = [m + 0x35B350]`
-fn fail_wheel(m: &DamageModel, o1: &impl crate::session::Cell32, o3: &impl crate::session::Cell32) {
-    let t0 = ld(m.gauge_top.bits());
-    o1.set_bits(st(t0));
-    let t1 = ld(m.gauge_low.bits());
-    o3.set_bits(st(t1));
+/// A worn-out wheel: full stiffness, no ride height.
+fn fail_wheel(m: &DamageModel, stiffness: &impl Cell32, ride_height: &impl Cell32) {
+    store(stiffness, value(&m.gauge_top));
+    store(ride_height, value(&m.gauge_low));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x31A434] = ((([rc + 0x31A410] + [rc + 0x31A414]) + [rc + 0x31A418]) + [rc + 0x31A41C]) * [m + 0x35B364]`
-/// `[rc + 0x31A430] = ((([rc + 0x31A420] + [rc + 0x31A424]) + [rc + 0x31A428]) + [rc + 0x31A42C]) * [m + 0x35B364]`
-/// `[m + 0x35B3E4] = [rc + 0x31A018]`
-/// `[m + 0x35B36C] = |[rc + 0x31A1B0]|`
+/// The means of the wheels' ride heights and stiffnesses, the drive kind, and the engine's
+/// speed made positive (into `scratch`).
 fn means_and_engine_speed(car: &Car, m: &DamageModel) {
-    let t0 = ld(car.wheel_ride_height[0].bits());
-    let t1 = ld(car.wheel_ride_height[1].bits());
-    let t2 = t0 + t1;
-    let t3 = ld(car.wheel_ride_height[2].bits());
-    let t4 = t2 + t3;
-    let t5 = ld(car.wheel_ride_height[3].bits());
-    let t6 = t4 + t5;
-    let t7 = ld(m.quarter.bits());
-    let t8 = t6 * t7;
-    car.ride_height_mean.set_bits(st(t8));
-    let t9 = ld(car.wheel_stiffness[0].bits());
-    let t10 = ld(car.wheel_stiffness[1].bits());
-    let t11 = t9 + t10;
-    let t12 = ld(car.wheel_stiffness[2].bits());
-    let t13 = t11 + t12;
-    let t14 = ld(car.wheel_stiffness[3].bits());
-    let t15 = t13 + t14;
-    let t16 = ld(m.quarter.bits());
-    let t17 = t15 * t16;
-    car.stiffness_mean.set_bits(st(t17));
-    let t18 = ld(car.drive_kind.bits());
-    m.drive_kind.set_bits(st(t18));
-    let t19 = ld(car.engine_speed.bits());
-    let t20 = t19.abs();
-    m.scratch.set_bits(st(t20));
+    let quarter = value(&m.quarter);
+    let [h0, h1, h2, h3] = &car.wheel_ride_height;
+    store(
+        &car.ride_height_mean,
+        (value(h0) + value(h1) + value(h2) + value(h3)) * quarter,
+    );
+    let [s0, s1, s2, s3] = &car.wheel_stiffness;
+    store(
+        &car.stiffness_mean,
+        (value(s0) + value(s1) + value(s2) + value(s3)) * quarter,
+    );
+    store(&m.drive_kind, value(&car.drive_kind));
+    store(&m.scratch, value(&car.engine_speed).abs());
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B398] = ([m + 0x35B36C] / [rc + 0x31A1B4]) * [m + 0x35B34C]`
-/// `[m + 0x35B36C] = |[rc + 0x31A184]|`
+/// The engine's speed (in `scratch`) over its limit as a share of the gauge, then the
+/// forward speed made positive.
 fn engine_speed_share_step(car: &Car, m: &DamageModel) {
-    let t0 = ld(m.scratch.bits());
-    let t1 = ld(car.engine_speed_limit.bits());
-    let t2 = t0 / t1;
-    let t3 = ld(m.gauge_top.bits());
-    let t4 = t2 * t3;
-    m.engine_speed_share.set_bits(st(t4));
-    let t5 = ld(car.local_velocity[2].bits());
-    let t6 = t5.abs();
-    m.scratch.set_bits(st(t6));
+    store(
+        &m.engine_speed_share,
+        value(&m.scratch) / value(&car.engine_speed_limit) * value(&m.gauge_top),
+    );
+    store(&m.scratch, value(&car.local_velocity[2]).abs());
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B39C] = ([m + 0x35B36C] / [m + 0x35B378]) * [m + 0x35B34C]`
-/// `[m + 0x35B3E0] = [rc + 0x31A930]`
-/// `[m + 0x35B36C] = |([rc + 0x31A184] - [rc + 0x31A190])|`
+/// The forward speed (in `scratch`) over the speed range as a share of the gauge, the surface
+/// wear factor copied, then the gap between the forward speed and the first drive speed.
 fn speed_share_step(car: &Car, m: &DamageModel) {
-    let t0 = ld(m.scratch.bits());
-    let t1 = ld(m.speed_range.bits());
-    let t2 = t0 / t1;
-    let t3 = ld(m.gauge_top.bits());
-    let t4 = t2 * t3;
-    m.speed_share.set_bits(st(t4));
-    let t5 = ld(car.point_wear_factor[4].bits());
-    m.point_surface_copy.set_bits(st(t5));
-    let t6 = ld(car.local_velocity[2].bits());
-    let t7 = ld(car.drive_speed_a.bits());
-    let t8 = t6 - t7;
-    let t9 = t8.abs();
-    m.scratch.set_bits(st(t9));
+    store(
+        &m.speed_share,
+        value(&m.scratch) / value(&m.speed_range) * value(&m.gauge_top),
+    );
+    store(&m.point_surface_copy, value(&car.point_wear_factor[4]));
+    store(
+        &m.scratch,
+        (value(&car.local_velocity[2]) - value(&car.drive_speed_a)).abs(),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B3A0] = [m + 0x35B36C] / [m + 0x35B378]`
-/// `[m + 0x35B36C] = |([rc + 0x31A184] - [rc + 0x31A194])|`
+/// The first drive's slip share, then the gap between the forward speed and the second
+/// drive speed.
 fn drive_a_slip_step(car: &Car, m: &DamageModel) {
-    let t0 = ld(m.scratch.bits());
-    let t1 = ld(m.speed_range.bits());
-    let t2 = t0 / t1;
-    m.drive_a_slip_share.set_bits(st(t2));
-    let t3 = ld(car.local_velocity[2].bits());
-    let t4 = ld(car.drive_speed_b.bits());
-    let t5 = t3 - t4;
-    let t6 = t5.abs();
-    m.scratch.set_bits(st(t6));
+    store(
+        &m.drive_a_slip_share,
+        value(&m.scratch) / value(&m.speed_range),
+    );
+    store(
+        &m.scratch,
+        (value(&car.local_velocity[2]) - value(&car.drive_speed_b)).abs(),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + o2] = [m + 0x35B36C] / [m + 0x35B378]`
-/// `[m + 0x35B36C] = |((([rc + o3] - [rc + 0x31A184]) * [m + 0x35B6F4]) + [rc + o6])|`
+/// A drive's share into `share`, then the next gap: the drive speed's distance from the
+/// forward speed, carried on by the extrapolation figure.
 fn drive_extrapolation_step(
     car: &Car,
     m: &DamageModel,
-    o2: &impl Cell32,
-    o3: &impl crate::session::Cell32,
-    o6: &impl crate::session::Cell32,
+    share: &impl Cell32,
+    drive_speed: &impl Cell32,
+    carried: &impl Cell32,
 ) {
-    let t0 = ld(m.scratch.bits());
-    let t1 = ld(m.speed_range.bits());
-    let t2 = t0 / t1;
-    o2.set_bits(st(t2));
-    let t3 = ld(o3.bits());
-    let t4 = ld(car.local_velocity[2].bits());
-    let t5 = t3 - t4;
-    let t6 = ld(m.figures[31].bits());
-    let t7 = t5 * t6;
-    let t8 = ld(o6.bits());
-    let t9 = t7 + t8;
-    let t10 = t9.abs();
-    m.scratch.set_bits(st(t10));
+    store(share, value(&m.scratch) / value(&m.speed_range));
+    store(
+        &m.scratch,
+        ((value(drive_speed) - value(&car.local_velocity[2])) * value(&m.figures[31])
+            + value(carried))
+        .abs(),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B3AC] = [m + 0x35B36C] / [m + 0x35B378]`
-/// `[m + 0x35B3F4] = 0`
+/// The last share, and no wheel down yet.
 fn finish_shares(m: &DamageModel) {
-    let t0 = ld(m.scratch.bits());
-    let t1 = ld(m.speed_range.bits());
-    let t2 = t0 / t1;
-    m.drive_b_extrapolated_share.set_bits(st(t2));
-    let t3 = X(0.0);
-    m.wheels_down.set_bits(st(t3));
+    store(
+        &m.drive_b_extrapolated_share,
+        value(&m.scratch) / value(&m.speed_range),
+    );
+    m.wheels_down.set_bits(0);
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B3F4] = 1`
-fn mark_wheels_down(m: &DamageModel) {
-    let t0 = X(1.0);
-    m.wheels_down.set_bits(st(t0));
-}
-
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + o0] = 0`
-fn clear_cell(o0: &impl Cell32) {
-    let t0 = X(0.0);
-    o0.set_bits(st(t0));
-}
-
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B3B0] = int [rc + 0x31A614] / [m + 0x35B35C]`
+/// The brake pedal, a whole number over 256, as a share.
 fn brake_share_step(car: &Car, m: &DamageModel) {
-    let t0 = int(car.brake.bits() as i32);
-    let t1 = ld(m.fixed_point_scale.bits());
-    let t2 = t0 / t1;
-    m.brake_share.set_bits(st(t2));
+    store(
+        &m.brake_share,
+        whole(&car.brake) / value(&m.fixed_point_scale),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `status [s + 0] = status`
-fn engine_over_limit_status(car: &Car, m: &DamageModel) -> u16 {
-    let t0 = ld(car.engine_speed_limit.bits());
-    let t1 = ld(m.engine_limit_factor.bits());
-    let t2 = t0 * t1;
-    let t3 = ld(car.engine_speed.bits());
-    compare(t2, t3)
+/// Whether the engine's speed is above its limit times `engine_limit_factor` (also when
+/// either is no number).
+fn engine_over_limit(car: &Car, m: &DamageModel) -> bool {
+    let limit = value(&car.engine_speed_limit) * value(&m.engine_limit_factor);
+    !matches!(
+        limit.partial_cmp(&value(&car.engine_speed)),
+        Some(Ordering::Greater | Ordering::Equal)
+    )
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B3C8] = (([rc + 0x31A208] * [rc + 0x31A208]) / [m + 0x35B394]) / [m + 0x35B378]`
-/// `[m + 0x35B36C] = -[rc + 0x31A180] - [m + 0x35B624]`
+/// The size of the hit: the contact depth squared over the divisor over the speed range;
+/// and, into `scratch`, the vertical speed's fall less the dive rate.
 fn hit_size_and_dive(car: &Car, m: &DamageModel) {
-    let t0 = ld(car.contact_depth.bits());
-    let t1 = ld(car.contact_depth.bits());
-    let t2 = t0 * t1;
-    let t3 = ld(m.hit_divisor.bits());
-    let t4 = t2 / t3;
-    let t5 = ld(m.speed_range.bits());
-    let t6 = t4 / t5;
-    m.hit_size.set_bits(st(t6));
-    let t7 = ld(car.local_velocity[1].bits());
-    let t8 = -t7;
-    let t9 = ld(m.gauge_rates[21].bits());
-    let t10 = t8 - t9;
-    m.scratch.set_bits(st(t10));
+    let depth = value(&car.contact_depth);
+    store(
+        &m.hit_size,
+        depth * depth / value(&m.hit_divisor) / value(&m.speed_range),
+    );
+    store(
+        &m.scratch,
+        -value(&car.local_velocity[1]) - value(&m.gauge_rates[21]),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B36C] = ([m + 0x35B36C] * [m + 0x35B36C]) * [m + 0x35B620]`
+/// The dive squared times its rate.
 fn square_dive(m: &DamageModel) {
-    let t0 = ld(m.scratch.bits());
-    let t1 = t0 * t0;
-    let t2 = ld(m.gauge_rates[20].bits());
-    let t3 = t1 * t2;
-    m.scratch.set_bits(st(t3));
+    let dive = value(&m.scratch);
+    store(&m.scratch, dive * dive * value(&m.gauge_rates[20]));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B3DC] = ((([m + 0x35B3CC] + [m + 0x35B3D0]) + [m + 0x35B3D4]) + [m + 0x35B3D8]) * [m + 0x35B364]`
-/// `[m + 0x35B36C] = [m + 0x35B3DC] * [m + 0x35B360]`
-/// `[m + 0x35B3CC] = ([m + 0x35B3CC] * [m + 0x35B360]) + [m + 0x35B36C]`
-/// `[m + 0x35B3D0] = ([m + 0x35B3D0] * [m + 0x35B360]) + [m + 0x35B36C]`
-/// `[m + 0x35B3D4] = ([m + 0x35B3D4] * [m + 0x35B360]) + [m + 0x35B36C]`
-/// `[m + 0x35B3D8] = ([m + 0x35B3D8] * [m + 0x35B360]) + [m + 0x35B36C]`
+/// The wheels' loads: their mean, and each load halved with half the mean added.
 fn blend_wheel_loads(m: &DamageModel) {
     // No wheel just landed (the usual step): the four loads are +0.0, so the sum, the mean
     // (`quarter` 0.25) and the half-mean (`half` 0.5, both constants of the model) are +0.0 in
@@ -391,57 +293,37 @@ fn blend_wheel_loads(m: &DamageModel) {
         m.scratch.set_bits(0);
         return;
     }
-    let t0 = ld(m.wheel_loads[0].bits());
-    let t1 = ld(m.wheel_loads[1].bits());
-    let t2 = t0 + t1;
-    let t3 = ld(m.wheel_loads[2].bits());
-    let t4 = t2 + t3;
-    let t5 = ld(m.wheel_loads[3].bits());
-    let t6 = t4 + t5;
-    let t7 = ld(m.quarter.bits());
-    let t8 = t6 * t7;
-    m.wheel_load_mean.set_bits(st(t8));
-    let t9 = ld(m.wheel_load_mean.bits());
-    let t10 = ld(m.half.bits());
-    let t11 = t9 * t10;
-    m.scratch.set_bits(st(t11));
-    let t12 = ld(m.wheel_loads[0].bits());
-    let t13 = ld(m.half.bits());
-    let t14 = t12 * t13;
-    let t15 = ld(m.scratch.bits());
-    let t16 = t14 + t15;
-    m.wheel_loads[0].set_bits(st(t16));
-    let t17 = ld(m.wheel_loads[1].bits());
-    let t18 = ld(m.half.bits());
-    let t19 = t17 * t18;
-    let t20 = ld(m.scratch.bits());
-    let t21 = t19 + t20;
-    m.wheel_loads[1].set_bits(st(t21));
-    let t22 = ld(m.wheel_loads[2].bits());
-    let t23 = ld(m.half.bits());
-    let t24 = t22 * t23;
-    let t25 = ld(m.scratch.bits());
-    let t26 = t24 + t25;
-    m.wheel_loads[2].set_bits(st(t26));
-    let t27 = ld(m.wheel_loads[3].bits());
-    let t28 = ld(m.half.bits());
-    let t29 = t27 * t28;
-    let t30 = ld(m.scratch.bits());
-    let t31 = t29 + t30;
-    m.wheel_loads[3].set_bits(st(t31));
+    let [l0, l1, l2, l3] = &m.wheel_loads;
+    store(
+        &m.wheel_load_mean,
+        (value(l0) + value(l1) + value(l2) + value(l3)) * value(&m.quarter),
+    );
+    store(&m.scratch, value(&m.wheel_load_mean) * value(&m.half));
+    for load in &m.wheel_loads {
+        store(load, value(load) * value(&m.half) + value(&m.scratch));
+    }
 }
 
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::math::x87_float::{compare, ld};
     use crate::race::owner::race;
+
+    /// The status word of the engine's speed against its limit times the factor.
+    fn over_limit_status(car: &Car, m: &DamageModel) -> u16 {
+        compare(
+            ld(car.engine_speed_limit.bits()) * ld(m.engine_limit_factor.bits()),
+            ld(car.engine_speed.bits()),
+        )
+    }
 
     /// The damage model as the test's buffer holds it (the buffer's base plus the RVA of
     /// 0x75B340).
     fn dm(base: usize) -> &'static DamageModel {
         unsafe { &*(crate::pointers::host_at(base + 0x35B340) as *const DamageModel) }
     }
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse_at};
     use crate::scene::x87_mem::Base;
 
     // The original's instructions, one function per run.
@@ -893,7 +775,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_20(a[0]) },
-                plain: |a| mark_wheels_down(dm(a[0])),
+                plain: |a| dm(a[0]).wheels_down.set_bits(ONE),
             },
             Block {
                 name: "damage_factors line 268",
@@ -903,7 +785,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_21(a[0]) },
-                plain: |a| clear_cell(&dm(a[0]).brake_share),
+                plain: |a| dm(a[0]).brake_share.set_bits(0),
             },
             Block {
                 name: "damage_factors line 276",
@@ -939,7 +821,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_23(a[0], a[1], a[2]) },
-                plain: |a| a[2].set_word(0, engine_over_limit_status(&race().shared.car, dm(a[1]))),
+                plain: |a| a[2].set_word(0, over_limit_status(&race().shared.car, dm(a[1]))),
             },
             Block {
                 name: "damage_factors line 302",
@@ -949,7 +831,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_24(a[0]) },
-                plain: |a| clear_cell(&dm(a[0]).on_surface_5),
+                plain: |a| dm(a[0]).on_surface_5.set_bits(0),
             },
             Block {
                 name: "damage_factors line 322",
@@ -1008,6 +890,203 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        // The plain code rounds to nearest, as the game always runs the damage model.
+        sparse_at(&blocks(), 1200, 100, &[0x027F]);
+    }
+}
+
+#[cfg(test)]
+mod plain_matches_x87 {
+    use super::*;
+    use crate::physics::damage_model::proof::{factors, prove};
+
+    #[test]
+    fn shares_and_wheels() {
+        prove(
+            "scale_car_figures",
+            |s| factors::scale_car_figures(&s.car, &s.damage),
+            |s| scale_car_figures(&s.car, &s.damage),
+        );
+        prove(
+            "wheel_stiffness_from_share",
+            |s| {
+                let (d, c) = (&s.damage, &s.car);
+                factors::wheel_stiffness_from_share(
+                    d,
+                    &d.wheel_stiffness_lerp[1],
+                    &c.wheel_stiffness[1],
+                );
+            },
+            |s| {
+                let (d, c) = (&s.damage, &s.car);
+                wheel_stiffness_from_share(d, &d.wheel_stiffness_lerp[1], &c.wheel_stiffness[1]);
+            },
+        );
+        prove(
+            "wheel_ride_height_from_share",
+            |s| factors::wheel_ride_height_from_share(&s.damage, &s.car.wheel_ride_height[2]),
+            |s| wheel_ride_height_from_share(&s.damage, &s.car.wheel_ride_height[2]),
+        );
+        prove(
+            "fail_wheel",
+            |s| {
+                factors::fail_wheel(
+                    &s.damage,
+                    &s.car.wheel_stiffness[3],
+                    &s.car.wheel_ride_height[3],
+                );
+            },
+            |s| {
+                fail_wheel(
+                    &s.damage,
+                    &s.car.wheel_stiffness[3],
+                    &s.car.wheel_ride_height[3],
+                );
+            },
+        );
+        prove(
+            "means_and_engine_speed",
+            |s| factors::means_and_engine_speed(&s.car, &s.damage),
+            |s| means_and_engine_speed(&s.car, &s.damage),
+        );
+    }
+
+    #[test]
+    fn speed_shares() {
+        prove(
+            "engine_speed_share_step",
+            |s| factors::engine_speed_share_step(&s.car, &s.damage),
+            |s| engine_speed_share_step(&s.car, &s.damage),
+        );
+        prove(
+            "speed_share_step",
+            |s| factors::speed_share_step(&s.car, &s.damage),
+            |s| speed_share_step(&s.car, &s.damage),
+        );
+        prove(
+            "drive_a_slip_step",
+            |s| factors::drive_a_slip_step(&s.car, &s.damage),
+            |s| drive_a_slip_step(&s.car, &s.damage),
+        );
+        prove(
+            "drive_extrapolation_step",
+            |s| {
+                let (c, d) = (&s.car, &s.damage);
+                factors::drive_extrapolation_step(
+                    c,
+                    d,
+                    &d.drive_b_slip_share,
+                    &c.drive_speed_a,
+                    &c.drive_speed_a,
+                );
+            },
+            |s| {
+                let (c, d) = (&s.car, &s.damage);
+                drive_extrapolation_step(
+                    c,
+                    d,
+                    &d.drive_b_slip_share,
+                    &c.drive_speed_a,
+                    &c.drive_speed_a,
+                );
+            },
+        );
+        prove(
+            "drive_extrapolation_step with a separate carried figure",
+            |s| {
+                let (c, d) = (&s.car, &s.damage);
+                factors::drive_extrapolation_step(
+                    c,
+                    d,
+                    &d.drive_a_extrapolated_share,
+                    &c.drive_speed_b,
+                    &c.drive_speed_a,
+                );
+            },
+            |s| {
+                let (c, d) = (&s.car, &s.damage);
+                drive_extrapolation_step(
+                    c,
+                    d,
+                    &d.drive_a_extrapolated_share,
+                    &c.drive_speed_b,
+                    &c.drive_speed_a,
+                );
+            },
+        );
+        prove(
+            "finish_shares",
+            |s| factors::finish_shares(&s.damage),
+            |s| finish_shares(&s.damage),
+        );
+        prove(
+            "brake_share_step",
+            |s| factors::brake_share_step(&s.car, &s.damage),
+            |s| brake_share_step(&s.car, &s.damage),
+        );
+    }
+
+    #[test]
+    fn engine_limit_hit_and_loads() {
+        prove(
+            "engine_over_limit",
+            |s| {
+                let over = factors::engine_over_limit_status(&s.car, &s.damage) & 0x100 != 0;
+                s.damage.scratch.set_bits(u32::from(over));
+            },
+            |s| {
+                s.damage
+                    .scratch
+                    .set_bits(u32::from(engine_over_limit(&s.car, &s.damage)));
+            },
+        );
+        prove(
+            "hit_size_and_dive",
+            |s| factors::hit_size_and_dive(&s.car, &s.damage),
+            |s| hit_size_and_dive(&s.car, &s.damage),
+        );
+        prove(
+            "square_dive",
+            |s| factors::square_dive(&s.damage),
+            |s| square_dive(&s.damage),
+        );
+        prove(
+            "blend_wheel_loads",
+            |s| factors::blend_wheel_loads(&s.damage),
+            |s| blend_wheel_loads(&s.damage),
+        );
+        // No wheel just landed: the loads are zero, the constants are the model's own.
+        let still = |s: &crate::physics::damage_model::proof::State| {
+            for load in &s.damage.wheel_loads {
+                load.set_bits(0);
+            }
+            s.damage.quarter.set_bits(0x3E80_0000);
+            s.damage.half.set_bits(0x3F00_0000);
+        };
+        prove(
+            "blend_wheel_loads at rest",
+            |s| {
+                still(s);
+                factors::blend_wheel_loads(&s.damage);
+            },
+            |s| {
+                still(s);
+                blend_wheel_loads(&s.damage);
+            },
+        );
+        prove(
+            "the touch-down load",
+            |s| {
+                let (c, d) = (&s.car, &s.damage);
+                d.wheel_loads[0].set_bits(crate::math::x87::mul(&c.wheel_squeeze[0], &d.scratch));
+            },
+            |s| {
+                let (c, d) = (&s.car, &s.damage);
+                store(
+                    &d.wheel_loads[0],
+                    value(&c.wheel_squeeze[0]) * value(&d.scratch),
+                );
+            },
+        );
     }
 }

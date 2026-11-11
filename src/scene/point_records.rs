@@ -1,20 +1,17 @@
-//! The scene's point records (`g_pointRecords`, 0x40000 bytes of the game's heap on
-//! `stru_5C6E50`, taken by `scene::allocate_point_records`): Rust's since phase 13
-//! (2026-10-27), counted on the list as the game's block was, given back by
-//! `race::free_point_records`. 0x2000 records of 0x20 bytes: +0 the point's number, +0xC
+//! The scene's point records (0x40000 bytes, taken by `scene::allocate_point_records`),
+//! counted on the list as the game's block was, given back by `race::free_point_records`. 0x2000 records of 0x20 bytes: +0 the point's number, +0xC
 //! the x on the screen, +0x10 .. +0x18 the point in the view, +0x1C the y on the screen. A
 //! scene point n has record n & 0xFFF, an object's point or normal n record
 //! 0x1000 + (n & 0xFFF).
 //!
 //! A record is named by its number + 1 (1 .. 0x2000), where the original held its
 //! address: in the polygon entries' +4. The two other kinds of record the entries name
-//! follow (2026-10-29): the four quad vertices (`PolygonWork::quad_vertices`, the view's own, `of_quad`)
+//! follow: the four quad vertices (`PolygonWork::quad_vertices`, the view's own, `of_quad`)
 //! and the clipper's pool (`POLYGON_WORK.record_pool`, `of_pool`; `g_polygonNextRecord`
 //! holds the next one's number where the original held its address).
 //! `COURSE_LISTS.point_records` is `HELD` while the records are taken, 0 otherwise.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::race;
 use crate::session::Dword;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -86,8 +83,8 @@ pub fn first_records_everywhere(
 }
 
 /// Whether the records are taken.
-pub fn held() -> bool {
-    race().course.lists.point_records.get() != 0
+pub fn held(course: &crate::race::owner_course::Course) -> bool {
+    course.lists.point_records.get() != 0
 }
 
 /// The record at byte `offset` of the block (the original's `records + offset`).
@@ -249,7 +246,7 @@ mod tests {
 
     #[test]
     fn records_are_named_by_number() {
-        let course = &race().course;
+        let course = &crate::race::owner::race().course;
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
         let kept = course.lists.point_records.get();

@@ -3,25 +3,26 @@
 //! ecx -1.
 
 use crate::errors::Refused;
-use crate::menu::owner::Screens;
+use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 /// What `find_section_player` finds, as the original leaves it in the registers: ecx the player's index (`u32::MAX` for none), edi its record (player 4's for
 /// none).
 #[derive(Clone, Copy)]
-pub struct SectionPlayer {
+pub struct SectionPlayer<'a> {
     pub index: u32,
-    pub record: PlayerCell,
+    pub record: PlayerCell<'a>,
 }
 
-pub fn find_section_player(screens: &Screens) -> Result<SectionPlayer, Refused> {
+pub fn find_section_player(menus: &Menus) -> Result<SectionPlayer<'_>, Refused> {
+    let screens = &menus.screens;
     // Converted: `rc2k_core::menu::points::section_player`.
     let section: u32 = screens.event.section.get();
     let done: [u32; 4] =
-        std::array::from_fn(|n| player(n as u32).get().overall_points[section as usize]);
+        std::array::from_fn(|n| player(menus, n as u32).get().overall_points[section as usize]);
     let found = rc2k_core::menu::points::section_player(done);
     Ok(SectionPlayer {
         index: found.unwrap_or(u32::MAX),
-        record: player(found.unwrap_or(3)),
+        record: player(menus, found.unwrap_or(3)),
     })
 }

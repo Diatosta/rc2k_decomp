@@ -1,6 +1,6 @@
 //! `hud::draw_stage_bar` (0x4B5A86): the stage's progress bar along the top: the quad record's
 //! alpha 0xE0; a frame of five solid quads (0x212463, the last black); then for each of the
-//! record's +0x74 parts: its colour (`dword_75BF70` at the byte offset `dword_6D160C`[n]) into
+//! record's +0x74 parts: its colour (`dword_75BF70` at the byte offset `overlay_part_kinds_a`[n]) into
 //! `dword_75BFA0`, its end (`dword_75BFFC`, the sum of `g_overlayPartMiles` .., the last the
 //! record's +0x68) and start (`dword_75BFF8`) as places across 0x229 (`fistp` into `dword_75BFF0` /
 //! `dword_75BFF4`); a black border of four quads, the part's colour inside under alpha 0x78, and

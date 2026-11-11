@@ -1,5 +1,5 @@
-//! The race frame's texts (`race::show_frame`'s, IDA 2026-10-18): the frame rate and the credits
-//! that roll over the race (`dword_71C3E0`), also used by the credits' screen.
+//! The race frame's texts (`race::show_frame`'s): the frame rate and the credits
+//! that roll over the race (`in_credits`), also used by the credits' screen.
 
 use crate::audio::owner::audio;
 use crate::errors::Refused;
@@ -11,8 +11,8 @@ use crate::session::{Dword, Word};
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::{Canvas, draw_text_at};
 
-/// `race::draw_frame_rate` (0x4562B2): `dword_5C6604` 2; the frame rate (`flt_6214F0`, rounded; the
-/// original stored it in `g_scratch`, which nothing read), when not 0 and `dword_5EB100` is set,
+/// `race::draw_frame_rate` (0x4562B2): `text_mode` 2; the frame rate (`frame_rate`, rounded; the
+/// original stored it in `g_scratch`, which nothing read), when not 0 and `show` is set,
 /// drawn at (0x190, 4) in the font at 0x51DE90 as "fps: n" (its size; built in the text buffer).
 pub fn draw_frame_rate(race: &Race, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let frame = &race.frame;
@@ -144,8 +144,8 @@ impl Credits {
     }
 }
 
-/// `race::roll_credits` (0x415FC2): eax 0 starts them (the clock `dword_529850`, the top
-/// `dword_52984C` the screen's height + 0x15E, `dword_529854` 0, tune 2 by `sound`); else draws the
+/// `race::roll_credits` (0x415FC2): mode 0 starts them (the clock, the top
+/// the screen's height + 0x15E, the line count 0, tune 2 by `sound`); else draws the
 /// script at 0x529858 (words: 1, 2, 7, 8 a string in fonts 0x51E8A4, 0x51E6A4, 0x51E564 (centred)
 /// and 0x51E584 (at a sixteenth), each moving down a line; 3 / 4 a string left / right of the
 /// middle (only 4 moves down); 5 three strings in columns; 6 a signed move; 9 nothing; any other

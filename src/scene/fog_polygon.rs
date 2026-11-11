@@ -1,13 +1,12 @@
 //! `scene::fog_polygon` (0x44E286): each of the polygon's points gets its fog by its
 //! depth.
 //!
-//! For each entry: the depth of its point's record (+0x18) as a whole number (`fistp`),
-//! under 0 taken as 0, over 0x2000 is the place in the table
-//! `byte_63661C` (0x44E260; its length `dword_63761C`, a place past it is the last
-//! one); the entry's byte +0x20 is that table's byte inverted. With `dword_6365C8` at 4
-//! the byte is the low byte of `dword_636610` inverted instead. The table, its length and
-//! the next step are the view's (`scene::fog::Fog`).
-//! One caller, the six-byte 0x44E25A, which six functions call.
+//! For each entry: the depth of its point's record (+0x18) as a whole number, under 0 taken as
+//! 0, over 0x2000 is the place in the view's fog table (`scene::fog_at`; a place past the
+//! table's length is the last one); the entry's byte +0x20 is that table's byte inverted.
+//! With the view kind at 4 the byte is the low byte of the next step inverted instead. The
+//! table, its length and the next step are the view's (`scene::fog::Fog`).
+//! //! One caller, a six-byte stub which six functions call.
 //! Refuses a polygon of no vertices (the original goes through 2^32), an entry without
 //! its record and a table's length above 0x1000. A length of 0, as the menus have it,
 //! makes every place the byte before the table (the original's `length - 1`), which nothing

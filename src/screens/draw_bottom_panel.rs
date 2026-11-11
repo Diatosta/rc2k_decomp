@@ -1,5 +1,5 @@
 //! `screens::draw_bottom_panel` (0x49FCCF): a page's backdrop: the whole page above 0x1E3
-//! and the bottom bar round its middle, see-through blue 0x11166A (`dword_75AA94`), the
+//! and the bottom bar round its middle, see-through blue 0x11166A (the fade's full see-through), the
 //! middle's strip dark grey 0x1F1F1F; each a `scene::draw_tinted_quad`.
 //!
 //!

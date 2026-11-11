@@ -1,5 +1,5 @@
 //! `race::loadlevel_init`'s "init ed textures" (`scene::init_texture_levels`, 0x424001,
-//! IDA 2026-10-16): which texture slots are wanted at which level (`g_textureSystemLevels`,
+//! IDA): which texture slots are wanted at which level (`g_textureSystemLevels`,
 //! `g_textureVideoLevels`) and tagged how (`g_textureTags`), 0x400 slots each, for the
 //! stage: each car's runs, each kind's slots by the stage prefs, then fixed runs. With
 //! `dword_5CDADC` set every level is another (it is set to 0 here first, and nothing sets
@@ -73,9 +73,7 @@ const COUNT_TEXT_RVA: &std::ffi::CStr = c"NUM DIFFERENT CARS/OBJECTS/TEXTURE SET
 /// 0x104; the second's level by `dword_63DB94`), each further car's two (0x108 + 8 a car,
 /// tag 0x28 + the car); each kind's slots (its prefs entry not 0 or -1: tag, level, and
 /// `dword_5DC978` + 4, or + 1 for slots 0x40 .. 0x6F); the fixed runs, two loops at slot 0xDC (the system level of six,
-/// the video level of two), and with `dword_621514` three more. What the original
-/// leaves in the registers its one caller reads none of (register liveness, 2026-10-23:
-/// the site in `race::loadlevel_init`, every register followed, no read).
+/// the video level of two), and with `dword_621514` three more.
 pub fn init_texture_levels(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let shared = &race.shared;
     // Converted: `rc2k_core::scene::texture_levels::{held_cars, set_levels}`.

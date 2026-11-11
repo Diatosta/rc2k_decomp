@@ -1,5 +1,5 @@
-//! `drive::flush_replay_if` (0x460031): `drive::flush_replay` while recording (`dword_5C5CE0` 1) at
-//! the last tenth (`dword_6EF7DC` 0x63).
+//! `drive::flush_replay_if` (0x460031): `drive::flush_replay` while recording (`replay_mode` 1) at
+//! the last tenth (`tenth` 0x63).
 //!
 //! Caller: `drive::replay_step`. Refuses what `flush_replay` refuses.
 

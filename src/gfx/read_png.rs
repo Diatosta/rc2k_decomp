@@ -5,7 +5,7 @@
 //! all there and are a PNG signature and an IHDR chunk of 13 bytes, with a width of at most
 //! 800, a height of at most 600 and no interlacing. Then the file's size (`file_size`),
 //! memory for the whole file from the game's allocator (`memory::allocate`, on the list
-//! `dword_5BEC38`), the whole file read into it, `decode_png` into the picture buffer with
+//! `memory`), the whole file read into it, `decode_png` into the picture buffer with
 //! `buf` as the info block, `g_pictureFlags` = 0x802, `lay_out_png`, the picture's width,
 //! height and row length set from the layout, and the pixels spread out to dwords
 //! (`palette_pixels_to_dwords` if the file had a palette, else `rgb_pixels_to_dwords`).

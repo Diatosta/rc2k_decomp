@@ -1,8 +1,8 @@
-//! The engine's lookup tables and the object file's room, typed (phase 7): IDA 0xA23AE4 ..
-//! 0xA8BB54, in the image's zeroed tail (`race::buffers_store`), made by
-//! `scene::fill_engine_tables` at start: the sines (the cosines are the same table 0x400
-//! places on), the arctangents, the noise bytes, the room the object files are read into
-//! and the shuffled words. Names are readings unless IDA's.
+//! The engine's lookup tables and the object file's room (IDA 0xA23AE4 .. 0xA8BB54, in the
+//! image's zeroed tail, `race::buffers_store`), made by `scene::fill_engine_tables` at start:
+//! the sines (the cosines are the same table 0x400 places on), the arctangents, the noise
+//! bytes, the room the object files are read into and the shuffled words. Names are readings
+//! unless IDA's.
 
 use crate::race::owner::race;
 use crate::session::{Bytes, Float, Word};

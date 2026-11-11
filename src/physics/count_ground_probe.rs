@@ -1,16 +1,13 @@
 //! `physics::count_ground_probe` (0x438E22): one ground probe, counted: the face mask
-//! `dword_620470` 0x40, `dword_608C3C` up by one, `physics::find_ground`; when found
-//! `dword_608C40` up by one, and when the face is the last one again (`dword_5CCC78` =
-//! `dword_5CCC74`) `dword_608C44` too. A reading: the camera's (or a test drive's) ground
+//! `settle_mark` 0x40, `ground_probes` up by one, `physics::find_ground`; when found
+//! `ground_found` up by one, and when the face is the last one again (`ground_face_last` =
+//! `ground_slot`) `ground_same` too. A reading: the camera's (or a test drive's) ground
 //! statistics.
 //!
-//! Takes: the point (`dword_639824`, `dword_63982C`; the callers set it)
+//! Takes: the point (`ground_x`, `ground_z`; the callers set it)
 //!
 //! Callers: `physics::camera_low_switch`, `physics::camera_over_ground` (three). Refuses what
 //! `find_ground` refuses.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

@@ -1,4 +1,4 @@
-//! `menu::clear_record_entries` (0x47202F): the current record's event (`dword_7556D8`,
+//! `menu::clear_record_entries` (0x47202F): the current record's event (the stage best times,
 //! 0x618 an event, by the record's +0x3C) has its ten entries' (0x9C apart) +0x40 0.
 //!
 //! Refuses a record past the table or

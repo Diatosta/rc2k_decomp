@@ -1,5 +1,5 @@
 //! `system::tick_count` (0x411024): the game's millisecond clock: `GetTickCount`, unless the
-//! override switch `dword_5C2CD4` is 1, in which case it is `dword_5C2CD0`.
+//! override switch (`pictures_started`) is 1, in which case it is `picture_clock`.
 //!
 //! Returns milliseconds.
 //! 110 callers. What sets the override has not been read.

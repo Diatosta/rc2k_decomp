@@ -1,4 +1,4 @@
-//! `drive::unpack_rle` (0x41F080): run-length unpacking from esi to edi: a signed count byte; below
+//! `drive::unpack_rle` (0x41F080): run-length unpacking from a packed buffer into another: a signed count byte; below
 //! 0, that many bytes copied; above 0, the next byte repeated count + 1 times; 0 ends it.
 //!
 //! Takes: the packed bytes, where they go

@@ -1,20 +1,20 @@
-//! `race::tyre_change_gauge` (0x41C1D6): the roadside tyre change's gauge, timed by a
-//! button (a reading: `input_device_read`'s ebx low byte, the device's +0x4E8). The state
-//! is the device's (`g_inputDevices[esi]`): +0x4EC the gauge (0 .. 0xFFFF), +0x4F0 the
-//! stage (-1 waiting for the button to be let go, 0 running, 1 done, 2 a developer's
-//! press), +0x4F4 the start's clock, then the time.
-//! - eax 0 starts it: the clock (`system::tick_count`) into +0x4F4, +0x4EC 0, +0x4F0 -1,
+//! `race::tyre_change_gauge` (0x41C1D6): the roadside tyre change's gauge, timed by a button (a
+//! reading: the low byte of the input device's read, the device's +0x4E8). The state is the
+//! device's (`g_inputDevices[player]`): +0x4EC the gauge (0 .. 0xFFFF), +0x4F0 the stage (-1 waiting
+//! for the button to be let go, 0 running, 1 done, 2 a developer's press), +0x4F4 the start's clock,
+//! then the time.
+//! - Mode 0 starts it: the clock (`system::tick_count`) into +0x4F4, +0x4EC 0, +0x4F0 -1,
 //!   `race::draw_tyre_change`; then as -1.
 //! - -1: the button read; let go, +0x4F0 0. Result 0.
-//! - 0: the button read; pressed: on the developer's machine (`g_developerMachine` 1)
-//!   +0x4F0 2 and as 2, else done. Not pressed: running.
+//! - 0: the button read; pressed: on the developer's machine (`g_developerMachine` 1) +0x4F0 2 and
+//!   as 2, else done. Not pressed: running.
 //! - 2: with the gauge at 0xF618 or more running, else done.
 //! - running: the clock less the start: 60000 or more, the gauge 0 and done; else the gauge
 //!   (that x 0x10000 / 500, low 16 bits). Result 0.
-//! - done: the time from 0x10000 less the gauge (`log2(sqrt(s x flt_5BEAC8) + flt_5C2C60)
-//!   x flt_5BEAC4 x flt_5BEACC / flt_5BEACC + flt_5BEAC0`, x 1000 / 10, `fistp`) into
-//!   +0x4F4; below `g_tyreChangeRecord` (unsigned) it is the record, with the player's
-//!   name (30 bytes of `g_playerNames`, or of 0x7557A4 for player 1) into
+//! - done: the time from 0x10000 less the gauge (a logarithm of the square root of the gauge
+//!   times `gauge_unit`, scaled with `time_scale`, `log_two_ten` and `time_base`, x 1000 / 10,
+//!   rounded) into +0x4F4; below `g_tyreChangeRecord` (unsigned) it is the record, with the
+//!   player's name (30 bytes of `g_playerNames`, or of the second player's for player 1) into
 //!   `g_tyreChangeRecordName`; +0x4F0 1, `race::draw_tyre_change`. Result the time.
 //! - 1: result the time (+0x4F4).
 //!
@@ -22,10 +22,9 @@
 //!
 //! Returns: the result
 //!
-//! Caller: `race::tyre_change` (twice), which calls the Rust version directly and reads only
-//! eax. Its calls: `system::tick_count`, `race::draw_tyre_change`, `input_device_read`
-//! (0x40930D: ecx, edx, eax, ebx the device's +0x4DC .. +0x4E8; inlined). Refuses (before
-//! anything) a player past 7 or a null device.
+//! Caller: `race::tyre_change` (twice), which calls it directly and reads only the
+//! result. Its calls: `system::tick_count`, `race::draw_tyre_change`, and the input device's
+//! read (inlined). Refuses (before anything) a player past 7 or a null device.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::types::InputDevice;
@@ -35,7 +34,7 @@ use crate::race::owner_shared::RaceShared;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 
-/// flt_5C2C60 (`VIEWER_PANEL.one`): added to the square root in the press time's logarithm.
+/// `one` (`VIEWER_PANEL.one`): added to the square root in the press time's logarithm.
 #[cfg(all(test, target_arch = "x86"))]
 const SQRT_OFFSET: usize = 0x5C2C60;
 
@@ -45,7 +44,7 @@ fn p(x: usize, v: u32) {
 }
 
 /// The press time's constants: `TyreChange::{time_base, time_scale, gauge_unit,
-/// log_two_ten}` and flt_5C2C60.
+/// log_two_ten}` and `one`.
 fn constants(shared: &RaceShared) -> [u32; 5] {
     [
         shared.tyre_change.time_base.bits(),
@@ -88,7 +87,7 @@ impl Io for GameIo<'_> {
         Ok(crate::system::tick_count::tick_count())
     }
     fn pressed(&mut self) -> Result<bool, Refused> {
-        // `input_device_read` (0x40930D, inlined): ebx the device's +0x4E8.
+        // The input device's read (inlined): the device's +0x4E8 word.
         Ok(self.device.bits.get() & 0xFF != 0)
     }
     fn draw(&mut self, g: &Gauge) -> Result<(), Refused> {

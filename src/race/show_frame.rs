@@ -1,7 +1,7 @@
 //! `race::show_frame` (0x4547AE): the race frame's end, after its 3D scene: the frame locked, the
-//! race's sound tick, the credits rolled while `dword_71C3E0` is set, the frame rate drawn
+//! race's sound tick, the credits rolled while `in_credits` is set, the frame rate drawn
 //! (`race::draw_frame_rate`), the frame unlocked and shown; the sound tick, the clock restarted
-//! (`scene::restart_clock`) and its time less `dword_63DC38` into `dword_63DC3C`, the frame rate
+//! (`scene::restart_clock`) and its time less `clock_base` into `frame_time`, the frame rate
 //! measured (`race::measure_frame_rate`); carry clear.
 //!
 //! Caller: `drive::race_frame`. Its calls are the Rust versions: `scene::lock_frame`,
@@ -11,7 +11,7 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-/// What `show_frame` leaves: whether the frame was lost (the carry) and eax.
+/// What `show_frame` leaves: whether the frame was lost (the carry) and the original's leftover value.
 pub struct Shown {
     pub lost: bool,
     pub eax: u32,
@@ -38,7 +38,7 @@ pub fn show_frame(race: &Race) -> Result<Shown, Refused> {
         )?;
     }
     { crate::race::frame_text::draw_frame_rate(race, &mut crate::text::draw_text::GameCanvas) }?;
-    // `scene::unlock_frame` leaves eax 0 (its carry is `present_frame`'s next).
+    // `scene::unlock_frame` leaves 0 as the leftover value (its carry is `present_frame`'s next).
     crate::scene::unlock_frame::unlock_frame(&race.frame);
     if !crate::scene::present_frame::present_frame() {
         return Ok(Shown { lost: true, eax: 0 });
@@ -49,7 +49,7 @@ pub fn show_frame(race: &Race) -> Result<Shown, Refused> {
     );
     let time = clock.wrapping_sub(race.shared.view.clock_base.get());
     race.shared.view.frame_time.set(time);
-    // The measuring leaves eax the counter's low half on the 16th call, else as it was.
+    // The measuring leaves the counter's low half as the leftover value on the 16th call, else as it was.
     let eax = { crate::race::measure_frame_rate::measure_frame_rate(race, scene, system) }
         .unwrap_or(time);
     Ok(Shown { lost: false, eax })

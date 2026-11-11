@@ -1,12 +1,11 @@
 //! `scene::measure_object` (0x4222B8): finds the middle of the object being loaded
 //! and moves its points so that the middle is at 0.
 //!
-//! In:  nothing (`dword_634FEC` the object's slot)
+//! In:  nothing (`loading_slot` is the object's slot)
 //!
-//! The middle (`dword_634B70` ..) = 0; the lowest of each of x, y, z (`dword_634B88` ..) from
-//! 0x640000 down and the highest (`dword_634B94` ..) from -0x640000 up over the slot's points;
-//! half the extent of each (`dword_634B7C` ..) = (highest - lowest) halved, the middle = that
-//! plus the lowest; then the middle is taken off every point. Eleven call sites in
+//! The middle = 0; the lowest of each of x, y, z from 0x640000 down and the highest from
+//! -0x640000 up over the slot's points; half the extent of each = (highest - lowest) halved,
+//! the middle = that plus the lowest; then the middle is taken off every point. Eleven call sites in
 //! `scene::load_object` (the parts of a car). Refuses a slot past the tables and points without
 //! their memory.
 

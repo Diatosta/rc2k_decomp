@@ -1,15 +1,15 @@
 //! `screens::draw_spaced_number` (0x468180): draws a text one character at a time from its
 //! last, right to left, in fixed columns: the last at x + 0x32, the next two 9 apart, the rest
 //! 0xD apart (so "12:34" style figures line up). Each character is copied with a NUL after it
-//! into `byte_A8BC54` (two bytes each) and drawn from there (`text::draw_text_keep_regs`);
-//! the length is kept in `dword_7559B8`.
+//! into the cells text buffer (two bytes each) and drawn from there (`text::draw_text_keep_regs`);
+//! the length is kept in `draw_work.scratch_b8`.
 //!
 //! Takes the font, text, its end, x and y.
 //!
 //! Callers: the players' standings pages (`screens::draw_players_results_points`, 0x4836CF,
 //! 0x48D32E; eight calls). Refuses (before anything) a length below 3 (the original's loop then
 //! runs on: with 0 its copy, with 1 or 2 its drawing loop) and one whose copies pass the 0x100
-//! bytes of `byte_A8BC54`.
+//! bytes of the cells text buffer.
 
 use crate::errors::Refused;
 use crate::menu::owner::Screens;

@@ -1,11 +1,11 @@
 //! `physics::gear_input_rules` (0x439BF6): the gearbox's input state (0x613890 ..
-//! 0x6138A8) by the car's state (the work copy's `dword_71A244`, `dword_71A010`,
-//! `dword_719FEC`, `dword_71A07C`, `dword_71A078`, `dword_71A080`): with `dword_71A244`
+//! 0x6138A8) by the car's state (the work copy's `tyre_change_state`, `gearbox_kind`,
+//! `run_ticks`, `go_stand_timer`, `started_stand_timer`, `finish_flag`): with `tyre_change_state`
 //! neither 0 nor -1 all cleared, 0x61389C = 500 and `g_carGear` 0 (nothing else); with
-//! `dword_71A010` 2 the two inputs 0x613894 / 0x613898 joined into the first (in neutral,
-//! `dword_6138A8` = 1, or -1 when the second is the larger) or swapped (in reverse);
-//! with `dword_719FEC` below 800 (the sign of the difference) 0x61389C = 500 and, unless
-//! `dword_62389C` is 1, four cleared; each of three switches clears them and the gear.
+//! `gearbox_kind` 2 the two inputs 0x613894 / 0x613898 joined into the first (in neutral,
+//! `input_gear_wanted` = 1, or -1 when the second is the larger) or swapped (in reverse);
+//! with `run_ticks` below 800 (the sign of the difference) 0x61389C = 500 and, unless
+//! `run_kind` is 1, four cleared; each of three switches clears them and the gear.
 //! What they are is a reading at best (an automatic box's held inputs?).
 //!
 //! Returns: the joined input when they were joined
@@ -13,9 +13,6 @@
 //! Callers: race init's loop (`drive::race_cars_step`), `race::step_replay_cars`,
 //! `drive::replay_step` (each calls
 //! `physics::car_physics_step` or `drive::steer_inputs` next).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;

@@ -1,18 +1,16 @@
-//! `physics::apply_torque` (0x45FB82): one force record (esi: the force at +0, the point
-//! it acts at at +0xC) turning a car (edi, its block): the car's spin (+0x184 .. +0x18C)
-//! copied to `dword_6D30B4` .. and turned into the car's frame
-//! (`physics::turn_by_inverse_at`, 0x45FC55: `turn_cells` on the block's inverse matrix); the cross product of the record's two vectors
-//! (`scene::cross_product`, into `flt_614274` ..); each part of the spin less that part
-//! times the step `flt_61388C` times `flt_613FA8 + 4k` (`fld c; fmul; fmul; fchs; fadd;
-//! fstp`); turned back into the world (`physics::turn_by_matrix_at`, 0x45FC73: on its +0xB4) and stored as the
-//! spin. All in `pusha` / `popa` (eax pushed besides). A reading: the force's twist on
-//! the car, `flt_613FA8` the inverse inertia.
+//! `physics::apply_torque` (0x45FB82): one force record (the force, and the point it acts at)
+//! turning a car block. The car's spin is copied to `contact_turn_speed` and turned into the
+//! car's frame (`physics::turn_by_inverse_at`); the cross product of the record's two vectors
+//! is taken (`scene::cross_product`, into `torque_cross`); each part of the spin is reduced by
+//! that part of the cross product times the physics step times the car's inverse inertia, and the
+//! result is turned back into the world (`physics::turn_by_matrix_at`) and stored as the spin.
+//! A reading: the force's twist on the car.
 //!
 //! Takes: the record, the car block
 //!
 //! Caller: `physics::apply_torques` (in a loop over records).
 
-use crate::math::x87_run::neg_product2_plus;
+use crate::math::x87::neg_product2_plus;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::tables_store::ForceRecord;

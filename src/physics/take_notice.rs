@@ -1,6 +1,6 @@
-//! `physics::take_notice` (0x4B1C56): when no notice is shown (`dword_71A700` and
-//! `dword_71A6F4` both 0) and the queue (`physics::queue_notice`) is not empty: the first
-//! entry's id into `dword_71A6F4`, `dword_71A708` = 0x32, `dword_71A704` = 0x12C (by the
+//! `physics::take_notice` (0x4B1C56): when no notice is shown (`notice_shown` and
+//! `notice_id` both 0) and the queue (`physics::queue_notice`) is not empty: the first
+//! entry's id into `notice_id`, `notice_time_b` = 0x32, `notice_time` = 0x12C (by the
 //! look of them, times to show it), the count less 1, and the three lists moved down one
 //! (0x1F dwords each, `rep movsd`).
 //!

@@ -2,7 +2,7 @@
 //! the virtual screen to the real one (x times `g_screenWidth` over `flt_75C02C`, y times
 //! `g_screenHeight` over `flt_75C030`) and added to the batch: when the batch holds more than 0x64
 //! vertices or the texture asked for (`dword_75C034`) is not the batch's (`dword_75C038`),
-//! `hud::flush_batch`, the texture made the batch's and the shown one (`dword_6D14FE`),
+//! `hud::flush_batch`, the texture made the batch's and the shown one (`shown_texture`),
 //! `hud::set_batch_texture`; the vertices copied after the batch's; the indices of a triangle (and
 //! with other than three vertices a second one making a quad).
 //!

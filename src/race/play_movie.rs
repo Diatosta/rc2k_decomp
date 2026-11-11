@@ -1,5 +1,5 @@
 //! `race::play_movie` (0x460776): "shaunplayrendermovie - in" logged, the clock restarted
-//! (`scene::restart_clock`, `g_sceneClock` into `dword_613840`), the replay played
+//! (`scene::restart_clock`, `g_sceneClock` into `race_clock_base`), the replay played
 //! (`race::play_movie_loop`), "shaunplayrendermovie - out" logged.
 //!
 //! Caller: `race::play_replay_range`.

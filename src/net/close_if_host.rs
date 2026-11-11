@@ -1,4 +1,4 @@
-//! `net::close_if_host` (0x41837B): on the host (state bit 0x10 of `byte_52AD64`), no more
+//! `net::close_if_host` (0x41837B): on the host (state bit 0x10 of `own`), no more
 //! players let in (`net::disable_new_players`).
 //!
 //! Caller: `net::start_link`, before each race.

@@ -1,4 +1,4 @@
-//! The game's quicksort of fixed-size records by one dword, compared unsigned (converted 2026-10-21
+//! The game's quicksort of fixed-size records by one dword, compared unsigned (converted
 //! from `race::sort_depth_entries` 0x454ED4 with 0x454EF7, `race::sort_sort_entries` 0x454F62 with
 //! 0x454F85, `race::sort_points_by_y` 0x426BE6, `sort_points_by_z` 0x426CA2,
 //! `sort_points_by_x_down` 0x426D5E and its twin 0x426E16, and the shadow's 0x4582AC). Every one is
@@ -42,24 +42,24 @@ impl Order {
 /// What the last partition left: the pivot and the two places.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Scan {
-    /// eax: the pivot.
+    /// The pivot.
     pub pivot: u32,
-    /// ebx: the last key read.
+    /// The last key read.
     pub key: u32,
-    /// ecx: the left place.
+    /// The left place.
     pub left: i64,
-    /// edx: the right place.
+    /// The right place.
     pub right: i64,
 }
 
 /// Where the sort ends: the last part's first and last places.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Ends {
-    /// esi and edi: the last part's first and last places.
+    /// The last part's first place.
     pub first: i64,
     pub last: i64,
     pub scan: Option<Scan>,
-    /// ebp: the last record's last dword before it was swapped (none without a swap).
+    /// The last record's last dword before it was swapped (none without a swap).
     pub swapped: Option<u32>,
 }
 

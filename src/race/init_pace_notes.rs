@@ -5,7 +5,7 @@
 //! the next one's start; the groups (`race:: pace_distance_word`, `race::pace_note_calls` for each
 //! note, ')' between notes joined, a NUL after each group but the last) and their count.
 //!
-//! Caller: `race::loadlevel_init` (its step 25), which calls the Rust version directly. Refuses
+//! Caller: `race::loadlevel_init` (its step 25), which calls it directly. Refuses
 //! what `race/pace_notes.rs` refuses: places outside the tables or the course, and a search
 //! that would run on past the count (no face of kind 2 before the last checkpoint but one).
 //! Nothing is written then.

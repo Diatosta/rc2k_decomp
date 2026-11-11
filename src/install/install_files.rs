@@ -1,6 +1,6 @@
 //! `install::install_files` (0x4130CD): the install itself. The status is marked busy and
-//! written; the source is scanned (`install::run_script` with `byte_51BD48`) to count the
-//! files and the room needed (`dword_51C3F7[g_mediaMode]`); the destination is normalised,
+//! written; the source is scanned (`install::run_script` with `script_count`) to count the
+//! files and the room needed (`room_by_mode[g_mediaMode]`); the destination is normalised,
 //! checked for a bad name (`install::check_folder_name`), for room
 //! (`files::drive_free_space_kb` unless UNC) and made (`install::make_folders`); the source
 //! must be a CD (`files::is_cd_drive`). Then the page is shown and the folders made and the
@@ -8,10 +8,10 @@
 //! after each and Escape watched; the record is written (`install::write_record`); the readme
 //! and manual are copied if a language is set; finally the status is set installed, written,
 //! the lobby registered (`install::register_lobby`), the Start-menu add and
-//! `g_installing` asked, and registration if offered. Failures set `byte_51D415`
+//! `g_installing` asked, and registration if offered. Failures set `list_answer`
 //! (0 bad path, 3 no room / not a CD) or show an error/cancel message.
 //!
-//! A list action (`off_51DD18`). Caller `install::run_page`.
+//! The action of a list item. Caller `install::run_page`.
 
 use crate::errors::Refused;
 use crate::install::installer::{
@@ -131,7 +131,7 @@ pub fn install_files(install: &'static crate::install::owner::Install) -> Result
         return bad_path();
     }
     // Its answer is not read: the standalone installs from the download folder as well
-    // (owner, 2026-10-20).
+    // (owner).
     crate::files::is_cd_drive::is_cd_drive(rb(&install.paths.game_dir));
     // A close during the copy waits for its end (the progress still shown).
     crate::platform_events::hold_quit(true);
@@ -202,7 +202,8 @@ pub fn install_files(install: &'static crate::install::owner::Install) -> Result
     install.pages.list_answer.set(2);
     sleep(1000);
     install.names.status.set(1);
-    // byte_95E7F8 copied to g_installSource; dword_51BC90 its length with the NUL
+    // The installed folder's path copied to `g_installSource`, with its length (NUL included)
+    // kept in `source_size`.
     let mut n = 0;
     loop {
         let b = rb(BytePlace::from(&install.paths.installed).add(n));

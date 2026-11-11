@@ -1,12 +1,12 @@
-//! `physics::move_car` (0x43CCB0): the work car's place (`dword_71A10C` .. `114`, whole
-//! numbers) moved by its motion (`dword_71A170` .. `178`, floats) times 65536 and the step
-//! `flt_61388C` (`fistp` through `dword_62400C`), x, z, then y.
+//! `physics::move_car` (0x43CCB0): the work car's place (`position` .. `114`, whole
+//! numbers) moved by its motion (`velocity` .. `178`, floats) times 65536 and the step
+//! `step_time` (`fistp` through `scratch`), x, z, then y.
 //!
 //! Returns: y's move
 //!
 //! Callers: `physics::car_physics_step` (0x43B827, 0x43B8A0), every physics step.
 
-use crate::math::x87_run::mul2_to_int;
+use crate::math::x87::mul2_to_int;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;

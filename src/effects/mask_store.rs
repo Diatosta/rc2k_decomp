@@ -1,4 +1,4 @@
-//! The marks' mask pictures' variables, out of the marks' block (phase 7, typed state), IDA
+//! The marks' mask pictures' variables, IDA
 //! 0x934CC8 .. 0x934F30: which ground picture (`load_mask_pictures`), the lists the mask blocks
 //! are taken on, the pointers to the blocks, the paths of the mask pictures, and the number of
 //! the picture of each kind. Four statics, because the image keeps its cells on three different
@@ -7,7 +7,7 @@
 
 use crate::session::{Bytes, Dword};
 
-/// The ground picture's name (IDA 0x934CC8 .. 0x934D6E; phase 7, typed state). The offsets are from its start.
+/// The ground picture's name (IDA 0x934CC8 .. 0x934D6E). The offsets are from its start.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct GroundNames {
@@ -48,7 +48,7 @@ impl GroundNames {
     pub const LEN: usize = 0xA6;
 }
 
-/// The mask blocks' lists and pointers (IDA 0x934D6E .. 0x934E29, on an address 2 more than a multiple of 4 in the image; phase 7, typed state). The offsets are from its start.
+/// The mask blocks' lists and pointers (IDA 0x934D6E .. 0x934E29, on an address 2 more than a multiple of 4 in the image). The offsets are from its start.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MaskBlocks {
@@ -173,7 +173,7 @@ impl MaskBlocks {
     pub const LEN: usize = 0xBB;
 }
 
-/// The picture copy's list and pointer, and the mask paths (IDA 0x934E29 .. 0x934EA8, on an address 1 more than a multiple of 4 in the image; phase 7, typed state). The offsets are from its start.
+/// The picture copy's list and pointer, and the mask paths (IDA 0x934E29 .. 0x934EA8, on an address 1 more than a multiple of 4 in the image). The offsets are from its start.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PictureCopy {
@@ -216,7 +216,7 @@ impl PictureCopy {
     pub const LEN: usize = 0x7F;
 }
 
-/// The picture number of each kind (IDA 0x934EA8 .. 0x934F30; phase 7, typed state). The offsets are from its start.
+/// The picture number of each kind (IDA 0x934EA8 .. 0x934F30). The offsets are from its start.
 #[repr(C)]
 pub struct KindPictures {
     /// +0x0: `g_marksKindPictureNumbers`: per kind, the number in the mask and picture paths' two digits

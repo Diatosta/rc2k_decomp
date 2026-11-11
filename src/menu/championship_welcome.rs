@@ -1,7 +1,7 @@
 //! `menu::championship_welcome` (0x47F314): the championship's welcome: unless a saved
-//! game goes on (`dword_755970` 1), the speech `;3files\%speech\rally\rally0.wav` started
-//! (`sound::start_stream`, ecx `dword_755698`) and the commands waited for;
-//! `dword_75555D`, `dword_755561` and `g_yesNoAnswer` 0; the picture `mob_welc.png` with
+//! game goes on (`event.continuing_save` 1), the speech `;3files\%speech\rally\rally0.wav` started
+//! (`sound::start_stream`, ecx `option_work.speech_level`) and the commands waited for;
+//! `loop_flags.event_left`, `loop_flags.leave_screen` and `g_yesNoAnswer` 0; the picture `mob_welc.png` with
 //! the title bar (`gfx::load_picture_with_overlay`; not read: fatal error 0x80712345, no
 //! message), converted; a key taken (dropped); one frame of it (`screens::run_frame`
 //! with `menu::picture_frame`); then three seconds for a key (`system::wait_or_key`), and

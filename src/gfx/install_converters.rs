@@ -1,11 +1,11 @@
 //! `gfx::install_converters` (0x407062): fills the table of picture converters, one for each
 //! pixel format number.
 //!
-//! The table `dword_4F5288` has seven entries; a format without one is converted pixel by pixel
+//! The converter table has seven entries; a format without one is converted pixel by pixel
 //! through `components_to_pixel`. Number 0 never has one. Numbers 5 and 6 get
 //! `gfx::copy_pixel_rows`. Number 4 gets `gfx::components_to_4444_rows`, and numbers 1 to 3
-//! nothing, unless the processor has MMX (`dword_5183A8` is 1): then 1 to 4 get 0x4070F9,
-//! 0x407171, 0x4071ED, 0x407276, or with 3DNow as well (`dword_5183B8` is 1)
+//! nothing, unless the processor has MMX (`machine.has_mmx` is 1): then 1 to 4 get 0x4070F9,
+//! 0x407171, 0x4071ED, 0x407276, or with 3DNow as well (`machine.has_3dnow` is 1)
 //! 0x4072FB, 0x407377, 0x4073F7, 0x407484. Those eight are not ported. The name
 //! is a reading. `start` calls it directly.
 

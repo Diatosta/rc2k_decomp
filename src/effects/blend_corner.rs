@@ -11,8 +11,8 @@ use crate::math::x87;
 use crate::race::effects_settings_store::CarEffects;
 use crate::session::Float;
 
-/// `block` the car record whose block holds the factors (the original's ebp), `to` where
-/// the point goes (esi), `from` the point blended (edi), `base` the base point (edx's).
+/// `block` the car record whose block holds the factors, `to` where
+/// the point goes, `from` the point blended, `base` the base point.
 pub fn blend_corner(
     block: &CarEffects,
     to: u32,
@@ -24,7 +24,7 @@ pub fn blend_corner(
         // `from` and `to` are places of `scene::object_points` (phase 13).
         let src = crate::scene::object_points::point(from)?;
         let signs = src.iter().fold(0, |b, &v| (b << 1) | (v >> 31));
-        let f = x87::loaded(block.factors[signs as usize].bits());
+        let f = x87::loaded(&block.factors[signs as usize]);
         effects.clipping.blend_work.factor.set_bits(f);
         for (c, &s) in src.iter().enumerate() {
             let v = x87::int_lerp_to_int(s as i32, base[c] as i32, f);
@@ -35,7 +35,7 @@ pub fn blend_corner(
     Ok(())
 }
 
-/// The corner blend's factor (IDA 0x93C6C8 .. 0x93C6CC, the image's layout; phase 7, typed state).
+/// The corner blend's factor (IDA 0x93C6C8 .. 0x93C6CC).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct BlendWork {
@@ -47,7 +47,7 @@ impl BlendWork {
     /// BlendWork's first values.
     pub const fn new() -> Self {
         Self {
-            factor: Float::from_bits(0x0),
+            factor: Float::new(0.0),
         }
     }
 }

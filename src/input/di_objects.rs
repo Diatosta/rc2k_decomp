@@ -211,8 +211,7 @@ const E_NOINTERFACE: i32 = 0x8000_4002u32 as i32;
 
 /// The most objects at once. An object's handle (what the game holds) is its place in the
 /// pool and 1, the lowest free place taken, so that two runs that make the same objects get
-/// the same handles (phase 11, 2026-10-26: before, a place in a pool of objects whose first
-/// dword was its method table's address).
+/// the same handles (a handle is not an address).
 const POOL: usize = 64;
 
 /// An axis's range, dead zone and saturation (DirectInput's defaults: 0 .. 65535, 0, 10000).

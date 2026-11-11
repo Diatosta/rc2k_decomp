@@ -3,10 +3,10 @@
 //!
 //!
 //! The menu at 0x748620 (the stage choice's): item 0's string (+0x14) = the group's title
-//! (`dword_758718[group]`); then the table's title (its +0x38) is stored at `[0x748620] + 4 + 0x5C
+//! (`results.group_titles`); then the table's title (its +0x38) is stored at `[0x748620] + 4 + 0x5C
 //! + 0x14`: the original takes the menu's first dword (a pointer to its labels, `stru_747F24`)
 //! where item 0 took the menu's address, so "item 1" lands in the labels, at 0x747F98 (section 16);
-//! the heading "<string 0x482> n/6: name" built in `byte_A8BD54`
+//! the heading "<string 0x482> n/6: name" built in the stage heading buffer
 //! (`stage_panel::build_second_heading`). In two entry lists. Refuses a choice without its tables
 //! (the original reads through null), and what the heading refuses. The menus and draw lists run
 //! its `entry` (`menu::table_calls`).

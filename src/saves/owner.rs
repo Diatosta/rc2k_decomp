@@ -15,7 +15,7 @@ pub struct Files {
     /// `unk_4F66DD`, `unk_4F66E1`, `unk_4F66E5` (-1 at start), `unk_4F66E9`: four dwords the
     /// options file keeps (here and in `saves::save_options`, by address); nothing else of
     /// the game reads them (a table of the developers' variables names the first). The fifth
-    /// (0x4F66ED) is a gap. Split 2026-10-25 from sound's wheel surfaces after them.
+    /// (0x4F66ED) is a gap.
     pub options_kept: [Dword; 5],
 }
 

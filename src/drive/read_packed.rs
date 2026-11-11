@@ -1,6 +1,6 @@
-//! `drive::read_packed` (0x41EEB5): ecx bytes from the file eax into ebx: a count of 0 or more is a
-//! plain read (its `jns` goes straight to `files::read`); below 0, -ecx packed bytes read into
-//! `g_pngInfo` and unpacked into ebx (`drive::unpack_rle`), eax the bytes unpacked.
+//! `drive::read_packed` (0x41EEB5): reads bytes from a file into a buffer: a count of 0 or more is
+//! a plain read (`files::read`); below 0, minus the count of packed bytes are read into
+//! `g_pngInfo` and unpacked into the buffer (`drive::unpack_rle`), returning the bytes unpacked.
 //!
 //! Takes: the file, the buffer, the count (below 0: packed)
 //!

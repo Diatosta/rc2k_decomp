@@ -16,9 +16,6 @@ use crate::scene::reset_objects::reset_objects;
 
 // ---- Rust version ----
 
-/// The Rust version. The registers the original leaves (eax the faces' memory used, ecx
-/// 0x100, edi, ebx) are read by no caller (taint at its sites: `race::set_object_kinds`' and
-/// `load_front_end_objects_logged`'s).
 pub fn load_front_end_objects(
     race: &Race,
     scene: &crate::scene::owner::Scene,

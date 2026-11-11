@@ -1,4 +1,4 @@
-//! Three twins (IDA 2026-10-17): when the current car's entry in `dword_641680`
+//! Three twins: when the current car's entry in `listed_car_sounds`
 //! (indexed by `g_currentCar`) is not -1, a flag is set to 1:
 //! `physics::set_flag_51659C` (0x45D151, `dword_51659C`), `physics::set_flag_5165A0`
 //! (0x45D16D, `dword_5165A0`), `physics::set_flag_5165A4` (0x45D189, `dword_5165A4`).

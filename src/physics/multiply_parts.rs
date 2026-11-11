@@ -1,9 +1,9 @@
-//! `physics::multiply_parts` (0x420FD5): the three floats at ebx times those at ecx, part
-//! by part, into edx (`fld; fmul; fstp`, each stored before the next is read).
+//! `physics::multiply_parts` (0x420FD5): the three floats of one vector times those of another,
+//! part by part, into a third (each stored before the next is read).
 //!
 //! Takes: the two vectors, where the result goes (may be either)
 //!
-//! Caller: `physics::contact_force` (0x45F256).
+//! Caller: `physics::contact_force`.
 
 use crate::math::cells::Cells;
 use crate::math::x87;

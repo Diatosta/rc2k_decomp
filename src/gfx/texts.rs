@@ -1,5 +1,5 @@
 //! The picture and font file names and the one message of the graphics code: the texts RAL.EXE's
-//! read-only data held, now Rust's. Nothing writes them; `build_glyphs` makes a numbered path of a
+//! read-only data held, as Rust data. Nothing writes them; `build_glyphs` makes a numbered path of a
 //! template in a buffer of its own. `tests::texts_are_the_games` compares each to the image while
 //! it exists.
 

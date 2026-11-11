@@ -2,9 +2,9 @@
 //! `savedata\replay\replayNN`, and copies its name into the replay list.
 //!
 //! Takes slot, 0 .. 99.
-//! Up to 0x430 bytes to `dword_528504`. Accepted if the read did not fail, the first dword
+//! Up to 0x430 bytes to the replay header (`header`). Accepted if the read did not fail, the first dword
 //! is "REPL" and the dword at +8 is 0x50400; the 0x20 bytes at +0x10 then go to
-//! `byte_528934[slot * 0x20]`. A short file is not noticed as such: what the buffer held
+//! the replay names (`names[slot * 0x20]`). A short file is not noticed as such: what the buffer held
 //! before decides (as in `saves::read_savegame_slot`).
 //! One caller, `system::load_game_data`, for all 100 slots at start-up. Refuses a slot past 99.
 

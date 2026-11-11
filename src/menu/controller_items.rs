@@ -1,6 +1,6 @@
 //! The controller set-up pages' item actions and set-ups (`menu::player1_controller_loop` and
-//! the seven after it): what they change of the current player's record (`dword_75598C`,
-//! `g_players`): +0x2C the controller (0 none, 1 .. `dword_4F78E0` the listed ones), +0x34
+//! the seven after it): what they change of the current player's record (`event.current_player`,
+//! `g_players`): +0x2C the controller (0 none, 1 .. the controller count the listed ones), +0x34
 //! its sensitivity (0 .. 3), +0x38 its mode, +0x40 and +0x44 the two dead zones (their sum
 //! held at 90).
 //! - `menu::apply_controller` (0x46B47C): with a listed controller (`controller - 1` below
@@ -26,11 +26,12 @@ use crate::errors::{BadInput, Refused};
 use crate::input::owner::input;
 use crate::input::request_device_release::request_device_release;
 use crate::input::request_device_setup::request_device_setup;
+use crate::menu::owner::Menus;
 use crate::menu::player_settings::current;
 use crate::menu::standings::PlayerCell;
 
-fn player() -> Result<PlayerCell, Refused> {
-    current()
+fn player(menus: &Menus) -> Result<PlayerCell<'_>, Refused> {
+    current(menus)
 }
 
 fn count() -> u32 {
@@ -47,8 +48,8 @@ fn would_apply(controller: u32) -> Result<bool, Refused> {
 }
 
 /// `menu::apply_controller`.
-pub fn apply_controller() -> Result<(), Refused> {
-    let p = player()?;
+pub fn apply_controller(menus: &Menus) -> Result<(), Refused> {
+    let p = player(menus)?;
     let c = p.get().controller;
     if would_apply(c)? {
         set_up_device(p, c)?;
@@ -84,15 +85,15 @@ fn choose(p: PlayerCell, c: u32) -> Result<(), Refused> {
 }
 
 /// `menu::next_controller`.
-pub fn next_controller() -> Result<(), Refused> {
-    let p = player()?;
+pub fn next_controller(menus: &Menus) -> Result<(), Refused> {
+    let p = player(menus)?;
     let c = rc2k_core::menu::steps::next_controller(p.get().controller, count());
     choose(p, c)
 }
 
 /// `menu::previous_controller`.
-pub fn previous_controller() -> Result<(), Refused> {
-    let p = player()?;
+pub fn previous_controller(menus: &Menus) -> Result<(), Refused> {
+    let p = player(menus)?;
     let c = rc2k_core::menu::steps::previous_controller(p.get().controller, count());
     choose(p, c)
 }
@@ -109,9 +110,9 @@ fn set_sensitivity(p: PlayerCell, value: u32) -> Result<(), Refused> {
 }
 
 /// `menu::lower_controller_sensitivity`.
-pub fn lower_controller_sensitivity() -> Result<(), Refused> {
+pub fn lower_controller_sensitivity(menus: &Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::steps::lower_sensitivity`.
-    let p = player()?;
+    let p = player(menus)?;
     if let Some(s) =
         rc2k_core::menu::steps::lower_sensitivity(p.get().controller, p.get().sensitivity_level)
     {
@@ -123,12 +124,12 @@ pub fn lower_controller_sensitivity() -> Result<(), Refused> {
 /// `menu::raise_controller_sensitivity`; `edi` is the caller's.
 /// `gate` is the dword at +0x2C of what edi points at: a key's item (its left link) or an
 /// action's menu (its first item's down link).
-pub fn raise_controller_sensitivity(gate: u32) -> Result<(), Refused> {
+pub fn raise_controller_sensitivity(menus: &Menus, gate: u32) -> Result<(), Refused> {
     if gate == 0 {
         return Ok(());
     }
     // Converted: `rc2k_core::menu::steps::raise_sensitivity`.
-    let p = player()?;
+    let p = player(menus)?;
     if let Some(s) = rc2k_core::menu::steps::raise_sensitivity(p.get().sensitivity_level) {
         { set_sensitivity(p, s) }?;
     }
@@ -137,8 +138,8 @@ pub fn raise_controller_sensitivity(gate: u32) -> Result<(), Refused> {
 
 /// `menu::raise_dead_zone_a` (the first) / `raise_dead_zone_b`: the dead zone one more if
 /// the two leave more than 10.
-pub fn raise_dead_zone(second: bool) -> Result<(), Refused> {
-    let p = player()?;
+pub fn raise_dead_zone(menus: &Menus, second: bool) -> Result<(), Refused> {
+    let p = player(menus)?;
     let q = p.get();
     let (_, grows) = rc2k_core::menu::steps::dead_zone_room(q.end_zone_pct, q.centre_dead_zone_pct);
     if grows {

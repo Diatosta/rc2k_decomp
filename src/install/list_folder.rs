@@ -1,6 +1,6 @@
 //! `install::list_folder` (0x413876): one folder path added to the folders-to-make table.
-//! The path (eax) is resolved (`files::resolve_path`), appended with a NUL at
-//! `dword_51BB54` (the cursor), the cursor and scan pointer advanced, and `dword_51BB48`
+//! The path is resolved (`files::resolve_path`), appended with a NUL at
+//! `dir_cursor` (the cursor), the cursor and scan pointer advanced, and `dir_count`
 //! (the count) raised. More than 0x10000 bytes of names is fatal error 0x80AF2205.
 //!
 //! Takes the folder path.

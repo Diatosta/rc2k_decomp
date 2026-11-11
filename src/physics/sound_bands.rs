@@ -1,10 +1,9 @@
-//! Four twins (IDA 2026-10-18) that make a band 0 ..= 0x40 out of a float: ebx =
-//! `fistp` of value x factor (through `dword_6D1AEC`), less a step, held to 0 ..= 0x40
-//! (by the sign, `jns` / `js`):
-//! - `physics::sound_band_1` (0x45D067): `flt_6D3108` x `flt_6D1AE0`, less 1;
-//! - `physics::sound_band_2` (0x45D097): `g_car` +0x1C4 x `flt_6D1AE0`, less 10;
-//! - `physics::sound_band_3` (0x45D0F1): `flt_6D3CD0` x `flt_6D1AE8`, less 10;
-//! - `physics::sound_band_4` (0x45D121): `g_car` +0x1C4 x `flt_6D1AE4`, less 1.
+//! Four twins that make a band 0 ..= 0x40 out of a float: value x factor (rounded through
+//! `band_scratch`), less a step, held to 0 ..= 0x40 (by the sign):
+//! - `physics::sound_band_1` (0x45D067): `contact_speed_length` x `contact_band_scale`, less 1;
+//! - `physics::sound_band_2` (0x45D097): the car's `speed` x `contact_band_scale`, less 10;
+//! - `physics::sound_band_3` (0x45D0F1): `bump_speed_length` x `bump_band_scale`, less 10;
+//! - `physics::sound_band_4` (0x45D121): the car's `speed` x `crash_band_scale`, less 1.
 //!
 //! A reading: volume or pitch steps for the car's sounds (their callers
 //! `physics::place_sound_object` ..
@@ -27,7 +26,7 @@ pub type Twin = (
 
 /// The exact x87 version on the value and the factor, the scratch keeps the number of `fistp`.
 pub fn band_at(value: &Float, factor: &Float, scratch: &Dword, step: u32) -> u32 {
-    let n = x87::mul_to_int(value.bits(), factor.bits()) as u32;
+    let n = x87::mul_to_int(value, factor) as u32;
     scratch.set(n);
     let mut b = n.wrapping_sub(step);
     if (b as i32) < 0 {

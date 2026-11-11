@@ -2,8 +2,8 @@
 //! block (`drive::replay_frame_marks`), the race's sounds started unless the frames are being saved
 //! as pictures (`race::start_race_sounds`, not with `g_replayRecording` 1), the replay played
 //! (`race::play_movie`), the sounds reset (`race::reset_race_sounds`), the key that ended it
-//! (`input::take_key`) into `dword_5C2550`, `dword_5C2554` 1 (keys held), the block shown held to
-//! the last (`dword_5BECD0` at most, unsigned; then frame 0), `dword_5BEC98` 1 (stopped).
+//! (`input::take_key`) into `key_after_play`, `wait_key_release` 1 (keys held), the block shown held to
+//! the last (`index_block_count` at most, unsigned; then frame 0), `viewer_stopped` 1 (stopped).
 //!
 //! Caller: `race::play_marked`.
 
@@ -24,7 +24,7 @@ pub fn play_replay_range(
     }
     crate::race::play_movie::play_movie(race, input)?;
     race_end::reset_race_sounds(&race_end::SoundVars::game(), sound)?;
-    // The key taken: al, the rest of eax cleared (`and eax, 0FFh`).
+    // The key taken: its low byte only.
     let key = crate::input::take_key::take_key() as u32 & 0xFF;
     replay.replay_view.key_after_play.set(key);
     replay.replay_view.wait_key_release.set(1);

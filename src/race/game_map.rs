@@ -1,4 +1,4 @@
-//! `race::loadlevel_init`'s "loadgamemap" (IDA, 2026-10-16): the in-race map, 128 x 128
+//! `race::loadlevel_init`'s "loadgamemap": the in-race map, 128 x 128
 //! tiles of 16 x 16 pixels, only the tiles the course touches kept. `g_mapTiles` (0x4000
 //! dwords) points each kept tile at its pixels in `g_mapTilePixels` (0 for none), in the
 //! pixel format of entry 3 of `off_5ABAC0` (`g_mapPixelBytes` a pixel); `g_mapBlack` that
@@ -43,9 +43,9 @@ pub struct MapVars {
     /// 12, `gfx::picture::Buffer::Key`).
     pub key_pixels: Loose,
     /// `g_mapTiles` (`0x5BE991`): each tile's place in the pixels (128 x 128 dwords; the
-    /// game's address, 0 since the map is Rust's, `GAME_MAP`, phase 12).
+    /// game's address, 0 since the map is Rust's, `GAME_MAP`).
     pub tiles: Loose,
-    /// `g_mapTilePixels` (`0x5BE995`; 0 since phase 12, as `tiles`).
+    /// `g_mapTilePixels` (`0x5BE995`; 0 as `tiles`).
     pub tile_pixels: Loose,
     /// `g_mapTileCount` (`0x5BE999`).
     pub tile_count: Loose,
@@ -150,7 +150,7 @@ pub enum Tile {
 }
 
 /// The in-race map (`g_mapTiles` and `g_mapTilePixels`, two blocks of the game's on
-/// `g_mapList`), Rust's since phase 12: the 128 x 128 tiles and the pixels of those used,
+/// `g_mapList`), Rust's: the 128 x 128 tiles and the pixels of those used,
 /// 16 x 16 a tile, `g_mapPixelBytes` a pixel.
 pub struct GameMap {
     pub tiles: Vec<Tile>,
@@ -341,7 +341,7 @@ pub fn load_game_map(
     frame.map.tile_count.set(0u32);
     let (bytes, format) = take_format(frame)?;
     take_tiles(frame)?;
-    // The key sheet is a picture buffer (Rust's since phase 12, `gfx::picture`), counted on
+    // The key sheet is a picture buffer (Rust's, `gfx::picture`), counted on
     // its list as the game's block was; `key_pixels` holds its number.
     let key = crate::gfx::picture::take(
         crate::gfx::picture::Buffer::Key,

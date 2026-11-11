@@ -3,7 +3,7 @@
 //!
 //! Takes path (`srclvls\...`), buffer, its bytes.
 //!
-//! Refuses (since the conversion, 2026-10-21) a path too short for the packed copy's prefix (the
+//! Refuses a path too short for the packed copy's prefix (the
 //! original's text then runs on past it). One caller, `race::load_level` (loadlevel, the course
 //! data).
 

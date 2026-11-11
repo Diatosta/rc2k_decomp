@@ -1,4 +1,4 @@
-//! The course map's scroll in the race (converted 2026-10-21 from `race::scroll_maps`
+//! The course map's scroll in the race (converted from `race::scroll_maps`
 //! 0x45B4E6, `race::scroll_map` 0x45B527 and `race::map_tiles` 0x45B663): the car on the
 //! map (16.16 places), the map picture's corner (16-pixel steps) moved round it when it
 //! nears an edge, and its place in the picture.
@@ -41,7 +41,7 @@ pub fn first_tile(corner: u32) -> u32 {
 }
 
 /// The map picture's slot: the first (`dword_5D0E00`) plus the car's number, unless one
-/// view only is shown (`dword_52A910`).
+/// view only is shown (`session`).
 pub fn picture_slot(first: u32, one_view: bool, car: u32) -> u32 {
     if one_view {
         first
@@ -50,8 +50,8 @@ pub fn picture_slot(first: u32, one_view: bool, car: u32) -> u32 {
     }
 }
 
-/// The views whose cars scroll their maps: the third view's alone (`dword_52A910`), the
-/// first's with one player (`dword_63DB98` 1), else the first's and the second's.
+/// The views whose cars scroll their maps: the third view's alone (`session`), the
+/// first's with one player (`views` 1), else the first's and the second's.
 pub fn scrolled_views(third_only: bool, players: u32) -> &'static [usize] {
     if third_only {
         &[2]
@@ -62,7 +62,7 @@ pub fn scrolled_views(third_only: bool, players: u32) -> &'static [usize] {
     }
 }
 
-/// The map's tiles (`race::blit_map_tiles` 0x41B931, converted 2026-10-21): 8 x 8 tiles
+/// The map's tiles (`race::blit_map_tiles` 0x41B931): 8 x 8 tiles
 /// of 16 x 16 pixels blitted from a first tile; the tile table is 0x80 x 0x80 pointers.
 pub const TILE: u32 = 16;
 pub const TILES: u32 = 0x80;

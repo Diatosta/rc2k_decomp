@@ -1,27 +1,28 @@
 //! `physics::rate_damage` (0x4AF1EC): the current car's damage figures (the work copy's
-//! 0x71A278 .. 0x71A328) made into its working grades and failures (IDA, 2026-10-17;
-//! what each figure is, is in `physics/store.rs`). In the original's order:
-//! - `dword_71A3CC` = 1 - `dword_71A290` k k694 - `flt_71A294` k k698 (k = `flt_75B388`;
-//!   80 bits), times `flt_75B5A0` when `flt_75B3E4`'s bits are not 0 and `flt_71A298` is
+//! 0x71A278 .. 0x71A328) made into its working grades and failures (what each figure
+//! is, is in `physics/store.rs`). In the original's order:
+//! - `engine_power_factor` = 1 - `engine_damage` k k694 - `exhaust_damage` k k698 (k = `flt_75B388`;
+//!   80 bits), times `flt_75B5A0` when `flt_75B3E4`'s bits are not 0 and `turbo_damage` is
 //!   not below `flt_75B34C`; held to `flt_75B350` .. `flt_75B348`;
-//! - `flt_71A3D0`, `flt_71A3D4`: 1 less four products each (`flt_71A284` / `flt_71A288`,
-//!   `flt_71A320` / `flt_71A324`, `flt_71A278`, `dword_75B3F0`), held the same way;
-//! - 23 ramps (`math::x87_run::ramp`, tables of (x0, y0, x1, y1) at 0x75B4E8 .. 0x75B568)
+//! - `brake_efficiency`, `flt_71A3D4`: 1 less four products each (`brake_heat` / `flt_71A288`,
+//!   `brake_wear_a` / `brake_wear_b`, `brake_fade`, `dword_75B3F0`), held the same way;
+//! - 23 ramps (`math::x87::ramp`, tables of (x0, y0, x1, y1) at 0x75B4E8 .. 0x75B568)
 //!   into 0x71A3D8 .. 0x71A3E0 and the model's failure chances (0x75B404 .. 0x75B438, 0x75B490 .. 0x75B49C), two of them times
 //!   `flt_75B43C` k k, one squared;
 //! - failures by chance: a figure times `flt_75B340` (`fistp` into `flt_75B36C`) against
 //!   the random `dword_75B4A0` turned right by 4 .. 0x19, low word (the sign of the
-//!   difference): `dword_71A400` (set once), `dword_71A3E4` .. `dword_71A3FC` (set from
-//!   0x75B404 .., cleared again from 0x75B420 ..), `dword_71A404`, `dword_71A408`;
+//!   difference): `handbrake_failed` (set once), `electrical_failures` .. `dword_71A3FC` (set from
+//!   0x75B404 .., cleared again from 0x75B420 ..), `gear_change_blocked`, `forced_neutral`;
 //! - `flt_71A2AC` = 0, and `g_carGearBits` = the gears (9 figures from 0x71A2A8) equal to
 //!   `flt_75B34C` (C3: also no number);
-//! - `dword_71A274` = 0 when five figures are all below `flt_75B34C`, else 1, and then
-//!   `dword_71A3CC` = 0 unless `flt_71A2E8` is below it.
+//! - `damage_failed` = 0 when five figures are all below `flt_75B34C`, else 1, and then
+//!   `engine_power_factor` = 0 unless `electrics_damage` is below it.
 //!
 //! Caller: `physics::rate_current_car` (0x4AB5D0), its only one.
 
 use crate::math::x87;
-use crate::math::x87_run::{compare_full, ext_times, mul3, one_less_products, ramp, square};
+use crate::math::x87::{compare_full, ext_times, one_less_products, ramp};
+use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
 use crate::physics::store::DamageModel;
 use crate::scene::matrix3::rounded;
@@ -201,10 +202,10 @@ pub fn rate_damage(car: &Car, damage: &DamageModel) {
     let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
     let hold = |v: &Float| {
         if less(v.bits(), d.gauge_low.bits()) {
-            v.set_bits(x87::loaded(d.gauge_low.bits()));
+            v.set_bits(x87::loaded(&d.gauge_low));
         }
         if !less(v.bits(), d.grade_high.bits()) {
-            v.set_bits(x87::loaded(d.grade_high.bits()));
+            v.set_bits(x87::loaded(&d.grade_high));
         }
     };
     let k = d.grade_k.bits();
@@ -243,21 +244,24 @@ pub fn rate_damage(car: &Car, damage: &DamageModel) {
             table_of(&d.lerp_tables[5]),
             d.gauge_low.bits(),
         ));
-        out.set_bits(mul3(d.brake_balance_complement.bits(), k, k, out.bits()));
+        out.set_bits(bh::st(
+            bh::ld(d.brake_balance_complement.bits()) * bh::ld(k) * bh::ld(k) * bh::ld(out.bits()),
+        ));
     }
     c.steering_efficiency.set_bits(ramp(
         c.steering_damage.bits(),
         table_of(&d.lerp_tables[6]),
         d.gauge_low.bits(),
     ));
+    let efficiency = c.steering_efficiency.bits();
     c.steering_efficiency
-        .set_bits(square(c.steering_efficiency.bits()));
+        .set_bits(x87::mul(efficiency, efficiency));
     for (out, x, t) in ramps_c(car, damage) {
         out.set_bits(ramp(x.bits(), table_of(t), d.gauge_low.bits()));
     }
     // Chance: the figure times `flt_75B340` against the random's low word turned.
     let chance = |figure: &Float, turn: u32| {
-        let t = x87::mul_to_int(figure.bits(), d.chance_scale.bits()) as u32;
+        let t = x87::mul_to_int(figure, &d.chance_scale) as u32;
         d.scratch.set_bits(t);
         let r = d.clock.get().rotate_right(turn) & 0xFFFF;
         (r.wrapping_sub(t) as i32) < 0

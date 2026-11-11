@@ -1,4 +1,4 @@
-//! The in-game options menu's (`menu::in_game_options_loop`, `off_750724`) items 3 .. 6,
+//! The in-game options menu's (`menu::in_game_options_loop`, the in-game options menu) items 3 .. 6,
 //! hidden and shown by `menu::hide_in_game_options` and `menu::show_in_game_options`
 //! (IDA, 2026-10-15).
 use crate::menu::owner::Menus;

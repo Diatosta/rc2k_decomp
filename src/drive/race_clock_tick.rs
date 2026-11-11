@@ -1,7 +1,7 @@
 //! `drive::race_clock_tick` (0x445554): the race's clock in tenths. `scene::restart_clock` (the
-//! tick count into `g_sceneClock`), into `dword_61383C`; the last tick kept (`dword_613840`)
+//! tick count into `g_sceneClock`), into `race_clock_now`; the last tick kept (`race_clock_base`)
 //! brought to within 1000 of it (by the sign of the `cmp`); the tenths since (`div` by 10) into
-//! `dword_613844` and added back (x 10) to `dword_613840`.
+//! `race_tenths` and added back (x 10) to `race_clock_base`.
 //!
 //! Caller: `drive::race_step` (0x4454D2).
 

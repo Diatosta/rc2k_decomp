@@ -1,5 +1,5 @@
 //! `net::keep_hud_options` (0x463E39): this machine's car's HUD bits (+0x220 of
-//! `g_carBlocks[g_netPlayer]`) kept in `dword_75B00C` for the next race.
+//! `g_carBlocks[g_netPlayer]`) kept in the player's saved HUD bits for the next race.
 //!
 //! Caller: `net::lets_race`.
 

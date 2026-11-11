@@ -15,7 +15,7 @@ use crate::session::Dword;
 use crate::system::owner::system;
 use rc2k_core::menu::flow::{self, Picture, Var};
 
-pub const SPEECH_CHANNEL: &Dword = &crate::menu::owner::MENUS.screens.option_work.speech_level; // dword_755698
+pub const SPEECH_CHANNEL: &Dword = &crate::menu::owner::MENUS.screens.option_work.speech_level;
 
 pub struct Game<'a> {
     /// The menus' owner.
@@ -150,7 +150,7 @@ impl flow::Game for Game<'_> {
     fn get(&mut self, v: Var) -> u32 {
         match place(self.menus, v) {
             Place::Cell(cell) => cell.get(),
-            Place::Player(n, field) => *field.of(&mut player(n).get()),
+            Place::Player(n, field) => *field.of(&mut player(self.menus, n).get()),
             Place::Record(offset) => self.fault.ok(self
                 .record
                 .ok_or(BadInput("a record field read before a record was found"))
@@ -162,7 +162,7 @@ impl flow::Game for Game<'_> {
     fn set(&mut self, v: Var, value: u32) {
         match place(self.menus, v) {
             Place::Cell(cell) => cell.set(value),
-            Place::Player(n, field) => player(n).update(|q| *field.of(q) = value),
+            Place::Player(n, field) => player(self.menus, n).update(|q| *field.of(q) = value),
             // The flows only read the record.
             Place::Record(_) => {
                 self.fault
@@ -180,9 +180,9 @@ impl flow::Game for Game<'_> {
         match c {
             C::BeginEvent => m::begin_event::begin_event(menus)?,
             C::ShuffleDrivers => m::shuffle_drivers::shuffle_drivers(menus)?,
-            C::ClearResultSlots => m::clear_result_slots::clear_result_slots()?,
-            C::ResetDrivers => m::reset_drivers::reset_drivers()?,
-            C::ResetDriverCondition => m::reset_driver_condition::reset_driver_condition()?,
+            C::ClearResultSlots => m::clear_result_slots::clear_result_slots(menus)?,
+            C::ResetDrivers => m::reset_drivers::reset_drivers(menus)?,
+            C::ResetDriverCondition => m::reset_driver_condition::reset_driver_condition(menus)?,
             C::ClearHudBits => m::clear_hud_bits::clear_hud_bits(menus)?,
             C::TakePlayer1Units => m::take_player1_units::take_player1_units(menus)?,
             C::HideAllInGameOptions => {
@@ -294,7 +294,7 @@ impl flow::Game for Game<'_> {
                 self.screen(&m::single_rally_overall_results_loop::SCREEN)?;
             }
             C::KeepStageBest => m::keep_stage_best::keep_stage_best(menus)?,
-            C::TimeTrialQualifies => m::time_trial_qualifies::time_trial_qualifies()?,
+            C::TimeTrialQualifies => m::time_trial_qualifies::time_trial_qualifies(menus)?,
             C::ClearTimeTrialMarks => m::clear_time_trial_marks::clear_time_trial_marks()?,
             C::EnterTimeTrialBest => m::enter_time_trial_best::enter_time_trial_best(menus)?,
             C::TimeTrialBestTimesLoop => self.screen(&m::time_trial_best_times_loop::SCREEN)?,
@@ -329,7 +329,7 @@ impl flow::Game for Game<'_> {
 
     fn next_record_kind(&mut self) -> Result<u32, Refused> {
         self.fault.check()?;
-        crate::menu::next_record_kind::next_record_kind()
+        crate::menu::next_record_kind::next_record_kind(self.menus)
     }
 
     fn load_picture(&mut self, p: Picture) -> Result<bool, Refused> {

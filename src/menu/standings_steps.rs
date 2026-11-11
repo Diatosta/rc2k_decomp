@@ -33,8 +33,8 @@ pub fn number_all(menus: &Menus, table: Which) -> Result<Numbered, Refused> {
     let grouped = screens.state.menus.class_mode.get() == 2;
     let numbering = Numbering::All { grouped };
     let numbered = match table {
-        Which::A => number_table(table, numbering, |p| &mut p.number_all_a)?,
-        Which::B => number_table(table, numbering, |p| &mut p.number_all_b)?,
+        Which::A => number_table(menus, table, numbering, |p| &mut p.number_all_a)?,
+        Which::B => number_table(menus, table, numbering, |p| &mut p.number_all_b)?,
     };
     if table == Which::A {
         screens.event.count_a.set(numbered.last_number);
@@ -44,10 +44,10 @@ pub fn number_all(menus: &Menus, table: Which) -> Result<Numbered, Refused> {
 
 /// Numbers the entries of group `class` of `table` 1, 2, .. in order, each player's number
 /// also into its record.
-pub fn number_standings(table: Which, class: u32) -> Result<Numbered, Refused> {
+pub fn number_standings(menus: &Menus, table: Which, class: u32) -> Result<Numbered, Refused> {
     let numbering = Numbering::Group(class);
     match table {
-        Which::A => number_table(table, numbering, |p| &mut p.number_standings_a),
-        Which::B => number_table(table, numbering, |p| &mut p.number_standings_b),
+        Which::A => number_table(menus, table, numbering, |p| &mut p.number_standings_a),
+        Which::B => number_table(menus, table, numbering, |p| &mut p.number_standings_b),
     }
 }

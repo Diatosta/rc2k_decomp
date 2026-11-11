@@ -5,7 +5,7 @@
 //! four bytes, lowest first the masks' top bits' numbers less 7, 15, 23 and 31 (an empty
 //! mask counts as 0xFF; `gfx::top_bit`), with the sign bit set: the rotation counts the
 //! colour conversions use. If the four masks together are one run as well, the format's
-//! number is looked up by that layout in the table of six at `dword_4F3F78` (number,
+//! number is looked up by that layout in the table of six at `numbers` (number,
 //! layout: 1 .. 4 the 16-bit formats, 5 and 6 the 32-bit ones); else, and when it is
 //! not there, the number is 0.
 //! If a mask has a gap: the layout is the number of the top bit of all masks together,

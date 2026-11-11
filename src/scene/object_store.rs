@@ -1,4 +1,4 @@
-//! The scene objects' work (IDA 0x634FA0 .. 0x635118; phase 7, typed): the objects' loading
+//! The scene objects' work (IDA 0x634FA0 .. 0x635118): the objects' loading
 //! (memory used, the kind and slot being loaded, a shape's counts and firsts), the object
 //! being drawn (its place, position, size, angles, faces) and the light levels. `#[repr(C)]`
 //! with the image's layout, over the race block's bytes (`OBJECT_WORK`), as `CAR`. Names
@@ -87,8 +87,7 @@ pub struct ObjectWork {
 // them): any bit pattern is a valid value.
 
 impl ObjectWork {
-    /// The piece with the image's first values (a static of its own since 2026-10-29: it left
-    /// the race block, phase 13, `race::store::LEFT`; the owner `scene::owner::Scene` holds it).
+    /// The piece with the image's first values.
     pub const fn new() -> Self {
         crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }

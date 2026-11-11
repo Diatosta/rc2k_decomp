@@ -1,4 +1,4 @@
-//! `single_rally`'s race (`race::single_rally_race`, IDA 2026-10-17) and its rally's times
+//! `single_rally`'s race (`race::single_rally_race`) and its rally's times
 //! (`race::copy_rally_times`).
 
 use crate::errors::{BadInput, Refused};
@@ -60,7 +60,7 @@ pub fn rally_times_places() -> Result<Option<(&'static StageTable, usize)>, BadI
 /// nationality, car and name id, and the sixteen checkpoints; each logged (the count, "GB_Timed",
 /// the sixteen "CTs", "GB_Shaun", the name, the sixteen again, rules). Refuses, before anything, a
 /// null pointer on the way (the original reads through it) and a stage past its table. The logs
-/// read only eax (their text or number).
+/// read only their text or number.
 pub fn copy_rally_times() -> Result<(), Refused> {
     use crate::logfile::{log_int::log_int, write_line::log_text};
     let Some((table, stage)) = rally_times_places()? else {

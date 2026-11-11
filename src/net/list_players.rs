@@ -1,8 +1,8 @@
 //! `net::list_players` (0x419192): this machine's record sent to the others as its player
-//! data (`SetPlayerData`, `byte_52AD64`, 0x10 bytes; its result not looked at); unless the
-//! race is on (`dword_52AD84` 1), the players listed afresh (`g_netPlayers` 0, `EnumPlayers`
+//! data (`SetPlayerData`, `own`, 0x10 bytes; its result not looked at); unless the
+//! race is on (`racing` 1), the players listed afresh (`g_netPlayers` 0, `EnumPlayers`
 //! with `net::player_found`); each listed player's record read into its block (+0x24,
-//! `GetPlayerData`, the size in `dword_52AD74`, 0x10); the blocks bubble-sorted by their
+//! `GetPlayerData`, the size in `data_size`, 0x10); the blocks bubble-sorted by their
 //! DirectPlay ids (+0x20, unsigned); this machine's player found among them by its id
 //! (`g_netPlayerId`) into `g_netPlayer`.
 //!
@@ -69,8 +69,8 @@ pub fn list_players(vars: &NetVars) -> Result<bool, Refused> {
     }
 }
 
-/// `net::list_players_regs` (0x417A03): `net::list_players`, then `test eax, eax` on the
-/// eax it keeps, inside a `pusha` .. `popa`: the carry it gives is lost, so its callers'
+/// `net::list_players_regs`: `net::list_players`, then a test of the result kept inside a
+/// register save: the carry it gives is lost, so its callers'
 /// `jb` after it are never taken (section 16). Callers: `net::lets_rally`,
 /// `net::race_wait`, `net::race_over`, `net::lobby_loop`.
 pub fn list_players_regs(vars: &NetVars) -> Result<(), Refused> {

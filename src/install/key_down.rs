@@ -1,5 +1,5 @@
 //! `install::key_down` (0x414794): key 0x6B on an item: for choices shown upright (kind
-//! 0x22 of `[esi] & 0x2F`) the choice after (`install::choice_on`).
+//! 0x22 of `[item] & 0x2F`) the choice after (`install::choice_on`).
 //!
 //! Takes the item. Returns the kind (`[item] & 0x2F`).
 //! Caller `install::page_key`, reading zero.

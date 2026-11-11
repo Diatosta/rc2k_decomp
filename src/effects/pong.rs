@@ -7,7 +7,7 @@
 
 use crate::session::{Bytes, Dword, Float};
 
-/// The pong game over the race: the box scratch, the ball, the bat, the score (IDA 0x768658 .. 0x7687DC, the image's layout; phase 7, typed state).
+/// The pong game over the race: the box scratch, the ball, the bat, the score (IDA 0x768658 .. 0x7687DC).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PongState {
@@ -64,24 +64,24 @@ pub struct PongState {
 impl PongState {
     pub const fn new() -> Self {
         PongState {
-            box_sides: [const { Float::from_bits(0x0) }; 12],
-            ball: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            box_sides: [const { Float::new(0.0) }; 12],
+            ball: [Float::new(0.0), Float::new(0.0)],
             _gap_768690: Bytes::new([0; 4]),
-            ball_way: [Float::from_bits(0x3F800000), Float::from_bits(0x3F800000)],
+            ball_way: [Float::new(1.0), Float::new(1.0)],
             _gap_76869c: Bytes::new([0; 4]),
-            ball_size: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            ball_size: [Float::new(0.0), Float::new(0.0)],
             _gap_7686a8: Bytes::new([0; 4]),
             saved_bat: [Dword::new(0x0), Dword::new(0x0)],
             _gap_7686b4: Bytes::new([0; 4]),
-            bat: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            bat: [Float::new(0.0), Float::new(0.0)],
             _gap_7686c0: Bytes::new([0; 16]),
-            bat_size: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            bat_size: [Float::new(0.0), Float::new(0.0)],
             _gap_7686d8: Bytes::new([0; 4]),
-            ball_centre: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            ball_centre: [Float::new(0.0), Float::new(0.0)],
             _gap_7686e4: Bytes::new([0; 4]),
-            bat_centre: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            bat_centre: [Float::new(0.0), Float::new(0.0)],
             _gap_7686f0: Bytes::new([0; 4]),
-            difference: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            difference: [Float::new(0.0), Float::new(0.0)],
             _gap_7686fc: Bytes::new([0; 4]),
             steps: Dword::new(0x0),
             digit_patterns: Bytes::new([
@@ -111,7 +111,7 @@ impl PongState {
     pub const LEN: usize = 0x184;
 }
 
-/// The pong game's constants (IDA 0x769182 .. 0x769232, the image's layout; phase 7, typed state).
+/// The pong game's constants (IDA 0x769182 .. 0x769232).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PongRules {
@@ -147,53 +147,53 @@ impl PongRules {
     pub const fn new() -> Self {
         PongRules {
             start: [
-                Float::from_bits(0x44800000),
-                Float::from_bits(0x44000000),
-                Float::from_bits(0x42800000),
-                Float::from_bits(0x42800000),
-                Float::from_bits(0x44E00000),
-                Float::from_bits(0x43800000),
-                Float::from_bits(0x42800000),
-                Float::from_bits(0x43800000),
+                Float::new(1024.0),
+                Float::new(512.0),
+                Float::new(64.0),
+                Float::new(64.0),
+                Float::new(1792.0),
+                Float::new(256.0),
+                Float::new(64.0),
+                Float::new(256.0),
             ],
             _gap_7691a2: Bytes::new([0; 4]),
             walls: [
-                Float::from_bits(0x43000000),
-                Float::from_bits(0x43000000),
-                Float::from_bits(0x45000000),
-                Float::from_bits(0x43000000),
-                Float::from_bits(0x43000000),
-                Float::from_bits(0x43000000),
-                Float::from_bits(0x44800000),
-                Float::from_bits(0x44800000),
+                Float::new(128.0),
+                Float::new(128.0),
+                Float::new(2048.0),
+                Float::new(128.0),
+                Float::new(128.0),
+                Float::new(128.0),
+                Float::new(1024.0),
+                Float::new(1024.0),
             ],
             centre: [
-                Float::from_bits(0x3F000000),
-                Float::from_bits(0x3F000000),
-                Float::from_bits(0x3F000000),
-                Float::from_bits(0x3F000000),
+                Float::new(0.5),
+                Float::new(0.5),
+                Float::new(0.5),
+                Float::new(0.5),
             ],
-            nudge: Float::from_bits(0x3F800000),
-            way_scale: [Float::from_bits(0x40800000), Float::from_bits(0x40800000)],
+            nudge: Float::new(1.0),
+            way_scale: [Float::new(4.0), Float::new(4.0)],
             _gap_7691e2: Bytes::new([
                 0x00, 0x00, 0x00, 0x42, 0x00, 0x00, 0x00, 0x43, 0x00, 0x00, 0x00, 0x43, 0x00, 0x00,
                 0x00, 0x42, 0x00, 0x00, 0x80, 0x44, 0x00, 0x00, 0x80, 0x44,
             ]),
-            cell_step: [Float::from_bits(0x41800000), Float::from_bits(0xC1800000)],
-            cell_size: [Float::from_bits(0x41800000), Float::from_bits(0x41800000)],
+            cell_step: [Float::new(16.0), Float::new(-16.0)],
+            cell_size: [Float::new(16.0), Float::new(16.0)],
             box_places: [
-                Float::from_bits(0x3F7D70A4),
-                Float::from_bits(0x3F7D70A4),
-                Float::from_bits(0x3F7D70A4),
-                Float::from_bits(0x3F7D70A4),
+                Float::new(0.99),
+                Float::new(0.99),
+                Float::new(0.99),
+                Float::new(0.99),
             ],
-            near: Float::from_bits(0x46800000),
+            near: Float::new(16384.0),
             _gap_76921e: Bytes::new([0x00, 0x00, 0x80, 0x43]),
             setup_places: [
-                Float::from_bits(0x3DE80000),
-                Float::from_bits(0x3D000000),
-                Float::from_bits(0x3E7C0000),
-                Float::from_bits(0x3E280000),
+                Float::new(0.11328125),
+                Float::new(0.03125),
+                Float::new(0.24609375),
+                Float::new(0.1640625),
             ],
         }
     }

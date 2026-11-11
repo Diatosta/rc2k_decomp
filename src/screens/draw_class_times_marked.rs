@@ -1,4 +1,4 @@
-//! `screens::draw_class_times_marked` (0x48AB87): the class `dword_7587EC`'s times, the
+//! `screens::draw_class_times_marked` (0x48AB87): the class `arcade.level`'s times, the
 //! player's own (+0x40 1) in the highlight fonts, the sprites 4 lower (see
 //! `screens/best_scores.rs`).
 //!

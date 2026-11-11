@@ -9,7 +9,7 @@
 use crate::errors::{BadInput, Refused};
 use rc2k_core::drive::controls::device_curve;
 
-/// [eax, ebx, ecx, edx].
+/// The four axes.
 // Converted: `rc2k_core::drive::controls::device_curve`.
 pub fn device_axes(device: u32, input: &crate::input::owner::Input) -> Result<[u32; 4], Refused> {
     if device > 7 {

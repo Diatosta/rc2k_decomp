@@ -1,4 +1,4 @@
-//! The course's records by grid cell (converted 2026-10-21 from
+//! The course's records by grid cell (Converted from
 //! `physics::find_course_record` 0x4220B6): a record (0x20 bytes, `g_courseRecords`) is
 //! looked for by its key (its first dword) among its kind's records, `g_kindFirstRecords`
 //! ..= `g_kindLastRecords` of the kind (-1 first: none). The key is a grid cell by the
@@ -6,7 +6,7 @@
 
 use crate::Invalid;
 
-/// A key's kind and the original's ebp: (kind, ((key >> 11) & 0xF) << 4); the kind is
+/// A key's kind and the record offset: (kind, ((key >> 11) & 0xF) << 4); the kind is
 /// (key & 0xF) + that.
 pub fn kind_of(key: u32) -> (u32, u32) {
     let high = ((key >> 11) & 0xF) << 4;

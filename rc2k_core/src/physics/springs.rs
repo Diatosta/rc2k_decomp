@@ -1,4 +1,4 @@
-//! The four wheels' springs from their heights (converted 2026-10-21 from
+//! The four wheels' springs from their heights (Converted from
 //! `physics::wheel_springs` 0x43ECD4): each wheel's squeeze, its force and damping, and
 //! the wheel's place for the drawing.
 //!
@@ -10,16 +10,16 @@ use super::x87::{below, equal, fistp64, hold_low, loaded};
 /// The springs' factors (the game's figures, as read).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SpringFactors {
-    /// `flt_5C5D98` (65536), `flt_614BF8` (the spring's range).
+    /// `k65536` (65536), `flt_614BF8` (the spring's range).
     pub scale: f32,
     pub range: f32,
-    /// `flt_5C5D90`, `flt_5C5D38` (0, 1): the squeeze's ends.
+    /// `zero`, `one` (0, 1): the squeeze's ends.
     pub zero: f32,
     pub one: f32,
-    /// `flt_613F90`, `flt_614774`: the force's factors.
+    /// `spring_force_scale`, `flt_614774`: the force's factors.
     pub stiffness: f32,
     pub load: f32,
-    /// `flt_614C00`: the damping's; `flt_614BEC` its share when below 0.
+    /// `flt_614C00`: the damping's; `handling` its share when below 0.
     pub damping: f32,
     pub rebound: f32,
 }
@@ -27,15 +27,15 @@ pub struct SpringFactors {
 /// One wheel's spring.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Spring {
-    /// `qword_71A5D8[k]` (`g_car` +0x600): the squeeze, 0 ..= 1.
+    /// `wheel_squeeze`[k]` (`g_car` +0x600): the squeeze, 0 ..= 1.
     pub squeeze: f32,
-    /// `flt_614178[k]`: the force, the damping added unless the squeeze is 0.
+    /// `spring_forces`[k]`: the force, the damping added unless the squeeze is 0.
     pub force: f32,
-    /// `flt_614124[k]`.
+    /// `spring_damping`[k]`.
     pub damping: f32,
 }
 
-/// One wheel's spring from its height (`dword_6D2514[k]`, a whole number) and its last
+/// One wheel's spring from its height (`probe_height`[k]`, a whole number) and its last
 /// squeeze (kept as read: `fld; fstp`).
 pub fn spring(height: u32, last: f32, f: &SpringFactors) -> Spring {
     let depth = height.wrapping_neg() as i32 as f64;
@@ -59,9 +59,9 @@ pub fn spring(height: u32, last: f32, f: &SpringFactors) -> Spring {
     }
 }
 
-/// The wheel's place (`dword_71A8E8[k]`): ((`a` - `b` + `c`) + (squeeze - `d`) x range)
-/// x scale, `fistp`ed (`a` .. `d`: `flt_70FFF4`, `flt_614BF4`, `flt_613EC0`,
-/// `flt_613F8C`).
+/// The wheel's place (`wheel_spring_force`[k]`): ((`a` - `b` + `c`) + (squeeze - `d`) x range)
+/// x scale, `fistp`ed (`a` .. `d`: `flt_70FFF4`, `flt_614BF4`, `spring_share`,
+/// `probe_share`).
 pub fn wheel_place(abcd: [f32; 4], squeeze: f32, range: f32, scale: f32) -> i32 {
     let [a, b, c, d] = abcd.map(f64::from);
     fistp64(((a - b + c) + (squeeze as f64 - d) * range as f64) * scale as f64)

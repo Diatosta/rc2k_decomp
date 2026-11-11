@@ -1,6 +1,6 @@
-//! `physics::place_sound_e1` (0x45CEF9): when the current car is listed, `physics::sound_band_1` (ebx);
-//! a band not 0 goes to its sound object with +0x238 0xE1, +0x23C the band, the place at
-//! +0x240 .. and +0x10 1 (see `physics/car_sounds.rs`).
+//! `physics::place_sound_e1` (0x45CEF9): when the current car is listed, `physics::sound_band_1`
+//! gives a band; a band not 0 goes to the car's sound object as sound 0xE1 with that band, the
+//! car's place and the update flag set (see `physics/car_sounds.rs`).
 //!
 //! Caller: `physics::wall_push_back`, `physics::wall_edge_contact`,
 //! `physics::crossed_edge_contact`, `physics::ground_contact`. Refuses (before anything) a car

@@ -11,17 +11,17 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list, // g_sceneList
-            table: |m| m.tables.draw_lists.list_7590ee.id(),
+            table: |m| m.tables.draw_lists.section_times_scene_list.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list, // g_drawList
-            table: |m| m.tables.draw_lists.list_758e4e.id(),
+            table: |m| m.tables.draw_lists.section_times_draw_list.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
-            table: |m| m.tables.draw_lists.list_7592ae.id(),
+            table: |m| m.tables.draw_lists.section_times_overlay_list.id(),
             run: false,
         },
     ],
@@ -29,7 +29,7 @@ pub const SCREEN: Screen = Screen {
         &m.tables.texts.section_times_png
     }))],
     ..Screen::new(
-        |m| m.tables.menus.menu_74fea8.id(),
+        |m| m.tables.menus.section_times_menu.id(),
         |m| &m.screens.items.current[SLOT],
     )
 };

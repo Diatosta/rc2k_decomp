@@ -1,5 +1,5 @@
-//! `menu::show_class_rally_results` (0x4A3317): the rally results of a class: `dword_7558F4` the class (ebx); the first player's entry of class ebx in standings
-//! table A (`menu::first_player_a`), its figure held to 0x51 (event mode 0x13) or 0x33 into `dword_7556B4`;
+//! `menu::show_class_rally_results` (0x4A3317): the rally results of a class: `event.class` the class (ebx); the first player's entry of class ebx in standings
+//! table A (`menu::first_player_a`), its figure held to 0x51 (event mode 0x13) or 0x33 into `champ_view.count`;
 //! `menu::first_page_stage`, `menu::stage_range_caption`; then the page
 //! (`menu::class_rally_results_loop`).
 //!

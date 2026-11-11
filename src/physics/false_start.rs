@@ -1,14 +1,12 @@
-//! `physics::false_start` (0x43B9B4): the work car's start held back (`g_car` +0x14 ..
-//! +0x1C, a reading: a jump start's penalty). +0x18 (`dword_719FF0`) is set once the car
-//! is in gear; while it is set and +0x1C (`dword_719FF4`) is 0, a timer +0x14
-//! (`dword_719FEC`, in eax) below 0x320 (by the sign of the difference, `jns`) starts the
-//! count +0x1C at 500, with +0x71C (`dword_71A6F4`) 0xCC, +0x730 0 and +0x72C -1 (the
-//! notice block, by its look). Each call the count goes down; on reaching 0: +0x88
-//! (`dword_71A060`) + 1000, +0x14 and +0x18 0, +0x730 0, +0x72C 300, +0x724 0, +0x71C
-//! 0xCA, +0x720 0, +0x728 0, and `race::start_car` (the car put back at its start).
+//! `physics::false_start` (0x43B9B4): the work car's start held back (a reading: a jump start's
+//! penalty). `start_in_gear` is set once the car is in gear; while it is set and `false_start_count`
+//! is 0, `run_ticks` below 0x320 (by the sign of the difference) starts the count at 500, with the
+//! notice block (`notice_id` 0xCC, `notice_time_b` 0, `notice_time` -1). Each call the count goes
+//! down; on reaching 0: `stage_time` + 1000, `run_ticks` and `start_in_gear` 0, `notice_time_b` 0,
+//! `notice_time` 300, `notice_last` 0, `notice_id` 0xCA, `notice_counter` 0, `notice_shown` 0, and
+//! `race::start_car` (the car put back at its start).
 //!
-//! Caller: `physics::car_physics_step` (0x43B9A9), every physics step. Refuses what `start_car`
-//! refuses.
+//! Caller: `physics::car_physics_step`, every physics step. Refuses what `start_car` refuses.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
@@ -16,7 +14,7 @@ use crate::session::Dword;
 use rc2k_core::physics::notices::Notice;
 use rc2k_core::physics::start::CarStart;
 
-/// The Rust version, then `race::start_car` (it takes no register: called with none).
+/// The false start check, then `race::start_car`.
 // Converted: `rc2k_core::physics::start::CarStart::false_start`.
 pub fn false_start(race: &Race) -> Result<(), Refused> {
     let c = &race.shared.car;

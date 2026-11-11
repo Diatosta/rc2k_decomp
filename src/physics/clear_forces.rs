@@ -1,4 +1,4 @@
-//! `physics::clear_forces` (0x43F395): `physics::clear_records` on 0x17 records of 0x20 bytes at `unk_614770` (`g_forceRecords`, the
+//! `physics::clear_forces` (0x43F395): `physics::clear_records` on 0x17 records of 0x20 bytes at `forces` (`g_forceRecords`, the
 //! step's forces).
 //!
 //! Caller: `physics::car_physics_step` (0x43B71E), every physics step.

@@ -1,18 +1,12 @@
-//! `physics::higher_free_gear` (0x43C5A0): from the gear in ebx up, the first higher gear
-//! whose `g_carGearBits` bit (`physics::gear_bit`) is clear: ecx = ebx + 1, + 2, .. up to
-//! `g_gearCount` (0x614C10, unsigned); CF clear with ecx that gear, or CF set with ecx one
-//! past the count when none is.
+//! `physics::higher_free_gear` (0x43C5A0): from a gear up, the first higher gear whose
+//! `lost_gear_bits` bit (`physics::gear_bit`) is clear: gear + 1, + 2, .. up to `gear_count`
+//! (unsigned); found with that gear, or not found with one past the count when none is.
 //!
 //! Takes: the gear
 //!
-//! A loop target (0x43C5A3) is inside the first five bytes: `.private_copy`, its call
-//! relocated. Caller: `physics::manual_gearbox` (0x43C365), the gearbox under `drive::race_step`.
-//! Refuses what
+//! Caller: `physics::manual_gearbox`, the gearbox under `drive::race_step`. Refuses what
 //! `gear_bit` refuses (a bit past the dword: a count of 31 or more lets the search run
 //! there), nothing written.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;

@@ -1,13 +1,13 @@
-//! `physics::add_drive_forces` (0x440C7B): a factor (`flt_613EE4`, or with
-//! `g_carDriveKind` set `flt_613EE8`, the first then stored in `dword_62400C`) times the
-//! sum of the four floats at `flt_614284` (80 bits) into `flt_6140F4`; then
-//! `flt_614248` += `flt_614234` x it x `flt_6140B8` and `flt_61424C` += `flt_614238` x it
+//! `physics::add_drive_forces` (0x440C7B): a factor (`drive_force_factor`, or with
+//! `g_carDriveKind` set `flt_613EE8`, the first then stored in `scratch`) times the
+//! sum of the four floats at `wheel_loads` (80 bits) into `drive_force_scale`; then
+//! `drive_forces` += `wheel_slips` x it x `flt_6140B8` and `flt_61424C` += `flt_614238` x it
 //! x `flt_6140B8`.
 //!
 //! Caller: `physics::drive_wheels_step` (0x43E51E).
 
 use crate::math::x87;
-use crate::math::x87_run::mul2_plus;
+use crate::math::x87::mul2_plus;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 use crate::session::Cell32;

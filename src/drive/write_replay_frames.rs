@@ -1,7 +1,7 @@
-//! `drive::write_replay_frames` (0x41E930): while a replay is written to its file (`dword_5BEC88`
-//! 1): `dword_5BECD4` + 100, the frame's head (`dword_9613A4`, `9613A8`) 0, its byte +5 held to 2
-//! ..= 3 (signed) unless `dword_719B34` is 1, `race::write_replay_block` with `dword_5C252C` 100
-//! round it, and `dword_9613A0` the frame's address.
+//! `drive::write_replay_frames` (0x41E930): while a replay is written to its file (`replay_open`
+//! 1): `index_frame_count` + 100, the frame's head (`block`, `9613A8`) 0, its byte +5 held to 2
+//! ..= 3 (signed) unless `header_one_player` is 1, `race::write_replay_block` with `frames_in_block` 100
+//! round it, and `block_used` the frame's address.
 //!
 //! Caller: `drive::flush_replay`. Refuses what `write_replay_block` refuses.
 

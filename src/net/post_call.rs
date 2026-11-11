@@ -1,8 +1,8 @@
-//! `net::post_call` (0x4184F8): with `g_netPosting` 1, the code at eax handed to the
+//! `net::post_call` (0x4184F8): with `g_netPosting` 1, the given code handed to the
 //! receiving thread (`g_netPostedCall`), which calls it and sets `g_netPostedResult` and
 //! `g_netPostedAnswered`; meanwhile a tenth of a second's sleep (`system::sleep`) and the
 //! window's messages (`system::pump_messages`) until it has answered or the game is
-//! closing; then eax = `g_netPostedResult` (also without posting).
+//! closing; then the result is `g_netPostedResult` (also without posting).
 //!
 //! Takes `code`, the function to call (a Rust function, handed over beside the cell, which
 //! holds 1 while it waits). Returns the posted call's result. The
@@ -10,7 +10,7 @@
 //! DirectPlay's calls that may show a dialog (a modem's, a serial link's) are made on the
 //! receiving thread this way (`net::build_address` sets `g_netPosting`). Callers:
 //! `net::find_sessions`, `net::host_session`, `net::join_session`, each posting its own
-//! piece of code (0x418A43, 0x418C5A, 0x418D77: now Rust functions). It waits on
+//! piece of code (Rust functions). It waits on
 //! another thread.
 
 use crate::net::owner::Net;

@@ -1,14 +1,15 @@
-//! `effects::windscreen_drops_spawn` (0x4BC5D9): new windscreen drops this frame. `dword_814724` plus 1;
-//! with the x87 rounding set to chop throughout (put back at the end): a rate (the sine of
-//! `flt_76923E` + `g_marksShapeTilt` times `flt_814728`, plus -(`flt_814728` times
-//! `flt_811BE7`) times its cosine times `flt_82E2AA`) into `flt_81472C`; unless below
-//! `flt_82E2AE`: its whole part (held to 0x80) of `effects::pick_windscreen_drop`s, and one more when
-//! the marks' random's bits 8 .. 23 are at most its fraction times `flt_82E2B2`.
+//! `effects::windscreen_drops_spawn` (0x4BC5D9): new windscreen drops this frame. The frame
+//! counter plus 1; with the x87 rounding set to chop throughout (put back at the end): a rate
+//! (the sine of the spawn angle + the shape tilt times the drops' `rate`, plus -(`rate` times
+//! a constant) times its cosine times a factor) is kept; unless below a limit: its whole part
+//! (held to 0x80) of `effects::pick_windscreen_drop`s, and one more when the effects' random's
+//! bits 8 .. 23 are at most its fraction times a constant.
 //!
-//! Caller: `effects::windscreen_drops_frame` (0x4BC225). The x87 run is plain Rust on the x87 model
+//! Caller: `effects::windscreen_drops_frame` The x87 run is plain Rust on the x87 model
 //! (`math::x87_float`), in the original's order, over the game's variables; the picks their Rust
 //! versions (under the same rounding).
 
+use crate::effects::cell_x87::CellX87;
 use crate::effects::pick_windscreen_drop::pick_windscreen_drop;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
@@ -16,7 +17,7 @@ use crate::math::x87;
 
 const MOST: i32 = 0x80;
 
-/// The original's 0x4BC60E .. 0x4BC66B: the rate, compared (`fstsw` into `g_fpuStatus`).
+/// The rate, compared (its status word goes to the shared FPU status cell).
 fn rate(drops: &WindscreenDrops, effects: &crate::effects::owner::Effects) {
     rate_x87(drops, &effects.frame.kept_view);
 }
@@ -59,22 +60,22 @@ use crate::math::x87_float as bh;
 
 /// `rate`'s x87 block as plain Rust on the x87 model (18 instructions), same order and memory places.
 fn rate_x87(drops: &WindscreenDrops, kv: &KeptView) {
-    let t0 = bh::ld(kv.first_angle.bits());
-    let t1 = t0 + bh::ld(drops.tilt.tilt.bits());
+    let t0 = kv.first_angle.ld();
+    let t1 = t0 + drops.tilt.tilt.ld();
     let t2 = t1.sin();
-    let t3 = t2 * bh::ld(drops.state.rate.bits());
-    drops.state.spawn_rate.set_bits(bh::st(t3));
-    let t4 = bh::ld(drops.state.rate.bits());
-    let t5 = t4 * bh::ld(drops.tilt.point[2].bits());
+    let t3 = t2 * drops.state.rate.ld();
+    drops.state.spawn_rate.st(t3);
+    let t4 = drops.state.rate.ld();
+    let t5 = t4 * drops.tilt.point[2].ld();
     let t6 = -t5;
-    let t7 = bh::ld(kv.first_angle.bits());
-    let t8 = t7 + bh::ld(drops.tilt.tilt.bits());
+    let t7 = kv.first_angle.ld();
+    let t8 = t7 + drops.tilt.tilt.ld();
     let t9 = t8.cos();
     let t10 = t6 * t9;
     let t11 = t10 * ld_cell(&drops.hex.spawn_k[0]);
-    let t12 = t11 + bh::ld(drops.state.spawn_rate.bits());
-    drops.state.spawn_rate.set_bits(bh::st(t12));
-    let t13 = bh::ld(drops.state.spawn_rate.bits());
+    let t12 = t11 + drops.state.spawn_rate.ld();
+    drops.state.spawn_rate.st(t12);
+    let t13 = drops.state.spawn_rate.ld();
     crate::effects::plain::set_status(bh::compare(t13, ld_cell(&drops.hex.spawn_k[1])));
 }
 

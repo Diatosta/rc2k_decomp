@@ -1,24 +1,23 @@
 //! `scene::load_object` (0x425D87): loads the shape of one object slot from its
 //! kind's file.
 //!
-//! In:  nothing (`dword_634FEC` the slot, `dword_634FE8` its kind)
+//! In:  nothing (`loading_slot` is the slot, `loading_kind` its kind)
 //!
-//! For a kind that is not 0: the slot's kind is noted (`g_objectKinds`); the file's
-//! names are made (`scene::set_object_file_names`) and the `.ro3` one read into
-//! `g_objectFile` (`files::read_whole_file`, at most 0x40000 bytes); nothing more if
-//! nothing was read. For a slot up to 0x40 the file's textures are listed
-//! (`scene::list_object_textures`). Then:
+//! For a kind that is not 0: the slot's kind is noted (`object_kinds`); the file's names are
+//! made (`scene::set_object_file_names`) and the `.ro3` one read into the object file room
+//! (`files::read_whole_file`, at most 0x40000 bytes); nothing more if nothing was read. For a
+//! slot up to 0x40 the file's textures are listed (`scene::list_object_textures`). Then:
 //!
 //! - a slot under 0x50: the whole file (`scene::add_object_shape` with every group);
-//! - a car's slot (0x50 on, 0x14 slots a car: `dword_634FF0` the car, `dword_634FF4`
-//!   the part, `dword_634FF8` the car's first slot). The kind's place among the known
-//!   kinds (`scene::find_object_kind`, to `dword_5E9EC8`) picks a record of 0x134
-//!   bytes whose eleven group numbers become eleven masks of one bit (`PARTS`; -1 = no
-//!   such group = mask 0); `dword_5CCE2C` = every group but the first four.
+//! - a car's slot (0x50 on, 0x14 slots a car: `loading_car` holds the car, the part and the
+//!   car's first slot). The kind's place among the known kinds (`scene::find_object_kind`,
+//!   kept as `known_object`) picks a light record of 0x134 bytes whose eleven group numbers
+//!   become eleven masks of one bit (`PARTS`; -1 = no such group = mask 0); the rest mask =
+//!   every group but the first four.
 //!   - part 0, the car's first slot, loads the whole car: slots +0 .. +4 take the
 //!     rest and the first four groups, and eleven more slots a group each, every one
 //!     of those measured (`scene::measure_object`) and its middle and half extents
-//!     kept in six tables by slot (`dword_633370` ..). The slot's number is left at
+//!     kept in six tables by slot (`part_extents`). The slot's number is left at
 //!     the car's first + 0xF.
 //!   - part 0xA takes the rest again, part 0xB the whole file; the other parts
 //!     nothing (part 0 loaded them).
@@ -42,13 +41,13 @@ use crate::scene::set_object_file_names::set_object_file_names;
 // ---- game data ----
 
 const KNOWN_KINDS: u32 = 0x22;
-/// `dword_5CCE1C` .. `dword_5CCE4C`: the masks (`COURSE.group_masks`).
-const REST: usize = 0x10; // dword_5CCE2C
-/// `dword_634FF0` the car, `dword_634FF4` the part, `dword_634FF8` the first slot.
+/// The group masks are `COURSE.group_masks`; the rest-of-the-car mask is its fifth entry.
+const REST: usize = 0x10;
+/// The loading car's three cells: the car, the part, the car's first slot.
 /// Six tables of a dword a slot: the middles' x, y, z and the half extents' x, y, z
 /// (`OBJECT_SLOTS.part_extents`).
-/// A part's mask: where it is kept (from `dword_5CCE1C`) and where its group's number
-/// is in the kind's record (from `dword_5C90C4`).
+/// A part's mask: where it is kept (a byte offset into the group masks) and where its
+/// group's number is in the kind's light record.
 struct Part {
     mask: usize,
     group: usize,
@@ -133,7 +132,7 @@ const NO_FACE_ROOM: FatalError = FatalError {
 
 // ---- Rust version ----
 
-/// `scene::find_object_kind` (0x41F4BD): the place of a kind, or of the kind before
+/// `scene::find_object_kind`: the place of a kind, or of the kind before
 /// it, among the known ones; 0x22 if it is none of them.
 fn find_object_kind(kind: u32) -> u32 {
     (0..KNOWN_KINDS)
@@ -148,8 +147,6 @@ fn mask(course: &crate::race::owner_course::Course, at: usize) -> u32 {
     course.course.group_masks[at / 4].get()
 }
 
-/// The Rust version. The registers the original leaves (eax the kind, ebx the slot) are read
-/// by no caller (liveness; its one caller is `load_front_end_objects`).
 pub fn load_object(
     scene: &crate::scene::owner::Scene,
     race: &crate::race::owner::Race,
@@ -198,7 +195,7 @@ pub fn load_object(
     scene.draw_switches.loading_group_mask.set(u32::MAX);
     let known = find_object_kind(kind);
     race.frame.matrices.known_object.set(known);
-    // The kind's record from `dword_5C90C4` (its `groups`); the kind is not bounded.
+    // The kind's light record, from its groups; the kind is not bounded.
     // A run-on past the 34 records into the gear figures, as the original.
     let record = LIGHT_RECORDS.record_ptr(known).offset(0x58);
     for part in &PARTS {

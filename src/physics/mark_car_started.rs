@@ -1,5 +1,5 @@
-//! `physics::mark_car_started` (0x436AA7): `g_car` +0xA0 (`unk_71A078`) set to 1 when
-//! it is 0 and +0x29C (`unk_71A274`) is not (`started` after `moving`: the car has begun to move).
+//! `physics::mark_car_started` (0x436AA7): `g_car` +0xA0 (`started_stand_timer`) set to 1 when
+//! it is 0 and +0x29C (`damage_failed`) is not (`started` after `moving`: the car has begun to move).
 //!
 //! Caller: `physics::race_timers` (four calls).
 

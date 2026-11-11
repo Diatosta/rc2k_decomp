@@ -1,6 +1,6 @@
 //! The championship's standings table (`screens::draw_championship_table` ->
 //! `screens::find_history_entry`; stream A, part F1, 2026-10-18): ten rows from position
-//! `dword_7556B8` of class `dword_7558F4` in the championship history (`dword_7556F0`: 0x78-byte
+//! `champ_view.first_row` of class `event.class` in the championship history (the championship history: 0x78-byte
 //! entries, -1 ends them; +4 the player's own, +8 the car, +0xC the flag, +0x10 the class, +0x14
 //! the name, +0x54 .. +0x68 six rounds' points, below 0 none, +0x6C the total, +0x70 the position).
 

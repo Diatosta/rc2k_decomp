@@ -1,8 +1,8 @@
-//! `init_marks`' step 1 (IDA, 2026-10-16): the splines. `effects::load_splines` reads
+//! `init_marks`' step 1 (IDA): the splines. `effects::load_splines` reads
 //! `files\m\spline.dat` once and, for each of the settings' objects, `effects::make_spline` fills
 //! the next of 8 places in four tables of `MarkSpline` records (0xE90 bytes): the points of the
 //! object's faces of one kind, centred, turned, graded by height and ordered. These are the
-//! leaves; every function takes the record in ebp.
+//! leaves; every function takes the record.
 
 #[cfg(test)]
 use crate::effects::owner::effects;
@@ -293,7 +293,7 @@ pub fn gather_spline_points(
             }
         }
         let n = s.get(paths, COUNT)?;
-        let points: u32 = course.lists.object_points.bits();
+        let points: u32 = course.lists.object_points.get();
         for k in (0..n).rev() {
             let id = s.get(paths, IDS + 4 * k)?;
             s.put(paths, IDS + 4 * k, id.wrapping_mul(12).wrapping_add(points))?;
@@ -606,7 +606,7 @@ pub fn make_spline(
                 record.put(
                     paths,
                     o,
-                    x87::loaded(paths.spline_constants.angles[3 * t + k].bits()),
+                    x87::loaded(&paths.spline_constants.angles[3 * t + k]),
                 )?;
             }
             turn_spline_points(paths, record)?;
@@ -650,15 +650,15 @@ pub fn load_splines(
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let loaded: u32 = paths.spline_kinds.loaded.bits();
+    let loaded: u32 = paths.spline_kinds.loaded.get();
     if loaded != 0 && loaded != resume {
         return Err(BadInput("the splines' mark is neither 0 nor loc_4B9706").into());
     }
-    let kind: u32 = effects.kinds.marks_kind.kind.bits();
+    let kind: u32 = effects.kinds.marks_kind.kind.get();
     if kind >= KINDS {
         return Err(BadInput("a marks' kind of 0x22 or more").into());
     }
-    let marks = crate::effects::setup::effects_settings()?;
+    let marks = effects.settings()?;
     let count = marks.object_count.get() as i32;
     if count > MOST_OBJECTS as i32 {
         return Err(BadInput("more than 19 spline objects").into());
@@ -694,7 +694,7 @@ pub fn load_splines(
     Ok(())
 }
 
-/// The car models' tables and the splines' head: the points and looks by car model (`effects::emit_particle_13`, `effects::draw_mark_slots`, `effects::cars_particles`), then the spline variables the looks table runs into (the original reads two dwords past it) and the spline file (IDA 0x769312 .. 0x76A1D2, the image's layout; phase 7, typed state).
+/// The car models' tables and the splines' head: the points and looks by car model (`effects::emit_particle_13`, `effects::draw_mark_slots`, `effects::cars_particles`), then the spline variables the looks table runs into (the original reads two dwords past it) and the spline file (IDA 0x769312 .. 0x76A1D2).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SplineHead {
@@ -723,108 +723,108 @@ impl SplineHead {
     pub const fn new() -> Self {
         SplineHead {
             points: [
-                Float::from_bits(0x4501619A),
-                Float::from_bits(0x4384CCCD),
-                Float::from_bits(0xC40F2000),
-                Float::from_bits(0x45007333),
-                Float::from_bits(0x4387B333),
-                Float::from_bits(0xC3E2B333),
-                Float::from_bits(0x45077800),
-                Float::from_bits(0x4365E666),
-                Float::from_bits(0xC3E7C000),
-                Float::from_bits(0x450B8333),
-                Float::from_bits(0x4384F333),
-                Float::from_bits(0x43EC4000),
-                Float::from_bits(0x4509C000),
-                Float::from_bits(0x4389C000),
-                Float::from_bits(0x43D5C000),
-                Float::from_bits(0x44FB899A),
-                Float::from_bits(0x43363333),
-                Float::from_bits(0xC3F30CCD),
-                Float::from_bits(0x45054E66),
-                Float::from_bits(0x43940000),
-                Float::from_bits(0x43EE4000),
-                Float::from_bits(0x45150666),
-                Float::from_bits(0x436C4CCD),
-                Float::from_bits(0xC408CCCD),
-                Float::from_bits(0x45088666),
-                Float::from_bits(0x432D8000),
-                Float::from_bits(0xC3CDE666),
-                Float::from_bits(0x4509819A),
-                Float::from_bits(0x437C0000),
-                Float::from_bits(0x43C60CCD),
-                Float::from_bits(0x4518CE66),
-                Float::from_bits(0x4381E666),
-                Float::from_bits(0xC3E57333),
-                Float::from_bits(0x44FC7333),
-                Float::from_bits(0x43703333),
-                Float::from_bits(0xC4007333),
-                Float::from_bits(0x45050000),
-                Float::from_bits(0x4368CCCD),
-                Float::from_bits(0x43EE4000),
-                Float::from_bits(0x44EA5000),
-                Float::from_bits(0x4374199A),
-                Float::from_bits(0x43C4199A),
-                Float::from_bits(0x44FEB99A),
-                Float::from_bits(0x434B999A),
-                Float::from_bits(0xC406ACCD),
-                Float::from_bits(0x450C3333),
-                Float::from_bits(0x4383D99A),
-                Float::from_bits(0xC406A666),
-                Float::from_bits(0x4512719A),
-                Float::from_bits(0x439F8CCD),
-                Float::from_bits(0xC3FAC000),
-                Float::from_bits(0x450574CD),
-                Float::from_bits(0x435C0000),
-                Float::from_bits(0xC3CF0000),
-                Float::from_bits(0x44F3699A),
-                Float::from_bits(0x43AA2666),
-                Float::from_bits(0xC4091333),
-                Float::from_bits(0x44FDB000),
-                Float::from_bits(0x435C0000),
-                Float::from_bits(0xC3E30CCD),
-                Float::from_bits(0x450BE99A),
-                Float::from_bits(0x4395A666),
-                Float::from_bits(0xC384599A),
-                Float::from_bits(0x44FD1000),
-                Float::from_bits(0x43608000),
-                Float::from_bits(0x43CAD99A),
-                Float::from_bits(0x4513D4CD),
-                Float::from_bits(0x436C199A),
-                Float::from_bits(0xC4078CCD),
-                Float::from_bits(0x44E74000),
-                Float::from_bits(0x43AF0000),
-                Float::from_bits(0xC3C80000),
-                Float::from_bits(0x4500C000),
-                Float::from_bits(0x438C0000),
-                Float::from_bits(0x43F00000),
-                Float::from_bits(0x45048000),
-                Float::from_bits(0x43820000),
-                Float::from_bits(0xC4020000),
-                Float::from_bits(0x448C0000),
-                Float::from_bits(0x43340000),
-                Float::from_bits(0x0),
-                Float::from_bits(0x448C0000),
-                Float::from_bits(0x448C0000),
-                Float::from_bits(0x0),
-                Float::from_bits(0x446D8000),
-                Float::from_bits(0x44C80000),
-                Float::from_bits(0xC3960000),
-                Float::from_bits(0x44480000),
-                Float::from_bits(0x447A0000),
-                Float::from_bits(0xC3960000),
-                Float::from_bits(0x451C4000),
-                Float::from_bits(0x437A0000),
-                Float::from_bits(0x0),
-                Float::from_bits(0x44B54000),
-                Float::from_bits(0x452F0000),
-                Float::from_bits(0x80000000),
-                Float::from_bits(0x44B54000),
-                Float::from_bits(0x452F0000),
-                Float::from_bits(0x80000000),
-                Float::from_bits(0x44F12000),
-                Float::from_bits(0x43998000),
-                Float::from_bits(0xC32E0000),
+                Float::new(2070.1),
+                Float::new(265.6),
+                Float::new(-572.5),
+                Float::new(2055.2),
+                Float::new(271.4),
+                Float::new(-453.4),
+                Float::new(2167.5),
+                Float::new(229.9),
+                Float::new(-463.5),
+                Float::new(2232.2),
+                Float::new(265.9),
+                Float::new(472.5),
+                Float::new(2204.0),
+                Float::new(275.5),
+                Float::new(427.5),
+                Float::new(2012.3),
+                Float::new(182.2),
+                Float::new(-486.1),
+                Float::new(2132.9),
+                Float::new(296.0),
+                Float::new(476.5),
+                Float::new(2384.4),
+                Float::new(236.3),
+                Float::new(-547.2),
+                Float::new(2184.4),
+                Float::new(173.5),
+                Float::new(-411.8),
+                Float::new(2200.1),
+                Float::new(252.0),
+                Float::new(396.1),
+                Float::new(2444.9),
+                Float::new(259.8),
+                Float::new(-458.9),
+                Float::new(2019.6),
+                Float::new(240.2),
+                Float::new(-513.8),
+                Float::new(2128.0),
+                Float::new(232.8),
+                Float::new(476.5),
+                Float::new(1874.5),
+                Float::new(244.1),
+                Float::new(392.2),
+                Float::new(2037.8),
+                Float::new(203.6),
+                Float::new(-538.7),
+                Float::new(2243.2),
+                Float::new(263.7),
+                Float::new(-538.6),
+                Float::new(2343.1),
+                Float::new(319.1),
+                Float::new(-501.5),
+                Float::new(2135.3),
+                Float::new(220.0),
+                Float::new(-414.0),
+                Float::new(1947.3),
+                Float::new(340.3),
+                Float::new(-548.3),
+                Float::new(2029.5),
+                Float::new(220.0),
+                Float::new(-454.1),
+                Float::new(2238.6),
+                Float::new(299.3),
+                Float::new(-264.7),
+                Float::new(2024.5),
+                Float::new(224.5),
+                Float::new(405.7),
+                Float::new(2365.3),
+                Float::new(236.1),
+                Float::new(-542.2),
+                Float::new(1850.0),
+                Float::new(350.0),
+                Float::new(-400.0),
+                Float::new(2060.0),
+                Float::new(280.0),
+                Float::new(480.0),
+                Float::new(2120.0),
+                Float::new(260.0),
+                Float::new(-520.0),
+                Float::new(1120.0),
+                Float::new(180.0),
+                Float::new(0.0),
+                Float::new(1120.0),
+                Float::new(1120.0),
+                Float::new(0.0),
+                Float::new(950.0),
+                Float::new(1600.0),
+                Float::new(-300.0),
+                Float::new(800.0),
+                Float::new(1000.0),
+                Float::new(-300.0),
+                Float::new(2500.0),
+                Float::new(250.0),
+                Float::new(0.0),
+                Float::new(1450.0),
+                Float::new(2800.0),
+                Float::new(-0.0),
+                Float::new(1450.0),
+                Float::new(2800.0),
+                Float::new(-0.0),
+                Float::new(1929.0),
+                Float::new(307.0),
+                Float::new(-174.0),
             ],
             looks: [
                 Dword::new(0xD800),
@@ -895,8 +895,8 @@ impl SplineHead {
                 Dword::new(0x14000),
             ],
             found: Dword::new(0x0),
-            angle: Float::from_bits(0x0),
-            wave: Float::from_bits(0x0),
+            angle: Float::new(0.0),
+            wave: Float::new(0.0),
             shift: [Dword::new(0x4000), Dword::new(0xFFFF8000), Dword::new(0x0)],
             switch: Dword::new(0x0),
             made: Dword::new(0x0),
@@ -935,7 +935,7 @@ mod spline_head_tests {
     }
 }
 
-/// The splines' work places (`effects::bend_points`, `effects::splines`, `effects::place_spline`) (IDA 0x76A1D2 .. 0x76B9B2, the image's layout; phase 7, typed state).
+/// The splines' work places (`effects::bend_points`, `effects::splines`, `effects::place_spline`) (IDA 0x76A1D2 .. 0x76B9B2).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SplineWork {
@@ -980,21 +980,13 @@ impl SplineWork {
             place: Dword::new(0x0),
             offset: Dword::new(0x0),
             _gap_76a20e: Bytes::new([0; 8]),
-            up: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x3F800000),
-            ],
-            size: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-            ],
-            turn_xy: [const { Float::from_bits(0x0) }; 12],
-            turn: [const { Float::from_bits(0x0) }; 12],
-            turn_x: [const { Float::from_bits(0x0) }; 12],
-            turn_y: [const { Float::from_bits(0x0) }; 12],
-            turn_z: [const { Float::from_bits(0x0) }; 12],
+            up: [Float::new(0.0), Float::new(0.0), Float::new(1.0)],
+            size: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
+            turn_xy: [const { Float::new(0.0) }; 12],
+            turn: [const { Float::new(0.0) }; 12],
+            turn_x: [const { Float::new(0.0) }; 12],
+            turn_y: [const { Float::new(0.0) }; 12],
+            turn_z: [const { Float::new(0.0) }; 12],
             ordered_ids: [const { Dword::new(0x0) }; 128],
             ordered_coords: [const { Dword::new(0x0) }; 384],
             _gap_76ab1e: Bytes::new(crate::session::with_runs::<3732>(&[(
@@ -1051,7 +1043,7 @@ mod spline_work_tests {
     }
 }
 
-/// The four tables of eight spline records of 0xE90 bytes (`effects::splines`) (IDA 0x76B9B2 .. 0x788BB2, the image's layout; phase 7, typed state).
+/// The four tables of eight spline records of 0xE90 bytes (`effects::splines`) (IDA 0x76B9B2 .. 0x788BB2).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SplineTables {
@@ -1330,7 +1322,7 @@ mod spline_tables_tests {
     }
 }
 
-/// The splines' values by kind (`effects::splines`) (IDA 0x788BB2 .. 0x788EFA, the image's layout; phase 7, typed state).
+/// The splines' values by kind (`effects::splines`) (IDA 0x788BB2 .. 0x788EFA).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SplineKinds {
@@ -1577,7 +1569,7 @@ mod spline_kinds_tests {
     }
 }
 
-/// The splines' file name (`effects::splines`) (IDA 0x788EFA .. 0x788F0D, the image's layout; phase 7, typed state).
+/// The splines' file name (`effects::splines`) (IDA 0x788EFA .. 0x788F0D).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SplinePath {
@@ -1619,7 +1611,7 @@ mod spline_path_tests {
     }
 }
 
-/// The splines' constants (`effects::run_splines`, `effects::place_spline`, `effects::splines`) (IDA 0x788F0D .. 0x788F69, the image's layout; phase 7, typed state).
+/// The splines' constants (`effects::run_splines`, `effects::place_spline`, `effects::splines`) (IDA 0x788F0D .. 0x788F69).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SplineConstants {
@@ -1635,22 +1627,18 @@ impl SplineConstants {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
         SplineConstants {
-            wave_k: [
-                Float::from_bits(0x43000000),
-                Float::from_bits(0x3E4CCCCD),
-                Float::from_bits(0x3F800000),
-            ],
+            wave_k: [Float::new(128.0), Float::new(0.2), Float::new(1.0)],
             place_k: [
-                Float::from_bits(0x3F4CCCCD),
-                Float::from_bits(0x3ECCCCCD),
-                Float::from_bits(0x0),
-                Float::from_bits(0x3F19999A),
-                Float::from_bits(0x3DCCCCCD),
-                Float::from_bits(0x0),
-                Float::from_bits(0x3F19999A),
-                Float::from_bits(0x3DCCCCCD),
+                Float::new(0.8),
+                Float::new(0.4),
+                Float::new(0.0),
+                Float::new(0.6),
+                Float::new(0.1),
+                Float::new(0.0),
+                Float::new(0.6),
+                Float::new(0.1),
             ],
-            angles: [const { Float::from_bits(0x0) }; 12],
+            angles: [const { Float::new(0.0) }; 12],
         }
     }
     pub const START: usize = 0x788F0D;

@@ -40,18 +40,10 @@ impl TwinTuning {
     pub const fn twenty_second() -> Self {
         TwinTuning {
             chance_random: Dword::new(0x0),
-            lift: Float::from_bits(0x47800000),
-            row_k: [
-                Float::from_bits(0x43000000),
-                Float::from_bits(0x43000000),
-                Float::from_bits(0x43000000),
-            ],
-            spread: Float::from_bits(0x42800000),
-            motion_k: [
-                Float::from_bits(0x3F4CCCCD),
-                Float::from_bits(0x3F4CCCCD),
-                Float::from_bits(0x3F4CCCCD),
-            ],
+            lift: Float::new(65536.0),
+            row_k: [Float::new(128.0), Float::new(128.0), Float::new(128.0)],
+            spread: Float::new(64.0),
+            motion_k: [Float::new(0.8), Float::new(0.8), Float::new(0.8)],
             spin_random: Dword::new(0x0),
         }
     }

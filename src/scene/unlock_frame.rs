@@ -5,8 +5,8 @@
 //! original's; a call by address goes through `routes.rs`, which maps them.
 use crate::race::owner_frame::Frame;
 
-/// The back surface unlocked and the kept pitch and pixels 0. Returns `g_surfaceLocked`
-/// before (the original leaves the flags of comparing it with 1, and eax 0).
+/// The back surface unlocked and the kept pitch and pixels 0. Returns the locked flag
+/// before.
 pub fn unlock_frame(frame: &Frame) -> u32 {
     let locked = crate::platform::unlock_surface();
     {

@@ -4,10 +4,10 @@
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `results1.png`; leaving is asked about; left
 //! without the question, the highlight is not saved; its own 3D list goes to `g_sceneList`
-//! before the first frame only; around an action the highlight is kept in `dword_7477D8`; the
+//! before the first frame only; around an action the highlight is kept in the saved highlight; the
 //! action run is that of the item of another menu, 0x750ACC (the original's slip); on leaving
-//! the highlight is saved in `dword_7477D8`, not in the variable it is taken from (the
-//! original's slip); the keys are handled with another menu, 0x750ACC, in `dword_731BBB` (the
+//! the highlight is saved in the saved highlight, not in the variable it is taken from (the
+//! original's slip); the keys are handled with another menu, 0x750ACC, in `menu_texts.keys_menu` (the
 //! original's slip).
 //! The name is a reading from the title string of its menu, "RESULTADOS", not yet a visit.
 use crate::menu::screen_items_store::slot;
@@ -17,17 +17,27 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.unread_list, // g_unreadList
-            table: |m| m.tables.draw_lists.unread_758b72.id(),
+            table: |m| m.tables.draw_lists.unread_draw_list.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list, // g_drawList
-            table: |m| m.tables.draw_lists.draw_758e8e.id(),
+            table: |m| {
+                m.tables
+                    .draw_lists
+                    .single_rally_three_four_results_draw
+                    .id()
+            },
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
-            table: |m| m.tables.draw_lists.overlay_7592ce.id(),
+            table: |m| {
+                m.tables
+                    .draw_lists
+                    .single_rally_three_four_results_overlay
+                    .id()
+            },
             run: false,
         },
     ],
@@ -65,12 +75,22 @@ pub const SCREEN: Screen = Screen {
             },
             List {
                 pointer: |m| &m.screens.flow.draw_list, // g_drawList
-                table: |m| m.tables.draw_lists.draw_758e8e.id(),
+                table: |m| {
+                    m.tables
+                        .draw_lists
+                        .single_rally_three_four_results_draw
+                        .id()
+                },
                 run: false,
             },
             List {
                 pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
-                table: |m| m.tables.draw_lists.overlay_7592ce.id(),
+                table: |m| {
+                    m.tables
+                        .draw_lists
+                        .single_rally_three_four_results_overlay
+                        .id()
+                },
                 run: false,
             },
         ]),

@@ -1,5 +1,5 @@
-//! The course's faces (`g_courseFaces`, 0x40 bytes each) and records (`dword_5CCCB8`,
-//! 0x20 bytes each): parts of the course memory, Rust's since phase 13 (2026-10-27).
+//! The course's faces (`g_courseFaces`, 0x40 bytes each) and records (`course_records`,
+//! 0x20 bytes each): parts of the course memory, Rust's.
 //! `race::load_level` moves them out once the course is read (with the scene points,
 //! `race::scene_points`), and `race::free_course_memory` gives them back.
 //!
@@ -12,7 +12,6 @@
 //! that still took one for an address is ended by `pointers::host` with the number named.
 
 use crate::errors::BadInput;
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use rc2k_core::race::faces::Face;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
@@ -97,22 +96,22 @@ pub fn read_file_into_info(path: &[u8], offset: u32, count: u32) -> Result<(), B
 }
 
 /// `len` bytes of the course info from byte `offset`.
-pub fn info_bytes(offset: u32, len: usize, _what: &str) -> Result<Vec<u8>, BadInput> {
+pub fn info_bytes(offset: u32, len: usize) -> Result<Vec<u8>, BadInput> {
     INFO.bytes(offset as usize, len)?
         .ok_or(BadInput("a read outside the course info"))
 }
 
 /// `data` written into the course info from byte `offset`.
-pub fn write_info(offset: u32, data: &[u8], _what: &str) -> Result<(), BadInput> {
+pub fn write_info(offset: u32, data: &[u8]) -> Result<(), BadInput> {
     INFO.write(offset as usize, data)?
         .ok_or(BadInput("a write outside the course info"))
 }
 
 /// The whole number at byte `offset` of the course info.
-pub fn info_field<T: Whole>(offset: u32, what: &str) -> Result<T, BadInput> {
+pub fn info_field<T: Whole>(offset: u32) -> Result<T, BadInput> {
     let mut bytes = [0u8; 64];
     let len = size_of::<T>();
-    bytes[..len].copy_from_slice(&info_bytes(offset, len, what)?);
+    bytes[..len].copy_from_slice(&info_bytes(offset, len)?);
     Ok(T::from_bytes(&bytes))
 }
 
@@ -293,40 +292,41 @@ fn record_index(course: &Course, n: u32, offset: u32) -> Result<usize, BadInput>
 
 /// Face `n`.
 #[inline]
-pub fn face_number(n: u32, _what: &str) -> Result<Face, BadInput> {
-    let course = &race().course;
+pub fn face_number(course: &Course, n: u32) -> Result<Face, BadInput> {
     whole_at::<[u8; 64]>(&FACES, face_index(course, n, 0)?).map(Face)
 }
 
 /// Field `offset` of face `n`.
 #[inline]
-pub fn face_field<T: Whole>(n: u32, offset: u32, _what: &str) -> Result<T, BadInput> {
-    let course = &race().course;
+pub fn face_field<T: Whole>(course: &Course, n: u32, offset: u32) -> Result<T, BadInput> {
     whole_at(&FACES, face_index(course, n, offset)?)
 }
 
 /// Face `n` changed by `change`.
 pub fn update_face_number(
+    course: &Course,
     n: u32,
-    what: &str,
     change: impl FnOnce(&mut Face),
 ) -> Result<(), BadInput> {
-    let course = &race().course;
-    let mut f = face_number(n, what)?;
+    let mut f = face_number(course, n)?;
     change(&mut f);
-    write_face_number(course, n, f, what)
+    write_face_number(course, n, f)
 }
 
 /// `v` written at field `offset` of face `n`.
-pub fn write_face_field<T: Whole>(n: u32, offset: u32, v: T, _what: &str) -> Result<(), BadInput> {
-    let course = &race().course;
+pub fn write_face_field<T: Whole>(
+    course: &Course,
+    n: u32,
+    offset: u32,
+    v: T,
+) -> Result<(), BadInput> {
     let mut b = [0; 64];
     v.to_bytes(&mut b);
     write_table(&FACES, face_index(course, n, offset)?, &b[..size_of::<T>()])
 }
 
 /// The first `count` faces' bytes.
-pub fn faces_table(course: &Course, count: u32, _what: &str) -> Result<Vec<u8>, BadInput> {
+pub fn faces_table(course: &Course, count: u32) -> Result<Vec<u8>, BadInput> {
     table_bytes(
         &FACES,
         face_index(course, 0, 0)?,
@@ -335,12 +335,12 @@ pub fn faces_table(course: &Course, count: u32, _what: &str) -> Result<Vec<u8>, 
 }
 
 /// Face `n` set to `face`.
-pub fn write_face_number(course: &Course, n: u32, face: Face, _what: &str) -> Result<(), BadInput> {
+pub fn write_face_number(course: &Course, n: u32, face: Face) -> Result<(), BadInput> {
     write_table(&FACES, face_index(course, n, 0)?, &face.0)
 }
 
 /// The first `count` records' bytes.
-pub fn records_table(course: &Course, count: u32, _what: &str) -> Result<Vec<u8>, BadInput> {
+pub fn records_table(course: &Course, count: u32) -> Result<Vec<u8>, BadInput> {
     table_bytes(
         &RECORDS,
         record_index(course, 0, 0)?,
@@ -349,13 +349,12 @@ pub fn records_table(course: &Course, count: u32, _what: &str) -> Result<Vec<u8>
 }
 
 /// The records from record 0 set to `bytes`.
-pub fn write_records_table(course: &Course, bytes: &[u8], _what: &str) -> Result<(), BadInput> {
+pub fn write_records_table(course: &Course, bytes: &[u8]) -> Result<(), BadInput> {
     write_table(&RECORDS, record_index(course, 0, 0)?, bytes)
 }
 
 /// Field `offset` of record `n`.
 #[inline]
-pub fn record_field<T: Whole>(n: u32, offset: u32, _what: &str) -> Result<T, BadInput> {
-    let course = &race().course;
+pub fn record_field<T: Whole>(course: &Course, n: u32, offset: u32) -> Result<T, BadInput> {
     whole_at(&RECORDS, record_index(course, n, offset)?)
 }

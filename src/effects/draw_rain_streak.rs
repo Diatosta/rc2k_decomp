@@ -1,30 +1,30 @@
 //! `effects::draw_rain_streak` (0x4C1DCD): a streak (a point and where it was) drawn as a quad
-//! facing the viewer. The point (st(0) .. st(2), scaled by `flt_8BDD65` .. into
-//! `flt_8BDE49` ..) turned by the matrix at `dword_8BDD89` .. plus the whole numbers at
-//! `dword_8BDD71` .. into `flt_8BDE3D` .. (its depth also `flt_8BDD5D`); the point less
-//! `dword_8BC47D` .. turned the same into `flt_8BDE49` ... Unless the first depth is at or
-//! below 0x20000 or the second at or below 0x48000000 (signed compares of the bits), or
-//! `dword_8BC405` is 0: both projected (`flt_624088` over the depth; scales `flt_8C5FE5`,
-//! `flt_8C5FE9`, centre `flt_62409C`, `flt_6240A0`) into `flt_8BDD41` .., the half width
-//! `flt_8C5FED` over the screen length across the line, the four vertices' x, y and depth
-//! (times `flt_8BDD61`), `effects::clip_quad`, and unless all is outside `scene::draw_fan`
-//! and `g_polygonVertexCount` 4. Rain: its caller is `effects::run_rain`.
+//! facing the viewer. The point (the three values on the x87 stack, scaled by `point_scale`
+//! into `second`) turned by `matrix_copy` plus the whole numbers in `point` into `turned`
+//! (its depth also `depth`); the point less `motion` turned the same into `second`. Unless
+//! the first depth is at or below 0x20000 or the second at or below 0x48000000 (signed
+//! compares of the bits), or `drawn` is 0: both projected (the view scale over the depth;
+//! scales `view_scale`, the view's centre) into `ends`, the half width over the screen length
+//! across the line, the four vertices' x, y and depth (times `depth_scale`),
+//! `effects::clip_quad`, and unless all is outside `scene::draw_fan` and the polygon's vertex
+//! count 4. Rain: its caller is `effects::run_rain`.
 //!
-//! Caller: `effects::run_rain` (0x4C1AD0). The arithmetic is plain Rust on the x87 model
+//! Caller: `effects::run_rain` The arithmetic is plain Rust on the x87 model
 //! (`math::x87_float`), in the original's order, over the game's variables. Refuses null marks
 //! settings (`clip_quad`'s refusal), before anything.
 
 use crate::d3d::vertices_store::VERTICES;
+use crate::effects::cell_x87::CellX87;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::rain::{RainRules, RainState, Weather};
 use crate::errors::{BadInput, Refused};
 
-/// The original's 0x4C1DCD .. 0x4C1F11: the point scaled and turned, and the last place.
+/// The point scaled and turned, and the last place.
 fn turn(weather: &Weather, p: &[[u8; 10]; 3]) {
     turn_x87(p, &weather.rain);
 }
 
-/// The original's 0x4C1F4A .. 0x4C20B3: both projected and the quad's x, y and depth.
+/// Both ends projected and the quad's x, y and depth.
 fn project(weather: &Weather) {
     project_x87(&weather.rain, &weather.rain_rules);
 }
@@ -66,101 +66,101 @@ fn turn_x87(p: &[[u8; 10]; 3], r: &RainState) {
     let t0 = bh::from_f80(p[2]);
     let t1 = bh::from_f80(p[1]);
     let t2 = bh::from_f80(p[0]);
-    let t3 = t0 * bh::ld(r.point_scale[0].bits());
-    r.second[0].set_bits(bh::st(t3));
-    let t4 = t1 * bh::ld(r.point_scale[1].bits());
-    r.second[1].set_bits(bh::st(t4));
-    let t5 = t2 * bh::ld(r.point_scale[2].bits());
-    r.second[2].set_bits(bh::st(t5));
-    let t6 = t3 * bh::ld(r.matrix_copy[0].bits());
-    let t7 = t4 * bh::ld(r.matrix_copy[3].bits());
-    let t8 = t5 * bh::ld(r.matrix_copy[6].bits());
+    let t3 = t0 * r.point_scale[0].ld();
+    r.second[0].st(t3);
+    let t4 = t1 * r.point_scale[1].ld();
+    r.second[1].st(t4);
+    let t5 = t2 * r.point_scale[2].ld();
+    r.second[2].st(t5);
+    let t6 = t3 * r.matrix_copy[0].ld();
+    let t7 = t4 * r.matrix_copy[3].ld();
+    let t8 = t5 * r.matrix_copy[6].ld();
     let t9 = t7 + t8;
     let t10 = t6 + t9;
     let t11 = t10 + bh::int(r.point[0].get() as i32);
-    r.turned[0].set_bits(bh::st(t11));
-    let t12 = t3 * bh::ld(r.matrix_copy[1].bits());
-    let t13 = t4 * bh::ld(r.matrix_copy[4].bits());
-    let t14 = t5 * bh::ld(r.matrix_copy[7].bits());
+    r.turned[0].st(t11);
+    let t12 = t3 * r.matrix_copy[1].ld();
+    let t13 = t4 * r.matrix_copy[4].ld();
+    let t14 = t5 * r.matrix_copy[7].ld();
     let t15 = t13 + t14;
     let t16 = t12 + t15;
     let t17 = t16 + bh::int(r.point[1].get() as i32);
-    r.turned[1].set_bits(bh::st(t17));
-    let t18 = t3 * bh::ld(r.matrix_copy[2].bits());
-    let t19 = t4 * bh::ld(r.matrix_copy[5].bits());
-    let t20 = t5 * bh::ld(r.matrix_copy[8].bits());
+    r.turned[1].st(t17);
+    let t18 = t3 * r.matrix_copy[2].ld();
+    let t19 = t4 * r.matrix_copy[5].ld();
+    let t20 = t5 * r.matrix_copy[8].ld();
     let t21 = t19 + t20;
     let t22 = t18 + t21;
     let t23 = t22 + bh::int(r.point[2].get() as i32);
-    r.depth.set_bits(bh::st(t23));
-    r.turned[2].set_bits(bh::st(t23));
-    let t24 = bh::ld(r.second[1].bits());
-    let t25 = t24 - bh::ld(r.motion[1].bits());
-    let t26 = bh::ld(r.second[0].bits());
-    let t27 = t26 - bh::ld(r.motion[0].bits());
-    let t28 = bh::ld(r.second[2].bits());
-    let t29 = t28 - bh::ld(r.motion[2].bits());
-    let t30 = t27 * bh::ld(r.matrix_copy[0].bits());
-    let t31 = t25 * bh::ld(r.matrix_copy[3].bits());
-    let t32 = t29 * bh::ld(r.matrix_copy[6].bits());
+    r.depth.st(t23);
+    r.turned[2].st(t23);
+    let t24 = r.second[1].ld();
+    let t25 = t24 - r.motion[1].ld();
+    let t26 = r.second[0].ld();
+    let t27 = t26 - r.motion[0].ld();
+    let t28 = r.second[2].ld();
+    let t29 = t28 - r.motion[2].ld();
+    let t30 = t27 * r.matrix_copy[0].ld();
+    let t31 = t25 * r.matrix_copy[3].ld();
+    let t32 = t29 * r.matrix_copy[6].ld();
     let t33 = t31 + t32;
     let t34 = t30 + t33;
     let t35 = t34 + bh::int(r.point[0].get() as i32);
-    r.second[0].set_bits(bh::st(t35));
-    let t36 = t27 * bh::ld(r.matrix_copy[1].bits());
-    let t37 = t25 * bh::ld(r.matrix_copy[4].bits());
-    let t38 = t29 * bh::ld(r.matrix_copy[7].bits());
+    r.second[0].st(t35);
+    let t36 = t27 * r.matrix_copy[1].ld();
+    let t37 = t25 * r.matrix_copy[4].ld();
+    let t38 = t29 * r.matrix_copy[7].ld();
     let t39 = t37 + t38;
     let t40 = t36 + t39;
     let t41 = t40 + bh::int(r.point[1].get() as i32);
-    r.second[1].set_bits(bh::st(t41));
-    let t42 = t27 * bh::ld(r.matrix_copy[2].bits());
-    let t43 = t25 * bh::ld(r.matrix_copy[5].bits());
-    let t44 = t29 * bh::ld(r.matrix_copy[8].bits());
+    r.second[1].st(t41);
+    let t42 = t27 * r.matrix_copy[2].ld();
+    let t43 = t25 * r.matrix_copy[5].ld();
+    let t44 = t29 * r.matrix_copy[8].ld();
     let t45 = t43 + t44;
     let t46 = t42 + t45;
     let t47 = t46 + bh::int(r.point[2].get() as i32);
-    r.second[2].set_bits(bh::st(t47));
+    r.second[2].st(t47);
 }
 
 /// `project`'s x87 block as plain Rust on the x87 model (85 instructions), same order and memory places.
 fn project_x87(r: &RainState, k: &RainRules) {
-    let t0 = bh::ld(r.second[2].bits());
+    let t0 = r.second[2].ld();
     let t1 = bh::ld(
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
             .bits(),
     ) / t0;
-    let t2 = bh::ld(r.turned[2].bits());
+    let t2 = r.turned[2].ld();
     let t3 = bh::ld(
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
             .bits(),
     ) / t2;
-    let t4 = bh::ld(r.second[0].bits());
-    let t5 = bh::ld(r.second[1].bits());
-    let t6 = bh::ld(r.turned[0].bits());
-    let t7 = bh::ld(r.turned[1].bits());
+    let t4 = r.second[0].ld();
+    let t5 = r.second[1].ld();
+    let t6 = r.turned[0].ld();
+    let t7 = r.turned[1].ld();
     let t8 = t4 * t1;
     let t9 = t5 * t1;
     let t10 = t6 * t3;
     let t11 = t7 * t3;
     let t12 = t1 * bh::ld(k.view_scale[0].to_bits());
     let t13 = t3 * bh::ld(k.view_scale[1].to_bits());
-    let t14 = t8 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[0].bits());
-    r.ends[0][0].set_bits(bh::st(t14));
+    let t14 = t8 + crate::scene::polygon_work::front_end().window.view_centre[0].ld();
+    r.ends[0][0].st(t14);
     let t15 = -t9;
-    let t16 = t15 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[1].bits());
-    r.ends[0][1].set_bits(bh::st(t16));
-    let t17 = t10 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[0].bits());
-    r.ends[1][0].set_bits(bh::st(t17));
+    let t16 = t15 + crate::scene::polygon_work::front_end().window.view_centre[1].ld();
+    r.ends[0][1].st(t16);
+    let t17 = t10 + crate::scene::polygon_work::front_end().window.view_centre[0].ld();
+    r.ends[1][0].st(t17);
     let t18 = -t11;
-    let t19 = t18 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[1].bits());
-    r.ends[1][1].set_bits(bh::st(t19));
-    r.ends[0][2].set_bits(bh::st(t12));
-    r.ends[1][2].set_bits(bh::st(t13));
+    let t19 = t18 + crate::scene::polygon_work::front_end().window.view_centre[1].ld();
+    r.ends[1][1].st(t19);
+    r.ends[0][2].st(t12);
+    r.ends[1][2].st(t13);
     let t20 = bh::ONE;
     let t21 = t20
         / bh::ld(
@@ -169,50 +169,50 @@ fn project_x87(r: &RainState, k: &RainRules) {
                 .farthest
                 .bits(),
         );
-    let t22 = bh::ld(r.ends[1][0].bits());
-    let t23 = t22 - bh::ld(r.ends[0][0].bits());
-    r.edge_a[1].set_bits(bh::st(t23));
+    let t22 = r.ends[1][0].ld();
+    let t23 = t22 - r.ends[0][0].ld();
+    r.edge_a[1].st(t23);
     let t24 = t23 * t23;
-    let t25 = bh::ld(r.ends[1][1].bits());
-    let t26 = t25 - bh::ld(r.ends[0][1].bits());
+    let t25 = r.ends[1][1].ld();
+    let t26 = t25 - r.ends[0][1].ld();
     let t27 = -t26;
-    r.edge_a[0].set_bits(bh::st(t27));
+    r.edge_a[0].st(t27);
     let t28 = t27 * t27;
     let t29 = t24 + t28;
     let t30 = t29.sqrt();
     let t31 = bh::ld(k.half_width.to_bits()) / t30;
-    let t32 = t31 * bh::ld(r.edge_a[0].bits());
-    let t33 = t32 * bh::ld(r.ends[0][2].bits());
-    r.edge_a[0].set_bits(bh::st(t33));
-    let t34 = t32 * bh::ld(r.ends[1][2].bits());
-    r.edge_b[0].set_bits(bh::st(t34));
-    let t35 = t31 * bh::ld(r.edge_a[1].bits());
-    let t36 = t35 * bh::ld(r.ends[0][2].bits());
-    r.edge_a[1].set_bits(bh::st(t36));
-    let t37 = t35 * bh::ld(r.ends[1][2].bits());
-    r.edge_b[1].set_bits(bh::st(t37));
-    r.depth_scale.set_bits(bh::st(t21));
-    let t38 = bh::ld(r.second[2].bits());
-    let t39 = t38 * bh::ld(r.depth_scale.bits());
+    let t32 = t31 * r.edge_a[0].ld();
+    let t33 = t32 * r.ends[0][2].ld();
+    r.edge_a[0].st(t33);
+    let t34 = t32 * r.ends[1][2].ld();
+    r.edge_b[0].st(t34);
+    let t35 = t31 * r.edge_a[1].ld();
+    let t36 = t35 * r.ends[0][2].ld();
+    r.edge_a[1].st(t36);
+    let t37 = t35 * r.ends[1][2].ld();
+    r.edge_b[1].st(t37);
+    r.depth_scale.st(t21);
+    let t38 = r.second[2].ld();
+    let t39 = t38 * r.depth_scale.ld();
     st_cell(&VERTICES.vertices[0].z, t39);
     st_cell(&VERTICES.vertices[1].z, t39);
     st_cell(&VERTICES.vertices[2].z, t39);
     st_cell(&VERTICES.vertices[3].z, t39);
-    let t40 = bh::ld(r.ends[0][0].bits());
+    let t40 = r.ends[0][0].ld();
     st_cell(&VERTICES.vertices[0].x, t40);
-    let t41 = t40 - bh::ld(r.edge_a[0].bits());
+    let t41 = t40 - r.edge_a[0].ld();
     st_cell(&VERTICES.vertices[1].x, t41);
-    let t42 = bh::ld(r.ends[1][0].bits());
+    let t42 = r.ends[1][0].ld();
     st_cell(&VERTICES.vertices[3].x, t42);
-    let t43 = t42 - bh::ld(r.edge_b[0].bits());
+    let t43 = t42 - r.edge_b[0].ld();
     st_cell(&VERTICES.vertices[2].x, t43);
-    let t44 = bh::ld(r.ends[0][1].bits());
+    let t44 = r.ends[0][1].ld();
     st_cell(&VERTICES.vertices[0].y, t44);
-    let t45 = t44 - bh::ld(r.edge_a[1].bits());
+    let t45 = t44 - r.edge_a[1].ld();
     st_cell(&VERTICES.vertices[1].y, t45);
-    let t46 = bh::ld(r.ends[1][1].bits());
+    let t46 = r.ends[1][1].ld();
     st_cell(&VERTICES.vertices[3].y, t46);
-    let t47 = t46 - bh::ld(r.edge_b[1].bits());
+    let t47 = t46 - r.edge_b[1].ld();
     st_cell(&VERTICES.vertices[2].y, t47);
 }
 

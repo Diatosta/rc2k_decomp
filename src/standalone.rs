@@ -180,6 +180,7 @@ pub fn not_ported(at: usize, from: &str) -> ! {
 
 pub fn finish(why: &str, code: u32) -> ! {
     log(&format!("standalone: ending: {why}"));
+    crate::write_watch::dump_fields();
     #[cfg(rc2k_pgo)]
     {
         crate::ffi::pgo::write_profile();

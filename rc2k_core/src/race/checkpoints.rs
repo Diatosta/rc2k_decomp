@@ -1,9 +1,9 @@
 //! The stage's checkpoints: the line's faces chained in order, the checks along them and
-//! the map's anchors, the car placed on the line (converted 2026-10-21 from
+//! the map's anchors, the car placed on the line (Converted from
 //! `race::set_line_face_kind` 0x44574A, `sort_checkpoints` 0x4458A7, `count_checks`
 //! 0x445AAB, `next_map_anchor` 0x445FEE, `first_check_checkpoint` 0x446280,
 //! `init_checkpoints` 0x45A98F, `place_car_on_line` 0x44666F and `nearest_checkpoint_in`
-//! 0x4413F8; the measure's range and the nearest's distance in units converted 2026-10-21
+//! 0x4413F8; the measure's range and the nearest's distance in units
 //! from `race::distance_to_checkpoint` 0x44141D and `race::nearest_checkpoint` 0x44134F).
 //! A face is asked about through closures, in the original's order, so nothing
 //! is read that it does not read.
@@ -28,9 +28,9 @@ pub fn line_face_kind(direction: u32) -> u32 {
 pub struct Chain {
     /// The checkpoints chained (0: no start face).
     pub length: u32,
-    /// The last face asked about (ebx in the original).
+    /// The last face asked about.
     pub last_face: u32,
-    /// The place the last search stopped at (edx).
+    /// The place the last search stopped at.
     pub stopped: u32,
 }
 
@@ -109,7 +109,7 @@ pub fn next_map_anchor(from: u32, count: u32, mut placed: impl FnMut(u32) -> boo
 pub struct FirstCheck {
     /// The checkpoint found.
     pub found: Option<u32>,
-    /// The checkpoint it stopped at (edx).
+    /// The checkpoint it stopped at.
     pub stopped: u32,
 }
 
@@ -147,7 +147,7 @@ pub fn first_check_checkpoint(
     }
 }
 
-/// The checkpoints `init_checkpoints` lists at most (`dword_60102C`).
+/// The checkpoints `init_checkpoints` lists at most (`checkpoints`).
 pub const MOST_LISTED: u32 = 0x201;
 
 /// `race::init_checkpoints`: the checkpoints 1 .. `end` (not included) whose face's
@@ -169,7 +169,7 @@ pub fn listed_checkpoints(
     Ok(listed)
 }
 
-/// `race::place_car_on_line`: the checkpoint the car is placed after (`dword_6365E4`)
+/// `race::place_car_on_line`: the checkpoint the car is placed after (`line_place`)
 /// and the next, each held below `count`. Refuses no checkpoints (the original reads
 /// entry -1).
 pub fn line_neighbours(place: u32, count: u32) -> Result<(u32, u32), Invalid> {
@@ -181,7 +181,7 @@ pub fn line_neighbours(place: u32, count: u32) -> Result<(u32, u32), Invalid> {
 }
 
 /// `race::place_car_on_line`: a + (b - a) x t / 65536 as `imul` / `shrd 16` / `add` make
-/// it, and the product's high half (edx).
+/// it, and the product's high half.
 pub fn lerp(a: u32, b: u32, t: u32) -> (u32, u32) {
     let product = b.wrapping_sub(a) as i32 as i64 * t as i32 as i64;
     (
@@ -190,7 +190,7 @@ pub fn lerp(a: u32, b: u32, t: u32) -> (u32, u32) {
     )
 }
 
-/// The nearest checkpoint so far (`race::nearest_checkpoint_in`: ebp, edi).
+/// The nearest checkpoint so far (`race::nearest_checkpoint_in`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Nearest {
     pub checkpoint: u32,

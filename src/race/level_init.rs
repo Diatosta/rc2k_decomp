@@ -1,5 +1,4 @@
-//! `race::load_stage`'s "loadlevel_init" (`race::loadlevel_init`): its small steps (IDA,
-//! 2026-10-16). The course memory (`alloc coursemem`): 0x1300000 bytes from
+//! `race::load_stage`'s "loadlevel_init" (`race::loadlevel_init`): its small steps (). The course memory (`alloc coursemem`): 0x1300000 bytes from
 //! `memory::allocate` on `stru_5C6D50`, `g_courseMemory` (0x5C6F94) its start and
 //! `g_courseInfo` (0x5C6FA0) its last 0x400000 bytes, where the texture and mark info
 //! files are read.
@@ -61,7 +60,7 @@ pub fn allocate_course_memory(
 }
 
 /// The course memory (`memory::allocate` on the course's list in the original): Rust's
-/// bytes since phase 13 (2026-10-27), counted on the list as the game's block was and lent
+/// bytes, counted on the list as the game's block was and lent
 /// (the stage's files are read into it and parsed in place; its faces, records and scene
 /// points then move out, `race::course_places`); given back with the list
 /// (`stage_free::COURSE`).
@@ -71,7 +70,7 @@ struct CourseMemory {
 
 static COURSE_MEMORY: std::sync::Mutex<Option<CourseMemory>> = std::sync::Mutex::new(None);
 
-/// The course memory by handle (phase 13): `COURSE_TAG | offset` names the byte at `offset`
+/// The course memory by handle: `COURSE_TAG | offset` names the byte at `offset`
 /// of the course memory, 0 none. `g_courseMemory` holds `COURSE_TAG` (offset 0), the
 /// layout's addresses (`lay_out_course`) are `COURSE_TAG` plus the offset the original
 /// adds to the block's start; `course_memory_at` turns one back into a place. No host
@@ -119,8 +118,7 @@ pub fn give_back_course_memory() {
 /// +0x17F000.
 pub fn copy_texture_info_tail() -> Result<(), BadInput> {
     use crate::race::course_places::{info_bytes, write_info};
-    let what = "the course info's texture tail";
-    write_info(0x17_F000, &info_bytes(0x17_E800, 0x800, what)?, what)
+    write_info(0x17_F000, &info_bytes(0x17_E800, 0x800)?)
 }
 
 /// `race::load_texture_info` (0x4398FA): `files\a\textinfo` (0x1F4000 bytes at most) into the
@@ -139,7 +137,7 @@ pub fn load_texture_info(course: &Course) -> Result<(), Refused> {
     read(texts::TEXTURE_INFO_A, 0, 0x1F_4000)?;
     read(texts::MARK_INFO, 0x1C_2000, 0x8000)?;
     read(texts::TEXTURE_INFO_B, 0x1F_4000, 0x1F_4000)?;
-    crate::race::course_places::write_info(0x5_BD21, &[0x0A; 3], "the course info's line feeds")?;
+    crate::race::course_places::write_info(0x5_BD21, &[0x0A; 3])?;
     copy_texture_info_tail()?;
     Ok(())
 }
@@ -169,7 +167,7 @@ pub fn load_error_list(frame: &Frame) -> Result<(), Refused> {
 }
 
 /// `race::build_texture_infos` (0x4393A0): nothing without course info; else for each of the 256
-/// textures, from its kind k (`dword_608DB4`) and the info's record +k * 0x80, a record of 0x40 at
+/// textures, from its kind k (`texture_kinds`) and the info's record +k * 0x80, a record of 0x40 at
 /// 0x979F30: +0x24 k & 0xF, +0x20 k >> 4, +0x28 that | 0x80000000, +0x10/+0x14/+0x18 the record's
 /// +0x20/+0x10/+0x14, +0x1C its byte +0x18, +0x2C..+0x2E its bytes +0x24..+0x26, +0 .. +0xC its
 /// first four. Refuses a kind whose record lies past the info.
@@ -193,8 +191,8 @@ pub fn build_texture_infos(course: &Course) -> Result<(), Refused> {
             use crate::race::course_places::info_field as field;
             let t = rc2k_core::race::stage::texture_info(
                 kind,
-                |o| trap.keep_read(field::<u32>(rec + o, "a course info record")),
-                |o| trap.keep_read(field::<u8>(rec + o, "a course info record")),
+                |o| trap.keep_read(field::<u32>(rec + o)),
+                |o| trap.keep_read(field::<u8>(rec + o)),
             );
             trap.finish()?;
             out[9].set(t.row);
@@ -214,17 +212,17 @@ pub fn build_texture_infos(course: &Course) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::reset_refresh` (0x45C53B): `dword_63E174` and `dword_63E178` 0x80000000: the course
+/// `race::reset_refresh` (0x45C53B): `grid_x` and `grid_z` 0x80000000: the course
 /// grid's corner, now each view's (`race::view_grid`), so every view makes its grid again.
 pub fn reset_refresh() {
     crate::race::view_grid::reset_corners();
 }
 
-/// `race::init_checkpoints` (0x45A98F): `dword_601830` 0; unless `dword_623640` - 2 is below 0, the
-/// table entries 1 .. `dword_623644` - 1 (`dword_9E3738[n]`) whose record (`dword_5CCCBC` + it *
-/// 0x40) has its byte +0x26 set are listed in `dword_60102C`, and `dword_601830` = their count - 1.
+/// `race::init_checkpoints` (0x45A98F): `split_colour_count` 0; unless `checkpoint_count` - 2 is below 0, the
+/// table entries 1 .. `last_checkpoint` - 1 (`dword_9E3738[n]`) whose record (`course_faces` + it *
+/// 0x40) has its byte +0x26 set are listed in `checkpoints`, and `split_colour_count` = their count - 1.
 /// Refuses an end below 2 (the original counts round), or more found than the list's 0x201 (a real
-/// stage's end is past 0x201: refused wrongly on 2026-10-16, when the end was checked).
+/// stage's end is past 0x201: refused wrongly by an earlier check of the end).
 pub fn init_checkpoints(race: &Race) -> Result<(), Refused> {
     let physics = &race.physics;
     let shared = &race.shared;
@@ -246,9 +244,9 @@ pub fn init_checkpoints(race: &Race) -> Result<(), Refused> {
                 "the checkpoint table",
             ));
             trap.keep_read(crate::race::course_places::face_field::<u8>(
+                &race.course,
                 face,
                 0x26,
-                "a checkpoint face",
             )) != 0
         })?;
         trap.finish()?;

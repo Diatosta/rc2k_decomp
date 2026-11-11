@@ -1,12 +1,12 @@
-//! `drive::steer_inputs` (0x439DB1): the work car's steering from the input word `dword_613890`.
-//! Key steering (the word 0, or a car not driven by device, `unk_71A234` not 2, with the keys' bit
-//! 0x1000 of `unk_71A440`): the step 0xA00000 x `flt_614C0C` (`fistp`) moves the two steering
-//! values `unk_71A620`, `unk_71A61C` toward the side the word says, held at ± 0x20000000, or, with
+//! `drive::steer_inputs` (0x439DB1): the work car's steering from the input word `input_steer`.
+//! Key steering (the word 0, or a car not driven by device, `driver_kind` not 2, with the keys' bit
+//! 0x1000 of `input_keys`): the step 0xA00000 x `flt_614C0C` (`fistp`) moves the two steering
+//! values `steering_raw`, `steering` toward the side the word says, held at ± 0x20000000, or, with
 //! the word 0, back toward 0 at twice the step (stopping at 0; each by the sign of the result, as
 //! the original). Device steering: the word x 0x20000000 >> 8 (`imul`, `shrd`) x `flt_614C08`, held
-//! ± 0x20000000, into both (`unk_71A61C` 0 first). Then the trim (0x20000000 x `unk_71A3E0`,
-//! negated with `unk_719FE8` bit 0x10) into `unk_71A1E0`; `unk_71A624` = `unk_71A61C` + it,
-//! `unk_71A628` = `unk_71A620` + 4 x it; both 0 unless `unk_71A308` is below `flt_5C5D14` (or
+//! ± 0x20000000, into both (`steering` 0 first). Then the trim (0x20000000 x `steering_efficiency`,
+//! negated with `car_flags` bit 0x10) into `steer_trim`; `steer_angle` = `steering` + it,
+//! `steer_angle_visual` = `steering_raw` + 4 x it; both 0 unless `steering_damage` is below `hundred` (or
 //! unordered).
 //!
 //! Callers: `drive::car_controls`, `race::step_replay_cars`, `drive::replay_step`.
@@ -35,7 +35,7 @@ fn sign(v: u32) -> bool {
     (v as i32) < 0
 }
 
-/// The key step: 0xA00000 x `flt_614C0C`, through `dword_62400C`.
+/// The key step: 0xA00000 x `flt_614C0C`, through `scratch`.
 fn key_step(shared: &RaceShared, scene: &crate::scene::owner::Scene) -> u32 {
     let drawing = &scene.drawing;
     drawing.scene.scratch.set(0xA0_0000);

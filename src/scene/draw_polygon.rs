@@ -3,34 +3,30 @@
 //!
 //! In:  nothing, all in variables (below)
 //!
-//! The polygon is `g_polygonVertexCount` entries of the work table `dword_975510` (0x44
-//! bytes each), picked through the list `dword_977710`. An entry: +4 the projected
-//! vertex (its +0xC x, +0x1C y, +0x18 depth), +8 and +0x10 two pairs of texture
-//! coordinates, +0x18 the vertex's light as a colour, +0x20 a byte (fog or alpha by
-//! the pass) and +0x21 another, +0x24 and +0x2C two pairs of colour and specular that
-//! this function fills.
+//! The polygon is `polygon_vertex_count` entries of the work table (0x44 bytes each),
+//! picked through the entry list. An entry: +4 the projected vertex (its +0xC x, +0x1C y,
+//! +0x18 depth), +8 and +0x10 two pairs of texture coordinates, +0x18 the vertex's light as
+//! a colour, +0x20 a byte (fog or alpha by the pass) and +0x21 another, +0x24 and +0x2C two
+//! pairs of colour and specular that this function fills.
 //!
 //! What it does, in order:
-//! 1. 0x450147: while `dword_6415C4` is set and the polygon has three vertices or
-//!    more, tests whether the point `dword_6415C8`, `dword_6415CC` lies inside it
-//!    (each edge by a 64-bit cross product of whole numbers) and clears the switch if
-//!    it does.
-//! 2. 0x44B9BE: keeps the two material switches and the mode, put back at the end.
-//! 3. With `dword_63993C` set (a mirrored view, by what it does): the list's entries
-//!    after the first are reversed, and after 4 every x is mirrored.
-//! 4. 0x44C9A9: the positions into the vertex buffer: x and y plus an offset, the
-//!    depth times a factor, and 1/w as 0.01 / that, or with `dword_621A58` set (SSE)
-//!    `rcpss` of the depth times 65536.
-//! 5. With `dword_63660C` set: a first pass in a colour faded from `dword_5AB964`
-//!    towards 0x10 by each entry's byte +0x20 (`gfx::fade_colour`), with texture 0xC0.
-//! 6. The pass or two of the mode `dword_63DAB4` (0, 2 .. 6, 8, 9, 0xA; anything else
-//!    draws nothing): the entries' colours (`Shade`), which texture and coordinates,
-//!    five or six render states, `scene::submit_polygon`. `PASSES` has the table.
-//!    Modes 3, 4 and 5 fall back to 2, and to 8, 9 and 0xA, when one of the switches
-//!    `dword_6240E0`, `dword_6240E4` is 0; mode 3 first lets 0x44B94F clear a
-//!    switch by the entries' bytes +0x21.
+//! 1. While the sun's `on_screen` switch is set and the polygon has three vertices or
+//!    more, tests whether the sun's hit point lies inside it (each edge by a 64-bit cross
+//!    product of whole numbers) and clears the switch if it does.
+//! 2. Keeps the two material switches and the mode, put back at the end.
+//! 3. With `view_mirrored` set: the list's entries after the first are reversed, and after
+//!    4 every x is mirrored.
+//! 4. The positions into the vertex buffer: x and y plus an offset, the depth times a
+//!    factor, and 1/w as 0.01 / that, or with SSE `rcpss` of the depth times 65536.
+//! 5. With `faded` set: a first pass in a colour faded from `fade_from` towards 0x10 by each
+//!    entry's byte +0x20 (`gfx::fade_colour`), with texture 0xC0.
+//! 6. The pass or two of the polygon mode (0, 2 .. 6, 8, 9, 0xA; anything else draws
+//!    nothing): the entries' colours (`Shade`), which texture and coordinates, five or six
+//!    render states, `scene::submit_polygon`. `PASSES` has the table. Modes 3, 4 and 5 fall
+//!    back to 2, and to 8, 9 and 0xA, when one of the two material switches is 0; mode 3
+//!    first lets `clear_a_switch` clear a switch by the entries' bytes +0x21.
 //!
-//! The x87 and `rcpss` are used with the original's own instructions. Refuses a polygon of no
+//! The x87 and `rcpss` are used with the original's own rounding. Refuses a polygon of no
 //! vertices (the original then goes through 2^32) or of more than 256, a list entry past the
 //! work table and an entry without its vertex.
 
@@ -207,7 +203,7 @@ fn entries(count: u32) -> Result<smallvec::SmallVec<[Listed; 32]>, BadInput> {
         .collect()
 }
 
-/// 0x450147 with 0x4501B6: the hit test.
+/// The sun's hit test.
 fn hit_test(
     quad: &[crate::session::Dword; 32],
     sun: &crate::scene::polygon_work::ViewSun,
@@ -240,7 +236,7 @@ fn hit_test(
     sun.on_screen.set(0);
 }
 
-/// 0x44C9A9, and 0x44E6F4 for a mirrored view: the positions.
+/// The positions into the vertex buffer, mirrored for a mirrored view.
 fn place(
     quad: &[crate::session::Dword; 32],
     race: &crate::race::owner::Race,
@@ -287,7 +283,7 @@ fn place(
     }
 }
 
-/// 0x44CA7A: a set's texture coordinates, colour and specular into the buffer.
+/// A set's texture coordinates, colour and specular into the buffer.
 fn copy_set(entries: &[Listed], set: Set) {
     let (uv, colour) = match set {
         Set::A => (0x08, 0x24),
@@ -303,7 +299,7 @@ fn copy_set(entries: &[Listed], set: Set) {
 }
 
 /// `scene::choose_texture` with `scene::look_up_texture`: the texture filter's state, and the
-/// polygon's texture from the number in `dword_6240C4`.
+/// polygon's texture from the number in `texture_page`.
 fn choose_texture(
     poly: &crate::scene::polygon_work::PolygonWork,
     outside: &mut dyn Outside,
@@ -325,7 +321,7 @@ fn choose_texture(
     poly.polygon_texture.set(texture.unwrap_or(NO_TEXTURE));
 }
 
-/// 0x44B94F: clears a switch by what the entries' bytes +0x21 hold.
+/// Clears a switch by what the entries' bytes +0x21 hold.
 fn clear_a_switch(
     poly: &crate::scene::polygon_work::PolygonWork,
     face: &crate::race::face_work::FaceWork,
@@ -423,7 +419,7 @@ pub fn draw_polygon(
     crate::session::write_bits(&poly.polygon_kept, kept);
     let mirrored = poly.view_mirrored.get() != 0;
     if mirrored && count > 2 {
-        // 0x44E6B9: the list's entries after the first, turned round.
+        // The list's entries after the first, turned round.
         entries[1..].reverse();
         for (n, &(number, _)) in entries.iter().enumerate().skip(1) {
             crate::scene::polygon::list_cell(n).set(number);
@@ -433,7 +429,7 @@ pub fn draw_polygon(
 
     if face.faded.get() != 0 {
         let (mode, texture): (u32, u32) = (face.polygon_mode.get(), poly.texture_page.get());
-        // 0x44CAD5.
+        // The faded first pass: each vertex fades by its own fog byte.
         let (from, alpha): (u32, u32) = (poly.fade_from.get(), face.fade_alpha.get());
         let uv = crate::session::read_bits(&race.shared.vars.fade_uv);
         for (n, &(_, entry)) in entries.iter().enumerate() {
@@ -506,7 +502,7 @@ pub fn draw_polygon(
             }
         }
     }
-    // 0x44B9DD.
+    // The switches and the mode as they were.
     poly.polygon_sides[0].set(kept[0]);
     poly.polygon_sides[1].set(kept[1]);
     face.polygon_mode.set(kept[2]);

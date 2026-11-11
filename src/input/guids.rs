@@ -1,5 +1,5 @@
 //! The DirectInput identifiers the input module names (the joystick device's interface, the
-//! axes and the force-feedback effects), out of RAL.EXE's image (phase 5), typed (phase 7).
+//! axes and the force-feedback effects), out of RAL.EXE's image, typed.
 //! `#[repr(C)]` struct of byte buffers with the image's layout, first values the image's
 //! (`tests`); `moved::MOVED` points the image's addresses at it. The effect templates
 //! (`input::store::Devices`) name the effects' GUIDs by handle (`guid_ref`; the original kept
@@ -78,13 +78,13 @@ impl InputGuids {
     pub const START: usize = 0x4F7E18;
     pub const LEN: usize = 0x1C0;
     #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
         (crate::pointers::game_address(&raw const crate::input::owner::INPUT.guids) + 8) as usize
     }
 }
 
-/// A GUID of these by handle (phase 13): `GUID_TAG | n`, `n` its place from IDA's `START`.
+/// A GUID of these by handle: `GUID_TAG | n`, `n` its place from IDA's `START`.
 pub const GUID_TAG: u32 = 0xCD00_0000;
 
 /// The handle for IDA's `ida` (a place in the GUIDs, 16 bytes in; anything else fails to

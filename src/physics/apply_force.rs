@@ -1,10 +1,9 @@
-//! `physics::apply_force` (0x45FAE1): one force record (esi, its first three floats) on a
-//! car (edi, its block): copied to `flt_614B30` .., times the step `flt_61388C`
-//! (`physics::scale_vector`; the step, left in st(0), then rounded into `dword_62400C`),
-//! turned into the world by `g_crashMatrix` (`physics::turn_by_car_matrix`), added to the
-//! car's motion (+0x198 .. +0x1A0); then the motion turned by the car's inverse matrix
-//! (+0x9CC, `scene::rotate_point`) into +0x1A4 .. +0x1AC (the last `g_carSpeed`). All in
-//! `pusha` / `popa`. A reading: a force's push on the car.
+//! `physics::apply_force` (0x45FAE1): applies one force record (its first three floats) to a
+//! car block. The force is copied to `push_record`, multiplied by the physics step
+//! (`physics::scale_vector`), turned into the world by `g_crashMatrix`
+//! (`physics::turn_by_car_matrix`) and added to the car's motion; the motion is then turned by
+//! the car's inverse matrix (`scene::rotate_point`) into the car-frame speed (the last of which is
+//! `g_carSpeed`). A reading: a force's push on the car.
 //!
 //! Takes: the record, the car block
 //!
@@ -36,7 +35,7 @@ pub fn apply_force(
     // The work car's matrix (`g_crashMatrix`), whichever block it is: the original's.
     turn_by_car_matrix(car, work);
     for (v, w) in car.velocity.iter().zip(work) {
-        v.set_bits(x87::add(w.bits(), v.bits()));
+        v.set_bits(x87::add(w, v));
     }
     let p = car.velocity.each_ref().map(|v| extended(v.bits()));
     let out = rotate_point(&car.car_inverse_matrix, p);

@@ -1,6 +1,6 @@
 //! The race frame's per-view steps: the textures loaded again each frame, the mirror's
 //! picture copied, the screen's tint, the marks' views and layout, the own car seen from
-//! inside (converted 2026-10-21 from `race::forget_view_textures` 0x45B200,
+//! inside (converted from `race::forget_view_textures` 0x45B200,
 //! `copy_mirror_picture` 0x455DAD, `draw_screen_tint` 0x455A11, `run_view_marks`
 //! 0x456336 and `draw_own_car` 0x455AD3).
 
@@ -15,11 +15,11 @@ pub enum Forget {
     Changing(usize),
     /// The view's car's counted texture (+0x720, counted down once forgotten).
     Counted(usize),
-    /// One of the pair `dword_6D1830` / `dword_6D1834`.
+    /// One of the pair `forget_flag_0` / `forget_flag_1`.
     Extra(usize),
 }
 
-/// The textures in the original's order, each with its bit in `dword_6415F4`.
+/// The textures in the original's order, each with its bit in `view_textures_forgotten`.
 pub const FORGET_ORDER: [(Forget, u32); 6] = [
     (Forget::Changing(0), 1),
     (Forget::Changing(1), 2),
@@ -29,7 +29,7 @@ pub const FORGET_ORDER: [(Forget, u32); 6] = [
     (Forget::Extra(1), 0x1000),
 ];
 
-/// The mirror's bit, and what each forgetting adds to `dword_6D1508` (the mirror's after
+/// The mirror's bit, and what each forgetting adds to `texture_changes` (the mirror's after
 /// its picture is made).
 pub const MIRROR_BIT: u32 = 0x20;
 pub const FORGET_COST: u32 = 0x4000;
@@ -40,7 +40,7 @@ pub fn forgets(switch: u32) -> bool {
     switch != 0
 }
 
-/// The mirror is on (`dword_6415E0`) and not turned off (`dword_6415E8`).
+/// The mirror is on (`mirror_wanted`) and not turned off (`mirror_switch`).
 pub fn mirror_on(on: u32, off: u32) -> bool {
     on != 0 && off == 0
 }
@@ -119,11 +119,11 @@ pub fn copy_picture(c: &PictureCopy, from: u32, to: u32, carried: u32, s: &mut i
 
 // ---- the screen's tint ----
 
-/// At night (`dword_71C3E0`): blue-grey half through.
+/// At night (`in_credits`): blue-grey half through.
 pub const NIGHT_ALPHA: u32 = 0x80;
 pub const NIGHT_COLOUR: u32 = 0x28_3080;
 
-/// The sun's glare (`dword_6365F4`) as the tint's alpha, held to 0 ..= 0xFF (by the
+/// The sun's glare (`fog_far`) as the tint's alpha, held to 0 ..= 0xFF (by the
 /// signs).
 pub fn glare_alpha(glare: u32) -> u32 {
     if (glare as i32) < 0 {
@@ -135,15 +135,15 @@ pub fn glare_alpha(glare: u32) -> u32 {
     }
 }
 
-/// The glare's colour: red (`dword_60A570`, a whole dword) << 16, green and blue bytes.
+/// The glare's colour: red (`lamp_table_c`, a whole dword) << 16, green and blue bytes.
 pub fn glare_colour(red: u32, green: u8, blue: u8) -> u32 {
     (red << 16) | ((green as u32) << 8) | blue as u32
 }
 
 // ---- the marks' views ----
 
-/// Which views' marks show: (the other view's `dword_5C2F94`, this one's `dword_5C2F90`):
-/// none in a replay (`dword_6235E8`), not the other's with `dword_601024`.
+/// Which views' marks show: (the other view's `other_marks_shown`, this one's `own_marks_shown`):
+/// none in a replay (`scene_switch`), not the other's with `still`.
 pub fn marks_shown(view: u32, replay: u32, no_other: u32) -> (u32, u32) {
     let (mut other, mut own) = (1u32.wrapping_sub(view), 1);
     if replay != 0 {
@@ -156,7 +156,7 @@ pub fn marks_shown(view: u32, replay: u32, no_other: u32) -> (u32, u32) {
     (other, own)
 }
 
-/// The marks' layout's index: the view plus 2 x the layout set (`dword_6238A4`).
+/// The marks' layout's index: the view plus 2 x the layout set (`split`).
 pub fn layout_index(view: u32, set: u32) -> u32 {
     view.wrapping_add(set.wrapping_mul(2))
 }
@@ -166,7 +166,7 @@ pub fn first_word(mode: u32) -> u32 {
     u32::from(matches!(mode, 0 | 2))
 }
 
-/// The car records there are (`dword_71B3D8` ..).
+/// The car records there are (`car_records` ..).
 pub const CAR_RECORDS: u32 = 8;
 
 /// `run_view_marks`' refusals: a null view block or car record, no marks settings.
@@ -186,7 +186,7 @@ pub fn check_view_marks(
 
 // ---- the own car ----
 
-/// The drawn view's car's number in `dword_63DBA8[]` (its top two bits are flags).
+/// The drawn view's car's number in `view_cars`[]` (its top two bits are flags).
 pub fn car_number(entry: u32) -> u32 {
     entry & 0x3FFF_FFFF
 }
@@ -196,7 +196,7 @@ pub fn seen_inside(flags: u32) -> bool {
     flags & 0x10 != 0
 }
 
-/// The depth cleared first when the car's +0x900 or +0x904, or `dword_635014`, is set
+/// The depth cleared first when the car's +0x900 or +0x904, or `view_cleared`, is set
 /// (each asked only when the ones before are 0).
 pub fn clears_depth(a: u32, b: impl FnOnce() -> u32, c: impl FnOnce() -> u32) -> bool {
     a != 0 || b() != 0 || c() != 0

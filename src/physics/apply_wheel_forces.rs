@@ -1,4 +1,4 @@
-//! `physics::apply_wheel_forces` (0x43F544): `physics::apply_forces` on the 0x17 records at `unk_614770` (`physics::clear_forces`', the wheels' among them).
+//! `physics::apply_wheel_forces` (0x43F544): `physics::apply_forces` on the 0x17 records at `forces` (`physics::clear_forces`', the wheels' among them).
 //!
 //! Returns: the first record, the count
 //!

@@ -1,5 +1,5 @@
-//! `system::find_entry_with_bits` (0x4017AB): the first of ecx 8-byte entries from ebx
-//! whose first dword has all of eax's bits.
+//! `system::find_entry_with_bits` (0x4017AB): the first of `count` 8-byte entries from `start`
+//! whose first dword has all of the given bits.
 //!
 //! Takes the bits, the table and the count. Found: the entry and the entries left with it. Not
 //! found: past the table and 0 (a count of 0 gives the table as it came).
@@ -7,7 +7,7 @@
 //! 0x4046B7, 0x40471F, 0x404AE6). Refuses a null table with a count (before anything).
 //!
 
-/// (found, ebx, ecx): the entry found (or the place past the table) and the entries left.
+/// (found, entry, entries left): whether one was found, the entry (or the place past the table) and the entries left.
 pub fn find_entry_with_bits(
     bits: u32,
     table: crate::pointers::GamePtr,

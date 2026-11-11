@@ -1,31 +1,31 @@
-//! `effects::run_rain` (0x4C16F9): the rain's frame. `dword_8BC50D` the settings' +0x2764
-//! (the drops; none: `dword_8BC405` 0 and back), held to 0x100; the settings' +0x28 ..
-//! +0x48 into `dword_8BC441` .., +0x1C .. +0x24 into `dword_8BC435` ..; `effects::place_view`,
+//! `effects::run_rain` (0x4C16F9): the rain's frame. `drops` is the settings' +0x2764 (the
+//! drops; none: `drawn` 0 and back), held to 0x100; the settings' +0x28 .. +0x48 into
+//! `view_matrix`, +0x1C .. +0x24 into `view_place`; `effects::place_view`,
 //! `scene::depth_buffer_off`, render states 0x15 = 4, 0x13 = 5, 0x14 = 6, 0x1C = 0, 0x1B = 1,
-//! `scene::clear_texture`; the four vertices' rhw `dword_8C5F91` (through `dword_62400C`;
-//! loaded as a whole number there, as a float here: a fixed bug),
-//! colours 0xFFFFFF, 0, 0x28000000, 0x28FFFFFF, the rest 0, `g_polygonVertexCount` 4;
-//! `effects::drift_offsets` when `dword_7652A0` is set; the view's entry (the settings' +8,
-//! 12 bytes at `flt_8BC489` and `dword_8BC4C5`): when the settings' +0xC or
-//! `dword_7652A0` is set its move since the last frame scaled; the move (`dword_8BC47D`
-//! ..) held to `flt_8C5FA5` long when longer than `flt_8C5FA1`; the view's place kept
-//! (y plus `dword_8BC505`); `dword_8BC505` the clock's low 20 bits times `flt_8C5FB5`
-//! when drifting. Then each drop k from the last: its noise place (`g_marksNoiseA` .. [k]
-//! plus the view and the drift, wrapped to 0x40000 and centred) as whole numbers to
-//! `effects::draw_rain_streak`, and when the settings' +0x10 is set its turned place kept
-//! (`dword_8BD111` .. [k], `fistp`). `dword_8BC405` 1.
+//! `scene::clear_texture`; the four vertices' rhw (`rhw`; loaded as a whole number there, as
+//! a float here: a fixed bug), colours 0xFFFFFF, 0, 0x28000000, 0x28FFFFFF, the rest 0, the
+//! polygon's vertex count 4; `effects::drift_offsets` when the drift switch is set; the
+//! view's entry (the settings' +8, 12 bytes in `moves` and `last_views`): when the settings'
+//! +0xC or the drift switch is set its move since the last frame scaled; the move (`motion`)
+//! held to `move_held` long when longer than `move_limit`; the view's place kept (y plus
+//! `drift`); `drift` the clock's low 20 bits times `drift_k` when drifting. Then each drop k
+//! from the last: its noise place (`noise`[k] plus the view and the drift, wrapped to 0x40000
+//! and centred) as whole numbers to `effects::draw_rain_streak`, and when the settings' +0x10
+//! is set its turned place kept (`kept`[k], rounded). `drawn` 1.
 //!
-//! Screen: the falling rain, seen from inside and outside the car (owner, 2026-10-29: gone with `draw_rain_streak`'s draw cut).
+//! Screen: the falling rain, seen from inside and outside the car (confirmed: gone
+//! with `draw_rain_streak`'s draw cut).
 //!
-//! Works on `g_marksSettings`.
+//! Works on the effects settings.
 //!
-//! Caller: `effects::run_frame` (0x4D1569). The x87 blocks are plain Rust on the x87 model (`math::x87_float`), in the original's order,
+//! Caller: `effects::run_frame` The x87 blocks are plain Rust on the x87 model (`math::x87_float`), in the original's order,
 //! over the game's variables. Refuses null settings and a view entry past the five (the
 //! settings' +8), before anything.
 
+use crate::effects::cell_x87::CellX87;
 use crate::effects::rain::{RainRules, RainState, Weather};
 use crate::errors::{BadInput, Refused};
-use crate::math::{x87, x87_run};
+use crate::math::x87;
 use crate::race::owner::Race;
 
 const MOST_DROPS: i32 = 0x100;
@@ -35,22 +35,23 @@ const ENTRIES: u32 = 5;
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 const COLOURS: [u32; 4] = [0xFF_FFFF, 0, 0x2800_0000, 0x28FF_FFFF];
 
-/// The original's 0x4C18E7 .. 0x4C1935: the view's move since last frame, scaled, into its entry.
+/// The view's move since the last frame, scaled, into its entry.
 fn box_moved(weather: &Weather, i: usize) {
     box_moved_x87(i, &weather.rain, &weather.rain_rules);
 }
 
-/// The original's 0x4C1965 .. 0x4C1996: the move's length into `flt_8BDD5D`, compared with `flt_8C5FA1` (`fstsw` into `g_fpuStatus`).
+/// The move's length into `depth`, compared with `move_limit` (the compare's status word
+/// goes to the shared FPU status variable).
 fn move_length(weather: &Weather) {
     move_length_x87(&weather.rain, &weather.rain_rules);
 }
 
-/// The original's 0x4C19AC .. 0x4C19F2: the move scaled to `flt_8C5FA5` over its length, times its three factors.
+/// The move scaled to `move_held` over its length, times its three factors.
 fn move_held(weather: &Weather) {
     move_held_x87(&weather.rain, &weather.rain_rules);
 }
 
-/// The original's 0x4C1A0A .. 0x4C1A1C: the view's y plus the drift (`fistp`) kept in its entry.
+/// The view's y plus the drift (rounded) kept in its entry.
 fn keep_y(weather: &Weather, i: usize) {
     keep_y_x87(i, &weather.rain);
 }
@@ -65,7 +66,7 @@ pub fn run_rain(
     use crate::scene::set_render_state::set_render_state;
     let r = &weather.rain;
     {
-        let marks = crate::effects::setup::effects_settings()?;
+        let marks = effects.settings()?;
         if marks.marks_layout.get() >= ENTRIES {
             return Err(BadInput("a rain view entry past the five").into());
         }
@@ -90,7 +91,7 @@ pub fn run_rain(
         for (value, state) in STATES {
             set_render_state(value, state);
         }
-        // `clear_texture`: what it returns went only to eax, which nothing here reads.
+        // What `clear_texture` returns is read by nothing here.
         crate::scene::clear_texture::clear_texture(scene);
         // Not the original's: it loaded 256.0's bits as a whole number (`fild`), an rhw of
         // 1132462080.0 that the handheld's GL clipped the streaks away by (`notes/bugs.md`).
@@ -106,12 +107,12 @@ pub fn run_rain(
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
             .set_bits(4u32);
-        if setup.kind_floats.running.bits() != 0 {
+        if setup.kind_floats.running.get() != 0 {
             crate::effects::drift_offsets::drift_offsets(race, weather, effects);
         }
-        let marks = crate::effects::setup::effects_settings()?;
+        let marks = effects.settings()?;
         let e = marks.marks_layout.get() as usize;
-        if marks.own_marks_shown.get() != 0 || setup.kind_floats.running.bits() != 0 {
+        if marks.own_marks_shown.get() != 0 || setup.kind_floats.running.get() != 0 {
             box_moved(weather, e);
         }
         for n in 0..3 {
@@ -126,7 +127,7 @@ pub fn run_rain(
         r.last_views[e][0].set(r.view[0].get());
         keep_y(weather, e);
         r.last_views[e][2].set(r.view[2].get());
-        if setup.kind_floats.running.bits() != 0 {
+        if setup.kind_floats.running.get() != 0 {
             let clock = race.shared.physics_tables.scene_clock.get() & 0xF_FFFF;
             r.drift.set(
                 x87::int_times_to_int(clock as i32, weather.rain_rules.drift_k.to_bits()) as u32,
@@ -142,15 +143,15 @@ pub fn run_rain(
             let z = noise(2).wrapping_add(view(2)).wrapping_add(spread);
             let [x, y, z] = [x, y, z].map(|v| (v & 0x3_FFFF).wrapping_sub(0x1_FFFF));
             let place = [
-                x87_run::int_80(z as i32, false),
-                x87_run::int_80(y as i32, false),
-                x87_run::int_80(x as i32, false),
+                x87::int_80(z as i32, false),
+                x87::int_80(y as i32, false),
+                x87::int_80(x as i32, false),
             ];
             crate::effects::draw_rain_streak::draw_rain_streak(weather, place, effects)?;
-            let marks = crate::effects::setup::effects_settings()?;
+            let marks = effects.settings()?;
             if marks.other_marks_shown.get() != 0 {
                 for (n, kept) in r.kept.iter().enumerate() {
-                    kept[k].set(x87::to_int(r.turned[n].bits()) as u32);
+                    kept[k].set(x87::to_int(&r.turned[n]) as u32);
                 }
             }
         }
@@ -167,48 +168,48 @@ fn box_moved_x87(i: usize, r: &RainState, k: &RainRules) {
         let t0 = bh::int(r.view[0].get() as i32);
         let t1 = t0 - bh::int(r.last_views[i][0].get() as i32);
         let t2 = t1 * bh::ld(k.move_scale[0].to_bits());
-        r.moves[i][0].set_bits(bh::st(t2));
+        r.moves[i][0].st(t2);
         let t3 = bh::int(r.view[1].get() as i32);
         let t4 = t3 + bh::int(r.drift.get() as i32);
         let t5 = t4 - bh::int(r.last_views[i][1].get() as i32);
         let t6 = t5 * bh::ld(k.move_scale[1].to_bits());
-        r.moves[i][1].set_bits(bh::st(t6));
+        r.moves[i][1].st(t6);
         let t7 = bh::int(r.view[2].get() as i32);
         let t8 = t7 - bh::int(r.last_views[i][2].get() as i32);
         let t9 = t8 * bh::ld(k.move_scale[2].to_bits());
-        r.moves[i][2].set_bits(bh::st(t9));
+        r.moves[i][2].st(t9);
     }
 }
 
 /// `move_length`'s x87 block as plain Rust on the x87 model (12 instructions), same order and memory places.
 fn move_length_x87(r: &RainState, k: &RainRules) {
-    let t0 = bh::ld(r.motion[0].bits());
+    let t0 = r.motion[0].ld();
     let t1 = t0 * t0;
-    let t2 = bh::ld(r.motion[1].bits());
+    let t2 = r.motion[1].ld();
     let t3 = t2 * t2;
-    let t4 = bh::ld(r.motion[2].bits());
+    let t4 = r.motion[2].ld();
     let t5 = t4 * t4;
     let t6 = t3 + t5;
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
-    r.depth.set_bits(bh::st(t8));
+    r.depth.st(t8);
     crate::effects::plain::set_status(bh::compare(t8, bh::ld(k.move_limit.to_bits())));
 }
 
 /// `move_held`'s x87 block as plain Rust on the x87 model (13 instructions), same order and memory places.
 fn move_held_x87(r: &RainState, k: &RainRules) {
     {
-        let t0 = bh::ld(r.depth.bits());
+        let t0 = r.depth.ld();
         let t1 = bh::ld(k.move_held.to_bits()) / t0;
-        let t2 = t1 * bh::ld(r.motion[0].bits());
+        let t2 = t1 * r.motion[0].ld();
         let t3 = t2 * bh::ld(k.move_factors[0].to_bits());
-        r.motion[0].set_bits(bh::st(t3));
-        let t4 = t1 * bh::ld(r.motion[1].bits());
+        r.motion[0].st(t3);
+        let t4 = t1 * r.motion[1].ld();
         let t5 = t4 * bh::ld(k.move_factors[1].to_bits());
-        r.motion[1].set_bits(bh::st(t5));
-        let t6 = t1 * bh::ld(r.motion[2].bits());
+        r.motion[1].st(t5);
+        let t6 = t1 * r.motion[2].ld();
         let t7 = t6 * bh::ld(k.move_factors[2].to_bits());
-        r.motion[2].set_bits(bh::st(t7));
+        r.motion[2].st(t7);
     }
 }
 

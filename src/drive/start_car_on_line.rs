@@ -1,9 +1,9 @@
-//! `drive::start_car_on_line` (0x437613): the work car put at a start on the line: `dword_71AA80` =
-//! `dword_605034[dword_6051A0]` (the start's number's entry); the grades' mode `dword_71A234` 2;
-//! the checkpoint into `dword_71A070`, `6C`, `74`, `dword_6365E4` and `dword_6365EC`; a share
-//! `flt_6051AC` / `flt_71A650` = lo + ((m - 1) - n) / (m - 1) (hi - lo) (n `dword_6051A0`, m
-//! `dword_6051B4`, lo / hi `flt_6051A4` / `flt_6051A8`); `race::place_car_on_line`,
-//! `race::reset_car_motion`; then the motion: 0, 0 and the speed `flt_6051B0` turned by
+//! `drive::start_car_on_line` (0x437613): the work car put at a start on the line: `start_slot_value` =
+//! `arcade_car_numbers`[`start_slot`]` (the start's number's entry); the grades' mode `driver_kind` 2;
+//! the checkpoint into `checkpoint`, `6C`, `74`, `line_place` and `line_fraction`; a share
+//! `start_share` / `start_share` = lo + ((m - 1) - n) / (m - 1) (hi - lo) (n `start_slot`, m
+//! `arcade_cars`, lo / hi `start_share_last` / `start_share_first`); `race::place_car_on_line`,
+//! `race::reset_car_motion`; then the motion: 0, 0 and the speed `start_speed` turned by
 //! `g_crashMatrix` (`scene::rotate_point`) into 0x71A170 .. 0x71A178 (`g_carSpeed` the speed). The
 //! share is the computer driver's pace for that start (best start = `start_share_first`, last =
 //! `start_share_last`; see `drive::start_blend`). Used by `start_cars_behind` for the arcade race's
@@ -12,7 +12,7 @@
 //! Takes: the checkpoints on from the lead's
 //!
 //! Caller: `drive::start_cars_behind` (0x43703E; four calls). Refuses (before anything) a
-//! start number (`dword_6051A0`) above 0x400 (the table `dword_605034` holds 90; the check is the original's), and what the two calls
+//! start number (`start_slot`) above 0x400 (the table `arcade_car_numbers` holds 90; the check is the original's), and what the two calls
 //! refuse.
 
 use crate::errors::{BadInput, Refused};
@@ -24,7 +24,7 @@ use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::start_places;
 
-/// `dword_605034`[start]: each car's number. The table holds 90; a start past it (the
+/// `arcade_car_numbers`[start]: each car's number. The table holds 90; a start past it (the
 /// check lets up to 0x400 through) reads on into the variables after it, as the original.
 pub fn car_number(shared: &RaceShared, start: usize) -> Result<u32, BadInput> {
     crate::session::read_on_in(
@@ -71,11 +71,11 @@ pub fn start_car_on_line(
     .to_bits();
     race.shared.tables.start_share.set_bits(share);
     race.shared.car.start_share.set_bits(share);
-    crate::race::start_place::place_car_on_line(race, &race.course, scene)?;
+    crate::race::start_place::place_car_on_line(&race.shared, &race.course, scene)?;
     crate::race::car_starts::reset_car_motion(race)?;
     race.shared.car.local_velocity[0].set_bits(0);
     race.shared.car.local_velocity[1].set_bits(0);
-    race.shared.car.local_velocity[2].set_bits(x87::loaded(race.shared.tables.start_speed.bits()));
+    race.shared.car.local_velocity[2].set_bits(x87::loaded(&race.shared.tables.start_speed));
     let m = &race.shared.car.crash_matrix;
     let out = rotate_point(
         m,

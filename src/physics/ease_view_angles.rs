@@ -1,12 +1,9 @@
 //! `physics::ease_view_angles` (0x43846D): with the mode's record's change time (+0x3C)
 //! not 0: the share done (`physics/camera_view.rs`) times the record's three angle
-//! changes (+0x40 .. +0x48) x `flt_5C5D98` (`fistp`) << 16 added to `unk_71A694`,
+//! changes (+0x40 .. +0x48) x `k65536` (`fistp`) << 16 added to `camera_offset_turns`,
 //! `unk_71A698`, `unk_71A69C`.
 //!
 //! Caller: `physics::update_camera`.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
@@ -41,9 +38,9 @@ pub fn ease_view_angles(
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [rc + 0x22400C] = ([s + 0] * [rc + 0x205260]) * [rc + 0x1C5D98]` (`[s + 0]` a
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [scratch] = ([s + 0] * [view_share]) * [k65536]` (`[s + 0]` a
 /// record's turn rate, passed by value)
 fn x87_1(race: &Race, rate: u32, scene: &crate::scene::owner::Scene) {
     let t0 = ld(rate);

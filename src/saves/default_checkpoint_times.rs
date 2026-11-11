@@ -2,11 +2,11 @@
 //! for the championship's stages.
 //!
 //! For each stage of the championship's record table (counted into `seconds`): the ten entries of
-//! the stage in the table at `dword_7556E8` get the record's +0x18 + 24,000 and 0x9F more each, and
+//! the stage in the stage times table get the record's +0x18 + 24,000 and 0x9F more each, and
 //! a driver, with the record's +4 as the stage for the checkpoints (`saves/default_times.rs`; its
-//! caller has `dword_755A0C` at 1 for this one, so the checkpoint times are guessed and some 9,000
+//! caller has the checkpoint switch at 1 for this one, so the checkpoint times are guessed and some 9,000
 //! pieces go to the game's log). Then the records are gone through once more as in
-//! `default_championship_times`, but only `dword_7559B0` is added up and cleared: nothing is done
+//! `default_championship_times`, but only the running sum is added up and cleared: nothing is done
 //! with it. One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded. Refuses a
 //! missing table and a record table without stages or without its end. Converted:
 //! `rc2k_core::saves::defaults::championship_times` (a refusal now leaves nothing written).
@@ -19,7 +19,7 @@ use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 
 // ---- game data ----
 
-/// `ebp` is not used: the stage comes from the record.
+/// The first argument is not used: the stage comes from the record.
 pub fn default_checkpoint_times(_ebp: u32, log: Log) -> Result<(), Refused> {
     let screens = &crate::menu::owner::menus().screens;
     // Converted: `rc2k_core::saves::defaults::championship_times`.

@@ -1,24 +1,24 @@
 //! `input::acquire_device` (0x408473): a device record's controller acquired. Only for a
-//! listed controller (+0 below `g_controllerCount`) that is attached (its entry's +0x18 1);
-//! a record that still has a device (+4) is a fatal error (0x8023831D). The settings: the
-//! kind (+8) 2 when 0, 3 for a controller of more than three axes; then the configuration's
-//! (each only when set): `dword_4F68E0` 1 .. 3 the kind, `dword_4F68E4` (not negative) the
-//! axes' code +0x18, `dword_4F68F8` (up to 100) the strength +0xC, `dword_4F68E8` and
-//! `dword_4F68EC` (up to 100) the dead zone +0x10 and the end zone +0x14, `dword_4F68F0`
-//! (not negative) +0x1C. Logged (level 2): "JOY:" the number, the axes, the buttons,
-//! "axmode=" the kind, "axcode=" +0x18 (hex), "dz=" +0x10 +0x14, "ff=" force feedback, the
-//! strength (a line). Then its device: `CreateDevice` with the entry's GUID into +4
+//! listed controller (`controller` below `g_controllerCount`) that is attached (its entry's
+//! flag 1); a record that still has a `device` is a fatal error (0x8023831D). The settings:
+//! the `kind` 2 when 0, 3 for a controller of more than three axes; then the configuration's
+//! (each only when set): `joy_mode` 1 .. 3 the kind, `joy_code` (not negative) the
+//! `axis_code`, `ff_gain` (up to 100) the `strength`, `joy_dead_zone` and `joy_end_zone`
+//! (up to 100) the `dead_zone` and the `end_zone`, `alt_axes_code` (not negative) the
+//! `axis_pick`. Logged (level 2): "JOY:" the number, the axes, the buttons, "axmode=" the
+//! kind, "axcode=" the axis code (hex), "dz=" the two zones, "ff=" force feedback, the
+//! strength (a line). Then its device: `CreateDevice` with the entry's GUID into `device`
 //! (0x80238311 "Cannot create joystick object - check directx installation"), its
 //! `IDirectInputDevice2A` (0x80238318) in its place (the first given back), the joystick
 //! data format (0x80238312), the cooperative level 5 for `hWnd` (0x80238313); the ranges
-//! (`DIPROPRANGE` `dword_4F6AB8`): all axes -256 .. 0, the axis at offset (+0x1D & 7) x 4
-//! -256 .. 256 and for kinds up to 2 the one at (+0x1C & 7) x 4 too; the dead zones
-//! (`DIPROPDWORD` `dword_4F6AA4`): all 0, then +0x10 x 100 by offset with the object left 0
+//! (`DIPROPRANGE`): all axes -256 .. 0, the axis at offset (`axis_pick` byte 1 & 7) x 4
+//! -256 .. 256 and for kinds up to 2 the one at (`axis_pick` byte 0 & 7) x 4 too; the dead
+//! zones (`DIPROPDWORD`): all 0, then `dead_zone` x 100 by offset with the object left 0
 //! (the axis is written into the range's object instead: the x axis gets it, twice for
 //! kinds up to 2; section 16); the saturation for all, (100 - dz - ez) x 10000 / (100 - dz)
 //! when both are above 0 (signed; unsigned division); the results not looked at. With
-//! force feedback (the entry's +0x1C 1) `input::begin_force`; `Acquire`; the readings
-//! cleared (`input::clear_device_readings`); +0x24 1 (acquired).
+//! force feedback (the entry's flag 1) `input::begin_force`; `Acquire`; the readings
+//! cleared (`input::clear_device_readings`); `acquired` 1.
 //!
 //! Takes: the device's record
 //!
@@ -38,8 +38,6 @@ use rc2k_core::input::acquire::{
     Acquire, HAS_DEVICE, acquire, axis_offset, dead_zone_value, saturation, two_axes,
 };
 use std::mem::size_of;
-
-// dword_4F68DC .. dword_4F68F8
 
 const JOY_RVA: &std::ffi::CStr = c"JOY:"; // aJoy "JOY:"
 const AXMODE_RVA: &std::ffi::CStr = c"axmode="; // aAxmode "axmode="

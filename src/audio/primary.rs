@@ -4,7 +4,6 @@
 
 use crate::audio::store::AudioState;
 use crate::errors::Refused;
-use crate::menu::owner::menus;
 
 const OPEN_TEXT: &std::ffi::CStr = c"AUD: open ds3d"; // "AUD: open ds3d"
 const FAILED_TEXT: &std::ffi::CStr = c"AUD: open ds3d failed rc="; // "AUD: open ds3d failed rc="
@@ -105,7 +104,10 @@ pub fn make_primary(state: &AudioState) -> Result<bool, Refused> {
     if stored {
         state.master_volume.set(volume);
     }
-    menus().screens.option_work.master_volume_shown.set(volume);
+    crate::audio::owner::audio()
+        .levels
+        .master_volume_shown
+        .set(volume);
     crate::audio::set_master_volume::set_master_volume(state, volume);
     if state.sound_mode.get() & MODE_3D != 0 && !crate::audio::sound_device::open_listener(state)? {
         state.sound_mode.set(without_3d(state.sound_mode.get()));

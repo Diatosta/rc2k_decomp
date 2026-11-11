@@ -1,7 +1,7 @@
 //! The arcade start menu's five level items (`arcade_level_1` .. `arcade_level_5` in the
 //! original, 0x487CC9, 0x487D10, 0x487D57, 0x487D9E, 0x487DE5): a level not yet open
-//! (cheat bit 0 off and `byte_758800[level - 1]` not 1) gets the menu's sound 8; an open
-//! one sets `dword_7587EC` to the level, `dword_7587F0` to 0 and runs
+//! (cheat bit 0 off and `arcade.levels_won` not 1) gets the menu's sound 8; an open
+//! one sets `arcade.level` to the level, `arcade.stage` to 0 and runs
 //! `menu::take_player1_units` and `menu::arcade_event`.
 
 use crate::errors::Refused;

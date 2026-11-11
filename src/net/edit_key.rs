@@ -1,5 +1,5 @@
 //! `net::edit_key` (0x416E43): a key for the text being edited (`net::begin_edit`), if one
-//! is (`dword_52A4B8` not -1): Escape (1) puts the kept text back and ends the editing,
+//! is (`edited` not -1): Escape (1) puts the kept text back and ends the editing,
 //! Enter (0x1C) ends it, 0x6E clears the text's 64 bytes, backspace (0x0E) drops its last
 //! character; any other key is made a character (`input::key_to_char`), which, if it is one
 //! (0x20 or more), goes at the text's end (if it has fewer than 0x3F) with a NUL after it,
@@ -7,7 +7,7 @@
 //! font, signed) than allowed.
 //!
 //! Takes `key`. Returns whether no text is edited (any more); the original's callers read this
-//! as the zero flag of `cmp dword_52A4B8, -1` (`lq -s 0x416E43`). `input::key_to_char` and
+//! as the zero flag of the compare of the edited item with -1. `input::key_to_char` and
 //! `text::measure_text` see only the key's byte and the text (the measure's x changes no width
 //! it reads).
 //! Callers: `net::setting_key`, `net::chat_key`.

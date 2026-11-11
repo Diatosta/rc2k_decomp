@@ -1,5 +1,6 @@
-//! `system::set_priority_class` (0x410B68): the process's priority class set to eax
-//! (`SetPriorityClass(GetCurrentProcess(), eax)`), unless `dword_518388` is not 0.
+//! `system::set_priority_class` (0x410B68): the process's priority class set to the given class
+//! (`SetPriorityClass(GetCurrentProcess(), class)`), unless a switch of the start-up is
+//! not 0.
 //!
 //! Two callers, both in `start`. The Win32 calls are made from Rust.
 

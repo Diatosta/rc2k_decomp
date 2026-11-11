@@ -1,9 +1,10 @@
 //! `net::set_hud_options` (0x463D3F): this machine's car (`g_carBlocks[g_netPlayer]`) given
-//! the player's HUD: its bits (+0x220) from `dword_75B00C`, or, when that is -1, made from
-//! the switches (`dword_75ADF8` 0x10, `75ADFC` 8, `75AE00` 1, `75AE08` 4, `75AE14` 2,
-//! `75AE04` 0x100, `75AE10` 0x40, `75AE0C` 0x20, `75AE18` 0x80, each when not 0); its view
-//! (+0x684) from `dword_75AE24`; `dword_623898` from `dword_4F50D0`; five more settings
-//! (`dword_75AD00`, `75AD0C` .. `75AD18`) to `dword_6238A8` ...
+//! the player's HUD: its bits (+0x220) from the player's saved HUD bits, or, when that is
+//! -1, made from the switches (rear mirror 0x10, rev counter 8, message display 1, driver
+//! info 4, metric units 2, progress bar 0x100, car info 0x40, pace notes 0x20 and the
+//! last one 0x80, each when not 0); its view (+0x684) from the player's view setting;
+//! `mip_setting` from the graphics options' mipmapping; five more settings (lens flare,
+//! reflections, car shadows, car detail, headlights) to `settings_words`.
 //!
 //! Caller: `net::lets_race`.
 

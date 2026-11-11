@@ -1,10 +1,7 @@
 use crate::scene::owner::scene;
 const DRAWTRI_RVA: &std::ffi::CStr = c"drawtri"; // aDrawtri_0
 
-/// What it leaves in the registers (eax the device's
-/// result, the zero and carry flags) is read by none of its callers (register liveness,
-/// 2026-10-23: the 24 sites through 0x44EA65 read only SF, which the original's `cmp`
-/// leaves and the Rust version never set).
+/// The device's result and the flags the original leaves are read by none of its callers.
 pub fn draw_fan(poly: &crate::scene::polygon_work::PolygonWork) {
     if scene().objects.tables.d3d_drawing_on.get() == 0 {
         return;

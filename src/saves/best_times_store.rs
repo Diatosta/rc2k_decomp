@@ -1,7 +1,7 @@
-//! The best times, out of RAL.EXE's image (phase 7, typed): the six rallies' tables (IDA
+//! The best times, kept with the image's layout: the six rallies' tables (IDA
 //! 0x742C98 .. 0x7475D0, `RallyTimes`), then the memory the nine other tables are taken
 //! on, the two switches and where each table is (0x7475D0 .. 0x747660, `BestTimes`:
-//! `saves::allocate_best_times`, `load_best_times`, `free_best_times`). Since phase 12 the
+//! `saves::allocate_best_times`, `load_best_times`, `free_best_times`). The
 //! nine tables are typed and Rust's own (`saves::best_times`): each pair keeps only the
 //! size.
 //! `#[repr(C)]`, the image's layout (all zero in it); `moved::MOVED` points the range at it.
@@ -10,7 +10,7 @@
 
 use crate::session::{Bytes, Dword};
 
-/// Where one table is: its address (the game's; 0 since the tables are typed, phase 12)
+/// Where one table is: its address (the game's; 0 since the tables are typed)
 /// and its size in bytes.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -129,7 +129,7 @@ impl TimeEntry {
 const _: () = assert!(core::mem::size_of::<TimeEntry>() == 0x9C);
 
 /// The six rallies' best times (IDA 0x742C98 .. 0x7475D0): `off_742C98`, the six tables'
-/// addresses, kept as IDA's, as names (phase 13; `RallyTimes::table_of` makes one real, for
+/// addresses, kept as IDA's, as names (`RallyTimes::table_of` makes one real, for
 /// `screens::draw_section_best_times` and `saves::default_championship_times`;
 /// `moved::point_into_homes` passes them over), then the tables, twenty entries each.
 #[repr(C)]
@@ -1282,7 +1282,7 @@ impl RallyTimes {
     /// IDA 0x7475D0, its end.
     pub const END: usize = 0x7475D0;
     #[cfg(test)]
-    /// Where IDA 0x742C98 is now (`moved::MOVED`'s home).
+    /// Where IDA 0x742C98 is (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const crate::saves::owner::SAVES.rally_times) as usize
     }
@@ -1293,7 +1293,7 @@ pub const START: usize = 0x7475D0;
 /// IDA 0x747660, the end of the piece.
 pub const END: usize = 0x747660;
 
-/// Where IDA 0x7475D0 is now (`moved::MOVED`'s home).
+/// Where IDA 0x7475D0 is (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn best_times_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::saves::owner::SAVES.best_times)

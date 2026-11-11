@@ -4,7 +4,7 @@
 //! value `name:directory`. Every key found has its value copied to its slot of 0x80 bytes at
 //! 0x51BEEE (0x4139AB, inlined). Then the slots that start with a character above a space other
 //! than `:` and have a `:` are kept, moved together to the front, the `:` made a NUL, and counted
-//! in `dword_51BEEA`; then `choose_language` for the first of them. Without the file nothing
+//! in `language_count`; then `choose_language` for the first of them. Without the file nothing
 //! changes, not even the count. Callers: `start` and `install::run_installer`. Refuses a value of
 //! 0x80 bytes or more (the original writes on into the next slot).
 

@@ -1,8 +1,8 @@
 //! `install::read_record` (0x4110C9): reads the installation's record `var\ral.zog`.
 //!
 //! A settings text with three keys, each taken if it is there: `cdrom` becomes base directory A
-//! (`byte_5189A8`), `installation` becomes `g_mediaMode` (0x5189A4), held to 0 .. 3, and `language`
-//! becomes what `%` stands for in a path (`byte_518AA8`). The two texts get a `\` after them unless
+//! (`g_baseDirectoryA`), `installation` becomes `g_mediaMode`, held to 0 .. 3, and `language`
+//! becomes what `%` stands for in a path. The two texts get a `\` after them unless
 //! they are empty or end in `\` or `/`. Without the file nothing changes. Callers: `start`,
 //! `install::run_installer`, `install::check_clio_disc`. Refuses a text of 0xFE bytes or more (the
 //! original writes past the 0x100 bytes).

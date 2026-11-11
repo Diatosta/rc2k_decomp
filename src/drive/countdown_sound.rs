@@ -1,4 +1,4 @@
-//! `drive::countdown_sound` (0x40EC9C): for a listed car the count down's sound ebx played on its
+//! `drive::countdown_sound` (0x40EC9C): for a listed car, plays the count down's sound on its
 //! channel.
 //!
 //! Takes: the car's sound slot, the sound

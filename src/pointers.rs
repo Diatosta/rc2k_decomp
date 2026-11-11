@@ -729,8 +729,8 @@ pub unsafe trait Cells {
 
     /// The path of the field holding byte `offset` (`.a.b[2]`) added to `path`, and the type of
     /// the primitive cell it ends in: the debug pages' rows are named by it.
-    #[cfg(test)]
-    #[cfg_attr(not(debug_ui), allow(dead_code))] // only the debug pages' tests use it
+    #[cfg(any(test, feature = "write_watch"))]
+    #[cfg_attr(not(debug_ui), allow(dead_code))] // only the debug pages' tests and the audit use it
     fn field_path(&self, _offset: usize, _path: &mut String) -> &'static str
     where
         Self: Sized,
@@ -869,6 +869,7 @@ pub enum CellRun<'a> {
     Word(&'a [crate::session::Word]),
     Dword(&'a [crate::session::Dword]),
     Float(&'a [crate::session::Float]),
+    Flag(&'a [crate::session::Flag]),
     Words(&'a [AtomicU32]),
 }
 
@@ -878,7 +879,7 @@ impl<'a> CellRun<'a> {
         match self {
             CellRun::Bytes(_) | CellRun::Byte(_) => 1,
             CellRun::Word(_) => 2,
-            CellRun::Dword(_) | CellRun::Float(_) | CellRun::Words(_) => 4,
+            CellRun::Dword(_) | CellRun::Float(_) | CellRun::Flag(_) | CellRun::Words(_) => 4,
         }
     }
 
@@ -890,6 +891,7 @@ impl<'a> CellRun<'a> {
             CellRun::Word(r) => r.len(),
             CellRun::Dword(r) => r.len(),
             CellRun::Float(r) => r.len(),
+            CellRun::Flag(r) => r.len(),
             CellRun::Words(r) => r.len(),
         };
         cells * self.width()
@@ -904,6 +906,7 @@ impl<'a> CellRun<'a> {
             CellRun::Word(r) => r.as_ptr() as usize,
             CellRun::Dword(r) => r.as_ptr() as usize,
             CellRun::Float(r) => r.as_ptr() as usize,
+            CellRun::Flag(r) => r.as_ptr() as usize,
             CellRun::Words(r) => r.as_ptr() as usize,
         }
     }
@@ -920,6 +923,7 @@ impl<'a> CellRun<'a> {
             CellRun::Word(r) => CellRun::Word(&r[i..]),
             CellRun::Dword(r) => CellRun::Dword(&r[i..]),
             CellRun::Float(r) => CellRun::Float(&r[i..]),
+            CellRun::Flag(r) => CellRun::Flag(&r[i..]),
             CellRun::Words(r) => CellRun::Words(&r[i..]),
         })
     }
@@ -932,6 +936,7 @@ impl<'a> CellRun<'a> {
             CellRun::Word(r) => CellRef::U16(r[i].atomic()),
             CellRun::Dword(r) => CellRef::U32(r[i].atomic()),
             CellRun::Float(r) => CellRef::U32(r[i].atomic()),
+            CellRun::Flag(r) => CellRef::U32(r[i].atomic()),
             CellRun::Words(r) => CellRef::U32(&r[i]),
         }
     }
@@ -1020,6 +1025,31 @@ unsafe impl Cells for crate::session::Float {
 
     fn slice_run(slice: &[Self]) -> Option<CellRun<'_>> {
         Some(CellRun::Float(slice))
+    }
+}
+// SAFETY: one `AtomicU32`.
+unsafe impl Cells for crate::session::Flag {
+    fn copy_from(&self, other: &Self) {
+        self.atomic().store(other.atomic().load(Relaxed), Relaxed);
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        let a = self.atomic();
+        if let Some(v) = merged!(
+            u32,
+            now.atomic().load(Relaxed),
+            start.atomic().load(Relaxed)
+        ) {
+            a.store(v, Relaxed);
+        }
+    }
+
+    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
+        (0, CellRun::Flag(std::slice::from_ref(self)))
+    }
+
+    fn slice_run(slice: &[Self]) -> Option<CellRun<'_>> {
+        Some(CellRun::Flag(slice))
     }
 }
 // SAFETY: one `AtomicU16`.
@@ -1122,7 +1152,7 @@ unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "write_watch"))]
     fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
         let size = size_of::<T>();
         path.push_str(&format!("[{}]", offset / size));
@@ -1351,13 +1381,13 @@ pub unsafe trait Store: Sync {
         None
     }
     /// `Cells::field_path` of the record behind the store, and the record's type.
-    #[cfg(test)]
-    #[cfg_attr(not(debug_ui), allow(dead_code))] // only the debug pages' tests use it
+    #[cfg(any(test, feature = "write_watch"))]
+    #[cfg_attr(not(debug_ui), allow(dead_code))] // only the debug pages' tests and the audit use it
     fn field_path_at(&self, _offset: usize, _path: &mut String) -> Option<&'static str> {
         None
     }
-    #[cfg(test)]
-    #[cfg_attr(not(debug_ui), allow(dead_code))] // only the debug pages' tests use it
+    #[cfg(any(test, feature = "write_watch"))]
+    #[cfg_attr(not(debug_ui), allow(dead_code))] // only the debug pages' tests and the audit use it
     fn type_name(&self) -> &'static str {
         ""
     }
@@ -1375,12 +1405,12 @@ unsafe impl<T: Cells + Sync> Store for T {
         Some(Cells::cell_run(self, offset))
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "write_watch"))]
     fn field_path_at(&self, offset: usize, path: &mut String) -> Option<&'static str> {
         Some(Cells::field_path(self, offset, path))
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "write_watch"))]
     fn type_name(&self) -> &'static str {
         std::any::type_name::<T>()
     }

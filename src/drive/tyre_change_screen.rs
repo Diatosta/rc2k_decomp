@@ -1,6 +1,6 @@
 //! `drive::tyre_change_screen` (0x445047): the tyre-change screen while a tyre change is under way
 //! (the first block's +0x26C, `g_carBlockStore`, not 0 or -1): `drive::tyre_screen` for the mode
-//! `dword_6238A4`, car 0.
+//! `split`, car 0.
 //!
 //! Caller: `race::draw_race_scene` (the race's frame, stream A's).
 

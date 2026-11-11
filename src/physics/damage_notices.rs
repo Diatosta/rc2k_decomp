@@ -1,17 +1,13 @@
-//! `physics::damage_notices` (0x4B0241): the work car's damage warnings. For each damage
-//! gauge (floats of the work copy, `unk_71A284` .. `unk_71A33C`) a level (`unk_71A398`,
-//! `unk_71A340` ..) moved by thresholds, in the original's order of 82 steps (`STEPS`,
-//! read from the disassembly): a step for level `from` puts the threshold (a whole number)
-//! into `flt_75B36C` (`fild` / `fstp`, every step) and compares the gauge with it
-//! (`fld; fcomp`, below or unordered as C0): rising steps, not below, set the level to
-//! `to` and queue a notice (`physics::queue_notice`: esi the notice, eax the gauge, ebx
-//! the rank); falling steps (the hysteresis of some gauges), below, set it back.
+//! `physics::damage_notices` (0x4B0241): the work car's damage warnings. Each damage gauge (the
+//! floats from `brake_heat` to `tyre_wear`) has a level (`damage_levels` ..) moved by thresholds, in
+//! the original's order of 82 steps (`STEPS`, read from the disassembly). A step for level `from`
+//! puts the threshold (a whole number) into the threshold scratch float and compares the gauge
+//! with it (below or unordered counts as below): rising steps, when the gauge is not below, set the
+//! level to `to` and queue a notice (`physics::queue_notice` with the notice, the gauge and the
+//! rank); falling steps (the hysteresis of some gauges), when below, set it back.
 //!
-//! Caller: `physics::car_physics_step` (0x43B95C), every physics step. Refuses what `queue_notice`
+//! Caller: `physics::car_physics_step`, every physics step. Refuses what `queue_notice`
 //! refuses (everything written put back).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::math::x87::from_int;
@@ -21,7 +17,7 @@ use crate::physics::store::DamageModel;
 use crate::session::Float;
 use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notices_core};
 
-/// `unk_71A284` .. `unk_71A33C`: the gauges, 47 dwords in a row in the car's record.
+/// `brake_heat` .. `tyre_wear`: the gauges, 47 dwords in a row in the car's record.
 fn gauge(car: &Car, mut k: usize) -> u32 {
     use std::slice::from_ref as one;
     let groups: [&[Float]; 24] = [

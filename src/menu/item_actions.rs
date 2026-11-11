@@ -2,13 +2,13 @@
 //! - `menu::show_intro` (0x47058E): the options' "intro" item: the films played
 //!   (`menu::play_films`, eax 1), then back (`menu::go_back`);
 //! - `menu::previous_save_page` (0x46D3F2): the championship load page's left arrow: the
-//!   page (`dword_75523C`) one less, from 0 round to 9;
+//!   page (`pages.save_page`) one less, from 0 round to 9;
 //! - `service::open_steering_box`, `service::open_brake_box` (0x46B706, 0x46B71A): the
 //!   service area's steering sensitivity and brake bias items: the box switch
-//!   (`dword_75AA9C`) turned over and its page (`dword_75AAA0`) 3, or 4;
+//!   (the service box turned-over flag) turned over and its page (the carousel page) 3, or 4;
 //! - `menu::view_stage_details` (0x47037E): "view stage info": for a time trial
 //!   (`g_eventType` 3) `menu::time_trial_stage_details_loop`, else `menu::view_stage_loop`;
-//! - `menu::new_simulation_if_unlocked` (0x4A96BF): with `dword_75ACCC` 1
+//! - `menu::new_simulation_if_unlocked` (0x4A96BF): with the leader-found flag 1
 //!   `menu::new_simulation_loop`, else the refusal's sound (`sound::play_menu_sound` 8) and a
 //!   quarter of a second's sleep;
 //! - `menu::start_arcade` (0x487CAA): the arcade's level and stage (`g_arcadeLevel`,

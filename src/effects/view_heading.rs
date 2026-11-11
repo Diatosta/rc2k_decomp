@@ -15,8 +15,8 @@ use crate::session::write_bits;
 
 pub fn view_heading(frame: &Frame, effects: &crate::effects::owner::Effects) {
     let effects_frame = &effects.frame;
-    let x = x87::loaded(frame.matrices.view_place[2].bits());
-    let z = x87::loaded(frame.matrices.view_place[10].bits());
+    let x = x87::loaded(&frame.matrices.view_place[2]);
+    let z = x87::loaded(&frame.matrices.view_place[10]);
     write_bits(&effects_frame.draw_frame.level, [x, 0, z]);
     let mut heading = rounded(angle_between_vectors(
         &effects_frame.draw_frame.level,

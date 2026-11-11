@@ -1,6 +1,6 @@
 //! The installer's variables, out of RAL.EXE's image : the flags
 //! and counters of its run, the folder and file lists, the registry names and scripts, the
-//! language list, and the pages' tables. Split by owner (2026-10-25) from the rest of the
+//! language list, and the pages' tables. Split by owner from the rest of the
 //! image's scattered variables (`rest::low`); the network's and the strings' neighbours are
 //! in their own modules.
 //!
@@ -131,7 +131,7 @@ impl InstallerRun {
     pub const START: usize = 0x51B9C8;
     pub const LEN: usize = 0x198;
     #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
         (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.run) + 8) as usize
     }
@@ -238,7 +238,7 @@ impl InstallerNames {
     pub const START: usize = 0x51BB60;
     pub const LEN: usize = 0x8A7;
     #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const crate::install::owner::INSTALL.names) as usize
     }
@@ -463,7 +463,7 @@ impl InstallerPages {
     pub const START: usize = 0x51C407;
     pub const LEN: usize = 0x1A25;
     #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
         (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.pages) + 7)
             as usize
@@ -511,7 +511,7 @@ impl InstallerPaths {
     pub const START: usize = 0x95E6F8;
     pub const LEN: usize = 0x600;
     #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
         (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.paths) + 8)
             as usize
@@ -544,7 +544,7 @@ impl InstallerPalette {
     pub const START: usize = 0x4F3874;
     pub const LEN: usize = 0x300;
     #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
         (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.palette) + 4)
             as usize

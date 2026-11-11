@@ -1,12 +1,12 @@
 //! The players' input devices, as the input thread (`input::input_thread`, "INPUTTDB") keeps them:
-//! two records of 0x4F8 bytes (`unk_4F6EF0`, `unk_4F73E8`; `g_inputDevices` 0x4F6EE8 points
+//! two records of 0x4F8 bytes (`records`; `g_inputDevices` points
 //! at them). What is known of a record (a reading from the code that uses it):
 //! - +0 the controller's number, +4 its DirectInput device (0: none), +8 its kind (1
 //!   digital: every reading all or nothing; 2, 3), +0xC .. +0x20 its settings, +0x1A ..
 //!   +0x1D which state dwords its axes are, +0x24 1 while acquired, +0x28 1 while its
 //!   effects run, +0x3C six effects of 0xA4 bytes;
 //! - +0x2C, +0x30, +0x34 its three axes and +0x38 its buttons (bits), copied from the
-//!   device's state (`dword_4F6A28`, 0x50 bytes, DirectInput's `DIJOYSTATE`) at each poll;
+//!   device's state (`device_state`, 0x50 bytes, DirectInput's `DIJOYSTATE`) at each poll;
 //! - +0x414 1 while it is read, +0x418 its hat's kind;
 //! - from +0x41C twelve bindings of 0x10 bytes: the key (`g_keysDown`), the axis's place in
 //!   the record (+0x2C, +0x30, +0x34; 0 none), its sign, a button's bit (0 none): steering

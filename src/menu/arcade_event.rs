@@ -12,7 +12,7 @@ use rc2k_core::menu::arcade_event::{self as arcade, Step, Var};
 struct Game<'a> {
     menus: &'a Menus,
     cars: Option<CarList>,
-    player0: crate::menu::standings::PlayerCell,
+    player0: crate::menu::standings::PlayerCell<'a>,
 }
 
 /// The variables that are in the physics block.
@@ -86,7 +86,6 @@ impl arcade::Arcade for Game<'_> {
         let sound = crate::sound::owner::sound();
         let menus = self.menus;
         let play = &menus.play;
-        let screens = &menus.screens;
         use crate::menu as m;
         use crate::menu::arcade_steps as a;
         match s {
@@ -105,7 +104,7 @@ impl arcade::Arcade for Game<'_> {
             Step::RepairCar => crate::service::repair_parts::repair_car()?,
             // From 0 (the original clears eax for the repair just before).
             Step::Race => crate::race::single_rally_race::single_rally_race(0, 2)?,
-            Step::ScoreStage => a::score_arcade_stage(play)?,
+            Step::ScoreStage => a::score_arcade_stage(menus)?,
             Step::ResultsLoop => self.screen(&m::arcade_results_loop::SCREEN)?,
             Step::KeepStageBest => {
                 // The stage's record in the level's table.
@@ -113,7 +112,7 @@ impl arcade::Arcade for Game<'_> {
                     .records
                     .stage_tables
                     .level_table(play.arcade.level.get())?;
-                a::keep_arcade_stage_best(menus, screens, level.row(play.arcade.stage.get())?)?;
+                a::keep_arcade_stage_best(menus, level.row(play.arcade.stage.get())?)?;
             }
             Step::CheckStageTime => a::check_arcade_stage_time(menus)?,
             Step::ClearTimeMarks => a::clear_arcade_time_marks(play)?,
@@ -142,7 +141,7 @@ impl Game<'_> {
 }
 
 pub fn arcade_event(menus: &Menus) -> Result<(), Refused> {
-    let player0 = crate::menu::standings::player(0);
+    let player0 = crate::menu::standings::player(menus, 0);
     let mut game = Game {
         menus,
         cars: None,

@@ -140,10 +140,10 @@ pub fn load_mask_pictures(
             .take(list, MASK_BYTES, vec![0; MASK_PIXELS])?;
     }
     let mut copy = crate::memory::owned::counted(&masks.picture_copy.list, COPY_BYTES)?;
-    lock(scene.textures.kinds.kind_first_textures[202].bits(), true)?;
+    lock(scene.textures.kinds.kind_first_textures[202].get(), true)?;
     let width: u32 = gfx.drawing.draw_surface.width.get();
     if width > MOST_WIDTH {
-        lock(scene.textures.kinds.kind_first_textures[202].bits(), false)?;
+        lock(scene.textures.kinds.kind_first_textures[202].get(), false)?;
         return Err(BadInput("a mask surface wider than 256").into());
     }
     let kind = (effects.kinds.marks_kind.kind.bits() as i32).clamp(0, MOST_KIND) as u32;
@@ -158,9 +158,9 @@ pub fn load_mask_pictures(
     }
     mask(masks, MASK_PATH_AT, Mask::Plain, &mut copy, width)?;
     mask(masks, BMASK_PATH_AT, Mask::Bordered, &mut copy, width)?;
-    lock(scene.textures.kinds.kind_first_textures[202].bits(), false)?;
+    lock(scene.textures.kinds.kind_first_textures[202].get(), false)?;
     crate::scene::forget_slot_texture::forget_slot_texture(
-        scene.textures.kinds.kind_first_slots[202].bits(),
+        scene.textures.kinds.kind_first_slots[202].get(),
         scene,
     )?;
     crate::memory::free_list::free_list(&masks.picture_copy.list)?;

@@ -188,8 +188,8 @@ struct ValueLocations {
     flags: i32,
 }
 
-/// The sizes whose textures one draw can read together: a stage's are all one of these
-/// (2026-11-06). A texture of another size has an array of its own, drawn alone.
+/// The sizes whose textures one draw can read together: a stage's are all one of these.
+/// A texture of another size has an array of its own, drawn alone.
 const MAIN_SIZES: [(usize, usize); 2] = [(128, 128), (256, 256)];
 
 /// Layers a new array has room for; it doubles when full.
@@ -197,7 +197,7 @@ const FIRST_LAYERS: i32 = 16;
 
 /// The textures of one size, each a layer of one GL texture array: batches that differ only
 /// in their textures are then one draw (`Batches::of_layered`), the driver's cost per draw
-/// being most of the GL thread's (2026-11-06).
+/// being most of the GL thread's.
 struct TextureArray {
     name: u32,
     capacity: i32,

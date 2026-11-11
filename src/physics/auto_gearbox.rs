@@ -1,29 +1,28 @@
-//! `physics::auto_gearbox` (0x43C5C2): the automatic gearbox. +0x238 0. Then:
+//! `physics::auto_gearbox` (0x43C5C2): the automatic gearbox. `gear_changed` is cleared first. Then:
 //! - the gear refused by `physics::gear_bit`, or in gear with the engine speed below
-//!   `flt_6140F8`: neutral;
-//! - in neutral: unless the engine's top (+0x1DC) x `flt_613F18` is below the engine
-//!   speed, nothing; else with `dword_6138A8` -1 into reverse, else
-//!   `physics::pick_start_gear`;
-//! - +0x430 set: neutral; the hold +0x1CC not 0: it goes down; +0x42C set: nothing;
-//! - else (ebx the gear) the engine over its top by `physics::revs_from_speed` (the
-//!   engine speed put back): in gear 1 or more with +0x254 clear and it not below
-//!   `flt_5CB958`: up (at the top nothing, from reverse `pick_start_gear`, else
+//!   `idle_engine_speed`: neutral;
+//! - in neutral: unless the engine's limit (`engine_speed_limit`) times `auto_gear_engine_share`
+//!   is below the engine speed, nothing; else, with `input_gear_wanted` -1, into reverse,
+//!   else `physics::pick_start_gear`;
+//! - `forced_neutral` set: neutral; `gear_change_hold` not 0: it goes down;
+//!   `gear_change_blocked` set: nothing;
+//! - else the engine over its limit is found by `physics::revs_from_speed` (the engine speed put
+//!   back): in gear 1 or more with `all_wheels_off` clear and the share not below
+//!   `shift_up_point`: up (at the top nothing, from reverse `pick_start_gear`, else
 //!   `physics::wheels_from_revs`, the gear up, `physics::revs_from_wheels`, settled);
-//!   in reverse with +0x63C set and the speed not below `flt_613E98`:
+//!   in reverse with `brake` set and the speed not below `auto_gear_speed_down`:
 //!   `pick_start_gear`; in gear 2 or more, the share to the gear below under
-//!   `flt_5CB964` and the engine over its top under `flt_5CB960` / `flt_5CB95C` (by
-//!   +0x63C): down (`wheels_from_revs`, the gear down, `revs_from_wheels`; an engine
-//!   speed then not below `flt_614104` takes it back up and ends in neutral, else
-//!   settled); in gear 1 with +0x63C set and the speed below `flt_613E94`: into reverse.
+//!   `shift_ratio_figure` and the engine over its limit under `shift_down_clutch_point` /
+//!   `shift_down_point` (by `brake`): down (`wheels_from_revs`, the gear down,
+//!   `revs_from_wheels`; an engine speed then not below `rev_limit` takes it back up and
+//!   ends in neutral, else settled); in gear 1 with `brake` set and the speed below
+//!   `auto_gear_speed_up`: into reverse.
 //!
 //! Caller: `physics::gearbox_step`. Refuses what the calls refuse, and a gear outside -1
 //! ..= 7 where a ratio is read; what was written is put back.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::math::x87_run::{mul_div_status, mul_status};
+use crate::math::x87::{mul_div_status, mul_status};
 use crate::physics::car_store::Car;
 use crate::physics::gear_store::GEAR;
 use crate::physics::gearbox::*;
@@ -66,7 +65,7 @@ fn tests(
     scene: &crate::scene::owner::Scene,
 ) -> Result<Shift, Refused> {
     let drawing = &scene.drawing;
-    // `revs_from_speed` leaves ebx the gear it reads: the same.
+    // `revs_from_speed` leaves the gear it reads in the same place.
     let gear = car.gear.get();
     let kept = car.engine_speed.bits();
     revs_speed(car, tables)?;

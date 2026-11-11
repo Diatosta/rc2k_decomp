@@ -1,16 +1,16 @@
-//! `effects::draw_windscreen_flake` (0x4BF80F): one windscreen flake item drawn on the windscreen flakes' frame. The four
-//! vertices' texture places from `dword_8BC1AE` .. (u a, c, c, a; v b, b, d, d) plus the
-//! item's +0xC / +0x10; its place (st(1) the across share times `flt_89CEEE`, st(0) the
-//! along share times `flt_89CEF2`) along the two axes from the frame's place into
-//! `flt_89CF92` ..; less `flt_89CF56` .. and `flt_89CF62` ..; the four corners (plus
-//! `flt_89CF4A` .., `flt_89CF3E` .., less `flt_89CF4A` ..) into `flt_89CF92` .. `flt_89CFBE`;
-//! unless the first corner's depth is at or below 4096.0 (a signed compare of the bits):
-//! projected (`flt_624088` over each depth, the centre `flt_62409C` / `flt_6240A0`), depth
-//! (plus `g_marksKindFloat`, times `flt_89CEEA`), colour edx, `scene::draw_fan`.
+//! `effects::draw_windscreen_flake` (0x4BF80F): one windscreen flake item drawn on the windscreen
+//! flakes' frame. The four vertices' texture places from `places` (u a, c, c, a; v b, b, d, d)
+//! plus the item's +0xC / +0x10; its place (the across share times `lengths[0]`, the along
+//! share times `lengths[1]`) along the two axes from the frame's place into `corners`; less
+//! `half_axes`; the four corners (plus, less the scaled axes) into `corners`; unless the first
+//! corner's depth is at or below 4096.0 (a signed compare of the bits): projected (the view
+//! scale over each depth, the view's centre), depth (plus the kind float, times `inverse`),
+//! colour, `scene::draw_fan`.
 //!
-//! Caller: `effects::run_windscreen_flakes` (0x4C00FE). The x87 runs are plain Rust on the x87
+//! Caller: `effects::run_windscreen_flakes` The x87 runs are plain Rust on the x87
 //! model (`math::x87_float`), in the original's order, over the game's variables.
 
+use crate::effects::cell_x87::CellX87;
 use crate::effects::tuning::MarksKindFloats;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::session::read_bits;
@@ -18,22 +18,22 @@ use crate::session::read_bits;
 use crate::d3d::vertices_store::VERTICES;
 const FAR_ENOUGH: i32 = 0x4580_0000; // 4096.0
 
-/// The original's 0x4BF845 .. 0x4BF88D: the item's texture shift added to the places.
+/// The item's texture shift added to the places.
 fn shifted_places(item: &WindscreenFlakeItem) {
     shifted_places_x87(item);
 }
 
-/// The original's 0x4BF88E .. 0x4BF9AA on the two values: the corners.
+/// The corners, from the two values on the x87 stack.
 fn corners(fl: &WindscreenFlakes, v: &[[u8; 10]; 2]) {
     corners_x87(v, &fl.tables);
 }
 
-/// The original's 0x4BF9BA .. 0x4BFAD6: the corners projected, their depth.
+/// The corners projected, and their depth.
 fn projected(fl: &WindscreenFlakes, effects: &crate::effects::owner::Effects) {
     projected_x87(&effects.setup.kind_floats, &fl.tables);
 }
 
-/// `item` (esi), `colour` (edx).
+/// Draws `item` in `colour`.
 pub fn draw_windscreen_flake(
     fl: &WindscreenFlakes,
     item: &WindscreenFlakeItem,
@@ -94,53 +94,53 @@ fn shifted_places_x87(item: &WindscreenFlakeItem) {
 fn corners_x87(v: &[[u8; 10]; 2], sq: &WindscreenFlakeTables) {
     let t0 = bh::from_f80(v[1]);
     let t1 = bh::from_f80(v[0]);
-    let t2 = t1 * bh::ld(sq.lengths[1].bits());
-    let t3 = t0 * bh::ld(sq.lengths[0].bits());
-    let t4 = t3 * bh::ld(sq.axes[0][0].bits());
-    let t5 = t2 * bh::ld(sq.axes[1][0].bits());
+    let t2 = t1 * sq.lengths[1].ld();
+    let t3 = t0 * sq.lengths[0].ld();
+    let t4 = t3 * sq.axes[0][0].ld();
+    let t5 = t2 * sq.axes[1][0].ld();
     let t6 = t4 + t5;
-    let t7 = t6 + bh::ld(sq.place[0].bits());
-    sq.corners[0][0].set_bits(bh::st(t7));
-    let t8 = t3 * bh::ld(sq.axes[0][1].bits());
-    let t9 = t2 * bh::ld(sq.axes[1][1].bits());
+    let t7 = t6 + sq.place[0].ld();
+    sq.corners[0][0].st(t7);
+    let t8 = t3 * sq.axes[0][1].ld();
+    let t9 = t2 * sq.axes[1][1].ld();
     let t10 = t8 + t9;
-    let t11 = t10 + bh::ld(sq.place[1].bits());
-    sq.corners[0][1].set_bits(bh::st(t11));
-    let t12 = t2 * bh::ld(sq.axes[1][2].bits());
-    let t13 = t3 * bh::ld(sq.axes[0][2].bits());
+    let t11 = t10 + sq.place[1].ld();
+    sq.corners[0][1].st(t11);
+    let t12 = t2 * sq.axes[1][2].ld();
+    let t13 = t3 * sq.axes[0][2].ld();
     let t14 = t12 + t13;
-    let t15 = t14 + bh::ld(sq.place[2].bits());
-    sq.corners[0][2].set_bits(bh::st(t15));
-    let t16 = bh::ld(sq.corners[0][0].bits());
-    let t17 = t16 - bh::ld(sq.half_axes[0][0].bits());
-    let t18 = t17 - bh::ld(sq.half_axes[1][0].bits());
-    sq.corners[0][0].set_bits(bh::st(t18));
-    let t19 = t18 + bh::ld(sq.scaled_by_radius[1][0].bits());
-    sq.corners[1][0].set_bits(bh::st(t19));
-    let t20 = t19 + bh::ld(sq.scaled_by_radius[0][0].bits());
-    sq.corners[2][0].set_bits(bh::st(t20));
-    let t21 = t20 - bh::ld(sq.scaled_by_radius[1][0].bits());
-    sq.corners[3][0].set_bits(bh::st(t21));
-    let t22 = bh::ld(sq.corners[0][1].bits());
-    let t23 = t22 - bh::ld(sq.half_axes[0][1].bits());
-    let t24 = t23 - bh::ld(sq.half_axes[1][1].bits());
-    sq.corners[0][1].set_bits(bh::st(t24));
-    let t25 = t24 + bh::ld(sq.scaled_by_radius[1][1].bits());
-    sq.corners[1][1].set_bits(bh::st(t25));
-    let t26 = t25 + bh::ld(sq.scaled_by_radius[0][1].bits());
-    sq.corners[2][1].set_bits(bh::st(t26));
-    let t27 = t26 - bh::ld(sq.scaled_by_radius[1][1].bits());
-    sq.corners[3][1].set_bits(bh::st(t27));
-    let t28 = bh::ld(sq.corners[0][2].bits());
-    let t29 = t28 - bh::ld(sq.half_axes[0][2].bits());
-    let t30 = t29 - bh::ld(sq.half_axes[1][2].bits());
-    sq.corners[0][2].set_bits(bh::st(t30));
-    let t31 = t30 + bh::ld(sq.scaled_by_radius[1][2].bits());
-    sq.corners[1][2].set_bits(bh::st(t31));
-    let t32 = t31 + bh::ld(sq.scaled_by_radius[0][2].bits());
-    sq.corners[2][2].set_bits(bh::st(t32));
-    let t33 = t32 - bh::ld(sq.scaled_by_radius[1][2].bits());
-    sq.corners[3][2].set_bits(bh::st(t33));
+    let t15 = t14 + sq.place[2].ld();
+    sq.corners[0][2].st(t15);
+    let t16 = sq.corners[0][0].ld();
+    let t17 = t16 - sq.half_axes[0][0].ld();
+    let t18 = t17 - sq.half_axes[1][0].ld();
+    sq.corners[0][0].st(t18);
+    let t19 = t18 + sq.scaled_by_radius[1][0].ld();
+    sq.corners[1][0].st(t19);
+    let t20 = t19 + sq.scaled_by_radius[0][0].ld();
+    sq.corners[2][0].st(t20);
+    let t21 = t20 - sq.scaled_by_radius[1][0].ld();
+    sq.corners[3][0].st(t21);
+    let t22 = sq.corners[0][1].ld();
+    let t23 = t22 - sq.half_axes[0][1].ld();
+    let t24 = t23 - sq.half_axes[1][1].ld();
+    sq.corners[0][1].st(t24);
+    let t25 = t24 + sq.scaled_by_radius[1][1].ld();
+    sq.corners[1][1].st(t25);
+    let t26 = t25 + sq.scaled_by_radius[0][1].ld();
+    sq.corners[2][1].st(t26);
+    let t27 = t26 - sq.scaled_by_radius[1][1].ld();
+    sq.corners[3][1].st(t27);
+    let t28 = sq.corners[0][2].ld();
+    let t29 = t28 - sq.half_axes[0][2].ld();
+    let t30 = t29 - sq.half_axes[1][2].ld();
+    sq.corners[0][2].st(t30);
+    let t31 = t30 + sq.scaled_by_radius[1][2].ld();
+    sq.corners[1][2].st(t31);
+    let t32 = t31 + sq.scaled_by_radius[0][2].ld();
+    sq.corners[2][2].st(t32);
+    let t33 = t32 - sq.scaled_by_radius[1][2].ld();
+    sq.corners[3][2].st(t33);
 }
 
 /// `projected`'s x87 block as plain Rust on the x87 model (64 instructions), same order and memory places.
@@ -151,31 +151,31 @@ fn projected_x87(k: &MarksKindFloats, sq: &WindscreenFlakeTables) {
             .view_scale
             .bits(),
     );
-    let t1 = t0 / bh::ld(sq.corners[3][2].bits());
+    let t1 = t0 / sq.corners[3][2].ld();
     let t2 = crate::math::x87_float::ld(
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
             .bits(),
     );
-    let t3 = t2 / bh::ld(sq.corners[2][2].bits());
+    let t3 = t2 / sq.corners[2][2].ld();
     let t4 = crate::math::x87_float::ld(
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
             .bits(),
     );
-    let t5 = t4 / bh::ld(sq.corners[1][2].bits());
+    let t5 = t4 / sq.corners[1][2].ld();
     let t6 = crate::math::x87_float::ld(
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
             .bits(),
     );
-    let t7 = t6 / bh::ld(sq.corners[0][2].bits());
-    let t8 = bh::ld(sq.corners[0][1].bits());
+    let t7 = t6 / sq.corners[0][2].ld();
+    let t8 = sq.corners[0][1].ld();
     let t9 = t8 * t7;
-    let t10 = t7 * bh::ld(sq.corners[0][0].bits());
+    let t10 = t7 * sq.corners[0][0].ld();
     let t11 = -t9;
     let t12 = t11
         + crate::math::x87_float::ld(
@@ -187,9 +187,9 @@ fn projected_x87(k: &MarksKindFloats, sq: &WindscreenFlakeTables) {
             crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
         );
     st_cell(&VERTICES.vertices[0].x, t13);
-    let t14 = bh::ld(sq.corners[1][1].bits());
+    let t14 = sq.corners[1][1].ld();
     let t15 = t14 * t5;
-    let t16 = t5 * bh::ld(sq.corners[1][0].bits());
+    let t16 = t5 * sq.corners[1][0].ld();
     let t17 = -t15;
     let t18 = t17
         + crate::math::x87_float::ld(
@@ -201,9 +201,9 @@ fn projected_x87(k: &MarksKindFloats, sq: &WindscreenFlakeTables) {
             crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
         );
     st_cell(&VERTICES.vertices[1].x, t19);
-    let t20 = bh::ld(sq.corners[2][1].bits());
+    let t20 = sq.corners[2][1].ld();
     let t21 = t20 * t3;
-    let t22 = t3 * bh::ld(sq.corners[2][0].bits());
+    let t22 = t3 * sq.corners[2][0].ld();
     let t23 = -t21;
     let t24 = t23
         + crate::math::x87_float::ld(
@@ -215,9 +215,9 @@ fn projected_x87(k: &MarksKindFloats, sq: &WindscreenFlakeTables) {
             crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
         );
     st_cell(&VERTICES.vertices[2].x, t25);
-    let t26 = bh::ld(sq.corners[3][1].bits());
+    let t26 = sq.corners[3][1].ld();
     let t27 = t26 * t1;
-    let t28 = t1 * bh::ld(sq.corners[3][0].bits());
+    let t28 = t1 * sq.corners[3][0].ld();
     let t29 = -t27;
     let t30 = t29
         + crate::math::x87_float::ld(
@@ -229,18 +229,18 @@ fn projected_x87(k: &MarksKindFloats, sq: &WindscreenFlakeTables) {
             crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
         );
     st_cell(&VERTICES.vertices[3].x, t31);
-    let t32 = bh::ld(sq.corners[0][2].bits());
-    let t33 = t32 + bh::ld(k.kind_float.bits());
-    let t34 = t33 * bh::ld(sq.inverse.bits());
-    let t35 = bh::ld(sq.corners[1][2].bits());
-    let t36 = t35 + bh::ld(k.kind_float.bits());
-    let t37 = t36 * bh::ld(sq.inverse.bits());
-    let t38 = bh::ld(sq.corners[2][2].bits());
-    let t39 = t38 + bh::ld(k.kind_float.bits());
-    let t40 = t39 * bh::ld(sq.inverse.bits());
-    let t41 = bh::ld(sq.corners[3][2].bits());
-    let t42 = t41 + bh::ld(k.kind_float.bits());
-    let t43 = t42 * bh::ld(sq.inverse.bits());
+    let t32 = sq.corners[0][2].ld();
+    let t33 = t32 + k.kind_float.ld();
+    let t34 = t33 * sq.inverse.ld();
+    let t35 = sq.corners[1][2].ld();
+    let t36 = t35 + k.kind_float.ld();
+    let t37 = t36 * sq.inverse.ld();
+    let t38 = sq.corners[2][2].ld();
+    let t39 = t38 + k.kind_float.ld();
+    let t40 = t39 * sq.inverse.ld();
+    let t41 = sq.corners[3][2].ld();
+    let t42 = t41 + k.kind_float.ld();
+    let t43 = t42 * sq.inverse.ld();
     st_cell(&VERTICES.vertices[3].z, t43);
     st_cell(&VERTICES.vertices[2].z, t40);
     st_cell(&VERTICES.vertices[1].z, t37);

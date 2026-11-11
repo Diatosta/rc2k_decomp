@@ -5,7 +5,7 @@
 //!
 //! Callers: `scene::choose_texture` (0x44CCB8), `race::flush_texture_batch`.
 
-/// The Rust version: what it leaves in eax.
+/// Looks up the polygon's texture.
 pub fn look_up_texture(
     poly: &crate::scene::polygon_work::PolygonWork,
     scene: &crate::scene::owner::Scene,

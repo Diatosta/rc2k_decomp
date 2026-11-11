@@ -1,4 +1,4 @@
-//! `menu::update_frame_clock` (0x411019): stores `tick_count` in `dword_51899C`, the clock the
+//! `menu::update_frame_clock` (0x411019): stores `tick_count` in the window handle, the clock the
 //! menu code measures blinking and idle time against.
 //!
 //! Three callers.

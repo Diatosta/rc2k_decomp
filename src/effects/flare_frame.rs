@@ -20,9 +20,9 @@ pub fn flare_frame(
         if effects.setup.settings.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].bits());
+        crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].get());
         crate::scene::depth_test_off::depth_test_off();
-        let marks = crate::effects::setup::effects_settings()?;
+        let marks = effects.settings()?;
         if marks.listener_figures[0].get() != 0 {
             crate::effects::draw_lens_flare::draw_lens_flare(paths, effects)?;
         }

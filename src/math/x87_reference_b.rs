@@ -787,14 +787,6 @@ pub(super) fn slot_project(
     out
 }
 
-/// `fld tbyte v; fsub k; fstp dword`.
-pub(super) fn ext_sub(v: [u8; 10], k: u32) -> u32 {
-    let mut out = 0u32;
-    x87!("fld tbyte ptr [{v}]", "fsub dword ptr [{k}]", "fstp dword ptr [{o}]";
-        v = v.as_ptr(), k = &raw const k, o = &raw mut out);
-    out
-}
-
 /// `fild i; fmul a; fmul b; fstp`.
 pub(super) fn int_times_times(i: i32, a: u32, b: u32) -> u32 {
     let (v, mut out) = ([i as u32, a, b], 0u32);
@@ -999,21 +991,6 @@ pub(super) fn add_80(a: u32, b: u32) -> [u8; 10] {
     let (v, mut out) = ([a, b], [0u8; 10]);
     x87!("fld dword ptr [{v}]", "fadd dword ptr [{v} + 4]", "fstp tbyte ptr [{o}]";
         v = v.as_ptr(), o = out.as_mut_ptr());
-    out
-}
-
-/// `fild a; fidiv b; fstp`.
-pub(super) fn int_over_int(a: i32, b: i32) -> u32 {
-    let (v, mut out) = ([a as u32, b as u32], 0u32);
-    x87!("fild dword ptr [{v}]", "fidiv dword ptr [{v} + 4]", "fstp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out);
-    out
-}
-
-/// `fild a; fstp`.
-pub(super) fn int_to_float(a: i32) -> u32 {
-    let mut out = 0u32;
-    x87!("fild dword ptr [{a}]", "fstp dword ptr [{o}]"; a = &raw const a, o = &raw mut out);
     out
 }
 
@@ -1662,7 +1639,6 @@ mod diff {
         diff!(t, int_over_int_times(ii, ii, fl));
         diff!(t, clip_lerp3(fl, fl, fl, a32));
         diff!(t, slot_project(fl, fl, fl, fl, fl, fl, fl));
-        diff!(t, ext_sub(e80, fl));
         diff!(t, int_times_times(ii, fl, fl));
         diff!(t, toward(fl, fl, fl));
         diff!(t, diff_times_plus_times(fl, fl, fl, fl, fl));
@@ -1676,8 +1652,6 @@ mod diff {
         diff!(t, int_times_plus_times_plus(ii, fl, fl, fl, fl));
         diff!(t, turned_sprite(fl, fl, fl, k4, is, fl, fl));
         diff!(t, add_80(fl, fl));
-        diff!(t, int_over_int(ii, ii));
-        diff!(t, int_to_float(ii));
         diff!(t, turn_about(fl, fl, fl, fl, fl, fl));
         diff!(t, times_subr_to_int(fl, fl, fl));
         diff!(t, times_plus_80(fl, fl, fl, bl));

@@ -1,5 +1,5 @@
-//! `physics::update_car_angles` (0x43BEDC): `physics::car_angles` when `dword_71A6C8` is
-//! set or `dword_71A22C` is 0; else nothing.
+//! `physics::update_car_angles` (0x43BEDC): `physics::car_angles` when `camera_mode_is_2_or_3` is
+//! set or `all_wheels_off` is 0; else nothing.
 //!
 //! Callers: `physics::car_physics_step` (0x43B83B, 0x43B8B4, after `race::invert_car_matrix`).
 

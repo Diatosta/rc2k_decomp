@@ -1,5 +1,5 @@
 //! `install::key_up` (0x414784): key 0x66 on an item: for choices shown upright (kind
-//! 0x22 of `[esi] & 0x2F`) the choice before (`install::choice_back`).
+//! 0x22 of `[item] & 0x2F`) the choice before (`install::choice_back`).
 //!
 //! Takes the item. Returns the kind (`[item] & 0x2F`).
 //! Caller `install::page_key`, reading zero.

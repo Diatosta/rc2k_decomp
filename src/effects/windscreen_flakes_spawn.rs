@@ -1,16 +1,17 @@
-//! `effects::windscreen_flakes_spawn` (0x4C0507): new windscreen flakes this frame. `dword_89CA30` plus 1; with the
-//! x87 rounding set to chop throughout (put back at the end): a rate (the sine of
-//! `flt_76923E` + `g_marksShapeTilt` times `flt_89CA34`, plus -(`flt_89CA34` times
-//! `flt_811BE7`) times its cosine times `flt_8BC246`) into `flt_89CA38`; unless below
-//! `flt_8BC24A`: its whole part (held to 0x80) of `effects::pick_windscreen_flake`s, and one more when
-//! the windscreen flakes' random (`dword_8BC252`, times 0xC5 plus 0x5D) bits 8 .. 23 are at most its
-//! fraction times `flt_8BC24E`. (After the compare the original frees st(0) and moves the
-//! stack's top on, with the stack already empty: kept.)
+//! `effects::windscreen_flakes_spawn` (0x4C0507): new windscreen flakes this frame. The frame
+//! counter plus 1; with the x87 rounding set to chop throughout (put back at the end): a rate
+//! (the sine of the spawn angle + the shape tilt times the flakes' `rate`, plus -(`rate` times
+//! a constant) times its cosine times a factor) is kept; unless below a limit: its whole part
+//! (held to 0x80) of `effects::pick_windscreen_flake`s, and one more when the windscreen
+//! flakes' random (times 0xC5 plus 0x5D) bits 8 .. 23 are at most its fraction times a
+//! constant. (After the compare the original frees st(0) and moves the stack's top on, with
+//! the stack already empty: kept.)
 //!
-//! Caller: `effects::run_windscreen_flakes` (0x4C0052). The x87 run is plain Rust on the x87 model
+//! Caller: `effects::run_windscreen_flakes` The x87 run is plain Rust on the x87 model
 //! (`math::x87_float`), in the original's order, over the game's variables; the picks their Rust
 //! versions (under the same rounding).
 
+use crate::effects::cell_x87::CellX87;
 use crate::effects::pick_windscreen_flake::pick_windscreen_flake;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
@@ -20,7 +21,7 @@ use crate::race::owner_shared::RaceShared;
 
 const MOST: i32 = 0x80;
 
-/// The original's 0x4C053C .. 0x4C059D: the rate, compared (`fstsw` into `g_fpuStatus`).
+/// The rate, compared (its status word goes to the shared FPU status cell).
 fn rate(drops: &WindscreenDrops, fl: &WindscreenFlakes, effects: &crate::effects::owner::Effects) {
     rate_x87(drops, &effects.frame.kept_view, &fl.timing, &fl.state);
 }
@@ -72,23 +73,23 @@ fn rate_x87(
     sti: &WindscreenFlakeTiming,
     ss: &WindscreenFlakeState,
 ) {
-    let t0 = bh::ld(kv.first_angle.bits());
-    let t1 = t0 + bh::ld(drops.tilt.tilt.bits());
+    let t0 = kv.first_angle.ld();
+    let t1 = t0 + drops.tilt.tilt.ld();
     let t2 = t1.sin();
-    let t3 = t2 * bh::ld(sti.rate.bits());
-    sti.spawn_rate.set_bits(bh::st(t3));
-    let t4 = bh::ld(sti.rate.bits());
-    let t5 = t4 * bh::ld(drops.tilt.point[2].bits());
+    let t3 = t2 * sti.rate.ld();
+    sti.spawn_rate.st(t3);
+    let t4 = sti.rate.ld();
+    let t5 = t4 * drops.tilt.point[2].ld();
     let t6 = -t5;
-    let t7 = bh::ld(kv.first_angle.bits());
-    let t8 = t7 + bh::ld(drops.tilt.tilt.bits());
+    let t7 = kv.first_angle.ld();
+    let t8 = t7 + drops.tilt.tilt.ld();
     let t9 = t8.cos();
     let t10 = t6 * t9;
-    let t11 = t10 * bh::ld(ss.rate_constants[0].bits());
-    let t12 = t11 + bh::ld(sti.spawn_rate.bits());
-    sti.spawn_rate.set_bits(bh::st(t12));
-    let t13 = bh::ld(sti.spawn_rate.bits());
-    crate::effects::plain::set_status(bh::compare(t13, bh::ld(ss.rate_constants[1].bits())));
+    let t11 = t10 * ss.rate_constants[0].ld();
+    let t12 = t11 + sti.spawn_rate.ld();
+    sti.spawn_rate.st(t12);
+    let t13 = sti.spawn_rate.ld();
+    crate::effects::plain::set_status(bh::compare(t13, ss.rate_constants[1].ld()));
 }
 
 #[cfg(all(test, target_arch = "x86"))]

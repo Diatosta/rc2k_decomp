@@ -1,5 +1,5 @@
 //! The picture converters for 16-bit screens with MMX (`gfx::install_converters` puts them
-//! in `dword_4F5288` for the surface format numbers 1 .. 4 when the processor has MMX, the
+//! in the converter table for the surface format numbers 1 .. 4 when the processor has MMX, the
 //! 3DNow ones when it has that as well; `gfx::convert_picture` calls the one of the
 //! surface's format): four pixels of four 8-bit components a step turned into four 16-bit
 //! pixels, as MMX does it:
@@ -17,7 +17,7 @@
 //!
 //! The masks are the game's constants (read from it, so a change there would show).
 //!
-//! Callers: `gfx::convert_picture` (one row of width x height pixels, ebp 0). Refuses (before
+//! Callers: `gfx::convert_picture` (one row of width x height pixels). Refuses (before
 //! anything) fewer than four pixels a row and no rows (the original's `dec` counts on through
 //! 2^32).
 

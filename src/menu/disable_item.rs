@@ -8,7 +8,6 @@
 use crate::errors::Refused;
 use crate::menu::item_at::item_at;
 use crate::menu::owner::Screens;
-use crate::menu::owner::menus;
 
 use rc2k_core::menu::items::{Font, choosable};
 
@@ -29,7 +28,6 @@ pub fn set_item(screens: &Screens, number: u32, on: bool) -> Result<(), Refused>
     Ok(())
 }
 
-pub fn disable_item(number: u32) -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn disable_item(screens: &Screens, number: u32) -> Result<(), Refused> {
     set_item(screens, number, false)
 }

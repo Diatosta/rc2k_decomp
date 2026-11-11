@@ -1,14 +1,14 @@
-//! `effects::draw_pong_box` (0x4B8599): one box of the pong game (ball, bat or a score
-//! cell) drawn on the squares' frame: its height (st(0)) along the second axis times
-//! `flt_89CEF2` into `flt_768664` .. (and times `flt_765158` into `flt_76867C` ..), its
-//! width (st(1)) along the first times `flt_89CEEE` into `flt_768658` .. (`flt_768670` ..);
-//! the texture places from `dword_76920A` ..; its place (st(2) along, st(3) across) on the
-//! frame into `flt_89CF92` .., the four corners; unless the first corner's depth is below
-//! `flt_76921A`: projected, depth times `flt_89CEEA`, colour -1, `scene::draw_fan`.
-//!
+//! `effects::draw_pong_box` (0x4B8599): one box of the pong game (ball, bat or a score cell)
+//! drawn on the squares' frame: its height (st(0)) along the second axis times the flakes'
+//! second length into the sides (and times a constant into the second pair), its width (st(1))
+//! along the first times the first length (likewise); the texture places from the pong's
+//! constants; its place (st(2) along, st(3) across) on the frame into the corners; unless the
+//! first corner's depth is below the nearest depth: projected, depth times the depth scale,
+//! colour -1, `scene::draw_fan`.//!
 //! Callers: `effects::run_pong` (ball, bat), `effects::pong_cell`. The x87 runs are plain Rust on the x87 model
 //! (`math::x87_float`), in the original's order, over the game's variables.
 
+use crate::effects::cell_x87::CellX87;
 use crate::effects::pong::{Pong, PongState};
 use crate::effects::tuning::MarksFloats;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
@@ -16,7 +16,7 @@ use crate::math::x87;
 
 use crate::d3d::vertices_store::VERTICES;
 
-/// The original's 0x4B8599 .. 0x4B8659 on the four values: the sides; the place's two
+/// The sides, from the four values; the place's two
 /// values (left untouched) popped after.
 fn sides(
     pong: &Pong,
@@ -27,12 +27,12 @@ fn sides(
     sides_x87(v, &pong.state, &effects.setup.floats, &fl.tables);
 }
 
-/// The original's 0x4B868E .. 0x4B8786 on the place: the corners.
+/// The corners, from the place.
 fn corners(pong: &Pong, fl: &WindscreenFlakes, v: &[[u8; 10]; 4]) {
     corners_x87(v, &pong.state, &fl.tables);
 }
 
-/// The original's 0x4B87A5 .. 0x4B88A9: the corners projected, their depth.
+/// The corners projected, and their depth.
 fn projected(fl: &WindscreenFlakes) {
     projected_x87(&fl.tables);
 }
@@ -77,89 +77,89 @@ fn sides_x87(v: &[[u8; 10]; 4], p: &PongState, f: &MarksFloats, sq: &WindscreenF
     let _t1 = bh::from_f80(v[2]);
     let t2 = bh::from_f80(v[1]);
     let t3 = bh::from_f80(v[0]);
-    let t4 = bh::ld(sq.axes[1][0].bits());
+    let t4 = sq.axes[1][0].ld();
     let t5 = t4 * t3;
-    let t6 = t5 * bh::ld(sq.lengths[1].bits());
-    p.box_sides[3].set_bits(bh::st(t6));
-    let t7 = t6 * bh::ld(f.half.bits());
-    p.box_sides[9].set_bits(bh::st(t7));
-    let t8 = bh::ld(sq.axes[1][1].bits());
+    let t6 = t5 * sq.lengths[1].ld();
+    p.box_sides[3].st(t6);
+    let t7 = t6 * f.half.ld();
+    p.box_sides[9].st(t7);
+    let t8 = sq.axes[1][1].ld();
     let t9 = t8 * t3;
-    let t10 = t9 * bh::ld(sq.lengths[1].bits());
-    p.box_sides[4].set_bits(bh::st(t10));
-    let t11 = t10 * bh::ld(f.half.bits());
-    p.box_sides[10].set_bits(bh::st(t11));
-    let t12 = bh::ld(sq.axes[1][2].bits());
+    let t10 = t9 * sq.lengths[1].ld();
+    p.box_sides[4].st(t10);
+    let t11 = t10 * f.half.ld();
+    p.box_sides[10].st(t11);
+    let t12 = sq.axes[1][2].ld();
     let t13 = t3 * t12;
-    let t14 = t13 * bh::ld(sq.lengths[1].bits());
-    p.box_sides[5].set_bits(bh::st(t14));
-    let t15 = t14 * bh::ld(f.half.bits());
-    p.box_sides[11].set_bits(bh::st(t15));
-    let t16 = bh::ld(sq.axes[0][0].bits());
+    let t14 = t13 * sq.lengths[1].ld();
+    p.box_sides[5].st(t14);
+    let t15 = t14 * f.half.ld();
+    p.box_sides[11].st(t15);
+    let t16 = sq.axes[0][0].ld();
     let t17 = t16 * t2;
-    let t18 = t17 * bh::ld(sq.lengths[0].bits());
-    p.box_sides[0].set_bits(bh::st(t18));
-    let t19 = t18 * bh::ld(f.half.bits());
-    p.box_sides[6].set_bits(bh::st(t19));
-    let t20 = bh::ld(sq.axes[0][1].bits());
+    let t18 = t17 * sq.lengths[0].ld();
+    p.box_sides[0].st(t18);
+    let t19 = t18 * f.half.ld();
+    p.box_sides[6].st(t19);
+    let t20 = sq.axes[0][1].ld();
     let t21 = t20 * t2;
-    let t22 = t21 * bh::ld(sq.lengths[0].bits());
-    p.box_sides[1].set_bits(bh::st(t22));
-    let t23 = t22 * bh::ld(f.half.bits());
-    p.box_sides[7].set_bits(bh::st(t23));
-    let t24 = bh::ld(sq.axes[0][2].bits());
+    let t22 = t21 * sq.lengths[0].ld();
+    p.box_sides[1].st(t22);
+    let t23 = t22 * f.half.ld();
+    p.box_sides[7].st(t23);
+    let t24 = sq.axes[0][2].ld();
     let t25 = t2 * t24;
-    let t26 = t25 * bh::ld(sq.lengths[0].bits());
-    p.box_sides[2].set_bits(bh::st(t26));
-    let t27 = t26 * bh::ld(f.half.bits());
-    p.box_sides[8].set_bits(bh::st(t27));
+    let t26 = t25 * sq.lengths[0].ld();
+    p.box_sides[2].st(t26);
+    let t27 = t26 * f.half.ld();
+    p.box_sides[8].st(t27);
 }
 
 /// `corners`'s x87 block as plain Rust on the x87 model (50 instructions), same order and memory places.
 fn corners_x87(v: &[[u8; 10]; 4], p: &PongState, sq: &WindscreenFlakeTables) {
     let t0 = bh::from_f80(v[3]);
     let t1 = bh::from_f80(v[2]);
-    let t2 = t1 * bh::ld(sq.lengths[1].bits());
-    let t3 = t0 * bh::ld(sq.lengths[0].bits());
-    let t4 = t3 * bh::ld(sq.axes[0][0].bits());
-    let t5 = t2 * bh::ld(sq.axes[1][0].bits());
+    let t2 = t1 * sq.lengths[1].ld();
+    let t3 = t0 * sq.lengths[0].ld();
+    let t4 = t3 * sq.axes[0][0].ld();
+    let t5 = t2 * sq.axes[1][0].ld();
     let t6 = t4 + t5;
-    let t7 = t6 + bh::ld(sq.place[0].bits());
-    sq.corners[0][0].set_bits(bh::st(t7));
-    let t8 = t3 * bh::ld(sq.axes[0][1].bits());
-    let t9 = t2 * bh::ld(sq.axes[1][1].bits());
+    let t7 = t6 + sq.place[0].ld();
+    sq.corners[0][0].st(t7);
+    let t8 = t3 * sq.axes[0][1].ld();
+    let t9 = t2 * sq.axes[1][1].ld();
     let t10 = t8 + t9;
-    let t11 = t10 + bh::ld(sq.place[1].bits());
-    sq.corners[0][1].set_bits(bh::st(t11));
-    let t12 = t2 * bh::ld(sq.axes[1][2].bits());
-    let t13 = t3 * bh::ld(sq.axes[0][2].bits());
+    let t11 = t10 + sq.place[1].ld();
+    sq.corners[0][1].st(t11);
+    let t12 = t2 * sq.axes[1][2].ld();
+    let t13 = t3 * sq.axes[0][2].ld();
     let t14 = t12 + t13;
-    let t15 = t14 + bh::ld(sq.place[2].bits());
-    sq.corners[0][2].set_bits(bh::st(t15));
-    let t16 = bh::ld(sq.corners[0][0].bits());
-    sq.corners[0][0].set_bits(bh::st(t16));
-    let t17 = t16 + bh::ld(p.box_sides[3].bits());
-    sq.corners[1][0].set_bits(bh::st(t17));
-    let t18 = t17 + bh::ld(p.box_sides[0].bits());
-    sq.corners[2][0].set_bits(bh::st(t18));
-    let t19 = t18 - bh::ld(p.box_sides[3].bits());
-    sq.corners[3][0].set_bits(bh::st(t19));
-    let t20 = bh::ld(sq.corners[0][1].bits());
-    sq.corners[0][1].set_bits(bh::st(t20));
-    let t21 = t20 + bh::ld(p.box_sides[4].bits());
-    sq.corners[1][1].set_bits(bh::st(t21));
-    let t22 = t21 + bh::ld(p.box_sides[1].bits());
-    sq.corners[2][1].set_bits(bh::st(t22));
-    let t23 = t22 - bh::ld(p.box_sides[4].bits());
-    sq.corners[3][1].set_bits(bh::st(t23));
-    let t24 = bh::ld(sq.corners[0][2].bits());
-    sq.corners[0][2].set_bits(bh::st(t24));
-    let t25 = t24 + bh::ld(p.box_sides[5].bits());
-    sq.corners[1][2].set_bits(bh::st(t25));
-    let t26 = t25 + bh::ld(p.box_sides[2].bits());
-    sq.corners[2][2].set_bits(bh::st(t26));
-    let t27 = t26 - bh::ld(p.box_sides[5].bits());
-    sq.corners[3][2].set_bits(bh::st(t27));
+    let t15 = t14 + sq.place[2].ld();
+    sq.corners[0][2].st(t15);
+    let t16 = sq.corners[0][0].ld();
+    sq.corners[0][0].st(t16);
+    let t17 = t16 + p.box_sides[3].ld();
+    sq.corners[1][0].st(t17);
+    let t18 = t17 + p.box_sides[0].ld();
+    sq.corners[2][0].st(t18);
+    let t19 = t18 - p.box_sides[3].ld();
+    sq.corners[3][0].st(t19);
+    let t20 = sq.corners[0][1].ld();
+    sq.corners[0][1].st(t20);
+    let t21 = t20 + p.box_sides[4].ld();
+    sq.corners[1][1].st(t21);
+    let t22 = t21 + p.box_sides[1].ld();
+    sq.corners[2][1].st(t22);
+    let t23 = t22 - p.box_sides[4].ld();
+    sq.corners[3][1].st(t23);
+    let t24 = sq.corners[0][2].ld();
+    sq.corners[0][2].st(t24);
+    let t25 = t24 + p.box_sides[5].ld();
+    sq.corners[1][2].st(t25);
+    let t26 = t25 + p.box_sides[2].ld();
+    sq.corners[2][2].st(t26);
+    let t27 = t26 - p.box_sides[5].ld();
+    sq.corners[3][2].st(t27);
 }
 
 /// `projected`'s x87 block as plain Rust on the x87 model (60 instructions), same order and memory places.
@@ -170,68 +170,68 @@ fn projected_x87(sq: &WindscreenFlakeTables) {
             .view_scale
             .bits(),
     );
-    let t1 = t0 / bh::ld(sq.corners[3][2].bits());
+    let t1 = t0 / sq.corners[3][2].ld();
     let t2 = bh::ld(
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
             .bits(),
     );
-    let t3 = t2 / bh::ld(sq.corners[2][2].bits());
+    let t3 = t2 / sq.corners[2][2].ld();
     let t4 = bh::ld(
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
             .bits(),
     );
-    let t5 = t4 / bh::ld(sq.corners[1][2].bits());
+    let t5 = t4 / sq.corners[1][2].ld();
     let t6 = bh::ld(
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
             .bits(),
     );
-    let t7 = t6 / bh::ld(sq.corners[0][2].bits());
-    let t8 = bh::ld(sq.corners[0][1].bits());
+    let t7 = t6 / sq.corners[0][2].ld();
+    let t8 = sq.corners[0][1].ld();
     let t9 = t8 * t7;
-    let t10 = t7 * bh::ld(sq.corners[0][0].bits());
+    let t10 = t7 * sq.corners[0][0].ld();
     let t11 = -t9;
-    let t12 = t11 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[1].bits());
+    let t12 = t11 + crate::scene::polygon_work::front_end().window.view_centre[1].ld();
     st_cell(&VERTICES.vertices[0].y, t12);
-    let t13 = t10 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[0].bits());
+    let t13 = t10 + crate::scene::polygon_work::front_end().window.view_centre[0].ld();
     st_cell(&VERTICES.vertices[0].x, t13);
-    let t14 = bh::ld(sq.corners[1][1].bits());
+    let t14 = sq.corners[1][1].ld();
     let t15 = t14 * t5;
-    let t16 = t5 * bh::ld(sq.corners[1][0].bits());
+    let t16 = t5 * sq.corners[1][0].ld();
     let t17 = -t15;
-    let t18 = t17 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[1].bits());
+    let t18 = t17 + crate::scene::polygon_work::front_end().window.view_centre[1].ld();
     st_cell(&VERTICES.vertices[1].y, t18);
-    let t19 = t16 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[0].bits());
+    let t19 = t16 + crate::scene::polygon_work::front_end().window.view_centre[0].ld();
     st_cell(&VERTICES.vertices[1].x, t19);
-    let t20 = bh::ld(sq.corners[2][1].bits());
+    let t20 = sq.corners[2][1].ld();
     let t21 = t20 * t3;
-    let t22 = t3 * bh::ld(sq.corners[2][0].bits());
+    let t22 = t3 * sq.corners[2][0].ld();
     let t23 = -t21;
-    let t24 = t23 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[1].bits());
+    let t24 = t23 + crate::scene::polygon_work::front_end().window.view_centre[1].ld();
     st_cell(&VERTICES.vertices[2].y, t24);
-    let t25 = t22 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[0].bits());
+    let t25 = t22 + crate::scene::polygon_work::front_end().window.view_centre[0].ld();
     st_cell(&VERTICES.vertices[2].x, t25);
-    let t26 = bh::ld(sq.corners[3][1].bits());
+    let t26 = sq.corners[3][1].ld();
     let t27 = t26 * t1;
-    let t28 = t1 * bh::ld(sq.corners[3][0].bits());
+    let t28 = t1 * sq.corners[3][0].ld();
     let t29 = -t27;
-    let t30 = t29 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[1].bits());
+    let t30 = t29 + crate::scene::polygon_work::front_end().window.view_centre[1].ld();
     st_cell(&VERTICES.vertices[3].y, t30);
-    let t31 = t28 + bh::ld(crate::scene::polygon_work::front_end().window.view_centre[0].bits());
+    let t31 = t28 + crate::scene::polygon_work::front_end().window.view_centre[0].ld();
     st_cell(&VERTICES.vertices[3].x, t31);
-    let t32 = bh::ld(sq.corners[0][2].bits());
-    let t33 = t32 * bh::ld(sq.inverse.bits());
-    let t34 = bh::ld(sq.corners[1][2].bits());
-    let t35 = t34 * bh::ld(sq.inverse.bits());
-    let t36 = bh::ld(sq.corners[2][2].bits());
-    let t37 = t36 * bh::ld(sq.inverse.bits());
-    let t38 = bh::ld(sq.corners[3][2].bits());
-    let t39 = t38 * bh::ld(sq.inverse.bits());
+    let t32 = sq.corners[0][2].ld();
+    let t33 = t32 * sq.inverse.ld();
+    let t34 = sq.corners[1][2].ld();
+    let t35 = t34 * sq.inverse.ld();
+    let t36 = sq.corners[2][2].ld();
+    let t37 = t36 * sq.inverse.ld();
+    let t38 = sq.corners[3][2].ld();
+    let t39 = t38 * sq.inverse.ld();
     st_cell(&VERTICES.vertices[3].z, t39);
     st_cell(&VERTICES.vertices[2].z, t37);
     st_cell(&VERTICES.vertices[1].z, t35);

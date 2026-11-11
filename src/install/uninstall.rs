@@ -6,12 +6,12 @@
 //! (`files::remove_directory`); the parent is entered and the install folder removed; after a
 //! second the status and source are cleared, written again, the DirectPlay key removed
 //! (`install::unregister_lobby`), the Start-menu removal asked (`g_removeStartItems`) and
-//! `g_installing` cleared. Each path is built in `byte_95E9F8` from `byte_95E7F8` plus the
+//! `g_installing` cleared. Each path is built in `path_b` from `installed` plus the
 //! listed name.
 //!
-//! A list action (`off_51DD30`). Caller `install::run_page`.
+//! The action of a list item. Caller `install::run_page`.
 //!
-//! "Remove all" (2026-11-03, a decided difference): the original removed only what its
+//! "Remove all" (a decided difference): the original removed only what its
 //! script lists, so files the game made (its log, `rc2k.log`, the program and its
 //! libraries) kept the folder. With every folder chosen (`script_mark` not 5, "keep saved
 //! data"'s End) the installation's folder goes whole once the listed files are gone; on
@@ -25,7 +25,7 @@ use crate::install::installer::{
     store_text, text_at, unlock, wb,
 };
 
-/// byte_95E9F8 = byte_95E7F8 + name #index of `table`, NUL-ended.
+/// `path_b` = `paths.installed` + name #index of `table`, NUL-ended.
 fn build_path(
     install: &'static crate::install::owner::Install,
     table: &crate::memory::owned::Owned<crate::install::name_tables::NameTable>,

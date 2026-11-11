@@ -8,8 +8,8 @@
 use crate::errors::BadInput;
 use rc2k_core::strings::bytes::Bytes;
 
-// The original returns from `cmp byte ptr [ecx + ebx], 0` on the NUL: the same compare again
-// leaves the same flags.
+// The original returns from its compare with the NUL: the same compare again leaves the
+// same flags.
 /// The length of the text at `at` (to its NUL), which must end inside its block.
 pub fn nul_at(text: &(impl Bytes + ?Sized)) -> Result<u32, BadInput> {
     (0..)

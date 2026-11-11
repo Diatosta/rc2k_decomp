@@ -6,7 +6,7 @@
 use crate::errors::Refused;
 use crate::race::owner_shared::RaceShared;
 
-/// The Rust version.
+/// Makes car 0 the current car.
 pub fn store_first_car(shared: &RaceShared) -> Result<(), Refused> {
     shared.work.current_car.set(0);
 

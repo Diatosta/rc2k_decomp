@@ -1,6 +1,6 @@
 //! `net::find_sessions` (0x418999): "NET: Find sessions"; with DirectPlay's object there, the
-//! sessions listed afresh (`dword_52ACF4` 0): a session description (`dword_5AB2AC`, 0x50
-//! bytes, zeroed, its size 0x50, the game's GUID `dword_5AB300` at +0x18) and
+//! sessions listed afresh (`sessions` 0): a session description (`session_desc`, 0x50
+//! bytes, zeroed, its size 0x50, the game's GUID `app_guid` at +0x18) and
 //! `EnumSessions` (no timeout, `net::session_found`, flags 0x91) called, or with
 //! `g_netPosting` 1 posted to the receiving thread (`net::post_call`, the code at 0x418A43);
 //! then the window restored (`system::restore_window`).

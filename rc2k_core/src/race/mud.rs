@@ -1,12 +1,12 @@
 //! The mud on the car's textures: places on a 256 x 256 square, the mud map's strengths
-//! (128 x 128 bytes a texture), the throws and the splashes (converted 2026-10-21 from
+//! (128 x 128 bytes a texture), the throws and the splashes (Converted from
 //! `race::mud_pixel` 0x44A58A, `mud_texel` 0x44A549, `put_mud_texel` 0x44A5A9,
 //! `muddy_texel` 0x44A2E1, `throw_mud_texel` 0x44A2A2 and `splash_mud` 0x44A35F; the
-//! turns, the colours and the file converted 2026-10-21 from `race::mud_frame` 0x44A054,
+//! turns, the colours and the file Converted from `race::mud_frame` 0x44A054,
 //! `mud_texture_turn` 0x44A087, `sample_mud_colours` 0x44A0D6 and `load_mud` 0x449D95;
-//! the tint converted 2026-10-21 from `race::tint_to_mud_colour` 0x44A441).
+//! the tint Converted from `race::tint_to_mud_colour` 0x44A441).
 
-/// The mud textures (`dword_623D5C`: 0 .. 3).
+/// The mud textures (`mud_texture`: 0 .. 3).
 pub const MOST_TEXTURE: u32 = 3;
 /// One texture's map: 128 x 128 strengths.
 pub const MAP_BYTES: u32 = 0x4000;
@@ -49,8 +49,7 @@ pub fn strength_index(n: u32, x: u32, y: u32) -> u32 {
         .wrapping_add(strength_row(y))
 }
 
-/// The row's part of `strength_index`: (y / 2) x 128 (what the address's making leaves
-/// in eax).
+/// The row's part of `strength_index`: (y / 2) x 128 (what the address's making leaves).
 pub fn strength_row(y: u32) -> u32 {
     (y >> 1) << 7
 }
@@ -69,10 +68,10 @@ pub fn tint_amount(strength: u32) -> u32 {
     (strength + 1) >> 1
 }
 
-/// The throws a texture takes (`race::throw_mud_texel`: its count `dword_623D80[n]`).
+/// The throws a texture takes (`race::throw_mud_texel`: its count `mud_thrown_counts`[n]`).
 pub const LAST_THROWN: u32 = 0x6_0000;
 
-/// `race::throw_mud_texel`: the extra throw's sum (`dword_623D30`) on by 0x10000000, and
+/// `race::throw_mud_texel`: the extra throw's sum (`mud_extra_sum`) on by 0x10000000, and
 /// whether it carried (every 16th: a texel at a random number too).
 pub fn extra_throw(sum: u32) -> (u32, bool) {
     sum.overflowing_add(0x1000_0000)
@@ -105,7 +104,7 @@ pub const SPLASH_SIDE: u32 = 4;
 /// The frames between two mud textures' turns.
 pub const TURN_FRAMES: u32 = 0xE;
 
-/// The frame count (`dword_623D58`) one on: the count kept and whether a texture's turn
+/// The frame count (`mud_frames`) one on: the count kept and whether a texture's turn
 /// is due (at `TURN_FRAMES` or past, the count back to 0).
 pub fn count_frame(frames: u32) -> (u32, bool) {
     let n = frames.wrapping_add(1);
@@ -126,7 +125,7 @@ pub fn next_texture(texture: u32) -> u32 {
     texture.wrapping_add(1) & MOST_TEXTURE
 }
 
-/// The mud's colour packed (`dword_623D34`) from its red, green and blue dwords: red
+/// The mud's colour packed (`mud_packed`) from its red, green and blue dwords: red
 /// << 16 with its low half replaced by green's and blue's low bytes.
 pub fn packed_colour([red, green, blue]: [u32; 3]) -> u32 {
     (red << 16) & 0xFFFF_0000 | (green & 0xFF) << 8 | (blue & 0xFF)
@@ -151,7 +150,7 @@ pub fn file_digits(number: u32) -> (u32, u32) {
 pub struct Tint {
     /// The colour (its top byte kept).
     pub colour: u32,
-    /// The high dword of the last byte's product (edx).
+    /// The high dword of the last byte's product (the product's second half).
     pub high: u32,
 }
 

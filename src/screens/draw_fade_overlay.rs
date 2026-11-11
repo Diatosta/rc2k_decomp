@@ -1,7 +1,7 @@
 //! `screens::draw_fade_overlay` (0x49FC7F): a see-through quad over the whole 800 x 600
-//! screen, colour 0x11166A, its see-through `dword_75AB50` (the fades of the inspection's
-//! screens), by `scene::draw_tinted_quad`; the quad's inputs `dword_623E10` ..
-//! `dword_623E24` (`screens::service_boxes::quad`).
+//! screen, colour 0x11166A, its see-through the fade's see-through (the fades of the inspection's
+//! screens), by `scene::draw_tinted_quad`; the quad's inputs a scene work cell ..
+//! a scene work cell (`screens::service_boxes::quad`).
 //!
 //! Caller: `menu::fade_frame` (the fades' frame).
 

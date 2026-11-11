@@ -1,7 +1,7 @@
 //! The stage's objects, pictures, lights' records and courses as the loading sets them up:
 //! the object slots' kinds, the texture kinds' pictures, which courses are on the disc,
 //! the lights' data laid into their records and the crash matrix's angles (converted
-//! 2026-10-21 from `race::set_object_kinds` 0x425BB4, `set_all_plates` 0x42518B,
+//! from `race::set_object_kinds` 0x425BB4, `set_all_plates` 0x42518B,
 //! `find_present_courses` 0x4394F8, `copy_lights_data` 0x438B03 and `get_mat_crash`
 //! 0x43D43E).
 
@@ -9,9 +9,9 @@ use crate::Invalid;
 
 // ---- the object slots' kinds ----
 
-/// The eight fixed kinds (`dword_609294` .. `dword_6092B0`).
+/// The eight fixed kinds (`fixed_kinds` .. `dword_6092B0`).
 pub const FIXED_KINDS: [u32; 8] = [0xCF, 0x79, 0xCC, 0xCD, 0xC8, 0xC9, 0xCA, 0xCB];
-/// The slots set from their defaults (`dword_6091B4`): 1 .. 0x3F.
+/// The slots set from their defaults (`slot_kind_defaults`): 1 .. 0x3F.
 pub const DEFAULT_SLOTS: std::ops::Range<u32> = 1..0x40;
 /// The cars' slots: 0x50 on, 0x14 a car.
 pub const FIRST_CAR_SLOT: u32 = 0x50;
@@ -143,7 +143,7 @@ pub fn lay_lights(data: &[u8], records: &mut [u8]) {
 
 // ---- the crash matrix ----
 
-/// `get_mat_crash`'s turns (x, y, z) from the three angles (`dword_71A998` ..: y, x, z,
+/// `get_mat_crash`'s turns (x, y, z) from the three angles (`car_heading` ..: y, x, z,
 /// each with its whole part in the top half).
 pub fn crash_turns(angles: [u32; 3]) -> [u32; 3] {
     [angles[1] >> 16, angles[0] >> 16, angles[2] >> 16]

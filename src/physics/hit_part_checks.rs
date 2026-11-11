@@ -1,12 +1,9 @@
-//! `physics::hit_part_checks` (0x441046): +0x284 (`unk_71A25C`) 1; with bits 5, 6, 1, 2
+//! `physics::hit_part_checks` (0x441046): +0x284 (`parts_state`) 1; with bits 5, 6, 1, 2
 //! of +0x298 all set -1; with bits 7, 8, 3, 4 also set 0 (a reading: which parts are
 //! left); then, with +0x26C 0, `physics::drop_hit_parts` and `physics::sound_hit_parts`.
 //!
 //! Caller: `physics::car_physics_step` (0x43B957), every physics step. Refuses what the calls
 //! refuse; what was written is put back.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::physics::drop_hit_parts::drop_hit_parts;

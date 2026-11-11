@@ -4,7 +4,7 @@
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`), as extracted from the disassembly: background `champoc.png` through
 //! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is asked about;
-//! returns at once on leaving if `dword_75AB34` is 1.
+//! returns at once on leaving if `state.menus.standings_shown` is 1.
 //! A reading from the title string of its menu, not yet a visit: "CAMPEONATO DE CLASSE".
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, List, Screen, Step};

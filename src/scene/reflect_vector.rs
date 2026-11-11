@@ -8,7 +8,7 @@
 //! float; v = v + v - n; then v through the matrix `flt_5EA20C`
 //! (`scene::rotate_point`, inlined) and back to its place. d stays unrounded between its uses. The original's store of d to `g_scratch` (nothing read it)
 //! is not kept.
-//! Plain Rust since 2026-10-24 (the x87's arithmetic in `X`, `math/x87_float.rs`); the
+//! Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the
 //! original's instructions are `asm_reference` in the tests.
 //! One caller, `scene::reflection_coordinates` (the reflection's texture coordinates).
 use crate::scene::x87_mem::{Base, cells, fld, fstp};

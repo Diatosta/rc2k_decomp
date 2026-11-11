@@ -1,4 +1,4 @@
-//! The x87's habits the physics' converted float code keeps (2026-10-21): a float loaded
+//! The x87's habits the physics' converted float code keeps: a float loaded
 //! and stored again comes back with a signalling NaN made quiet; the compares the
 //! originals read (`fcomp` and the status word's C0 / C3) count an unordered pair as
 //! below and as equal; `fistp` rounds to the nearest, ties to even, and stores the

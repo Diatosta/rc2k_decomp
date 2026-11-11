@@ -1,8 +1,6 @@
-//! The savegame preview's variables, out of RAL.EXE's image (IDA 0x755144 .. 0x755170;
-//! phase 7, typed): the `usesavegamekeys` setting, the slot shown and the saved game's
-//! figures the preview and details screens draw. A `#[repr(C)]` struct of atomic cells with
-//! the image's layout, one static; `moved::MOVED` points the range at it. (Split 2026-10-25
-//! from the front end's block `menu::store`.)
+//! The savegame preview's variables, with the image's layout (IDA 0x755144 .. 0x755170):
+//! the `usesavegamekeys` setting, the slot shown and the saved game's figures the preview and details screens draw. A `#[repr(C)]` struct of atomic cells with
+//! the image's layout, one static; `moved::MOVED` points the range at it.
 
 use crate::session::Dword;
 
@@ -45,7 +43,7 @@ pub const START: usize = 0x755144;
 /// IDA 0X755170, the end of the piece.
 pub const END: usize = 0x755170;
 
-/// Where IDA 0X755144 is now (`moved::MOVED`'s home).
+/// Where IDA 0X755144 is (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn savegame_preview_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::saves::owner::SAVES.savegame_preview)

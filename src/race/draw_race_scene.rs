@@ -1,29 +1,29 @@
 //! `race::draw_race_scene` (0x45429B): the race frame's drawing, between the scene's begin
 //! and end (`drive::race_frame` part 3). In turn:
-//! - the cars shown chosen (`drive::choose_shown_cars`), 0x20 dwords at `unk_63DBB8` 0; the
-//!   two view blocks' +0x220 into `dword_6D14F6` / `dword_6D14FA` (each 0 while its
-//!   `dword_63DB74` / `dword_63DB78` is 0); the batches' counts, `dword_639960` / `64`,
-//!   `g_carsDrawn` and `g_carsCulled` 0; bit 1 of `dword_609354` into `dword_62DAD0`, bit 0
-//!   of `dword_609350` into `dword_62DACC`, bit 6 of the first view's flags into
-//!   `dword_6D1502`; `dword_6415E0` the first view block's +0x6F0 when `qword_609344` is not
-//!   0, else 0; `dword_5CDA8C` 1;
-//! - the sound tick (eax 0xA), `g_shine` from `dword_609324`; inside `pusha` / `pushf` the
-//!   filters and five render states (0x15 = 4, 0x1C = 1, 0x13 = 5, 0x14 = 6, 0x1B = 1);
-//! - the sound tick (0xB), `dword_63967C` one more, the clock restarted into
-//!   `dword_63DC38`, the full view's window, the cars' parts readied, the maps scrolled;
-//!   `dword_6D1508` 0, the views' textures forgotten, the mud's frame; `dword_6415F8` 0, the
-//!   kinds' textures assigned, the two textures of `unk_6D1482` / `unk_6D1492` (unless -1)
-//!   wanted in kind 0xDC's first slot and the next; the places mapped, the slots' textures
-//!   loaded; the sound tick (0xC); the panel set up unless `dword_64BB18`;
-//! - the views: one (`dword_63DB98` 1: car A's, the scene, ticks 0xD and 0xE around
+//! - the cars shown chosen (`drive::choose_shown_cars`), 0x20 dwords of `view_cleared` 0; the
+//!   two view blocks' option bits (+0x220) into `hud_flags` and the next dword (each 0 while
+//!   its `view_on` flag is 0); the batches' counts, `whole_polygon_count` and the next,
+//!   `g_carsDrawn` and `g_carsCulled` 0; bit 1 of `refresh_flags_a` into `marks_mask`, bit 0 of
+//!   `refresh_flags_b` into `lamps_mask`, bit 6 of the first view's flags into `flat`;
+//!   `mirror_wanted` the first view block's flag (+0x6F0) when `blit_cleared` is not 0, else 0;
+//!   `d3d_drawing_on` 1;
+//! - the sound tick 0xA, `g_shine` from `shine_from`; the filters and five render states (0x15 =
+//!   4, 0x1C = 1, 0x13 = 5, 0x14 = 6, 0x1B = 1) set with the caller's registers saved;
+//! - the sound tick 0xB, `frames_drawn` one more, the clock restarted into `clock_base`, the full
+//!   view's window, the cars' parts readied, the maps scrolled; `texture_changes` 0, the views'
+//!   textures forgotten, the mud's frame; `kind_textures_done` 0, the kinds' textures assigned,
+//!   the two textures of the panel's `lights` entries (unless -1) wanted in kind 0xDC's first
+//!   slot and the next; the places mapped, the slots' textures loaded; the sound tick 0xC; the
+//!   panel set up unless `no_place`;
+//! - the views: one (`views` 1: car A's, the scene, ticks 0xD and 0xE around
 //!   `d3d::copy_screen_to_texture`, the overlays, tick 0xF, the mirror if the view's flags have bit
-//!   3), or two halves (`dword_6238A4` 1 side by side, else one above the other), each with its
-//!   window (`dword_62408C` .. `dword_624080`, `scene::set_view_window`), its car, the
-//!   scene, tick 0xD, the overlays, tick 0xF and its mirror;
-//! - the first car loaded, both batches flushed, the sound spots found and shared, the
-//!   parts' sounds woken, the sound tick (0x10), render states 0x11 and 0x12 = 2; the HUD's
-//!   pass unless `dword_71C3E0` or `dword_64BB18`; the sound tick (0x11), the skidmarks laid,
-//!   the name plates; the tyre change screen unless `dword_5C5CE0` is 2.
+//!   3), or two halves (`split` 1 side by side, else one above the other), each with its window
+//!   (`view_size`, `view_zoom`, `scene::set_view_window`), its car, the scene, tick 0xD, the
+//!   overlays, tick 0xF and its mirror;
+//! - the first car loaded, both batches flushed, the sound spots found and shared, the parts'
+//!   sounds woken, the sound tick 0x10, render states 0x11 and 0x12 = 2; the HUD's pass unless
+//!   `in_credits` or `no_place`; the sound tick 0x11, the skidmarks laid, the name plates; the
+//!   tyre change screen unless `replay_mode` is 2.
 //!
 //! Refuses (before anything) a null view block, and a wanted texture's slot past
 //! `g_slotWantedTextures`' 0x400; then what its steps refuse.
@@ -271,7 +271,7 @@ fn draw_players_beside(
     })
 }
 
-/// The Rust version (see the header).
+/// Draws the race frame (see the header).
 pub fn draw_race_scene(
     race: &Race,
     input: &crate::input::owner::Input,
@@ -391,7 +391,7 @@ pub fn draw_race_scene(
     let begun = crate::debug::timing::start();
     race_sound_tick(frame)?;
     crate::debug::timing::stop(crate::debug::timing::Stage::SoundTick, begun);
-    // `g_shine` from `dword_609324`: each view's from it now (`race::draw_view_scene`).
+    // `g_shine` from `shine_from`: each view's from it now (`race::draw_view_scene`).
     // pusha; pushf .. popf; popa
     crate::scene::set_filters::set_filters();
     for (value, state) in [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1, 0x1B)] {

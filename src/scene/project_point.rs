@@ -3,25 +3,25 @@
 //!
 //! Takes: the point's number
 //!
-//! The records are 0x20 bytes each at `dword_5C6FB8`: +0 the point's number, +0xC the
-//! x on the screen, +0x10, +0x14, +0x18 the point in the view, +0x1C the y on the
-//! screen. A point n of the scene has record n & 0xFFF; a point -n of an object has
-//! record 0x1000 + (n & 0xFFF), which is made elsewhere and only found here.
-//! A record whose number is not the point's is made anew: the point's three whole
-//! numbers (12 bytes each at `dword_5CCCC0`) through the matrix `flt_5EA2CC`
-//! (`scene::rotate_point`: three rows of x, y, z factors and a fourth to add; x87, inlined here
-//! with its own instructions), the screen's two set to 0, and, unless the depth is
-//! under 4096: x = x' * (`flt_624088` / depth) + `flt_62409C`, y = `flt_6240A0` - y' *
-//! (the same). With `dword_60932C` set the depth divided by is `dword_5CCD80` + 1
-//! instead (the real one went to `g_scratch`, which nothing read: not kept). With `dword_6365C4` at 1 the
-//! record's depth is then lowered by 262144.
-//! Fatal errors 0x80600902 and 0x80600903 for a number past the object's or the
-//! scene's points.
+//! The records are 0x20 bytes each in the scene's point records: +0 the point's number, +0xC
+//! the x on the screen, +0x10, +0x14, +0x18 the point in the view, +0x1C the y on the
+//! screen. A point n of the scene has record n & 0xFFF; a point -n of an object has record
+//! 0x1000 + (n & 0xFFF), which is made elsewhere and only found here.
+//! A record whose number is not the point's is made anew: the point's three whole numbers
+//! (12 bytes each in the course's point table) through the view matrix (`scene::rotate_point`:
+//! three rows of x, y, z factors and a fourth to add; x87, inlined here with its own
+//! instructions), the screen's two set to 0, and, unless the depth is under 4096:
+//! x = x' * (view scale / depth) + the view's centre x, y = the centre y - y' * (the same).
+//! With the stage's flat-depth switch set the depth divided by is a fixed depth + 1 instead
+//! (the real one went to the shared work dword, which nothing read: not kept). With the
+//! lights' draw mode at 1 the record's depth is then lowered by 262144.
+//! Fatal errors 0x80600902 and 0x80600903 for a number past the object's or the scene's
+//! points.
 //! One caller, `scene::project_polygon`.
 //!
 //! `record_offset` is the core's (`rc2k_core::scene::projection`); the arithmetic is the
 //! x87's, in plain Rust over `X` (`math/x87_float.rs`), as the original's instructions
-//! are kept as `asm_reference` in the tests (2026-10-24).
+//! are kept as `asm_reference` in the tests.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87;
@@ -33,9 +33,9 @@ use crate::scene::x87_mem::{Base, cells, fild, fld, fstp};
 // ---- game data ----
 
 pub const RECORD_LEN: usize = 0x20;
-/// `flt_5C5E18`: a point nearer than this is not put on the screen.
+/// A point nearer than this is not put on the screen.
 pub const NEAR: f32 = 4096.0;
-/// `flt_5C5E1C`.
+/// What the record's depth is lowered by.
 const LOWERED_BY: f32 = 262144.0;
 
 const TOO_HIGH_OBJECT: FatalError = FatalError {
@@ -172,8 +172,7 @@ pub struct Projected {
     pub record: u32,
 }
 
-/// A scene point's record made anew (0x44CF4E, and the same code in
-/// `project_point`): the point through the view's matrix and onto the screen.
+/// A scene point's record made anew (the same code as in `project_point`): the point through the view's matrix and onto the screen.
 pub(crate) fn make_scene_record(
     race: &Race,
     point: u32,
@@ -188,7 +187,7 @@ pub(crate) fn make_scene_record(
     // Made on a copy of the record (`scene::point_records`), then stored.
     let mut r = point_records::get(record)?;
     r[0] = point;
-    let place = crate::race::scene_points::point_number(point)?;
+    let place = crate::race::scene_points::point_number(&race.course, point)?;
     rotate(
         &place,
         &view
@@ -226,7 +225,7 @@ pub fn project_point(
 ) -> Result<Projected, Refused> {
     let course = &race.course;
     let offset = record_offset(course, point, scene)?;
-    if !point_records::held() {
+    if !point_records::held(course) {
         return Err(BadInput("no records for the points").into());
     }
     let record = point_records::at_offset(offset);

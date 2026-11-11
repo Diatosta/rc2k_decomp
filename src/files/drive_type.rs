@@ -4,7 +4,7 @@
 //! that
 //! text in a dword). Three callers: the search for the game's CD, the installer, and
 //! `files::is_cd_drive`, the main loop's "is the base directory on a CD" check (whose answer this
-//! build no longer looks at: nine `nop`s follow its call at 0x415448).
+//! build does not look at).
 
 /// The root that is asked about: `x:\`, or none for the current drive.
 pub fn drive_root(letter: u8) -> Option<[u8; 4]> {

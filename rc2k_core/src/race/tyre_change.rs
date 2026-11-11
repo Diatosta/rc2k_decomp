@@ -1,4 +1,4 @@
-//! The roadside tyre change's gauge (converted 2026-10-21 from `race::tyre_change_gauge`
+//! The roadside tyre change's gauge (converted from `race::tyre_change_gauge`
 //! 0x41C1D6): a gauge filling over half a second while a button is held, the press
 //! timing the change; the player's device keeps the gauge, the stage and the start's
 //! clock (then the time). The clock, the button, the drawing and the press's time (the
@@ -59,7 +59,7 @@ pub trait Io {
     fn beaten(&mut self, time: u32);
 }
 
-/// The gauge's next turn: `start` (eax 0) starts it (the clock, the gauge 0, waiting for
+/// The gauge's next turn: `start` (mode 0) starts it (the clock, the gauge 0, waiting for
 /// the button to be let go, drawn), then as waiting; waiting, the button let go starts
 /// it running; running, a press ends it (on the developer's machine it runs on to
 /// `DEVELOPER_TOP`), else the gauge follows the clock (`LONGEST` or more: an empty gauge,

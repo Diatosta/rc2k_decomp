@@ -1,6 +1,6 @@
 //! `service::begin_setup_name` (0x46EE81): starts typing the name of the highlighted setup
 //! slot: the name is copied to the text entry's backup and cleared, the entry's length is 0
-//! and `dword_7556A8` (an entry is going on) is 1.
+//! and `typing` (an entry is going on) is 1.
 //!
 //! The action of the slots on the "save setup" menu (six menu tables point at it); from then on the
 //! screen loop runs `edit_setup_name`. Refuses a slot past 99.

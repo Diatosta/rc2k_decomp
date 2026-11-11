@@ -283,7 +283,7 @@ pub struct DrawCtx<'a> {
     pub scene: &'a crate::scene::owner::Scene,
     pub view: &'a ViewScratch,
     /// Off for the own car drawn over the view (`race::draw_view_overlays`; the original
-    /// cleared `dword_621900` around it): `scene::clip_polygon_by_depth`'s far pass.
+    /// cleared `far_on` around it): `scene::clip_polygon_by_depth`'s far pass.
     pub far_clip: bool,
     /// The marks the faces' kinds pick: the car's while one is drawn (`race::draw_car`), none
     /// between cars, the menus' outside a race (`scene::car_marks`).

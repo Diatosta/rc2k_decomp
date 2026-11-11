@@ -4,7 +4,7 @@
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: leaving is asked about; left without the question, the
 //! highlight is not saved; the next frame begins with the steps after the first frame; the
-//! question is not put while `dword_52A910` is 1; the steps that are more than a call or a
+//! question is not put while the lamps flag is 1; the steps that are more than a call or a
 //! store are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "ESCOLHA ETAPA", not yet a visit.
 //! Rust callers run its `entry` (`routes.rs`).
@@ -38,7 +38,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.setup_list, // dword_755500
+            pointer: |m| &m.screens.flow.setup_list,
             table: |m| m.tables.draw_lists.select_stage_setup.id(),
             run: true,
         },

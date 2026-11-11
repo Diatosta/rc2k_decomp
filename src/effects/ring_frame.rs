@@ -1,14 +1,13 @@
 //! `effects::ring_frame` (0x4CB5B9): the emitters' ring drawn: render states 0x15 = 4, 0x13 =
-//! 5, 0x14 = 6, 0x1C = 1, 0x1B = 1, `scene::set_texture` (`dword_5D1E34`),
-//! `scene::depth_test_off`; `dword_939BA6` the settings' +0x7C's low 24 bits,
-//! `g_marksKind1Choice` `dword_8BC50D` (the rain's drops); `effects::run_ring`; render state
-//! 0x14 = 2; `effects::run_ribbons`.
+//! 5, 0x14 = 6, 0x1C = 1, 0x1B = 1, `scene::set_texture` (the ring's texture),
+//! `scene::depth_test_off`; the ring's colour = the settings' +0x7C's low 24 bits, the kind-1
+//! choice = the rain's drop count; `effects::run_ring`; render state 0x14 = 2;
+//! `effects::run_ribbons`.//!
+//! Screen: the dust and the water splashes (confirmed: both gone with the ring's sprites cut).
 //!
-//! Screen: the dust and the water splashes (owner, 2026-10-29: both gone with the ring's sprites cut).
+//! Works on the effects settings.
 //!
-//! Works on `g_marksSettings`.
-//!
-//! Caller: `effects::run_frame` (0x4D160B). Refuses null settings, before anything.
+//! Caller: `effects::run_frame` Refuses null settings, before anything.
 
 use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
@@ -34,11 +33,11 @@ pub fn ring_frame(
 ) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     {
-        let marks = crate::effects::setup::effects_settings()?;
+        let marks = effects.settings()?;
         for (value, state) in STATES {
             set_render_state(value, state);
         }
-        crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[211].bits());
+        crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[211].get());
         crate::scene::depth_test_off::depth_test_off();
         // dword_939BA6: the ninth of `lives_by_level`.
         // The settings' +0x7C: the first car record's +0x1C.

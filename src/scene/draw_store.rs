@@ -1,4 +1,4 @@
-//! The scene's draw state (IDA 0x623F80 .. 0x62423C; phase 7, typed): the view window, scale and
+//! The scene's draw state (IDA 0x623F80 .. 0x62423C): the view window, scale and
 //! depths (`scene::set_view_window`), the polygon being drawn and its clipping (`scene::clip`,
 //! `scene::draw_polygon`), the turns' sines, the light, and the x87 code's shared work dword
 //! (`scratch`, 0x62400C). `#[repr(C)]` with the image's layout, over the race block's bytes
@@ -166,8 +166,7 @@ pub struct SceneDraw {
 // them): any bit pattern is a valid value.
 
 impl SceneDraw {
-    /// The piece with the image's first values (a static of its own since 2026-10-29: it left
-    /// the race block, phase 13, `race::store::LEFT`; the owner `scene::owner::Scene` holds it).
+    /// The piece with the image's first values.
     pub const fn new() -> Self {
         crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }

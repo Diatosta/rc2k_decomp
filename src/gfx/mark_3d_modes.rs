@@ -1,20 +1,21 @@
 //! `gfx::mark_3d_modes` (0x40442C): the screen modes Direct3D can draw in, marked in the
 //! modes' table.
 //!
-//! Nothing unless `g_hasFpu` (0x5183EC, set by `system::test_processor`) is 1.
-//! 0x419853 (Direct3D's devices looked at, "D3D: detect card", the depth formats into
-//! `dword_4F492C` and `dword_4F4930`; the carry: none fit) the platform's (below). Then over the
-//! table `dword_4F4F3C` (`dword_4F4F38` entries of 8 bytes: flags, a word of extra flags):
-//! the next entry with all of eax's bits (`system::find_entry_with_bits`), from there the
-//! next with any of `dword_4F492C`'s (`system::find_entry_with_any_bit`); that one gets
-//! 0x100000 and, with `dword_4F4930` not 0, 0x200000 and `dword_4F4930` in its second
-//! dword; one entry on (`system::next_entry`, its carry not looked at), again, until a
-//! search finds nothing. Refuses (before anything) more than 0x20 entries, the table's
-//! room (0x404A56 stops there): past it the original would mark what lies after.
+//! Nothing unless `machine.has_fpu` (set by `system::test_processor`) is 1.
+//! First Direct3D's devices are looked at ("D3D: detect card"): the depth formats go to
+//! `mode.depth_bits` and `mode.depth_extra`, and the carry says none fit (the platform's
+//! version is below). Then over the modes' table (`modes.count` entries of 8 bytes: flags,
+//! a word of extra flags): the next entry with all of the card kind's bits
+//! (`system::find_entry_with_bits`), from there the next with any of the depth bits
+//! (`system::find_entry_with_any_bit`); that one gets 0x100000 and, with `depth_extra` not
+//! 0, 0x200000 and `depth_extra` in its second dword; one entry on (`system::next_entry`,
+//! its carry not looked at), again, until a search finds nothing. Refuses (before
+//! anything) more than 0x20 entries, the table's room: past it the original would mark
+//! what lies after.
 //! In the standalone the device is its rasteriser: it draws in both pixel kinds with a
-//! depth buffer of 16 or 32 bits and has every capability the game asks about
-//! (0x419853's results: `g_depthFormatBits`, `g_depthExtraFlags` and the `caps3d..`
-//! switches 0x5AB98C .. 0x5AB9AC that the graphics options read), so one always fits.
+//! depth buffer of 16 or 32 bits and has every capability the game asks about (the depth
+//! formats and the `cards.mode_switches` that the graphics options read), so one always
+//! fits.
 //! Callers: `gfx::list_primary_modes`, `gfx::list_secondary_modes`.
 
 use crate::errors::{BadInput, Refused};
@@ -35,7 +36,7 @@ pub fn mark_3d_modes(display: &Display, kind: u32) -> Result<(), Refused> {
     // The device: 16 and 32 bits (`g_pixelKinds`' 0x200 and 0x800) for both.
     display.mode.depth_bits.set(0xA00);
     display.mode.depth_extra.set(0xA00);
-    // 0x5AB98C ..= 0x5AB9AC, every dword of them.
+    // Every capability switch is on.
     let cards = &crate::d3d::owner::D3D.cards;
     for cell in cards.mode_switches.iter().chain(&cards.mode_switches_end) {
         cell.set(1);

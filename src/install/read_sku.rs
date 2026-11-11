@@ -1,9 +1,9 @@
 //! `install::read_sku` (0x411696): reads the edition file `files\d\gfx\sku`.
 //!
 //! A settings text with the key `sku`. Its value may start with the marks `oem:` and
-//! `dvd:`, in any order and number, each setting a switch to 1 (`dword_5190F8`,
-//! `dword_5190FC`); then a number (`dword_5190F4`), after the next `:` a second
-//! (`byte_519101`) and after the next `.` within 254 characters a third (`byte_519100`).
+//! `dvd:`, in any order and number, each setting a switch to 1 (the OEM and DVD
+//! switches); then a number, after the next `:` a second byte and after the next `.`
+//! within 254 characters a third byte.
 //! What is not there keeps its value. One caller, `system::load_game_data`.
 
 use crate::errors::BadInput;
@@ -79,7 +79,7 @@ impl Sku {
     pub const START: usize = 0x5190F4;
     pub const LEN: usize = 0x24;
     #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const crate::install::owner::INSTALL.sku) as usize
     }

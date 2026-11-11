@@ -117,7 +117,7 @@ pub fn lamps_wanted(
     Ok(())
 }
 
-/// The view block the drawn view `n` names (`off_63DBB0[]`; the original read
+/// The view block the drawn view `n` names (`view_blocks`[]`; the original read
 /// `RACE_VIEW.drawn_view`, now the view's own: `ViewScratch::drawn_view`); refuses an index
 /// past the two.
 pub(super) fn drawn_view(shared: &RaceShared, n: u32) -> Result<u32, Refused> {
@@ -237,7 +237,7 @@ pub fn object_bytes(
                 .get(first)
                 .ok_or(BadInput("an object's first face past the faces"))?
                 .get();
-            // The face is a place of `scene::object_faces` (phase 13).
+            // The face is a place of `scene::object_faces`.
             let word = crate::scene::object_faces::bytes(face.wrapping_add(4), 2)?;
             let word = u16::from_le_bytes([word[0], word[1]]);
             Some(kind(word as u32)?)

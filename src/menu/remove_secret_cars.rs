@@ -1,9 +1,9 @@
 //! `menu::remove_secret_cars` (0x471BC7): takes the secret cars out of the two lists of
 //! cars that can be chosen, and clears the cheats.
 //!
-//! For the list at `off_75A042` and then the one at `off_759D16` (0x471BEC): the
-//! entries that are not in the list of secret cars `off_759F4A` (0x471BAC) are copied
-//! to the scratch list `unk_759F7A` and from there back to the list's start, a -1 put
+//! For the list at the second car list and then the one at the A8 championship car list (0x471BEC): the
+//! entries that are not in the list of secret cars `lists.secret_cars` (0x471BAC) are copied
+//! to the scratch list the scratch car list and from there back to the list's start, a -1 put
 //! after them, and the cheats' flags `g_cheats` (0x75870C) set to 0. The lists hold the
 //! addresses of car descriptions; each ends with -1.
 //! One caller, `system::load_game_data`, when the setting `allsecretcars` is 0.

@@ -1,17 +1,17 @@
 //! `drive::set_listener` (0x4565B7): the state the sounds are placed by, from the viewed
-//! car (`g_carBlocks[dword_63DB9C]`), car block 0 (0x70F410 ..) and the view: its three
-//! whole numbers +0x134 .. +0x13C as floats (0x5C5630 ..), `dword_5C2FD4` = (+0xABC >=
+//! car (`g_carBlocks[`drawn_view`]`), car block 0 (0x70F410 ..) and the view: its three
+//! whole numbers +0x134 .. +0x13C as floats (0x5C5630 ..), `listener_near` = (+0xABC >=
 //! 0x10); the view's place negated and its turn's nine (0x5C2FA0 .. 0x5C2FCC); three of
-//! 0x6415D0 .. (the first 0 without `dword_6238A8`) into 0x5C56D8 ..; six whole numbers of
+//! 0x6415D0 .. (the first 0 without `settings_words`) into 0x5C56D8 ..; six whole numbers of
 //! the car's light record (`g_lightRecords` +0x40 .., by `race::car_file_number` of
-//! `dword_70F410`) times 65536 over 1000 (two less `dword_613FC4`) into 0x608C60 ..; car
+//! `dword_70F410`) times 65536 over 1000 (two less `ground_drop`) into 0x608C60 ..; car
 //! block 0's matrix (0x70FC2C) through `scene::multiply_matrices` with 0x70FC6C and the
 //! view matrix into `g_madeObjectMatrix` (and a copy at 0x5EA0CC); the two points of
 //! 0x608C60 .. turned by it, each with its x and then -x (`scene::rotate_point`,
 //! `fistp`'d into 0x5C568C .. 0x5C56B8); the switches of 0x5C56BC .. 0x5C56E8 by
-//! `dword_6415E0`, `dword_70FCEC`, `dword_70FCF0`; `dword_5C5680` from `dword_70F628`
-//! (then cleared), `dword_5C5684`; `flt_5C5660` = `dword_70FA3C` / 2^29 + `flt_637644`;
-//! two floats copied; with `dword_601024` set, `dword_5C5680` and `dword_5C5684` 0. By
+//! `mirror_wanted`, `dword_70FCEC`, `dword_70FCF0`; `spline_gear_changed` from `dword_70F628`
+//! (then cleared), `spline_handbrake`; `listener_scale` = `dword_70FA3C` / 2^29 + `camera_shake_listener`;
+//! two floats copied; with `still` set, `spline_gear_changed` and `spline_handbrake` 0. By
 //! the look of it the listener for the 3D sounds (a reading).
 //!
 //! Caller: `drive::share_all_cars` (0x456484), second. Refuses (before anything) a viewed
@@ -21,7 +21,8 @@
 
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::math::x87_run::{ext_to_int, int_80, int_over_int_plus};
+use crate::math::x87::{ext_to_int, int_80};
+use crate::math::x87_float as bh;
 use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::mud::car_file_number;
@@ -86,8 +87,7 @@ impl<'a> ListenerView<'a> {
     }
 }
 
-/// The Rust version. The registers it leaves are read by no caller (liveness: eax and
-/// ebx after `share_all_cars`' call have no read point).
+/// The registers the original leaves are read by no caller.
 // Converted: `rc2k_core::drive::listener` (the matrices, turns and x87 sums stay).
 pub fn set_listener(
     race: &Race,
@@ -188,17 +188,16 @@ pub fn set_listener(
     EFFECTS_SETTINGS
         .spline_handbrake
         .set(u32::from(car.handbrake.get() != 0));
-    EFFECTS_SETTINGS.listener_scale.set_bits(int_over_int_plus(
-        car.steer_angle_visual.get() as i32,
-        0x2000_0000,
-        scene.lights.state.camera_shake_listener.bits(),
+    EFFECTS_SETTINGS.listener_scale.set_bits(bh::st(
+        bh::int(car.steer_angle_visual.get() as i32) / bh::int(0x2000_0000)
+            + bh::ld(scene.lights.state.camera_shake_listener.bits()),
     ));
     EFFECTS_SETTINGS
         .engine_speed_copy
-        .set_bits(x87::loaded(car.engine_speed.bits()));
+        .set_bits(x87::loaded(&car.engine_speed));
     EFFECTS_SETTINGS
         .engine_speed_scaled_copy
-        .set_bits(x87::loaded(car.engine_speed_scaled.bits()));
+        .set_bits(x87::loaded(&car.engine_speed_scaled));
     if physics.split_tables.still.get() != 0 {
         EFFECTS_SETTINGS.spline_handbrake.set(0);
         EFFECTS_SETTINGS.spline_gear_changed.set(0);

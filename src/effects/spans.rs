@@ -1,4 +1,4 @@
-//! `make_masks`' rasteriser (IDA, 2026-10-17): a quad split into two triangles, each
+//! `make_masks`' rasteriser (IDA): a quad split into two triangles, each
 //! triangle's corners sorted by height and its two halves turned into rows of spans (x and
 //! length, whole numbers) at the masks' cursor in the work block, with a run record (spans,
 //! first row, count) for `draw_mask`. The triangle sets the x87 to round toward zero for
@@ -7,6 +7,7 @@
 use crate::effects::mask_store::Masks;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::math::x87_float as bh;
 use crate::session::{Float, read_bits, write_bits};
 
 /// The edge pair `span_edges` works from (`MASKS.edge`): y0, y1, the left and right x at y0, at y1.
@@ -67,7 +68,7 @@ fn room(cursor: u32, rows: Option<u32>) -> Result<(), Refused> {
 /// at `to` (a byte offset in the work; 8 bytes: x, length) for each whole row from y0 rounded up to y1: both x's at
 /// the row's middle by the slopes, the two put in order (swapped also when equal), the left
 /// rounded and the length the right less it. The x87's rounding as it is set (the triangle
-/// sets toward zero). Gives where the next row would go (the original's edi). Refuses
+/// sets toward zero). Gives where the next row would go. Refuses
 /// rows past the work block or more than 0x1000, before writing.
 pub fn span_edges(
     masks: &Masks,
@@ -115,7 +116,7 @@ pub fn span_edges(
             crate::effects::masks::work_put(
                 masks,
                 to + 4,
-                x87::float_less_int_to_int(b, left) as u32,
+                bh::to_int(bh::ld(b) - bh::int(left)) as u32,
             )?;
             to += 8;
         }

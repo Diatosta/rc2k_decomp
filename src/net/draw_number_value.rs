@@ -1,5 +1,5 @@
 //! `net::draw_number_value` (0x416B8E): a number setting's value: for the item being edited
-//! the number's text as typed (`byte_95E8F8`); else the number written into the game's text
+//! the number's text as typed (`path_a`); else the number written into the game's text
 //! buffer (`strings::format_u32`, or string 0x16E for 0); then on into
 //! `net::draw_setting_value`.
 //!

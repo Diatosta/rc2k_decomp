@@ -1,13 +1,13 @@
 //! The work car moved to a place where nothing touches it after a reset (converted
-//! 2026-10-21 from `physics::find_clear_place` 0x43BDD1; its tries' contacts are the
+//! from `physics::find_clear_place` 0x43BDD1; its tries' contacts are the
 //! hooks' own): tries n from 0x70 + (the car's clock & 0xF) up to 0xFF, each moving the
-//! place by 2^((n >> 4) + 1) times a direction of sixteen (`dword_614014[n & 0xF]`,
-//! `dword_614054[n & 0xF]`: x, z), until a try restores nothing; none: the car reset.
+//! place by 2^((n >> 4) + 1) times a direction of sixteen (`clear_place_steps_a`[n & 0xF]`,
+//! `clear_place_steps_b`[n & 0xF]`: x, z), until a try restores nothing; none: the car reset.
 
 /// The tries' last + 1 (none clear: `physics::reset_car`).
 pub const TRIES_END: u32 = 0x100;
 
-/// The car's speed scale before the tries' figure (`dword_614C28`).
+/// The car's speed scale before the tries' figure (`clear_place_mark`).
 pub const TRY_MARK: u32 = 0x5A;
 
 /// The first try: 0x70 + the car's clock (`g_car` +8) & 0xF.
@@ -15,9 +15,9 @@ pub fn first_try(clock: u32) -> u32 {
     (clock & 0xF) + 0x70
 }
 
-/// A try's move: the step 2^((n >> 4) + 1) (eax after), the direction's entry n & 0xF
-/// (ebx), the shift (ecx), and each part's `imul` of the step by the table's entry (the
-/// low dword added to the place; the high one the original's edx).
+/// A try's move: the step 2^((n >> 4) + 1) (also left as the result), the direction's entry
+/// n & 0xF, the shift, and each part's product of the step by the table's entry (the low
+/// dword added to the place; the high one a leftover of the original).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Move {
     pub step: u32,
@@ -59,7 +59,7 @@ pub fn tries<E>(
 }
 
 /// The height (`g_car` +0x138) after a clear try: with the body's deepest point below 0
-/// (`dword_6D3068`, by the sign) lifted by it and 0x800 more.
+/// (`lowest_depth`, by the sign) lifted by it and 0x800 more.
 pub fn lifted(height: u32, depth: u32) -> Option<u32> {
     ((depth as i32) < 0).then(|| height.wrapping_sub(depth).wrapping_add(0x800))
 }

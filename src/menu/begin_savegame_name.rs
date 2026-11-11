@@ -1,6 +1,6 @@
 //! `menu::begin_savegame_name` (0x46D571): starts typing the name of the highlighted saved game:
 //! the name is copied to the text entry's backup and cleared, the entry's length is 0 and
-//! `dword_7556A8` (an entry is going on) is 1.
+//! `option_work.typing` (an entry is going on) is 1.
 //!
 //! It writes "Backed up name=<the name>" to the game's log (`logfile::log_write`). In six menu
 //! tables. Refuses a name past the list. The menus and draw lists run its `entry`

@@ -1,9 +1,8 @@
-//! `drive::tyre_screen` (0x41C5FA): the tyre-change screen for the mode eax and car esi: its
+//! `drive::tyre_screen` (0x41C5FA): the tyre-change screen for a mode and a car: its
 //! layout's 0x20 bytes (`TyreChange::layouts`) into `panel` (16) and `parts` (16), the wheel's
 //! place (`wheel`: the panel's middle less the wheel's half), the car into `player`; the texture
 //! (`device_texture`, place 0) and eleven render states (place 1); the panel and wheel quads (place
-//! 2), the wheel turned by the car's input device (place 3), the fixed parts (place 4). All in
-//! `pusha` / `popa`.
+//! 2), the wheel turned by the car's input device (place 3), the fixed parts (place 4).
 //!
 //! Caller: `drive::tyre_change_screen`.
 //! Refuses a car past 7 (`g_inputDevices`).

@@ -1,20 +1,19 @@
 //! `scene::upload_car_icon` (0x41B2F2): one car icon painted into a texture (the HUD's, kind 0xC1).
-//! The game's log calls every texture a "icon"; this was `scene::upload_plate` until
-//! 2026-10-24.
+//! The game's log calls every texture a "plate".
 //!
-//! - ebx, edi, ebp, edx, esi to `dword_5BE8F1`, `_8F5`, `_8F9`, `_8FD`, `_901`, the
-//!   icon's size 0x52 x 0x2A to `dword_5BE905`, `_909`.
-//! - With the texture's record (0x78 bytes at `unk_5B521C`) +0x5C at 1: the second
+//! - The texture, the icon's place on the texture and on the sheet are kept in the icon
+//!   upload cell, and the icon's size 0x52 x 0x2A with them.
+//! - With the texture's record (0x78 bytes) +0x5C at 1: the second
 //!   picture read (`gfx::read_texture_picture`) and copied 0x40000 bytes on, or, if
 //!   there is none or it cannot be read, +0x5C made 0.
 //! - The first picture read; `least_colour` of the texture's format (record +0xC, +8);
 //!   `alpha_from_kept` or `key_texture_colours` by +0x5C; `grade_texture`.
 //! - The picture and the texture must be the same number of halvings from 256 (the
-//!   table `dword_5ABA98`: 256, 128, 64, 32, and 1024 as 4), in width and in height;
+//!   card's sizes table: 256, 128, 64, 32, and 1024 as 4), in width and in height;
 //!   a size not in it, or two different numbers, is a fatal error (0x80A18761 ..
 //!   0x80A18767). The picture is halved that many times (`halve_texture`) and the six
 //!   places and sizes stored are shifted right by it.
-//! - The texture locked (`d3d::lock_texture`, which makes it `g_surface`); if it locked, the
+//! - The texture locked (`d3d::lock_texture`, which makes it the blitters' surface); if it locked, the
 //!   icon's piece blitted (`gfx::blit_components`, the picture's row bytes being its
 //!   height times 4: the original's, a square sheet makes it right) and the texture
 //!   unlocked (`d3d::unlock_texture`). Those two are Direct3D and stay the game's.
@@ -98,7 +97,7 @@ impl IconUploadCell {
     }
 }
 
-/// The piece's place: what `blit_components` gets in ebx, bounded to the piece's four dwords
+/// The piece's place: what `blit_components` gets, bounded to the piece's four dwords
 /// (the longest read is its 16 bytes).
 fn piece_place(upload: &IconUploadCell) -> crate::pointers::GamePtr {
     crate::pointers::GamePtr::to(upload)
@@ -106,9 +105,8 @@ fn piece_place(upload: &IconUploadCell) -> crate::pointers::GamePtr {
         .limited(std::mem::size_of::<[u32; 4]>() as u32)
 }
 
-/// What `upload_car_icon` is given (the original's registers): the icon sheet's two pictures
-/// (eax, ecx), the system texture (ebx), where on the sheet the icon is (edx, esi) and
-/// where on the texture it goes (edi, ebp).
+/// What `upload_car_icon` is given: the icon sheet's two pictures, the system texture, where on
+/// the sheet the icon is and where on the texture it goes.
 pub struct CarIcon {
     pub sheet: crate::pointers::GamePtr,
     pub alpha_sheet: crate::pointers::GamePtr,

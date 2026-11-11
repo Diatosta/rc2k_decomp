@@ -1,15 +1,12 @@
 //! `physics::crossed_edge` (0x45D737): when a probe point crossed a face's edge
-//! (`dword_6D3B84` not -1): its three floats from `unk_71AAC8[n]` .. into `unk_71A1FC`
-//! ..; `physics::restore_saved_car`; `physics::crossed_edge_contact`; `unk_71A208`
-//! raised to |`flt_6D3108`|, `unk_71A20C` = 1, `unk_71A1CC` = 0x32;
+//! (`crossed_probe` not -1): its three floats from `probe_point_x`[n]` .. into `contact_point`
+//! ..; `physics::restore_saved_car`; `physics::crossed_edge_contact`; `contact_depth`
+//! raised to |`contact_speed_length`|, `contact_flag` = 1, `wall_hit_timer` = 0x32;
 //! `physics::feel_ground`.
 //!
 //! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`. Refuses
 //! (before anything) a probe point past 0x3F (the tables' room), and what its calls refuse (what
 //! was written put back).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::physics::crossed_edge_contact::check_probe;

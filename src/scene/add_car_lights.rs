@@ -2,14 +2,12 @@
 //!
 //! Returns: the number of cars, the last car's block
 //!
-//! Goes through the `dword_63DB90` blocks of `g_carBlocks` and calls
-//! `scene::add_car_light` for:
-//! - with `dword_52A910` set: the car `dword_52A920`, or every car while
-//!   `dword_6238B8` is 1;
-//! - else: the cars under `dword_63DB94` (every car while `dword_6238B8` is 1), but
-//!   not the car `dword_639968` (the one being drawn, by its use), and of those all
-//!   of them if `dword_63DB94` is 1 or `dword_62389C` is 0 or 2, else only the car
-//!   `dword_63DBA8[dword_63DB9C]`.
+//! Goes through the race's cars (`race_cars`) and calls `scene::add_car_light` for:
+//! - in a network session: the network player's car, or every car while the split-screen
+//!   setting is 1;
+//! - else: the cars under the player count (every car while the split-screen setting is 1),
+//!   but not the car being drawn (the drawn-car light cell), and of those all of them if
+//!   the player count is 1 or the run kind is 0 or 2, else only the drawn view's car.
 //!
 //! One caller, `scene::gather_lights`. Refuses no cars (the original goes through 2^32) or more
 //! than the eight blocks.

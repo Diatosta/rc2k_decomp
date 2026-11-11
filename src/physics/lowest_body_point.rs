@@ -1,14 +1,11 @@
 //! `physics::lowest_body_point` (0x45D6DB): with more than four probe points
-//! (`dword_71A238`), the deepest of the body's (points 4 .., their depths
-//! `dword_6D2514[n]`, from 0x640000 down by the sign of the difference) into
-//! `dword_6D3068` and its number into `dword_6D306C` (-1 for none); then `flt_6D3070` =
-//! `dword_6D3068` / 65536 (with four or fewer, of what it held).
+//! (`probe_count`), the deepest of the body's (points 4 .., their depths
+//! `probe_height`[n]`, from 0x640000 down by the sign of the difference) into
+//! `lowest_depth` and its number into `lowest_point` (-1 for none); then `wheel_share` =
+//! `lowest_depth` / 65536 (with four or fewer, of what it held).
 //!
 //! Callers: `physics::feel_ground`, `physics::find_clear_place` (twice), `physics::crash_contact`,
 //! `physics::ground_contact`. Refuses (before anything) a count above 0x40 (the depths' room).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -36,7 +33,7 @@ pub fn lowest_at(numbers: &Numbers, v: &[&dyn Cell32]) -> Result<(), Refused> {
             }
         }
     }
-    put(3, x87::int_div(get(1) as i32, numbers.k65536.bits()));
+    put(3, x87::int_over(get(1) as i32, &numbers.k65536));
     Ok(())
 }
 

@@ -1,13 +1,12 @@
 //! The 3D cards' and the Direct3D device's state (`gfx::find_3d_cards`, `platform_3d`,
-//! `d3d::set_render_state`, `d3d::set_texture`, the 3D switches of `var\ral.cfg`), out of
-//! RAL.EXE's image (phase 5), typed (phase 7). Placed in a file of its own beside the
-//! graphics module's stores (converted in parallel). `#[repr(C)]` struct of atomic cells with
+//! `d3d::set_render_state`, `d3d::set_texture`, the 3D switches of `var\ral.cfg`).
+//! `#[repr(C)]` struct of atomic cells with
 //! the image's layout, first values the image's (`tests`); `moved::MOVED` points the image's
 //! addresses at it (`home`): the settings table names the switches by IDA address.
 
 use crate::session::{Bytes, Dword, with_runs};
 
-/// The 3D cards, the device's render states and the 3D switches (IDA 0x5AB4B4 .. 0x5ABA18, the image's layout).
+/// The 3D cards, the device's render states and the 3D switches (IDA 0x5AB4B4 .. 0x5ABA18).
 #[repr(C, align(16))]
 #[derive(rc2k_derive::Cells)]
 pub struct Cards3d {

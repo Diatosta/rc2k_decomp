@@ -1,4 +1,4 @@
-//! More of `effects::init_marks`' steps (IDA, 2026-10-16): the three blocks it takes
+//! More of `effects::init_marks`' steps (IDA): the three blocks it takes
 //! (Rust's since phase 12, counted on their lists), the corner table
 //! scaled, and the eight settings blocks reset.
 
@@ -147,7 +147,7 @@ pub fn scale_corners(effects: &crate::effects::owner::Effects) {
 /// `flt_9354C6`, the last three again at +0x64, +0x70, +0x7C, +0x30 8.
 pub fn reset_settings_blocks(effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
     {
-        let marks = crate::effects::setup::effects_settings()?;
+        let marks = effects.settings()?;
         for n in (0..SETTINGS_BLOCKS).rev() {
             let car = &marks.cars[n as usize];
             for (cell, v) in car
@@ -156,7 +156,7 @@ pub fn reset_settings_blocks(effects: &crate::effects::owner::Effects) -> Result
                 .chain(&car.steps[0])
                 .zip(&effects.kinds.emitter.settings_start)
             {
-                cell.set_bits(x87::loaded(v.bits()));
+                cell.set_bits(x87::loaded(v));
             }
             let last = car.steps[0].each_ref().map(Float::bits);
             for steps in &car.steps[1..] {
@@ -170,7 +170,7 @@ pub fn reset_settings_blocks(effects: &crate::effects::owner::Effects) -> Result
     Ok(())
 }
 
-/// The places' list, block and first floats (IDA 0x8DB570 .. 0x8DB5C0, the image's layout; phase 7, typed state).
+/// The places' list, block and first floats (IDA 0x8DB570 .. 0x8DB5C0).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PlacesBlock {
@@ -197,9 +197,9 @@ impl PlacesBlock {
             _gap_8db580: Bytes::new([0; 48]),
             places: Dword::new(0x0),
             start: [
-                Float::from_bits(0x0),
-                Float::from_bits(0xC8800000),
-                Float::from_bits(0x499C3E80),
+                Float::new(0.0),
+                Float::new(-262144.0),
+                Float::new(1279952.0),
             ],
         }
     }
@@ -215,7 +215,7 @@ impl PlacesBlock {
     }
 }
 
-/// The links' list and block (IDA 0x9206F0 .. 0x920734, the image's layout; phase 7, typed state).
+/// The links' list and block (IDA 0x9206F0 .. 0x920734).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarkLinks {
@@ -270,13 +270,13 @@ impl Slope {
     pub const LEN: usize = 0x24;
     pub const fn new() -> Self {
         Slope {
-            slope: Float::from_bits(0),
-            values: [const { Float::from_bits(0) }; 8],
+            slope: Float::new(0.0),
+            values: [const { Float::new(0.0) }; 8],
         }
     }
 }
 
-/// The corners' slopes (`g_marksCornerSlopes`: 0x100 records of 0x24 bytes) (IDA 0x920734 .. 0x922B34, the image's layout; phase 7, typed state).
+/// The corners' slopes (`g_marksCornerSlopes`: 0x100 records of 0x24 bytes) (IDA 0x920734 .. 0x922B34).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CornerSlopes {
@@ -320,7 +320,7 @@ impl Corner {
     }
 }
 
-/// The marks' corner table (`g_marksCorners`: 0x100 records of 0x80 bytes) (IDA 0x8EB971 .. 0x8F3971, the image's layout; phase 7, typed state).
+/// The marks' corner table (`g_marksCorners`: 0x100 records of 0x80 bytes) (IDA 0x8EB971 .. 0x8F3971).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarkCorners {
@@ -346,7 +346,7 @@ impl MarkCorners {
     }
 }
 
-/// The particle ring's pool and the burst code's scratch (IDA 0x93A580 .. 0x93A5F0, the image's layout; phase 7, typed state).
+/// The particle ring's pool and the burst code's scratch (IDA 0x93A580 .. 0x93A5F0).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RingPool {
@@ -396,7 +396,7 @@ impl RingPool {
             _gap_93a5d8: Bytes::new([
                 0x0D, 0x00, 0x80, 0x39, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             ]),
-            burst_radius: Float::from_bits(0x0),
+            burst_radius: Float::new(0.0),
             index: Dword::new(0x0),
             used: Dword::new(0x0),
         }

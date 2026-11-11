@@ -1,14 +1,14 @@
-//! The race's split times (converted 2026-10-21 from `physics::keep_split_time`
+//! The race's split times (converted from `physics::keep_split_time`
 //! 0x436B3D and `compare_split_times` 0x436E11; `physics::fill_rival_table` 0x436BD6 and
 //! `rank_split_time` 0x436C4F): where a split time is kept, and the car's place and
 //! nearest gaps among the ten times kept for a split (race mode 3), or among the 90
 //! rivals' times scaled to the split (race mode 1). And the checkpoints followed through
-//! the splits (converted 2026-10-21 from `physics::track_checkpoints` 0x44157B), and the
+//! the splits (converted from `physics::track_checkpoints` 0x44157B), and the
 //! race timers' steps by the race mode (from `physics::race_timers` 0x436790).
 
 use crate::Invalid;
 
-/// The kept split times' room (`dword_601C68`, 0x40 entries).
+/// The kept split times' room (`kept_times`, 0x40 entries).
 pub const KEPT_ROOM: u32 = 0x40;
 
 /// `physics::keep_split_time`: the entry for a split time, the checkpoints passed
@@ -46,7 +46,7 @@ pub struct SplitFigures {
     pub name_behind: u32,
 }
 
-/// `compare_split_times`' result: the figures, and the last value the loop left in eax.
+/// `compare_split_times`' result: the figures, and the last value the loop left.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Compared {
     pub figures: SplitFigures,
@@ -97,7 +97,7 @@ pub fn default_rival(c: u32) -> (u32, u32, u32) {
     (c.wrapping_mul(1000).wrapping_add(12000), c % 23, c + 0x5A5)
 }
 
-/// `edx:eax / d` as `div` leaves it, (quotient, remainder); refused where `div` faults.
+/// A 64-bit value divided by `d` as `div` leaves it, (quotient, remainder); refused where `div` faults.
 pub fn div(value: u64, d: u32) -> Result<(u32, u32), Invalid> {
     if d == 0 || value / d as u64 > u32::MAX as u64 {
         return Err(Invalid("a division the original's div would fault on"));
@@ -106,7 +106,7 @@ pub fn div(value: u64, d: u32) -> Result<(u32, u32), Invalid> {
 }
 
 /// The scale of a split: its base (`dword_601030[split]`) x 1000 / the divisor
-/// (`dword_60102C[count]`), as `div` leaves it.
+/// (`checkpoints`[count]`), as `div` leaves it.
 pub fn split_scale(base: u32, divisor: u32) -> Result<(u32, u32), Invalid> {
     div(base as u64 * 1000, divisor)
 }
@@ -118,7 +118,7 @@ pub fn scaled_time(time: u32, scale: u32) -> Result<(u32, u32), Invalid> {
 
 /// The car's place among the scaled times (in order, asked as read): one past the
 /// first not below its time (by the sign), `RIVALS` at most; and the last time read (the
-/// original's eax).
+/// original's leftover value).
 pub fn rank(time: u32, scaled: impl Fn(usize) -> u32) -> (u32, u32) {
     let mut c = 0;
     let mut last;
@@ -140,8 +140,8 @@ pub fn gap(earlier: u32, later: u32) -> u32 {
     later.wrapping_sub(earlier).wrapping_mul(10)
 }
 
-/// What `physics::split_by_mode` (0x436B99, converted 2026-10-21) makes the split's
-/// figure from, by the race mode (`dword_62389C`).
+/// What `physics::split_by_mode` (0x436B99) makes the split's
+/// figure from, by the race mode (`run_kind`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SplitFigure {
     /// Mode 2: the car's place (the first block's) into +0xA0C.
@@ -211,7 +211,7 @@ pub fn timer_run(mode: u32) -> TimerRun {
     }
 }
 
-/// The timers' rate (`flt_614170`): 1, or 1 times `factor` (`flt_601028`) once the car
+/// The timers' rate (`weight`): 1, or 1 times `factor` (`timer_factor`) once the car
 /// has finished (`fld1; fmul; fstp`).
 pub fn timer_rate(finished: bool, factor: f32) -> f32 {
     if finished {

@@ -1,8 +1,8 @@
 //! `input::axis_found` (0x4083F4): DirectInput's `EnumObjects` callback for a joystick
 //! being listed: the object's type GUID (`DIDEVICEOBJECTINSTANCEA` +4) named among the six
 //! axes' (`GUID_XAxis`, `GUID_YAxis`, `GUID_ZAxis`, `GUID_RxAxis`, `GUID_RyAxis`,
-//! `GUID_RzAxis`, at `unk_4F7E38` ..) sets the bit (1, 2, 4, 8, 0x10, 0x20) in the
-//! controller's entry's +0x14 (kept: the bits are added to it). Always goes on (eax 1).
+//! `GUID_RzAxis`, in the device-object table) sets the bit (1, 2, 4, 8, 0x10, 0x20) in the
+//! controller's entry's +0x14 (kept: the bits are added to it). Always goes on (returns 1).
 //!
 //! In:  (stdcall) the `DIDEVICEOBJECTINSTANCEA`, the context (the controller's entry)
 //!
@@ -24,7 +24,6 @@ pub fn callback(guids: &InputGuids, object: &DiDeviceObjectInstance, entry: &Con
     }
 }
 
-/// The Rust version: eax.
 pub fn axis_found(
     guids: &InputGuids,
     object: &DiDeviceObjectInstance,

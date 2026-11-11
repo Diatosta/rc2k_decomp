@@ -1,4 +1,4 @@
-//! The mud amounts the wheels add (converted 2026-10-21 from
+//! The mud amounts the wheels add (Converted from
 //! `physics::turn_wheel_angles` 0x449EE9; despite the name it adds the mud thrown and splashed
 //! per car texture, `mud_thrown_in` / `mud_splashes_in`, for `race::update_mud_texture`).
 //!
@@ -7,7 +7,7 @@
 
 use super::x87::{below, loaded};
 
-/// The car kinds' table (`dword_5C5B48`): 0x22 entries.
+/// The car kinds' table (`kind_gets_mud`): 0x22 entries.
 pub const KINDS: u32 = 0x22;
 
 /// Whether the car's kind (`g_car` +0x24) turns its wheels: below 0x22 and its entry
@@ -16,8 +16,8 @@ pub fn turns_wheels(kind: u32, kinds: impl FnOnce(u32) -> u32) -> bool {
     kind < KINDS && kinds(kind) != 0
 }
 
-/// One half: `speed` (None with the switch `dword_71A22C` set: 0) held at `zero` or more,
-/// times `f1` and `f2` (kept in `dword_62400C`), added to the four angles.
+/// One half: `speed` (None with the switch `all_wheels_off` set: 0) held at `zero` or more,
+/// times `f1` and `f2` (kept in `scratch`), added to the four angles.
 pub fn add_turn(speed: Option<f32>, zero: f32, f1: f32, f2: f32, angles: &mut [f32; 4]) -> f32 {
     let s = match speed {
         Some(s) if below(s as f64, zero as f64) => loaded(zero),

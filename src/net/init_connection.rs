@@ -1,6 +1,6 @@
 //! `net::init_connection` (0x418794): "NET: Init connection index" and the number logged;
-//! with DirectPlay's object there, connection eax's address built (`net::build_address`)
-//! and DirectPlay set to it (`InitializeConnection`, `dword_52AC40`, flags 0); "NET: Init"
+//! with DirectPlay's object there, the connection's address built (`net::build_address`)
+//! and DirectPlay set to it (`InitializeConnection`, `address`, flags 0); "NET: Init"
 //! and its result logged.
 //!
 //! Takes `connection`. Returns true when made.

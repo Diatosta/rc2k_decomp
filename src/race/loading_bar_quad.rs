@@ -1,9 +1,9 @@
-//! `race::loading_bar_quad` (0x446861): the loading bar, a red (`dword_623DE8` 0xFF0000) flat
-//! rectangle along the bottom: x from 0 to the screen's width times `dword_623700` (held to 0 ..
-//! 100) over 100, y from 0x24D to 0x258 scaled from 600 to the screen's height; `dword_6240C4` -1;
+//! `race::loading_bar_quad` (0x446861): the loading bar, a red (`quad_colour` 0xFF0000) flat
+//! rectangle along the bottom: x from 0 to the screen's width times `bar_share` (held to 0 ..
+//! 100) over 100, y from 0x24D to 0x258 scaled from 600 to the screen's height; `texture_page` -1;
 //! `race::draw_screen_quad`.
 //!
-//! Caller: `race::loading_bar_frame`. The quad its Rust version.
+//! Caller: `race::loading_bar_frame`. The quad is drawn by `scene`.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

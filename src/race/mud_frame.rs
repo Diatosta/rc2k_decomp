@@ -1,5 +1,5 @@
-//! `race::mud_frame` (0x44A054): each frame drawn, the mud's frame count `dword_623D58` one more;
-//! at 0xE it is 0 again and the next of the four mud textures is worked on (`dword_623D5C`, kept to
+//! `race::mud_frame` (0x44A054): each frame drawn, the mud's frame count `mud_frames` one more;
+//! at 0xE it is 0 again and the next of the four mud textures is worked on (`mud_texture`, kept to
 //! 0 .. 3: `race::mud_texture_turn`, then one more, `and 3`).
 //!
 //! See `race/mud.rs`. Refuses what `mud_texture_turn` refuses.

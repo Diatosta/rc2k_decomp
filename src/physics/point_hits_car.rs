@@ -1,19 +1,18 @@
-//! `physics::point_hits_car` (0x45E800): whether a point of an object lies inside the
-//! work car's box. `dword_614110` + 1; the point (three whole numbers at esi) plus the
-//! object's place (ebp +0x30 ..) plus the offset `dword_6D3B40` .. less the car's place
-//! (`unk_71A10C` ..) into `dword_6D3B4C` ..; that / `flt_5C5D98` into `dword_6D3B78` ..
-//! and `flt_6D3B58` .., turned by the car's heading (`physics::turn_by_heading`, ebx the
-//! y) and back to whole numbers (x `flt_5C5D98`, `fistp`) into `dword_6D3090` ... Inside
-//! when x is below `dword_614BC8` and not below minus it, and z below `dword_614BC0` and
-//! not below minus `dword_614BC4` (each by the sign of the `cmp`, as the original). Inside
-//! with the contact kind `dword_6D3624` 10, 1, 5 or 6 also: the point's x, 0, z (/
-//! `flt_5C5D98`) into `unk_71A1FC` .., the car's speed's length (`unk_71A170`,
-//! `physics::vector_length`) into `flt_6D3108`, `unk_71A208` raised to its size,
-//! `unk_71A20C` = 1, `unk_71A1CC` = 0x32.
+//! `physics::point_hits_car` (0x45E800): whether a point of an object lies inside the work car's
+//! box. `point_hits` is incremented; the point (three whole numbers) plus the object's place plus
+//! `object_offset` less the car's `position` goes into `object_point_offset`; that divided by
+//! 65536 (`k65536`) goes into `object_point_scaled` and `object_point_turned`, is turned by the
+//! car's heading (`physics::turn_by_heading`) and back to whole numbers (times 65536, rounded) into
+//! `contact_point`. Inside when x is below `spec_ints[2]` and not below minus it, and z is below
+//! `spec_ints[0]` and not below minus `spec_ints[1]` (each by the sign of the comparison, as the
+//! original). Inside with the contact kind (`contact_kind`) 10, 1, 5 or 6 also: the point's x, 0, z
+//! (/ 65536) go into the car's `contact_point`, the car's speed length (`velocity`,
+//! `physics::vector_length`) into `contact_speed_length`, `contact_depth` is raised to its size,
+//! `contact_flag` = 1, `wall_hit_timer` = 0x32.
 //!
 //! Takes: the point, the object
 //!
-//! Callers: `physics::object_hits_car`, `physics::scene_point_hits_car` (both `jb`).
+//! Callers: `physics::object_hits_car`, `physics::scene_point_hits_car`.
 
 use crate::errors::Refused;
 use crate::math::x87_float::X;
@@ -34,7 +33,7 @@ use rc2k_core::physics::contacts;
 pub fn point_hits_car(race: &Race, point: [u32; 3], face: u32) -> Result<bool, Refused> {
     let physics_store = &race.physics;
     let rd =
-        |offset: u32, what: &str| crate::race::course_places::face_field::<u32>(face, offset, what);
+        |offset: u32| crate::race::course_places::face_field::<u32>(&race.course, face, offset);
     race.shared
         .physics_tables
         .point_hits
@@ -43,7 +42,7 @@ pub fn point_hits_car(race: &Race, point: [u32; 3], face: u32) -> Result<bool, R
     for k in 0..3u32 {
         let v = contacts::point_part(
             point[k as usize],
-            rd(0x30 + 4 * k, "an object's place")?,
+            rd(0x30 + 4 * k)?,
             physics_store.contact.object_offset[k as usize].get(),
             race.shared.car.position[k as usize].get(),
         );
@@ -96,11 +95,11 @@ pub fn point_hits_car(race: &Race, point: [u32; 3], face: u32) -> Result<bool, R
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x2D3B78] = int [rc + 0x2D3B4C] / [rc + 0x1C5D98]`
-/// `[rc + 0x2D3B7C] = int [rc + 0x2D3B50] / [rc + 0x1C5D98]`
-/// `[rc + 0x2D3B80] = int [rc + 0x2D3B54] / [rc + 0x1C5D98]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[object_point_scaled] = int [object_point_offset] / [k65536]`
+/// `[rc + 0x2D3B7C] = int [rc + 0x2D3B50] / [k65536]`
+/// `[rc + 0x2D3B80] = int [rc + 0x2D3B54] / [k65536]`
 fn x87_1(race: &Race) {
     let t0 = int(race.physics.contact.object_point_offset[0].bits() as i32);
     let t1 = ld(race.course.numbers.k65536.bits());
@@ -116,11 +115,11 @@ fn x87_1(race: &Race) {
     race.physics.contact.object_point_scaled[2].set_bits(st(t8));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [rc + 0x2D3090] = [rc + 0x2D3B58] * [rc + 0x1C5D98]`
-/// `int [rc + 0x2D3094] = [rc + 0x2D3B5C] * [rc + 0x1C5D98]`
-/// `int [rc + 0x2D3098] = [rc + 0x2D3B60] * [rc + 0x1C5D98]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [contact_point] = [object_point_turned] * [k65536]`
+/// `int [rc + 0x2D3094] = [rc + 0x2D3B5C] * [k65536]`
+/// `int [rc + 0x2D3098] = [rc + 0x2D3B60] * [k65536]`
 fn x87_2(race: &Race) {
     let t0 = ld(race.physics.contact.object_point_turned[0].bits());
     let t1 = ld(race.course.numbers.k65536.bits());
@@ -136,11 +135,11 @@ fn x87_2(race: &Race) {
     race.physics.contact.contact_point[2].set_bits(to_int(t8) as u32);
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x31A1FC] = int [rc + 0x2D3090] / [rc + 0x1C5D98]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[contact_point] = int [contact_point] / [k65536]`
 /// `[rc + 0x31A200] = 0`
-/// `[rc + 0x31A204] = int [rc + 0x2D3098] / [rc + 0x1C5D98]`
+/// `[rc + 0x31A204] = int [rc + 0x2D3098] / [k65536]`
 fn x87_3(race: &Race) {
     let shared = &race.shared;
     let t0 = int(race.physics.contact.contact_point[0].bits() as i32);

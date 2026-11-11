@@ -25,10 +25,7 @@ use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 fn chance(wheel: &MarkRecord) -> Result<(i32, u32), Refused> {
     let effects = effects();
     Ok({
-        let chance = x87::mul_to_int(
-            wheel.chance.bits(),
-            effects.setup.floats.fixed_16_scale.bits(),
-        );
+        let chance = x87::mul_to_int(&wheel.chance, &effects.setup.floats.fixed_16_scale);
         let r = effects
             .kinds
             .emitter
@@ -81,8 +78,8 @@ pub fn emit(
     }
 }
 
-/// `wheel` the wheel's record (the original's edi),
-/// `object` the car's object (esi).
+/// `wheel` is the wheel's record,
+/// `object` the car's object.
 pub fn emit_wheel_particles(
     effects: &Effects,
     wheel: &MarkRecord,

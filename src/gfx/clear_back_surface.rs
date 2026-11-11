@@ -1,6 +1,6 @@
 //! `gfx::clear_back_surface` (0x40579A): with a front surface (`g_frontSurface`), the
 //! screen locked (`gfx::lock_surface`; failing, nothing), its rows (`g_screenHeight` of
-//! `g_screenRowDwords` dwords from `dword_4F4988`, `dword_4F498C` bytes between them)
+//! `g_screenRowDwords` dwords from `present_pixels`, `present_gap` bytes between them)
 //! zeroed and unlocked (`gfx::unlock_surface`).
 //!
 //! Callers: `race::viewer_frame` (at the replay's end), `gfx::set_screen_mode`,

@@ -1,19 +1,19 @@
 //! `net::receive_thread` (0x4183C3): the network's receiving thread ("NETRXTDB"), the
-//! routine of the third slot `threading::start_threads` starts (`stru_518714`), from its
-//! start to `ExitThread`.
+//! routine of the third slot `threading::start_threads` starts, from its start to
+//! `ExitThread`.
 //!
 //! Its slot's byte +0xC (running) 1 already: straight to the end. Else running;
-//! "NETRXTDB:START" (log level 2); `dword_52A4B0` (done) not 0: the end. Else round and
-//! round: `threading::wait_for_object` on the event `dword_52AB68` (`net::set_up`'s) for
-//! 1000 ms; signalled (zero clear): `dword_52A918` (receiving) 1 and, with `dword_52A910`
-//! (a network session) 1, `net::take_messages`; then `dword_52A918` 0; with
-//! `dword_52ACE4` 1 the call posted in `dword_52ACE8` (taken with an `xchg`) is made and
-//! its eax kept in `dword_52ACEC`, `dword_52ACF0` 1 (`net::post_call` posts them and
-//! waits; what it posts are Rust functions, `net::lobby_calls`); until `g_quitting` is 1.
+//! "NETRXTDB:START" (log level 2); `receive_done` not 0: the end. Else round and round:
+//! `threading::wait_for_object` on the event (`event`, `net::set_up`'s) for 1000 ms;
+//! signalled (zero clear): `receiving` 1 and, with `session` 1 (a network session),
+//! `net::take_messages`; then `receiving` 0; with `posting` 1 the call posted in
+//! `posted_call` (taken with an `xchg`) is made and its result kept in `posted_result`,
+//! `posted_answered` 1 (`net::post_call` posts them and waits; what it posts are Rust
+//! functions, `net::lobby_calls`); until `g_quitting` is 1.
 //! The end: done 1, "NETRXTDB:QUIT", not running, `ExitThread(0)`.
 //! The original hands the starter's registers on from call to call; the calls' Rust
 //! versions read none of them (`take_messages` and the posted calls take no arguments).
-//! Run by `threading::start_slot_thread` (its slot `stru_518714`, `routes.rs`).
+//! Run by `threading::start_slot_thread` (the net slot, `routes.rs`).
 
 use crate::errors::Refused;
 use crate::net::owner::net;

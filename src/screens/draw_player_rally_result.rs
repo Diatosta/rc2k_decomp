@@ -2,7 +2,7 @@
 //! labels (string 0x213 at (0xED, 0xE7), strings 0x20E .. 0x212 at x 0x155), the stage's
 //! heading (`screens::draw_rally_times_heading`'s), the player's time (+0x88; string 0x513
 //! for none, 0x980000) and top speed (+0x94), the rally's numbers and times
-//! (`dword_758758` .. `dword_7587B8`), the car's sprite, the name and the flag's sprite (their
+//! (`results.time_bonus` .. `results.totals`), the car's sprite, the name and the flag's sprite (their
 //! palettes ebx as the original leaves it: the last text past its NUL).
 //!
 //!
@@ -18,9 +18,9 @@ use crate::text::draw_text::Canvas;
 /// (id, x, y, font) of the labels.
 pub fn draw_player_rally_result(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let play = &menus.play;
-    let player = crate::menu::player_settings::current()?.get();
+    let player = crate::menu::player_settings::current(menus)?.get();
     let name =
-        crate::screens::game_screen::player_name_of(menus, crate::menu::player_name::name()?);
+        crate::screens::game_screen::player_name_of(menus, crate::menu::player_name::name(menus)?);
     (RALLY_STAGE_TIMES.records)(menus)?;
     let top_speed = player.figure;
     let speed = crate::strings::append_speed::append_speed(

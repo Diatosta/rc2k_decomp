@@ -1,7 +1,7 @@
 //! `d3d::texture_surface_info` (0x41AA93): a locked system texture made the surface the
-//! blitters draw on (`g_surface`): width and height from the record (esi), bytes and
+//! blitters draw on (the blitters' surface): width and height from the record, bytes and
 //! bits a pixel from its pixel kind's description (+0xC), the row's bytes and dwords,
-//! the pixels and pitch from the lock's description (`dword_5ABA18`: +0x24, +0x10), the
+//! the pixels and pitch from the lock's description (+0x24, +0x10), the
 //! row's gap, the format (the kind's description + 8); then the clip (`gfx::set_clip`
 //! on `g_surface`).
 //!

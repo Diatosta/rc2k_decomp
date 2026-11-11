@@ -83,7 +83,7 @@ pub fn unit_vector(
     length
 }
 
-/// `scene::cross_product` (0x420F8D): ebx = `b`, ecx = `c`, edx = `out`, written part
+/// `scene::cross_product` (0x420F8D): `out` = `b` x `c`, written part
 /// by part.
 pub fn cross_product(
     b: &(impl Cells + ?Sized),
@@ -128,7 +128,7 @@ pub fn invert_turn(
     }
     let [a, b, c, d, e, f, g, h, i] = m;
     let plain = x87::product_difference;
-    let negated = x87::negated_product_difference;
+    let negated = |a, b, c, d| x87::negated(plain(a, b, c, d));
     let made = [
         plain(e, i, f, h),
         negated(b, i, c, h),

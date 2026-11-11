@@ -1,8 +1,8 @@
-//! `menu::class_stage_results_pass` (0x4A1EE6): standings table A sorted by stage time (`menu::sort_standings_by_time`), then for each class from 1 (with `dword_75AB40` 2) or 0 up to `dword_7558F8`:
+//! `menu::class_stage_results_pass` (0x4A1EE6): standings table A sorted by stage time (`menu::sort_standings_by_time`), then for each class from 1 (with `state.menus.class_mode` 2) or 0 up to `event.classes`:
 //! when a player (1 .. 3: the original does not look for player 4, section 16) is in the
 //! class's entries of standings table A, the class numbered (`number_standings`, its
-//! count into `dword_75597C`) and its page shown (`menu::show_class_stage_results`), stopping when the
-//! leaving is answered yes (`g_yesNoAnswer` 1). `dword_755565` the class's flag.
+//! count into `event.count_a`) and its page shown (`menu::show_class_stage_results`), stopping when the
+//! leaving is answered yes (`g_yesNoAnswer` 1). `loop_flags.left_with_carry` the class's flag.
 //!
 //! Callers: the event drivers. Refuses a table without its end
 //! entry and a class count the loop would run past (at or below the first, or past 0x100), before
@@ -39,7 +39,7 @@ pub fn class_stage_results_pass(menus: &Menus) -> Result<(), Refused> {
             continue;
         }
         menus.screens.loop_flags.left_with_carry.set(1u32);
-        let numbered = number_standings(Which::A, class)?;
+        let numbered = number_standings(menus, Which::A, class)?;
         menus.screens.event.count_a.set(numbered.last_number);
         crate::menu::show_class_stage_results::show_class_stage_results(menus, class)?;
         if menus.tables.pages.yes_no_answer.get() == 1 {

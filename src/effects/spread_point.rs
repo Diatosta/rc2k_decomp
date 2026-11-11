@@ -13,7 +13,7 @@ use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::Dword;
 
-/// The three out and eax.
+/// The three results.
 pub fn spread_point(
     paths: &Paths,
     inputs: [[u8; 10]; 4],
@@ -39,7 +39,7 @@ pub fn spread_point(
     ([extended(b), extended(c), extended(d)], third)
 }
 
-/// The spread point's random (IDA 0x923004 .. 0x923008, the image's layout; phase 7, typed state).
+/// The spread point's random (IDA 0x923004 .. 0x923008).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SpreadRandom {

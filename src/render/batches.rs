@@ -369,7 +369,7 @@ impl Batches {
     /// touch its pixels. Batches that touch no pixel in common give the same picture in either
     /// order, whatever their depth tests and blending, so the picture is the one the order the
     /// commands came in gives; a stage's frame then takes about half the draws (the ground's two
-    /// passes per face, 2026-11-06), the handheld's driver's cost.
+    /// passes per face), the handheld's driver's cost.
     fn gather(&mut self) {
         /// How many runs back a batch looks for its own (32 found nearly all of a frame's).
         const LOOK_BACK: usize = 32;

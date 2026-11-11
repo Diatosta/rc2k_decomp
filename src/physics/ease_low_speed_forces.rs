@@ -1,12 +1,13 @@
-//! `physics::ease_low_speed_forces` (0x440CF3): `flt_61475C` 1.0; when |`g_carSpeed`| is
-//! below `flt_613E64` (20; an unordered compare counts as below), `flt_61475C` =
-//! (|speed| / `flt_613E64` + `flt_613E68`) x `flt_613E6C` and the two forces
-//! `flt_614248`, `flt_61424C` times it.
+//! `physics::ease_low_speed_forces` (0x440CF3): `low_speed_share` 1.0; when |`g_carSpeed`| is
+//! below `low_speed_limit` (20; an unordered compare counts as below), `low_speed_share` =
+//! (|speed| / `low_speed_limit` + `low_speed_add`) x `low_speed_scale` and the two forces
+//! `drive_forces`, `flt_61424C` times it.
 //!
 //! Caller: `physics::drive_wheels_step` (0x43E523).
 
 use crate::math::x87;
-use crate::math::x87_run::{abs_compare, abs_div_add_mul};
+use crate::math::x87::abs_compare;
+use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 use crate::session::Cell32;
@@ -33,11 +34,9 @@ pub fn ease_low_speed_forces_at(
     }
     put(
         factor,
-        abs_div_add_mul(
-            at(speed),
-            limit,
-            tables.low_speed_add.bits(),
-            tables.low_speed_scale.bits(),
+        bh::st(
+            (bh::ld(at(speed)).abs() / bh::ld(limit) + bh::ld(tables.low_speed_add.bits()))
+                * bh::ld(tables.low_speed_scale.bits()),
         ),
     );
     for f in forces {

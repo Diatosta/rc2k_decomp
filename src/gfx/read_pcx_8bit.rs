@@ -2,7 +2,7 @@
 //! palette, into the picture buffer as 32-bit pixels.
 //!
 //! Takes: path
-//! Opens the file as the stream `dword_5195E4`; reads the palette, the last 0x300 bytes of
+//! Opens the file as the stream `stream`; reads the palette, the last 0x300 bytes of
 //! the file, with a seek and a plain read on the stream's handle, and seeks back to the
 //! start; reads the header through the stream; sets `g_pictureFlags` to 0x800 and calls
 //! `lay_out_pcx`. Then the rows: for each of the row's bytes (the header's count, which may

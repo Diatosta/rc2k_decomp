@@ -1,4 +1,4 @@
-//! The ground's search (converted 2026-10-21 from `physics::face_under_point` 0x442006,
+//! The ground's search (converted from `physics::face_under_point` 0x442006,
 //! `search_record_faces` 0x441FD9, `search_cell` 0x441FBA, `try_last_face` 0x441E0C and
 //! `ground_search` 0x441E2F): which course face lies under a point (whole-number x, z).
 //! The last face found is tried first, then the nine grid cells about the point, each
@@ -6,13 +6,13 @@
 //! (0x40 bytes: kind byte, flags word at +2, corners +4 .. +0x10, a triangle when +0xC =
 //! +0x10) has the point when each of its edges has it on the inner side
 //! (`faces::edge_side`); a quad is split by its edge +8 -> +0xC into two halves.
-//! The contacts walk the same cells and records (converted 2026-10-21 from
+//! The contacts walk the same cells and records (Converted from
 //! `physics::face_contacts_around` 0x45E196, `cell_face_contacts` 0x45E291 and
 //! `record_face_contacts` 0x45E2AA), every face of each record.
 
 use crate::Invalid;
 
-/// No face (`dword_5CCC74` / `dword_5CCC78` when none was found).
+/// No face (`ground_slot` / `ground_face_last` when none was found).
 pub const NO_FACE: u32 = u32::MAX;
 
 /// How a face's test ended.
@@ -112,7 +112,7 @@ pub fn check_record_faces(first: u32, last: u32, face_count: u32) -> Result<(), 
 
 /// `physics::search_record_faces`: the faces `first` ..= `last` (none when the first is
 /// past the last, unsigned, or -1) tried in order until one has the point. (whether
-/// found, the original's ebx: the face found, one past the last, or the first when none
+/// found: the face found, one past the last, or the first when none
 /// was tried).
 pub fn search_faces<E>(
     first: u32,
@@ -135,7 +135,7 @@ pub fn search_faces<E>(
 }
 
 /// `physics::search_cell`'s cell of (x, z): (the key (z >> 21) << 11 + (x >> 21), the
-/// z part the original leaves in ecx).
+/// z part the original leaves).
 pub fn cell_key(x: u32, z: u32) -> (u32, u32) {
     let z_part = (z >> 21) << 11;
     ((x >> 21).wrapping_add(z_part), z_part)
@@ -208,7 +208,7 @@ pub fn check_contact_faces(first: u32, last: u32, face_count: u32) -> Result<(),
 }
 
 /// `physics::record_face_contacts`: `contact` on each face `first` ..= `last` (none when
-/// the first is past the last, unsigned, or -1). The original's ebx: one past the last,
+/// the first is past the last, unsigned, or -1). One past the last,
 /// or the first when none was walked. Checked first (`check_contact_faces`).
 pub fn each_face<E: From<Invalid>>(
     first: u32,

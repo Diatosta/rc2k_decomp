@@ -1,6 +1,6 @@
 //! `service::toggle_suspension_stiffness_change` (0x46C0CF): flips the flag of the highlighted menu item
-//! and, if the flag is then not 1, puts the chosen suspension stiffness (`dword_75ACB4`)
-//! back to the installed value (`dword_75ACB8`).
+//! and, if the flag is then not 1, puts the chosen suspension stiffness (`setups[3].chosen`)
+//! back to the installed value (`setups[3].installed`).
 //!
 //! Refuses a highlighted item past the flag table. "Toggle change" is a reading of that.
 

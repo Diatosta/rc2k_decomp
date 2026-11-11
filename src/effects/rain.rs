@@ -1,4 +1,4 @@
-//! The rain's variables, out of the marks' block (phase 7, typed state): `RainState` (IDA
+//! The rain's variables: `RainState` (IDA
 //! 0x8BC405 .. 0x8BDE55: the drift, the view, the drops' noise, the streak being drawn) and
 //! `RainRules` (0x8C5F91 .. 0x8C5FFD: its constants). `RainState` starts on an address that
 //! is 1 more than a multiple of 4 in the image; here its dwords are aligned from the
@@ -8,7 +8,7 @@
 use crate::effects::owner::effects;
 use crate::session::{Bytes, Dword, Float};
 
-/// The rain's variables (IDA 0x8BC405 .. 0x8BDE55, the image's layout; phase 7, typed state).
+/// The rain's variables (IDA 0x8BC405 .. 0x8BDE55).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RainState {
@@ -88,45 +88,27 @@ impl RainState {
             drawn: Dword::new(0x0),
             drift_since: Dword::new(0x0),
             drift_wait: Dword::new(0x0),
-            drift_target: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-            ],
-            drift_pace: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-            ],
+            drift_target: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
+            drift_pace: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
             drift_halves: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
             view_place: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
             view_matrix: [
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x3F800000),
+                Float::new(1.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(1.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(1.0),
             ],
             _gap_8bc465: Bytes::new([
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F,
             ]),
-            motion: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x3F800000),
-            ],
-            moves: [const {
-                [
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x3F800000),
-                ]
-            }; 5],
+            motion: [Float::new(0.0), Float::new(0.0), Float::new(1.0)],
+            moves: [const { [Float::new(0.0), Float::new(0.0), Float::new(1.0)] }; 5],
             last_views: [const { [Dword::new(0x0), Dword::new(0x0), Dword::new(0x3F800000)] }; 5],
             _gap_8bc501: Bytes::new([0; 4]),
             drift: Dword::new(0x0),
@@ -138,37 +120,27 @@ impl RainState {
                 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x41, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x20, 0x41,
             ]),
-            edge_a: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            edge_a: [Float::new(0.0), Float::new(0.0)],
             _gap_8bdd31: Bytes::new([0; 4]),
-            edge_b: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            edge_b: [Float::new(0.0), Float::new(0.0)],
             _gap_8bdd3d: Bytes::new([0; 4]),
-            ends: [const {
-                [
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x0),
-                    Float::from_bits(0x0),
-                ]
-            }; 2],
+            ends: [const { [Float::new(0.0), Float::new(0.0), Float::new(0.0)] }; 2],
             _gap_8bdd59: Bytes::new([0; 4]),
-            depth: Float::from_bits(0x0),
-            depth_scale: Float::from_bits(0x0),
-            point_scale: [
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x3F800000),
-            ],
+            depth: Float::new(0.0),
+            depth_scale: Float::new(0.0),
+            point_scale: [Float::new(1.0), Float::new(1.0), Float::new(1.0)],
             point: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
             view: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
             matrix_copy: [
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x3F800000),
+                Float::new(1.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(1.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(1.0),
             ],
             _gap_8bddad: Bytes::new([
                 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -183,16 +155,8 @@ impl RainState {
                 0x31, 0x46, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00,
             ]),
-            turned: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-            ],
-            second: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-            ],
+            turned: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
+            second: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
         }
     }
 }
@@ -202,7 +166,7 @@ impl RainState {
     pub const LEN: usize = 0x1A50;
 }
 
-/// The rain's constants (IDA 0x8C5F91 .. 0x8C5FFD, the image's layout; phase 7, typed state).
+/// The rain's constants (IDA 0x8C5F91 .. 0x8C5FFD).
 #[repr(C)]
 pub struct RainRules {
     /// 0x8C5F91: `dword_8C5F91`: the quad vertices' rhw, 256.0 (the original loaded its bits as a
@@ -238,28 +202,20 @@ impl RainRules {
     pub const fn new() -> Self {
         RainRules {
             rhw: 0x43800000,
-            move_scale: [
-                f32::from_bits(0x41F00000),
-                f32::from_bits(0x41F00000),
-                f32::from_bits(0x41F00000),
-            ],
-            move_limit: f32::from_bits(0x47C35000),
-            move_held: f32::from_bits(0x3F800000),
-            move_factors: [
-                f32::from_bits(0x47C35000),
-                f32::from_bits(0x47C35000),
-                f32::from_bits(0x47C35000),
-            ],
-            drift_k: f32::from_bits(0xC3FA0000),
+            move_scale: [30.0, 30.0, 30.0],
+            move_limit: 100000.0_f32,
+            move_held: 1.0_f32,
+            move_factors: [100000.0, 100000.0, 100000.0],
+            drift_k: -500.0_f32,
             _gap_8c5fb9: [
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x6F, 0x12,
                 0x83, 0x3A, 0x6F, 0x12, 0x03, 0x3B, 0xA6, 0x9B, 0x44, 0x3B,
             ],
-            target_scale: [f32::from_bits(0x41200000), f32::from_bits(0x41200000)],
-            ease: [f32::from_bits(0x3D4CCCCD), f32::from_bits(0x3D4CCCCD)],
-            height: f32::from_bits(0x48000000),
-            view_scale: [f32::from_bits(0x43FA0000), f32::from_bits(0x43FA0000)],
-            half_width: f32::from_bits(0x3F800000),
+            target_scale: [10.0_f32, 10.0_f32],
+            ease: [0.05_f32, 0.05_f32],
+            height: 131072.0_f32,
+            view_scale: [500.0_f32, 500.0_f32],
+            half_width: 1.0_f32,
             _gap_8c5ff1: [
                 0x00, 0x00, 0xC8, 0x4A, 0x33, 0x33, 0x33, 0x3F, 0x00, 0x00, 0x00, 0x00,
             ],

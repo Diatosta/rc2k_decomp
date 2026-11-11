@@ -1,17 +1,17 @@
-//! The car's sound objects placed (IDA 2026-10-18): four functions under the sound
-//! drive that, when the current car is listed (`dword_641680[g_currentCar]` not -1), take
+//! The car's sound objects placed: four functions under the sound
+//! drive that, when the current car is listed (`listed_car_sounds`[g_currentCar]` not -1), take
 //! a band (`physics::sound_band_1` .. `_4`), set two words of the car's sound object
 //! (`g_raceSoundObjects[g_currentCar & 7]`) and its place: the car's place (`g_car`
 //! +0x134 .. +0x13C, with an offset for one) less the listener's (+0x6A4 ..), `fild` /
-//! `fiadd` / `fisub` (exact), turned by `g_viewTurnMatrix`, each part x `flt_5C5DA0`
+//! `fiadd` / `fisub` (exact), turned by `g_viewTurnMatrix`, each part x `one_over_65536`
 //! (1/65536); then +0x10 1.
 //!
 //! This file: the shared steps and the test of the four. `place` is the exact x87 one, for
 //! `place_sound_e1`'s exact version (its Rust callers).
 
 use crate::errors::{BadInput, Refused};
+use crate::math::x87::ext_times;
 use crate::math::x87_float::{f80, int};
-use crate::math::x87_run::ext_times;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::rounded;
@@ -48,7 +48,7 @@ pub fn place(race: &Race, into: &[Float; 3], offset: Option<[u32; 3]>) {
         }
     };
     let out = rotate_point(
-        crate::race::heard_turn::turn(race),
+        crate::race::heard_turn::turn(&race.frame.matrices),
         [part(0), part(1), part(2)],
     );
     let k = race.course.numbers.one_over_65536.bits();
@@ -65,7 +65,9 @@ pub fn place_plain(race: &Race, into: &[Float; 3], offset: Option<[u32; 3]>) {
         whole(&race.shared.car.position),
         whole(&race.shared.car.camera_position),
         offset.map(|o| o.map(|v| v as i32)),
-        &std::array::from_fn(|n| f32::from_bits(crate::race::heard_turn::turn(race)[n].bits())),
+        &std::array::from_fn(|n| {
+            f32::from_bits(crate::race::heard_turn::turn(&race.frame.matrices)[n].bits())
+        }),
         f32::from_bits(race.course.numbers.one_over_65536.bits()),
     );
     for (cell, x) in into.iter().zip(&p) {
@@ -115,8 +117,8 @@ fn offset_part(offset: u32, car: u32, listener: u32) -> [u8; 10] {
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `ext [o + 0] = int [v + 0] - int [v + 4]`
 fn x87_1(v: [u32; 2]) -> [u8; 10] {
     let t0 = int(v[0] as i32);
@@ -125,8 +127,8 @@ fn x87_1(v: [u32; 2]) -> [u8; 10] {
     f80(t2)
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `ext [o + 0] = (int [v + 0] + int [v + 4]) - int [v + 8]`
 fn x87_2(v: [u32; 3]) -> [u8; 10] {
     let t0 = int(v[0] as i32);

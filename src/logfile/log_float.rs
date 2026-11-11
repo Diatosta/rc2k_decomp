@@ -1,5 +1,5 @@
-//! `logfile::log_float` (0x4014D8): logs the single-precision float whose bits are in eax,
-//! with ecx digits after the decimal point.
+//! `logfile::log_float` (0x4014D8): logs the single-precision float whose bits are given,
+//! with the given digits after the decimal point.
 //!
 //! Takes the float's bits, decimals, 1 for a line break after it, level - 1. The text: a sign,
 //! always ("+" or "-"), the integer part, a dot and decimals. The number is taken apart by hand:

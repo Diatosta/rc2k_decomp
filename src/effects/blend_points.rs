@@ -1,5 +1,5 @@
-//! `effects::blend_points` (0x4BA5E2): three points of whole numbers (eax, ebx, ecx) blended
-//! by the weights of entry `dl` of the spline file (`g_marksSplineFile`, 12 bytes each:
+//! `effects::blend_points` (0x4BA5E2): three points of whole numbers blended
+//! by the weights of an entry of the spline file (12 bytes each:
 //! c's weight, then b's, then a's): each of x, y, z a ka + (b kb + c kc), left unrounded in
 //! st(2) .. st(0) (x deepest).
 //!

@@ -1,5 +1,5 @@
-//! `scene::fog_at` (0x44E260): the fog's alpha at a depth: eax (0 when below 0) >> 13,
-//! held below `g_fogTableLength` (the last entry past it), its byte of `g_fogTable` in the
+//! `scene::fog_at` (0x44E260): the fog's alpha at a depth: the depth (0 when below 0) >> 13,
+//! held below the fog table's length (the last entry past it), its byte of the fog table in the
 //! top byte, flipped (`xor 0xFF000000`). The table and its length are the view's
 //! (`scene::fog::Fog`).
 //!

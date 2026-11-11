@@ -1,7 +1,7 @@
 //! `drive::tyre_turned_quad` (0x41C969): the tyre-change screen's turning quad (the steering
-//! wheel): the device's turn turning the half-sizes of the rectangle at ebx (floats: x, y, w, h)
-//! round its place plus `TyreChange::wheel`'s place, the colour ecx, the texture rectangle at eax
-//! (`quad_tail`), drawn (place 5).
+//! wheel): the device's turn turning the half-sizes of the rectangle (floats: x, y, w, h)
+//! round its place plus `TyreChange::wheel`'s place, with the given colour and the texture
+//! rectangle (`quad_tail`), drawn (place 5).
 //!
 //! Takes: the texture rectangle, the rectangle, the colour, the input device
 //!

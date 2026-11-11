@@ -3,8 +3,7 @@
 use crate::errors::BadInput;
 pub use rc2k_core::math::units::{Figure, Units};
 
-/// 0 = imperial (Fahrenheit, miles) and non-zero = metric: out of the image since
-/// 2026-10-24 (phase 5; it was `g_isImperialUnits`, 0x51DE2C, 0 there). Set by the
+/// 0 = imperial (Fahrenheit, miles) and non-zero = metric (`g_isImperialUnits`, 0x51DE2C, 0 at the start). Set by the
 /// language (`load_language`) and player 1's choice (`menu::take_player1_units`,
 /// `menu::options_loop`).
 pub static UNITS: crate::session::Dword = crate::session::Dword::new(0);

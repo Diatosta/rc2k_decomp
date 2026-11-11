@@ -1,4 +1,4 @@
-//! `d3d::draw_vertex_strip` (0x41ADE1): draws a triangle strip of the vertices at ebx.
+//! `d3d::draw_vertex_strip` (0x41ADE1): draws a triangle strip of the given vertices.
 //!
 //! The device's (`g_d3dDevice`, an `IDirect3DDevice2`) DrawPrimitive (+0x74) with a
 //! triangle strip (5: `D3DPT_TRIANGLESTRIP`; the fan is 6), transformed and lit vertices (3) and the flags 0x1C (not clipped,
@@ -6,8 +6,7 @@
 //! tyre change's gauge and the replay viewer's panel).
 //! Platform: the original always runs, here the fan is only noted (`d3d::recorder`). In
 //! the standalone program the rasteriser draws it (`platform_3d::draw_strip`) and the
-//! result is 0 (before 2026-10-19 the standalone skipped it: the viewer's panel did not
-//! show; then drew it as a fan, each quad's second triangle wrong).
+//! result is 0.
 
 use crate::d3d::recorder::{Call, note};
 use crate::d3d::{VERTEX_LEN, Vertex};

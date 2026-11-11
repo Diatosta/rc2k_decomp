@@ -1,23 +1,19 @@
 //! What the two clipping functions share: one pass of a polygon against one edge, and the
 //! making of a vertex where a side crosses it.
 //!
-//! A pass (0x44D9AF, 0x44DA78, 0x44D81D, 0x44D8E6 for the screen's
-//! left, right, top and bottom; 0x44DB93 and 0x44DEAA for the nearest and
-//! farthest depth; all six one routine): the polygon's list is copied to
-//! `dword_977810` with its first number once more at the end; then for each vertex A
-//! and the one after it, B: A goes to the new list if it is inside, and if one of the
-//! two is inside and the other not, a new vertex where the side crosses the edge goes
-//! there too. "Inside" is one x87 compare of the edge with the vertex's coordinate
-//! (the record's +0xC, +0x1C or +0x18), read as "edge below coordinate" or as its
-//! opposite, with "no number" counting as below.
-//! The new vertex (0x44D247 for x, 0x44D532 for y, in line for the depth) takes
-//! the next entry of the work table (`dword_624114`) and the next record of the pool
-//! `dword_6240A4`: place in the view, on the screen, the record's first three dwords
-//! (screen edges only), the entry's four texture coordinates and five bytes, each
-//! between A's and B's by how far along the side the crossing is. The arithmetic is
-//! the original's own instructions (`clip_asm.rs`); it leaves its results in the work
-//! variables `flt_623F80` .. `flt_623FAC` and `dword_6241AC` .. `dword_6241BC`, from
-//! where they are copied.
+//! A pass (one routine for the screen's left, right, top and bottom and the nearest and
+//! farthest depth): the polygon's list is copied to the second list with its first number once
+//! more at the end; then for each vertex A and the one after it, B: A goes to the new list if
+//! it is inside, and if one of the two is inside and the other not, a new vertex where the
+//! side crosses the edge goes there too. "Inside" is one x87 compare of the edge with the
+//! vertex's coordinate (the record's +0xC, +0x1C or +0x18), read as "edge below coordinate" or
+//! as its opposite, with "no number" counting as below.
+//! The new vertex takes the next entry of the work table and the next record of the pool:
+//! place in the view, on the screen, the record's first three dwords (screen edges only), the
+//! entry's four texture coordinates and five bytes, each between A's and B's by how far along
+//! the side the crossing is. The arithmetic is the original's own instructions
+//! (`clip_asm.rs`); it leaves its results in the clip's work variables, from where they are
+//! copied.
 
 use crate::errors::BadInput;
 use crate::scene::clip_asm::{
@@ -40,7 +36,7 @@ pub enum Edge {
     X(u32),
     /// A screen y.
     Y(u32),
-    /// A depth, the whole number in `dword_62411C`.
+    /// A depth, the whole number kept in the clip's work.
     Depth(i32),
 }
 
@@ -82,8 +78,8 @@ fn put_bytes(w: &mut Work, at: usize, bytes: &[u8]) {
 }
 
 /// A new vertex where the side from entry `a` to entry `b` crosses the edge; `mask` is
-/// what the screen's passes keep in `dword_624008`. Returns the entry's number; the
-/// caller lists it and counts `dword_624114` on.
+/// what the screen's passes keep as the clip's kept mask. Returns the entry's number; the
+/// caller lists it and counts the next free entry on.
 fn cut(
     poly: &crate::scene::polygon_work::PolygonWork,
     course: &crate::race::owner_course::Course,

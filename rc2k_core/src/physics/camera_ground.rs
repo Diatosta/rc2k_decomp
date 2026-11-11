@@ -1,10 +1,10 @@
-//! The camera's ground checks (converted 2026-10-21 from `physics::camera_low_switch`
+//! The camera's ground checks (converted from `physics::camera_low_switch`
 //! 0x438BF4, `camera_over_ground` 0x438CEC and `camera_clear_of_ground` 0x438DD2): how
 //! high the camera is over the ground found under it, the switch begun when it is low,
 //! and the points across its heading that must have ground. The camera variables
-//! (`unk_71A65C` ..) are the car block's camera fields (`Car::camera_view` the mode,
+//! (`camera_view` ..) are the car block's camera fields (`Car::camera_view` the mode,
 //! `camera_position` the place, `camera_heading` / `camera_pitch` the turns). And the camera
-//! kept out of the ground (converted 2026-10-21 from `physics::camera_avoid_ground`
+//! kept out of the ground (converted from `physics::camera_avoid_ground`
 //! 0x43907F): turned to face from a checkpoint behind, then back toward its heading in
 //! halving-by-eight steps, then pitched up or down until clear.
 
@@ -16,7 +16,7 @@ pub const CLEAR: u32 = 0x10000;
 /// in the original's order.
 pub const SIDES: [u32; 2] = [0xFFFF_8000, 0x8000];
 
-/// The camera's height over the ground (`unk_71A680` - `dword_639828`, wrapping).
+/// The camera's height over the ground (`unk_71A680` - `ground_height`, wrapping).
 pub fn over(camera_y: u32, ground: u32) -> u32 {
     camera_y.wrapping_sub(ground)
 }
@@ -32,14 +32,14 @@ pub fn is_clear(gap: u32) -> bool {
 }
 
 /// `camera_low_switch` looks: `unk_71A0A0` below 0 (or no number), no switch under way
-/// (`unk_71A66C` 0) and the mode (`unk_71A65C`) 0 or 1.
+/// (`camera_switch_active` 0) and the mode (`camera_view`) 0 or 1.
 pub fn low_switch_looks(below_zero: bool, switching: u32, mode: u32) -> bool {
     below_zero && switching == 0 && matches!(mode, 0 | 1)
 }
 
-/// The switch begun: the mode before (`unk_71A664`, the mode `unk_71A660` + 1), the mode
-/// 4, under way (`unk_71A66C`) 1, `unk_71A674` 0, `unk_71A670` 10, and the clock
-/// (`unk_71A668`), in the original's order.
+/// The switch begun: the mode before (`camera_view_return`, the mode `camera_blend_view` + 1), the mode
+/// 4, under way (`camera_switch_active`) 1, `camera_switch_share` 0, `camera_switch_length` 10, and the clock
+/// (`camera_switch_clock`), in the original's order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LowSwitch {
     pub before: u32,
@@ -69,7 +69,7 @@ pub fn back_checkpoint(checkpoint: u32, back: u32) -> Option<u32> {
     ((n as i32) >= 0).then_some(n)
 }
 
-/// The turn back's first step (`dword_605264`), and the step at or below which it ends.
+/// The turn back's first step (`camera_turn_step`), and the step at or below which it ends.
 pub const FIRST_TURN_STEP: u32 = 0x400_0000;
 pub const LAST_TURN_STEP: u32 = 0x1000;
 
@@ -98,7 +98,7 @@ pub fn next_turn_step(step: u32) -> (u32, bool) {
     (s, s <= LAST_TURN_STEP)
 }
 
-/// The pitch's first limit going down (`dword_608C20`).
+/// The pitch's first limit going down (`pitch_ceiling`).
 pub const PITCH_START: u32 = 0x4000_0000;
 
 #[cfg(test)]

@@ -1,4 +1,4 @@
-//! `files::write_stream_block` (0x402DC9): ecx bytes from ebx into a buffered stream, one
+//! `files::write_stream_block` (0x402DC9): the given bytes into a buffered stream, one
 //! by one (`files::write_stream_byte`), until one fails.
 //!
 //! Takes the stream, the bytes and their count. Returns the bytes written.

@@ -1,4 +1,4 @@
-//! `race::save_last_replay` (0x41ECFF): the last race's replay saved as replay eax: opened
+//! `race::save_last_replay` (0x41ECFF): the last race's replay saved as a replay slot: opened
 //! (`race::open_viewed_replay`, 222), saved and closed (`race::close_viewed_replay`).
 //!
 //! Takes: the slot

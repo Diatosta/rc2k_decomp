@@ -4,9 +4,9 @@
 //! Takes: the first place, the second
 //! Returns: the angle; the two differences
 //!
-//! `fpatan` of (ecx - eax) over (edx - ebx), over pi, times `flt_5C5E40` (0.5) and `flt_5C5D98`
-//! (65536), rounded (`fistp`), its low sixteen bits. (The original also left it in
-//! `dword_62400C`; the drawing's callers never read it, the others store it there themselves.)
+//! `fpatan` of the first difference over the second, over pi, times 0.5 and 65536, rounded,
+//! its low sixteen bits. (The original also left it in the shared work dword; the drawing's
+//! callers never read it, the others store it there themselves.)
 //! The instructions themselves, as `fpatan`'s result is the processor's. Four callers.
 
 use crate::math::x87;

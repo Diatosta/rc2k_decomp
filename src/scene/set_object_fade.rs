@@ -1,19 +1,18 @@
 //! `scene::set_object_fade` (0x451609): how see-through an object is drawn by how far
 //! off it is, and whether another, simpler object is drawn in its place.
 //!
-//! From the record of the object's kind (0x80 bytes at `unk_97DF30`) two words: +0x1D to
-//! `qword_6214E0` (another kind to draw instead) and +0x22 to its second half (a distance).
-//! `dword_635004` and `dword_63500C` = 0, `dword_63996C` = 0 (no fading), `dword_639974` =
-//! 0x100 (not see-through). Nothing more if both words are 0 or the object's place
-//! `dword_634FFC` (a point of the scene) is -1. Else that point's record (made if it is not
-//! there: 0x44CF33, the same as `scene::project_point` makes one) gives `dword_635004` and
-//! `dword_63500C`: its x and depth in the view as whole numbers. With the depth beyond the
-//! distance times 65536: `dword_639974` and `dword_639978` = (the distance times 65536 less the
-//! depth, plus 0x100000, not under 0) over 0x1000, `dword_63996C` = 1, and if the first word is
-//! not 0 and an object of that kind exists (`scene::find_object_of_kind`: the first of the objects
-//! 1 .. 0xFF
-//! with that kind), `g_objectNumber` becomes that object. One caller, `scene::draw_object`. Refuses
-//! an object's number past the tables and, where a record has to be made, no records or no points.
+//! From the record of the object's kind (0x80 bytes in `object_materials`) two words: +0x1D to
+//! the first `fade_words` entry (another kind to draw instead) and +0x22 to its second (a
+//! distance). The object's `position` x and depth = 0, `object_fading` = 0 (no fading),
+//! `fade` = 0x100 (not see-through). Nothing more if both words are 0 or the object's
+//! `object_place` (a point of the scene) is -1. Else that point's record (made if it is not
+//! there, the same as `scene::project_point` makes one) gives the `position`: its x and depth
+//! in the view as whole numbers. With the depth beyond the distance times 65536: both `fade`
+//! cells = (the distance times 65536 less the depth, plus 0x100000, not under 0) over 0x1000,
+//! `object_fading` = 1, and if the first word is not 0 and an object of that kind exists
+//! (`scene::find_object_of_kind`: the first of the objects 1 .. 0xFF with that kind), the
+//! current object becomes that object. One caller, `scene::draw_object`. Refuses an object's
+//! number past the tables and, where a record has to be made, no records or no points.
 
 use crate::errors::BadInput;
 use crate::math::x87;
@@ -27,8 +26,9 @@ const OBJECTS: u32 = 0x100;
 
 // ---- Rust version ----
 
-fn record_at(place: u32) -> Option<u32> {
-    crate::scene::point_records::held().then(|| crate::scene::point_records::of_scene_point(place))
+fn record_at(course: &crate::race::owner_course::Course, place: u32) -> Option<u32> {
+    crate::scene::point_records::held(course)
+        .then(|| crate::scene::point_records::of_scene_point(place))
 }
 
 /// The two words of the object's kind, and whether the object's place is looked at;
@@ -65,7 +65,7 @@ pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
         return Err(BadInput("an object's number past the tables"));
     };
     // What can refuse is asked before anything is written.
-    let record = match (needs_record, record_at(place)) {
+    let record = match (needs_record, record_at(&race.course, place)) {
         (false, _) => 0,
         (true, None) => return Err(BadInput("no records for the points")),
         (true, Some(record)) => {

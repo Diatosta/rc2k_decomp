@@ -1,10 +1,10 @@
 //! `install::list_folder_tree` (0x41371C): a folder and everything under it added to the
 //! tables, breadth first. The skip mask (`FindFileData+0x13E`) is set to 0 for the walk
-//! (and put back at the end). The folder (eax) is resolved; if not empty it goes into the
-//! folders table (`dword_51BB54`). Then, starting with that folder and working through every
-//! folder recorded from `dword_51BB50` to `dword_51BB54`, each is searched (`<folder>\*.*`
-//! built in `byte_94E8B0`): a sub-folder (not `.`/`..`) is appended to the folders table
-//! behind its parent, a file to the files table (`dword_51BB58`); the folders table is the
+//! (and put back at the end). The folder is resolved; if not empty it goes into the
+//! folders table (`dir_cursor` its end). Then, starting with that folder and working through every
+//! folder recorded from `dir_scan` to `dir_cursor`, each is searched (`<folder>\*.*`
+//! built in the numbered paths' buffer): a sub-folder (not `.`/`..`) is appended to the folders table
+//! behind its parent, a file to the files table (`file_cursor` its end); the folders table is the
 //! queue. Overflow of either table is fatal error 0x80AF2201 or 0x80AF2202.
 //!
 //! Takes the folder.
@@ -71,7 +71,7 @@ fn walk(
         // it later).
         let mut kept = search_text.clone();
         kept.push(0);
-        // byte_94E8B0
+        // The numbered paths' buffer.
         crate::files::state::PATHS.write_at(0, &kept, "the search path")?;
         if find_first(&search_text) {
             loop {
@@ -88,7 +88,7 @@ fn walk(
                             .run
                             .dir_count
                             .set(install.run.dir_count.get().wrapping_add(1));
-                        // `sub ebx, g_dirNames`
+                        // The room used in the folders table.
                         if used >= DIRS_ROOM {
                             return Err(fatal(0x80AF_2201));
                         }
@@ -101,7 +101,7 @@ fn walk(
                         .run
                         .file_count
                         .set(install.run.file_count.get().wrapping_add(1));
-                    // `sub ebx, g_fileNames`
+                    // The room used in the files table.
                     if used >= FILES_ROOM {
                         return Err(fatal(0x80AF_2202));
                     }

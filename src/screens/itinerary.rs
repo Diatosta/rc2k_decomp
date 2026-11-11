@@ -1,8 +1,8 @@
 //! The itinerary pages (`screens::draw_itinerary` and its sisters; stream A, part F1, 2026-10-18):
 //! a section of the record table (`g_recordTable`, records 0xA4 bytes; +0 the tag: 0 a stage,
 //! 1 a service, 3 / 4 the end; +0x10 its time of day as hhmm) listed row by row from y 0xE8
-//! (`seconds`), the rows counted in `dword_7559B0`, the stages in `dword_7559B4`, the
-//! services in `dword_755A0C`.
+//! (`seconds`), the rows counted in `draw_work.scratch_b0`, the stages in `draw_work.scratch_b4`, the
+//! services in `draw_work.scratch_0c`.
 
 use crate::errors::{FatalError, Refused};
 use crate::menu::owner::Menus;

@@ -1,7 +1,7 @@
 //! `net::lobby_button` (0x41802F): one of the lobby's buttons, right to left: drawn
-//! (`net::draw_button`, flags 1, x edi, y ebp), dim (flag 2) while this player is ready (state & 1)
-//! for all but item 3, and for item 0 after a race (`dword_52AD80` 1); edi then
-//! moves left past it (its width `dword_5AB4A0` + 0x44, and 8 more). (The code after its
+//! (`net::draw_button`, flags 1, at x, y), dim (flag 2) while this player is ready (state & 1)
+//! for all but item 3, and for item 0 after a race (`after_race` 1); x then
+//! moves left past it (its width `width` + 0x44, and 8 more). (The code after its
 //! `ret`, 0x41806E .. 0x418082, is reached by nothing.)
 //!
 //! Takes the string, the item, x and y.

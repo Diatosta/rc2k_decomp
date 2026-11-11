@@ -1,4 +1,4 @@
-//! The ring's work and the surface pictures' names (IDA 0x935620 .. 0x935766), out of the marks' block (phase 7, typed state).
+//! The ring's work and the surface pictures' names (IDA 0x935620 .. 0x935766).
 
 use crate::effects::blocks::RingPool;
 use crate::effects::ring_entries::Entry;
@@ -7,7 +7,7 @@ use crate::effects::run_ring::RingKinds;
 use crate::memory::owned::Owned;
 use crate::session::{Bytes, Dword, Float};
 
-/// The ring's work (IDA 0x935620 .. 0x93573C, the image's layout; phase 7, typed state): its list, cursor and count, the emitters' and the draws' integers.
+/// The ring's work (IDA 0x935620 .. 0x93573C): its list, cursor and count, the emitters' and the draws' integers.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RingWork {
@@ -72,18 +72,18 @@ impl RingWork {
             _gap_935664: Bytes::new([0; 4]),
             block: Dword::new(0x0),
             _gap_93566c: Bytes::new([0x00, 0x80, 0xFF, 0xFF]),
-            top: Float::from_bits(0xC7000000),
+            top: Float::new(-32768.0),
             _gap_935674: Bytes::new([0; 4]),
-            fade: Float::from_bits(0x0),
+            fade: Float::new(0.0),
             life: Dword::new(0x0),
             extent: [const { Dword::new(0x0) }; 2],
-            direction: [const { Float::from_bits(0x0) }; 3],
-            strength: [const { Float::from_bits(0x0) }; 2],
+            direction: [const { Float::new(0.0) }; 3],
+            strength: [const { Float::new(0.0) }; 2],
             _gap_93569c: Bytes::new([0; 20]),
             rate: Dword::new(0x0),
-            facing: Float::from_bits(0x0),
+            facing: Float::new(0.0),
             _gap_9356b8: Bytes::new([0; 4]),
-            near: Float::from_bits(0x0),
+            near: Float::new(0.0),
             whole: Dword::new(0x0),
             _gap_9356c4: Bytes::new([0; 4]),
             count: Dword::new(0x0),
@@ -95,8 +95,8 @@ impl RingWork {
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             ]),
-            away: [const { Float::from_bits(0x0) }; 3],
-            turned: [const { Float::from_bits(0x0) }; 3],
+            away: [const { Float::new(0.0) }; 3],
+            turned: [const { Float::new(0.0) }; 3],
             _gap_935730: Bytes::new([0; 12]),
         }
     }
@@ -142,7 +142,7 @@ mod tests {
     }
 }
 
-/// The surface pictures' names (IDA 0x93573C .. 0x935766, the image's layout; phase 7, typed state): `effects::set_up_surface` reads them.
+/// The surface pictures' names (IDA 0x93573C .. 0x935766): `effects::set_up_surface` reads them.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PictureNames {

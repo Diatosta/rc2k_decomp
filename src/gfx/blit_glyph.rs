@@ -66,7 +66,7 @@ pub const GLYPH_OUT_OF_RANGE: FatalError = FatalError {
     message: "",
 };
 
-/// Record number `glyph` of a glyph table (`add esi, [esi+eax*4]`), after the three checks
+/// Record number `glyph` of a glyph table after the three checks
 /// the original makes first.
 pub fn glyph_record(surface: &Surface, table: u32, glyph: u32) -> Result<Glyphs, Refused> {
     if surface.target.is_none() {

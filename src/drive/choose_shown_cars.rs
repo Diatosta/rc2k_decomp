@@ -1,18 +1,18 @@
-//! `drive::choose_shown_cars` (0x4560EA): which car blocks the two views show (`off_63DBB0`,
-//! `off_63DBB4` = 0x70F3EC + n 0xFE0 for `dword_63DBA8`, `dword_63DBAC`), `dword_63DB98` (the
-//! views' number, from `dword_63DB94`, by `dword_63DB88` when `dword_5C5CE0` is 2, also setting
-//! `dword_6238A4`), this machine's car in a network game (`dword_52A910`, `g_netSession`, set; the car
-//! `dword_63DBA0`, set by `net::set_up_race` from the network player's number; then the second
-//! view 0), and the eight of `dword_641680` (each car's device, -1 none) all -1 but the shown ones'
-//! 0 (the first, and the second when there are two views). The layout `dword_63DB88` (1 .. 3) is
+//! `drive::choose_shown_cars` (0x4560EA): which car blocks the two views show (`view_blocks`,
+//! `off_63DBB4` = 0x70F3EC + n 0xFE0 for `view_cars`, `dword_63DBAC`), `views` (the
+//! views' number, from `players`, by `view_switch` when `replay_mode` is 2, also setting
+//! `split`), this machine's car in a network game (`session`, `g_netSession`, set; the car
+//! `local_car`, set by `net::set_up_race` from the network player's number; then the second
+//! view 0), and the eight of `listed_car_sounds` (each car's device, -1 none) all -1 but the shown ones'
+//! 0 (the first, and the second when there are two views). The layout `view_switch` (1 .. 3) is
 //! the replay frame head's byte +5 (`drive::replay_cameras`), used while a replay plays
-//! (`dword_5C5CE0` 2): 1 one view of car 1, 2 two views side by side, 3 two views split the other
-//! way (`dword_6238A4` the split, 1 = side by side, `race::draw_race_scene`).
+//! (`replay_mode` 2): 1 one view of car 1, 2 two views side by side, 3 two views split the other
+//! way (`split` the split, 1 = side by side, `race::draw_race_scene`).
 //!
 //! Callers (5): race init's loop (`drive::race_cars_step`), `race::step_replay_cars`,
 //! `drive::replay_step`, `race::race_keys`,
-//! `race::draw_race_scene`. Refuses (before anything) a network car (`dword_63DBA0`) above 7 with
-//! `dword_52A910` set (it would write past `dword_641680`'s eight).
+//! `race::draw_race_scene`. Refuses (before anything) a network car (`local_car`) above 7 with
+//! `session` set (it would write past `listed_car_sounds`'s eight).
 
 use crate::errors::Refused;
 use crate::net::owner::net;

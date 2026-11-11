@@ -1,7 +1,7 @@
 //! `net::send_position` (0x464201): "send p", the player and the step logged, and the
 //! message 'PGSM' (0x4D534750) with the car's place (+0x134 .. +0x13C), its matrix (+0xB4
 //! .. +0xE0) and 25 more dwords of its block (speeds, gear, engine, ...) built in
-//! `unk_71C4D0` and sent (`net::send_race_message`).
+//! `net_message` and sent (`net::send_race_message`).
 //!
 //!
 //! See `net/mod.rs` and `net::send_inputs` (the shared body). One caller, `net::send_turn`

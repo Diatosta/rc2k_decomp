@@ -1,6 +1,5 @@
 //! `net::car_list` (0x4AAAF7): the car list the network game's car screen shows: with any
-//! of the cars won (`g_secretCars`, ended by -1) in the secret cars' list (`off_75A042`,
-//! ended by -1), the list with them (`off_759E52`), else the one without (`off_759DCA`).
+//! of the cars won (`g_secretCars`, ended by -1) in the secret cars' list (ended by -1), the list with them, else the one without.
 //!
 //! Returns the list.
 //! Each won car is compared with the secret list's first entry before its end is looked

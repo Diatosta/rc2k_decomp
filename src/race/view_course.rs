@@ -12,13 +12,13 @@ use crate::session::{Bytes, Dword};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewCourse {
-    /// The four face tables (`byte_63DC5C` .. `byte_63DF5C`), each view's own: the depth flag
+    /// The four face tables (`face_table_a` .. `face_table_d`), each view's own: the depth flag
     /// of an object (a, b) and its kind byte (c, d).
     pub face_table_a: Bytes<256>,
     pub face_table_b: Bytes<256>,
     pub face_table_c: Bytes<256>,
     pub face_table_d: Bytes<256>,
-    /// The view value `race::draw_mirror_view` keeps (`dword_63E170`), each view's own.
+    /// The view value `race::draw_mirror_view` keeps (`view_value_kept`), each view's own.
     pub view_value_kept: Dword,
     /// `g_shine` (0x5CCE78), each view's own.
     pub shine: Dword,

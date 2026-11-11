@@ -1,7 +1,7 @@
 //! `net::connections_frame` (0x4175C7): the frame of `net::choose_connection`: on the locked
-//! surface the background, the title (string 0x14E, `stru_51E9A4` at 0x316, 0x6F), and from
+//! surface the background, the title (string 0x14E, `typefaces::STAGE_TITLE` at 0x316, 0x6F), and from
 //! y 0x9B sixteen of the connections' names from `g_listChoiceBefore` (the list's top) in
-//! `font`, the highlighted one in `unk_51E644` in the blink's lit half
+//! `font`, the highlighted one in `typefaces::BUTTON_LIT` in the blink's lit half
 //! (`net::connection_entry`, `text::draw_text` at 0x190, each the font's line height lower);
 //! unlocked and shown.
 //!

@@ -1,11 +1,11 @@
-//! The race's start and its panel (converted 2026-10-21 from `race::countdown_lights`
-//! 0x45B008 and `race::car_label` 0x45B1B7; a car's start place converted 2026-10-21
+//! The race's start and its panel (converted from `race::countdown_lights`
+//! 0x45B008 and `race::car_label` 0x45B1B7; a car's start place
 //! from `race::start_car` 0x4464AD).
 
 /// The start lights of one view, from the milliseconds since the countdown began.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Lights {
-    /// `dword_6D1810`: the hundreds, at most 5.
+    /// `start_lights_lit`: the hundreds, at most 5.
     pub shown: u32,
     /// The lights lit: the hundreds, -1 from 6.
     pub lit: u32,
@@ -80,7 +80,7 @@ pub fn start_checkpoint(first: u32, mode: u32, car: u32) -> u32 {
     }
 }
 
-/// `race::start_car`: whether the car starts to the side: with `dword_52A910` set, or in
+/// `race::start_car`: whether the car starts to the side: with `session` set, or in
 /// mode 0 with other than one player (each asked only where the original reads it).
 pub fn starts_aside(
     switch: u32,

@@ -1,14 +1,15 @@
 //! `menu::calc_cpu_times` (0x470950): the computer drivers' times for the current record
 //! ("CALCCPUTIMES:STARTED" / "FINISHED" logged around it). The record's four times (+0x18
-//! .. +0x24) into `dword_75AAE8` .. and scaled (`menu::scale_stage_times`); its track pack
-//! entry's +0xC into `dword_75AAF8` and its hundredfold / 0x96A into `dword_75AAFC`. Then
-//! for each class c (0 .. `dword_7558F8`) and each driver of that class (+8), in order:
-//! half the class's time (`dword_75AAE8`[c]) / its driver count (`dword_75AB00`[c]) into
-//! `hhmm` (the gap); `dword_7559EC` a random number under 3000, plus (when `dword_755944`
-//! is not 1) one under 1000 times `cpu_spread_step` (then `dword_755944` 0 and
-//! `cpu_spread_step` up by one; when it is 1, `cpu_spread_step` 0); a driver whose +0x24 is 1
-//! gets that plus the class's time plus the gaps so far into its +0xC and added to its
-//! +0x10; the gap added for each driver of the class.
+//! .. +0x24) go into `state.menus.class_times` and are scaled (`menu::scale_stage_times`); its
+//! track pack entry's +0xC goes into `track_length[0]` and its hundredfold / 0x96A into
+//! `track_length[1]`. Then for each class c (0 .. `event.classes`) and each driver of that
+//! class (+8), in order: half the class's time / its driver count (`class_counts`[c]) into
+//! the gap; the draw work's figure gets a random number under 3000, plus (when
+//! `cpu_spread_first` is not 1) one under 1000 times `cpu_spread_step` (then
+//! `cpu_spread_first` is cleared and `cpu_spread_step` goes up by one; when it is 1,
+//! `cpu_spread_step` is cleared); a driver whose +0x24 is 1 gets that plus the class's time
+//! plus the gaps so far into its +0xC, added to its +0x10; the gap added for each driver of
+//! the class.
 //!
 //! The random numbers are `math::random_below`'s. Fatal error 0x80701010 as the original's checks (a hundredfold of 0, a
 //! half time of 0: the original tests the dividend), before anything; refuses a record past the
@@ -16,7 +17,7 @@
 //! traps), a drivers table without its end, before anything.
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::drivers_store::{Driver, IN_EVENT};
-use crate::menu::owner::Screens;
+use crate::menu::owner::{Menus, Screens};
 use crate::menu::standings::*;
 use crate::records::stages_store::RecordRef;
 use crate::system::owner::system;
@@ -25,7 +26,7 @@ use crate::menu::scale_stage_times::{held_section, scaled};
 
 const TEXTS_RVA: [&std::ffi::CStr; 2] = [c"CALCCPUTIMES:STARTED", c"CALCCPUTIMES:FINISHED"]; // aCalccputimesSt, aCalccputimesFi
 
-/// The class time `c` as the original reads it, `dword_75AAE8`[c]: with no bound, so that a
+/// The class time `c` as the original reads it, the class's entry of `class_times`: with no bound, so that a
 /// class past the four reads on into the variables that follow.
 fn class_time_at(screens: &Screens, c: u32) -> Result<u32, BadInput> {
     crate::session::read_on_in(
@@ -36,7 +37,7 @@ fn class_time_at(screens: &Screens, c: u32) -> Result<u32, BadInput> {
     )
 }
 
-/// The drivers of class `c`, `dword_75AB00`[c], read the same way.
+/// The drivers of class `c`, `class_counts`[c], read the same way.
 fn class_count_at(screens: &Screens, c: u32) -> Result<u32, BadInput> {
     crate::session::read_on_in(
         &screens.state,
@@ -65,20 +66,21 @@ pub fn record(screens: &Screens) -> Result<RecordRef, BadInput> {
 
 /// What is refused for the record `rec` (or its fatal error), before
 /// anything: the class count, the drivers and the pack entry's length.
-pub fn check(screens: &Screens, rec: RecordRef) -> Result<(u32, &'_ [Driver], u32), Refused> {
+pub fn check(menus: &Menus, rec: RecordRef) -> Result<(u32, &'_ [Driver], u32), Refused> {
+    let screens = &menus.screens;
     let classes: u32 = screens.event.classes.get();
     if classes == 0 || classes > 0x100 {
         return Err(BadInput("a class count of 0 or past 0x100").into());
     }
-    let drivers = drivers()?;
+    let drivers = drivers(menus)?;
     let times = rec.record()?.class_times();
     let (times, _) = scaled(times, held_section());
     let length = crate::records::trakpak_entry::track_of(rec)?.length()?;
     if length.wrapping_mul(100) == 0 {
         return Err(DIVIDE_BY_ZERO.into());
     }
-    // The class's time as the loop reads it: `dword_75AAE8`[c], past the four times
-    // `dword_75AAF8` / `dword_75AAFC` as written just before.
+    // The class's time as the loop reads it: `class_times`[c], past the four times
+    // `track_length` as written just before.
     let class_time = |c: u32| -> Result<u32, BadInput> {
         match c {
             0..4 => Ok(times[c as usize]),
@@ -101,10 +103,11 @@ pub fn check(screens: &Screens, rec: RecordRef) -> Result<(u32, &'_ [Driver], u3
     Ok((classes, drivers, length))
 }
 
-pub fn calc_cpu_times(screens: &Screens) -> Result<(), Refused> {
+pub fn calc_cpu_times(menus: &Menus) -> Result<(), Refused> {
+    let screens = &menus.screens;
     let race = crate::race::owner::race();
     let rec = record(screens)?;
-    let (classes, drivers, length) = check(screens, rec)?;
+    let (classes, drivers, length) = check(menus, rec)?;
     crate::logfile::log_write::log_nul(&TEXTS_RVA[0], true, 1);
     for (k, t) in rec.record()?.class_times().into_iter().enumerate() {
         screens.state.menus.class_times[k].set(t);

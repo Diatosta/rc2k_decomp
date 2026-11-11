@@ -1,5 +1,5 @@
 //! `net::create_dplay` (0x41861D): "NET: Create dplay", and DirectPlay's object made
-//! (`CoCreateInstance` of CLSID_DirectPlay `stru_5AB330`, IID_IDirectPlay4A `stru_5AB310`,
+//! (`CoCreateInstance` of CLSID_DirectPlay `clsid_dplay`, IID_IDirectPlay4A `iid_dplay4a`,
 //! in-process) into `g_dplay`.
 //!
 //! Returns true when made.

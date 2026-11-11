@@ -1,5 +1,5 @@
 //! `net::choose_connection` (0x4174C5): the list screen of the DirectPlay connections
-//! (`net::connections_frame` through `screens::run_frame`): the clocks from `dword_518998`,
+//! (`net::connections_frame` through `screens::run_frame`): the clocks from `clocks.key_ticks`,
 //! the top and the highlight 0; each frame a key (`menu::list_take_key`): up (0x66) and down
 //! (0x6B) move the highlight (within 0 .. the count - 1, signed) and the top with it
 //! (sixteen rows), Enter (0x1C) chooses, Escape (1) or the game closing gives -1; 'R' takes a

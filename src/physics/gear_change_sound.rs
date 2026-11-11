@@ -1,7 +1,7 @@
 //! `physics::gear_change_sound` (0x45C551): the current car's sound object
-//! (`g_raceSoundObjects[g_currentCar & 7]`, in edi) told of `g_car` +0x238: at 1 its
-//! +0x180 and +0x10 set to 1; at -1 its +0x198 and +0x10 set to 1. A reading: a gear
-//! change up or down heard.
+//! (`g_raceSoundObjects[g_currentCar & 7]`) told of the car's `gear_changed`: at 1 its
+//! `drive_slip_speed`-side flag (+0x180) and the car flags (+0x10) are set to 1; at -1 its
+//! `velocity`-side flag (+0x198) and +0x10 are set to 1. A reading: a gear change up or down heard.
 //!
 //! Returns: the sound object
 //!

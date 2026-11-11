@@ -2,7 +2,7 @@
 //! the next one that is there.
 //!
 //! The car (as `menu::load_car_background` finds it, 0x21 counting as 0x17); its pictures are
-//! `off_759B0E[car]` (`;3files\g\slides\mgnslNN.png` and so on) with the number `dword_755994`.
+//! the slideshow picture paths (`;3files\g\slides\mgnslNN.png` and so on) with the number `event.picture`.
 //! Starting from that number: the path made (`files::numbered_path`); if the file is there it is
 //! taken, else the path's last two characters become "cx" (`.pcx`) and if that is there it is
 //! taken; else the number steps the way (from 0 back to 99, from 99 on to 0) and the next is tried,

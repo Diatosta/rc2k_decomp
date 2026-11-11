@@ -1,13 +1,14 @@
-//! `scene::draw_described_object` (0x451B61): an object drawn from its description at esi
+//! `scene::draw_described_object` (0x451B61): an object drawn from its description
 //! (a course face record of kind 0xFF, part R1 of stream A; also `scene::draw_scene_object`'s
 //! modes 1 and 2).
 //!
-//! Nothing for an object above 0x64 or a point past `g_scenePointCount`, nor in a race for
+//! Nothing for an object above 0x64 or a point past the scene's point count, nor in a race for
 //! object 0x3F. Objects 0x38 and 0x3A .. 0x3F are signs: upright (0x2000), full light, 0x3D /
 //! 0x3E half bright when any of +0x19 .. +0x1B, +0x20, +0x28 .. +0x2B is set. Then
-//! `dword_6365C8` 2, `race::place_object_matrix`, `g_lightKind` 2 (1 when the object's material
-//! record has +0x1F), `scene::draw_scene_object` (esi the material record, ecx the object, eax
-//! its +0x1F); after it (and in the cases of nothing) `dword_635058` 0 and `g_objectPlace` -1.
+//! the view kind 2, `race::place_object_matrix`, the light kind 2 (1 when the object's
+//! material record has +0x1F), `scene::draw_scene_object` (given the material record, the
+//! object and its +0x1F); after it (and in the cases of nothing) `only_object` 0 and the
+//! object place -1.
 //! Refuses (before anything) what `draw_scene_object` refuses for the object (a race car
 //! without its block).
 
@@ -18,7 +19,7 @@ use crate::pointers::GamePtr;
 /// (0x50 ..) without its block.
 fn check_object(race: &crate::race::owner::Race, object: u32) -> Result<(), Refused> {
     let car = object.wrapping_sub(0x50);
-    if race.course.numbers.in_race.get() != 0
+    if race.course.numbers.in_race.is_set()
         && car < 0xA0
         && race.shared.work.car_block((car / 0x14) as usize) == 0
     {
@@ -27,7 +28,7 @@ fn check_object(race: &crate::race::owner::Race, object: u32) -> Result<(), Refu
     Ok(())
 }
 
-/// Where an object's description is read (esi at the original's entry): a place in game
+/// Where an object's description is read (passed in): a place in game
 /// memory, or a view's sort list from a flare's entry on (`race::view_scratch`; the
 /// original's entries lay in the buffers block, read on past the entry).
 #[derive(Clone, Copy)]
@@ -62,11 +63,8 @@ impl Description<'_> {
     }
 }
 
-/// The Rust version for the description at `d` (esi at the original's entry). Its calls:
-/// `race::place_object_matrix` and `scene::draw_scene_object`. What it leaves in the
-/// registers (ebx the object) no caller reads (register liveness, 2026-10-23: only the
-/// unreached 0x49081A), nor do its two calls read what it had in them: the matrix's
-/// placing reads no register, and the drawing only esi, which it is given.
+/// Draws the object of the description at `d`. Its calls: `race::place_object_matrix` and
+/// `scene::draw_scene_object`.
 pub fn draw_described_object(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     d: Option<Description<'_>>,
@@ -81,8 +79,7 @@ pub fn draw_described_face(
     face: u32,
 ) -> Result<(), Refused> {
     draw_description(ctx, &|len| {
-        let bytes: [u8; 0x40] =
-            crate::race::course_places::face_field(face, 0, "a described face")?;
+        let bytes: [u8; 0x40] = crate::race::course_places::face_field(&ctx.race.course, face, 0)?;
         Ok(bytes[..len].to_vec())
     })
 }
@@ -127,7 +124,7 @@ fn draw_description(
     let desc = read(0x3C)?;
     let byte = |o: u32| desc[o as usize] as u32;
     let get = |o: usize| u32::from_le_bytes(desc[o..o + 4].try_into().unwrap());
-    let at: [u32; 3] = crate::race::scene_points::point_number(place)?;
+    let at: [u32; 3] = crate::race::scene_points::point_number(&race.course, place)?;
     ctx.view.object.place[0].set(at[0].wrapping_add(get(0x30)));
     ctx.view.object.place[1].set(at[1].wrapping_add(get(0x34)));
     ctx.view.object.place[2].set(at[2].wrapping_add(get(0x38)));

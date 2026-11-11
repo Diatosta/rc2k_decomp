@@ -1,7 +1,7 @@
-//! `records::seal_time` (0x40264D): a time sealed for the records. The time eax, at most
+//! `records::seal_time` (0x40264D): a time sealed for the records. The time, at most
 //! 0x22550FF; negated when a cheat of 0x16000 is on, or negated and bit 30 cleared when
 //! cheat 0x40000 is on or `g_patchSwitch` is set; into the block's first dword
-//! (`dword_4E0534`), bl / cl / dl its next three bytes, its eighth byte 0x5A plus the
+//! (the seal's first dword), then its next three bytes, its eighth byte 0x5A plus the
 //! seven before it each inverted (a byte sum); then `race::seal_block`.
 //!
 //! Caller: `menu::sealed_player_time`.

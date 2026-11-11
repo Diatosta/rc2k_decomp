@@ -1,9 +1,9 @@
-//! `race::draw_mirror_view` (0x454806): the mirror's view, unless `dword_64BB18` or `dword_71C3E0`
-//! is set or `dword_621480` (`scene_set_up`, always 1 once a scene is set up: it never stops the mirror) is 0: `dword_63DC58` kept in `dword_63E170`;
-//! `dword_606294` saved, made `flt_5C5E2C`'s value (the mirror's own view variables,
+//! `race::draw_mirror_view` (0x454806): the mirror's view, unless `dword_64BB18` or `in_credits`
+//! is set or `scene_set_up` (`scene_set_up`, always 1 once a scene is set up: it never stops the mirror) is 0: `dword_63DC58` kept in `view_value_kept`;
+//! `view_scale` saved, made `k256`'s value (the mirror's own view variables,
 //! `ViewScratch::vars`, taken first); the mirror's window (`race::mirror_view_window`),
-//! `dword_63DC58` back from `dword_63E170`, the backdrop (`race::draw_view_backdrop`), the scene
-//! (`race::draw_view_scene`); `dword_606294` put back; the full view's window again
+//! `dword_63DC58` back from `view_value_kept`, the backdrop (`race::draw_view_backdrop`), the scene
+//! (`race::draw_view_scene`); `view_scale` put back; the full view's window again
 //! (`race::full_view_window_2`, now the front end's window: `race::draw_race_scene`). Returns the
 //! scene's output (`ViewOutput`: its view value for its block; its EAX weight goes nowhere, the
 //! race's is the first player's view's).

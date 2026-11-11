@@ -28,13 +28,21 @@ pub fn checkpoint_offset(race: &Race) -> Result<(), Refused> {
     }
     let angle = crate::race::checkpoints_store::angle(c as usize).get();
     let face = crate::race::checkpoints_store::face(c as usize).get();
-    let point = crate::race::course_places::face_field::<u32>(face, 4, "a checkpoint face")?;
+    let point = crate::race::course_places::face_field::<u32>(&race.course, face, 4)?;
     let x = race.shared.car.position[0]
         .get()
-        .wrapping_sub(crate::race::scene_points::point_word(point, 0)?);
+        .wrapping_sub(crate::race::scene_points::point_word(
+            &race.course,
+            point,
+            0,
+        )?);
     let z = race.shared.car.position[2]
         .get()
-        .wrapping_sub(crate::race::scene_points::point_word(point, 2)?);
+        .wrapping_sub(crate::race::scene_points::point_word(
+            &race.course,
+            point,
+            2,
+        )?);
     let [x2, _, z2, _] = turn_point_xz(x as i32, point as i32, z as i32, angle.wrapping_neg());
     race.shared.car.checkpoint_offset[0].set(x2);
     race.shared.car.checkpoint_offset[1].set(z2);

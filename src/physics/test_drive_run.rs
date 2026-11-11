@@ -1,20 +1,17 @@
 //! `physics::test_drive_run` (0x421848): the car's acceleration measured for its
-//! figures: from standing (the drive speeds 0, gear 1, the engine 0, `unk_71A010` 1), 5000
+//! figures: from standing (the drive speeds 0, gear 1, the engine 0, `gearbox_kind` 1), 5000
 //! steps of the engine and gearbox alone (in `pusha` / `popa`: the car's speed the drive
 //! speed, `physics::count_down_timers`, `physics::gearbox_step`,
-//! `physics::engine_torque`, the drive force `flt_614748` x `flt_5CB968` / the gear's ratio
-//! / `flt_5C5E34` into `flt_614750`, `physics::drive_torque_share`, the drag (`fst` into
-//! `dword_62400C`) and the drive force step the drive speeds, `physics::revs_from_wheels`);
-//! the steps at which the speed first reaches `flt_5CB988` and `flt_5CB98C` into
-//! `dword_5CB97C`, `dword_5CB980`; every twentieth step the speed x `flt_5C5D00` and the
-//! gear into `flt_5CB990[k]`, `dword_5CBD90[k]`; at the end the speed x `flt_5C5D00` into
-//! `dword_5CB984` and the two steps / `flt_5C5D14` (times) back into theirs.
+//! `physics::engine_torque`, the drive force `engine_force` x `drive_torque_figure` / the gear's ratio
+//! / `k10000` into `drive_torque`, `physics::drive_torque_share`, the drag (`fst` into
+//! `scratch`) and the drive force step the drive speeds, `physics::revs_from_wheels`);
+//! the steps at which the speed first reaches `test_limits` and `flt_5CB98C` into
+//! `test_marks`, `dword_5CB980`; every twentieth step the speed x `two_and_a_quarter` and the
+//! gear into `test_speeds`[k]`, `test_gears`[k]`; at the end the speed x `two_and_a_quarter` into
+//! `dword_5CB984` and the two steps / `hundred` (times) back into theirs.
 //!
 //! Caller: `physics::test_drive`. Refuses a gear outside -1 ..= 7 (past `g_gearRatios`) and
 //! what its calls refuse; everything written put back.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::int;
@@ -29,9 +26,8 @@ pub const STEPS: u32 = 0x1388;
 
 /// One step (0x42189D ..).
 fn step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    race.shared.car.local_velocity[2].set_bits(crate::math::x87::loaded(
-        race.shared.car.drive_speed_a.bits(),
-    ));
+    race.shared.car.local_velocity[2]
+        .set_bits(crate::math::x87::loaded(&race.shared.car.drive_speed_a));
     crate::physics::count_down_timers::count_down_timers(&race.shared.car, &race.shared.vars);
     crate::physics::gearbox_step::gearbox_step(race, scene)?;
     crate::physics::engine_torque::engine_torque(race, scene);
@@ -90,8 +86,8 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
         if n % 20 == 0 {
             let slot = (n / 20) as usize;
             GEAR.test_speeds[slot].set_bits(crate::math::x87::mul(
-                race.shared.car.drive_speed_a.bits(),
-                race.course.numbers.two_and_a_quarter.bits(),
+                &race.shared.car.drive_speed_a,
+                &race.course.numbers.two_and_a_quarter,
             ));
             GEAR.test_gears[slot].set(race.shared.car.gear.get());
         }
@@ -106,9 +102,9 @@ pub fn test_drive_run(race: &Race, scene: &crate::scene::owner::Scene) -> Result
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x214750] = (([rc + 0x214748] * [rc + 0x1CB968]) / [r + 0]) / [rc + 0x1C5E34]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[drive_torque] = (([engine_force] * [drive_torque_figure]) / [r + 0]) / [k10000]`
 fn x87_1(race: &Race, r: &Float) {
     let t0 = ld(race.shared.physics_tables.engine_force.bits());
     let t1 = ld(GEAR.drive_torque_figure.bits());
@@ -120,9 +116,9 @@ fn x87_1(race: &Race, r: &Float) {
     race.shared.physics_tables.drive_torque.set_bits(st(t6));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x22400C] = -(((([rc + 0x31A190] * [rc + 0x31A190]) * [rc + 0x213FCC]) / [rc + 0x1C5E34]) + [rc + 0x213FD0])`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[scratch] = -(((([drive_speed_a] * [drive_speed_a]) * [air_drag]) / [k10000]) + [rolling_drag])`
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn x87_2(race: &Race, scene: &crate::scene::owner::Scene) {
@@ -146,11 +142,11 @@ fn x87_2(race: &Race, scene: &crate::scene::owner::Scene) {
     race.shared.car.drive_speed_b.set_bits(st(t14));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x1CB984] = [rc + 0x31A190] * [rc + 0x1C5D00]`
-/// `[rc + 0x1CB97C] = int [rc + 0x1CB97C] / [rc + 0x1C5D14]`
-/// `[rc + 0x1CB980] = int [rc + 0x1CB980] / [rc + 0x1C5D14]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x1CB984] = [drive_speed_a] * [two_and_a_quarter]`
+/// `[test_marks] = int [test_marks] / [hundred]`
+/// `[rc + 0x1CB980] = int [rc + 0x1CB980] / [hundred]`
 fn x87_3(race: &Race) {
     let t0 = ld(race.shared.car.drive_speed_a.bits());
     let t1 = ld(race.course.numbers.two_and_a_quarter.bits());

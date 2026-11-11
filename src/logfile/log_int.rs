@@ -1,4 +1,4 @@
-//! `logfile::log_int` (0x401440): logs eax as a signed decimal number.
+//! `logfile::log_int` (0x401440): logs the number as a signed decimal number.
 //!
 //! Takes the number, 1 for a line break after it, level - 1. A minus sign and the magnitude through
 //! `format_u32` with flags 0.

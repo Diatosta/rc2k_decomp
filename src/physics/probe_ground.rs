@@ -1,39 +1,36 @@
-//! `physics::probe_ground` (0x45D305): the ground under each of the car's
-//! `dword_71A238` probe points (the work copy's lists x `flt_71AAC8`, y `flt_71ABC8`, z
-//! `flt_71ACC8`, 0x40 each; the first four are the wheels' points: they alone get their y
-//! replaced below, and they feed `wheel_ground_x / height / z` and `wheel_lifted`).
-//! Nothing when the count is 0. Else `dword_6D3B84` = -1 and for each point b:
-//! - for b < 4 its y is replaced: `flt_71ABE0` (the list's seventh y) less `flt_614BF4`,
-//!   plus `flt_613E8C` unless bit b + 5 of `dword_71A270` is set and then unless bit
-//!   b + 1 is; less `flt_613F8C` times `flt_614BF8` (the point's own y only goes to
-//!   `dword_62400C`);
-//! - the point turned by `g_crashMatrix` (`scene::rotate_point`), its x y z kept as floats
-//!   (0x6D2214, 0x6D2314, 0x6D2414 [b]; x and z also in 0x6D3628 and 0x6D3630), and as
-//!   whole numbers times 65536 plus the car's place (`dword_71A10C` ..) at 0x6D1E14,
-//!   0x6D1F14, 0x6D2014 [b];
-//! - the ground under (x, z) by `physics::find_ground`, the mask `dword_620470` 0x80, the
-//!   last face `dword_71ADC8[b]`; `dword_6D2714[b]` the found;
-//! - not found: `dword_6D2114[b]` 0, `dword_6D3B84` = b;
-//! - found: `dword_6D2114[b]` the height (`dword_639828`) plus a bump: the noise bytes
+//! `physics::probe_ground` (0x45D305): the ground under each of the car's `probe_count` probe
+//! points (the work car's lists `probe_point_x`, `probe_point_y`, `probe_point_z`, 0x40 each; the
+//! first four are the wheels' points: they alone get their y replaced below, and they feed
+//! `wheel_ground_x / height / z` and `wheel_lifted`). Nothing when the count is 0. Else
+//! `crossed_probe` = -1 and for each point b:
+//! - for b < 4 its y is replaced: the list's seventh y less `handling[4]`, plus `probe_lift`
+//!   unless bit b + 5 of `parts_present` is set and then unless bit b + 1 is; less
+//!   `probe_share` times `handling[3]` (the point's own y only goes to the scratch dword);
+//! - the point is turned by `g_crashMatrix` (`scene::rotate_point`), its x y z kept as floats
+//!   (`probe_turned_x`, `probe_turned_y`, `probe_turned_z` [b]; x and z also in
+//!   `probe_turned_x_last` and `probe_turned_z_last`), and as whole numbers times 65536 plus the
+//!   car's `position` in `probe_x`, `probe_y`, `probe_z` [b];
+//! - the ground under (x, z) comes from `physics::find_ground`, with the mask `settle_mark` 0x80
+//!   and the last face `probe_point_face[b]`; `probe_found[b]` records the result;
+//! - not found: `probe_ground_height[b]` 0, `crossed_probe` = b;
+//! - found: `probe_ground_height[b]` is the height (`ground_height`) plus a bump: the noise bytes
 //!   (`g_noiseBytes`, 64 x 64) at (x >> 14, z >> 14) mixed by the low 14 bits
-//!   (0x6D3044 .. 0x6D3064 the steps), times `flt_71A038`, 256, over 100; the face's half
-//!   and shares (0x6D2914, 0x6D2A14, 0x6D2B14 [b]); `dword_6D2514[b]` = y less that
-//!   ground; for b < 4 that also into `dword_6D2614[b]` and `dword_6D2514[b]` times
-//!   `flt_71A0A0` (held to at least `flt_5C5D90`); `dword_71ADC8[b]` = the face found.
+//!   (`ground_noise_corners` the steps), times `ground_bump_scale`, 256, over 100; the face's half
+//!   and shares (`probe_face_flip`, `probe_share_u`, `probe_share_v` [b]); `probe_height[b]` = y less
+//!   that ground; for b < 4 that also into `wheel_height_raw[b]` and `probe_height[b]` times
+//!   the car's wheel-load figure (held to at least 0); `probe_point_face[b]` = the face found.
 //!
-//! Then the first four of 0x6D1E14, 0x6D2114, 0x6D2014 into 0x71AEE8 .. 0x71AF14.
+//! Then the first four of `probe_x`, `probe_ground_height`, `probe_z` go into the car's
+//! `wheel_ground_x`, `wheel_ground_height`, `wheel_ground_z`.
 //!
 //! Callers (6): `physics::find_clear_place`, `physics::feel_ground`, `race::settle_car` (twice),
-//! `race::face_hide_mask`,
-//! `physics::probe_and_keep`. Refuses (before anything: what it wrote is put back) a count above
-//! 0x40 (the lists' room), and what `find_ground` refuses on any point.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! `race::face_hide_mask`, `physics::probe_and_keep`. Refuses (before anything: what it wrote is
+//! put back) a count above 0x40 (the lists' room), and what `find_ground` refuses on any point.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::math::x87_run::{int_times_times_over_to_int, less_plus_less_product_80};
+use crate::math::x87::less_plus_less_product_80;
+use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::flow::ZERO_BITS as ZERO;
@@ -117,7 +114,7 @@ fn probe_points(
         }
         q.x.set(work.probe_x[i].get());
         q.z.set(work.probe_z[i].get());
-        // The search tries this face first (`dword_5CCC78`: the physics' query's own cell,
+        // The search tries this face first (`ground_face_last`: the physics' query's own cell,
         // a drawing's its own).
         q.last.set(car.probe_point_face[b as usize].get());
         q.settle_mark.set(0x80);
@@ -152,11 +149,11 @@ fn probe_points(
         contact.ground_noise_mix[0].set(n54);
         contact.ground_noise_mix[2].set(n5c);
         scratch.set(n5c);
-        let bump = int_times_times_over_to_int(
-            n5c as i32,
-            car.ground_bump_scale.bits(),
-            race.course.numbers.k256.bits(),
-            race.course.numbers.hundred.bits(),
+        let bump = bh::to_int(
+            bh::int(n5c as i32)
+                * bh::ld(car.ground_bump_scale.bits())
+                * bh::ld(race.course.numbers.k256.bits())
+                / bh::ld(race.course.numbers.hundred.bits()),
         );
         scratch.set(bump as u32);
         work.probe_ground_height[i]
@@ -169,7 +166,7 @@ fn probe_points(
             .wrapping_sub(work.probe_ground_height[i].get());
         work.probe_height[i].set(d);
         if b < 4 {
-            scratch.set(x87::loaded(car.crash_matrix[5].bits()));
+            scratch.set(x87::loaded(&car.crash_matrix[5]));
             if x87::compare_status(scratch.get(), ZERO) & 0x100 != 0 {
                 scratch.set(x87::loaded(ZERO));
             }

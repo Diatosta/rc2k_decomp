@@ -1,4 +1,4 @@
-//! A car block's grades put back (converted 2026-10-21 from `physics::reset_car_grades`
+//! A car block's grades put back (converted from `physics::reset_car_grades`
 //! 0x440A22). The block is the work copy's layout (`g_car`, 0xFE0 bytes); what the fields
 //! are is stream A's reading (the block's grades and values).
 //!
@@ -15,8 +15,8 @@ pub fn percentage(setting: i32, k256: f32, k100: f32) -> f32 {
 
 /// `physics::reset_car_grades`' writes into the block (byte offset, dword), in the
 /// original's order: +0x29C .. +0x367 zeroed; +0x3F4 .. +0x404 `one`; +0x448 .. +0x458
-/// `a` (the setting at `dword_71A00C` as a percentage), +0x438 .. +0x444 and +0x45C `c`
-/// (`dword_71A008`'s); +0x408 .. +0x434 and +0x64 .. +0x80 zeroed; +0x298 -1.
+/// `a` (the setting at `suspension_stiffness` as a percentage), +0x438 .. +0x444 and +0x45C `c`
+/// (`ride_height`'s); +0x408 .. +0x434 and +0x64 .. +0x80 zeroed; +0x298 -1.
 pub fn reset_writes(one: f32, a: f32, c: f32) -> Vec<(u32, u32)> {
     let mut w: Vec<(u32, u32)> = (0x29C..0x368).step_by(4).map(|o| (o, 0)).collect();
     let one = loaded(one).to_bits();

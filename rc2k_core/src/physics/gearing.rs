@@ -1,5 +1,5 @@
 //! The gear ratios and the sums between the engine's speed and the driven wheels'
-//! (converted 2026-10-21 from `physics::make_gear_ratios` 0x4219E6,
+//! (converted from `physics::make_gear_ratios` 0x4219E6,
 //! `physics::revs_from_wheels` 0x43C0C9, `physics::wheels_from_revs` 0x43C124,
 //! `physics::revs_from_speed` 0x43C101, `physics::drop_to_neutral` 0x43FD71 and
 //! `physics::settle_drive_speeds` 0x43BF6F). The ratios are `g_gearRatios` (0x6140C0, by
@@ -66,8 +66,8 @@ pub fn settle_speed(speed: f32, step: f32) -> Option<f32> {
     }
 }
 
-/// `physics::drop_to_neutral`'s test: with the switch (`dword_71A20C`) set, in gear, the
-/// engine speed below `limit` (`flt_6140FC`; or unordered) and `block` (`dword_61416C`)
+/// `physics::drop_to_neutral`'s test: with the switch (`contact_flag`) set, in gear, the
+/// engine speed below `limit` (`stall_engine_speed`; or unordered) and `block` (`no_auto_neutral`)
 /// 0: the engine stalls into neutral (the caller sets gear 0 and the change's fields).
 pub fn drops_to_neutral(
     switch: u32,
@@ -82,21 +82,21 @@ pub fn drops_to_neutral(
 /// What `physics::make_gear_ratios` makes the ratios from.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GearSetup {
-    /// `dword_614C10`: the forward gears.
+    /// `gear_count`: the forward gears.
     pub count: u32,
     /// The top gear's ends (`flt_5CB978`, `flt_5CB970`) and the first's (`flt_5CB974`,
-    /// `flt_5CB96C`).
+    /// `figures`).
     pub top: [f32; 2],
     pub first: [f32; 2],
-    /// `dword_71A000`: the setup's gearing (a whole number).
+    /// `gear_ratio_setting`: the setup's gearing (a whole number).
     pub gearing: i32,
-    /// `flt_5C5DA4`, `flt_5C5D00`, `flt_71A1B4`: the gearing's factor and two divisors.
+    /// `quarter`, `two_and_a_quarter`, `engine_speed_limit`: the gearing's factor and two divisors.
     pub factor: f32,
     pub divisor: f32,
     pub engine_speed_limit: f32,
-    /// `flt_5C5D38` (1.0).
+    /// `one` (1.0).
     pub one: f32,
-    /// `flt_613FE8`: neutral's.
+    /// `gear_ratio_step`: neutral's.
     pub neutral: f32,
 }
 
@@ -109,7 +109,7 @@ fn setup_ratio(ends: [f32; 2], s: &GearSetup) -> f32 {
 }
 
 /// `physics::make_gear_ratios`: the ratios (reverse ..= gear 7) and the step between
-/// gears (kept in `dword_62400C`). The top gear's and the first's from the setup; the
+/// gears (kept in `scratch`). The top gear's and the first's from the setup; the
 /// gears between in even steps added on at 80 bits (gears 2 .. 5 always, 6 and 7 one more
 /// step each only past five and six gears; with four gears the fourth is a step's, as the
 /// original); reverse the first's negative; neutral's copied. A count above 7 refused.

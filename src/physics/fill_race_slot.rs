@@ -1,28 +1,25 @@
-//! `physics::fill_race_slot` (0x462263): a loose part (eax: its number) put into one of
-//! the eight `g_raceSlots` (0x78 bytes each): the first empty one (+0 0), else the one
-//! with the lowest +0x64 (unsigned, the first of equals; with every +0x64 -1 the original
-//! takes ebp as it came: refused). There: +0 the part; its middle (`g_partMiddleX` /
-//! `Y` / `Z`[part], whole numbers) turned by `g_crashMatrix` (`scene::rotate_point`),
-//! `fistp` into `dword_635004` .. and plus the car's place into +4 .. +0xC; +0x60
-//! `g_car` +0xE00, +0x64 `g_car` +8; the car's matrix (16 dwords) at +0x10; +0x50 ..
-//! +0x58 the turned middle x `flt_71BE8C` plus the car's motion (+2.0 for y); +0x68 ..
-//! +0x70 the car's spin. A reading: a part breaking off, flying with the car's motion.
+//! `physics::fill_race_slot` (0x462263): a loose part (its number) put into one of the eight
+//! `g_raceSlots` (0x78 bytes each): the first empty one (+0 is 0), else the one with the lowest
+//! +0x64 (unsigned, the first of equals; with every +0x64 -1 the original uses an uninitialised
+//! slot pointer: refused). There: +0 the part; its middle (`g_partMiddleX` / `Y` / `Z`[part],
+//! whole numbers) turned by `g_crashMatrix` (`scene::rotate_point`), rounded and added to the car's
+//! place into +4 .. +0xC; +0x60 the car's `ground_bump_scale`, +0x64 the car's number; the car's
+//! matrix (16 dwords) at +0x10; +0x50 .. +0x58 the turned middle times `part_fling` plus the car's
+//! motion (+2.0 for y); +0x68 .. +0x70 the car's spin. A reading: a part breaking off, flying with
+//! the car's motion.
 //!
 //! Takes: the part
 //!
 //! Caller: `physics::fill_slot_on_bit`. Refuses (before anything) a part past 0xFF, or no
 //! slot to take.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::math::x87_run::{ext_to_int, int_80, int_mul_add};
+use crate::math::x87::{ext_to_int, int_80, int_mul_add};
 use crate::race::owner::Race;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::parts::{LAST_PART, choose_slot};
 
-/// Part `part` (eax) into a race slot.
+/// Part `part` into a race slot.
 // Converted: `rc2k_core::physics::parts::choose_slot` (the slot; the floats stay x87).
 pub fn fill_race_slot(
     race: &Race,

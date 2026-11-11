@@ -1,14 +1,15 @@
-//! `physics::reset_car_grades` (0x440A22): resets a car block at esi (0xFE0 bytes, the
-//! work copy's layout): +0x29C .. +0x367 zeroed (`rep stosd`); +0x3F4 .. +0x404 = 1.0
-//! (`flt_5C5D38`); +0x448 .. +0x458 = `dword_71A00C` / 256 x 100, +0x438 .. +0x444 and
-//! +0x45C = `dword_71A008` / 256 x 100 (both read from the work copy `g_car`, whatever
-//! esi is: the setup's percentages, by the look of it); +0x408 .. +0x434 and +0x64 ..
-//! +0x80 zeroed; +0x298 = -1. Stream A's reading: the block's grades and values.
+//! `physics::reset_car_grades` (0x440A22): resets a car block (0xFE0 bytes, the work copy's
+//! layout): `damage_failed` .. +0x367 zeroed; `engine_power_factor` .. +0x404 = 1.0; the
+//! wheel stiffness fields (+0x448 .. +0x458) = `suspension_stiffness` / 256 x 100 and the wheel
+//! ride heights (`wheel_ride_height` .. +0x444, +0x45C) = `ride_height` / 256 x 100 (both read from
+//! the work copy `g_car`, whatever block is reset: the setup's percentages, by the look of it);
+//! `steering_efficiency` .. `lost_gear_bits` and +0x64 .. +0x80 zeroed; `parts_present` = -1.
+//! Stream A's reading: the block's grades and values.
 //!
 //! Takes: the block
 //!
-//! Callers: `physics::reset_current_car` (esi `g_car`), and unreferenced code at 0x43FDDF
-//! that runs it over every car before `race::grade_all_cars`.
+//! Callers: `physics::reset_current_car` (the work car `g_car`), and unreferenced code that
+//! runs it over every car before `race::grade_all_cars`.
 
 use crate::race::numbers_store::Numbers;
 use rc2k_core::physics::grades::{percentage, reset_writes};

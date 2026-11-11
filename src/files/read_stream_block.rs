@@ -1,7 +1,7 @@
 //! `files::read_stream_block` (0x402DA3): reads a number of bytes from a buffered stream.
 //!
 //! Returns how many were read. One `read_stream_byte` per byte. The end of the file stops it
-//! without the carry flag: the caller has to look at eax. Three callers, the picture readers (0x80
+//! without the carry flag: the caller has to look at the count. Three callers, the picture readers (0x80
 //! bytes of header). The name is a reading.
 
 use crate::errors::BadInput;

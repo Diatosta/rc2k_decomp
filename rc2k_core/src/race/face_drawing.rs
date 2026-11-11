@@ -1,6 +1,6 @@
 //! How a course face goes to the polygon drawer: as one quad or as its two triangles, the
 //! corners each takes, the polygon mode its textures pick, which corners are in sight
-//! (converted 2026-10-21 from `race::draw_whole_quad` 0x452F3D, `draw_face_triangles`
+//! (converted from `race::draw_whole_quad` 0x452F3D, `draw_face_triangles`
 //! 0x452CF3, `draw_face_polygons` 0x452CCF, `draw_face` 0x452C6F, `clip_and_draw_face`
 //! 0x454187, `face_out_of_view` 0x45246F, `draw_tinted_face` 0x44F9F3, `draw_back_face`
 //! 0x452B58 and `draw_face_sides` 0x452393).
@@ -16,7 +16,7 @@ pub const SECOND_TRIANGLE: [(u32, u32); 3] = [(0, 3), (1, 2), (2, 1)];
 pub const PLAIN_MODE: u32 = 2;
 
 /// `draw_face`'s polygon mode: the plain one, or with a second texture the mode its
-/// record's +0x2C picks (`dword_63D9D0[pick]`, asked only then).
+/// record's +0x2C picks (`surface_kinds`[pick]`, asked only then).
 pub fn face_mode(second_texture: u32, picked: impl FnOnce() -> u32) -> u32 {
     if second_texture != 0 {
         picked()
@@ -53,7 +53,7 @@ pub fn quad_by_outside(outside: u32) -> Option<bool> {
 }
 
 /// The screen's inside the quad must keep to: (left, right, top, bottom) each one in
-/// from the edges (`dword_6241DC`, `dword_6241E0`, `dword_6241D4`, `dword_6241D8`).
+/// from the edges (`dword_6241DC`, `dword_6241E0`, `clip_edges`, `dword_6241D8`).
 pub fn screen_inside(left: u32, right: u32, top: u32, bottom: u32) -> [u32; 4] {
     [
         left.wrapping_add(1),
@@ -76,7 +76,7 @@ pub fn draws_polygon(vertices: u32) -> bool {
 /// How a corner of `face_out_of_view` is in sight.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InSight {
-    /// |x| below the near limit (the original keeps |x| in `dword_62400C`).
+    /// |x| below the near limit (the original keeps |x| in `scratch`).
     Near,
     /// |x| times the slope below the depth.
     Slope,
@@ -117,7 +117,7 @@ pub fn tints(tint: u32) -> bool {
     tint != 0
 }
 
-/// `draw_back_face`: a two-sided face (`dword_63DA34`, the first kind's bit 3) has a back.
+/// `draw_back_face`: a two-sided face (`back_a`, the first kind's bit 3) has a back.
 pub fn has_back(two_sided: u32) -> bool {
     two_sided != 0
 }
@@ -129,7 +129,7 @@ pub fn turns_last_pair(fourth: u32) -> bool {
 }
 
 /// The first texture's order turned over: the turned order of its low three bits
-/// (`byte_63DA7C[order & 7]`), its bit 3 kept.
+/// (`turned_corner_order`[order & 7]`), its bit 3 kept.
 pub fn turned_order(order: u32, turned: impl FnOnce(u32) -> u8) -> u32 {
     turned(order & 7) as u32 | (order & 8)
 }

@@ -1,8 +1,8 @@
 //! `physics::engine_sound` (0x43DC72): the work car's sound figures. +0xF08
-//! (`unk_71AEE0`) = speed x `flt_5C5D00`, and that (x `flt_5C5E08` with bit 8 of +0x220)
+//! (`engine_speed_scaled`) = speed x `two_and_a_quarter`, and that (x `kilometres_in_mile` with bit 8 of +0x220)
 //! `fistp` into +0xAB0; +0x294 = the motion's length (`fsqrt` of z² + x² + y², as the
-//! original adds them) x `flt_5C5D00`; the revs +0x1E4 eased toward the engine speed (at
-//! least `flt_6140F8`, `fistp`, through `dword_62400C`) by 50/256 of the gap (`imul`,
+//! original adds them) x `two_and_a_quarter`; the revs +0x1E4 eased toward the engine speed (at
+//! least `idle_engine_speed`, `fistp`, through `scratch`) by 50/256 of the gap (`imul`,
 //! `sar`), held to 2000 ..= 12000 (by the sign); then `physics::car_sound_state` and
 //! `physics::gear_change_sound`.
 //!
@@ -17,10 +17,10 @@
 
 use crate::errors::Refused;
 use crate::math::x87;
+use crate::math::x87::ext_to_int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
-use crate::math::x87_run::ext_to_int;
 use crate::physics::car_sound_state::car_sound_state;
 use crate::physics::car_store::Car;
 use crate::physics::gear_change_sound::gear_change_sound;
@@ -36,9 +36,9 @@ fn run(car: &Car, numbers: &Numbers) {
 }
 
 /// The run over the work car's figures:
-/// +0x31AEE0 the speed x `flt_5C5D00`; +0x31AA88 that (x `flt_5C5E08` with bit 8 of
+/// +0x31AEE0 the speed x `two_and_a_quarter`; +0x31AA88 that (x `kilometres_in_mile` with bit 8 of
 /// +0x31A1F8) as a whole number; +0x31A26C the length of the motion (+0x31A170 ..) x
-/// `flt_5C5D00`, the squares added as the original adds them (z, then x and y).
+/// `two_and_a_quarter`, the squares added as the original adds them (z, then x and y).
 fn run_at(car: &Car, numbers: &Numbers) {
     car.engine_speed_scaled.set_bits(st(
         ld(car.local_velocity[2].bits()) * ld(numbers.two_and_a_quarter.bits())
@@ -72,7 +72,7 @@ pub fn engine_sound(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
     drawing
         .scene
         .scratch
-        .set(x87::loaded(race.shared.car.engine_speed.bits()));
+        .set(x87::loaded(&race.shared.car.engine_speed));
     let floor = race.shared.physics_tables.idle_engine_speed.bits();
     let held = hold_low(
         f32::from_bits(drawing.scene.scratch.get()),

@@ -1,10 +1,10 @@
-//! `physics::apply_forces` (0x43F566): ecx force records of 0x20 bytes from esi, each
-//! by `physics::apply_force` on the work car (`g_car`).
+//! `physics::apply_forces` (0x43F566): applies a table of force records (0x20 bytes each) to the
+//! work car (`g_car`), each by `physics::apply_force`.
 //!
-//! Takes: the first record, their number
+//! Takes: the records
 //!
-//! Callers: `physics::apply_wheel_forces`, `physics::apply_contact_forces`. Refuses (before
-//! anything) ecx 0 (the original would loop 2^32 times) or above 0x100.
+//! Callers: `physics::apply_wheel_forces`, `physics::apply_contact_forces`. Refuses a
+//! table of no records or of more than 0x100 (the original would loop 2^32 times).
 
 use crate::errors::Refused;
 use crate::physics::apply_force::apply_force;

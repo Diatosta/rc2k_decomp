@@ -1,5 +1,5 @@
-//! The object faces and the two sort lists, typed (phase 7): IDA 0x9A3730 .. 0x9E3738, in
-//! the image's zeroed tail (`race::buffers_store`). Names are readings unless IDA's.
+//! The object faces and the two sort lists (IDA 0x9A3730 .. 0x9E3738, in the image's
+//! zeroed tail `race::buffers_store`). Names are readings unless IDA's.
 
 use crate::race::owner::race;
 use crate::session::Dword;

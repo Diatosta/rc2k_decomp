@@ -1,5 +1,5 @@
-//! The built-in NEC keyboard (`strings::load_language`), out of RAL.EXE's image (phase 5), typed
-//! (phase 7): its file head and its layout with the tables the layout's pointers name. The
+//! The built-in NEC keyboard (`strings::load_language`), out of RAL.EXE's image, typed
+//!: its file head and its layout with the tables the layout's pointers name. The
 //! rest of the image's range (nothing reads it) is kept as it was. Plain immutable
 //! bytes in the image's order, first values the image's (`tests`); nothing names the image's
 //! addresses any more (`input::layouts` reads the layout's tables by offset).

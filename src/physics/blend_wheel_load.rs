@@ -1,17 +1,14 @@
-//! `physics::blend_wheel_load` (0x440F70): unless `flt_71A208` is below `flt_614C64`
+//! `physics::blend_wheel_load` (0x440F70): unless `contact_depth` is below `wheel_load_limit`
 //! (C0): a slot by the signs of 0x71A1FC, 0x71A200, 0x71A204 (4 + 2 + 1 for each below 0)
-//! and `flt_71A03C[slot]` moved towards 1 by `flt_71A208` / `flt_5C5D60` held to 0 .. 1
-//! (through `dword_62400C`): a + (1 - a) share. What the eight are is a reading at best.
+//! and `impact_octant_marks`[slot]` moved towards 1 by `contact_depth` / `sixty_four` held to 0 .. 1
+//! (through `scratch`): a + (1 - a) share. What the eight are is a reading at best.
 //!
 //! Returns: the slot (when reached)
 //!
 //! Caller: `physics::car_physics_step` (0x43B99A), every physics step.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::math::x87;
-use crate::math::x87_run::{compare_full, toward_one};
+use crate::math::x87::{compare_full, toward_one};
 use crate::physics::car_store::Car;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::tables_store::PhysicsTables;
@@ -34,7 +31,7 @@ pub fn blend_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dyn Cell32]) {
             slot += add;
         }
     }
-    put(4, x87::div(get(0), numbers.sixty_four.bits()));
+    put(4, x87::div(get(0), &numbers.sixty_four));
     if less(get(4), zero) {
         put(4, x87::loaded(zero));
     }

@@ -1,6 +1,5 @@
-//! The installer's variables, out of RAL.EXE's image ; split from
-//! the network's block, which they sat around in the image (2026-10-25; the build notice
-//! between them is `menu::build_notice`'s):
+//! The installer's variables, kept with the image's layout, around
+//! the network's block (the build notice between them is `menu::build_notice`'s):
 //! - `InstallVars` (IDA 0x529DAD .. 0x52A263): run from the CD, the Clio's car (file, script,
 //!   name), and the credits' texts with their 64 pointers (nothing ported reads those);
 //! - `DriveRows` (0x52A30F .. 0x52A4B0): the drive page's rows;

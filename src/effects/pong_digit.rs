@@ -1,6 +1,6 @@
 //! `effects::pong_digit` (0x4B8418): one score digit: `effects::pong_cell` for its 4 x 5
-//! pattern (`unk_768704`, 0x14 bytes a digit; ebx the column, ecx the row, eax walking
-//! the pattern), then `dword_7687D4` on 0x40.
+//! pattern (the digit patterns, 0x14 bytes a digit; walking the cells by column and row), then
+//! the score's x on 0x40.
 //!
 //! Takes: the digit
 //!
@@ -11,7 +11,7 @@ use crate::effects::pong::Pong;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 
-/// `digit` (eax).
+/// `digit` is the digit.
 // Converted: `rc2k_core::effects::pong::{pattern, cells}`
 pub fn pong_digit(
     pong: &Pong,

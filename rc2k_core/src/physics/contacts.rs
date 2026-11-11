@@ -1,4 +1,4 @@
-//! The car's contacts with the ground and with objects' points (converted 2026-10-21
+//! The car's contacts with the ground and with objects' points (converted
 //! from `physics::crash_contact` 0x45EDB5, `ground_contact` 0x45EFF3, `point_hits_car`
 //! 0x45E800 and `object_hits_car` 0x45E755, its walk over the object's points; their
 //! x87 steps, the turns and the force, stay the hooks'): when the body's deepest point
@@ -7,10 +7,10 @@
 
 use crate::Invalid;
 
-/// The body's points' room (`dword_6D1E14` .., 0x40 each).
+/// The body's points' room (`probe_x` .., 0x40 each).
 pub const POINT_ROOM: u32 = 0x40;
 
-/// The deepest point's number (`dword_6D306C`) the tables hold.
+/// The deepest point's number (`lowest_point`) the tables hold.
 pub fn check_body_point(n: u32) -> Result<(), Invalid> {
     if n >= POINT_ROOM {
         return Err(Invalid("a body point past 0x3F (the tables' room)"));
@@ -18,9 +18,9 @@ pub fn check_body_point(n: u32) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// Whether the deepest point (`dword_6D3068`, a whole number) makes a contact: below the
-/// limit (`dword_613EF8` for the crash, 0x1000 for the ground) and, unless all four wheels
-/// are off the ground (`unk_71A22C`), below 0; each by the sign of the `cmp`.
+/// Whether the deepest point (`lowest_depth`, a whole number) makes a contact: below the
+/// limit (`crash_depth` for the crash, 0x1000 for the ground) and, unless all four wheels
+/// are off the ground (`all_wheels_off`), below 0; each by the sign of the `cmp`.
 pub fn touches(depth: u32, limit: u32, all_off: bool) -> bool {
     let below = |a: u32, b: u32| (a.wrapping_sub(b) as i32) < 0;
     below(depth, limit) && (all_off || below(depth, 0))
@@ -30,7 +30,7 @@ pub fn touches(depth: u32, limit: u32, all_off: bool) -> bool {
 pub const GROUND_LIMIT: u32 = 0x1000;
 
 /// The face normal's offsets a contact takes (`take_contact`): +0x1C, +0x34, +0x3C with
-/// the point's flip (`dword_6D2914[n]`) at 1, else +0x18, +0x30, +0x38.
+/// the point's flip (`probe_face_flip`[n]`) at 1, else +0x18, +0x30, +0x38.
 pub fn normal_offsets(flip: u32) -> [u32; 3] {
     if flip == 1 {
         [0x1C, 0x34, 0x3C]
@@ -50,7 +50,7 @@ pub fn point_part(point: u32, object: u32, offset: u32, car: u32) -> u32 {
 
 /// Whether the point turned into the car's frame (whole numbers x, z) lies in its box:
 /// x below the half width (`dword_614BC8`) and not below minus it, z below the front
-/// (`dword_614BC0`) and not below minus the back (`dword_614BC4`); each by the sign of
+/// (`spec_ints`) and not below minus the back (`dword_614BC4`); each by the sign of
 /// the difference, as the original's `cmp`.
 pub fn inside_box(x: u32, z: u32, half_width: u32, front: u32, back: u32) -> bool {
     let sign = |v: u32| (v as i32) < 0;
@@ -60,7 +60,7 @@ pub fn inside_box(x: u32, z: u32, half_width: u32, front: u32, back: u32) -> boo
         && !sign(z.wrapping_add(back))
 }
 
-/// Whether a point inside makes a hit of the contact kind (`dword_6D3624`): 10, 1, 5, 6.
+/// Whether a point inside makes a hit of the contact kind (`contact_kind`): 10, 1, 5, 6.
 pub fn kind_hits(kind: u32) -> bool {
     matches!(kind, 10 | 1 | 5 | 6)
 }
@@ -68,7 +68,7 @@ pub fn kind_hits(kind: u32) -> bool {
 /// The objects' tables' room (`g_objectFirstPoint`, `g_objectPointCount2`).
 pub const OBJECT_ROOM: u32 = 0x100;
 
-/// The object hit (`dword_6D321C`) the tables hold.
+/// The object hit (`face_object`) the tables hold.
 pub fn check_object(object: u32) -> Result<(), Invalid> {
     if object >= OBJECT_ROOM {
         return Err(Invalid("an object past 0xFF (the tables' room)"));
@@ -76,8 +76,7 @@ pub fn check_object(object: u32) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// How `object_hits_car`'s walk ended: whether a point was inside, and the original's
-/// eax (the point's number), ecx (the points left) and edx (its address).
+/// How `object_hits_car`'s walk ended: whether a point was inside, the point's number, the points left and its address.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PointWalk {
     pub inside: bool,
@@ -87,8 +86,8 @@ pub struct PointWalk {
 }
 
 /// `physics::object_hits_car`: the object's `count` points from `first` (12 bytes each
-/// from `points`), `hits(address)` each in turn until one is inside. With no points edx
-/// is not set (`edx` as it came).
+/// from `points`), `hits(address)` each in turn until one is inside. With no points the address
+/// is not set.
 pub fn walk_points(
     first: u32,
     count: u32,

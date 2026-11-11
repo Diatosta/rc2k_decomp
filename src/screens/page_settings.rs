@@ -8,12 +8,12 @@ use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::system::owner::system;
 
 /// `screens::pick_player_1` .. `_4` (0x46AEC5, 0x46AF21, 0x46AF58, 0x46AF8F): player `n`
-/// the current one (`dword_75598C`), its +0x2C into `dword_7558C4` and its 0x2C bytes at
-/// +0x50 into the page's copy (`unk_7555B1`). Refuses (before
+/// the current one, its +0x2C into `event.picked_controller` and its 0x2C bytes at
+/// +0x50 into the page's copy (`keys.tables.controls`). Refuses (before
 /// anything) a player without its record.
 pub fn pick_player(menus: &Menus, n: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::page_values` (`Player::picked`).
-    let (value, copy) = crate::menu::player::player(n)
+    let (value, copy) = crate::menu::player::player(menus, n)
         .ok_or(BadInput("a player without its record"))?
         .get()
         .picked();
@@ -24,8 +24,7 @@ pub fn pick_player(menus: &Menus, n: u32) -> Result<(), Refused> {
 }
 
 /// `screens::load_audio_settings` (0x4707E6): the audio options (`g_audioOptions`: quality,
-/// channels, Dolby, A3D, EAX, DS3D) into the sound page's work variables (`dword_75566C`,
-/// `dword_755680`, `dword_75567C`, `dword_755678`, `dword_755674`, `dword_755670`).
+/// channels, Dolby, A3D, EAX, DS3D) into the sound page's work variables (`option_work`).
 pub fn load_audio_settings(menus: &Menus) {
     // Converted: `rc2k_core::screens::page_values::audio_page`.
     let options: rc2k_core::audio::modes::AudioOptions = audio().state.audio_options.get();
@@ -47,7 +46,7 @@ pub fn stage_line_bytes(id: u32, record: RecordRef) -> Result<Vec<u8>, Refused> 
     crate::screens::draw_stage_heading::heading_text(record, id)
 }
 
-/// The stage line both stage pages build in `byte_A8BD54`.
+/// The stage line both stage pages build in the line buffer.
 fn stage_line(id: u32, record: RecordRef) -> Result<(), Refused> {
     let line = stage_line_bytes(id, record)?;
     if line.len() > rc2k_core::screens::page_values::STAGE_LINE_ROOM {
@@ -69,7 +68,7 @@ fn set_item(items: &[crate::menu::menus_store::MenuItem], n: u32, v: u32) -> Res
     Ok(())
 }
 
-/// The stage record `off_735512[a][b]` (its +0x38 the page's value), and the record + `c` x
+/// The stage record of the event's stage table `a`, `b` (its +0x38 the page's value), and the record + `c` x
 /// 0xA4 the line is about.
 fn stage_record(a: u32, b: u32, c: u32) -> Result<(RecordTable, RecordRef), BadInput> {
     let base = system().records.stage_tables.group_event_table(a, b)?;
@@ -82,10 +81,9 @@ fn stage_refuses(a: u32, b: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `screens::stage_options_texts` (0x4692A9): the stage options page's items in the table at
-/// `off_74DCE0` (its address: items 1 and 2 string 0x19C / 0x19B by `dword_7556F8`, 0x19E /
-/// 0x19D by `dword_7556FC`, item 3 the record's +0x38), the stage line (string 0x481) and the
-/// caption string 0x4FC + `dword_75AB30`. Refuses (before anything) no
+/// `screens::stage_options_texts` (0x4692A9): the stage options page's items of the best times menu (items 1 and 2 string 0x19C / 0x19B by
+/// `champ_view.switch_f8`, 0x19E / 0x19D by `switch_fc`, item 3 the record's +0x38), the stage
+/// line (string 0x481) and the caption string 0x4FC + `state.menus.caption_choice`. Refuses (before anything) no
 /// stage records; a record of another track pack is the original's fatal error.
 pub fn stage_options_texts(menus: &Menus) -> Result<(), Refused> {
     let (a, b) = (
@@ -115,10 +113,9 @@ pub fn stage_options_texts(menus: &Menus) -> Result<(), Refused> {
 }
 
 /// `screens::stage_choice_texts` (0x469434): the stage choice page's items: item 0 of the
-/// table at `off_74DB68` (its address) `dword_758718[dword_7558C8]`, item 1 of the table it
+/// courses menu `results.group_titles[stage_group]`, item 1 of the table it
 /// points to the record's +0x38 (the original reads the table both ways: `notes/bugs.md`),
-/// then the stage line (string 0x482) for record `dword_7558CC` of `off_735512[dword_7558C8]
-/// [dword_7558D0]`. Refuses (before anything) no stage records or no
+/// then the stage line (string 0x482) for the chosen stage number of the event's stage table. Refuses (before anything) no stage records or no
 /// item table; another track pack is the original's fatal error.
 pub fn stage_choice_texts(menus: &Menus) -> Result<(), Refused> {
     let (a, b) = (

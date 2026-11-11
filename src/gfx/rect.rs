@@ -1,7 +1,6 @@
 //! Solid rectangles and lines straight on the surface (`gfx::fill_rect`, `gfx::frame_rect`,
-//! `gfx::draw_hline`, 0x4067AF; stream A, part F1, 2026-10-18): the message box's fill and
-//! frame. Colour eax: the byte itself on an 8-bit surface, else `palette[eax]` (esi a table
-//! of 256 dwords). Clipped to the clip rectangle; the work in `g_blitLeftSkip`,
+//! `gfx::draw_hline`): the message box's fill and frame. The colour is the byte itself on
+//! an 8-bit surface, else `palette[colour]` (a table of 256 dwords). Clipped to the clip rectangle; the work in `g_blitLeftSkip`,
 //! `g_blitVisibleWidth`, `g_blitTopSkip`, `g_blitRowsLeft`.
 
 use crate::errors::Refused;
@@ -109,8 +108,8 @@ pub fn rect_in<const N: usize>(bytes: &crate::session::Bytes<N>) -> [i32; 4] {
     std::array::from_fn(|n| bytes.get_u32(4 * n) as i32)
 }
 
-/// `gfx::fill_rect` (0x406869): rectangle ebx (x, y, width, height) filled, clipped. As the
-/// original: on a 16-bit surface `palette[eax]`; on a 32-bit one nothing is drawn (the 32-bit
+/// `gfx::fill_rect` (0x406869): the rectangle (x, y, width, height) filled, clipped. As the
+/// original: on a 16-bit surface `palette[colour]`; on a 32-bit one nothing is drawn (the 32-bit
 /// test skips the fill: `notes/bugs.md`). Refuses (before anything) other depths: on 8 bits
 /// the original fills with the byte and then once more with dwords past the rectangle's
 /// rows.
@@ -127,7 +126,7 @@ pub fn draw_hline(x: i32, y: i32, length: i32, colour: u32, palette: Palette<'_>
     carry_out(&plan, colour, palette);
 }
 
-/// `gfx::frame_rect` (0x4066DF): rectangle ebx's outline moved by (ecx, edx): the top and
+/// `gfx::frame_rect` (0x4066DF): the rectangle's outline moved by (dx, dy): the top and
 /// bottom rows (`draw_hline`), then the left and right columns between them (`draw_vline`).
 pub fn frame_rect(rect: [i32; 4], dx: i32, dy: i32, colour: u32, palette: Palette<'_>) {
     for plan in rc2k_core::gfx::raster::frame(rect, dx, dy, &core_clip(), &core_surface()) {

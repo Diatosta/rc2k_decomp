@@ -1,5 +1,5 @@
 //! `physics::apply_wheel_torques` (0x43F694): `physics::apply_torques` on the 0x17
-//! records at `unk_614770` (the ones `physics::apply_wheel_forces` pushes with).
+//! records at `forces` (the ones `physics::apply_wheel_forces` pushes with).
 //!
 //! Returns: the count, the first record
 //!

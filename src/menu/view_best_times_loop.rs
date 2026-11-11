@@ -33,7 +33,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.setup_list, // dword_755500
+            pointer: |m| &m.screens.flow.setup_list,
             table: |m| m.tables.draw_lists.view_best_times_setup.id(),
             run: true,
         },

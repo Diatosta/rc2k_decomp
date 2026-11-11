@@ -1,7 +1,7 @@
 //! `drive::race_cars_step` (0x4608BB): every car's physics step. `drive::choose_shown_cars`; for
-//! each car n of `g_raceCars` (`g_currentCar` = n, from 0), the four `dword_6138C4` .. 0, its block
-//! (`g_carBlocks[n & 7]`) into `dword_71B404`, `drive::load_car`; with the car running
-//! (`unk_71A234` set) `drive::read_car_controls`, `physics::gear_input_rules` and
+//! each car n of `g_raceCars` (`g_currentCar` = n, from 0), the four `input_words` .. 0, its block
+//! (`g_carBlocks[n & 7]`) into `work_block`, `drive::load_car`; with the car running
+//! (`driver_kind` set) `drive::read_car_controls`, `physics::gear_input_rules` and
 //! `physics::car_physics_step`; `drive::store_car`. Then `drive::animate_stage` and
 //! `drive::race_mode_cars`.
 //!

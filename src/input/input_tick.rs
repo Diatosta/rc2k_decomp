@@ -1,14 +1,13 @@
 //! `input::input_tick` (0x408A56): one tick of the input thread's devices: the command
 //! `g_inputCommand` taken (`xchg` with 0); when there is one, `input::device_command`;
-//! else both devices (`unk_4F6EF0`, `unk_4F73E8`) read (`input::read_device`) and their
+//! else both devices (`records`) read (`input::read_device`) and their
 //! effects told (`input::device_effects`), and with one player on two devices
-//! (`dword_4F68FC`) the second's readings added to the first's (its bits: those of 0x70FF).
+//! (`two_devices_one_player`) the second's readings added to the first's (its bits: those of 0x70FF).
 //!
 //! Callers: the input thread (`input::input_thread`, every 20 ms), `input::device_command`
 //! (twice).
 //!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Its arguments are what it reads.
 
 use crate::errors::Refused;
 use crate::input::devices::records;

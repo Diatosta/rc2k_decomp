@@ -53,7 +53,7 @@ impl ScreenMode {
     pub const START: usize = 0x4F492C;
     pub const LEN: usize = 0x20;
     #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
         (crate::pointers::game_address(&raw const crate::gfx::owner::GFX.display.mode) + 12)
             as usize
@@ -136,7 +136,7 @@ impl DrawSurface {
     pub const START: usize = 0x4F4984;
     pub const LEN: usize = 0x44;
     #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
         (crate::pointers::game_address(&raw const crate::gfx::owner::gfx().drawing.draw_surface)
             + 4) as usize

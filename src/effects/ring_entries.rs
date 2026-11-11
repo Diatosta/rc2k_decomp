@@ -1,7 +1,6 @@
-//! The marks' ring of 0x400 entries of 0x94 bytes (`g_marksRingBlock`, 0x25000 bytes of the
-//! game's heap on `stru_935620`, taken by `effects::set_up_surface`): Rust's since phase 12
-//! (2026-10-27), counted on the list as the game's block was, given back by
-//! `effects::tidy_marks`. An entry is named by its number + 1 (0 none), in `RING_WORK.cursor`
+//! The effects' ring of 0x400 entries of 0x94 bytes (0x25000 bytes, taken by
+//! `effects::set_up_surface`), counted on the ring list as the game's block was, given back
+//! by `effects::tidy_marks`. An entry is named by its number + 1 (0 none), in `RING_WORK.cursor`
 //! / `block` and in the entries' links (+0 the one before, +4 the one after) as the
 //! original held their addresses. Each field keeps its offset in the original's record.
 

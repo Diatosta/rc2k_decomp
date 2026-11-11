@@ -2,12 +2,12 @@
 //!
 //! Nothing if the log is off (`g_logLevel` 0). Else `var\logfile.txt` is deleted and the
 //! head is written: "Log started" with `logfile::date_text`, the version, a second text if
-//! there is one (`byte_4E0077`), then what `start` has found out by then: the processor
+//! there is one (`SECOND_TEXT`), then what `start` has found out by then: the processor
 //! (`cpu=`, `clk=`, `fpu=`, `mmx=`, `amdk3d=`, `katmai=`), the keyboard type
 //! (`machinetype=`), the Windows version (`platform=`), the memory (`GlobalMemoryStatus`
-//! into `Buffer`, 0x4E0558) and the free space of the current drive in Kb (0x403175
-//! and `files::drive_free_space_kb` with no drive given, here as `free_space_kb`; kept in
-//! `dword_4E073A`). One caller, `start`, which calls it directly (2026-10-23).
+//! into `Buffer`) and the free space of the current drive in Kb
+//! (`files::drive_free_space_kb` with no drive given, here as `free_space_kb`; kept in
+//! `FREE_SPACE_KB`). One caller, `start`, which calls it directly.
 
 use crate::errors::BadInput;
 use crate::logfile::date_text::write_date_text;
@@ -22,13 +22,13 @@ use crate::system::owner::system;
 pub const VERSION: &[u8] = b"$VER: Rally 5.30 (4.8.2000)\0";
 /// `byte_4E0077`: a second text, logged when not empty (it is empty).
 pub const SECOND_TEXT: &[u8] = b"\0";
-/// `g_freeSpaceKb` (0x4E073A in the image until 2026-10-24): what the log's head says of
+/// `g_freeSpaceKb` (0x4E073A in IDA): what the log's head says of
 /// the current drive. Nothing reads it.
 pub static FREE_SPACE_KB: crate::session::Dword = crate::session::Dword::new(0);
 
 // ---- Rust version ----
 
-/// `files::drive_free_space_kb` with eax = 0: the free space of the current drive in Kb, or
+/// `files::drive_free_space_kb` for the current drive: the free space of the current drive in Kb, or
 /// 0xFFFFFFFF if it cannot be asked or is 2^42 bytes or more. The original asks for the four
 /// numbers in the scratch block at 0x93E8B0 (`g_pngInfo`, written before read by each of its
 /// users): here locals.

@@ -1,4 +1,4 @@
-//! The work car's start (converted 2026-10-21 from `physics::count_start_second`
+//! The work car's start (converted from `physics::count_start_second`
 //! 0x436AC4, `mark_car_started` 0x436AA7, `false_start` 0x43B9B4, `count_down_start`
 //! 0x436AFB and `reset_when_stuck` 0x43EFBA): the time counted once the start is behind,
 //! the car marked as got going, a jump start's penalty, the start's count down and the
@@ -9,23 +9,23 @@ use super::notices::Notice;
 /// The work copy's start fields (`g_car` +0x14 ..; what they are is a reading).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CarStart {
-    /// +0x14 (`dword_719FEC`): the start timer.
+    /// +0x14 (`run_ticks`): the start timer.
     pub timer: u32,
-    /// +0x18 (`dword_719FF0`): set once the car is in gear.
+    /// +0x18 (`start_in_gear`): set once the car is in gear.
     pub held: u32,
-    /// +0x1C (`dword_719FF4`): the jump start's count down.
+    /// +0x1C (`false_start_count`): the jump start's count down.
     pub count: u32,
-    /// +0x88 (`dword_71A060`): the car's time.
+    /// +0x88 (`stage_time`): the car's time.
     pub time: u32,
-    /// +0x8C (`dword_71A064`): the start's count down.
+    /// +0x8C (`time_left`): the start's count down.
     pub countdown: u32,
-    /// +0xA0 (`dword_71A078`): the car has got going.
+    /// +0xA0 (`started_stand_timer`): the car has got going.
     pub started: u32,
-    /// +0xA8 (`dword_71A080`): finished.
+    /// +0xA8 (`finish_flag`): finished.
     pub finished: u32,
-    /// +0x26C (`dword_71A244`): the grades' mode (0 or -1 while racing).
+    /// +0x26C (`tyre_change_state`): the grades' mode (0 or -1 while racing).
     pub state: u32,
-    /// +0x29C (`dword_71A274`).
+    /// +0x29C (`damage_failed`).
     pub moving: u32,
 }
 
@@ -38,7 +38,7 @@ const PENALTY: u32 = 1000;
 pub const JUMP_START_NOTICE: u32 = 0xCC;
 pub const PUT_BACK_NOTICE: u32 = 0xCA;
 
-/// What `false_start` did: the timer when it was compared (the original's eax) and
+/// What `false_start` did: the timer when it was compared and
 /// whether the car is to be put back at its start (`race::start_car`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct FalseStart {
@@ -51,7 +51,7 @@ pub struct FalseStart {
 pub enum StartCount {
     /// Finished: nothing.
     Stopped,
-    /// The timer less 0x320 (the original's eax): before the start, or no count left.
+    /// The timer less 0x320: before the start, or no count left.
     Waiting(u32),
     /// The count down went one down: its hundreds and the rest (`div` by 100), and
     /// whether a beep is due (a whole hundred, 8 or less).
@@ -65,7 +65,7 @@ pub enum StartCount {
 /// The stuck count at which the car is put back on the line.
 pub const STUCK_LIMIT: u32 = 700;
 
-/// `physics::reset_when_stuck`: with the grades' mode (`dword_71A234`) 0 or 2 the stuck
+/// `physics::reset_when_stuck`: with the grades' mode (`driver_kind`) 0 or 2 the stuck
 /// count (`g_car` +0x1E8) is 0; else it goes up, and at 700 or more (unsigned) the car is
 /// to be put back on the line (`physics::reset_car`).
 pub fn stuck_tick(mode: u32, stuck: &mut u32) -> bool {
@@ -98,7 +98,7 @@ impl CarStart {
     }
 
     /// `physics::count_start_second`: with the state 0 or -1 and no count down, the
-    /// timer less 0x320 (the original's eax); when that is not below 0 (by its sign) and
+    /// timer less 0x320; when that is not below 0 (by its sign) and
     /// the car is not finished, the time up by one.
     pub fn count_start_second(&mut self) -> Option<u32> {
         if (self.state != u32::MAX && self.state != 0) || self.count != 0 {

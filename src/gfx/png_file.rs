@@ -13,7 +13,7 @@ pub const LEN: usize = 0x5BEC48 - START;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PngFile {
-    /// `dword_5BEC30`: the file's memory (the game's address; unused since the file's
+    /// `dword_5BEC30`: the file's memory (the game's address; unused, as the file's
     /// bytes are Rust's).
     pub file: Dword,
     /// `dword_5BEC34`: the file's length.

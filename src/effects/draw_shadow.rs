@@ -1,26 +1,26 @@
-//! `effects::draw_shadow` (0x4C8168): the car's ground shadow (probably: the quad is drawn flat on the ground under the car), unless
-//! `dword_933F64` (its corner) is -1: `scene::depth_buffer_on`, `scene::depth_test_on`,
-//! render states 0x15 = 4, 0x13 = 5, 0x14 = 6, 0x1C = 0, 0x1B = 1; two sides
-//! (`dword_933F1C` .., `dword_933F28` ..) made one long and square (`scene::cross_product3`,
-//! `scene::normalise_vector3`); the matrix at `dword_933EEC` turned about z by an angle
-//! from the settings' +0x26A4 (two lines, by `dword_933F78`); the light's way turned by it,
-//! the sides made its columns, the way turned again and the sides crossed once more; the
-//! quad's corners about `flt_933ED0` (`flt_933F98` ..), drawn in a little, turned to the
-//! view (`unk_5EA0CC`, `scene::rotate_point`); texture places from corner `dword_933F64`
-//! of `g_marksCorners`; the colour `dword_939BA6` | 0xFF000000 brought halfway to white;
-//! unless a corner's depth is at or below `flt_5C5E18` (signed compares of the bits): the
-//! corners projected, their depths less `flt_934BC0` .. times `flt_8EB96D`, and
-//! `scene::draw_fan`.
+//! `effects::draw_shadow` (0x4C8168): the car's ground shadow (probably: the quad is drawn
+//! flat on the ground under the car), unless the quad's `corner` is -1: `scene::depth_buffer_on`,
+//! `scene::depth_test_on`, render states 0x15 = 4, 0x13 = 5, 0x14 = 6, 0x1C = 0, 0x1B = 1; two
+//! `sides` made one long and square (`scene::cross_product3`, `scene::normalise_vector3`); the
+//! quad's `matrix` turned about z by an angle from the settings' +0x26A4 (two lines, by the
+//! quad's `ratio`); the light's way turned by it, the sides made its columns, the way turned
+//! again and the sides crossed once more; the quad's `corners` about its `place` (the
+//! `frame`), drawn in a little, turned to the view (`scene::rotate_point`); texture places
+//! from the mark corner the quad's `corner` names; the shadow colour | 0xFF000000 brought
+//! halfway to white; unless a corner's depth is at or below the nearest depth (signed compares
+//! of the bits): the corners projected, their depths less the quad's lift times a depth
+//! scale, and `scene::draw_fan`.
 //!
-//! Caller: the race's frame (`race::draw_marks_overlays`, 0x456330). The long x87 runs are plain
+//! Caller: the race's frame (`race::draw_marks_overlays`). The long x87 runs are plain
 //! Rust on the x87 model (`math::x87_float`), in the original's order, over the game's variables;
-//! the vector helpers their Rust versions. Refuses, before anything, a corner past `g_marksCorners`
+//! the vector helpers their Rust versions. Refuses, before anything, a corner past the mark corners table
 //! and an angle `fsincos` cannot take.
 
+use crate::effects::cell_x87::CellX87;
 use crate::effects::kind_store::{CONSTS_1, CONSTS_2, KindConsts, QuadWork};
 use crate::effects::mask_store::Masks;
 use crate::errors::{BadInput, Refused};
-use crate::math::{x87, x87_run};
+use crate::math::x87;
 use crate::scene::cross_product3::cross;
 use crate::scene::matrix3::{Axis, extended, rounded, turn_matrix3, turnable};
 use crate::scene::rotate_point::rotate_point;
@@ -34,7 +34,7 @@ use crate::d3d::vertices_store::VERTICES;
 pub struct Shadow<'a> {
     pub quad: &'a QuadWork,
     pub consts: &'a KindConsts,
-    /// The quad is lifted along it (`flt_934B78`, set 1's `flt_933E70`).
+    /// The quad is lifted along it.
     pub up: &'a Float,
     /// The settings' field the angle comes from.
     pub field: fn(&EffectsSettings) -> &Float,
@@ -61,9 +61,9 @@ const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
 /// The z turn's angle (see the header), 80 bits.
-fn angle(sh: &Shadow) -> Result<[u8; 10], Refused> {
+fn angle(sh: &Shadow, effects: &crate::effects::owner::Effects) -> Result<[u8; 10], Refused> {
     Ok({
-        let marks = crate::effects::setup::effects_settings()?;
+        let marks = effects.settings()?;
         let split: u32 = sh.quad.low.bits();
         let v = (sh.field)(marks).bits();
         if (split as i32) <= v as i32 {
@@ -89,8 +89,8 @@ impl Shadow<'_> {
     }
 
     /// The angle's refusal, if any (for a caller that checks before drawing).
-    pub fn angle_refuses(&self) -> Option<Refused> {
-        match angle(self) {
+    pub fn angle_refuses(&self, effects: &crate::effects::owner::Effects) -> Option<Refused> {
+        match angle(self, effects) {
             Err(e) => Some(e),
             Ok(a) => { turnable(&a) }.err(),
         }
@@ -115,9 +115,9 @@ pub fn draw_shadow_with(
     if corner >= 0x100 {
         return Err(BadInput("a shadow corner past g_marksCorners").into());
     }
-    crate::effects::setup::effects_settings()?;
-    turnable(&angle(sh)?)?;
-    let temps = [const { Float::from_bits(0) }; 2];
+    effects.settings()?;
+    turnable(&angle(sh, effects)?)?;
+    let temps = [const { Float::new(0.0) }; 2];
 
     if depth {
         crate::scene::depth_buffer_on::depth_buffer(true);
@@ -138,7 +138,7 @@ pub fn draw_shadow_with(
     cross(s2, s0, s1);
     normalise(s1);
     normalise(s2);
-    let a = angle(sh)?;
+    let a = angle(sh, effects)?;
     turn_matrix3(Axis::Z, &q.matrix, a)?;
     light_turned_x87(sh, &q.matrix, &temps);
     for n in 0..3 {
@@ -186,7 +186,7 @@ pub fn draw_shadow_with(
         let vertex = &VERTICES.vertices[n];
         vertex.x.set_bits(q.corners[n][0].bits());
         vertex.y.set_bits(q.corners[n][1].bits());
-        let depth = x87_run::sub_mul(q.corners[n][2].bits(), sh.consts.lifts[n].to_bits(), z_k);
+        let depth = x87::sub_mul(q.corners[n][2].bits(), sh.consts.lifts[n].to_bits(), z_k);
         vertex.z.set_bits(depth);
     }
     crate::effects::clip_quad::draw_fan();
@@ -221,16 +221,16 @@ fn light_turned_x87(s: &Shadow, m: &[Float; 9], t: &[Float; 2]) {
     let t17 = t14 + t16;
     let t18 = ld_cell(&t[1]);
     let t19 = ld_cell(&t[0]);
-    s.quad.light_turned[0].set_bits(bh::st(t19));
-    s.quad.light_turned[1].set_bits(bh::st(t18));
-    s.quad.light_turned[2].set_bits(bh::st(t17));
+    s.quad.light_turned[0].st(t19);
+    s.quad.light_turned[1].st(t18);
+    s.quad.light_turned[2].st(t17);
 }
 
 /// `second_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
 fn second_turned_x87(s: &Shadow, m: &[Float; 9], t: &[Float; 2]) {
-    let t0 = bh::ld(s.quad.light_turned[2].bits());
-    let t1 = bh::ld(s.quad.light_turned[1].bits());
-    let t2 = bh::ld(s.quad.light_turned[0].bits());
+    let t0 = s.quad.light_turned[2].ld();
+    let t1 = s.quad.light_turned[1].ld();
+    let t2 = s.quad.light_turned[0].ld();
     let t3 = t2 * ld_cell(&m[0]);
     let t4 = t1 * ld_cell(&m[1]);
     let t5 = t0 * ld_cell(&m[2]);
@@ -250,179 +250,179 @@ fn second_turned_x87(s: &Shadow, m: &[Float; 9], t: &[Float; 2]) {
     let t17 = t14 + t16;
     let t18 = ld_cell(&t[1]);
     let t19 = ld_cell(&t[0]);
-    s.quad.frame[1][0].set_bits(bh::st(t19));
-    s.quad.frame[1][1].set_bits(bh::st(t18));
-    s.quad.frame[1][2].set_bits(bh::st(t17));
+    s.quad.frame[1][0].st(t19);
+    s.quad.frame[1][1].st(t18);
+    s.quad.frame[1][2].st(t17);
 }
 
 /// `corners`'s x87 block as plain Rust on the x87 model (117 instructions), same order and memory places, on either shadow's variables.
 fn corners_x87(s: &Shadow) {
-    let t0 = bh::ld(s.quad.frame[0][0].bits());
-    let t1 = t0 * bh::ld(s.quad.ratio.bits());
-    s.quad.frame[0][0].set_bits(bh::st(t1));
-    let t2 = bh::ld(s.quad.frame[0][1].bits());
-    let t3 = t2 * bh::ld(s.quad.ratio.bits());
-    s.quad.frame[0][1].set_bits(bh::st(t3));
-    let t4 = bh::ld(s.quad.frame[0][2].bits());
-    let t5 = t4 * bh::ld(s.quad.ratio.bits());
-    s.quad.frame[0][2].set_bits(bh::st(t5));
-    let t6 = bh::ld(s.quad.frame[1][0].bits());
-    let t7 = t6 * bh::ld(s.quad.size.bits());
-    s.quad.frame[1][0].set_bits(bh::st(t7));
-    let t8 = bh::ld(s.quad.frame[1][1].bits());
-    let t9 = t8 * bh::ld(s.quad.size.bits());
-    s.quad.frame[1][1].set_bits(bh::st(t9));
-    let t10 = bh::ld(s.quad.frame[1][2].bits());
-    let t11 = t10 * bh::ld(s.quad.size.bits());
-    s.quad.frame[1][2].set_bits(bh::st(t11));
-    let t12 = bh::ld(s.quad.place[0].bits());
-    let t13 = t12 - bh::ld(s.quad.frame[0][0].bits());
-    s.quad.corners[0][0].set_bits(bh::st(t13));
-    let t14 = bh::ld(s.quad.place[1].bits());
-    let t15 = t14 - bh::ld(s.quad.frame[0][1].bits());
-    s.quad.corners[0][1].set_bits(bh::st(t15));
-    let t16 = bh::ld(s.quad.place[2].bits());
-    let t17 = t16 - bh::ld(s.quad.frame[0][2].bits());
-    s.quad.corners[0][2].set_bits(bh::st(t17));
-    let t18 = bh::ld(s.quad.place[0].bits());
-    let t19 = t18 + bh::ld(s.quad.frame[0][0].bits());
-    s.quad.corners[1][0].set_bits(bh::st(t19));
-    let t20 = bh::ld(s.quad.place[1].bits());
-    let t21 = t20 + bh::ld(s.quad.frame[0][1].bits());
-    s.quad.corners[1][1].set_bits(bh::st(t21));
-    let t22 = bh::ld(s.quad.place[2].bits());
-    let t23 = t22 + bh::ld(s.quad.frame[0][2].bits());
-    s.quad.corners[1][2].set_bits(bh::st(t23));
-    let t24 = bh::ld(s.quad.place[0].bits());
-    let t25 = t24 + bh::ld(s.quad.frame[0][0].bits());
-    let t26 = t25 + bh::ld(s.quad.frame[1][0].bits());
-    s.quad.corners[2][0].set_bits(bh::st(t26));
-    let t27 = bh::ld(s.quad.place[1].bits());
-    let t28 = t27 + bh::ld(s.quad.frame[0][1].bits());
-    let t29 = t28 + bh::ld(s.quad.frame[1][1].bits());
-    s.quad.corners[2][1].set_bits(bh::st(t29));
-    let t30 = bh::ld(s.quad.place[2].bits());
-    let t31 = t30 + bh::ld(s.quad.frame[0][2].bits());
-    let t32 = t31 + bh::ld(s.quad.frame[1][2].bits());
-    s.quad.corners[2][2].set_bits(bh::st(t32));
-    let t33 = bh::ld(s.quad.place[0].bits());
-    let t34 = t33 - bh::ld(s.quad.frame[0][0].bits());
-    let t35 = t34 + bh::ld(s.quad.frame[1][0].bits());
-    s.quad.corners[3][0].set_bits(bh::st(t35));
-    let t36 = bh::ld(s.quad.place[1].bits());
-    let t37 = t36 - bh::ld(s.quad.frame[0][1].bits());
-    let t38 = t37 + bh::ld(s.quad.frame[1][1].bits());
-    s.quad.corners[3][1].set_bits(bh::st(t38));
-    let t39 = bh::ld(s.quad.place[2].bits());
-    let t40 = t39 - bh::ld(s.quad.frame[0][2].bits());
-    let t41 = t40 + bh::ld(s.quad.frame[1][2].bits());
-    s.quad.corners[3][2].set_bits(bh::st(t41));
-    let t42 = bh::ld(s.quad.matrix[1].bits());
-    let t43 = t42 * bh::ld(s.up.bits());
-    let t44 = t43 + bh::ld(s.quad.corners[0][0].bits());
-    s.quad.corners[0][0].set_bits(bh::st(t44));
-    let t45 = bh::ld(s.quad.matrix[4].bits());
-    let t46 = t45 * bh::ld(s.up.bits());
-    let t47 = t46 + bh::ld(s.quad.corners[0][1].bits());
-    s.quad.corners[0][1].set_bits(bh::st(t47));
-    let t48 = bh::ld(s.quad.matrix[7].bits());
-    let t49 = t48 * bh::ld(s.up.bits());
-    let t50 = t49 + bh::ld(s.quad.corners[0][2].bits());
-    s.quad.corners[0][2].set_bits(bh::st(t50));
-    let t51 = bh::ld(s.quad.matrix[1].bits());
-    let t52 = t51 * bh::ld(s.up.bits());
-    let t53 = t52 + bh::ld(s.quad.corners[1][0].bits());
-    s.quad.corners[1][0].set_bits(bh::st(t53));
-    let t54 = bh::ld(s.quad.matrix[4].bits());
-    let t55 = t54 * bh::ld(s.up.bits());
-    let t56 = t55 + bh::ld(s.quad.corners[1][1].bits());
-    s.quad.corners[1][1].set_bits(bh::st(t56));
-    let t57 = bh::ld(s.quad.matrix[7].bits());
-    let t58 = t57 * bh::ld(s.up.bits());
-    let t59 = t58 + bh::ld(s.quad.corners[1][2].bits());
-    s.quad.corners[1][2].set_bits(bh::st(t59));
-    let t60 = bh::ld(s.quad.matrix[1].bits());
-    let t61 = t60 * bh::ld(s.up.bits());
-    let t62 = t61 + bh::ld(s.quad.corners[2][0].bits());
-    s.quad.corners[2][0].set_bits(bh::st(t62));
-    let t63 = bh::ld(s.quad.matrix[4].bits());
-    let t64 = t63 * bh::ld(s.up.bits());
-    let t65 = t64 + bh::ld(s.quad.corners[2][1].bits());
-    s.quad.corners[2][1].set_bits(bh::st(t65));
-    let t66 = bh::ld(s.quad.matrix[7].bits());
-    let t67 = t66 * bh::ld(s.up.bits());
-    let t68 = t67 + bh::ld(s.quad.corners[2][2].bits());
-    s.quad.corners[2][2].set_bits(bh::st(t68));
-    let t69 = bh::ld(s.quad.matrix[1].bits());
-    let t70 = t69 * bh::ld(s.up.bits());
-    let t71 = t70 + bh::ld(s.quad.corners[3][0].bits());
-    s.quad.corners[3][0].set_bits(bh::st(t71));
-    let t72 = bh::ld(s.quad.matrix[4].bits());
-    let t73 = t72 * bh::ld(s.up.bits());
-    let t74 = t73 + bh::ld(s.quad.corners[3][1].bits());
-    s.quad.corners[3][1].set_bits(bh::st(t74));
-    let t75 = bh::ld(s.quad.matrix[7].bits());
-    let t76 = t75 * bh::ld(s.up.bits());
-    let t77 = t76 + bh::ld(s.quad.corners[3][2].bits());
-    s.quad.corners[3][2].set_bits(bh::st(t77));
-    let t78 = bh::ld(s.quad.corners[2][0].bits());
-    let t79 = t78 - bh::ld(s.quad.corners[1][0].bits());
-    s.quad.way[0].set_bits(bh::st(t79));
-    let t80 = bh::ld(s.quad.corners[2][1].bits());
-    let t81 = t80 - bh::ld(s.quad.corners[1][1].bits());
-    s.quad.way[1].set_bits(bh::st(t81));
-    let t82 = bh::ld(s.quad.corners[2][2].bits());
-    let t83 = t82 - bh::ld(s.quad.corners[1][2].bits());
-    s.quad.way[2].set_bits(bh::st(t83));
+    let t0 = s.quad.frame[0][0].ld();
+    let t1 = t0 * s.quad.ratio.ld();
+    s.quad.frame[0][0].st(t1);
+    let t2 = s.quad.frame[0][1].ld();
+    let t3 = t2 * s.quad.ratio.ld();
+    s.quad.frame[0][1].st(t3);
+    let t4 = s.quad.frame[0][2].ld();
+    let t5 = t4 * s.quad.ratio.ld();
+    s.quad.frame[0][2].st(t5);
+    let t6 = s.quad.frame[1][0].ld();
+    let t7 = t6 * s.quad.size.ld();
+    s.quad.frame[1][0].st(t7);
+    let t8 = s.quad.frame[1][1].ld();
+    let t9 = t8 * s.quad.size.ld();
+    s.quad.frame[1][1].st(t9);
+    let t10 = s.quad.frame[1][2].ld();
+    let t11 = t10 * s.quad.size.ld();
+    s.quad.frame[1][2].st(t11);
+    let t12 = s.quad.place[0].ld();
+    let t13 = t12 - s.quad.frame[0][0].ld();
+    s.quad.corners[0][0].st(t13);
+    let t14 = s.quad.place[1].ld();
+    let t15 = t14 - s.quad.frame[0][1].ld();
+    s.quad.corners[0][1].st(t15);
+    let t16 = s.quad.place[2].ld();
+    let t17 = t16 - s.quad.frame[0][2].ld();
+    s.quad.corners[0][2].st(t17);
+    let t18 = s.quad.place[0].ld();
+    let t19 = t18 + s.quad.frame[0][0].ld();
+    s.quad.corners[1][0].st(t19);
+    let t20 = s.quad.place[1].ld();
+    let t21 = t20 + s.quad.frame[0][1].ld();
+    s.quad.corners[1][1].st(t21);
+    let t22 = s.quad.place[2].ld();
+    let t23 = t22 + s.quad.frame[0][2].ld();
+    s.quad.corners[1][2].st(t23);
+    let t24 = s.quad.place[0].ld();
+    let t25 = t24 + s.quad.frame[0][0].ld();
+    let t26 = t25 + s.quad.frame[1][0].ld();
+    s.quad.corners[2][0].st(t26);
+    let t27 = s.quad.place[1].ld();
+    let t28 = t27 + s.quad.frame[0][1].ld();
+    let t29 = t28 + s.quad.frame[1][1].ld();
+    s.quad.corners[2][1].st(t29);
+    let t30 = s.quad.place[2].ld();
+    let t31 = t30 + s.quad.frame[0][2].ld();
+    let t32 = t31 + s.quad.frame[1][2].ld();
+    s.quad.corners[2][2].st(t32);
+    let t33 = s.quad.place[0].ld();
+    let t34 = t33 - s.quad.frame[0][0].ld();
+    let t35 = t34 + s.quad.frame[1][0].ld();
+    s.quad.corners[3][0].st(t35);
+    let t36 = s.quad.place[1].ld();
+    let t37 = t36 - s.quad.frame[0][1].ld();
+    let t38 = t37 + s.quad.frame[1][1].ld();
+    s.quad.corners[3][1].st(t38);
+    let t39 = s.quad.place[2].ld();
+    let t40 = t39 - s.quad.frame[0][2].ld();
+    let t41 = t40 + s.quad.frame[1][2].ld();
+    s.quad.corners[3][2].st(t41);
+    let t42 = s.quad.matrix[1].ld();
+    let t43 = t42 * s.up.ld();
+    let t44 = t43 + s.quad.corners[0][0].ld();
+    s.quad.corners[0][0].st(t44);
+    let t45 = s.quad.matrix[4].ld();
+    let t46 = t45 * s.up.ld();
+    let t47 = t46 + s.quad.corners[0][1].ld();
+    s.quad.corners[0][1].st(t47);
+    let t48 = s.quad.matrix[7].ld();
+    let t49 = t48 * s.up.ld();
+    let t50 = t49 + s.quad.corners[0][2].ld();
+    s.quad.corners[0][2].st(t50);
+    let t51 = s.quad.matrix[1].ld();
+    let t52 = t51 * s.up.ld();
+    let t53 = t52 + s.quad.corners[1][0].ld();
+    s.quad.corners[1][0].st(t53);
+    let t54 = s.quad.matrix[4].ld();
+    let t55 = t54 * s.up.ld();
+    let t56 = t55 + s.quad.corners[1][1].ld();
+    s.quad.corners[1][1].st(t56);
+    let t57 = s.quad.matrix[7].ld();
+    let t58 = t57 * s.up.ld();
+    let t59 = t58 + s.quad.corners[1][2].ld();
+    s.quad.corners[1][2].st(t59);
+    let t60 = s.quad.matrix[1].ld();
+    let t61 = t60 * s.up.ld();
+    let t62 = t61 + s.quad.corners[2][0].ld();
+    s.quad.corners[2][0].st(t62);
+    let t63 = s.quad.matrix[4].ld();
+    let t64 = t63 * s.up.ld();
+    let t65 = t64 + s.quad.corners[2][1].ld();
+    s.quad.corners[2][1].st(t65);
+    let t66 = s.quad.matrix[7].ld();
+    let t67 = t66 * s.up.ld();
+    let t68 = t67 + s.quad.corners[2][2].ld();
+    s.quad.corners[2][2].st(t68);
+    let t69 = s.quad.matrix[1].ld();
+    let t70 = t69 * s.up.ld();
+    let t71 = t70 + s.quad.corners[3][0].ld();
+    s.quad.corners[3][0].st(t71);
+    let t72 = s.quad.matrix[4].ld();
+    let t73 = t72 * s.up.ld();
+    let t74 = t73 + s.quad.corners[3][1].ld();
+    s.quad.corners[3][1].st(t74);
+    let t75 = s.quad.matrix[7].ld();
+    let t76 = t75 * s.up.ld();
+    let t77 = t76 + s.quad.corners[3][2].ld();
+    s.quad.corners[3][2].st(t77);
+    let t78 = s.quad.corners[2][0].ld();
+    let t79 = t78 - s.quad.corners[1][0].ld();
+    s.quad.way[0].st(t79);
+    let t80 = s.quad.corners[2][1].ld();
+    let t81 = t80 - s.quad.corners[1][1].ld();
+    s.quad.way[1].st(t81);
+    let t82 = s.quad.corners[2][2].ld();
+    let t83 = t82 - s.quad.corners[1][2].ld();
+    s.quad.way[2].st(t83);
 }
 
 /// `corners_in`'s x87 block as plain Rust on the x87 model (45 instructions), same order and memory places, on either shadow's variables.
 fn corners_in_x87(s: &Shadow) {
-    let t0 = bh::ld(s.quad.way[0].bits());
-    let t1 = t0 * bh::ld(s.quad.spread.bits());
-    s.quad.way[0].set_bits(bh::st(t1));
-    let t2 = bh::ld(s.quad.way[1].bits());
-    let t3 = t2 * bh::ld(s.quad.spread.bits());
-    s.quad.way[1].set_bits(bh::st(t3));
-    let t4 = bh::ld(s.quad.way[2].bits());
-    let t5 = t4 * bh::ld(s.quad.spread.bits());
-    s.quad.way[2].set_bits(bh::st(t5));
-    let t6 = bh::ld(s.quad.corners[0][0].bits());
-    let t7 = t6 - bh::ld(s.quad.way[0].bits());
-    s.quad.corners[0][0].set_bits(bh::st(t7));
-    let t8 = bh::ld(s.quad.corners[0][1].bits());
-    let t9 = t8 - bh::ld(s.quad.way[1].bits());
-    s.quad.corners[0][1].set_bits(bh::st(t9));
-    let t10 = bh::ld(s.quad.corners[0][2].bits());
-    let t11 = t10 - bh::ld(s.quad.way[2].bits());
-    s.quad.corners[0][2].set_bits(bh::st(t11));
-    let t12 = bh::ld(s.quad.corners[1][0].bits());
-    let t13 = t12 - bh::ld(s.quad.way[0].bits());
-    s.quad.corners[1][0].set_bits(bh::st(t13));
-    let t14 = bh::ld(s.quad.corners[1][1].bits());
-    let t15 = t14 - bh::ld(s.quad.way[1].bits());
-    s.quad.corners[1][1].set_bits(bh::st(t15));
-    let t16 = bh::ld(s.quad.corners[1][2].bits());
-    let t17 = t16 - bh::ld(s.quad.way[2].bits());
-    s.quad.corners[1][2].set_bits(bh::st(t17));
-    let t18 = bh::ld(s.quad.corners[2][0].bits());
-    let t19 = t18 - bh::ld(s.quad.way[0].bits());
-    s.quad.corners[2][0].set_bits(bh::st(t19));
-    let t20 = bh::ld(s.quad.corners[2][1].bits());
-    let t21 = t20 - bh::ld(s.quad.way[1].bits());
-    s.quad.corners[2][1].set_bits(bh::st(t21));
-    let t22 = bh::ld(s.quad.corners[2][2].bits());
-    let t23 = t22 - bh::ld(s.quad.way[2].bits());
-    s.quad.corners[2][2].set_bits(bh::st(t23));
-    let t24 = bh::ld(s.quad.corners[3][0].bits());
-    let t25 = t24 - bh::ld(s.quad.way[0].bits());
-    s.quad.corners[3][0].set_bits(bh::st(t25));
-    let t26 = bh::ld(s.quad.corners[3][1].bits());
-    let t27 = t26 - bh::ld(s.quad.way[1].bits());
-    s.quad.corners[3][1].set_bits(bh::st(t27));
-    let t28 = bh::ld(s.quad.corners[3][2].bits());
-    let t29 = t28 - bh::ld(s.quad.way[2].bits());
-    s.quad.corners[3][2].set_bits(bh::st(t29));
+    let t0 = s.quad.way[0].ld();
+    let t1 = t0 * s.quad.spread.ld();
+    s.quad.way[0].st(t1);
+    let t2 = s.quad.way[1].ld();
+    let t3 = t2 * s.quad.spread.ld();
+    s.quad.way[1].st(t3);
+    let t4 = s.quad.way[2].ld();
+    let t5 = t4 * s.quad.spread.ld();
+    s.quad.way[2].st(t5);
+    let t6 = s.quad.corners[0][0].ld();
+    let t7 = t6 - s.quad.way[0].ld();
+    s.quad.corners[0][0].st(t7);
+    let t8 = s.quad.corners[0][1].ld();
+    let t9 = t8 - s.quad.way[1].ld();
+    s.quad.corners[0][1].st(t9);
+    let t10 = s.quad.corners[0][2].ld();
+    let t11 = t10 - s.quad.way[2].ld();
+    s.quad.corners[0][2].st(t11);
+    let t12 = s.quad.corners[1][0].ld();
+    let t13 = t12 - s.quad.way[0].ld();
+    s.quad.corners[1][0].st(t13);
+    let t14 = s.quad.corners[1][1].ld();
+    let t15 = t14 - s.quad.way[1].ld();
+    s.quad.corners[1][1].st(t15);
+    let t16 = s.quad.corners[1][2].ld();
+    let t17 = t16 - s.quad.way[2].ld();
+    s.quad.corners[1][2].st(t17);
+    let t18 = s.quad.corners[2][0].ld();
+    let t19 = t18 - s.quad.way[0].ld();
+    s.quad.corners[2][0].st(t19);
+    let t20 = s.quad.corners[2][1].ld();
+    let t21 = t20 - s.quad.way[1].ld();
+    s.quad.corners[2][1].st(t21);
+    let t22 = s.quad.corners[2][2].ld();
+    let t23 = t22 - s.quad.way[2].ld();
+    s.quad.corners[2][2].st(t23);
+    let t24 = s.quad.corners[3][0].ld();
+    let t25 = t24 - s.quad.way[0].ld();
+    s.quad.corners[3][0].st(t25);
+    let t26 = s.quad.corners[3][1].ld();
+    let t27 = t26 - s.quad.way[1].ld();
+    s.quad.corners[3][1].st(t27);
+    let t28 = s.quad.corners[3][2].ld();
+    let t29 = t28 - s.quad.way[2].ld();
+    s.quad.corners[3][2].st(t29);
 }
 
 /// `projected`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places, on either shadow's variables.
@@ -433,80 +433,80 @@ fn projected_x87(s: &Shadow) {
             .view_scale
             .bits(),
     );
-    let t1 = t0 / bh::ld(s.quad.corners[0][2].bits());
-    let t2 = t1 * bh::ld(s.quad.corners[0][0].bits());
+    let t1 = t0 / s.quad.corners[0][2].ld();
+    let t2 = t1 * s.quad.corners[0][0].ld();
     let t3 = t2
         + crate::math::x87_float::ld(
             crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
         );
-    s.quad.corners[0][0].set_bits(bh::st(t3));
-    let t4 = t1 * bh::ld(s.quad.corners[0][1].bits());
+    s.quad.corners[0][0].st(t3);
+    let t4 = t1 * s.quad.corners[0][1].ld();
     let t5 = -t4;
     let t6 = t5
         + crate::math::x87_float::ld(
             crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
         );
-    s.quad.corners[0][1].set_bits(bh::st(t6));
+    s.quad.corners[0][1].st(t6);
     let t7 = crate::math::x87_float::ld(
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
             .bits(),
     );
-    let t8 = t7 / bh::ld(s.quad.corners[1][2].bits());
-    let t9 = t8 * bh::ld(s.quad.corners[1][0].bits());
+    let t8 = t7 / s.quad.corners[1][2].ld();
+    let t9 = t8 * s.quad.corners[1][0].ld();
     let t10 = t9
         + crate::math::x87_float::ld(
             crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
         );
-    s.quad.corners[1][0].set_bits(bh::st(t10));
-    let t11 = t8 * bh::ld(s.quad.corners[1][1].bits());
+    s.quad.corners[1][0].st(t10);
+    let t11 = t8 * s.quad.corners[1][1].ld();
     let t12 = -t11;
     let t13 = t12
         + crate::math::x87_float::ld(
             crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
         );
-    s.quad.corners[1][1].set_bits(bh::st(t13));
+    s.quad.corners[1][1].st(t13);
     let t14 = crate::math::x87_float::ld(
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
             .bits(),
     );
-    let t15 = t14 / bh::ld(s.quad.corners[2][2].bits());
-    let t16 = t15 * bh::ld(s.quad.corners[2][0].bits());
+    let t15 = t14 / s.quad.corners[2][2].ld();
+    let t16 = t15 * s.quad.corners[2][0].ld();
     let t17 = t16
         + crate::math::x87_float::ld(
             crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
         );
-    s.quad.corners[2][0].set_bits(bh::st(t17));
-    let t18 = t15 * bh::ld(s.quad.corners[2][1].bits());
+    s.quad.corners[2][0].st(t17);
+    let t18 = t15 * s.quad.corners[2][1].ld();
     let t19 = -t18;
     let t20 = t19
         + crate::math::x87_float::ld(
             crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
         );
-    s.quad.corners[2][1].set_bits(bh::st(t20));
+    s.quad.corners[2][1].st(t20);
     let t21 = crate::math::x87_float::ld(
         crate::scene::polygon_work::front_end()
             .window
             .view_scale
             .bits(),
     );
-    let t22 = t21 / bh::ld(s.quad.corners[3][2].bits());
-    let t23 = t22 * bh::ld(s.quad.corners[3][0].bits());
+    let t22 = t21 / s.quad.corners[3][2].ld();
+    let t23 = t22 * s.quad.corners[3][0].ld();
     let t24 = t23
         + crate::math::x87_float::ld(
             crate::scene::polygon_work::front_end().window.view_centre[0].bits(),
         );
-    s.quad.corners[3][0].set_bits(bh::st(t24));
-    let t25 = t22 * bh::ld(s.quad.corners[3][1].bits());
+    s.quad.corners[3][0].st(t24);
+    let t25 = t22 * s.quad.corners[3][1].ld();
     let t26 = -t25;
     let t27 = t26
         + crate::math::x87_float::ld(
             crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
         );
-    s.quad.corners[3][1].set_bits(bh::st(t27));
+    s.quad.corners[3][1].st(t27);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

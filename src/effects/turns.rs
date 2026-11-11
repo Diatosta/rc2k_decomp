@@ -1,4 +1,4 @@
-//! Small float steps of `make_masks`' tree (IDA, 2026-10-17): the 2 x 2 turn a line gives,
+//! Small float steps of `make_masks`' tree (IDA): the 2 x 2 turn a line gives,
 //! three rows scaled to set lengths, and two cosine-eased steps.
 
 use crate::effects::mask_store::Masks;
@@ -7,15 +7,14 @@ use crate::math::x87;
 use crate::session::{Dword, Float};
 
 /// `effects::set_line_turn` (0x4BF432) and, `back`, `effects::set_line_turn_back` (0x4BF466):
-/// from the line at esi (+0, +4 to +0xC, +0x10: here `line`'s dwords 0, 1 to 3, 4) dx into
+/// from the line (+0, +4 to +0xC, +0x10: here `line`'s dwords 0, 1 to 3, 4) dx into
 /// +0x396 and +0x3A6, minus dy (dy when `back`) into +0x3A2, its negation into +0x39A.
-/// Every register kept.
 pub fn set_line_turn(masks: &Masks, line: &[Dword; 6], back: bool) {
     let dx = x87::sub(line[3].get(), line[0].get());
     let dy = if back {
         x87::sub(line[4].get(), line[1].get())
     } else {
-        x87::negated_sub(line[4].get(), line[1].get())
+        x87::negated(x87::sub(line[4].get(), line[1].get()))
     };
     masks.vars.turn[0].set_bits(dx);
     masks.vars.turn[3].set_bits(dy);
@@ -23,8 +22,8 @@ pub fn set_line_turn(masks: &Masks, line: &[Dword; 6], back: bool) {
     masks.vars.turn[4].set_bits(x87::loaded(dx));
 }
 
-/// `effects::scale_rows3` (0x4BF498): the three rows of three floats at esi each made the
-/// length `flt_89CA24` .. `flt_89CA2C` says (`x87::scale_row`). Every register kept.
+/// `effects::scale_rows3` (0x4BF498): the three rows of three floats each made the
+/// length the effects' row lengths say (`x87::scale_row`).
 pub fn scale_rows3(rows: &[Float; 9], effects: &crate::effects::owner::Effects) {
     for (n, row) in rows.as_chunks::<3>().0.iter().enumerate() {
         let bits = [row[0].bits(), row[1].bits(), row[2].bits()];
@@ -36,9 +35,8 @@ pub fn scale_rows3(rows: &[Float; 9], effects: &crate::effects::owner::Effects) 
 }
 
 /// `effects::smooth_steps` (0x4BE928): from a to b as floats, step n: t (b - a) times
-/// `flt_89C9C0` (a float), then the first result (the original's ecx) a + t - t
-/// cos(pi (n plus 1) / `dword_89C9C4`) and the second (its ebx) the same with n over `dword_89C9C8`.
-/// `dword_764F40` and `dword_71C880` left holding a.
+/// a step factor (a float), then the first result a + t - t cos(pi (n plus 1) / the step count)
+/// and the second the same with n over the second count.
 pub fn smooth_steps(
     drops: &WindscreenDrops,
     n: u32,
@@ -50,7 +48,7 @@ pub fn smooth_steps(
     effects.setup.work.scratch.set(a);
     smooth_pair(n, a, b, effects)
 }
-/// `smooth_steps`' two results (ecx, ebx) from step n, a and b, writing nothing.
+/// `smooth_steps`' two results from step n, a and b, writing nothing.
 pub fn smooth_pair(n: u32, a: u32, b: u32, effects: &crate::effects::owner::Effects) -> (u32, u32) {
     let setup = &effects.setup;
     {

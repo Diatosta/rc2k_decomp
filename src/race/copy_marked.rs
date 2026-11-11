@@ -1,6 +1,6 @@
-//! `race::copy_marked` (0x41E2F6): the marked blocks (from `dword_96E478` up to `dword_96E47C`)
-//! onto the clipboard: their count into `dword_96E484`, their places (`lDistanceToMove`) into
-//! `unk_96E488` and their cameras (`unk_963BB4`) into `unk_971CC8`. Nothing when the marks are not
+//! `race::copy_marked` (0x41E2F6): the marked blocks (from `mark_in` up to `mark_out`)
+//! onto the clipboard: their count into `clip_blocks`, their places (`lDistanceToMove`) into
+//! `clip_places` and their cameras (`block_cameras`) into `clip_cameras`. Nothing when the marks are not
 //! in order (`jle`, signed).
 //!
 //! Callers: `race::viewer_action` (action 0x1B, and in 0x11 before the cut). Refused, before

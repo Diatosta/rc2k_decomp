@@ -1,20 +1,18 @@
 //! `input::set_up_device` (0x408BCD): a device's record made from a player's controls
-//! (edi: `dword_75AE28` player 1, `dword_75AF94` player 2): +0x414 .. +0x4DB 0
-//! (`system::zero_memory`, 0xC8 bytes); with a controller chosen ([edi] n, not 0): +0 n - 1,
-//! +0x418 [edi+0x10], +0xC [edi+0x1C], +0x10 [edi+0x18], +0x14 [edi+0x14], +0x18 [edi+0xC],
-//! +0x20 [edi+8] and +8 the same or 2 for 0, and the controller acquired (`input::acquire_device`);
-//! then the twelve bindings: each its key (a byte of [edi+0x54 ..]) and the place, sign
-//! and button of its word (`input::binding_place` of a dword of [edi+0x24 ..]), in the order
+//! (player 1's or player 2's settings): +0x414 .. +0x4DB 0
+//! (`system::zero_memory`, 0xC8 bytes); with a controller chosen (the car's `controller` n, not 0): +0 n - 1,
+//! +0x418 `controller_mode`, +0xC `strength`, +0x10 `centre_dead_zone_pct`, +0x14
+//! `end_zone_pct`, +0x18 `axis_codes`, +0x20 `sensitivity_level` and +8 the same or 2 for 0, and the controller acquired (`input::acquire_device`);
+//! then the twelve bindings: each its key (a byte of `keys`) and the place, sign
+//! and button of its word (`input::binding_place` of a dword of `bindings`), in the order
 //! of `BINDINGS`.
 //!
 //! Takes: the device's record, the player's controls
 //!
 //! Caller: `input::device_command` (the race's start, both players). The acquiring through
-//! `part` (0, esi and edi as here, eax [edi+8] or 2; in the game
-//! `input::acquire_device`'s Rust version).
+//! `input::acquire_device`.
 //!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Its arguments are what it reads.
 
 use crate::errors::Refused;
 use crate::input::types::InputDevice;

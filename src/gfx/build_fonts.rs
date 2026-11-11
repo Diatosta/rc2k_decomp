@@ -1,12 +1,12 @@
 //! `gfx::build_fonts` (0x415563): builds the fonts' glyph tables and palettes and hangs
 //! them on the font objects.
 //!
-//! Fatal error 0x80A48020 if it has been done (`dword_51DEB0`, the palettes, is not 0).
-//! Takes `dword_51B980` * 0x400 * `dword_4F4958` bytes on the list `stru_51B984`
+//! Fatal error 0x80A48020 if it has been done (the palettes, `palettes`, are not 0).
+//! Takes `units` * 0x400 * the pixel size bytes on the list `glyph_tables.memory`
 //! (0x80E48023 if there are none), `begin_glyph_tables`, the builder's flags = 1, 0x400
 //! bytes off the list for the palettes; then five builds with `gfx::build_glyphs`, a new
 //! table for each: `files\d\fnt\pal_00.pcx` (a sheet without glyphs: its palette becomes
-//! the 256 pixels at the palettes' place, and is kept as components at `unk_51DEC4`),
+//! the 256 pixels at the palettes' place, and is kept as components at `palette_sheet`),
 //! `fnt13_00.pcx`, `fnt21_00.pcx`, `fnt23_00.pcx`, `fnt27_00.pcx`; `end_glyph_tables`. Then
 //! 125 stores: each font object's palette (+0x14: the palettes' place plus the offset of
 //! its sixteen colours) and glyph table (+0x18), as listed in `HUNG`. A font that measures

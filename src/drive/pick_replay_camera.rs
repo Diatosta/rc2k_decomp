@@ -1,8 +1,8 @@
-//! `drive::pick_replay_camera` (0x460AA6): for a replay's camera wish eax (0x23, 0x24, 0x25: kinds
-//! 0, 1, 2), a camera mode drawn (`math::next_random` x 0x34, high dword) until its record
-//! (`off_606320[mode]`) is of that kind (0x23: until it is NOT of kind 0, the original's `jz`;
-//! notes/bugs.md); modes 2 and 3 become 4 when a car's kind (+0x24, `g_carBlockStore`) is past 0x16
-//! (the second car's only with two cars, `dword_63DB94` not 1). Other wishes: nothing.
+//! `drive::pick_replay_camera` (0x460AA6): for a replay's camera wish (0x23, 0x24, 0x25: kinds
+//! 0, 1, 2), a camera mode is drawn (`math::next_random` x 0x34, high dword) until its record
+//! (`view_records[mode]`) is of that kind (0x23: until it is NOT of kind 0, the original's wrong
+//! branch; notes/bugs.md); modes 2 and 3 become 4 when a car's kind (`car_kind`, `g_carBlockStore`)
+//! is past 0x16 (the second car's only with two cars, `players` not 1). Other wishes: nothing.
 //!
 //! Takes: the wish
 //!
@@ -16,13 +16,13 @@ use crate::race::view_vars_store::ViewVars;
 use rc2k_core::drive::replay_views::{MODES as MODE_COUNT, draw, fits, kept_mode, wish_kind};
 
 fn kind_of(reading: &crate::scene::reading::Reading, mode: u32) -> u32 {
-    // off_606320
+    // `view_records`
     reading.keep(ViewVars::record_of(mode as usize).map(|record| record.kind.get()))
 }
 
 // Converted: `rc2k_core::drive::replay_views::{wish_kind, fits, draw, kept_mode}`.
-/// The camera wish `wish` (eax); the mode kept (edx), or `None` for a wish that draws
-/// nothing (the original leaves edx then; its one caller draws only for the wishes that
+/// The camera wish `wish`; the mode kept, or `None` for a wish that draws
+/// nothing (its one caller draws only for the wishes that
 /// draw).
 pub fn pick_replay_camera(shared: &RaceShared, wish: u32) -> Result<Option<u32>, Refused> {
     let Some(kind) = wish_kind(wish) else {

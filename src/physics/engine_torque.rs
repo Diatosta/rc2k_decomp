@@ -1,18 +1,17 @@
-//! `physics::engine_torque` (0x43CBBB): the engine's torque from its speed. s = engine
-//! speed / its top (+0x1DC) into `dword_62400C`; for s in 0 ..= below 1 (`flt_5C5D90`,
-//! `flt_5C5D38`; unordered counts as out) the curve's entry i = s x 8 (`fistp` with the
-//! rounding set to chop) into `dword_623FB8` (ebx), and `flt_614748` the line between
-//! (`flt_613FF0[i]`, `dword_614B7C[i]`) and (`flt_613FF0[i + 1]`, `dword_614B7C[i + 1]`)
-//! at s; else `dword_614B7C[0]`. Then `flt_614744` = engine / top x `flt_613F94` (0.25),
-//! and `flt_614748` times +0x3F4 (`unk_71A3CC`, as a float).
+//! `physics::engine_torque` (0x43CBBB): the engine's torque from its speed. s = engine speed /
+//! `engine_speed_limit`; for s in 0 ..= below 1 (unordered counts as out) the curve's entry
+//! i = s x 8 (rounding set to chop), and `engine_force` is the line between (`torque_curve[i]`,
+//! `spec_torque[i]`) and (`torque_curve[i + 1]`, `spec_torque[i + 1]`) at s; else `spec_torque[0]`.
+//! Then `engine_torque` = engine speed / limit x `torque_ease` (0.25), and `engine_force` is
+//! multiplied by `engine_power_factor` (as a float).
 //!
 //! Returns: i on the curve's path
 //!
-//! Callers: `physics::engine_torque_or_cut`, `physics::test_drive_run`, 0x43CAAB,
-//! `physics::free_rev`.
+//! Callers: `physics::engine_torque_or_cut`, `physics::test_drive_run`, `physics::free_rev`.
 
 use crate::math::x87;
-use crate::math::x87_run::{div_then_mul, lerp_table, trunc_mul_to_int};
+use crate::math::x87::{lerp_table, trunc_mul_to_int};
+use crate::math::x87_float as bh;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::race::owner::Race;
 use std::cmp::Ordering;
@@ -32,8 +31,8 @@ pub fn engine_torque(race: &Race, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let course = &race.course;
     let s = x87::div(
-        shared_store.car.engine_speed.bits(),
-        shared_store.car.engine_speed_limit.bits(),
+        &shared_store.car.engine_speed,
+        &shared_store.car.engine_speed_limit,
     );
     drawing.scene.scratch.set(s);
     if below(s, course.numbers.one.bits()) && !below(s, ZERO) {
@@ -58,16 +57,13 @@ pub fn engine_torque(race: &Race, scene: &crate::scene::owner::Scene) {
                 shared_store.physics_tables.spec_torque[0].get(),
             ));
     }
-    shared_store
-        .physics_tables
-        .engine_torque
-        .set_bits(div_then_mul(
-            shared_store.car.engine_speed.bits(),
-            shared_store.car.engine_speed_limit.bits(),
-            shared_store.physics_tables.torque_ease.bits(),
-        ));
+    shared_store.physics_tables.engine_torque.set_bits(bh::st(
+        bh::ld(shared_store.car.engine_speed.bits())
+            / bh::ld(shared_store.car.engine_speed_limit.bits())
+            * bh::ld(shared_store.physics_tables.torque_ease.bits()),
+    ));
     shared_store.physics_tables.engine_force.set_bits(x87::mul(
-        shared_store.physics_tables.engine_force.bits(),
-        shared_store.car.engine_power_factor.bits(),
+        &shared_store.physics_tables.engine_force,
+        &shared_store.car.engine_power_factor,
     ));
 }

@@ -1,9 +1,9 @@
-//! `physics::place_sound_object` (0x45CD60): when the current car is listed: a sound by the kind of the
-//! object `dword_6D321C` (`g_objectKinds`, its material record's byte +0x24 & 0xF, then
-//! `dword_6D1A90[]`) in eax, `physics::sound_band_2` (ebx); a band not 0 goes to the car's
-//! sound object with +0x238 the sound, +0x23C the band, the place offset by
-//! `dword_6D3B4C` .. at +0x240 .. and +0x10 1 (see `physics/car_sounds.rs`). A reading:
-//! the sound of a roadside object hit.
+//! `physics::place_sound_object` (0x45CD60): when the current car is listed: a sound is picked by
+//! the kind of the object `face_object` (`g_objectKinds`, its material record's byte +0x24 & 0xF,
+//! then `object_kind_sounds[]`), and `physics::sound_band_2` gives a band; a band not 0 goes to
+//! the car's sound object with that sound and band, the place offset by `object_point_offset`
+//! and the update flag set (see `physics/car_sounds.rs`). A reading: the sound of a roadside
+//! object hit.
 //!
 //! Caller: `physics::touch_face`. Refuses (before anything) a car number past 7, a null sound
 //! object when it is written, an object past 0x100 or a kind past the 0x4B0 records.

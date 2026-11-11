@@ -1,4 +1,4 @@
-//! `logfile::log_hex8` (0x4015F4): logs the low 8 hex digits of eax.
+//! `logfile::log_hex8` (0x4015F4): logs the low 8 hex digits of the value.
 //!
 //! Takes the value, 1 for a line break after it, level - 1.
 

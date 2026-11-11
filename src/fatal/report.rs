@@ -8,15 +8,14 @@
 //!   the message, if there is one, with the two characters `\n` turned into a line break;
 //!   the string at 0x4F67BD;
 //!   unless the code has bit 28: "Last file: `path'" if a file is open, "W32=XXXXXXXX" if
-//!   `dword_4E0598` is not 0, and the registers and five flags, which are written into the
+//!   the report's flag is not 0, and the registers and five flags, which are written into the
 //!   template at 0x4F673A first.
 //! Then `g_logEnabled` = 1 and "Guru Meditation" and the text go to the log.
 //! After that, also when it was not the first report, a code with bit 31 asks the game to
-//! quit (`threading::request_quit`, 0x410BF9) and jumps: to the exit path in `start` (0x4010EE) if the current
-//! thread has no thread slot (esi is then 0), else to that slot's start routine, with esi =
-//! the slot.
+//! quit (`threading::request_quit`) and jumps: to the exit path in `start` if the current
+//! thread has no thread slot, else to that slot's start routine, with the slot as its argument.
 //!
-//! Since 2026-10-24 it is called directly (`report_now`, from `fatal::raise`), and its
+//! It is called directly (`report_now`, from `fatal::raise`), and its
 //! two ways out are Rust's: the program ended (`standalone::finish`), or the slot's
 //! routine run again and the thread ended. A text that does not fit
 //! `Text` ends the program, saying so.

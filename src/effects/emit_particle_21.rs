@@ -1,19 +1,19 @@
 //! `effects::emit_particle_21` (0x4CCA58, a chunk of `effects::emit_wheel_particles` entered
-//! by `jnz` from 0x4CCCDE when `dword_93A1D6` is not 0, left by `popa; retn`): one ring
-//! entry of kind 0x15 for the wheel kind 1, when the rate gate passes.
+//! from the kind 1 chunk when the kind-1 choice is not 0): one ring entry of kind 0x15 for the
+//! wheel kind 1, when the rate gate passes.
 //!
 //! Takes: the wheel record, the car object
 //!
-//! The rate (`dword_9356B0`): (1 - 1 / (the wheel's +0xC by `flt_93A312`, `flt_93A316`,
-//! plus `flt_93A31A`)) by `flt_93A31E`; then `marks/emitters.rs`' gate. The entry: its
-//! place the wheel's (+0x3C ..) plus a random side (-1 or 0 times the car matrix's first
-//! row, 0 or 1 times its third), less `flt_93A326` in y at +0x28; its motion per axis the
+//! The rate (`rate` in the ring's work): (1 - 1 / (the wheel's +0xC by the set's first two
+//! factors, plus its third)) by its fourth; then the gate of `effects/emitters.rs`. The entry:
+//! its place the wheel's (+0x3C ..) plus a random side (-1 or 0 times the car matrix's first
+//! row, 0 or 1 times its third), less the set's `lift` in y at +0x28; its motion per axis the
 //! matrix's first row by the wheel's +0x10, its third by +0x18 and by +0xC, each by a
-//! factor (`flt_93A32A` ..); a random spin and turn (+0x54, +0x50); +0x58 0x34; a life of
-//! 1000 (+0x78 `flt_7651A4` over it); +0x74 `dword_76519C`; the car (+0x68) and its +0x88,
-//! +0x90 plus the rate; +0x60 that sum by `flt_93A352` (after a first value by the marks'
-//! random, which still steps). Refuses (before anything) a null wheel, a null object, and a
-//! null car or matrix when an entry is made.
+//! factor (`motion_k`); a random spin and turn (+0x54, +0x50); +0x58 0x34; a life of 1000
+//! (+0x78 a constant over it); +0x74 the fade constant; the car (+0x68) and its +0x88, +0x90
+//! plus the rate; +0x60 that sum by `size_k` (after a first value by the effects' random,
+//! which still steps). Refuses (before anything) a null wheel, a null object, and a null car
+//! or matrix when an entry is made.
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
@@ -51,7 +51,7 @@ fn rate(
     })
 }
 
-/// Why the Rust version refuses these registers, if it does, worked out without writing.
+/// Why the emitter refuses, if it does, worked out without writing.
 fn refusal(
     particles: &Particles,
     ring: &Ring,
@@ -150,7 +150,7 @@ pub fn emit_particle_21(
         slot.put(|en| &mut en.life, LIFE)?;
         slot.put(
             |en| &mut en.alpha_fade,
-            x87::over_int(effects.setup.floats.two_fifty_seven.bits(), LIFE as i32),
+            x87::over_int(&effects.setup.floats.two_fifty_seven, LIFE as i32),
         )?;
         slot.put(
             |en| &mut en.alpha,
@@ -162,13 +162,13 @@ pub fn emit_particle_21(
         slot.put(|en| &mut en.car_pace, car.pace.get())?;
         slot.put(
             |en| &mut en.size,
-            x87::int_times(size as i32, particles.kind21_set.size_k.bits()),
+            x87::int_times(size as i32, &particles.kind21_set.size_k),
         )?;
     }
     Ok(())
 }
 
-/// Kind 0x15's emitter variables (`emit_particle_21`) (IDA 0x93A312 .. 0x93A39A, the image's layout; phase 7, typed state).
+/// Kind 0x15's emitter variables (`emit_particle_21`) (IDA 0x93A312 .. 0x93A39A).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Kind21Set {
@@ -193,26 +193,26 @@ impl Kind21Set {
     pub const fn new() -> Self {
         Kind21Set {
             rate_k: [
-                Float::from_bits(0x4282AC08),
-                Float::from_bits(0x37A7C5AC),
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x48400000),
+                Float::new(65.336),
+                Float::new(0.00002),
+                Float::new(1.0),
+                Float::new(196608.0),
             ],
             side_random: Dword::new(0x0),
-            lift: Float::from_bits(0x47800000),
+            lift: Float::new(65536.0),
             motion_k: [
-                Float::from_bits(0x42449BA6),
-                Float::from_bits(0x42449BA6),
-                Float::from_bits(0xC2449BA6),
-                Float::from_bits(0x42449BA6),
-                Float::from_bits(0x42449BA6),
-                Float::from_bits(0xC2449BA6),
-                Float::from_bits(0x42449BA6),
-                Float::from_bits(0x42449BA6),
-                Float::from_bits(0xC2449BA6),
+                Float::new(49.152),
+                Float::new(49.152),
+                Float::new(-49.152),
+                Float::new(49.152),
+                Float::new(49.152),
+                Float::new(-49.152),
+                Float::new(49.152),
+                Float::new(49.152),
+                Float::new(-49.152),
             ],
             spin_random: Dword::new(0x0),
-            size_k: Float::from_bits(0x3E4CCCCD),
+            size_k: Float::new(0.2),
             _gap_93a356: Bytes::new([
                 0x0A, 0xD7, 0x23, 0x45, 0x17, 0xB7, 0x51, 0x39, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00,
                 0x40, 0x48, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x47, 0x6F, 0x12, 0x83, 0x42,

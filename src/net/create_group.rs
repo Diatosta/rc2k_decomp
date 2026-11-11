@@ -1,12 +1,12 @@
 //! `net::create_group` (0x4192EA): the host's group made, which every player joins and every
-//! message goes to: a DPNAME (`dword_5AB29C`) named "susanivanovafanclub" (`0x5AB25C`),
+//! message goes to: a DPNAME (`dp_name`) named "susanivanovafanclub" (`0x5AB25C`),
 //! `CreateGroup` into `g_netSendTo` (no data, flags 0), and this machine's player added to
 //! it (`AddPlayerToGroup`).
 //!
 //! Returns true when made and joined.
 //! Callers: `net::host_session`, `net::open_lobby`.
 //!
-//! Since 2026-10-29 the name goes to `net::dp_objects` as text: the DPNAME is not made.
+//! The name goes to `net::dp_objects` as text: the DPNAME is not made.
 
 use crate::errors::Refused;
 use crate::net::owner::net;

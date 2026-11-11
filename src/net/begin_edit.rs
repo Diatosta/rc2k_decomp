@@ -1,6 +1,6 @@
-//! `net::begin_edit` (0x416E1A): an item's text starts being edited: the item (`dword_52A4B8`),
-//! the text (`dword_52A4B4`), the widest it may be (`dword_52A4BC`) and the font it is
-//! measured with (`dword_52A4C0`) noted, and the text's 64 bytes kept (`byte_95EAF8`) for
+//! `net::begin_edit` (0x416E1A): an item's text starts being edited: the item (`edited`),
+//! the text (`edit_text`), the widest it may be (`edit_width`) and the font it is
+//! measured with (`edit_font`) noted, and the text's 64 bytes kept (`script_path`) for
 //! Escape.
 //!
 //! Takes `item`, `text`, `width`, `font`.

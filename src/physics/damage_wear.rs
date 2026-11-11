@@ -9,9 +9,9 @@
 //!
 //! Caller: `physics::damage_step`.
 
-use crate::math::x87_float::{X, int, ld, st};
 use crate::physics::car_store::Car;
 use crate::physics::damage_gauges::raise;
+use crate::physics::damage_model::{store, value};
 use crate::physics::flow::{hold_low, table_lerp};
 use crate::physics::store::DamageModel;
 use crate::session::Cell32;
@@ -138,133 +138,81 @@ pub fn steps(car: &Car, damage: &DamageModel) {
     blend_wear_figures(first, damage, second);
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the arithmetic ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + o4] = (([m + o0] * [m + o1]) * [m + 0x35B390]) + [rc + o3]`
+/// `to = rate * share * wear_step + from`.
 fn add_wear(
     m: &DamageModel,
-    o0: &impl Cell32,
-    o1: &impl Cell32,
-    o3: &impl crate::session::Cell32,
-    o4: &impl crate::session::Cell32,
+    rate: &impl Cell32,
+    share: &impl Cell32,
+    from: &impl Cell32,
+    to: &impl Cell32,
 ) {
-    let t0 = ld(o0.bits());
-    let t1 = ld(o1.bits());
-    let t2 = t0 * t1;
-    let t3 = ld(m.wear_step.bits());
-    let t4 = t2 * t3;
-    let t5 = ld(o3.bits());
-    let t6 = t4 + t5;
-    o4.set_bits(st(t6));
+    store(
+        to,
+        value(rate) * value(share) * value(&m.wear_step) + value(from),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + o3] = -([m + o0] * [m + 0x35B390]) + [rc + o2]`
-fn subtract_rate(
-    m: &DamageModel,
-    o0: &impl Cell32,
-    o2: &impl crate::session::Cell32,
-    o3: &impl crate::session::Cell32,
-) {
-    let t0 = ld(o0.bits());
-    let t1 = ld(m.wear_step.bits());
-    let t2 = t0 * t1;
-    let t3 = -t2;
-    let t4 = ld(o2.bits());
-    let t5 = t3 + t4;
-    o3.set_bits(st(t5));
+/// `to = from - rate * wear_step`.
+fn subtract_rate(m: &DamageModel, rate: &impl Cell32, from: &impl Cell32, to: &impl Cell32) {
+    store(to, -(value(rate) * value(&m.wear_step)) + value(from));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + o4] = -(([m + o0] * [m + o1]) * [m + 0x35B390]) + [rc + o3]`
+/// `to = from - rate * share * wear_step`.
 fn subtract_wear(
     m: &DamageModel,
-    o0: &impl Cell32,
-    o1: &impl Cell32,
-    o3: &impl crate::session::Cell32,
-    o4: &impl crate::session::Cell32,
+    rate: &impl Cell32,
+    share: &impl Cell32,
+    from: &impl Cell32,
+    to: &impl Cell32,
 ) {
-    let t0 = ld(o0.bits());
-    let t1 = ld(o1.bits());
-    let t2 = t0 * t1;
-    let t3 = ld(m.wear_step.bits());
-    let t4 = t2 * t3;
-    let t5 = -t4;
-    let t6 = ld(o3.bits());
-    let t7 = t5 + t6;
-    o4.set_bits(st(t7));
+    store(
+        to,
+        -(value(rate) * value(share) * value(&m.wear_step)) + value(from),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B464] = [m + 0x35B398] - [m + 0x35B460]`
+/// How far the engine's speed share is past the cooling capacity.
 fn lerp_gap(m: &DamageModel) {
-    let t0 = ld(m.engine_speed_share.bits());
-    let t1 = ld(m.cooling_capacity.bits());
-    let t2 = t0 - t1;
-    m.overheat_excess.set_bits(st(t2));
+    store(
+        &m.overheat_excess,
+        value(&m.engine_speed_share) - value(&m.cooling_capacity),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + o1] = [m + o0] * [m + o0]`
-fn square_into(o0: &impl Cell32, o1: &impl Cell32) {
-    let t0 = ld(o0.bits());
-    let t1 = t0 * t0;
-    o1.set_bits(st(t1));
+/// `to = from * from`.
+fn square_into(from: &impl Cell32, to: &impl Cell32) {
+    let x = value(from);
+    store(to, x * x);
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B454] = (((([m + 0x35B3E0] * [m + 0x35B39C]) * [m + 0x35B6F8]) * [m + 0x35B44C]) * [m + 0x35B468]) * [m + 0x35B3F4]`
-/// `[m + 0x35B450] = (([m + 0x35B3E0] * [m + 0x35B39C]) * [m + 0x35B6F8]) * [m + 0x35B3F4]`
-/// `[m + 0x35B458] = ((([m + 0x35B3E0] * [m + 0x35B39C]) * [m + 0x35B6F8]) * [m + 0x35B3F4]) * [m + 0x35B448]`
+/// The three hit figures, each the product of the surface wear, the speed share and the
+/// wheels-down switch with further factors; the third is the second times the suspension's.
 fn hit_figures(m: &DamageModel) {
-    let t0 = ld(m.point_surface_copy.bits());
-    let t1 = ld(m.speed_share.bits());
-    let t2 = t0 * t1;
-    let t3 = ld(m.figures[32].bits());
-    let t4 = t2 * t3;
-    let t5 = ld(m.stiffness_body_factor.bits());
-    let t6 = t4 * t5;
-    let t7 = ld(m.ride_height_body_factor.bits());
-    let t8 = t6 * t7;
-    let t9 = ld(m.wheels_down.bits());
-    let t10 = t8 * t9;
-    m.body_roughness_wear.set_bits(st(t10));
-    let t11 = ld(m.point_surface_copy.bits());
-    let t12 = ld(m.speed_share.bits());
-    let t13 = t11 * t12;
-    let t14 = ld(m.figures[32].bits());
-    let t15 = t13 * t14;
-    let t16 = ld(m.wheels_down.bits());
-    let t17 = t15 * t16;
-    m.roughness_wear_base.set_bits(st(t17));
-    let t18 = ld(m.stiffness_suspension_factor.bits());
-    let t19 = t17 * t18;
-    m.suspension_roughness_wear.set_bits(st(t19));
+    let base = value(&m.point_surface_copy) * value(&m.speed_share) * value(&m.figures[32]);
+    store(
+        &m.body_roughness_wear,
+        base * value(&m.stiffness_body_factor)
+            * value(&m.ride_height_body_factor)
+            * value(&m.wheels_down),
+    );
+    let roughness = base * value(&m.wheels_down);
+    store(&m.roughness_wear_base, roughness);
+    store(
+        &m.suspension_roughness_wear,
+        roughness * value(&m.stiffness_suspension_factor),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B484] = ((int [f + 0] * (1 - [m + 0x35B3F0])) + (int [s + 0] * [m + 0x35B3F0])) * [m + 0x35B8BC]`
-fn blend_wear_figures(f: u32, m: &DamageModel, s: u32) {
-    let t0 = int(f as i32);
-    let t1 = X(1.0);
-    let t2 = ld(m.surface_blend.bits());
-    let t3 = t1 - t2;
-    let t4 = t0 * t3;
-    let t5 = int(s as i32);
-    let t6 = ld(m.surface_blend.bits());
-    let t7 = t5 * t6;
-    let t8 = t4 + t7;
-    let t9 = ld(m.wear_figure_scale.bits());
-    let t10 = t8 * t9;
-    m.wear_figure.set_bits(st(t10));
+/// The wear figure: the two table figures blended by `surface_blend`, times the scale.
+fn blend_wear_figures(first: u32, m: &DamageModel, second: u32) {
+    let blend = value(&m.surface_blend);
+    store(
+        &m.wear_figure,
+        (f64::from(first as i32) * (1.0 - blend) + f64::from(second as i32) * blend)
+            * value(&m.wear_figure_scale),
+    );
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -276,7 +224,7 @@ mod asm_reference {
     fn dm(base: usize) -> &'static DamageModel {
         unsafe { &*(crate::pointers::host_at(base + 0x35B340) as *const DamageModel) }
     }
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse_at};
     use crate::scene::x87_mem::HostCell;
 
     // The original's instructions, one function per run.
@@ -733,6 +681,102 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        // The plain code rounds to nearest, as the game always runs the damage model.
+        sparse_at(&blocks(), 1200, 100, &[0x027F]);
+    }
+}
+
+#[cfg(test)]
+mod plain_matches_x87 {
+    use super::*;
+    use crate::physics::damage_model::proof::{State, prove, wear};
+
+    fn d(s: &State) -> &DamageModel {
+        &s.damage
+    }
+
+    #[test]
+    fn wear_additions_and_subtractions() {
+        prove(
+            "add_wear",
+            |s| {
+                let (d, g) = (&s.damage, &s.car.brake_heat[0]);
+                wear::add_wear(d, &d.wear_rates[3], &d.brake_share, g, g);
+            },
+            |s| {
+                let (d, g) = (&s.damage, &s.car.brake_heat[0]);
+                add_wear(d, &d.wear_rates[3], &d.brake_share, g, g);
+            },
+        );
+        prove(
+            "add_wear into another cell",
+            |s| {
+                let d = &s.damage;
+                let from = &s.car.engine_heat;
+                wear::add_wear(d, &d.wear_rates[0], &d.overheat_excess, from, &d.scratch);
+            },
+            |s| {
+                let d = &s.damage;
+                let from = &s.car.engine_heat;
+                add_wear(d, &d.wear_rates[0], &d.overheat_excess, from, &d.scratch);
+            },
+        );
+        prove(
+            "subtract_rate",
+            |s| {
+                let (d, g) = (&s.damage, &s.car.engine_heat);
+                wear::subtract_rate(d, &d.wear_rates[1], g, g);
+            },
+            |s| {
+                let (d, g) = (&s.damage, &s.car.engine_heat);
+                subtract_rate(d, &d.wear_rates[1], g, g);
+            },
+        );
+        prove(
+            "subtract_wear",
+            |s| {
+                let (d, g) = (&s.damage, &s.car.brake_fade);
+                wear::subtract_wear(d, &d.wear_rates[9], &d.brake_share, g, g);
+            },
+            |s| {
+                let (d, g) = (&s.damage, &s.car.brake_fade);
+                subtract_wear(d, &d.wear_rates[9], &d.brake_share, g, g);
+            },
+        );
+    }
+
+    #[test]
+    fn gap_square_and_figures() {
+        prove(
+            "lerp_gap",
+            |s| wear::lerp_gap(&s.damage),
+            |s| lerp_gap(&s.damage),
+        );
+        prove(
+            "square_into",
+            |s| wear::square_into(&d(s).stiffness_body_factor, &d(s).stiffness_body_factor),
+            |s| square_into(&d(s).stiffness_body_factor, &d(s).stiffness_body_factor),
+        );
+        prove(
+            "square_into another cell",
+            |s| wear::square_into(&d(s).stiffness_body_factor, &d(s).scratch),
+            |s| square_into(&d(s).stiffness_body_factor, &d(s).scratch),
+        );
+        prove(
+            "hit_figures",
+            |s| wear::hit_figures(&s.damage),
+            |s| hit_figures(&s.damage),
+        );
+        prove(
+            "blend_wear_figures",
+            |s| {
+                let (f, g) = (s.damage.figures[1].bits(), s.damage.figures[2].bits());
+                wear::blend_wear_figures(f, &s.damage, g);
+            },
+            |s| {
+                let (f, g) = (s.damage.figures[1].bits(), s.damage.figures[2].bits());
+                blend_wear_figures(f, &s.damage, g);
+            },
+        );
     }
 }

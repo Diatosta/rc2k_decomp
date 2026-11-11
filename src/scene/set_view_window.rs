@@ -1,28 +1,27 @@
 //! `scene::set_view_window` (0x44E47B): the view's window, scale and depths from its
 //! size and the scene's settings.
 //!
-//! From the window's width and height (`dword_62408C`, `dword_624090`), its offsets
-//! (`dword_623FB0`, `dword_623FB4`) and `dword_60A87C` (`g_gridReach`, how far the grid reaches; the view's depth is it times 0x20):
-//! - `dword_63DC58` = `dword_63DC54` = `dword_60A87C` times 0x20;
-//! - the middle (`dword_624094`, `dword_624098`) = half of each, unsigned;
-//! - the clip rectangle as whole numbers `dword_6241D4` (top), `D8` (bottom), `DC`
-//!   (left), `E0` (right): 0, 0, width, height with `g_inRace` at 1, else each less its
-//!   offset;
-//! - the scale `flt_624088` = the screen's width times `dword_606294` times
-//!   `dword_624080` (a whole number) times `flt_623DCC`;
-//! - `flt_624224` = (100 less `dword_60AC80`, held to 90 .. 100 by the differences'
-//!   signs) times `flt_5C5CFC`; the farthest depth `flt_6241C8` = `dword_63DC54` times
-//!   0x10000 (its low half, signed) over that, `flt_6241CC` = 1 over it,
-//!   `dword_6241D0` = it times `flt_624228` over `flt_624220` over 65536, and
-//!   `g_clipFarthest` = it times `flt_62422C`, both rounded;
-//! - as floats: the offsets (`flt_6241F4`, `F8`), the clip rectangle
-//!   (`g_clipScreenLeft` ..), the middle (`flt_62409C`, `flt_6240A0`), and the width
-//!   and height less `flt_5C5D38` (`flt_6D18E8`, `EC`).
+//! From the window's `view_size` and `view_offset`, the stage's `grid_reach` (how far the
+//! grid reaches; the view's depth is it times 0x20):
+//! - `view_depth` (both entries) = `grid_reach` times 0x20;
+//! - `view_middle` = half of each size, unsigned;
+//! - `clip_edges` (top, bottom, left, right) as whole numbers: 0, height, 0, width in a
+//!   race, else each less its offset;
+//! - `view_scale` = the screen's width times the view variables' `view_scale` times
+//!   `view_zoom` (a whole number) times the race's `scale_factor`;
+//! - `depth_divisor` = (100 less the stage's `nearer`, held to 90 .. 100 by the
+//!   differences' signs) times `hundredth_a`; the farthest depth `farthest` = the view
+//!   depth times 0x10000 (its low half, signed) over that, `one_over_farthest` = 1 over it,
+//!   `farthest_scaled` = it times `fade_a` over `fade_b` over 65536, and `clip_farthest` =
+//!   it times `clip_factor`, both rounded;
+//! - as floats: the offsets (`view_offset_float`), the clip rectangle (`clip_screen`) and
+//!   the middle (`view_centre`).
 //!
-//! The original also stored the low half to `g_scratch`; nothing read it, so it is not kept.
+//! The original also stored the low half to `scratch`; nothing read it, so it is not kept.
 //! Twelve callers.
 
 use crate::math::x87;
+use crate::math::x87_float as bh;
 use crate::race::owner::Race;
 use crate::race::view_vars_store::ViewVars;
 use crate::scene::view_window::ViewWindow;
@@ -46,8 +45,8 @@ pub fn set_view_window(
     );
 }
 
-/// `set_view_window` with the grid's reach `reach` in place of `g_gridReach` (the mirror's
-/// 2: the original set `g_gridReach` to it around the mirror's window).
+/// `set_view_window` with the grid's reach `reach` in place of the stage's (the mirror's
+/// window is made with a reach of 2).
 pub fn set_view_window_reaching(
     race: &Race,
     scene: &crate::scene::owner::Scene,
@@ -64,7 +63,7 @@ pub fn set_view_window_reaching(
     crate::session::write_bits(&window.view_middle, middle);
     let offsets: [u32; 2] = crate::session::read_bits(&window.view_offset);
     // top, bottom, left, right
-    let edges = if race.course.numbers.in_race.get() == 1 {
+    let edges = if race.course.numbers.in_race.is_set() {
         [0, height, 0, width]
     } else {
         [
@@ -75,13 +74,13 @@ pub fn set_view_window_reaching(
         ]
     };
     crate::session::write_bits(&window.clip_edges, edges);
-    window.view_scale.set_bits(x87::int_float_int_float(
-        system.session.screen.width.get() as i32,
-        vars.view_scale.bits(),
-        window.view_zoom.get() as i32,
-        race.shared.vars.scale_factor.bits(),
+    window.view_scale.set_bits(bh::st(
+        bh::int(system.session.screen.width.get() as i32)
+            * bh::ld(vars.view_scale.bits())
+            * bh::int(window.view_zoom.get() as i32)
+            * bh::ld(race.shared.vars.scale_factor.bits()),
     ));
-    // `cmp; jns` and `cmp; js`: by the differences' signs.
+    // Held to 90 ..= 100, compared by the signs of the differences as the game does.
     let mut nearer = 100u32.wrapping_sub(race.course.stage_prefs.nearer.get());
     if (nearer.wrapping_sub(0x5A) as i32) < 0 {
         nearer = 0x5A;
@@ -89,7 +88,7 @@ pub fn set_view_window_reaching(
     if (nearer.wrapping_sub(0x64) as i32) >= 0 {
         nearer = 0x64;
     }
-    let divisor = x87::int_times(nearer as i32, race.course.numbers.hundredth_a.bits());
+    let divisor = x87::int_times(nearer as i32, &race.course.numbers.hundredth_a);
     window.depth_divisor.set_bits(divisor);
     let product = depth as u64 * 0x1_0000;
     let low = product as u32;
@@ -104,18 +103,16 @@ pub fn set_view_window_reaching(
     ) as u32);
     window
         .clip_farthest
-        .set(x87::mul_to_int(farthest, drawing.scene.clip_factor.bits()) as u32);
+        .set(x87::mul_to_int(farthest, &drawing.scene.clip_factor) as u32);
     let float = |value: u32| x87::from_int(value as i32);
     crate::session::write_bits(&window.view_offset_float, offsets.map(float));
     crate::session::write_bits(&window.clip_screen, edges.map(float));
     crate::session::write_bits(&window.view_centre, middle.map(float));
-    // The original's size less one (`g_lessOne`, `flt_6D18EC`) is read only by code nothing
-    // reaches (0x45BF11): not kept.
+    // The original also kept the size less one; only unreachable code reads it, so it is not kept.
 }
 
-/// The converted `set_view_window` (plain floats). The x87 version above
-/// stays for its Rust callers in modules not converted (race, `choose_view_window`,
-/// `prepare_menu_scene`).
+/// `set_view_window` in plain floats. The x87 version above stays for the callers that
+/// have not been converted (race, `choose_view_window`, `prepare_menu_scene`).
 // Converted: `rc2k_core::scene::view_window::window_settings`
 pub fn set_view_window_plain(
     race: &Race,
@@ -130,7 +127,7 @@ pub fn set_view_window_plain(
         reach: race.course.stage_prefs.grid_reach.get(),
         size: crate::session::read_bits(&window.view_size),
         offsets: crate::session::read_bits(&window.view_offset),
-        in_race: race.course.numbers.in_race.get() == 1,
+        in_race: race.course.numbers.in_race.is_set(),
         screen_width: system.session.screen.width.get(),
         scale: (
             vars.view_scale.get(),

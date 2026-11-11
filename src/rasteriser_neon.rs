@@ -1,5 +1,5 @@
 //! The SSE2 instructions the rasteriser's four-at-a-time path uses (`row4`), on ARM's NEON, so
-//! both processors run one path (the handheld, 2026-10-31). Each does what the x86 instruction
+//! both processors run one path (the handheld). Each does what the x86 instruction
 //! does, by its Intel name; `tiles_and_lanes_draw_the_same` checks the path against the plain
 //! one. The one known difference: a float too big for an integer, or NaN, converts to the
 //! nearest integer (0 for NaN) and not to `i32::MIN`, as Rust's own `as i32` does on every

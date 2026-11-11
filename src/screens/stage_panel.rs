@@ -19,9 +19,9 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-// dword_7559EC: a work variable used all over the game
+// `draw_work.figure`: a work variable used all over the game
 // mmss: receives the finish time
-// dword_75ACD0[1]: copy of entry +0x34
+// the summary copy[1]: copy of entry +0x34
 const SECOND_HEADING_STRING: u32 = 0x482;
 
 pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::STAGE_TITLE;
@@ -102,7 +102,7 @@ pub fn draw_stage_body_in(
         let fault = crate::menu::event_flow::Fault::default();
         let f = |o: u32| fault.read_at::<u32>(entry.offset(o), "a stage record");
         let made = Entry {
-            // `MENU_LISTS.durations` (dword_75A49A) has 37 entries; the original's index
+            // `MENU_LISTS.durations` (the stage durations) has 37 entries; the original's index
             // has no bound (fixed: refused).
             duration: tables
                 .lists

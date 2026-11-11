@@ -1,12 +1,9 @@
-//! `physics::stir_car_word` (0x440F2E): `dword_719FE4` (the work copy's +0xC, the word
+//! `physics::stir_car_word` (0x440F2E): `noise_word` (the work copy's +0xC, the word
 //! `physics::test_car_word` tests) = `scene::noise_step` of itself.
 //!
 //! Returns: the new word
 //!
 //! Caller: `physics::car_physics_step`, its first instruction: every physics step.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::physics::car_store::Car;
 use crate::scene::next_noise::noise_step;

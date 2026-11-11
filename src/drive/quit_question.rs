@@ -1,9 +1,9 @@
 //! `drive::quit_question` (0x445069): the "quit?" question in a race. The race's sounds stopped,
-//! `dword_6235E8` 1; the best whole frame less 7 (the first block's +8 / 100) kept in
-//! `dword_70F3E8` when not below it (by the sign); the eight blocks' notice 0xC2 (with
-//! `dword_6238C0`) or 0xC1, +0x730 0, +0x72C -1. Then until answered (`input::yes_no_key`, the
+//! `scene_switch` 1; the best whole frame less 7 (the first block's +8 / 100) kept in
+//! `last_kept` when not below it (by the sign); the eight blocks' notice 0xC2 (with
+//! `no_replay`) or 0xC1, +0x730 0, +0x72C -1. Then until answered (`input::yes_no_key`, the
 //! race's frame drawn each turn, `drive::race_frame` through the game): yes -1, no 0, and outside
-//! mode 2 with `dword_6238C0` the third answer -2. The notices cleared, `dword_6235E8` 0 and the
+//! mode 2 with `no_replay` the third answer -2. The notices cleared, `scene_switch` 0 and the
 //! sounds woken, the eight blocks' +0x468 0.
 //!
 //! Returns: the answer
@@ -26,7 +26,7 @@ pub fn quit_question(race: &Race, input: &crate::input::owner::Input) -> Result<
     // A button from before the question answers nothing.
     crate::input::menu_pad::take_answer();
     shared.vars.scene_switch.set(1);
-    // eax: the best frame, then each key's answer, then what the frame leaves; it goes
+    // The carried value: the best frame, then each key's answer, then what the frame leaves; it goes
     // into `input::yes_no_key` (the key given, when one is).
     let (mut eax, _) = race_ticks::best_frame(CAR_BLOCKS.cars[0].step_clock.get());
     if race_ticks::keeps_frame(eax, replay.replay_frames.last_kept.get()) {

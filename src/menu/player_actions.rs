@@ -1,23 +1,23 @@
 //! More item actions the standalone could reach unported (2026-10-19, the survey of the
 //! menu and draw-list tables):
 //! - the current player's (`g_players`[`g_currentPlayer`]) settings:
-//!   `menu::keep_player_keys` (0x46AEFC): the 0x2C bytes at `unk_7555B1` to
+//!   `menu::keep_player_keys` (0x46AEFC): the 0x2C bytes of the page's key copy (`keys.tables.controls`) to
 //!   +0x50; `menu::lower_player_40` (0x46B386, `lower_end_zone`): the first dead zone (+0x40) one less while above 0
 //!   (signed); `menu::lower_player_44` (0x46B3CB, `lower_centre_dead_zone`): the second one less
 //!   unless 0; `menu::raise_player_48` (0x46B528) / `lower_player_48` (0x46B54C): the
 //!   strength (+0x48) ten more unless 100 / ten less unless 0; `menu::toggle_player_3c`
 //!   (0x4704EC, `toggle_controller_mode`): the mode's (+0x3C) bit 0 turned over;
 //! - `menu::next_scores_page` (0x46D0FB) and `menu::previous_scores_page` (0x46D115): the
-//!   best scores' page (`dword_755240`) one more (11 back to 0) or less (below 0 to 10);
+//!   best scores' page (`pages.scores_page`) one more (11 back to 0) or less (below 0 to 10);
 //! - `menu::previous_replay_range` (0x46D423) and `menu::next_replay_range` (0x46D43B): the
-//!   replays' range (`dword_755248`) one less (below 0 to 4) or more (past 4 to 0), then its
+//!   replays' range (`pages.replay_page`) one less (below 0 to 4) or more (past 4 to 0), then its
 //!   caption (`screens::replay_range_caption`);
 //! - `menu::player_N_car_specs` (0x46FCC1, 0x46FCDD, 0x46FCF9, 0x46FD15): `menu::show_car_specs`
 //!   for player N (0 .. 3, `g_currentPlayer` set and put back);
-//! - `menu::toggle_caption_choice` (0x47056B): `dword_75AB30`'s bit 0 turned over and string
+//! - `menu::toggle_caption_choice` (0x47056B): the caption choice's bit 0 turned over and string
 //!   0x4FC + it with a NUL into the caption (`g_captionText`; the eax and ebx it leaves are
 //!   read by none of its callers);
-//! - `menu::leave_with_carry` (0x471CCE): `dword_755561` and `dword_755565` 1, the carry set;
+//! - `menu::leave_with_carry` (0x471CCE): `loop_flags.leave_screen` and `left_with_carry` set to 1, the carry set;
 //!
 //! Refuses (before anything) no current player (or one past the four).
 
@@ -29,8 +29,8 @@ use rc2k_core::menu::player::Player;
 use rc2k_core::menu::steps;
 
 /// The current player's record.
-fn player(screens: &Screens) -> Result<crate::menu::standings::PlayerCell, Refused> {
-    crate::menu::player::player(screens.event.current_player.get())
+fn player(menus: &Menus) -> Result<crate::menu::standings::PlayerCell<'_>, Refused> {
+    crate::menu::player::player(menus, menus.screens.event.current_player.get())
         .ok_or_else(|| BadInput("no current player (or one past the four)").into())
 }
 
@@ -40,42 +40,42 @@ fn player(screens: &Screens) -> Result<crate::menu::standings::PlayerCell, Refus
 // (`scores_page`, `replay_range`, `flip`).
 
 /// The current player's record changed by `f`.
-fn with_player(screens: &Screens, f: impl FnOnce(&mut Player)) -> Result<(), Refused> {
-    player(screens)?.update(f);
+fn with_player(menus: &Menus, f: impl FnOnce(&mut Player)) -> Result<(), Refused> {
+    player(menus)?.update(f);
     Ok(())
 }
 
 /// `menu::keep_player_keys`: the keys' table's bindings into the player's.
 pub fn keep_player_keys(menus: &Menus) -> Result<(), Refused> {
     let controls = menus.keys.tables.controls.read();
-    with_player(&menus.screens, |p| {
+    with_player(menus, |p| {
         p.bindings = rc2k_core::menu::player::ControlsBlock::from_bytes(controls);
     })
 }
 
 /// `menu::lower_player_40`.
-pub fn lower_end_zone(screens: &Screens) -> Result<(), Refused> {
-    with_player(screens, Player::lower_end_zone)
+pub fn lower_end_zone(menus: &Menus) -> Result<(), Refused> {
+    with_player(menus, Player::lower_end_zone)
 }
 
 /// `menu::lower_player_44`.
-pub fn lower_centre_dead_zone(screens: &Screens) -> Result<(), Refused> {
-    with_player(screens, Player::lower_centre_dead_zone)
+pub fn lower_centre_dead_zone(menus: &Menus) -> Result<(), Refused> {
+    with_player(menus, Player::lower_centre_dead_zone)
 }
 
 /// `menu::raise_player_48`.
-pub fn raise_strength(screens: &Screens) -> Result<(), Refused> {
-    with_player(screens, |p| p.step_strength(true))
+pub fn raise_strength(menus: &Menus) -> Result<(), Refused> {
+    with_player(menus, |p| p.step_strength(true))
 }
 
 /// `menu::lower_player_48`.
-pub fn lower_strength(screens: &Screens) -> Result<(), Refused> {
-    with_player(screens, |p| p.step_strength(false))
+pub fn lower_strength(menus: &Menus) -> Result<(), Refused> {
+    with_player(menus, |p| p.step_strength(false))
 }
 
 /// `menu::toggle_player_3c`.
-pub fn toggle_controller_mode(screens: &Screens) -> Result<(), Refused> {
-    with_player(screens, Player::toggle_controller_mode)
+pub fn toggle_controller_mode(menus: &Menus) -> Result<(), Refused> {
+    with_player(menus, Player::toggle_controller_mode)
 }
 
 pub fn next_scores_page(tables: &Tables) {

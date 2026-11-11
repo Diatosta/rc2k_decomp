@@ -1,6 +1,6 @@
 //! `net::send_extra` (0x4643FA): "send x", the player and the step logged, and the message
 //! 'XGSM' (0x4D534758) with nine dwords of the car's block (+0x64 .. +0x84; not read)
-//! built in `unk_71C4D0` and sent (`net::send_race_message`).
+//! built in `net_message` and sent (`net::send_race_message`).
 //!
 //!
 //! See `net/mod.rs` and `net::send_inputs` (the shared body). One caller, `net::send_turn`

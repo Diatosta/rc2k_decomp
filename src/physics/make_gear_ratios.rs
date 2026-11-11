@@ -1,12 +1,12 @@
 //! `physics::make_gear_ratios` (0x4219E6): the car's gear ratios (`g_gearRatios`, by gear,
 //! `physics/gearing.rs`) from its setup: the top gear's (`g_gearRatios[g_gearCount]`) and
-//! the first's (`flt_6140C4`) each lo + (hi - lo) `flt_5C5DA4` `dword_71A000` (the
-//! setup's gearing, a whole number) over `flt_5C5D00` and `flt_71A1B4` (hi / lo
-//! `flt_5CB978` / `flt_5CB970` and `flt_5CB974` / `flt_5CB96C`); the gears between in
+//! the first's (`flt_6140C4`) each lo + (hi - lo) `quarter` `gear_ratio_setting` (the
+//! setup's gearing, a whole number) over `two_and_a_quarter` and `engine_speed_limit` (hi / lo
+//! `flt_5CB978` / `flt_5CB970` and `flt_5CB974` / `figures`); the gears between in
 //! even steps ((top - first) / (count - 1), kept at 80 bits on the stack and added on:
 //! gears 2 .. 5 always, 6 and 7 one more step each only past five and six gears; the
-//! step itself rounded into `dword_62400C`); reverse (`flt_6140BC`) the first's negative;
-//! neutral (`g_gearRatios[0]`) `flt_613FE8`.
+//! step itself rounded into `scratch`); reverse (`gear_ratios`) the first's negative;
+//! neutral (`g_gearRatios[0]`) `gear_ratio_step`.
 //!
 //! Returns: `g_gearCount`
 //!
@@ -15,7 +15,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::math::x87_run::{ext_add, gear_step_80, lerp_int_over2};
+use crate::math::x87::{ext_add, gear_step_80, lerp_int_over2};
 use crate::physics::car_store::Car;
 use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PhysicsTables;

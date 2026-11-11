@@ -1,5 +1,5 @@
-//! `race::loadlevel_init`'s "render3d initmud" (IDA, 2026-10-16): 64 KB on
-//! `stru_5C6F50` for the mud (`dword_623D50`), the car's mud file
+//! `race::loadlevel_init`'s "render3d initmud": 64 KB on
+//! `stru_5C6F50` for the mud (`mud`), the car's mud file
 //! (`files\b\mudfile.0xx`, xx the car's file number) read into it, the mud's state
 //! cleared, and 256 colours sampled from a picture surface (`dword_5D0DEC`, locked and
 //! unlocked through DirectDraw: the game's, `d3d::lock_texture` / `d3d::unlock_texture`).
@@ -13,7 +13,7 @@ use crate::race::owner_shared::RaceShared;
 
 pub const MUD_LEN: u32 = 0x1_0000;
 
-/// `race::car_file_number` (0x41F4FD): eax held to 0 .. 0x21 (signed), its entry of `dword_5C5928`.
+/// `race::car_file_number` (0x41F4FD): the car number held to 0 .. 0x21 (signed), its entry of `car_file_numbers`.
 pub fn car_file_number(car: u32) -> u32 {
     // Converted: `rc2k_core::race::cars::table_entry`.
     let n = rc2k_core::race::cars::table_entry(car);
@@ -21,8 +21,8 @@ pub fn car_file_number(car: u32) -> u32 {
 }
 
 /// `gfx::read_pixel` (0x406584): the pixel at of `g_surface`, taken apart by
-/// `gfx::pixel_to_components`. A 16-bit pixel is read with `mov ax`: the upper half of eax is the
-/// row's address's, and that is what the conversion gets.
+/// `gfx::pixel_to_components`. A 16-bit pixel is read into the low half of a register that still holds the
+/// row's address, so the upper half is the row's address's, and that is what the conversion gets.
 pub fn read_pixel(x: u32, y: u32) -> Result<u32, BadInput> {
     let (_, pixel) = raw_pixel(x, y)?;
     let format = crate::gfx::pixel_format::layout(gfx().drawing.draw_surface.format.get())?;
@@ -32,7 +32,7 @@ pub fn read_pixel(x: u32, y: u32) -> Result<u32, BadInput> {
 }
 
 /// The row's address and the value `read_pixel` hands to the conversion (one place for
-/// both: a second copy of this compiled without the row's upper half, 2026-10-16).
+/// both: a second copy of this compiled without the row's upper half).
 pub fn raw_pixel(x: u32, y: u32) -> Result<(u32, u32), BadInput> {
     let drawing = &gfx().drawing;
     let rows = crate::gfx::rows::Rows::new(
@@ -42,8 +42,8 @@ pub fn raw_pixel(x: u32, y: u32) -> Result<(u32, u32), BadInput> {
     );
     let row = rows.at(y, 0)?;
     let pixel = if drawing.draw_surface.bits_per_pixel.get() == 0x10 {
-        // As the original: eax the row's address, then `mov ax` of the pixel: the
-        // upper half of the result is the row's address's.
+        // As the original: the register holds the row's address, then the pixel goes into its
+        // low half: the upper half of the result is the row's address's.
         // A pixel of the surface's row: bytes of a picture, not a record.
         let word = row
             .offset(x.wrapping_mul(2))
@@ -126,7 +126,7 @@ pub fn sample_mud_colours(
 pub static MUD: crate::memory::owned::Owned<Vec<u8>> = crate::memory::owned::Owned::new("no mud");
 
 /// `race::init_mud` (0x449DD6): the list's total + 0x10000, the mud taken (`MUD`, the game's
-/// `dword_623D50`), then `load_mud`, `clear_mud_state`, `sample_mud_colours`.
+/// `mud`), then `load_mud`, `clear_mud_state`, `sample_mud_colours`.
 pub fn init_mud(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race.course;
     course
@@ -142,7 +142,7 @@ pub fn init_mud(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), R
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
 
-    /// The original block: `mov ax, [at]` over eax = the row's address.
+    /// The original block: a 16-bit load over a register holding the row's address.
     pub(super) unsafe fn mov_ax(row: u32, at: u32) -> u32 {
         let mut eax = row;
         unsafe {

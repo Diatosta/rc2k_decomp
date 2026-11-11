@@ -1,4 +1,4 @@
-//! The pace notes' rules (converted 2026-10-21 from `race::pace_note_code` 0x441A37,
+//! The pace notes' rules (converted from `race::pace_note_code` 0x441A37,
 //! `race::next_pace_slot` 0x441A4B,
 //! `pace_distance_word` 0x441C78, and the codes and the corner of `race::pace_note_calls`
 //! 0x441CB4 / `race::init_pace_notes` 0x441A66): a place on the line is a checkpoint and
@@ -20,7 +20,7 @@ pub const JOIN: u8 = 0x29;
 pub const SLOTS: u32 = 8;
 
 /// `race::pace_note_code`: where the face's code for `slot` is: the face plus the slot's
-/// offset (`dword_614D14[slot]`, asked only for a slot below 8). Refused past 7 (the
+/// offset (`pace_slot_offsets`[slot]`, asked only for a slot below 8). Refused past 7 (the
 /// original reads past its table).
 pub fn code_place(face: u32, slot: u32, offset: impl FnOnce(u32) -> u32) -> Result<u32, Invalid> {
     if slot >= SLOTS {
@@ -68,11 +68,11 @@ pub fn replaces_join(code: u8) -> bool {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Corner {
     pub code: u32,
-    /// + 8 for a note of 0x780000 or longer, + 0x10 turning one way (ebp).
+    /// + 8 for a note of 0x780000 or longer, + 0x10 turning one way.
     pub flags: u32,
-    /// The length, at least 0x3C0000 (ecx).
+    /// The length, at least 0x3C0000.
     pub length: u32,
-    /// The division's remainder (edx).
+    /// The division's remainder.
     pub remainder: u32,
 }
 

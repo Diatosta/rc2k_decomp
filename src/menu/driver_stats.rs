@@ -1,20 +1,18 @@
-//! `menu::driver_stats` (0x4A73D8): the current player's (`dword_75598C`) inspection
-//! figures from its car's table (`off_7564A0`[car]'s +0x74; car 0x21 as 0x17).
+//! The current player's inspection figures from the car's table (the car table's row for the
+//! player's car, +0x74; car 0x21 counts as 0x17).
 //! - For each of the fourteen parts k (wear the player's +0xD4 + 4k; the table's pair at
-//!   +8 (k / 2), +0x38 for odd k): its value (`dword_75AB60`[k]) 0 without wear, the
-//!   pair's low end when the pair is flat, else that plus (high - low) / `flt_75AB58` times
-//!   (wear - 1) (`hhmm` the difference); its high end into `dword_75ABA0`[k]; its limit
-//!   (`dword_75ABD8`[k]) the table's +0x78 + 4k, 0xA for part 1 unless the player's +0x278
-//!   has all of 0x1E0, for part 13 unless it has all of 0x1E.
-//! - The high ends' total but part 4's into `dword_75AC84`; `dword_75AB98` / `9C` the
-//!   table's +0x70 / +0x74, `dword_75AB90` / `94` its +0x30 / +0x68; `dword_75ACA8` /
-//!   `AC` the player's +0x114, `dword_75ACB4` / `B8` its +0x118.
-//! - For each inspected part (`menu::standings::INSPECTED`): its weight
-//!   (`dword_75AC10`[k]) its high end / the total times `flt_75AB5C`; logged
-//!   ("DriverStats.<part>", the wear, "eax=", the limit: 0xA for part 1 unless
-//!   `dword_75ACC4` is 1, for part 5 when `dword_75ACC8` is 1); when the wear is at or past
-//!   that limit, its penalty (`dword_75AC48`[k]) the wear / `flt_75AB5C` times the weight.
-//!   Each figure also passes through `dword_7559EC`.
+//!   +8 (k / 2), +0x38 for odd k): its repair time (`driver_stats.repair_times`[k]) is 0
+//!   without wear, the pair's low end when the pair is flat, else that plus (high - low) /
+//!   `scale` times (wear - 1); its high end goes into `highs`[k]; its limit (`limits`[k]) is
+//!   the table's +0x78 + 4k, 0xA for part 1 unless the player's +0x278 has all of 0x1E0, for
+//!   part 13 unless it has all of 0x1E.
+//! - The high ends' total but part 4's goes into `total`; the table's +0x70 / +0x74 and
+//!   +0x30 / +0x68 and the player's +0x114 / +0x118 are copied to the figures beside it.
+//! - For each inspected part (`menu::standings::INSPECTED`): its weight (`weights`[k]) is its
+//!   high end / the total times `steps`; logged ("DriverStats.<part>", the wear, "eax=", the
+//!   limit: 0xA for part 1 unless `switch_a` is 1, for part 5 when `switch_b` is 1); when
+//!   the wear is at or past that limit, its penalty (`penalties`[k]) is the wear / `steps`
+//!   times the weight. Each figure also passes through the draw work's figure.
 //!
 //! Logs through `logfile::`
 //! (level 1). Refuses a current player past 3 or missing, a car past 0xFF or without its table,
@@ -49,19 +47,19 @@ const EQUALS_RVA: [&std::ffi::CStr; 13] = [
 ];
 const PARTS: u32 = 14;
 /// The current player and its car's table.
-pub fn player_and_table(
-    menus: &Menus,
+pub fn player_and_table<'a>(
+    menus: &'a Menus,
     screens: &Screens,
-) -> Result<(PlayerCell, crate::pointers::GamePtr), BadInput> {
+) -> Result<(PlayerCell<'a>, crate::pointers::GamePtr), BadInput> {
     let n: u32 = screens.event.current_player.get();
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing"));
     }
-    let p = player(n);
+    let p = player(menus, n);
     Ok((p, car_table(menus, p)?))
 }
 
-/// The player `p`'s car's table (`off_7564A0`[car]'s +0x74; car 0x21 as 0x17).
+/// The player `p`'s car's table (the car table's row for the car, +0x74; car 0x21 as 0x17).
 pub fn car_table(menus: &Menus, p: PlayerCell) -> Result<crate::pointers::GamePtr, BadInput> {
     let car = match p.get().car_number {
         0x21 => 0x17,

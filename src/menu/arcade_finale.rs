@@ -1,6 +1,6 @@
-//! `menu::arcade_finale` (0x488155): after an arcade level is won: `dword_75B100` player
-//! 0's +0x28, `dword_75B104` and `dword_75ACE8` its +8, `dword_75ACE4` 0, `dword_75B0FC`
-//! 5 - the level, `dword_75B108` 0; then the race's sound objects and sounds
+//! `menu::arcade_finale` (0x488155): after an arcade level is won: the finishing player is
+//! player 0's +0x28, the cars' kind and a second figure take its +8, the kept value copy is cleared, the arcade race index
+//! is 5 - the level, the finish flag is cleared; then the race's sound objects and sounds
 //! (`race::set_up_race_sound_objects`, `sound::set_up_race_sounds`), the loading picture,
 //! the 3D tidied (`render3d_tidy`, `objects_tidy`, `nullsub_6`, `release_textures`),
 //! `drive::finish_race_0`, the music stopped, the menu's screen mode, the loading picture,

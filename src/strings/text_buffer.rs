@@ -1,5 +1,5 @@
 //! The strings' text buffer (`strings::text_from_ids` and the screens that build a line
-//! there), out of RAL.EXE's image (phase 5), typed (phase 7). `#[repr(C)]` struct of a byte
+//! there), out of RAL.EXE's image, typed. `#[repr(C)]` struct of a byte
 //! buffer; `moved::MOVED` points the image's address at it.
 
 use crate::session::Bytes;
@@ -25,7 +25,7 @@ impl TextBuffer {
 impl TextBuffer {
     pub const START: usize = 0x93E430;
     pub const LEN: usize = 0x400;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const strings().text.buffer) as usize

@@ -1,7 +1,7 @@
 //! `screens::draw_time_trial_stage_select` (0x48C2A0; IDA had it as code outside any
 //! function, made one 2026-10-19): the time trial's stage selection panel, a copy of
 //! `screens::draw_selected_stage_menu` (0x481A78) but for its record rows: from the
-//! group 1 table `g_stageBestTimesAlt` (0x7556E4) or else `dword_7556E8`, not looked at for
+//! group 1 table `g_stageBestTimesAlt` (0x7556E4) or else the time trial best times, not looked at for
 //! null (refused here), drawn by `screens::draw_time_trial_records` (`TIME_TRIAL_ROWS`).
 //! What follows is the copied panel's description:
 //!
@@ -33,7 +33,7 @@ use crate::text::draw_text::Canvas;
 
 use crate::menu::event_flow::StageTable;
 const GROUP_1_TIMES: &StageTable = &crate::saves::best_times::STAGE_TIMES_ALT; // g_stageBestTimesAlt
-const TIMES: &StageTable = &crate::saves::best_times::TIME_TRIAL_TIMES; // dword_7556E8
+const TIMES: &StageTable = &crate::saves::best_times::TIME_TRIAL_TIMES;
 
 /// Returns the carry flag. Refuses a missing selection or menu: the original reads or writes
 /// through null.

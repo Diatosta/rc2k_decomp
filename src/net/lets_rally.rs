@@ -1,11 +1,11 @@
 //! `net::lets_rally` (0x4170E0): "NET: Lets rally", one network race: racing
-//! (`dword_52AD84` 1), `dword_75ACE0` 1, `dword_75ACD8` 0, this player's car and colours to
-//! `dword_75ACE8` and `dword_75AE2C`; the first player that is not the host found
-//! (`dword_52A924`; none: carry); the music stopped, the race's screen mode, the loading
+//! (`racing` 1), the race mode 1, the settings' second value 0, this player's car and
+//! colours to the settings' first car; the first player that is not the host found
+//! (`first_host`; none: carry); the music stopped, the race's screen mode, the loading
 //! picture, the race's sounds (`race::set_up_race_sound_objects`,
 //! `sound::set_up_race_sounds`), the race set up (`net::set_up_race`); the clocks noted, the
-//! sync table to clear, the players listed; then empty frames (`screens::run_frame`, eax 0)
-//! with a key each (`input::take_key`, ebx 1) until Escape, or until everyone waits
+//! sync table to clear, the players listed; then empty frames (`screens::run_frame`)
+//! with a key each (`input::take_key`) until Escape, or until everyone waits
 //! (`net::race_wait`): then the front surface cleared, the messages taken
 //! (`net::copy_received`) and the race driven (`net::lets_race`); after it, everything
 //! tidied (`race::tidy_everything`), the music stopped, the menus' screen mode and loading
@@ -57,8 +57,8 @@ pub fn lets_rally(race: &Race, net: &Net) -> Result<bool, Refused> {
     net.vars.sync_clock.set(tick);
     net.vars.sync_first.set(1);
     crate::net::list_players::list_players_regs(&net.vars)?;
-    // The race's time and whether the car did not finish (the original's eax and ebx);
-    // Escape leaves ebx 1.
+    // The race's time and whether the car did not finish (the original's result registers);
+    // Escape leaves the second 1.
     let (time, not_finished) = loop {
         run_frame(|| Ok::<(), Refused>(()))?;
         if crate::input::take_key::take_key() == 1 {

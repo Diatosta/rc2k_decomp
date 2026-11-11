@@ -1,6 +1,6 @@
-//! `drive::load_replay_frame` (0x46020A): the replay's frame `dword_6EF7E0` read
+//! `drive::load_replay_frame` (0x46020A): the replay's frame `step_block` read
 //! (`drive::read_replay_frame_0`), its marks (`drive::replay_frame_marks`), and the frame (0xA04
-//! dwords at `dword_9613A4`) copied to the replay's starting state `unk_7172EC`.
+//! dwords at `block`) copied to the replay's starting state `unk_7172EC`.
 //!
 //! Caller: `drive::play_replay_frame`. Refuses what `read_replay_frame` refuses.
 

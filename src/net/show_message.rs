@@ -1,9 +1,9 @@
-//! `net::show_message` (0x41745C): message eax shown (`net::message_frame` through
+//! `net::show_message` (0x41745C): the message shown (`net::message_frame` through
 //! `screens::run_frame`), a quarter of a second's sleep, the pending key dropped
 //! (`input::take_key`), then frames until a key is pressed.
 //!
 //! Takes `message`.
-//! Caller: `net::start_link`. The frame's message goes to `net::message_frame` in esi
+//! Caller: `net::start_link`. The frame's message goes to `net::message_frame`
 //! (through `screens::run_frame`).
 
 use crate::errors::Refused;

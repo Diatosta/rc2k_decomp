@@ -45,8 +45,7 @@ pub struct MarksWork {
 // them): any bit pattern is a valid value.
 
 impl MarksWork {
-    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-    /// `race::store::LEFT`), with the image's first values.
+    /// The piece, with the image's first values.
     pub const fn new() -> Self {
         crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }

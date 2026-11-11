@@ -2,28 +2,27 @@
 //!
 //! Takes: the vertex's fourth dword, the number of its normal
 //!
-//! By the kind of lighting `dword_62DAF4`:
-//! - with neither `dword_621480` nor `dword_60931C` set, or kind 0 (and not kind 4):
+//! By the kind of lighting (`light_kind`):
+//! - with neither `scene_set_up` nor the stage's `lit_b` set, or kind 0 (and not kind 4):
 //!   plain white, 0xFFFFFF;
 //! - 4: the lit colour;
-//! - 2 and 5: the lit colour plus `dword_635068`;
-//! - 1: the light table's entry `dword_63508C` plus `dword_635068`;
-//! - 3: `dword_62DAD4` plus `dword_635068`, then blended (below);
-//! - anything else: eax as it came.
+//! - 2 and 5: the lit colour plus `light_added`;
+//! - 1: the light table's entry `light_level` plus `light_added`;
+//! - 3: `car_light` plus `light_added`, then blended (below);
+//! - anything else: the number as it came.
 //!
-//! "Plus" is byte by byte without overflow: with MMX (`g_hasMmx`) all four bytes (`paddusb`),
-//! without it the low three. The lit colour (0x45112D and its twin 0x451170, with
-//! 0x4511F1): the normal's place in the view (the record 0x1000 + (number & 0xFFF) of
-//! `g_pointRecords`, its +0x10 .. +0x18) goes to `dword_62DAA8` ..; if the light's strength
-//! `dword_635090` is not 0, the light's direction `dword_6240A8` .. goes to `dword_62DAB4` ..,
-//! the strength as a float to `flt_62DAC0`, and `scene::light_dot` gives a number; that plus
-//! `dword_63508C`, held to `dword_635084` .. `dword_635088`, picks a colour from the table
-//! `dword_635118` (0x100 entries), kept in `dword_62DAC4`. The blend (0x4511B3 for the
-//! normal, 0x451296): the same number without the table, held to -255 .. 255; each of the
-//! colour's three bytes moves that many 256ths of the way to `dword_6092C0`, `C4`, `C8` (red,
-//! green, blue by the byte's place) for a number of 0 or more, and by its size towards
-//! `dword_6092B4`, `B8`, `BC` for one below. One caller, 0x450E37. Refuses when there are
-//! no records and when the table's place is outside it.
+//! "Plus" is byte by byte without overflow: with MMX all four bytes, without it the low
+//! three. The lit colour: the normal's place in the view (the point record 0x1000 +
+//! (number & 0xFFF), its +0x10 .. +0x18) goes to `light_dot_point`; if the object's
+//! `light_strength` is not 0, the light's direction goes to `light_dot_light`, the strength
+//! as a float to `light_dot_factor`, and `scene::light_dot` gives a number; that plus
+//! `light_level`, held to `light_lowest` .. `light_highest`, picks a colour from the light
+//! table (0x100 entries), kept in `light_colour`. The blend: the same number without the
+//! table, held to -255 .. 255; each of the colour's three bytes moves that many 256ths of
+//! the way to the stage's `lit_colour` (red, green, blue by the byte's place) for a number
+//! of 0 or more, and by its size towards `dark_colour` for one below. One caller,
+//! `scene::draw_object_face`. Refuses when there are no records and when the table's place
+//! is outside it.
 
 use crate::errors::BadInput;
 use crate::math::x87;
@@ -40,8 +39,8 @@ pub fn plus(a: u32, b: u32, mmx: bool) -> u32 {
     rc2k_core::scene::lamps::brighter(a, b, mmx)
 }
 
-/// `cmp eax, low; jns; eax = low` and `cmp eax, high; js; eax = high`, by the sign
-/// of the difference as the original takes it.
+/// Holds `value` to `low ..= high`, compared by the sign of the difference as the game
+/// does.
 fn held(value: i32, low: i32, high: i32) -> i32 {
     let value = if value.wrapping_sub(low) < 0 {
         low
@@ -57,19 +56,20 @@ fn held(value: i32, low: i32, high: i32) -> i32 {
 
 /// The normal's place in the view to the light's work variables, the colour set to 0.
 fn set_normal(
+    course: &crate::race::owner_course::Course,
     number: u32,
     light: &crate::scene::object_light::ObjectLight,
 ) -> Result<(), BadInput> {
-    if !crate::scene::point_records::held() {
+    if !crate::scene::point_records::held(course) {
         return Err(BadInput("no records for the points"));
     }
-    let place = crate::scene::reading::PointRecords::new()?.place(number)?;
+    let place = crate::scene::reading::PointRecords::new(course)?.place(number)?;
     light.light_colour.set(0u32);
     crate::session::write_bits(&light.light_dot_point, place);
     Ok(())
 }
 
-/// The start of 0x4511F1 and of 0x451296: the light on the normal as a number.
+/// The light on the normal as a number (the start of both the lit colour and the blend).
 fn light_number(
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
@@ -86,7 +86,7 @@ fn light_number(
     light_dot(light)
 }
 
-/// Where 0x4511F1 would look in the table, checked.
+/// Where the lit colour is looked for in the light table, checked.
 fn table_place(
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
@@ -102,8 +102,9 @@ fn table_place(
     Ok(place as usize)
 }
 
-/// 0x45112D / 0x451170 with 0x4511F1: the lit colour, left in `dword_62DAC4`.
+/// The lit colour, also left in `light_colour`.
 fn lit(
+    course: &crate::race::owner_course::Course,
     number: u32,
     mmx: bool,
     light: &crate::scene::object_light::ObjectLight,
@@ -111,7 +112,7 @@ fn lit(
 ) -> Result<u32, BadInput> {
     let scene = scene();
     // The checks first, on a copy of what they would write.
-    let place = set_normal(number, light).and_then(|()| table_place(light, object));
+    let place = set_normal(course, number, light).and_then(|()| table_place(light, object));
     let place = place?;
     let colour = plus(
         scene.light_tables.light_table[place].get(),
@@ -122,7 +123,7 @@ fn lit(
     Ok(colour)
 }
 
-/// 0x451296: the colour in `dword_62DAC4` blended by the light.
+/// The colour in `light_colour` blended by the light.
 fn blend(
     course: &crate::race::owner_course::Course,
     light: &crate::scene::object_light::ObjectLight,
@@ -158,8 +159,8 @@ pub fn vertex_light(
     let kind: u32 = light.light_kind.get();
     let mmx = system.session.machine.has_mmx.get() != 0;
     if kind == 4 {
-        // 0 plus the lit colour.
-        return Ok(plus(0, lit(number, mmx, light, object)?, mmx));
+        // The lit colour added to nothing: it only makes the bytes the right ones.
+        return Ok(plus(0, lit(course, number, mmx, light, object)?, mmx));
     }
     let lit_at_all =
         race.shared.switches.scene_set_up.get() != 0 || course.stage_prefs.lit_b.get() != 0;
@@ -169,7 +170,7 @@ pub fn vertex_light(
     let added: u32 = light.light_added.get();
     match kind {
         2 | 5 => Ok(plus(
-            plus(0, lit(number, mmx, light, object)?, mmx),
+            plus(0, lit(course, number, mmx, light, object)?, mmx),
             added,
             mmx,
         )),
@@ -185,8 +186,8 @@ pub fn vertex_light(
             ))
         }
         3 => {
-            set_normal(number, light)?;
-            // The colour was just set to 0.
+            set_normal(course, number, light)?;
+            // `set_normal` has just set the colour to 0.
             let colour = plus(plus(light.car_light.get(), 0, mmx), added, mmx);
             light.light_colour.set(colour);
             blend(course, light, object);

@@ -1,6 +1,6 @@
 //! `net::free_messages` (0x4185BB): the network's memory given back (`memory::free_list`
-//! on `stru_52A928`) and four of its counts (`dword_52AC34`, `dword_52AC38`,
-//! `dword_52ACF4`, `dword_52ACF8`) made 0.
+//! on `memory`) and four of its counts (`connections`, `connection_table`,
+//! `sessions`, `session_table`) made 0.
 //!
 //!
 //! See `net/mod.rs`. One caller, `net::destroy_connection`. Refuses what

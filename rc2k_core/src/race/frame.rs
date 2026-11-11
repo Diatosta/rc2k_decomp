@@ -1,5 +1,5 @@
 //! The race's frame: the panel's fields, the course grid round the view, the sort
-//! entries and the objects' bytes (converted 2026-10-21 from `race::split_colours`
+//! entries and the objects' bytes (converted from `race::split_colours`
 //! 0x45B16A, `both_split_colours` 0x45B147, `panel_players` 0x45ACDB, `panel_neighbours`
 //! 0x45AD36, `panel_marks` 0x45AEFE, `hold_to_limit` 0x4650A9, `lamps_wanted` 0x4536D7,
 //! `add_sort_entry` 0x454D57, `course_grid` 0x45497E, `checkpoint_colours` 0x4548E3 and
@@ -7,7 +7,7 @@
 
 use crate::Invalid;
 
-/// The dwords each view's colour buffer holds (`dword_6D160C`, `dword_6D170C`).
+/// The dwords each view's colour buffer holds (`overlay_part_kinds_a`, `overlay_part_kinds_b`).
 pub const COLOUR_BUFFER_DWORDS: u32 = 0x40;
 
 /// The colour of a stretch not reached (`split_colours`' fill).
@@ -48,7 +48,7 @@ pub fn split_colours(splits: &[u32]) -> Vec<u32> {
 /// What `race::panel_players` does to the panel's player fields.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PanelPlayers {
-    /// Nothing (a race mode set, `dword_62389C`).
+    /// Nothing (a race mode set, `run_kind`).
     Kept,
     /// The two name fields unset (-1): one player.
     One,
@@ -102,7 +102,7 @@ pub fn view_marks(offset: u32, count: u32, mark: impl Fn(u32) -> u32) -> ViewMar
     }
 }
 
-/// `race::hold_to_limit`: `value` held to `limit` (`dword_71C6D4`, unsigned).
+/// `race::hold_to_limit`: `value` held to `limit` (`patch_settings`, unsigned).
 pub fn hold_to_limit(value: u32, limit: u32) -> u32 {
     value.min(limit)
 }
@@ -121,7 +121,7 @@ pub fn car_lit(parts_shown: u32, lights: impl FnOnce() -> u32) -> bool {
 /// The keys past which `add_sort_entry` leaves the first dword 0.
 pub const SORT_KEY_LIMIT: u32 = 0x100_0000;
 
-/// One sort entry (`race::add_sort_entry`): its first dword and the key (ebx & 0x7FFFFFFF).
+/// One sort entry (`race::add_sort_entry`): its first dword and the key (masked with 0x7FFFFFFF).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SortEntry {
     /// None: left 0 (a key of 0x1000000 or more).
@@ -129,7 +129,7 @@ pub struct SortEntry {
     pub key: u32,
 }
 
-/// `race::add_sort_entry`: the entry for `what` (its second dword) at `depth` (eax):
+/// `race::add_sort_entry`: the entry for `what` (its second dword) at `depth`:
 /// (depth << 16) | the key's low word, for a key below 0x1000000.
 pub fn sort_entry(depth: u32, what: u32) -> SortEntry {
     let key = what & 0x7FFF_FFFF;
@@ -144,8 +144,8 @@ pub const GRID_SIDE: u32 = 32;
 /// An empty cell.
 pub const GRID_EMPTY: u32 = 0x0FFF_FFFF;
 
-/// `race::course_grid`: the grid's corner: the view's place (`dword_6062B0` /
-/// `dword_6062B4`, >> 21 arithmetic) less the half size.
+/// `race::course_grid`: the grid's corner: the view's place (`view_x` /
+/// `view_z`, >> 21 arithmetic) less the half size.
 pub fn grid_corner(view_x: u32, view_z: u32, half: u32) -> (u32, u32) {
     (
         (((view_x as i32) >> 21) as u32).wrapping_sub(half),
@@ -175,13 +175,13 @@ pub fn grid_cell(x: u32, z: u32, corner: (u32, u32), span: u32) -> Option<u32> {
 /// The colour levels `race::checkpoint_colours` works out.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CheckpointColours {
-    /// The face's +0x10 low nibble (0 read as 0x10): `dword_614D08`.
+    /// The face's +0x10 low nibble (0 read as 0x10): `checkpoint_colours`.
     pub near: u32,
     /// Its high nibble: `dword_614D0C`.
     pub far: u32,
     /// The checkpoint's distance less the car's: `dword_614D10`.
     pub distance: u32,
-    /// The level used (`dword_63F17C`): near when twice the distance (its size) is below
+    /// The level used (`far_cell_limit`): near when twice the distance (its size) is below
     /// 0x40000000 (signed), far from 0xC0000000, else the larger.
     pub level: u32,
 }

@@ -1,4 +1,4 @@
-//! The tyre-change screen's drawing (stream B, 2026-10-18): `drive::tyre_change_screen`,
+//! The tyre-change screen's drawing: `drive::tyre_change_screen`,
 //! `drive::tyre_screen`, `drive::tyre_screen_parts`, `drive::tyre_turned_quad`, `drive::tyre_quad`.
 //! Their calls by place: 0 `d3d::set_texture`, 1 `d3d::set_render_state`, 2 `tyre_quad`, 3
 //! `tyre_turned_quad`, 4 `tyre_screen_parts`, 5 the device's DrawPrimitive

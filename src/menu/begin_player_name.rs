@@ -1,8 +1,8 @@
 //! `menu::begin_player_name` (0x467C34): typing a player's name begins.
 //!
 //! Unless the Enter came with ah = 4 (`g_enterSkipsNameEntry` at 1): the current player's name kept
-//! (`menu/player_name.rs`), cleared (`menu::clear_text`), and the entry going on (`dword_7556A8` =
-//! 1); then, either way, the length typed (`dword_75556D`) 0. The action of the name's item of the
+//! (`menu/player_name.rs`), cleared (`menu::clear_text`), and the entry going on (`option_work.typing` =
+//! 1); then, either way, the length typed (`loop_flags.text_length`) 0. The action of the name's item of the
 //! four players' details pages. Refuses no current player or a player without a name. The menus and
 //! draw lists run its `entry` (`menu::table_calls`).
 

@@ -1,6 +1,6 @@
 //! The map's scroll: where the views' cars are on the course map and the map picture
 //! redrawn around them (`race::scroll_maps` -> `race::scroll_map` -> `race::map_tiles` -> 0x45B68F,
-//! part R3, IDA 2026-10-18). A car's block (the original's work copy `g_car`) holds +0x98 the car's last checkpoint, +0x134 /
+//! part R3). A car's block (the original's work copy `g_car`) holds +0x98 the car's last checkpoint, +0x134 /
 //! +0x13C its place, +0xAD4 / +0xAD8 the map picture's corner (16-pixel steps), +0xADC 1 when
 //! it was redrawn, +0xAE0 / +0xAE4 the car on the map (16.16), +0xAE8 / +0xAEC its place in
 //! the picture.
@@ -12,7 +12,7 @@ use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::owner::Race;
 
 /// `race::map_tiles` (0x45B663): the map picture's slot `dword_5D0E00` (+ `g_currentCar` unless
-/// `dword_52A910`) drawn from tile (corner x >> 4, corner y >> 4).
+/// `session`) drawn from tile (corner x >> 4, corner y >> 4).
 pub fn map_tiles(
     race: &Race,
     car: &Car,
@@ -74,9 +74,9 @@ pub fn scroll_map(
     map_x.set(crate::race::checkpoints_store::cell_in(&CHECKPOINTS.map_x, n as usize).get());
     map_y.set(crate::race::checkpoints_store::cell_in(&CHECKPOINTS.map_y, n as usize).get());
     let face = crate::race::checkpoints_store::face(n as usize).get();
-    let point = crate::race::course_places::face_number(face, "a checkpoint face")?.point(0);
-    let px = crate::race::scene_points::point_word(point, 0)?;
-    let pz = crate::race::scene_points::point_word(point, 2)?;
+    let point = crate::race::course_places::face_number(&race.course, face)?.point(0);
+    let px = crate::race::scene_points::point_word(&race.course, point, 0)?;
+    let pz = crate::race::scene_points::point_word(&race.course, point, 2)?;
     map_x.set(
         map_x
             .get()
@@ -103,8 +103,8 @@ pub fn scroll_map(
 }
 
 /// `race::scroll_maps` (0x45B4E6): `scroll_map` on each view's car, on its block (the original
-/// loaded it into the work copy and stored it back whole): with `dword_52A910` the third view car
-/// only (`race::load_car_c` / `store_car_c`), else the first and, unless `dword_63DB98` is 1, the
+/// loaded it into the work copy and stored it back whole): with `session` the third view car
+/// only (`race::load_car_c` / `store_car_c`), else the first and, unless `views` is 1, the
 /// second. Refuses (before anything) a view car without its block, or what `scroll_map` refuses.
 pub fn scroll_maps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::map::scrolled_views`.

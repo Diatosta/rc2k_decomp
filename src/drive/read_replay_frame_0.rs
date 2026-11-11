@@ -1,8 +1,8 @@
-//! `drive::read_replay_frame_0` (0x41EBA1): `drive::read_replay_frame` of frame eax at tenth 0.
+//! `drive::read_replay_frame_0` (0x41EBA1): `drive::read_replay_frame` of the given frame at tenth 0.
 //!
 //! Takes: the frame
 //!
-//! Callers: `drive::load_replay_frame`, 0x41DE81 (six).
+//! Callers: `drive::load_replay_frame`, the viewer's actions (six).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

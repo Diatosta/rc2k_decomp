@@ -1,9 +1,9 @@
-//! The work car's timed events (converted 2026-10-21 from `physics::queue_car_event`
+//! The work car's timed events (converted from `physics::queue_car_event`
 //! 0x4419EB, `expire_car_events` 0x44196B and `queue_listed_event` 0x44194D): the queue of
 //! up to 7 pace-note symbols the HUD stacks for a view (`queue_pace_note` queues the codes of the
 //! group called at a checkpoint; `race::panel_marks` draws them at y = 400 + `shown`, 32 pixels
 //! an entry; probable on "symbols", sure that only pace notes feed it), aged against the scene clock; the events by
-//! number from a table of 0x20 (`dword_614C7C`).
+//! number from a table of 0x20 (`listed_events`).
 
 use crate::Invalid;
 
@@ -30,7 +30,7 @@ pub struct CarEvents {
 }
 
 /// What `expire` did: whether anything was shifted out, and `shown` after (the
-/// original's eax).
+/// original's leftover value).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Expired {
     pub shifted: bool,
@@ -47,7 +47,7 @@ impl CarEvents {
 
     /// `physics::queue_car_event`: `event` due `delay` after the scene clock `clock`
     /// (wrapping), unless the queue is full; the first resets `level` and `shown`, each
-    /// further one takes 0x20 off `level`. The time (the original's eax).
+    /// further one takes 0x20 off `level`. The time.
     pub fn queue(&mut self, clock: u32, delay: u32, event: u32) -> Result<u32, Invalid> {
         self.check()?;
         let time = clock.wrapping_add(delay);
@@ -97,7 +97,7 @@ impl CarEvents {
     }
 }
 
-/// The listed events' table (`dword_614C7C`): 0x20 entries, -1 none.
+/// The listed events' table (`listed_events`): 0x20 entries, -1 none.
 pub const LISTED_EVENTS: u32 = 0x20;
 /// No event.
 pub const NO_EVENT: u32 = u32::MAX;

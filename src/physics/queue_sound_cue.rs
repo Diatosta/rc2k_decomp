@@ -1,18 +1,14 @@
-//! `physics::queue_sound_cue` (0x40EE5C): a cue (ebx) into a sound object's queue (edi:
-//! the object +0x298; +0xC the count, entries of 0x20 bytes from +0x10). Full (16):
-//! nothing. eax 0 puts it first: the playing sound (+0x18 [+4]) stopped by
-//! `sound::play_sound` with ebx 0, +4 -1, the entries moved up one (`std`, `rep movsd`);
-//! else it goes last. The entry: the cue, then its sounds (`off_512508[cue]`, up to six
-//! up to a -1; one not below 0 plus the object's base, esi's +0) at +8 .., their number at
-//! +4; the count up by one.
+//! `physics::queue_sound_cue` (0x40EE5C): a cue goes into a sound object's queue (the object's
+//! +0x298; +0xC the count, entries of 0x20 bytes from +0x10). Full (16): nothing. Putting it first
+//! stops the playing sound (+0x18 [+4]) by `sound::play_sound` and moves the entries up one;
+//! otherwise it goes last. The entry: the cue, then its sounds (the cue's list in
+//! `sets_store::table`, up to six up to a -1; one not below 0 plus the object's base) at +8 .., their
+//! number at +4; the count goes up by one.
 //!
 //! Caller: `physics::cue_car_sound`. The object is a reference; the queue is its typed
 //! +0x298 (`CueQueue`), walked by dword as the original does (a dword past it refused).
-//! Refuses (before anything) a cue past 0x70, the end of `off_512508`'s 113 sound lists (the
-//! original does not check).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Refuses (before anything) a cue past 0x70, the end of the 113 sound lists (the original does
+//! not check).
 
 use crate::errors::{BadInput, Refused};
 use crate::session::Dword;

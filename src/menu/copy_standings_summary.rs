@@ -1,6 +1,6 @@
 //! `menu::copy_standings_summary` (0x470466): 0x5A entries of standings table A copied, in
-//! order, into the summary table (`dword_7556F4`, 0x50 each: +0 / +4 / +8 / +0xC from the
-//! entry's +0xC / +8 / +0x10 / +0x14): with `dword_75AB40` 2 the entries with a group
+//! order, into the summary table (the standings summary, 0x50 each: +0 / +4 / +8 / +0xC from the
+//! entry's +0xC / +8 / +0x10 / +0x14): with `state.menus.class_mode` 2 the entries with a group
 //! (+0x1C not 0), else those without.
 //!
 //! Refuses null tables and a table A that runs out (the original walks on

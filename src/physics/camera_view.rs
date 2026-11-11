@@ -1,7 +1,7 @@
-//! The camera's view steps under `physics::update_camera` (stream B, 2026-10-18): the mode record
-//! (`off_606320[mode]`, the mode `unk_71A65C` held to 0 ..= 0x33), the share of a
-//! change done (`unk_719FE0` - `unk_71A668` held to 0 ..= the record's +0x3C, over it,
-//! into `flt_605260`), and the tests' frame of `physics::take_first_view`, `take_second_view`,
+//! The camera's view steps under `physics::update_camera`: the mode record
+//! (`view_records`[mode]`, the mode `camera_view` held to 0 ..= 0x33), the share of a
+//! change done (`step_clock` - `camera_switch_clock` held to 0 ..= the record's +0x3C, over it,
+//! into `view_share`), and the tests' frame of `physics::take_first_view`, `take_second_view`,
 //! `ease_view_angles`, `ease_view_blend`, `camera_height_bias`, `ease_view_turn`,
 //! `place_camera`. The converted ones run `share_done_plain`, `record_plain` and
 //! `view_test_floats` (`rc2k_core::physics::camera_view`). What the variables are (the
@@ -13,13 +13,13 @@ use crate::physics::car_store::Car;
 use crate::race::owner_shared::RaceShared;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 
-/// esi as the original leaves it: the mode's record.
+/// The record of the car's camera mode.
 pub fn record(car: &Car) -> Result<&ViewRecord, crate::errors::BadInput> {
     let mode = (car.camera_view.get() as i32).clamp(0, 0x33);
     ViewVars::record_of(mode as usize)
 }
 
-/// The share done (0x438498 .. 0x4384BD): eax as left (the time held).
+/// The share done (the time held).
 pub fn share_done(
     shared: &RaceShared,
     record: &ViewRecord,
@@ -44,9 +44,9 @@ pub fn share_done(
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x205260] = int [rc + 0x22400C] / int [s + 0x3C]` (`s + 0x3C` the record's
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[view_share] = int [scratch] / int [s + 0x3C]` (`s + 0x3C` the record's
 /// `change_time`, passed by value)
 fn x87_1(shared: &RaceShared, change_time: u32, scene: &crate::scene::owner::Scene) {
     let t0 = int(scene.drawing.scene.scratch.bits() as i32);

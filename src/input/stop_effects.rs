@@ -3,8 +3,7 @@
 //!
 //! See `input/effects.rs` and `start_effects`. One caller, `input::end_effects`.
 //!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Its arguments are what it reads.
 
 use crate::errors::Refused;
 use crate::input::owner::Input;

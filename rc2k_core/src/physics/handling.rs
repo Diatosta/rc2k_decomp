@@ -1,9 +1,9 @@
 //! The car's damage made into its working grades and failures, and its handling figures
-//! from its setup (converted 2026-10-21 from `physics::rate_damage` 0x4AF1EC and
+//! from its setup (converted from `physics::rate_damage` 0x4AF1EC and
 //! `physics::set_handling` 0x43EB5D). What each figure is, is a reading at best (the
 //! hooks' headers say where each goes); the variables are named by where they are: the
 //! work copy (`g_car`) +offset, the grades' block (0x75B340) +offset, the handling block
-//! (0x613E00) +offset, and the setup's scale (`flt_5C5E2C`, 256.0). The functions read
+//! (0x613E00) +offset, and the setup's scale (`k256`, 256.0). The functions read
 //! and write them through `Figures`, in the original's order, each only where the
 //! original does.
 //!
@@ -24,7 +24,7 @@ pub enum At {
     Grades(u32),
     /// The handling block (0x613E00) +offset.
     Handling(u32),
-    /// The setup's scale (`flt_5C5E2C`, 256.0).
+    /// The setup's scale (`k256`, 256.0).
     Scale,
 }
 
@@ -59,13 +59,13 @@ const CHANCE: At = Grades(0);
 const RANDOM: At = Grades(0x160);
 /// `dword_75B36C`: each chance's whole number.
 const SCRATCH: At = Grades(0x2C);
-/// `dword_71A3CC`: the first grade (+0x3F4).
+/// `engine_power_factor`: the first grade (+0x3F4).
 const FIRST: At = Car(0x3F4);
 /// `g_carGearBits` (+0x434).
 pub const GEAR_BITS: At = Car(0x434);
-/// The last ramp table (0x75B568), what esi is left at.
+/// The last ramp table (0x75B568), where the original's table pointer is left.
 pub const LAST_TABLE: At = Grades(0x228);
-/// The gears counted into the bits (ecx is left at it).
+/// The gears counted into the bits (the original's counter is left at it).
 pub const GEARS: u32 = 9;
 
 /// The ramps in order: (destination, figure, table).
@@ -104,7 +104,7 @@ const FAILURES: [(At, At, At, u32); 7] = [
     (Car(0x424), Grades(0xF8), Grades(0xDC), 0xA),
 ];
 
-/// A ramp through (t0, t1) .. (t2, t3) as the original reads it (`math::x87_run::ramp`):
+/// A ramp through (t0, t1) .. (t2, t3) as the original reads it (`math::x87::ramp`):
 /// below t0 (or no number) t1; not below t2, t3; t2 - t0 equal to `zero` (or no number),
 /// t1; else (x - t0) / (t2 - t0) x (t3 - t1) + t1, rounded to a float.
 pub fn ramp(x: f32, t: [f32; 4], zero: f32) -> f32 {
@@ -129,7 +129,7 @@ pub fn one_less_products(terms: &[[f32; 3]]) -> f64 {
         .fold(1.0, |acc, t| acc - t[0] as f64 * t[1] as f64 * t[2] as f64)
 }
 
-/// lo + i / d (hi - lo) (`math::x87_run::int_lerp`), rounded to a float.
+/// lo + i / d (hi - lo) (`math::x87::int_lerp`), rounded to a float.
 pub fn int_lerp(i: i32, d: f32, hi: f32, lo: f32) -> f32 {
     (i as f64 / d as f64 * (hi as f64 - lo as f64) + lo as f64) as f32
 }
@@ -164,7 +164,7 @@ fn chance(m: &mut impl Figures, figure: At, turn: u32) -> bool {
 }
 
 /// `physics::rate_damage`: the damage figures made into the grades and failures (the
-/// hook's header lists them in order); the gear bits (eax).
+/// hook's header lists them in order); returns the gear bits.
 pub fn rate_damage(m: &mut impl Figures) -> u32 {
     let k = m.float(K);
     let mut e = one_less_products(&[
@@ -268,8 +268,8 @@ const AFTER: [(At, At, At, At); 4] = [
 
 /// `physics::set_handling`: a drive kind above 1 refused before anything; then `grade`
 /// (`physics::grade_or_reset`, its result passed back) and the nine figures, each lo +
-/// setting / 256 (hi - lo), the drive kind's then times `dword_614C18`. Also the drive
-/// kind (ebx).
+/// setting / 256 (hi - lo), the drive kind's then times the drive-kind factor. Also returns the drive
+/// kind.
 pub fn set_handling<M: Figures, T>(
     m: &mut M,
     grade: impl FnOnce(&mut M) -> T,

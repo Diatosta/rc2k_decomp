@@ -2,7 +2,7 @@
 //! corner and size it was made for, one in each view's slot (`race::view_scratch`).
 //!
 //! The original kept it in the level grid (`race::level_grid_store`: `g_courseGrid`,
-//! `dword_63E15C` .. `dword_63E178`), made again by every view whose corner moved and read
+//! `grid_half` .. `grid_z`), made again by every view whose corner moved and read
 //! after the views by `race::find_sound_spots` as the last view left it. Its contents
 //! depend only on the corner, the span, the course's records and the view's own marks
 //! (`race::frame_draw::mark_far_cells` clears them first), so a grid per view holds what the
@@ -20,11 +20,11 @@ pub struct ViewGrid {
     /// The course records by cell (`g_courseGrid`), 0x0FFFFFFF where none; bit 31 a far
     /// cell's mark.
     pub cells: [Dword; 1024],
-    /// The grid's half size (`dword_63E15C`).
+    /// The grid's half size (`grid_half`).
     pub half: Dword,
-    /// Its span (`dword_63E160`).
+    /// Its span (`grid_span`).
     pub span: Dword,
-    /// The corner cell it was made for (`dword_63E174`, `dword_63E178`): made again when the
+    /// The corner cell it was made for (`grid_x`, `grid_z`): made again when the
     /// view's moves; 0x80000000 at a stage's start (`race::reset_refresh`).
     pub x: Dword,
     pub z: Dword,

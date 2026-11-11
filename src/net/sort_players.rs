@@ -1,5 +1,5 @@
 //! `net::sort_players` (0x418108): the eight players' blocks of `g_netReceived` copied to
-//! `unk_56AFFC` and bubble-sorted there for the lobby's table: by the total (+0x30), then
+//! `sorted` and bubble-sorted there for the lobby's table: by the total (+0x30), then
 //! the race's time (+0x2C), then the DirectPlay id (+0x20), unsigned, the smaller first; a
 //! player whose time is -1 (no time) goes after one who has a time.
 //!

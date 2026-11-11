@@ -3,7 +3,7 @@
 //! edges, snow, splines, surface data). `effects::init_marks` (0x4D12F7) sets them up as a
 //! stage loads, `effects::run_frame` (0x4D1549) runs them each frame of the race.
 //!
-//! Called "the marks" until 2026-10-29 (part Q): the game's own name for the step is
+//! The game's own name for the step is
 //! "init mark" (its loading log), and its data is `g_marks*` in IDA; the functions'
 //! IDA names are `effects::*` like this module's.
 
@@ -20,6 +20,7 @@ pub mod blend_points;
 pub mod blocks;
 pub mod burst_particles;
 pub mod cars_particles;
+pub mod cell_x87;
 pub mod clip;
 pub mod clip_quad;
 pub mod copy_first_point;
@@ -65,6 +66,7 @@ pub mod frame_marks;
 pub mod frame_state;
 pub mod init_mark_step;
 pub mod init_marks;
+pub mod item_walk;
 pub mod jitter_point;
 pub mod keep_vectors;
 pub mod kept_turns;

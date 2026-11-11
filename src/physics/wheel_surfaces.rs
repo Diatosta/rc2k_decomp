@@ -1,34 +1,31 @@
 //! `physics::wheel_surfaces` (0x43D59A): the surface under each of the five ground points
-//! (`unk_71ADC8[c]`, their faces) and the grip figures from it.
+//! (`probe_point_face[c]`, their faces) and the grip figures from it.
 //!
-//! For each point c: the face and its texture's record (`g_textureInfos`, by the face's
-//! +1); the cell (the point's shares `dword_6D2B14[c]` / `dword_6D2A14[c]` x 65536,
-//! `fistp`, bit 15, flipped with `dword_6D2914[c]` 1) turned by the face's +0 and +0x20
-//! (`physics::flip_cell_index`) into `dword_614710[c]` / `dword_614724[c]`; the two
-//! textures' surface kinds and two more bytes by those cells into +0x920 / +0x95C /
-//! +0x984 [c] and +0x934 / +0x970 / +0x998 [c]; the blend +0x9AC [c] 0, or (unless the
-//! second texture's kind (`dword_63D9D0`) is 4 or 5, its surface 0, or the face's +0x21
-//! 0) the face's three blend bytes by the shares / 256; with bit 0x1000 of the face's +2
-//! both surfaces 5 (wet, by the look) and the bytes 0x3C, 0. Then each figure blended
-//! between the two surface records (`off_613978`, 0x30 each): grip, two more, the record's
-//! scaled tables by `g_car` +0x2C and +0x280, into `flt_6142C0`, +0x948, `flt_614284`,
-//! `flt_614298`, `flt_6142AC`, `flt_6146C0` .. [c] (the last four, `flt_6146C0` ..,
-//! only for the centre point, the only one read).
+//! For each point c: the face and its texture's record (`g_textureInfos`, by the face's +1); the
+//! cell (the point's shares `probe_share_v[c]` / `probe_share_u[c]` x 65536, rounded, bit 15,
+//! flipped with `probe_face_flip[c]` 1) turned by the face's +0 and +0x20
+//! (`physics::flip_cell_index`) into `surface_firsts[c]` / `surface_seconds[c]`; the two textures'
+//! surface kinds and two more bytes by those cells into the `wheel_surface_a` / `wheel_cell_a_*`
+//! and `wheel_surface_b` / `wheel_cell_b_*` fields [c]; the blend `wheel_surface_blend` [c] 0,
+//! or (unless the second texture's kind (`surface_kinds`) is 4 or 5, its surface 0, or the face's
+//! +0x21 0) the face's three blend bytes by the shares / 256; with bit 0x1000 of the face's +2 both
+//! surfaces 5 (wet, by the look) and the bytes 0x3C, 0. Then each figure is blended between the
+//! two surface records (`surfaces`, 0x30 each): grip, two more, the record's scaled tables by the
+//! car's `tyre_kind` and `surface_blend`, into `point_grips`, `point_wear_factor`, `wheel_loads`,
+//! `wheel_grips`, `wheel_grips_b`, `surface_blends` .. [c] (the last four only for the centre
+//! point, the only one read).
 //!
-//! After the five: `flt_614268` = (the first four `flt_614284`) x `flt_613FEC`; the count
-//! of points on hard surfaces (1, 2, 3, 0xC) into +0x258 (`dword_614150` ..); +0x60 the
-//! least of the four grips x `flt_614C04`; `flt_614230` by +0x280 and +0x34; four
-//! figures copied on.
+//! After the five: `wheel_load` = (the first four `wheel_loads`) x `wheel_load_scale`; the count of
+//! points on hard surfaces (1, 2, 3, 0xC) into `hard_ground_count` (`hard_ground` ..);
+//! `ground_bump_scale` the least of the four grips x `handling[6]`; `surface_softness` by
+//! `surface_blend` and `suspension_stiffness`; four figures copied on.
 //!
 //! The x87 runs are plain Rust over `X` (`math/x87_float.rs`), the original's instructions
 //! (from IDA) being `asm_reference` in the tests; the integer steps in Rust.
 //!
-//! Callers: `physics::car_physics_step` (0x43B70F), `drive::simple_car_step`. Refuses no faces, a
-//! table index (+0x2C) past 5 (before anything) and a surface past 15 (what was written by then is
-//! put back).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Callers: `physics::car_physics_step`, `drive::simple_car_step`. Refuses no faces, a table
+//! index (`tyre_kind`) past 5 (before anything) and a surface past 15 (what was written by then
+//! is put back).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::int;
@@ -50,7 +47,7 @@ fn info_byte(n: u32, offset: u32) -> Result<u32, Refused> {
     )?))
 }
 
-/// `fld v[c] x 65536; fistp` through `dword_62400C` (`v` one of the probe shares).
+/// `fld v[c] x 65536; fistp` through `scratch` (`v` one of the probe shares).
 fn share_bit(course: &Course, v: &[Dword; 64], c: u32, scene: &crate::scene::owner::Scene) -> u32 {
     x87_1(course, v, c as usize, scene);
     scene.drawing.scene.scratch.get()
@@ -79,9 +76,9 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
         let f = race.shared.car.probe_point_face[cc].get();
         let face_byte = |offset| -> Result<u32, Refused> {
             Ok(u32::from(crate::race::course_places::face_field::<u8>(
+                &race.course,
                 f,
                 offset,
-                "a wheel's face",
             )?))
         };
         let t1 = face_byte(1)?;
@@ -131,9 +128,7 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
                 drawing.scene.surface_point[2].set(z.wrapping_sub(x));
                 x87_2(race, c as usize, scene);
             }
-            if crate::race::course_places::face_number(f, "a wheel's face")?.switches() & 0x1000
-                != 0
-            {
+            if crate::race::course_places::face_number(&race.course, f)?.switches() & 0x1000 != 0 {
                 race.shared.car.wheel_surface_a[cc].set(5);
                 race.shared.car.wheel_surface_b[cc].set(5);
                 race.shared.car.wheel_cell_a_byte18[cc].set(0x3C);
@@ -224,9 +219,9 @@ pub fn wheel_surfaces(race: &Race, scene: &crate::scene::owner::Scene) -> Result
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [rc + 0x22400C] = [t + c * 4] * [rc + 0x1C5D98]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [scratch] = [t + c * 4] * [k65536]`
 fn x87_1(course: &Course, t: &[Dword; 64], c: usize, scene: &crate::scene::owner::Scene) {
     let t0 = ld(t[c].bits());
     let t1 = ld(course.numbers.k65536.bits());
@@ -234,8 +229,8 @@ fn x87_1(course: &Course, t: &[Dword; 64], c: usize, scene: &crate::scene::owner
     scene.drawing.scene.scratch.set_bits(to_int(t2) as u32);
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn x87_2(race: &Race, c: usize, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
@@ -253,8 +248,8 @@ fn x87_2(race: &Race, c: usize, scene: &crate::scene::owner::Scene) {
     race.shared.car.wheel_surface_blend[c].set_bits(st(t10));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + c * 4 + 0x2142C0] = [s + 0x28] + (([d + 0x28] - [s + 0x28]) * [rc + c * 4 + 0x31A984])`
 /// `[rc + c * 4 + 0x31A920] = [s + 0x2C] + (([d + 0x2C] - [s + 0x2C]) * [rc + c * 4 + 0x31A984])`
 fn x87_3(shared: &RaceShared, s: &Surface, d: &Surface, c: usize) {
@@ -274,10 +269,10 @@ fn x87_3(shared: &RaceShared, s: &Surface, d: &Surface, c: usize) {
     shared.car.point_wear_factor[c].set_bits(st(t11));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x21411C] = (int [s + k * 4 + 4] + ((int [s + k * 4 + 0x1C] - int [s + k * 4 + 4]) * [rc + 0x31A258])) * [rc + 0x1C5CFC]`
-/// `[rc + 0x214120] = (int [d + k * 4 + 4] + ((int [d + k * 4 + 0x1C] - int [d + k * 4 + 4]) * [rc + 0x31A258])) * [rc + 0x1C5CFC]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[surface_scales] = (int [s + k * 4 + 4] + ((int [s + k * 4 + 0x1C] - int [s + k * 4 + 4]) * [surface_blend])) * [hundredth_a]`
+/// `[rc + 0x214120] = (int [d + k * 4 + 4] + ((int [d + k * 4 + 0x1C] - int [d + k * 4 + 4]) * [surface_blend])) * [hundredth_a]`
 fn x87_4(race: &Race, s: &[Dword], d: &[Dword], k: usize) {
     let t6 = int(s[k + 1].get() as i32);
     let t7 = int(s[k + 7].get() as i32);
@@ -299,8 +294,8 @@ fn x87_4(race: &Race, s: &[Dword], d: &[Dword], k: usize) {
     race.shared.physics_tables.surface_scales[1].set_bits(st(t21));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// (a long formula: see the instructions in the tests' `asm_reference`)
@@ -390,9 +385,9 @@ fn x87_5_blends(race: &Race, s: &Surface, d: &Surface, c: usize) {
     race.shared.physics_tables.surface_blends[15 + c].set_bits(st(t59));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x214268] = ((([rc + 0x214284] + [rc + 0x214288]) + [rc + 0x21428C]) + [rc + 0x214290]) * [rc + 0x213FEC]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[wheel_load] = ((([wheel_loads] + [rc + 0x214288]) + [rc + 0x21428C]) + [rc + 0x214290]) * [wheel_load_scale]`
 fn x87_6(race: &Race) {
     let t0 = ld(race.shared.physics_tables.wheel_loads[0].bits());
     let t1 = ld(race.shared.physics_tables.wheel_loads[1].bits());
@@ -406,15 +401,15 @@ fn x87_6(race: &Race) {
     race.shared.physics_tables.wheel_load.set_bits(st(t8));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x31A038] = [rc + 0x31A038] * [rc + 0x214C04]`
-/// `[rc + 0x224040] = (([rc + 0x213F5C] - [rc + 0x213F64]) * [rc + 0x31A258]) + [rc + 0x213F64]`
-/// `[rc + 0x224044] = (([rc + 0x213F60] - [rc + 0x213F68]) * [rc + 0x31A258]) + [rc + 0x213F68]`
-/// `[rc + 0x214230] = (([rc + 0x224044] - [rc + 0x224040]) * (int [rc + 0x31A00C] / [rc + 0x1C5E2C])) + [rc + 0x224040]`
-/// `[rc + 0x214760] = [rc + 0x2146D0]`
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[ground_bump_scale] = [ground_bump_scale] * [rc + 0x214C04]`
+/// `[surface_point] = (([surface_blend] - [rc + 0x213F64]) * [surface_blend]) + [rc + 0x213F64]`
+/// `[rc + 0x224044] = (([rc + 0x213F60] - [rc + 0x213F68]) * [surface_blend]) + [rc + 0x213F68]`
+/// `[surface_softness] = (([rc + 0x224044] - [surface_point]) * (int [suspension_stiffness] / [k256])) + [surface_point]`
+/// `[wheel_drag] = [rc + 0x2146D0]`
 /// `[rc + 0x214764] = [rc + 0x2146E4]`
-/// `[rc + 0x223DA8] = [rc + 0x2146F8]`
+/// `[wheel_turn_a] = [rc + 0x2146F8]`
 /// `[rc + 0x223DAC] = [rc + 0x21470C]`
 fn x87_7(race: &Race, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;

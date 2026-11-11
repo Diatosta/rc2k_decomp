@@ -1,7 +1,7 @@
 //! `threading::start_threads` (0x410B84): the game's three worker threads started.
 //!
 //! `threading::start_slot_thread` for the slot at `slot` (0x5184F4), the audio thread's
-//! (`g_audioThreadSlot`, 0x518604) and `stru_518714`. One caller, `start` (0x4010B1). In
+//! (`g_audioThreadSlot`, 0x518604) and the net slot. One caller, `start`. In
 //! the standalone program the threads whose routines are not ported end at once; the audio
 //! thread's is (`audio::thread`).
 

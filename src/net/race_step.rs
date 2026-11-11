@@ -1,5 +1,5 @@
 //! `net::race_step` (0x464133): a car's step in a network race (nothing without one,
-//! `dword_52A910` 0): for the own player's car (`g_currentCar` = `dword_52A920`) its
+//! `session` 0): for the own player's car (`g_currentCar` = `player`) its
 //! messages sent (`net::send_turn`) and the others' applied (`net::apply_received`); for
 //! another's, its glide (`net::follow_remote`).
 //!

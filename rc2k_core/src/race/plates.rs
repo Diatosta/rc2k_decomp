@@ -1,11 +1,11 @@
 //! The views' name plates: when the time plate is drawn again and how a car's name is
-//! asked for (converted 2026-10-21 from `race::update_name_plates` 0x45B3B9); the plates'
-//! layouts converted 2026-10-21 from `race::draw_name_plate` 0x45B695 and
+//! asked for (converted from `race::update_name_plates` 0x45B3B9); the plates'
+//! layouts Converted from `race::draw_name_plate` 0x45B695 and
 //! `race::draw_time_plate` 0x45B70A.
 
 /// `race::update_name_plates`: whether the two time texts (8 bytes each at
-/// `dword_6D1838` / `dword_6D1844`, four dwords) differ from their last copies
-/// (`dword_6D1850` ..), compared dword by dword as the original does.
+/// `label_behind` / `label_ahead`, four dwords) differ from their last copies
+/// (`kept_behind` ..), compared dword by dword as the original does.
 pub fn times_changed(now: [u32; 4], kept: [u32; 4]) -> bool {
     now != kept
 }

@@ -4,7 +4,7 @@
 //! Named `screen_466858_loop`, then `rally_results_loop`.
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`):
-//! before the loop it sets the string of the menu's first item to 0x138 if `dword_75AADC` is 1 and
+//! before the loop it sets the string of the menu's first item to 0x138 if `state.menus.which_title` is 1 and
 //! to 0x139 otherwise, as the stage results screen does; its background comes from
 //! `menu::load_background`, after which a set carry flag is fatal error 0x80712345; leaving is
 //! asked about, and a "no" sets the screen up again. One caller.
@@ -38,7 +38,7 @@ pub const SCREEN: Screen = Screen {
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.list_758e2a.id(),
+            table: |m| m.tables.draw_lists.class_rally_results_list.id(),
             run: false,
         },
         List {
@@ -52,7 +52,7 @@ pub const SCREEN: Screen = Screen {
         &m.tables.texts.class_rally_results_picture
     }))],
     asking: Some(Asking { ..Asking::DEFAULT }),
-    // saved_item is dword_747788
+    // saved_item is the saved highlight
     ..Screen::new(
         |m| m.tables.menus.class_rally_results.id(),
         |m| &m.screens.items.current[slot::CLASS_RALLY_RESULTS],

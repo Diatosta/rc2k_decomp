@@ -21,8 +21,7 @@
 //! Callers: `input::input_tick` (both devices, each tick of the input thread). Refuses (before
 //! anything) a bound key past 0xFF and an axis's place past the record.
 //!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Its arguments are what it reads.
 
 use crate::errors::Refused;
 use crate::input::devices::{joy_state, key_table, record_bytes};

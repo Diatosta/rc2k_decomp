@@ -1,7 +1,7 @@
 //! `physics::restore_saved_car` (0x43DC25): puts a saved state back into the work copy:
-//! `dword_614738` + 1; the three dwords `dword_6141E0` .. `E8` into `dword_71A10C` ..
-//! `114`; the 0x40 bytes at `unk_6141EC` into `g_crashMatrix` (0x71A08C); and
-//! `dword_71A238` dwords from `dword_6D2814` into `dword_71ADC8` (the copy's +0xDF0).
+//! `clear_place_count` + 1; the three dwords `saved_place` .. `E8` into `position` ..
+//! `114`; the 0x40 bytes at `saved_matrix` into `g_crashMatrix` (0x71A08C); and
+//! `probe_count` dwords from `probe_saved_faces` into `probe_point_face` (the copy's +0xDF0).
 //! What the pieces are (a place, the car's matrix, a list) is a reading.
 //!
 //! Callers (7): `physics::find_clear_place`, `physics::crossed_edge`, `physics::wall_contacts`

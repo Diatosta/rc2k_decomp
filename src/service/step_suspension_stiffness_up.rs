@@ -1,4 +1,4 @@
-//! `service::step_suspension_stiffness_up` (0x46BEC4): steps the chosen suspension stiffness, `dword_75ACB4`, one
+//! `service::step_suspension_stiffness_up` (0x46BEC4): steps the chosen suspension stiffness, `setups[3].chosen`, one
 //! up, stopping at 100.
 //!
 //! The exact rule at the limits is in `setup_values.rs` (`Stepper`).

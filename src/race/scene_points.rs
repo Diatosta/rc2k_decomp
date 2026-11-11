@@ -1,5 +1,5 @@
 //! The scene's points (`g_scenePoints`, a part of the course memory: twelve bytes each,
-//! three whole numbers): Rust's since phase 13 (2026-10-27). `race::load_level` moves them
+//! three whole numbers): Rust's. `race::load_level` moves them
 //! out of the course memory once its data is read, with the room after them up to the
 //! course info (where the game puts new points past the count: the face corners' copies,
 //! the shadow's), and `race::free_course_memory` gives them back.
@@ -219,15 +219,14 @@ fn place(course: &Course, n: u32) -> u32 {
 
 /// Point `n`'s x, y and z (point -1 as `bytes` reads it).
 #[track_caller]
-pub fn point_number(n: u32) -> Result<[u32; 3], BadInput> {
-    let course = &race().course;
+pub fn point_number(course: &Course, n: u32) -> Result<[u32; 3], BadInput> {
     point(place(course, n))
 }
 
 /// Point `n`'s x and z, read as one point.
 #[track_caller]
-pub fn point_xz(n: u32) -> Result<(u32, u32), BadInput> {
-    point_number(n).map(|[x, _, z]| (x, z))
+pub fn point_xz(course: &Course, n: u32) -> Result<(u32, u32), BadInput> {
+    point_number(course, n).map(|[x, _, z]| (x, z))
 }
 
 /// Point `from` copied over point `to` (as `bytes` reads `from`).
@@ -238,8 +237,7 @@ pub fn copy_point(course: &Course, from: u32, to: u32) -> Result<(), BadInput> {
 
 /// Coordinate `k` (0 x, 1 y, 2 z) of point `n`.
 #[track_caller]
-pub fn point_word(n: u32, k: u32) -> Result<u32, BadInput> {
-    let course = &race().course;
+pub fn point_word(course: &Course, n: u32, k: u32) -> Result<u32, BadInput> {
     word(place(course, n).wrapping_add(4 * k))
 }
 

@@ -8,7 +8,7 @@
 //! put a point's place in the first three, a light's direction in the second and its strength
 //! in the factor.
 //!
-//! Plain Rust since 2026-10-24 (the x87's arithmetic in `X`, `math/x87_float.rs`); the
+//! Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the
 //! original's instructions are `asm_reference` in the tests.
 
 use crate::scene::x87_mem::{Base, cells, fistp, fld};

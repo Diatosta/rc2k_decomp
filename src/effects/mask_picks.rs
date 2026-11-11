@@ -1,8 +1,8 @@
-//! The masks' picks and pixel tables out of the marks' block (phase 7).
+//! The masks' picks and pixel tables.
 
 use crate::session::{Bytes, Dword};
 
-/// The masks' shape picks and pixel tables (IDA 0x844604 .. 0x884E5C, the image's layout; phase 7, typed state).
+/// The masks' shape picks and pixel tables (IDA 0x844604 .. 0x884E5C).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MaskPicks {

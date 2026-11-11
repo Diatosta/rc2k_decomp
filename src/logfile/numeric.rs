@@ -1,13 +1,10 @@
 //! What the six numeric log functions share. Each does what `log_write` does, with one step
-//! in between: under the log's lock it formats the number in eax as text in the scratch
-//! buffer `dst` (0x93E030), ends it with a NUL, and goes on into `write_line` with eax = the
-//! scratch buffer and edx as given.
+//! in between: under the log's lock it formats the number as text in a scratch
+//! buffer, ends it with a NUL, and goes on into `write_line` with that buffer and the
+//! line-break flag and level as given.
 //!
-//! Registers: as `log_write`. If the tail's own level gate skips the line, eax is the
-//! scratch buffer and ebx the byte after the text's NUL. With `g_logLevel` 0 only eax
-//! changes, to the address after that function's call to the lock function.
-//! Each of the six has four entries before it that set edx (`_l1`, `_l1_nl`, `_l2`,
-//! `_l2_nl`) and jump to it, so they go through it.
+//! Each of the six has four entries before it that set the flag and level (`_l1`, `_l1_nl`,
+//! `_l2`, `_l2_nl`) and jump to it, so they go through it.
 
 use crate::errors::BadInput;
 
@@ -33,7 +30,7 @@ impl NumberText {
 
 /// One of the six functions.
 pub struct Body {
-    /// The text of the number (eax at entry) and the second value some take (ecx).
+    /// The text of the number and the second value some take (the digits or the flags).
     pub text: fn(u32, u32) -> Result<NumberText, BadInput>,
 }
 

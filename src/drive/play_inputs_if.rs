@@ -1,4 +1,4 @@
-//! `drive::play_inputs_if` (0x4600A9): `drive::play_inputs` while playing a replay (`dword_5C5CE0`
+//! `drive::play_inputs_if` (0x4600A9): `drive::play_inputs` while playing a replay (`replay_mode`
 //! 2).
 //!
 //! Caller: `drive::replay_step`.

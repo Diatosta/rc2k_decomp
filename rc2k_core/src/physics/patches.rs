@@ -1,9 +1,9 @@
-//! The physics' constants with the `patch` settings worked in (converted 2026-10-21 from
+//! The physics' constants with the `patch` settings worked in (Converted from
 //! `physics::apply_patches` 0x4648BD), once. The settings' keys in `var\ral.cfg` say what
 //! they are, from 0x71C6D0 on: `fizpatch` (the switch), `patchmaxdrawdistance`,
 //! `patchstickygrass`, `patchgravity`, `patchdamages`, `patchbrakegrip`, `patchaccelgrip`,
 //! `patchslidegrip`, `patchgripgrass`, `patchgriptarmac`, `patchgripsnow`, `patchgripmud`,
-//! `patchgripgravel`, the last ten in percent. So the gravity is `flt_613FC8`, and a
+//! `patchgripgravel`, the last ten in percent. So the gravity is `gravity`, and a
 //! record is a kind of ground with its slide, acceleration and brake grip (a reading of
 //! the names, not seen in a race).
 //!
@@ -42,15 +42,15 @@ pub const BY_FLOAT: [usize; 3] = [4, 3, 2];
 /// What `apply_patches` reads and writes (as bits: the game's dwords).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Patches {
-    /// `dword_71C6D0`: the settings' switch.
+    /// `patch_switch`: the settings' switch.
     pub switch: u32,
     /// 0x71C6D4 .. 0x71C700.
     pub settings: [u32; 12],
-    /// `flt_71C704` ..: the ten percentages as factors.
+    /// `patch_factors` ..: the ten percentages as factors.
     pub factors: [u32; 10],
     /// `g_patchesApplied` (0x71C72C).
     pub applied: u32,
-    /// `flt_613FC8`.
+    /// `gravity`.
     pub gravity: u32,
     /// The records' three grips.
     pub records: [[u32; 3]; 12],
@@ -63,7 +63,7 @@ fn percent(number: u32, hundred: f32) -> u32 {
     ((number as i32 as f64 / hundred as f64) as f32).to_bits()
 }
 
-/// `physics::apply_patches` (`hundred` `flt_5C5D14`, 100.0). Nothing if applied already.
+/// `physics::apply_patches` (`hundred` `hundred`, 100.0). Nothing if applied already.
 pub fn apply_patches(p: &mut Patches, hundred: f32) {
     if p.applied != 0 {
         return;

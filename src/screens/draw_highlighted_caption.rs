@@ -1,8 +1,8 @@
 //! `screens::draw_highlighted_caption` (0x4695C6): the name of the highlighted entry of a
 //! menu whose entries are turning objects, on a button at the bottom of the screen.
 //!
-//! `dword_75AA74` says which menu (0 .. 6; anything else: nothing is drawn) and so which list of
-//! string numbers; the highlighted item picks the string, which is put at `byte_A8BE54`, where
+//! the carousel step state says which menu (0 .. 6; anything else: nothing is drawn) and so which list of
+//! string numbers; the highlighted item picks the string, which is put at the caption buffer, where
 //! string 0x1004 is read from. The button is as wide as the caption measured with the font at
 //! 0x51E824 plus 12, centred on x = 0x197 at y = 0x1FE: sprite 0xF, pieces of 32 of sprite 0xB (the
 //! last one drawn over the one before, so that the width comes out), sprite 0x10; their palette is

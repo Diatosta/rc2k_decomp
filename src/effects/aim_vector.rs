@@ -8,16 +8,16 @@
 //! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::math::x87;
+use crate::math::x87_float as bh;
 
 pub fn aim_vector(effects: &crate::effects::owner::Effects) {
     let k = &effects.frame.kept_view;
     let v: [u32; 3] = std::array::from_fn(|n| {
         // Per axis: (negated, less, plus, plus).
-        x87::negated_less_plus_plus(
-            k.kept_b.scaled[n].bits(),
-            k.kept_a.scaled[n].bits(),
-            k.kept_c.scaled[n].bits(),
-            k.step[n].bits(),
+        bh::st(
+            -bh::ld(k.kept_b.scaled[n].bits()) - bh::ld(k.kept_a.scaled[n].bits())
+                + bh::ld(k.kept_c.scaled[n].bits())
+                + bh::ld(k.step[n].bits()),
         )
     });
     for (to, v) in k.vector.iter().zip(v) {

@@ -1,8 +1,9 @@
-//! `physics::queue_car_event` (0x4419EB): an entry added to the work car's queue of up
-//! to 7 (`g_car` +0xF98 the count): eax = `g_sceneClock` + esi; unless the count is 7,
-//! the time into +0xF58[count], ebx into +0xF78[count], the count up by one; then +0xF9C
-//! 0 and +0xFA0 0 for the first entry, else +0xF9C less 0x20. The events are the pace-note
-//! symbols the HUD stacks (`race::panel_marks`), each shown for 3000 of the scene clock.
+//! `physics::queue_car_event` (0x4419EB): an entry added to the work car's queue of up to 7
+//! (`car_event_count` the count): the time is `g_sceneClock` plus the delay; unless the count is 7,
+//! the time goes into `car_event_times[count]`, the event into `car_event_codes[count]`, the count
+//! goes up by one; then `car_event_limit` and `car_event_position` are 0 for the first entry,
+//! else `car_event_limit` is reduced by 0x20. The events are the pace-note symbols the HUD stacks
+//! (`race::panel_marks`), each shown for 3000 of the scene clock.
 //!
 //! Takes: a delay, the event
 //!

@@ -1,4 +1,4 @@
-//! The race's frame outside the physics (`drive::race_loop`'s callees, IDA 2026-10-17): the
+//! The race's frame outside the physics (`drive::race_loop`'s callees): the
 //! players' states, the cars' counters, the view cars loaded into the work copy. Here
 //! its leaves.
 
@@ -16,7 +16,7 @@ fn block(shared: &RaceShared, n: u32) -> u32 {
 }
 
 /// `race::players_all_out` (0x445506): carry when every player is out (+0xB0 not 0): the chosen
-/// car's with `dword_52A910` 1, else each of the `dword_63DB94` players'. Refuses, before anything,
+/// car's with `session` 1, else each of the `players` players'. Refuses, before anything,
 /// a chosen car past 7 or more than 8 players (the original reads past the table).
 pub fn players_all_out(race: &Race) -> Result<bool, Refused> {
     let vars = &net().vars;
@@ -37,7 +37,7 @@ pub fn players_all_out(race: &Race) -> Result<bool, Refused> {
     }
 }
 
-/// `race::set_car_counter` (0x43A96C): block esi's message, written in the original's order
+/// `race::set_car_counter` (0x43A96C): a car block's message, written in the original's order
 /// (+0x71C, +0x730, +0x72C).
 pub fn set_car_counter(car: &Car, value: u32) {
     // Converted: `rc2k_core::race::cars::Message::new`.
@@ -48,7 +48,7 @@ pub fn set_car_counter(car: &Car, value: u32) {
 }
 
 /// `race::set_both_counters` (0x43A987): `set_car_counter` of the first two blocks (by their fixed
-/// addresses), each with eax.
+/// addresses), each with the same value.
 pub fn set_both_counters(value: u32) {
     // Converted: through `set_car_counter` (`rc2k_core::race::cars::Message`).
     for car in &crate::race::blocks_store::CAR_BLOCKS.cars[..2] {
@@ -56,7 +56,7 @@ pub fn set_both_counters(value: u32) {
     }
 }
 
-/// The view car `n`'s number: `dword_63DBA8`, `dword_63DBAC`, `dword_63DBA0`.
+/// The view car `n`'s number: `view_cars`, `dword_63DBAC`, `local_car`.
 pub fn view_car(shared: &RaceShared, n: usize) -> &crate::session::Dword {
     match n {
         0 => &shared.view.view_cars[0],
@@ -169,7 +169,7 @@ pub fn race_keys(race: &Race) -> Result<(), Refused> {
             } else {
                 let volume = volume_step(state.master_volume.get(), step);
                 state.master_volume.set(volume);
-                // `pusha`, `push 8`, `send_command`, `pop eax`, `popa`.
+                // The sound command 8 with the volume.
                 crate::sound::send_command_8::send_command_8(volume);
             }
         }

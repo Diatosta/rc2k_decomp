@@ -2,12 +2,13 @@
 //! whether the game has been left alone for a long time.
 //!
 //! After `update_frame_clock`:
-//! - `dword_7559A4` (the highlight's blink, as the service area's markers use it) is 1 while
-//!   bit 8 of `clock - dword_7556C4` is clear, so it is on for 256 ms and off for 256 ms,
-//!   counted from the last key; it stays 0 while `dword_7556AC` is 1;
-//! - `dword_7559A8` (the text entry's cursor) is 1 while bit 9 of `clock - dword_7556C8` is
+//! - `draw_work.blink` (the highlight's blink, as the service area's markers use it) is 1 while
+//!   bit 8 of `clock - champ_view.last_key_time` is clear, so it is on for 256 ms and off for 256 ms,
+//!   counted from the last key; it stays 0 while `option_work.redefining_key` is 1;
+//! - `draw_work.cursor_on` (the text entry's cursor) is 1 while bit 9 of
+//!   `clock - champ_view.cursor_time` is
 //!   clear: 512 ms on, 512 ms off;
-//! - `dword_755551` is 1 once `clock - dword_7556C4` has reached 300000: five minutes
+//! - `loop_flags.idle` is 1 once `clock - champ_view.last_key_time` has reached 300000: five minutes
 //!   without a key.
 //!
 //! 179 callers.
@@ -37,6 +38,6 @@ pub fn update_blink(menus: &Menus) {
         let (blink, cursor_on, idle) = states_now(menus);
         screens.draw_work.blink.set(blink);
         screens.draw_work.cursor_on.set(cursor_on);
-        screens.loop_flags.idle.set(idle);
+        screens.loop_flags.idle.set(idle != 0);
     }
 }

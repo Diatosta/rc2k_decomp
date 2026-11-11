@@ -1,11 +1,11 @@
-//! The race's results file (`race::open_replay` / `race::close_replay`, IDA 2026-10-17): its bytes
+//! The race's results file (`race::open_replay` / `race::close_replay`): its bytes
 //! packed by runs (`race::pack_runs`) and a block sealed by a DES-like cipher of the game's
 //! tables (`race::seal_block`, with `race::permute_bits`).
 
 use crate::errors::BadInput;
 use crate::race::seal_store::SealWork;
 
-/// `race::pack_runs` (0x41EFEC): ecx bytes at esi packed to edi: runs of 2 .. 0x80 equal bytes as
+/// `race::pack_runs` (0x41EFEC): a run of bytes packed into another buffer: runs of 2 .. 0x80 equal bytes as
 /// (length - 1, byte), other stretches of up to 0x80 as (-length, bytes); fewer than three bytes,
 /// or one left, as one literal; then a dword 0 of which one byte counts. Returns the bytes written.
 /// Here: `source` packed into the shared scratch; the packing (end mark included) is returned with
@@ -27,11 +27,11 @@ pub fn pack_runs(
     Ok((packed, len))
 }
 
-// The cipher's tables and variables (dword_4E052C .. as IDA shows them).
+// The cipher's tables and variables (`key` .. as IDA shows them).
 
-/// `race::seal_block` (0x402735): the block (`dword_4E0534` / `38`) enciphered with the key
-/// (`dword_4E052C` / `30`) by the game's tables: the key's two halves (PC1), sixteen subkeys (turns
-/// by `byte_4E01C7`, PC2) into `dword_4E04AC` ..; the block's initial permutation, sixteen rounds
+/// `race::seal_block` (0x402735): the block (`block` / `38`) enciphered with the key
+/// (`key` / `30`) by the game's tables: the key's two halves (PC1), sixteen subkeys (turns
+/// by `byte_4E01C7`, PC2) into `subkeys` ..; the block's initial permutation, sixteen rounds
 /// (expansion, the subkey, eight S-boxes, the permutation, the halves swapped), the final
 /// permutation into `value` (0x4E053C) and `dword_4E0540`.
 pub fn seal_block(w: &SealWork) {

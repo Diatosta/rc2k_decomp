@@ -17,11 +17,13 @@
 
 use crate::audio::owner::audio;
 use crate::debug::row_cells::Raw;
+use crate::debug::switches::EXTENSIONS;
 use crate::debug::timing::STAGES;
 use crate::debug::wear_page::{SURFACES, value_at};
-use crate::race::owner::Race;
+use crate::race::owner::{Race, race};
 use crate::race::owner_frame::Frame;
 use crate::race::owner_physics::Physics;
+use crate::scene::owner::SCENE;
 use crate::system::owner::system;
 use dear_imgui_rs::{Condition, TableColumnFlags, TableColumnWidth, TableFlags, TreeNodeFlags, Ui};
 use std::collections::VecDeque;
@@ -792,14 +794,14 @@ fn profiler(race: &Race, ui: &Ui) {
             (
                 "Game uses",
                 names([
-                    ("MMX", value_at(0x621A60)),
-                    ("3DNow!", value_at(0x621A5C)),
-                    ("SSE", value_at(0x621A58)),
+                    ("MMX", Some(SCENE.draw_switches.use_mmx.get())),
+                    ("3DNow!", Some(SCENE.draw_switches.use_3dnow.get())),
+                    ("SSE", Some(SCENE.draw_switches.use_sse.get())),
                 ]),
             ),
             (
                 "Developers' extensions switch",
-                figure(value_at(0x6218B8), Shown::Whole),
+                figure(Some(EXTENSIONS.load(Relaxed)), Shown::Whole),
             ),
         ],
     );
@@ -845,46 +847,46 @@ fn parts_graph(ui: &Ui, t: &Timings, total: &[f32], top: f32, height: f32, summa
     }
 }
 
+/// A dump's dword by its number.
+type DumpWord = fn(usize) -> u32;
+
 /// The league tables the watch pages dumped (`debug::draw_league_dump`, 0x427A79: 50 rows of
 /// 8 bytes each, `off_4278DB` ..; `g_leagueRows` was dumped twice).
-const DUMPS: [(&str, &str, usize, usize, usize); 4] = [
+const DUMPS: [(&str, &str, DumpWord, usize, usize); 4] = [
     (
         "League: the ten records' names (g_leagueNames)",
         "`race::copy_league_table` fills them; `physics::compare_split_times` reads them.",
-        0x60410C,
+        |n| race().course.league.names[n].get(),
         1,
         10,
     ),
     (
         "League: kept times, sixteen rows of ten (g_leagueRows)",
         "A row a split, a column a record; hundredths of a second.",
-        0x604134,
+        |n| race().course.league.rows[n].get(),
         10,
         16,
     ),
     (
         "Car 1's times at the splits (unk_75B02C)",
         "Noted at each split; kept in the player's +0x20C after the race; hundredths of a second.",
-        0x75B02C,
+        |n| race().shared.state.results.results[0].data.get_u32(4 * n),
         1,
         16,
     ),
     (
         "Car 2's times at the splits (unk_75B09C)",
         "As car 1's.",
-        0x75B09C,
+        |n| race().shared.state.results.results[1].data.get_u32(4 * n),
         1,
         16,
     ),
 ];
 
 /// A row of a dump as text.
-fn dump_row(at: usize, columns: usize, row: usize) -> String {
+fn dump_row(word: DumpWord, columns: usize, row: usize) -> String {
     let figures: Vec<String> = (0..columns)
-        .map(|column| {
-            value_at(at + 4 * (row * columns + column))
-                .map_or("?".to_owned(), |v| format!("{}", v as i32))
-        })
+        .map(|column| format!("{}", word(row * columns + column) as i32))
         .collect();
     format!("{row:2}: {}", figures.join("  "))
 }
@@ -892,20 +894,20 @@ fn dump_row(at: usize, columns: usize, row: usize) -> String {
 /// The "Dumps" tab: what the developers' page showed as bytes, read (2026-10-30).
 fn dumps(ui: &Ui) {
     if ui.button("Write the four to the log") {
-        for (name, _, at, columns, rows) in DUMPS {
+        for (name, _, word, columns, rows) in DUMPS {
             crate::framework::log(name);
             for row in 0..rows {
-                crate::framework::log(&dump_row(at, columns, row));
+                crate::framework::log(&dump_row(word, columns, row));
             }
         }
     }
-    for (name, about, at, columns, rows) in DUMPS {
+    for (name, about, word, columns, rows) in DUMPS {
         if !ui.collapsing_header(name, TreeNodeFlags::NONE) {
             continue;
         }
         ui.text_disabled(about);
         for row in 0..rows {
-            ui.text(dump_row(at, columns, row));
+            ui.text(dump_row(word, columns, row));
         }
     }
 }

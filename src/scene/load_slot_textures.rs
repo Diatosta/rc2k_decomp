@@ -13,8 +13,7 @@ use crate::scene::load_slot_texture::load_slot_texture_in_game;
 
 // ---- Rust version ----
 
-/// The number of slots in use (ecx after the original, which `scene::draw_carousel`
-/// reads in the main menu).
+/// The number of slots in use (which `scene::draw_carousel` reads in the main menu).
 // Converted: `rc2k_core::scene::textures::slots_in_use`
 pub fn load_slot_textures(
     load: &mut dyn FnMut(u32) -> Result<(), BadInput>,

@@ -1,12 +1,12 @@
 //! `physics::passed_split_point` (0x44165E): whether the work car has passed the next
-//! split's point. Nothing (CF clear) with `dword_64BB18` set. The car's x / z into
-//! `dword_639824` / `dword_63982C`; the split's checkpoint (`dword_601030[+0x90]`), its
+//! split's point. Nothing (CF clear) with `no_place` set. The car's x / z into
+//! `ground_x` / `ground_z`; the split's checkpoint (`dword_601030[+0x90]`), its
 //! face (`g_checkpointFaces`; past `g_courseFaceCount` the original logs
 //! "[car0.currsegment]" .. and raises fatal error 0x80601843) and that face's first point;
 //! the distance (`fild` of the two gaps, squared, added, `fsqrt`, / 65536) into
-//! `flt_614D04`; within `flt_614C70`: the angle from the point to the car (`fpatan`, /
-//! pi, x 0.5, x 65536, `fistp`, low 16 bits, shifted up 16) into `dword_614CFC`, the
-//! checkpoint's (`dword_9ED808`) into `dword_614D00`; CF when the angle is not below the
+//! `split_point_distance`; within `split_distance`: the angle from the point to the car (`fpatan`, /
+//! pi, x 0.5, x 65536, `fistp`, low 16 bits, shifted up 16) into `split_word`, the
+//! checkpoint's (`dword_9ED808`) into `split_heading`; CF when the angle is not below the
 //! checkpoint's less a quarter turn (by the sign).
 //!
 //! The x87 runs (with the integer steps between) are the arithmetic of the original's
@@ -31,7 +31,7 @@ use std::cmp::Ordering;
 
 /// 0x4416EC .. 0x441727: the distance from `point`: the whole-number gaps
 /// (`GROUND_WORK.ground_x` and `ground_z` less the point's x and z; the last one is left in
-/// the scratch dword +0x22400C), their squares added, `fsqrt`, x `flt_5C5DA0`, into
+/// the scratch dword +0x22400C), their squares added, `fsqrt`, x `one_over_65536`, into
 /// +0x214D04.
 fn distance(
     tables: &PhysicsTables,
@@ -53,9 +53,9 @@ fn distance(
     ));
 }
 
-/// 0x441770 .. 0x4417AD: the angle from `point` to the car, into `dword_62400C`: the gaps
+/// 0x441770 .. 0x4417AD: the angle from `point` to the car, into `scratch`: the gaps
 /// (the car's x and z less the point's, through the scratch dword +0x22400C), `fpatan`,
-/// over pi, x `flt_5C5E40` x `flt_5C5D98`, `fistp` into the scratch, its low 16 bits.
+/// over pi, x `half` x `k65536`, `fistp` into the scratch, its low 16 bits.
 fn angle(
     numbers: &Numbers,
     ground: &GroundWork,
@@ -95,12 +95,8 @@ fn point(race: &Race) -> Result<(u32, u32), Refused> {
     if race.course.course.course_faces.get() == 0 || race.course.course.scene_points.get() == 0 {
         return Err(BadInput("no course faces or points").into());
     }
-    let index = crate::race::course_places::face_field::<u32>(
-        face,
-        4,
-        "physics::passed_split_point's operand",
-    )
-    .unwrap_or_else(|e| crate::fatal::raise::end("physics::passed_split_point's operand", e));
+    let index = crate::race::course_places::face_field::<u32>(&race.course, face, 4)
+        .unwrap_or_else(|e| crate::fatal::raise::end("physics::passed_split_point's operand", e));
     Ok((cp, index))
 }
 
@@ -116,8 +112,8 @@ pub fn passed_split_point(
         return Ok(false);
     }
     let (cp, pt) = point(race)?;
-    // The point read from `race::scene_points` (phase 13); the x87 runs read a copy.
-    let pt = crate::race::scene_points::point_number(pt)?;
+    // The point read from `race::scene_points`; the x87 runs read a copy.
+    let pt = crate::race::scene_points::point_number(&race.course, pt)?;
     race_owner
         .physics
         .ground

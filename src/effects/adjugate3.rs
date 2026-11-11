@@ -1,5 +1,5 @@
-//! `effects::adjugate3` (0x4BCED6): the adjugate of the 3 x 3 matrix at esi (rows 12 bytes
-//! apart) into edi's: each entry a difference of two products (`fsubp`), rounded as written
+//! `effects::adjugate3` (0x4BCED6): the adjugate of the 3 x 3 matrix (rows 12 bytes
+//! apart) into the result: each entry a difference of two products (`fsubp`), rounded as written
 //! (so an output over the input is read back as the original does).
 //!
 //! Takes: the matrix, the result (here two arrays of nine floats)

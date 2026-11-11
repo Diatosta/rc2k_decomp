@@ -1,9 +1,8 @@
-//! `physics::keep_motion_vectors` (0x43BD41): unless `dword_614148` is set, the three
-//! dwords at `dword_71A170` (the vector `physics::store_motion_length` measures) into
-//! `dword_614BCC` .. `D4`, and those at `dword_71A15C` into `dword_614BDC` .. `E4` (eax
-//! pushed around).
+//! `physics::keep_motion_vectors` (0x43BD41): unless `contact_step` is set, the three dwords of
+//! the car's `velocity` (the vector `physics::store_motion_length` measures) go into
+//! `kept_vectors`, and those of `spin` into the following three.
 //!
-//! Caller: `physics::car_physics_step` (0x43B89B), every physics step.
+//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;

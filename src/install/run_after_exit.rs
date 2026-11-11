@@ -1,23 +1,23 @@
 //! `install::run_after_exit` (0x412FA2): what the installer's pages asked to be done once
 //! the game has closed (not after a fatal error, `g_fatalReported` 1):
-//! - `dword_51B9D4` 1: the Start menu's items added (`install::add_start_menu_items`, DDE to the
-//!   Program Manager: "Rally", "Uninstall Rally", "View Readme"); `dword_51B9D8` 1: removed
-//!   (`install::remove_start_menu_items`, DDE);
-//! - then the first of: `dword_51B9DC` 1: DirectX's set-up run (into the game's folder
-//!   `byte_95E6F8`, then `unk_5295B5`; 0x410ADC "redist\directx\dxsetup.exe", not
-//!   waited for); `dword_51B9E8` 1: the registration program run (its folder, the game's
-//!   and "ereg\", made current; "eregip.exe" into `byte_94E8B0`); installing
-//!   (`g_installing` 1): the installed folder (`g_installSource` normalised into
-//!   `byte_95E7F8`) made current, from the CD (`g_runningFromCd` 1) the program named on
-//!   the command line (`dword_518BA8`, `dword_518BAC` bytes, into `byte_94E8B0`; the standalone
-//!   copies its own folder's program instead, so only the length is kept) copied
-//!   to ".\ral.exe" (`files::copy_file`) and a second's sleep, and ".\ral.exe" run.
+//! - `add_items` 1: the Start menu's items added (`install::add_start_menu_items`, DDE to
+//!   the Program Manager: "Rally", "Uninstall Rally", "View Readme"); `remove_items` 1:
+//!   removed (`install::remove_start_menu_items`, DDE);
+//! - then the first of: `run_dxsetup` 1: DirectX's set-up run (from the game's folder
+//!   `paths.game_dir`, then `texts.other_dir`; "redist\directx\dxsetup.exe", not waited
+//!   for); `run_registration` 1: the registration program run (its folder, the game's
+//!   and "ereg\", made current; "eregip.exe" into the program's name buffer); installing
+//!   (`installing` 1): the installed folder (`g_installSource` normalised into
+//!   `paths.installed`) made current, from the CD (`running_from_cd` 1) the program named
+//!   on the command line (`program_len` bytes, into the program's name buffer; the
+//!   standalone copies its own folder's program instead, so only the length is kept)
+//!   copied to ".\ral.exe" (`files::copy_file`) and a second's sleep, and ".\ral.exe" run.
 //!
 //! A folder that cannot be made current ends it.
 //!
-//! One caller, `start`'s way out. Refuses (before anything, where the way could lead there) a game
-//! folder too long for "ereg\" in its 0x100 bytes, and a command line's program of 0x100 bytes or
-//! more.
+//! One caller, `start`'s way out. Refuses (before anything, where the way could lead there)
+//! a game folder too long for "ereg\" in its 0x100 bytes, and a command line's program of
+//! 0x100 bytes or more.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::runs_from_source::{scratch_put, scratch_text};
@@ -94,7 +94,7 @@ pub fn run_after_exit(install: &'static crate::install::owner::Install) -> Resul
     }
     if switch(5) == 1 {
         // "ereg\eregip.exe" (the script's text after its count): its folder after the
-        // game's, its name into the program's buffer (`byte_94E8B0`).
+        // game's, its name into the program's name buffer.
         let ereg = install.run.ereg.read();
         let ereg = &ereg[2..];
         let ereg = &ereg[..ereg.iter().position(|&c| c == 0).unwrap_or(ereg.len())];

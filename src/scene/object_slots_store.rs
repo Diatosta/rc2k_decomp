@@ -1,4 +1,4 @@
-//! The scene objects' tables (IDA 0x62DB5C .. 0x634FA0; phase 7, typed): the listed faces,
+//! The scene objects' tables (IDA 0x62DB5C .. 0x634FA0): the listed faces,
 //! the material phase work, the textures listed, and the per-slot tables the objects' shapes
 //! are loaded into (first point, point count, normal count, first face, face count, the
 //! parts' middles and half extents, the radii). `#[repr(C)]` with the image's layout, over
@@ -53,8 +53,7 @@ impl ObjectTables {
 // them): any bit pattern is a valid value.
 
 impl ObjectTables {
-    /// The piece with the image's first values (a static of its own since 2026-10-29: it left
-    /// the race block, phase 13, `race::store::LEFT`; the owner `scene::owner::Scene` holds it).
+    /// The piece with the image's first values.
     pub const fn new() -> Self {
         crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }

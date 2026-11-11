@@ -1,12 +1,12 @@
 //! `race::credits_race` (0x463666): the credits' race (the demonstration the films play between
-//! them): `dword_5C5CE0` 0, `g_holdCarRevs` 0, `dword_60519C` 0x12345678, `dword_60101C` 2,
-//! `dword_621514` 0; `race::set_up_credits_race`, `race::set_up_arcade_cars`,
-//! `race::set_start_states`; `dword_71C3E0` 1; "INIT CREDITS - track", the stage, "car", the car
-//! kinds logged (level 1, each inside `pusha` / `popa`); `race::load_stage`; `race::roll_credits`
-//! with eax 0; `dword_63DB84` 0; `drive::play_race`; `dword_71C3E0` 0; `race::tidy_everything`.
+//! them): `replay_mode` 0, `g_holdCarRevs` 0, `noise_seed` 0x12345678, `arcade_kind` 2, `editor_mode`
+//! 0; `race::set_up_credits_race`, `race::set_up_arcade_cars`, `race::set_start_states`;
+//! `in_credits` 1; "INIT CREDITS - track", the stage, "car", the car kinds logged (level 1);
+//! `race::load_stage`; `race::roll_credits` started; `after_credits` 0; `drive::play_race`;
+//! `in_credits` 0; `race::tidy_everything`.
 //!
-//! Callers: `menu::play_films` (with ebp kept round it), which calls the Rust version directly,
-//! and 0x443104. Its calls by place: 0 `set_up_credits_race`, 1 `set_up_arcade_cars`, 2
+//! Callers: `menu::play_films`, which calls it directly, and the front end's
+//! developer entry. Its calls by place: 0 `set_up_credits_race`, 1 `set_up_arcade_cars`, 2
 //! `set_start_states`, 3 `log_write_l1`, 4 `log_int_l1`, 5 `log_int_l1_nl`, 6 `load_stage`, 7
 //! `roll_credits`, 8 `play_race`, 9 `tidy_everything`.
 

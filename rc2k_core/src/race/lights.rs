@@ -1,7 +1,7 @@
-//! The race cars' lights and parts' sounds (converted 2026-10-21 from
+//! The race cars' lights and parts' sounds (Converted from
 //! `race::car_light_modes` 0x455B70, `race::car_lights` 0x455CFF and
 //! `race::wake_part_sounds` 0x45D1EA; the light at a place, its colours added and
-//! multiplied, converted 2026-10-21 from `race::light_colour_at` 0x4537CE (0x44F601,
+//! multiplied, Converted from `race::light_colour_at` 0x4537CE (0x44F601,
 //! 0x44F691, 0x44F863), `race::view_light` 0x455896 and `race::face_colours`
 //! 0x452887).
 
@@ -10,7 +10,7 @@ use crate::Invalid;
 /// `race::car_light_modes`: whether a race car's lights are drawn: it has lights
 /// (+0x25C), it is drawn (any car in modes 0 and 2, else the shown car only), and, for
 /// the shown car, it is not standing (`standing`: +0x69C and +0x684 both 0) nor hidden
-/// (`hidden`: `dword_63993C`); each asked only when it decides.
+/// (`hidden`: `view_mirrored`); each asked only when it decides.
 pub fn lights_drawn(
     has_lights: bool,
     mode: u32,
@@ -30,8 +30,8 @@ fn set(prev: u32, keep: u32, bits: u32) -> u32 {
 }
 
 /// `race::car_light_modes`: a drawn car's light word (+0x6FC) from `prev`, its nibbles set
-/// step by step: 0x21; for the shown car with beams (`dword_606274`), 0x12, then 0x14
-/// unless the kind (`dword_606270`, asked only then) is 1, then 0x11 unless it is 2 or 3;
+/// step by step: 0x21; for the shown car with beams (`view_car_flag_b`), 0x12, then 0x14
+/// unless the kind (`view_car_stage`, asked only then) is 1, then 0x11 unless it is 2 or 3;
 /// then 0x100 in the third nibble, 0x200 with `high` (`dword_6238B4`; 1: the shown car
 /// only).
 pub fn light_word(
@@ -139,7 +139,7 @@ pub fn clamp_byte(v: u32) -> u32 {
 }
 
 /// 0x44F601: whether car n's headlights light the place: with one car chosen
-/// (`dword_52A910`) that car (`dword_52A920`) or all with `dword_6238B8` 1; else the
+/// (`session`) that car (`player`) or all with `dword_6238B8` 1; else the
 /// players' cars (all with `dword_6238B8` 1), outside one player and modes 0 and 2 only
 /// the drawn view's car. Each value asked where the original reads it.
 pub fn headlights_light(
@@ -178,7 +178,7 @@ pub fn headlight_index(spread: u32, side: u32, marks: u32) -> u32 {
 
 /// 0x44F863's grey of a lamp at the place: ((0x200000 - its distance) x its
 /// strength) >> 17, held to 0 ..= 0xFF, in the three colour bytes; with the product's
-/// high half (the original's edx).
+/// high half (the product's high half).
 pub fn lamp_grey(distance: u32, strength: u32) -> (u32, u32) {
     let product = (0x20_0000u32.wrapping_sub(distance) as i32 as i64) * (strength as i32 as i64);
     let grey = clamp_byte(((product as u32) as i32 >> 0x11) as u32);

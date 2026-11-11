@@ -2,10 +2,10 @@
 //! log at level 1: "videox" `g_screenWidth`, "videoy" `g_screenHeight` (twice), "r" "l" "b"
 //! "t" the clip edges (`g_clipScreenRight` .. `g_clipScreenTop`, two decimals), "donezcut"
 //! `dword_624124`, "donesuth" `dword_624120`, "cuttest" `g_polygonClipMask` (with a line's
-//! end; then the mask 0), "tpage" `dword_6240C4` (hex8), "points" `g_polygonVertexCount`;
-//! "polynum" `g_currentCourseFace`, or with `g_drawingObject` 1 "objdraw"
-//! `g_objectNumber` and "objfaced" `g_faceNumber`; a line's end. Then with vertices, each
-//! (0x20 bytes from edi): "pt" its number, "x" +0, "yzuwv" +4, "zuwv" +8, "uwv" +0x18,
+//! end; then the mask 0), "tpage" the texture page (hex8), "points" the polygon's vertex count;
+//! "polynum" the current course face, or with the drawing-object flag 1 "objdraw" the
+//! current object and "objfaced" the face number; a line's end. Then with vertices, each
+//! (0x20 bytes): "pt" its number, "x" +0, "yzuwv" +4, "zuwv" +8, "uwv" +0x18,
 //! "wv" +0xC, "v" +0x1C (floats, two decimals; the labels are the tails of one string),
 //! "co" +0x10 and "sp" +0x14 (hex8), a line's end; and a last line's end.
 //!

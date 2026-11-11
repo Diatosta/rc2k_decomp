@@ -1,20 +1,15 @@
-//! `physics::pace_notes_step` (0x4417EC): the work car's pace notes, each physics step.
-//! Only with `unk_71A080`, `unk_71A07C`, `unk_71A078`, `g_holdCarRevs`, `dword_71C3E0`,
-//! `unk_719FF4`, `unk_71A22C` all 0, `unk_71A234` 1 and `unk_719FEC` 1000 or more
-//! (unsigned). Then the checkpoints ahead: `g_carSpeed` x `flt_614C78` / `flt_5C5D50`
-//! (`fistp`) into `dword_62400C`; ebx the car's checkpoint (`unk_71A06C`) plus that when
-//! not negative, 0 when at or past the count (by the sign); past the last called
-//! (`unk_71A074`, unsigned): more than 16 past moves it up to ebx first, then every
-//! checkpoint after it up to ebx (at least one) has its group called
-//! (`physics::queue_pace_note`, edx the checkpoint), and
-//! `unk_71A074` = ebx. Then (unless it left at the start) `physics::expire_car_events`.
+//! `physics::pace_notes_step` (0x4417EC): the work car's pace notes, each physics step. Only
+//! with `finish_flag`, `go_stand_timer`, `started_stand_timer`, `g_holdCarRevs`, `in_credits`,
+//! `false_start_count` and the car's `all_wheels_off` all 0, `driver_kind` 1 and `run_ticks` 1000 or
+//! more (unsigned). Then the checkpoints ahead: `g_carSpeed` x `pace_scale` / eight, rounded;
+//! the target is the car's checkpoint (`reset_checkpoint`) plus that when not negative, 0 when
+//! at or past the count (by the sign). Past the last called (`last_pace_call`, unsigned): more than
+//! 16 past moves it up to the target first, then every checkpoint after it up to the target (at
+//! least one) has its group called (`physics::queue_pace_note`), and `last_pace_call` becomes the
+//! target. Then (unless it left at the start) `physics::expire_car_events`.
 //!
-//! Caller: `physics::car_physics_step`, which calls the Rust version directly. Its calls by
-//! `physics/queue_pace_note.rs`' places (5 the group, 6 the expiry). Refuses what its calls
-//! refuse.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Caller: `physics::car_physics_step`. Its calls by `physics/queue_pace_note.rs`' places
+//! (5 the group, 6 the expiry). Refuses what its calls refuse.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

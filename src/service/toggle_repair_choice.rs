@@ -1,7 +1,7 @@
 //! `service::toggle_repair_choice` (0x46B7C0): the item action of the service area's repair
-//! items: the status (`dword_75AAA4`) and edit mode 0, the highlighted item's flag flipped,
-//! the chosen repairs' time added up into `dword_75AC8C`, and by `budget - total` (signed):
-//!   at least 900:  every mark (`dword_759BC2`, from entry 0 to the end mark) 0;
+//! items: the status (`status`) and edit mode 0, the highlighted item's flag flipped,
+//! the chosen repairs' time added up into the repairs' total, and by `budget - total` (signed):
+//!   at least 900:  every mark (`inspection_flags_b`, from entry 0 to the end mark) 0;
 //!   0 .. 899:      the item's mark 1;
 //!   below 0:       the flag flipped back and the status 1.
 //! Then the total is added up and stored again.

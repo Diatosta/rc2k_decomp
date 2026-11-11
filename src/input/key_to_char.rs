@@ -2,13 +2,12 @@
 //! with the current keyboard layout, shift state and pending dead key.
 //!
 //! Takes: key
-//! The layout (`input::layouts`; `dword_4F07D4` pointed at the current one in the original)
-//! has a list of dead keys {key, plain, shifted} ended by a 0 key, a plain table, a shifted
-//! one and one used while `byte_4F6B40` is down (read as AltGr). A dead key is
-//! stored in `byte_4F6AD0`; the next key is then looked up, by its plain character, in the
-//! list of {dead key, base, plain result, shifted result} at 0x4F8000. Keys whose bit is set
-//! in the bitmap at 0x4F7FF0 type nothing. In layout mode 2 (`byte_4F07D2`), Alt or AltGr
-//! with a shift key switches the layout: left shift picks the keyboard file's first layout,
+//! The layout (`input::layouts`) has a list of dead keys {key, plain, shifted} ended by a 0
+//! key, a plain table, a shifted one and one used while AltGr is down. A dead key is stored
+//! (`dead_key`); the next key is then looked up, by its plain character, in the list of
+//! {dead key, base, plain result, shifted result} in the keyboard tables. Keys whose bit
+//! is set in the keyboard tables' bitmap type nothing. In layout mode 2, Alt or AltGr with
+//! a shift key switches the layout: left shift picks the keyboard file's first layout,
 //! right shift its second.
 //! Refuses: no layout; a dead key pending with no plain table (the original reads through
 //! null); lists without an end within 256 entries.
@@ -20,9 +19,8 @@ use crate::input::store::Devices;
 
 // ---- game data ----
 
-// The key-down table (`g_keysDown`) is indexed by scan code: left shift 0x2A
-// (`byte_4F6B06`), right shift 0x36 (`byte_4F6B12`), Alt 0x38 (`byte_4F6B14`), AltGr 0x64
-// (`byte_4F6B40`).
+// The key-down table (`keys_down`) is indexed by scan code: left shift 0x2A, right shift
+// 0x36, Alt 0x38, AltGr 0x64.
 const LEFT_SHIFT: usize = 0x2A;
 const RIGHT_SHIFT: usize = 0x36;
 const ALT: usize = 0x38;
@@ -37,7 +35,7 @@ pub fn has_layout() -> bool {
     layouts().current() != Current::None
 }
 
-/// eax as the original leaves it; the character is its low byte.
+/// The character is the low byte of the result.
 pub fn key_to_char(eax: u32) -> Result<u32, BadInput> {
     typed(input(), eax, false)
 }

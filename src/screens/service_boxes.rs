@@ -18,7 +18,6 @@ pub fn set(a: &Dword, v: u32) {
 /// One quad: x .. x + w, y .. y + h, the colour and see-through, then `draw_tinted_quad`.
 pub fn quad(x: u32, y: u32, w: u32, h: u32, colour: u32, see: u32) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
-    // dword_623DE8: colour, see-through; x at +0x28 / +0x2C, y at +0x38 / +0x3C (`quad_corners`)
     let q = &race().shared.vars;
     crate::race::view_scratch::front_end().quad.corners[0].set(x);
     crate::race::view_scratch::front_end().quad.corners[4].set(y);

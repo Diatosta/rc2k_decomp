@@ -1,27 +1,25 @@
 //! `effects::emit_bursts` (0x4CD21A): two bursts of ring entries from a wheel (kinds 0x11
-//! and 0x10), when the wheel's second flags (+0x24, kept in `dword_939BAA`) >> 6 are not
-//! 0. Each half: a strength (`flt_935694`: the wheel's +0x10 times a factor; the second
-//! `flt_935698`: a blend of +0xC and +0x18) and its rate; when the half's random's bits
-//! 16 .. 23 are under the rate, a direction (`flt_935688` ..) and a count (a random's low
-//! 12 bits modulo (flags >> 6) times 4); then that many entries: their motion the
-//! direction spread (`effects::spread_point`), a size, a look (+0x58), a turn from the car's
-//! +0x4C .. (+0x38 ..), a place at the wheel less the car's matrix's place plus a random
-//! side, a fade (+0x5C), a life of 2000, +0x7C / +0x80 `dword_935476` / `dword_93547A`.
+//! and 0x10), when the wheel's second flags (+0x24, kept as `wheel_flags2`) >> 6 are not 0.
+//! Each half: a strength (the first the wheel's +0x10 times a factor; the second a blend of
+//! +0xC and +0x18) and its rate; when the half's random's bits 16 .. 23 are under the rate, a
+//! direction and a count (a random's low 12 bits modulo (flags >> 6) times 4); then that many
+//! entries: their motion the direction spread (`effects::spread_point`), a size, a look
+//! (+0x58), a turn from the car's +0x4C .. (+0x38 ..), a place at the wheel less the car
+//! matrix's place plus a random side, a fade (+0x5C), a life of 2000, +0x7C / +0x80 the
+//! `looks` values.
 //!
 //! Takes: the wheel record, the car object
 //!
-//! Callers: `effects::emit_wheel_particles`' kinds 2 .. 4, 6 .. 9, 0xC. The original's loops
-//! push esi; when the ring is full (0x3FE taken) inside one they leave by 0x4CD741, which
-//! takes only that push off: `popa` restores shifted registers and `retn` returns to a
-//! register's value, the crash over mud (section 16; seen by the owner 2026-10-23). Fixed
-//! here (2026-10-23): the bursts end at a full ring, as the exit with `lea esp, [esp+8]`
-//! does. Refuses (before anything) a null wheel, a null object, car or matrix where read.
+//! Callers: `effects::emit_wheel_particles`' kinds 2 .. 4, 6 .. 9, 0xC. In the original, when
+//! the ring is full (0x3FE taken) inside a loop the exit leaves the stack shifted: `popa`
+//! restores shifted registers and `retn` returns to a register's value, the crash over mud
+//! (section 16). Here the bursts simply end at a full ring. Refuses (before anything) a null
+//! wheel, a null object, car or matrix where read.
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::owner::Effects;
-use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
@@ -34,7 +32,7 @@ const LIFE: u32 = 0x7D0;
 pub struct Half {
     pub kind: u32,
     pub strength: &'static Float,
-    /// The direction's factors (x, y, z) and whether |s| is scaled by `flt_765158` in y.
+    /// The direction's factors (x, y, z) and whether |s| is scaled by the half constant in y.
     pub factors: [&'static Float; 3],
     pub scaled: bool,
     /// The size's mask and base, the side's factors.
@@ -98,9 +96,14 @@ impl BurstTuning {
 }
 
 /// The half's strength and rate (`n` 0 or 1), from the wheel.
-fn strength(set: &BurstSet, n: usize, wheel: &MarkRecord) -> Result<(u32, i32), Refused> {
+fn strength(
+    effects: &Effects,
+    set: &BurstSet,
+    n: usize,
+    wheel: &MarkRecord,
+) -> Result<(u32, i32), Refused> {
     Ok({
-        let scale: u32 = effects().setup.floats.thirty_two.bits();
+        let scale: u32 = effects.setup.floats.thirty_two.bits();
         if n == 0 {
             x87::times_kept_abs_to_int(
                 wheel.local_velocity_x.bits(),
@@ -120,14 +123,14 @@ fn strength(set: &BurstSet, n: usize, wheel: &MarkRecord) -> Result<(u32, i32), 
 }
 
 /// The entries each half would make, worked out without writing.
-fn counts(set: &BurstSet, wheel: &MarkRecord) -> Result<[u32; 2], Refused> {
+fn counts(effects: &Effects, set: &BurstSet, wheel: &MarkRecord) -> Result<[u32; 2], Refused> {
     Ok({
         let flags2 = wheel.flags2.get();
         if flags2 >> 6 == 0 {
             return Ok([0; 2]);
         }
         crate::effects::try_from_fn(|n| {
-            let (_, rate) = strength(set, n, wheel)?;
+            let (_, rate) = strength(effects, set, n, wheel)?;
             let r = set.tuning.randoms(n)[0]
                 .get()
                 .wrapping_mul(0xC5)
@@ -144,13 +147,17 @@ fn counts(set: &BurstSet, wheel: &MarkRecord) -> Result<[u32; 2], Refused> {
     })
 }
 
-/// Why the Rust version refuses, if it does, worked out without writing.
-pub fn refusal(set: &BurstSet, wheel: &MarkRecord) -> Result<Option<&'static str>, Refused> {
+/// Why the function refuses, if it does, worked out without writing.
+pub fn refusal(
+    effects: &Effects,
+    set: &BurstSet,
+    wheel: &MarkRecord,
+) -> Result<Option<&'static str>, Refused> {
     Ok({
         if wheel.flags2.get() >> 6 == 0 {
             return Ok(None);
         }
-        let [a, b] = counts(set, wheel)?;
+        let [a, b] = counts(effects, set, wheel)?;
         if a + b > 0 && !car_with_matrix()? {
             return Ok(Some("a null object, car or matrix"));
         }
@@ -175,7 +182,7 @@ pub fn emit_bursts_with(
 ) -> Result<(), Refused> {
     let (paths, masks, ring) = (&effects.paths, &effects.masks, &effects.ring);
     {
-        if let Some(why) = refusal(set, wheel)? {
+        if let Some(why) = refusal(effects, set, wheel)? {
             return Err(BadInput(why).into());
         }
         let flags2 = wheel.flags2.get();
@@ -184,7 +191,7 @@ pub fn emit_bursts_with(
             return Ok(());
         }
         for (n, h) in set.halves.iter().enumerate() {
-            let (s, rate) = strength(set, n, wheel)?;
+            let (s, rate) = strength(effects, set, n, wheel)?;
             h.strength.set_bits(s);
             ring.work.whole.set(rate as u32);
             let r = next_c5(&set.tuning.randoms(n)[0]);
@@ -196,17 +203,15 @@ pub fn emit_bursts_with(
             let s: u32 = h.strength.bits();
             let scale = h.scaled.then(|| effects.setup.floats.half.bits());
             let direction = [
-                x87::mul2(h.factors[0].bits(), s, k),
+                x87::mul2(h.factors[0], s, k),
                 x87::times_less_abs_times(h.factors[1].bits(), s, scale, k),
-                x87::mul2(h.factors[2].bits(), s, k),
+                x87::mul2(h.factors[2], s, k),
             ];
             write_bits(&ring.work.direction, direction);
             let count = (next_c5(&set.tuning.randoms(n)[1]) & 0xFFF) % ((flags2 >> 6) << 2);
             for _ in 0..count {
-                // The ring full (0x3FE taken): the original leaves by 0x4CD741 / 0x4CDC6E,
-                // whose stack slip crashed the game (section 16). Fixed 2026-10-23: the
-                // bursts end there, the caller's registers kept, as `lea esp, [esp+8]`
-                // would leave them.
+                // The ring is full (0x3FE taken): the original's exit from here slips on its
+                // stack and crashed the game (section 16). The bursts end here instead.
                 if ring.work.count.get() == MOST_TAKEN {
                     return Ok(());
                 }
@@ -235,9 +240,9 @@ pub fn emit_bursts_with(
                     ((flags2 & 0x3F) << 4) + (r.rotate_right(17) & 3),
                 )?;
                 let tk: u32 = effects.setup.floats.minus_eighth.bits();
-                slot.put(|en| &mut en.push[2], x87::mul(car.motion[2].bits(), tk))?;
-                slot.put(|en| &mut en.push[1], x87::mul(car.motion[1].bits(), tk))?;
-                slot.put(|en| &mut en.push[0], x87::mul(car.motion[0].bits(), tk))?;
+                slot.put(|en| &mut en.push[2], x87::mul(&car.motion[2], tk))?;
+                slot.put(|en| &mut en.push[1], x87::mul(&car.motion[1], tk))?;
+                slot.put(|en| &mut en.push[0], x87::mul(&car.motion[0], tk))?;
                 for n in 0..3 {
                     slot.put(|en| &mut en.spare[n], 0)?;
                 }
@@ -283,7 +288,7 @@ pub fn emit_bursts_with(
     Ok(())
 }
 
-/// One burst emitter's factors and randoms (`emit_bursts`' at 0x93A3D2, `emit_bursts_2`'s at 0x93A3F6) (IDA 0x93A3D2 .. 0x93A3F6, the image's layout; phase 7, typed state).
+/// One burst emitter's factors and randoms (`emit_bursts`' at 0x93A3D2, `emit_bursts_2`'s at 0x93A3F6).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct BurstTuning {
@@ -301,9 +306,9 @@ impl BurstTuning {
     /// The values the game starts with (the image's bytes).
     pub const fn first() -> Self {
         BurstTuning {
-            strength_k: Float::from_bits(0xBE800000),
+            strength_k: Float::new(-0.25),
             first: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-            blend_k: [Float::from_bits(0xBE800000), Float::from_bits(0xBD4CCCCD)],
+            blend_k: [Float::new(-0.25), Float::new(-0.05)],
             second: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
         }
     }

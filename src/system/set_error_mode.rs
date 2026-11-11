@@ -1,6 +1,6 @@
 //! `system::set_error_mode` (0x402B7C): `SetErrorMode(SEM_FAILCRITICALERRORS)` (no
 //! "insert a disc" boxes from Windows), the mode before it kept in `uMode` (0x4E05A0), and
-//! `dword_4E059C` 1.
+//! `changed` 1.
 //!
 //! One caller, `start` (0x401035). The Win32 call is made from Rust.
 
@@ -42,7 +42,7 @@ impl ErrorMode {
     pub const START: usize = 0x4E059C;
     pub const LEN: usize = 0x8;
     #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const system().start.error_mode) as usize
     }

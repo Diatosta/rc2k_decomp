@@ -1,6 +1,6 @@
-//! What the marks' particle emitters under `effects::emit_wheel_particles` share (IDA, 2026-10-17):
+//! What the marks' particle emitters under `effects::emit_wheel_particles` share (IDA):
 //! the ring of 0x94-byte entries (`g_marksRingCursor`, `g_marksRingCount`, at most 0x3FE taken),
-//! the rate gate on a wheel record (edi) and its object (esi), and their randoms.
+//! the rate gate on a wheel record and its object, and their randoms.
 //! `effects::emit_wheel_particles` (0x4CA085) picks an emitter by the wheel record's +0x1C
 //! (the surface's particle kind); the patched EXE some owners use turns it into a `ret`
 //! (section 16).
@@ -163,7 +163,7 @@ pub fn gate_with(
     })
 }
 
-/// The particle emitters' variables (IDA 0x935416 .. 0x935562, the image's layout; phase 7, typed state): the record they are on, the vectors they share, and their constants and randoms.
+/// The particle emitters' variables (IDA 0x935416 .. 0x935562): the record they are on, the vectors they share, and their constants and randoms.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct EmitterVars {
@@ -225,41 +225,33 @@ impl EmitterVars {
             ]),
             sign: Dword::new(0x0),
             car: Dword::new(0x0),
-            side_b: [const { Float::from_bits(0x0) }; 3],
-            up: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x3F800000),
-            ],
-            across: [const { Float::from_bits(0x0) }; 3],
-            side_a: [const { Float::from_bits(0x0) }; 3],
-            motion: [const { Float::from_bits(0x0) }; 3],
+            side_b: [const { Float::new(0.0) }; 3],
+            up: [Float::new(0.0), Float::new(0.0), Float::new(1.0)],
+            across: [const { Float::new(0.0) }; 3],
+            side_a: [const { Float::new(0.0) }; 3],
+            motion: [const { Float::new(0.0) }; 3],
             looks: [const { Dword::new(0x0) }; 2],
             tag: Dword::new(0x0),
             _gap_935482: Bytes::new([0; 68]),
-            settings_start: [const { Float::from_bits(0x0) }; 6],
+            settings_start: [const { Float::new(0.0) }; 6],
             tag_k: Dword::new(0x4C8),
-            rate_k: [
-                Float::from_bits(0x37A7C5AC),
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x48400000),
-            ],
+            rate_k: [Float::new(0.00002), Float::new(1.0), Float::new(196608.0)],
             place_k: [
-                Float::from_bits(0x4283126F),
-                Float::from_bits(0xC283126F),
-                Float::from_bits(0x4283126F),
-                Float::from_bits(0x46000000),
-                Float::from_bits(0x4283126F),
-                Float::from_bits(0x469E9666),
-                Float::from_bits(0x4732A700),
+                Float::new(65.536),
+                Float::new(-65.536),
+                Float::new(65.536),
+                Float::new(8192.0),
+                Float::new(65.536),
+                Float::new(20299.2),
+                Float::new(45735.0),
             ],
             body_k: [
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0xBF800000),
+                Float::new(1.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(0.0),
+                Float::new(-1.0),
             ],
             wheel_random: Dword::new(0x0),
             body_random: Dword::new(0x0),
@@ -270,7 +262,7 @@ impl EmitterVars {
             ]),
             sides: [const { Dword::new(0x0) }; 2],
             _gap_935552: Bytes::new([0; 12]),
-            strength: Float::from_bits(0x0),
+            strength: Float::new(0.0),
         }
     }
 }

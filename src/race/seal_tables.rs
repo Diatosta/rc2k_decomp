@@ -1,4 +1,4 @@
-//! The record seal cipher's tables (`race::save_seal`), out of RAL.EXE's image (phase 5): the
+//! The record seal cipher's tables (`race::save_seal`), out of RAL.EXE's image: the
 //! initial and final permutations, the key's two selections, the round's expansion and
 //! permutation, the eight S-boxes and the key turns. Each permutation table is the picks the
 //! image's count-and-picks table holds (the count byte n, then n + 1 picks). Read-only: nothing

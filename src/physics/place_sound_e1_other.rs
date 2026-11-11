@@ -1,7 +1,8 @@
-//! `physics::place_sound_e1_other` (0x45CE32): when the car numbered `dword_6D3CD4` or the current car is
-//! listed, `physics::sound_band_3` (ebx); a band not 0 goes into `dword_6D1AD4` and to the
-//! current car's sound object with +0x238 0xE1, +0x23C the band, the place at +0x240 ..
-//! and +0x10 1 (see `physics/car_sounds.rs`). A reading: a sound of another car met.
+//! `physics::place_sound_e1_other` (0x45CE32): when the car numbered `other_car_number` or the
+//! current car is listed, `physics::sound_band_3` gives a band; a band not 0 goes into
+//! `sound_scratch_b` and to the current car's sound object as sound 0xE1 with that band, the
+//! place and the update flag set (see `physics/car_sounds.rs`). A reading: a sound of another car
+//! met.
 //!
 //! Caller: `physics::bump_cars` (its tail). Refuses (before anything) a car number past 7, a null
 //! sound object when it is written (the object is looked up first, but only written after

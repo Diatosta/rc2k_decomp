@@ -1,36 +1,34 @@
 //! `scene::list_object_face` (0x4504CB): decides whether a face of an object is drawn,
 //! and lists it if so.
 //!
-//! Takes: the face; its number within the object is in `dword_623620`
+//! Takes: the face; its number within the object is the view's `face_number`.
 //!
-//! `g_objectSeeThrough` = 0x100, then five tests, each of which can drop the face
-//! ("its group" is the low five bits of the face's byte +7):
-//! 1. 0x452292, only outside a race (`dword_5C5CEC` at 0): the object's kind
-//!    `dword_5CD27C[object]` is looked for in the 0x22 entries of `dword_5C5790`, as
-//!    an entry or as an entry plus 1 (`scene::find_object_kind`); if it is there, two group numbers
-//!    of that place (`dword_5C90DC`, `dword_5C90E0` + place * 0x134) go to
-//!    `dword_5CCE50` and `dword_5CCE54`, and a face of either group is dropped.
-//! 2. 0x4505BD, only for objects from 0x50 up whose number divides by 0x14: dropped
-//!    unless the group's bit is set in `dword_62150C`; with `dword_621870` at 5,
-//!    dropped if `dword_621934[group]` is 0; else, with `dword_71A66C` at 0, dropped
-//!    unless the group's bit is set in `dword_606280`; then by which group it is: the
-//!    group `dword_5CCE60` is dropped while `dword_62DAD0` is 0; the groups
-//!    `dword_5CCE50` and `dword_5CCE54` are dropped while `dword_6D18D4` is 1; the
-//!    groups `dword_5CCE58` and `dword_5CCE5C` while it is 0.
-//! 3. 0x450688: a face with bits 2 or 3 of its byte +8 set, while `dword_63996C`
-//!    is not 0: dropped if `dword_639974` is 0, else that is its see-through value.
-//! 4. 0x4506B7: a face of kind (byte +6) 0x1C is dropped outside a race, or if its
-//!    byte +0xB is 0 or above 6, or if the dword that byte picks at +0x6FC of the
-//!    block `off_71B3B8[dword_60627C]` is 0x80000000 or under 10; a face of another
-//!    kind than 0 is dropped unless its byte +0xB is `dword_5CD688[kind]` (the drawing's
-//!    `marks`: `scene::car_marks`).
-//! 5. 0x45071B: dropped if `scene::face_faces_away`.
+//! The face's see-through value starts at 0x100, then five tests (in
+//! `rc2k_core::scene::face_tests::dropped`) can each drop the face ("its group" is the low
+//! five bits of the face's byte +7):
+//! 1. Only outside a race: the object's kind is looked for among the known object kinds,
+//!    as an entry or as an entry plus 1 (`scene::find_object_kind`); if it is there, two
+//!    group numbers of that kind's light record become the hidden groups, and a face of
+//!    either group is dropped.
+//! 2. Only for objects from 0x50 up whose number divides by 0x14: dropped unless the
+//!    group's bit is set in the shown groups; in group-mask kind 5, dropped if the group's
+//!    table entry is 0; else, with the camera switch off, dropped unless the group's bit is
+//!    set in the second mask; then by which group it is: the lone group is dropped while its
+//!    mask is off, the hidden groups while `groups_which` is 1, the other groups while it
+//!    is 0.
+//! 3. A face with bits 2 or 3 of its byte +8 set, while the object is fading: dropped if
+//!    the fade value is 0, else that is its see-through value.
+//! 4. A face of kind (byte +6) 0x1C is dropped outside a race, or if its byte +0xB is 0 or
+//!    above 6, or if the wake count of that car part is 0x80000000 or under 10; a face of
+//!    another kind than 0 is dropped unless its byte +0xB is the kind byte the car's marks
+//!    hold for it (`scene::car_marks`).
+//! 5. Dropped if `scene::face_faces_away`.
 //!
 //! A face that is left and has a vertex gets its key (`scene::face_sort_key`) and the next
 //! entry of the list: its number, the key plus bit 30 unless bit 0 of its byte +8 is set,
-//! `dword_624130`, the see-through value. One caller, `scene::list_object_faces`. Refuses an
-//! object's number or a list's length past their tables, no block for kind 0x1C, and what its
-//! parts refuse.
+//! the polygon's `entry_third` and the see-through value. One caller, `scene::list_object_faces`.
+//! Refuses an object's number or a list's length past their tables, no block for kind 0x1C,
+//! and what its parts refuse.
 
 use crate::errors::{BadInput, Refused};
 use crate::race::kind_store::KIND_TABLES;
@@ -61,7 +59,7 @@ struct GameFace<'a>(
 
 impl FaceWorld for GameFace<'_> {
     fn in_race(&self) -> bool {
-        self.0.course.numbers.in_race.get() != 0
+        self.0.course.numbers.in_race.is_set()
     }
     fn object(&self) -> u32 {
         self.4.object_number.get()
@@ -73,7 +71,7 @@ impl FaceWorld for GameFace<'_> {
         KIND_TABLES.known_object_kinds[place].get()
     }
     fn kind_groups(&self, place: usize) -> [u32; 2] {
-        // `dword_5C90DC`, `dword_5C90E0`: groups [6] and [7] of the place's record.
+        // Groups 6 and 7 of the kind's light record.
         self.1.keep(
             LIGHT_RECORDS
                 .record_ptr(place as u32)

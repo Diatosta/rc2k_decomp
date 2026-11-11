@@ -1,7 +1,7 @@
 //! `service::load_setup_slot` (0x46EECC): the action of a slot on the "load setup" menu:
 //! reads the slot's saved car setup and makes it the chosen setup.
 //!
-//! The slot is `dword_755244 * 30 + item - 1`, and one less from item 0x11 on (`dword_755244` is
+//! The slot is `setup_slot_page * 30 + item - 1`, and one less from item 0x11 on (`setup_slot_page` is
 //! read as the page of the slot list). If `read_setup_slot` fails, nothing more happens. Otherwise:
 //! all repair choices are cleared; the file's six values go to the chosen tyre (+0x30), the car's
 //! brake balance (+0x34), the chosen ride height (+0x38) and suspension stiffness (+0x3C), the

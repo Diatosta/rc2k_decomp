@@ -1,10 +1,10 @@
 //! `physics::set_handling` (0x43EB5D): `physics::grade_or_reset`, then nine handling
 //! figures from the car's setup (whole numbers in the work copy, 0 .. 256 by the look of
 //! it): each lo + n / 256 (hi - lo) between two constants of 0x613F1C .. 0x613F88:
-//! `flt_614C0C`, `flt_614C08` (by `dword_71A014`), `flt_614BF0` (`dword_719FF8`),
-//! `flt_614BF4`, `flt_614BFC` (`dword_71A008`; the second from the pair for
-//! `g_carDriveKind`, then times `dword_614C18`), `flt_614BEC`, `flt_614BF8`, `flt_614C00`,
-//! `flt_614C04` (`dword_71A00C`). What each is, is a reading.
+//! `flt_614C0C`, `flt_614C08` (by `steering_sensitivity`), `flt_614BF0` (`brake_balance`),
+//! `flt_614BF4`, `flt_614BFC` (`ride_height`; the second from the pair for
+//! `g_carDriveKind`, then times `ride_height_handling_scale`), `handling`, `flt_614BF8`, `flt_614C00`,
+//! `flt_614C04` (`suspension_stiffness`). What each is, is a reading.
 //!
 //! Returns: `g_carDriveKind`
 //!
@@ -14,7 +14,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::math::x87_run::int_lerp;
+use crate::math::x87::int_lerp;
 use crate::physics::car_store::Car;
 use crate::physics::grade_or_reset::grade_or_reset;
 use crate::physics::tables_store::PhysicsTables;
@@ -107,7 +107,7 @@ pub fn set_handling(race: &Race) -> Result<(), Refused> {
         &r[2 + kind],
     ));
     race.shared.physics_tables.handling[4].set_bits(x87::mul(
-        race.shared.physics_tables.handling[4].bits(),
+        &race.shared.physics_tables.handling[4],
         race.shared.physics_tables.ride_height_handling_scale.get(),
     ));
     for v in after(&race.shared.car, &race.shared.physics_tables) {

@@ -1,11 +1,12 @@
-//! `make_masks`' rings (IDA, 2026-10-17): a shape's ring of `n` quads, each from two
-//! entries of a corner table (`dword_82E422`, here the table's number: 0x18 bytes an entry), spanned into the mask's
-//! runs; its angles kept in a second table at esi.
+//! `make_masks`' rings (IDA): a shape's ring of `n` quads, each from two
+//! entries of a corner table (here the table's number: 0x18 bytes an entry), spanned into the mask's
+//! runs; its angles kept in a second table.
 
 use crate::effects::mask_store::Masks;
 use crate::effects::mask_vars::Shape;
 use crate::effects::spans::{span_quad, spans_fit, triangle_rows};
 use crate::errors::{BadInput, Refused};
+use crate::math::x87_float as bh;
 use crate::session::Bytes;
 
 use crate::math::x87;
@@ -134,8 +135,8 @@ pub fn span_ring(
         s.rows.set(masks.vars.runs.get());
         let scales: [u32; 3] = read_bits(&effects.setup.mask_constants.ring_scales);
         let ends = [
-            x87::mul(s.angle_ends[0].bits(), scales[0]),
-            x87::mul(s.angle_ends[1].bits(), scales[1]),
+            x87::mul(&s.angle_ends[0], scales[0]),
+            x87::mul(&s.angle_ends[1], scales[1]),
         ];
         write_bits(&masks.vars.ring_ends, ends);
         let (half, middle) = x87::half_and_middle(ends[1], ends[0], scales[2]);
@@ -143,7 +144,7 @@ pub fn span_ring(
         masks.vars.ring_middle.set_bits(middle);
         let mut angle = 0u32;
         masks.vars.ring_angle.set(angle);
-        let step = x87::pi_over(n);
+        let step = bh::st(bh::int(n).pi_over());
         masks.vars.ring_step.set_bits(step);
         for k in 0..n as u32 {
             let a1 = x87::less_cosine(angle, None, half, middle);

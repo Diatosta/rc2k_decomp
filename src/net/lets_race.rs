@@ -1,7 +1,7 @@
-//! `net::lets_race` (0x4640AA): the network race driven: `dword_63DB84` and the eight stored
+//! `net::lets_race` (0x4640AA): the network race driven: a race variable and the eight stored
 //! cars' +0x74 (`g_carBlockStore.out`) 0, the HUD set (`net::set_hud_options`), the race
 //! (`drive::play_race`), the HUD kept (`net::keep_hud_options`); then this machine's car
-//! (`g_carBlocks[dword_63DBA0]`): eax its +0x88 (the race's time, it seems), ebx 0, or -1
+//! (`g_carBlocks[local car]`): its +0x88 (the race's time, it seems) and 0, or -1
 //! when its +0xB0 is -1.
 //!
 //! Returns the time and whether the car did not finish.

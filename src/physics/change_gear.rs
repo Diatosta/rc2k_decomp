@@ -1,13 +1,11 @@
-//! `physics::change_gear` (0x43C20D): the gear changed to the one asked for
-//! (`dword_614C40`). Nothing when it is the gear already (eax the gear). From neutral:
-//! the gear set and `physics::wheels_from_revs`. To neutral, or when `physics::gear_bit`
-//! refuses the new gear (CF): the gear 0. Else `wheels_from_revs` (old gear), the gear
-//! set, `physics::revs_from_wheels`. Every change sets `g_car` +0x238 and +0x23C
-//! (`unk_71A210`, `unk_71A214`) to 1.
+//! `physics::change_gear` (0x43C20D): the gear changed to the one asked for (`gear_asked`).
+//! Nothing when it is the gear already. From neutral: the gear is set and
+//! `physics::wheels_from_revs` runs. To neutral, or when `physics::gear_bit` refuses the new gear:
+//! the gear becomes 0. Else `wheels_from_revs` (old gear), the gear set, `physics::revs_from_wheels`.
+//! Every change sets the car's `gear_changed` and `gear_change_pending` to 1.
 //!
 //! Caller: `physics::take_asked_gear` (its tail). Refuses (before anything) a gear or a new gear
-//! outside
-//! -1 ..= 7 where the gearing reads its ratio, and what `gear_bit` refuses.
+//! outside -1 ..= 7 where the gearing reads its ratio, and what `gear_bit` refuses.
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::gear_bit::gear_bit_at;

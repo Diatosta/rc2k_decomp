@@ -4,7 +4,7 @@
 //! - `input::release_effect` (0x409ACC): `Stop`, `Release`, +0x30 0;
 //! - `input::start_effect` (0x409AEE): `Download`, `Start` (one iteration, no flags);
 //! - `input::set_effect_parameters` (0x409B1F): `SetParameters` with the effect's
-//!   `DIEFFECT` (+0x34) and eax the flags;
+//!   `DIEFFECT` (+0x34) and the flags;
 //! - `input::stop_effect` (0x409B0D): `Stop`.
 //!
 //! Callers: the effects' functions (`input::effect_N_change`, through

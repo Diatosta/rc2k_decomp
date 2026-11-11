@@ -1,9 +1,9 @@
-//! `race::blit_map_tiles` (0x41B931): the map's tiles into its picture: the texture eax locked,
-//! then 8 x 8 tiles of 16 x 16 pixels from tile on: each the tile's pixels (`g_mapTiles`, 0x80 x
-//! 0x80 pointers, 16 x 16 pixels each) or, for a tile without them or outside the 0x80 x 0x80, the
-//! colour `g_mapBlack`, as words on a surface of 2 bytes a pixel and as dwords on any other, at the
-//! tile's place on the locked surface (`g_surface`); the gap between a tile's rows kept in
-//! `dword_5BE9AD`; unlocked.
+//! `race::blit_map_tiles` (0x41B931): the map's tiles into its picture: the given texture is locked,
+//! then 8 x 8 tiles of 16 x 16 pixels from the given tile on: each the tile's pixels (`g_mapTiles`,
+//! 0x80 x 0x80 pointers, 16 x 16 pixels each) or, for a tile without them or outside the 0x80 x
+//! 0x80, the colour `g_mapBlack`, as words on a surface of 2 bytes a pixel and as dwords on any
+//! other, at the tile's place on the locked surface (`g_surface`); the gap between a tile's rows is
+//! kept in a scratch dword; the texture is unlocked.
 //!
 //! Callers: `race::map_tiles_stub`, so `race::map_tiles` (the map's scroll). Refuses (after the
 //! lock, unlocking first) a null surface, and a null tile table with a tile inside the 0x80 x
@@ -110,7 +110,7 @@ pub fn blit_map_tiles(
             }
         }
     }
-    // eax at the unlock: the texture, as the lock left it.
+    // The unlock takes the texture as the lock left it.
     { unlock_texture(texture) }?;
     Ok(())
 }

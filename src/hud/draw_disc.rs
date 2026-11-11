@@ -6,7 +6,7 @@
 //!
 //! Callers: 0x4B6B0A, 0x4B6B5B, 0x4B6BAC, 0x4B6BFD.
 //!
-//! Converted 2026-10-21: the ring's angles and the triangles' entries through
+//! the ring's angles and the triangles' entries through
 //! `rc2k_core::hud::disc` (whole numbers; the sines are copied); the texture's turn stays
 //! the x87's (its rounding follows the control word), worked out once (the original works
 //! the same value out sixteen times into `dword_75C060`).
@@ -34,7 +34,7 @@ pub fn draw_disc(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
             hud.block.disc_turn_a.bits(),
             hud.block.disc_turn_b.bits(),
         );
-        let table = |cell: &crate::session::Float| x87::loaded(cell.bits());
+        let table = |cell: &crate::session::Float| x87::loaded(cell);
         for (k, [a, b]) in ring_angles(t).into_iter().enumerate() {
             let n = k + 1;
             hud.block.ring_sines[n]

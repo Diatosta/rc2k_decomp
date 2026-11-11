@@ -1,6 +1,6 @@
 //! `gfx::fill_thirds_table` (0x405580): the table of n / 3 for n = 0 .. 0x2FF.
 //!
-//! 0x300 bytes at `byte_4F4B30`: the mean of three components by their sum. One caller,
+//! 0x300 bytes at `thirds`: the mean of three components by their sum. One caller,
 //! `start`, which calls it directly. Who reads the table has not been looked up.
 #[cfg(test)]
 use crate::gfx::owner::gfx;

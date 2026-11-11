@@ -1,5 +1,4 @@
-//! The race's shell (`race::single_rally_race`, `single_rally`'s race, and `race::run_race`, IDA
-//! 2026-10-17): what runs round a stage's loading and its run. Here its small leaves.
+//! The race's shell (`race::single_rally_race`, `single_rally`'s race, and `race::run_race`): what runs round a stage's loading and its run. Here its small leaves.
 use crate::net::owner::net;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::kind_store::KIND_TABLES;
@@ -32,11 +31,11 @@ pub fn kind_unusable(eax: u32) -> (bool, bool) {
     (f.carry, f.zero)
 }
 
-/// `race::index_of_kind` (0x437720): the place of kind `kind` in `dword_6051E0` (the first of
+/// `race::index_of_kind` (0x437720): the place of kind `kind` in `kind_order` (the first of
 /// equals), 0 for none.
 pub fn index_of_kind(shared: &RaceShared, kind: u32) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::cars::index_of_kind`; the table read entry by entry.
-    // dword_6051E0: 0x22 kinds, but `kind_order` holds 32: the last two are the two dwords
+    // `kind_order`: 0x22 kinds, but `kind_order` holds 32: the last two are the two dwords
     // after it (`view_share`, `camera_turn_step`), read as the original does.
     // Bounded by the whole store: the last two entries are past the table.
     let first = core::mem::offset_of!(crate::race::tables_store::RaceTables, kind_order);
@@ -84,8 +83,8 @@ pub fn seal_stage_time(race: &Race) -> Result<(), BadInput> {
 }
 
 /// `race::copy_league_table` (0x4650B7): with a source (`dword_75ACD0`), its ten records' +8 into
-/// `dword_60410C` and their sixteen dwords from +0x10 into column n of the sixteen rows at
-/// 0x604134. conversion phase 3, 2026-10-24).
+/// `names` and their sixteen dwords from +0x10 into column n of the sixteen rows at
+/// 0x604134.
 pub fn copy_league_table(race: &Race) -> Result<(), BadInput> {
     let course = &race.course;
     // Converted: `rc2k_core::race::results::league`.
@@ -126,7 +125,7 @@ fn start_value(physics: &Physics, kind: u32) -> u32 {
     start_state_value(record.engine_top.get(), || record.drive_kind.get())
 }
 
-/// Whether a kind is one with its flag (`dword_5C5AC0`) set (below 0x22).
+/// Whether a kind is one with its flag (`kind_has_views`) set (below 0x22).
 fn flagged(kind: u32) -> bool {
     kind < 0x22 && KIND_TABLES.kind_has_views[kind as usize].get() != 0 // dword_5C5AC0: 0x22
 }
@@ -138,12 +137,12 @@ fn settle_state(view: &Dword) {
     }
 }
 
-/// `race::set_start_states` (0x446D2E): `dword_6D14CA` / `CE` the start values of the first car's
-/// kind (the chosen car's, `dword_52A920`, with `dword_52A910` 1) and of `dword_62385C`; then with
-/// `dword_52A910` 1: `dword_6238A4` 0 and, unless the chosen car's kind is flagged, its block's
-/// +0x684 2 or 3 made 4; else `dword_6238A4` 0 (one player) or held to 1 .. 2 (two), and, when the
+/// `race::set_start_states` (0x446D2E): `start_values` / `CE` the start values of the first car's
+/// kind (the chosen car's, `player`, with `session` 1) and of `dword_62385C`; then with
+/// `session` 1: `split` 0 and, unless the chosen car's kind is flagged, its block's
+/// +0x684 2 or 3 made 4; else `split` 0 (one player) or held to 1 .. 2 (two), and, when the
 /// first car's kind is not flagged or there are two players, the first two blocks' +0x684 2 or 3
-/// made 4. it keeps the rest). Refuses, with `dword_52A910` 1, a chosen car past 7 (the original
+/// made 4. it keeps the rest). Refuses, with `session` 1, a chosen car past 7 (the original
 /// reads past the tables), before anything.
 pub fn set_start_states(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
@@ -188,8 +187,8 @@ pub fn set_start_states(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::store_results_by_mode` (0x449957): by `dword_62389C`: 2 the first block's +0x8C to
-/// `dword_75AFFC`, its +0x654 to `dword_75B000` and `dword_6051BC`, its +0x88 to `dword_75B01C`; 0
+/// `race::store_results_by_mode` (0x449957): by `run_kind`: 2 the first block's +0x8C to
+/// `dword_75AFFC`, its +0x654 to `dword_75B000` and `start_place`, its +0x88 to `dword_75B01C`; 0
 /// the first two blocks' +0x88 to `dword_75B01C` / `dword_75B08C` and `g_stageCarTotal` x 100 less
 /// each, held to 0 .. 300000, to `dword_75B020` / `dword_75B090`; 1 and 3 the two +0x88s; others
 /// nothing.

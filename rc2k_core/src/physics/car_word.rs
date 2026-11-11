@@ -1,4 +1,4 @@
-//! The work copy's +0xC word (`dword_719FE4`; converted 2026-10-21 from
+//! The work copy's +0xC word (`noise_word`; Converted from
 //! `physics::test_car_word` 0x44133F): its bits tested by rotation. What they are is not
 //! known yet.
 

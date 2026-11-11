@@ -1,7 +1,7 @@
-//! `net::start_link` (0x416F50): a network game, from the menu's host (eax 1, action
-//! 0x4AAAEC) and join (2, 0x4AAAE1) items (the original's third, a lobby's launch, is left
-//! out with the lobbies: `net::open_lobby`):
-//! "NET: Starting link", the mode to `dword_52A908`, the player's settings
+//! `net::start_link` (0x416F50): a network game, from the menu's host (1) and join (2)
+//! items (the original's third, a lobby's launch, is left out with the lobbies:
+//! `net::open_lobby`):
+//! "NET: Starting link", the mode to `mode`, the player's settings
 //! (`net::take_player_settings`) and record (`net::fill_own_player` with `g_playerNames`),
 //! the background; the connections listed (`net::find_connections_regs`; failing: message
 //! 0x154). Then the saved connection (`net::find_saved_connection`)
@@ -11,7 +11,7 @@
 //! chosen (`net::choose_session`) and joined (`net::joining`; any of these failing: message
 //! 0x155). Then the session on (`g_netSession` 1), the chat cleared (`net::clear_chat`, under
 //! the received messages' lock), the sync counter 0, `g_netSequence` 0x80, not after a race;
-//! and round: `dword_52AD78`, `dword_52AD7C` 0, the lobby's tune (`sound::play_tune_4`), the
+//! and round: `all_raced`, `race_over` 0, the lobby's tune (`sound::play_tune_4`), the
 //! lobby (`net::lobby_loop`; left: the end), new players kept out on the host
 //! (`net::close_if_host`), the race (`net::lets_rally`; failing: the end). The end: "NET:
 //! Stopping link", the network stopped (`net::stopping`), the menu's tune

@@ -1,18 +1,18 @@
-//! `effects::draw_subcell_sprite` (0x4CBF47): a ring entry's square sprite from a subcell:
-//! the place (st(0) x, st(1) y, st(2) z) turned by `g_viewMatrix` into `flt_8EB8D5` ..
-//! (the depth also whole in `dword_9356C0`); unless the depth is at or below
-//! `dword_8EB961` (a signed compare of the bits): the four vertices' specular
-//! `scene::fog_at` of the depth, colour the entry's +0x90 | 0xFF000000, texture places from
-//! subcell eax of `g_marksSubcellPlaces`, depth times `flt_8EB96D`; half the side (edx's
-//! bits as a float, times `flt_624088` / depth) in `dword_8EB8B5` and `dword_8EB8B9`; the
-//! corners about the projected place; `effects::clip_quad`, and unless all is outside
-//! `scene::draw_fan` and `g_polygonVertexCount` 4.
+//! `effects::draw_subcell_sprite` (0x4CBF47): a ring entry's square sprite from a subcell: the
+//! place (st(0) x, st(1) y, st(2) z) turned by the view matrix into the draw work's place (the
+//! depth also whole in the ring's `whole`); unless the depth is at or below the nearest depth
+//! (a signed compare of the bits): the four vertices' specular `scene::fog_at` of the depth,
+//! colour the entry's +0x90 | 0xFF000000, texture places from the subcell's entry in the
+//! subcell places, depth times the depth scale; half the side (the size's bits as a float,
+//! times the view scale / depth); the corners about the projected place; `effects::clip_quad`,
+//! and unless all is outside `scene::draw_fan` and the polygon's vertex count 4.
 //!
-//! Callers: the ring's kinds 0x10, 0x11 (`effects::run_ring`) and code at 0x4C55EF .. 0x4C5AB4.
+//! Callers: the ring's kinds 0x10, 0x11 (`effects::run_ring`) and the effects' lines.
 //! The x87 blocks are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the game's variables. Refuses,
 //! before anything, a subcell past the table's 0x410, a null entry, and the fog's and the
 //! clip's refusals.
 
+use crate::effects::cell_x87::CellX87;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
@@ -24,7 +24,7 @@ use crate::session::Float;
 use crate::d3d::vertices_store::VERTICES;
 const SUBCELLS: u32 = 0x410;
 
-/// The original's 0x4CBF47 .. 0x4CBFCB: the place turned by the view.
+/// The place turned by the view.
 fn turn(
     view_matrix: &[Float; 16],
     ring: &Ring,
@@ -34,14 +34,12 @@ fn turn(
     turn_x87(view_matrix, p, &ring.work, &effects.frame.draw_work);
 }
 
-/// The original's 0x4CC009 .. 0x4CC140 (its integer moves done before): the square about
-/// the projected place.
+/// The square about the projected place.
 fn square(effects: &crate::effects::owner::Effects) {
     square_x87(&effects.frame.draw_work);
 }
 
-/// `subcell` (eax), `size` (edx, a float's bits),
-/// `entry` (esi). No caller reads a register it leaves.
+/// `subcell` is the subcell's number, `size` a float's bits, `entry` the ring entry.
 #[allow(
     clippy::too_many_arguments,
     reason = "the original's registers, the effects' groups and the owners"
@@ -109,37 +107,37 @@ fn turn_x87(view_matrix: &[Float; 16], p: &[[u8; 10]; 3], w: &RingWork, dw: &Dra
     let t0 = bh::from_f80(p[2]);
     let t1 = bh::from_f80(p[1]);
     let t2 = bh::from_f80(p[0]);
-    let t3 = ld(view_matrix[0].bits());
+    let t3 = view_matrix[0].ld();
     let t4 = t3 * t2;
-    let t5 = ld(view_matrix[4].bits());
+    let t5 = view_matrix[4].ld();
     let t6 = t5 * t1;
-    let t7 = ld(view_matrix[8].bits());
+    let t7 = view_matrix[8].ld();
     let t8 = t7 * t0;
     let t9 = t6 + t8;
     let t10 = t4 + t9;
-    let t11 = t10 + ld(view_matrix[12].bits());
-    let t12 = ld(view_matrix[1].bits());
+    let t11 = t10 + view_matrix[12].ld();
+    let t12 = view_matrix[1].ld();
     let t13 = t12 * t2;
-    let t14 = ld(view_matrix[5].bits());
+    let t14 = view_matrix[5].ld();
     let t15 = t14 * t1;
-    let t16 = ld(view_matrix[9].bits());
+    let t16 = view_matrix[9].ld();
     let t17 = t16 * t0;
     let t18 = t15 + t17;
     let t19 = t13 + t18;
-    let t20 = t19 + ld(view_matrix[13].bits());
-    let t21 = ld(view_matrix[2].bits());
+    let t20 = t19 + view_matrix[13].ld();
+    let t21 = view_matrix[2].ld();
     let t22 = t2 * t21;
-    let t23 = ld(view_matrix[6].bits());
+    let t23 = view_matrix[6].ld();
     let t24 = t1 * t23;
-    let t25 = ld(view_matrix[10].bits());
+    let t25 = view_matrix[10].ld();
     let t26 = t0 * t25;
     let t27 = t26 + t24;
     let t28 = t22 + t27;
-    let t29 = t28 + ld(view_matrix[14].bits());
-    dw.turned[0].set_bits(bh::st(t11));
-    dw.turned[1].set_bits(bh::st(t20));
+    let t29 = t28 + view_matrix[14].ld();
+    dw.turned[0].st(t11);
+    dw.turned[1].st(t20);
     w.whole.set_bits(bh::to_int(t29) as u32);
-    dw.turned[2].set_bits(bh::st(t29));
+    dw.turned[2].st(t29);
 }
 
 /// `square`'s x87 block as plain Rust on the x87 model (41 instructions), same order and memory places.
@@ -148,37 +146,37 @@ fn square_x87(dw: &DrawWork) {
         .window
         .view_scale
         .bits());
-    let t1 = t0 / bh::ld(dw.turned[2].bits());
-    let t2 = bh::ld(dw.turned[2].bits());
-    let t3 = t2 * bh::ld(dw.z_k.bits());
+    let t1 = t0 / dw.turned[2].ld();
+    let t2 = dw.turned[2].ld();
+    let t3 = t2 * dw.z_k.ld();
     st_cell(&VERTICES.vertices[0].z, t3);
     st_cell(&VERTICES.vertices[1].z, t3);
     st_cell(&VERTICES.vertices[2].z, t3);
     st_cell(&VERTICES.vertices[3].z, t3);
-    let t4 = bh::ld(dw.half[0].bits());
+    let t4 = dw.half[0].ld();
     let t5 = t4 * t1;
-    dw.half[0].set_bits(bh::st(t5));
-    dw.half[1].set_bits(bh::st(t5));
-    let t6 = t1 * bh::ld(dw.turned[0].bits());
-    let t7 = t1 * bh::ld(dw.turned[1].bits());
+    dw.half[0].st(t5);
+    dw.half[1].st(t5);
+    let t6 = t1 * dw.turned[0].ld();
+    let t7 = t1 * dw.turned[1].ld();
     let t8 = -t7;
-    let t9 = t8 + ld(crate::scene::polygon_work::front_end().window.view_centre[1].bits());
-    let t10 = t9 - bh::ld(dw.half[1].bits());
+    let t9 = t8 + crate::scene::polygon_work::front_end().window.view_centre[1].ld();
+    let t10 = t9 - dw.half[1].ld();
     st_cell(&VERTICES.vertices[0].y, t10);
-    let t11 = t9 - bh::ld(dw.half[1].bits());
+    let t11 = t9 - dw.half[1].ld();
     st_cell(&VERTICES.vertices[1].y, t11);
-    let t12 = t9 + bh::ld(dw.half[1].bits());
+    let t12 = t9 + dw.half[1].ld();
     st_cell(&VERTICES.vertices[2].y, t12);
-    let t13 = t9 + bh::ld(dw.half[1].bits());
+    let t13 = t9 + dw.half[1].ld();
     st_cell(&VERTICES.vertices[3].y, t13);
-    let t14 = t6 + ld(crate::scene::polygon_work::front_end().window.view_centre[0].bits());
-    let t15 = t14 - bh::ld(dw.half[0].bits());
+    let t14 = t6 + crate::scene::polygon_work::front_end().window.view_centre[0].ld();
+    let t15 = t14 - dw.half[0].ld();
     st_cell(&VERTICES.vertices[0].x, t15);
-    let t16 = t14 + bh::ld(dw.half[0].bits());
+    let t16 = t14 + dw.half[0].ld();
     st_cell(&VERTICES.vertices[1].x, t16);
-    let t17 = t14 + bh::ld(dw.half[0].bits());
+    let t17 = t14 + dw.half[0].ld();
     st_cell(&VERTICES.vertices[2].x, t17);
-    let t18 = t14 - bh::ld(dw.half[0].bits());
+    let t18 = t14 - dw.half[0].ld();
     st_cell(&VERTICES.vertices[3].x, t18);
 }
 

@@ -1,5 +1,5 @@
 //! `drive::record_inputs_if` (0x46008D): `drive::record_inputs` while recording a replay
-//! (`dword_5C5CE0` 1) for the cars below `dword_63DB94`.
+//! (`replay_mode` 1) for the cars below `players`.
 //!
 //! Caller: `drive::replay_step` (0x460B2F).
 

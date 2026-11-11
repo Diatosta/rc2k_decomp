@@ -1,16 +1,16 @@
-//! `physics::lever_pushes` (0x43DDDF): `dword_6140E4` and `dword_6140E8` 0; then, only
-//! with `dword_621884` 1 and `dword_71A22C` 0: the lever `flt_614B44`, `B48` 0 and
-//! `flt_614C44` 0; a share A / (B + A) of A = |+0x210| + |+0x21C| and B = |+0x214| +
-//! |+0x218| (`g_car`, `dword_71A1E8` .. `dword_71A1F4`; a reading: the wheels' loads)
-//! into `flt_614C44`, held to `flt_5C5D90` (0) ..= `flt_5C5D38` (1). If B + A is 0 (or no
+//! `physics::lever_pushes` (0x43DDDF): `lever_pushes` and `dword_6140E8` 0; then, only
+//! with `levers_on` 1 and `all_wheels_off` 0: the lever `lever_push_vector`, `B48` 0 and
+//! `lever_share_start` 0; a share A / (B + A) of A = |+0x210| + |+0x21C| and B = |+0x214| +
+//! |+0x218| (`g_car`, `grip_forces` .. `dword_71A1F4`; a reading: the wheels' loads)
+//! into `lever_share_start`, held to `zero` (0) ..= `one` (1). If B + A is 0 (or no
 //! number) the share is A itself and it ends there. Else `flt_614B4C` = `flt_71ACD4` and
-//! `flt_614C48` the share, `physics::lever_push`; `flt_614B4C` = `flt_71ACC8` and
-//! `flt_614C48` 1 less it, `physics::lever_push`. It ends through the `retn` at 0x43DFB0.
+//! `lever_share_left` the share, `physics::lever_push`; `flt_614B4C` = `probe_point_z` and
+//! `lever_share_left` 1 less it, `physics::lever_push`. It ends through the `retn` at 0x43DFB0.
 //!
 //! Callers: `physics::car_physics_step` (0x43B831, 0x43B8AA), every physics step.
 
 use crate::math::x87;
-use crate::math::x87_run::{lever_share, one_less};
+use crate::math::x87::{lever_share, one_less};
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::lever_push::lever_push;
 use crate::race::owner::Race;
@@ -57,16 +57,14 @@ pub fn lever_pushes(race: &Race, scene: &crate::scene::owner::Scene) {
         race.shared
             .physics_tables
             .lever_share_start
-            .set_bits(x87::loaded(race.course.numbers.one.bits()));
+            .set_bits(x87::loaded(&race.course.numbers.one));
     }
     race.shared.physics_tables.lever_push_vector[2]
-        .set(x87::loaded(race.shared.car.probe_point_z[3].bits()));
+        .set(x87::loaded(&race.shared.car.probe_point_z[3]));
     race.shared
         .physics_tables
         .lever_share_left
-        .set_bits(x87::loaded(
-            race.shared.physics_tables.lever_share_start.bits(),
-        ));
+        .set_bits(x87::loaded(&race.shared.physics_tables.lever_share_start));
     lever_push(
         &race.shared.car,
         &race.shared.physics_tables,
@@ -74,7 +72,7 @@ pub fn lever_pushes(race: &Race, scene: &crate::scene::owner::Scene) {
         scene,
     );
     race.shared.physics_tables.lever_push_vector[2]
-        .set(x87::loaded(race.shared.car.probe_point_z[0].bits()));
+        .set(x87::loaded(&race.shared.car.probe_point_z[0]));
     race.shared
         .physics_tables
         .lever_share_left

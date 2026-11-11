@@ -1,8 +1,8 @@
 //! `menu::handle_yes_no` (0x470D2E): on a screen that asks a yes/no question, lets a key
 //! answer it.
 //!
-//! Only while `dword_7554CC` is 1. A key that `input::yes_no_for_key` takes for yes stores 1
-//! in `dword_75524C`, one for no stores 0; either also sets `dword_758806` to 1 and leaves
+//! Only while `flow.asking` is 1. A key that `input::yes_no_for_key` takes for yes stores 1
+//! in `pages.yes_no_answer`, one for no stores 0; either also sets `captions.left_by_key` to 1 and leaves
 //! the screen with `menu::go_back`. One caller, `menu::handle_keys`.
 //! Refuses what the yes/no functions refuse.
 

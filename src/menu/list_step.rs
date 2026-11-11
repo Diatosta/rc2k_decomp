@@ -2,10 +2,10 @@
 //! `install::run_page`'s) moved by a key: 0x66 and 0x6B back and on, 0x68 and 0x69 the other way.
 //! With a table of neighbours (ebx, 4 bytes an item: 0x66's, 0x6B's, 0x68's, 0x69's) the
 //! item's entry, unless negative; without one (ebx 0) 0x66 and 0x6B go round the list
-//! (`[edi+1]` items) and 0x68 and 0x69 do nothing. The item into `dword_51D407`.
+//! (`[edi+1]` items) and 0x68 and 0x69 do nothing. The item into the item table.
 //!
-//! another key (carry: al below 0x69), else `dword_51D407` with cl the table's entry
-//! (carry clear), or for 0x68 / 0x69 without a table `dword_51D407` (carry set)
+//! another key (carry: al below 0x69), else the item table with cl the table's entry
+//! (carry clear), or for 0x68 / 0x69 without a table the item table (carry set)
 //!
 //! Callers: `race::replay_viewer` (two), reading ZF.
 

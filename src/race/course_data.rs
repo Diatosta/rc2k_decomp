@@ -1,4 +1,4 @@
-//! `race::loadlevel_init`'s "locacurrcourse" (`race::locate_current_course`, IDA 2026-10-16): the
+//! `race::loadlevel_init`'s "locacurrcourse" (`race::locate_current_course`): the
 //! course's data (`cdat00c`) read into the course memory, its first 0x100 bytes the header
 //! (`g_courseHeader`, 0x5CCD14: the counts of `race/norms.rs`' layout), the 0x20-byte
 //! records grouped by kind, the faces' lights reset, then the best line. Here the small
@@ -58,7 +58,7 @@ pub fn reset_face_lights(race: &Race) -> Result<(), Refused> {
         // Converted: `rc2k_core::race::faces::reset_lights` (each record inside the
         // faces the original walks; written back only when changed).
         const FACE: usize = rc2k_core::race::faces::FACE_BYTES;
-        let all = crate::race::course_places::faces_table(course, count, "the course faces")?;
+        let all = crate::race::course_places::faces_table(course, count)?;
         for (n, bytes) in all.as_chunks::<FACE>().0.iter().enumerate() {
             let mut face = *bytes;
             let kept = face;
@@ -68,7 +68,6 @@ pub fn reset_face_lights(race: &Race) -> Result<(), Refused> {
                     course,
                     n as u32,
                     rc2k_core::race::faces::Face(face),
-                    "a course face",
                 )?;
             }
         }
@@ -90,7 +89,7 @@ pub fn group_records_by_kind(course: &Course) -> Result<(), Refused> {
         if count > MOST_RECORDS {
             return Err(BadInput("more records than the course memory holds").into());
         }
-        let bytes = crate::race::course_places::records_table(course, count, "the course records")?;
+        let bytes = crate::race::course_places::records_table(course, count)?;
         let mut list: Vec<[u32; 8]> = bytes
             .as_chunks::<32>()
             .0
@@ -106,7 +105,7 @@ pub fn group_records_by_kind(course: &Course) -> Result<(), Refused> {
             .iter()
             .flat_map(|r| r.iter().flat_map(|v| v.to_le_bytes()))
             .collect();
-        crate::race::course_places::write_records_table(course, &out, "the course records")?;
+        crate::race::course_places::write_records_table(course, &out)?;
         for kind in 0..KINDS as usize {
             course.kind_records.first_records[kind].set(grouped.first[kind]);
             course.kind_records.last_records[kind].set(grouped.last[kind]);
@@ -193,8 +192,8 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::locate_current_course` (0x4394CB, "locacurrcourse"): `dword_609380` 0,
-/// `load_level`, `lay_out_course` (its test of `dword_621514` jumps to the next
+/// `race::locate_current_course` (0x4394CB, "locacurrcourse"): `cdat_number` 0,
+/// `load_level`, `lay_out_course` (its test of `editor_mode` jumps to the next
 /// instruction either way: section 16), `group_records_by_kind`, `build_best_line`.
 pub fn locate_current_course(
     race: &Race,

@@ -1,8 +1,8 @@
-//! The car's shadow, its whole-number parts (converted 2026-10-21 from `race::shadow_hull`
+//! The car's shadow, its whole-number parts (converted from `race::shadow_hull`
 //! 0x45836F, the cells of `race::shadow_faces` 0x457618 with 0x4576C9, and the near
 //! test of `race::clip_shadow_to_face` 0x457960). A shadow point is a 0x20-byte record
 //! (+0 x, +4 y, +8 z as whole numbers, +0xC the angle, ...). The cars' shadows' passes
-//! converted 2026-10-21 from `race::cast_car_shadow` 0x4575C1 and `race::cast_car_shadows`
+//! Converted from `race::cast_car_shadow` 0x4575C1 and `race::cast_car_shadows`
 //! 0x45754C.
 
 use crate::Invalid;
@@ -24,15 +24,15 @@ pub struct Cut {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Hull {
-    /// The points left (`dword_643ACC`).
+    /// The points left (`hull_count`).
     pub count: u32,
-    /// The point the walk was at (ebx).
+    /// The point the walk was at.
     pub at: u32,
     /// The point tested last (whose turn decided).
     pub tested: u32,
-    /// The last turn's two products' difference (edx:eax: not negative takes a point out).
+    /// The last turn's two products' difference (a 64-bit value: not negative takes a point out).
     pub difference: i64,
-    /// The last turn's first product (`qword_620460`).
+    /// The last turn's first product (`product`).
     pub product: i64,
     /// The last removal (none: no point was taken out).
     pub cut: Option<Cut>,
@@ -139,7 +139,7 @@ pub const SHADOW_TRIANGLES: [[u32; 3]; 2] = [[4, 8, 0xC], [0x10, 0xC, 8]];
 pub const NEAR: u32 = 0x10_0000;
 
 /// What `face_near` found: whether the face is near, the corner asked about last and
-/// the last distance worked out (eax).
+/// the last distance worked out.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Near {
     pub near: bool,
@@ -218,8 +218,8 @@ pub fn hull_list(points: u32) -> impl Iterator<Item = u32> {
     0..points
 }
 
-/// The shadow's texture (`dword_641930`), its strength (`dword_641928`) and the sun's
-/// height for the second pass (`dword_60933C`, put back after).
+/// The shadow's texture (`shadow_texture`), its strength (`shadow_strength`) and the sun's
+/// height for the second pass (`sun_height`, put back after).
 pub const SHADOW_TEXTURE: u32 = 0xC3;
 pub const SHADOW_STRENGTH: u32 = 0x1999;
 pub const SUN_PASS: u32 = 0x40;

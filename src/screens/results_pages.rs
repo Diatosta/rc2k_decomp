@@ -2,10 +2,10 @@
 //! functions 2026-10-19): ten rows of the ranked times (`g_rankedTimes`) from row
 //! `g_champFirstRow`, one page each of four:
 //! - `screens::draw_class_rally_results` (0x4A3376): the title (string 0x4EA, or 0x4ED with
-//!   `dword_75AB20` 1, at (0x310, 0x30), font 0x51E944) and the stage's name (at (0x2EB,
-//!   0x77), font 0x51E9A4: in event mode 0x13 `dword_75A28A`[section], else the section's
+//!   `state.menus.rally_done` 1, at (0x310, 0x30), font 0x51E944) and the stage's name (at (0x2EB,
+//!   0x77), font 0x51E9A4: in event mode 0x13 the section's entry of the heading list, else the section's
 //!   first record's +0x38); the rally's times (+0x18); the first time the class's
-//!   (`menu::find_class_time`, ebx 1); the rows of the class (`dword_7558F4`) by position
+//!   (`menu::find_class_time`, ebx 1); the rows of the class (`event.class`) by position
 //!   (`menu::find_ranked_entry`);
 //! - `screens::draw_overall_rally_results` (0x4A37E2): the same with the titles 0x4EB /
 //!   0x4EE, the first time the first classed entry's (`menu::first_overall_time`, eax 2,
@@ -15,7 +15,7 @@
 //!   the stage's times (+0x14); the first time the class's (`find_class_time`, ebx 0); the
 //!   class's rows;
 //! - `screens::draw_overall_stage_results` (0x4A2F46): as the last with the first time
-//!   `first_overall_time` (eax 2, ebx 0), kept in `dword_7559D4` too (the gaps' base), the
+//!   `first_overall_time` (eax 2, ebx 0), kept in `draw_work.overall_first_time` too (the gaps' base), the
 //!   rows by position alone.
 //!
 //! Then each: the column headings (string 0x484 at (0xC8, 0xDC) in 0x51E5A4, 0x485 at (0xFA,
@@ -48,11 +48,10 @@ use crate::text::draw_text::Canvas;
 // g_champRowEnd
 // g_firstPlayerTime
 // hundredths
-// dword_7559D4
 
 #[derive(Clone, Copy)]
 enum Heading {
-    /// The title (normal, with `dword_75AB20` 1) and the stage's name.
+    /// The title (normal, with `rally_done` 1) and the stage's name.
     Titles(u32, u32),
     /// `screens::draw_record_heading`.
     Record,
@@ -69,7 +68,7 @@ pub struct Page {
     /// The first time: true the class's (`find_class_time`), false the first classed
     /// entry's (`first_overall_time`).
     by_class: bool,
-    /// The first time also in `dword_7559D4`.
+    /// The first time also in `draw_work.overall_first_time`.
     keep_overall: bool,
 }
 

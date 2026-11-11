@@ -4,7 +4,7 @@
 //! The owner: "the screen before the service area in championship that shows that rally's stages".
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
-//! (`SCREEN`): before the loop it clears the Escape flag `dword_755A3C`;
+//! (`SCREEN`): before the loop it clears the Escape flag `draw_work.escape_pressed`;
 //! its background comes from `menu::load_background`, after which a set carry flag is fatal
 //! error 0x80712345; leaving is asked about, and a "no" sets the screen up again.
 //! Callers: the event loops `menu::run_championship`.
@@ -22,7 +22,7 @@ pub const SCREEN: Screen = Screen {
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.list_758d56.id(),
+            table: |m| m.tables.draw_lists.rally_stages_list.id(),
             run: false,
         },
         List {
@@ -36,7 +36,7 @@ pub const SCREEN: Screen = Screen {
         &m.tables.texts.rally_stages_picture
     }))],
     asking: Some(Asking { ..Asking::DEFAULT }),
-    // saved_item is dword_747770
+    // saved_item is the saved highlight
     ..Screen::new(
         |m| m.tables.menus.rally_stages.id(),
         |m| &m.screens.items.current[slot::RALLY_STAGES],

@@ -15,8 +15,7 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::blit_bar::BAR_HAS_NO_LENGTH;
 use crate::gfx::blit_glyph::BlitCall;
 use crate::menu::item_sprites_store::ItemSprite;
-use crate::menu::owner::Screens;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::session::Dword;
 use crate::text::draw_text::Canvas;
 use crate::text::measure_string_by_id::measure_string_by_id_at;
@@ -101,15 +100,14 @@ pub const ALIGN_RIGHT: u32 = 3;
 
 /// What the three functions do: the item is only read for its sprites (`set`, its +0x20).
 pub fn draw_button(
+    menus: &Menus,
     kind: &Kind,
     width: u32,
-    x: i32,
-    y: i32,
+    (x, y): (i32, i32),
     align: u32,
     set: ItemSprite,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let menus = menus();
     let list = match set {
         ItemSprite::List(n) => &menus.panels.item_sprites.lists[n],
         ItemSprite::Sprite(0) => return Err(BadInput("a button without sprites").into()),
@@ -161,16 +159,16 @@ pub fn draw_button(
 /// `screens::draw_item_button` (0x469283): the button an item describes itself (width at
 /// +8, alignment at +0xC), highlighted if the item is.
 pub fn draw_item_button(
-    screens: &Screens,
+    menus: &Menus,
     item: &crate::menu::menus_store::MenuItem,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let highlighted = screens.loop_flags.item.get() == item.fixed().id;
+    let highlighted = menus.screens.loop_flags.item.get() == item.fixed().id;
     draw_button(
+        menus,
         if highlighted { &HIGHLIGHTED } else { &PLAIN },
         item.fixed().width_or_text_x as u32,
-        item.fixed().x,
-        item.fixed().y,
+        (item.fixed().x, item.fixed().y),
         item.fixed().alignment_or_text_y as u32,
         item.sprites.get(),
         canvas,
@@ -182,6 +180,7 @@ pub fn draw_item_button(
 /// width does not depend on it, so it is measured from 0. Refused: a measuring font that
 /// does not only measure (it would draw the text at that x).
 pub fn draw_text_button(
+    menus: &Menus,
     kind: &Kind,
     align: u32,
     item: &crate::menu::menus_store::MenuItem,
@@ -192,10 +191,10 @@ pub fn draw_text_button(
     ))?;
     let measured = measure_string_by_id_at(item.string.get(), font, 0, canvas)?;
     draw_button(
+        menus,
         kind,
         rc2k_core::screens::buttons::text_width(measured.width),
-        item.fixed().x,
-        item.fixed().y,
+        (item.fixed().x, item.fixed().y),
         align,
         item.sprites.get(),
         canvas,

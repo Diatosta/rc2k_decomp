@@ -7,7 +7,7 @@
 
 use crate::errors::BadInput;
 
-/// (eax, whether it worked).
+/// (the size, whether it worked).
 pub fn file_size(path: &[u8]) -> Result<(u32, bool), BadInput> {
     Ok(rc2k_core::files::io::file_size(
         &mut crate::files::handle::GameFiles::new(),

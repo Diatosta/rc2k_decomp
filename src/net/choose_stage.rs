@@ -1,7 +1,7 @@
 //! `net::choose_stage` (0x418347): the lobby's stage item (the host's): the stage screen
-//! (`menu::select_stage_loop`, the Escape flag `dword_755A3C` 0 first); unless it was left
-//! with Escape, this player's record given the stage (+4 from `dword_75ACD4`) and its
-//! direction (+5 from `dword_75ACF0`); then the background again (`net::show_background`).
+//! (`menu::select_stage_loop`, the Escape flag `escape_pressed` 0 first); unless it was left
+//! with Escape, this player's record given the stage (+4 from the chosen stage) and its
+//! direction (+5 from the stage's direction); then the background again (`net::show_background`).
 //!
 //! Caller: `net::lobby_loop`.
 

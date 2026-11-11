@@ -1,16 +1,15 @@
-//! The game's three-float vector helpers at 0x4654EA .. 0x4659A1 (IDA, 2026-10-16), used by the
+//! The game's three-float vector helpers at 0x4654EA .. 0x4659A1 (IDA), used by the
 //! marks.
 //!
-//! Plain Rust since 2026-10-24 (the x87's arithmetic in `X`, `math/x87_float.rs`); the
+//! Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the
 //! original's instructions are `asm_reference` in the tests.
 
 use crate::math::cells::{Cells, load};
 use crate::math::x87_float::{ONE, compare, ld, st};
 use crate::scene::x87_mem::{Base, cells, fld, fnstsw, fstp80};
 
-/// `scene::normalise_vector3` (0x4654EA): the three floats at esi each times 1 over their
-/// length (`fsqrt` of the squares, the last two added first; `fld1; fdivrp`). Every
-/// register kept.
+/// `scene::normalise_vector3` (0x4654EA): the three floats each times 1 over their
+/// length (the root of the squares, the last two added first).
 pub fn normalise(v: &(impl Cells + ?Sized)) {
     let f = |k| ld(v.bits(k));
     let (x, y, z) = (f(0), f(1), f(2));
@@ -22,8 +21,7 @@ pub fn normalise(v: &(impl Cells + ?Sized)) {
     v.set_bits(0, st(x));
 }
 
-/// `scene::dot_product3` (0x46553C): esi . edi, x x' + (y y' + z z'), unrounded. Every
-/// register kept.
+/// `scene::dot_product3` (0x46553C): the dot product x x' + (y y' + z z'), unrounded.
 pub fn dot_product3(a: [u32; 3], b: [u32; 3]) -> [u8; 10] {
     let out = [std::cell::Cell::new([0u8; 10])];
     dot(&a[..], &b[..], &out[..]);
@@ -60,10 +58,10 @@ fn cosine(a: impl Base, b: impl Base, s: impl Base) {
     fnstsw(s, 0x0, t3); // status word C3 C2 C0 (TOP not modelled)
 }
 
-/// `scene::angle_between_vectors` (0x4658CF): the vectors at edi and esi normalised in
-/// place (that order), their dot product kept as a float, and the angle whose cosine it
+/// `scene::angle_between_vectors` (0x4658CF): the two vectors normalised in
+/// place (in order), their dot product kept as a float, and the angle whose cosine it
 /// is found by 16 halvings from pi / 2 by pi / 4 (floats each step; out when the compare
-/// is unordered); the last compare's C0 .. C2 in `dword_71C814`. Every register kept.
+/// is unordered); the last compare's C0 .. C2 in the shared FPU status cell.
 /// Returns the angle (a float, loaded).
 pub fn angle_between_vectors(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized)) -> [u8; 10] {
     let mut angle = crate::math::x87::loaded(

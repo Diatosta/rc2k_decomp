@@ -1,5 +1,5 @@
 //! `net::send_turn` (0x46415B): the own car's messages by its step count (the current
-//! car's block +8, `unk_719FE0`): every fourth step (& 3 = 0) `net::send_inputs`, at & 0x1F
+//! car's block +8): every fourth step (& 3 = 0) `net::send_inputs`, at & 0x1F
 //! = 2 `net::send_position`, at & 0xFF = 1 `net::send_extra`.
 //!
 //!

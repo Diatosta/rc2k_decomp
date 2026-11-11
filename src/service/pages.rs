@@ -1,7 +1,7 @@
 //! The six edit pages of the service area: what the keys do while one of the setup values or
 //! the tyre or gear ratio choice is being edited ("locked", in the original's error text).
 //! Key 0x68 steps the value down, 0x69 up, 0x1C confirms. Every key also copies
-//! `dword_51899C` (a clock) into `dword_7556C4`.
+//! the clock into `last_key_time`.
 //!
 //! Two pages (steering sensitivity, brake balance) change the car directly: confirming just
 //! leaves edit mode. The other four cost service time; confirming goes through this:
@@ -104,7 +104,7 @@ pub const SUSPENSION_STIFFNESS: ChangePage = ChangePage {
     item: 0x13,
 };
 
-fn player() -> Result<crate::menu::standings::PlayerCell, BadInput> {
+fn player() -> Result<crate::menu::standings::PlayerCell<'static>, BadInput> {
     current_player().ok_or(BadInput(
         "no current player object: the original reads through null",
     ))
@@ -144,7 +144,7 @@ pub fn simple_page(menus: &Menus, page: SimplePage) -> Result<(), Refused> {
 }
 
 /// `confirm`: act as if the confirm key had been pressed, without taking a key (the callers
-/// outside the key handler pass ebx = 1 for this).
+/// outside the key handler pass the page-end value 1 for this).
 pub fn change_page(menus: &Menus, page: ChangePage, confirm: bool) -> Result<(), Refused> {
     let (screens, tables) = (&menus.screens, &menus.tables);
     // Everything the steps below could refuse is checked first, so that an error never

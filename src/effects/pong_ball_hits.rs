@@ -9,6 +9,7 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
+use crate::effects::cell_x87::CellX87;
 use crate::effects::pong::{self, Pong, PongRules, PongState};
 use crate::math::x87;
 
@@ -31,67 +32,67 @@ pub fn pong_ball_hits(pong: &Pong, effects: &crate::effects::owner::Effects) {
     p.hits.set(p.hits.get().wrapping_add(1));
     p.steps.set(p.steps.get().wrapping_add(4));
     for n in 0..2 {
-        p.ball[n].set_bits(x87::sub(p.ball[n].bits(), p.ball_way[n].bits()));
+        p.ball[n].set_bits(x87::sub(&p.ball[n], &p.ball_way[n]));
     }
     centres(pong);
     if p.difference[0].bits() == 0 {
-        p.difference[0].set_bits(x87::sub(p.difference[0].bits(), pong.rules.nudge.bits()));
+        p.difference[0].set_bits(x87::sub(&p.difference[0], &pong.rules.nudge));
     }
     new_way(pong, effects);
     p.ball_way[0].set_bits(p.difference[0].bits());
     p.ball_way[1].set_bits(p.difference[1].bits());
 }
 
-use crate::math::x87_float::{ld, st};
+use crate::math::x87_float::ld;
 
 /// `centres`'s x87 block as plain Rust on the x87 model (22 instructions), same order and memory places.
 fn centres_x87(p: &PongState, r: &PongRules) {
-    let t0 = ld(p.ball_size[0].bits());
-    let t1 = t0 * ld(r.centre[0].bits());
-    let t2 = t1 + ld(p.ball[0].bits());
-    p.ball_centre[0].set_bits(st(t2));
-    let t3 = ld(p.ball_size[1].bits());
-    let t4 = t3 * ld(r.centre[1].bits());
-    let t5 = t4 + ld(p.ball[1].bits());
-    p.ball_centre[1].set_bits(st(t5));
-    let t6 = ld(p.bat_size[0].bits());
-    let t7 = t6 * ld(r.centre[2].bits());
-    let t8 = t7 + ld(p.bat[0].bits());
-    p.bat_centre[0].set_bits(st(t8));
-    let t9 = ld(p.bat_size[1].bits());
-    let t10 = t9 * ld(r.centre[3].bits());
-    let t11 = t10 + ld(p.bat[1].bits());
-    p.bat_centre[1].set_bits(st(t11));
-    let t12 = ld(p.ball_centre[0].bits());
-    let t13 = t12 - ld(p.bat_centre[0].bits());
-    p.difference[0].set_bits(st(t13));
-    let t14 = ld(p.ball_centre[1].bits());
-    let t15 = t14 - ld(p.bat_centre[1].bits());
-    p.difference[1].set_bits(st(t15));
+    let t0 = p.ball_size[0].ld();
+    let t1 = t0 * r.centre[0].ld();
+    let t2 = t1 + p.ball[0].ld();
+    p.ball_centre[0].st(t2);
+    let t3 = p.ball_size[1].ld();
+    let t4 = t3 * r.centre[1].ld();
+    let t5 = t4 + p.ball[1].ld();
+    p.ball_centre[1].st(t5);
+    let t6 = p.bat_size[0].ld();
+    let t7 = t6 * r.centre[2].ld();
+    let t8 = t7 + p.bat[0].ld();
+    p.bat_centre[0].st(t8);
+    let t9 = p.bat_size[1].ld();
+    let t10 = t9 * r.centre[3].ld();
+    let t11 = t10 + p.bat[1].ld();
+    p.bat_centre[1].st(t11);
+    let t12 = p.ball_centre[0].ld();
+    let t13 = t12 - p.bat_centre[0].ld();
+    p.difference[0].st(t13);
+    let t14 = p.ball_centre[1].ld();
+    let t15 = t14 - p.bat_centre[1].ld();
+    p.difference[1].st(t15);
 }
 
 /// `new_way`'s x87 block as plain Rust on the x87 model (19 instructions), same order and
 /// memory places; `length` the bits of `flt_76516C`.
 fn new_way_x87(p: &PongState, r: &PongRules, length: u32) {
-    let t0 = ld(p.difference[0].bits());
+    let t0 = p.difference[0].ld();
     let t1 = t0 * t0;
-    let t2 = ld(p.difference[1].bits());
+    let t2 = p.difference[1].ld();
     let t3 = t2 * t2;
     let t4 = t1 + t3;
     let t5 = t4.sqrt();
     let t6 = ld(length) / t5;
-    let t7 = ld(p.difference[0].bits());
+    let t7 = p.difference[0].ld();
     let t8 = t7 * t6;
-    p.difference[0].set_bits(st(t8));
-    let t9 = ld(p.difference[1].bits());
+    p.difference[0].st(t8);
+    let t9 = p.difference[1].ld();
     let t10 = t6 * t9;
-    p.difference[1].set_bits(st(t10));
-    let t11 = ld(p.difference[0].bits());
-    let t12 = t11 * ld(r.way_scale[0].bits());
-    p.difference[0].set_bits(st(t12));
-    let t13 = ld(p.difference[1].bits());
-    let t14 = t13 * ld(r.way_scale[1].bits());
-    p.difference[1].set_bits(st(t14));
+    p.difference[1].st(t10);
+    let t11 = p.difference[0].ld();
+    let t12 = t11 * r.way_scale[0].ld();
+    p.difference[0].st(t12);
+    let t13 = p.difference[1].ld();
+    let t14 = t13 * r.way_scale[1].ld();
+    p.difference[1].st(t14);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

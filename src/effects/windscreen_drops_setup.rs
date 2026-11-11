@@ -1,18 +1,16 @@
-//! `effects::windscreen_drops_setup` (0x4BBE62): the windscreen drops' frame set up: their two axes
-//! (`flt_814C1A`, `flt_814C26`) times `flt_814BC2` into `unk_814C6E` / `unk_814C7A` and those
-//! times `flt_82E286` .. into `unk_814C86` / `unk_814C92`; `scene::depth_buffer_on`,
-//! `scene::set_texture` (`dword_5D5A24`), render states 0x11 = 1, 0x12 = 1, 0x15 = 4, 0x13 =
-//! 5, 0x14 = 6, 0x1C = 0, 0x1B = 1, 3 = 1; six vertices of `g_polygonVertices` with rhw 0x100
-//! (through `dword_62400C`), colour -1, specular 0xFF000000, texture places 0 /
-//! `dword_82E2A2` (u 0, a, a, 0; v 0, 0, a, a); `g_polygonVertexCount` 6; `flt_814C02` 1 over
-//! `flt_6241C8`.
+//! `effects::windscreen_drops_setup` (0x4BBE62): the windscreen drops' frame set up: their two
+//! axes times a scale into two more, and those times the setup's scales into two more;
+//! `scene::depth_buffer_on`, `scene::set_texture` (the drops' texture), render states 0x11 =
+//! 1, 0x12 = 1, 0x15 = 4, 0x13 = 5, 0x14 = 6, 0x1C = 0, 0x1B = 1, 3 = 1; six polygon vertices
+//! with rhw 0x100, colour -1, specular 0xFF000000, texture places 0 / a (u 0, a, a, 0; v 0, 0,
+//! a, a); the polygon's vertex count 6; the drops' depth scale 1 over the farthest depth.
 //!
-//! Caller: `effects::windscreen_drops_frame` (0x4BC0BF). The x87 run is plain Rust on the x87 model
+//! Caller: `effects::windscreen_drops_frame` The x87 run is plain Rust on the x87 model
 //! (`math::x87_float`), in the original's order, over the game's variables.
 
+use crate::effects::cell_x87::CellX87;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::math::x87;
-use crate::math::x87_float as bh;
 
 use crate::d3d::vertices_store::VERTICES;
 const STATES: [(u32, u32); 8] = [
@@ -26,7 +24,7 @@ const STATES: [(u32, u32); 8] = [
     (1, 3),
 ];
 
-/// The original's 0x4BBE62 .. 0x4BBF1A: the axes scaled.
+/// The axes scaled.
 fn axes(drops: &WindscreenDrops) {
     axes_x87(drops);
 }
@@ -36,13 +34,13 @@ pub fn windscreen_drops_setup(drops: &WindscreenDrops, scene: &crate::scene::own
     {
         axes(drops);
         crate::scene::depth_buffer_on::depth_buffer(true);
-        // `dword_5D5A24`, entry 1999 of the places' slots.
+        // The drops' texture: entry 1999 of the places' slots.
         crate::scene::set_texture::set_texture(scene.textures.places.place_slot[1999].get());
         for (value, state) in STATES {
             set_render_state(value, state);
         }
         for n in 0..6 {
-            VERTICES.vertices[n].rhw.set_bits(x87::int_to_float(0x100));
+            VERTICES.vertices[n].rhw.set_bits(x87::from_int(0x100));
         }
         for n in 0..6 {
             VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
@@ -60,10 +58,7 @@ pub fn windscreen_drops_setup(drops: &WindscreenDrops, scene: &crate::scene::own
             .polygon_vertex_count
             .set_bits(6u32);
         drops.work.inverse.set_bits(x87::reciprocal(
-            crate::scene::polygon_work::front_end()
-                .window
-                .farthest
-                .bits(),
+            &crate::scene::polygon_work::front_end().window.farthest,
         ));
     }
 }
@@ -72,42 +67,42 @@ use crate::effects::plain::ld_cell;
 
 /// `axes`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
 fn axes_x87(drops: &WindscreenDrops) {
-    let t0 = bh::ld(drops.work.axes[0].bits());
-    let t1 = t0 * bh::ld(drops.work.radii[0].bits());
-    drops.work.setup_axes[0].set_bits(bh::st(t1));
-    let t2 = bh::ld(drops.work.axes[1].bits());
-    let t3 = t2 * bh::ld(drops.work.radii[0].bits());
-    drops.work.setup_axes[1].set_bits(bh::st(t3));
-    let t4 = bh::ld(drops.work.axes[2].bits());
-    let t5 = t4 * bh::ld(drops.work.radii[0].bits());
-    drops.work.setup_axes[2].set_bits(bh::st(t5));
-    let t6 = bh::ld(drops.work.axes[3].bits());
-    let t7 = t6 * bh::ld(drops.work.radii[0].bits());
-    drops.work.setup_axes[3].set_bits(bh::st(t7));
-    let t8 = bh::ld(drops.work.axes[4].bits());
-    let t9 = t8 * bh::ld(drops.work.radii[0].bits());
-    drops.work.setup_axes[4].set_bits(bh::st(t9));
-    let t10 = bh::ld(drops.work.axes[5].bits());
-    let t11 = t10 * bh::ld(drops.work.radii[0].bits());
-    drops.work.setup_axes[5].set_bits(bh::st(t11));
-    let t12 = bh::ld(drops.work.setup_axes[0].bits());
+    let t0 = drops.work.axes[0].ld();
+    let t1 = t0 * drops.work.radii[0].ld();
+    drops.work.setup_axes[0].st(t1);
+    let t2 = drops.work.axes[1].ld();
+    let t3 = t2 * drops.work.radii[0].ld();
+    drops.work.setup_axes[1].st(t3);
+    let t4 = drops.work.axes[2].ld();
+    let t5 = t4 * drops.work.radii[0].ld();
+    drops.work.setup_axes[2].st(t5);
+    let t6 = drops.work.axes[3].ld();
+    let t7 = t6 * drops.work.radii[0].ld();
+    drops.work.setup_axes[3].st(t7);
+    let t8 = drops.work.axes[4].ld();
+    let t9 = t8 * drops.work.radii[0].ld();
+    drops.work.setup_axes[4].st(t9);
+    let t10 = drops.work.axes[5].ld();
+    let t11 = t10 * drops.work.radii[0].ld();
+    drops.work.setup_axes[5].st(t11);
+    let t12 = drops.work.setup_axes[0].ld();
     let t13 = t12 * ld_cell(&drops.hex.axes_k[0]);
-    drops.work.setup_axes[6].set_bits(bh::st(t13));
-    let t14 = bh::ld(drops.work.setup_axes[1].bits());
+    drops.work.setup_axes[6].st(t13);
+    let t14 = drops.work.setup_axes[1].ld();
     let t15 = t14 * ld_cell(&drops.hex.axes_k[1]);
-    drops.work.setup_axes[7].set_bits(bh::st(t15));
-    let t16 = bh::ld(drops.work.setup_axes[2].bits());
+    drops.work.setup_axes[7].st(t15);
+    let t16 = drops.work.setup_axes[2].ld();
     let t17 = t16 * ld_cell(&drops.hex.axes_k[2]);
-    drops.work.setup_axes[8].set_bits(bh::st(t17));
-    let t18 = bh::ld(drops.work.setup_axes[3].bits());
+    drops.work.setup_axes[8].st(t17);
+    let t18 = drops.work.setup_axes[3].ld();
     let t19 = t18 * ld_cell(&drops.hex.axes_k[3]);
-    drops.work.setup_axes[9].set_bits(bh::st(t19));
-    let t20 = bh::ld(drops.work.setup_axes[4].bits());
+    drops.work.setup_axes[9].st(t19);
+    let t20 = drops.work.setup_axes[4].ld();
     let t21 = t20 * ld_cell(&drops.hex.axes_k[4]);
-    drops.work.setup_axes[10].set_bits(bh::st(t21));
-    let t22 = bh::ld(drops.work.setup_axes[5].bits());
+    drops.work.setup_axes[10].st(t21);
+    let t22 = drops.work.setup_axes[5].ld();
     let t23 = t22 * ld_cell(&drops.hex.axes_k[5]);
-    drops.work.setup_axes[11].set_bits(bh::st(t23));
+    drops.work.setup_axes[11].st(t23);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

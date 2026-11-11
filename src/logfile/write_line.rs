@@ -2,9 +2,8 @@
 //! one message into the line buffer and appends it to `var\logfile.txt`.
 //!
 //! Takes the message, the newline flag and the level - 1; `g_logLock` held by the caller.
-//! Out, logged:  eax = bytes written (or the path pointer if open or seek failed),
-//!               ebx = line buffer start, ecx = line length, edx = dl
-//! Out, skipped: ecx = level, edx = dl; eax and ebx unchanged
+//! Logged: the bytes written, or the path if the open or seek failed. Skipped (level too
+//! high): nothing written.
 //! The lock is released on both paths. Entered by `jmp`, so its `retn` returns to the log
 //! function's caller.
 
@@ -12,7 +11,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 // ---- game data ----
 
-/// The log's state, out of the image since 2026-10-24 (phase 5; it was `g_logEnabled`,
+/// The log's state (`g_logEnabled`,
 /// `g_logLevel`, `g_logLock`, `g_logIndent`, `g_logAtLineStart`, 0x4E0094 .. 0x4E00A7).
 /// Atomics: any thread logs. `LEVEL` is set from `var\ral.cfg` (`logfile=`, through
 /// `crate::moved::place`); the race's steps change `INDENT` and `ENABLED` directly.

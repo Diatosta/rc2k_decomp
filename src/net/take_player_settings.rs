@@ -1,5 +1,5 @@
 //! `net::take_player_settings` (0x48755D): player 1's record (`g_players[0]`) copied into
-//! the network game's settings (`dword_75ACE8` .. `byte_75AE87`), field to field: the car,
+//! the network game's settings (the player's car to its last setting), field to field: the car,
 //! the driving aids and the HUD's switches, the controls, the co-driver, the view; and the
 //! record's +0xD0 (`entry`) made 1.
 //!

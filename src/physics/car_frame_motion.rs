@@ -1,6 +1,6 @@
-//! `physics::car_frame_motion` (0x43DB71): the work car's motion (`dword_71A170` ..,
+//! `physics::car_frame_motion` (0x43DB71): the work car's motion (`velocity` ..,
 //! `g_car` +0x198) turned by `g_carInverseMatrix` (`scene::rotate_point`) into the car's
-//! frame, stored (rounded to floats) at `dword_71A17C`, `dword_71A180`, `g_carSpeed`
+//! frame, stored (rounded to floats) at `local_velocity`, `dword_71A180`, `g_carSpeed`
 //! (+0x1A4 .. +0x1AC). The tail of `physics::apply_force` on the work car.
 //!
 //! Caller: `physics::put_back_motion_vectors` (its tail).

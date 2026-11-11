@@ -8,7 +8,7 @@
 //! noted as the one it has. One caller, `scene::reload_system_textures`. Refuses a texture past
 //! the tables.
 //!
-//! Converted 2026-10-21: the rule through `rc2k_core::scene::pictures::changed_picture`.
+//! The logic is in the core crate: the rule through `rc2k_core::scene::pictures::changed_picture`.
 
 use crate::errors::{BadInput, Refused};
 use crate::scene::load_texture_picture::load_texture_picture_in_game;

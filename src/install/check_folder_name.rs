@@ -1,6 +1,6 @@
 //! `install::check_folder_name` (0x413A6C): whether a folder path (from its third byte on,
 //! past a drive letter and colon) holds a character that is not allowed in a folder name
-//! (`unk_51DE18`: `"`, `+`, `*`, `,`, `;`, `=`, `/`, `:`, `<`, `>`, `?`, `\`, `{`, `}`,
+//! (`bad_folder_chars`: `"`, `+`, `*`, `,`, `;`, `=`, `/`, `:`, `<`, `>`, `?`, `\`, `{`, `}`,
 //! `[`, `]`, `|`, 0x7F) or a double backslash.
 //!
 //! Takes the path. Returns true if a bad character or `\\` is found.
@@ -9,7 +9,7 @@
 /// Whether `path` has a bad character or `\\` (the original's carry).
 pub fn check_folder_name(path: impl Into<crate::place::BytePlace>) -> bool {
     // The system's rules (`install::folders`; Windows: `rc2k_core::install::paths::
-    // bad_folder_name`, RAL.EXE's `unk_51DE18`).
+    // bad_folder_name`, RAL.EXE's `bad_folder_chars`).
     use crate::install::folders::{Folders, Native};
     let answer = path
         .into()

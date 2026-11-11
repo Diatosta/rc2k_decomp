@@ -1,4 +1,4 @@
-//! Race init's first step (`race::start_cars` -> `race::start_car`, IDA 2026-10-17): the current
+//! Race init's first step (`race::start_cars` -> `race::start_car`): the current
 //! car (the work copy `g_car`, 0x719FD8) set at its start on the best line. Here its steps:
 //! the place on the line between two checkpoints (`race::place_car_on_line`), the nearest
 //! checkpoint to the car (`race::nearest_checkpoint` and its two helpers), and the car's
@@ -6,6 +6,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::physics::car_store::Car;
 use crate::race::best_line::MOST_CHECKS;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
@@ -21,28 +22,27 @@ fn count(shared: &RaceShared) -> Result<u32, Refused> {
 
 /// Checkpoint n's face (number, address) and its first point's (+4) number and address.
 /// Checkpoint `n`'s face and its first point (their numbers).
-fn check_point(n: u32) -> Result<(u32, u32), BadInput> {
+fn check_point(course: &Course, n: u32) -> Result<(u32, u32), BadInput> {
     let face: u32 = crate::race::checkpoints_store::face(n as usize).get();
-    let point: u32 = crate::race::course_places::face_field(face, 4, "a checkpoint face")?;
+    let point: u32 = crate::race::course_places::face_field(course, face, 4)?;
     Ok((face, point))
 }
 
 /// Coordinate `k` of scene point `n`.
-fn get(n: u32, k: u32) -> Result<u32, BadInput> {
-    crate::race::scene_points::point_word(n, k)
+fn get(course: &Course, n: u32, k: u32) -> Result<u32, BadInput> {
+    crate::race::scene_points::point_word(course, n, k)
 }
 
-/// `race::place_car_on_line` (0x44666F): checkpoint `dword_6365E4` (held below `g_checkpointCount`)
+/// `race::place_car_on_line` (0x44666F): checkpoint `line_place` (held below `g_checkpointCount`)
 /// and the next (held so too); their faces' first points and their headings (`dword_9ED808`)
-/// blended by `dword_6365EC` / 65536 into `dword_5CCDA0` / `C0` (+ `dword_613FC4`) / `E0` and
-/// `dword_5CCD60`, then into the work car's place and heading; the first face's number in
-/// `dword_5CCD28`. Refuses no checkpoints (the original reads entry -1) or more than the lists.
+/// blended by `line_fraction` / 65536 into `place_x` / `C0` (+ `ground_drop`) / `E0` and
+/// `place_heading`, then into the work car's place and heading; the first face's number in
+/// `place_face`. Refuses no checkpoints (the original reads entry -1) or more than the lists.
 pub fn place_car_on_line(
-    race: &Race,
+    shared: &RaceShared,
     course: &Course,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let shared = &race.shared;
     let lights = &scene.lights;
     // Converted: `rc2k_core::race::checkpoints::{line_neighbours, lerp}`.
     use rc2k_core::race::checkpoints::{lerp, line_neighbours};
@@ -50,13 +50,13 @@ pub fn place_car_on_line(
     {
         let (c, n) = line_neighbours(lights.state.line_place.get(), count)?;
         let t: u32 = lights.state.line_fraction.get();
-        let (face, a) = check_point(c)?;
+        let (face, a) = check_point(course, c)?;
         course.course.place_face.set(face);
-        let (_, b) = check_point(n)?;
-        let (x, _) = lerp(get(a, 0)?, get(b, 0)?, t);
-        let (y, _) = lerp(get(a, 1)?, get(b, 1)?, t);
+        let (_, b) = check_point(course, n)?;
+        let (x, _) = lerp(get(course, a, 0)?, get(course, b, 0)?, t);
+        let (y, _) = lerp(get(course, a, 1)?, get(course, b, 1)?, t);
         let y = y.wrapping_add(shared.physics_tables.ground_drop.get());
-        let (z, _) = lerp(get(a, 2)?, get(b, 2)?, t);
+        let (z, _) = lerp(get(course, a, 2)?, get(course, b, 2)?, t);
         let heading_of =
             |k: u32| -> u32 { crate::race::checkpoints_store::angle(k as usize).get() };
         let (heading, _) = lerp(heading_of(c), heading_of(n), t);
@@ -73,8 +73,8 @@ pub fn place_car_on_line(
 }
 
 /// `race::distance_to_checkpoint` (0x44141D): with `c` a checkpoint (0 .. count - 1, by sign
-/// tests), `dword_62400C` the distance in x and z (`x87::int_hypot`) from (`dword_639824`,
-/// `dword_63982C`) to its face's first point; else -1. Refuses a checkpoint past the list.
+/// tests), `scratch` the distance in x and z (`x87::int_hypot`) from (`ground_x`,
+/// `ground_z`) to its face's first point; else -1. Refuses a checkpoint past the list.
 pub fn distance_to_checkpoint(
     race: &Race,
     c: u32,
@@ -92,15 +92,15 @@ pub fn distance_to_checkpoint(
         return Err(BadInput("a checkpoint past the list").into());
     }
     {
-        let (_, point) = check_point(c)?;
-        let dx = get(point, 0)?.wrapping_sub(physics.ground.ground_x.get()) as i32;
-        let dz = get(point, 2)?.wrapping_sub(physics.ground.ground_z.get()) as i32;
+        let (_, point) = check_point(&race.course, c)?;
+        let dx = get(&race.course, point, 0)?.wrapping_sub(physics.ground.ground_x.get()) as i32;
+        let dz = get(&race.course, point, 2)?.wrapping_sub(physics.ground.ground_z.get()) as i32;
         drawing.scene.scratch.set(x87::int_hypot(dx, dz) as u32);
     }
     Ok(())
 }
 
-/// The nearest of a stretch of checkpoints and its distance (ebp and edi in the original).
+/// The nearest of a stretch of checkpoints and its distance.
 pub struct Nearest {
     pub checkpoint: u32,
     pub distance: u32,
@@ -243,9 +243,9 @@ fn measure_held(
     measured
 }
 
-/// `race::nearest_checkpoint` (0x44134F): the work car's x and z into `dword_639824` /
-/// `dword_63982C`; with checkpoints, the nearest of them all (`nearest_checkpoint_in` 0 .. count),
-/// its distance in `dword_62400C` and / 65536 in `flt_614C68`; else 0. Refuses more checkpoints
+/// `race::nearest_checkpoint` (0x44134F): the work car's x and z into `ground_x` /
+/// `ground_z`; with checkpoints, the nearest of them all (`nearest_checkpoint_in` 0 .. count),
+/// its distance in `scratch` and / 65536 in `nearest_checkpoint_distance`; else 0. Refuses more checkpoints
 /// than the lists, before anything.
 pub fn nearest_checkpoint(race: &Race, scene: &crate::scene::owner::Scene) -> Result<u32, Refused> {
     let count = count(&race.shared)?;
@@ -276,13 +276,9 @@ pub fn nearest_checkpoint(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     }
 }
 
-pub fn invert_car_matrix(race: &Race) {
-    let shared = &race.shared;
-    let length = crate::scene::view_matrix::invert_turn(
-        &race.course,
-        &shared.car.crash_matrix,
-        &shared.car.car_inverse_matrix,
-    );
+pub fn invert_car_matrix(course: &Course, car: &Car) {
+    let length =
+        crate::scene::view_matrix::invert_turn(course, &car.crash_matrix, &car.car_inverse_matrix);
     // `scene::square_matrix` left its last length in `g_scratch`.
     crate::scene::owner::scene()
         .drawing

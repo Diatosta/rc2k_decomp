@@ -6,9 +6,9 @@
 //!
 //! The order is the original's: the title ("<string 0x190> <car index + 1> <string 0x486>",
 //! built in the shared text buffer), `draw_service_time`, the `STEPS` list, the string
-//! 0x4B0 + `dword_75AC9C`, `draw_repair_times`, the six setup markers, `draw_inspection_status`.
+//! 0x4B0 + a driver figure, `draw_repair_times`, the six setup markers, `draw_inspection_status`.
 //! The sprites in the list are blitted with whatever ebx holds as the palette, which is the
-//! end of the text drawn just before them; reproduced. It also sets `dword_6218AC` to 0.
+//! end of the text drawn just before them; reproduced. It also sets a service area work cell to 0.
 //! Its address is in the service area's list at 0x75924A; it is also called from 0x46D001.
 //! What is on it, from the owner's screenshot of 2026-10-10 (Portuguese game): the title
 //! "JOGADOR 1 ÁREA DE SERVIÇO"; a repair section with fourteen parts in two columns (engine,
@@ -16,7 +16,7 @@
 //! steering, suspension, brakes, tyres), each with an icon, a repair time and a damage bar
 //! (car +0xD4 .. +0x108, in that row order left then right); "n/d" on the turbo's bar when
 //! the car's dword at +0x90 is not 0; five gear ratio pictures (acceleration .. top speed)
-//! and six tyre pictures with the name of the chosen tyre (`dword_75AC9C`); a setup section
+//! and six tyre pictures with the name of the chosen tyre (a driver figure); a setup section
 //! with four sliders; and the inspection status bar. The four big buttons at the bottom
 //! (load setup, save setup, view stage, continue) are labels drawn here too.
 //!

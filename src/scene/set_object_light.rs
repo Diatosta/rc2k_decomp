@@ -1,22 +1,21 @@
 //! `scene::set_object_light` (0x45143A): the light that falls on the object as a whole,
 //! to be added to each of its vertices.
 //!
-//! `dword_635068` (what `scene::vertex_light` adds) = 0, then by `g_lightKind`:
+//! The object's `light_added` (what `scene::vertex_light` adds) = 0, then by the light
+//! kind:
 //! - 5: plain white;
-//! - 1: `g_lightStrength` = 0; the lamps gathered; `g_lightColour` plus
-//!   `dword_635054`;
-//! - 2: the same, with `g_lightStrength` = 0 only while the key `byte_4F6B74` is down;
-//! - 3: the same without touching the strength, and with `dword_639968` =
-//!   `dword_60627C` while the lamps are gathered (a car is not lit by its own), -1
-//!   afterwards;
+//! - 1: the light strength = 0; the lamps gathered; the light colour plus `other_light`;
+//! - 2: the same, with the strength = 0 only while the key (a debugging key) is down;
+//! - 3: the same without touching the strength, and with `drawn_car_light` = the drawn car
+//!   while the lamps are gathered (a car is not lit by its own), -1 afterwards;
 //! - anything else: nothing more.
 //!
-//! "The lamps gathered" (`scene::gather_lights`, 0x451425, inlined): the object's place
-//! `dword_63501C` .. to `g_litPlace`, `g_lightColour` = 0, `scene::add_car_lights`,
-//! `scene::add_point_lights`. "Plus" is byte by byte without overflow, as in
-//! `scene::vertex_light`. One caller, `scene::draw_object`.
+//! "The lamps gathered" (`scene::gather_lights`, inlined): the object's `place` to the lit
+//! place, the light colour = 0, `scene::add_car_lights`, `scene::add_point_lights`. "Plus" is
+//! byte by byte without overflow, as in `scene::vertex_light`. One caller,
+//! `scene::draw_object`.
 //!
-//! Converted 2026-10-21: the kind's way through `rc2k_core::scene::lamps::object_light`.
+//! The kind's way is in `rc2k_core::scene::lamps::object_light`.
 
 use crate::errors::Refused;
 use crate::input::owner::input;
@@ -75,7 +74,6 @@ pub fn set_object_light(
     Ok(())
 }
 
-/// With the lamps' Rust versions.
 pub fn set_object_light_in_game(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,

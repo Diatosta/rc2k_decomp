@@ -1,17 +1,15 @@
 //! `scene::reflection_coordinates` (0x45198C): where on the reflection's picture a
 //! vertex of a shiny surface looks.
 //!
-//! In:  nothing; `dword_6399A8` = the number of the vertex's normal, `dword_6399AC` =
-//!      the number of its point
+//! In:  nothing; the object's reflection normal number is the number of the vertex's normal,
+//!      its reflection point number the number of its point
 //!
-//! The normal's place in the view (record 0x1000 + (number & 0xFFF), +0x10 .. +0x18)
-//! goes to `dword_5EA428` ..; the point's, negated, to the work vector, which is made
-//! one long and copied to `qword_5EA438` ..: the direction from the point to the eye.
-//! `scene::reflect_vector`; the result, with `flt_5C5D38` (1.0) added to its second
-//! part, is made one long; then each of its first and third parts, times
-//! `flt_5C5E40` (0.5) plus the same, times `flt_5C5D98` (65536) times `flt_5C5E2C`
-//! (256), rounded (`fistp`), is a coordinate.
-//! Callers: `scene::cached_reflection_coordinates`, by a call and by a jump.
+//! The normal's place in the view (record 0x1000 + (number & 0xFFF), +0x10 .. +0x18) goes to
+//! the reflection work; the point's, negated, to the work vector, which is made one long and
+//! copied: the direction from the point to the eye. `scene::reflect_vector`; the result, with
+//! 1.0 added to its second part, is made one long; then each of its first and third parts,
+//! times 0.5 plus the same, times 65536 times 256, rounded, is a coordinate.
+//! Callers: `scene::cached_reflection_coordinates`.
 //! Refuses when there are no records and what `math::normalise_vector` refuses.
 
 use crate::errors::BadInput;
@@ -60,10 +58,10 @@ pub fn reflection_coordinates(
     object: &crate::scene::object_place::ObjectPlace,
     m: &crate::scene::view_matrices::ViewMatrices,
 ) -> Result<(), BadInput> {
-    if !crate::scene::point_records::held() {
+    if !crate::scene::point_records::held(&race.course) {
         return Err(BadInput("no records for the points"));
     }
-    let table = crate::scene::reading::PointRecords::new()?;
+    let table = crate::scene::reading::PointRecords::new(&race.course)?;
     let normal = table.place(object.reflection_normal_number.get())?;
     let point = table.place(object.reflection_point_number.get().wrapping_neg())?;
     crate::session::write_bits(&m.reflect_vector, normal);
@@ -77,7 +75,7 @@ pub fn reflection_coordinates(
         &m.work_vector,
         &[
             x87::loaded(mirrored[0]),
-            x87::add(mirrored[1], race.course.numbers.one.bits()),
+            x87::add(mirrored[1], &race.course.numbers.one),
             x87::loaded(mirrored[2]),
         ],
     );

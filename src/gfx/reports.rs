@@ -1,4 +1,4 @@
-//! The 3D reports switch (`dword_4F52AC`), out of RAL.EXE's image: IDA 0x4F52AC .. 0x4F52B0.
+//! The 3D reports switch (`reports.on`), out of RAL.EXE's image: IDA 0x4F52AC .. 0x4F52B0.
 //! Direct3D's and DirectDraw's failures are fatal while it is 1; the film player, the mode trial
 //! and the texture allocation clear it around calls that may fail.
 

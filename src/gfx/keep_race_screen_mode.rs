@@ -1,4 +1,4 @@
-//! `gfx::keep_race_screen_mode` (0x404805): mode eax kept as the race's
+//! `gfx::keep_race_screen_mode` (0x404805): the given mode kept as the race's
 //! (`g_raceScreenMode`), and its pixel kind (the second byte) with 0x320002 (800 x 600 by
 //! its size bits, the menus' other bits) tried (`gfx::try_screen_mode`): if that works it
 //! becomes the menus' mode (`g_menuScreenMode`).

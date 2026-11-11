@@ -24,7 +24,7 @@ pub fn tilt_shape(drops: &WindscreenDrops) {
     write_bits(&t.unit, unit);
 }
 
-/// The shape tilt and the first view point (`effects::tilt_shape`, `effects::copy_first_point`, `effects::edges`) (IDA 0x811BC3 .. 0x811BEB, the image's layout; phase 7, typed state).
+/// The shape tilt and the first view point (`effects::tilt_shape`, `effects::copy_first_point`, `effects::edges`) (IDA 0x811BC3 .. 0x811BEB).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ShapeTilt {
@@ -45,20 +45,12 @@ pub struct ShapeTilt {
 impl ShapeTilt {
     pub const fn new() -> Self {
         ShapeTilt {
-            tilt: Float::from_bits(0x0),
-            sine: Float::from_bits(0x0),
-            cosine: Float::from_bits(0x0),
+            tilt: Float::new(0.0),
+            sine: Float::new(0.0),
+            cosine: Float::new(0.0),
             length: Dword::new(0x0),
-            unit: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x3F800000),
-                Float::from_bits(0x0),
-            ],
-            point: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x3F800000),
-            ],
+            unit: [Float::new(0.0), Float::new(1.0), Float::new(0.0)],
+            point: [Float::new(0.0), Float::new(0.0), Float::new(1.0)],
         }
     }
 }

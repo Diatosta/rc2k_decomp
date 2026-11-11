@@ -5,7 +5,7 @@
 //! layout, one static; `moved::MOVED` points the range at it. (Split 2026-10-25 from the front end's
 //! block `menu::store`.)
 
-use crate::session::{Bytes, Dword};
+use crate::session::{Bytes, Dword, Flag};
 
 /// The menu loop's flags (IDA 0x755525 .. 0x755595).
 #[repr(C)]
@@ -16,7 +16,7 @@ pub struct LoopFlags {
     /// Unreferenced bytes (IDA 0x755529 .. 0x755551).
     pub _gap_755529: Bytes<40>,
     /// `dword_755551`: 1 after a long time without a key (`menu::update_blink`).
-    pub idle: Dword,
+    pub idle: Flag,
     /// `dword_755555`: The main menu's frames without a key.
     pub idle_frames: Dword,
     /// Unreferenced bytes (IDA 0x755559 .. 0x75555D).
@@ -38,11 +38,11 @@ pub struct LoopFlags {
     /// `dword_755571`: The most characters the text takes.
     pub text_max: Dword,
     /// `dword_755575`: Flipped by key 0x20 (`menu::handle_keys`).
-    pub toggle: Dword,
+    pub toggle: Flag,
     /// `g_champRow`: The championship row highlighted.
     pub champ_row: Dword,
     /// `g_optionsLoaded`: 1 once the options file has been read.
-    pub options_loaded: Dword,
+    pub options_loaded: Flag,
     /// `g_spriteTable`: The address of the menu sprites' glyph table.
     pub sprite_table: Dword,
     /// Unreferenced bytes (IDA 0x755585 .. 0x75558D).
@@ -59,7 +59,7 @@ impl LoopFlags {
         LoopFlags {
             item: Dword::new(0x1),
             _gap_755529: Bytes::new([0; 40]),
-            idle: Dword::new(0x0),
+            idle: Flag::new(false),
             idle_frames: Dword::new(0x0),
             _gap_755559: Bytes::new([0; 4]),
             event_left: Dword::new(0x0),
@@ -68,9 +68,9 @@ impl LoopFlags {
             ask_leave: Dword::new(0x0),
             text_length: Dword::new(0x0),
             text_max: Dword::new(0x1E),
-            toggle: Dword::new(0x1),
+            toggle: Flag::new(true),
             champ_row: Dword::new(0x0),
-            options_loaded: Dword::new(0x0),
+            options_loaded: Flag::new(false),
             sprite_table: Dword::new(0x0),
             _gap_755585: Bytes::new([0; 8]),
             menu: crate::menu::menus_store::MenuCell::new(),

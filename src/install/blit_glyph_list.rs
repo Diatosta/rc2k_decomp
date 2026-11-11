@@ -1,7 +1,6 @@
-//! `install::blit_glyph_list` (0x402628): a list of `eax` records (16 bytes each: dx, dy,
+//! `install::blit_glyph_list` (0x402628): a list of `count` records (16 bytes each: dx, dy,
 //! glyph, palette) blitted, each at (dx + x, dy + y) with its palette (`gfx::blit_glyph`).
-//! The x and y come in ecx and edx.
-//!
+//! //!
 //! Takes the count, table, x, y.
 //! Caller the copy-progress frame (the install bar). Refuses a count of 0
 //! (the original's loop is a do-while: it
@@ -24,7 +23,7 @@ pub fn blit_glyph_list(
     for (offset, _) in layout::list_records(count)? {
         let record = table.add(offset);
         let (x, y) = layout::list_place(rd(record), rd(record.add(4)), x, y);
-        // gfx::blit_glyph (0x4069B2): eax the glyph, ebx the palette.
+        // `gfx::blit_glyph` with the glyph and the palette.
         {
             crate::gfx::blit_glyph::blit_glyph_on_surface(
                 rd(record.add(8)),

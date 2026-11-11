@@ -1,9 +1,9 @@
 //! `drive::simple_car_step` (0x43A1CA): the free-roaming car's step (no physics, the race mode
-//! `dword_621884` 0). The inputs (`drive::car_input_words`, `drive::read_car_controls`,
+//! `levers_on` 0). The inputs (`drive::car_input_words`, `drive::read_car_controls`,
 //! `drive::steer_inputs`, `drive::pedal_inputs`, `drive::reset_request`); the car moved along its
 //! heading (+0x9C0) by (+0x638 - +0x63C) << 5, turned by +0x644 >> 4; the wheels' surfaces; the
-//! ground under `dword_5CCDA0`, `5CCDE0` (`physics::find_ground`), found: the height
-//! `dword_639828` + `flt_613FC4`'s bits into `dword_5CCDC0` and +0x138; pitch and roll 0;
+//! ground under `place_x`, `5CCDE0` (`physics::find_ground`), found: the height
+//! `ground_height` + `ground_drop`'s bits into `place_y` and +0x138; pitch and roll 0;
 //! `race::get_mat_crash`. The first car block (`g_carBlockStore`) throughout.
 //!
 //! Caller: `drive::race_tick`. Refuses what its calls refuse.
@@ -23,7 +23,7 @@ pub fn simple_car_step(
     crate::drive::read_car_controls::read_car_controls(race)?;
     crate::drive::steer_inputs::steer_inputs(race);
     crate::drive::pedal_inputs::pedal_inputs(race);
-    // The keys `drive::pedal_inputs` leaves in ebx (`reset_request` loads the same again
+    // The keys `drive::pedal_inputs` leaves (`reset_request` loads the same again
     // before `physics::reset_car`): the turn's y.
     let keys = race.shared.car.input_keys.get();
     { crate::drive::reset_request::reset_request(race, scene) }?;

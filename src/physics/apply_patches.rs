@@ -4,12 +4,12 @@
 //! Nothing if `g_patchesApplied` (0x71C72C) is not 0; else that becomes 1 and:
 //! - twelve settings are held to their ranges (`patches::RANGES`; the comparisons look at
 //!   the sign of the difference only, which is kept);
-//! - `flt_613FC8` = 9.8; twelve records of 0x30 bytes from 0x6139AC on get 1.0, 0.9 and
+//! - `gravity` = 9.8; twelve records of 0x30 bytes from 0x6139AC on get 1.0, 0.9 and
 //!   1.7 (1.2 in the fourth and the eleventh) in their first three floats; `dword_613AE8`
 //!   and `dword_613B18` = 10.0;
 //! - if the setting at 0x71C6E0 is above 100, `flt_71C708` = it / 100;
-//! - only if the settings' switch `dword_71C6D0` is not 0: the ten floats from
-//!   `flt_71C704` on = the ten settings from 0x71C6DC on, each / 100; `flt_613FC8` times
+//! - only if the settings' switch `patch_switch` is not 0: the ten floats from
+//!   `patch_factors` on = the ten settings from 0x71C6DC on, each / 100; `gravity` times
 //!   the first; every record's three floats times one of six of them, by the record
 //!   (`patches::BY_RECORD`), and times the fifth, the fourth and the third; and with the setting at
 //!   0x71C6D8 at 0, `dword_613AE8` and `dword_613B18` = 0.
@@ -18,11 +18,11 @@
 //! (the switch), `patchmaxdrawdistance`, `patchstickygrass`, `patchgravity`,
 //! `patchdamages`, `patchbrakegrip`, `patchaccelgrip`, `patchslidegrip`, `patchgripgrass`,
 //! `patchgriptarmac`, `patchgripsnow`, `patchgripmud`, `patchgripgravel`, the last ten in
-//! percent. So `flt_613FC8` is gravity, and a record is a kind of ground with its slide,
+//! percent. So `gravity` is gravity, and a record is a kind of ground with its slide,
 //! acceleration and brake grip: by `BY_RECORD` tarmac, gravel, mud, snow, grass, mud,
 //! grass, grass, snow, grass, snow, gravel. A reading of the names, not seen in a race.
 //! Callers: `system::load_game_data`, and two that copy thirteen settings in from
-//! `unk_5C2C98`, clear the switch and call it again. The arithmetic is plain floats
+//! `kept_patch_switches`, clear the switch and call it again. The arithmetic is plain floats
 //! (`rc2k_core::physics::patches`): each figure is one correctly rounded quotient or
 //! product at the game's double and extended precision.
 
@@ -93,8 +93,8 @@ fn store(tables: &PhysicsTables, work: &RaceWork, before: &Patches, after: &Patc
     }
 }
 
-/// The Rust version (the original's to the bit at the game's double and extended
-/// precision: each figure one quotient, or a product whose first step is exact).
+/// Applies the patches (bit-identical to the original at the game's double and extended
+/// precision: each figure is one quotient, or a product whose first step is exact).
 // Converted: `rc2k_core::physics::patches::apply_patches`.
 pub fn apply_patches(tables: &PhysicsTables, numbers: &Numbers, work: &RaceWork) {
     let before = load(tables, work);

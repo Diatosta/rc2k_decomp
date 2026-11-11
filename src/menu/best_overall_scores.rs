@@ -6,13 +6,11 @@
 use crate::errors::Refused;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
-
-// dword_7558F4
-// dword_7558F8
+// `event.classes`
 // g_yesNoAnswer
 pub fn best_overall_scores(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let players = counted_players(screens)?;
+    let players = counted_players(menus)?;
     screens.event.any_time_qualified.set(0u32);
     for (n, &p) in players.iter().enumerate() {
         screens.event.current_player.set(n as u32);

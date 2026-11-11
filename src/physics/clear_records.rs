@@ -1,11 +1,11 @@
-//! `physics::clear_records` (0x43F3A6): ecx records of 0x20 bytes from edi, the first six
-//! dwords of each 0 (`dec ecx; jnz` back to its own first instruction).
+//! `physics::clear_records` (0x43F3A6): clears the first six dwords of each of a table of records
+//! of 0x20 bytes.
 //!
 //! Takes: the first record, their number
 //!
-//! Its loop goes back to its first byte: `.private_copy` (the whole function).
-//! Callers: `physics::clear_forces` (0x614770, 0x17), `physics::clear_contacts` (0x614A50,
-//! 7). Refuses (before anything) ecx 0 (the original would loop 2^32 times) or above 0x100.
+//! Callers: `physics::clear_forces` (`forces`, 0x17 records), `physics::clear_contacts`
+//! (`contacts`, 7). Refuses (before anything) no records (the original would loop 2^32 times)
+//! or more than 0x100.
 
 use crate::errors::Refused;
 

@@ -2,7 +2,7 @@
 //! game that was read into the buffer at 0x51EBB4.
 //!
 //! After the headings and row numbers it copies the saved game's seven dwords into its own
-//! variables (`dword_755150` .. `dword_755168`) and points `dword_75516C` at the saved cars.
+//! variables (the shown saved game's figures) and points the shown saved cars at the saved cars.
 //! Then:
 //! - a title line at (143, 353): string 0x1D9 (0x1DA if the saved mode is 0x13), " - ", the
 //!   title of the saved section (from a table in mode 0x13, else the section's first record

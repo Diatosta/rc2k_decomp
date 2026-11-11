@@ -70,16 +70,16 @@ pub struct LabelTables {
     pub arcade_next_level_review_labels: LabelList,
     /// Label list at IDA 0x747B14 (the labels of the arcade_retry_review menu).
     pub arcade_retry_review_labels: LabelList,
-    /// Label list at IDA 0x747B28 (the labels of the menu_74bafc menu).
-    pub menu_74bafc_labels: LabelList,
+    /// Label list at IDA 0x747B28 (the labels of the menu after the previous one in the menu array).
+    pub after_arcade_retry_review_labels: LabelList,
     /// Label list at IDA 0x747B3C (the labels of the stage_result menu).
     pub stage_result_labels: LabelList,
     /// Label list at IDA 0x747B50.
     pub labels_747b50: LabelList,
     /// Label list at IDA 0x747B64 (the labels of the single_rally_two_results menu).
     pub single_rally_two_results_labels: LabelList,
-    /// Label list at IDA 0x747B78 (the labels of the menu_750b94 menu).
-    pub menu_750b94_labels: LabelList,
+    /// Label list at IDA 0x747B78 (the labels of the menu after the previous one in the menu array).
+    pub after_single_rally_two_results_labels: LabelList,
     /// Label list at IDA 0x747B8C (the labels of the single_rally_three_four_results menu).
     pub single_rally_three_four_results_labels: LabelList,
     /// Label list at IDA 0x747BA0 (the labels of the single_rally_overall_results menu).
@@ -98,10 +98,10 @@ pub struct LabelTables {
     pub championship_new_simulation_labels: LabelList,
     /// Label list at IDA 0x747C2C (the labels of the new_simulation menu).
     pub new_simulation_labels: LabelList,
-    /// Label list at IDA 0x747C40 (the labels of the menu_749290 menu).
-    pub menu_749290_labels: LabelList,
-    /// Label list at IDA 0x747C54 (the labels of the menu_7493ac menu).
-    pub menu_7493ac_labels: LabelList,
+    /// Label list at IDA 0x747C40 (the labels of the menu after the previous one in the menu array).
+    pub after_new_simulation_labels: LabelList,
+    /// Label list at IDA 0x747C54 (the labels of the menu after the previous one in the menu array).
+    pub second_after_new_simulation_labels: LabelList,
     /// Label list at IDA 0x747C68 (the labels of the simple_select_players menu).
     pub simple_select_players_labels: LabelList,
     /// Label list at IDA 0x747C7C (the labels of the time_trial_select_players menu).
@@ -112,12 +112,12 @@ pub struct LabelTables {
     pub arcade_select_level_labels: LabelList,
     /// Label list at IDA 0x747CB8 (the labels of the service_area menu).
     pub service_area_labels: LabelList,
-    /// Label list at IDA 0x747CCC (the labels of the menu_74d1e8 menu).
-    pub menu_74d1e8_labels: LabelList,
+    /// Label list at IDA 0x747CCC (the labels of the menu after the previous one in the menu array).
+    pub after_service_area_labels: LabelList,
     /// Label list at IDA 0x747CE0 (the labels of the in_game_options menu).
     pub in_game_options_labels: LabelList,
-    /// Label list at IDA 0x747CF4 (the labels of the menu_7509b0 menu).
-    pub menu_7509b0_labels: LabelList,
+    /// Label list at IDA 0x747CF4 (the labels of the menu after the previous one in the menu array).
+    pub after_in_game_options_labels: LabelList,
     /// Label list at IDA 0x747D08 (the labels of the audio_setup menu).
     pub audio_setup_labels: LabelList,
     /// Label list at IDA 0x747D1C (the labels of the advanced_audio menu).
@@ -132,7 +132,7 @@ pub struct LabelTables {
     pub select_car_labels: LabelList,
     /// Label list at IDA 0x747D80 (the labels of the car_specs_display menu).
     pub car_specs_display_labels: LabelList,
-    /// Label list at IDA 0x747D94 (the labels of the menu_74ba3c menu).
+    /// Label list at IDA 0x747D94 (the labels of the cspecs_menu menu).
     pub menu_74ba3c_labels: LabelList,
     /// Label list at IDA 0x747DA8 (the labels of the inspection_area menu).
     pub inspection_area_labels: LabelList,
@@ -154,15 +154,15 @@ pub struct LabelTables {
     pub class_rally_results_labels: LabelList,
     /// Label list at IDA 0x747E5C (the labels of the overall_rally_results menu).
     pub overall_rally_results_labels: LabelList,
-    /// Label list at IDA 0x747E70 (the labels of the menu_74fde0 menu).
-    pub menu_74fde0_labels: LabelList,
-    /// Label list at IDA 0x747E84 (the labels of the menu_74fe44 menu).
-    pub menu_74fe44_labels: LabelList,
+    /// Label list at IDA 0x747E70 (the labels of the menu after the previous one in the menu array).
+    pub after_overall_rally_results_labels: LabelList,
+    /// Label list at IDA 0x747E84 (the labels of the menu after the previous one in the menu array).
+    pub second_after_overall_rally_results_labels: LabelList,
     /// Label list at IDA 0x747E98 (the labels of the class_championship_standings menu).
     pub class_championship_standings_labels: LabelList,
     /// Label list at IDA 0x747EAC (the labels of the championship_standings menu).
     pub championship_standings_labels: LabelList,
-    /// Label list at IDA 0x747EC0 (the labels of the menu_74fea8 menu).
+    /// Label list at IDA 0x747EC0 (the labels of the section_times_menu menu).
     pub menu_74fea8_labels: LabelList,
     /// Label list at IDA 0x747ED4 (the labels of the championship_service_review menu).
     pub championship_service_review_labels: LabelList,
@@ -224,12 +224,12 @@ pub struct LabelTables {
     pub best_class_scores_labels: LabelList,
     /// Label list at IDA 0x748118 (the labels of the best_overall_scores menu).
     pub best_overall_scores_labels: LabelList,
-    /// Label list at IDA 0x74812C (the labels of the menu_74e168 menu).
-    pub menu_74e168_labels: LabelList,
+    /// Label list at IDA 0x74812C (the labels of the menu after the previous one in the menu array).
+    pub after_best_overall_scores_labels: LabelList,
     /// Label list at IDA 0x748140 (the labels of the options menu).
     pub options_labels: LabelList,
-    /// Label list at IDA 0x748154 (the labels of the menu_74e79c menu).
-    pub menu_74e79c_labels: LabelList,
+    /// Label list at IDA 0x748154 (the labels of the menu after the previous one in the menu array).
+    pub after_options_labels: LabelList,
     /// Label list at IDA 0x748168 (the labels of the player1_details menu).
     pub player1_details_labels: LabelList,
     /// Label list at IDA 0x74817C (the labels of the player2_details menu).
@@ -269,11 +269,11 @@ impl LabelTables {
         arcade_review_options_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x514]),
         arcade_next_level_review_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x514]),
         arcade_retry_review_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x514]),
-        menu_74bafc_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x0]),
+        after_arcade_retry_review_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x0]),
         stage_result_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x204]),
         labels_747b50: LabelList::new([0x310, 0x30, 0x51E944, 0x204]),
         single_rally_two_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x204]),
-        menu_750b94_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x204]),
+        after_single_rally_two_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x204]),
         single_rally_three_four_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x204]),
         single_rally_overall_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x205]),
         time_trial_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x204]),
@@ -283,16 +283,16 @@ impl LabelTables {
         start_rally_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1D7]),
         championship_new_simulation_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1EC]),
         new_simulation_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1EC]),
-        menu_749290_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1E0]),
-        menu_7493ac_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1E0]),
+        after_new_simulation_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1E0]),
+        second_after_new_simulation_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1E0]),
         simple_select_players_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1E5]),
         time_trial_select_players_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1E5]),
         labels_747c90: LabelList::new([0x310, 0x30, 0x51E944, 0x1E5]),
         arcade_select_level_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1F5]),
         service_area_labels: LabelList::new([0x310, 0x1D, 0x51E944, 0x0]),
-        menu_74d1e8_labels: LabelList::new([0x310, 0x1D, 0x51E944, 0x0]),
+        after_service_area_labels: LabelList::new([0x310, 0x1D, 0x51E944, 0x0]),
         in_game_options_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x521]),
-        menu_7509b0_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x521]),
+        after_in_game_options_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x521]),
         audio_setup_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x53B]),
         advanced_audio_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x549]),
         leave_question_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x53A]),
@@ -311,8 +311,8 @@ impl LabelTables {
         overall_stage_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4E9]),
         class_rally_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x0]),
         overall_rally_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x0]),
-        menu_74fde0_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4ED]),
-        menu_74fe44_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4EE]),
+        after_overall_rally_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4ED]),
+        second_after_overall_rally_results_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4EE]),
         class_championship_standings_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4F0]),
         championship_standings_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4F1]),
         menu_74fea8_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x4EF]),
@@ -346,9 +346,9 @@ impl LabelTables {
         arcade_best_scores_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x35B]),
         best_class_scores_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x35C]),
         best_overall_scores_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x35D]),
-        menu_74e168_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x532]),
+        after_best_overall_scores_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x532]),
         options_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x13B]),
-        menu_74e79c_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1A3]),
+        after_options_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x1A3]),
         player1_details_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x176]),
         player2_details_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x177]),
         player3_details_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x178]),
@@ -394,7 +394,7 @@ pub static LABEL_LISTS: [&LabelList; 98] = [
         .tables
         .menus
         .labels
-        .menu_74bafc_labels,
+        .after_arcade_retry_review_labels,
     &crate::menu::owner::MENUS
         .tables
         .menus
@@ -410,7 +410,7 @@ pub static LABEL_LISTS: [&LabelList; 98] = [
         .tables
         .menus
         .labels
-        .menu_750b94_labels,
+        .after_single_rally_two_results_labels,
     &crate::menu::owner::MENUS
         .tables
         .menus
@@ -456,12 +456,12 @@ pub static LABEL_LISTS: [&LabelList; 98] = [
         .tables
         .menus
         .labels
-        .menu_749290_labels,
+        .after_new_simulation_labels,
     &crate::menu::owner::MENUS
         .tables
         .menus
         .labels
-        .menu_7493ac_labels,
+        .second_after_new_simulation_labels,
     &crate::menu::owner::MENUS
         .tables
         .menus
@@ -487,7 +487,7 @@ pub static LABEL_LISTS: [&LabelList; 98] = [
         .tables
         .menus
         .labels
-        .menu_74d1e8_labels,
+        .after_service_area_labels,
     &crate::menu::owner::MENUS
         .tables
         .menus
@@ -497,7 +497,7 @@ pub static LABEL_LISTS: [&LabelList; 98] = [
         .tables
         .menus
         .labels
-        .menu_7509b0_labels,
+        .after_in_game_options_labels,
     &crate::menu::owner::MENUS
         .tables
         .menus
@@ -588,12 +588,12 @@ pub static LABEL_LISTS: [&LabelList; 98] = [
         .tables
         .menus
         .labels
-        .menu_74fde0_labels,
+        .after_overall_rally_results_labels,
     &crate::menu::owner::MENUS
         .tables
         .menus
         .labels
-        .menu_74fe44_labels,
+        .second_after_overall_rally_results_labels,
     &crate::menu::owner::MENUS
         .tables
         .menus
@@ -759,13 +759,13 @@ pub static LABEL_LISTS: [&LabelList; 98] = [
         .tables
         .menus
         .labels
-        .menu_74e168_labels,
+        .after_best_overall_scores_labels,
     &crate::menu::owner::MENUS.tables.menus.labels.options_labels,
     &crate::menu::owner::MENUS
         .tables
         .menus
         .labels
-        .menu_74e79c_labels,
+        .after_options_labels,
     &crate::menu::owner::MENUS
         .tables
         .menus
@@ -998,7 +998,7 @@ pub struct MenuTables {
     pub slideshow: MenuHandle,
     pub select_car: MenuHandle,
     pub car_specs_display: MenuHandle,
-    pub menu_74ba3c: MenuHandle,
+    pub cspecs_menu: MenuHandle,
     pub redefine_keys_player1: MenuHandle,
     pub redefine_keys_player2: MenuHandle,
     pub redefine_keys_player3: MenuHandle,
@@ -1031,7 +1031,7 @@ pub struct MenuTables {
     pub overall_stage_results: MenuHandle,
     pub class_rally_results: MenuHandle,
     pub overall_rally_results: MenuHandle,
-    pub menu_74fea8: MenuHandle,
+    pub section_times_menu: MenuHandle,
     pub class_championship_standings: MenuHandle,
     pub championship_standings: MenuHandle,
     pub championship_service_review: MenuHandle,
@@ -1090,7 +1090,7 @@ impl MenuTables {
             slideshow: MenuHandle(21),
             select_car: MenuHandle(22),
             car_specs_display: MenuHandle(23),
-            menu_74ba3c: MenuHandle(24),
+            cspecs_menu: MenuHandle(24),
             redefine_keys_player1: MenuHandle(26),
             redefine_keys_player2: MenuHandle(27),
             redefine_keys_player3: MenuHandle(28),
@@ -1123,7 +1123,7 @@ impl MenuTables {
             overall_stage_results: MenuHandle(58),
             class_rally_results: MenuHandle(59),
             overall_rally_results: MenuHandle(60),
-            menu_74fea8: MenuHandle(63),
+            section_times_menu: MenuHandle(63),
             class_championship_standings: MenuHandle(64),
             championship_standings: MenuHandle(65),
             championship_service_review: MenuHandle(66),

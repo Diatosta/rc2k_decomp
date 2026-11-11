@@ -1,8 +1,8 @@
-//! The credits rolling up over the screen (converted 2026-10-21 from `race::roll_credits`
+//! The credits rolling up over the screen (converted from `race::roll_credits`
 //! 0x415FC2 and `race::credit_line` 0x4161BA): a script of words laid out from the top
 //! down, the top moving up a pixel each 0x12 ms, the end once the last line is off the
 //! top and the music has stopped; and the race the credits show, its stage and car drawn
-//! (converted 2026-10-21 from `race::set_up_credits_race` 0x463711).
+//! (converted from `race::set_up_credits_race` 0x463711).
 
 /// The credits' font of a script word (1, 2, 3, 4, 7, 8; the columns use 4's).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -107,9 +107,9 @@ pub fn rolled_off(below_last: i32, playing: u32) -> bool {
     below_last <= -0xAF && playing != 1
 }
 
-/// The stages the credits' race is drawn from (`dword_71C3E4`).
+/// The stages the credits' race is drawn from (`credit_stages`).
 pub const RACE_STAGES: u32 = 36;
-/// The car kinds it is drawn from (`dword_71C474`).
+/// The car kinds it is drawn from (`credit_car_kinds`).
 pub const RACE_KINDS: u32 = 23;
 
 /// A draw (`math::next_random`) as a place among `n`: the high dword of draw x n, held to

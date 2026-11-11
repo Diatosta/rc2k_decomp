@@ -1,9 +1,9 @@
 //! `menu::shuffle_drivers` (0x470AB9): meant to shuffle four driver tables
-//! (`unk_73EA7C`, `unk_740764`, `unk_7418BC`, `g_drivers`; 0x94 an entry; counts
-//! `dword_75AB04`, `dword_75AB08`, `dword_75AB0C`, `dword_75AB00`), but it never adds the
+//! (a menu table, a menu table, a menu table, `g_drivers`; 0x94 an entry; counts
+//! `state.menus.class_counts`, `state.menus.class_counts`, `state.menus.class_counts`, `state.menus.class_counts`), but it never adds the
 //! two random entries' offsets: for each table, count times, two random numbers under the
-//! count (`dword_7559EC`, `hhmm`) and the first entry swapped with itself through
-//! `unk_755398` / `unk_75542C` (both left holding it). Section 16.
+//! count (`draw_work.figure`, `hhmm`) and the first entry swapped with itself through
+//! the first shuffle table / the second shuffle table (both left holding it). Section 16.
 //!
 //! Callers: one of the game's. The random numbers are `math::random_below`'s.
 //! Refuses a count of 0 (the original's `div` traps, its loop runs on), before anything.

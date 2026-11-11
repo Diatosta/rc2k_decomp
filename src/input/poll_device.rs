@@ -1,7 +1,7 @@
 //! `input::poll_device` (0x408869): an acquired device's state copied into its record.
 //! With its DirectInput device (+4) acquired (+0x24 1): `Poll`; `GetDeviceState` (0x50
 //! bytes into `g_deviceState`); when that fails `Acquire` and (sic) the record's first 0x50
-//! bytes copied over the state (`rep movsd` where zeros were meant, which also leaves esi
+//! bytes copied over the state (a copy where zeros were meant, which also leaves the copy's pointer
 //! 0x50 further on, so that the rest reads and writes the record from there: section 16).
 //! Then the
 //! axes: for kinds up to 2, x the state dword `+0x1D & 7` (negated with bit 0x10) and y
@@ -13,10 +13,9 @@
 //! Takes: the device's record (`input/devices.rs`)
 //!
 //! Caller: `input::read_device`. Its DirectInput calls: `Poll`, `GetDeviceState`
-//! (eax its result), `Acquire` (platform).
+//! (its result), `Acquire` (platform).
 //!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Its arguments are what it reads.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::devices::{STATE_LEN, joy_state};
@@ -56,8 +55,8 @@ pub fn poll_device(devices: &Devices, record: &InputDevice) -> Result<(), Refuse
         }
         Err(_) => true,
     };
-    // The `rep movsd` of a failed read moves esi on by 0x50 as well: what follows reads
-    // and writes the record from there (sic) until the `popa`.
+    // The copy of a failed read moves its pointer on by 0x50 as well: what follows reads
+    // and writes the record from there (sic) to the function's end.
     if failed {
         crate::input::di_objects::acquire(device);
         GamePtr::to(record).copy_to(
@@ -87,7 +86,7 @@ pub fn poll_device(devices: &Devices, record: &InputDevice) -> Result<(), Refuse
 /// effects' fields stand where the axes were meant).
 fn poll_shifted(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
     use rc2k_core::input::joystick::{poll_axes, poll_buttons};
-    // A run-on past the record, as the original's `esi` 0x50 on.
+    // A run-on past the record, as the original's pointer 0x50 on.
     let at = |offset: u32| GamePtr::to(record).offset(STATE_LEN as u32 + offset);
     let kind = at(8).read::<u32>("a device record's dword")?;
     let late = crate::input::devices::Deferred::default();

@@ -1,4 +1,4 @@
-//! What a picture goes through on its way into a texture (read 2026-10-14 from
+//! What a picture goes through on its way into a texture (from
 //! `gfx::load_picture_to_texture`'s upload `gfx::upload_texture_picture` and
 //! `scene::upload_car_icon`). Pixels are 32-bit components: byte 0, 1, 2 the colour, byte 3 the
 //! alpha.
@@ -10,9 +10,9 @@
 //!   bits (magenta) becomes 0, all of it.
 //! - `gfx::least_colour` (0x4053BC): the lowest step of each of a format's four masks
 //!   put together, as components.
-//! - `gfx::grade_texture` (0x4055A2): with the reading switch `dword_4F4A24` at 1 and
-//!   the scale `dword_4F4A28` and saturation `dword_4F4A2C` not both 0x100: each
-//!   colour's parts through a table of 0x100 bytes (`byte_4F4A30`, made here from the
+//! - `gfx::grade_texture` (0x4055A2): with the reading switch (`reading`) at 1 and
+//!   the scale `scale` and saturation `saturation` not both 0x100: each
+//!   colour's parts through a table of 0x100 bytes (`grades`, made here from the
 //!   scale), drawn towards or away from their average (`g_thirds`) by the saturation,
 //!   and a colour left black by the top five bits becomes the key; pixels of alpha 0
 //!   are left alone.

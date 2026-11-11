@@ -1,4 +1,4 @@
-//! The scene's light and object-drawing work (IDA 0x62DA44 .. 0x62DB5C; phase 7, typed): the object
+//! The scene's light and object-drawing work (IDA 0x62DA44 .. 0x62DB5C): the object
 //! being drawn, the lamp tint and the point's place, the light-dot inputs, the light's colour and
 //! kind, the lamp and ground colours the car lighting keeps, the plain light colours, the
 //! material phases' lengths and clock, and the count of listed faces. `#[repr(C)]` with the image's
@@ -72,8 +72,7 @@ pub struct LightWork {
 // them): any bit pattern is a valid value.
 
 impl LightWork {
-    /// The piece with the image's first values (a static of its own since 2026-10-29: it left
-    /// the race block, phase 13, `race::store::LEFT`; the owner `scene::owner::Scene` holds it).
+    /// The piece with the image's first values.
     pub const fn new() -> Self {
         crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }

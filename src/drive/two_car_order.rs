@@ -1,6 +1,6 @@
 //! `drive::two_car_order` (0x460CDA): the two cars' places in a two-car race (the car blocks'
-//! +0xFA4, `g_carBlockStore`): -1 for both outside mode 0 (`dword_62389C`) or with one car
-//! (`dword_63DB94` 1); left as they are while either has +0xA8 set; else 1 for the one ahead
+//! +0xFA4, `g_carBlockStore`): -1 for both outside mode 0 (`run_kind`) or with one car
+//! (`players` 1); left as they are while either has +0xA8 set; else 1 for the one ahead
 //! (checkpoint +0x94, then +0x624, each by the sign of the `cmp`), 2 for the other.
 //!
 //! Returns: the last figure compared

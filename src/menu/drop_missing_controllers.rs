@@ -1,8 +1,8 @@
 //! `menu::drop_missing_controllers` (0x4748B6): a car whose number at +0x2C is above
-//! `dword_4F78E0` gets 0 there.
+//! the controller count gets 0 there.
 //!
 //! For each of the four players, compared unsigned. A reading of what the two are:
-//! `dword_4F78E0` is counted up by the function that lists the game controllers
+//! the controller count is counted up by the function that lists the game controllers
 //! (`input::joystick_found`, at most 0x10), so +0x2C is the player's controller, 0 being none.
 //! Callers: `menu::run_front_end` (before the main menu) and `saves::load_savegame`. Refuses a
 //! missing player. Rust callers run its `entry` (`routes.rs`).

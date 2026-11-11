@@ -1,10 +1,10 @@
 //! `scene::choose_view_window` (0x44FE1A): the view's window, then `scene::set_view_window`:
-//! without `dword_621514` the screen's size (`g_screenWidth`, `g_screenHeight`) at 0, 0;
-//! with it 800 x 600 at 0, 0 when `dword_621480` is set or `word_636526` is 2, else 720 x
-//! 540 at 0x50, 0; `dword_624080` 0x100 either way.
+//! without the front-end switch the screen's size at 0, 0; with it 800 x 600 at 0, 0 when
+//! `scene_set_up` is set or the screen mode word is 2, else 720 x 540 at 0x50, 0; the view's
+//! zoom 0x100 either way.
 //!
-//! Callers: `scene::full_view_window`, code at `race::loading_bar_frame` (0x446810).
-//! `set_view_window` is its Rust version.
+//! Callers: `scene::full_view_window`, `race::loading_bar_frame`.
+//! //! `set_view_window` does the rest.
 
 use crate::race::owner::Race;
 

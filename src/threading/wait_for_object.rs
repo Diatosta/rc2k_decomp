@@ -1,4 +1,4 @@
-//! `threading::wait_for_object` (0x411063): `WaitForSingleObject(eax, ebx)`.
+//! `threading::wait_for_object` (0x411063): `WaitForSingleObject(handle, milliseconds)`.
 //!
 //! Takes: the handle, milliseconds
 //! One caller, `net::receive_thread` (0x4183F4: the network's event, 1000 ms), which reads

@@ -1,16 +1,16 @@
-//! `effects::burst_particles` (0x4D0146): up to 0x100 entries of the marks' ring started at
-//! the place of the record at esi (+0xC .. +0x14), each in a random direction on a sphere
-//! of a random radius: `dword_5165E8` 1; the radius (the marks' random's low word times
-//! `flt_8EB969`, plus `flt_93C674`, times `flt_93C678`) into `flt_93A5E4`, a kind ((its low
-//! 3 bits) times 0x400) into `dword_93A5D4` and ((its bits 16) + 8) into `dword_93A5D0`;
-//! then each entry taken from `g_marksRingFree` (its +0, while `g_marksRingUsed` is not
-//! 0xFFF): +8 `dword_93A5D0`, +0x48 `dword_93A5D4`, the place, a direction by two angles
-//! of the next random (`g_sines` / `g_cosines`) times the radius at +0x28 .. +0x34, +0x38
-//! 0x10000, +0x3C 0xFF000000, +0x44 3000 and +0x40 `flt_93C67C` / 3000.
+//! `effects::burst_particles` (0x4D0146): up to 0x100 entries of the effects' ring started at
+//! the place of the record (+0xC .. +0x14), each in a random direction on a sphere of a
+//! random radius: a burst flag is set; the radius (the effects' random's low word times a
+//! constant, plus a base, times a scale) is kept, and so are a kind ((its low 3 bits) times
+//! 0x400) and ((its bit 16) + 8); then each entry taken from the ring's first free one (its
+//! +0, while the used count is not 0xFFF): +8 the first kept value, +0x48 the second, the
+//! place, a direction by two angles of the next random (the sine and cosine tables) times
+//! the radius at +0x28 .. +0x34, +0x38 0x10000, +0x3C 0xFF000000, +0x44 3000 and +0x40 the
+//! life factor / 3000.
 //!
 //! Takes: the record
 //!
-//! Callers: `effects::run_particles` and code at 0x4D032B. Refuses a null record or ring (when an
+//! Callers: `effects::run_particles` and its dust step. Refuses a null record or ring (when an
 //! entry is to be taken), before anything.
 
 use crate::effects::blocks::{particle, set_particle};
@@ -18,6 +18,7 @@ use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::math::x87_float as bh;
 
 const ENTRIES: u32 = 0x100;
 const FULL: u32 = 0xFFF;
@@ -53,7 +54,7 @@ fn entries_taken(particles: &Particles, ring: &Ring) -> Result<Vec<u32>, Refused
     })
 }
 
-/// `record` the particle it bursts from (esi).
+/// `record` is the particle it bursts from.
 pub fn burst_particles(
     particles: &Particles,
     ring: &Ring,
@@ -79,7 +80,7 @@ pub fn burst_particles(
             .burst_scale
             .each_ref()
             .map(super::super::session::Float::bits);
-        let radius = x87::int_times_plus_times(r as i32, m, c, k);
+        let radius = bh::st((bh::int(r as i32) * bh::ld(m) + bh::ld(c)) * bh::ld(k));
         ring.pool.burst_radius.set_bits(radius);
         ring.pool.kind.set((s & 7) * 0x400);
         ring.pool.nine.set((s.rotate_right(16) & 1) + 8);
@@ -118,7 +119,7 @@ pub fn burst_particles(
             put(0x44, LIFE)?;
             put(
                 0x40,
-                x87::over_int(effects.kinds.particle_tuning.burst_life.bits(), LIFE as i32),
+                x87::over_int(&effects.kinds.particle_tuning.burst_life, LIFE as i32),
             )?;
         }
     }

@@ -1,6 +1,6 @@
-//! `install::next_edit` (0x41530F): with ebx 0, the highlight (`g_listChoice`) moved on to
+//! `install::next_edit` (0x41530F): with state 0, the highlight (`g_listChoice`) moved on to
 //! the first edit item (kind 4) from it, which begins to be edited (`install::start_edit`);
-//! none before the list's end: the highlight back to 0. Any other ebx: nothing.
+//! none before the list's end: the highlight back to 0. Any other state: nothing.
 //!
 //! Takes 0 (a list action's start), list.
 //! Callers `install::folder_page` (the folder page's action), `install::mark_page`.

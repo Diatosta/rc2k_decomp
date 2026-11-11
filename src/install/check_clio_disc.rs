@@ -1,17 +1,17 @@
 //! `install::check_clio_disc` (0x416653): the Clio update.
 //!
-//! `g_hasClio` (0x529DB4) = 1 if `files\b\obj0570.ro3` is there (`menu::set_up_front_end` reads it:
+//! `g_hasClio` = 1 if `files\b\obj0570.ro3` is there (`menu::set_up_front_end` reads it:
 //! the extra car), and nothing at all if not. The rest is for a start from the update's
 //! disc: only if the installer is not running, there is no `var\ral.zog` here, the
 //! registry records an installation (status 1, a source) which is not where the game was
 //! started (`install::runs_from_source`), and `files\d\gfx\install.bun` is not here. Then
-//! base directory B (`unk_5295B4`) goes through `normalise_path` to `byte_95E8F8`, the
-//! installation's source is made the current directory, B goes again to `byte_95E9F8`,
+//! base directory B (`base_b`) goes through `normalise_path` to `path_a`, the
+//! installation's source is made the current directory, B goes again to `path_b`,
 //! and the installation's record is read. An installation below "normal" (`g_mediaMode`
 //! under 2) is "CLIO: Requires normal or full installation" in the log and the fatal
 //! error. Otherwise the installer's script is set up (as in `check_at_start`, with
 //! string 0x1038), the car's name `aRenaultClioSpo` is put in capitals up to its `(`,
-//! where a line feed ends it, and `off_51DD48` becomes `install::install_clio`.
+//! where a line feed ends it, and the third page's action becomes `install::install_clio`.
 //! One caller, `start`, which calls it directly.
 
 use crate::errors::{BadInput, FatalError, Refused};
@@ -43,7 +43,7 @@ pub fn check_clio_disc(
     {
         return Ok(());
     }
-    // `base_b` (`unk_5295B4`) is an empty text whose size is not known (section 13: the
+    // Base directory B is an empty text whose size is not known (section 13: the
     // installer writes it elsewhere): read as a text at its place.
     let base_b = crate::files::cstring(&g.texts.base_b, "the installer's base")?;
     let Some(a) = outside.normalise_path(&base_b)? else {

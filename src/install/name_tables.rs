@@ -1,6 +1,5 @@
 //! The installer's tables of names (`g_dirNames`, 0x10100 bytes, and `g_fileNames`,
-//! 0x40100 bytes, blocks of the game's heap on the installer's list): Rust's since phase
-//! 12 (2026-10-27). Each held the names one after another, each ended by its NUL; here a
+//! 0x40100 bytes, blocks of the game's heap on the installer's list): Rust's. Each held the names one after another, each ended by its NUL; here a
 //! list of names, and the bytes they would take there (`bytes`), which the original's room
 //! checks read as the cursor less the table. `INSTALLER_RUN.dir_scan` holds the number of
 //! the next folder to search, `dir_cursor` / `file_cursor` the tables' bytes.

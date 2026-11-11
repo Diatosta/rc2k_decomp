@@ -1,6 +1,6 @@
 //! `input::end_force` (0x4095AE): a device's force feedback ended, when its controller has
 //! it (the controller's entry, `g_controllers` + 0x50 its number, +0x1C 1): the
-//! self-centring turned on (`DIPROP_AUTOCENTER` 1 in `dword_4F6AA4`; its result not looked
+//! self-centring turned on (`DIPROP_AUTOCENTER` 1 in `dword_property`; its result not looked
 //! at) and the six effects' objects given back (`input::release_effect`), each effect's
 //! +0xC (found) 0. (+0x28, effects on, is left: `input::release_device` clears it.)
 //!

@@ -2,7 +2,7 @@
 //!
 //! The name is the highlighted entry of the replay list. One pending key is taken:
 //! none          the cursor is written again;
-//! 1 (Escape)    the name from before comes back, the entry ends, `dword_758806` = 1;
+//! 1 (Escape)    the name from before comes back, the entry ends, `captions.left_by_key` = 1;
 //! carry set;
 //! 0x1C (Enter)  an empty name is replaced by the one from before; the entry ends and the
 //! name is cut at its length; carry clear;
@@ -12,11 +12,11 @@
 //! the maximum, and taken off again if the name then measures 0xEC pixels
 //! or more.
 //! After anything but Escape and Enter the cursor (string 4) is written after the name if
-//! `dword_7559A8` is 1, then a NUL; carry is then set exactly when `dword_7559A8` is 0.
+//! `draw_work.cursor_on` is 1, then a NUL; carry is then set exactly when `draw_work.cursor_on` is 0.
 //! A slip in the original, reproduced: the clear key, the backspace key and the "too wide"
 //! case act on the highlighted name of the SAVED GAME list, not the replay list, while the
 //! length they change is the replay entry's.
-//! Called from the screen loop `menu::save_replay_loop` while `dword_7556A8` is 1.
+//! Called from the screen loop `menu::save_replay_loop` while `option_work.typing` is 1.
 //!
 //! Refuses, before the key is taken: a name past either list, a length outside 0 .. 0x1F, no
 //! keyboard layout.

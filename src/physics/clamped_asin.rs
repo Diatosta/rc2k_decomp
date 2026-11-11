@@ -1,16 +1,16 @@
 //! `physics::clamped_asin` (0x42120B): the angle whose sine is st(0). The value is stored
-//! as a float in `dword_62400C`, held there to -`flt_5C5D38` ..= `flt_5C5D38` (1.0; the
+//! as a float in `scratch`, held there to -`one` ..= `one` (1.0; the
 //! limit is negated in place for the second compare and put back), and the result is
 //! `fpatan` of st(0) (unheld, 80 bits) over the root of 1 less the held float's square.
 //! A value past the limit gives +-pi/2.
 //!
 //! Callers: `physics::matrix_angles` (twice), unowned code at 0x42119E.
 
-use crate::math::x87_run::clamped_asin_80;
+use crate::math::x87::clamped_asin_80;
 use crate::session::Cell32;
 
-// dword_62400C
-// flt_5C5D38, 1.0
+// `scratch`
+// `one`, 1.0
 
 /// The scratch float and the limit in `scratch`, `limit` (both written, in that order, as the
 /// original does).

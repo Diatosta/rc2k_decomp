@@ -3,8 +3,8 @@
 //!
 //! Takes the text, 1 for a line break after it and the level - 1. Nothing changes if `g_logEnabled`
 //! is 0 or less. If `g_logLevel` is 0, the original's lock function returns straight to the caller
-//! of this one, with its own return address popped into eax (a slip of the original). The four
-//! entries `log_write_l1`, `_l1_nl`, `_l2`, `_l2_nl` (0x401427 ..) set edx and jump here, so they
+//! of this one, with its own return address left in the result register (a slip of the original). The four
+//! entries `log_write_l1`, `_l1_nl`, `_l2`, `_l2_nl` (0x401427 ..) set the flag and level and jump here, so they
 //! go through this function too, as do the four `log_newline`/`log_space` helpers. The lock is
 //! `g_logLock`, taken with an `xchg` and `Sleep(1)` between tries (`log_lock_acquire`, 0x40130A,
 //! inlined here); `write_line` releases it.

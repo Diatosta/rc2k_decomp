@@ -1,16 +1,15 @@
 //! `saves::gather_savegame` (0x4AB427): copies the state a saved game holds into a buffer.
 //!
 //! In this order:
-//! - seven dwords: `dword_755984` (the player count), `dword_755950` (the stages done),
-//!   the event's stage index and section (0x755958, 0x75595C), `dword_755988` (the event
-//!   kind), `dword_7556D0` (the event mode), `dword_75AB40` (the class mode);
-//! - the four players `off_75647C[0 .. 4]`, 0x28C bytes each;
-//! - 180 records of 0x94 bytes from `unk_73B674` (the drivers' table).
+//! - seven dwords (`head`): the event's player count, stages done, stage index and
+//!   section, event kind, event mode, and the class mode;
+//! - the four players, 0x28C bytes each;
+//! - 180 records of 0x94 bytes from the drivers' table.
 //!
-//! Before the cars are copied it also changes them: car 0 gets `dword_7554C0` at +0x14 and
-//! `dword_7554C4` at +0x274, and every car gets the 0x20 bytes its pointer at +0x18 points to
-//! copied to +0x124 (the player's name: the pointer at +0x18 is the name's buffer, 0x20 bytes),
-//! so that the saved copy carries them (car 0's +0x14 and +0x274 are the two start sections).
+//! Before the cars are copied it also changes them: car 0 gets the two start sections
+//! (`flow.start_section` and `start_section_a8`, at +0x14 and +0x274 of its record), and
+//! every car gets the 0x20 bytes of its name's buffer (the pointer at +0x18) copied to
+//! +0x124, so that the saved copy carries them.
 //! Refuses, before anything is written: a missing player or a car without that pointer.
 
 use crate::errors::BadInput;

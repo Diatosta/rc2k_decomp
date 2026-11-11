@@ -1,12 +1,12 @@
 //! The frame rate measured every 16th frame from the time-stamp counter (converted
-//! 2026-10-21 from `race::measure_frame_rate` 0x42009E). Floats as the float pass keeps
+//! from `race::measure_frame_rate` 0x42009E). Floats as the float pass keeps
 //! them: the x87's stack in `f64`, the stored rate rounded to `f32` (exact at the game's
-//! double precision). Its text converted 2026-10-21 from `race::draw_frame_rate` 0x4562B2.
+//! double precision). Its text Converted from `race::draw_frame_rate` 0x4562B2.
 
 /// The frames between two measures.
 pub const MEASURE_EVERY: u32 = 0x10;
 
-/// The frame counter (`dword_613838`) one on: the count kept and whether to measure now
+/// The frame counter (`frame_rate_count`) one on: the count kept and whether to measure now
 /// (at 0x10, the count back to 0).
 pub fn count_frame(count: u32) -> (u32, bool) {
     let n = count.wrapping_add(1);
@@ -28,8 +28,8 @@ pub fn cycles_since(now: u64, last: u64) -> Option<u64> {
     ((c as i64) > 0).then_some(c)
 }
 
-/// The frame rate (`flt_6214F0`): the CPU's clock (`dword_5183E8`) x `k` x `k` x `k2`
-/// (`flt_5C5D18`, `flt_5C5D08`) / the cycles, as `fild`, `fmul`s, `fild`, `fdivp`, `fstp`.
+/// The frame rate (`frame_rate`): the CPU's clock (`dword_5183E8`) x `k` x `k` x `k2`
+/// (`thousand`, `sixteen`) / the cycles, as `fild`, `fmul`s, `fild`, `fdivp`, `fstp`.
 pub fn frame_rate(clock: i32, k: f32, k2: f32, cycles: u64) -> f32 {
     let product = clock as f64 * k as f64 * k as f64 * k2 as f64;
     (product / cycles as f64) as f32

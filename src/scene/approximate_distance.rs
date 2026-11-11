@@ -9,7 +9,7 @@
 
 // ---- Rust version ----
 
-/// Returns the length and what is left in ebx and ecx. Converted:
+/// Returns the length and the two leftovers. Converted:
 /// `rc2k_core::scene::distance::approximate`.
 pub fn approximate_distance(differences: [u32; 3]) -> [u32; 3] {
     let d = rc2k_core::scene::distance::approximate(differences.map(|d| d as i32));

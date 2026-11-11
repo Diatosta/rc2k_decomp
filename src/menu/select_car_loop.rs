@@ -17,7 +17,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &menus.screens;
     // The current player's +0x30 (its car).
     let current: u32 = screens.event.current_player.get();
-    let Some(player) = crate::menu::player::player(current) else {
+    let Some(player) = crate::menu::player::player(menus, current) else {
         return Err(crate::errors::BadInput("a current player past the four").into());
     };
     screens.flow.shown_gearing.set(player.get().gearing);
@@ -63,7 +63,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.setup_list, // dword_755500
+            pointer: |m| &m.screens.flow.setup_list,
             table: |m| m.tables.draw_lists.select_car_setup.id(),
             run: true,
         },

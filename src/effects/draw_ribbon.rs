@@ -1,20 +1,20 @@
 //! `effects::draw_ribbon` (0x4C5E63): a ribbon piece between two places already in the
-//! view's frame (`flt_8EB8D5` .. and `dword_8EB8E1` ..): half the width (edx >> 1, whole)
-//! in `dword_8EB8B5`, the four vertices' colour (ecx << 24) | esi and texture places from
-//! cell eax of `g_marksCellPlaces`; unless either depth is at or below `dword_8EB961` (a
-//! signed compare of the bits): both projected (`flt_8EB8CD`, `flt_8EB8D1` their scales),
-//! the way between them made one long and turned a quarter (`flt_8F3985`, `flt_8F3989`),
-//! the sides that times the half width and each scale (`flt_8F3991` ..), the four corners,
-//! the depths times `flt_8EB96D`; `effects::clip_quad`, and unless all is outside
-//! `scene::draw_fan` and `g_polygonVertexCount` 4.
+//! view's frame: half the width (the width shifted right once, whole) kept, the four
+//! vertices' colour (alpha << 24) | colour and texture places from the cell's entry in the
+//! cell places table; unless either depth is at or below the nearest depth (a signed compare
+//! of the bits): both projected (each with its own scale), the way between them made one long
+//! and turned a quarter, the sides that times the half width and each scale, the four
+//! corners, the depths times the depth scale; `effects::clip_quad`, and unless all is outside
+//! `scene::draw_fan` and the polygon's vertex count 4.
 //!
 //! Takes: the cell, the alpha, the width, the colour (and the two places)
 //!
-//! Callers: the marks' lines (0x4C5D65) and `effects::run_ribbons` (0x4CFAA3). The x87 block is
+//! Callers: the effects' lines and `effects::run_ribbons`. The x87 block is
 //! plain Rust on the x87 model (`math::x87_float`), in the original's order, over the game's
 //! variables. Refuses, before anything, a cell past 0x40 and null marks settings (the clip's
 //! refusal).
 
+use crate::effects::cell_x87::CellX87;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::mask_store::Masks;
 use crate::errors::{BadInput, Refused};
@@ -22,14 +22,14 @@ use crate::errors::{BadInput, Refused};
 use crate::d3d::vertices_store::VERTICES;
 const CELLS: u32 = 0x41;
 
-/// The original's 0x4C5EF7 .. 0x4C60E9: the two projected and the ribbon's corners.
+/// The two places projected and the ribbon's corners.
 fn ribbon(effects: &crate::effects::owner::Effects) {
     let frame = &effects.frame;
     ribbon_x87(&frame.draw_work, &frame.view_vars);
 }
 
-/// `cell` (eax), `alpha` (ecx), `width` (edx),
-/// `colour` (esi). Its one caller reads no register after it.
+/// Draws a ribbon piece of `colour` and `alpha` and `width`, with the texture places of
+/// `cell`.
 pub fn draw_ribbon(
     masks: &Masks,
     cell: u32,
@@ -91,95 +91,95 @@ fn ribbon_x87(dw: &DrawWork, vv: &ViewVars) {
         .window
         .view_scale
         .bits());
-    let t1 = t0 / bh::ld(dw.turned[2].bits());
-    let t2 = t1 * bh::ld(dw.turned[0].bits());
-    let t3 = t1 * bh::ld(dw.turned[1].bits());
+    let t1 = t0 / dw.turned[2].ld();
+    let t2 = t1 * dw.turned[0].ld();
+    let t3 = t1 * dw.turned[1].ld();
     let t4 = -t3;
-    let t5 = t4 + ld(crate::scene::polygon_work::front_end().window.view_centre[1].bits());
-    dw.turned[1].set_bits(bh::st(t5));
-    let t6 = t2 + ld(crate::scene::polygon_work::front_end().window.view_centre[0].bits());
-    dw.turned[0].set_bits(bh::st(t6));
-    dw.ends_scale[0].set_bits(bh::st(t1));
+    let t5 = t4 + crate::scene::polygon_work::front_end().window.view_centre[1].ld();
+    dw.turned[1].st(t5);
+    let t6 = t2 + crate::scene::polygon_work::front_end().window.view_centre[0].ld();
+    dw.turned[0].st(t6);
+    dw.ends_scale[0].st(t1);
     let t7 = ld(crate::scene::polygon_work::front_end()
         .window
         .view_scale
         .bits());
-    let t8 = t7 / bh::ld(dw.second[2].bits());
-    let t9 = t8 * bh::ld(dw.second[0].bits());
-    let t10 = t8 * bh::ld(dw.second[1].bits());
+    let t8 = t7 / dw.second[2].ld();
+    let t9 = t8 * dw.second[0].ld();
+    let t10 = t8 * dw.second[1].ld();
     let t11 = -t10;
-    let t12 = t11 + ld(crate::scene::polygon_work::front_end().window.view_centre[1].bits());
-    dw.second[1].set_bits(bh::st(t12));
-    let t13 = t9 + ld(crate::scene::polygon_work::front_end().window.view_centre[0].bits());
-    dw.second[0].set_bits(bh::st(t13));
-    dw.ends_scale[1].set_bits(bh::st(t8));
-    let t14 = bh::ld(dw.second[0].bits());
-    let t15 = t14 - bh::ld(dw.turned[0].bits());
-    vv.ribbon_way[0].set_bits(bh::st(t15));
-    let t16 = bh::ld(dw.second[1].bits());
-    let t17 = t16 - bh::ld(dw.turned[1].bits());
-    vv.ribbon_way[1].set_bits(bh::st(t17));
-    let t18 = bh::ld(vv.ribbon_way[0].bits());
+    let t12 = t11 + crate::scene::polygon_work::front_end().window.view_centre[1].ld();
+    dw.second[1].st(t12);
+    let t13 = t9 + crate::scene::polygon_work::front_end().window.view_centre[0].ld();
+    dw.second[0].st(t13);
+    dw.ends_scale[1].st(t8);
+    let t14 = dw.second[0].ld();
+    let t15 = t14 - dw.turned[0].ld();
+    vv.ribbon_way[0].st(t15);
+    let t16 = dw.second[1].ld();
+    let t17 = t16 - dw.turned[1].ld();
+    vv.ribbon_way[1].st(t17);
+    let t18 = vv.ribbon_way[0].ld();
     let t19 = t18 * t18;
-    let t20 = bh::ld(vv.ribbon_way[1].bits());
+    let t20 = vv.ribbon_way[1].ld();
     let t21 = t20 * t20;
     let t22 = t19 + t21;
     let t23 = t22.sqrt();
     let t24 = bh::ONE;
     let t25 = t24 / t23;
-    let t26 = bh::ld(vv.ribbon_way[0].bits());
-    let t27 = bh::ld(vv.ribbon_way[1].bits());
+    let t26 = vv.ribbon_way[0].ld();
+    let t27 = vv.ribbon_way[1].ld();
     let t28 = t27 * t25;
-    vv.ribbon_way[0].set_bits(bh::st(t28));
+    vv.ribbon_way[0].st(t28);
     let t29 = t25 * t26;
     let t30 = -t29;
-    vv.ribbon_way[1].set_bits(bh::st(t30));
-    let t31 = bh::ld(vv.ribbon_way[0].bits());
+    vv.ribbon_way[1].st(t30);
+    let t31 = vv.ribbon_way[0].ld();
     let t32 = t31 * bh::int(dw.half[0].bits() as i32);
-    let t33 = t32 * bh::ld(dw.ends_scale[0].bits());
-    vv.first_end_half_width[0].set_bits(bh::st(t33));
-    let t34 = bh::ld(vv.ribbon_way[1].bits());
+    let t33 = t32 * dw.ends_scale[0].ld();
+    vv.first_end_half_width[0].st(t33);
+    let t34 = vv.ribbon_way[1].ld();
     let t35 = t34 * bh::int(dw.half[0].bits() as i32);
-    let t36 = t35 * bh::ld(dw.ends_scale[0].bits());
-    vv.first_end_half_width[1].set_bits(bh::st(t36));
-    let t37 = bh::ld(vv.ribbon_way[0].bits());
+    let t36 = t35 * dw.ends_scale[0].ld();
+    vv.first_end_half_width[1].st(t36);
+    let t37 = vv.ribbon_way[0].ld();
     let t38 = t37 * bh::int(dw.half[0].bits() as i32);
-    let t39 = t38 * bh::ld(dw.ends_scale[1].bits());
-    vv.second_end_half_width[0].set_bits(bh::st(t39));
-    let t40 = bh::ld(vv.ribbon_way[1].bits());
+    let t39 = t38 * dw.ends_scale[1].ld();
+    vv.second_end_half_width[0].st(t39);
+    let t40 = vv.ribbon_way[1].ld();
     let t41 = t40 * bh::int(dw.half[0].bits() as i32);
-    let t42 = t41 * bh::ld(dw.ends_scale[1].bits());
-    vv.second_end_half_width[1].set_bits(bh::st(t42));
-    let t43 = bh::ld(dw.turned[0].bits());
-    let t44 = t43 - bh::ld(vv.first_end_half_width[0].bits());
+    let t42 = t41 * dw.ends_scale[1].ld();
+    vv.second_end_half_width[1].st(t42);
+    let t43 = dw.turned[0].ld();
+    let t44 = t43 - vv.first_end_half_width[0].ld();
     st_cell(&VERTICES.vertices[0].x, t44);
-    let t45 = bh::ld(dw.turned[1].bits());
-    let t46 = t45 - bh::ld(vv.first_end_half_width[1].bits());
+    let t45 = dw.turned[1].ld();
+    let t46 = t45 - vv.first_end_half_width[1].ld();
     st_cell(&VERTICES.vertices[0].y, t46);
-    let t47 = bh::ld(dw.turned[0].bits());
-    let t48 = t47 + bh::ld(vv.first_end_half_width[0].bits());
+    let t47 = dw.turned[0].ld();
+    let t48 = t47 + vv.first_end_half_width[0].ld();
     st_cell(&VERTICES.vertices[1].x, t48);
-    let t49 = bh::ld(dw.turned[1].bits());
-    let t50 = t49 + bh::ld(vv.first_end_half_width[1].bits());
+    let t49 = dw.turned[1].ld();
+    let t50 = t49 + vv.first_end_half_width[1].ld();
     st_cell(&VERTICES.vertices[1].y, t50);
-    let t51 = bh::ld(dw.second[0].bits());
-    let t52 = t51 + bh::ld(vv.second_end_half_width[0].bits());
+    let t51 = dw.second[0].ld();
+    let t52 = t51 + vv.second_end_half_width[0].ld();
     st_cell(&VERTICES.vertices[2].x, t52);
-    let t53 = bh::ld(dw.second[1].bits());
-    let t54 = t53 + bh::ld(vv.second_end_half_width[1].bits());
+    let t53 = dw.second[1].ld();
+    let t54 = t53 + vv.second_end_half_width[1].ld();
     st_cell(&VERTICES.vertices[2].y, t54);
-    let t55 = bh::ld(dw.second[0].bits());
-    let t56 = t55 - bh::ld(vv.second_end_half_width[0].bits());
+    let t55 = dw.second[0].ld();
+    let t56 = t55 - vv.second_end_half_width[0].ld();
     st_cell(&VERTICES.vertices[3].x, t56);
-    let t57 = bh::ld(dw.second[1].bits());
-    let t58 = t57 - bh::ld(vv.second_end_half_width[1].bits());
+    let t57 = dw.second[1].ld();
+    let t58 = t57 - vv.second_end_half_width[1].ld();
     st_cell(&VERTICES.vertices[3].y, t58);
-    let t59 = bh::ld(dw.turned[2].bits());
-    let t60 = t59 * bh::ld(dw.z_k.bits());
+    let t59 = dw.turned[2].ld();
+    let t60 = t59 * dw.z_k.ld();
     st_cell(&VERTICES.vertices[0].z, t60);
     st_cell(&VERTICES.vertices[1].z, t60);
-    let t61 = bh::ld(dw.second[2].bits());
-    let t62 = t61 * bh::ld(dw.z_k.bits());
+    let t61 = dw.second[2].ld();
+    let t62 = t61 * dw.z_k.ld();
     st_cell(&VERTICES.vertices[2].z, t62);
     st_cell(&VERTICES.vertices[3].z, t62);
 }

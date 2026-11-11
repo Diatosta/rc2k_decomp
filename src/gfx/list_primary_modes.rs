@@ -2,11 +2,10 @@
 //! modes' table and marked for Direct3D. (`gfx::list_secondary_modes` is the same for the
 //! secondary card; the two share what is here.)
 //!
-//! The primary: 0x4048EC with eax 0 (DirectDraw made for the card, "VID: Open ddraw";
-//! failing, fatal errors 0x80208511 / 0x80208512, raised there), 0x404A31 with eax
-//! 0x1000 (DirectDraw's `EnumDisplayModes` with 0x404A56, which puts the modes in the
-//! table), `gfx::mark_3d_modes` with eax 0x1000 if `dword_5AB4AC` (a 3D primary card) is
-//! 1, then 0x404935 (DirectDraw closed). DirectDraw is the platform's: in the standalone
+//! The primary: DirectDraw made for the card ("VID: Open ddraw"; failing, fatal errors
+//! 0x80208511 / 0x80208512, raised there), DirectDraw's `EnumDisplayModes` with the
+//! primary card's bit (0x1000), which puts the modes in the table, `gfx::mark_3d_modes`
+//! for the same kind if `cards.primary` (a 3D primary card) is 1, then DirectDraw closed. DirectDraw is the platform's: in the standalone
 //! the modes are every size the game knows in both pixel kinds (`standalone_modes`), and
 //! the opening and closing nothing. One caller, `start` (0x401098), which calls it directly.
 

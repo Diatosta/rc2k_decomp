@@ -1,22 +1,20 @@
 //! The set-ups of the players' results screens (agent E, 2026-10-19), all plain stores:
-//! - `menu::rank_stage_times` (0x48340B): the four players' stage times (`g_players`[n] +
-//!   0x88) with their byte offsets (0, 4, 8, 12) in the pairs at `dword_7587C8`, sorted by
-//!   the original's exchange loop (each pair i < j exchanged when j's time is at most i's,
-//!   signed; `dword_7559B4` / `dword_7559B8` its counters, left 3 and 4); the offsets in
-//!   that order into `g_duelFirst`, `g_duelSecond`, `dword_758728`, `dword_75872C`; and
-//!   through the pointers `off_758982`[offset] (the four positions `dword_758768` ..) the
-//!   places 1 .. 4.
-//! - `menu::rank_totals` (0x48356F): the same on the totals `dword_7587B8` ..
-//!   `dword_7587C4`, exchanged when j's is at least i's.
-//! - `menu::score_four_players` (0x485CBB): for each of the four: the total before
-//!   (`dword_7587A8`.. = `dword_7587B8`..), the place's points (`dword_75892A`[position]
-//!   into `dword_758778`..), the time bonus (`dword_758758`..: the stage record's +0x34
-//!   less the player's time, 0 when the time is greater, signed; the record
-//!   `off_735512[dword_7558C8][dword_7558D0]` + `dword_7558CC` x 0xA4), the player's +0x94
-//!   (`dword_758788`..), their sum (`dword_758798`..) and the new total (`dword_7587B8`..).
-//! - `menu::score_two_players` (0x485B0E): the same for two, with the places worked out
-//!   here: 1 and 2, or 2 and 1 when the second's time is below the first's (signed;
-//!   `dword_7559B8` keeps the first's time).
+//! - `menu::rank_stage_times`: the four players' stage times (`g_players`[n] + 0x88) with
+//!   their byte offsets (0, 4, 8, 12) in `results.pairs`, sorted by the original's exchange
+//!   loop (each pair i < j exchanged when j's time is at most i's, signed; its two counters
+//!   are left at 3 and 4); the offsets in that order go into the duel's first and second
+//!   players and the two entries after them; and through the place pointers
+//!   (`captions.place_pointers`[offset], the four `results.positions`) the places 1 .. 4.
+//! - `menu::rank_totals`: the same on `results.totals`, exchanged when j's is at least i's.
+//! - `menu::score_four_players`: for each of the four: the total before (`results.before`
+//!   takes `results.totals`), the place's points (`captions.place_points`[position] into
+//!   `results.points`), the time bonus (`results.time_bonus`: the stage record's +0x34 less
+//!   the player's time, 0 when the time is greater, signed; the record is the stage's row of
+//!   the event's stage table), the player's +0x94 (`results.extra`), their sum
+//!   (`results.sums`) and the new total (`results.totals`).
+//! - `menu::score_two_players`: the same for two, with the places worked out here: 1 and 2,
+//!   or 2 and 1 when the second's time is below the first's (signed; the second counter
+//!   keeps the first's time).
 //!
 //! Refusals (before anything): a missing player record, a stage record missing on the
 //! way, a position past 16 (the points table is read unchecked), an offset past the four
@@ -31,10 +29,11 @@ use crate::system::owner::system;
 
 const POSITION_LIMIT: u32 = 16;
 
-fn players(n: u32) -> Result<Vec<crate::menu::standings::PlayerCell>, Refused> {
+fn players(menus: &Menus, n: u32) -> Result<Vec<crate::menu::standings::PlayerCell<'_>>, Refused> {
     (0..n)
         .map(|k| {
-            crate::menu::player::player(k).ok_or_else(|| BadInput("a player past the four").into())
+            crate::menu::player::player(menus, k)
+                .ok_or_else(|| BadInput("a player past the four").into())
         })
         .collect()
 }
@@ -51,7 +50,7 @@ pub fn rank(menus: &Menus, by_totals: bool) -> Result<(), Refused> {
     let values: Vec<u32> = if by_totals {
         (0..4).map(|k| menus.play.results.totals[k].get()).collect()
     } else {
-        players(4)?.iter().map(|&r| r.get().time).collect()
+        players(menus, 4)?.iter().map(|&r| r.get().time).collect()
     };
     // Converted: `rc2k_core::menu::results::rank`.
     let pairs =
@@ -95,7 +94,7 @@ fn points(tables: &Tables, position: u32) -> Result<u32, Refused> {
 
 /// `menu::score_four_players` (`n` 4) or `score_two_players` (`n` 2).
 pub fn score(menus: &Menus, n: usize) -> Result<(), Refused> {
-    let records = players(n as u32)?;
+    let records = players(menus, n as u32)?;
     let target = stage_time(&menus.screens)?;
     let times: Vec<u32> = records.iter().map(|&r| r.get().time).collect();
     let positions: Vec<u32> = if n == 2 {

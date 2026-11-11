@@ -46,8 +46,8 @@ pub struct PointRecords;
 
 impl PointRecords {
     /// Refused when the records are not taken.
-    pub fn new() -> Result<Self, BadInput> {
-        if !crate::scene::point_records::held() {
+    pub fn new(course: &crate::race::owner_course::Course) -> Result<Self, BadInput> {
+        if !crate::scene::point_records::held(course) {
             return Err(BadInput("no records for the points"));
         }
         Ok(Self)

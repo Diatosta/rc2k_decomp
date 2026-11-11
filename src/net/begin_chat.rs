@@ -1,8 +1,8 @@
 //! `net::begin_chat` (0x4180C5): Enter on the lobby's chat item starts a message: the input
-//! (`byte_52A4C8`) emptied and edited (`net::begin_edit`, the item `g_listChoice`, width
-//! 0x30C, measured with `dword_51E424`).
+//! (`chat_input`) emptied and edited (`net::begin_edit`, the item `g_listChoice`, width
+//! 0x30C, measured with `typefaces::CHAT_LINE`).
 //!
-//! Returns the item, input, 0x30C, `dword_51E424`'s address.
+//! Returns the item, input, 0x30C, the chat font.
 //! Caller: `net::lobby_loop`.
 
 use crate::net::store::NetVars;

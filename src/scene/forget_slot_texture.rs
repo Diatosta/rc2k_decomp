@@ -1,5 +1,5 @@
-//! `scene::forget_slot_texture` (0x44EB66): slot eax's loaded texture forgotten
-//! (`g_slotLoadedTextures[eax]` -1), so that it is loaded again.
+//! `scene::forget_slot_texture` (0x44EB66): a slot's loaded texture forgotten
+//! (its entry in the slots' loaded textures set to -1), so that it is loaded again.
 //!
 //! Takes: the slot
 //!

@@ -1,6 +1,6 @@
 //! `net::open_lobby` (0x418E9B): "NET: Create dplobby", DirectPlay's lobby object made
-//! (`CoCreateInstance` of CLSID_DirectPlayLobby `stru_5AB340`, IID_IDirectPlayLobby2A
-//! `stru_5AB320`) into `g_dplayLobby`.
+//! (`CoCreateInstance` of CLSID_DirectPlayLobby `clsid_lobby`, IID_IDirectPlayLobby2A
+//! `iid_lobby2a`) into `g_dplayLobby`.
 //!
 //! Returns true when done.
 //! Left out: the original's branch for a game a lobby launched (`g_lobbyLaunched` 1: the

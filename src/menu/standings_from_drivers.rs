@@ -8,7 +8,7 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 pub fn standings_from_drivers(menus: &Menus) -> Result<(), Refused> {
-    let drivers = walked_drivers()?;
+    let drivers = walked_drivers(menus)?;
     if drivers.len() > 200 {
         return Err(BadInput("more drivers than the standings table holds").into());
     }

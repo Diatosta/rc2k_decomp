@@ -1,20 +1,19 @@
-//! `effects::emit_particle_5` (0x4CC15D, a chunk of `effects::emit_wheel_particles` entered by
-//! `jz` from it and from 0x4CA20B, left by `popa; retn`): one ring entry of kind 5 from a
-//! wheel whose +0x18 is not 0.
+//! `effects::emit_particle_5` (0x4CC15D, a chunk of `effects::emit_wheel_particles` entered
+//! from it and from another chunk): one ring entry of kind 5 from a wheel whose +0x18 is not
+//! 0.
 //!
 //! Takes: the wheel record, the car object
 //!
-//! The strength `flt_93555E`: |the wheel's +0x18|, then less (bit 0 of `dword_935416`
-//! clear, `dword_935432` -1) or plus (set, 1) its +0x10. The entry: its place the wheel's
-//! (+0x3C ..) less the car matrix's (+0x30 ..) plus a random side (`dword_93554A` /
-//! `dword_93554E`: the matrix's first and third rows by a random's low 14 bits, the first
-//! less 0x2000); its motion the matrix's first row by `flt_93A23E` .. and the sign, by the
-//! strength (the y plus `flt_93A246`), moved by `effects::jitter_point` (spread
-//! `flt_93A24E`), plus the third row by `flt_93A252` .. and the wheel's +0x18; +0x54
-//! `flt_93A25E` times the sign; +0x58 the wheel's flags' low 6 bits; +0x60 the integer
-//! ((`jitter_point`'s ebx >> 2) & 0xFFF) + 0x7800 (section 16); +0x74 0xFF000000; a life of
-//! 5000; +0x68 the car. Refuses (before anything) a null wheel, object, car or matrix where
-//! read. The body is shared with kind 0xB's (`JitterSet`, `emit_particle_5_with`,
+//! The strength: |the wheel's +0x18|, then less (wheel number even, sign -1) or plus (odd,
+//! sign 1) its +0x10. The entry: its place the wheel's (+0x3C ..) less the car matrix's
+//! (+0x30 ..) plus a random side (the matrix's first and third rows by a random's low 14
+//! bits, the first less 0x2000); its motion the matrix's first row by the set's factors and
+//! the sign, by the strength (the y plus a constant), moved by `effects::jitter_point` (the
+//! set's spread), plus the third row by the set's factors and the wheel's +0x18; +0x54 the
+//! set's spin factor times the sign; +0x58 the wheel's flags' low 6 bits; +0x60 the integer
+//! ((`jitter_point`'s third result >> 2) & 0xFFF) + 0x7800 (section 16); +0x74 0xFF000000; a
+//! life of 5000; +0x68 the car. Refuses (before anything) a null wheel, object, car or matrix
+//! where read. The body is shared with kind 0xB's (`JitterSet`, `emit_particle_5_with`,
 //! `test_with`).
 
 use crate::effects::emitters::car_with_matrix;
@@ -44,7 +43,7 @@ pub struct JitterSet {
     pub life: u32,
 }
 
-/// Kind 5's (`dword_93A23A`, `flt_93A23E` .. `flt_93A25E`).
+/// Kind 5's variables.
 pub static FIFTH: JitterSet = JitterSet {
     kind: 5,
     over_one: false,
@@ -68,7 +67,7 @@ pub static FIFTH: JitterSet = JitterSet {
     life: 0x1388,
 };
 
-/// Why the Rust version refuses these registers, if it does, worked out without writing.
+/// Why the emitter refuses, if it does, worked out without writing.
 pub fn refusal(
     ring: &Ring,
     set: &JitterSet,
@@ -120,7 +119,7 @@ pub fn emit_particle_5_with(
         if let Some(why) = refusal(ring, set, wheel)? {
             return Err(BadInput(why).into());
         }
-        let strength = x87::loaded(wheel.local_velocity_z.bits()) & 0x7FFF_FFFF;
+        let strength = x87::loaded(&wheel.local_velocity_z) & 0x7FFF_FFFF;
         kinds.emitter.strength.set_bits(strength);
         if !emits(set, wheel)? || next_entry(ring)?.is_none() {
             return Ok(());
@@ -128,9 +127,9 @@ pub fn emit_particle_5_with(
         let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, set.kind)?;
         let slot = crate::effects::ring_entries::Slot::new(ring, e);
         let (sign, strength) = if kinds.emitter.record.get() & 1 == 0 {
-            (-1i32, x87::sub(strength, wheel.local_velocity_x.bits()))
+            (-1i32, x87::sub(strength, &wheel.local_velocity_x))
         } else {
-            (1, x87::add(strength, wheel.local_velocity_x.bits()))
+            (1, x87::add(strength, &wheel.local_velocity_x))
         };
         kinds.emitter.sign.set(sign as u32);
         kinds.emitter.strength.set_bits(strength);
@@ -195,7 +194,7 @@ pub fn emit_particle_5_with(
     Ok(())
 }
 
-/// Kind 5's emitter variables (`emit_particle_5::FIFTH`) (IDA 0x93A23A .. 0x93A262, the image's layout; phase 7, typed state).
+/// Kind 5's emitter variables (`emit_particle_5::FIFTH`) (IDA 0x93A23A .. 0x93A262).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Kind5Set {
@@ -222,17 +221,13 @@ impl Kind5Set {
     pub const fn new() -> Self {
         Kind5Set {
             place_random: Dword::new(0x0),
-            motion_x: Float::from_bits(0x41200000),
-            motion_y: Float::from_bits(0x41200000),
-            lift: Float::from_bits(0x41700000),
-            motion_z: Float::from_bits(0x41200000),
-            spread: Float::from_bits(0x42DC0000),
-            roll_k: [
-                Float::from_bits(0xC1400000),
-                Float::from_bits(0xC1400000),
-                Float::from_bits(0xC1400000),
-            ],
-            spin: Float::from_bits(0xC2800000),
+            motion_x: Float::new(10.0),
+            motion_y: Float::new(10.0),
+            lift: Float::new(15.0),
+            motion_z: Float::new(10.0),
+            spread: Float::new(110.0),
+            roll_k: [Float::new(-12.0), Float::new(-12.0), Float::new(-12.0)],
+            spin: Float::new(-64.0),
         }
     }
 }

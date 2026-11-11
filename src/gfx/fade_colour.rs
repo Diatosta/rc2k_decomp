@@ -1,6 +1,6 @@
 //! `gfx::fade_colour` (0x44A4C5): a colour brought toward another: each of the three low
-//! bytes s of ebx becomes s + ((t - s) x ebp >> 8) (`imul`, `sar`), held to 0 .. 0xFF, t
-//! the byte of ecx in the same place; the top byte kept.
+//! bytes s of the colour becomes s + ((t - s) x amount >> 8), held to 0 .. 0xFF, t
+//! the byte of the target in the same place; the top byte kept.
 //!
 //! Takes: the colour, the colour faded to, how far (0x100 all the way)
 //!
@@ -10,9 +10,8 @@
 /// `rc2k_core::gfx::pixels::fade_step`.
 use rc2k_core::gfx::pixels::fade_step as step;
 
-/// `colour` (ebx) toward `to` (ecx) by `amount` (ebp);
-/// the colour (eax = ebx). Its one caller, `race::splash_mud`, reads nothing else it
-/// leaves (esi, edx).
+/// `colour` toward `to` by `amount`; returns the new colour. Its one caller,
+/// `race::splash_mud`, reads nothing else.
 pub fn fade_colour(colour: u32, to: u32, amount: u32) -> u32 {
     let [b0, b1, b2, b3] = colour.to_le_bytes();
     let [t0, t1, t2, _] = to.to_le_bytes();

@@ -158,7 +158,7 @@ pub fn make_object_matrix(
     let size: u32 = object.size.get();
     let factor = x87::int_over_16(size as i32);
     for cell in &v.turned_matrix {
-        cell.set_bits(x87::mul(cell.bits(), factor));
+        cell.set_bits(x87::mul(cell, factor));
     }
     copy_matrix_with_place(&v.turned_matrix, &v.placed_matrix, &v.made_object_matrix);
 }

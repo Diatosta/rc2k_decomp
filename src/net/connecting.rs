@@ -1,6 +1,6 @@
-//! `net::connecting` (0x417688): an empty frame (`screens::run_frame`, eax 0), then on the
-//! locked surface the background and "connecting" (string 0x14F, `stru_51E9A4` at 0x316,
-//! 0x6F), shown, a second's sleep (none when the lock fails); then connection eax made
+//! `net::connecting` (0x417688): an empty frame (`screens::run_frame`), then on the
+//! locked surface the background and "connecting" (string 0x14F, `typefaces::STAGE_TITLE` at 0x316,
+//! 0x6F), shown, a second's sleep (none when the lock fails); then the connection made
 //! (`net::init_connection`).
 //!
 //! Takes `connection`. Returns whether `net::init_connection` worked.

@@ -1,10 +1,10 @@
 //! `install::page_key` (0x4146E4): a key on the page's highlighted item. Nothing for no key
-//! or one of 0x80 and above (`test al, al; jle`). An edit being edited takes every key
+//! or one of 0x80 and above . An edit being edited takes every key
 //! (`install::edit_key`); else 0x66, 0x6B, 0x68, 0x69 (`install::key_up`, `key_down`,
 //! `key_left`, `key_right`), 2 .. 0xA (`install::key_number`), Enter (`install::item_enter`);
 //! Escape leaves the page with answer 0 unless the list's flags have 0x10. After an edit's
 //! key or any other key: 0x52 a screenshot (`gfx::take_screenshot`) with screenshots on.
-//! Then a key that did something (zero set) sets `byte_51D414` and gives zero set.
+//! Then a key that did something (zero set) sets `key_taken` and gives zero set.
 //!
 //! Takes the key, item, list.
 //! Caller `install::run_page`, reading zero.
@@ -13,9 +13,9 @@ use crate::errors::Refused;
 use crate::menu::list_handle::{ListItem, ListMenu};
 use rc2k_core::install::items::{self, ItemKey, PageKey};
 
-/// `key` as eax (al the key, ah its bits) on `item` of `list`. Returns eax as the callees
-/// leave it (`install::edit_key` changes it) and whether the key did something (the
-/// original's zero).
+/// `key` (the key in its low byte, its bits in the next) on `item` of `list`. Returns the key
+/// as the callees leave it (`install::edit_key` changes it) and whether the key did
+/// something.
 pub fn page_key(
     install: &'static crate::install::owner::Install,
     key: u32,
@@ -27,7 +27,7 @@ pub fn page_key(
     // Converted: `rc2k_core::install::items` (`page_key`, `takes_every_key`, `STAYS`,
     // `SCREENSHOT_KEY`).
     let Some(way) = items::page_key(key as u8) else {
-        // test al, al
+        // No key, or one of 0x80 and above.
         return Ok((key, key as u8 == 0));
     };
     let kind = item.kind();
@@ -49,7 +49,7 @@ pub fn page_key(
             return Ok((key, took(install, taken)));
         }
         if way == PageKey::Escape {
-            // test byte ptr [edi], 10h: the page left unless the list stays
+            // The page is left unless the list stays.
             let stays = list.flags() & items::STAYS != 0;
             if !stays {
                 install.pages.list_answer.set(0);
@@ -57,7 +57,7 @@ pub fn page_key(
             }
             return Ok((key, !stays));
         }
-        // cmp al, 1: another key
+        // Another key.
         (key, false)
     };
     if crate::gfx::shots::on_byte(gfx) != 0 && key as u8 == items::SCREENSHOT_KEY {

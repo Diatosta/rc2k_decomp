@@ -6,18 +6,17 @@
 //! force of 10000; 2 a ramp from 10000 to 10000; 3 a periodic one (magnitude 10000, offset
 //! 0, phase 0, period 50000); 4 a condition (offset 0, both coefficients and saturations
 //! 10000, dead band 0); others none (no size, no pointer); then its function (+0) called
-//! with eax 1; and with an effect found for it (+0xC 1, `input::effect_found`) its object
+//! with the change 1; and with an effect found for it (+0xC 1, `input::effect_found`) its object
 //! made (`CreateEffect` of the record's device (+4) with the GUID found (+0x10), into
 //! +0x30; its result not looked at).
 //!
 //! Takes: the device's record, the effect, its number (for its function)
 //!
 //! Caller: `input::begin_force` (each of the six). The effect's function is
-//! one of `input::effect_N_change` (eax 1, the other registers as here), the methods the
+//! one of `input::effect_N_change` (change 1, the other arguments as here), the methods the
 //! objects' own.
 //!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Its arguments are what it reads.
 
 use crate::errors::Refused;
 use crate::input::store::Devices;
@@ -79,7 +78,7 @@ pub fn make_effect(
         crate::input::effect_objects::release_effect(e);
     }
     fill_parameters(e);
-    // The effect's function with a change of 1, ecx the effect's number, edx 0.
+    // The effect's function with a change of 1, the effect's number and 0.
     crate::input::effect_changes::effect_change_at(devices, e.change.get(), record, e, 1, n, 0)?;
     if e.found.get() == 1 {
         // The GUID and the `DIEFFECT`'s parts, as DirectInput takes them; the object's

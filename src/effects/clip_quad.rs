@@ -1,4 +1,4 @@
-//! `effects::clip_quad` (0x4B8A0B): a quad (four vertices of 0x20 bytes at ebp: +0 x, +4 y,
+//! `effects::clip_quad` (0x4B8A0B): a quad (four vertices of 0x20 bytes: +0 x, +4 y,
 //! +8 .. +0x14 kept, +0x18 / +0x1C texture) clipped against one screen edge by the
 //! settings' +8: 4 x at least `g_marksScreenMiddleX`, 3 x at most `g_marksScreenMiddleXLess`,
 //! 2 y at least `g_marksScreenMiddleY`, 1 y at most `g_marksScreenMiddleYLess` (each test a
@@ -60,7 +60,7 @@ pub fn clip_quad(effects: &crate::effects::owner::Effects) -> Result<bool, Refus
             return Err(BadInput("null marks settings").into());
         }
         let q = &crate::d3d::vertices_store::VERTICES.vertices;
-        let marks = crate::effects::setup::effects_settings()?;
+        let marks = effects.settings()?;
         let mode = marks.marks_layout.get();
         if !(1..=4).contains(&mode) {
             return Ok(false);
@@ -151,8 +151,7 @@ pub fn clip_quad(effects: &crate::effects::owner::Effects) -> Result<bool, Refus
     Ok(false)
 }
 
-/// `scene::draw_fan` (0x44EB32) of `g_polygonVertices` (plain since the scene's
-/// conversion, 2026-10-23).
+/// `scene::draw_fan` (0x44EB32) of `g_polygonVertices` .
 pub fn draw_fan() {
     crate::scene::draw_fan::draw_fan(crate::scene::polygon_work::front_end());
 }

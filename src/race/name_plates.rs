@@ -1,9 +1,8 @@
 //! The name plates: texts drawn into the views' plate textures (`race::update_name_plates` ->
-//! `race::draw_name_plate` / `race::draw_plate_by_id` / `race::draw_time_plate`, part R3, IDA
-//! 2026-10-18). A plate's surface is locked (the platform's `d3d::lock_texture`, carry when it
+//! `race::draw_name_plate` / `race::draw_plate_by_id` / `race::draw_time_plate`). A plate's surface is locked (the platform's `d3d::lock_texture`, carry when it
 //! failed), cleared and written with
-//! `text::draw_text_keep_regs`, then unlocked (`d3d::unlock_texture`). Parts: 1 lock (eax the
-//! slot), 2 unlock (eax the slot), 3 a text (eax font, ebx text, ecx x, edx y).
+//! `text::draw_text_keep_regs`, then unlocked (`d3d::unlock_texture`). Parts: 1 lock (the
+//! slot), 2 unlock (the slot), 3 a text (font, text, x, y).
 
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;
@@ -53,7 +52,7 @@ pub fn draw_plate_by_id(slot: u32, id: u32) -> Result<(), Refused> {
 
 /// `race::draw_time_plate` (0x45B70A): slot `slot`'s surface, locked and unlocked as
 /// `draw_name_plate`'s, below the name's three lines: two lines and three rows cleared, the texts
-/// at `dword_6D1838` and `dword_6D1844` in the time font (box 0x80 wide) at x 4, y three and four
+/// at `label_behind` and `label_ahead` in the time font (box 0x80 wide) at x 4, y three and four
 /// lines.
 pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
     let gfx = gfx();
@@ -86,8 +85,8 @@ pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::update_name_plates` (0x45B3B9): when the two time texts (8 bytes each at `dword_6D1838` /
-/// `dword_6D1844`) differ from their last copies (`dword_6D1850` / `dword_6D185C`): the time plate
+/// `race::update_name_plates` (0x45B3B9): when the two time texts (8 bytes each at `label_behind` /
+/// `label_ahead`) differ from their last copies (`kept_behind` / `kept_ahead`): the time plate
 /// drawn (`race::draw_time_plate`, slot `dword_5D0DF8`), the copies made and both views' cars'
 /// +0x720 1. Then for each view (slots `dword_5D0DF8` / `dword_5D0DFC`) with a name asked for at
 /// its car's +0x71C: drawn by string id below 0x10000 (`race::draw_plate_by_id`) or as a text
@@ -153,7 +152,7 @@ pub fn update_name_plates(race: &Race, scene: &crate::scene::owner::Scene) -> Re
                 draw_name_plate(textures.kinds.kind_first_textures[slot].get(), asked)?;
             }
         }
-        // ebx at the store: the name asked for (every drawing keeps its registers).
+        // The store takes the name asked for.
         b.notice_last.set(asked);
         b.notice_id.set(0);
         b.notice_counter.set(1);

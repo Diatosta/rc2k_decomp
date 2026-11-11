@@ -1,12 +1,12 @@
 //! `scene::clip_polygon_by_depth` (0x44DB4F): cuts the polygon to the depths that can
 //! be drawn.
 //!
-//! `dword_624124` = 1; `dword_62411C` = 0x1000 and one pass of `scene/clip.rs` that
-//! keeps what is deeper than that (0x44DB93); then, with `dword_621510` at 0,
-//! `dword_621900` not 0 and three vertices or more left, `dword_62411C` =
-//! `dword_624230` and a pass that keeps what is not deeper (0x44DEAA). Not with `far_clip`
-//! false: the own car over the view (the original cleared `dword_621900` around it).
-//! Seven callers. Refuses as `scene::clip_polygon_to_screen`.
+//! A clip-flag cell = 1; the clip depth = 0x1000 and one pass of `scene/clip.rs` that keeps
+//! what is deeper than that; then, with a second switch at 0, the far-clip switch not 0 and
+//! three vertices or more left, the clip depth = the far depth and a pass that keeps what is
+//! not deeper. Not with `far_clip` false: the own car over the view (the original cleared the
+//! far-clip switch around it).
+//! //! Seven callers. Refuses as `scene::clip_polygon_to_screen`.
 
 use crate::errors::BadInput;
 use crate::race::owner::Race;

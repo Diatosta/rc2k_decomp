@@ -46,7 +46,7 @@ pub fn emit_particle_11(
     emit_particle_5_with(ring, &ELEVENTH, wheel, object)
 }
 
-/// Kind 0xB's emitter variables (`emit_particle_5::ELEVENTH`), and the constants of code that is in no function (IDA 0x93A262 .. 0x93A312, the image's layout; phase 7, typed state).
+/// Kind 0xB's emitter variables (`emit_particle_5::ELEVENTH`), and the constants of code that is in no function (IDA 0x93A262 .. 0x93A312).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Kind11Set {
@@ -75,17 +75,13 @@ impl Kind11Set {
     pub const fn new() -> Self {
         Kind11Set {
             place_random: Dword::new(0x0),
-            motion_x: Float::from_bits(0x41200000),
-            motion_y: Float::from_bits(0x41200000),
-            lift: Float::from_bits(0x41700000),
-            motion_z: Float::from_bits(0x41200000),
-            spread: Float::from_bits(0x42DC0000),
-            roll_k: [
-                Float::from_bits(0xC1400000),
-                Float::from_bits(0xC1400000),
-                Float::from_bits(0xC1400000),
-            ],
-            spin: Float::from_bits(0xC2800000),
+            motion_x: Float::new(10.0),
+            motion_y: Float::new(10.0),
+            lift: Float::new(15.0),
+            motion_z: Float::new(10.0),
+            spread: Float::new(110.0),
+            roll_k: [Float::new(-12.0), Float::new(-12.0), Float::new(-12.0)],
+            spin: Float::new(-64.0),
             _gap_93a28a: Bytes::new([
                 0x08, 0xAC, 0x82, 0x42, 0x0A, 0xD7, 0xA3, 0x3C, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00,
                 0x40, 0x48, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x47, 0xA6, 0x9B, 0x44, 0x42,

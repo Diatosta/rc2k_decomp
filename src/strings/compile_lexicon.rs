@@ -2,12 +2,11 @@
 //!
 //! The original ("Compiling lexicon..." in the game's log) is a compiler of 25 functions on memory
 //! of its own; what they do is in `strings/lexicon.rs`. Around that: it zeroes its 0xC44 bytes of
-//! work variables (`dword_94EAB4` on), takes `dword_519554` * 0x400 bytes on the list
-//! `stru_519558`, reads the first file matching `files\%locale\*.txt` (at most 0x40000 bytes),
-//! compiles, writes the table at 0x4E07F8 and points `g_stringTable` at it, logs its counts when
+//! work variables, takes `kilobytes` * 0x400 bytes on the memory list, reads the first file matching `files\%locale\*.txt` (at most 0x40000 bytes),
+//! compiles, writes the table and points `g_stringTable` at it, logs its counts when
 //! the log level is 3 or more, and gives the memory back. There must be 0x757 messages, or it is
 //! fatal error 0x80E18052; an error in the file is logged with its line and ends in fatal error
-//! 0x80E18051 (the original's error paths jump back to its own start with `dword_94EAB0` set, and
+//! 0x80E18051 (the original's error paths jump back to its own start with a failure flag set, and
 //! it ends there). It leaves the work variables that are pointers into the given-back
 //! memory 0 (the original leaves them dangling), and raises the fatal errors itself (`compiled`).
 //! Callers: `strings::load_language` (from `start` and the installer) and
@@ -26,9 +25,8 @@ use rc2k_core::strings::lexicon::{Compiled, compile};
 
 // ---- game data ----
 
-/// The work variables: out of the image since 2026-10-24 (phase 5; they were
-/// `dword_94EAB4` ..). Written here, read by nothing now (the original's compiler read
-/// them).
+/// The work variables (`dword_94EAB4` .. in IDA). Written here and read by nothing (the
+/// original's compiler read them).
 pub const WORK_LEN: usize = 0xC44;
 /// The work variables that are counts, as offsets into the block, in `Compiled`'s order;
 /// before them the flags word (0x11000000) at 0, after them the unused count at 0x30.
@@ -81,7 +79,7 @@ impl LexiconMemory {
     }
 }
 
-/// The record all empty messages share (`unk_4F3034` in the image until 2026-10-24): +4 how
+/// The record all empty messages share (`unk_4F3034` in IDA): +4 how
 /// often it was used (never reset), +0xC its index entry. Written here only.
 pub const EMPTY_MESSAGE_LEN: usize = 0x10;
 /// `aFilesLocaleTxt` (0x4E0770).

@@ -1,11 +1,11 @@
 //! `physics::place_camera` (0x438E5A): the camera placed. Seven figures from
-//! `unk_6077CC` (with `dword_6238A4` at 2) or `unk_6077B0` into `dword_606678`,
+//! `place_second` (with `split` at 2) or `place_usual` into `dword_606678`,
 //! `60667C`, `6066D4`, `6066D8`, `606730`, `606734` and the last into `dword_60668C`,
-//! `6066E8`, `606744`; the offset (`dword_608B30` ..) turned by `unk_71A69C`,
+//! `6066E8`, `606744`; the offset (`camera_offset_x` ..) turned by `unk_71A69C`,
 //! `71A694`, `71A698` then `71A68C`, `71A690`, `71A688` (`math::turn_point_xz_ebx`,
-//! `_ecx`, `turn_point_xz`) into the place `unk_71A67C`
-//! ..; then the second offset (`dword_608B74` .., / 65536) turned by `g_crashMatrix`
-//! (`scene::rotate_point`), x 65536 (`fistp`), plus `dword_6416E8` .., added to it.
+//! `_ecx`, `turn_point_xz`) into the place `camera_position`
+//! ..; then the second offset (`view_turn_x` .., / 65536) turned by `g_crashMatrix`
+//! (`scene::rotate_point`), x 65536 (`fistp`), plus `camera_car` .., added to it.
 //!
 //! Callers: `physics::camera_avoid_ground` (seven).
 
@@ -54,8 +54,7 @@ fn place_with(
         to.set(last);
     }
     // The offset (x, y, z) turned about each axis in turn: the `turn_point_xz*` functions
-    // take the three coordinates in the order of the original's registers, which name
-    // them here (`eax` x, `ebx` y, `ecx` z).
+    // take the three coordinates in the order x, y, z.
     let (mut x, mut y, mut z) = (
         race.physics.camera.camera_offset_x.get(),
         race.physics.camera.camera_offset_y.get(),
@@ -119,7 +118,7 @@ pub fn place_camera(race: &Race, scene: &crate::scene::owner::Scene) {
         let turned =
             { crate::scene::rotate_point::rotate_point(&race.shared.car.crash_matrix, parts) };
         let k = race.course.numbers.k65536.bits();
-        turned.map(|e| crate::math::x87_run::ext_to_int(crate::math::x87_run::ext_times(e, k)))
+        turned.map(|e| crate::math::x87::ext_to_int(crate::math::x87::ext_times(e, k)))
     };
     place_with(
         race,
@@ -135,9 +134,9 @@ pub fn place_camera(race: &Race, scene: &crate::scene::owner::Scene) {
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `ext [o + 0] = int [v + 0] / [rc + 0x1C5D98]`; the value is `o`'s ten bytes.
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `ext [o + 0] = int [v + 0] / [k65536]`; the value is `o`'s ten bytes.
 fn view_turn_part(v: &impl Cell32) -> [u8; 10] {
     let t0 = int(v.bits() as i32);
     let t1 = ld(race().course.numbers.k65536.bits());

@@ -1,13 +1,14 @@
 //! `install::install_clio` (0x41675B): the Clio update copied from its disc. A frame is
-//! shown; the two source base directories (`byte_95E8F8`, `byte_95E9F8`) are normalised into
-//! `byte_95E6F8` and `byte_95E7F8` and the first made current; the Clio script
-//! (`byte_529DCC`) is run (`install::run_script`); each listed folder is made
-//! (`install::make_folders`, path built in `byte_95E9F8`) and each listed file copied
-//! (`install::copy_counted`, source in `byte_95E8F8`, destination in `byte_95E9F8`), Escape
-//! stopping the copy. A failed normalise, change or make ends it. Finally `g_installing`,
-//! `dword_51B9CC` and `dword_51B9D0` are cleared after a second.
+//! shown; the two source base directories (`path_a`, `path_b`) are normalised into
+//! `paths.game_dir` and `paths.installed` and the first made current; the Clio script
+//! (`clio_script`) is run (`install::run_script`); each listed folder is made
+//! (`install::make_folders`, path built in `path_b`) and each listed file copied
+//! (`install::copy_counted`, source in `path_a`, destination in `path_b`), Escape
+//! stopping the copy. A failed normalise, change or make ends it. Finally `installing`,
+//! `updating` and `from_command` are cleared after a second.
 //!
-//! A list action (`off_51DD48` for the Clio disc). Caller `install::run_page`.
+//! The action of a list item (the third page's, for the Clio disc). Caller
+//! `install::run_page`.
 
 use crate::errors::Refused;
 use crate::install::installer::{
@@ -81,7 +82,7 @@ fn work(install: &'static crate::install::owner::Install) -> Result<Stop, Refuse
                 &crate::install::name_tables::FILES,
                 n,
             )?;
-            // 0x416886: a failed copy stops the install as Escape does.
+            // A failed copy stops the install as Escape does.
             if !i::copy_counted::copy_counted(
                 install,
                 &install.paths.path_a,

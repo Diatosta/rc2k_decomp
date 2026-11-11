@@ -1,7 +1,7 @@
 //! `menu::keep_record_best` (0x4A3E8B): the current record (`g_recordTable`, `section`,
-//! `index`) takes each counted player's (`dword_755984`) score (+0x94) while it beats the
+//! `index`) takes each counted player's (`event.player_count`) score (+0x94) while it beats the
 //! record's (+0x30, signed), with the player's +4 / +8 (+0x74 / +0x78) and name (0x20
-//! bytes to +0x54); it stops at the first that does not. `dword_75598C` the player looked
+//! bytes to +0x54); it stops at the first that does not. `event.current_player` the player looked
 //! at last.
 //!
 //! Callers: the event drivers. Refuses a record past the
@@ -27,8 +27,7 @@ fn current_record() -> Result<RecordRef, BadInput> {
 }
 
 pub fn keep_record_best(menus: &Menus) -> Result<(), Refused> {
-    let screens = &menus.screens;
-    let players = counted_players(screens)?;
+    let players = counted_players(menus)?;
     if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());
     }

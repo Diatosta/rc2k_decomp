@@ -1,12 +1,12 @@
-//! The work car's state kept for a step and put back (converted 2026-10-21 from
+//! The work car's state kept for a step and put back (Converted from
 //! `physics::save_car_state` 0x43DBD5 and `physics::restore_saved_car` 0x43DC25): its
-//! place (`dword_71A10C` ..), its matrix (`g_crashMatrix`, 0x10 dwords) and its probe
-//! points' faces (`dword_71ADC8` .., `dword_71A238` of them), with a counter of the puts
-//! back (`dword_614738`). What the pieces are is a reading.
+//! place (`position` ..), its matrix (`g_crashMatrix`, 0x10 dwords) and its probe
+//! points' faces (`probe_point_face` .., `probe_count` of them), with a counter of the puts
+//! back (`clear_place_count`). What the pieces are is a reading.
 
 use crate::Invalid;
 
-/// The most faces the kept list holds (`dword_6D2814` has 0x40 before `dword_6D2914`).
+/// The most faces the kept list holds (`probe_saved_faces` has 0x40 before `probe_face_flip`).
 pub const MOST_SAVED: u32 = 0x40;
 /// The most faces the work copy's list holds (0x71ADC8 to the copy's end, 0x71AFB8).
 pub const MOST_LISTED: u32 = (0x1E0 + 0x10) / 4;

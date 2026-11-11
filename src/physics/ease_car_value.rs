@@ -1,14 +1,11 @@
-//! `physics::ease_car_value` (0x4554CA): unless `dword_6235E8` is set, `dword_71AF94`
-//! follows `dword_71AF90` << 8: set to it when `dword_71AF88` is set, else stepped by 4
+//! `physics::ease_car_value` (0x4554CA): unless `scene_switch` is set, `eased_value`
+//! follows `eased_target` << 8: set to it when `value_jump_steps` is set, else stepped by 4
 //! towards it (up when the difference's sign is clear, `jns`). What the values are is
 //! not known.
 //!
-//! Returns: `dword_71AF90` << 8 (when `dword_6235E8` is 0)
+//! Returns: `eased_target` << 8 (when `scene_switch` is 0)
 //!
 //! Caller: `physics::car_physics_step` (0x43B705), every physics step.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::physics::car_store::Car;
 use crate::physics::cells::set_changed;

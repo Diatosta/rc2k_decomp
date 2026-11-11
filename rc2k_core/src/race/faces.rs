@@ -1,13 +1,13 @@
 //! The course's faces as the frame draws them: a face record is 0x40 bytes (+0 the kind
 //! and flags, +1 the object, +2 a word of switches, +4 .. +0x10 four scene points, the
 //! fourth the third's again for a triangle, +0x11 .. +0x13 and +0x30 .. +0x38 its lights,
-//! +0x20 / +0x21 the second triangle's kind and object). Converted 2026-10-21 from
+//! +0x20 / +0x21 the second triangle's kind and object). Converted from
 //! `race::reset_face_lights` 0x45ED70, `face_corners` 0x452444, `face_switches` 0x45322C,
 //! `face_texture_coordinates` 0x453267 / `face_texture_coordinates_2` 0x45349F,
 //! `face_corners_to_new_points` 0x452722, `face_hide_mask` 0x456056,
 //! `gather_record_faces` 0x454C99, `gather_lamps` 0x454E08, `lay_out_course` 0x421BE3,
 //! `store_norms` 0x421F02 and the whole-number part of `store_face_normal` 0x421F72;
-//! the faces' drawing decisions, depths and materials converted 2026-10-21 from
+//! the faces' drawing decisions, depths and materials Converted from
 //! `race::face_depth_test_off` 0x452358, `face_depth_test_on` 0x45237A, `face_lights`
 //! 0x453715, `face_hidden` 0x454D92, `face_depth` 0x4552D8, `add_depth_entry` 0x454D2A
 //! and `face_materials` 0x45265C.
@@ -36,7 +36,7 @@ pub fn check_face_count(count: u32) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// Where `race::lay_out_course` puts the course's parts (`dword_5CCCB8` ..): from the
+/// Where `race::lay_out_course` puts the course's parts (`course_records` ..): from the
 /// course memory + 0x100 (after its header), the 0x20-byte records, the faces, the
 /// points, what follows and its offset from the memory.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -280,13 +280,13 @@ pub fn takes_lamp(object: u32, lamps: u32) -> bool {
 }
 
 /// `race::face_depth_test_off`: whether the depth test goes off for a face: no texture
-/// animation (`dword_63DA2C` 0) and polygon mode 4.
+/// animation (`texture_a` 0) and polygon mode 4.
 pub fn depth_test_off(animation: u32, mode: u32) -> bool {
     animation == 0 && mode == 4
 }
 
 /// `race::face_depth_test_on`: whether depth writing goes back on after a face: when it
-/// was turned off (`dword_63D9E0` set). Fixed: the original's test is the wrong way round
+/// was turned off (`depth_test` set). Fixed: the original's test is the wrong way round
 /// (on only when it was not turned off).
 pub fn depth_test_on(turned_off: u32) -> bool {
     turned_off != 0
@@ -299,8 +299,8 @@ pub fn corners_lit(wanted: u32, animation: u32, mode: u32) -> bool {
 }
 
 /// `race::face_hidden`: the face's switch word's bits the view hides (the shown view's
-/// `dword_606478` entry 0 and `dword_621480` set; the word asked only then): Some(bits)
-/// when it is hidden by them, None to go on to the depth test (the bits, 0, in eax only
+/// `view_hides` entry 0 and `scene_set_up` set; the word asked only then): Some(bits)
+/// when it is hidden by them, None to go on to the depth test (the bits, 0, only
 /// when asked).
 pub fn hidden_by_switches(
     view_shows: u32,
@@ -357,7 +357,7 @@ pub fn average_key(sum: i32) -> u32 {
     (sum >> 2) as u32
 }
 
-/// A face's depth key (`dword_63DC40`): the depth + 0x2000000, logical >> 10.
+/// A face's depth key (`face_depth_key`): the depth + 0x2000000, logical >> 10.
 pub fn depth_key(depth: u32) -> u32 {
     depth.wrapping_add(0x200_0000) >> 10
 }
@@ -378,7 +378,7 @@ pub fn material_bits(kind: u8) -> (u32, u32) {
     ((kind & 7) as u32, (kind & 8) as u32)
 }
 
-/// `race::face_materials`: the animation frame's place in `byte_609384` (8 frames an
+/// `race::face_materials`: the animation frame's place in `face_places` (8 frames an
 /// object) from the rounded clock product (& 7).
 pub fn frame_place(object: u32, frame: u32) -> (u32, u32) {
     let f = frame & 7;

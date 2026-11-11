@@ -1,4 +1,4 @@
-//! `d3d::unlock_texture` (0x41AB02): system texture eax unlocked: with a surface (+0x14)
+//! `d3d::unlock_texture` (0x41AB02): a system texture unlocked: with a surface (+0x14)
 //! that is locked (+0x60 1), its `Unlock` (no rectangle; a failure is fatal error
 //! 0x8021A173) and +0x60 0.
 //!

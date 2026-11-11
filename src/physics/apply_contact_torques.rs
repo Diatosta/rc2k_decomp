@@ -1,5 +1,5 @@
-//! `physics::apply_contact_torques` (0x43F6A5): when `dword_614148` is 0,
-//! `physics::apply_torques` on the 7 records at `unk_614A50` (the ones
+//! `physics::apply_contact_torques` (0x43F6A5): when `contact_step` is 0,
+//! `physics::apply_torques` on the 7 records at `contacts` (the ones
 //! `physics::apply_contact_forces` pushes with); else nothing.
 //!
 //! Caller: `physics::car_physics_step` (0x43B888, after `physics::apply_contact_forces`), every

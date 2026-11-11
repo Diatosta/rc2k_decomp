@@ -2,17 +2,17 @@
 //! name (`GetVolumeInformationA` with no root), into the first 16 bytes of `g_pngInfo`
 //! (0x93E8B0, a scratch place here): +0 the serial, +4 the name in 12 bytes, +0xF made 0.
 //!
-//! The original pushes esi and ends with `pop eax`, so the serial meant for the result is lost and
-//! the caller's own value comes back (`notes/bugs.md`). Worked: the three dwords at +4, +8, +0xC
-//! are returned and the serial may be 0. Failed: they are 0. One caller, `start` (0x40100B), before
-//! `math::stir_random`, which stirs in eax. The Win32 call is made from Rust.
+//! The original ends by restoring a saved register over the result, so the serial meant for
+//! the result is lost and the caller's own value comes back (`notes/bugs.md`). Worked: the three dwords at +4, +8, +0xC
+//! are returned and the serial may be 0. Failed: they are 0. One caller, `start`, before
+//! `math::stir_random`, which stirs in the value that comes back. The Win32 call is made from Rust.
 //! `start` calls it directly.
 
 // ---- game data ----
 
-/// The serial and name written (see the header). Its one caller, `start`, reads eax
-/// after it (register liveness, 2026-10-23: eax only), which is `start`'s own esi at
-/// entry, not anything of this function's: so it returns nothing.
+/// The serial and name written (see the header). Its one caller, `start`, uses the
+/// result register after it, which holds the caller's own value from before the call, not
+/// anything of this function's: so it returns nothing.
 pub fn read_volume_serial(system: &crate::system::owner::System) {
     let Some((serial, name)) = crate::os::volume() else {
         return;

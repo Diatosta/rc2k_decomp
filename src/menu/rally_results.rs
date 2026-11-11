@@ -1,4 +1,4 @@
-//! `menu::rally_results` (0x4A94EC): the rally's results pages, `dword_75AADC` 1 while
+//! `menu::rally_results` (0x4A94EC): the rally's results pages, `state.menus.which_title` 1 while
 //! they show (the pages' button "voltar"). Outside event mode 0x13: standings table A from
 //! all (`menu::standings_a_from_all`), sorted by total (`menu::sort_standings_by_total`),
 //! cleared and numbered (`clear_standings`, `number_all`), the overall

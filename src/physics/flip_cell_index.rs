@@ -1,11 +1,12 @@
-//! `physics::flip_cell_index` (0x43DB13): a 2 x 2 cell (ebx, edx, each 0 or 1) turned by
-//! one of eight ways (eax & 7: 1 flips ebx, 2 flips edx, 3 both; 4 .. 7 swap the two
-//! first, then 4 flips edx, 5 both, 6 none, 7 ebx), then edx = 2 edx + ebx.
+//! `physics::flip_cell_index` (0x43DB13): a 2 x 2 cell (two coordinates, each 0 or 1) turned by
+//! one of eight ways (way & 7: 1 flips the first, 2 flips the second, 3 both; 4 .. 7 swap the two
+//! first, then 4 flips the second, 5 both, 6 none, 7 the first), then the index is 2 x second +
+//! first.
 //!
 //! Takes: the way, and the cell
 //!
 //! Caller: `physics::wheel_surfaces` (twice).
 
-/// (eax, ebx, edx) out.
+/// Returns the way's result, the first and the second coordinate.
 // Converted: `rc2k_core::physics::ground::flip_cell_index`.
 pub use rc2k_core::physics::ground::flip_cell_index;

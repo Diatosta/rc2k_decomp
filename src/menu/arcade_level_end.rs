@@ -1,7 +1,7 @@
 //! `menu::arcade_level_end` (0x48AD73): an arcade level's end. Unless the level was won
-//! (`dword_758768` 1): tune 7 (`sound::play_tune_7`), `menu::arcade_level_end_results_loop` and
-//! `dword_7587F4` 1. Won: tune 6, `menu::arcade_finale`; the first time the level is won
-//! (`byte_758800[level]` 0, made 1) its secret car: esi `off_75A12E`,
+//! (`results.positions` 1): tune 7 (`sound::play_tune_7`), `menu::arcade_level_end_results_loop` and
+//! `arcade.retry` 1. Won: tune 6, `menu::arcade_finale`; the first time the level is won
+//! (`arcade.levels_won` 0, made 1) its secret car: esi the shown cars list,
 //! `menu::car_specs_display_loop`, `add_shown_car`, `remove_shown_car`; then
 //! `saves::save_game_data`.
 //!

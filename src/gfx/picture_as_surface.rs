@@ -1,10 +1,10 @@
 //! `gfx::picture_as_surface` (0x405FE7): makes the picture buffer the surface that the
 //! blitters draw on, so that sprites can be drawn into a picture.
 //!
-//! From `g_pictureFlags`: the low byte names the size (the table `dword_4F4E50`: 1 = 640 x
+//! From `g_pictureFlags`: the low byte names the size (the table `sizes`: 1 = 640 x
 //! 480, 2 = 800 x 600, 4 = 960 x 720, 8 = 1024 x 768, 0x10 = 1152 x 864, 0x20 = 1280 x 1024,
 //! 0x40 = 1600 x 1200, 0x80 = 1920 x 1280; anything else is fatal error 0x80A19091), bits 8
-//! to 11 the pixels (the table `dword_4F4E40`: 0x200 = 16 bits, 0x800 = 32; anything else
+//! to 11 the pixels (the table `pixel_kinds`: 0x200 = 16 bits, 0x800 = 32; anything else
 //! is fatal error 0x80A19092). Into the surface block (`g_surface`, 0x4F4998) go the
 //! width, the height, the bits and bytes of a pixel, the bytes of a row (also as the
 //! pitch, with no gap after a row, and as dwords), the picture buffer as the pixels and
@@ -19,7 +19,7 @@ use crate::system::find_entry::entries;
 
 // ---- game data ----
 
-// unk_4F4998 is `DRAW_SURFACE`'s x: the surface block, twelve dwords: x, y, width, height,
+// `DRAW_SURFACE` is the surface block, twelve dwords: x, y, width, height,
 // bits a pixel, bytes a pixel, bytes of a row's pixels, dwords of a row, the pixel format,
 // the pitch, the pixels, the gap after a row.
 pub const SURFACE_DWORDS: usize = 12;

@@ -1,20 +1,20 @@
-//! `effects::windscreen_flakes_frame` (0x4BF60F): the windscreen flakes' frame (as `effects::draw_plane`'s, with
-//! the rate times `flt_8BC19E` and the lengths over `flt_8BC1A2` / `flt_8BC1A6`): the
-//! rate, the place and two axes from the settings, made one long and square, scaled
+//! `effects::windscreen_flakes_frame` (0x4BF60F): the windscreen flakes' frame (as
+//! `effects::draw_plane`'s, with the rate times one constant and the lengths over two more):
+//! the rate, the place and two axes from the settings, made one long and square, scaled
 //! (`effects::scale_axes`); nothing more unless the place's way faces the third axis away;
-//! then `effects::run_pong`; unless the rate times `flt_8BC1AA` comes to 0 (`fistp`, as the
-//! x87 is set) `effects::run_windscreen_flakes`, and with the settings' +0x2744 and `dword_7652A0`
-//! `effects::windscreen_flakes_step`.
+//! then `effects::run_pong`; unless the rate times a constant comes to 0 (rounded, as the x87
+//! is set) `effects::run_windscreen_flakes`, and with the settings' +0x2744 and the drift
+//! switch `effects::windscreen_flakes_step`.//!
+//! Screen: the snow settling on the windscreen in the in-car view (confirmed: gone with `draw_windscreen_flake` cut). Drawn as squares.
 //!
-//! Screen: the snow settling on the windscreen in the in-car view (owner, 2026-10-29: gone with `draw_windscreen_flake` cut). Called the squares until then.
+//! Works on the effects settings.
 //!
-//! Works on `g_marksSettings`.
-//!
-//! Caller: `effects::draw_overlays` (0x4C7534). The x87 runs are plain Rust on the x87 model
+//! Caller: `effects::draw_overlays` The x87 runs are plain Rust on the x87 model
 //! (`math::x87_float`), in the original's order, over the game's variables; the vector helpers,
 //! `scale_axes` and `windscreen_flakes_step` their Rust versions. Refuses null settings and
 //! `windscreen_flakes_step`'s refusals.
 
+use crate::effects::cell_x87::CellX87;
 use crate::effects::mask_store::Masks;
 use crate::effects::plain::ldi_cell;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
@@ -22,7 +22,6 @@ use crate::effects::windscreen_flakes_step::windscreen_flakes_step;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::math::x87_float as bh;
 use crate::race::effects_settings_store::EffectsSettings;
 use crate::scene::cross_product3::cross;
 use crate::scene::vector3::normalise;
@@ -57,7 +56,7 @@ pub fn windscreen_flakes_frame(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let (frame, scene) = (&ctx.race.frame, ctx.scene);
-    let m = crate::effects::setup::effects_settings()?;
+    let m = effects.settings()?;
     frame_axes(fl, m);
     let [a0, a1, a2] = [0, 1, 2].map(|n| &fl.tables.axes[n]);
     normalise(a0);
@@ -74,7 +73,7 @@ pub fn windscreen_flakes_frame(
         return Ok(());
     }
     crate::effects::run_pong::run_pong(frame, pong, fl, scene, effects)?;
-    if x87::mul_to_int(fl.timing.rate.bits(), fl.state.share.bits()) == 0 {
+    if x87::mul_to_int(&fl.timing.rate, &fl.state.share) == 0 {
         return Ok(());
     }
     crate::effects::run_windscreen_flakes::run_windscreen_flakes(
@@ -82,12 +81,15 @@ pub fn windscreen_flakes_frame(
         drops,
         fl,
         ctx.view.light.view_light.bits(),
+        effects,
+        scene,
+        &ctx.race.shared,
     )?;
-    let marks = crate::effects::setup::effects_settings()?;
+    let marks = effects.settings()?;
     if marks.windscreen_wet.get() == 0 {
         return Ok(());
     }
-    if effects.setup.kind_floats.running.bits() == 0 {
+    if effects.setup.kind_floats.running.get() == 0 {
         return Ok(());
     }
     windscreen_flakes_step(masks, drops, fl)?;
@@ -107,58 +109,58 @@ fn frame_axes_x87(
     ss: &WindscreenFlakeState,
 ) {
     let t0 = ldi_cell(&m.windscreen_flakes_rate_factor);
-    let t1 = t0 * bh::ld(ss.rate_share.bits());
-    sti.rate.set_bits(bh::st(t1));
+    let t1 = t0 * ss.rate_share.ld();
+    sti.rate.st(t1);
     let t2 = ldi_cell(&m.light_point_b_negated[0]);
     let t3 = ldi_cell(&m.light_point_b_negated[1]);
     let t4 = ldi_cell(&m.light_point_b_negated[2]);
-    sq.place[2].set_bits(bh::st(t4));
-    sq.place[1].set_bits(bh::st(t3));
-    sq.place[0].set_bits(bh::st(t2));
+    sq.place[2].st(t4);
+    sq.place[1].st(t3);
+    sq.place[0].st(t2);
     let t5 = ldi_cell(&m.light_point_b[0]);
     let t6 = t5 - ldi_cell(&m.light_point_b_negated[0]);
-    sq.axes[0][0].set_bits(bh::st(t6));
+    sq.axes[0][0].st(t6);
     let t7 = ldi_cell(&m.light_point_b[1]);
     let t8 = t7 - ldi_cell(&m.light_point_b_negated[1]);
-    sq.axes[0][1].set_bits(bh::st(t8));
+    sq.axes[0][1].st(t8);
     let t9 = ldi_cell(&m.light_point_b[2]);
     let t10 = t9 - ldi_cell(&m.light_point_b_negated[2]);
-    sq.axes[0][2].set_bits(bh::st(t10));
-    let t11 = bh::ld(sq.axes[0][0].bits());
+    sq.axes[0][2].st(t10);
+    let t11 = sq.axes[0][0].ld();
     let t12 = t11 * t11;
-    let t13 = bh::ld(sq.axes[0][1].bits());
+    let t13 = sq.axes[0][1].ld();
     let t14 = t13 * t13;
-    let t15 = bh::ld(sq.axes[0][2].bits());
+    let t15 = sq.axes[0][2].ld();
     let t16 = t15 * t15;
     let t17 = t14 + t16;
     let t18 = t12 + t17;
     let t19 = t18.sqrt();
-    let t20 = t19 / bh::ld(ss.length_divisors[0].bits());
-    sq.lengths[0].set_bits(bh::st(t20));
+    let t20 = t19 / ss.length_divisors[0].ld();
+    sq.lengths[0].st(t20);
 }
 
 /// `frame_up`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
 fn frame_up_x87(m: &EffectsSettings, sq: &WindscreenFlakeTables, ss: &WindscreenFlakeState) {
     let t0 = ldi_cell(&m.light_point_a_negated[0]);
     let t1 = t0 - ldi_cell(&m.light_point_b_negated[0]);
-    sq.axes[1][0].set_bits(bh::st(t1));
+    sq.axes[1][0].st(t1);
     let t2 = ldi_cell(&m.light_point_a_negated[1]);
     let t3 = t2 - ldi_cell(&m.light_point_b_negated[1]);
-    sq.axes[1][1].set_bits(bh::st(t3));
+    sq.axes[1][1].st(t3);
     let t4 = ldi_cell(&m.light_point_a_negated[2]);
     let t5 = t4 - ldi_cell(&m.light_point_b_negated[2]);
-    sq.axes[1][2].set_bits(bh::st(t5));
-    let t6 = bh::ld(sq.axes[1][0].bits());
+    sq.axes[1][2].st(t5);
+    let t6 = sq.axes[1][0].ld();
     let t7 = t6 * t6;
-    let t8 = bh::ld(sq.axes[1][1].bits());
+    let t8 = sq.axes[1][1].ld();
     let t9 = t8 * t8;
-    let t10 = bh::ld(sq.axes[1][2].bits());
+    let t10 = sq.axes[1][2].ld();
     let t11 = t10 * t10;
     let t12 = t9 + t11;
     let t13 = t7 + t12;
     let t14 = t13.sqrt();
-    let t15 = t14 / bh::ld(ss.length_divisors[1].bits());
-    sq.lengths[1].set_bits(bh::st(t15));
+    let t15 = t14 / ss.length_divisors[1].ld();
+    sq.lengths[1].st(t15);
 }
 
 /// `frame_place`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
@@ -174,14 +176,14 @@ fn frame_place_x87(drops: &WindscreenDrops, m: &EffectsSettings) {
 /// `frame_facing`'s x87 block as plain Rust on the x87 model (9 instructions), same order and memory places.
 fn frame_facing_x87(drops: &WindscreenDrops, sq: &WindscreenFlakeTables) {
     let t0 = ld_cell(&drops.hex.place[0]);
-    let t1 = t0 * bh::ld(sq.axes[2][0].bits());
+    let t1 = t0 * sq.axes[2][0].ld();
     let t2 = ld_cell(&drops.hex.place[1]);
-    let t3 = t2 * bh::ld(sq.axes[2][1].bits());
+    let t3 = t2 * sq.axes[2][1].ld();
     let t4 = ld_cell(&drops.hex.place[2]);
-    let t5 = t4 * bh::ld(sq.axes[2][2].bits());
+    let t5 = t4 * sq.axes[2][2].ld();
     let t6 = t3 + t5;
     let t7 = t1 + t6;
-    drops.state.facing.set_bits(bh::st(t7));
+    drops.state.facing.st(t7);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

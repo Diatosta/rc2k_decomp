@@ -1,18 +1,15 @@
 //! `physics::set_wheel_weights` (0x43F3E7): the four wheels' load forces (the records at
-//! 0x614770 + 0x20 k, `physics::clear_forces`'): a share `flt_6D3070` held to 1 ..
-//! `flt_5C5D48` (through `dword_62400C`), ((it - 1) `flt_5C5DA4` + 1) gravity
-//! (`flt_613FC8`) `flt_614170`, negated, times `flt_5C5DA4` again into each record's +4,
+//! 0x614770 + 0x20 k, `physics::clear_forces`'): a share `wheel_share` held to 1 ..
+//! `five` (through `scratch`), ((it - 1) `quarter` + 1) gravity
+//! (`gravity`) `weight`, negated, times `quarter` again into each record's +4,
 //! turned into the car's frame (`physics::turn_by_inverse`); then each record's second
 //! vector (+0xC ..) set to (-1 / 1, 0, ±1) by its corner and turned the same way. A
 //! reading: the weight on each wheel, the corners' places.
 //!
 //! Caller: `physics::car_physics_step` (0x43B723), every physics step.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::math::x87;
-use crate::math::x87_run::{compare_full, weight_force};
+use crate::math::x87::{compare_full, weight_force};
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::tables_store::PhysicsTables;
@@ -30,7 +27,7 @@ pub fn set_wheel_weights(
     let one: u32 = numbers.one.bits();
     let high: u32 = numbers.five.bits();
     let k: u32 = numbers.quarter.bits();
-    scratch.set(x87::loaded(contact.wheel_share.bits()));
+    scratch.set(x87::loaded(&contact.wheel_share));
     if compare_full(scratch.get(), one) & 0x100 != 0 {
         scratch.set(x87::loaded(one));
     }

@@ -4,7 +4,7 @@
 //! and each other 10 pixels apart, wrapped to a new line where they would pass the box's
 //! width, the rest centred (or, with bit 2, at 0, with bit 3, at the right edge); then the
 //! whole centred across and down in the box (by an even number of pixels down in the
-//! title's box `unk_51DD98`), moved to its place.
+//! title's box `title_box`), moved to its place.
 
 use crate::errors::Refused;
 use crate::install::page_records::{BoxRecord, Piece as LaidPiece};

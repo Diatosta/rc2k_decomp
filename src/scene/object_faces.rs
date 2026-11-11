@@ -1,6 +1,5 @@
-//! The objects' faces (`dword_5C6FA8`, the faces' part of `scene::allocate_object_memory`'s
-//! block on `stru_5C6DD0`): Rust's since phase 13 (2026-10-27), counted on the list as the
-//! game's bytes were, given back by `race::free_object_points`. The faces are written one
+//! The objects' faces (the faces' part of `scene::allocate_object_memory`'s block), counted on
+//! the list as the game's bytes were, given back by `race::free_object_points`. The faces are written one
 //! after another by `scene::add_object_shape` (+0 the number of vertices, +4 the texture
 //! word, +6 the kind, +7, +0xB bytes, +0xC the normal, then 0x10 bytes a vertex).
 //!

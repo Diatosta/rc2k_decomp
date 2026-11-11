@@ -1,6 +1,6 @@
 //! `screens::draw_message_box` (0x415EA6): string 0x1FE ("not in this version" and the
 //! like) in a box in the middle of the surface: the string measured (font 0x51E824, x as
-//! the caller's ecx), the box 0x32 wider and 0x19 higher (`dword_52983C` .. `dword_529848`:
+//! the caller's ecx), the box 0x32 wider and 0x19 higher (the first path cell .. the second path cell:
 //! x, y, width, height) filled with colour 1 (`gfx::fill_rect`) and framed with colour 0xA
 //! (`gfx::frame_rect`), both through `g_fontPalettes`, then the string drawn centred (font
 //! 0x51E904).

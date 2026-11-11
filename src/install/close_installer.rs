@@ -1,6 +1,6 @@
-//! `install::close_installer` (0x414490): the installer's memory list (`stru_51BAFC`) freed
-//! (`memory::free_list`) and its folder- and file-name table pointers (`dword_51BB40`,
-//! `dword_51BB44`) zeroed.
+//! `install::close_installer` (0x414490): the installer's memory list (`buffers`) freed
+//! (`memory::free_list`) and its folder- and file-name table pointers (`dirs`,
+//! `files`) zeroed.
 //!
 //! Caller `install::run_installer`.
 

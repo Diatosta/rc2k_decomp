@@ -7,7 +7,7 @@
 //! number of vertices (all outside: nothing to draw) and with 0 (none: no clipping by depth).
 //! Eight callers. A polygon of no vertices is refused (the original goes through 2^32).
 //!
-//! Converted 2026-10-21: the Rust version is `project_polygon_plain`, on
+//! The plain version is `project_polygon_plain`, on
 //! `scene::project_point_plain` and `rc2k_core::scene::projection::outside_depths` (the x87
 //! version stays for the Rust callers in unconverted code).
 
@@ -44,7 +44,7 @@ pub fn project_entries(
     // The scene's points are only needed for a scene's point: the menus have none,
     // and their objects' points (negative) only need the records.
     let scene_point = entries.iter().any(|entry| entry.point.get() as i32 >= 0);
-    if !crate::scene::point_records::held()
+    if !crate::scene::point_records::held(course)
         || (scene_point && course.course.scene_points.get() == 0)
     {
         return Err(BadInput("no points or no records for them").into());

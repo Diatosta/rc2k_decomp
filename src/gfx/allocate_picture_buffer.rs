@@ -1,7 +1,7 @@
 //! `gfx::allocate_picture_buffer` (0x40608F): takes the memory pictures are decoded in.
 //!
-//! `dword_4F49E0` = 0x1D4C00 (800 x 600 dwords); that and 0xC80 bytes more from
-//! `memory::allocate` on the list `stru_4F49E4` (Rust's now: `gfx::picture`); the
+//! `size` = 0x1D4C00 (800 x 600 dwords); that and 0xC80 bytes more from
+//! `memory::allocate` on the list `list` (Rust's: `gfx::picture`); the
 //! address to `g_pictureBuffer` (here the buffer's number)
 //! (0x4F49DC). A failed allocation would be fatal error 0x80A19090, but the allocator
 //! reports its own and does not come back. One caller, `start`. `gfx::free_picture_buffer`, after

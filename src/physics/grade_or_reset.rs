@@ -1,4 +1,4 @@
-//! `physics::grade_or_reset` (0x43BA8E): with `dword_71A234` 2, `physics::reset_current_car`
+//! `physics::grade_or_reset` (0x43BA8E): with `driver_kind` 2, `physics::reset_current_car`
 //! (the work copy's grades reset); else `physics::rate_current_car` (its damage made into
 //! grades and failures).
 //!

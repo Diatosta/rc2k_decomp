@@ -1,9 +1,9 @@
 //! `drive::finish_race` (0x459116): the championship's finish routine: the stage
-//! (`dword_64BB1C[dword_75B0FC]` into `g_stageNumber`), the cars' kind (`dword_75B104` into
+//! (`finish_stages`[dword_75B0FC]` into `g_stageNumber`), the cars' kind (`dword_75B104` into
 //! `g_raceCarKinds` and the first block's +0x24) and +0xAA8 (`dword_75B100`) logged; one car in
 //! mode 3 set up (some thirty settings and block words); the stage loaded (`race::load_stage`);
-//! `dword_63DB84` 0; `drive::finish_run`; everything tidied (`race::tidy_everything`);
-//! `dword_5C2F88`, `64BB18`, `606744`, `606748` 0; logged.
+//! `after_credits` 0; `drive::finish_run`; everything tidied (`race::tidy_everything`);
+//! `race_done`, `64BB18`, `606744`, `606748` 0; logged.
 //!
 //! Callers: `drive::finish_race_0`, 0x442FEF. Refuses what its calls refuse.
 
@@ -67,7 +67,6 @@ fn set_up() -> Result<(), BadInput> {
 }
 
 // Converted: `rc2k_core::drive::finish_routine`.
-/// Conversion phase 3, 2026-10-24).
 pub fn finish_race(race: &Race) -> Result<(), Refused> {
     let input = crate::input::owner::input();
     let sound = crate::sound::owner::sound();
@@ -104,8 +103,8 @@ pub fn finish_race(race: &Race) -> Result<(), Refused> {
     crate::race::stage_loading::load_stage(race)?;
     var(finish_routine::BEFORE_RUN).set(0);
     crate::drive::finish_run::finish_run(race, scene, sound, input)?;
-    // `race::tidy_everything`'s esi "read" is of `finish_run`'s leftover, which has
-    // no read point (liveness at 0x459313): a scratch.
+    // `race::tidy_everything` takes no real input from `finish_run`'s leftover, which has
+    // no reader: a scratch.
     crate::race::race_end::tidy_everything(race)?;
     for x in finish_routine::AFTER {
         var(x).set(0);

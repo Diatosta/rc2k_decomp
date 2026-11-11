@@ -12,10 +12,7 @@ pub fn view_step(effects: &crate::effects::owner::Effects) {
     let k = &effects.frame.kept_view;
     // now: `kept_a`'s scaled vector (`flt_76927A` ..)
     for n in 0..3 {
-        k.step[n].set_bits(x87::negated_sub(
-            k.kept_a.scaled[n].bits(),
-            k.last[n].bits(),
-        ));
+        k.step[n].set_bits(x87::negated(x87::sub(&k.kept_a.scaled[n], &k.last[n])));
     }
     for n in 0..3 {
         k.last[n].set_bits(k.kept_a.scaled[n].bits());

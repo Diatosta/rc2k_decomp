@@ -1,4 +1,4 @@
-//! `hud::disc_vertex` (0x4B6D10): vertex edi of the HUD's disc from its ring entry ecx: the texture
+//! `hud::disc_vertex` (0x4B6D10): a vertex of the HUD's disc from its ring entry: the texture
 //! place; the place; colour white under the quad record's alpha, specular 0.
 //!
 //! Takes: the ring entry (0 the centre .. 0x10), the vertex
@@ -7,7 +7,7 @@
 //! Caller: `hud::draw_disc` (three a triangle). Refuses an entry past 0x10, before anything.
 //!
 //! The arithmetic is the x87's, in plain Rust over `X` (`math/x87_float.rs`); the original's
-//! instructions are `asm_reference` in the tests (2026-10-24).
+//! instructions are `asm_reference` in the tests ..
 
 use crate::d3d::vertices_store::Vertex;
 use crate::errors::{BadInput, Refused};
@@ -38,8 +38,8 @@ pub fn disc_vertex(hud: &Hud, entry: u32, vertex: &Vertex) -> Result<(), Refused
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[e + 0x18] = (((([b + k + 0x8D0] * [b + 0x710]) * [b + 0x70C]) + [b + 0x6DC]) + [b + 0x714]) / [b + 0x6E0]`
 /// `[e + 0x1C] = ((((-[b + k + 0x914] * [b + 0x710]) * [b + 0x70C]) + [b + 0x6DC]) + [b + 0x718]) / [b + 0x6E0]`
 /// `[e + 0] = ([b + k + 0x848] * [b + 0x710]) + [b + 0x704]`

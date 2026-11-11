@@ -2,7 +2,7 @@
 //! surface, in the surface's pixel format.
 //!
 //! The surface's place = its pixels (`g_surface.pixels`) + y times its pitch + x times its
-//! bytes a pixel; the picture's = esi + the piece's y times eax + its x times 4. Each row: the
+//! bytes a pixel; the picture's = its pixels + the piece's y times its row bytes + its x times 4. Each row: the
 //! piece's width of pixels through `gfx::components_to_pixel` with the surface's format
 //! (`g_surface.format`), stored as words on a surface of two bytes a pixel, else as dwords;
 //! then both move on a row. No clipping: a row past the surface's last, or bytes past its
@@ -32,9 +32,9 @@ pub fn game_target(gfx: &crate::gfx::owner::Gfx) -> Result<Target, BadInput> {
     })
 }
 
-/// What the original gets in its registers: ebx the piece's rectangle (x, y, width,
-/// height), ecx, edx where it goes on the surface, esi the picture's pixels (a picture
-/// buffer's number now, `gfx::picture`), eax the picture's row bytes.
+/// What is drawn: the piece's rectangle (x, y, width, height), where it goes on the
+/// surface, the picture's pixels (a picture buffer's number, `gfx::picture`) and the
+/// picture's row bytes.
 #[derive(Clone, Copy, Debug)]
 pub struct Piece {
     pub rectangle: crate::pointers::GamePtr,

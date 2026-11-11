@@ -1,10 +1,10 @@
-//! `gfx::try_screen_mode` (0x404AED): whether screen mode eax works: the mode's entry
+//! `gfx::try_screen_mode` (0x404AED): whether the given screen mode works: the mode's entry
 //! looked up in the mode table (`g_screenModeTable`, `g_screenModeCount`, by its bits but
 //! the third byte's low nibble's: `& 0xF0FFFF`, 0 failing), the mode set
 //! (`gfx::set_screen_mode`), and with `g_screenModeFlags` bit 0x100000 a trial of the
-//! textures (`gfx::allocate_textures` with eax 0x40, ebx 0x40, ecx 1, edx 2, ebp 0, then
-//! `gfx::release_all_textures`). Meanwhile `dword_5ABA88` is 1 and the reports
-//! (`dword_4F52AC`) off, both put back after.
+//! textures (`gfx::allocate_textures` for 0x40 x 0x40 textures, then
+//! `gfx::release_all_textures`). Meanwhile `trying` is 1 and the reports
+//! (`reports.on`) off, both put back after.
 //!
 //! Takes: the mode
 //!
@@ -24,7 +24,7 @@ pub fn try_screen_mode(display: &Display, mode: u32) -> Result<CarryZeroFlags, R
     gfx.reports.on.set(0);
     gfx.card.upload.trying.set(1);
     // Err(zero): it does not work, with the zero flag the failing step left (`stc` keeps
-    // it); Ok(eax): it works, with the eax it leaves.
+    // it); Ok(mode): it works, with the mode it leaves.
     let tried = (|| -> Result<Result<u32, bool>, Refused> {
         // Converted: `rc2k_core::gfx::screen_modes::look_up`.
         use rc2k_core::gfx::screen_modes::{Lookup, look_up};
@@ -32,7 +32,7 @@ pub fn try_screen_mode(display: &Display, mode: u32) -> Result<CarryZeroFlags, R
         let table = crate::gfx::modes::Modes::mode_table_ptr();
         match look_up(crate::system::find_entry::entries(table, count), mode) {
             Lookup::NoBits => return Ok(Err(true)),
-            // `cmp ecx, 1` on a count of 0, else the `dec ecx` that reached 0.
+            // A count of 0 gives the first flag state, else the countdown's.
             Lookup::Missing => return Ok(Err(count != 0)),
             Lookup::Found(_) => {}
         }

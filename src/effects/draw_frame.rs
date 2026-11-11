@@ -1,14 +1,13 @@
-//! `effects::draw_frame` (0x4C3EEE, through 0x4C4E28): the marks' drawing frame. Three
-//! points (`flt_91FF4A` .., `flt_91FF56` .., `flt_91FF62` ..) turned by the view matrix
-//! (`scene::rotate_point`) into `flt_8F39A9` .. (z, y, x of each on the x87 stack as the
-//! original loads them); the course's corners (`g_courseInfo` + 0x1C2000, 0x8000 bytes)
-//! into `g_marksCorners`; when `dword_621A80` changed since the last frame
-//! (`dword_91FF6E`) `dword_8F3979` steps on (of 8); `dword_71C8E2` it, `dword_71C8E6` 0,
-//! `dword_8F3981` 0; then `effects::cars_particles`, `effects::view_heading`,
-//! `effects::view_motion`, `effects::begin_quads` (its time, `rdtsc`, in `flt_765124`), an
-//! empty time in `flt_765118`, and `scene::depth_test_on`.
+//! `effects::draw_frame` (0x4C3EEE, through its tail): the effects' drawing frame. Three
+//! `points` turned by the view matrix (`scene::rotate_point`) into `turned_points` (z, y, x of
+//! each on the x87 stack as the original loads them); the course's corners (0x8000 bytes of the
+//! course info, from +0x1C2000) into the mark corners table; when the marks' source switch
+//! changed since the last frame (`last_source`) the heading `step` steps on (of 8); the sound
+//! source cell gets it, the sound zero cell 0, `cleared` 0; then `effects::cars_particles`,
+//! `effects::view_heading`, `effects::view_motion`, `effects::begin_quads` (its time, `rdtsc`,
+//! in `quads_share`), an empty time in `empty_share`, and `scene::depth_test_on`.
 //!
-//! Refuses (before anything) a null `g_courseInfo`, and `cars_particles`' refusals (what it
+//! Refuses (before anything) a null course info, and `cars_particles`' refusals (what it
 //! wrote before is put back first).
 
 use crate::effects::owner::Effects;
@@ -38,10 +37,13 @@ fn rdtsc() -> u32 {
 
 /// `cars_particles`, `view_heading`, `view_motion`,
 /// `begin_quads`, `scene::depth_test_on`.
-pub fn draw_frame(race: &Race, effects: &Effects) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+pub fn draw_frame(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    effects: &Effects,
+) -> Result<(), Refused> {
     use crate::effects::{begin_quads, cars_particles, view_heading, view_motion};
-    let info: u32 = race.course.lists.course_info.bits();
+    let info: u32 = race.course.lists.course_info.get();
     if info == 0 {
         return Err(BadInput("no course info (g_courseInfo 0)").into());
     }
@@ -53,8 +55,7 @@ pub fn draw_frame(race: &Race, effects: &Effects) -> Result<(), Refused> {
             effects.frame.view_vars.turned_points[n][k].set_bits(rounded(*v));
         }
     }
-    let what = "a stage record's corners";
-    let corners = crate::race::course_places::info_bytes(CORNERS_FROM, CORNERS_LEN as usize, what)?;
+    let corners = crate::race::course_places::info_bytes(CORNERS_FROM, CORNERS_LEN as usize)?;
     // 0x80 bytes of 16-bit little-endian words for each corner record.
     let (records, _) = corners.as_chunks::<0x80>();
     for (record, bytes) in effects.blocks.corners.corners.iter().zip(records) {
@@ -63,7 +64,7 @@ pub fn draw_frame(race: &Race, effects: &Effects) -> Result<(), Refused> {
             word.set(u16::from_le_bytes(*pair));
         }
     }
-    let source: u32 = scene.draw_switches.marks_source.bits();
+    let source: u32 = scene.draw_switches.marks_source.get();
     if source != effects.frame.draw_frame.last_source.get() {
         effects
             .frame

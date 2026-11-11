@@ -1,14 +1,14 @@
 //! `screens::draw_car_figures` (0x47CEB4): the car specification's figures for the page
 //! shown.
 //!
-//! The page `dword_755998` picks the function from `funcs_47CED1` (at 0x759AE6), which
-//! gets edi = the shown car's record (the entry `dword_755990` through `dword_75A65C`)
+//! The page `event.car_page` picks the function from `funcs_47CED1` (at 0x759AE6), which
+//! gets edi = the shown car's record (the entry `event.shown_car` through the carousel's car list)
 //! and eax = its first dword, the car. The four have this one caller and are inlined.
 //! Labels are in the font at 0x51E5A4, figures in the one at 0x51E584; a figure line is
 //! built in `g_lineBuffer`; a figure of 0 is string 0x578 ("n/d").
 //! - 0 (0x469C40): the description at (0x1A4, 0xD5): for car 0x21 the string at
 //!   +0x70 (made 0x103F first when `g_noticeKind` is 3), else the seven strings from
-//!   +0x70 on (`strings::text_from_ids`, the text's address kept in `dword_7559EC`).
+//!   +0x70 on (`strings::text_from_ids`, the text's address kept in `draw_work.figure`).
 //! - 1 (0x469F12), x = 0x244: capacity +0xC and "cc"; type, the string +0x10 (0x103A
 //!   for car 0x21 with notice kind 3); power +0x14 (`append_power`) and, if +0x18 is not
 //!   0, "@", it and "rpm"; torque +0x1C (`append_torque`) with +0x20 the same way; bore
@@ -34,8 +34,8 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-// dword_755990
-// dword_7559EC
+// `event.shown_car`
+// `draw_work.figure`
 const PAGES: u32 = 4;
 
 /// Returns the carry of the last text drawn.

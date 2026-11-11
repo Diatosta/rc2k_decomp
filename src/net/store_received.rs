@@ -4,15 +4,15 @@
 //! still wanted (`net::copy_received` sets it from +0x4039), +0x4039 the newest seen,
 //! +0x403C the time of the last message), kept in sequence order.
 //!
-//! The sequence (al) is doubled (`add al, al`: the top bit, which marks a race message,
+//! The sequence byte is doubled (the top bit, which marks a race message,
 //! goes). The time is stored. Older than +0x4038 (the difference negative as a signed
 //! byte): nothing more. Not older than +0x4039: the new newest. Then: no records, it is
 //! record 0; 0x40 records: the first one dropped (the other 0x3F moved down) and the new one
 //! written at record 0x40, past the end, over +0x4038 .. (the count not changed; the game's
 //! slip, section 16); else the records newer than it moved up one and it goes in after the
-//! last one not newer (or first), the count up one. The record: the sequence, cl, and ecx
-//! bytes from ebx (`rep movsb`: all of ecx); but once a record was moved up, ecx is 0
-//! (the move's `rep movsd`): a message stored between others keeps no length or bytes
+//! last one not newer (or first), the count up one. The record: the sequence, the length byte, and the
+//! message's bytes (a copy of the whole count); but once a record was moved up, that count is 0
+//! (the move leaves it so): a message stored between others keeps no length or bytes
 //! (the game's slip, section 16).
 //!
 //! Takes `sequence`, `block`, `time`, `bytes` and `length`.

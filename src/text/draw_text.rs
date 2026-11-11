@@ -53,14 +53,14 @@ impl Canvas for GameCanvas {
     }
 }
 
-/// How `draw_text` ended. The original also returns eax = 0.
+/// How `draw_text` ended. The original also returns 0.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Outcome {
     /// A line was wider than the box and the font has `FLAG_FAIL_IF_WIDER`: the carry flag.
     pub too_wide: bool,
-    /// The x that was passed in: ecx.
+    /// The x that was passed in.
     pub x: i32,
-    /// The y of the last line, font offset included: edx.
+    /// The y of the last line, font offset included.
     pub y: i32,
 }
 

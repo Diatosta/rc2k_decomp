@@ -5,6 +5,10 @@
 //! thread watches (`begin` .. `end`), each place reached is noted by its dword (a byte noted
 //! as the dword that holds it: two neighbouring bytes count as one place, which can only add
 //! to what is found).
+//!
+//! The thread census (`RC2K_FIELD_THREADS=<file>`, the watch build only; see `fields`)
+//! needs no `begin`: it notes every access on every thread, by the thread's kind, and writes
+//! the fields with the kinds of thread that read and wrote them to `<file>` at the end.
 
 /// `len` bytes at `at` read.
 #[inline(always)]
@@ -49,7 +53,18 @@ impl Drop for Step {
 #[inline(always)]
 pub fn frame_begun() {
     #[cfg(feature = "write_watch")]
-    census::frame_begun();
+    {
+        census::frame_begun();
+        fields::frame_begun();
+    }
+}
+
+/// The thread census written now (`fields`): at the program's end, and every 1,200 frames
+/// of the race. Nothing without the watch build and `RC2K_FIELD_THREADS`.
+#[inline(always)]
+pub fn dump_fields() {
+    #[cfg(feature = "write_watch")]
+    fields::dump();
 }
 
 /// The frame census (`RC2K_FRAME_CENSUS`): for every step of the race's frame, what it reads
@@ -211,6 +226,204 @@ mod census {
     }
 }
 
+/// The thread census (`RC2K_FIELD_THREADS=<file>`; `1` writes `memory_fields.csv`): every
+/// read and write of the game's state, on any thread, noted by the dword and the kind of
+/// thread (main, audio, input, net receive, drawing pool, other: told by the thread's name,
+/// `sync::spawn`'s). At the program's end (`standalone::finish`) and every 1,200 frames of
+/// the race the file is written, one row per field (store, field path with indices dropped),
+/// in the columns
+/// `ida,store,field,dwords,read_by,written_by`, the threads joined by `+`. A dword that no
+/// moved store holds is named by its shared table, or by its 4 KiB page.
+#[cfg(feature = "write_watch")]
+mod fields {
+    use std::cell::RefCell;
+    use std::collections::{BTreeMap, HashMap};
+    use std::sync::{Arc, Mutex, OnceLock};
+
+    /// The kinds of thread, by the bit each has in a mask.
+    const KINDS: [&str; 6] = ["main", "audio", "input", "net", "pool", "other"];
+
+    /// What one thread did to each dword: 1 read it, 2 wrote it.
+    type Seen = HashMap<usize, u8>;
+
+    /// Every thread's record with the kind of thread (a thread's record outlives it).
+    static THREADS: Mutex<Vec<(usize, Arc<Mutex<Seen>>)>> = Mutex::new(Vec::new());
+
+    thread_local! {
+        static MINE: RefCell<Option<(usize, Arc<Mutex<Seen>>)>> = const { RefCell::new(None) };
+    }
+
+    /// The file to write, if the census is on.
+    fn file() -> Option<&'static std::path::Path> {
+        static FILE: OnceLock<Option<std::path::PathBuf>> = OnceLock::new();
+        FILE.get_or_init(|| {
+            let value = std::env::var_os("RC2K_FIELD_THREADS")?;
+            Some(if value == "1" {
+                "memory_fields.csv".into()
+            } else {
+                value.into()
+            })
+        })
+        .as_deref()
+    }
+
+    /// The kind of the running thread, from its name: the slot threads are named by their
+    /// routine's address (0x4078DA input, 0x409CCE audio, 0x4183C3 net receive).
+    fn kind() -> usize {
+        let thread = std::thread::current();
+        let name = thread.name().unwrap_or("");
+        if name == "main" {
+            0
+        } else if name.contains("0x409CCE") {
+            1
+        } else if name.contains("0x4078DA") {
+            2
+        } else if name.contains("0x4183C3") {
+            3
+        } else if name.starts_with("draw ") {
+            4
+        } else {
+            5
+        }
+    }
+
+    pub fn note(write: bool, at: *const u8, len: usize) {
+        if file().is_none() {
+            return;
+        }
+        let first = at.addr() >> 2;
+        let last = (at.addr() + len - 1) >> 2;
+        MINE.with_borrow_mut(|mine| {
+            let (_, seen) = mine.get_or_insert_with(|| {
+                let mine = (kind(), Arc::new(Mutex::new(Seen::new())));
+                THREADS
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .push((mine.0, mine.1.clone()));
+                mine
+            });
+            let mut seen = seen
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            for w in first..=last {
+                *seen.entry(w).or_default() |= if write { 2 } else { 1 };
+            }
+        });
+    }
+
+    pub fn frame_begun() {
+        static FRAMES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let n = FRAMES.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+        if n.is_multiple_of(1200) {
+            dump();
+        }
+    }
+
+    /// A field: where it is (IDA address of its first dword, or a host page), its store,
+    /// and its path in the store.
+    fn name_of(host: usize) -> (String, String, String) {
+        let game = crate::address_map::game_of(host).map(|g| g as usize);
+        if let Some(game) = game
+            && let Some((store, offset)) = crate::moved::store_of(game)
+        {
+            let mut path = String::new();
+            store.field_path_at(offset, &mut path);
+            let ida = crate::moved::ida_of(game).unwrap_or(game);
+            return (
+                format!("{ida:#x}"),
+                store.type_name().to_owned(),
+                strip_indices(&path),
+            );
+        }
+        if let Some((what, at)) = crate::memory::shared_table::table_of(host) {
+            return (format!("+{at:#x}"), what.to_owned(), String::new());
+        }
+        (
+            format!("host:{:#x}", host & !0xFFF),
+            "unmoved".to_owned(),
+            String::new(),
+        )
+    }
+
+    /// `.a[3].b` as `.a.b`.
+    fn strip_indices(path: &str) -> String {
+        let mut out = String::new();
+        let mut inside = false;
+        for c in path.chars() {
+            match c {
+                '[' => inside = true,
+                ']' => inside = false,
+                _ if !inside => out.push(c),
+                _ => {}
+            }
+        }
+        out
+    }
+
+    fn kinds(mask: u8) -> String {
+        let names: Vec<_> = (0..KINDS.len())
+            .filter(|k| mask & (1 << k) != 0)
+            .map(|k| KINDS[k])
+            .collect();
+        names.join("+")
+    }
+
+    /// A field's row: the IDA address of its lowest dword, that dword's host address, the
+    /// dwords seen, and the masks of the kinds that read and wrote.
+    type Row = (String, usize, usize, u8, u8);
+
+    /// The file written from what every thread has noted so far.
+    pub fn dump() {
+        let Some(path) = file() else {
+            return;
+        };
+        // dword -> (kinds that read, kinds that wrote)
+        let mut all: HashMap<usize, (u8, u8)> = HashMap::new();
+        for (kind, seen) in THREADS
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .iter()
+        {
+            for (&w, &how) in seen
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .iter()
+            {
+                let entry = all.entry(w).or_default();
+                if how & 1 != 0 {
+                    entry.0 |= 1 << kind;
+                }
+                if how & 2 != 0 {
+                    entry.1 |= 1 << kind;
+                }
+            }
+        }
+        let mut rows: BTreeMap<(String, String), Row> = BTreeMap::new();
+        for (w, (read, written)) in all {
+            let (ida, store, field) = name_of(w * 4);
+            let row = rows
+                .entry((store, field))
+                .or_insert((ida.clone(), w * 4, 0, 0, 0));
+            if w * 4 < row.1 {
+                row.0 = ida;
+                row.1 = w * 4;
+            }
+            row.2 += 1;
+            row.3 |= read;
+            row.4 |= written;
+        }
+        let mut text = String::from("ida,store,field,dwords,read_by,written_by\n");
+        for ((store, field), (ida, _, dwords, read, written)) in rows {
+            text += &format!(
+                "{ida},{store},{field},{dwords},{},{}\n",
+                kinds(read),
+                kinds(written)
+            );
+        }
+        let _ = std::fs::write(path, text);
+    }
+}
+
 #[cfg(feature = "write_watch")]
 mod on {
     use std::cell::{Cell, RefCell};
@@ -229,6 +442,9 @@ mod on {
     }
 
     pub fn note(write: bool, at: *const u8, len: usize) {
+        if len != 0 {
+            super::fields::note(write, at, len);
+        }
         if len != 0 && super::census::active() {
             super::census::note(write, at, len);
         }

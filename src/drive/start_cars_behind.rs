@@ -1,21 +1,21 @@
-//! `drive::start_cars_behind` (0x43703E): with `dword_62389C` 2 (by `drive::race_mode_cars`), two
+//! `drive::start_cars_behind` (0x43703E): with `run_kind` 2 (by `drive::race_mode_cars`), two
 //! computer cars kept near the lead car (car block 0), put back on the line behind or
 //! ahead of it as it passes them (`dword_70FA44` counts the moves; `dword_70FA48` and
 //! `dword_70FA4C` are their cars, `dword_70FA50` / `54` their start numbers):
-//! - once (`dword_70FA58`): the two set at starts `dword_6051BC` - 2 and - 1 (cars from
-//!   `dword_604ECC`), 80 and 40 checkpoints on (`drive::start_car_on_line`);
-//! - the gaps by `dword_70FA40` (held to 0 .. `dword_6051B4` - 1 by the signs) and the
-//!   start's `dword_605034` (low four bits): 0x2C / 0x28 + it (`dword_6051D4`, `D8`,
+//! - once (`dword_70FA58`): the two set at starts `start_place` - 2 and - 1 (cars from
+//!   `arcade_car_kinds`), 80 and 40 checkpoints on (`drive::start_car_on_line`);
+//! - the gaps by `dword_70FA40` (held to 0 .. `arcade_cars` - 1 by the signs) and the
+//!   start's `arcade_car_numbers` (low four bits): 0x2C / 0x28 + it (`pace_pass_gap`, `D8`,
 //!   `DC` their sum);
-//! - a car the lead has gone `dword_6051D4` past moved behind it (- `dword_6051D8`), one
+//! - a car the lead has gone `pace_pass_gap` past moved behind it (- `pace_back_gap`), one
 //!   too far ahead of it moved ahead (+), when `drive::checkpoint_taken` allows; each
 //!   moved car's start values cleared (`drive::clear_start_state`);
 //! - unless `dword_70F494` is set: the cars ahead and behind counted into `dword_70FA40`,
 //!   their least gaps (`drive::note_gap_ahead` / `behind`, from -1), the wanted gaps
-//!   (0x70FA14, 0x70FA18; held to `dword_6051D8` .. `dword_6051DC`), eased into 0x70FA1C,
+//!   (0x70FA14, 0x70FA18; held to `pace_back_gap` .. `pace_gap_sum`), eased into 0x70FA1C,
 //!   0x70FA20 (times 0x14A; jumps past 1000, else 1/64 of the way);
 //! - the four cars' +0x674 0, and for the two when within 8 checkpoints of each other (not
-//!   0) a push apart of 8 less the gap (times `flt_604EC4`, as floats).
+//!   0) a push apart of 8 less the gap (times `pace_push_scale`, as floats).
 //!
 //! These are the arcade race's opponents (run kind 2 = "arcade" in the developers' mode list, and
 //! the only kind `race::set_up_arcade_cars` and `race::panel_neighbours` act on): the game lists up
@@ -24,7 +24,7 @@
 //! player when passed or left far behind. The HUD's gaps to the neighbours (`race::panel_neighbours`)
 //! are the eased wanted gaps (`pace_gaps_eased`), not measured times.
 //!
-//! Caller: `drive::race_mode_cars` (0x436758). Refuses a start count (`dword_6051B4`) above 0x58
+//! Caller: `drive::race_mode_cars` (0x436758). Refuses a start count (`arcade_cars`) above 0x58
 //! (the start tables' room) or a start table car past the eight blocks, before anything; the calls'
 //! refusals mid-way (the cars, the starts' variables and the work car put back first; the calls'
 //! scratch is not).
@@ -46,7 +46,7 @@ fn car(shared: &RaceShared, slot: u32) -> Result<&'static Car, BadInput> {
     crate::race::blocks_store::block_at(block(shared, slot), "a car's block")
 }
 
-/// `dword_604ECC`[k]: the car of each start. The table holds 89; the refusal below reads
+/// `arcade_car_kinds`[k]: the car of each start. The table holds 89; the refusal below reads
 /// one past it (the start count's 0x58 + 1), the next variable, as the original.
 fn car_by_start(shared: &RaceShared, k: u32) -> Result<u32, BadInput> {
     crate::session::read_on_in(
@@ -255,8 +255,8 @@ pub fn start_cars_behind(race: &Race) -> Result<(), Refused> {
             .get()
             .wrapping_sub(lead.mode2_behind.get());
         let lead_checkpoint = lead.checkpoint.get();
-        // edx: `dword_70FA10` for the first car, then the gap the first car's note
-        // left (the original's register, read again for the second car).
+        // The carried gap: the lead's `checkpoint_offset[1]` for the first car, then the gap the
+        // first car's note left (read again for the second car).
         let mut edx = lead.checkpoint_offset[1].get();
         for slot in [&lead.pace_cars[1], &lead.pace_cars[0]] {
             let b = car(&race.shared, slot.get())?;
