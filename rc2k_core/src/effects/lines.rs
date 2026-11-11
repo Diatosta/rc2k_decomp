@@ -1,4 +1,4 @@
-//! The marks' measuring of lines between two objects' faces (converted 2026-10-21 from
+//! The marks' measuring of lines between two objects' faces (from
 //! `effects::measure_slot_lines` 0x4D1167, `effects::measure_kind_lines` 0x4D1225,
 //! `effects::measure_lines` 0x4D0EB4, `effects::measure_starting_sums` 0x4D0DB5,
 //! `effects::set_up_blocks` 0x4D05BD and `effects::copy_block_points` 0x4D0A82): each face's

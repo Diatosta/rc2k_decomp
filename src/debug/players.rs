@@ -1,4 +1,4 @@
-//! The "Players" tab: the developers' two data dumps (no references to either, IDA 2026-10-30).
+//! The "Players" tab: the developers' two data dumps (no references to either).
 //! 0x471412 wrote each player's record to the game's log under the labels below (the
 //! record's fields, named by them); 0x449A59 a car block's state, of "car1" and "car2", which
 //! are both the first block (a slip: `notes/bugs.md`; here every car). The button

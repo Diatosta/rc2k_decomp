@@ -25,7 +25,7 @@ const LISTS: [List; 3] = [
 pub fn add_clio_car() -> Result<(), BadInput> {
     let clio = crate::menu::cars_store::car_handle(33);
     let mut ends = Vec::new();
-    // Converted: `rc2k_core::menu::car_lists::place_if_missing`.
+    // The logic is in `rc2k_core::menu::car_lists::place_if_missing`.
     for list in LISTS {
         if let Some(n) = place_if_missing(&read_list(list)?, clio) {
             ends.push(&list.0[n]);

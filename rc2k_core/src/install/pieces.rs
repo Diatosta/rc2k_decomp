@@ -1,4 +1,4 @@
-//! A page's pieces made from its list, measured and drawn (converted 2026-10-21 from
+//! A page's pieces made from its list, measured and drawn (from
 //! `install::lay_out_pieces` 0x414C7E, `install::measure_pieces` 0x414DF5 and
 //! `install::draw_pieces` 0x415058). A list: +0 its flags (hidden: 0x40 of 0xC0), +1 its
 //! items (0: 0x100), +2 its title's string, from +0x18 its items, 0x10 bytes each: +0 the

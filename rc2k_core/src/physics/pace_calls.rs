@@ -1,4 +1,4 @@
-//! The pace notes called as the car goes (Converted from
+//! The pace notes called as the car goes (from
 //! `physics::pace_notes_step` 0x4417EC (its whole-number rules; the look-ahead's
 //! `fistp` stays x87) and `physics::queue_pace_note` 0x4418B3): the checkpoints ahead of
 //! the car up to which notes are called, and each checkpoint's group of codes, cued and

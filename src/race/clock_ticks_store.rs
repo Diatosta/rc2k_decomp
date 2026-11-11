@@ -11,11 +11,11 @@ use crate::session::Dword;
 #[derive(rc2k_derive::Cells)]
 pub struct ClockTicks {
     /// +0x0 (0x5CC198): `aDemofBuild` ("demof\\build", 12 bytes) and the bytes after it up to 0x5CC1B0: not read by the game's code.
-    pub unknown_text: [Dword; 6],
+    pub unused_text: [Dword; 6],
     /// +0x18 (0x5CC1B0): `unk_5CC1B0`: 0x20 dwords set to -1 by `drive::race_loop` and `drive::finish_run` (IDA: only those two writes refer to it; read by no code).
     pub marks: [Dword; 32],
     /// +0x98 (0x5CC230): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_98: [Dword; 96],
+    pub unused_98: [Dword; 96],
     /// +0x218 (0x5CC3B0): `g_raceSoundTickLast`: the scene clock at the last race-sound tick (`sound::race_sound_tick`, `drive::race_loop`, `drive::finish_run`).
     pub sound_tick_last: Dword,
     /// +0x21c (0x5CC3B4): `dword_5CC3B4`: set to the scene clock at the race's start (`drive::race_loop`, `drive::finish_run`).
@@ -71,7 +71,7 @@ mod tests {
             crate::moved::place(END - 1),
             (piece_addr() + (END - START) as u32 - 1) as usize
         );
-        assert_eq!(offset_of!(ClockTicks, unknown_text), 0x5CC198 - START);
+        assert_eq!(offset_of!(ClockTicks, unused_text), 0x5CC198 - START);
         assert_eq!(offset_of!(ClockTicks, clock_a), 0x5CC3B4 - START);
         assert_eq!(offset_of!(ClockTicks, clock_b), 0x5CC3BC - START);
     }

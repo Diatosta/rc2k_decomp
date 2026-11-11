@@ -25,7 +25,7 @@
 //! item's +0 and +4 minus 3 for the three button kinds (4 further left for the right-aligned
 //! one), else at +8 and +0xC; the place is left in `g_markerX` and `g_markerY`. Its font is
 //! the one at +0x18; for the highlighted item it is `text::blend_font` of that one and the
-//! one at +0x50, by the time since the last key (0 while `option_work.redefining_key` is 1).
+//! one at +0x50, by the time since the last key (0 while `option_work.redefining_key` is set).
 //!
 //! One caller, `menu::draw_menu`. Refuses a menu without an end in its first 256 items.
 
@@ -52,7 +52,7 @@ pub fn draw_menu_items(
     if all.len() > ITEM_LIMIT as usize {
         return Err(BadInput("a menu without an end").into());
     }
-    // Converted: `rc2k_core::screens::menus::items` (the items read here: the first
+    // The logic is in `rc2k_core::screens::menus::items` (the items read here: the first
     // drawn without being checked for the end, as the original).
     use crate::screens::game_screen::{MenuFont, MenuScreen};
     use rc2k_core::screens::menus::Item;
@@ -78,7 +78,7 @@ pub fn draw_menu_items(
             spaced: i.fixed().spaced == 1,
         })
         .collect();
-    let since_key = if menus.screens.option_work.redefining_key.get() == 1 {
+    let since_key = if menus.screens.option_work.redefining_key.is_set() {
         0
     } else {
         system()

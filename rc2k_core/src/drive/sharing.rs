@@ -1,6 +1,6 @@
-//! The cars' state shared out for the drawing and the sounds (converted 2026-10-21 from
+//! The cars' state shared out for the drawing and the sounds (from
 //! `drive::share_car_state` 0x45699C and `drive::share_all_cars` 0x456484; the levels'
-//! x87 sums stay the hook's): each car's block (0xFE0 bytes) into its record (0x440,
+//! x87 sums stay with the caller): each car's block (0xFE0 bytes) into its record (0x440,
 //! `g_carRecords[n]`) and back, field by field as the original moves them.
 
 use crate::Invalid;

@@ -33,7 +33,7 @@ pub fn draw_message_box(
     if bits != 16 && bits != 32 {
         return Err(BadInput("a message box on a surface of neither 16 nor 32 bits").into());
     }
-    // Converted: `rc2k_core::screens::message_box::layout`.
+    // The logic is in `rc2k_core::screens::message_box::layout`.
     let m = measure_string_by_id_at(STRING, crate::gfx::typefaces::fonts::MEASURE, x, canvas)?;
     let (sw, sh) = (
         gfx.drawing.draw_surface.width.get(),

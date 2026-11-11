@@ -1,4 +1,4 @@
-//! The menu module's owner (step 11, owned state): the menus' typed stores in one struct,
+//! The menu module's owner: the menus' typed stores in one struct,
 //! grouped by what they are for, in place of global stores. Reached through `menus()`, the
 //! boundary for callers that do not take a group as a parameter yet.
 

@@ -1,13 +1,12 @@
-//! The screens' string-id tables and a few flags, out of RAL.EXE's image (IDA 0x758806 .. 0x758B72;
-//! phase 7, typed): the "screen left" flag, the stage shown, the nationalities, the duel's labels, the
+//! The screens' string-id tables and a few flags, out of RAL.EXE's image (IDA 0x758806 .. 0x758B72): the "screen left" flag, the stage shown, the nationalities, the duel's labels, the
 //! places' points and the pointers to the results' arrays, the player views, and the lists of
 //! captions' string ids. A `#[repr(C)]` struct with the image's layout, one static; `moved::MOVED`
 //! points the range at it. Its dwords lie two bytes past a multiple of four in IDA's addresses.
-//! (Split 2026-10-25 from the front end's block `menu::store`.)
+//!
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
-use crate::session::{Bytes, Dword, with_runs};
+use crate::session::{Bytes, Dword, Flag, with_runs};
 
 /// The string-id tables (IDA 0x758806 .. 0x758B72).
 #[repr(C)]
@@ -15,7 +14,7 @@ use crate::session::{Bytes, Dword, with_runs};
 pub struct CaptionTables {
     /// `dword_758806`: 1 when the screen was left with a key (Escape in `handle_keys`, a yes / no
     /// answer, a name entry); the loop puts its leave question on it and the screens that look at it clear it.
-    pub left_by_key: Dword,
+    pub left_by_key: Flag,
     /// `dword_75880A`: Not read.
     pub dword_75880a: Dword,
     /// `dword_75880E`: The stage group of the stage shown (the record table's index; set by menu::option_items).
@@ -29,7 +28,7 @@ pub struct CaptionTables {
     /// `g_placePoints`: The points of each place (0, 20000, ..., -1 ends).
     pub place_points: [Dword; 22],
     /// `off_758982`: The four positions in `Results::positions`, by byte offset, kept as IDA's
-    /// addresses, as names (phase 13; `CaptionTables::place_of` finds the cell).
+    /// addresses, as names (`CaptionTables::place_of` finds the cell).
     pub place_pointers: [Dword; 4],
     /// `off_758992`: The four sums in `Results::sums` (names, `CaptionTables::sum_of`).
     pub sum_pointers: [Dword; 4],
@@ -118,7 +117,7 @@ impl CaptionTables {
 impl CaptionTables {
     pub const fn new() -> Self {
         CaptionTables {
-            left_by_key: Dword::new(0x0),
+            left_by_key: Flag::new(false),
             dword_75880a: Dword::new(0x1),
             shown_group: Dword::new(0x0),
             shown_stage: Dword::new(0x1),
@@ -364,7 +363,7 @@ pub const START: usize = 0x758806;
 /// IDA 0x758B72, the end of the piece.
 pub const END: usize = 0x758B72;
 
-/// Where IDA 0x758806 is now (`moved::MOVED`'s home).
+/// Where IDA 0x758806 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn captions_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::menu::owner::menus().tables.captions)

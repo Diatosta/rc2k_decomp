@@ -418,7 +418,7 @@ pub fn draw_screen_tint(
     // Converted: `rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha,
     // glare_colour}`.
     use rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha, glare_colour};
-    if race.shared.work.in_credits.get() != 0 {
+    if race.shared.work.in_credits.is_set() {
         race.shared.vars.quad_colour[1].set(NIGHT_ALPHA);
         window_corners(ctx.view);
         race.shared.vars.quad_colour[0].set(NIGHT_COLOUR);

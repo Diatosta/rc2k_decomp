@@ -1,11 +1,11 @@
 //! The view's surroundings: the draw distance's settings, the noise map sampled at the
-//! car, the fog table, and the course grid's cells round the view (converted
+//! car, the fog table, and the course grid's cells round the view (
 //! from `race::draw_distance_settings` 0x43932A, `sample_noise` 0x44FD38, `fog_table`
 //! 0x44FC33, `eax_environment` 0x45C7EE, `find_sound_spots` 0x45C605,
 //! `cell_sound_spots` 0x45C6B8, `gather_visible_faces` 0x454B71 and the rules of
-//! `face_sound_spot` 0x45C6ED; the fog's colour and the mirror's window converted
-//! from `race::set_up_fog` 0x44FBD9 and `race::mirror_view_window` 0x455F17;
-//! the sound spots' sharing Converted from `race::share_sound_spots` 0x45C7B9).
+//! `face_sound_spot` 0x45C6ED; the fog's colour and the mirror's window from
+//! `race::set_up_fog` 0x44FBD9 and `race::mirror_view_window` 0x455F17;
+//! the sound spots' sharing from `race::share_sound_spots` 0x45C7B9).
 
 /// The draw distance's highest level.
 pub const MOST_LEVEL: i32 = 4;

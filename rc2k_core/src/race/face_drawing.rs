@@ -1,6 +1,6 @@
 //! How a course face goes to the polygon drawer: as one quad or as its two triangles, the
 //! corners each takes, the polygon mode its textures pick, which corners are in sight
-//! (converted from `race::draw_whole_quad` 0x452F3D, `draw_face_triangles`
+//! (from `race::draw_whole_quad` 0x452F3D, `draw_face_triangles`
 //! 0x452CF3, `draw_face_polygons` 0x452CCF, `draw_face` 0x452C6F, `clip_and_draw_face`
 //! 0x454187, `face_out_of_view` 0x45246F, `draw_tinted_face` 0x44F9F3, `draw_back_face`
 //! 0x452B58 and `draw_face_sides` 0x452393).

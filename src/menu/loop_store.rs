@@ -1,9 +1,8 @@
-//! The menu loop's flags, out of RAL.EXE's image (IDA 0x755525 .. 0x755595; phase 7, typed): the
+//! The menu loop's flags, out of RAL.EXE's image (IDA 0x755525 .. 0x755595): the
 //! item highlighted, the leaving flags, the text entry's counters, the sprite table and the menu
 //! shown. The game keeps these dwords at addresses one past a multiple of four (IDA 0x755525 ..);
 //! here they lie at the same distances from the start. A `#[repr(C)]` struct with the image's
-//! layout, one static; `moved::MOVED` points the range at it. (Split 2026-10-25 from the front end's
-//! block `menu::store`.)
+//! layout, one static; `moved::MOVED` points the range at it.
 
 use crate::session::{Bytes, Dword, Flag};
 
@@ -23,16 +22,16 @@ pub struct LoopFlags {
     pub _gap_755559: Bytes<4>,
     /// `dword_75555D`: 1 when the event is left too, not only the screen (`go_back` clears it,
     /// confirmed leaving sets it; the loop leaves on it after an action, the flows read it).
-    pub event_left: Dword,
+    pub event_left: Flag,
     /// `dword_755561`: 1 leaves the screen at once. Set by Escape, `go_back`,
     /// `leave_with_carry`; cleared by the key poll, set-up and the loop's action check.
-    pub leave_screen: Dword,
+    pub leave_screen: Flag,
     /// `dword_755565`: set with `leave_screen` by `leave_with_carry`; the class result pages set
     /// it while a page with the player is shown; a review ends the event when it is not 1.
-    pub left_with_carry: Dword,
+    pub left_with_carry: Flag,
     /// `dword_755569`: an action asks to leave the screen (`ask_to_leave`): the loop leaves
     /// after the action, and a screen with `also_if` puts the leave question.
-    pub ask_leave: Dword,
+    pub ask_leave: Flag,
     /// `dword_75556D`: The characters typed so far (`menu::text_entry`).
     pub text_length: Dword,
     /// `dword_755571`: The most characters the text takes.
@@ -62,10 +61,10 @@ impl LoopFlags {
             idle: Flag::new(false),
             idle_frames: Dword::new(0x0),
             _gap_755559: Bytes::new([0; 4]),
-            event_left: Dword::new(0x0),
-            leave_screen: Dword::new(0x0),
-            left_with_carry: Dword::new(0x0),
-            ask_leave: Dword::new(0x0),
+            event_left: Flag::new(false),
+            leave_screen: Flag::new(false),
+            left_with_carry: Flag::new(false),
+            ask_leave: Flag::new(false),
             text_length: Dword::new(0x0),
             text_max: Dword::new(0x1E),
             toggle: Flag::new(true),
@@ -84,7 +83,7 @@ pub const START: usize = 0x755525;
 /// IDA 0x755595, the end of the piece.
 pub const END: usize = 0x755595;
 
-/// Where IDA 0x755525 is now (`moved::MOVED`'s home).
+/// Where IDA 0x755525 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn loop_flags_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::menu::owner::MENUS.screens.loop_flags)

@@ -1,5 +1,5 @@
-//! The state the 3D sounds are placed by (converted 2026-10-21 from `drive::set_listener`
-//! 0x4565B7; its matrices, turns and the x87 sums stay the hook's): the viewed car
+//! The state the 3D sounds are placed by (from `drive::set_listener`
+//! 0x4565B7; its matrices, turns and the x87 sums stay with the caller): the viewed car
 //! checked, the car file's six light figures scaled, the view's turn taken, and the
 //! sound switches from car block 0's words. What each value is, is a reading.
 

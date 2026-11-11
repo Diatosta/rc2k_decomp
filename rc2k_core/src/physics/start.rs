@@ -1,4 +1,4 @@
-//! The work car's start (converted from `physics::count_start_second`
+//! The work car's start (from `physics::count_start_second`
 //! 0x436AC4, `mark_car_started` 0x436AA7, `false_start` 0x43B9B4, `count_down_start`
 //! 0x436AFB and `reset_when_stuck` 0x43EFBA): the time counted once the start is behind,
 //! the car marked as got going, a jump start's penalty, the start's count down and the

@@ -23,8 +23,8 @@ pub struct Surface {
     /// +0xc: brake grip (`patchbrakegrip`).
     pub brake_grip: Float,
     /// +0x10, +0x14: how much mud the surface lets the wheels throw. Blended per point into
-    /// `surface_blends`; the centre point's go to `wheel_turn_a` ([0] -> splashes, scaled by
-    /// the slip; [1] -> throws, scaled by the drive speed; `physics::turn_wheel_angles`). Probable.
+    /// `surface_blends`; the centre point's go to `mud_scale_a` ([0] -> throws, scaled by
+    /// the drive speed; [1] -> splashes, scaled by the slip; `physics::accumulate_mud`). Probable.
     pub mud_rates: [Float; 2],
     /// +0x18: no code reads or writes it (data only).
     pub unknown_18: [Dword; 2],
@@ -60,11 +60,11 @@ pub struct PhysicsTables {
     /// +0x0 (0x613828): 5.0: a reset is allowed below this speed (`drive::reset_request`).
     pub reset_speed_limit: Float,
     /// +0x4 (0x61382C): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_4: Dword,
+    pub unused_4: Dword,
     /// +0x8 (0x613830): `g_sceneClock`: the scene's clock, read by everything timed.
     pub scene_clock: Dword,
     /// +0xc (0x613834): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_c: Dword,
+    pub unused_c: Dword,
     /// +0x10 (0x613838): `g_frameRateCount`: frames counted by `race::measure_frame_rate`.
     pub frame_rate_count: Dword,
     /// +0x14 (0x61383C): the race clock's last reading (`drive::race_clock_tick`).
@@ -74,7 +74,7 @@ pub struct PhysicsTables {
     /// +0x1c (0x613844): the race's ticks to run (`drive::race_clock_tick` -> `drive::race_step`).
     pub race_tenths: Dword,
     /// +0x20 (0x613848): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_20: [Dword; 17],
+    pub unused_20: [Dword; 17],
     /// +0x64 (0x61388C): 0.01: the physics step's length in seconds.
     pub step_time: Float,
     /// +0x68 (0x613890): the steering input (`drive::read_car_controls`, `drive::steer_inputs`).
@@ -92,25 +92,25 @@ pub struct PhysicsTables {
     /// +0x80 (0x6138A8): the gear asked for, -1 none (`physics::auto_gearbox`).
     pub input_gear_wanted: Dword,
     /// +0x84 (0x6138AC): three of the six are printed by the developers' wear page (`debug::draw_wear_bars`, 0x434C61 ..); nothing else uses them.
-    pub unknown_84: [Dword; 6],
+    pub wear_page_words: [Dword; 6],
     /// +0x9c (0x6138C4): the four input words recorded and replayed (`drive::record_inputs`, `drive::play_inputs`).
     pub input_words: [Dword; 4],
     /// +0xac (0x6138D4): a counter by camera view (`race::frame`).
     pub view_counters: [Dword; 7],
     /// +0xc8 (0x6138F0): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_c8: Dword,
+    pub unused_c8: Dword,
     /// +0xcc (0x6138F4): `g_debugPage`, the developers' debug overlay's page (0 .. 7), and
     /// `g_debugFreezeRace` (`drive::race_step` skips the physics ticks while set): what is
     /// left of the debug keys; `input::end_frame` sets both 0 every frame (`debug::overlay`).
     pub debug: [Dword; 2],
     /// +0xd4 (0x6138FC): the developers' debug keys' values (probably): at 0x43AB08 each key held copies one of these dwords into a gauge of the first car block (`engine_damage` ..); no port code names them.
-    pub unknown_d4: [Dword; 31],
+    pub debug_key_values: [Dword; 31],
     /// +0x150 (0x613978): `off_613978`: the ground kinds' records (`physics::wheel_surfaces`; twelve patched by `physics::apply_patches`).
     pub surfaces: [Surface; 16],
     /// +0x450 (0x613C78): eight tables of 13 dwords the surface records point at: [0] then six figures by tyre kind and six more (`physics::wheel_surfaces`).
     pub surface_tables: [Dword; 104],
     /// +0x5f0 (0x613E18): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_5f0: [Dword; 10],
+    pub unused_5f0: [Dword; 10],
     /// +0x618 (0x613E40): 8.0: below it the car may stall (`physics::stall_when_still`).
     pub stall_speed: Float,
     /// +0x61c (0x613E44): 0.5 (`physics::stall_when_still`).
@@ -148,7 +148,7 @@ pub struct PhysicsTables {
     /// +0x664 (0x613E8C): 0.15 (`physics::probe_ground`).
     pub probe_lift: Float,
     /// +0x668 (0x613E90): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_668: Dword,
+    pub unused_668: Dword,
     /// +0x66c (0x613E94): 1.0 (`physics::auto_gearbox`).
     pub auto_gear_speed_up: Float,
     /// +0x670 (0x613E98): -1.0 (`physics::auto_gearbox`).
@@ -160,7 +160,7 @@ pub struct PhysicsTables {
     /// +0x67c (0x613EA4): 0.1 (`physics::drive_grip_forces`).
     pub grip_ease_step: Float,
     /// +0x680 (0x613EA8): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_680: Dword,
+    pub unused_680: Dword,
     /// +0x684 (0x613EAC): 2.0 / 2.2 by drive kind (`physics::drive_grip_forces`).
     pub grip_factor: [Float; 2],
     /// +0x68c (0x613EB4): 0.5 (`physics::drive_grip_forces`).
@@ -232,7 +232,7 @@ pub struct PhysicsTables {
     /// +0x76c (0x613F94): 0.25 (`physics::engine_torque`).
     pub torque_ease: Float,
     /// +0x770 (0x613F98): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_770: [Dword; 3],
+    pub unused_770: [Dword; 3],
     /// +0x77c (0x613FA4): 5: the steps the drive is cut after a change (`physics::gearbox`).
     pub drive_cut_steps: Dword,
     /// +0x780 (0x613FA8): 0.85, 0.75, 2.5: the car's turning inertia by axis (`physics::apply_torque`).
@@ -279,7 +279,7 @@ pub struct PhysicsTables {
     /// +0x874 (0x61409C): the motion kept by `physics::keep_motion`.
     pub kept_motion: [Dword; 3],
     /// +0x880 (0x6140A8): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_880: Dword,
+    pub unused_880: Dword,
     /// +0x884 (0x6140AC): `physics::stall_when_still`'s.
     pub stall_figure: Float,
     /// +0x888 (0x6140B0): two shares held to 0 .. 1 and their blend (`physics::drive_wheels_step`).
@@ -287,7 +287,7 @@ pub struct PhysicsTables {
     /// +0x894 (0x6140BC): `g_gearRatios` from gear -1 (reverse) to 7 (`physics::make_gear_ratios`).
     pub gear_ratios: [Float; 9],
     /// +0x8b8 (0x6140E0): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_8b8: Dword,
+    pub unused_8b8: Dword,
     /// +0x8bc (0x6140E4): the two lever pushes (`physics::lever_push`).
     pub lever_pushes: [Dword; 2],
     /// +0x8c4 (0x6140EC): the time marks the original's `physics::note_time_mark` / `copy_step_clock_to_mark` kept; read by nothing, no longer written.
@@ -341,17 +341,17 @@ pub struct PhysicsTables {
     /// +0x950 (0x614178): the wheels' spring forces (`physics::wheel_springs`).
     pub spring_forces: [Float; 4],
     /// +0x960 (0x614188): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_960: [Dword; 9],
+    pub unused_960: [Dword; 9],
     /// +0x984 (0x6141AC): the wall edge's two points' x and z (`physics::wall_edge_contact`).
     pub edge_points: [Dword; 4],
     /// +0x994 (0x6141BC): the edge crossed from / to (`physics::crossed_edge_contact`).
     pub crossed_edge: [Dword; 2],
     /// +0x99c (0x6141C4): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_99c: Dword,
+    pub unused_99c: Dword,
     /// +0x9a0 (0x6141C8): the wall's heading, -1 none.
     pub wall_heading: Dword,
     /// +0x9a4 (0x6141CC): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_9a4: Dword,
+    pub unused_9a4: Dword,
     /// +0x9a8 (0x6141D0): physics steps counted (`physics::car_physics_step`).
     pub step_count: Dword,
     /// +0x9ac (0x6141D4): the two axles' pushes (`physics::drive_wheels_step`, `physics::wheel_springs`).
@@ -387,7 +387,7 @@ pub struct PhysicsTables {
     /// +0xa4c (0x614274): (`physics::apply_torque`).
     pub torque_cross: [Float; 3],
     /// +0xa58 (0x614280): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_a58: Dword,
+    pub unused_a58: Dword,
     /// +0xa5c (0x614284): the five points' loads (`physics::wheel_surfaces` writes all
     /// five; `physics::crash_contact` reads the fifth).
     pub wheel_loads: [Float; 5],
@@ -398,7 +398,7 @@ pub struct PhysicsTables {
     /// +0xa98 (0x6142C0): the five points' grips blended (`physics::wheel_surfaces`).
     pub point_grips: [Float; 5],
     /// +0xaac (0x6142D4): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_aac: [Dword; 251],
+    pub unused_aac: [Dword; 251],
     /// +0xe98 (0x6146C0): the surface records' +0x20, +0x24, +0x14, +0x10 blended for the five points.
     pub surface_blends: [Float; 20],
     /// +0xee8 (0x614710): the first surface of each point (`physics::wheel_surfaces`).
@@ -420,7 +420,7 @@ pub struct PhysicsTables {
     /// +0xf28 (0x614750): (`physics::drive_force`).
     pub drive_torque: Float,
     /// +0xf2c (0x614754): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_f2c: Dword,
+    pub unused_f2c: Dword,
     /// +0xf30 (0x614758): (`physics::drive_torque_share`).
     pub torque_share: Float,
     /// +0xf34 (0x61475C): (`physics::ease_low_speed_forces`).
@@ -495,7 +495,7 @@ pub struct PhysicsTables {
     /// +0x142c (0x614C54): `g_noiseState`: the noise's state (`scene::next_noise`).
     pub noise_state: Dword,
     /// +0x1430 (0x614C58): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_1430: [Dword; 3],
+    pub unused_1430: [Dword; 3],
     /// +0x143c (0x614C64): (`physics::blend_wheel_load`).
     pub wheel_load_limit: Float,
     /// +0x1440 (0x614C68): `g_nearestCheckpointDistance`.

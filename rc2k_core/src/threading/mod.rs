@@ -1,5 +1,5 @@
-//! The game's threads: their slots and what its waits and handles say (converted
-//! 2026-10-21 from `threading::find_thread_slot` 0x410CC5, `threading::wait_for_object`
+//! The game's threads: their slots and what its waits and handles say
+//! (from `threading::find_thread_slot` 0x410CC5, `threading::wait_for_object`
 //! 0x411063, `threading::create_event` 0x41103C and `threading::create_mutex` 0x41107F's
 //! results; the same day the shutdown's rules from `threading::request_quit` 0x410BF9 and
 //! `threading::wait_for_threads` 0x410BA8).

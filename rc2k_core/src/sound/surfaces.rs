@@ -1,6 +1,6 @@
-//! The sounds of what a car's wheels run on, their choices (converted 2026-10-21 from
+//! The sounds of what a car's wheels run on, their choices (from
 //! `sound::surface_sounds` 0x40DE9B and `sound::surface_sound` 0x40E068; the floats that
-//! pick the wheel and make the volume stay the hook's x87 for now).
+//! pick the wheel and make the volume stay with the caller x87 for now).
 //!
 //! The four wheels are records of five dwords at the object's +0x44, +0x58, +0x6C, +0x80
 //! (+0x10 the surface). The wheel whose surface counts is the front or back pair by the

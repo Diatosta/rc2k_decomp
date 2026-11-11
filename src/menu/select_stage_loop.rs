@@ -18,8 +18,8 @@ use crate::net::owner::net;
 
 fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
     let tables = &entry.menus.tables;
-    if tables.captions.left_by_key.get() == 0x1 {
-        tables.captions.left_by_key.set(0x0u32);
+    if tables.captions.left_by_key.is_set() {
+        tables.captions.left_by_key.set(false);
         return Ok(Flow::SetUp);
     }
     Ok(Flow::On)

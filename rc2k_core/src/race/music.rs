@@ -1,4 +1,4 @@
-//! The race's music at the stage's loading (converted from `race::game_music`
+//! The race's music at the stage's loading (from `race::game_music`
 //! 0x470F8A).
 
 /// `race::game_music`'s tune: 6 when the second kind (`dword_75B108`) is 1, else 5.

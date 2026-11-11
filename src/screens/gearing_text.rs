@@ -39,7 +39,7 @@ pub fn step_gearing(menus: &Menus, on: bool) -> Result<(), Refused> {
     let screens = &menus.screens;
     let p = current(menus)?;
     let kept = screens.flow.shown_gearing.get() as i32;
-    // Converted: `rc2k_core::screens::captions::step_gearing`.
+    // The logic is in `rc2k_core::screens::captions::step_gearing`.
     let value = rc2k_core::screens::captions::step_gearing(kept, on);
     put_string(
         FIRST_STRING.wrapping_add(value),

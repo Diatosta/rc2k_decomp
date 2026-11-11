@@ -1,4 +1,4 @@
-//! The order an object's listed faces are drawn in (converted 2026-10-21 from
+//! The order an object's listed faces are drawn in (from
 //! `scene::sort_listed_faces` 0x45098C and its quicksort 0x4509BF): the largest key
 //! first. The quicksort is the original's step for step, since which of two equal keys
 //! comes first is its doing.

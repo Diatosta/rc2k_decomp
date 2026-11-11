@@ -1,4 +1,4 @@
-//! The best scores, class times, stage times and record pages (converted 2026-10-20 from
+//! The best scores, class times, stage times and record pages (from
 //! `screens::draw_best_scores` 0x4A9300, `draw_class_times` 0x46D162,
 //! `draw_class_times_marked` 0x48AB87, `draw_stage_times` 0x48D0F2,
 //! `draw_rally_stage_times` 0x48A948, the headings, `draw_record_times` 0x4A41AE and

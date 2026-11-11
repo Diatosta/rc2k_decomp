@@ -249,8 +249,8 @@ pub fn add_car_depth_entry(ctx: &DrawCtx, car: u32, number: u32) -> Result<(), R
     for (k, &v) in t.iter().enumerate() {
         view.object.turned_place[k].set(v);
     }
-    ctx.view.object.place[0].set(from_int(t[0] as i32));
-    ctx.view.object.place[1].set(from_int(t[1] as i32));
+    ctx.view.object.place[0].set(from_int(t[0] as i32).to_bits());
+    ctx.view.object.place[1].set(from_int(t[1] as i32).to_bits());
     let key = t[2].wrapping_add(0x200_0000) >> 10;
     view.face.depth_key.set(key);
     let second = number.wrapping_add(0x200_0000);
@@ -516,7 +516,7 @@ pub(super) fn scale_object_turn(ctx: &DrawCtx) -> Result<(), BadInput> {
     {
         let scale = crate::math::x87::int_over_16(ctx.view.object.size.get() as i32);
         for cell in &ctx.view.matrices.object_turn_matrix {
-            cell.set_bits(crate::math::x87::mul(cell, scale));
+            cell.set(crate::math::x87::mul(cell, scale));
         }
     }
     Ok(())

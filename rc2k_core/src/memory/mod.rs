@@ -1,4 +1,4 @@
-//! The game's memory lists and the figures it keeps about them (converted 2026-10-21 from
+//! The game's memory lists and the figures it keeps about them (from
 //! `memory::allocate` 0x4028A7, `memory::free_list` 0x4028F5, `memory::take_from_list`
 //! 0x402956 and `memory::rewind_list` 0x402941).
 //!

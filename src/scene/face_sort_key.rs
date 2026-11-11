@@ -38,7 +38,7 @@ pub fn face_sort_key(
         let record = crate::scene::point_records::of_object_point(
             crate::scene::object_faces::word((face + 0x10 + n * 0x10) as u32)?,
         );
-        sum = x87::add(crate::scene::point_records::field(record, 0x18)?, sum);
+        sum = x87::add(crate::scene::point_records::field(record, 0x18)?, sum).to_bits();
     }
     let factor = course.lists.face_key_factors[vertices as usize].bits();
     poly.face_sort_key.set(x87::mul_to_int(sum, factor) as u32);

@@ -1,4 +1,4 @@
-//! The car's notices (converted from `physics::queue_notice` 0x4B1BD0,
+//! The car's notices (from `physics::queue_notice` 0x4B1BD0,
 //! `take_notice` 0x4B1C56, `count_down_notice` 0x440F08 and `value_notice` 0x45B357):
 //! the one shown (the work copy's +0x71C .. +0x730) and the queue of up to 0x20 waiting
 //! (+0x428 ..: notices: the messages shown for a car, among them damage warnings by the gauges' levels).

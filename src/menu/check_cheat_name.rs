@@ -23,7 +23,7 @@ fn find(play: &Play, coded: &[u8]) -> Result<Option<(u32, u32)>, Refused> {
     let mut list = vec![0; play.cheats.cheat_names.size()];
     play.cheats.cheat_names.load(0, &mut list)?;
     let coded: Vec<u8> = coded.iter().copied().take_while(|&b| b != 0).collect();
-    // Converted: `rc2k_core::menu::cheat_names::find`.
+    // The logic is in `rc2k_core::menu::cheat_names::find`.
     let found = rc2k_core::menu::cheat_names::find(
         &list,
         &coded,
@@ -43,7 +43,7 @@ pub fn check_cheat_name(menus: &Menus) -> Result<(), Refused> {
     let Some((_found, bit)) = find(play, &coded)? else {
         return Ok(());
     };
-    // Converted: `rc2k_core::menu::cheat_names::with_cheat`.
+    // The logic is in `rc2k_core::menu::cheat_names::with_cheat`.
     let cheats = rc2k_core::menu::cheat_names::with_cheat(play.cheats.cheats.get(), bit as u8)?;
     play.cheats.cheats.set(cheats);
     // The original's registers at the calls: eax 8, ebx the entry, ecx the bit, edi

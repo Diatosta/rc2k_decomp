@@ -1,5 +1,5 @@
 //! The game's record tables: rows of 0xA4 bytes (stages, sections, best times), each
-//! starting with its tag, ended by a tag of -1 (converted 2026-10-20 from
+//! starting with its tag, ended by a tag of -1 (from
 //! `records::find_record` 0x47255D, `find_stage_record` 0x468289,
 //! `default_stage_records` 0x47C7E0, `seal_time` 0x40264D, `trakpak_entry` 0x473027).
 //! Places are byte offsets from the table's start.

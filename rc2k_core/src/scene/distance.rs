@@ -1,4 +1,4 @@
-//! A line's length near enough, without a square root (converted 2026-10-21 from
+//! A line's length near enough, without a square root (from
 //! `scene::approximate_distance` 0x44EB78): the lamps' and the race's distances; and the
 //! stage objects' radius (from `scene::widen_object_radius` 0x426A7F), with one.
 

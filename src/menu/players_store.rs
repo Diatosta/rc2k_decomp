@@ -1,9 +1,8 @@
-//! The players' records, out of RAL.EXE's image (IDA 0x755A4C .. 0x75648C; phase 7, typed): the four
+//! The players' records, out of RAL.EXE's image (IDA 0x755A4C .. 0x75648C): the four
 //! `Player` records of 0x28C bytes (`g_player1` .. `g_player4`) and `g_players`, the table of their
 //! addresses. A `#[repr(C)]` struct with the image's layout, one static; `moved::MOVED` points the range
 //! at it. The code that hands a player on by address (`player_at`) reads the table's entries, which
-//! hold the records' real addresses once `moved::point_into_homes` has run. (Split 2026-10-25 from the
-//! front end's block `menu::store`; the cars follow in `CarTable`.)
+//! hold the records' real addresses once `moved::point_into_homes` has run. (The cars follow in `CarTable`.)
 
 use crate::session::{Dword, Shared, with_runs};
 use rc2k_core::menu::player::Player;
@@ -260,7 +259,7 @@ pub const START: usize = 0x755A4C;
 /// IDA 0x75648C, the end of the piece.
 pub const END: usize = 0x75648C;
 
-/// Where IDA 0x755A4C is now (`moved::MOVED`'s home).
+/// Where IDA 0x755A4C lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn players_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::menu::owner::MENUS.play.players)

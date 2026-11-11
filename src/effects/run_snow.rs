@@ -91,9 +91,9 @@ pub fn run_snow(
             .set_bits(4u32);
         let inverse = x87::reciprocal(&crate::scene::polygon_work::front_end().window.farthest);
         for r in &s.inverses {
-            r.set_bits(inverse);
+            r.set_bits(inverse.to_bits());
         }
-        s.inverse.set_bits(inverse);
+        s.inverse.set_bits(inverse.to_bits());
         let marks = effects.settings()?;
         if marks.other_marks_shown.get() != 0 {
             let ticks = race

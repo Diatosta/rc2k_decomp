@@ -3,7 +3,7 @@
 //! slot names (`draw_setup_slot_names`).
 //!
 //! Its address is in the draw list at 0x75915E. That it is the "load" screen is a reading: by
-//! elimination from `draw_save_setup_list`. IDA had no function here until 2026-10-10. The menus
+//! elimination from `draw_save_setup_list`. The menus
 //! and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
@@ -13,7 +13,7 @@ use crate::text::draw_text::Canvas;
 // ---- game data ----
 
 pub fn draw_load_setup_list(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::slot_lists::setup_page`.
+    // The logic is in `rc2k_core::screens::slot_lists::setup_page`.
     let page: u32 = menus.tables.pages.setup_slot_page.get();
     rc2k_core::screens::slot_lists::setup_page(
         &mut crate::screens::game_screen::SlotScreen::new(canvas),

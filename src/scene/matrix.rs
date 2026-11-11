@@ -60,7 +60,7 @@ pub fn set_turn_z_16(turn_z: &[Float; 16], work: &[Float; 2], angle: u32) {
 pub fn set_place(placed: &[Float; 16], place: [u32; 3]) {
     crate::session::write_first(
         &placed[12..15],
-        &place.map(|part| x87::from_int(part as i32)),
+        &place.map(|part| x87::from_int(part as i32).to_bits()),
     );
 }
 
@@ -158,7 +158,7 @@ pub fn make_object_matrix(
     let size: u32 = object.size.get();
     let factor = x87::int_over_16(size as i32);
     for cell in &v.turned_matrix {
-        cell.set_bits(x87::mul(cell, factor));
+        cell.set(x87::mul(cell, factor));
     }
     copy_matrix_with_place(&v.turned_matrix, &v.placed_matrix, &v.made_object_matrix);
 }

@@ -1,4 +1,4 @@
-//! The game's "SQSL" packed files (course data; converted 2026-10-20 from
+//! The game's "SQSL" packed files (course data; from
 //! `files::read_packed_file` 0x41BA71), unpacked in place.
 //!
 //! The file begins "SQSL", two dwords, and the count of dwords it unpacks to. Its dwords

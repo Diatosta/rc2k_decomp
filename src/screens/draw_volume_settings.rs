@@ -17,7 +17,7 @@ use crate::text::draw_text::Canvas;
 pub fn draw_volume_settings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let screens = &menus.screens;
     let levels = &crate::audio::owner::audio().levels;
-    // Converted: `rc2k_core::screens::settings_pages::volume`.
+    // The logic is in `rc2k_core::screens::settings_pages::volume`.
 
     let id = crate::sound::owner::sound()
         .menu

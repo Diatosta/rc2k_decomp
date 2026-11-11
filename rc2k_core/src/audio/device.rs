@@ -1,5 +1,5 @@
 //! DirectSound's device, primary buffer and turn way: what the audio thread decides around
-//! them (converted 2026-10-21 from `audio::open_sound` 0x409E1D, `audio::reopen_sound`
+//! them (from `audio::open_sound` 0x409E1D, `audio::reopen_sound`
 //! 0x40A52A, `audio::read_caps` 0x409EF8, `audio::release_primary` 0x40A61F,
 //! `audio::make_primary` 0x40A54B, `audio::open_listener` 0x40C5F9, `audio::open_way`
 //! 0x40AC3A, `audio::close_way` 0x40AC58, `audio::set_up_primary_mixer` 0x40BAD2,

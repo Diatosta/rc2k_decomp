@@ -229,7 +229,7 @@ pub fn lobby_loop(
             net.vars.after_race.set(0);
             crate::net::disable_new_players::enable_new_players(net);
         }
-        if system.session.flags.quitting.get() == 1 {
+        if system.session.flags.quitting.is_set() {
             break;
         }
     }

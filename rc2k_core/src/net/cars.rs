@@ -1,4 +1,4 @@
-//! The cars of a network race (converted 2026-10-21 from `net::car_list` 0x4AAAF7,
+//! The cars of a network race (from `net::car_list` 0x4AAAF7,
 //! `net::set_hud_options` 0x463D3F, `net::reset_cars` 0x463E52 and
 //! `net::clear_car_state` 0x463EB6): the car list offered, the HUD's bits, and the cars'
 //! blocks made ready (offsets into a car's block).

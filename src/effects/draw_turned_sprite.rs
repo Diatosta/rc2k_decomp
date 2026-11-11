@@ -61,8 +61,8 @@ pub fn draw_turned_sprite(
         for n in 0..4 {
             let v = &VERTICES.vertices[n];
             v.colour.set(colour);
-            v.u.set_bits(x87::loaded(SPRITE_UV.uv[2 * n].to_bits()));
-            v.v.set_bits(x87::loaded(SPRITE_UV.uv[2 * n + 1].to_bits()));
+            v.u.set(x87::loaded(SPRITE_UV.uv[2 * n].to_bits()));
+            v.v.set(x87::loaded(SPRITE_UV.uv[2 * n + 1].to_bits()));
             v.z.set_bits(sq[1]);
             v.x.set_bits(sq[10 + n]);
             v.y.set_bits(sq[6 + n]);

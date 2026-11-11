@@ -1,5 +1,5 @@
 //! The gear ratios and the sums between the engine's speed and the driven wheels'
-//! (converted from `physics::make_gear_ratios` 0x4219E6,
+//! (from `physics::make_gear_ratios` 0x4219E6,
 //! `physics::revs_from_wheels` 0x43C0C9, `physics::wheels_from_revs` 0x43C124,
 //! `physics::revs_from_speed` 0x43C101, `physics::drop_to_neutral` 0x43FD71 and
 //! `physics::settle_drive_speeds` 0x43BF6F). The ratios are `g_gearRatios` (0x6140C0, by

@@ -2,7 +2,7 @@
 //! 0x43, then 0x192; rows from y 0x45 every 0x1D, numbered by `draw_work.figure` 1 .. 0x20, the
 //! place in `g_markerX` / `g_markerY`) a box 0x14D x 0x1B (0x4FCF, see-through
 //! `state.service_ui`) and its black border; the chosen row (`loop_flags.item`, while
-//! `draw_work.blink` is 1) also a yellow (0xFFFF00) border and one a pixel outside it. Each a
+//! `draw_work.blink` is set) also a yellow (0xFFFF00) border and one a pixel outside it. Each a
 //! `scene::draw_tinted_quad`.
 //!
 //!
@@ -18,7 +18,7 @@ const MARKER_X: &Dword = &crate::menu::owner::MENUS.screens.draw_work.marker_x; 
 const MARKER_Y: &Dword = &crate::menu::owner::MENUS.screens.draw_work.marker_y; // g_markerY
 
 pub fn draw_column_boxes(screens: &Screens) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::panels::row_box`; the row and marker variables
+    // The logic is in `rc2k_core::screens::panels::row_box`; the row and marker variables
     // are left as the original leaves them.
     use rc2k_core::screens::panels::{BOXES_Y, COLUMNS, ROW_STEP, ROWS, row_box};
     set(ROW, 1);
@@ -27,7 +27,7 @@ pub fn draw_column_boxes(screens: &Screens) -> Result<(), Refused> {
         set(MARKER_Y, BOXES_Y);
         for _ in 0..ROWS {
             let chosen =
-                screens.loop_flags.item.get() == rd(ROW) && screens.draw_work.blink.get() == 1;
+                screens.loop_flags.item.get() == rd(ROW) && screens.draw_work.blink.is_set();
             for a in row_box(
                 rd(MARKER_X),
                 rd(MARKER_Y),

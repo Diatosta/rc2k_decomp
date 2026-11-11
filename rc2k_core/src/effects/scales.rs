@@ -1,4 +1,4 @@
-//! The marks' scaled settings (converted 2026-10-21 from `effects::scale_axes` 0x4BFD73,
+//! The marks' scaled settings (from `effects::scale_axes` 0x4BFD73,
 //! `effects::scale_setting` 0x4C08BB and `effects::scale_corners` 0x4C6420). As in `math::vector`, what the x87 keeps on its stack
 //! is an `f64`, rounded to `f32` where the original stores it: the same bits at the game's
 //! double precision.

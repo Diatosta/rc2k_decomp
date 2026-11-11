@@ -98,20 +98,20 @@ pub fn burst_particles(
             put(8, ring.pool.nine.get())?;
             put(0x48, ring.pool.kind.get())?;
             for o in [0xC, 0x10, 0x14] {
-                put(o, x87::loaded(particle(particles, record, o)?))?;
+                put(o, x87::loaded(particle(particles, record, o)?).to_bits())?;
             }
             let s = next_seed(effects);
             let a = s.rotate_right(16) & 0xFFF;
             let b = s & 0xFFF;
             let radius: u32 = ring.pool.burst_radius.bits();
-            put(0x34, x87::mul(sine(a), radius))?;
+            put(0x34, x87::mul(sine(a), radius).to_bits())?;
             put(
                 0x28,
-                x87::zero_times_plus_times(cosine(a), cosine(b), sine(b), radius, false),
+                x87::zero_times_plus_times(cosine(a), cosine(b), sine(b), radius, false).to_bits(),
             )?;
             put(
                 0x2C,
-                x87::zero_times_plus_times(cosine(a), sine(b), cosine(b), radius, true),
+                x87::zero_times_plus_times(cosine(a), sine(b), cosine(b), radius, true).to_bits(),
             )?;
             put(0x30, 0)?;
             put(0x38, 0x1_0000)?;
@@ -119,7 +119,7 @@ pub fn burst_particles(
             put(0x44, LIFE)?;
             put(
                 0x40,
-                x87::over_int(&effects.kinds.particle_tuning.burst_life, LIFE as i32),
+                x87::over_int(&effects.kinds.particle_tuning.burst_life, LIFE as i32).to_bits(),
             )?;
         }
     }

@@ -16,13 +16,13 @@ pub fn step_viewed_replay(race: &Race) -> Result<bool, Refused> {
     let shared = &race.shared;
     let stop = |at_end: bool| {
         if at_end {
-            shared.replay_file.replay_at_end.set(1);
+            shared.replay_file.replay_at_end.set(true);
         }
         true
     };
     // Converted: `rc2k_core::race::viewer::step`.
     use rc2k_core::race::viewer::{Step, step};
-    let open = shared.replay_file.replay_open.get() == 1;
+    let open = shared.replay_file.replay_open.is_set();
     let (block, frame) = (
         replay.replay_view.replay_block.get(),
         replay.replay_view.replay_frame.get(),

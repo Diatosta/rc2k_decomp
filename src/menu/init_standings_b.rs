@@ -6,7 +6,7 @@ use crate::errors::Refused;
 use crate::menu::standings::*;
 
 pub fn init_standings_b() -> Result<(), Refused> {
-    // Converted: `rc2k_core::saves::rankings::empty_b` on the first `ROOM` entries.
+    // The logic is in `rc2k_core::saves::rankings::empty_b` on the first `ROOM` entries.
     use rc2k_core::menu::standings::ROOM;
     with_b(|t| {
         t.entries[..ROOM as usize]

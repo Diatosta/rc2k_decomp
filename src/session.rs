@@ -649,7 +649,7 @@ pub struct WindowLoopState {
     pub f370: Dword,           // dword_518370
     pub window_active: Dword,  // g_windowActive
     pub window_focused: Dword, // g_windowFocused
-    pub quitting: Dword,       // g_quitting
+    pub quitting: Flag,        // g_quitting
     pub lost: Dword,           // dword_518380
     pub no_task_switch: Dword, // dword_518384 (`notaskswitch`, a `var\ral.cfg` setting)
     pub keep_priority: Dword,  // g_keepPriority (`noprichange`, a setting)
@@ -665,7 +665,7 @@ impl WindowLoopState {
             f370: Dword::new(0),
             window_active: Dword::new(0),
             window_focused: Dword::new(0),
-            quitting: Dword::new(0),
+            quitting: Flag::new(false),
             lost: Dword::new(0),
             no_task_switch: Dword::new(0),
             keep_priority: Dword::new(0),

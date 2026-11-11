@@ -74,7 +74,7 @@ pub struct Engine {
     pub gear_slot_start: u32,
 }
 
-/// The request's place for the timed sounds (converted 2026-10-21 from
+/// The request's place for the timed sounds (from
 /// `sound::car_gear_sounds` 0x40E24F): the object's +0x2C .. +0x34 less its +0x38 ..
 /// +0x40, each `fsub` stored as a float. One rounding of an exact `f64` difference: the
 /// x87's at any precision.

@@ -1,4 +1,4 @@
-//! A connection's DirectPlay address (converted 2026-10-21 from `net::add_address_element`
+//! A connection's DirectPlay address (from `net::add_address_element`
 //! 0x41896E and `net::build_address` 0x41882C): a compound address made of elements
 //! (`DPCOMPOUNDADDRESSELEMENT`: the data type's GUID, the data's size, the data's
 //! address), which by the connection's service provider: IPX the provider alone, TCP/IP

@@ -1,5 +1,4 @@
-//! The screens' kept items, out of RAL.EXE's image (IDA 0x747660 .. 0x747998; phase 7,
-//! typed): one slot per menu screen in two arrays, the item highlighted when the screen was
+//! The screens' kept items, out of RAL.EXE's image (IDA 0x747660 .. 0x747998): one slot per menu screen in two arrays, the item highlighted when the screen was
 //! last left (`current`, the screen loop's `saved_item`) and the item some screens start
 //! on (`first`, read into `measure_x` or the action's argument on entry). The screens name
 //! their slot by `slot::*`; the 20 slots no ported screen names keep the image's values.
@@ -328,7 +327,7 @@ pub const START: usize = 0x747660;
 /// IDA 0x747998, the end of the piece.
 pub const END: usize = 0x747998;
 
-/// Where IDA 0x747660 is now (`moved::MOVED`'s home).
+/// Where IDA 0x747660 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn screen_items_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::menu::owner::MENUS.screens.items)

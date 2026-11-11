@@ -1,4 +1,4 @@
-//! Tables of 8-byte entries (converted 2026-10-21 from `system::find_entry` 0x40179A,
+//! Tables of 8-byte entries (from `system::find_entry` 0x40179A,
 //! `find_entry_by_value` 0x4017D3, `find_entry_with_any_bit` 0x4017C2,
 //! `find_entry_with_bits` 0x4017AB, `next_entry` 0x4017E5): the video modes', the screen
 //! modes', DirectDraw's and DirectInput's. The searches take the entries as they come, so

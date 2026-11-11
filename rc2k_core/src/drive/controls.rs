@@ -1,4 +1,4 @@
-//! The work car's controls from its input words (converted 2026-10-21 from
+//! The work car's controls from its input words (from
 //! `drive::read_car_controls` 0x43A35A, `drive::pedal_inputs` 0x43A004,
 //! `drive::reset_request` 0x43A0D3 and `drive::device_axes` 0x409430): the keys newly
 //! pressed and the switches they give, the pedals stepped by keys or set by a device, the
@@ -41,11 +41,11 @@ pub fn flipped(v: u32) -> u32 {
 /// Whether the computer drives the car: its switch (`dword_71C3E0`), or race mode 2 with
 /// the grades' mode 2 (each asked only when the one before does not decide).
 pub fn computer_drives(
-    switch: u32,
+    switch: bool,
     mode: impl FnOnce() -> u32,
     grades: impl FnOnce() -> u32,
 ) -> bool {
-    switch != 0 || (mode() == 2 && grades() == 2)
+    switch || (mode() == 2 && grades() == 2)
 }
 
 /// A pedal's top and step.
@@ -142,9 +142,9 @@ mod tests {
         );
         assert_eq!(flipped(1), 0);
         assert_eq!(flipped(0), 1);
-        assert!(computer_drives(1, || unreachable!(), || unreachable!()));
-        assert!(computer_drives(0, || 2, || 2));
-        assert!(!computer_drives(0, || 1, || unreachable!()));
+        assert!(computer_drives(true, || unreachable!(), || unreachable!()));
+        assert!(computer_drives(false, || 2, || 2));
+        assert!(!computer_drives(false, || 1, || unreachable!()));
     }
 
     #[test]

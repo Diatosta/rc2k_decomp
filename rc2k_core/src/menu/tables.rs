@@ -1,4 +1,4 @@
-//! The game's menus and its screens' draw lists as Rust data (typed tables, 2026-10-22):
+//! The game's menus and its screens' draw lists as Rust data (typed tables):
 //! what RAL.EXE keeps at 0x747000 .. 0x755200 (menus, their labels) and 0x758B00 ..
 //! 0x7594B0 (draw lists), with the code addresses in them replaced by enums
 //! (`ItemFn`, `ScreenFn`) and the fonts they name by `MenuFont`. The data is generated

@@ -1,10 +1,10 @@
-//! `math::turn_scratch_xz` (0x41FEF8): the scratch point's x and z (floats at
+//! `math::rotate_scratch_about_y` (0x41FEF8): the scratch point's x and z (floats at
 //! `dword_5C5F50` and `dword_5C5F4C`) turned by an angle.
 //!
 //! Returns: the entry
 //!
 //! x' = x cos + z sin, z' = z cos - x sin, on the x87 as the original (`math::x87::
-//! turn_in_place`). Six callers, `math::turn_point_xz` and its three siblings.
+//! turn_in_place`). Six callers, `math::rotate_point_about_y` and its three siblings.
 
 /// The scratch point (`g_scratchZ`, `X`, `Y`: 0x5C5F4C .. in the image until 2026-10-24):
 /// written and read back by each of the four that turn a point (their other users,
@@ -17,10 +17,10 @@ pub struct Scratch {
     pub y: u32,
 }
 
-/// `math::turn_scratch_xz` exactly as the original (the x87, at whatever precision it is
+/// `math::rotate_scratch_about_y` exactly as the original (the x87, at whatever precision it is
 /// set to): what the Rust callers in modules not yet converted use, so that their own
 /// comparisons stay exact. The entry left in edx.
-pub fn turn_scratch_xz(point: &mut Scratch, angle: u32) -> u32 {
+pub fn rotate_scratch_about_y(point: &mut Scratch, angle: u32) -> u32 {
     let entry = angle.wrapping_add(0x8_0000) >> 20;
     x87_turn(point, entry);
     entry
@@ -38,7 +38,7 @@ fn x87_turn(point: &mut Scratch, entry: u32) {
 
 /// The converted version (`rc2k_core::math::geometry`, plain floats): the hook's, and what
 /// converted callers use. The entry left in edx.
-pub fn turn_scratch_xz_plain(point: &mut Scratch, angle: u32) -> u32 {
+pub fn rotate_scratch_about_y_plain(point: &mut Scratch, angle: u32) -> u32 {
     use rc2k_core::math::geometry;
     let entry = geometry::turn_entry(angle);
     {

@@ -1,4 +1,4 @@
-//! A sound object's queue of cues (converted from `physics::queue_sound_cue`
+//! A sound object's queue of cues (from `physics::queue_sound_cue`
 //! 0x40EE5C): up to 16 entries of 0x20 bytes (the cue, its sounds' number, up to six
 //! sounds); a cue put first stops the playing sound and moves the others up one.
 

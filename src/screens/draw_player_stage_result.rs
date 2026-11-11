@@ -28,7 +28,7 @@ pub fn draw_player_stage_result(menus: &Menus, canvas: &mut dyn Canvas) -> Resul
     )?;
     speed.push(0);
     (STAGE_TIMES.records)(menus)?;
-    // Converted: `rc2k_core::screens::player_result::stage_result`.
+    // The logic is in `rc2k_core::screens::player_result::stage_result`.
     use crate::screens::game_screen::PlayerResultScreen;
     speed.pop();
     let p = rc2k_core::screens::player_result::Player {

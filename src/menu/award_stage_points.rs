@@ -50,7 +50,7 @@ pub fn award_stage_points(menus: &Menus) -> Result<(), Refused> {
     for e in &all {
         owners.push(owner(menus, e)?);
     }
-    // Converted: `rc2k_core::menu::points` (`Points`, `kept`, `total`).
+    // The logic is in `rc2k_core::menu::points` (`Points`, `kept`, `total`).
     use rc2k_core::menu::points::{Points, kept, total};
     for class in 0..classes {
         let mut points = Points::default();

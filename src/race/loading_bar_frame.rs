@@ -65,13 +65,12 @@ fn frame(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.
     use crate::scene::*;
     use rc2k_core::race::loading::{FRAME_MARK, frame_tried};
-    if shared.work.in_credits.get() == 0
-        && !STAGE_LOADING.load(std::sync::atomic::Ordering::Relaxed)
+    if !shared.work.in_credits.is_set() && !STAGE_LOADING.load(std::sync::atomic::Ordering::Relaxed)
     {
         return Ok(());
     }
     scene.lights.state.scene_state.set(FRAME_MARK);
-    if session.flags.quitting.get() == 1 {
+    if session.flags.quitting.is_set() {
         return Ok(());
     }
     let drawn = 'frame: {
@@ -92,7 +91,7 @@ fn frame(race: &Race) -> Result<(), Refused> {
         unlock_frame::unlock_frame(&race.frame);
         present_frame::present_frame()
     };
-    if drawn || session.flags.quitting.get() == 1 {
+    if drawn || session.flags.quitting.is_set() {
         return Ok(());
     }
     // The platform's restore, (with a local scratch value; the flags it

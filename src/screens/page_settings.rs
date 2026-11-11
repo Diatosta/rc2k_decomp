@@ -1,5 +1,4 @@
-//! Front-end pages' "unread" steps that copy settings into the page's work variables (stream
-//! A, part F1, 2026-10-18).
+//! Front-end pages' "unread" steps that copy settings into the page's work variables.
 
 use crate::audio::owner::audio;
 use crate::errors::{BadInput, Refused};
@@ -12,7 +11,7 @@ use crate::system::owner::system;
 /// +0x50 into the page's copy (`keys.tables.controls`). Refuses (before
 /// anything) a player without its record.
 pub fn pick_player(menus: &Menus, n: u32) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::page_values` (`Player::picked`).
+    // The logic is in `rc2k_core::screens::page_values` (`Player::picked`).
     let (value, copy) = crate::menu::player::player(menus, n)
         .ok_or(BadInput("a player without its record"))?
         .get()
@@ -26,7 +25,7 @@ pub fn pick_player(menus: &Menus, n: u32) -> Result<(), Refused> {
 /// `screens::load_audio_settings` (0x4707E6): the audio options (`g_audioOptions`: quality,
 /// channels, Dolby, A3D, EAX, DS3D) into the sound page's work variables (`option_work`).
 pub fn load_audio_settings(menus: &Menus) {
-    // Converted: `rc2k_core::screens::page_values::audio_page`.
+    // The logic is in `rc2k_core::screens::page_values::audio_page`.
     let options: rc2k_core::audio::modes::AudioOptions = audio().state.audio_options.get();
     menus
         .screens
@@ -91,7 +90,7 @@ pub fn stage_options_texts(menus: &Menus) -> Result<(), Refused> {
         menus.tables.captions.shown_group.get(),
     );
     stage_refuses(a, b)?;
-    // Converted: `rc2k_core::screens::page_values` (the items and the caption).
+    // The logic is in `rc2k_core::screens::page_values` (the items and the caption).
     use rc2k_core::screens::page_values::{stage_options_caption, stage_options_items};
     let items = menus.tables.menus.view_best_times.id().items();
     let (first, second) = stage_options_items(a, menus.play.champ_view.switch_fc.get());

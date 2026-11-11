@@ -102,7 +102,7 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
         update_voice(&self.audio.state, voice, |v| v.flags |= LOADED);
     }
     fn quitting(&mut self) -> bool {
-        system().session.flags.quitting.get() == 1
+        system().session.flags.quitting.is_set()
     }
 }
 

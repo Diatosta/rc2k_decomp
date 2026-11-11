@@ -33,7 +33,7 @@ pub fn lowest_at(numbers: &Numbers, v: &[&dyn Cell32]) -> Result<(), Refused> {
             }
         }
     }
-    put(3, x87::int_over(get(1) as i32, &numbers.k65536));
+    put(3, x87::int_over(get(1) as i32, &numbers.k65536).to_bits());
     Ok(())
 }
 

@@ -139,10 +139,10 @@ pub fn set_up_surface(
         put(at + 0xC, v1)?;
         let across = |at: &mut u32| -> Result<_, Refused> {
             let p = *at;
-            put(p + 0x10, x87::add(get(p)?, step))?;
-            put(p + 0x14, x87::loaded(get(p + 4)?))?;
-            put(p + 0x18, x87::add(get(p + 8)?, step))?;
-            put(p + 0x1C, x87::loaded(get(p + 0xC)?))?;
+            put(p + 0x10, x87::add(get(p)?, step).to_bits())?;
+            put(p + 0x14, x87::loaded(get(p + 4)?).to_bits())?;
+            put(p + 0x18, x87::add(get(p + 8)?, step).to_bits())?;
+            put(p + 0x1C, x87::loaded(get(p + 0xC)?).to_bits())?;
             *at += 0x10;
             Ok(())
         };
@@ -151,10 +151,10 @@ pub fn set_up_surface(
         }
         for _ in 0..3 {
             let p = at;
-            put(p + 0x10, x87::sub_thrice(get(p)?, step))?;
-            put(p + 0x14, x87::add(get(p + 4)?, step))?;
-            put(p + 0x18, x87::sub_thrice(get(p + 8)?, step))?;
-            put(p + 0x1C, x87::add(get(p + 0xC)?, step))?;
+            put(p + 0x10, x87::sub_thrice(get(p)?, step).to_bits())?;
+            put(p + 0x14, x87::add(get(p + 4)?, step).to_bits())?;
+            put(p + 0x18, x87::sub_thrice(get(p + 8)?, step).to_bits())?;
+            put(p + 0x1C, x87::add(get(p + 0xC)?, step).to_bits())?;
             at += 0x10;
             for _ in 0..3 {
                 across(&mut at)?;

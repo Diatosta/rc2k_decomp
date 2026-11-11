@@ -35,7 +35,7 @@ pub fn arcade_finale(
         .set(first.car_number);
     race.shared.state.settings.kept.set(0);
     let level = play.arcade.level.get();
-    // Converted: `rc2k_core::menu::arcade::levels_left`.
+    // The logic is in `rc2k_core::menu::arcade::levels_left`.
     race.shared
         .state
         .results

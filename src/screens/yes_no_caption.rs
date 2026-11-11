@@ -21,7 +21,7 @@ pub fn yes_no_caption(tables: &Tables) -> Result<(), Refused> {
     let id = tables.pages.yes_no_answer.get().wrapping_add(FIRST);
     let mut text = Vec::new();
     append_string_by_id(id, &mut |bytes| text.extend_from_slice(bytes))?;
-    // Converted: `rc2k_core::screens::captions::fit`.
+    // The logic is in `rc2k_core::screens::captions::fit`.
     let text = rc2k_core::screens::captions::fit(text, CAPTION_LEN)?;
     crate::screens::text_buffers_store::TEXT_BUFFERS
         .caption

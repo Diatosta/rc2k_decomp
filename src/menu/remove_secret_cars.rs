@@ -44,7 +44,7 @@ pub fn write_list(list: List, entries: &[u32]) {
 }
 
 pub fn remove_secret_cars(menus: &Menus) -> Result<(), BadInput> {
-    // Converted: `rc2k_core::menu::car_lists` (`entries`, `without_secret`).
+    // The logic is in `rc2k_core::menu::car_lists` (`entries`, `without_secret`).
     {
         let secret = read_list(SECRET)?;
         // Each list read and checked in turn, as the original goes.

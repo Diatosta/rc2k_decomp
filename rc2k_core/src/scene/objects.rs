@@ -1,4 +1,4 @@
-//! The scene's objects as they are loaded and listed (converted 2026-10-21 from
+//! The scene's objects as they are loaded and listed (from
 //! `scene::measure_object` 0x4222B8, `list_object_textures` 0x426ACA,
 //! `set_object_file_names` 0x43964A, `list_object_faces` 0x45048C and
 //! `allocate_object_memory` 0x41F814): the memory objects load into, an object's middle

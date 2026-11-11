@@ -13,7 +13,7 @@ pub struct PaceNotes {
     /// +0x0 (0X614D38): `g_paceDistanceWords`: the distance's word by tens, the first 41 bytes used (`race::pace_notes`); IDA names its first byte only.
     pub distance_words: Bytes<0x1034>,
     /// +0x1034 (0X615D6C): `dword_615D6C`: a table indexed by a distance word, read once at 0x441CA8 (`race::pace_distance_word`) with its result thrown away; no other use.
-    pub unknown_d6c: [Dword; 41],
+    pub discarded_distance_table: [Dword; 41],
     /// +0x10d8 (0X615E10): `g_paceNoteCount`.
     pub note_count: Dword,
     /// +0x10dc (0X615E14): `g_paceGroupCount`: the pace note groups (`physics::queue_pace_note`).

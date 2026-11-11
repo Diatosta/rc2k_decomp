@@ -72,7 +72,7 @@ pub fn engine_sound(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
     drawing
         .scene
         .scratch
-        .set(x87::loaded(&race.shared.car.engine_speed));
+        .set(x87::loaded(&race.shared.car.engine_speed).to_bits());
     let floor = race.shared.physics_tables.idle_engine_speed.bits();
     let held = hold_low(
         f32::from_bits(drawing.scene.scratch.get()),

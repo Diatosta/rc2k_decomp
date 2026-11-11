@@ -1,5 +1,5 @@
 //! The passes over the players after a stage: the inspection and the service area
-//! (converted 2026-10-21 from `menu::inspection_pass` 0x4A8556, `menu::service_pass`
+//! (from `menu::inspection_pass` 0x4A8556, `menu::service_pass`
 //! 0x4A15E3 and `menu::time_trial_service` 0x48E093): who is looked at, when the event is
 //! over, the service's minutes and money, and the pauses between the screens.
 

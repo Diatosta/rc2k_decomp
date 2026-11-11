@@ -1,4 +1,4 @@
-//! Command 3, a list of sounds loaded (converted 2026-10-21 from `audio::load_sounds`
+//! Command 3, a list of sounds loaded (from `audio::load_sounds`
 //! 0x40AEB9): sound numbers, -2 passed over, ended by -1. For each sound whose record has
 //! a file (`data_key`) and `copies` above 0 (signed), that many voices while fewer than
 //! 0x200 are in use: a voice already made from the file shares its data, else the file is

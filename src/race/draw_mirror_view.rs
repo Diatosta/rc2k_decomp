@@ -33,7 +33,7 @@ pub fn draw_mirror_view(
 ) -> Result<Option<crate::race::draw_view_scene::ViewOutput>, Refused> {
     view.take_vars(race);
     if race.replay.finish.no_place.get() != 0
-        || race.shared.work.in_credits.get() != 0
+        || race.shared.work.in_credits.is_set()
         || (race.shared.switches.scene_set_up.get() == 0 && !always())
     {
         return Ok(None);

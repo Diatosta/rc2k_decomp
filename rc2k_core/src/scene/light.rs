@@ -1,7 +1,7 @@
-//! The tables of 0x100 colours the lighting picks from (converted 2026-10-21 from
+//! The tables of 0x100 colours the lighting picks from (from
 //! `scene::fill_light_ramp` 0x44F169 and `scene::fill_light_scale` 0x44F1BC). A colour is
 //! three dwords (red, green, blue); an entry packs their low bytes as 0xFFRRGGBB. And how
-//! much a light falls on a point (converted 2026-10-21 from `scene::light_dot` 0x44EC18;
+//! much a light falls on a point (from `scene::light_dot` 0x44EC18;
 //! what the x87 keeps on its stack an `f64`, the same at the game's double precision).
 
 /// The entries of a table.

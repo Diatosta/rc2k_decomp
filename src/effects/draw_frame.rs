@@ -85,12 +85,12 @@ pub fn draw_frame(
     let took = rdtsc().wrapping_sub(start) as i32;
     TIMES[0]
         .1
-        .set_bits(x87::int_over_int_times(took, frame, TIMES[0].0.bits()));
+        .set(x87::int_over_int_times(took, frame, TIMES[0].0.bits()));
     let start = rdtsc();
     let took = rdtsc().wrapping_sub(start) as i32;
     TIMES[1]
         .1
-        .set_bits(x87::int_over_int_times(took, frame, TIMES[1].0.bits()));
+        .set(x87::int_over_int_times(took, frame, TIMES[1].0.bits()));
     crate::scene::depth_test_on::depth_test_on();
     Ok(())
 }

@@ -94,10 +94,10 @@ pub fn nearest_on_segment(a: [u32; 3], b: [u32; 3], o: [u32; 3]) -> [u32; 3] {
         ratio(cells(&mut block), &top[..], &below[..]);
         // `hold_low` / `hold_high` (`physics::flow`) on the block: t held to 0 .. 1.
         if c0(block[T], ZERO) {
-            block[T] = loaded(ZERO);
+            block[T] = loaded(ZERO).to_bits();
         }
         if !c0(block[T], ONE) {
-            block[T] = loaded(ONE);
+            block[T] = loaded(ONE).to_bits();
         }
     }
     point(cells(&mut block));

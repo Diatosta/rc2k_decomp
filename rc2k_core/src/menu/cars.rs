@@ -1,4 +1,4 @@
-//! The car specification and slideshow screens' buttons (converted 2026-10-21 from
+//! The car specification and slideshow screens' buttons (from
 //! `menu::next_car` 0x469AFD, `previous_car` 0x469A6F, `next_car_page` 0x469BD1, `previous_slideshow_car` 0x469B35,
 //! `next_slideshow_car` 0x469B70, `previous_slideshow_picture` 0x469BF4,
 //! `next_slideshow_picture` 0x469C1A): what each changes, then what it calls; and the car
@@ -13,7 +13,7 @@ pub struct Shown {
     pub last_car: u32,
     pub picture: u32,
     pub page: u32,
-    pub leave: u32,
+    pub leave: bool,
 }
 
 /// What a button calls.
@@ -50,7 +50,7 @@ pub fn press(b: Button, s: &mut Shown) -> &'static [Call] {
             } else {
                 s.car.wrapping_add(1)
             };
-            s.leave = 0;
+            s.leave = false;
             &[Call::Background, Call::Stream]
         }
         Button::PreviousCar => {
@@ -59,7 +59,7 @@ pub fn press(b: Button, s: &mut Shown) -> &'static [Call] {
             } else {
                 s.car.wrapping_sub(1)
             };
-            s.leave = 0;
+            s.leave = false;
             &[Call::Background, Call::Stream]
         }
         Button::NextPage => {
@@ -86,7 +86,7 @@ pub fn press(b: Button, s: &mut Shown) -> &'static [Call] {
                 let car = s.car.wrapping_sub(1);
                 if (car as i32) < 0 { s.last_car } else { car }
             };
-            (s.car, s.leave, s.picture) = (car, 0, 0);
+            (s.car, s.leave, s.picture) = (car, false, 0);
             &[Call::Picture(1), Call::Stream]
         }
         Button::PreviousPicture => {
@@ -171,19 +171,19 @@ mod tests {
             last_car: 5,
             picture: 0,
             page: 3,
-            leave: 1,
+            leave: true,
         };
         assert_eq!(
             press(Button::NextCar, &mut s),
             &[Call::Background, Call::Stream]
         );
-        assert_eq!((s.car, s.leave), (0, 0));
-        s.leave = 1;
+        assert_eq!((s.car, s.leave), (0, false));
+        s.leave = true;
         assert_eq!(
             press(Button::PreviousCar, &mut s),
             &[Call::Background, Call::Stream]
         );
-        assert_eq!((s.car, s.leave), (5, 0));
+        assert_eq!((s.car, s.leave), (5, false));
         press(Button::PreviousCar, &mut s);
         assert_eq!(s.car, 4);
         s.car = 0;

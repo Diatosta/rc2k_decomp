@@ -1,7 +1,7 @@
-//! The tyre-change screen's layout (converted 2026-10-21 from `drive::tyre_screen`
+//! The tyre-change screen's layout (from `drive::tyre_screen`
 //! 0x41C5FA, the layout and the wheel's place, and `drive::tyre_screen_parts` 0x41C790,
 //! its ten fixed quads): rectangles as (x, y, w, h) whole numbers, a texture's and the
-//! screen's. A quad's corners (converted 2026-10-21 from `drive::tyre_quad` 0x41DD3B).
+//! screen's. A quad's corners (from `drive::tyre_quad` 0x41DD3B).
 
 /// A rectangle (x, y, w, h).
 pub type Rect = [u32; 4];

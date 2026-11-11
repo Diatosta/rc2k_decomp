@@ -325,10 +325,10 @@ pub fn make_shape_set(
     let scales: [u32; 4] = read_bits(&drops.tuning.step_scales);
     // 0x884FC4 .. : a, b (0x764F6C, _74), c, d (_70, _78) scaled, the tilts, two zeros.
     let steps = [
-        x87::mul(inputs[2], scales[0]),
-        x87::mul(inputs[4], scales[1]),
-        x87::mul(inputs[3], scales[2]),
-        x87::mul(inputs[5], scales[3]),
+        x87::mul(inputs[2], scales[0]).to_bits(),
+        x87::mul(inputs[4], scales[1]).to_bits(),
+        x87::mul(inputs[3], scales[2]).to_bits(),
+        x87::mul(inputs[5], scales[3]).to_bits(),
         0,
         0,
         inputs[0],
@@ -450,9 +450,9 @@ pub fn make_shape_sets(
         let tilts = [tilt, tilt];
         let ends = [
             by_kind[2],
-            x87::loaded(&t.set_ends[0]),
+            x87::loaded(&t.set_ends[0]).to_bits(),
             by_kind[3],
-            x87::loaded(&t.set_ends[1]),
+            x87::loaded(&t.set_ends[1]).to_bits(),
         ];
         // Checked as the sets will see them: none made, these tilts.
         let saved: ([u32; 2], u32) = (

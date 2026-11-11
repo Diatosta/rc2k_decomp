@@ -196,7 +196,7 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
     race.shared
         .car
         .ground_bump_scale
-        .set_bits(crate::math::x87::loaded(least));
+        .set(crate::math::x87::loaded(least));
     for k in &race.shared.physics_tables.point_grips[2..5] {
         least = if below(race.shared.car.ground_bump_scale.bits(), k.bits()) {
             race.shared.car.ground_bump_scale.bits()
@@ -206,7 +206,7 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
         race.shared
             .car
             .ground_bump_scale
-            .set_bits(crate::math::x87::loaded(least));
+            .set(crate::math::x87::loaded(least));
     }
     x87_7(race, scene);
     Ok(())
@@ -409,7 +409,7 @@ fn x87_6(race: &Race) {
 /// `[surface_softness] = (([rc + 0x224044] - [surface_point]) * (int [suspension_stiffness] / [k256])) + [surface_point]`
 /// `[wheel_drag] = [rc + 0x2146D0]`
 /// `[rc + 0x214764] = [rc + 0x2146E4]`
-/// `[wheel_turn_a] = [rc + 0x2146F8]`
+/// `[mud_scale_a] = [rc + 0x2146F8]`
 /// `[rc + 0x223DAC] = [rc + 0x21470C]`
 fn x87_7(race: &Race, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
@@ -451,9 +451,9 @@ fn x87_7(race: &Race, scene: &crate::scene::owner::Scene) {
     let t27 = ld(race.shared.physics_tables.surface_blends[9].bits());
     race.shared.physics_tables.wheel_drag[1].set_bits(st(t27));
     let t28 = ld(race.shared.physics_tables.surface_blends[14].bits());
-    race.shared.vars.wheel_turn_a[0].set_bits(st(t28));
+    race.shared.vars.mud_scale_a[0].set_bits(st(t28));
     let t29 = ld(race.shared.physics_tables.surface_blends[19].bits());
-    race.shared.vars.wheel_turn_a[1].set_bits(st(t29));
+    race.shared.vars.mud_scale_a[1].set_bits(st(t29));
 }
 
 #[cfg(all(test, target_arch = "x86"))]

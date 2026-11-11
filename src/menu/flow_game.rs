@@ -1,5 +1,5 @@
-//! The game for `rc2k_core::menu::flow` (2026-10-21): the event flows' variables at their
-//! addresses, their callees' Rust versions, the record the last search found and the car
+//! The game for `rc2k_core::menu::flow`: the event flows' variables at their
+//! addresses, their callees, the record the last search found and the car
 //! list handed on to the car choice.
 
 use crate::errors::{BadInput, FatalError, Refused};
@@ -14,6 +14,7 @@ use crate::records::stages_store::RecordRef;
 use crate::session::Dword;
 use crate::system::owner::system;
 use rc2k_core::menu::flow::{self, Picture, Var};
+use rc2k_core::menu::leaving::Switch;
 
 pub const SPEECH_CHANNEL: &Dword = &crate::menu::owner::MENUS.screens.option_work.speech_level;
 
@@ -73,8 +74,6 @@ enum Place<'a> {
     Player(u32, PlayerField),
     /// The found record's field.
     Record(u32),
-    /// `g_quitting` (the session's).
-    Quitting,
 }
 
 fn place(menus: &Menus, v: Var) -> Place<'_> {
@@ -87,16 +86,8 @@ fn place(menus: &Menus, v: Var) -> Place<'_> {
         Var::EventType => Cell(EVENT_TYPE),
         Var::Mode => Cell(MODE),
         Var::Current => Cell(CURRENT),
-        Var::LeftByKey => Cell(LEFT_BY_KEY),
-        Var::EventLeft => Cell(EVENT_LEFT),
-        Var::LeaveScreen => Cell(LEAVE_SCREEN),
-        Var::LeftWithCarry => Cell(LEFT_WITH_CARRY),
-        Var::AskLeave => Cell(ASK_LEAVE),
-        Var::EscapePressed => Cell(ESCAPE_PRESSED),
-        Var::EventOver => Cell(EVENT_OVER),
         Var::Round => Cell(ROUND),
         Var::Qualifies => Cell(crate::menu::time_trial_qualifies::QUALIFIES),
-        Var::Entered => Cell(crate::menu::time_trial_qualifies::ANY_QUALIFIED),
         Var::ServiceDue => Cell(champ::SERVICE_DUE),
         Var::RaceResult => Cell(&race.shared.state.results.results[0].result),
         Var::RaceResult2 => Cell(&race.shared.state.results.results[1].result),
@@ -120,13 +111,11 @@ fn place(menus: &Menus, v: Var) -> Place<'_> {
         Var::GoesOn => Cell(champ::GOES_ON),
         Var::Section => Cell(SECTION),
         Var::Index => Cell(INDEX),
-        Var::RallyDone => Cell(&menus.screens.state.menus.rally_done),
         Var::WelcomeFigure => Cell(champ::WELCOME_FIGURE),
         Var::Welcomed => Cell(champ::WELCOMED),
         Var::ReviewKind => Cell(&menus.screens.state.menus.review_kind),
         Var::Record(offset) => Place::Record(offset),
         Var::SpeechChannel => Cell(SPEECH_CHANNEL),
-        Var::Quitting => Place::Quitting,
     }
 }
 
@@ -155,7 +144,6 @@ impl flow::Game for Game<'_> {
                 .record
                 .ok_or(BadInput("a record field read before a record was found"))
                 .and_then(|r| r.word_at(offset))),
-            Place::Quitting => system().session.flags.quitting.get(),
         }
     }
 
@@ -168,8 +156,15 @@ impl flow::Game for Game<'_> {
                 self.fault
                     .ok::<()>(Err(BadInput("a write to a stage record")));
             }
-            Place::Quitting => system().session.flags.quitting.set(value),
         }
+    }
+
+    fn flag(&mut self, s: Switch) -> bool {
+        switch_cell(s).is_set()
+    }
+
+    fn set_flag(&mut self, s: Switch, on: bool) {
+        switch_cell(s).set(on);
     }
 
     fn run(&mut self, c: flow::Call) -> Result<(), Refused> {

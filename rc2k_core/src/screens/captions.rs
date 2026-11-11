@@ -1,4 +1,4 @@
-//! Texts the menus compose for their screens (converted 2026-10-20 from
+//! Texts the menus compose for their screens (from
 //! `screens::savegame_page_numbers` 0x46D262, `draw_spaced_number` 0x468180,
 //! `yes_no_caption` 0x46FA5A, `player_number_text` 0x46A359 and `gearing_text` 0x4699E0).
 

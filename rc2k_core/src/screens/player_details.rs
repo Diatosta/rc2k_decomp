@@ -1,4 +1,4 @@
-//! The players' details pages (converted 2026-10-20 from `screens::draw_player_details`
+//! The players' details pages (from `screens::draw_player_details`
 //! 0x46F894, the same code as `draw_player2_details` 0x4677B5, and `draw_player34_details`
 //! 0x467975 without the second view): the name (and the typing cursor), the nationality
 //! and its flag, the views, the race number, the co-driver, the sensitivity's bar; and the
@@ -34,7 +34,7 @@ pub struct Details<T> {
     /// A name is being typed (`dword_7556A8` not 0): the cursor after it.
     pub typing: bool,
     /// The cursor's blink (`dword_7559A8`): drawn while 1.
-    pub blink: u32,
+    pub blink: bool,
     pub nationality: u32,
     /// `dword_758816[nationality]`.
     pub nationality_id: u32,
@@ -53,16 +53,16 @@ pub fn name_cursor<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     name: S::Text,
     x: i32,
-    blink: u32,
+    blink: bool,
 ) -> Result<bool, S::Error> {
     let width = s.measure(Font::Measure, name, x)?;
-    if blink == 1 {
+    if blink {
         Ok(
             s.string(Font::Value, 4, width.wrapping_add(0x1BB) as i32, 0xD4)?
                 .too_wide,
         )
     } else {
-        Ok(blink < 1)
+        Ok(true)
     }
 }
 
@@ -179,7 +179,7 @@ mod tests {
             controllers: true,
             name: 1,
             typing: true,
-            blink: 1,
+            blink: true,
             nationality: 3,
             nationality_id: 0x700,
             view_id: 0x710,

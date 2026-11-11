@@ -34,35 +34,32 @@ pub fn engine_torque(race: &Race, scene: &crate::scene::owner::Scene) {
         &shared_store.car.engine_speed,
         &shared_store.car.engine_speed_limit,
     );
-    drawing.scene.scratch.set(s);
-    if below(s, course.numbers.one.bits()) && !below(s, ZERO) {
+    drawing.scene.scratch.set(s.to_bits());
+    if below(s.to_bits(), course.numbers.one.bits()) && !below(s.to_bits(), ZERO) {
         let i = trunc_mul_to_int(s, course.numbers.eight.bits()) as u32;
         drawing.scene.work_dword.set(i);
         let k = i as usize;
-        shared_store
-            .physics_tables
-            .engine_force
-            .set_bits(lerp_table(
+        shared_store.physics_tables.engine_force.set_bits(
+            lerp_table(
                 s,
                 shared_store.physics_tables.torque_curve[k].bits(),
                 shared_store.physics_tables.torque_curve[k + 1].bits(),
                 shared_store.physics_tables.spec_torque[k].get(),
                 shared_store.physics_tables.spec_torque[k + 1].get(),
-            ));
+            )
+            .to_bits(),
+        );
     } else {
-        shared_store
-            .physics_tables
-            .engine_force
-            .set_bits(x87::loaded(
-                shared_store.physics_tables.spec_torque[0].get(),
-            ));
+        shared_store.physics_tables.engine_force.set(x87::loaded(
+            shared_store.physics_tables.spec_torque[0].get(),
+        ));
     }
     shared_store.physics_tables.engine_torque.set_bits(bh::st(
         bh::ld(shared_store.car.engine_speed.bits())
             / bh::ld(shared_store.car.engine_speed_limit.bits())
             * bh::ld(shared_store.physics_tables.torque_ease.bits()),
     ));
-    shared_store.physics_tables.engine_force.set_bits(x87::mul(
+    shared_store.physics_tables.engine_force.set(x87::mul(
         &shared_store.physics_tables.engine_force,
         &shared_store.car.engine_power_factor,
     ));

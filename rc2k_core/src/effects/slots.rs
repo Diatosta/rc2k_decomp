@@ -1,4 +1,4 @@
-//! The marks' slots (converted 2026-10-21 from `effects::add_mark_slot` 0x4C99F4): 0x20
+//! The marks' slots (from `effects::add_mark_slot` 0x4C99F4): 0x20
 //! slots of five dwords (a time, two values, 0, a float); a new one takes the last free
 //! slot with the time 0x3C and a float of the slots' own random. As in `math::geometry`,
 //! what the x87 keeps on its stack is an `f64`: the same at the game's double precision.

@@ -1,4 +1,4 @@
-//! The free-roaming car (converted 2026-10-21 from `drive::simple_car_step` 0x43A1CA, its
+//! The free-roaming car (from `drive::simple_car_step` 0x43A1CA, its
 //! own rules; the inputs, the turn of the move, the ground and the matrix are its calls):
 //! no physics, the car moved along its heading by its pedals and turned by its steering.
 

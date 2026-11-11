@@ -11,7 +11,7 @@ use crate::menu::owner::Menus;
 use crate::screens::service_boxes::quad;
 
 pub fn draw_bottom_panel(menus: &Menus) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::panels::bottom_panel`.
+    // The logic is in `rc2k_core::screens::panels::bottom_panel`.
     for a in
         rc2k_core::screens::panels::bottom_panel(menus.screens.state.service_ui.fade_full.get())
     {

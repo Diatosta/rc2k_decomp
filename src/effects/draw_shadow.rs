@@ -165,8 +165,8 @@ pub fn draw_shadow_with(
     let uv_k: u32 = effects.frame.draw_work.uv_k.bits();
     for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
         let vertex = &VERTICES.vertices[n];
-        vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
-        vertex.v.set_bits(x87::int_times(word(v) as i32, uv_k));
+        vertex.u.set(x87::int_times(word(u) as i32, uv_k));
+        vertex.v.set(x87::int_times(word(v) as i32, uv_k));
     }
     let mut c = masks.surface.lives_by_level[8].get() | 0xFF00_0000;
     let half = |shift: u32| ((!(c >> shift) & 0xFF) >> 1) << shift;
@@ -187,7 +187,7 @@ pub fn draw_shadow_with(
         vertex.x.set_bits(q.corners[n][0].bits());
         vertex.y.set_bits(q.corners[n][1].bits());
         let depth = x87::sub_mul(q.corners[n][2].bits(), sh.consts.lifts[n].to_bits(), z_k);
-        vertex.z.set_bits(depth);
+        vertex.z.set_bits(depth.to_bits());
     }
     crate::effects::clip_quad::draw_fan();
     Ok(())

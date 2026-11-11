@@ -5,8 +5,8 @@ use crate::race::owner::race;
 use crate::session::Dword;
 use rc2k_core::menu::finish::{self, Racer, Step, Var};
 
-/// The game for `rc2k_core::menu::finish`: the variables at their addresses, the finders'
-/// Rust versions, the steps their Rust versions. `racer` is the record (the original's
+/// The game for `rc2k_core::menu::finish`: the variables at their addresses, the finders
+/// and the steps. `racer` is the record (the original's
 /// edi) the racer fields are read through: a player's.
 pub struct Game<'a> {
     menus: &'a Menus,

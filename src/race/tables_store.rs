@@ -59,7 +59,7 @@ pub struct RaceTables {
     /// +0xb78 (0x6051B4): `dword_6051B4`: "NUM arcadecars", the starts count (`race::set_up_mode_2_cars`, `race::panel_neighbours`, `drive::start_cars_behind`).
     pub arcade_cars: Dword,
     /// +0xb7c (0x6051B8): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_b7c: Dword,
+    pub unused_b7c: Dword,
     /// +0xb80 (0x6051BC): `dword_6051BC`: "arc start pos (1-n)" (`race::set_up_mode_2_cars`, `race::settings_copy`, `race::race_shell`).
     pub start_place: Dword,
     /// +0xb84 (0x6051C0): `dword_6051C0`: "bestpos" (`race::set_up_mode_2_cars`).

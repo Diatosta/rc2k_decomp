@@ -39,7 +39,7 @@ fn abs_below(x: u32, y: u32) -> bool {
 
 /// `fld from; fstp to`.
 fn store_loaded(to: &Float, from: &Float) {
-    to.set_bits(x87::loaded(from));
+    to.set(x87::loaded(from));
 }
 
 /// The cells one wheel's slip step works on (`settle_slip`).
@@ -66,11 +66,11 @@ fn settle_slip(car: &Car, tables: &PhysicsTables, numbers: &Numbers, cells: &Sli
     slip_ratio(car, tables, drive, ratio);
     let s = abs_of(slip.bits());
     let signed = if c0(ratio.bits(), ZERO) {
-        neg_rounded(extended(s))
+        neg_rounded(extended(s.to_bits()))
     } else {
         s
     };
-    slip.set_bits(signed);
+    slip.set_bits(signed.to_bits());
     apply_slip_to_drive(tables, numbers, drive, slip, f1, f2);
 }
 
@@ -259,11 +259,11 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
 
         scale_axle_forces(&race.shared.physics_tables);
         if race.shared.car.parts_state.get() != 0 {
-            race.shared.physics_tables.drive_forces[0].set_bits(x87::mul(
+            race.shared.physics_tables.drive_forces[0].set(x87::mul(
                 &race.shared.physics_tables.drive_forces[0],
                 &race.course.numbers.half,
             ));
-            race.shared.physics_tables.drive_forces[1].set_bits(x87::mul(
+            race.shared.physics_tables.drive_forces[1].set(x87::mul(
                 &race.shared.physics_tables.drive_forces[1],
                 &race.course.numbers.half,
             ));

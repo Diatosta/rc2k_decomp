@@ -11,7 +11,7 @@ use crate::menu::owner::Menus;
 use rc2k_core::menu::items::{HIDDEN, IN_GAME_OPTIONS};
 pub fn hide_all_in_game_options(menus: &Menus) -> Result<(), Refused> {
     let tables = &menus.tables;
-    // Converted: `rc2k_core::menu::items::HIDDEN` (the four items `hide_in_game_options`
+    // The logic is in `rc2k_core::menu::items::HIDDEN` (the four items `hide_in_game_options`
     // hides, all of them).
     for n in IN_GAME_OPTIONS {
         set(tables, n, HIDDEN)?;

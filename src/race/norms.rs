@@ -62,7 +62,8 @@ pub fn face_normal(race: &Race, a: u32, b: u32, c: u32) -> Result<(), BadInput> 
             x87::int_product_difference(d[5], d[2], d[3], d[4]),
             x87::int_product_difference(d[1], d[4], d[5], d[0]),
             x87::int_product_difference(d[3], d[0], d[1], d[2]),
-        ];
+        ]
+        .map(f32::to_bits);
         crate::session::write_first(&race.frame.scratch.work_vector, &normal);
         normalise_work_vector(race);
     }

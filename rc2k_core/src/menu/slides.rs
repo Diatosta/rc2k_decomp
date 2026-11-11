@@ -1,5 +1,5 @@
 //! The car pages' pictures: the car whose pictures are shown, the page's background and
-//! the slideshow's search for a picture that is there (converted 2026-10-21 from
+//! the slideshow's search for a picture that is there (from
 //! `menu::load_car_background` 0x468482 and `menu::load_slideshow_picture` 0x4684F5).
 
 use crate::Invalid;

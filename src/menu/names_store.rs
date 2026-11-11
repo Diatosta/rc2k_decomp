@@ -1,8 +1,7 @@
 //! The players' names and the text being typed, out of RAL.EXE's image (IDA 0x755784 .. 0x7558C4; phase
 //! 7, typed): the four players' names (0x20 bytes each) and what follows them, the name `menu::standings`
 //! keeps, and the text as it was before an entry started. A `#[repr(C)]` struct with the image's
-//! layout, one static; `moved::MOVED` points the range at it. (Split 2026-10-25 from the front end's
-//! block `menu::store`.)
+//! layout, one static; `moved::MOVED` points the range at it.
 
 use crate::session::Bytes;
 
@@ -37,7 +36,7 @@ pub const START: usize = 0x755784;
 /// IDA 0x7558C4, the end of the piece.
 pub const END: usize = 0x7558C4;
 
-/// Where IDA 0x755784 is now (`moved::MOVED`'s home).
+/// Where IDA 0x755784 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn names_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::menu::owner::MENUS.play.names)

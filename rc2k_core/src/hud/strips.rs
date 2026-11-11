@@ -1,4 +1,4 @@
-//! The players' view strips (converted 2026-10-21 from `hud::draw_view_strips` 0x45B7B1
+//! The players' view strips (from `hud::draw_view_strips` 0x45B7B1
 //! and `hud::draw_view_strip` 0x45B86E): a view block's strip is shown while its flash is
 //! on, as three flat quads side by side (the banner a view shows while a notice of its car is shown,
 //! `notice_shown` / the notice's time: the strip flashes with the notice's period)

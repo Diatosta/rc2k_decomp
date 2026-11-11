@@ -1,4 +1,4 @@
-//! The cars' order (converted 2026-10-21 from `drive::two_car_order` 0x460CDA,
+//! The cars' order (from `drive::two_car_order` 0x460CDA,
 //! `note_gap_ahead` 0x4373A4 and `note_gap_behind`): the two places of a two-car race,
 //! and the nearest gap in checkpoints to the lead car.
 

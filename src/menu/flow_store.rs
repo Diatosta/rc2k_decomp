@@ -1,12 +1,11 @@
-//! The screens' flow variables, out of RAL.EXE's image (IDA 0x7554C0 .. 0x755525; phase 7, typed): the
+//! The screens' flow variables, out of RAL.EXE's image (IDA 0x7554C0 .. 0x755525): the
 //! sections an event starts at, the yes / no screens' switches, the lists a screen puts in place
 //! (`g_unreadList`, `g_drawList`, `g_overlayList`, `g_sceneList`) and a few switches of the item
 //! keys. A `#[repr(C)]` struct with the image's layout, one static; `moved::MOVED` points the range
-//! at it. The list pointers hold the lists by handle (`menu::fn_list`, 2026-10-28). (Split 2026-10-25
-//! from the front end's block `menu::store`.)
+//! at it. The list pointers hold the lists by handle (`menu::fn_list`).
 
 use crate::menu::fn_list::ListCell;
-use crate::session::{Bytes, Dword, with_runs};
+use crate::session::{Bytes, Dword, Flag, with_runs};
 
 /// The screens' flow variables (IDA 0x7554C0 .. 0x755525).
 #[repr(C)]
@@ -19,7 +18,7 @@ pub struct ScreenFlow {
     /// `dword_7554C8`: Kept by `menu::run_event_races`.
     pub kept: Dword,
     /// `g_askingYesNo`: 1 on a yes / no screen (`menu::leaving`).
-    pub asking: Dword,
+    pub asking: Flag,
     /// `dword_7554D0`: 1 = left and right do not click (`menu::navigation`).
     pub quiet: Dword,
     /// `g_enterSkipsNameEntry`: Enter acts as key 4 (`menu::handle_keys`, `menu::begin_player_name`).
@@ -57,7 +56,7 @@ impl ScreenFlow {
             start_section: Dword::new(0x0),
             start_section_a8: Dword::new(0x0),
             kept: Dword::new(0x1),
-            asking: Dword::new(0x0),
+            asking: Flag::new(false),
             quiet: Dword::new(0x0),
             enter_skips_name_entry: Dword::new(0x0),
             car_list_kind: Dword::new(0x0),
@@ -81,7 +80,7 @@ pub const START: usize = 0x7554C0;
 /// IDA 0x755525, the end of the piece.
 pub const END: usize = 0x755525;
 
-/// Where IDA 0x7554C0 is now (`moved::MOVED`'s home).
+/// Where IDA 0x7554C0 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn screen_flow_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::menu::owner::MENUS.screens.flow)

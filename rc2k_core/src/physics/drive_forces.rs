@@ -1,8 +1,8 @@
-//! The drive's forces under the wheels' step (Converted from
+//! The drive's forces under the wheels' step (from
 //! `physics::ease_low_speed_forces` 0x440CF3, `physics::cap_reverse_inputs` 0x46514A,
 //! `physics::add_drive_forces` 0x440C7B, `physics::cap_drive_speed` 0x440DF3,
 //! `physics::drive_torque_share` 0x440D56 and `physics::set_downforce` 0x43F508). What
-//! the figures are is a reading (the hooks' headers say which).
+//! the figures are is a reading.
 //!
 //! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
 //! original stores (`physics::x87`): the same bits at the game's double precision.

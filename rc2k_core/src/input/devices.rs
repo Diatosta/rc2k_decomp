@@ -1,4 +1,4 @@
-//! A player's input device read (converted 2026-10-20 from `input::read_device` 0x408E38,
+//! A player's input device read (from `input::read_device` 0x408E38,
 //! `hat_reading` 0x408968, `hat_direction` 0x408992, `binding_place` 0x408DD6).
 //!
 //! A device record (0x4F8 bytes, the game's `InputDevice`) has twelve bindings of four
@@ -28,7 +28,7 @@ pub const FULL: u32 = 0x100;
 
 /// The bits reading with the hat centred.
 pub const HAT_CENTRED: u32 = 0xE00;
-/// What `input::clear_device_readings` (0x40883C, converted 2026-10-21) writes, in order:
+/// What `input::clear_device_readings` (0x40883C) writes, in order:
 /// the state copies (+0x2C .. +0x38) and the readings (+0x4DC .. +0x4E4) 0, the bits
 /// reading the hat centred.
 pub const CLEARED_READINGS: [(usize, u32); 8] = [
@@ -324,7 +324,7 @@ pub fn merge_readings(first: &mut [u32; 4], second: &[u32; 4]) {
     first[3] |= second[3] & 0x70FF;
 }
 
-/// The twelve bindings of a device's record (converted 2026-10-21 from
+/// The twelve bindings of a device's record (from
 /// `input::set_up_device` 0x408BCD): each (the player's controls' key byte, the controls'
 /// word, the record's place).
 pub const DEVICE_BINDINGS: [(usize, usize, usize); 12] = [
@@ -354,7 +354,7 @@ pub fn binding(key: u8, word: u32, first: bool) -> [u32; 4] {
     [key as u32, p.axis, p.sign, p.button]
 }
 
-/// A step of the input thread's command (converted 2026-10-21 from `input::device_command`
+/// A step of the input thread's command (from `input::device_command`
 /// 0x408AE5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CommandStep {
@@ -414,7 +414,7 @@ pub fn command_steps(
     })
 }
 
-/// A control learnt from the controller's four values (converted 2026-10-21 from
+/// A control learnt from the controller's four values (from
 /// `screens::classify_controller` 0x46B27A): the button (its number + 1, when exactly one is
 /// down), and each of left (x below 0), right (x above 0), y and z shifted into its
 /// history (a 1 for "under 0x80"); a direction held over 0x1D of the last 32 polls while

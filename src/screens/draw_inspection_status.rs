@@ -12,8 +12,7 @@
 //!
 //! Screen: seen in a screenshot of the championship's service area (2026-10-10): "ESTADO DE INSPECÇÃO" with a
 //! red to green bar between "REPROV." (string 0x4AE) and "PASSAR" (0x4AF): fail .. pass. The
-//! "ESTADO DE INSPECÇÃO" label itself is drawn by `draw_service_area`. Named
-//! `draw_car_condition` before the screenshot.
+//! "ESTADO DE INSPECÇÃO" label itself is drawn by `draw_service_area`.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
@@ -27,7 +26,7 @@ use crate::text::draw_text::Canvas;
 // `draw_work.figure`: a work variable, here the weights' sum
 
 /// The percentage and the item of the last damaged part looked at (its repair flag's address
-/// is what the original leaves in esi). Converted: `rc2k_core::screens::inspection::status`.
+/// is what the original leaves in esi). The logic is in `rc2k_core::screens::inspection::status`.
 pub fn inspection_status(
     menus: &Menus,
     screens: &Screens,
@@ -59,7 +58,7 @@ pub fn draw_inspection_status(
         return Err(BadInput("no current player object: the original reads through null").into());
     };
     let (condition, _) = inspection_status(menus, screens, player)?;
-    // Converted: `rc2k_core::screens::inspection::inspection_status`.
+    // The logic is in `rc2k_core::screens::inspection::inspection_status`.
     let out = rc2k_core::screens::inspection::inspection_status(
         &mut crate::screens::game_screen::GameScreen::<
             rc2k_core::screens::inspection::Font,

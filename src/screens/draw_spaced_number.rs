@@ -26,7 +26,7 @@ pub fn draw_spaced_number(
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::captions::spaced_places`.
+    // The logic is in `rc2k_core::screens::captions::spaced_places`.
     let font = font.into();
     let n = digits.len() as u32;
     let places = rc2k_core::screens::captions::spaced_places(n, x, CELLS_LEN)?;

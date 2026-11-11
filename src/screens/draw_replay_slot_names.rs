@@ -5,8 +5,7 @@
 //! 0x213, rows from y = 0xB5 in steps of 0x1B, font 0x51E8C4. It keeps its position in
 //! `g_markerX`/`g_markerY` and its row counter in `draw_work.figure`, left at 0x213, 0x183 and 10.
 //! Refuses a page past the fifth: the table has 100 names. Called through the menu tables
-//! (0x758BCE, 0x758BD6). Was not a function in IDA (made 2026-10-19: the standalone's replay pages
-//! showed no names). The menus and draw lists run its `entry` (`menu::table_calls`).
+//! (0x758BCE, 0x758BD6). The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::name_lists::{NAME_LEN, REPLAY_PAGE_RVA};
@@ -26,7 +25,7 @@ fn slot_name(slot: u32) -> crate::place::BytePlace {
 }
 
 pub fn draw_replay_slot_names(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::slot_lists::names`.
+    // The logic is in `rc2k_core::screens::slot_lists::names`.
     let page = REPLAY_PAGE_RVA.get();
     rc2k_core::screens::slot_lists::names(
         &mut crate::screens::game_screen::SlotScreen::new(canvas),

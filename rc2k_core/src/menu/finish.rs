@@ -1,4 +1,4 @@
-//! The championship's finish routines (converted 2026-10-21 from
+//! The championship's finish routines (from
 //! `menu::championship_finish` 0x4A14CB and `menu::section_finish` 0x4A9439): who drives
 //! the finish (the championship's leader, else the first player done with the section),
 //! the race's set-up from that player, the steps of the finish and the front end's set-up

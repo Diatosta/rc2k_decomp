@@ -32,16 +32,16 @@ use crate::menu::update_blink::update_blink;
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
-    menus.screens.event.event_over.set(0u32);
+    menus.screens.event.event_over.set(false);
     // menu::load_background (whether it failed is not looked at)
     Callee::LoadBackground(|m| &m.tables.texts.main_menu_picture).run(entry)?;
     entry.front_end.window.view_offset[0].set(7u32);
     entry.front_end.window.view_offset[1].set(0xAu32);
     entry.front_end.window.view_zoom.set(0x100u32);
     prepare_scene(entry.scene); // scene::prepare_menu_scene
-    menus.screens.loop_flags.ask_leave.set(0u32);
+    menus.screens.loop_flags.ask_leave.set(false);
     Callee::TakeKey.run(entry)?; // input::take_key
-    menus.screens.draw_work.escape_pressed.set(0u32);
+    menus.screens.draw_work.escape_pressed.set(false);
     menus
         .screens
         .option_work
@@ -116,12 +116,12 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[
-        Step::Write(|m| &m.screens.loop_flags.event_left, 0),
-        Step::Write(|m| &m.screens.loop_flags.leave_screen, 0),
-        Step::Write(|m| &m.screens.loop_flags.left_with_carry, 0),
-        Step::Write(|m| &m.screens.event.event_over, 0),
+        Step::WriteFlag(|m| &m.screens.loop_flags.event_left, false),
+        Step::WriteFlag(|m| &m.screens.loop_flags.leave_screen, false),
+        Step::WriteFlag(|m| &m.screens.loop_flags.left_with_carry, false),
+        Step::WriteFlag(|m| &m.screens.event.event_over, false),
         Step::Sound(MenuSound::None),
-        Step::Write(|m| &m.screens.draw_work.escape_pressed, 0),
+        Step::WriteFlag(|m| &m.screens.draw_work.escape_pressed, false),
         Step::Write(|m| &m.screens.items.current[slot::MAIN_MENU], 1),
         Step::Write(|m| &m.screens.loop_flags.item, 1),
         Step::Call(Callee::SetUpFrontEnd),
@@ -141,10 +141,10 @@ pub const SCREEN: Screen = Screen {
     late_highlight: true,
     asking: Some(Asking {
         on_refusal: &[
-            Step::Write(|m| &m.screens.loop_flags.ask_leave, 0),
-            Step::Write(|m| &m.screens.draw_work.escape_pressed, 0),
+            Step::WriteFlag(|m| &m.screens.loop_flags.ask_leave, false),
+            Step::WriteFlag(|m| &m.screens.draw_work.escape_pressed, false),
             Step::Sound(MenuSound::None),
-            Step::Write(|m| &m.screens.loop_flags.leave_screen, 0),
+            Step::WriteFlag(|m| &m.screens.loop_flags.leave_screen, false),
         ],
         always: true,
         ..Asking::DEFAULT

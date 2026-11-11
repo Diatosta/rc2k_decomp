@@ -66,7 +66,7 @@ fn flat_way(from: &[Dword], to: &[Dword], out: &[Float]) {
     let x = to[0].get().wrapping_sub(from[0].get());
     let z = to[2].get().wrapping_sub(from[2].get());
     for (o, v) in out.iter().zip([x, 0, z]) {
-        o.set_bits(x87::from_int(v as i32));
+        o.set(x87::from_int(v as i32));
     }
 }
 
@@ -230,7 +230,7 @@ pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
     race.shared
         .work
         .driver_speed_scale
-        .set_bits(x87::loaded(&race.shared.work.bend_speeds[k as usize])); // flt_71BE9C, 0x20 of them
+        .set(x87::loaded(&race.shared.work.bend_speeds[k as usize])); // flt_71BE9C, 0x20 of them
     let (x, z) = face_point(
         &race.course,
         held(&race.shared, crate::race::checkpoints_store::face, n, 0),
@@ -308,8 +308,8 @@ pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
         &race.shared.work.driver_way,
         &race.shared.work.driver_way_unit,
     );
-    race.shared.work.driver_side[2].set_bits(x87::loaded(&race.shared.car.crash_matrix[10]));
-    race.shared.work.driver_side[0].set_bits(x87::negated(&race.shared.car.crash_matrix[2]));
+    race.shared.work.driver_side[2].set(x87::loaded(&race.shared.car.crash_matrix[10]));
+    race.shared.work.driver_side[0].set(x87::negated(&race.shared.car.crash_matrix[2]));
     race.shared.work.driver_side[1].set_bits(0);
     cross_product(
         &race.shared.work.driver_side,

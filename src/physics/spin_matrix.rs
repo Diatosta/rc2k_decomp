@@ -27,7 +27,7 @@ pub fn spin_matrix(race: &Race) {
         let turn = &lists.turn_matrix;
         let turned = &race.frame.matrices.turned_matrix;
         unit_vector(&race.course, &race.shared.car.spin, &lists.spin_axis);
-        lists.spin_angle.set_bits(x87::mul(
+        lists.spin_angle.set(x87::mul(
             &race.shared.car.spin_length,
             &race.shared.physics_tables.step_time,
         ));

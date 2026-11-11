@@ -1,5 +1,5 @@
 //! The race's frame: the panel's fields, the course grid round the view, the sort
-//! entries and the objects' bytes (converted from `race::split_colours`
+//! entries and the objects' bytes (from `race::split_colours`
 //! 0x45B16A, `both_split_colours` 0x45B147, `panel_players` 0x45ACDB, `panel_neighbours`
 //! 0x45AD36, `panel_marks` 0x45AEFE, `hold_to_limit` 0x4650A9, `lamps_wanted` 0x4536D7,
 //! `add_sort_entry` 0x454D57, `course_grid` 0x45497E, `checkpoint_colours` 0x4548E3 and

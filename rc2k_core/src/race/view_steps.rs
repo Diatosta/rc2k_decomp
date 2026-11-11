@@ -1,6 +1,6 @@
 //! The race frame's per-view steps: the textures loaded again each frame, the mirror's
 //! picture copied, the screen's tint, the marks' views and layout, the own car seen from
-//! inside (converted from `race::forget_view_textures` 0x45B200,
+//! inside (from `race::forget_view_textures` 0x45B200,
 //! `copy_mirror_picture` 0x455DAD, `draw_screen_tint` 0x455A11, `run_view_marks`
 //! 0x456336 and `draw_own_car` 0x455AD3).
 

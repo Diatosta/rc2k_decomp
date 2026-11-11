@@ -1,10 +1,10 @@
-//! The camera's ground checks (converted from `physics::camera_low_switch`
+//! The camera's ground checks (from `physics::camera_low_switch`
 //! 0x438BF4, `camera_over_ground` 0x438CEC and `camera_clear_of_ground` 0x438DD2): how
 //! high the camera is over the ground found under it, the switch begun when it is low,
 //! and the points across its heading that must have ground. The camera variables
 //! (`camera_view` ..) are the car block's camera fields (`Car::camera_view` the mode,
 //! `camera_position` the place, `camera_heading` / `camera_pitch` the turns). And the camera
-//! kept out of the ground (converted from `physics::camera_avoid_ground`
+//! kept out of the ground (from `physics::camera_avoid_ground`
 //! 0x43907F): turned to face from a checkpoint behind, then back toward its heading in
 //! halving-by-eight steps, then pitched up or down until clear.
 

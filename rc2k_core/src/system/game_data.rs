@@ -1,5 +1,5 @@
 //! What the game keeps between runs, loaded, and the names that are empty given defaults
-//! (converted 2026-10-21 from `system::load_game_data` 0x411239: its choices and the
+//! (from `system::load_game_data` 0x411239: its choices and the
 //! names it makes; the loading and the Win32 names stay with the caller).
 
 use crate::strings::format::{Pad, decimal};

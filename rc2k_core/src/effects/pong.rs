@@ -1,7 +1,7 @@
-//! The pong game over the race (converted 2026-10-21 from `effects::pong_score` 0x4B8382 and
+//! The pong game over the race (from `effects::pong_score` 0x4B8382 and
 //! `effects::pong_digit` 0x4B8418): the score, the hits and the best each as three digits,
 //! each digit a 4 x 5 pattern of cells (`unk_768704`, 0x14 bytes a digit). The court
-//! (converted 2026-10-21 from `effects::reset_pong` 0x4B7E64, `effects::pong_bat_back`
+//! (from `effects::reset_pong` 0x4B7E64, `effects::pong_bat_back`
 //! 0x4B8215, `effects::move_pong_bat` 0x4B82B0, `effects::pong_ball_hits` 0x4B8040,
 //! `effects::move_pong_ball` 0x4B7F4F and `effects::pong_cell` 0x4B8557): the ball and the bat
 //! as floats, their compares as the x87's status bits (C0, C1, C2: `& 0x700`). As in

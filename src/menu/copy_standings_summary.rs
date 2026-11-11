@@ -15,7 +15,7 @@ pub fn copy_standings_summary(screens: &Screens) -> Result<(), Refused> {
         return Err(BadInput("no standings summary").into());
     }
     let grouped = screens.state.menus.class_mode.get() == 2;
-    // Converted: `rc2k_core::saves::rankings::summary_rows`.
+    // The logic is in `rc2k_core::saves::rankings::summary_rows`.
     let Some(rows) = rc2k_core::saves::rankings::summary_rows(&walked_entries_a()?, grouped) else {
         return Err(BadInput("standings table A runs out").into());
     };

@@ -1,5 +1,5 @@
-//! The game's three-float vectors and 3 x 3 (or 4 x 3) float matrices (converted
-//! 2026-10-20 from `scene::vector3`, `scene::matrix3`, `scene::rotate_point` and the
+//! The game's three-float vectors and 3 x 3 (or 4 x 3) float matrices
+//! (from `scene::vector3`, `scene::matrix3`, `scene::rotate_point` and the
 //! physics helpers on them). 3 x 3 matrices: rows of three floats; `rotate_point`'s: rows
 //! of four, the fourth the translation. As in `geometry`, what the x87 keeps on its stack is an `f64`, rounded to
 //! `f32` where the original stores: the same bits at the game's double precision.

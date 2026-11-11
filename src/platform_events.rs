@@ -106,7 +106,7 @@ pub fn hold_quit(on: bool) {
     HOLD_QUIT.store(on, Relaxed);
     if !on && QUIT_ASKED.swap(false, Relaxed) {
         log("platform: the copy has ended: the quit switch is set");
-        system().session.flags.quitting.set(1);
+        system().session.flags.quitting.set(true);
         end_if_not_left();
     }
 }
@@ -153,7 +153,7 @@ pub fn pump() {
             }
             Event::Quit => {
                 log("platform: the window was closed: the quit switch is set");
-                system.session.flags.quitting.set(1);
+                system.session.flags.quitting.set(true);
                 end_if_not_left();
             }
             // As the window's procedure on `WM_ACTIVATE`: the input thread reads the devices
@@ -206,7 +206,7 @@ fn pad_button(course: &Course, button: SDL_GamepadButton, down: bool) {
             GUIDE.store(down, Relaxed);
         } else if button == SDL_GAMEPAD_BUTTON_START && down && GUIDE.load(Relaxed) {
             log("platform: MENU + START: the quit switch is set");
-            system().session.flags.quitting.set(1);
+            system().session.flags.quitting.set(true);
             end_if_not_left();
             return;
         }

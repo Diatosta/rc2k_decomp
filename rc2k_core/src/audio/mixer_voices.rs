@@ -1,4 +1,4 @@
-//! The turn's update of the voices on the game's own mixer (converted 2026-10-21 from
+//! The turn's update of the voices on the game's own mixer (from
 //! `audio::update_mixer_voices` 0x40BC05, a chunk of `audio::update_voices` 0x40AC77).
 //!
 //! Before the mix: each playing voice's dirty bits carried out on its channel (the step

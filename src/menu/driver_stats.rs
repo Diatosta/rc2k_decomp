@@ -71,7 +71,7 @@ pub fn car_table(menus: &Menus, p: PlayerCell) -> Result<crate::pointers::GamePt
 
 pub fn driver_stats(menus: &Menus, screens: &Screens) -> Result<(), Refused> {
     use crate::logfile::log_int::log_int;
-    // Converted: `rc2k_core::menu::driver_figures` (float: exact at the game's 0x027F).
+    // The logic is in `rc2k_core::menu::driver_figures` (float: exact at the game's 0x027F).
     use rc2k_core::menu::driver_figures::{Car, Constants, Table, figures};
     let (p, t) = player_and_table(menus, screens)?;
     let fault = Fault::default();

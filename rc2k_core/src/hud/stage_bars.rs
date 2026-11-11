@@ -1,4 +1,4 @@
-//! The stage's progress bars along the top of the HUD (converted 2026-10-21 from
+//! The stage's progress bars along the top of the HUD (from
 //! `hud::draw_stage_bar` 0x4B5A86, `hud::draw_stage_bars_1` 0x4B5E29 and
 //! `hud::draw_stage_bars_2` 0x4B63C2): a frame of solid quads, then for each part of the
 //! stage (`g_overlayPartMiles`) its stretch of the bar across 0x229 pixels, a black border,

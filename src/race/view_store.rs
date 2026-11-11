@@ -15,7 +15,7 @@ pub struct RaceView {
     /// +0x0 (0x63D9B8): `g_reflectionsKept` (`scene::cached_reflection_coordinates`); now each view's (`race::face_work::FaceWork`); unused.
     pub reflections_kept: Dword,
     /// +0x4 (0x63D9BC): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_4: [Dword; 5],
+    pub unused_4: [Dword; 5],
     /// +0x18 (0x63D9D0): the face's surface kinds (`race::course_faces`, `physics::wheel_surfaces`, `race::best_line`).
     pub surface_kinds: [Dword; 4],
     /// +0x28 (0x63D9E0): `g_depthTest` (`race::course_faces`); now each view's (`FaceWork::depth_test`); unused.
@@ -30,7 +30,7 @@ pub struct RaceView {
     /// +0x48 (0x63DA00): (`race::course_faces`).
     pub near: Float,
     /// +0x4c (0x63DA04): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_4c: Dword,
+    pub unused_4c: Dword,
     /// +0x50 (0x63DA08): the frame the face was drawn in (`race::course_faces`).
     pub face_frame: Dword,
     /// +0x54 (0x63DA0C): the first texture's coordinates by corner, x then y; now each view's (`race::face_work::FaceWork`); unused.
@@ -54,7 +54,7 @@ pub struct RaceView {
     /// +0xac (0x63DA64): the see-through by corner (a byte); now each view's (`race::face_work::FaceWork`); unused.
     pub corner_alphas: [Dword; 4],
     /// +0xbc (0x63DA74): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_bc: [Dword; 2],
+    pub unused_bc: [Dword; 2],
     /// +0xc4 (0x63DA7C): `g_turnedCornerOrder`: the turned orders, a byte table read in place (`race::course_faces`).
     pub turned_corner_order: [Dword; 14],
     /// +0xfc (0x63DAB4): `g_polygonMode`; now each view's (`race::face_work::FaceWork`); unused.
@@ -68,11 +68,11 @@ pub struct RaceView {
     /// +0x1a4 (0x63DB5C): (`drive::share_car_state`).
     pub level_from: Float,
     /// +0x1a8 (0x63DB60): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_1a8: [Dword; 3],
+    pub unused_1a8: [Dword; 3],
     /// +0x1b4 (0x63DB6C): `g_viewLamps`: 0 from `race::draw_view_scene`, read by nothing; no longer written.
     pub view_lamps: Dword,
     /// +0x1b8 (0x63DB70): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_1b8: Dword,
+    pub unused_1b8: Dword,
     /// +0x1bc (0x63DB74): each view on (`race::draw_race_scene`, `race::show_replay_still`).
     pub view_on: [Dword; 2],
     /// +0x1c4 (0x63DB7C): the two players' option bits (`drive::replay_cameras`, `race::settings_copy`).
@@ -82,7 +82,7 @@ pub struct RaceView {
     /// +0x1d0 (0x63DB88): (`drive::choose_shown_cars`, `drive::replay_cameras`).
     pub view_switch: Dword,
     /// +0x1d4 (0x63DB8C): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_1d4: Dword,
+    pub unused_1d4: Dword,
     /// +0x1d8 (0x63DB90): `g_raceCars`: the race's cars.
     pub race_cars: Dword,
     /// +0x1dc (0x63DB94): the players (`settings.race_mode`; `[shaunnumplayers]`).

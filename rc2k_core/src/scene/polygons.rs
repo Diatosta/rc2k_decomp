@@ -1,4 +1,4 @@
-//! An object's polygon drawn whole or as a fan of triangles (converted 2026-10-21 from
+//! An object's polygon drawn whole or as a fan of triangles (from
 //! `scene::draw_object_polygon` 0x451F69 and its test `scene::needs_clipping`): the work list
 //! started, whether a vertex is off the screen or too near, and the fan's triangles.
 

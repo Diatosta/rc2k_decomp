@@ -74,7 +74,7 @@ pub fn to_ticks(dos: u32) -> Option<u64> {
 mod tests {
     use super::*;
 
-    /// 2026-10-24 13:45:37 UTC.
+    /// 13:45:37 UTC on 24 October 2026.
     const TICKS: u64 = 134_373_231_370_000_000;
 
     #[test]

@@ -93,7 +93,7 @@ pub fn draw_stage_records(
     draw_records_rows(menus, entry, &STAGE_ROWS, canvas)
 }
 
-/// `draw_stage_records` with the top-speed row's places given. Converted:
+/// `draw_stage_records` with the top-speed row's places given. The logic is in
 /// `rc2k_core::screens::stage_panel::records`.
 pub fn draw_records_rows(
     menus: &Menus,

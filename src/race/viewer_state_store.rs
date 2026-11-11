@@ -1,7 +1,7 @@
 //! The replay writer's and the viewer's state (IDA 0x5C2518 .. 0x5C2714; phase 7, typed): the padding frame, the file offset and frames in the block, the replay block and frame, the play end and the viewer's switches, then the viewer's list (header and 26 items of 16 bytes). `#[repr(C)]` with the image's layout, over the race block's bytes. The list's pointers are relocated addresses into the untyped rectangles and key table at 0x5C2714 .. 0x5C291C. Names are readings unless IDA's.
 
 use crate::race::owner::race;
-use crate::session::Dword;
+use crate::session::{Dword, Flag};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -23,7 +23,7 @@ pub struct ReplayViewBlock {
     /// +0x28 (0x5C2540): `g_snapshotAsked`: a picture of the next frame asked (`race::viewer_frame`).
     pub snapshot_asked: Dword,
     /// +0x2c (0x5C2544): `g_lastRaceViewed`: the slot is 222 (`race::viewer`).
-    pub last_race_viewed: Dword,
+    pub last_race_viewed: Flag,
     /// +0x30 (0x5C2548): `g_viewerOnlyShown`: modes 4 and 5 (`race::viewer`).
     pub viewer_only_shown: Dword,
     /// +0x34 (0x5C254C): `g_viewerKeysIgnored`: mode 5 (`race::viewer`).

@@ -4,7 +4,7 @@
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`), as
 //! extracted from the disassembly: background `results1.png`; leaving is asked about; left without
 //! the question, the highlight is not saved; its own 3D list goes to `g_sceneList` before the first
-//! frame only. Named by its address until then.
+//! frame only.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, Frames, List, MenuSound, Screen, Step};
 
@@ -26,7 +26,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.event.event_over, 0x0)],
+    before: &[Step::WriteFlag(|m| &m.screens.event.event_over, false)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.arcade_results_picture
     }))],

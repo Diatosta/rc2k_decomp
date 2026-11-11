@@ -1,5 +1,5 @@
 //! The championship's standings table (`screens::draw_championship_table` ->
-//! `screens::find_history_entry`; stream A, part F1, 2026-10-18): ten rows from position
+//! `screens::find_history_entry`): ten rows from position
 //! `champ_view.first_row` of class `event.class` in the championship history (the championship history: 0x78-byte
 //! entries, -1 ends them; +4 the player's own, +8 the car, +0xC the flag, +0x10 the class, +0x14
 //! the name, +0x54 .. +0x68 six rounds' points, below 0 none, +0x6C the total, +0x70 the position).
@@ -24,7 +24,7 @@ pub fn find_history_entry(
     class: u32,
     position: u32,
 ) -> Result<usize, Refused> {
-    // Converted: `rc2k_core::screens::championship_table::find_history`.
+    // The logic is in `rc2k_core::screens::championship_table::find_history`.
     use rc2k_core::screens::championship_table::find_history;
     let found = find_history(
         |n| walked.get(n as usize).map_or(u32::MAX, |e| e.first),
@@ -46,7 +46,7 @@ pub fn find_history_entry(
 /// the original's fatal error.
 pub fn draw_championship_table(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let walked = crate::menu::standings::walked_entries_b()?;
-    // Converted: `rc2k_core::screens::championship_table`; the ten entries looked up
+    // The logic is in `rc2k_core::screens::championship_table`; the ten entries looked up
     // first (a position not in the history is the original's fatal error, raised
     // before the rows rather than after those before it).
     let (class, first) = (

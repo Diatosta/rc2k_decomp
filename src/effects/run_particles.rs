@@ -128,7 +128,8 @@ fn step(
                     particle(particles, e, 0xC)?,
                     particle(particles, e, 0x28)?,
                     t,
-                ),
+                )
+                .to_bits(),
             )?;
             let y = if with_up {
                 bh::st(
@@ -142,6 +143,7 @@ fn step(
                     particle(particles, e, 0x2C)?,
                     t,
                 )
+                .to_bits()
             };
             set_particle(particles, e, 0x10, y)?;
             set_particle(
@@ -152,7 +154,8 @@ fn step(
                     particle(particles, e, 0x14)?,
                     particle(particles, e, 0x34)?,
                     t,
-                ),
+                )
+                .to_bits(),
             )?;
             Ok(())
         };
@@ -191,7 +194,8 @@ fn step(
                         particle(particles, e, 0x2C)?,
                         &effects.kinds.particle_tuning.dust[0],
                         t,
-                    ),
+                    )
+                    .to_bits(),
                 )?;
                 gain_int(&effects.kinds.particle_tuning.dust[1])?;
                 let s = x87::compare_status(
@@ -218,7 +222,8 @@ fn step(
                         particle(particles, e, 0x2C)?,
                         &effects.kinds.particle_tuning.trail[0],
                         t,
-                    ),
+                    )
+                    .to_bits(),
                 )?;
                 gain_int(&effects.kinds.particle_tuning.trail[1])?;
                 let (i, _) = colour_index(particles, e, particle(particles, e, 0x44)?)?;
@@ -245,25 +250,25 @@ fn step(
                     particles,
                     e,
                     0x30,
-                    x87::plus_times_int(particle(particles, e, 0x30)?, &k[0], t),
+                    x87::plus_times_int(particle(particles, e, 0x30)?, &k[0], t).to_bits(),
                 )?;
                 set_particle(
                     particles,
                     e,
                     0x28,
-                    x87::less_own_times(particle(particles, e, 0x28)?, k[1].bits()),
+                    x87::less_own_times(particle(particles, e, 0x28)?, k[1].bits()).to_bits(),
                 )?;
                 set_particle(
                     particles,
                     e,
                     0x2C,
-                    x87::less_own_times(particle(particles, e, 0x2C)?, k[2].bits()),
+                    x87::less_own_times(particle(particles, e, 0x2C)?, k[2].bits()).to_bits(),
                 )?;
                 set_particle(
                     particles,
                     e,
                     0x34,
-                    x87::less_own_times(particle(particles, e, 0x34)?, k[3].bits()),
+                    x87::less_own_times(particle(particles, e, 0x34)?, k[3].bits()).to_bits(),
                 )?;
                 gain_int(&k[4])?;
                 let (i, _) = colour_index(particles, e, particle(particles, e, 0x44)?)?;
@@ -385,12 +390,12 @@ pub fn run_particles(
         let y = x87::loaded(view(0x34));
         let z = wave(&effects.kinds.particle_tuning.puff_z, view(0x38), true);
         let lift = seed();
-        let up = bh::st(
+        let up = f32::from_bits(bh::st(
             (bh::int(lift as i32) * bh::ld(uv_k)
                 + bh::ld(effects.kinds.particle_tuning.puff_y[0].bits()))
                 * bh::ld(effects.kinds.particle_tuning.puff_y[1].bits())
                 + bh::ld(effects.kinds.particle_tuning.puff_y[2].bits()),
-        );
+        ));
         let mx = x87::sub_mul(
             view(0x30),
             x,
@@ -402,9 +407,9 @@ pub fn run_particles(
             effects.kinds.particle_tuning.puff_m[1].bits(),
         );
         for (n, v) in [x, y, z, mx, up, mz].into_iter().enumerate() {
-            particles.puff_work.puff[n].set_bits(v);
+            particles.puff_work.puff[n].set_bits(v.to_bits());
         }
-        let six = [mz, up, mx, z, y, x].map(extended);
+        let six = [mz, up, mx, z, y, x].map(|v| extended(v.to_bits()));
         crate::effects::add_drift_particle::add_drift_particle(
             frame, particles, ring, 0, six, effects,
         )?;

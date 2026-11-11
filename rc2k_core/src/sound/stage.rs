@@ -1,4 +1,4 @@
-//! The stage's own sounds (converted 2026-10-21 from `sound::stage_sounds` 0x40E2A9): the
+//! The stage's own sounds (from `sound::stage_sounds` 0x40E2A9): the
 //! timed sound's wait and the two sounds at a random pitch and place.
 
 /// The timed sound's wait (`dword_5165A8` the arming flag, `dword_5165B8` the delay,

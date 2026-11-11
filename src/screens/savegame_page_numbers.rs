@@ -15,7 +15,7 @@ use crate::menu::owner::Menus;
 
 /// A number with a 0 before it under 10.
 pub fn savegame_page_numbers(menus: &Menus) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::captions::savegame_numbers`.
+    // The logic is in `rc2k_core::screens::captions::savegame_numbers`.
     let page = menus.tables.pages.save_page.get();
     let (caption, numbers) = rc2k_core::screens::captions::savegame_numbers(page)?;
     let buffers = &crate::screens::text_buffers_store::TEXT_BUFFERS;

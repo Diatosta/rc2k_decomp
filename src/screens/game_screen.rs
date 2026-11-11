@@ -1,4 +1,4 @@
-//! The game's side of `rc2k_core::screens::screen::Screen` (2026-10-20, the screens' conversion): a
+//! The game's side of `rc2k_core::screens::screen::Screen`: a
 //! family's fonts are font records in game memory, its texts places in typed stores or
 //! held names, its work variables game dwords; drawn through the text functions and the canvas.
 

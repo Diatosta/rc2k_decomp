@@ -1,5 +1,5 @@
 //! The race's sound tables made ready once: whole numbers made floats, spans,
-//! reciprocals and the wobble's sine table (converted 2026-10-21 from
+//! reciprocals and the wobble's sine table (from
 //! `race::whole_to_float` 0x40D706, `sound_span` 0x40D71B, `sound_row` 0x40D731 and
 //! `prepare_sound_tables` 0x40D636). Floats as the float pass keeps them: the x87's stack
 //! in `f64`, rounded to `f32` where the original stores (exact at the game's double

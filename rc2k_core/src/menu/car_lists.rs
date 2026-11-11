@@ -1,5 +1,5 @@
-//! The lists of cars that can be chosen, and what the cheats add to them (converted
-//! 2026-10-21 from `menu::remove_secret_cars` 0x471BC7, `menu::add_clio_car` 0x471C33 and
+//! The lists of cars that can be chosen, and what the cheats add to them
+//! (from `menu::remove_secret_cars` 0x471BC7, `menu::add_clio_car` 0x471C33 and
 //! `menu::apply_cheats` 0x480AC1, and the choice of the cheat's list from
 //! `menu::cheat_car_list` 0x480D35; the arcade's `menu::add_shown_car` 0x486BD2). A list holds the addresses of car descriptions and
 //! ends with -1; each has a room of so many dwords before the next variable.

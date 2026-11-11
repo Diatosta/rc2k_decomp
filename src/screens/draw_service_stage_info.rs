@@ -10,7 +10,7 @@
 //!
 //! Screen: confirmed by the owner on 2026-10-10: the stage details that can be opened from the
 //! service area of a championship, the screen after the first stage details where the car is set up
-//! and repaired before the stage. Named `draw_stage_info_alt` until then. The menus and draw lists
+//! and repaired before the stage. The menus and draw lists
 //! run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;

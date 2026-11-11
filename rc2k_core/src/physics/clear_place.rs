@@ -1,6 +1,6 @@
-//! The work car moved to a place where nothing touches it after a reset (converted
+//! The work car moved to a place where nothing touches it after a reset (
 //! from `physics::find_clear_place` 0x43BDD1; its tries' contacts are the
-//! hooks' own): tries n from 0x70 + (the car's clock & 0xF) up to 0xFF, each moving the
+//! caller's own): tries n from 0x70 + (the car's clock & 0xF) up to 0xFF, each moving the
 //! place by 2^((n >> 4) + 1) times a direction of sixteen (`clear_place_steps_a`[n & 0xF]`,
 //! `clear_place_steps_b`[n & 0xF]`: x, z), until a try restores nothing; none: the car reset.
 

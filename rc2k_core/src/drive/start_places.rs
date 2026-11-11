@@ -1,5 +1,5 @@
-//! A computer car put at a start on the line (converted 2026-10-21 from
-//! `drive::start_car_on_line` 0x437613; the motion's turn stays the hook's): which
+//! A computer car put at a start on the line (from
+//! `drive::start_car_on_line` 0x437613; the motion's turn is left to the caller): which
 //! checkpoint it starts at and its share between two figures by its start's number.
 //!
 //! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the

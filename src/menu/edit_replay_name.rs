@@ -12,11 +12,11 @@
 //! the maximum, and taken off again if the name then measures 0xEC pixels
 //! or more.
 //! After anything but Escape and Enter the cursor (string 4) is written after the name if
-//! `draw_work.cursor_on` is 1, then a NUL; carry is then set exactly when `draw_work.cursor_on` is 0.
+//! `draw_work.cursor_on` is set, then a NUL; carry is then set exactly when `draw_work.cursor_on` is 0.
 //! A slip in the original, reproduced: the clear key, the backspace key and the "too wide"
 //! case act on the highlighted name of the SAVED GAME list, not the replay list, while the
 //! length they change is the replay entry's.
-//! Called from the screen loop `menu::save_replay_loop` while `option_work.typing` is 1.
+//! Called from the screen loop `menu::save_replay_loop` while `option_work.typing` is set.
 //!
 //! Refuses, before the key is taken: a name past either list, a length outside 0 .. 0x1F, no
 //! keyboard layout.
@@ -57,14 +57,14 @@ pub fn edit_replay_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, 
     }
 
     let key = take_key();
-    // Converted: `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
+    // The logic is in `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
     use rc2k_core::menu::text_entry::{self as entry, Key};
     match entry::key(key) {
         Key::None => {}
         Key::Escape => {
             restore_text(name)?;
-            menus.screens.option_work.typing.set(0u32);
-            menus.tables.captions.left_by_key.set(1u32);
+            menus.screens.option_work.typing.set(false);
+            menus.tables.captions.left_by_key.set(true);
             return Ok(true);
         }
         Key::Enter => {
@@ -72,7 +72,7 @@ pub fn edit_replay_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, 
                 restore_text(name)?;
                 add_text_length(menus, name)?;
             }
-            menus.screens.option_work.typing.set(0u32);
+            menus.screens.option_work.typing.set(false);
             end_name(name)?;
             return Ok(false);
         }
@@ -97,12 +97,12 @@ pub fn edit_replay_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, 
             }
         }
     }
-    let cursor_on: u32 = menus.screens.draw_work.cursor_on.get();
+    let cursor_on = menus.screens.draw_work.cursor_on.is_set();
     let mut tail = Vec::new();
-    if cursor_on == 1 {
+    if cursor_on {
         push_string(&mut tail, CURSOR_STRING)?;
     }
     tail.push(0);
     name.add(length() as u32).write(&tail, "a replay's name")?;
-    Ok(cursor_on == 0)
+    Ok(!cursor_on)
 }

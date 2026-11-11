@@ -1,24 +1,20 @@
 //! The race's cars: their entries in the per-car tables, their kinds, their grades, their
-//! starts and the players' states (converted from `race::car_file_number`
-//! 0x41F4FD, `car_kind_10` 0x41F4A1, `car_kind_11` 0x41F485, `kind_past_table` 0x4651AC,
-//! `kind_unusable` 0x449D34, `index_of_kind` 0x437720, `players_all_out` 0x445506,
-//! `reset_car_starts` 0x444BBC, `nonzero_random` 0x444C14, `seed_car_randoms` 0x444BF6,
-//! `drop_absent_player` 0x436402, `grade_car_values` 0x43FE24, `grade_all_cars`
-//! 0x43FDFE, `set_car_counter` 0x43A96C, `set_both_counters` 0x43A987,
-//! `set_start_states` 0x446D2E and `store_results_by_mode` 0x449957; the set-up's
-//! choice Converted from `auto_set_up_car` 0x436F08, the opponents' draws from
-//! `choose_arcade_opponents` 0x449B79; the blocks' reset Converted from
-//! `race::reset_car_blocks` 0x43658A; the modes' steps, the brakes and the arcade's draws
-//! Converted from `race::set_up_cars` 0x43603C, `set_up_mode_0_cars`
-//! 0x4364BD and `set_up_mode_2_cars` 0x43613A; the race state's reset from
-//! `race::reset_car_race_state` 0x444C1D; the collision points' floats and their two
-//! new corners from `race::set_up_car_points` 0x426B67).
+//! starts and the players' states. The logic of the game's `race::car_file_number`,
+//! `car_kind_10`, `car_kind_11`, `kind_past_table`, `kind_unusable`, `index_of_kind`,
+//! `players_all_out`, `reset_car_starts`, `nonzero_random`, `seed_car_randoms`,
+//! `drop_absent_player`, `grade_car_values`, `grade_all_cars`, `set_car_counter`,
+//! `set_both_counters`, `set_start_states` and `store_results_by_mode`, the set-up's choice
+//! (`auto_set_up_car`), the opponents' draws (`choose_arcade_opponents`), the blocks' reset
+//! (`race::reset_car_blocks`), the modes' steps, the brakes and the arcade's draws
+//! (`race::set_up_cars`, `set_up_mode_0_cars`, `set_up_mode_2_cars`), the race state's reset
+//! (`race::reset_car_race_state`) and the collision points' floats and their two new corners
+//! (`race::set_up_car_points`).
 
 use crate::Invalid;
 use crate::math::random::Random;
 
 /// The cars the per-car tables hold (the file numbers `car_file_numbers`, the kinds
-/// `kind_10_table` / `kind_11_table`, the records at 0x5C790C).
+/// `kind_10_table` / `kind_11_table`, the car records).
 pub const TABLE_CARS: u32 = 0x22;
 
 /// A car's entry in the per-car tables: the car held to 0 ..= 0x21 (signed).
@@ -173,7 +169,7 @@ impl Message {
     }
 }
 
-/// A car record's limit (`dword_5C7980`) past which its start value is 0.
+/// A car record's limit past which its start value is 0.
 pub const START_LIMIT: u32 = 0x1B58;
 
 /// `race::set_start_states`: the car record a kind's start value comes from (the kind
@@ -305,9 +301,9 @@ pub const RACE_STATE: [(u32, u32); 11] = [
     (0xA18, u32::MAX),
     (0xA1C, u32::MAX),
 ];
-/// The race's four text dwords' reset (0x6D1838 ..): four spaces.
+/// The race's first four text dwords' reset: four spaces.
 pub const BLANK_TEXT: u32 = 0x2020_2020;
-/// The four at 0x6D1850 ..: none (-1).
+/// The second four text dwords' reset: none (-1).
 pub const UNSET_TEXT: u32 = u32::MAX;
 
 /// A car block's collision points: x, y and z lists of 0x40 floats' bits (+0xAF0,
@@ -362,7 +358,7 @@ pub fn cars_steps(mode: u32) -> &'static [CarsStep] {
     }
 }
 
-/// A player's brake setting (`dword_75AD2C` / `dword_75AE98`) for the block's +0x3C:
+/// A player's brake setting (the player's, from the settings) for the block's +0x3C:
 /// below 0 is 0, 100 or more 0x100, else `scaled` (the x87's x 2.56, rounded).
 pub fn held_brake(v: i32, scaled: impl FnOnce(i32) -> u32) -> u32 {
     if v < 0 {

@@ -32,7 +32,7 @@ pub fn keep_record_best(menus: &Menus) -> Result<(), Refused> {
         return Err(BadInput("a player without a name").into());
     }
     let record = current_record()?;
-    // Converted: `rc2k_core::menu::bests::takes_record`.
+    // The logic is in `rc2k_core::menu::bests::takes_record`.
     use rc2k_core::menu::bests;
     let record = record.record()?;
     for (n, &p) in players.iter().enumerate() {

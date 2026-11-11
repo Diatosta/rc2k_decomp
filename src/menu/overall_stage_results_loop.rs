@@ -1,7 +1,7 @@
 //! `menu::overall_stage_results_loop` (0x46658F): the loop of the second results screen after a
 //! stage, the stage's times for all classes.
 //!
-//! Named `screen_46658f_loop` until then.
+//!
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`):
 //! before the loop it sets the string of the menu's first item to 0x138 if `state.menus.which_title` is 1 and
@@ -17,7 +17,7 @@ use crate::menu::screen_loop::{Asking, Callee, Entry, List, Screen, Step};
 
 fn set_first_item(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
-    let title = if menus.screens.state.menus.which_title.get() == 1 {
+    let title = if menus.screens.state.menus.which_title.is_set() {
         0x138
     } else {
         0x139

@@ -9,7 +9,7 @@ use crate::session::Dword;
 #[derive(rc2k_derive::Cells)]
 pub struct KindRecords {
     /// +0x0 (0x5CC3C0): IDA touches +0x1c (0x5CC3DC) only in code outside any function (0x421C63 .. 0x421D96, dead); the port never reaches it.
-    pub unknown_0: [Dword; 9],
+    pub unused_0: [Dword; 9],
     /// +0x24 (0x5CC3E4): `g_kindFirstRecords`: each kind's first record (`physics::ground`, `race::course_data`, `physics::find_course_record`).
     pub first_records: [Dword; 256],
     /// +0x424 (0x5CC7E4): `g_kindLastRecords`: each kind's last record (`physics::ground`, `race::course_data`).

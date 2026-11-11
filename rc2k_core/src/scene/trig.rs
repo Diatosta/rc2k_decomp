@@ -1,4 +1,4 @@
-//! The x87's `fsin`, `fcos` and `fsincos` as `f64`s (converted 2026-10-21 with the scene's
+//! The x87's `fsin`, `fcos` and `fsincos` as `f64`s (with the scene's
 //! fine turns and the marks' kept vectors). The x87 works these out to about its own 64
 //! bits whatever its precision control says, and the game stores them as floats, so the
 //! `f64`'s may differ from the x87's in the last bit of the float at a rounding edge (about

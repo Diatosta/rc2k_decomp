@@ -1,4 +1,4 @@
-//! The films (converted 2026-10-21 from `menu::play_films` 0x4161CD): at the game's start
+//! The films (from `menu::play_films` 0x4161CD): at the game's start
 //! the two logos (the first on 16-bit screens only), then the intro over and over with
 //! the game's demonstration between, until a key; from the idle main menu the scene let
 //! go first and set up again after. The setting `nofmv` leaves the films out.

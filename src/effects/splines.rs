@@ -527,8 +527,8 @@ pub fn bound_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     let b = rc2k_core::effects::splines::bounds(&s.triples(paths, COORDS, n)?);
     let size = b.size;
     let (up, size_at) = (&paths.spline_work.up, &paths.spline_work.size);
-    size_at[1].set_bits(x87::from_int(size[1]));
-    size_at[2].set_bits(x87::from_int(size[2]));
+    size_at[1].set(x87::from_int(size[1]));
+    size_at[2].set(x87::from_int(size[2]));
     for (c, &m) in b.middle.iter().enumerate() {
         s.put(paths, CENTRE + 4 * c as u32, m as u32)?;
     }
@@ -606,7 +606,7 @@ pub fn make_spline(
                 record.put(
                     paths,
                     o,
-                    x87::loaded(&paths.spline_constants.angles[3 * t + k]),
+                    x87::loaded(&paths.spline_constants.angles[3 * t + k]).to_bits(),
                 )?;
             }
             turn_spline_points(paths, record)?;

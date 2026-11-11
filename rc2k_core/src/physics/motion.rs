@@ -1,10 +1,10 @@
-//! The work car's step of motion in floats (converted from `physics::sum_forces`
+//! The work car's step of motion in floats (from `physics::sum_forces`
 //! 0x43BBCB, `move_car` 0x43CCB0, `spin_wheels` 0x43CD1A, `air_drag` 0x43F2DA,
 //! `hold_spin_on_ground` 0x43BAA4, `blend_wheel_load` 0x440F70,
 //! `lowest_body_point` 0x45D6DB, `count_down_timers` 0x43D4B5,
 //! `count_stop_timers` 0x436978, `store_motion_length` 0x43BD2D; `update_car_angles`'
 //! switch 0x43BEDC). What most of
-//! the figures are is a reading (the hooks' headers say which).
+//! the figures are is a reading.
 //!
 //! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
 //! original stores (`physics::x87`): the same bits at the game's double precision.

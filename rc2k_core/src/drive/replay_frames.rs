@@ -1,4 +1,4 @@
-//! The replay's frames (converted 2026-10-21 from `drive::keep_replay_frame` 0x45FFB6,
+//! The replay's frames (from `drive::keep_replay_frame` 0x45FFB6,
 //! `drive::read_replay_frame` 0x41EBAB, `drive::write_replay_frames` 0x41E930,
 //! `drive::flush_replay_if` 0x460031, `drive::record_inputs` 0x4601A8 and
 //! `drive::play_inputs` 0x460162, their switches `play_inputs_if` 0x4600A9 and

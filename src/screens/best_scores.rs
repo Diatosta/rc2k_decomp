@@ -1,11 +1,9 @@
-//! The best scores pages (`menu::view_best_scores_loop`'s lists; stream A, part F1,
-//! 2026-10-18): the scores page (`pages.scores_page`) 0 .. 4 shows a group of the best scores
+//! The best scores pages (`menu::view_best_scores_loop`'s lists): the scores page (`pages.scores_page`) 0 .. 4 shows a group of the best scores
 //! (`champ_view.best_scores`: groups of ten 0x3C-byte entries, 0x258 a group; +8 the nationality, +0xC
 //! the car, +0x18 the name, +0x38 the score), 5 on a group of the class times (`champ_view.level_best_scores`:
 //! groups of ten 0x50-byte entries, 0x320 a group; +8 the nationality, +0x10 the car, +0x14
 //! the time, +0x20 the name); the group by the page's entry of the group list, the caption string by the page's entry
-//! of the caption list. And the replays' range caption. Converted 2026-10-20:
-//! `rc2k_core::screens::best_scores` draws through `game_screen::GameScreen`.
+//! of the caption list. And the replays' range caption. `rc2k_core::screens::best_scores` draws through `game_screen::GameScreen`.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::Fault;
@@ -50,8 +48,7 @@ pub struct Table {
     pub group_at: Option<&'static Dword>,
     /// A fixed group instead.
     pub group_fixed: Option<u32>,
-    /// An entry whose highlight field is 1 is drawn in the highlight fonts (0x51E524 /
-    /// 0x51E544).
+    /// An entry whose highlight field is 1 is drawn in the highlight fonts.
     pub highlight: bool,
     /// How far below the rank's y the sprites go (and `draw_work.scratch_b0` with them).
     pub sprite_dy: i32,
@@ -101,7 +98,7 @@ pub type ScoresScreen<'a> = GameScreen<
 /// the line buffer past its NUL (ebx after the rank's `draw_text`).
 /// Refuses (before anything) no table.
 pub fn draw_scores(tables: &Tables, t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::best_scores::scores`.
+    // The logic is in `rc2k_core::screens::best_scores::scores`.
     {
         t.at.need("no best scores table")?;
         let group = match (t.group_fixed, t.group_at) {
@@ -203,7 +200,7 @@ pub fn draw_best_scores_page(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(
 /// from the page's entry of the caption list and its NUL.
 pub fn best_scores_caption(menus: &Menus) -> Result<(), Refused> {
     let tables = &menus.tables;
-    // Converted: `rc2k_core::screens::captions::fit` (through `car_caption::put_string`); refused
+    // The logic is in `rc2k_core::screens::captions::fit` (through `car_caption::put_string`); refused
     // where the original writes past the caption's 0x100 bytes.
     let id = crate::session::read_on_in(
         &tables.lists,
@@ -221,7 +218,7 @@ pub fn best_scores_caption(menus: &Menus) -> Result<(), Refused> {
 /// `screens::replay_range_caption` (0x470501): the caption "n-m", n = `pages.replay_page` x 20,
 /// m = n + 19 (`strings::append_u32`, `append_minus`).
 pub fn replay_range_caption(menus: &Menus) -> Result<(), BadInput> {
-    // Converted: `rc2k_core::screens::best_scores::range_caption`.
+    // The logic is in `rc2k_core::screens::best_scores::range_caption`.
     let mut bytes =
         rc2k_core::screens::best_scores::range_caption(menus.tables.pages.replay_page.get());
     bytes.push(0);
@@ -287,14 +284,14 @@ pub const RALLY_STAGE_TIMES: StageTimes = StageTimes {
 
 /// `screens::draw_stage_times_heading` (0x48D295) / `screens::draw_rally_times_heading`
 /// (0x48AAF6): the stage's name (string +0x38 of the records) at (0x2EB, 0x77) and its stage
-/// line (string 0x482 ..., built in the line buffer) at (0x2EB, 0x91), in the font at
-/// 0x51E9A4. Refuses (before anything) no stage records.
+/// line (string 0x482 ..., built in the line buffer) at (0x2EB, 0x91), in the heading font.
+/// Refuses (before anything) no stage records.
 pub fn draw_times_heading(
     menus: &Menus,
     p: &StageTimes,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::best_scores::heading`.
+    // The logic is in `rc2k_core::screens::best_scores::heading`.
     {
         let base = (p.records)(menus)?;
         let id = base.title()?;
@@ -344,7 +341,7 @@ pub use rc2k_core::screens::best_scores::Keep;
 /// highlighted). Gives whether all ten were drawn (the list did not end early: the entry
 /// after the ten, the next stage's first or the block's zeros past the table, is read for
 /// it). Refuses a stage past the table, and an entry after the ten past the block.
-/// Converted: `rc2k_core::screens::best_scores::time_rows`.
+/// The logic is in `rc2k_core::screens::best_scores::time_rows`.
 pub fn draw_time_rows(
     table: &StageTable,
     stage: usize,
@@ -412,12 +409,12 @@ pub fn section_there() -> Result<bool, crate::errors::BadInput> {
 }
 
 /// `screens::draw_record_heading` (0x4A247D): the section's heading at (0x2EB, 0x77) in the
-/// font at 0x51E9A4 (in event mode 0x13 the section's entry of the heading list, else the section's first
+/// heading font (in event mode 0x13 the section's entry of the heading list, else the section's first
 /// record's +0x38 string), then record `index`'s stage line (string 0x481 ...) in the line
 /// buffer at (0x2EB, 0x91). Refuses (before anything) a section the
 /// table has not.
 pub fn draw_record_heading(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::best_scores::heading`.
+    // The logic is in `rc2k_core::screens::best_scores::heading`.
     {
         if !section_there()? {
             return Err(BadInput("a section past the record table").into());
@@ -492,7 +489,7 @@ pub const OVERALL_BEST_SCORES: Table = Table {
 };
 
 /// `screens::draw_event_best_scores` (0x4A8DBF) / `screens::draw_overall_best_scores`
-/// (0x4A8FA2): the heading at (0x2EB, 0x77) in the font at 0x51E9A4: in event mode 0x13
+/// (0x4A8FA2): the heading at (0x2EB, 0x77) in the heading font: in event mode 0x13
 /// (`g_eventMode`) the section's name (the section's entry of the heading list), else string `other` (the
 /// first: 0x35E + `event.class`, kept in `draw_work.figure`; the second 0x362); then the scores
 /// as `draw_scores`. (Both first look the section's first record up with
@@ -505,7 +502,7 @@ pub fn draw_scores_with_heading(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     t.at.need("no best scores table")?;
-    // Converted: `rc2k_core::screens::best_scores::scores_heading`, `heading`.
+    // The logic is in `rc2k_core::screens::best_scores::scores_heading`, `heading`.
     let section = (menus.play.champ_view.event_mode.get() == 0x13)
         .then(|| {
             crate::session::read_on_in(

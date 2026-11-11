@@ -53,7 +53,7 @@ pub fn clear_race_slots(shared: &RaceShared) {
 /// is set), +0x18 and +0x1C 0.
 pub fn reset_car_starts(shared: &RaceShared) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::cars::start_value`.
-    let value = rc2k_core::race::cars::start_value(shared.work.in_credits.get() != 0);
+    let value = rc2k_core::race::cars::start_value(shared.work.in_credits.is_set());
     for n in 0..BLOCKS {
         let b = block(shared, n);
         {

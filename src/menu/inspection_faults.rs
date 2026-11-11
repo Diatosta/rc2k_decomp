@@ -14,7 +14,7 @@ pub fn inspection_faults(menus: &Menus) -> Result<(), Refused> {
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
-    // Converted: `rc2k_core::menu::inspection::faults`.
+    // The logic is in `rc2k_core::menu::inspection::faults`.
     let p = player(menus, n);
     let fault = crate::menu::event_flow::Fault::default();
     let flags =

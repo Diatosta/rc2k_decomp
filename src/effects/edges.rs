@@ -56,7 +56,7 @@ pub fn load_edges(
                 boxes.set_u32(at + 4 * i, v);
             }
             let f = &masks.kind_boxes.kind_floats[k as usize];
-            f.set_bits(x87::sub(scale[2], f));
+            f.set(x87::sub(scale[2], f));
         }
         masks.edge_settings.done.set(resume);
     }
@@ -98,7 +98,7 @@ pub fn load_edges(
     drops
         .tilt
         .tilt
-        .set_bits(x87::mul(float, masks.edge_settings.tilt_scale.get()));
+        .set(x87::mul(float, masks.edge_settings.tilt_scale.get()));
     crate::effects::masks::make_masks(course, masks, drops, scene, effects)?;
     crate::effects::shapes::set_up_windscreen_drops(
         drops,

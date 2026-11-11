@@ -36,14 +36,14 @@ pub fn matrix_angles(
     let turned = [&l.turned_x, &l.turned_y, &l.turned_z];
     turn_unit(m, &turned, [0, 0, ONE]);
     l.car_heading
-        .set_bits(patan(l.turned_x.bits(), l.turned_z.bits()));
+        .set_bits(patan(l.turned_x.bits(), l.turned_z.bits()).to_bits());
     turn_unit(m, &turned, [0, 0, ONE]);
     let pitch = clamped_asin_at(
         extended(l.turned_y.bits()),
         &drawing.scene.scratch,
         &course.numbers.one,
     );
-    l.car_pitch.set_bits(neg_rounded(pitch));
+    l.car_pitch.set_bits(neg_rounded(pitch).to_bits());
     turn_unit(m, &turned, [ONE, 0, 0]);
     let sine = over_cos_80(l.turned_y.bits(), l.car_pitch.bits());
     let roll = clamped_asin_at(sine, &drawing.scene.scratch, &course.numbers.one);

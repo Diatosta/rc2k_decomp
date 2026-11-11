@@ -1,4 +1,4 @@
-//! The audio thread's sample files and formats (converted 2026-10-20 from
+//! The audio thread's sample files and formats (from
 //! `audio::read_sample` 0x40B21B, `audio::describe_wave_format` 0x40A6A5 and
 //! `audio::volume_index` 0x40B8D1).
 

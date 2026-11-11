@@ -1,4 +1,4 @@
-//! The scene's matrices and the functions that make them (converted 2026-10-21 from
+//! The scene's matrices and the functions that make them (from
 //! `scene::multiply_matrices` 0x42720D, `copy_matrix_with_place` 0x4271E4, `set_place`
 //! 0x4271AE, `set_turn_x` 0x426FE1, `set_turn_y` 0x42702A, `set_turn_z_16` 0x427072,
 //! `set_fine_turn_x` 0x4270BA, `set_fine_turn_y` 0x42710C, `set_turn_z` 0x42715D,
@@ -64,8 +64,7 @@ fn copy_matrix(p: &mut impl Places, from: u32, out: u32) {
     }
 }
 
-/// Where the matrix functions' matrices, work and constants are (the game's variables;
-/// the names are the hook crate's).
+/// Where the matrix functions' matrices, work and constants are (the game's variables).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Layout {
     pub turn_x: u32,

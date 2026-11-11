@@ -1,4 +1,4 @@
-//! The system textures' lock (converted 2026-10-21 from `d3d::lock_texture` 0x41AA4B,
+//! The system textures' lock (from `d3d::lock_texture` 0x41AA4B,
 //! `d3d::unlock_texture` 0x41AB02 and `d3d::texture_surface_info` 0x41AA93).
 //!
 //! A system texture's record (0x78 bytes, 0x140 of them): +4 width, +8 height, +0xC its

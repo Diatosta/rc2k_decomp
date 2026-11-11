@@ -1,4 +1,4 @@
-//! What a force-feedback effect's function does with a change (converted 2026-10-21 from
+//! What a force-feedback effect's function does with a change (from
 //! `input::effect_0_change` 0x409708, `effect_1_change` 0x4097FA, `effect_2_change`
 //! 0x409754, `effect_3_change` 0x4097B4, `effect_4_change` 0x409871 and `effect_5_change`
 //! 0x4098BF).

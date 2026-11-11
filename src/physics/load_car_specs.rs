@@ -91,11 +91,11 @@ pub fn load_car_specs(race: &Race, scene: &crate::scene::owner::Scene) -> Result
         race.shared
             .car
             .engine_speed_limit
-            .set_bits(x87::loaded(&course.numbers.thousand));
+            .set(x87::loaded(&course.numbers.thousand));
     }
     for figure in &GEAR.figures {
         if below(figure.bits(), course.numbers.eight.bits()) {
-            figure.set_bits(x87::loaded(&course.numbers.eight));
+            figure.set(x87::loaded(&course.numbers.eight));
         }
     }
     words(&race.shared.physics_tables, spec);

@@ -1,7 +1,7 @@
-//! The frame rate measured every 16th frame from the time-stamp counter (converted
+//! The frame rate measured every 16th frame from the time-stamp counter (
 //! from `race::measure_frame_rate` 0x42009E). Floats as the float pass keeps
 //! them: the x87's stack in `f64`, the stored rate rounded to `f32` (exact at the game's
-//! double precision). Its text Converted from `race::draw_frame_rate` 0x4562B2.
+//! double precision). Its text from `race::draw_frame_rate` 0x4562B2.
 
 /// The frames between two measures.
 pub const MEASURE_EVERY: u32 = 0x10;

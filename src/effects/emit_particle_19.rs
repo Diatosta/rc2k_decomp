@@ -152,7 +152,8 @@ pub fn emit_twin(
                 step,
                 set.tuning.motion_k[n].bits(),
                 rounded(moved[n]),
-            ),
+            )
+            .to_bits(),
         )?;
     }
     let r = next_c5(&set.tuning.spin_random);
@@ -161,12 +162,12 @@ pub fn emit_twin(
     slot.put(|en| &mut en.cell, set.flags & 0x3F)?;
     let size = (r.rotate_right(0x14) & 0x4000) + 0x4000;
     ring.work.whole.set(size);
-    slot.put(|en| &mut en.size, x87::from_int(size as i32))?;
+    slot.put(|en| &mut en.size, x87::from_int(size as i32).to_bits())?;
     let life: u32 = masks.surface.lives_by_level[level as usize].get();
     slot.put(|en| &mut en.life, life)?;
     slot.put(
         |en| &mut en.alpha_fade,
-        x87::over_int(&effects.setup.floats.two_fifty_seven, life as i32),
+        x87::over_int(&effects.setup.floats.two_fifty_seven, life as i32).to_bits(),
     )?;
     slot.put(
         |en| &mut en.alpha,

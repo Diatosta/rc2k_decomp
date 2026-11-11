@@ -1,8 +1,8 @@
-//! The loading bar drawn while a stage loads (Converted from
+//! The loading bar drawn while a stage loads (from
 //! `race::loading_bar_quad` 0x446861): a red rectangle along the bottom of the screen, as
 //! long as the share loaded, laid out on 800 x 600 and scaled to the screen; and the flat
-//! rectangles' corners (converted from `race::draw_screen_quad` 0x44B364);
-//! a frame's way through Converted from `race::loading_bar_frame` 0x4467C7.
+//! rectangles' corners (from `race::draw_screen_quad` 0x44B364);
+//! a frame's way through from `race::loading_bar_frame` 0x4467C7.
 
 /// The bar's colour.
 pub const BAR_COLOUR: u32 = 0xFF_0000;

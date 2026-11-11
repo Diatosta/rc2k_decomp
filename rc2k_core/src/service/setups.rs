@@ -1,4 +1,4 @@
-//! The setup slots' list (converted 2026-10-21 from `service::next_setup_page` 0x46F191 and
+//! The setup slots' list (from `service::next_setup_page` 0x46F191 and
 //! `service::backspace_setup_name` 0x46D63C): three pages of slots, and the name being
 //! typed. And the keys of the setup's edit pages (`service::edit_brake_balance` 0x46BCD8,
 //! `edit_steering_sensitivity`, and the four change pages), the pages' numbers

@@ -113,7 +113,7 @@ pub fn emit_particle_21(
         slot.put(|en| &mut en.place[1], rounded(place[1]))?;
         slot.put(
             |en| &mut en.ground_y,
-            x87::ext_less(place[1], particles.kind21_set.lift.bits()),
+            x87::ext_less(place[1], particles.kind21_set.lift.bits()).to_bits(),
         )?;
         slot.put(|en| &mut en.place[0], rounded(place[0]))?;
         let motion: [u32; 3] = crate::effects::try_from_fn(|k| {
@@ -126,7 +126,8 @@ pub fn emit_particle_21(
                 [first, wheel.local_velocity_x.bits(), f[0]],
                 [third, wheel.local_velocity_z.bits(), f[1]],
                 [third, wheel.driven_speed.bits(), f[2]],
-            ]))
+            ])
+            .to_bits())
         })?;
         slot.put(|en| &mut en.motion[2], motion[2])?;
         slot.put(|en| &mut en.motion[1], motion[1])?;
@@ -145,12 +146,12 @@ pub fn emit_particle_21(
         effects.setup.work.seed.set(s);
         slot.put(
             |en| &mut en.size,
-            x87::from_int(((s & 0x3FFF) + 0x4000) as i32),
+            x87::from_int(((s & 0x3FFF) + 0x4000) as i32).to_bits(),
         )?;
         slot.put(|en| &mut en.life, LIFE)?;
         slot.put(
             |en| &mut en.alpha_fade,
-            x87::over_int(&effects.setup.floats.two_fifty_seven, LIFE as i32),
+            x87::over_int(&effects.setup.floats.two_fifty_seven, LIFE as i32).to_bits(),
         )?;
         slot.put(
             |en| &mut en.alpha,
@@ -162,7 +163,7 @@ pub fn emit_particle_21(
         slot.put(|en| &mut en.car_pace, car.pace.get())?;
         slot.put(
             |en| &mut en.size,
-            x87::int_times(size as i32, &particles.kind21_set.size_k),
+            x87::int_times(size as i32, &particles.kind21_set.size_k).to_bits(),
         )?;
     }
     Ok(())

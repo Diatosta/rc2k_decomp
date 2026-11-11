@@ -27,7 +27,7 @@ use crate::text::draw_text::Canvas;
 pub fn draw_savegame_preview(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let savegame_preview = &saves().savegame_preview;
     let tables = &menus.tables;
-    // Converted: `rc2k_core::screens::savegame_preview::preview` (the slot); the panels
+    // The logic is in `rc2k_core::screens::savegame_preview::preview` (the slot); the panels
     // are converted in their own functions.
     use rc2k_core::screens::savegame_preview::{NO_SLOT, Preview, preview};
     let page = menus.tables.pages.save_page.get();

@@ -1,4 +1,4 @@
-//! The current car's work copy (converted 2026-10-21 from `drive::load_car` 0x460C40 and
+//! The current car's work copy (from `drive::load_car` 0x460C40 and
 //! `drive::store_car` 0x460C5D): the physics and the drawing work on one copy (`g_car`,
 //! 0xFE0 bytes), copied in from the current car's block (`g_carBlocks[g_currentCar & 7]`)
 //! and back out to it.

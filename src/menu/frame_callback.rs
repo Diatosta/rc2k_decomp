@@ -74,7 +74,7 @@ pub fn frame_callback(
         return Ok(false);
     }
     run_listed(menus, OVERLAY_LIST)?;
-    // Converted: `rc2k_core::menu::notice::drawn_now`.
+    // The logic is in `rc2k_core::menu::notice::drawn_now`.
     if notice::drawn_now(crate::strings::load_language::notice_kind(), || {
         play.cheats.notice_due.get()
     }) {

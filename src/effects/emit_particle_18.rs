@@ -93,13 +93,22 @@ pub fn emit_particle_18(
             slot.put(|en| &mut en.motion[2], rounded(moved[0]))?;
             slot.put(|en| &mut en.motion[1], rounded(moved[1]) & 0x7FFF_FFFF)?;
             slot.put(|en| &mut en.motion[0], rounded(moved[2]))?;
-            slot.put(|en| &mut en.place[0], x87::loaded(&record.place[0]))?;
-            slot.put(|en| &mut en.place[1], x87::loaded(&record.place[1]))?;
+            slot.put(
+                |en| &mut en.place[0],
+                x87::loaded(&record.place[0]).to_bits(),
+            )?;
+            slot.put(
+                |en| &mut en.place[1],
+                x87::loaded(&record.place[1]).to_bits(),
+            )?;
             slot.put(
                 |en| &mut en.ground_y,
-                x87::sub(&record.place[1], &effects.setup.floats.fixed_16_scale),
+                x87::sub(&record.place[1], &effects.setup.floats.fixed_16_scale).to_bits(),
             )?;
-            slot.put(|en| &mut en.place[2], x87::loaded(&record.place[2]))?;
+            slot.put(
+                |en| &mut en.place[2],
+                x87::loaded(&record.place[2]).to_bits(),
+            )?;
             for n in 0..3 {
                 slot.put(|en| &mut en.last_place[n], 0)?;
             }
@@ -107,7 +116,7 @@ pub fn emit_particle_18(
             slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
             slot.put(
                 |en| &mut en.alpha_fade,
-                x87::over_int(&effects.setup.floats.two_fifty_seven, LIFE as i32),
+                x87::over_int(&effects.setup.floats.two_fifty_seven, LIFE as i32).to_bits(),
             )?;
         }
     }

@@ -7,7 +7,7 @@
 use crate::menu::owner::Tables;
 
 pub fn flip_yes_no(tables: &Tables) -> u32 {
-    // Converted: `rc2k_core::menu::steps::flip`.
+    // The logic is in `rc2k_core::menu::steps::flip`.
     let answer = rc2k_core::menu::steps::flip(tables.pages.yes_no_answer.get());
     tables.pages.yes_no_answer.set(answer);
     answer

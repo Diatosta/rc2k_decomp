@@ -59,7 +59,7 @@ pub fn take_contact(race: &Race, n: usize) -> Result<(), Refused> {
     let parts = contacts::normal_offsets(race.physics.contact.probe_face_flip[n].get());
     for (k, &o) in parts.iter().enumerate() {
         let v = crate::race::course_places::face_field::<u32>(&race.course, face, o)?;
-        race.physics.contact.contact_normal[k].set_bits(loaded(v));
+        race.physics.contact.contact_normal[k].set_bits(loaded(v).to_bits());
     }
     copy3(
         &race.physics.contact.contact_turn_speed,
@@ -122,12 +122,15 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
     for (k, e) in up.iter().enumerate() {
         race.physics.contact.crash_car_up[k].set_bits(rounded(*e));
     }
-    race.physics.contact.crash_up_dot.set_bits(neg_rounded({
-        dot_product(
-            &race.physics.contact.crash_car_up,
-            &race.physics.contact.contact_normal,
-        )
-    }));
+    race.physics.contact.crash_up_dot.set_bits(
+        neg_rounded({
+            dot_product(
+                &race.physics.contact.crash_car_up,
+                &race.physics.contact.contact_normal,
+            )
+        })
+        .to_bits(),
+    );
     x87_1(race);
     contact_force(race, &race.shared.physics_tables.forces[21], scene);
     { place_sound_e5(race) }?;
@@ -143,10 +146,13 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
         &race.physics.contact.crash_ground_scale,
         &race.course.numbers.one,
     );
-    race.shared.car.spin[1].set_bits(mul(
-        &race.physics.contact.crash_ground_scale,
-        &race.shared.car.spin[1],
-    ));
+    race.shared.car.spin[1].set_bits(
+        mul(
+            &race.physics.contact.crash_ground_scale,
+            &race.shared.car.spin[1],
+        )
+        .to_bits(),
+    );
     race.shared
         .car
         .contact_value

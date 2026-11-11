@@ -1,9 +1,9 @@
-//! A page's pieces placed in their boxes (converted 2026-10-21 from `install::place_pieces`
+//! A page's pieces placed in their boxes (from `install::place_pieces`
 //! 0x414ED1 and `install::place_row` 0x414F11). A piece (0x30 bytes in the page's table):
 //! +0 its item's kind and marks, +1 its own kind (bit 0 a label, bit 1 a choice; for the
 //! rest bit 2 at the left, bit 3 at the right, else centred), +8 x, +0xC y, +0x10 width,
 //! +0x14 height. A box: x, y, width, height. Compares are signed, as the original's. And
-//! the drawing lists of the installer's frames (converted the same day from
+//! the drawing lists of the installer's frames (from
 //! `install::draw_string_list` 0x402370 and `install::blit_glyph_list` 0x402628).
 
 use crate::Invalid;

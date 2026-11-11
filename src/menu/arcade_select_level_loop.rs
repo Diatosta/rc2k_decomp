@@ -31,8 +31,8 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
 
 fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
     let tables = &entry.menus.tables;
-    if tables.captions.left_by_key.get() == 0x1 {
-        tables.captions.left_by_key.set(0x0u32);
+    if tables.captions.left_by_key.is_set() {
+        tables.captions.left_by_key.set(false);
         return Ok(Flow::SetUp);
     }
     Ok(Flow::On)
@@ -57,8 +57,8 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[
-        Step::Write(|m| &m.tables.captions.left_by_key, 0x0),
-        Step::Write(|m| &m.screens.event.event_over, 0x0),
+        Step::WriteFlag(|m| &m.tables.captions.left_by_key, false),
+        Step::WriteFlag(|m| &m.screens.event.event_over, false),
     ],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|m| {

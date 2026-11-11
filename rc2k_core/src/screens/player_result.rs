@@ -1,4 +1,4 @@
-//! The current player's result pages (converted 2026-10-20): `screens::draw_player_stage_result`
+//! The current player's result pages: `screens::draw_player_stage_result`
 //! 0x486299 (a championship stage) and `screens::draw_player_rally_result` (the rally's).
 //! Each: labels, the times heading of another family (drawn by the caller's closure, in
 //! its place), the player's values, the nationality's and the car's sprites.

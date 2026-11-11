@@ -1,4 +1,4 @@
-//! The set-ups of the players' results screens (agent E, 2026-10-19), all plain stores:
+//! The set-ups of the players' results screens, all plain stores:
 //! - `menu::rank_stage_times`: the four players' stage times (`g_players`[n] + 0x88) with
 //!   their byte offsets (0, 4, 8, 12) in `results.pairs`, sorted by the original's exchange
 //!   loop (each pair i < j exchanged when j's time is at most i's, signed; its two counters
@@ -52,7 +52,7 @@ pub fn rank(menus: &Menus, by_totals: bool) -> Result<(), Refused> {
     } else {
         players(menus, 4)?.iter().map(|&r| r.get().time).collect()
     };
-    // Converted: `rc2k_core::menu::results::rank`.
+    // The logic is in `rc2k_core::menu::results::rank`.
     let pairs =
         rc2k_core::menu::results::rank([values[0], values[1], values[2], values[3]], by_totals);
     let targets: Vec<_> = pairs
@@ -116,7 +116,7 @@ pub fn score(menus: &Menus, n: usize) -> Result<(), Refused> {
         menus.play.results.positions[0].set(positions[0]);
         menus.play.results.positions[1].set(positions[1]);
     }
-    // Converted: `rc2k_core::menu::results::score`.
+    // The logic is in `rc2k_core::menu::results::score`.
     for k in 0..n {
         let sc = rc2k_core::menu::results::score(
             menus.play.results.before[k].get(),

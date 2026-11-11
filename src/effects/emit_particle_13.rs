@@ -81,7 +81,7 @@ pub fn emit_particle_13(
         particles.kind13_set.strength_k.bits(),
         one,
     );
-    ring.work.whole.set(s);
+    ring.work.whole.set(s.to_bits());
     let motion: [u32; 3] = crate::effects::try_from_fn(|k| {
         Ok({
             x87::mul2(
@@ -89,6 +89,7 @@ pub fn emit_particle_13(
                 s,
                 &particles.kind13_set.motion_k[k],
             )
+            .to_bits()
         })
     })?;
     slot.put(|en| &mut en.motion[0], motion[0])?;
@@ -113,12 +114,13 @@ pub fn emit_particle_13(
     slot.put(
         |en| &mut en.alpha_fade,
         bh::st(
-            bh::ld(s) * bh::ld(effects.setup.floats.two_fifty_seven.bits()) / bh::int(LIFE as i32),
+            bh::ld(s.to_bits()) * bh::ld(effects.setup.floats.two_fifty_seven.bits())
+                / bh::int(LIFE as i32),
         ),
     )?;
     slot.put(
         |en| &mut en.alpha,
-        x87::mul(s, &effects.setup.floats.two_fifty_six),
+        x87::mul(s, &effects.setup.floats.two_fifty_six).to_bits(),
     )?;
     slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
     let size = x87::times_plus_to_int(
@@ -130,7 +132,7 @@ pub fn emit_particle_13(
     slot.put(|en| &mut en.car_pace, car.pace.get())?;
     slot.put(
         |en| &mut en.size,
-        x87::int_times(size, &particles.kind13_set.size_k[2]),
+        x87::int_times(size, &particles.kind13_set.size_k[2]).to_bits(),
     )?;
     Ok(())
 }

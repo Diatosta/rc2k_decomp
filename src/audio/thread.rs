@@ -68,7 +68,7 @@ pub fn audio_thread(audio: &crate::audio::owner::Audio) -> Result<(), Refused> {
             if audio.state.sound_buffer_lost.is_set() {
                 restore::restore_lost(audio)?;
             }
-            if system().session.flags.quitting.get() == 1 {
+            if system().session.flags.quitting.is_set() {
                 break;
             }
         }

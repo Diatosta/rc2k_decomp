@@ -55,8 +55,8 @@ pub fn play_spot_voices(
             Played::Start => {
                 set(v, 0x24, 0)?;
                 let (volume, rate) = sample_settings(sound, OWN, OWN)?;
-                set(v, 0x3C, from_int(volume as i32))?;
-                set(v, 0x38, from_int(rate as i32))?;
+                set(v, 0x3C, from_int(volume as i32).to_bits())?;
+                set(v, 0x38, from_int(rate as i32).to_bits())?;
                 set(
                     v,
                     0x34,

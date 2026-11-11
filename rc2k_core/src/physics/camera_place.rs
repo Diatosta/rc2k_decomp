@@ -1,6 +1,6 @@
-//! The camera's place (converted from `physics::place_camera` 0x438E5A): the
+//! The camera's place (from `physics::place_camera` 0x438E5A): the
 //! first offset turned three times by the camera's angles (the whole-number turns of
-//! `math::turn_point_xz*`, which stay theirs), then the second offset turned with the car
+//! `math::rotate_point_about_y*`, which stay theirs), then the second offset turned with the car
 //! (its matrix, `g_crashMatrix`) and added with the car's place.
 //!
 //! Floats: each part / 65536 and x 65536 is exact; the turn is

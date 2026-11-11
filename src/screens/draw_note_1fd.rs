@@ -3,14 +3,14 @@
 //!
 //!
 //! In the draw list 0x758C52 of `menu::unused_cspecs_loop` (0x4AA1A3), which nothing reaches (no
-//! code or data refers to it, 2026-10-20). The menus and draw lists run its `entry`
+//! code or data refers to it). The menus and draw lists run its `entry`
 //! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::text::draw_text::Canvas;
 
 pub fn draw_note_1fd(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::notes::NOTE_1FD`.
+    // The logic is in `rc2k_core::screens::notes::NOTE_1FD`.
     crate::screens::game_screen::draw_note(canvas, &rc2k_core::screens::notes::NOTE_1FD)?;
     Ok(())
 }

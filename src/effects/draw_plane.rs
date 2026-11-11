@@ -139,17 +139,17 @@ pub fn draw_plane(
     let uv_k: u32 = effects.frame.draw_work.uv_k.bits();
     for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
         let vertex = &VERTICES.vertices[n];
-        vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
-        vertex.v.set_bits(x87::int_times(word(v) as i32, uv_k));
+        vertex.u.set(x87::int_times(word(u) as i32, uv_k));
+        vertex.v.set(x87::int_times(word(v) as i32, uv_k));
     }
     for n in 0..4 {
         let vertex = &VERTICES.vertices[n];
         vertex
             .u
-            .set_bits(x87::loaded(PLANE_TUNING.places[n][0].to_bits()));
+            .set(x87::loaded(PLANE_TUNING.places[n][0].to_bits()));
         vertex
             .v
-            .set_bits(x87::loaded(PLANE_TUNING.places[n][1].to_bits()));
+            .set(x87::loaded(PLANE_TUNING.places[n][1].to_bits()));
     }
     let light: u32 = ctx.view.light.view_light.get();
     for n in 0..4 {
@@ -179,7 +179,7 @@ pub fn draw_plane(
     }
     for n in 0..4 {
         let depth: u32 = effects.kinds.plane_quad.corners[n][2].bits();
-        VERTICES.vertices[n].rhw.set_bits(x87::reciprocal_times(
+        VERTICES.vertices[n].rhw.set(x87::reciprocal_times(
             depth,
             PLANE_TUNING.rhw_k[n].to_bits(),
         ));

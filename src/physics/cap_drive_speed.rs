@@ -42,14 +42,15 @@ pub fn cap_drive_speed_at(tables: &PhysicsTables, v: CapPlaces<'_>) {
             at(v[1]),
             tables.drive_speed_cap_a.bits(),
             tables.drive_speed_cap_b.bits(),
-        ),
+        )
+        .to_bits(),
     );
     if below(at(v[0]), zero) {
-        put(v[0], x87::loaded(zero));
+        put(v[0], x87::loaded(zero).to_bits());
     }
-    put(v[2], x87::add(at(v[0]), at(v[1])));
+    put(v[2], x87::add(at(v[0]), at(v[1])).to_bits());
     if !below(at(v[3]), at(v[2])) {
-        put(v[3], x87::loaded(at(v[2])));
+        put(v[3], x87::loaded(at(v[2])).to_bits());
     }
 }
 

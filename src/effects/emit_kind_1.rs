@@ -122,7 +122,7 @@ pub fn emit_particle_1(
         };
         let rest = p.grown.0 % STEP;
         ring.work.whole.set(rest as u32);
-        wheel.pace.set(x87::from_int(rest));
+        wheel.pace.set(x87::from_int(rest).to_bits());
         ring.work.whole.set(kept);
         if under {
             return Ok(());
@@ -135,7 +135,7 @@ pub fn emit_particle_1(
         let life = x87::times_plus_to_int(strength, LIFE_K[0].bits(), LIFE_K[1].bits());
         ring.work.life.set(life as u32);
         let fade = x87::mul(strength, &effects.setup.floats.two_fifty_five);
-        ring.work.fade.set_bits(fade);
+        ring.work.fade.set_bits(fade.to_bits());
         if next_entry(ring)?.is_none() {
             return Ok(());
         }
@@ -156,7 +156,7 @@ pub fn emit_particle_1(
         slot.put(|en| &mut en.place[1], rounded(place[1]))?;
         slot.put(
             |en| &mut en.ground_y,
-            x87::ext_less(place[1], effects.setup.floats.fixed_16_scale.bits()),
+            x87::ext_less(place[1], effects.setup.floats.fixed_16_scale.bits()).to_bits(),
         )?;
         slot.put(|en| &mut en.place[2], rounded(place[2]))?;
         let motion: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
@@ -190,7 +190,7 @@ pub fn emit_particle_1(
         slot.put(|en| &mut en.motion[2], rounded(moved[0]))?;
         slot.put(
             |en| &mut en.motion[1],
-            x87::add(rounded(moved[1]), &particles.kind1_set.lift),
+            x87::add(rounded(moved[1]), &particles.kind1_set.lift).to_bits(),
         )?;
         slot.put(|en| &mut en.motion[0], rounded(moved[2]))?;
         let r = next_c5(&particles.kind1_set.spin_random);
@@ -198,14 +198,14 @@ pub fn emit_particle_1(
         slot.put(|en| &mut en.angle, r.rotate_right(6) & 0xFFF)?;
         slot.put(|en| &mut en.cell, flags & 0x3F)?;
         slot.put(|en| &mut en.life, life as u32)?;
-        slot.put(|en| &mut en.alpha_fade, x87::over_int(fade, life))?;
-        slot.put(|en| &mut en.alpha, fade)?;
+        slot.put(|en| &mut en.alpha_fade, x87::over_int(fade, life).to_bits())?;
+        slot.put(|en| &mut en.alpha, fade.to_bits())?;
         slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
         slot.put(|en| &mut en.size_goal, SIZE)?;
         slot.put(|en| &mut en.car_pace, car.pace.get())?;
         slot.put(
             |en| &mut en.size,
-            x87::int_times(SIZE as i32, &particles.kind1_set.size_k),
+            x87::int_times(SIZE as i32, &particles.kind1_set.size_k).to_bits(),
         )?;
         slot.put(|en| &mut en.size_factor, 0)?;
     }

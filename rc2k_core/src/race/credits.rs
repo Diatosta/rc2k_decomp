@@ -1,8 +1,8 @@
-//! The credits rolling up over the screen (converted from `race::roll_credits`
+//! The credits rolling up over the screen (from `race::roll_credits`
 //! 0x415FC2 and `race::credit_line` 0x4161BA): a script of words laid out from the top
 //! down, the top moving up a pixel each 0x12 ms, the end once the last line is off the
 //! top and the music has stopped; and the race the credits show, its stage and car drawn
-//! (converted from `race::set_up_credits_race` 0x463711).
+//! (from `race::set_up_credits_race` 0x463711).
 
 /// The credits' font of a script word (1, 2, 3, 4, 7, 8; the columns use 4's).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

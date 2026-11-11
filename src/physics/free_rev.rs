@@ -36,14 +36,14 @@ pub fn free_rev(race: &Race, scene: &crate::scene::owner::Scene) {
     }
     if x < 0.0 {
         let y = x87::add(e, drag);
-        race.shared.car.engine_speed.set_bits(y);
-        if !below(y, 0) {
+        race.shared.car.engine_speed.set_bits(y.to_bits());
+        if !below(y.to_bits(), 0) {
             race.shared.car.engine_speed.set_bits(0);
         }
     } else {
         let y = x87::sub(e, drag);
-        race.shared.car.engine_speed.set_bits(y);
-        if below(y, 0) {
+        race.shared.car.engine_speed.set_bits(y.to_bits());
+        if below(y.to_bits(), 0) {
             race.shared.car.engine_speed.set_bits(0);
         }
     }

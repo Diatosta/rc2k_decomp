@@ -83,7 +83,7 @@ pub fn input_thread(input: &Input, sound: &crate::sound::owner::Sound) -> Result
             if system.session.flags.window_focused.get() != 1 {
                 crate::system::sleep::sleep(1000);
             }
-            if system.session.flags.quitting.get() == 1 {
+            if system.session.flags.quitting.is_set() {
                 break;
             }
         }

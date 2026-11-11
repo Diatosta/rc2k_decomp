@@ -115,7 +115,7 @@ pub fn calc_cpu_times(menus: &Menus) -> Result<(), Refused> {
     crate::menu::scale_stage_times::scale_stage_times(screens, rec, race)?;
     screens.state.menus.track_length[0].set(length);
     screens.state.menus.track_length[1].set(length.wrapping_mul(100) / 0x96A);
-    // Converted: `rc2k_core::menu::event::{Spread, cpu_gap, cpu_time}`.
+    // The logic is in `rc2k_core::menu::event::{Spread, cpu_gap, cpu_time}`.
     use rc2k_core::menu::event::{Spread, cpu_gap, cpu_time};
     for c in 0..classes {
         let mut gaps = 0u32;

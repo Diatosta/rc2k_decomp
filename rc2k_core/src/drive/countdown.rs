@@ -1,4 +1,4 @@
-//! The start's count down (converted 2026-10-21 from `drive::countdown_beep` 0x440EA3,
+//! The start's count down (from `drive::countdown_beep` 0x440EA3,
 //! `hold_count_tick` 0x460C10 and `countdown_sound` 0x40EC9C): a car's second of the
 //! count down and when its beep is cued; the beep played for a listed car; a hold counted
 //! down after the start.

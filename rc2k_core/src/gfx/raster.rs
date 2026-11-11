@@ -1,4 +1,4 @@
-//! Clipping and solid shapes on a surface (converted 2026-10-20 from `gfx::set_clip`
+//! Clipping and solid shapes on a surface (from `gfx::set_clip`
 //! 0x406988, `gfx::fill_rect` 0x406869, `draw_hline` 0x406710, `draw_vline` 0x4067AF,
 //! `frame_rect` 0x4066DF): the message box's fill and frame. A shape becomes a `Plan`: the
 //! work variables the original leaves (`g_blitLeftSkip`, `g_blitVisibleWidth`,

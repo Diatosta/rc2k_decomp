@@ -66,7 +66,7 @@ pub fn revs_from_wheels_at(numbers: &Numbers, p: &GearPlaces<'_>) -> Result<(), 
                 / bh::ld(ratio),
         )
     } else {
-        x87::div(p.drive_speed, ratio)
+        x87::div(p.drive_speed, ratio).to_bits()
     };
     p.engine_speed.set_bits(speed);
     Ok(())
@@ -80,9 +80,9 @@ pub fn wheels_from_revs_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
         return Ok(());
     };
     let speed = x87::mul(p.engine_speed, ratio);
-    p.drive_speed.set_bits(speed);
+    p.drive_speed.set_bits(speed.to_bits());
     if p.drive_kind.bits() == 1 {
-        p.drive_speed_b.set_bits(x87::loaded(speed));
+        p.drive_speed_b.set_bits(x87::loaded(speed).to_bits());
     }
     Ok(())
 }
@@ -93,6 +93,6 @@ pub fn revs_from_speed_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
-    p.engine_speed.set_bits(x87::div(p.speed, ratio));
+    p.engine_speed.set_bits(x87::div(p.speed, ratio).to_bits());
     Ok(())
 }

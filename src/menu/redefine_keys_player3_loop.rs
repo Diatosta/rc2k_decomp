@@ -39,9 +39,7 @@ fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
 
 fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
     let screens = &entry.menus.screens;
-    if screens.option_work.redefining_key.get() == 0x1
-        && screens.option_work.redefining_key.get() != 0x0
-    {
+    if screens.option_work.redefining_key.is_set() {
         return Ok(Flow::NextFrame);
     }
     Ok(Flow::On)

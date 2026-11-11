@@ -1,4 +1,4 @@
-//! The debug pages' keys (owner's choice of a key, 2026-10-30): with Ctrl held, F11 shows or
+//! The debug pages' keys: with Ctrl held, F11 shows or
 //! hides the debug UI (`debug::ui`), F12 freezes the race or lets it go
 //! (`g_debugFreezeRace`: `drive::race_step` skips its physics ticks). The game's code that
 //! set `g_debugPage` and `g_debugFreezeRace` is not in RAL.EXE (`input::end_frame` sets

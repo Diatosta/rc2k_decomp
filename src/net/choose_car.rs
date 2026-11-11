@@ -11,10 +11,10 @@ use crate::menu::owner::menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::net::store::NetVars;
 use crate::net::store::PlayerRecord;
-use crate::session::Dword;
+use crate::session::{Dword, Flag};
 
 const CLEARED: &Dword = &crate::menu::owner::MENUS.screens.event.current_player; // dword_75598C
-pub const ESCAPE_PRESSED: &Dword = &crate::menu::owner::MENUS.screens.draw_work.escape_pressed; // dword_755A3C: the screen was left with Escape
+pub const ESCAPE_PRESSED: &Flag = &crate::menu::owner::MENUS.screens.draw_work.escape_pressed; // dword_755A3C: the screen was left with Escape
 
 /// The car screen is handed the list of cars; the
 /// car it starts from its set-up finds itself (the current player's record,
@@ -24,10 +24,10 @@ pub fn choose_car(vars: &NetVars) -> Result<(), Refused> {
     let play = &menus.play;
     CLEARED.set(0);
     let cars = crate::net::car_list::car_list(&menus.tables)?;
-    ESCAPE_PRESSED.set(0);
+    ESCAPE_PRESSED.set(false);
     let entry = Entry::with_cars(menus, Some(cars));
     { run_screen(&crate::menu::select_car_loop::SCREEN, &entry) }?;
-    if ESCAPE_PRESSED.get() != 1 {
+    if !ESCAPE_PRESSED.is_set() {
         crate::menu::take_shown_car::take_shown_car(menus, Some(cars))?;
         vars.own.head.set(
             PlayerRecord::CAR,

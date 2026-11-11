@@ -1,4 +1,4 @@
-//! The HUD's times in tenths (converted 2026-10-21 from `hud::tenths` 0x4B1D2B): six
+//! The HUD's times in tenths (from `hud::tenths` 0x4B1D2B): six
 //! times of the HUD's record, each divided by 10 as the original's signed `idiv` does
 //! (towards zero).
 

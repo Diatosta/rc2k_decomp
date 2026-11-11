@@ -18,7 +18,7 @@ use crate::race::owner::race;
 // ---- game data ----
 
 pub fn step_carousel(screens: &Screens) -> Result<(), BadInput> {
-    // Converted: `rc2k_core::menu::navigation` (`passed`, `spin`), worked out before
+    // The logic is in `rc2k_core::menu::navigation` (`passed`, `spin`), worked out before
     // anything is written.
     use rc2k_core::menu::navigation::{Turn, passed, spin};
     let clock: u32 = race().shared.physics_tables.scene_clock.bits();

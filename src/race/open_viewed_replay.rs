@@ -60,7 +60,7 @@ pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
         return failed();
     };
     shared.replay_file.replay_handle.set(file);
-    shared.replay_file.replay_open.set(1);
+    shared.replay_file.replay_open.set(true);
     replay.replay_view.replay_block.set(0);
     replay.replay_view.replay_frame.set(0);
     // Whether a buffer's read is good (`read_good`), given its first word after.

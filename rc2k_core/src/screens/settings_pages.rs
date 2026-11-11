@@ -1,4 +1,4 @@
-//! The settings pages' drawing (converted 2026-10-20): `screens::draw_sound_settings`
+//! The settings pages' drawing: `screens::draw_sound_settings`
 //! 0x47022A, `draw_graphics_settings`, `draw_visual_preferences`, `draw_volume_settings`
 //! and `draw_options_checklist`: each setting's name (a string by the setting's value) in
 //! its place, the volume bars, the options' check marks.

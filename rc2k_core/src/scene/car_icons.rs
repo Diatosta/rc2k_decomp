@@ -1,4 +1,4 @@
-//! The HUD's two car icons (converted 2026-10-21 from `scene::load_hud_car_icons`
+//! The HUD's two car icons (from `scene::load_hud_car_icons`
 //! 0x4255AA): car 0's and car 1's, each by its model's icon number: one of two pairs of
 //! icon sheets and the icon's place on it from the two tables, uploaded at one of two rows
 //! of the HUD's texture.

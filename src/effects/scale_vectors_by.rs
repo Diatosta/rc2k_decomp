@@ -22,7 +22,7 @@ pub fn scale_triples(records: &[&VectorSource]) {
     for r in records {
         let k = r.factor.get();
         for n in 0..3 {
-            r.scaled[n].set_bits(x87::mul(r.vector[n].get(), k));
+            r.scaled[n].set(x87::mul(r.vector[n].get(), k));
         }
     }
 }

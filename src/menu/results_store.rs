@@ -1,8 +1,8 @@
-//! The players' results figures, out of RAL.EXE's image (IDA 0x758714 .. 0x7587E8; phase 7, typed): the
+//! The players' results figures, out of RAL.EXE's image (IDA 0x758714 .. 0x7587E8): the
 //! rounds of a multi-player event, the duel's order, and the four players' places, points and totals
 //! (`menu::results_setups`, `menu::arcade_steps`). A `#[repr(C)]` struct with the image's layout, one
 //! static; `moved::MOVED` points the range at it. The captions' tables hold pointers to its arrays
-//! (`CaptionTables::place_pointers`). (Split 2026-10-25 from the front end's block `menu::store`.)
+//! (`CaptionTables::place_pointers`).
 
 use crate::session::{Bytes, Dword, with_runs};
 
@@ -61,7 +61,7 @@ pub const START: usize = 0x758714;
 /// IDA 0x7587E8, the end of the piece.
 pub const END: usize = 0x7587E8;
 
-/// Where IDA 0x758714 is now (`moved::MOVED`'s home).
+/// Where IDA 0x758714 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn results_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::menu::owner::MENUS.play.results)

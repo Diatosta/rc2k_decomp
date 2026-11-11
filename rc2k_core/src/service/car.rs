@@ -1,7 +1,7 @@
-//! The car's condition in the service area (converted 2026-10-21 from
+//! The car's condition in the service area (from
 //! `service::repair_body` .. `repair_suspension`, `reset_tyre_wear` 0x486EDD and
 //! `repair_car` 0x486F63): each part has a run of the player's wear dwords and a damage
-//! dword; a repair zeroes both. The service area's picture for a car converted the same
+//! dword; a repair zeroes both. The service area's picture for a car
 //! day from `service::load_background` 0x470F55 (`background`).
 
 use crate::Invalid;

@@ -66,7 +66,10 @@ pub fn timing_from(race: &Race, now: u32, scene: &crate::scene::owner::Scene) {
     scene.drawing.scene.scratch.set(since);
     time(race);
     if c0(replay.finish.time.bits(), replay.finish.limit_a.bits()) {
-        replay.finish.eased.set_bits(loaded(&replay.finish.time));
+        replay
+            .finish
+            .eased
+            .set_bits(loaded(&replay.finish.time).to_bits());
     } else if c0(replay.finish.time.bits(), replay.finish.limit_b.bits()) {
         eased_middle(race);
     } else {

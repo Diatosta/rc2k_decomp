@@ -1,5 +1,5 @@
-//! The race's sound turn: when one is due, which cars are heard (converted 2026-10-21
-//! from `sound::race_sound_tick` 0x421BA9, `sound::car_sounds_all` 0x40D7AB's choice and
+//! The race's sound turn: when one is due, which cars are heard
+//! (from `sound::race_sound_tick` 0x421BA9, `sound::car_sounds_all` 0x40D7AB's choice and
 //! `sound::play_cue_queues` 0x40ED13's).
 
 /// `sound::race_sound_tick`: a turn is due once 20 ms (0x14) of the scene clock have gone

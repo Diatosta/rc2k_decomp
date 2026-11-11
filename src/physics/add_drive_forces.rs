@@ -20,16 +20,16 @@ fn put(a: &dyn Cell32, v: u32) {
 pub fn add_drive_forces_at(tables: &PhysicsTables, v: &[&dyn Cell32]) {
     let mut factor = tables.drive_force_factor[0].bits();
     if v[1].bits() != 0 {
-        v[0].set_bits(x87::loaded(factor));
+        v[0].set_bits(x87::loaded(factor).to_bits());
         factor = tables.drive_force_factor[1].bits();
     }
     put(
         v[6],
-        x87::sum4_times(v[2].bits(), v[3].bits(), v[4].bits(), v[5].bits(), factor),
+        x87::sum4_times(v[2].bits(), v[3].bits(), v[4].bits(), v[5].bits(), factor).to_bits(),
     );
     let scale = tables.drive_shares[2].bits();
-    v[9].set_bits(mul2_plus(v[7].bits(), v[6].bits(), scale, v[9].bits()));
-    v[10].set_bits(mul2_plus(v[8].bits(), v[6].bits(), scale, v[10].bits()));
+    v[9].set_bits(mul2_plus(v[7].bits(), v[6].bits(), scale, v[9].bits()).to_bits());
+    v[10].set_bits(mul2_plus(v[8].bits(), v[6].bits(), scale, v[10].bits()).to_bits());
 }
 
 fn game<'a>(

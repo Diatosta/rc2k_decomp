@@ -1,4 +1,4 @@
-//! The network screens' text being edited (converted 2026-10-21 from `net::edit_key`
+//! The network screens' text being edited (from `net::edit_key`
 //! 0x416E43 and `net::begin_setting_edit` 0x416C26): one item's
 //! text at a time (the item noted, -1 for none), 64 bytes kept for Escape, characters added
 //! while the text is narrower than allowed. As the installer's edits

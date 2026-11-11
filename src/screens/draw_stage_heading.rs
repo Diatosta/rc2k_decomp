@@ -21,7 +21,7 @@ use rc2k_core::screens::stage_panel::stage_line;
 // ---- game data ----
 
 /// The same line starting with another label string (the stage panels build one with 0x482).
-/// Converted: `rc2k_core::screens::stage_panel::stage_line`.
+/// The logic is in `rc2k_core::screens::stage_panel::stage_line`.
 pub fn heading_text(record: RecordRef, label: u32) -> Result<Vec<u8>, Refused> {
     let fault = crate::menu::event_flow::Fault::default();
     let name = || -> Result<u32, Refused> { Ok(track_of(record)?.name()?) };
@@ -41,7 +41,7 @@ pub fn string_bytes(id: u32) -> Result<Vec<u8>, crate::errors::BadInput> {
 }
 
 /// Builds the line in the game's line buffer and draws it. Returns the carry flag.
-/// Converted: `rc2k_core::screens::stage_panel::heading`.
+/// The logic is in `rc2k_core::screens::stage_panel::heading`.
 pub fn draw_stage_heading(record: RecordRef, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let name = || -> Result<u32, Refused> { Ok(track_of(record)?.name()?) };
     rc2k_core::screens::stage_panel::heading(

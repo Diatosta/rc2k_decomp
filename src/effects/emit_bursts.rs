@@ -207,7 +207,7 @@ pub fn emit_bursts_with(
                 x87::times_less_abs_times(h.factors[1].bits(), s, scale, k),
                 x87::mul2(h.factors[2], s, k),
             ];
-            write_bits(&ring.work.direction, direction);
+            write_bits(&ring.work.direction, direction.map(f32::to_bits));
             let count = (next_c5(&set.tuning.randoms(n)[1]) & 0xFFF) % ((flags2 >> 6) << 2);
             for _ in 0..count {
                 // The ring is full (0x3FE taken): the original's exit from here slips on its
@@ -234,15 +234,15 @@ pub fn emit_bursts_with(
                 let r = next_c5(&set.tuning.randoms(n)[2]);
                 let size = (r.rotate_right(8) & h.size.0) + h.size.1;
                 effects.setup.frame.emit_side.set_bits(size);
-                slot.put(|en| &mut en.size, x87::from_int(size as i32))?;
+                slot.put(|en| &mut en.size, x87::from_int(size as i32).to_bits())?;
                 slot.put(
                     |en| &mut en.cell,
                     ((flags2 & 0x3F) << 4) + (r.rotate_right(17) & 3),
                 )?;
                 let tk: u32 = effects.setup.floats.minus_eighth.bits();
-                slot.put(|en| &mut en.push[2], x87::mul(&car.motion[2], tk))?;
-                slot.put(|en| &mut en.push[1], x87::mul(&car.motion[1], tk))?;
-                slot.put(|en| &mut en.push[0], x87::mul(&car.motion[0], tk))?;
+                slot.put(|en| &mut en.push[2], x87::mul(&car.motion[2], tk).to_bits())?;
+                slot.put(|en| &mut en.push[1], x87::mul(&car.motion[1], tk).to_bits())?;
+                slot.put(|en| &mut en.push[0], x87::mul(&car.motion[0], tk).to_bits())?;
                 for n in 0..3 {
                     slot.put(|en| &mut en.spare[n], 0)?;
                 }
@@ -256,7 +256,8 @@ pub fn emit_bursts_with(
                         matrix_cell(m, 0x30 + k4)?,
                         h.sides[k].bits(),
                         side as i32,
-                    ))
+                    )
+                    .to_bits())
                 })?;
                 slot.put(|en| &mut en.place[0], place[0])?;
                 slot.put(|en| &mut en.place[1], place[1])?;
@@ -270,7 +271,8 @@ pub fn emit_bursts_with(
                         pick as i32,
                         effects.setup.floats.over_65536.bits(),
                         effects.setup.floats.one.bits(),
-                    ),
+                    )
+                    .to_bits(),
                 )?;
                 slot.put(|en| &mut en.life, LIFE)?;
                 slot.put(

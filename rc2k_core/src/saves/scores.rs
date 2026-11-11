@@ -1,6 +1,6 @@
 //! The best scores (`g_bestScores`, 0x7556D4 held its block; 0xBB8 bytes in memory and in
 //! `var\hst.dat`): five groups (the classes; the fifth the overall) of ten entries,
-//! best first. Typed 2026-10-26 (phase 12) from the byte offsets the original uses.
+//! best first, typed from the byte offsets the original uses.
 
 pub const GROUPS: usize = 5;
 pub const PER_GROUP: usize = 10;

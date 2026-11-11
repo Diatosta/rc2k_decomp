@@ -104,7 +104,7 @@ pub struct Panel {
     /// +0x4 (0x6D1402): `unk_6D1402`: the first car's split gap 5.
     pub split_5: Loose32,
     /// +0x8 (0x6D1406): not named or used (a gap of 0x8 bytes).
-    pub unknown_8: Bytes<8>,
+    pub unused_8: Bytes<8>,
     /// +0x10 (0x6D140E): `unk_6D140E` .. : the first view's values.
     pub view_a: ViewA,
     /// +0x40 (0x6D143E): `unk_6D143E` .. : the second view's values.
@@ -119,7 +119,7 @@ pub struct Panel {
     /// overlay (`g_overlayPartMiles`, `g_overlayPartKindsA`, `g_overlayPartKindsB`), kept as
     /// IDA's addresses, as names (phase 13; nothing reads them, and `moved::point_into_homes`
     /// passes them over).
-    pub unknown_78: Bytes<12>,
+    pub unused_78: Bytes<12>,
     /// +0x84 (0x6D1482): `unk_6D1482`, `unk_6D1492`: the two views' start lights.
     pub lights: [Lights; 2],
     /// +0xa4 (0x6D14A2): `unk_6D14A2` .. `unk_6D14C6`: the two views' marks.
@@ -127,7 +127,7 @@ pub struct Panel {
     /// +0xcc (0x6D14CA): `dword_6D14CA`, `dword_6D14CE`: each view's start value (`race::race_shell`).
     pub start_values: [Loose32; 2],
     /// +0xd4 (0x6D14D2): not named or used (a gap of 0x20 bytes).
-    pub unknown_d4: Bytes<32>,
+    pub unused_d4: Bytes<32>,
     /// +0xf4 (0x6D14F2): `dword_6D14F2`: the HUD's layout (the record's +0xF4; `hud::overlay_pass`).
     pub players: Loose32,
     /// +0xf8 (0x6D14F6): `dword_6D14F6`, `dword_6D14FA`: each view's HUD flags (the car block's +0x220; bit 0x40 flat, 8 the mirror).
@@ -137,7 +137,7 @@ pub struct Panel {
     /// +0x104 (0x6D1502): `dword_6D1502`: the first view's HUD flags' bit 0x40, the flat layout (`race::draw_race_scene`).
     pub flat: Loose32,
     /// +0x108 (0x6D1506): not named or used (a gap of 0x2 bytes).
-    pub unknown_108: Bytes<2>,
+    pub unused_108: Bytes<2>,
     /// +0x10a (0x6D1508): `dword_6D1508`: the texture changes counted this frame (`race::frame_views`, `race::update_mud_texture`).
     pub texture_changes: Loose32,
 }

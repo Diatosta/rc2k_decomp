@@ -1,9 +1,9 @@
-//! The race's split times (converted from `physics::keep_split_time`
+//! The race's split times (from `physics::keep_split_time`
 //! 0x436B3D and `compare_split_times` 0x436E11; `physics::fill_rival_table` 0x436BD6 and
 //! `rank_split_time` 0x436C4F): where a split time is kept, and the car's place and
 //! nearest gaps among the ten times kept for a split (race mode 3), or among the 90
 //! rivals' times scaled to the split (race mode 1). And the checkpoints followed through
-//! the splits (converted from `physics::track_checkpoints` 0x44157B), and the
+//! the splits (from `physics::track_checkpoints` 0x44157B), and the
 //! race timers' steps by the race mode (from `physics::race_timers` 0x436790).
 
 use crate::Invalid;

@@ -1,7 +1,7 @@
-//! The work car's handling figures from its kind's record (Converted from
+//! The work car's handling figures from its kind's record (from
 //! `physics::load_car_specs` 0x421482): records of 0xB0 bytes at 0x5C790C ("00 renault
 //! maxi megane" ..), by the kind (`g_car` +0x24, at most 0x21). What each figure is, is a
-//! reading (the hook's header says where each goes).
+//! reading.
 //!
 //! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
 //! original stores (`physics::x87`): the same bits at the game's double precision. The

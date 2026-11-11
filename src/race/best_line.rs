@@ -502,13 +502,13 @@ pub fn surface_shares(race: &Race) -> Result<(), Refused> {
 /// included) placed on the map: the two anchors' map places (their faces' words +0x2C and +0x2E, <<
 /// 14, y negated) and first points; the stretch's scale (map length over ground length, a float)
 /// and its two angles (`fpatan` / pi * 0.5^3 * 65536^2, << 2); each checkpoint's point from the
-/// first anchor turned by minus the ground angle (`math::turn_point_xz`), scaled, turned by the map
+/// first anchor turned by minus the ground angle (`math::rotate_point_about_y`), scaled, turned by the map
 /// angle, moved to the first anchor's place: `g_mapX`, `g_mapY` (negated). Leaves the original's
 /// registers past the last anchor (the last's map x and minus its y). Refuses anchors past the lists.
 pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race.course;
     let shared = &race.shared;
-    use crate::math::turn_point_xz::turn_point_xz;
+    use crate::math::rotate_point_about_y::rotate_point_about_y;
     {
         let (a, b) = (work(shared, 0xC4).get(), work(shared, 0xC0).get());
         if a >= MOST_CHECKS || b >= MOST_CHECKS {
@@ -551,7 +551,7 @@ pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
             ground[0] as i32,
             ground[1] as i32,
         );
-        work(shared, 0xC8).set(scale);
+        work(shared, 0xC8).set(scale.to_bits());
         let (half, unit) = (course.numbers.half.bits(), course.numbers.k65536.bits());
         let map_angle =
             (x87::angle_scaled5_to_int(map[0] as i32, map[1] as i32, half, unit) as u32) << 2;
@@ -561,7 +561,7 @@ pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
         work(shared, 0xBC).set(ground_angle);
         let mut e = a;
         loop {
-            // The point's number rides along as `turn_point_xz`'s y.
+            // The point's number rides along as `rotate_point_about_y`'s y.
             let number = point_of(&race.course, check_face(e))?;
             let p = [
                 crate::race::scene_points::point_word(&race.course, number, 0)?,
@@ -570,7 +570,7 @@ pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
             work(shared, 0xCC).set(p[0]);
             work(shared, 0xD0).set(p[1]);
             let [x, _, z, _] = {
-                turn_point_xz(
+                rotate_point_about_y(
                     p[0].wrapping_sub(point_a[0]) as i32,
                     number as i32,
                     p[1].wrapping_sub(point_a[1]) as i32,
@@ -580,7 +580,7 @@ pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
             let x = x87::int_times_to_int(x as i32, scale);
             let z = x87::int_times_to_int(z as i32, scale);
             scene.drawing.scene.scratch.set(z as u32);
-            let [x, _, z, _] = turn_point_xz(x, number as i32, z, map_angle);
+            let [x, _, z, _] = rotate_point_about_y(x, number as i32, z, map_angle);
             write_n(&CHECKPOINTS.map_x[0], e, x.wrapping_add(place_a[0]));
             write_n(
                 &CHECKPOINTS.map_y[0],

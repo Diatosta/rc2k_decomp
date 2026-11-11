@@ -1,4 +1,4 @@
-//! The walk over a section's records from `index` (converted 2026-10-21 from
+//! The walk over a section's records from `index` (from
 //! `menu::walk_section_records` 0x471F0D): each record's tag (its first dword) says what
 //! is done for it, until a tag 3 or 4.
 

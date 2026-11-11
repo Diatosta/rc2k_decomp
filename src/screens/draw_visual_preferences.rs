@@ -38,7 +38,7 @@ fn rows(p: &Player) -> [(u32, u32); 9] {
 
 /// Returns the carry.
 pub fn draw_visual_preferences(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    // Converted: `rc2k_core::screens::settings_pages::visual_preferences`.
+    // The logic is in `rc2k_core::screens::settings_pages::visual_preferences`.
     let player = current(menus)?.get();
     let ids = rows(&player).map(|(value, first)| value.wrapping_add(first));
     rc2k_core::screens::settings_pages::visual_preferences(

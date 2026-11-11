@@ -5,8 +5,7 @@
 //! as extracted from the disassembly: background `arcade1.png`; leaving is not asked about; the
 //! steps that are more than a call or a store are the functions below, generated from the
 //! listing.
-//! Screen: the player count of the time trial, "ESCOLHA NÚMERO DE JOGADORES" (the owner
-//! said so after Rust-run visits, 2026-10-11). Named `select_players_loop` until then.
+//! Screen: the player count of the time trial, "ESCOLHA NÚMERO DE JOGADORES".
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`).
 
@@ -47,7 +46,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.event.event_over, 0x0)],
+    before: &[Step::WriteFlag(|m| &m.screens.event.event_over, false)],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.time_trial_select_players_picture

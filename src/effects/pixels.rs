@@ -107,11 +107,11 @@ pub fn map_pixel(
         write_bits(&masks.vars.work_pixel, [px, py]);
         let mut span = x87::sub(ends[2], ends[0]);
         let rise = x87::div(x87::sub(ends[3], ends[1]), span);
-        write_bits(&masks.vars.slope, [span, rise]);
-        let negative = span & 0x8000_0000 != 0;
+        write_bits(&masks.vars.slope, [span.to_bits(), rise.to_bits()]);
+        let negative = span.is_sign_negative();
         if negative {
-            span ^= 0x8000_0000;
-            masks.vars.slope[0].set_bits(span);
+            span = -span;
+            masks.vars.slope[0].set(span);
         }
         let status = x87::sub_compare(px, ends[0], negative, span);
         setup.work.fpu_status.set(status as u32);
@@ -129,11 +129,14 @@ pub fn map_pixel(
         }
         setup.work.seed.set(seed);
         let k: u32 = setup.mask_constants.pixel_constants[half.constants + 2].bits();
-        let y = x87::random_step(r as i32, [shake, c, px, ends[0], rise, ends[1], k]);
-        masks.vars.work_pixel[1].set(y);
+        let y = x87::random_step(
+            r as i32,
+            [shake, c, px, ends[0], rise.to_bits(), ends[1], k],
+        );
+        masks.vars.work_pixel[1].set(y.to_bits());
         set_line_turn(masks, line(masks, half.line), true);
         scale_rows3(&masks.vars.turn, effects);
-        let q = turn_pair(masks, [extended(y), extended(px)]);
+        let q = turn_pair(masks, [extended(y.to_bits()), extended(px)]);
         let (qx, qy) = (rounded(q[1]), rounded(q[0]));
         let out = [x87::add_to_int(qx, lx), x87::add_to_int(qy, ly)];
         write_bits(&masks.vars.work_pixel, out.map(|v| v as u32));
@@ -197,7 +200,7 @@ pub fn map_shape_rows(
                 crate::effects::masks::work_get(masks, spans.wrapping_add(8 * i + 4))?,
             );
             let y: u32 = masks.vars.pixel[1].get();
-            masks.vars.row_distance.set_bits(x87::int_plus_less_squared(
+            masks.vars.row_distance.set(x87::int_plus_less_squared(
                 y as i32,
                 effects.setup.mask_constants.row_add.bits(),
                 masks.vars.middle[1].bits(),
@@ -287,8 +290,8 @@ pub fn map_shapes(
         write_bits(
             &masks.vars.middle,
             [
-                x87::loaded(&shapes.middle[0]),
-                x87::loaded(&shapes.middle[1]),
+                x87::loaded(&shapes.middle[0]).to_bits(),
+                x87::loaded(&shapes.middle[1]).to_bits(),
             ],
         );
         for k in 0..count as u32 {

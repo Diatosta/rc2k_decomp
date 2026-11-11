@@ -1,4 +1,4 @@
-//! The arcade race's (run kind 2) two computer opponents kept near the lead car (converted 2026-10-21 from
+//! The arcade race's (run kind 2) two computer opponents kept near the lead car (from
 //! `drive::start_cars_behind` 0x43703E, its rules; the moves and calls stay the
 //! adapter's): their first starts, the gaps by how many cars are ahead, the wanted gaps
 //! eased toward (what the arcade HUD shows as the gaps to the cars ahead and behind), and

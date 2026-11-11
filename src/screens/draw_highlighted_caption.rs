@@ -50,7 +50,7 @@ pub fn draw_highlighted_caption(
     crate::screens::text_buffers_store::TEXT_BUFFERS
         .caption
         .write_at(0, &caption, "the caption")?;
-    // Converted: `rc2k_core::screens::highlighted_caption`.
+    // The logic is in `rc2k_core::screens::highlighted_caption`.
     let since_key = system()
         .session
         .clocks

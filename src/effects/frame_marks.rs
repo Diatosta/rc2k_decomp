@@ -67,7 +67,7 @@ pub fn frame_marks(race: &Race, effects: &Effects) -> Result<(), Refused> {
             effects.setup.frame.frame_cycles.bits() as i32,
             FRAME_K.share_k.to_bits(),
         );
-        effects.setup.frame.step_share.set_bits(share);
+        effects.setup.frame.step_share.set_bits(share.to_bits());
     }
     Ok(())
 }

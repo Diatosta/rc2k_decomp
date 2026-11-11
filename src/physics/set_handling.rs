@@ -94,7 +94,7 @@ pub fn set_handling(race: &Race) -> Result<(), Refused> {
     grade_or_reset(race);
     let k256: u32 = race.course.numbers.k256.bits();
     let lerp = |(out, n, hi, lo): (&Float, &Dword, &Float, &Float)| {
-        out.set_bits(int_lerp(n.get() as i32, k256, hi.bits(), lo.bits()));
+        out.set_bits(int_lerp(n.get() as i32, k256, hi.bits(), lo.bits()).to_bits());
     };
     for v in before(&race.shared.car, &race.shared.physics_tables) {
         lerp(v);
@@ -106,7 +106,7 @@ pub fn set_handling(race: &Race) -> Result<(), Refused> {
         &r[4 + kind],
         &r[2 + kind],
     ));
-    race.shared.physics_tables.handling[4].set_bits(x87::mul(
+    race.shared.physics_tables.handling[4].set(x87::mul(
         &race.shared.physics_tables.handling[4],
         race.shared.physics_tables.ride_height_handling_scale.get(),
     ));

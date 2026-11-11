@@ -95,8 +95,8 @@ pub fn windscreen_drops_top(
         .map(super::super::session::Float::bits);
     for n in 0..POINTS as usize {
         let (p, o) = (3 * n, 3 * n);
-        drops.work.scaled[o].set_bits(x87::mul(&drops.work.points[p], kx));
-        drops.work.scaled[o + 1].set_bits(x87::mul(&drops.work.points[p + 1], ky));
+        drops.work.scaled[o].set(x87::mul(&drops.work.points[p], kx));
+        drops.work.scaled[o + 1].set(x87::mul(&drops.work.points[p + 1], ky));
         drops.work.scaled[o + 2].set_bits(0);
     }
     for p in drops.work.scaled.as_chunks::<3>().0 {

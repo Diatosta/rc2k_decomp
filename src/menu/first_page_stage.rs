@@ -10,7 +10,7 @@
 use crate::menu::owner::Play;
 pub fn first_page_stage(play: &Play) {
     let n: u32 = play.champ_view.count.get();
-    // Converted: `rc2k_core::menu::event::last_page` (its division cannot meet 0).
+    // The logic is in `rc2k_core::menu::event::last_page` (its division cannot meet 0).
     let first = rc2k_core::menu::event::last_page(n).map_or(1, |last| last.first);
     play.champ_view.first_row.set(first);
 }

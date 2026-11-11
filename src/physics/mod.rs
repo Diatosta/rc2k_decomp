@@ -1,5 +1,6 @@
 //! The cars' physics.
 
+pub mod accumulate_mud;
 pub mod add_drive_forces;
 pub mod air_drag;
 pub mod allowed_gear;
@@ -218,7 +219,6 @@ pub mod track_checkpoints;
 pub mod turn_by_car_matrix;
 pub mod turn_by_heading;
 pub mod turn_by_inverse;
-pub mod turn_wheel_angles;
 pub mod update_camera;
 pub mod update_car_angles;
 pub mod value_notice;

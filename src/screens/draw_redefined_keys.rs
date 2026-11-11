@@ -26,7 +26,7 @@ pub fn draw_redefined_keys(menus: &Menus, canvas: &mut dyn Canvas) -> Result<boo
     let screens = &menus.screens;
     let keys = current(menus)?.get().keys;
     let redefined: u32 = screens.option_work.redefined_key_place.get();
-    // Converted: `rc2k_core::screens::controls::redefined_keys`; the names made first
+    // The logic is in `rc2k_core::screens::controls::redefined_keys`; the names made first
     // (none at the place being redefined, as the original).
     use rc2k_core::screens::controls::KEY_PLACES;
     let row = KEY_PLACES.iter().position(|&p| p as u32 == redefined);
@@ -40,6 +40,6 @@ pub fn draw_redefined_keys(menus: &Menus, canvas: &mut dyn Canvas) -> Result<boo
         &mut crate::screens::game_screen::ControlsScreen::new(canvas),
         &names,
         row,
-        screens.draw_work.cursor_on.get(),
+        screens.draw_work.cursor_on.is_set(),
     )
 }

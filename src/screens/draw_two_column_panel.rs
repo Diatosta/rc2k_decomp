@@ -14,7 +14,7 @@ use crate::screens::service_boxes::quad;
 /// Parts: 1 the quads, 2 the rules, 3 the boxes.
 pub fn draw_two_column_panel(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
-    // Converted: `rc2k_core::screens::panels::two_column_panel`.
+    // The logic is in `rc2k_core::screens::panels::two_column_panel`.
     for a in
         rc2k_core::screens::panels::two_column_panel(menus.screens.state.service_ui.fade_full.get())
     {

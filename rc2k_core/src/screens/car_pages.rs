@@ -1,4 +1,4 @@
-//! The car specification's four figure pages (converted 2026-10-20 from
+//! The car specification's four figure pages (from
 //! `screens::draw_car_figures` 0x46A41F's pages: `car_page_description` 0x469C40,
 //! `car_page_engine` 0x469F12, `car_page_transmission` 0x46A193, `car_page_dimensions`
 //! 0x469CA0): labels and figures, "n/d" for an unknown figure, the Clio's own strings.

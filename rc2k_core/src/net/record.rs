@@ -1,5 +1,5 @@
 //! A player's record, the 16 bytes of DirectPlay player data each machine keeps for its
-//! player (converted 2026-10-21 from `net::fill_own_player` 0x4181A3, `net::set_up_race`
+//! player (from `net::fill_own_player` 0x4181A3, `net::set_up_race`
 //! 0x463A94, `net::lets_rally` 0x4170E0, `net::close_if_host` 0x41837B and
 //! `net::lets_race` 0x4640AA): +0 the state (`crate::net::players`' bits), +1 the car, +2
 //! its colours, +3 the nationality, +4 the stage, +5 its direction, +6 the race number, +7

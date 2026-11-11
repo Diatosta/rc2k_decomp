@@ -13,7 +13,7 @@ use rc2k_core::menu::items::{Font, choosable};
 
 use crate::gfx::typefaces::fonts::{ITEM_GREY as GREY_FONT, ITEM_PLAIN as PLAIN_FONT};
 
-// Converted: `rc2k_core::menu::items::choosable`.
+// The logic is in `rc2k_core::menu::items::choosable`.
 
 /// The item's +0x48 and font set: what both twins do.
 pub fn set_item(screens: &Screens, number: u32, on: bool) -> Result<(), Refused> {

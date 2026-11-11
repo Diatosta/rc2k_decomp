@@ -117,9 +117,9 @@ pub fn chosen_frame(
     step: u32,
     cells: u32,
 ) -> Result<(), Refused> {
-    let blinking = screens.draw_work.blink.get() == 1;
+    let blinking = screens.draw_work.blink.is_set();
     let wanted =
-        if screens.state.service_ui.box_shown.get() == 1 && screens.loop_flags.item.get() == item {
+        if screens.state.service_ui.box_shown.is_set() && screens.loop_flags.item.get() == item {
             blinking
         } else {
             setup.installed.get() != setup.chosen.get() || flag.get() == 1

@@ -19,16 +19,16 @@
 //!   2  (Escape) leave
 //!   3  (Enter) the highlighted item's action runs (`menu::run_item_action`, with the
 //!      highlight saved to the screen's variable before and taken back from it after).
-//!      Then: leave if `loop_flags.ask_leave` or `event.event_over` is 1, or if `loop_flags.leave_screen` is 1
+//!      Then: leave if `loop_flags.ask_leave` or `event.event_over` is set, or if `loop_flags.leave_screen` is set
 //!      (which is cleared); else next frame if `draw_work.action_mode` is 2; else leave if
-//!      `loop_flags.event_left` is 1 (clearing `loop_flags.leave_screen`); else set up again.
+//!      `loop_flags.event_left` is set (clearing `loop_flags.leave_screen`); else set up again.
 //!   else leave
 //! The same action check is made at the top of a frame whose `option_work.menu_sound` is 0x14D.
 //! Three things a screen may have besides (`escape_leaves`, `each_frame`,
 //! `short_action_check`) are described at those fields of `Screen`.
 //!
 //! Leaving: nothing more happens if the screen's `leave_at_once` variable is 1. On a screen
-//! that asks (`confirm`), if `left_by_key` is 1,
+//! that asks (`confirm`), if `left_by_key` is set,
 //! `menu::confirm_leaving` puts the question; unless the answer (`g_yesNoAnswer`) is 1, the
 //! `on_refusal` steps run and the screen is set up again; after a "yes" the `confirmed`
 //! steps run. Otherwise the highlight is saved and the `after` steps run. Two variants: the
@@ -63,7 +63,7 @@ use crate::menu::update_blink::update_blink;
 use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::scene::owner::Scene;
-use crate::session::{Dword, Float};
+use crate::session::{Dword, Flag, Float};
 use crate::sound::owner::Sound;
 use crate::system::owner::{System, system};
 pub use rc2k_core::menu::keys::MenuSound;
@@ -89,6 +89,9 @@ pub enum FrameRoutine {
 /// is a constant, and a constant cannot hold a reference to a static).
 pub type Cell = fn(&Menus) -> &Dword;
 
+/// A flag of the game that a screen's description names.
+pub type FlagCell = fn(&Menus) -> &Flag;
+
 /// A text of the game that a screen's description names (a picture's path), found when
 /// asked.
 pub type Text = fn(&Menus) -> &dyn crate::session::TextPlace;
@@ -100,6 +103,8 @@ pub enum Step {
     Call(Callee),
     /// Writes a game variable.
     Write(Cell, u32),
+    /// Sets or clears a game flag.
+    WriteFlag(FlagCell, bool),
     /// Sets the menu's sound variable.
     Sound(MenuSound),
     /// Writes a scene variable.
@@ -147,9 +152,9 @@ pub struct Asking {
     pub on_refusal: &'static [Step],
     /// A variable that, when it is 1, has the question put as well (`loop_flags.ask_leave` in the
     /// menus after the results screens).
-    pub also_if: Option<Cell>,
+    pub also_if: Option<FlagCell>,
     /// A variable that, when it is 1, keeps the question from being put although
-    /// `captions.left_by_key` is 1.
+    /// `captions.left_by_key` is set.
     pub unless: Option<fn(&Menus) -> u32>,
     /// The question is put whenever the screen is left, and after a "yes" the loop returns
     /// at once: the highlight is not saved.
@@ -179,16 +184,16 @@ impl Asking {
 /// What the loop looks at after a key opened the highlighted item's action.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ActionCheck {
-    /// Leave if `loop_flags.ask_leave`, `event.event_over` or `loop_flags.leave_screen` is 1
+    /// Leave if `loop_flags.ask_leave`, `event.event_over` or `loop_flags.leave_screen` is set
     /// (the last is cleared); else next frame if `draw_work.action_mode` is 2; else leave if
-    /// `loop_flags.event_left` is 1; else set up again.
+    /// `loop_flags.event_left` is set; else set up again.
     Standard,
     /// Only `loop_flags.ask_leave` and `loop_flags.leave_screen` are looked at; unless the screen
     /// is left it is set up again, whatever `draw_work.action_mode` and `loop_flags.event_left`
     /// hold.
     Short,
-    /// Left when `loop_flags.ask_leave` is 1; when `event.event_over` is 1 the answer `g_yesNoAnswer` is
-    /// cleared, a key taken and the screen set up again; left when `loop_flags.leave_screen` is 1, which
+    /// Left when `loop_flags.ask_leave` is set; when `event.event_over` is set the answer `g_yesNoAnswer` is
+    /// cleared, a key taken and the screen set up again; left when `loop_flags.leave_screen` is set, which
     /// stays 1; otherwise `option_work.menu_sound` = 0x6F and set up again.
     Restart,
 }
@@ -269,7 +274,7 @@ impl Frames {
 /// What one screen is. A screen is `Screen::new(menu, saved_item)` and the fields that differ.
 #[derive(Clone, Copy)]
 pub struct Screen {
-    /// off_...: the screen's menu.
+    /// The screen's menu.
     pub menu: fn(&Menus) -> MenuId,
     /// The variable the highlight is kept in between visits.
     pub saved_item: Cell,
@@ -286,9 +291,9 @@ pub struct Screen {
     pub after: &'static [Step],
     /// A variable that, when it is 1 at the moment of leaving, makes the loop return at once:
     /// no question, the highlight not saved, no `after` steps.
-    pub leave_at_once: Option<Cell>,
+    pub leave_at_once: Option<FlagCell>,
     /// On a screen that does not ask: what runs first on leaving, before the highlight is
-    /// saved (the mode menu calls `menu::go_back` there when `captions.left_by_key` is 1).
+    /// saved (the mode menu calls `menu::go_back` there when `captions.left_by_key` is set).
     pub leaving: &'static [Step],
     /// The variable the highlight is saved in on leaving, where it is not `saved_item`.
     pub leave_saved_item: Option<Cell>,
@@ -391,7 +396,7 @@ impl<'a> Entry<'a> {
 
 /// Whether the game is quitting.
 pub fn quitting() -> bool {
-    system().session.flags.quitting.get() == 1
+    system().session.flags.quitting.is_set()
 }
 
 /// `scene::prepare_menu_scene` (0x46F7FD). (It leaves esi the view's turn matrix: a screen
@@ -412,87 +417,86 @@ pub fn log_line(text: &std::ffi::CStr) {
     crate::logfile::log_write::log_nul(&text, true, 1);
 }
 
-/// A game function a screen step runs (by its Rust version), with what it is handed. The
-/// comment on each variant is its address in the original.
+/// A game function a screen step runs with what it is handed.
 #[derive(Clone, Copy, Debug)]
 pub enum Callee {
-    /// 0x407F95
+    /// Takes the pending key.
     TakeKey,
-    /// 0x471391 and 0x4713DD (nullsub_83, nullsub_84: a lone `retn`)
+    /// A function that does nothing (two lone returns in the original).
     NoOp,
-    /// 0x47EFFF, with the picture's path.
+    /// Loads the screen's background picture from the given path.
     LoadBackground(Text),
-    /// 0x46F7FD
+    /// Prepares the menu scene.
     PrepareScene,
-    /// 0x46B47C
+    /// Applies the controller page's choice.
     ApplyController,
-    /// 0x46B4B4
+    /// Lets go of the controller the page was reading.
     ReleaseController,
-    /// 0x4683CF
+    /// Draws the map of the stage choice.
     DrawStageMap,
-    /// 0x40F757
+    /// Stops the music stream.
     StopStream,
-    /// 0x40F792
+    /// Plays tune 4.
     PlayTune4,
-    /// 0x40F7A4
+    /// Plays tune 9.
     PlayTune9,
-    /// 0x40F826
+    /// Stops the music.
     StopMusic,
-    /// 0x46F7AD
+    /// Steps the car sound stream on.
     StepCarStream,
-    /// 0x469AA1
+    /// Starts the car sound stream.
     PlayCarStream,
-    /// 0x40939F, with the axis.
+    /// Whether the given controller axis has moved.
     AxisMoved(u32),
-    /// 0x48340B
+    /// Ranks the players by their stage times.
     RankStageTimes,
-    /// 0x48356F
+    /// Ranks the players by their totals.
     RankTotals,
-    /// 0x485CBB
+    /// Scores the results of four players.
     ScoreFourPlayers,
-    /// 0x485B0E
+    /// Scores the results of two players.
     ScoreTwoPlayers,
-    /// 0x470F9F
+    /// Styles the stage item of a stage page.
     StyleStageItem,
-    /// 0x470FC3
+    /// Styles the chosen stage item of a stage page.
     StyleChosenStageItem,
-    /// 0x480032
+    /// Counts the stage pages.
     CountStagePages,
-    /// 0x47F437
+    /// Plays the speech for the stage shown.
     PlayStageSpeech,
-    /// 0x47F40F
+    /// Plays the speech for the rally shown.
     PlayRallySpeech,
-    /// 0x4684BD
+    /// Loads the welcome screen's picture.
     LoadWelcomePicture,
-    /// 0x470F55
+    /// Loads the service area's background.
     LoadServiceBackground,
-    /// 0x471C82
+    /// Goes back to the previous menu.
     GoBack,
-    /// 0x486C21
+    /// Marks the stage chosen.
     MarkStageChoice,
-    /// 0x467C63
+    /// Runs the player name editor.
     EditPlayerName,
-    /// 0x46F1A9
+    /// Runs the set-up name editor.
     EditSetupName,
-    /// 0x46D685
+    /// Runs the saved game name editor.
     EditSavegameName,
-    /// 0x46F4E7
+    /// Runs the replay name editor.
     EditReplayName,
-    /// 0x480CBF
+    /// Checks the name entered against the cheat names.
     CheckCheatName,
-    /// 0x4684F5
+    /// Loads the slideshow's picture.
     LoadSlideshowPicture,
-    /// 0x468482
+    /// Loads the car screen's background.
     LoadCarBackground,
-    /// 0x411863, with the picture's path.
+    /// Loads a picture from the given path.
     LoadPicture(Text),
-    /// 0x406126
+    /// Converts the loaded picture to the screen's format.
     ConvertPicture,
-    /// 0x47C63F
+    /// Sets up the front end.
     SetUpFrontEnd,
-    /// 0x442AF6
+    /// Sets up the 3D engine.
     SetUpEngine,
-    /// 0x474E04
+    /// Sets up the front end's scene.
     SetUpFrontEndScene,
 }
 
@@ -599,14 +603,14 @@ enum Next {
 /// player 1 details, information) and nothing clears: before one of them has been seen, a
 /// "no" given with Escape to a leave question left the flag set, and the screen below left
 /// at its next frame (a championship loaded at start-up ended at its review screen; seen
-/// 2026-10-24). Fixed: cleared as once any of those screens has been seen
+/// in play). Fixed: cleared as once any of those screens has been seen
 /// (`wiki/Fixed-bugs.md`).
 /// Returns whether it was set (and so `leave_screen` was cleared with it).
 fn clear_escape(screens: &Screens) -> bool {
-    let pressed = screens.draw_work.escape_pressed.get() == 1;
+    let pressed = screens.draw_work.escape_pressed.is_set();
     if pressed {
-        screens.draw_work.escape_pressed.set(0u32);
-        screens.loop_flags.leave_screen.set(0u32);
+        screens.draw_work.escape_pressed.set(false);
+        screens.loop_flags.leave_screen.set(false);
     }
     pressed
 }
@@ -614,9 +618,7 @@ fn clear_escape(screens: &Screens) -> bool {
 /// A call whose failure is the fatal error `code`.
 pub fn call_or_fatal(entry: &Entry, function: Callee, code: u32) -> Result<(), Refused> {
     if { function.run(entry) }? {
-        log(&format!(
-            "a screen loop's Rust version raises fatal error {code:#x}"
-        ));
+        log(&format!("a screen loop raises fatal error {code:#x}"));
         return Err(FatalError { code, message: "" }.into());
     }
     Ok(())
@@ -636,6 +638,7 @@ fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
                 function.run(entry)?;
             }
             Step::Write(variable, value) => variable(menus).set(value),
+            Step::WriteFlag(flag, on) => flag(menus).set(on),
             Step::Sound(sound) => menus.screens.option_work.set_sound(sound),
             Step::WriteScene(variable, value) => variable(entry.scene).set(value),
             Step::WriteObject(variable, value) => {
@@ -723,13 +726,13 @@ pub fn screen_loop(screens: &Screens, screen: &Screen, entry: &Entry) -> Result<
 /// the leaving functions left: `ask_leave`, `event_over`, `leave_screen`, `event_left`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ActionExit {
-    /// `ask_leave` was 1 (and `event_over`, as `event_over`, on a standard check).
-    Asked { ask_leave: u32, event_over: u32 },
-    /// `ask_leave` was 1 on a restarting check.
+    /// `ask_leave` ask_leave set (and `event_over`, as `event_over`, on a standard check).
+    Asked { ask_leave: bool, event_over: bool },
+    /// `ask_leave` ask_leave set on a restarting check.
     AskedRestart,
-    /// `leave_screen` was 1 (cleared by a standard check, kept by a restarting one).
+    /// `leave_screen` leave_screen set (cleared by a standard check, kept by a restarting one).
     LeaveScreen { cleared: bool },
-    /// `event_left` was 1 after an action that stays by default (`leave_screen` cleared).
+    /// `event_left` event_left set after an action that stays by default (`leave_screen` cleared).
     EventLeft,
 }
 
@@ -738,7 +741,7 @@ pub enum ActionExit {
 pub enum ScreenExit {
     /// Escape was taken from the keys.
     Escape,
-    /// `escape_pressed` was 1 at the top of a frame (`escape_leaves`).
+    /// `escape_pressed` escape_pressed set at the top of a frame (`escape_leaves`).
     EscapeFlag,
     /// A step of the screen's own sent the loop out.
     OwnStep,
@@ -825,7 +828,7 @@ impl Loop<'_> {
         let menu = self.menu;
         run(screen.set_up_first, entry)?;
         if !screen.late_highlight {
-            menus.tables.captions.left_by_key.set(0);
+            menus.tables.captions.left_by_key.set(false);
             menus
                 .screens
                 .loop_flags
@@ -846,7 +849,7 @@ impl Loop<'_> {
         run(screen.after_lists, entry)?;
         if !screen.late_highlight {
             menus.screens.option_work.set_sound(MenuSound::None);
-            menus.screens.loop_flags.leave_screen.set(0u32);
+            menus.screens.loop_flags.leave_screen.set(false);
         }
         run(screen.background, entry)?;
         crate::menu::draw_frame::draw_frame(menus, menu)?;
@@ -866,7 +869,7 @@ impl Loop<'_> {
         );
         run_frame(menus, self.callback, menu)?;
         if screen.late_highlight {
-            menus.tables.captions.left_by_key.set(0);
+            menus.tables.captions.left_by_key.set(false);
             menus
                 .screens
                 .loop_flags
@@ -910,7 +913,7 @@ impl Loop<'_> {
             } else if flow == Flow::Leave {
                 self.why = ScreenExit::OwnStep;
                 Next::Leave
-            } else if screen.keys.escape_leaves && screens.draw_work.escape_pressed.get() == 1 {
+            } else if screen.keys.escape_leaves && screens.draw_work.escape_pressed.is_set() {
                 self.why = ScreenExit::EscapeFlag;
                 Next::Leave
             } else if !screen.frames.no_quit_check && quitting() {
@@ -980,7 +983,7 @@ impl Loop<'_> {
             kept(menus).set(item);
             clear_escape(screens);
             let mut result = run_item_action(menus, self.action_menu)?;
-            menus.tables.captions.left_by_key.set(0);
+            menus.tables.captions.left_by_key.set(false);
             menus.screens.loop_flags.item.set(kept(menus).get());
             if clear_escape(screens) {
                 result.leave_screen = false;
@@ -997,10 +1000,10 @@ impl Loop<'_> {
     fn action_restart(&mut self, item: u32, result: ActionResult) -> Result<Next, Refused> {
         let menus = self.entry.menus;
         let leave = |how| ScreenExit::Action { item, how };
-        Ok(if result.ask_leave == 1 {
+        Ok(if result.ask_leave {
             self.why = leave(ActionExit::AskedRestart);
             Next::Leave
-        } else if result.event_over == 1 {
+        } else if result.event_over {
             menus.tables.pages.yes_no_answer.set(0u32);
             Callee::TakeKey.run(self.entry)?;
             Next::SetUp
@@ -1020,14 +1023,14 @@ impl Loop<'_> {
         let ask_leave = result.ask_leave;
         let event_over = result.event_over;
         let leave = |how| ScreenExit::Action { item, how };
-        if ask_leave == 1 || (!short && event_over == 1) {
+        if ask_leave || (!short && event_over) {
             self.why = leave(ActionExit::Asked {
                 ask_leave,
                 event_over,
             });
             Next::Leave
         } else if result.leave_screen {
-            flags.leave_screen.set(0u32);
+            flags.leave_screen.set(false);
             self.why = leave(ActionExit::LeaveScreen { cleared: true });
             Next::Leave
         } else if short {
@@ -1037,7 +1040,7 @@ impl Loop<'_> {
             if result.action_mode == 2 {
                 self.next_frame
             } else if result.event_left {
-                flags.leave_screen.set(0u32);
+                flags.leave_screen.set(false);
                 self.why = leave(ActionExit::EventLeft);
                 Next::Leave
             } else {
@@ -1059,15 +1062,15 @@ impl Loop<'_> {
         };
         if screen
             .leave_at_once
-            .is_some_and(|flag| flag(menus).get() == 1)
+            .is_some_and(|flag| flag(menus).is_set())
         {
             return Ok(Left::Done(done()));
         }
         if let Some(asking) = &screen.asking {
             let asked = asking.always
-                || (menus.tables.captions.left_by_key.get() == 1
+                || (menus.tables.captions.left_by_key.is_set()
                     && !asking.unless.is_some_and(|flag| flag(menus) == 1))
-                || asking.also_if.is_some_and(|flag| flag(menus).get() == 1);
+                || asking.also_if.is_some_and(|flag| flag(menus).is_set());
             if asked {
                 run(asking.before, entry)?;
                 confirm_leaving()?;
@@ -1125,11 +1128,9 @@ pub fn confirm_leaving() -> Result<u32, Refused> {
 /// `run_screen`.
 pub fn screen_entry(name: &str, screen: &Screen) -> Result<(), Refused> {
     let screens = &menus().screens;
-    log(&format!("{name}: the Rust version runs"));
+    log(&format!("{name}: runs"));
     let exit = screen_loop(screens, screen, &Entry::new(menus()))?;
-    log(&format!(
-        "{name}: the Rust version has left the screen ({exit})"
-    ));
+    log(&format!("{name}: has left the screen ({exit})"));
     Ok(())
 }
 

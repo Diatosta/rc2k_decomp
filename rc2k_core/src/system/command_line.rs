@@ -1,4 +1,4 @@
-//! The command line's switches (converted 2026-10-21 from `system::read_command_line`
+//! The command line's switches (from `system::read_command_line`
 //! 0x410684). The first word is the program; of the words after it only those of two
 //! characters or more count, by their first two: `-v` (the version shown, the game left;
 //! the words after it not read), `-u`, `-p` (installing), `-a` (no audio), `-i` (the next

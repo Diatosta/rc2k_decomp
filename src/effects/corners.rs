@@ -174,7 +174,7 @@ pub fn make_corners(
             x87::int_ratio(bx(0x24)?.wrapping_sub(bx(0x18)?), divisors[0]),
             x87::int_ratio(bx(4)?.wrapping_sub(bx(0x1C)?), divisors[1]),
         ];
-        write_bits(&masks.vars.corner_scale, scales);
+        write_bits(&masks.vars.corner_scale, scales.map(f32::to_bits));
         let corners = 2 * ENTRIES;
         for k in 0..corners {
             for n in 0..2 {
@@ -187,8 +187,8 @@ pub fn make_corners(
                 let y = get(table, e + 4)?
                     .wrapping_add(offset[1])
                     .wrapping_sub(bx(0x1C)? as u32);
-                put(table, e + 4, x87::int_over(y as i32, scales[1]))?;
-                put(table, e, x87::int_over(x as i32, scales[0]))?;
+                put(table, e + 4, x87::int_over(y as i32, scales[1]).to_bits())?;
+                put(table, e, x87::int_over(x as i32, scales[0]).to_bits())?;
             }
         }
         let flips: [i32; 2] = effects
@@ -201,7 +201,11 @@ pub fn make_corners(
             for (n, &flip) in flips.iter().enumerate() {
                 let table = tables(masks)[n];
                 let e = 12 * k;
-                put(table, e + 4, x87::int_less(flip, get(table, e + 4)?))?;
+                put(
+                    table,
+                    e + 4,
+                    x87::int_less(flip, get(table, e + 4)?).to_bits(),
+                )?;
             }
         }
         for k in 0..corners {

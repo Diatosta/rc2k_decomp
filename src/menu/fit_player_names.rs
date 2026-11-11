@@ -31,7 +31,7 @@ pub fn fit_name(text: GamePtr) -> Result<u32, Refused> {
     let Some(len) = (0..LONGEST).find(|&n| name.byte(n) == Some(0)) else {
         return Err(BadInput("a name without its end").into());
     };
-    // Converted: `rc2k_core::menu::text_entry::fit_name`.
+    // The logic is in `rc2k_core::menu::text_entry::fit_name`.
     let font = crate::text::measure_text::only_measures(MEASURING_FONT)?;
     text_entry::fit_name(len, |len| -> Result<u32, Refused> {
         text.offset(len as u32).write::<u8>(0, "a name")?;

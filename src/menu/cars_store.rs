@@ -1,8 +1,7 @@
-//! The car table, out of RAL.EXE's image (IDA 0x75648C .. 0x7585D8; phase 7, typed): the places of
+//! The car table, out of RAL.EXE's image (IDA 0x75648C .. 0x7585D8): the places of
 //! the players' names, the carousel's last index, the table of the 34 car descriptions' addresses, the
 //! descriptions (`CarDescription`, 0x78 bytes each) and the texts they point at. A `#[repr(C)]` struct
-//! with the image's layout, one static; `moved::MOVED` points the range at it. (Split 2026-10-25 from
-//! the front end's block `menu::store`.)
+//! with the image's layout, one static; `moved::MOVED` points the range at it.
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
@@ -15,7 +14,7 @@ use rc2k_core::screens::car_pages::CarDescription;
 #[derive(rc2k_derive::Cells)]
 pub struct CarTable {
     /// `| The four players' names' addresses in `g_playerNames` (`Player::name` is one of them).`:
-    /// kept as IDA's addresses, as names (phase 13; nothing reads them, and
+    /// kept as IDA's addresses, as names (nothing reads them, and
     /// `moved::point_into_homes` passes them over).
     pub name_places: [Dword; 4],
     /// `dword_75649C`: The carousel entries' last index (0xE at start; `menu::start_event` sets 0xF for the repair set).
@@ -1201,7 +1200,7 @@ impl CarTable {
     }
 }
 
-/// A car description by handle (phase 13): what the car table, the car lists and the
+/// A car description by handle: what the car table, the car lists and the
 /// carousel keep where the original kept a description's address. `CAR_TAG | n` for
 /// description `n`; 0 (none) and -1 (a list's end) stay as they are.
 pub const CAR_TAG: u32 = 0xCA00_0000;
@@ -1268,7 +1267,7 @@ pub const START: usize = 0x75648C;
 /// IDA 0x7585D8, the end of the piece.
 pub const END: usize = 0x7585D8;
 
-/// Where IDA 0x75648C is now (`moved::MOVED`'s home).
+/// Where IDA 0x75648C lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn cars_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::menu::owner::MENUS.cars.table)

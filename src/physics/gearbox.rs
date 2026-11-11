@@ -67,7 +67,7 @@ pub fn revs_speed(car: &Car, tables: &PhysicsTables) -> Result<(), Refused> {
 
 /// The engine speed over its top (`fld; fdiv; fstp`).
 pub fn over_top(car: &Car) -> u32 {
-    x87::div(&car.engine_speed, &car.engine_speed_limit)
+    x87::div(&car.engine_speed, &car.engine_speed_limit).to_bits()
 }
 
 /// A gear's ratio; refused outside -1 ..= 7.

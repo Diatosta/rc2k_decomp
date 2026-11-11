@@ -14,7 +14,7 @@ use rc2k_core::menu::results_pages::{Page, held_figure};
 pub fn show_championship_standings(menus: &Menus) -> Result<(), Refused> {
     let play = &menus.play;
     let found = crate::menu::first_player_unplaced::first_player_unplaced()?;
-    // Converted: `rc2k_core::menu::results_pages::held_figure`.
+    // The logic is in `rc2k_core::menu::results_pages::held_figure`.
     let count = held_figure(Page::ChampionshipStandings, found.figure);
     menus.play.champ_view.count.set(count);
     crate::menu::first_page_stage::first_page_stage(play);

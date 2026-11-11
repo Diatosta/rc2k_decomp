@@ -22,7 +22,7 @@ pub fn take_shown_car(menus: &Menus, list: Option<CarList>) -> Result<(), Refuse
         return Err(BadInput("a current player past the four").into());
     }
     let shown: u32 = menus.screens.event.shown_car.get();
-    // Converted: `rc2k_core::menu::player::Player::take_car`.
+    // The logic is in `rc2k_core::menu::player::Player::take_car`.
     {
         let entry = menus
             .tables

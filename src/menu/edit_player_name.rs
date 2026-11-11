@@ -9,7 +9,7 @@
 //! (`loop_flags.text_max`, signed), and taken off again if the name then measures 0xEC pixels or more in
 //! the font at 0x51E824 (measured from the x that is the length before the character, as ecx held
 //! it). No cursor is written: the page draws it (`screens::draw_name_cursor`). Called from the four
-//! `player*_details_loop`s while `option_work.typing` is 1. Refuses, before the key is taken: no current
+//! `player*_details_loop`s while `option_work.typing` is set. Refuses, before the key is taken: no current
 //! player, a player without a name, a length outside 0 .. 0x1F, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
@@ -43,19 +43,19 @@ pub fn edit_player_name(
     }
 
     let key = take_key();
-    // Converted: `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
+    // The logic is in `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
     use rc2k_core::menu::text_entry::{self as entry, Key};
     match entry::key(key) {
         Key::None => {}
         Key::Escape => {
             bring_back_name(name)?;
-            screens.option_work.typing.set(0u32);
+            screens.option_work.typing.set(false);
         }
         Key::Enter => {
             if len == 0 {
                 bring_back_name(name)?;
             }
-            screens.option_work.typing.set(0u32);
+            screens.option_work.typing.set(false);
         }
         Key::Clear => clear_text(menus, name)?,
         Key::Backspace => backspace_name(menus, name)?,

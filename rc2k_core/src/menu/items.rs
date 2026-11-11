@@ -1,5 +1,5 @@
-//! A menu's items: where each lies, and the looks the item actions give them (converted
-//! 2026-10-21 from `menu::item_at` 0x471CEF, `menu::disable_item` 0x46B4F6 /
+//! A menu's items: where each lies, and the looks the item actions give them
+//! (from `menu::item_at` 0x471CEF, `menu::disable_item` 0x46B4F6 /
 //! `enable_item` 0x46B50F, `menu::hide_in_game_options` 0x46FB63 /
 //! `show_in_game_options` 0x46FBE3 and `menu::hide_all_in_game_options` 0x46FC52, `menu::run_item_action` 0x474683).
 

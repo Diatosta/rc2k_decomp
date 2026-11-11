@@ -1,4 +1,4 @@
-//! The lists DirectPlay's enumerations fill (converted 2026-10-21 from
+//! The lists DirectPlay's enumerations fill (from
 //! `net::connection_entry` 0x418530, `net::session_entry` 0x418553, `net::session_found`
 //! 0x418A62 and `net::player_found` 0x41929E; and `net::allocate_lists` 0x418576,
 //! `net::connection_found` 0x4186E5 and `net::find_saved_connection` 0x4185DF): the

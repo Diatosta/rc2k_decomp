@@ -20,7 +20,7 @@ use rc2k_core::menu::notice::{
 
 pub fn build_notice(menus: &Menus) {
     let panels = &menus.panels;
-    // Converted: `rc2k_core::menu::notice::notice`.
+    // The logic is in `rc2k_core::menu::notice::notice`.
     if crate::strings::load_language::notice_kind() != BUILDS {
         return;
     }

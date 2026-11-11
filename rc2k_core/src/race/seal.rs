@@ -1,5 +1,5 @@
 //! The race's results file: its bytes packed by runs, the stage's time sealed, and a
-//! block enciphered by the game's DES-like cipher (Converted from
+//! block enciphered by the game's DES-like cipher (from
 //! `race::pack_runs` 0x41EFEC, `seal_stage_time` 0x41F29D, `permute_bits` 0x402848 and
 //! `seal_block` 0x402735).
 

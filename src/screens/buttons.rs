@@ -125,7 +125,7 @@ pub fn draw_button(
     kind.left.set(sprites[0]);
     kind.right.set(sprites[1]);
     menus.screens.draw_work.middle.set(sprites[2]);
-    // Converted: `rc2k_core::screens::buttons::draw`; the pieces blitted from the sprite table.
+    // The logic is in `rc2k_core::screens::buttons::draw`; the pieces blitted from the sprite table.
     use rc2k_core::screens::buttons::{Borrowed, Error};
     let borrowed = Borrowed {
         y: PLAIN.y.get() as i32,

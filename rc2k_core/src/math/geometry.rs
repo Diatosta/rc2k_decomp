@@ -1,11 +1,10 @@
-//! Points and vectors in plain `f32` (converted 2026-10-20 from the x87 code of
-//! `math::turn_scratch_xz` 0x41FEF8 and its siblings, `math::nearest_on_segment` 0x4633DE,
+//! Points and vectors in plain `f32` (from the x87 code of
+//! `math::rotate_scratch_about_y` 0x41FEF8 and its siblings, `math::nearest_on_segment` 0x4633DE,
 //! `math::normalise_vector` 0x45C3FE).
 //!
 //! Every step is in the original's order. What the x87 keeps on its stack is an `f64`
 //! here, rounded to `f32` only where the original stores it: at the x87's double
-//! precision, which the game runs at most of the time (control word 0x027F, seen
-//! 2026-10-20), every step rounds as an `f64` step does, so the results are the same bits;
+//! precision, which the game runs at most of the time (control word 0x027F), every step rounds as an `f64` step does, so the results are the same bits;
 //! at its extended precision (0x037F, after the game's `finit`) the last bit may differ
 //! (`notes/conversion.md`, the float decision).
 

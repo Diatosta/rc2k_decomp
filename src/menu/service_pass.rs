@@ -23,7 +23,7 @@ use crate::menu::standings::*;
 // service::service_area_loop
 pub fn service_pass(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
-    // Converted: `rc2k_core::menu::passes` (who is serviced, the minutes, the money, the
+    // The logic is in `rc2k_core::menu::passes` (who is serviced, the minutes, the money, the
     // pauses, `goes_on`).
     use rc2k_core::menu::passes;
     let players = counted_players(menus)?;
@@ -55,7 +55,7 @@ pub fn service_pass(menus: &Menus) -> Result<(), Refused> {
             crate::system::sleep::sleep(passes::FADE_PAUSE);
             menus.screens.state.driver_stats.repair_time.set(0);
             crate::menu::driver_stats::driver_stats(menus, screens)?;
-            menus.screens.state.menus.service_flag.set(0);
+            menus.screens.state.menus.service_flag.set(false);
             crate::menu::reset_driver_condition::reset_driver_condition(menus)?;
             crate::service::clear_repair_flags::clear_repair_flags(menus)?;
             for _ in 0..passes::DROPPED_KEYS {

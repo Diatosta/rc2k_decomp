@@ -1,4 +1,4 @@
-//! A race's sounds set up (converted 2026-10-21 from `sound::load_race_sounds` 0x40EED8),
+//! A race's sounds set up (from `sound::load_race_sounds` 0x40EED8),
 //! and the car screens' sound stream (`sound::step_car_stream` 0x46F7AD).
 
 /// The co-driver's two lists of speech files.

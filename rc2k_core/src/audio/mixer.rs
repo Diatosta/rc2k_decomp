@@ -1,9 +1,9 @@
-//! The game's own software mixer (converted 2026-10-20 from `audio::mix_channels` 0x40BECC
+//! The game's own software mixer (from `audio::mix_channels` 0x40BECC
 //! and `audio::write_mix` 0x40C03A): the playing channels mixed into a work buffer of left
 //! and right `i32`s, then clipped into the sound buffer's format. The standalone mixes
 //! this way.
 //!
-//! One change from the original (owner, 2026-10-26): a channel's frame is blended with the
+//! One change from the original: a channel's frame is blended with the
 //! next by the position's fraction, as DirectSound resamples; the original took the frame
 //! the position is in, whose steps gave the Dolby mode's effects a harsh edge.
 

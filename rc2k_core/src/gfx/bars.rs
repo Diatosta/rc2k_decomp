@@ -1,4 +1,4 @@
-//! Bars filled to a percentage (converted 2026-10-21 from `gfx::blit_bar` 0x46B574 and
+//! Bars filled to a percentage (from `gfx::blit_bar` 0x46B574 and
 //! `gfx::blit_bar_marker` 0x46B5FC), as the six bar globals describe them
 //! (`dword_755224` ..).
 

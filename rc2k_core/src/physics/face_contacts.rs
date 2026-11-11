@@ -1,6 +1,6 @@
-//! A course face tried against the work car (Converted from
+//! A course face tried against the work car (from
 //! `physics::face_contact` 0x45E3BF; its x87 steps, the contact's angle and speeds, stay
-//! the hook's): which faces are objects' and which of those are tried, the turn words,
+//! with the caller): which faces are objects' and which of those are tried, the turn words,
 //! the object's reach, and what an inside contact does by the object's contact kind.
 
 use crate::Invalid;

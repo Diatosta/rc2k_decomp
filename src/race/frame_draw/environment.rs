@@ -11,7 +11,7 @@ pub(super) fn table_root(course: &Course, v: u32) -> u32 {
     // g_rootTable: 256 floats by mantissa bits; g_exponentRootTable: by exponent
     let root = course.lists.root_table[((v >> 15) & 0xFF) as usize].bits();
     let scale = course.lists.exponent_root_table[((v & 0x7F80_0000) >> 23) as usize].bits();
-    crate::math::x87::mul2(root, scale, &course.numbers.one_over_65536)
+    crate::math::x87::mul2(root, scale, &course.numbers.one_over_65536).to_bits()
 }
 
 /// A point's x and z less car 0's (`g_carBlockStore` +0x134, +0x13C), and its y. (The
@@ -34,7 +34,7 @@ pub(super) fn add_eax_weight(race: &Race, sum: &mut u32, v: u32) {
     } else {
         sixteen
     };
-    *sum = crate::math::x87::add(w, *sum);
+    *sum = crate::math::x87::add(w, *sum).to_bits();
 }
 
 /// `race::eax_face_weight` (0x45C881): the weight of `face` in the EAX sound environment
@@ -58,16 +58,16 @@ pub fn eax_face_weight(race: &Race, sum: &mut u32, face: u32) -> Result<(), BadI
                 return Ok(());
             }
             let (x, _, z) = point_from_car(&race.course, face_field(&race.course, face, 4)?)?;
-            let distance = table_root(&race.course, int_square_sum(x as i32, z as i32));
+            let distance = table_root(&race.course, int_square_sum(x as i32, z as i32).to_bits());
             let strength = face_field::<u8>(&race.course, face, 0x18)? as u32;
-            add_eax_weight(race, sum, int_over(strength as i32, distance));
+            add_eax_weight(race, sum, int_over(strength as i32, distance).to_bits());
             return Ok(());
         }
         if kind >= 0x10 {
             return Ok(());
         }
         if !abs_below_or_unordered(
-            face_field(&race.course, face, 0x30)?,
+            face_field::<u32>(&race.course, face, 0x30)?,
             race.course.numbers.quarter.bits(),
         ) {
             return Ok(());
@@ -78,8 +78,12 @@ pub fn eax_face_weight(race: &Race, sum: &mut u32, face: u32) -> Result<(), BadI
         let half: u32 = race.course.numbers.half.bits();
         let mx = int_plus_times(x2 as i32, mx, half);
         let mz = int_plus_times(z2 as i32, mz, half);
-        let distance = table_root(&race.course, float_square_sum(mx, mz));
-        add_eax_weight(race, sum, div(&race.course.numbers.three, distance));
+        let distance = table_root(&race.course, float_square_sum(mx, mz).to_bits());
+        add_eax_weight(
+            race,
+            sum,
+            div(&race.course.numbers.three, distance).to_bits(),
+        );
     }
     Ok(())
 }

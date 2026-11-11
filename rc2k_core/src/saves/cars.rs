@@ -1,7 +1,7 @@
-//! The two lists of cars that can be chosen (converted 2026-10-21 from
+//! The two lists of cars that can be chosen (from
 //! `saves::rebuild_car_lists` 0x47088C and `saves::list_car_numbers` 0x470825): kept in
 //! `var\ral.dat` as numbers, used as pointers to the cars' records; and what a loaded
-//! game's cars keep of the players' own settings (converted 2026-10-21 from
+//! game's cars keep of the players' own settings (from
 //! `saves::keep_player_settings` 0x4719F5).
 
 use crate::Invalid;

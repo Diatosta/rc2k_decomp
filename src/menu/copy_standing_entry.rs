@@ -18,7 +18,7 @@ pub fn copy_standing_entry(
     index: u32,
 ) -> Result<(), Refused> {
     name_player(&p.get())?;
-    // Converted: `rc2k_core::saves::rankings::fill_a`.
+    // The logic is in `rc2k_core::saves::rankings::fill_a`.
     use rc2k_core::menu::standings::PlayerA;
     let name_at = name_address_of(&p.get())?;
     let source = PlayerA {

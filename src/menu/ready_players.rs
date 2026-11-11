@@ -9,7 +9,7 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::counted_players;
 
 pub fn ready_players(menus: &Menus) -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::player::Player::ready`.
+    // The logic is in `rc2k_core::menu::player::Player::ready`.
     for p in counted_players(menus)? {
         p.update(rc2k_core::menu::player::Player::ready);
     }

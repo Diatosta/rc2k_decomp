@@ -7,7 +7,7 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 pub fn reset_player_times(menus: &Menus) -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::player::Player::reset_times`.
+    // The logic is in `rc2k_core::menu::player::Player::reset_times`.
     for n in 0..4 {
         player(menus, n).update(rc2k_core::menu::player::Player::reset_times);
     }

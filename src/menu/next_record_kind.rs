@@ -23,7 +23,7 @@ pub fn next_record_kind(menus: &Menus) -> Result<u32, Refused> {
             std::mem::offset_of!(crate::records::stages_store::StageTables, championship) as u32,
         )
         .bytes("the championship's stage table")?;
-    // Converted: `rc2k_core::menu::record_kinds::next_record_kind`.
+    // The logic is in `rc2k_core::menu::record_kinds::next_record_kind`.
     let kind = rc2k_core::menu::record_kinds::next_record_kind(&table, section, index)?;
     screens.draw_work.figure.set(kind);
     Ok(kind)

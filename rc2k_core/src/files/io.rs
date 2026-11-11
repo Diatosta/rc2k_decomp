@@ -1,4 +1,4 @@
-//! The game's file functions over a file system (converted 2026-10-21 from `files::read_file`
+//! The game's file functions over a file system (from `files::read_file`
 //! 0x402BB6, `write_file` 0x402BFB, `copy_file` 0x402C28, `file_exists` 0x402EBE,
 //! `file_size` 0x402ED4 and the buffered streams: `open_stream` 0x402CDD, `close_stream`
 //! 0x402CFA, `read_stream_byte` 0x402D16, `write_stream_byte` 0x402D53, `read_stream_block`

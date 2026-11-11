@@ -1,4 +1,4 @@
-//! The race's view and sound keys (converted from `race::race_keys` 0x43A649):
+//! The race's view and sound keys (from `race::race_keys` 0x43A649):
 //! the first key down, in the original's order, and what it changes.
 
 /// A race key.

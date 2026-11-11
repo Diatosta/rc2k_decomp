@@ -40,16 +40,15 @@ pub fn spawn_windscreen_flake(
     };
     let e = &fl.items.items[(at / ITEM_LEN) as usize];
     e.live.set(1);
-    e.place[0].set_bits(x87::from_int(x as i32));
-    e.place[1].set_bits(x87::from_int(z as i32));
+    e.place[0].set(x87::from_int(x as i32));
+    e.place[1].set(x87::from_int(z as i32));
     let k = kind & 7;
-    e.texture_u.set_bits(x87::int_times_plus(
+    e.texture_u.set(x87::int_times_plus(
         k as i32,
         fl.state.tile_offset_k[0].bits(),
         fl.state.tile_offset_k[1].bits(),
     ));
-    e.texture_v
-        .set_bits(x87::loaded(&fl.state.tile_offset_k[2]));
+    e.texture_v.set(x87::loaded(&fl.state.tile_offset_k[2]));
     e.born.set(shared.physics_tables.scene_clock.bits());
     e.age.set(0);
     Ok(k)

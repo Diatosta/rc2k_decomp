@@ -1,4 +1,4 @@
-//! The menus' texts, out of RAL.EXE's image (IDA 0x731B82 .. 0x734BC6; phase 7, typed):
+//! The menus' texts, out of RAL.EXE's image (IDA 0x731B82 .. 0x734BC6):
 //! two log texts of the map's polygon code, the keys menu (`dword_731BBB`), each menu
 //! screen's picture path (one copy per screen, named for the screen that loads it; the
 //! others by their file), the stage maps', car specifications' and slides' paths (which
@@ -2113,7 +2113,7 @@ pub const START: usize = 0x731B82;
 /// The bytes `MenuTexts` has before IDA's `START` (its `_lead`).
 const LEAD: usize = 2;
 
-/// A speech table's entry (phase 13): a sample name's handle (`audio::store::name_key`; the
+/// A speech table's entry: a sample name's handle (`audio::store::name_key`; the
 /// original kept its address), or the row's end mark, -1.
 const fn speech_key(ida: u32) -> u32 {
     if ida == SPEECH_END {
@@ -2139,7 +2139,7 @@ pub fn speech_entry(row: u32, place: u32) -> Result<u32, crate::errors::BadInput
     Ok(entry)
 }
 
-/// A text's handle (phase 13): its place in `MENU_TEXTS` (the original kept its address). 0
+/// A text's handle: its place in `MENU_TEXTS` (the original kept its address). 0
 /// (none) and -1 (an end mark) stay; another address outside fails to compile.
 pub const fn text_key(ida: u32) -> u32 {
     if ida == 0 || ida == 0xFFFF_FFFF {

@@ -1,4 +1,4 @@
-//! The work car's loose parts (converted from `physics::fill_race_slot`
+//! The work car's loose parts (from `physics::fill_race_slot`
 //! 0x462263 (its choice of slot), `physics::fill_slot_on_bit` 0x462237,
 //! `physics::drop_broken_parts` 0x462386, `physics::drop_hit_parts` 0x4410C8,
 //! `physics::sound_hit_parts` 0x4411EC, `physics::hit_part_checks` 0x441046 and

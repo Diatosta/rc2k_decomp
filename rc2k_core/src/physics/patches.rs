@@ -1,4 +1,4 @@
-//! The physics' constants with the `patch` settings worked in (Converted from
+//! The physics' constants with the `patch` settings worked in (from
 //! `physics::apply_patches` 0x4648BD), once. The settings' keys in `var\ral.cfg` say what
 //! they are, from 0x71C6D0 on: `fizpatch` (the switch), `patchmaxdrawdistance`,
 //! `patchstickygrass`, `patchgravity`, `patchdamages`, `patchbrakegrip`, `patchaccelgrip`,

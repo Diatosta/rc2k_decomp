@@ -1,4 +1,4 @@
-//! The championship finish routine's time and shares (converted 2026-10-21 from
+//! The championship finish routine's time and shares (from
 //! `drive::finish_timing` 0x45948A, after its clock call): the time since the start in
 //! seconds, eased to a stop between two times, and a share rising between two others.
 //!

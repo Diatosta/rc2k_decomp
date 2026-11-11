@@ -12,7 +12,7 @@ use crate::menu::standings::*;
 /// The first player of any group in table B (the original's edi, its start); its
 /// `computers` is the player's number (ecx = the entry's player). The caller's ebx is kept.
 pub fn first_player_unplaced() -> Result<Found, Refused> {
-    // Converted: `rc2k_core::saves::rankings::first_player` (any group), ecx the player.
+    // The logic is in `rc2k_core::saves::rankings::first_player` (any group), ecx the player.
     let found = first_player(
         Which::B,
         rc2k_core::menu::standings::ANY_GROUP,

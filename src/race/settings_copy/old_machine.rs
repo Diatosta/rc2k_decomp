@@ -225,13 +225,13 @@ impl<E: Effects> Machine<StepOperand> for Game<'_, E> {
         self.ebx = v;
     }
     fn int_to_float(&mut self, v: u32) -> u32 {
-        x87::from_int(v as i32)
+        x87::from_int(v as i32).to_bits()
     }
     fn float_to_int(&mut self, v: u32) -> u32 {
         x87::to_int(v) as u32
     }
     fn float_copy(&mut self, v: u32) -> u32 {
-        x87::loaded(v)
+        x87::loaded(v).to_bits()
     }
     fn scaled_brake(&mut self, v: i32) -> u32 {
         x87::int_times_to_int(v, &self.race.course.numbers.brake_scale) as u32

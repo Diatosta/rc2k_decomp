@@ -2,8 +2,8 @@
 //! `place_second` (with `split` at 2) or `place_usual` into `dword_606678`,
 //! `60667C`, `6066D4`, `6066D8`, `606730`, `606734` and the last into `dword_60668C`,
 //! `6066E8`, `606744`; the offset (`camera_offset_x` ..) turned by `unk_71A69C`,
-//! `71A694`, `71A698` then `71A68C`, `71A690`, `71A688` (`math::turn_point_xz_ebx`,
-//! `_ecx`, `turn_point_xz`) into the place `camera_position`
+//! `71A694`, `71A698` then `71A68C`, `71A690`, `71A688` (`math::rotate_point_about_y_ebx`,
+//! `_ecx`, `rotate_point_about_y`) into the place `camera_position`
 //! ..; then the second offset (`view_turn_x` .., / 65536) turned by `g_crashMatrix`
 //! (`scene::rotate_point`), x 65536 (`fistp`), plus `camera_car` .., added to it.
 //!
@@ -16,7 +16,7 @@ use crate::race::view_vars_store::ViewVars;
 use crate::session::Cell32;
 use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset};
 
-/// The turns: `math::turn_point_xz_ebx`, `_ecx` and `turn_point_xz`, exact or plain.
+/// The turns: `math::rotate_point_about_y_ebx`, `_ecx` and `rotate_point_about_y`, exact or plain.
 type Turns = (
     fn(i32, i32, i32, u32) -> [u32; 3],
     fn(i32, i32, i32, u32) -> [u32; 3],
@@ -53,7 +53,7 @@ fn place_with(
     for to in [&r4.angles[0], &r5.angles[0], &r6.angles[0]] {
         to.set(last);
     }
-    // The offset (x, y, z) turned about each axis in turn: the `turn_point_xz*` functions
+    // The offset (x, y, z) turned about each axis in turn: the `rotate_point_about_y*` functions
     // take the three coordinates in the order x, y, z.
     let (mut x, mut y, mut z) = (
         race.physics.camera.camera_offset_x.get(),
@@ -107,7 +107,7 @@ fn place_with(
 
 /// The exact version, for `physics::camera_avoid_ground`.
 pub fn place_camera(race: &Race, scene: &crate::scene::owner::Scene) {
-    use crate::math::{turn_point_xz, turn_point_xz_ebx, turn_point_xz_ecx};
+    use crate::math::{rotate_point_about_y, rotate_point_about_y_ebx, rotate_point_about_y_ecx};
     let second = || {
         let turns = [
             &race.physics.camera.view_turn_x,
@@ -123,9 +123,9 @@ pub fn place_camera(race: &Race, scene: &crate::scene::owner::Scene) {
     place_with(
         race,
         (
-            turn_point_xz_ebx::turn_point_xz_ebx,
-            turn_point_xz_ecx::turn_point_xz_ecx,
-            turn_point_xz::turn_point_xz,
+            rotate_point_about_y_ebx::rotate_point_about_y_ebx,
+            rotate_point_about_y_ecx::rotate_point_about_y_ecx,
+            rotate_point_about_y::rotate_point_about_y,
         ),
         &second,
         scene,

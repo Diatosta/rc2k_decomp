@@ -1,4 +1,4 @@
-//! The pages' tinted backdrops (converted 2026-10-21 from `screens::draw_bottom_panel`
+//! The pages' tinted backdrops (from `screens::draw_bottom_panel`
 //! 0x49FCCF, `draw_fade_overlay` 0x49FC7F, `draw_two_column_panel` 0x49FE4B,
 //! `draw_column_rules` 0x49FFC5 and `draw_column_boxes` 0x4A0078): each a list of quads
 //! drawn by `scene::draw_tinted_quad`, in order.

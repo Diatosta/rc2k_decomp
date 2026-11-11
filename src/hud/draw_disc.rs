@@ -38,13 +38,13 @@ pub fn draw_disc(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
         for (k, [a, b]) in ring_angles(t).into_iter().enumerate() {
             let n = k + 1;
             hud.block.ring_sines[n]
-                .set_bits(table(crate::scene::engine_tables_store::sine(a as usize)));
+                .set_bits(table(crate::scene::engine_tables_store::sine(a as usize)).to_bits());
             hud.block.ring_cosines[n]
-                .set_bits(table(crate::scene::engine_tables_store::cosine(a as usize)));
+                .set_bits(table(crate::scene::engine_tables_store::cosine(a as usize)).to_bits());
             hud.block.texture_ring_sines[n]
-                .set_bits(table(crate::scene::engine_tables_store::sine(b as usize)));
+                .set_bits(table(crate::scene::engine_tables_store::sine(b as usize)).to_bits());
             hud.block.texture_ring_cosines[n]
-                .set_bits(table(crate::scene::engine_tables_store::cosine(b as usize)));
+                .set_bits(table(crate::scene::engine_tables_store::cosine(b as usize)).to_bits());
         }
         hud.block.fistp_scratch.set(t);
         for k in 0..SEGMENTS {

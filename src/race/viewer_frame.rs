@@ -25,12 +25,12 @@ pub fn viewer_frame() -> Result<bool, Refused> {
     let input = crate::input::owner::input();
     let race = race();
     let replay = &race.replay;
-    if race.shared.replay_file.replay_at_end.get() == 1 {
+    if race.shared.replay_file.replay_at_end.is_set() {
         crate::gfx::clear_back_surface::clear_back_surface(gfx, system)?;
     }
     // `d3d::begin_scene` cannot fail (its carry is clear).
     crate::platform_3d::begin_layer();
-    if race.shared.replay_file.replay_at_end.get() != 1 {
+    if !race.shared.replay_file.replay_at_end.is_set() {
         crate::drive::replay_frame_marks::replay_frame_marks(race)?;
         crate::race::show_replay_still::show_replay_still(race, input, system)?;
     }
@@ -40,7 +40,7 @@ pub fn viewer_frame() -> Result<bool, Refused> {
         crate::platform_3d::end_layer();
         crate::race::viewer_snapshot::viewer_snapshot(replay)?;
     } else {
-        if race.shared.replay_file.viewer_stopped.get() == 1 {
+        if race.shared.replay_file.viewer_stopped.is_set() {
             stopped(race)?;
         }
         crate::platform_3d::end_layer();

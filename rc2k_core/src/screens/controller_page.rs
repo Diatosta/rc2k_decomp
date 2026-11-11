@@ -1,4 +1,4 @@
-//! The controller page (converted 2026-10-20 from `screens::draw_controller_page`
+//! The controller page (from `screens::draw_controller_page`
 //! 0x46A454): the player's device, its mode and strength, the sensitivity, two sliders and
 //! the stick's place now; and `screens::draw_background_band` 0x4698C4, the background's
 //! band drawn again.

@@ -1,4 +1,4 @@
-//! What the processor is and has, and its clock (converted 2026-10-21 from
+//! What the processor is and has, and its clock (from
 //! `system::test_processor` 0x410883).
 //!
 //! The family is 3 when the flags' AC bit cannot be changed, 4 when the ID bit cannot (or

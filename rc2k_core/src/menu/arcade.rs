@@ -1,5 +1,5 @@
-//! The arcade's levels: which are open, and what a level's end does (converted 2026-10-21
-//! from `menu::arcade_level_1` .. `arcade_level_5` 0x487CC9 .. 0x487DE5,
+//! The arcade's levels: which are open, and what a level's end does
+//! (from `menu::arcade_level_1` .. `arcade_level_5` 0x487CC9 .. 0x487DE5,
 //! `menu::arcade_level_end` 0x48AD73 and `menu::arcade_finale` 0x488155). A level's
 //! "opened" byte is `byte_758800[level - 1]`; winning a level opens the next
 //! (`byte_758800[level]`).

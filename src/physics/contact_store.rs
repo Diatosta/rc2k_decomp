@@ -13,13 +13,13 @@ pub struct ContactWork {
     /// +0x0 (0x6D1DD8): the original's `race::eax_face_weight` kept the x of the middle of a face's second and third points here, which nothing read (a local now; kept for the layout).
     pub eax_mid_x: Float,
     /// +0x4 (0x6D1DDC): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_4: Dword,
+    pub unused_4: Dword,
     /// +0x8 (0x6D1DE0): the z of that middle (unused likewise).
     pub eax_mid_z: Float,
     /// +0xc (0x6D1DE4): the original's `point_from_car` x (a scene point's x less car 0's), never read: unused.
     pub eax_point_x: Dword,
     /// +0x10 (0x6D1DE8): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_10: Dword,
+    pub unused_10: Dword,
     /// +0x14 (0x6D1DEC): the z of the same, never read: unused.
     pub eax_point_z: Dword,
     /// +0x18 (0x6D1DF0): the original's `race::eax_face_weight` distance, never read: unused.
@@ -189,7 +189,7 @@ pub struct ContactWork {
     /// +0x142c (0x6D3204): A factor read as extended (`physics::contact_force`).
     pub contact_factor: Float,
     /// +0x1430 (0x6D3208): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_1430: [Dword; 3],
+    pub unused_1430: [Dword; 3],
     /// +0x143c (0x6D3214): The probe point being handled (`wall_contacts`, `crossed_edge_contact`, `wall_edge_contact`).
     pub probe_index: Dword,
     /// +0x1440 (0x6D3218): The course face tried (`physics::face_contact`, `touch_face`).

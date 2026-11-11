@@ -1,4 +1,4 @@
-//! The players' stage results pages (converted 2026-10-20): `screens::draw_players_results_points`
+//! The players' stage results pages: `screens::draw_players_results_points`
 //! 0x4836CF (with the points column) and `screens::draw_players_results` 0x48D32E (without),
 //! drawn by one loop over the rows each; their differences are the `Layout`. The original's
 //! slips are kept for now (bugs.md): 0x4836CF draws four rows for two players, tests the

@@ -1,4 +1,4 @@
-//! Words cut off a command line or a settings value (converted 2026-10-20 from
+//! Words cut off a command line or a settings value (from
 //! `system::next_argument` 0x4107B8).
 
 use crate::Invalid;

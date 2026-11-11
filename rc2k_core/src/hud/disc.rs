@@ -1,11 +1,11 @@
-//! The HUD's disc (converted 2026-10-21 from `hud::disc_vertex` 0x4B6D10 and
+//! The HUD's disc (from `hud::disc_vertex` 0x4B6D10 and
 //! `hud::turned_vertex` 0x4B7058): a ring of 0x11 entries (the centre and sixteen round
 //! it) made vertices, and the needle's turned vertices. As in `math::vector`, what the
 //! x87 keeps on its stack is an `f64`, rounded to `f32` where the original stores it: the
-//! same bits at the game's double precision. The disc's ring and triangles (converted
-//! 2026-10-21 from `hud::draw_disc` 0x4B6C4E) and the needle's turn and corners (from
+//! same bits at the game's double precision. The disc's ring and triangles
+//! (from `hud::draw_disc` 0x4B6C4E) and the needle's turn and corners (from
 //! `hud::draw_needle` 0x4B6ECD): the roundings that follow the x87's control word (the
-//! texture's turn, the needle's) stay the hook's, passed in or worked out from what these
+//! texture's turn, the needle's) stay with the caller, passed in or worked out from what these
 //! return.
 
 use crate::physics::x87::{below, loaded};

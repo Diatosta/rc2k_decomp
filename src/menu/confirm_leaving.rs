@@ -9,7 +9,7 @@ use crate::menu::leaving::with_question;
 
 /// `ask` puts the question (its screen); the answer (`g_yesNoAnswer`, 1 yes).
 pub fn confirm_leaving(ask: &mut dyn FnMut()) -> u32 {
-    // Converted: `rc2k_core::menu::leaving::Question` (`begin`, `confirm`).
+    // The logic is in `rc2k_core::menu::leaving::Question` (`begin`, `confirm`).
     with_question(|q, _| q.begin());
     ask();
     with_question(rc2k_core::menu::leaving::Question::confirm)

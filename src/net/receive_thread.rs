@@ -51,7 +51,7 @@ pub fn receive_thread() -> Result<(), Refused> {
                     vars.posted_result.set(call());
                     vars.posted_answered.set(1);
                 }
-                if system().session.flags.quitting.get() == 1 {
+                if system().session.flags.quitting.is_set() {
                     break;
                 }
             }

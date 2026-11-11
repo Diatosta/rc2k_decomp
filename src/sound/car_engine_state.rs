@@ -157,7 +157,7 @@ pub fn car_engine_state(
     store(so, &before, &object);
     revs_input(so, record);
     so.throttle_input
-        .set_bits(over_256(from_int(so.throttle.get() as i32)));
+        .set_bits(over_256(from_int(so.throttle.get() as i32).to_bits()));
     speed_input(so, &sound.race.surface);
     let before = load(so);
     let mut object = before;

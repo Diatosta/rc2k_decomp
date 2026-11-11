@@ -1,7 +1,7 @@
-//! The audio thread's sounds (converted 2026-10-21 from `audio::start_voice` 0x40A9D1,
+//! The audio thread's sounds (from `audio::start_voice` 0x40A9D1,
 //! `audio::update_voices` 0x40AC77's own-buffers way, `audio::stop_all_voices` 0x40AFD9,
 //! `audio::clear_channels` 0x40ACA1, `audio::find_shared_voice` 0x40B027,
-//! `audio::new_voice` 0x40B04C, `audio::replay_looping` 0x40A839; 2026-10-21 also
+//! `audio::new_voice` 0x40B04C, `audio::replay_looping` 0x40A839, also
 //! `audio::fill_voice` 0x40B06E, `audio::release_voice` 0x40B767's emptying and
 //! `audio::make_buffer` 0x40B5CF's flags): sample
 //! records, voices

@@ -1,4 +1,4 @@
-//! The menus (converted 2026-10-20): `screens::draw_menu_labels` 0x471EF0 (a menu's fixed
+//! The menus: `screens::draw_menu_labels` 0x471EF0 (a menu's fixed
 //! labels), `screens::draw_menu_item_text` 0x471E99 (an item's text, spaced out or not) and
 //! `screens::draw_menu_items` 0x471D0A (the items: what is behind each, then its text). The
 //! fonts are the menu tables' own (the screen's font type).

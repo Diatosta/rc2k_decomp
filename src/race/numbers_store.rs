@@ -13,7 +13,7 @@ pub struct Numbers {
     /// +0x0 (0x5C5CE0): `dword_5C5CE0`: the replay's mode, 1 recording, 2 playing (`drive::keep_replay_frame`; the scene skips the tyre screen while 2).
     pub replay_mode: Dword,
     /// +0x4 (0x5C5CE4): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_4: [Dword; 2],
+    pub unused_4: [Dword; 2],
     /// +0xc (0x5C5CEC): `g_inRace`.
     pub in_race: Flag,
     /// +0x10 (0x5C5CF0): 1609.3457 (`g_metresInMile`).
@@ -146,7 +146,7 @@ pub struct Numbers {
     /// `debug::draw`, written before each of the overlay's prints).
     pub debug_scale: Dword,
     /// +0x130 (0x5C5E10): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_130: [Dword; 2],
+    pub unused_130: [Dword; 2],
     /// +0x138 (0x5C5E18): 4096.0.
     pub k4096_a: Float,
     /// +0x13c (0x5C5E1C): 262144.0.

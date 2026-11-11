@@ -1,5 +1,4 @@
-//! `screens::draw_championship_standings` (0x4A5410; IDA had it as code outside any
-//! function, made one 2026-10-19): the championship's standings page: ten rows of the
+//! `screens::draw_championship_standings` (0x4A5410): the championship's standings page: ten rows of the
 //! history (`g_champHistory`) from row `g_champFirstRow`.
 //!
 //! The section's first record is looked up (`records::find_record`) and, in event mode 0x13,
@@ -46,7 +45,7 @@ pub fn draw_championship_standings(menus: &Menus, canvas: &mut dyn Canvas) -> Re
             break;
         }
     }
-    // Converted: `rc2k_core::screens::results_pages::championship_standings` (the rows found here).
+    // The logic is in `rc2k_core::screens::results_pages::championship_standings` (the rows found here).
     use rc2k_core::screens::results_pages::{StandingRow, championship_standings};
     let rows: Vec<StandingRow<HeldText>> = rows
         .into_iter()

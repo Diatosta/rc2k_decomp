@@ -28,7 +28,7 @@ pub fn show_frame(race: &Race) -> Result<Shown, Refused> {
             eax: kept,
         });
     }
-    if race.shared.work.in_credits.get() != 0 {
+    if race.shared.work.in_credits.is_set() {
         crate::race::frame_text::roll_credits(
             frame,
             1,

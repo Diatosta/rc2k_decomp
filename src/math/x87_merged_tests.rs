@@ -7,9 +7,13 @@
 use super::x87;
 use super::x87_float::{ONE, int, ld, st, to_int};
 
-struct Rng(u64);
+pub(super) struct Rng(u64);
 
 impl Rng {
+    pub(super) fn new(seed: u64) -> Self {
+        Rng(seed)
+    }
+
     fn next(&mut self) -> u64 {
         self.0 ^= self.0 << 13;
         self.0 ^= self.0 >> 7;
@@ -17,7 +21,11 @@ impl Rng {
         self.0
     }
 
-    fn float(&mut self) -> u32 {
+    pub(super) fn flag(&mut self) -> bool {
+        self.next() & 1 == 1
+    }
+
+    pub(super) fn float(&mut self) -> u32 {
         const SPECIAL: [u32; 16] = [
             0x0000_0000,
             0x8000_0000,
@@ -43,7 +51,7 @@ impl Rng {
         }
     }
 
-    fn whole(&mut self) -> i32 {
+    pub(super) fn whole(&mut self) -> i32 {
         const EDGE: [i32; 6] = [0, 1, -1, i32::MIN, i32::MAX, 0x100];
         match self.next() % 3 {
             0 => EDGE[(self.next() % 6) as usize],
@@ -66,7 +74,7 @@ fn each(seed: u64, mut check: impl FnMut(&mut Rng)) {
 fn from_int_and_int_to_float() {
     each(1, |r| {
         let a = r.whole();
-        assert_eq!(x87::from_int(a), st(int(a)));
+        assert_eq!(x87::from_int(a).to_bits(), st(int(a)));
     });
 }
 
@@ -75,7 +83,7 @@ fn int_ratio_for_the_three_old_names() {
     each(2, |r| {
         let (a, b) = (r.whole(), r.whole());
         let old = st(int(a) / int(b));
-        assert_eq!(x87::int_ratio(a, b), old, "{a} {b}");
+        assert_eq!(x87::int_ratio(a, b).to_bits(), old, "{a} {b}");
     });
 }
 
@@ -83,7 +91,11 @@ fn int_ratio_for_the_three_old_names() {
 fn int_over_for_the_old_int_div_and_int_over_float() {
     each(3, |r| {
         let (a, b) = (r.whole(), r.float());
-        assert_eq!(x87::int_over(a, b), st(int(a) / ld(b)), "{a} {b:x}");
+        assert_eq!(
+            x87::int_over(a, b).to_bits(),
+            st(int(a) / ld(b)),
+            "{a} {b:x}"
+        );
     });
 }
 
@@ -93,7 +105,7 @@ fn ext_less_for_the_old_ext_sub() {
         let (v, k) = (r.float(), r.float());
         let e = crate::math::x87_float::f80(ld(v));
         assert_eq!(
-            x87::ext_less(e, k),
+            x87::ext_less(e, k).to_bits(),
             st(crate::math::x87_float::from_f80(e) - ld(k))
         );
     });
@@ -104,7 +116,7 @@ fn toward_one_for_the_old_one_less_times_plus() {
     each(5, |r| {
         let (d, s) = (r.float(), r.float());
         let old = st((ONE - ld(d)) * ld(s) + ld(d));
-        assert_eq!(x87::toward_one(d, s), old, "{d:x} {s:x}");
+        assert_eq!(x87::toward_one(d, s).to_bits(), old, "{d:x} {s:x}");
     });
 }
 
@@ -121,7 +133,7 @@ fn sub_mul_of_the_two_old_modules() {
     each(7, |r| {
         let (a, b, c) = (r.float(), r.float(), r.float());
         let old = st((ld(a) - ld(b)) * ld(c));
-        assert_eq!(x87::sub_mul(a, b, c), old);
+        assert_eq!(x87::sub_mul(a, b, c).to_bits(), old);
     });
 }
 
@@ -129,7 +141,7 @@ fn sub_mul_of_the_two_old_modules() {
 fn mul_for_the_old_square() {
     each(8, |r| {
         let a = r.float();
-        assert_eq!(x87::mul(a, a), st(ld(a) * ld(a)));
+        assert_eq!(x87::mul(a, a).to_bits(), st(ld(a) * ld(a)));
     });
 }
 
@@ -137,7 +149,7 @@ fn mul_for_the_old_square() {
 fn mul2_for_the_old_product3() {
     each(9, |r| {
         let (a, b, c) = (r.float(), r.float(), r.float());
-        assert_eq!(x87::mul2(a, b, c), st(ld(a) * ld(b) * ld(c)));
+        assert_eq!(x87::mul2(a, b, c).to_bits(), st(ld(a) * ld(b) * ld(c)));
     });
 }
 
@@ -159,17 +171,22 @@ fn minus_one_literal() {
 fn negated_steps_for_the_old_negated_helpers() {
     each(11, |r| {
         let (a, b, c, d) = (r.float(), r.float(), r.float(), r.float());
-        assert_eq!(x87::negated(x87::sub(a, b)), st(-(ld(a) - ld(b))));
-        assert_eq!(x87::negated(x87::mul(a, b)), st(-(ld(a) * ld(b))));
+        assert_eq!(x87::negated(x87::sub(a, b)).to_bits(), st(-(ld(a) - ld(b))));
+        assert_eq!(x87::negated(x87::mul(a, b)).to_bits(), st(-(ld(a) * ld(b))));
         assert_eq!(
-            x87::negated(x87::mul2(a, b, c)),
+            x87::negated(x87::mul2(a, b, c)).to_bits(),
             st(-(ld(a) * ld(b) * ld(c)))
         );
         assert_eq!(
-            x87::negated(x87::product_difference(a, b, c, d)),
+            x87::negated(x87::product_difference(a, b, c, d)).to_bits(),
             st(-(ld(a) * ld(b) - ld(c) * ld(d)))
         );
     });
+}
+
+/// Two float results are the same bits (a NaN with the same payload counts).
+fn same(a: f32, b: f32) {
+    assert_eq!(a.to_bits(), b.to_bits());
 }
 
 /// The typed operands: a float, a cell and bits give the same bits.
@@ -190,20 +207,20 @@ fn operands_as_bits_floats_and_cells_agree() {
             Float::from_bits(c),
             Float::from_bits(d),
         );
-        assert_eq!(x87::mul(a, b), x87::mul(fa, fb));
-        assert_eq!(x87::mul(a, b), x87::mul(&ca, &cb));
-        assert_eq!(x87::add(a, b), x87::add(&ca, fb));
-        assert_eq!(x87::sub(a, b), x87::sub(fa, &cb));
-        assert_eq!(x87::div(a, b), x87::div(&ca, &cb));
-        assert_eq!(x87::loaded(a), x87::loaded(&ca));
-        assert_eq!(x87::negated(a), x87::negated(fa));
+        same(x87::mul(a, b), x87::mul(fa, fb));
+        same(x87::mul(a, b), x87::mul(&ca, &cb));
+        same(x87::add(a, b), x87::add(&ca, fb));
+        same(x87::sub(a, b), x87::sub(fa, &cb));
+        same(x87::div(a, b), x87::div(&ca, &cb));
+        same(x87::loaded(a), x87::loaded(&ca));
+        same(x87::negated(a), x87::negated(fa));
         assert_eq!(x87::to_int(a), x87::to_int(&ca));
         assert_eq!(x87::mul_to_int(a, b), x87::mul_to_int(&ca, fb));
-        assert_eq!(x87::mul2(a, b, c), x87::mul2(&ca, &cb, &cc));
-        assert_eq!(x87::mul_add(a, b, c), x87::mul_add(fa, &cb, fc));
-        assert_eq!(
+        same(x87::mul2(a, b, c), x87::mul2(&ca, &cb, &cc));
+        same(x87::mul_add(a, b, c), x87::mul_add(fa, &cb, fc));
+        same(
             x87::product_difference(a, b, c, d),
-            x87::product_difference(&ca, fb, &cc, fd)
+            x87::product_difference(&ca, fb, &cc, fd),
         );
         let _ = (cd, fd);
     });

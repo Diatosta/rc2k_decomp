@@ -1,5 +1,5 @@
 //! The list menus (the replay viewer's, `install::run_page`'s): their items' marks and kinds, the
-//! highlight's moves and the keys' repeat count (converted 2026-10-21 from
+//! highlight's moves and the keys' repeat count (from
 //! `menu::list_clear_marks` 0x414AC9, `menu::list_item_unusable` 0x414C1B,
 //! `menu::list_step` 0x414A55 and `menu::list_take_key` 0x41469A). An item is 16 bytes:
 //! its first byte the marks (bits 6 and 7) and the kind (low nibble); a kind 2 item has

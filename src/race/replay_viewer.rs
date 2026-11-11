@@ -97,7 +97,7 @@ pub fn replay_viewer(race: &Race, mode: Mode) -> Result<(), Refused> {
     // The end (0x41D436).
     crate::race::close_viewed_replay::close_viewed_replay(race)?;
     crate::race::viewer_tidy_stage::viewer_tidy_stage(race)?;
-    race.shared.replay_file.viewer_stopped.set(0);
+    race.shared.replay_file.viewer_stopped.set(false);
     race.shared.replay_file.hold_car_revs.set(0);
     Ok(())
 }
@@ -132,7 +132,7 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
         }
     };
     race.shared.replay_file.viewer_slot.set(slot);
-    race.shared.replay_file.viewer_stopped.set(1);
+    race.shared.replay_file.viewer_stopped.set(true);
     let failed = open_viewed_replay::open_viewed_replay(race, slot)?;
     if failed {
         return Ok(());
@@ -140,10 +140,7 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .camera_edit
         .set(0);
-    replay
-        .replay_view
-        .last_race_viewed
-        .set((slot == LAST_RACE) as u32);
+    replay.replay_view.last_race_viewed.set(slot == LAST_RACE);
     find_snapshot_number::find_snapshot_number(&race.replay)?;
     viewer_load_stage::viewer_load_stage(race)?;
     let list = ListMenu::of(crate::pointers::GamePtr::to(
@@ -176,7 +173,7 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
             .set(session.clocks.key_ticks.get());
         install.pages.choice_before.set(install.pages.choice.get());
         let mut key = crate::menu::list_take_key::list_take_key();
-        if session.flags.quitting.get() == 1 {
+        if session.flags.quitting.is_set() {
             return Ok(());
         }
         if replay.replay_view.wait_key_release.get() == 1 {
@@ -199,10 +196,10 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
         if key != 0 {
             replay.replay_view.escape_count.set(0);
         }
-        if race.shared.replay_file.viewer_stopped.get() != 1 {
+        if !race.shared.replay_file.viewer_stopped.is_set() {
             let ended = step_viewed_replay::step_viewed_replay(race)?;
             if ended || key != 0 {
-                race.shared.replay_file.viewer_stopped.set(1);
+                race.shared.replay_file.viewer_stopped.set(true);
             }
             continue;
         }

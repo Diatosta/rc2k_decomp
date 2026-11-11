@@ -1,4 +1,4 @@
-//! The service area's inspection status (converted 2026-10-20 from
+//! The service area's inspection status (from
 //! `screens::draw_inspection_status` 0x4A6B54): 100 less the weights of the damaged parts
 //! not chosen for repair, as a bar between "fail" and "pass" with a sprite at its left.
 

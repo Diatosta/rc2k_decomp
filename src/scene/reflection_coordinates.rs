@@ -74,9 +74,9 @@ pub fn reflection_coordinates(
     crate::session::write_first(
         &m.work_vector,
         &[
-            x87::loaded(mirrored[0]),
-            x87::add(mirrored[1], &race.course.numbers.one),
-            x87::loaded(mirrored[2]),
+            x87::loaded(mirrored[0]).to_bits(),
+            x87::add(mirrored[1], &race.course.numbers.one).to_bits(),
+            x87::loaded(mirrored[2]).to_bits(),
         ],
     );
     normalise_vector(race, &m.work_vector)?;

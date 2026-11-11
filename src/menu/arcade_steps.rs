@@ -38,7 +38,7 @@
 //!   down one, up to and with the end mark; `saves::list_car_numbers`.
 //! - `menu::secret_car_list`: with cheat bit 1, the secret car list; the carry is the bit.
 //!
-//! Converted (2026-10-21): the entries' logic is `rc2k_core::menu::bests` and
+//! The entries' logic is `rc2k_core::menu::bests` and
 //! `rc2k_core::menu::standings`; this file reads and writes the game's memory for it.
 //!
 //! Refusals (before anything): a level past 5, a stage past 6, a missing record or table
@@ -112,7 +112,7 @@ fn current(menus: &Menus) -> Result<(u32, crate::menu::standings::PlayerCell<'_>
 /// `menu::keep_arcade_stage_best`, `record` the caller's edi.
 pub fn keep_arcade_stage_best(menus: &Menus, record: RecordRef) -> Result<(), Refused> {
     let (_, player) = current(menus)?;
-    // Converted: `rc2k_core::menu::bests::takes_record`.
+    // The logic is in `rc2k_core::menu::bests::takes_record`.
     let figure = player.get().figure;
     if bests::takes_record(figure, record.record()?.holder(Holder::Fastest).speed) {
         name_player(&player.get())?;
@@ -123,7 +123,7 @@ pub fn keep_arcade_stage_best(menus: &Menus, record: RecordRef) -> Result<(), Re
 }
 
 pub fn check_arcade_level_score(menus: &Menus) -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::bests::makes_score`.
+    // The logic is in `rc2k_core::menu::bests::makes_score`.
     let best = with_level_scores(&menus.play, |ten| ten[9].key)?;
     if bests::makes_score(menus.play.results.totals[0].get(), best) {
         menus.screens.event.time_qualifies.set(1);
@@ -137,7 +137,7 @@ pub fn check_arcade_stage_time(menus: &Menus) -> Result<(), Refused> {
     let (_, player) = current(menus)?;
     let time = player.get().time;
     screens.event.player_time.set(time);
-    // Converted: `rc2k_core::menu::bests::makes_time`.
+    // The logic is in `rc2k_core::menu::bests::makes_time`.
     if bests::makes_time(time, with_course_times(&menus.play, |ten| ten[9].head.key)?) {
         screens.event.time_qualifies.set(1);
     }
@@ -177,7 +177,7 @@ pub fn enter_arcade_stage_time(menus: &Menus) -> Result<(), Refused> {
     menus.screens.draw_work.figure.set(course);
     let cheats = menus.play.cheats.cheats.get();
     let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, course)?;
-    // Converted: `rc2k_core::saves::entries` (`BestTime::enter`, `sort_arcade_times`).
+    // The logic is in `rc2k_core::saves::entries` (`BestTime::enter`, `sort_arcade_times`).
     let seal = bests::Seal { cheats, sealed };
     let best = new_best(
         menus,
@@ -199,7 +199,7 @@ pub fn enter_arcade_level_score(menus: &Menus) -> Result<(), Refused> {
     with_level_scores(&menus.play, |_| ())?;
     let (n, player) = current(menus)?;
     name_player(&player.get())?;
-    // Converted: `rc2k_core::saves::entries` (`Entry::enter`, `sort_level_scores`).
+    // The logic is in `rc2k_core::saves::entries` (`Entry::enter`, `sort_level_scores`).
     let score = (if n == 1 { SCORE_1 } else { SCORE }).get();
     let best = new_best(menus, player, score, None, None)?;
     with_level_scores(&menus.play, |ten| {
@@ -216,7 +216,7 @@ pub fn score_arcade_stage(menus: &Menus) -> Result<(), Refused> {
     let first = crate::menu::standings::player(menus, 0);
     play.results.before[0].set(play.results.totals[0].get());
     play.results.extra[0].set(first.get().figure);
-    // Converted: `rc2k_core::menu::standings::arcade_points`.
+    // The logic is in `rc2k_core::menu::standings::arcade_points`.
     let points =
         standings::arcade_points(play.arcade.places.get(), play.results.positions[0].get());
     play.results.points[0].set(points);
@@ -229,19 +229,19 @@ pub fn score_arcade_stage(menus: &Menus) -> Result<(), Refused> {
 }
 
 pub fn clear_arcade_score_marks(play: &Play) -> Result<(), Refused> {
-    // Converted: `rc2k_core::saves::entries::clear_marks`.
+    // The logic is in `rc2k_core::saves::entries::clear_marks`.
     with_level_scores(play, rc2k_core::saves::entries::clear_marks)?;
     Ok(())
 }
 
 pub fn clear_arcade_time_marks(play: &Play) -> Result<(), Refused> {
-    // Converted: `rc2k_core::saves::entries::clear_marks`.
+    // The logic is in `rc2k_core::saves::entries::clear_marks`.
     with_course_times(play, rc2k_core::saves::entries::clear_marks)?;
     Ok(())
 }
 
 pub fn take_arcade_stage_best(play: &Play) -> Result<(), Refused> {
-    // Converted: `rc2k_core::saves::entries::BestTime::line`.
+    // The logic is in `rc2k_core::saves::entries::BestTime::line`.
     let line = with_course_times(play, |ten| ten[0].line())?;
     race().shared.state.results.results[0].data.write(&line);
     Ok(())
@@ -255,7 +255,7 @@ fn end_of(list: &[Dword], len: u32) -> Result<u32, Refused> {
 }
 
 pub fn add_shown_car(menus: &Menus) -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::car_lists` (`entries`, `shown_car`).
+    // The logic is in `rc2k_core::menu::car_lists` (`entries`, `shown_car`).
     use rc2k_core::menu::car_lists::{entries, shown_car};
     let list = |cells: &[Dword], len: u32| entries(len as usize, |k| cells[k].get());
     let shown = menus.screens.event.shown_car.get();
@@ -279,7 +279,7 @@ pub fn remove_shown_car(
     if shown >= end {
         return Err(BadInput("a shown car past the list").into());
     }
-    // Converted: `rc2k_core::menu::standings::remove_at`.
+    // The logic is in `rc2k_core::menu::standings::remove_at`.
     let mut cars: [u32; SHOWN_LIST_LEN as usize] = read_all(&menus.tables.lists.shown_cars);
     standings::remove_at(&mut cars, shown as usize, end as usize);
     write_all(&menus.tables.lists.shown_cars, cars);

@@ -1,4 +1,4 @@
-//! A player, 0x28C bytes (`Player` in IDA; converted 2026-10-21 with the players' details
+//! A player, 0x28C bytes (`Player` in IDA), with the players' details
 //! pages' settings, `menu::next_nationality` 0x467AFD .. `menu::flip_codriver` 0x467BD6,
 //! `menu::next_car_number` 0x470D7F / `previous_car_number` 0x470DA1,
 //! `menu::raise_sensitivity` 0x470F05 / `lower_sensitivity` 0x470F2D and the nine visual
@@ -665,7 +665,7 @@ pub fn place_key(keys: &mut [u8; KEYS], place: usize, key: u8, reserved: &[u8]) 
     true
 }
 
-/// What a frame of redefining (converted 2026-10-21 from `menu::redefine_keys`' pages) does
+/// What a frame of redefining (from `menu::redefine_keys`' pages) does
 /// with the pending key.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Redefined {
@@ -679,14 +679,14 @@ pub enum Redefined {
 /// The redefine keys page's state (`g_redefiningKey`, `g_redefinedKeyPlace`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Redefining {
-    pub on: u32,
+    pub on: bool,
     pub place: u32,
 }
 
 impl Redefining {
     /// `menu::choose_key_n`: the key at `place` is to be redefined.
     pub fn start(place: u32) -> Self {
-        Redefining { on: 1, place }
+        Redefining { on: true, place }
     }
 }
 

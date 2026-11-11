@@ -29,11 +29,11 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    set_up_first: &[Step::Write(|m| &m.screens.flow.asking, 0x1)],
+    set_up_first: &[Step::WriteFlag(|m| &m.screens.flow.asking, true)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.leave_question_picture
     }))],
-    after: &[Step::Write(|m| &m.screens.flow.asking, 0x0)],
+    after: &[Step::WriteFlag(|m| &m.screens.flow.asking, false)],
     frames: Frames {
         first_frame_lists: Some(&[
             List {

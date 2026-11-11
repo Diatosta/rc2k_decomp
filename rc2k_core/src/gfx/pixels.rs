@@ -1,8 +1,8 @@
-//! Pixels, palettes and textures (converted 2026-10-20 from `gfx::describe_format`
+//! Pixels, palettes and textures (from `gfx::describe_format`
 //! 0x405BB6, `components_to_pixel` 0x405C8A, `pixel_to_components` 0x405CFA,
 //! `blend_palette` 0x405F0A, `fade_colour` 0x44A4C5, `palette_to_dwords` 0x405DDE,
 //! `least_colour` 0x4053BC, `alpha_from_kept` 0x405443, `key_texture_colours` 0x40540C,
-//! `grade_texture` 0x4055A2, `halve_texture` 0x40545F; 2026-10-21 also the brighter
+//! `grade_texture` 0x4055A2, `halve_texture` 0x40545F; also the brighter
 //! palette of `gfx::build_game_fonts` 0x41B178).
 //!
 //! The game works in "components": a dword whose bytes 0, 1, 2 are a colour and byte 3
@@ -405,7 +405,7 @@ pub fn pack_row(
     Ok(kept)
 }
 
-/// The row table (`gfx::fill_row_table` 0x40586A, converted 2026-10-21): `rows` addresses,
+/// The row table (`gfx::fill_row_table` 0x40586A): `rows` addresses,
 /// `step` apart from `first` (wrapping).
 pub fn row_table(first: u32, step: u32, rows: usize) -> Vec<u32> {
     (0..rows as u32)

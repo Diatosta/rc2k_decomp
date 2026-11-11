@@ -53,7 +53,7 @@ pub fn viewer_load_stage(race: &Race) -> Result<(), Refused> {
     use crate::race::{race_end, race_shell, sound_tables, stage_free, stage_loading};
     #[cfg(feature = "remote")]
     crate::remote::shots_loading();
-    if shared.replay_file.replay_open.get() == 1 {
+    if shared.replay_file.replay_open.is_set() {
         stage_free::render3d_tidy(race)?;
         stage_free::objects_tidy(race)?;
         // nullsub_6

@@ -10,14 +10,14 @@ use crate::session::Dword;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct GroundProbe {
-    /// +0x0 (0x620458): `dword_620458`: not used by the Rust side.
-    pub unknown_0: Dword,
-    /// +0x4 (0x62045C): `dword_62045C`: not used by the Rust side.
-    pub unknown_4: Dword,
+    /// +0x0 (0x620458): `dword_620458`: referenced only by dead code outside any function (0x450330 ..); the port never reaches it.
+    pub unused_0: Dword,
+    /// +0x4 (0x62045C): `dword_62045C`: referenced only by dead code outside any function (0x450330 ..); the port never reaches it.
+    pub unused_4: Dword,
     /// +0x8 (0x620460): `qword_620460`: the product of the edge test, low then high dword (`physics::crossed_edge_contact`, `physics::ground`, `race::car_shadow`).
     pub product: [Dword; 2],
     /// +0x10 (0x620468): no instruction of the game refers to it (IDA, 2026-11-10); unused.
-    pub unknown_10: [Dword; 2],
+    pub unused_10: [Dword; 2],
     /// +0x18 (0x620470): `dword_620470`: 0x40 or 0x80 by the caller of the ground search (`physics::count_ground_probe`, `physics::move_slot`, `physics::probe_ground`, `race::car_starts`).
     pub settle_mark: Dword,
 }

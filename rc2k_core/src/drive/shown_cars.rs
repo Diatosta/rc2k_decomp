@@ -1,4 +1,4 @@
-//! Which cars the views show (converted 2026-10-21 from `drive::choose_shown_cars`
+//! Which cars the views show (from `drive::choose_shown_cars`
 //! 0x4560EA): the cars the views show, by the players, a network game (this machine's
 //! car only) and a playing replay's layout (the replay frame head's byte +5).
 

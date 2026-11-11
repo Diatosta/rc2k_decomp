@@ -36,7 +36,7 @@ impl Parts for Game {
     }
 
     fn quitting(&mut self) -> bool {
-        system().session.flags.quitting.get() == 1
+        system().session.flags.quitting.is_set()
     }
 }
 

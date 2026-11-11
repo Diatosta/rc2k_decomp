@@ -1,7 +1,7 @@
-//! The car's contacts with the ground and with objects' points (converted
+//! The car's contacts with the ground and with objects' points (
 //! from `physics::crash_contact` 0x45EDB5, `ground_contact` 0x45EFF3, `point_hits_car`
 //! 0x45E800 and `object_hits_car` 0x45E755, its walk over the object's points; their
-//! x87 steps, the turns and the force, stay the hooks'): when the body's deepest point
+//! x87 steps, the turns and the force, stay with the callers): when the body's deepest point
 //! touches, which face normal a contact takes, and whether an object's point lies inside
 //! the car's box.
 

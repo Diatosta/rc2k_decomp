@@ -1,7 +1,7 @@
 //! `race::credits_race` (0x463666): the credits' race (the demonstration the films play between
 //! them): `replay_mode` 0, `g_holdCarRevs` 0, `noise_seed` 0x12345678, `arcade_kind` 2, `editor_mode`
 //! 0; `race::set_up_credits_race`, `race::set_up_arcade_cars`, `race::set_start_states`;
-//! `in_credits` 1; "INIT CREDITS - track", the stage, "car", the car kinds logged (level 1);
+//! `in_credits` set; "INIT CREDITS - track", the stage, "car", the car kinds logged (level 1);
 //! `race::load_stage`; `race::roll_credits` started; `after_credits` 0; `drive::play_race`;
 //! `in_credits` 0; `race::tidy_everything`.
 //!
@@ -29,7 +29,7 @@ pub fn credits_race(race: &Race) -> Result<(), Refused> {
     crate::race::set_up_credits_race::set_up_credits_race(&race.shared)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
     crate::race::race_shell::set_start_states(race)?;
-    race.shared.work.in_credits.set(1);
+    race.shared.work.in_credits.set(true);
     let word = |n: usize| &WORDS[n];
     crate::logfile::log_write::log_nul(word(0), false, 1);
     log_int(race.shared.vars.stage_number.get() as i32, false, 1);
@@ -45,6 +45,6 @@ pub fn credits_race(race: &Race) -> Result<(), Refused> {
     )?;
     race.shared.view.after_credits.set(0);
     crate::drive::play_race::play_race(race, crate::scene::owner::scene())?;
-    race.shared.work.in_credits.set(0);
+    race.shared.work.in_credits.set(false);
     crate::race::race_end::tidy_everything(race)
 }

@@ -1,8 +1,9 @@
-//! The championships' welcomes (converted 2026-10-21 from `menu::championship_welcome`
+//! The championships' welcomes (from `menu::championship_welcome`
 //! 0x47F314 and `menu::a8_welcome` 0x47F3C7): the picture, a key, and Escape asking about
 //! leaving, a no starting over; the championship's with its speech.
 
 use super::flow::{Call, Game, Picture, Var};
+use super::leaving::Switch;
 
 /// The picture that cannot be read: fatal error 0x80712345, no message.
 pub const NO_PICTURE: (u32, &str) = (0x8071_2345, "");
@@ -33,8 +34,8 @@ pub fn championship_welcome<G: Game>(e: &mut G) -> Result<(), G::Error> {
         let channel = e.get(Var::SpeechChannel);
         e.run(Call::StartStream { channel })?;
         e.run(Call::WaitForCommands)?;
-        e.set(Var::EventLeft, 0);
-        e.set(Var::LeaveScreen, 0);
+        e.set_flag(Switch::EventLeft, false);
+        e.set_flag(Switch::LeaveScreen, false);
         e.set(Var::Answer, 0);
         picture(e, Picture::Championship)?;
         e.take_key()?;
@@ -42,7 +43,7 @@ pub fn championship_welcome<G: Game>(e: &mut G) -> Result<(), G::Error> {
         let mut key = e.wait_or_key(FIRST_WAIT)?;
         if key.is_none() {
             loop {
-                if !e.stream_playing()? || e.get(Var::Quitting) == 1 {
+                if !e.stream_playing()? || e.flag(Switch::Quitting) {
                     return Ok(());
                 }
                 key = e.take_key()?;

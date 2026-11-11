@@ -1,4 +1,4 @@
-//! The share used at a start (converted 2026-10-21 from `drive::start_blend` 0x43773D):
+//! The share used at a start (from `drive::start_blend` 0x43773D):
 //! the checkpoints the work car is past the lead's start, held to 0 ..= 100, times a step,
 //! added to a base and an offset, held to 0 ..= 1. It is the computer driver's skill share: 0 holds its wanted speed down to 30, 1 lets it drive the full
 //! table speed (`drive_computer_car`).

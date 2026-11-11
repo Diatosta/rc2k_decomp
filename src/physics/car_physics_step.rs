@@ -85,7 +85,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     race.shared
         .physics_tables
         .vertical_speed
-        .set_bits(loaded(&race.shared.car.velocity[1]));
+        .set_bits(loaded(&race.shared.car.velocity[1]).to_bits());
     for cell in [
         &race.shared.physics_tables.clear_place_mark,
         &race.shared.car.contact_flag,
@@ -263,7 +263,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     ph::track_checkpoints::track_checkpoints(race, scene, sound)?;
     ph::pace_notes_step::pace_notes_step(race, scene, sound)?;
     ph::count_down_notice::count_down_notice(&race.shared.car);
-    ph::turn_wheel_angles::turn_wheel_angles(&race.shared.car, &race.shared.vars, scene);
+    ph::accumulate_mud::accumulate_mud(&race.shared.car, &race.shared.vars, scene);
     x87_1(race);
     ph::store_motion_length::store_motion_length(&race.shared.car);
     ph::damage_step::damage_step(&race.shared.car, &race.physics.damage, &race.shared.work);

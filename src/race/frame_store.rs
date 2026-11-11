@@ -73,7 +73,7 @@ pub struct FrameWork {
     /// +0x15c (0x6416E8): the car's place for the camera (`physics::update_camera`, `physics::place_camera`).
     pub camera_car: [Dword; 3],
     /// +0x168 (0x6416F4): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_168: Dword,
+    pub unused_168: Dword,
     /// +0x16c (0x6416F8): `g_carDecalPlaces`.
     pub car_decal_places: [Dword; 18],
     /// +0x1b4 (0x641740): (`race::car_draw`).
@@ -95,7 +95,7 @@ pub struct FrameWork {
     /// view's (`CarDrawState::part_matrices`).
     pub part_matrices: [Float; 64],
     /// +0x354 (0x6418E0): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_354: [Dword; 18],
+    pub unused_354: [Dword; 18],
     /// +0x39c (0x641928): (`race::car_shadow`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_strength: Dword,
     /// +0x3a0 (0x64192C): `g_shadowPointCount`. Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
@@ -103,11 +103,11 @@ pub struct FrameWork {
     /// +0x3a4 (0x641930): (`race::car_shadow`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_texture: Dword,
     /// +0x3a8 (0x641934): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_3a8: Dword,
+    pub unused_3a8: Dword,
     /// +0x3ac (0x641938): (`race::car_shadow`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_light: [Dword; 3],
     /// +0x3b8 (0x641944): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_3b8: Dword,
+    pub unused_3b8: Dword,
     /// +0x3bc (0x641948): the shadow's corners, x and z twice (`race::car_shadow`). Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_corners: [Dword; 4],
     /// +0x3cc (0x641958): `race::car_shadow`'s work dwords. Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.

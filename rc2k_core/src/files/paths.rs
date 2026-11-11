@@ -1,4 +1,4 @@
-//! The game's paths as text (converted 2026-10-20 from `files::append_directory` 0x403070,
+//! The game's paths as text (from `files::append_directory` 0x403070,
 //! `files::append_file_name` 0x403040, `files::numbered_path` 0x403292,
 //! `files::resolve_path` 0x403206, `files::swap_missing_extension` 0x4032DB). Paths are
 //! given without their NUL.
@@ -104,7 +104,7 @@ pub fn missing_partner(path: &[u8]) -> Option<&'static [u8; 4]> {
         .map(|(_, to)| *to)
 }
 
-/// The root `files::drive_type` (0x4031D8, converted 2026-10-21) asks about: `x:\` with
+/// The root `files::drive_type` (0x4031D8) asks about: `x:\` with
 /// the letter lowered (`lower`, the game's case table), with its NUL; None (the current
 /// drive) for a letter of 0.
 pub fn drive_root(letter: u8, lower: impl FnOnce(u8) -> u8) -> Option<[u8; 4]> {

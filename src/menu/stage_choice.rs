@@ -1,4 +1,4 @@
-//! The stage choice's own steps (IDA, 2026-10-15): the UK map with the chosen stage
+//! The stage choice's own steps: the UK map with the chosen stage
 //! (`menu::draw_stage_map`, 14 callers), and the choice's three settings stepped, each then
 //! drawing the map again.
 

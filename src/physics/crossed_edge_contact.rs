@@ -107,10 +107,13 @@ pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
         .set_bits(race_owner.physics.contact.probe_turned_y[k].bits());
     race_owner.physics.contact.contact_point[2]
         .set_bits(race_owner.physics.contact.probe_turned_z[k].bits());
-    race_owner.physics.contact.contact_point[1].set_bits(mul(
-        &race_owner.physics.contact.contact_point[1],
-        &race_owner.course.numbers.tenth,
-    ));
+    race_owner.physics.contact.contact_point[1].set_bits(
+        mul(
+            &race_owner.physics.contact.contact_point[1],
+            &race_owner.course.numbers.tenth,
+        )
+        .to_bits(),
+    );
     race_owner.physics.contact.contact_slide_limit.set_bits(0);
     contact_force(race, &race.shared.physics_tables.contacts[1], scene);
     { crate::physics::place_sound_e1::place_sound_e1(race) }?;

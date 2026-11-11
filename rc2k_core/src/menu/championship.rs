@@ -1,10 +1,11 @@
-//! The two championships' driver (converted 2026-10-21 from `menu::run_championship`
+//! The two championships' driver (from `menu::run_championship`
 //! 0x4A0E60 and `menu::run_a8_championship` 0x4AA4D7): a whole championship from its
 //! start or a saved game, section by section and record by record of `g_recordTable`,
 //! with the stages' races, results, services and standings, to its finish. Its steps in
 //! the originals' order, on `flow::Game`; `a8` for the A8's differences.
 
 use super::flow::{Call, Game, Var};
+use super::leaving::Switch;
 
 /// The records' kinds (their first dword).
 pub const STAGE: u32 = 0;
@@ -104,8 +105,8 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
     e.run(Call::TakePlayer1Units)?;
     e.run(Call::HideAllInGameOptions)?;
     e.set(Var::Answer, 0);
-    e.set(Var::LeaveScreen, 0);
-    e.set(Var::EventLeft, 0);
+    e.set_flag(Switch::LeaveScreen, false);
+    e.set_flag(Switch::EventLeft, false);
     e.set(Var::Mode, if a8 { 0x13 } else { 2 });
     e.set(Var::ModeAB40, if a8 { 1 } else { 2 });
     if e.get(start_section) == 0 {
@@ -128,12 +129,8 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
     loop {
         at = match at {
             At::Section => {
-                for v in [
-                    Var::EscapePressed,
-                    Var::ServiceTime,
-                    Var::ServiceDue,
-                    Var::TheEnd,
-                ] {
+                e.set_flag(Switch::EscapePressed, false);
+                for v in [Var::ServiceTime, Var::ServiceDue, Var::TheEnd] {
                     e.set(v, 0);
                 }
                 e.set(Var::GoesOn, 1);
@@ -146,7 +143,7 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                 At::Record
             }
             At::Record => {
-                e.set(Var::RallyDone, 0);
+                e.set_flag(Switch::RallyDone, false);
                 let section = e.get(Var::Section);
                 let index = e.get(Var::Index);
                 e.run(Call::FindRecord { section, index })?;
@@ -243,7 +240,7 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                 e.run(Call::ChampionshipStandingsReview)?;
                 e.set(Var::ResetTimes, 0);
                 e.set(Var::GoesOn, 1);
-                if e.yes() || e.get(Var::AskLeave) == 1 || e.get(Var::EscapePressed) == 1 {
+                if e.yes() || e.flag(Switch::AskLeave) || e.flag(Switch::EscapePressed) {
                     break 'standings At::End;
                 }
                 e.inc(Var::Section);
@@ -252,15 +249,11 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                 At::Section
             }
             At::RallyResults => 'results: {
-                e.set(Var::RallyDone, 1);
-                for v in [
-                    Var::EventLeft,
-                    Var::LeaveScreen,
-                    Var::LeftByKey,
-                    Var::GoesOn,
-                ] {
-                    e.set(v, 0);
-                }
+                e.set_flag(Switch::RallyDone, true);
+                e.set_flag(Switch::EventLeft, false);
+                e.set_flag(Switch::LeaveScreen, false);
+                e.set_flag(Switch::LeftByKey, false);
+                e.set(Var::GoesOn, 0);
                 if screens(
                     e,
                     &[
@@ -309,7 +302,7 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                 if e.get(Var::StagesDone) as i32 >= 1 {
                     let next = e.next_record_kind()?;
                     if next == THE_END || next == SECTION_END {
-                        e.set(Var::RallyDone, 1);
+                        e.set_flag(Switch::RallyDone, true);
                     }
                     if screens(e, &[Call::StandingsAFromAll, Call::ClassRallyResultsPass])? {
                         break 'races stop(e)?;
@@ -320,7 +313,7 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                 }
                 e.run(Call::KeepRecordBest)?;
                 e.run(Call::RecordEntriesPass)?;
-                if e.get(Var::Entered) == 1 && screens(e, &[Call::BestTimesLoop])? {
+                if e.flag(Switch::Entered) && screens(e, &[Call::BestTimesLoop])? {
                     break 'races stop(e)?;
                 }
                 let reviewed = match e.next_record_kind()? {
@@ -349,7 +342,7 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                         Call::ChampionshipRacesReview
                     };
                     e.run(review)?;
-                    if e.yes() || e.get(Var::EscapePressed) == 1 || e.get(Var::AskLeave) == 1 {
+                    if e.yes() || e.flag(Switch::EscapePressed) || e.flag(Switch::AskLeave) {
                         break 'races At::End;
                     }
                 }

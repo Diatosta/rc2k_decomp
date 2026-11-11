@@ -23,19 +23,19 @@ fn first_class(menus: &Menus) -> u32 {
 
 pub fn class_championship_pass(menus: &Menus) -> Result<(), Refused> {
     let first = first_class(menus);
-    // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).
+    // The logic is in `rc2k_core::menu::class_pages` (`classes`, `has_player`).
     let classes = class_pages::classes(first, menus.screens.event.classes.get())?;
     let all: Vec<(u32, u32)> = walked_entries_b()?
         .iter()
         .map(|e| (e.group, e.player))
         .collect();
     for class in classes {
-        menus.screens.loop_flags.left_with_carry.set(0u32);
+        menus.screens.loop_flags.left_with_carry.set(false);
         let has_player = class_pages::has_player(all.len(), |n| all[n].0, |n| all[n].1, class);
         if !has_player {
             continue;
         }
-        menus.screens.loop_flags.left_with_carry.set(1u32);
+        menus.screens.loop_flags.left_with_carry.set(true);
         let numbered = number_standings(menus, Which::B, class)?;
         menus.screens.event.count_a.set(numbered.last_number);
         crate::menu::show_class_championship_standings::show_class_championship_standings(

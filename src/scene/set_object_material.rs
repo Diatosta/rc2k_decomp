@@ -76,7 +76,7 @@ fn step_shape(
         length = part.wrapping_add(LENGTHS[phase as usize]);
     }
     let fraction = match phase {
-        1 => x87::int_ratio(time as i32, length as i32),
+        1 => x87::int_ratio(time as i32, length as i32).to_bits(),
         2 => 1f32.to_bits(),
         3 => bh::st(bh::ONE - bh::int(time as i32) / bh::int(length as i32)),
         _ => 0f32.to_bits(),

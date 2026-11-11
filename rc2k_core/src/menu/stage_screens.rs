@@ -1,5 +1,5 @@
 //! The stage screens' choices: the speeches, the welcome picture and the items that pick
-//! a page (converted 2026-10-21 from `menu::play_stage_speech` 0x47F437,
+//! a page (from `menu::play_stage_speech` 0x47F437,
 //! `play_rally_speech` 0x47F40F, `load_welcome_picture` 0x4684BD,
 //! `view_stage_details` 0x47037E and `new_simulation_if_unlocked` 0x4A96BF).
 

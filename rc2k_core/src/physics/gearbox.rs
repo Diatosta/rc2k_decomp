@@ -1,4 +1,4 @@
-//! The gearbox's rules (converted from `physics::gear_bit` 0x43C5B7,
+//! The gearbox's rules (from `physics::gear_bit` 0x43C5B7,
 //! `higher_free_gear` 0x43C5A0, `lower_free_gear` 0x43C58E, `allowed_gear` 0x4651B5,
 //! `gear_input_rules` 0x439BF6, `gear_change_sound` 0x45C551, `gearbox_step` 0x43C15C
 //! and `take_asked_gear` 0x43C1E3): which gears cannot be taken, the search for the next

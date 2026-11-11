@@ -1,4 +1,4 @@
-//! The options pages' small steps (item and left/right handlers, agent E 2026-10-19):
+//! The options pages' small steps (item and left/right handlers):
 //! - the volume steps (`menu::music_volume_down` 0x467F48 .. `menu_sounds_b_volume_up`
 //!   0x46810A): a work value one less (below 0: 0) or one more (above 0x40: 0x40), signed,
 //!   then: the music's (`option_work.music_level`) into `g_musicVolume` and `sound::set_music_volume`
@@ -50,7 +50,7 @@ pub const SOUNDS_B_RVA: &Dword = &crate::audio::owner::AUDIO_OWNER.levels.sounds
 /// One volume step.
 pub fn volume_step(screens: &Screens, v: Volume) {
     let audio = crate::audio::owner::audio();
-    // Converted: `rc2k_core::menu::steps::volume`.
+    // The logic is in `rc2k_core::menu::steps::volume`.
     let value = rc2k_core::menu::steps::volume(v.value.get() as i32, v.up);
     v.value.set(value as u32);
     match v.then {
@@ -78,7 +78,7 @@ pub fn volume_step(screens: &Screens, v: Volume) {
 /// `menu::next_screen_mode`: the next screen mode chosen, the changed flag flipped.
 pub fn next_screen_mode(screens: &Screens) {
     let display = &gfx().display;
-    // Converted: `rc2k_core::menu::steps::next_mode`.
+    // The logic is in `rc2k_core::menu::steps::next_mode`.
     let mode = rc2k_core::menu::steps::next_mode(
         display.choices.resolution.get(),
         display.choices.resolutions.get(),
@@ -91,7 +91,7 @@ pub fn next_screen_mode(screens: &Screens) {
 /// `menu::previous_texture_setting` / `next_texture_setting`: the texture setting one
 /// step down or up.
 pub fn step_texture_setting(screens: &Screens, up: bool, race: &crate::race::owner::Race) {
-    // Converted: `rc2k_core::menu::steps::texture`.
+    // The logic is in `rc2k_core::menu::steps::texture`.
     let v = rc2k_core::menu::steps::texture(screens.option_work.car_detail.get(), up);
     screens.option_work.car_detail.set(v);
     race.shared.state.settings.car_detail.set(v);
@@ -119,7 +119,7 @@ pub const START_PICK_B: StartPick = StartPick {
 
 /// `menu::next_colour_a` and the three others.
 pub fn step_start_pick(tables: &Tables, c: StartPick, up: bool) {
-    // Converted: `rc2k_core::menu::steps::colour`.
+    // The logic is in `rc2k_core::menu::steps::colour`.
     let n = rc2k_core::menu::steps::colour(c.number.get() as i32, up);
     c.number.set(n as u32);
     // `CAPTIONS.caption_lists` from `table_at`: the original does not check `n` (a kept

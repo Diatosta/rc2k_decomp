@@ -51,14 +51,14 @@ fn settle(v: &dyn Cell32, step: &dyn Cell32) {
     }
     if x < 0.0 {
         let y = x87::add(v, step);
-        v.set_bits(y);
-        if f32::from_bits(y) >= 0.0 {
+        v.set_bits(y.to_bits());
+        if f32::from_bits(y.to_bits()) >= 0.0 {
             v.set_bits(0);
         }
     } else {
         let y = x87::sub(v, step);
-        v.set_bits(y);
-        let y = f32::from_bits(y);
+        v.set_bits(y.to_bits());
+        let y = f32::from_bits(y.to_bits());
         if y < 0.0 || y.is_nan() {
             v.set_bits(0);
         }

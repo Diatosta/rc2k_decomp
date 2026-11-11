@@ -1,13 +1,13 @@
 //! The course's faces as the frame draws them: a face record is 0x40 bytes (+0 the kind
 //! and flags, +1 the object, +2 a word of switches, +4 .. +0x10 four scene points, the
 //! fourth the third's again for a triangle, +0x11 .. +0x13 and +0x30 .. +0x38 its lights,
-//! +0x20 / +0x21 the second triangle's kind and object). Converted from
+//! +0x20 / +0x21 the second triangle's kind and object). from
 //! `race::reset_face_lights` 0x45ED70, `face_corners` 0x452444, `face_switches` 0x45322C,
 //! `face_texture_coordinates` 0x453267 / `face_texture_coordinates_2` 0x45349F,
 //! `face_corners_to_new_points` 0x452722, `face_hide_mask` 0x456056,
 //! `gather_record_faces` 0x454C99, `gather_lamps` 0x454E08, `lay_out_course` 0x421BE3,
 //! `store_norms` 0x421F02 and the whole-number part of `store_face_normal` 0x421F72;
-//! the faces' drawing decisions, depths and materials Converted from
+//! the faces' drawing decisions, depths and materials from
 //! `race::face_depth_test_off` 0x452358, `face_depth_test_on` 0x45237A, `face_lights`
 //! 0x453715, `face_hidden` 0x454D92, `face_depth` 0x4552D8, `add_depth_entry` 0x454D2A
 //! and `face_materials` 0x45265C.

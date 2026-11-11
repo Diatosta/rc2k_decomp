@@ -7,7 +7,7 @@ use crate::session::{Dword, Float};
 #[derive(rc2k_derive::Cells)]
 pub struct ViewerPanelBlock {
     /// +0x0 (0x5C291C): `word_5C291C` / `g_cameraNameIds`: 16-bit text ids of the camera names, read and written by `race::draw_viewer_panel`, `next_camera`, `previous_camera`; the port reaches them through another path, not by this field.
-    pub unknown_0: [Dword; 24],
+    pub camera_name_ids: [Dword; 24],
     /// +0x60 (0x5C297C): `dword_5C297C`: rectangle (0,0,800,32) of the viewer bar's frame (`race::viewer_frame`).
     pub bar_frame_rect: [Dword; 4],
     /// +0x70 (0x5C298C): `dword_5C298C`: first button rectangle (`race::viewer_frame`).
@@ -31,15 +31,15 @@ pub struct ViewerPanelBlock {
     /// +0x100 (0x5C2A1C): `dword_5C2A1C`: the quad's texture rectangle, scratch, zero in the image (`race::draw_viewer_panel`, `drive::tyre_screen_parts`, `race::draw_tyre_change`).
     pub texture_rect: [Dword; 4],
     /// +0x110 (0x5C2A2C): texture rectangles the viewer list's items point to (relocated pointers at 0x5C2580 ..); read by no code by name.
-    pub unknown_110: [Dword; 40],
+    pub viewer_item_rects_a: [Dword; 40],
     /// +0x1b0 (0x5C2ACC): `dword_5C2ACC`: texture rectangle (249,0,7,29) of a mark (`race::viewer_frame`).
     pub mark_picture_rect: [Dword; 4],
     /// +0x1c0 (0x5C2ADC): a rectangle the viewer list points to (pointer at 0x5C25D0); read by no code by name.
-    pub unknown_1c0: [Dword; 4],
+    pub viewer_item_rect_b: [Dword; 4],
     /// +0x1d0 (0x5C2AEC): `dword_5C2AEC`: texture rectangle (48,48,48,48) of the place marker (`race::viewer_frame`).
     pub place_picture_rect: [Dword; 4],
     /// +0x1e0 (0x5C2AFC): texture rectangles the viewer list's items point to (pointers at 0x5C25F0 ..); read by no code by name.
-    pub unknown_1e0: [Dword; 76],
+    pub viewer_item_rects_c: [Dword; 76],
     /// +0x310 (0x5C2C2C): `dword_5C2C2C`: texture rectangle (0,240,16,16) of a button end (`race::viewer_frame`).
     pub button_picture_rect: [Dword; 4],
     /// +0x320 (0x5C2C3C): `dword_5C2C3C`: texture rectangle (15,240,241,16) of a button body (`race::viewer_frame`).
@@ -75,7 +75,7 @@ pub struct ViewerPanelBlock {
     /// +0x3c0 (0x5C2CDC): `aRpl000000Pcx`: the 15-byte name rpl\000000.pcx, taken in place; the last 3 bytes (0x5C2CE8 .. 0x5C2CEB) are not a whole dword (`race::replay_screenshot`).
     pub picture_name: [Dword; 3],
     /// +0x3cc (0x5C2CE8): the untyped tail: the viewer's texts and unaligned values, reached through `text_ptr` and the unaligned readers below.
-    pub unknown_3cc: [Dword; 167],
+    pub untyped_tail: [Dword; 167],
 }
 
 /// The piece: a field of `VIEWER_AND_KINDS` since 2026-10-29 (it left the race
@@ -91,11 +91,11 @@ impl core::ops::Deref for InGroup {
 
 pub static VIEWER_PANEL: InGroup = InGroup;
 
-/// IDA 0x5C2CE8, the first byte of `unknown_3cc`: the untyped tail with the viewer's texts and
+/// IDA 0x5C2CE8, the first byte of `untyped_tail`: the untyped tail with the viewer's texts and
 /// its unaligned values.
 const TAIL: usize = 0x5C2CE8;
 
-/// The texts in `unknown_3cc`, by IDA's address (for `ViewerPanelBlock::text_ptr`).
+/// The texts in `untyped_tail`, by IDA's address (for `ViewerPanelBlock::text_ptr`).
 pub mod texts {
     /// "SVM: Release all textures"
     pub const SVM_RELEASE_TEXTURES: usize = 0x5C2DDF;
@@ -142,11 +142,11 @@ pub mod texts {
 }
 
 impl ViewerPanelBlock {
-    /// Where the byte at IDA `ida` is, inside the untyped tail `unknown_3cc` (the texts of
+    /// Where the byte at IDA `ida` is, inside the untyped tail `untyped_tail` (the texts of
     /// `texts`, the unaligned values below).
     pub fn text_ptr(&self, ida: usize) -> crate::pointers::GamePtr {
         assert!((TAIL..TAIL + 4 * 167).contains(&ida));
-        crate::pointers::GamePtr::to(&self.unknown_3cc).offset((ida - TAIL) as u32)
+        crate::pointers::GamePtr::to(&self.untyped_tail).offset((ida - TAIL) as u32)
     }
 
     /// `dword_5C2CEB` (unaligned, in the tail): 1 when the developer's keys work in the viewer.
@@ -229,10 +229,10 @@ impl ViewerPanelBlock {
     /// The dword at IDA's `ida` in the tail: unaligned, so made of the two cells it spans.
     fn tail_read(&self, ida: usize) -> u32 {
         let (n, shift) = Self::tail_cells(ida);
-        let low = self.unknown_3cc[n].get();
+        let low = self.untyped_tail[n].get();
         match shift {
             0 => low,
-            _ => (low >> shift) | (self.unknown_3cc[n + 1].get() << (32 - shift)),
+            _ => (low >> shift) | (self.untyped_tail[n + 1].get() << (32 - shift)),
         }
     }
 
@@ -240,10 +240,10 @@ impl ViewerPanelBlock {
     fn tail_write(&self, ida: usize, value: u32) {
         let (n, shift) = Self::tail_cells(ida);
         if shift == 0 {
-            self.unknown_3cc[n].set(value);
+            self.untyped_tail[n].set(value);
             return;
         }
-        let (low, high) = (&self.unknown_3cc[n], &self.unknown_3cc[n + 1]);
+        let (low, high) = (&self.untyped_tail[n], &self.untyped_tail[n + 1]);
         low.set(low.get() & !(u32::MAX << shift) | value << shift);
         high.set(high.get() & (u32::MAX << shift) | value >> (32 - shift));
     }
@@ -280,7 +280,7 @@ mod tests {
         let _g = crate::store::test_lock();
         let v = &*VIEWER_PANEL;
         let kept: Vec<u32> = v
-            .unknown_3cc
+            .untyped_tail
             .iter()
             .map(crate::session::Dword::get)
             .collect();
@@ -288,7 +288,7 @@ mod tests {
             .into_iter()
             .enumerate()
         {
-            for (n, c) in v.unknown_3cc.iter().enumerate() {
+            for (n, c) in v.untyped_tail.iter().enumerate() {
                 c.set(0xA5A5_0000 | n as u32);
             }
             let before: Vec<u8> = v.text_ptr(0x5C2CE8).read_bytes(24, "the tail").unwrap();
@@ -300,7 +300,7 @@ mod tests {
             assert_eq!(after, want, "{ida:#x}");
             assert_eq!(v.tail_read(ida), value);
         }
-        for (c, k) in v.unknown_3cc.iter().zip(kept) {
+        for (c, k) in v.untyped_tail.iter().zip(kept) {
             c.set(k);
         }
     }

@@ -48,7 +48,7 @@ pub fn draw_car_figures(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, 
 }
 
 /// One page (0x469C40, 0x469F12, 0x46A193, 0x469CA0 for 0 .. 3) of the
-/// record at `record`: the carry of the last text drawn. Converted:
+/// record at `record`: the carry of the last text drawn. The logic is in
 /// `rc2k_core::screens::car_pages::page` (the record written back when it changed it: the Clio's
 /// strings).
 pub fn draw_car_page(page: u32, record: u32, canvas: &mut dyn Canvas) -> Result<bool, Refused> {

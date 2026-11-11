@@ -8,8 +8,8 @@
 //! name is cleared; 0x0E          the last character goes (`backspace_savegame_name`); any other
 //! `key_to_char`; a character is appended unless the length is already above the maximum, and taken
 //! off again if the name then measures 0xEC pixels or more. After anything but Escape and Enter the
-//! cursor (string 4) is written after the name if `draw_work.cursor_on` is 1, then a NUL. Called from the
-//! screen loop `menu::save_championship_loop` while `option_work.typing` is 1. Refuses, before the key is
+//! cursor (string 4) is written after the name if `draw_work.cursor_on` is set, then a NUL. Called from the
+//! screen loop `menu::save_championship_loop` while `option_work.typing` is set. Refuses, before the key is
 //! taken: a name past the list, a length outside 0 .. 0x1F, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
@@ -50,9 +50,7 @@ fn highlighted_slot(tables: &Tables) -> u32 {
 }
 
 /// Saves the game in `slot`. Whether it worked is not looked at, as in the original. A slot
-/// or a state the Rust writer refuses ends the program with the reason (before 2026-10-24
-/// it called the original's writer by address, which the standalone does not have: it
-/// ended as "not ported").
+/// or a state the Rust writer refuses ends the program with the reason.
 pub fn save_game(slot: u32) {
     if let Err(why) = write_savegame_slot(crate::menu::owner::menus(), slot) {
         crate::framework::log(&format!("saves::write_savegame_slot: slot {slot}"));
@@ -77,13 +75,13 @@ pub fn edit_savegame_name(
     }
 
     let key = take_key();
-    // Converted: `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
+    // The logic is in `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
     use rc2k_core::menu::text_entry::{self as entry, Key};
     match entry::key(key) {
         Key::None => {}
         Key::Escape => {
             restore_text(name)?;
-            screens.option_work.typing.set(0u32);
+            screens.option_work.typing.set(false);
             return Ok(());
         }
         Key::Enter => {
@@ -91,11 +89,11 @@ pub fn edit_savegame_name(
                 restore_text(name)?;
                 add_text_length(menus, name)?;
             }
-            screens.option_work.typing.set(0u32);
+            screens.option_work.typing.set(false);
             end_name(name)?;
             save(highlighted_slot(&menus.tables));
             end_name(name)?;
-            screens.option_work.typing.set(0u32);
+            screens.option_work.typing.set(false);
             return Ok(());
         }
         Key::Clear => clear_text(menus, name)?,
@@ -119,7 +117,7 @@ pub fn edit_savegame_name(
         }
     }
     let mut tail = Vec::new();
-    if screens.draw_work.cursor_on.get() == 1 {
+    if screens.draw_work.cursor_on.is_set() {
         push_string(&mut tail, CURSOR_STRING)?;
     }
     tail.push(0);

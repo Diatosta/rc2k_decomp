@@ -21,7 +21,7 @@
 //!
 //! In the draw lists of the four players' details screens. Refuses a player past the
 //! four, a player without its name, an index past its string table, and what its parts refuse;
-//! since the conversion (2026-10-20) before the controller's item is switched (the original
+//! before the controller's item is switched (the original
 //! switches it first). The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
@@ -79,7 +79,7 @@ pub fn draw_player_page(
     if player.name_player().is_none() {
         return Err(BadInput("a player without its name").into());
     }
-    // Converted: `rc2k_core::screens::player_details`; the strings looked up (and refused)
+    // The logic is in `rc2k_core::screens::player_details`; the strings looked up (and refused)
     // before anything is drawn, the second view of 5 made 0 then.
     let nationality_id = string(NATIONALITIES_RVA, player.nationality, NATIONALITIES)?;
     let view_id = string(VIEWS_RVA, player.view, VIEWS)?;
@@ -104,8 +104,8 @@ pub fn draw_player_page(
             menus,
             crate::menu::player_names::name_of(&player)?,
         ),
-        typing: screens.option_work.typing.get() != 0,
-        blink: screens.draw_work.cursor_on.get(),
+        typing: screens.option_work.typing.is_set(),
+        blink: screens.draw_work.cursor_on.is_set(),
         nationality: player.nationality,
         nationality_id,
         view_id,

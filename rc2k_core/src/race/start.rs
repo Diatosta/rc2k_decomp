@@ -1,4 +1,4 @@
-//! The race's start and its panel (converted from `race::countdown_lights`
+//! The race's start and its panel (from `race::countdown_lights`
 //! 0x45B008 and `race::car_label` 0x45B1B7; a car's start place
 //! from `race::start_car` 0x4464AD).
 

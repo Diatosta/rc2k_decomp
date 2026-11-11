@@ -65,7 +65,7 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race) {
         course.lists.root_table[n].set_bits(root);
     }
     for n in 0..0x100usize {
-        course.lists.exponent_root_table[n].set_bits(x87::sqrt((n as u32) << 23));
+        course.lists.exponent_root_table[n].set(x87::sqrt((n as u32) << 23));
     }
     // The shuffled words.
     race.shared.physics_tables.noise_state.set(SEED);
@@ -88,7 +88,7 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race) {
     }
     // The face key factors.
     for n in 1..0x100usize {
-        course.lists.face_key_factors[n].set_bits(x87::int_ratio(1, n as i32));
+        course.lists.face_key_factors[n].set(x87::int_ratio(1, n as i32));
     }
     course.lists.face_key_factors[0].set(1.0f32);
     // The sines.

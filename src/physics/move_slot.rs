@@ -65,7 +65,7 @@ pub fn move_slot(
         race.course
             .lists
             .spin_angle
-            .set_bits(x87::mul(&s.spin_length, dt));
+            .set(x87::mul(&s.spin_length, dt));
         axis_turn_matrix(&race.course, &race.course.lists.turn_matrix);
         square_matrix(&race.course, &race.course.lists.turn_matrix);
         multiply_matrices(
@@ -104,11 +104,11 @@ pub fn move_slot(
     }
     s.place[1].set(height);
     let half = race.course.numbers.half.bits();
-    s.motion[0].set_bits(x87::mul(&s.motion[0], half));
-    s.motion[1].set_bits(negated(mul(&s.motion[1], half)));
-    s.motion[2].set_bits(x87::mul(&s.motion[2], half));
+    s.motion[0].set(x87::mul(&s.motion[0], half));
+    s.motion[1].set_bits(negated(mul(&s.motion[1], half)).to_bits());
+    s.motion[2].set(x87::mul(&s.motion[2], half));
     for cell in &s.spin {
-        cell.set_bits(negated(mul(cell, half)));
+        cell.set_bits(negated(mul(cell, half)).to_bits());
     }
     if abs_compare(s.motion[1].bits(), race.course.numbers.one.bits()) & 0x100 != 0 {
         copy(&race.shared.work.part_matrix_flat[..12], &s.matrix);
@@ -118,6 +118,9 @@ pub fn move_slot(
             return Ok(());
         }
     }
-    drawing.scene.scratch.set(abs_of(s.motion[1].bits()));
+    drawing
+        .scene
+        .scratch
+        .set(abs_of(s.motion[1].bits()).to_bits());
     Ok(())
 }

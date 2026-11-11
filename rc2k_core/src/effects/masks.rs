@@ -1,4 +1,4 @@
-//! The marks' masks (converted 2026-10-21 from `effects::collect_points_a` 0x4BD551,
+//! The marks' masks (from `effects::collect_points_a` 0x4BD551,
 //! `collect_points_b` 0x4BD59F, `reset_mask_cursor` 0x4BE0A3, `fill_mask_spans` 0x4BE712,
 //! `draw_mask_shape` 0x4BE6FB and `draw_mask` 0x4BE6C2, under `effects::make_masks`, and
 //! `swap_mask` 0x4C95F5): the points of faces gathered into lists, shapes' rows of spans

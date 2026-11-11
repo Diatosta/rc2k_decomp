@@ -34,7 +34,7 @@ pub fn repair_flag_in(tables: &Tables, item: u32) -> u32 {
 }
 
 pub fn edit_mode(menus: &Menus) -> bool {
-    menus.screens.state.service_ui.box_shown.get() == 1
+    menus.screens.state.service_ui.box_shown.is_set()
 }
 
 pub fn menu_item() -> u32 {
@@ -42,7 +42,7 @@ pub fn menu_item() -> u32 {
 }
 
 pub fn blink_on(menus: &Menus) -> bool {
-    menus.screens.draw_work.blink.get() == 1
+    menus.screens.draw_work.blink.is_set()
 }
 
 /// Menu items of the service area that have a flag: 0 .. 19. Entry 20 of both flag tables is
@@ -111,7 +111,7 @@ pub fn chosen_repairs_time(menus: &Menus, tables: &Tables) -> Result<i32, BadInp
 }
 
 pub fn leave_edit_mode(screens: &Screens) {
-    screens.state.service_ui.box_shown.set(0u32);
+    screens.state.service_ui.box_shown.set(false);
 }
 
 /// True if menu item `item` has a repair time (a non-null pointer in the table).

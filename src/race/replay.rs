@@ -253,7 +253,7 @@ pub fn write_replay_block(race: &Race, replay: &Replay) -> Result<(), Refused> {
 pub fn add_replay_frame(race: &Race, frame: &[Dword]) -> Result<(), Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
-    if shared.replay_file.replay_open.get() != 1 {
+    if !shared.replay_file.replay_open.is_set() {
         return Ok(());
     }
     // Converted: `rc2k_core::race::replay::{fits, frame_added}`.
@@ -292,7 +292,7 @@ pub fn add_replay_frame(race: &Race, frame: &[Dword]) -> Result<(), Refused> {
 pub fn close_replay(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let replay = &race.replay;
-    if shared.replay_file.replay_open.get() != 1 {
+    if !shared.replay_file.replay_open.is_set() {
         return Ok(());
     }
     while replay.replay_view.frames_in_block.get() != 0 {
@@ -311,7 +311,7 @@ pub fn close_replay(race: &Race) -> Result<(), Refused> {
         shared.replay_file.index(),
     );
     crate::files::handle::close(shared.replay_file.replay_handle.get());
-    shared.replay_file.replay_open.set(0);
+    shared.replay_file.replay_open.set(false);
     shared.replay_file.replay_closed.set(1);
     Ok(())
 }
@@ -390,7 +390,7 @@ pub fn open_replay(race: &Race) -> Result<(), Refused> {
         None => true,
         Some(handle) => {
             shared.replay_file.replay_handle.set(handle);
-            shared.replay_file.replay_open.set(1);
+            shared.replay_file.replay_open.set(true);
             replay.replay_view.file_offset.set(
                 replay
                     .replay_view

@@ -49,7 +49,7 @@ pub fn gearbox_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
         )?,
     }
     if race.shared.car.gear_changed.get() == 1 {
-        race.shared.car.engine_speed.set_bits(x87::mul(
+        race.shared.car.engine_speed.set(x87::mul(
             &race.shared.car.engine_speed,
             &race.shared.physics_tables.engine_ease,
         ));

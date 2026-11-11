@@ -3,15 +3,13 @@
 //!
 //! In those screenshots the 3D objects of that menu (green arrows, a floppy disk) are drawn over
 //! the table. This loop puts its own empty 3D list in `g_sceneList` only before the first frame
-//! after set-up (and in the unread `flow.unread_list` at the other two places); the first Rust version
-//! left that out, so the list of the menu before stayed. Fixed with `Screen::first_frame_lists`;
-//! the owner's screenshot of the fixed build (Rust version running, 2026-10-11) shows the table
-//! without them. Named `screen_4670df_loop` until then.
+//! after set-up (and in the unread `flow.unread_list` at the other two places); the list of the menu before is cleared
+//! with `Screen::first_frame_lists`, so the table shows without them.
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`):
 //! nothing happens before the loop (its set-up starts at the function's second byte); its
 //! background comes from `menu::load_background`, after which a set carry flag is fatal error
-//! 0x80712345; leaving is asked about, and a "no" sets the screen up again. If `state.menus.standings_shown` is 1
+//! 0x80712345; leaving is asked about, and a "no" sets the screen up again. If `state.menus.standings_shown` is set
 //! when the screen is left, nothing more is done: no question, and the highlight is not saved. One
 //! caller.
 use crate::menu::screen_items_store::slot;

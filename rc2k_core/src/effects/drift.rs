@@ -1,4 +1,4 @@
-//! The rain's two drifting offsets (converted 2026-10-21 from `effects::drift_offsets`
+//! The rain's two drifting offsets (from `effects::drift_offsets`
 //! 0x4C1BA9): whole-number offsets moved each frame by a pace that eases toward targets
 //! drawn anew after a wait. As in `math::geometry`, what the x87 keeps on its stack is an
 //! `f64`, rounded to `f32` where the original stores it; the offsets' rounding follows the

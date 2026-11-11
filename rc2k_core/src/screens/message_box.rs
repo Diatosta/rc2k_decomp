@@ -1,4 +1,4 @@
-//! The "not in this version" box (converted 2026-10-21 from `screens::draw_message_box`
+//! The "not in this version" box (from `screens::draw_message_box`
 //! 0x415EA6): string 0x1FE in a box in the middle of the surface, 0x32 wider and 0x19
 //! higher than the string measures, the string drawn centred in another font.
 

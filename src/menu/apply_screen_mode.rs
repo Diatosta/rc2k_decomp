@@ -17,7 +17,7 @@ use crate::menu::screen_items_store::slot;
 pub fn apply_screen_mode(screens: &Screens) -> Result<(), Refused> {
     let system = crate::system::owner::system();
     let gfx = crate::gfx::owner::gfx();
-    // Converted: `rc2k_core::menu::steps::applied_mode`.
+    // The logic is in `rc2k_core::menu::steps::applied_mode`.
     use rc2k_core::menu::steps::{BACK_TO_MODE, TRY_CHOSEN_MODE, applied_mode};
     let display = &gfx.display;
     // `gfx::screen_mode_choices` (0x4045D6): the carry says the chosen mode was not taken.

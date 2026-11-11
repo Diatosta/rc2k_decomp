@@ -73,7 +73,7 @@ pub fn unit_vector(
         return length;
     }
     for n in 0..3 {
-        out.set_bits(n, x87::div(from.bits(n), length));
+        out.set_bits(n, x87::div(from.bits(n), length).to_bits());
     }
     for n in 0..3 {
         if out.bits(n) == 0x8000_0000 {
@@ -92,9 +92,9 @@ pub fn cross_product(
 ) {
     let part =
         |x: usize, y: usize| x87::product_difference(c.bits(x), b.bits(y), b.bits(x), c.bits(y));
-    out.set_bits(0, part(2, 1));
-    out.set_bits(1, part(0, 2));
-    out.set_bits(2, part(1, 0));
+    out.set_bits(0, part(2, 1).to_bits());
+    out.set_bits(1, part(0, 2).to_bits());
+    out.set_bits(2, part(1, 0).to_bits());
 }
 
 /// `scene::square_matrix` (0x420E94): a turning's three rows made one long and at right
@@ -124,7 +124,7 @@ pub fn invert_turn(
 ) -> u32 {
     let mut m = [0u32; 9];
     for (n, value) in m.iter_mut().enumerate() {
-        *value = x87::loaded(from.bits((n / 3) * 4 + n % 3));
+        *value = x87::loaded(from.bits((n / 3) * 4 + n % 3)).to_bits();
     }
     let [a, b, c, d, e, f, g, h, i] = m;
     let plain = x87::product_difference;
@@ -141,7 +141,7 @@ pub fn invert_turn(
         plain(a, e, b, d),
     ];
     for (n, value) in made.into_iter().enumerate() {
-        out.set_bits((n / 3) * 4 + n % 3, x87::loaded(value));
+        out.set_bits((n / 3) * 4 + n % 3, x87::loaded(value).to_bits());
     }
     square_matrix(course, out)
 }

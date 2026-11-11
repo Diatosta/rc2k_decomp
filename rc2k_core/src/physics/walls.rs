@@ -1,8 +1,8 @@
 //! The car's probe points against the course's walls and edges, and its wheels on the
-//! ground (converted from `physics::wall_contacts` 0x45D7B6,
+//! ground (from `physics::wall_contacts` 0x45D7B6,
 //! `wall_edge_contact` 0x45DA14, `crossed_edge_contact` 0x45DC3E, `crossed_edge`
 //! 0x45D737, `feel_ground` 0x43F1A8 and `count_ground_probe` 0x438E22; their x87 steps,
-//! the edge's heading and the contact's force, stay the hooks'). A face's word +2 has
+//! the edge's heading and the contact's force, stay with the callers). A face's word +2 has
 //! the wall bits 0x400 and 0x800: a probe point whose face now and before have both
 //! between them has met a wall.
 

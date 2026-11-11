@@ -1,5 +1,5 @@
 //! The stage's checkpoints: the line's faces chained in order, the checks along them and
-//! the map's anchors, the car placed on the line (Converted from
+//! the map's anchors, the car placed on the line (from
 //! `race::set_line_face_kind` 0x44574A, `sort_checkpoints` 0x4458A7, `count_checks`
 //! 0x445AAB, `next_map_anchor` 0x445FEE, `first_check_checkpoint` 0x446280,
 //! `init_checkpoints` 0x45A98F, `place_car_on_line` 0x44666F and `nearest_checkpoint_in`

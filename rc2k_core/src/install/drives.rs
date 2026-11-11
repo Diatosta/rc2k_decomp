@@ -1,4 +1,4 @@
-//! The drives the game may be installed to (converted 2026-10-21 from
+//! The drives the game may be installed to (from
 //! `install::list_drives` 0x413C27): which are taken, each one's text on the drive page
 //! ("c 512 MB": the letter, a byte not written, a space, the free space) and the page's
 //! menu by how many there are.

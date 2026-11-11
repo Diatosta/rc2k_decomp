@@ -28,7 +28,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.event.event_over, 0x0)],
+    before: &[Step::WriteFlag(|m| &m.screens.event.event_over, false)],
     set_up_first: &[Step::Call(Callee::ScoreTwoPlayers)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.single_rally_two_results_picture

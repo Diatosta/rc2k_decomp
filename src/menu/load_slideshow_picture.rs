@@ -40,7 +40,7 @@ pub fn load_slideshow_picture(
     way: u32,
     step: &mut dyn FnMut(Step) -> Result<bool, Refused>,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::slides` (`slideshow_car`, `search`, `pcx`).
+    // The logic is in `rc2k_core::menu::slides` (`slideshow_car`, `search`, `pcx`).
     use rc2k_core::menu::slides;
     let car = slides::slideshow_car(shown_car(menus)?)?;
     let template = crate::files::cstring_at(

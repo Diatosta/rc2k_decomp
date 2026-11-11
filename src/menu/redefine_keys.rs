@@ -42,7 +42,7 @@ pub fn redefine_key(
     menus: &Menus,
     player: Option<crate::menu::standings::PlayerCell>,
 ) -> Result<(), Refused> {
-    if menus.screens.option_work.redefining_key.get() == 0 {
+    if !menus.screens.option_work.redefining_key.is_set() {
         return Ok(());
     }
     // Everything that could be refused, before the key is taken.
@@ -56,7 +56,7 @@ pub fn redefine_key(
     let Some(reserved) = reserved(&menus.keys)? else {
         return Err(BadInput("a reserved list without its end").into());
     };
-    // Converted: `rc2k_core::menu::player::redefine`.
+    // The logic is in `rc2k_core::menu::player::redefine`.
     let work: [u8; KEYS] = std::array::from_fn(|i| menus.keys.tables.redefined_keys.get(i));
     let Redefined::Done { keys, placed } =
         rc2k_core::menu::player::redefine(work, place as usize, take_key(), &reserved)
@@ -70,7 +70,7 @@ pub fn redefine_key(
         menus.screens.option_work.redefined_key_place.set(NO_PLACE);
     }
     player.update(|p| p.keys = keys);
-    menus.screens.option_work.redefining_key.set(0u32);
+    menus.screens.option_work.redefining_key.set(false);
 
     Ok(())
 }

@@ -10,7 +10,7 @@ use crate::menu::list_handle::ListMenu;
 use rc2k_core::menu::list_menu::{has_choices, rounds, unmarked};
 
 pub fn list_clear_marks(list: ListMenu) {
-    // Converted: `rc2k_core::menu::list_menu` (`unmarked`, `has_choices`, `rounds`).
+    // The logic is in `rc2k_core::menu::list_menu` (`unmarked`, `has_choices`, `rounds`).
     // Its count is a byte, but the original counts it down as a dword: 0 goes round
     // 2^32 times.
     let mut count = list.count() as u32;

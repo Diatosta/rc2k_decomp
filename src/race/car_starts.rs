@@ -146,12 +146,12 @@ pub fn reset_car_motion(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `math::turn_point_xz` of (x, 0, z) by the start place's heading: x and z moved. The original's y
+/// `math::rotate_point_about_y` of (x, 0, z) by the start place's heading: x and z moved. The original's y
 /// there is a leftover value; it lands only in `g_scratchY`, which every reader writes first.
 fn move_turned(race: &Race, x: u32, z: u32) {
     let course = &race.course;
     let shared = &race.shared;
-    let [x, _, z, _] = crate::math::turn_point_xz::turn_point_xz(
+    let [x, _, z, _] = crate::math::rotate_point_about_y::rotate_point_about_y(
         x as i32,
         0,
         z as i32,

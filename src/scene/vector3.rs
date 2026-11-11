@@ -87,7 +87,7 @@ pub fn angle_between_vectors(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized
         .cosine_half
         .get();
     for _ in 0..16 {
-        let status = cosine_against(angle, dot);
+        let status = cosine_against(angle.to_bits(), dot);
         crate::effects::owner::effects()
             .setup
             .work
@@ -100,7 +100,7 @@ pub fn angle_between_vectors(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized
         }
         step = crate::math::x87::mul(step, half);
     }
-    crate::scene::matrix3::extended(angle)
+    crate::scene::matrix3::extended(angle.to_bits())
 }
 
 #[cfg(all(test, target_arch = "x86"))]

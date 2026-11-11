@@ -1,7 +1,7 @@
-//! The gearbox's shifts (converted from `physics::manual_gearbox` 0x43C2AE,
+//! The gearbox's shifts (from `physics::manual_gearbox` 0x43C2AE,
 //! `physics::auto_gearbox` 0x43C5C2, `physics::change_gear` 0x43C20D and
-//! `physics::pick_start_gear` 0x43C8AC; the engine's sums and their compares stay the
-//! hooks' x87, which hand the compares in as answers): where each box goes from a gear
+//! `physics::pick_start_gear` 0x43C8AC; the engine's sums and their compares stay with
+//! the caller's x87, which hands the compares in as answers): where each box goes from a gear
 //! (-1 reverse, 0 neutral, 1 .. the top). The steps run in the original's order; a step
 //! that ends in another (`Shift`) is the original's jump to it.
 

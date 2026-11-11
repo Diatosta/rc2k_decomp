@@ -1,8 +1,8 @@
-//! The championship's four results pages (converted 2026-10-20):
+//! The championship's four results pages:
 //! `screens::draw_class_rally_results` 0x4A3376, `draw_overall_rally_results` 0x4A37E2,
 //! `draw_class_stage_results` 0x4A2111, `draw_overall_stage_results` 0x4A2F46: a heading,
 //! the column headings and ten rows of the ranked times. `screens::draw_class_ranking`
-//! 0x47C16A's rows found in its list converted 2026-10-21 (`class_rows`).
+//! 0x47C16A's rows found in its list (`class_rows`).
 
 use crate::Invalid;
 use crate::screens::best_scores::{car_glyph, flag_glyph};

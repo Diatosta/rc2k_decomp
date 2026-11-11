@@ -1,6 +1,6 @@
 //! The cars' parts made ready to draw: the switch bytes of a car's marks and lamps from
 //! its state (+0xAB4 .. +0xAD0), their count, the axles' places from the model's record
-//! (converted from `race::car_part_matrices` 0x460E7C and `race::ready_car_parts`
+//! (from `race::car_part_matrices` 0x460E7C and `race::ready_car_parts`
 //! 0x460D5C; the matrices stay the x87's).
 
 use crate::Invalid;

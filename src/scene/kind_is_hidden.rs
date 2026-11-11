@@ -19,7 +19,7 @@ pub fn kind_is_hidden(
 ) -> Result<(bool, u32), Refused> {
     // Converted: `rc2k_core::scene::kinds::kind_is_hidden`.
     let settings = rc2k_core::scene::kinds::HideSettings {
-        switch: shared.work.in_credits.get(),
+        switch: shared.work.in_credits.is_set(),
         mode: shared.vars.run_kind.get(),
     };
     Ok(rc2k_core::scene::kinds::kind_is_hidden(

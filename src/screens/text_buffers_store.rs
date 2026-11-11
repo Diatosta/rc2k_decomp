@@ -1,4 +1,4 @@
-//! The screens' text buffers, typed (phase 7): IDA 0xA8BB54 .. 0xA8C180, in the image's
+//! The screens' text buffers, typed: IDA 0xA8BB54 .. 0xA8C180, in the image's
 //! zeroed tail (`race::buffers_store`): the line buffer the screens build their lines in,
 //! the cells, the stage line, the caption, the title and the number text (0x100 bytes each),
 //! the stage result's value and the ten page-number texts. Names are readings unless IDA's.
@@ -46,7 +46,7 @@ pub const END: usize = 0xA8C180;
 
 const _: () = assert!(END - START == core::mem::size_of::<TextBuffers>());
 
-/// Where IDA 0xA8BB54 is now.
+/// Where IDA 0xA8BB54 lives.
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::moved::place(START) as u32

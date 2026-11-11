@@ -14,27 +14,27 @@ pub struct CourseLists {
     /// +0x404 (0x5C6D50): `g_courseMemoryList`, a MemoryList of 16 bytes (`race::allocate_course_memory`, `race::stage_free`).
     pub course_memory_list: [Dword; 4],
     /// +0x414 (0x5C6D60): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_414: [Dword; 12],
+    pub unused_414: [Dword; 12],
     /// +0x444 (0x5C6D90): `stru_5C6D90`, a second course MemoryList: set up by `race::allocate_course_memory` (0x41F8FE) and freed by `race::free_course_list_2`; nothing allocates from it (IDA xrefs: only those two).
     pub second_course_list: [Dword; 4],
     /// +0x454 (0x5C6DA0): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_454: [Dword; 12],
+    pub unused_454: [Dword; 12],
     /// +0x484 (0x5C6DD0): `stru_5C6DD0`, a MemoryList (`scene::allocate_object_memory`).
     pub object_points_list: [Dword; 4],
     /// +0x494 (0x5C6DE0): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_494: [Dword; 28],
+    pub unused_494: [Dword; 28],
     /// +0x504 (0x5C6E50): `stru_5C6E50`, a MemoryList (`scene::allocate_point_records`).
     pub point_records_list: [Dword; 4],
     /// +0x514 (0x5C6E60): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_514: [Dword; 28],
+    pub unused_514: [Dword; 28],
     /// +0x584 (0x5C6ED0): `stru_5C6ED0`, a MemoryList used by 0x459764, 0x4599D4 (not used by Rust).
     pub list_6ed0: [Dword; 4],
     /// +0x594 (0x5C6EE0): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_594: [Dword; 28],
+    pub unused_594: [Dword; 28],
     /// +0x604 (0x5C6F50): `stru_5C6F50`, the mud's MemoryList (`race::mud`).
     pub mud_list: [Dword; 4],
     /// +0x614 (0x5C6F60): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_614: [Dword; 12],
+    pub unused_614: [Dword; 12],
     /// +0x644 (0x5C6F90): `dword_5C6F90`: bytes taken from the course lists, added and subtracted by the allocators (`race::stage_free`, `race::mud`, `scene::allocate_object_memory`).
     pub course_bytes_total: Dword,
     /// +0x648 (0x5C6F94): `g_courseMemory`: handle of the course's memory, `level_init::COURSE_TAG` while taken (`race::course_data`, `race::norms`, `race::pace_notes`).
@@ -58,13 +58,13 @@ pub struct CourseLists {
     /// +0x66c (0x5C6FB8): `g_pointRecords`: pointer to the point records (`scene::project_point`, `race::frame_draw`, `race::car_shadow`).
     pub point_records: Dword,
     /// +0x670 (0x5C6FBC): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_670: [Dword; 2],
+    pub unused_670: [Dword; 2],
     /// +0x678 (0x5C6FC4): `dword_5C6FC4`: cleared by `race::clear_point_records` (`race::frame_draw`).
     pub clear_count: Dword,
     /// +0x67c (0x5C6FC8): `dword_5C6FC8`: the course memory's first part (`race::course_data`, `race::level_init`).
     pub first_part: Dword,
     /// +0x680 (0x5C6FCC): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_680: Dword,
+    pub unused_680: Dword,
     /// +0x684 (0x5C6FD0): `flt_5C6FD0`: work of `scene::square_matrix`, row 0 (`scene::view_matrix`); now a local there; unused.
     pub squared_row_0: [Float; 4],
     /// +0x694 (0x5C6FE0): `flt_5C6FE0`: work of `scene::square_matrix`, row 1; now a local there; unused.
@@ -104,7 +104,7 @@ pub struct CourseLists {
     /// +0x77c (0x5C70C8): `flt_5C70C8`: the unit vector's z, as above.
     pub vector_unit_z: Float,
     /// +0x780 (0x5C70CC): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_780: Dword,
+    pub unused_780: Dword,
     /// +0x784 (0x5C70D0): `flt_5C70D0`: a scratch float stored at 0x4211A3 by the same function.
     pub vector_scratch: Float,
     /// +0x788 (0x5C70D4): `flt_5C70D4`: the car's pitch: minus the clamped asin of the turned forward vector's y (`physics::matrix_angles`, `physics::car_angles`).
@@ -120,7 +120,7 @@ pub struct CourseLists {
     /// +0x79c (0x5C70E8): `flt_5C70E8`: its z.
     pub turned_z: Float,
     /// +0x7a0 (0x5C70EC): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_7a0: [Dword; 3],
+    pub unused_7a0: [Dword; 3],
     /// +0x7ac (0x5C70F8): `g_rootTable`: square roots by mantissa bits (`math::normalise_vector`, `scene::fill_engine_tables`, `race::frame_draw`).
     pub root_table: [Float; 256],
     /// +0xbac (0x5C74F8): `g_exponentRootTable`: roots by exponent (same users).

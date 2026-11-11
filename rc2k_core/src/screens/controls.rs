@@ -1,4 +1,4 @@
-//! The controller pages' lists (converted 2026-10-20): `screens::draw_control_bindings`
+//! The controller pages' lists: `screens::draw_control_bindings`
 //! 0x46A829 (what each of the player's ten controls is bound to) and
 //! `screens::draw_redefined_keys` 0x47CFA7 (the keys on a redefine keys page).
 
@@ -121,17 +121,17 @@ pub fn redefined_keys<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     names: &[Vec<u8>; 11],
     redefined: Option<usize>,
-    blink: u32,
+    blink: bool,
 ) -> Result<bool, S::Error> {
     check_room(names)?;
     let mut carry = false;
     for (row, name) in names.iter().enumerate() {
         let y = 0xAF + row as i32 * 0x1D;
         carry = if redefined == Some(row) {
-            if blink == 1 {
+            if blink {
                 s.string(Font::Value, 4, 0x1CC, y)?.too_wide
             } else {
-                blink < 1
+                true
             }
         } else {
             draw_cells(s, name, 0x1CC, y)?

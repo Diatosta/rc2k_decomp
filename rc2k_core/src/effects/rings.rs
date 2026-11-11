@@ -1,4 +1,4 @@
-//! The marks' rings of 0x1000 entries (converted 2026-10-21 from `effects::allocate_ring`
+//! The marks' rings of 0x1000 entries (from `effects::allocate_ring`
 //! 0x4CFAC5 and `effects::allocate_links` 0x4C5398): each entry linked to the one before
 //! and the one after, round.
 

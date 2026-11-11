@@ -1,5 +1,5 @@
-//! `menu::item_at` (0x471CEF): item number ebx of the current menu (by handle since
-//! 2026-10-28: `menus_store::MenuId::item`).
+//! `menu::item_at` (0x471CEF): item number ebx of the current menu (by handle:
+//! `menus_store::MenuId::item`).
 //!
 //! The current menu is `loop_flags.menu`; its items are 0x5C bytes each after a 4-byte head, so
 //! item n is at menu + 4 + (n - 1) * 0x5C. The original counts up to ebx one item at a time

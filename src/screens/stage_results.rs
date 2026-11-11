@@ -1,5 +1,4 @@
-//! The time trial stage results page (`screens::draw_stage_results`; stream A, part F1,
-//! 2026-10-18).
+//! The time trial stage results page (`screens::draw_stage_results`).
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::StageTable;
@@ -162,7 +161,7 @@ pub fn draw_stage_results(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), 
     crate::screens::text_buffers_store::TEXT_BUFFERS
         .stage_heading
         .write_at(0, &stage, "the stage line")?;
-    // Converted: `rc2k_core::screens::stage_results`.
+    // The logic is in `rc2k_core::screens::stage_results`.
     use rc2k_core::screens::stage_results::{Entry, Fastest, stage_results};
     let rows = std::array::from_fn(|n| {
         let e = &ten[n];

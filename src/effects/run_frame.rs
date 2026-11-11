@@ -35,7 +35,7 @@ fn rdtsc() -> u32 {
 fn share(at: usize, start: u32, effects: &crate::effects::owner::Effects) {
     let to = SHARES[at];
     let took = rdtsc().wrapping_sub(start) as i32;
-    to.set_bits(x87::int_over_int_times(
+    to.set(x87::int_over_int_times(
         took,
         effects.setup.frame.frame_cycles.bits() as i32,
         FRAME_K.times[at].to_bits(),

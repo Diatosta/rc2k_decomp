@@ -1,4 +1,4 @@
-//! A joystick as the input thread reads it (converted 2026-10-21 from
+//! A joystick as the input thread reads it (from
 //! `input::axis_found` 0x4083F4, `input::poll_device` 0x408869's reading and
 //! `input::request_device_setup` 0x409351).
 //!
@@ -26,7 +26,7 @@ pub fn axis_bits(bits: u32, object_type: &Guid, axes: &[Guid; AXES as usize]) ->
 pub const CONTROLLERS: u32 = 16;
 
 /// What a found joystick's entry in `g_controllers` gets from its capabilities
-/// (`DIDEVCAPS`; converted 2026-10-21 from `input::joystick_found` 0x408238).
+/// (`DIDEVCAPS`; from `input::joystick_found` 0x408238).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Found {
     pub caps_flags: u32,

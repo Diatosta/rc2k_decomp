@@ -1,4 +1,4 @@
-//! A network race's messages between the cars (converted 2026-10-21 from `net::send_turn`
+//! A network race's messages between the cars (from `net::send_turn`
 //! 0x46415B, `net::send_inputs` 0x464194, `net::send_position` 0x464201,
 //! `net::send_extra` 0x4643FA, `net::apply_message` 0x4644EC and `net::follow_remote`
 //! 0x464883). Each step of the own car sends, by its step count, its inputs ('JGSM'),

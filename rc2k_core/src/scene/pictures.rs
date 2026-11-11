@@ -1,4 +1,4 @@
-//! The system textures' pictures (converted 2026-10-21 from `scene::load_texture_picture`
+//! The system textures' pictures (from `scene::load_texture_picture`
 //! 0x42578E, `scene::load_changed_texture_picture` 0x42574B and
 //! `scene::reload_system_textures` 0x4254B4): which picture a texture wants and whether it
 //! is to be loaded, the picture's file names (`tx<number>.pcx`, four decimal digits, and the

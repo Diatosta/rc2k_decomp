@@ -42,39 +42,38 @@ pub fn wheel_springs(race: &Race, scene: &crate::scene::owner::Scene) {
         let q = &c.wheel_squeeze[k];
         let (force, damping) = (&ph.spring_forces[k], &ph.spring_damping[k]);
         let old = x87::loaded(q);
-        drawing.scene.work_dword.set(old);
-        c.wheel_squeeze_last[k].set_bits(old);
+        drawing.scene.work_dword.set(old.to_bits());
+        c.wheel_squeeze_last[k].set_bits(old.to_bits());
         let eax = race.physics.contact.probe_height[k].get().wrapping_neg();
         drawing.scene.scratch.set(eax);
-        q.set_bits(ext_div2(
-            int_80(eax as i32, false),
-            race.course.numbers.k65536.bits(),
-            ph.handling[3].bits(),
-        ));
+        q.set_bits(
+            ext_div2(
+                int_80(eax as i32, false),
+                race.course.numbers.k65536.bits(),
+                ph.handling[3].bits(),
+            )
+            .to_bits(),
+        );
         if below(q.bits(), ZERO) {
-            q.set_bits(x87::loaded(ZERO));
+            q.set(x87::loaded(ZERO));
         }
         if !below(q.bits(), race.course.numbers.one.bits()) {
-            q.set_bits(x87::loaded(&race.course.numbers.one));
+            q.set(x87::loaded(&race.course.numbers.one));
         }
-        force.set_bits(negated(mul2(
-            q,
-            &ph.spring_force_scale,
-            &ph.forces[0].force[1],
-        )));
-        damping.set_bits(x87::sub_mul(
+        force.set_bits(negated(mul2(q, &ph.spring_force_scale, &ph.forces[0].force[1])).to_bits());
+        damping.set(x87::sub_mul(
             q.bits(),
             drawing.scene.work_dword.get(),
             ph.handling[5].bits(),
         ));
         if below(damping.bits(), ZERO) {
-            damping.set_bits(x87::mul(damping, &ph.handling[0]));
+            damping.set(x87::mul(damping, &ph.handling[0]));
         }
         let zero_or_none = f32::from_bits(q.bits())
             .partial_cmp(&f32::from_bits(ZERO))
             .is_none_or(|o| o == Ordering::Equal);
         if !zero_or_none {
-            force.set_bits(x87::add(damping, force));
+            force.set(x87::add(damping, force));
         }
     }
     for k in 0..4 {
@@ -91,14 +90,14 @@ pub fn wheel_springs(race: &Race, scene: &crate::scene::owner::Scene) {
     }
     // The springs' records (6 .. 9): the force up, the wheels' places.
     for k in 0..4 {
-        ph.forces[6 + k].force[1].set_bits(x87::loaded(&ph.spring_forces[k]));
+        ph.forces[6 + k].force[1].set(x87::loaded(&ph.spring_forces[k]));
     }
     for (row, from) in [&c.probe_point_x, &c.probe_point_y, &c.probe_point_z]
         .into_iter()
         .enumerate()
     {
         for (record, place) in ph.forces[6..10].iter().zip(from) {
-            record.point[row].set_bits(x87::loaded(place));
+            record.point[row].set(x87::loaded(place));
         }
     }
     // Their x and z copied on into the records 11 .. 14 and 15 .. 18, in the original's
@@ -106,17 +105,17 @@ pub fn wheel_springs(race: &Race, scene: &crate::scene::owner::Scene) {
     for k in 0..4 {
         for row in [0, 2] {
             let v = x87::loaded(&ph.forces[6 + k].point[row]);
-            ph.forces[11 + k].point[row].set_bits(v);
-            ph.forces[15 + k].point[row].set_bits(v);
+            ph.forces[11 + k].point[row].set_bits(v.to_bits());
+            ph.forces[15 + k].point[row].set_bits(v.to_bits());
         }
     }
     ph.forces[10].point[1].set_bits(0);
     let n = neg_rounded(extended(ph.wheel_spin_push[0].bits()));
     for k in 0..4 {
-        ph.forces[11 + k].point[1].set_bits(n);
+        ph.forces[11 + k].point[1].set_bits(n.to_bits());
     }
     let n = neg_rounded(extended(ph.wheel_spin_push[1].bits()));
     for k in 0..4 {
-        ph.forces[15 + k].point[1].set_bits(n);
+        ph.forces[15 + k].point[1].set_bits(n.to_bits());
     }
 }

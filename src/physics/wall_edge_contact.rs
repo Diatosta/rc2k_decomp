@@ -5,7 +5,7 @@
 //! swapped, goes into `wall_edge_from`, `wall_edge_to`; their scene points' x, z into
 //! `edge_points`; the edge's heading (arctangent of the differences, x `one_over_two_pi` x 65536,
 //! & 0xFFFF) << 16 + 0x40000000 into `wall_heading`; the normal (0, 0, 1) turned by it
-//! (`math::turn_float_point_xz`) into `contact_normal`; the speeds taken, the point of probe
+//! (`math::rotate_float_point_about_y`) into `contact_normal`; the speeds taken, the point of probe
 //! `probe_index` (its y x `tenth`), no slide limit; `physics::contact_force` into contact record
 //! 4, `physics::place_sound_e1`.
 //!
@@ -13,7 +13,7 @@
 //! tables' room), and what its calls refuse (what was written put back).
 
 use crate::errors::Refused;
-use crate::math::turn_float_point_xz::turn_float_point_xz;
+use crate::math::rotate_float_point_about_y::rotate_float_point_about_y;
 use crate::math::x87::mul;
 use crate::math::x87_float::to_int;
 use crate::math::x87_float::{int, ld};
@@ -33,7 +33,7 @@ fn corners(course: &Course, face: u32) -> Result<[u32; 4], Refused> {
 /// The normal across the edge from scene point `first` to `second` (also used by
 /// `crossed_edge_contact`): their x, z go into `edge_points`; the heading (the arctangent of the
 /// differences, x `one_over_two_pi` x 65536, & 0xFFFF) << 16 + 0x40000000 goes into
-/// `wall_heading`; (0, 0, 1) turned by it (`math::turn_float_point_xz`) goes into
+/// `wall_heading`; (0, 0, 1) turned by it (`math::rotate_float_point_about_y`) goes into
 /// `contact_normal`. Returns the leftover register values of the original's code.
 pub fn edge_normal(
     race: &Race,
@@ -63,7 +63,8 @@ pub fn edge_normal(
         .set(drawing.scene.scratch.get() & 0xFFFF);
     let heading = (drawing.scene.scratch.get() << 16).wrapping_add(0x4000_0000);
     race.shared.physics_tables.wall_heading.set(heading);
-    let out = { turn_float_point_xz(ZERO, ZERO, race_owner.course.numbers.one.bits(), heading) };
+    let out =
+        { rotate_float_point_about_y(ZERO, ZERO, race_owner.course.numbers.one.bits(), heading) };
     race_owner.physics.contact.contact_normal[0].set_bits(out[0]);
     race_owner.physics.contact.contact_normal[1].set_bits(out[1]);
     race_owner.physics.contact.contact_normal[2].set_bits(out[2]);
@@ -97,10 +98,13 @@ pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
     race.physics.contact.contact_point[0].set_bits(race.physics.contact.probe_turned_x[n].bits());
     race.physics.contact.contact_point[1].set_bits(race.physics.contact.probe_turned_y[n].bits());
     race.physics.contact.contact_point[2].set_bits(race.physics.contact.probe_turned_z[n].bits());
-    race.physics.contact.contact_point[1].set_bits(mul(
-        &race.physics.contact.contact_point[1],
-        &race.course.numbers.tenth,
-    ));
+    race.physics.contact.contact_point[1].set_bits(
+        mul(
+            &race.physics.contact.contact_point[1],
+            &race.course.numbers.tenth,
+        )
+        .to_bits(),
+    );
     race.physics.contact.contact_slide_limit.set_bits(0);
     contact_force(race, &race.shared.physics_tables.contacts[4], scene);
     { crate::physics::place_sound_e1::place_sound_e1(race) }?;

@@ -1,4 +1,4 @@
-//! The picture buffer's size as the loaders set it (converted 2026-10-21 from
+//! The picture buffer's size as the loaders set it (from
 //! `gfx::load_picture` 0x411863, `gfx::read_texture_picture` 0x405356,
 //! `gfx::show_picture_file` 0x41172B and `gfx::put_surface_pixel` 0x4065BB's place).
 //!

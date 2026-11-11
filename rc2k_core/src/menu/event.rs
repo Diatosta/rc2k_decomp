@@ -1,5 +1,5 @@
-//! An event's set-ups of the drivers and players and its pages' numbers (converted
-//! 2026-10-21 from `menu::reset_drivers` 0x470399, `clear_result_slots` 0x470DDA,
+//! An event's set-ups of the drivers and players and its pages' numbers
+//! (from `menu::reset_drivers` 0x470399, `clear_result_slots` 0x470DDA,
 //! `ready_players` 0x471F7E, `reset_player_totals` 0x471FB8, `begin_event` 0x472BAA,
 //! `reset_driver_condition` 0x47E7BC, `reset_player_times` 0x4813D6,
 //! `reset_single_event` 0x4AAA2F, `add_player_times` 0x4A25AD, `player_entered` 0x4A95EB,

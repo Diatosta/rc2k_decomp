@@ -575,17 +575,17 @@ pub(super) mod run {
     /// a float (the `fstp`).
     pub(super) fn ramp(x: u32, t: [u32; 4], zero: u32) -> u32 {
         if compare_full(x, t[0]) & 0x100 != 0 {
-            return crate::math::x87::loaded(t[1]);
+            return crate::math::x87::loaded(t[1]).to_bits();
         }
         if compare_full(x, t[2]) & 0x100 == 0 {
-            return crate::math::x87::loaded(t[3]);
+            return crate::math::x87::loaded(t[3]).to_bits();
         }
         let mut status = 0u16;
         x87!("fld dword ptr [{t} + 8]", "fsub dword ptr [{t}]", "fcomp dword ptr [{z}]",
         "fnstsw word ptr [{s}]";
         t = t.as_ptr(), z = &raw const zero, s = &raw mut status);
         if status & 0x4000 != 0 {
-            return crate::math::x87::loaded(t[1]);
+            return crate::math::x87::loaded(t[1]).to_bits();
         }
         let mut out = 0u32;
         x87!("fld dword ptr [{x}]", "fsub dword ptr [{t}]", "fld dword ptr [{t} + 8]",
@@ -1284,6 +1284,7 @@ mod tests {
     use super::{load, norm, run};
     use crate::math::x87::set_control_word;
     use crate::math::x87_float::{X, f80, from_f80};
+    use crate::math::x87_reference_a::AsBits;
     use crate::math::{normalise_vector, x87};
 
     /// The control words tried: double precision with nearest (the game's), chop, down and
@@ -1501,12 +1502,12 @@ mod tests {
 
     /// Runs `reference` and `plain` on `CASES` inputs per control word, and fails on
     /// any difference.
-    fn check<T: core::fmt::Debug, R: core::fmt::Debug>(
+    fn check<T: core::fmt::Debug, R: core::fmt::Debug, P: AsBits<Out = R>>(
         name: &str,
         cws: &[u16],
         gen_input: impl Fn(&mut Rng) -> T,
         reference: impl Fn(&T) -> R,
-        plain: impl Fn(&T) -> R,
+        plain: impl Fn(&T) -> P,
         same: impl Fn(&R, &R) -> bool,
     ) {
         let mut rng = Rng::new(name);
@@ -1516,7 +1517,7 @@ mod tests {
             set_control_word(cw);
             for _ in 0..CASES {
                 let input = gen_input(&mut rng);
-                let (a, b) = (reference(&input), plain(&input));
+                let (a, b) = (reference(&input), plain(&input).into_bits());
                 if !same(&a, &b) {
                     count += 1;
                     if bad.len() < 5 {
@@ -1536,11 +1537,11 @@ mod tests {
     }
 
     /// `check` at all four control words.
-    fn check_all<T: core::fmt::Debug, R: core::fmt::Debug>(
+    fn check_all<T: core::fmt::Debug, R: core::fmt::Debug, P: AsBits<Out = R>>(
         name: &str,
         gen_input: impl Fn(&mut Rng) -> T,
         reference: impl Fn(&T) -> R,
-        plain: impl Fn(&T) -> R,
+        plain: impl Fn(&T) -> P,
         same: impl Fn(&R, &R) -> bool,
     ) {
         check(name, &ROUNDING, gen_input, reference, plain, same);

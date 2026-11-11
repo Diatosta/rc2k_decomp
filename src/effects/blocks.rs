@@ -118,12 +118,12 @@ pub fn scale_corners(effects: &crate::effects::owner::Effects) {
             for (k, &o) in CORNER_PAIRS.iter().enumerate() {
                 for h in 0..2 {
                     let v = x87::int_times(word(o + 2 * h as u32) as i32, scale);
-                    values[2 * k + h] = v;
+                    values[2 * k + h] = v.to_bits();
                     let vertex = &crate::d3d::vertices_store::VERTICES.vertices[k];
                     if h == 0 {
-                        vertex.u.set_bits(v);
+                        vertex.u.set_bits(v.to_bits());
                     } else {
-                        vertex.v.set_bits(v);
+                        vertex.v.set_bits(v.to_bits());
                     }
                 }
             }
@@ -134,9 +134,7 @@ pub fn scale_corners(effects: &crate::effects::owner::Effects) {
             let (across, along) = (side(4, 0), side(0xA, 2));
             write_bits(&effects.frame.draw_work.half, [across, along]);
             let slope = &effects.blocks.corner_slopes.slopes[n as usize];
-            slope
-                .slope
-                .set_bits(x87::int_ratio(along as i32, across as i32));
+            slope.slope.set(x87::int_ratio(along as i32, across as i32));
             write_bits(&slope.values, values);
         }
     }
@@ -156,7 +154,7 @@ pub fn reset_settings_blocks(effects: &crate::effects::owner::Effects) -> Result
                 .chain(&car.steps[0])
                 .zip(&effects.kinds.emitter.settings_start)
             {
-                cell.set_bits(x87::loaded(v));
+                cell.set(x87::loaded(v));
             }
             let last = car.steps[0].each_ref().map(Float::bits);
             for steps in &car.steps[1..] {

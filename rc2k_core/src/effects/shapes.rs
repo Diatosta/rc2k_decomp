@@ -1,5 +1,5 @@
-//! The shape tables of two kinds of the marks' items, windscreen drops and squares (converted
-//! 2026-10-21 from `effects::set_up_windscreen_drops` 0x4BAA55 and `effects::set_up_windscreen_flakes`
+//! The shape tables of two kinds of the marks' items, windscreen drops and squares
+//! (from `effects::set_up_windscreen_drops` 0x4BAA55 and `effects::set_up_windscreen_flakes`
 //! 0x4BF529): a quarter-circle curve of 0x100 floats, 8 circles of points (one a radius),
 //! and for the windscreen drops 0x40 fans of four triangles.
 //!

@@ -1,4 +1,4 @@
-//! The HUD's time panels (converted 2026-10-21 from `hud::layout_0` 0x4B1D8C,
+//! The HUD's time panels (from `hud::layout_0` 0x4B1D8C,
 //! `hud::layout_1` 0x4B2743 and `hud::layout_2`): a time in hundredths made six digits,
 //! each a rectangle of the HUD's sprite sheet (`dword_75B940`, 0x10 bytes a rectangle), and
 //! the rules the three layouts share: the clock and lap panels' rectangles, the times with

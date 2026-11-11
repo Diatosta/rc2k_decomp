@@ -19,10 +19,17 @@ pub fn drag_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dyn Cell32]) {
     let put = |k: usize, x: u32| v[k].set_bits(x);
     let (k, d, zero) = (tables.air_drag.bits(), numbers.k10000.bits(), ZERO);
     for i in 0..3 {
-        put(3 + i, square_times_over(get(i), k, d));
+        put(3 + i, square_times_over(get(i), k, d).to_bits());
         let a = abs_of(get(3 + i));
         let below = compare_full(get(i), zero) & 0x100 != 0;
-        put(3 + i, if below { a } else { x87::negated(a) });
+        put(
+            3 + i,
+            if below {
+                a.to_bits()
+            } else {
+                x87::negated(a).to_bits()
+            },
+        );
     }
 }
 

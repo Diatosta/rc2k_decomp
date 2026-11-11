@@ -1,4 +1,4 @@
-//! An event's races (converted 2026-10-21 from `menu::run_event_races` 0x473126): the
+//! An event's races (from `menu::run_event_races` 0x473126): the
 //! computer drivers' times shaken by lot (eight get time added, one to four drop out),
 //! the standings before the race, then the players' races by the event mode, the event
 //! ended when every result is -1. Its steps in the original's order, on `EventRaces`.

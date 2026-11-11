@@ -55,24 +55,33 @@ pub fn fill_race_slot(
         slot.matrix[k].set_bits(race.shared.car.crash_matrix[k].bits());
     }
     let k = race.shared.work.part_fling.bits();
-    slot.motion[0].set_bits(int_mul_add(
-        scene.drawing.object_work.object_position[0].get() as i32,
-        k,
-        race.shared.car.velocity[0].bits(),
-        None,
-    ));
-    slot.motion[1].set_bits(int_mul_add(
-        scene.drawing.object_work.object_position[1].get() as i32,
-        k,
-        race.shared.car.velocity[1].bits(),
-        Some(race.course.numbers.two.bits()),
-    ));
-    slot.motion[2].set_bits(int_mul_add(
-        scene.drawing.object_work.object_position[2].get() as i32,
-        k,
-        race.shared.car.velocity[2].bits(),
-        None,
-    ));
+    slot.motion[0].set_bits(
+        int_mul_add(
+            scene.drawing.object_work.object_position[0].get() as i32,
+            k,
+            race.shared.car.velocity[0].bits(),
+            None,
+        )
+        .to_bits(),
+    );
+    slot.motion[1].set_bits(
+        int_mul_add(
+            scene.drawing.object_work.object_position[1].get() as i32,
+            k,
+            race.shared.car.velocity[1].bits(),
+            Some(race.course.numbers.two.bits()),
+        )
+        .to_bits(),
+    );
+    slot.motion[2].set_bits(
+        int_mul_add(
+            scene.drawing.object_work.object_position[2].get() as i32,
+            k,
+            race.shared.car.velocity[2].bits(),
+            None,
+        )
+        .to_bits(),
+    );
     for k in 0..3 {
         slot.spin[k].set_bits(race.shared.car.spin[k].bits());
     }

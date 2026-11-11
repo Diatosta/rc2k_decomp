@@ -173,7 +173,7 @@ pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Re
         DepthBy::Average => {
             let mut sum = depth(0)?;
             for k in 1..3 {
-                sum = add(depth(k)?, sum);
+                sum = add(depth(k)?, sum).to_bits();
             }
             average_key(crate::math::x87::add_to_int(depth(3)?, sum))
         }

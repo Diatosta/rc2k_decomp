@@ -1,6 +1,6 @@
-//! The voices of the race's shared sound spots (converted 2026-10-20 from
+//! The voices of the race's shared sound spots (from
 //! `sound::match_spot_voices` 0x40E642, `sound::exclusive_spot_voices` 0x40EAF3 and
-//! `sound::spot_voice_distances` 0x40E733; 2026-10-21 the pickers `sound::merge_spot_voices`
+//! `sound::spot_voice_distances` 0x40E733; also the pickers `sound::merge_spot_voices`
 //! 0x40E809 and `thin_spot_voices` 0x40E9F8, `repeat_spot_voices` 0x40EB44 and
 //! `free_spot_voices` 0x40E6F4, and `play_spot_voices` 0x40EB9E's choices): 0x48 voices
 //! the race sound keeps in step with the spots the frame shares (a waterfall, the crowd:
@@ -17,10 +17,10 @@ pub const MOST_SPOTS: usize = 36;
 /// The last kind.
 pub const MOST_KIND: u32 = 0x15;
 
-/// The sounds whose voices are merged each turn, in order (converted 2026-10-21 from
+/// The sounds whose voices are merged each turn, in order (from
 /// `sound::merge_spot_voices_all` 0x40E7CA).
 pub const MERGED_SOUNDS: [u32; 6] = [0x1B7, 0x1B8, 0x1BB, 0x1BC, 0x1C1, 0x1BF];
-/// The sounds whose voices are thinned each turn, in order (converted 2026-10-21 from
+/// The sounds whose voices are thinned each turn, in order (from
 /// `sound::thin_spot_voices_all` 0x40E97D).
 pub const THINNED_SOUNDS: [u32; 12] = [
     0x1B1, 0x1B2, 0x1B3, 0x1B4, 0x1B5, 0x1B6, 0x1B9, 0x1BA, 0x1B0, 0x1BE, 0x1C0, 0x1C3,

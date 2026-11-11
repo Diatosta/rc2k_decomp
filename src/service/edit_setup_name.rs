@@ -9,7 +9,7 @@
 //! goes (`backspace_setup_name`); any other `key_to_char`; a character is appended unless the
 //! length is already above the maximum (`text_max`), and taken off again if the name then
 //! measures 0xEC pixels or more in the font at 0x51E824. Called from the screen loop
-//! `menu::save_setup_loop` while `typing` is 1. Refuses, before the key is taken: a slot past
+//! `menu::save_setup_loop` while `typing` is set. Refuses, before the key is taken: a slot past
 //! 99, a length outside 0 .. 0x1F, no car object, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
@@ -76,7 +76,7 @@ pub fn edit_setup_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Ref
         Key::None => {}
         Key::Escape => {
             restore_text(name)?;
-            screens.option_work.typing.set(0u32);
+            screens.option_work.typing.set(false);
             return Ok(());
         }
         Key::Enter => {
@@ -84,11 +84,11 @@ pub fn edit_setup_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Ref
                 restore_text(name)?;
                 add_text_length(menus, name)?;
             }
-            screens.option_work.typing.set(0u32);
+            screens.option_work.typing.set(false);
             end_name(screens, name)?;
             write_setup_slot(service(), slot)?;
             end_name(screens, name)?;
-            screens.option_work.typing.set(0u32);
+            screens.option_work.typing.set(false);
             return Ok(());
         }
         Key::Clear => clear_text(menus, name)?,

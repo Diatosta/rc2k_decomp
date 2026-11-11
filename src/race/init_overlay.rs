@@ -67,15 +67,14 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
                     scene.drawing.scene.scratch.set(half);
                     let miles = x87::int_div_div_doubled(half as i32, scale, mile);
                     race.frame.panel_and_overlay.overlay.overlay_part_miles[n as usize]
-                        .set_bits(miles); // g_overlayPartMiles
-                    race.frame
-                        .panel_and_overlay
-                        .panel
-                        .overlay_miles
-                        .set(x87::add(
+                        .set_bits(miles.to_bits()); // g_overlayPartMiles
+                    race.frame.panel_and_overlay.panel.overlay_miles.set(
+                        x87::add(
                             miles,
                             race.frame.panel_and_overlay.panel.overlay_miles.get(),
-                        ));
+                        )
+                        .to_bits(),
+                    );
                     race.frame.panel_and_overlay.overlay.overlay_part_kinds_a[n as usize].set(0); // dword_6D160C
                     race.frame.panel_and_overlay.overlay.overlay_part_kinds_b[n as usize].set(0); // dword_6D170C
                 }

@@ -82,7 +82,7 @@ fn light_number(
         &light.light_dot_light,
         crate::session::read_bits::<_, 3>(&light.light_direction),
     );
-    light.light_dot_factor.set_bits(x87::from_int(strength));
+    light.light_dot_factor.set(x87::from_int(strength));
     light_dot(light)
 }
 

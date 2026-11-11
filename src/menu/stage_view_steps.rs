@@ -60,7 +60,7 @@ fn small_section(menus: &Menus) -> Result<u32, Refused> {
 
 pub fn count_stage_pages(screens: &Screens) -> Result<(), Refused> {
     let record = stage_record(screens)?;
-    // Converted: `rc2k_core::menu::event::stage_pages`.
+    // The logic is in `rc2k_core::menu::event::stage_pages`.
     let fault = Fault::default();
     let n = rc2k_core::menu::event::stage_pages(|k| fault.ok(record.offset(k).map(RecordRef::tag)));
     fault.check()?;
@@ -73,7 +73,7 @@ pub fn count_stage_pages(screens: &Screens) -> Result<(), Refused> {
 pub fn play_stage_speech(menus: &Menus, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let record = stage_record(&menus.screens)?;
     if championship(menus) {
-        // Converted: `rc2k_core::menu::stage_screens::stage_speech`.
+        // The logic is in `rc2k_core::menu::stage_screens::stage_speech`.
         let fault = std::cell::Cell::new(None);
         let at = stage_screens::stage_speech(record.record()?.track(), |n| {
             crate::session::read_on_in(
@@ -104,7 +104,7 @@ pub fn play_stage_speech(menus: &Menus, sound: &crate::sound::owner::Sound) -> R
 
 /// `menu::play_rally_speech`: a key taken (and dropped), then the rally's speech.
 pub fn play_rally_speech(menus: &Menus) -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::stage_screens::rally_speech`.
+    // The logic is in `rc2k_core::menu::stage_screens::rally_speech`.
     let section = stage_screens::rally_speech(menus.play.champ_view.event_mode.get(), || {
         menus.screens.event.section.get()
     })?
@@ -128,7 +128,7 @@ pub fn play_rally_speech(menus: &Menus) -> Result<(), Refused> {
 /// converted; not loaded: the fatal error 0x80712345.
 pub fn load_welcome_picture(menus: &Menus) -> Result<(), Refused> {
     let section = small_section(menus)?;
-    // Converted: `rc2k_core::menu::stage_screens::welcome`.
+    // The logic is in `rc2k_core::menu::stage_screens::welcome`.
     let table: &[crate::session::Dword] =
         match stage_screens::welcome(menus.play.champ_view.event_mode.get()) {
             stage_screens::Welcome::Championship => &menus.tables.lists.welcome_championship,
@@ -166,7 +166,7 @@ pub fn step_stage_page(
         screens.event.stage_page.get(),
         screens.event.stage_pages.get(),
     );
-    // Converted: `rc2k_core::menu::steps::stage_page`.
+    // The logic is in `rc2k_core::menu::steps::stage_page`.
     let page = rc2k_core::menu::steps::stage_page(page, pages, up);
     screens.event.stage_page.set(page);
     screens

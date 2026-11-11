@@ -40,7 +40,7 @@ pub fn windscreen_drops_setup(drops: &WindscreenDrops, scene: &crate::scene::own
             set_render_state(value, state);
         }
         for n in 0..6 {
-            VERTICES.vertices[n].rhw.set_bits(x87::from_int(0x100));
+            VERTICES.vertices[n].rhw.set(x87::from_int(0x100));
         }
         for n in 0..6 {
             VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
@@ -57,7 +57,7 @@ pub fn windscreen_drops_setup(drops: &WindscreenDrops, scene: &crate::scene::own
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
             .set_bits(6u32);
-        drops.work.inverse.set_bits(x87::reciprocal(
+        drops.work.inverse.set(x87::reciprocal(
             &crate::scene::polygon_work::front_end().window.farthest,
         ));
     }

@@ -102,7 +102,7 @@ pub fn race_loop(
             let begun = crate::debug::timing::start();
             input_update();
             crate::debug::timing::stop(crate::debug::timing::Stage::Input, begun);
-            if race.shared.work.in_credits.get() != 0 {
+            if race.shared.work.in_credits.is_set() {
                 if race.frame.credits.done.get() != 0 {
                     crate::framework::log("drive::race_loop: the credits race ends: rolled off");
                     return Ok(());
@@ -134,7 +134,7 @@ pub fn race_loop(
                 if answer == 0 {
                     break false;
                 }
-                if race.shared.work.in_credits.get() != 0 {
+                if race.shared.work.in_credits.is_set() {
                     crate::framework::log(&format!(
                         "drive::race_loop: the credits race ends: the quit question (Escape latched), answer {answer:#x}, frame {}",
                         race.shared.physics_tables.scene_clock.get()
@@ -161,7 +161,7 @@ pub fn race_loop(
             crate::debug::timing::stop(crate::debug::timing::Stage::Physics, begun);
             tyre_change(race, input, system)?;
             if players_all_out(race)? {
-                if race.shared.work.in_credits.get() != 0 {
+                if race.shared.work.in_credits.is_set() {
                     crate::framework::log(&format!(
                         "drive::race_loop: the credits race ends: every player out, frame {}",
                         race.shared.physics_tables.scene_clock.get()

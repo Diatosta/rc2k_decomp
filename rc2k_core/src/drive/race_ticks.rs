@@ -1,4 +1,4 @@
-//! The race's ticks and its stops (converted 2026-10-21 from `drive::race_tick`
+//! The race's ticks and its stops (from `drive::race_tick`
 //! 0x4455A9, `drive::race_step` 0x4454D2, `drive::quit_question` 0x445069,
 //! `drive::pause_until_key` 0x445376 and `drive::tyre_change_screen` 0x445047): which
 //! ticks run the race's step, the ticks of a frame, the "quit?" question's answers and

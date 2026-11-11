@@ -1,4 +1,4 @@
-//! The two files the game keeps between runs (converted 2026-10-21 from `saves::load_options`
+//! The two files the game keeps between runs (from `saves::load_options`
 //! 0x4AAB32, `save_options` 0x4AAE57, `load_best_times` 0x4AB155, `save_best_times`
 //! 0x4AB236): each begins with a head of 0x10 bytes, its four letters, 0, the version
 //! 0x50004 and the time it was written. `var\ral.dat` ("R5CI") then has the 69 pieces of

@@ -1,11 +1,11 @@
 //! The stage's loading: its number in the file names, the cars' numbers from the cars'
-//! data text, the stages tweaked, and the course's records grouped by kind (converted
+//! data text, the stages tweaked, and the course's records grouped by kind (
 //! from `race::set_cdat_number` 0x4456DD, `set_course_number` 0x43944F,
 //! `parse_2_digits` 0x437A25, `parse_3_digits` 0x4379EB, `read_stage_car_numbers`
 //! 0x437971, `tweak_stage` 0x439AAB and `group_records_by_kind` 0x421E42; the texture
-//! swap Converted from `race::swap_stage_texture` 0x439B03; the difficulty
-//! Converted from `race::set_car_times` 0x4377D0; the textures' records
-//! Converted from `race::build_texture_infos` 0x4393A0).
+//! swap from `race::swap_stage_texture` 0x439B03; the difficulty
+//! from `race::set_car_times` 0x4377D0; the textures' records
+//! from `race::build_texture_infos` 0x4393A0).
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;

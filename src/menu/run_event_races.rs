@@ -39,7 +39,7 @@ const KEPT: &Dword = &crate::menu::owner::MENUS.screens.flow.kept;
 const CURRENT: &Dword = &crate::menu::owner::MENUS.screens.event.current_player;
 
 /// The game for `rc2k_core::menu::event_races`: the variables at their addresses, the
-/// steps' Rust versions, the race and the front end.
+/// steps, the race and the front end.
 struct Game<'a> {
     menus: &'a Menus,
     /// The walked drivers.
@@ -198,7 +198,7 @@ pub fn run_event_races(menus: &Menus) -> Result<(), Refused> {
         asked: None,
         fault: Fault::default(),
     };
-    // Converted: `rc2k_core::menu::event_races::run_event_races`.
+    // The logic is in `rc2k_core::menu::event_races::run_event_races`.
     let done = races::run_event_races(&mut game, mode, reset_only);
     game.fault.check()?;
     done

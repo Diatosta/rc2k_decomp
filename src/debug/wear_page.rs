@@ -1,4 +1,4 @@
-//! The display page's figures (`debug::draw_wear_bars`, 0x429B19, IDA 2026-10-30): one
+//! The display page's figures (`debug::draw_wear_bars`, 0x429B19): one
 //! function of 875 calls in a row (a bar, a label, a figure each), a table in
 //! `debug::display_rows` (generated from it: `tools/debug_pages/`). A bar: the float at its
 //! place times 64 over 100 (`NUMBERS.hundred`), in colour 3, 4 high; a label or figure in

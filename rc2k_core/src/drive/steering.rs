@@ -1,4 +1,4 @@
-//! The work car's steering from its input word (converted 2026-10-21 from
+//! The work car's steering from its input word (from
 //! `drive::steer_inputs` 0x439DB1): by keys (stepped toward the side the word says, or
 //! back toward 0) or by device (the word scaled), then the trim.
 //!

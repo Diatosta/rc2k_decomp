@@ -7,7 +7,7 @@
 //! estimates depend only on the input's exponent and its top 12 mantissa bits. The tables
 //! (`estimate_tables`) hold its results for one octave (two for the square root);
 //! `tools/estimate_tables` makes them and checks these functions against the processor it
-//! runs on over all 2^32 inputs (0 differences on the 5800X, 2026-11-10).
+//! runs on over all 2^32 inputs (no differences on the 5800X).
 
 use super::estimate_tables::{RECIPROCAL, ROOT_EVEN, ROOT_ODD};
 

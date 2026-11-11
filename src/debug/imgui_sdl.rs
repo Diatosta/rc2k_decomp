@@ -1,4 +1,4 @@
-//! Dear ImGui on SDL3, ours (2026-10-30; `dear-imgui-sdl3` pulls in an SDL built from its
+//! Dear ImGui on SDL3, ours (`dear-imgui-sdl3` pulls in an SDL built from its
 //! source, which the Windows builds' `SDL3.dll` would clash with): SDL's events into ImGui's
 //! input, and ImGui's frame drawn with the window's renderer (`SDL_RenderGeometryRaw`), its
 //! textures (the font atlas) as SDL textures, through the crate's managed-texture requests.
@@ -66,12 +66,12 @@ fn with_gui<T>(f: impl FnOnce(&mut Gui) -> T) -> Option<T> {
         let mut gui = gui.borrow_mut();
         if gui.is_none() {
             let mut context = Context::create();
-            // In the game's `var` folder, beside its other saved files (owner, 2026-10-30).
+            // In the game's `var` folder, beside its other saved files.
             let ini = crate::platform::beside_log("var").join("imgui.ini");
             let _ = context.set_ini_filename(Some(ini));
             let io = context.io_mut();
             io.set_config_flags(io.config_flags() | ConfigFlags::DOCKING_ENABLE);
-            // A drag's click without a move types its value (owner, 2026-10-30).
+            // A drag's click without a move types its value.
             io.set_config_drag_click_to_input_text(true);
             let flags = io.backend_flags()
                 | BackendFlags::RENDERER_HAS_TEXTURES

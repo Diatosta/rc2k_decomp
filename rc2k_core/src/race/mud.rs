@@ -1,10 +1,10 @@
 //! The mud on the car's textures: places on a 256 x 256 square, the mud map's strengths
-//! (128 x 128 bytes a texture), the throws and the splashes (Converted from
+//! (128 x 128 bytes a texture), the throws and the splashes (from
 //! `race::mud_pixel` 0x44A58A, `mud_texel` 0x44A549, `put_mud_texel` 0x44A5A9,
 //! `muddy_texel` 0x44A2E1, `throw_mud_texel` 0x44A2A2 and `splash_mud` 0x44A35F; the
-//! turns, the colours and the file Converted from `race::mud_frame` 0x44A054,
+//! turns, the colours and the file from `race::mud_frame` 0x44A054,
 //! `mud_texture_turn` 0x44A087, `sample_mud_colours` 0x44A0D6 and `load_mud` 0x449D95;
-//! the tint Converted from `race::tint_to_mud_colour` 0x44A441).
+//! the tint from `race::tint_to_mud_colour` 0x44A441).
 
 /// The mud textures (`mud_texture`: 0 .. 3).
 pub const MOST_TEXTURE: u32 = 3;

@@ -103,9 +103,9 @@ pub fn set_listener(
     )?;
     let place: [u32; 3] = crate::session::read_all(&s.position);
     let strength: u32 = s.marks_count.get();
-    EFFECTS_SETTINGS.listener_car_place[2].set_bits(x87::from_int(place[2] as i32));
-    EFFECTS_SETTINGS.listener_car_place[1].set_bits(x87::from_int(place[1] as i32));
-    EFFECTS_SETTINGS.listener_car_place[0].set_bits(x87::from_int(place[0] as i32));
+    EFFECTS_SETTINGS.listener_car_place[2].set(x87::from_int(place[2] as i32));
+    EFFECTS_SETTINGS.listener_car_place[1].set(x87::from_int(place[1] as i32));
+    EFFECTS_SETTINGS.listener_car_place[0].set(x87::from_int(place[0] as i32));
     EFFECTS_SETTINGS
         .listener_near
         .set(u32::from(listener::car_ahead(strength)));
@@ -194,10 +194,10 @@ pub fn set_listener(
     ));
     EFFECTS_SETTINGS
         .engine_speed_copy
-        .set_bits(x87::loaded(&car.engine_speed));
+        .set(x87::loaded(&car.engine_speed));
     EFFECTS_SETTINGS
         .engine_speed_scaled_copy
-        .set_bits(x87::loaded(&car.engine_speed_scaled));
+        .set(x87::loaded(&car.engine_speed_scaled));
     if physics.split_tables.still.get() != 0 {
         EFFECTS_SETTINGS.spline_handbrake.set(0);
         EFFECTS_SETTINGS.spline_gear_changed.set(0);

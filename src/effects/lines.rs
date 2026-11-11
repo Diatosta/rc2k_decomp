@@ -423,7 +423,7 @@ pub fn set_up_blocks(
         copy_block_points(course, paths, block, scene)?;
         for n in 0..8 {
             let v = x87::loaded(&paths.lines_work.block_start[n]);
-            block.factors[n].set_bits(v);
+            block.factors[n].set_bits(v.to_bits());
         }
     }
     Ok(())

@@ -1,4 +1,4 @@
-//! The commands the game queues for the audio thread (converted 2026-10-21 from
+//! The commands the game queues for the audio thread (from
 //! `audio::take_commands` 0x40A8A4): a record of 0x20 bytes, the number and then the
 //! sender's eax, ebx, ecx, edx, esi, edi, ebp; 0x400 records, read round.
 
@@ -100,7 +100,7 @@ pub fn next_place(place: u32) -> u32 {
     if place + 1 >= RECORDS { 0 } else { place + 1 }
 }
 
-/// Where a command goes into the queue (converted 2026-10-21 from `sound::send_command`
+/// Where a command goes into the queue (from `sound::send_command`
 /// 0x409C45): without audio the count is cleared and nothing is queued; a full queue
 /// takes nothing; else the record at `write`, and the write place after it (round).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

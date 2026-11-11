@@ -1,10 +1,10 @@
-//! The install script (converted 2026-10-21 from `install::script_name` 0x41370C and
+//! The install script (from `install::script_name` 0x41370C and
 //! `install::run_script` 0x41365D): a byte program that names the folders and files to
 //! copy, as nested folders. Opcodes: 1 a folder (its name follows) entered, 2 back to the
 //! parent, 3 files matching a pattern, 4 a folder and everything under it, 8 n what follows
 //! up to the matching 9 only for an installation of kind n or more (8 and 9 nest), 6 and 9
 //! nothing; anything else ends it. The folders and files it names go into two tables
-//! (`install::list_folder` 0x413876 and `install::list_files` 0x4138B2, converted the same
+//! (`install::list_folder` 0x413876 and `install::list_files` 0x4138B2,
 //! day): names with NULs, past whose room is a fatal error.
 
 use crate::Invalid;

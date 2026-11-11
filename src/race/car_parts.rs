@@ -54,12 +54,12 @@ pub fn car_part_matrices(
         return Err(BadInput("a car model whose axle scaling would fault").into());
     };
     let shown = &c.shown_engine_speed;
-    shown.set_bits(loaded(&p.engine_speed));
+    shown.set_bits(loaded(&p.engine_speed).to_bits());
     if below_or_unordered(
         shown.bits(),
         race.shared.physics_tables.idle_engine_speed.bits(),
     ) {
-        shown.set_bits(loaded(&race.shared.physics_tables.idle_engine_speed));
+        shown.set_bits(loaded(&race.shared.physics_tables.idle_engine_speed).to_bits());
     }
     let on = p.lights_on.get();
     let s = mark_switches(&PartState {

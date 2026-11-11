@@ -65,7 +65,7 @@ fn steps(car: &Car, damage: &DamageModel) -> Result<(), Refused> {
         &mut levels,
         |k| f32::from_bits(gauge(car, k)),
         |t| {
-            damage.scratch.set_bits(from_int(t));
+            damage.scratch.set_bits(from_int(t).to_bits());
         },
         |q| queue_notice(car, q.notice, q.rank, gauge(car, q.gauge)),
     );

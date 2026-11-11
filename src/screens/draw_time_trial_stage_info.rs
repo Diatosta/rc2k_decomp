@@ -9,7 +9,7 @@
 //! `event.event_type` is 3 (a time trial); in the other event types that action opens
 //! `draw_service_stage_info`.
 //!
-//! Named `draw_selected_stage` until then.
+//!
 //!
 //! The record rows come from one of two best-time tables and are skipped while a table is missing
 //! (see `stage_panel::draw_records_for_group`). The menus and draw lists run its `entry`

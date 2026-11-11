@@ -33,7 +33,7 @@ pub fn simple_car_step(
         input.devices.keys_now.get(0x1D) != 0, // byte_4F6B79
     );
     let [x, _, z, _] = {
-        crate::math::turn_point_xz::turn_point_xz(
+        crate::math::rotate_point_about_y::rotate_point_about_y(
             0,
             keys as i32,
             distance as i32,

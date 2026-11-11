@@ -1,8 +1,10 @@
 //! The championships' starters: the start menus' items that set a championship up for
-//! one to four players and run it (converted 2026-10-21 from `menu::start_championship_one`
+//! one to four players and run it (from `menu::start_championship_one`
 //! 0x4A25F4, `_split`, `_two` 0x4A27B5, `_three`, `_four`, and `menu::start_a8_one`
 //! 0x4A9C9B, `_split`, `_two`, `_three`, `_four`). Their steps in the original's order, on
 //! the game's variables and callees through `Event`.
+
+use super::leaving::Switch;
 
 /// The two championships.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -74,8 +76,6 @@ impl Starter {
 pub enum Var {
     /// `dword_755954`.
     EventType,
-    /// `dword_758806`: the car choice was left.
-    LeftByKey,
     /// `dword_75649C`.
     RepairSet,
     /// `dword_755984`.
@@ -91,14 +91,6 @@ pub enum Var {
     Current,
     /// `dword_755988`.
     EventMode,
-    /// `dword_75555D`: the event is left too, not only the screen.
-    EventLeft,
-    /// `dword_755569`: an action asks to leave the screen.
-    AskLeave,
-    /// `dword_755565`: set by `leave_with_carry`.
-    LeftWithCarry,
-    /// `dword_755980`: 1 when an event is over.
-    EventOver,
 }
 
 pub use super::car_lists::CarList;
@@ -125,6 +117,8 @@ pub trait Event {
     type Error;
     fn get(&mut self, v: Var) -> u32;
     fn set(&mut self, v: Var, value: u32);
+    fn flag(&mut self, s: Switch) -> bool;
+    fn set_flag(&mut self, s: Switch, on: bool);
     fn call(&mut self, c: Call) -> Result<(), Self::Error>;
 }
 
@@ -148,7 +142,7 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
     match (s.first(), s.a8()) {
         (true, false) => {
             e.call(Call::RepairCar)?;
-            e.set(Var::LeftByKey, 0);
+            e.set_flag(Switch::LeftByKey, false);
             e.set(Var::EventType, s.event_type());
             e.set(Var::RepairSet, ALL_REPAIRS);
             e.set(Var::PlayerCount, 1);
@@ -156,7 +150,7 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
         }
         (true, true) => {
             e.set(Var::EventType, s.event_type());
-            e.set(Var::LeftByKey, 0);
+            e.set_flag(Switch::LeftByKey, false);
             e.set(Var::PlayerCount, 1);
             if e.get(Var::Continuing) != 1 {
                 e.call(Call::BeginEvent)?;
@@ -168,7 +162,7 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
         }
         (false, _) => {
             e.set(Var::EventType, s.event_type());
-            e.set(Var::LeftByKey, 0);
+            e.set_flag(Switch::LeftByKey, false);
             e.set(Var::RepairSet, ALL_REPAIRS);
             e.call(Call::ResetDriverCondition)?;
             zero_round(e);
@@ -179,7 +173,7 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
         e.set(Var::Current, k);
         e.call(Call::RepairCar)?;
         e.call(Call::SelectCar(list))?;
-        if e.get(Var::LeftByKey) == 1 {
+        if e.flag(Switch::LeftByKey) {
             return Ok(());
         }
         e.call(Call::TakeShownCar)?;
@@ -195,11 +189,11 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
         }
     } else {
         e.call(Call::RunChampionship)?;
-        e.set(Var::EventLeft, 0);
-        e.set(Var::AskLeave, 0);
-        e.set(Var::LeftWithCarry, 0);
+        e.set_flag(Switch::EventLeft, false);
+        e.set_flag(Switch::AskLeave, false);
+        e.set_flag(Switch::LeftWithCarry, false);
     }
-    e.set(Var::EventOver, 1);
+    e.set_flag(Switch::EventOver, true);
     Ok(())
 }
 
@@ -220,12 +214,20 @@ mod tests {
         fn get(&mut self, v: Var) -> u32 {
             match v {
                 Var::Continuing => self.continuing,
-                Var::LeftByKey => u32::from(self.leave_at == Some(self.chosen - 1)),
                 _ => unreachable!(),
             }
         }
         fn set(&mut self, v: Var, value: u32) {
             self.steps.push(format!("{v:?}={value}"));
+        }
+        fn flag(&mut self, s: Switch) -> bool {
+            match s {
+                Switch::LeftByKey => self.leave_at == Some(self.chosen - 1),
+                _ => unreachable!(),
+            }
+        }
+        fn set_flag(&mut self, s: Switch, on: bool) {
+            self.steps.push(format!("{s:?}={}", u32::from(on)));
         }
         fn call(&mut self, c: Call) -> Result<(), ()> {
             if let Call::SelectCar(_) = c {

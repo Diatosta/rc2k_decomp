@@ -13,7 +13,7 @@ use rc2k_core::drive::replay_frames::written_view;
 // Converted: `rc2k_core::drive::replay_frames::written_view`.
 pub fn write_replay_frames(race: &Race) -> Result<(), Refused> {
     let replay = &race.replay;
-    if race.shared.replay_file.replay_open.get() != 1 {
+    if !race.shared.replay_file.replay_open.is_set() {
         return Ok(());
     }
     race.shared.replay_file.index_frame_count.set(

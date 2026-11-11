@@ -1,5 +1,5 @@
-//! The marks' particles' points moved by lot, and the splines' blended points (converted
-//! 2026-10-21 from `effects::jitter_point` 0x4C6106, `spread_point` 0x4C61AB and
+//! The marks' particles' points moved by lot, and the splines' blended points
+//! (from `effects::jitter_point` 0x4C6106, `spread_point` 0x4C61AB and
 //! `blend_points` 0x4BA5E2). As in `math::vector`, what the x87 keeps on its stack is an
 //! `f64`, rounded to `f32` where the original stores it: the same bits at the game's
 //! double precision (`fprem` is exact, as `%` is).

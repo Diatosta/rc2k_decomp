@@ -1,4 +1,5 @@
 use crate::errors::Refused;
+use crate::menu::event_flow::switch_cell;
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, Screen, run_screen};
@@ -6,9 +7,10 @@ use crate::race::owner::race;
 use crate::session::Dword;
 use crate::system::owner::system;
 use rc2k_core::menu::arcade_event::{self as arcade, Step, Var};
+use rc2k_core::menu::leaving::Switch;
 
 /// The game for `rc2k_core::menu::arcade_event`: the variables at their addresses, the
-/// steps' Rust versions and the car list the car choice was shown.
+/// steps and the car list the car choice was shown.
 struct Game<'a> {
     menus: &'a Menus,
     cars: Option<CarList>,
@@ -39,17 +41,12 @@ fn address(menus: &Menus, v: Var) -> &'_ Dword {
         Var::Figure758 => &menus.play.results.time_bonus[0],
         Var::PlayerCount => &menus.screens.event.player_count,
         Var::EventMode => &menus.screens.event.event_kind,
-        Var::EventLeft => &menus.screens.loop_flags.event_left,
-        Var::LeftWithCarry => &menus.screens.loop_flags.left_with_carry,
-        Var::AskLeave => &menus.screens.loop_flags.ask_leave,
         Var::Stage => &menus.play.arcade.stage,
         Var::Level => &menus.play.arcade.level,
         Var::Current => &menus.screens.event.current_player,
-        Var::LeftByKey => &menus.tables.captions.left_by_key,
         Var::Answer => &menus.tables.pages.yes_no_answer,
         Var::Cheats => &menus.play.cheats.cheats,
         Var::Qualifies => &menus.screens.event.time_qualifies,
-        Var::EventOver => &menus.screens.event.event_over,
         Var::Player0Entry => unreachable!("player 0's field is not at an address"),
         Var::RaceStage
         | Var::RaceLevel
@@ -80,6 +77,14 @@ impl arcade::Arcade for Game<'_> {
                 None => address(menus, v).set(value),
             },
         }
+    }
+
+    fn flag(&mut self, s: Switch) -> bool {
+        switch_cell(s).is_set()
+    }
+
+    fn set_flag(&mut self, s: Switch, on: bool) {
+        switch_cell(s).set(on);
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
@@ -147,6 +152,6 @@ pub fn arcade_event(menus: &Menus) -> Result<(), Refused> {
         cars: None,
         player0,
     };
-    // Converted: `rc2k_core::menu::arcade_event::arcade_event`.
+    // The logic is in `rc2k_core::menu::arcade_event::arcade_event`.
     arcade::arcade_event(&mut game)
 }

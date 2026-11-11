@@ -43,18 +43,22 @@ pub fn draw_lens_flare(
         crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
     ];
     let dx = x87::sub(marks.listener_figures[1].get(), cx);
-    let dy = x87::sub(marks.listener_figures[2].get(), cy) ^ 0x8000_0000;
-    effects.frame.draw_frame.flare_way[0].set_bits(dx);
-    effects.frame.draw_frame.flare_way[1].set_bits(dy);
-    effects.frame.flare_parts.unit[0].set_bits(x87::loaded(dx));
-    effects.frame.flare_parts.unit[1].set_bits(x87::loaded(dy));
+    let dy = -x87::sub(marks.listener_figures[2].get(), cy);
+    effects.frame.draw_frame.flare_way[0].set_bits(dx.to_bits());
+    effects.frame.draw_frame.flare_way[1].set_bits(dy.to_bits());
+    effects.frame.flare_parts.unit[0].set(x87::loaded(dx));
+    effects.frame.flare_parts.unit[1].set(x87::loaded(dy));
     effects.frame.flare_parts.unit[2].set_bits(0);
     crate::scene::vector3::normalise(&effects.frame.flare_parts.unit);
     let length = crate::math::x87::float_hypot(dx, dy);
-    effects.frame.draw_frame.flare_length.set_bits(length);
+    effects
+        .frame
+        .draw_frame
+        .flare_length
+        .set_bits(length.to_bits());
     let alpha = bh::to_int(
         bh::ld(effects.frame.flare_scales.fade[1].bits())
-            - bh::ld(length) * bh::ld(effects.frame.flare_scales.fade[0].bits()),
+            - bh::ld(length.to_bits()) * bh::ld(effects.frame.flare_scales.fade[0].bits()),
     )
     .max(0);
     let product = u64::from(marks.listener_figures[0].get()) * u64::from(alpha as u32);

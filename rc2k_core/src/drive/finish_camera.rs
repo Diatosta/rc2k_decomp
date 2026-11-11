@@ -1,4 +1,4 @@
-//! The finish routine's camera (converted 2026-10-21 from `drive::finish_camera`
+//! The finish routine's camera (from `drive::finish_camera`
 //! 0x45941D): four of the camera's figures, each a line in the eased time and the share.
 //! The figures are the camera's yaw, height, distance and pitch: each
 //! is a start value plus a rate times the eased time (or the share), the constants being

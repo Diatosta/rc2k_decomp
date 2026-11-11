@@ -64,7 +64,7 @@ pub fn draw_duel_result(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Re
         label(tables, play.results.positions[0].get())?,
         label(tables, play.results.positions[1].get())?,
     );
-    // Converted: `rc2k_core::screens::duel_result`.
+    // The logic is in `rc2k_core::screens::duel_result`.
     use rc2k_core::screens::player_result::Player;
     let units = crate::strings::units::units();
     let player = |p: crate::menu::standings::PlayerCell| -> Result<Player<crate::screens::game_screen::HeldText>, Refused> {

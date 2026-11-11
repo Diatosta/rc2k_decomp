@@ -1,4 +1,4 @@
-//! The HUD's batch of vertices and indices (converted 2026-10-21 from `hud::draw_hud`
+//! The HUD's batch of vertices and indices (from `hud::draw_hud`
 //! 0x4B1CD0, `hud::add_polygon` 0x4B7413, `hud::flush_batch` 0x4B74EF and
 //! `hud::set_batch_texture` 0x45A855): polygons
 //! gathered with one texture and drawn by the device in one go; a change of texture or a

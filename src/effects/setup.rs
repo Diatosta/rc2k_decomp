@@ -165,7 +165,7 @@ pub fn tick_clock(
             }
             c.frame_ticks.set(0);
             c.reciprocal
-                .set_bits(x87::loaded(&setup.clock_k.first_reciprocal));
+                .set(x87::loaded(&setup.clock_k.first_reciprocal));
             return Ok(());
         }
         c.now.set(clock);
@@ -186,7 +186,7 @@ pub fn tick_clock(
         c.reciprocal.set_bits(reciprocal);
         c.reciprocal_scaled.set_bits(scaled);
         c.ticks_scaled
-            .set_bits(x87::mul(ticks, &setup.clock_k.ticks_scale));
+            .set(x87::mul(ticks, &setup.clock_k.ticks_scale));
     }
     Ok(())
 }
@@ -291,7 +291,7 @@ pub fn make_noise_curve(
         .threes
         .map(|three| x87::int_times_plus(three, spread_scale, spread_base));
     for (cell, v) in weather.snow_tables.spreads.iter().zip(spread) {
-        cell.set_bits(v);
+        cell.set_bits(v.to_bits());
     }
     for (cells, table) in weather.snow_tables.remainders.iter().zip(&t.remainders) {
         for (cell, v) in cells.iter().zip(table) {
@@ -313,7 +313,7 @@ pub fn make_noise_curve(
     }
     let first = x87::loaded(&weather.snow_light.quad_first);
     for cell in &weather.snow.quad_a {
-        cell.set_bits(first);
+        cell.set_bits(first.to_bits());
     }
     // The view's centre (`dword_62409C`, `dword_6240A0`).
     let centre = &crate::scene::polygon_work::front_end().window.view_centre;

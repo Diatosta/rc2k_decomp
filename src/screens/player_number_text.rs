@@ -22,7 +22,7 @@ pub fn player_number_text(menus: &Menus) -> Result<(), Refused> {
     text.push(b' ');
     let mut emit = |bytes: &[u8]| text.extend_from_slice(bytes);
     append_string_by_id(SECOND_STRING, &mut emit)?;
-    // Converted: `rc2k_core::screens::captions::fit`.
+    // The logic is in `rc2k_core::screens::captions::fit`.
     let text = rc2k_core::screens::captions::fit(text, TEXT_LEN)?;
     crate::screens::text_buffers_store::TEXT_BUFFERS
         .number_text

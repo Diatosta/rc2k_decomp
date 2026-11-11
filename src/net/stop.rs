@@ -16,7 +16,7 @@ pub fn stop(vars: &NetVars) -> Result<(), Refused> {
     while vars.receiving.get() != 0 {
         crate::system::sleep::sleep(1);
         crate::platform::pump_messages_now();
-        if system().session.flags.quitting.get() == 1 && vars.receive_done.get() == 1 {
+        if system().session.flags.quitting.is_set() && vars.receive_done.get() == 1 {
             break;
         }
     }

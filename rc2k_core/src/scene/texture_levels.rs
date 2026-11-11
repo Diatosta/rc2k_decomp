@@ -1,4 +1,4 @@
-//! Which texture slots a stage wants at which level (converted 2026-10-21 from
+//! Which texture slots a stage wants at which level (from
 //! `scene::init_texture_levels` 0x424001, `race::loadlevel_init`'s "init ed textures"):
 //! each car's runs of slots, each kind's slots by the stage prefs, then fixed runs, into
 //! `LevelTables`. With the other levels on (`dword_5CDADC`, which the original sets to 0

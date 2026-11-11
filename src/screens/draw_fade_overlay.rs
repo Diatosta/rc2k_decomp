@@ -10,7 +10,7 @@ use crate::menu::owner::Menus;
 use crate::screens::service_boxes::quad;
 
 pub fn draw_fade_overlay(menus: &Menus) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::panels::fade_overlay`.
+    // The logic is in `rc2k_core::screens::panels::fade_overlay`.
     let a = rc2k_core::screens::panels::fade_overlay(menus.screens.state.menus.fade_see.get());
     quad(a.x, a.y, a.w, a.h, a.colour, a.see)
 }

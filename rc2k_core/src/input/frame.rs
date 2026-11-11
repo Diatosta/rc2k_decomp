@@ -1,4 +1,4 @@
-//! The frame's keys and mouse (converted 2026-10-20 from `input::update` 0x420115 and its
+//! The frame's keys and mouse (from `input::update` 0x420115 and its
 //! parts `unpack_mouse` 0x4081FC, `take_mouse` 0x42019C, `copy_keys` 0x4201EC,
 //! `buttons_to_keys` 0x420200, `find_pressed_keys` 0x420215, `repeat_keys` 0x420247,
 //! `take_mouse_clicks` 0x42028C).

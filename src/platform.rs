@@ -64,7 +64,7 @@ pub static FRAMES_TO_SHOW: AtomicU32 = AtomicU32::new(0);
 static LAST_SHOWN: AtomicUsize = AtomicUsize::new(0);
 
 pub fn quitting() -> bool {
-    system().session.flags.quitting.get() == 1
+    system().session.flags.quitting.is_set()
 }
 
 // ---- gfx::choose_screen_modes (0x404481) ----
@@ -528,7 +528,7 @@ pub fn show_frame_now() -> bool {
                     "platform: {shown} frames shown; the last is in rc2k_frame.raw ({} x {}, {} bits); quitting",
                     screen.width, screen.height, screen.bits
                 ));
-                system().session.flags.quitting.set(1);
+                system().session.flags.quitting.set(true);
             }
         }
         crate::platform_timing::start_sampler();

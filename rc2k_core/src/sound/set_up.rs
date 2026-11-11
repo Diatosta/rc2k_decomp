@@ -1,4 +1,4 @@
-//! The audio thread put in its modes, and the waits for it (converted 2026-10-21 from
+//! The audio thread put in its modes, and the waits for it (from
 //! `sound::apply_settings` 0x40EFF3, `sound::set_up_race_sounds` 0x40F02E,
 //! `sound::wait_for_commands` 0x409C1E and `sound::play_car_stream` 0x469AA1).
 //!

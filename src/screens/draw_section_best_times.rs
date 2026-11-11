@@ -1,5 +1,4 @@
-//! `screens::draw_section_best_times` (0x46762B; IDA had it as code outside any function,
-//! made one 2026-10-19): ten rows of the section's best times (the menu table[section], the
+//! `screens::draw_section_best_times` (0x46762B): ten rows of the section's best times (the menu table[section], the
 //! game's own tables of 0x9C-byte entries, six sections), from y 0xF0, 0x19 apart, row n
 //! (1 .. 10, kept in `seconds`): a player's (+0x40 1) in 0x51E524 / 0x51E544, else 0x51E584 /
 //! 0x51E5A4: the name (the text at +0x20) at 0xF0, the time (+0x18, `strings::append_time`,
@@ -11,7 +10,7 @@
 //!
 //! Refuses (before anything) a section past the six or with no table, and a line past the line
 //! buffer. In the draw list 0x758E4E of `menu::unused_section_times_loop_1` / `_2` (0x466E50,
-//! 0x467392), which nothing reaches (no code or data refers to them, 2026-10-20). The menus and
+//! 0x467392), which nothing reaches (no code or data refers to them). The menus and
 //! draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
@@ -29,7 +28,7 @@ pub fn draw_section_best_times(menus: &Menus, canvas: &mut dyn Canvas) -> Result
         return Err(BadInput("a section past the six best-times tables").into());
     }
     let table = saves().rally_times.table(section as usize)?;
-    // Converted: `rc2k_core::screens::best_scores::section_best_times`.
+    // The logic is in `rc2k_core::screens::best_scores::section_best_times`.
     use rc2k_core::screens::best_scores::SectionRow;
     // The rallies' tables are the game's (`RALLY_TIMES`), not blocks.
     let rows: [SectionRow<crate::screens::game_screen::HeldText>; 10] = std::array::from_fn(|n| {

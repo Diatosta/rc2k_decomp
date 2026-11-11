@@ -67,7 +67,8 @@ impl BestTimes {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct TimeEntry {
-    pub field_0: Dword,
+    /// +0: read by no code.
+    pub unread_0: Dword,
     /// +4: the player (1 .. 4), 0 for a computer driver.
     pub player: Dword,
     /// +8: the nationality (the driver's +0x14).
@@ -90,9 +91,10 @@ pub struct TimeEntry {
     pub figure: Dword,
     /// +0x48 .. +0x50: read by no code but as the name's tail (a name without a NUL reads on into it); 0 in the shipped data.
     pub unread_48: [Dword; 2],
-    /// +0x50: 0xB in a made-up entry.
-    pub field_50: Dword,
-    pub field_54: [Dword; 2],
+    /// +0x50: read by no code (0xB in a made-up entry).
+    pub unread_50: Dword,
+    /// +0x54, +0x58: read by no code.
+    pub unread_54: [Dword; 2],
     /// +0x5C: the checkpoints' times.
     pub checkpoints: [Dword; 16],
 }
@@ -107,7 +109,7 @@ impl TimeEntry {
             k += 1;
         }
         Self {
-            field_0: Dword::new(w[0]),
+            unread_0: Dword::new(w[0]),
             player: Dword::new(w[1]),
             nation: Dword::new(w[2]),
             name_id: Dword::new(w[3]),
@@ -119,8 +121,8 @@ impl TimeEntry {
             is_player: Dword::new(w[8]),
             figure: Dword::new(w[9]),
             unread_48: [Dword::new(w[10]), Dword::new(w[11])],
-            field_50: Dword::new(w[12]),
-            field_54: [Dword::new(w[13]), Dword::new(w[14])],
+            unread_50: Dword::new(w[12]),
+            unread_54: [Dword::new(w[13]), Dword::new(w[14])],
             checkpoints,
         }
     }

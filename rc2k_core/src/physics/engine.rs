@@ -1,11 +1,11 @@
-//! The engine's torque from its speed (converted from `physics::engine_torque`
+//! The engine's torque from its speed (from `physics::engine_torque`
 //! 0x43CBBB, `physics::engine_torque_or_cut` 0x43CB7D and `physics::free_rev` 0x43EA80):
 //! the speed's share of its top, a curve of eight steps read by it, and the factors
 //! after; the cut at the top; the engine revving free; the drive's two figures of
 //! `physics::drive_force` 0x43CB14; and when `physics::share_engine_sound` 0x45D294
 //! passes the engine's figures to the car's sound object. The revs heard eased toward
-//! the engine's speed (converted from `physics::engine_sound` 0x43DC72; its
-//! speed figures and the rounding stay the hook's x87).
+//! the engine's speed (from `physics::engine_sound` 0x43DC72; its
+//! speed figures and the rounding stay with the caller x87).
 //!
 //! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
 //! original stores (`physics::x87`): the same bits at the game's double precision. The

@@ -1,7 +1,7 @@
-//! The marks' noise tables (converted 2026-10-21 from `effects::seed_noise` 0x4C1697): 0x100
+//! The marks' noise tables (from `effects::seed_noise` 0x4C1697): 0x100
 //! steps of the marks' seed (times 0x9D plus 0x47), each giving an entry, the last first,
 //! of three tables: its low 18 bits, and those of it turned right 10 and 20. And the noise
-//! curve (converted 2026-10-21 from `effects::make_noise_curve` 0x4C2247, `init_marks`' step
+//! curve (from `effects::make_noise_curve` 0x4C2247, `init_marks`' step
 //! 5): a walk of 0x1000 steps, smoothed 0xA0 times, the random tables and the records'
 //! layout. Its roundings (`fistp`, and a float stored) follow the x87's control word: they
 //! come in as closures, the x87's in the game.

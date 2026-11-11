@@ -32,11 +32,11 @@ pub fn pong_ball_hits(pong: &Pong, effects: &crate::effects::owner::Effects) {
     p.hits.set(p.hits.get().wrapping_add(1));
     p.steps.set(p.steps.get().wrapping_add(4));
     for n in 0..2 {
-        p.ball[n].set_bits(x87::sub(&p.ball[n], &p.ball_way[n]));
+        p.ball[n].set(x87::sub(&p.ball[n], &p.ball_way[n]));
     }
     centres(pong);
     if p.difference[0].bits() == 0 {
-        p.difference[0].set_bits(x87::sub(&p.difference[0], &pong.rules.nudge));
+        p.difference[0].set(x87::sub(&p.difference[0], &pong.rules.nudge));
     }
     new_way(pong, effects);
     p.ball_way[0].set_bits(p.difference[0].bits());

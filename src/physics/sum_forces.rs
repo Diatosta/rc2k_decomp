@@ -16,13 +16,16 @@ pub fn sum_at(tables: &PhysicsTables, v: &[&dyn Cell32]) {
     let put = |k: usize, x: u32| v[k].set_bits(x);
     let g: u32 = tables.gravity.bits();
     let dt: u32 = tables.step_time.bits();
-    put(13, sum_over(&[get(0)], &[g, dt]));
-    put(14, sum_over(&[get(1)], &[g, dt]));
-    put(15, sum_over(&[get(2), get(3)], &[g, dt]));
-    put(16, sum_over(&[get(4), get(5), get(6), get(7)], &[g]));
+    put(13, sum_over(&[get(0)], &[g, dt]).to_bits());
+    put(14, sum_over(&[get(1)], &[g, dt]).to_bits());
+    put(15, sum_over(&[get(2), get(3)], &[g, dt]).to_bits());
+    put(
+        16,
+        sum_over(&[get(4), get(5), get(6), get(7)], &[g]).to_bits(),
+    );
     put(
         17,
-        sum_over(&[get(8), get(9), get(10), get(11), get(12)], &[g]),
+        sum_over(&[get(8), get(9), get(10), get(11), get(12)], &[g]).to_bits(),
     );
 }
 

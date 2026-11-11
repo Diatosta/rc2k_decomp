@@ -1,4 +1,4 @@
-//! The four wheels' springs from their heights (Converted from
+//! The four wheels' springs from their heights (from
 //! `physics::wheel_springs` 0x43ECD4): each wheel's squeeze, its force and damping, and
 //! the wheel's place for the drawing.
 //!

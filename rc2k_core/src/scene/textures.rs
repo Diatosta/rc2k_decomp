@@ -1,5 +1,5 @@
 //! The scene's textures: which are needed at which level, which slot shows which, and
-//! the texture a polygon's word names (converted 2026-10-21 from `scene::no_mips_for`
+//! the texture a polygon's word names (from `scene::no_mips_for`
 //! 0x46512F, `forget_slot_texture` 0x44EB66, `raise_texture_needs` 0x423F97,
 //! `set_texture_levels` 0x422426, `count_texture_needs` 0x423EB1, `map_texture_places`
 //! 0x42570D, `look_up_texture` 0x44E668, `assign_kind_textures` 0x4256D8,

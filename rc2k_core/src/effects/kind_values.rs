@@ -1,4 +1,4 @@
-//! The marks' kind's values (converted 2026-10-21 from `effects::set_kind_values_1`
+//! The marks' kind's values (from `effects::set_kind_values_1`
 //! 0x4C7322 and `effects::set_kind_values_2` 0x4C7FA4, the same code on two sets of
 //! tables): a kind's row of ten tables of 0x22 floats and of three tables of 0x22
 //! three-float entries, made into the values the marks run on. As in `math::vector`,

@@ -1,8 +1,7 @@
-//! The keyboard pages' tables, out of RAL.EXE's image (IDA 0x755595 .. 0x755640; phase 7, typed): the
+//! The keyboard pages' tables, out of RAL.EXE's image (IDA 0x755595 .. 0x755640): the
 //! keys the redefine page works on, the copy of a player's controls the controller pages keep, and
 //! the reserved keys. Bytes only, at addresses one past a multiple of four. A `#[repr(C)]` struct with
-//! the image's layout, one static; `moved::MOVED` points the range at it. (Split 2026-10-25 from the
-//! front end's block `menu::store`.)
+//! the image's layout, one static; `moved::MOVED` points the range at it.
 
 use crate::session::{Bytes, with_runs};
 
@@ -58,7 +57,7 @@ pub const START: usize = 0x755595;
 /// IDA 0x755640, the end of the piece.
 pub const END: usize = 0x755640;
 
-/// Where IDA 0x755595 is now (`moved::MOVED`'s home).
+/// Where IDA 0x755595 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn key_tables_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::menu::owner::MENUS.keys.tables)

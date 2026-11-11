@@ -1,4 +1,4 @@
-//! What differs between the 32-bit build and a 64-bit one (phase 9, step 4): the
+//! What differs between the 32-bit build and a 64-bit one: the
 //! processor's intrinsics and a thread context's instruction and stack pointers.
 
 #![allow(unsafe_code)]

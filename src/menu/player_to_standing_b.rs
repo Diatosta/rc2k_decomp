@@ -17,7 +17,7 @@ pub fn player_to_standing_b(
     index: u32,
 ) -> Result<(), Refused> {
     name_player(&p.get())?;
-    // Converted: `rc2k_core::saves::rankings::fill_b`.
+    // The logic is in `rc2k_core::saves::rankings::fill_b`.
     use rc2k_core::menu::standings::PlayerB;
     let source = PlayerB {
         index,

@@ -1,5 +1,5 @@
 //! The game's own pointers (the 32-bit addresses its data holds), checked against what is
-//! there (owner, 2026-10-25: "checked against allocations", `notes/improvements.md`).
+//! there.
 //!
 //! Every block the game takes from the system (`memory::allocate`)
 //! is registered here with its length and taken off when it is given back
@@ -13,7 +13,7 @@
 //! one (`memory::take_from_list`), and a read past a piece into the next piece of the same
 //! block still answers, as the original's did.
 //!
-//! Rust's own memory is not a region (since 2026-11-05, the memory layer's step 5): its
+//! Rust's own memory is not a region: its
 //! statics are reached as stores or as values, its locals as slices or values, so a game
 //! address into the program's sections or a thread's stack is refused, naming its caller.
 //! Tests alone keep the coarse regions (each section of the image, the running thread's
@@ -510,7 +510,7 @@ fn outside(addr: u32, len: usize, what: &str) -> BadInput {
 ///
 /// One made from a field (`to`) also keeps that field's ends: going outside them is refused, so an
 /// overrun inside a store is seen, which a region's check is not (a chat message over the
-/// network's mode, 2026-11-01). `unbounded` marks the places the original reads on.
+/// network's mode). `unbounded` marks the places the original reads on.
 #[derive(Clone, Copy, Debug)]
 pub struct GamePtr {
     at: u32,
@@ -1743,7 +1743,7 @@ impl RegionCache {
 
 /// Bytes owned here and reached by game address, for reading and for writing: a region for as
 /// long as they live. They are held by a raw pointer, so a write by address is allowed
-/// (a `Vec` lent through `&[u8]` gives read permission only: Miri, 2026-10-31).
+/// (a `Vec` lent through `&[u8]` gives read permission only, which Miri rejects).
 pub struct LentBytes {
     block: &'static pool::PoolBlock,
     len: usize,
@@ -1815,7 +1815,7 @@ impl Drop for LentBytes {
 /// lives; code that writes needs `LentBytes` or a pointer taken from `as_mut_ptr`. Take the guard before the address is handed on, and drop
 /// it before the buffer: a struct holding both declares the guard first (fields drop in
 /// order; freed memory still a region is memory the game may reach, and memory the heap
-/// hands out again inside a stale range: 2026-10-26, a flaky test).
+/// hands out again inside a stale range, which made a test flaky).
 #[cfg(test)]
 pub struct Lent(u32);
 

@@ -27,7 +27,7 @@ const DUE: &Dword = &crate::menu::owner::MENUS.screens.event.service_due;
 
 pub fn time_trial_service(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
-    // Converted: `rc2k_core::menu::passes` (the minutes, the pauses, who is out,
+    // The logic is in `rc2k_core::menu::passes` (the minutes, the pauses, who is out,
     // `goes_on`).
     use rc2k_core::menu::passes;
     crate::menu::standings::counted_players(menus)?;
@@ -43,7 +43,7 @@ pub fn time_trial_service(menus: &Menus) -> Result<(), Refused> {
             crate::system::sleep::sleep(passes::FADE_PAUSE);
             screens.state.driver_stats.repair_time.set(0);
             { crate::menu::driver_stats::driver_stats(menus, screens) }?;
-            screens.state.menus.service_flag.set(0);
+            screens.state.menus.service_flag.set(false);
             {
                 run_screen(
                     &crate::service::service_area_loop::SCREEN,

@@ -1,5 +1,5 @@
-//! A polygon's texture coordinates from whole numbers to floats (converted 2026-10-21
-//! from `scene::scale_texture_coordinates` 0x44E2FB): a value that is not 0 becomes a
+//! A polygon's texture coordinates from whole numbers to floats
+//! (from `scene::scale_texture_coordinates` 0x44E2FB): a value that is not 0 becomes a
 //! float (`fild`, `fstp`: one rounding to a float, the same at every precision) whose bits
 //! then lose 0x0C000000, the number over 2^24.
 

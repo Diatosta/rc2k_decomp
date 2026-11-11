@@ -1,4 +1,4 @@
-//! Pictures made another size, smoothly (converted 2026-10-20 from `gfx::rescale_picture`
+//! Pictures made another size, smoothly (from `gfx::rescale_picture`
 //! 0x4061D2 and `gfx::rescale_to_surface` 0x4063B7, which share the arithmetic).
 //!
 //! For every pixel of the new size: its place in the old picture as a whole number and a

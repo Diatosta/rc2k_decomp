@@ -18,7 +18,7 @@ pub struct CarBlocks {
     /// +0x0 (0x70F3EC): the blocks, 0xFE0 apart.
     pub cars: [Car; 10],
     /// +0x9ec0 (0x7192AC): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_tail: [Dword; 0x84],
+    pub unused_tail: [Dword; 0x84],
 }
 
 const _: () = assert!(core::mem::size_of::<CarBlocks>() == 0xA0D0);
@@ -194,7 +194,7 @@ mod tests {
     #[test]
     fn blocks_start_as_the_games() {
         let replay = &race().replay;
-        assert_eq!(offset_of!(CarBlocks, unknown_tail), 0x9EC0);
+        assert_eq!(offset_of!(CarBlocks, unused_tail), 0x9EC0);
         assert_eq!(blocks_addr(replay) % 4, 0);
         assert_eq!(
             blocks_addr(replay),

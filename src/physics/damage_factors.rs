@@ -1078,7 +1078,7 @@ mod plain_matches_x87 {
             "the touch-down load",
             |s| {
                 let (c, d) = (&s.car, &s.damage);
-                d.wheel_loads[0].set_bits(crate::math::x87::mul(&c.wheel_squeeze[0], &d.scratch));
+                d.wheel_loads[0].set(crate::math::x87::mul(&c.wheel_squeeze[0], &d.scratch));
             },
             |s| {
                 let (c, d) = (&s.car, &s.damage);

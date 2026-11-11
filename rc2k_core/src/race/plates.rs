@@ -1,6 +1,6 @@
 //! The views' name plates: when the time plate is drawn again and how a car's name is
-//! asked for (converted from `race::update_name_plates` 0x45B3B9); the plates'
-//! layouts Converted from `race::draw_name_plate` 0x45B695 and
+//! asked for (from `race::update_name_plates` 0x45B3B9); the plates'
+//! layouts from `race::draw_name_plate` 0x45B695 and
 //! `race::draw_time_plate` 0x45B70A.
 
 /// `race::update_name_plates`: whether the two time texts (8 bytes each at

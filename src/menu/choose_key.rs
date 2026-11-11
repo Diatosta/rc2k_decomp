@@ -6,7 +6,7 @@
 use crate::menu::owner::Screens;
 
 pub fn choose_key(screens: &Screens, place: u32) {
-    // Converted: `rc2k_core::menu::player::Redefining`.
+    // The logic is in `rc2k_core::menu::player::Redefining`.
     let r = rc2k_core::menu::player::Redefining::start(place);
 
     screens.option_work.redefining_key.set(r.on);

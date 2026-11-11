@@ -1,4 +1,4 @@
-//! The event pages' row steps (agent E, 2026-10-19): the first row shown
+//! The event pages' row steps: the first row shown
 //! (`g_champFirstRow`, 0x7556B8) ten back or on, then `menu::stage_range_caption`. `last` is `event.count_a` - 9 (`menu::previous_stage_rows` 0x4A3736,
 //! `next_stage_rows` 0x4A375F) or 0x5A - 9 (`previous_stage_rows_of_90` 0x4A378C,
 //! `next_stage_rows_of_90` 0x4A37B5).
@@ -21,7 +21,7 @@ pub fn step_rows(menus: &Menus, of_90: bool, on: bool) -> Result<(), Refused> {
     };
     let _last = count.wrapping_sub(9);
     let row: u32 = menus.play.champ_view.first_row.get();
-    // Converted: `rc2k_core::menu::steps::rows`.
+    // The logic is in `rc2k_core::menu::steps::rows`.
     let row = rc2k_core::menu::steps::rows(row, count, on);
     menus.play.champ_view.first_row.set(row);
     crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;

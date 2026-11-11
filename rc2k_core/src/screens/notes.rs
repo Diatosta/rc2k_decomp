@@ -1,4 +1,4 @@
-//! The screens that draw one string (converted 2026-10-20): `screens::draw_leave_question`
+//! The screens that draw one string: `screens::draw_leave_question`
 //! 0x46FA75, `draw_note_1fd` 0x4881F8, `draw_arcade_stage_title` 0x488F2F,
 //! `draw_no_controller` 0x46AEAA.
 

@@ -24,7 +24,7 @@ pub fn standings_from_drivers(menus: &Menus) -> Result<(), Refused> {
         texts.push((id, text));
     }
     crate::menu::init_standings_a::init_standings_a()?;
-    // Converted: `rc2k_core::saves::rankings::fill_a_from_driver`.
+    // The logic is in `rc2k_core::saves::rankings::fill_a_from_driver`.
     with_a(|t| {
         for ((d, (id, text)), e) in drivers.iter().zip(&texts).zip(&mut t.entries) {
             rc2k_core::saves::rankings::fill_a_from_driver(e, d, *id, text)

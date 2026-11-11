@@ -1,4 +1,4 @@
-//! The service area's repair choices (converted 2026-10-21 from `service::clear_repair_flags`
+//! The service area's repair choices (from `service::clear_repair_flags`
 //! 0x470DC3, `clear_repair_marks` 0x46BA15, `choose_repair` 0x46C138,
 //! `choose_repair_marked` 0x46C111, `try_toggle_repair` 0x46BFB9, `update_repair_total`
 //! 0x46BA2C, `toggle_repair_choice` 0x46B7C0, the four `toggle_*_change`, the twelve

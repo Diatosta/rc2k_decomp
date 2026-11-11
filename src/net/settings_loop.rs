@@ -73,7 +73,7 @@ pub fn settings_loop() -> Result<(), Refused> {
                 .move_clock
                 .set(install.pages.frame_clock.get());
         }
-        if system.session.flags.quitting.get() == 1 {
+        if system.session.flags.quitting.is_set() {
             break;
         }
     }

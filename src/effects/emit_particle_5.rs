@@ -93,7 +93,7 @@ fn emits(set: &JitterSet, wheel: &MarkRecord) -> Result<bool, Refused> {
         if set.over_one {
             x87::to_int(speed) > 1
         } else {
-            x87::loaded(speed) != 0
+            x87::loaded(speed).to_bits() != 0
         }
     })
 }
@@ -119,7 +119,7 @@ pub fn emit_particle_5_with(
         if let Some(why) = refusal(ring, set, wheel)? {
             return Err(BadInput(why).into());
         }
-        let strength = x87::loaded(&wheel.local_velocity_z) & 0x7FFF_FFFF;
+        let strength = x87::loaded(&wheel.local_velocity_z).to_bits() & 0x7FFF_FFFF;
         kinds.emitter.strength.set_bits(strength);
         if !emits(set, wheel)? || next_entry(ring)?.is_none() {
             return Ok(());
@@ -132,7 +132,7 @@ pub fn emit_particle_5_with(
             (1, x87::add(strength, &wheel.local_velocity_x))
         };
         kinds.emitter.sign.set(sign as u32);
-        kinds.emitter.strength.set_bits(strength);
+        kinds.emitter.strength.set_bits(strength.to_bits());
         let car = emitting_car(effects)?;
         let m = car.whole()?;
         let r = next_c5(set.place_random);
@@ -150,6 +150,7 @@ pub fn emit_particle_5_with(
                     wheel.place[k as usize / 4].bits(),
                     matrix_cell(m, 0x30 + k)?,
                 )
+                .to_bits()
             })
         })?;
         slot.put(|en| &mut en.place[2], place[2])?;
@@ -178,7 +179,7 @@ pub fn emit_particle_5_with(
             let row = matrix_cell(m, 0x28 - 4 * n as u32)?;
             slot.put(
                 |en| &mut en.motion[2 - n],
-                x87::product_plus(row, set.roll_k[n].bits(), speed, rounded(moved)),
+                x87::product_plus(row, set.roll_k[n].bits(), speed, rounded(moved)).to_bits(),
             )?;
         }
         slot.put(

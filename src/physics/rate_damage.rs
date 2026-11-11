@@ -202,10 +202,10 @@ pub fn rate_damage(car: &Car, damage: &DamageModel) {
     let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
     let hold = |v: &Float| {
         if less(v.bits(), d.gauge_low.bits()) {
-            v.set_bits(x87::loaded(&d.gauge_low));
+            v.set(x87::loaded(&d.gauge_low));
         }
         if !less(v.bits(), d.grade_high.bits()) {
-            v.set_bits(x87::loaded(&d.grade_high));
+            v.set(x87::loaded(&d.grade_high));
         }
     };
     let k = d.grade_k.bits();
@@ -233,31 +233,30 @@ pub fn rate_damage(car: &Car, damage: &DamageModel) {
     }
     let table_of = |t: &[Float; 4]| [t[0].bits(), t[1].bits(), t[2].bits(), t[3].bits()];
     for (out, x, t) in ramps_a(car, damage) {
-        out.set_bits(ramp(x.bits(), table_of(t), d.gauge_low.bits()));
+        out.set_bits(ramp(x.bits(), table_of(t), d.gauge_low.bits()).to_bits());
     }
     for (out, x) in [
         (&c.drive_efficiency[0], &d.front_tyre_wear),
         (&c.drive_efficiency[1], &d.rear_tyre_wear),
     ] {
-        d.brake_balance_complement.set_bits(ramp(
-            x.bits(),
-            table_of(&d.lerp_tables[5]),
-            d.gauge_low.bits(),
-        ));
+        d.brake_balance_complement
+            .set_bits(ramp(x.bits(), table_of(&d.lerp_tables[5]), d.gauge_low.bits()).to_bits());
         out.set_bits(bh::st(
             bh::ld(d.brake_balance_complement.bits()) * bh::ld(k) * bh::ld(k) * bh::ld(out.bits()),
         ));
     }
-    c.steering_efficiency.set_bits(ramp(
-        c.steering_damage.bits(),
-        table_of(&d.lerp_tables[6]),
-        d.gauge_low.bits(),
-    ));
+    c.steering_efficiency.set_bits(
+        ramp(
+            c.steering_damage.bits(),
+            table_of(&d.lerp_tables[6]),
+            d.gauge_low.bits(),
+        )
+        .to_bits(),
+    );
     let efficiency = c.steering_efficiency.bits();
-    c.steering_efficiency
-        .set_bits(x87::mul(efficiency, efficiency));
+    c.steering_efficiency.set(x87::mul(efficiency, efficiency));
     for (out, x, t) in ramps_c(car, damage) {
-        out.set_bits(ramp(x.bits(), table_of(t), d.gauge_low.bits()));
+        out.set_bits(ramp(x.bits(), table_of(t), d.gauge_low.bits()).to_bits());
     }
     // Chance: the figure times `flt_75B340` against the random's low word turned.
     let chance = |figure: &Float, turn: u32| {

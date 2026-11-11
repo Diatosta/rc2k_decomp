@@ -48,7 +48,7 @@ pub fn lever_pushes(race: &Race, scene: &crate::scene::owner::Scene) {
         race.shared
             .physics_tables
             .lever_share_start
-            .set_bits(x87::loaded(ZERO));
+            .set(x87::loaded(ZERO));
     }
     if !below(
         race.shared.physics_tables.lever_share_start.bits(),
@@ -57,14 +57,14 @@ pub fn lever_pushes(race: &Race, scene: &crate::scene::owner::Scene) {
         race.shared
             .physics_tables
             .lever_share_start
-            .set_bits(x87::loaded(&race.course.numbers.one));
+            .set(x87::loaded(&race.course.numbers.one));
     }
     race.shared.physics_tables.lever_push_vector[2]
-        .set(x87::loaded(&race.shared.car.probe_point_z[3]));
+        .set(x87::loaded(&race.shared.car.probe_point_z[3]).to_bits());
     race.shared
         .physics_tables
         .lever_share_left
-        .set_bits(x87::loaded(&race.shared.physics_tables.lever_share_start));
+        .set(x87::loaded(&race.shared.physics_tables.lever_share_start));
     lever_push(
         &race.shared.car,
         &race.shared.physics_tables,
@@ -72,11 +72,11 @@ pub fn lever_pushes(race: &Race, scene: &crate::scene::owner::Scene) {
         scene,
     );
     race.shared.physics_tables.lever_push_vector[2]
-        .set(x87::loaded(&race.shared.car.probe_point_z[0]));
+        .set(x87::loaded(&race.shared.car.probe_point_z[0]).to_bits());
     race.shared
         .physics_tables
         .lever_share_left
-        .set_bits(one_less(race.shared.physics_tables.lever_share_left.bits()));
+        .set_bits(one_less(race.shared.physics_tables.lever_share_left.bits()).to_bits());
     lever_push(
         &race.shared.car,
         &race.shared.physics_tables,

@@ -19,7 +19,7 @@ use crate::menu::screen_loop::{
 
 fn before(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
-    screens.draw_work.escape_pressed.set(0x0u32);
+    screens.draw_work.escape_pressed.set(false);
     screens.items.current[slot::SAVE_CHAMPIONSHIP]
         .set(screens.items.first[slot::SAVE_CHAMPIONSHIP].get());
     Ok(())
@@ -27,9 +27,9 @@ fn before(entry: &Entry) -> Result<(), Refused> {
 
 fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
     let screens = &entry.menus.screens;
-    if screens.option_work.typing.get() == 0x1 {
+    if screens.option_work.typing.is_set() {
         Callee::EditSavegameName.run(entry)?;
-        if screens.option_work.typing.get() != 0x0 {
+        if screens.option_work.typing.is_set() {
             return Ok(Flow::NextFrame);
         }
     }

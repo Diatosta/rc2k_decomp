@@ -22,7 +22,7 @@ pub fn begin_event(menus: &Menus) -> Result<(), Refused> {
     let drivers = crate::menu::standings::drivers(menus)?;
     menus.tables.pages.services.set(0u32);
     menus.screens.event.stages_done.set(0u32);
-    // Converted: `rc2k_core::menu::player::Player::{begin, default_setup}`.
+    // The logic is in `rc2k_core::menu::player::Player::{begin, default_setup}`.
     drivers
         .iter()
         .for_each(crate::menu::drivers_store::Driver::begin);

@@ -1,4 +1,4 @@
-//! The loading bar's progress while the textures load (converted 2026-10-21 from
+//! The loading bar's progress while the textures load (from
 //! `scene::step_loading_bar` 0x446786).
 
 /// The bar's ends (`dword_623634`, `dword_623638`).

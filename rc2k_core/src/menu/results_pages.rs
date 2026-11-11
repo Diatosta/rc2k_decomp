@@ -1,5 +1,5 @@
 //! The results and standings pages: the first player's figure each page holds, and the
-//! order of the tables' sorts before them (converted 2026-10-21 from
+//! order of the tables' sorts before them (from
 //! `menu::show_overall_stage_results`, `show_overall_rally_results` 0x4A3BA2,
 //! `show_championship_standings` 0x4A5A47, `show_class_stage_results`,
 //! `show_class_rally_results`, `show_class_championship_standings`,

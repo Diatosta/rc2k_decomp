@@ -17,7 +17,7 @@ use rc2k_core::menu::tables::ItemFn;
 
 /// A menu item's callback for a direction (`menu::navigation`). Of the item functions the
 /// tables name as key callbacks only `RaiseControllerSensitivity` reads a register: edi,
-/// which is the item here; the rest get none (2026-10-24, `tables_data.rs`' `on_key`
+/// which is the item here; the rest get none (`tables_data.rs`' `on_key`
 /// against `item_fn`'s reads).
 pub fn call_key(menus: &Menus, function: ItemFn, item: &MenuItem) -> Result<(), Refused> {
     match function {
@@ -32,7 +32,7 @@ pub fn call_key(menus: &Menus, function: ItemFn, item: &MenuItem) -> Result<(), 
     }
 }
 
-/// What a menu item's function is given (typed, 2026-10-24; the original's registers at
+/// What a menu item's function is given (the original's registers at
 /// the call: eax the item's value, ebp the item (not kept), edi the menu; the screen loop's others,
 /// which no function reads).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

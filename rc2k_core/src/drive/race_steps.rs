@@ -1,4 +1,4 @@
-//! The race's steps over the cars (converted 2026-10-21 from `drive::race_cars_step`
+//! The race's steps over the cars (from `drive::race_cars_step`
 //! 0x4608BB, `drive::replay_step` 0x460B2F, `drive::play_replay_frame` 0x460049,
 //! `drive::read_packed` 0x41EEB5 and `drive::race_init` 0x4462B9): every car stepped in
 //! turn (`g_currentCar` from 0 to `g_raceCars`), the skid marks begun again, the

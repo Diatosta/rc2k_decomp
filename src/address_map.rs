@@ -1,5 +1,5 @@
 //! The registry of game addresses: the game's data holds 32-bit addresses, and each is a
-//! number handed out here, never a host address (on 32 bits too since 2026-11-05). Every
+//! number handed out here, never a host address (on 32 bits too). Every
 //! host range given a name (the program's image, a thread's stack, a block of the pool) gets
 //! a game range, handed out from `FIRST` up in granules of 64 KiB (keeping a host address's
 //! offset in its granule); `pointers::game_address` names a host place through it. A game

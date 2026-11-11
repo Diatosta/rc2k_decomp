@@ -1,4 +1,4 @@
-//! The championships' starters (IDA, 2026-10-19): the actions of the start menus' items that set a
+//! The championships' starters: the actions of the start menus' items that set a
 //! championship up for one to four players and run it.
 //!
 //! The common shape: `event_type` is set (4, 5), `left_by_key` cleared, the carousel's last car
@@ -17,6 +17,7 @@ use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::session::Dword;
+use rc2k_core::menu::leaving::Switch;
 use rc2k_core::menu::starters;
 
 const REPAIR_SET: &Dword = &crate::menu::owner::MENUS.cars.table.last_car; // 0xF
@@ -42,6 +43,14 @@ impl starters::Event for Game<'_> {
 
     fn set(&mut self, v: starters::Var, value: u32) {
         set(var(v), value);
+    }
+
+    fn flag(&mut self, s: Switch) -> bool {
+        switch_cell(s).is_set()
+    }
+
+    fn set_flag(&mut self, s: Switch, on: bool) {
+        switch_cell(s).set(on);
     }
 
     fn call(&mut self, c: starters::Call) -> Result<(), Refused> {
@@ -80,7 +89,6 @@ fn var(v: starters::Var) -> &'static Dword {
     use starters::Var as V;
     match v {
         V::EventType => EVENT_TYPE,
-        V::LeftByKey => LEFT_BY_KEY,
         V::RepairSet => REPAIR_SET,
         V::PlayerCount => PLAYER_COUNT,
         V::Index => INDEX,
@@ -89,16 +97,12 @@ fn var(v: starters::Var) -> &'static Dword {
         V::Continuing => CONTINUING,
         V::Current => CURRENT,
         V::EventMode => EVENT_MODE,
-        V::EventLeft => EVENT_LEFT,
-        V::AskLeave => ASK_LEAVE,
-        V::LeftWithCarry => LEFT_WITH_CARRY,
-        V::EventOver => EVENT_OVER,
     }
 }
 
 /// Starts the event of a starter.
 pub fn start_event(menus: &Menus, s: &Starter) -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::starters::start`. The players' own settings come back
+    // The logic is in `rc2k_core::menu::starters::start`. The players' own settings come back
     // afterwards (`menu::own_settings`; not the original's).
     crate::menu::own_settings::around_championship(menus, || {
         starters::start(s.kind, &mut Game { menus, cars: None })

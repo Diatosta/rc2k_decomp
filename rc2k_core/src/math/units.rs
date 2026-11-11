@@ -1,5 +1,5 @@
-//! The game's units: conversions (RAL.EXE 0x4019A5, 0x4019BB, 0x40191E; converted
-//! 2026-10-20 from `math::celsius_to_fahrenheit`, `hhmm_to_minutes`, `miles_to_km`) and the
+//! The game's units: conversions (RAL.EXE 0x4019A5, 0x4019BB, 0x40191E;
+//! from `math::celsius_to_fahrenheit`, `hhmm_to_minutes`, `miles_to_km`) and the
 //! figures shown with a unit (from `strings::append_speed`, `append_distance_2dp`,
 //! `append_temperature`, `append_power`, `append_length`, `append_weight`,
 //! `append_torque`).

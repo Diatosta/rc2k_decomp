@@ -9,7 +9,7 @@
 //! exact. The order of the operations is the original's. The assembly versions are the
 //! reference the tests compare with (`x87_reference_c.rs`).
 
-use super::{set_chop, set_control};
+use super::{Flt, out, set_chop, set_control};
 use crate::math::x87_float::{ONE, compare, f80, from_f80, int, ld, st, to_int};
 
 /// The length of three floats, `sqrt(v0 v0 + (v1 v1 + v2 v2))`, as an 80-bit value (not
@@ -33,7 +33,9 @@ pub fn sum_times_over(a: u32, b: u32, h: u32, d: u32) -> u32 {
 }
 
 /// `c + (a - c) f + (b - c) g` as a whole number, summed as `(a - c) f + (c + (b - c) g)`.
-pub fn plane_height(a: i32, b: i32, c: i32, f: u32, g: u32) -> i32 {
+pub fn plane_height(a: i32, b: i32, c: i32, f: impl Flt, g: impl Flt) -> i32 {
+    let f = f.bits();
+    let g = g.bits();
     let (a, b, c) = (int(a), int(b), int(c));
     let p = (a - c) * ld(f);
     let q = (b - c) * ld(g);
@@ -79,7 +81,17 @@ pub fn face_shares(i: &[u32; 7], o: &mut [u32; 8], sse: bool) {
 }
 
 /// `(a - b [+ c]) - d e`, left unrounded (80 bits).
-pub fn less_plus_less_product_80(a: u32, b: u32, c: Option<u32>, d: u32, e: u32) -> [u8; 10] {
+pub fn less_plus_less_product_80(
+    a: impl Flt,
+    b: impl Flt,
+    c: Option<u32>,
+    d: impl Flt,
+    e: impl Flt,
+) -> [u8; 10] {
+    let a = a.bits();
+    let b = b.bits();
+    let d = d.bits();
+    let e = e.bits();
     let mut x = ld(a) - ld(b);
     if let Some(c) = c {
         x += ld(c);
@@ -94,13 +106,19 @@ pub fn int_times_times_over_to_int(i: i32, a: u32, b: u32, c: u32) -> i32 {
 }
 
 /// `(a a k + c) g` and its negative, each rounded to a float.
-pub fn square_times_plus_times(a: u32, k: u32, c: u32, g: u32) -> (u32, u32) {
+pub fn square_times_plus_times(a: impl Flt, k: impl Flt, c: impl Flt, g: impl Flt) -> (u32, u32) {
+    let a = a.bits();
+    let k = k.bits();
+    let c = c.bits();
+    let g = g.bits();
     let x = (ld(a) * ld(a) * ld(k) + ld(c)) * ld(g);
     (st(x), st(-x))
 }
 
 /// The compare of `a` with `b`: the status word's C0 .. C3 (0x4700).
-pub fn compare_full(a: u32, b: u32) -> u16 {
+pub fn compare_full(a: impl Flt, b: impl Flt) -> u16 {
+    let a = a.bits();
+    let b = b.bits();
     compare(ld(a), ld(b)) & 0x4700
 }
 
@@ -115,14 +133,17 @@ pub fn one_less_products(terms: &[[u32; 3]]) -> [u8; 10] {
 }
 
 /// The 80-bit `e` times `k`, unrounded.
-pub fn ext_times(e: [u8; 10], k: u32) -> [u8; 10] {
+pub fn ext_times(e: [u8; 10], k: impl Flt) -> [u8; 10] {
+    let k = k.bits();
     f80(from_f80(e) * ld(k))
 }
 
 /// A ramp through (t0, t1) .. (t2, t3) as the original reads it: below t0 (or no number)
 /// t1; not below t2, t3; t2 - t0 equal to `zero` (or no number), t1; else
 /// `(x - t0) / (t2 - t0) (t3 - t1) + t1`. Rounded to a float (the `fstp`).
-pub fn ramp(x: u32, t: [u32; 4], zero: u32) -> u32 {
+pub fn ramp(x: impl Flt, t: [u32; 4], zero: impl Flt) -> f32 {
+    let x = x.bits();
+    let zero = zero.bits();
     if compare_full(x, t[0]) & 0x100 != 0 {
         return crate::math::x87::loaded(t[1]);
     }
@@ -133,7 +154,7 @@ pub fn ramp(x: u32, t: [u32; 4], zero: u32) -> u32 {
     if compare(span, ld(zero)) & 0x4000 != 0 {
         return crate::math::x87::loaded(t[1]);
     }
-    st((ld(x) - ld(t[0])) / span * (ld(t[3]) - ld(t[1])) + ld(t[1]))
+    out((ld(x) - ld(t[0])) / span * (ld(t[3]) - ld(t[1])) + ld(t[1]))
 }
 
 /// `((a b) c) d`, rounded once.
@@ -143,8 +164,11 @@ pub fn mul3(a: u32, b: u32, c: u32, d: u32) -> u32 {
 }
 
 /// `lo + (i / d) (hi - lo)`, the products in that order.
-pub fn int_lerp(i: i32, d: u32, hi: u32, lo: u32) -> u32 {
-    st(int(i) / ld(d) * (ld(hi) - ld(lo)) + ld(lo))
+pub fn int_lerp(i: i32, d: impl Flt, hi: impl Flt, lo: impl Flt) -> f32 {
+    let d = d.bits();
+    let hi = hi.bits();
+    let lo = lo.bits();
+    out(int(i) / ld(d) * (ld(hi) - ld(lo)) + ld(lo))
 }
 
 /// `(a - b) / c` as a whole number.
@@ -172,19 +196,24 @@ pub fn int_over_int_plus(a: i32, b: i32, c: u32) -> u32 {
 
 /// (sine, cosine) of the float `a`, rounded to floats (`fsincos`: libm's `sin` / `cos`
 /// within an ulp of the instruction's).
-pub fn sine_cosine_of(a: u32) -> (u32, u32) {
+pub fn sine_cosine_of(a: impl Flt) -> (u32, u32) {
+    let a = a.bits();
     let (s, c) = ld(a).sin_cos();
     (st(s), st(c))
 }
 
 /// `1 - a`.
-pub fn one_less(a: u32) -> u32 {
-    st(ONE - ld(a))
+pub fn one_less(a: impl Flt) -> f32 {
+    let a = a.bits();
+    out(ONE - ld(a))
 }
 
 /// `sqrt(|x|) t + c`.
-pub fn abs_sqrt_times_plus(x: u32, t: u32, c: u32) -> u32 {
-    st(ld(x).abs().sqrt() * ld(t) + ld(c))
+pub fn abs_sqrt_times_plus(x: impl Flt, t: impl Flt, c: impl Flt) -> f32 {
+    let x = x.bits();
+    let t = t.bits();
+    let c = c.bits();
+    out(ld(x).abs().sqrt() * ld(t) + ld(c))
 }
 
 /// `(a + b) + c`.
@@ -194,7 +223,10 @@ pub fn add3(a: u32, b: u32, c: u32) -> u32 {
 }
 
 /// `(a b) c` as a whole number.
-pub fn mul2_to_int(a: u32, b: u32, c: u32) -> i32 {
+pub fn mul2_to_int(a: impl Flt, b: impl Flt, c: impl Flt) -> i32 {
+    let a = a.bits();
+    let b = b.bits();
+    let c = c.bits();
     to_int(ld(a) * ld(b) * ld(c))
 }
 
@@ -211,44 +243,61 @@ pub fn neg_mul(a: u32, b: u32) -> u32 {
 }
 
 /// The compare of `|a|` with `b`: C0 .. C3 (0x4700).
-pub fn abs_compare(a: u32, b: u32) -> u16 {
+pub fn abs_compare(a: impl Flt, b: impl Flt) -> u16 {
+    let a = a.bits();
+    let b = b.bits();
     compare(ld(a).abs(), ld(b)) & 0x4700
 }
 
 /// `|a|`, as a float.
-pub fn abs_of(a: u32) -> u32 {
-    st(ld(a).abs())
+pub fn abs_of(a: impl Flt) -> f32 {
+    let a = a.bits();
+    out(ld(a).abs())
 }
 
 /// The length of two floats at right angles, as a whole number.
-pub fn float_hypot_to_int(a: u32, b: u32) -> i32 {
+pub fn float_hypot_to_int(a: impl Flt, b: impl Flt) -> i32 {
+    let a = a.bits();
+    let b = b.bits();
     to_int((ld(a) * ld(a) + ld(b) * ld(b)).sqrt())
 }
 
 /// `a + (i - a) k` as a whole number.
-pub fn int_toward_to_int(i: i32, a: u32, k: u32) -> i32 {
+pub fn int_toward_to_int(i: i32, a: impl Flt, k: impl Flt) -> i32 {
+    let a = a.bits();
+    let k = k.bits();
     to_int((int(i) - ld(a)) * ld(k) + ld(a))
 }
 
 /// The product `a k` as a whole number (`fist`), and the compare's C0 .. C3 (0x4700) of
 /// the product (unrounded) against z.
-pub fn times_fist_compare(a: u32, k: u32, z: u32) -> (i32, u16) {
+pub fn times_fist_compare(a: impl Flt, k: impl Flt, z: impl Flt) -> (i32, u16) {
+    let a = a.bits();
+    let k = k.bits();
+    let z = z.bits();
     let p = ld(a) * ld(k);
     (to_int(p), compare(p, ld(z)) & 0x4700)
 }
 
 /// `((((a / b) c) d) e)` as a whole number.
-pub fn div_mul3_to_int(a: u32, b: u32, c: u32, d: u32, e: u32) -> i32 {
+pub fn div_mul3_to_int(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt, e: impl Flt) -> i32 {
+    let a = a.bits();
+    let b = b.bits();
+    let c = c.bits();
+    let d = d.bits();
+    let e = e.bits();
     to_int(ld(a) / ld(b) * ld(c) * ld(d) * ld(e))
 }
 
 /// The 80-bit `e` over `a` over `b`, as a float.
-pub fn ext_div2(e: [u8; 10], a: u32, b: u32) -> u32 {
-    st(from_f80(e) / ld(a) / ld(b))
+pub fn ext_div2(e: [u8; 10], a: impl Flt, b: impl Flt) -> f32 {
+    let a = a.bits();
+    let b = b.bits();
+    out(from_f80(e) / ld(a) / ld(b))
 }
 
 /// The terms' sum over the divisors: `t0 + t1 + ..`, then `/ d0 / d1 ..`, as a float.
-pub fn sum_over(terms: &[u32], divisors: &[u32]) -> u32 {
+pub fn sum_over(terms: &[u32], divisors: &[u32]) -> f32 {
     let mut acc = ld(terms[0]);
     for &t in &terms[1..] {
         acc += ld(t);
@@ -256,26 +305,46 @@ pub fn sum_over(terms: &[u32], divisors: &[u32]) -> u32 {
     for &d in divisors {
         acc /= ld(d);
     }
-    st(acc)
+    out(acc)
 }
 
 /// `(x x k) / d`.
-pub fn square_times_over(x: u32, k: u32, d: u32) -> u32 {
-    st(ld(x) * ld(x) * ld(k) / ld(d))
+pub fn square_times_over(x: impl Flt, k: impl Flt, d: impl Flt) -> f32 {
+    let x = x.bits();
+    let k = k.bits();
+    let d = d.bits();
+    out(ld(x) * ld(x) * ld(k) / ld(d))
 }
 
 /// `a + (1 - a) b`.
-pub fn toward_one(a: u32, b: u32) -> u32 {
-    st((ONE - ld(a)) * ld(b) + ld(a))
+pub fn toward_one(a: impl Flt, b: impl Flt) -> f32 {
+    let a = a.bits();
+    let b = b.bits();
+    out((ONE - ld(a)) * ld(b) + ld(a))
 }
 
 /// `((((a - b) k) i) + b) / d / w`.
-pub fn lerp_int_over2(a: u32, b: u32, k: u32, i: i32, d: u32, w: u32) -> u32 {
-    st(((ld(a) - ld(b)) * ld(k) * int(i) + ld(b)) / ld(d) / ld(w))
+pub fn lerp_int_over2(
+    a: impl Flt,
+    b: impl Flt,
+    k: impl Flt,
+    i: i32,
+    d: impl Flt,
+    w: impl Flt,
+) -> f32 {
+    let a = a.bits();
+    let b = b.bits();
+    let k = k.bits();
+    let d = d.bits();
+    let w = w.bits();
+    out(((ld(a) - ld(b)) * ld(k) * int(i) + ld(b)) / ld(d) / ld(w))
 }
 
 /// The step between gears, `(top - low) / (n - one)`, unrounded.
-pub fn gear_step_80(top: u32, low: u32, n: i32, one: u32) -> [u8; 10] {
+pub fn gear_step_80(top: impl Flt, low: impl Flt, n: i32, one: impl Flt) -> [u8; 10] {
+    let top = top.bits();
+    let low = low.bits();
+    let one = one.bits();
     f80((ld(top) - ld(low)) / (int(n) - ld(one)))
 }
 
@@ -286,14 +355,23 @@ pub fn ext_add(a: [u8; 10], b: [u8; 10]) -> [u8; 10] {
 
 /// `-((((v - one) a) + one) g m) a`... in the original's order: `(v - one) a + one`, times
 /// `g`, times `m`, negated, times `a`.
-pub fn weight_force(v: u32, one: u32, a: u32, g: u32, m: u32) -> u32 {
+pub fn weight_force(v: impl Flt, one: impl Flt, a: impl Flt, g: impl Flt, m: impl Flt) -> f32 {
+    let v = v.bits();
+    let one = one.bits();
+    let a = a.bits();
+    let g = g.bits();
+    let m = m.bits();
     let x = ((ld(v) - ld(one)) * ld(a) + ld(one)) * ld(g) * ld(m);
-    st(-x * ld(a))
+    out(-x * ld(a))
 }
 
 /// `d` less `a b c`.
-pub fn neg_product2_plus(a: u32, b: u32, c: u32, d: u32) -> u32 {
-    st(-(ld(a) * ld(b) * ld(c)) + ld(d))
+pub fn neg_product2_plus(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt) -> f32 {
+    let a = a.bits();
+    let b = b.bits();
+    let c = c.bits();
+    let d = d.bits();
+    out(-(ld(a) * ld(b) * ld(c)) + ld(d))
 }
 
 /// `physics::clamped_asin`'s body (0x42120B) on the 80-bit `x`, its scratch float at `s`
@@ -322,29 +400,48 @@ pub fn clamped_asin_80(x: [u8; 10], s: &mut u32, l: &mut u32) -> [u8; 10] {
 
 /// The angle of (x, y), `atan2(y, x)`, as a float (`fpatan`: within an ulp of the
 /// instruction's).
-pub fn patan(y: u32, x: u32) -> u32 {
-    st(ld(y).atan2(ld(x)))
+pub fn patan(y: impl Flt, x: impl Flt) -> f32 {
+    let y = y.bits();
+    let x = x.bits();
+    out(ld(y).atan2(ld(x)))
 }
 
 /// `a / cos b`, unrounded (`fcos`: libm's `cos`, the quotient within 2 ulp).
-pub fn over_cos_80(a: u32, b: u32) -> [u8; 10] {
+pub fn over_cos_80(a: impl Flt, b: impl Flt) -> [u8; 10] {
+    let a = a.bits();
+    let b = b.bits();
     f80(ld(a) / ld(b).cos())
 }
 
 /// `((a b) c) d` as a whole number.
-pub fn mul3_to_int(a: u32, b: u32, c: u32, d: u32) -> i32 {
+pub fn mul3_to_int(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt) -> i32 {
+    let a = a.bits();
+    let b = b.bits();
+    let c = c.bits();
+    let d = d.bits();
     to_int(ld(a) * ld(b) * ld(c) * ld(d))
 }
 
 /// The negative of the 80-bit `x`, rounded to a float.
-pub fn neg_rounded(x: [u8; 10]) -> u32 {
-    st(-from_f80(x))
+pub fn neg_rounded(x: [u8; 10]) -> f32 {
+    out(-from_f80(x))
 }
 
 /// `physics::lever_pushes`' share (0x43DE23 .. 0x43DEAC): A = |a| + |d|, B = |b| + |c|,
 /// their sum B + A compared with `zero`; equal or unordered: returns A rounded and true;
 /// else A / (B + A) rounded and false.
-pub fn lever_share(a: u32, d: u32, b: u32, c: u32, zero: u32) -> (u32, bool) {
+pub fn lever_share(
+    a: impl Flt,
+    d: impl Flt,
+    b: impl Flt,
+    c: impl Flt,
+    zero: impl Flt,
+) -> (u32, bool) {
+    let a = a.bits();
+    let d = d.bits();
+    let b = b.bits();
+    let c = c.bits();
+    let zero = zero.bits();
     let big_a = ld(a).abs() + ld(d).abs();
     let big_b = ld(b).abs() + ld(c).abs();
     let sum = big_b + big_a;
@@ -375,13 +472,21 @@ pub fn abs_div_add_mul(x: u32, a: u32, b: u32, c: u32) -> u32 {
 }
 
 /// `(a b) c + d`.
-pub fn mul2_plus(a: u32, b: u32, c: u32, d: u32) -> u32 {
-    st(ld(a) * ld(b) * ld(c) + ld(d))
+pub fn mul2_plus(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt) -> f32 {
+    let a = a.bits();
+    let b = b.bits();
+    let c = c.bits();
+    let d = d.bits();
+    out(ld(a) * ld(b) * ld(c) + ld(d))
 }
 
 /// `a / (|s| + b) - c`.
-pub fn over_abs_plus_minus(a: u32, s: u32, b: u32, c: u32) -> u32 {
-    st(ld(a) / (ld(s).abs() + ld(b)) - ld(c))
+pub fn over_abs_plus_minus(a: impl Flt, s: impl Flt, b: impl Flt, c: impl Flt) -> f32 {
+    let a = a.bits();
+    let s = s.bits();
+    let b = b.bits();
+    let c = c.bits();
+    out(ld(a) / (ld(s).abs() + ld(b)) - ld(c))
 }
 
 /// `a - b` of two whole numbers as an 80-bit value: exact.
@@ -396,23 +501,36 @@ pub fn abs_fidiv(x: u32, n: i32) -> u32 {
 }
 
 /// `(a - b) c + d`.
-pub fn sub_mul_add(a: u32, b: u32, c: u32, d: u32) -> u32 {
-    st((ld(a) - ld(b)) * ld(c) + ld(d))
+pub fn sub_mul_add(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt) -> f32 {
+    let a = a.bits();
+    let b = b.bits();
+    let c = c.bits();
+    let d = d.bits();
+    out((ld(a) - ld(b)) * ld(c) + ld(d))
 }
 
 /// The compare of `(a b) / c` with `k`: C0 .. C3 (0x4700).
-pub fn mul_div_status(a: u32, b: u32, c: u32, k: u32) -> u16 {
+pub fn mul_div_status(a: impl Flt, b: impl Flt, c: impl Flt, k: impl Flt) -> u16 {
+    let a = a.bits();
+    let b = b.bits();
+    let c = c.bits();
+    let k = k.bits();
     compare(ld(a) * ld(b) / ld(c), ld(k)) & 0x4700
 }
 
 /// The compare of `a b` with `c`: C0 .. C3 (0x4700).
-pub fn mul_status(a: u32, b: u32, c: u32) -> u16 {
+pub fn mul_status(a: impl Flt, b: impl Flt, c: impl Flt) -> u16 {
+    let a = a.bits();
+    let b = b.bits();
+    let c = c.bits();
     compare(ld(a) * ld(b), ld(c)) & 0x4700
 }
 
 /// `a b` as a whole number with the rounding set to chop (the control word put back
 /// after), the precision as it was.
-pub fn trunc_mul_to_int(a: u32, b: u32) -> i32 {
+pub fn trunc_mul_to_int(a: impl Flt, b: impl Flt) -> i32 {
+    let a = a.bits();
+    let b = b.bits();
     let old = set_chop();
     let out = to_int(ld(a) * ld(b));
     set_control(old);
@@ -421,8 +539,13 @@ pub fn trunc_mul_to_int(a: u32, b: u32) -> i32 {
 
 /// The table line between (a0, c0) and (a1, c1) at s: `(s - a0) / (a1 - a0) (c1 - c0) +
 /// c0`.
-pub fn lerp_table(s: u32, a0: u32, a1: u32, c0: u32, c1: u32) -> u32 {
-    st((ld(s) - ld(a0)) / (ld(a1) - ld(a0)) * (ld(c1) - ld(c0)) + ld(c0))
+pub fn lerp_table(s: impl Flt, a0: impl Flt, a1: impl Flt, c0: impl Flt, c1: impl Flt) -> f32 {
+    let s = s.bits();
+    let a0 = a0.bits();
+    let a1 = a1.bits();
+    let c0 = c0.bits();
+    let c1 = c1.bits();
+    out((ld(s) - ld(a0)) / (ld(a1) - ld(a0)) * (ld(c1) - ld(c0)) + ld(c0))
 }
 
 /// `(a / b) c`.
@@ -432,30 +555,42 @@ pub fn div_then_mul(a: u32, b: u32, c: u32) -> u32 {
 }
 
 /// `((a + b) n) / k - b`.
-pub fn sum_times_int_over_minus(a: u32, b: u32, n: i32, k: u32) -> u32 {
-    st((ld(a) + ld(b)) * int(n) / ld(k) - ld(b))
+pub fn sum_times_int_over_minus(a: impl Flt, b: impl Flt, n: i32, k: impl Flt) -> f32 {
+    let a = a.bits();
+    let b = b.bits();
+    let k = k.bits();
+    out((ld(a) + ld(b)) * int(n) / ld(k) - ld(b))
 }
 
 /// `((a b) / c) / d`.
-pub fn mul_div2(a: u32, b: u32, c: u32, d: u32) -> u32 {
-    st(ld(a) * ld(b) / ld(c) / ld(d))
+pub fn mul_div2(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt) -> f32 {
+    let a = a.bits();
+    let b = b.bits();
+    let c = c.bits();
+    let d = d.bits();
+    out(ld(a) * ld(b) / ld(c) / ld(d))
 }
 
 /// `i k + a [+ b]`.
-pub fn int_mul_add(i: i32, k: u32, a: u32, b: Option<u32>) -> u32 {
+pub fn int_mul_add(i: i32, k: impl Flt, a: impl Flt, b: Option<u32>) -> f32 {
+    let k = k.bits();
+    let a = a.bits();
     let mut x = int(i) * ld(k) + ld(a);
     if let Some(b) = b {
         x += ld(b);
     }
-    st(x)
+    out(x)
 }
 
 /// `a / b` as an 80-bit value.
-pub fn div_80(a: u32, b: u32) -> [u8; 10] {
+pub fn div_80(a: impl Flt, b: impl Flt) -> [u8; 10] {
+    let a = a.bits();
+    let b = b.bits();
     f80(ld(a) / ld(b))
 }
 
 /// The compare of the 80-bit `e` with a float: C0 .. C3 (0x4700).
-pub fn compare_80(e: [u8; 10], b: u32) -> u16 {
+pub fn compare_80(e: [u8; 10], b: impl Flt) -> u16 {
+    let b = b.bits();
     compare(from_f80(e), ld(b)) & 0x4700
 }

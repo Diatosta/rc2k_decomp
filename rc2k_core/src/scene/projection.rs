@@ -1,4 +1,4 @@
-//! A point's place in the view and on the screen (converted 2026-10-21 from
+//! A point's place in the view and on the screen (from
 //! `scene::project_point` 0x44D004, its matrix step `scene::rotate_point` and its screen step, and
 //! from `scene::project_polygon` 0x44E1F7). The records are 0x20 bytes: +0 the point's
 //! number, +0xC the x on the screen, +0x10 .. +0x18 the point in the view, +0x1C the y on

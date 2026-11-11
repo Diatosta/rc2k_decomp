@@ -14,8 +14,8 @@ fn before(entry: &Entry) -> Result<(), Refused> {
     Ok(())
 }
 
-// The original prepares the scene before the carousel, which left the front car white
-// (seen 2026-10-30): here as `menu::select_car_loop`, the scene last.
+// The original prepares the scene before the carousel, which left the front car white:
+// here as `menu::select_car_loop`, the scene last.
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     screens.flow.turning.set(0x1u32);

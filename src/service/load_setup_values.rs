@@ -20,7 +20,7 @@ use crate::service::state::current_player_of;
 pub fn load_setup_values(menus: &Menus) -> Result<(), BadInput> {
     let screens = &menus.screens;
     {
-        if screens.state.menus.skip_edit_values.get() == 1 {
+        if screens.state.menus.skip_edit_values.is_set() {
             return Ok(());
         }
         let Some(player) = current_player_of(screens) else {

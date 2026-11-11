@@ -26,7 +26,7 @@ pub fn press(
         last_car: menus.cars.table.last_car.get(),
         picture: menus.screens.event.picture.get(),
         page: menus.screens.event.car_page.get(),
-        leave: menus.screens.loop_flags.leave_screen.get(),
+        leave: menus.screens.loop_flags.leave_screen.is_set(),
     };
     let calls = rc2k_core::menu::cars::press(b, &mut s);
     menus.screens.event.shown_car.set(s.car);
@@ -40,7 +40,7 @@ pub fn press(
     Ok(())
 }
 
-/// The game's: each call through the Rust version.
+/// The game's: each call goes to the Rust function.
 pub fn call_in_game(
     menus: &Menus,
     call: Call,

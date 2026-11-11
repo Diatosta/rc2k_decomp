@@ -32,7 +32,7 @@ pub fn toggle_repair_choice(menus: &Menus) -> Result<(), Refused> {
     store_marks(tables, &m);
     {
         screens.state.service_ui.status.set(status);
-        screens.state.service_ui.box_shown.set(0u32);
+        screens.state.service_ui.box_shown.set(false);
         screens.state.driver_stats.repair_time.set(total as u32);
     }
     Ok(())

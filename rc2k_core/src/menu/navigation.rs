@@ -1,4 +1,4 @@
-//! Moving the highlight about a menu (converted 2026-10-21 from the four
+//! Moving the highlight about a menu (from the four
 //! `menu::move_highlight_*`, and the turning objects' turn from `menu::step_carousel`
 //! 0x46989B): each item names its neighbours by number; a link of 0x6F is
 //! none, 0xFFFFFC1A "ask the item" (its callback for that direction runs instead). The two

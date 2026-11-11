@@ -1,4 +1,4 @@
-//! Item actions the standalone met unported (2026-10-19, the owner's run without RAL.EXE):
+//! Item actions the standalone met unported:
 //! - `menu::show_intro` (0x47058E): the options' "intro" item: the films played
 //!   (`menu::play_films`, eax 1), then back (`menu::go_back`);
 //! - `menu::previous_save_page` (0x46D3F2): the championship load page's left arrow: the
@@ -32,7 +32,7 @@ pub fn show_intro() -> Result<(), Refused> {
 }
 
 pub fn previous_save_page(tables: &Tables) {
-    // Converted: `rc2k_core::menu::steps::savegame_page`.
+    // The logic is in `rc2k_core::menu::steps::savegame_page`.
     tables
         .pages
         .save_page
@@ -48,13 +48,13 @@ pub fn open_service_box(screens: &Screens, page: u32) {
         .state
         .service_ui
         .box_shown
-        .set(screens.state.service_ui.box_shown.get() ^ 1);
+        .set(!screens.state.service_ui.box_shown.is_set());
     screens.state.service_ui.box_page.set(page);
 }
 
 /// `menu::view_stage_details`: the stage information screen.
 pub fn view_stage_details(menus: &Menus, screens: &Screens) -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::stage_screens::time_trial_details`.
+    // The logic is in `rc2k_core::menu::stage_screens::time_trial_details`.
     let time_trial =
         rc2k_core::menu::stage_screens::time_trial_details(screens.event.event_type.get());
     if time_trial {
@@ -70,7 +70,7 @@ pub fn view_stage_details(menus: &Menus, screens: &Screens) -> Result<(), Refuse
 
 /// `menu::new_simulation_if_unlocked` (it reads no register).
 pub fn new_simulation_if_unlocked(race: &crate::race::owner::Race) -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::stage_screens::simulation_unlocked`.
+    // The logic is in `rc2k_core::menu::stage_screens::simulation_unlocked`.
     use rc2k_core::menu::stage_screens::{REFUSED_SLEEP, REFUSED_SOUND, simulation_unlocked};
     if simulation_unlocked(race.shared.state.settings.a8_game.get()) {
         // (An item of the typed tables: it runs with no carried values, as the menus'

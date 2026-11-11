@@ -169,7 +169,7 @@ pub fn share_car_state_at(
     o.set_block(crate::race::blocks_store::handle_of(
         GamePtr::to(car).addr(),
     ));
-    o.engine_speed.set_bits(x87::loaded(&car.engine_speed));
+    o.engine_speed.set(x87::loaded(&car.engine_speed));
     o.model.set(n);
     for (r, b) in MOVES_A {
         r(o).set_bits(b(car).bits());
@@ -204,9 +204,9 @@ pub fn share_car_state_at(
     o.records[4].under_kind.set(0);
     let zero = x87::loaded(0);
     for cell in &o.morph_floats {
-        cell.set_bits(zero);
+        cell.set_bits(zero.to_bits());
     }
-    o.morph_start.set(zero);
+    o.morph_start.set(zero.to_bits());
     if car.contact_found.get() != 0 {
         for (r, b) in MOVES_B {
             r(o).set_bits(b(car).bits());
@@ -216,7 +216,7 @@ pub fn share_car_state_at(
             &car.contact_point_ground,
             &car.contact_point_z,
         ]) {
-            cell.set_bits(x87::from_int(v.get() as i32));
+            cell.set(x87::from_int(v.get() as i32));
         }
         o.records[4].size.set_bits(car.contact_value.get());
     }

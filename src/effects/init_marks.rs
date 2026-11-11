@@ -70,8 +70,8 @@ pub fn init_marks(
         {
             let half = side.get() >> 1;
             // The screen's middle x, it less `flt_76516C`, the same for y.
-            effects.clipping.clip.edges[2 * n].set_bits(x87::from_int(half as i32));
-            effects.clipping.clip.edges[2 * n + 1].set_bits(x87::int_less(half as i32, less));
+            effects.clipping.clip.edges[2 * n].set(x87::from_int(half as i32));
+            effects.clipping.clip.edges[2 * n + 1].set(x87::int_less(half as i32, less));
         }
         let kind: u32 = effects.kinds.marks_kind.kind.get();
         // Fixed (section 16): the original reads past the table for kinds

@@ -1,6 +1,6 @@
 //! The stage's objects, pictures, lights' records and courses as the loading sets them up:
 //! the object slots' kinds, the texture kinds' pictures, which courses are on the disc,
-//! the lights' data laid into their records and the crash matrix's angles (converted
+//! the lights' data laid into their records and the crash matrix's angles (
 //! from `race::set_object_kinds` 0x425BB4, `set_all_plates` 0x42518B,
 //! `find_present_courses` 0x4394F8, `copy_lights_data` 0x438B03 and `get_mat_crash`
 //! 0x43D43E).

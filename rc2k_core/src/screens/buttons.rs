@@ -1,4 +1,4 @@
-//! The menu's buttons (converted 2026-10-20 from `screens::draw_button` 0x4688A1,
+//! The menu's buttons (from `screens::draw_button` 0x4688A1,
 //! `draw_button_highlighted` 0x468BBE and `draw_button_alt` 0x468EDD): a left end, a run of
 //! 32-pixel middle pieces and a right end. The pieces are placed here; drawing them is the
 //! caller's (`blit(sprite, x, y)`; the original hands each the button's x as its palette,

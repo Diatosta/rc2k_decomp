@@ -1,7 +1,6 @@
-//! What the game asks of the machine (converted 2026-10-21 from
+//! What the game asks of the machine (from
 //! `system::check_developer_machine` 0x416292 and `system::read_keyboard_type` 0x410AA3;
-//! `system::same_guid` 0x4016F9 and `system::read_volume_serial` 0x403131's results
-//! converted the same day).
+//! `system::same_guid` 0x4016F9 and `system::read_volume_serial` 0x403131's results).
 
 /// Whether the computer is called "andrew" (its first six bytes, as three words each with
 /// 0x2020 or'ed in: any case, and some other bytes, pass), and the last word compared, as

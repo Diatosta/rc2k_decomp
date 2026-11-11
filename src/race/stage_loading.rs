@@ -49,7 +49,7 @@ pub fn load_stage(race: &Race) -> Result<(), Refused> {
     log();
     log();
     indent(3);
-    if race.shared.work.in_credits.get() == 0
+    if !race.shared.work.in_credits.is_set()
     /* dword_71C3E0 */
     {
         // As `menu::show_loading_picture`.

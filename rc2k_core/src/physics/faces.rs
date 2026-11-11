@@ -1,4 +1,4 @@
-//! The ground's faces (converted from `physics::face_has_edge` 0x45DA72 and
+//! The ground's faces (from `physics::face_has_edge` 0x45DA72 and
 //! `physics::edge_side` 0x4425EF).
 
 /// `physics::face_has_edge`: whether the edge (`a`, `b`) is one of a face's, by its

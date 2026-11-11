@@ -1,4 +1,4 @@
-//! The messages the receiving thread takes (converted 2026-10-21 from `net::take_messages`
+//! The messages the receiving thread takes (from `net::take_messages`
 //! 0x4194CC), by their first byte: a chat line, the host's two calls to wait for everyone
 //! (with the round, `g_netSync`) and the other machines' answers to them, and the race's
 //! messages (top bit set) that go into the sender's inbox.

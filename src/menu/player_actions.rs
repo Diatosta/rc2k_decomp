@@ -1,4 +1,4 @@
-//! More item actions the standalone could reach unported (2026-10-19, the survey of the
+//! More item actions the standalone could reach unported (found by surveying the
 //! menu and draw-list tables):
 //! - the current player's (`g_players`[`g_currentPlayer`]) settings:
 //!   `menu::keep_player_keys` (0x46AEFC): the 0x2C bytes of the page's key copy (`keys.tables.controls`) to
@@ -36,7 +36,7 @@ fn player(menus: &Menus) -> Result<crate::menu::standings::PlayerCell<'_>, Refus
 
 // ---- the functions ----
 
-// Converted: `rc2k_core::menu::player` (the player's fields) and `rc2k_core::menu::steps`
+// The logic is in `rc2k_core::menu::player` (the player's fields) and `rc2k_core::menu::steps`
 // (`scores_page`, `replay_range`, `flip`).
 
 /// The current player's record changed by `f`.
@@ -122,7 +122,7 @@ pub fn toggle_caption_choice(screens: &Screens) -> Result<(), BadInput> {
 }
 
 pub fn leave_with_carry() {
-    // Converted: `rc2k_core::menu::leaving::Leaving::leave_with_carry`.
+    // The logic is in `rc2k_core::menu::leaving::Leaving::leave_with_carry`.
     crate::menu::leaving::with_leaving(rc2k_core::menu::leaving::Leaving::leave_with_carry);
 }
 

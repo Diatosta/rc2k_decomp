@@ -1,4 +1,4 @@
-//! The stage's moving faces (converted 2026-10-21 from `drive::animate_lit_faces`
+//! The stage's moving faces (from `drive::animate_lit_faces`
 //! 0x45EB06, all but kind 4's move, which turns a point and looks for the ground, and
 //! `physics::touch_face` 0x45E9E0, a face the car touches listed and marked): each
 //! listed face's bytes stepped by its object's kind, at a pace by its distance from the

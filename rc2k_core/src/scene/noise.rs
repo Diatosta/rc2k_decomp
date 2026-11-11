@@ -1,4 +1,4 @@
-//! The scene's own generator (converted 2026-10-21 from `scene::noise_step` 0x440F4E and
+//! The scene's own generator (from `scene::noise_step` 0x440F4E and
 //! `scene::next_noise` 0x440F3E): the game's random step (`math::random::step`) with
 //! 0x87654321 mixed into each result, on a state of its own (`dword_614C54`).
 
@@ -30,7 +30,7 @@ impl Noise {
 mod tests {
     use super::*;
 
-    /// The hook crate's earlier version, bit by bit.
+    /// The generator written out bit by bit.
     fn by_bits(mut state: u32) -> u32 {
         state ^= (state >> 22) & 1;
         state ^= (state >> 2) & 1;

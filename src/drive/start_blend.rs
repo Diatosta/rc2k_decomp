@@ -42,7 +42,7 @@ pub fn blend_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
     put(
         v,
         3,
-        x87::int_times(n as i32, &race.shared.tables.start_blend_step),
+        x87::int_times(n as i32, &race.shared.tables.start_blend_step).to_bits(),
     );
     put(
         v,
@@ -54,10 +54,10 @@ pub fn blend_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
         race.course.numbers.one.bits(),
     );
     if compare_full(get(v, 6), low) & 0x100 != 0 {
-        put(v, 6, x87::loaded(low));
+        put(v, 6, x87::loaded(low).to_bits());
     }
     if compare_full(get(v, 6), high) & 0x100 == 0 {
-        put(v, 6, x87::loaded(high));
+        put(v, 6, x87::loaded(high).to_bits());
     }
     n
 }

@@ -1,5 +1,5 @@
 //! The cheats' names: a player's name looked for in RAL.EXE's list of coded names
-//! (converted 2026-10-21 from `menu::check_cheat_name` 0x480CBF). The list
+//! (from `menu::check_cheat_name` 0x480CBF). The list
 //! (`aNepnqrNpgvba`, 0x7585E0) holds each name rot13-coded, its NUL and the cheat's bit
 //! number; a NUL where a name would start ends it.
 

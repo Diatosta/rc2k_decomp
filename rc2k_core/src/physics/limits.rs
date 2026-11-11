@@ -1,4 +1,4 @@
-//! The work car's motion held to its limits (Converted from
+//! The work car's motion held to its limits (from
 //! `physics::limit_motion` 0x43F7AC): a motion part that is no number or infinite zeroes
 //! the motion, its car-frame copy and the spin; then the spin's parts held to ± one limit
 //! and the motion's (x, z, y) to ± another; past the top speed the motion and its copy

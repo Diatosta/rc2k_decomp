@@ -16,7 +16,7 @@ use crate::text::draw_text::Canvas;
 
 /// (id, x, y, font) of the page's lines.
 pub fn draw_options_checklist(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::settings_pages::options_checklist`.
+    // The logic is in `rc2k_core::screens::settings_pages::options_checklist`.
     {
         let mut ticks = Vec::new();
         loop {

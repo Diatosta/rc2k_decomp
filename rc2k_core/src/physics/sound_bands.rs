@@ -1,4 +1,4 @@
-//! The car sounds' bands (converted from the four twins
+//! The car sounds' bands (from the four twins
 //! `physics::sound_band_1` 0x45D067, `sound_band_2` 0x45D097, `sound_band_3` 0x45D0F1
 //! and `sound_band_4` 0x45D121): a value times a factor as a whole number (`fistp`, kept
 //! in `band_scratch`), less a step, held to 0 ..= 0x40 (by the sign). A reading: volume

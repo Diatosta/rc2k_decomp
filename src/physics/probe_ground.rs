@@ -83,7 +83,7 @@ fn probe_points(
         let z = car.probe_point_z[b as usize].bits();
         let y = car.probe_point_y[b as usize].bits();
         let y = if b < 4 {
-            scratch.set(x87::loaded(y));
+            scratch.set(x87::loaded(y).to_bits());
             let add;
             (add, _) = ground::wheel_lifted(car.parts_present.get(), b);
             less_plus_less_product_80(
@@ -166,9 +166,9 @@ fn probe_points(
             .wrapping_sub(work.probe_ground_height[i].get());
         work.probe_height[i].set(d);
         if b < 4 {
-            scratch.set(x87::loaded(&car.crash_matrix[5]));
+            scratch.set(x87::loaded(&car.crash_matrix[5]).to_bits());
             if x87::compare_status(scratch.get(), ZERO) & 0x100 != 0 {
-                scratch.set(x87::loaded(ZERO));
+                scratch.set(x87::loaded(ZERO).to_bits());
             }
             work.wheel_height_raw[i].set(d);
             work.probe_height[i].set(x87::int_times_to_int(d as i32, scratch.get()) as u32);

@@ -100,7 +100,11 @@ pub fn draw_mark_slots(
         let x = x87::mul(a, k4[3]);
         let once = rotate_point(
             slot_matrix(&race.frame, s.matrix.get())?,
-            [extended(z), extended(y), extended(x)],
+            [
+                extended(z.to_bits()),
+                extended(y.to_bits()),
+                extended(x.to_bits()),
+            ],
         );
         let twice = rotate_point(view.view_matrix, once);
         let [z, y, x] = twice.map(rounded);
@@ -120,8 +124,8 @@ pub fn draw_mark_slots(
         let uv_k: u32 = effects.frame.draw_work.uv_k.bits();
         for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
             let vertex = &VERTICES.vertices[n];
-            vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
-            vertex.v.set_bits(x87::int_times(word(v) as i32, uv_k));
+            vertex.u.set(x87::int_times(word(u) as i32, uv_k));
+            vertex.v.set(x87::int_times(word(v) as i32, uv_k));
         }
         for n in 0..4 {
             VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
@@ -154,10 +158,10 @@ pub fn draw_mark_slots(
         let rhw = x87::reciprocal_times(x, effects.blocks.slot_tuning.rhw_k.bits());
         for (n, (vx, vy)) in corners.into_iter().enumerate() {
             let vertex = &VERTICES.vertices[n];
-            vertex.x.set_bits(vx);
-            vertex.y.set_bits(vy);
-            vertex.z.set_bits(depth);
-            vertex.rhw.set_bits(rhw);
+            vertex.x.set_bits(vx.to_bits());
+            vertex.y.set_bits(vy.to_bits());
+            vertex.z.set_bits(depth.to_bits());
+            vertex.rhw.set_bits(rhw.to_bits());
         }
         crate::effects::clip_quad::draw_fan();
     }

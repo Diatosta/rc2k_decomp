@@ -1,10 +1,10 @@
-//! A shiny surface's reflection (converted 2026-10-21 from `scene::reflect_vector`
+//! A shiny surface's reflection (from `scene::reflect_vector`
 //! 0x451A9D). As in `math::vector`, what the x87 keeps on its stack is an `f64`, rounded
 //! to `f32` where the original stores it: the same bits at the game's double precision.
 
 use crate::math::vector;
 
-/// The places of `scene::cached_reflection_coordinates`' tables (converted 2026-10-21 from
+/// The places of `scene::cached_reflection_coordinates`' tables (from
 /// 0x451908): four tables of 0x400 dwords (the normal's number, the point's, the two
 /// coordinates) at the normal's number & 0x3FF.
 pub const CACHE_PLACES: u32 = 0x400;

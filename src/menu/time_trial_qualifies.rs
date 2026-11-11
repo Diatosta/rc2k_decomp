@@ -10,11 +10,11 @@
 use crate::errors::Refused;
 use crate::menu::event_flow::*;
 use crate::menu::owner::Menus;
-use crate::session::Dword;
+use crate::session::{Dword, Flag};
 
 pub const QUALIFIES: &Dword = &crate::menu::owner::MENUS.screens.event.time_qualifies;
 pub const TIME: &Dword = &crate::menu::owner::MENUS.screens.event.player_time;
-pub const ANY_QUALIFIED: &Dword = &crate::menu::owner::MENUS.screens.event.any_time_qualified;
+pub const ANY_QUALIFIED: &Flag = &crate::menu::owner::MENUS.screens.event.any_time_qualified;
 
 pub fn time_trial_qualifies(menus: &Menus) -> Result<(), Refused> {
     stage_times()?;
@@ -22,11 +22,11 @@ pub fn time_trial_qualifies(menus: &Menus) -> Result<(), Refused> {
     set(QUALIFIES, 0);
     let time = p.get().time;
     set(TIME, time);
-    // Converted: `rc2k_core::menu::bests::makes_time`.
+    // The logic is in `rc2k_core::menu::bests::makes_time`.
     let best = with_stage_times(|ten| ten[9].head.key)?;
     if rc2k_core::menu::bests::makes_time(time, best) {
         set(QUALIFIES, 1);
-        set(ANY_QUALIFIED, 1);
+        ANY_QUALIFIED.set(true);
     }
     Ok(())
 }

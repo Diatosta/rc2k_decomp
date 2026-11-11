@@ -17,7 +17,7 @@ use crate::menu::screen_loop::{
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
-    menus.tables.captions.left_by_key.set(0x0u32);
+    menus.tables.captions.left_by_key.set(false);
     menus.screens.flow.turning.set(0x1u32);
     menus.screens.state.carousel.menu.set(0x2u32);
     carousel(None)?;
@@ -31,8 +31,8 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
 
 fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
     let tables = &entry.menus.tables;
-    if tables.captions.left_by_key.get() == 0x1 {
-        tables.captions.left_by_key.set(0x0u32);
+    if tables.captions.left_by_key.is_set() {
+        tables.captions.left_by_key.set(false);
         return Ok(Flow::SetUp);
     }
     Ok(Flow::On)
@@ -56,7 +56,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.event.event_over, 0x0)],
+    before: &[Step::WriteFlag(|m| &m.screens.event.event_over, false)],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.championship_new_simulation_picture

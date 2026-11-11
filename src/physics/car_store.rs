@@ -44,7 +44,7 @@ pub struct Car {
     /// +0x40 (0x71A018): drive layout (1 both axles).
     pub drive_kind: Dword,
     /// +0x44 (0x71A01C): only cleared at the start (`drive::clear_start_state`); nothing else uses it.
-    pub unknown_44: Dword,
+    pub unused_44: Dword,
     /// +0x48 (0x71A020): per part (six): 1 once the part's wake count (+0x700) reached 10 and the part's sound object was woken (`race::wake_part_sounds`). Never cleared but with the block.
     pub part_woken: [Dword; 6],
     /// +0x60 (0x71A038): least wheel grip scaled; scales the ground's bumps.
@@ -125,7 +125,7 @@ pub struct Car {
     /// +0x1e8 (0x71A1C0): steps stuck.
     pub stuck_count: Dword,
     /// +0x1ec (0x71A1C4): sent and received with the position message (`net::send_position`); nothing else reads or writes it.
-    pub unknown_1ec: Dword,
+    pub position_message_word: Dword,
     /// +0x1f0 (0x71A1C8): limiter cut counter.
     pub rev_cut_count: Dword,
     /// +0x1f4 (0x71A1CC): steps since a wall, edge or car contact (0x32 then down); a grip-recovery share.

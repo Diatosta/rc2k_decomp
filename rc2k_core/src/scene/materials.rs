@@ -1,4 +1,4 @@
-//! What an object's drawing takes from its kind's record (converted 2026-10-21 from
+//! What an object's drawing takes from its kind's record (from
 //! `scene::set_object_material` 0x45170E and its 0x45079A): the kind's way (+0x20 of its
 //! record), and for a kind that moves between two shapes (way 4) the bytes between them
 //! and the fraction of the way it has moved, from a clock of four phases.

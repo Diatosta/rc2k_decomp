@@ -1,6 +1,6 @@
 //! The in-game options menu's (`menu::in_game_options_loop`, the in-game options menu) items 3 .. 6,
 //! hidden and shown by `menu::hide_in_game_options` and `menu::show_in_game_options`
-//! (IDA, 2026-10-15).
+//!.
 use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
 use rc2k_core::menu::items::{
@@ -22,7 +22,7 @@ pub fn set(tables: &Tables, n: u32, look: Look) -> Result<(), crate::errors::Bad
     Ok(())
 }
 
-// Converted: `rc2k_core::menu::items` (`hidden_in_game_options`, `shown_in_game_option`).
+// The logic is in `rc2k_core::menu::items` (`hidden_in_game_options`, `shown_in_game_option`).
 
 /// `menu::hide_in_game_options`: eax 1, 2, 3: items 3 + eax .. 6 hidden (no string, passed
 /// over, nothing behind); anything else nothing.

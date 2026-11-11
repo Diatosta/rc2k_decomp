@@ -40,7 +40,7 @@ pub fn ease_low_speed_forces_at(
         ),
     );
     for f in forces {
-        put(f, x87::mul(at(f), at(factor)));
+        put(f, x87::mul(at(f), at(factor)).to_bits());
     }
 }
 

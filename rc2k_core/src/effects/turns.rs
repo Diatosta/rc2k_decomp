@@ -1,4 +1,4 @@
-//! Small float steps of the masks' making (converted 2026-10-21 from `effects::set_line_turn`
+//! Small float steps of the masks' making (from `effects::set_line_turn`
 //! 0x4BF432, `set_line_turn_back` 0x4BF466, `turn_pair` 0x4BF409, `scale_rows3` 0x4BF498,
 //! `smooth_steps` 0x4BE928, `adjugate3` 0x4BCED6 and `clamp_pair` 0x4BEF22): the 2 x 2
 //! turn a line gives, a pair turned by it, rows scaled to set lengths, two cosine-eased

@@ -35,7 +35,7 @@ pub fn apply_force(
     // The work car's matrix (`g_crashMatrix`), whichever block it is: the original's.
     turn_by_car_matrix(car, work);
     for (v, w) in car.velocity.iter().zip(work) {
-        v.set_bits(x87::add(w, v));
+        v.set(x87::add(w, v));
     }
     let p = car.velocity.each_ref().map(|v| extended(v.bits()));
     let out = rotate_point(&car.car_inverse_matrix, p);

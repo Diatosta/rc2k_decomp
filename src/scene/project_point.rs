@@ -211,7 +211,7 @@ pub(crate) fn make_scene_record(
         to_screen(&mut r, &v, flat, &crate::session::Dword::new(0));
     }
     if scene.lights.state.draw_mode.get() == 1 {
-        r[6] = x87::sub(r[6], LOWERED_BY.to_bits());
+        r[6] = x87::sub(r[6], LOWERED_BY.to_bits()).to_bits();
     }
     point_records::set(record, r)?;
     Ok(())

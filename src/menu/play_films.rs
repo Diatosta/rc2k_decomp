@@ -58,7 +58,7 @@ impl Films {
     }
 }
 
-/// The game for `rc2k_core::menu::films`: the settings, the steps their Rust versions.
+/// The game for `rc2k_core::menu::films`: the settings and the steps.
 /// A step that refuses ends the films: its error is kept (`failed`), every step after it
 /// does nothing and answers "a key was pressed", and `play_films` returns the error.
 struct Game {
@@ -116,7 +116,7 @@ impl Game {
                 flags.carry = !there;
                 flags.zero = there;
             }
-            // Fixed (2026-10-24, `wiki/Fixed-bugs.md`): the players' absences cleared
+            // Fixed (`wiki/Fixed-bugs.md`): the players' absences cleared
             // first, as the original's other caller of the demonstration (0x443104)
             // does; the original's films kept the quit answer of the last race left by
             // the quit question, and its demonstration ended at its first frame.
@@ -167,13 +167,13 @@ impl films::Films for Game {
 /// `idle`: from the main menu when it has stood idle, else the game's start.
 pub fn play_films(idle: bool) -> Result<(), Refused> {
     log(&format!(
-        "menu::play_films: the Rust version runs (mode {})",
+        "menu::play_films: runs (mode {})",
         u32::from(idle)
     ));
     let mut game = Game { failed: None };
-    // Converted: `rc2k_core::menu::films::play_films`.
+    // The logic is in `rc2k_core::menu::films::play_films`.
     films::play_films(&mut game, idle);
-    log("menu::play_films: the Rust version has come back");
+    log("menu::play_films: done");
     match game.failed {
         Some(e) => Err(e),
         None => Ok(()),

@@ -1,10 +1,10 @@
-//! The marks' view (converted 2026-10-21 from `effects::turn_kept_vectors` 0x4C13CA,
+//! The marks' view (from `effects::turn_kept_vectors` 0x4C13CA,
 //! `turn_kept_xz` 0x4C1411, `turn_kept_zy` 0x4C14D2, `scale_kept_vectors` 0x4C15F4,
 //! `scale_vectors_by` 0x4D16A3, `view_step` 0x4C1593, `aim_vector` 0x4C1294,
 //! `tilt_shape` 0x4C1194, `view_motion` 0x4C4D40 and `view_heading` 0x4C4CEC): the three
 //! kept vectors turned by two angles and scaled, the view's step, its aim made of length
-//! 1, a shape's tilt, the view's motion and heading. And the view's place (converted
-//! 2026-10-21 from `effects::place_view` 0x4C1CC8 and its twin `effects::place_view_2`
+//! 1, a shape's tilt, the view's motion and heading. And the view's place
+//! (from `effects::place_view` 0x4C1CC8 and its twin `effects::place_view_2`
 //! 0x4C2AA5).
 //!
 //! As in `math::vector`, what the x87 keeps on its stack is an `f64`, rounded to `f32`

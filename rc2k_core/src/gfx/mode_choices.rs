@@ -1,4 +1,4 @@
-//! The graphics options' screen mode choices (converted 2026-10-21 from
+//! The graphics options' screen mode choices (from
 //! `gfx::screen_mode_choices` 0x4045D6).
 //!
 //! The choices: a pixel kind (0 or 1), a size (a place in a list of the mode table's modes

@@ -4,7 +4,7 @@
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`), as
 //! extracted from the disassembly: background `btimes.png`; leaving is asked about; left without
 //! the question, the highlight is not saved; its own 3D list goes to `g_sceneList` before the first
-//! frame only. Named by its address until then.
+//! frame only.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, Frames, List, Screen, Step};
 

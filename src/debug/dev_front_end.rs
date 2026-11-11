@@ -1,10 +1,10 @@
-//! The developers' front end (`dev_front_end::main`, 0x442B01, no references to it; IDA
-//! 2026-10-30): a menu of keys over `TITLE.PCX` that came before the real menus, to pick a
-//! course, a car and the switches and race at once. Here the "Developers" tab with
-//! its settings (first values the image's) and its races (test course 0x44306B, finish sequence
-//! 0x442FEF, credits 0x443104, last replay 0x4430C0), run from the menu loop's next frame.
+//! The developers' front end (`dev_front_end::main`, 0x442B01, which nothing refers to): a menu of keys
+//! over `TITLE.PCX` that came before the real menus, to pick a course, a car and the
+//! switches and race at once. Here the "Developers" tab has its settings (first values the
+//! image's) and its races (test course, finish sequence, credits, last replay), run from the
+//! menu loop's next frame.
 //!
-//! Not here: `var\soptions` (the tab keeps no prefs between runs), and 0x459C1B, which reads a
+//! Not here: `var\soptions` (the tab keeps no prefs between runs), and the reader of a
 //! developer's `e:\rally5\bin` file the game does not ship.
 
 use crate::errors::Refused;
@@ -15,25 +15,25 @@ use core::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
 /// The settings' numbers.
 struct Settings {
-    /// `dword_621838`: the course, 0 .. 99 (42 at first).
+    /// the course, 0 .. 99 (42 at first).
     course: AtomicU32,
-    /// `dword_62183C`: the car's kind, 0 .. 0x21.
+    /// the car's kind, 0 .. 0x21.
     car: AtomicU32,
-    /// `dword_6218D0`: forwards, backwards.
+    /// forwards, backwards.
     direction: AtomicU32,
-    /// `dword_6218A0`: manual, automatic, bumper car.
+    /// manual, automatic, bumper car.
     gears: AtomicU32,
-    /// `dword_621928`: the cars less one.
+    /// the cars less one.
     cars: AtomicU32,
-    /// `dword_62192C`: the screens less one.
+    /// the screens less one.
     screens: AtomicU32,
-    /// `dword_621920`: single, simulation, arcade, time trial, editor free play.
+    /// single, simulation, arcade, time trial, editor free play.
     mode: AtomicU32,
-    /// `dword_621924`: mipmapping.
+    /// mipmapping.
     mips: AtomicU32,
-    /// `dword_6219B8`: the rally, 0 .. 5.
+    /// the rally, 0 .. 5.
     rally: AtomicU32,
-    /// `dword_6219BC`: the stage.
+    /// the stage.
     stage: AtomicU32,
 }
 
@@ -54,7 +54,7 @@ static SETTINGS: Settings = Settings {
 static WANTED: AtomicU32 = AtomicU32::new(0);
 
 /// Below this the courses (1 .. 6, 11 .. 16, some 30 KB each) have no pace notes, no set-up and
-/// no splits: the third is the original's own fatal error 0x80601843 (seen 2026-10-30).
+/// no splits: the third is the original's own fatal error 0x80601843.
 const FIRST_RACED: usize = 0x15;
 
 const TEST: u32 = 1;
@@ -73,7 +73,7 @@ fn set_up_race(race: &Race) -> Result<(), Refused> {
     shared.vars.race_car_kinds[0].set(car);
     shared.vars.race_car_kinds[1].set((car + 1) % 0x17);
     // The two blocks' start slots. The set-up figures and tyres stay the player's
-    // (`copy_settings_in`; the original set defaults here; owner, 2026-10-30).
+    // (`copy_settings_in`; the original set defaults here).
     for (block, slot) in CAR_BLOCKS.cars[..2].iter().zip([1, 2]) {
         block.start_slot_value.set(slot);
     }
@@ -99,10 +99,10 @@ fn set_up_race(race: &Race) -> Result<(), Refused> {
 }
 
 /// `f` between what the menus' own route does round a race (`race::single_rally`): the
-/// game's mode changes of 0x44326D are the menus' here.
+/// game's mode changes round a test race are the menus' here.
 fn round_a_race(race: &Race, f: impl FnOnce() -> Result<(), Refused>) -> Result<(), Refused> {
     let shared = &race.shared;
-    // 0x44326D's, which the race's sound objects are made from (without them, a race
+    // The game's own mode change, which the race's sound objects are made from (without them, a race
     // with no engine heard); the menus' own put back after.
     let s = &SETTINGS;
     let car = s.car.load(Relaxed);
@@ -158,7 +158,7 @@ fn test_course(race: &Race) -> Result<(), Refused> {
         race.physics.split_tables.arcade_kind.set(2);
         race.shared.switches.editor_mode.set(0);
         // Free play leaves the car where it was: on another course, or with no race
-        // yet, that is nowhere, and the first search ends the game (seen 2026-10-30).
+        // yet, that is nowhere, and the first search ends the game.
         let course = SETTINGS.course.load(Relaxed);
         crate::debug::screens::place_free_play(
             !crate::debug::screens::raced() || race.shared.vars.stage_number.bits() != course,
@@ -178,7 +178,7 @@ fn test_course(race: &Race) -> Result<(), Refused> {
     })
 }
 
-/// 0x442FEF: the finish sequence, for the course's index (0 .. 5) and the car.
+/// The finish sequence (0x442FEF), for the course's index (0 .. 5) and the car.
 fn finish_sequence(race: &Race) -> Result<(), Refused> {
     round_a_race(race, || {
         let s = &SETTINGS;
@@ -198,7 +198,7 @@ fn finish_sequence(race: &Race) -> Result<(), Refused> {
     })
 }
 
-/// 0x443104, without its fonts (the menus' are up): the credits' race.
+/// The credits' race (0x443104), without its fonts (the menus' are up).
 fn credits(race: &Race) -> Result<(), Refused> {
     let sound = crate::sound::owner::sound();
     round_a_race(race, || {
@@ -207,7 +207,7 @@ fn credits(race: &Race) -> Result<(), Refused> {
     })
 }
 
-/// 0x4430C0: the last race's replay (nothing happens without one).
+/// The last race's replay (0x4430C0); nothing happens without one.
 fn last_replay(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let course = &race.course;

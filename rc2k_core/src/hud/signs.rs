@@ -1,4 +1,4 @@
-//! The HUD's signs (converted 2026-10-21 from `hud::draw_signs` 0x4B4F2B and its four
+//! The HUD's signs (from `hud::draw_signs` 0x4B4F2B and its four
 //! twins `draw_signs_1a` 0x4B52F7, `_1b`, `_2a`, `_2b`): up to four signs of the HUD's
 //! record, each a rectangle of the HUD's picture centred in a place 0x40 wide; and the
 //! rows of the HUD, which move up when `dword_6D1502` is 0.

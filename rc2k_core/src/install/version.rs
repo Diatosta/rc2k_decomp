@@ -1,4 +1,4 @@
-//! Whether the installed `ral.exe` is this same build (converted 2026-10-21 from
+//! Whether the installed `ral.exe` is this same build (from
 //! `install::check_installed_version` 0x413B0B): the file read in chunks of 0xFF00 bytes,
 //! each scanned (with the last 0x100 bytes of the one before in front of it) for
 //! "$VER: Rally 5"; at the first one, the text after the version's NUL compared with the

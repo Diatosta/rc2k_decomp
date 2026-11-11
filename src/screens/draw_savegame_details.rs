@@ -45,7 +45,7 @@ const PAYLOAD_OFFSET: usize = 0x30; // 0x51EBE4
 /// Returns the carry flag of the last text drawn.
 pub fn draw_savegame_details(tables: &Tables, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let saves = saves();
-    // Converted: `rc2k_core::screens::savegame_preview::details`; the saved game's dwords copied
+    // The logic is in `rc2k_core::screens::savegame_preview::details`; the saved game's dwords copied
     // into the preview's variables first (the original after the frame, which reads none).
     use rc2k_core::screens::savegame_preview::{Car, Title, details};
     {

@@ -62,7 +62,7 @@ pub fn main_loop(session: &Session, saves: &crate::saves::owner::Saves) -> Resul
     // switch leaves without asking to quit.
     loop {
         crate::system::sleep::sleep(1000);
-        if session.flags.quitting.get() == 1 {
+        if session.flags.quitting.is_set() {
             log_line(c"Leaving main loop...");
             return Ok(());
         }
@@ -99,7 +99,7 @@ pub fn main_loop(session: &Session, saves: &crate::saves::owner::Saves) -> Resul
     crate::files::is_cd_drive::is_cd_drive(base_drive());
     crate::menu::run_front_end::run_front_end(menus, audio)?;
     crate::sound::stop_music::stop_music();
-    if session.flags.quitting.get() == 1 {
+    if session.flags.quitting.is_set() {
         // The original leaves here without saving: the window closed (or any quit by the
         // switch) lost the options and best times changed since the last save (section 16);
         // here they are saved.

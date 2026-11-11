@@ -1,4 +1,4 @@
-//! The race's and the replay's clocks (converted 2026-10-21 from
+//! The race's and the replay's clocks (from
 //! `drive::race_clock_tick` 0x445554 and `replay_clock_tick` 0x460C20).
 
 /// The race's clock in tenths (`dword_61383C` .. `dword_613844`).

@@ -7,6 +7,7 @@
 //! the original's. The assembly versions are the reference the tests compare with
 //! (`x87_reference_c.rs`).
 
+use super::{Flt, out};
 use crate::math::x87_float::{X, compare, f80, from_f80, int, ld, st, to_int};
 
 /// `(a * b) / c`, rounded once at the end as the x87 is set to round
@@ -24,20 +25,28 @@ pub fn abs_to_int(a: u32) -> i32 {
 
 /// `sqrt(a a + b b)` as a float (`fld a; fmul st, st; fld b; fmul st, st; faddp; fsqrt;
 /// fstp`): the length of two floats at right angles.
-pub fn float_hypot(a: u32, b: u32) -> u32 {
+pub fn float_hypot(a: impl Flt, b: impl Flt) -> f32 {
+    let a = a.bits();
+    let b = b.bits();
     let a2 = ld(a) * ld(a);
     let b2 = ld(b) * ld(b);
-    st((a2 + b2).sqrt())
+    out((a2 + b2).sqrt())
 }
 
 /// C0 of `fld a; fcomp b; fnstsw ax` (`shr ah, 1; jb`): a below b, or one is no number.
-pub fn below_or_unordered(a: u32, b: u32) -> bool {
+pub fn below_or_unordered(a: impl Flt, b: impl Flt) -> bool {
+    let a = a.bits();
+    let b = b.bits();
     compare(ld(a), ld(b)) & 0x0100 != 0
 }
 
 /// C0 of `fld a; fmul h; fabs; fsub k; fcomp b`: |a h| - k below b (kept at the x87's
 /// precision), or one is no number.
-pub fn scaled_abs_less_below(a: u32, h: u32, k: u32, b: u32) -> bool {
+pub fn scaled_abs_less_below(a: impl Flt, h: impl Flt, k: impl Flt, b: impl Flt) -> bool {
+    let a = a.bits();
+    let h = h.bits();
+    let k = k.bits();
+    let b = b.bits();
     let x = (ld(a) * ld(h)).abs() - ld(k);
     compare(x, ld(b)) & 0x0100 != 0
 }
@@ -65,26 +74,32 @@ pub fn rotate_rounding_z(point: [i32; 3], matrix: &[u32]) -> [u32; 3] {
 
 /// `a a + b b` of two whole numbers, as a float (`fild a; fmul st, st; fild b; fmul st,
 /// st; faddp; fstp`).
-pub fn int_square_sum(a: i32, b: i32) -> u32 {
+pub fn int_square_sum(a: i32, b: i32) -> f32 {
     let (a, b) = (int(a), int(b));
-    st(a * a + b * b)
+    out(a * a + b * b)
 }
 
 /// `a a + b b` of two floats (`fld a; fmul st, st; fld b; fmul st, st; faddp; fstp`).
-pub fn float_square_sum(a: u32, b: u32) -> u32 {
+pub fn float_square_sum(a: impl Flt, b: impl Flt) -> f32 {
+    let a = a.bits();
+    let b = b.bits();
     let a2 = ld(a) * ld(a);
     let b2 = ld(b) * ld(b);
-    st(a2 + b2)
+    out(a2 + b2)
 }
 
 /// `(a + b) c`, a whole number plus a float, times a float (`fild a; fadd b; fmul c;
 /// fstp`).
-pub fn int_plus_times(a: i32, b: u32, c: u32) -> u32 {
-    st((int(a) + ld(b)) * ld(c))
+pub fn int_plus_times(a: i32, b: impl Flt, c: impl Flt) -> f32 {
+    let b = b.bits();
+    let c = c.bits();
+    out((int(a) + ld(b)) * ld(c))
 }
 
 /// C0 of `fld a; fabs; fcomp k`: |a| below k, or one is no number.
-pub fn abs_below_or_unordered(a: u32, k: u32) -> bool {
+pub fn abs_below_or_unordered(a: impl Flt, k: impl Flt) -> bool {
+    let a = a.bits();
+    let k = k.bits();
     compare(ld(a).abs(), ld(k)) & 0x0100 != 0
 }
 
@@ -96,7 +111,8 @@ pub fn rotate_rounding(point: [i32; 3], matrix: &[u32]) -> [u32; 3] {
 
 /// `(a a + b b) k` (`times` = 1) or `(a a + b b) k k` (`times` = 2) as a whole number
 /// (`fild a; fmul st, st; fild b; fmul st, st; faddp; fmul k; [fmul k;] fistp`).
-pub fn int_square_sum_scaled_to_int(a: i32, b: i32, k: u32, times: u32) -> u32 {
+pub fn int_square_sum_scaled_to_int(a: i32, b: i32, k: impl Flt, times: u32) -> u32 {
+    let k = k.bits();
     let (a, b) = (int(a), int(b));
     let mut x = (a * a + b * b) * ld(k);
     if times == 2 {
@@ -107,7 +123,21 @@ pub fn int_square_sum_scaled_to_int(a: i32, b: i32, k: u32, times: u32) -> u32 {
 
 /// The camera's roll eased towards a target (`race::view_matrices`), rounded once at the end:
 /// `((((i / a / a / b) v c) - m) h) + m`.
-pub fn eased_roll(i: i32, a: u32, b: u32, v: u32, c: u32, m: u32, h: u32) -> u32 {
+pub fn eased_roll(
+    i: i32,
+    a: impl Flt,
+    b: impl Flt,
+    v: impl Flt,
+    c: impl Flt,
+    m: impl Flt,
+    h: impl Flt,
+) -> f32 {
+    let a = a.bits();
+    let b = b.bits();
+    let v = v.bits();
+    let c = c.bits();
+    let m = m.bits();
+    let h = h.bits();
     let mut x = int(i);
     x /= ld(a);
     x /= ld(a);
@@ -117,12 +147,15 @@ pub fn eased_roll(i: i32, a: u32, b: u32, v: u32, c: u32, m: u32, h: u32) -> u32
     x -= ld(m);
     x *= ld(h);
     x += ld(m);
-    st(x)
+    out(x)
 }
 
 /// The sun's direction in `race::draw_sky`: with `p = (k - a) s` and `q = b s`, cos p cos q,
 /// sin q and sin p cos q, each times `m` and stored as a float.
-pub fn sun_direction(a: i32, k: u32, s: u32, b: i32, m: u32) -> [u32; 3] {
+pub fn sun_direction(a: i32, k: impl Flt, s: impl Flt, b: i32, m: impl Flt) -> [u32; 3] {
+    let k = k.bits();
+    let s = s.bits();
+    let m = m.bits();
     let p = (-int(a) + ld(k)) * ld(s);
     let q = int(b) * ld(s);
     let (sin_p, cos_p) = p.sin_cos();
@@ -133,7 +166,8 @@ pub fn sun_direction(a: i32, k: u32, s: u32, b: i32, m: u32) -> [u32; 3] {
 }
 
 /// A float as the x87's 80 bits (`fld dword; fstp tbyte`).
-pub fn to_tbyte(a: u32) -> [u8; 10] {
+pub fn to_tbyte(a: impl Flt) -> [u8; 10] {
+    let a = a.bits();
     f80(ld(a))
 }
 
@@ -161,7 +195,20 @@ pub fn sun_on_screen(v: &[u32; 7], flat: bool, scratch: &impl crate::session::Ce
 
 /// `k` less half the distance from the centre, rounded, as a whole number: `-(sqrt((x -
 /// cx)^2 + (y - cy)^2) h - k)` (`fistp`).
-pub fn sun_size(x: u32, cx: u32, y: u32, cy: u32, h: u32, k: u32) -> u32 {
+pub fn sun_size(
+    x: impl Flt,
+    cx: impl Flt,
+    y: impl Flt,
+    cy: impl Flt,
+    h: impl Flt,
+    k: impl Flt,
+) -> u32 {
+    let x = x.bits();
+    let cx = cx.bits();
+    let y = y.bits();
+    let cy = cy.bits();
+    let h = h.bits();
+    let k = k.bits();
     let dx = ld(x) - ld(cx);
     let dx2 = dx * dx;
     let dy = ld(y) - ld(cy);

@@ -16,7 +16,7 @@ use crate::menu::screen_loop::{Entry, run_screen};
 pub fn arcade_level_end(menus: &Menus, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let race = crate::race::owner::race();
     let play = &menus.play;
-    // Converted: `rc2k_core::menu::arcade` (`won`, `won_level`, `first_win`).
+    // The logic is in `rc2k_core::menu::arcade` (`won`, `won_level`, `first_win`).
     use rc2k_core::menu::arcade::{first_win, won, won_level};
     if !won(play.results.positions[0].get()) {
         crate::sound::play_tune_7::play_tune_7();

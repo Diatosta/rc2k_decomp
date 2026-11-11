@@ -394,7 +394,10 @@ pub fn set_car_times(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
         use rc2k_core::race::stage::{difficulty, rally_of, timed_kind};
         let kind = timed_kind(race.shared.vars.race_car_kinds[0].get() as i32);
         let factor = crate::math::x87::loaded(&race.shared.tables.kind_time_factors[kind as usize]);
-        race.physics.split_tables.kind_factor.set_bits(factor);
+        race.physics
+            .split_tables
+            .kind_factor
+            .set_bits(factor.to_bits());
         let Some(rally) = rally_of(stage) else {
             return Ok(());
         };

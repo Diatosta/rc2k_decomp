@@ -28,7 +28,7 @@ pub fn draw_player_rally_result(menus: &Menus, canvas: &mut dyn Canvas) -> Resul
         true,
         crate::strings::units::units(),
     )?;
-    // Converted: `rc2k_core::screens::player_result::rally_result`.
+    // The logic is in `rc2k_core::screens::player_result::rally_result`.
     use crate::screens::game_screen::PlayerResultScreen;
     let p = rc2k_core::screens::player_result::Player {
         name,

@@ -1,12 +1,12 @@
 //! The replay viewer's rules: its files, the play stepped frame by frame, the edits (the
 //! marked clip, a camera spread over the next blocks), the menu's items marked, the
-//! pictures' numbers (converted from `race::replay_path` 0x41EF27,
+//! pictures' numbers (from `race::replay_path` 0x41EF27,
 //! `step_viewed_replay` 0x41EC47, `copy_marked` 0x41E2F6, `spread_camera` 0x41E6BD,
 //! `mark_viewer_items` 0x41D456, `find_snapshot_number` 0x41EF51, and the camera step of
 //! `next_camera` 0x41E5EB / `previous_camera`; the marks, the frames' pictures and the
-//! snapshot's number Converted from `race::reset_marks` 0x41E403,
+//! snapshot's number from `race::reset_marks` 0x41E403,
 //! `start_frame_pictures` 0x41F35E and `viewer_snapshot` 0x41EFAB; the viewer's actions
-//! Converted from `race::viewer_action` 0x41DE6F, an item's drawing from
+//! from `race::viewer_action` 0x41DE6F, an item's drawing from
 //! `race::draw_viewer_item` 0x41D94A).
 
 use crate::Invalid;

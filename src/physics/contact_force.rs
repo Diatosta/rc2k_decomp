@@ -79,7 +79,8 @@ pub fn contact_force(race: &Race, record: &ForceRecord, scene: &crate::scene::ow
                 &race.physics.contact.contact_point_speed,
                 &race.physics.contact.contact_normal,
             )
-        }),
+        })
+        .to_bits(),
     );
     x87_2(race, scene);
     hold_low(&race.physics.contact.contact_depth, &drawing.scene.scratch);
@@ -108,7 +109,8 @@ pub fn contact_force(race: &Race, record: &ForceRecord, scene: &crate::scene::ow
                 &race.physics.contact.contact_scratch_a,
                 &race.physics.contact.contact_normal,
             )
-        }),
+        })
+        .to_bits(),
     );
     x87_3(race);
     // 0x45F2C2: the normal push, the speed along the normal and across it.
@@ -168,7 +170,7 @@ pub fn contact_force(race: &Race, record: &ForceRecord, scene: &crate::scene::ow
     race.physics
         .contact
         .contact_slide_limit_held
-        .set_bits(crate::math::x87::loaded(
+        .set(crate::math::x87::loaded(
             &race.physics.contact.contact_slide_limit,
         ));
     // 0x45F48D: the slide against the motion, held to `contact_slide_limit_held` long.

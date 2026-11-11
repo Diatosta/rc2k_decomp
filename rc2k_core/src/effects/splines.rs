@@ -1,4 +1,4 @@
-//! The marks' splines' whole-number steps (converted 2026-10-21 from
+//! The marks' splines' whole-number steps (from
 //! `effects::add_face_points` 0x4B9E29, `centre_spline_points` 0x4B9F95,
 //! `grade_spline_points` 0x4BA316, `order_spline_points` 0x4BA388, `find_spline_ends`
 //! 0x4BA4F1 and the box of `bound_spline_points` 0x4B9E7D): a spline record (`MarkSpline`, 0xE90 bytes) holds up to 0x80 points of an

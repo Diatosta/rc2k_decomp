@@ -22,7 +22,7 @@ fn gates(race: &Race) -> [u32; 7] {
         race.shared.car.go_stand_timer.get(),
         race.shared.car.started_stand_timer.get(),
         race.shared.replay_file.hold_car_revs.get(),
-        race.shared.work.in_credits.get(),
+        u32::from(race.shared.work.in_credits.is_set()),
         crate::race::owner::RACE.shared.car.false_start_count.get(),
         crate::race::owner::RACE.shared.car.all_wheels_off.get(),
     ]

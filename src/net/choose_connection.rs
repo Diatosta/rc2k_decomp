@@ -63,7 +63,7 @@ pub fn choose_connection(
         } else {
             other_key(key)?;
         }
-        if system.session.flags.quitting.get() == 1 {
+        if system.session.flags.quitting.is_set() {
             break;
         }
     }

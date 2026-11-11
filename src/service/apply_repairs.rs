@@ -96,7 +96,7 @@ impl Workshop for Game<'_> {
         self.player.update(change);
     }
     fn set_working(&mut self) {
-        self.menus.screens.state.menus.service_flag.set(1u32);
+        self.menus.screens.state.menus.service_flag.set(true);
     }
     fn timer(&mut self, t: Timer) -> u32 {
         timer(&self.menus.screens, t).get()

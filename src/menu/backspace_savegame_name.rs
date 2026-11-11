@@ -11,7 +11,7 @@ use crate::menu::owner::Menus;
 use crate::menu::text_entry::{entry as text_entry, length, put_entry};
 
 pub fn backspace_savegame_name(menus: &Menus) -> Result<(), BadInput> {
-    // Converted: `rc2k_core::menu::text_entry::Entry::backspace`.
+    // The logic is in `rc2k_core::menu::text_entry::Entry::backspace`.
     if length() == 0 {
         return Ok(());
     }

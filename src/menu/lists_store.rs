@@ -1,5 +1,4 @@
-//! The menus' lists and tables, out of RAL.EXE's image (IDA 0x7594AA .. 0x75A658; phase 7,
-//! typed): the last draw list, the carousel kinds' own places, the paths and sounds the menus
+//! The menus' lists and tables, out of RAL.EXE's image (IDA 0x7594AA .. 0x75A658): the last draw list, the carousel kinds' own places, the paths and sounds the menus
 //! name, the car lists the menus walk, the best scores' titles. `#[repr(C)]` struct of atomic
 //! cells with the image's layout, one static; `moved::MOVED` points the range at it. Its
 //! last field is a 22-byte string: the struct is padded to a multiple of 4.
@@ -146,7 +145,7 @@ pub struct MenuLists {
 }
 
 /// First values the image's.
-/// A text of `texts_store` by its place there (phase 13, handles; the original kept its
+/// A text of `texts_store` by its place there (by handle; the original kept its
 /// address). 0 stays none, -1 stays the end mark.
 const fn text_ref(ida: u32) -> Dword {
     Dword::new(crate::menu::texts_store::text_key(ida))

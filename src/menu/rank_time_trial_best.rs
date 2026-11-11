@@ -14,7 +14,7 @@ use crate::menu::owner::Play;
 
 // g_keptPlayerName
 pub fn rank_time_trial_best(play: &Play) -> Result<(), Refused> {
-    // Converted: `rc2k_core::saves::entries::rank_time_trial`.
+    // The logic is in `rc2k_core::saves::entries::rank_time_trial`.
     Ok(with_stage_times(|list| {
         crate::menu::standings::with_kept_name(play, |kept| {
             rc2k_core::saves::entries::rank_time_trial(list, kept);

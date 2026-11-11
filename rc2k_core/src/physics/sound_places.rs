@@ -1,4 +1,4 @@
-//! The car's sound object placed (converted from `physics::place_sound_e1`
+//! The car's sound object placed (from `physics::place_sound_e1`
 //! 0x45CEF9, `place_sound_e1_other` 0x45CE32, `place_sound_e5` 0x45CF95 and
 //! `place_sound_object` 0x45CD60): a sound and its band set in one of the object's two
 //! slots, and the place it is heard from: the car's place (with an offset for one) less
@@ -9,7 +9,7 @@
 //! `f64`; the turn is `math::vector::rotate_point`, kept on the stack, each part times the
 //! scale and stored: the same bits at the game's double precision.
 //!
-//! The work car's engine sound object told the car's state (Converted from
+//! The work car's engine sound object told the car's state (from
 //! `physics::car_sound_state` 0x45CACE): its voices' shares, the volume, the place heard
 //! from (`place`, the listener the view block's or the car's own) and its motion turned
 //! by the view.

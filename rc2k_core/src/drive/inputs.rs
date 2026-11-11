@@ -1,4 +1,4 @@
-//! The race's input words (converted 2026-10-21 from `drive::pack_inputs` 0x409328,
+//! The race's input words (from `drive::pack_inputs` 0x409328,
 //! `unpack_inputs` 0x409338, `any_key_down` 0x444F55 and `car_input_words` 0x43A27E):
 //! four words packed into one for the replays, whether any key is down, and a car's
 //! words from its device or its replay block.

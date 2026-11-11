@@ -145,7 +145,7 @@ pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
     ViewVars::record(3).angles[0].set(head[3]);
     ViewVars::record(3).angles[0].set(head[7]);
     if !camera_view::keeps_light_figure(car, || KIND_TABLES.kind_has_views[car as usize].get()) {
-        ViewVars::record(1).focus[2].set_bits(crate::math::x87::loaded(head[10]));
+        ViewVars::record(1).focus[2].set(crate::math::x87::loaded(head[10]).to_bits());
     }
     if race.shared.car.camera_switch_active.get() == 0
         && let Some(second) = camera_view::fixed_camera(race.shared.car.camera_view.get())

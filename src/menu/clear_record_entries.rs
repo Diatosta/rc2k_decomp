@@ -8,7 +8,7 @@ use crate::menu::owner::Screens;
 use crate::menu::standings::*;
 
 pub fn clear_record_entries(screens: &Screens) -> Result<(), Refused> {
-    // Converted: `rc2k_core::saves::entries::clear_marks`.
+    // The logic is in `rc2k_core::saves::entries::clear_marks`.
     let event = current_event(screens)?;
     with_event(event, rc2k_core::saves::entries::clear_marks)?;
     Ok(())

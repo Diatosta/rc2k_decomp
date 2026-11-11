@@ -167,7 +167,7 @@ pub fn emit_particle_6(
         slot.put(|en| &mut en.place[1], rounded(place[1]))?;
         slot.put(
             |en| &mut en.ground_y,
-            x87::ext_less(place[1], particles.kind6_set.lift.bits()),
+            x87::ext_less(place[1], particles.kind6_set.lift.bits()).to_bits(),
         )?;
         slot.put(|en| &mut en.place[0], rounded(place[0]))?;
         let motion: [u32; 3] = crate::effects::try_from_fn(|a| {
@@ -182,6 +182,7 @@ pub fn emit_particle_6(
                         ]
                     })
                 })?)
+                .to_bits()
             })
         })?;
         slot.put(|en| &mut en.motion[2], motion[2])?;
@@ -201,13 +202,13 @@ pub fn emit_particle_6(
         effects.setup.work.seed.set(s);
         slot.put(
             |en| &mut en.size,
-            x87::from_int(((s & 0x3FFF) + 0x4000) as i32),
+            x87::from_int(((s & 0x3FFF) + 0x4000) as i32).to_bits(),
         )?;
         let life: u32 = masks.surface.lives_by_flags[(flags >> 6) as usize].get();
         slot.put(|en| &mut en.life, life)?;
         slot.put(
             |en| &mut en.alpha_fade,
-            x87::over_int(&effects.setup.floats.two_fifty_seven, life as i32),
+            x87::over_int(&effects.setup.floats.two_fifty_seven, life as i32).to_bits(),
         )?;
         slot.put(
             |en| &mut en.alpha,
@@ -223,7 +224,8 @@ pub fn emit_particle_6(
                 size as i32,
                 particles.kind6_set.size_k[0].bits(),
                 particles.kind6_set.size_k[1].bits(),
-            ),
+            )
+            .to_bits(),
         )?;
     }
     Ok(())

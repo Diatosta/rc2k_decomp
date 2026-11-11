@@ -8,8 +8,7 @@
 //! the objects, and the turn direction and the angle are left at 1 and 0 (right)
 //! or -1 and -1 (left). They click only if `flow.quiet` is not 1.
 //!
-//! The click, the callbacks and the screenshot are called directly (2026-10-24: the `Outside` trait
-//! went with the screen loops' registers).
+//! The click, the callbacks and the screenshot are called directly.
 
 use crate::errors::Refused;
 use crate::menu::item_at::item_at;
@@ -47,7 +46,7 @@ impl Direction {
 /// the item (edi in the original, the only register its callbacks read).
 pub fn move_highlight(menus: &Menus, direction: Direction) -> Result<(), Refused> {
     let screens = &menus.screens;
-    // Converted: `rc2k_core::menu::navigation` (`turn`, `link`, `walk`), everything worked
+    // The logic is in `rc2k_core::menu::navigation` (`turn`, `link`, `walk`), everything worked
     // out before it is written.
     use rc2k_core::menu::navigation::{Link, Turn, link, turn, walk};
     let way = direction.slot();

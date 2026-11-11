@@ -24,7 +24,7 @@ pub fn put_string(
 ) -> Result<(), Refused> {
     let mut text = Vec::new();
     append_string_by_id(id, &mut |bytes| text.extend_from_slice(bytes))?;
-    // Converted: `rc2k_core::screens::captions::fit`.
+    // The logic is in `rc2k_core::screens::captions::fit`.
     let text = rc2k_core::screens::captions::fit(text, room)?;
     buffer.write_at(0, &text, "a caption")?;
     Ok(())

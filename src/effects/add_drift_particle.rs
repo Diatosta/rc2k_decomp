@@ -49,14 +49,14 @@ pub fn add_drift_particle(
         put(0x10, rounded(v[4]))?;
         put(
             0x1C,
-            x87::ext_less(v[4], effects.kinds.particle_tuning.drift_lower.bits()),
+            x87::ext_less(v[4], effects.kinds.particle_tuning.drift_lower.bits()).to_bits(),
         )?;
         put(0xC, rounded(v[5]))?;
         put(0x18, rounded(v[5]))?;
         put(0x38, 0x8000)?;
         put(0x3C, 0xFF00_0000)?;
         put(0x44, LIFE)?;
-        put(0x24, x87::loaded(&frame.matrices.view_place[13]))?;
+        put(0x24, x87::loaded(&frame.matrices.view_place[13]).to_bits())?;
     }
     Ok(())
 }

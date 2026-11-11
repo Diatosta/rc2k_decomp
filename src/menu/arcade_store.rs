@@ -1,7 +1,6 @@
-//! The arcade game's variables, out of RAL.EXE's image (IDA 0x7587E8 .. 0x758806; phase 7, typed): the
+//! The arcade game's variables, out of RAL.EXE's image (IDA 0x7587E8 .. 0x758806): the
 //! scene switch, the level, stage and retry being played and the levels won. A `#[repr(C)]` struct
-//! with the image's layout, one static; `moved::MOVED` points the range at it. (Split 2026-10-25 from
-//! the front end's block `menu::store`.)
+//! with the image's layout, one static; `moved::MOVED` points the range at it.
 
 use crate::session::{Bytes, Dword};
 
@@ -45,7 +44,7 @@ pub const START: usize = 0x7587E8;
 /// IDA 0x758806, the end of the piece.
 pub const END: usize = 0x758806;
 
-/// Where IDA 0x7587E8 is now (`moved::MOVED`'s home).
+/// Where IDA 0x7587E8 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn arcade_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::menu::owner::MENUS.play.arcade)

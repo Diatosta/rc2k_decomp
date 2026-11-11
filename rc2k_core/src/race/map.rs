@@ -1,4 +1,4 @@
-//! The course map's scroll in the race (converted from `race::scroll_maps`
+//! The course map's scroll in the race (from `race::scroll_maps`
 //! 0x45B4E6, `race::scroll_map` 0x45B527 and `race::map_tiles` 0x45B663): the car on the
 //! map (16.16 places), the map picture's corner (16-pixel steps) moved round it when it
 //! nears an edge, and its place in the picture.

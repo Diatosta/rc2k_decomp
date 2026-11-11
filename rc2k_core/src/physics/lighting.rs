@@ -89,7 +89,7 @@ pub fn hold_change(light: u32, old: u32, keep: bool) -> Held {
     }
 }
 
-/// The light and colour tables' size: an index past it is refused by the hook.
+/// The light and colour tables' size: an index past it is refused.
 pub const TABLE: u32 = 0x100;
 
 /// A colour added to the light byte by byte with saturation: four bytes with MMX

@@ -3,11 +3,11 @@
 //! texture offsets, over the texture size); the point turned by the given turn, times the
 //! shape's scale plus its centre; colour white under the quad record's alpha, specular 0.
 //!
-//! Callers: `hud::draw_needle`'s four (four calls). The turn is `math::turn_float_point_xz`.
+//! Callers: `hud::draw_needle`'s four (four calls). The turn is `math::rotate_float_point_about_y`.
 
 use crate::d3d::vertices_store::Vertex;
 use crate::hud::owner::Hud;
-use crate::math::turn_float_point_xz::turn_float_point_xz_plain;
+use crate::math::rotate_float_point_about_y::rotate_float_point_about_y_plain;
 use rc2k_core::hud::disc;
 
 /// The point as `f64`s (what the x87 holds at the game's double precision): the vertex at `vertex`,
@@ -25,7 +25,7 @@ pub fn turned_vertex(hud: &Hud, vertex: &Vertex, angle: u32, point: [f64; 2]) {
     vertex
         .v
         .set(disc::turned_texture(y, hud.block.uv_shift[1].get(), scale));
-    let [tx, _, tz, _] = turn_float_point_xz_plain(x.to_bits(), 0, y.to_bits(), angle);
+    let [tx, _, tz, _] = rotate_float_point_about_y_plain(x.to_bits(), 0, y.to_bits(), angle);
     hud.block.point[1].set(tz);
     hud.block.point[0].set(tx);
     let size = hud.block.needle_size.get();

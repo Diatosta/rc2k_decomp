@@ -263,11 +263,11 @@ fn place(
             crate::scene::point_records::vertex(quad, vertex, 0x18),
             depth_factor,
         );
-        out.y.set_bits(x87::add(
+        out.y.set(x87::add(
             crate::scene::point_records::vertex(quad, vertex, 0x1C),
             y_offset,
         ));
-        out.z.set_bits(depth);
+        out.z.set_bits(depth.to_bits());
         out.rhw.set_bits(if sse {
             x87::rcpss_times(
                 crate::scene::point_records::vertex(quad, vertex, 0x18),
@@ -275,11 +275,12 @@ fn place(
             )
         } else {
             x87::reciprocal_times(depth, race.frame.panel_and_overlay.overlay.w_factor.bits())
+                .to_bits()
         });
         if mirrored && entries.len() > 2 {
             x = x87::mirrored(x, mirror_at, x_offset);
         }
-        out.x.set_bits(x);
+        out.x.set_bits(x.to_bits());
     }
 }
 
@@ -291,8 +292,8 @@ fn copy_set(entries: &[Listed], set: Set) {
     };
     for (n, &(_, entry)) in entries.iter().enumerate() {
         let out = out(n);
-        out.u.set_bits(x87::loaded(entry.word(uv)));
-        out.v.set_bits(x87::loaded(entry.word(uv + 4)));
+        out.u.set(x87::loaded(entry.word(uv)));
+        out.v.set(x87::loaded(entry.word(uv + 4)));
         out.colour.set(entry.word(colour));
         out.specular.set(entry.word(colour + 4));
     }

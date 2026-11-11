@@ -374,7 +374,7 @@ pub(super) fn int_div_div_doubled(a: i32, b: u32, c: u32) -> u32 {
     out
 }
 
-/// `math::turn_scratch_xz`'s turn, its stack steps as the original's bytes: x' = x cos +
+/// `math::rotate_scratch_about_y`'s turn, its stack steps as the original's bytes: x' = x cos +
 /// z sin, z' = z cos - x sin, each rounded once, written back over x and z.
 pub(super) fn turn_in_place(sine: *const u32, cosine: *const u32, x: *mut u32, z: *mut u32) {
     x87!(
@@ -1165,6 +1165,53 @@ fn fl(bits: u32) -> f64 {
     f64::from(f32::from_bits(bits))
 }
 
+/// A plain helper's result as the reference's: the bits of a float result, a whole number or
+/// a status word as it is.
+pub(super) trait AsBits {
+    type Out;
+    fn into_bits(self) -> Self::Out;
+}
+
+impl AsBits for f32 {
+    type Out = u32;
+    fn into_bits(self) -> u32 {
+        self.to_bits()
+    }
+}
+
+macro_rules! as_they_are {
+    ($($t:ty),*) => {$(
+        impl AsBits for $t {
+            type Out = $t;
+            fn into_bits(self) -> $t {
+                self
+            }
+        }
+    )*};
+}
+as_they_are!(u8, u16, u32, i32, bool, f64);
+
+impl<A: AsBits, B: AsBits> AsBits for (A, B) {
+    type Out = (A::Out, B::Out);
+    fn into_bits(self) -> Self::Out {
+        (self.0.into_bits(), self.1.into_bits())
+    }
+}
+
+impl<A: AsBits, B: AsBits, C: AsBits> AsBits for (A, B, C) {
+    type Out = (A::Out, B::Out, C::Out);
+    fn into_bits(self) -> Self::Out {
+        (self.0.into_bits(), self.1.into_bits(), self.2.into_bits())
+    }
+}
+
+impl<A: AsBits, const N: usize> AsBits for [A; N] {
+    type Out = [A::Out; N];
+    fn into_bits(self) -> Self::Out {
+        self.map(AsBits::into_bits)
+    }
+}
+
 /// Results that must agree: floats as bits (any NaN equals any NaN, within `tol`),
 /// everything else exactly.
 trait Same {
@@ -1284,7 +1331,7 @@ macro_rules! diff {
     ($g:ident, $name:literal, $tol:expr, $($v:ident = $gen:ident),*; $r:expr, $p:expr) => {{
         $(let $v = $g.$gen();)*
         let reference = $r;
-        let plain = $p;
+        let plain = AsBits::into_bits($p);
         compare($name, $tol, reference, plain, format!("{:x?}", ($($v,)*)));
     }};
 }

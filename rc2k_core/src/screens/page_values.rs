@@ -1,5 +1,5 @@
-//! What the front-end pages copy into their work values before they are drawn (converted
-//! 2026-10-21 from `screens::load_audio_settings` 0x4707E6, `stage_options_texts`
+//! What the front-end pages copy into their work values before they are drawn
+//! (from `screens::load_audio_settings` 0x4707E6, `stage_options_texts`
 //! 0x4692A9 and `pick_player_1` .. `_4` 0x46AEC5 ..).
 
 use crate::audio::modes::AudioOptions;

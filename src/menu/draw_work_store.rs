@@ -1,20 +1,18 @@
-//! The drawing code's work variables, out of RAL.EXE's image (IDA 0x7559A4 .. 0x755A4C; phase 7,
-//! typed): the blink, the scratch dwords the screens' routines pass values in (the original kept them
+//! The drawing code's work variables, out of RAL.EXE's image (IDA 0x7559A4 .. 0x755A4C): the blink, the scratch dwords the screens' routines pass values in (the original kept them
 //! in globals: a button's width, x and y, the sorts' counters, the sliders' ends), the marker's
 //! place, and the item action's value and the Escape flag. A `#[repr(C)]` struct with the image's
-//! layout, one static; `moved::MOVED` points the range at it. (Split 2026-10-25 from the front end's
-//! block `menu::store`.)
+//! layout, one static; `moved::MOVED` points the range at it.
 
-use crate::session::{Bytes, Dword, with_runs};
+use crate::session::{Bytes, Dword, Flag, with_runs};
 
 /// The drawing work variables (IDA 0x7559A4 .. 0x755A4C).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct DrawWork {
     /// `dword_7559A4`: 1 in the visible half of a blink (`menu::update_blink`).
-    pub blink: Dword,
+    pub blink: Flag,
     /// `dword_7559A8`: 1 in the visible half of the text cursor's blink.
-    pub cursor_on: Dword,
+    pub cursor_on: Flag,
     /// `seconds`: A work variable: points, a button's width, the fill's end x (`gfx::blit_bar`).
     pub seconds: Dword,
     /// +0xC (0x7559B0): a scratch variable the screens' routines pass values in (the original used a global where a register would do): a button's x, a row's y, a sprite's y, a sum of times (`saves::default_times`).
@@ -86,7 +84,7 @@ pub struct DrawWork {
     /// `dword_755A38`: What the item's action leaves: 2 = stay on the screen as it is (`menu::screen_loop`).
     pub action_mode: Dword,
     /// `dword_755A3C`: The screen was left with Escape.
-    pub escape_pressed: Dword,
+    pub escape_pressed: Flag,
     /// Unreferenced bytes (IDA 0x755A40 .. 0x755A4C).
     pub _gap_755a40: Bytes<12>,
 }
@@ -95,8 +93,8 @@ impl DrawWork {
     /// First values the image's (`tests::draw_work_starts_as_the_games`).
     pub const fn new() -> Self {
         DrawWork {
-            blink: Dword::new(0x1),
-            cursor_on: Dword::new(0x1),
+            blink: Flag::new(true),
+            cursor_on: Flag::new(true),
             seconds: Dword::new(0x0),
             scratch_b0: Dword::new(0x0),
             scratch_b4: Dword::new(0x0),
@@ -132,7 +130,7 @@ impl DrawWork {
             dword_755a30: Dword::new(0x0),
             dword_755a34: Dword::new(0x0),
             action_mode: Dword::new(0x0),
-            escape_pressed: Dword::new(0x0),
+            escape_pressed: Flag::new(false),
             _gap_755a40: Bytes::new(with_runs::<12>(&[(0x0, &[0x86, 0x01])])),
         }
     }
@@ -143,7 +141,7 @@ pub const START: usize = 0x7559A4;
 /// IDA 0x755A4C, the end of the piece.
 pub const END: usize = 0x755A4C;
 
-/// Where IDA 0x7559A4 is now (`moved::MOVED`'s home).
+/// Where IDA 0x7559A4 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn draw_work_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::menu::owner::MENUS.screens.draw_work)

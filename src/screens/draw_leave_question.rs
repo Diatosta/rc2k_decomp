@@ -8,7 +8,7 @@ use crate::errors::Refused;
 use crate::text::draw_text::Canvas;
 
 pub fn draw_leave_question(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::notes::LEAVE_QUESTION`.
+    // The logic is in `rc2k_core::screens::notes::LEAVE_QUESTION`.
     crate::screens::game_screen::draw_note(canvas, &rc2k_core::screens::notes::LEAVE_QUESTION)?;
     Ok(())
 }

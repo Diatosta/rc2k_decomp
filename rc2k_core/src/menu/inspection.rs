@@ -1,5 +1,5 @@
 //! The inspection after a stage: which inspected parts of a player's car are at or past
-//! their limits, and the verdict (converted 2026-10-21 from `menu::inspection_faults`
+//! their limits, and the verdict (from `menu::inspection_faults`
 //! 0x4A1733 and `menu::inspection_verdict` 0x4A1952). A part's index is its place in the
 //! player's +0xD4 .. +0x108 and in the limits and penalties, fourteen each.
 

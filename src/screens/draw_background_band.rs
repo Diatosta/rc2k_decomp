@@ -13,7 +13,7 @@ use crate::text::draw_text::Canvas;
 // ---- game data ----
 
 pub fn draw_background_band(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::controller_page::background_band`.
+    // The logic is in `rc2k_core::screens::controller_page::background_band`.
     use rc2k_core::screens::controller_page::{Font, Work, background_band};
     background_band(
         &mut crate::screens::game_screen::GameScreen::<Font, Work>::new(canvas),

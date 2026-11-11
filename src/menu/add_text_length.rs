@@ -13,7 +13,7 @@ pub fn add_text_length(
     menus: &Menus,
     text: impl Into<crate::place::BytePlace>,
 ) -> Result<(), BadInput> {
-    // Converted: `rc2k_core::menu::text_entry::{text_length, Entry::add_length}`.
+    // The logic is in `rc2k_core::menu::text_entry::{text_length, Entry::add_length}`.
     let text = text.into();
     let fault = crate::menu::event_flow::Fault::default();
     let len = text_length(|i| {

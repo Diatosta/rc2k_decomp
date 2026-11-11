@@ -1,5 +1,5 @@
 //! Two draw-list steps that put up `screens::draw_message_box` when the chosen item is not
-//! open (stream A, part F1, 2026-10-18).
+//! open ().
 
 use crate::errors::Refused;
 use crate::menu::arcade_store::Arcade;

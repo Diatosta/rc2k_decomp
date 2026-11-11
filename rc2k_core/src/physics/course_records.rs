@@ -1,4 +1,4 @@
-//! The course's records by grid cell (Converted from
+//! The course's records by grid cell (from
 //! `physics::find_course_record` 0x4220B6): a record (0x20 bytes, `g_courseRecords`) is
 //! looked for by its key (its first dword) among its kind's records, `g_kindFirstRecords`
 //! ..= `g_kindLastRecords` of the kind (-1 first: none). The key is a grid cell by the

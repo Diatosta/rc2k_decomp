@@ -1,10 +1,10 @@
-//! The options screens' work copies, out of RAL.EXE's image (IDA 0x755640 .. 0x7556B4; phase 7, typed):
+//! The options screens' work copies, out of RAL.EXE's image (IDA 0x755640 .. 0x7556B4):
 //! the switches and settings the options pages change, the sound options and volumes, the menu sound
 //! and the key being redefined. The first 0x2C and the next 0x18 bytes are the options file's
 //! (`saves::load_options`). A `#[repr(C)]` struct with the image's layout, one static;
-//! `moved::MOVED` points the range at it. (Split 2026-10-25 from the front end's block `menu::store`.)
+//! `moved::MOVED` points the range at it.
 
-use crate::session::{Bytes, Dword};
+use crate::session::{Bytes, Dword, Flag};
 
 /// The options' work copies (IDA 0x755640 .. 0x7556B4).
 #[repr(C)]
@@ -20,10 +20,10 @@ pub struct OptionWork {
     pub modes_switch: Dword,
     /// `dword_755650`: The graphics page's lens flare option, work copy (the race's `lens_flare`).
     pub lens_flare: Dword,
-    /// `dword_755654`: Not worked out.
-    pub dword_755654: Dword,
-    /// `dword_755658`: Not worked out.
-    pub dword_755658: Dword,
+    /// `dword_755654`: a 0 ..= 100 level, stepped by dead code only; copied to `race::state_store`.
+    pub unused_percent_a: Dword,
+    /// `dword_755658`: the same, the second level.
+    pub unused_percent_b: Dword,
     /// `dword_75565C`: The graphics page's reflections option, work copy.
     pub reflections: Dword,
     /// +0x10 (0x755660) `dword_755660`: the options page's car shadows setting (row 6 of the visual options, strings 0x396 "reduzido" / 0x397 "completo"); copied to the race's `settings.car_shadows` (0x75AD10) and `settings_words[2]` (0x6238B0). Probable: the debug tab reads the race copy as "Car shadows".
@@ -63,9 +63,9 @@ pub struct OptionWork {
     /// `dword_7556A4`: The menu's sound: 0x6F, or 0x14D after Enter (`menu::handle_keys`).
     pub menu_sound: Dword,
     /// `dword_7556A8`: 1 while a text is being typed (`menu::text_entry`).
-    pub typing: Dword,
+    pub typing: Flag,
     /// `g_redefiningKey`: 1 while a key is being redefined; also 1 = the highlight does not blink (`menu::update_blink`).
-    pub redefining_key: Dword,
+    pub redefining_key: Flag,
     /// `g_redefinedKeyPlace`: The place of the key being redefined (999 = none).
     pub redefined_key_place: Dword,
 }
@@ -90,8 +90,8 @@ impl OptionWork {
             mode_changed: Dword::new(0x0),
             modes_switch: Dword::new(0x1),
             lens_flare: Dword::new(0x1),
-            dword_755654: Dword::new(0x64),
-            dword_755658: Dword::new(0x64),
+            unused_percent_a: Dword::new(0x64),
+            unused_percent_b: Dword::new(0x64),
             reflections: Dword::new(0x1),
             car_shadows: Dword::new(0x1),
             car_detail: Dword::new(0x1),
@@ -111,8 +111,8 @@ impl OptionWork {
             _gap_75569c: Bytes::new([0x40, 0, 0, 0]),
             _gap_7556a0: Bytes::new([0x40, 0, 0, 0]),
             menu_sound: Dword::new(0x6F),
-            typing: Dword::new(0x0),
-            redefining_key: Dword::new(0x0),
+            typing: Flag::new(false),
+            redefining_key: Flag::new(false),
             redefined_key_place: Dword::new(0x3E7),
         }
     }
@@ -123,7 +123,7 @@ pub const START: usize = 0x755640;
 /// IDA 0x7556B4, the end of the piece.
 pub const END: usize = 0x7556B4;
 
-/// Where IDA 0x755640 is now (`moved::MOVED`'s home).
+/// Where IDA 0x755640 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn option_work_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::menu::owner::MENUS.screens.option_work)
@@ -172,8 +172,8 @@ mod tests {
         at(offset_of!(OptionWork, mode_changed), 0x755648);
         at(offset_of!(OptionWork, modes_switch), 0x75564C);
         at(offset_of!(OptionWork, lens_flare), 0x755650);
-        at(offset_of!(OptionWork, dword_755654), 0x755654);
-        at(offset_of!(OptionWork, dword_755658), 0x755658);
+        at(offset_of!(OptionWork, unused_percent_a), 0x755654);
+        at(offset_of!(OptionWork, unused_percent_b), 0x755658);
         at(offset_of!(OptionWork, reflections), 0x75565C);
         at(offset_of!(OptionWork, car_shadows), 0x755660);
         at(offset_of!(OptionWork, car_detail), 0x755664);

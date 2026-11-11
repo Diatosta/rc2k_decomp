@@ -1,4 +1,4 @@
-//! The itinerary pages (`screens::draw_itinerary` and its sisters; stream A, part F1, 2026-10-18):
+//! The itinerary pages (`screens::draw_itinerary` and its sisters):
 //! a section of the record table (`g_recordTable`, records 0xA4 bytes; +0 the tag: 0 a stage,
 //! 1 a service, 3 / 4 the end; +0x10 its time of day as hhmm) listed row by row from y 0xE8
 //! (`seconds`), the rows counted in `draw_work.scratch_b0`, the stages in `draw_work.scratch_b4`, the
@@ -26,7 +26,7 @@ const INVALID_STAGE: FatalError = FatalError {
 /// "Invalid Stage ID". Refuses (before anything) a section past the
 /// table.
 pub fn draw_itinerary(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::itinerary`.
+    // The logic is in `rc2k_core::screens::itinerary`.
     use rc2k_core::screens::itinerary::Row;
     {
         if !section_there()? {

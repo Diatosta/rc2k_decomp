@@ -1,4 +1,4 @@
-//! The time trial stage results page (converted 2026-10-20 from `screens::draw_stage_results`
+//! The time trial stage results page (from `screens::draw_stage_results`
 //! 0x48E740): ten rows of name, result and rank with the car's and flag's sprites, then the
 //! fastest line.
 

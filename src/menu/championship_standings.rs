@@ -1,5 +1,5 @@
 //! `menu::championship_standings` (0x4A9583): the championship's standings pages,
-//! `state.menus.standings_shown` 1 while they show. Standings table B from all
+//! `state.menus.standings_shown` set while they show. Standings table B from all
 //! (`menu::standings_b_from_all`); outside event mode 0x13: sorted by figure and by score
 //! (`menu::sort_standings_b_by_figure`, `_by_score`), numbered (`number_all`), the
 //! overall page (`menu::show_championship_standings`); in it: sorted by figure twice and
@@ -15,7 +15,7 @@ use crate::menu::standings_steps::number_all;
 
 pub fn championship_standings(menus: &Menus) -> Result<(), Refused> {
     use crate::menu::{sort_standings_b_by_figure as fig, sort_standings_b_by_points as pts};
-    // Converted: `rc2k_core::menu::results_pages` (`class_pages_only`, `standings_sorts`).
+    // The logic is in `rc2k_core::menu::results_pages` (`class_pages_only`, `standings_sorts`).
     use rc2k_core::menu::results_pages::{Sort, class_pages_only, standings_sorts};
     crate::menu::standings_b_from_all::standings_b_from_all(menus)?;
     let a8 = class_pages_only(menus.play.champ_view.event_mode.get());
@@ -31,12 +31,12 @@ pub fn championship_standings(menus: &Menus) -> Result<(), Refused> {
     if !a8 {
         number_all(menus, Which::B)?;
     }
-    menus.screens.state.menus.standings_shown.set(1u32);
+    menus.screens.state.menus.standings_shown.set(true);
     if a8 {
         crate::menu::class_championship_pass::class_championship_pass(menus)?;
     } else {
         crate::menu::show_championship_standings::show_championship_standings(menus)?;
     }
-    menus.screens.state.menus.standings_shown.set(0u32);
+    menus.screens.state.menus.standings_shown.set(false);
     Ok(())
 }

@@ -3,7 +3,7 @@
 //!
 //! The functions are the typed tables' screen functions (`menu::table_routes::screen_fn`),
 //! which take no register: the registers the original hands each (esi the place in the list,
-//! the rest as the one before left them) are nobody's (2026-10-24).
+//! the rest as the one before left them) are nobody's.
 
 use crate::errors::Refused;
 use crate::menu::fn_list::FnList;

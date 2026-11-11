@@ -1,7 +1,6 @@
 //! The car's damage made into its working grades and failures, and its handling figures
-//! from its setup (converted from `physics::rate_damage` 0x4AF1EC and
-//! `physics::set_handling` 0x43EB5D). What each figure is, is a reading at best (the
-//! hooks' headers say where each goes); the variables are named by where they are: the
+//! from its setup (from `physics::rate_damage` 0x4AF1EC and
+//! `physics::set_handling` 0x43EB5D). What each figure is, is a reading at best; the variables are named by where they are: the
 //! work copy (`g_car`) +offset, the grades' block (0x75B340) +offset, the handling block
 //! (0x613E00) +offset, and the setup's scale (`k256`, 256.0). The functions read
 //! and write them through `Figures`, in the original's order, each only where the
@@ -163,8 +162,7 @@ fn chance(m: &mut impl Figures, figure: At, turn: u32) -> bool {
     (r.wrapping_sub(t) as i32) < 0
 }
 
-/// `physics::rate_damage`: the damage figures made into the grades and failures (the
-/// hook's header lists them in order); returns the gear bits.
+/// `physics::rate_damage`: the damage figures made into the grades and failures; returns the gear bits.
 pub fn rate_damage(m: &mut impl Figures) -> u32 {
     let k = m.float(K);
     let mut e = one_less_products(&[

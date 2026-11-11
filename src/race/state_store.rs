@@ -166,9 +166,9 @@ pub struct RaceSettings {
     /// `dword_75AD00`: the lens flare option, copied from `dword_755650`.
     pub lens_flare: Dword,
     /// `dword_75AD04`: read only in dead code outside any function (0x470060 .. 0x4700A1, beside the options toggles); 100 (0x64) at start.
-    pub dword_75ad04: Dword,
+    pub unused_percent_a: Dword,
     /// `dword_75AD08`: read only in dead code outside any function (0x4700C0 ..); 100 (0x64) at start.
-    pub dword_75ad08: Dword,
+    pub unused_percent_b: Dword,
     /// `dword_75AD0C`: the reflections option (graphics page), copied from `dword_75565C`.
     pub reflections: Dword,
     /// `dword_75AD10`: the car shadows option, copied from `dword_755660`.
@@ -249,8 +249,8 @@ impl RaceState {
                 track_1c: Dword::new(0x2d),
                 track_20: Dword::new(0x19),
                 lens_flare: Dword::new(0),
-                dword_75ad04: Dword::new(0x64),
-                dword_75ad08: Dword::new(0x64),
+                unused_percent_a: Dword::new(0x64),
+                unused_percent_b: Dword::new(0x64),
                 reflections: Dword::new(0),
                 car_shadows: Dword::new(0),
                 car_detail: Dword::new(0),

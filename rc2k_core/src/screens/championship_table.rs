@@ -1,4 +1,4 @@
-//! The championship's standings table (converted 2026-10-20 from
+//! The championship's standings table (from
 //! `screens::draw_championship_table` 0x4A4E1E): the heads, the six rounds' flags and ten
 //! rows of the championship history (0x78-byte entries): position, name, the six rounds'
 //! points ("-" for below 0), the total, the nationality's and the car's sprites.

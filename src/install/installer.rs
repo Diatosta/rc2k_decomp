@@ -273,7 +273,7 @@ pub fn run_frame(frame: Option<Frame>) -> Result<bool, Refused> {
     // The platform's run_frame with no frame of its own: the window's messages only.
     crate::platform::run_frame_now(|| ());
     match frame {
-        Some(frame) if system().session.flags.quitting.get() != 1 => frame(),
+        Some(frame) if !system().session.flags.quitting.is_set() => frame(),
         _ => Ok(false),
     }
 }

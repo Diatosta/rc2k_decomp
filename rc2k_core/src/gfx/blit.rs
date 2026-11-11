@@ -1,4 +1,4 @@
-//! The glyph blitter (converted 2026-10-20 from `gfx::blit_glyph` 0x4069B2): one
+//! The glyph blitter (from `gfx::blit_glyph` 0x4069B2): one
 //! run-length coded glyph drawn on a surface, clipped.
 //!
 //! A glyph table starts with one dword offset per glyph (the first offset / 4 is the

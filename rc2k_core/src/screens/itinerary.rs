@@ -1,4 +1,4 @@
-//! The itinerary page (converted 2026-10-20 from `screens::draw_itinerary` 0x472C8C): a
+//! The itinerary page (from `screens::draw_itinerary` 0x472C8C): a
 //! section's records row by row, a service with its number and time, a stage with its name,
 //! length, number and time, the chosen stage's row in the highlight fonts.
 

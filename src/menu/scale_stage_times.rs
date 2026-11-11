@@ -28,7 +28,7 @@ pub fn scaled(times: [u32; 4], section: u32) -> ([u32; 4], [u32; 2]) {
         race.shared.tables.stage_time_factors_last[s].bits(),
         race.shared.tables.stage_time_factors_first[s].bits(),
     ];
-    // Converted: `rc2k_core::menu::stage_scale` (exact at the game's precisions for times
+    // The logic is in `rc2k_core::menu::stage_scale` (exact at the game's precisions for times
     // below 2^29; its header).
     let out = rc2k_core::menu::stage_scale::scale_times(times, f.map(f32::from_bits));
     (out, f)

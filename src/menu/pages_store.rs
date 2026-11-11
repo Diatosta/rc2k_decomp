@@ -1,8 +1,7 @@
 //! The front end's list pages and its yes / no answer, out of RAL.EXE's image (IDA 0x75523C ..
-//! 0x755258; phase 7, typed): the pages the save, scores, set-up and replay lists are on, the answer
+//! 0x755258): the pages the save, scores, set-up and replay lists are on, the answer
 //! the yes / no screens leave, and the two championship switches the event sets. A `#[repr(C)]` struct
-//! with the image's layout, one static; `moved::MOVED` points the range at it. (Split 2026-10-25 from
-//! the front end's block `menu::store`.)
+//! with the image's layout, one static; `moved::MOVED` points the range at it.
 
 use crate::session::Dword;
 
@@ -46,7 +45,7 @@ pub const START: usize = 0x75523C;
 /// IDA 0x755258, the end of the piece.
 pub const END: usize = 0x755258;
 
-/// Where IDA 0x75523C is now (`moved::MOVED`'s home).
+/// Where IDA 0x75523C lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn menu_pages_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::menu::owner::menus().tables.pages)

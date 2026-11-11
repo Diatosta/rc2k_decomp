@@ -49,7 +49,7 @@ fn steps(race: &Race, other_car: u32, scene: &crate::scene::owner::Scene) -> Res
     let race_owner = race;
     for k in 0..3 {
         race_owner.physics.contact.contact_point[k]
-            .set_bits(loaded(&race_owner.physics.contact.corner_turned[k]));
+            .set_bits(loaded(&race_owner.physics.contact.corner_turned[k]).to_bits());
     }
     let zero = ZERO;
     let note = [

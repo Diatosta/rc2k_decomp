@@ -18,7 +18,7 @@ pub fn keep_stage_best(menus: &Menus) -> Result<(), Refused> {
     use rc2k_core::menu::bests;
     let record = stage_record()?;
     let p = current_player(menus)?;
-    // Converted: `rc2k_core::menu::bests::takes_record`.
+    // The logic is in `rc2k_core::menu::bests::takes_record`.
     let figure = p.get().figure;
     if !bests::takes_record(figure, record.record()?.holder(Holder::Second).speed) {
         return Ok(());

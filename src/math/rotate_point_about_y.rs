@@ -1,17 +1,17 @@
-//! `math::turn_point_xz` (0x41FD12): a point of whole numbers turned in x and z.
+//! `math::rotate_point_about_y` (0x41FD12): a point of whole numbers turned in x and z.
 //!
 //! Takes: x, y, z, the angle
 //!
 //! The three go through the scratch point (`dword_5C5F50` x, `dword_5C5F54` y,
-//! `dword_5C5F4C` z; a local since 2026-10-24: `turn_scratch_xz::Scratch`), left there as
+//! `dword_5C5F4C` z; a local since 2026-10-24: `rotate_scratch_about_y::Scratch`), left there as
 //! whole numbers. 29 callers (the map, the cameras, ..).
 
-use crate::math::turn_scratch_xz::{Scratch, turn_scratch_xz};
+use crate::math::rotate_scratch_about_y::{Scratch, rotate_scratch_about_y};
 
-/// `math::turn_point_xz`: x', y (as it comes back through a float, left only in the
+/// `math::rotate_point_about_y`: x', y (as it comes back through a float, left only in the
 /// scratch point), z' and the entry left in edx.
-pub fn turn_point_xz(x: i32, y: i32, z: i32, angle: u32) -> [u32; 4] {
-    turn_point_with(x, y, z, angle, turn_scratch_xz)
+pub fn rotate_point_about_y(x: i32, y: i32, z: i32, angle: u32) -> [u32; 4] {
+    turn_point_with(x, y, z, angle, rotate_scratch_about_y)
 }
 
 fn turn_point_with(

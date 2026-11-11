@@ -75,7 +75,7 @@ pub fn start_car_on_line(
     crate::race::car_starts::reset_car_motion(race)?;
     race.shared.car.local_velocity[0].set_bits(0);
     race.shared.car.local_velocity[1].set_bits(0);
-    race.shared.car.local_velocity[2].set_bits(x87::loaded(&race.shared.tables.start_speed));
+    race.shared.car.local_velocity[2].set(x87::loaded(&race.shared.tables.start_speed));
     let m = &race.shared.car.crash_matrix;
     let out = rotate_point(
         m,

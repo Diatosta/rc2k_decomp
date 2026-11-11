@@ -1,4 +1,4 @@
-//! The debug UI (owner, 2026-10-30): one semi-transparent ImGui window over the game,
+//! The debug UI: one semi-transparent ImGui window over the game,
 //! resizable, its pages as tabs.
 //! - "Display": the display page's figures (`debug::wear_page`), named and grouped
 //!   (`debug::display_rows`), its bars as bars, filtered by name; a wide window lays the
@@ -253,7 +253,7 @@ struct Layout {
 
 static LAYOUT: std::sync::Mutex<Option<Layout>> = std::sync::Mutex::new(None);
 
-/// A tab's contents, scrolled under the tabs (which stay; owner, 2026-10-30).
+/// A tab's contents, scrolled under the tabs (which stay).
 fn body(ui: &Ui, f: impl FnOnce()) {
     ui.child_window("body").build(ui, f);
 }
@@ -265,7 +265,7 @@ pub fn build(race: &Race, ui: &Ui) {
     }
     crate::debug::kstar::over_picture(ui);
     // The window keeps its share of the screen when the mode changes (the menus' 640 x 480,
-    // the race's own; owner, 2026-10-30).
+    // the race's own).
     let screen = ui.io().display_size();
     let mut layout = LAYOUT
         .lock()
@@ -441,7 +441,7 @@ fn group_table(ui: &Ui, group: &Group, wanted: &str) {
     let Some(_table) = ui.begin_table_with_flags(group.name, 4, flags) else {
         return;
     };
-    // The name wide, the figure narrow (owner, 2026-10-30).
+    // The name wide, the figure narrow.
     let column = |name: &str, weight: f32| {
         ui.table_setup_column(
             name,
@@ -891,7 +891,7 @@ fn dump_row(word: DumpWord, columns: usize, row: usize) -> String {
     format!("{row:2}: {}", figures.join("  "))
 }
 
-/// The "Dumps" tab: what the developers' page showed as bytes, read (2026-10-30).
+/// The "Dumps" tab: what the developers' page showed as bytes, read.
 fn dumps(ui: &Ui) {
     if ui.button("Write the four to the log") {
         for (name, _, word, columns, rows) in DUMPS {

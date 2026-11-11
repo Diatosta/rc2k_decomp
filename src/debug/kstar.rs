@@ -1,6 +1,6 @@
 //! The developers' "kstar modes" (`g_maskKind`, 0x621870, cycled by a key of the unreached
 //! handler at 0x43AE87; `debug::draw_pages` calls their drawers), as the debug UI's tab. In
-//! RAL.EXE a mode's keys edited one thing at a time; here each is a section. IDA, 2026-10-30:
+//! RAL.EXE a mode's keys edited one thing at a time; here each is a section:
 //! - 5: the car's faces by group (`g_groupTable`, `scene::car_face_hidden`); the game's own.
 //! - 6: the camera's record (0x43B177, the texts in 0x427DB4).
 //! - 7: the "error list", places kept (`g_errorList`, 0x20 bytes each; the stage's file loads it).

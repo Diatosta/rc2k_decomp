@@ -34,7 +34,7 @@ pub struct CarSpec {
     /// from 0x17 on; the others take the game's constants).
     pub whole_figures: [Dword; 3],
     /// +0x4C: not read by the game's code.
-    pub unknown_4c: [Dword; 4],
+    pub unused_4c: [Dword; 4],
     /// +0x5C: into `dword_62400C` (`scene::draw_store`'s `scratch`).
     pub scratch_value: Dword,
     /// +0x60: into the physics `downforce_spec`.

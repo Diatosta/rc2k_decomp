@@ -1,4 +1,4 @@
-//! The game's quicksort of fixed-size records by one dword, compared unsigned (converted
+//! The game's quicksort of fixed-size records by one dword, compared unsigned (
 //! from `race::sort_depth_entries` 0x454ED4 with 0x454EF7, `race::sort_sort_entries` 0x454F62 with
 //! 0x454F85, `race::sort_points_by_y` 0x426BE6, `sort_points_by_z` 0x426CA2,
 //! `sort_points_by_x_down` 0x426D5E and its twin 0x426E16, and the shadow's 0x4582AC). Every one is

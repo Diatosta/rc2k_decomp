@@ -1,5 +1,5 @@
-//! The work chosen in the service area carried out, on leaving it (converted 2026-10-21
-//! from `service::apply_repairs` 0x46C14D): each chosen repair shown being done, a frame
+//! The work chosen in the service area carried out, on leaving it
+//! (from `service::apply_repairs` 0x46C14D): each chosen repair shown being done, a frame
 //! at a time, then the chosen setup installed.
 //!
 //! A chosen item is one whose flag (`dword_759B6E`) is exactly 1. Items 2 .. 0xF are the

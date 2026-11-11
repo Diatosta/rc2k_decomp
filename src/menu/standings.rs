@@ -97,7 +97,7 @@ pub fn first_player(
     code: u32,
     message: &'static str,
 ) -> Result<Found, Refused> {
-    // Converted: `rc2k_core::saves::rankings::first_player`, over the entries walked.
+    // The logic is in `rc2k_core::saves::rankings::first_player`, over the entries walked.
     use rc2k_core::saves::rankings::first_player as find;
     let found = match which {
         Which::A => find(&walked_entries_a()?, group, |e| {
@@ -251,7 +251,7 @@ const SORTED: u32 = standings::SORTED as u32;
 /// counters). Refused without a table.
 pub fn sort_table_a(menus: &Menus, key: rc2k_core::saves::entries::Field) -> Result<(), BadInput> {
     let screens = &menus.screens;
-    // Converted: `rc2k_core::saves::rankings::sort_a`.
+    // The logic is in `rc2k_core::saves::rankings::sort_a`.
     with_a(|t| {
         with_kept_name(&menus.play, |kept| {
             rc2k_core::saves::rankings::sort_a(t, SORTED as usize, key, kept);
@@ -289,7 +289,7 @@ pub fn enter_best(
     ) else {
         return Err(BadInput("no best-score table, a group past 4 or no name"));
     };
-    // Converted: `rc2k_core::saves::scores::enter_best`.
+    // The logic is in `rc2k_core::saves::scores::enter_best`.
     use rc2k_core::saves::scores as s;
     let name_ref = name_address_of(&p.get())?;
     let best = s::Best {
@@ -314,7 +314,7 @@ pub fn enter_best(
 /// entry not below one moves up). Refused without a table.
 pub fn sort_table_b(menus: &Menus, key: BKey, down: bool) -> Result<(), BadInput> {
     let screens = &menus.screens;
-    // Converted: `rc2k_core::saves::rankings::sort_b`.
+    // The logic is in `rc2k_core::saves::rankings::sort_b`.
     with_b(|t| {
         with_kept_name(&menus.play, |kept| {
             rc2k_core::saves::rankings::sort_b(t, SORTED as usize, key, down, kept);

@@ -89,12 +89,12 @@ pub fn set_view_window_reaching(
         nearer = 0x64;
     }
     let divisor = x87::int_times(nearer as i32, &race.course.numbers.hundredth_a);
-    window.depth_divisor.set_bits(divisor);
+    window.depth_divisor.set_bits(divisor.to_bits());
     let product = depth as u64 * 0x1_0000;
     let low = product as u32;
     let farthest = x87::int_over(low as i32, divisor);
-    window.farthest.set_bits(farthest);
-    window.one_over_farthest.set_bits(x87::reciprocal(farthest));
+    window.farthest.set_bits(farthest.to_bits());
+    window.one_over_farthest.set(x87::reciprocal(farthest));
     window.farthest_scaled.set(x87::mul_div_div_to_int(
         farthest,
         drawing.scene.fade_a.bits(),
@@ -105,9 +105,12 @@ pub fn set_view_window_reaching(
         .clip_farthest
         .set(x87::mul_to_int(farthest, &drawing.scene.clip_factor) as u32);
     let float = |value: u32| x87::from_int(value as i32);
-    crate::session::write_bits(&window.view_offset_float, offsets.map(float));
-    crate::session::write_bits(&window.clip_screen, edges.map(float));
-    crate::session::write_bits(&window.view_centre, middle.map(float));
+    crate::session::write_bits(
+        &window.view_offset_float,
+        offsets.map(float).map(f32::to_bits),
+    );
+    crate::session::write_bits(&window.clip_screen, edges.map(float).map(f32::to_bits));
+    crate::session::write_bits(&window.view_centre, middle.map(float).map(f32::to_bits));
     // The original also kept the size less one; only unreachable code reads it, so it is not kept.
 }
 

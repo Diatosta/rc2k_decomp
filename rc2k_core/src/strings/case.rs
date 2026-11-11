@@ -1,5 +1,5 @@
 //! The language's letter case: the lower-case table the language file sets up, and what the
-//! game does with it (converted 2026-10-20 from `strings::same_text`, `copy_printable`).
+//! game does with it (from `strings::same_text`, `copy_printable`).
 
 use std::cmp::Ordering;
 

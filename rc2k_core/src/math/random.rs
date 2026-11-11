@@ -1,6 +1,6 @@
 //! The game's random numbers (RAL.EXE 0x401864 .. 0x4018C8): a 32-bit shift register
 //! stepped once a number, seeded at start from the clock and stirred with a number the
-//! start finds (converted 2026-10-20 from `math::next_random`, `random_below`,
+//! start finds (from `math::next_random`, `random_below`,
 //! `seed_random`, `stir_random`, `random_step`).
 
 /// The generator.

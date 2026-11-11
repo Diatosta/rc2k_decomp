@@ -30,7 +30,7 @@ fn walk(menus: &Menus) -> Result<Vec<(u32, Step)>, Refused> {
     counted_players(menus)?;
     drivers(menus)?;
     let index: u32 = INDEX_RVA.get();
-    // Converted: `rc2k_core::menu::section_walk::walk`.
+    // The logic is in `rc2k_core::menu::section_walk::walk`.
     let fault = Fault::default();
     let walked = rc2k_core::menu::section_walk::walk(
         index,

@@ -1,5 +1,4 @@
-//! The menu items' sprite lists, out of RAL.EXE's image (IDA 0x747998 .. 0x747AD8; phase 7,
-//! typed): 16 lists of five sprite numbers (the item's look in each state), which a menu
+//! The menu items' sprite lists, out of RAL.EXE's image (IDA 0x747998 .. 0x747AD8): 16 lists of five sprite numbers (the item's look in each state), which a menu
 //! item names (`menus_store::MenuItem::sprites`, a `SpriteCell`: the original kept the
 //! list's address, `moved::point_into_homes` passes those places over). The first eight are the menus' (sprites 0xA ..), the last
 //! eight the in-race menus' (0x11 ..). Nothing changes them.
@@ -159,7 +158,7 @@ impl ItemSprite {
 /// 0 .. 2 and 0xFFFFFFA9; one in the tag's range is refused when set).
 const LIST_TAG: u32 = 0x7FFF_FFF0;
 
-/// A menu item's +0x20 (phase 13, handles).
+/// A menu item's +0x20 (a handle).
 #[repr(transparent)]
 #[derive(rc2k_derive::Cells)]
 pub struct SpriteCell(crate::session::Dword);
@@ -209,7 +208,7 @@ pub const START: usize = 0x747998;
 /// IDA 0x747AD8, the end of the piece.
 pub const END: usize = 0x747AD8;
 
-/// Where IDA 0x747998 is now (`moved::MOVED`'s home).
+/// Where IDA 0x747998 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn item_sprites_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::menu::owner::MENUS.panels.item_sprites)

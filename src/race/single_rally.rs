@@ -364,7 +364,7 @@ fn single_rally(
     let system = system();
     // Closed on a menu whose item leads here (a window's close, MENU + START): the screen is
     // left as if chosen, with no stage yet. Not the original's, whose close stopped nothing.
-    if system.session.flags.quitting.get() == 1 {
+    if system.session.flags.quitting.is_set() {
         crate::standalone::leave_on_close();
     }
     if kind == 3 {

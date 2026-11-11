@@ -59,7 +59,7 @@ pub fn hold_low(v: &impl crate::session::Cell32, lim: &impl crate::session::Cell
 /// `hold_low` against a limit given as a value (its bits).
 pub fn hold_low_bits(v: &impl crate::session::Cell32, lim: u32) {
     if c0(g(v), lim) {
-        p(v, x87::loaded(lim));
+        p(v, x87::loaded(lim).to_bits());
     }
 }
 
@@ -67,7 +67,7 @@ pub fn hold_low_bits(v: &impl crate::session::Cell32, lim: u32) {
 /// (or unordered).
 pub fn hold_high(v: &impl crate::session::Cell32, lim: &impl crate::session::Cell32) {
     if !c0(g(v), g(lim)) {
-        p(v, x87::loaded(g(lim)));
+        p(v, x87::loaded(g(lim)).to_bits());
     }
 }
 
@@ -75,7 +75,7 @@ pub fn hold_high(v: &impl crate::session::Cell32, lim: &impl crate::session::Cel
 pub fn negate(v: &impl crate::session::Cell32) {
     p(
         v,
-        crate::math::x87::neg_rounded(crate::scene::matrix3::extended(g(v))),
+        crate::math::x87::neg_rounded(crate::scene::matrix3::extended(g(v))).to_bits(),
     );
 }
 
@@ -88,14 +88,14 @@ pub fn ease_zero(v: &impl crate::session::Cell32, step: &impl crate::session::Ce
     }
     if c0(x, 0) {
         let y = x87::add(x, g(step));
-        p(v, y);
-        if !c0(y, 0) {
+        p(v, y.to_bits());
+        if !c0(y.to_bits(), 0) {
             p(v, 0);
         }
     } else {
         let y = x87::sub(x, g(step));
-        p(v, y);
-        if c0(y, 0) {
+        p(v, y.to_bits());
+        if c0(y.to_bits(), 0) {
             p(v, 0);
         }
     }
@@ -112,15 +112,15 @@ pub fn table_lerp(
     out: &impl crate::session::Cell32,
 ) {
     if c0(g(x), t[0].bits()) {
-        p(out, x87::loaded(&t[1]));
+        p(out, x87::loaded(&t[1]).to_bits());
         return;
     }
     if !c0(g(x), t[2].bits()) {
-        p(out, x87::loaded(&t[3]));
+        p(out, x87::loaded(&t[3]).to_bits());
         return;
     }
     if x87_1(t, g(zero)) & 0x4000 != 0 {
-        p(out, x87::loaded(&t[1]));
+        p(out, x87::loaded(&t[1]).to_bits());
         return;
     }
     p(out, x87_2(g(x), t));

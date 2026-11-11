@@ -1,4 +1,4 @@
-//! A saved game's state and where the event goes on from (converted 2026-10-21 from
+//! A saved game's state and where the event goes on from (from
 //! `saves::gather_savegame` 0x4AB427 and `saves::load_savegame` 0x46E6E1's rules).
 //!
 //! The state a saved game holds, in order: seven dwords (two of the event's, its stage

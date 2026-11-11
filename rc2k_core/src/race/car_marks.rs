@@ -1,4 +1,4 @@
-//! A car's marks' textures (converted from `race::car_number_textures`
+//! A car's marks' textures (from `race::car_number_textures`
 //! 0x46203D): which lamps' sides show, the letter of the model's name by the car's +0x718,
 //! the race number's digits, the stage's plate, whether the decals show.
 

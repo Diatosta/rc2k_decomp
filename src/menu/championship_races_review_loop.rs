@@ -3,7 +3,7 @@
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `roptions.png`; leaving is asked about; also
-//! when `loop_flags.ask_leave` is 1; the Escape flag is looked at at the top of every frame; the steps
+//! when `loop_flags.ask_leave` is set; the Escape flag is looked at at the top of every frame; the steps
 //! that are more than a call or a store are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "OPÇÕES DE REVISÃO", not yet a
 //! visit.
@@ -17,7 +17,7 @@ use crate::menu::screen_loop::{
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     Callee::NoOp.run(entry)?;
-    screens.loop_flags.ask_leave.set(0x0u32);
+    screens.loop_flags.ask_leave.set(false);
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0x13u32);
     carousel(None)?;
@@ -48,7 +48,10 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.draw_work.escape_pressed, 0x0)],
+    before: &[Step::WriteFlag(
+        |m| &m.screens.draw_work.escape_pressed,
+        false,
+    )],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.championship_races_review_picture
@@ -57,8 +60,8 @@ pub const SCREEN: Screen = Screen {
     asking: Some(Asking {
         also_if: Some(|m| &m.screens.loop_flags.ask_leave),
         confirmed: &[
-            Step::Write(|m| &m.screens.loop_flags.ask_leave, 0x0),
-            Step::Write(|m| &m.tables.captions.left_by_key, 0x0),
+            Step::WriteFlag(|m| &m.screens.loop_flags.ask_leave, false),
+            Step::WriteFlag(|m| &m.tables.captions.left_by_key, false),
         ],
         ..Asking::DEFAULT
     }),

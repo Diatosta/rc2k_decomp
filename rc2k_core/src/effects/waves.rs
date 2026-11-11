@@ -1,4 +1,4 @@
-//! The marks' wave tables, made once (converted 2026-10-21 from `effects::make_wave_tables`
+//! The marks' wave tables, made once (from `effects::make_wave_tables`
 //! 0x4C4E2F): the 0x11 wave levels, whole numbers, made floats, and a table of 0x140
 //! sines. As in `math::vector`, what the x87 keeps on its stack is an `f64`, rounded to
 //! `f32` where the original stores it; the sines are `fsin`'s (`scene::trig`): the last bit

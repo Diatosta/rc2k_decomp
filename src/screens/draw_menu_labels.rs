@@ -41,7 +41,7 @@ pub fn draw_menu_labels(
     if !has_end(&dword)? {
         return Err(BadInput("a label list without an end").into());
     }
-    // Converted: `rc2k_core::screens::menus::labels` (the list read here: the first label
+    // The logic is in `rc2k_core::screens::menus::labels` (the list read here: the first label
     // drawn without being checked for the end, as the original).
     use crate::screens::game_screen::{MenuFont, MenuScreen};
     let mut list = Vec::new();

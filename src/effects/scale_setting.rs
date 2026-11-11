@@ -26,7 +26,7 @@ pub fn scale_setting(
         let n = marks.setting_to_scale.get() as i32;
         fl.state
             .scaled_setting
-            .set_bits(x87::int_times(n, &masks.edge_settings.factor));
+            .set(x87::int_times(n, &masks.edge_settings.factor));
     }
     Ok(())
 }

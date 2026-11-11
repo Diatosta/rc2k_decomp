@@ -1,9 +1,9 @@
-//! Floats in places that may overlap (converted 2026-10-21 with the scene's and the marks'
+//! Floats in places that may overlap (with the scene's and the marks'
 //! matrix helpers): the original's matrix and vector functions take their inputs and their
 //! result by pointer and write each part before working out the next, so a result over an
 //! input reads back what was just written. The converted versions read and write through
 //! `Places` in the original's order, so they do the same for any overlap. A place is a
-//! number (the hook crate's adapter uses the address, unaligned places included); a dword
+//! number (the game-side adapter uses the address, unaligned places included); a dword
 //! is a float's bits, copied as they are.
 
 /// Dwords at numbered places, four bytes a float.

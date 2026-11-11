@@ -1,4 +1,4 @@
-//! Whole-number values eased towards a target each physics step (converted
+//! Whole-number values eased towards a target each physics step (
 //! from `physics::ease_pitch_up` 0x438CBA, `ease_pitch_down` 0x438CD3 and
 //! `ease_car_value` 0x4554CA). What the values are is not known.
 

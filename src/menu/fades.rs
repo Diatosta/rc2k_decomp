@@ -25,7 +25,7 @@ fn frame() -> Result<(), Refused> {
 
 /// A fade: `out` the way.
 pub fn fade(screens: &Screens, out: bool) -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::fades` (`too_short`, `first_see`, `step`, `over`).
+    // The logic is in `rc2k_core::menu::fades` (`too_short`, `first_see`, `step`, `over`).
     use rc2k_core::menu::fades::{self, Stop};
     let length: u32 = screens.state.menus.fade_length.get();
     if fades::too_short(length) {

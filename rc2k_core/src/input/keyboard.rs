@@ -1,4 +1,4 @@
-//! Keys made characters with a keyboard layout (converted 2026-10-20 from
+//! Keys made characters with a keyboard layout (from
 //! `input::key_to_char` 0x407E43).
 //!
 //! A layout has a list of dead keys {key, plain, shifted} ended by a 0 key, and three

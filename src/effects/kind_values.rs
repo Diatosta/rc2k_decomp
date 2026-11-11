@@ -99,16 +99,16 @@ pub fn set_kind_values(
     q.ratio.set_bits(ratio);
     q.low.set_bits(low);
     q.high.set_bits(high);
-    q.start.set_bits(x87::mul(start, c.start_k.to_bits()));
+    q.start.set(x87::mul(start, c.start_k.to_bits()));
     q.step.set_bits(bh::st(
         (bh::ld(middle) - bh::ld(start)) / bh::ld(low) * bh::ld(c.step_k.to_bits()),
     ));
-    q.middle.set_bits(x87::mul(middle, c.middle_k.to_bits()));
+    q.middle.set(x87::mul(middle, c.middle_k.to_bits()));
     q.slope.set_bits(bh::st(
         (bh::ld(end) - bh::ld(middle)) / (bh::ld(high) - bh::ld(low)) * bh::ld(c.slope_k.to_bits()),
     ));
-    q.spread.set_bits(x87::mul(spread, c.spread_k.to_bits()));
-    k.extra.set_bits(x87::mul(extra, c.extra_k.to_bits()));
+    q.spread.set(x87::mul(spread, c.spread_k.to_bits()));
+    k.extra.set(x87::mul(extra, c.extra_k.to_bits()));
     if let Some(copy) = k.divisor_copy {
         copy.set(divisor);
     }
@@ -122,17 +122,17 @@ pub fn set_kind_values(
             less,
         )
     };
-    q.place[0].set_bits(lerp(2, None));
-    q.place[1].set_bits(lerp(1, Some(c.place_less.to_bits())));
-    q.place[2].set_bits(lerp(0, None));
+    q.place[0].set_bits(lerp(2, None).to_bits());
+    q.place[1].set_bits(lerp(1, Some(c.place_less.to_bits())).to_bits());
+    q.place[2].set_bits(lerp(0, None).to_bits());
     // The first side is the kind's `copied` triple; the second side's first float is the 0
     // that goes with it (the original wrote the four as one), then the two differences.
     q.sides[0][0].set_bits(triple(2, 0));
     q.sides[0][1].set_bits(triple(2, 1));
     q.sides[0][2].set_bits(triple(2, 2));
     q.sides[1][0].set_bits(0);
-    q.sides[1][1].set_bits(x87::sub(triple(0, 1), triple(1, 1)));
-    q.sides[1][2].set_bits(x87::negated(x87::sub(triple(0, 0), triple(1, 0))));
+    q.sides[1][1].set(x87::sub(triple(0, 1), triple(1, 1)));
+    q.sides[1][2].set(x87::negated(x87::sub(triple(0, 0), triple(1, 0))));
     Ok(())
 }
 

@@ -15,7 +15,7 @@ use rc2k_core::menu::results_pages::{Page, held_figure};
 pub fn show_class_stage_results(menus: &Menus, class: u32) -> Result<(), Refused> {
     menus.screens.event.class.set(class);
     let found = crate::menu::first_player_a::first_player_a(class)?;
-    // Converted: `rc2k_core::menu::results_pages::held_figure`.
+    // The logic is in `rc2k_core::menu::results_pages::held_figure`.
     let count = held_figure(Page::ClassStage, found.figure);
     menus.play.champ_view.count.set(count);
     crate::menu::first_page_stage::first_page_stage(&menus.play);

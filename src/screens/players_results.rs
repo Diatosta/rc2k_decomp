@@ -1,5 +1,5 @@
 //! The players' stage results pages (`screens::draw_players_results_points` with the points column,
-//! `screens::draw_players_results` without; stream A, part F1, 2026-10-18). Both draw the same
+//! `screens::draw_players_results` without). Both draw the same
 //! columns, one loop over the rows each (rows in the order `results.order` .. the fourth ranked offset, byte
 //! offsets into `g_players`,
 //! 0x17 apart from y 0xFE), shifted 0x1E right on `screens::draw_players_results`'s page; their
@@ -108,7 +108,7 @@ fn prepare<'a>(menus: &'a Menus, layout: &Layout) -> Result<Prepared<'a>, Refuse
     })
 }
 
-/// The page. Converted: `rc2k_core::screens::players_results` (what it needs read and checked
+/// The page. The logic is in `rc2k_core::screens::players_results` (what it needs read and checked
 /// first, before anything is drawn).
 pub fn draw_players_results(
     menus: &Menus,

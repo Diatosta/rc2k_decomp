@@ -20,21 +20,24 @@ pub fn drive_force(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     engine_torque_or_cut(race, scene);
-    race.shared
-        .physics_tables
-        .drive_ratio
-        .set_bits(sum_times_int_over_minus(
+    race.shared.physics_tables.drive_ratio.set_bits(
+        sum_times_int_over_minus(
             race.shared.physics_tables.engine_force.bits(),
             race.shared.physics_tables.engine_torque.bits(),
             race.shared.car.throttle.get() as i32,
             race.course.numbers.k256.bits(),
-        ));
-    race.shared.physics_tables.drive_torque.set_bits(mul_div2(
-        race.shared.physics_tables.drive_ratio.bits(),
-        GEAR.drive_torque_figure.bits(),
-        race.shared.physics_tables.gear_ratios[(gear as i32 + 1) as usize].bits(),
-        race.course.numbers.k10000.bits(),
-    ));
+        )
+        .to_bits(),
+    );
+    race.shared.physics_tables.drive_torque.set_bits(
+        mul_div2(
+            race.shared.physics_tables.drive_ratio.bits(),
+            GEAR.drive_torque_figure.bits(),
+            race.shared.physics_tables.gear_ratios[(gear as i32 + 1) as usize].bits(),
+            race.course.numbers.k10000.bits(),
+        )
+        .to_bits(),
+    );
     if race.shared.car.drive_cut_steps.get() != 0 {
         race.shared.physics_tables.drive_torque.set_bits(0);
     }

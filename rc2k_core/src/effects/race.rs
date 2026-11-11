@@ -1,4 +1,4 @@
-//! What the marks take from the race (converted 2026-10-21 from `effects::init_mark_step`
+//! What the marks take from the race (from `effects::init_mark_step`
 //! 0x456EA7 and `effects::stage_record` 0x4D2DE0): each car's record set up for the marks
 //! when a stage loads, and the stage's record among the 0x34.
 

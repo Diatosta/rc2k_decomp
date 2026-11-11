@@ -8,7 +8,7 @@ pub fn clear_text(
     menus: &Menus,
     at: impl Into<crate::place::BytePlace>,
 ) -> Result<(), crate::errors::BadInput> {
-    // Converted: `rc2k_core::menu::text_entry::Entry::clear` (the field is not read).
+    // The logic is in `rc2k_core::menu::text_entry::Entry::clear` (the field is not read).
     let mut text = Text::default();
     with_entry(menus, |e| e.clear(&mut text));
     put_field(at, &text)

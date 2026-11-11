@@ -1,4 +1,4 @@
-//! The ground's search (converted from `physics::face_under_point` 0x442006,
+//! The ground's search (from `physics::face_under_point` 0x442006,
 //! `search_record_faces` 0x441FD9, `search_cell` 0x441FBA, `try_last_face` 0x441E0C and
 //! `ground_search` 0x441E2F): which course face lies under a point (whole-number x, z).
 //! The last face found is tried first, then the nine grid cells about the point, each
@@ -6,7 +6,7 @@
 //! (0x40 bytes: kind byte, flags word at +2, corners +4 .. +0x10, a triangle when +0xC =
 //! +0x10) has the point when each of its edges has it on the inner side
 //! (`faces::edge_side`); a quad is split by its edge +8 -> +0xC into two halves.
-//! The contacts walk the same cells and records (Converted from
+//! The contacts walk the same cells and records (from
 //! `physics::face_contacts_around` 0x45E196, `cell_face_contacts` 0x45E291 and
 //! `record_face_contacts` 0x45E2AA), every face of each record.
 

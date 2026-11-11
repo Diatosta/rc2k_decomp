@@ -30,7 +30,7 @@ pub fn enter_time_trial_best(menus: &Menus) -> Result<(), Refused> {
     set(STAGE_SLOT, slot);
     let cheats = get(CHEATS);
     let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, slot)?;
-    // Converted: `rc2k_core::saves::entries::BestTime::enter`, then `rank_time_trial_best`.
+    // The logic is in `rc2k_core::saves::entries::BestTime::enter`, then `rank_time_trial_best`.
     use crate::menu::standings::name_of;
     let best = bests::NewBest {
         key: p.get().time,

@@ -1,4 +1,4 @@
-//! Drawing text with the game's bitmap fonts (converted 2026-10-20 from `text::draw_text`
+//! Drawing text with the game's bitmap fonts (from `text::draw_text`
 //! 0x4023D5, `text::glyph_kerning` 0x402577, `text::reset_line_state` 0x402563): the
 //! layout of lines, their alignment, kerning and the control codes; the pixels are the
 //! canvas's.
@@ -382,7 +382,7 @@ pub struct Measured {
     pub width: u32,
 }
 
-/// `text` measured (converted from `text::measure_text` 0x40230B): `draw` from x and the
+/// `text` measured (from `text::measure_text` 0x40230B): `draw` from x and the
 /// font's line height with the line count and widest line cleared first; the font is left
 /// with them, as the original leaves it.
 pub fn measure<C: Canvas>(
@@ -424,7 +424,7 @@ pub fn columns(right: i32, steps: &[i32]) -> Vec<i32> {
         .collect()
 }
 
-/// Where a highlighted menu item's pulse stands (converted from `text::blend_font`
+/// Where a highlighted menu item's pulse stands (from `text::blend_font`
 /// 0x405E92): whether it goes from font A to font B now (else back), and how far, 0 ..
 /// `half_pulse` - 1. `eased` (blend mode 2) makes it t * t >> 8 and the same from the other
 /// end.

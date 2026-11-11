@@ -40,11 +40,14 @@ pub fn find_car_checkpoint(
     race.shared
         .physics_tables
         .nearest_checkpoint_distance
-        .set_bits(ext_div2(
-            int_80(near.distance as i32, false),
-            race_owner.course.numbers.k65536.bits(),
-            0x3F80_0000,
-        ));
+        .set_bits(
+            ext_div2(
+                int_80(near.distance as i32, false),
+                race_owner.course.numbers.k65536.bits(),
+                0x3F80_0000,
+            )
+            .to_bits(),
+        );
     if progress::search_all(near.distance) {
         return crate::race::start_place::nearest_checkpoint(race, scene);
     }

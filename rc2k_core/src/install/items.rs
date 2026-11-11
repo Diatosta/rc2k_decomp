@@ -1,4 +1,4 @@
-//! The installer's page items under the keys (converted 2026-10-21 from
+//! The installer's page items under the keys (from
 //! `install::choice_back` 0x414826, `choice_on` 0x414848, `choice_by_number` 0x41486A,
 //! `value_down` 0x414881, `value_up` 0x41489C, `value_by_number` 0x4148B7, `key_up`
 //! 0x414784, `key_down` 0x414794, `key_left` 0x4147A4, `key_right` 0x4147C0 and

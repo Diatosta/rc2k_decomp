@@ -1,4 +1,4 @@
-//! The squares' and windscreen drops' items ending (converted 2026-10-21 from
+//! The squares' and windscreen drops' items ending (from
 //! `effects::expire_windscreen_flakes` 0x4C06AD and `effects::expire_windscreen_drops` 0x4BCB1D): a live item ends
 //! when its cell of the masks (0x80 rows of 0x100, a cell 8 units square) holds the
 //! shapes' value, and a windscreen drop also by lot. The place is rounded by `fistp` of a float

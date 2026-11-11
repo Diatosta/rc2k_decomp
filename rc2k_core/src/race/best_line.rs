@@ -1,7 +1,7 @@
-//! The best line's later steps (converted from `race::checkpoint_distances`
+//! The best line's later steps (from `race::checkpoint_distances`
 //! 0x445AF1, `race::replay_cameras_1` 0x445BB2 / `_2` 0x445CF1, `race::surface_shares`
 //! 0x445E30 and `race::add_surface_share` 0x445F7B; the links' angles and the map's
-//! stretches Converted from `race::checkpoint_angles` 0x4459DF and
+//! stretches from `race::checkpoint_angles` 0x4459DF and
 //! `race::map_checkpoints` 0x445FB4): the distances along the line, each checkpoint's
 //! nearest replay camera, how much of the line runs on each surface, the angle of each
 //! link, the line cut into stretches between the map's anchors. A distance or an angle

@@ -22,7 +22,7 @@ pub fn run_front_end(menus: &Menus, audio: &crate::audio::owner::Audio) -> Resul
     let gfx = crate::gfx::owner::gfx();
     let fonts = &gfx.fonts;
     let play = &menus.play;
-    log("menu::run_front_end: the Rust version runs");
+    log("menu::run_front_end: runs");
     audio
         .levels
         .master_volume_shown
@@ -39,6 +39,6 @@ pub fn run_front_end(menus: &Menus, audio: &crate::audio::owner::Audio) -> Resul
     })?;
     crate::gfx::free_fonts::free_fonts(&fonts.glyph_tables.memory, &fonts.font_block.palettes)?;
     crate::saves::list_car_numbers::list_car_numbers()?;
-    log("menu::run_front_end: the Rust version has come back");
+    log("menu::run_front_end: done");
     Ok(())
 }

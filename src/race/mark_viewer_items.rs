@@ -22,7 +22,7 @@ pub fn mark_viewer_items(
     crate::menu::list_clear_marks::list_clear_marks(list);
     let block = replay.replay_view.replay_block.get();
     let state = rc2k_core::race::viewer::ViewerState {
-        last_race: replay.replay_view.last_race_viewed.get() == 1,
+        last_race: replay.replay_view.last_race_viewed.is_set(),
         block,
         blocks: race.shared.replay_file.index_block_count.get(),
         mark_in: crate::race::viewer_buffers_store::VIEWER_BUFFERS

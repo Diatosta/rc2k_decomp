@@ -1,4 +1,4 @@
-//! The force feedback's requests (converted 2026-10-21 from `input::set_effect` 0x40961F,
+//! The force feedback's requests (from `input::set_effect` 0x40961F,
 //! `input::update_effects` 0x40F2C0 and `input::device_effects` 0x4096B4): a device
 //! record's six effects each take a request, a dword: what to do in the low byte (2 start,
 //! 3 set, 4 stop) and two signed 12-bit numbers above it; the input thread hands each

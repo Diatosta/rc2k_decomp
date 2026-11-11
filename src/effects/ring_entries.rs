@@ -76,9 +76,9 @@ pub struct Entry {
     /// 0x84: The ticks of life left.
     pub life: u32,
     /// 0x88: no emitter writes it and no ring step reads it (only the tests' word copies touch it); an unused word.
-    pub unknown_88: u32,
+    pub unused_88: u32,
     /// 0x8C: as 0x88, an unused word.
-    pub unknown_8c: u32,
+    pub unused_8c: u32,
     /// 0x90: The emitting car's tag (its object's +0x1C, 24 bits), for the draw lists.
     pub car_tag: u32,
 }
@@ -116,7 +116,7 @@ impl Entry {
             self.alpha_fade,
         ]);
         push(&self.box_limit);
-        push(&[self.life, self.unknown_88, self.unknown_8c, self.car_tag]);
+        push(&[self.life, self.unused_88, self.unused_8c, self.car_tag]);
         assert_eq!(n, w.len());
         w
     }
@@ -147,8 +147,8 @@ impl Entry {
             alpha_fade: w[30],
             box_limit: [w[31], w[32]],
             life: w[33],
-            unknown_88: w[34],
-            unknown_8c: w[35],
+            unused_88: w[34],
+            unused_8c: w[35],
             car_tag: w[36],
         }
     }

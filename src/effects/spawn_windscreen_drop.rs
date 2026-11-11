@@ -34,8 +34,8 @@ pub fn spawn_windscreen_drop(
         let e = at as usize;
         let put = |o: usize, v: u32| items.set_u32(e + o, v);
         put(0, 1);
-        put(0x14, x87::from_int(x as i32));
-        put(0x18, x87::from_int(z as i32));
+        put(0x14, x87::from_int(x as i32).to_bits());
+        put(0x18, x87::from_int(z as i32).to_bits());
         put(4, kind);
         for o in [0x1C, 0x20, 0x2C, 8, 0xC, 0x10, 0x24, 0x28] {
             put(o, 0);

@@ -101,14 +101,14 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
             }
         }
         for k in 0..3 {
-            car.steps[0][k].set_bits(x87::sub(
+            car.steps[0][k].set(x87::sub(
                 matrix_cell(whole, 0x30 + 4 * k as u32)?,
                 &car.last_place[k],
             ));
         }
         let mean_k: u32 = effects.setup.floats.quarter.bits();
         for k in 0..3 {
-            car.motion[k].set_bits(x87::sum4_times(
+            car.motion[k].set(x87::sum4_times(
                 car.steps[0][k].bits(),
                 car.steps[1][k].bits(),
                 car.steps[2][k].bits(),
@@ -147,7 +147,7 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
             x87::product_difference(up[2], matrix_cell(parts, 0)?, up[0], matrix_cell(parts, 8)?),
             x87::product_difference(up[0], matrix_cell(parts, 4)?, up[1], matrix_cell(parts, 0)?),
         ];
-        let across = x87::normalised3(across, one);
+        let across = x87::normalised3(across.map(f32::to_bits), one);
         write_bits(&effects.kinds.emitter.across, across);
         let b = x87::crossed_turned(across, car.parts()?, car.whole()?);
         write_bits(&effects.kinds.emitter.side_b, b);
@@ -156,7 +156,7 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
             x87::product_difference(b[2], across[0], b[0], across[2]),
             x87::product_difference(b[0], across[1], b[1], across[0]),
         ];
-        write_bits(&effects.kinds.emitter.side_a, a);
+        write_bits(&effects.kinds.emitter.side_a, a.map(f32::to_bits));
         let model = car.model.get();
         effects.kinds.emitter.looks[0].set(paths.spline_head.look(2 * model as usize));
         effects.kinds.emitter.looks[1].set(paths.spline_head.look(2 * model as usize + 2));

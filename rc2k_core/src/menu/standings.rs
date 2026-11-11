@@ -1,4 +1,4 @@
-//! The championship's standings tables (converted 2026-10-21 from `menu::sort_standings_by_*`,
+//! The championship's standings tables (from `menu::sort_standings_by_*`,
 //! `menu::sort_standings_b_by_*`, `menu::rank_best_score*`, `menu::enter_best_score*` and the
 //! three first-player searches, and the arcade's `menu::sort_arcade_stage_times` 0x48A0CE,
 //! `sort_arcade_level_scores` 0x48A2AE, `score_arcade_stage` 0x48A383, `remove_shown_car`
@@ -6,7 +6,7 @@
 //! best scores 0x3C) whose dwords are read by offset, as far as they are worked out. And the
 //! tables' emptying and numbering (`menu::init_standings_a` 0x4730D8 / `_b` 0x4A4644,
 //! `number_standings_a` 0x4A2055 / `_b` 0x4A4A9D, `number_all_a` 0x4A2090 / `_b` 0x4A5A98,
-//! `clear_standings_a` 0x4A5A14 / `_b` 0x4A5A2F). Their filling (converted 2026-10-21 from
+//! `clear_standings_a` 0x4A5A14 / `_b` 0x4A5A2F). Their filling (from
 //! `menu::copy_standing_entry` 0x46613F, `player_to_standing_b` 0x46618A,
 //! `standings_from_drivers` 0x4A9605, `standings_a_from_all` 0x4A2B75,
 //! `standings_b_from_all` 0x4A44A0, `copy_standings_summary` 0x470466), and

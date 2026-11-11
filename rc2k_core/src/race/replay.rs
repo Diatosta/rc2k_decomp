@@ -1,9 +1,9 @@
-//! The replay file's rules (converted from `race::open_replay` 0x41E6EC,
+//! The replay file's rules (from `race::open_replay` 0x41E6EC,
 //! `add_replay_frame` 0x41E8DE, `write_replay_block` 0x41E9A3, `close_replay` 0x41E85A,
 //! `write_replay_chunk` 0x41EEE4 and `seal_replay_header` 0x41F0A3): when a replay is
 //! recorded, the frames gathered into blocks of 100, the blocks' places in the index,
 //! the chunks packed by runs when that is smaller, and the header's sealed part. The
-//! race's settings in the replay's car header Converted from
+//! race's settings in the replay's car header from
 //! `race::record_replay_header` 0x460246 and `race::read_replay_header` 0x460428.
 
 /// The frames a block holds.

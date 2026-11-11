@@ -12,7 +12,7 @@
 //!   - 3, 8: +9 stepped (the pace times 4) towards making +8 + +9 + +0x12 a multiple of
 //!     0x80; once it is, as 2 up to 0x40;
 //!   - 4: while +0x11 is not 0, the face's offset (+0x30, +0x38) moved by
-//!     `math::turn_point_xz` of (0, +0x11 << 8) by (+0x12 + 0x80) << 24, its height
+//!     `math::rotate_point_about_y` of (0, +0x11 << 8) by (+0x12 + 0x80) << 24, its height
 //!     (+0x34) set on the ground under it (`physics::find_ground`, last face
 //!     `dword_7101EC`; no ground puts the offset back), +0x11 less 1; at 0 it leaves;
 //!   - others: nothing.
@@ -150,7 +150,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                     let Some((distance, angle)) = fall_turn(&bytes) else {
                         break 'face true;
                     };
-                    let [x, _, z, _] = crate::math::turn_point_xz::turn_point_xz(
+                    let [x, _, z, _] = crate::math::rotate_point_about_y::rotate_point_about_y(
                         0,
                         point_number as i32,
                         distance as i32,

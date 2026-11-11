@@ -38,9 +38,12 @@ pub fn ratios_at(numbers: &Numbers, v: &[&dyn Cell32]) -> Result<u32, Refused> {
     let i = get(5) as i32;
     put(
         RATIO + n as usize,
-        lerp_int_over2(get(1), get(2), k, i, d, get(6)),
+        lerp_int_over2(get(1), get(2), k, i, d, get(6)).to_bits(),
     );
-    put(RATIO + 1, lerp_int_over2(get(3), get(4), k, i, d, get(6)));
+    put(
+        RATIO + 1,
+        lerp_int_over2(get(3), get(4), k, i, d, get(6)).to_bits(),
+    );
     let step = gear_step_80(get(RATIO + n as usize), get(RATIO + 1), n as i32, one);
     let mut acc = extended(get(RATIO + 1));
     for gear in 2..=5 {
@@ -56,8 +59,8 @@ pub fn ratios_at(numbers: &Numbers, v: &[&dyn Cell32]) -> Result<u32, Refused> {
     }
     put(RATIO + 7, rounded(acc));
     put(16, rounded(step));
-    put(7, x87::negated(get(RATIO + 1)));
-    put(RATIO, x87::loaded(get(17)));
+    put(7, x87::negated(get(RATIO + 1)).to_bits());
+    put(RATIO, x87::loaded(get(17)).to_bits());
     Ok(n)
 }
 

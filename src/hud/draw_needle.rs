@@ -35,7 +35,7 @@ pub fn draw_needle(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     use rc2k_core::hud::disc::{needle_corners, needle_edx, needle_turn};
     use rc2k_core::math::extended::to_f64;
     let kind = hud.block.needle_kind.get() != 0;
-    let value = f32::from_bits(x87::from_int(hud.block.needle_value.get() as i32));
+    let value = f32::from_bits(x87::from_int(hud.block.needle_value.get() as i32).to_bits());
     let t = needle_turn(value, kind, hud.block.least.get(), |n| {
         hud.block.needle_k[n].get()
     });

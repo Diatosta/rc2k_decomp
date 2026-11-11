@@ -1,4 +1,4 @@
-//! Pictures loaded (converted 2026-10-21): which reader `gfx::read_picture_file` 0x4119F4
+//! Pictures loaded: which reader `gfx::read_picture_file` 0x4119F4
 //! takes, and the overlay `gfx::load_picture_with_overlay` 0x4118D1 lays over a picture.
 
 use crate::Invalid;

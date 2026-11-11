@@ -1,4 +1,4 @@
-//! The two stream commands (converted 2026-10-21 from `audio::stream_command` 0x40C194,
+//! The two stream commands (from `audio::stream_command` 0x40C194,
 //! command 9, the sound stream, and `audio::music_command` 0x40C4DD, command 0xB, the
 //! music). Actions (unsigned): 0 stop; 1 the thread's turn (feed while playing; stopped
 //! after it: stop, and for the music the next tune); 3 the volume of what plays; any other
@@ -8,7 +8,7 @@
 //! Music tunes: the file is the music path with the tune's two last digits; tune 0xA is
 //! the tune turn plus 10, for the first turn (counted on, 0 .. 5) whose file exists. When a tune
 //! stops the next tune is played, never cleared there: the second tune repeats. Fixed
-//! (2026-10-20, notes' section 16): a turn past 5 starts from 0, and after `RETRIES` plays
+//! (see the game's own bugs): a turn past 5 starts from 0, and after `RETRIES` plays
 //! in a row that stop at their first feed the music stops (the original: both for ever,
 //! the audio thread hung).
 
@@ -213,7 +213,7 @@ pub fn round(at: u32, size: u32) -> u32 {
 }
 
 /// A stream player (`g_soundStream` 0x506960, `g_musicStream` 0x506990): a WAV file
-/// played through a looping buffer refilled each turn (converted 2026-10-21 from
+/// played through a looping buffer refilled each turn (from
 /// `audio::feed_stream` 0x40C349 and `audio::fill_stream_part` 0x40C42C).
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -253,8 +253,7 @@ impl AudioStream {
         Some(moved)
     }
 
-    /// The ring set up for a file just opened (`audio::start_stream` 0x40C1EA, converted
-    /// 2026-10-21): the write place and the tail of silence `step` ahead, the play cursor
+    /// The ring set up for a file just opened (`audio::start_stream` 0x40C1EA): the write place and the tail of silence `step` ahead, the play cursor
     /// at 0, the file's format kept.
     pub fn start_ring(&mut self, format: u32) {
         self.write_at = self.step;
@@ -263,7 +262,7 @@ impl AudioStream {
         self.format = format;
     }
 
-    /// The player stopped (`audio::stop_stream` 0x40C468, converted 2026-10-21): not
+    /// The player stopped (`audio::stop_stream` 0x40C468): not
     /// playing, its buffer and its open file forgotten; what to stop and release, what to
     /// close.
     pub fn stop(&mut self) -> (Option<u32>, Option<u32>) {

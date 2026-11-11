@@ -3,8 +3,7 @@
 //! slot names (`draw_setup_slot_names`).
 //!
 //! Its address is in the draw list at 0x759156. That it is the "save" screen is a reading: the
-//! screen loop `menu::save_setup_loop`, which also runs the name editor, uses that list. IDA had no
-//! function here until 2026-10-10. The menus and draw lists run its `entry` (`menu::table_calls`).
+//! screen loop `menu::save_setup_loop`, which also runs the name editor, uses that list. The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
@@ -13,7 +12,7 @@ use crate::text::draw_text::Canvas;
 // ---- game data ----
 
 pub fn draw_save_setup_list(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::slot_lists::setup_page`.
+    // The logic is in `rc2k_core::screens::slot_lists::setup_page`.
     let page: u32 = menus.tables.pages.setup_slot_page.get();
     rc2k_core::screens::slot_lists::setup_page(
         &mut crate::screens::game_screen::SlotScreen::new(canvas),

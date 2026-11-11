@@ -1,10 +1,9 @@
-//! The event's state, out of RAL.EXE's image (IDA 0x7558C4 .. 0x7559A4; phase 7, typed): the stage
+//! The event's state, out of RAL.EXE's image (IDA 0x7558C4 .. 0x7559A4): the stage
 //! chosen, the classes, the times and flags of the event's players, the service, the event's
 //! type, kind and sections, the current player and the car shown. A `#[repr(C)]` struct with the
-//! image's layout, one static; `moved::MOVED` points the range at it. (Split 2026-10-25 from the front
-//! end's block `menu::store`.)
+//! image's layout, one static; `moved::MOVED` points the range at it.
 
-use crate::session::{Bytes, Dword, with_runs};
+use crate::session::{Bytes, Dword, Flag, with_runs};
 
 /// The event's state (IDA 0x7558C4 .. 0x7559A4).
 #[repr(C)]
@@ -57,7 +56,7 @@ pub struct Event {
     /// `| Not worked out.`:
     pub dword_75591c: Dword,
     /// `g_anyTimeQualified`: 1 when any player's time qualified.
-    pub any_time_qualified: Dword,
+    pub any_time_qualified: Flag,
     /// `dword_755924`: The welcome page's figure (`menu::run_championship`).
     pub welcome_figure: Dword,
     /// `g_championshipEnd`: The championship is over.
@@ -105,7 +104,7 @@ pub struct Event {
     /// `dword_75597C`: The count of the standings (`menu::number_all_a`).
     pub count_a: Dword,
     /// `dword_755980`: 1 when an event is over.
-    pub event_over: Dword,
+    pub event_over: Flag,
     /// `dword_755984`: The players in the event.
     pub player_count: Dword,
     /// `g_eventKind`: The event's kind (9 .. 0x18, `menu::run_event_races`).
@@ -149,7 +148,7 @@ impl Event {
             player_time: Dword::new(0x0),
             time_qualifies: Dword::new(0x0),
             dword_75591c: Dword::new(0x0),
-            any_time_qualified: Dword::new(0x0),
+            any_time_qualified: Flag::new(false),
             welcome_figure: Dword::new(0x3DC),
             championship_end: Dword::new(0x0),
             event_goes_on: Dword::new(0x1),
@@ -173,7 +172,7 @@ impl Event {
             _gap_755974: Bytes::new(with_runs::<4>(&[(0x0, &[0x05])])),
             event_out: Dword::new(0x0),
             count_a: Dword::new(0x0),
-            event_over: Dword::new(0x0),
+            event_over: Flag::new(false),
             player_count: Dword::new(0x1),
             event_kind: Dword::new(0x18),
             current_player: Dword::new(0x0),
@@ -190,7 +189,7 @@ pub const START: usize = 0x7558C4;
 /// IDA 0x7559A4, the end of the piece.
 pub const END: usize = 0x7559A4;
 
-/// Where IDA 0x7558C4 is now (`moved::MOVED`'s home).
+/// Where IDA 0x7558C4 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn event_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::menu::owner::MENUS.screens.event)

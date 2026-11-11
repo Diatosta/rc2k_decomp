@@ -323,7 +323,7 @@ fn copy_in(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
     for car in 0..2 {
         let c = &CAR_BLOCKS.cars[car];
         for (gauge, setting) in GAUGES {
-            gauge(c).set_bits(x87::from_int(setting(&settings.cars[car]).get() as i32));
+            gauge(c).set(x87::from_int(setting(&settings.cars[car]).get() as i32));
         }
         for (mark, saved) in c.impact_octant_marks.iter().zip(result_marks(shared, car)) {
             mark.set_bits(saved.get());
@@ -390,7 +390,7 @@ fn copy_out(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
         for car in 0..2 {
             results.results[car]
                 .secs
-                .set_bits(x87::loaded(&CAR_BLOCKS.cars[car].top_speed));
+                .set(x87::loaded(&CAR_BLOCKS.cars[car].top_speed));
         }
         results
             .flags_current

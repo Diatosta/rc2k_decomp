@@ -8,7 +8,7 @@ use crate::menu::owner::Play;
 
 pub fn stage_range_caption(play: &Play) -> Result<(), crate::errors::BadInput> {
     let first: u32 = play.champ_view.first_row.get();
-    // Converted: `rc2k_core::menu::event::stage_range`.
+    // The logic is in `rc2k_core::menu::event::stage_range`.
     let mut text = rc2k_core::menu::event::stage_range(first);
     text.push(0);
     crate::screens::text_buffers_store::TEXT_BUFFERS

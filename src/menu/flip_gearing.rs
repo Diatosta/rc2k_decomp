@@ -9,7 +9,7 @@ use crate::menu::owner::Screens;
 use crate::strings::append_string_by_id::push_string;
 
 pub fn flip_gearing(screens: &Screens) -> Result<(), crate::errors::BadInput> {
-    // Converted: `rc2k_core::menu::steps` (`flip`, `gearing_switch_text`).
+    // The logic is in `rc2k_core::menu::steps` (`flip`, `gearing_switch_text`).
     use rc2k_core::menu::steps::{flip, gearing_switch_text};
     let kept = flip(screens.flow.shown_gearing.get());
     screens.flow.shown_gearing.set(kept);

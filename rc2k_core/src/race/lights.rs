@@ -1,7 +1,7 @@
-//! The race cars' lights and parts' sounds (Converted from
+//! The race cars' lights and parts' sounds (from
 //! `race::car_light_modes` 0x455B70, `race::car_lights` 0x455CFF and
 //! `race::wake_part_sounds` 0x45D1EA; the light at a place, its colours added and
-//! multiplied, Converted from `race::light_colour_at` 0x4537CE (0x44F601,
+//! multiplied, from `race::light_colour_at` 0x4537CE (0x44F601,
 //! 0x44F691, 0x44F863), `race::view_light` 0x455896 and `race::face_colours`
 //! 0x452887).
 

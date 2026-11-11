@@ -1,4 +1,4 @@
-//! A screenshot taken, and the fatal error's own font loaded (converted 2026-10-21 from
+//! A screenshot taken, and the fatal error's own font loaded (from
 //! `gfx::take_screenshot` 0x407897 and `gfx::load_jade` 0x4075F3).
 
 /// What `gfx::take_screenshot` is made of.

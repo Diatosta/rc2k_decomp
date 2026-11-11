@@ -1,5 +1,5 @@
 //! The network game's screens: the lobby, the settings, the connections' and sessions'
-//! lists (converted 2026-10-21 from `net::draw_button` 0x416CE0, `net::draw_centred_item`
+//! lists (from `net::draw_button` 0x416CE0, `net::draw_centred_item`
 //! 0x416B53, `net::connections_frame` 0x4175C7, `net::sessions_frame` 0x41790E,
 //! `net::settings_frame` 0x4169E2, `net::lobby_button` 0x41802F, `net::lobby_frame`
 //! 0x417D95, `net::choose_connection` 0x4174C5, `net::choose_session` 0x417726,

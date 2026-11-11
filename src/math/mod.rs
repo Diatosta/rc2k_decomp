@@ -3,20 +3,28 @@ pub mod nearest_on_segment;
 pub mod next_random;
 pub mod normalise_vector;
 pub mod random_below;
+pub mod rotate_float_point_about_y;
+pub mod rotate_point_about_y;
+pub mod rotate_point_about_y_ebx;
+pub mod rotate_point_about_y_ecx;
+pub mod rotate_scratch_about_y;
 pub mod seed_random;
 pub mod stir_random;
-pub mod turn_float_point_xz;
-pub mod turn_point_xz;
-pub mod turn_point_xz_ebx;
-pub mod turn_point_xz_ecx;
-pub mod turn_scratch_xz;
 pub mod x87;
 pub(crate) mod x87_float;
 #[cfg(test)]
 mod x87_merged_tests;
+#[cfg(test)]
+#[allow(
+    dead_code,
+    reason = "the comparison test calls only the helpers that changed"
+)]
+mod x87_old;
 #[cfg(all(test, target_arch = "x86"))]
 mod x87_reference_a;
 #[cfg(all(test, target_arch = "x86"))]
 mod x87_reference_b;
 #[cfg(all(test, target_arch = "x86"))]
 mod x87_reference_c;
+#[cfg(test)]
+mod x87_typed_tests;

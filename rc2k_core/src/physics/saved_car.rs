@@ -1,4 +1,4 @@
-//! The work car's state kept for a step and put back (Converted from
+//! The work car's state kept for a step and put back (from
 //! `physics::save_car_state` 0x43DBD5 and `physics::restore_saved_car` 0x43DC25): its
 //! place (`position` ..), its matrix (`g_crashMatrix`, 0x10 dwords) and its probe
 //! points' faces (`probe_point_face` .., `probe_count` of them), with a counter of the puts

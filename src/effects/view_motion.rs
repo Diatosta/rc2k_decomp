@@ -23,14 +23,14 @@ pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> R
     // The original's six floats on its stack: the third row, then the step.
     let local: [Dword; 6] = std::array::from_fn(|_| Dword::new(0));
     for k in 0..3 {
-        local[k].set(x87::loaded(&m[8 + k]));
+        local[k].set(x87::loaded(&m[8 + k]).to_bits());
     }
     let zero = [extended(0); 3];
     let place = rotate_point(m, zero);
     for k in 0..3 {
         let step = x87::ext_less(place[k], effects.frame.draw_frame.last[k].bits());
-        effects.frame.draw_work.step[k].set_bits(step);
-        local[3 + k].set(step);
+        effects.frame.draw_work.step[k].set_bits(step.to_bits());
+        local[3 + k].set(step.to_bits());
     }
     normalise(&local[3..]);
     effects
@@ -45,7 +45,7 @@ pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> R
     let ticks: i32 = effects.setup.clock.frame_ticks.get() as i32;
     for k in 0..3 {
         let a = &effects.frame.draw_work.step[k];
-        a.set_bits(x87::over_int(a, ticks));
+        a.set(x87::over_int(a, ticks));
     }
     Ok(())
 }

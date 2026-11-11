@@ -3,8 +3,8 @@
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`), as
 //! extracted from the disassembly: background `roptions.png`; leaving is asked about; also when
-//! `loop_flags.ask_leave` is 1; the steps that are more than a call or a store are the functions below,
-//! generated from the listing. Named by its address until then. visit.
+//! `loop_flags.ask_leave` is set; the steps that are more than a call or a store are the functions below,
+//! generated from the listing. visit.
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
@@ -14,7 +14,7 @@ use crate::menu::screen_loop::{
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
-    screens.loop_flags.ask_leave.set(0x0u32);
+    screens.loop_flags.ask_leave.set(false);
     entry.set_view(-156, 39, 0x140);
     prepare_scene(entry.scene);
     screens.flow.turning.set(0x1u32);
@@ -46,8 +46,8 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[
-        Step::Write(|m| &m.screens.loop_flags.event_left, 0x0),
-        Step::Write(|m| &m.screens.event.event_over, 0x0),
+        Step::WriteFlag(|m| &m.screens.loop_flags.event_left, false),
+        Step::WriteFlag(|m| &m.screens.event.event_over, false),
     ],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|m| {

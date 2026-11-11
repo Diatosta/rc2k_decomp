@@ -19,13 +19,13 @@
 //!   2  (Escape) leave
 //!   3  (Enter) the highlighted item's action runs (`menu::run_item_action`, with the
 //!      highlight saved before and taken back after). Then: leave if `ask_leave` or
-//!      `event_over` is 1, or if `leave_screen` is 1 (which is cleared); else next frame if
-//!      `action_mode` is 2; else leave if `event_left` is 1 (clearing `leave_screen`);
+//!      `event_over` is set, or if `leave_screen` is set (which is cleared); else next frame if
+//!      `action_mode` is 2; else leave if `event_left` is set (clearing `leave_screen`);
 //!      else set up again.
 //!   else leave
 //! The same action check is made at the top of a frame whose `menu_sound` is 0x14D.
 //!
-//! Leaving: if `left_by_key` is 1, `menu::confirm_leaving` asks whether to; unless the
+//! Leaving: if `left_by_key` is set, `menu::confirm_leaving` asks whether to; unless the
 //! answer (`g_yesNoAnswer`) is 1, the background is loaded again and the screen is set up
 //! again. Otherwise the highlight is saved, `left_service` = 1, `sound::stop_music`,
 //! `skip_edit_values` = 0.
@@ -73,7 +73,7 @@ pub const SCREEN: Screen = Screen {
         Step::Call(Callee::TakeKey),
         Step::Call(Callee::TakeKey),
         Step::Call(Callee::TakeKey),
-        Step::Write(|m| &m.screens.state.menus.skip_edit_values, 0),
+        Step::WriteFlag(|m| &m.screens.state.menus.skip_edit_values, false),
     ],
     set_up_first: &[Step::Write(|m| &m.screens.flow.left_service, 0)],
     prepare: &[
@@ -109,11 +109,14 @@ pub const SCREEN: Screen = Screen {
         Step::Call(Callee::PlayTune9),
     ],
     background: &[Step::Call(Callee::LoadServiceBackground)],
-    after_first_frame: &[Step::Write(|m| &m.screens.state.menus.skip_edit_values, 1)],
+    after_first_frame: &[Step::WriteFlag(
+        |m| &m.screens.state.menus.skip_edit_values,
+        true,
+    )],
     after: &[
         Step::Write(|m| &m.screens.flow.left_service, 1),
         Step::Call(Callee::StopMusic),
-        Step::Write(|m| &m.screens.state.menus.skip_edit_values, 0),
+        Step::WriteFlag(|m| &m.screens.state.menus.skip_edit_values, false),
     ],
     asking: Some(Asking {
         on_refusal: &[Step::Call(Callee::LoadServiceBackground)],

@@ -70,7 +70,7 @@ pub fn draw_service_area(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool,
     let screens = &menus.screens;
     race().shared.switches.service_cleared.set_bits(0u32);
 
-    // Converted: `rc2k_core::screens::service` (`area_title`, `AREA_STEPS`).
+    // The logic is in `rc2k_core::screens::service` (`area_title`, `AREA_STEPS`).
     let fault = crate::menu::event_flow::Fault::default();
     let string = |id: u32| {
         let mut bytes = Vec::new();

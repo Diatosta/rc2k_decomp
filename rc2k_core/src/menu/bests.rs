@@ -1,4 +1,4 @@
-//! The best lists of ten and the records' best holders (converted 2026-10-21 from the
+//! The best lists of ten and the records' best holders (from the
 //! arcade's `menu::keep_arcade_stage_best` 0x488213, `check_arcade_level_score` 0x488250,
 //! `check_arcade_stage_time` 0x488280, `enter_arcade_stage_time` 0x489F76,
 //! `enter_arcade_level_score` 0x48A03F, `clear_arcade_score_marks` 0x48AD08,
@@ -70,7 +70,7 @@ pub trait RecordEntries {
     /// `menu::clear_record_entries`.
     fn clear(&mut self) -> Result<(), Self::Error>;
     /// `dword_755920`: one was entered.
-    fn set_entered(&mut self, on: u32);
+    fn set_entered(&mut self, on: bool);
     /// `dword_75598C`: the current player.
     fn set_current(&mut self, n: u32);
     /// `menu::beat_target_time` for player n (ecx): `dword_755918` 1 after it.
@@ -83,11 +83,11 @@ pub trait RecordEntries {
 /// beat the target time entered, `dword_755920` 1 once one is (0 first).
 pub fn record_entries<R: RecordEntries>(players: u32, e: &mut R) -> Result<(), R::Error> {
     e.clear()?;
-    e.set_entered(0);
+    e.set_entered(false);
     for n in 0..players {
         e.set_current(n);
         if e.beats(n)? {
-            e.set_entered(1);
+            e.set_entered(true);
             e.enter(n)?;
         }
     }
@@ -114,8 +114,8 @@ mod tests {
                 self.0.push("clear".into());
                 Ok(())
             }
-            fn set_entered(&mut self, on: u32) {
-                self.0.push(format!("entered {on}"));
+            fn set_entered(&mut self, on: bool) {
+                self.0.push(format!("entered {}", u32::from(on)));
             }
             fn set_current(&mut self, n: u32) {
                 self.0.push(format!("current {n}"));

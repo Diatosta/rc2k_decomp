@@ -17,6 +17,6 @@ use crate::errors::Refused;
 use crate::menu::run_championship::run_event;
 
 pub fn run_a8_championship(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::championship::run` (`a8`).
+    // The logic is in `rc2k_core::menu::championship::run` (`a8`).
     run_event(menus, true)
 }

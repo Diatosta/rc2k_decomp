@@ -1,4 +1,4 @@
-//! The replay's cameras and the two-car race's sound levels (converted 2026-10-21 from
+//! The replay's cameras and the two-car race's sound levels (from
 //! `drive::replay_cameras` 0x460949, `drive::pick_replay_camera` 0x460AA6 and
 //! `drive::duel_sound_levels` 0x45C596): a replay frame's camera wishes made into views
 //! (a wish 0x23 .. 0x25 a view of a kind drawn at random, at most every three frames),

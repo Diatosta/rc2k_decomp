@@ -1,5 +1,5 @@
 //! The game's settings texts (`var\ral.cfg`, `var\name.cfg`): lines of `key=value` or
-//! `key value` (converted 2026-10-20 from `settings::find_key` 0x41157D,
+//! `key value` (from `settings::find_key` 0x41157D,
 //! `settings::copy_value` 0x4115F5, `settings::parse_number` 0x411623). Places are offsets
 //! into the text; a text ends at its NUL.
 
@@ -189,8 +189,7 @@ pub fn apply(
     Ok(found)
 }
 
-/// The room a settings text is read into (`settings::read_text` 0x41155A, converted
-/// 2026-10-21), its NUL after it.
+/// The room a settings text is read into (`settings::read_text` 0x41155A), its NUL after it.
 pub const TEXT_ROOM: u32 = 0xFFFF;
 
 /// `settings::read_text`: a read (whether it worked, the bytes it read) -> where the NUL

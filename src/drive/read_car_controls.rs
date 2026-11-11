@@ -33,7 +33,7 @@ fn computer(shared: &RaceShared) -> bool {
         return true;
     }
     computer_drives(
-        shared.work.in_credits.get(),
+        shared.work.in_credits.is_set(),
         || shared.vars.run_kind.get(),
         || shared.car.driver_kind.get(),
     )
@@ -148,7 +148,7 @@ pub fn read_car_controls(race: &Race) -> Result<(), Refused> {
         .shared
         .work
         .driver_start_blend
-        .set_bits(x87::loaded(&race_owner.shared.car.start_blend));
+        .set(x87::loaded(&race_owner.shared.car.start_blend));
     // A test's switch (`tools/remote.py pilot`): a player's car has no computer's skill
     // (its blend near 0 holds the wanted speed down), so it drives at the full blend.
     #[cfg(feature = "remote")]

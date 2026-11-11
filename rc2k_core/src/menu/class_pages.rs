@@ -1,5 +1,5 @@
-//! The class pages' passes: which classes are walked and which have a page (converted
-//! 2026-10-21 from `menu::class_stage_results_pass` 0x4A1EE6,
+//! The class pages' passes: which classes are walked and which have a page
+//! (from `menu::class_stage_results_pass` 0x4A1EE6,
 //! `class_rally_results_pass` 0x4A32A5 and `class_championship_pass` 0x4A4A1C, with
 //! `group_has_player`).
 

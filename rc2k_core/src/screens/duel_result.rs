@@ -1,4 +1,4 @@
-//! The two-player stage result (converted 2026-10-20 from `screens::draw_duel_result`
+//! The two-player stage result (from `screens::draw_duel_result`
 //! 0x48647A): the heads, the faster of players 1 and 2 first, the stage, then per row the
 //! time and sprites and name, and by player 1 and 2 (not by order) the figures.
 

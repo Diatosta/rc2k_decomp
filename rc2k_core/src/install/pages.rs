@@ -1,9 +1,9 @@
-//! The installer's page actions (converted 2026-10-21 from `install::mark_main_page`
+//! The installer's page actions (from `install::mark_main_page`
 //! 0x4141EF, `mode_page` 0x41422B, `drive_page` 0x41425E, `folder_page` 0x4142F5,
 //! `language_page` 0x414199, `dxsetup_page` 0x41432F and `finish_page` 0x414347): what a
 //! page sets up at its start (ebx 0) and takes at its end (ebx negative), and which of its
 //! items are marked. An item's first byte: 0x40 hidden, 0x80 not to be chosen. And the
-//! pages' walk (`install::run_pages` 0x4144AA, converted the same day): an entry is a
+//! pages' walk (`install::run_pages` 0x4144AA): an entry is a
 //! page's list and, after it, the entries its answers go to.
 
 /// When a page action is called.

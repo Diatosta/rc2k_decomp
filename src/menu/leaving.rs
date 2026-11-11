@@ -1,84 +1,44 @@
 //! The game's leaving switches and yes/no question as `rc2k_core::menu::leaving`'s
 //! `Leaving` and `Question`: read, changed, written back whole.
 use crate::menu::owner::menus;
-use crate::session::Dword;
 use rc2k_core::menu::leaving::{Leaving, Question};
 
-/// The switches of `Leaving`, in its order: `dword_75555D`, `dword_755561`, `dword_755565`,
-/// `dword_755569` and `dword_755A0C`.
-fn leaving_cells() -> [&'static Dword; 5] {
-    let screens = &menus().screens;
-    [
-        &screens.loop_flags.event_left,
-        &screens.loop_flags.leave_screen,
-        &screens.loop_flags.left_with_carry,
-        &screens.loop_flags.ask_leave,
-        &screens.draw_work.scratch_0c,
-    ]
-}
-
-/// The cells of `Question`, in its order: `dword_7554CC` (1 on a yes / no screen),
-/// `g_yesNoAnswer` (1 = yes, 0 = no) and `dword_758806` (the screen was left).
-fn question_cells() -> [&'static Dword; 3] {
-    let menus = menus();
-    [
-        &menus.screens.flow.asking,
-        &menus.tables.pages.yes_no_answer,
-        &menus.tables.captions.left_by_key,
-    ]
-}
-
-fn get<const N: usize>(at: [&'static Dword; N]) -> [u32; N] {
-    at.map(super::super::session::Dword::get)
-}
-
-fn put<const N: usize>(at: [&'static Dword; N], v: [u32; N]) {
-    for (cell, v) in at.into_iter().zip(v) {
-        cell.set(v);
-    }
-}
-
 pub fn leaving() -> Leaving {
-    let [
-        event_left,
-        leave_screen,
-        left_with_carry,
-        ask_leave,
-        scratch_0c,
-    ] = get(leaving_cells());
+    let screens = &menus().screens;
+    let flags = &screens.loop_flags;
     Leaving {
-        event_left,
-        leave_screen,
-        left_with_carry,
-        ask_leave,
-        scratch_0c,
+        event_left: flags.event_left.is_set(),
+        leave_screen: flags.leave_screen.is_set(),
+        left_with_carry: flags.left_with_carry.is_set(),
+        ask_leave: flags.ask_leave.is_set(),
+        scratch_0c: screens.draw_work.scratch_0c.get(),
     }
 }
 
 pub fn put_leaving(l: &Leaving) {
-    put(
-        leaving_cells(),
-        [
-            l.event_left,
-            l.leave_screen,
-            l.left_with_carry,
-            l.ask_leave,
-            l.scratch_0c,
-        ],
-    );
+    let screens = &menus().screens;
+    let flags = &screens.loop_flags;
+    flags.event_left.set(l.event_left);
+    flags.leave_screen.set(l.leave_screen);
+    flags.left_with_carry.set(l.left_with_carry);
+    flags.ask_leave.set(l.ask_leave);
+    screens.draw_work.scratch_0c.set(l.scratch_0c);
 }
 
 pub fn question() -> Question {
-    let [asking, answer, answered] = get(question_cells());
+    let menus = menus();
     Question {
-        asking,
-        answer,
-        answered,
+        asking: menus.screens.flow.asking.is_set(),
+        answer: menus.tables.pages.yes_no_answer.get(),
+        answered: menus.tables.captions.left_by_key.is_set(),
     }
 }
 
 pub fn put_question(q: &Question) {
-    put(question_cells(), [q.asking, q.answer, q.answered]);
+    let menus = menus();
+    menus.screens.flow.asking.set(q.asking);
+    menus.tables.pages.yes_no_answer.set(q.answer);
+    menus.tables.captions.left_by_key.set(q.answered);
 }
 
 /// The switches changed by `f`.

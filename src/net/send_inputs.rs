@@ -93,7 +93,7 @@ const POSITION_FIELDS: [Field; 40] = [
     (|c| &c.handbrake, Pedal),
     (|c| &c.steering, Pedal),
     (|c| &c.steering_raw, Pedal),
-    (|c| &c.unknown_1ec, Free),
+    (|c| &c.position_message_word, Free),
 ];
 
 /// +0x64 .. +0x84: the eight gauges and the lights.

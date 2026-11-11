@@ -1,4 +1,4 @@
-//! The pace notes' tables made and their texts written (Converted from
+//! The pace notes' tables made and their texts written (from
 //! `race::init_pace_notes` 0x441A66 and `race::pace_note_calls` 0x441CB4, with the codes'
 //! rules of `race::pace`). `Notes` works on an image of the tables (0x615E10 .. 0x61FE18:
 //! the notes' count and the groups', the notes' starts, ends, end codes and gaps, the

@@ -1,8 +1,7 @@
-//! The championship's results pages (IDA had them as code outside any function; made
-//! functions 2026-10-19): ten rows of the ranked times (`g_rankedTimes`) from row
+//! The championship's results pages: ten rows of the ranked times (`g_rankedTimes`) from row
 //! `g_champFirstRow`, one page each of four:
 //! - `screens::draw_class_rally_results` (0x4A3376): the title (string 0x4EA, or 0x4ED with
-//!   `state.menus.rally_done` 1, at (0x310, 0x30), font 0x51E944) and the stage's name (at (0x2EB,
+//!   `state.menus.rally_done` set, at (0x310, 0x30), font 0x51E944) and the stage's name (at (0x2EB,
 //!   0x77), font 0x51E9A4: in event mode 0x13 the section's entry of the heading list, else the section's
 //!   first record's +0x38); the rally's times (+0x18); the first time the class's
 //!   (`menu::find_class_time`, ebx 1); the rows of the class (`event.class`) by position
@@ -51,7 +50,7 @@ use crate::text::draw_text::Canvas;
 
 #[derive(Clone, Copy)]
 enum Heading {
-    /// The title (normal, with `rally_done` 1) and the stage's name.
+    /// The title (normal, with `rally_done` set) and the stage's name.
     Titles(u32, u32),
     /// `screens::draw_record_heading`.
     Record,
@@ -133,7 +132,7 @@ pub fn draw_results_page(
             break;
         }
     }
-    // Converted: `rc2k_core::screens::results_pages` (the rows' entries read here, the record
+    // The logic is in `rc2k_core::screens::results_pages` (the rows' entries read here, the record
     // heading drawn here first).
     use rc2k_core::screens::results_pages::{
         Heading as Drawn, NOT_TIMED as NONE, Row, results_page,
@@ -141,7 +140,7 @@ pub fn draw_results_page(
     {
         let heading = match page.heading {
             Heading::Titles(normal, alternative) => Drawn::Titles {
-                title: if menus.screens.state.menus.rally_done.get() == 1 {
+                title: if menus.screens.state.menus.rally_done.is_set() {
                     alternative
                 } else {
                     normal

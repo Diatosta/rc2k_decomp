@@ -10,7 +10,7 @@ pub struct FrameSwitches {
     /// +0x0 (0x621480): `dword_621480`: the 3D scene is set up for drawing through the light tables: written 1 only, by `scene::set_up_front_end_scene` (twice), `race::stage_loading` and, for the length of `scene::fill_light_tables`, `scene::fill_scene_light_tables` (IDA writers 0x475027, 0x475BF0, 0x444213, 0x4433B3/C2; none writes 0). So it is 1 whenever a scene is drawn, front end or race, and its 0 branches (`scene::vertex_light`, `scene::draw_object_face`, `scene::choose_view_window`, `race::course_faces`, `race::draw_mirror_view`, the plain light ramp of `fill_light_tables`) are never taken in play. Not "the mirror on" nor "in a race".
     pub scene_set_up: Dword,
     /// +0x4 (0x621484): holds the text `files\fmv\intro.avi` (0x6214AC), used only by the unported `sub_442FDB`.
-    pub unknown_4: [Dword; 22],
+    pub intro_film_text: [Dword; 22],
     /// +0x5c (0x6214DC): `dword_6214DC`: set by `scene::set_object_material`, read by `scene::draw_object_face`; now each view's (`ctx.view.cars.other_way_kind`); unused.
     pub other_way_kind: Dword,
     /// +0x60 (0x6214E0): `qword_6214E0`: the other kind and the distance, written as a pair (`scene::set_object_fade`); now each view's (`ctx.view.cars.fade_words`); unused.
@@ -22,7 +22,7 @@ pub struct FrameSwitches {
     /// +0x70 (0x6214F0): `g_frameRate`: the measured frame rate (`race::measure_frame_rate`, `race::frame_text`).
     pub frame_rate: Float,
     /// +0x74 (0x6214F4): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_74: [Dword; 2],
+    pub unused_74: [Dword; 2],
     /// +0x7c (0x6214FC): `g_objectNumber`: the object being drawn or set up (`scene::draw_object_face`, `race::frame_draw`, `race::car_draw`); now each view's (`ctx.view.cars.object_number`; the bad polygon's log reads the view's); this one not used.
     pub object_number: Dword,
     /// +0x80 (0x621500): `g_faceReflects` (`scene::draw_object_face`); now each view's (`race::face_work::FaceWork`); unused.
@@ -41,19 +41,19 @@ pub struct FrameSwitches {
     /// +0x98 (0x621518): `g_coursePresent`: one flag per course found (`race::find_present_courses`).
     pub course_present: [Dword; 100],
     /// +0x228 (0x6216A8): the developers' front end's table (`dev_front_end::draw`, `sub_442F87`, `sub_442FB1` use 0x6216A8 .. 0x62183C); the port keeps those values in `debug::dev_front_end`, not here.
-    pub unknown_228: [Dword; 103],
+    pub dev_front_end_choices: [Dword; 103],
     /// +0x3c4 (0x621844): `dword_621844`: copied to `dword_5CCF7C` (`race::objects`).
     pub kept_kind: Dword,
     /// +0x3c8 (0x621848): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_3c8: [Dword; 10],
+    pub unused_3c8: [Dword; 10],
     /// +0x3f0 (0x621870): `dword_621870`: the mask kind, 8 tested by `race::frame_draw`, cleared by `race::race_end` (`scene::list_object_face`).
     pub mask_kind: Dword,
     /// +0x3f4 (0x621874): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_3f4: [Dword; 4],
+    pub unused_3f4: [Dword; 4],
     /// +0x404 (0x621884): `dword_621884`: 1 lets the levers push the car (`physics::lever_pushes`, `drive::race_tick`).
     pub levers_on: Dword,
     /// +0x408 (0x621888): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_408: [Dword; 2],
+    pub unused_408: [Dword; 2],
     /// +0x410 (0x621890): `dword_621890`: the view marks (`race::frame_views`, `race::stage_loading`, `drive::finish_race`).
     pub view_marks_on: Dword,
     /// +0x414 (0x621894): holds 0x6218A0, used by `dev_front_end::draw` / `set_up_race` and the unported `sub_4431B7` (the developers' front end); the port keeps it in `debug::dev_front_end`, not here.

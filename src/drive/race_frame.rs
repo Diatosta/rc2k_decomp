@@ -22,7 +22,7 @@ pub fn race_frame(race: &Race, eax: u32) -> Result<u32, Refused> {
 
     let mut eax = eax;
     crate::platform::pump_messages_now();
-    if system.session.flags.quitting.get() == 1 {
+    if system.session.flags.quitting.is_set() {
         // The game is closing. In the game its shutdown thread (`threading::request_quit`)
         // ends the program meanwhile; the standalone, which has none, ends it here.
         crate::standalone::leave_on_close();
@@ -52,7 +52,7 @@ pub fn race_frame(race: &Race, eax: u32) -> Result<u32, Refused> {
             return Ok(eax);
         }
     }
-    if system.session.flags.quitting.get() == 1 {
+    if system.session.flags.quitting.is_set() {
         return Ok(eax);
     }
     // The surfaces restored: never here (the window is always active, nothing is lost).

@@ -17,7 +17,7 @@ use crate::menu::screen_loop::{Callee, Entry, Frames, Keys, List, Screen, Step, 
 
 fn before(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
-    screens.draw_work.escape_pressed.set(0x0u32);
+    screens.draw_work.escape_pressed.set(false);
     screens.items.current[slot::LOAD_CHAMPIONSHIP]
         .set(screens.items.first[slot::LOAD_CHAMPIONSHIP].get());
     Ok(())
@@ -50,7 +50,7 @@ pub const SCREEN: Screen = Screen {
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.load_championship_picture
     }))],
-    after: &[Step::Write(|m| &m.tables.captions.left_by_key, 0x0)],
+    after: &[Step::WriteFlag(|m| &m.tables.captions.left_by_key, false)],
     keys: Keys {
         escape_leaves: true,
         ..Keys::DEFAULT

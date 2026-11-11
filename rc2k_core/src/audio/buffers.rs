@@ -1,5 +1,5 @@
-//! A voice's DirectSound buffer: what the leaves around it decide (converted 2026-10-21
-//! from `audio::play_buffer` 0x40B922, `audio::set_buffer_place` 0x40C676,
+//! A voice's DirectSound buffer: what the leaves around it decide
+//! (from `audio::play_buffer` 0x40B922, `audio::set_buffer_place` 0x40C676,
 //! `audio::fill_buffer` 0x40B82B, `audio::restore_buffer` 0x40A862,
 //! `audio::keep_sample` 0x40B192 and `audio::close_primary_mixer` 0x40BBCB). The COM calls
 //! stay the platform's.

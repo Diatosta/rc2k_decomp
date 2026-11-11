@@ -1,4 +1,4 @@
-//! A screen's function list by handle (phase 13, 2026-10-28): the five list pointers
+//! A screen's function list by handle: the five list pointers
 //! (`g_unreadList` .. `g_sceneList`, `menu::flow_store`) hold a `FnList`, and `menu::run_list`
 //! and the frame callbacks walk its functions. The lists are the typed tables' (`LISTS`,
 //! named by `menu::draw_lists_store`); a screen's list may start inside one (at its end

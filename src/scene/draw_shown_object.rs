@@ -40,8 +40,8 @@ impl rc2k_core::scene::shown::RaceObject for Game<'_> {
     fn object(&self) -> u32 {
         self.1.object_number.get()
     }
-    fn kind_switch(&self) -> u32 {
-        self.0.shared.work.in_credits.get()
+    fn kind_switch(&self) -> bool {
+        self.0.shared.work.in_credits.is_set()
     }
     fn kind_mode(&self) -> u32 {
         self.0.shared.vars.run_kind.get()

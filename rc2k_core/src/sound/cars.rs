@@ -1,4 +1,4 @@
-//! The cars' race sounds that are whole-number logic (converted 2026-10-21): the spoken
+//! The cars' race sounds that are whole-number logic: the spoken
 //! cue queue (`sound::drop_cue` 0x40EE32, `sound::play_cue_queue` 0x40ED4A), the timed
 //! slots (`sound::play_timed_slot` 0x40E59E), the one-off hit and cue sounds
 //! (`sound::car_hit_sound` 0x40E182, `sound::car_cue_sound` 0x40E1E5) and the voices'

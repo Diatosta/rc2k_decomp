@@ -1,4 +1,4 @@
-//! The pictures the carousel's entries show (converted 2026-10-21 from
+//! The pictures the carousel's entries show (from
 //! `scene::choose_carousel_pictures` 0x4901B9 and `scene::update_carousel_pictures`
 //! 0x49029C, with `keep_held_pictures` 0x49036F and `assign_picture_slots` 0x4903E3
 //! inlined, `scene::draw_carousel` 0x490649 and the cars' lists of `scene::set_up_carousel`

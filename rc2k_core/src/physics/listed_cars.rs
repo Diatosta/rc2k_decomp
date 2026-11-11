@@ -1,8 +1,8 @@
-//! The cars listed for a device or sound slot (converted from the three
+//! The cars listed for a device or sound slot (from the three
 //! twins `physics::flag_current_car_listed` 0x45D151, `set_flag_5165a0` 0x45D16D and
 //! `set_flag_5165a4` 0x45D189): a flag set when the current car has an entry in
 //! `listed_car_sounds` (eight, by car; -1 none). And the cues sent to a listed car's sound
-//! object (converted from `physics::cue_car_sound` 0x40ECE7,
+//! object (from `physics::cue_car_sound` 0x40ECE7,
 //! `cue_car_sound_last` 0x40ECBB, `cue_listed_car_sound` 0x45D1BC,
 //! `cue_listed_car_sound_last` 0x45D1D3 and `sound_cue_e5` 0x45D028): the sound objects
 //! (`g_raceSoundObjects`, eight, by car) and which cars' cues are heard.

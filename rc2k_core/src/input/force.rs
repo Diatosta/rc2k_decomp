@@ -1,5 +1,5 @@
-//! A device's force-feedback effects as DirectInput is told of them (converted 2026-10-21
-//! from `input::effect_found` 0x40953B and `input::make_effect` 0x40992F's parameters).
+//! A device's force-feedback effects as DirectInput is told of them
+//! (from `input::effect_found` 0x40953B and `input::make_effect` 0x40992F's parameters).
 //!
 //! A device record has six effects, each of a kind (1 constant, 2 ramp, 3 periodic, 4
 //! condition) and maybe a GUID it wants. While DirectInput lists the device's effects,

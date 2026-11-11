@@ -1,4 +1,4 @@
-//! The work car's timed events (converted from `physics::queue_car_event`
+//! The work car's timed events (from `physics::queue_car_event`
 //! 0x4419EB, `expire_car_events` 0x44196B and `queue_listed_event` 0x44194D): the queue of
 //! up to 7 pace-note symbols the HUD stacks for a view (`queue_pace_note` queues the codes of the
 //! group called at a checkpoint; `race::panel_marks` draws them at y = 400 + `shown`, 32 pixels

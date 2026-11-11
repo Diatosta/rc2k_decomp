@@ -1,4 +1,4 @@
-//! The front end's tables the race takes in (Converted from
+//! The front end's tables the race takes in (from
 //! `race::copy_league_table` 0x4650B7 and `race::copy_rally_times` 0x48C997): the league
 //! table's ten records (0x50 bytes) turned into a row of their +8 and sixteen rows of
 //! their sixteen dwords, and the rally's ten best times (records of 0x9C bytes) cut down

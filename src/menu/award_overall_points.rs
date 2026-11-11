@@ -46,7 +46,7 @@ pub fn award_overall_points(menus: &Menus) -> Result<(), Refused> {
         for e in &all {
             owners.push(owner(menus, e)?);
         }
-        // Converted: `rc2k_core::menu::points` (`Points`, `total`).
+        // The logic is in `rc2k_core::menu::points` (`Points`, `total`).
         use rc2k_core::menu::points::{Points, total};
         let mut points = Points::default();
         screens.draw_work.seconds.set(points.0);

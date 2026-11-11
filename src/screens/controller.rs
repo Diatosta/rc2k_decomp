@@ -1,5 +1,5 @@
 //! The controller page's axis learning (`screens::learn_axis` -> 0x46B4AE,
-//! `screens::classify_controller`; stream A, part F1, 2026-10-18): while `controls.learning` is 1 (for
+//! `screens::classify_controller`): while `controls.learning` is 1 (for
 //! at most 3 s from
 //! the learning start time), the player's control the control being learnt (1 .. ) learns the axis or the
 //! direction the player moves, into the player's +0x50 table.
@@ -25,7 +25,7 @@ pub fn classify_controller(
     x: u32,
     y: u32,
 ) {
-    // Converted: `rc2k_core::input::devices::classify`.
+    // The logic is in `rc2k_core::input::devices::classify`.
     let (history, found) = rc2k_core::input::devices::classify(
         buttons,
         x,
@@ -58,7 +58,7 @@ pub fn learn_axis(menus: &Menus) -> Result<(), Refused> {
         return Err(crate::errors::BadInput("no current player record").into());
     };
     screens.draw_work.figure.set(0);
-    // Converted: `rc2k_core::screens::learning` (`timed_out`, `by_axis`, `pedal`,
+    // The logic is in `rc2k_core::screens::learning` (`timed_out`, `by_axis`, `pedal`,
     // `CANCEL_KEY`, `binding`).
     use rc2k_core::screens::learning as l;
     let since = crate::system::tick_count::tick_count().wrapping_sub(controls.learn_start.get());
@@ -67,7 +67,7 @@ pub fn learn_axis(menus: &Menus) -> Result<(), Refused> {
         controls.learning.set(0);
         return Ok(());
     }
-    if screens.draw_work.blink.get() == 1 {
+    if screens.draw_work.blink.is_set() {
         let item = screens
             .loop_flags
             .menu
@@ -146,7 +146,7 @@ pub fn draw_controller_page(
     canvas: &mut dyn crate::text::draw_text::Canvas,
 ) -> Result<(), Refused> {
     let input = crate::input::owner::input();
-    // Converted: `rc2k_core::screens::controller_page::controller_page`.
+    // The logic is in `rc2k_core::screens::controller_page::controller_page`.
     use rc2k_core::screens::controller_page::{Controller, Font, Work, controller_page};
     {
         let player = controller_page_refuses(menus)?;

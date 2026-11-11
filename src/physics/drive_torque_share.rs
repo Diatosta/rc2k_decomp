@@ -36,13 +36,13 @@ pub fn drive_torque_share_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dy
         Some(Ordering::Greater | Ordering::Equal)
     );
     if !below {
-        v[3].set_bits(x87::loaded(one));
+        v[3].set_bits(x87::loaded(one).to_bits());
     }
     let eax = v[0].bits().wrapping_sub(v[5].bits());
     v[4].set_bits(eax);
-    v[4].set_bits(x87::int_ratio(v[4].bits() as i32, v[0].bits() as i32));
-    v[6].set_bits(toward_one(v[4].bits(), v[3].bits()));
-    v[7].set_bits(x87::mul(v[7], v[6]));
+    v[4].set_bits(x87::int_ratio(v[4].bits() as i32, v[0].bits() as i32).to_bits());
+    v[6].set_bits(toward_one(v[4].bits(), v[3].bits()).to_bits());
+    v[7].set_bits(x87::mul(v[7], v[6]).to_bits());
     eax
 }
 

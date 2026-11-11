@@ -1,8 +1,8 @@
-//! Small rules of the car on the ground (Converted from
+//! Small rules of the car on the ground (from
 //! `physics::note_surface_mode` 0x43F180, `start_skid_mark` 0x43F272,
 //! `flip_cell_index` 0x43DB13 and `plane_height` 0x4425B6; the whole-number steps of
 //! `surface_noise` 0x43BC68, whose share / 256 stays x87). The probe points' whole-number
-//! steps (converted from `physics::probe_ground` 0x45D305; the turns and the
+//! steps (from `physics::probe_ground` 0x45D305; the turns and the
 //! bump's scaling stay x87): the wheels' lift by the car's bits, and the ground's bump
 //! from the noise bytes (64 x 64) mixed by the place's low 14 bits.
 

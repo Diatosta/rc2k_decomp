@@ -1,4 +1,4 @@
-//! The best lists' entry (typed 2026-10-27, phase 12). A best time is 0x9C bytes, and its
+//! The best lists' entry. A best time is 0x9C bytes, and its
 //! first 0x50, `Entry` here, are laid out as the arcade levels' best scores are whole. The
 //! lists are of ten, best first; a new entry goes over the tenth and moves up.
 //!

@@ -1,4 +1,4 @@
-//! The players' results (converted 2026-10-21 from `menu::rank_stage_times` 0x48340B,
+//! The players' results (from `menu::rank_stage_times` 0x48340B,
 //! `menu::rank_totals` 0x48356F, `menu::score_four_players` 0x485CBB and
 //! `menu::score_two_players` 0x485B0E): the four players ranked by their stage times or
 //! totals, and each one's points, time bonus and new total.

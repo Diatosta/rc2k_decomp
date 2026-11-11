@@ -65,11 +65,11 @@ pub const SCREEN: Screen = Screen {
         Step::Call(Callee::PrepareScene),
     ],
     after: &[
-        Step::Write(|m| &m.tables.captions.left_by_key, 0x0),
-        Step::Write(|m| &m.screens.loop_flags.ask_leave, 0x0),
-        Step::Write(|m| &m.screens.draw_work.escape_pressed, 0x0),
+        Step::WriteFlag(|m| &m.tables.captions.left_by_key, false),
+        Step::WriteFlag(|m| &m.screens.loop_flags.ask_leave, false),
+        Step::WriteFlag(|m| &m.screens.draw_work.escape_pressed, false),
         Step::Sound(MenuSound::None),
-        Step::Write(|m| &m.screens.loop_flags.leave_screen, 0x0),
+        Step::WriteFlag(|m| &m.screens.loop_flags.leave_screen, false),
     ],
     frames: Frames {
         no_quit_check: true,

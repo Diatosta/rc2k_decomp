@@ -1,4 +1,4 @@
-//! The pace notes' rules (converted from `race::pace_note_code` 0x441A37,
+//! The pace notes' rules (from `race::pace_note_code` 0x441A37,
 //! `race::next_pace_slot` 0x441A4B,
 //! `pace_distance_word` 0x441C78, and the codes and the corner of `race::pace_note_calls`
 //! 0x441CB4 / `race::init_pace_notes` 0x441A66): a place on the line is a checkpoint and

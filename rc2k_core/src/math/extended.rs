@@ -1,5 +1,5 @@
-//! The x87's 80-bit values as `f64` (converted 2026-10-20): where the game leaves a result on
-//! the x87 stack, the converted code has an `f64`; the hook crate writes it back as the ten
+//! The x87's 80-bit values as `f64`: where the game leaves a result on
+//! the x87 stack, the converted code has an `f64`; the caller writes it back as the ten
 //! bytes the x87 would load. At the game's double precision (control word 0x027F) every
 //! result the x87 makes fits an `f64` (53 bits of mantissa), so both ways are exact for
 //! them; a value with more bits (made at extended precision) is rounded to the nearest.

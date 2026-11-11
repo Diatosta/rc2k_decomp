@@ -22,7 +22,7 @@ pub fn race_turn(
     input: &crate::input::owner::Input,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
-    if system().session.flags.quitting.get() == 1 {
+    if system().session.flags.quitting.is_set() {
         // The original's quit jump (into `system::main_loop`'s way out): the program
         // ended as `start` ends it.
         crate::standalone::leave_on_close();

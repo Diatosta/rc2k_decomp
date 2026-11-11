@@ -44,7 +44,7 @@ pub fn request_quit() -> Result<(), FatalError> {
 /// `request_quit`, saying in the log that it ran.
 pub fn request_quit_logged() -> Result<(), FatalError> {
     // It happens once, while the game is closing: say in the log that it ran.
-    let was: u32 = system().session.flags.quitting.get();
+    let was = u32::from(system().session.flags.quitting.is_set());
     let result = request_quit();
     log(&format!(
         "threading::request_quit: ran (quitting was {was}): {result:?}"

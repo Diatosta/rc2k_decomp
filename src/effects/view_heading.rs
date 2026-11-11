@@ -17,13 +17,16 @@ pub fn view_heading(frame: &Frame, effects: &crate::effects::owner::Effects) {
     let effects_frame = &effects.frame;
     let x = x87::loaded(&frame.matrices.view_place[2]);
     let z = x87::loaded(&frame.matrices.view_place[10]);
-    write_bits(&effects_frame.draw_frame.level, [x, 0, z]);
+    write_bits(
+        &effects_frame.draw_frame.level,
+        [x.to_bits(), 0, z.to_bits()],
+    );
     let mut heading = rounded(angle_between_vectors(
         &effects_frame.draw_frame.level,
         &effects_frame.draw_frame.other,
     ));
     if effects_frame.draw_frame.level[0].bits() & 0x8000_0000 == 0 {
-        heading = x87::two_pi_less(heading);
+        heading = x87::two_pi_less(heading).to_bits();
     }
     effects_frame.view_vars.heading.set_bits(heading);
 }

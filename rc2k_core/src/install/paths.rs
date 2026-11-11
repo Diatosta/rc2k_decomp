@@ -1,4 +1,4 @@
-//! The installer's folder paths (converted 2026-10-21 from `install::normalise_path`
+//! The installer's folder paths (from `install::normalise_path`
 //! 0x4139EC and `install::check_folder_name` 0x413A6C): the one form it keeps them in, and
 //! the characters a folder's name may not hold.
 

@@ -103,7 +103,7 @@ pub fn drive_grip_forces(
         } else {
             &tables.grip_rear_drive[1]
         };
-        car.grip_forces[0].set_bits(x87::mul(&car.grip_forces[0], k));
+        car.grip_forces[0].set(x87::mul(&car.grip_forces[0], k));
     }
     car.grip_forces[3].set_bits(0);
     if kind == 0 {
@@ -128,7 +128,7 @@ pub fn drive_grip_forces(
     tables.grip_drive_word.set(braking_word);
     engine_braking_force(car, tables, numbers);
     if product_below(car.grip_forces[1].bits(), car.grip_forces[0].bits(), ZERO) {
-        car.grip_forces[1].set_bits(x87::mul(&car.grip_forces[1], &tables.side_grip_share));
+        car.grip_forces[1].set(x87::mul(&car.grip_forces[1], &tables.side_grip_share));
     }
     if car.parts_state.get() == u32::MAX {
         let k = if kind == 1 {
@@ -136,7 +136,7 @@ pub fn drive_grip_forces(
         } else {
             &tables.grip_front_drive[1]
         };
-        car.grip_forces[1].set_bits(x87::mul(&car.grip_forces[1], k));
+        car.grip_forces[1].set(x87::mul(&car.grip_forces[1], k));
     }
     car.grip_forces[2].set_bits(0);
     if kind == 1 {
@@ -146,7 +146,7 @@ pub fn drive_grip_forces(
         drawing
             .scene
             .scratch
-            .set(x87::loaded(&car.drive_slip_speed));
+            .set(x87::loaded(&car.drive_slip_speed).to_bits());
         // Held to ±`grip_force_limit`, the limit negated in place between and put back.
         hold_high(&drawing.scene.scratch, &tables.grip_force_limit);
         negate(&tables.grip_force_limit);
@@ -162,11 +162,9 @@ pub fn drive_grip_forces(
     if car.all_wheels_off.get() != 0 {
         return;
     }
-    car.eased_yaw_spin.set_bits(x87::loaded(&car.spin[1]));
+    car.eased_yaw_spin.set(x87::loaded(&car.spin[1]));
     let old = car.eased_yaw_spin.bits();
-    numbers
-        .grip_change
-        .set_bits(x87::sub(old, &car.grip_force_sum));
+    numbers.grip_change.set(x87::sub(old, &car.grip_force_sum));
     ease_zero(&numbers.grip_change, &tables.grip_ease_step);
     ease_yaw_twist(car, tables, numbers, old, scene);
 }

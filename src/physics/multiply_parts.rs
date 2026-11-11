@@ -14,6 +14,6 @@ pub fn multiply_parts(
     out: &(impl Cells + ?Sized),
 ) {
     for k in 0..3 {
-        out.set_bits(k, x87::mul(a.bits(k), b.bits(k)));
+        out.set_bits(k, x87::mul(a.bits(k), b.bits(k)).to_bits());
     }
 }

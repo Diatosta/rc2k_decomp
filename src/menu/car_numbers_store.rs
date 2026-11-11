@@ -1,9 +1,8 @@
 //! The lists of car numbers the options file holds, out of RAL.EXE's image (IDA 0x755258 ..
-//! 0x7554C0; phase 7, typed): the numbers of the cars that can be chosen in two lists
+//! 0x7554C0): the numbers of the cars that can be chosen in two lists
 //! (`saves::rebuild_car_lists` makes the car pointers of `menu::lists_store` from them) and the two
 //! scratch tables `menu::shuffle_drivers` works in. A `#[repr(C)]` struct with the image's layout, one
-//! static; `moved::MOVED` points the range at it. (Split 2026-10-25 from the front end's block
-//! `menu::store`.)
+//! static; `moved::MOVED` points the range at it.
 
 use crate::session::{Bytes, Dword, with_runs};
 
@@ -64,7 +63,7 @@ pub const START: usize = 0x755258;
 /// IDA 0x7554C0, the end of the piece.
 pub const END: usize = 0x7554C0;
 
-/// Where IDA 0x755258 is now (`moved::MOVED`'s home).
+/// Where IDA 0x755258 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn car_numbers_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::menu::owner::MENUS.cars.numbers)

@@ -1,4 +1,4 @@
-//! The roadside tyre change's gauge (converted from `race::tyre_change_gauge`
+//! The roadside tyre change's gauge (from `race::tyre_change_gauge`
 //! 0x41C1D6): a gauge filling over half a second while a button is held, the press
 //! timing the change; the player's device keeps the gauge, the stage and the start's
 //! clock (then the time). The clock, the button, the drawing and the press's time (the

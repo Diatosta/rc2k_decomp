@@ -133,7 +133,7 @@ mod squares {
         let (a, b) = (fl.state.curve_ends[0].bits(), fl.state.curve_ends[1].bits());
         for n in 0..CURVE as usize {
             let i = 8 * n as i32;
-            fl.tables.curve[n].set_bits(x87::circle_curve(i, a, b, i < 0x400));
+            fl.tables.curve[n].set(x87::circle_curve(i, a, b, i < 0x400));
         }
         for n in 0..RADII as usize {
             super::circle_cells(
@@ -211,7 +211,7 @@ impl<'a> Shapes<'a> {
         let (a, b): (u32, u32) = (self.curve_a.bits(), self.curve_b.bits());
         for n in 0..CURVE as usize {
             let i = 8 * n as i32;
-            self.curve[n].set_bits(x87::circle_curve(i, a, b, i < 0x400));
+            self.curve[n].set(x87::circle_curve(i, a, b, i < 0x400));
         }
         for n in 0..RADII as usize {
             circle_cells(
@@ -263,8 +263,8 @@ fn windscreen_drops_with(
                     rc2k_core::effects::shapes::scaled(f32::from_bits(v), &by).to_bits()
                 } else {
                     match by.as_slice() {
-                        [b] => x87::mul(v, b),
-                        [b, c] => x87::mul2(v, b, c),
+                        [b] => x87::mul(v, b).to_bits(),
+                        [b, c] => x87::mul2(v, b, c).to_bits(),
                         _ => unreachable!(),
                     }
                 };

@@ -21,9 +21,12 @@ pub fn adjugate_matrix(matrix: &(impl Cells + ?Sized), out: &(impl Cells + ?Size
     let get = |o: u32| matrix.bits(o as usize / 4);
     let put = |o: u32, v: u32| out.set_bits(o as usize / 4, v);
     for (to, [a, b, c, d]) in COFACTORS {
-        put(to, x87::product_difference(get(a), get(b), get(c), get(d)));
+        put(
+            to,
+            x87::product_difference(get(a), get(b), get(c), get(d)).to_bits(),
+        );
     }
     for o in [0x30, 0x34, 0x38] {
-        put(o, x87::negated(get(o)));
+        put(o, x87::negated(get(o)).to_bits());
     }
 }

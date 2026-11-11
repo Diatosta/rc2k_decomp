@@ -18,7 +18,7 @@ use crate::menu::screen_loop::{Asking, Callee, Entry, List, Screen, Step};
 
 fn set_first_item(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
-    let title = if menus.screens.state.menus.which_title.get() == 1 {
+    let title = if menus.screens.state.menus.which_title.is_set() {
         0x138
     } else {
         0x139

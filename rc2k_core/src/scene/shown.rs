@@ -1,4 +1,4 @@
-//! Whether and how an object of the scene is drawn (converted 2026-10-21 from
+//! Whether and how an object of the scene is drawn (from
 //! `scene::draw_shown_object` 0x4503A5 with its inlined tests `scene::object_hidden_by_kind`
 //! 0x4522EA and `scene::object_hidden` 0x4503DD, and from `scene::draw_scene_object`
 //! 0x451E3E): the race's tests that hide an object, the menus' kind bytes, the texture set
@@ -16,7 +16,7 @@ pub const OTHER_SET: u32 = 0x108;
 /// face count.
 pub trait RaceObject {
     fn object(&self) -> u32;
-    fn kind_switch(&self) -> u32;
+    fn kind_switch(&self) -> bool;
     fn kind_mode(&self) -> u32;
     fn kind(&self, object: u32) -> u32;
     fn other_way(&self) -> u32;
@@ -32,7 +32,7 @@ pub trait RaceObject {
 /// every object but the only one; and an object without faces.
 pub fn race_shown(o: &impl RaceObject) -> bool {
     let object = o.object();
-    if (o.kind_switch() != 0 || o.kind_mode() == 2) && matches!(o.kind(object), 0x30 | 0x4E) {
+    if (o.kind_switch() || o.kind_mode() == 2) && matches!(o.kind(object), 0x30 | 0x4E) {
         return false;
     }
     let other_way = o.other_way() != 0;
@@ -123,7 +123,7 @@ mod tests {
     #[derive(Clone, Copy, Default)]
     struct Vars {
         object: u32,
-        kind_switch: u32,
+        kind_switch: bool,
         kind_mode: u32,
         kind: u32,
         other_way: u32,
@@ -137,7 +137,7 @@ mod tests {
         fn object(&self) -> u32 {
             self.object
         }
-        fn kind_switch(&self) -> u32 {
+        fn kind_switch(&self) -> bool {
             self.kind_switch
         }
         fn kind_mode(&self) -> u32 {

@@ -13,7 +13,7 @@ pub fn list_take_key() -> u8 {
     if key == 0 {
         crate::system::sleep::sleep(1);
     } else {
-        // Converted: `rc2k_core::menu::list_menu::repeats`.
+        // The logic is in `rc2k_core::menu::list_menu::repeats`.
         let pages = &crate::install::owner::install().pages;
         let repeated = key == pages.last_key.get();
         let (mut frame, mut moved) = (0, 0);

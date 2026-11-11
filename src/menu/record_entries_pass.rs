@@ -11,7 +11,7 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 // hhmm
 // g_cheats
-/// The steps of `rc2k_core::menu::bests::record_entries`: their Rust versions.
+/// The steps of `rc2k_core::menu::bests::record_entries`.
 struct Entries<'a>(&'a Menus);
 
 impl rc2k_core::menu::bests::RecordEntries for Entries<'_> {
@@ -22,7 +22,7 @@ impl rc2k_core::menu::bests::RecordEntries for Entries<'_> {
         crate::menu::clear_record_entries::clear_record_entries(screens)
     }
 
-    fn set_entered(&mut self, on: u32) {
+    fn set_entered(&mut self, on: bool) {
         self.0.screens.event.any_time_qualified.set(on);
     }
 
@@ -50,6 +50,6 @@ pub fn record_entries_pass(menus: &Menus) -> Result<(), Refused> {
     if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());
     }
-    // Converted: `rc2k_core::menu::bests::record_entries`.
+    // The logic is in `rc2k_core::menu::bests::record_entries`.
     rc2k_core::menu::bests::record_entries(players.len() as u32, &mut Entries(menus))
 }

@@ -24,7 +24,10 @@ pub fn stall_at(tables: &PhysicsTables, v: &[&dyn Cell32]) {
     put(3, rounded(vector_length(&v[0..3])));
     let zero: u32 = ZERO;
     if compare_full(get(3), zero) & 0x4000 == 0 {
-        put(7, ext_div2(dot_product(&v[4..7], &v[0..3]), get(3), get(3)));
+        put(
+            7,
+            ext_div2(dot_product(&v[4..7], &v[0..3]), get(3), get(3)).to_bits(),
+        );
     }
     if abs_compare(get(3), tables.stall_speed.bits()) & 0x100 != 0 {
         return;

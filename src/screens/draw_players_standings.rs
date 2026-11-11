@@ -33,7 +33,7 @@ pub fn draw_players_standings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<
         }
         *total = CaptionTables::total_of(menus, row)?.get();
     }
-    // Converted: `rc2k_core::screens::players_results::standings`.
+    // The logic is in `rc2k_core::screens::players_results::standings`.
     let player = |row: usize| menus.play.players.players[row].get();
     let rows: Vec<
         rc2k_core::screens::players_results::Standing<crate::screens::game_screen::HeldText>,

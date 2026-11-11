@@ -1,4 +1,4 @@
-//! Where a car may be put on the line (Converted from
+//! Where a car may be put on the line (from
 //! `physics::reset_point_blocked` 0x43F0DF, `physics::reset_car` 0x43EFEF (its search),
 //! `drive::checkpoint_taken` 0x4375A5 and `drive::car_near_checkpoint` 0x4375F2): a
 //! checkpoint too near the stage's ends or another car is no place for it. Every

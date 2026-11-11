@@ -1,10 +1,10 @@
-//! A player's race messages as the receiving thread keeps them (converted 2026-10-21 from
+//! A player's race messages as the receiving thread keeps them (from
 //! `net::store_received` 0x419677 and `net::send_message` 0x41736D): from the player's
 //! block +0x34, a count, 0x40 records of 0x100 bytes (+0 the sequence byte doubled, +1 the
 //! length, +2 the bytes), at +0x4004 the oldest sequence still wanted, +0x4005 the newest
 //! seen, +0x4008 the time of the last message; kept in sequence order. A race message's
 //! sequence byte has its top bit set. Each race step takes the messages over
-//! (`net::copy_received` 0x4173A0, converted the same day): the inbox's first 0x400C bytes
+//! (`net::copy_received` 0x4173A0): the inbox's first 0x400C bytes
 //! copied after it for the race, the inbox emptied.
 
 use crate::Invalid;

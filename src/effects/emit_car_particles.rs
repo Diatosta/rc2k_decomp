@@ -32,11 +32,11 @@ pub fn emit_car_particles(effects: &Effects, o: &'static CarEffects) -> Result<(
     let k = read_bits(&effects.kinds.emitter.place_k);
     let place = |wheel: usize, axis: usize| &o.records[wheel].place[axis];
     let z1 = x87::int_times(o.axles[0].get() as i32, k[0]);
-    place(0, 2).set_bits(z1);
-    place(1, 2).set_bits(z1);
+    place(0, 2).set_bits(z1.to_bits());
+    place(1, 2).set_bits(z1.to_bits());
     let z2 = x87::int_times(o.axles[1].get() as i32, k[1]);
-    place(2, 2).set_bits(z2);
-    place(3, 2).set_bits(z2);
+    place(2, 2).set_bits(z2.to_bits());
+    place(3, 2).set_bits(z2.to_bits());
     let (x, left) = x87::int_times_plus_and_negated(o.axles[2].get() as i32, k[2], k[3]);
     place(1, 0).set_bits(x);
     place(3, 0).set_bits(x);
@@ -84,7 +84,8 @@ pub fn emit_car_particles(effects: &Effects, o: &'static CarEffects) -> Result<(
         effects.kinds.emitter.record.set(n as u32);
         emit_wheel_particles(effects, &o.records[n], o)?;
     }
-    let sides: [u32; 6] = std::array::from_fn(|n| x87::loaded(&effects.kinds.emitter.body_k[n]));
+    let sides: [u32; 6] =
+        std::array::from_fn(|n| x87::loaded(&effects.kinds.emitter.body_k[n])).map(f32::to_bits);
     write_bits(
         &effects.kinds.emitter.side_a,
         [sides[0], sides[1], sides[2]],

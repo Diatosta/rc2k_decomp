@@ -7,7 +7,7 @@
 //! 2. No code of RAL.EXE runs. Every call the game's data makes by address (menus, draw
 //!    lists, frames, thread routines) and every one Rust still makes goes to its Rust
 //!    version (`menu::table_calls`, `crate::routes`); an address
-//!    with none ends the program, "not ported" (owner, 2026-10-23).
+//!    with none ends the program, "not ported".
 //! 3. `on_exception` only reports the fault, with the place and the stack's return
 //!    addresses, and ends the program.
 //!
@@ -28,7 +28,7 @@ use std::sync::atomic::Ordering;
 
 // ---- calls by address that are done or answered by SDL ----
 
-/// The game's empty functions (a lone `retn`; from IDA, 2026-10-19; and 0x48558A, `pusha;
+/// The game's empty functions (a lone `retn`; and 0x48558A, `pusha;
 /// popa; retn` in a draw list): a call to one is done.
 const LONE_RETN: [usize; 119] = [
     0x40AC76, 0x40CB09, 0x40CF32, 0x40D27E, 0x41E2F5, 0x428D74, 0x428DB2, 0x429823, 0x429B17,
@@ -173,7 +173,7 @@ pub fn leave_on_close() -> ! {
 }
 
 /// A function of the game's not ported, reached from Rust (`from`): the program
-/// ends, naming it (owner, 2026-10-23: nothing not ported passes unnoticed).
+/// ends, naming it: nothing not ported passes unnoticed.
 pub fn not_ported(at: usize, from: &str) -> ! {
     finish(&format!("not ported: {at:#x}, called from {from}"), 1)
 }
@@ -313,7 +313,7 @@ fn check_machine(r: &Context) {
     rust("system::read_windows_version");
     crate::system::read_windows_version::read_windows_version(system);
     // `CoInitialize` (no COM is used on this thread).
-    // `memory::open_own_heap` (0x40298A): the own heap was removed (2026-11-07).
+    // `memory::open_own_heap` (0x40298A): the game's own heap is not used.
     rust("system::set_error_mode");
     crate::system::set_error_mode::set_error_mode();
 }
@@ -484,8 +484,7 @@ fn choose_screen_modes(r: &Context) {
     crate::gfx::install_converters::install_converters(&gfx.pixel.converters, system());
 }
 
-/// What the window's procedure and the key thread tell the main loop (the films play since
-/// 2026-10-19: `film.rs`).
+/// What the window's procedure and the key thread tell the main loop (the films play from `film.rs`).
 fn stand_in_window_state() {
     let flags = &system().session.flags;
     stand_in("the window is the active one", &flags.window_active, 1);
@@ -526,7 +525,7 @@ fn shut_down(r: &Context) {
     }
     rust("system::restore_error_mode");
     crate::system::restore_error_mode::restore_error_mode(system());
-    // `memory::free_own_heap` (0x4029DB): the own heap was removed (2026-11-07).
+    // `memory::free_own_heap` (0x4029DB): the game's own heap is not used.
     // `CoUninitialize` (see `CoInitialize`).
     rust("fatal::show_report_at_exit");
     crate::fatal::show_report_at_exit::show_report_at_exit();

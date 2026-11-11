@@ -1,6 +1,6 @@
 //! The audio thread's levels: which entry of the volume table a volume, a pan or the
 //! master volume takes, a buffer's frequency, the kept master volume, the samples' work
-//! buffer's size and the EAX rooms' entries (converted 2026-10-21 from
+//! buffer's size and the EAX rooms' entries (from
 //! `audio::set_buffer_volume` 0x40B99D, `audio::set_buffer_pan` 0x40B9C6,
 //! `audio::set_buffer_frequency` 0x40B97A, `audio::set_master_volume` 0x40A740,
 //! `audio::set_stream_volume` 0x40C4B2, `audio::volume_command` 0x40B016,

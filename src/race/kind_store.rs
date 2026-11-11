@@ -7,7 +7,7 @@ use crate::session::Dword;
 #[derive(rc2k_derive::Cells)]
 pub struct KindTables {
     /// +0xc8 (0x5C56EC): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_c8: [Dword; 7],
+    pub unused_c8: [Dword; 7],
     /// +0xe4 (0x5C5708): `dword_5C5708`: a known kind's first picture, 0x22 kinds (`scene::known_kind_picture`).
     pub known_kind_pictures: [Dword; 34],
     /// +0x16c (0x5C5790): `g_knownObjectKinds`: the 0x22 known kinds (`scene::known_kind`, `scene::load_object`, `scene::list_object_face`).
@@ -24,7 +24,7 @@ pub struct KindTables {
     pub car_icon_numbers: [Dword; 34],
     /// +0x49c (0x5C5AC0): `dword_5C5AC0`: per kind, non-zero when it has views / keeps the light figure (`drive::next_camera_view`, `physics::update_camera`, `race::race_shell`).
     pub kind_has_views: [Dword; 34],
-    /// +0x524 (0x5C5B48): `dword_5C5B48`: per kind, non-zero when the car collects mud (`physics::turn_wheel_angles` adds the mud amounts only for such kinds; the amounts are `mud_thrown_in` / `mud_splashes_in`, used by `race::update_mud_texture`).
+    /// +0x524 (0x5C5B48): `dword_5C5B48`: per kind, non-zero when the car collects mud (`physics::accumulate_mud` adds the mud amounts only for such kinds; the amounts are `mud_thrown_in` / `mud_splashes_in`, used by `race::update_mud_texture`).
     pub kind_gets_mud: [Dword; 34],
     /// +0x5ac (0x5C5BD0): `dword_5C5BD0`: per kind, non-zero when its hits sound (`physics::sound_hit_parts`).
     pub kind_hit_sounds: [Dword; 34],
@@ -72,7 +72,7 @@ mod tests {
             piece_addr(),
             crate::framework::game_addr(crate::framework::rva(START))
         );
-        assert_eq!(offset_of!(KindTables, unknown_c8), 0x5C56EC - START);
+        assert_eq!(offset_of!(KindTables, unused_c8), 0x5C56EC - START);
         assert_eq!(offset_of!(KindTables, known_object_kinds), 0x5C5790 - START);
         assert_eq!(offset_of!(KindTables, kind_has_views), 0x5C5AC0 - START);
     }

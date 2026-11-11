@@ -1,4 +1,4 @@
-//! The picture converters' table and the MMX ones (converted 2026-10-21 from
+//! The picture converters' table and the MMX ones (from
 //! `gfx::install_converters` 0x407062 and the eight row converters 0x4070F9 .. 0x407484:
 //! `gfx::rows_565_mmx`, `rows_555_mmx`, `rows_1555_mmx`, `rows_4444_mmx` and their 3DNow
 //! twins).

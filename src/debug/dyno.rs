@@ -1,5 +1,5 @@
-//! The dyno graph (the "Dyno" tab; RAL.EXE 0x428DB3 .. 0x4291C9, no references to it, IDA
-//! 2026-10-30). For each forward gear, speeds from 0 to 71 (`flt_5F36C8`): the driven speeds set,
+//! The dyno graph (the "Dyno" tab; RAL.EXE 0x428DB3 .. 0x4291C9, no references to it).
+//! For each forward gear, speeds from 0 to 71 (`flt_5F36C8`): the driven speeds set,
 //! `physics::revs_from_wheels`, and below the engine's limit full throttle's
 //! 0x43CAAB (`torque`, `physics::drive_force` but for the cut's own check); the colours say
 //! where each point lies against the gearbox's shift points. Then the drag at each speed, the
@@ -114,22 +114,25 @@ fn torque(race: &Race) {
     let shared = &race.shared;
     let course = &race.course;
     engine_torque(race, crate::scene::owner::scene());
-    shared
-        .physics_tables
-        .drive_ratio
-        .set_bits(sum_times_int_over_minus(
+    shared.physics_tables.drive_ratio.set_bits(
+        sum_times_int_over_minus(
             shared.physics_tables.engine_force.bits(),
             shared.physics_tables.engine_torque.bits(),
             shared.car.throttle.get() as i32,
             course.numbers.k256.bits(),
-        ));
+        )
+        .to_bits(),
+    );
     let gear = shared.car.gear.get() as i32;
-    shared.physics_tables.drive_torque.set_bits(mul_div2(
-        shared.physics_tables.drive_ratio.bits(),
-        GEAR.drive_torque_figure.bits(),
-        shared.physics_tables.gear_ratios[(gear + 1) as usize].bits(),
-        course.numbers.k10000.bits(),
-    ));
+    shared.physics_tables.drive_torque.set_bits(
+        mul_div2(
+            shared.physics_tables.drive_ratio.bits(),
+            GEAR.drive_torque_figure.bits(),
+            shared.physics_tables.gear_ratios[(gear + 1) as usize].bits(),
+            course.numbers.k10000.bits(),
+        )
+        .to_bits(),
+    );
     if shared.car.drive_cut_steps.get() != 0 {
         shared.physics_tables.drive_torque.set_bits(0);
     }

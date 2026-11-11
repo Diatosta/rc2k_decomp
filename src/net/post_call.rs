@@ -34,7 +34,7 @@ pub fn post_call(net: &Net, code: fn() -> u32) -> u32 {
             }
             crate::system::sleep::sleep(100);
             crate::platform::pump_messages_now();
-            if system().session.flags.quitting.get() == 1 {
+            if system().session.flags.quitting.is_set() {
                 break;
             }
         }

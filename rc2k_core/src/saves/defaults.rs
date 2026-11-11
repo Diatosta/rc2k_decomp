@@ -1,5 +1,5 @@
-//! Made-up best times and scores, for a game without `var\hst.dat` (converted 2026-10-21
-//! from `saves::default_stage_times` 0x47C7FE, `default_stage_times_alt` 0x47C86F,
+//! Made-up best times and scores, for a game without `var\hst.dat`
+//! (from `saves::default_stage_times` 0x47C7FE, `default_stage_times_alt` 0x47C86F,
 //! `default_class_times` 0x47C8E3, `default_best_scores` 0x47C923,
 //! `default_championship_times` 0x47C973, `default_checkpoint_times` 0x47CA46, and their
 //! plain helpers `default_time_entry` 0x47CB74, `saves::random_driver`, 0x47CDA7,

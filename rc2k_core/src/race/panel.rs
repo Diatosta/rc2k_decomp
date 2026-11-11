@@ -1,8 +1,8 @@
-//! The panel's values of a view (converted from `race::panel_values`
-//! 0x45AB5A; its motion Converted from `race::panel_motion` 0x45AE1D). Floats as
+//! The panel's values of a view (from `race::panel_values`
+//! 0x45AB5A; its motion from `race::panel_motion` 0x45AE1D). Floats as
 //! the float pass keeps them: the x87's stack in `f64`, the stored values rounded to `f32`
 //! (exact at the game's double precision; `fldpi`'s 64-bit pi is kept exactly in
-//! `times_pi`). The overlay's stage parts Converted from `race::init_overlay`
+//! `times_pi`). The overlay's stage parts from `race::init_overlay`
 //! 0x45A9DE (their miles stay the x87's, asked through a closure).
 
 use crate::math::geometry::fistp;

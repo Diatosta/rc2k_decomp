@@ -16,9 +16,9 @@ use crate::menu::owner::Menus;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ActionResult {
     /// The action asks to leave the screen (and, with its question, to be asked about it).
-    pub ask_leave: u32,
+    pub ask_leave: bool,
     /// The event the screen belongs to is over.
-    pub event_over: u32,
+    pub event_over: bool,
     /// The action leaves the screen.
     pub leave_screen: bool,
     /// The event flow behind the screen was left.
@@ -37,7 +37,7 @@ pub fn run_item_action(
     let screens = &menus.screens;
     let items = menu.items();
     let highlighted: u32 = screens.loop_flags.item.get();
-    // Converted: `rc2k_core::menu::items::highlighted_item`. It asks for item n's type only
+    // The logic is in `rc2k_core::menu::items::highlighted_item`. It asks for item n's type only
     // while item n is there, and for the x of one past the last: the end mark after it.
     let found = rc2k_core::menu::items::highlighted_item(
         highlighted,
@@ -60,10 +60,10 @@ pub fn run_item_action(
         screens.loop_flags.item.set(item.fixed().id);
     }
     Ok(ActionResult {
-        ask_leave: screens.loop_flags.ask_leave.get(),
-        event_over: screens.event.event_over.get(),
-        leave_screen: screens.loop_flags.leave_screen.get() == 1,
-        event_left: screens.loop_flags.event_left.get() == 1,
+        ask_leave: screens.loop_flags.ask_leave.is_set(),
+        event_over: screens.event.event_over.is_set(),
+        leave_screen: screens.loop_flags.leave_screen.is_set(),
+        event_left: screens.loop_flags.event_left.is_set(),
         action_mode: screens.draw_work.action_mode.get(),
     })
 }

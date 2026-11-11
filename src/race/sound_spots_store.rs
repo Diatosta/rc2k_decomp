@@ -18,7 +18,7 @@ pub struct SoundSpotBlock {
     /// +0xc (0x6D18D4): `g_groupsWhich` (`scene::list_object_face`, `race::car_draw`); now each view's (`CarDrawState::groups_which`); unused.
     pub groups_which: Dword,
     /// +0x10 (0x6D18D8): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_10: Dword,
+    pub unused_10: Dword,
     /// +0x14 (0x6D18DC): `dword_6D18DC`: set to 1 by the original (unused by Rust).
     pub flag_18dc: Dword,
     /// +0x18 (0x6D18E0): `dword_6D18E0`: set to 1 by the original (a reading, unused by Rust).
@@ -28,7 +28,7 @@ pub struct SoundSpotBlock {
     /// +0x20 (0x6D18E8): `g_lessOne`, `flt_6D18EC`: the view window's size less one (`scene::set_view_window`), read only by code nothing reaches (0x45BF11); no longer written.
     pub less_one: [Float; 2],
     /// +0x28 (0x6D18F0): IDA reads and writes it as 64-bit values only in code outside any function (0x45C40E .. 0x45C4CA, dead); the port never reaches it.
-    pub unknown_28: [Dword; 104],
+    pub unused_28: [Dword; 104],
     /// +0x1c8 (0x6D1A90): `dword_6D1A90[]`: sound by object kind, 4-bit index (`physics::place_sound_object`).
     pub object_kind_sounds: [Dword; 16],
     /// +0x208 (0x6D1AD0): `dword_6D1AD0` (`physics::car_physics_step`).
@@ -54,7 +54,7 @@ pub struct SoundSpotBlock {
     /// +0x4fc (0x6D1DC4): `g_soundSpotCount`: spots made this frame (`race::sound_spots`).
     pub sound_spot_count: Dword,
     /// +0x500 (0x6D1DC8): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_500: [Dword; 3],
+    pub unused_500: [Dword; 3],
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of

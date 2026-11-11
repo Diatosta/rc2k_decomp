@@ -275,7 +275,7 @@ fn paste(race: &Race) -> Result<(), Refused> {
 fn another_replay(race: &Race) -> Result<(), Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
-    if replay.replay_view.last_race_viewed.get() == 1 {
+    if replay.replay_view.last_race_viewed.is_set() {
         return Ok(());
     }
     crate::race::viewer_tidy_stage::viewer_tidy_stage(race)?;
@@ -283,7 +283,7 @@ fn another_replay(race: &Race) -> Result<(), Refused> {
         let slot =
             crate::menu::replay_slot_loop::replay_slot_loop(crate::menu::owner::menus(), false)?;
         if slot == u32::MAX {
-            if shared.replay_file.replay_open.get() == 1 {
+            if shared.replay_file.replay_open.is_set() {
                 return crate::race::viewer_load_stage::viewer_load_stage(race);
             }
             crate::install::owner::install().pages.list_leave.set(1);

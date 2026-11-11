@@ -549,7 +549,7 @@ fn run(film: &mut Film) -> u8 {
         crate::platform::pump_messages_now();
         // The window closed: the film ends (the original played on without a window; its
         // pump's carry for `WM_QUIT` is not looked at here). Fixed bug.
-        if system().session.flags.quitting.get() == 1 {
+        if system().session.flags.quitting.is_set() {
             break;
         }
         // the frame's time, as the stream's Update waits for it

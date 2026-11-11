@@ -1,4 +1,4 @@
-//! The controller page's learning of a control (converted 2026-10-21 from
+//! The controller page's learning of a control (from
 //! `screens::learn_axis` 0x46B131's rules).
 //!
 //! While a control is being learnt (up to 3 s from its start), a wheel's pedals (a player

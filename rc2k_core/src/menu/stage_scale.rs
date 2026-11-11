@@ -1,4 +1,4 @@
-//! The stage's record times scaled for the section (converted 2026-10-21 from
+//! The stage's record times scaled for the section (from
 //! `menu::scale_stage_times` 0x46354E, its `fild`, `fmul`, `fistp`).
 //!
 //! Exact: a time loaded whole times a float is at most 31 + 24 significant bits; at the

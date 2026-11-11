@@ -1,4 +1,4 @@
-//! A force record's push and twist on a car (Converted from
+//! A force record's push and twist on a car (from
 //! `physics::apply_force` 0x45FAE1 and `physics::apply_torque` 0x45FB82; the records'
 //! counts of `apply_forces` 0x43F566, `apply_torques` 0x43F6BF and `clear_records`
 //! 0x43F3A6, the last emptying the first six dwords of each). A force record (0x20 bytes): the force at +0, the point it acts at at

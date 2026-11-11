@@ -1,5 +1,5 @@
 //! A device record's controller acquired: which, its settings, and the properties'
-//! figures (converted 2026-10-21 from `input::acquire_device` 0x408473 and
+//! figures (from `input::acquire_device` 0x408473 and
 //! `input::begin_force` 0x40945D's gain).
 //!
 //! The record's settings: the kind (2 when 0, 3 for a controller of more than three axes),

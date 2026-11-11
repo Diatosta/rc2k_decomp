@@ -25,7 +25,7 @@ pub fn entry() -> Entry {
     let menus = menus();
     Entry {
         length: length(),
-        entering: menus.screens.option_work.typing.get(),
+        entering: menus.screens.option_work.typing.is_set(),
         backup: std::array::from_fn(|i| menus.play.names.text_backup.get(i)),
     }
 }
@@ -70,7 +70,7 @@ pub fn begin_logged(
     at: impl Into<crate::place::BytePlace>,
     log: bool,
 ) -> Result<(), crate::errors::BadInput> {
-    // Converted: `rc2k_core::menu::text_entry::Entry::begin`.
+    // The logic is in `rc2k_core::menu::text_entry::Entry::begin`.
     let at = at.into();
     let mut text = field(at)?;
     with_entry(menus, |e| e.begin(&mut text));

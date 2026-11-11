@@ -1,4 +1,4 @@
-//! The replays' run-length packing (converted 2026-10-21 from `drive::unpack_rle`
+//! The replays' run-length packing (from `drive::unpack_rle`
 //! 0x41F080): a signed count byte; below 0, that many bytes copied; above 0, the next
 //! byte repeated count + 1 times; 0 ends it.
 

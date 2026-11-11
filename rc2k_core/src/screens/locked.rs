@@ -1,4 +1,4 @@
-//! The notes a menu puts up for a choice that is not open yet (converted 2026-10-21 from
+//! The notes a menu puts up for a choice that is not open yet (from
 //! `screens::note_locked_item_3` 0x4AAAB8 and `note_locked_stage` 0x48ADCE): a message box,
 //! unless a cheat opens everything.
 

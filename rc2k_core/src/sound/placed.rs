@@ -1,5 +1,5 @@
-//! A sound placed around the listener, its whole-number rules (converted 2026-10-21 from
-//! `sound::play_placed_sound` 0x40F11C; its products and the angle stay the hook's x87,
+//! A sound placed around the listener, its whole-number rules (from
+//! `sound::play_placed_sound` 0x40F11C; its products and the angle stay with the caller x87,
 //! whose `fistp` and `fpatan` the results go through).
 //!
 //! Without 3D the volume (the request's x the sample's factor x the request's factor) is

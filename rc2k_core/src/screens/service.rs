@@ -1,6 +1,6 @@
-//! The service area's readouts (converted 2026-10-20): `screens::draw_repair_times`
+//! The service area's readouts: `screens::draw_repair_times`
 //! 0x4A70D7 (sixteen repair times as clocks) and `screens::draw_service_time` 0x4A5DE7 (the
-//! time available and left, or the overrun and its penalty); 2026-10-21 the layout of
+//! time available and left, or the overrun and its penalty); also the layout of
 //! `screens::draw_service_area` 0x4A5FA2 (its title, labels, damage bars and sprites).
 
 use crate::screens::screen::Screen;
@@ -91,7 +91,7 @@ pub fn service_time<S: Screen<Font = Font, Work = Work>>(
     readout(s, (0x491, Font::Penalty), penalty as i32, RIGHT_X)
 }
 
-/// The service area's fonts (converted 2026-10-21 from `screens::draw_service_area`
+/// The service area's fonts (from `screens::draw_service_area`
 /// 0x4A5FA2, whose layout follows).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AreaFont {

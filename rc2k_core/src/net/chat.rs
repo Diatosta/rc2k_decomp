@@ -1,4 +1,4 @@
-//! The lobby's chat and settings (converted 2026-10-21 from `net::clear_chat` 0x419411
+//! The lobby's chat and settings (from `net::clear_chat` 0x419411
 //! and `net::setting_key` 0x416C76): eight lines of text ended by line feeds in 0x300
 //! bytes.
 

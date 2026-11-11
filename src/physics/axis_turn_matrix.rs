@@ -20,18 +20,18 @@ pub fn axis_turn_matrix(course: &Course, out: &(impl Cells + ?Sized)) {
         course.lists.turn_cosine.set_bits(c);
         course.lists.turn_sine.set_bits(s);
         let t = one_less(course.lists.turn_cosine.bits());
-        course.lists.turn_one_less_cosine.set_bits(t);
+        course.lists.turn_one_less_cosine.set_bits(t.to_bits());
         let (x, y, z) = (
             course.lists.spin_axis[0].bits(),
             course.lists.spin_axis[1].bits(),
             course.lists.spin_axis[2].bits(),
         );
-        course.lists.turn_product_xz.set_bits(x87::mul2(t, x, z));
-        course.lists.turn_product_xy.set_bits(x87::mul2(t, x, y));
-        course.lists.turn_product_yz.set_bits(x87::mul2(t, y, z));
-        course.lists.turn_sine_x.set_bits(x87::mul(x, s));
-        course.lists.turn_sine_y.set_bits(x87::mul(y, s));
-        course.lists.turn_sine_z.set_bits(x87::mul(z, s));
+        course.lists.turn_product_xz.set(x87::mul2(t, x, z));
+        course.lists.turn_product_xy.set(x87::mul2(t, x, y));
+        course.lists.turn_product_yz.set(x87::mul2(t, y, z));
+        course.lists.turn_sine_x.set(x87::mul(x, s));
+        course.lists.turn_sine_y.set(x87::mul(y, s));
+        course.lists.turn_sine_z.set(x87::mul(z, s));
         let (p1, p2, p3) = (
             course.lists.turn_product_xz.bits(),
             course.lists.turn_product_xy.bits(),
@@ -43,18 +43,18 @@ pub fn axis_turn_matrix(course: &Course, out: &(impl Cells + ?Sized)) {
             course.lists.turn_sine_z.bits(),
         );
         let put = |o: usize, v: u32| out.set_bits(o / 4, v);
-        put(0x00, abs_sqrt_times_plus(x, t, c));
-        put(0x04, x87::add(p2, q3));
-        put(0x08, x87::sub(p1, q2));
-        put(0x10, x87::sub(p2, q3));
-        put(0x14, abs_sqrt_times_plus(y, t, c));
-        put(0x18, x87::add(p3, q1));
-        put(0x20, x87::add(p1, q2));
-        put(0x24, x87::sub(p3, q1));
-        put(0x28, abs_sqrt_times_plus(z, t, c));
+        put(0x00, abs_sqrt_times_plus(x, t, c).to_bits());
+        put(0x04, x87::add(p2, q3).to_bits());
+        put(0x08, x87::sub(p1, q2).to_bits());
+        put(0x10, x87::sub(p2, q3).to_bits());
+        put(0x14, abs_sqrt_times_plus(y, t, c).to_bits());
+        put(0x18, x87::add(p3, q1).to_bits());
+        put(0x20, x87::add(p1, q2).to_bits());
+        put(0x24, x87::sub(p3, q1).to_bits());
+        put(0x28, abs_sqrt_times_plus(z, t, c).to_bits());
         for o in [0x30, 0x34, 0x38] {
             put(o, 0);
         }
-        put(0x3C, x87::loaded(1.0f32.to_bits()));
+        put(0x3C, x87::loaded(1.0f32.to_bits()).to_bits());
     }
 }

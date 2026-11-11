@@ -1,14 +1,14 @@
 //! `menu::overall_rally_results_loop` (0x466B21): the loop of the fourth results screen after a
 //! stage, the rally's standings so far for all classes.
 //!
-//! Named `screen_466b21_loop` until then.
+//!
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`): before the loop it sets the string of the menu's first item to 0x138 if
 //! `state.menus.which_title` is 1 and to 0x139 otherwise, as the stage results screen does;
 //! its background comes from `menu::load_background`, after which a set carry flag is fatal
 //! error 0x80712345; leaving is asked about, and a "no" sets the screen up again.
-//! If `state.menus.standings_shown` is 1 when the screen is left, nothing more is done: no question,
+//! If `state.menus.standings_shown` is set when the screen is left, nothing more is done: no question,
 //! and the highlight is not saved.
 
 use crate::errors::Refused;
@@ -19,7 +19,7 @@ use crate::menu::screen_loop::{Asking, Callee, Entry, List, Screen, Step};
 
 fn set_first_item(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
-    let title = if menus.screens.state.menus.which_title.get() == 1 {
+    let title = if menus.screens.state.menus.which_title.is_set() {
         0x138
     } else {
         0x139

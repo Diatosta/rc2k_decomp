@@ -1,4 +1,4 @@
-//! The car choice's own steps (IDA, 2026-10-15): the current player's car found in the
+//! The car choice's own steps: the current player's car found in the
 //! carousel's entries, and the carousel turned to the next or the previous car.
 
 use crate::errors::{BadInput, Refused};
@@ -25,7 +25,7 @@ pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
     if entry(0)? == u32::MAX {
         return Err(BadInput("no carousel entries").into());
     }
-    // Converted: `rc2k_core::menu::cars::find_car`, over the entries' cars.
+    // The logic is in `rc2k_core::menu::cars::find_car`, over the entries' cars.
     let mut cars = Vec::new();
     let mut n = 0;
     loop {
@@ -49,7 +49,7 @@ pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
 /// is not counted: with the direction 1 the front moves on (round the count); then the
 /// direction 1, the angle 0, the shown car on (after the last entry to 0), and
 /// `dword_755561` 0.
-/// The carousel turned (`menu::next_choice_car` / `previous_choice_car`). Converted:
+/// The carousel turned (`menu::next_choice_car` / `previous_choice_car`). The logic is in
 /// `rc2k_core::menu::cars::turn_carousel`.
 fn turn(menus: &Menus, on: bool) {
     use rc2k_core::menu::cars::{Carousel, turn_carousel};
@@ -72,7 +72,7 @@ fn turn(menus: &Menus, on: bool) {
     menus.screens.state.carousel.direction.set(c.turn.way);
     menus.screens.state.carousel.angle.set(c.turn.step);
     menus.screens.event.shown_car.set(c.shown);
-    menus.screens.loop_flags.leave_screen.set(0u32);
+    menus.screens.loop_flags.leave_screen.set(false);
 }
 
 pub fn next_choice_car(menus: &Menus) {

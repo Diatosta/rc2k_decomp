@@ -1,5 +1,5 @@
 //! The players' own settings kept aside while a championship runs (an improvement,
-//! 2026-11-08; not in the original). A championship, started or loaded, works on the four
+//! not in the original). A championship, started or loaded, works on the four
 //! players' records and names: its car choice, gearing, controls and set-ups, and a loaded
 //! one puts the saved game's records over them whole. The original never put the players'
 //! own back, so a championship's choices stayed for every other mode afterwards (and

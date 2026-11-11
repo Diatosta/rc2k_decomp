@@ -1492,7 +1492,7 @@ mod diff {
                 let mut r1 = $t.rng.clone();
                 let want = super::$name($(r1.$g()),*);
                 let mut r2 = $t.rng.clone();
-                let got = plain::$name($(r2.$g()),*);
+                let got = crate::math::x87_reference_a::AsBits::into_bits(plain::$name($(r2.$g()),*));
                 let mut r3 = $t.rng.clone();
                 let shown = ($(r3.$g(),)*);
                 $t.rng = r1;

@@ -19,7 +19,7 @@ use crate::menu::standings::*;
 
 pub fn inspection_pass(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
-    // Converted: `rc2k_core::menu::passes` (who is looked at, the pauses, `goes_on`).
+    // The logic is in `rc2k_core::menu::passes` (who is looked at, the pauses, `goes_on`).
     use rc2k_core::menu::passes;
     let players = counted_players(menus)?;
     for &p in &players {

@@ -1,13 +1,13 @@
-//! The work car's progress along the stage (Converted from
+//! The work car's progress along the stage (from
 //! `physics::start_go_notice` 0x436A4B, `physics::take_split` 0x436900,
 //! `physics::take_split_counted` 0x436833, `physics::off_line_warnings` 0x44148F and
 //! `physics::checkpoint_offset` 0x4415E7, its checks): the start's "go", the splits taken
 //! and the finish, the warnings for a car off the line or turned away from it, and
 //! whether the car's checkpoint has one after it. The checkpoint looked for near the
-//! last one and the next split's point passed (Converted from
+//! last one and the next split's point passed (from
 //! `physics::find_car_checkpoint` 0x44139D and `physics::passed_split_point` 0x44165E;
-//! their x87 distance and angle stay the hooks'). Each field is the car block's field of that
-//! offset (`Car` in `physics::car_store`); the hooks' headers name them.
+//! their x87 distance and angle stay with the callers). Each field is the car block's field of that
+//! offset (`Car` in `physics::car_store`).
 
 use crate::Invalid;
 

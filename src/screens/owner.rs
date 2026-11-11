@@ -1,4 +1,4 @@
-//! Module screens' owner (step 11, owned state): the screens' stores in one struct, reached
+//! Module screens' owner: the screens' stores in one struct, reached
 //! through `screens()` by the code that does not take it as a parameter. (Not
 //! `menu::owner::Screens`, the menu's own group.)
 

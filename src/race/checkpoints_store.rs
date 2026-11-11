@@ -16,7 +16,7 @@ pub struct Checkpoints {
     /// +0xA0C8 (0x9ED800): `g_checkpointAngles`: each link's angle, from +4 (`dword_9ED808` is the third): `race::best_line`, `race::pace_notes`, `physics::passed_split_point`.
     pub angles: [Dword; 5146],
     /// +0xF130 (0x9F2868): nothing reads or writes it (no Rust use, no IDA xref to 0x9F2868 ..; the gap between the angles and the distances).
-    pub unknown_f130: [Dword; 5148],
+    pub unused_f130: [Dword; 5148],
     /// +0x14178 (0x9F78D8): `g_checkpointDistances` (`race::best_line`, `race::pace_notes`, `race::frame_draw`, `race::init_overlay`).
     pub distances: [Dword; 5146],
     /// +0x191e8 (0x9FC940): `g_mapX`: the map's x of each checkpoint (`race::best_line`, `race::map_scroll`).

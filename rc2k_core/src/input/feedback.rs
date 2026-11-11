@@ -1,4 +1,4 @@
-//! One car's force feedback for one device (converted 2026-10-20 from
+//! One car's force feedback for one device (from
 //! `input::update_car_effects` 0x40F347): from the car's physics (its view block) into its
 //! sound object's feedback fields, and six effect requests, all "set" (`input::set_effect`
 //! keeps every register, so each request's numbers are what this plans).

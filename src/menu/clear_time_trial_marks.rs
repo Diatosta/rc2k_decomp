@@ -7,7 +7,7 @@
 use crate::errors::Refused;
 
 pub fn clear_time_trial_marks() -> Result<(), Refused> {
-    // Converted: `rc2k_core::saves::entries::clear_marks`.
+    // The logic is in `rc2k_core::saves::entries::clear_marks`.
     Ok(crate::menu::event_flow::with_stage_times(
         rc2k_core::saves::entries::clear_marks,
     )?)

@@ -1,5 +1,4 @@
-//! The menus, out of RAL.EXE's image: the 98 lists of labels (IDA 0x747AD8 .. 0x74826C, phase 7,
-//! typed) as `#[repr(C)]` cells in the image's layout (`moved::MOVED` points the range at them:
+//! The menus, out of RAL.EXE's image: the 98 lists of labels (IDA 0x747AD8 .. 0x74826C) as `#[repr(C)]` cells in the image's layout (`moved::MOVED` points the range at them:
 //! the screens that draw a menu's labels, and the original's slip that writes into them,
 //! walk them by address), and the 96 menus as handles into `rc2k_core::menu::tables::MENUS`,
 //! the one source of the menus' items (their places, links, functions and starting values).
@@ -1157,7 +1156,7 @@ impl MenuTables {
     }
 }
 
-/// A menu by handle (phase 13, 2026-10-28): its number among `MENUS`' menus, in the image's
+/// A menu by handle: its number among `MENUS`' menus, in the image's
 /// order. The current menu (`LOOP_FLAGS.menu`), the keys menu and the item calls hold
 /// one in place of the menu's address.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

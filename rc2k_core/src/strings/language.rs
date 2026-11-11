@@ -1,5 +1,5 @@
 //! The language's set-up file, `files\<locale>\*.loc` (read by RAL.EXE's `strings::load_language`;
-//! converted 2026-10-20 from `strings::load_language`).
+//! from `strings::load_language`).
 
 use crate::Invalid;
 

@@ -1,4 +1,4 @@
-//! The options pages' small steps (converted 2026-10-21 from the eight volume steps
+//! The options pages' small steps (from the eight volume steps
 //! `menu::music_volume_down` 0x467F48 .. `menu_sounds_b_volume_up` 0x46810A,
 //! `menu::next_screen_mode` 0x46FFEF, the two texture steps 0x47012B / 0x47015B and the
 //! four colour steps 0x471AE4 .. 0x471B7A; the controller pages' steps, `menu::next_controller`

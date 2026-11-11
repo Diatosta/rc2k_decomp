@@ -1,5 +1,5 @@
-//! What the game's sound senders decide before they queue a command (converted 2026-10-21
-//! from `sound::play_menu_sound` 0x40F059, `sound::play_sound` 0x409B36,
+//! What the game's sound senders decide before they queue a command
+//! (from `sound::play_menu_sound` 0x40F059, `sound::play_sound` 0x409B36,
 //! `sound::set_music_volume` 0x40F83E and `sound::stop_sound` 0x40F1D1), and the music's
 //! command (`sound::play_music` 0x40F80E, `stop_music` 0x40F826, `play_tune_2` .. `_9`
 //! 0x40F76F ..).

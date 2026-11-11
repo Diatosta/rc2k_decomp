@@ -18,7 +18,7 @@ use crate::menu::standings::*;
 fn players_by_group(menus: &Menus, firsts: [usize; 4]) -> Result<(), Refused> {
     let players = counted_players(menus)?;
     let groups: Vec<u32> = players.iter().map(|p| p.get().class).collect();
-    // Converted: `rc2k_core::menu::standings::by_group`.
+    // The logic is in `rc2k_core::menu::standings::by_group`.
     for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
         {
             crate::menu::player_to_standing_b::player_to_standing_b(menus, e, players[n], n as u32)
@@ -48,7 +48,7 @@ pub fn standings_b_from_all(menus: &Menus) -> Result<(), Refused> {
         texts.push(text);
     }
     crate::menu::init_standings_b::init_standings_b()?;
-    // Converted: `rc2k_core::saves::rankings::fill_b_from_driver`.
+    // The logic is in `rc2k_core::saves::rankings::fill_b_from_driver`.
     with_b(|t| {
         for ((d, text), e) in drivers.iter().zip(&texts).zip(&mut t.entries) {
             rc2k_core::saves::rankings::fill_b_from_driver(e, d, text)

@@ -1,5 +1,5 @@
 //! A rally stage's information page (`screens::draw_rally_stage_info` ->
-//! `screens::draw_stage_best_and_fastest`; stream A, part F1, 2026-10-18): the stage record
+//! `screens::draw_stage_best_and_fastest`): the stage record
 //! (the arcade stage tables + 0xA4 x `arcade.stage`) and its track-pack entry: start and finish
 //! times, the time allowed, the length, the surface's shares, the weather, the description, the
 //! stage's number, and the best and fastest.
@@ -22,7 +22,7 @@ pub fn stage_record(play: &Play) -> Result<RecordRef, BadInput> {
 }
 
 /// `screens::draw_stage_best_and_fastest` (0x4744A9): the "best" and "fastest" lines
-/// (`rc2k_core::screens::stage_panel::records`, converted 2026-10-20): the best of the times at edi
+/// (`rc2k_core::screens::stage_panel::records`): the best of the times at edi
 /// and the stage record's fastest (+0x74 nationality, +0x54 name, +0x78 car, +0x30 speed).
 /// The fastest's flag sprite gets `dword_7587EC` as its palette (ebx as the original loads
 /// it). The speed is formatted before anything is drawn (its refusals first).

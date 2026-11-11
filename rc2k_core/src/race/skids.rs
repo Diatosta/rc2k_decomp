@@ -1,4 +1,4 @@
-//! The skidmarks' points (converted from `race::add_skid_point` 0x45860C): a
+//! The skidmarks' points (from `race::add_skid_point` 0x45860C): a
 //! ring of `POINTS` points (`g_skidPoints`, each the mark's left and right edges) linked
 //! in strips (`g_skidLinks`: the next, the previous, the angle, the car's bit, words).
 //! The angle between two places and the edges' offset for an angle are the game's turns,

@@ -12,7 +12,7 @@ use crate::input::yes_no_key::{NO, YES};
 use crate::menu::leaving::{question, with_question};
 
 pub fn handle_yes_no(eax: u32) -> Result<(), BadInput> {
-    // Converted: `rc2k_core::menu::leaving::Question::answer_key`.
+    // The logic is in `rc2k_core::menu::leaving::Question::answer_key`.
     // A gamepad's button (not the original's), taken with the key it sent. Only Back answers:
     // this screen does not leave on Escape. Enter is a key like the keyboard's, and chooses
     // the item that is lit, yes or no.

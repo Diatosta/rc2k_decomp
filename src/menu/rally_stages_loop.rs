@@ -31,7 +31,10 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.draw_work.escape_pressed, 0)],
+    before: &[Step::WriteFlag(
+        |m| &m.screens.draw_work.escape_pressed,
+        false,
+    )],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.rally_stages_picture
     }))],

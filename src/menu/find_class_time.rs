@@ -13,7 +13,7 @@ const LIMIT: u32 = 0x400;
 
 /// The entry of table A the original stops at (a copy).
 pub fn class_entry(class: u32) -> Result<BestTime, BadInput> {
-    // Converted: `rc2k_core::menu::standings::search` (the end mark's entry when none).
+    // The logic is in `rc2k_core::menu::standings::search` (the end mark's entry when none).
     use rc2k_core::menu::standings::{Found, search};
     with_a(|t| {
         let mut last = 0;

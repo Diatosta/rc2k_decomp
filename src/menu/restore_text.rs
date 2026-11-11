@@ -4,7 +4,7 @@
 use crate::menu::text_entry::{TEXT_LEN, entry as text_entry};
 
 pub fn restore_text(at: impl Into<crate::place::BytePlace>) -> Result<(), crate::errors::BadInput> {
-    // Converted: `rc2k_core::menu::text_entry::Entry::restored`.
+    // The logic is in `rc2k_core::menu::text_entry::Entry::restored`.
     let text: [u8; TEXT_LEN + 1] = text_entry().restored();
     at.into().write(&text, "a text field")
 }

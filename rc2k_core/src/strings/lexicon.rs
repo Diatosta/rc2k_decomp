@@ -1,5 +1,5 @@
-//! The lexicon compiler (RAL.EXE 0x40356E and its 25 functions, in their order; moved to
-//! the core 2026-10-20): from the text of a language file to the packed string table
+//! The lexicon compiler (RAL.EXE 0x40356E and its 25 functions, in their order): from the text of a
+//! language file to the packed string table
 //! (`strings::StringTable` reads it) and the counts the game logs.
 //!
 //! The language file: one message a line, a label and then the text; `;` starts a comment.
@@ -25,7 +25,7 @@ use std::collections::HashMap;
 #[derive(Debug, PartialEq, Eq)]
 pub struct Compiled {
     pub table: Vec<u8>,
-    /// The counts, as the original keeps them (`dword_94EAB8` .. `dword_94F6F4`).
+    /// The counts, as the original keeps them.
     pub padded: u32,
     pub lines: u32,
     pub messages: u32,
@@ -41,7 +41,7 @@ pub struct Compiled {
     pub empty_messages: u32,
 }
 
-/// The table has room from 0x4E07F8 to 0x4F07C8.
+/// The table has room for 0xFFD0 bytes.
 pub const TABLE_ROOM: usize = 0xFFD0;
 /// The word the blanks between two words become, before it is unescaped to a space.
 const SPACE: &[u8] = b"\\s";
@@ -107,7 +107,7 @@ impl Source<'_> {
         Ok(self.at(place))
     }
 
-    /// 0x403889: the next word from `scan` on.
+    /// The next word from `scan` on.
     fn next_word(&self, scan: usize) -> Result<Token, Invalid> {
         let mut place = scan;
         loop {
@@ -233,7 +233,7 @@ impl Source<'_> {
     }
 }
 
-/// 0x403B85 after its `#`: two hex digits.
+/// After its `#`: two hex digits.
 fn hex_pair(digits: &[u8]) -> Result<u8, Invalid> {
     let mut value = 0u8;
     for n in 0..2 {
@@ -248,7 +248,7 @@ fn hex_pair(digits: &[u8]) -> Result<u8, Invalid> {
     Ok(value)
 }
 
-/// 0x403AC2 for one word: the escapes of the file become the bytes of the table.
+/// For one word: the escapes of the file become the bytes of the table.
 fn unescaped(raw: &[u8]) -> Result<Vec<u8>, Invalid> {
     let mut text = raw.to_vec();
     let mut place = 0;
@@ -303,7 +303,7 @@ fn sort_by_length<T>(list: &mut [T], length: impl Fn(&T) -> usize) {
     }
 }
 
-/// `arena_bytes` is the memory the original gives itself (`dword_519554` * 0x400).
+/// `arena_bytes` is the memory the original gives itself (a count of 1 KiB blocks).
 pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
     let source = Source(text);
     let mut arena = Arena(arena_bytes);
@@ -320,10 +320,10 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
     let (mut lines, mut source_size, mut words_encountered, mut phrases_encountered) =
         (1u32, 0u32, 0u32, 0u32);
 
-    // 0x403682: a message a line.
+    // A message a line.
     let mut place = 0usize;
     loop {
-        // 0x403CD2: comments and line ends.
+        // Comments and line ends.
         let at_end = loop {
             match source.at(place) {
                 0 => break true,
@@ -376,7 +376,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
         arena.take(counted)?;
         let body = label + counted as usize - 1;
 
-        // 0x403745: the message's words.
+        // The message's words.
         let mut message: Vec<usize> = Vec::new();
         let mut scan = body;
         let end = loop {
@@ -394,7 +394,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
             if token.length > 0x7F {
                 return Err(Invalid("language file: Word too long"));
             }
-            // 0x403A10: the word, kept once.
+            // The word, kept once.
             let raw: &[u8] = match token.start {
                 Some(start) => text
                     .get(start..start + token.length as usize)
@@ -429,7 +429,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
             scan = token.after;
         };
 
-        // 0x40379F: the message as a phrase, kept once.
+        // The message as a phrase, kept once.
         if message.is_empty() {
             messages.push(None);
         } else {
@@ -452,12 +452,12 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
         place = end;
     }
 
-    // 0x403AC2.
+    // The words' escapes become bytes.
     for word in &mut words {
         word.text = unescaped(&word.raw)?;
     }
 
-    // 0x403BDC, 0x403C54: one list each, by first byte and then as met; sorted.
+    // One list each, by first byte and then as met; sorted.
     let mut word_order: Vec<usize> = word_buckets.into_iter().flatten().collect();
     sort_by_length(&mut word_order, |&word| words[word].text.len());
     let mut phrase_order: Vec<usize> = phrase_buckets.into_iter().flatten().collect();
@@ -466,7 +466,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
         return Err(Invalid("a language file without words"));
     }
 
-    // 0x403DA7: offsets and numbers.
+    // Offsets and numbers.
     let entries = messages.len() + words.len();
     if entries > 0x10000 {
         return Err(Invalid("language file: More than 64K indices in bundle"));
@@ -506,7 +506,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
         return Err(Invalid("the compiled lexicon is larger than its table"));
     }
 
-    // The index, and 0x403F0B: the table.
+    // The index, and the table.
     let mut index: Vec<u32> = Vec::with_capacity(entries);
     let mut empty_messages = 0;
     for message in &messages {
@@ -519,7 +519,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
         });
     }
     index.extend(word_order.iter().map(|&word| words[word].entry));
-    // 0x403FC1: an entry's number is that of the first index entry like it.
+    // An entry's number is that of the first index entry like it.
     let mut number_of: HashMap<u32, u16> = HashMap::new();
     for (n, &entry) in index.iter().enumerate() {
         number_of.entry(entry).or_insert(n as u16);
@@ -671,8 +671,8 @@ pub fn correct(table: &mut [u8]) -> Result<(), Invalid> {
 }
 
 /// Whether the string table is made again from the language file
-/// (`strings::maybe_compile_lexicon` 0x403555): `dword_4E0758` (signed) 1 or more and the
-/// key's state `byte_4F6B2A` not 0, a developer's way to see a changed language file.
+/// (`strings::maybe_compile_lexicon` 0x403555): the setting (signed) 1 or more and the
+/// key's state not 0, a developer's way to see a changed language file.
 pub fn recompile_wanted(level: u32, key: u8) -> bool {
     level as i32 >= 1 && key != 0
 }

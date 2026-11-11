@@ -47,7 +47,10 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.draw_work.escape_pressed, 0x0)],
+    before: &[Step::WriteFlag(
+        |m| &m.screens.draw_work.escape_pressed,
+        false,
+    )],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.in_game_options_picture

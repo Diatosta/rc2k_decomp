@@ -66,7 +66,7 @@ fn span_ring_quad(
             x87::sine(a2),
             x87::cosine(a2, true),
         ];
-        write_bits(&masks.vars.ring_turns, turns);
+        write_bits(&masks.vars.ring_turns, turns.map(f32::to_bits));
         let (r1, r2, cx, cy) = (
             s.radii[0].bits(),
             s.radii[1].bits(),
@@ -77,14 +77,14 @@ fn span_ring_quad(
         write_bits(
             &masks.vars.ring_quad,
             [
-                x87::mul_add(r1, s1, cx),
-                x87::mul_add(r1, c1, cy),
-                x87::mul_add(r1, s2, cx),
-                x87::mul_add(r1, c2, cy),
-                x87::mul_add(r2, s2, cx),
-                x87::mul_add(r2, c2, cy),
-                x87::mul_add(r2, s1, cx),
-                x87::mul_add(r2, c1, cy),
+                x87::mul_add(r1, s1, cx).to_bits(),
+                x87::mul_add(r1, c1, cy).to_bits(),
+                x87::mul_add(r1, s2, cx).to_bits(),
+                x87::mul_add(r1, c2, cy).to_bits(),
+                x87::mul_add(r2, s2, cx).to_bits(),
+                x87::mul_add(r2, c2, cy).to_bits(),
+                x87::mul_add(r2, s1, cx).to_bits(),
+                x87::mul_add(r2, c1, cy).to_bits(),
             ],
         );
         let corners = ring_corners(masks)?;
@@ -138,7 +138,7 @@ pub fn span_ring(
             x87::mul(&s.angle_ends[0], scales[0]),
             x87::mul(&s.angle_ends[1], scales[1]),
         ];
-        write_bits(&masks.vars.ring_ends, ends);
+        write_bits(&masks.vars.ring_ends, ends.map(f32::to_bits));
         let (half, middle) = x87::half_and_middle(ends[1], ends[0], scales[2]);
         masks.vars.ring_half.set_bits(half);
         masks.vars.ring_middle.set_bits(middle);
@@ -149,16 +149,16 @@ pub fn span_ring(
         for k in 0..n as u32 {
             let a1 = x87::less_cosine(angle, None, half, middle);
             let a2 = x87::less_cosine(angle, Some(step), half, middle);
-            write_bits(&masks.vars.ring_angles, [a1, a2]);
+            write_bits(&masks.vars.ring_angles, [a1.to_bits(), a2.to_bits()]);
             for (o, a) in [(0, a1), (8, a2)] {
-                angle_put(angles, table + o + 4, x87::cosine(a, false))?;
-                angle_put(angles, table + o, x87::sine(a))?;
+                angle_put(angles, table + o + 4, x87::cosine(a, false).to_bits())?;
+                angle_put(angles, table + o, x87::sine(a).to_bits())?;
             }
-            angle_put(angles, table, a1)?;
-            angle_put(angles, table + 8, a2)?;
+            angle_put(angles, table, a1.to_bits())?;
+            angle_put(angles, table + 8, a2.to_bits())?;
             table += 8;
             span_ring_quad(masks, s, k, effects)?;
-            angle = x87::add(angle, step);
+            angle = x87::add(angle, step).to_bits();
             masks.vars.ring_angle.set(angle);
         }
     }

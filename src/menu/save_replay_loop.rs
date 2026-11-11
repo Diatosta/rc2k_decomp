@@ -17,14 +17,14 @@ use crate::menu::screen_loop::{Callee, Entry, Flow, Frames, Keys, List, Screen, 
 
 fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
     let menus = entry.menus;
-    if menus.screens.option_work.typing.get() == 0x1 {
+    if menus.screens.option_work.typing.is_set() {
         let failed = Callee::EditReplayName.run(entry)?;
         if !failed {
-            if menus.screens.option_work.typing.get() != 0x0 {
+            if menus.screens.option_work.typing.is_set() {
                 return Ok(Flow::NextFrame);
             }
-            if menus.tables.captions.left_by_key.get() == 0x1 {
-                menus.tables.captions.left_by_key.set(0x0u32);
+            if menus.tables.captions.left_by_key.is_set() {
+                menus.tables.captions.left_by_key.set(false);
                 menus.screens.draw_work.scratch_0c.set(0xFFFFFFFFu32);
                 return Ok(Flow::Leave);
             }
@@ -69,7 +69,10 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.draw_work.escape_pressed, 0x0)],
+    before: &[Step::WriteFlag(
+        |m| &m.screens.draw_work.escape_pressed,
+        false,
+    )],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.save_replay_picture
     }))],

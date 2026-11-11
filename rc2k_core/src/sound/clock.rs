@@ -1,4 +1,4 @@
-//! The clock of the race's sounds (converted 2026-10-21 from `sound::start_race_clock`
+//! The clock of the race's sounds (from `sound::start_race_clock`
 //! 0x40F1E9 and `sound::step_race_clock` 0x40F20E): `dword_5124E8` ..`dword_5124F4`.
 
 /// The clock, in the game's order.

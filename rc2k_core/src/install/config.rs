@@ -1,4 +1,4 @@
-//! The files about the installation (converted 2026-10-21 from `install::read_record`
+//! The files about the installation (from `install::read_record`
 //! 0x4110C9, `install::write_record` 0x411186, `install::read_sku` 0x411696,
 //! `install::read_languages` 0x413908 and `install::choose_language` 0x41397A): the record
 //! `var\ral.zog`, the edition file `files\d\gfx\sku` and the languages file `lang.cfg`, all

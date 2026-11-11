@@ -1,4 +1,4 @@
-//! A file search's pattern as `FindFirstFileA` matched it (phase 11: the search on std):
+//! A file search's pattern as `FindFirstFileA` matched it (on std):
 //! letters without regard to case, `*` any run of characters, `?` one character, or none
 //! where the name has a `.` or its end (DOS's rule, so `???.pcx` takes `7.pcx`), and a
 //! pattern ending in `.*` takes names without a dot too (`*.*` is `*`).

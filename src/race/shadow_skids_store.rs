@@ -27,7 +27,7 @@ pub struct ShadowPoint {
     /// +0x14: 0 once the angles are laid (`race::car_shadow::shadow_angles`).
     pub zeroed: Dword,
     /// +0x18: the record's last two dwords; only moved with the record when points are swapped or sorted, never read for a value.
-    pub unknown_18: [Dword; 2],
+    pub carried_words: [Dword; 2],
 }
 
 const _: () = assert!(core::mem::size_of::<ShadowPoint>() == 0x20);
@@ -42,7 +42,7 @@ impl ShadowPoint {
             angle: Dword::new(0),
             length: Dword::new(0),
             zeroed: Dword::new(0),
-            unknown_18: [Dword::new(0), Dword::new(0)],
+            carried_words: [Dword::new(0), Dword::new(0)],
         }
     }
 
@@ -55,8 +55,8 @@ impl ShadowPoint {
             &self.angle,
             &self.length,
             &self.zeroed,
-            &self.unknown_18[0],
-            &self.unknown_18[1],
+            &self.carried_words[0],
+            &self.carried_words[1],
         ]
     }
 }

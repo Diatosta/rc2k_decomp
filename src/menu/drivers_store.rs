@@ -1,5 +1,4 @@
-//! The championship's drivers, out of RAL.EXE's image (IDA 0x73B674 .. 0x742C98; phase 7,
-//! typed): `g_drivers`, the 180 computer drivers' records (0x94 bytes, IDA's `Driver`), the
+//! The championship's drivers, out of RAL.EXE's image (IDA 0x73B674 .. 0x742C98): `g_drivers`, the 180 computer drivers' records (0x94 bytes, IDA's `Driver`), the
 //! -1 that ends them for the walks (`menu::standings::drivers`), and `g_driverNames`, the
 //! 180 name entries (0x14 bytes, IDA's `DriverName`) a driver's first dword picks.
 //! `#[repr(C)]`, the image's layout; `moved::MOVED` points the range at it. The event code
@@ -580,7 +579,7 @@ pub const START: usize = 0x73B674;
 /// IDA 0x742C98, the end of the piece.
 pub const END: usize = 0x742C98;
 
-/// Where IDA 0x73B674 is now (`moved::MOVED`'s home).
+/// Where IDA 0x73B674 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn drivers_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::menu::owner::MENUS.cars.drivers)

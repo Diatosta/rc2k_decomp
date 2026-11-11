@@ -35,6 +35,6 @@ pub fn play_replay_range(
             .set(race.shared.replay_file.index_block_count.get());
         replay.replay_view.replay_frame.set(0);
     }
-    race.shared.replay_file.viewer_stopped.set(1);
+    race.shared.replay_file.viewer_stopped.set(true);
     Ok(())
 }

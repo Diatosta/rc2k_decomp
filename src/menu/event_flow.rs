@@ -1,14 +1,15 @@
-//! What the event flows share (IDA, 2026-10-19): the championship drivers
+//! What the event flows share: the championship drivers
 //! (`menu::run_championship`, `menu::run_a8_championship`), their starters, the single
 //! rally's and the time trial's multi-player events. Each of them is a sequence of calls
 //! and of tests of the game's variables. The flows run on `menu::flow_game::Game`
-//! (the callees' Rust versions, the screens through `menu::screen_loop`).
+//! (the callees, the screens through `menu::screen_loop`).
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
 use crate::records::stages_store::RecordRef;
-use crate::session::Dword;
+use crate::session::{Dword, Flag};
 use crate::system::owner::system;
+use rc2k_core::menu::leaving::Switch;
 
 /// A game variable.
 pub fn get(v: &Dword) -> u32 {
@@ -71,13 +72,29 @@ pub const PLAYER_COUNT: &Dword = &crate::menu::owner::MENUS.screens.event.player
 pub const EVENT_MODE: &Dword = &crate::menu::owner::MENUS.screens.event.event_kind; // 9 .. 0x18, `menu::run_event_races`
 pub const EVENT_TYPE: &Dword = &crate::menu::owner::MENUS.screens.event.event_type; // 3 time trial, 4, 5 the championships
 pub const MODE: &Dword = &crate::menu::owner::MENUS.play.champ_view.event_mode; // g_eventMode: 2, 3, 0x13
-pub const LEFT_BY_KEY: &Dword = &crate::menu::owner::MENUS.tables.captions.left_by_key; // the car choice was left
-pub const EVENT_LEFT: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.event_left;
-pub const LEAVE_SCREEN: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.leave_screen;
-pub const LEFT_WITH_CARRY: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.left_with_carry;
-pub const ASK_LEAVE: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.ask_leave;
-pub const EVENT_OVER: &Dword = &crate::menu::owner::MENUS.screens.event.event_over; // 1 when an event is over
-pub const ESCAPE_PRESSED: &Dword = &crate::menu::owner::MENUS.screens.draw_work.escape_pressed;
+pub const LEFT_BY_KEY: &Flag = &crate::menu::owner::MENUS.tables.captions.left_by_key; // the car choice was left
+pub const EVENT_LEFT: &Flag = &crate::menu::owner::MENUS.screens.loop_flags.event_left;
+pub const LEAVE_SCREEN: &Flag = &crate::menu::owner::MENUS.screens.loop_flags.leave_screen;
+pub const LEFT_WITH_CARRY: &Flag = &crate::menu::owner::MENUS.screens.loop_flags.left_with_carry;
+pub const ASK_LEAVE: &Flag = &crate::menu::owner::MENUS.screens.loop_flags.ask_leave;
+pub const EVENT_OVER: &Flag = &crate::menu::owner::MENUS.screens.event.event_over; // 1 when an event is over
+
+/// The variable of a leaving switch.
+pub fn switch_cell(s: Switch) -> &'static Flag {
+    match s {
+        Switch::EventLeft => EVENT_LEFT,
+        Switch::LeaveScreen => LEAVE_SCREEN,
+        Switch::LeftWithCarry => LEFT_WITH_CARRY,
+        Switch::AskLeave => ASK_LEAVE,
+        Switch::EventOver => EVENT_OVER,
+        Switch::LeftByKey => LEFT_BY_KEY,
+        Switch::EscapePressed => ESCAPE_PRESSED,
+        Switch::Entered => &crate::menu::owner::MENUS.screens.event.any_time_qualified,
+        Switch::Quitting => &system().session.flags.quitting,
+        Switch::RallyDone => &crate::menu::owner::MENUS.screens.state.menus.rally_done,
+    }
+}
+pub const ESCAPE_PRESSED: &Flag = &crate::menu::owner::MENUS.screens.draw_work.escape_pressed;
 pub const CONTINUING: &Dword = &crate::menu::owner::MENUS.screens.event.continuing_save; // 1 when a saved game goes on
 pub const INDEX: &Dword = &crate::menu::owner::MENUS.screens.event.index; // index
 pub const SECTION: &Dword = &crate::menu::owner::MENUS.screens.event.section; // section

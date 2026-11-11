@@ -20,7 +20,7 @@ fn game(shared: &RaceShared) -> Vec<&dyn Cell32> {
         &shared.car.engine_sound_speed_int,
         &shared.car.start_share,
         &shared.car.start_blend,
-        &shared.car.unknown_44,
+        &shared.car.unused_44,
     ]
 }
 

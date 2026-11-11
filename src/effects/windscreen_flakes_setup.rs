@@ -35,7 +35,7 @@ pub fn setup_with(fl: &WindscreenFlakes, places: [u32; 4], scene: &crate::scene:
             set_render_state(value, state);
         }
         for n in 0..4 {
-            VERTICES.vertices[n].rhw.set_bits(x87::from_int(0x100));
+            VERTICES.vertices[n].rhw.set(x87::from_int(0x100));
         }
         for n in 0..4 {
             VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
@@ -49,7 +49,7 @@ pub fn setup_with(fl: &WindscreenFlakes, places: [u32; 4], scene: &crate::scene:
         crate::scene::polygon_work::front_end()
             .polygon_vertex_count
             .set_bits(4u32);
-        fl.tables.inverse.set_bits(x87::reciprocal(
+        fl.tables.inverse.set(x87::reciprocal(
             &crate::scene::polygon_work::front_end().window.farthest,
         ));
     }

@@ -31,8 +31,8 @@ pub struct GearFigures {
     pub test_gears: [Dword; 256],
     /// +0x838 (0x5CC190): `dword_5CC190`: the engine power factor the test drive sets (`physics::test_drive`).
     pub test_power_factor: Float,
-    /// +0x83c (0x5CC194): read at 0x421ADC (`physics::make_gear_ratios`' neighbour) as a switch; no port code names it.
-    pub unknown_83c: Dword,
+    /// +0x83c (0x5CC194): a busy flag the game sets around its copy of the "demof" file (guards the copy hook against re-entry); no port code names it.
+    pub demo_copy_busy: Dword,
 }
 
 /// The piece: a field of `Frame::lights_and_gear` since 2026-10-29 (it left the race

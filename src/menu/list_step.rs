@@ -20,7 +20,7 @@ pub fn list_step(
     table: Option<GamePtr>,
     list: crate::menu::list_handle::ListMenu,
 ) -> Result<bool, crate::errors::BadInput> {
-    // Converted: `rc2k_core::menu::list_menu::step`.
+    // The logic is in `rc2k_core::menu::list_menu::step`.
     let count = list.count();
     if !MOVES.contains(&key) {
         return Ok(false);

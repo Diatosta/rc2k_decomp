@@ -111,7 +111,7 @@ fn set_sensitivity(p: PlayerCell, value: u32) -> Result<(), Refused> {
 
 /// `menu::lower_controller_sensitivity`.
 pub fn lower_controller_sensitivity(menus: &Menus) -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::steps::lower_sensitivity`.
+    // The logic is in `rc2k_core::menu::steps::lower_sensitivity`.
     let p = player(menus)?;
     if let Some(s) =
         rc2k_core::menu::steps::lower_sensitivity(p.get().controller, p.get().sensitivity_level)
@@ -128,7 +128,7 @@ pub fn raise_controller_sensitivity(menus: &Menus, gate: u32) -> Result<(), Refu
     if gate == 0 {
         return Ok(());
     }
-    // Converted: `rc2k_core::menu::steps::raise_sensitivity`.
+    // The logic is in `rc2k_core::menu::steps::raise_sensitivity`.
     let p = player(menus)?;
     if let Some(s) = rc2k_core::menu::steps::raise_sensitivity(p.get().sensitivity_level) {
         { set_sensitivity(p, s) }?;

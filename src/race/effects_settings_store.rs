@@ -115,7 +115,7 @@ pub struct MarkRecord {
     /// remainder after `emit_kind_1`).
     pub pace: Dword,
     /// +0x8: read and written by no code.
-    pub unknown_8: Dword,
+    pub unused_8: Dword,
     /// +0xc: the driven wheels' speed (the block's `drive_speed_a` / `_b` for the front / rear pair of wheel records; `emit_kind_1`, the bursts, kind 6, kind 21); the body's is cleared.
     pub driven_speed: Float,
     /// +0x10: the car's local velocity x, sideways (the body's: `velocity[0]`), copied by `drive::share_car_state`; the emitters' gates test it for 0.
@@ -256,11 +256,11 @@ pub struct EffectsSettings {
     /// +0x26bc (0x5C5640): `dword_5C5640`: the settings' first object (0x50 in the mark set-up, `effects::init_mark_step`).
     pub first_object: Dword,
     /// +0x26c0 (0x5C5644): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_20: [Dword; 7],
+    pub unused_20: [Dword; 7],
     /// +0x26dc (0x5C5660): `flt_5C5660`: the car's visual steering angle / 2^29 plus the listener camera's value (`drive::set_listener`). The effects: the splines' size (`effects::place_spline`).
     pub listener_scale: Float,
     /// +0x26e0 (0x5C5664): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_40: [Dword; 7],
+    pub unused_40: [Dword; 7],
     /// +0x26fc (0x5C5680): `dword_5C5680`: the car's `gear_changed_2` kept when set (the car's copy is cleared), 0 while the replay still frame is shown (`drive::set_listener`). The effects: a spline switch cleared when used (`effects::run_splines`).
     pub spline_gear_changed: Dword,
     /// +0x2700 (0x5C5684): `dword_5C5684`: 1 while the car's handbrake is on, 0 while the replay still frame is shown (`drive::set_listener`). The effects: a spline switch (`effects::run_splines`).

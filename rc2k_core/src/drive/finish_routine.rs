@@ -1,4 +1,4 @@
-//! The championship's finish routine's set-up (converted 2026-10-21 from
+//! The championship's finish routine's set-up (from
 //! `drive::finish_race` 0x459116, its stores 0x4591B0 .. 0x4592FA and its tidy-up): one
 //! car in race mode 3 set up before the stage is loaded and the routine played. What most
 //! variables are is a reading; they are named by their IDA names.

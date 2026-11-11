@@ -1,6 +1,5 @@
 //! `menu::select_car_loop` (0x47AC0C): the car selection screen, which the starters of
-//! every kind of event run (the owner called it the car select menu, 2026-10-12; it was
-//! `car_specs_47ac0c_loop` until then).
+//! every kind of event run (the car select menu).
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`): background `cspecs.png`; leaving is not asked about; it has steps of its own
@@ -44,7 +43,7 @@ fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
 }
 
 fn leaving(entry: &Entry) -> Result<(), Refused> {
-    if entry.menus.tables.captions.left_by_key.get() == 0x1 {
+    if entry.menus.tables.captions.left_by_key.is_set() {
         Callee::GoBack.run(entry)?;
     }
     Ok(())

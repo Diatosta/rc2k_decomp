@@ -1,4 +1,4 @@
-//! The sound modes chosen (converted 2026-10-21 from `audio::choose_modes` 0x40A1CA): the
+//! The sound modes chosen (from `audio::choose_modes` 0x40A1CA): the
 //! advanced audio screen's options (`g_audioOptions`, 0x40 bytes: +0 kept, +4 .. +0x18 the
 //! six choices quality, channels, DS3D, EAX, A3D, Dolby, +0x1C .. +0x30 the six as last
 //! applied, +0x34 3D there, +0x38 A3D2 there, +0x3C EAX there) made the race's mode, and

@@ -5,11 +5,8 @@
 //! as extracted from the disassembly: background `arcade1.png`; leaving is not asked about; the
 //! next frame begins with the steps after the first frame; the steps that are more than a call
 //! or a store are the functions below, generated from the listing.
-//! Screen: the player count of the simple mode, "ESCOLHA NÚMERO DE JOGADORES" (the owner said
-//! so after Rust-run visits, 2026-10-11 and 12). The background's file name says "arcade",
-//! but the arcade mode is another one and has no player count (the owner, 2026-10-12).
-//! Named `select_players_481771_loop`, then by mistake `championship_select_players_loop`
-//! and `arcade_select_players_loop`.
+//! Screen: the player count of the simple mode, "ESCOLHA NÚMERO DE JOGADORES". The background's file name says "arcade",
+//! but the arcade mode is another one and has no player count.
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`).
 
@@ -35,8 +32,8 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
 
 fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
     let tables = &entry.menus.tables;
-    if tables.captions.left_by_key.get() == 0x1 {
-        tables.captions.left_by_key.set(0x0u32);
+    if tables.captions.left_by_key.is_set() {
+        tables.captions.left_by_key.set(false);
         return Ok(Flow::SetUp);
     }
     Ok(Flow::On)
@@ -60,7 +57,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.event.event_over, 0x0)],
+    before: &[Step::WriteFlag(|m| &m.screens.event.event_over, false)],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.simple_select_players_picture

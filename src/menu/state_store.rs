@@ -1,10 +1,9 @@
-//! The menus' working variables, out of RAL.EXE's image (IDA 0x75A658 .. 0x75ACCC; phase 7,
-//! typed): the carousel, the service area's boxes, the standings' and class figures, the
+//! The menus' working variables, out of RAL.EXE's image (IDA 0x75A658 .. 0x75ACCC): the carousel, the service area's boxes, the standings' and class figures, the
 //! fade, the inspection's figures and the four setup items. `#[repr(C)]` structs of atomic
 //! cells with the image's layout, one static; `moved::MOVED` points the range at it.
 
 use crate::menu::lists_store::CarList;
-use crate::session::{Bytes, Dword, Float};
+use crate::session::{Bytes, Dword, Flag, Float};
 
 /// One of the service area's four setup items (gear ratio, tyre, ride height, suspension
 /// stiffness; IDA 0x75AC90 on, 12 bytes each).
@@ -79,7 +78,7 @@ pub struct ServiceUi {
     /// `dword_75AA98`: the colour of the item's boxes, set from its inspection flags as each item is drawn.
     pub box_colour_b: Dword,
     /// `dword_75AA9C`: 1 when a service box is turned over.
-    pub box_shown: Dword,
+    pub box_shown: Flag,
     /// `dword_75AAA0`: its page.
     pub box_page: Dword,
     /// `dword_75AAA4`: the result of the last attempt (`service::state`).
@@ -106,9 +105,9 @@ pub struct Menus {
     /// `dword_75AAD8`: the review option screens' kind (`sensiblesaving` in `ral.cfg`).
     pub review_kind: Dword,
     /// `dword_75AADC`: 1 for "voltar" in the results' first item, else "continuar".
-    pub which_title: Dword,
+    pub which_title: Flag,
     /// `dword_75AAE0`: 1 = leave the service area's edit variables alone.
-    pub skip_edit_values: Dword,
+    pub skip_edit_values: Flag,
     /// `dword_75AAE4`: no code reads or writes it (its first value is 0).
     pub dword_75aae4: Dword,
     /// `dword_75AAE8`: the class times (`menu::calc_cpu_times`), by class.
@@ -120,7 +119,7 @@ pub struct Menus {
     /// `dword_75AB10`: the first driver of each group (`saves::default_best_scores`).
     pub firsts: [Dword; 4],
     /// `dword_75AB20`: 0 first, 1 when going to the rally's results.
-    pub rally_done: Dword,
+    pub rally_done: Flag,
     /// `g_firstRowTime`: the first row's time, kept for the others' gap to it.
     pub first_row_time: Dword,
     /// `unk_75AB28`: eight bytes no code reads or writes.
@@ -128,9 +127,9 @@ pub struct Menus {
     /// `dword_75AB30`: bit 0 turned over by `menu::toggle_caption_choice`.
     pub caption_choice: Dword,
     /// `dword_75AB34`: 1 while the championship's standings show.
-    pub standings_shown: Dword,
+    pub standings_shown: Flag,
     /// `dword_75AB38`: set to 1 by the repairs, 0 by the service pass.
-    pub service_flag: Dword,
+    pub service_flag: Flag,
     /// `unk_75AB3C`: no code reads or writes it.
     pub unk_75ab3c: Dword,
     /// `dword_75AB40`: 2 in event mode 0x13 (`menu::class_championship_pass`).
@@ -228,7 +227,7 @@ impl MenuState {
                 box_colour_a: Dword::new(0xba),
                 fade_full: Dword::new(0xee),
                 box_colour_b: Dword::new(0),
-                box_shown: Dword::new(0),
+                box_shown: Flag::new(false),
                 box_page: Dword::new(1),
                 status: Dword::new(0),
             },
@@ -239,8 +238,8 @@ impl MenuState {
             },
             menus: Menus {
                 review_kind: Dword::new(0),
-                which_title: Dword::new(0),
-                skip_edit_values: Dword::new(0),
+                which_title: Flag::new(false),
+                skip_edit_values: Flag::new(false),
                 dword_75aae4: Dword::new(0),
                 class_times: [const { Dword::new(0) }; 4],
                 track_length: [Dword::new(0), Dword::new(0)],
@@ -256,12 +255,12 @@ impl MenuState {
                     Dword::new(0x8c),
                     Dword::new(0xaa),
                 ],
-                rally_done: Dword::new(0),
+                rally_done: Flag::new(false),
                 first_row_time: Dword::new(0),
                 pair_ab28: [Dword::new(0), Dword::new(0)],
                 caption_choice: Dword::new(0),
-                standings_shown: Dword::new(0),
-                service_flag: Dword::new(0),
+                standings_shown: Flag::new(false),
+                service_flag: Flag::new(false),
                 unk_75ab3c: Dword::new(0),
                 class_mode: Dword::new(2),
                 fade_length: Dword::new(0x1f4),

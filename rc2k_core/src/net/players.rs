@@ -1,4 +1,4 @@
-//! The network game's players (converted 2026-10-21 from `net::sort_players` 0x418108,
+//! The network game's players (from `net::sort_players` 0x418108,
 //! `net::list_players` 0x419192, `net::race_over` 0x41732E, `net::race_wait` 0x4171FE and
 //! `net::system_message` 0x41976F): their blocks' order, this machine's among them, and a
 //! player's record's state (16 bytes of DirectPlay player data: +0 the state, +8 the

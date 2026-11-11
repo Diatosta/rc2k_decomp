@@ -45,8 +45,8 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         (2, right, bottom),
         (3, left, bottom),
     ] {
-        v(n, 0xC, x);
-        v(n, 0x1C, y);
+        v(n, 0xC, x.to_bits());
+        v(n, 0x1C, y.to_bits());
     }
     let depth: u32 = race.course.numbers.k4096_b.bits();
     for n in 0..4 {

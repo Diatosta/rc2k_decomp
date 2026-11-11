@@ -1,4 +1,4 @@
-//! The markers on the service area's four setup bars (converted 2026-10-20 from the six
+//! The markers on the service area's four setup bars (from the six
 //! `screens::draw_*_marker` functions, 0x4A6E.. .. 0x4A70..): which marker is drawn, where
 //! on its bar, and what the original leaves in eax and esi. Drawing it (the bar's length
 //! and the blit) is the caller's.

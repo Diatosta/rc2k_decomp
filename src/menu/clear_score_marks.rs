@@ -5,7 +5,7 @@
 use crate::errors::Refused;
 
 pub fn clear_score_marks() -> Result<(), Refused> {
-    // Converted: `rc2k_core::saves::scores::clear_marks`.
+    // The logic is in `rc2k_core::saves::scores::clear_marks`.
     crate::saves::best_times::SCORES.with(rc2k_core::saves::scores::clear_marks)?;
     Ok(())
 }

@@ -1,4 +1,4 @@
-//! The game's number and text formatting (converted 2026-10-20 from `strings::format_u32`,
+//! The game's number and text formatting (from `strings::format_u32`,
 //! `append_u32`, `append_clock`, `append_clock_padded`, `append_fraction`,
 //! `append_percent`, `append_time`, `hex_append`, `bin_append`, `format_seal_code`,
 //! `rot13_into_text`). Each gives the bytes the original appends (no NUL).

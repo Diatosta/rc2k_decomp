@@ -1,4 +1,4 @@
-//! The marks' clock (converted 2026-10-21 from `effects::tick_clock` 0x4D2BDC): each frame
+//! The marks' clock (from `effects::tick_clock` 0x4D2BDC): each frame
 //! the scene clock's ticks since the last, a quarter and a sixteenth of them, one over
 //! them and scaled. As in `math::geometry`, what the x87 keeps on its stack is an `f64`,
 //! rounded to `f32` where the original stores it.

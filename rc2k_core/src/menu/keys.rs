@@ -1,4 +1,4 @@
-//! What a key means on a menu (converted 2026-10-21 from `menu::handle_keys` 0x465FCC).
+//! What a key means on a menu (from `menu::handle_keys` 0x465FCC).
 //! The keys are the game's scan codes as `input::take_key` gives them.
 
 /// What a key means to the screen loop (`handle_keys`' eax 1, 2, 3).
@@ -87,8 +87,8 @@ pub enum Action {
 
 /// The keys are not looked at while an item is edited (`dword_75AA9C` 1) or with
 /// `dword_7551F4` 1 (`keys_off` asked only when not editing).
-pub fn keys_off(editing: u32, keys_off: impl FnOnce() -> u32) -> bool {
-    editing == 1 || keys_off() == 1
+pub fn keys_off(editing: bool, keys_off: impl FnOnce() -> u32) -> bool {
+    editing || keys_off() == 1
 }
 
 /// The action of `key` (`cheats` asked only for key 0x14).
@@ -120,9 +120,9 @@ mod tests {
 
     #[test]
     fn actions() {
-        assert!(keys_off(1, || unreachable!()));
-        assert!(keys_off(0, || 1));
-        assert!(!keys_off(2, || 0));
+        assert!(keys_off(true, || unreachable!()));
+        assert!(keys_off(false, || 1));
+        assert!(!keys_off(false, || 0));
         assert_eq!(action(0, || unreachable!()), Action::NoKey);
         assert_eq!(action(0x38, || unreachable!()), Action::Ignored);
         assert_eq!(action(1, || unreachable!()), Action::Escape);

@@ -31,15 +31,15 @@ pub fn blend_at(tables: &PhysicsTables, numbers: &Numbers, v: &[&dyn Cell32]) {
             slot += add;
         }
     }
-    put(4, x87::div(get(0), &numbers.sixty_four));
+    put(4, x87::div(get(0), &numbers.sixty_four).to_bits());
     if less(get(4), zero) {
-        put(4, x87::loaded(zero));
+        put(4, x87::loaded(zero).to_bits());
     }
     if !less(get(4), one) {
-        put(4, x87::loaded(one));
+        put(4, x87::loaded(one).to_bits());
     }
     let slot = 5 + slot;
-    put(slot, toward_one(get(slot), get(4)));
+    put(slot, toward_one(get(slot), get(4)).to_bits());
 }
 
 fn game<'a>(car: &'a Car, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {

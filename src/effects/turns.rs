@@ -16,10 +16,10 @@ pub fn set_line_turn(masks: &Masks, line: &[Dword; 6], back: bool) {
     } else {
         x87::negated(x87::sub(line[4].get(), line[1].get()))
     };
-    masks.vars.turn[0].set_bits(dx);
-    masks.vars.turn[3].set_bits(dy);
-    masks.vars.turn[1].set_bits(x87::negated(dy));
-    masks.vars.turn[4].set_bits(x87::loaded(dx));
+    masks.vars.turn[0].set_bits(dx.to_bits());
+    masks.vars.turn[3].set_bits(dy.to_bits());
+    masks.vars.turn[1].set(x87::negated(dy));
+    masks.vars.turn[4].set(x87::loaded(dx));
 }
 
 /// `effects::scale_rows3` (0x4BF498): the three rows of three floats each made the
@@ -59,8 +59,8 @@ pub fn smooth_pair(n: u32, a: u32, b: u32, effects: &crate::effects::owner::Effe
             .each_ref()
             .map(|c| c.get() as i32);
         (
-            x87::cosine_step(steps[0], n.wrapping_add(1) as i32, t, a),
-            x87::cosine_step(steps[1], n as i32, t, a),
+            x87::cosine_step(steps[0], n.wrapping_add(1) as i32, t, a).to_bits(),
+            x87::cosine_step(steps[1], n as i32, t, a).to_bits(),
         )
     }
 }

@@ -1,4 +1,4 @@
-//! The load-game screen's preview of the highlighted saved game (converted 2026-10-20):
+//! The load-game screen's preview of the highlighted saved game:
 //! `screens::draw_empty_savegame` 0x46E2DE and `draw_savegame_details` 0x46D907, and the
 //! frame both start with (`screens::savegame_preview`): three headings, the row numbers
 //! 1 .. 4, a title line and a row per car.

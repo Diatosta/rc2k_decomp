@@ -1,5 +1,5 @@
 //! The "Effects" tab: the effects' developers' page (`debug::effects_page_1`, 0x4D1711, no
-//! references to it; IDA 2026-10-30), its labels kept. Some figures lie through
+//! references to it), its labels kept. Some figures lie through
 //! `g_marksSettings` (0x767A28, now a set / not-set flag), the rest at their own places. Labels with `?` were
 //! the developers' own, for the names in their source.
 
@@ -248,7 +248,7 @@ pub fn tab(ui: &Ui) {
             ),
         );
     }
-    // Two columns when there is room (owner, 2026-10-30).
+    // Two columns when there is room.
     if ui.content_region_avail_width() >= TWO_COLUMNS
         && let Some(_layout) = ui.begin_table("effects", 2)
     {

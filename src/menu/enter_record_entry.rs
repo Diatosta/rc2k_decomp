@@ -24,7 +24,7 @@ pub fn enter_record_entry(menus: &Menus) -> Result<(), Refused> {
     menus.screens.draw_work.figure.set(slot);
     let cheats = menus.play.cheats.cheats.get();
     let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, slot)?;
-    // Converted: `rc2k_core::saves::entries::BestTime::enter`, then `rank_entries`.
+    // The logic is in `rc2k_core::saves::entries::BestTime::enter`, then `rank_entries`.
     use rc2k_core::menu::bests;
     let name_at = name_address_of(&p.get())?;
     let best = bests::NewBest {

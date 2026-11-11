@@ -1,4 +1,4 @@
-//! The best times' tables in memory (converted 2026-10-21 from
+//! The best times' tables in memory (from
 //! `saves::allocate_best_times` 0x47C4D8 and `saves::count_stages` 0x47C95D, a plain
 //! function there).
 //!

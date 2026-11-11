@@ -1,4 +1,4 @@
-//! The depth a face is sorted by (converted 2026-10-21 from `scene::face_sort_key`
+//! The depth a face is sorted by (from `scene::face_sort_key`
 //! 0x450564): its points' depths (each point's record 0x1000 + its number's low 12 bits,
 //! +0x18) added one by one, each sum stored as a float, times one over the vertices
 //! (`flt_5C6950`), rounded to a whole number. As in `math::geometry`, what the x87 keeps on

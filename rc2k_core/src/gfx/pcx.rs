@@ -1,4 +1,4 @@
-//! PCX pictures (converted 2026-10-20 from `gfx::lay_out_pcx` 0x411A82, `read_pcx_8bit`
+//! PCX pictures (from `gfx::lay_out_pcx` 0x411A82, `read_pcx_8bit`
 //! 0x411C6B, `read_pcx_24bit` 0x411D57).
 //!
 //! A header of 0x80 bytes (+4 .. +0xA left, top, right, bottom as words; +0x41 the planes,
@@ -52,8 +52,8 @@ fn word(header: &[u8; HEADER_LEN], at: usize) -> u16 {
     u16::from_le_bytes([header[at], header[at + 1]])
 }
 
-/// How a PCX file is decoded, by its header's planes (+0x41; `gfx::read_pcx` 0x411A45,
-/// converted 2026-10-21): 1 a palette's, 3 three planes, else not at all.
+/// How a PCX file is decoded, by its header's planes (+0x41; `gfx::read_pcx` 0x411A45):
+/// 1 a palette's, 3 three planes, else not at all.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
     Palette,

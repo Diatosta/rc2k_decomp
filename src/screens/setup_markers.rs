@@ -81,7 +81,7 @@ pub fn draw_marker(
     player: crate::menu::standings::PlayerCell,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::setup_markers::plan`; here the values read and the bar drawn.
+    // The logic is in `rc2k_core::screens::setup_markers::plan`; here the values read and the bar drawn.
     use rc2k_core::screens::setup_markers::{Marker as M, Menu, Plan};
     let menu = Menu {
         edit_mode: edit_mode(menus),

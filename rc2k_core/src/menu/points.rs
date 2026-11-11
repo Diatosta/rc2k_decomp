@@ -1,4 +1,4 @@
-//! The championship's points (converted 2026-10-21 from `menu::award_stage_points`
+//! The championship's points (from `menu::award_stage_points`
 //! 0x4A47EA and `award_overall_points` 0x4A4933): handed out in the standings' order from
 //! 0x14 down by one, kept or not, and each entry's total of its six sections.
 

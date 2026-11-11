@@ -1,5 +1,5 @@
-//! The mud amounts the wheels add (Converted from
-//! `physics::turn_wheel_angles` 0x449EE9; despite the name it adds the mud thrown and splashed
+//! The mud amounts the wheels add (from
+//! `physics::accumulate_mud` 0x449EE9; it adds the mud thrown and splashed
 //! per car texture, `mud_thrown_in` / `mud_splashes_in`, for `race::update_mud_texture`).
 //!
 //! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
@@ -10,22 +10,22 @@ use super::x87::{below, loaded};
 /// The car kinds' table (`kind_gets_mud`): 0x22 entries.
 pub const KINDS: u32 = 0x22;
 
-/// Whether the car's kind (`g_car` +0x24) turns its wheels: below 0x22 and its entry
+/// Whether the car's kind (`g_car` +0x24) collects mud: below 0x22 and its entry
 /// (`kinds`, asked then) not 0.
-pub fn turns_wheels(kind: u32, kinds: impl FnOnce(u32) -> u32) -> bool {
+pub fn gets_mud(kind: u32, kinds: impl FnOnce(u32) -> u32) -> bool {
     kind < KINDS && kinds(kind) != 0
 }
 
 /// One half: `speed` (None with the switch `all_wheels_off` set: 0) held at `zero` or more,
-/// times `f1` and `f2` (kept in `scratch`), added to the four angles.
-pub fn add_turn(speed: Option<f32>, zero: f32, f1: f32, f2: f32, angles: &mut [f32; 4]) -> f32 {
+/// times `f1` and `f2` (kept in `scratch`), added to the four amounts.
+pub fn add_mud(speed: Option<f32>, zero: f32, f1: f32, f2: f32, amounts: &mut [f32; 4]) -> f32 {
     let s = match speed {
         Some(s) if below(s as f64, zero as f64) => loaded(zero),
         Some(s) => s,
         None => 0.0,
     };
     let step = (s as f64 * f1 as f64 * f2 as f64) as f32;
-    for a in angles.iter_mut() {
+    for a in amounts.iter_mut() {
         *a = (*a as f64 + step as f64) as f32;
     }
     step
@@ -42,14 +42,14 @@ mod tests {
 
     #[test]
     fn turns() {
-        assert!(turns_wheels(3, |_| 1));
-        assert!(!turns_wheels(3, |_| 0));
-        assert!(!turns_wheels(0x22, |_| panic!("not asked")));
+        assert!(gets_mud(3, |_| 1));
+        assert!(!gets_mud(3, |_| 0));
+        assert!(!gets_mud(0x22, |_| panic!("not asked")));
         let mut a = [1.0f32; 4];
-        assert_eq!(add_turn(Some(2.0), 0.0, 0.5, 3.0, &mut a), 3.0);
+        assert_eq!(add_mud(Some(2.0), 0.0, 0.5, 3.0, &mut a), 3.0);
         assert_eq!(a, [4.0; 4]);
-        assert_eq!(add_turn(Some(-2.0), 0.0, 0.5, 3.0, &mut a), 0.0);
-        assert_eq!(add_turn(None, 0.0, 0.5, 3.0, &mut a), 0.0);
+        assert_eq!(add_mud(Some(-2.0), 0.0, 0.5, 3.0, &mut a), 0.0);
+        assert_eq!(add_mud(None, 0.0, 0.5, 3.0, &mut a), 0.0);
         assert_eq!(a, [4.0; 4]);
         assert_eq!(slip(5.0, 1.5), 3.5);
     }

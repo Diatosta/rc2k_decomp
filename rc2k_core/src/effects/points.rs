@@ -1,6 +1,5 @@
 //! Gathering a face's points into a list without repeats, as `effects::collect_points_a`
-//! / `_b` (0x4BD551, 0x4BD59F) and `effects::add_face_points` (0x4B9E29) do it (converted
-//! 2026-10-21): each point looked for among those already there, added at the end when
+//! / `_b` (0x4BD551, 0x4BD59F) and `effects::add_face_points` (0x4B9E29) do it: each point looked for among those already there, added at the end when
 //! new, until the list is full.
 
 /// What adding a face's points leaves (the originals' registers).

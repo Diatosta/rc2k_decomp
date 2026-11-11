@@ -18,22 +18,22 @@ pub fn best_class_scores(menus: &crate::menu::owner::Menus) -> Result<(), Refuse
         return Err(BadInput("no classes, more than five, or no best-score table").into());
     };
     for class in 0..classes {
-        menus.screens.event.any_time_qualified.set(0u32);
+        menus.screens.event.any_time_qualified.set(false);
         for (n, &p) in players.iter().enumerate() {
             menus.screens.event.current_player.set(n as u32);
             let player_score = p.get().stage_points[6];
             if p.get().class == class {
                 // The group's tenth entry's offset (the original leaves its address in
                 // esi, which the screen's lists set before anything reads it).
-                // Converted: `rc2k_core::menu::bests::makes_score`.
+                // The logic is in `rc2k_core::menu::bests::makes_score`.
                 let tenth = tenth_best_score(class)?;
                 if rc2k_core::menu::bests::makes_score(player_score, tenth) {
                     enter_best(menus, None, |p| p.stage_points[6])?;
-                    menus.screens.event.any_time_qualified.set(1u32);
+                    menus.screens.event.any_time_qualified.set(true);
                 }
             }
         }
-        if menus.screens.event.any_time_qualified.get() == 1 {
+        if menus.screens.event.any_time_qualified.is_set() {
             menus.screens.event.class.set(class);
             run_screen(
                 &crate::menu::best_class_scores_loop::SCREEN,

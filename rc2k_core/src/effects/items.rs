@@ -1,4 +1,4 @@
-//! The squares' and windscreen drops' items (converted 2026-10-21 from `effects::spawn_windscreen_flake`
+//! The squares' and windscreen drops' items (from `effects::spawn_windscreen_flake`
 //! 0x4C0120, `pick_windscreen_flake` 0x4C0623, `spawn_windscreen_drop` 0x4BC22B and `pick_windscreen_drop`
 //! 0x4BC6F1): 0x800 records each, a cursor (a byte offset into them) where the next is
 //! looked for, made live at a place by lot.

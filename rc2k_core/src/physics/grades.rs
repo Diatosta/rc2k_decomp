@@ -1,4 +1,4 @@
-//! A car block's grades put back (converted from `physics::reset_car_grades`
+//! A car block's grades put back (from `physics::reset_car_grades`
 //! 0x440A22). The block is the work copy's layout (`g_car`, 0xFE0 bytes); what the fields
 //! are is stream A's reading (the block's grades and values).
 //!

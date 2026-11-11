@@ -313,7 +313,8 @@ fn spin_and_move(
             set(
                 ring,
                 e,
-                x87::plus_times_int(entry(ring, e)?.place[axis], entry(ring, e)?.motion[axis], t),
+                x87::plus_times_int(entry(ring, e)?.place[axis], entry(ring, e)?.motion[axis], t)
+                    .to_bits(),
                 |en| &mut en.place[axis],
             )?;
         }
@@ -332,7 +333,7 @@ fn gain_y(
         set(
             ring,
             e,
-            x87::plus_times_int(entry(ring, e)?.motion[1], k(k_addr), t),
+            x87::plus_times_int(entry(ring, e)?.motion[1], k(k_addr), t).to_bits(),
             |en| &mut en.motion[1],
         )?;
     }
@@ -382,7 +383,7 @@ fn pull_size(
             set(
                 ring,
                 e,
-                x87::from_int(entry(ring, e)?.size_goal as i32),
+                x87::from_int(entry(ring, e)?.size_goal as i32).to_bits(),
                 |en| &mut en.size,
             )?;
         }
@@ -607,7 +608,7 @@ fn fading_kind(
                 set(
                     ring,
                     e,
-                    x87::plus_times_int(entry(ring, e)?.size, k(c.gain()?), t),
+                    x87::plus_times_int(entry(ring, e)?.size, k(c.gain()?), t).to_bits(),
                     |en| &mut en.size,
                 )?;
             }
@@ -636,9 +637,12 @@ fn pull_toward(
         }
         pull_strength(ring, e, car, effects);
         if (ring.work.whole.get() as i32) > (setup.floats.pull_limit.bits() as i32) {
-            set(ring, e, x87::loaded(&setup.floats.fixed_16_scale), |en| {
-                &mut en.size_factor
-            })?;
+            set(
+                ring,
+                e,
+                x87::loaded(&setup.floats.fixed_16_scale).to_bits(),
+                |en| &mut en.size_factor,
+            )?;
         }
     }
     Ok(())

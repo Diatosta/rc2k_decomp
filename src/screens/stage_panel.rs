@@ -88,7 +88,7 @@ pub fn draw_stage_body_in(
     heading_font: crate::gfx::typefaces::FontId,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::stage_panel::body`.
+    // The logic is in `rc2k_core::screens::stage_panel::body`.
     use rc2k_core::screens::stage_panel::{Entry, Font};
     // The two markers on the map.
     for call in marker_calls(record.record()?) {

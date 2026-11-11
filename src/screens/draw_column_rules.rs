@@ -10,7 +10,7 @@ use crate::menu::owner::Screens;
 use crate::screens::service_boxes::quad;
 
 pub fn draw_column_rules(screens: &Screens) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::panels::column_rules`.
+    // The logic is in `rc2k_core::screens::panels::column_rules`.
     for a in rc2k_core::screens::panels::column_rules(screens.state.service_ui.fade_full.get()) {
         quad(a.x, a.y, a.w, a.h, a.colour, a.see)?;
     }

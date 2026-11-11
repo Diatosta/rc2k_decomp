@@ -47,7 +47,7 @@ pub struct ViewVars {
     /// +0x64 (0x6062D0): `flt_6062D0` (`physics::update_camera`).
     pub camera_zoom_hold: Float,
     /// +0x68 (0x6062D4): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_68: Dword,
+    pub unused_68: Dword,
     /// +0x6c (0x6062D8): `flt_6062D8` ..: the camera vector (three floats) whose length `physics::update_camera` takes.
     pub camera_vector: [Float; 3],
     /// +0x78 (0x6062E4): used only by the unported `sub_427DB4` and `sub_43B177` (0x6062E4: compared with 0 and cleared); the port never reaches it.
@@ -59,7 +59,7 @@ pub struct ViewVars {
     /// +0x184 (0x6063F0): `dword_6063F0`: the view kind, the camera mode number (`drive::set_camera_view`; `race::frame_draw::scene_objects` and `car_draw` branch on it).
     pub view_kind: Dword,
     /// +0x188 (0x6063F4): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_188: [Dword; 33],
+    pub unused_188: [Dword; 33],
     /// +0x20c (0x606478): `dword_606478[]`: by camera view (`race::frame_draw`).
     pub view_hides: [Dword; 34],
 }

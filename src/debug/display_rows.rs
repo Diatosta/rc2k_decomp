@@ -1,4 +1,4 @@
-//! The display page's figures (`debug::draw_wear_bars`' 380, IDA 2026-10-30) named and
+//! The display page's figures (`debug::draw_wear_bars`' 380) named and
 //! grouped for the debug UI (a more meaningful name, the input with other
 //! inputs, the damage together): generated from the page's items (`debug::wear_items`), with
 //! the names IDA gives their places and the developers' labels; a place the page printed
@@ -3093,7 +3093,7 @@ pub static GROUPS: &[Group] = &[
                 0x6138AC,
                 indexed_cell!(
                     crate::race::owner::RACE.shared.physics_tables,
-                    unknown_84[0]
+                    wear_page_words[0]
                 ),
                 false,
                 (468, 364),
@@ -3105,7 +3105,7 @@ pub static GROUPS: &[Group] = &[
                 0x6138B0,
                 indexed_cell!(
                     crate::race::owner::RACE.shared.physics_tables,
-                    unknown_84[1]
+                    wear_page_words[1]
                 ),
                 false,
                 (468, 370),
@@ -3117,7 +3117,7 @@ pub static GROUPS: &[Group] = &[
                 0x6138B4,
                 indexed_cell!(
                     crate::race::owner::RACE.shared.physics_tables,
-                    unknown_84[2]
+                    wear_page_words[2]
                 ),
                 false,
                 (468, 376),

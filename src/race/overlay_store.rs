@@ -28,19 +28,19 @@ pub struct OverlayBlock {
     /// +0x32c (0x6D1838): `dword_6D1838` + `a64`: a 7-byte text, the label behind (`race::frame_draw`, `race::name_plates`, `physics::rank_split_time`, `race::race_init`).
     pub label_behind: [Dword; 2],
     /// +0x334 (0x6D1840): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_334: Dword,
+    pub unused_334: Dword,
     /// +0x338 (0x6D1844): `dword_6D1844` + `a32`: a 7-byte text, the label ahead (same modules).
     pub label_ahead: [Dword; 2],
     /// +0x340 (0x6D184C): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_340: Dword,
+    pub unused_340: Dword,
     /// +0x344 (0x6D1850): `dword_6D1850` + `a64_0`: the kept copy of label_behind (`race::name_plates`, `race::race_init`).
     pub kept_behind: [Dword; 2],
     /// +0x34c (0x6D1858): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_34c: Dword,
+    pub unused_34c: Dword,
     /// +0x350 (0x6D185C): `dword_6D185C` + `a32_0`: the kept copy of label_ahead (same).
     pub kept_ahead: [Dword; 2],
     /// +0x358 (0x6D1864): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unknown_358: [Dword; 3],
+    pub unused_358: [Dword; 3],
 }
 
 /// IDA 0x6D150C, the first byte of the piece.

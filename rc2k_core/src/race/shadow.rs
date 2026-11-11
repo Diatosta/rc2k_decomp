@@ -1,8 +1,8 @@
-//! The car's shadow, its whole-number parts (converted from `race::shadow_hull`
+//! The car's shadow, its whole-number parts (from `race::shadow_hull`
 //! 0x45836F, the cells of `race::shadow_faces` 0x457618 with 0x4576C9, and the near
 //! test of `race::clip_shadow_to_face` 0x457960). A shadow point is a 0x20-byte record
 //! (+0 x, +4 y, +8 z as whole numbers, +0xC the angle, ...). The cars' shadows' passes
-//! Converted from `race::cast_car_shadow` 0x4575C1 and `race::cast_car_shadows`
+//! from `race::cast_car_shadow` 0x4575C1 and `race::cast_car_shadows`
 //! 0x45754C.
 
 use crate::Invalid;

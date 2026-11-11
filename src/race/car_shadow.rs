@@ -159,7 +159,7 @@ pub fn shadow_angles(race: &Race, work: &ShadowWork) -> Result<(), Refused> {
         let record = point_at(work, k)?;
         let mut v = sub(record.angle.get(), first);
         if crate::math::x87::below_or_unordered(v, zero) {
-            v = two_pi_plus(v);
+            v = f32::from_bits(two_pi_plus(v.to_bits()));
         }
         record.angle.set(mul_to_int(v, unit) as u32);
         record.zeroed.set(0);
@@ -772,9 +772,9 @@ pub fn shadow_points(race: &Race, work: &ShadowWork, car: &Car, sun: u32) -> Res
         at.z.set(z);
         at.angle.set(angle_of(at));
         let length = crate::math::x87::float_hypot(x, z);
-        at.length.set(length);
+        at.length.set(length.to_bits());
         if !below_or_unordered(length, work.farthest_length.bits()) {
-            work.farthest_length.set_bits(length);
+            work.farthest_length.set_bits(length.to_bits());
             work.farthest.set(k as u32);
         }
         at.x.set((mul_to_int(x, unit) as u32).wrapping_add(car.position[0].get()));
@@ -1427,7 +1427,7 @@ mod asm_reference {
                     angle: Dword::new(0),
                     length: Dword::new(0),
                     zeroed: Dword::new(0),
-                    unknown_18: [Dword::new(0), Dword::new(0)],
+                    carried_words: [Dword::new(0), Dword::new(0)],
                 };
                 let (want, got) = (
                     unsafe { angle_asm(crate::pointers::game_address(at.as_ptr())) },

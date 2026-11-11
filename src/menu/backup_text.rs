@@ -8,7 +8,7 @@ pub fn backup_text(
     menus: &Menus,
     at: impl Into<crate::place::BytePlace>,
 ) -> Result<(), crate::errors::BadInput> {
-    // Converted: `rc2k_core::menu::text_entry::Entry::back_up`.
+    // The logic is in `rc2k_core::menu::text_entry::Entry::back_up`.
     let text = field(at)?;
     with_entry(menus, |e| e.back_up(&text));
     Ok(())

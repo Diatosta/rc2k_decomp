@@ -1,4 +1,4 @@
-//! The Anbernic RG34XXSP (2026-10-30, a first draft): its stock OS has no display system SDL3
+//! The Anbernic RG34XXSP: its stock OS has no display system SDL3
 //! knows (no DRM, X11 or Wayland), so the frames go straight to `/dev/fb0`. SDL stays for
 //! sound and the pad (`platform_input`, `input::menu_pad`), on its `dummy` video driver.
 
@@ -246,7 +246,7 @@ pub fn start_profile() {
 
 /// The samples so far as `profile.txt`: the marker's place, then (place, thread) a line. On a
 /// thread of its own (the samples are atomics): written on the game's, the whole profile so far
-/// made one frame every 5 s longer the longer the game ran (2026-11-08: 70 to 190 ms).
+/// made one frame every 5 s longer the longer the game ran (70 to 190 ms).
 pub fn write_profile() {
     static WRITING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
     if TAKEN.load(Relaxed) == 0 || WRITING.swap(true, Relaxed) {

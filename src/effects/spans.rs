@@ -83,12 +83,12 @@ pub fn span_edges(
         let [y0, y1, xa0, xb0, xa1, xb1] = e;
         let ones: [u32; 3] = read_bits(&setup.mask_constants.ones);
         let height = x87::sub(y1, y0);
-        masks.vars.height.set_bits(height);
+        masks.vars.height.set_bits(height.to_bits());
         let slopes = [
             x87::sub_div(xa1, xa0, height),
             x87::sub_div(xb1, xb0, height),
         ];
-        write_bits(&masks.vars.slopes, slopes);
+        write_bits(&masks.vars.slopes, slopes.map(f32::to_bits));
         let (n, mut xa) = x87::frac_step(y0, ones[0], slopes[0], xa0);
         masks.vars.row_int.set(n as u32);
         let (n, mut xb) = x87::frac_step(y0, ones[1], slopes[1], xb0);
@@ -103,9 +103,9 @@ pub fn span_edges(
                 break;
             }
             let mut a = x87::loaded(xa);
-            xa = x87::add(xa, slopes[0]);
+            xa = x87::add(xa, slopes[0]).to_bits();
             let mut b = x87::loaded(xb);
-            xb = x87::add(xb, slopes[1]);
+            xb = x87::add(xb, slopes[1]).to_bits();
             let status = x87::compare_status(a, b);
             masks.vars.status_word.set(status);
             if status == 0 {
@@ -116,11 +116,11 @@ pub fn span_edges(
             crate::effects::masks::work_put(
                 masks,
                 to + 4,
-                bh::to_int(bh::ld(b) - bh::int(left)) as u32,
+                bh::to_int(bh::ld(b.to_bits()) - bh::int(left)) as u32,
             )?;
             to += 8;
         }
-        masks.vars.row.set_bits(row);
+        masks.vars.row.set_bits(row.to_bits());
         write_bits(&masks.vars.xs, [xa, xb]);
     }
     Ok(to)
@@ -153,8 +153,11 @@ fn halves(t: &[u32; 6]) -> ([[u32; 6]; 2], u32) {
     let [x0, y0, x1, y1, x2, y2] = *t;
     let split = x87::split_x(y0, y1, y2, x0, x2);
     (
-        [[y0, y1, x0, x0, x1, split], [y1, y2, x1, split, x2, x2]],
-        split,
+        [
+            [y0, y1, x0, x0, x1, split.to_bits()],
+            [y1, y2, x1, split.to_bits(), x2, x2],
+        ],
+        split.to_bits(),
     )
 }
 

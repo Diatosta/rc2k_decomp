@@ -44,7 +44,7 @@ pub fn begin_edit(e: Edit) -> Result<(), Refused> {
             .state
             .service_ui
             .box_shown
-            .set(screens.state.service_ui.box_shown.get() ^ 1);
+            .set(!screens.state.service_ui.box_shown.is_set());
         screens.state.service_ui.box_page.set(e.page);
     }
 

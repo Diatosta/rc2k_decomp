@@ -20,7 +20,7 @@
 //! list (the original reads past its end), a row drawn just before the end mark (the original then
 //! leaves with a dword still pushed, so its return takes the wrong ones: the original's
 //! slip), a name past the line buffer. In the draw list 0x758E46, whose address nothing in RAL.EXE
-//! holds (every byte searched, 2026-10-20): unreached. The menus and draw lists run its `entry`
+//! holds (every byte searched): unreached. The menus and draw lists run its `entry`
 //! (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
@@ -37,7 +37,7 @@ type Rows = (Vec<(BestTime, u32)>, Option<u32>);
 
 /// The rows to draw, worked out before anything is drawn.
 fn rows(menus: &Menus) -> Result<Rows, Refused> {
-    // Converted: `rc2k_core::screens::results_pages::class_rows`.
+    // The logic is in `rc2k_core::screens::results_pages::class_rows`.
     crate::menu::standings::with_a(|t| {
         let found = rc2k_core::screens::results_pages::class_rows(
             |n| t.entries.get(n as usize).map_or(0, |e| e.head.group),
@@ -58,7 +58,7 @@ fn rows(menus: &Menus) -> Result<Rows, Refused> {
 pub fn draw_class_ranking(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let (rows, last_place) = rows(menus)?;
     let first_time = find_class_time(menus.screens.event.class.get(), true)?;
-    // Converted: `rc2k_core::screens::results_pages::class_ranking` (the rows found here).
+    // The logic is in `rc2k_core::screens::results_pages::class_ranking` (the rows found here).
     use rc2k_core::screens::results_pages::{Name, RankedRow, class_ranking};
     let player = menus.play.champ_view.ranked_player.get();
     // A player's entry names the player's name (`name_at`), a driver's a string.

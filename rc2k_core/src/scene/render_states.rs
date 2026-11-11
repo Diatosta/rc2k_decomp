@@ -1,5 +1,5 @@
-//! The device's render states the scene and the HUD set as groups (converted 2026-10-21
-//! from `scene::glow_render_states` 0x44E44D, `scene::set_filters` 0x44E8FB,
+//! The device's render states the scene and the HUD set as groups
+//! (from `scene::glow_render_states` 0x44E44D, `scene::set_filters` 0x44E8FB,
 //! `scene::set_fog_colour` 0x44E76B and `hud::overlay_states` 0x45A943). The numbers are
 //! Direct3D's `D3DRENDERSTATETYPE` (the names a reading of that numbering); each group is
 //! set in the order given, one state at a time.

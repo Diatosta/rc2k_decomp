@@ -20,6 +20,6 @@ pub fn begin_replay_name(menus: &Menus, log: bool) -> Result<(), BadInput> {
         crate::logfile::log_write::log_nul(c"getrepsaveslotname result=", false, 1);
         crate::logfile::log_write::log_at(name, true, 1);
     }
-    // Converted: `rc2k_core::menu::text_entry::Entry::begin` (through `begin_logged`).
+    // The logic is in `rc2k_core::menu::text_entry::Entry::begin` (through `begin_logged`).
     begin_logged(menus, name, log)
 }

@@ -31,7 +31,7 @@ pub fn pick_start_gear(
     tables.start_gear_figures[2].set(car.engine_speed.bits());
     revs_speed(car, tables)?;
     tables.start_gear_figures[1].set(0);
-    tables.start_gear_figures[0].set(x87::loaded(&numbers.hundred));
+    tables.start_gear_figures[0].set(x87::loaded(&numbers.hundred).to_bits());
     let taken = shifts::pick_start(|gear| {
         if bit(car, gear)? {
             return Ok::<_, Refused>(false);
@@ -46,12 +46,15 @@ pub fn pick_start_gear(
     };
     car.gear.set(gear);
     revs_speed(car, tables)?;
-    car.engine_speed.set_bits(sub_mul_add(
-        tables.start_gear_figures[2].get(),
-        car.engine_speed.bits(),
-        tables.start_gear_share.bits(),
-        car.engine_speed.bits(),
-    ));
+    car.engine_speed.set_bits(
+        sub_mul_add(
+            tables.start_gear_figures[2].get(),
+            car.engine_speed.bits(),
+            tables.start_gear_share.bits(),
+            car.engine_speed.bits(),
+        )
+        .to_bits(),
+    );
     wheels(car, tables)?;
     settle(car, tables);
     Ok(())

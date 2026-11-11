@@ -1,6 +1,6 @@
 //! The replay viewer's flows: opening a replay and saving one, the undo, the camera
 //! edit's switch, the physics patches a replay was recorded with, the plays, the frame's
-//! bar and the tidying (converted from `race::open_viewed_replay` 0x41E9FF,
+//! bar and the tidying (from `race::open_viewed_replay` 0x41E9FF,
 //! `save_viewed_replay` 0x41ED1C, `close_viewed_replay` 0x41EB7C, `keep_undo` 0x41E438,
 //! `undo_edit` 0x41E46B, `edit_camera_1` 0x41E599 / `edit_camera_2` 0x41E5BA,
 //! `apply_replay_patches` 0x41F2C9, `restore_replay_patches` 0x41F31D, `play_marked`
@@ -123,8 +123,8 @@ pub fn edits_camera(block: u32, blocks: u32) -> bool {
 }
 
 /// `close_viewed_replay`: only an open replay (`replay_open` 1) is closed.
-pub fn closes(open: u32) -> bool {
-    open == 1
+pub fn closes(open: bool) -> bool {
+    open
 }
 
 /// `replay_mode_1` / `_3`: the viewer runs only with a replay there (`replay_closed`).
@@ -400,7 +400,7 @@ mod tests {
         assert_eq!(undo_count(0), None);
         assert_eq!(undo_count(9), Some(9));
         assert!(edits_camera(3, 9) && !edits_camera(9, 9));
-        assert!(closes(1) && !closes(2) && !closes(0));
+        assert!(closes(true) && !closes(false));
         assert!(views_replay(5) && !views_replay(0));
         assert!(patches_change(5, 0, false) && !patches_change(5, 1, false));
         assert!(patches_change(5, 1, true) && !patches_change(5, 0, true));

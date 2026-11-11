@@ -10,9 +10,9 @@ use crate::race::owner_shared::RaceShared;
 use crate::race::trap::car_at;
 use crate::session::Dword;
 
-/// The edges' offset for an angle (`math::turn_point_xz` of (0x1555, y, 0) by angle << 16).
+/// The edges' offset for an angle (`math::rotate_point_about_y` of (0x1555, y, 0) by angle << 16).
 fn offsets(angle: u32, y: u32) -> (u32, u32) {
-    let [x, _, z, _] = crate::math::turn_point_xz::turn_point_xz(
+    let [x, _, z, _] = crate::math::rotate_point_about_y::rotate_point_about_y(
         rc2k_core::race::skids::HALF_WIDTH,
         y as i32,
         0,

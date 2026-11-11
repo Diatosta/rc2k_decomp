@@ -14,7 +14,7 @@ use crate::menu::player_names::cars;
 
 pub fn drop_missing_controllers(menus: &Menus) -> Result<(), BadInput> {
     let play = &menus.play;
-    // Converted: `rc2k_core::menu::steps::kept_controller`.
+    // The logic is in `rc2k_core::menu::steps::kept_controller`.
     let most = input().devices.controller_count.get();
     for car in cars(play) {
         let c = car.get().controller;

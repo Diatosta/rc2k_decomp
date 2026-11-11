@@ -1,7 +1,6 @@
 //! The main menu's notice flag, the car specification screen's kept car and the cheats, out of
-//! RAL.EXE's image (IDA 0x7585D8 .. 0x758714; phase 7, typed). A `#[repr(C)]` struct with the image's
-//! layout, one static; `moved::MOVED` points the range at it. (Split 2026-10-25 from the front end's
-//! block `menu::store`.)
+//! RAL.EXE's image (IDA 0x7585D8 .. 0x758714). A `#[repr(C)]` struct with the image's
+//! layout, one static; `moved::MOVED` points the range at it.
 
 use crate::session::{Bytes, Dword, with_runs};
 
@@ -66,7 +65,7 @@ pub const START: usize = 0x7585D8;
 /// IDA 0x758714, the end of the piece.
 pub const END: usize = 0x758714;
 
-/// Where IDA 0x7585D8 is now (`moved::MOVED`'s home).
+/// Where IDA 0x7585D8 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn cheats_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::menu::owner::MENUS.play.cheats)

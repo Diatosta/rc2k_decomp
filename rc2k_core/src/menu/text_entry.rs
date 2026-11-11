@@ -1,8 +1,8 @@
-//! The menus' one-line text entry (converted 2026-10-21 from its four editors:
+//! The menus' one-line text entry (from its four editors:
 //! `menu::edit_player_name` 0x467C63, `edit_savegame_name`, `edit_replay_name` and
 //! `service::edit_setup_name` 0x46F1A9): what a pending key does. Each editor does its
 //! own with it (the name brought back, the slot saved, the cursor written). And the
-//! entry's state and its helpers (converted 2026-10-21 from `menu::backup_text` 0x46D5CC,
+//! entry's state and its helpers (from `menu::backup_text` 0x46D5CC,
 //! `restore_text` 0x46D5E3, `clear_text` 0x467DC9, `add_text_length` 0x46F4CE,
 //! `backspace_savegame_name` 0x46D5FD, `begin_player_name` 0x467C34, `begin_savegame_name`
 //! 0x46D571 and `begin_replay_name` 0x46F715); the players' names fitted to their width
@@ -22,7 +22,7 @@ pub type Text = [u8; TEXT_LEN];
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Entry {
     pub length: i32,
-    pub entering: u32,
+    pub entering: bool,
     pub backup: Text,
 }
 
@@ -55,7 +55,7 @@ impl Entry {
     pub fn begin(&mut self, field: &mut Text) {
         self.back_up(field);
         self.clear(field);
-        self.entering = 1;
+        self.entering = true;
         self.length = 0;
     }
 
@@ -66,7 +66,7 @@ impl Entry {
         if !with_4 {
             *kept = *name;
             self.clear(name);
-            self.entering = 1;
+            self.entering = true;
         }
         self.length = 0;
     }
@@ -187,14 +187,14 @@ mod tests {
     fn state() {
         let mut e = Entry {
             length: 3,
-            entering: 0,
+            entering: false,
             backup: [0xBB; TEXT_LEN],
         };
         let mut field = [b'x'; TEXT_LEN];
         e.begin(&mut field);
         assert_eq!(
             (e.length, e.entering, e.backup, field),
-            (0, 1, [b'x'; TEXT_LEN], [0; TEXT_LEN])
+            (0, true, [b'x'; TEXT_LEN], [0; TEXT_LEN])
         );
         assert_eq!(e.restored()[..TEXT_LEN], [b'x'; TEXT_LEN]);
         assert_eq!(e.restored()[TEXT_LEN], 0);
@@ -207,13 +207,16 @@ mod tests {
         let (mut name, mut kept) = ([b'n'; TEXT_LEN], [0; TEXT_LEN]);
         e = Entry {
             length: 7,
-            entering: 0,
+            entering: false,
             backup: [0; TEXT_LEN],
         };
         e.begin_player_name(true, &mut name, &mut kept);
-        assert_eq!((e.length, e.entering, name[0], kept[0]), (0, 0, b'n', 0));
+        assert_eq!(
+            (e.length, e.entering, name[0], kept[0]),
+            (0, false, b'n', 0)
+        );
         e.begin_player_name(false, &mut name, &mut kept);
-        assert_eq!((e.entering, name[0], kept[0]), (1, 0, b'n'));
+        assert_eq!((e.entering, name[0], kept[0]), (true, 0, b'n'));
         let text = b"abc\0";
         assert_eq!(text_length(|i| text[i]), Ok(3));
         assert!(text_length(|_| 1).is_err());

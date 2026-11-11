@@ -1,6 +1,6 @@
-//! The texts the game's log writes (converted 2026-10-20 from `logfile::log_int` 0x401440,
+//! The texts the game's log writes (from `logfile::log_int` 0x401440,
 //! `log_int_fmt` 0x40148B, `log_float` 0x4014D8, `date_text` 0x401D74; the entry's gate of
-//! `logfile::log_write` 0x4013CB converted 2026-10-21).
+//! `logfile::log_write` 0x4013CB).
 
 use crate::strings::format::{Pad, decimal};
 use crate::strings::table::nth_string;

@@ -35,19 +35,19 @@ use rc2k_core::menu::keys::Pressed;
 /// `eax` is the caller's eax, whose bits 8 .. 15 are read on Enter (the screen loops: the
 /// elapsed time).
 pub fn handle_keys(menus: &Menus, eax: u32) -> Result<Pressed, Refused> {
-    // Converted: `rc2k_core::menu::keys` (`keys_off`, `action`, `enter_skips_name_entry`).
+    // The logic is in `rc2k_core::menu::keys` (`keys_off`, `action`, `enter_skips_name_entry`).
     use rc2k_core::menu::keys::{self, Action, Move};
     let nothing = Pressed::Nothing;
-    if keys::keys_off(menus.screens.state.service_ui.box_shown.get(), || {
+    if keys::keys_off(menus.screens.state.service_ui.box_shown.is_set(), || {
         screens().controls.learning.get()
     }) {
         return Ok(nothing);
     }
-    if menus.screens.flow.asking.get() == 1 && !has_layout() {
+    if menus.screens.flow.asking.is_set() && !has_layout() {
         return Err(BadInput("no keyboard layout").into());
     }
     menus.screens.option_work.set_sound(keys::MenuSound::None);
-    menus.screens.loop_flags.leave_screen.set(0u32);
+    menus.screens.loop_flags.leave_screen.set(false);
     let key = take_key();
     if key == 0 {
         return Ok(nothing);
@@ -58,9 +58,9 @@ pub fn handle_keys(menus: &Menus, eax: u32) -> Result<Pressed, Refused> {
     match action {
         Action::Ignored => return Ok(nothing),
         Action::Escape => {
-            menus.screens.loop_flags.leave_screen.set(1u32);
-            menus.screens.draw_work.escape_pressed.set(1u32);
-            menus.tables.captions.left_by_key.set(1);
+            menus.screens.loop_flags.leave_screen.set(true);
+            menus.screens.draw_work.escape_pressed.set(true);
+            menus.tables.captions.left_by_key.set(true);
             return Ok(Pressed::Escape);
         }
         _ => {}

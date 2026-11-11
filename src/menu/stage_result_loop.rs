@@ -1,14 +1,12 @@
 //! `menu::stage_result_loop` (0x48558D): the loop of a stage's result screen. Seen after a
-//! single race's stage (owner, 2026-10-22: the standalone reached it there); earlier
-//! called a time trial's, wrongly.
+//! single race's stage.
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`), as extracted from the disassembly: background `results1.png` through
 //! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is asked about;
 //! its own 3D list goes to `g_sceneList` before the first frame only.
 //! Screen: the one player's result after a stage, "RESULTADOS": the rally and
-//! stage, then "piloto", "tempo" and "velocidade máxima" (owner's screenshot from a Rust-run
-//! visit, 2026-10-11). Named `screen_48558d_loop` until then.
+//! stage, then "piloto", "tempo" and "velocidade máxima".
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, Frames, List, MenuSound, Screen, Step};
 
@@ -30,7 +28,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.screens.event.event_over, 0x0)],
+    before: &[Step::WriteFlag(|m| &m.screens.event.event_over, false)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.stage_result_picture
     }))],

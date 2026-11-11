@@ -1,4 +1,4 @@
-//! A picture put into a system texture's levels, its sizes (converted 2026-10-21 from
+//! A picture put into a system texture's levels, its sizes (from
 //! `gfx::upload_texture_picture` 0x41A68B).
 //!
 //! Sizes are counted in halvings from 256 by the game's table (five sizes). The picture

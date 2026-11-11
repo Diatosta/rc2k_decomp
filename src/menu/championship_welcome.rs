@@ -18,6 +18,6 @@ use crate::menu::flow_game::Game;
 use rc2k_core::menu::welcome::{self};
 
 pub fn championship_welcome(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::welcome::championship_welcome`.
+    // The logic is in `rc2k_core::menu::welcome::championship_welcome`.
     Game::new(menus).run(welcome::championship_welcome)
 }

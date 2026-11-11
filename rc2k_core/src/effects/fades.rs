@@ -1,4 +1,4 @@
-//! The marks' fade colours (converted 2026-10-21 from `effects::make_fade_colours`
+//! The marks' fade colours (from `effects::make_fade_colours`
 //! 0x4C37EF): 0x11 colours from one toward white, each component's inverse (0xFF less it)
 //! times a step growing from 0, rounded, made a pixel (alpha 0xFF) and added to the colour
 //! as one dword (carries cross components). As in `math::geometry`, what the x87 keeps on

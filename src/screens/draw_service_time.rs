@@ -24,7 +24,7 @@ use crate::text::draw_text::Canvas;
 // (label string, font) for the four readouts.
 /// Returns the carry flag of the last `draw_text`.
 pub fn draw_service_time(screens: &Screens, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    // Converted: `rc2k_core::screens::service::service_time`.
+    // The logic is in `rc2k_core::screens::service::service_time`.
 
     rc2k_core::screens::service::service_time(
         &mut crate::screens::game_screen::ServiceScreen::new(canvas),

@@ -1,5 +1,5 @@
 //! Whether an object's face is drawn: the four tests of `scene::list_object_face`'s own
-//! (converted 2026-10-21 from 0x4504CB and its parts 0x452292, 0x4505BD,
+//! (from 0x4504CB and its parts 0x452292, 0x4505BD,
 //! 0x450688, 0x4506B7). A face's group is the low five bits of its byte +7. The
 //! game's variables come through `FaceWorld`, each asked only where the original reads it.
 
@@ -27,45 +27,45 @@ impl Face {
 
 /// The game's variables the tests read and the two they write.
 pub trait FaceWorld {
-    /// `dword_5C5CEC` not 0.
+    /// Whether a race is on (a game flag that is not 0).
     fn in_race(&self) -> bool;
     /// `g_objectNumber`.
     fn object(&self) -> u32;
-    /// `dword_5CD27C[object]` (object under 0x100).
+    /// The kind of an object (the object number under 0x100).
     fn object_kind(&self, object: u32) -> u32;
-    /// `dword_5C5790[place]`: the known kinds of car.
+    /// The known kinds of car, by place.
     fn known_kind(&self, place: usize) -> u32;
-    /// `dword_5C90DC` / `dword_5C90E0` + place * 0x134.
+    /// The two groups a car kind's record names (records 0x134 bytes apart, by place).
     fn kind_groups(&self, place: usize) -> [u32; 2];
-    /// `dword_5CCE50`, `dword_5CCE54`.
+    /// The two groups hidden by the chosen view.
     fn hidden_groups(&self) -> [u32; 2];
     fn set_hidden_groups(&mut self, groups: [u32; 2]);
-    /// `dword_5CCE58`, `dword_5CCE5C`.
+    /// The two other groups.
     fn other_groups(&self) -> [u32; 2];
-    /// `dword_62150C`.
+    /// The group mask.
     fn group_mask(&self) -> u32;
-    /// `dword_621870`.
+    /// The mask kind (the developers' mode that cycles it).
     fn mask_kind(&self) -> u32;
-    /// `dword_621934[group]`.
+    /// The group table's entry for a group.
     fn group_table(&self, group: u32) -> u32;
-    /// `dword_71A66C`.
+    /// Non-zero when the second mask is not used.
     fn no_second_mask(&self) -> u32;
-    /// `dword_606280`.
+    /// The second mask.
     fn second_mask(&self) -> u32;
-    /// `dword_5CCE60`, `dword_62DAD0`.
+    /// The lone group and whether it is on.
     fn lone_group(&self) -> u32;
     fn lone_group_on(&self) -> u32;
-    /// `dword_6D18D4`.
+    /// Which of the groups to show.
     fn groups_which(&self) -> u32;
-    /// `dword_63996C`, `dword_639974`.
+    /// Whether see-through is on, and its value.
     fn see_through_on(&self) -> u32;
     fn see_through_value(&self) -> u32;
     /// `g_objectSeeThrough`.
     fn set_see_through(&mut self, value: u32);
-    /// The dword the line kind picks at +0x6FC of the block `off_71B3B8[dword_60627C]`;
+    /// The dword the line kind picks at +0x6FC of the block of the car being drawn;
     /// refused when there is no block.
     fn line_value(&self, extra: u32) -> Result<u32, Invalid>;
-    /// `dword_5CD688[kind]`.
+    /// The byte the face kind selects in the kind table.
     fn kind_byte(&self, kind: u32) -> u32;
 }
 

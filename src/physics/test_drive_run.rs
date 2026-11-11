@@ -26,8 +26,7 @@ pub const STEPS: u32 = 0x1388;
 
 /// One step (0x42189D ..).
 fn step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    race.shared.car.local_velocity[2]
-        .set_bits(crate::math::x87::loaded(&race.shared.car.drive_speed_a));
+    race.shared.car.local_velocity[2].set(crate::math::x87::loaded(&race.shared.car.drive_speed_a));
     crate::physics::count_down_timers::count_down_timers(&race.shared.car, &race.shared.vars);
     crate::physics::gearbox_step::gearbox_step(race, scene)?;
     crate::physics::engine_torque::engine_torque(race, scene);
@@ -85,7 +84,7 @@ fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused>
         }
         if n % 20 == 0 {
             let slot = (n / 20) as usize;
-            GEAR.test_speeds[slot].set_bits(crate::math::x87::mul(
+            GEAR.test_speeds[slot].set(crate::math::x87::mul(
                 &race.shared.car.drive_speed_a,
                 &race.course.numbers.two_and_a_quarter,
             ));

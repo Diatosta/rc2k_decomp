@@ -1,4 +1,4 @@
-//! The name lists of the load and save pages (converted 2026-10-20):
+//! The name lists of the load and save pages:
 //! `screens::draw_savegame_names` 0x46D45A (saved games), `draw_setup_slot_names` 0x46F0DD
 //! (setups), `draw_replay_slot_names` 0x46F41A (replays), and the setup pages around their
 //! list, `draw_save_setup_list` 0x46F031 and `draw_load_setup_list` 0x46F087. Each list is

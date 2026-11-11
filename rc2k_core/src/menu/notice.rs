@@ -1,6 +1,6 @@
-//! The copyright notice of the edition whose notice kind is 2 (converted 2026-10-21 from
+//! The copyright notice of the edition whose notice kind is 2 (from
 //! `menu::build_notice` 0x4165F1): one line made of the two. Drawn by a menu frame
-//! (converted 2026-10-21 from `menu::frame_callback` 0x474D4B: `drawn_now`).
+//! (from `menu::frame_callback` 0x474D4B: `drawn_now`).
 
 /// The notice kind (`g_noticeKind`, from the language's `.loc` file) that builds it.
 pub const BUILDS: u8 = 2;

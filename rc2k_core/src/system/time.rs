@@ -1,8 +1,8 @@
-//! The game's time stamp (converted 2026-10-21 from `system::packed_local_time` 0x410F99):
+//! The game's time stamp (from `system::packed_local_time` 0x410F99):
 //! the local date and time to the minute in one dword: the year, then 4 bits of month, 5 of
 //! day, 5 of hour, 6 of minute. The save files carry it. Also the start time kept
 //! (`system::keep_start_time` 0x410F29) and the millisecond clock's override
-//! (`system::tick_count` 0x411024), converted 2026-10-21, and `system::wait_or_key`
+//! (`system::tick_count` 0x411024), and `system::wait_or_key`
 //! 0x407F69's time running out (the same day).
 
 /// The local time as Windows gives it (`SYSTEMTIME`).

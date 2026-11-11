@@ -6,7 +6,7 @@
 
 #[cfg(test)]
 use crate::race::owner::race;
-use crate::session::Dword;
+use crate::session::{Dword, Flag};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -20,15 +20,15 @@ pub struct ReplayFileBlock {
     /// +0xc (0x5BEC84): `dword_5BEC84`: a replay was closed / is there (`race::replay`, `race::replay_mode`, `race::open_viewed_replay`).
     pub replay_closed: Dword,
     /// +0x10 (0x5BEC88): `g_replayOpen`: the replay file is open (`race::replay`, `race::viewer`, `drive::read_replay_frame`, `drive::write_replay_frames`).
-    pub replay_open: Dword,
+    pub replay_open: Flag,
     /// +0x14 (0x5BEC8C): `h`: the replay file's handle (`race::replay`, `drive::read_replay_frame`).
     pub replay_handle: Dword,
     /// +0x18 (0x5BEC90): `g_replayAtEnd`: the last frame was reached (`drive::read_replay_frame`, `race::viewer`).
-    pub replay_at_end: Dword,
+    pub replay_at_end: Flag,
     /// +0x1c (0x5BEC94): `g_holdCarRevs`: the cars' revs are held (`race::viewer`, `physics::off_line_warnings`, `physics::pace_notes_step`, `sound::car_engine_state`, `hud::draw_view_strips`, `race::credits_race`).
     pub hold_car_revs: Dword,
     /// +0x20 (0x5BEC98): `g_viewerStopped`: 1 = the viewer is not playing (`race::viewer`).
-    pub viewer_stopped: Dword,
+    pub viewer_stopped: Flag,
     /// +0x24 (0x5BEC9C): `g_viewerMode`: the viewer's mode, the mode it is started with (`race::viewer`).
     pub viewer_mode: Dword,
     /// +0x28 (0x5BECA0): `g_viewerSlot`: the replay slot being viewed, 222 the last race's (`race::viewer`).

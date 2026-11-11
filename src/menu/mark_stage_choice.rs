@@ -6,7 +6,7 @@
 use crate::menu::owner::Play;
 
 pub fn mark_stage_choice(play: &Play) {
-    // Converted: `rc2k_core::menu::event::MapStage`.
+    // The logic is in `rc2k_core::menu::event::MapStage`.
     play.champ_view
         .stage_mode
         .set(rc2k_core::menu::event::MapStage::Choice as u32);

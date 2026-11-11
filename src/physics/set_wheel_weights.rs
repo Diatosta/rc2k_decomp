@@ -27,12 +27,12 @@ pub fn set_wheel_weights(
     let one: u32 = numbers.one.bits();
     let high: u32 = numbers.five.bits();
     let k: u32 = numbers.quarter.bits();
-    scratch.set(x87::loaded(&contact.wheel_share));
+    scratch.set(x87::loaded(&contact.wheel_share).to_bits());
     if compare_full(scratch.get(), one) & 0x100 != 0 {
-        scratch.set(x87::loaded(one));
+        scratch.set(x87::loaded(one).to_bits());
     }
     if compare_full(scratch.get(), high) & 0x100 == 0 {
-        scratch.set(x87::loaded(high));
+        scratch.set(x87::loaded(high).to_bits());
     }
     let f = weight_force(
         scratch.get(),
@@ -43,7 +43,7 @@ pub fn set_wheel_weights(
     );
     let wheels = &tables.forces[..4];
     for w in wheels {
-        w.force[1].set_bits(f);
+        w.force[1].set_bits(f.to_bits());
     }
     for w in wheels {
         turn_by_inverse(car, &w.force);
@@ -58,7 +58,7 @@ pub fn set_wheel_weights(
         &wheels[0].point[2],
         &wheels[1].point[2],
     ] {
-        cell.set_bits(plus);
+        cell.set_bits(plus.to_bits());
     }
     for cell in [
         &wheels[0].point[0],
@@ -66,7 +66,7 @@ pub fn set_wheel_weights(
         &wheels[2].point[2],
         &wheels[3].point[2],
     ] {
-        cell.set_bits(minus);
+        cell.set_bits(minus.to_bits());
     }
     for w in wheels {
         turn_by_inverse(car, &w.point);

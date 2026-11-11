@@ -8,6 +8,6 @@ use crate::menu::disable_item::set_item;
 use crate::menu::owner::Screens;
 
 pub fn enable_item(screens: &Screens, number: u32) -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::items::choosable`.
+    // The logic is in `rc2k_core::menu::items::choosable`.
     set_item(screens, number, true)
 }

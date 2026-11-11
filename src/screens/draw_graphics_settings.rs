@@ -37,7 +37,7 @@ const NAMES: [Name; 8] = [
 
 pub fn draw_graphics_settings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let display = &gfx().display;
-    // Converted: `rc2k_core::screens::settings_pages::{graphics_item, graphics}`.
+    // The logic is in `rc2k_core::screens::settings_pages::{graphics_item, graphics}`.
     use crate::screens::game_screen::SettingsScreen;
     {
         if rc2k_core::screens::settings_pages::graphics_item(

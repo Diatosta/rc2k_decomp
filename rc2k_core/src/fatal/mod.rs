@@ -1,4 +1,4 @@
-//! The fatal-error report (converted 2026-10-21 from `fatal::report` 0x40763C and
+//! The fatal-error report (from `fatal::report` 0x40763C and
 //! `fatal::show_report_at_exit` 0x407855): its text, made once per run, and how the
 //! reporter leaves.
 //!

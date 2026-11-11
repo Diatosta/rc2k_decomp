@@ -28,7 +28,7 @@ fn records(n: u32) -> [Spline; 4] {
 fn sizes(a: u32, k: u32, k2: u32) -> (u32, u32) {
     let abc = x87::mul(a, k);
     let d = x87::mul2(a, k, k2);
-    (abc, d)
+    (abc.to_bits(), d.to_bits())
 }
 
 pub fn place_spline(
@@ -64,13 +64,13 @@ pub fn place_spline(
         let status = x87::compare_status(b.get(paths, 0x24)?, k[2]);
         setup.work.fpu_status.set(status as u32);
         let f = if status == 0x100 { k[4] } else { k[3] };
-        b.put(paths, 0x2C, x87::mul(b.get(paths, 0x24)?, f))?;
+        b.put(paths, 0x2C, x87::mul(b.get(paths, 0x24)?, f).to_bits())?;
         paths.spline_head.switch.set(0);
         place_graded_points(paths, b)?;
         let status = x87::compare_status(c.get(paths, 0x24)?, k[5]);
         setup.work.fpu_status.set(status as u32);
         let f = if status == 0 { k[7] } else { k[6] };
-        c.put(paths, 0x2C, x87::mul(c.get(paths, 0x24)?, f))?;
+        c.put(paths, 0x2C, x87::mul(c.get(paths, 0x24)?, f).to_bits())?;
         paths.spline_head.switch.set(1);
         place_graded_points(paths, c)?;
     }

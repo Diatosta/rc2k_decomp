@@ -71,7 +71,7 @@ fn message(count: u32, table: impl Into<crate::place::BytePlace>, y: u32) -> Res
         }
         sleep(1);
         pump();
-        if system().session.flags.quitting.get() == 1 {
+        if system().session.flags.quitting.is_set() {
             break;
         }
     }

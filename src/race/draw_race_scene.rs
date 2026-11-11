@@ -508,7 +508,7 @@ pub fn draw_race_scene(
     for state in [0x11, 0x12] {
         set_render_state(2, state);
     }
-    if race.shared.work.in_credits.get() == 0 && race.replay.finish.no_place.get() == 0 {
+    if !race.shared.work.in_credits.is_set() && race.replay.finish.no_place.get() == 0 {
         crate::hud::overlay_pass::overlay_pass(crate::hud::owner::hud(), race)?;
     }
     crate::race::skid_laying::lay_skidmarks_if_on(race)?;

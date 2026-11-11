@@ -16,9 +16,9 @@ use crate::menu::screen_loop::{Callee, Entry, Flow, Frames, List, Screen, Step, 
 
 fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
     let screens = &entry.menus.screens;
-    if screens.option_work.typing.get() == 0x1 {
+    if screens.option_work.typing.is_set() {
         Callee::EditPlayerName.run(entry)?;
-        if screens.option_work.typing.get() != 0x0 {
+        if screens.option_work.typing.is_set() {
             return Ok(Flow::NextFrame);
         }
     }
@@ -44,7 +44,7 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[
-        Step::Write(|m| &m.screens.event.event_over, 0x0),
+        Step::WriteFlag(|m| &m.screens.event.event_over, false),
         Step::Write(|m| &m.screens.event.current_player, 0x0),
     ],
     background: &[

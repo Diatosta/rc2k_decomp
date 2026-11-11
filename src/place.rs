@@ -1,8 +1,8 @@
-//! A place in the game's texts and data (phase 13): a typed buffer and an offset into it,
+//! A place in the game's texts and data: a typed buffer and an offset into it,
 //! or, for what the game's data still hands around as pointers (the installer's script
 //! and pages, the name tables), a game address. Helpers take `impl Into<BytePlace>`, so a
 //! typed buffer goes in as itself (`&INSTALLER_PATHS.installed`, `&TEXT_BUFFER.text`) and
-//! a pointer read from the game's data as its number. (The installer's first, 2026-10-28.)
+//! a pointer read from the game's data as its number.
 
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;

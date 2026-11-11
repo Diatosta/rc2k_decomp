@@ -1,4 +1,4 @@
-//! A player's inspection figures from its car's table (converted 2026-10-21 from
+//! A player's inspection figures from its car's table (from
 //! `menu::driver_stats` 0x4A73D8): each part's value by its wear, the parts' limits, the
 //! weights of the inspected parts and the penalties of those at or past their limits.
 //!

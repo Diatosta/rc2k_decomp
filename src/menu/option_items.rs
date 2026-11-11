@@ -1,5 +1,4 @@
-//! The options pages' remaining item handlers (2026-10-19; the standalone program met
-//! them as "not ported" on the sound and visual options pages): thirty small left/right
+//! The options pages' remaining item handlers (on the sound and visual options pages): thirty small left/right
 //! and action handlers, each named by what it changes. What each does, by its kind:
 //! - a switch: a dword flipped (`xor .., 1`), nothing else (0x467EF8 a game flag,
 //!   0x468211 `champ_view.switch_f8`, 0x468219 `switch_fc`; what they switch is not read);
@@ -101,7 +100,7 @@ fn set(x: StepOperand, v: i32) {
 
 pub fn option_item(item: Item) -> Result<(), Refused> {
     let audio = crate::audio::owner::audio();
-    // Converted: `rc2k_core::menu::steps` (`flip`, `quality`, `volume`, `counter`,
+    // The logic is in `rc2k_core::menu::steps` (`flip`, `quality`, `volume`, `counter`,
     // `previous_mode`).
     use rc2k_core::menu::steps;
     let v = item.var;

@@ -55,7 +55,7 @@ pub fn apply_cheats(
     race: &crate::race::owner::Race,
 ) -> Result<(), BadInput> {
     let play = &menus.play;
-    // Converted: `rc2k_core::menu::car_lists::apply_cheats`.
+    // The logic is in `rc2k_core::menu::car_lists::apply_cheats`.
     {
         let cheats: u32 = play.cheats.cheats.get();
         let list = |l: List| -> Result<car_lists::List, BadInput> {

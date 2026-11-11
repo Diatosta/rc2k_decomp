@@ -29,7 +29,7 @@ fn direction_names(
     }
 }
 
-/// Row n's text (without its NUL). Converted: `rc2k_core::screens::controls::binding_text`.
+/// Row n's text (without its NUL). The logic is in `rc2k_core::screens::controls::binding_text`.
 pub fn binding_text(
     controls: &crate::screens::controls_store::ControlsScreen,
     player: crate::menu::standings::PlayerCell,
@@ -67,7 +67,7 @@ pub fn draw_control_bindings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<b
     for (n, text) in texts.iter_mut().enumerate() {
         *text = binding_text(controls, player, n as u32)?;
     }
-    // Converted: `rc2k_core::screens::controls::control_bindings`.
+    // The logic is in `rc2k_core::screens::controls::control_bindings`.
     let learnt = (learning == 1 && (1..=10).contains(&row)).then(|| row as usize - 1);
     rc2k_core::screens::controls::control_bindings(&mut ControlsScreen::new(canvas), &texts, learnt)
 }

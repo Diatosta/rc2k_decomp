@@ -1,4 +1,4 @@
-//! The stage objects' points as they are loaded (converted 2026-10-21 from
+//! The stage objects' points as they are loaded (from
 //! `scene::turn_stage_object_point` 0x426A5A).
 
 /// The loading kinds whose points are turned.

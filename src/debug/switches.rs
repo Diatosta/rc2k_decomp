@@ -1,5 +1,5 @@
-//! The developers' keypad switches (`debug::take_switch_keys`, 0x43B3D6, no callers; IDA
-//! 2026-10-30) as the debug UI's tab: each key cycled one variable. Key 2's `dword_6218E0`
+//! The developers' keypad switches (`debug::take_switch_keys`, 0x43B3D6, no callers)
+//! as the debug UI's tab: each key cycled one variable. Key 2's `dword_6218E0`
 //! has no reader, so it is only named. Key 9 also set `g_stageLoading`, which nothing reads.
 //! What each does is read from its readers, and marked as such in the tab's texts. These
 //! are the game's own variables: the race's settings copy (`race::settings_copy`) and a

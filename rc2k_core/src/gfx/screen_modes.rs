@@ -1,4 +1,4 @@
-//! Screen modes and the picture as a surface (converted 2026-10-21 from
+//! Screen modes and the picture as a surface (from
 //! `gfx::mark_3d_modes` 0x40442C, `gfx::try_screen_mode` 0x404AED's lookup,
 //! `gfx::keep_race_screen_mode` 0x404805 and `gfx::picture_as_surface` 0x405FE7).
 //!

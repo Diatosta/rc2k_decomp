@@ -48,11 +48,14 @@ pub fn surface_noise(
         race.shared.car.surface_noise_second.set(second);
         let floor = rough_floor(second, race.course.stage_prefs.surface_floor.get());
         scene.drawing.scene.scratch.set(floor);
-        race.shared.car.surface_blend.set_bits(ext_div2(
-            int_80(floor as i32, false),
-            race.course.numbers.k256.bits(),
-            0x3F80_0000,
-        ));
+        race.shared.car.surface_blend.set_bits(
+            ext_div2(
+                int_80(floor as i32, false),
+                race.course.numbers.k256.bits(),
+                0x3F80_0000,
+            )
+            .to_bits(),
+        );
         if race.course.stage_prefs.noise_pick.get() != 0 {
             race.shared.car.surface_noise_a.set(0);
         } else {

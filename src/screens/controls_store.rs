@@ -1,8 +1,6 @@
-//! The controller screen's variables, out of RAL.EXE's image (IDA 0x755170 .. 0x755224;
-//! phase 7, typed): the history of the polls the direction learner keeps, the binding being
+//! The controller screen's variables, out of RAL.EXE's image (IDA 0x755170 .. 0x755224): the history of the polls the direction learner keeps, the binding being
 //! learnt, and the names the bindings are drawn with. A `#[repr(C)]` struct of atomic cells
-//! with the image's layout, one static; `moved::MOVED` points the range at it. (Split
-//! 2026-10-25 from the front end's block `menu::store`; it starts with the unreferenced
+//! with the image's layout, one static; `moved::MOVED` points the range at it. (It starts with the unreferenced
 //! bytes after the savegame preview's figures, `saves::preview_store`.)
 
 use crate::session::{Bytes, Dword, Word};
@@ -103,7 +101,7 @@ pub const START: usize = 0x755170;
 /// IDA 0X755224, the end of the piece.
 pub const END: usize = 0x755224;
 
-/// Where IDA 0X755170 is now (`moved::MOVED`'s home).
+/// Where IDA 0X755170 lives (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn controls_screen_addr() -> u32 {
     crate::pointers::game_address(&raw const crate::screens::owner::SCREENS_OWNER.controls)
