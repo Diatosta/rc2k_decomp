@@ -14,27 +14,214 @@
 //! words that name code stay as read.
 //!
 //! The item count is the list's own and is not checked against the item asked for: the
-//! original goes past it too (a list of no items goes round 2^32 times).
+//! original goes past it too (a list of no items goes round 2^32 times). An item past the
+//! list's items is the bytes that follow the list in the installer's pages (the next list,
+//! table or record), read as an item: `item` and `Choices` reach them through a place bounded
+//! by the whole of the pages, not by the list.
+//!
+//! The installer's own lists are typed records (`ListData`, `Item`, `EditRecord`) in
+//! `install::vars::InstallerPages`, with the layout of these bytes.
 
 use crate::install::installer::refuse;
 use crate::install::installer::{rb, rd, rl, rw, wb, wd};
-use crate::install::page_links::PageLink;
+use crate::install::page_links::{ListId, PageLink};
 use crate::pointers::GamePtr;
+use crate::session::{PlainByte, PlainDword, PlainWord};
 
 /// The header's bytes.
 const HEADER: u32 = 0x18;
 /// An item's bytes.
 const ITEM: u32 = 0x10;
 
+/// A list's header as the installer's pages hold it (see the module: 0x18 bytes).
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct ListHeader {
+    /// +0: the flags.
+    pub flags: PlainByte,
+    /// +1: the number of items.
+    pub count: PlainByte,
+    /// +2: the title's string.
+    pub title_text: PlainWord,
+    /// +4: the item highlighted.
+    pub highlight: PlainDword,
+    /// +8: the list's action (an address in RAL.EXE's code).
+    pub action: PlainDword,
+    /// +0xC: nothing reads it.
+    pub unused_0c: PlainDword,
+    /// +0x10: the link to the neighbours table (0 for none).
+    pub neighbours: PlainDword,
+    /// +0x14: the key action.
+    pub key_action: PlainDword,
+}
+
+impl ListHeader {
+    // One argument a field, in the order of the header's bytes.
+    #[allow(clippy::too_many_arguments)]
+    pub const fn new(
+        flags: u8,
+        count: u8,
+        title_text: u16,
+        highlight: u32,
+        action: u32,
+        unused_0c: u32,
+        neighbours: u32,
+        key_action: u32,
+    ) -> Self {
+        Self {
+            flags: PlainByte::new(flags),
+            count: PlainByte::new(count),
+            title_text: PlainWord::new(title_text),
+            highlight: PlainDword::new(highlight),
+            action: PlainDword::new(action),
+            unused_0c: PlainDword::new(unused_0c),
+            neighbours: PlainDword::new(neighbours),
+            key_action: PlainDword::new(key_action),
+        }
+    }
+}
+
+/// A list's item as the installer's pages hold it (see the module: 0x10 bytes).
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct Item {
+    /// +0: the kind (low nibble) and marks (high bits).
+    pub first: PlainByte,
+    /// +1: the next list or the number of choices.
+    pub count: PlainByte,
+    /// +2: the item's text (a string id).
+    pub text: PlainWord,
+    /// +4: the link to the item's box.
+    pub box_link: PlainDword,
+    /// +8: the link or action, or where the item's value or text is.
+    pub target: PlainDword,
+    /// +0xC: the choices, the edit record or the text action.
+    pub data: PlainDword,
+}
+
+impl Item {
+    pub const fn new(
+        first: u8,
+        count: u8,
+        text: u16,
+        box_link: u32,
+        target: u32,
+        data: u32,
+    ) -> Self {
+        Self {
+            first: PlainByte::new(first),
+            count: PlainByte::new(count),
+            text: PlainWord::new(text),
+            box_link: PlainDword::new(box_link),
+            target: PlainDword::new(target),
+            data: PlainDword::new(data),
+        }
+    }
+}
+
+/// Defines a list of a fixed number of items: its header and the items after it (the derive
+/// takes no const generics).
+macro_rules! list_data {
+    ($($name:ident: $n:expr),* $(,)?) => {$(
+        #[repr(C)]
+        #[derive(rc2k_derive::Cells)]
+        pub struct $name {
+            pub header: ListHeader,
+            pub items: [Item; $n],
+        }
+
+        impl $name {
+            pub const fn new(header: ListHeader, items: [Item; $n]) -> Self {
+                Self { header, items }
+            }
+        }
+    )*};
+}
+
+list_data! {
+    ListData3: 3,
+    ListData4: 4,
+    ListData5: 5,
+    ListData6: 6,
+    ListData10: 10,
+    ListData18: 18,
+    ListData26: 26,
+}
+
+/// An edit item's record as the installer's pages hold it (8 bytes; `EditField` reads it).
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct EditRecord {
+    pub flags: PlainByte,
+    /// +1: the most characters.
+    pub most: PlainByte,
+    /// +2: the default text.
+    pub default_text: PlainWord,
+    /// +4: the font's kind.
+    pub font_kind: PlainByte,
+    /// +5: nothing reads it.
+    pub unused_05: PlainByte,
+    /// +6: the width.
+    pub width: PlainWord,
+}
+
+impl EditRecord {
+    pub const fn new(
+        flags: u8,
+        most: u8,
+        default_text: u16,
+        font_kind: u8,
+        unused_05: u8,
+        width: u16,
+    ) -> Self {
+        Self {
+            flags: PlainByte::new(flags),
+            most: PlainByte::new(most),
+            default_text: PlainWord::new(default_text),
+            font_kind: PlainByte::new(font_kind),
+            unused_05: PlainByte::new(unused_05),
+            width: PlainWord::new(width),
+        }
+    }
+}
+
+/// A box `{x, y, width, height}` of dwords as the installer's pages hold it.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct BoxRect {
+    pub x: PlainDword,
+    pub y: PlainDword,
+    pub width: PlainDword,
+    pub height: PlainDword,
+}
+
+impl BoxRect {
+    pub const fn new(x: u32, y: u32, width: u32, height: u32) -> Self {
+        Self {
+            x: PlainDword::new(x),
+            y: PlainDword::new(y),
+            width: PlainDword::new(width),
+            height: PlainDword::new(height),
+        }
+    }
+}
+
 /// A list menu (the header's and items' places are taken from its place).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ListMenu(GamePtr);
 
 impl ListMenu {
-    /// The list a link of the installer's pages names (a link that names no list place is
-    /// refused).
+    /// The list a link of the installer's pages names. Any thing of the pages is taken: the
+    /// page walk reads the words after an entry's answers as links and looks at the list they
+    /// name, as the original does (`install::run_pages::pass_over`).
     pub fn at(link: PageLink) -> Result<Self, crate::errors::BadInput> {
         Ok(Self(link.in_pages()?))
+    }
+
+    /// One of the installer's lists.
+    pub fn installer(list: ListId) -> Self {
+        let pages = GamePtr::to(&crate::install::owner::install().pages);
+        Self(pages.offset(list.offset() as u32))
     }
 
     /// The list at a place in the game's data.
@@ -254,7 +441,12 @@ impl ListItem {
 
     /// +0xC as the item's edit record (an edit item).
     pub fn edit_field(self) -> EditField {
-        EditField(self.pages_link(0xC).limited(8))
+        EditField(
+            rl(self.field(0xC, 4))
+                .edit_place()
+                .unwrap_or_else(|e| refuse(e))
+                .limited(8),
+        )
     }
 }
 

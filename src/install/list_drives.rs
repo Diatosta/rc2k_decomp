@@ -6,17 +6,18 @@
 //! the game's slip): the letter, a space, the free space as KB
 //! (id 0xA6), MB (0xA7) or GB (0xA8, with ">=" before it), NUL. The number is in
 //! `drive_count`; the drive menu list is chosen (the 8-drive menu up to 8 drives, the
-//! 16-drive menu up to 16, else the largest) into `chosen_menu` with its item count set to the number
+//! 16-drive menu up to 16, else the largest) into the drive page's entry with its item count set to the number
 //! plus two.
 //!
 //! Caller `install::run_installer`. Its two probes: `files::drive_type`,
 //! `files::drive_free_space_kb`.
 
 use crate::install::installer::{wb, wd};
-use crate::install::page_links::PageLink;
-use crate::install::vars::InstallerPages;
-use core::mem::offset_of;
+use crate::install::page_links::{ListId, PageLink};
 use rc2k_core::install::drives::{self, DriveMenu};
+
+/// The drive page's entry in the pages' table (`g_driveMenu`, 0x51D5F8, from 0x51D594).
+const DRIVE_ENTRY: usize = 25;
 
 pub fn list_drives(install: &'static crate::install::owner::Install) {
     let drives = crate::place::BytePlace::from(crate::pointers::GamePtr::to(&install.run.drives));
@@ -66,26 +67,14 @@ pub fn list_drives(install: &'static crate::install::owner::Install) {
         ebx = row.add(0x10);
     }
     let count = install.run.drive_count.get();
-    let (menu, name) = match drives::menu(count) {
-        DriveMenu::Eight => (
-            crate::place::BytePlace::from(&install.pages.drive_menu_8),
-            offset_of!(InstallerPages, drive_menu_8),
-        ),
-        DriveMenu::Sixteen => (
-            crate::place::BytePlace::from(&install.pages.drive_menu_16),
-            offset_of!(InstallerPages, drive_menu_16),
-        ),
-        DriveMenu::More => (
-            crate::place::BytePlace::from(&install.pages.menu_more),
-            offset_of!(InstallerPages, menu_more),
-        ),
+    let list = match drives::menu(count) {
+        DriveMenu::Eight => ListId::Drives8,
+        DriveMenu::Sixteen => ListId::Drives16,
+        DriveMenu::More => ListId::DrivesMore,
     };
-    // A link to the menu (`page_links::PageLink`).
-    install
-        .pages
-        .chosen_menu
-        .set_u32(0, PageLink::in_pages_at(name).raw());
-    crate::menu::list_handle::ListMenu::of(menu).set_count(drives::items(count));
+    // The drive page's entry links to the menu (`page_links::PageLink`).
+    install.pages.page_table[DRIVE_ENTRY].set(PageLink::list(list).raw());
+    crate::menu::list_handle::ListMenu::installer(list).set_count(drives::items(count));
 }
 
 fn g_at(at: crate::place::BytePlace) -> u32 {

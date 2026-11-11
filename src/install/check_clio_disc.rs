@@ -77,6 +77,6 @@ pub fn check_clio_disc(
     name[end] = b'\n';
     name[end + 1] = 0;
     install.clio_car_name.write(&name);
-    g.pages.step.set_u32(0, CLIO_STEP);
+    g.pages.action_pages[2].action.set(CLIO_STEP);
     Ok(())
 }

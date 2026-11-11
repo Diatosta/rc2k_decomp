@@ -16,7 +16,6 @@
 use crate::errors::Refused;
 use crate::net::lobby::PALETTE;
 use crate::net::owner::Net;
-use crate::net::store::NetVars;
 use rc2k_core::net::screens::{self, ButtonFont};
 
 pub const FONT_PLAIN: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON;
@@ -27,7 +26,6 @@ const FONT_DIM: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BU
 /// or in the blink's lit half.
 pub fn item_font(
     install: &'static crate::install::owner::Install,
-    vars: &NetVars,
     item: u32,
     plain: crate::gfx::typefaces::FontId,
     lit: crate::gfx::typefaces::FontId,
@@ -42,7 +40,7 @@ pub fn item_font(
     if screens::item_lit(
         item,
         install.pages.choice.get(),
-        || vars.edited.get(),
+        || crate::net::owner::net().edit().edited.get(),
         blink,
     ) {
         lit
@@ -105,7 +103,7 @@ pub fn draw_button(
     let lit = screens::item_lit(
         item,
         install.pages.choice.get(),
-        || net.vars.edited.get(),
+        || crate::net::owner::net().edit().edited.get(),
         || {
             screens::blink_lit(
                 install.pages.frame_clock.get(),

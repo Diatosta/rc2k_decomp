@@ -7,8 +7,8 @@
 //! - `read_registry`; if an installation is recorded (status 1, a source) and
 //!   `<source>ral.exe` exists (the source through `normalise_path` into the numbered paths' buffer),
 //!   the installer's script is set up for an update: the text "patch6:  (4.8.2000)" and a
-//!   line feed at the player's number text, and in the script's entry (`script_entry`) the bytes 5 and 0x0C at
-//!   +0x18, the word 0x1006 at +0x1A and the word 0xBD at +0x2A (`script_set_up`, which
+//!   line feed at the player's number text, and in the script's entry (`main_menu.items[0]`) the bytes 5 and 0x0C at
+//!   +0x18, the word 0x1006 at +0x1A and the word 0xBD at +0x2A (`main_menu.items[1].text`, which
 //!   sends the main loop into the installer);
 //! - then, either way, the drives a .. z: the first CD-ROM on which `x:\ral.exe` and
 //!   `x:\files\d\gfx\jade.bun` exist and whose root can be made the current directory
@@ -32,11 +32,11 @@ const PATH_ROOM: usize = 0x100;
 /// What both checks write into the script's entry, but for the string's id.
 pub fn set_script_entry(install: &'static crate::install::owner::Install, text_id: u16) {
     // The entry of the installer's script: two bytes, a string's id, and
-    // 0xBD (`script_set_up`) = the installer runs.
-    install.pages.entry_kind.set(5);
-    install.pages.entry_marks.set(0x0C);
-    install.pages.entry_text.set(text_id);
-    install.pages.script_set_up.set(0xBD);
+    // 0xBD (the second item's text) = the installer runs.
+    install.pages.main_menu.items[0].first.set(5);
+    install.pages.main_menu.items[0].count.set(0x0C);
+    install.pages.main_menu.items[0].text.set(text_id);
+    install.pages.main_menu.items[1].text.set(0xBD);
 }
 
 /// `no_audio` is the sound's switch.

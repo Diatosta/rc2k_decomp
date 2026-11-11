@@ -8,13 +8,12 @@
 
 use crate::net::begin_edit::EditedText;
 use crate::net::lobby::PALETTE;
-use crate::net::store::NetVars;
+use crate::net::owner::net;
 use rc2k_core::net::editing::{self, Setting};
 
 /// Starts a setting's edit (item, text, width and font as the original passes them).
 pub fn begin_setting_edit(
     install: &'static crate::install::owner::Install,
-    vars: &NetVars,
 ) -> Result<(), crate::errors::Refused> {
     // Converted: `rc2k_core::net::editing` (`Setting`, `WIDTH`).
     let item = install.pages.choice.get();
@@ -22,7 +21,8 @@ pub fn begin_setting_edit(
         Setting::Name => EditedText::MachineName,
         Setting::HostAddress => EditedText::HostAddress,
         Setting::MostPlayers => {
-            let mut digits = crate::strings::format_u32::format_u32(vars.most_players.get(), 0);
+            let mut digits =
+                crate::strings::format_u32::format_u32(net().setup().most_players.get(), 0);
             digits.push(0);
             install
                 .paths
@@ -32,5 +32,5 @@ pub fn begin_setting_edit(
         }
         Setting::None => return Ok(()),
     };
-    crate::net::begin_edit::begin_edit(vars, item, text, editing::WIDTH, PALETTE)
+    crate::net::begin_edit::begin_edit(item, text, editing::WIDTH, PALETTE)
 }

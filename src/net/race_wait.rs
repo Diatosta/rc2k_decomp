@@ -22,8 +22,12 @@ pub fn race_wait(net: &Net) -> Result<u32, Refused> {
         .set(PlayerRecord::STATE, players::waiting(vars.own.state()));
     vars.own.race_time.set(u32::MAX);
     let now = crate::system::tick_count::tick_count();
-    if (now.wrapping_sub(vars.clock_a.get()).wrapping_sub(1000) as i32) >= 0 {
-        vars.clock_a.set(now);
+    if (now
+        .wrapping_sub(net.edit().clock_a.get())
+        .wrapping_sub(1000) as i32)
+        >= 0
+    {
+        net.edit().clock_a.set(now);
         crate::net::list_players::list_players_regs(&net.vars)?;
     }
     if vars.own.state() & players::HOST != 0 {

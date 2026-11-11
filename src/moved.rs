@@ -548,9 +548,77 @@ pub(crate) const MOVED: &[Moved] = &[
         )),
     },
     Moved {
-        ida: crate::net::store::NetVars::START, // NetVars
-        len: crate::net::store::NetVars::LEN,
-        home: Home::Store(&crate::net::owner::NET_OWNER.vars),
+        ida: 0x52A4B0, // NetVars, the stretch the receiving thread shares (receive_done)
+        len: 0x4,
+        home: Home::Store(&crate::session::Window::new(
+            &crate::net::owner::NET_OWNER.vars,
+            0x52A4B0 - crate::net::store::NetVars::START,
+            0x4,
+        )),
+    },
+    Moved {
+        ida: crate::net::store::EditVars::START, // EditVars
+        len: crate::net::store::EditVars::LEN,
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::net::owner::NET_OWNER.main.unchecked().edit,
+        )),
+    },
+    Moved {
+        ida: 0x52A508, // NetVars, the stretch the receiving thread shares (chat to the player name)
+        len: 0x668,
+        home: Home::Store(&crate::session::Window::new(
+            &crate::net::owner::NET_OWNER.vars,
+            0x52A508 - crate::net::store::NetVars::START,
+            0x668,
+        )),
+    },
+    Moved {
+        ida: crate::net::store::SetupVars::START, // SetupVars
+        len: crate::net::store::SetupVars::LEN,
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::net::owner::NET_OWNER.main.unchecked().setup,
+        )),
+    },
+    Moved {
+        ida: 0x52AC2C, // NetVars, the stretch the receiving thread shares (the stage item and the connection list)
+        len: 0x10,
+        home: Home::Store(&crate::session::Window::new(
+            &crate::net::owner::NET_OWNER.vars,
+            0x52AC2C - crate::net::store::NetVars::START,
+            0x10,
+        )),
+    },
+    Moved {
+        ida: crate::net::store::AddressVars::START, // AddressVars
+        len: crate::net::store::AddressVars::LEN,
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::net::owner::NET_OWNER.main.unchecked().address,
+        )),
+    },
+    Moved {
+        ida: 0x52ACE4, // NetVars, the stretch the receiving thread shares (posting to the session list)
+        len: 0x1C,
+        home: Home::Store(&crate::session::Window::new(
+            &crate::net::owner::NET_OWNER.vars,
+            0x52ACE4 - crate::net::store::NetVars::START,
+            0x1C,
+        )),
+    },
+    Moved {
+        ida: crate::net::store::JoinedVars::START, // JoinedVars
+        len: crate::net::store::JoinedVars::LEN,
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::net::owner::NET_OWNER.main.unchecked().joined,
+        )),
+    },
+    Moved {
+        ida: 0x52AD64, // NetVars, the stretch the receiving thread shares (the own record to the end)
+        len: 0x806B5,
+        home: Home::Store(&crate::session::Window::new(
+            &crate::net::owner::NET_OWNER.vars,
+            0x52AD64 - crate::net::store::NetVars::START,
+            0x806B5,
+        )),
     },
     Moved {
         ida: crate::net::store::Button::START, // Button

@@ -33,7 +33,9 @@ pub fn run_installer(install: &'static crate::install::owner::Install) -> Result
     #[cfg(unix)]
     crate::install::installer::wd(
         // 0x51DBD0.
-        crate::place::BytePlace::from(&install.pages.folder_page).add(0x30),
+        crate::place::BytePlace::from(crate::pointers::GamePtr::to(
+            &install.pages.folder_menu.items[1].target,
+        )),
         // A link to `InstallerPaths::typed` from its first byte.
         crate::install::page_links::PageLink::of_ida(0x95EBF8).raw(),
     );
@@ -75,7 +77,7 @@ pub fn run_installer(install: &'static crate::install::owner::Install) -> Result
         i::check_installed_version::check_installed_version(install)?;
         // The version-match branch changes into the installed folder.
         if install.run.same_version.get() == 1 {
-            install.pages.record_flag.set(1);
+            install.pages.main_menu.header.highlight.set(1);
             set_cd(&install.paths.installed);
             i::read_record::read_record(&install.texts.record_path.text()[..])?;
             crate::install::installer::wb(crate::files::state::base_directory_place(), 0);
@@ -83,9 +85,9 @@ pub fn run_installer(install: &'static crate::install::owner::Install) -> Result
             load_language()?;
         }
         let pages = if install.run.updating.get() == 1 {
-            crate::install::page_records::PageEntry::of(&install.pages.update_pages)
+            crate::install::page_records::PageEntry::update_run()
         } else {
-            crate::install::page_records::PageEntry::of(&install.pages.normal_pages)
+            crate::install::page_records::PageEntry::normal_run()
         };
         i::run_pages::run_pages(install, crate::strings::owner::strings(), pages)?;
     }

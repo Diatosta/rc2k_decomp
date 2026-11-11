@@ -96,7 +96,7 @@ fn take_course_memory(
 
 /// The place at handle `at` (`COURSE_TAG | offset`) inside the course memory, bounded by the
 /// memory's bytes; a handle outside it, or no course memory, is refused.
-pub fn course_memory_at(at: u32) -> Result<crate::pointers::GamePtr, BadInput> {
+fn course_memory_at(at: u32) -> Result<crate::pointers::GamePtr, BadInput> {
     let guard = COURSE_MEMORY
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -105,6 +105,16 @@ pub fn course_memory_at(at: u32) -> Result<crate::pointers::GamePtr, BadInput> {
         .checked_sub(COURSE_TAG)
         .ok_or(BadInput("a place before the course memory"))?;
     Ok(memory.ptr().offset(off))
+}
+
+/// `len` bytes of the course memory from handle `at` (`what` names them in a refusal).
+pub fn read_course_memory(at: u32, len: usize, what: &str) -> Result<Vec<u8>, BadInput> {
+    course_memory_at(at)?.read_bytes(len, what)
+}
+
+/// `data` written into the course memory from handle `at`.
+pub fn write_course_memory(at: u32, data: &[u8], what: &str) -> Result<(), BadInput> {
+    course_memory_at(at)?.write_bytes(data, what)
 }
 
 /// The course memory given back (the list's `free_list` counts it down).

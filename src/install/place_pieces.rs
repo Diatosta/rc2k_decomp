@@ -8,7 +8,6 @@ use crate::errors::Refused;
 use crate::install::page_links::PageLink;
 use crate::install::page_records::{BoxRecord, Piece, piece_count};
 use crate::install::place_row::place_row;
-use crate::install::vars::InstallerPages;
 
 pub fn place_pieces(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
     // Converted: `rc2k_core::install::layout::rows` (each piece's box read through its item).
@@ -25,5 +24,5 @@ pub fn place_pieces(install: &'static crate::install::owner::Install) -> Result<
 
 /// The link to the title's box.
 fn title_box_link() -> PageLink {
-    PageLink::in_pages_at(core::mem::offset_of!(InstallerPages, title_box))
+    PageLink::box_at(1)
 }

@@ -3,16 +3,24 @@
 //! The original's pages hold addresses: a page entry names its list, an item its box, its
 //! choices, its edit record, its value or its text, a list its neighbours table, a drawing
 //! list's record its font or palette. The data here holds a handle in each of those dwords,
-//! made once where the data is built (`vars::linked`, from IDA's address), and every reader
-//! resolves it with bounds. A handle is a kind in the high byte and a number below:
+//! made once where the data is built (`vars::InstallerPages::new`, from IDA's address), and
+//! every reader resolves it with bounds. A handle is a kind in the high byte and a number
+//! below:
 //!
-//! - `PAGES`: a byte offset in `InstallerPages` (the table, list, item, box, text or byte);
+//! - `TABLE`: a dword of `InstallerPages::page_table` (the page entries), by index;
+//! - `LIST`: one of the pages' lists, by `ListId` (a page entry's first word names a list, or one of
+//!   the header-only `action_pages`);
+//! - `BOX`: one of `InstallerPages::boxes`, by index (0 the title item's, 1 the title's);
+//! - `EDIT`: the folder item's edit record;
 //! - `FONT`: a font of the font block, by number (`gfx::typefaces::FontId`);
 //! - `BLENDED_PALETTE`: the blended palette (the install bar's glyphs);
 //! - `TYPED_PATH`: a byte offset in `InstallerPaths::typed` (the folder item's text starts
 //!   past the drive's `c:`).
 //!
-//! 0 is no link (a page with no next entry, the title's box).
+//! 0 is no link (a page with no next entry, the title's box). A thing of the pages resolves
+//! to its place in `InstallerPages` (`in_pages`), which is bounded by the whole of the
+//! pages: a read that runs on past a list's items or a table's end reads the bytes that
+//! follow, as the original's.
 
 use crate::errors::BadInput;
 use crate::gfx::typefaces::{self, FontId};
@@ -21,10 +29,13 @@ use crate::pointers::GamePtr;
 
 const KIND_SHIFT: u32 = 24;
 const NUMBER: u32 = (1 << KIND_SHIFT) - 1;
-const PAGES: u32 = 1;
+const TABLE: u32 = 1;
 const FONT: u32 = 2;
 const BLENDED_PALETTE: u32 = 3;
 const TYPED_PATH: u32 = 4;
+const LIST: u32 = 5;
+const BOX: u32 = 6;
+const EDIT: u32 = 8;
 
 /// IDA's address of `InstallerPaths::typed` (`InstallerPaths.typed`): the folder typed on the page. The
 /// folder item's text starts two bytes in (0x95EBFA, past the drive's `c:`), or at its start
@@ -32,8 +43,100 @@ const TYPED_PATH: u32 = 4;
 const TYPED_IDA: u32 = 0x95EBF8;
 /// IDA's address of the blended palette the install bar's glyphs name.
 const PALETTE_IDA: u32 = 0x4F3B74;
-/// The bytes `InstallerPages` holds before IDA's first (`vars::InstallerPages::home`).
-const PAGES_LEAD: u32 = 7;
+
+/// IDA's address of the first dword of `InstallerPages::page_table`, and how many it holds.
+const TABLE_IDA: u32 = 0x51D594;
+pub const TABLE_LEN: u32 = 55;
+/// IDA's address of the folder item's edit record.
+const EDIT_IDA: u32 = 0x51DD70;
+/// IDA's address of the first of `InstallerPages::boxes` (16 bytes each, 9 of them).
+const BOX_IDA: u32 = 0x51DD88;
+const BOXES: u32 = 9;
+
+/// One of the installer pages' lists.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ListId {
+    Language,
+    Main,
+    Mode,
+    Drives8,
+    Drives16,
+    DrivesMore,
+    Folder,
+    Room,
+    Dxsetup,
+    Finish,
+    /// The pages that are only an action (a header with no items): copying the files,
+    /// uninstalling, opening the installed copy, asking to register.
+    InstallFiles,
+    Uninstall,
+    OpenInstalled,
+    AskRegistration,
+}
+
+impl ListId {
+    /// The lists with IDA's address of each, in the order of the enum.
+    const ALL: [(ListId, u32); 14] = [
+        (ListId::Language, 0x51D670),
+        (ListId::Main, 0x51D728),
+        (ListId::Mode, 0x51D790),
+        (ListId::Drives8, 0x51D7F8),
+        (ListId::Drives16, 0x51D8B0),
+        (ListId::DrivesMore, 0x51D9E8),
+        (ListId::Folder, 0x51DBA0),
+        (ListId::Room, 0x51DC18),
+        (ListId::Dxsetup, 0x51DC60),
+        (ListId::Finish, 0x51DCB8),
+        (ListId::InstallFiles, 0x51DD10),
+        (ListId::Uninstall, 0x51DD28),
+        (ListId::OpenInstalled, 0x51DD40),
+        (ListId::AskRegistration, 0x51DD58),
+    ];
+
+    /// The list's byte offset in `InstallerPages`.
+    pub const fn offset(self) -> usize {
+        use core::mem::offset_of;
+        match self {
+            ListId::Language => offset_of!(InstallerPages, language_menu),
+            ListId::Main => offset_of!(InstallerPages, main_menu),
+            ListId::Mode => offset_of!(InstallerPages, mode_menu),
+            ListId::Drives8 => offset_of!(InstallerPages, drive_menu_8),
+            ListId::Drives16 => offset_of!(InstallerPages, drive_menu_16),
+            ListId::DrivesMore => offset_of!(InstallerPages, menu_more),
+            ListId::Folder => offset_of!(InstallerPages, folder_menu),
+            ListId::Room => offset_of!(InstallerPages, room_menu),
+            ListId::Dxsetup => offset_of!(InstallerPages, dxsetup_menu),
+            ListId::Finish => offset_of!(InstallerPages, finish_menu),
+            ListId::InstallFiles => offset_of!(InstallerPages, action_pages),
+            ListId::Uninstall => offset_of!(InstallerPages, action_pages) + 24,
+            ListId::OpenInstalled => offset_of!(InstallerPages, action_pages) + 48,
+            ListId::AskRegistration => offset_of!(InstallerPages, action_pages) + 72,
+        }
+    }
+
+    const fn number(self) -> u32 {
+        self as u32
+    }
+
+    const fn from_number(number: u32) -> Option<Self> {
+        if number < Self::ALL.len() as u32 {
+            Some(Self::ALL[number as usize].0)
+        } else {
+            None
+        }
+    }
+
+    const fn of_ida(ida: u32) -> Option<Self> {
+        let mut k = 0;
+        while k < Self::ALL.len() {
+            if Self::ALL[k].1 == ida {
+                return Some(Self::ALL[k].0);
+            }
+            k += 1;
+        }
+        None
+    }
+}
 
 /// A link of the installer pages' data (a handle; see the module).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -43,9 +146,20 @@ impl PageLink {
     /// The link the original's address `ida` is (where the data is built; an address that
     /// names none of the kinds fails to compile).
     pub const fn of_ida(ida: u32) -> Self {
-        let pages = InstallerPages::START as u32;
-        if ida >= pages && ida < pages + InstallerPages::LEN as u32 {
-            return Self((PAGES << KIND_SHIFT) | (ida - pages + PAGES_LEAD));
+        if ida >= TABLE_IDA
+            && ida < TABLE_IDA + 4 * TABLE_LEN
+            && (ida - TABLE_IDA).is_multiple_of(4)
+        {
+            return Self((TABLE << KIND_SHIFT) | ((ida - TABLE_IDA) / 4));
+        }
+        if let Some(list) = ListId::of_ida(ida) {
+            return Self::list(list);
+        }
+        if ida == EDIT_IDA {
+            return Self(EDIT << KIND_SHIFT);
+        }
+        if ida >= BOX_IDA && ida < BOX_IDA + 16 * BOXES && (ida - BOX_IDA).is_multiple_of(16) {
+            return Self::box_at((ida - BOX_IDA) / 16);
         }
         let fonts = typefaces::START as u32;
         if ida >= fonts && ida < fonts + typefaces::LEN as u32 && (ida - fonts).is_multiple_of(0x20)
@@ -61,10 +175,21 @@ impl PageLink {
         panic!("a page link that names nothing known");
     }
 
-    /// The link to byte `offset` of `InstallerPages` (a field's `offset_of!`).
-    pub const fn in_pages_at(offset: usize) -> Self {
-        assert!(offset < size_of::<InstallerPages>());
-        Self((PAGES << KIND_SHIFT) | offset as u32)
+    /// The link to page entry `index` of the pages' table.
+    pub const fn table(index: u32) -> Self {
+        assert!(index < TABLE_LEN);
+        Self((TABLE << KIND_SHIFT) | index)
+    }
+
+    /// The link to one of the pages' lists.
+    pub const fn list(list: ListId) -> Self {
+        Self((LIST << KIND_SHIFT) | list.number())
+    }
+
+    /// The link to box `index` of the pages' boxes (0 the title item's, 1 the title's).
+    pub const fn box_at(index: u32) -> Self {
+        assert!(index < BOXES);
+        Self((BOX << KIND_SHIFT) | index)
     }
 
     /// A link as the pages' data holds it.
@@ -89,16 +214,49 @@ impl PageLink {
         self.0 & NUMBER
     }
 
-    /// The place in the installer pages the link names, bounded by the pages (the table or
-    /// text may run on inside them as the original's does).
+    /// Where the thing of the installer pages the link names starts, as a byte offset in
+    /// `InstallerPages`.
+    fn pages_offset(self) -> Option<usize> {
+        use core::mem::offset_of;
+        let number = self.number();
+        match self.kind() {
+            TABLE if number < TABLE_LEN => {
+                Some(offset_of!(InstallerPages, page_table) + 4 * number as usize)
+            }
+            LIST => ListId::from_number(number).map(ListId::offset),
+            BOX if number < BOXES => Some(offset_of!(InstallerPages, boxes) + 16 * number as usize),
+            EDIT if number == 0 => Some(offset_of!(InstallerPages, folder_edit)),
+            _ => None,
+        }
+    }
+
+    /// The place in the installer pages the link names (a table entry, a list, a box, a
+    /// handler or the edit record), bounded by the pages (a table or text may run on inside
+    /// them as the original's does).
     pub fn in_pages(self) -> Result<GamePtr, BadInput> {
         let install = crate::install::owner::install();
-        if self.kind() != PAGES || self.number() as usize >= size_of::<InstallerPages>() {
-            return Err(BadInput(
+        match self.pages_offset() {
+            Some(offset) => Ok(GamePtr::to(&install.pages).offset(offset as u32)),
+            None => Err(BadInput(
                 "a page link that is no place in the installer's pages",
-            ));
+            )),
         }
-        Ok(GamePtr::to(&install.pages).offset(self.number()))
+    }
+
+    /// The place of the box a link names.
+    pub fn box_place(self) -> Result<GamePtr, BadInput> {
+        match self.kind() {
+            BOX => self.in_pages(),
+            _ => Err(BadInput("a page link that is no box")),
+        }
+    }
+
+    /// The place of the edit record a link names.
+    pub fn edit_place(self) -> Result<GamePtr, BadInput> {
+        match self.kind() {
+            EDIT => self.in_pages(),
+            _ => Err(BadInput("a page link that is no edit record")),
+        }
     }
 
     /// The place a text or a byte link names: in the pages, or the folder typed (bounded by
@@ -133,10 +291,20 @@ mod tests {
 
     #[test]
     fn the_original_addresses_become_the_handles_of_their_kind() {
-        let title = PageLink::of_ida(0x51DD78);
+        let title_box = PageLink::of_ida(0x51DD98);
+        assert_eq!(title_box, PageLink::box_at(1));
         assert_eq!(
-            title,
-            PageLink::in_pages_at(core::mem::offset_of!(InstallerPages, title))
+            title_box.box_place().unwrap().addr(),
+            GamePtr::to(&crate::install::owner::install().pages.boxes[1]).addr()
+        );
+        assert_eq!(
+            PageLink::of_ida(0x51D5F8),
+            PageLink::table(25),
+            "the drive page's entry"
+        );
+        assert_eq!(
+            PageLink::of_ida(0x51D9E8),
+            PageLink::list(ListId::DrivesMore)
         );
         assert_eq!(
             PageLink::of_ida(0x51E8A4).font().unwrap(),
@@ -160,17 +328,24 @@ mod tests {
     fn a_link_is_resolved_only_as_its_own_kind() {
         assert!(PageLink::from_raw(0).in_pages().is_err());
         assert!(PageLink::of_ida(0x51E8A4).in_pages().is_err());
-        assert!(PageLink::of_ida(0x51DD78).font().is_err());
+        assert!(PageLink::of_ida(0x51DD70).font().is_err());
+        assert!(PageLink::of_ida(0x51D5C0).box_place().is_err());
         assert!(
-            PageLink::from_raw(PAGES << KIND_SHIFT | 0xFFFF)
+            PageLink::from_raw(TABLE << KIND_SHIFT | TABLE_LEN)
                 .in_pages()
                 .is_err()
         );
-        let last = size_of::<InstallerPages>() as u32 - 1;
         assert!(
-            PageLink::from_raw(PAGES << KIND_SHIFT | last)
+            PageLink::from_raw(BOX << KIND_SHIFT | BOXES)
                 .in_pages()
-                .is_ok()
+                .is_err()
         );
+        assert!(
+            PageLink::from_raw(LIST << KIND_SHIFT | 14)
+                .in_pages()
+                .is_err()
+        );
+        assert!(PageLink::of_ida(0x51DD70).edit_place().is_ok());
+        assert!(PageLink::of_ida(0x51DD40).in_pages().is_ok());
     }
 }

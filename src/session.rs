@@ -1468,6 +1468,65 @@ impl TextPlace for crate::pointers::GamePtr {
     }
 }
 
+/// A stretch of a record of atomic cells, registered as a moved range (a record whose other
+/// stretches are another store's).
+pub struct Window<'a, S> {
+    whole: &'a S,
+    offset: usize,
+    len: usize,
+}
+
+impl<'a, S> Window<'a, S> {
+    /// The `len` bytes of the record from byte `offset`.
+    pub const fn new(whole: &'a S, offset: usize, len: usize) -> Self {
+        Self { whole, offset, len }
+    }
+}
+
+// SAFETY: as `OnGameThread`'s, without the thread check: `first` is the record's byte at the
+// window's offset and `size` the window's length.
+unsafe impl<S: crate::pointers::Cells> crate::pointers::Store for Window<'_, S> {
+    fn size(&self) -> usize {
+        self.len
+    }
+
+    fn cell_run_at(&self, offset: usize) -> Option<(usize, crate::pointers::CellRun<'_>)> {
+        let (start, run) = crate::pointers::Cells::cell_run(self.whole, self.offset + offset);
+        match start.checked_sub(self.offset) {
+            Some(start) => Some((start, run)),
+            None => Some((0, run.skip(self.offset - start)?)),
+        }
+    }
+
+    #[cfg(any(test, feature = "write_watch"))]
+    fn field_path_at(&self, offset: usize, path: &mut String) -> Option<&'static str> {
+        Some(crate::pointers::Cells::field_path(
+            self.whole,
+            self.offset + offset,
+            path,
+        ))
+    }
+
+    #[cfg(any(test, feature = "write_watch"))]
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<S>()
+    }
+
+    fn first(&self) -> *const u8 {
+        std::ptr::from_ref(self.whole)
+            .cast::<u8>()
+            .wrapping_add(self.offset)
+    }
+
+    fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), crate::errors::BadInput> {
+        crate::pointers::load_cells(self.whole, self.offset + offset, to)
+    }
+
+    fn store(&self, offset: usize, from: &[u8]) -> Result<(), crate::errors::BadInput> {
+        crate::pointers::store_cells(self.whole, self.offset + offset, from)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

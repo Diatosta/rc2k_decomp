@@ -15,7 +15,7 @@
 //!
 //! The receiving thread shares these: plain loads and stores (`Relaxed`), as the original's.
 
-use crate::session::{Byte, Bytes, Dword, PlainDword, Word, with_runs};
+use crate::session::{Byte, Bytes, Dword, PlainBytes, PlainDword, Word, with_runs};
 
 const fn zeros<const N: usize>() -> [Dword; N] {
     [const { Dword::new(0) }; N]
@@ -234,26 +234,189 @@ impl SessionDesc {
     }
 }
 
+/// IDA 0x52a4b4 ..: the edit variables, the game thread's.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct EditVars {
+    /// 0x52A4B4: `g_netEditText`: the text of the item edited, by number
+    /// (`net::begin_edit::EditedText`; the original keeps its address).
+    pub edit_text: PlainDword,
+    /// 0x52A4B8: `g_netEdited`: the item edited (-1: none).
+    pub edited: PlainDword,
+    /// 0x52A4BC: `dword_52A4BC`: the widest the edited text may be.
+    pub edit_width: PlainDword,
+    /// 0x52A4C0: `dword_52A4C0`: the font the edited text is measured with (the original
+    /// keeps its address).
+    pub edit_font: crate::gfx::typefaces::FontCell,
+    /// 0x52A4C4: `dword_52A4C4`: the time of the players' last listing.
+    pub clock_a: PlainDword,
+    /// 0x52A4C8: `g_netChatInput`: what this player types into the chat.
+    pub chat_input: PlainBytes<64>,
+}
+
+impl EditVars {
+    pub const fn new() -> Self {
+        Self {
+            edit_text: PlainDword::new(0),
+            edited: PlainDword::new(0),
+            edit_width: PlainDword::new(0),
+            // 0 in the image: the first font's number; read only once an edit has set it.
+            edit_font: crate::gfx::typefaces::FontCell::at(0x51E3A4),
+            clock_a: PlainDword::new(0),
+            chat_input: PlainBytes::new([0; 64]),
+        }
+    }
+}
+
+/// IDA 0x52ab70 ..: the setup variables, the game thread's.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct SetupVars {
+    /// 0x52AB70: `byte_52AB70`: this player's name.
+    pub player_name: PlainBytes<32>,
+    /// 0x52AB90: `g_machineName`: the machine's name (kept in `var\ral.dat`).
+    pub machine_name: PlainBytes<64>,
+    /// 0x52ABD0: `g_netMostPlayers`: the most players a hosted session takes (kept).
+    pub most_players: PlainDword,
+    /// 0x52ABD4: `unk_52ABD4`: the session's password.
+    pub session_password: PlainBytes<16>,
+    /// 0x52ABE4: `unk_52ABE4`: the host's address (TCP/IP), kept.
+    pub host_address: PlainBytes<64>,
+    /// 0x52AC24: `dword_52AC24`: the TCP/IP port (the `inetport` setting, kept).
+    pub port: PlainDword,
+    /// 0x52AC28: `dword_52AC28`: the lobby's car item can be chosen.
+    pub car_item: PlainDword,
+}
+
+impl SetupVars {
+    pub const fn new() -> Self {
+        Self {
+            player_name: PlainBytes::new([0; 32]),
+            machine_name: PlainBytes::new([0; 64]),
+            most_players: PlainDword::new(0x8),
+            session_password: PlainBytes::new(with_runs::<16>(&[(0, b"\x17\x00\x00\x00\x01")])),
+            host_address: PlainBytes::new([0; 64]),
+            port: PlainDword::new(0),
+            car_item: PlainDword::new(0x1),
+        }
+    }
+}
+
+/// IDA 0x52ac3c ..: the address variables, the game thread's.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct AddressVars {
+    /// 0x52AC3C: `dword_52AC3C`: the address elements added.
+    pub elements: PlainDword,
+    /// 0x52AC40: `dword_52AC40`: the compound address (memory of the network's list; 0 now:
+    /// `net::tables::NET_TABLES`).
+    pub address: PlainDword,
+    /// 0x52AC44: `bytes`: the compound address's size.
+    pub address_size: PlainDword,
+    /// 0x52AC48: `unk_52AC48`: the address elements, 0x18 bytes each (a DPCOMPOUNDADDRESSELEMENT: the data type's GUID, the size, the data).
+    pub element_table: PlainBytes<76>,
+    /// 0x52AC94: `unk_52AC94`: the saved connection's GUID (kept).
+    pub saved_connection: PlainBytes<16>,
+    /// 0x52ACA4: `unk_52ACA4`: the saved connection's name.
+    pub saved_name: PlainBytes<64>,
+}
+
+impl AddressVars {
+    pub const fn new() -> Self {
+        Self {
+            elements: PlainDword::new(0),
+            address: PlainDword::new(0),
+            address_size: PlainDword::new(0),
+            element_table: PlainBytes::new([0; 76]),
+            saved_connection: PlainBytes::new([0; 16]),
+            saved_name: PlainBytes::new([0; 64]),
+        }
+    }
+}
+
+/// IDA 0x52ad00 ..: the joined variables, the game thread's.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct JoinedVars {
+    /// 0x52AD00: `unk_52AD00`: the joined session's GUID.
+    pub joined: PlainBytes<16>,
+    /// 0x52AD10: `unk_52AD10`: its name.
+    pub joined_name: PlainBytes<64>,
+    /// 0x52AD50: `dword_52AD50`: its most players.
+    pub joined_most: PlainDword,
+    /// 0x52AD54: `unk_52AD54`: its password.
+    pub joined_password: PlainBytes<16>,
+}
+
+impl JoinedVars {
+    pub const fn new() -> Self {
+        Self {
+            joined: PlainBytes::new([0; 16]),
+            joined_name: PlainBytes::new([0; 64]),
+            joined_most: PlainDword::new(0),
+            joined_password: PlainBytes::new([0; 16]),
+        }
+    }
+}
+
+/// The bytes of the edit run in the image's layout (`NetVars` keeps them unused).
+const RUN_EDIT: usize = 0x54;
+/// The setup run.
+const RUN_SETUP: usize = 0xBC;
+/// The address run.
+const RUN_ADDRESS: usize = 0xA8;
+/// The joined session's run.
+const RUN_JOINED: usize = 0x64;
+
+impl EditVars {
+    pub const START: usize = 0x52A4B4;
+    pub const LEN: usize = RUN_EDIT;
+}
+
+impl SetupVars {
+    pub const START: usize = 0x52AB70;
+    pub const LEN: usize = RUN_SETUP;
+}
+
+impl AddressVars {
+    pub const START: usize = 0x52AC3C;
+    pub const LEN: usize = RUN_ADDRESS;
+}
+
+impl JoinedVars {
+    pub const START: usize = 0x52AD00;
+    pub const LEN: usize = RUN_JOINED;
+}
+
+/// The network's variables only the game's thread reaches, in plain cells: what is edited,
+/// this machine's settings, the address being built and the session joined. The receiving
+/// thread reads and writes none of them (it works on `NetVars`).
+pub struct NetMain {
+    pub edit: EditVars,
+    pub setup: SetupVars,
+    pub address: AddressVars,
+    pub joined: JoinedVars,
+}
+
+impl NetMain {
+    pub const fn new() -> Self {
+        NetMain {
+            edit: EditVars::new(),
+            setup: SetupVars::new(),
+            address: AddressVars::new(),
+            joined: JoinedVars::new(),
+        }
+    }
+}
+
 /// IDA 0x52A4B0 .. 0x5AB419.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct NetVars {
     /// 0x52A4B0: `g_netReceiveDone`: set when the receiving thread has ended; also the `nonetwork` setting's variable (`settings::read_settings`).
     pub receive_done: Dword,
-    /// 0x52A4B4: `g_netEditText`: the text of the item edited, by number
-    /// (`net::begin_edit::EditedText`; the original keeps its address).
-    pub edit_text: Dword,
-    /// 0x52A4B8: `g_netEdited`: the item edited (-1: none).
-    pub edited: Dword,
-    /// 0x52A4BC: `dword_52A4BC`: the widest the edited text may be.
-    pub edit_width: Dword,
-    /// 0x52A4C0: `dword_52A4C0`: the font the edited text is measured with (the original
-    /// keeps its address).
-    pub edit_font: crate::gfx::typefaces::FontCell,
-    /// 0x52A4C4: `dword_52A4C4`: the time of the players' last listing.
-    pub clock_a: Dword,
-    /// 0x52A4C8: `g_netChatInput`: what this player types into the chat.
-    pub chat_input: Bytes<64>,
+    /// 0x52a4b4 ..: EditVars's variables (the game thread's, in `NetMain`); this run is not used.
+    pub _edit_run: Bytes<RUN_EDIT>,
     /// 0x52A508: `g_netChat`: the chat's lines (0x300 bytes).
     pub chat: Bytes<768>,
     /// 0x52A808: `byte_52A808`: a chat line being cut.
@@ -292,20 +455,8 @@ pub struct NetVars {
     pub event: Dword,
     /// 0x52AB6C: `g_netMutex`: the mutex of the received messages (a handle).
     pub mutex: Dword,
-    /// 0x52AB70: `byte_52AB70`: this player's name.
-    pub player_name: Bytes<32>,
-    /// 0x52AB90: `g_machineName`: the machine's name (kept in `var\ral.dat`).
-    pub machine_name: Bytes<64>,
-    /// 0x52ABD0: `g_netMostPlayers`: the most players a hosted session takes (kept).
-    pub most_players: Dword,
-    /// 0x52ABD4: `unk_52ABD4`: the session's password.
-    pub session_password: Bytes<16>,
-    /// 0x52ABE4: `unk_52ABE4`: the host's address (TCP/IP), kept.
-    pub host_address: Bytes<64>,
-    /// 0x52AC24: `dword_52AC24`: the TCP/IP port (the `inetport` setting, kept).
-    pub port: Dword,
-    /// 0x52AC28: `dword_52AC28`: the lobby's car item can be chosen.
-    pub car_item: Dword,
+    /// 0x52ab70 ..: SetupVars's variables (the game thread's, in `NetMain`); this run is not used.
+    pub _setup_run: Bytes<RUN_SETUP>,
     /// 0x52AC2C: `g_netStageItem`: the lobby's stage item can be chosen.
     pub stage_item: Dword,
     /// 0x52AC30: `dword_52AC30`: times shown as gaps.
@@ -315,19 +466,8 @@ pub struct NetVars {
     /// 0x52AC38: `g_netConnectionTable`: the connection records (0x54 bytes each; an address,
     /// 0 now: `net::tables::NET_TABLES`).
     pub connection_table: Dword,
-    /// 0x52AC3C: `dword_52AC3C`: the address elements added.
-    pub elements: Dword,
-    /// 0x52AC40: `dword_52AC40`: the compound address (memory of the network's list; 0 now:
-    /// `net::tables::NET_TABLES`).
-    pub address: Dword,
-    /// 0x52AC44: `bytes`: the compound address's size.
-    pub address_size: Dword,
-    /// 0x52AC48: `unk_52AC48`: the address elements, 0x18 bytes each (a DPCOMPOUNDADDRESSELEMENT: the data type's GUID, the size, the data).
-    pub element_table: Bytes<76>,
-    /// 0x52AC94: `unk_52AC94`: the saved connection's GUID (kept).
-    pub saved_connection: Bytes<16>,
-    /// 0x52ACA4: `unk_52ACA4`: the saved connection's name.
-    pub saved_name: Bytes<64>,
+    /// 0x52ac3c ..: AddressVars's variables (the game thread's, in `NetMain`); this run is not used.
+    pub _address_run: Bytes<RUN_ADDRESS>,
     /// 0x52ACE4: `g_netPosting`: DirectPlay's calls are made on the receiving thread.
     pub posting: Dword,
     /// 0x52ACE8: `g_netPostedCall`: the call posted to the receiving thread.
@@ -343,14 +483,8 @@ pub struct NetVars {
     pub session_table: Dword,
     /// 0x52ACFC: `g_netSessionOpen`.
     pub session_open: Dword,
-    /// 0x52AD00: `unk_52AD00`: the joined session's GUID.
-    pub joined: Bytes<16>,
-    /// 0x52AD10: `unk_52AD10`: its name.
-    pub joined_name: Bytes<64>,
-    /// 0x52AD50: `dword_52AD50`: its most players.
-    pub joined_most: Dword,
-    /// 0x52AD54: `unk_52AD54`: its password.
-    pub joined_password: Bytes<16>,
+    /// 0x52ad00 ..: JoinedVars's variables (the game thread's, in `NetMain`); this run is not used.
+    pub _joined_run: Bytes<RUN_JOINED>,
     /// 0x52AD64: `g_netOwnRecord`: this machine's player record.
     pub own: PlayerRecord,
     /// 0x52AD74: `dword_52AD74`: the size of the player data listed.
@@ -438,13 +572,7 @@ impl NetVars {
     pub const fn new() -> Self {
         NetVars {
         receive_done: Dword::new(0),
-        edit_text: Dword::new(0),
-        edited: Dword::new(0),
-        edit_width: Dword::new(0),
-        // 0 in the image: the first font's number; read only once an edit has set it.
-        edit_font: crate::gfx::typefaces::FontCell::at(0x51E3A4),
-        clock_a: Dword::new(0),
-        chat_input: Bytes::new([0; 64]),
+        _edit_run: Bytes::new([0; RUN_EDIT]),
         chat: Bytes::new([0; 768]),
         chat_line: Bytes::new([0; 128]),
         chat_text: Bytes::new([0; 128]),
@@ -464,23 +592,12 @@ impl NetVars {
         send_buffer: Bytes::new([0; 256]),
         event: Dword::new(0),
         mutex: Dword::new(0),
-        player_name: Bytes::new([0; 32]),
-        machine_name: Bytes::new([0; 64]),
-        most_players: Dword::new(0x8),
-        session_password: Bytes::new(with_runs::<16>(&[(0, b"\x17\x00\x00\x00\x01")])),
-        host_address: Bytes::new([0; 64]),
-        port: Dword::new(0),
-        car_item: Dword::new(0x1),
+        _setup_run: Bytes::new([0; RUN_SETUP]),
         stage_item: Dword::new(0x1),
         show_gaps: Dword::new(0),
         connections: Dword::new(0),
         connection_table: Dword::new(0),
-        elements: Dword::new(0),
-        address: Dword::new(0),
-        address_size: Dword::new(0),
-        element_table: Bytes::new([0; 76]),
-        saved_connection: Bytes::new([0; 16]),
-        saved_name: Bytes::new([0; 64]),
+        _address_run: Bytes::new([0; RUN_ADDRESS]),
         posting: Dword::new(0),
         posted_call: Dword::new(0),
         posted_result: Dword::new(0),
@@ -488,10 +605,7 @@ impl NetVars {
         sessions: Dword::new(0),
         session_table: Dword::new(0),
         session_open: Dword::new(0),
-        joined: Bytes::new([0; 16]),
-        joined_name: Bytes::new([0; 64]),
-        joined_most: Dword::new(0),
-        joined_password: Bytes::new([0; 16]),
+        _joined_run: Bytes::new([0; RUN_JOINED]),
         own: PlayerRecord::zero(),
         data_size: Dword::new(0),
         all_raced: Dword::new(0),
@@ -538,7 +652,6 @@ impl NetVars {
 
 impl NetVars {
     pub const START: usize = 0x52A4B0;
-    pub const LEN: usize = 0x80F69;
 }
 
 impl NetVars {
@@ -640,20 +753,57 @@ mod tests {
     fn start_as_the_games_image_and_keep_its_layout() {
         // The vars' first values: no other test may be writing them meanwhile.
         let _lock = crate::store::test_lock();
-        check(
-            (&raw const crate::net::owner::NET_OWNER.vars).cast::<u8>(),
-            size_of::<NetVars>(),
-            0,
-            NetVars::START,
-            NetVars::LEN,
-        );
+        let vars = (&raw const crate::net::owner::NET_OWNER.vars).cast::<u8>();
+        // The stretches `NetVars` keeps (the runs between them are `NetMain`'s).
+        for (from, to) in [
+            (0x52A4B0, 0x52A4B4),
+            (0x52A508, 0x52AB70),
+            (0x52AC2C, 0x52AC3C),
+            (0x52ACE4, 0x52AD00),
+            (0x52AD64, 0x5AB419),
+        ] {
+            let image = crate::moved::image_bytes(from, to - from);
+            for (i, &b) in image.iter().enumerate() {
+                let ours = unsafe { vars.add(from - NetVars::START + i).read() };
+                assert_eq!(ours, b, "differs first at {:#x}", from + i);
+            }
+        }
+        let main = crate::net::owner::NET_OWNER.main.unchecked();
+        for (p, size, start, len) in [
+            (
+                (&raw const main.edit).cast::<u8>(),
+                size_of::<EditVars>(),
+                EditVars::START,
+                EditVars::LEN,
+            ),
+            (
+                (&raw const main.setup).cast::<u8>(),
+                size_of::<SetupVars>(),
+                SetupVars::START,
+                SetupVars::LEN,
+            ),
+            (
+                (&raw const main.address).cast::<u8>(),
+                size_of::<AddressVars>(),
+                AddressVars::START,
+                AddressVars::LEN,
+            ),
+            (
+                (&raw const main.joined).cast::<u8>(),
+                size_of::<JoinedVars>(),
+                JoinedVars::START,
+                JoinedVars::LEN,
+            ),
+        ] {
+            check(p, size, 0, start, len);
+        }
         assert_eq!(offset_of!(NetVars, receive_done), 0x52A4B0 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, edit_text), 0x52A4B4 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, edited), 0x52A4B8 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, edit_width), 0x52A4BC - NetVars::START);
-        assert_eq!(offset_of!(NetVars, edit_font), 0x52A4C0 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, clock_a), 0x52A4C4 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, chat_input), 0x52A4C8 - NetVars::START);
+        assert_eq!(offset_of!(EditVars, edit_text), 0x52A4B4 - EditVars::START);
+        assert_eq!(offset_of!(EditVars, edited), 0x52A4B8 - EditVars::START);
+        assert_eq!(offset_of!(EditVars, edit_width), 0x52A4BC - EditVars::START);
+        assert_eq!(offset_of!(EditVars, edit_font), 0x52A4C0 - EditVars::START);
+        assert_eq!(offset_of!(EditVars, clock_a), 0x52A4C4 - EditVars::START);
+        assert_eq!(offset_of!(EditVars, chat_input), 0x52A4C8 - EditVars::START);
         assert_eq!(offset_of!(NetVars, chat), 0x52A508 - NetVars::START);
         assert_eq!(offset_of!(NetVars, chat_line), 0x52A808 - NetVars::START);
         assert_eq!(offset_of!(NetVars, chat_text), 0x52A888 - NetVars::START);
@@ -674,16 +824,28 @@ mod tests {
         assert_eq!(offset_of!(NetVars, send_buffer), 0x52AA68 - NetVars::START);
         assert_eq!(offset_of!(NetVars, event), 0x52AB68 - NetVars::START);
         assert_eq!(offset_of!(NetVars, mutex), 0x52AB6C - NetVars::START);
-        assert_eq!(offset_of!(NetVars, player_name), 0x52AB70 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, machine_name), 0x52AB90 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, most_players), 0x52ABD0 - NetVars::START);
         assert_eq!(
-            offset_of!(NetVars, session_password),
-            0x52ABD4 - NetVars::START
+            offset_of!(SetupVars, player_name),
+            0x52AB70 - SetupVars::START
         );
-        assert_eq!(offset_of!(NetVars, host_address), 0x52ABE4 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, port), 0x52AC24 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, car_item), 0x52AC28 - NetVars::START);
+        assert_eq!(
+            offset_of!(SetupVars, machine_name),
+            0x52AB90 - SetupVars::START
+        );
+        assert_eq!(
+            offset_of!(SetupVars, most_players),
+            0x52ABD0 - SetupVars::START
+        );
+        assert_eq!(
+            offset_of!(SetupVars, session_password),
+            0x52ABD4 - SetupVars::START
+        );
+        assert_eq!(
+            offset_of!(SetupVars, host_address),
+            0x52ABE4 - SetupVars::START
+        );
+        assert_eq!(offset_of!(SetupVars, port), 0x52AC24 - SetupVars::START);
+        assert_eq!(offset_of!(SetupVars, car_item), 0x52AC28 - SetupVars::START);
         assert_eq!(offset_of!(NetVars, stage_item), 0x52AC2C - NetVars::START);
         assert_eq!(offset_of!(NetVars, show_gaps), 0x52AC30 - NetVars::START);
         assert_eq!(offset_of!(NetVars, connections), 0x52AC34 - NetVars::START);
@@ -691,18 +853,30 @@ mod tests {
             offset_of!(NetVars, connection_table),
             0x52AC38 - NetVars::START
         );
-        assert_eq!(offset_of!(NetVars, elements), 0x52AC3C - NetVars::START);
-        assert_eq!(offset_of!(NetVars, address), 0x52AC40 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, address_size), 0x52AC44 - NetVars::START);
         assert_eq!(
-            offset_of!(NetVars, element_table),
-            0x52AC48 - NetVars::START
+            offset_of!(AddressVars, elements),
+            0x52AC3C - AddressVars::START
         );
         assert_eq!(
-            offset_of!(NetVars, saved_connection),
-            0x52AC94 - NetVars::START
+            offset_of!(AddressVars, address),
+            0x52AC40 - AddressVars::START
         );
-        assert_eq!(offset_of!(NetVars, saved_name), 0x52ACA4 - NetVars::START);
+        assert_eq!(
+            offset_of!(AddressVars, address_size),
+            0x52AC44 - AddressVars::START
+        );
+        assert_eq!(
+            offset_of!(AddressVars, element_table),
+            0x52AC48 - AddressVars::START
+        );
+        assert_eq!(
+            offset_of!(AddressVars, saved_connection),
+            0x52AC94 - AddressVars::START
+        );
+        assert_eq!(
+            offset_of!(AddressVars, saved_name),
+            0x52ACA4 - AddressVars::START
+        );
         assert_eq!(offset_of!(NetVars, posting), 0x52ACE4 - NetVars::START);
         assert_eq!(offset_of!(NetVars, posted_call), 0x52ACE8 - NetVars::START);
         assert_eq!(
@@ -719,12 +893,18 @@ mod tests {
             0x52ACF8 - NetVars::START
         );
         assert_eq!(offset_of!(NetVars, session_open), 0x52ACFC - NetVars::START);
-        assert_eq!(offset_of!(NetVars, joined), 0x52AD00 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, joined_name), 0x52AD10 - NetVars::START);
-        assert_eq!(offset_of!(NetVars, joined_most), 0x52AD50 - NetVars::START);
+        assert_eq!(offset_of!(JoinedVars, joined), 0x52AD00 - JoinedVars::START);
         assert_eq!(
-            offset_of!(NetVars, joined_password),
-            0x52AD54 - NetVars::START
+            offset_of!(JoinedVars, joined_name),
+            0x52AD10 - JoinedVars::START
+        );
+        assert_eq!(
+            offset_of!(JoinedVars, joined_most),
+            0x52AD50 - JoinedVars::START
+        );
+        assert_eq!(
+            offset_of!(JoinedVars, joined_password),
+            0x52AD54 - JoinedVars::START
         );
         assert_eq!(offset_of!(NetVars, own), 0x52AD64 - NetVars::START);
         assert_eq!(offset_of!(NetVars, data_size), 0x52AD74 - NetVars::START);

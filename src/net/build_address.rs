@@ -25,9 +25,9 @@ pub fn build_address(net: &Net, connection_number: u32) -> Result<bool, Refused>
         return Ok(false);
     }
     let guid = crate::net::tables::with_connection(connection_number, |c| c.provider)?;
-    elements::clear(vars);
-    vars.address.set(0);
-    vars.address_size.set(0);
+    elements::clear();
+    net.address().address.set(0);
+    net.address().address_size.set(0);
     vars.posting.set(0);
     let provider = address::provider(|which| -> Result<bool, Refused> {
         let known = if which == Provider::Ipx {
@@ -38,28 +38,24 @@ pub fn build_address(net: &Net, connection_number: u32) -> Result<bool, Refused>
         Ok(known.read() == guid)
     })?;
     match provider {
-        Provider::Ipx => add_address_element(net, &vars.aid_service_provider, &vars.sp_ipx.read()),
+        Provider::Ipx => add_address_element(&vars.aid_service_provider, &vars.sp_ipx.read()),
         Provider::TcpIp => {
-            add_address_element(net, &vars.aid_service_provider, &vars.sp_tcpip.read());
-            let host = vars.host_address.read();
+            add_address_element(&vars.aid_service_provider, &vars.sp_tcpip.read());
+            let host = net.setup().host_address.read();
             let length = host
                 .iter()
                 .position(|&c| c == 0)
                 .ok_or(BadInput("a host address without its end"))? as u32;
             let size = address::host_address_size(length) as usize;
-            add_address_element(net, &vars.aid_inet, &host[..size]);
-            if address::has_port(vars.port.get()) {
-                let port = vars.port.get().to_le_bytes();
-                add_address_element(
-                    net,
-                    &vars.aid_inet_port,
-                    &port[..address::PORT_SIZE as usize],
-                );
+            add_address_element(&vars.aid_inet, &host[..size]);
+            if address::has_port(net.setup().port.get()) {
+                let port = net.setup().port.get().to_le_bytes();
+                add_address_element(&vars.aid_inet_port, &port[..address::PORT_SIZE as usize]);
             }
         }
         Provider::Other => {
             let data = &guid[..address::PROVIDER_SIZE as usize];
-            add_address_element(net, &vars.aid_service_provider, data);
+            add_address_element(&vars.aid_service_provider, data);
         }
     }
     if address::posts(provider) {
@@ -67,14 +63,14 @@ pub fn build_address(net: &Net, connection_number: u32) -> Result<bool, Refused>
     }
     let parts = elements::elements();
     let (result, size) =
-        crate::net::dp_objects::create_compound_address(&parts, vars.address_size.get());
-    vars.address_size.set(size);
+        crate::net::dp_objects::create_compound_address(&parts, net.address().address_size.get());
+    net.address().address_size.set(size);
     if result != address::BUFFER_TOO_SMALL {
         return Ok(false);
     }
-    crate::net::tables::count(vars.address_size.get())?;
+    crate::net::tables::count(net.address().address_size.get())?;
     let made = crate::net::dp_objects::compound_address(&parts);
-    let fits = made.len() as u32 <= vars.address_size.get();
+    let fits = made.len() as u32 <= net.address().address_size.get();
     crate::net::tables::NET_TABLES.with(|t| t.address = made)?;
     Ok(fits)
 }

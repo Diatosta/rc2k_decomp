@@ -178,11 +178,11 @@ let menus = menus();
         Piece::whole(&crate::sound::owner::sound().menu.options.tune_turn),                   // which tune comes next
         Piece::whole(&crate::sound::owner::sound().menu.options.music_volume),                // the music volume
         Piece::whole(&crate::sound::owner::sound().menu.options.race_music_volume),           // the race music's volume
-        Piece::whole(&net.vars.machine_name),                         // the machine's name
-        Piece::whole(&net.vars.most_players),                          // the most players a hosted session takes
-        Piece::whole(&net.vars.host_address),                         // the host's address (TCP/IP)
-        Piece::whole(&net.vars.port),                                  // the TCP/IP port
-        Piece::whole(&net.vars.saved_connection),                     // the saved connection's GUID
+        Piece::whole(&net.setup().machine_name),                         // the machine's name
+        Piece::whole(&net.setup().most_players),                          // the most players a hosted session takes
+        Piece::whole(&net.setup().host_address),                         // the host's address (TCP/IP)
+        Piece::whole(&net.setup().port),                                  // the TCP/IP port
+        Piece::whole(&net.address().saved_connection),                     // the saved connection's GUID
         Piece::held(&saves.save_games.kept_a),                         // a saved-games word kept in the file and read by no other code
         Piece::held(&saves.save_games.kept_b),                         // a saved-games word kept in the file and read by no other code
         Piece::held(&service().set_ups.kept),                              // a car set-ups word kept in the file and read by no other code

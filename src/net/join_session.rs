@@ -31,19 +31,19 @@ pub fn join_session(net: &Net, number: u32) -> Result<bool, Refused> {
         return Ok(false);
     }
     let s = crate::net::tables::with_session(number, |s| *s)?;
-    net.vars
+    net.joined()
         .joined
         .write_at(0, &s.instance, "the joined session")?;
-    net.vars
+    net.joined()
         .joined_name
         .write_at(0, &s.name, "the joined session")?;
-    net.vars.joined_most.set(s.max_players);
-    net.vars
+    net.joined().joined_most.set(s.max_players);
+    net.joined()
         .joined_password
         .write_at(0, &s.user, "the joined session")?;
     net.vars.session_desc.clear();
     net.vars.session_desc.size.set(0x50);
-    put_bytes(&net.vars.session_desc.instance, &net.vars.joined.read());
+    put_bytes(&net.vars.session_desc.instance, &net.joined().joined.read());
     finish(
         net,
         posted_open_join,

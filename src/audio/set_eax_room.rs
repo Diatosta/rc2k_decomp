@@ -13,6 +13,6 @@ use crate::audio::store::AudioState;
 use crate::errors::Refused;
 
 /// On the game's variables.
-pub fn in_game(state: &AudioState) -> Result<crate::pointers::GamePtr, Refused> {
+pub fn in_game(state: &AudioState) -> Result<(), Refused> {
     set_eax_room(state, state.eax_room.get())
 }

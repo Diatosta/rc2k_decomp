@@ -5,18 +5,16 @@
 //! Returns the item, input, 0x30C, the chat font.
 //! Caller: `net::lobby_loop`.
 
-use crate::net::store::NetVars;
+use crate::net::owner::net;
 
 const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CHAT_LINE;
 
 /// Starts the chat line's edit (item, input, width 0x30C and font as the original passes them).
 pub fn begin_chat(
     install: &'static crate::install::owner::Install,
-    vars: &NetVars,
 ) -> Result<(), crate::errors::Refused> {
-    vars.chat_input.set(0, 0);
+    net().edit().chat_input.set(0, 0);
     crate::net::begin_edit::begin_edit(
-        vars,
         install.pages.choice.get(),
         crate::net::begin_edit::EditedText::ChatInput,
         0x30C,

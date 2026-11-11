@@ -16,7 +16,6 @@
 
 use crate::errors::Refused;
 use crate::files::handle;
-use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 use crate::race::replay_path::replay_path;
 use crate::race::replay_work_store::REPLAY_WORK;
@@ -141,9 +140,41 @@ pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
         .replays
         .header
         .read_at(0x30, CAR_HEADER_LEN, "the replay header's stage")?;
-    GamePtr::to(&REPLAY_WORK.header_stage)
-        .unbounded()
-        .write_bytes(&stage, "the replay header's stage")?;
+    put_header_stage(&stage);
     crate::race::replay_patches::apply_replay_patches(race)?;
     Ok(false)
+}
+
+/// The cars' header (`CAR_HEADER_LEN` bytes) into the replay work's fields from `header_stage` on:
+/// the header's settings, the sealed part, the patch switches and the unread rest, a dword each
+/// with no gap, up to the camera wishes.
+fn put_header_stage(header: &[u8]) {
+    let w = &REPLAY_WORK;
+    let singles = [
+        &w.header_stage,
+        &w.header_mode,
+        &w.header_players,
+        &w.header_cars,
+        &w.header_kind_0,
+        &w.header_kind_1,
+        &w.header_kind_2,
+        &w.header_kind_3,
+        &w.header_one_player,
+        &w.header_codriver_sex_0,
+        &w.header_codriver_sex_1,
+        &w.header_start_place,
+        &w.header_arcade_cars,
+        &w.header_seed,
+        &w.header_game_over_0,
+        &w.header_game_over_1,
+    ];
+    let cells = singles
+        .into_iter()
+        .chain(&w.sealed_header)
+        .chain(std::iter::once(&w.patches_in_header))
+        .chain(&w.header_patches)
+        .chain(&w.unknown_7d0);
+    for (dword, bytes) in cells.zip(header.as_chunks::<4>().0) {
+        dword.set(u32::from_le_bytes(*bytes));
+    }
 }

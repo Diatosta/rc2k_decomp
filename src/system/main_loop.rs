@@ -78,7 +78,7 @@ pub fn main_loop(session: &Session, saves: &crate::saves::owner::Saves) -> Resul
     // with `-u` (`run.updating`) it uninstalls where it is: its record is in the installed
     // folder, so the uninstall runs from there (the original's ran from the CD, through the
     // update's mark).
-    if install.pages.script_set_up.get() == INSTALLER_MARK
+    if install.pages.main_menu.items[1].text.get() == INSTALLER_MARK
         || crate::install::portable::is_source_folder()
         || install.run.updating.get() == 1
     {

@@ -153,14 +153,14 @@ pub fn load_game_data(start: &Start, outside: Outside) -> Result<(), Refused> {
         )?;
     }
 
-    if net.vars.machine_name.get(0) == 0 {
-        let field = &net.vars.machine_name;
+    if net.setup().machine_name.get(0) == 0 {
+        let field = &net.setup().machine_name;
         outside(Call::ComputerName)?;
         let bytes = printable_from(&field.read(), MACHINE_NAME_ROOM as u32)?;
         field.write_at(0, &bytes, "a printable name")?;
-        if net.vars.machine_name.get(0) == 0 {
+        if net.setup().machine_name.get(0) == 0 {
             default_name(
-                &net.vars.machine_name,
+                &net.setup().machine_name,
                 0,
                 MACHINE_NAME_ROOM,
                 MACHINE_NAME_ID,
@@ -259,7 +259,7 @@ fn in_game(call: Call) -> Result<u32, Refused> {
         Call::ComputerName => {
             if let Some(name) = crate::system::check_developer_machine::computer_name() {
                 net()
-                    .vars
+                    .setup()
                     .machine_name
                     .write_at(0, &name, "the computer's name")?;
             }

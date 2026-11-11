@@ -152,12 +152,13 @@ pub fn lobby_frame() -> Result<(), Refused> {
     }?;
     crate::net::unlock_received::unlock_received(&net.vars);
     y = y.wrapping_add(CHAT_FONT.object().line_height.get().wrapping_mul(8));
-    crate::net::chat_input_line::chat_input_line(&net.vars, &vars.chat_input.text(), 3, y)?;
+    crate::net::chat_input_line::chat_input_line(&net.edit().chat_input.text(), 3, y)?;
     let mut x = 0x310;
     let mut item = 0;
-    for (n, (id, shown)) in screens::lobby_buttons(vars.car_item.get(), vars.stage_item.get())
-        .into_iter()
-        .enumerate()
+    for (n, (id, shown)) in
+        screens::lobby_buttons(net.setup().car_item.get(), vars.stage_item.get())
+            .into_iter()
+            .enumerate()
     {
         if shown {
             x = crate::net::lobby_button::lobby_button(net, id, item, x, 0x223)?;

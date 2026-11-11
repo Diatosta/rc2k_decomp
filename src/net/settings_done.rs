@@ -8,6 +8,7 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::zero;
+use crate::net::owner::net;
 use crate::net::store::NetVars;
 pub fn settings_done(vars: &'static NetVars) -> Result<(), Refused> {
     let saved = if crate::net::find_connections::find_connections(vars)? {
@@ -18,8 +19,8 @@ pub fn settings_done(vars: &'static NetVars) -> Result<(), Refused> {
     match saved {
         Some(n) => crate::net::keep_connection::keep_connection(n)?,
         None => {
-            zero(&vars.saved_connection, 0x10)?;
-            zero(&vars.saved_name, 0x40)?;
+            zero(&net().address().saved_connection, 0x10)?;
+            zero(&net().address().saved_name, 0x40)?;
         }
     }
     crate::net::stop::stop(vars)

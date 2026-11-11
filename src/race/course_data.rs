@@ -5,7 +5,6 @@
 //! steps.
 
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
@@ -33,12 +32,45 @@ pub fn set_cdat_number(course: &Course, number: u32) {
 /// `g_courseHeader`.
 pub fn copy_course_header(course: &Course) -> Result<(), BadInput> {
     let from: u32 = course.lists.course_memory.get();
-    crate::race::level_init::course_memory_at(from)?.copy_to(
-        // The store types the header by its first dword.
-        GamePtr::to(&course.course.course_header).unbounded(),
+    let header = crate::race::level_init::read_course_memory(
+        from,
         HEADER_LEN,
         "the course memory's header",
-    )
+    )?;
+    // The header runs over the course store's fields from the header's own to the shape radius's:
+    // the counts, the start place and the fields nothing reads, in their order.
+    let c = &course.course;
+    let fields: [&[crate::session::Dword]; 18] = [
+        std::slice::from_ref(&c.course_header),
+        std::slice::from_ref(&c.course_record_count),
+        std::slice::from_ref(&c.course_face_count),
+        std::slice::from_ref(&c.scene_point_count),
+        std::slice::from_ref(&c.unused_134),
+        std::slice::from_ref(&c.place_face),
+        &c.unused_13c,
+        std::slice::from_ref(&c.camera_first),
+        &c.unused_154,
+        std::slice::from_ref(&c.place_heading),
+        &c.unused_174,
+        std::slice::from_ref(&c.flat_depth),
+        &c.unused_194,
+        std::slice::from_ref(&c.place_x),
+        &c.unused_1b4,
+        std::slice::from_ref(&c.place_y),
+        &c.unused_1d4,
+        std::slice::from_ref(&c.place_z),
+    ];
+    let mut words = header
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|w| u32::from_le_bytes(*w));
+    for dword in fields.into_iter().flatten().chain(&c.unused_1f4) {
+        if let Some(word) = words.next() {
+            dword.set(word);
+        }
+    }
+    Ok(())
 }
 
 /// `race::clear_lit_faces` (0x45E9D5): `g_litFaceCount` 0.
@@ -166,11 +198,15 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
     crate::files::state::BYTES_READ.set(0);
     load_log(0);
     // The course memory is a region of its own (`level_init::take_course_memory`).
-    let memory = crate::race::level_init::course_memory_at(course.lists.course_memory.get())?;
-    let mut data = memory.read_bytes(course.lists.first_part.get() as usize, "the course data")?;
+    let memory = course.lists.course_memory.get();
+    let mut data = crate::race::level_init::read_course_memory(
+        memory,
+        course.lists.first_part.get() as usize,
+        "the course data",
+    )?;
     let read = read_level_file::read_level_file(&course.level_paths.cdat_src.text(), &mut data);
     // What the file's bytes reached stays, also when the unpacking is refused.
-    memory.write_bytes(&data, "the course data")?;
+    crate::race::level_init::write_course_memory(memory, &data, "the course data")?;
     let out = read?;
     crate::files::state::BYTES_READ.set(out.eax);
     if out.carry {

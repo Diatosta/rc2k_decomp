@@ -26,7 +26,8 @@ pub fn disable_new_players(net: &Net) {
         .session_desc
         .flags
         .set(net.vars.session_desc.flags.get() | CLOSED);
-    let desc = crate::net::dp_objects::desc(&net.vars.session_desc, &net.vars.machine_name.read());
+    let desc =
+        crate::net::dp_objects::desc(&net.vars.session_desc, &net.setup().machine_name.read());
     let result = crate::net::dp_objects::set_session_desc(net.vars.dplay.get(), &desc);
     log_hex(result, true);
 }
@@ -42,7 +43,8 @@ pub fn enable_new_players(net: &Net) {
         return;
     }
     net.vars.session_desc.flags.set(flags & !CLOSED);
-    let desc = crate::net::dp_objects::desc(&net.vars.session_desc, &net.vars.machine_name.read());
+    let desc =
+        crate::net::dp_objects::desc(&net.vars.session_desc, &net.setup().machine_name.read());
     let result = crate::net::dp_objects::set_session_desc(net.vars.dplay.get(), &desc);
     crate::framework::log(&format!("net: new players let in again ({result:#x})"));
 }

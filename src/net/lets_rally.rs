@@ -53,7 +53,7 @@ pub fn lets_rally(race: &Race, net: &Net) -> Result<bool, Refused> {
     crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?;
     crate::net::set_up_race::set_up_race(race, &net.vars)?;
     let tick = crate::system::tick_count::tick_count();
-    net.vars.clock_a.set(tick);
+    net.edit().clock_a.set(tick);
     net.vars.sync_clock.set(tick);
     net.vars.sync_first.set(1);
     crate::net::list_players::list_players_regs(&net.vars)?;

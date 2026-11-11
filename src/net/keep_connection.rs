@@ -12,10 +12,10 @@ use crate::net::tables::with_connection;
 pub fn keep_connection(number: u32) -> Result<(), Refused> {
     let net = net();
     let (provider, name) = with_connection(number, |c| (c.provider, c.name))?;
-    net.vars
+    net.address()
         .saved_connection
         .write_at(0, &provider, "the saved connection")?;
-    net.vars
+    net.address()
         .saved_name
         .write_at(0, &name, "the saved connection")?;
     Ok(())

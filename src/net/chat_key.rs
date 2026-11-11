@@ -15,9 +15,9 @@ pub fn chat_key(net: &Net, key: u8) -> Result<(), Refused> {
     if !crate::net::edit_key::edit_key(net, key)? {
         return Ok(());
     }
-    if vars.chat_input.get(0) != 0 {
-        crate::net::send_chat::send_chat(net, vars.player.get(), &vars.chat_input.read())?;
-        vars.chat_input.set(0, 0);
+    if net.edit().chat_input.get(0) != 0 {
+        crate::net::send_chat::send_chat(net, vars.player.get(), &net.edit().chat_input.read())?;
+        net.edit().chat_input.set(0, 0);
     }
     Ok(())
 }

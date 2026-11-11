@@ -145,10 +145,13 @@ pub fn take_from(faces_at: u32, faces: u32, records_at: u32, records: u32) -> Re
         ));
     }
     reserve()?;
-    let f = crate::race::level_init::course_memory_at(faces_at)?
-        .read_bytes(faces as usize, "the course faces")?;
-    let r = crate::race::level_init::course_memory_at(records_at)?
-        .read_bytes(records as usize, "the course records")?;
+    let f =
+        crate::race::level_init::read_course_memory(faces_at, faces as usize, "the course faces")?;
+    let r = crate::race::level_init::read_course_memory(
+        records_at,
+        records as usize,
+        "the course records",
+    )?;
     FACES.set(&f)?;
     RECORDS.set(&r)?;
     first_points_changed();

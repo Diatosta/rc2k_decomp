@@ -1,8 +1,7 @@
 //! The installer's page tables by name: the entries that chain the pages, the layout's
 //! pieces and the boxes they are placed in, in place of sums on game addresses.
 //!
-//! - A page entry (`PageEntry`): dwords in `InstallerPages::{normal_pages, update_pages}`
-//!   and their neighbours: +0 the page's list (`menu::list_handle::ListMenu`), and from
+//! - A page entry (`PageEntry`): dwords in `InstallerPages::page_table`: +0 the page's list (`menu::list_handle::ListMenu`), and from
 //!   there the entries the page's answers lead on to (`rc2k_core::install::pages::
 //!   next_entry_at`).
 //! - A piece (`Piece`): the layout `InstallerPages::layout` holds a count (a dword) and
@@ -19,17 +18,28 @@ use crate::menu::list_handle::{ListItem, ListMenu};
 use crate::place::BytePlace;
 use crate::pointers::GamePtr;
 
+/// The page table's index of the update run's first entry (0x51D5D8, from 0x51D594).
+const UPDATE_RUN: u32 = 17;
+
 /// A page entry (a place in the pages' tables).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PageEntry(GamePtr);
 
 impl PageEntry {
-    /// The entry at a table's start.
-    pub fn of(place: impl Into<BytePlace>) -> Self {
-        Self(place.into().game_ptr())
+    /// The first entry of a normal run.
+    pub fn normal_run() -> Self {
+        Self::at(PageLink::table(0))
     }
 
-    /// The entry a link from another entry names.
+    /// The first entry of an update run.
+    pub fn update_run() -> Self {
+        Self::at(PageLink::table(UPDATE_RUN))
+    }
+
+    /// The entry a link from another entry names. An entry's words past its answers are other
+    /// data of the pages (the next entry's list, a list's bytes), which the page walk may
+    /// read as links (`run_pages::pass_over` asks the drive page's eight): any thing of the
+    /// pages is taken, and read as the original reads it.
     pub fn at(link: PageLink) -> Self {
         Self(link.in_pages().unwrap_or_else(|e| refuse(e)))
     }
@@ -162,10 +172,10 @@ impl BoxRecord {
     pub fn linked(link: PageLink) -> Self {
         let install = crate::install::owner::install();
         if link.is_none() {
-            return Self(BytePlace::from(&install.pages.title_box));
+            return Self(BytePlace::from(GamePtr::to(&install.pages.boxes[1])));
         }
         Self(BytePlace::from(
-            link.in_pages().unwrap_or_else(|e| refuse(e)),
+            link.box_place().unwrap_or_else(|e| refuse(e)),
         ))
     }
 
@@ -194,10 +204,7 @@ mod tests {
     #[test]
     fn every_page_resolves_its_links() {
         let mut seen = 0;
-        for first in [
-            PageEntry::of(&crate::install::owner::install().pages.normal_pages),
-            PageEntry::of(&crate::install::owner::install().pages.update_pages),
-        ] {
+        for first in [PageEntry::normal_run(), PageEntry::update_run()] {
             let mut entries = vec![first];
             while let Some(entry) = entries.pop() {
                 if entry.list_link().in_pages().is_err() || seen > 200 {

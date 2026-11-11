@@ -11,7 +11,7 @@ use rc2k_core::net::lists;
 pub fn find_saved_connection() -> Result<Option<u32>, Refused> {
     let vars = &net().vars;
     // Converted: `rc2k_core::net::lists::find_listed`.
-    let saved = vars.saved_connection.read();
+    let saved = net().address().saved_connection.read();
     lists::find_listed(vars.connections.get(), |n| -> Result<bool, Refused> {
         // `system::same_guid`: the four dwords alike.
         with_connection(n, |c| c.provider == saved)

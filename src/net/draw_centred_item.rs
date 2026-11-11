@@ -8,7 +8,6 @@
 
 use crate::errors::Refused;
 use crate::net::draw_button::item_font;
-use crate::net::store::NetVars;
 use crate::text::draw_text::GameCanvas;
 
 const PLAIN: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CENTRED_PLAIN;
@@ -18,14 +17,13 @@ const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CENTRED
 /// returns the next y (y plus the font's line height).
 pub fn draw_centred_item(
     install: &'static crate::install::owner::Install,
-    vars: &NetVars,
     string: u32,
     item: u32,
     x: u32,
     y: u32,
 ) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens::item_lit` (in `item_font`).
-    let font = item_font(install, vars, item, PLAIN, LIT);
+    let font = item_font(install, item, PLAIN, LIT);
     let next = y.wrapping_add(font.object().line_height.get());
     crate::text::draw_string_by_id::draw_string_by_id_at(
         string,

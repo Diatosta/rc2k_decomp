@@ -98,7 +98,7 @@ fn step_item(install: &'static crate::install::owner::Install, vars: &NetVars, s
             .choice
             .set(install.pages.choice.get().wrapping_add(step));
         let c = install.pages.choice.get();
-        if c == 1 && vars.car_item.get() != 1 {
+        if c == 1 && crate::net::owner::net().setup().car_item.get() != 1 {
             continue;
         }
         if c == 2 && vars.stage_item.get() != 1 {
@@ -121,14 +121,14 @@ pub fn lobby_loop(
     let now = system.session.clocks.key_ticks.get();
     install.pages.move_clock.set(now);
     install.pages.key_clock.set(now);
-    net.vars.edited.set(u32::MAX);
+    crate::net::owner::net().edit().edited.set(u32::MAX);
     install.pages.choice.set(3);
     let tick = crate::system::tick_count::tick_count();
-    net.vars.clock_a.set(tick);
+    crate::net::owner::net().edit().clock_a.set(tick);
     net.vars.sync_clock.set(tick);
     net.vars.sync_first.set(1);
     net.vars.sync.set(net.vars.sync.get().wrapping_add(1));
-    net.vars.car_item.set(1);
+    crate::net::owner::net().setup().car_item.set(1);
     net.vars.stage_item.set(1);
     if net.vars.own.state() & 0x10 == 0 {
         net.vars.stage_item.set(0);
@@ -136,8 +136,12 @@ pub fn lobby_loop(
     loop {
         run_frame(crate::net::lobby_frame::lobby_frame)?;
         let tick = crate::system::tick_count::tick_count();
-        if (tick.wrapping_sub(net.vars.clock_a.get()).wrapping_sub(1000) as i32) >= 0 {
-            net.vars.clock_a.set(tick);
+        if (tick
+            .wrapping_sub(crate::net::owner::net().edit().clock_a.get())
+            .wrapping_sub(1000) as i32)
+            >= 0
+        {
+            crate::net::owner::net().edit().clock_a.set(tick);
             // The original's `jb` after it is never taken (`list_players_regs` loses
             // the carry, section 16).
             crate::net::list_players::list_players_regs(&net.vars)?;
@@ -148,7 +152,7 @@ pub fn lobby_loop(
             .set(system.session.clocks.key_ticks.get());
         let key = list_key()?;
         let mut moved = false;
-        if net.vars.edited.get() != u32::MAX {
+        if crate::net::owner::net().edit().edited.get() != u32::MAX {
             crate::net::chat_key::chat_key(net, key)?;
         } else {
             let ready = net.vars.own.state() & 1 != 0;
@@ -187,7 +191,7 @@ pub fn lobby_loop(
                         moved = true;
                     }
                     3 => {
-                        crate::net::begin_chat::begin_chat(install, &net.vars)?;
+                        crate::net::begin_chat::begin_chat(install)?;
                         moved = true;
                     }
                     _ => {}

@@ -27,7 +27,7 @@ pub fn settings_loop() -> Result<(), Refused> {
     let now = system.session.clocks.key_ticks.get();
     install.pages.move_clock.set(now);
     install.pages.key_clock.set(now);
-    vars.edited.set(u32::MAX);
+    net.edit().edited.set(u32::MAX);
     install.pages.choice.set(0);
     loop {
         run_frame(crate::net::settings_frame::settings_frame)?;
@@ -37,7 +37,7 @@ pub fn settings_loop() -> Result<(), Refused> {
             .set(system.session.clocks.key_ticks.get());
         let key = list_key()?;
         let mut moved = false;
-        if vars.edited.get() != u32::MAX {
+        if net.edit().edited.get() != u32::MAX {
             crate::net::setting_key::setting_key(install, net, key)?;
         } else {
             match key {
@@ -59,7 +59,7 @@ pub fn settings_loop() -> Result<(), Refused> {
                         crate::net::settings_link::settings_link(install, &net.vars)?;
                         install.pages.choice.set(0);
                     } else {
-                        crate::net::begin_setting_edit::begin_setting_edit(install, &net.vars)?;
+                        crate::net::begin_setting_edit::begin_setting_edit(install)?;
                     }
                     moved = true;
                 }

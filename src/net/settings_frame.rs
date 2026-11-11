@@ -24,7 +24,6 @@ use rc2k_core::net::screens;
 pub fn settings_frame() -> Result<(), Refused> {
     let install = crate::install::owner::install();
     let net = net();
-    let vars = &net.vars;
     if !lock_surface() {
         return Ok(());
     }
@@ -32,14 +31,14 @@ pub fn settings_frame() -> Result<(), Refused> {
     let mut y = 0x92;
     /// A setting's value: a text kept in the network's state, or a number.
     enum Value {
-        Text(&'static crate::session::Bytes<64>),
+        Text(crate::place::BytePlace),
         Number(u32),
     }
     for (item, (label, value)) in [
-        (0x163, Value::Text(&vars.saved_name)),
-        (0x164, Value::Text(&vars.machine_name)),
-        (0x165, Value::Number(vars.most_players.get())),
-        (0x166, Value::Text(&vars.host_address)),
+        (0x163, Value::Text((&net.address().saved_name).into())),
+        (0x164, Value::Text((&net.setup().machine_name).into())),
+        (0x165, Value::Number(net.setup().most_players.get())),
+        (0x166, Value::Text((&net.setup().host_address).into())),
     ]
     .into_iter()
     .enumerate()
@@ -47,10 +46,10 @@ pub fn settings_frame() -> Result<(), Refused> {
         let item = item as u32;
         y = setting_label(net, label, item, y)?;
         y = match value {
-            Value::Number(n) => draw_number_value(install, &net.vars, n, item, y)?,
+            Value::Number(n) => draw_number_value(install, n, item, y)?,
             Value::Text(text) => {
-                let text = crate::place::BytePlace::from(text).text("a setting's text")?;
-                draw_setting_value(&net.vars, &text, item, y)?
+                let text = text.text("a setting's text")?;
+                draw_setting_value(&text, item, y)?
             }
         };
     }
@@ -83,7 +82,7 @@ pub fn settings_frame() -> Result<(), Refused> {
         }
     }
     piece(screens::LEFT_END, screens::END_WIDTH)?;
-    draw_centred_item(install, &net.vars, 0x16F, 4, text_x, 0x21D)?;
+    draw_centred_item(install, 0x16F, 4, text_x, 0x21D)?;
     crate::platform::unlock_surface();
     crate::platform::show_frame_now();
     Ok(())

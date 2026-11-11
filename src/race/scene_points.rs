@@ -116,8 +116,8 @@ pub fn take_from(from: u32, len: u32) -> Result<(), BadInput> {
     if len > crate::race::course_places::room() {
         return Err(BadInput("more scene points than their places hold"));
     }
-    let bytes = crate::race::level_init::course_memory_at(from)?
-        .read_bytes(len as usize, "the scene points")?;
+    let bytes =
+        crate::race::level_init::read_course_memory(from, len as usize, "the scene points")?;
     POINTS.set(&bytes)?;
     crate::race::course_places::first_points_changed();
     Ok(())

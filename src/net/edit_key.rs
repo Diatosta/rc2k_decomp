@@ -22,8 +22,8 @@ pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
     let install = crate::install::owner::install();
     // Converted: `rc2k_core::net::editing` (`EditKey`, `last_char`, `takes`,
     // `end_for_char`, `too_wide`).
-    if net.vars.edited.get() != editing::NOT_EDITING {
-        let text = crate::net::begin_edit::EditedText::edited(&net.vars)?.text(&net.vars, install);
+    if net.edit().edited.get() != editing::NOT_EDITING {
+        let text = crate::net::begin_edit::EditedText::edited()?.text(install);
         let words = StoreBytes(text);
         match EditKey::of(key) {
             EditKey::Escape => {
@@ -35,9 +35,9 @@ pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
                     editing::TEXT_LEN,
                     "an edited text",
                 )?;
-                net.vars.edited.set(editing::NOT_EDITING);
+                net.edit().edited.set(editing::NOT_EDITING);
             }
-            EditKey::Enter => net.vars.edited.set(editing::NOT_EDITING),
+            EditKey::Enter => net.edit().edited.set(editing::NOT_EDITING),
             EditKey::Clear => text.store(0, &[0; editing::TEXT_LEN])?,
             EditKey::Backspace => {
                 if let Some(last) = editing::last_char(&words)? {
@@ -57,14 +57,14 @@ pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
                     shown.extend_from_slice(&[typed, 0]);
                     let width = {
                         measure_text_at(
-                            net.vars.edit_font.get(),
+                            net.edit().edit_font.get(),
                             &shown,
                             at as i32,
                             &mut GameCanvas,
                         )
                     }?
                     .width;
-                    let kept = if editing::too_wide(width, net.vars.edit_width.get()) {
+                    let kept = if editing::too_wide(width, net.edit().edit_width.get()) {
                         [0, 0]
                     } else {
                         [typed, 0]
@@ -74,5 +74,5 @@ pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
             }
         }
     }
-    Ok(net.vars.edited.get() == u32::MAX)
+    Ok(net.edit().edited.get() == u32::MAX)
 }

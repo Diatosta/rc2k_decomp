@@ -33,27 +33,29 @@ pub fn open(flags: u32, name: &[u8]) -> u32 {
 
 /// The code at 0x418C5A as the receiving thread calls it when it is posted.
 pub fn posted_open_host() -> u32 {
-    open(OPEN_CREATE, &net().vars.machine_name.read())
+    open(OPEN_CREATE, &net().setup().machine_name.read())
 }
 pub fn host_session(net: &Net) -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_ptr(texts::NET_HOST), false, 2);
-    log_bytes(&net.vars.machine_name.read(), true, 2);
+    log_bytes(&net.setup().machine_name.read(), true, 2);
     if net.vars.dplay.get() == 0 {
         return Ok(false);
     }
-    net.vars.joined.write(&[0; 16]);
-    net.vars.joined_name.write(&net.vars.machine_name.read());
-    net.vars.joined_most.set(net.vars.most_players.get());
-    net.vars
+    net.joined().joined.write(&[0; 16]);
+    net.joined()
+        .joined_name
+        .write(&net.setup().machine_name.read());
+    net.joined().joined_most.set(net.setup().most_players.get());
+    net.joined()
         .joined_password
-        .write(&net.vars.session_password.read());
+        .write(&net.setup().session_password.read());
     zeroed_description(&net.vars)?;
     let desc = &net.vars.session_desc;
     desc.flags.set(0x44);
     put_bytes(&desc.application, &net.vars.app_guid.read());
-    desc.max_players.set(net.vars.most_players.get());
+    desc.max_players.set(net.setup().most_players.get());
     // The name goes to `open` as text (the description's pointer is left 0).
-    put_bytes(&desc.user, &net.vars.session_password.read());
+    put_bytes(&desc.user, &net.setup().session_password.read());
     finish(
         net,
         posted_open_host,

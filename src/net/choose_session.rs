@@ -24,7 +24,7 @@ fn refresh(install: &'static crate::install::owner::Install, net: &Net) -> Resul
     let listed = net.vars.sessions.get();
     if listed != 0 {
         let instance = with_session(install.pages.choice.get(), |s| s.instance)?;
-        net.vars
+        net.joined()
             .joined
             .write_at(0, &instance, "the joined session")?;
     }
@@ -39,7 +39,7 @@ fn refresh(install: &'static crate::install::owner::Install, net: &Net) -> Resul
     if listed != 0 && net.vars.sessions.get() != 0 {
         let mut n = 0;
         loop {
-            let joined = net.vars.joined.read();
+            let joined = net.joined().joined.read();
             // `system::same_guid`: the four dwords alike.
             if with_session(n, |s| s.instance)? == joined {
                 // Converted: `rc2k_core::net::screens` (`keeps_top`, `moved_top`).
@@ -75,14 +75,18 @@ pub fn choose_session(
     install.pages.key_clock.set(now);
     install.pages.choice.set(0);
     install.pages.choice_before.set(0);
-    net.vars
+    net.edit()
         .clock_a
         .set(crate::system::tick_count::tick_count());
     loop {
         run_frame(crate::net::sessions_frame::sessions_frame)?;
         let tick = crate::system::tick_count::tick_count();
-        if (tick.wrapping_sub(net.vars.clock_a.get()).wrapping_sub(1000) as i32) >= 0 {
-            net.vars.clock_a.set(tick);
+        if (tick
+            .wrapping_sub(net.edit().clock_a.get())
+            .wrapping_sub(1000) as i32)
+            >= 0
+        {
+            net.edit().clock_a.set(tick);
             if !refresh(install, net)? {
                 install.pages.choice.set(0xFFFF_FFFE);
                 return Ok(install.pages.choice.get());

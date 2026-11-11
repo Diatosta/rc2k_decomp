@@ -17,7 +17,7 @@ use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 pub fn create_player() -> Result<bool, Refused> {
     let vars = &net().vars;
     log(VIEWER_PANEL.text_ptr(texts::NET_CREATE_PLAYER), false, 2);
-    let name = vars.player_name.read();
+    let name = net().setup().player_name.read();
     log_bytes(&name, true, 2);
     let made = crate::net::dp_objects::create_player(
         vars.dplay.get(),

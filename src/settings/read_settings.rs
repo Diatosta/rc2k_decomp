@@ -269,7 +269,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
         dword!(crate::input::owner::INPUT.devices.two_devices_one_player),
     ),
     (b"nonetwork", 0x52A4B0, dword!(net().vars.receive_done)),
-    (b"inetport", 0x52AC24, dword!(net().vars.port)),
+    (b"inetport", 0x52AC24, dword!(net().setup().port)),
     (b"screensnapshot", 0x4F52B4, dword!(gfx().shots.on)),
     (b"framecounter", 0x5EB100, dword!(race().frame.counter.show)),
     (

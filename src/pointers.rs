@@ -619,6 +619,7 @@ impl GamePtr {
         let backing = self
             .check(len, what)
             .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
+        note_by_address(self.at, backing, len, false);
         // SAFETY: the bytes lie in one live region (checked above); unwritten meanwhile
         // (the caller's promise).
         unsafe { std::slice::from_raw_parts(place_of(self.at, backing), len) }
@@ -1443,6 +1444,7 @@ fn bytes_of<T: Plain>(value: &T) -> &[u8] {
 fn load_at(addr: u32, backing: Backing, to: &mut [u8]) -> Result<(), BadInput> {
     if let Backing::Store(store, home) = backing {
         let at = (addr - home) as usize;
+        crate::write_watch::by_address(store, at, to.len(), false);
         return match run_of(store, at, to.len()) {
             Some((start, run)) => {
                 run.load(at - start, to);
@@ -1459,6 +1461,7 @@ fn load_at(addr: u32, backing: Backing, to: &mut [u8]) -> Result<(), BadInput> {
 fn store_at(addr: u32, backing: Backing, from: &[u8]) -> Result<(), BadInput> {
     if let Backing::Store(store, home) = backing {
         let at = (addr - home) as usize;
+        crate::write_watch::by_address(store, at, from.len(), true);
         return match run_of(store, at, from.len()) {
             Some((start, run)) => {
                 run.store(at - start, from);
@@ -1881,8 +1884,19 @@ pub fn copy_between(
 #[track_caller]
 pub fn check_or_end(addr: u32, len: usize, what: &str) {
     watched(addr, len, what);
-    if inside(addr, len).is_none() {
-        crate::fatal::raise::end(what, outside(addr, len, what))
+    match inside(addr, len) {
+        Some(backing) => note_by_address(addr, backing, len, false),
+        None => crate::fatal::raise::end(what, outside(addr, len, what)),
+    }
+}
+
+/// An access by address to the store behind `backing`, noted for the field-leaving census
+/// (`write_watch`).
+#[inline(always)]
+fn note_by_address(_addr: u32, _backing: Backing, _len: usize, _write: bool) {
+    #[cfg(feature = "write_watch")]
+    if let Backing::Store(store, home) = _backing {
+        crate::write_watch::by_address(store, (_addr - home) as usize, _len, _write);
     }
 }
 
@@ -1902,6 +1916,7 @@ pub fn cell_or_end(addr: u32, what: &str) -> &'static crate::session::Dword {
     watched(addr, 4, what);
     let backing =
         inside(addr, 4).unwrap_or_else(|| crate::fatal::raise::end(what, outside(addr, 4, what)));
+    note_by_address(addr, backing, 4, false);
     let cell = place_of(addr, backing) as *const crate::session::Dword;
     assert!(
         cell.is_aligned(),

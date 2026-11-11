@@ -24,14 +24,14 @@ pub fn setting_key(
     // Converted: `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).
     match install.pages.choice.get() {
         chat::NAME => {
-            if net.vars.machine_name.get(0) == 0 {
-                movsb(&net.vars.machine_name, &install.paths.script_path, 0x40)?;
+            if net.setup().machine_name.get(0) == 0 {
+                movsb(&net.setup().machine_name, &install.paths.script_path, 0x40)?;
             }
         }
         chat::MOST_PLAYERS => {
             let number =
                 { crate::settings::parse_number::parse_number(&install.paths.path_a.read()) };
-            net.vars.most_players.set(chat::most_players(
+            net.setup().most_players.set(chat::most_players(
                 number,
                 crate::strings::load_language::notice_kind(),
             ));

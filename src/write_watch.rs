@@ -9,6 +9,10 @@
 //! The thread census (`RC2K_FIELD_THREADS=<file>`, the watch build only; see `fields`)
 //! needs no `begin`: it notes every access on every thread, by the thread's kind, and writes
 //! the fields with the kinds of thread that read and wrote them to `<file>` at the end.
+//!
+//! The field-leaving census (`RC2K_FIELD_LEAVE=<file>`, the watch build only; see `leaves`)
+//! notes every by-address read or write of a store whose bytes run past the end of the field
+//! it starts in.
 
 /// `len` bytes at `at` read.
 #[inline(always)]
@@ -64,7 +68,18 @@ pub fn frame_begun() {
 #[inline(always)]
 pub fn dump_fields() {
     #[cfg(feature = "write_watch")]
-    fields::dump();
+    {
+        fields::dump();
+        leaves::dump();
+    }
+}
+
+/// `len` bytes at offset `at` of `store` read or written by game address (`pointers`' loads
+/// and stores): noted when they run past the end of the field they start in.
+#[inline(always)]
+pub fn by_address(_store: &dyn crate::pointers::Store, _at: usize, _len: usize, _write: bool) {
+    #[cfg(feature = "write_watch")]
+    leaves::note(_store, _at, _len, _write);
 }
 
 /// The frame census (`RC2K_FRAME_CENSUS`): for every step of the race's frame, what it reads
@@ -421,6 +436,272 @@ mod fields {
             );
         }
         let _ = std::fs::write(path, text);
+    }
+}
+
+/// The field-leaving census (`RC2K_FIELD_LEAVE=<file>`; `1` writes `field_leaves.csv`):
+/// every by-address access (`pointers::load_at` / `store_at`, which the unbounded places,
+/// the `*_or_end` reads and the places' reads all end in) whose bytes cover more than the
+/// field the first byte is in, with the fields reached, the bytes past the first field's
+/// end, the first Rust frame outside the access layers, and how often. Fields are the
+/// stores' `Cells` fields with indices dropped (a run over the elements of one array is no
+/// leave). Each distinct (store, offset, length, direction) is analysed once per thread, so
+/// the run's cost stays that of the field census. File written as `fields`' is, columns
+/// `module,site,store,start_field,reached,rw,len,bytes_past,count`.
+#[cfg(feature = "write_watch")]
+mod leaves {
+    use crate::pointers::Store;
+    use std::cell::RefCell;
+    use std::collections::{BTreeMap, HashMap};
+    use std::sync::{Arc, Mutex, OnceLock};
+
+    /// What one access shape did: how often, from where, and what it leaves (`None`:
+    /// nothing).
+    struct Shape {
+        count: u64,
+        site: String,
+        leave: Option<Leave>,
+    }
+
+    #[derive(Clone)]
+    struct Leave {
+        store: String,
+        start: String,
+        reached: String,
+        past: usize,
+    }
+
+    /// (store's first byte, offset, length, write).
+    type Key = (usize, usize, usize, bool);
+    type Shapes = HashMap<Key, (Shape, usize)>;
+
+    static THREADS: Mutex<Vec<Arc<Mutex<Shapes>>>> = Mutex::new(Vec::new());
+
+    thread_local! {
+        static MINE: RefCell<Option<Arc<Mutex<Shapes>>>> = const { RefCell::new(None) };
+    }
+
+    fn file() -> Option<&'static std::path::Path> {
+        static FILE: OnceLock<Option<std::path::PathBuf>> = OnceLock::new();
+        FILE.get_or_init(|| {
+            let value = std::env::var_os("RC2K_FIELD_LEAVE")?;
+            Some(if value == "1" {
+                "field_leaves.csv".into()
+            } else {
+                value.into()
+            })
+        })
+        .as_deref()
+    }
+
+    /// `.a[3].b` as `.a.b`.
+    fn strip(path: &str) -> String {
+        let mut out = String::new();
+        let mut inside = false;
+        for c in path.chars() {
+            match c {
+                '[' => inside = true,
+                ']' => inside = false,
+                _ if !inside => out.push(c),
+                _ => {}
+            }
+        }
+        out
+    }
+
+    fn field(store: &dyn Store, offset: usize) -> String {
+        let mut path = String::new();
+        store.field_path_at(offset, &mut path);
+        strip(&path)
+    }
+
+    /// What `[at, at + len)` of the store leaves, or `None` when it stays in its first field.
+    fn analyse(store: &dyn Store, at: usize, len: usize) -> Option<Leave> {
+        let size = store.size();
+        if at >= size {
+            return None;
+        }
+        let end = (at + len).min(size);
+        let start = field(store, at);
+        let stride = (len / 64).max(1);
+        let mut first_other = None;
+        let mut reached: Vec<String> = Vec::new();
+        let mut p = at;
+        while p < end {
+            let f = field(store, p);
+            if f != start {
+                first_other.get_or_insert(p);
+                if !reached.contains(&f) {
+                    reached.push(f);
+                }
+            }
+            p += stride;
+        }
+        let last = field(store, end - 1);
+        if last != start {
+            first_other.get_or_insert(end - 1);
+            if !reached.contains(&last) {
+                reached.push(last);
+            }
+        }
+        let other = first_other?;
+        // Where the first field really ends: between the last probe that was in it and the
+        // first that was not.
+        let (mut lo, mut hi) = (other.saturating_sub(stride).max(at), other);
+        while hi - lo > 1 {
+            let mid = lo + (hi - lo) / 2;
+            if field(store, mid) == start {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        if at + len > size {
+            reached.push("<past the store>".into());
+        }
+        Some(Leave {
+            store: store.type_name().to_owned(),
+            start,
+            reached: reached.join(";"),
+            past: at + len - hi,
+        })
+    }
+
+    /// The first frame of the backtrace outside the access layers (`pointers`, `session`,
+    /// this file, the standard library), as `function @ src/path.rs:line`.
+    fn site() -> String {
+        let text = std::backtrace::Backtrace::force_capture().to_string();
+        let mut lines = text.lines().peekable();
+        while let Some(line) = lines.next() {
+            let Some((_, name)) = line.trim().split_once(": ") else {
+                continue;
+            };
+            let Some(at) = lines.peek().and_then(|l| l.trim().strip_prefix("at ")) else {
+                continue;
+            };
+            let layers = [
+                "/rustc/",
+                "/.cargo/",
+                "src/pointers.rs",
+                "src/pointers/",
+                "src/write_watch.rs",
+                "src/session.rs",
+            ];
+            if layers.iter().any(|l| at.contains(l)) {
+                continue;
+            }
+            let file = at.rsplit_once("/src/").map_or(at, |(_, f)| f);
+            return format!("{name} @ {file}");
+        }
+        "?".into()
+    }
+
+    pub fn note(store: &dyn Store, at: usize, len: usize, write: bool) {
+        if len == 0 || file().is_none() {
+            return;
+        }
+        let key = (store.first().addr(), at, len, write);
+        let mine = MINE.with_borrow_mut(|m| {
+            m.get_or_insert_with(|| {
+                let mine = Arc::new(Mutex::new(Shapes::new()));
+                THREADS
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .push(mine.clone());
+                mine
+            })
+            .clone()
+        });
+        let mut shapes = mine
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some((shape, _)) = shapes.get_mut(&key) {
+            shape.count += 1;
+            return;
+        }
+        let leave = analyse(store, at, len);
+        let site = site();
+        shapes.insert(
+            key,
+            (
+                Shape {
+                    count: 1,
+                    site,
+                    leave,
+                },
+                len,
+            ),
+        );
+    }
+
+    /// The module of a site (`f @ race/frame_views.rs:12:5` -> `race`; a file directly in
+    /// `src/` is its own module).
+    fn module_of(site: &str) -> &str {
+        let file = site.rsplit_once(" @ ").map_or(site, |(_, f)| f);
+        let first = file.split('/').next().unwrap_or(file);
+        first.split_once(".rs").map_or(first, |(m, _)| m)
+    }
+
+    /// A row of the file: (site, store, start, reached, write, len).
+    type RowKey = (String, String, String, String, bool, usize);
+
+    pub fn dump() {
+        let Some(path) = file() else {
+            return;
+        };
+        // A row -> (bytes past, count).
+        let mut rows: BTreeMap<RowKey, (usize, u64)> = BTreeMap::new();
+        // site -> (shapes, accesses, shapes that leave)
+        let mut sites: BTreeMap<String, (u64, u64, u64)> = BTreeMap::new();
+        for mine in THREADS
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .iter()
+        {
+            let shapes = mine
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            for (&(_, _, _, write), (shape, len)) in shapes.iter() {
+                let entry = sites.entry(shape.site.clone()).or_default();
+                entry.0 += 1;
+                entry.1 += shape.count;
+                entry.2 += u64::from(shape.leave.is_some());
+                let Some(l) = &shape.leave else {
+                    continue;
+                };
+                let row = rows
+                    .entry((
+                        shape.site.clone(),
+                        l.store.clone(),
+                        l.start.clone(),
+                        l.reached.clone(),
+                        write,
+                        *len,
+                    ))
+                    .or_default();
+                row.0 = row.0.max(l.past);
+                row.1 += shape.count;
+            }
+        }
+        let mut text =
+            String::from("module,site,store,start_field,reached,rw,len,bytes_past,count\n");
+        for ((site, store, start, reached, write, len), (past, count)) in rows {
+            text += &format!(
+                "{},\"{site}\",{store},{start},\"{reached}\",{},{len},{past},{count}\n",
+                module_of(&site),
+                if write { "w" } else { "r" }
+            );
+        }
+        let _ = std::fs::write(path, text);
+        // Every site that reached a store by address, leaving or not.
+        let mut text = String::from("module,site,shapes,accesses,leaving_shapes\n");
+        for (site, (shapes, accesses, leaving)) in sites {
+            text += &format!(
+                "{},\"{site}\",{shapes},{accesses},{leaving}\n",
+                module_of(&site)
+            );
+        }
+        let _ = std::fs::write(path.with_extension("sites.csv"), text);
     }
 }
 

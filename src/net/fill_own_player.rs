@@ -126,7 +126,7 @@ pub fn fill_own_player(
 ) -> Result<(), Refused> {
     // `strings::copy_printable` with 0x1F room: at most 0x1E characters of `name` looked at.
     let printable = crate::strings::copy_printable::printable_from(name, 0x1F)?;
-    net.vars
+    net.setup()
         .player_name
         .write_at(0, &printable, "a printable name")?;
     // Converted: `rc2k_core::net::record::own_record`.

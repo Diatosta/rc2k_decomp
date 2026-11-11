@@ -13,7 +13,6 @@
 //! cars.
 
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 
 /// `race::set_all_plates` (see the header).
@@ -27,31 +26,31 @@ pub fn set_all_plates(race: &Race, scene: &crate::scene::owner::Scene) -> Result
     };
     let cars: u32 = shared.view.race_cars.get();
     check_picture_cars(cars)?;
-    let pictures = GamePtr::to(&scene.textures.places.kind_pictures);
+    let pictures = &scene.textures.places.kind_pictures;
+    let prefs = &course.stage_prefs;
     for (kind, dwords) in PREF_PIECES {
-        // The prefs' picture lists (`PREF_PIECES`' kinds) start at `picture_lists_a`
-        // (0x60A57C), 0x32C14 bytes above the pictures; a piece runs past the field.
-        let from = GamePtr::to(&course.stage_prefs.picture_lists_a)
-            .unbounded()
-            .offset(4 * kind as u32);
-        let to = pictures.offset(4 * kind as u32);
-        from.copy_to(to, 4 * dwords, "the picture lists")?;
+        // The prefs' picture lists (`PREF_PIECES`' kinds) lie one after the other (`picture_lists_a`,
+        // `_b`, `_c`, 64 kinds each): a piece starts in the list its first kind falls in.
+        let list = match kind / 64 {
+            0 => &prefs.picture_lists_a,
+            1 => &prefs.picture_lists_b,
+            _ => &prefs.picture_lists_c,
+        };
+        for n in 0..dwords {
+            pictures[kind + n].set(list[kind % 64 + n].get());
+        }
     }
     for (kind, picture) in FIXED_PICTURES {
-        crate::scene::texture_places_store::cell_at(
-            &scene.textures.places.kind_pictures[0],
-            kind as u32,
-        )
-        .set(picture);
+        pictures[kind].set(picture);
     }
-    let mut at = pictures.offset(4 * CAR_PICTURE_KINDS as u32);
+    let mut at = CAR_PICTURE_KINDS;
     for car in 0..cars {
         let first = crate::scene::known_kind_picture::known_kind_picture(
             shared.vars.race_car_kinds[car as usize].get(), // g_raceCarKinds
         );
         for picture in car_pictures(first) {
-            at.write(picture, "a car's pictures")?;
-            at = at.offset(4);
+            pictures[at].set(picture);
+            at += 1;
         }
     }
     crate::scene::reload_system_textures::reload_system_textures(scene)?;
