@@ -38,7 +38,7 @@ pub fn draw_markers(frame: &Frame, hud: &Hud, rows: [u32; 2]) -> Result<(), Refu
     {
         let k = hud.block.uv_scale_x.bits();
         for (n, distance) in frame.panel_and_overlay.panel.distance.iter().enumerate() {
-            hud.block.quad[5].set(hud.block.marker_colours[n].get());
+            hud.block.quad.colour.set(hud.block.marker_colours[n].get());
             let f = f32::from_bits;
             let x = quads::marker_x(
                 f(distance.get()),
@@ -46,11 +46,11 @@ pub fn draw_markers(frame: &Frame, hud: &Hud, rows: [u32; 2]) -> Result<(), Refu
                 hud.block.marker_k[0].get(),
                 hud.block.marker_k[1].get(),
             );
-            hud.block.scratch.set(x);
+            hud.block.fistp_scratch.set(x);
             let rect = rect_place(hud, RECT);
-            hud.block.scratch.set(0x78u32);
+            hud.block.fistp_scratch.set(0x78u32);
             let st1 = int_over_80(0x78, k);
-            hud.block.scratch.set(0x100u32);
+            hud.block.fistp_scratch.set(0x100u32);
             let st0 = int_over_80(0x100, k);
             crate::hud::add_scaled_sprite::add_scaled_sprite(
                 frame,
@@ -60,8 +60,8 @@ pub fn draw_markers(frame: &Frame, hud: &Hud, rows: [u32; 2]) -> Result<(), Refu
                 rect,
                 [st0, st1],
             )?;
-            // the second scale is what stays in the scratch cell
-            hud.block.scratch.set(taken_off(st1));
+            // the second scale is what stays in the fistp_scratch cell
+            hud.block.fistp_scratch.set(taken_off(st1));
         }
     }
     Ok(())

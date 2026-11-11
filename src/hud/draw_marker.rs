@@ -16,7 +16,7 @@ const RECT: u32 = 0x5C;
 
 // Converted: `rc2k_core::hud::quads::marker_x`
 pub fn draw_marker(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
-    hud.block.quad[5].set(hud.block.marker_colours[0].get());
+    hud.block.quad.colour.set(hud.block.marker_colours[0].get());
     {
         let f = f32::from_bits;
         let x = marker_x(
@@ -25,7 +25,7 @@ pub fn draw_marker(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
             hud.block.marker_k[0].get(),
             hud.block.marker_k[1].get(),
         );
-        hud.block.scratch.set(x);
+        hud.block.fistp_scratch.set(x);
         crate::hud::add_sprite::add_sprite(frame, hud, x, 0, rect_place(hud, RECT))
     }
 }

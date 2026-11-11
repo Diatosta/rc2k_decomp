@@ -26,7 +26,7 @@ pub fn add_scaled_sprite_plain(
     let [_, _, w, h] = put_places(hud, rect)?;
     let w = quads::scaled_size(w, scales[0]);
     let h = quads::scaled_size(h, scales[1]);
-    hud.block.scratch.set(h);
+    hud.block.fistp_scratch.set(h);
     put_corners(hud, x, y, w, h);
     crate::hud::add_quad::add_quad(frame, hud)
 }

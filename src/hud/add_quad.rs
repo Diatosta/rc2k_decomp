@@ -15,7 +15,7 @@ use rc2k_core::hud::quads;
 
 // Converted: `rc2k_core::hud::quads::quad_vertices`
 pub fn add_quad(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
-    let q: [u32; quads::RECORD] = std::array::from_fn(|n| hud.block.quad[n].get());
+    let q: [u32; quads::RECORD] = hud.block.quad.words();
     let (a, b) = (hud.block.uv_scale_x.get(), hud.block.uv_scale_y.get());
     let (vertices, _, _) = quads::quad_vertices(&q, a, b);
     for (n, v) in vertices.into_iter().enumerate() {

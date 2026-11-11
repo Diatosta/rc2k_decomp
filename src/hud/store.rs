@@ -18,6 +18,83 @@ pub const START: usize = 0x75B940;
 /// The block's length.
 pub const LEN: usize = 0x764F2C - START;
 
+/// The HUD's quad record (`g_hudQuad`, 14 dwords): what `add_quad` makes four vertices of.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct HudQuad {
+    /// The alpha (the colour's top byte under it, `add_quad`).
+    pub alpha: Dword,
+    pub left: Dword,
+    pub top: Dword,
+    pub right: Dword,
+    pub bottom: Dword,
+    /// The colour (0xFFFF_FFFF white, 0 black; its low 24 bits are used under the alpha).
+    pub colour: Dword,
+    /// The four corners' texture places as whole numbers (u, v pairs in the order
+    /// `rc2k_core::hud::quads::sprite_places` numbers them 6 .. 13).
+    pub places: [Dword; 8],
+}
+
+const _: () = {
+    assert!(core::mem::size_of::<HudQuad>() == 14 * 4);
+    assert!(core::mem::offset_of!(HudQuad, colour) == 5 * 4);
+    assert!(core::mem::offset_of!(HudQuad, places) == 6 * 4);
+};
+
+impl HudQuad {
+    const fn new() -> Self {
+        Self {
+            alpha: Dword::new(0xc0),
+            left: Dword::new(0),
+            top: Dword::new(0),
+            right: Dword::new(0),
+            bottom: Dword::new(0),
+            colour: Dword::new(0),
+            places: [const { Dword::new(0) }; 8],
+        }
+    }
+
+    /// The record's dword `n` (0 .. 14, the order of the fields).
+    pub fn word(&self, n: usize) -> &Dword {
+        match n {
+            0 => &self.alpha,
+            1 => &self.left,
+            2 => &self.top,
+            3 => &self.right,
+            4 => &self.bottom,
+            5 => &self.colour,
+            _ => &self.places[n - 6],
+        }
+    }
+
+    /// The corners: left, top, right, bottom.
+    pub fn set_rect(&self, [l, t, r, b]: [u32; 4]) {
+        self.left.set(l);
+        self.top.set(t);
+        self.right.set(r);
+        self.bottom.set(b);
+    }
+
+    /// The whole record in order.
+    pub fn words(&self) -> [u32; 14] {
+        std::array::from_fn(|n| self.word(n).get())
+    }
+}
+
+/// The HUD's texture numbers (`HudBlock::texture`, the batch textures 0xC0 .. 0xDC).
+pub mod texture {
+    /// The sprite sheet of the markers, signs, digits and the stage bar's panels.
+    pub const SPRITES: u32 = 0xC0;
+    /// The sheet of the speed and gear digits, the needle and the time panels.
+    pub const NEEDLES_AND_DIGITS: u32 = 0xC1;
+    /// The first player's dial disc.
+    pub const DIAL_FIRST: u32 = 0xC6;
+    /// The second player's dial disc.
+    pub const DIAL_SECOND: u32 = 0xC7;
+    /// The icons.
+    pub const ICONS: u32 = 0xDC;
+}
+
 /// One of the texture's rectangles (`g_hudRects`).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -87,7 +164,7 @@ pub struct HudBlock {
     /// `dword_75BFAC`: the needle's way (the record's +0xCC / +0xD0; 0 or not, `draw_needle`).
     pub needle_kind: Dword,
     /// `g_hudQuad` (`dword_75BFB0` .. `dword_75BFE4`): the quad record `add_quad` makes four vertices of: alpha, left, top, right, bottom, colour, then the four corners' texture places (whole numbers, `rc2k_core::hud::quads::RECORD` dwords).
-    pub quad: [Dword; 14],
+    pub quad: HudQuad,
     /// `flt_75BFE8`: the batch's depth (z of every vertex, `set_batch_depth`).
     pub depth: Float,
     /// `flt_75BFEC`: the batch's rhw (`set_batch_depth`).
@@ -109,9 +186,9 @@ pub struct HudBlock {
     /// `flt_75C018`: the needle's least value.
     pub least: Float,
     /// `flt_75C01C`: added to a disc entry's texture place (`disc_vertex`).
-    pub texture_base: Float,
+    pub disc_place_offset: Float,
     /// `flt_75C020`: a disc entry's texture place is divided by it (`disc_vertex`).
-    pub texture_size: Float,
+    pub disc_place_divisor: Float,
     /// `flt_75C024`: the second factor of the disc texture's turn (`draw_disc`).
     pub disc_turn_b: Float,
     /// `flt_75C028`: the first factor of the disc texture's turn (`draw_disc`).
@@ -137,7 +214,7 @@ pub struct HudBlock {
     /// `dword_75C05C`: the disc texture's turn, from the record (+0x3C / +0x64).
     pub disc_turn: Float,
     /// `dword_75C060`: the original's `fistp` scratch (a sprite's height, the needle's turn, the marker's x).
-    pub scratch: Dword,
+    pub fistp_scratch: Dword,
     /// `dword_75C064`, `dword_75C068`: the icon's width and drop, scaled.
     pub icon_size: [Dword; 2],
     /// `dword_75C06C`: the icon scale (from `icon_scales`).
@@ -344,22 +421,7 @@ impl HudBlock {
             bar_colour: Dword::new(0x0),
             bar_colours: [const { Dword::new(0x0) }; 2],
             needle_kind: Dword::new(0x0),
-            quad: [
-                Dword::new(0xc0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-                Dword::new(0x0),
-            ],
+            quad: HudQuad::new(),
             depth: Float::from_bits(0x3c23d70a),
             rhw: Float::from_bits(0x3f800000),
             point: [const { Dword::new(0x0) }; 2],
@@ -370,8 +432,8 @@ impl HudBlock {
             uv_scale_y: Float::from_bits(0x47800000),
             turn_k: Float::from_bits(0x45800000),
             least: Float::from_bits(0x0),
-            texture_base: Float::from_bits(0x42400000),
-            texture_size: Float::from_bits(0x43000000),
+            disc_place_offset: Float::from_bits(0x42400000),
+            disc_place_divisor: Float::from_bits(0x43000000),
             disc_turn_b: Float::from_bits(0x44800000),
             disc_turn_a: Float::from_bits(0x3f22f983),
             virtual_screen: [Float::from_bits(0x44480000), Float::from_bits(0x44160000)],
@@ -384,7 +446,7 @@ impl HudBlock {
             disc_size: Float::from_bits(0x42780000),
             disc_texture_shift: [const { Float::from_bits(0x0) }; 2],
             disc_turn: Float::from_bits(0x0),
-            scratch: Dword::new(0x0),
+            fistp_scratch: Dword::new(0x0),
             icon_size: [const { Dword::new(0x0) }; 2],
             icon_scale: Float::from_bits(0x0),
             icon_shift: Dword::new(0x0),
@@ -555,7 +617,7 @@ mod tests {
     fn moved_knows_the_block() {
         assert_eq!(
             crate::moved::place(0x75C060),
-            crate::hud::owner::HUD.block.scratch.addr() as usize
+            crate::hud::owner::HUD.block.fistp_scratch.addr() as usize
         );
         assert_eq!(crate::moved::place(START), hud_addr() as usize);
         assert_eq!(core::mem::offset_of!(HudBlock, vertices), 0x75C324 - START);

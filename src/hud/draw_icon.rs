@@ -40,8 +40,8 @@ pub fn draw_icon(frame: &Frame, hud: &Hud, lights: &Lights, bottom: u32) -> Resu
         at.y.set_bits((y as i32 as f32).to_bits());
         at.colour.set(i.colour);
         at.specular.set(0);
-        // `fild` through `scratch`: it keeps the last.
-        hud.block.scratch.set(y);
+        // `fild` through `fistp_scratch`: it keeps the last.
+        hud.block.fistp_scratch.set(y);
     }
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count

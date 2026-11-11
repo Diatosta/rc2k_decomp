@@ -11,90 +11,14 @@
 
 use crate::errors::Refused;
 use crate::hud::draw_signs::row;
+use crate::hud::layout_common::{
+    begin_dials, clock_panel, gear_rect, lap_panel, leading_time, needle_sign, sign, sprite,
+    time_digits, white_opaque,
+};
 use crate::hud::owner::Hud;
-use crate::hud::store::rect_place;
+use crate::hud::store::texture;
 use crate::race::owner_frame::Frame;
 use rc2k_core::hud::panels;
-
-/// A time made digits (`digits`: `rc2k_core::hud::panels::time_digits`), each
-/// plus `base`.
-pub fn time_digits(hud: &Hud, value: u32, base: u32) -> [u32; 6] {
-    let d = panels::time_digits(value, base);
-    for (n, v) in d.into_iter().enumerate() {
-        hud.block.digits[n].set(v);
-    }
-    d
-}
-
-/// A sprite: rectangle `rect` of the sprite sheet at (x, y).
-pub fn sprite(frame: &Frame, hud: &Hud, rect: u32, x: u32, y: u32) -> Result<(), Refused> {
-    crate::hud::add_sprite::add_sprite(frame, hud, x, y, rect_place(hud, rect))
-}
-
-/// The sign of a time into `sign`: `plus` or `minus`.
-pub fn sign(hud: &Hud, value: u32, plus: u32, minus: u32) -> u32 {
-    let s = panels::sign(value, plus, minus);
-    hud.block.sign.set(s);
-    s
-}
-
-/// A sprite drawer for the shared panels: (rectangle, x, y).
-pub type Draw<'a> = &'a mut dyn FnMut(u32, u32, u32) -> Result<(), Refused>;
-
-/// A clock panel: the time `t` (digits from 0x18), its sign 0x22 / 0x23, then its
-/// rectangles (`panels::clock_rects`) at `xs`, row `y`.
-pub fn clock_panel(hud: &Hud, t: u32, xs: [u32; 8], y: u32, draw: Draw) -> Result<(), Refused> {
-    time_digits(hud, t, panels::CLOCK_BASE);
-    sign(hud, t, 0x22, 0x23);
-    for (rect, x) in panels::clock_rects(t).into_iter().zip(xs) {
-        draw(rect, x, y)?;
-    }
-    Ok(())
-}
-
-/// A split-time panel: the time `t` (digits from 0xC, sign 0 / 1), then its rectangles
-/// (`panels::lap_rects`) at `xs`, row `y`.
-pub fn lap_panel(hud: &Hud, t: u32, xs: [u32; 8], y: u32, draw: Draw) -> Result<(), Refused> {
-    time_digits(hud, t, panels::LAP_BASE);
-    sign(hud, t, 0, 1);
-    for (rect, x) in panels::lap_rects(t).into_iter().zip(xs) {
-        draw(rect, x, y)?;
-    }
-    Ok(())
-}
-
-/// The time `v` (digits from 0xC, sign 0 / 1) as its last three digits at `xs`, row `y`,
-/// the leading ones left out while they are 0 (`leading`;
-/// `panels::leading_digits`).
-pub fn leading_time(hud: &Hud, v: u32, xs: [u32; 3], y: u32, draw: Draw) -> Result<(), Refused> {
-    time_digits(hud, v, panels::LAP_BASE);
-    sign(hud, v, 0, 1);
-    hud.block.leading.set(1);
-    for (digit, slot, drawn) in panels::leading_digits(v) {
-        if !drawn {
-            continue;
-        }
-        draw(digit, xs[slot], y)?;
-        if slot < 2 {
-            hud.block.leading.set(0);
-        }
-    }
-    Ok(())
-}
-
-/// The needle's sign by a start value (`pick`, `needle_kind`, the texture, as the original
-/// writes them): its rectangle.
-pub fn needle_sign(hud: &Hud, field: u32) -> u32 {
-    hud.block.pick.set(0x5E);
-    hud.block.texture.set(0xC0);
-    hud.block.needle_kind.set(field);
-    let (pick, texture) = panels::needle_sign(field);
-    if field != 0 {
-        hud.block.pick.set(pick);
-        hud.block.texture.set(texture);
-    }
-    pick
-}
 
 /// The HUD of one player.
 // Converted: `rc2k_core::hud::panels` (the digits, signs, panels, leading digits, the
@@ -103,34 +27,23 @@ pub fn layout_0(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     use crate::hud::*;
     let panel = &frame.panel_and_overlay.panel;
     let flags = panel.hud_flags[0].get();
-    hud.block.quad[0].set(0xE0);
-    hud.block.texture.set(0xC6);
+    begin_dials(hud);
     if flags & 0x10 != 0 {
         dials::disc(frame, hud, &dials::DISC_0)?;
     }
-    hud.block.texture.set(0xC0);
+    hud.block.texture.set(texture::SPRITES);
     if flags & 0x40 != 0 {
         draw_stage_bar::draw_stage_bar(frame, hud)?;
     }
-    hud.block.quad[5].set(0xFFFF_FFFF);
-    hud.block.quad[0].set(0xFF);
-    hud.block.texture.set(0xDC);
+    white_opaque(hud, texture::ICONS);
     icons::icons(frame, hud, &icons::LAYOUT_0)?;
-    hud.block.quad[5].set(0xFFFF_FFFF);
-    hud.block.quad[0].set(0xFF);
-    hud.block.texture.set(0xC1);
+    white_opaque(hud, texture::NEEDLES_AND_DIGITS);
     if flags & 0x20 != 0 {
         sprite(frame, hud, 0x49, 9, 0x215)?;
         sprite(
             frame,
             hud,
-            frame
-                .panel_and_overlay
-                .panel
-                .view_a
-                .gear
-                .get()
-                .wrapping_add(0x41),
+            gear_rect(frame.panel_and_overlay.panel.view_a.gear.get()),
             0x11,
             0x21D,
         )?;
@@ -139,18 +52,18 @@ pub fn layout_0(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     if flags & 1 != 0 {
         sprite(frame, hud, pick, 0x21, 0x1B8)?;
     }
-    hud.block.texture.set(0xC0);
+    hud.block.texture.set(texture::SPRITES);
     if flags & 0x10 != 0 {
         sprite(frame, hud, 0x5F, 0x282, 0x1B8)?;
     }
     if flags & 0x40 != 0 {
         draw_marker::draw_marker(frame, hud)?;
     }
-    hud.block.quad[5].set(0xFFFF_FFFF);
+    hud.block.quad.colour.set(0xFFFF_FFFF);
     if flags & 0x80 != 0 {
         draw_signs::draw_signs(frame, hud, &draw_signs::LAYOUT_0)?;
     }
-    hud.block.texture.set(0xC1);
+    hud.block.texture.set(texture::NEEDLES_AND_DIGITS);
     if flags & 1 != 0 {
         dials::needle(frame, hud, &dials::NEEDLE_0)?;
     }

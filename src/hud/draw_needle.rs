@@ -48,7 +48,7 @@ pub fn draw_needle(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
         t.plus.to_bits(),
         tk,
     );
-    hud.block.scratch.set(turn);
+    hud.block.fistp_scratch.set(turn);
     let angle = needle_edx(turn);
     for (n, (x, y)) in needle_corners(
         hud.block

@@ -10,9 +10,12 @@
 
 use crate::errors::Refused;
 use crate::hud::draw_signs::row_by;
-use crate::hud::layout_0::*;
-use crate::hud::layout_1::{pick, plain, scaled};
+use crate::hud::layout_common::{
+    begin_dials, black_divider, clock_panel, gear_rect, lap_panel, leading_time, needle_sign,
+    scaled, sign, sprite, time_digits, white_opaque,
+};
 use crate::hud::owner::Hud;
+use crate::hud::store::texture;
 use crate::race::owner_frame::Frame;
 
 /// The upper half's rows: 0x10 down with `Panel::flat` 0.
@@ -32,44 +35,27 @@ pub fn layout_2(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     use crate::hud::*;
     let panel = &frame.panel_and_overlay.panel;
     let [f1, f2] = [panel.hud_flags[0].get(), panel.hud_flags[1].get()];
-    hud.block.quad[0].set(0xE0);
-    hud.block.texture.set(0xC6);
+    begin_dials(hud);
     if f1 & 0x10 != 0 {
         dials::disc(frame, hud, &dials::DISC_2A)?;
     }
-    hud.block.texture.set(0xC7);
+    hud.block.texture.set(texture::DIAL_SECOND);
     if f2 & 0x10 != 0 {
         dials::disc(frame, hud, &dials::DISC_2B)?;
     }
-    hud.block.texture.set(0xC0);
-    hud.block.quad[0].set(0xFF);
-    hud.block.quad[5].set(0);
-    for (n, v) in [0, 0x12B, 0x320, 0x12D].into_iter().enumerate() {
-        hud.block.quad[1 + n].set(v);
-    }
-    add_solid_quad::add_solid_quad(frame, hud)?;
+    black_divider(frame, hud, [0, 0x12B, 0x320, 0x12D])?;
     if f1 & 0x40 != 0 {
         draw_stage_bars::draw_stage_bars(frame, hud, draw_stage_bars::STAGE_BARS_DROP_2)?;
     }
-    hud.block.quad[5].set(0xFFFF_FFFF);
-    hud.block.quad[0].set(0xFF);
-    hud.block.texture.set(0xDC);
+    white_opaque(hud, texture::ICONS);
     icons::icons(frame, hud, &icons::LAYOUT_2)?;
-    hud.block.quad[5].set(0xFFFF_FFFF);
-    hud.block.quad[0].set(0xFF);
-    hud.block.texture.set(0xC1);
+    white_opaque(hud, texture::NEEDLES_AND_DIGITS);
     if f1 & 0x20 != 0 {
         scaled(frame, hud, 0x49, 7, upper(frame, 0xE8))?;
         scaled(
             frame,
             hud,
-            frame
-                .panel_and_overlay
-                .panel
-                .view_a
-                .gear
-                .get()
-                .wrapping_add(0x41),
+            gear_rect(frame.panel_and_overlay.panel.view_a.gear.get()),
             0xD,
             upper(frame, 0xEF),
         )?;
@@ -79,44 +65,38 @@ pub fn layout_2(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
         scaled(
             frame,
             hud,
-            frame
-                .panel_and_overlay
-                .panel
-                .view_b
-                .gear
-                .get()
-                .wrapping_add(0x41),
+            gear_rect(frame.panel_and_overlay.panel.view_b.gear.get()),
             0xD,
             0x22A,
         )?;
     }
-    let p = pick(hud, panel.start_values[1].get());
+    let p = needle_sign(hud, panel.start_values[1].get());
     if f1 & 1 != 0 {
         scaled(frame, hud, p, 0x19, upper(frame, 0xA3))?;
     }
-    hud.block.texture.set(0xC0);
+    hud.block.texture.set(texture::SPRITES);
     if f1 & 0x10 != 0 {
         scaled(frame, hud, 0x5F, 0x2A7, upper(frame, 0xA3))?;
     }
-    let p = pick(hud, panel.start_values[1].get());
+    let p = needle_sign(hud, panel.start_values[1].get());
     if f2 & 1 != 0 {
         scaled(frame, hud, p, 0x19, 0x1DE)?;
     }
-    hud.block.texture.set(0xC0);
+    hud.block.texture.set(texture::SPRITES);
     if f2 & 0x10 != 0 {
         scaled(frame, hud, 0x5F, 0x2A7, 0x1DE)?;
     }
     if f1 & 0x40 != 0 {
         draw_markers::draw_markers(frame, hud, draw_markers::MARKER_ROWS_2)?;
     }
-    hud.block.quad[5].set(0xFFFF_FFFF);
+    hud.block.quad.colour.set(0xFFFF_FFFF);
     if f1 & 0x80 != 0 {
         draw_signs::draw_signs(frame, hud, &draw_signs::LAYOUT_2A)?;
     }
     if f2 & 0x80 != 0 {
         draw_signs::draw_signs(frame, hud, &draw_signs::LAYOUT_2B)?;
     }
-    hud.block.texture.set(0xC1);
+    hud.block.texture.set(texture::NEEDLES_AND_DIGITS);
     if f1 & 1 != 0 {
         dials::needle(frame, hud, &dials::NEEDLE_2A)?;
     }
@@ -152,13 +132,13 @@ pub fn layout_2(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
         if v != 0xFFFF_FFFF {
             let d = time_digits(hud, v, 2);
             sign(hud, v, 0, 1);
-            plain(frame, hud, d[4], 0x55, last[0])?;
-            plain(frame, hud, d[5], 0x81, last[1])?;
+            sprite(frame, hud, d[4], 0x55, last[0])?;
+            sprite(frame, hud, d[5], 0x81, last[1])?;
         }
-        plain(frame, hud, mark, sprites[0], sprites[1])?;
-        plain(frame, hud, 0x4A, sprites[2], sprites[3])?;
+        sprite(frame, hud, mark, sprites[0], sprites[1])?;
+        sprite(frame, hud, 0x4A, sprites[2], sprites[3])?;
         let t = time.get();
-        lap_panel(hud, t, xs, y, &mut |r, x, y| plain(frame, hud, r, x, y))?;
+        lap_panel(hud, t, xs, y, &mut |r, x, y| sprite(frame, hud, r, x, y))?;
     }
     for (flags, field, y) in [
         (f1, &panel.view_a.speed, upper(frame, 0x107)),
@@ -166,7 +146,7 @@ pub fn layout_2(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     ] {
         if flags & 0x20 != 0 {
             leading_time(hud, field.get(), [0x43, 0x57, 0x6B], y, &mut |r, x, y| {
-                plain(frame, hud, r, x, y)
+                sprite(frame, hud, r, x, y)
             })?;
         }
     }
@@ -179,7 +159,7 @@ pub fn layout_2(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
         if f1 & 0x40 != 0 {
             for (time, xs) in [(times[0], left), (times[1], right)] {
                 let t = time.get();
-                clock_panel(hud, t, xs, y, &mut |r, x, y| plain(frame, hud, r, x, y))?;
+                clock_panel(hud, t, xs, y, &mut |r, x, y| sprite(frame, hud, r, x, y))?;
             }
         }
     }

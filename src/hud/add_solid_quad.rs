@@ -12,7 +12,7 @@ use crate::race::owner_frame::Frame;
 // Converted: `rc2k_core::hud::quads::SOLID_PLACES`
 pub fn add_solid_quad(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     for (n, v) in rc2k_core::hud::quads::SOLID_PLACES {
-        hud.block.quad[n].set(v);
+        hud.block.quad.word(n).set(v);
     }
     crate::hud::add_quad::add_quad(frame, hud)
 }

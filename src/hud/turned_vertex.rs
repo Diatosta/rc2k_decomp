@@ -36,7 +36,7 @@ pub fn turned_vertex(hud: &Hud, vertex: &Vertex, angle: u32, point: [f64; 2]) {
     vertex
         .y
         .set_bits(disc::turned_place(tz, size, hud.block.needle_centre[1].get()).to_bits());
-    let colour = disc::white_under(hud.block.quad[0].get());
+    let colour = disc::white_under(hud.block.quad.alpha.get());
     vertex.colour.set(colour);
     vertex.specular.set(0);
 }

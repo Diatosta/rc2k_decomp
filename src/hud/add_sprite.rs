@@ -20,7 +20,7 @@ pub fn put_places(hud: &Hud, s: GamePtr) -> Result<[u32; 4], Refused> {
             Ok(s.offset(4 * n as u32).read::<u32>("a hud record's field")?)
         })?;
         for (n, v) in quads::sprite_places(rect) {
-            hud.block.quad[n].set(v);
+            hud.block.quad.word(n).set(v);
         }
         rect
     })
@@ -29,7 +29,7 @@ pub fn put_places(hud: &Hud, s: GamePtr) -> Result<[u32; 4], Refused> {
 /// The quad record's corners (see `quads::sprite_corners`).
 pub fn put_corners(hud: &Hud, x: u32, y: u32, w: u32, h: u32) {
     for (n, v) in quads::sprite_corners(x, y, w, h) {
-        hud.block.quad[n].set(v);
+        hud.block.quad.word(n).set(v);
     }
 }
 

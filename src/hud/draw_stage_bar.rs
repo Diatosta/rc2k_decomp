@@ -18,7 +18,7 @@ use crate::race::owner_frame::Frame;
 use crate::session::Dword;
 
 pub fn set(hud: &Hud, n: usize, v: u32) {
-    hud.block.quad[n].set(v);
+    hud.block.quad.word(n).set(v);
 }
 
 /// The record's corners (left, top, right, bottom) and, with `Some`, its colour; a quad.

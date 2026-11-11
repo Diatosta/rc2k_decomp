@@ -29,7 +29,7 @@ pub fn disc_vertex(hud: &Hud, entry: u32, vertex: &Vertex) -> Result<(), Refused
     }
     {
         place(&hud.block, entry * 4, vertex);
-        let colour = (hud.block.quad[0].get() << 24) | 0xFF_FFFF;
+        let colour = (hud.block.quad.alpha.get() << 24) | 0xFF_FFFF;
         vertex.colour.set(colour);
         vertex.specular.set(0);
     }
@@ -50,11 +50,11 @@ fn x87_1(h: &HudBlock, k: usize, e: impl Base) {
     let t2 = t0 * t1;
     let t3 = ld(h.disc_texture_scale.bits());
     let t4 = t2 * t3;
-    let t5 = ld(h.texture_base.bits());
+    let t5 = ld(h.disc_place_offset.bits());
     let t6 = t4 + t5;
     let t7 = ld(h.disc_texture_shift[0].bits());
     let t8 = t6 + t7;
-    let t9 = ld(h.texture_size.bits());
+    let t9 = ld(h.disc_place_divisor.bits());
     let t10 = t8 / t9;
     fstp(e, 0x18, t10);
     let t11 = ld(h.texture_ring_cosines[k / 4].bits());
@@ -63,11 +63,11 @@ fn x87_1(h: &HudBlock, k: usize, e: impl Base) {
     let t14 = t12 * t13;
     let t15 = ld(h.disc_texture_scale.bits());
     let t16 = t14 * t15;
-    let t17 = ld(h.texture_base.bits());
+    let t17 = ld(h.disc_place_offset.bits());
     let t18 = t16 + t17;
     let t19 = ld(h.disc_texture_shift[1].bits());
     let t20 = t18 + t19;
-    let t21 = ld(h.texture_size.bits());
+    let t21 = ld(h.disc_place_divisor.bits());
     let t22 = t20 / t21;
     fstp(e, 0x1C, t22);
     let t23 = ld(h.ring_sines[k / 4].bits());

@@ -46,7 +46,7 @@ pub fn draw_disc(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
             hud.block.texture_ring_cosines[n]
                 .set_bits(table(crate::scene::engine_tables_store::cosine(b as usize)));
         }
-        hud.block.scratch.set(t);
+        hud.block.fistp_scratch.set(t);
         for k in 0..SEGMENTS {
             for (n, e) in disc_triangle(k).into_iter().enumerate() {
                 disc_vertex(hud, e, &crate::d3d::vertices_store::VERTICES.vertices[n])?;
