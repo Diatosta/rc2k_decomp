@@ -40,15 +40,13 @@
 //! and
 //! `menu::draw_frame`, `screens::run_frame` and `menu::confirm_leaving` in the shared loop.
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
+use crate::menu::screen_loop::{Asking, Callee, List, Screen, Step};
 
 // ---- game data ----
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.service_area.id(), // off_74D24C
-    saved_item: |m| &m.screens.items.current[slot::SERVICE_AREA], // g_serviceSavedItem
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list, // dword_755504
@@ -71,9 +69,6 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    first_frame_lists: None,
-    frame_callback: FrameRoutine::Menu,
-    later_frame_callback: None,
     // The key buffer is emptied first.
     before: &[
         Step::Call(Callee::TakeKey),
@@ -117,37 +112,20 @@ pub const SCREEN: Screen = Screen {
         ), // flt_6241F0
         Step::Call(Callee::PlayTune9),
     ],
-    after_lists: &[],
     background: &[Step::Call(Callee::LoadServiceBackground)],
     after_first_frame: &[Step::Write(|m| &m.screens.state.menus.skip_edit_values, 1)],
-    confirm: Some(&[Step::Call(Callee::LoadServiceBackground)]),
-    ask_also_if: None,
-    confirmed: &[],
-    unasked_skips_save: false,
     after: &[
         Step::Write(|m| &m.screens.flow.left_service, 1),
         Step::Call(Callee::StopMusic),
         Step::Write(|m| &m.screens.state.menus.skip_edit_values, 0),
     ],
-    escape_leaves: false,
-    each_frame: &[],
-    short_action_check: false,
-    leave_at_once: None,
-    next_frame_repeats_first: false,
-    action_saved_item: None,
-    action_menu: None,
-    no_quit_check: false,
-    before_asking: &[],
-    ask_unless: None,
-    leaving: &[],
-    leave_saved_item: None,
-    keys_menu: None,
-    after_restored: &[],
-    result: None,
-    late_highlight: false,
-    before_first_frame: &[],
-    before_frame: &[],
-    after_blink: &[],
-    restart_action_check: false,
-    always_asks: false,
+    asking: Some(Asking {
+        on_refusal: &[Step::Call(Callee::LoadServiceBackground)],
+        ..Asking::DEFAULT
+    }),
+    // menu is off_74D24C, saved_item is g_serviceSavedItem
+    ..Screen::new(
+        |m| m.tables.menus.service_area.id(),
+        |m| &m.screens.items.current[slot::SERVICE_AREA],
+    )
 };

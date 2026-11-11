@@ -165,13 +165,13 @@ pub fn draw_item_button(
     item: &crate::menu::menus_store::MenuItem,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let highlighted = screens.loop_flags.item.get() == item.id.get();
+    let highlighted = screens.loop_flags.item.get() == item.fixed().id;
     draw_button(
         if highlighted { &HIGHLIGHTED } else { &PLAIN },
-        item.text_x.get(),
-        item.x.get() as i32,
-        item.y.get() as i32,
-        item.text_y.get(),
+        item.fixed().width_or_text_x as u32,
+        item.fixed().x,
+        item.fixed().y,
+        item.fixed().alignment_or_text_y as u32,
         item.sprites.get(),
         canvas,
     )
@@ -187,13 +187,15 @@ pub fn draw_text_button(
     item: &crate::menu::menus_store::MenuItem,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let font = crate::text::measure_text::only_measures(item.measuring_font.get())?;
+    let font = crate::text::measure_text::only_measures(crate::gfx::typefaces::FontId::at(
+        item.fixed().measuring_font.ral() as usize,
+    ))?;
     let measured = measure_string_by_id_at(item.string.get(), font, 0, canvas)?;
     draw_button(
         kind,
         rc2k_core::screens::buttons::text_width(measured.width),
-        item.x.get() as i32,
-        item.y.get() as i32,
+        item.fixed().x,
+        item.fixed().y,
         align,
         item.sprites.get(),
         canvas,

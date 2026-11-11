@@ -219,8 +219,8 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
             c.menu
                 .ok_or(BadInput("no menu (the original reads +0x2C of edi)"))?
                 .items()[0]
-                .links[1]
-                .get(),
+                .fixed()
+                .links[1],
         ),
         ItemFn::RaisePlayer48 => player_actions::raise_strength(&menus.screens),
         ItemFn::LowerPlayer48 => player_actions::lower_strength(&menus.screens),

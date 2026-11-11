@@ -961,12 +961,6 @@ impl<'a> CellRun<'a> {
     }
 }
 
-// SAFETY: `#[repr(C)]` over its one array of `Dword`s.
-unsafe impl<const N: usize> Cells for crate::menu::draw_lists_store::DrawList<N> {
-    fn cell_run(&self, offset: usize) -> (usize, CellRun<'_>) {
-        Cells::cell_run(&self.entries, offset)
-    }
-}
 // SAFETY: one `AtomicU32`.
 unsafe impl Cells for crate::session::Dword {
     fn copy_from(&self, other: &Self) {

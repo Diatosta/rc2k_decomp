@@ -9,11 +9,9 @@
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`).
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step, screen_entry};
+use crate::menu::screen_loop::{Callee, Frames, List, Screen, Step, screen_entry};
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.player4_buttons.id(),
-    saved_item: |m| &m.screens.items.current[slot::PLAYER4_BUTTONS],
     lists: &[
         List {
             pointer: |m| &m.screens.flow.unread_list, // g_unreadList
@@ -36,62 +34,38 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    first_frame_lists: Some(&[
-        List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
-            table: |m| m.tables.draw_lists.player4_buttons_scene.id(),
-            run: false,
-        },
-        List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
-            table: |m| m.tables.draw_lists.draw_758dd2.id(),
-            run: false,
-        },
-        List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
-            table: |m| m.tables.draw_lists.overlay_75927a.id(),
-            run: false,
-        },
-    ]),
-    frame_callback: FrameRoutine::Menu,
-    later_frame_callback: None,
-    before: &[],
     set_up_first: &[
         Step::Call(Callee::ApplyController),
         Step::Call(Callee::AxisMoved(0x0)),
     ],
-    prepare: &[],
-    after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.player4_buttons_picture
     }))],
-    after_first_frame: &[],
-    confirm: None,
-    ask_also_if: None,
-    confirmed: &[],
-    unasked_skips_save: false,
     after: &[Step::Call(Callee::ReleaseController)],
-    escape_leaves: false,
-    each_frame: &[],
-    short_action_check: false,
-    leave_at_once: None,
-    next_frame_repeats_first: false,
-    action_saved_item: None,
-    action_menu: None,
-    no_quit_check: false,
-    before_asking: &[],
-    ask_unless: None,
-    leaving: &[],
-    leave_saved_item: None,
-    keys_menu: None,
-    after_restored: &[],
-    result: None,
-    late_highlight: false,
-    before_first_frame: &[],
-    before_frame: &[],
-    after_blink: &[],
-    restart_action_check: false,
-    always_asks: false,
+    frames: Frames {
+        first_frame_lists: Some(&[
+            List {
+                pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+                table: |m| m.tables.draw_lists.player4_buttons_scene.id(),
+                run: false,
+            },
+            List {
+                pointer: |m| &m.screens.flow.draw_list, // g_drawList
+                table: |m| m.tables.draw_lists.draw_758dd2.id(),
+                run: false,
+            },
+            List {
+                pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+                table: |m| m.tables.draw_lists.overlay_75927a.id(),
+                run: false,
+            },
+        ]),
+        ..Frames::DEFAULT
+    },
+    ..Screen::new(
+        |m| m.tables.menus.player4_buttons.id(),
+        |m| &m.screens.items.current[slot::PLAYER4_BUTTONS],
+    )
 };
 
 /// Runs the screen (a refusal is the caller's).

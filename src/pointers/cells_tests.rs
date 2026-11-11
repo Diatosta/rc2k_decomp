@@ -145,7 +145,6 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         effects.paths.spline_head,
         effects.setup.work,
         menus.tables.captions,
-        menus.tables.draw_lists,
         menus.tables.lists,
         menus.play.results,
         menus.screens.state,

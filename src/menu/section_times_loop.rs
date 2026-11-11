@@ -2,14 +2,12 @@
 //! `_1`, 0x466E50): the ten best times of a section (`screens::draw_section_best_times`),
 //! background `results1.png`. Nothing in RAL.EXE reaches either; reached here from the debug
 //! UI's "Screens" tab (`debug::screens`), which says the section (`EVENT_STATE.section`).
-use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 /// `unk_747798`'s slot, the item kept between visits.
 const SLOT: usize = (0x747798 - 0x747660) / 4;
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.menu_74fea8.id(),
-    saved_item: |m| &m.screens.items.current[SLOT],
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list, // g_sceneList
@@ -27,41 +25,11 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    first_frame_lists: None,
-    frame_callback: FrameRoutine::Menu,
-    later_frame_callback: None,
-    before: &[],
-    set_up_first: &[],
-    prepare: &[],
-    after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.section_times_png
     }))],
-    after_first_frame: &[],
-    confirm: None,
-    ask_also_if: None,
-    confirmed: &[],
-    unasked_skips_save: false,
-    after: &[],
-    escape_leaves: false,
-    each_frame: &[],
-    short_action_check: false,
-    leave_at_once: None,
-    next_frame_repeats_first: false,
-    action_saved_item: None,
-    action_menu: None,
-    no_quit_check: false,
-    before_asking: &[],
-    ask_unless: None,
-    leaving: &[],
-    leave_saved_item: None,
-    keys_menu: None,
-    after_restored: &[],
-    result: None,
-    late_highlight: false,
-    before_first_frame: &[],
-    before_frame: &[],
-    after_blink: &[],
-    restart_action_check: false,
-    always_asks: false,
+    ..Screen::new(
+        |m| m.tables.menus.menu_74fea8.id(),
+        |m| &m.screens.items.current[SLOT],
+    )
 };

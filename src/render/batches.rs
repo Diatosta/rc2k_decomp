@@ -91,11 +91,19 @@ pub struct Batches {
     /// With second passes joined (`of`), each vertex's second pass's colour, specular and texture place
     /// (vertices of batches without one: zeros).
     pub seconds: Vec<[u32; 4]>,
+    /// Layered (`of_layered`): each vertex's first and second pass's texture, by number in
+    /// `textures` (`NO_TEXTURE` for none).
+    pub vertex_textures: Vec<[u16; 2]>,
+    /// Layered: whether two textures can be read in one draw.
+    layered: Option<fn(&TextureNote, &TextureNote) -> bool>,
     /// The pixels each batch can touch, while they are being gathered.
     areas: Vec<Area>,
     /// The last fan, while it can still take a second pass.
     last_fan: Option<LastFan>,
 }
+
+/// A pass without a texture, in `Batches::vertex_textures`.
+pub const NO_TEXTURE: u16 = u16::MAX;
 
 /// A fan that can take a second pass.
 struct LastFan {
@@ -261,7 +269,35 @@ impl Batches {
         height: u32,
         opaque: Option<&dyn Fn(&TextureNote) -> bool>,
     ) -> Batches {
-        let mut out = Batches::default();
+        Batches::of_in(Batches::default(), commands, width, height, opaque)
+    }
+
+    /// `of`, for a GPU that holds its textures as layers of a few texture arrays and reads
+    /// which one each vertex's passes take from `vertex_textures`: batches that differ only in
+    /// their textures are drawn as one when `same_array` says each pass's textures can be
+    /// read in one draw. The order and the gathering's rule are `of`'s, so the picture is.
+    #[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
+    pub fn of_layered(
+        commands: &[Command],
+        width: u32,
+        height: u32,
+        opaque: &dyn Fn(&TextureNote) -> bool,
+        same_array: fn(&TextureNote, &TextureNote) -> bool,
+    ) -> Batches {
+        let start = Batches {
+            layered: Some(same_array),
+            ..Batches::default()
+        };
+        Batches::of_in(start, commands, width, height, Some(opaque))
+    }
+
+    fn of_in(
+        mut out: Batches,
+        commands: &[Command],
+        width: u32,
+        height: u32,
+        opaque: Option<&dyn Fn(&TextureNote) -> bool>,
+    ) -> Batches {
         for command in commands {
             match command {
                 Command::Fan {
@@ -297,6 +333,38 @@ impl Batches {
         out
     }
 
+    /// Whether two batches can be drawn as one: alike, or (layered) alike but for textures
+    /// read from the same arrays.
+    fn joinable(&self, a: &Batch, b: &Batch) -> bool {
+        let Some(same_array) = self.layered else {
+            return alike(a, b);
+        };
+        let fit = |x: Option<u32>, y: Option<u32>| match (x, y) {
+            (None, None) => true,
+            (Some(x), Some(y)) => {
+                x == y || same_array(&self.textures[x as usize], &self.textures[y as usize])
+            }
+            _ => false,
+        };
+        let seconds_fit = match (&a.second, &b.second) {
+            (Some(x), Some(y)) => fit(x.texture, y.texture),
+            (None, None) => true,
+            _ => false,
+        };
+        // Only whether each pass is textured stays in the comparison.
+        let plain = |x: &Batch| Batch {
+            first_vertex: 0,
+            vertices: 0,
+            texture: x.texture.map(|_| 0),
+            second: x.second.map(|s| Second {
+                texture: s.texture.map(|_| 0),
+                ..s
+            }),
+            ..*x
+        };
+        fit(a.texture, b.texture) && seconds_fit && plain(a) == plain(b)
+    }
+
     /// Each batch moved back into the last run drawn like it, when no batch between them can
     /// touch its pixels. Batches that touch no pixel in common give the same picture in either
     /// order, whatever their depth tests and blending, so the picture is the one the order the
@@ -315,7 +383,7 @@ impl Batches {
         for (n, (batch, &area)) in self.batches.iter().zip(&self.areas).enumerate() {
             let mut joined = None;
             for (r, run) in runs.iter().enumerate().rev().take(LOOK_BACK) {
-                if alike(&run.batch, batch) {
+                if self.joinable(&run.batch, batch) {
                     joined = Some(r);
                     break;
                 }
@@ -341,6 +409,7 @@ impl Batches {
         }
         let mut vertices = Vec::with_capacity(self.vertices.len());
         let mut seconds = Vec::with_capacity(self.seconds.len());
+        let mut vertex_textures = Vec::with_capacity(self.vertex_textures.len());
         let mut batches = Vec::with_capacity(runs.len());
         for run in runs {
             let first_vertex = vertices.len() as u32;
@@ -349,7 +418,10 @@ impl Batches {
                 let range = b.first_vertex as usize..(b.first_vertex + b.vertices) as usize;
                 vertices.extend_from_slice(&self.vertices[range.clone()]);
                 if !self.seconds.is_empty() {
-                    seconds.extend_from_slice(&self.seconds[range]);
+                    seconds.extend_from_slice(&self.seconds[range.clone()]);
+                }
+                if !self.vertex_textures.is_empty() {
+                    vertex_textures.extend_from_slice(&self.vertex_textures[range]);
                 }
             }
             batches.push(Batch {
@@ -360,6 +432,7 @@ impl Batches {
         }
         self.vertices = vertices;
         self.seconds = seconds;
+        self.vertex_textures = vertex_textures;
         self.batches = batches;
     }
 
@@ -448,6 +521,14 @@ impl Batches {
         {
             self.seconds[start + n] = [corner[4], corner[5], corner[6], corner[7]];
         }
+        if self.layered.is_some() {
+            let number = second.texture.map_or(NO_TEXTURE, |n| n as u16);
+            for v in &mut self.vertex_textures[start..start + first.vertices as usize] {
+                v[1] = number;
+            }
+        }
+        // Layered, `first.batch` (the batch the fan had joined) may name another texture of
+        // the same arrays: the vertices' own numbers say which each reads.
         let mut values = first.batch.values;
         values.flags |= SECOND;
         self.push(
@@ -493,12 +574,18 @@ impl Batches {
             self.vertices
                 .extend([vertices[0], vertices[n], vertices[n + 1]]);
         }
+        let number = texture.map(|t| self.texture_number(t));
+        if self.layered.is_some() {
+            let layer = number.map_or(NO_TEXTURE, |n| n as u16);
+            self.vertex_textures
+                .resize(self.vertices.len(), [layer, NO_TEXTURE]);
+        }
         let batch = Batch {
             first_vertex,
             vertices: (vertices.len() as u32 - 2) * 3,
             pipeline: pipeline_of(states),
             values: values_of(states, texture),
-            texture: texture.map(|t| self.texture_number(t)),
+            texture: number,
             linear: linear_of(states),
             clamp: clamp_of(states),
             scissor: None,
@@ -534,6 +621,10 @@ impl Batches {
             corner(2.0 * w, -1.0),
             corner(-1.0, 2.0 * h),
         ]);
+        if self.layered.is_some() {
+            self.vertex_textures
+                .resize(self.vertices.len(), [NO_TEXTURE; 2]);
+        }
         self.push(
             Batch {
                 first_vertex,
@@ -565,9 +656,11 @@ impl Batches {
 
     /// `batch`, touching `area`, joined to the last one when they are drawn alike.
     fn push(&mut self, batch: Batch, area: Area) {
-        if let (Some(last), Some(last_area)) = (self.batches.last_mut(), self.areas.last_mut())
-            && last.first_vertex + last.vertices == batch.first_vertex
-            && alike(last, &batch)
+        let joins = self.batches.last().is_some_and(|last| {
+            last.first_vertex + last.vertices == batch.first_vertex && self.joinable(last, &batch)
+        });
+        if let (true, Some(last), Some(last_area)) =
+            (joins, self.batches.last_mut(), self.areas.last_mut())
         {
             last.vertices += batch.vertices;
             *last_area = last_area.with(area);
@@ -841,6 +934,59 @@ mod tests {
             assert!(b.batches.iter().all(|b| b.second.is_none()));
             assert_eq!(b.seconds.len(), b.vertices.len());
         }
+    }
+
+    /// `textured`'s, with a texture of `size` x `size`.
+    fn sized(texture: u32, size: usize, x: f32, states: [u32; STATES]) -> Command {
+        let mut command = textured(3, 0xFF00_0000, texture, states);
+        if let Command::Fan {
+            vertices,
+            texture: Some(note),
+            ..
+        } = &mut command
+        {
+            (note.width, note.height) = (size, size);
+            for v in vertices.iter_mut() {
+                v[0] = (f32::from_bits(v[0]) + x).to_bits();
+            }
+        }
+        command
+    }
+
+    #[test]
+    fn layered_batches_join_across_textures_of_the_same_arrays() {
+        let plain = [0; STATES];
+        let same = |a: &TextureNote, b: &TextureNote| {
+            let main = |t: &TextureNote| matches!(t.width, 128 | 256);
+            a.width == b.width || (main(a) && main(b))
+        };
+        let b = Batches::of_layered(
+            &[
+                sized(0x10, 128, 0.0, plain),
+                sized(0x20, 256, 0.0, plain),
+                sized(0x30, 64, 0.0, plain),
+                sized(0x40, 128, 100.0, plain),
+            ],
+            640,
+            480,
+            &|_| false,
+            same,
+        );
+        // The 64 x 64 one apart (it overlaps the first two: the last one, apart from it,
+        // gathers back into theirs).
+        assert_eq!(b.batches.len(), 2);
+        assert_eq!(b.batches[0].vertices, 9);
+        let numbers: Vec<u16> = b.vertex_textures.iter().map(|v| v[0]).collect();
+        assert_eq!(numbers, [0, 0, 0, 1, 1, 1, 3, 3, 3, 2, 2, 2]);
+        assert!(b.vertex_textures.iter().all(|v| v[1] == NO_TEXTURE));
+        // Unlayered, one texture a draw.
+        let commands = [sized(0x10, 128, 0.0, plain), sized(0x20, 256, 0.0, plain)];
+        assert_eq!(Batches::of(&commands, 640, 480, None).batches.len(), 2);
+        assert!(
+            Batches::of(&commands, 640, 480, None)
+                .vertex_textures
+                .is_empty()
+        );
     }
 
     #[test]

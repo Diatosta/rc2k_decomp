@@ -7,7 +7,7 @@
 
 mod bench;
 
-use super::batches::{Batches, PipelineKey, PixelValues};
+use super::batches::{Batches, NO_TEXTURE, PipelineKey, PixelValues};
 use super::{Command, Target, TextureNote};
 use crate::ffi::gl::Gles;
 use crate::framework::log;
@@ -21,7 +21,9 @@ pub const UNWRITTEN: u32 = 0xA5FF_00FF;
 
 const TEXTURE_2D: u32 = 0x0DE1;
 const TEXTURE0: u32 = 0x84C0;
-const TEXTURE1: u32 = 0x84C1;
+const TEXTURE_2D_ARRAY: u32 = 0x8C1A;
+const READ_FRAMEBUFFER: u32 = 0x8CA8;
+const UNSIGNED_SHORT: u32 = 0x1403;
 const RGBA: u32 = 0x1908;
 const UNSIGNED_BYTE: u32 = 0x1401;
 const FRAMEBUFFER: u32 = 0x8D40;
@@ -43,11 +45,14 @@ const SCENE_VS: &CStr = c"#version 300 es
 layout(location=0) in vec4 place; layout(location=1) in vec4 colour;
 layout(location=2) in vec4 specular; layout(location=3) in vec2 uv;
 layout(location=4) in vec4 colour2; layout(location=5) in vec4 specular2;
-layout(location=6) in vec2 uv2;
+layout(location=6) in vec2 uv2; layout(location=7) in vec4 layers;
 uniform vec2 size;
 out highp vec4 v_colour; out highp float v_fog; out highp float v_w; out highp vec2 v_uv;
 out highp vec4 v_colour2; out highp float v_fog2; out highp vec2 v_uv2;
+flat out lowp int v_unit; flat out highp float v_layer;
+flat out lowp int v_unit2; flat out highp float v_layer2;
 void main() {
+    v_unit = int(layers.x); v_layer = layers.y; v_unit2 = int(layers.z); v_layer2 = layers.w;
     float w = place.w > 0.0 ? 1.0 / place.w : 1.0;
     gl_Position = vec4(((place.x + 0.5) / size.x * 2.0 - 1.0) * w,
                        (1.0 - (place.y + 0.5) / size.y * 2.0) * w,
@@ -63,11 +68,22 @@ const SCENE_FS: &CStr = c"#version 300 es
 precision mediump float;
 in highp vec4 v_colour; in highp float v_fog; in highp float v_w; in highp vec2 v_uv;
 in highp vec4 v_colour2; in highp float v_fog2; in highp vec2 v_uv2;
+flat in lowp int v_unit; flat in highp float v_layer;
+flat in lowp int v_unit2; flat in highp float v_layer2;
 out vec4 result;
-uniform sampler2D picture; uniform vec4 fog_colour; uniform float alpha_reference;
+// The textures are layers of arrays (`TextureArray`), two bound for each pass: the vertex
+// says which and which layer. One level only and the same filter near and far, so the
+// level of detail `texture` would work out changes nothing.
+precision lowp sampler2DArray;
+uniform sampler2DArray picture_a; uniform sampler2DArray picture_b;
+uniform vec4 fog_colour; uniform float alpha_reference;
 uniform int alpha_function; uniform int mixing; uniform int flags;
-uniform sampler2D picture2; uniform vec4 fog_colour2; uniform float alpha_reference2;
+uniform sampler2DArray picture2_a; uniform sampler2DArray picture2_b;
+uniform vec4 fog_colour2; uniform float alpha_reference2;
 uniform int alpha_function2; uniform int mixing2; uniform int flags2;
+vec4 fetch(sampler2DArray a, sampler2DArray b, int unit, highp vec3 at) {
+    return unit == 0 ? textureLod(a, at, 0.0) : textureLod(b, at, 0.0);
+}
 bool passes(int function, float reference, float value) {
     if (function == 1) return false;
     if (function == 2) return value < reference;
@@ -92,14 +108,20 @@ void main() {
     vec4 colour = v_colour / v_w;
     vec4 c = colour;
     // uploaded as they are: blue first
-    if ((flags & 1) != 0) c = mixed(colour, texture(picture, v_uv).bgra, mixing, flags);
+    if ((flags & 1) != 0) {
+        vec4 texel = fetch(picture_a, picture_b, v_unit, vec3(v_uv, v_layer)).bgra;
+        c = mixed(colour, texel, mixing, flags);
+    }
     if (alpha_function != 0 && !passes(alpha_function, alpha_reference, c.a)) discard;
     c = fogged(c, v_fog / v_w, fog_colour, flags);
     if ((flags & 8) != 0) {
         vec4 under = floor(c * 255.0 + 0.5) / 255.0;
         vec4 colour2 = v_colour2 / v_w;
         vec4 d = colour2;
-        if ((flags2 & 1) != 0) d = mixed(colour2, texture(picture2, v_uv2).bgra, mixing2, flags2);
+        if ((flags2 & 1) != 0) {
+            vec4 texel = fetch(picture2_a, picture2_b, v_unit2, vec3(v_uv2, v_layer2)).bgra;
+            d = mixed(colour2, texel, mixing2, flags2);
+        }
         if (alpha_function2 == 0 || passes(alpha_function2, alpha_reference2, d.a)) {
             d = fogged(d, v_fog2 / v_w, fog_colour2, flags2);
             c = vec4(d.rgb * d.a + under.rgb * (1.0 - d.a), d.a * d.a + under.a * (1.0 - d.a));
@@ -166,8 +188,39 @@ struct ValueLocations {
     flags: i32,
 }
 
-struct CachedTexture {
+/// The sizes whose textures one draw can read together: a stage's are all one of these
+/// (2026-11-06). A texture of another size has an array of its own, drawn alone.
+const MAIN_SIZES: [(usize, usize); 2] = [(128, 128), (256, 256)];
+
+/// Layers a new array has room for; it doubles when full.
+const FIRST_LAYERS: i32 = 16;
+
+/// The textures of one size, each a layer of one GL texture array: batches that differ only
+/// in their textures are then one draw (`Batches::of_layered`), the driver's cost per draw
+/// being most of the GL thread's (2026-11-06).
+struct TextureArray {
     name: u32,
+    capacity: i32,
+    /// Layers below it have been handed out.
+    next: i32,
+    /// Layers handed out and given back.
+    free: Vec<i32>,
+}
+
+/// Which bound array of a pass's two a texture of `size` is read from.
+fn unit_of(size: (usize, usize)) -> u16 {
+    u16::from(size == MAIN_SIZES[1])
+}
+
+/// Whether textures `a` and `b` can be read in one draw.
+fn same_array(a: &TextureNote, b: &TextureNote) -> bool {
+    let (a, b) = ((a.width, a.height), (b.width, b.height));
+    a == b || (MAIN_SIZES.contains(&a) && MAIN_SIZES.contains(&b))
+}
+
+struct CachedTexture {
+    /// Its layer of its size's `TextureArray`.
+    layer: i32,
     width: usize,
     height: usize,
     /// Every pixel's alpha full: a first pass over it can take a second (`Batches::of`).
@@ -184,6 +237,11 @@ pub struct Gpu {
     vertices: u32,
     /// The vertices' second passes (`Batches::seconds`).
     seconds: u32,
+    /// The vertices' passes' arrays and layers (`Batches::vertex_textures`).
+    layers: u32,
+    /// For copying an array's layers into a bigger one.
+    copy_framebuffer: u32,
+    arrays: HashMap<(usize, usize), TextureArray>,
     empty_array: u32,
     scene_array: u32,
     samplers: [u32; 4],
@@ -229,6 +287,9 @@ impl Gpu {
             },
             vertices: 0,
             seconds: 0,
+            layers: 0,
+            copy_framebuffer: 0,
+            arrays: HashMap::new(),
             empty_array: 0,
             scene_array: 0,
             samplers: [0; 4],
@@ -281,7 +342,8 @@ impl Gpu {
             first: values(""),
             second: values("2"),
         };
-        let second_picture = self.uniform(self.scene, "picture2");
+        let pictures = ["picture_a", "picture_b", "picture2_a", "picture2_b"]
+            .map(|name| self.uniform(self.scene, name));
         self.overlay = self.quad(OVERLAY_FS)?;
         self.canvas_quad = self.quad(CANVAS_FS)?;
         self.target_quad = self.quad(TARGET_FS)?;
@@ -291,6 +353,7 @@ impl Gpu {
         self.scene_array = gl.gen_vertex_array();
         self.vertices = gl.gen_buffer();
         self.seconds = gl.gen_buffer();
+        self.layers = gl.gen_buffer();
         gl.bind_vertex_array(self.scene_array);
         gl.bind_buffer(ARRAY_BUFFER, self.vertices);
         for (n, count, kind, normal, offset) in [
@@ -310,8 +373,13 @@ impl Gpu {
         ] {
             gl.attribute(n, count, kind, normal, 16, offset);
         }
+        // Each pass's array (of its two) and layer, as four numbers.
+        gl.bind_buffer(ARRAY_BUFFER, self.layers);
+        gl.attribute(7, 4, UNSIGNED_SHORT, false, 8, 0);
         gl.use_program(self.scene);
-        gl.uniform_1i(second_picture, 1);
+        for (unit, location) in pictures.into_iter().enumerate() {
+            gl.uniform_1i(location, unit as i32);
+        }
         self.samplers = gl.gen_samplers();
         for (n, &sampler) in self.samplers.iter().enumerate() {
             let filter = if n & 1 != 0 { 0x2601 } else { 0x2600 };
@@ -325,8 +393,87 @@ impl Gpu {
         self.colour = gl.gen_texture();
         self.canvas = gl.gen_texture();
         self.depth = gl.gen_renderbuffer();
+        self.copy_framebuffer = gl.gen_framebuffer();
         gl.front_face(0x0900); // the shown ones are clockwise on the screen
+        // Made now: a draw binds both whichever it reads.
+        for size in MAIN_SIZES {
+            let array = self.make_array(size, FIRST_LAYERS);
+            self.arrays.insert(size, array);
+        }
         Ok(())
+    }
+
+    /// A new array of `capacity` layers of `size`, bound on the active unit.
+    fn make_array(&self, (width, height): (usize, usize), capacity: i32) -> TextureArray {
+        let gl = &self.gl;
+        let name = gl.gen_texture();
+        gl.bind_texture(TEXTURE_2D_ARRAY, name);
+        gl.tex_image_3d_empty(0x8058, width as i32, height as i32, capacity);
+        // No levels: one the sampler objects' filters read alone.
+        gl.tex_parameter(TEXTURE_2D_ARRAY, 0x813D, 0);
+        TextureArray {
+            name,
+            capacity,
+            next: 0,
+            free: Vec::new(),
+        }
+    }
+
+    /// A layer of the array of `size` for a new texture: one given back, a new one, or (the
+    /// array full) one of a new array twice its size, the old one's layers copied into it.
+    fn new_layer(&mut self, size: (usize, usize)) -> i32 {
+        if !self.arrays.contains_key(&size) {
+            let array = self.make_array(size, FIRST_LAYERS);
+            self.arrays.insert(size, array);
+        }
+        let full = self
+            .arrays
+            .get(&size)
+            .is_some_and(|a| a.free.is_empty() && a.next == a.capacity);
+        if full {
+            self.grow(size);
+        }
+        let Some(array) = self.arrays.get_mut(&size) else {
+            unreachable!("made above");
+        };
+        array.free.pop().unwrap_or_else(|| {
+            array.next += 1;
+            array.next - 1
+        })
+    }
+
+    /// The array of `size` twice as big, its layers kept.
+    fn grow(&mut self, size: (usize, usize)) {
+        let Some(old) = self.arrays.remove(&size) else {
+            return;
+        };
+        let mut bigger = self.make_array(size, old.capacity * 2);
+        let gl = &self.gl;
+        gl.bind_framebuffer(READ_FRAMEBUFFER, self.copy_framebuffer);
+        for layer in 0..old.next {
+            gl.framebuffer_texture_layer(READ_FRAMEBUFFER, old.name, layer);
+            gl.copy_into_layer(layer, size.0 as i32, size.1 as i32);
+        }
+        gl.bind_framebuffer(READ_FRAMEBUFFER, 0);
+        gl.delete_texture(old.name);
+        (bigger.next, bigger.free) = (old.next, old.free);
+        self.arrays.insert(size, bigger);
+    }
+
+    /// The two arrays a pass whose textures are of `size` reads, onto units `unit` and
+    /// `unit + 1` (the active unit left at `unit + 1`).
+    fn bind_arrays(&self, unit: u32, size: (usize, usize)) {
+        let name = |size| self.arrays.get(&size).map_or(0, |a| a.name);
+        let (a, b) = if MAIN_SIZES.contains(&size) {
+            (name(MAIN_SIZES[0]), name(MAIN_SIZES[1]))
+        } else {
+            (name(size), 0)
+        };
+        let gl = &self.gl;
+        gl.active_texture(TEXTURE0 + unit);
+        gl.bind_texture(TEXTURE_2D_ARRAY, a);
+        gl.active_texture(TEXTURE0 + unit + 1);
+        gl.bind_texture(TEXTURE_2D_ARRAY, b);
     }
 
     /// The frame buffer object at the screen's size.
@@ -435,7 +582,13 @@ impl Gpu {
             self.bring_texture_up(note, bytes);
         }
         let opaque = |note: &TextureNote| self.textures.get(&note.pixels).is_some_and(|t| t.opaque);
-        let batches = Batches::of(&commands, width as u32, height as u32, Some(&opaque));
+        let start = std::time::Instant::now();
+        let batches =
+            Batches::of_layered(&commands, width as u32, height as u32, &opaque, same_array);
+        super::GL_BATCHING_MICROS.fetch_add(
+            start.elapsed().as_micros() as u64,
+            std::sync::atomic::Ordering::Relaxed,
+        );
         super::GPU_DRAWS.fetch_add(
             batches.batches.len() as u64,
             std::sync::atomic::Ordering::Relaxed,
@@ -473,12 +626,20 @@ impl Gpu {
             gl.buffer_data(ARRAY_BUFFER, &batches.vertices, 0x88E0);
             gl.bind_buffer(ARRAY_BUFFER, self.seconds);
             gl.buffer_data(ARRAY_BUFFER, &batches.seconds, 0x88E0);
+            gl.bind_buffer(ARRAY_BUFFER, self.layers);
+            gl.buffer_data(ARRAY_BUFFER, &self.vertex_layers(&batches), 0x88E0);
             gl.enable(DEPTH_TEST);
             let mut last_pipeline = None;
             let mut last_values = None;
-            let mut last_texture = None;
+            let mut last_arrays = None;
             let mut last_sampler = u32::MAX;
             let mut last_second = None;
+            let size = |n: Option<u32>| {
+                n.map(|n| {
+                    let note = &batches.textures[n as usize];
+                    (note.width, note.height)
+                })
+            };
             let mut scissored = false;
             for batch in &batches.batches {
                 if last_pipeline != Some(batch.pipeline) {
@@ -494,26 +655,27 @@ impl Gpu {
                         .as_ref()
                         .map(|s: &super::batches::Second| &s.values);
                     self.set_values(&self.locations.second, was, &second.values);
-                    gl.active_texture(TEXTURE1);
-                    if let Some(n) = second.texture {
-                        let name = self.textures[&batches.textures[n as usize].pixels].name;
-                        gl.bind_texture(TEXTURE_2D, name);
+                    if let Some(size) = size(second.texture) {
+                        self.bind_arrays(2, size);
+                        gl.active_texture(TEXTURE0);
                     }
                     let sampler = self.samplers[second.linear as usize + 2 * second.clamp as usize];
-                    gl.bind_sampler(1, sampler);
-                    gl.active_texture(TEXTURE0);
+                    gl.bind_sampler(2, sampler);
+                    gl.bind_sampler(3, sampler);
                     last_second = Some(*second);
                 }
-                if last_texture != Some(batch.texture) {
-                    if let Some(n) = batch.texture {
-                        let name = self.textures[&batches.textures[n as usize].pixels].name;
-                        gl.bind_texture(TEXTURE_2D, name);
-                    }
-                    last_texture = Some(batch.texture);
+                // A batch's textures are all read from the arrays its first one's size names.
+                if let Some(size) = size(batch.texture)
+                    && last_arrays != Some(size)
+                {
+                    self.bind_arrays(0, size);
+                    gl.active_texture(TEXTURE0);
+                    last_arrays = Some(size);
                 }
                 let sampler = self.samplers[batch.linear as usize + 2 * batch.clamp as usize];
                 if sampler != last_sampler {
                     gl.bind_sampler(0, sampler);
+                    gl.bind_sampler(1, sampler);
                     last_sampler = sampler;
                 }
                 if let Some([left, top, right, bottom]) = batch.scissor {
@@ -531,12 +693,39 @@ impl Gpu {
                 }
                 gl.draw_arrays(TRIANGLES, batch.first_vertex as i32, batch.vertices as i32);
             }
-            gl.bind_sampler(0, 0);
-            gl.bind_sampler(1, 0);
+            for unit in 0..4 {
+                gl.bind_sampler(unit, 0);
+            }
         }
         if bench::due(batches.batches.len()) {
-            self.bench(&batches, height);
+            self.bench(&commands, &batches, height);
         }
+    }
+
+    /// Each vertex's passes' arrays and layers (`unit_of`, the texture's layer), two
+    /// sixteen-bit numbers each, as the scene's attribute 7 reads them.
+    fn vertex_layers(&self, batches: &Batches) -> Vec<[u32; 2]> {
+        let places: Vec<u32> = batches
+            .textures
+            .iter()
+            .map(|note| {
+                self.textures.get(&note.pixels).map_or(0, |t| {
+                    u32::from(unit_of((t.width, t.height))) | (t.layer as u32) << 16
+                })
+            })
+            .collect();
+        let place = |n: u16| {
+            if n == NO_TEXTURE {
+                0
+            } else {
+                places.get(n as usize).copied().unwrap_or(0)
+            }
+        };
+        batches
+            .vertex_textures
+            .iter()
+            .map(|&[first, second]| [place(first), place(second)])
+            .collect()
     }
 
     /// A pass's values into `at`, each only when it differs from `was`'s: the batches differ
@@ -591,27 +780,30 @@ impl Gpu {
     fn bring_texture_up(&mut self, note: &TextureNote, bytes: &[u8]) {
         super::UPLOADS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         super::UPLOAD_BYTES.fetch_add(bytes.len() as u64, std::sync::atomic::Ordering::Relaxed);
-        let known = self.textures.get(&note.pixels);
-        let (width, height) = (note.width as i32, note.height as i32);
+        let size = (note.width, note.height);
+        let known = self
+            .textures
+            .get(&note.pixels)
+            .map(|t| ((t.width, t.height), t.layer));
+        let layer = match known {
+            Some((was, layer)) if was == size => layer,
+            Some((was, layer)) => {
+                self.give_back(was, layer);
+                self.new_layer(size)
+            }
+            None => self.new_layer(size),
+        };
         let gl = &self.gl;
-        let mut name = known.map_or(0, |t| t.name);
-        let new = known.is_none_or(|t| (t.width, t.height) != (note.width, note.height));
-        if name == 0 {
-            name = gl.gen_texture();
-        }
-        gl.bind_texture(TEXTURE_2D, name);
+        gl.bind_texture(
+            TEXTURE_2D_ARRAY,
+            self.arrays.get(&size).map_or(0, |a| a.name),
+        );
         // `bytes` holds the whole picture (`texture_as_bgra`).
-        if new {
-            gl.tex_image_2d(0x8058, width, height, RGBA, UNSIGNED_BYTE, Some(bytes));
-            // No levels: one the sampler objects' filters read alone.
-            gl.tex_parameter(TEXTURE_2D, 0x813D, 0);
-        } else {
-            gl.tex_sub_image_2d((0, 0), (width, height), RGBA, UNSIGNED_BYTE, bytes);
-        }
+        gl.tex_sub_image_layer(layer, note.width as i32, note.height as i32, bytes);
         self.textures.insert(
             note.pixels,
             CachedTexture {
-                name,
+                layer,
                 width: note.width,
                 height: note.height,
                 opaque: bytes
@@ -673,8 +865,15 @@ impl Gpu {
     fn forget(&mut self, gone: &[crate::pointers::GamePtr]) {
         for pixels in gone {
             if let Some(texture) = self.textures.remove(pixels) {
-                self.gl.delete_texture(texture.name);
+                self.give_back((texture.width, texture.height), texture.layer);
             }
+        }
+    }
+
+    /// A layer of the array of `size` free again.
+    fn give_back(&mut self, size: (usize, usize), layer: i32) {
+        if let Some(array) = self.arrays.get_mut(&size) {
+            array.free.push(layer);
         }
     }
 
@@ -684,7 +883,13 @@ impl Gpu {
             match job {
                 Job::Forget(gone) => self.forget(&gone),
                 Job::Draw(part) => self.draw(part),
-                Job::ShowTarget => self.show_target(),
+                Job::ShowTarget => {
+                    self.show_target();
+                    super::GL_SHOW_MICROS.fetch_add(
+                        start.elapsed().as_micros() as u64,
+                        std::sync::atomic::Ordering::Relaxed,
+                    );
+                }
                 Job::ShowPicture {
                     frame,
                     width,

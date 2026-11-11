@@ -13,9 +13,7 @@
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{
-    Entry, FrameRoutine, List, Screen, Step, prepare_scene, screen_entry,
-};
+use crate::menu::screen_loop::{Entry, List, Screen, Step, prepare_scene, screen_entry};
 
 fn prepare(entry: &Entry) -> Result<(), Refused> {
     crate::scene::polygon_work::front_end().window.view_offset[0].set(0x0u32);
@@ -35,8 +33,6 @@ fn prepare(entry: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.load_championship_table.id(),
-    saved_item: |m| &m.screens.items.current[slot::LOAD_CHAMPIONSHIP_TABLE],
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list, // g_sceneList
@@ -54,41 +50,14 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    first_frame_lists: None,
-    frame_callback: FrameRoutine::Menu,
-    later_frame_callback: None,
-    before: &[],
     set_up_first: &[Step::Write(|m| &m.screens.flow.left_service, 0x0)],
     prepare: &[Step::Do(prepare)],
-    after_lists: &[],
-    background: &[],
-    after_first_frame: &[],
-    confirm: None,
-    ask_also_if: None,
-    confirmed: &[],
-    unasked_skips_save: false,
     after: &[Step::Write(|m| &m.screens.flow.left_service, 0x1)],
-    escape_leaves: false,
-    each_frame: &[],
-    short_action_check: false,
-    leave_at_once: None,
-    next_frame_repeats_first: false,
-    action_saved_item: None,
-    action_menu: None,
-    no_quit_check: false,
-    before_asking: &[],
-    ask_unless: None,
-    leaving: &[],
     leave_saved_item: Some(|m| &m.screens.items.current[slot::SAVE_SETUP]),
-    keys_menu: None,
-    after_restored: &[],
-    result: None,
-    late_highlight: false,
-    before_first_frame: &[],
-    before_frame: &[],
-    after_blink: &[],
-    restart_action_check: false,
-    always_asks: false,
+    ..Screen::new(
+        |m| m.tables.menus.load_championship_table.id(),
+        |m| &m.screens.items.current[slot::LOAD_CHAMPIONSHIP_TABLE],
+    )
 };
 
 /// Runs the screen (a refusal is the caller's).

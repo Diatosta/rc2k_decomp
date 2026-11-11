@@ -14,7 +14,6 @@
 use crate::errors::Refused;
 use crate::menu::fn_list::ListCell;
 use crate::menu::owner::Menus;
-use crate::menu::table_calls::call_listed;
 use crate::platform::{lock_surface, show_frame_now, unlock_surface};
 use crate::scene::owner::scene;
 use crate::text::draw_text::GameCanvas;
@@ -26,21 +25,11 @@ const DRAW_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.draw_list; 
 const SCENE_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.scene_list; // g_sceneList
 const OVERLAY_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.overlay_list; // g_overlayList
 const NOTICE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NOTICE;
-const END: u32 = u32::MAX;
 
 /// Runs the functions of the list `list` points at (the original keeps the registers
 /// around each of the scene list's; its functions take none either way).
 pub fn run_listed(menus: &Menus, list: &ListCell) -> Result<(), Refused> {
-    let entries = list.get()?.entries();
-    let Some(end) = entries.iter().position(|e| e.get() == END) else {
-        return Err(
-            crate::errors::BadInput("frame callback: a function list without an end").into(),
-        );
-    };
-    for e in &entries[..end] {
-        call_listed(menus, e.get())?;
-    }
-    Ok(())
+    crate::menu::run_list::run_list(menus, list.get()?)
 }
 
 /// `gfx::lock_surface`'s carry: the surface could not be locked.

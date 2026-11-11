@@ -322,6 +322,10 @@ pub static GPU_DRAWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU6
 /// in microseconds: which of the two the frame waits for.
 pub static GL_BUSY_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static GL_WAIT_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+/// Of the GL thread's time: making the batches from the commands, and showing the target
+/// (its swap) (microseconds).
+pub static GL_BATCHING_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static GL_SHOW_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 #[cfg(test)]
 mod tests {

@@ -12,7 +12,7 @@
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step, screen_entry};
+use crate::menu::screen_loop::{Asking, Callee, Entry, Frames, List, Screen, Step, screen_entry};
 
 fn before(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
@@ -21,8 +21,6 @@ fn before(entry: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.next_stage.id(),
-    saved_item: |m| &m.screens.items.current[slot::NEXT_STAGE],
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list, // g_sceneList
@@ -40,41 +38,20 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    first_frame_lists: None,
-    frame_callback: FrameRoutine::Menu,
-    later_frame_callback: None,
     before: &[Step::Do(before)],
-    set_up_first: &[],
-    prepare: &[],
     after_lists: &[Step::Write(|m| &m.play.champ_view.stage_mode, 0x3)],
     background: &[Step::Call(Callee::DrawStageMap)],
     after_first_frame: &[Step::Call(Callee::PlayStageSpeech)],
-    confirm: Some(&[]),
-    ask_also_if: None,
-    confirmed: &[],
-    unasked_skips_save: false,
     after: &[Step::Call(Callee::StopStream)],
-    escape_leaves: false,
-    each_frame: &[Step::Call(Callee::StepCarStream)],
-    short_action_check: false,
-    leave_at_once: None,
-    next_frame_repeats_first: false,
-    action_saved_item: None,
-    action_menu: None,
-    no_quit_check: false,
-    before_asking: &[],
-    ask_unless: None,
-    leaving: &[],
-    leave_saved_item: None,
-    keys_menu: None,
-    after_restored: &[],
-    result: None,
-    late_highlight: false,
-    before_first_frame: &[],
-    before_frame: &[],
-    after_blink: &[],
-    restart_action_check: false,
-    always_asks: false,
+    asking: Some(Asking { ..Asking::DEFAULT }),
+    frames: Frames {
+        each_frame: &[Step::Call(Callee::StepCarStream)],
+        ..Frames::DEFAULT
+    },
+    ..Screen::new(
+        |m| m.tables.menus.next_stage.id(),
+        |m| &m.screens.items.current[slot::NEXT_STAGE],
+    )
 };
 
 /// Runs the screen (a refusal is the caller's).

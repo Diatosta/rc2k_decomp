@@ -23,15 +23,23 @@ pub fn run_item_action(menus: &Menus, menu: MenuId) -> Result<(), crate::errors:
     // while item n is there, and for the x of one past the last: the end mark after it.
     let found = rc2k_core::menu::items::highlighted_item(
         highlighted,
-        |n| items.get(n as usize).map_or(MenuItem::END, |i| i.id.get()),
-        |n| items.get(n as usize).map_or(MenuItem::END, |i| i.x.get()),
+        |n| {
+            items
+                .get(n as usize)
+                .map_or(MenuItem::END, |i| i.fixed().id)
+        },
+        |n| {
+            items
+                .get(n as usize)
+                .map_or(MenuItem::END, |i| i.fixed().x as u32)
+        },
     )?;
     if let Some(n) = found {
         let item = &items[n as usize];
-        let value = item.action_value.get();
+        let value = item.fixed().action_value;
         screens.draw_work.action_value.set(value);
-        crate::menu::table_calls::call_action(menus, item.action.get(), value, item, menu);
-        screens.loop_flags.item.set(item.id.get());
+        crate::menu::table_calls::call_action(menus, item.fixed().action, value, menu);
+        screens.loop_flags.item.set(item.fixed().id);
     }
     Ok(())
 }

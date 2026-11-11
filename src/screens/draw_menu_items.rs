@@ -58,21 +58,24 @@ pub fn draw_menu_items(
     use rc2k_core::screens::menus::Item;
     // The first item, then each until one whose x is the end mark (the -1 after the
     // menu's last item is one).
-    let shown = 1 + all[1..].iter().take_while(|i| i.x.get() != END).count();
+    let shown = 1 + all[1..]
+        .iter()
+        .take_while(|i| i.fixed().x as u32 != END)
+        .count();
     let list: Vec<Item<MenuFont>> = all[..shown]
         .iter()
         .map(|i| Item {
-            x: i.x.get(),
-            y: i.y.get(),
-            text_x: i.text_x.get(),
-            text_y: i.text_y.get(),
-            kind: i.id.get(),
+            x: i.fixed().x as u32,
+            y: i.fixed().y as u32,
+            text_x: i.fixed().width_or_text_x as u32,
+            text_y: i.fixed().alignment_or_text_y as u32,
+            kind: i.fixed().id,
             id: i.string.get(),
             font: MenuFont::Object(i.font.get()),
             pulse_font: MenuFont::Object(i.highlight_font.get()),
             behind: i.behind.get(),
             sprite: i.sprites.get().raw(),
-            spaced: i.spaced.get() == 1,
+            spaced: i.fixed().spaced == 1,
         })
         .collect();
     let since_key = if menus.screens.option_work.redefining_key.get() == 1 {

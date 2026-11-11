@@ -12,7 +12,8 @@ pub fn set(tables: &Tables, n: u32, look: Look) -> Result<(), crate::errors::Bad
     let item = tables
         .menus
         .in_game_options
-        .items
+        .id()
+        .items()
         .get(n as usize)
         .ok_or(crate::errors::BadInput("an item past the in-game options"))?;
     item.string.set(look.string);

@@ -218,12 +218,14 @@ pub fn report_timing() {
             ));
             *last = Some((now, frames, fans, micros, flushes, pixels));
             log(&format!(
-                "platform: so far {} frames read back from the GPU, {} textures sent up ({} KB); {} GPU draws; the GL thread busy {} ms, the game waiting for it {} ms",
+                "platform: so far {} frames read back from the GPU, {} textures sent up ({} KB); {} GPU draws; the GL thread busy {} ms (batching {} ms, showing {} ms), the game waiting for it {} ms",
                 crate::render::READ_BACKS.load(Relaxed),
                 crate::render::UPLOADS.load(Relaxed),
                 crate::render::UPLOAD_BYTES.load(Relaxed) / 1024,
                 crate::render::GPU_DRAWS.load(Relaxed),
                 crate::render::GL_BUSY_MICROS.load(Relaxed) / 1000,
+                crate::render::GL_BATCHING_MICROS.load(Relaxed) / 1000,
+                crate::render::GL_SHOW_MICROS.load(Relaxed) / 1000,
                 crate::render::GL_WAIT_MICROS.load(Relaxed) / 1000,
             ));
             // The handheld's: where the time goes, and the samples so far.

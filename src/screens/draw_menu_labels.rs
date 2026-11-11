@@ -32,7 +32,7 @@ pub fn draw_menu_labels(
 ) -> Result<(), Refused> {
     let (Some(labels), Some(first)) = (
         menu.labels_place()?,
-        crate::menu::menus_store::labels_slot(menus, menu.labels(), 0)?,
+        crate::menu::menus_store::labels_slot(menus, menu, 0)?,
     ) else {
         return Err(BadInput("a menu without a label list").into());
     };

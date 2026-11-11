@@ -64,11 +64,11 @@ pub fn move_highlight(menus: &Menus, direction: Direction) -> Result<(), Refused
             };
             turn(t, direction == Direction::Right)
         });
-        let next = item.links[way].get();
+        let next = item.fixed().links[way];
         let to = match link(next) {
             Link::To(n) if !sideways => Some(walk(n, |n| {
                 let it = item_at(&menus.screens, n).map_err(|e| rc2k_core::Invalid(e.0))?;
-                Ok((it.links[way].get(), it.skip_mark.get()))
+                Ok((it.fixed().links[way], it.skip_mark.get()))
             })?),
             Link::To(n) => Some(n),
             _ => None,
@@ -86,7 +86,7 @@ pub fn move_highlight(menus: &Menus, direction: Direction) -> Result<(), Refused
         }
         match to {
             Some(n) => screens.loop_flags.item.set(n),
-            None => crate::menu::table_calls::call_key(menus, item.on_key[way].get(), item)?,
+            None => crate::menu::table_calls::call_key(menus, item.fixed().on_key[way], item)?,
         }
     }
     Ok(())

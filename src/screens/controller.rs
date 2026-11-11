@@ -76,7 +76,7 @@ pub fn learn_axis(menus: &Menus) -> Result<(), Refused> {
             0x3BE,
             crate::gfx::typefaces::fonts::LIST,
             0x1B8,
-            item.text_y.get() as i32,
+            item.fixed().alignment_or_text_y,
             &mut crate::text::draw_text::GameCanvas,
         )?;
     }

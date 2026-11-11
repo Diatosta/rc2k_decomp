@@ -95,7 +95,7 @@ pub fn stage_options_texts(menus: &Menus) -> Result<(), Refused> {
     stage_refuses(a, b)?;
     // Converted: `rc2k_core::screens::page_values` (the items and the caption).
     use rc2k_core::screens::page_values::{stage_options_caption, stage_options_items};
-    let items = &menus.tables.menus.view_best_times.items;
+    let items = menus.tables.menus.view_best_times.id().items();
     let (first, second) = stage_options_items(a, menus.play.champ_view.switch_fc.get());
     set_item(items, 1, first)?;
     set_item(items, 2, second)?;
@@ -129,11 +129,11 @@ pub fn stage_choice_texts(menus: &Menus) -> Result<(), Refused> {
     // Item 1 of the "menu" the head points to (the labels: the slip in `notes/bugs.md`).
     let item_1 = crate::menu::menus_store::labels_slot(
         menus,
-        &menus.tables.menus.view_courses.head,
+        menus.tables.menus.view_courses.id(),
         4 + 0x5C + 0x14,
     )?
     .ok_or(BadInput("no item table"))?;
-    let items = &menus.tables.menus.view_courses.items;
+    let items = menus.tables.menus.view_courses.id().items();
     set_item(
         items,
         0,

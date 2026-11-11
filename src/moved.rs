@@ -860,12 +860,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::menus_store::START,
         len: crate::menu::menus_store::END - crate::menu::menus_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.tables.menus),
-    },
-    Moved {
-        ida: crate::menu::draw_lists_store::START,
-        len: crate::menu::draw_lists_store::END - crate::menu::draw_lists_store::START,
-        home: Home::Store(&crate::menu::owner::MENUS.tables.draw_lists),
+        home: Home::Store(&crate::menu::owner::MENUS.tables.menus.labels),
     },
     // the former `rest` module's pieces: typed, each in its owner's module
     Moved {

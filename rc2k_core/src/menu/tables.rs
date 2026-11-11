@@ -4,12 +4,11 @@
 //! (`ItemFn`, `ScreenFn`) and the fonts they name by `MenuFont`. The data is generated
 //! (`tables_data.rs`, `tools/menu_tables`).
 //!
-//! In play the game changes four fields of an item: its string id (+0x14), its font
-//! (+0x18), +0x1C and its skip mark (+0x48); the tables hold their starting values. While
-//! the DLL exists, those four are read from the game's memory; everything else, the
-//! function fields included, is constant. Each menu and list keeps its RAL address (`at`)
-//! for the changeover: the screens still store the game's addresses in the game's
-//! variables, and `menu_at` / `list_at` turn such an address into its table.
+//! These tables are the one source of the menus and the lists: the game's crate keeps, per
+//! item, only the fields the game changes in play (an item's string id, font, +0x1C, sprite,
+//! skip mark and highlight font: `menu::menus_store::MenuItem`, starting as the table has
+//! them) and names a menu or list by its number here. Each menu and list keeps its RAL
+//! address (`at`) for the tests that compare the tables with the image.
 
 pub use super::item_params::{EventStart, OptionSwitch, StageCounter, VolumeKind};
 pub use super::tables_data::{ItemFn, LISTS, MENUS, MenuFont, ScreenFn};
@@ -79,22 +78,6 @@ pub struct DrawList {
     pub functions: &'static [ScreenFn],
 }
 
-/// The menu RAL.EXE keeps at `at`.
-pub fn menu_at(at: u32) -> Option<&'static Menu> {
-    MENUS
-        .binary_search_by_key(&at, |m| m.at)
-        .ok()
-        .map(|n| &MENUS[n])
-}
-
-/// The draw list RAL.EXE keeps at `at`.
-pub fn list_at(at: u32) -> Option<&'static DrawList> {
-    LISTS
-        .binary_search_by_key(&at, |l| l.at)
-        .ok()
-        .map(|n| &LISTS[n])
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -103,13 +86,6 @@ mod tests {
     fn sorted_and_found() {
         assert!(MENUS.windows(2).all(|w| w[0].at < w[1].at));
         assert!(LISTS.windows(2).all(|w| w[0].at < w[1].at));
-        for m in MENUS.iter() {
-            assert!(std::ptr::eq(menu_at(m.at).unwrap(), m));
-        }
-        for l in LISTS.iter() {
-            assert!(std::ptr::eq(list_at(l.at).unwrap(), l));
-        }
-        assert!(menu_at(0).is_none() && list_at(0).is_none());
     }
 
     #[test]

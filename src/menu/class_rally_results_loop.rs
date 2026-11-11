@@ -11,7 +11,7 @@
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step};
+use crate::menu::screen_loop::{Asking, Callee, Entry, List, Screen, Step};
 
 // ---- game data ----
 
@@ -22,7 +22,7 @@ fn set_first_item(entry: &Entry) -> Result<(), Refused> {
     } else {
         0x139
     };
-    menus.tables.menus.class_rally_results.items[0]
+    menus.tables.menus.class_rally_results.id().items()[0]
         .string
         .set(title);
 
@@ -30,8 +30,6 @@ fn set_first_item(entry: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.class_rally_results.id(),
-    saved_item: |m| &m.screens.items.current[slot::CLASS_RALLY_RESULTS], // dword_747788
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list,
@@ -49,41 +47,14 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    first_frame_lists: None,
-    frame_callback: FrameRoutine::Menu,
-    later_frame_callback: None,
     before: &[Step::Do(set_first_item)],
-    set_up_first: &[],
-    prepare: &[],
-    after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.class_rally_results_picture
     }))],
-    after_first_frame: &[],
-    confirm: Some(&[]),
-    ask_also_if: None,
-    confirmed: &[],
-    unasked_skips_save: false,
-    after: &[],
-    escape_leaves: false,
-    each_frame: &[],
-    short_action_check: false,
-    leave_at_once: None,
-    next_frame_repeats_first: false,
-    action_saved_item: None,
-    action_menu: None,
-    no_quit_check: false,
-    before_asking: &[],
-    ask_unless: None,
-    leaving: &[],
-    leave_saved_item: None,
-    keys_menu: None,
-    after_restored: &[],
-    result: None,
-    late_highlight: false,
-    before_first_frame: &[],
-    before_frame: &[],
-    after_blink: &[],
-    restart_action_check: false,
-    always_asks: false,
+    asking: Some(Asking { ..Asking::DEFAULT }),
+    // saved_item is dword_747788
+    ..Screen::new(
+        |m| m.tables.menus.class_rally_results.id(),
+        |m| &m.screens.items.current[slot::CLASS_RALLY_RESULTS],
+    )
 };

@@ -12,7 +12,7 @@
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Callee, Entry, FrameRoutine, List, Screen, Step, carousel, prepare_scene, screen_entry,
+    Callee, Entry, Keys, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
@@ -35,8 +35,6 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.in_game_options.id(),
-    saved_item: |m| &m.screens.items.current[slot::IN_GAME_OPTIONS],
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list, // g_sceneList
@@ -54,43 +52,19 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    first_frame_lists: None,
-    frame_callback: FrameRoutine::Menu,
-    later_frame_callback: None,
     before: &[Step::Write(|m| &m.screens.draw_work.escaped, 0x0)],
     set_up_first: &[Step::Do(set_up_first)],
-    prepare: &[],
-    after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.in_game_options_picture
     }))],
-    after_first_frame: &[],
-    confirm: None,
-    ask_also_if: None,
-    confirmed: &[],
-    unasked_skips_save: false,
-    after: &[],
-    escape_leaves: true,
-    each_frame: &[],
-    short_action_check: false,
-    leave_at_once: None,
-    next_frame_repeats_first: false,
-    action_saved_item: None,
-    action_menu: None,
-    no_quit_check: false,
-    before_asking: &[],
-    ask_unless: None,
-    leaving: &[],
-    leave_saved_item: None,
-    keys_menu: None,
-    after_restored: &[],
-    result: None,
-    late_highlight: false,
-    before_first_frame: &[],
-    before_frame: &[],
-    after_blink: &[],
-    restart_action_check: false,
-    always_asks: false,
+    keys: Keys {
+        escape_leaves: true,
+        ..Keys::DEFAULT
+    },
+    ..Screen::new(
+        |m| m.tables.menus.in_game_options.id(),
+        |m| &m.screens.items.current[slot::IN_GAME_OPTIONS],
+    )
 };
 
 /// Runs the screen (a refusal is the caller's).

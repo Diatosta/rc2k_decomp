@@ -156,6 +156,8 @@ def start(gpu, fresh, profile=False):
         renderer += f"RC2K_GL_BENCH={int(os.environ['RC2K_GL_BENCH'])} "
     if os.environ.get('RC2K_SLOW_FRAMES'):  # log each frame in a race slower than this many ms
         renderer += f"RC2K_SLOW_FRAMES={int(os.environ['RC2K_SLOW_FRAMES'])} "
+    if os.environ.get('RC2K_SHOT_CLOCKS'):  # a replay's frames saved after these ticks (src/remote.rs)
+        renderer += f"RC2K_SHOT_CLOCKS={','.join(str(int(c)) for c in os.environ['RC2K_SHOT_CLOCKS'].split(','))} "
     if os.environ.get('RC2K_DUMP'):  # the n-th big flush's commands to rc2k_frame_dump.bin
         renderer += f"RC2K_DUMP={int(os.environ['RC2K_DUMP'])} "
     for switch in ('RC2K_MIRROR_BESIDE', 'RC2K_MIRROR_ALWAYS', 'RC2K_DRAW_SERIAL', 'RC2K_PLAYERS_BESIDE'):  # the mirror beside (0: after), shown, parts serial, the players' views beside

@@ -75,6 +75,10 @@ library! {
     glTexImage2D: fn(u32, i32, i32, i32, i32, i32, u32, u32, *const c_void);
     glTexSubImage2D: fn(u32, i32, i32, i32, i32, i32, u32, u32, *const c_void);
     glTexParameteri: fn(u32, u32, i32);
+    glTexImage3D: fn(u32, i32, i32, i32, i32, i32, i32, u32, u32, *const c_void);
+    glTexSubImage3D: fn(u32, i32, i32, i32, i32, i32, i32, i32, u32, u32, *const c_void);
+    glFramebufferTextureLayer: fn(u32, u32, u32, i32, i32);
+    glCopyTexSubImage3D: fn(u32, i32, i32, i32, i32, i32, i32, i32, i32);
     glGenSamplers: fn(i32, *mut u32);
     glBindSampler: fn(u32, u32);
     glSamplerParameteri: fn(u32, u32, i32);
@@ -324,6 +328,63 @@ impl Gles {
     }
 
     /// `glTexSubImage2D` of level 0 of the bound 2D texture: `width` x `height` pixels at (`x`, `y`) from `pixels`.
+    /// A `TEXTURE_2D_ARRAY` of `layers` pictures of `width` x `height`, no pixels given.
+    pub fn tex_image_3d_empty(&self, internal_format: i32, width: i32, height: i32, layers: i32) {
+        // SAFETY: plain numbers; no pixels are read (a null pointer).
+        unsafe {
+            (self.table.glTexImage3D)(
+                0x8C1A,
+                0,
+                internal_format,
+                width,
+                height,
+                layers,
+                0,
+                0x1908,
+                0x1401,
+                std::ptr::null(),
+            );
+        }
+    }
+
+    /// One layer of the bound `TEXTURE_2D_ARRAY`: `width` x `height` RGBA bytes.
+    pub fn tex_sub_image_layer(&self, layer: i32, width: i32, height: i32, pixels: &[u8]) {
+        assert!(
+            pixels.len() >= pixel_bytes(width, height),
+            "a short picture"
+        );
+        // SAFETY: the pixels hold the picture (checked above), read in the call.
+        unsafe {
+            (self.table.glTexSubImage3D)(
+                0x8C1A,
+                0,
+                0,
+                0,
+                layer,
+                width,
+                height,
+                1,
+                0x1908,
+                0x1401,
+                pixels.as_ptr().cast(),
+            );
+        }
+    }
+
+    /// Layer `layer` of the texture array `texture` as the bound `target` framebuffer's
+    /// colour.
+    pub fn framebuffer_texture_layer(&self, target: u32, texture: u32, layer: i32) {
+        // SAFETY: plain numbers.
+        unsafe { (self.table.glFramebufferTextureLayer)(target, 0x8CE0, texture, 0, layer) };
+    }
+
+    /// The read framebuffer's `width` x `height` pixels into layer `layer` of the bound
+    /// `TEXTURE_2D_ARRAY`.
+    pub fn copy_into_layer(&self, layer: i32, width: i32, height: i32) {
+        // SAFETY: plain numbers; the GL reads its own framebuffer.
+        unsafe { (self.table.glCopyTexSubImage3D)(0x8C1A, 0, 0, 0, layer, 0, 0, width, height) };
+    }
+
     pub fn tex_sub_image_2d(
         &self,
         (x, y): (i32, i32),

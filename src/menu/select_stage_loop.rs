@@ -11,7 +11,7 @@
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, Entry, Flow, FrameRoutine, List, Screen, Step};
+use crate::menu::screen_loop::{Asking, Callee, Entry, Flow, Frames, List, Screen, Step};
 use crate::net::owner::net;
 
 fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
@@ -24,8 +24,6 @@ fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.select_stage.id(),
-    saved_item: |m| &m.screens.items.current[slot::SELECT_STAGE],
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list, // g_sceneList
@@ -48,39 +46,22 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    first_frame_lists: None,
-    frame_callback: FrameRoutine::Menu,
-    later_frame_callback: None,
     before: &[Step::Write(|m| &m.tables.pages.yes_no_answer, 0x0)],
     set_up_first: &[Step::Call(Callee::MarkStageChoice)],
-    prepare: &[],
-    after_lists: &[],
     background: &[Step::Call(Callee::DrawStageMap)],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
-    confirm: Some(&[]),
-    ask_also_if: None,
-    confirmed: &[],
-    unasked_skips_save: true,
     after: &[Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F)],
-    escape_leaves: false,
-    each_frame: &[],
-    short_action_check: false,
-    leave_at_once: None,
-    next_frame_repeats_first: true,
-    action_saved_item: None,
-    action_menu: None,
-    no_quit_check: false,
-    before_asking: &[],
-    ask_unless: Some(|_| net().vars.session.get()),
-    leaving: &[],
-    leave_saved_item: None,
-    keys_menu: None,
-    after_restored: &[],
-    result: None,
-    late_highlight: false,
-    before_first_frame: &[],
-    before_frame: &[],
-    after_blink: &[],
-    restart_action_check: false,
-    always_asks: false,
+    asking: Some(Asking {
+        unless: Some(|_| net().vars.session.get()),
+        unasked_skips_save: true,
+        ..Asking::DEFAULT
+    }),
+    frames: Frames {
+        next_frame_repeats_first: true,
+        ..Frames::DEFAULT
+    },
+    ..Screen::new(
+        |m| m.tables.menus.select_stage.id(),
+        |m| &m.screens.items.current[slot::SELECT_STAGE],
+    )
 };

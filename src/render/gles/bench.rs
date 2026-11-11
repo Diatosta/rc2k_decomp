@@ -136,7 +136,8 @@ pub(super) fn due(batches: usize) -> bool {
 impl Gpu {
     /// Draws `batches` (whose vertices `draw` has just sent up) in each of the `WAYS`, and logs
     /// the time each takes.
-    pub(super) fn bench(&mut self, batches: &Batches, height: i32) {
+    pub(super) fn bench(&mut self, commands: &[Command], batches: &Batches, height: i32) {
+        self.bench_gathering(commands, batches);
         let changes =
             |f: &dyn Fn(&super::super::batches::Batch, &super::super::batches::Batch) -> bool| {
                 batches
@@ -330,14 +331,16 @@ impl Gpu {
                 && last.is_none_or(|l| l.texture != batch.texture)
                 && let Some(n) = batch.texture
             {
-                let name = self.textures[&batches.textures[n as usize].pixels].name;
-                gl.bind_texture(TEXTURE_2D, name);
+                let note = &batches.textures[n as usize];
+                self.bind_arrays(0, (note.width, note.height));
+                gl.active_texture(TEXTURE0);
             }
             if way.samplers
                 && last.is_none_or(|l| (l.linear, l.clamp) != (batch.linear, batch.clamp))
             {
                 let sampler = self.samplers[batch.linear as usize + 2 * batch.clamp as usize];
                 gl.bind_sampler(0, sampler);
+                gl.bind_sampler(1, sampler);
             }
             if let Some([left, top, right, bottom]) = batch.scissor {
                 gl.enable(SCISSOR_TEST);
@@ -359,5 +362,25 @@ impl Gpu {
             gl.disable(SCISSOR_TEST);
         }
         gl.bind_sampler(0, 0);
+        gl.bind_sampler(1, 0);
+    }
+}
+
+impl Gpu {
+    /// How many draws the frame takes with its textures as layers, against one texture a
+    /// draw (`Batches::of`).
+    fn bench_gathering(&self, commands: &[Command], batches: &Batches) {
+        let opaque = |note: &TextureNote| self.textures.get(&note.pixels).is_some_and(|t| t.opaque);
+        let alone = Batches::of(
+            commands,
+            self.width as u32,
+            self.height as u32,
+            Some(&opaque),
+        );
+        log(&format!(
+            "gles bench: gathering: {} draws with the textures as layers, {} with one texture a draw",
+            batches.batches.len(),
+            alone.batches.len(),
+        ));
     }
 }

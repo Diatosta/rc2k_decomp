@@ -10,7 +10,7 @@
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Callee, Entry, Flow, FrameRoutine, List, Screen, Step, carousel, prepare_scene, quitting,
+    Callee, Entry, Flow, List, Screen, Step, carousel, prepare_scene, quitting,
 };
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
@@ -44,8 +44,6 @@ fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.car_specs_display.id(),
-    saved_item: |m| &m.screens.items.current[slot::CAR_SPECS_DISPLAY],
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list, // g_sceneList
@@ -68,41 +66,13 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    first_frame_lists: None,
-    frame_callback: FrameRoutine::Menu,
-    later_frame_callback: None,
-    before: &[],
     set_up_first: &[Step::Do(set_up_first)],
-    prepare: &[],
-    after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.car_specs_display_picture
     }))],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
-    confirm: None,
-    ask_also_if: None,
-    confirmed: &[],
-    unasked_skips_save: false,
-    after: &[],
-    escape_leaves: false,
-    each_frame: &[],
-    short_action_check: false,
-    leave_at_once: None,
-    next_frame_repeats_first: false,
-    action_saved_item: None,
-    action_menu: None,
-    no_quit_check: false,
-    before_asking: &[],
-    ask_unless: None,
-    leaving: &[],
-    leave_saved_item: None,
-    keys_menu: None,
-    after_restored: &[],
-    result: None,
-    late_highlight: false,
-    before_first_frame: &[],
-    before_frame: &[],
-    after_blink: &[],
-    restart_action_check: false,
-    always_asks: false,
+    ..Screen::new(
+        |m| m.tables.menus.car_specs_display.id(),
+        |m| &m.screens.items.current[slot::CAR_SPECS_DISPLAY],
+    )
 };

@@ -7,11 +7,9 @@
 //! Which screen it is has not been confirmed, hence the name. Its title string: "RESULTADOS
 //! GERAIS".
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, Frames, List, Screen, Step};
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.single_rally_overall_results.id(),
-    saved_item: |m| &m.screens.items.current[slot::SINGLE_RALLY_OVERALL_RESULTS],
     lists: &[
         List {
             pointer: |m| &m.screens.flow.unread_list, // g_unreadList
@@ -29,57 +27,34 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    first_frame_lists: Some(&[
-        List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
-            table: |m| m.tables.draw_lists.single_rally_overall_results_scene.id(),
-            run: false,
-        },
-        List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
-            table: |m| m.tables.draw_lists.draw_758ece.id(),
-            run: false,
-        },
-        List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
-            table: |m| m.tables.draw_lists.overlay_7592fe.id(),
-            run: false,
-        },
-    ]),
-    frame_callback: FrameRoutine::Menu,
-    later_frame_callback: None,
     before: &[Step::Write(|m| &m.screens.event.event_done, 0x0)],
     set_up_first: &[Step::Call(Callee::RankTotals)],
-    prepare: &[],
-    after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.tables.texts.single_rally_overall_results_picture
     }))],
-    after_first_frame: &[],
-    confirm: None,
-    ask_also_if: None,
-    confirmed: &[],
-    unasked_skips_save: false,
     after: &[Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F)],
-    escape_leaves: false,
-    each_frame: &[],
-    short_action_check: false,
-    leave_at_once: None,
-    next_frame_repeats_first: false,
-    action_saved_item: None,
-    action_menu: None,
-    no_quit_check: false,
-    before_asking: &[],
-    ask_unless: None,
-    leaving: &[],
-    leave_saved_item: None,
-    keys_menu: None,
-    after_restored: &[],
-    result: None,
-    late_highlight: false,
-    before_first_frame: &[],
-    before_frame: &[],
-    after_blink: &[],
-    restart_action_check: false,
-    always_asks: false,
+    frames: Frames {
+        first_frame_lists: Some(&[
+            List {
+                pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+                table: |m| m.tables.draw_lists.single_rally_overall_results_scene.id(),
+                run: false,
+            },
+            List {
+                pointer: |m| &m.screens.flow.draw_list, // g_drawList
+                table: |m| m.tables.draw_lists.draw_758ece.id(),
+                run: false,
+            },
+            List {
+                pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+                table: |m| m.tables.draw_lists.overlay_7592fe.id(),
+                run: false,
+            },
+        ]),
+        ..Frames::DEFAULT
+    },
+    ..Screen::new(
+        |m| m.tables.menus.single_rally_overall_results.id(),
+        |m| &m.screens.items.current[slot::SINGLE_RALLY_OVERALL_RESULTS],
+    )
 };

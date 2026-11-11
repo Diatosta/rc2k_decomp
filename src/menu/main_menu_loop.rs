@@ -23,7 +23,8 @@ use crate::errors::Refused;
 use crate::framework::log;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Callee, Entry, Flow, FrameRoutine, List, Screen, Step, carousel, prepare_scene,
+    ActionCheck, Asking, Callee, Entry, Flow, Frames, Keys, List, Screen, Step, carousel,
+    prepare_scene,
 };
 use crate::menu::update_blink::update_blink;
 
@@ -92,8 +93,6 @@ fn idle(entry: &Entry) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.main_menu.id(),
-    saved_item: |m| &m.screens.items.current[slot::MAIN_MENU],
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list, // g_sceneList
@@ -116,9 +115,6 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    first_frame_lists: None,
-    frame_callback: FrameRoutine::Menu,
-    later_frame_callback: None,
     before: &[
         Step::Write(|m| &m.screens.loop_flags.went_back, 0),
         Step::Write(|m| &m.screens.loop_flags.back, 0),
@@ -142,39 +138,29 @@ pub const SCREEN: Screen = Screen {
         Step::Call(Callee::PlayTune4),
     ],
     set_up_first: &[Step::Do(set_up_first)],
-    prepare: &[],
-    after_lists: &[],
-    background: &[],
-    after_first_frame: &[],
-    confirm: Some(&[
-        Step::Write(|m| &m.screens.loop_flags.ended_a, 0),
-        Step::Write(|m| &m.screens.draw_work.escaped, 0),
-        Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F),
-        Step::Write(|m| &m.screens.loop_flags.back, 0),
-    ]),
-    ask_also_if: None,
-    confirmed: &[],
-    unasked_skips_save: false,
-    after: &[],
-    escape_leaves: false,
-    each_frame: &[],
-    short_action_check: false,
-    leave_at_once: None,
-    next_frame_repeats_first: false,
-    action_saved_item: None,
-    action_menu: None,
-    no_quit_check: false,
-    before_asking: &[],
-    ask_unless: None,
-    leaving: &[],
-    leave_saved_item: None,
-    keys_menu: None,
-    after_restored: &[],
-    result: None,
     late_highlight: true,
-    before_first_frame: &[Step::Do(before_first_frame)],
-    before_frame: &[Step::Write(|m| &m.play.cheats.notice_due, 1)],
-    after_blink: &[Step::DoFlow(idle)],
-    restart_action_check: true,
-    always_asks: true,
+    asking: Some(Asking {
+        on_refusal: &[
+            Step::Write(|m| &m.screens.loop_flags.ended_a, 0),
+            Step::Write(|m| &m.screens.draw_work.escaped, 0),
+            Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F),
+            Step::Write(|m| &m.screens.loop_flags.back, 0),
+        ],
+        always: true,
+        ..Asking::DEFAULT
+    }),
+    keys: Keys {
+        action_check: ActionCheck::Restart,
+        ..Keys::DEFAULT
+    },
+    frames: Frames {
+        before_first_frame: &[Step::Do(before_first_frame)],
+        before_frame: &[Step::Write(|m| &m.play.cheats.notice_due, 1)],
+        after_blink: &[Step::DoFlow(idle)],
+        ..Frames::DEFAULT
+    },
+    ..Screen::new(
+        |m| m.tables.menus.main_menu.id(),
+        |m| &m.screens.items.current[slot::MAIN_MENU],
+    )
 };
