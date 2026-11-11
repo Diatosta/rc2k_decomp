@@ -394,7 +394,7 @@ pub struct Car {
     /// `drive::share_car_state`).
     pub part_wake_counts: [Dword; 6],
     /// +0x718 (0x71A6F0): the engine speed shown (+0x1D8 as a float, not below
-    /// `flt_6140F8`; `race::car_parts`), drawn by the panel and the car's number.
+    /// `PhysicsTables.idle_engine_speed`; `race::car_parts`), drawn by the panel and the car's number.
     pub shown_engine_speed: Float,
     /// +0x71c (0x71A6F4): id of the notice shown (0 none).
     pub notice_id: Dword,
@@ -527,7 +527,7 @@ pub struct Car {
     /// +0xf30 (0x71AF08): world z of the four wheels.
     pub wheel_ground_z: [Dword; 4],
     /// +0xf40 (0x71AF18): the front and rear axles' skid grip (`physics::drive_wheels_step`;
-    /// `race::lay_skidmarks` lays marks from `flt_643AD0` up).
+    /// `race::lay_skidmarks` lays marks from `ShadowSkids.skid_grip` up).
     pub skid_grip: [Float; 2],
     /// +0xf48 (0x71AF20): each wheel's last skid point (-1 none; `race::lay_skidmarks`).
     pub skid_slots: [Dword; 4],

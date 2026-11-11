@@ -6,9 +6,9 @@ use crate::screens::screen::{Drawn, Screen};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E8A4`.
+    /// `FontObjects.objects[40].first_char`.
     Question,
-    /// `stru_51E8C4`.
+    /// `FontObjects.objects[41].first_char`.
     Value,
 }
 

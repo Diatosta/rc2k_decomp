@@ -13,7 +13,7 @@ use crate::gfx::owner::gfx;
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
 use crate::memory::take_from_list::take_from_list;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::strings::owner::strings;
 
 /// IDA's address of the glyph tables' variables.
@@ -25,28 +25,28 @@ pub const LEN: usize = 0x51B9C4 - START;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct GlyphTables {
-    /// `dword_51B980`: the tables' size in units of 0x400 bytes times `dword_4F4958`
+    /// `dword_51B980`: the tables' size in units of 0x400 bytes times `Screen.bytes`
     /// (`bundleheapsize`, a `var\ral.cfg` setting).
-    pub units: Dword,
-    /// `g_glyphTablesMemory` (`stru_51B984`): the list the fonts' and the sprites' tables
+    pub units: PlainDword,
+    /// `g_glyphTablesMemory` (`GlyphTables.memory.head`): the list the fonts' and the sprites' tables
     /// lie on (16 bytes).
     pub memory: crate::memory::ListCells,
     /// `0x51B994` .. `0x51B9C4`: nothing reads or writes them (a gap).
-    pub _gap_14: [Dword; 12],
+    pub _gap_14: [PlainDword; 12],
 }
 
 impl GlyphTables {
     /// The glyph tables' variables; the first values are the image's.
     pub const fn new() -> Self {
         GlyphTables {
-            units: Dword::new(0x15E),
+            units: PlainDword::new(0x15E),
             memory: crate::memory::ListCells::new(MemoryList {
                 head: 0,
                 total: 0,
                 cursor: 0,
                 remaining: 0,
             }),
-            _gap_14: [const { Dword::new(0) }; 12],
+            _gap_14: [const { PlainDword::new(0) }; 12],
         }
     }
 }

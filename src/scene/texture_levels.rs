@@ -2,7 +2,7 @@
 //! IDA): which texture slots are wanted at which level (`g_textureSystemLevels`,
 //! `g_textureVideoLevels`) and tagged how (`g_textureTags`), 0x400 slots each, for the
 //! stage: each car's runs, each kind's slots by the stage prefs, then fixed runs. With
-//! `dword_5CDADC` set every level is another (it is set to 0 here first, and nothing sets
+//! `ObjectTables.other_levels` set every level is another (it is set to 0 here first, and nothing sets
 //! it otherwise).
 
 use crate::errors::Refused;
@@ -12,7 +12,7 @@ use crate::session::Dword;
 
 /// A kind's block: its first-texture variable (an index in `kind_first_textures`; only its place in `g_textureWantedPictures`
 /// is worked out, and not used: section 16), its prefs entries, the first slot, how many,
-/// the tag, the level, the other level, and what `dword_5DC978` gets a slot (4, or 1 for
+/// the tag, the level, the other level, and what `TexturePlaces.kind_slot_bytes` gets a slot (4, or 1 for
 /// the kinds of slots 0x40 .. 0x6F).
 type Block = (usize, Prefs, usize, u32, u32, u32, u32, u32, u32);
 #[derive(Clone, Copy)]
@@ -69,11 +69,11 @@ const COUNT_TEXT_RVA: &std::ffi::CStr = c"NUM DIFFERENT CARS/OBJECTS/TEXTURE SET
 
 /// `scene::init_texture_levels` (0x424001), see the header: `g_raceCars` held to 1 .. 8
 /// (by the signs of the differences, as the original); the tables reset, the count in the
-/// log; `dword_5CDADC` 0 and `input::update`; the first car's two runs (slots 0x100,
+/// log; `ObjectTables.other_levels` 0 and `input::update`; the first car's two runs (slots 0x100,
 /// 0x104; the second's level by `dword_63DB94`), each further car's two (0x108 + 8 a car,
 /// tag 0x28 + the car); each kind's slots (its prefs entry not 0 or -1: tag, level, and
-/// `dword_5DC978` + 4, or + 1 for slots 0x40 .. 0x6F); the fixed runs, two loops at slot 0xDC (the system level of six,
-/// the video level of two), and with `dword_621514` three more.
+/// `TexturePlaces.kind_slot_bytes` + 4, or + 1 for slots 0x40 .. 0x6F); the fixed runs, two loops at slot 0xDC (the system level of six,
+/// the video level of two), and with `FrameSwitches.editor_mode` three more.
 pub fn init_texture_levels(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let shared = &race.shared;
     // Converted: `rc2k_core::scene::texture_levels::{held_cars, set_levels}`.

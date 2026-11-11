@@ -11,7 +11,7 @@ use crate::memory::free_list::free_list;
 
 pub fn free_fonts(
     list: &dyn crate::pointers::Store,
-    palettes: &crate::session::Dword,
+    palettes: &crate::session::PlainDword,
 ) -> Result<(), BadInput> {
     free_list(list)?;
     palettes.set(0);

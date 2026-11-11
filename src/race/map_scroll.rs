@@ -11,7 +11,7 @@ use crate::physics::car_store::Car;
 use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::owner::Race;
 
-/// `race::map_tiles` (0x45B663): the map picture's slot `dword_5D0E00` (+ `g_currentCar` unless
+/// `race::map_tiles` (0x45B663): the map picture's slot `KindTextureTables.kind_first_textures[198]` (+ `g_currentCar` unless
 /// `session`) drawn from tile (corner x >> 4, corner y >> 4).
 pub fn map_tiles(
     race: &Race,

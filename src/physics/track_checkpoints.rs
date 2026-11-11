@@ -3,7 +3,7 @@
 //! `physics::checkpoint_offset`; `physics::off_line_warnings`; at the last checkpoint
 //! of the current split (`g_checkCounts[+0x98]` - 1 equal to +0x90) +0x94 = +0x98; then,
 //! below `g_splitColourCount` and when `physics::passed_split_point` gives CF, +0x94 and
-//! +0x98 the split's checkpoint (`dword_601030[+0x90]`) and +0x90 up by one.
+//! +0x98 the split's checkpoint (`SplitTables.checkpoints[1][+0x90]`) and +0x90 up by one.
 //!
 //! Caller: `physics::car_physics_step` (0x43B90F), every physics step. Refuses (before writing) a
 //! checkpoint past 0x1418 or a split past 0x40, and what the calls refuse.

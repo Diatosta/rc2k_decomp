@@ -1,8 +1,8 @@
 //! `sound::apply_settings` (0x40EFF3): sends the kept sound settings to the audio thread.
 //!
-//! `dword_518080` = 1; `sound::stop_music`; command 5 with `dword_4F82C4`; command 3 with the
+//! `SettingsApplied.done` = 1; `sound::stop_music`; command 5 with `AudioState.menu_sound_mode`; command 3 with the
 //! menus' list (`unk_511AE4`, by handle); command 8 with `dword_755684`; `sound::wait_for_commands`;
-//! `dword_506C84` = 0 (`sound::let_sounds_play`).
+//! `AudioState.sounds_held_back` = 0 (`sound::let_sounds_play`).
 //! What the two numbers are is a reading: volumes, the second the one the options screen
 //! steps between 0 and 0x40 (0x467F00, 0x467F24).
 //! Five callers; `system::main_loop` calls it once the window is there.

@@ -33,7 +33,7 @@ pub struct Starter {
 }
 
 impl Starter {
-    /// `dword_755954`.
+    /// `Event.event_type`.
     pub fn event_type(self) -> u32 {
         match self.championship {
             Championship::First => 4,
@@ -50,7 +50,7 @@ impl Starter {
         }
     }
 
-    /// `dword_755988`, the event mode (`menu::run_event_races`).
+    /// `Event.event_kind`, the event mode (`menu::run_event_races`).
     pub fn mode(self) -> u32 {
         match self.seats {
             Seats::One => 9,
@@ -74,22 +74,22 @@ impl Starter {
 /// The game's variables a starter writes or reads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Var {
-    /// `dword_755954`.
+    /// `Event.event_type`.
     EventType,
-    /// `dword_75649C`.
+    /// `CarTable.last_car`.
     RepairSet,
-    /// `dword_755984`.
+    /// `Event.player_count`.
     PlayerCount,
     /// `index`, `section`.
     Index,
     Section,
-    /// `dword_755950`.
+    /// `Event.stages_done`.
     StagesDone,
-    /// `dword_755970`: 1 when a saved game goes on.
+    /// `Event.continuing_save`: 1 when a saved game goes on.
     Continuing,
     /// The current player.
     Current,
-    /// `dword_755988`.
+    /// `Event.event_kind`.
     EventMode,
 }
 

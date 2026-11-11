@@ -1,4 +1,4 @@
-//! `physics::face_contacts_around` (0x45E196): the car's place (`position`, `unk_71A114`)
+//! `physics::face_contacts_around` (0x45E196): the car's place (`position`, `Car.position[2]`)
 //! into `ground_x`, `ground_z`, then `physics::cell_face_contacts` for its cell
 //! and the eight about it (± 0x200000 each way, in the original's order; the place read
 //! back from `ground_x` .. before each).

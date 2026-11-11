@@ -5,8 +5,8 @@
 //! the bits are looked at. The first bit set of these, in this order, picks the sound
 //! and the volume it is played at:
 //! 0x80 sound 0xE4 at `dword_755694`; 0x10, 0x20, 0x40 sounds 0x163, 0x197, 0x1CB at
-//! `dword_7554E8`; 0x100, 8, 2, 4, 1 sounds 0x1CC, 0x1CA, 0x1C8, 0x1C9, 0x1C7 at
-//! `dword_755690`. Then `sound::play_sound` with the sample's own rate (0xFFFFFF91) and no place.
+//! `ScreenFlow.menu_sounds_volume`; 0x100, 8, 2, 4, 1 sounds 0x1CC, 0x1CA, 0x1C8, 0x1C9, 0x1C7 at
+//! `OptionWork.menu_sounds_c`. Then `sound::play_sound` with the sample's own rate (0xFFFFFF91) and no place.
 //! 25 callers (1 is the highlight's click, 2 Enter's sound: `menu::handle_keys`).
 
 use crate::session::Dword;
@@ -21,12 +21,12 @@ const VOLUME_B: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
     .screens
     .flow
-    .menu_sounds_volume; // dword_7554E8
+    .menu_sounds_volume; // ScreenFlow.menu_sounds_volume
 const VOLUME_C: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
     .screens
     .option_work
-    .menu_sounds_c; // dword_755690
+    .menu_sounds_c; // OptionWork.menu_sounds_c
 
 /// `sound` the menu's sound (0: none); `now` is asked for the clock.
 pub fn play_menu_sound(

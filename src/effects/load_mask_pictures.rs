@@ -2,7 +2,7 @@
 //! pictures made 256 x 128 blocks of white with the mask as alpha, and drawn into a
 //! texture surface.
 //!
-//! The ground picture's name is the `dword_934CC8`-th of six (`files\m\snow1.pcx`, `mud1`,
+//! The ground picture's name is the `GroundNames.ground`-th of six (`files\m\snow1.pcx`, `mud1`,
 //! `dust1`, `mud1`, `mud1`, `gumbo0`); it is read twice and never used (section 16). The
 //! surface's lock and unlock are the game's (`d3d::lock_texture` / `d3d::unlock_texture`,
 //! DirectDraw). One caller, `effects::init_marks`. Refuses a ground past the six names (before
@@ -104,7 +104,7 @@ fn mask(masks: &Masks, path: usize, to: Mask, copy: &mut [u8], width: u32) -> Re
 /// to 0 .. 0x21) its picture number's two digits in the three paths; each mask
 /// (`gfx::read_picture_file`) into its block and drawn (`gfx::put_surface_pixel`);
 /// unlocked, the texture slot forgotten (`scene::forget_slot_texture`), the 0x80000
-/// block's list freed, `dword_934D6E` -1.
+/// block's list freed, `MaskBlocks.seen` -1.
 pub fn load_mask_pictures(
     masks: &Masks,
     scene: &crate::scene::owner::Scene,

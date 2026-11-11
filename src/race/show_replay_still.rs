@@ -1,12 +1,12 @@
 //! `race::show_replay_still` (0x46062E): the viewer's still frame, the block read and the frame
 //! shown (`replay_frame`) drawn: `still` and `replay_still_on` 1 (a still); the block
-//! (`block`, 0x2810 bytes) into the replay's frame (`unk_7172EC`), its state loaded
+//! (`block`, 0x2810 bytes) into the replay's frame (`CarsAndReplay.car_blocks.cars[8].frame_head[0]`), its state loaded
 //! (`drive::load_replay_cars`) and its cameras (`drive::replay_cameras`); the cars stepped to the
 //! frame (`race::step_replay_cars` per frame, `step_frame` the frame, `step_block` the block);
-//! at frame 0 one step with `dword_6EF7CC` 1 and the block's state loaded again; then each car
+//! at frame 0 one step with `ReplayFrames.step_first` 1 and the block's state loaded again; then each car
 //! (`g_currentCar`) loaded (`drive::load_car`), its camera worked out when it runs and is not 2
-//! (`physics::camera_frame`, `dword_6EF7CC` 1), stored (`drive::store_car`); `view_on`,
-//! `dword_63DB78` 0, `drawing` 1, the race's scene drawn (0x454229: `race::draw_race_scene`)
+//! (`physics::camera_frame`, `ReplayFrames.step_first` 1), stored (`drive::store_car`); `view_on`,
+//! `RaceView.view_on[1]` 0, `drawing` 1, the race's scene drawn (0x454229: `race::draw_race_scene`)
 //! with `scene_switch` 1 (put back after), the three switches 0.
 //!
 //! Caller: `race::viewer_frame`. Refuses (before anything) a cars' count of 0 or past 8.
@@ -21,7 +21,7 @@ use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
 
 /// The frame's block copied to the replay's (`drive::load_replay_cars` reads it).
 fn load_frame(replay: &Replay) {
-    // unk_7172EC: car block 8's start (the copy runs on past the block, over the next
+    // CarsAndReplay.car_blocks.cars[8].frame_head[0]: car block 8's start (the copy runs on past the block, over the next
     // blocks' tail and the replay's tape).
     copy_cells(
         (&VIEWER_BUFFERS.block, 0),

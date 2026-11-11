@@ -35,7 +35,7 @@ pub fn sine_step() -> f32 {
 }
 
 /// `race::prepare_sound_tables`: the table, 1 + 0.05 sin(x) for x from 0 by the step
-/// (each x rounded to a float, as it is kept in `dword_5183CC`), and the last x.
+/// (each x rounded to a float, as it is kept in `Machine.scratch`), and the last x.
 pub fn sines() -> ([f32; SINES], f32) {
     let step = sine_step();
     let mut x = 0.0f32;

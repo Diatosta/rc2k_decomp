@@ -12,7 +12,7 @@ use rc2k_core::install::layout::{self, Area, Piece};
 
 /// `first` the first piece, `count` the pieces, `the_box` the box.
 ///
-/// `title`: the box is the title's (`unk_51DD98`).
+/// `title`: the box is the title's (`InstallerPages.title_box`).
 pub fn place_row(first: u32, count: u32, the_box: BoxRecord, title: bool) -> Result<(), Refused> {
     let at = |k: u32| LaidPiece::nth(first.wrapping_add(k));
     // Converted: `rc2k_core::install::layout::place_row`, on the pieces' fields it reads;

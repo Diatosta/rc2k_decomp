@@ -50,7 +50,7 @@ impl ReplayViewBlock {
 }
 
 /// What a viewer item shows: a texture rectangle, or the picture a camera byte picks from one
-/// of the three switch tables (0 `off_5C2C70`, 1 `off_5C2C78`, 2 `off_5C2C88`; the original
+/// of the three switch tables (0 `ViewerAndKinds.viewer_panel.switch_pictures_a[0]`, 1 `ViewerAndKinds.viewer_panel.switch_pictures_b[0]`, 2 `ViewerAndKinds.viewer_panel.switch_pictures_c[0]`; the original
 /// kept the table's address).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ViewerPicture {

@@ -30,7 +30,7 @@ fn float_of_80(t: [u8; 10]) -> u32 {
 /// The projection of a turned vertex record (`v` +0x10 x, +0x14 y, +0x18 depth, floats)
 /// onto the screen (+0xC, +0x1C): flat (`flat_depth`) by `flat_depth` + 1, else by the
 /// depth (the original's `fdivrp st(1), st` is `view_scale` over that). x is
-/// x times that scale plus `view_centre`, y is `dword_6240A0` less y times it. When flat,
+/// x times that scale plus `view_centre`, y is `SceneDraw.view_centre[1]` less y times it. When flat,
 /// the original also stored the depth at `scratch`; nothing read it, so it is not kept.
 pub(crate) fn project_record(
     course: &Course,
@@ -111,7 +111,7 @@ fn turn_skid_point(
 
 /// `race::draw_skidmarks` (0x458C03): the skidmarks shown in the drawn view (all in modes 0 and 2,
 /// else those with the view's bit): the polygon's four work entries set once
-/// (vertices 0x623E40 .., texture places `fade_uv` / `dword_623DC0`, bytes 0 and 0x60,
+/// (vertices 0x623E40 .., texture places `fade_uv` / `RaceVars.fade_uv[1]`, bytes 0 and 0x60,
 /// textures 0xC0); then for each link with a link before, its two points and the two before as a
 /// quad (vertices 3, 2, 0, 1), `scene::fog_polygon`, cut by depth and to the screen and drawn in
 /// black in mode 3 without the depth test. Refuses what the scene's functions refuse (mid-way; not

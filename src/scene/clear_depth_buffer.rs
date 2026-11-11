@@ -1,7 +1,7 @@
 //! `scene::clear_depth_buffer` (0x44E967): clears the depth buffer over the whole
 //! screen.
 //!
-//! Only with `dword_5CDA8C` not 0: the rectangle `dword_624138` .. = 0, 0, the screen's width
+//! Only with `ObjectTables.d3d_drawing_on` not 0: the rectangle `SceneDraw.cleared_rectangle[0]` .. = 0, 0, the screen's width
 //! and height, and `d3d::clear_viewport` (0x44E9D9: the viewport's Clear with that one
 //! rectangle and flag 2, the depth buffer; Direct3D, not ported). Three callers.
 

@@ -1,5 +1,5 @@
 //! `race::mud_texture_turn` (0x44A087): the mud's colour packed into `mud_packed`, `mud_turn_a`
-//! into `dword_623910` and `mud_turn_b` into `dword_62391C`, both 0, and
+//! into `RaceVars.mud_turn_a[1]` and `mud_turn_b` into `RaceVars.mud_turn_b[1]`, both 0, and
 //! `race::update_mud_texture`.
 //!
 //! See `race/mud.rs`. One caller, `race::mud_frame`. Refuses what `update_mud_texture` refuses,

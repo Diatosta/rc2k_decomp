@@ -66,7 +66,7 @@ pub struct ViewMatrices {
     pub view_back_matrix: [Float; 16],
     /// The view's place matrix (0x5EA1CC), each view's own.
     pub view_place_matrix: [Float; 16],
-    /// The inverted view turn kept for the mirror (`flt_5EA18C`), each view's own.
+    /// The inverted view turn kept for the mirror (`SceneMatrices.view_turn_copy[0]`), each view's own.
     pub view_turn_copy: [Float; 16],
 }
 

@@ -1,10 +1,10 @@
 //! `physics::set_handling` (0x43EB5D): `physics::grade_or_reset`, then nine handling
 //! figures from the car's setup (whole numbers in the work copy, 0 .. 256 by the look of
 //! it): each lo + n / 256 (hi - lo) between two constants of 0x613F1C .. 0x613F88:
-//! `flt_614C0C`, `flt_614C08` (by `steering_sensitivity`), `flt_614BF0` (`brake_balance`),
-//! `flt_614BF4`, `flt_614BFC` (`ride_height`; the second from the pair for
-//! `g_carDriveKind`, then times `ride_height_handling_scale`), `handling`, `flt_614BF8`, `flt_614C00`,
-//! `flt_614C04` (`suspension_stiffness`). What each is, is a reading.
+//! `PhysicsTables.handling[8]`, `PhysicsTables.handling[7]` (by `steering_sensitivity`), `PhysicsTables.handling[1]` (`brake_balance`),
+//! `PhysicsTables.handling[2]`, `PhysicsTables.handling[4]` (`ride_height`; the second from the pair for
+//! `g_carDriveKind`, then times `ride_height_handling_scale`), `handling`, `PhysicsTables.handling[3]`, `PhysicsTables.handling[5]`,
+//! `PhysicsTables.handling[6]` (`suspension_stiffness`). What each is, is a reading.
 //!
 //! Returns: `g_carDriveKind`
 //!

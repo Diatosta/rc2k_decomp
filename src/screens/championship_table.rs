@@ -37,7 +37,7 @@ pub fn find_history_entry(
 
 /// `screens::draw_championship_table` (0x4A4E1E): the heads (strings 0x484, 0x485, 0x4F9 at
 /// y 0xDC), the six rounds' flags (sprites 0x90 .. 0x95 in event mode 0x13, else 0x8A .. 0x8F,
-/// at y 0x8C), then the ten rows (`dword_755579` from `dword_7556B8` to `dword_7556BC` =
+/// at y 0x8C), then the ten rows (`LoopFlags.champ_row` from `ChampView.first_row` to `ChampView.row_end` =
 /// it + 10): position, name, the rounds' points ("-" alone for below 0), the total, the car's
 /// and flag's sprites; the player's own (+4 above 0) in the highlight fonts; each text from
 /// the last one's y, rows 0x19 apart from y 0xF0. The sprites' palettes ebx as the original

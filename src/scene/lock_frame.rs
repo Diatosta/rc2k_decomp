@@ -1,6 +1,6 @@
 //! `scene::lock_frame` (0x44E837): the back surface locked (`gfx::lock_surface`, the
 //! platform's) and its pitch and pixels kept for the drawing (`dword_4F4988` into
-//! `dword_5C5FB4`, `dword_4F4984` into `dword_5C5FB0`).
+//! `FrameScratch.frame_pixels`, `dword_4F4984` into `FrameScratch.frame_pitch`).
 //!
 //! Callers: `race::loading_bar_frame` and three of the game's (0x442675, 0x4435A0, 0x4435C2).
 //! The registers above are the original's; a call by address goes through `routes.rs`, which

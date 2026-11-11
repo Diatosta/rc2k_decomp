@@ -19,13 +19,13 @@ use crate::logfile::log_int::log_int;
 use crate::logfile::write_line::level;
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::strings::owner::{Lexicon, strings};
 use rc2k_core::strings::lexicon::{Compiled, compile};
 
 // ---- game data ----
 
-/// The work variables (`dword_94EAB4` .. in IDA). Written here and read by nothing (the
+/// The work variables (`Bytes<3140>` .. in IDA). Written here and read by nothing (the
 /// original's compiler read them).
 pub const WORK_LEN: usize = 0xC44;
 /// The work variables that are counts, as offsets into the block, in `Compiled`'s order;
@@ -56,30 +56,30 @@ pub const MEMORY_LEN: usize = 0x519598 - MEMORY_START;
 pub struct LexiconMemory {
     /// `dword_519554`: the memory's kilobytes (`imageheapsize`, a `var\ral.cfg` setting;
     /// the glyph tables' work memory is sized by it too).
-    pub kilobytes: Dword,
-    /// `g_lexiconMemory` (`stru_519558`): the list the memory is taken from (16 bytes).
+    pub kilobytes: PlainDword,
+    /// `g_lexiconMemory` (`LexiconMemory.memory.head`): the list the memory is taken from (16 bytes).
     pub memory: crate::memory::ListCells,
     /// `0x519568` .. `0x519598`: nothing reads or writes them (a gap).
-    pub _gap_14: [Dword; 12],
+    pub _gap_14: [PlainDword; 12],
 }
 
 impl LexiconMemory {
     /// The lexicon's memory; the first values are the image's.
     pub const fn new() -> Self {
         LexiconMemory {
-            kilobytes: Dword::new(0x400),
+            kilobytes: PlainDword::new(0x400),
             memory: crate::memory::ListCells::new(MemoryList {
                 head: 0,
                 total: 0,
                 cursor: 0,
                 remaining: 0,
             }),
-            _gap_14: [const { Dword::new(0) }; 12],
+            _gap_14: [const { PlainDword::new(0) }; 12],
         }
     }
 }
 
-/// The record all empty messages share (`unk_4F3034` in IDA): +4 how
+/// The record all empty messages share (`Bytes<16>` in IDA): +4 how
 /// often it was used (never reset), +0xC its index entry. Written here only.
 pub const EMPTY_MESSAGE_LEN: usize = 0x10;
 /// `aFilesLocaleTxt` (0x4E0770).

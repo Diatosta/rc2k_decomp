@@ -1,7 +1,7 @@
 //! `physics::place_camera` (0x438E5A): the camera placed. Seven figures from
-//! `place_second` (with `split` at 2) or `place_usual` into `dword_606678`,
-//! `60667C`, `6066D4`, `6066D8`, `606730`, `606734` and the last into `dword_60668C`,
-//! `6066E8`, `606744`; the offset (`camera_offset_x` ..) turned by `unk_71A69C`,
+//! `place_second` (with `split` at 2) or `place_usual` into `ViewAndRecords.records[4].offset[1]`,
+//! `60667C`, `6066D4`, `6066D8`, `606730`, `606734` and the last into `ViewAndRecords.records[4].angles[0]`,
+//! `6066E8`, `606744`; the offset (`camera_offset_x` ..) turned by `Car.camera_offset_turns[2]`,
 //! `71A694`, `71A698` then `71A68C`, `71A690`, `71A688` (`math::rotate_point_about_y_ebx`,
 //! `_ecx`, `rotate_point_about_y`) into the place `camera_position`
 //! ..; then the second offset (`view_turn_x` .., / 65536) turned by `g_crashMatrix`

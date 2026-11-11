@@ -5,8 +5,8 @@
 use crate::errors::Refused;
 use crate::race::replay_viewer::Mode;
 
-/// `menu::replay_item_a` (0x47053E): unless `dword_75ACDC` is 1, with a replay there
-/// (`dword_5BEC84` 1) `race::replay_mode_1`; else half a second's sleep and the menu's sound
+/// `menu::replay_item_a` (0x47053E): unless `RaceState.settings.no_replay` is 1, with a replay there
+/// (`ReplayFileBlock.replay_closed` 1) `race::replay_mode_1`; else half a second's sleep and the menu's sound
 /// 8.
 pub fn replay_item_a(race: &crate::race::owner::Race) -> Result<(), Refused> {
     if race.shared.state.settings.no_replay.get() != 1
@@ -19,7 +19,7 @@ pub fn replay_item_a(race: &crate::race::owner::Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `menu::replay_item_b` (0x47052F): unless `dword_75ACDC` is 1, `race::replay_mode_3`.
+/// `menu::replay_item_b` (0x47052F): unless `RaceState.settings.no_replay` is 1, `race::replay_mode_3`.
 pub fn replay_item_b(race: &crate::race::owner::Race) -> Result<(), Refused> {
     if race.shared.state.settings.no_replay.get() != 1 {
         crate::race::replay_mode::replay_mode(race, Mode::SaveLast)?;

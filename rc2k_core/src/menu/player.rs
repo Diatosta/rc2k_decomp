@@ -17,14 +17,14 @@ pub const PLAYERS: u32 = 4;
 pub struct Player {
     /// Record +0x00: nothing reads or writes it (the saved games carry it as it is).
     pub unused_0: u32,
-    /// The player's nationality (0 Great Britain, 1 Argentina, ..; `dword_758816` has
+    /// The player's nationality (0 Great Britain, 1 Argentina, ..; `CaptionTables.nationalities[0]` has
     /// their strings, the flag is sprite 0x1C + it).
     pub nationality: u32,
     /// The number of the player's car.
     pub car_number: u32,
-    /// The view (`dword_7589BA`: bumper, bonnet, driver, interior, chase 1 .. 3).
+    /// The view (`CaptionTables.views[0]`: bumper, bonnet, driver, interior, chase 1 .. 3).
     pub view: u32,
-    /// The second view (`dword_7589DA`: bonnet, bumper, chase 1 .. 3; 5 is made 0).
+    /// The second view (`CaptionTables.second_views[0]`: bonnet, bumper, chase 1 .. 3; 5 is made 0).
     pub second_view: u32,
     /// The section a saved game starts at (`SCREEN_FLOW.start_section`; player 0's, kept
     /// in the saved game).

@@ -10,7 +10,7 @@ use crate::session::Dword;
 
 pub const KIND_ORDER_LEN: u32 = rc2k_core::race::cars::KIND_ORDER_LEN;
 
-/// `race::release_controls` (0x409425): `dword_4F7DE4` 2.
+/// `race::release_controls` (0x409425): `Devices.input_command` 2.
 pub fn release_controls(input: &crate::input::owner::Input) {
     input.devices.input_command.set(2); // g_inputCommand
 }
@@ -82,7 +82,7 @@ pub fn seal_stage_time(race: &Race) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `race::copy_league_table` (0x4650B7): with a source (`dword_75ACD0`), its ten records' +8 into
+/// `race::copy_league_table` (0x4650B7): with a source (`RaceState.settings.rivals`), its ten records' +8 into
 /// `names` and their sixteen dwords from +0x10 into column n of the sixteen rows at
 /// 0x604134.
 pub fn copy_league_table(race: &Race) -> Result<(), BadInput> {
@@ -118,7 +118,7 @@ pub fn copy_league_table(race: &Race) -> Result<(), BadInput> {
 }
 
 /// A kind's value for `set_start_states`: the record of the kind (held to 0x21) its
-/// +0x18 when its limit (`dword_5C7980`) is 0x1B58 or less, else 0.
+/// +0x18 when its limit (`CarSpecs.cars[0].engine_top`) is 0x1B58 or less, else 0.
 fn start_value(physics: &Physics, kind: u32) -> u32 {
     use rc2k_core::race::cars::{start_record, start_state_value};
     let record = &physics.car_specs.cars[start_record(kind) as usize];
@@ -127,7 +127,7 @@ fn start_value(physics: &Physics, kind: u32) -> u32 {
 
 /// Whether a kind is one with its flag (`kind_has_views`) set (below 0x22).
 fn flagged(kind: u32) -> bool {
-    kind < 0x22 && KIND_TABLES.kind_has_views[kind as usize].get() != 0 // dword_5C5AC0: 0x22
+    kind < 0x22 && KIND_TABLES.kind_has_views[kind as usize].get() != 0 // ViewerAndKinds.kind_tables.kind_has_views[0]: 0x22
 }
 
 /// A block's camera view (+0x684) of 2 or 3 made 4.
@@ -138,7 +138,7 @@ fn settle_state(view: &Dword) {
 }
 
 /// `race::set_start_states` (0x446D2E): `start_values` / `CE` the start values of the first car's
-/// kind (the chosen car's, `player`, with `session` 1) and of `dword_62385C`; then with
+/// kind (the chosen car's, `player`, with `session` 1) and of `RaceVars.race_car_kinds[1]`; then with
 /// `session` 1: `split` 0 and, unless the chosen car's kind is flagged, its block's
 /// +0x684 2 or 3 made 4; else `split` 0 (one player) or held to 1 .. 2 (two), and, when the
 /// first car's kind is not flagged or there are two players, the first two blocks' +0x684 2 or 3
@@ -188,9 +188,9 @@ pub fn set_start_states(race: &Race) -> Result<(), Refused> {
 }
 
 /// `race::store_results_by_mode` (0x449957): by `run_kind`: 2 the first block's +0x8C to
-/// `dword_75AFFC`, its +0x654 to `dword_75B000` and `start_place`, its +0x88 to `dword_75B01C`; 0
-/// the first two blocks' +0x88 to `dword_75B01C` / `dword_75B08C` and `g_stageCarTotal` x 100 less
-/// each, held to 0 .. 300000, to `dword_75B020` / `dword_75B090`; 1 and 3 the two +0x88s; others
+/// `RaceState.results.figure_ffc`, its +0x654 to `RaceState.results.figure_000` and `start_place`, its +0x88 to `RaceState.results.results[0].time`; 0
+/// the first two blocks' +0x88 to `RaceState.results.results[0].time` / `RaceState.results.results[1].time` and `g_stageCarTotal` x 100 less
+/// each, held to 0 .. 300000, to `RaceState.results.results[0].word` / `RaceState.results.results[1].word`; 1 and 3 the two +0x88s; others
 /// nothing.
 pub fn store_results_by_mode(race: &Race) {
     let physics = &race.physics;

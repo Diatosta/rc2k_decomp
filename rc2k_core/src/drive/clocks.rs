@@ -31,7 +31,7 @@ impl RaceClock {
     }
 }
 
-/// The replay's clock (`dword_5C2534` hundredths of `dword_5C2530` frames).
+/// The replay's clock (`ReplayViewBlock.replay_frame` hundredths of `ReplayViewBlock.replay_block` frames).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ReplayClock {
     pub frame: u32,

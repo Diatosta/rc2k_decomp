@@ -39,7 +39,7 @@ pub struct ViewWindow {
     pub view_offset_float: [Float; 2],
     /// (`scene::draw_object_faces`).
     pub faces_done: Dword,
-    /// (100 less `dword_60AC80`, held) times `flt_5C5CFC`.
+    /// (100 less `StagePrefs.nearer`, held) times `Numbers.hundredth_a`.
     pub depth_divisor: Float,
     /// `g_clipFarthest`, rounded.
     pub clip_farthest: Dword,

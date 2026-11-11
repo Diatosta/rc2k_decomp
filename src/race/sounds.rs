@@ -1,4 +1,4 @@
-//! The race's sound objects woken at the loading: `off_512A10`, eight
+//! The race's sound objects woken at the loading: `RaceSounds.table[0]`, eight
 //! pointers to the cars' sound objects (`sound::load_race_sounds`), each with a flag at +8.
 
 use crate::errors::{BadInput, Refused};
@@ -14,9 +14,9 @@ fn wake(n: u32) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `race::start_race_sounds` (0x40D592): `sound::start_race_clock`, and unless `dword_514F7C` is 0
+/// `race::start_race_sounds` (0x40D592): `sound::start_race_clock`, and unless `RaceSounds.count` is 0
 /// it is held to 1 .. 8 and that many objects woken; then `sound::let_sounds_play` and
-/// `dword_5124E4` 1.
+/// `RaceClock.started` 1.
 pub fn start_race_sounds(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count(), sound);
     let count: u32 = sound.race.sounds.count.get();

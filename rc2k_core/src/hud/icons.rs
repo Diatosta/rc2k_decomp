@@ -1,7 +1,7 @@
 //! The HUD's square icons (from `hud::draw_icon` 0x4B587E): an entry
 //! of the HUD's record (+0x84 its texture or -1 for none, +0x88 its width, +0x8C its
-//! alpha, +0x90 its drop) scaled by `dword_75C06C` and centred on the 800-wide screen,
-//! shifted by `dword_75C070`, as tall as wide, under the top given.
+//! alpha, +0x90 its drop) scaled by `HudBlock.icon_scale` and centred on the 800-wide screen,
+//! shifted by `HudBlock.icon_shift`, as tall as wide, under the top given.
 
 use crate::math::geometry::fistp64;
 

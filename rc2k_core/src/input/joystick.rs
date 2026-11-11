@@ -41,7 +41,7 @@ pub struct Found {
 }
 
 /// The entry from the capabilities' flags, axes, buttons and hats, and the configuration's
-/// switch (`dword_4F68F4`, not 0: force feedback off).
+/// switch (`Devices.no_force_feedback`, not 0: force feedback off).
 pub fn found(flags: u32, axes: u32, buttons: u32, hats: u32, no_force: u32) -> Found {
     Found {
         caps_flags: flags,

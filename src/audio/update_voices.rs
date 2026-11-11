@@ -18,7 +18,7 @@
 //!
 //! Then in 3D: with EAX (bit 0x1000000) the room is set (`audio::set_eax_room`) when the
 //! room asked (`g_eaxRoom`) is not the one set, or `dword_6D1DD4` is not the one kept
-//! (`dword_506C80`), each then kept; and with `g_commit3d` 1, `audio::commit_3d` and the flag 0.
+//! (`AudioState.environment_kept`), each then kept; and with `g_commit3d` 1, `audio::commit_3d` and the flag 0.
 //! Refuses, before anything: a list that does not end within 0x200 voices; a playing voice
 //! that does not loop without its channel or buffer; a voice to stop without its buffer; a
 //! marked voice's volume or pan past the volume table.

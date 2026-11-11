@@ -24,7 +24,7 @@ use crate::gfx::fill_row_table::ROW_TABLE_ROOM;
 use crate::gfx::picture::{has_picture, read_bytes, with_picture};
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
-use crate::session::{Bytes, Dword};
+use crate::session::{PlainBytes, PlainDword};
 
 // ---- game data ----
 
@@ -37,28 +37,28 @@ pub const LEN: usize = 0x4F50C0 - START;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Rescaler {
-    /// `dword_4F505C`: the list the copy's memory is on (16 bytes).
+    /// `Rescaler.copy_memory.head`: the list the copy's memory is on (16 bytes).
     pub copy_memory: crate::memory::ListCells,
     /// `0x4F506C` .. `0x4F509C`: nothing reads or writes them (a gap).
-    pub _gap_10: [Dword; 12],
+    pub _gap_10: [PlainDword; 12],
     /// `dword_4F509C`: whole pixels a step across.
-    pub step_x: Dword,
+    pub step_x: PlainDword,
     /// `dword_4F50A0`: the step's fraction.
-    pub step_x_fraction: Dword,
+    pub step_x_fraction: PlainDword,
     /// `dword_4F50A4`: whole rows a step down.
-    pub step_y: Dword,
+    pub step_y: PlainDword,
     /// `dword_4F50A8`: the step's fraction.
-    pub step_y_fraction: Dword,
+    pub step_y_fraction: PlainDword,
     /// `dword_4F50AC`: the weight across.
-    pub weight_x: Dword,
+    pub weight_x: PlainDword,
     /// `dword_4F50B0`: the weight down.
-    pub weight_y: Dword,
+    pub weight_y: PlainDword,
     /// `dword_4F50B4`: the columns left (left at 0).
-    pub columns_left: Dword,
+    pub columns_left: PlainDword,
     /// `dword_4F50B8`: the rows left (left at 0).
-    pub rows_left: Dword,
+    pub rows_left: PlainDword,
     /// `0x4F50BC`: the pixel's three parts (`rescale_to_surface`), the fourth byte left as it was.
-    pub components: Bytes<4>,
+    pub components: PlainBytes<4>,
 }
 
 impl Rescaler {
@@ -71,16 +71,16 @@ impl Rescaler {
                 cursor: 0,
                 remaining: 0,
             }),
-            _gap_10: [const { Dword::new(0) }; 12],
-            step_x: Dword::new(0),
-            step_x_fraction: Dword::new(0),
-            step_y: Dword::new(0),
-            step_y_fraction: Dword::new(0),
-            weight_x: Dword::new(0),
-            weight_y: Dword::new(0),
-            columns_left: Dword::new(0),
-            rows_left: Dword::new(0),
-            components: Bytes::new([0; 4]),
+            _gap_10: [const { PlainDword::new(0) }; 12],
+            step_x: PlainDword::new(0),
+            step_x_fraction: PlainDword::new(0),
+            step_y: PlainDword::new(0),
+            step_y_fraction: PlainDword::new(0),
+            weight_x: PlainDword::new(0),
+            weight_y: PlainDword::new(0),
+            columns_left: PlainDword::new(0),
+            rows_left: PlainDword::new(0),
+            components: PlainBytes::new([0; 4]),
         }
     }
 }
@@ -165,7 +165,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&crate::gfx::owner::GFX.rescale, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::GFX.unchecked().rescale,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
@@ -175,11 +179,15 @@ mod tests {
         assert_eq!(offset_of!(Rescaler, components), 0x4F50BC - START);
         assert_eq!(
             crate::moved::place(START),
-            crate::gfx::owner::GFX.rescale.copy_memory.addr() as usize
+            crate::gfx::owner::GFX
+                .unchecked()
+                .rescale
+                .copy_memory
+                .addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x4F50BC),
-            crate::gfx::owner::GFX.rescale.components.addr() as usize
+            crate::gfx::owner::GFX.unchecked().rescale.components.addr() as usize
         );
     }
 }

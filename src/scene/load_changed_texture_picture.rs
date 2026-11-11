@@ -3,8 +3,8 @@
 //!
 //! Takes: the texture
 //!
-//! Nothing if the texture wants no picture (`dword_5D8968[texture]` is -1 or 0) or has the one
-//! it wants (`dword_5D9968[texture]`). Else `scene::load_texture_picture` and the picture is
+//! Nothing if the texture wants no picture (`TexturePlaces.wanted_pictures[0][texture]` is -1 or 0) or has the one
+//! it wants (`TexturePlaces.loaded_pictures[0][texture]`). Else `scene::load_texture_picture` and the picture is
 //! noted as the one it has. One caller, `scene::reload_system_textures`. Refuses a texture past
 //! the tables.
 //!

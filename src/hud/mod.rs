@@ -1,6 +1,6 @@
 //! The race's HUD (`hud::draw_hud` and under it, entered from `hud::overlay_pass`): 2D polygons in
-//! a virtual screen (`flt_75C02C` by `flt_75C030`) scaled to the real one and gathered into a
-//! batch (`unk_75C324`, 0x400 vertices; `unk_764324`, 0x600 indices) drawn with one indexed
+//! a virtual screen (`HudBlock.virtual_screen[0]` by `HudBlock.virtual_screen[1]`) scaled to the real one and gathered into a
+//! batch (`HudBlock.vertices[0].x`, 0x400 vertices; `HudBlock.indices[0]`, 0x600 indices) drawn with one indexed
 //! call per texture.
 
 pub mod add_polygon;

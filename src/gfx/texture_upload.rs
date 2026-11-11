@@ -15,7 +15,7 @@ pub const RECORD_LEN: usize = 0x78;
 pub const TEXTURES: u32 = 0x140;
 
 /// A pixel kind's description, 0x40 bytes (`TextureFormat` in IDA): five from
-/// `stru_5ABAD4` (555, 1555, 4444, 8888 and one more), pointed at by `off_5ABAC0`, filled
+/// `Textures.descriptions[0].0[0]` (555, 1555, 4444, 8888 and one more), pointed at by `Textures.kinds[0]`, filled
 /// by `d3d::find_texture_formats`.
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -34,7 +34,7 @@ pub struct TextureFormat {
 const _: () = assert!(std::mem::size_of::<TextureFormat>() == 0x40);
 
 /// A texture's record, 0x78 bytes (`TextureRecord` in IDA): the system textures from
-/// `stru_5B521C`, the video textures from `stru_5ABC18`, 0x140 of each.
+/// `Textures.system.records[0].0[0]`, the video textures from `Textures.video.records[0].0[0]`, 0x140 of each.
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct TextureRecord {
@@ -203,9 +203,9 @@ pub const LEN: usize = 0x5BE81C - START;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Pool {
-    /// The textures made (`dword_5B5218` / `dword_5ABC14`), at most `TEXTURES`.
+    /// The textures made (`Textures.system.count` / `Textures.video.count`), at most `TEXTURES`.
     pub count: Dword,
-    /// The records (`stru_5B521C` / `stru_5ABC18`), 0x140 of 0x78 bytes; free ones hold -1
+    /// The records (`Textures.system.records[0].0[0]` / `Textures.video.records[0].0[0]`), 0x140 of 0x78 bytes; free ones hold -1
     /// in `holds`.
     pub records: [RecordCell; TEXTURES as usize],
 }
@@ -226,12 +226,12 @@ pub struct Textures {
     /// `format_ref`: the original kept its address; kind 0 none), filled by
     /// `d3d::find_texture_formats`.
     pub kinds: [Dword; 5],
-    /// `stru_5ABAD4`: five descriptions of 0x40 bytes: 555, 1555, 4444, 8888 and the
+    /// `Textures.descriptions[0].0[0]`: five descriptions of 0x40 bytes: 555, 1555, 4444, 8888 and the
     /// screen's (set by `platform::set_mode`).
     pub descriptions: [FormatCell; 5],
-    /// The video textures (`dword_5ABC14`, `stru_5ABC18`).
+    /// The video textures (`Textures.video.count`, `Textures.video.records[0].0[0]`).
     pub video: Pool,
-    /// The system textures (`dword_5B5218`, `stru_5B521C`).
+    /// The system textures (`Textures.system.count`, `Textures.system.records[0].0[0]`).
     pub system: Pool,
 }
 
@@ -358,7 +358,7 @@ impl Record {
         if texture >= TEXTURES {
             return Err(BadInput("a texture past the records").into());
         }
-        let tables = &gfx().card.texture_tables;
+        let tables = crate::gfx::owner::textures();
         let record = Record(&tables.system.records[texture as usize], tables);
         if record.get().format == 0 {
             return Err(BadInput("a texture's record without its format").into());
@@ -495,7 +495,7 @@ pub fn keep_second_picture(
     Ok(())
 }
 
-/// IDA's `off_5ABAC0`.
+/// IDA's `Textures.kinds[0]`.
 #[cfg(test)]
 const KINDS_IDA: usize = 0x5ABAC0;
 
@@ -507,7 +507,7 @@ mod block_tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games_but(
-            &gfx().card.texture_tables,
+            crate::gfx::owner::textures(),
             START,
             START + LEN,
             |image| {

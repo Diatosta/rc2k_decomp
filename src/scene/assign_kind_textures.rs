@@ -1,9 +1,9 @@
 //! `scene::assign_kind_textures` (0x4256D8): every texture slot gets the texture of
 //! the kind it is the first slot of.
 //!
-//! The 0x400 slots of `dword_5DA968` = -1; then for the kinds from 0x3FF down to 0: the kind's
-//! first slot (`dword_5D1AE8`), unless it is -1, gets the kind's first texture
-//! (`dword_5D0AE8`). So of two kinds with one slot the lower one's stays. Six callers. Refuses
+//! The 0x400 slots of `TexturePlaces.slot_wanted[0]` = -1; then for the kinds from 0x3FF down to 0: the kind's
+//! first slot (`KindTextureTables.kind_first_slots[0]`), unless it is -1, gets the kind's first texture
+//! (`KindTextureTables.kind_first_textures[0]`). So of two kinds with one slot the lower one's stays. Six callers. Refuses
 //! a first slot past the table.
 
 use crate::errors::BadInput;

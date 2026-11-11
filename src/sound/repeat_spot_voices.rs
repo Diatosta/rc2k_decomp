@@ -1,7 +1,7 @@
 //! `sound::repeat_spot_voices` (0x40EB44): each voice heard and not playing told when to
 //! start again: a random delay of its kind and, while its repeats last, a restart.
 //!
-//! For each voice heard (+4 1) and not playing: its kind's record (`unk_517FAC`, 8 bytes
+//! For each voice heard (+4 1) and not playing: its kind's record (`SpotPicks.kind_repeats[0]._word_0`, 8 bytes
 //! from kind 1: words +2 the most repeats, +4 and +6 the least and most delay): +0x30 =
 //! the least + `math::random_below` (most - least) (as words; no call when they are
 //! equal); then with no limit (+2 0), or the repeats (+0x2C) below it (counted up), the

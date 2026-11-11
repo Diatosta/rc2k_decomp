@@ -1,8 +1,8 @@
 //! `effects::place_rain_view` (0x4C1CC8): the point (0, 0, 0x20000) turned by the 3 x 3 matrix at
-//! `dword_8BC441` (`scene::transform_int_points`, in place at `dword_8BDD71`); the place
-//! `dword_8BC435` .. less it into `dword_8BDD7D`, `dword_8BDD81`, and `flt_8C5FE1` less
-//! its z plus `dword_8BC43D` into `dword_8BDD85` (each rounded); the matrix's nine
-//! dwords copied to `dword_8BDD89`; the point put back to (0, 0, 0x20000).
+//! `RainState.view_matrix[0]` (`scene::transform_int_points`, in place at `RainState.point[0]`); the place
+//! `RainState.view_place[0]` .. less it into `RainState.view[0]`, `RainState.view[1]`, and `flt_8C5FE1` less
+//! its z plus `RainState.view_place[2]` into `RainState.view[2]` (each rounded); the matrix's nine
+//! dwords copied to `RainState.matrix_copy[0]`; the point put back to (0, 0, 0x20000).
 //!
 //! One caller, `effects::run_rain` (the marks' frame).
 

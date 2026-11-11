@@ -1,7 +1,7 @@
-//! `physics::camera_low_switch` (0x438BF4): with `unk_71A0A0` below 0 (or unordered), no
+//! `physics::camera_low_switch` (0x438BF4): with `Car.crash_matrix[5]` below 0 (or unordered), no
 //! switch under way (`camera_switch_active` 0) and the camera in mode 0 or 1 (`camera_view`): the
-//! ground under the camera (`camera_position`, `unk_71A684`; `physics/camera_ground.rs`);
-//! found and the camera less than 0x800 above it (`unk_71A680` - `ground_height`, by the
+//! ground under the camera (`camera_position`, `Car.camera_position[2]`; `physics/camera_ground.rs`);
+//! found and the camera less than 0x800 above it (`Car.camera_position[1]` - `ground_height`, by the
 //! sign of the `cmp`): the switch begun: `camera_view_return` = the mode before (`camera_blend_view`)
 //! plus 1, `camera_blend_view` = 4, `camera_switch_active` = 1, `camera_switch_share` = 0, `camera_switch_length` = 10,
 //! `camera_switch_clock` = the clock (`step_clock`).

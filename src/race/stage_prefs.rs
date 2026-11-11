@@ -50,7 +50,7 @@ pub fn swap_stage_texture(race: &Race) {
 }
 
 /// `race::tweak_stage` (0x439AAB): for the stages 0x15, 0x3E and 0x36, `car_light_table` ..
-/// `dword_60A56C` 0xFF.
+/// `StagePrefs.car_light_table[2]` 0xFF.
 pub fn tweak_stage(race: &Race) {
     let course = &race.course;
     {

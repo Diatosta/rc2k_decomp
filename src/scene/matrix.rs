@@ -55,7 +55,7 @@ pub fn set_turn_z_16(turn_z: &[Float; 16], work: &[Float; 2], angle: u32) {
 }
 
 /// `scene::set_place` (0x4271AE), on the placed matrix. (The original also left the place's z
-/// in `dword_62400C`; the drawing never read it, `physics::car_collisions` stores it there
+/// in `SceneDraw.scratch`; the drawing never read it, `physics::car_collisions` stores it there
 /// itself.)
 pub fn set_place(placed: &[Float; 16], place: [u32; 3]) {
     crate::session::write_first(

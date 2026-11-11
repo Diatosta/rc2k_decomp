@@ -372,7 +372,7 @@ pub fn close_replay(race: &Race) -> Result<(), Refused> {
 }
 
 /// `race::open_replay` (0x41E6EC): `replay_closed` 0; with replays on (`replays_on` 1,
-/// `no_replay_switch` 0, `session` not 1, `dword_75ACDC` not 1) and 30 MB free: the header
+/// `no_replay_switch` 0, `session` not 1, `RaceState.settings.no_replay` not 1) and 30 MB free: the header
 /// ("REPL", version 0x50400, the date, "tmpreplay", the race's settings), the car's header
 /// (`seal_replay_header`) copied into it, the index "RCIB" cleared, the cursor, counts and length
 /// 0; `var\tmprpl` created; the header written. A failed open or write closes it

@@ -5,7 +5,7 @@
 use crate::errors::Refused;
 use crate::menu::screen_loop::{Callee, Entry, List, Screen, Step, carousel, prepare_scene};
 
-/// `unk_7476E4`'s slot, the item kept between visits.
+/// `ScreenItems.current[33]`'s slot, the item kept between visits.
 const SLOT: usize = (0x7476E4 - 0x747660) / 4;
 
 fn before(entry: &Entry) -> Result<(), Refused> {

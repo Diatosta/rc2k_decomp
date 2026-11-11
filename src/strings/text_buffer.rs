@@ -2,7 +2,7 @@
 //! there), out of RAL.EXE's image, typed. `#[repr(C)]` struct of a byte
 //! buffer; `moved::MOVED` points the image's address at it.
 
-use crate::session::Bytes;
+use crate::session::{Bytes, PlainBytes};
 #[cfg(test)]
 use crate::strings::owner::strings;
 
@@ -11,14 +11,14 @@ use crate::strings::owner::strings;
 #[derive(rc2k_derive::Cells)]
 pub struct TextBuffer {
     /// 0x93E430: `text`: the shared text buffer (the string of an id is built here, then drawn).
-    pub text: Bytes<1024>,
+    pub text: PlainBytes<1024>,
 }
 
 /// One of the game's shared text buffers, which texts are built in and drawn from: the text
 /// buffer, or one of the screens' 0x100-byte line buffers. Reads and writes stay inside it.
 #[derive(Clone, Copy)]
 pub enum TextBuf {
-    Text(&'static Bytes<1024>),
+    Text(&'static PlainBytes<1024>),
     Line(&'static Bytes<0x100>),
 }
 
@@ -57,7 +57,7 @@ impl TextBuf {
 impl TextBuffer {
     pub const fn new() -> Self {
         TextBuffer {
-            text: Bytes::new([0; 1024]),
+            text: PlainBytes::new([0; 1024]),
         }
     }
 }

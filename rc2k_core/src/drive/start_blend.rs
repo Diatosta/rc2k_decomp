@@ -22,7 +22,7 @@ pub struct StartBlend {
 /// `drive::start_blend`: `car` less `lead` held to
 /// 0 ..= 100 by the signs; the share times `step`; the blend of `base`
 ///, the share and `offset` held to `low` .. `high`
-/// (`flt_5C5D90`, `flt_5C5D38`: 0, 1; below or no number raised, not below lowered).
+/// (`Numbers.zero`, `Numbers.one`: 0, 1; below or no number raised, not below lowered).
 pub fn start_blend(
     car: u32,
     lead: u32,

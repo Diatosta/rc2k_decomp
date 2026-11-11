@@ -116,7 +116,7 @@ pub fn per_thousand(v: i64) -> Option<u32> {
         .then_some(q as u32)
 }
 
-/// The five axle values from the model's record (`dword_5C9098` +0 .. +0x10) and the
+/// The five axle values from the model's record (`LightsAndGear.light_records.records[0].axles[0]` +0 .. +0x10) and the
 /// lift (`ground_drop`): (front x, rear x less the lift, height, front z, rear z less
 /// the lift) as `axle_front`, `axle_rear_lift`, `axle_height`, `axle_front_z`,
 /// `car_axles`; None where a scaling would fault.

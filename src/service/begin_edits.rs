@@ -16,9 +16,9 @@ use crate::session::DwordLike;
 /// One page's own variables.
 #[derive(Clone, Copy)]
 pub struct Edit {
-    /// The page number written to `dword_75AAA0`.
+    /// The page number written to `MenuState.service_ui.box_page`.
     pub page: u32,
-    /// The item's service time (`dword_75AB90` ..).
+    /// The item's service time (`MenuState.driver_stats.repair_times[12]` ..).
     pub time: &'static dyn DwordLike,
     /// The chosen value, copied ...
     pub chosen: &'static dyn DwordLike,

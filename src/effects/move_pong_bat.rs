@@ -1,6 +1,6 @@
-//! `effects::move_pong_bat` (0x4B82B0): the pong bat's place kept (`dword_7686AC`,
-//! `dword_7686B0`), then `effects::pong_bat_back`. The keys' moves between (up with
-//! `byte_4F6B94` and `byte_4F6B91`, down with `byte_4F6B84`, none with `byte_4F6B86`, held
+//! `effects::move_pong_bat` (0x4B82B0): the pong bat's place kept (`PongState.saved_bat[0]`,
+//! `PongState.saved_bat[1]`), then `effects::pong_bat_back`. The keys' moves between (up with
+//! `Devices.keys_now` and `Devices.keys_now`, down with `Devices.keys_now`, none with `Devices.keys_now`, held
 //! to `flt_7691E6` .. ) are jumped over by the original's two `jmp short`s: the bat
 //! never moves (section 16).
 //!

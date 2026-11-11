@@ -10,9 +10,9 @@ use crate::screens::screen::Screen;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E824`.
+    /// `FontObjects.objects[36].first_char`.
     Measure,
-    /// `stru_51E964`, `stru_51E844`: blended into `stru_51E384`.
+    /// `FontObjects.objects[46].first_char`, `FontObjects.objects[37].first_char`: blended into `FontObject.first_char`.
     A,
     B,
     Blended,
@@ -23,14 +23,14 @@ pub enum Work {
     /// `g_markerX`, `g_markerY`.
     MarkerX,
     MarkerY,
-    /// `seconds`, `dword_7559B0`, `dword_7559B4`, `glyph`, `dword_7559C4`: the button's
+    /// `seconds`, `DrawWork.scratch_b0`, `DrawWork.scratch_b4`, `glyph`, `DrawWork.scratch_c4`: the button's
     /// width, x, y, left and right sprites.
     Width,
     X,
     Y,
     Left,
     Right,
-    /// `dword_755A20` .. `dword_755A2C`: where its two ends were drawn.
+    /// `DrawWork.marker_end_a` .. `DrawWork.marker_end_d`: where its two ends were drawn.
     LeftX,
     LeftY,
     RightX,

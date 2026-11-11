@@ -221,7 +221,7 @@ pub fn gearing_switch_text(switch: u32) -> u32 {
 pub const TRY_CHOSEN_MODE: u32 = 1;
 pub const BACK_TO_MODE: u32 = 0;
 
-/// What the graphics page's "apply" leaves: the highlighted item and `dword_74771C`, and
+/// What the graphics page's "apply" leaves: the highlighted item and `ScreenItems.current[47]`, and
 /// the menu's sound.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Applied {

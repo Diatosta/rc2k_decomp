@@ -1,9 +1,9 @@
 //! `drive::race_loop` (0x444D46): the race played until it ends. The eight blocks' +0xFAC 10,
-//! `dword_518398` (paused) and `scene_switch` 0; the clock (`scene::restart_clock`) into
+//! `WindowLoopState.paused` (paused) and `scene_switch` 0; the clock (`scene::restart_clock`) into
 //! `clock_a`, `5CC3B0`; 0x20 dwords at `marks` and `play_end` -1. Then, with the
 //! tenth's base `race_clock_base` the clock each time round: a window not active pauses
-//! (`dword_518398` 1); unpaused, `input::update`; in the attract mode (`in_credits`) a key
-//! (`drive::any_key_down`) or `dword_529854` ends it; key 1 (Esc) asks to quit
+//! (`WindowLoopState.paused` 1); unpaused, `input::update`; in the attract mode (`in_credits`) a key
+//! (`drive::any_key_down`) or `Credits.done` ends it; key 1 (Esc) asks to quit
 //! (`drive::quit_question`: no goes on, else the answer into the cars' +0xB0 (a replay's car's
 //! only), with two cars a finished car's 2) and ends it; the views' bit 0x40 (+0x468,
 //! `g_viewBlocks`; the second with two views) while not holding (`hold_count` 0) pauses; else

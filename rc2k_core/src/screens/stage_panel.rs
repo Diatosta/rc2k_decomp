@@ -15,22 +15,22 @@ use crate::strings::format::{Pad, clock, decimal, fraction, percent, time};
 pub enum Font {
     Label,
     Value,
-    /// The surface and weather headings (`stru_51E5C4`).
+    /// The surface and weather headings (`FontObjects.objects[17].first_char`).
     Heading,
-    /// The rally stage page's headings (`stru_51E564`).
+    /// The rally stage page's headings (`FontObjects.objects[14].first_char`).
     RallyHeading,
     Description,
     Number,
-    /// The stage heading's (`stru_51E9A4`).
+    /// The stage heading's (`FontObjects.objects[48].first_char`).
     Title,
-    /// The record rows' time (`stru_51E564`, the rally headings' record).
+    /// The record rows' time (`FontObjects.objects[14].first_char`, the rally headings' record).
     Time,
 }
 
 /// The work variables.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `dword_7559EC`, used all over the game.
+    /// `DrawWork.figure`, used all over the game.
     Scratch,
     /// The finish time.
     Finish,

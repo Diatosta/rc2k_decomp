@@ -1,7 +1,7 @@
 //! `race::loadlevel_init`'s "render3d initmud": 64 KB on
-//! `stru_5C6F50` for the mud (`mud`), the car's mud file
+//! `CourseLists.mud_list[0]` for the mud (`mud`), the car's mud file
 //! (`files\b\mudfile.0xx`, xx the car's file number) read into it, the mud's state
-//! cleared, and 256 colours sampled from a picture surface (`dword_5D0DEC`, locked and
+//! cleared, and 256 colours sampled from a picture surface (`KindTextureTables.kind_first_textures[193]`, locked and
 //! unlocked through DirectDraw: the game's, `d3d::lock_texture` / `d3d::unlock_texture`).
 
 use crate::errors::BadInput;
@@ -110,7 +110,7 @@ pub fn sample_mud_colours(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let textures = &scene.textures;
-    // dword_5D0DEC (`g_kindFirstTextures` + 0x304): the surface sampled.
+    // KindTextureTables.kind_first_textures[193] (`g_kindFirstTextures` + 0x304): the surface sampled.
     crate::d3d::lock_texture::lock_texture(textures.kinds.kind_first_textures[193].get())?;
     // Converted: `rc2k_core::race::mud::sample_place`.
     for n in 0..rc2k_core::race::mud::SAMPLES {
@@ -122,7 +122,7 @@ pub fn sample_mud_colours(
 }
 
 /// The mud file's strengths (`g_mud`, the game's 0x10000-byte block), Rust's since phase
-/// 12: taken by `init_mud` counted on `stru_5C6F50`, given back by `race::free_mud`.
+/// 12: taken by `init_mud` counted on `CourseLists.mud_list[0]`, given back by `race::free_mud`.
 pub static MUD: crate::memory::owned::Owned<Vec<u8>> = crate::memory::owned::Owned::new("no mud");
 
 /// `race::init_mud` (0x449DD6): the list's total + 0x10000, the mud taken (`MUD`, the game's

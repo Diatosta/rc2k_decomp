@@ -29,7 +29,7 @@ use crate::errors::Refused;
 use crate::framework::log;
 use crate::system::owner::Session;
 
-/// `word_51D752` when the installer's script is set up.
+/// `InstallerPages.script_set_up` when the installer's script is set up.
 const INSTALLER_MARK: u16 = 0xBD;
 
 /// The base directory's first character (`g_baseDirectory`).

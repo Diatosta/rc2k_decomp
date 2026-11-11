@@ -10,13 +10,13 @@
 //! dropped, the items marked (`race::mark_viewer_items`). Each frame after (shown by
 //! `screens::run_frame` with 0x41D5FB, `race::viewer_frame`): the clocks, a key
 //! (`menu::list_take_key`); the game quitting ends it; keys
-//! held after a play (`wait_key_release`, until `byte_4F6ADD` and `byte_4F6AF8` are up) do
+//! held after a play (`wait_key_release`, until `Devices.keys_down` and `Devices.keys_down` are up) do
 //! nothing; Escape twice in a row ends it. Playing (`viewer_stopped` 0): a frame on
 //! (`race::step_viewed_replay`); its end or any key stops. Stopped: key 0x52 (Numpad 0) a screenshot
 //! (`gfx::take_screenshot`, with screenshots on); while a camera is edited 0x68, 0x69,
 //! Escape, Enter are actions 0x1E, 0x1F, 0x20, 0x21; else the arrows move the highlight
 //! (`menu::list_step`), Enter does the item's action (its byte 1), 0x3B and 0x3C actions 6
-//! and 0x22, the developer's keys (`dword_5C2CEB`) '?', '@', 'A', 'B' 0x26, 0x27, 0x28,
+//! and 0x22, the developer's keys (`ViewerAndKinds.viewer_panel.untyped_tail[0]`) '?', '@', 'A', 'B' 0x26, 0x27, 0x28,
 //! 0x25, and with editing (`viewer_editing`) the keys of `KEYS`. After an action or a move
 //! the items are marked again and a highlight that cannot be chosen
 //! (`menu::list_item_unusable`) moved on the way it went, else back, else to item 6 (or

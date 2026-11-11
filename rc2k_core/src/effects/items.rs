@@ -55,7 +55,7 @@ pub struct Pick {
     pub kind: u32,
 }
 
-/// `effects::pick_windscreen_flake`'s: the squares' own random (`dword_8BC256`, times 0xC5 plus
+/// `effects::pick_windscreen_flake`'s: the squares' own random (`WindscreenFlakeState.pick_random`, times 0xC5 plus
 /// 0x5D), the kind its bits 21 .. 23.
 pub fn pick_windscreen_flake(random: u32) -> Pick {
     let s = random.wrapping_mul(0xC5).wrapping_add(0x5D);

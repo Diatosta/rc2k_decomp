@@ -1,9 +1,9 @@
 //! `scene::list_object_faces` (0x45048C): goes through an object's faces and lists the
 //! ones to draw.
 //!
-//! The list emptied (the original's `g_listedFaceCount` = 0; its -1 into `dword_62361C`, read by nothing, not kept); then for each of the
-//! object's `dword_6350C0` faces, from `dword_6350BC` on in `g_faces`: its number within the
-//! object to `dword_623620` and `scene::list_object_face`. One caller, `scene::draw_object`.
+//! The list emptied (the original's `g_listedFaceCount` = 0; its -1 into `RaceVars.face_mark`, read by nothing, not kept); then for each of the
+//! object's `ObjectWork.object_face_count` faces, from `ObjectWork.object_first_face` on in `g_faces`: its number within the
+//! object to `RaceVars.face_number` and `scene::list_object_face`. One caller, `scene::draw_object`.
 //! Refuses an object of no faces (the original goes through 2^32) or of more than the list holds, a
 //! face's number past the table and a face that is not there.
 

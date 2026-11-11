@@ -116,15 +116,15 @@ impl RaceCar {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceResult {
-    /// The car's time (`dword_75B01C` / `dword_75B08C`).
+    /// The car's time (`RaceState.results.results[0].time` / `RaceState.results.results[1].time`).
     pub time: Dword,
-    /// One more word (`dword_75B020` / `dword_75B090`).
+    /// One more word (`RaceState.results.results[0].word` / `RaceState.results.results[1].word`).
     pub word: Dword,
-    /// The seconds, a float (`flt_75B024` / `flt_75B094`).
+    /// The seconds, a float (`RaceState.results.results[0].secs` / `RaceState.results.results[1].secs`).
     pub secs: Float,
     /// The result (`g_raceResult` / `g_raceResult2`): -1 none, -2 left.
     pub result: Dword,
-    /// The 0x40 bytes of data (`unk_75B02C` / `unk_75B09C`; the best line's text).
+    /// The 0x40 bytes of data (`RaceState.results.results[0].data` / `RaceState.results.results[1].data`; the best line's text).
     pub data: Bytes<64>,
     /// The car's eight impact marks, from and back to `Player::impact_marks`.
     pub impact_marks: [Dword; 8],
@@ -138,44 +138,44 @@ pub struct RaceResult {
 pub struct RaceSettings {
     /// `g_newSimulationUnlocked`: 1 in the A8 game (`menu::apply_cheats`).
     pub a8_game: Dword,
-    /// `dword_75ACD0`: a copy of the standings summary (`dword_7556F4`, the game held its
+    /// `RaceState.settings.rivals`: a copy of the standings summary (`ChampView.summary`, the game held its
     /// address): 1 while the summary (`saves::best_times::SUMMARY`) is taken, or 0.
     pub rivals: Dword,
-    /// `dword_75ACD4`: the stage chosen.
+    /// `RaceState.settings.stage`: the stage chosen.
     pub stage: Dword,
-    /// `dword_75ACD8`: the run's kind argument.
+    /// `RaceState.settings.run_kind`: the run's kind argument.
     pub run_kind: Dword,
-    /// `dword_75ACDC`: 1 when the race is not an event's and has more than one player.
+    /// `RaceState.settings.no_replay`: 1 when the race is not an event's and has more than one player.
     pub no_replay: Dword,
-    /// `dword_75ACE0`: 1, or 2 in the events' one-car modes.
+    /// `RaceState.settings.race_mode`: 1, or 2 in the events' one-car modes.
     pub race_mode: Dword,
-    /// `dword_75ACE4`: a copy of `dword_7554C8`, put back after the race.
+    /// `RaceState.settings.kept`: a copy of `ScreenFlow.kept`, put back after the race.
     pub kept: Dword,
-    /// `dword_75ACE8` (Shaun's `g_raceCarKinds`): the current player's record word at +8.
+    /// `RaceState.settings.car_kind_current` (Shaun's `g_raceCarKinds`): the current player's record word at +8.
     pub car_kind_current: Dword,
-    /// `dword_75ACEC`: player 1's record word at +8.
+    /// `RaceState.settings.car_kind_first`: player 1's record word at +8.
     pub car_kind_first: Dword,
-    /// `dword_75ACF0`: the stage's direction (the selected group's copy).
+    /// `RaceState.settings.direction`: the stage's direction (the selected group's copy).
     pub direction: Dword,
-    /// `unk_75ACF4`: no IDA xref and no Rust use; 0 at start.
+    /// `RaceState.settings.unk_75acf4`: no IDA xref and no Rust use; 0 at start.
     pub unk_75acf4: Dword,
-    /// `dword_75ACF8`: the track entry's +0x1C.
+    /// `RaceState.settings.track_1c`: the track entry's +0x1C.
     pub track_1c: Dword,
-    /// `dword_75ACFC`: the track entry's +0x20.
+    /// `RaceState.settings.track_20`: the track entry's +0x20.
     pub track_20: Dword,
-    /// `dword_75AD00`: the lens flare option, copied from `dword_755650`.
+    /// `RaceState.settings.lens_flare`: the lens flare option, copied from `OptionWork.lens_flare`.
     pub lens_flare: Dword,
-    /// `dword_75AD04`: read only in dead code outside any function (0x470060 .. 0x4700A1, beside the options toggles); 100 (0x64) at start.
+    /// `RaceState.settings.unused_percent_a`: read only in dead code outside any function (0x470060 .. 0x4700A1, beside the options toggles); 100 (0x64) at start.
     pub unused_percent_a: Dword,
-    /// `dword_75AD08`: read only in dead code outside any function (0x4700C0 ..); 100 (0x64) at start.
+    /// `RaceState.settings.unused_percent_b`: read only in dead code outside any function (0x4700C0 ..); 100 (0x64) at start.
     pub unused_percent_b: Dword,
-    /// `dword_75AD0C`: the reflections option (graphics page), copied from `dword_75565C`.
+    /// `RaceState.settings.reflections`: the reflections option (graphics page), copied from `OptionWork.reflections`.
     pub reflections: Dword,
-    /// `dword_75AD10`: the car shadows option, copied from `dword_755660`.
+    /// `RaceState.settings.car_shadows`: the car shadows option, copied from `OptionWork.car_shadows`.
     pub car_shadows: Dword,
-    /// `dword_75AD14`: the car detail option, copied from `dword_755664`.
+    /// `RaceState.settings.car_detail`: the car detail option, copied from `OptionWork.car_detail`.
     pub car_detail: Dword,
-    /// `dword_75AD18`: the headlights option (all cars' lamps), copied from `dword_755668`.
+    /// `RaceState.settings.headlights`: the headlights option (all cars' lamps), copied from `OptionWork.headlights`.
     pub headlights: Dword,
     /// The two players' settings: [0] the current player's (the "second set", 0x75AD1C),
     /// [1] player 1's (the "first set", 0x75AE88).
@@ -186,35 +186,35 @@ pub struct RaceSettings {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceResults {
-    /// `dword_75AFF4`: the arcade race's stage (Shaun's `dword_6238D0`).
+    /// `RaceState.results.race_stage`: the arcade race's stage (Shaun's `RaceVars.race_stage`).
     pub race_stage: Dword,
-    /// `dword_75AFF8`: the arcade race's level (Shaun's `dword_6238CC`).
+    /// `RaceState.results.race_level`: the arcade race's level (Shaun's `RaceVars.race_level`).
     pub race_level: Dword,
-    /// `dword_75AFFC`: a figure of the race (the record's +0x654 side; `race::race_shell`).
+    /// `RaceState.results.figure_ffc`: a figure of the race (the record's +0x654 side; `race::race_shell`).
     pub figure_ffc: Dword,
-    /// `dword_75B000`: a figure of the race (Shaun's `dword_6051BC`).
+    /// `RaceState.results.figure_000`: a figure of the race (Shaun's `RaceTables.start_place`).
     pub figure_000: Dword,
-    /// `dword_75B004`: the current player's record +0x288.
+    /// `RaceState.results.service_spent_current`: the current player's record +0x288.
     pub service_spent_current: Dword,
-    /// `dword_75B008`: player 1's record +0x288.
+    /// `RaceState.results.service_spent_first`: player 1's record +0x288.
     pub service_spent_first: Dword,
-    /// `dword_75B00C`: the current player's record +0x284 (the HUD's bits); goes back to it.
+    /// `RaceState.results.hud_bits_current`: the current player's record +0x284 (the HUD's bits); goes back to it.
     pub hud_bits_current: Dword,
-    /// `dword_75B010`: player 1's record +0x284.
+    /// `RaceState.results.hud_bits_first`: player 1's record +0x284.
     pub hud_bits_first: Dword,
-    /// `dword_75B014`: the current player's record +0x278.
+    /// `RaceState.results.flags_current`: the current player's record +0x278.
     pub flags_current: Dword,
-    /// `dword_75B018`: player 1's record +0x278.
+    /// `RaceState.results.flags_first`: player 1's record +0x278.
     pub flags_first: Dword,
     /// The two cars' results: [0] the current car's (0x75B01C), [1] the first car's (0x75B08C).
     pub results: [RaceResult; 2],
-    /// `dword_75B0FC`: the arcade race's index into the stage table (`drive::finish_race`).
+    /// `RaceState.results.stage_index`: the arcade race's index into the stage table (`drive::finish_race`).
     pub stage_index: Dword,
-    /// `dword_75B100`: the finishing player (+0xAA8 of the car block).
+    /// `RaceState.results.finish_player`: the finishing player (+0xAA8 of the car block).
     pub finish_player: Dword,
-    /// `dword_75B104`: the cars' kind (into `g_raceCarKinds`).
+    /// `RaceState.results.finish_kind`: the cars' kind (into `g_raceCarKinds`).
     pub finish_kind: Dword,
-    /// `dword_75B108`: 1 at the championship's finish / the arcade final.
+    /// `RaceState.results.finished`: 1 at the championship's finish / the arcade final.
     pub finished: Dword,
 }
 

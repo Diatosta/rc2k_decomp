@@ -37,7 +37,7 @@ use crate::gfx::texture_upload::Textures;
 use crate::gfx::typefaces::FontObjects;
 use crate::gfx::upload::Upload;
 use crate::gfx::windscreen_drop_batch::WindscreenDrops;
-use crate::session::{Bytes, Dword};
+use crate::session::{GameThread, PlainBytes, PlainDword};
 
 /// The PNG reader's state: the file being decoded, its header and the setting that turns
 /// PNG files off.
@@ -46,7 +46,7 @@ pub struct Png {
     pub header: PngHeader,
     /// `g_pngSetting` (`dword_51B97C`, `nopngdecode`, a `var\ral.cfg` setting): 0 = PNG
     /// files are read.
-    pub setting: Dword,
+    pub setting: PlainDword,
 }
 
 impl Png {
@@ -54,7 +54,7 @@ impl Png {
         Png {
             file: PngFile::new(),
             header: PngHeader::new(),
-            setting: Dword::new(0),
+            setting: PlainDword::new(0),
         }
     }
 }
@@ -101,9 +101,9 @@ pub struct Pictures {
     pub decoder: Decoder,
     pub pcx: Pcx,
     /// The planes of the row being written (a buffer, zero at the start).
-    pub planes: Bytes<PLANES_LEN>,
+    pub planes: PlainBytes<PLANES_LEN>,
     /// `g_showingPicture` (`dword_51B9C4`): 1 while a picture is being shown.
-    pub showing: Dword,
+    pub showing: PlainDword,
 }
 
 impl Pictures {
@@ -112,8 +112,8 @@ impl Pictures {
             picture: Picture::new(),
             decoder: Decoder::new(),
             pcx: Pcx::new(),
-            planes: Bytes::new([0; PLANES_LEN]),
-            showing: Dword::new(0),
+            planes: PlainBytes::new([0; PLANES_LEN]),
+            showing: PlainDword::new(0),
         }
     }
 }
@@ -149,9 +149,9 @@ pub struct Drawing {
     pub surfaces: Surfaces,
     /// `dword_4F3FC4`: each row of a picture (602 of them), zero at the start: its offset in
     /// the decoded buffer now (the original's addresses).
-    pub row_table: [Dword; ROW_TABLE_ROOM as usize],
+    pub row_table: [PlainDword; ROW_TABLE_ROOM as usize],
     /// `byte_4F4B30`: n / 3 for the sums of three components (zero until filled).
-    pub thirds: Bytes<TABLE_LEN>,
+    pub thirds: PlainBytes<TABLE_LEN>,
 }
 
 impl Drawing {
@@ -161,8 +161,8 @@ impl Drawing {
             bar: BarVars::new(),
             draw_surface: DrawSurface::new(),
             surfaces: Surfaces::new(),
-            row_table: [const { Dword::new(0) }; ROW_TABLE_ROOM as usize],
-            thirds: Bytes::new([0; TABLE_LEN]),
+            row_table: [const { PlainDword::new(0) }; ROW_TABLE_ROOM as usize],
+            thirds: PlainBytes::new([0; TABLE_LEN]),
         }
     }
 }
@@ -211,7 +211,7 @@ pub struct Gfx {
 }
 
 /// The one instance. Reached through `gfx()`; `moved` registers its stores' places.
-pub static GFX: Gfx = Gfx {
+pub static GFX: GameThread<Gfx> = GameThread::new(Gfx {
     display: Display::new(),
     pixel: Pixel::new(),
     sheet: SheetVars::new(),
@@ -226,9 +226,21 @@ pub static GFX: Gfx = Gfx {
     fonts: FontStores::new(),
     drawing: Drawing::new(),
     card: Card3d::new(),
-};
+});
 
 /// The module's state; pass it down where a function reaches it more than once.
 pub fn gfx() -> &'static Gfx {
-    &GFX
+    GFX.get()
+}
+
+/// The surface the screen is drawn on, from any thread: its cells are atomic (the drawing
+/// threads read where the screen is while the game's thread waits).
+pub fn draw_surface() -> &'static DrawSurface {
+    &GFX.unchecked().drawing.draw_surface
+}
+
+/// The 3D card's texture tables, from any thread: they are atomic cells, which the drawing
+/// threads read while the game's thread waits.
+pub fn textures() -> &'static Textures {
+    &GFX.unchecked().card.texture_tables
 }

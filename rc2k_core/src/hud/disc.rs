@@ -96,7 +96,7 @@ pub fn disc_triangle(k: u32) -> [u32; 3] {
     [0, k + 1, third]
 }
 
-/// The needle's constants after its least value (`flt_75C2BC` + 4 n, each asked for where
+/// The needle's constants after its least value (`HudBlock.needle_k[0]` + 4 n, each asked for where
 /// it is read): the angles' base and second base, the split, the most with the kind switch,
 /// the scale, the second scale, the most without.
 pub mod needle {

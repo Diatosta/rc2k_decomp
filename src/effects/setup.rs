@@ -88,7 +88,7 @@ pub fn clock_at(mk: usize) -> &'static MarksClock {
 
 /// `effects::seed_noise` (0x4C1697): 0x100 steps of `g_marksSeed` (times 0x9D plus 0x47),
 /// each giving entry 0xFF .. 0 of the three noise tables its low 18 bits, its low 18 bits
-/// turned right 10 and turned right 20; `dword_8BC405` 0.
+/// turned right 10 and turned right 20; `RainState.drawn` 0.
 pub fn seed_noise(weather: &Weather, effects: &crate::effects::owner::Effects) {
     let setup = &effects.setup;
     // Converted: `rc2k_core::effects::noise::seed_noise`.
@@ -103,7 +103,7 @@ pub fn seed_noise(weather: &Weather, effects: &crate::effects::owner::Effects) {
 }
 
 /// `effects::make_wave_tables` (0x4C4E2F): once (`g_marksWaveDone` 0): the 0x11 levels,
-/// whole numbers, become floats (over `flt_9206C6`, less `flt_9206CA`), the 0x140 sines of
+/// whole numbers, become floats (over `WaveState.scale`, less `WaveState.less`), the 0x140 sines of
 /// 0, step, 2 step .. (`math::x87::sine_table`); then `g_marksWaveDone` = `nullsub_23`.
 /// Done before: nothing. Refuses a mark that is neither 0 nor `nullsub_23` (the original
 /// jumps to it).
@@ -145,11 +145,11 @@ pub fn clear_slots(effects: &crate::effects::owner::Effects) {
 }
 
 /// `effects::tick_clock` (0x4D2BDC). The first time (`g_marksClockStarted` 0): started, the
-/// last, now and before `g_sceneClock`, the ticks 0, the reciprocal `flt_93CC10`. Then:
+/// last, now and before `g_sceneClock`, the ticks 0, the reciprocal `ClockK.first_reciprocal`. Then:
 /// before the last, now and the last the clock, the ticks the difference (0 unless
 /// `g_marksSettings` +0x10 is 1), a quarter and a sixteenth of them (shifted), the
-/// reciprocal one over them (`fidiv`) and that times `flt_7651BC`, and the ticks' bits
-/// taken as a float (section 16) times `flt_93CC14`.
+/// reciprocal one over them (`fidiv`) and that times `MarksFloats.quarter`, and the ticks' bits
+/// taken as a float (section 16) times `ClockK.ticks_scale`.
 pub fn tick_clock(
     shared: &RaceShared,
     effects: &crate::effects::owner::Effects,
@@ -203,8 +203,8 @@ pub const CURVE_RECORDS: u32 = 0x20;
 ///   neighbours and itself (`x87::weighted3_to_int`);
 /// - the copy's 0 .. 0xFFD less a ramp from 0 by (copy 0xFFF - copy 0) / 0x1000;
 /// - 0x800 times three 20-bit randoms and (the seed >> 30, three bits) times 0.0625 plus
-///   `flt_8DB4E8`; then 0x800 times two remainders (`idiv` by 0xC00);
-/// - `dword_8D215C` 0, the 0x20 records' four quarters, the three quads.
+///   `SnowLight.spread_base`; then 0x800 times two remainders (`idiv` by 0xC00);
+/// - `SnowState.flag` 0, the 0x20 records' four quarters, the three quads.
 ///
 /// Refuses a divisor that is 0 or 1 or -1 (the original's `idiv` traps).
 // Converted: `rc2k_core::effects::noise::{walk, smooth, random_tables, record_values}`
@@ -315,7 +315,7 @@ pub fn make_noise_curve(
     for cell in &weather.snow.quad_a {
         cell.set_bits(first.to_bits());
     }
-    // The view's centre (`dword_62409C`, `dword_6240A0`).
+    // The view's centre (`SceneDraw.view_centre[0]`, `SceneDraw.view_centre[1]`).
     let centre = &crate::scene::polygon_work::front_end().window.view_centre;
     for (quad, from) in [
         (&weather.snow.quad_b, &centre[0]),

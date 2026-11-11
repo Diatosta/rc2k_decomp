@@ -1,5 +1,5 @@
 //! The clock of the race's sounds (from `sound::start_race_clock`
-//! 0x40F1E9 and `sound::step_race_clock` 0x40F20E): `dword_5124E8` ..`dword_5124F4`.
+//! 0x40F1E9 and `sound::step_race_clock` 0x40F20E): `RaceClock.last` ..`RaceClock.turns`.
 
 /// The clock, in the game's order.
 #[derive(Clone, Copy, Debug, PartialEq)]

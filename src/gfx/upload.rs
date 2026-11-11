@@ -3,7 +3,7 @@
 //! 0x5ABA8C. A surface's `Lock` fills the description; `d3d::texture_lock` and
 //! `upload_texture_picture` hand its address on and read the pitch and the pixels.
 
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// IDA's address of the block's first byte.
 pub const START: usize = 0x5ABA18;
@@ -15,43 +15,43 @@ pub const LEN: usize = 0x5ABA8C - START;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SurfaceDesc {
-    /// `dwSize` (`dword_5ABA18`).
-    pub size: Dword,
+    /// `dwSize` (`Upload.description.size`).
+    pub size: PlainDword,
     /// `dwFlags`.
-    pub flags: Dword,
+    pub flags: PlainDword,
     /// `dwHeight`.
-    pub height: Dword,
+    pub height: PlainDword,
     /// `dwWidth`.
-    pub width: Dword,
-    /// `lPitch` (`dword_5ABA28`): the locked surface's pitch.
-    pub pitch: Dword,
+    pub width: PlainDword,
+    /// `lPitch` (`Upload.description.pitch`): the locked surface's pitch.
+    pub pitch: PlainDword,
     /// `dwBackBufferCount`, `dwMipMapCount`, `dwAlphaBitDepth`, `dwReserved`.
-    pub counts: [Dword; 4],
-    /// `lpSurface` (`dword_5ABA3C`): the locked surface's pixels.
-    pub pixels: Dword,
+    pub counts: [PlainDword; 4],
+    /// `lpSurface` (`Upload.description.pixels`): the locked surface's pixels.
+    pub pixels: PlainDword,
     /// The four colour keys (`ddckCKDestOverlay`, `ddckCKDestBlt`, `ddckCKSrcOverlay`,
     /// `ddckCKSrcBlt`: two dwords each).
-    pub colour_keys: [Dword; 8],
+    pub colour_keys: [PlainDword; 8],
     /// `ddpfPixelFormat` (8 dwords).
-    pub pixel_format: [Dword; 8],
+    pub pixel_format: [PlainDword; 8],
     /// `ddsCaps`.
-    pub caps: Dword,
+    pub caps: PlainDword,
 }
 
 /// The upload's variables.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Upload {
-    /// `dword_5ABA18`: the description a `Lock` fills.
+    /// `Upload.description.size`: the description a `Lock` fills.
     pub description: SurfaceDesc,
     /// `dword_5ABA84`: nothing reads or writes it (a gap).
-    pub _gap_6c: Dword,
+    pub _gap_6c: PlainDword,
     /// `dword_5ABA88`: 1 while a screen mode is tried (`try_screen_mode`).
-    pub trying: Dword,
+    pub trying: PlainDword,
 }
 
-const fn zeros<const N: usize>() -> [Dword; N] {
-    [const { Dword::new(0) }; N]
+const fn zeros<const N: usize>() -> [PlainDword; N] {
+    [const { PlainDword::new(0) }; N]
 }
 
 impl Upload {
@@ -59,19 +59,19 @@ impl Upload {
     pub const fn new() -> Self {
         Upload {
             description: SurfaceDesc {
-                size: Dword::new(0),
-                flags: Dword::new(0),
-                height: Dword::new(0),
-                width: Dword::new(0),
-                pitch: Dword::new(0),
+                size: PlainDword::new(0),
+                flags: PlainDword::new(0),
+                height: PlainDword::new(0),
+                width: PlainDword::new(0),
+                pitch: PlainDword::new(0),
                 counts: zeros(),
-                pixels: Dword::new(0),
+                pixels: PlainDword::new(0),
                 colour_keys: zeros(),
                 pixel_format: zeros(),
-                caps: Dword::new(0),
+                caps: PlainDword::new(0),
             },
-            _gap_6c: Dword::new(0),
-            trying: Dword::new(0),
+            _gap_6c: PlainDword::new(0),
+            trying: PlainDword::new(0),
         }
     }
 }

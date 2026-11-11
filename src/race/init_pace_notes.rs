@@ -1,5 +1,5 @@
 //! `race::init_pace_notes` (0x441A66): loadlevel_init's "init pacenotes": the pace notes' tables
-//! made from the checkpoints' faces (see `race/pace_notes.rs`). `dword_615E14` and `dword_615E10`
+//! made from the checkpoints' faces (see `race/pace_notes.rs`). `PaceNotes.group_count` and `PaceNotes.note_count`
 //! 0; with fewer than two checkpoints nothing more. Else the start (the first checkpoint of face
 //! kind 2, or the count, + 2); the notes (start / end / the end's code); each note's distance to
 //! the next one's start; the groups (`race:: pace_distance_word`, `race::pace_note_calls` for each

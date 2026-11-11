@@ -50,7 +50,7 @@ pub fn skids_restart(clock: u32, kept: u32) -> bool {
     clock.wrapping_sub(kept) != 1
 }
 
-/// `drive::play_replay_frame`: None while not playing (`dword_5C5CE0` not 2); else
+/// `drive::play_replay_frame`: None while not playing (`Numbers.replay_mode` not 2); else
 /// whether the tenth is a whole frame's (0: the frame read and loaded).
 pub fn play_frame(mode: u32, tenth: impl FnOnce() -> u32) -> Option<bool> {
     (mode == crate::drive::replay_frames::PLAYING).then(|| tenth() == 0)

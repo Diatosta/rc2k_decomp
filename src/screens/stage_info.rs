@@ -24,7 +24,7 @@ pub fn stage_record(play: &Play) -> Result<RecordRef, BadInput> {
 /// `screens::draw_stage_best_and_fastest` (0x4744A9): the "best" and "fastest" lines
 /// (`rc2k_core::screens::stage_panel::records`): the best of the times at edi
 /// and the stage record's fastest (+0x74 nationality, +0x54 name, +0x78 car, +0x30 speed).
-/// The fastest's flag sprite gets `dword_7587EC` as its palette (ebx as the original loads
+/// The fastest's flag sprite gets `Arcade.level` as its palette (ebx as the original loads
 /// it). The speed is formatted before anything is drawn (its refusals first).
 pub fn draw_stage_best_and_fastest(
     play: &Play,
@@ -71,9 +71,9 @@ pub fn draw_stage_best_and_fastest(
 
 /// `screens::draw_rally_stage_info` (0x489AC8): the heading
 /// (`screens::draw_rally_times_heading`'s), the stage panel's body
-/// (`stage_panel::draw_stage_body`: the map's markers with `dword_7587EC` as their palette,
+/// (`stage_panel::draw_stage_body`: the map's markers with `Arcade.level` as their palette,
 /// times, length, surface, weather, description and number; entry +0x34 kept in
-/// `dword_75ACD0`'s second dword), then `draw_stage_best_and_fastest` on its times
+/// `RaceState.settings.rivals`'s second dword), then `draw_stage_best_and_fastest` on its times
 /// (`g_courseBestTimes`, the stage the record's +0x3C). Refuses (before anything) no
 /// stage record or times table.
 pub fn draw_rally_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
@@ -86,7 +86,7 @@ pub fn draw_rally_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(
         return Err(BadInput("no stage record or times table").into());
     }
     draw_times_heading(menus, &RALLY_STAGE_TIMES, canvas)?;
-    // the two headings in `stru_51E564` here (the other stage pages: `stru_51E5C4`)
+    // the two headings in `FontObjects.objects[14].first_char` here (the other stage pages: `FontObjects.objects[17].first_char`)
     crate::screens::stage_panel::draw_stage_body_in(
         tables,
         record,

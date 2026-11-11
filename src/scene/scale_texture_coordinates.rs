@@ -1,11 +1,11 @@
 //! `scene::scale_texture_coordinates` (0x44E2FB): the polygon's texture coordinates
 //! from whole numbers to floats.
 //!
-//! For each entry of the polygon, with the switch `dword_6240E0` its first pair of
-//! coordinates (+8, +0xC) and with `dword_6240E4` its second (+0x10, +0x14): a value
+//! For each entry of the polygon, with the switch `SceneDraw.polygon_sides[0]` its first pair of
+//! coordinates (+8, +0xC) and with `SceneDraw.polygon_sides[1]` its second (+0x10, +0x14): a value
 //! that is not 0 becomes a float (`fild`, `fstp`) whose bits then lose 0x0C000000: the
 //! number over 2^24. (The original also leaves the last value and its float in the work
-//! variables `dword_5183C0` and `flt_5183C4`, which nothing reads: not kept, so that threads
+//! variables `Machine.work` and `Machine.work_float`, which nothing reads: not kept, so that threads
 //! drawing at once share no write.)
 //! Eight callers.
 

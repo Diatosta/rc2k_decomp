@@ -16,7 +16,7 @@ pub const CLEAR: u32 = 0x10000;
 /// in the original's order.
 pub const SIDES: [u32; 2] = [0xFFFF_8000, 0x8000];
 
-/// The camera's height over the ground (`unk_71A680` - `ground_height`, wrapping).
+/// The camera's height over the ground (`Car.camera_position[1]` - `ground_height`, wrapping).
 pub fn over(camera_y: u32, ground: u32) -> u32 {
     camera_y.wrapping_sub(ground)
 }
@@ -31,7 +31,7 @@ pub fn is_clear(gap: u32) -> bool {
     (gap.wrapping_sub(CLEAR) as i32) >= 0
 }
 
-/// `camera_low_switch` looks: `unk_71A0A0` below 0 (or no number), no switch under way
+/// `camera_low_switch` looks: `Car.crash_matrix[5]` below 0 (or no number), no switch under way
 /// (`camera_switch_active` 0) and the mode (`camera_view`) 0 or 1.
 pub fn low_switch_looks(below_zero: bool, switching: u32, mode: u32) -> bool {
     below_zero && switching == 0 && matches!(mode, 0 | 1)

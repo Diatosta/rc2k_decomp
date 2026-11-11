@@ -85,7 +85,7 @@ pub fn believable(limits: impl IntoIterator<Item = Limit>, values: &[u32]) -> bo
 pub const SENT: [Kind; 3] = [Kind::Inputs, Kind::Position, Kind::Extra];
 
 /// How far a place received may be from where the car is and still be glided to:
-/// RAL.EXE's `flt_5C5D54`, 10.0.
+/// RAL.EXE's `Numbers.ten`, 10.0.
 pub const NEAR: f32 = 10.0;
 
 /// What a place received does to the car.

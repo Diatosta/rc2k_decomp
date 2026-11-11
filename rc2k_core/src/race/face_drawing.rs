@@ -53,7 +53,7 @@ pub fn quad_by_outside(outside: u32) -> Option<bool> {
 }
 
 /// The screen's inside the quad must keep to: (left, right, top, bottom) each one in
-/// from the edges (`dword_6241DC`, `dword_6241E0`, `clip_edges`, `dword_6241D8`).
+/// from the edges (`SceneDraw.clip_edges[2]`, `SceneDraw.clip_edges[3]`, `clip_edges`, `SceneDraw.clip_edges[1]`).
 pub fn screen_inside(left: u32, right: u32, top: u32, bottom: u32) -> [u32; 4] {
     [
         left.wrapping_add(1),

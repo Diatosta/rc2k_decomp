@@ -1,9 +1,9 @@
 //! `drive::steer_inputs` (0x439DB1): the work car's steering from the input word `input_steer`.
 //! Key steering (the word 0, or a car not driven by device, `driver_kind` not 2, with the keys' bit
-//! 0x1000 of `input_keys`): the step 0xA00000 x `flt_614C0C` (`fistp`) moves the two steering
+//! 0x1000 of `input_keys`): the step 0xA00000 x `PhysicsTables.handling[8]` (`fistp`) moves the two steering
 //! values `steering_raw`, `steering` toward the side the word says, held at ± 0x20000000, or, with
 //! the word 0, back toward 0 at twice the step (stopping at 0; each by the sign of the result, as
-//! the original). Device steering: the word x 0x20000000 >> 8 (`imul`, `shrd`) x `flt_614C08`, held
+//! the original). Device steering: the word x 0x20000000 >> 8 (`imul`, `shrd`) x `PhysicsTables.handling[7]`, held
 //! ± 0x20000000, into both (`steering` 0 first). Then the trim (0x20000000 x `steering_efficiency`,
 //! negated with `car_flags` bit 0x10) into `steer_trim`; `steer_angle` = `steering` + it,
 //! `steer_angle_visual` = `steering_raw` + 4 x it; both 0 unless `steering_damage` is below `hundred` (or
@@ -35,7 +35,7 @@ fn sign(v: u32) -> bool {
     (v as i32) < 0
 }
 
-/// The key step: 0xA00000 x `flt_614C0C`, through `scratch`.
+/// The key step: 0xA00000 x `PhysicsTables.handling[8]`, through `scratch`.
 fn key_step(shared: &RaceShared, scene: &crate::scene::owner::Scene) -> u32 {
     let drawing = &scene.drawing;
     drawing.scene.scratch.set(0xA0_0000);

@@ -763,7 +763,7 @@ fn profiler(race: &Race, ui: &Ui) {
     // The original profile page's items. `dword_6218B8` is the developers' switch: 1 in the
     // image, changed only by a key of their handler at 0x43B3D6, which nothing calls; that
     // handler is also all that masks the processor's features into `g_useSse`, `g_use3dNow`
-    // and `dword_621A60`, so "Game uses" stays at none.
+    // and `DrawSwitches.use_mmx`, so "Game uses" stays at none.
     let names = |flags: [(&'static str, Option<u32>); 3]| {
         let on: Vec<&str> = flags
             .iter()

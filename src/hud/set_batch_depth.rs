@@ -1,5 +1,5 @@
 //! `hud::set_batch_depth` (0x4B726C): the four vertices of `g_polygonVertices` given the HUD's rhw
-//! (`flt_75BFEC`), depth (`flt_75BFE8`) and specular 0.
+//! (`HudBlock.rhw`), depth (`HudBlock.depth`) and specular 0.
 //!
 //! Caller: `hud::draw_hud` (the HUD's start).
 

@@ -9,7 +9,7 @@ use rc2k_core::strings::table::StringTable;
 // `PUBLISHED`.
 // Still the image's: indexed by the id itself (`base + 4 * id`), they reach other
 // variables' pointers (made texts), set by other modules by address.
-const PTRS_HIGH: usize = 0x525DE8; // dword_525DE8[id], ids with bit 0x1000
+const PTRS_HIGH: usize = 0x525DE8; // SaveGames.file[id], ids with bit 0x1000
 const PTRS_LOW: usize = 0x95D664; // src[id], ids 0x5A5..=0x658
 
 /// Each slot by its own address: slots fall in moved ranges (the driver names' pointers,
@@ -28,7 +28,7 @@ pub fn ptr_high(id: u32) -> Result<u32, BadInput> {
         .ok_or(BadInput("a string id's text at no place"))
 }
 
-/// The ids whose slots are `InstallVars::text_pointers` (0x529DE8 is `dword_525DE8[0x1000]`),
+/// The ids whose slots are `InstallVars::text_pointers` (0x529DE8 is `SaveGames.file[0x1000]`),
 /// which keep IDA's addresses as names.
 pub const MADE_TEXT_IDS: core::ops::Range<u32> = 0x1000..0x1040;
 /// The address of the text of `id` in the pointer table (0 if none).

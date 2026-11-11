@@ -7,7 +7,7 @@
 //! an outside one to the last) and the two crossings (the far edge's, then the near
 //! edge's: the edge's coordinate the line, the other and the texture interpolated on the
 //! x87, +8 .. +0x14 the outside vertex's) are built in `g_marksClipVertices` (`TLVertex`s) and copied over
-//! the quad; `g_polygonVertexCount` and `dword_93CC94` their number; CF clear. Other
+//! the quad; `g_polygonVertexCount` and `GlowState.clip_count` their number; CF clear. Other
 //! settings: CF clear, nothing changed.
 //!
 //! Eight callers, each `jb` after it. Refuses null settings (a null quad, refused before,

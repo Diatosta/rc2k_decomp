@@ -11,7 +11,7 @@ use crate::menu::owner::Menus;
 use crate::system::owner::system;
 
 /// The kind (eax in the original), also kept in
-/// `dword_7559EC`.
+/// `DrawWork.figure`.
 pub fn next_record_kind(menus: &Menus) -> Result<u32, Refused> {
     let screens = &menus.screens;
     let section: u32 = screens.event.section.get();

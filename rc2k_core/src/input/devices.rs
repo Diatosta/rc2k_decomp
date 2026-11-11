@@ -349,7 +349,7 @@ pub fn binding(key: u8, word: u32, first: bool) -> [u32; 4] {
 /// 0x408AE5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CommandStep {
-    /// `dword_518090`, the effects' switch.
+    /// `ForceFeedback.race_on`, the effects' switch.
     EffectsOn(bool),
     Release(usize),
     Acquire(usize),

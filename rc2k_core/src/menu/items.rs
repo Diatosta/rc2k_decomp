@@ -82,7 +82,7 @@ pub fn shown_in_game_option(n: u32) -> Look {
     }
 }
 
-/// An item's type (+0x10), what `dword_755525` (the highlighted item) holds.
+/// An item's type (+0x10), what `LoopFlags.item` (the highlighted item) holds.
 pub const ITEM_TYPE: u32 = 0x10;
 /// A menu's items end with this dword.
 pub const ITEMS_END: u32 = u32::MAX;

@@ -1,13 +1,13 @@
 //! `sound::car_sounds_all` (0x40D7AB): the turn's sounds of every car: the players' cars
 //! each, and of the computer's only the two nearest the listener.
 //!
-//! Unless `dword_514F7C` (the objects in use) is 0: for each object whose +8 is 1, a
+//! Unless `RaceSounds.count` (the objects in use) is 0: for each object whose +8 is 1, a
 //! player's (+0 not negative) gets `sound::car_sounds` (with its number) at once; of the
-//! others the squared distance (+0x2C .. +0x34 squared and added, through `flt_514F88`)
+//! others the squared distance (+0x2C .. +0x34 squared and added, through `RaceSounds.nearest_distance`)
 //! is compared as an integer (signed, the bits of a float that is not negative) with
 //! the nearest and the next (both starting at the bits of +inf), which keep their
 //! numbers (-1 for none). When the nearest is last turn's second
-//! (`dword_514F84`) or the next last turn's nearest (`dword_514F80`), the two swap, so
+//! (`RaceSounds.next`) or the next last turn's nearest (`RaceSounds.nearest`), the two swap, so
 //! that each keeps its voice; they are kept in the two dwords and each gets
 //! `sound::car_sounds` with its +0 set to -2 (the nearest) or -1 for the call and put
 //! back after. One caller, `sound::race_turn`.

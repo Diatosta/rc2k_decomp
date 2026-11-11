@@ -1,7 +1,7 @@
 //! `physics::rank_split_time` (0x436C4F, race mode 1): the car's place among the 90
 //! rivals at this split. `physics::fill_rival_table`; the figures +0xA0C .. +0xA1C -1 and
 //! the two name fields (`label_behind` .., `label_ahead` ..) blanks; each rival's time
-//! scaled to the split: `rival_times`[c]` x (`dword_601030[split]` x 1000 /
+//! scaled to the split: `rival_times`[c]` x (`SplitTables.checkpoints[1][split]` x 1000 /
 //! `checkpoints`[g_splitColourCount]`) / 1000 into `rival_scaled`[c]` (`mul` / `div`); the
 //! place (+0xA0C) one past the first not below the car's time (90 at most);
 //! `car_time` the time; but for first place the gap to the one ahead (x10) into

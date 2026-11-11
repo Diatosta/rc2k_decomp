@@ -83,7 +83,7 @@ fn move_(ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) {
     move_x87(ring, e, &effects.setup.clock, ring.kinds.ribbon_b);
 }
 
-/// The original's 0x4CF9A6 .. 0x4CFA2D: the place turned by the view into `flt_8EB8D5` ...
+/// The original's 0x4CF9A6 .. 0x4CFA2D: the place turned by the view into `DrawWork.turned[0]` ...
 fn turn_place(
     view_matrix: &[crate::session::Float; 16],
     ring: &Ring,

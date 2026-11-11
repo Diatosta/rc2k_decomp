@@ -1,8 +1,8 @@
 //! The stage's own sounds (from `sound::stage_sounds` 0x40E2A9): the
 //! timed sound's wait and the two sounds at a random pitch and place.
 
-/// The timed sound's wait (`dword_5165A8` the arming flag, `dword_5165B8` the delay,
-/// `dword_5165C4` when due, `dword_5165C8` waiting) and its slot's start flag.
+/// The timed sound's wait (`StageSounds.timed_arm` the arming flag, `StageSounds.timed_delay` the delay,
+/// `StageSounds.timed_due` when due, `StageSounds.timed_waiting` waiting) and its slot's start flag.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Wait {
     pub arm: u32,

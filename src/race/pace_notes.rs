@@ -7,16 +7,16 @@
 //! +0x1A, +0x1B, +0x20: `pace_slot_offsets`); a place on the line is checkpoint x 8 + slot
 //! (`pace_slot` the slot). A note runs from a code in 1 .. 0x63 other than 'b' (0x62) to
 //! the next 'b' or 'd' (0x64). The tables (0x615E10 ..):
-//! - `dword_615E10` the notes' count plus one (entry 0 is the start: the first checkpoint
-//!   with face kind 2, +2), `dword_615E14` the groups' count;
-//! - by note: `dword_615E18` start, `dword_616E18` end, `dword_617E18` the end's code,
+//! - `PaceNotes.note_count` the notes' count plus one (entry 0 is the start: the first checkpoint
+//!   with face kind 2, +2), `PaceNotes.group_count` the groups' count;
+//! - by note: `PaceNotes.note_starts[0]` start, `PaceNotes.note_ends[0]` end, `PaceNotes.note_end_codes[0]` the end's code,
 //!   `dword_618E18` the distance (`g_checkpointDistances`) from its end to the next start;
-//! - by group: `dword_619E18` the checkpoint it is called at, `dword_61AE18` its text's
-//!   place in `byte_61BE18` (0x4000 bytes): a word for the distance before (by tens of
-//!   `byte_614D38`), then the codes of each note walked (`race::pace_note_calls`), notes less
+//! - by group: `PaceNotes.group_checkpoints[0]` the checkpoint it is called at, `PaceNotes.group_texts[0]` its text's
+//!   place in `PaceNotes.text` (0x4000 bytes): a word for the distance before (by tens of
+//!   `PaceNotes.distance_words`), then the codes of each note walked (`race::pace_note_calls`), notes less
 //!   than 0x1E0000 apart and not ended by 'b' joined by ')' (0x29), a group ended by a NUL.
 //!   A corner ('c', 0x63) becomes 1 .. 5 by how sharp (the checkpoint angles'
-//!   `dword_9ED808` change over the note's length times 60), + 8 for a note of 0x780000 or
+//!   `Buffers.checkpoints.angles[2]` change over the note's length times 60), + 8 for a note of 0x780000 or
 //!   longer, + 0x10 turning one way.
 //!
 //! The tables are made by `rc2k_core::race::pace_notes::Notes` (on an image of the tables,
@@ -73,7 +73,7 @@ impl Stage for GameStage {
         crate::race::checkpoints_store::angle(k as usize).get()
     }
     fn slot_offset(&self, slot: u32) -> u32 {
-        race().shared.physics_tables.pace_slot_offsets[slot as usize].get() // dword_614D14: each slot's byte in the face
+        race().shared.physics_tables.pace_slot_offsets[slot as usize].get() // PhysicsTables.pace_slot_offsets[0]: each slot's byte in the face
     }
     fn word(&self, tens: u32) -> u8 {
         race().physics.pace.distance_words.get(tens as usize)

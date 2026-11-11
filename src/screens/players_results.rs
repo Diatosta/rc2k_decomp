@@ -42,7 +42,7 @@ fn player(menus: &Menus, row: usize) -> Result<crate::menu::standings::PlayerCel
     Ok(p)
 }
 
-/// The row's points (`off_758992[offset]`).
+/// The row's points (`CaptionTables.sum_pointers[0][offset]`).
 fn points_at<'a>(menus: &'a Menus, play: &Play, row: usize) -> Result<&'a dyn DwordLike, Refused> {
     Ok(CaptionTables::sum_of(
         menus,
@@ -50,7 +50,7 @@ fn points_at<'a>(menus: &'a Menus, play: &Play, row: usize) -> Result<&'a dyn Dw
     )?)
 }
 
-/// The section's first record and the stage's (`off_735512[dword_7558C8][dword_7558D0]`, +
+/// The section's first record and the stage's (`off_735512[Event.stage_group][Event.stage_sub]`, +
 /// 0xA4 x `dword_7558CC`); none: 0.
 fn records(
     screens: &Screens,

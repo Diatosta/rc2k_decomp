@@ -10,7 +10,7 @@ pub fn scaled_setting(n: i32, factor: f32) -> f32 {
 
 /// What `scale_axes` reads: the two axes, the factor of
 /// both, one factor each and two sets of
-/// per-part factors (`flt_8BC1DE` .., `flt_8BC1F6` ..).
+/// per-part factors (`WindscreenFlakeState.axis_factors[0]` .., `WindscreenFlakeState.halves[0]` ..).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Axes {
     pub axes: [[f32; 3]; 2],
@@ -20,9 +20,9 @@ pub struct Axes {
     pub second_parts: [[f32; 3]; 2],
 }
 
-/// What it writes, in its order: both axes by the factor (`flt_89CF3E` ..), each by its
-/// own factor and its parts' (`flt_89CF6E` ..), and the first results by the second
-/// parts (`flt_89CF56` ..).
+/// What it writes, in its order: both axes by the factor (`WindscreenFlakeTables.scaled_by_radius[0][0]` ..), each by its
+/// own factor and its parts' (`WindscreenFlakeTables.scaled_axes[0][0]` ..), and the first results by the second
+/// parts (`WindscreenFlakeTables.half_axes[0][0]` ..).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ScaledAxes {
     pub scaled: [[f32; 3]; 2],

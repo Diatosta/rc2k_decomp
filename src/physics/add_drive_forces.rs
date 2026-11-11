@@ -1,8 +1,8 @@
 //! `physics::add_drive_forces` (0x440C7B): a factor (`drive_force_factor`, or with
-//! `g_carDriveKind` set `flt_613EE8`, the first then stored in `scratch`) times the
+//! `g_carDriveKind` set `PhysicsTables.drive_force_factor[1]`, the first then stored in `scratch`) times the
 //! sum of the four floats at `wheel_loads` (80 bits) into `drive_force_scale`; then
-//! `drive_forces` += `wheel_slips` x it x `flt_6140B8` and `flt_61424C` += `flt_614238` x it
-//! x `flt_6140B8`.
+//! `drive_forces` += `wheel_slips` x it x `PhysicsTables.drive_shares[2]` and `PhysicsTables.drive_forces[1]` += `PhysicsTables.wheel_slips[1]` x it
+//! x `PhysicsTables.drive_shares[2]`.
 //!
 //! Caller: `physics::drive_wheels_step` (0x43E51E).
 

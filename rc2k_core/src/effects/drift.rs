@@ -5,8 +5,8 @@
 //! x87's control word and comes in as a closure.
 
 /// The drift's variables: the clock at the last targets, the wait
-///, the targets and paces (`flt_8BC411`, `flt_8BC419`; `flt_8BC41D`,
-/// `flt_8BC425`), a second random's halves times 0x100 (`dword_8BC429`, `dword_8BC431`:
+///, the targets and paces (`RainState.drift_target[0]`, `RainState.drift_target[2]`; `RainState.drift_pace[0]`,
+/// `RainState.drift_pace[2]`), a second random's halves times 0x100 (`RainState.drift_halves[0]`, `RainState.drift_halves[2]`:
 /// only written) and the offsets.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Drift {

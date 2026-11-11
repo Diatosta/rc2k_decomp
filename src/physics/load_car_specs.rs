@@ -2,7 +2,7 @@
 //! record (`g_car` +0x24, at most 0x21; records of 0xB0 at 0x5C790C, "00 renault maxi
 //! megane" ..): the drive kind; four whole figures as floats into `figures` .. (each at
 //! least 8.0) and the engine's top (+0x1DC, at least `thousand`); the shift points
-//! `flt_5CB958` .. `shift_ratio_figure`; `drive_torque_figure`; `rev_limit`; the torque curve (nine
+//! `LightsAndGear.gear.shift_up_point` .. `shift_ratio_figure`; `drive_torque_figure`; `rev_limit`; the torque curve (nine
 //! dwords) at `spec_torque`; the gear count (3 ..= 7, by the sign) and nine more words;
 //! three whole figures x 65536 / `thousand` `fistp` into `spec_ints` .. (for kinds
 //! below 0x17 from `spec_default_bc0` .. instead); `spec_grip` .. from `spec_default_ba0`,

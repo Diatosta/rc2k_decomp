@@ -21,14 +21,14 @@ fn sign(v: u32) -> bool {
 pub struct SteerInputs {
     /// The input word (0 none, below 0 left).
     pub word: u32,
-    /// `unk_71A234`: 2 when driven by device.
+    /// `Car.driver_kind`: 2 when driven by device.
     pub mode: u32,
     /// The keys (bit 0x1000 steering).
     pub keys: u32,
     /// The device's and the keys' factors.
     pub device_factor: f32,
     pub key_factor: f32,
-    /// The trim's share; `unk_719FE8` bit 0x10 turns it.
+    /// The trim's share; `Car.car_flags` bit 0x10 turns it.
     pub trim: f32,
     pub flags: u32,
     /// The trims apply below the limit (or unordered).
@@ -39,13 +39,13 @@ pub struct SteerInputs {
 /// What `steer_inputs` makes.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Steered {
-    /// `unk_71A61C`, `unk_71A620`.
+    /// `Car.steering`, `Car.steering_raw`.
     pub values: [u32; 2],
-    /// `unk_71A1E0`.
+    /// `Car.steer_trim`.
     pub trim: u32,
-    /// `unk_71A624`, `unk_71A628`.
+    /// `Car.steer_angle`, `Car.steer_angle_visual`.
     pub trimmed: [u32; 2],
-    /// `dword_62400C` as left (the last whole number put through it).
+    /// `SceneDraw.scratch` as left (the last whole number put through it).
     pub scratch: u32,
 }
 

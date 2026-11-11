@@ -20,7 +20,7 @@ pub struct CarSpec {
     pub drive_kind: Dword,
     /// +0x1C: the gear count by its sign, held to 3 ..= 7 (`physics::load_car_specs`).
     pub gear_count: Dword,
-    /// +0x20: copied to `dword_614C14` (`unused_spec_20`) by `physics::load_car_specs`; nothing reads that copy (IDA: one write at 0x421692, no reader), so the figure is unused.
+    /// +0x20: copied to `PhysicsTables.unused_spec_20` (`unused_spec_20`) by `physics::load_car_specs`; nothing reads that copy (IDA: one write at 0x421692, no reader), so the figure is unused.
     pub unused_20: Dword,
     /// +0x24: copied to the physics `grip_scale`, the factor `physics::drive_grip_forces` multiplies the driving grip force by.
     pub grip_scale: Dword,
@@ -28,30 +28,30 @@ pub struct CarSpec {
     pub side_grip_scale: Dword,
     /// +0x2C .. +0x34: copied to the physics `spec_surface` 0, 1, 2 (+0x2C, +0x30, +0x34).
     pub surface: [Dword; 3],
-    /// +0x38, +0x3C: two figures times `flt_613FC8` into `dword_614BAC`, `dword_614BB0`.
+    /// +0x38, +0x3C: two figures times `PhysicsTables.gravity` into `PhysicsTables.spec_drive[0]`, `PhysicsTables.spec_drive[1]`.
     pub weights: [Float; 2],
-    /// +0x40: three whole figures x 65536 / `flt_5C5D18` into `dword_614BC0` .. (kinds
+    /// +0x40: three whole figures x 65536 / `Numbers.thousand` into `PhysicsTables.spec_ints[0]` .. (kinds
     /// from 0x17 on; the others take the game's constants).
     pub whole_figures: [Dword; 3],
     /// +0x4C: not read by the game's code.
     pub unused_4c: [Dword; 4],
-    /// +0x5C: into `dword_62400C` (`scene::draw_store`'s `scratch`).
+    /// +0x5C: into `SceneDraw.scratch` (`scene::draw_store`'s `scratch`).
     pub scratch_value: Dword,
     /// +0x60: into the physics `downforce_spec`.
     pub downforce: Dword,
-    /// +0x64: four whole figures as floats into `flt_5CB96C` .. (each at least 8.0).
+    /// +0x64: four whole figures as floats into `LightsAndGear.gear.figures[0]` .. (each at least 8.0).
     pub figures: [Dword; 4],
     /// +0x74: the engine's top, a whole number (8500 for the first); also the start
-    /// value's limit (`dword_5C7980`, `race::race_shell`).
+    /// value's limit (`CarSpecs.cars[0].engine_top`, `race::race_shell`).
     pub engine_top: Dword,
-    /// +0x78: a whole figure divided by the top into `flt_5CB968`.
+    /// +0x78: a whole figure divided by the top into `LightsAndGear.gear.drive_torque_figure`.
     pub over_top: Dword,
     /// +0x7C: the torque curve, copied to the physics `spec_torque`.
     pub torque_curve: [Dword; 9],
     /// +0xA0: into the physics `ride_height_handling_scale` (`g_specA0`, 0x614C18): `physics::set_handling` multiplies the lerped ride-height handling value (`handling[4]`) by it.
     pub ride_height_handling_scale: Dword,
-    /// +0xA4: the shift points (`flt_5CB958` ..; the first x `flt_613E88`, the others +
-    /// `flt_5C5DDC`).
+    /// +0xA4: the shift points (`LightsAndGear.gear.shift_up_point` ..; the first x `PhysicsTables.spec_scale_a4`, the others +
+    /// `Numbers.tenths[0]`).
     pub shift_points: [Float; 3],
 }
 

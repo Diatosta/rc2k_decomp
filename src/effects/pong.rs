@@ -1,9 +1,9 @@
-//! The pong game over the race (a reading: cheat bit 0x8000 and `dword_641678`. The ball at
-//! `flt_768688` (x, y), its way `flt_768694`, its size `flt_7686A0`; the bat at
-//! `flt_7686B8`, its size `flt_7686D0`, its place before the move `dword_7686AC`; the hits
-//! `dword_7687D0`, the best `dword_7687CC`, the ball's steps a frame `g_pongSteps` (named
-//! before the game was seen), the score's place `dword_7687D4` / `dword_7687D8`, the
-//! digits' 4 x 5 patterns `unk_768704` (0x14 each).
+//! The pong game over the race (a reading: cheat bit 0x8000 and `FrameWork.lead_kept[7]`. The ball at
+//! `PongState.ball[0]` (x, y), its way `PongState.ball_way[0]`, its size `PongState.ball_size[0]`; the bat at
+//! `PongState.bat[0]`, its size `PongState.bat_size[0]`, its place before the move `PongState.saved_bat[0]`; the hits
+//! `PongState.hits`, the best `PongState.best`, the ball's steps a frame `g_pongSteps` (named
+//! before the game was seen), the score's place `PongState.digit_at[0]` / `PongState.digit_at[1]`, the
+//! digits' 4 x 5 patterns `PongState.digit_patterns` (0x14 each).
 
 use crate::session::{PlainBytes, PlainDword, PlainFloat};
 

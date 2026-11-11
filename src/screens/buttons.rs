@@ -36,8 +36,8 @@ pub struct Kind {
     /// into the centred branch after the left end, drawing a second, centred button.
     slips: bool,
     /// `draw_button_alt` only. Left-aligned, two of its blits still read `draw_button`'s work
-    /// variables: the whole middle pieces take their y from `dword_7559B4`, and the last,
-    /// shorter one takes its x from `dword_7559B0`. Its one caller never asks for that
+    /// variables: the whole middle pieces take their y from `DrawWork.scratch_b4`, and the last,
+    /// shorter one takes its x from `DrawWork.scratch_b0`. Its one caller never asks for that
     /// alignment.
     borrows: bool,
     bad_align: FatalError,

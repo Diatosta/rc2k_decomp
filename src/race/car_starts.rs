@@ -165,8 +165,8 @@ fn move_turned(course: &Course, shared: &RaceShared, x: u32, z: u32) {
 /// `race::start_car` (0x4464AD): the work car's +0x478, +0x694 0, +0xAD4/+0xAD8 0x80000000, +0x1E4,
 /// +0x1D8, +0x1D4 0, +0x644 .. +0x650 and +0x638 .. +0x640 0. Unless `run_kind` is 4: its
 /// checkpoint `first_check_checkpoint` (less the car's number / 2 but with `run_kind` 1 or 3)
-/// into `line_place`, `line_fraction` 0 (both 0 with `dword_64BB18`); `place_car_on_line`; without
-/// `dword_64BB18` moved back (0, -0x20000 turned by `place_heading`) and, with `session` or
+/// into `line_place`, `line_fraction` 0 (both 0 with `Finish.no_place`); `place_car_on_line`; without
+/// `Finish.no_place` moved back (0, -0x20000 turned by `place_heading`) and, with `session` or
 /// (`run_kind` 0 and `players` not 1), to the side (+-0x14000 by the car's number's low
 /// bit). Then `nearest_checkpoint` into +0x98, +0x94, +0x9C; its check count less one held to 0 ..
 /// 100 into +0x90 and +0xAC; `reset_car_motion`; +0x264 .. +0x26C 0. Refuses a nearest checkpoint

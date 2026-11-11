@@ -19,7 +19,7 @@ use rc2k_core::menu::car_lists;
 
 /// A list of dwords ended by -1: its cells and how many dwords it has room for.
 pub type List = (&'static [PlainDword], usize);
-/// off_75A042: the cars of one kind of event (0x28 entries are kept in `var\ral.dat`).
+/// MenuLists.cars_second[0]: the cars of one kind of event (0x28 entries are kept in `var\ral.dat`).
 pub const FIRST: List = (
     &crate::menu::owner::MENUS
         .unchecked()
@@ -28,7 +28,7 @@ pub const FIRST: List = (
         .cars_second,
     0x28,
 );
-/// off_759D16: the next variable is 0xB4 bytes on.
+/// MenuLists.a8_championship_cars[0]: the next variable is 0xB4 bytes on.
 pub const SECOND: List = (
     &crate::menu::owner::MENUS
         .unchecked()
@@ -37,7 +37,7 @@ pub const SECOND: List = (
         .a8_championship_cars,
     0x2D,
 );
-/// off_759F4A: the secret cars.
+/// MenuLists.secret_cars[0]: the secret cars.
 const SECRET: List = (
     &crate::menu::owner::MENUS
         .unchecked()
@@ -46,7 +46,7 @@ const SECRET: List = (
         .secret_cars,
     0x0C,
 );
-/// unk_759F7A: where a list is copied to and back from.
+/// MenuLists.cars_scratch[0]: where a list is copied to and back from.
 const SCRATCH: List = (
     &crate::menu::owner::MENUS
         .unchecked()

@@ -1,9 +1,9 @@
 //! `race::draw_tyre_change` (0x41C38C): the tyre change's texture (`texture`, then copied to
 //! the device's `device_texture`), for the given device. The clip's left and right are kept
 //! round it. Its lock (`d3d::lock_texture`); unless that failed or the texture was drawn before
-//! (`drawn` 1), strings 0x129 (font `stru_51E304`, its +0x1C 0xF8, at 4, 0x80), then with
-//! the clip's left 0x80 0x12A (`unk_51E2E4`, at 0xFC, 0) and 0x12B (`game_fonts`, at 0x84, a line
-//! down: `dword_51E2CC`), each by `text::draw_string_by_id`. Then (also after a failed lock:
+//! (`drawn` 1), strings 0x129 (font `FontBlock.game_fonts[2].first_char`, its +0x1C 0xF8, at 4, 0x80), then with
+//! the clip's left 0x80 0x12A (`FontBlock.game_fonts[1].first_char`, at 0xFC, 0) and 0x12B (`game_fonts`, at 0x84, a line
+//! down: `FontBlock.game_fonts[0].line_height`), each by `text::draw_string_by_id`. Then (also after a failed lock:
 //! section 16) the clip's left 0x80; the rectangle (0x80, 0x32, 0x80, 0x4B) filled with colour 0
 //! (`gfx::fill_rect`, `texture_rect`, palette `palette`); string 0x12E and the record's time
 //! (`g_tyreChangeRecord`) in the text buffer, drawn three times (font +0x1C 0x168, at 0x84, 0x32;
@@ -27,14 +27,14 @@ use crate::input::types::InputDevice;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::strings::owner::strings;
 
-fn clip(edge: &Dword) -> u32 {
+fn clip(edge: &PlainDword) -> u32 {
     edge.get()
 }
 
-fn set_clip(edge: &Dword, v: u32) {
+fn set_clip(edge: &PlainDword, v: u32) {
     edge.set(v);
 }
 

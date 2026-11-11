@@ -196,13 +196,13 @@ fn measured(
         .collect())
 }
 
-/// `effects::measure_lines` (0x4D0EB4): `dword_93C8BC` 0; for the blocks (+0x5C of the
-/// settings, the last first), every one with `dword_93C8B4` 1 or else those with +0xC set
-/// (then `dword_93C8BC` 1): the block in `dword_93C8A8`, its sums cleared (+0x1C .. +0x30,
+/// `effects::measure_lines` (0x4D0EB4): `LinesWork.any` 0; for the blocks (+0x5C of the
+/// settings, the last first), every one with `LinesWork.every` 1 or else those with +0xC set
+/// (then `LinesWork.any` 1): the block in `LinesWork.current`, its sums cleared (+0x1C .. +0x30,
 /// +0xF0 .., +0x1B8 .., +0x240 ..); for each face of its first object (+0) with the other's
 /// (+4) same: a face of kind 0x1C (+6) with a line kind (+0xB) 1 .. 6 has its lines summed
 /// into +0x18 + 4 kind; then `measure_slot_lines`, `measure_kind_lines`. With
-/// `dword_93C8B8` 1 each sum then becomes 100 less its share of 100 of what it was
+/// `LinesWork.shares` 1 each sum then becomes 100 less its share of 100 of what it was
 /// (+0x34 .., +0x110 .., +0x1FC ..), with a `finit` after the first six (as the original).
 /// Refuses more than 8 blocks, an object past 0xFF, faces past `g_faces`.
 // Converted: `rc2k_core::effects::lines::{measured, block_at}` (the lengths and shares

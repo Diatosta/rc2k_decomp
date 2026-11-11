@@ -9,9 +9,9 @@ use crate::screens::screen::Screen;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E8C4`: the saved games' and replays' names.
+    /// `FontObjects.objects[41].first_char`: the saved games' and replays' names.
     Names,
-    /// `stru_51E8A4`: the setup pages.
+    /// `FontObjects.objects[40].first_char`: the setup pages.
     Setups,
 }
 

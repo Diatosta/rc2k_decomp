@@ -36,7 +36,7 @@ pub fn car_button(
 }
 
 /// The saved games' list one page on (`menu::next_savegame_page`, 0x46D407): adds 1 to
-/// `dword_75523C`, and above 9 goes back to 0.
+/// `MenuPages.save_page`, and above 9 goes back to 0.
 pub fn next_savegame_page(tables: &Tables) {
     // The logic is in `rc2k_core::menu::steps::savegame_page`.
     let page = tables.pages.save_page.get();

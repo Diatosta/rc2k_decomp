@@ -23,19 +23,19 @@ use crate::session::{Dword, Float};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ObjectLight {
-    /// The lamp's tint taken from its entry (`dword_62DA7C`).
+    /// The lamp's tint taken from its entry (`LightWork.lamp_tint`).
     pub lamp_tint: Dword,
-    /// The point's place (`dword_62DA8C` ..).
+    /// The point's place (`LightWork.point_place[0]` ..).
     pub point_place: [Float; 3],
-    /// The point of `scene::light_dot`'s inputs (`dword_62DAA8` ..).
+    /// The point of `scene::light_dot`'s inputs (`LightWork.light_dot_point[0]` ..).
     pub light_dot_point: [Float; 3],
-    /// The light's vector in `scene::light_dot`'s inputs (`dword_62DAB4` ..).
+    /// The light's vector in `scene::light_dot`'s inputs (`LightWork.light_dot_light[0]` ..).
     pub light_dot_light: [Float; 3],
-    /// The factor in `scene::light_dot`'s inputs (`flt_62DAC0`).
+    /// The factor in `scene::light_dot`'s inputs (`LightWork.light_dot_factor`).
     pub light_dot_factor: Float,
     /// The light's colour (`g_lightColour`).
     pub light_colour: Dword,
-    /// The base light of the car being drawn (`LIGHT_WORK.view_light_base`, `dword_62DAD4`):
+    /// The base light of the car being drawn (`LIGHT_WORK.view_light_base`, `LightWork.view_light_base`):
     /// the view's car's light colour at the view's start (`race::draw_view_scene`), each car's
     /// as it is drawn (`race::draw_car_entry`, `race::draw_own_car`); read by the light kind 3
     /// (`scene::vertex_light`).
@@ -53,17 +53,17 @@ pub struct ObjectLight {
     pub light_direction: [Float; 3],
     /// The kind of light being set (`g_lightKind`).
     pub light_kind: Dword,
-    /// Set with the light kind, 0 for a car (`dword_62DAF8`).
+    /// Set with the light kind, 0 for a car (`LightWork.light_kind_extra`).
     pub light_kind_extra: Dword,
     /// The place (x, y, z) being lit, a car or a point (`g_litPlace`).
     pub lit_place: [Dword; 3],
-    /// The turned light direction seen by the car lights (`dword_6365B8` ..).
+    /// The turned light direction seen by the car lights (`LightState.turned_light[0]` ..).
     pub turned_light: [Dword; 3],
-    /// The view kind (`dword_6365C8`): 4 for the sky, 1 and 2 for objects, 5 for the menus'.
+    /// The view kind (`LightState.view_kind`): 4 for the sky, 1 and 2 for objects, 5 for the menus'.
     pub view_kind: Dword,
-    /// The face's bits (`dword_636608`).
+    /// The face's bits (`LightState.face_bits`).
     pub face_bits: Dword,
-    /// The light added to each vertex of the object (`dword_635068`).
+    /// The light added to each vertex of the object (`ObjectWork.light_added`).
     pub light_added: Dword,
     /// The lit colour's lowest place (`g_lightLowest`).
     pub light_lowest: Dword,
@@ -71,7 +71,7 @@ pub struct ObjectLight {
     pub light_highest: Dword,
     /// The lit colour's level (`g_lightLevel`).
     pub light_level: Dword,
-    /// The light direction's two turns (`dword_635094`, `dword_635098`).
+    /// The light direction's two turns (`ObjectWork.light_turns[0]`, `ObjectWork.light_turns[1]`).
     pub light_turns: [Dword; 2],
     /// `GroundWork.drawn_car_light` (0x639968): the car whose object is being lit, or -1
     /// (`scene::set_object_light`); `scene::add_car_lights` skips its lights.

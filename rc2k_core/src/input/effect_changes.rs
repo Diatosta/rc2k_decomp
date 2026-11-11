@@ -10,7 +10,7 @@
 
 use crate::Invalid;
 
-/// Rows in effect 1's table (`unk_4F6E08`, four dwords each).
+/// Rows in effect 1's table (`Devices.effect_rows[0][0]`, four dwords each).
 pub const ROWS: i32 = 14;
 
 /// A place in an effect (`ForceEffect`) a change writes.

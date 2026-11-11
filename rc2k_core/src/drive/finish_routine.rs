@@ -38,7 +38,7 @@ pub enum Set {
     Lead(u32),
 }
 
-/// The set-up's stores, in the original's order (`dword_623854` twice, as there).
+/// The set-up's stores, in the original's order (`RaceVars.direction` twice, as there).
 pub fn set_up() -> Vec<(Set, u32)> {
     use Set::{Lead, Var as V};
     use Var::*;

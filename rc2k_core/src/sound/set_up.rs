@@ -2,14 +2,14 @@
 //! `sound::apply_settings` 0x40EFF3, `sound::set_up_race_sounds` 0x40F02E,
 //! `sound::wait_for_commands` 0x409C1E and `sound::play_car_stream` 0x469AA1).
 //!
-//! Both set-ups mark which they are (`dword_518080`: 1 the menus', 2 the race's), stop the
+//! Both set-ups mark which they are (`SettingsApplied.done`: 1 the menus', 2 the race's), stop the
 //! music, queue their commands, wait for the thread to take them and let sounds play again
-//! (`dword_506C84` 0). Each command's values go in as the caller left them, a result set by each
+//! (`AudioState.sounds_held_back` 0). Each command's values go in as the caller left them, a result set by each
 //! command for those after it.
 
-/// `dword_518080` after the menus' set-up.
+/// `SettingsApplied.done` after the menus' set-up.
 pub const MENUS: u32 = 1;
-/// `dword_518080` after the race's.
+/// `SettingsApplied.done` after the race's.
 pub const RACE: u32 = 2;
 
 use crate::audio::commands::Command;
@@ -74,7 +74,7 @@ pub fn wait_for_commands(w: &mut dyn Waiting) {
     }
 }
 
-/// The car screens' stream started (`sound::play_car_stream`): on (`dword_A8C188` 1), its
+/// The car screens' stream started (`sound::play_car_stream`): on (`CarStream.on` 1), its
 /// list, the place in it 0, and `sound::start_stream`
 /// with the list's first entry and the volume.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -86,7 +86,7 @@ pub struct CarStream {
     pub volume: u32,
 }
 
-/// The car's stream list (`off_75A31E[car]`); `first` reads its first dword.
+/// The car's stream list (`MenuLists.car_streams[0][car]`); `first` reads its first dword.
 pub fn car_stream(list: u32, first: impl FnOnce(u32) -> u32, volume: u32) -> CarStream {
     CarStream {
         on: 1,

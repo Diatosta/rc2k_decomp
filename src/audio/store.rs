@@ -856,7 +856,7 @@ pub fn name_in(
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u32)]
 pub enum VolumeLevel {
-    /// `dword_506958`: `AUDIO.unit_volume_factor`.
+    /// `AudioState.unit_volume_factor`: `AUDIO.unit_volume_factor`.
     Unit = 1,
     /// `dword_755694`: `Levels::menu_sounds_a`.
     MenuSounds = 2,

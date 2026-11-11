@@ -2,7 +2,7 @@
 //! The platform layer sets both to 1 ("there are surfaces"); the clear functions test the front
 //! one.
 
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// IDA's address of the block's first byte.
 pub const START: usize = 0x4F32B4;
@@ -14,17 +14,17 @@ pub const LEN: usize = 8;
 #[derive(rc2k_derive::Cells)]
 pub struct Surfaces {
     /// `g_frontSurface` (`dword_4F32B4`): the front surface, 0 with none.
-    pub front: Dword,
+    pub front: PlainDword,
     /// `dword_4F32B8`: the back surface.
-    pub back: Dword,
+    pub back: PlainDword,
 }
 
 impl Surfaces {
     /// The handles; the first values are the image's.
     pub const fn new() -> Self {
         Surfaces {
-            front: Dword::new(0),
-            back: Dword::new(0),
+            front: PlainDword::new(0),
+            back: PlainDword::new(0),
         }
     }
 }

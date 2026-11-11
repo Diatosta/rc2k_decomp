@@ -1,7 +1,7 @@
 //! `physics::camera_height_bias` (0x43852D): with the mode's record's +0x54 not 0:
 //! `camera_distance` / `camera_bias_limit` held to 0 ..= 1 (1 less it for +0x54 below 0), x
 //! `k65536` x `camera_bias_scale` (`fistp`) into `camera_height_bias` and added to the camera's
-//! height `unk_71A680`.
+//! height `Car.camera_position[1]`.
 //!
 //! Caller: `physics::update_camera`.
 

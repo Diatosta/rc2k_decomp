@@ -27,72 +27,72 @@ type Record = crate::menu::standings::PlayerCell<'static>;
 // entry (at `edi`) holds its track number at +0x34; the list ends at a dword -1 where the
 // next entry would start.
 /// g_players (0x75647C): the players' records, 4 bytes each.
-/// dword_7556F4: whether the standings summary is taken (1, `saves::best_times::SUMMARY`),
+/// ChampView.summary: whether the standings summary is taken (1, `saves::best_times::SUMMARY`),
 /// copied to `RACE_INFO`.
 const SUMMARY: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
     .play
     .champ_view
     .summary;
-/// dword_7558DC, copied to `after_loading_copy` after the loading picture.
+/// Event.sparks_mode, copied to `after_loading_copy` after the loading picture.
 const AFTER_LOADING: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
     .screens
     .event
     .sparks_mode;
-/// dword_7554C8: kept over the race (`RACE_KEPT`).
+/// ScreenFlow.kept: kept over the race (`RACE_KEPT`).
 const KEPT: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.flow.kept;
-/// dword_755984: the number of players.
+/// Event.player_count: the number of players.
 const PLAYER_COUNT: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
     .screens
     .event
     .player_count;
-/// dword_755988: the event mode (5, 4, 0xF, 0xA: the events' one-car races).
+/// Event.event_kind: the event mode (5, 4, 0xF, 0xA: the events' one-car races).
 const EVENT_MODE: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
     .screens
     .event
     .event_kind;
-/// dword_75598C: the current player's number.
+/// Event.current_player: the current player's number.
 const CURRENT: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
     .screens
     .event
     .current_player;
-/// dword_7587E8: the run's start argument (1: no loading picture after).
+/// Arcade.scene_let_go: the run's start argument (1: no loading picture after).
 const SWITCH: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
     .play
     .arcade
     .scene_let_go;
-/// dword_75ACD0: a copy of `SUMMARY` (the summary's block id, as the race reads it:
+/// RaceState.settings.rivals: a copy of `SUMMARY` (the summary's block id, as the race reads it:
 /// `race::copy_league_table`, `physics::fill_rival_table`).
 const RACE_INFO: &Dword = &crate::race::owner::RACE.shared.state.settings.rivals;
-/// dword_75ACD4: the stage chosen.
+/// RaceState.settings.stage: the stage chosen.
 const STAGE: &Dword = &crate::race::owner::RACE.shared.state.settings.stage;
-/// dword_75ACD8: the run's kind argument.
+/// RaceState.settings.run_kind: the run's kind argument.
 const RACE_KIND: &Dword = &crate::race::owner::RACE.shared.state.settings.run_kind;
-/// dword_75ACDC: 1 when the race is not an event's and has more than one player.
+/// RaceState.settings.no_replay: 1 when the race is not an event's and has more than one player.
 const NO_REPLAY: &Dword = &crate::race::owner::RACE.shared.state.settings.no_replay;
-/// dword_75ACE0: 1, or 2 in the events' one-car modes.
+/// RaceState.settings.race_mode: 1, or 2 in the events' one-car modes.
 const RACE_MODE: &Dword = &crate::race::owner::RACE.shared.state.settings.race_mode;
-/// dword_75ACE4: a copy of `KEPT`, put back after the race.
+/// RaceState.settings.kept: a copy of `KEPT`, put back after the race.
 const RACE_KEPT: &Dword = &crate::race::owner::RACE.shared.state.settings.kept;
-/// dword_75B028 / dword_75B098: the current / the first car's result (-1 none, -2 left).
+/// RaceState.results.results[0].result / RaceState.results.results[1].result: the current / the first car's result (-1 none, -2 left).
 const RESULT: &Dword = &crate::race::owner::RACE.shared.state.results.results[0].result;
 const RESULT_2: &Dword = &crate::race::owner::RACE.shared.state.results.results[1].result;
 /// One player's side of the race variables: the car's settings and the results it
 /// leaves. `FIRST_SIDE` is player 1's, `CURRENT_SIDE` the current player's.
 struct Side {
     car: &'static RaceCar,
-    /// dword_75ACE8 / dword_75ACEC: the record's `car_number` (+8).
+    /// RaceState.settings.car_kind_current / RaceState.settings.car_kind_first: the record's `car_number` (+8).
     car_kind: &'static dyn DwordLike,
     /// The record's `service_spent`.
     service_spent: &'static dyn DwordLike,
     /// The record's `state_flags`.
     flags: &'static dyn DwordLike,
-    /// dword_75B00C (the current's): the record's `hud_bits`.
+    /// RaceState.results.hud_bits_current (the current's): the record's `hud_bits`.
     hud_bits: &'static dyn DwordLike,
     /// The car's result, and the 0x20 bytes of its `impact_marks`.
     result: &'static RaceResult,
@@ -133,7 +133,7 @@ const CURRENT_SIDE: Side = Side {
         .hud_bits_current,
     result: &crate::race::owner::RACE.shared.state.results.results[0],
 };
-/// dword_75AE24: the second set's word that mode 2 takes from the record's `second_view`.
+/// RaceState.settings.cars[0].view: the second set's word that mode 2 takes from the record's `second_view`.
 const MODE_WORD: &Dword = &crate::race::owner::RACE.shared.state.settings.cars[0].view;
 
 #[cfg(test)]
@@ -361,7 +361,7 @@ fn give_outcome(p: &mut Player, result: &RaceResult) {
 
 /// `race::single_rally_race` (0x4843EC): `start` the run's start (1: the loading picture is not
 /// shown again after), `kind` the kind (3: the rally's times copied first). Refuses, before
-/// anything, a missing player record (`g_players`[1] or [`dword_75598C`]; the original reads and
+/// anything, a missing player record (`g_players`[1] or [`Event.current_player`]; the original reads and
 /// writes through it).
 pub fn single_rally_race(start: u32, kind: u32) -> Result<(), Refused> {
     guarded(start, kind, &mut step)

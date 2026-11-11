@@ -6,8 +6,8 @@
 //! a key; a key not there gives the place past the table, as the original reads it), so
 //! the struct keeps the image's layout and the tables' addresses come from it (`*_addr`).
 
-use crate::gfx::dwords;
-use crate::session::Dword;
+use crate::gfx::plain_dwords;
+use crate::session::PlainDword;
 
 /// IDA's address of the block's first byte.
 pub const START: usize = 0x4F4E30;
@@ -22,44 +22,44 @@ pub const TABLE_ROOM: usize = 0x20;
 #[derive(rc2k_derive::Cells)]
 pub struct Modes {
     /// `dword_4F4E30`: the two pixel kinds' bits (the mode flags' 0x1000, 0x2000: the card).
-    pub kind_bits: [Dword; 2],
+    pub kind_bits: [PlainDword; 2],
     /// `dword_4F4E38`: the two thirds' bits.
-    pub third_bits: [Dword; 2],
+    pub third_bits: [PlainDword; 2],
     /// `g_pixelKinds` (`dword_4F4E40`): two of (key, bits a pixel): (0x200, 16), (0x800, 32).
-    pub pixel_kinds: [Dword; 4],
+    pub pixel_kinds: [PlainDword; 4],
     /// `g_screenSizes` (`dword_4F4E50`): eight of (key, width and height as words).
-    pub sizes: [Dword; 16],
+    pub sizes: [PlainDword; 16],
     /// `dword_4F4E90`: three of (key, kind's number): the screen's kind (`g_screenKind`).
-    pub kinds: [Dword; 6],
+    pub kinds: [PlainDword; 6],
     /// `0x4F4EA8` .. `0x4F4F38`: more (key, figure) tables of pairs, a reading; nothing
     /// ported reads or writes them.
-    pub other_tables: [Dword; 36],
+    pub other_tables: [PlainDword; 36],
     /// `g_screenModeCount` (`dword_4F4F38`): the modes in the table.
-    pub count: Dword,
+    pub count: PlainDword,
     /// `g_screenModeTable` (`dword_4F4F3C`): the modes, 8 bytes each (the mode, then its
     /// flags), room for 32.
-    pub table: [Dword; 2 * TABLE_ROOM],
+    pub table: [PlainDword; 2 * TABLE_ROOM],
 }
 
 impl Modes {
     /// The tables; the first values are the image's.
     pub const fn new() -> Self {
         Modes {
-            kind_bits: dwords([0x1000, 0x2000]),
-            third_bits: dwords([0x20000, 0x40000]),
-            pixel_kinds: dwords([0x200, 0x10, 0x800, 0x20]),
-            sizes: dwords([
+            kind_bits: plain_dwords([0x1000, 0x2000]),
+            third_bits: plain_dwords([0x20000, 0x40000]),
+            pixel_kinds: plain_dwords([0x200, 0x10, 0x800, 0x20]),
+            sizes: plain_dwords([
                 0x1, 0x1e00280, 0x2, 0x2580320, 0x4, 0x2d003c0, 0x8, 0x3000400, 0x10, 0x3600480,
                 0x20, 0x4000500, 0x40, 0x4b00640, 0x80, 0x5000780,
             ]),
-            kinds: dwords([0x10000, 0x0, 0x20000, 0x1, 0x40000, 0x2]),
-            other_tables: dwords([
+            kinds: plain_dwords([0x10000, 0x0, 0x20000, 0x1, 0x40000, 0x2]),
+            other_tables: plain_dwords([
                 0x200, 0x10, 0x400, 0x18, 0x800, 0x20, 0x100, 0x8, 0x0, 0x0, 0x800, 0x20, 0x400,
                 0x18, 0x200, 0x10, 0x100, 0x8, 0x0, 0x0, 0x400, 0x10, 0x200, 0x18, 0x100, 0x20,
                 0x800, 0x8, 0x4000, 0x1, 0x2000, 0x2, 0x1000, 0x4, 0x0, 0x0,
             ]),
-            count: Dword::new(0),
-            table: [const { Dword::new(0) }; 2 * TABLE_ROOM],
+            count: PlainDword::new(0),
+            table: [const { PlainDword::new(0) }; 2 * TABLE_ROOM],
         }
     }
 }
@@ -67,14 +67,16 @@ impl Modes {
 #[cfg(test)]
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F4E30).
 pub fn home() -> usize {
-    crate::pointers::game_address(&raw const crate::gfx::owner::GFX.display.modes) as usize
+    crate::pointers::game_address(&raw const crate::gfx::owner::GFX.unchecked().display.modes)
+        as usize
 }
 
 impl Modes {
     /// Where a table is, as a pointer bounded by the whole block (the tables are walked
     /// past their ends).
     fn table_ptr(offset: usize) -> crate::pointers::GamePtr {
-        crate::pointers::GamePtr::to(&crate::gfx::owner::GFX.display.modes).offset(offset as u32)
+        crate::pointers::GamePtr::to(&crate::gfx::owner::GFX.unchecked().display.modes)
+            .offset(offset as u32)
     }
     pub fn pixel_kinds_ptr() -> crate::pointers::GamePtr {
         Self::table_ptr(core::mem::offset_of!(Self, pixel_kinds))
@@ -99,7 +101,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(
-            &crate::gfx::owner::GFX.display.modes,
+            &crate::gfx::owner::GFX.unchecked().display.modes,
             START,
             START + LEN,
         );

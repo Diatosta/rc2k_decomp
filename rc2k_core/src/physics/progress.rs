@@ -68,7 +68,7 @@ pub fn finished_at(split: u32, count: u32) -> bool {
 }
 
 /// `take_split_counted`'s time added before the last split: the split's seconds
-/// (`dword_601434[split]`) in hundredths (wrapping).
+/// (`SplitTables.stage_numbers[1][split]`) in hundredths (wrapping).
 pub fn split_bonus(seconds: u32) -> u32 {
     seconds.wrapping_mul(100)
 }
@@ -79,7 +79,7 @@ pub fn spread(a: u32, b: u32) -> u32 {
     if (d as i32) < 0 { d.wrapping_neg() } else { d }
 }
 
-/// The highest checkpoint `off_line_warnings` takes (`dword_9ED808` holds 0x1418 = 5144 angles,
+/// The highest checkpoint `off_line_warnings` takes (`Buffers.checkpoints.angles[2]` holds 0x1418 = 5144 angles,
 /// `CHECKPOINTS.angles[2..]`; the check lets index 0x1418 itself through, one past the table, into
 /// the gap that follows it, as the original).
 pub const LAST_CHECKPOINT: u32 = 0x1418;
@@ -172,7 +172,7 @@ pub fn search_all(distance: u32) -> bool {
 /// ("[car0.currsegment]" logged first).
 pub const SEGMENT_FATAL: u32 = 0x8060_1843;
 
-/// The split (`g_car` +0x90) and its checkpoint (`dword_601030[split]`) the tables hold:
+/// The split (`g_car` +0x90) and its checkpoint (`SplitTables.checkpoints[1][split]`) the tables hold:
 /// the split checked first, the checkpoint asked for after.
 pub fn check_split_point(split: u32, checkpoint: impl FnOnce() -> u32) -> Result<u32, Invalid> {
     if split > LAST_SPLIT + 1 {

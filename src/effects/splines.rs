@@ -22,8 +22,8 @@ const SECONDS: u32 = 0x254;
 const COORDS: u32 = 0x654;
 const CENTRE: u32 = 0xC54;
 const GRADES: u32 = 0xC90;
-// dword_768700
-// dword_7687D0
+// PongState.steps
+// PongState.hits
 
 /// The bytes of one of the four tables (A .. D).
 const TABLE_LEN: u32 = 29824;
@@ -245,8 +245,8 @@ pub fn add_face_points(paths: &Paths, s: Spline, face: u32) -> Result<(), Refuse
     Ok(())
 }
 
-/// `effects::reset_pong` (0x4B7E64): the eight floats from `flt_769182` to four (x, y)
-/// pairs from `flt_768688`, `dword_768700` 5, `dword_7687D0` 0. Every register kept.
+/// `effects::reset_pong` (0x4B7E64): the eight floats from `PongRules.start[0]` to four (x, y)
+/// pairs from `PongState.ball[0]`, `PongState.steps` 5, `PongState.hits` 0. Every register kept.
 /// Converted: `rc2k_core::effects::pong::Court::reset` (exact at every precision: `fld;
 /// fstp` of a float only makes a signalling NaN quiet).
 pub fn reset_pong(pong: &crate::effects::pong::Pong, effects: &crate::effects::owner::Effects) {

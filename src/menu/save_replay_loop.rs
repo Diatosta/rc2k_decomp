@@ -41,7 +41,7 @@ fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
     Ok(Flow::On)
 }
 
-/// What the loop returns, written by hand from the end of the listing: `dword_755A0C`, which the step above leaves at -1 or at the replay's number.
+/// What the loop returns, written by hand from the end of the listing: `DrawWork.scratch_0c`, which the step above leaves at -1 or at the replay's number.
 fn result(menus: &Menus) -> u32 {
     menus.screens.draw_work.scratch_0c.get()
 }

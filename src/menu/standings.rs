@@ -200,7 +200,7 @@ pub const PLAYER_COUNT_RVA: &PlainDword = &crate::menu::owner::MENUS
 pub const SECTION_RVA: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.event.section; // section
 pub const INDEX_RVA: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.event.index; // index
 
-/// The players `0 .. dword_755984` (the original's `do .. while`): refused at 0, past 4 or
+/// The players `0 .. Event.player_count` (the original's `do .. while`): refused at 0, past 4 or
 /// with one missing.
 pub fn counted_players(menus: &Menus) -> Result<Vec<PlayerCell<'_>>, BadInput> {
     let n: u32 = menus.screens.event.player_count.get();
@@ -251,7 +251,7 @@ pub fn tenth_best_score(group: u32) -> Result<u32, BadInput> {
 const SORTED: u32 = standings::SORTED as u32;
 
 /// Standings table A's first 0xB4 entries sorted by `key` (signed; the original's
-/// exchange sort: an entry later or equal moves up; `dword_7559B4` / `dword_7559B8` its
+/// exchange sort: an entry later or equal moves up; `DrawWork.scratch_b4` / `DrawWork.scratch_b8` its
 /// counters). Refused without a table.
 pub fn sort_table_a(menus: &Menus, key: rc2k_core::saves::entries::Field) -> Result<(), BadInput> {
     let screens = &menus.screens;
@@ -268,7 +268,7 @@ pub fn sort_table_a(menus: &Menus, key: rc2k_core::saves::entries::Field) -> Res
     Ok(())
 }
 
-/// The current player's (`dword_75598C`) best score entered at the bottom of `group`'s ten
+/// The current player's (`Event.current_player`) best score entered at the bottom of `group`'s ten
 /// (`saves::best_times::SCORES`, entry 9): its score (`score` of its record), its number
 /// plus 1, `new` 1, the nationality and car, its class, its name pointer and the name's 0x1F
 /// bytes; then moved up its group. Refused for a current player past 3 or missing, no name,

@@ -26,7 +26,7 @@ fn ida_table(paths: &Paths, ida: u32) -> &ProfileTable {
     &paths.profile_tables.tables[(ida as usize - start) / 0x800]
 }
 
-/// The profiles' work, `flt_8EB871` .. `flt_8EB899`.
+/// The profiles' work, `DrawWork.profile_work[0]` .. `DrawWork.profile_work[10]`.
 fn work(n: usize, v: u32, effects: &crate::effects::owner::Effects) {
     effects.frame.draw_work.profile_work[n].set_bits(v);
 }
@@ -96,7 +96,7 @@ fn make_tables(paths: &Paths, effects: &crate::effects::owner::Effects) -> Resul
     Ok(())
 }
 
-/// `effects::make_profiles` (0x4C3B01): `dword_8DD861` 0, the rings' before and after (of
+/// `effects::make_profiles` (0x4C3B01): `ProfileRings.zero` 0, the rings' before and after (of
 /// 0x100); unless done (`dword_91FF3E` = `resume`): the 3 ramps (start to end over 256
 /// steps), 8 sines (base + amplitude sin, the angle stepped), 2 curves (top - x² scale),
 /// each table's differences after it (a fourth list is of no tables), the mark `resume`;

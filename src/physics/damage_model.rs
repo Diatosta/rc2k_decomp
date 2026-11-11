@@ -2,7 +2,7 @@
 //! `physics::damage_factors` (0x4AB5E6), `physics::damage_wear` (0x4ABEDF),
 //! `physics::damage_gauges` (0x4AC817). Their figures: the work car's (`g_car`,
 //! 0x719FD8 ..: the damage gauges `brake_heat` .. `tyre_wear`, the handling factors
-//! `wheel_ride_height` ..), the model's own (`flt_75B340` .. 0x75B940: shares, tables of four
+//! `wheel_ride_height` ..), the model's own (`DamageModel.chance_scale` .. 0x75B940: shares, tables of four
 //! (x0, y0, x1, y1) for `physics::flow::table_lerp`, rates). What each figure is, is
 //! worked out from its uses (the docs in `physics/store.rs`). The three are long straight runs: their Rust was generated from the
 //! disassembly by idiom (x87 runs as blocks, the clamps as `hold_low` / `hold_high`, the

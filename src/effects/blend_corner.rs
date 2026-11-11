@@ -1,6 +1,6 @@
 //! `effects::blend_corner` (0x4D0B4E): one point blended: its factor the record's float at
 //! +0x90 + 4 x (the source point's three sign bits, x the highest; kept in
-//! `flt_93C6C8`), each of x, y, z base + (source - base) by it, rounded (`fistp`).
+//! `BlendWork.factor`), each of x, y, z base + (source - base) by it, rounded (`fistp`).
 //!
 //! Caller: `effects::morph_object_points`.
 

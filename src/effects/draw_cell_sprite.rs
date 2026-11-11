@@ -37,7 +37,7 @@ fn turn(
 }
 
 /// The square, turned, about the projected place. Gives a value the original keeps in a
-/// register: the draw work's `flt_8EB8C1` cell between its two stores.
+/// register: the draw work's `DrawWork.sprite_half[1]` cell between its two stores.
 fn square(k: u32, angle: u32, effects: &crate::effects::owner::Effects) -> u32 {
     square_x87(
         k as usize,

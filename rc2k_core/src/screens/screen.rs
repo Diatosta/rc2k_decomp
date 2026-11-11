@@ -21,7 +21,7 @@ pub enum Buffer {
     Line,
     /// The text buffer (the descriptions').
     Text,
-    /// `byte_A8BC54`, after the line buffer (0x100 bytes).
+    /// `Buffers.text.cells`, after the line buffer (0x100 bytes).
     Cells,
 }
 
@@ -135,7 +135,7 @@ pub trait Screen {
         Err(Invalid("this screen measures no text").into())
     }
     /// The font `a` blended with `b` by the time since the last key (half a pulse 0x100),
-    /// into the family's blended font (`text::blend_font`, `stru_51E384`). A screen that
+    /// into the family's blended font (`text::blend_font`, `FontObject.first_char`). A screen that
     /// blends none refuses.
     fn blend(
         &mut self,

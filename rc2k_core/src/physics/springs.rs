@@ -10,13 +10,13 @@ use super::x87::{below, equal, fistp64, hold_low, loaded};
 /// The springs' factors (the game's figures, as read).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SpringFactors {
-    /// `k65536` (65536), `flt_614BF8` (the spring's range).
+    /// `k65536` (65536), `PhysicsTables.handling[3]` (the spring's range).
     pub scale: f32,
     pub range: f32,
     /// `zero`, `one` (0, 1): the squeeze's ends.
     pub zero: f32,
     pub one: f32,
-    /// `spring_force_scale`, `flt_614774`: the force's factors.
+    /// `spring_force_scale`, `PhysicsTables.forces[0].force[1]`: the force's factors.
     pub stiffness: f32,
     pub load: f32,
     /// The damping's; `handling` its share when below 0.
@@ -60,7 +60,7 @@ pub fn spring(height: u32, last: f32, f: &SpringFactors) -> Spring {
 }
 
 /// The wheel's place (`wheel_spring_force`[k]`): ((`a` - `b` + `c`) + (squeeze - `d`) x range)
-/// x scale, `fistp`ed (`a` .. `d`: `flt_70FFF4`, `flt_614BF4`, `spring_share`,
+/// x scale, `fistp`ed (`a` .. `d`: `CarsAndReplay.car_blocks.cars[0].probe_point_y[6]`, `PhysicsTables.handling[2]`, `spring_share`,
 /// `probe_share`).
 pub fn wheel_place(abcd: [f32; 4], squeeze: f32, range: f32, scale: f32) -> i32 {
     let [a, b, c, d] = abcd.map(f64::from);

@@ -11,9 +11,9 @@ pub struct Keys {
     pub pressed: u32,
     /// The handbrake's input: bit 2 held times 0x60.
     pub hand: u32,
-    /// Bit 0 newly pressed (`dword_6138A0`, `input_gear_up`).
+    /// Bit 0 newly pressed (`PhysicsTables.input_gear_up`, `input_gear_up`).
     pub up: u32,
-    /// Bit 1 newly pressed (`dword_6138A4`, `input_gear_down`).
+    /// Bit 1 newly pressed (`PhysicsTables.input_gear_down`, `input_gear_down`).
     pub down: u32,
 }
 
@@ -28,7 +28,7 @@ pub fn read_keys(held_before: u32, keys: u32) -> Keys {
     }
 }
 
-/// The bits a player's newly pressed keys act on: bit 3 flips `dword_71A05C` (a
+/// The bits a player's newly pressed keys act on: bit 3 flips `Car.lights_on` (a
 /// reading: the lights), bit 5 changes the camera's view.
 pub const FLIP_BIT: u32 = 8;
 pub const VIEW_BIT: u32 = 0x20;
@@ -76,7 +76,7 @@ pub const THROTTLE_KEY: u32 = 0x4000;
 pub const BRAKE_KEY: u32 = 0x2000;
 
 /// `pedal_inputs`' handbrake: the input, but 0 when that is `PEDAL_TOP` or less and the
-/// switch (`unk_71A400`, asked only then) is set.
+/// switch (`Car.handbrake_failed`, asked only then) is set.
 pub fn handbrake(input: u32, switch: impl FnOnce() -> u32) -> u32 {
     if input <= PEDAL_TOP && switch() != 0 {
         0

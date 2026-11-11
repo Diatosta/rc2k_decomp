@@ -46,7 +46,7 @@ pub struct LoopFlags {
     pub sprite_table: PlainDword,
     /// Unreferenced bytes (IDA 0x755585 .. 0x75558D).
     pub _gap_755585: PlainBytes<8>,
-    /// `dword_75558D`: The current menu (by handle, `menus_store::MenuId`).
+    /// `LoopFlags.menu.0`: The current menu (by handle, `menus_store::MenuId`).
     pub menu: crate::menu::menus_store::MenuCell,
     /// `dword_755591`: Not worked out.
     pub dword_755591: PlainDword,

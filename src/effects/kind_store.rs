@@ -23,45 +23,45 @@ use crate::session::{PlainBytes, PlainDword, PlainFloat};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct QuadWork {
-    /// +0x0: the quad's place (z, y, x as `kind_values` writes it, a reading): the kind's two triples blended (set 1 `flt_9331B4`, `flt_9331B8` ..; set 2 `flt_933ED0`, `flt_933ED4` ..; plane `flt_934BD0`, `flt_934BD4` ..)
+    /// +0x0: the quad's place (z, y, x as `kind_values` writes it, a reading): the kind's two triples blended (set 1 `flt_9331B4`, `flt_9331B8` ..; set 2 `flt_9331B4`, `flt_9331B8` ..; plane `flt_9331B4`, `flt_9331B8` ..)
     pub place: [PlainFloat; 3],
     /// +0xC: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_c: PlainBytes<4>,
-    /// +0x10: the light's way turned by the matrix (`draw_shadow`), a reading (set 1 `flt_9331C4`, `flt_9331C8` ..; set 2 `flt_933EE0`, `flt_933EE4` ..; plane `flt_934BE0`, `flt_934BE4` ..)
+    /// +0x10: the light's way turned by the matrix (`draw_shadow`), a reading (set 1 `flt_9331C4`, `flt_9331C8` ..; set 2 `flt_9331C4`, `flt_9331C8` ..; plane `flt_9331C4`, `flt_9331C8` ..)
     pub light_turned: [PlainFloat; 3],
-    /// +0x1C: the matrix turned about z by the angle (`turn_matrix3`); its rows are made the frame's (set 1 `dword_9331D0`, `dword_9331D4` ..; set 2 `dword_933EEC`, `dword_933EF0` ..; plane `dword_934BEC`, `dword_934BF0` ..)
+    /// +0x1C: the matrix turned about z by the angle (`turn_matrix3`); its rows are made the frame's (set 1 `dword_9331D0`, `dword_9331D4` ..; set 2 `dword_9331D0`, `dword_9331D4` ..; plane `dword_9331D0`, `dword_9331D4` ..)
     pub matrix: [PlainFloat; 9],
     /// +0x40: Not named: 12 bytes (a gap, or unreferenced data).
     pub _gap_40: PlainBytes<12>,
-    /// +0x4C: the quad's two sides: the kind's triple (`copied`), then (0, difference y, minus difference x) (set 1 `dword_933200`, `dword_933204` ..; set 2 `dword_933F1C`, `dword_933F20` ..; plane `dword_934C1C`, `dword_934C20` ..)
+    /// +0x4C: the quad's two sides: the kind's triple (`copied`), then (0, difference y, minus difference x) (set 1 `dword_933200`, `dword_933204` ..; set 2 `dword_933200`, `dword_933204` ..; plane `dword_933200`, `dword_933204` ..)
     pub sides: [[PlainFloat; 3]; 2],
     /// +0x64: Not named: 12 bytes (a gap, or unreferenced data).
     pub _gap_64: PlainBytes<12>,
-    /// +0x70: the sides made one long and square (`normalise_vector3`, `cross_product3`); the light turned is stored in the third (set 1 `dword_933224`, `dword_933228` ..; set 2 `dword_933F40`, `dword_933F44` ..; plane `dword_934C40`, `dword_934C44` ..)
+    /// +0x70: the sides made one long and square (`normalise_vector3`, `cross_product3`); the light turned is stored in the third (set 1 `dword_933224`, `dword_933228` ..; set 2 `dword_933224`, `dword_933228` ..; plane `dword_933224`, `dword_933228` ..)
     pub frame: [[PlainFloat; 3]; 3],
-    /// +0x94: the corner of `g_marksCorners` (-1: none), the kind's `count` (set 1 `dword_933248`; set 2 `dword_933F64`; plane `dword_934C64`)
+    /// +0x94: the corner of `g_marksCorners` (-1: none), the kind's `count` (set 1 `dword_933248`; set 2 `dword_933248`; plane `dword_933248`)
     pub corner: PlainDword,
-    /// +0x98: the kind's size over its divisor (`kind_values`) (set 1 `flt_93324C`; set 2 `flt_933F68`; plane `flt_934C68`)
+    /// +0x98: the kind's size over its divisor (`kind_values`) (set 1 `flt_93324C`; set 2 `flt_93324C`; plane `flt_93324C`)
     pub ratio: PlainFloat,
-    /// +0x9C: the kind's size times its constant (`kind_values`) (set 1 `flt_933250`; set 2 `flt_933F6C`; plane `flt_934C6C`)
+    /// +0x9C: the kind's size times its constant (`kind_values`) (set 1 `flt_933250`; set 2 `flt_933250`; plane `flt_933250`)
     pub size: PlainFloat,
-    /// +0xA0: the kind's start times its constant (set 1 `flt_933254`; set 2 `flt_933F70`; plane `flt_934C70`)
+    /// +0xA0: the kind's start times its constant (set 1 `flt_933254`; set 2 `flt_933254`; plane `flt_933254`)
     pub start: PlainFloat,
-    /// +0xA4: the angle line below the split: the factor (set 1 `flt_933258`; set 2 `flt_933F74`; plane `flt_934C74`)
+    /// +0xA4: the angle line below the split: the factor (set 1 `flt_933258`; set 2 `flt_933258`; plane `flt_933258`)
     pub step: PlainFloat,
-    /// +0xA8: the split of the angle's two lines: the kind's `low` (signed compare of the bits) (set 1 `dword_93325C`; set 2 `dword_933F78`; plane `flt_934C78`)
+    /// +0xA8: the split of the angle's two lines: the kind's `low` (signed compare of the bits) (set 1 `dword_93325C`; set 2 `dword_93325C`; plane `dword_93325C`)
     pub low: PlainFloat,
-    /// +0xAC: the kind's `high` (set 1 `dword_933260`; set 2 `dword_933F7C`; plane `flt_934C7C`)
+    /// +0xAC: the kind's `high` (set 1 `dword_933260`; set 2 `dword_933260`; plane `dword_933260`)
     pub high: PlainFloat,
-    /// +0xB0: the angle line above the split: its base (set 1 `flt_933264`; set 2 `flt_933F80`; plane `flt_934C80`)
+    /// +0xB0: the angle line above the split: its base (set 1 `flt_933264`; set 2 `flt_933264`; plane `flt_933264`)
     pub middle: PlainFloat,
-    /// +0xB4: the angle line above the split: its factor (set 1 `flt_933268`; set 2 `flt_933F84`; plane `flt_934C84`)
+    /// +0xB4: the angle line above the split: its factor (set 1 `flt_933268`; set 2 `flt_933268`; plane `flt_933268`)
     pub slope: PlainFloat,
-    /// +0xB8: the factor the quad is drawn in by (`corners_in`) (set 1 `flt_93326C`; set 2 `flt_933F88`; plane `flt_934C88`)
+    /// +0xB8: the factor the quad is drawn in by (`corners_in`) (set 1 `flt_93326C`; set 2 `flt_93326C`; plane `flt_93326C`)
     pub spread: PlainFloat,
-    /// +0xBC: the way between two corners, made one long (`normalise_vector3`) (set 1 `flt_933270`, `flt_933274` ..; set 2 `flt_933F8C`, `flt_933F90` ..; plane `flt_934C8C`, `flt_934C90` ..)
+    /// +0xBC: the way between two corners, made one long (`normalise_vector3`) (set 1 `flt_933270`, `flt_933274` ..; set 2 `flt_933270`, `flt_933274` ..; plane `flt_933270`, `flt_933274` ..)
     pub way: [PlainFloat; 3],
-    /// +0xC8: the quad's four corners (z, y, x), turned to the view then projected (set 1 `flt_93327C`, `flt_933280` ..; set 2 `flt_933F98`, `flt_933F9C` ..; plane `flt_934C98`, `flt_934C9C` ..)
+    /// +0xC8: the quad's four corners (z, y, x), turned to the view then projected (set 1 `flt_93327C`, `flt_933280` ..; set 2 `flt_93327C`, `flt_933280` ..; plane `flt_93327C`, `flt_933280` ..)
     pub corners: [[PlainFloat; 3]; 4],
 }
 

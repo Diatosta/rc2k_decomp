@@ -1,5 +1,5 @@
 //! `drive::load_replay_cars` (0x46010D): `drive::save_replay_cars` the other way: the replay's
-//! starting state at `unk_7172EC` copied back into the four car blocks, the race slots and
+//! starting state at `CarsAndReplay.car_blocks.cars[8].frame_head[0]` copied back into the four car blocks, the race slots and
 //! `replay_extra`.
 //!
 //! Callers: `drive::play_replay_frame`, `race::show_replay_still` (twice).

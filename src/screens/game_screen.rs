@@ -199,7 +199,7 @@ fn font_of(f: impl GameFont) -> FontRef {
 }
 
 /// Where a clip edge is kept.
-fn clip_edge_cell(edge: rc2k_core::screens::screen::Edge) -> &'static crate::session::Dword {
+fn clip_edge_cell(edge: rc2k_core::screens::screen::Edge) -> &'static crate::session::PlainDword {
     let drawing = &gfx().drawing;
     use rc2k_core::screens::screen::Edge;
     match edge {

@@ -30,7 +30,7 @@ pub fn light_figure(v: u32) -> Result<i32, Invalid> {
 }
 
 /// The six figures (two points) with the second's and fifth's less `less`
-///: `dword_608C60` ...
+///: `CameraWork.listener_points[0]` ...
 pub fn listener_points(f: [i32; 6], less: u32) -> [i32; 6] {
     [
         f[0],
@@ -50,13 +50,13 @@ pub fn car_ahead(word: u32) -> bool {
     word >= 0x10
 }
 
-/// The figure with `dword_6238A8` set, else 0.
+/// The figure with `RaceVars.settings_words[0]` set, else 0.
 pub fn first_figure(switch: u32, figure: impl FnOnce() -> u32) -> u32 {
     if switch == 0 { 0 } else { figure() }
 }
 
 /// The sound switches from car block 0's words a and b
-/// with `dword_6415E0` (`on`), in the original's order of stores (`dword_5C56BC`, `E8`,
+/// with `FrameWork.mirror_wanted` (`on`), in the original's order of stores (`ViewerAndKinds.marks_settings.windscreen_drops_rate_factor`, `E8`,
 /// `C0`, `C4`, `E4`, `D0`, `C8`, `CC`).
 pub fn switches(on: bool, a: u32, b: u32) -> [u32; 8] {
     [

@@ -53,13 +53,13 @@ mod block_tests {
     #[test]
     fn first_value_is_the_games() {
         crate::gfx::first_values_are_the_games(
-            &crate::gfx::owner::GFX.png.setting,
+            &crate::gfx::owner::GFX.unchecked().png.setting,
             PNG_SETTING_START,
             PNG_SETTING_START + 4,
         );
         assert_eq!(
             crate::moved::place(PNG_SETTING_START),
-            crate::gfx::owner::GFX.png.setting.addr() as usize
+            crate::gfx::owner::GFX.unchecked().png.setting.addr() as usize
         );
     }
 }

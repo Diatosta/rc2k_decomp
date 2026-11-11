@@ -17,7 +17,7 @@ pub const TEXT_LEN: usize = 0x1F;
 pub type Text = [u8; TEXT_LEN];
 
 /// The entry's state: the length typed so far, 1 while a text is being
-/// typed, the text as it was before (`unk_7558A4`, which Escape brings
+/// typed, the text as it was before (`Names.text_backup`, which Escape brings
 /// back).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Entry {

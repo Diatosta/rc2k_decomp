@@ -1,6 +1,6 @@
 //! `sound::car_sounds` (0x40D893): one car's sounds for the turn.
 //!
-//! Takes the car's number (`g_raceSoundObjects[]`); the request is `unk_5124BC`.
+//! Takes the car's number (`g_raceSoundObjects[]`); the request is `RaceSoundSets.request.sound`.
 //! Runs `sound::car_engine_state` on the object, sets the request's +0x20 and +0x24 (the
 //! pitch and volume factors) to the object's +0x13C and +0x140, then `sound::revs_sound`, `sound::throttle_sound`,
 //! `sound::speed_sound`, `sound::surface_sounds`, `sound::car_slot_sounds`,

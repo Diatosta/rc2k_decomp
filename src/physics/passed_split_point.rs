@@ -1,12 +1,12 @@
 //! `physics::passed_split_point` (0x44165E): whether the work car has passed the next
 //! split's point. Nothing (CF clear) with `no_place` set. The car's x / z into
-//! `ground_x` / `ground_z`; the split's checkpoint (`dword_601030[+0x90]`), its
+//! `ground_x` / `ground_z`; the split's checkpoint (`SplitTables.checkpoints[1][+0x90]`), its
 //! face (`g_checkpointFaces`; past `g_courseFaceCount` the original logs
 //! "[car0.currsegment]" .. and raises fatal error 0x80601843) and that face's first point;
 //! the distance (`fild` of the two gaps, squared, added, `fsqrt`, / 65536) into
 //! `split_point_distance`; within `split_distance`: the angle from the point to the car (`fpatan`, /
 //! pi, x 0.5, x 65536, `fistp`, low 16 bits, shifted up 16) into `split_word`, the
-//! checkpoint's (`dword_9ED808`) into `split_heading`; CF when the angle is not below the
+//! checkpoint's (`Buffers.checkpoints.angles[2]`) into `split_heading`; CF when the angle is not below the
 //! checkpoint's less a quarter turn (by the sign).
 //!
 //! The x87 runs (with the integer steps between) are the arithmetic of the original's

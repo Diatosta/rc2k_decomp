@@ -1,7 +1,7 @@
-//! `effects::keep_vectors` (0x4C1339): twelve dwords kept (`push`/`pop`): `dword_769252` ..
-//! and `dword_76924E` into `dword_76926E` .. and `dword_76926A`; `dword_764FB0` .. and
-//! `dword_764FAC` into `dword_7692C2` .. and `dword_7692BE`; `dword_764F94` .. and
-//! `dword_764F90` into `dword_7692A6` .. and `dword_7692A2`.
+//! `effects::keep_vectors` (0x4C1339): twelve dwords kept (`push`/`pop`): `KeptView.pushed[1]` ..
+//! and `KeptView.pushed[0]` into `KeptView.kept_a.vector[0]` .. and `KeptView.kept_a.factor`; `ViewSources.sources[1].vector[0]` .. and
+//! `ViewSources.sources[1].factor` into `KeptView.kept_c.vector[0]` .. and `KeptView.kept_c.factor`; `ViewSources.sources[0].vector[0]` .. and
+//! `ViewSources.sources[0].factor` into `KeptView.kept_b.vector[0]` .. and `KeptView.kept_b.factor`.
 //!
 //! Caller: `effects::view_frame`.
 

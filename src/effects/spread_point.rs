@@ -1,5 +1,5 @@
 //! `effects::spread_point` (0x4C61AB): the three values in st(1) .. st(3) each grown by
-//! itself times st(0) times a random times `dbl_76521C` (`x87::grown`), left as st(0) ..
+//! itself times st(0) times a random times `MarksFloats.spread_scale` (`x87::grown`), left as st(0) ..
 //! st(2).
 //!
 //! The random (`g_marksSpreadRandom`): times 0x9D plus 0x47, then rotated right 12 twice,

@@ -240,7 +240,7 @@ pub fn casts_shadow(word: u32) -> bool {
     word != 0
 }
 
-/// A car's passes: one with `dword_6238B0` set, then one with the sun at `SUN_PASS`.
+/// A car's passes: one with `RaceVars.settings_words[2]` set, then one with the sun at `SUN_PASS`.
 pub fn first_pass(switch: u32) -> bool {
     switch != 0
 }

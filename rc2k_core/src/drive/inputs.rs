@@ -29,10 +29,10 @@ pub fn keys_or(keys: &[u8; KEY_COUNT]) -> u8 {
     keys.iter().fold(0, |o, &k| o | k)
 }
 
-/// The cars a race has (`dword_641680`, `g_carBlocks`: eight).
+/// The cars a race has (`FrameWork.listed_car_sounds[0]`, `g_carBlocks`: eight).
 pub const CARS: u32 = 8;
 
-/// No device (`dword_641680[car]`).
+/// No device (`FrameWork.listed_car_sounds[0][car]`).
 pub const NO_DEVICE: u32 = u32::MAX;
 
 /// A current car past the tables refused (`drive::car_input_words`, before anything).
@@ -43,7 +43,7 @@ pub fn check_car(car: u32) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// `drive::car_input_words`: the words (`dword_6138C4` ..) 0, or the device's readings
+/// `drive::car_input_words`: the words (`PhysicsTables.input_words[0]` ..) 0, or the device's readings
 /// (`drive::device_axes`) for a car with one.
 pub fn device_words(readings: Option<[u32; 4]>) -> [u32; 4] {
     readings.unwrap_or([0; 4])
@@ -55,7 +55,7 @@ pub fn device_words(readings: Option<[u32; 4]>) -> [u32; 4] {
 pub enum ReplayWords {
     /// The block gives them (a car played back).
     FromBlock,
-    /// The block takes them (the car recorded, `dword_52A920`).
+    /// The block takes them (the car recorded, `NetVars.player`).
     IntoBlock,
 }
 

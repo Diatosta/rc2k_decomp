@@ -25,11 +25,11 @@ use crate::gfx::glyph_tables::{
 };
 use crate::memory::take_from_list::{rewind_list, take_from_list};
 use crate::pointers::Store;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 // ---- game data ----
 
-/// The variables a store of `HUNG` reads: `FONTS.palettes` (dword_51DEB0: 256 pixels, the
+/// The variables a store of `HUNG` reads: `FONTS.palettes` (FontBlock.palettes: 256 pixels, the
 /// fonts' palettes; 0 = the fonts are not built) and the four glyph tables' places.
 #[derive(Clone, Copy)]
 enum Source {
@@ -41,7 +41,7 @@ enum Source {
 }
 
 impl Source {
-    fn cell(self) -> &'static Dword {
+    fn cell(self) -> &'static PlainDword {
         let fonts = &gfx().fonts;
         match self {
             Source::Palettes => &fonts.font_block.palettes,
@@ -54,7 +54,7 @@ impl Source {
 }
 const PALETTE_BYTES: usize = 0x400;
 /// The four font sheets and where each one's table is kept.
-fn font_sheets() -> [(&'static [u8], &'static Dword); 4] {
+fn font_sheets() -> [(&'static [u8], &'static PlainDword); 4] {
     let fonts = &gfx().fonts;
     use crate::gfx::texts::{FNT13, FNT21, FNT23, FNT27};
     [
@@ -213,7 +213,7 @@ const HUNG: [(usize, Field, Source, u32); 125] = [
 /// The part with the calls; `palettes` is where the palettes' place is kept. (The
 /// original's fatal error 0x80E48023 for a failed allocation cannot come: the allocator
 /// reports its own.)
-fn tables(vars: &SheetVars, palettes: &Dword) -> Result<(), Refused> {
+fn tables(vars: &SheetVars, palettes: &PlainDword) -> Result<(), Refused> {
     let system = crate::system::owner::system();
     let gfx = gfx();
     let list = &gfx.fonts.glyph_tables.memory;

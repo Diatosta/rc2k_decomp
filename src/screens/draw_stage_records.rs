@@ -32,13 +32,13 @@ const ROW_2_Y: i32 = 0x213;
 /// The game's selection: a group, a table in that group and a record in that table.
 #[derive(Clone, Copy, Debug)]
 pub struct Selection {
-    /// dword_7558C8
+    /// Event.stage_group
     pub group: u32,
-    /// dword_7558D0
+    /// Event.stage_sub
     pub sub: u32,
     /// `tables[group][sub]`: the address of the table's first record.
     pub table: RecordTable,
-    /// `table + index * 0xA4`, with index = dword_7558CC.
+    /// `table + index * 0xA4`, with index = Event.stage_number.
     pub record: RecordRef,
 }
 

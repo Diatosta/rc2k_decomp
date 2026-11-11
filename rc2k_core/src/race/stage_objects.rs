@@ -9,7 +9,7 @@ use crate::Invalid;
 
 // ---- the object slots' kinds ----
 
-/// The eight fixed kinds (`fixed_kinds` .. `dword_6092B0`).
+/// The eight fixed kinds (`fixed_kinds` .. `StagePrefs.fixed_kinds[7]`).
 pub const FIXED_KINDS: [u32; 8] = [0xCF, 0x79, 0xCC, 0xCD, 0xC8, 0xC9, 0xCA, 0xCB];
 /// The slots set from their defaults (`slot_kind_defaults`): 1 .. 0x3F.
 pub const DEFAULT_SLOTS: std::ops::Range<u32> = 1..0x40;

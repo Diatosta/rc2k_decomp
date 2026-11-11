@@ -8,7 +8,7 @@
 //!   replay's work (`drive::flush_replay`, `drive::load_replay_frame`).
 //! - `VIEWER_AND_KINDS` (IDA 0x5C291C .. 0x5C5CE0): the viewer's panel, the block's bytes
 //!   after it, the kinds' tables. The effects read the marks' settings as one record from
-//!   `asc_5C2F84` (in the panel) to +0x26A8 (in the kinds' tables: `effects::init_marks`).
+//!   `ViewerAndKinds.marks_settings.settings_text` (in the panel) to +0x26A8 (in the kinds' tables: `effects::init_marks`).
 //! - `LIGHTS_AND_GEAR` (IDA 0x5C906C .. 0x5CC198): the light records, a dword, the gear
 //!   figures. `scene::load_object` reads a kind's record past the 34 (an unbounded kind,
 //!   as the original) into the gear figures.
@@ -17,7 +17,7 @@
 //!   `hud::draw_hud`'s layouts). The panel starts 2 bytes past a dword: two lead bytes keep
 //!   the overlay's dwords aligned (the group's home is 2 bytes in).
 //! - `VIEW_AND_RECORDS` (IDA 0x60626C .. 0x6077B0): the view variables and the 52 view
-//!   records of 0x5C after them (0x606500 .., `off_606320`'s targets). Until 2026-11-05 the
+//!   records of 0x5C after them (0x606500 .., `ViewAndRecords.view_vars.view_records[0]`'s targets). Until 2026-11-05 the
 //!   variables ran on to 0x60674C over the first records' fields, and record 6 (0x606728)
 //!   crossed their end (seen 2026-10-29: the third chase view read half its record from the
 //!   wrong memory while the variables had moved alone); the records are now one array.

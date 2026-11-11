@@ -63,7 +63,7 @@ pub struct MenuItem {
     pub skip_mark: u32,
     pub measuring_font: MenuFont,
     pub highlight_font: MenuFont,
-    /// What `menu::run_item_action` hands the action (and stores in `dword_755A38`).
+    /// What `menu::run_item_action` hands the action (and stores in `DrawWork.action_mode`).
     pub action_value: u32,
     pub spaced: u32,
 }

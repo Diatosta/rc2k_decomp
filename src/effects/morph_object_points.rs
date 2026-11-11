@@ -1,7 +1,7 @@
 //! `effects::morph_object_points` (0x4D08DD, reached through the jumps at 0x4D074D and
 //! 0x4D0815): for each car (the settings' +0x5C, the last first; its block at +0x29C of
 //! its 0x4C8 bytes) the block's +0xC its +8; when its eight factors (+0x90 ..) differ from
-//! the kept ones (+0xB0 ..): +0xC -1, the factors kept (also in `dword_93C6D4` ..), and
+//! the kept ones (+0xB0 ..): +0xC -1, the factors kept (also in `MorphWork.kept[0]` ..), and
 //! for each of its first object's (+0) points the matching point of the second object
 //! (+4) blended toward from the base list (+0x8C) by `effects::blend_corner`, where the
 //! base and the second object's point differ. Then `effects::measure_lines`.

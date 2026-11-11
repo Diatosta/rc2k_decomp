@@ -7,7 +7,7 @@
 
 use crate::physics::x87::{below, loaded};
 
-/// The routine's figures (`flt_64BB44` ..).
+/// The routine's figures (`Finish.limit_a` ..).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FinishFigures {
     /// The clock's units a second.
@@ -31,7 +31,7 @@ pub struct FinishTiming {
     pub eased: f32,
     /// The share.
     pub share: f32,
-    /// `dword_5C2F88` set to 1.
+    /// `ViewerAndKinds.marks_settings.race_done` set to 1.
     pub flag: bool,
 }
 

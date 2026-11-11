@@ -3,7 +3,7 @@
 //!
 //! Returns: the number of slots
 //!
-//! `scene::load_slot_texture` for the slots 0 .. `dword_5DC970`. Six callers. Refuses no slots
+//! `scene::load_slot_texture` for the slots 0 .. `TexturePlaces.totals[2]`. Six callers. Refuses no slots
 //! (the original goes through 2^32) and more than the table has. The registers above are the
 //! original's; a call by address goes through `routes.rs`, which maps them.
 

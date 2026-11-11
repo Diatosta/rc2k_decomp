@@ -9,13 +9,13 @@ use crate::strings::format::{Pad, decimal, time};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E584`.
+    /// `FontObjects.objects[15].first_char`.
     Big,
-    /// `stru_51E5A4`.
+    /// `FontObjects.objects[16].first_char`.
     Small,
-    /// `stru_51E9A4`.
+    /// `FontObjects.objects[48].first_char`.
     Stage,
-    /// `stru_51E564`.
+    /// `FontObjects.objects[14].first_char`.
     Time,
 }
 
@@ -32,11 +32,11 @@ pub const NO_TIME: u32 = 0x36EE80;
 /// What the page shows by player 1 and 2.
 #[derive(Clone, Copy, Debug)]
 pub struct Figures {
-    /// The strings `dword_7588D2[dword_758768 - 1]`, `[dword_75876C - 1]`.
+    /// The strings `CaptionTables.duel_labels[0][Results.positions[0] - 1]`, `[Results.positions[1] - 1]`.
     pub labels: [u32; 2],
-    /// `dword_758758`, `dword_75875C`.
+    /// `Results.time_bonus[0]`, `Results.time_bonus[1]`.
     pub best: [u32; 2],
-    /// `dword_758778` .. (x 0x1C4) and `dword_75877C` .. (x 0x2C8), as numbers.
+    /// `Results.points[0]` .. (x 0x1C4) and `Results.points[1]` .. (x 0x2C8), as numbers.
     pub columns: [[u32; 6]; 2],
 }
 

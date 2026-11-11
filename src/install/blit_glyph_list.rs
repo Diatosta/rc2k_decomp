@@ -44,5 +44,5 @@ fn palette(link: crate::install::page_links::PageLink) -> u32 {
             "a glyph list's palette that is not the blended palette",
         ));
     }
-    crate::pointers::GamePtr::to(&crate::text::blend_font::BLENDED_PALETTE).addr()
+    crate::pointers::GamePtr::to(crate::text::blend_font::BLENDED_PALETTE.get()).addr()
 }

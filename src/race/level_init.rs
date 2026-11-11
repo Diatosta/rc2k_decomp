@@ -1,5 +1,5 @@
 //! `race::load_stage`'s "loadlevel_init" (`race::loadlevel_init`): its small steps (). The course memory (`alloc coursemem`): 0x1300000 bytes from
-//! `memory::allocate` on `stru_5C6D50`, `g_courseMemory` (0x5C6F94) its start and
+//! `memory::allocate` on `CourseLists.course_memory_list[0]`, `g_courseMemory` (0x5C6F94) its start and
 //! `g_courseInfo` (0x5C6FA0) its last 0x400000 bytes, where the texture and mark info
 //! files are read.
 
@@ -219,7 +219,7 @@ pub fn reset_refresh() {
 }
 
 /// `race::init_checkpoints` (0x45A98F): `split_colour_count` 0; unless `checkpoint_count` - 2 is below 0, the
-/// table entries 1 .. `last_checkpoint` - 1 (`dword_9E3738[n]`) whose record (`course_faces` + it *
+/// table entries 1 .. `last_checkpoint` - 1 (`Buffers.checkpoints.checkpoint_faces[0][n]`) whose record (`course_faces` + it *
 /// 0x40) has its byte +0x26 set are listed in `checkpoints`, and `split_colour_count` = their count - 1.
 /// Refuses an end below 2 (the original counts round), or more found than the list's 0x201 (a real
 /// stage's end is past 0x201: refused wrongly by an earlier check of the end).

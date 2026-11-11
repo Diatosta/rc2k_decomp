@@ -43,7 +43,7 @@ pub fn calls(target: u32, last: u32) -> Option<(u32, u32)> {
     Some((if gap > MOST_CALLED { target } else { last }, gap))
 }
 
-/// The most groups (`dword_619E18`'s room).
+/// The most groups (`PaceNotes.group_checkpoints[0]`'s room).
 pub const MOST_GROUPS: u32 = 0x400;
 
 /// The first group called at `checkpoint` (`checkpoint_of(n)` read in order); None when

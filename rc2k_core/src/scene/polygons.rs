@@ -2,7 +2,7 @@
 //! `scene::draw_object_polygon` 0x451F69 and its test `scene::needs_clipping`): the work list
 //! started, whether a vertex is off the screen or too near, and the fan's triangles.
 
-/// The kept entries' room (`unk_976610`, up to the list): the most vertices.
+/// The kept entries' room (`Buffers.polygon.entries[64].point`, up to the list): the most vertices.
 pub const MOST_KEPT: u32 = 0x40;
 
 /// Whether a polygon of `count` vertices can be drawn (1 .. 0x40).
@@ -15,7 +15,7 @@ pub fn first_list(count: u32) -> Vec<u32> {
     (0..count).chain([0]).collect()
 }
 
-/// The edges `scene::needs_clipping` tests against: the least (`flt_5C5D90`, for the depth, x and
+/// The edges `scene::needs_clipping` tests against: the least (`Numbers.zero`, for the depth, x and
 /// y), the screen's right and bottom (`g_clipScreenRight`, `g_clipScreenBottom`).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Edges {

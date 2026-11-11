@@ -45,7 +45,7 @@ fn k(cell: &f32) -> u32 {
     cell.to_bits()
 }
 
-/// The original's 0x4CE9AF .. 0x4CEA40 (and 0x4CEC77 ..): the place less the object's (`[p + 0x30]` ..) into `flt_935718` .., turned by the object's matrix (`m`), |x| and |z| `fistp`ed into `dword_935680` / `dword_935684`.
+/// The original's 0x4CE9AF .. 0x4CEA40 (and 0x4CEC77 ..): the place less the object's (`[p + 0x30]` ..) into `RingWork.away[0]` .., turned by the object's matrix (`m`), |x| and |z| `fistp`ed into `RingWork.extent[0]` / `RingWork.extent[1]`.
 /// The car a ring entry is on (its +0x68, a `effects_settings_store::car_handle`).
 fn entry_car(ring: &Ring, e: u32) -> Result<&'static CarEffects, Refused> {
     car_or_none(entry(ring, e)?.car).ok_or_else(|| BadInput("a ring entry without its car").into())
@@ -62,17 +62,17 @@ fn whole_of(car: &CarEffects) -> Result<&'static [crate::session::Float; 16], Ba
         .ok_or(BadInput("a ring entry without its object"))
 }
 
-/// The original's 0x4CEA5E .. 0x4CEAD4 (and 0x4CED26 ..): that way made one long (`flt_76516C` over its length), dotted with the object's +0x4C .. into `flt_9356B4`.
+/// The original's 0x4CEA5E .. 0x4CEAD4 (and 0x4CED26 ..): that way made one long (`MarksFloats.one` over its length), dotted with the object's +0x4C .. into `RingWork.facing`.
 fn facing(ring: &Ring, car: &CarEffects, effects: &crate::effects::owner::Effects) {
     facing_x87(car, &effects.setup.floats, &ring.work);
 }
 
-/// The original's 0x4CEF8A .. 0x4CEFDA: the place less the object's into `flt_935718` .., its length (kept, 80 bits, at `l`) less `flt_93A526` into `flt_9356BC`.
+/// The original's 0x4CEF8A .. 0x4CEFDA: the place less the object's into `RingWork.away[0]` .., its length (kept, 80 bits, at `l`) less `flt_93A526` into `RingWork.near`.
 fn pull_length(ring: &Ring, e: u32, whole: &[crate::session::Float; 16], length: &mut [u8; 10]) {
     pull_length_x87(ring, e, whole, length, &ring.work, &ring.kinds);
 }
 
-/// The original's 0x4CEFEC .. 0x4CF07F: the way made one long by the kept length, the object's +0x4C .. over its +0x88, minus their dot into `flt_9356B4`.
+/// The original's 0x4CEFEC .. 0x4CF07F: the way made one long by the kept length, the object's +0x4C .. over its +0x88, minus their dot into `RingWork.facing`.
 fn pull_facing(
     ring: &Ring,
     car: &CarEffects,
@@ -82,7 +82,7 @@ fn pull_facing(
     pull_facing_x87(car, length, &effects.setup.floats, &ring.work);
 }
 
-/// The original's 0x4CF08B .. 0x4CF0D8: the entry's +0x64 pulled toward `flt_7651DC` (`fist` into `dword_9356C0`).
+/// The original's 0x4CF08B .. 0x4CF0D8: the entry's +0x64 pulled toward `MarksFloats.fixed_16_scale` (`fist` into `RingWork.whole`).
 fn pull_strength(ring: &Ring, e: u32, car: &CarEffects, effects: &crate::effects::owner::Effects) {
     let setup = &effects.setup;
     pull_strength_x87(
@@ -96,7 +96,7 @@ fn pull_strength(ring: &Ring, e: u32, car: &CarEffects, effects: &crate::effects
     );
 }
 
-/// The original's 0x4CF65C .. 0x4CF6B7 (and 0x4CF7C4 ..): the place turned by the object's matrix (`m`), |x| and |z| into `dword_935680` / `dword_935684`.
+/// The original's 0x4CF65C .. 0x4CF6B7 (and 0x4CF7C4 ..): the place turned by the object's matrix (`m`), |x| and |z| into `RingWork.extent[0]` / `RingWork.extent[1]`.
 fn box_place(ring: &Ring, e: u32, car: &CarEffects) {
     box_place_x87(ring, &ring.work, e, car);
 }
@@ -385,7 +385,7 @@ fn shown(effects: &crate::effects::owner::Effects, ring: &Ring, e: u32) -> Resul
     Ok(entry_flag(effects.settings()?, entry(ring, e)?.emitter_tag)? != 0)
 }
 
-/// The alpha (top byte) as a whole number (`fistp` through `dword_9356C0`).
+/// The alpha (top byte) as a whole number (`fistp` through `RingWork.whole`).
 fn whole_alpha(ring: &Ring, e: u32) -> Result<u32, Refused> {
     Ok({
         let a = x87::to_int(entry(ring, e)?.alpha);
@@ -394,7 +394,7 @@ fn whole_alpha(ring: &Ring, e: u32) -> Result<u32, Refused> {
     })
 }
 
-/// The size as a whole number (through `dword_9356C0`).
+/// The size as a whole number (through `RingWork.whole`).
 fn whole(ring: &Ring, v: i32) -> u32 {
     ring.work.whole.set(v as u32);
     v as u32

@@ -78,7 +78,7 @@ pub struct EngineVoice {
 pub struct SoundObject {
     /// +0: added to a sound set's first sound to pick the car's sound; negative for a computer's car (the sets are picked in `sound::revs_sound` and `surface_sound`).
     pub sound_offset: Dword,
-    /// +4: the car's sound kind, an index into `off_514F90` (36 of 0x88 bytes).
+    /// +4: the car's sound kind, an index into `SoundKinds.kinds[0]` (36 of 0x88 bytes).
     pub kind: Dword,
     /// +8: 1 when the object is in use (`sound::car_sounds_all`).
     pub in_use: Dword,
@@ -142,7 +142,7 @@ pub struct SoundObject {
     pub revs_input: Float,
     /// +0x104: the throttle sound's input, +0x18 over 256.
     pub throttle_input: Float,
-    /// +0x108: the speed sound's input, |+0x1C| x `flt_516370`.
+    /// +0x108: the speed sound's input, |+0x1C| x `SurfaceSounds.speed_scale`.
     pub speed_input: Float,
     /// +0x10C: 0 (no revs), 1 (up to 1000), 2, or 3 when +0x20 was set.
     pub state: Dword,
@@ -461,7 +461,7 @@ const fn initial_object(sound_offset: u32) -> SoundObject {
 pub struct RaceSounds {
     /// `g_raceSoundObjects`: the eight objects' addresses as the image names them (IDA's); read by nothing, the objects are reached by number (`objects`).
     pub table: [Dword; 8],
-    /// The eight objects (`dword_512A30` ..), 0x4A8 bytes each.
+    /// The eight objects (`RaceSounds.objects[0].sound_offset` ..), 0x4A8 bytes each.
     pub objects: [SoundObject; 8],
     /// `g_playerCarA`, `g_playerCarB`: the object numbers of the first and second player's cars.
     pub player_cars: [Dword; 2],
@@ -530,19 +530,19 @@ pub struct RaceClock {
     pub started: Dword,
     /// `dword_5124E8`: the clock (ms) of the last sound turn.
     pub last: Dword,
-    /// `flt_5124EC`: sound turns a second (a distance changed in one turn times it is a
+    /// `dword_5124EC`: sound turns a second (a distance changed in one turn times it is a
     /// speed in units a second).
     pub turns_a_second: Float,
     /// `dword_5124F0`: the turn's length (ms).
     pub step: Dword,
     /// `dword_5124F4`: the turns counted.
     pub turns: Dword,
-    /// `flt_5124F8` (337.52) and `flt_5124FC` (its inverse, 0.002963): a moving sound's
+    /// `flt_5124F8` (337.52) and `RaceClock.over_sound_speed` (its inverse, 0.002963): a moving sound's
     /// pitch is (speed of approach + the first) times the second, the Doppler factor
     /// with the speed of sound (the Doppler factor, `sound::turn_parts`).
     pub sound_speed: Float,
     pub over_sound_speed: Float,
-    /// `flt_512500` (64) and `flt_512504` (128 / pi): a placed sound's pan, the centre and
+    /// `flt_512500` (64) and `RaceClock.pan_per_radian` (128 / pi): a placed sound's pan, the centre and
     /// the pan steps per radian of angle.
     pub pan_centre: Float,
     pub pan_per_radian: Float,
@@ -712,7 +712,7 @@ pub struct StageSounds {
     pub timed_due: Dword,
     /// `g_stageTimedWaiting`: 1 while it waits to be due.
     pub timed_waiting: Dword,
-    /// `g_stageTimedSlot` (`unk_5165CC`): the timed sound's slot (sound 0x1C4).
+    /// `g_stageTimedSlot` (`StageSounds.timed_slot.sound`): the timed sound's slot (sound 0x1C4).
     pub timed_slot: SoundSlot,
     /// `g_stageRandomSound1`, `g_stageRandomSound2`: at 1 a sound (0x1AE, 0x1AF) at a random pitch and place is played once.
     pub random: [Dword; 2],
@@ -799,7 +799,7 @@ pub struct SpotPicks {
     pub pick_next: Dword,
     /// `g_spotKindSounds` (`dword_517F54`): a spot kind's sound, 22 of them (kind 0 unused).
     pub kind_sounds: [Dword; 22],
-    /// `g_spotKindRepeats` (`unk_517FAC`): a kind's repeats, 8 bytes, kind 1 first.
+    /// `g_spotKindRepeats` (`SpotPicks.kind_repeats[0]._word_0`): a kind's repeats, 8 bytes, kind 1 first.
     pub kind_repeats: [KindRepeats; 21],
     /// `dword_518054`: the original cleared it at a race's start (`race::reset_race_sounds`); no ported code reads or writes it (the original's 0x40EC85 read it).
     pub spot_work_a: Dword,
@@ -1119,9 +1119,9 @@ impl CdAudio {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CarStream {
-    pub place: Dword,  // dword_A8C180
-    pub stream: Dword, // dword_A8C184
-    pub on: Dword,     // dword_A8C188
+    pub place: Dword,  // CarStream.place
+    pub stream: Dword, // CarStream.stream
+    pub on: Dword,     // CarStream.on
 }
 
 impl CarStream {

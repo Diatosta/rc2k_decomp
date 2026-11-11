@@ -74,12 +74,12 @@ macro_rules! loose {
     };
 }
 
-/// `wrreplayenable`: `dword_5C2CEB` (unaligned, in the viewer panel's tail).
+/// `wrreplayenable`: `ViewerAndKinds.viewer_panel.untyped_tail[0]` (unaligned, in the viewer panel's tail).
 fn set_developer_keys(number: u32) {
     crate::race::viewer_screen_store::VIEWER_PANEL.set_developer_keys(number);
 }
 
-/// `wrreplayrate`: `dword_5C2CEF` (unaligned, in the viewer panel's tail).
+/// `wrreplayrate`: `ViewerAndKinds.viewer_panel.untyped_tail[1]` (unaligned, in the viewer panel's tail).
 fn set_picture_rate(number: u32) {
     crate::race::viewer_screen_store::VIEWER_PANEL.set_picture_rate(number);
 }
@@ -227,11 +227,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
         0x624238,
         dword!(scene().drawing.scene.v3_driver_fix),
     ),
-    (
-        b"nopngdecode",
-        0x51B97C,
-        dword!(crate::gfx::owner::GFX.png.setting),
-    ),
+    (b"nopngdecode", 0x51B97C, dword!(gfx().png.setting)),
     (
         b"nojoy",
         0x4F68DC,

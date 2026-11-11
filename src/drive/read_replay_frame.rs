@@ -3,7 +3,7 @@
 //! errors 0x80A61151 and 0x80A61152 (raised as the original). At or past the last frame
 //! (`index_block_count`): the last frame, `replay_at_end` 1, the tenth 0. Else the tenth goes into
 //! `replay_frame`, `replay_at_end` 0, the frame into `replay_block`, the file is put at the frame's
-//! place (`lDistanceToMove[frame]`, `files::seek`) and its bytes (`dword_5BECDC[frame]`, packed when
+//! place (`lDistanceToMove[frame]`, `files::seek`) and its bytes (`ReplayFileBlock.block_places[1][frame]`, packed when
 //! below 0) are read into `block` (`drive::read_packed`).
 //!
 //! Takes: the frame, the tenth

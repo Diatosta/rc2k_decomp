@@ -13,7 +13,7 @@ use crate::scene::matrix::{multiply_matrices, set_place, set_turn_x, set_turn_y}
 use crate::session::Float;
 
 /// The five axle values (`rc2k_core::race::car_parts::axles`) from the model's record
-/// (`dword_5C9098` .. of its 0x134-byte record) and the lift.
+/// (`LightsAndGear.light_records.records[0].axles[0]` .. of its 0x134-byte record) and the lift.
 fn axles(shared: &RaceShared, model: u32) -> Result<Option<[u32; 5]>, BadInput> {
     let axles = &LIGHT_RECORDS
         .records
@@ -35,7 +35,7 @@ fn axles(shared: &RaceShared, model: u32) -> Result<Option<[u32; 5]>, BadInput> 
 /// and place; the car's turn (+0xB4) and place into `body_turn_matrix` / `placed_matrices`; each wheel placed
 /// at minus its axle, turned about x by its spin (+0x1F8 front, +0x1FC rear) and about y by the
 /// steering (front only), placed at its axle with its height (+0x910 ..), into `part_matrices` ..
-/// `flt_6418A0`. Refuses (before anything) axle values whose scaling would fault.
+/// `FrameWork.part_matrices[48]`. Refuses (before anything) axle values whose scaling would fault.
 pub fn car_part_matrices(
     race: &Race,
     car: u32,

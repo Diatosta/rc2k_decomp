@@ -37,27 +37,27 @@ pub const LEN: usize = 0x5BE8D8 - START;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct GameFontsMemory {
-    /// `dword_5BE894`: the memory's size in units of 0x400 bytes times `dword_4F4958`
+    /// `dword_5BE894`: the memory's size in units of 0x400 bytes times `Screen.bytes`
     /// (`gamegfxheapsize`, a `var\ral.cfg` setting).
-    pub units: crate::session::Dword,
-    /// `g_gameFontMemory` (`stru_5BE898`): the list the fonts' tables lie on (16 bytes).
+    pub units: crate::session::PlainDword,
+    /// `g_gameFontMemory` (`GameFontsMemory.memory.head`): the list the fonts' tables lie on (16 bytes).
     pub memory: crate::memory::ListCells,
     /// `0x5BE8A8` .. `0x5BE8D8`: nothing reads or writes them (a gap).
-    pub _gap_14: [crate::session::Dword; 12],
+    pub _gap_14: [crate::session::PlainDword; 12],
 }
 
 impl GameFontsMemory {
     /// The game fonts' memory; the first values are the image's.
     pub const fn new() -> Self {
         GameFontsMemory {
-            units: crate::session::Dword::new(0x20),
+            units: crate::session::PlainDword::new(0x20),
             memory: crate::memory::ListCells::new(MemoryList {
                 head: 0,
                 total: 0,
                 cursor: 0,
                 remaining: 0,
             }),
-            _gap_14: [const { crate::session::Dword::new(0) }; 12],
+            _gap_14: [const { crate::session::PlainDword::new(0) }; 12],
         }
     }
 }
@@ -75,7 +75,7 @@ fn fatal(code: u32) -> Refused {
 /// the allocator reports its own.)
 pub fn build_game_fonts(
     vars: &SheetVars,
-    pixels_b: &crate::session::Dword,
+    pixels_b: &crate::session::PlainDword,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {

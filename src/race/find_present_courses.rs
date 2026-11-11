@@ -34,7 +34,7 @@ pub fn find_present_courses(
     for n in 0..COURSES {
         set_course_number(n, scene)?;
         set_cdat_number(course, 0);
-        shared.switches.course_present[n as usize].set(0); // dword_621518, 100 flags
+        shared.switches.course_present[n as usize].set(0); // FrameSwitches.course_present[0], 100 flags
         let present = course_present(paths(course).len() as u32, |file| {
             BYTES_READ.set(0);
             let path = paths(course)[file as usize];

@@ -250,7 +250,7 @@ fn paste(race: &Race) -> Result<(), Refused> {
     crate::race::keep_undo::keep_undo(&race.shared);
     // The blocks from the one shown up by the clipboard's count, from the top down.
     // (The original's `std; rep movsd` from the last dword, `index_frame_count` and
-    // `unk_963BB0` + count * 8, down: a move that may overlap.)
+    // `Buffers.viewer.block[2563]` + count * 8, down: a move that may overlap.)
     use crate::race::viewer::{move_cells, move_cells_back};
     let v = &crate::race::viewer_buffers_store::VIEWER_BUFFERS;
     let (at, clip_dwords) = (2 * block as usize, 2 * clip as usize);

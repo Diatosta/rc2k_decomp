@@ -54,7 +54,7 @@ pub struct Patches {
     pub gravity: u32,
     /// The records' three grips.
     pub records: [[u32; 3]; 12],
-    /// `dword_613AE8`, `dword_613B18`.
+    /// `PhysicsTables.surfaces[7].drag`, `PhysicsTables.surfaces[8].drag`.
     pub tens: [u32; 2],
 }
 

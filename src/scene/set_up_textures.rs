@@ -15,7 +15,7 @@ use crate::scene::build_texture_catalogue::build_texture_catalogue_in_game;
 // ---- Rust version ----
 
 /// The catalogue built, then one system texture of the scene's own (sizes 3, pixel kind
-/// 4, no mips; `gfx::allocate_textures`) kept in `dword_624234`. The allocation cannot
+/// 4, no mips; `gfx::allocate_textures`) kept in `SceneDraw.mirror_picture`. The allocation cannot
 /// come back refused (a failure raises its own fatal error), so the original's fatal
 /// error 0x80600943 ("cant alloc sys video texture") is never reached.
 pub fn set_up_textures(

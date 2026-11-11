@@ -36,7 +36,7 @@ const B_MINUS_O: [usize; 2] = [0x3C, 0x40];
 const A_MINUS_B: [usize; 2] = [0x4C, 0x50];
 /// `flt_71C3C8`: 0.0 (never written).
 const SEGMENT_ZERO: u32 = 0;
-/// `flt_5C5D90` (0.0) and `flt_5C5D38` (1.0).
+/// `Numbers.zero` (0.0) and `Numbers.one` (1.0).
 const ZERO: u32 = 0;
 const ONE: u32 = 0x3F80_0000;
 

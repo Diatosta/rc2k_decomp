@@ -18,7 +18,7 @@ use crate::text::draw_text::Canvas;
 // g_markerY
 // `draw_work.figure`: a work variable, here the row counter
 
-// stru_51E8C4
+// FontObjects.objects[41].first_char
 /// The name of replay slot `slot`.
 fn slot_name(slot: u32) -> crate::place::BytePlace {
     crate::place::BytePlace::In(&race().shared.replays.names, slot as usize * NAME_LEN)

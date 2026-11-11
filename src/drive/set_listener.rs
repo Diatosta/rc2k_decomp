@@ -4,13 +4,13 @@
 //! 0x10); the view's place negated and its turn's nine (0x5C2FA0 .. 0x5C2FCC); three of
 //! 0x6415D0 .. (the first 0 without `settings_words`) into 0x5C56D8 ..; six whole numbers of
 //! the car's light record (`g_lightRecords` +0x40 .., by `race::car_file_number` of
-//! `dword_70F410`) times 65536 over 1000 (two less `ground_drop`) into 0x608C60 ..; car
+//! `CarsAndReplay.car_blocks.cars[0].car_kind`) times 65536 over 1000 (two less `ground_drop`) into 0x608C60 ..; car
 //! block 0's matrix (0x70FC2C) through `scene::multiply_matrices` with 0x70FC6C and the
 //! view matrix into `g_madeObjectMatrix` (and a copy at 0x5EA0CC); the two points of
 //! 0x608C60 .. turned by it, each with its x and then -x (`scene::rotate_point`,
 //! `fistp`'d into 0x5C568C .. 0x5C56B8); the switches of 0x5C56BC .. 0x5C56E8 by
-//! `mirror_wanted`, `dword_70FCEC`, `dword_70FCF0`; `spline_gear_changed` from `dword_70F628`
-//! (then cleared), `spline_handbrake`; `listener_scale` = `dword_70FA3C` / 2^29 + `camera_shake_listener`;
+//! `mirror_wanted`, `CarsAndReplay.car_blocks.cars[0].surface_noise_a`, `CarsAndReplay.car_blocks.cars[0].surface_noise_b`; `spline_gear_changed` from `CarsAndReplay.car_blocks.cars[0].gear_change_pending`
+//! (then cleared), `spline_handbrake`; `listener_scale` = `CarsAndReplay.car_blocks.cars[0].steer_angle_visual` / 2^29 + `camera_shake_listener`;
 //! two floats copied; with `still` set, `spline_gear_changed` and `spline_handbrake` 0. By
 //! the look of it the listener for the 3D sounds (a reading).
 //!

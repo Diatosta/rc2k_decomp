@@ -2,7 +2,7 @@
 //! by hand from the original's listing. Every operation is the
 //! original's, in its order, with its operands in a `Work` block instead of the game's
 //! entries, records and work variables (a store that a later one overwrites unread is
-//! left out). A byte the original loads through `dword_62400C` is in the block as a
+//! left out). A byte the original loads through `SceneDraw.scratch` is in the block as a
 //! whole number already. The original's instructions are `asm_reference` in the tests.
 
 use crate::math::x87_float::X;
@@ -11,8 +11,8 @@ use crate::scene::x87_mem::{Base, cells, fild, fistp, fld, fstp};
 /// The block the arithmetic works in, in dwords. Offsets: 0 the first point's record,
 /// 0x20 the second's, 0x40 and 0x88 their entries, 0xD0 and 0xE4 the entries' five
 /// bytes (+0x18, +0x19, +0x1A, +0x20, +0x21) as dwords, 0xF8 the work variables
-/// `flt_623F80` .. `flt_623FAC`, 0x128 `dword_6241AC` .. `dword_6241BC`, 0x13C
-/// `dword_62400C`, 0x140 `dword_62411C`.
+/// `SceneDraw.clip_work[0]` .. `SceneDraw.clip_work[11]`, 0x128 `SceneDraw.clip_out_words[0]` .. `SceneDraw.clip_out_words[4]`, 0x13C
+/// `SceneDraw.scratch`, 0x140 `SceneDraw.clip_plane`.
 pub type Work = [u32; 0x51];
 pub const RECORD_A: usize = 0x00;
 pub const RECORD_B: usize = 0x20;
@@ -66,7 +66,7 @@ const Y_AXIS: Axis = Axis {
 };
 
 /// Cuts the segment between the two points at the edge of one axis: the fraction along it
-/// (`dword_62400C` takes it rounded), every interpolated record field and entry byte, and
+/// (`SceneDraw.scratch` takes it rounded), every interpolated record field and entry byte, and
 /// the other axis' edge value.
 fn cut_axis(w: impl Base, axis: Axis) {
     let depth_a = fld(w, 0x18);
@@ -95,7 +95,7 @@ fn cut_axis(w: impl Base, axis: Axis) {
 
 /// The part every clipper shares: the cut point's record fields (floats and integers), the
 /// entry's floats and the five entry bytes, each `a + (b - a) * fraction`, then the fraction
-/// itself as an integer in `dword_62400C`.
+/// itself as an integer in `SceneDraw.scratch`.
 fn interpolate_cut(w: impl Base, fraction: X) {
     for (from, to, store) in [
         (0x30, 0x10, 0x100),
@@ -235,7 +235,7 @@ mod asm_reference {
                 "fld dword ptr [{w} + 0x38]", // fld dword ptr [ebp+18h]
                 "fld dword ptr [{w} + 0x18]", // fld dword ptr [esi+18h]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
-                "fld dword ptr [{w} + 0xF8]", // fld flt_623F80
+                "fld dword ptr [{w} + 0xF8]", // fld SceneDraw.clip_work[0]
                 ".byte 0xD8, 0xC9", // fmul st, st(1)
                 "fld dword ptr [{w} + 0xC]", // fld dword ptr [esi+0Ch]
                 "fld dword ptr [{w} + 0x18]", // fld dword ptr [esi+18h]
@@ -247,117 +247,117 @@ mod asm_reference {
                 ".byte 0xD8, 0xC9", // fmul st, st(1)
                 ".byte 0xD8, 0xC2", // fadd st, st(2)
                 ".byte 0xD9, 0xCE", // fxch st(6)
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
-                "fld dword ptr [{w} + 0xF8]", // fld flt_623F80
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
+                "fld dword ptr [{w} + 0xF8]", // fld SceneDraw.clip_work[0]
                 "fld dword ptr [{w} + 0x2C]", // fld dword ptr [ebp+0Ch]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 "fld dword ptr [{w} + 0x38]", // fld dword ptr [ebp+18h]
                 ".byte 0xD8, 0xC9", // fmul st, st(1)
                 ".byte 0xD8, 0xF3", // fdiv st, st(3)
                 ".byte 0xD9, 0xCB", // fxch st(3)
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
                 "fld dword ptr [{w} + 0x30]", // fld dword ptr [ebp+10h]
                 "fld dword ptr [{w} + 0x10]", // fld dword ptr [esi+10h]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x100]", // fstp flt_623F88
+                "fstp dword ptr [{w} + 0x100]", // fstp SceneDraw.clip_work[2]
                 "fld dword ptr [{w} + 0x34]", // fld dword ptr [ebp+14h]
                 "fld dword ptr [{w} + 0x14]", // fld dword ptr [esi+14h]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x104]", // fstp flt_623F8C
+                "fstp dword ptr [{w} + 0x104]", // fstp SceneDraw.clip_work[3]
                 "fld dword ptr [{w} + 0x38]", // fld dword ptr [ebp+18h]
                 "fld dword ptr [{w} + 0x18]", // fld dword ptr [esi+18h]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x108]", // fstp flt_623F90
+                "fstp dword ptr [{w} + 0x108]", // fstp SceneDraw.clip_work[4]
                 "fild dword ptr [{w} + 0x20]", // fild dword ptr [ebp+0]
                 "fild dword ptr [{w} + 0x0]", // fild dword ptr [esi]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x10C]", // fistp dword_623F94
+                "fistp dword ptr [{w} + 0x10C]", // fistp SceneDraw.clip_work[5]
                 "fild dword ptr [{w} + 0x24]", // fild dword ptr [ebp+4]
                 "fild dword ptr [{w} + 0x4]", // fild dword ptr [esi+4]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x110]", // fistp dword_623F98
+                "fistp dword ptr [{w} + 0x110]", // fistp SceneDraw.clip_work[6]
                 "fild dword ptr [{w} + 0x28]", // fild dword ptr [ebp+8]
                 "fild dword ptr [{w} + 0x8]", // fild dword ptr [esi+8]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x114]", // fistp dword_623F9C
+                "fistp dword ptr [{w} + 0x114]", // fistp SceneDraw.clip_work[7]
                 "fld dword ptr [{w} + 0x90]", // fld dword ptr [ebp+8]
                 "fld dword ptr [{w} + 0x48]", // fld dword ptr [esi+8]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x118]", // fstp flt_623FA0
+                "fstp dword ptr [{w} + 0x118]", // fstp SceneDraw.clip_work[8]
                 "fld dword ptr [{w} + 0x94]", // fld dword ptr [ebp+0Ch]
                 "fld dword ptr [{w} + 0x4C]", // fld dword ptr [esi+0Ch]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x11C]", // fstp flt_623FA4
+                "fstp dword ptr [{w} + 0x11C]", // fstp SceneDraw.clip_work[9]
                 "fld dword ptr [{w} + 0x98]", // fld dword ptr [ebp+10h]
                 "fld dword ptr [{w} + 0x50]", // fld dword ptr [esi+10h]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x120]", // fstp flt_623FA8
+                "fstp dword ptr [{w} + 0x120]", // fstp SceneDraw.clip_work[10]
                 "fld dword ptr [{w} + 0x9C]", // fld dword ptr [ebp+14h]
                 "fld dword ptr [{w} + 0x54]", // fld dword ptr [esi+14h]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x124]", // fstp flt_623FAC
-                "fild dword ptr [{w} + 0xE4]", // fild dword_62400C
-                "fild dword ptr [{w} + 0xD0]", // fild dword_62400C
+                "fstp dword ptr [{w} + 0x124]", // fstp SceneDraw.clip_work[11]
+                "fild dword ptr [{w} + 0xE4]", // fild SceneDraw.scratch
+                "fild dword ptr [{w} + 0xD0]", // fild SceneDraw.scratch
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x130]", // fistp dword_6241B4
-                "fild dword ptr [{w} + 0xE8]", // fild dword_62400C
-                "fild dword ptr [{w} + 0xD4]", // fild dword_62400C
+                "fistp dword ptr [{w} + 0x130]", // fistp SceneDraw.clip_out_words[2]
+                "fild dword ptr [{w} + 0xE8]", // fild SceneDraw.scratch
+                "fild dword ptr [{w} + 0xD4]", // fild SceneDraw.scratch
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x134]", // fistp dword_6241B8
-                "fild dword ptr [{w} + 0xEC]", // fild dword_62400C
-                "fild dword ptr [{w} + 0xD8]", // fild dword_62400C
+                "fistp dword ptr [{w} + 0x134]", // fistp SceneDraw.clip_out_words[3]
+                "fild dword ptr [{w} + 0xEC]", // fild SceneDraw.scratch
+                "fild dword ptr [{w} + 0xD8]", // fild SceneDraw.scratch
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x138]", // fistp dword_6241BC
-                "fild dword ptr [{w} + 0xF0]", // fild dword_62400C
-                "fild dword ptr [{w} + 0xDC]", // fild dword_62400C
+                "fistp dword ptr [{w} + 0x138]", // fistp SceneDraw.clip_out_words[4]
+                "fild dword ptr [{w} + 0xF0]", // fild SceneDraw.scratch
+                "fild dword ptr [{w} + 0xDC]", // fild SceneDraw.scratch
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x128]", // fistp dword_6241AC
-                "fild dword ptr [{w} + 0xF4]", // fild dword_62400C
-                "fild dword ptr [{w} + 0xE0]", // fild dword_62400C
+                "fistp dword ptr [{w} + 0x128]", // fistp SceneDraw.clip_out_words[0]
+                "fild dword ptr [{w} + 0xF4]", // fild SceneDraw.scratch
+                "fild dword ptr [{w} + 0xE0]", // fild SceneDraw.scratch
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x12C]", // fistp dword_6241B0
-                "fistp dword ptr [{w} + 0x13C]", // fistp dword_62400C
+                "fistp dword ptr [{w} + 0x12C]", // fistp SceneDraw.clip_out_words[1]
+                "fistp dword ptr [{w} + 0x13C]", // fistp SceneDraw.scratch
                 "fld dword ptr [{w} + 0x2C]", // fld dword ptr [ebp+0Ch]
                 "fld dword ptr [{w} + 0xC]", // fld dword ptr [esi+0Ch]
                 ".byte 0xDC, 0xE9", // fsub st(1), st
-                "fld dword ptr [{w} + 0xF8]", // fld flt_623F80
+                "fld dword ptr [{w} + 0xF8]", // fld SceneDraw.clip_work[0]
                 ".byte 0xDE, 0xE9", // fsubp st(1), st
                 "fld dword ptr [{w} + 0x3C]", // fld dword ptr [ebp+1Ch]
                 "fld dword ptr [{w} + 0x1C]", // fld dword ptr [esi+1Ch]
@@ -368,7 +368,7 @@ mod asm_reference {
                 ".byte 0xD9, 0xCA", // fxch st(2)
                 ".byte 0xDE, 0xFA", // fdivp st(2), st
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0xFC]", // fstp flt_623F84
+                "fstp dword ptr [{w} + 0xFC]", // fstp SceneDraw.clip_work[1]
                 w = in(reg) w,
                 out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
                 out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -384,7 +384,7 @@ mod asm_reference {
                 "fld dword ptr [{w} + 0x38]", // fld dword ptr [ebp+18h]
                 "fld dword ptr [{w} + 0x18]", // fld dword ptr [esi+18h]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
-                "fld dword ptr [{w} + 0xFC]", // fld flt_623F84
+                "fld dword ptr [{w} + 0xFC]", // fld SceneDraw.clip_work[1]
                 ".byte 0xD8, 0xC9", // fmul st, st(1)
                 "fld dword ptr [{w} + 0x1C]", // fld dword ptr [esi+1Ch]
                 "fld dword ptr [{w} + 0x18]", // fld dword ptr [esi+18h]
@@ -396,117 +396,117 @@ mod asm_reference {
                 ".byte 0xD8, 0xC9", // fmul st, st(1)
                 ".byte 0xD8, 0xC2", // fadd st, st(2)
                 ".byte 0xD9, 0xCE", // fxch st(6)
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
-                "fld dword ptr [{w} + 0xFC]", // fld flt_623F84
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
+                "fld dword ptr [{w} + 0xFC]", // fld SceneDraw.clip_work[1]
                 "fld dword ptr [{w} + 0x3C]", // fld dword ptr [ebp+1Ch]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 "fld dword ptr [{w} + 0x38]", // fld dword ptr [ebp+18h]
                 ".byte 0xD8, 0xC9", // fmul st, st(1)
                 ".byte 0xD8, 0xF3", // fdiv st, st(3)
                 ".byte 0xD9, 0xCB", // fxch st(3)
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
                 "fld dword ptr [{w} + 0x30]", // fld dword ptr [ebp+10h]
                 "fld dword ptr [{w} + 0x10]", // fld dword ptr [esi+10h]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x100]", // fstp flt_623F88
+                "fstp dword ptr [{w} + 0x100]", // fstp SceneDraw.clip_work[2]
                 "fld dword ptr [{w} + 0x34]", // fld dword ptr [ebp+14h]
                 "fld dword ptr [{w} + 0x14]", // fld dword ptr [esi+14h]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x104]", // fstp flt_623F8C
+                "fstp dword ptr [{w} + 0x104]", // fstp SceneDraw.clip_work[3]
                 "fld dword ptr [{w} + 0x38]", // fld dword ptr [ebp+18h]
                 "fld dword ptr [{w} + 0x18]", // fld dword ptr [esi+18h]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x108]", // fstp flt_623F90
+                "fstp dword ptr [{w} + 0x108]", // fstp SceneDraw.clip_work[4]
                 "fild dword ptr [{w} + 0x20]", // fild dword ptr [ebp+0]
                 "fild dword ptr [{w} + 0x0]", // fild dword ptr [esi]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x10C]", // fistp dword_623F94
+                "fistp dword ptr [{w} + 0x10C]", // fistp SceneDraw.clip_work[5]
                 "fild dword ptr [{w} + 0x24]", // fild dword ptr [ebp+4]
                 "fild dword ptr [{w} + 0x4]", // fild dword ptr [esi+4]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x110]", // fistp dword_623F98
+                "fistp dword ptr [{w} + 0x110]", // fistp SceneDraw.clip_work[6]
                 "fild dword ptr [{w} + 0x28]", // fild dword ptr [ebp+8]
                 "fild dword ptr [{w} + 0x8]", // fild dword ptr [esi+8]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x114]", // fistp dword_623F9C
+                "fistp dword ptr [{w} + 0x114]", // fistp SceneDraw.clip_work[7]
                 "fld dword ptr [{w} + 0x90]", // fld dword ptr [ebp+8]
                 "fld dword ptr [{w} + 0x48]", // fld dword ptr [esi+8]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x118]", // fstp flt_623FA0
+                "fstp dword ptr [{w} + 0x118]", // fstp SceneDraw.clip_work[8]
                 "fld dword ptr [{w} + 0x94]", // fld dword ptr [ebp+0Ch]
                 "fld dword ptr [{w} + 0x4C]", // fld dword ptr [esi+0Ch]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x11C]", // fstp flt_623FA4
+                "fstp dword ptr [{w} + 0x11C]", // fstp SceneDraw.clip_work[9]
                 "fld dword ptr [{w} + 0x98]", // fld dword ptr [ebp+10h]
                 "fld dword ptr [{w} + 0x50]", // fld dword ptr [esi+10h]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x120]", // fstp flt_623FA8
+                "fstp dword ptr [{w} + 0x120]", // fstp SceneDraw.clip_work[10]
                 "fld dword ptr [{w} + 0x9C]", // fld dword ptr [ebp+14h]
                 "fld dword ptr [{w} + 0x54]", // fld dword ptr [esi+14h]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x124]", // fstp flt_623FAC
-                "fild dword ptr [{w} + 0xE4]", // fild dword_62400C
-                "fild dword ptr [{w} + 0xD0]", // fild dword_62400C
+                "fstp dword ptr [{w} + 0x124]", // fstp SceneDraw.clip_work[11]
+                "fild dword ptr [{w} + 0xE4]", // fild SceneDraw.scratch
+                "fild dword ptr [{w} + 0xD0]", // fild SceneDraw.scratch
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x130]", // fistp dword_6241B4
-                "fild dword ptr [{w} + 0xE8]", // fild dword_62400C
-                "fild dword ptr [{w} + 0xD4]", // fild dword_62400C
+                "fistp dword ptr [{w} + 0x130]", // fistp SceneDraw.clip_out_words[2]
+                "fild dword ptr [{w} + 0xE8]", // fild SceneDraw.scratch
+                "fild dword ptr [{w} + 0xD4]", // fild SceneDraw.scratch
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x134]", // fistp dword_6241B8
-                "fild dword ptr [{w} + 0xEC]", // fild dword_62400C
-                "fild dword ptr [{w} + 0xD8]", // fild dword_62400C
+                "fistp dword ptr [{w} + 0x134]", // fistp SceneDraw.clip_out_words[3]
+                "fild dword ptr [{w} + 0xEC]", // fild SceneDraw.scratch
+                "fild dword ptr [{w} + 0xD8]", // fild SceneDraw.scratch
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x138]", // fistp dword_6241BC
-                "fild dword ptr [{w} + 0xF0]", // fild dword_62400C
-                "fild dword ptr [{w} + 0xDC]", // fild dword_62400C
+                "fistp dword ptr [{w} + 0x138]", // fistp SceneDraw.clip_out_words[4]
+                "fild dword ptr [{w} + 0xF0]", // fild SceneDraw.scratch
+                "fild dword ptr [{w} + 0xDC]", // fild SceneDraw.scratch
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x128]", // fistp dword_6241AC
-                "fild dword ptr [{w} + 0xF4]", // fild dword_62400C
-                "fild dword ptr [{w} + 0xE0]", // fild dword_62400C
+                "fistp dword ptr [{w} + 0x128]", // fistp SceneDraw.clip_out_words[0]
+                "fild dword ptr [{w} + 0xF4]", // fild SceneDraw.scratch
+                "fild dword ptr [{w} + 0xE0]", // fild SceneDraw.scratch
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x12C]", // fistp dword_6241B0
-                "fistp dword ptr [{w} + 0x13C]", // fistp dword_62400C
+                "fistp dword ptr [{w} + 0x12C]", // fistp SceneDraw.clip_out_words[1]
+                "fistp dword ptr [{w} + 0x13C]", // fistp SceneDraw.scratch
                 "fld dword ptr [{w} + 0x3C]", // fld dword ptr [ebp+1Ch]
                 "fld dword ptr [{w} + 0x1C]", // fld dword ptr [esi+1Ch]
                 ".byte 0xDC, 0xE9", // fsub st(1), st
-                "fld dword ptr [{w} + 0xFC]", // fld flt_623F84
+                "fld dword ptr [{w} + 0xFC]", // fld SceneDraw.clip_work[1]
                 ".byte 0xDE, 0xE9", // fsubp st(1), st
                 "fld dword ptr [{w} + 0x2C]", // fld dword ptr [ebp+0Ch]
                 "fld dword ptr [{w} + 0xC]", // fld dword ptr [esi+0Ch]
@@ -517,7 +517,7 @@ mod asm_reference {
                 ".byte 0xD9, 0xCA", // fxch st(2)
                 ".byte 0xDE, 0xFA", // fdivp st(2), st
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0xF8]", // fstp flt_623F80
+                "fstp dword ptr [{w} + 0xF8]", // fstp SceneDraw.clip_work[0]
                 w = in(reg) w,
                 out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
                 out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -530,81 +530,81 @@ mod asm_reference {
     unsafe fn cut_depth_ref(w: *mut u8) {
         unsafe {
             core::arch::asm!(
-                "fild dword ptr [{w} + 0x140]", // fild dword_62411C
+                "fild dword ptr [{w} + 0x140]", // fild SceneDraw.clip_plane
                 "fsub dword ptr [{w} + 0x18]", // fsub dword ptr [esi+18h]
                 "fld dword ptr [{w} + 0x38]", // fld dword ptr [ebp+18h]
                 "fsub dword ptr [{w} + 0x18]", // fsub dword ptr [esi+18h]
                 ".byte 0xDE, 0xF9", // fdivp st(1), st
-                "fst dword ptr [{w} + 0x13C]", // fst dword_62400C
+                "fst dword ptr [{w} + 0x13C]", // fst SceneDraw.scratch
                 "fld dword ptr [{w} + 0x10]", // fld dword ptr [esi+10h]
                 "fld dword ptr [{w} + 0x30]", // fld dword ptr [ebp+10h]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x100]", // fstp flt_623F88
+                "fstp dword ptr [{w} + 0x100]", // fstp SceneDraw.clip_work[2]
                 "fld dword ptr [{w} + 0x14]", // fld dword ptr [esi+14h]
                 "fld dword ptr [{w} + 0x34]", // fld dword ptr [ebp+14h]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x104]", // fstp flt_623F8C
-                "fild dword ptr [{w} + 0x140]", // fild dword_62411C
-                "fstp dword ptr [{w} + 0x108]", // fstp flt_623F90
+                "fstp dword ptr [{w} + 0x104]", // fstp SceneDraw.clip_work[3]
+                "fild dword ptr [{w} + 0x140]", // fild SceneDraw.clip_plane
+                "fstp dword ptr [{w} + 0x108]", // fstp SceneDraw.clip_work[4]
                 "fld dword ptr [{w} + 0x48]", // fld dword ptr [esi+8]
                 "fld dword ptr [{w} + 0x90]", // fld dword ptr [ebp+8]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x118]", // fstp flt_623FA0
+                "fstp dword ptr [{w} + 0x118]", // fstp SceneDraw.clip_work[8]
                 "fld dword ptr [{w} + 0x4C]", // fld dword ptr [esi+0Ch]
                 "fld dword ptr [{w} + 0x94]", // fld dword ptr [ebp+0Ch]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x11C]", // fstp flt_623FA4
+                "fstp dword ptr [{w} + 0x11C]", // fstp SceneDraw.clip_work[9]
                 "fld dword ptr [{w} + 0x50]", // fld dword ptr [esi+10h]
                 "fld dword ptr [{w} + 0x98]", // fld dword ptr [ebp+10h]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x120]", // fstp flt_623FA8
+                "fstp dword ptr [{w} + 0x120]", // fstp SceneDraw.clip_work[10]
                 "fld dword ptr [{w} + 0x54]", // fld dword ptr [esi+14h]
                 "fld dword ptr [{w} + 0x9C]", // fld dword ptr [ebp+14h]
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fstp dword ptr [{w} + 0x124]", // fstp flt_623FAC
-                "fild dword ptr [{w} + 0xD0]", // fild dword_62400C
-                "fild dword ptr [{w} + 0xE4]", // fild dword_62400C
+                "fstp dword ptr [{w} + 0x124]", // fstp SceneDraw.clip_work[11]
+                "fild dword ptr [{w} + 0xD0]", // fild SceneDraw.scratch
+                "fild dword ptr [{w} + 0xE4]", // fild SceneDraw.scratch
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x130]", // fistp dword_6241B4
-                "fild dword ptr [{w} + 0xD4]", // fild dword_62400C
-                "fild dword ptr [{w} + 0xE8]", // fild dword_62400C
+                "fistp dword ptr [{w} + 0x130]", // fistp SceneDraw.clip_out_words[2]
+                "fild dword ptr [{w} + 0xD4]", // fild SceneDraw.scratch
+                "fild dword ptr [{w} + 0xE8]", // fild SceneDraw.scratch
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x134]", // fistp dword_6241B8
-                "fild dword ptr [{w} + 0xD8]", // fild dword_62400C
-                "fild dword ptr [{w} + 0xEC]", // fild dword_62400C
+                "fistp dword ptr [{w} + 0x134]", // fistp SceneDraw.clip_out_words[3]
+                "fild dword ptr [{w} + 0xD8]", // fild SceneDraw.scratch
+                "fild dword ptr [{w} + 0xEC]", // fild SceneDraw.scratch
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x138]", // fistp dword_6241BC
-                "fild dword ptr [{w} + 0xDC]", // fild dword_62400C
-                "fild dword ptr [{w} + 0xF0]", // fild dword_62400C
+                "fistp dword ptr [{w} + 0x138]", // fistp SceneDraw.clip_out_words[4]
+                "fild dword ptr [{w} + 0xDC]", // fild SceneDraw.scratch
+                "fild dword ptr [{w} + 0xF0]", // fild SceneDraw.scratch
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x128]", // fistp dword_6241AC
-                "fild dword ptr [{w} + 0xE0]", // fild dword_62400C
-                "fild dword ptr [{w} + 0xF4]", // fild dword_62400C
+                "fistp dword ptr [{w} + 0x128]", // fistp SceneDraw.clip_out_words[0]
+                "fild dword ptr [{w} + 0xE0]", // fild SceneDraw.scratch
+                "fild dword ptr [{w} + 0xF4]", // fild SceneDraw.scratch
                 ".byte 0xD8, 0xE1", // fsub st, st(1)
                 ".byte 0xD8, 0xCA", // fmul st, st(2)
                 ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 0x12C]", // fistp dword_6241B0
-                "fstp dword ptr [{w} + 0x13C]", // fstp dword_62400C
+                "fistp dword ptr [{w} + 0x12C]", // fistp SceneDraw.clip_out_words[1]
+                "fstp dword ptr [{w} + 0x13C]", // fstp SceneDraw.scratch
                 w = in(reg) w,
                 out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
                 out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,

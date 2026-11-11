@@ -12,8 +12,8 @@
 //! twice: the original's slips, kept).
 //!
 //! For a picture 1000 .. 1999 of a car (the texture less kind 0x100's first texture,
-//! over 8, is a car's number under `dword_63DB90`): "carnum <n> grav <g>" is logged,
-//! g being `dword_6235FC[car]`; with g at 3 or more and the file there, the picture
+//! over 8, is a car's number under `RaceView.race_cars`): "carnum <n> grav <g>" is logged,
+//! g being `RaceVars.car_tyres[0][car]`; with g at 3 or more and the file there, the picture
 //! is taken from `files\b\gravel` instead, and its second name logged.
 //!
 //! Then `gfx::load_picture_to_texture` with the name, the second name and the
@@ -29,7 +29,7 @@ use crate::place::BytePlace;
 
 // ---- game data ----
 
-/// `dword_60AF04` the picture's number, `dword_60AF08` the texture, then the twelve
+/// `ObjectFileNumbers.picture_number` the picture's number, `ObjectFileNumbers.picture_texture` the texture, then the twelve
 /// names up to the end of `files\s\extr\txxxxx.pcx`.
 /// The six folders' names and second names, and where the number is in the name.
 fn folders(course: &'static crate::race::owner_course::Course) -> [(BytePlace, BytePlace, u32); 6] {
@@ -98,7 +98,7 @@ pub fn load_texture_picture(
         let car = picture_car(
             number,
             texture,
-            || scene.textures.kinds.kind_first_textures[0x100].get(), // dword_5D0EE8,
+            || scene.textures.kinds.kind_first_textures[0x100].get(), // KindTextureTables.kind_first_textures[256],
             || shared.view.race_cars.get(),
         );
         if let Some(car) = car {

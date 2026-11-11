@@ -5,14 +5,14 @@
 //! - twelve settings are held to their ranges (`patches::RANGES`; the comparisons look at
 //!   the sign of the difference only, which is kept);
 //! - `gravity` = 9.8; twelve records of 0x30 bytes from 0x6139AC on get 1.0, 0.9 and
-//!   1.7 (1.2 in the fourth and the eleventh) in their first three floats; `dword_613AE8`
-//!   and `dword_613B18` = 10.0;
-//! - if the setting at 0x71C6E0 is above 100, `flt_71C708` = it / 100;
+//!   1.7 (1.2 in the fourth and the eleventh) in their first three floats; `PhysicsTables.surfaces[7].drag`
+//!   and `PhysicsTables.surfaces[8].drag` = 10.0;
+//! - if the setting at 0x71C6E0 is above 100, `RaceWork.patch_factors[1]` = it / 100;
 //! - only if the settings' switch `patch_switch` is not 0: the ten floats from
 //!   `patch_factors` on = the ten settings from 0x71C6DC on, each / 100; `gravity` times
 //!   the first; every record's three floats times one of six of them, by the record
 //!   (`patches::BY_RECORD`), and times the fifth, the fourth and the third; and with the setting at
-//!   0x71C6D8 at 0, `dword_613AE8` and `dword_613B18` = 0.
+//!   0x71C6D8 at 0, `PhysicsTables.surfaces[7].drag` and `PhysicsTables.surfaces[8].drag` = 0.
 //!
 //! The settings' keys in `var\ral.cfg` say what they are, from 0x71C6D0 on: `fizpatch`
 //! (the switch), `patchmaxdrawdistance`, `patchstickygrass`, `patchgravity`,

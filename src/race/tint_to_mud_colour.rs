@@ -1,5 +1,5 @@
 //! `race::tint_to_mud_colour` (0x44A441): a colour brought toward the mud's (`mud_colour` red,
-//! `dword_60AD04` green, `dword_60AD08` blue, whole dwords): as `gfx::fade_colour`, each low byte s
+//! `StagePrefs.mud_colour[1]` green, `StagePrefs.mud_colour[2]` blue, whole dwords): as `gfx::fade_colour`, each low byte s
 //! of the colour becoming s +, held to 0 .. 0xFF, with t the dword (blue for the lowest byte); the top
 //! byte kept.
 //!

@@ -2,7 +2,7 @@
 //! 0x4F52B4 .. 0x4F52C4.
 
 use crate::gfx::owner::gfx;
-use crate::session::{Bytes, Dword};
+use crate::session::{PlainBytes, PlainDword};
 
 /// IDA's address of the block's first byte.
 pub const START: usize = 0x4F52B4;
@@ -14,21 +14,21 @@ pub const LEN: usize = 0x4F52C4 - START;
 #[derive(rc2k_derive::Cells)]
 pub struct Shots {
     /// `g_screenshotsOn` (`dword_4F52B4`, a `var\ral.cfg` setting, `screensnapshot`).
-    pub on: Dword,
+    pub on: PlainDword,
     /// `dword_4F52B8`: the lock a screenshot holds.
-    pub locked_here: Dword,
+    pub locked_here: PlainDword,
     /// `0x4F52BC`: the screenshot file's name, "000.pcx" and its NUL (the number's three
     /// digits are counted up for each file).
-    pub name: Bytes<8>,
+    pub name: PlainBytes<8>,
 }
 
 impl Shots {
     /// The screenshots' variables; the first values are the image's.
     pub const fn new() -> Self {
         Shots {
-            on: Dword::new(0),
-            locked_here: Dword::new(0),
-            name: Bytes::new(*b"000.pcx\0"),
+            on: PlainDword::new(0),
+            locked_here: PlainDword::new(0),
+            name: PlainBytes::new(*b"000.pcx\0"),
         }
     }
 }
@@ -49,22 +49,26 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&crate::gfx::owner::GFX.shots, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::GFX.unchecked().shots,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
     fn moved_knows_the_block() {
         assert_eq!(
             crate::moved::place(START),
-            crate::gfx::owner::GFX.shots.on.addr() as usize
+            crate::gfx::owner::GFX.unchecked().shots.on.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x4F52B8),
-            crate::gfx::owner::GFX.shots.locked_here.addr() as usize
+            crate::gfx::owner::GFX.unchecked().shots.locked_here.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x4F52BC),
-            crate::gfx::owner::GFX.shots.name.addr() as usize
+            crate::gfx::owner::GFX.unchecked().shots.name.addr() as usize
         );
     }
 }

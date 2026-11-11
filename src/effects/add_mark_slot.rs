@@ -4,7 +4,7 @@
 //!
 //! Takes: what the slot holds, the matrix (a handle, `mark_slots::VIEW_PLACE_MATRIX`)
 //!
-//! One caller, `effects::draw_mark_slots` (the marks' frame). The float first gets `flt_935406`,
+//! One caller, `effects::draw_mark_slots` (the marks' frame). The float first gets `SlotTuning.first_float`,
 //! then the random at once: only the second is kept.
 
 use crate::math::x87_float as bh;

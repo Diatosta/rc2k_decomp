@@ -1,8 +1,8 @@
 //! `physics::object_turn_matrix` (0x45E2D2): the turn of the object hit (`face_object`)
 //! into `object_turn_matrix`. `scene::set_turn_y` by minus `angles`, copied (16 dwords);
-//! with `dword_635040` set also: the turn about y by minus `dword_635044` times it into
-//! `g_litMatrix` (`scene::multiply_matrices`), the turn about x by minus `dword_635040`
-//! times that into `g_turnedMatrix`, the turn about y by `dword_635044` times that into
+//! with `ObjectWork.angles[1]` set also: the turn about y by minus `ObjectWork.angles[2]` times it into
+//! `g_litMatrix` (`scene::multiply_matrices`), the turn about x by minus `ObjectWork.angles[1]`
+//! times that into `g_turnedMatrix`, the turn about y by `ObjectWork.angles[2]` times that into
 //! `object_turn_matrix`. Then each of its 16 floats times `size` / 16 (`fild`, `fld1`
 //! doubled four times, `fdivp`; the share through `scratch`).
 //!

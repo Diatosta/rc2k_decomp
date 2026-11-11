@@ -4,9 +4,9 @@
 //! From the car block it works out, in `DAMAGE`: the ride-height, stiffness and brake
 //! shares; per wheel the stiffness and ride height that follow the suspension damage (a
 //! wheel at the top of the gauge is worn out); the engine's and the car's speed shares
-//! against their limits; the switches `wheels_down`, `brake_share` and `flt_75B3C0` (the
+//! against their limits; the switches `wheels_down`, `brake_share` and `DamageModel.engine_over_limit` (the
 //! engine past its limit); the copies of the gear, tyre kind and surface; the side hit
-//! (`dword_75B3C4`, 1 .. 4) and its size; the four wheels' loads; and the hit time.
+//! (`DamageModel.hit_side`, 1 .. 4) and its size; the four wheels' loads; and the hit time.
 //!
 //! Caller: `physics::damage_step`.
 
@@ -74,7 +74,7 @@ pub fn steps(car: &Car, damage: &DamageModel) {
     {
         brake_share_step(car, damage);
     }
-    // 1 when the engine's speed is above the limit times `flt_75B37C`.
+    // 1 when the engine's speed is above the limit times `DamageModel.engine_limit_factor`.
     damage
         .engine_over_limit
         .set_bits(if engine_over_limit(car, damage) {

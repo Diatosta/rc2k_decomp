@@ -1,5 +1,5 @@
 //! `physics::start_skid_mark` (0x43F272): when either of the two qwords at
-//! `wheel_squeeze`, `qword_71A5E0` is not 0 and `camera_view_return` is: `camera_blend_view` = it less
+//! `wheel_squeeze`, `Car.wheel_squeeze[2]` is not 0 and `camera_view_return` is: `camera_blend_view` = it less
 //! 1, `camera_switch_active` 1, `camera_switch_share` 0, `camera_switch_length` 10, `camera_switch_clock` the step count
 //! `step_clock`; then `camera_view_return` 0. This starts a skid mark (the start's place, a count of 10, the step it began).
 //!

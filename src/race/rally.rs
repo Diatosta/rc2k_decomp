@@ -25,9 +25,9 @@ const WORDS: [&std::ffi::CStr; 14] = [
 ];
 
 /// Where `copy_rally_times` takes its ten records from: the rally's times (by
-/// `dword_7558C8`'s table `off_735512`, the rally `dword_7558D0`, the stage
-/// `dword_7558CC` x 0xA4, its +0x3C the stage in `g_stageBestTimesAlt` when
-/// `dword_7558C8` is 1, else in `dword_7556E8`). None for a null pointer, or a table or
+/// `Event.stage_group`'s table `off_735512`, the rally `Event.stage_sub`, the stage
+/// `Event.stage_number` x 0xA4, its +0x3C the stage in `g_stageBestTimesAlt` when
+/// `Event.stage_group` is 1, else in `ChampView.time_trial_best_times`). None for a null pointer, or a table or
 /// the summary they go to (`saves::best_times::SUMMARY`) not taken.
 pub fn rally_times_places() -> Result<Option<(&'static StageTable, usize)>, BadInput> {
     let system = crate::system::owner::system();

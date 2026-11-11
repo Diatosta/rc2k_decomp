@@ -39,7 +39,7 @@ pub fn draw_viewer_item(replay: &Replay, item: &[Dword; 4], index: u32) -> Resul
     let uv: [u32; 4] = picture.read("a viewer item's picture")?;
     let place: [u32; 4] = ReplayViewBlock::item_place(index)?.read("a viewer item's place")?;
     let width = (uv[2] as i32).unsigned_abs();
-    VIEWER_PANEL.item_place[2].set(width); // dword_5C29FC: the quad's place
+    VIEWER_PANEL.item_place[2].set(width); // ViewerAndKinds.viewer_panel.item_place[0]: the quad's place
     VIEWER_PANEL.item_place[0].set(centred(place[0], place[2], width));
     VIEWER_PANEL.item_place[1].set(place[1]);
     VIEWER_PANEL.item_place[3].set(place[3]);

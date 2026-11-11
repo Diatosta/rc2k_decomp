@@ -129,7 +129,7 @@ pub fn note_face_drawn(slot: usize) {
 }
 
 /// The fourth corner of the last face drawn by any view (-1 for a face of three points),
-/// read by `race::norms` at a stage's start-up as the original read `dword_63D9F8` (it
+/// read by `race::norms` at a stage's start-up as the original read `RaceView.corners[3]` (it
 /// should be the face's own: a slip kept, `notes/bugs.md`); before any face was drawn the
 /// image's first value.
 pub fn last_fourth_corner(shared: &crate::race::owner_shared::RaceShared) -> u32 {

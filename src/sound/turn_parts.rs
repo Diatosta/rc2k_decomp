@@ -1,7 +1,7 @@
 //! The race sounds' turn: `sound::race_turn` (0x40D5F3) and the
 //! trees under it, which work on the eight cars' sound objects (`g_raceSoundObjects`,
-//! 0x4A8 bytes each), the shared spots' voices (`unk_5168C0`) and one request
-//! (`unk_5124BC`, ten dwords, see `sound::play_placed_sound`) they send each sound with.
+//! 0x4A8 bytes each), the shared spots' voices (`SpotVoices.voices[0][0]`) and one request
+//! (`RaceSoundSets.request.sound`, ten dwords, see `sound::play_placed_sound`) they send each sound with.
 //! This file: what they share, and the three ways a sound goes to the audio thread.
 //!
 //! Every function of the turn takes what it reads as arguments. The words a sound command

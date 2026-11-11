@@ -153,3 +153,16 @@ pub(crate) const fn dwords<const N: usize>(values: [u32; N]) -> [crate::session:
     }
     out
 }
+
+/// `dwords` for the tables only the game's thread reaches.
+pub(crate) const fn plain_dwords<const N: usize>(
+    values: [u32; N],
+) -> [crate::session::PlainDword; N] {
+    let mut out = [const { crate::session::PlainDword::new(0) }; N];
+    let mut i = 0;
+    while i < N {
+        out[i] = crate::session::PlainDword::new(values[i]);
+        i += 1;
+    }
+    out
+}

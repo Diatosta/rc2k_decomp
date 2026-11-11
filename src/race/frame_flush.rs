@@ -63,7 +63,7 @@ pub fn textured(frame: &Frame) -> Batch<'_> {
 }
 
 /// `race::flush_triangle_batch` (0x45FDCF) / `race::flush_texture_batch`: the first sets texture
-/// `dword_5D1D04` (`scene::set_texture`); the render states; with triangles in the batch (its count
+/// `KindTextureTables.kind_first_slots[135]` (`scene::set_texture`); the render states; with triangles in the batch (its count
 /// also into its kept count) the second looks up its texture (`scene::look_up_texture`) and sets it
 /// inside `pusha`; the draw, a failure logged as "drawtri" and its code (level 1); the count and
 /// word 0.
@@ -117,10 +117,10 @@ fn int_over_two(i: u32, a: u32, b: u32) -> u32 {
 }
 
 /// `race::draw_view_backdrop` (0x4651E6): a quad over the view window (`view_offset` .., one pixel
-/// wider each way; its corners kept in `quad_corners` .. `dword_623E24`) with texture place
+/// wider each way; its corners kept in `quad_corners` .. `RaceVars.quad_corners[5]`) with texture place
 /// (0xF80000, 0x80000) / `k256` / `k65536` at every corner (kept in `quad_uv` /
-/// `dword_623E00`), colour 0xFF000000, `g_polygonVertexCount` 4; drawn with the glow's render
-/// states (0x44E44D), texture `dword_5D1DE8` (`scene::set_texture`), the device's unclipped fan
+/// `RaceVars.quad_uv[4]`), colour 0xFF000000, `g_polygonVertexCount` 4; drawn with the glow's render
+/// states (0x44E44D), texture `KindTextureTables.kind_first_slots[192]` (`scene::set_texture`), the device's unclipped fan
 /// (`d3d::draw_fan_unclipped`), then the depth buffer on.
 pub fn draw_view_backdrop(
     race: &Race,

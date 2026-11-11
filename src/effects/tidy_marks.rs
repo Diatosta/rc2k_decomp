@@ -28,9 +28,9 @@ fn lists<'a>(ring: &'a Ring, masks: &'a Masks) -> [&'a dyn Store; 6] {
     let blocks = &effects().blocks;
     [
         &ring.pool.list,      // g_marksRingList
-        &ring.work.list,      // stru_935620
+        &ring.work.list,      // RingWork.list
         &masks.blocks.list_b, // g_marksBMaskList
-        &masks.blocks.list_a, // stru_934D76
+        &masks.blocks.list_a, // MaskBlocks.list_a[0]
         &blocks.places.list,  // g_marksPlacesList
         &blocks.links.list,   // g_marksLinksList
     ]

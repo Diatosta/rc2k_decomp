@@ -1,7 +1,7 @@
 //! `make_masks`' second picture (IDA): for each pixel of a shape's rows, its
 //! place against the line pair at 0x82E3DA (two lines: 0x82E3DA -> 0x82E3E6 and 0x82E3F2
 //! -> 0x82E3FE) worked out, shaken by the marks' seed, and kept as four bytes in a table
-//! of 0x400 a row (`dword_8445D2`).
+//! of 0x400 a row (`MaskVars.pixel_table`).
 
 use crate::effects::mask_store::Masks;
 use crate::effects::mask_vars::Shape;
@@ -57,7 +57,7 @@ fn next_seed(s: u32) -> u32 {
     s.wrapping_mul(0x9D).wrapping_add(0x47)
 }
 
-/// `effects::map_pixel` (0x4BEFD2): pixel `x`, `dword_833DB6` into the pixel table
+/// `effects::map_pixel` (0x4BEFD2): pixel `x`, `MaskVars.pixel[1]` into the pixel table
 /// (`g_marksPixelTable`, here its number) at byte `row + 4 x`, two
 /// halves (bytes +2, +3, then +0, +1): the turn of the half's line (identity, then
 /// `set_line_turn`, `scale_rows3`); the other line's two ends and the pixel turned into
@@ -172,9 +172,9 @@ fn rows_fit(masks: &Masks, entries: u32, index: u32) -> Result<(), Refused> {
 }
 
 /// `effects::map_shape_rows` (0x4BE855): entry `index` of the list at `entries`: for each
-/// of its rows (`dword_833DB6` the row, from the table's row in `dword_8445D2`, here its
+/// of its rows (`MaskVars.pixel[1]` the row, from the table's row in `MaskVars.pixel_table`, here its
 /// byte offset in the table)
-/// `flt_8445E2` the row's squared distance (`x87::int_plus_less_squared`) and `map_pixel`
+/// `MaskVars.row_distance` the row's squared distance (`x87::int_plus_less_squared`) and `map_pixel`
 /// for each of its span's pixels. Refuses rows or spans outside the 0x100 x 0x80 table,
 /// before writing.
 pub fn map_shape_rows(
@@ -253,7 +253,7 @@ const LINE_FROM: [(u32, u32); 8] = [
 /// after), shape `n`'s pixel table (0x8000 dwords) cleared and made `g_marksPixelTable`,
 /// its corner table kept, the shape's middle (+0xC, +0x10) into 0x8445D6; for each of its
 /// +4 quads the line pair from corner entries k and k + 1 into `g_marksLines` and
-/// `map_shape`. The kept tables (`dword_844E18`, `dword_844E1C`, `g_marksPixelTable`,
+/// `map_shape`. The kept tables (`MaskPicks.table_in_use`, `MaskPicks.corners`, `g_marksPixelTable`,
 /// `dword_8445DE`) hold the shape's number where the original kept addresses. Refuses a
 /// count of 0 or less or past 0x80 (its loop tests after counting), and rows or spans
 /// outside the table, before writing.

@@ -76,10 +76,10 @@ pub fn add_car(cars: &mut Vec<u32>, room: usize, car: u32) -> Result<bool, Inval
 }
 
 /// The lists of cars the menus hand to the car screens and the carousels (the original
-/// passes a list by its address and keeps the carousel's in `dword_75A65C`).
+/// passes a list by its address and keeps the carousel's in `MenuState.carousel.entries`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CarList {
-    /// The single rally's first list (by `dword_7554D8`), the network game's
+    /// The single rally's first list (by `ScreenFlow.car_list_kind`), the network game's
     /// without a won car.
     First,
     /// The single rally's second, the time trial's and the arcade's.
@@ -145,7 +145,7 @@ pub enum Cheat {
     /// The bit is cleared and its car added to the first list; `true`: then, when it was
     /// added there, to the second too.
     Car(bool),
-    /// The bit stays set and `dword_75ACCC` becomes 1.
+    /// The bit stays set and `RaceState.settings.a8_game` becomes 1.
     Stores,
 }
 
@@ -180,7 +180,7 @@ pub struct List {
     pub changed: bool,
 }
 
-/// What `apply_cheats` leaves: the cheats' bits, whether `dword_75ACCC` becomes 1, and
+/// What `apply_cheats` leaves: the cheats' bits, whether `RaceState.settings.a8_game` becomes 1, and
 /// the bits whose lines are logged, in order.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Applied {

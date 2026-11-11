@@ -1,7 +1,7 @@
 //! The HUD's quad record and sprites (from `hud::add_quad` 0x4B72D1,
 //! `hud::add_sprite` 0x4B70EE, `hud::add_scaled_sprite` 0x4B716A, `hud::add_solid_quad`
 //! 0x4B7216, `hud::add_polygon`'s scaling 0x4B7413, `hud::draw_marker` 0x4B55AB and
-//! `hud::draw_markers_1` 0x4B56E3): the record `dword_75BFB0` (alpha, left, top, right,
+//! `hud::draw_markers_1` 0x4B56E3): the record `HudBlock.quad.alpha` (alpha, left, top, right,
 //! bottom, colour, then the four corners' texture places as whole numbers, << 16 of a
 //! texel) made the four vertices of a polygon.
 //!

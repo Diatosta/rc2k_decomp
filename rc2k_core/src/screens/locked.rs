@@ -28,7 +28,7 @@ pub fn item_3(cheats: u32, item: u32, switch: u32) -> Note {
 }
 
 /// `note_locked_stage`: items 1 and 7 are not stages; item n's stage is open when
-/// `open(n - 2)` (`byte_758800`, wrapping as the original's address does) is 1.
+/// `open(n - 2)` (`Arcade.levels_won`, wrapping as the original's address does) is 1.
 pub fn stage(cheats: u32, item: u32, open: impl FnOnce(u32) -> u8) -> Note {
     if cheat(cheats, STAGES_CHEAT) {
         return Note { show: false };

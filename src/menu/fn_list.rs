@@ -13,7 +13,7 @@ use rc2k_core::menu::tables::{LISTS, ScreenFn};
 pub enum FnList {
     /// `LISTS[list]`'s functions from number `from` on.
     Draw { list: u16, from: u16 },
-    /// `dword_7594AA`, the menus' last draw list (no functions).
+    /// `MenuLists.draw_list[0]`, the menus' last draw list (no functions).
     Menus,
 }
 

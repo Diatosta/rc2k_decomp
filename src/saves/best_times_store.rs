@@ -39,7 +39,7 @@ pub struct BestTimes {
     pub allocated: PlainDword,
     /// `g_bestTimesLoaded` (0x747614): 1 once the tables hold times (the file's or made up).
     pub loaded: PlainDword,
-    /// `dword_747618` ..: the nine tables, in `rc2k_core::saves::tables`' order.
+    /// `BestTimes.tables[0].address` ..: the nine tables, in `rc2k_core::saves::tables`' order.
     pub tables: [TablePlace; 9],
 }
 
@@ -130,7 +130,7 @@ impl TimeEntry {
 
 const _: () = assert!(core::mem::size_of::<TimeEntry>() == 0x9C);
 
-/// The six rallies' best times (IDA 0x742C98 .. 0x7475D0): `off_742C98`, the six tables'
+/// The six rallies' best times (IDA 0x742C98 .. 0x7475D0): `RallyTimes.tables[0]`, the six tables'
 /// addresses, kept as IDA's, as names (`RallyTimes::table_of` makes one real, for
 /// `screens::draw_section_best_times` and `saves::default_championship_times`;
 /// `moved::point_into_homes` passes them over), then the tables, twenty entries each.

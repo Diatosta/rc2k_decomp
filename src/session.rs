@@ -1097,8 +1097,8 @@ pub struct Screen {
     pub bytes: Dword,       // g_screenBytesPerPixel
     pub row_bytes: Dword,   // g_screenRowBytes
     pub row_dwords: Dword,  // g_screenRowDwords
-    pub depth_bits: Dword,  // dword_4F4964
-    pub kind: Dword,        // dword_4F4968
+    pub depth_bits: Dword,  // Screen.depth_bits
+    pub kind: Dword,        // Screen.kind
     pub format: [Dword; 6], // g_surfaceFormat (a pixel format record, 24 bytes)
 }
 
@@ -1129,13 +1129,13 @@ pub struct WindowLoopState {
     pub window_active: Dword,  // g_windowActive
     pub window_focused: Dword, // g_windowFocused
     pub quitting: Flag,        // g_quitting
-    pub lost: Dword,           // dword_518380
-    pub no_task_switch: Dword, // dword_518384 (`notaskswitch`, a `var\ral.cfg` setting)
+    pub lost: Dword,           // WindowLoopState.lost
+    pub no_task_switch: Dword, // WindowLoopState.no_task_switch (`notaskswitch`, a `var\ral.cfg` setting)
     pub keep_priority: Dword,  // g_keepPriority (`noprichange`, a setting)
     /// `dword_51838C` and `g_mainLoopStack`: only the main loop's, which needs neither.
     pub _gap_51838c: [Dword; 2],
     pub f394: Dword,   // dword_518394 (1 at start)
-    pub paused: Dword, // dword_518398
+    pub paused: Dword, // WindowLoopState.paused
 }
 
 impl WindowLoopState {
@@ -1163,13 +1163,13 @@ pub const FLAGS_LEN: usize = core::mem::size_of::<WindowLoopState>();
 #[derive(rc2k_derive::Cells)]
 pub struct Machine {
     pub has_mmx: Dword,          // g_hasMmx
-    pub ignore_mmx: Dword,       // dword_5183AC (`ignoremmx`)
+    pub ignore_mmx: Dword,       // Machine.ignore_mmx (`ignoremmx`)
     pub has_sse: Dword,          // g_hasSse
-    pub ignore_katmai: Dword,    // dword_5183B4 (`ignorekatmai`)
+    pub ignore_katmai: Dword,    // Machine.ignore_katmai (`ignorekatmai`)
     pub has_3dnow: Dword,        // g_has3dNow
-    pub ignore_3dnow: Dword,     // dword_5183BC (`ignoreamdk3d`)
-    pub work: Dword,             // dword_5183C0
-    pub work_float: Dword,       // flt_5183C4
+    pub ignore_3dnow: Dword,     // Machine.ignore_3dnow (`ignoreamdk3d`)
+    pub work: Dword,             // Machine.work
+    pub work_float: Dword,       // Machine.work_float
     pub gap_c8: Dword,           // 0x5183C8
     pub scratch: Dword,          // g_soundScratch: a scratch dword
     pub cpu_family: Dword,       // g_cpuFamily
@@ -1180,9 +1180,9 @@ pub struct Machine {
     pub has_fpu: Dword,          // g_hasFpu
     pub has_tsc: Dword,          // g_hasTsc
     pub has_cmov: Dword,         // g_hasCmov
-    pub found_mmx: Dword,        // dword_5183F8
-    pub found_sse: Dword,        // dword_5183FC
-    pub found_3dnow: Dword,      // dword_518400
+    pub found_mmx: Dword,        // Machine.found_mmx
+    pub found_sse: Dword,        // Machine.found_sse
+    pub found_3dnow: Dword,      // Machine.found_3dnow
     pub keyboard_type: Dword,    // g_keyboardType (1 at start)
     pub version: [Dword; 37],    // VersionInformation (OSVERSIONINFOA, 148 bytes)
     pub exception_resume: Dword, // g_exceptionResume
@@ -1230,9 +1230,9 @@ pub const MACHINE_LEN: usize = core::mem::size_of::<Machine>();
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Clocks {
-    pub key_ticks: Dword,  // dword_518998: the key thread's turns
-    pub frame: Dword,      // dword_51899C: the menus' clock (`update_frame_clock`)
-    pub setup_time: Dword, // dword_5189A0
+    pub key_ticks: Dword,  // Clocks.key_ticks: the key thread's turns
+    pub frame: Dword,      // Clocks.frame: the menus' clock (`update_frame_clock`)
+    pub setup_time: Dword, // Clocks.setup_time
 }
 
 impl Clocks {

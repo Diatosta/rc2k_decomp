@@ -8,7 +8,7 @@ pub trait Shooting {
     fn screenshots_on(&mut self) -> u32;
     /// `g_surfaceLocked`.
     fn surface_locked(&mut self) -> u32;
-    /// `dword_4F52B8`: 1 while the lock is this function's.
+    /// `Shots.locked_here`: 1 while the lock is this function's.
     fn locked_here(&mut self) -> u32;
     fn set_locked_here(&mut self, value: u32);
     /// `gfx::lock_surface`: true for its carry (failed).

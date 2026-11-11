@@ -52,12 +52,12 @@ pub fn car_body_matrix(course: &Course, cars: &CarDrawState, m: &ViewMatrices) {
 
 /// `race::car_number_textures` (0x46203D): car `car`'s marks' textures into `marks` (the original's
 /// `car_mark_textures` ..: `scene::car_marks`): +0x1B8 / +0x1BC (|x| not below `decal_limit`: 1) into
-/// `dword_5CD68C`, `dword_5CD698` / `dword_5CD690`, `dword_5CD694`; the letter of its model's name
+/// `ObjectTables.car_mark_textures[1]`, `ObjectTables.car_mark_textures[4]` / `ObjectTables.car_mark_textures[2]`, `ObjectTables.car_mark_textures[3]`; the letter of its model's name
 /// (`number_texture_names` + 0x30 x model) at +0x718 (rounded, held to 0 .. 0x2EDF) / 250, as a digit or
-/// letter number, into `dword_5CD69C` (and `car_letter_b`, which nothing read: not kept); its
-/// number +0xAA8 as tens and units (`dword_5CD6A0`, `dword_5CD6A4`, 999 for none; `dword_5CD6AC`
+/// letter number, into `ObjectTables.car_mark_textures[5]` (and `car_letter_b`, which nothing read: not kept); its
+/// number +0xAA8 as tens and units (`ObjectTables.car_mark_textures[6]`, `ObjectTables.car_mark_textures[7]`, 999 for none; `ObjectTables.car_mark_textures[9]`
 /// the units alone below ten); the stage's (held to 11 .. 0x50) tens' plate `number_tens_textures`[]` into
-/// `dword_5CD6A8`; and while +0x310 is below `hundred` its 17 bytes +0xAC0 .. into the places
+/// `ObjectTables.car_mark_textures[8]`; and while +0x310 is below `hundred` its 17 bytes +0xAC0 .. into the places
 /// `car_decal_places`[]` names (marks 0xA .. 0x1B; one past the marks is refused).
 pub fn car_number_textures(
     race: &Race,
@@ -126,7 +126,7 @@ fn model_field(model: u32, offset: u32) -> Result<u32, BadInput> {
         .ok_or(BadInput("a model's record"))
 }
 
-/// The model's bit at +`offset` of its groups (`dword_5C90C4` ..): 1 << it, 0 for -1.
+/// The model's bit at +`offset` of its groups (`LightsAndGear.light_records.records[0].groups[0]` ..): 1 << it, 0 for -1.
 fn model_bit(model: u32, offset: u32) -> Result<u32, BadInput> {
     let c = model_field(model, offset)?;
     Ok(if c == u32::MAX { 0 } else { 1u32 << (c & 31) })
@@ -203,7 +203,7 @@ fn shown_groups(masks: &[crate::session::Dword; 18], switches: u32) -> u32 {
 /// parts' bits (`group_masks` ..; the shown mask `group_mask` by +0x298, `group_mask` by
 /// +0x6FC, the view's depth `car_depth` and the stage's fog, `car_nearness` the nearness (0 .. 1)
 /// dimming `g_shine`), `fade_alpha_moved`, +0xF04; all parts for the drawn view's own car when
-/// `dword_60626C`; the light and place; `scene::set_light_direction`; the body (`g_objectNumber`
+/// `ViewAndRecords.view_vars.view_car_flag_a`; the light and place; `scene::set_light_direction`; the body (`g_objectNumber`
 /// 0x50 + 0x14 x car, `race::car_body_matrix`, `scene::draw_scene_object` between the kept
 /// reflections), and nearer than 0x3C0000 its four parts by +0x298's bits 5 .. 8 (each
 /// `car_part_matrix`, `scene::draw_scene_object`); then `race::clear_car_marks` (here the marks are

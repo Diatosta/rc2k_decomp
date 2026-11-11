@@ -35,6 +35,17 @@ impl Raw for Float {
     }
 }
 
+impl Raw for crate::race::panel_store::Loose32 {
+    fn raw(&self) -> u32 {
+        self.get()
+    }
+
+    #[cfg(test)]
+    fn address(&self) -> u32 {
+        crate::pointers::game_address(std::ptr::from_ref(self))
+    }
+}
+
 /// The cell of field `$field` of car block `$block` (or of its element `$i`), whose IDA
 /// address is `$at`: a compile error when the field is not there.
 macro_rules! car_cell {

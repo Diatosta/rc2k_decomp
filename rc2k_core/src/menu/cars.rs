@@ -105,11 +105,11 @@ pub fn press(b: Button, s: &mut Shown) -> &'static [Call] {
 /// The car lists the car specifications screen shows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SpecsList {
-    /// `off_75A042` (kinds 1 .. 3).
+    /// `MenuLists.cars_second[0]` (kinds 1 .. 3).
     Events,
-    /// `off_759CAE` (kind 4).
+    /// `MenuLists.cars_championship[0]` (kind 4).
     Kind4,
-    /// `off_759D16` (kind 5).
+    /// `MenuLists.a8_championship_cars[0]` (kind 5).
     Kind5,
 }
 

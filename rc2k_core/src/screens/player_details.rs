@@ -9,9 +9,9 @@ use crate::strings::format::{Pad, decimal};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E8C4`.
+    /// `FontObjects.objects[41].first_char`.
     Value,
-    /// `stru_51E824`: the nationality measured for its flag's place.
+    /// `FontObjects.objects[36].first_char`: the nationality measured for its flag's place.
     Measure,
 }
 
@@ -19,7 +19,7 @@ pub enum Font {
 pub enum Work {
     /// `seconds` (0x7559AC): the string drawn.
     Seconds,
-    /// `dword_7559EC`.
+    /// `DrawWork.figure`.
     Kept,
 }
 
@@ -31,16 +31,16 @@ pub struct Details<T> {
     pub controller_item: u32,
     pub controllers: bool,
     pub name: T,
-    /// A name is being typed (`dword_7556A8` not 0): the cursor after it.
+    /// A name is being typed (`OptionWork.typing` not 0): the cursor after it.
     pub typing: bool,
     /// The cursor's blink: drawn while 1.
     pub blink: bool,
     pub nationality: u32,
-    /// `dword_758816[nationality]`.
+    /// `CaptionTables.nationalities[0][nationality]`.
     pub nationality_id: u32,
-    /// `dword_7589BA[view]`.
+    /// `CaptionTables.views[0][view]`.
     pub view_id: u32,
-    /// `dword_7589DA[second view]` on the pages that have it.
+    /// `CaptionTables.second_views[0][second view]` on the pages that have it.
     pub second_view_id: Option<u32>,
     pub race_number: u32,
     pub codriver_sex: u32,

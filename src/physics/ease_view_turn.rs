@@ -1,7 +1,7 @@
 //! `physics::ease_view_turn` (0x438B4F): the camera's three turns (`camera_heading`,
 //! `71A690`, `71A68C`) each moved toward its target (`start_heading`, `608B58`,
 //! `608B54`) by its share (`view_share_heading`, `608BE4`, `608BEC`; all 1 first when
-//! `dword_6EF7CC` is set): the difference `fild`ed, times the share, `fistp`ed, added.
+//! `ReplayFrames.step_first` is set): the difference `fild`ed, times the share, `fistp`ed, added.
 //!
 //! Returns: the last step
 //!

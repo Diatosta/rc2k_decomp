@@ -20,7 +20,7 @@ pub const SHORT_LIMIT: u32 = 0xA;
 pub const PART_1_FITTED: u32 = 0x1E0;
 pub const PART_13_FITTED: u32 = 0x1E;
 
-/// What is read from the car's table (`off_7564A0`[car]'s +0x74).
+/// What is read from the car's table (`CarTable.cars[0]`[car]'s +0x74).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Table {
     /// Each part's (low, high): at +8 (k / 2), +0x38 for odd k.
@@ -65,9 +65,9 @@ pub struct Constants {
     pub steps: f32,
     /// The weights' and penalties' scale.
     pub scale: f32,
-    /// `dword_75ACC4`: 1 keeps part 1's limit.
+    /// `MenuState.driver_stats.switch_a`: 1 keeps part 1's limit.
     pub keep_part_1: u32,
-    /// `dword_75ACC8`: 1 shortens part 5's limit.
+    /// `MenuState.driver_stats.switch_b`: 1 shortens part 5's limit.
     pub short_part_5: u32,
 }
 
@@ -94,9 +94,9 @@ pub struct Figures {
     pub penalties: [Option<u32>; PARTS],
     /// The inspected parts' high ends added.
     pub total: u32,
-    /// `dword_75ACA8`, `ACAC`, `ACB4`, `ACB8`: the player's +0x114 twice, +0x118 twice.
+    /// `MenuState.driver_stats.setups[2].chosen`, `ACAC`, `ACB4`, `ACB8`: the player's +0x114 twice, +0x118 twice.
     pub kept: [u32; 4],
-    /// `dword_7559EC` as the last step leaves it.
+    /// `DrawWork.figure` as the last step leaves it.
     pub figure: u32,
     /// `hhmm`: the last span used, if any.
     pub span: Option<u32>,

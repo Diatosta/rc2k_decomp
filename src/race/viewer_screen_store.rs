@@ -6,71 +6,71 @@ use crate::session::{Dword, Float};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewerPanelBlock {
-    /// +0x0 (0x5C291C): `word_5C291C` / `g_cameraNameIds`: 16-bit text ids of the camera names, read and written by `race::draw_viewer_panel`, `next_camera`, `previous_camera`; the port reaches them through another path, not by this field.
+    /// +0x0 (0x5C291C): `ViewerAndKinds.viewer_panel.camera_name_ids[0]` / `g_cameraNameIds`: 16-bit text ids of the camera names, read and written by `race::draw_viewer_panel`, `next_camera`, `previous_camera`; the port reaches them through another path, not by this field.
     pub camera_name_ids: [Dword; 24],
-    /// +0x60 (0x5C297C): `dword_5C297C`: rectangle (0,0,800,32) of the viewer bar's frame (`race::viewer_frame`).
+    /// +0x60 (0x5C297C): `ViewerAndKinds.viewer_panel.bar_frame_rect[0]`: rectangle (0,0,800,32) of the viewer bar's frame (`race::viewer_frame`).
     pub bar_frame_rect: [Dword; 4],
-    /// +0x70 (0x5C298C): `dword_5C298C`: first button rectangle (`race::viewer_frame`).
+    /// +0x70 (0x5C298C): `ViewerAndKinds.viewer_panel.button_rect_a[0]`: first button rectangle (`race::viewer_frame`).
     pub button_rect_a: [Dword; 4],
-    /// +0x80 (0x5C299C): `dword_5C299C`: second button rectangle (`race::viewer_frame`).
+    /// +0x80 (0x5C299C): `ViewerAndKinds.viewer_panel.button_rect_b[0]`: second button rectangle (`race::viewer_frame`).
     pub button_rect_b: [Dword; 4],
-    /// +0x90 (0x5C29AC): `dword_5C29AC`: third button rectangle (`race::viewer_frame`).
+    /// +0x90 (0x5C29AC): `ViewerAndKinds.viewer_panel.button_rect_c[0]`: third button rectangle (`race::viewer_frame`).
     pub button_rect_c: [Dword; 4],
-    /// +0xa0 (0x5C29BC): `dword_5C29BC`: fourth button rectangle (`race::viewer_frame`).
+    /// +0xa0 (0x5C29BC): `ViewerAndKinds.viewer_panel.button_rect_d[0]`: fourth button rectangle (`race::viewer_frame`).
     pub button_rect_d: [Dword; 4],
-    /// +0xb0 (0x5C29CC): `dword_5C29CC`: the bar's rectangle (x, y, w at +8, h) (`race::viewer_frame`).
+    /// +0xb0 (0x5C29CC): `ViewerAndKinds.viewer_panel.bar_rect[0]`: the bar's rectangle (x, y, w at +8, h) (`race::viewer_frame`).
     pub bar_rect: [Dword; 4],
-    /// +0xc0 (0x5C29DC): `dword_5C29DC`: a mark's rectangle, x written each frame (`race::viewer_frame`).
+    /// +0xc0 (0x5C29DC): `ViewerAndKinds.viewer_panel.mark_rect[0]`: a mark's rectangle, x written each frame (`race::viewer_frame`).
     pub mark_rect: [Dword; 4],
-    /// +0xd0 (0x5C29EC): `dword_5C29EC`: the place marker's rectangle, x written each frame (`race::viewer_frame`).
+    /// +0xd0 (0x5C29EC): `ViewerAndKinds.viewer_panel.place_rect[0]`: the place marker's rectangle, x written each frame (`race::viewer_frame`).
     pub place_rect: [Dword; 4],
-    /// +0xe0 (0x5C29FC): `dword_5C29FC`: the item quad's place, zero in the image (`race::draw_viewer_item`).
+    /// +0xe0 (0x5C29FC): `ViewerAndKinds.viewer_panel.item_place[0]`: the item quad's place, zero in the image (`race::draw_viewer_item`).
     pub item_place: [Dword; 4],
-    /// +0xf0 (0x5C2A0C): `dword_5C2A0C`: the quad's screen rectangle, scratch, zero in the image (`race::draw_viewer_panel`, `drive::tyre_screen_parts`).
+    /// +0xf0 (0x5C2A0C): `ViewerAndKinds.viewer_panel.screen_rect[0]`: the quad's screen rectangle, scratch, zero in the image (`race::draw_viewer_panel`, `drive::tyre_screen_parts`).
     pub screen_rect: [Dword; 4],
-    /// +0x100 (0x5C2A1C): `dword_5C2A1C`: the quad's texture rectangle, scratch, zero in the image (`race::draw_viewer_panel`, `drive::tyre_screen_parts`, `race::draw_tyre_change`).
+    /// +0x100 (0x5C2A1C): `ViewerAndKinds.viewer_panel.texture_rect[0]`: the quad's texture rectangle, scratch, zero in the image (`race::draw_viewer_panel`, `drive::tyre_screen_parts`, `race::draw_tyre_change`).
     pub texture_rect: [Dword; 4],
     /// +0x110 (0x5C2A2C): texture rectangles the viewer list's items point to (relocated pointers at 0x5C2580 ..); read by no code by name.
     pub viewer_item_rects_a: [Dword; 40],
-    /// +0x1b0 (0x5C2ACC): `dword_5C2ACC`: texture rectangle (249,0,7,29) of a mark (`race::viewer_frame`).
+    /// +0x1b0 (0x5C2ACC): `ViewerAndKinds.viewer_panel.mark_picture_rect[0]`: texture rectangle (249,0,7,29) of a mark (`race::viewer_frame`).
     pub mark_picture_rect: [Dword; 4],
     /// +0x1c0 (0x5C2ADC): a rectangle the viewer list points to (pointer at 0x5C25D0); read by no code by name.
     pub viewer_item_rect_b: [Dword; 4],
-    /// +0x1d0 (0x5C2AEC): `dword_5C2AEC`: texture rectangle (48,48,48,48) of the place marker (`race::viewer_frame`).
+    /// +0x1d0 (0x5C2AEC): `ViewerAndKinds.viewer_panel.place_picture_rect[0]`: texture rectangle (48,48,48,48) of the place marker (`race::viewer_frame`).
     pub place_picture_rect: [Dword; 4],
     /// +0x1e0 (0x5C2AFC): texture rectangles the viewer list's items point to (pointers at 0x5C25F0 ..); read by no code by name.
     pub viewer_item_rects_c: [Dword; 76],
-    /// +0x310 (0x5C2C2C): `dword_5C2C2C`: texture rectangle (0,240,16,16) of a button end (`race::viewer_frame`).
+    /// +0x310 (0x5C2C2C): `ViewerAndKinds.viewer_panel.button_picture_rect[0]`: texture rectangle (0,240,16,16) of a button end (`race::viewer_frame`).
     pub button_picture_rect: [Dword; 4],
-    /// +0x320 (0x5C2C3C): `dword_5C2C3C`: texture rectangle (15,240,241,16) of a button body (`race::viewer_frame`).
+    /// +0x320 (0x5C2C3C): `ViewerAndKinds.viewer_panel.button_body_rect[0]`: texture rectangle (15,240,241,16) of a button body (`race::viewer_frame`).
     pub button_body_rect: [Dword; 4],
-    /// +0x330 (0x5C2C4C): `dword_5C2C4C` (20 bytes in IDA): texture rectangle (1,241,14,14) of the bar's frame, plus 0.5f as its fifth dword (`race::viewer_frame`).
+    /// +0x330 (0x5C2C4C): `ViewerAndKinds.viewer_panel.frame_picture_rect[0]` (20 bytes in IDA): texture rectangle (1,241,14,14) of the bar's frame, plus 0.5f as its fifth dword (`race::viewer_frame`).
     pub frame_picture_rect: [Dword; 5],
-    /// +0x344 (0x5C2C60): `flt_5C2C60`: 1.0 (`race::tyre_change_gauge`).
+    /// +0x344 (0x5C2C60): `ViewerAndKinds.viewer_panel.one`: 1.0 (`race::tyre_change_gauge`).
     pub one: Float,
-    /// +0x348 (0x5C2C64): `flt_5C2C64`: 1/256 (`drive::tyre_quad`, `drive::tyre_turned_quad`).
+    /// +0x348 (0x5C2C64): `ViewerAndKinds.viewer_panel.texel_scale`: 1/256 (`drive::tyre_quad`, `drive::tyre_turned_quad`).
     pub texel_scale: Float,
-    /// +0x34c (0x5C2C68): `flt_5C2C68`: 0.00125 = 1/800, what the screen's width is multiplied by to scale the tyre quad's x (`drive::tyre_quad`, `drive::tyre_turned_quad`).
+    /// +0x34c (0x5C2C68): `ViewerAndKinds.viewer_panel.reciprocal_width_800`: 0.00125 = 1/800, what the screen's width is multiplied by to scale the tyre quad's x (`drive::tyre_quad`, `drive::tyre_turned_quad`).
     pub reciprocal_width_800: Float,
-    /// +0x350 (0x5C2C6C): `flt_5C2C6C`: 0.00167 = 1/600, what the screen's height is multiplied by to scale the tyre quad's y (`drive::tyre_quad`, `drive::tyre_turned_quad`).
+    /// +0x350 (0x5C2C6C): `ViewerAndKinds.viewer_panel.reciprocal_height_600`: 0.00167 = 1/600, what the screen's height is multiplied by to scale the tyre quad's y (`drive::tyre_quad`, `drive::tyre_turned_quad`).
     pub reciprocal_height_600: Float,
-    /// +0x354 (0x5C2C70): `off_5C2C70`: two relocated pointers to texture rectangles, a camera byte 2 or 3 picks one (`race::draw_viewer_item`).
+    /// +0x354 (0x5C2C70): `ViewerAndKinds.viewer_panel.switch_pictures_a[0]`: two relocated pointers to texture rectangles, a camera byte 2 or 3 picks one (`race::draw_viewer_item`).
     pub switch_pictures_a: [Dword; 2],
-    /// +0x35c (0x5C2C78): `off_5C2C78`: four relocated pointers to texture rectangles, by camera byte 5 (`race::draw_viewer_item`).
+    /// +0x35c (0x5C2C78): `ViewerAndKinds.viewer_panel.switch_pictures_b[0]`: four relocated pointers to texture rectangles, by camera byte 5 (`race::draw_viewer_item`).
     pub switch_pictures_b: [Dword; 4],
-    /// +0x36c (0x5C2C88): `off_5C2C88`: three relocated pointers to texture rectangles, by camera byte 4 (`race::draw_viewer_item`).
+    /// +0x36c (0x5C2C88): `ViewerAndKinds.viewer_panel.switch_pictures_c[0]`: three relocated pointers to texture rectangles, by camera byte 4 (`race::draw_viewer_item`).
     pub switch_pictures_c: [Dword; 3],
-    /// +0x378 (0x5C2C94): `dword_5C2C94`: the replay's physics patches are in force (`race::replay_patches`).
+    /// +0x378 (0x5C2C94): `ViewerAndKinds.viewer_panel.patches_in_force`: the replay's physics patches are in force (`race::replay_patches`).
     pub patches_in_force: Dword,
-    /// +0x37c (0x5C2C98): `unk_5C2C98`: the game's 13 patch switches kept while a replay's are in force (`race::replay_patches`).
+    /// +0x37c (0x5C2C98): `ViewerAndKinds.viewer_panel.kept_patch_switches[0]`: the game's 13 patch switches kept while a replay's are in force (`race::replay_patches`).
     pub kept_patch_switches: [Dword; 13],
     /// +0x3b0 (0x5C2CCC): `g_replayRecording`: the frames are saved as pictures (`race::viewer`, `race::replay_screenshot`).
     pub replay_recording: Dword,
-    /// +0x3b4 (0x5C2CD0): `dword_5C2CD0`: the picture clock (ms), also read by `system::tick_count` (`race::replay_screenshot`).
+    /// +0x3b4 (0x5C2CD0): `ViewerAndKinds.viewer_panel.picture_clock`: the picture clock (ms), also read by `system::tick_count` (`race::replay_screenshot`).
     pub picture_clock: Dword,
-    /// +0x3b8 (0x5C2CD4): `dword_5C2CD4`: pictures started; `system::tick_count` overrides its clock when 1 (`race::replay_screenshot`).
+    /// +0x3b8 (0x5C2CD4): `ViewerAndKinds.viewer_panel.pictures_started`: pictures started; `system::tick_count` overrides its clock when 1 (`race::replay_screenshot`).
     pub pictures_started: Dword,
-    /// +0x3bc (0x5C2CD8): `off_5C2CD8`: the text rpl and a NUL, the pictures' folder (`race::start_frame_pictures`).
+    /// +0x3bc (0x5C2CD8): `ViewerAndKinds.viewer_panel.picture_folder`: the text rpl and a NUL, the pictures' folder (`race::start_frame_pictures`).
     pub picture_folder: Dword,
     /// +0x3c0 (0x5C2CDC): `aRpl000000Pcx`: the 15-byte name rpl\000000.pcx, taken in place; the last 3 bytes (0x5C2CE8 .. 0x5C2CEB) are not a whole dword (`race::replay_screenshot`).
     pub picture_name: [Dword; 3],
@@ -149,17 +149,17 @@ impl ViewerPanelBlock {
         crate::pointers::GamePtr::to(&self.untyped_tail).offset((ida - TAIL) as u32)
     }
 
-    /// `dword_5C2CEB` (unaligned, in the tail): 1 when the developer's keys work in the viewer.
+    /// `ViewerAndKinds.viewer_panel.untyped_tail[0]` (unaligned, in the tail): 1 when the developer's keys work in the viewer.
     pub fn developer_keys(&self) -> u32 {
         self.tail_read(0x5C2CEB)
     }
 
-    /// Sets `dword_5C2CEB` (the `wrreplayenable` setting writes it).
+    /// Sets `ViewerAndKinds.viewer_panel.untyped_tail[0]` (the `wrreplayenable` setting writes it).
     pub fn set_developer_keys(&self, value: u32) {
         self.tail_write(0x5C2CEB, value);
     }
 
-    /// `dword_5C2CEF` (unaligned): pictures a second, 1 .. 100.
+    /// `ViewerAndKinds.viewer_panel.untyped_tail[1]` (unaligned): pictures a second, 1 .. 100.
     pub fn picture_rate(&self) -> u32 {
         self.tail_read(0x5C2CEF)
     }
@@ -168,7 +168,7 @@ impl ViewerPanelBlock {
         self.tail_write(0x5C2CEF, value);
     }
 
-    /// `dword_5C2CF3` (unaligned): ms a picture.
+    /// `ViewerAndKinds.viewer_panel.untyped_tail[2]` (unaligned): ms a picture.
     pub fn picture_time(&self) -> u32 {
         self.tail_read(0x5C2CF3)
     }
@@ -177,7 +177,7 @@ impl ViewerPanelBlock {
         self.tail_write(0x5C2CF3, value);
     }
 
-    /// `word_5C291C` ..: the text id of camera `camera` (47 of them; the original does not
+    /// `ViewerAndKinds.viewer_panel.camera_name_ids[0]` ..: the text id of camera `camera` (47 of them; the original does not
     /// check the number).
     pub fn camera_name(&self, camera: usize) -> u16 {
         // The names are the block's first bytes; a number past them reads on in the block.
@@ -187,10 +187,9 @@ impl ViewerPanelBlock {
             .unwrap_or_else(|e| crate::fatal::raise::end("a camera's name", e))
     }
 
-    /// Where the picture `n` places on in switch table `table` (0 `off_5C2C70`, 1
-    /// `off_5C2C78`, 2 `off_5C2C88`) is (phase 13: the tables keep IDA's addresses as names,
-    /// and `moved::point_into_homes` passes them over). The three tables are one run of nine
-    /// names, which an `n` past a table's end reads on into, as the original; past the run,
+    /// Where the picture `n` places on in switch table `table` (0 `ViewerAndKinds.viewer_panel.switch_pictures_a[0]`, 1
+    /// `ViewerAndKinds.viewer_panel.switch_pictures_b[0]`, 2 `ViewerAndKinds.viewer_panel.switch_pictures_c[0]`) is (the tables keep IDA's addresses as names). The three tables
+    /// are one run of nine names, which an `n` past a table's end reads on into, as the original; past the run,
     /// or a name off the panel, is refused.
     pub fn switch_picture(
         &self,
@@ -223,7 +222,7 @@ impl ViewerPanelBlock {
                 "a switch picture's name off the panel",
             ));
         }
-        crate::moved::named(ida)
+        Ok(crate::pointers::GamePtr::to(self).offset((ida - START) as u32))
     }
 
     /// The dword at IDA's `ida` in the tail: unaligned, so made of the two cells it spans.

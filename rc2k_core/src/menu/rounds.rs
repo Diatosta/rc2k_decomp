@@ -17,7 +17,7 @@ pub const TIME_3: u32 = 0x36F650;
 pub const NO_RESULT: u32 = u32::MAX;
 pub const LEFT: u32 = 0xFFFF_FFFE;
 
-/// The single rally's car list: the first with `dword_7554D8` 1, else the second; the
+/// The single rally's car list: the first with `ScreenFlow.car_list_kind` 1, else the second; the
 /// cheats' with cheat bit 1.
 fn rally_car_list<G: Game>(e: &mut G) {
     let first = e.get(Var::CarListKind) == 1;
@@ -37,7 +37,7 @@ fn time_trial_car_list<G: Game>(e: &mut G) -> Result<(), G::Error> {
     e.run(Call::CheatCarList)
 }
 
-/// The car choices of players 0 .. n: false when one was left (`dword_758806` 1).
+/// The car choices of players 0 .. n: false when one was left (`CaptionTables.left_by_key` 1).
 /// `list_again[k]`: the time trial's list made again before player k's car is taken.
 fn choose_cars<G: Game>(
     e: &mut G,
@@ -152,7 +152,7 @@ fn best_times<G: Game>(e: &mut G) -> Result<bool, G::Error> {
 }
 
 /// The review, the in-game options hidden for `hide` players or shown: true when it ends
-/// the event (a yes when `ask` says so, `dword_755569`, `dword_75555D`).
+/// the event (a yes when `ask` says so, `LoopFlags.ask_leave`, `LoopFlags.event_left`).
 fn review<G: Game>(e: &mut G, hide: Option<u32>, ask: bool) -> Result<bool, G::Error> {
     match hide {
         Some(players) => e.run(Call::HideInGameOptions { players })?,
@@ -303,7 +303,7 @@ pub fn single_rally_two<G: Game>(e: &mut G) -> Result<(), G::Error> {
 }
 
 /// The three and four players' rounds after the car choices (the four players' start
-/// without the current player 0 and the fourth's time); `dword_758714` counts them.
+/// without the current player 0 and the fourth's time); `Results.round` counts them.
 fn rally_rounds<G: Game>(e: &mut G, n: u32) -> Result<(), G::Error> {
     loop {
         if n == 3 {
@@ -428,9 +428,9 @@ fn time_trial_start<G: Game>(e: &mut G) -> Result<(), G::Error> {
     e.run(Call::TakePlayer1Units)
 }
 
-/// The variables the two players' time trials clear (`dword_7587B8`, `_BC`, `_A8`, `_AC`).
+/// The variables the two players' time trials clear (`Results.totals[0]`, `_BC`, `_A8`, `_AC`).
 const CLEARED_TWO: [u32; 4] = [4, 5, 0, 1];
-/// The three players' (`dword_7587B8` .. `_C4`, then `_A8` .. `_B4`).
+/// The three players' (`Results.totals[0]` .. `_C4`, then `_A8` .. `_B4`).
 const CLEARED_THREE: [u32; 8] = [4, 5, 6, 7, 0, 1, 2, 3];
 
 /// The two players' time trials' start (event mode `mode`).

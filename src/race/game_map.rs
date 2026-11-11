@@ -1,7 +1,7 @@
 //! `race::loadlevel_init`'s "loadgamemap": the in-race map, 128 x 128
 //! tiles of 16 x 16 pixels, only the tiles the course touches kept. `g_mapTiles` (0x4000
 //! dwords) points each kept tile at its pixels in `g_mapTilePixels` (0 for none), in the
-//! pixel format of entry 3 of `off_5ABAC0` (`g_mapPixelBytes` a pixel); `g_mapBlack` that
+//! pixel format of entry 3 of `Textures.kinds[0]` (`g_mapPixelBytes` a pixel); `g_mapBlack` that
 //! format's opaque black.
 //!
 //! The game reads `files\maps\mapxx.sq` ("SQSM", version 0x50000, the tile count, then a

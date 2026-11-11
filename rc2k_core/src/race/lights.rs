@@ -32,7 +32,7 @@ fn set(prev: u32, keep: u32, bits: u32) -> u32 {
 /// `race::car_light_modes`: a drawn car's light word (+0x6FC) from `prev`, its nibbles set
 /// step by step: 0x21; for the shown car with beams (`view_car_flag_b`), 0x12, then 0x14
 /// unless the kind (`view_car_stage`, asked only then) is 1, then 0x11 unless it is 2 or 3;
-/// then 0x100 in the third nibble, 0x200 with `high` (`dword_6238B4`; 1: the shown car
+/// then 0x100 in the third nibble, 0x200 with `high` (`RaceVars.settings_words[3]`; 1: the shown car
 /// only).
 pub fn light_word(
     prev: u32,
@@ -138,8 +138,8 @@ pub fn clamp_byte(v: u32) -> u32 {
 }
 
 /// 0x44F601: whether car n's headlights light the place: with one car chosen
-/// (`session`) that car (`player`) or all with `dword_6238B8` 1; else the
-/// players' cars (all with `dword_6238B8` 1), outside one player and modes 0 and 2 only
+/// (`session`) that car (`player`) or all with `RaceVars.settings_words[4]` 1; else the
+/// players' cars (all with `RaceVars.settings_words[4]` 1), outside one player and modes 0 and 2 only
 /// the drawn view's car. Each value asked where the original reads it.
 pub fn headlights_light(
     n: u32,

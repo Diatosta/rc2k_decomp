@@ -1,7 +1,7 @@
-//! `effects::aim_vector` (0x4C1294): for each of x, y, z `dword_769306` .. =
-//! -`flt_7692B2` .. less `flt_76927A` .. plus `flt_7692CE` .. plus `flt_7692EA` ..; then
-//! that vector made of length 1 into `unk_7692FA` .., its length (`fst`) in
-//! `dword_7692F6` (`x87::unit_and_length`).
+//! `effects::aim_vector` (0x4C1294): for each of x, y, z `KeptView.vector[0]` .. =
+//! -`KeptView.kept_b.scaled[0]` .. less `KeptView.kept_a.scaled[0]` .. plus `KeptView.kept_c.scaled[0]` .. plus `KeptView.step[0]` ..; then
+//! that vector made of length 1 into `KeptView.unit[0]` .., its length (`fst`) in
+//! `KeptView.length` (`x87::unit_and_length`).
 //!
 //! Caller: `effects::view_frame`.
 //!

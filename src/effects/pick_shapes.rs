@@ -14,7 +14,7 @@ use crate::errors::Refused;
 pub fn pick_shapes(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     use rc2k_core::effects::steps;
     let index = steps::shape_entry(drops.picks.index.get())?;
-    // (the flag, the shape): `dword_844604` / `g_marksShapesA`, `dword_844608` /
+    // (the flag, the shape): `MaskPicks.flags[0]` / `g_marksShapesA`, `MaskPicks.flags[1]` /
     // `g_marksShapesB`.
     for n in 0..2 {
         let picked = steps::pick_shapes(drops.picks.table[index].get() as i32);

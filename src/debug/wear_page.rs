@@ -25,12 +25,10 @@ pub const SURFACES: [&[u8]; 16] = [
     b"null",
 ];
 
-/// The dword at IDA's address `ida`, where it lives now (`moved::named`); None when it
-/// cannot be read (shown as such: the UI does not end the game).
+/// The dword at IDA's address `ida` in the race block's own bytes; None when it is not there
+/// (shown as such: the UI does not end the game).
 pub fn value_at(ida: usize) -> Option<u32> {
-    crate::moved::named(ida)
-        .and_then(|at| at.read::<u32>("a debug page's value"))
-        .ok()
+    crate::race::store::block_dword(ida)
 }
 
 #[cfg(test)]
@@ -40,10 +38,12 @@ mod tests {
         // Each figure's place resolves, outside the dead bytes of the race block.
         let groups = crate::debug::display_rows::GROUPS.iter();
         for group in groups.chain(crate::debug::watch_rows::GROUPS) {
-            for at in group.rows.iter().map(super::super::ui::Row::at) {
+            for row in group.rows {
+                let at = row.at();
                 let place = crate::moved::place(at) as u32;
                 assert!(!crate::race::store::is_dead(place), "{at:#x}");
-                assert!(super::value_at(at).is_some(), "{at:#x}");
+                // A row without a field of its own is read from the race block's bytes.
+                assert!(row.is_typed() || super::value_at(at).is_some(), "{at:#x}");
             }
         }
     }

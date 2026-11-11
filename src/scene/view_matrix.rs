@@ -51,8 +51,8 @@ pub fn set_fine_turn(course: &Course, matrices: &ViewMatrices, axis: Axis, angle
 }
 
 /// `scene::unit_vector` (0x420EF8): three floats made one long, into `out`; all 0 when
-/// their length compares equal to `flt_5C5D90` (0, or no number). Minus zero made zero.
-/// Returns the length (the original left it in `dword_62400C`: the physics' callers store it
+/// their length compares equal to `Numbers.zero` (0, or no number). Minus zero made zero.
+/// Returns the length (the original left it in `SceneDraw.scratch`: the physics' callers store it
 /// there, the drawing's never read it).
 pub fn unit_vector(
     course: &Course,
@@ -99,7 +99,7 @@ pub fn cross_product(
 
 /// `scene::square_matrix` (0x420E94): a turning's three rows made one long and at right
 /// angles again, from its third row and its second. Returns the second `unit_vector`'s length.
-/// The original worked in `flt_5C6FD0` .. (16 floats, the last four never made: zeros, as the
+/// The original worked in `CourseLists.squared_row_0[0]` .. (16 floats, the last four never made: zeros, as the
 /// image has them, copied back); here a local, so that views drawn beside each other do not
 /// work in each other's rows.
 pub fn square_matrix(course: &Course, at: &(impl Cells + ?Sized)) -> u32 {

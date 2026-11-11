@@ -177,9 +177,9 @@ pub fn grid_cell(x: u32, z: u32, corner: (u32, u32), span: u32) -> Option<u32> {
 pub struct CheckpointColours {
     /// The face's +0x10 low nibble (0 read as 0x10): `checkpoint_colours`.
     pub near: u32,
-    /// Its high nibble: `dword_614D0C`.
+    /// Its high nibble: `PhysicsTables.unused_14e0[1]`.
     pub far: u32,
-    /// The checkpoint's distance less the car's: `dword_614D10`.
+    /// The checkpoint's distance less the car's: `PhysicsTables.unused_14e0[2]`.
     pub distance: u32,
     /// The level used (`far_cell_limit`): near when twice the distance (its size) is below
     /// 0x40000000 (signed), far from 0xC0000000, else the larger.

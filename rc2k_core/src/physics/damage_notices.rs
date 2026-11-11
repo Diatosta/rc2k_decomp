@@ -1,6 +1,6 @@
 //! The work car's damage warnings (from `physics::damage_notices`
 //! 0x4B0241): each damage gauge (a float of the work copy, `brake_heat` .. `tyre_wear`)
-//! moves a level (`damage_levels` .. `unk_71A3C8`) by whole-number thresholds, in the
+//! moves a level (`damage_levels` .. `Car.damage_levels[34]`) by whole-number thresholds, in the
 //! original's order of 82 steps (read from the disassembly): a rising step, the gauge not
 //! below its threshold, sets the level and queues a notice; a falling one (the hysteresis
 //! of some gauges), below it, sets the level back.

@@ -1,4 +1,4 @@
-//! `effects::flare_frame` (0x4C4EA2): `scene::set_texture` with `dword_5D1E10`,
+//! `effects::flare_frame` (0x4C4EA2): `scene::set_texture` with `KindTextureTables.kind_first_slots[202]`,
 //! `scene::depth_test_off`, and when the settings' +0x2754 (the flare's strength) is set
 //! `effects::draw_lens_flare`.
 //!

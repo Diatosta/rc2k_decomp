@@ -2,7 +2,7 @@
 //! (`g_car` +0x98). With a checkpoint after it (+0x98 + 1 below `g_checkpointCount`, by
 //! the sign of the difference): the checkpoint's face (`g_checkpointFaces`), that face's
 //! first point (`g_courseFaces` +4, `g_scenePoints`), the car's x and z less the point's,
-//! turned by minus the checkpoint's angle (`dword_9ED808`, `math::rotate_point_about_y`) into
+//! turned by minus the checkpoint's angle (`Buffers.checkpoints.angles[2]`, `math::rotate_point_about_y`) into
 //! +0x620 and +0x624. Else both 0.
 //!
 //! Caller: `physics::track_checkpoints`. Refuses (before anything) a checkpoint below 0 or past

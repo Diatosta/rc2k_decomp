@@ -1,6 +1,6 @@
-//! `hud::draw_marker` (0x4B55AB): a marker sprite (rectangle 0x5C of `dword_75B940`) along the top
-//! at the share +0x6C over +0x68 of the HUD's record, times `flt_75C0A8` plus `flt_75C0AC` (`fistp`
-//! through `dword_75C060`), coloured `dword_75BF50`.
+//! `hud::draw_marker` (0x4B55AB): a marker sprite (rectangle 0x5C of `HudBlock.rects[0].left`) along the top
+//! at the share +0x6C over +0x68 of the HUD's record, times `HudBlock.marker_k[0]` plus `HudBlock.marker_k[1]` (`fistp`
+//! through `HudBlock.fistp_scratch`), coloured `HudBlock.marker_colours[0]`.
 //!
 //! Takes: the HUD's record
 //!

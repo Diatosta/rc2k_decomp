@@ -1,5 +1,5 @@
-//! `effects::copy_first_point` (0x4C1163): `dword_769306` .. `dword_76930E` into
-//! `flt_811BDF` .. `flt_811BE7`, and `dword_7692F6` into `dword_811BCF` (`push`/`pop`).
+//! `effects::copy_first_point` (0x4C1163): `KeptView.vector[0]` .. `KeptView.vector[2]` into
+//! `ShapeTilt.point[0]` .. `ShapeTilt.point[2]`, and `KeptView.length` into `ShapeTilt.length` (`push`/`pop`).
 //!
 //! Caller: `effects::shapes_frame`.
 

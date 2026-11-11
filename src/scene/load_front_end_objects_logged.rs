@@ -1,7 +1,7 @@
 //! `scene::load_front_end_objects_logged` (0x4433DA): `scene::load_front_end_objects`,
 //! then its log: a rule, "Front end objects loaded", "total points" `g_objectPointCount`,
-//! "total pointmem" `dword_634FA4`, "total faces" `dword_5CD67C`, "total facemem"
-//! `dword_634FA8` (each label without a line's end, its value in hex8 with one), a rule.
+//! "total pointmem" `ObjectWork.point_memory_total`, "total faces" `ObjectTables.face_count`, "total facemem"
+//! `ObjectWork.face_memory_total` (each label without a line's end, its value in hex8 with one), a rule.
 //!
 //! Caller: `scene::set_up_front_end_scene`.
 

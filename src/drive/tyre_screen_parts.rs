@@ -23,8 +23,8 @@ pub fn tyre_screen_parts(shared: &RaceShared) -> Result<(), Refused> {
     let parts = std::array::from_fn(|k| shared.tyre_change.parts[k].get());
     let wheel = std::array::from_fn(|k| shared.tyre_change.wheel[k].get());
     for (uv, rect) in fixed_parts(parts, wheel, shared.tyre_change.player.get() != 0) {
-        set(&VIEWER_PANEL.texture_rect, uv); // dword_5C2A1C
-        set(&VIEWER_PANEL.screen_rect, rect); // dword_5C2A0C
+        set(&VIEWER_PANEL.texture_rect, uv); // ViewerAndKinds.viewer_panel.texture_rect[0]
+        set(&VIEWER_PANEL.screen_rect, rect); // ViewerAndKinds.viewer_panel.screen_rect[0]
         {
             crate::drive::tyre_quad::tyre_quad_cells(
                 &VIEWER_PANEL.texture_rect,

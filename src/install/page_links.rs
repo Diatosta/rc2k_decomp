@@ -26,7 +26,7 @@ const FONT: u32 = 2;
 const BLENDED_PALETTE: u32 = 3;
 const TYPED_PATH: u32 = 4;
 
-/// IDA's address of `InstallerPaths::typed` (`byte_95EBF8`): the folder typed on the page. The
+/// IDA's address of `InstallerPaths::typed` (`InstallerPaths.typed`): the folder typed on the page. The
 /// folder item's text starts two bytes in (0x95EBFA, past the drive's `c:`), or at its start
 /// on Unix (no drive).
 const TYPED_IDA: u32 = 0x95EBF8;
@@ -144,7 +144,7 @@ mod tests {
         );
         assert!(PageLink::of_ida(PALETTE_IDA).is_blended_palette());
         assert_eq!(
-            Some(GamePtr::to(&crate::text::blend_font::BLENDED_PALETTE).addr() as usize),
+            Some(GamePtr::to(crate::text::blend_font::BLENDED_PALETTE.get()).addr() as usize),
             crate::moved::home_of_rva(PALETTE_IDA as usize - crate::framework::IMAGE_BASE)
         );
         let typed = PageLink::of_ida(TYPED_IDA + 2).place().unwrap();

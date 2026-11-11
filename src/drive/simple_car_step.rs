@@ -30,7 +30,7 @@ pub fn simple_car_step(
     let distance = roam_distance(
         CAR_BLOCKS.cars[0].throttle.get(),
         CAR_BLOCKS.cars[0].brake.get(),
-        input.devices.keys_now.get(0x1D) != 0, // byte_4F6B79
+        input.devices.keys_now.get(0x1D) != 0, // Devices.keys_now
     );
     let [x, _, z, _] = {
         crate::math::rotate_point_about_y::rotate_point_about_y(

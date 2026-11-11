@@ -1,4 +1,4 @@
-//! The replay's frame variables: the first step, the cameras' words, the frame and tenth kept, the step's block and frame, the eight kept frames of the car blocks (`unk_6EF7E8`, 0x3F80 bytes each) and the last frame `quit_question` keeps (`dword_70F3E8`, just before `g_carBlockStore`). Names are readings unless IDA's.
+//! The replay's frame variables: the first step, the cameras' words, the frame and tenth kept, the step's block and frame, the eight kept frames of the car blocks (`ReplayFrames.slots`, 0x3F80 bytes each) and the last frame `quit_question` keeps (`ReplayFrames.last_kept`, just before `g_carBlockStore`). Names are readings unless IDA's.
 
 #[cfg(test)]
 use crate::race::owner::race;

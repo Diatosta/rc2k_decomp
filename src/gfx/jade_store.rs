@@ -3,33 +3,33 @@
 //! parallel). `#[repr(C)]` struct with the image's layout, first values the image's (`tests`);
 //! `moved::MOVED` points the image's addresses at it: the fonts' glyph-table pointers name it.
 
-use crate::session::{Bytes, Dword, with_runs};
+use crate::session::{PlainBytes, PlainDword, with_runs};
 
 /// The jade font's glyphs, colour and file name (IDA 0x4F52C4 .. 0x4F66DD, the image's layout).
 #[repr(C, align(16))]
 #[derive(rc2k_derive::Cells)]
 pub struct JadeFont {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
-    pub _lead: Bytes<4>,
+    pub _lead: PlainBytes<4>,
     /// 0x4F52C4: `unk_4F52C4`: the glyph table (`gfx::load_jade`).
-    pub glyphs: Bytes<5120>,
+    pub glyphs: PlainBytes<5120>,
     /// 0x4F66C4: `dword_4F66C4`: the text colour.
-    pub colour: Dword,
+    pub colour: PlainDword,
     /// 0x4F66C8: `JADE`: the font's file name (`gfx::texts`).
-    pub name: Bytes<21>,
+    pub name: PlainBytes<21>,
     /// Up to the record's alignment (no byte of a record of cells outside a field).
-    pub _tail: Bytes<3>,
+    pub _tail: PlainBytes<3>,
 }
 
 impl JadeFont {
     /// The first values are the image's.
     pub const fn new() -> Self {
         JadeFont {
-            _lead: Bytes::new([0; 4]),
-            glyphs: Bytes::new([0; 5120]),
-            colour: Dword::new(0x1234),
-            name: Bytes::new(with_runs::<21>(&[(0, b"files\\d\\gfx\\jade.bun")])),
-            _tail: Bytes::new([0; 3]),
+            _lead: PlainBytes::new([0; 4]),
+            glyphs: PlainBytes::new([0; 5120]),
+            colour: PlainDword::new(0x1234),
+            name: PlainBytes::new(with_runs::<21>(&[(0, b"files\\d\\gfx\\jade.bun")])),
+            _tail: PlainBytes::new([0; 3]),
         }
     }
 }

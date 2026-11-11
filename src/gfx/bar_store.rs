@@ -1,7 +1,7 @@
 //! The progress bar's variables, out of RAL.EXE's image: IDA 0x755224 .. 0x75523C. Set by the
 //! callers of `gfx::blit_bar` / `gfx::blit_bar_marker` (`blit_bar::Bar` reads and writes the six).
 
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// IDA's address of the block's first byte.
 pub const START: usize = 0x755224;
@@ -13,29 +13,29 @@ pub const LEN: usize = 0x75523C - START;
 #[derive(rc2k_derive::Cells)]
 pub struct BarVars {
     /// `dword_755224`: the bar's x (`blit_bar_marker` moves it to the marker).
-    pub x: Dword,
+    pub x: PlainDword,
     /// `dword_755228`: the bar's y.
-    pub y: Dword,
+    pub y: PlainDword,
     /// `dword_75522C`: the bar's length at 100 percent, in pixels.
-    pub width: Dword,
+    pub width: PlainDword,
     /// `dword_755230`: the fill's sprite (the marker's for `blit_bar_marker`).
-    pub fill_glyph: Dword,
+    pub fill_glyph: PlainDword,
     /// `dword_755234`: the end piece's sprite.
-    pub end_glyph: Dword,
+    pub end_glyph: PlainDword,
     /// `dword_755238`: the percentage.
-    pub percent: Dword,
+    pub percent: PlainDword,
 }
 
 impl BarVars {
     /// The bar; the first values are the image's.
     pub const fn new() -> Self {
         BarVars {
-            x: Dword::new(0),
-            y: Dword::new(0),
-            width: Dword::new(0),
-            fill_glyph: Dword::new(0),
-            end_glyph: Dword::new(0),
-            percent: Dword::new(0),
+            x: PlainDword::new(0),
+            y: PlainDword::new(0),
+            width: PlainDword::new(0),
+            fill_glyph: PlainDword::new(0),
+            end_glyph: PlainDword::new(0),
+            percent: PlainDword::new(0),
         }
     }
 }

@@ -1,6 +1,6 @@
-//! `effects::scale_vectors_by` (0x4D16A3): two vectors scaled: `flt_764FA0` .. =
-//! `dword_764F94` .. by `dword_764F90`, `flt_764FBC` .. = `dword_764FB0` .. by
-//! `dword_764FAC` (`fld; fmul`, three on the stack, stored last first).
+//! `effects::scale_vectors_by` (0x4D16A3): two vectors scaled: `ViewSources.sources[0].scaled[0]` .. =
+//! `ViewSources.sources[0].vector[0]` .. by `ViewSources.sources[0].factor`, `ViewSources.sources[1].scaled[0]` .. = `ViewSources.sources[1].vector[0]` .. by
+//! `ViewSources.sources[1].factor` (`fld; fmul`, three on the stack, stored last first).
 //!
 //! Caller: `effects::frame_marks`.
 //!

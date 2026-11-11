@@ -40,7 +40,7 @@ pub fn next_slot(slot: u32, checkpoint: u32) -> (u32, u32) {
     }
 }
 
-/// The last word of the distances (`byte_614D38` has 41).
+/// The last word of the distances (`PaceNotes.distance_words` has 41).
 pub const MOST_TENS: u32 = 40;
 
 /// `race::pace_distance_word`: the distance's (16.16) tens, at most 40: the word's place.

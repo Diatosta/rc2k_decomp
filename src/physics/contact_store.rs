@@ -1,6 +1,6 @@
 //! The contact and probe work of the physics step, 0x6D1DD8 .. 0x6D3CF4: the EAX face weights' scratch, the 64 probe points' lists (whole numbers, turned floats, heights, faces, shares: stride 0x100 bytes), the contact vectors of `physics::contact_force`, the wall and edge contacts, the lit faces, the car-to-car corner work and the draw batch's counts.
 //! The probe lists run from 0x6D1E14 to 0x6D3014 (0x40 dwords each; the saved x, y, z lists are one 0xC0-dword run). 0x6D1DFC is a byte.
-//! Stops before the draw batch's vertex buffer (`unk_6D3CF4`, 0x4000 bytes to 0x6D7CF4).
+//! Stops before the draw batch's vertex buffer (`DrawBatches.scene_vertices`, 0x4000 bytes to 0x6D7CF4).
 //! Names are readings unless IDA's.
 
 #[cfg(test)]

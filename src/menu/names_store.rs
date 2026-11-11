@@ -11,7 +11,7 @@ use crate::session::PlainBytes;
 pub struct Names {
     /// `g_playerNames`: The four players' names, 0x20 bytes each (`menu::player_names`).
     pub player_names: PlainBytes<128>,
-    /// `byte_7557E4`: The rest of the names' area.
+    /// `Names.player_names`: The rest of the names' area.
     pub more_names: PlainBytes<128>,
     /// `g_keptPlayerName`: The name kept by `menu::standings` (0x1F bytes and a NUL).
     pub kept_name: PlainBytes<32>,

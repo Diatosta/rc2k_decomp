@@ -56,7 +56,7 @@ pub fn set_both_counters(value: u32) {
     }
 }
 
-/// The view car `n`'s number: `view_cars`, `dword_63DBAC`, `local_car`.
+/// The view car `n`'s number: `view_cars`, `RaceView.view_cars[1]`, `local_car`.
 pub fn view_car(shared: &RaceShared, n: usize) -> &crate::session::Dword {
     match n {
         0 => &shared.view.view_cars[0],
@@ -82,14 +82,14 @@ pub fn load_view_car(
 }
 
 // The race keys, by PC scan code (set 1) in `g_keysPressed`: F1 .. F5 (0x3B ..), F6 .. F12 for the
-// view block's option bits; `g_keysNow`'s 0x1D (`byte_4F6B79`, the Left Ctrl scan code) held makes
+// view block's option bits; `g_keysNow`'s 0x1D (`Devices.keys_now`, the Left Ctrl scan code) held makes
 // them act on the second view's block (`second` below).
 const VIEW_MODE_KEY: usize = 0x1D;
-const NEXT_VIEW_KEY: usize = 0x3B; // byte_4F6D17
-const SPLIT_KEY: usize = 0x3C; // byte_4F6D18
-const DOWN_KEY: usize = 0x3D; // byte_4F6D19
-const UP_KEY: usize = 0x3E; // byte_4F6D1A
-const SHARED_KEY: usize = 0x3F; // byte_4F6D1B
+const NEXT_VIEW_KEY: usize = 0x3B; // Devices.keys_pressed
+const SPLIT_KEY: usize = 0x3C; // Devices.keys_pressed
+const DOWN_KEY: usize = 0x3D; // Devices.keys_pressed
+const UP_KEY: usize = 0x3E; // Devices.keys_pressed
+const SHARED_KEY: usize = 0x3F; // Devices.keys_pressed
 /// The keys that flip a bit of the view block's +0x220 (`rc2k_core::race::keys::BIT_KEYS`
 /// by place): their key bytes, in the order tested.
 pub const BIT_KEYS: [usize; 7] = [0x58, 0x42, 0x41, 0x44, 0x43, 0x40, 0x57]; // 4F6D34, 4F6D1E, 4F6D1D, 4F6D20, 4F6D1F, 4F6D1C, 4F6D33
@@ -157,7 +157,7 @@ pub fn race_keys(race: &Race) -> Result<(), Refused> {
             let (step, counter) = volume_key(up, second);
             set_both_counters(counter);
             if second {
-                // The "up" step reads `dword_75568C`, not the music's volume (see bugs).
+                // The "up" step reads `OptionWork.other_volume`, not the music's volume (see bugs).
                 let from: u32 = if up {
                     menus().screens.option_work.other_volume.get()
                 } else {
@@ -187,9 +187,9 @@ pub fn race_keys(race: &Race) -> Result<(), Refused> {
 }
 
 /// `race::tyre_change` (0x444F7A): the textures copied (`TyreChange::texture` / `device_texture`
-/// from `dword_5D1444` / `dword_5D2444`); for car 0 (block at 0x70F3EC: +0x268 "c1 tyrec" count
-/// `dword_70F654`, +0x26C the change's state `dword_70F658`, +0x298 the tyre bits `dword_70F684`,
-/// +0x88 the time `dword_70F474`, +0x354 .. +0x360 `dword_70F740` .. `dword_70F74C`, one per bit 1
+/// from `KindTextureTables.kind_first_textures[599]` / `KindTextureTables.kind_first_slots[599]`); for car 0 (block at 0x70F3EC: +0x268 "c1 tyrec" count
+/// `CarsAndReplay.car_blocks.cars[0].stopped_steps`, +0x26C the change's state `CarsAndReplay.car_blocks.cars[0].tyre_change_state`, +0x298 the tyre bits `CarsAndReplay.car_blocks.cars[0].parts_present`,
+/// +0x88 the time `CarsAndReplay.car_blocks.cars[0].stage_time`, +0x354 .. +0x360 `CarsAndReplay.car_blocks.cars[0].tyre_wears[0]` .. `CarsAndReplay.car_blocks.cars[0].tyre_wears[3]`, one per bit 1
 /// .. 4) `race::tyre_change_gauge` started, then run, its time when done added.
 pub fn tyre_change(
     race: &Race,

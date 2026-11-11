@@ -1,21 +1,21 @@
 //! `physics::rate_damage` (0x4AF1EC): the current car's damage figures (the work copy's
 //! 0x71A278 .. 0x71A328) made into its working grades and failures (what each figure
 //! is, is in `physics/store.rs`). In the original's order:
-//! - `engine_power_factor` = 1 - `engine_damage` k k694 - `exhaust_damage` k k698 (k = `flt_75B388`;
-//!   80 bits), times `flt_75B5A0` when `flt_75B3E4`'s bits are not 0 and `turbo_damage` is
-//!   not below `flt_75B34C`; held to `flt_75B350` .. `flt_75B348`;
-//! - `brake_efficiency`, `flt_71A3D4`: 1 less four products each (`brake_heat` / `flt_71A288`,
-//!   `brake_wear_a` / `brake_wear_b`, `brake_fade`, `dword_75B3F0`), held the same way;
+//! - `engine_power_factor` = 1 - `engine_damage` k k694 - `exhaust_damage` k k698 (k = `DamageModel.grade_k`;
+//!   80 bits), times `DamageModel.wear_rates[10]` when `DamageModel.drive_kind`'s bits are not 0 and `turbo_damage` is
+//!   not below `DamageModel.gauge_top`; held to `DamageModel.gauge_low` .. `DamageModel.grade_high`;
+//! - `brake_efficiency`, `Car.brake_efficiency[1]`: 1 less four products each (`brake_heat` / `Car.brake_heat[1]`,
+//!   `brake_wear_a` / `brake_wear_b`, `brake_fade`, `DamageModel.surface_blend`), held the same way;
 //! - 23 ramps (`math::x87::ramp`, tables of (x0, y0, x1, y1) at 0x75B4E8 .. 0x75B568)
 //!   into 0x71A3D8 .. 0x71A3E0 and the model's failure chances (0x75B404 .. 0x75B438, 0x75B490 .. 0x75B49C), two of them times
-//!   `flt_75B43C` k k, one squared;
-//! - failures by chance: a figure times `flt_75B340` (`fistp` into `flt_75B36C`) against
-//!   the random `dword_75B4A0` turned right by 4 .. 0x19, low word (the sign of the
-//!   difference): `handbrake_failed` (set once), `electrical_failures` .. `dword_71A3FC` (set from
+//!   `DamageModel.brake_balance_complement` k k, one squared;
+//! - failures by chance: a figure times `DamageModel.chance_scale` (`fistp` into `DamageModel.scratch`) against
+//!   the random `DamageModel.clock` turned right by 4 .. 0x19, low word (the sign of the
+//!   difference): `handbrake_failed` (set once), `electrical_failures` .. `Car.electrical_failures[6]` (set from
 //!   0x75B404 .., cleared again from 0x75B420 ..), `gear_change_blocked`, `forced_neutral`;
-//! - `flt_71A2AC` = 0, and `g_carGearBits` = the gears (9 figures from 0x71A2A8) equal to
-//!   `flt_75B34C` (C3: also no number);
-//! - `damage_failed` = 0 when five figures are all below `flt_75B34C`, else 1, and then
+//! - `Car.gear_wear[1]` = 0, and `g_carGearBits` = the gears (9 figures from 0x71A2A8) equal to
+//!   `DamageModel.gauge_top` (C3: also no number);
+//! - `damage_failed` = 0 when five figures are all below `DamageModel.gauge_top`, else 1, and then
 //!   `engine_power_factor` = 0 unless `electrics_damage` is below it.
 //!
 //! Caller: `physics::rate_current_car` (0x4AB5D0), its only one.
@@ -258,7 +258,7 @@ pub fn rate_damage(car: &Car, damage: &DamageModel) {
     for (out, x, t) in ramps_c(car, damage) {
         out.set_bits(ramp(x.bits(), table_of(t), d.gauge_low.bits()).to_bits());
     }
-    // Chance: the figure times `flt_75B340` against the random's low word turned.
+    // Chance: the figure times `DamageModel.chance_scale` against the random's low word turned.
     let chance = |figure: &Float, turn: u32| {
         let t = x87::mul_to_int(figure, &d.chance_scale) as u32;
         d.scratch.set_bits(t);

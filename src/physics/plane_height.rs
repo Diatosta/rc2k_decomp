@@ -1,6 +1,6 @@
 //! `physics::plane_height` (0x4425B6): `ground_height` = c + (a - c) `plane_f` + (b -
 //! c) `plane_g`, `fistp`'d (the control word's rounding), with a, b, c the whole
-//! numbers `dword_639718`, `dword_639724`, `dword_63970C`: by the look of it the height
+//! numbers `GroundWork.face_corners[4]`, `GroundWork.face_corners[7]`, `GroundWork.face_corners[1]`: by the look of it the height
 //! of a course face's plane under a point, from its corners' heights and the point's
 //! shares (a reading; set by `physics::face_under_point`).
 //!

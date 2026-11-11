@@ -87,8 +87,8 @@ pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
 
 /// `race::update_name_plates` (0x45B3B9): when the two time texts (8 bytes each at `label_behind` /
 /// `label_ahead`) differ from their last copies (`kept_behind` / `kept_ahead`): the time plate
-/// drawn (`race::draw_time_plate`, slot `dword_5D0DF8`), the copies made and both views' cars'
-/// +0x720 1. Then for each view (slots `dword_5D0DF8` / `dword_5D0DFC`) with a name asked for at
+/// drawn (`race::draw_time_plate`, slot `KindTextureTables.kind_first_textures[196]`), the copies made and both views' cars'
+/// +0x720 1. Then for each view (slots `KindTextureTables.kind_first_textures[196]` / `KindTextureTables.kind_first_textures[197]`) with a name asked for at
 /// its car's +0x71C: drawn by string id below 0x10000 (`race::draw_plate_by_id`) or as a text
 /// pointer (`race::draw_name_plate`), into +0x724, +0x71C 0, +0x720 and +0x728 1. Refuses (before
 /// anything) a null view block.

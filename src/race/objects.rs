@@ -182,7 +182,7 @@ pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
         };
         scene.objects.tables.slot_kinds[n as usize].set(default);
     }
-    // `dword_5CCF7C` = `kept_kind`.
+    // `ObjectTables.slot_kinds[64]` = `kept_kind`.
     scene.objects.tables.slot_kinds[64].set(race.shared.switches.kept_kind.get());
     let cars: u32 = race.shared.view.race_cars.get();
     if cars == 0 {

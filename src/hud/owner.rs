@@ -21,11 +21,11 @@ impl Hud {
 }
 
 /// The one instance. Reached through `hud()`.
-pub static HUD: Hud = Hud::new();
+pub static HUD: crate::session::GameThread<Hud> = crate::session::GameThread::new(Hud::new());
 
 /// The HUD's state, for a caller that does not take it as a parameter yet.
 pub fn hud() -> &'static Hud {
-    &HUD
+    HUD.get()
 }
 
 /// What the HUD's polygons are added through: the polygon work of the slot the HUD draws on

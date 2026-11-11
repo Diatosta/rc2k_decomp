@@ -1,8 +1,8 @@
 //! `physics::make_gear_ratios` (0x4219E6): the car's gear ratios (`g_gearRatios`, by gear,
 //! `physics/gearing.rs`) from its setup: the top gear's (`g_gearRatios[g_gearCount]`) and
-//! the first's (`flt_6140C4`) each lo + (hi - lo) `quarter` `gear_ratio_setting` (the
+//! the first's (`PhysicsTables.gear_ratios[2]`) each lo + (hi - lo) `quarter` `gear_ratio_setting` (the
 //! setup's gearing, a whole number) over `two_and_a_quarter` and `engine_speed_limit` (hi / lo
-//! `flt_5CB978` / `flt_5CB970` and `flt_5CB974` / `figures`); the gears between in
+//! `LightsAndGear.gear.figures[3]` / `LightsAndGear.gear.figures[1]` and `LightsAndGear.gear.figures[2]` / `figures`); the gears between in
 //! even steps ((top - first) / (count - 1), kept at 80 bits on the stack and added on:
 //! gears 2 .. 5 always, 6 and 7 one more step each only past five and six gears; the
 //! step itself rounded into `scratch`); reverse (`gear_ratios`) the first's negative;

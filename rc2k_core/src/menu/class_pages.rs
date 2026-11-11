@@ -9,13 +9,13 @@ use std::ops::Range;
 /// The most classes the passes take.
 pub const MOST_CLASSES: u32 = 0x100;
 
-/// `dword_75AB40` when the class pages start at class 1.
+/// `MenuState.menus.class_mode` when the class pages start at class 1.
 pub const FROM_CLASS_1: u32 = 2;
 
 /// The A8 championship's `g_eventMode`.
 pub const A8: u32 = 0x13;
 
-/// The stage results' first class: 1 with `dword_75AB40` 2, else 0.
+/// The stage results' first class: 1 with `MenuState.menus.class_mode` 2, else 0.
 pub fn first_stage_class(mode: u32) -> u32 {
     u32::from(mode == FROM_CLASS_1)
 }
@@ -23,8 +23,8 @@ pub fn first_stage_class(mode: u32) -> u32 {
 /// The rally results' first class.
 pub const FIRST_RALLY_CLASS: u32 = 0;
 
-/// The championship's first class: 0 outside `dword_75AB40` 2 in the A8 championship
-/// (`event_mode` asked only outside `dword_75AB40` 2), else 1.
+/// The championship's first class: 0 outside `MenuState.menus.class_mode` 2 in the A8 championship
+/// (`event_mode` asked only outside `MenuState.menus.class_mode` 2), else 1.
 pub fn first_championship_class(mode: u32, event_mode: impl FnOnce() -> u32) -> u32 {
     if mode != FROM_CLASS_1 && event_mode() == A8 {
         0

@@ -2,19 +2,19 @@
 //!
 //! Takes: the car's sound object, the request
 //! The four wheels are records of five dwords at +0x44, +0x58, +0x6C, +0x80 (+8 and +0xC
-//! floats, +0x10 the surface). From the floats at +8: `flt_51638C` (front less back,
-//! by the signs), `flt_516394` (left less right), +0x284 = the sum of the four +0
-//! floats x 0.4 and +0x28C = the sum at +8 x 64 (`fistp`), `flt_516398` = the products'
+//! floats, +0x10 the surface). From the floats at +8: `SurfaceSounds.across` (front less back,
+//! by the signs), `SurfaceSounds.along` (left less right), +0x284 = the sum of the four +0
+//! floats x 0.4 and +0x28C = the sum at +8 x 64 (`fistp`), `SurfaceSounds.volume` = the products'
 //! sum x 0.1: a reading. The wheel whose surface counts is the front or back pair by
 //! the sign bit of the first (negative: +0x44 / +0x6C), then the second of the pair when
 //! the other is negative; its surface goes to +0x294 and `dword_4F66F1`; on 7 and 8 the
-//! volume (`flt_516398`) x 0.25. The surface's sound set is `off_51639C[2 x
-//! dword_51655C[surface]]`, and `sound::surface_sound` (with the set and
+//! volume (`SurfaceSounds.volume`) x 0.25. The surface's sound set is `off_51639C[2 x
+//! StageSounds.surface_sets[0][surface]]`, and `sound::surface_sound` (with the set and
 //! the other wheel of the pair). Then the same from the floats at +0xC (+0x290 = their sum x 64, the volume
 //! their sum x 0.1, the surface into `dword_4F66F5`, x 0.1 on 7 and 8) with the sets
 //! of `off_5163A0`. The x87 code is plain Rust over `X` (`math/x87_float.rs`; the original's instructions
-//! are `asm_reference` in the tests; `dword_5183CC` is the scratch dword for the constants). One caller, `sound::car_sounds`.
-//! Refuses a null object, a surface past the 16 of `dword_51655C` and a set
+//! are `asm_reference` in the tests; `Machine.scratch` is the scratch dword for the constants). One caller, `sound::car_sounds`.
+//! Refuses a null object, a surface past the 16 of `StageSounds.surface_sets[0]` and a set
 //! past the seven pairs: what was written is put back (a sound already sent stays).
 
 use crate::errors::{BadInput, Refused};

@@ -1,4 +1,4 @@
-//! `physics::flag_current_car_listed` (0x45D151): `dword_51659C` 1 when the current car's entry in
+//! `physics::flag_current_car_listed` (0x45D151): `StageSounds.once[0]` 1 when the current car's entry in
 //! `listed_car_sounds` is not -1. See `physics/listed_car_flags.rs` (the core, the test).
 //!
 //! Returns: the entry

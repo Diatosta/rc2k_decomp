@@ -110,7 +110,7 @@ pub const LIST_ROOM: u32 = 0x100;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Touch {
     /// 2, 3, 8 (and 1, 9 when the car is fast enough): +9 0, +0x11 1, +0x13 0, +0x12 the
-    /// low byte of `dword_6D3B70`; then the sound.
+    /// low byte of `ContactWork.face_angle`; then the sound.
     Mark,
     /// 1, 9: `Mark` unless the car's speed is below the limit (or unordered; then nothing
     /// more).
@@ -134,7 +134,7 @@ pub fn touch(kind: u32) -> Touch {
     }
 }
 
-/// Kind 4's +0x11: `dword_6D3B74` >> 14, at most 0x40.
+/// Kind 4's +0x11: `ContactWork.face_speed` >> 14, at most 0x40.
 pub fn fall_mark(v: u32) -> u32 {
     (v >> 14).min(0x40)
 }

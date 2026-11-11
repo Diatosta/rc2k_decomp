@@ -1,6 +1,6 @@
 //! `drive::race_frame` (0x4541BF): one frame of the race. The window's messages
 //! (`system::pump_messages`); quitting (`g_quitting` 1) ends it there. With the window the active
-//! one and `dword_518380` not 1: the 3D scene begun, drawn (`race::draw_race_scene`) and ended
+//! one and `WindowLoopState.lost` not 1: the 3D scene begun, drawn (`race::draw_race_scene`) and ended
 //! (`scene::end_scene`), the race's sounds, the replay's screenshot (`race::replay_screenshot`),
 //! the frame shown; made: carry clear.
 //!

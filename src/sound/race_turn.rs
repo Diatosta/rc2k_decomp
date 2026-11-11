@@ -3,7 +3,7 @@
 //! Quitting (`g_quitting` 1, the game closing): the program is ended as `start` ends it
 //! (`standalone::leave_on_close`); the original jumped out of the loop (chunk 0x4154B5).
 //! Else, once the sounds are
-//! started (`dword_5124E4` 1): `sound::step_race_clock`; with a turn due (carry clear)
+//! started (`RaceClock.started` 1): `sound::step_race_clock`; with a turn due (carry clear)
 //! `sound::mark_car_voices`, `car_sounds_all`, `play_cue_queues`, `stage_sounds`,
 //! `spot_sounds`, `send_end_of_turn`; and either way `input::step_effects_clock`.
 //! One caller, 0x421BCF (`sound::race_turn_if`).

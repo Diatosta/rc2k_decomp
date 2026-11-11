@@ -1,11 +1,11 @@
 //! `physics::damage_wear` (0x4ABEDF): the wear of this step (`physics/damage_model.rs`).
 //!
-//! The clock into `dword_75B4A0`; table lerps of the speed shares into `flt_75B45C` ..; the
+//! The clock into `DamageModel.clock`; table lerps of the speed shares into `DamageModel.engine_speed_wear_factor` ..; the
 //! heat, damper, brake-fade and engine-heat gauges raised and lowered by their rates times
-//! the shares and `wear_step`, each held 0 ..= `gauge_top`; the hit figures `flt_75B450` ..
-//! `flt_75B458`; and `flt_75B484` from the table `dword_75B73C` (row `dword_75B3E8`, two
-//! columns through `dword_75B8C0` / `75B8C4`, as the original indexes them) blended by
-//! `dword_75B3F0`, times `flt_75B8BC`.
+//! the shares and `wear_step`, each held 0 ..= `gauge_top`; the hit figures `DamageModel.roughness_wear_base` ..
+//! `DamageModel.suspension_roughness_wear`; and `DamageModel.wear_figure` from the table `DamageModel.wear_table[0]` (row `DamageModel.tyre_kind`, two
+//! columns through `DamageModel.wear_first_columns` / `75B8C4`, as the original indexes them) blended by
+//! `DamageModel.surface_blend`, times `DamageModel.wear_figure_scale`.
 //!
 //! Caller: `physics::damage_step`.
 
@@ -117,9 +117,9 @@ pub fn steps(car: &Car, damage: &DamageModel) {
         &damage.rear_slip_wear_factor,
     );
     hit_figures(damage);
-    // 0x4AC7C9: two figures of the table `dword_75B73C` (row `dword_75B3E8`), blended by
-    // `dword_75B3F0`, x `flt_75B8BC`. Their columns are the surface's pair (8 bytes a
-    // surface from `dword_75B8C0`: the first column, then the second). The original reads
+    // 0x4AC7C9: two figures of the table `DamageModel.wear_table[0]` (row `DamageModel.tyre_kind`), blended by
+    // `DamageModel.surface_blend`, x `DamageModel.wear_figure_scale`. Their columns are the surface's pair (8 bytes a
+    // surface from `DamageModel.wear_first_columns`: the first column, then the second). The original reads
     // the second at the first column's pair instead of the surface's (fixed: see
     // wiki/Fixed-bugs.md); its weight, `surface_blend`, is 0 on every shipped stage.
     let row = damage.tyre_kind.bits() << 6;

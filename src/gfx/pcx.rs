@@ -7,7 +7,7 @@
 use crate::files::stream::Stream;
 #[cfg(test)]
 use crate::gfx::owner::gfx;
-use crate::session::{Bytes, Dword, with_runs};
+use crate::session::{PlainBytes, PlainDword, with_runs};
 
 /// IDA's address of the PCX decoding's variables.
 pub const START: usize = 0x5195D4;
@@ -25,39 +25,39 @@ pub const STREAM_LEN: usize = core::mem::size_of::<Stream>();
 #[derive(rc2k_derive::Cells)]
 pub struct Pcx {
     /// `dword_5195D4`: the picture's width, as the header says.
-    pub file_width: Dword,
+    pub file_width: PlainDword,
     /// `dword_5195D8`: its height.
-    pub file_height: Dword,
+    pub file_height: PlainDword,
     /// `g_pcxLineBytes` (`dword_5195DC`).
-    pub line_bytes: Dword,
+    pub line_bytes: PlainDword,
     /// `g_pcxPlanes` (`dword_5195E0`).
-    pub planes: Dword,
+    pub planes: PlainDword,
     /// `g_pictureStream` (`dword_5195E4`): the stream the readers opened the file as; not
     /// used (`files::stream::with_stream`), kept for the block's layout.
-    pub stream: Bytes<STREAM_LEN>,
+    pub stream: PlainBytes<STREAM_LEN>,
     /// `g_pcxHeader` (`dword_51B5F4`): the header as read from the file, 0x80 bytes.
-    pub header: Bytes<HEADER_LEN>,
+    pub header: PlainBytes<HEADER_LEN>,
     /// `unk_51B674`: the palette as read from the file, three bytes an entry.
-    pub file_palette: Bytes<FILE_PALETTE_LEN>,
+    pub file_palette: PlainBytes<FILE_PALETTE_LEN>,
     /// `dword_51B974`: the widest picture that is taken.
-    pub width_limit: Dword,
+    pub width_limit: PlainDword,
     /// `dword_51B978`: the highest picture that is taken.
-    pub height_limit: Dword,
+    pub height_limit: PlainDword,
 }
 
 impl Pcx {
     /// The PCX file's variables; the first values are the image's.
     pub const fn new() -> Self {
         Pcx {
-            file_width: Dword::new(0),
-            file_height: Dword::new(0),
-            line_bytes: Dword::new(0),
-            planes: Dword::new(0),
-            stream: Bytes::new(with_runs(&[(4, &[0xFF; 4])])),
-            header: Bytes::new([0; HEADER_LEN]),
-            file_palette: Bytes::new([0; FILE_PALETTE_LEN]),
-            width_limit: Dword::new(0x320),
-            height_limit: Dword::new(0x258),
+            file_width: PlainDword::new(0),
+            file_height: PlainDword::new(0),
+            line_bytes: PlainDword::new(0),
+            planes: PlainDword::new(0),
+            stream: PlainBytes::new(with_runs(&[(4, &[0xFF; 4])])),
+            header: PlainBytes::new([0; HEADER_LEN]),
+            file_palette: PlainBytes::new([0; FILE_PALETTE_LEN]),
+            width_limit: PlainDword::new(0x320),
+            height_limit: PlainDword::new(0x258),
         }
     }
 }

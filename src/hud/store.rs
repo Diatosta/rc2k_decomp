@@ -1,8 +1,8 @@
 //! The HUD's variables, out of RAL.EXE's image (phase 5; typed in phase 7,
 //! `notes/conversion.md`): IDA 0x75B940 .. 0x764F2C, the whole of it the HUD's: the
 //! rectangle table (`g_hudRects`), the quad record, the layouts' set-up values and floats,
-//! the dials' and needles' work variables, the batch's vertices (`unk_75C324`, 0x400 of
-//! them), indices (`unk_764324`, 0x600) and the two counts (`g_hudVertexCount`,
+//! the dials' and needles' work variables, the batch's vertices (`HudBlock.vertices[0].x`, 0x400 of
+//! them), indices (`HudBlock.indices[0]`, 0x600) and the two counts (`g_hudVertexCount`,
 //! `g_hudIndexCount`). Only `hud` and `d3d::draw_hud_batch` (which reads `vertices` and
 //! `indices`) read or write it. The image keeps the two pointers (0x764F2C, 0x764F30) the
 //! original's batch drawer followed; nothing reads them now.
@@ -11,7 +11,7 @@
 //! values are the image's (`tests::first_values_are_the_games`), and `moved::MOVED` points
 //! IDA's addresses of the range at it.
 
-use crate::session::{Dword, Float, Word};
+use crate::session::{PlainDword, PlainFloat, PlainWord};
 
 /// IDA's address of the block's first byte.
 pub const START: usize = 0x75B940;
@@ -23,16 +23,16 @@ pub const LEN: usize = 0x764F2C - START;
 #[derive(rc2k_derive::Cells)]
 pub struct HudQuad {
     /// The alpha (the colour's top byte under it, `add_quad`).
-    pub alpha: Dword,
-    pub left: Dword,
-    pub top: Dword,
-    pub right: Dword,
-    pub bottom: Dword,
+    pub alpha: PlainDword,
+    pub left: PlainDword,
+    pub top: PlainDword,
+    pub right: PlainDword,
+    pub bottom: PlainDword,
     /// The colour (0xFFFF_FFFF white, 0 black; its low 24 bits are used under the alpha).
-    pub colour: Dword,
+    pub colour: PlainDword,
     /// The four corners' texture places as whole numbers (u, v pairs in the order
     /// `rc2k_core::hud::quads::sprite_places` numbers them 6 .. 13).
-    pub places: [Dword; 8],
+    pub places: [PlainDword; 8],
 }
 
 const _: () = {
@@ -44,18 +44,18 @@ const _: () = {
 impl HudQuad {
     const fn new() -> Self {
         Self {
-            alpha: Dword::new(0xc0),
-            left: Dword::new(0),
-            top: Dword::new(0),
-            right: Dword::new(0),
-            bottom: Dword::new(0),
-            colour: Dword::new(0),
-            places: [const { Dword::new(0) }; 8],
+            alpha: PlainDword::new(0xc0),
+            left: PlainDword::new(0),
+            top: PlainDword::new(0),
+            right: PlainDword::new(0),
+            bottom: PlainDword::new(0),
+            colour: PlainDword::new(0),
+            places: [const { PlainDword::new(0) }; 8],
         }
     }
 
     /// The record's dword `n` (0 .. 14, the order of the fields).
-    pub fn word(&self, n: usize) -> &Dword {
+    pub fn word(&self, n: usize) -> &PlainDword {
         match n {
             0 => &self.alpha,
             1 => &self.left,
@@ -99,19 +99,19 @@ pub mod texture {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Rect {
-    pub left: Dword,
-    pub top: Dword,
-    pub width: Dword,
-    pub height: Dword,
+    pub left: PlainDword,
+    pub top: PlainDword,
+    pub width: PlainDword,
+    pub height: PlainDword,
 }
 
 impl Rect {
     const fn new(left: u32, top: u32, width: u32, height: u32) -> Self {
         Self {
-            left: Dword::new(left),
-            top: Dword::new(top),
-            width: Dword::new(width),
-            height: Dword::new(height),
+            left: PlainDword::new(left),
+            top: PlainDword::new(top),
+            width: PlainDword::new(width),
+            height: PlainDword::new(height),
         }
     }
 }
@@ -120,27 +120,27 @@ impl Rect {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Vertex {
-    pub x: Float,
-    pub y: Float,
-    pub z: Float,
-    pub rhw: Float,
-    pub colour: Dword,
-    pub specular: Dword,
-    pub u: Float,
-    pub v: Float,
+    pub x: PlainFloat,
+    pub y: PlainFloat,
+    pub z: PlainFloat,
+    pub rhw: PlainFloat,
+    pub colour: PlainDword,
+    pub specular: PlainDword,
+    pub u: PlainFloat,
+    pub v: PlainFloat,
 }
 
 impl Vertex {
     const fn zero() -> Self {
         Self {
-            x: Float::from_bits(0),
-            y: Float::from_bits(0),
-            z: Float::from_bits(0),
-            rhw: Float::from_bits(0),
-            colour: Dword::new(0),
-            specular: Dword::new(0),
-            u: Float::from_bits(0),
-            v: Float::from_bits(0),
+            x: PlainFloat::from_bits(0),
+            y: PlainFloat::from_bits(0),
+            z: PlainFloat::from_bits(0),
+            rhw: PlainFloat::from_bits(0),
+            colour: PlainDword::new(0),
+            specular: PlainDword::new(0),
+            u: PlainFloat::from_bits(0),
+            v: PlainFloat::from_bits(0),
         }
     }
 }
@@ -149,144 +149,144 @@ impl Vertex {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct HudBlock {
-    /// `g_hudRects` (92 rectangles) and `dword_75BF00` (the last five): the texture's rectangles, 16 bytes each (left, top, width, height), picked by number (`hud::layout_*` sprites, markers, signs). Sign `v` is rectangle 0x4C + (v - 1) & 0xF.
+    /// `g_hudRects` (92 rectangles) and `HudBlock.rects[92].left` (the last five): the texture's rectangles, 16 bytes each (left, top, width, height), picked by number (`hud::layout_*` sprites, markers, signs). Sign `v` is rectangle 0x4C + (v - 1) & 0xF.
     pub rects: [Rect; 0x61],
     /// `dword_75BF50`, `dword_75BF54` (the stage marker's two colours, `draw_markers`) and the six dwords after them (probably colours too; nothing ported reads them).
-    pub marker_colours: [Dword; 8],
+    pub marker_colours: [PlainDword; 8],
     /// `dword_75BF70`: the stage bar's four part colours, read at the byte offset the kind table gives (`draw_stage_bar`).
-    pub stage_colours: [Dword; 4],
+    pub stage_colours: [PlainDword; 4],
     /// `dword_75BF80`: the widths of the eight signs (`draw_signs`: centres a sign in its place).
-    pub sign_widths: [Dword; 8],
+    pub sign_widths: [PlainDword; 8],
     /// `dword_75BFA0`: the part colour of the one-player stage bar.
-    pub bar_colour: Dword,
+    pub bar_colour: PlainDword,
     /// `dword_75BFA4`, `dword_75BFA8`: the part colours of the two-player stage bars.
-    pub bar_colours: [Dword; 2],
+    pub bar_colours: [PlainDword; 2],
     /// `dword_75BFAC`: the needle's way (the record's +0xCC / +0xD0; 0 or not, `draw_needle`).
-    pub needle_kind: Dword,
-    /// `g_hudQuad` (`dword_75BFB0` .. `dword_75BFE4`): the quad record `add_quad` makes four vertices of: alpha, left, top, right, bottom, colour, then the four corners' texture places (whole numbers, `rc2k_core::hud::quads::RECORD` dwords).
+    pub needle_kind: PlainDword,
+    /// `g_hudQuad` (`HudBlock.quad.alpha` .. `HudBlock.quad.places[7]`): the quad record `add_quad` makes four vertices of: alpha, left, top, right, bottom, colour, then the four corners' texture places (whole numbers, `rc2k_core::hud::quads::RECORD` dwords).
     pub quad: HudQuad,
     /// `flt_75BFE8`: the batch's depth (z of every vertex, `set_batch_depth`).
-    pub depth: Float,
+    pub depth: PlainFloat,
     /// `flt_75BFEC`: the batch's rhw (`set_batch_depth`).
-    pub rhw: Float,
+    pub rhw: PlainFloat,
     /// `dword_75BFF0`, `dword_75BFF4`: the stage bar's part places (whole numbers) and a turned shape's point (floats' bits, `turned_vertex`).
-    pub point: [Dword; 2],
+    pub point: [PlainDword; 2],
     /// `dword_75BFF8`, `dword_75BFFC`: the stage bar's part start and end (miles, as floats).
-    pub ends: [Float; 2],
+    pub ends: [PlainFloat; 2],
     /// `dword_75C000`: the stage bar's width in places.
-    pub bar_width: Dword,
+    pub bar_width: PlainDword,
     /// `0x75C004`, `0x75C008`: nothing reads or writes them (a gap).
-    pub unused_c004: [Dword; 2],
+    pub unused_c004: [PlainDword; 2],
     /// `flt_75C00C`: the texture places over it make the u (`add_quad`, `turned_vertex`, markers).
-    pub uv_scale_x: Float,
+    pub uv_scale_x: PlainFloat,
     /// `flt_75C010`: the texture places over it make the v; also the needle's first turn factor (`draw_needle`).
-    pub uv_scale_y: Float,
+    pub uv_scale_y: PlainFloat,
     /// `flt_75C014`: the needle's second turn factor.
-    pub turn_k: Float,
+    pub turn_k: PlainFloat,
     /// `flt_75C018`: the needle's least value.
-    pub least: Float,
+    pub least: PlainFloat,
     /// `flt_75C01C`: added to a disc entry's texture place (`disc_vertex`).
-    pub disc_place_offset: Float,
+    pub disc_place_offset: PlainFloat,
     /// `flt_75C020`: a disc entry's texture place is divided by it (`disc_vertex`).
-    pub disc_place_divisor: Float,
+    pub disc_place_divisor: PlainFloat,
     /// `flt_75C024`: the second factor of the disc texture's turn (`draw_disc`).
-    pub disc_turn_b: Float,
+    pub disc_turn_b: PlainFloat,
     /// `flt_75C028`: the first factor of the disc texture's turn (`draw_disc`).
-    pub disc_turn_a: Float,
+    pub disc_turn_a: PlainFloat,
     /// `flt_75C02C`, `flt_75C030`: the virtual screen's width and height the HUD is drawn in (`add_polygon` scales to the real one).
-    pub virtual_screen: [Float; 2],
+    pub virtual_screen: [PlainFloat; 2],
     /// `dword_75C034`: the texture asked for.
-    pub texture: Dword,
+    pub texture: PlainDword,
     /// `dword_75C038`: the batch's texture (-1 none).
-    pub batch_texture: Dword,
+    pub batch_texture: PlainDword,
     /// `dword_75C03C`: 1 while the leading digits of a time are 0 (`layout_0::leading_time`).
-    pub leading: Dword,
+    pub leading: PlainDword,
     /// `dword_75C040`: the needle sign's rectangle.
-    pub pick: Dword,
+    pub pick: PlainDword,
     /// `dword_75C044`, `dword_75C048`: the disc's / needle's centre (x, y), copied from a set-up.
-    pub disc_centre: [Float; 2],
+    pub disc_centre: [PlainFloat; 2],
     /// `dword_75C04C`: the disc's texture scale: the ring's (sine x size) is multiplied by it to get the texture offsets (`hud::disc_vertex`); set from the layout's disc set-up (`dials::set_up_disc`).
-    pub disc_texture_scale: Float,
+    pub disc_texture_scale: PlainFloat,
     /// `dword_75C050`: the disc's size (the ring entries are times it).
-    pub disc_size: Float,
+    pub disc_size: PlainFloat,
     /// `dword_75C054`, `dword_75C058`: the disc texture's shift (u, v), from the record.
-    pub disc_texture_shift: [Float; 2],
+    pub disc_texture_shift: [PlainFloat; 2],
     /// `dword_75C05C`: the disc texture's turn, from the record (+0x3C / +0x64).
-    pub disc_turn: Float,
+    pub disc_turn: PlainFloat,
     /// `dword_75C060`: the original's `fistp` scratch (a sprite's height, the needle's turn, the marker's x).
-    pub fistp_scratch: Dword,
+    pub fistp_scratch: PlainDword,
     /// `dword_75C064`, `dword_75C068`: the icon's width and drop, scaled.
-    pub icon_size: [Dword; 2],
+    pub icon_size: [PlainDword; 2],
     /// `dword_75C06C`: the icon scale (from `icon_scales`).
-    pub icon_scale: Float,
+    pub icon_scale: PlainFloat,
     /// `dword_75C070`: the icon's shift.
-    pub icon_shift: Dword,
+    pub icon_shift: PlainDword,
     /// `dword_75C074` .. `dword_75C088`: six record times in tenths (`tenths`): the two clocks, the lap time, the two layout-1 clocks (`dword_75C080`, `dword_75C084`) and the second lap time (`dword_75C088`).
-    pub times: [Dword; 6],
+    pub times: [PlainDword; 6],
     /// `dword_75C08C` .. `dword_75C0A0`: a time made digits (`layout_0::time_digits`).
-    pub digits: [Dword; 6],
+    pub digits: [PlainDword; 6],
     /// `dword_75C0A4`: a time's sign rectangle.
-    pub sign: Dword,
+    pub sign: PlainDword,
     /// `flt_75C0A8`, `flt_75C0AC`: the stage marker's position factors (`draw_marker`).
-    pub marker_k: [Float; 2],
+    pub marker_k: [PlainFloat; 2],
     /// `0x75C0B0`, `0x75C0B4`: nothing reads or writes them (a gap; 0.96875 and 0.03125).
-    pub unused_c0b0: [Float; 2],
+    pub unused_c0b0: [PlainFloat; 2],
     /// `dword_75C0B8`, `dword_75C0BC`, `dword_75C0C0`: the icon scale of layouts 0, 2 and 1 (`icons_*`).
-    pub icon_scales: [Float; 3],
+    pub icon_scales: [PlainFloat; 3],
     /// `dword_75C0C4` .. `0x75C120`: whole numbers in fours, probably six screen rectangles (x, y, width, height; e.g. 0x25d, 0x30, 0xd6, 0x24); nothing ported reads them; in IDA only the first two are touched, written by code outside any function (0x4B6968).
-    pub unused_c0c4: [Dword; 0x18],
+    pub unused_c0c4: [PlainDword; 0x18],
     /// `dword_75C124` .. `dword_75C130`: nothing reads or writes them.
-    pub unused_c124: [Dword; 4],
-    /// `dword_75C134` .. `dword_75C144`: the set-up of layout 2's first disc (copied by `dials::set_up`; the fifth only with `dword_6D1502` 0).
-    pub disc_setup_layout2_first: [Float; 5],
+    pub unused_c124: [PlainDword; 4],
+    /// `dword_75C134` .. `dword_75C144`: the set-up of layout 2's first disc (copied by `dials::set_up`; the fifth only with `` 0).
+    pub disc_setup_layout2_first: [PlainFloat; 5],
     /// `dword_75C148` .. `dword_75C154`: the set-up of layout 2's second disc.
-    pub disc_setup_layout2_second: [Float; 4],
+    pub disc_setup_layout2_second: [PlainFloat; 4],
     /// `dword_75C158` .. `dword_75C164`: the set-up of layout 1's first disc.
-    pub disc_setup_layout1_first: [Float; 4],
+    pub disc_setup_layout1_first: [PlainFloat; 4],
     /// `dword_75C168` .. `dword_75C174`: the set-up of layout 1's second disc.
-    pub disc_setup_layout1_second: [Float; 4],
+    pub disc_setup_layout1_second: [PlainFloat; 4],
     /// `dword_75C178` .. `dword_75C184`: the set-up of layout 0's disc.
-    pub disc_setup_layout0: [Float; 4],
+    pub disc_setup_layout0: [PlainFloat; 4],
     /// `flt_75C188`: the disc's ring, sines of the entries (1 .. 16 written; entry 0 stays 0).
-    pub ring_sines: [Float; 17],
+    pub ring_sines: [PlainFloat; 17],
     /// `flt_75C1CC`: the ring's cosines.
-    pub ring_cosines: [Float; 17],
+    pub ring_cosines: [PlainFloat; 17],
     /// `flt_75C210`: the texture ring's sines.
-    pub texture_ring_sines: [Float; 17],
+    pub texture_ring_sines: [PlainFloat; 17],
     /// `flt_75C254`: the texture ring's cosines.
-    pub texture_ring_cosines: [Float; 17],
+    pub texture_ring_cosines: [PlainFloat; 17],
     /// `flt_75C298`, `flt_75C29C`: added to a turned shape's point to make its texture place (`turned_vertex`).
-    pub uv_shift: [Float; 2],
+    pub uv_shift: [PlainFloat; 2],
     /// `dword_75C2A0`, `dword_75C2A4`: the needle's centre (x, y), copied from a set-up.
-    pub needle_centre: [Float; 2],
+    pub needle_centre: [PlainFloat; 2],
     /// `flt_75C2A8` .. `flt_75C2B4`: the needle's corner offsets (`needle_corners`).
-    pub needle_corners: [Float; 4],
+    pub needle_corners: [PlainFloat; 4],
     /// `dword_75C2B8`: the needle's size, copied from a set-up.
-    pub needle_size: Float,
+    pub needle_size: PlainFloat,
     /// `flt_75C2BC` .. `flt_75C2D4`: the needle's base, base 2, split, scale, scale 2, most, most 2.
-    pub needle_k: [Float; 7],
+    pub needle_k: [PlainFloat; 7],
     /// `0x75C2D8`, `0x75C2DC`: nothing reads or writes them (a gap).
-    pub unused_c2d8: [Float; 2],
+    pub unused_c2d8: [PlainFloat; 2],
     /// `dword_75C2E0`: the needle's value (a whole number, from the record).
-    pub needle_value: Dword,
+    pub needle_value: PlainDword,
     /// `dword_75C2E4` .. `dword_75C2EC`: the set-up of layout 0's needle (centre x, y, size).
-    pub needle_setup_layout0: [Float; 3],
-    /// `dword_75C2F0` .. `dword_75C2FC`: the set-up of layout 2's first needle (the third only with `dword_6D1502` 0).
-    pub needle_setup_layout2_first: [Float; 4],
+    pub needle_setup_layout0: [PlainFloat; 3],
+    /// `dword_75C2F0` .. `dword_75C2FC`: the set-up of layout 2's first needle (the third only with `` 0).
+    pub needle_setup_layout2_first: [PlainFloat; 4],
     /// `dword_75C300` .. `dword_75C308`: the set-up of layout 2's second needle.
-    pub needle_setup_layout2_second: [Float; 3],
+    pub needle_setup_layout2_second: [PlainFloat; 3],
     /// `dword_75C30C` .. `dword_75C314`: the set-up of layout 1's first needle.
-    pub needle_setup_layout1_first: [Float; 3],
+    pub needle_setup_layout1_first: [PlainFloat; 3],
     /// `dword_75C318` .. `dword_75C320`: the set-up of layout 1's second needle.
-    pub needle_setup_layout1_second: [Float; 3],
-    /// `unk_75C324`: the batch's vertices (transformed and lit, 0x20 bytes each).
+    pub needle_setup_layout1_second: [PlainFloat; 3],
+    /// `HudBlock.vertices[0].x`: the batch's vertices (transformed and lit, 0x20 bytes each).
     pub vertices: [Vertex; 0x400],
     /// `unk_764324`: the batch's indices (16 bits, a triangle list).
-    pub indices: [Word; 0x600],
+    pub indices: [PlainWord; 0x600],
     /// `g_hudVertexCount`: the vertices in the batch.
-    pub vertex_count: Dword,
+    pub vertex_count: PlainDword,
     /// `g_hudIndexCount`: the indices in the batch.
-    pub index_count: Dword,
+    pub index_count: PlainDword,
 }
 
 impl HudBlock {
@@ -393,165 +393,185 @@ impl HudBlock {
                 Rect::new(0x0, 0x0, 0x80, 0x80),
             ],
             marker_colours: [
-                Dword::new(0xffffff),
-                Dword::new(0xff0300),
-                Dword::new(0xff8d00),
-                Dword::new(0xf0ff00),
-                Dword::new(0xca1b),
-                Dword::new(0x2700ff),
-                Dword::new(0x21dcde),
-                Dword::new(0x8b00ff),
+                PlainDword::new(0xffffff),
+                PlainDword::new(0xff0300),
+                PlainDword::new(0xff8d00),
+                PlainDword::new(0xf0ff00),
+                PlainDword::new(0xca1b),
+                PlainDword::new(0x2700ff),
+                PlainDword::new(0x21dcde),
+                PlainDword::new(0x8b00ff),
             ],
             stage_colours: [
-                Dword::new(0x212463),
-                Dword::new(0xe12626),
-                Dword::new(0x32a126),
-                Dword::new(0x227edc),
+                PlainDword::new(0x212463),
+                PlainDword::new(0xe12626),
+                PlainDword::new(0x32a126),
+                PlainDword::new(0x227edc),
             ],
             sign_widths: [
-                Dword::new(0x20),
-                Dword::new(0x22),
-                Dword::new(0x2d),
-                Dword::new(0x36),
-                Dword::new(0x38),
-                Dword::new(0x33),
-                Dword::new(0x32),
-                Dword::new(0x35),
+                PlainDword::new(0x20),
+                PlainDword::new(0x22),
+                PlainDword::new(0x2d),
+                PlainDword::new(0x36),
+                PlainDword::new(0x38),
+                PlainDword::new(0x33),
+                PlainDword::new(0x32),
+                PlainDword::new(0x35),
             ],
-            bar_colour: Dword::new(0x0),
-            bar_colours: [const { Dword::new(0x0) }; 2],
-            needle_kind: Dword::new(0x0),
+            bar_colour: PlainDword::new(0x0),
+            bar_colours: [const { PlainDword::new(0x0) }; 2],
+            needle_kind: PlainDword::new(0x0),
             quad: HudQuad::new(),
-            depth: Float::new(0.01),
-            rhw: Float::new(1.0),
-            point: [const { Dword::new(0x0) }; 2],
-            ends: [const { Float::new(0.0) }; 2],
-            bar_width: Dword::new(0x0),
-            unused_c004: [const { Dword::new(0x3e000000) }; 2],
-            uv_scale_x: Float::new(256.0),
-            uv_scale_y: Float::new(65536.0),
-            turn_k: Float::new(4096.0),
-            least: Float::new(0.0),
-            disc_place_offset: Float::new(48.0),
-            disc_place_divisor: Float::new(128.0),
-            disc_turn_b: Float::new(1024.0),
-            disc_turn_a: Float::new(0.63661975),
-            virtual_screen: [Float::new(800.0), Float::new(600.0)],
-            texture: Dword::new(0x0),
-            batch_texture: Dword::new(0x0),
-            leading: Dword::new(0x0),
-            pick: Dword::new(0x0),
-            disc_centre: [Float::new(706.0), Float::new(504.0)],
-            disc_texture_scale: Float::new(0.75),
-            disc_size: Float::new(62.0),
-            disc_texture_shift: [const { Float::new(0.0) }; 2],
-            disc_turn: Float::new(0.0),
-            fistp_scratch: Dword::new(0x0),
-            icon_size: [const { Dword::new(0x0) }; 2],
-            icon_scale: Float::new(0.0),
-            icon_shift: Dword::new(0x0),
-            times: [const { Dword::new(0x0) }; 6],
-            digits: [const { Dword::new(0x0) }; 6],
-            sign: Dword::new(0x0),
-            marker_k: [Float::new(550.0), Float::new(119.0)],
-            unused_c0b0: [Float::new(0.96875), Float::new(0.03125)],
-            icon_scales: [Float::new(1.0), Float::new(0.75), Float::new(1.0)],
-            unused_c0c4: [
-                Dword::new(0x25d),
-                Dword::new(0x30),
-                Dword::new(0xd6),
-                Dword::new(0x24),
-                Dword::new(0x25d),
-                Dword::new(0x4),
-                Dword::new(0x25d),
-                Dword::new(0x30),
-                Dword::new(0x268),
-                Dword::new(0x24),
-                Dword::new(0x25d),
-                Dword::new(0x141),
-                Dword::new(0x25d),
-                Dword::new(0x10),
-                Dword::new(0xd6),
-                Dword::new(0x4),
-                Dword::new(0x25d),
-                Dword::new(0x4),
-                Dword::new(0x25d),
-                Dword::new(0x10),
-                Dword::new(0x268),
-                Dword::new(0x4),
-                Dword::new(0x25d),
-                Dword::new(0x131),
+            depth: PlainFloat::new(0.01),
+            rhw: PlainFloat::new(1.0),
+            point: [const { PlainDword::new(0x0) }; 2],
+            ends: [const { PlainFloat::new(0.0) }; 2],
+            bar_width: PlainDword::new(0x0),
+            unused_c004: [const { PlainDword::new(0x3e000000) }; 2],
+            uv_scale_x: PlainFloat::new(256.0),
+            uv_scale_y: PlainFloat::new(65536.0),
+            turn_k: PlainFloat::new(4096.0),
+            least: PlainFloat::new(0.0),
+            disc_place_offset: PlainFloat::new(48.0),
+            disc_place_divisor: PlainFloat::new(128.0),
+            disc_turn_b: PlainFloat::new(1024.0),
+            disc_turn_a: PlainFloat::new(0.63661975),
+            virtual_screen: [PlainFloat::new(800.0), PlainFloat::new(600.0)],
+            texture: PlainDword::new(0x0),
+            batch_texture: PlainDword::new(0x0),
+            leading: PlainDword::new(0x0),
+            pick: PlainDword::new(0x0),
+            disc_centre: [PlainFloat::new(706.0), PlainFloat::new(504.0)],
+            disc_texture_scale: PlainFloat::new(0.75),
+            disc_size: PlainFloat::new(62.0),
+            disc_texture_shift: [const { PlainFloat::new(0.0) }; 2],
+            disc_turn: PlainFloat::new(0.0),
+            fistp_scratch: PlainDword::new(0x0),
+            icon_size: [const { PlainDword::new(0x0) }; 2],
+            icon_scale: PlainFloat::new(0.0),
+            icon_shift: PlainDword::new(0x0),
+            times: [const { PlainDword::new(0x0) }; 6],
+            digits: [const { PlainDword::new(0x0) }; 6],
+            sign: PlainDword::new(0x0),
+            marker_k: [PlainFloat::new(550.0), PlainFloat::new(119.0)],
+            unused_c0b0: [PlainFloat::new(0.96875), PlainFloat::new(0.03125)],
+            icon_scales: [
+                PlainFloat::new(1.0),
+                PlainFloat::new(0.75),
+                PlainFloat::new(1.0),
             ],
-            unused_c124: [const { Dword::new(0x0) }; 4],
+            unused_c0c4: [
+                PlainDword::new(0x25d),
+                PlainDword::new(0x30),
+                PlainDword::new(0xd6),
+                PlainDword::new(0x24),
+                PlainDword::new(0x25d),
+                PlainDword::new(0x4),
+                PlainDword::new(0x25d),
+                PlainDword::new(0x30),
+                PlainDword::new(0x268),
+                PlainDword::new(0x24),
+                PlainDword::new(0x25d),
+                PlainDword::new(0x141),
+                PlainDword::new(0x25d),
+                PlainDword::new(0x10),
+                PlainDword::new(0xd6),
+                PlainDword::new(0x4),
+                PlainDword::new(0x25d),
+                PlainDword::new(0x4),
+                PlainDword::new(0x25d),
+                PlainDword::new(0x10),
+                PlainDword::new(0x268),
+                PlainDword::new(0x4),
+                PlainDword::new(0x25d),
+                PlainDword::new(0x131),
+            ],
+            unused_c124: [const { PlainDword::new(0x0) }; 4],
             disc_setup_layout2_first: [
-                Float::new(46.0),
-                Float::new(0.75),
-                Float::new(727.0),
-                Float::new(211.0),
-                Float::new(227.0),
+                PlainFloat::new(46.0),
+                PlainFloat::new(0.75),
+                PlainFloat::new(727.0),
+                PlainFloat::new(211.0),
+                PlainFloat::new(227.0),
             ],
             disc_setup_layout2_second: [
-                Float::new(46.0),
-                Float::new(0.75),
-                Float::new(727.0),
-                Float::new(526.0),
+                PlainFloat::new(46.0),
+                PlainFloat::new(0.75),
+                PlainFloat::new(727.0),
+                PlainFloat::new(526.0),
             ],
             disc_setup_layout1_first: [
-                Float::new(46.0),
-                Float::new(0.75),
-                Float::new(326.0),
-                Float::new(526.0),
+                PlainFloat::new(46.0),
+                PlainFloat::new(0.75),
+                PlainFloat::new(326.0),
+                PlainFloat::new(526.0),
             ],
             disc_setup_layout1_second: [
-                Float::new(46.0),
-                Float::new(0.75),
-                Float::new(727.0),
-                Float::new(526.0),
+                PlainFloat::new(46.0),
+                PlainFloat::new(0.75),
+                PlainFloat::new(727.0),
+                PlainFloat::new(526.0),
             ],
             disc_setup_layout0: [
-                Float::new(62.0),
-                Float::new(0.75),
-                Float::new(706.0),
-                Float::new(504.0),
+                PlainFloat::new(62.0),
+                PlainFloat::new(0.75),
+                PlainFloat::new(706.0),
+                PlainFloat::new(504.0),
             ],
-            ring_sines: [const { Float::new(0.0) }; 17],
-            ring_cosines: [const { Float::new(0.0) }; 17],
-            texture_ring_sines: [const { Float::new(0.0) }; 17],
-            texture_ring_cosines: [const { Float::new(0.0) }; 17],
-            uv_shift: [Float::new(253.5), Float::new(242.5)],
-            needle_centre: [Float::new(96.0), Float::new(503.0)],
+            ring_sines: [const { PlainFloat::new(0.0) }; 17],
+            ring_cosines: [const { PlainFloat::new(0.0) }; 17],
+            texture_ring_sines: [const { PlainFloat::new(0.0) }; 17],
+            texture_ring_cosines: [const { PlainFloat::new(0.0) }; 17],
+            uv_shift: [PlainFloat::new(253.5), PlainFloat::new(242.5)],
+            needle_centre: [PlainFloat::new(96.0), PlainFloat::new(503.0)],
             needle_corners: [
-                Float::new(2.5),
-                Float::new(13.5),
-                Float::new(-2.5),
-                Float::new(-41.5),
+                PlainFloat::new(2.5),
+                PlainFloat::new(13.5),
+                PlainFloat::new(-2.5),
+                PlainFloat::new(-41.5),
             ],
-            needle_size: Float::new(0.0),
+            needle_size: PlainFloat::new(0.0),
             needle_k: [
-                Float::new(0.375),
-                Float::new(0.4375),
-                Float::new(4000.0),
-                Float::new(7000.0),
-                Float::new(8000.0),
-                Float::new(64000.0),
-                Float::new(9500.0),
+                PlainFloat::new(0.375),
+                PlainFloat::new(0.4375),
+                PlainFloat::new(4000.0),
+                PlainFloat::new(7000.0),
+                PlainFloat::new(8000.0),
+                PlainFloat::new(64000.0),
+                PlainFloat::new(9500.0),
             ],
-            unused_c2d8: [Float::new(3000.0), Float::new(48000.0)],
-            needle_value: Dword::new(0x0),
-            needle_setup_layout0: [Float::new(96.0), Float::new(503.0), Float::new(1.0)],
+            unused_c2d8: [PlainFloat::new(3000.0), PlainFloat::new(48000.0)],
+            needle_value: PlainDword::new(0x0),
+            needle_setup_layout0: [
+                PlainFloat::new(96.0),
+                PlainFloat::new(503.0),
+                PlainFloat::new(1.0),
+            ],
             needle_setup_layout2_first: [
-                Float::new(72.0),
-                Float::new(210.0),
-                Float::new(226.0),
-                Float::new(0.75),
+                PlainFloat::new(72.0),
+                PlainFloat::new(210.0),
+                PlainFloat::new(226.0),
+                PlainFloat::new(0.75),
             ],
-            needle_setup_layout2_second: [Float::new(72.0), Float::new(525.0), Float::new(0.75)],
-            needle_setup_layout1_first: [Float::new(72.0), Float::new(525.0), Float::new(0.75)],
-            needle_setup_layout1_second: [Float::new(473.0), Float::new(525.0), Float::new(0.75)],
+            needle_setup_layout2_second: [
+                PlainFloat::new(72.0),
+                PlainFloat::new(525.0),
+                PlainFloat::new(0.75),
+            ],
+            needle_setup_layout1_first: [
+                PlainFloat::new(72.0),
+                PlainFloat::new(525.0),
+                PlainFloat::new(0.75),
+            ],
+            needle_setup_layout1_second: [
+                PlainFloat::new(473.0),
+                PlainFloat::new(525.0),
+                PlainFloat::new(0.75),
+            ],
             vertices: [const { Vertex::zero() }; 0x400],
-            indices: [const { Word::new(0) }; 0x600],
-            vertex_count: Dword::new(0x0),
-            index_count: Dword::new(0x0),
+            indices: [const { PlainWord::new(0) }; 0x600],
+            vertex_count: PlainDword::new(0x0),
+            index_count: PlainDword::new(0x0),
         }
     }
 }
@@ -559,7 +579,7 @@ impl HudBlock {
 /// Where the block is (`moved::MOVED`'s home for IDA 0x75B940).
 #[cfg(test)]
 pub fn hud_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::hud::owner::HUD.block)
+    crate::pointers::game_address(&raw const crate::hud::owner::HUD.unchecked().block)
 }
 
 /// The place of the rectangle `n` of the table (the record's numbers are not checked, as in
@@ -597,13 +617,17 @@ mod tests {
     fn moved_knows_the_block() {
         assert_eq!(
             crate::moved::place(0x75C060),
-            crate::hud::owner::HUD.block.fistp_scratch.addr() as usize
+            crate::hud::owner::HUD
+                .unchecked()
+                .block
+                .fistp_scratch
+                .addr() as usize
         );
         assert_eq!(crate::moved::place(START), hud_addr() as usize);
         assert_eq!(core::mem::offset_of!(HudBlock, vertices), 0x75C324 - START);
         assert_eq!(core::mem::offset_of!(HudBlock, indices), 0x764324 - START);
         assert_eq!(
-            crate::hud::owner::HUD.block.vertex_count.addr(),
+            crate::hud::owner::HUD.unchecked().block.vertex_count.addr(),
             hud_addr() + 0x764F24 - START as u32
         );
     }

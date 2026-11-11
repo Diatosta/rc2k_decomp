@@ -28,15 +28,15 @@ pub const MOST_CHECKPOINTS: u32 = 0x1418;
 /// The tables as IDA shows them.
 pub const IMAGE_START: u32 = 0x615E10;
 pub const IMAGE_END: u32 = 0x61FE18;
-pub const COUNT: u32 = 0x615E10; // dword_615E10
-pub const GROUPS: u32 = 0x615E14; // dword_615E14
-pub const STARTS: u32 = 0x615E18; // dword_615E18
-pub const ENDS: u32 = 0x616E18; // dword_616E18
-pub const KINDS: u32 = 0x617E18; // dword_617E18
+pub const COUNT: u32 = 0x615E10; // PaceNotes.note_count
+pub const GROUPS: u32 = 0x615E14; // PaceNotes.group_count
+pub const STARTS: u32 = 0x615E18; // PaceNotes.note_starts[0]
+pub const ENDS: u32 = 0x616E18; // PaceNotes.note_ends[0]
+pub const KINDS: u32 = 0x617E18; // PaceNotes.note_end_codes[0]
 pub const GAPS: u32 = 0x618E18; // dword_618E18
-pub const GROUP_CHECKPOINTS: u32 = 0x619E18; // dword_619E18
-pub const GROUP_TEXTS: u32 = 0x61AE18; // dword_61AE18
-pub const TEXT: u32 = 0x61BE18; // byte_61BE18
+pub const GROUP_CHECKPOINTS: u32 = 0x619E18; // PaceNotes.group_checkpoints[0]
+pub const GROUP_TEXTS: u32 = 0x61AE18; // PaceNotes.group_texts[0]
+pub const TEXT: u32 = 0x61BE18; // PaceNotes.text
 pub const TEXT_LEN: u32 = 0x4000;
 
 /// The tables' image's length.
@@ -48,11 +48,11 @@ pub trait Stage {
     fn checkpoint_face(&self, k: u32) -> u32;
     /// Checkpoint k's distance along the line (`g_checkpointDistances`; k below 0x1418).
     fn distance(&self, k: u32) -> u32;
-    /// Checkpoint k's angle (`dword_9ED808`; k below 0x1418).
+    /// Checkpoint k's angle (`Buffers.checkpoints.angles[2]`; k below 0x1418).
     fn angle(&self, k: u32) -> u32;
     /// A slot's byte in the face (`pace_slot_offsets`; the slot below 8).
     fn slot_offset(&self, slot: u32) -> u32;
-    /// The distance's word by tens (`byte_614D38`; at most 40).
+    /// The distance's word by tens (`PaceNotes.distance_words`; at most 40).
     fn word(&self, tens: u32) -> u8;
     /// A byte of the course's faces (at a place inside `Course::window`).
     fn face_byte(&self, at: u32) -> u8;

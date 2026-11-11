@@ -1,6 +1,6 @@
 //! Where the view is drawn on the screen (from
 //! `scene::choose_view_window` 0x44FE1A): the whole screen, or in the framed layout
-//! 800 x 600 at 0, 0 (with `dword_621480`, or mode `word_636526` 2) or
+//! 800 x 600 at 0, 0 (with `FrameSwitches.scene_set_up`, or mode `LightTables.view_mode` 2) or
 //! 720 x 540 at 0x50, 0; and the window's middle, clip rectangle, scale and depths
 //! (from `scene::set_view_window` 0x44E47B; what the x87 keeps on
 //! its stack an `f64`, the same at the game's double precision).
@@ -15,7 +15,7 @@ pub struct ViewSettings {
     pub mode: u16,
 }
 
-/// The window chosen: its size, its offset, and the scale (`dword_624080`, 0x100).
+/// The window chosen: its size, its offset, and the scale (`SceneDraw.view_zoom`, 0x100).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ViewWindow {
     pub size: [u32; 2],
@@ -46,8 +46,8 @@ pub fn choose(settings: ViewSettings, screen: impl FnOnce() -> [u32; 2]) -> View
 
 /// What `set_view_window` reads: the reach, the window's size
 /// and offsets, whether in a race (`g_inRace` 1), the
-/// screen's width, the scale's three (`dword_606294` a float, `dword_624080`,
-/// `flt_623DCC`), the nearer setting and its factor, the
+/// screen's width, the scale's three (`ViewAndRecords.view_vars.view_scale` a float, `SceneDraw.view_zoom`,
+/// `RaceVars.scale_factor`), the nearer setting and its factor, the
 /// fade's two, 65536, the clip's factor
 ///, one.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -69,7 +69,7 @@ pub struct WindowInputs {
 /// What it works out (in the order of the header of `scene::set_view_window`).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WindowSettings {
-    /// `dword_63DC54` (and `dword_63DC58`): the reach times 0x20.
+    /// `RaceView.view_depth[0]` (and `RaceView.view_depth[1]`): the reach times 0x20.
     pub depth: u32,
     pub middle: [u32; 2],
     /// Top, bottom, left, right.

@@ -8,25 +8,25 @@ use crate::strings::format::{Pad, decimal};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// The settings' names (`stru_51E8C4`).
+    /// The settings' names (`FontObjects.objects[41].first_char`).
     Value,
-    /// The volume page's ends (`stru_51E3C4`).
+    /// The volume page's ends (`FontObjects.objects[1].first_char`).
     Small,
-    /// The checklist's title (`stru_51E904`).
+    /// The checklist's title (`FontObjects.objects[43].first_char`).
     Title,
-    /// The checklist's heads (`stru_51E944`).
+    /// The checklist's heads (`FontObjects.objects[45].first_char`).
     Head,
-    /// The checklist's lines (`stru_51E8E4`).
+    /// The checklist's lines (`FontObjects.objects[42].first_char`).
     Line,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `dword_7559EC`.
+    /// `DrawWork.figure`.
     Scratch,
     /// `seconds` (0x7559AC).
     Seconds,
-    /// `dword_7559F0`.
+    /// `DrawWork.hhmm`.
     Glyph,
     /// The check marks' x.
     CheckX,
@@ -164,7 +164,7 @@ pub const CHECKLIST_LINES: [(u32, i32, i32, Font); 14] = [
 ];
 
 /// The options checklist: the title (string 0x190, " ", the player's number from 1) in
-/// `byte_A8BC54` at (0x190, 0x14), the lines, the progress bar at `percent`, its end
+/// `Buffers.text.cells` at (0x190, 0x14), the lines, the progress bar at `percent`, its end
 /// sprite 0x88 and labels (0x4AE, 0x4AF), then a check mark (sprite 0x9E + (v ^ 1)) for
 /// each of `ticks` from y 0x82 every 0x1B, at x 0x190 (kept), its palette v ^ 1.
 pub fn options_checklist<S: Screen<Font = Font, Work = Work>>(

@@ -14,7 +14,7 @@ pub enum Work {
     /// `g_markerX`, `g_markerY`: where the item's text went.
     MarkerX,
     MarkerY,
-    /// `dword_7559D0`: 1 while the highlighted item is drawn.
+    /// `DrawWork.drawing_highlighted_item`: 1 while the highlighted item is drawn.
     Highlighted,
 }
 
@@ -35,11 +35,11 @@ pub fn labels<S: Screen>(s: &mut S, labels: &[Label<S::Font>]) -> Result<(), S::
     Ok(())
 }
 
-/// The line buffer's length: `byte_A8BC54` (the one-character text) follows it.
+/// The line buffer's length: `Buffers.text.cells` (the one-character text) follows it.
 const LINE_LEN: usize = 0x100;
 
 /// An item's text: one string, or with `spaced` one character at a time 18 pixels apart
-/// from x - 26, each through a one-character text in `byte_A8BC54`, the font kept
+/// from x - 26, each through a one-character text in `Buffers.text.cells`, the font kept
 /// (`font_value`, as the game keeps it). The string is put in the line buffer with its NUL
 /// and read from there: the first character is drawn even when it is an empty string's
 /// NUL, and then the loop goes on into what the line buffer held after it (`after(n)`,

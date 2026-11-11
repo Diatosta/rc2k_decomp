@@ -1,5 +1,5 @@
 //! `physics::spin_wheels` (0x43CD1A): the driven wheels' turns (`driven_wheel_turns`,
-//! `dword_71A1D4`) on by `g_carDriveSpeed` / `g_carDriveSpeed2` over `wheel_spin_share`, times
+//! `Car.driven_wheel_turns[1]`) on by `g_carDriveSpeed` / `g_carDriveSpeed2` over `wheel_spin_share`, times
 //! the step `step_time`, 65536 and `one_over_pi` (`fistp` through `scratch`). These are the
 //! driven wheels' turn angles (`driven_wheel_turns`, for the drawing).
 //!

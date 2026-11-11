@@ -43,7 +43,7 @@ pub fn list_object_textures(scene: &crate::scene::owner::Scene) -> Result<(), Ba
         scene.objects.slots.texture_list[n].set(texture);
     }
     if let Some(record) = record {
-        // `unk_5DCEBC`: the records (`record` a byte offset in 64 of 0x40 bytes).
+        // `TexturePlaces.object_texture_records[0]`: the records (`record` a byte offset in 64 of 0x40 bytes).
         let records = &scene.textures.places.object_texture_records;
         records[record / 4].set(textures.len() as u32);
         for (n, &texture) in textures.iter().enumerate() {

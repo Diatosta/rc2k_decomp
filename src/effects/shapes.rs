@@ -60,13 +60,13 @@ impl<'a> Shapes<'a> {
             items: &drops.hex.items,           // g_marksWindscreenDropItems
             item_len: 0x30,
             curve: &drops.work.curve, // g_marksWindscreenDropCurve
-            curve_a: Var::Float(&drops.hex.curve_a), // flt_82E25A
-            curve_b: Var::Float(&drops.hex.curve_b), // flt_82E25E
-            radii: &drops.work.radii, // flt_814BC2
+            curve_a: Var::Float(&drops.hex.curve_a), // WindscreenDropVars.curve_a
+            curve_b: Var::Float(&drops.hex.curve_b), // WindscreenDropVars.curve_b
+            radii: &drops.work.radii, // WindscreenDropWork.radii[0]
             points: &drops.work.points, // g_marksWindscreenDropPoints
             sides: 6,
-            step_c: Var::Dword(&drops.hex.step_c), // dword_82E262
-            step_d: Var::Float(&drops.hex.step_d), // flt_82E266
+            step_c: Var::Dword(&drops.hex.step_c), // WindscreenDropVars.step_c
+            step_d: Var::Float(&drops.hex.step_d), // WindscreenDropVars.step_d
         }
     }
 }
@@ -244,8 +244,8 @@ fn circle_cells(r: u32, out: &[PlainFloat], count: u32, c: u32, d: u32) {
 /// `effects::set_up_windscreen_drops` (0x4BAA55): once (`g_marksWindscreenDropsDone`, then `resume`) four
 /// floats at 0x816192 scaled; then the windscreen drop items cleared, their curve and circles (6
 /// points); 0x40 fans of four triangles (words: n6, n6+1 .. n6+5); 0x40 records of six
-/// parts (+0xC `dword_7651A0`, +0x10 -1, +0x14 0xFF000000, 0x20 apart); `dword_8161AE` ..
-/// `dword_8161BA` 0. Refuses a mark neither 0 nor `resume`.
+/// parts (+0xC `MarksFloats.two_fifty_six`, +0x10 -1, +0x14 0xFF000000, 0x20 apart); `WindscreenDropVars.started` ..
+/// `WindscreenDropVars.spare[1]` 0. Refuses a mark neither 0 nor `resume`.
 fn windscreen_drops_with(
     drops: &WindscreenDrops,
     resume: u32,

@@ -10,8 +10,8 @@ use crate::session::PlainDword;
 use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 
-/// The stage's record table and record (`off_735512[dword_7556F8][dword_75880E]`, + 0xA4 x
-/// `dword_758812`), none: 0.
+/// The stage's record table and record (`off_735512[ChampView.switch_f8][CaptionTables.shown_group]`, + 0xA4 x
+/// `CaptionTables.shown_stage`), none: 0.
 fn records(
     menus: &Menus,
     stages: &crate::records::stages_store::StageTables,
@@ -26,9 +26,9 @@ fn records(
     ))
 }
 
-/// The times table: `off_7354FE[dword_7556F8 (+ 2 when dword_7556FC is 1)]` names the
+/// The times table: `off_7354FE[ChampView.switch_f8 (+ 2 when ChampView.switch_fc is 1)]` names the
 /// variable that holds it (the list's four: `g_stageBestTimes`, `g_courseBestTimes`,
-/// `dword_7556E8`, `g_stageBestTimesAlt`; their tables are typed now,
+/// `ChampView.time_trial_best_times`, `g_stageBestTimesAlt`; their tables are typed now,
 /// `saves::best_times`), or None. Refuses a list entry that names none of them.
 fn times_table<'a>(
     play: &'a Play,
@@ -74,15 +74,15 @@ fn ends_within_ten(table: &StageTable, stage: usize) -> Result<bool, BadInput> {
 }
 
 /// `screens::draw_stage_results` (0x48E740): the time trial stage's results: the current
-/// menu's (`dword_75558D`) items 1 .. 3 (strings by the two switches, the record's +0x38), the
-/// record's +4 into `dword_A8C154`, the stage line (string 0x481 .. in `byte_A8BD54`), then up
+/// menu's (`LoopFlags.menu.0`) items 1 .. 3 (strings by the two switches, the record's +0x38), the
+/// record's +4 into `Buffers.text.stage_result_value`, the stage line (string 0x481 .. in `Buffers.text.stage_heading`), then up
 /// to ten rows of name, result and rank with the car's and flag's sprites: in seal mode
-/// (`dword_75AB30` 1) the row's seal code (`strings::format_seal_code` of +0x54 / +0x58) one
+/// (`MenuState.menus.caption_choice` 1) the row's seal code (`strings::format_seal_code` of +0x54 / +0x58) one
 /// character at a time from x 0x20A every 0xE; else its time (fixed pitch at 0x276), the first
-/// kept in `dword_75AB24` and the others' gap to it (string 0x579 and the time at 0x2EE); after
+/// kept in `MenuState.menus.first_row_time` and the others' gap to it (string 0x579 and the time at 0x2EE); after
 /// ten rows the fastest line (string 0x1A2; from the stage record found again by
 /// `records::find_stage_record` when both switches are 0, else the record's own, its second
-/// fastest with `dword_7556FC` 1). The sprites' palettes are ebx as the original leaves it.
+/// fastest with `ChampView.switch_fc` 1). The sprites' palettes are ebx as the original leaves it.
 /// Refuses (before anything) no current menu, no stage records or times
 /// table, a stage line past its buffer, a times table whose end (-1) comes within the ten rows
 /// (the original's early exit leaves two dwords on the stack and returns through a wrong

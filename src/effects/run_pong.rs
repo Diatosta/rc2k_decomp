@@ -1,5 +1,5 @@
 //! `effects::run_pong` (0x4B7EDA): the pong game over the race (an Easter egg: a ball, a bat and a score; seen on the windscreen), with cheat bit
-//! 0x8000 (`g_cheats`) and `dword_641678` only: `effects::pong_setup`, `effects::move_pong_bat`,
+//! 0x8000 (`g_cheats`) and `FrameWork.lead_kept[7]` only: `effects::pong_setup`, `effects::move_pong_bat`,
 //! `effects::move_pong_ball` `g_pongSteps` times (read once), `effects::draw_pong_box`
 //! for the ball and for the bat (st(0) height, st(1) width, st(2) y, st(3) x), then
 //! `effects::pong_score`.
@@ -32,7 +32,7 @@ pub fn run_pong(
     use crate::effects::draw_pong_box::draw_pong_box;
     let p = &pong.state;
     {
-        // `dword_641678`: pong shown.
+        // `FrameWork.lead_kept[7]`: pong shown.
         if menus().play.cheats.cheats.get() & CHEAT == 0 || frame.frame_work.lead_kept[7].get() == 0
         {
             return Ok(());

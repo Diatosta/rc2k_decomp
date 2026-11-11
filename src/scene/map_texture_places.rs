@@ -1,8 +1,8 @@
 //! `scene::map_texture_places` (0x42570D): for each texture's place, the slot that
 //! shows it.
 //!
-//! The 0xFA0 dwords of `dword_5D3AE8` = -1; then for the slots from 0x3FF down to 0: the
-//! texture the slot wants (`dword_5DA968`), if under 0x400, has a place (`dword_5D8968`), and
+//! The 0xFA0 dwords of `TexturePlaces.place_slot[0]` = -1; then for the slots from 0x3FF down to 0: the
+//! texture the slot wants (`TexturePlaces.slot_wanted[0]`), if under 0x400, has a place (`TexturePlaces.wanted_pictures[0]`), and
 //! that place, if under 0xFA0, gets the slot's number. Of two slots with one place the lower
 //! stays. Six callers. The registers above are the original's; a call by address goes through
 //! `routes.rs`, which maps them.

@@ -1,6 +1,6 @@
 //! `effects::emit_twin_particle_second` (0x4CE482): `effects::emit_twin_particle_first`'s code on its own
-//! variables: kind 0x16, the level the car's +0x4C4, the flags 0x33, `dword_93A4B2`,
-//! `flt_93A4B6` .. `flt_93A4D2`, `dword_93A4D6` (an instruction diff: nothing else
+//! variables: kind 0x16, the level the car's +0x4C4, the flags 0x33, `TwinTuning.chance_random`,
+//! `TwinTuning.lift` .. `TwinTuning.motion_k[2]`, `TwinTuning.spin_random` (an instruction diff: nothing else
 //! differs).
 //!
 //! Takes: the car object

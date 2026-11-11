@@ -11,7 +11,7 @@
 /// share.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FinishLines {
-    /// `flt_64BB4C`, `flt_64BB50`, `flt_64BB54`, `flt_64BB58`, `flt_64BB5C`.
+    /// `Finish.camera_yaw_rate`, `Finish.camera_distance_start`, `Finish.camera_height_start`, `Finish.camera_distance_rate`, `Finish.camera_height_rate`.
     pub k4c: f32,
     pub k50: f32,
     pub k54: f32,
@@ -19,7 +19,7 @@ pub struct FinishLines {
     pub k5c: f32,
     pub time: f32,
     pub share: f32,
-    /// `flt_64BB78`, `flt_64BB7C`.
+    /// `Finish.camera_pitch_per_share`, `Finish.camera_height_per_share`.
     pub k78: f32,
     pub k7c: f32,
 }

@@ -6,7 +6,7 @@ use crate::screens::screen::{Bar, Drawn, Screen};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E3C4`.
+    /// `FontObjects.objects[1].first_char`.
     Labels,
 }
 
@@ -18,8 +18,8 @@ pub enum Work {
     Status,
 }
 
-/// A part: the car's damage (+0xCC + 4 x item), its threshold (`dword_75ABD0[item]`), its
-/// weight (`dword_75AC40[item]`) and whether it is chosen for repair (its flag not 0).
+/// A part: the car's damage (+0xCC + 4 x item), its threshold (`MenuState.driver_stats.highs[12][item]`), its
+/// weight (`MenuState.driver_stats.weights[12][item]`) and whether it is chosen for repair (its flag not 0).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Part {
     pub damage: i32,

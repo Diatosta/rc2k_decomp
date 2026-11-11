@@ -1,5 +1,5 @@
 //! `physics::camera_clear_of_ground` (0x438DD2): whether the camera is a whole unit
-//! (0x10000) or more above the ground under it (`unk_71A680` - `ground_height`, by the
+//! (0x10000) or more above the ground under it (`Car.camera_position[1]` - `ground_height`, by the
 //! sign of the `cmp`; `physics/camera_ground.rs`): CF clear when found and so high, else
 //! CF.
 //!

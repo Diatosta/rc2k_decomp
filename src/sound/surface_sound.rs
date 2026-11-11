@@ -5,7 +5,7 @@
 //! further for +0xC 1), else four (by +0 & 3). Its sound replaces the object's +0x144
 //! (sets of eight) or +0x148; a changed one has the old one stopped first
 //! (`sound::stop_sound`). Then the request: the sound, +4 the rate as a float, +8
-//! `flt_516398` (`fld` / `fstp`), the place +0x2C .. +0x34, and
+//! `SurfaceSounds.volume` (`fld` / `fstp`), the place +0x2C .. +0x34, and
 //! `sound::play_placed_sound` (a tail jump). Two callers, `sound::surface_sounds`.
 //! Refuses (before anything) a set of eight with +0xC
 //! over 1, and a sound past the sample records.

@@ -41,7 +41,7 @@ fn converter(converters: &Converters) -> u32 {
 /// The carry flag the original leaves (true: set).
 pub type CarryLeft = bool;
 
-/// `screen_bits` is `dword_4F4954`; `converter` the table's entry for the surface's format.
+/// `screen_bits` is `Screen.bits`; `converter` the table's entry for the surface's format.
 pub fn convert_picture(
     formats: &Formats,
     converters: &Converters,

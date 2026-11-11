@@ -5,7 +5,7 @@
 //!
 //! Callers: the event pages' code.
 
-/// The first stage of the last page, stored in `dword_7556B8` (1 for a single page). (What
+/// The first stage of the last page, stored in `ChampView.first_row` (1 for a single page). (What
 /// the original also leaves in eax, edx and ebp, nothing reads.)
 use crate::menu::owner::Play;
 pub fn first_page_stage(play: &Play) {

@@ -54,7 +54,7 @@ pub fn quad_corners(x0: i32, x1: i32, y0: i32, y1: i32) -> [(f32, f32); 4] {
 /// `loading_bar_frame`'s mark (`scene_state`) while the bar is on.
 pub const FRAME_MARK: u32 = 8;
 
-/// A frame is tried with the window active and the surfaces not lost (`dword_518380`
+/// A frame is tried with the window active and the surfaces not lost (`WindowLoopState.lost`
 /// not 1).
 pub fn frame_tried(active: u32, lost: u32) -> bool {
     active != 0 && lost != 1

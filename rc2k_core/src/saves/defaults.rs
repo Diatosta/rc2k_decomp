@@ -229,7 +229,7 @@ pub struct Filled {
     pub blocks: Vec<Block>,
     /// `seconds` (0x7559AC).
     pub seconds: u32,
-    /// `dword_7559B0`, when the function writes it.
+    /// `DrawWork.scratch_b0`, when the function writes it.
     pub sum: Option<u32>,
     /// The last guess (the game's 16 dwords at 0x71C7C0), when one was made.
     pub checkpoints: Option<[u32; CHECKPOINTS]>,

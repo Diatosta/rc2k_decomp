@@ -2,7 +2,7 @@
 //! RAL.EXE's image: IDA 0x4F503C ..
 //! 0x4F505C. The rescaler's own variables follow (`gfx::rescale_picture::RESCALE`).
 
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// IDA's address of the block's first byte.
 pub const START: usize = 0x4F503C;
@@ -13,14 +13,14 @@ pub const LEN: usize = 0x4F505C - START;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ClipRect {
-    /// `g_clipLeft` (`dword_4F503C`).
-    pub left: Dword,
-    /// `g_clipRight` (`dword_4F5040`).
-    pub right: Dword,
-    /// `g_clipTop` (`dword_4F5044`).
-    pub top: Dword,
-    /// `g_clipBottom` (`dword_4F5048`).
-    pub bottom: Dword,
+    /// `g_clipLeft` (`Blitter.clip.left`).
+    pub left: PlainDword,
+    /// `g_clipRight` (`Blitter.clip.right`).
+    pub right: PlainDword,
+    /// `g_clipTop` (`Blitter.clip.top`).
+    pub top: PlainDword,
+    /// `g_clipBottom` (`Blitter.clip.bottom`).
+    pub bottom: PlainDword,
 }
 
 /// The blitters' variables.
@@ -30,13 +30,13 @@ pub struct Blitter {
     /// The clip rectangle.
     pub clip: ClipRect,
     /// `g_blitLeftSkip`: pixels clipped off on the left.
-    pub left_skip: Dword,
+    pub left_skip: PlainDword,
     /// `g_blitVisibleWidth`: pixels of each row inside the clip.
-    pub visible_width: Dword,
+    pub visible_width: PlainDword,
     /// `g_blitTopSkip`: rows clipped off at the top.
-    pub top_skip: Dword,
+    pub top_skip: PlainDword,
     /// `g_blitRowsLeft`: visible rows (counted down while drawing).
-    pub rows_left: Dword,
+    pub rows_left: PlainDword,
 }
 
 impl Blitter {
@@ -44,15 +44,15 @@ impl Blitter {
     pub const fn new() -> Self {
         Blitter {
             clip: ClipRect {
-                left: Dword::new(0),
-                right: Dword::new(0x31F),
-                top: Dword::new(0),
-                bottom: Dword::new(0x257),
+                left: PlainDword::new(0),
+                right: PlainDword::new(0x31F),
+                top: PlainDword::new(0),
+                bottom: PlainDword::new(0x257),
             },
-            left_skip: Dword::new(0),
-            visible_width: Dword::new(0),
-            top_skip: Dword::new(0),
-            rows_left: Dword::new(0),
+            left_skip: PlainDword::new(0),
+            visible_width: PlainDword::new(0),
+            top_skip: PlainDword::new(0),
+            rows_left: PlainDword::new(0),
         }
     }
 }

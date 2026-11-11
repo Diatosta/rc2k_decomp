@@ -5,7 +5,7 @@
 //! Without bit 0x100000 in `g_soundMode` (no 3D): the volume = request's volume x the
 //! sample record's float +0x24 x the request's +0x24, as a whole number held to 0 ..
 //! 0x40 and stored over +8; the angle `fpatan` of +0x14 over +0xC is stored at +0x18
-//! and 64.0 - |angle| x 40.74 (`flt_512500`, `flt_512504`), as a whole number, at +0x1C:
+//! and 64.0 - |angle| x 40.74 (`RaceClock.pan_centre`, `RaceClock.pan_per_radian`), as a whole number, at +0x1C:
 //! the place between left and right, which goes as 0 when +0xC is zero. With bit
 //! 0x2000000 of the mode (Dolby) and an angle below zero its second byte is inverted.
 //! With 3D: the volume as a whole number (not stored) and the three floats as they are.

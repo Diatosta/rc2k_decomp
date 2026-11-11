@@ -20,7 +20,7 @@ pub fn object_rooms(in_race: bool) -> (u32, u32) {
 pub const LOWEST_START: u32 = 0x0064_0000;
 pub const HIGHEST_START: u32 = 0xFF9C_0000;
 
-/// An object's measures (`dword_634B70` ..: the middle, half the extent, the lowest, the
+/// An object's measures (`ObjectTables.measures[0]` ..: the middle, half the extent, the lowest, the
 /// highest; three axes each).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Measures {
@@ -67,7 +67,7 @@ pub fn measure(points: &mut [[u32; 3]]) -> Option<Measures> {
 
 /// The textures a list holds at most.
 pub const MOST_TEXTURES: usize = 0x100;
-/// The slots with a record of textures (0x40 bytes each, `unk_5DCEBC`).
+/// The slots with a record of textures (0x40 bytes each, `TexturePlaces.object_texture_records[0]`).
 pub const RECORD_SLOTS: u32 = 0x40;
 pub const RECORD_LEN: usize = 0x40;
 

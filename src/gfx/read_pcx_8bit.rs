@@ -16,7 +16,7 @@
 //! all 32 bits) and what `open_stream` refuses. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::files::handle::{read_into, seek};
+use crate::files::handle::{read_slice, seek};
 use crate::files::read_stream_byte::{ByteRead, read_stream_byte};
 use crate::files::stream::Stream;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
@@ -28,8 +28,19 @@ use crate::gfx::picture::{put_or_end, with_buffer};
 pub fn read_file_palette(stream: &Stream, gfx: &crate::gfx::owner::Gfx) -> bool {
     let file = stream.file;
     seek(file, -(FILE_PALETTE_LEN as i32), 2).is_some()
-        && read_into(file, &gfx.pictures.pcx.file_palette).1
+        && read_palette(file, &gfx.pictures.pcx.file_palette)
         && seek(file, 0, 0).is_some()
+}
+
+/// The palette's bytes read from `file` into `palette` (those the file has): whether the read
+/// worked.
+fn read_palette(file: u32, palette: &crate::session::PlainBytes<FILE_PALETTE_LEN>) -> bool {
+    let mut bytes = [0u8; FILE_PALETTE_LEN];
+    let (got, ok) = read_slice(file, &mut bytes);
+    for (k, &b) in bytes[..got as usize].iter().enumerate() {
+        palette.set(k, b);
+    }
+    ok
 }
 
 /// The part between the open and the close: whether it worked.

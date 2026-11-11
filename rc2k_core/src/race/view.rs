@@ -98,7 +98,7 @@ pub struct FogSettings {
     pub start: u32,
     /// `fog_end`: the level past the table.
     pub end: u32,
-    /// The table's length (`dword_63DC58` x 8).
+    /// The table's length (`RaceView.view_depth[1]` x 8).
     pub length: u32,
 }
 

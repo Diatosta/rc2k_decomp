@@ -97,7 +97,7 @@ pub struct DamageModel {
     pub hit_side: Dword,
     /// `flt_75B3C8`: The size of this step's hit: the contact depth squared over `hit_divisor` over `speed_range`; scaled by the damage setting (`patch_factors[1]`) in the gauges, zeroed while the hit cooldown runs.
     pub hit_size: Float,
-    /// `dword_75B3CC` ..: the four wheels' loads, blended by `flt_75B360` (`physics::damage_factors`).
+    /// `dword_75B3CC` ..: the four wheels' loads, blended by `DamageModel.half` (`physics::damage_factors`).
     pub wheel_loads: [Float; 4],
     /// `flt_75B3DC`: The mean of the four wheel loads (their sum times `quarter`).
     pub wheel_load_mean: Float,
@@ -206,7 +206,7 @@ pub struct DamageModel {
     pub gear_factors: [Float; 9],
     /// `flt_75B5D0` ..: the gauges' rates (`physics::damage_gauges`), times the step's shares.
     pub gauge_rates: [Float; 24],
-    /// `flt_75B630`: the first kind table (by `flt_75B3E4`'s bits).
+    /// `flt_75B630`: the first kind table (by `DamageModel.drive_kind`'s bits).
     pub kind_table_a: [Float; 2],
     /// `flt_75B638`: the second kind table.
     pub kind_table_b: [Float; 2],
@@ -220,7 +220,7 @@ pub struct DamageModel {
     pub figures: [Float; 33],
     /// Unreferenced bytes (IDA 0X75B6FC .. 0X75B73C).
     pub _gap_75b6fc: Bytes<64>,
-    /// `dword_75B73C`: the wear table (rows by `dword_75B3E8`, two columns, as the original
+    /// `dword_75B73C`: the wear table (rows by `DamageModel.tyre_kind`, two columns, as the original
     /// indexes them), 0x180 bytes.
     pub wear_table: [Float; 96],
     /// `flt_75B8BC`: 2.5: `wear_figure` is the blended table figure times it.

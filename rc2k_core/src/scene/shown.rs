@@ -12,7 +12,7 @@ pub const OTHER_SET: u32 = 0x108;
 /// What the race's tests read, each asked for where they read it: the object, the kind
 /// test's switches, an object's kind (`g_objectKinds`), the
 /// other way, whether the special objects are shown,
-/// which of two, the only object (`dword_635058`, plus 1) and an object's
+/// which of two, the only object (`ObjectWork.only_object`, plus 1) and an object's
 /// face count.
 pub trait RaceObject {
     fn object(&self) -> u32;

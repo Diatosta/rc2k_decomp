@@ -2,7 +2,7 @@
 //! Direct3D's and DirectDraw's failures are fatal while it is 1; the film player, the mode trial
 //! and the texture allocation clear it around calls that may fail.
 
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// IDA's address of the block's first byte.
 pub const START: usize = 0x4F52AC;
@@ -14,13 +14,15 @@ pub const LEN: usize = 4;
 #[derive(rc2k_derive::Cells)]
 pub struct Reports {
     /// `dword_4F52AC`: 1 while Direct3D's errors are reported (fatal).
-    pub on: Dword,
+    pub on: PlainDword,
 }
 
 /// The switch; the first value is the image's.
 impl Reports {
     pub const fn new() -> Self {
-        Reports { on: Dword::new(1) }
+        Reports {
+            on: PlainDword::new(1),
+        }
     }
 }
 
@@ -30,14 +32,18 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&crate::gfx::owner::GFX.reports, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::GFX.unchecked().reports,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
     fn moved_knows_the_block() {
         assert_eq!(
             crate::moved::place(START),
-            crate::gfx::owner::GFX.reports.on.addr() as usize
+            crate::gfx::owner::GFX.unchecked().reports.on.addr() as usize
         );
     }
 }

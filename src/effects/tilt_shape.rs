@@ -1,7 +1,7 @@
 //! `effects::tilt_shape` (0x4C1194): the sine and cosine of `g_marksShapeTilt` into
-//! `flt_811BC7` / `flt_811BCB`; the point's y and z (`flt_811BE3`, `flt_811BE7`) turned by
-//! them (`x87::turn_yz`); then the point `flt_811BDF` .. made of length 1 into
-//! `unk_811BD3` .., its length in `dword_811BCF` (`x87::unit_and_length`).
+//! `ShapeTilt.sine` / `ShapeTilt.cosine`; the point's y and z (`ShapeTilt.point[1]`, `ShapeTilt.point[2]`) turned by
+//! them (`x87::turn_yz`); then the point `ShapeTilt.point[0]` .. made of length 1 into
+//! `ShapeTilt.unit[0]` .., its length in `ShapeTilt.length` (`x87::unit_and_length`).
 //!
 //! Caller: `effects::shapes_frame`.
 //!

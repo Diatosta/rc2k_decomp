@@ -70,11 +70,11 @@ pub fn open_installer(install: &'static crate::install::owner::Install) -> Resul
     crate::gfx::palette_to_dwords::palette_to_dwords(
         &install.palette.palette,
         0,
-        &crate::text::blend_font::BLENDED_PALETTE,
+        crate::text::blend_font::BLENDED_PALETTE.get(),
     )?;
     components_to_pixels(
-        &crate::text::blend_font::BLENDED_PALETTE,
-        &crate::text::blend_font::BLENDED_PALETTE,
+        crate::text::blend_font::BLENDED_PALETTE.get(),
+        crate::text::blend_font::BLENDED_PALETTE.get(),
     );
     // gfx::load_picture: its carry is not read.
     crate::gfx::load_picture::load_picture(&install.names.backdrop)?;

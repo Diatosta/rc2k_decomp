@@ -85,7 +85,7 @@ pub trait Workshop {
     /// The car (the current player's record).
     fn car(&mut self) -> Player;
     fn update_car(&mut self, change: impl FnOnce(&mut Player));
-    /// `dword_75AB38` = 1.
+    /// `MenuState.menus.service_flag` = 1.
     fn set_working(&mut self);
     fn timer(&mut self, t: Timer) -> u32;
     fn set_timer(&mut self, t: Timer, value: u32);

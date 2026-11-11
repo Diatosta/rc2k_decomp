@@ -40,7 +40,7 @@ pub fn set_object_light(
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
     light.light_added.set(0u32);
     let (clear_strength, own_car) = match object_light(light.light_kind.get(), || {
-        input().devices.keys_now.get(0x18) != 0 // byte_4F6B74
+        input().devices.keys_now.get(0x18) != 0 // Devices.keys_now
     }) {
         ObjectLight::White => {
             light.light_added.set(WHITE);

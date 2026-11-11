@@ -41,15 +41,15 @@ pub fn players_of(mode: u32) -> Option<(u32, bool)> {
 pub enum Var {
     /// The event goes on.
     GoesOn,
-    /// `dword_75ACF0`, `g_cheats`.
+    /// `RaceState.settings.direction`, `g_cheats`.
     CheatSwitch,
     Cheats,
-    /// `dword_7554C8`, `dword_75ACE4`.
+    /// `ScreenFlow.kept`, `RaceState.settings.kept`.
     Kept,
     RaceKept,
-    /// `dword_75598C`.
+    /// `Event.current_player`.
     Current,
-    /// `dword_75B028`, `dword_75B098`.
+    /// `RaceState.results.results[0].result`, `RaceState.results.results[1].result`.
     Result,
     Result2,
 }
@@ -62,7 +62,7 @@ pub enum Step {
     StandingsFromDrivers,
     SortByTime,
     CopySummary,
-    /// `dword_75ACD0` the summary table, `dword_75ACD4` the track pack entry's +0x34.
+    /// `RaceState.settings.rivals` the summary table, `RaceState.settings.stage` the track pack entry's +0x34.
     RaceInfo,
     /// `race::single_rally_race` (kind 1); `next` when another player's race follows
     /// (1 from `menu::player_entered`; 0 otherwise).
@@ -129,7 +129,7 @@ fn players_races<E: EventRaces>(e: &mut E, n: u32, note_fourth: bool) -> Result<
 }
 
 /// `menu::run_event_races` (its checks made by the caller): `mode` the event mode,
-/// `reset_only` `dword_755250` 1.
+/// `reset_only` `MenuPages.reset_times` 1.
 pub fn run_event_races<E: EventRaces>(
     e: &mut E,
     mode: u32,

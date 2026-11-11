@@ -3,7 +3,6 @@
 //! `g_marksSettings` (0x767A28, now a set / not-set flag), the rest at their own places. Labels with `?` were
 //! the developers' own, for the names in their source.
 
-use crate::debug::wear_page::value_at;
 use crate::effects::owner::effects;
 use crate::effects::setup::effects_settings;
 use crate::race::effects_settings_store::EffectsSettings;
@@ -15,8 +14,6 @@ use dear_imgui_rs::{TreeNodeFlags, Ui};
 enum At {
     /// A variable of the effects' or the scene's state.
     Cell(fn() -> u32),
-    /// A variable in a run of the image's bytes no record names, at IDA's address.
-    Place(usize),
     /// A figure of the settings `g_marksSettings` stands for (the race's record); the windows
     /// and cracks lie in its first car's record.
     Through(fn(&EffectsSettings) -> u32),
@@ -25,7 +22,7 @@ enum At {
 /// A figure: the developers' label, its place, whether a float.
 type Figure = (&'static str, At, bool);
 
-use At::{Cell, Place, Through};
+use At::{Cell, Through};
 
 /// The window's width for two columns.
 const TWO_COLUMNS: f32 = 900.0;
@@ -70,8 +67,6 @@ const GROUPS: &[(&str, &[Figure])] = &[
                 Cell(|| effects().ring.pool._gap_93a5cc.get_u32(0)),
                 false,
             ),
-            ("flag", Place(0x91FF32), false),
-            ("First object in list", Place(0x8DD059), false),
             (
                 "fsizefp",
                 Cell(|| SCENE.drawing.scene.view_scale.bits()),
@@ -217,7 +212,6 @@ const CRACK_SETS: [fn(&EffectsSettings, usize) -> u32; 3] = [
 fn read(at: At) -> Option<u32> {
     match at {
         Cell(read) => Some(read()),
-        Place(ida) => value_at(ida),
         Through(read) => effects_settings().ok().map(read),
     }
 }

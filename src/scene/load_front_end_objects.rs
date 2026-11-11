@@ -1,9 +1,9 @@
 //! `scene::load_front_end_objects` (0x425CA9): loads the shapes of all 0x100 object
 //! slots.
 //!
-//! `scene::reset_objects`; `dword_631B68` and `dword_631F6C` = 0; for each slot its kind from
-//! `dword_5CCE7C` to `dword_634FE8`, the slot to `dword_634FEC`, and `scene::load_object`; then
-//! `dword_634FA4` = the points used, in bytes, and `dword_634FA8` = the faces' memory used. Two
+//! `scene::reset_objects`; `ObjectTables.texture_count` and `ObjectTables.no_normals` = 0; for each slot its kind from
+//! `ObjectTables.slot_kinds[0]` to `ObjectWork.loading_kind`, the slot to `ObjectWork.loading_slot`, and `scene::load_object`; then
+//! `ObjectWork.point_memory_total` = the points used, in bytes, and `ObjectWork.face_memory_total` = the faces' memory used. Two
 //! callers (the front end's start and a stage's leaving).
 
 use crate::errors::Refused;

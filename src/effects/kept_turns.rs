@@ -1,5 +1,5 @@
-//! The turns of the three kept vectors (`dword_76926E` .., `dword_7692C2` ..,
-//! `dword_7692A6` ..) by two angles: `effects::turn_kept_vectors` (0x4C13CA) and its two
+//! The turns of the three kept vectors (`KeptView.kept_a.vector[0]` .., `KeptView.kept_c.vector[0]` ..,
+//! `KeptView.kept_b.vector[0]` ..) by two angles: `effects::turn_kept_vectors` (0x4C13CA) and its two
 //! steps `effects::turn_kept_xz` (0x4C1411) and `effects::turn_kept_zy` (0x4C14D2).
 
 use crate::math::x87;

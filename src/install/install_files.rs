@@ -52,7 +52,7 @@ fn build(
     Ok(())
 }
 
-/// The error (count 2, `unk_51D453`, y 0) or cancel (count 1, `unk_51D463`, y -0x32)
+/// The error (count 2, `InstallerPages.msg_error`, y 0) or cancel (count 1, `InstallerPages.msg_cancel`, y -0x32)
 /// message shown, then a wait for a key.
 fn message(count: u32, table: impl Into<crate::place::BytePlace>, y: u32) -> Result<(), Refused> {
     let table: u32 = table.into().game();

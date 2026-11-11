@@ -1,7 +1,7 @@
 //! The squares' and windscreen drops' clock and the shapes they take (from
 //! `effects::windscreen_flakes_step` 0x4C0654, `windscreen_drops_step` 0x4BCAD0 and `pick_shapes`
 //! 0x4BE8C3): the steps since the shapes were last looked at counted on a clock of 256
-//! (`dword_814714` the clock, `dword_84460C` the latest step), and each step's shapes picked from a
+//! (`WindscreenDropState.clock` the clock, `MaskPicks.index` the latest step), and each step's shapes picked from a
 //! table of 256 entries.
 
 use crate::Invalid;

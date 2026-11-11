@@ -1,8 +1,8 @@
 //! `effects::emit_body_particles` (0x4CA13B): the particles of the car's fifth record
-//! (+0x1F4, under the body). First the object's +0x90 times `flt_765174` (rounded), the
-//! record's +4 plus 0x386A0, its +0 bit 0 flipped (`dword_935416` 2, or 3 when the bit is
+//! (+0x1F4, under the body). First the object's +0x90 times `MarksFloats.three` (rounded), the
+//! record's +4 plus 0x386A0, its +0 bit 0 flipped (`EmitterVars.record` 2, or 3 when the bit is
 //! now clear), its +0xC 0; then `effects::emit_wheel_particles`' chance (its own random
-//! `dword_935526`) of copying the surface's kind and flags, and its switch, but for kind 1
+//! `EmitterVars.body_random`) of copying the surface's kind and flags, and its switch, but for kind 1
 //! (`effects::emit_body_contact_particles`) and kind 3 (the bursts of kind 2: section 16).
 //!
 //! Takes: the record, the car object

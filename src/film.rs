@@ -6,7 +6,7 @@
 //! What the original does (0x41AE39, its three helpers 0x41AE92 open,
 //! 0x41B0A4 a frame, 0x41B0DF close):
 //! - with `g_noFmv` set: nothing (the flags of `cmp g_noFmv, 0`);
-//! - the reports (`dword_4F52AC`) off while it plays, a pending key thrown away
+//! - the reports (`Reports.on`) off while it plays, a pending key thrown away
 //!   (`input::take_key`);
 //! - the file (eax) resolved (`files::resolve_path`) and looked for
 //!   (`files::file_exists`), opened as a stream (failing: straight to the close);

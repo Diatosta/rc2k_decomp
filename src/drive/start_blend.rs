@@ -1,5 +1,5 @@
 //! `drive::start_blend` (0x43773D): the checkpoints the work car is past the lead's start
-//! (`checkpoint` - `dword_70F484`, held to 0 .. 100 by the signs), through `scratch` times
+//! (`checkpoint` - `CarsAndReplay.car_blocks.cars[0].checkpoint`, held to 0 .. 100 by the signs), through `scratch` times
 //! `start_blend_step` into `start_blend_share`; `start_blend` = `start_share` + that + `pace_push`, held to
 //! `zero` .. `one` (0 .. 1). The result is the computer
 //! driver's skill share (`driver_start_blend`, read by `drive::read_car_controls` and used by

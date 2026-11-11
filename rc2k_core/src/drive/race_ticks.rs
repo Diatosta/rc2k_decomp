@@ -8,13 +8,13 @@
 pub const NO_CAR_FATAL: u32 = 0x8060_0655;
 
 /// `drive::race_tick`: whether tick `tick` (already counted) runs the step, by
-/// `dword_63DB84`: 0 every tick, 1 every second (odd ticks), more every fourth (ticks
+/// `RaceView.after_credits`: 0 every tick, 1 every second (odd ticks), more every fourth (ticks
 /// with bits 0 and 1 set).
 pub fn tick_runs(tick: u32, every: u32) -> bool {
     every == 0 || (tick & 1 != 0 && (every == 1 || tick & 2 != 0))
 }
 
-/// `drive::race_step`'s ticks: from the tenths gone (`dword_613844`, signed) while above
+/// `drive::race_step`'s ticks: from the tenths gone (`PhysicsTables.race_tenths`, signed) while above
 /// 0, `tick(counter)` (the tick, then whether the players are all out, and the counter
 /// as that leaves it) until the players are all out; the counter less one after each.
 /// The counter left.

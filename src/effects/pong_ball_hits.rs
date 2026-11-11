@@ -1,8 +1,8 @@
 //! `effects::pong_ball_hits` (0x4B8040): when the pong ball overlaps the bat (`effects::pong`'s
-//! four compares): a hit (`dword_7687D0` plus 1), four more steps a frame
+//! four compares): a hit (`PongState.hits` plus 1), four more steps a frame
 //! (`g_pongSteps`), the ball a step back, and its new way: from the bat's centre to
-//! the ball's (`flt_7686DC` .. `flt_7686F8`; an across of exactly 0 bits less
-//! `flt_7691D6`), made one long times `flt_76516C`, times `flt_7691DA` / `flt_7691DE`.
+//! the ball's (`PongState.ball_centre[0]` .. `PongState.difference[1]`; an across of exactly 0 bits less
+//! `PongRules.nudge`), made one long times `MarksFloats.one`, times `PongRules.way_scale[0]` / `PongRules.way_scale[1]`.
 //!
 //! Caller: `effects::move_pong_ball`. The x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables.
@@ -72,7 +72,7 @@ fn centres_x87(p: &PongState, r: &PongRules) {
 }
 
 /// `new_way`'s x87 block as plain Rust on the x87 model (19 instructions), same order and
-/// memory places; `length` the bits of `flt_76516C`.
+/// memory places; `length` the bits of `MarksFloats.one`.
 fn new_way_x87(p: &PongState, r: &PongRules, length: u32) {
     let t0 = p.difference[0].ld();
     let t1 = t0 * t0;

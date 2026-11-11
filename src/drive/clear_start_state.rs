@@ -1,6 +1,6 @@
 //! `drive::clear_start_state` (0x4376E3): six of the work copy's start values 0: `driver_kind`
 //! (the grades' mode, `physics::grade_or_reset`), `checkpoint`, `engine_sound_speed_int`, `start_share`,
-//! `start_blend`, `dword_71A01C`.
+//! `start_blend`, `Car.unused_44`.
 //!
 //! Caller: `drive::start_cars_behind` (0x4371BC, 0x43729B).
 

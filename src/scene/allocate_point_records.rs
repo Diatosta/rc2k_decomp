@@ -4,7 +4,7 @@
 //! Returns: the memory, the list it is taken on
 //!
 //! 0x40000 bytes (0x2000 records of 0x20 bytes: 0x1000 for a scene's points and 0x1000 for an
-//! object's) on the list `stru_5C6E50`, counted in `dword_5C6F90`, to `g_pointRecords`. Two
+//! object's) on the list `CourseLists.point_records_list[0]`, counted in `CourseLists.course_bytes_total`, to `g_pointRecords`. Two
 //! callers, the front end's 3D set-up and the stage's loading.
 
 use crate::errors::Refused;

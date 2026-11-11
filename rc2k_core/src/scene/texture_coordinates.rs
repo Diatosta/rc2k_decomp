@@ -6,7 +6,7 @@
 /// The float's bits less this: its exponent less 24.
 pub const OVER_2_24: u32 = 0x0C00_0000;
 
-/// A coordinate's float (the work variable `flt_5183C4`), `None` for 0 (left as it is).
+/// A coordinate's float (the work variable `Machine.work_float`), `None` for 0 (left as it is).
 pub fn float_of(v: u32) -> Option<u32> {
     (v != 0).then(|| (v as i32 as f32).to_bits())
 }

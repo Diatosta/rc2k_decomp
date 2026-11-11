@@ -10,9 +10,9 @@ use crate::session::{PlainBytes, PlainDword, PlainFlag};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct OptionWork {
-    /// `dword_755640`: A visual page switch (a copy of `dword_4F50D0`; `OptionSwitch::Mipmapping`).
+    /// `dword_755640`: A visual page switch (a copy of `ScreenChoices.mipmapping`; `OptionSwitch::Mipmapping`).
     pub switch_0: PlainDword,
-    /// `dword_755644`: A visual page switch (a copy of `dword_4F50CC`).
+    /// `dword_755644`: A visual page switch (a copy of `ScreenChoices.buffering`).
     pub switch_1: PlainDword,
     /// `dword_755648`: Set when the screen mode was changed (`menu::option_steps`).
     pub mode_changed: PlainDword,

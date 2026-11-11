@@ -8,12 +8,12 @@ use crate::strings::format::clock;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E3E4`: the repair times.
+    /// `FontObjects.objects[2].first_char`: the repair times.
     Times,
-    /// `stru_51E584`, `stru_51E5A4`: the time available, the time left.
+    /// `FontObjects.objects[15].first_char`, `FontObjects.objects[16].first_char`: the time available, the time left.
     Available,
     Remaining,
-    /// `stru_51E524`, `stru_51E544`: the overrun, the penalty.
+    /// `FontObjects.objects[12].first_char`, `FontObjects.objects[13].first_char`: the overrun, the penalty.
     Overrun,
     Penalty,
 }
@@ -22,7 +22,7 @@ pub enum Font {
 pub enum Work {
     /// The penalty.
     Penalty,
-    /// `seconds`, `dword_7559EC`: work variables.
+    /// `seconds`, `DrawWork.figure`: work variables.
     A,
     B,
 }
@@ -95,17 +95,17 @@ pub fn service_time<S: Screen<Font = Font, Work = Work>>(
 /// 0x4A5FA2, whose layout follows).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AreaFont {
-    /// `stru_51E8A4`: the title.
+    /// `FontObjects.objects[40].first_char`: the title.
     Title,
-    /// `stru_51E6A4`: the headings.
+    /// `FontObjects.objects[24].first_char`: the headings.
     Heading,
-    /// `stru_51E3E4`: the parts' labels (the repair times' font).
+    /// `FontObjects.objects[2].first_char`: the parts' labels (the repair times' font).
     Label,
-    /// `stru_51E3C4`: the small labels, the chosen tyre.
+    /// `FontObjects.objects[1].first_char`: the small labels, the chosen tyre.
     Small,
-    /// `stru_51E404`.
+    /// `FontObjects.objects[3].first_char`.
     Wide,
-    /// `stru_51E6E4`: the total.
+    /// `FontObjects.objects[26].first_char`: the total.
     Total,
 }
 

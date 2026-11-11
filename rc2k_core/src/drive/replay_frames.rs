@@ -83,13 +83,13 @@ pub fn plays_inputs(mode: u32) -> bool {
 }
 
 /// `drive::record_inputs_if`: the inputs recorded while recording, for the cars below
-/// the race's count (`dword_63DB94`; asked only while recording).
+/// the race's count (`RaceView.players`; asked only while recording).
 pub fn records_inputs(mode: u32, car: u32, cars: impl FnOnce() -> u32) -> Option<bool> {
     (mode == RECORDING).then(|| car < cars())
 }
 
 /// `drive::replay_frame_marks`: the offset of a frame's two marks (8 bytes a frame,
-/// `unk_963BB4`; the original's `shl`, high bits lost).
+/// `Buffers.viewer.block_cameras`; the original's `shl`, high bits lost).
 pub fn marks_offset(frame: u32) -> u32 {
     frame.wrapping_mul(8)
 }
@@ -101,7 +101,7 @@ pub enum StartPiece {
     Car(u32),
     /// The race slots (`g_raceSlots`).
     RaceSlots,
-    /// `unk_71BF84`.
+    /// `RaceWork.replay_extra`.
     Extra,
 }
 

@@ -249,7 +249,7 @@ pub fn auto_set_up_car(race: &Race, b: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `dword_75AD2C` / `dword_75AE98` held for a block's +0x3C: below 0 is 0, 100 or more
+/// `RaceState.settings.cars[0].steering_sensitivity` / `RaceState.settings.cars[1].steering_sensitivity` held for a block's +0x3C: below 0 is 0, 100 or more
 /// 0x100, else times 2.56 (`fild` / `fmul` / `fistp`).
 fn brake_value(race: &Race, n: usize) -> u32 {
     let course = &race.course;
@@ -264,7 +264,7 @@ fn brake_value(race: &Race, n: usize) -> u32 {
 
 /// `race::set_up_mode_0_cars` (0x4364BD): `reset_car_blocks`; with `session` 0,
 /// `drop_absent_player`, `set_player_car_kinds`, `auto_set_up_car` of the two players, their +0x3C
-/// from `dword_75AD2C` / `dword_75AE98` (`brake_value`); else `auto_set_up_car` of every car of the
+/// from `RaceState.settings.cars[0].steering_sensitivity` / `RaceState.settings.cars[1].steering_sensitivity` (`brake_value`); else `auto_set_up_car` of every car of the
 /// race (`pusha` / `popa` round each), then `set_player_car_kinds`. Refuses, with `session`
 /// set, no cars or more than 8 (the original's `jnz` runs on), before anything.
 pub fn set_up_mode_0_cars(race: &Race) -> Result<(), Refused> {
@@ -295,7 +295,7 @@ pub fn set_up_mode_0_cars(race: &Race) -> Result<(), Refused> {
 }
 
 /// `race::set_up_mode_1_cars` (0x43645B): `reset_car_blocks`, `drop_absent_player`,
-/// `set_player_car_kinds`; the two players' +0x88 from `dword_75B004` / `dword_75B008`.
+/// `set_player_car_kinds`; the two players' +0x88 from `RaceState.results.service_spent_current` / `RaceState.results.service_spent_first`.
 pub fn set_up_mode_1_cars(race: &Race) -> Result<(), BadInput> {
     let shared = &race.shared;
     {
@@ -668,7 +668,7 @@ fn opponent_kinds(shared: &RaceShared, first: u32) -> Result<Vec<u32>, BadInput>
 /// `race::choose_arcade_opponents` (0x449B79): with `run_kind` 2, the first car's kind's place
 /// (`index_of_kind`), logged ("seed", "p1", "power"); from the noise seed (`noise_seed`; then
 /// `math::next_random`) kinds drawn (x 0x22 >> 32) until one is usable, within 5 places of the
-/// first's and not taken: the second, third and fourth cars' (`dword_62385C`, `60`, `64`), each
+/// first's and not taken: the second, third and fourth cars' (`RaceVars.race_car_kinds[1]`, `60`, `64`), each
 /// logged with its place. Refuses, before anything, a first kind with fewer than three such kinds
 /// (the original draws for ever).
 pub fn choose_arcade_opponents(shared: &RaceShared) -> Result<(), Refused> {

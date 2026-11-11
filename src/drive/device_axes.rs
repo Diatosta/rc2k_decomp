@@ -1,4 +1,4 @@
-//! `drive::device_axes` (0x409430): an input device's four readings, with `dword_4F6900` set the
+//! `drive::device_axes` (0x409430): an input device's four readings, with `Devices.nonlinear_steering` set the
 //! first squared / 256 with its sign kept.
 //!
 //! Takes: the device

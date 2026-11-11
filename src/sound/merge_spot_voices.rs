@@ -3,8 +3,8 @@
 //! that is nearest the listener; all the others silenced.
 //!
 //! Takes: the sound
-//! The pickers' work (`dword_517F40` .. `dword_517F50`) cleared (distances to -1). For
-//! each voice heard with the sound: a playing one noted in `dword_517F40`; its distance
+//! The pickers' work (`SpotPicks.pick_playing` .. `SpotPicks.pick_next`) cleared (distances to -1). For
+//! each voice heard with the sound: a playing one noted in `SpotPicks.pick_playing`; its distance
 //! x 1000 as a whole number (`fistp` through `g_soundScratch`) compared (unsigned) with
 //! the nearest's and the next's, which move down; the voice silenced (+4 and +0x28 0).
 //! The nearest, if any, gets +0x24 and +4 1; with a next as well, `math::nearest_on_segment`

@@ -109,17 +109,6 @@ fn with_file<R>(
     f(&mut file)
 }
 
-/// `read_slice` of `N` bytes into a typed buffer: (the bytes read, whether the read
-/// succeeded).
-pub fn read_into<const N: usize>(file: u32, into: &crate::session::Bytes<N>) -> (u32, bool) {
-    let mut bytes = vec![0u8; N];
-    let (got, ok) = read_slice(file, &mut bytes);
-    for (k, &b) in bytes[..got as usize].iter().enumerate() {
-        into.set(k, b);
-    }
-    (got, ok)
-}
-
 /// (the bytes read, whether the read succeeded): one `ReadFile` into a Rust buffer. A
 /// short read is not a failure.
 pub fn read_slice(file: u32, into: &mut [u8]) -> (u32, bool) {

@@ -1,18 +1,18 @@
 //! `math::normalise_vector` (0x45C3FE): the work vector made one long.
 //!
 //! The vector is the three floats at `xmmword_5C5F60`; the original leaves its length in
-//! `flt_6D18C8` (not kept here: nothing reached reads it). Two ways, by the switch `dword_621A58` (a key's toggle and the
+//! `SoundSpotBlock.work_vector_length` (not kept here: nothing reached reads it). Two ways, by the switch `DrawSwitches.use_sse` (a key's toggle and the
 //! processor's SSE together, set at 0x43B471; 0 as the game starts, so the x87 way is
 //! the one in use):
 //! - x87: the squares' sum as a float; its square root from two tables (the float's
-//!   bits 15 .. 22 pick one of 0x100 at `flt_5C70F8`, its exponent one at
-//!   `flt_5C74F8`), the two multiplied; each of the three times 1 over that;
-//!   1 over the length (the original also left it in `dword_62400C`, which its one caller,
+//!   bits 15 .. 22 pick one of 0x100 at `CourseLists.root_table[0]`, its exponent one at
+//!   `CourseLists.exponent_root_table[0]`), the two multiplied; each of the three times 1 over that;
+//!   1 over the length (the original also left it in `SceneDraw.scratch`, which its one caller,
 //!   the drawing, never read: not kept); a component that comes out as minus zero is
-//!   made zero. A length that compares equal to `flt_5C5D90` (0.0), or is no number,
+//!   made zero. A length that compares equal to `Numbers.zero` (0.0), or is no number,
 //!   ends the original at once with the length left on the x87's stack: refused.
 //! - SSE: the four floats squared to `xmmword_5C5F70`, the first three added,
-//!   `rsqrtss`, `rcpss` of that to `flt_6D18C8`, and all four (the fourth too) times
+//!   `rsqrtss`, `rcpss` of that to `SoundSpotBlock.work_vector_length`, and all four (the fourth too) times
 //!   the `rsqrtss`. Both instructions are approximations that differ between
 //!   processors: one processor's results, as tables (`arch::rsqrtss`), on every machine.
 //!
@@ -31,7 +31,7 @@ use crate::session::Dword;
 // The squares (`xmmword_5C5F70`) and the length (`g_workVectorLength`, 0x6D18C8) are no
 // longer stored (2026-10-24, phase 5): no function the game reaches reads them (IDA: the
 // length's one reader, 0x4517F3, is unreached).
-/// `flt_5C5D90`: 0.0.
+/// `Numbers.zero`: 0.0.
 const NOTHING: u32 = 0;
 
 // ---- Rust version ----

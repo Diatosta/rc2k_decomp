@@ -56,9 +56,9 @@ pub fn rally_speech(mode: u32, section: impl FnOnce() -> u32) -> Result<Option<u
 /// The welcome pictures' two tables.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Welcome {
-    /// `off_75987E`, the championship's.
+    /// `MenuLists.welcome_championship[0]`, the championship's.
     Championship,
-    /// `off_759896`, the others' (the A8 championship's).
+    /// `MenuLists.welcome_other[0]`, the others' (the A8 championship's).
     Other,
 }
 
@@ -77,7 +77,7 @@ pub fn time_trial_details(event_type: u32) -> bool {
     event_type == TIME_TRIAL
 }
 
-/// `menu::new_simulation_if_unlocked`: a new simulation starts with `dword_75ACCC` 1.
+/// `menu::new_simulation_if_unlocked`: a new simulation starts with `RaceState.settings.a8_game` 1.
 pub fn simulation_unlocked(flag: u32) -> bool {
     flag == 1
 }

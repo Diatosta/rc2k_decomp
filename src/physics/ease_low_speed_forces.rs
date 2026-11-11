@@ -1,7 +1,7 @@
 //! `physics::ease_low_speed_forces` (0x440CF3): `low_speed_share` 1.0; when |`g_carSpeed`| is
 //! below `low_speed_limit` (20; an unordered compare counts as below), `low_speed_share` =
 //! (|speed| / `low_speed_limit` + `low_speed_add`) x `low_speed_scale` and the two forces
-//! `drive_forces`, `flt_61424C` times it.
+//! `drive_forces`, `PhysicsTables.drive_forces[1]` times it.
 //!
 //! Caller: `physics::drive_wheels_step` (0x43E523).
 

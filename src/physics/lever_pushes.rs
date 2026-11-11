@@ -1,10 +1,10 @@
-//! `physics::lever_pushes` (0x43DDDF): `lever_pushes` and `dword_6140E8` 0; then, only
+//! `physics::lever_pushes` (0x43DDDF): `lever_pushes` and `PhysicsTables.lever_pushes[1]` 0; then, only
 //! with `levers_on` 1 and `all_wheels_off` 0: the lever `lever_push_vector`, `B48` 0 and
 //! `lever_share_start` 0; a share A / (B + A) of A = |+0x210| + |+0x21C| and B = |+0x214| +
-//! |+0x218| (`g_car`, `grip_forces` .. `dword_71A1F4`; a reading: the wheels' loads)
+//! |+0x218| (`g_car`, `grip_forces` .. `Car.grip_forces[3]`; a reading: the wheels' loads)
 //! into `lever_share_start`, held to `zero` (0) ..= `one` (1). If B + A is 0 (or no
-//! number) the share is A itself and it ends there. Else `flt_614B4C` = `flt_71ACD4` and
-//! `lever_share_left` the share, `physics::lever_push`; `flt_614B4C` = `probe_point_z` and
+//! number) the share is A itself and it ends there. Else `PhysicsTables.lever_push_vector[2]` = `Car.probe_point_z[3]` and
+//! `lever_share_left` the share, `physics::lever_push`; `PhysicsTables.lever_push_vector[2]` = `probe_point_z` and
 //! `lever_share_left` 1 less it, `physics::lever_push`. It ends through the `retn` at 0x43DFB0.
 //!
 //! Callers: `physics::car_physics_step` (0x43B831, 0x43B8AA), every physics step.

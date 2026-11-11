@@ -39,7 +39,7 @@ pub fn ring_frame(
         }
         crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[211].get());
         crate::scene::depth_test_off::depth_test_off();
-        // dword_939BA6: the ninth of `lives_by_level`.
+        // SurfaceTables.lives_by_level[8]: the ninth of `lives_by_level`.
         // The settings' +0x7C: the first car record's +0x1C.
         masks.surface.lives_by_level[8].set(marks.cars[0].tag.get() & 0xFF_FFFF);
         particles.kind1_choice.choice.set(weather.rain.drops.get());

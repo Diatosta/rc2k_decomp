@@ -36,7 +36,7 @@ pub fn square_ends(shape: u8, runs: impl FnOnce() -> i32, mask: impl Fn(usize) -
     first || second
 }
 
-/// A windscreen drop's draw of the squares' random (`dword_82E2B6`, times 0xC5 plus 0x5D): the
+/// A windscreen drop's draw of the squares' random (`WindscreenDropVars.random`, times 0xC5 plus 0x5D): the
 /// random after, and the draw (bits 16 .. 26); a draw of 0 ends it.
 pub fn windscreen_drop_draw(random: u32) -> (u32, u32) {
     let r = random.wrapping_mul(0xC5).wrapping_add(0x5D);
@@ -44,7 +44,7 @@ pub fn windscreen_drop_draw(random: u32) -> (u32, u32) {
 }
 
 /// Whether a windscreen drop ends by the shapes of the last `steps` steps (signed; the latest
-/// first): `value(k)` the shapes' value of step k (`dword_844A10` at the latest step plus
+/// first): `value(k)` the shapes' value of step k (`MaskPicks.values[0]` at the latest step plus
 /// k, on a clock of 256), its low byte in either mask's cell (`mask(n)`) ends it. With the
 /// last value read, none with no steps.
 pub fn windscreen_drop_hit(

@@ -5,7 +5,7 @@
 //! `step_*`, the four `begin_*_edit`, `choose_repair` 0x46C138, `choose_repair_marked`
 //! 0x46C111 and the four change pages' confirmation in `service::pages`).
 //!
-//! Menu items 0 .. 19 each have a flag (`dword_759B6E`, 1 chosen) and a mark
+//! Menu items 0 .. 19 each have a flag (`MenuLists.inspection_flags_a[0]`, 1 chosen) and a mark
 //!; both tables end with -1 at entry 20. An item's repair time is read
 //! through a table of pointers (items 0, 1, 0x10 and 0x11 have none). The time budget less
 //! the chosen items' time decides what fits: at least 900 is free service time.

@@ -1,7 +1,7 @@
 //! `sound::mark_car_voices` (0x40D75A): each car's sound object told whether the car
 //! sounds and whose voice it has.
 //!
-//! Only while `dword_514F8C` is 1: for each of the `dword_514F7C` objects in use
+//! Only while `RaceSounds.mark_car_voices` is 1: for each of the `RaceSounds.count` objects in use
 //! (`g_raceSoundObjects[n]`), +8 = 0; when its car (`g_carBlocks[n]`) has +0x25C not 0,
 //! +8 = 1 and +0 = 0, and unless +0x25C is 1, +0 = !n (a negative number: a car of the
 //! computer's, by the callers' reading). One caller, `sound::race_turn`.

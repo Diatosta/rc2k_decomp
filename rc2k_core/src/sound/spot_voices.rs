@@ -223,7 +223,7 @@ pub fn distance_1000(distance: f32) -> u32 {
     }
 }
 
-/// The pickers' work (`dword_517F40` ..): voices by index, distances x 1000 (unsigned).
+/// The pickers' work (`SpotPicks.pick_playing` ..): voices by index, distances x 1000 (unsigned).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Picks {
     /// The last heard voice found playing (merge only).
@@ -336,7 +336,7 @@ pub fn thin_choose(voices: &mut [Voice; VOICES], picks: &Picks, random: u32) {
     }
 }
 
-/// A kind's repeats (`unk_517FAC`, 8 bytes from kind 1; words).
+/// A kind's repeats (`SpotPicks.kind_repeats[0]._word_0`, 8 bytes from kind 1; words).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Repeats {
     /// The most starts (0: no limit).

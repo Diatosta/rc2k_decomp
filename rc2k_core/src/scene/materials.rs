@@ -6,7 +6,7 @@
 /// The way of a kind with two shapes.
 pub const MOVING: u32 = 4;
 
-/// The phases' lengths (`dword_62DB30` ..): four bases, four random parts, and a 0.
+/// The phases' lengths (`LightWork.phase_lengths[0]` ..): four bases, four random parts, and a 0.
 pub const LENGTHS: [u32; 9] = [200, 400, 200, 400, 400, 400, 400, 400, 0];
 
 /// The most time a call adds.

@@ -18,7 +18,7 @@ use crate::race::viewer::{MOST_BLOCKS, OWN_FROM};
 pub const HEADER_LEN: u32 = 0x430;
 /// The index at the file's end ("RCIB", the count, the blocks' places).
 pub const INDEX_LEN: u32 = 0x3850;
-/// The cars' header kept from the first block (`unk_528534` into `header_stage`).
+/// The cars' header kept from the first block (`Replays.header` into `header_stage`).
 pub const CAR_HEADER_LEN: usize = 0x400;
 
 /// The last race's replay asked for when none was recorded (`replay_closed` not 1, asked

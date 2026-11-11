@@ -4,7 +4,7 @@
 //! at 0x71A5D8) are both 0, `rear_wheels_off` the same for the last two (0x71A5E0),
 //! `all_wheels_off` 1 when all four are; `driven_wheels_off` the driven ones' (the first pair's,
 //! or all four's with `g_carDriveKind` not 0), and `stuck_count` 0 when they are not off;
-//! `feel_word` the word at +0x26 of the face under probe point 4 (`dword_71ADD8`). A
+//! `feel_word` the word at +0x26 of the face under probe point 4 (`Car.probe_point_face[4]`). A
 //! reading: the wheels in the air, the ground's kind.
 //!
 //! It begins with a call: `.private_copy` (its three calls relocated) with

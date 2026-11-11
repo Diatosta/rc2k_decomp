@@ -12,7 +12,7 @@ pub fn sound_players(single: u32) -> u32 {
 }
 
 /// The objects in use: the players', or 4 in mode 2 (the arcade's), which also sets
-/// `dword_514F8C`. Gives the count and whether that is set.
+/// `RaceSounds.mark_car_voices`. Gives the count and whether that is set.
 pub fn sound_objects(players: u32, mode: u32) -> (u32, bool) {
     if mode == 2 {
         (4, true)

@@ -1,21 +1,21 @@
 //! `hud::draw_stage_bar` (0x4B5A86): the stage's progress bar along the top: the quad record's
 //! alpha 0xE0; a frame of five solid quads (0x212463, the last black); then for each of the
-//! record's +0x74 parts: its colour (`dword_75BF70` at the byte offset `overlay_part_kinds_a`[n]) into
-//! `dword_75BFA0`, its end (`dword_75BFFC`, the sum of `g_overlayPartMiles` .., the last the
-//! record's +0x68) and start (`dword_75BFF8`) as places across 0x229 (`fistp` into `dword_75BFF0` /
-//! `dword_75BFF4`); a black border of four quads, the part's colour inside under alpha 0x78, and
+//! record's +0x74 parts: its colour (`HudBlock.stage_colours[0]` at the byte offset `overlay_part_kinds_a`[n]) into
+//! `HudBlock.bar_colour`, its end (`HudBlock.ends[1]`, the sum of `g_overlayPartMiles` .., the last the
+//! record's +0x68) and start (`HudBlock.ends[0]`) as places across 0x229 (`fistp` into `HudBlock.point[0]` /
+//! `HudBlock.point[1]`); a black border of four quads, the part's colour inside under alpha 0x78, and
 //! between parts a 0x212463 line.
 //!
 //! Takes: the HUD's record
 //!
 //! Caller: layout 0's drawer (`hud::layout_0`, 0x4B1DC7). Refuses more than 0x40 parts and a colour
 //! offset past
-//! `dword_75BF70`'s four, before anything.
+//! `HudBlock.stage_colours[0]`'s four, before anything.
 
 use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};
 use crate::race::owner_frame::Frame;
-use crate::session::Dword;
+use crate::session::{Dword, PlainDword};
 
 pub fn set(hud: &Hud, n: usize, v: u32) {
     hud.block.quad.word(n).set(v);
@@ -46,7 +46,7 @@ pub fn bars(
     hud: &Hud,
     pen: Pen,
     kinds: &[&[Dword]],
-    colour_vars: &[&Dword],
+    colour_vars: &[&PlainDword],
     dy: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::hud::stage_bars as sb;

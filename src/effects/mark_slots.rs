@@ -21,7 +21,7 @@ pub struct MarkSlot {
     pub matrix: PlainDword,
     /// +0xC: 0.
     pub spare: PlainDword,
-    /// +0x10: a float of the slot's own random (`flt_93540E` plus the random's low word).
+    /// +0x10: a float of the slot's own random (`SlotTuning.base` plus the random's low word).
     pub size: PlainFloat,
 }
 

@@ -159,7 +159,7 @@ pub fn mode_after_switch(before: u32) -> u32 {
 /// A switch's end: the views' hold (`value_jump_steps`).
 pub const SWITCH_HOLD: u32 = 8;
 
-/// Whether the car's light record keeps its +0x20 figure for `flt_606574`: a car below
+/// Whether the car's light record keeps its +0x20 figure for `ViewAndRecords.records[1].focus[2]`: a car below
 /// 0x22 marked in `kind_has_views` (`marked`, asked only then); else +0x28.
 pub fn keeps_light_figure(car: u32, marked: impl FnOnce() -> u32) -> bool {
     car < 0x22 && marked() != 0

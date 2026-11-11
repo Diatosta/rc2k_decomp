@@ -1,4 +1,4 @@
-//! The `framecounter` setting, 0x5EB100 (`dword_5EB100`): shows the frame rate when not 0
+//! The `framecounter` setting, 0x5EB100 (`FrameCounter.show`): shows the frame rate when not 0
 //! (`race::draw_frame_rate`; `settings::read_settings` names it by address, by design).
 //! Names are readings unless IDA's.
 

@@ -158,8 +158,8 @@ pub const SECTION: &PlainDword = &crate::menu::owner::MENUS.unchecked().screens.
 pub const CHEATS: &PlainDword = &crate::menu::owner::MENUS.unchecked().play.cheats.cheats; // g_cheats
 pub const ROUND: &PlainDword = &crate::menu::owner::MENUS.unchecked().play.results.round; // the rounds of a multi-player event
 
-/// The car lists: `off_759CAE` (the championship's), `off_759D16` (the A8 championship's),
-/// `off_759DCA` / `off_75A042` (by `dword_7554D8`), `off_75A412` (with cheat bit 1).
+/// The car lists: `MenuLists.cars_championship[0]` (the championship's), `MenuLists.a8_championship_cars[0]` (the A8 championship's),
+/// `MenuLists.cars_first[0]` / `MenuLists.cars_second[0]` (by `ScreenFlow.car_list_kind`), `MenuLists.cheat_cars[0]` (with cheat bit 1).
 pub const CAR_LIST_KIND: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
     .screens
@@ -184,7 +184,7 @@ pub fn current_player(menus: &Menus) -> Result<crate::menu::standings::PlayerCel
     Ok(player(menus, n))
 }
 
-/// The stage chosen: `off_735512[dword_7558C8][dword_7558D0]` + `dword_7558CC` x 0xA4.
+/// The stage chosen: `off_735512[Event.stage_group][Event.stage_sub]` + `Event.stage_number` x 0xA4.
 pub const STAGE_KIND: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
     .screens
@@ -201,7 +201,7 @@ pub const STAGE_NUMBER: &PlainDword = &crate::menu::owner::MENUS
     .event
     .stage_number;
 const KINDS: u32 = 4;
-/// The stages' best times: `g_stageBestTimesAlt` (kind 1) or `dword_7556E8`, ten for each
+/// The stages' best times: `g_stageBestTimesAlt` (kind 1) or `ChampView.time_trial_best_times`, ten for each
 /// stage (the record's +0x3C).
 pub type StageTable = crate::memory::owned::Owned<rc2k_core::saves::entries::StageTimes>;
 pub const TIMES_ONE: &StageTable = &crate::saves::best_times::STAGE_TIMES_ALT;

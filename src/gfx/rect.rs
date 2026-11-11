@@ -6,12 +6,11 @@
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;
 use crate::gfx::surface::{clip, surface};
-use crate::session::Dword;
 
 // Converted: `rc2k_core::gfx::raster`; here the clip and surface are read from the game, and
 // the work variables and pixels the plan holds written back.
 
-fn set(a: &Dword, v: i32) {
+fn set(a: &crate::session::PlainDword, v: i32) {
     a.set(v as u32);
 }
 

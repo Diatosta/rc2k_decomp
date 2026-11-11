@@ -33,7 +33,7 @@ pub struct Moved {
 }
 
 /// `input::axis_moved` (0x40939F): with a first argument of 0, after a sleep of 250 ms (`system::sleep`) the
-/// axes' rest values taken (`dword_4F6A28` -> `unk_4F8270`), carry. Else the first of the
+/// axes' rest values taken (`Devices.device_state[0]` -> `Keyboard.axes_rest[0]`), carry. Else the first of the
 /// device's axes (its record's +0x14 bits) moved more than 0x80 from rest: `eax` its number,
 /// +0x10 when the way was up; carry when none (`eax` the last difference).
 pub fn axis_moved(eax: u32, input: &crate::input::owner::Input) -> Result<Moved, BadInput> {

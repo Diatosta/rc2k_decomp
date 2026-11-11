@@ -567,7 +567,7 @@ static HEAD_IN: [Step<StepOperand>; 21] = [
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.mip_setting),
-        var!(GFX.display.choices.mipmapping),
+        var!(@gfx display.choices.mipmapping),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.settings_words[0]),

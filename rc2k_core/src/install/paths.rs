@@ -6,7 +6,7 @@ use crate::Invalid;
 use crate::strings::bytes::Bytes;
 use crate::strings::case::CaseTable;
 
-/// The characters no folder name may hold (RAL.EXE's `unk_51DE18`, NUL-ended there). The
+/// The characters no folder name may hold (RAL.EXE's `InstallerPages.bad_folder_chars`, NUL-ended there). The
 /// `\` in it is never compared: a `\` is looked at as a separator first.
 pub const NOT_IN_NAMES: &[u8] = b"\"+*,;=/:<>?\\{}[]|\x7f";
 

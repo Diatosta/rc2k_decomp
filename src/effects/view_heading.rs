@@ -1,7 +1,7 @@
 //! `effects::view_heading` (0x4C4CEC): the view's heading: the angle between its forward
-//! direction's level part (`flt_5EA3CC` +8, 0, +0x28, into `flt_91FF7E`) and
-//! `flt_91FF8A` (`scene::angle_between_vectors`, both normalised in place), into
-//! `flt_8F3975`; 2 pi less it when the level part's x (normalised) is not negative.
+//! direction's level part (`SceneMatrices.view_place[0]` +8, 0, +0x28, into `DrawFrame.level[0]`) and
+//! `DrawFrame.other[0]` (`scene::angle_between_vectors`, both normalised in place), into
+//! `ViewVars.heading`; 2 pi less it when the level part's x (normalised) is not negative.
 //!
 //! One caller, `effects::draw_frame`.
 //!

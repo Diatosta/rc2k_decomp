@@ -1,7 +1,7 @@
 //! `effects::emit_slip_spray_long` (0x4CC35A, a chunk of `effects::emit_wheel_particles` entered
 //! by `jz` from it and from 0x4CA215, left by `popa; retn`): one ring entry of kind 0xB;
-//! `effects::emit_slip_spray`'s code on its own variables (`dword_93A262`, `flt_93A266` ..
-//! `flt_93A286`), a life of 2000, and made only when the wheel's |+0x18| rounded to an
+//! `effects::emit_slip_spray`'s code on its own variables (`SlipSprayLongSet.place_random`, `SlipSprayLongSet.motion_x` ..
+//! `SlipSprayLongSet.spin`), a life of 2000, and made only when the wheel's |+0x18| rounded to an
 //! integer (`fist`, the x87's rounding) is over 1 (kind 5: when it is not 0).
 //!
 //! Takes: the wheel record, the car object

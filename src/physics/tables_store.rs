@@ -9,7 +9,7 @@
 use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
-/// A kind of ground (0x30 bytes, `off_613978`): what `physics::wheel_surfaces` blends
+/// A kind of ground (0x30 bytes, `PhysicsTables.surfaces[0].table`): what `physics::wheel_surfaces` blends
 /// between for each point, and `physics::apply_patches` patches (readings).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -540,7 +540,7 @@ impl PhysicsTables {
 }
 
 impl PhysicsTables {
-    /// IDA's address of the first ground record (`off_613978`).
+    /// IDA's address of the first ground record (`PhysicsTables.surfaces[0].table`).
     #[cfg(test)]
     const SURFACES: usize = 0x613978;
     /// IDA's address of the first surface table (`g_surfaceTables`) and its length.

@@ -3722,43 +3722,63 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Overlay",
         rows: &[
-            Row::new(
+            Row::typed(
                 "View mode",
                 "olvimode",
                 Shown::Whole,
                 0x6D14F2,
+                indexed_cell!(
+                    crate::race::owner::race().frame.panel_and_overlay.panel,
+                    players
+                ),
                 false,
                 (0, 0),
             ),
-            Row::new(
+            Row::typed(
                 "Player 1's place",
                 "olayp1ps",
                 Shown::Whole,
                 0x6D141A,
+                indexed_cell!(
+                    crate::race::owner::race().frame.panel_and_overlay.panel,
+                    view_a.place
+                ),
                 false,
                 (0, 0),
             ),
-            Row::new(
+            Row::typed(
                 "Player 2's place",
                 "olayp2ps",
                 Shown::Whole,
                 0x6D144A,
+                indexed_cell!(
+                    crate::race::owner::race().frame.panel_and_overlay.panel,
+                    view_b.place
+                ),
                 false,
                 (0, 0),
             ),
-            Row::new(
+            Row::typed(
                 "Distance's fraction",
                 "olayfcd1",
                 Shown::Float,
                 0x6D146A,
+                indexed_cell!(
+                    crate::race::owner::race().frame.panel_and_overlay.panel,
+                    distance[0]
+                ),
                 false,
                 (0, 0),
             ),
-            Row::new(
+            Row::typed(
                 "Distance",
                 "olayfdis",
                 Shown::Float,
                 0x6D1466,
+                indexed_cell!(
+                    crate::race::owner::race().frame.panel_and_overlay.panel,
+                    overlay_miles
+                ),
                 false,
                 (0, 0),
             ),

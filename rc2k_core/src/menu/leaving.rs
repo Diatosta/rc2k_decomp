@@ -30,8 +30,8 @@ pub enum Switch {
     Quitting,
 }
 
-/// The screen loops' leaving switches: four flags in a row from `dword_75555D`, and
-/// `dword_755A0C`. What each means is a reading.
+/// The screen loops' leaving switches: four flags in a row from `LoopFlags.event_left`, and
+/// `DrawWork.scratch_0c`. What each means is a reading.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Leaving {
     /// The event left too (0 when only the screen is).
@@ -42,7 +42,7 @@ pub struct Leaving {
     pub left_with_carry: bool,
     /// The screen loop asks whether to leave.
     pub ask_leave: bool,
-    /// `dword_755A0C` (`DrawWork::scratch_0c`, a scratch variable the screens share): -1 on going
+    /// `DrawWork.scratch_0c` (`DrawWork::scratch_0c`, a scratch variable the screens share): -1 on going
     /// back; the screens after it use it for their own values.
     pub scratch_0c: u32,
 }
@@ -68,7 +68,7 @@ impl Leaving {
 }
 
 /// A yes/no question's state: 1 on a screen that asks, the answer
-/// (`g_yesNoAnswer`, 1 yes, 0 no) and whether it was answered (`dword_758806`, which the
+/// (`g_yesNoAnswer`, 1 yes, 0 no) and whether it was answered (`CaptionTables.left_by_key`, which the
 /// screen loops also read as "left").
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Question {

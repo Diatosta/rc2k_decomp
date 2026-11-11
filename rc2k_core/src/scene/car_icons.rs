@@ -5,7 +5,7 @@
 
 use crate::Invalid;
 
-/// The icons' tables' room (`dword_5DCD9C`, `dword_5DCE2C`: 0x90 bytes each).
+/// The icons' tables' room (`TexturePlaces.car_icon_sheet_x[0]`, `TexturePlaces.car_icon_sheet_y[0]`: 0x90 bytes each).
 pub const NUMBERS: u32 = 0x24;
 /// CarIcon numbers below this take the first pair of pictures (`tx1822`, `tx1823`), the
 /// rest the second (`tx1824`, `tx1825`).

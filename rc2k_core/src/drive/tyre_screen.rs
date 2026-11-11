@@ -6,9 +6,9 @@
 /// A rectangle (x, y, w, h).
 pub type Rect = [u32; 4];
 
-/// The layout tables (0x20 bytes each from `unk_5BEB30`): one table (mode 0), two for the
+/// The layout tables (0x20 bytes each from `TyreChange.layouts[0]`): one table (mode 0), two for the
 /// wheel further left (mode 2), two more (other modes); by car 0 or not. (The table's
-/// number from `unk_5BEB30`, the wheel's shift left.)
+/// number from `TyreChange.layouts[0]`, the wheel's shift left.)
 pub fn layout(mode: u32, car: u32) -> (u32, u32) {
     match mode {
         0 => (0, 0),
@@ -30,7 +30,7 @@ pub fn wheel_place(panel: Rect, wheel: [u32; 2], shift: u32) -> [u32; 2] {
 }
 
 /// The ten fixed quads (texture, screen) from the second rectangle of the layout
-/// (`dword_5BEBD0` ..), the wheel's rectangle (`dword_5BEAE0` ..) and whether the car is
+/// (`TyreChange.parts[0]` ..), the wheel's rectangle (`TyreChange.wheel[0]` ..) and whether the car is
 /// not the first (its half of the texture).
 pub fn fixed_parts(table: Rect, wheel: Rect, second_car: bool) -> [(Rect, Rect); 10] {
     let mut out = [([0; 4], [0; 4]); 10];

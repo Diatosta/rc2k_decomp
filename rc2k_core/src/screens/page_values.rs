@@ -5,7 +5,7 @@
 use crate::audio::modes::AudioOptions;
 use crate::menu::player::Player;
 
-/// The advanced audio page's six work values (`dword_75566C` .. `dword_755680`: quality,
+/// The advanced audio page's six work values (`OptionWork.audio_quality` .. `OptionWork.channels`: quality,
 /// DS3D, EAX, A3D, Dolby, channels) from the options as last applied.
 pub fn audio_page(options: &AudioOptions) -> [u32; 6] {
     let a = options.applied; // quality, channels, DS3D, EAX, A3D, Dolby

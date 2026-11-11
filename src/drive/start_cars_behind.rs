@@ -1,16 +1,16 @@
 //! `drive::start_cars_behind` (0x43703E): with `run_kind` 2 (by `drive::race_mode_cars`), two
 //! computer cars kept near the lead car (car block 0), put back on the line behind or
-//! ahead of it as it passes them (`dword_70FA44` counts the moves; `dword_70FA48` and
-//! `dword_70FA4C` are their cars, `dword_70FA50` / `54` their start numbers):
-//! - once (`dword_70FA58`): the two set at starts `start_place` - 2 and - 1 (cars from
+//! ahead of it as it passes them (`CarsAndReplay.car_blocks.cars[0].mode2_behind` counts the moves; `CarsAndReplay.car_blocks.cars[0].pace_cars[0]` and
+//! `CarsAndReplay.car_blocks.cars[0].pace_cars[1]` are their cars, `CarsAndReplay.car_blocks.cars[0].pace_starts[0]` / `54` their start numbers):
+//! - once (`CarsAndReplay.car_blocks.cars[0].pace_placed`): the two set at starts `start_place` - 2 and - 1 (cars from
 //!   `arcade_car_kinds`), 80 and 40 checkpoints on (`drive::start_car_on_line`);
-//! - the gaps by `dword_70FA40` (held to 0 .. `arcade_cars` - 1 by the signs) and the
+//! - the gaps by `CarsAndReplay.car_blocks.cars[0].mode2_place` (held to 0 .. `arcade_cars` - 1 by the signs) and the
 //!   start's `arcade_car_numbers` (low four bits): 0x2C / 0x28 + it (`pace_pass_gap`, `D8`,
 //!   `DC` their sum);
 //! - a car the lead has gone `pace_pass_gap` past moved behind it (- `pace_back_gap`), one
 //!   too far ahead of it moved ahead (+), when `drive::checkpoint_taken` allows; each
 //!   moved car's start values cleared (`drive::clear_start_state`);
-//! - unless `dword_70F494` is set: the cars ahead and behind counted into `dword_70FA40`,
+//! - unless `CarsAndReplay.car_blocks.cars[0].finish_flag` is set: the cars ahead and behind counted into `CarsAndReplay.car_blocks.cars[0].mode2_place`,
 //!   their least gaps (`drive::note_gap_ahead` / `behind`, from -1), the wanted gaps
 //!   (0x70FA14, 0x70FA18; held to `pace_back_gap` .. `pace_gap_sum`), eased into 0x70FA1C,
 //!   0x70FA20 (times 0x14A; jumps past 1000, else 1/64 of the way);

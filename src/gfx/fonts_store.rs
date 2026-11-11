@@ -10,7 +10,7 @@
 //! `moved::MOVED` points the image's addresses at them (`home`).
 
 use crate::gfx::typefaces::FontObject;
-use crate::session::{Bytes, Dword};
+use crate::session::{PlainBytes, PlainDword};
 use rc2k_core::text::Font;
 
 /// The fonts, their palettes and glyph tables (IDA 0x51DE30 .. 0x51E384, the image's layout).
@@ -20,21 +20,21 @@ pub struct FontBlock {
     /// 0x51DE30: `stru_51DE50` ..: the four fonts the menus and the race's text use (the third is the race's, `race::frame_text`).
     pub menu_fonts: [FontObject; 4],
     /// 0x51DEB0: `g_fontPalettes`: the font palettes (a pointer; `gfx::build_fonts`).
-    pub palettes: Dword,
+    pub palettes: PlainDword,
     /// 0x51DEB4: `g_font27Glyphs`: the 27-pixel font's glyph table.
-    pub font27_glyphs: Dword,
+    pub font27_glyphs: PlainDword,
     /// 0x51DEB8: `g_font23Glyphs`: the 23-pixel font's.
-    pub font23_glyphs: Dword,
+    pub font23_glyphs: PlainDword,
     /// 0x51DEBC: `g_font21Glyphs`: the 21-pixel font's.
-    pub font21_glyphs: Dword,
+    pub font21_glyphs: PlainDword,
     /// 0x51DEC0: `g_font13Glyphs`: the 13-pixel font's.
-    pub font13_glyphs: Dword,
+    pub font13_glyphs: PlainDword,
     /// 0x51DEC4: `g_fontPaletteComponents`: the palette sheet's 256 dwords.
-    pub palette_sheet: [Dword; 256],
+    pub palette_sheet: [PlainDword; 256],
     /// 0x51E2C4: `unk_51E2C4` ..: the game's six fonts (`gfx::build_game_fonts`): the tyre change's and the name plates' texts.
     pub game_fonts: [FontObject; 6],
     /// Not in the image: the bytes that fill the record to its 16-byte alignment.
-    pub _tail: Bytes<12>,
+    pub _tail: PlainBytes<12>,
 }
 
 impl FontBlock {
@@ -95,12 +95,12 @@ impl FontBlock {
                     box_width: 0x0,
                 }),
             ],
-            palettes: Dword::new(0x0),
-            font27_glyphs: Dword::new(0x0),
-            font23_glyphs: Dword::new(0x0),
-            font21_glyphs: Dword::new(0x0),
-            font13_glyphs: Dword::new(0x0),
-            palette_sheet: [const { Dword::new(0x0) }; 256],
+            palettes: PlainDword::new(0x0),
+            font27_glyphs: PlainDword::new(0x0),
+            font23_glyphs: PlainDword::new(0x0),
+            font21_glyphs: PlainDword::new(0x0),
+            font13_glyphs: PlainDword::new(0x0),
+            palette_sheet: [const { PlainDword::new(0x0) }; 256],
             game_fonts: [
                 FontObject::from_font(Font {
                     first_char: 0x20,
@@ -181,7 +181,7 @@ impl FontBlock {
                     box_width: 0x0,
                 }),
             ],
-            _tail: Bytes::new([0; 12]),
+            _tail: PlainBytes::new([0; 12]),
         }
     }
 }

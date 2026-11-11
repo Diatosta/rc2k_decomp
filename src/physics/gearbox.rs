@@ -5,7 +5,7 @@
 //! `physics/gearing.rs`). The steps return only what the flow uses (`physics::car_physics_step`,
 //! `physics::test_drive_run`).
 //!
-//! The shift points `flt_5CB958` .. `shift_ratio_figure`, `rev_limit` and `idle_engine_speed` are set at
+//! The shift points `LightsAndGear.gear.shift_up_point` .. `shift_ratio_figure`, `rev_limit` and `idle_engine_speed` are set at
 //! run time (0 in the file); the tests set them.
 
 use crate::errors::{BadInput, Refused};

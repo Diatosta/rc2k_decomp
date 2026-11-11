@@ -22,10 +22,10 @@ pub static STAGE_TIMES: Owned<StageTimes> = Owned::new("no stage best times tabl
 pub static COURSE_TIMES: Owned<StageTimes> = Owned::new("no course best times table");
 /// The other group's stage times (table 7, `g_stageBestTimesAlt`, 36 stages).
 pub static STAGE_TIMES_ALT: Owned<StageTimes> = Owned::new("no other stage times table");
-/// The time trial's best times (table 8, `dword_7556E8`).
+/// The time trial's best times (table 8, `ChampView.time_trial_best_times`).
 pub static TIME_TRIAL_TIMES: Owned<StageTimes> = Owned::new("no time trial times table");
 
-/// The summary the race takes its rivals from (table 0, `dword_7556F4`).
+/// The summary the race takes its rivals from (table 0, `ChampView.summary`).
 pub static SUMMARY: Owned<Summary> = Owned::new("no standings summary");
 /// The ranked times (table 5, `g_rankedTimes`, standings table A).
 pub static RANKED_TIMES: Owned<RankedTimes> = Owned::new("no standings table");

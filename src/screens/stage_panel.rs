@@ -63,7 +63,7 @@ pub fn build_second_heading(record: RecordRef) -> Result<Vec<u8>, Refused> {
 /// Everything from the map markers down to the numbered line at the bottom left, for the
 /// stage `record`. `marker_palette` is whatever the caller has in ebx when the markers are
 /// drawn. `keep_entry_34` is the one store that two of the panels add: entry +0x34 into
-/// dword_75ACD0[1].
+/// RaceState.settings.rivals[1].
 ///
 /// The stage's track pack entry holds most of what is shown: +0x08 index of its duration,
 /// +0x0C length in hundredths of a mile (0 = none), +0x10 first of three description strings,
@@ -80,8 +80,8 @@ pub fn draw_stage_body(
 }
 
 /// `draw_stage_body` with the two headings (surface, weather) in `heading_font`: the rally
-/// stage page (`screens::draw_rally_stage_info`) uses `stru_51E564`, the others
-/// `stru_51E5C4`.
+/// stage page (`screens::draw_rally_stage_info`) uses `FontObjects.objects[14].first_char`, the others
+/// `FontObjects.objects[17].first_char`.
 pub fn draw_stage_body_in(
     tables: &Tables,
     record: RecordRef,

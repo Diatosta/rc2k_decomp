@@ -1,6 +1,6 @@
 //! `drive::save_replay_cars` (0x4600B8): the first 0x1A1 dwords of the four car blocks
 //! (`g_carBlockStore`), the race slots (0xF0) and `replay_extra` (0x100) copied in that order to
-//! `unk_7172EC` (`rep movsd`): the replay's starting state.
+//! `CarsAndReplay.car_blocks.cars[8].frame_head[0]` (`rep movsd`): the replay's starting state.
 //!
 //! Caller: `drive::keep_replay_frame`.
 

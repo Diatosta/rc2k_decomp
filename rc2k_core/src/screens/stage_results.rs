@@ -9,13 +9,13 @@ use crate::strings::format::{Pad, decimal, time};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E584`: names, the gap's string, the speed.
+    /// `FontObjects.objects[15].first_char`: names, the gap's string, the speed.
     Rows,
-    /// `stru_51E564`: times and the seal codes.
+    /// `FontObjects.objects[14].first_char`: times and the seal codes.
     Small,
-    /// `stru_51E5A4`: the ranks.
+    /// `FontObjects.objects[16].first_char`: the ranks.
     Rank,
-    /// `stru_51E6E4`: the fastest line's string.
+    /// `FontObjects.objects[26].first_char`: the fastest line's string.
     Fastest,
 }
 
@@ -59,7 +59,7 @@ pub struct Fastest<T> {
 }
 
 /// The page's drawing: in seal mode each row's seal code (`seal_code`, which the game keeps
-/// at 0x4E0544) one character at a time in `byte_A8BC54` from x 0x20A every 0xE; else its
+/// at 0x4E0544) one character at a time in `Buffers.text.cells` from x 0x20A every 0xE; else its
 /// time at 0x276, and for the rows after the first the gap (string 0x579, the time at
 /// 0x2EE). The sprites' palette is where the rank's text ended.
 pub fn stage_results<S: Screen<Font = Font, Work = Work>>(

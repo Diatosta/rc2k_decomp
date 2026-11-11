@@ -104,7 +104,7 @@ impl ShadowWork {
     }
 }
 
-/// The circle's radius and unit (`g_shadowCircle`, `flt_641998`: 2^23 and 2^24, never written).
+/// The circle's radius and unit (`g_shadowCircle`, `FrameWork.shadow_circle[1]`: 2^23 and 2^24, never written).
 const CIRCLE: [u32; 2] = [0x4B00_0000, 0x4B80_0000];
 
 /// Point `n` (0x20 bytes each; `work.farthest` keeps the farthest one's number), bounded by

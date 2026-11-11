@@ -1,5 +1,5 @@
-//! `effects::scale_setting` (0x4C08BB): `flt_8BC25E` = the settings' whole number +0x2750 by
-//! `flt_8BC39E` (`fild; fmul; fstp`).
+//! `effects::scale_setting` (0x4C08BB): `WindscreenFlakeState.scaled_setting` = the settings' whole number +0x2750 by
+//! `EdgeSettings.factor` (`fild; fmul; fstp`).
 //!
 //! Works on `g_marksSettings`.
 //!

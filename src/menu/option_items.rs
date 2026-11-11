@@ -28,7 +28,6 @@
 
 use crate::audio::owner::AUDIO_OWNER;
 use crate::errors::Refused;
-use crate::gfx::owner::GFX;
 use crate::gfx::owner::gfx;
 use crate::menu::owner::MENUS;
 use crate::race::settings_copy::{StepOperand, var};
@@ -272,16 +271,16 @@ pub fn switch(which: OptionSwitch) -> Result<(), Refused> {
         }
         OptionSwitch::Mipmapping => (
             var!(MENUS.get().screens.option_work.switch_0),
-            flip(var!(GFX.display.choices.mipmapping)),
+            flip(var!(@gfx display.choices.mipmapping)),
         ),
         OptionSwitch::Buffering => (
             var!(MENUS.get().screens.option_work.switch_1),
-            flip(var!(GFX.display.choices.buffering)),
+            flip(var!(@gfx display.choices.buffering)),
         ),
         OptionSwitch::ScreenModeCard => (
             var!(MENUS.get().screens.option_work.modes_switch),
             Kind::SwitchModes {
-                other: var!(GFX.display.choices.card),
+                other: var!(@gfx display.choices.card),
             },
         ),
         OptionSwitch::LensFlare => (
@@ -345,9 +344,9 @@ option_item!(
     previous_screen_mode,
     "menu::previous_screen_mode",
     Item {
-        var: var!(GFX.display.choices.resolution),
+        var: var!(@gfx display.choices.resolution),
         kind: Kind::PreviousMode {
-            other: var!(GFX.display.choices.resolutions)
+            other: var!(@gfx display.choices.resolutions)
         },
     }
 );

@@ -11,7 +11,7 @@ use crate::Invalid;
 pub enum Var {
     /// The finish is the leader's.
     On,
-    /// `dword_75ACE4`.
+    /// `RaceState.settings.kept`.
     Kept,
     /// A leader was found.
     Leader,
@@ -19,7 +19,7 @@ pub enum Var {
     EventMode,
     /// `section`.
     Section,
-    /// The race's set-up: `dword_75B100`, `dword_75B104`, `dword_75ACE8`, `dword_75B0FC`.
+    /// The race's set-up: `RaceState.results.finish_player`, `RaceState.results.finish_kind`, `RaceState.settings.car_kind_current`, `RaceState.results.stage_index`.
     SetUpCar,
     SetUpDriver,
     SetUpDriver2,
@@ -120,7 +120,7 @@ pub trait Finish {
     fn step(&mut self, s: Step) -> Result<(), Self::Error>;
 }
 
-/// The race's set-up from the racer: its race number, its car twice, `dword_75ACE4` 0, the
+/// The race's set-up from the racer: its race number, its car twice, `RaceState.settings.kept` 0, the
 /// section.
 fn set_up<F: Finish>(e: &mut F) {
     let car = e.get(Var::RacerNumber);
@@ -147,7 +147,7 @@ fn take_key<F: Finish>(e: &mut F) -> Result<(), F::Error> {
 }
 
 /// `menu::championship_finish`: the leader looked for (in event mode 0x13 in group 0);
-/// found, `dword_75ACCC` and `dword_75B108` 1 and the finish is its; else the first player
+/// found, `RaceState.settings.a8_game` and `RaceState.results.finished` 1 and the finish is its; else the first player
 /// done with the section's (none: only the key). The leader's flag is 0 again before the
 /// front end's set-up.
 pub fn championship_finish<F: Finish>(e: &mut F) -> Result<(), F::Error> {

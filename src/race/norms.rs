@@ -114,7 +114,7 @@ pub fn store_face_normal(
 
 /// `race::lay_out_course` (0x421BE3): from `g_courseMemory` + 0x100, `course_record_count` records of
 /// 0x20, the faces (`course_faces`, `course_face_count` of 0x40), the points (`g_scenePoints`,
-/// `g_scenePointCount` of 12), and what follows (`course_tail`, and its offset in `dword_5CCCC8`);
+/// `g_scenePointCount` of 12), and what follows (`course_tail`, and its offset in `CourseWork.course_tail[1]`);
 /// the first at `course_records`.
 pub fn lay_out_course(course: &Course) {
     {

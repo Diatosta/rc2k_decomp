@@ -45,7 +45,7 @@ pub fn any_won(secret: impl Fn(u32) -> u32, won: impl Fn(u32) -> u32) -> Result<
 pub const NOT_KEPT: u32 = u32::MAX;
 
 /// The HUD's bits each of the player's nine switches gives when not 0, in the original's
-/// order (`dword_75ADF8`, `75ADFC`, `75AE00`, `75AE08`, `75AE14`, `75AE04`, `75AE10`,
+/// order (`RaceState.settings.cars[0].map_area`, `75ADFC`, `75AE00`, `75AE08`, `75AE14`, `75AE04`, `75AE10`,
 /// `75AE0C`, `75AE18`).
 pub const HUD_SWITCH_BITS: [u32; 9] = [0x10, 8, 1, 4, 2, 0x100, 0x40, 0x20, 0x80];
 

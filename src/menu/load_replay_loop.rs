@@ -21,8 +21,8 @@ fn before(entry: &Entry) -> Result<(), Refused> {
     Ok(())
 }
 
-/// What the loop returns, written by hand from the end of the listing: -1 if the highlight is on item 0x16 or `dword_758806` is 1, else the replay's
-/// number, `dword_755248` * 20 + the highlighted item - 1.
+/// What the loop returns, written by hand from the end of the listing: -1 if the highlight is on item 0x16 or `CaptionTables.left_by_key` is 1, else the replay's
+/// number, `MenuPages.replay_page` * 20 + the highlighted item - 1.
 fn result(menus: &Menus) -> u32 {
     let item: u32 = menus.screens.loop_flags.item.get();
     if item == 0x16 || menus.tables.captions.left_by_key.is_set() {

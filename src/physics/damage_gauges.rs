@@ -3,9 +3,9 @@
 //! Each gauge of the car block (engine, exhaust, cooling, clutch, differential, electrics,
 //! lights, steering, suspension, turbo, brakes, the gearbox's gears, the body and part
 //! hits) is raised by its rate (`gauge_rates`, `wear_rates`) times this step's shares and
-//! hit figures, then held 0 ..= `gauge_top`. The hit's side (`dword_75B3C4`, 1 .. 4)
-//! chooses the gauges a hit wears, its size (`flt_75B3C8`) is scaled past `gauge_rates[22]`,
-//! and the direction `dword_75B3B8` (1 or -1) adds fixed steps.
+//! hit figures, then held 0 ..= `gauge_top`. The hit's side (`DamageModel.hit_side`, 1 .. 4)
+//! chooses the gauges a hit wears, its size (`DamageModel.hit_size`) is scaled past `gauge_rates[22]`,
+//! and the direction `DamageModel.gear_changed` (1 or -1) adds fixed steps.
 //!
 //! Caller: `physics::damage_step`.
 
@@ -17,7 +17,7 @@ use crate::physics::store::DamageModel;
 use crate::race::work_store::RaceWork;
 use crate::session::{Cell32, Float};
 
-/// `unk_71A2AC[gear]` (the gear -1 .. 7 as the original indexes it, `gear_wear` by gear + 1).
+/// `Car.gear_wear[1][gear]` (the gear -1 .. 7 as the original indexes it, `gear_wear` by gear + 1).
 fn gear_gauge(car: &Car, gear: u32) -> &Float {
     car.gear_wear
         .get(gear.wrapping_add(1) as usize)
@@ -26,7 +26,7 @@ fn gear_gauge(car: &Car, gear: u32) -> &Float {
         })
 }
 
-/// The gauge at `at` held 0 ..= `flt_75B34C` (the two `fcompp` holds).
+/// The gauge at `at` held 0 ..= `DamageModel.gauge_top` (the two `fcompp` holds).
 fn hold_at(damage: &DamageModel, at: &Float) {
     if c0(at.bits(), damage.gauge_low.bits()) {
         store(at, value(&damage.gauge_low));

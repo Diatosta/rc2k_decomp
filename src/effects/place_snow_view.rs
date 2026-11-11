@@ -1,7 +1,7 @@
 //! `effects::place_snow_view` (0x4C2AA5): `effects::place_rain_view` on other variables (the point
-//! (0, 0, 0x80000), the matrix at `dword_8D216C`, the place `dword_8D2160`, the height
-//! `flt_8DB53C`, out at `dword_8D2214`, the copy at `dword_8D2220`), then `dword_8D20C0`
-//! .. `dword_8D20DC` 0 and the four floats at `xmmword_8D20E0` 0x80000.
+//! (0, 0, 0x80000), the matrix at `SnowState.view_matrix[0]`, the place `SnowState.view_place[0]`, the height
+//! `SnowLight.height`, out at `SnowState.view[0]`, the copy at `SnowState.matrix_copy[0]`), then `SnowState.cleared[0]`
+//! .. `SnowState.cleared[7]` 0 and the four floats at `xmmword_8D20E0` 0x80000.
 //!
 //! See `marks/place_rain_view.rs`; no variable shared with it. One caller, `effects::run_snow`.
 //!

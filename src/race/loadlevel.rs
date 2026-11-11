@@ -108,7 +108,7 @@ impl Steps<'_> {
     }
 }
 
-/// `race::loadlevel_init` (0x44426F): "start"; `g_usePackedMaps` 1, `dword_5BE9B9` 1 but with
+/// `race::loadlevel_init` (0x44426F): "start"; `g_usePackedMaps` 1, `MapVars.packed_unless_editor` 1 but with
 /// `editor_mode`; `g_stageDirection` `direction` (flipped for stages 0x1F, 0x22, 0x51);
 /// `g_inRace` 1; the loading bar's callback `race::loading_bar_frame` (mark 0); then the steps
 /// (`CALLEES` in order, each with its word and mark: objects, course memory (2, 4), texture info
@@ -116,7 +116,7 @@ impl Steps<'_> {
 /// infos (0xF), the course (0x13), plates cleared (0x14), objects (0x1E; `bar_span`/`38`
 /// 0x1E/0x50), plates (0x50), the map (0x5A), fonts (0x5C), init mark with the log off (0x5E),
 /// refresh, skid marks (0x5F), render3d (0x60), colours (0x62), lights (0x63), mud (0x64 twice);
-/// the callback `nullsub_8`; the crash matrix, the norms; without `dword_64BB18` checkpoints, pace
+/// the callback `nullsub_8`; the crash matrix, the norms; without `Finish.no_place` checkpoints, pace
 /// notes, overlay; `marker_object` the object of kind 0x7A (else 0x79); `camera_last_frame`/`D4` 0;
 /// "finis".
 pub fn loadlevel_init(
@@ -156,7 +156,7 @@ pub fn loadlevel_init(
     // them changes nothing).
     s.log();
     s.indent(3);
-    // stru_5C6D50: the course's MemoryList.
+    // CourseLists.course_memory_list[0]: the course's MemoryList.
     level::allocate_course_memory(&race.course, &race.course.lists.course_memory_list)?;
     s.progress(2)?;
     s.progress(4)?;
@@ -195,8 +195,8 @@ pub fn loadlevel_init(
     s.indent(3);
     crate::race::objects::reload_objects(race, scene)?;
     s.progress(0x1E)?;
-    race.shared.vars.bar_span[0].set(0x1E); // dword_623634
-    race.shared.vars.bar_span[1].set(0x50); // dword_623638
+    race.shared.vars.bar_span[0].set(0x1E); // RaceVars.bar_span[0]
+    race.shared.vars.bar_span[1].set(0x50); // RaceVars.bar_span[1]
     s.indent(-3);
     s.step(
         &mut || crate::race::set_all_plates::set_all_plates(race, scene),
@@ -281,7 +281,7 @@ pub fn loadlevel_init(
         },
         None,
     )?;
-    // store norms; without `dword_64BB18` the checkpoints, the pace notes, the overlay.
+    // store norms; without `Finish.no_place` the checkpoints, the pace notes, the overlay.
     s.log();
     s.indent(3);
     crate::race::norms::store_norms(race, &mut |a, b, c| {

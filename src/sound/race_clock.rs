@@ -1,6 +1,6 @@
-//! The clock of the race's sounds: `dword_5124E8` the time of the last turn,
-//! `dword_5124EC` the turns a second as a float, `dword_5124F0` the last turn's
-//! milliseconds, `dword_5124F4` the turns counted. `sound::start_race_clock` (0x40F1E9)
+//! The clock of the race's sounds: `RaceClock.last` the time of the last turn,
+//! `RaceClock.turns_a_second` the turns a second as a float, `RaceClock.step` the last turn's
+//! milliseconds, `RaceClock.turns` the turns counted. `sound::start_race_clock` (0x40F1E9)
 //! sets it going and `sound::step_race_clock` (0x40F20E) says whether a turn is due.
 
 use crate::sound::store::RaceClock;

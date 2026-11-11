@@ -21,7 +21,7 @@ fn show(note: rc2k_core::screens::locked::Note) -> Result<(), Refused> {
 }
 
 /// `screens::note_locked_item_3` (0x4AAAB8): unless cheat 0x11 is on, with item 3 chosen
-/// (`dword_755525`) and `dword_75ACCC` not 1, the message box.
+/// (`LoopFlags.item`) and `RaceState.settings.a8_game` not 1, the message box.
 pub fn note_locked_item_3(menus: &Menus, race: &crate::race::owner::Race) -> Result<(), Refused> {
     show(rc2k_core::screens::locked::item_3(
         menus.play.cheats.cheats.get(),
@@ -31,7 +31,7 @@ pub fn note_locked_item_3(menus: &Menus, race: &crate::race::owner::Race) -> Res
 }
 
 /// `screens::note_locked_stage` (0x48ADCE): unless cheat 0 is on, with an item chosen other
-/// than 1 and 7 whose stage (`byte_758800[item - 2]`) is not open (1), the message box.
+/// than 1 and 7 whose stage (`Arcade.levels_won[item - 2]`) is not open (1), the message box.
 pub fn note_locked_stage(menus: &Menus) -> Result<(), Refused> {
     let fault = crate::menu::event_flow::Fault::default();
     let note = rc2k_core::screens::locked::stage(

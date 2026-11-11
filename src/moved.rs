@@ -149,7 +149,9 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4E0798, // g_localeFile (g_noticeKind at +8)
         len: crate::strings::load_language::LOCALE_LEN,
-        home: Home::Store(&crate::strings::owner::STRINGS.language.locale),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::strings::owner::STRINGS.unchecked().language.locale,
+        )),
     },
     Moved {
         ida: 0x4E07F8, // g_lexicon
@@ -164,12 +166,22 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4F0CC8, // g_plainLetters
         len: 0x100,
-        home: Home::Store(&crate::strings::owner::STRINGS.language.plain_letters),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::strings::owner::STRINGS
+                .unchecked()
+                .language
+                .plain_letters,
+        )),
     },
     Moved {
         ida: 0x4F3034, // the record the empty messages share
         len: crate::strings::compile_lexicon::EMPTY_MESSAGE_LEN,
-        home: Home::Store(&crate::strings::owner::STRINGS.lexicon.empty_message),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::strings::owner::STRINGS
+                .unchecked()
+                .lexicon
+                .empty_message,
+        )),
     },
     Moved {
         ida: 0x51DE2C, // g_isImperialUnits
@@ -179,7 +191,9 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x94EAB4, // dword_94EAB4: the lexicon compiler's work variables
         len: crate::strings::compile_lexicon::WORK_LEN,
-        home: Home::Store(&crate::strings::owner::STRINGS.lexicon.work),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::strings::owner::STRINGS.unchecked().lexicon.work,
+        )),
     },
     // memory (the allocator's figures and own heap, `memory::state`)
     Moved {
@@ -211,12 +225,16 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x529DA5, // aName000: the driver names' key, made in place
         len: 8,
-        home: Home::Store(&crate::strings::owner::STRINGS.drivers.key),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::strings::owner::STRINGS.unchecked().drivers.key,
+        )),
     },
     Moved {
         ida: 0x95ECF8, // dword_95ECF8 (a pointer a driver) and unk_95EFC8 (the names' pool), up to 0x960000
         len: 0x1308,
-        home: Home::Store(&crate::strings::owner::STRINGS.drivers.names),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::strings::owner::STRINGS.unchecked().drivers.names,
+        )),
     },
     Moved {
         ida: 0x5184F4, // the thread slots: input, audio, network, shutdown
@@ -227,17 +245,23 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4F3B74, // g_blendedPalette
         len: 0x400,
-        home: Home::Store(&crate::text::blend_font::BLENDED_PALETTE),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            crate::text::blend_font::BLENDED_PALETTE.unchecked(),
+        )),
     },
     Moved {
         ida: 0x4F3F74, // g_fontBlendMode (a `var\ral.cfg` setting, `textflashmode`)
         len: 4,
-        home: Home::Store(&crate::strings::owner::STRINGS.text.blend_mode),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::strings::owner::STRINGS.unchecked().text.blend_mode,
+        )),
     },
     Moved {
         ida: 0x51E384, // g_blendedFont
         len: 0x20,
-        home: Home::Store(&crate::text::blend_font::BLENDED_FONT),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            crate::text::blend_font::BLENDED_FONT.unchecked(),
+        )),
     },
     // files (the search record, the paths' buffers)
     Moved {
@@ -321,132 +345,184 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::hud::store::START, // the HUD's variables, batch included
         len: crate::hud::store::LEN,
-        home: Home::Store(&crate::hud::owner::HUD.block),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::hud::owner::HUD.unchecked().block,
+        )),
     },
     Moved {
         ida: crate::gfx::decoder::START, // The picture decoders' and glyph builder's variables (decoded picture, palette)
         len: crate::gfx::decoder::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.pictures.decoder),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().pictures.decoder,
+        )),
     },
     Moved {
         ida: crate::strings::compile_lexicon::MEMORY_START, // The lexicon's memory (kilobytes, the list)
         len: crate::strings::compile_lexicon::MEMORY_LEN,
-        home: Home::Store(&crate::strings::owner::STRINGS.lexicon.memory),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::strings::owner::STRINGS.unchecked().lexicon.memory,
+        )),
     },
     Moved {
         ida: crate::gfx::build_glyphs::START, // The sheet builder's variables (sheet table, built table, glyph counts)
         len: crate::gfx::build_glyphs::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.sheet),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().sheet,
+        )),
     },
     Moved {
         ida: crate::gfx::pcx::START, // The PCX file being decoded (header, palette, stream, limits)
         len: crate::gfx::pcx::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.pictures.pcx),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().pictures.pcx,
+        )),
     },
     Moved {
         ida: crate::gfx::read_picture_file::PNG_SETTING_START, // `nopngdecode`
         len: 4,
-        home: Home::Store(&crate::gfx::owner::GFX.png.setting),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().png.setting,
+        )),
     },
     Moved {
         ida: crate::gfx::glyph_tables::START, // The glyph tables' variables (`bundleheapsize`, the list)
         len: crate::gfx::glyph_tables::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.fonts.glyph_tables),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().fonts.glyph_tables,
+        )),
     },
     Moved {
         ida: crate::gfx::show_picture_file::SHOWING_START, // g_showingPicture
         len: 4,
-        home: Home::Store(&crate::gfx::owner::GFX.pictures.showing),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().pictures.showing,
+        )),
     },
     Moved {
         ida: crate::gfx::blit::START, // The blitters' variables (the clip rectangle, the skips of the visible part)
         len: crate::gfx::blit::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.drawing.blit),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().drawing.blit,
+        )),
     },
     Moved {
         ida: crate::gfx::rescale_picture::START, // The rescaler's variables (the copy's memory, steps, weights, the pixel's parts)
         len: crate::gfx::rescale_picture::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.rescale),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().rescale,
+        )),
     },
     Moved {
         ida: crate::gfx::strips::START, // The HUD's view strips' places (sizes, tops, lefts)
         len: crate::gfx::strips::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.strips),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().strips,
+        )),
     },
     Moved {
         ida: crate::gfx::fill_row_table::START, // The row table (the address of each row of a picture)
         len: crate::gfx::fill_row_table::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.drawing.row_table),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().drawing.row_table,
+        )),
     },
     Moved {
         ida: crate::gfx::formats::START, // The pixel formats' work variables (format numbers, scratch bytes, component format)
         len: crate::gfx::formats::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.pixel.formats),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().pixel.formats,
+        )),
     },
     Moved {
         ida: crate::gfx::fill_thirds_table::START, // The thirds table (n / 3 for the sums of three components)
         len: 0x300,
-        home: Home::Store(&crate::gfx::owner::GFX.drawing.thirds),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().drawing.thirds,
+        )),
     },
     Moved {
         ida: crate::gfx::modes::START, // The screen mode tables (pixel kinds, sizes, the modes listed)
         len: crate::gfx::modes::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.display.modes),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().display.modes,
+        )),
     },
     Moved {
         ida: crate::gfx::converters::START, // The MMX converters' masks and the converters table
         len: crate::gfx::converters::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.pixel.converters),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().pixel.converters,
+        )),
     },
     Moved {
-        ida: crate::gfx::reports::START, // The 3D reports switch (dword_4F52AC)
+        ida: crate::gfx::reports::START, // The 3D reports switch (Reports.on)
         len: crate::gfx::reports::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.reports),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().reports,
+        )),
     },
     Moved {
         ida: crate::gfx::shots::START, // The screenshot switch, its lock and the file name's template
         len: crate::gfx::shots::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.shots),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().shots,
+        )),
     },
     Moved {
         ida: crate::gfx::picture_store::START, // The picture loader's variables (the name, flags, size, rows and buffer of the picture, the list)
         len: crate::gfx::picture_store::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.pictures.picture),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().pictures.picture,
+        )),
     },
     Moved {
         ida: crate::gfx::texture_pixels::START, // The texture grading (reading switch, scale, saturation, the grades table)
         len: crate::gfx::texture_pixels::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.grading),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().grading,
+        )),
     },
     Moved {
         ida: crate::gfx::bar_store::START, // The progress bar's variables (position, width, glyphs, percent)
         len: crate::gfx::bar_store::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.drawing.bar),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().drawing.bar,
+        )),
     },
     Moved {
         ida: crate::gfx::png_file::START, // The PNG decoder's file (pointer, length, memory list)
         len: crate::gfx::png_file::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.png.file),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().png.file,
+        )),
     },
     Moved {
         ida: crate::gfx::png_header::START, // The PNG header's fields (width, height, compression, colour type)
         len: crate::gfx::png_header::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.png.header),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().png.header,
+        )),
     },
     Moved {
         ida: crate::gfx::pcx_planes::START, // The screenshot writer's plane buffer (3 * width bytes, up to 1920 wide)
         len: crate::gfx::pcx_planes::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.pictures.planes),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().pictures.planes,
+        )),
     },
     Moved {
         ida: crate::gfx::cards::START, // The 3D primary and secondary card switches
         len: crate::gfx::cards::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.display.cards),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().display.cards,
+        )),
     },
     Moved {
         ida: crate::gfx::upload::START, // The texture upload's surface description (DDSURFACEDESC) and the mode-trial switch
         len: crate::gfx::upload::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.card.upload),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().card.upload,
+        )),
     },
     Moved {
         ida: crate::install::store::InstallVars::START, // InstallVars
@@ -483,7 +559,9 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::typefaces::START, // The fonts (63 font objects)
         len: crate::gfx::typefaces::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.fonts.typefaces),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().fonts.typefaces,
+        )),
     },
     Moved {
         ida: crate::saves::write_savegame_slot::START, // The saved games' file buffer and names
@@ -564,7 +642,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::texture_upload::START, // The 3D card's tables and the textures' records
         len: crate::gfx::texture_upload::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.card.texture_tables),
+        home: Home::Store(&crate::gfx::owner::GFX.unchecked().card.texture_tables),
     },
     Moved {
         ida: crate::film::NO_FMV_START, // g_noFmv
@@ -574,7 +652,9 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::build_game_fonts::START, // The game fonts' memory (`gamegfxheapsize`, the list)
         len: crate::gfx::build_game_fonts::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.fonts.game_fonts_memory),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().fonts.game_fonts_memory,
+        )),
     },
     Moved {
         ida: crate::scene::upload_car_icon::START, // The car icon upload's record
@@ -589,17 +669,26 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::front::START, // The DirectDraw front and back surface handles
         len: crate::gfx::front::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.drawing.surfaces),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().drawing.surfaces,
+        )),
     },
     Moved {
         ida: crate::gfx::locked::START, // The surface-locked switch
         len: crate::gfx::locked::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.locked),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().locked,
+        )),
     },
     Moved {
         ida: crate::gfx::windscreen_drop_batch::START, // The marks' windscreen drop batch drawn by d3d (the index and vertex counts, the fans, the records)
         len: crate::gfx::windscreen_drop_batch::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.card.windscreen_drop_batch),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX
+                .unchecked()
+                .card
+                .windscreen_drop_batch,
+        )),
     },
     // session: the screen, the window's flags, the machine, the clocks (`session`)
     Moved {
@@ -1051,7 +1140,9 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::strings::text_buffer::TextBuffer::START,
         len: crate::strings::text_buffer::TextBuffer::LEN,
-        home: Home::Store(&crate::strings::owner::STRINGS.text.buffer),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::strings::owner::STRINGS.unchecked().text.buffer,
+        )),
     },
     Moved {
         ida: crate::files::scratch::Scratch::START,
@@ -1061,16 +1152,16 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::screen_state::ScreenMode::START,
         len: crate::gfx::screen_state::ScreenMode::LEN,
-        home: Home::Store(&crate::race::store::RecordTail::new(
-            &crate::gfx::owner::GFX.display.mode,
+        home: Home::Store(&crate::session::OnGameThread::tail(
+            &crate::gfx::owner::GFX.unchecked().display.mode,
             12,
         )),
     },
     Moved {
         ida: crate::gfx::screen_state::DrawSurface::START,
         len: crate::gfx::screen_state::DrawSurface::LEN,
-        home: Home::Store(&crate::race::store::RecordTail::new(
-            &crate::gfx::owner::GFX.drawing.draw_surface,
+        home: Home::Store(&crate::session::OnGameThread::tail(
+            &crate::gfx::owner::GFX.unchecked().drawing.draw_surface,
             4,
         )),
     },
@@ -1085,7 +1176,9 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::fonts_store::FontBlock::START,
         len: crate::gfx::fonts_store::FontBlock::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.fonts.font_block),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().fonts.font_block,
+        )),
     },
     Moved {
         ida: crate::audio::names_store::SampleNames::START,
@@ -1098,13 +1191,15 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::choices_store::ScreenChoices::START,
         len: crate::gfx::choices_store::ScreenChoices::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.display.choices),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::gfx::owner::GFX.unchecked().display.choices,
+        )),
     },
     Moved {
         ida: crate::gfx::jade_store::JadeFont::START,
         len: crate::gfx::jade_store::JadeFont::LEN,
-        home: Home::Store(&crate::race::store::RecordTail::new(
-            &crate::gfx::owner::GFX.fonts.jade,
+        home: Home::Store(&crate::session::OnGameThread::tail(
+            &crate::gfx::owner::GFX.unchecked().fonts.jade,
             4,
         )),
     },

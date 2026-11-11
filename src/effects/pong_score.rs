@@ -1,5 +1,5 @@
-//! `effects::pong_score` (0x4B8382): the pong score: the best (`dword_7687CC`) raised to the
-//! hits (`dword_7687D0`) when they reach it; the place 0x100, 0x384; the hits (low byte,
+//! `effects::pong_score` (0x4B8382): the pong score: the best (`PongState.best`) raised to the
+//! hits (`PongState.hits`) when they reach it; the place 0x100, 0x384; the hits (low byte,
 //! kept) as three `effects::pong_digit`s (hundreds, tens, ones), 0x20 on, the best (low
 //! byte, kept) the same.
 //!

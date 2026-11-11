@@ -357,8 +357,8 @@ pub fn measure_string(
 /// `gfx::components_to_pixels` (0x405E02): 0x100 colours of `from` made pixels of the
 /// surface's format into `to`.
 pub fn components_to_pixels(
-    from: &[crate::session::Dword; 256],
-    to: &[crate::session::Dword; 256],
+    from: &[crate::session::PlainDword; 256],
+    to: &[crate::session::PlainDword; 256],
 ) {
     let what = "a pixel format";
     let format = crate::gfx::pixel_format::surface_format()

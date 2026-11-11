@@ -1,5 +1,5 @@
 //! The menus' texts, out of RAL.EXE's image (IDA 0x731B82 .. 0x734BC6):
-//! two log texts of the map's polygon code, the keys menu (`dword_731BBB`), each menu
+//! two log texts of the map's polygon code, the keys menu (`MenuTexts.keys_menu`), each menu
 //! screen's picture path (one copy per screen, named for the screen that loads it; the
 //! others by their file), the stage maps', car specifications' and slides' paths (which
 //! `menu::lists_store`'s tables name by handle, `text_key`), and two tables of speech samples' names

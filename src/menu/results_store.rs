@@ -14,7 +14,7 @@ pub struct Results {
     pub round: PlainDword,
     /// `dword_758718`: The stage groups' title string ids (`screens::draw_time_trial_stage_info`).
     pub group_titles: [PlainDword; 2],
-    /// `g_duelFirst, g_duelSecond, dword_758728, dword_75872C`: The players in the order of their places (the offsets of their figures: 0, 4, 8, 12).
+    /// `g_duelFirst, g_duelSecond, Results.order[2], Results.order[3]`: The players in the order of their places (the offsets of their figures: 0, 4, 8, 12).
     pub order: [PlainDword; 4],
     /// Unreferenced bytes (IDA 0x758730 .. 0x758758).
     pub _gap_758730: PlainBytes<40>,

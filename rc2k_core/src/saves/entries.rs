@@ -478,7 +478,7 @@ pub fn sort_arcade_times(list: &mut Times, kept: &mut [u8; NAME_MOVED]) {
     bubble_up(list, &TIME_FIELDS, |l, u| l as i32 <= u as i32, kept);
 }
 
-/// The best times of the stages (the championship's: `g_stageBestTimes`, `dword_7556E8`;
+/// The best times of the stages (the championship's: `g_stageBestTimes`, `ChampView.time_trial_best_times`;
 /// the courses': `g_courseBestTimes`, `g_stageBestTimesAlt`): ten for each stage.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct StageTimes {

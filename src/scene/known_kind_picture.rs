@@ -3,7 +3,7 @@
 //! Takes: which of the known kinds (held to 0 .. 0x21, signed)
 //! Returns: the number
 //!
-//! `dword_5C5708` at the place: 0x22 dwords, one for each known kind of car. 34 call sites, 33
+//! `ViewerAndKinds.kind_tables.known_kind_pictures[0]` at the place: 0x22 dwords, one for each known kind of car. 34 call sites, 33
 //! of them in the front end's set-up.
 
 use crate::race::kind_store::KIND_TABLES;

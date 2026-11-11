@@ -1,6 +1,6 @@
 //! `race::loading_bar_frame` (0x4467C7): one frame of the loading bar while a stage loads (the
 //! loading's callback `bar_function`), with `in_credits` only: `scene_state` 8; nothing while
-//! quitting; with the window active and the surfaces not lost (`dword_518380` not 1):
+//! quitting; with the window active and the surfaces not lost (`WindowLoopState.lost` not 1):
 //! `scene::begin_scene`, the view window chosen as unframed (`editor_mode` 0 for
 //! `scene::choose_view_window`, put back), `race::loading_bar_quad`, `scene::end_scene`,
 //! `scene::lock_frame`, an empty function, `scene::unlock_frame`, `scene::present_frame`, carry

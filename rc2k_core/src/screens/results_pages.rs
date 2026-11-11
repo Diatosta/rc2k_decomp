@@ -11,15 +11,15 @@ use crate::strings::format::{Pad, decimal, time};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E944`: the title.
+    /// `FontObjects.objects[45].first_char`: the title.
     Title,
-    /// `stru_51E9A4`: the stage's name.
+    /// `FontObjects.objects[48].first_char`: the stage's name.
     StageName,
-    /// `stru_51E5A4`, `stru_51E584`, `stru_51E564`: position, name, time.
+    /// `FontObjects.objects[16].first_char`, `FontObjects.objects[15].first_char`, `FontObjects.objects[14].first_char`: position, name, time.
     Place,
     Name,
     Time,
-    /// `stru_51E544`, `stru_51E524`, `stru_51E504`: a player's row's.
+    /// `FontObjects.objects[13].first_char`, `FontObjects.objects[12].first_char`, `FontObjects.objects[11].first_char`: a player's row's.
     PlayerPlace,
     PlayerName,
     PlayerTime,
@@ -73,7 +73,7 @@ pub struct Row<T> {
 }
 
 /// One page: `first` the time the gaps are from, `first_row` the list's row the page starts
-/// at, `keep_overall` the first time kept in `dword_7559D4` too. The sprites' palette is
+/// at, `keep_overall` the first time kept in `DrawWork.overall_first_time` too. The sprites' palette is
 /// where the last text ended: the line buffer after a time, the string's end else.
 #[allow(clippy::too_many_arguments)] // one page's parts, as the original reads them
 pub fn results_page<S: Screen<Font = Font, Work = Work>>(
@@ -151,7 +151,7 @@ pub enum Name<T> {
 #[derive(Clone, Copy, Debug)]
 pub struct RankedRow<T> {
     pub place: u32,
-    /// The player `dword_7556C0` (the highlight fonts).
+    /// The player `ChampView.ranked_player` (the highlight fonts).
     pub mine: bool,
     pub name: Name<T>,
     /// +0x18.

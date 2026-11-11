@@ -7,44 +7,44 @@
 //! `#[repr(C)]` structs of atomic cells with the image's layout, first values the image's
 //! (`tests`); `moved::MOVED` points the image's addresses at them (`home`).
 
-use crate::session::{Bytes, Dword};
+use crate::session::{Bytes, Dword, PlainBytes, PlainDword};
 
 /// The screen mode chosen (IDA 0x4F492C .. 0x4F494C, the image's layout).
 #[repr(C, align(16))]
 #[derive(rc2k_derive::Cells)]
 pub struct ScreenMode {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
-    pub _lead: Bytes<12>,
+    pub _lead: PlainBytes<12>,
     /// 0x4F492C: `g_depthFormatBits`: the depth formats' bits (`gfx::mark_3d_modes`).
-    pub depth_bits: Dword,
+    pub depth_bits: PlainDword,
     /// 0x4F4930: `g_depthExtraFlags`: the extra flags.
-    pub depth_extra: Dword,
+    pub depth_extra: PlainDword,
     /// 0x4F4934: `g_screenModeFlags`: the flags of the screen mode in use.
-    pub mode_flags: Dword,
+    pub mode_flags: PlainDword,
     /// 0x4F4938: `g_screenModeSet`: the mode set (`platform`).
-    pub mode_set: Dword,
+    pub mode_set: PlainDword,
     /// 0x4F493C: Not named: 8 bytes (a gap, or data nothing reads here).
-    pub _gap_4f493c: Bytes<8>,
+    pub _gap_4f493c: PlainBytes<8>,
     /// 0x4F4944: `g_menuScreenMode`: the menus' screen mode.
-    pub menu_mode: Dword,
+    pub menu_mode: PlainDword,
     /// 0x4F4948: `g_raceScreenMode`: the race's screen mode.
-    pub race_mode: Dword,
+    pub race_mode: PlainDword,
     /// Up to the record's alignment (no byte of a record of cells outside a field).
-    pub _tail: Bytes<4>,
+    pub _tail: PlainBytes<4>,
 }
 
 impl ScreenMode {
     pub const fn new() -> Self {
         ScreenMode {
-            _lead: Bytes::new([0; 12]),
-            depth_bits: Dword::new(0x0),
-            depth_extra: Dword::new(0x0),
-            mode_flags: Dword::new(0x0),
-            mode_set: Dword::new(0x0),
-            _gap_4f493c: Bytes::new([0; 8]),
-            menu_mode: Dword::new(0x0),
-            race_mode: Dword::new(0x0),
-            _tail: Bytes::new([0; 4]),
+            _lead: PlainBytes::new([0; 12]),
+            depth_bits: PlainDword::new(0x0),
+            depth_extra: PlainDword::new(0x0),
+            mode_flags: PlainDword::new(0x0),
+            mode_set: PlainDword::new(0x0),
+            _gap_4f493c: PlainBytes::new([0; 8]),
+            menu_mode: PlainDword::new(0x0),
+            race_mode: PlainDword::new(0x0),
+            _tail: PlainBytes::new([0; 4]),
         }
     }
 }
@@ -55,8 +55,8 @@ impl ScreenMode {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::gfx::owner::GFX.display.mode) + 12)
-            as usize
+        (crate::pointers::game_address(&raw const crate::gfx::owner::GFX.unchecked().display.mode)
+            + 12) as usize
     }
 }
 

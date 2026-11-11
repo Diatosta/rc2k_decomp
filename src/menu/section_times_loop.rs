@@ -4,7 +4,7 @@
 //! UI's "Screens" tab (`debug::screens`), which says the section (`EVENT_STATE.section`).
 use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
-/// `unk_747798`'s slot, the item kept between visits.
+/// `ScreenItems.current[78]`'s slot, the item kept between visits.
 const SLOT: usize = (0x747798 - 0x747660) / 4;
 
 pub const SCREEN: Screen = Screen {

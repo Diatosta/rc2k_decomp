@@ -3,7 +3,7 @@
 //!
 //! Out: as `scene::draw_carousel`
 //!
-//! `dword_6365C4` = 0 (the way `scene::draw_scene_object` draws by), then
+//! `LightState.draw_mode` = 0 (the way `scene::draw_scene_object` draws by), then
 //! `scene::draw_carousel`. One caller, `scene::draw_main_menu_objects`.
 
 use crate::errors::Refused;

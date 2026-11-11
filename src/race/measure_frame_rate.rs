@@ -1,7 +1,7 @@
 //! `race::measure_frame_rate` (0x42009E): every 16th call (`frame_rate_count` counting, back to 0 at
 //! 0x10) the time-stamp counter (`rdtsc`) into `frame_now`; with the cycles since the last time
 //! (`frame_last`, into `scratch`) above 0 (signed), the frame rate `frame_rate` = the CPU's
-//! clock `dword_5183E8` x `thousand` x `thousand` x `sixteen` / the cycles (x87, as the
+//! clock `Machine.cpu_mhz` x `thousand` x `thousand` x `sixteen` / the cycles (x87, as the
 //! original); the time kept for the next.
 //!
 //! Returns: unchanged but on the 16th: and the counter, the cycles

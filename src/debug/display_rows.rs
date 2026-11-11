@@ -3735,11 +3735,15 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Scene and ground search",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Texture changes",
                 "amtu",
                 Shown::Whole,
                 0x6D1508,
+                indexed_cell!(
+                    crate::race::owner::race().frame.panel_and_overlay.panel,
+                    texture_changes
+                ),
                 false,
                 (468, 328),
             ),

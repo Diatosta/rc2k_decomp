@@ -1,5 +1,5 @@
 //! `race::mud_texel` (0x44A549): a texel of the locked mud texture (`g_surface`) by its place on a
-//! 256 x 256 square: with `dword_5CEEE0` not 0 the place is halved (x, then y; an odd one skips),
+//! 256 x 256 square: with `ObjectTables.system_levels[256]` not 0 the place is halved (x, then y; an odd one skips),
 //! and halved again unless it is 1 (a reading: how many times the texture is smaller); then
 //! `race::mud_pixel` (0 outside the surface).
 //!

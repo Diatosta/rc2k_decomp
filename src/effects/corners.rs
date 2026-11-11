@@ -21,8 +21,8 @@ const ENTRY: u32 = 0x18;
 /// Each table's two steps' starts and the end they both go to.
 fn steps(drops: &WindscreenDrops) -> [([usize; 2], &PlainDword); 2] {
     [
-        ([0, 2], &drops.shape_work.work.steps[0]), // `MaskConstants::corner_angles`: dword_89C9CC, dword_89C9D4; dword_884FC4
-        ([4, 6], &drops.shape_work.work.steps[1]), // dword_89C9DC, dword_89C9E4; dword_884FC8
+        ([0, 2], &drops.shape_work.work.steps[0]), // `MaskConstants::corner_angles`: MaskConstants.corner_angles[0], MaskConstants.corner_angles[2]; ShapeWork.work.steps[0]
+        ([4, 6], &drops.shape_work.work.steps[1]), // MaskConstants.corner_angles[4], MaskConstants.corner_angles[6]; ShapeWork.work.steps[1]
     ]
 }
 const LIFT: u32 = 0xB2A7;

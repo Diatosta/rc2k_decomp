@@ -105,7 +105,7 @@ pub fn div(value: u64, d: u32) -> Result<(u32, u32), Invalid> {
     Ok(((value / d as u64) as u32, (value % d as u64) as u32))
 }
 
-/// The scale of a split: its base (`dword_601030[split]`) x 1000 / the divisor
+/// The scale of a split: its base (`SplitTables.checkpoints[1][split]`) x 1000 / the divisor
 /// (`checkpoints`[count]`), as `div` leaves it.
 pub fn split_scale(base: u32, divisor: u32) -> Result<(u32, u32), Invalid> {
     div(base as u64 * 1000, divisor)
@@ -163,7 +163,7 @@ pub fn split_figure(mode: u32) -> SplitFigure {
     }
 }
 
-/// The checkpoints (`g_checkCounts` has 0x1419) and the splits (`dword_601030` 0x41).
+/// The checkpoints (`g_checkCounts` has 0x1419) and the splits (`SplitTables.checkpoints[1]` 0x41).
 pub const LAST_CHECKPOINT: u32 = 0x1418;
 pub const LAST_SPLIT: u32 = 0x40;
 

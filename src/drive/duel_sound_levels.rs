@@ -1,7 +1,7 @@
 //! `drive::duel_sound_levels` (0x45C596): two sound levels from the first car block
-//! (`g_carBlockStore`): +0x900 / 4 - 4, held 0 ..= 0x40 (by the signs), into `dword_5165BC`; at
-//! 0x38 or more `dword_5165A8` 1 when a random number (`math::next_random`) x 500 has a high dword
-//! of 0 (a rare draw); (+0x908 squared, low dword) >> 12 - 8, held, into `dword_5165C0`.
+//! (`g_carBlockStore`): +0x900 / 4 - 4, held 0 ..= 0x40 (by the signs), into `StageSounds.loop_volume_a`; at
+//! 0x38 or more `StageSounds.timed_arm` 1 when a random number (`math::next_random`) x 500 has a high dword
+//! of 0 (a rare draw); (+0x908 squared, low dword) >> 12 - 8, held, into `StageSounds.loop_volume_b`.
 //!
 //! Caller: `drive::replay_step`.
 

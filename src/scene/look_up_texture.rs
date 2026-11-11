@@ -1,6 +1,6 @@
 //! `scene::look_up_texture` (0x44E668): `g_polygonTexture` for the texture word
-//! `dword_6240C4` (stream A, part R3): -1 none; with the top bit a place
-//! (`dword_5D3AE8[]`, below 0xFA0); else a kind's first slot (`g_kindFirstSlots[]`, below
+//! `SceneDraw.texture_page` (stream A, part R3): -1 none; with the top bit a place
+//! (`TexturePlaces.place_slot[0][]`, below 0xFA0); else a kind's first slot (`g_kindFirstSlots[]`, below
 //! 0x400); a slot not below `g_textureSlotCount` (or none loaded) none (0xFFFFFC43).
 //!
 //! Callers: `scene::choose_texture` (0x44CCB8), `race::flush_texture_batch`.

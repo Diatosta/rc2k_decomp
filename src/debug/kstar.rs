@@ -37,8 +37,61 @@ const ERROR_ENTRIES: usize = 0x100;
 const GROUP_COUNT: usize = 32;
 /// The lights' table: 0x22 models of 12 lights of 3 dwords.
 const LIGHTS_LEN: usize = 0x1320;
-/// The camera views' names: 16 bytes a view, from the table's odd address (IDA).
-const VIEW_NAMES: usize = 0x5EE2D5;
+/// The camera views' names, by view number.
+const VIEW_NAMES: [&str; 52] = [
+    "bumper",
+    "bonnet",
+    "driver",
+    "drivermid",
+    "chase",
+    "medchase",
+    "farchase",
+    "fixedreplay",
+    "zoomreplay",
+    "fixedreplayroad",
+    "zoomreplayroad",
+    "overhead1",
+    "overhead2",
+    "overhead3",
+    "overhead4",
+    "overhead5",
+    "frontlow",
+    "frontmed",
+    "leftlow",
+    "leftmid",
+    "rightlow",
+    "rightmid",
+    "frontleft34",
+    "frontright34",
+    "backleft34",
+    "backright34",
+    "rearbumper",
+    "roofrear",
+    "flwheel",
+    "frwheel",
+    "blwheel",
+    "brwheel",
+    "intowindscreen",
+    "intoleftwindow",
+    "intorightwindow",
+    "random",
+    "randomdynamic",
+    "randomfixed",
+    "fronttoback",
+    "backtofront",
+    "rotfromback",
+    "rotfromfront",
+    "freproadud",
+    "freproadudz",
+    "freproaddu",
+    "freproadduz",
+    "freptrackud",
+    "freptrackudz",
+    "freptrackdu",
+    "freptrackduz",
+    "widezoomin",
+    "widezoomout",
+];
 
 /// `off_5EE228`: the lights' names (the rest are "null"; the left ones mirror the right).
 const LIGHT_NAMES: [&str; 12] = [
@@ -90,14 +143,6 @@ fn group_cell(g: usize) -> &'static Dword {
         None => &switches.group_table,
         Some(k) => &switches.unknown_38[k],
     }
-}
-
-/// Dword `k` of view `view`'s name (the table is image data, unaligned: read where it lives
-/// now; 0 when it cannot be read).
-fn view_name_word(view: usize, k: usize) -> u32 {
-    crate::moved::named(VIEW_NAMES + 16 * view + 4 * k)
-        .and_then(|at| at.read::<u32>("a view's name"))
-        .unwrap_or(0)
 }
 
 /// The error list's dword `offset` bytes into entry `n`.
@@ -207,16 +252,7 @@ fn groups(ui: &Ui) {
 /// Mode 6: the record of the view the car is in.
 fn camera(ui: &Ui) {
     let view = (first_car().camera_view.get() as i32).clamp(0, 0x33) as usize;
-    let mut name = Vec::new();
-    for k in 0..4 {
-        name.extend_from_slice(&view_name_word(view, k).to_le_bytes());
-    }
-    let name: String = name
-        .iter()
-        .take_while(|&&b| b != 0)
-        .map(|&b| char::from(b))
-        .collect();
-    ui.text(format!("View {view}: {}", name.trim_end()));
+    ui.text(format!("View {view}: {}", VIEW_NAMES[view]));
     ui.text_disabled("Changes the view's record until the stage is loaded again");
     let Ok(record) = ViewVars::record_of(view) else {
         ui.text("This view's record is not readable");
@@ -431,8 +467,17 @@ pub fn over_picture(ui: &Ui) {
 mod tests {
     use super::*;
 
+    /// The names are the image's table (16 bytes a view from IDA's 0x5EE2D5, space-padded).
     #[test]
-    fn the_view_names_are_reachable() {
-        assert_eq!(view_name_word(0, 0).to_le_bytes(), *b"bump");
+    fn the_view_names_are_the_games() {
+        for (view, name) in VIEW_NAMES.iter().enumerate() {
+            let image = crate::moved::image_bytes(0x5EE2D5 + 16 * view, 16);
+            let text: String = image
+                .iter()
+                .take_while(|&&b| b != 0)
+                .map(|&b| char::from(b))
+                .collect();
+            assert_eq!(text.trim_end(), *name, "view {view}");
+        }
     }
 }

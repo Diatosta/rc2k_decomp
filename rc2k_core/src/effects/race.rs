@@ -6,7 +6,7 @@ use crate::Invalid;
 
 /// The most cars of a race.
 pub const MOST_CARS: u32 = 8;
-/// The last kind of car with a row (`dword_5C90D8` ..: rows of 0x134 bytes).
+/// The last kind of car with a row (`LightsAndGear.light_records.records[0].groups[5]` ..: rows of 0x134 bytes).
 pub const LAST_KIND: i32 = 0x16;
 pub const ROW_LEN: usize = 0x134;
 /// The stages' records.

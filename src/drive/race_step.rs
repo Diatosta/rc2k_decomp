@@ -1,5 +1,5 @@
 //! `drive::race_step` (0x4454D2): the race's ticks for this frame. The clock in tenths
-//! (`drive::race_clock_tick`); unless paused (`dword_6138F8`), `drive::race_tick` once for each
+//! (`drive::race_clock_tick`); unless paused (`PhysicsTables.debug[1]`), `drive::race_tick` once for each
 //! tenth gone (`race_tenths`, signed), stopping when the players are all out
 //! (`race::players_all_out`).
 //!

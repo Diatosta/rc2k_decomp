@@ -2,8 +2,8 @@
 //! (`scene::restart_clock`) less the start `start_clock` / `thousand` into `time` (t); the
 //! eased time `eased`: t below `limit_a` (or unordered) t; below `limit_b` t less ((t -
 //! a) / (b - a))^2 x (b - a) / 2; else a + (b - a) / 2; the share `share`: 0, with
-//! `dword_75B108` and t from `limit_c` on 1, below `limit_d` (t - c) / (d - c); and with
-//! `dword_75B108` and t from `limit_c` on, `race_done` 1.
+//! `RaceState.results.finished` and t from `limit_c` on 1, below `limit_d` (t - c) / (d - c); and with
+//! `RaceState.results.finished` and t from `limit_c` on, `race_done` 1.
 //!
 //! Returns: the clock less the start
 //!

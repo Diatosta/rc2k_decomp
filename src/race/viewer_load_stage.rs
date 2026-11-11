@@ -2,9 +2,9 @@
 //! for the viewer: the front end's 3D tidied (`race::render3d_tidy`, `race::objects_tidy`,
 //! `nullsub_6`, `race::release_textures`), the race's screen mode (`race::set_race_screen_mode`),
 //! the loading picture (`menu::show_loading_picture`); from the replay's header the game mode,
-//! players, cars and options (`header_mode` .. into `dword_75ACD8`, `g_onePlayer`, `dword_75ACE8`,
-//! `dword_75ACEC`, `dword_75AE20`, `dword_75AF8C`; `dword_75AE28`, `dword_75AF94` 0; `dword_75ACE0`
-//! the players; the co-driver's door `byte_719C8C` into `dword_75AE1C` and the cars' block, logged
+//! players, cars and options (`header_mode` .. into `RaceState.settings.run_kind`, `g_onePlayer`, `RaceState.settings.car_kind_current`,
+//! `RaceState.settings.car_kind_first`, `RaceState.settings.cars[0].codriver_sex`, `RaceState.settings.cars[1].codriver_sex`; `RaceState.settings.cars[0].controller`, `RaceState.settings.cars[1].controller` 0; `RaceState.settings.race_mode`
+//! the players; the co-driver's door `byte_719C8C` into `RaceState.settings.cars[0].race_number` and the cars' block, logged
 //! "doornr="); the race's sounds (`race::set_up_race_sound_objects`, `sound::set_up_race_sounds`);
 //! the fonts unless there are some (`gfx::build_fonts`, `viewer_fonts_built` 1); the header read in
 //! (`race::read_replay_header`), the stage (`race::load_stage`), the sounds reset

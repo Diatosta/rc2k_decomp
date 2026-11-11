@@ -2,7 +2,6 @@
 //! `components_to_pixel`) are told it, and the surface's own layout.
 
 use crate::errors::BadInput;
-use crate::gfx::owner::gfx;
 
 /// A pixel layout the game keeps a pointer to (`g_surface.format`, `g_glyphPixelFormat`),
 /// by handle: `SCREEN_FORMAT` the screen's record (`g_surfaceFormat`, the
@@ -39,7 +38,7 @@ pub fn layout(handle: u32) -> Result<PixelFormat, BadInput> {
     if handle == SCREEN_FORMAT {
         return surface_format();
     }
-    let descriptions = &gfx().card.texture_tables.descriptions;
+    let descriptions = &crate::gfx::owner::textures().descriptions;
     match handle.checked_sub(TEXTURE_FORMAT) {
         Some(k) if (k as usize) < descriptions.len() => Ok(descriptions[k as usize].get().format),
         _ => Err(BadInput("a pixel layout's handle that names none")),

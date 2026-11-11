@@ -41,7 +41,7 @@ pub struct ScreenFlow {
     pub draw_list: ListCell,
     /// `g_overlayList`: The screen's overlay list.
     pub overlay_list: ListCell,
-    /// `dword_755500`: The screen's set-up list: run once at set-up (`menu::run_list`) and not put in place again.
+    /// `ScreenFlow.setup_list.0`: The screen's set-up list: run once at set-up (`menu::run_list`) and not put in place again.
     pub setup_list: ListCell,
     /// `g_sceneList`: The screen's 3D list.
     pub scene_list: ListCell,

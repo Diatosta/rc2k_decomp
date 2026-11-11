@@ -1,5 +1,5 @@
 //! `drive::choose_shown_cars` (0x4560EA): which car blocks the two views show (`view_blocks`,
-//! `off_63DBB4` = 0x70F3EC + n 0xFE0 for `view_cars`, `dword_63DBAC`), `views` (the
+//! `RaceView.view_blocks[1]` = 0x70F3EC + n 0xFE0 for `view_cars`, `RaceView.view_cars[1]`), `views` (the
 //! views' number, from `players`, by `view_switch` when `replay_mode` is 2, also setting
 //! `split`), this machine's car in a network game (`session`, `g_netSession`, set; the car
 //! `local_car`, set by `net::set_up_race` from the network player's number; then the second
@@ -70,7 +70,7 @@ fn game(race: &Race) -> Vec<&Dword> {
         &race.course.numbers.replay_mode,
         &shared.view.view_switch,
         &shared.vars.split,
-        &net().vars.session, // dword_52A910: in the network's variables
+        &net().vars.session, // NetVars.session: in the network's variables
         &shared.view.local_car,
         &shared.view.view_blocks[0],
         &shared.view.view_blocks[1],

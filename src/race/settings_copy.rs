@@ -9,7 +9,7 @@
 //! the cells written and the log text.
 
 use crate::errors::Refused;
-use crate::gfx::owner::GFX;
+use crate::gfx::owner::gfx;
 use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
@@ -96,8 +96,17 @@ macro_rules! car_bits {
     };
 }
 
-/// `var!(STATIC.field)`: a dword of an overlay store as a `StepOperand` (a `fn` item, as `car!`).
+/// `var!(STATIC.field)`: a dword of an overlay store as a `StepOperand` (a `fn` item, as `car!`);
+/// `var!(@gfx field ..)` one of the graphics owner's.
 macro_rules! var {
+    (@gfx $($f:tt)+) => {
+        $crate::race::settings_copy::StepOperand::Var({
+            fn f() -> &'static dyn $crate::session::DwordLike {
+                &$crate::gfx::owner::gfx().$($f)+
+            }
+            f
+        })
+    };
     ($($s:ident)::+ . $($f:tt)+) => {
         $crate::race::settings_copy::StepOperand::Var({
             fn f() -> &'static dyn $crate::session::DwordLike {
@@ -243,7 +252,7 @@ fn copy_in(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
     view.race_cars.set(view.players.get());
     vars.car_tyres[0].set(settings.cars[0].tyre.get());
     vars.car_tyres[1].set(settings.cars[1].tyre.get());
-    vars.mip_setting.set(GFX.display.choices.mipmapping.get());
+    vars.mip_setting.set(gfx().display.choices.mipmapping.get());
     vars.settings_words[0].set(settings.lens_flare.get());
     vars.settings_words[1].set(settings.reflections.get());
     vars.settings_words[2].set(settings.car_shadows.get());

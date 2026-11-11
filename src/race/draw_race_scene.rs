@@ -376,7 +376,7 @@ pub fn draw_race_scene(
         .panel
         .flat
         .set(race.frame.panel_and_overlay.panel.hud_flags[0].get() & 0x40);
-    race.frame.frame_work.mirror_wanted.set(0); // dword_6415E0
+    race.frame.frame_work.mirror_wanted.set(0); // FrameWork.mirror_wanted
     if race.course.stage_prefs.blit_cleared[0].get() | race.course.stage_prefs.blit_cleared[1].get()
         != 0
     {

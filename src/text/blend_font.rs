@@ -17,15 +17,15 @@ use crate::gfx::owner::gfx;
 use crate::gfx::pixel_format::surface_format;
 use crate::gfx::typefaces::{FontObject, FontRef};
 use crate::pointers::GamePtr;
-use crate::session::Dword;
+use crate::session::{GameThread, PlainDword};
 use crate::strings::owner::strings;
 use crate::text::font::Font;
 
 // ---- game data ----
 
-/// `g_blendedFont` (`stru_51E384`, 0x20 bytes): the
+/// `g_blendedFont` (`FontObject.first_char`, 0x20 bytes): the
 /// font a highlighted item is drawn with. Its first bytes are the image's.
-pub static BLENDED_FONT: FontObject = FontObject::from_font(Font {
+pub static BLENDED_FONT: GameThread<FontObject> = GameThread::new(FontObject::from_font(Font {
     first_char: 0x20,
     last_char: 0xFF,
     mode: 0,
@@ -37,9 +37,10 @@ pub static BLENDED_FONT: FontObject = FontObject::from_font(Font {
     palette: 0,
     glyph_table: 0,
     box_width: 0,
-});
+}));
 /// g_blendedPalette (0x4F3B74, 1024 bytes of which 15 entries are made): 0 at the start.
-pub static BLENDED_PALETTE: [Dword; 256] = [const { Dword::new(0) }; 256];
+pub static BLENDED_PALETTE: GameThread<[PlainDword; 256]> =
+    GameThread::new([const { PlainDword::new(0) }; 256]);
 const PALETTE_ENTRIES: u32 = 15;
 
 pub fn blend_font(
@@ -64,11 +65,11 @@ pub fn blend_font(
     if mode != 0 && (from_font.palette == 0 || to_palette == 0) {
         return Err(BadInput("a font without a palette"));
     }
-    BLENDED_FONT.set(from_font);
+    BLENDED_FONT.get().set(from_font);
     if mode == 0 {
         return Ok(());
     }
-    let palette = GamePtr::to(&BLENDED_PALETTE);
+    let palette = GamePtr::to(BLENDED_PALETTE.get());
     blend_palette(
         &gfx().pixel.formats,
         from_font.palette,
@@ -78,7 +79,7 @@ pub fn blend_font(
         t,
         &surface_format()?,
     )?;
-    BLENDED_FONT.palette.set(palette.addr());
+    BLENDED_FONT.get().palette.set(palette.addr());
     Ok(())
 }
 
@@ -89,7 +90,7 @@ mod tests {
 
     #[test]
     fn data_starts_as_the_games() {
-        let f = super::BLENDED_FONT.get();
+        let f = super::BLENDED_FONT.get().get();
         let mut bytes = vec![f.first_char, f.last_char, f.mode, f.flags];
         for w in [
             f.spacing as u32,
@@ -104,6 +105,7 @@ mod tests {
         }
         assert_eq!(bytes, image_bytes(0x51E384, 0x20));
         let bytes: Vec<u8> = super::BLENDED_PALETTE
+            .get()
             .iter()
             .flat_map(|w| w.get().to_le_bytes())
             .collect();

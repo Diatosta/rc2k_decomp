@@ -2,7 +2,7 @@
 //! menus show theirs.
 //!
 //! `g_shine` = 0x200 (`scene::set_shine` 0x422292, inlined); `scene::make_object_matrix` from
-//! the angles, place and size the caller set; `dword_6365C8` = 5; `g_lightKind` = 4;
+//! the angles, place and size the caller set; `LightState.view_kind` = 5; `g_lightKind` = 4;
 //! `scene::draw_scene_object`; `g_shine` = 0x100. 14 callers: the carousel's entry and thirteen
 //! menus' objects.
 

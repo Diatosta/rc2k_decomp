@@ -36,7 +36,7 @@ pub fn scratch_text() -> Result<Vec<u8>, BadInput> {
     Ok(all[..n].to_vec())
 }
 
-/// The registry's source (`byte_51BB8D`) against the current directory (written into the
+/// The registry's source (`InstallerNames.source`) against the current directory (written into the
 /// path buffer, as the original): None when there is no installed source or no directory.
 pub fn source_against_directory(
     install: &'static crate::install::owner::Install,

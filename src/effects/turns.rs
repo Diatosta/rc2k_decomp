@@ -82,9 +82,9 @@ fn int_over_80(v: i32, k: &PlainFloat) -> [u8; 10] {
     int_over_80_x87(v, k)
 }
 
-/// `effects::clamp_pair` (0x4BEF22): st(0) times `flt_89C9FC` rounded (b), st(1) times
-/// `flt_89CA00` (a); a held to 0 .. 0xFFFF and b to 0 .. 0x7FFF; then st(1) a over
-/// `flt_89CA04` and st(0) b over `flt_89CA08`, unrounded.
+/// `effects::clamp_pair` (0x4BEF22): st(0) times `MaskConstants.pair_scales[0]` rounded (b), st(1) times
+/// `MaskConstants.pair_scales[1]` (a); a held to 0 .. 0xFFFF and b to 0 .. 0x7FFF; then st(1) a over
+/// `MaskConstants.pair_scales[2]` and st(0) b over `MaskConstants.pair_scales[3]`, unrounded.
 pub fn clamp_pair(
     inputs: [[u8; 10]; 2],
     effects: &crate::effects::owner::Effects,

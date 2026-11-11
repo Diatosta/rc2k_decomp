@@ -4,9 +4,9 @@
 //!   for an undo (`race::keep_undo`); unless the block shown (`replay_block`) is the last
 //!   (`index_block_count`), `camera_edit` 1 or 2: the keys then change that camera.
 //! - `race::next_camera` (0x41E5EB), `race::previous_camera` (0x41E654): unless the block
-//!   shown is the last, its camera byte `camera_edit` - 1` (`unk_963BB3[edit + block * 8]`)
+//!   shown is the last, its camera byte `camera_edit` - 1` (`Buffers.viewer.block[2563][edit + block * 8]`)
 //!   one on (past 0x2E back to 0) or back (below 0 to 0x2E), skipping the cameras whose
-//!   name (`word_5C291C`) is 0x1C1 or 0x1C2 unless the replay is one player's
+//!   name (`ViewerAndKinds.viewer_panel.camera_name_ids[0]`) is 0x1C1 or 0x1C2 unless the replay is one player's
 //!   (`header_one_player` 1) with a first car outside 0x17 .. 0x20; then the change spread on
 //!   (`race::spread_camera`, dh the old value).
 

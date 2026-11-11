@@ -1,12 +1,12 @@
 //! `scene::set_object_file_names` (0x43964A): the paths of a kind of object's two
 //! files.
 //!
-//! Takes: the kind (which folder), `dword_634FE8` = the kind (the number)
+//! Takes: the kind (which folder), `ObjectWork.loading_kind` = the kind (the number)
 //!
 //! By the kind: under 0x190 `files\a\obj????.ro3` and `.lwo`, under 0x258 `files\b\`, under
 //! 0x320 `files\g\frnt\`, else `files\s\extr\`. Four pointers are set: the `.ro3` path
-//! (`dword_60AD28`) and where its number is (`dword_60AD24`), the `.lwo` path (`dword_60AD2C`)
-//! and its number (`dword_60AD30`). The number's four decimal digits are written over the
+//! (`ObjectFileNumbers.object_ro3_path`) and where its number is (`ObjectFileNumbers.object_ro3_number`), the `.lwo` path (`ObjectFileNumbers.object_lwo_path`)
+//! and its number (`ObjectFileNumbers.object_lwo_number`). The number's four decimal digits are written over the
 //! `????` of both (the thousands digit as one byte: anything above 9999 gives another
 //! character). One caller, `scene::load_object`.
 

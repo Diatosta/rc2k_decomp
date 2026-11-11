@@ -11,11 +11,11 @@ use crate::strings::format::{Pad, decimal, time};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E584`.
+    /// `FontObjects.objects[15].first_char`.
     Rows,
-    /// `stru_51E564`: speeds and times.
+    /// `FontObjects.objects[14].first_char`: speeds and times.
     Small,
-    /// `stru_51E9A4`: the stage.
+    /// `FontObjects.objects[48].first_char`: the stage.
     Stage,
 }
 

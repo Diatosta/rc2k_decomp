@@ -40,27 +40,27 @@ fn put(drops: &WindscreenDrops, e: u32, v: u32) {
     drops.hex.items.set_u32(e as usize, v);
 }
 
-/// The original's 0x4BC107 .. 0x4BC12E: the drift at the item's cell (`g_marksWindscreenDropCurve`[k]) into `flt_814772`, `flt_814776`.
+/// The original's 0x4BC107 .. 0x4BC12E: the drift at the item's cell (`g_marksWindscreenDropCurve`[k]) into `WindscreenDropWork.drift[0]`, `WindscreenDropWork.drift[1]`.
 fn drift_cell(drops: &WindscreenDrops, k: u32) {
     drift_cell_x87(drops, k as usize);
 }
 
-/// The original's 0x4BC131 .. 0x4BC17B: the item's motion (+0x1C, +0x20) eased toward the drift times its kind's `flt_814BC2`[k] by `flt_81622A`, its place moved by it.
+/// The original's 0x4BC131 .. 0x4BC17B: the item's motion (+0x1C, +0x20) eased toward the drift times its kind's `WindscreenDropWork.radii[0]`[k] by `WindscreenDropVars.ease`, its place moved by it.
 fn drift_move(drops: &WindscreenDrops, k: u32, s: u32) {
     drift_move_x87(drops, k as usize, s as usize);
 }
 
-/// The original's 0x4BC1DD .. 0x4BC1EF and 0x4BB94D .. 0x4BB9BE: the cell place scaled and turned into `flt_814CAA` .., the depth also in `flt_814734`.
+/// The original's 0x4BC1DD .. 0x4BC1EF and 0x4BB94D .. 0x4BB9BE: the cell place scaled and turned into `WindscreenDropWork.cell[0]` .., the depth also in `WindscreenDropState.depth`.
 fn sprite_depth(drops: &WindscreenDrops) {
     sprite_depth_x87(drops);
 }
 
-/// The original's 0x4BB9CE .. 0x4BBB1E: the six corners (the kind's offsets at `flt_814CFE`[c] ..) into `flt_814CB6` .., the depth's inverse (left on the x87 stack, so returned).
+/// The original's 0x4BB9CE .. 0x4BBB1E: the six corners (the kind's offsets at `WindscreenDropWork.scaled[0]`[c] ..) into `WindscreenDropWork.corners[0]` .., the depth's inverse (left on the x87 stack, so returned).
 fn sprite_corners(drops: &WindscreenDrops, c: u32) -> bh::X {
     sprite_corners_x87(drops, c as usize)
 }
 
-/// The original's 0x4BBB24 .. 0x4BBE28: the centre and corners projected into the buffer at e (six vertices), drawn in by `flt_81619A` / `E`, their depth.
+/// The original's 0x4BBB24 .. 0x4BBE28: the centre and corners projected into the buffer at e (six vertices), drawn in by `WindscreenDropVars.scale[2]` / `E`, their depth.
 fn sprite_project(drops: &WindscreenDrops, e: u32, inverse_depth: bh::X) {
     sprite_project_x87(drops, e as usize, inverse_depth);
 }

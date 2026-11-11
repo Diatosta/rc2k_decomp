@@ -17,12 +17,12 @@ const CLEARED: &PlainDword = &crate::menu::owner::MENUS
     .unchecked()
     .screens
     .event
-    .current_player; // dword_75598C
+    .current_player; // Event.current_player
 pub const ESCAPE_PRESSED: &PlainFlag = &crate::menu::owner::MENUS
     .unchecked()
     .screens
     .draw_work
-    .escape_pressed; // dword_755A3C: the screen was left with Escape
+    .escape_pressed; // DrawWork.escape_pressed: the screen was left with Escape
 
 /// The car screen is handed the list of cars; the
 /// car it starts from its set-up finds itself (the current player's record,

@@ -123,7 +123,7 @@ pub fn runs_dxsetup(answer: u8) -> bool {
     answer == 1
 }
 
-/// The last page: answer 2 shows the readme (`byte_51BE21` 5, the answer made 1).
+/// The last page: answer 2 shows the readme (`InstallerNames.script_mark` 5, the answer made 1).
 pub fn shows_readme(answer: u8) -> bool {
     answer == 2
 }

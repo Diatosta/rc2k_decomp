@@ -1,16 +1,16 @@
-//! `hud::draw_needle` (0x4B6ECD): a HUD needle: its value (`dword_75C2E0`, as a float through
-//! `dword_75C060`) held to `flt_75C018` at least; with `dword_75BFAC` held to `flt_75C2C8` at most
-//! and made an angle over `flt_75C2CC` plus `flt_75C2BC`; without, held to `flt_75C2D4`, and below
-//! `flt_75C2C4` over `flt_75C2D0` plus `flt_75C2BC`, else less `flt_75C2C4` over `flt_75C2CC` plus
-//! `flt_75C2C0`; times `flt_75C010` times `flt_75C014` (`fistp`), times -16 the turn; the needle's
-//! four corners (x `flt_75C2A8` / `flt_75C2B0`, y `flt_75C2AC` / `flt_75C2B4`) by
+//! `hud::draw_needle` (0x4B6ECD): a HUD needle: its value (`HudBlock.needle_value`, as a float through
+//! `HudBlock.fistp_scratch`) held to `HudBlock.least` at least; with `HudBlock.needle_kind` held to `HudBlock.needle_k[3]` at most
+//! and made an angle over `HudBlock.needle_k[4]` plus `HudBlock.needle_k[0]`; without, held to `HudBlock.needle_k[6]`, and below
+//! `HudBlock.needle_k[2]` over `HudBlock.needle_k[5]` plus `HudBlock.needle_k[0]`, else less `HudBlock.needle_k[2]` over `HudBlock.needle_k[4]` plus
+//! `HudBlock.needle_k[1]`; times `HudBlock.uv_scale_y` times `HudBlock.turn_k` (`fistp`), times -16 the turn; the needle's
+//! four corners (x `HudBlock.needle_corners[0]` / `HudBlock.needle_corners[2]`, y `HudBlock.needle_corners[1]` / `HudBlock.needle_corners[3]`) by
 //! `hud::turned_vertex`, then `hud::add_polygon` on four. (The holds by the compares' C0, an
 //! unordered compare counting as below.)
 //!
 //! Callers: the needles' set-ups (`hud::needle_*`).
 //!
 //! The value made a float and the turn's arithmetic and rounding stay the x87's (they follow its
-//! control word). `dword_75C060` is written once, with the turn (the original also holds the value
+//! control word). `HudBlock.fistp_scratch` is written once, with the turn (the original also holds the value
 //! there between, read by nothing).
 
 use crate::errors::Refused;
@@ -54,7 +54,7 @@ pub fn draw_needle(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         hud.block
             .needle_corners
             .each_ref()
-            .map(super::super::session::Float::bits),
+            .map(crate::session::PlainFloat::bits),
     )
     .into_iter()
     .enumerate()

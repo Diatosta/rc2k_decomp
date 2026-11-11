@@ -1,4 +1,4 @@
-//! `drive::flush_replay` (0x46022D): the replay's starting state (0xA04 dwords at `unk_7172EC`)
+//! `drive::flush_replay` (0x46022D): the replay's starting state (0xA04 dwords at `CarsAndReplay.car_blocks.cars[8].frame_head[0]`)
 //! copied into the frame `block` and the frames written (`drive::write_replay_frames`).
 //!
 //! Caller: `drive::flush_replay_if`. Refuses what `write_replay_frames` refuses.

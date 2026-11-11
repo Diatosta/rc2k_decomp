@@ -4,17 +4,17 @@
 //! Takes: the car's block
 //!
 //! Nothing unless the block's dword +0x84 is set. The place being lit
-//! (`dword_636588` ..) less the car's (+0x134 ..), through the car's matrix (+0x9CC;
-//! `scene::rotate_point`), as whole numbers in `dword_6365B8` ..: the place as the
+//! (`LightState.lit_place[0]` ..) less the car's (+0x134 ..), through the car's matrix (+0x9CC;
+//! `scene::rotate_point`), as whole numbers in `LightState.turned_light[0]` ..: the place as the
 //! car sees it, x across, y up, z ahead. Then three amounts, each held to 0 .. 255:
 //! - 0x100 less a quarter of ((z - 0x200000) squared + (2x) squared) times
-//!   `flt_5C5DA0` twice: a cone ahead of the car;
+//!   `Numbers.one_over_65536` twice: a cone ahead of the car;
 //! - one the original works out and then overwrites (((z - 0x100000) squared + x
-//!   squared) times `flt_5C5DA0`, stored to `g_scratch`, which nothing read: not kept);
+//!   squared) times `Numbers.one_over_65536`, stored to `g_scratch`, which nothing read: not kept);
 //! - (0x100000 less y without its sign) over 0x1000: how near the car's height.
 //!
 //! The third times twice the first over 256, times the block's dword +0xABC over 256, held to
-//! 255, picks a colour from the table `dword_635D18`, which is added to `g_lightColour` byte by
+//! 255, picks a colour from the table `LightTables.car_light_table[0]`, which is added to `g_lightColour` byte by
 //! byte without overflow. The x87's arithmetic in `X` (plain Rust; the
 //! original's instructions are `asm_reference` in the tests). Callers: `scene::add_car_lights`,
 //! twice. Takes the car's block as a typed reference.

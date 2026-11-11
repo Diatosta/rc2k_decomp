@@ -1,12 +1,11 @@
 //! The system textures' lock and unlock (`d3d::lock_texture`, `d3d::unlock_texture`,
 //! `d3d::texture_surface_info`): what they share, and their test. A system texture's
-//! record (`unk_5B521C`, 0x78 each, `platform_3d`'s `TextureRecord`): +4 width, +8
+//! record (`Textures.system.records[0].0[0]`, 0x78 each, `platform_3d`'s `TextureRecord`): +4 width, +8
 //! height, +0xC its pixel kind's description (+4 bytes a pixel, +8 the format), +0x14 its
 //! first level's surface (a DirectDraw surface: `Lock` at +0x64 and `Unlock` at +0x80 of
 //! its method table; `platform_3d::lock_surface` / `unlock_surface`), +0x60 locked.
 
 use crate::errors::FatalError;
-use crate::gfx::owner::gfx;
 
 pub const RECORD: u32 = 0x78;
 
@@ -14,7 +13,7 @@ pub const RECORD: u32 = 0x78;
 /// texture tables as a whole.
 pub fn record(slot: u32) -> crate::pointers::GamePtr {
     use crate::gfx::texture_upload::{Pool, Textures};
-    crate::pointers::GamePtr::to(&gfx().card.texture_tables).offset(
+    crate::pointers::GamePtr::to(crate::gfx::owner::textures()).offset(
         ((core::mem::offset_of!(Textures, system) + core::mem::offset_of!(Pool, records)) as u32)
             .wrapping_add(slot.wrapping_mul(RECORD)),
     )

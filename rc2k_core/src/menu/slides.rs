@@ -59,7 +59,7 @@ pub fn pcx(path: &mut [u8]) -> Result<(), Invalid> {
 }
 
 /// The slideshow's search from picture `start`: `tried(number)` (true: a picture taken);
-/// otherwise the number steps (`moved` gets each next one, `dword_755994`) until it comes
+/// otherwise the number steps (`moved` gets each next one, `Event.picture`) until it comes
 /// round to `start`, when the last one tried is taken anyway. A start past 0 .. 99 never
 /// comes round (as the original).
 pub fn search<E>(

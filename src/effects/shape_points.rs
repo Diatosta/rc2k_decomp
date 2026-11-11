@@ -180,23 +180,23 @@ fn all_steps<'a>(
     [
         (
             &masks.vars.shapes[0].ease_step,
-            0,                               // `dword_89C974`, `ShapeSetTuning::turn_angles`
-            &drops.shape_work.work.steps[0], // dword_884FC4
-            &drops.picks.flags[0],           // dword_844604
+            0, // `ShapeSetTuning.turn_angles[0]`, `ShapeSetTuning::turn_angles`
+            &drops.shape_work.work.steps[0], // ShapeWork.work.steps[0]
+            &drops.picks.flags[0], // MaskPicks.flags[0]
         ),
         (
             &masks.vars.shapes[1].ease_step,
-            2,                               // `dword_89C97C`
-            &drops.shape_work.work.steps[1], // dword_884FC8
-            &drops.picks.flags[1],           // dword_844608
+            2,                               // `ShapeSetTuning.turn_angles[2]`
+            &drops.shape_work.work.steps[1], // ShapeWork.work.steps[1]
+            &drops.picks.flags[1],           // MaskPicks.flags[1]
         ),
     ]
 }
 
 /// `effects::turn_all_shapes` (0x4BD122): for each of the settings' objects (the last
-/// first) the two shapes' eased steps (`smooth_steps` from `dword_89C974` / `_7C` to
-/// `dword_884FC4` / `_C8` by each shape's +0), the second result of each unless its switch
-/// (`dword_844604` / `_08`) is 0, and `turn_shape_points` with them. The object's offset
+/// first) the two shapes' eased steps (`smooth_steps` from `ShapeSetTuning.turn_angles[0]` / `_7C` to
+/// `ShapeWork.work.steps[0]` / `_C8` by each shape's +0), the second result of each unless its switch
+/// (`MaskPicks.flags[0]` / `_08`) is 0, and `turn_shape_points` with them. The object's offset
 /// (times 0xAB8) is worked out and not used: the one set is turned every time (section
 /// 16). Refuses what `turn_shape_points` would, before writing.
 pub fn turn_all_shapes(
@@ -413,7 +413,7 @@ pub fn make_shape_set(
 }
 
 /// `effects::make_shape_sets` (0x4BD019): no sets made; the two face kinds of `g_marksKind`
-/// into `dword_89C724`, `_28`; for each of the settings' objects (the last first) the set's
+/// into `ShapeSetTuning.face_kinds[0]`, `_28`; for each of the settings' objects (the last first) the set's
 /// inputs (the tilt twice into 0x764F60, _64; the kind's two values and two floats into
 /// 0x764F6C .. _78) and `make_shape_set`. Refuses a kind of 0x22 or more, more than 19
 /// objects, what `make_shape_set` refuses for any of them, before writing.
@@ -439,7 +439,7 @@ pub fn make_shape_sets(
             .collect::<Result<_, _>>()?;
         let t = &drops.tuning;
         let k = kind as usize; // under 0x22, checked above
-        // The kind's two face kinds and the set's two ends (`dword_89C72C`, `_7B4`, `_8C4`, `_83C`).
+        // The kind's two face kinds and the set's two ends (`ShapeSetTuning.first_face_kind[0]`, `_7B4`, `_8C4`, `_83C`).
         let by_kind = [
             t.first_face_kind[k].get(),
             t.second_face_kind[k].get(),

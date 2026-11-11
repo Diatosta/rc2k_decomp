@@ -9,10 +9,10 @@ use crate::strings::format::{Pad, decimal};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E5A4`, `stru_51E584`: a position, the rest.
+    /// `FontObjects.objects[16].first_char`, `FontObjects.objects[15].first_char`: a position, the rest.
     Position,
     Text,
-    /// `stru_51E544`, `stru_51E524`: the same for the player's own rows.
+    /// `FontObjects.objects[13].first_char`, `FontObjects.objects[12].first_char`: the same for the player's own rows.
     MarkedPosition,
     MarkedText,
 }

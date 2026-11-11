@@ -1,6 +1,6 @@
 //! `physics::set_downforce` (0x43F508): unless `rear_wheels_off` is set: `downforce` =
 //! (`g_carSpeed`² `downforce_factor` + `downforce_spec`) `gravity` (gravity, by
-//! `physics::apply_patches`), `flt_6147F4` its negative, `flt_614804` = -1. The car's
+//! `physics::apply_patches`), `PhysicsTables.forces[4].force[1]` its negative, `PhysicsTables.forces[4].point[2]` = -1. The car's
 //! downward force: its weight plus downforce growing with the speed's square.
 //!
 //! Caller: `physics::car_physics_step` (0x43B728), every physics step.

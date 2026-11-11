@@ -19,8 +19,8 @@ pub const CORNERS: u32 = 0x100;
 
 pub const SETTINGS_BLOCKS: u32 = 8;
 
-/// `effects::allocate_places` (0x4C38B1), step 6: 0x7024 bytes on `stru_8DB570` into
-/// `g_marksPlaces`, its first three floats `flt_8DB5B4` ... Only code no reference
+/// `effects::allocate_places` (0x4C38B1), step 6: 0x7024 bytes on `PlacesBlock.list[0]` into
+/// `g_marksPlaces`, its first three floats `PlacesBlock.start[0]` ... Only code no reference
 /// reaches reads the block (0x4C3908, 0x4C396A, 0x4C39D5: `notes/reference.md`), so
 /// since phase 12 it is only counted on its list (the memory figures) and not kept.
 pub fn allocate_places(effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
@@ -35,7 +35,7 @@ pub fn allocate_places(effects: &crate::effects::owner::Effects) -> Result<(), R
 /// place.
 pub type Particle = [u32; (RING_ENTRY / 4) as usize];
 
-/// The particles (`Particles::ring`; `g_marksRing`, the game's 0x4C000-byte block on `stru_93A580`), Rust's
+/// The particles (`Particles::ring`; `g_marksRing`, the game's 0x4C000-byte block on `RingPool.list[0]`), Rust's
 /// since phase 12: taken by `allocate_ring`, given back by `effects::tidy_marks`. A
 /// particle is named by its number + 1 (0 none), in the links and in `RING_POOL.ring` /
 /// `free`.
@@ -68,7 +68,7 @@ pub fn set_particle(particles: &Particles, p: u32, offset: u32, v: u32) -> Resul
         .ok_or(BadInput("a particle past the ring"))
 }
 
-/// `effects::allocate_ring` (0x4CFAC5), step 13: 0x4C000 bytes on `stru_93A580` into
+/// `effects::allocate_ring` (0x4CFAC5), step 13: 0x4C000 bytes on `RingPool.list[0]` into
 /// `g_marksRing` and `g_marksRingFree`, `g_marksRingUsed` 0, and the 0x1000 entries of
 /// 0x4C made a ring (+0 the one before, +4 the one after). The particles are Rust's
 /// (`Particles::ring`), counted on the list as the game's block was.
@@ -90,7 +90,7 @@ pub fn allocate_ring(particles: &Particles, ring: &Ring) -> Result<(), Refused> 
     Ok(())
 }
 
-/// `effects::allocate_links` (0x4C5398), in step 3: 0x71020 bytes on `stru_9206F0` into
+/// `effects::allocate_links` (0x4C5398), in step 3: 0x71020 bytes on `MarkLinks.list[0]` into
 /// `g_marksLinks`, its +0x7100C 0, at +8 and +0x4008 the 0x1000 entries' before and after
 /// (round), then `effects::scale_corners`. Only code no reference reaches reads the block
 /// (0x4C5446 .. 0x4C5DEA, 0x4C6242: `notes/reference.md`), so since phase 12 it is
@@ -105,9 +105,9 @@ pub fn allocate_links(effects: &crate::effects::owner::Effects) -> Result<(), Re
 const CORNER_PAIRS: [u32; 4] = [0, 4, 0xC, 8];
 
 /// `effects::scale_corners` (0x4C6420): for the 0x100 corner records (0xFF first), the four
-/// word pairs (+0, +4, +0xC, +8) each times `flt_8EB969` into the work and into +4 .. +0x20
+/// word pairs (+0, +4, +0xC, +8) each times `DrawWork.uv_k` into the work and into +4 .. +0x20
 /// of the record's 0x24 at `g_marksCornerSlopes`; +0 there the slope: |+0xA - +2| over
-/// |+4 - +0| (sixteen-bit differences; `dword_8EB8B5`, `dword_8EB8B9`).
+/// |+4 - +0| (sixteen-bit differences; `DrawWork.half[0]`, `DrawWork.half[1]`).
 pub fn scale_corners(effects: &crate::effects::owner::Effects) {
     {
         let scale: u32 = effects.frame.draw_work.uv_k.bits();
@@ -142,7 +142,7 @@ pub fn scale_corners(effects: &crate::effects::owner::Effects) {
 
 /// `effects::reset_settings_blocks` (0x4C9A6D), in step 3: the eight blocks of 0x4C8 at
 /// `g_marksSettings` + 0x60 (the last first): +0x4C .. +0x60 the six floats from
-/// `flt_9354C6`, the last three again at +0x64, +0x70, +0x7C, +0x30 8.
+/// `EmitterVars.settings_start[0]`, the last three again at +0x64, +0x70, +0x7C, +0x30 8.
 pub fn reset_settings_blocks(effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
     {
         let marks = effects.settings()?;

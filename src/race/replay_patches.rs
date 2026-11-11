@@ -37,8 +37,8 @@ pub fn apply_replay_patches(race: &Race) -> Result<(), Refused> {
         false,
     ) {
         VIEWER_PANEL.patches_in_force.set(1);
-        move_dwords(VIEWER_PANEL.kept_patch_switches.iter(), switches(shared)); // unk_5C2C98
-        move_dwords(switches(shared), REPLAY_WORK.header_patches.iter()); // unk_719C58
+        move_dwords(VIEWER_PANEL.kept_patch_switches.iter(), switches(shared)); // ViewerAndKinds.viewer_panel.kept_patch_switches[0]
+        move_dwords(switches(shared), REPLAY_WORK.header_patches.iter()); // CarsAndReplay.replay_work.header_patches[0]
         shared.work.patches_applied.set(0);
         crate::physics::apply_patches::apply_patches(
             &race.shared.physics_tables,

@@ -111,7 +111,7 @@ impl Io for GameIo<'_> {
     fn beaten(&mut self, time: u32) {
         let shared = &self.race.shared;
         shared.tyre_change.record.set(time);
-        // g_playerNames, or the second name, byte_7557A4: 30 bytes.
+        // g_playerNames, or the second name, Names.player_names: 30 bytes.
         let from = 0x20 * (shared.tyre_change.player.get() != 0) as usize;
         for n in 0..30 {
             shared

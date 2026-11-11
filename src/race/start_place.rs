@@ -37,7 +37,7 @@ fn get(course: &Course, n: u32, k: u32) -> Result<u32, BadInput> {
 }
 
 /// `race::place_car_on_line` (0x44666F): checkpoint `line_place` (held below `g_checkpointCount`)
-/// and the next (held so too); their faces' first points and their headings (`dword_9ED808`)
+/// and the next (held so too); their faces' first points and their headings (`Buffers.checkpoints.angles[2]`)
 /// blended by `line_fraction` / 65536 into `place_x` / `C0` (+ `ground_drop`) / `E0` and
 /// `place_heading`, then into the work car's place and heading; the first face's number in
 /// `place_face`. Refuses no checkpoints (the original reads entry -1) or more than the lists.

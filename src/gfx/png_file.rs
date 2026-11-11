@@ -2,7 +2,7 @@
 //! file into memory it takes from the list kept here, and gives the list back on every way out.
 
 use crate::memory::MemoryList;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// IDA's address of the block's first byte.
 pub const START: usize = 0x5BEC30;
@@ -15,10 +15,10 @@ pub const LEN: usize = 0x5BEC48 - START;
 pub struct PngFile {
     /// `dword_5BEC30`: the file's memory (the game's address; unused, as the file's
     /// bytes are Rust's).
-    pub file: Dword,
+    pub file: PlainDword,
     /// `dword_5BEC34`: the file's length.
-    pub length: Dword,
-    /// `dword_5BEC38`: the list the file's memory is on (16 bytes).
+    pub length: PlainDword,
+    /// `PngFile.memory.head`: the list the file's memory is on (16 bytes).
     pub memory: crate::memory::ListCells,
 }
 
@@ -26,8 +26,8 @@ impl PngFile {
     /// The file; the first values are the image's.
     pub const fn new() -> Self {
         PngFile {
-            file: Dword::new(0),
-            length: Dword::new(0),
+            file: PlainDword::new(0),
+            length: PlainDword::new(0),
             memory: crate::memory::ListCells::new(MemoryList {
                 head: 0,
                 total: 0,
@@ -45,7 +45,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(
-            &crate::gfx::owner::GFX.png.file,
+            &crate::gfx::owner::GFX.unchecked().png.file,
             START,
             START + LEN,
         );
@@ -55,11 +55,11 @@ mod tests {
     fn moved_knows_the_block() {
         assert_eq!(
             crate::moved::place(START),
-            crate::gfx::owner::GFX.png.file.file.addr() as usize
+            crate::gfx::owner::GFX.unchecked().png.file.file.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x5BEC38),
-            crate::gfx::owner::GFX.png.file.memory.addr() as usize
+            crate::gfx::owner::GFX.unchecked().png.file.memory.addr() as usize
         );
     }
 }

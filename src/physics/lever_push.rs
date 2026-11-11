@@ -4,8 +4,8 @@
 //! into `lever_push_turned` ..), turned back (`physics::turn_by_car_matrix`), scaled by the share
 //! `lever_share_left` and by `lever_share` (`physics::scale_vector`, each factor then stored in
 //! `scratch`); its x and z times 65536 (`k65536`) and the step (`step_time`),
-//! `fistp` into `lever_pushes` / `dword_6140E8` and added to the car's x / z
-//! (`position` / `dword_71A114`). A reading: the car moved by a point's speed about
+//! `fistp` into `lever_pushes` / `PhysicsTables.lever_pushes[1]` and added to the car's x / z
+//! (`position` / `Car.position[2]`). A reading: the car moved by a point's speed about
 //! its spin.
 //!
 //! Caller: `physics::lever_pushes` (twice).

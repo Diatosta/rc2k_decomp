@@ -55,7 +55,7 @@ pub struct PolygonWork {
     pub face_sort_key: Dword,
     /// The clip's kept mask (`scene::clip`).
     pub clip_kept_mask: Dword,
-    /// `scene::clip`'s work (`flt_623F80` ..); `race::car_shadow` keeps a vertex's pieces in
+    /// `scene::clip`'s work (`SceneDraw.clip_work[0]` ..); `race::car_shadow` keeps a vertex's pieces in
     /// [2], [4], [10], [11].
     pub clip_work: [Float; 12],
     /// `scene::clip`'s second output run (five words written back from its work); `race::car_shadow` keeps the new crossing vertex's fog byte (+0x20) in [0].
@@ -66,7 +66,7 @@ pub struct PolygonWork {
     /// just before the polygon is clipped and drawn.
     pub quad_vertices: [Dword; 32],
     /// The texture filter's switches (`LEVEL_GRID.smooth`, `plain_first`, `plain_second`:
-    /// `dword_63E164` .. `dword_63E16C`): `smooth` the pass being drawn's (render state 3:
+    /// `LevelGrid.smooth` .. `LevelGrid.plain_second`): `smooth` the pass being drawn's (render state 3:
     /// 3 smooth, 1 not), set from the pass's set's `plain`, 1 when its texture's mapping is 0.
     /// A view starts from `race::view_scratch::filter_input`; the HUD sets the front end's
     /// slot's `plain` 1, 1 (`hud::overlay_pass`).

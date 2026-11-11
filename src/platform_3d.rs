@@ -33,7 +33,6 @@
 use crate::d3d::owner::d3d;
 use crate::errors::FatalError;
 use crate::framework::log;
-use crate::gfx::owner::gfx;
 use crate::gfx::texture_upload::TextureFormat;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use crate::render::{Command, STATES, Target, TextureNote};
@@ -128,7 +127,7 @@ pub fn describe_texture_formats(bits: u32, gfx: &crate::gfx::owner::Gfx) {
 
 /// A record of a pool (0 system, 1 video).
 fn record_at(pool: usize, number: u32) -> &'static crate::gfx::texture_upload::RecordCell {
-    &gfx().card.texture_tables.pool(pool).records[number as usize]
+    &crate::gfx::owner::textures().pool(pool).records[number as usize]
 }
 
 struct Level {
@@ -269,11 +268,11 @@ fn reads_texture(pixels: crate::pointers::GamePtr) -> bool {
 
 /// The screen as the game has it now.
 pub fn screen() -> Option<Target> {
-    let drawing = &gfx().drawing;
-    let pixels: u32 = drawing.draw_surface.present_pixels.get();
+    let surface = crate::gfx::owner::draw_surface();
+    let pixels: u32 = surface.present_pixels.get();
     (pixels != 0).then(|| Target {
         pixels: pixels as usize,
-        pitch: drawing.draw_surface.present_pitch.get() as usize,
+        pitch: surface.present_pitch.get() as usize,
         width: crate::system::owner::system().session.screen.width.get() as usize,
         height: crate::system::owner::system().session.screen.height.get() as usize,
         bits: crate::system::owner::system().session.screen.bits.get(),
@@ -462,7 +461,7 @@ fn level_of(
 /// The texture format at `format`: the description a handle names, else (a kind read past
 /// the table) a number read through the game's memory.
 fn format_at(format: u32) -> TextureFormat {
-    match gfx().card.texture_tables.description(format) {
+    match crate::gfx::owner::textures().description(format) {
         Some(d) => d.get(),
         None => crate::pointers::read_or_end::<TextureFormat>(format, "a texture format"),
     }
@@ -565,10 +564,12 @@ pub fn draw_triangles(
 
 /// `draw_triangles` on a batch's own buffers. A count past them ends the game (the
 /// original read on into what follows).
-pub fn draw_indexed_bytes<const V: usize, const I: usize>(
-    vertices: &crate::session::Bytes<V>,
+pub fn draw_indexed_bytes(
+    vertices: &impl crate::session::ByteBuffer,
+    vertex_room: usize,
     vertex_count: u32,
-    indices: &crate::session::Bytes<I>,
+    indices: &impl crate::session::ByteBuffer,
+    index_room: usize,
     index_count: u32,
 ) {
     use crate::d3d::VERTEX_LEN;
@@ -580,16 +581,16 @@ pub fn draw_indexed_bytes<const V: usize, const I: usize>(
         index_count,
         |n| {
             let at = n as usize * VERTEX_LEN;
-            if at + VERTEX_LEN > V {
+            if at + VERTEX_LEN > vertex_room {
                 past("a vertex")
             }
-            std::array::from_fn(|k| vertices.get_u32(at + 4 * k))
+            std::array::from_fn(|k| vertices.get_u32_at(at + 4 * k))
         },
         |k| {
-            if 2 * k + 2 > I {
+            if 2 * k + 2 > index_room {
                 past("an index")
             }
-            u16::from_le_bytes([indices.get(2 * k), indices.get(2 * k + 1)])
+            u16::from_le_bytes([indices.get_byte(2 * k), indices.get_byte(2 * k + 1)])
         },
     );
 }
@@ -603,7 +604,7 @@ pub fn draw_indexed<const V: usize, const I: usize>(
     indices: &crate::session::Bytes<I>,
     index_count: u32,
 ) -> u32 {
-    draw_indexed_bytes(vertices, vertex_count, indices, index_count);
+    draw_indexed_bytes(vertices, V, vertex_count, indices, I, index_count);
     0
 }
 
@@ -617,7 +618,7 @@ fn fatal(code: u32) -> FatalError {
 fn size_of(code: u32) -> Option<u32> {
     let entry = find_entry(
         code,
-        crate::pointers::GamePtr::to(&gfx().card.texture_tables.sizes),
+        crate::pointers::GamePtr::to(&crate::gfx::owner::textures().sizes),
         5,
     )
     .ok()??;
@@ -638,7 +639,7 @@ fn make_texture(
     levels: u32,
 ) -> Result<u32, FatalError> {
     let full = if pool == 0 { 0x80D1_8501 } else { 0x80D1_8601 };
-    let pool_vars = gfx().card.texture_tables.pool(pool);
+    let pool_vars = crate::gfx::owner::textures().pool(pool);
     let number: u32 = pool_vars.count.get();
     if number >= MOST {
         return Err(fatal(full));

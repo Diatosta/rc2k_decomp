@@ -2,8 +2,8 @@
 //!
 //! Takes: x, y, z, the angle
 //!
-//! The three go through the scratch point (`dword_5C5F50` x, `dword_5C5F54` y,
-//! `dword_5C5F4C` z; a local since 2026-10-24: `rotate_scratch_about_y::Scratch`), left there as
+//! The three go through the scratch point (`FrameScratch.scratch_x` x, `FrameScratch.scratch_y` y,
+//! `FrameScratch.scratch_z` z; a local since 2026-10-24: `rotate_scratch_about_y::Scratch`), left there as
 //! whole numbers. 29 callers (the map, the cameras, ..).
 
 use crate::math::rotate_scratch_about_y::{Scratch, rotate_scratch_about_y};

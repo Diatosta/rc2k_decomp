@@ -52,7 +52,11 @@ impl SheetPixels for RowTable<'_> {
 }
 
 /// 0x412232 on the palette at `palette` (an RVA): see `rc2k_core::gfx::glyphs::transparent_of`.
-pub fn transparent_of(flags: u32, backdrop: u32, palette: &[crate::session::Dword; 256]) -> u32 {
+pub fn transparent_of(
+    flags: u32,
+    backdrop: u32,
+    palette: &[crate::session::PlainDword; 256],
+) -> u32 {
     rc2k_core::gfx::glyphs::transparent_of(
         flags,
         backdrop,

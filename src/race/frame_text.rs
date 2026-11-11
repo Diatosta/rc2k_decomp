@@ -150,7 +150,7 @@ impl Credits {
 /// and 0x51E584 (at a sixteenth), each moving down a line; 3 / 4 a string left / right of the
 /// middle (only 4 moves down); 5 three strings in columns; 6 a signed move; 9 nothing; any other
 /// the end) from the top down, moves the top up a pixel for each 0x12 ms passed, and when the last
-/// line is above -0xAF and the music has stopped, `dword_529854` 1.
+/// line is above -0xAF and the music has stopped, `Credits.done` 1.
 pub fn roll_credits(
     frame: &Frame,
     eax: u32,

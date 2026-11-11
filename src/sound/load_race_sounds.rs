@@ -1,17 +1,17 @@
 //! `sound::load_race_sounds` (0x40EED8): names the co-driver's speech files and tells the
 //! audio thread which sets of sounds a race needs.
 //!
-//! The two cars' sound objects are `off_512A10[dword_514F70]` and
-//! `off_512A10[dword_514F74]`. The first's dword +0x298 says whose voice it has: 0 the
+//! The two cars' sound objects are `RaceSounds.table[0][RaceSounds.player_cars[0]]` and
+//! `RaceSounds.table[0][RaceSounds.player_cars[1]]`. The first's dword +0x298 says whose voice it has: 0 the
 //! list of 95 file names at 0x507C1A (`files\%speech\m\..`), else the list at 0x508914
 //! (`..\f\..`); the second car has the other list, or the same one if its +0x298 is the
-//! first's. The sample records 0xED .. 0x1AA of `unk_50A7A4` (0x40 bytes each) get the
+//! first's. The sample records 0xED .. 0x1AA of `SampleRecords.records[0]` (0x40 bytes each) get the
 //! names at their +0xC: the odd ones the first car's, the even ones the second's.
 //! Then the sets, each a command 3 (load a list of sounds) naming the set: in a replay
-//! (`dword_75B108` not 0) only `unk_512340`; else the first car's kind
-//! (`off_512360[its +4 * 8]`), `unk_511CA8`, `unk_512268`, `unk_511D04`; unless
-//! `dword_514F78` is 1 the second car's kind (`off_512364[its +4 * 8]`), `unk_512014`,
-//! `unk_512070`; and `unk_5121EC` unless `dword_514F78` is `dword_514F7C`.
+//! (`RaceState.results.finished` not 0) only `RaceSoundSets.replay_set[0]`; else the first car's kind
+//! (`RaceSoundSets.kinds[0][its +4 * 8]`), `RaceSoundSets.first_set_a[0]`, `RaceSoundSets.first_set_b[0]`, `RaceSoundSets.first_set_c[0]`; unless
+//! `RaceSounds.one_player` is 1 the second car's kind (`RaceSoundSets.kinds[1][its +4 * 8]`), `RaceSoundSets.second_set_a[0]`,
+//! `RaceSoundSets.second_set_b[0]`; and `RaceSoundSets.last_set[0]` unless `RaceSounds.one_player` is `RaceSounds.count`.
 //! The commands also carry the loop's leftover values in their unused words; they are
 //! reproduced because the sound hash of a held race records them.
 //! What the two counts and "a replay" are is a reading.
@@ -33,7 +33,7 @@ use rc2k_core::audio::commands::{Command, SoundList};
 const FIRST_SAMPLE: usize = 0xED;
 const NAMES: usize = 95;
 const OBJECTS: u32 = 8;
-/// The kinds `off_512360` has sets for: 0x22, the cars' kinds (0x20 and 0x21, the Clio's,
+/// The kinds `RaceSoundSets.kinds[0]` has sets for: 0x22, the cars' kinds (0x20 and 0x21, the Clio's,
 /// share kind 0xD's sets). The original reads it unchecked.
 const KINDS: u32 = 0x22;
 
@@ -54,9 +54,9 @@ fn lengths(list: GamePtr) -> Result<Vec<u32>, BadInput> {
 }
 
 /// `send` gets each command 3's list (by handle: the audio thread resolves it).
-/// The variables (`sound::owner::Sound::race`'s `sounds`): dword_514F70 and dword_514F74 the
-/// two cars' numbers, dword_514F78, dword_514F7C the counts, off_512A10 the eight sound
-/// objects; dword_75B108 the replay switch.
+/// The variables (`sound::owner::Sound::race`'s `sounds`): RaceSounds.player_cars[0] and RaceSounds.player_cars[1] the
+/// two cars' numbers, RaceSounds.one_player, RaceSounds.count the counts, RaceSounds.table[0] the eight sound
+/// objects; RaceState.results.finished the replay switch.
 pub fn load_race_sounds(
     send: &mut dyn FnMut(SoundList),
     sound: &crate::sound::owner::Sound,

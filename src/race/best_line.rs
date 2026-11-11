@@ -498,7 +498,7 @@ pub fn surface_shares(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::map_segment` (0x446036): the checkpoints from `dword_6236C4` to `dword_6236C0` (both
+/// `race::map_segment` (0x446036): the checkpoints from `RaceVars.map_work[3]` to `RaceVars.map_work[2]` (both
 /// included) placed on the map: the two anchors' map places (their faces' words +0x2C and +0x2E, <<
 /// 14, y negated) and first points; the stretch's scale (map length over ground length, a float)
 /// and its two angles (`fpatan` / pi * 0.5^3 * 65536^2, << 2); each checkpoint's point from the

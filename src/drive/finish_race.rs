@@ -1,6 +1,6 @@
 //! `drive::finish_race` (0x459116): the championship's finish routine: the stage
-//! (`finish_stages`[dword_75B0FC]` into `g_stageNumber`), the cars' kind (`dword_75B104` into
-//! `g_raceCarKinds` and the first block's +0x24) and +0xAA8 (`dword_75B100`) logged; one car in
+//! (`finish_stages`[RaceState.results.stage_index]` into `g_stageNumber`), the cars' kind (`RaceState.results.finish_kind` into
+//! `g_raceCarKinds` and the first block's +0x24) and +0xAA8 (`RaceState.results.finish_player`) logged; one car in
 //! mode 3 set up (some thirty settings and block words); the stage loaded (`race::load_stage`);
 //! `after_credits` 0; `drive::finish_run`; everything tidied (`race::tidy_everything`);
 //! `race_done`, `64BB18`, `606744`, `606748` 0; logged.

@@ -437,7 +437,7 @@ pub(super) mod run {
 
     /// `physics::face_shares`' floating point part, the original's instructions in its order.
     /// `i`: the differences d738, d73C, d740, d750, d754, d758 (whole numbers) and the scale
-    /// `flt_5C5D98` (bits) at [6]. `o` gets f764, f75C, f760, f810, i800, f814, i804, and with
+    /// `Numbers.k65536` (bits) at [6]. `o` gets f764, f75C, f760, f810, i800, f814, i804, and with
     /// `sse` f768 (`rcpss` of f764) at [7].
     pub(super) unsafe fn face_shares(i: &[u32; 7], o: &mut [u32; 8], sse: bool) {
         let (i, o) = (i.as_ptr(), o.as_mut_ptr());

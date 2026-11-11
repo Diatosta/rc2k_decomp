@@ -69,7 +69,7 @@ pub fn init_marks(
             .enumerate()
         {
             let half = side.get() >> 1;
-            // The screen's middle x, it less `flt_76516C`, the same for y.
+            // The screen's middle x, it less `MarksFloats.one`, the same for y.
             effects.clipping.clip.edges[2 * n].set(x87::from_int(half as i32));
             effects.clipping.clip.edges[2 * n + 1].set(x87::int_less(half as i32, less));
         }

@@ -42,7 +42,7 @@ pub fn plane_height(a: i32, b: i32, c: i32, f: u32, g: u32) -> i32 {
 
 /// `physics::face_shares`' floating point part, the original's operations in its order.
 /// `i`: the differences d738, d73C, d740, d750, d754, d758 (whole numbers) and the scale
-/// `flt_5C5D98` (bits) at [6]. `o` gets f764, f75C, f760, f810, i800, f814, i804, and with
+/// `Numbers.k65536` (bits) at [6]. `o` gets f764, f75C, f760, f810, i800, f814, i804, and with
 /// `sse` f768 (`rcpss` of f764) at [7]. (`rcpss` is the SSE approximation, from the tables
 /// of `arch::rcpss`: the processors' own results differ.)
 pub fn face_shares(i: &[u32; 7], o: &mut [u32; 8], sse: bool) {

@@ -31,10 +31,10 @@ const NO_MAP: FatalError = FatalError {
     message: "",
 };
 
-/// `menu::draw_stage_map`: the stage by `dword_755700` (2: `off_73555A[dword_7587EC]`'s
-/// `dword_7587F0`th; 3: `records::find_record` of `g_recordTable` with `section` and
+/// `menu::draw_stage_map`: the stage by `ChampView.stage_mode` (2: `off_73555A[Arcade.level]`'s
+/// `Arcade.stage`th; 3: `records::find_record` of `g_recordTable` with `section` and
 /// `index`; else the choice's: `off_735512[group][sub]`'s `number`th), its overlay
-/// `off_7598AE[+0x3C]`; `ukmap.png` loaded with it (the carry: fatal error 0x80712345),
+/// `MenuLists.map_overlays[0][+0x3C]`; `ukmap.png` loaded with it (the carry: fatal error 0x80712345),
 /// converted, `g_pictureFlags` = `g_screenModeFlags` & 0xFFF, made the surface, sprite 0xA0
 /// at (0, 0). Refuses a choice without its tables (the original reads through null).
 pub fn draw_stage_map(menus: &Menus) -> Result<(), Refused> {

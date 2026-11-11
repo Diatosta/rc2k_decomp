@@ -68,7 +68,7 @@ pub fn face(n: usize) -> &'static Dword {
     cell_in(&CHECKPOINTS.checkpoint_faces, n)
 }
 
-/// Checkpoint `n`'s angle cell, as the readers index it: `dword_9ED808[n]`, 8 bytes into
+/// Checkpoint `n`'s angle cell, as the readers index it: `Buffers.checkpoints.angles[2][n]`, 8 bytes into
 /// `g_checkpointAngles`.
 pub fn angle(n: usize) -> &'static Dword {
     cell_in(&CHECKPOINTS.angles[2..], n)

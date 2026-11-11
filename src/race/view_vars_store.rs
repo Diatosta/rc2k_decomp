@@ -64,7 +64,7 @@ pub struct ViewVars {
     pub view_hides: [Dword; 34],
 }
 
-/// A view record (0x5C bytes; 52 of them at 0x606500, named by `off_606320`): one camera
+/// A view record (0x5C bytes; 52 of them at 0x606500, named by `ViewAndRecords.view_vars.view_records[0]`): one camera
 /// mode's figures. The three-letter names are the developers' (the kstar camera page).
 /// Records 1 .. 3 are refilled from the car's light record (`physics::update_camera`),
 /// 4 .. 6 placed by `physics::place_camera`, 6 by the finish camera too.
@@ -132,7 +132,7 @@ impl ViewRecord {
 }
 
 impl ViewVars {
-    /// IDA's address of the table of view records (`off_606320`) and its length (52 dwords).
+    /// IDA's address of the table of view records (`ViewAndRecords.view_vars.view_records[0]`) and its length (52 dwords).
     #[cfg(test)]
     const TABLE: usize = 0x606320;
     /// IDA's addresses of the first view record and the end of the last (52 of 0x5C).
@@ -176,7 +176,7 @@ impl ViewVars {
 }
 
 /// A view record by handle (phase 13): `VIEW_TAG | k` for the record `k` of the 52, in
-/// place of the record's address in `off_606320` (0xC3 of the tags 0xC3 .. 0xC6 given).
+/// place of the record's address in `ViewAndRecords.view_vars.view_records[0]` (0xC3 of the tags 0xC3 .. 0xC6 given).
 pub const VIEW_TAG: u32 = 0xC300_0000;
 
 /// The handle for IDA's `ida` (a view record's address; anything else fails to compile).
@@ -188,7 +188,7 @@ pub const fn view_ref(ida: u32) -> u32 {
     VIEW_TAG | (off / ViewVars::RECORD_SIZE) as u32
 }
 
-/// `bytes` (the group's first values from IDA's `start`) with the 52 dwords of `off_606320`
+/// `bytes` (the group's first values from IDA's `start`) with the 52 dwords of `ViewAndRecords.view_vars.view_records[0]`
 /// made `view_ref`s.
 pub const fn with_view_refs<const N: usize>(mut bytes: [u8; N], start: usize) -> [u8; N] {
     let mut k = 0;

@@ -28,7 +28,7 @@ pub const SEAL_VERSION: u8 = 6;
 pub const SEAL_KEY: [u32; 2] = [0x666C_6168, 0x6E6F_6F6D];
 
 /// Whether replays are recorded: on (1), not a demonstration (0), and neither of the two
-/// other switches 1 (`replays_on`, `no_replay_switch`, `session`, `dword_75ACDC`).
+/// other switches 1 (`replays_on`, `no_replay_switch`, `session`, `RaceState.settings.no_replay`).
 pub fn replays_on(on: u32, demo: u32, a: u32, b: u32) -> bool {
     on == 1 && demo == 0 && a != 1 && b != 1
 }

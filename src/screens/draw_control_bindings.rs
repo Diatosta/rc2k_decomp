@@ -19,7 +19,7 @@ use crate::screens::game_screen::ControlsScreen;
 use crate::screens::owner::screens;
 use crate::text::draw_text::Canvas;
 
-/// The directions' names (`word_755200`, `word_755212`).
+/// The directions' names (`word_755200`, `ControlsScreen.stick_names[0]`).
 fn direction_names(
     controls: &crate::screens::controls_store::ControlsScreen,
 ) -> rc2k_core::screens::controls::DirectionNames {

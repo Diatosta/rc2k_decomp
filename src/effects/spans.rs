@@ -35,7 +35,7 @@ fn run_put(masks: &Masks, at: u32, v: u32) -> Result<(), BadInput> {
 }
 
 /// The rows the edge pair's loop runs (its check: the row rounded below y1 rounded, the
-/// row counting up by `flt_89C9AC`), or `None` past `MOST_ROWS`.
+/// row counting up by `MaskConstants.ones[2]`), or `None` past `MOST_ROWS`.
 pub fn edge_rows(edge: &[u32; 6], effects: &crate::effects::owner::Effects) -> Option<u32> {
     let one: u32 = effects.setup.mask_constants.ones[2].bits();
     let mut row = x87::round_float(edge[0]);
@@ -64,7 +64,7 @@ fn room(cursor: u32, rows: Option<u32>) -> Result<(), Refused> {
     }
 }
 
-/// `effects::span_edges` (0x4BE315): from the edge pair (`dword_82FD16` ..), a row of spans
+/// `effects::span_edges` (0x4BE315): from the edge pair (`MaskVars.edge[0]` ..), a row of spans
 /// at `to` (a byte offset in the work; 8 bytes: x, length) for each whole row from y0 rounded up to y1: both x's at
 /// the row's middle by the slopes, the two put in order (swapped also when equal), the left
 /// rounded and the length the right less it. The x87's rounding as it is set (the triangle
@@ -128,7 +128,7 @@ pub fn span_edges(
 
 /// The corners sorted by y, the original's way: pass after pass, a pair swapped when the
 /// second's y compares below the first's. Also the last compare's status (C0 .. C2), which
-/// the original leaves in `word_82FCE8`.
+/// the original leaves in `MaskVars.status_word`.
 fn sorted(mut t: [u32; 6]) -> ([u32; 6], u16) {
     loop {
         let mut swapped = false;
@@ -188,7 +188,7 @@ pub fn spans_fit(masks: &Masks, triangles: u32, rows: Option<u32>) -> Result<(),
 /// 0x833D2E and sorted by y; a run (`g_marksMaskRuns`, 16 bytes on) at the cursor; its top
 /// half and its bottom (split at the middle corner's height, x by `x87::split_x`) spanned
 /// (`span_edges`); the run's first row (the top y rounded) and count noted, the cursor on,
-/// `dword_82E342` counting the spans. All with the x87 rounding toward zero; its control
+/// `MaskVars.spans_total` counting the spans. All with the x87 rounding toward zero; its control
 /// word put back after. Refuses runs past their table, and spans past the work block or
 /// away, before writing.
 pub fn span_triangle(
@@ -231,7 +231,7 @@ pub fn span_triangle(
         }
         masks.vars.cursor.set(to);
         let count = (to - cursor) >> 3;
-        // Through `dword_71C880`, as the original's `fistp`.
+        // Through `MarksWork.scratch`, as the original's `fistp`.
         let first = x87::to_int(y0) as u32;
         effects.setup.work.scratch.set(first);
         run_put(masks, runs + 4, first)?;

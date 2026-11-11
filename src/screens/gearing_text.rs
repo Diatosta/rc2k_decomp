@@ -33,7 +33,7 @@ pub fn gearing_text(menus: &Menus) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `menu::next_gearing` / `menu::previous_gearing`: `dword_7554F0` on (past 2 to 0) or back
+/// `menu::next_gearing` / `menu::previous_gearing`: `ScreenFlow.shown_gearing` on (past 2 to 0) or back
 /// (below 0 to 2, both signed), the current player's `gearing` it, and its text.
 pub fn step_gearing(menus: &Menus, on: bool) -> Result<(), Refused> {
     let screens = &menus.screens;

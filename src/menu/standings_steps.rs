@@ -27,7 +27,7 @@ pub fn clear_standings(table: Which) -> Result<(), Refused> {
 
 /// Numbers the entries of `table` 1, 2, .. in order (with the class mode 2 only those with
 /// a group), each player's number also into its record. Table A's count goes into
-/// `EVENT_STATE.count_a` (`dword_75597C`).
+/// `EVENT_STATE.count_a` (`Event.count_a`).
 pub fn number_all(menus: &Menus, table: Which) -> Result<Numbered, Refused> {
     let screens = &menus.screens;
     let grouped = screens.state.menus.class_mode.get() == 2;

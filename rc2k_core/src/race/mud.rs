@@ -12,7 +12,7 @@ pub const MOST_TEXTURE: u32 = 3;
 pub const MAP_BYTES: u32 = 0x4000;
 
 /// `race::mud_texel` / `put_mud_texel`: a place on the 256 x 256 square on the texture,
-/// halved `halvings` times (`dword_5CEEE0`: 0 none, 1 once, more twice; x then y each
+/// halved `halvings` times (`ObjectTables.system_levels[256]`: 0 none, 1 once, more twice; x then y each
 /// time), or None when an odd place would be halved.
 pub fn texel_place(x: u32, y: u32, halvings: u32) -> Option<(u32, u32)> {
     let times = halvings.min(2);

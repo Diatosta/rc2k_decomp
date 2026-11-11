@@ -7,7 +7,7 @@
 
 use crate::Invalid;
 
-/// The highest start number worked out (`dword_6051A0` indexes `dword_605034`).
+/// The highest start number worked out (`RaceTables.start_slot` indexes `RaceTables.arcade_car_numbers[0]`).
 pub const LAST_START: u32 = 0x400;
 
 /// The start number checked.

@@ -8,7 +8,7 @@ use crate::strings::format::{Pad, axis_name, decimal};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E8C4`.
+    /// `FontObjects.objects[41].first_char`.
     Value,
 }
 
@@ -27,7 +27,7 @@ pub struct Binding {
     pub axis: u8,
 }
 
-/// The directions' names: `word_755200` for a device kind below 2, else `word_755212`.
+/// The directions' names: `word_755200` for a device kind below 2, else `ControlsScreen.stick_names[0]`.
 pub struct DirectionNames {
     pub pad: [u16; 9],
     pub stick: [u16; 9],
@@ -69,10 +69,10 @@ pub fn binding_text<S: Screen>(
     Ok(out)
 }
 
-/// The one-character text's room (`byte_A8BC54` .. 0x100 bytes).
+/// The one-character text's room (`Buffers.text.cells` .. 0x100 bytes).
 const CELLS_LEN: usize = 0x100;
 
-/// Each text (no NUL) into `byte_A8BC54` and drawn; refused before anything when one is past
+/// Each text (no NUL) into `Buffers.text.cells` and drawn; refused before anything when one is past
 /// its room.
 fn check_room<E: From<Invalid>>(texts: &[Vec<u8>]) -> Result<(), E> {
     if texts.iter().any(|t| t.len() + 1 > CELLS_LEN) {

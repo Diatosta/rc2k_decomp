@@ -47,7 +47,7 @@ pub struct IconUpload {
 
 const _: () = assert!(STORED_LEN == 0x1C);
 
-/// `stru_5BE8F1` (`IconUpload` in IDA, unaligned): what the upload keeps while it works.
+/// `IconUploadCell.0` (`IconUpload` in IDA, unaligned): what the upload keeps while it works.
 /// The record as bytes (it lies at an address that is no multiple of 4): `get` and `set` turn
 /// them to and from an `IconUpload`.
 #[repr(transparent)]

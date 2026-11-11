@@ -53,7 +53,7 @@ pub fn texture_surface_info(
 /// The bytes a pixel of the description a record's kind field names: a handle, else (a kind
 /// read past the table) the dword at +4 of that number as an address.
 fn bytes_per_pixel(kind: u32) -> u32 {
-    match gfx().card.texture_tables.description(kind) {
+    match crate::gfx::owner::textures().description(kind) {
         Some(d) => d.get().bytes_per_pixel,
         None => crate::d3d::texture_lock::get(kind.wrapping_add(4)),
     }

@@ -1,6 +1,6 @@
 //! The pong game over the race (from `effects::pong_score` 0x4B8382 and
 //! `effects::pong_digit` 0x4B8418): the score, the hits and the best each as three digits,
-//! each digit a 4 x 5 pattern of cells (`unk_768704`, 0x14 bytes a digit). The court
+//! each digit a 4 x 5 pattern of cells (`PongState.digit_patterns`, 0x14 bytes a digit). The court
 //! (from `effects::reset_pong` 0x4B7E64, `effects::pong_bat_back`
 //! 0x4B8215, `effects::move_pong_bat` 0x4B82B0, `effects::pong_ball_hits` 0x4B8040,
 //! `effects::move_pong_ball` 0x4B7F4F and `effects::pong_cell` 0x4B8557): the ball and the bat
@@ -67,8 +67,8 @@ pub fn status(a: f64, b: f64) -> u32 {
 
 /// The court's variables: the ball (x, y), its way, its
 /// size; the bat's place before its move (as bits: moved through registers); the bat and
-/// its size; the work places of a hit (the ball's centre `flt_7686DC`, the bat's
-/// `flt_7686E8`, their difference `flt_7686F4`); the ball's steps a frame (`g_pongSteps`)
+/// its size; the work places of a hit (the ball's centre `PongState.ball_centre[0]`, the bat's
+/// `PongState.bat_centre[0]`, their difference `PongState.difference[0]`); the ball's steps a frame (`g_pongSteps`)
 /// and the hits.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Court {
@@ -85,10 +85,10 @@ pub struct Court {
     pub hits: u32,
 }
 
-/// The court's constants: the centres' factors (ball x, y, bat x, y: `flt_7691C6` ..), the
-/// nudge of an across of 0 bits, the new way's scales (`flt_7691DA`,
-/// `flt_7691DE`), its length, the walls and
-/// the start (`flt_769182` .., four (x, y) pairs as bits: the ball, its size, the bat, its
+/// The court's constants: the centres' factors (ball x, y, bat x, y: `PongRules.centre[0]` ..), the
+/// nudge of an across of 0 bits, the new way's scales (`PongRules.way_scale[0]`,
+/// `PongRules.way_scale[1]`), its length, the walls and
+/// the start (`PongRules.start[0]` .., four (x, y) pairs as bits: the ball, its size, the bat, its
 /// size).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Rules {

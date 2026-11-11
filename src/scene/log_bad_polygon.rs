@@ -1,7 +1,7 @@
 //! `scene::log_bad_polygon` (0x443AF8): a polygon Direct3D was not given, dumped to the
 //! log at level 1: "videox" `g_screenWidth`, "videoy" `g_screenHeight` (twice), "r" "l" "b"
 //! "t" the clip edges (`g_clipScreenRight` .. `g_clipScreenTop`, two decimals), "donezcut"
-//! `dword_624124`, "donesuth" `dword_624120`, "cuttest" `g_polygonClipMask` (with a line's
+//! `SceneDraw.depth_clipped`, "donesuth" `SceneDraw.screen_clipped`, "cuttest" `g_polygonClipMask` (with a line's
 //! end; then the mask 0), "tpage" the texture page (hex8), "points" the polygon's vertex count;
 //! "polynum" the current course face, or with the drawing-object flag 1 "objdraw" the
 //! current object and "objfaced" the face number; a line's end. Then with vertices, each

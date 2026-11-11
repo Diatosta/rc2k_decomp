@@ -53,7 +53,7 @@ pub struct DriveForces {
     pub kept: Option<f32>,
     /// `drive_force_scale`: the factor times the four's sum.
     pub drive: f32,
-    /// `drive_forces`, `flt_61424C` with their shares added.
+    /// `drive_forces`, `PhysicsTables.drive_forces[1]` with their shares added.
     pub forces: [f32; 2],
 }
 

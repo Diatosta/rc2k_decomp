@@ -1,7 +1,7 @@
 //! Which texture slots a stage wants at which level (from
 //! `scene::init_texture_levels` 0x424001, `race::loadlevel_init`'s "init ed textures"):
 //! each car's runs of slots, each kind's slots by the stage prefs, then fixed runs, into
-//! `LevelTables`. With the other levels on (`dword_5CDADC`, which the original sets to 0
+//! `LevelTables`. With the other levels on (`ObjectTables.other_levels`, which the original sets to 0
 //! first and nothing else sets) every level is the run's other one.
 
 use crate::Invalid;
@@ -55,7 +55,7 @@ pub const LEVEL_ONE_SYSTEM: u32 = 6;
 pub const LEVEL_ONE_VIDEO: u32 = 2;
 /// The last run.
 pub const LAST: Run = run(2, 0x21C, 0, 0, FIXED_TAG);
-/// The runs with `dword_621514` set (the framed layout).
+/// The runs with `FrameSwitches.editor_mode` set (the framed layout).
 pub const FRAMED: [Run; 3] = [
     run(0x10, 0x200, 2, 2, FIXED_TAG),
     run(1, 0x218, 0, 0, FIXED_TAG),
@@ -76,7 +76,7 @@ pub fn held_cars(cars: u32) -> u32 {
     cars
 }
 
-/// The cars' runs, two each: the own car's second at level 0 when `second_first` (`dword_63DB94`
+/// The cars' runs, two each: the own car's second at level 0 when `second_first` (`RaceView.players`
 /// 1), else 1, each other car's second at level 1 (half the size); firsts at level 0; the other
 /// levels 1 for the own car, 2 for the others. Car 0's slots are 0x100 and 0x104, a further car's
 /// 0x108 + 8 a car; the tag 0x29 for car 0, else 0x29 + the car. `own` tells the cars this

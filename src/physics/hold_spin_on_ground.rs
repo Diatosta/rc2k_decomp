@@ -1,5 +1,5 @@
 //! `physics::hold_spin_on_ground` (0x43BAA4): with all four wheels down (the four dwords
-//! from `wheel_squeeze` not 0), the spin's x and z (`spin`, `dword_71A164`) held
+//! from `wheel_squeeze` not 0), the spin's x and z (`spin`, `Car.spin[2]`) held
 //! to -`ground_spin_limit` .. `ground_spin_limit` (by negating that limit in place, twice for each, so
 //! it comes back), and `ground_spin` = whether either now has the limit's size (C3: also
 //! when no number). A reading: no tumbling on the ground.

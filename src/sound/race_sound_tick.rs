@@ -1,8 +1,8 @@
 //! `sound::race_sound_tick` (0x421BA9): the race frame's sound tick: every 20 ms of the
 //! scene clock, `sound::race_turn_if`.
 //!
-//! `g_sceneClock` less `dword_5CC3B0` under 0x14 (unsigned): nothing. Else
-//! `dword_5CC3B0` = the clock, `sound::race_turn_if`, `dword_5CC3B8` counts up.
+//! `g_sceneClock` less `ClockTicks.sound_tick_last` under 0x14 (unsigned): nothing. Else
+//! `ClockTicks.sound_tick_last` = the clock, `sound::race_turn_if`, `ClockTicks.sound_ticks` counts up.
 //! 28 callers, all in the race's frame (`drive::race_frame`, `race::draw_race_scene`,
 //! `race::show_frame`,
 //! `race::draw_view_scene`, `race::draw_view_overlays`, 0x442D49): for the Rust ones, the Rust
@@ -13,7 +13,7 @@ use crate::errors::Refused;
 use crate::race::owner::race;
 use crate::race::owner_frame::Frame;
 
-// g_sceneClock, dword_5CC3B0 the last tick, dword_5CC3B8 the ticks counted.
+// g_sceneClock, ClockTicks.sound_tick_last the last tick, ClockTicks.sound_ticks the ticks counted.
 
 /// Plays the race sounds once the sound clock says a tick is due.
 pub fn race_sound_tick(frame: &Frame) -> Result<(), Refused> {

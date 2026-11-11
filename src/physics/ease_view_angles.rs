@@ -1,7 +1,7 @@
 //! `physics::ease_view_angles` (0x43846D): with the mode's record's change time (+0x3C)
 //! not 0: the share done (`physics/camera_view.rs`) times the record's three angle
 //! changes (+0x40 .. +0x48) x `k65536` (`fistp`) << 16 added to `camera_offset_turns`,
-//! `unk_71A698`, `unk_71A69C`.
+//! `Car.camera_offset_turns[1]`, `Car.camera_offset_turns[2]`.
 //!
 //! Caller: `physics::update_camera`.
 

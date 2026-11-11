@@ -639,6 +639,19 @@ pub static OWN_RANGES: [crate::store::BlockRange; OWN.len()] = {
     ranges
 };
 
+/// The dword at IDA's `ida` in the block's own bytes (the debug pages' figures that no typed
+/// field holds); none outside `OWN` or when it runs past the end of its range.
+#[cfg(debug_ui)]
+pub fn block_dword(ida: usize) -> Option<u32> {
+    use crate::pointers::Store;
+    let i = OWN
+        .iter()
+        .position(|&(start, end)| (start..end).contains(&ida))?;
+    let mut bytes = [0u8; 4];
+    OWN_RANGES[i].load(ida - OWN[i].0, &mut bytes).ok()?;
+    Some(u32::from_le_bytes(bytes))
+}
+
 /// The block's first IDA byte in memory (past the alignment padding).
 fn first_byte() -> *mut u8 {
     vars::STORE

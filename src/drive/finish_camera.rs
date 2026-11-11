@@ -1,6 +1,6 @@
 //! `drive::finish_camera` (0x45941D): the finish routine's camera from the eased time
-//! (`eased`) and the share (`share`): `dword_606748`, `606730`, `606734`, `606744` (each
-//! a line in them, `camera_yaw_rate` .. `camera_height_per_share`), `dword_60672C` 0.
+//! (`eased`) and the share (`share`): `ViewAndRecords.records[6].angles[1]`, `606730`, `606734`, `606744` (each
+//! a line in them, `camera_yaw_rate` .. `camera_height_per_share`), `ViewAndRecords.records[6].offset[0]` 0.
 //!
 //! Caller: `drive::finish_run`.
 
@@ -9,12 +9,12 @@ use crate::math::x87_float::st;
 use crate::race::owner_replay::Replay;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 
-/// View record 6, the finish camera's (`dword_606728` ..).
+/// View record 6, the finish camera's (`ViewAndRecords.records[6].kind` ..).
 fn record() -> &'static ViewRecord {
     ViewVars::record(6)
 }
 
-/// `dword_606748`, `606730`, `606734` from the eased time, the share and the lines'
+/// `ViewAndRecords.records[6].angles[1]`, `606730`, `606734` from the eased time, the share and the lines'
 /// constants, over the race block at `rc` (the dwords at RVA offsets).
 fn lines(replay: &Replay) {
     record().angles[1].set(st(
@@ -29,7 +29,7 @@ fn lines(replay: &Replay) {
         + ld(replay.finish.camera_distance_start.bits())));
 }
 
-/// `dword_606744` from the share and its constant.
+/// `ViewAndRecords.records[6].angles[0]` from the share and its constant.
 fn last_line(replay: &Replay) {
     record().angles[0].set(st(
         ld(replay.finish.share.bits()) * ld(replay.finish.camera_pitch_per_share.bits())

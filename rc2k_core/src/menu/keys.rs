@@ -69,7 +69,7 @@ pub enum Action {
     NoKey,
     /// Key 0x38: nothing (after the yes / no handling).
     Ignored,
-    /// Escape: `dword_755561`, `dword_755A3C` and `dword_758806` 1; answer 2.
+    /// Escape: `LoopFlags.leave_screen`, `DrawWork.escape_pressed` and `CaptionTables.left_by_key` 1; answer 2.
     Escape,
     /// Enter: the sound 0x14D, the key's time, `g_enterSkipsNameEntry` by the key code's second
     /// byte, the click; answer 3.
@@ -78,7 +78,7 @@ pub enum Action {
     Move(Move),
     /// The key's time, then a screenshot (key 0x52).
     Screenshot,
-    /// The key's time, then `dword_755575` turned over (key 0x20).
+    /// The key's time, then `LoopFlags.toggle` turned over (key 0x20).
     Toggle,
     /// The key's time, then 60 added to the service's budget (key 0x14 with the cheat).
     AddTime,
@@ -86,8 +86,8 @@ pub enum Action {
     Other,
 }
 
-/// The keys are not looked at while an item is edited (`dword_75AA9C` 1) or with
-/// `dword_7551F4` 1 (`keys_off` asked only when not editing).
+/// The keys are not looked at while an item is edited (`MenuState.service_ui.box_shown` 1) or with
+/// `ControlsScreen.learning` 1 (`keys_off` asked only when not editing).
 pub fn keys_off(editing: bool, keys_off: impl FnOnce() -> u32) -> bool {
     editing || keys_off() == 1
 }

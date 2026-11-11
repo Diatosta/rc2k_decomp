@@ -1,11 +1,11 @@
 //! `drive::drive_computer_car` (0x462811): the computer's driving of the work car, in
 //! `pusha` / `popa`. Its controls (0x71BF88 .. 0x71BFA0: steering, throttle 0x100, brake
 //! 0xFF / 0x100, and three switches) start at 0; nothing more below a step count
-//! (`run_ticks`) of 800 or with `flt_71A0A0` below `driver_tilt_limit`. Else, by the
+//! (`run_ticks`) of 800 or with `Car.crash_matrix[5]` below `driver_tilt_limit`. Else, by the
 //! checkpoint the car is at (`checkpoint`, n) and its speed (`fistp` of the root of
-//! `velocity`² + `flt_71A178`², doubled, `driver_speed`):
+//! `velocity`² + `Car.velocity[2]`², doubled, `driver_speed`):
 //! - the looked-at checkpoint's face's two bytes (+0xA, +0xB) and the line's turn ahead
-//!   (`dword_9ED808[n + k]`, k by the speed and `wheel_surface_a`: the difference of two of
+//!   (`Buffers.checkpoints.angles[2][n + k]`, k by the speed and `wheel_surface_a`: the difference of two of
 //!   them >> 16) note a bend (0x71C010, 0x71C038, 0x71C088 by slot `driver_slot`, 0);
 //! - a wanted speed from the tables at 0x71BF1C / 0x71BF38 / 0x71BF54 by the bend's turn
 //!   (n's, `>> 25`), 25 / 40 / 50 near a bend, eased by `driver_start_blend` above 50; throttle or
@@ -18,7 +18,7 @@
 //!   (and turned round in reverse) into `driver_steer`;
 //! - a reverse count (`driver_reverse_left`), and every 200 steps (`driver_steps`) a check that
 //!   the car moved 0x8000 (else reversing for 250 steps, or the reverse tries counted
-//!   in `driver_reverse_tries`, the fourth setting `dword_71BFA0`).
+//!   in `driver_reverse_tries`, the fourth setting `RaceWork.driver_flags[3]`).
 //!
 //! The checkpoint tables' indices are held to `g_checkpointCount` - 1 (unsigned) as the
 //! original holds them. What each value is, is a reading at best.
@@ -230,7 +230,7 @@ pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
     race.shared
         .work
         .driver_speed_scale
-        .set(x87::loaded(&race.shared.work.bend_speeds[k as usize])); // flt_71BE9C, 0x20 of them
+        .set(x87::loaded(&race.shared.work.bend_speeds[k as usize])); // RaceWork.bend_speeds[0], 0x20 of them
     let (x, z) = face_point(
         &race.course,
         held(&race.shared, crate::race::checkpoints_store::face, n, 0),

@@ -1,7 +1,7 @@
 //! `hud::draw_disc` (0x4B6C4E): the HUD's disc of 16 triangles: the ring's 16 entries (1 .. 0x10 of
-//! `flt_75C188` / `flt_75C1CC`) from `g_sines` / `g_cosines` at k * 0x100, and of the texture ring
-//! (`flt_75C210` / `flt_75C254`) at k * 0x100 less `dword_75C05C` times `flt_75C028` times
-//! `flt_75C024` (`fistp`, & 0xFFF); then each triangle (the centre, entry k + 1, entry k + 2
+//! `HudBlock.ring_sines[0]` / `HudBlock.ring_cosines[0]`) from `g_sines` / `g_cosines` at k * 0x100, and of the texture ring
+//! (`HudBlock.texture_ring_sines[0]` / `HudBlock.texture_ring_cosines[0]`) at k * 0x100 less `HudBlock.disc_turn` times `HudBlock.disc_turn_a` times
+//! `HudBlock.disc_turn_b` (`fistp`, & 0xFFF); then each triangle (the centre, entry k + 1, entry k + 2
 //! wrapping past 0x10) from `hud::disc_vertex` and drawn by `hud::add_triangle`.
 //!
 //! Callers: 0x4B6B0A, 0x4B6B5B, 0x4B6BAC, 0x4B6BFD.
@@ -9,7 +9,7 @@
 //! the ring's angles and the triangles' entries through
 //! `rc2k_core::hud::disc` (whole numbers; the sines are copied); the texture's turn stays
 //! the x87's (its rounding follows the control word), worked out once (the original works
-//! the same value out sixteen times into `dword_75C060`).
+//! the same value out sixteen times into `HudBlock.fistp_scratch`).
 
 use crate::errors::Refused;
 use crate::hud::disc_vertex::disc_vertex;

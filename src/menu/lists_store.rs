@@ -46,7 +46,7 @@ pub struct MenuLists {
     /// `dword_7594AA`: the menus' last draw list (25 entries, -1 at start;
     /// `menu::player4_buttons_loop`'s).
     pub draw_list: [PlainDword; 25],
-    /// `unk_75950E`: the carousel kinds' own places, 12 bytes each, indexed by a kind's
+    /// `MenuLists.own_places[0].size`: the carousel kinds' own places, 12 bytes each, indexed by a kind's
     /// number (`scene::draw_carousel_entry` checks it against 0x88 records, a slip: the table
     /// holds 73 and the lists that follow answer the rest).
     pub own_places: [OwnPlace; 73],

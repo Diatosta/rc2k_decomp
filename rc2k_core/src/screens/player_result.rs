@@ -9,13 +9,13 @@ use crate::strings::format::{Pad, decimal, time};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E6E4`.
+    /// `FontObjects.objects[26].first_char`.
     Labels,
-    /// `stru_51E6C4`.
+    /// `FontObjects.objects[25].first_char`.
     Values,
-    /// `stru_51E624`: the stage page measures the name with it.
+    /// `FontObjects.objects[20].first_char`: the stage page measures the name with it.
     Measure,
-    /// `stru_51E584`: the rally page's name.
+    /// `FontObjects.objects[15].first_char`: the rally page's name.
     Name,
 }
 
@@ -75,13 +75,13 @@ const RALLY_LABELS: [(u32, i32, i32, Font); 7] = [
 /// A player time of 0x980000: none (string 0x513).
 pub const NO_TIME: u32 = 0x98_0000;
 
-/// The rally page's figures (`dword_758768`, `dword_758758`, and the six at x 0x21C).
+/// The rally page's figures (`Results.positions[0]`, `Results.time_bonus[0]`, and the six at x 0x21C).
 #[derive(Clone, Copy, Debug)]
 pub struct RallyFigures {
     pub position: u32,
     pub best: u32,
-    /// `dword_758778`, `dword_758758`, `dword_758788`, `dword_758798`, `dword_7587A8`,
-    /// `dword_7587B8`, as numbers.
+    /// `Results.points[0]`, `Results.time_bonus[0]`, `Results.extra[0]`, `Results.sums[0]`, `Results.before[0]`,
+    /// `Results.totals[0]`, as numbers.
     pub column: [u32; 6],
 }
 

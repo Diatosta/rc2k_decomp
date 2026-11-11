@@ -12,7 +12,7 @@ use crate::input::store::Devices;
 use crate::input::store::KEYS as KEYS_LEN;
 use crate::race::owner::race;
 
-const SCREENSHOT_KEY: u32 = rc2k_core::input::frame::SCREENSHOT_KEY as u32; // byte_4F6BAE
+const SCREENSHOT_KEY: u32 = rc2k_core::input::frame::SCREENSHOT_KEY as u32; // Devices.keys_now
 
 // Converted: `rc2k_core::input::frame`. Here the tables are loaded from the game and only those
 // a function writes are stored back (`g_keysDown` never: the window's messages write it).
@@ -111,7 +111,7 @@ pub fn screenshot_if_key(devices: &Devices, shot: Screenshot) {
 }
 
 /// `input::end_frame` (0x43AA91): with `g_screenshotsOn`, `check` (`screenshot_if_key`);
-/// then `dword_6138F4` and `dword_6138F8` 0. Every register preserved.
+/// then `PhysicsTables.debug[0]` and `PhysicsTables.debug[1]` 0. Every register preserved.
 pub fn end_frame(check: Screenshot) {
     // Converted: `rc2k_core::input::frame::end_frame`.
     let left = rc2k_core::input::frame::end_frame(crate::gfx::shots::on(), check);

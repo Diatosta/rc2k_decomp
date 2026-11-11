@@ -30,12 +30,12 @@ pub fn notice(first: &[u8; FIRST_READ], second: &[u8; SECOND_READ]) -> [u8; BUIL
     built
 }
 
-/// The frame's notice: string 0x1000 at (800, 587), font `stru_51E404`.
+/// The frame's notice: string 0x1000 at (800, 587), font `FontObjects.objects[3].first_char`.
 pub const STRING: u32 = 0x1000;
 pub const AT: (u32, u32) = (800, 587);
 
 /// Whether a menu frame draws the notice now: with the notice kind that builds it and the
-/// main menu's request (`dword_7585D8` 1, read only for that kind; the frame then clears
+/// main menu's request (`Cheats.notice_due` 1, read only for that kind; the frame then clears
 /// it).
 pub fn drawn_now(kind: u8, requested: impl FnOnce() -> u32) -> bool {
     kind == BUILDS && requested() == 1

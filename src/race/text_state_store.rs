@@ -1,4 +1,4 @@
-//! The frame text's state in the race block, 0x5C6604 .. 0x5C6610: `dword_5C6604`, the original's
+//! The frame text's state in the race block, 0x5C6604 .. 0x5C6610: `TextState.text_mode`, the original's
 //! debug drawing colour number (IDA: read by `debug::fill_rect_16/32`, `debug::draw_glyph_16/32`, the
 //! wear-bar and watch-page drawers, which pick the pixel from it), and the two dwords after it
 //! (that colour as a 16-bit and as a 32-bit pixel, `g_debugPixel16/32`, read by the glyph

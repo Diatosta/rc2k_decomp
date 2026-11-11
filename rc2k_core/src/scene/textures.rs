@@ -101,7 +101,7 @@ pub struct NeedTotals {
 }
 
 impl NeedTotals {
-    /// In the order of the game's four variables (from `dword_5DC968`).
+    /// In the order of the game's four variables (from `TexturePlaces.totals[0]`).
     pub fn to_array(self) -> [u32; 4] {
         [
             self.video_k,
@@ -348,7 +348,7 @@ pub trait TextureMemory {
     fn level_mips(&self, level: u32) -> u32;
     /// Each kind's first slot and first texture -1.
     fn forget_kinds(&mut self);
-    /// The memory asked for (`dword_5D0AE0` video, `dword_5D0AE4` system).
+    /// The memory asked for (`KindTextureTables.video_memory_asked` video, `KindTextureTables.system_memory_asked` system).
     fn set_asked(&mut self, asked: [u32; 2]);
     /// A video texture's first slot (`g_kindFirstSlots`).
     fn set_first_slot(&mut self, texture: u32, slot: u32);

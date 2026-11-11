@@ -9,7 +9,7 @@ use crate::strings::format::percent;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E8C4`.
+    /// `FontObjects.objects[41].first_char`.
     Value,
 }
 
@@ -19,12 +19,12 @@ pub enum Work {
     Seconds,
     /// The device's record (as the game keeps it).
     Record,
-    /// `dword_7559DC` .. `dword_7559E8`: the sliders' ends.
+    /// `DrawWork.slider_a_start` .. `DrawWork.slider_b_end`: the sliders' ends.
     FirstLeft,
     FirstRight,
     SecondLeft,
     SecondRight,
-    /// The stick's place; `dword_7559F0`: its buttons.
+    /// The stick's place; `DrawWork.hhmm`: its buttons.
     Place,
     Buttons,
 }
@@ -137,7 +137,7 @@ pub fn controller_page<S: Screen<Font = Font, Work = Work>>(
     s.sprite(glyph, place as i32, 0x156)
 }
 
-/// The band (only while `on`, `dword_7554E4` 1): sprite 0xA0 (the background picture) at
+/// The band (only while `on`, `ScreenFlow.left_service` 1): sprite 0xA0 (the background picture) at
 /// (0, 0) with the clip's top and bottom at 0xCB and 0x1C6 for that one blit, then put back.
 pub fn background_band<S: Screen>(s: &mut S, on: bool) -> Result<(), S::Error> {
     if !on {

@@ -218,7 +218,7 @@ impl Way {
     }
 }
 
-/// The colour byte (`byte_51D528`, 8 a kind) of a piece's marks (bits 6, 7) and a kind.
+/// The colour byte (`InstallerPages.kind_fonts`, 8 a kind) of a piece's marks (bits 6, 7) and a kind.
 pub fn colour_at(marks: u8, kind: u32) -> u32 {
     (marks >> 6) as u32 + 8 * kind
 }

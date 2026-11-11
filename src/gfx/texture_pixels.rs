@@ -22,7 +22,7 @@
 
 use crate::errors::BadInput;
 use crate::gfx::picture::{read_bytes, write_bytes};
-use crate::session::{Bytes, Dword};
+use crate::session::{PlainBytes, PlainDword};
 
 /// IDA's address of the grading variables.
 pub const START: usize = 0x4F4A24;
@@ -35,23 +35,23 @@ pub const LEN: usize = 0x4F4B30 - START;
 #[derive(rc2k_derive::Cells)]
 pub struct Grading {
     /// `dword_4F4A24`: 1 while the textures are being read (`reload_system_textures`).
-    pub reading: Dword,
+    pub reading: PlainDword,
     /// `dword_4F4A28`: the scale pictures are read at (0x100: none).
-    pub scale: Dword,
+    pub scale: PlainDword,
     /// `dword_4F4A2C`: the saturation pictures are read at (0x100: none).
-    pub saturation: Dword,
+    pub saturation: PlainDword,
     /// `byte_4F4A30`: the grades table the last graded texture used.
-    pub grades: Bytes<0x100>,
+    pub grades: PlainBytes<0x100>,
 }
 
 impl Grading {
     /// The grading variables; the first values are the image's.
     pub const fn new() -> Self {
         Grading {
-            reading: Dword::new(1),
-            scale: Dword::new(0x100),
-            saturation: Dword::new(0x100),
-            grades: Bytes::new([0; 0x100]),
+            reading: PlainDword::new(1),
+            scale: PlainDword::new(0x100),
+            saturation: PlainDword::new(0x100),
+            grades: PlainBytes::new([0; 0x100]),
         }
     }
 }
@@ -91,7 +91,7 @@ fn bytes_of(dwords: &[u32]) -> Vec<u8> {
 
 pub use rc2k_core::gfx::pixels::{grades, grading, halvable, least_colour};
 
-/// `table` gets the grades (the game's `byte_4F4A30`).
+/// `table` gets the grades (the game's `Grading.grades`).
 pub fn grade_texture(
     pixels: u32,
     count: u32,
@@ -130,18 +130,22 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&crate::gfx::owner::GFX.grading, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::GFX.unchecked().grading,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
     fn moved_knows_the_block() {
         assert_eq!(
             crate::moved::place(START),
-            crate::gfx::owner::GFX.grading.reading.addr() as usize
+            crate::gfx::owner::GFX.unchecked().grading.reading.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x4F4A30),
-            crate::gfx::owner::GFX.grading.grades.addr() as usize
+            crate::gfx::owner::GFX.unchecked().grading.grades.addr() as usize
         );
     }
 }

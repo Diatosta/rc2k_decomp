@@ -2,15 +2,15 @@
 //! sounds, a timed one, two that play all the time and two at a random pitch and place.
 //!
 //! The request's pitch and volume factors (+0x20, +0x24) are set to 1.0. Each of
-//! `dword_51659C`, `dword_5165A0`, `dword_5165A4` at 1 is cleared and sound 0x1AB,
+//! `StageSounds.once[0]`, `StageSounds.once[1]`, `StageSounds.once[2]` at 1 is cleared and sound 0x1AB,
 //! 0x1AC, 0x1AD played (`sound::play_sound`: the sound's own volume and rate, pan 0, a
-//! third place value of -1.0). `dword_5165A8` at 1 (cleared) arms the timed sound: due (`dword_5165C4`) at
-//! the clock + `dword_5165B8`, waiting (`dword_5165C8`) 1. While it waits and is not due
-//! (`js`) the slot is skipped; once due, its slot (`unk_5165CC`) is told to start and the
+//! third place value of -1.0). `StageSounds.timed_arm` at 1 (cleared) arms the timed sound: due (`StageSounds.timed_due`) at
+//! the clock + `StageSounds.timed_delay`, waiting (`StageSounds.timed_waiting`) 1. While it waits and is not due
+//! (`js`) the slot is skipped; once due, its slot (`StageSounds.timed_slot.sound`) is told to start and the
 //! wait ends. Otherwise the slot (`sound::play_timed_slot`) at the place
-//! `dword_5165AC` .. `dword_5165B4`. Then sound 0x1C5 with the volume `dword_5165BC` / 2
-//! (`sar`), second place value 1.0, third -1.0, and 0x1C6 with `dword_5165C0`, second 1.0, third 0. Each of
-//! `dword_5165E4`, `dword_5165E8` at 1 (cleared): one `math::next_random` gives the
+//! `StageSounds.timed_place[0]` .. `StageSounds.timed_place[2]`. Then sound 0x1C5 with the volume `StageSounds.loop_volume_a` / 2
+//! (`sar`), second place value 1.0, third -1.0, and 0x1C6 with `StageSounds.loop_volume_b`, second 1.0, third 0. Each of
+//! `StageSounds.random[0]`, `StageSounds.random[1]` at 1 (cleared): one `math::next_random` gives the
 //! volume (0x21 + its low five bits), the rate (the mix rate + its next nine bits less
 //! 0x100 times the mix rate over 4096) and two floats of nine bits less 0x100 and nine
 //! bits, x 0.01 (through `g_soundScratch`), as the first and second place values, the third 1.0: sound 0x1AE / 0x1AF.

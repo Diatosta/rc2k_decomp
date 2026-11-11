@@ -1,6 +1,6 @@
 //! `physics::air_drag` (0x43F2DA): for the motion's three (`local_velocity`,
-//! `dword_71A180`, `g_carSpeed`): its square times `air_drag` over `k10000` into
-//! `flt_614810` .. `flt_614818`, made against the motion (|it| when the motion is below 0
+//! `Car.local_velocity[1]`, `g_carSpeed`): its square times `air_drag` over `k10000` into
+//! `PhysicsTables.forces[5].force[0]` .. `PhysicsTables.forces[5].force[2]`, made against the motion (|it| when the motion is below 0
 //! or no number, else -|it|). This is the air's drag: a force against the motion that grows with the square of the speed.
 //!
 //! Caller: `physics::car_physics_step` (0x43B80E), every physics step.

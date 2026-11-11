@@ -38,7 +38,7 @@ pub fn record_offset(point: u32, object_points: u32, scene_points: u32) -> Resul
     }
 }
 
-/// `scene::rotate_point`: a point's three whole numbers through the view's matrix (`flt_5EA2CC`, 4
+/// `scene::rotate_point`: a point's three whole numbers through the view's matrix (`SceneMatrices.view_matrix[0]`, 4
 /// x 4: row c of the result is factors c, 4 + c, 8 + c on x, y, z, the y and z products added
 /// first, then 12 + c).
 pub fn rotate(point: [i32; 3], m: &[f32; 16]) -> [f32; 3] {
@@ -61,7 +61,7 @@ pub fn turn_normal(normal: [f32; 3], m: &[f32; 16]) -> [f32; 3] {
 
 /// The view's screen: its scale, centre and,
 /// when it is flat, the whole number the depth divided by is made from
-/// (`dword_5CCD80`, plus 1).
+/// (`CourseWork.flat_depth`, plus 1).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Screen {
     pub scale: f32,
@@ -84,7 +84,7 @@ pub fn to_screen(view: [f32; 3], s: &Screen) -> [f32; 2] {
 }
 
 /// A record made anew: the place in the view, on the screen (0, 0 nearer than `NEAR`),
-/// and what goes to `dword_62400C` (the depth when flat and on the screen, then
+/// and what goes to `SceneDraw.scratch` (the depth when flat and on the screen, then
 /// `LOWERED_BY` when lowered), if anything.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Made {
@@ -95,7 +95,7 @@ pub struct Made {
 
 /// A scene point's record made (`project_point`, 0x44CF4E): through the matrix, onto
 /// the screen (`screen()`, asked only then) unless nearer than `NEAR` (or no number), and,
-/// `lowered` (`dword_6365C4` 1), the depth less `LOWERED_BY`.
+/// `lowered` (`LightState.draw_mode` 1), the depth less `LOWERED_BY`.
 pub fn make_record(
     point: [i32; 3],
     m: &[f32; 16],

@@ -107,7 +107,7 @@ pub enum Font {
 }
 
 /// No work variable: the original keeps the description's buffer's address in
-/// `dword_7559EC`, a scratch dword every other reader sets before reading.
+/// `DrawWork.figure`, a scratch dword every other reader sets before reading.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {}
 

@@ -80,7 +80,7 @@ pub struct Specs {
     pub top: f32,
     /// +0x1E0: `f613f10` as loaded.
     pub w1e0: f32,
-    /// `flt_5CB958` .. `shift_ratio_figure`: the shift points (the last the first times
+    /// `LightsAndGear.gear.shift_up_point` .. `shift_ratio_figure`: the shift points (the last the first times
     /// `f613e88`).
     pub shifts: [f32; 4],
     /// `drive_torque_figure`.
@@ -89,7 +89,7 @@ pub struct Specs {
     pub f614104: f32,
     /// `spec_ints` ..: the whole figures x 65536 / `f5c5d18`, `fistp`ed.
     pub whole: [i32; 3],
-    /// `spec_drive`, `flt_614BB0`.
+    /// `spec_drive`, `PhysicsTables.spec_drive[1]`.
     pub weights: [f32; 2],
     /// `idle_engine_speed`: the drive kind's figure; `stall_engine_speed` it + 100.
     pub drive: [f32; 2],

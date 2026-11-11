@@ -48,7 +48,7 @@ pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
 /// `menu::next_choice_car`: unless the carousel has one car, a turn already going the other way
 /// is not counted: with the direction 1 the front moves on (round the count); then the
 /// direction 1, the angle 0, the shown car on (after the last entry to 0), and
-/// `dword_755561` 0.
+/// `LoopFlags.leave_screen` 0.
 /// The carousel turned (`menu::next_choice_car` / `previous_choice_car`). The logic is in
 /// `rc2k_core::menu::cars::turn_carousel`.
 fn turn(menus: &Menus, on: bool) {

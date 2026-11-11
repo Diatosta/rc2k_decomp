@@ -48,7 +48,7 @@ pub fn next_entry(ring: &Ring) -> Result<Option<u32>, Refused> {
     })
 }
 
-/// The next entry taken (its number + 1; its +8 `dword_93547E`, +0x90 `tag`, +0xC `kind`).
+/// The next entry taken (its number + 1; its +8 `EmitterVars.tag`, +0x90 `tag`, +0xC `kind`).
 pub fn take_entry(
     ring: &Ring,
     effects: &crate::effects::owner::Effects,
@@ -94,7 +94,7 @@ pub fn car_with_matrix() -> Result<bool, Refused> {
 
 /// The rate gate's outcome, worked out without writing.
 pub struct Gate {
-    /// `dword_9356B0`.
+    /// `RingWork.rate`.
     pub rate: i32,
     /// The wheel's new +4 when the second test is reached.
     pub count: Option<u32>,

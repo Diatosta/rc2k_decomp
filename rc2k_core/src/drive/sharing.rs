@@ -59,7 +59,7 @@ pub fn fill_holes(values: &mut [u32; 6]) {
     }
 }
 
-/// `drive::share_all_cars`: `dword_5C5688`, the cars shown: the lead car's file
+/// `drive::share_all_cars`: `ViewerAndKinds.marks_settings.sound_objects_shown`, the cars shown: the lead car's file
 /// not 0x21 and the first record's +0x258 (`laps()`, read only then) 10
 /// or more. (the flag, that word when read).
 pub fn cars_shown(lead_file: u32, laps: impl FnOnce() -> u32) -> (bool, Option<u32>) {

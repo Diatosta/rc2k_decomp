@@ -1,5 +1,5 @@
 //! `effects::emit_bursts_kind_3` (0x4CD747): `effects::emit_bursts` on its own factors and randoms
-//! (`flt_93A3F6`, `flt_93A406`, `flt_93A40A`, `dword_93A3FA` .. `dword_93A416`); the code
+//! (`BurstTuning.strength_k`, `BurstTuning.blend_k[0]`, `BurstTuning.blend_k[1]`, `BurstTuning.first[0]` .. `BurstTuning.second[2]`); the code
 //! is the same instruction for instruction, the ring-full slip included (0x4CDC6E's
 //! exit; section 16).
 //!

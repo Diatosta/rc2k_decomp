@@ -9,11 +9,11 @@ use crate::strings::format::{Pad, decimal, fraction};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E584`: the headings and the rows.
+    /// `FontObjects.objects[15].first_char`: the headings and the rows.
     Rows,
-    /// `stru_51E5E4`: the title line.
+    /// `FontObjects.objects[18].first_char`: the title line.
     Title,
-    /// `stru_51E5A4`: the row numbers.
+    /// `FontObjects.objects[16].first_char`: the row numbers.
     RowNumber,
 }
 

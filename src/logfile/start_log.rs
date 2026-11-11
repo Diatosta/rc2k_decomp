@@ -20,7 +20,7 @@ use crate::system::owner::system;
 
 /// `aVerRally530482` (0x4E0000): the version's text.
 pub const VERSION: &[u8] = b"$VER: Rally 5.30 (4.8.2000)\0";
-/// `byte_4E0077`: a second text, logged when not empty (it is empty).
+/// `StartTexts.second_text`: a second text, logged when not empty (it is empty).
 pub const SECOND_TEXT: &[u8] = b"\0";
 /// `g_freeSpaceKb` (0x4E073A in IDA): what the log's head says of
 /// the current drive. Nothing reads it.

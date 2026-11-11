@@ -135,7 +135,7 @@ pub fn spread(count: u32, old: u8, byte: impl Fn(u32) -> u8) -> Result<Spread, I
     Ok(Spread { gone, left, taken })
 }
 
-/// The last camera (`word_5C291C` names 0x2F).
+/// The last camera (`ViewerAndKinds.viewer_panel.camera_name_ids[0]` names 0x2F).
 pub const LAST_CAMERA: u8 = 0x2E;
 /// The names of the cameras a step passes over.
 pub const SKIPPED_NAMES: [u16; 2] = [0x1C1, 0x1C2];

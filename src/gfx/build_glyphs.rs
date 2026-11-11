@@ -42,7 +42,7 @@ use crate::logfile::log_int::log_int;
 use crate::logfile::log_int_fmt::log_int_fmt;
 use crate::logfile::write_line::level;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::strings::owner::strings;
 
 // ---- game data ----
@@ -57,46 +57,46 @@ pub const LEN: usize = 0x5195D4 - START;
 #[derive(rc2k_derive::Cells)]
 pub struct SheetVars {
     /// `dword_519598`: the sheet's table, and
-    pub sheet_table: Dword,
+    pub sheet_table: PlainDword,
     /// `dword_51959C`: its size.
-    pub sheet_table_size: Dword,
+    pub sheet_table_size: PlainDword,
     /// `dword_5195A0`: the memory list the caller gave. Not used: nothing reads it, so the list
     /// is not kept here.
-    pub table_list: Dword,
+    pub table_list: PlainDword,
     /// `g_builtTable` (`dword_5195A4`): the table being built.
-    pub table: Dword,
+    pub table: PlainDword,
     /// `g_builtTableSize` (`dword_5195A8`): its size so far.
-    pub table_size: Dword,
+    pub table_size: PlainDword,
     /// `0x5195AC`: nothing reads or writes it (a gap).
-    pub _gap_14: Dword,
+    pub _gap_14: PlainDword,
     /// `g_sheetGlyphCount` (`dword_5195B0`): the sheet's glyphs, and
-    pub glyph_count: Dword,
+    pub glyph_count: PlainDword,
     /// `g_sheetGlyphBytes` (`dword_5195B4`): their records' bytes.
-    pub glyph_bytes: Dword,
+    pub glyph_bytes: PlainDword,
     /// `dword_5195B8` .. `dword_5195C8`: nothing reads or writes them (a gap).
-    pub _gap_20: [Dword; 5],
+    pub _gap_20: [PlainDword; 5],
     /// `g_glyphPixelSize` (`dword_5195CC`).
-    pub pixel_size: Dword,
+    pub pixel_size: PlainDword,
     /// `g_alphaSheetLoaded` (`dword_5195D0`): 1 = the sheet read last was an alpha sheet,
     /// kept for the next one.
-    pub alpha_loaded: Dword,
+    pub alpha_loaded: PlainDword,
 }
 
 impl SheetVars {
     /// The sheet builder's variables; the first values are the image's (all zero).
     pub const fn new() -> Self {
         SheetVars {
-            sheet_table: Dword::new(0),
-            sheet_table_size: Dword::new(0),
-            table_list: Dword::new(0),
-            table: Dword::new(0),
-            table_size: Dword::new(0),
-            _gap_14: Dword::new(0),
-            glyph_count: Dword::new(0),
-            glyph_bytes: Dword::new(0),
-            _gap_20: [const { Dword::new(0) }; 5],
-            pixel_size: Dword::new(0),
-            alpha_loaded: Dword::new(0),
+            sheet_table: PlainDword::new(0),
+            sheet_table_size: PlainDword::new(0),
+            table_list: PlainDword::new(0),
+            table: PlainDword::new(0),
+            table_size: PlainDword::new(0),
+            _gap_14: PlainDword::new(0),
+            glyph_count: PlainDword::new(0),
+            glyph_bytes: PlainDword::new(0),
+            _gap_20: [const { PlainDword::new(0) }; 5],
+            pixel_size: PlainDword::new(0),
+            alpha_loaded: PlainDword::new(0),
         }
     }
 }
@@ -455,7 +455,11 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&crate::gfx::owner::GFX.sheet, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::GFX.unchecked().sheet,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
@@ -465,11 +469,11 @@ mod block_tests {
         assert_eq!(offset_of!(SheetVars, pixel_size), 0x5195CC - START);
         assert_eq!(
             crate::moved::place(START),
-            crate::gfx::owner::GFX.sheet.sheet_table.addr() as usize
+            crate::gfx::owner::GFX.unchecked().sheet.sheet_table.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x5195D0),
-            crate::gfx::owner::GFX.sheet.alpha_loaded.addr() as usize
+            crate::gfx::owner::GFX.unchecked().sheet.alpha_loaded.addr() as usize
         );
     }
 }

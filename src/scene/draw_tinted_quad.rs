@@ -1,14 +1,14 @@
-//! `scene::draw_tinted_quad` (0x44B538): a flat quad on the screen in `dword_623DE8`'s
-//! colour, see-through by `dword_623DEC`'s low byte, through the polygon pipeline (858
+//! `scene::draw_tinted_quad` (0x44B538): a flat quad on the screen in `RaceVars.quad_colour[0]`'s
+//! colour, see-through by `RaceVars.quad_colour[1]`'s low byte, through the polygon pipeline (858
 //! callers: the HUD's backdrops, the service area's screen, the menus): as
 //! `scene::draw_flat_quad` but the texture places 0, the colour whole, each record's +0x18
 //! 0xFFFFFF, +0x1C 0, +0x20 0xFF and +0x21 the see-through byte; no texture scaling; with
 //! three vertices or more after the clip: `scene::depth_buffer_off`, mode 3,
-//! `dword_6240BC` / `dword_6240C0` -1, `dword_6240E0` 0, `dword_6240E4` 1,
+//! `SceneDraw.polygon_textures[0]` / `SceneDraw.polygon_textures[1]` -1, `SceneDraw.polygon_sides[0]` 0, `SceneDraw.polygon_sides[1]` 1,
 //! `scene::draw_polygon`, mode 0, `g_polygonDrawn` 1, `scene::depth_buffer_on`; the
 //! colour back to white.
 //!
-//! In:  nothing (`dword_623DE8` .. `dword_623E24`, set by the caller)
+//! In:  nothing (`RaceVars.quad_colour[0]` .. `RaceVars.quad_corners[5]`, set by the caller)
 //!
 //! The calls as `draw_flat_quad`'s (the clip, the depth buffer, the draw), their Rust
 //! versions.

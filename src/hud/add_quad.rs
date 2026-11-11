@@ -1,6 +1,6 @@
-//! `hud::add_quad` (0x4B72D1): the HUD's quad record (`dword_75BFB0`: alpha, left, top, right,
+//! `hud::add_quad` (0x4B72D1): the HUD's quad record (`HudBlock.quad.alpha`: alpha, left, top, right,
 //! bottom, colour, then the four corners' texture places as whole numbers) made the four vertices
-//! of `g_polygonVertices` (the places over `flt_75C00C` and over `flt_75C010`; the colour's low 24
+//! of `g_polygonVertices` (the places over `HudBlock.uv_scale_x` and over `HudBlock.uv_scale_y`; the colour's low 24
 //! bits under the alpha) and `hud::add_polygon`.
 //!
 //! Callers: `hud::add_scaled_sprite`, `hud::add_solid_quad`, `hud::add_sprite` (reached through

@@ -87,7 +87,7 @@ pub struct Layout {
     pub turn_z_work: u32,
     /// The light's direction, three floats.
     pub light_direction: u32,
-    /// `dword_62400C`, the scratch several functions leave a value in.
+    /// `SceneDraw.scratch`, the scratch several functions leave a value in.
     pub checked: u32,
     /// The squaring's three work rows (and the four dwords after them).
     pub squared: u32,

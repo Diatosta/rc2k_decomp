@@ -1,5 +1,5 @@
 //! `math::rotate_scratch_about_y` (0x41FEF8): the scratch point's x and z (floats at
-//! `dword_5C5F50` and `dword_5C5F4C`) turned by an angle.
+//! `FrameScratch.scratch_x` and `FrameScratch.scratch_z`) turned by an angle.
 //!
 //! Returns: the entry
 //!

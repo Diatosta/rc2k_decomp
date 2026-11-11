@@ -1,4 +1,4 @@
-//! `sound::stop_cd_audio` (0x40FCAA): `dword_518110` (the track playing) 0 and the CD
+//! `sound::stop_cd_audio` (0x40FCAA): `CdAudio.track` (the track playing) 0 and the CD
 //! audio stopped five times: three calls of `sound::stop_cd_track`, then `call $+5` into
 //! it, whose return lands on it once more, and from there back to the caller.
 //!

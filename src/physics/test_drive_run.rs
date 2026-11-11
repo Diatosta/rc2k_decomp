@@ -5,10 +5,10 @@
 //! `physics::engine_torque`, the drive force `engine_force` x `drive_torque_figure` / the gear's ratio
 //! / `k10000` into `drive_torque`, `physics::drive_torque_share`, the drag (`fst` into
 //! `scratch`) and the drive force step the drive speeds, `physics::revs_from_wheels`);
-//! the steps at which the speed first reaches `test_limits` and `flt_5CB98C` into
-//! `test_marks`, `dword_5CB980`; every twentieth step the speed x `two_and_a_quarter` and the
+//! the steps at which the speed first reaches `test_limits` and `LightsAndGear.gear.test_limits[1]` into
+//! `test_marks`, `LightsAndGear.gear.test_marks[1]`; every twentieth step the speed x `two_and_a_quarter` and the
 //! gear into `test_speeds`[k]`, `test_gears`[k]`; at the end the speed x `two_and_a_quarter` into
-//! `dword_5CB984` and the two steps / `hundred` (times) back into theirs.
+//! `LightsAndGear.gear.test_marks[2]` and the two steps / `hundred` (times) back into theirs.
 //!
 //! Caller: `physics::test_drive`. Refuses a gear outside -1 ..= 7 (past `g_gearRatios`) and
 //! what its calls refuse; everything written put back.

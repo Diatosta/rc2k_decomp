@@ -8,7 +8,7 @@
 use crate::input::owner::input;
 use std::sync::atomic::{AtomicU8, Ordering};
 
-/// `byte_4F6ADC`: the first byte of `g_keysDown`.
+/// `Devices.keys_down`: the first byte of `g_keysDown`.
 pub fn pending_key() -> &'static AtomicU8 {
     input().devices.keys_down.atomic(0)
 }

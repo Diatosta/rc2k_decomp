@@ -15,7 +15,7 @@ use crate::scene::owner::scene;
 
 // ---- game data ----
 
-/// `dword_623634` the low end, `dword_623638` the high end.
+/// `RaceVars.bar_span[0]` the low end, `RaceVars.bar_span[1]` the high end.
 const BAR: u32 = 0x4467C7; // race::loading_bar_frame
 const NOTHING: u32 = 0x4467C6; // nullsub_8
 

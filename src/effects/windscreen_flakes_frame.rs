@@ -26,22 +26,22 @@ use crate::race::effects_settings_store::EffectsSettings;
 use crate::scene::cross_product3::cross;
 use crate::scene::vector3::normalise;
 
-/// The original's 0x4BF615 .. 0x4BF6AB: the rate (`flt_89CA34`), the place and the first axis from the settings, its length over `flt_8BC1A2` into `flt_89CEEE`.
+/// The original's 0x4BF615 .. 0x4BF6AB: the rate (`WindscreenFlakeTiming.rate`), the place and the first axis from the settings, its length over `WindscreenFlakeState.length_divisors[0]` into `WindscreenFlakeTables.lengths[0]`.
 fn frame_axes(fl: &WindscreenFlakes, m: &EffectsSettings) {
     frame_axes_x87(m, &fl.timing, &fl.tables, &fl.state);
 }
 
-/// The original's 0x4BF6B8 .. 0x4BF718: the second axis, its length over `flt_8BC1A6` into `flt_89CEF2`.
+/// The original's 0x4BF6B8 .. 0x4BF718: the second axis, its length over `WindscreenFlakeState.length_divisors[1]` into `WindscreenFlakeTables.lengths[1]`.
 fn frame_up(fl: &WindscreenFlakes, m: &EffectsSettings) {
     frame_up_x87(m, &fl.tables, &fl.state);
 }
 
-/// The original's 0x4BF769 .. 0x4BF78D: the place as floats into `flt_8161A2` ...
+/// The original's 0x4BF769 .. 0x4BF78D: the place as floats into `WindscreenDropVars.place[0]` ...
 fn frame_place(drops: &WindscreenDrops, m: &EffectsSettings) {
     frame_place_x87(drops, m);
 }
 
-/// The original's 0x4BF7A4 .. 0x4BF7BE: the place's way dotted with the third axis into `flt_814718`.
+/// The original's 0x4BF7A4 .. 0x4BF7BE: the place's way dotted with the third axis into `WindscreenDropState.facing`.
 fn frame_facing(drops: &WindscreenDrops, fl: &WindscreenFlakes) {
     frame_facing_x87(drops, &fl.tables);
 }
