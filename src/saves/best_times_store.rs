@@ -8,22 +8,22 @@
 //! `allocate_best_times` walks the switches and the pairs as one run of dwords from
 //! `allocated` (`vars()`).
 
-use crate::session::{Bytes, Dword};
+use crate::session::{Bytes, PlainDword};
 
 /// Where one table is: its address (the game's; 0 since the tables are typed)
 /// and its size in bytes.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct TablePlace {
-    pub address: Dword,
-    pub size: Dword,
+    pub address: PlainDword,
+    pub size: PlainDword,
 }
 
 impl TablePlace {
     const fn new() -> Self {
         Self {
-            address: Dword::new(0),
-            size: Dword::new(0),
+            address: PlainDword::new(0),
+            size: PlainDword::new(0),
         }
     }
 }
@@ -36,9 +36,9 @@ pub struct BestTimes {
     /// 0x7475E0 .. 0x747610: nothing reads or writes them (a gap).
     pub _gap_10: Bytes<0x30>,
     /// `g_bestTimesAllocated` (0x747610): 1 once the memory is taken.
-    pub allocated: Dword,
+    pub allocated: PlainDword,
     /// `g_bestTimesLoaded` (0x747614): 1 once the tables hold times (the file's or made up).
-    pub loaded: Dword,
+    pub loaded: PlainDword,
     /// `dword_747618` ..: the nine tables, in `rc2k_core::saves::tables`' order.
     pub tables: [TablePlace; 9],
 }
@@ -49,8 +49,8 @@ impl BestTimes {
         BestTimes {
             memory: Bytes::new([0; 16]),
             _gap_10: Bytes::new([0; 0x30]),
-            allocated: Dword::new(0),
-            loaded: Dword::new(0),
+            allocated: PlainDword::new(0),
+            loaded: PlainDword::new(0),
             tables: [const { TablePlace::new() }; 9],
         }
     }
@@ -68,61 +68,61 @@ impl BestTimes {
 #[derive(rc2k_derive::Cells)]
 pub struct TimeEntry {
     /// +0: read by no code.
-    pub unread_0: Dword,
+    pub unread_0: PlainDword,
     /// +4: the player (1 .. 4), 0 for a computer driver.
-    pub player: Dword,
+    pub player: PlainDword,
     /// +8: the nationality (the driver's +0x14).
-    pub nation: Dword,
+    pub nation: PlainDword,
     /// +0xC: the name's string id.
-    pub name_id: Dword,
+    pub name_id: PlainDword,
     /// +0x10: the car (the driver's +0x18).
-    pub car: Dword,
+    pub car: PlainDword,
     /// +0x14: the time in a stage's table.
-    pub stage_time: Dword,
+    pub stage_time: PlainDword,
     /// +0x18: the time in a rally's table.
-    pub rally_time: Dword,
+    pub rally_time: PlainDword,
     /// +0x1C: the group (the driver's class).
-    pub group: Dword,
+    pub group: PlainDword,
     /// +0x20: the name, NUL-ended.
     pub name: Bytes<0x20>,
     /// +0x40: 1 for a player's time.
-    pub is_player: Dword,
+    pub is_player: PlainDword,
     /// +0x44: a figure.
-    pub figure: Dword,
+    pub figure: PlainDword,
     /// +0x48 .. +0x50: read by no code but as the name's tail (a name without a NUL reads on into it); 0 in the shipped data.
-    pub unread_48: [Dword; 2],
+    pub unread_48: [PlainDword; 2],
     /// +0x50: read by no code (0xB in a made-up entry).
-    pub unread_50: Dword,
+    pub unread_50: PlainDword,
     /// +0x54, +0x58: read by no code.
-    pub unread_54: [Dword; 2],
+    pub unread_54: [PlainDword; 2],
     /// +0x5C: the checkpoints' times.
-    pub checkpoints: [Dword; 16],
+    pub checkpoints: [PlainDword; 16],
 }
 
 impl TimeEntry {
     /// From the dwords but the name's (31 of them, in order) and the name's bytes.
     const fn new(w: [u32; 31], name: [u8; 0x20]) -> Self {
-        let mut checkpoints = [const { Dword::new(0) }; 16];
+        let mut checkpoints = [const { PlainDword::new(0) }; 16];
         let mut k = 0;
         while k < 16 {
-            checkpoints[k] = Dword::new(w[15 + k]);
+            checkpoints[k] = PlainDword::new(w[15 + k]);
             k += 1;
         }
         Self {
-            unread_0: Dword::new(w[0]),
-            player: Dword::new(w[1]),
-            nation: Dword::new(w[2]),
-            name_id: Dword::new(w[3]),
-            car: Dword::new(w[4]),
-            stage_time: Dword::new(w[5]),
-            rally_time: Dword::new(w[6]),
-            group: Dword::new(w[7]),
+            unread_0: PlainDword::new(w[0]),
+            player: PlainDword::new(w[1]),
+            nation: PlainDword::new(w[2]),
+            name_id: PlainDword::new(w[3]),
+            car: PlainDword::new(w[4]),
+            stage_time: PlainDword::new(w[5]),
+            rally_time: PlainDword::new(w[6]),
+            group: PlainDword::new(w[7]),
             name: Bytes::new(name),
-            is_player: Dword::new(w[8]),
-            figure: Dword::new(w[9]),
-            unread_48: [Dword::new(w[10]), Dword::new(w[11])],
-            unread_50: Dword::new(w[12]),
-            unread_54: [Dword::new(w[13]), Dword::new(w[14])],
+            is_player: PlainDword::new(w[8]),
+            figure: PlainDword::new(w[9]),
+            unread_48: [PlainDword::new(w[10]), PlainDword::new(w[11])],
+            unread_50: PlainDword::new(w[12]),
+            unread_54: [PlainDword::new(w[13]), PlainDword::new(w[14])],
             checkpoints,
         }
     }
@@ -137,7 +137,7 @@ const _: () = assert!(core::mem::size_of::<TimeEntry>() == 0x9C);
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RallyTimes {
-    pub tables: [Dword; 6],
+    pub tables: [PlainDword; 6],
     pub rallies: [[TimeEntry; 20]; 6],
 }
 
@@ -146,12 +146,12 @@ impl RallyTimes {
     pub const fn new() -> Self {
         RallyTimes {
             tables: [
-                Dword::new(0x742cb0),
-                Dword::new(0x7438e0),
-                Dword::new(0x744510),
-                Dword::new(0x745140),
-                Dword::new(0x745d70),
-                Dword::new(0x7469a0),
+                PlainDword::new(0x742cb0),
+                PlainDword::new(0x7438e0),
+                PlainDword::new(0x744510),
+                PlainDword::new(0x745140),
+                PlainDword::new(0x745d70),
+                PlainDword::new(0x7469a0),
             ],
             rallies: [
                 [
@@ -1287,7 +1287,8 @@ impl RallyTimes {
     #[cfg(test)]
     /// Where IDA 0x742C98 is (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::saves::owner::SAVES.rally_times) as usize
+        crate::pointers::game_address(&raw const crate::saves::owner::SAVES.get().rally_times)
+            as usize
     }
 }
 
@@ -1299,7 +1300,7 @@ pub const END: usize = 0x747660;
 /// Where IDA 0x7475D0 is (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn best_times_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::saves::owner::SAVES.best_times)
+    crate::pointers::game_address(&raw const crate::saves::owner::SAVES.get().best_times)
 }
 
 #[cfg(test)]

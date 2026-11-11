@@ -694,7 +694,7 @@ pub fn load_splines(
     Ok(())
 }
 
-/// The car models' tables and the splines' head: the points and looks by car model (`effects::emit_particle_13`, `effects::draw_mark_slots`, `effects::cars_particles`), then the spline variables the looks table runs into (the original reads two dwords past it) and the spline file (IDA 0x769312 .. 0x76A1D2).
+/// The car models' tables and the splines' head: the points and looks by car model (`effects::emit_exhaust_smoke`, `effects::draw_mark_slots`, `effects::cars_particles`), then the spline variables the looks table runs into (the original reads two dwords past it) and the spline file (IDA 0x769312 .. 0x76A1D2).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SplineHead {

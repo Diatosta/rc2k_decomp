@@ -163,7 +163,7 @@ pub struct EmitterVars {
     pub record: Dword,
     /// 0x93541A: Not named: 24 bytes (a gap, or unreferenced data).
     pub _gap_93541a: Bytes<24>,
-    /// 0x935432: `g_marksSign`: -1 or 1 (`effects::emit_particle_5`).
+    /// 0x935432: `g_marksSign`: -1 or 1 (`effects::emit_slip_spray`).
     pub sign: Dword,
     /// 0x935436: `g_marksCar`: the car object being done (a `effects_settings_store::car_handle`, 0 for none).
     pub car: Dword,
@@ -175,7 +175,7 @@ pub struct EmitterVars {
     pub across: [Float; 3],
     /// 0x93545E: `g_marksSideA` (`flt_93545E` .. `flt_935466`): the first side vector of the emitters.
     pub side_a: [Float; 3],
-    /// 0x93546A: `flt_93546A` .. `flt_935472`: a motion vector (`effects::emit_particle_18` reads it as floats, `emit_twin` writes the car's +0x4C ..).
+    /// 0x93546A: `flt_93546A` .. `flt_935472`: a motion vector (`effects::emit_body_contact_particles` reads it as floats, `emit_twin` writes the car's +0x4C ..).
     pub motion: [Float; 3],
     /// 0x935476: `dword_935476`, `dword_93547A`: the looks by the car's model (`effects::cars_particles`), or from the car's +0x110 and +0x118 (`effects::emit_car_particles`).
     pub looks: [Dword; 2],
@@ -203,7 +203,7 @@ pub struct EmitterVars {
     pub sides: [Dword; 2],
     /// 0x935552: Not named: 12 bytes (a gap, or unreferenced data).
     pub _gap_935552: Bytes<12>,
-    /// 0x93555E: `g_marksStrength` (`flt_93555E`): `effects::emit_particle_5`'s strength.
+    /// 0x93555E: `g_marksStrength` (`flt_93555E`): `effects::emit_slip_spray`'s strength.
     pub strength: Float,
 }
 

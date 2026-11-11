@@ -1,4 +1,4 @@
-//! `effects::emit_bursts_2` (0x4CD747): `effects::emit_bursts` on its own factors and randoms
+//! `effects::emit_bursts_kind_3` (0x4CD747): `effects::emit_bursts` on its own factors and randoms
 //! (`flt_93A3F6`, `flt_93A406`, `flt_93A40A`, `dword_93A3FA` .. `dword_93A416`); the code
 //! is the same instruction for instruction, the ring-full slip included (0x4CDC6E's
 //! exit; section 16).
@@ -15,13 +15,13 @@ use crate::errors::Refused;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::session::{Dword, Float};
 
-/// `emit_bursts_2`'s: `emit_bursts`' with its own factors and randoms.
+/// `emit_bursts_kind_3`'s: `emit_bursts`' with its own factors and randoms.
 pub static SECOND: BurstSet = BurstSet {
     halves: HALVES,
     tuning: &crate::effects::owner::EFFECTS.particles.second_tuning,
 };
 
-pub fn emit_bursts_2(
+pub fn emit_bursts_kind_3(
     effects: &Effects,
     wheel: &MarkRecord,
     object: &'static CarEffects,
@@ -42,9 +42,9 @@ impl BurstTuning {
 }
 
 /// Marker for `moved::MOVED`: SECOND_TUNING's place in the image.
-pub struct SecondTuning;
+pub struct BurstKind3Tuning;
 
-impl SecondTuning {
+impl BurstKind3Tuning {
     pub const START: usize = 0x93A3F6;
     pub const LEN: usize = BurstTuning::LEN;
 }
@@ -65,7 +65,7 @@ mod second_tuning_tests {
         assert_eq!(size_of::<BurstTuning>(), BurstTuning::LEN);
         assert!(
             bytes(&crate::effects::owner::EFFECTS.particles.second_tuning)
-                == crate::moved::image_bytes(SecondTuning::START, BurstTuning::LEN),
+                == crate::moved::image_bytes(BurstKind3Tuning::START, BurstTuning::LEN),
             "SECOND_TUNING starts differently from the image"
         );
     }

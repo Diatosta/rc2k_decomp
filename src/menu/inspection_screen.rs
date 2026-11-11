@@ -15,7 +15,10 @@ pub fn inspection_screen() -> Result<(), Refused> {
     front_end.window.view_offset[0].set_bits(0u32);
     front_end.window.view_offset[1].set_bits(0u32);
     front_end.window.view_zoom.set_bits(0x100u32);
-    crate::scene::prepare_menu_scene::prepare_menu_scene(scene);
+    crate::scene::prepare_menu_scene::prepare_menu_scene(
+        scene,
+        crate::race::view_scratch::front_end(),
+    );
     front_end.window.clip_edges[2].set_bits(0u32);
     front_end.window.clip_edges[3].set_bits(0x320u32);
     front_end.window.clip_screen[2].set_bits(0.0f32.to_bits());

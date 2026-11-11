@@ -432,7 +432,7 @@ pub(super) fn abs_sum_times_to_int(a: u32, b: u32, k: u32) -> i32 {
     out
 }
 
-/// `effects::emit_particle_13`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m` (its
+/// `effects::emit_exhaust_smoke`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m` (its
 /// rows 0x10 apart), placed by +0x30 .. and the place taken off again, all on the x87 stack as
 /// the original does (`fxch`, register forms as bytes); then x, y, y less `lift`, z.
 pub(super) fn turned_place_less(t: [u32; 3], k: u32, d: u32, lift: u32, m: u32) -> [u32; 4] {
@@ -520,7 +520,7 @@ pub(super) fn mul_80(a: u32, b: u32) -> [u8; 10] {
 }
 
 /// The point (st(0) p0, st(1) p1, st(2) p2) turned and placed by the matrix at `m` on the
-/// x87 stack as `effects::emit_particle_19` does (`fxch`, register forms as bytes); then x, y, y
+/// x87 stack as `effects::emit_twin_particle_first` does (`fxch`, register forms as bytes); then x, y, y
 /// less
 /// `lift`, z.
 pub(super) fn turned_place(p: [u32; 3], lift: u32, m: u32) -> [u32; 4] {

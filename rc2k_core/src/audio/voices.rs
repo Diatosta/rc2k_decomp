@@ -15,6 +15,7 @@
 //! What a command changes in a voice is marked in its `dirty` bits for the turn.
 
 use crate::Invalid;
+use crate::audio::commands::Start;
 
 pub const SAMPLES: u32 = 0x1CD;
 pub const VOICES: u32 = 0x200;
@@ -287,10 +288,6 @@ pub fn sounding_to_replay<P: Pool>(pool: &mut P, lists: &Lists) -> Result<Vec<u3
         .collect())
 }
 
-/// A command 1's record: the number, then the sender's eax, the volume, pan, frequency and
-/// place.
-pub type Command = [u32; 8];
-
 /// Where a voice and a command lead.
 enum Plan {
     Nothing,
@@ -365,7 +362,7 @@ fn plan_start<P: Pool>(pool: &mut P, lists: &Lists, mut voice: u32) -> Result<Pl
     Err(Invalid("a playing list without its end"))
 }
 
-fn plan<P: Pool>(pool: &mut P, lists: &Lists, sound: i32, cmd: &Command) -> Result<Plan, Invalid> {
+fn plan<P: Pool>(pool: &mut P, lists: &Lists, sound: i32, cmd: &Start) -> Result<Plan, Invalid> {
     if sound < 0 {
         return Ok(Plan::Nothing);
     }
@@ -376,12 +373,12 @@ fn plan<P: Pool>(pool: &mut P, lists: &Lists, sound: i32, cmd: &Command) -> Resu
     if first == 0 || pool.voice(first).flags & LOADED == 0 {
         return Ok(Plan::Nothing);
     }
-    let volume = cmd[2];
+    let volume = cmd.volume;
     if volume != 0 && pool.voice(first).kind == 0 {
         return plan_start(pool, lists, first);
     }
     match find_playing(pool, lists, first)? {
-        None if volume == 0 || cmd[1] & 0x8000_0000 != 0 => Ok(Plan::Nothing),
+        None if volume == 0 || cmd.sound_word & 0x8000_0000 != 0 => Ok(Plan::Nothing),
         None => plan_start(pool, lists, first),
         Some(link) if volume == 0 => Ok(Plan::Stop { voice: first, link }),
         Some(_) => Ok(Plan::Change { voice: first }),
@@ -390,21 +387,21 @@ fn plan<P: Pool>(pool: &mut P, lists: &Lists, sound: i32, cmd: &Command) -> Resu
 
 /// The command's settings into the voice, each change marked dirty; kind 3 a restart; the
 /// play bit.
-fn change<P: Pool>(pool: &mut P, at: u32, cmd: &Command, mode: u32) {
+fn change<P: Pool>(pool: &mut P, at: u32, cmd: &Start, mode: u32) {
     let sound = pool.voice(at).sound;
     let record = pool.record(sound);
     pool.update_voice(at, |v| change_voice(v, &record, cmd, mode));
 }
 
-fn change_voice(v: &mut Voice, record: &SampleRecord, cmd: &Command, mode: u32) {
+fn change_voice(v: &mut Voice, record: &SampleRecord, cmd: &Start, mode: u32) {
     let mut dirty = v.dirty;
     let or = |given: u32, default: u32| if given == DEFAULT { default } else { given };
-    let volume = or(cmd[2], record.volume).min(0x40);
+    let volume = or(cmd.volume, record.volume).min(0x40);
     if volume != v.volume {
         dirty |= DIRTY_VOLUME;
         v.volume = volume;
     }
-    let pan = or(cmd[3], record.pan);
+    let pan = or(cmd.pan, record.pan);
     let (low, high) = (pan as u8, (pan >> 8) as u8);
     v.pan_sign = if (low ^ high) & 0x80 != 0 { -1 } else { 0 };
     let pan = (low as i8 as i32).clamp(-0x40, 0x40);
@@ -412,7 +409,7 @@ fn change_voice(v: &mut Voice, record: &SampleRecord, cmd: &Command, mode: u32) 
         dirty |= DIRTY_PAN;
         v.pan = pan;
     }
-    let mut frequency = or(cmd[4], record.frequency);
+    let mut frequency = or(cmd.frequency, record.frequency);
     if frequency == OWN_FREQUENCY {
         frequency = v.own_frequency;
     }
@@ -423,10 +420,10 @@ fn change_voice(v: &mut Voice, record: &SampleRecord, cmd: &Command, mode: u32) 
     }
     if mode & MODE_3D != 0 {
         for i in 0..3 {
-            let p = if cmd[5 + i] == DEFAULT_PLACE {
+            let p = if cmd.place[i] == DEFAULT_PLACE {
                 record.place[i]
             } else {
-                cmd[5 + i]
+                cmd.place[i]
             };
             if p != v.place[i] {
                 dirty |= DIRTY_PLACE;
@@ -462,7 +459,7 @@ pub fn start_voice<P: Pool>(
     lists: &mut Lists,
     mode: u32,
     sound: i32,
-    cmd: &Command,
+    cmd: &Start,
 ) -> Result<(), Invalid> {
     let plan = plan(pool, lists, sound, cmd)?;
     let target = match plan {
@@ -889,7 +886,13 @@ mod tests {
             channel_count: 1,
             ..Lists::default()
         };
-        let cmd = |volume| [1, 0, volume, DEFAULT, DEFAULT, DEFAULT, 0, 0];
+        let cmd = |volume| Start {
+            sound_word: 0,
+            volume,
+            pan: DEFAULT,
+            frequency: DEFAULT,
+            place: [DEFAULT, 0, 0],
+        };
         start_voice(&mut t, &mut lists, 0, 1, &cmd(DEFAULT)).unwrap();
         assert_eq!((lists.playing, lists.channels_used), (v(1), 1));
         assert_eq!(t.voice(v(1)).volume, 0x20);

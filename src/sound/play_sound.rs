@@ -12,10 +12,9 @@
 
 use crate::audio::owner::audio;
 use crate::sound::queue::send_command;
+use rc2k_core::audio::commands::{Command, Start};
 
 // ---- game data ----
-
-const PLAY_1: u32 = 1;
 
 /// `sound` at `volume` and `rate`; `place` its ecx, edi and ebp (the pan, or in the 3D
 /// modes the place). The audio thread reads every register of command 1.
@@ -29,7 +28,12 @@ pub fn play_sound(sound: u32, volume: u32, rate: u32, place: [u32; 3]) {
     if let Some([esi, ecx, edi, ebp]) =
         rc2k_core::sound::senders::sound_place(held_back, mode, place)
     {
-        let registers = [sound, volume, ecx, rate, esi, edi, ebp];
-        send_command(PLAY_1, registers);
+        send_command(Command::Start(Start {
+            sound_word: sound,
+            volume,
+            pan: ecx,
+            frequency: rate,
+            place: [esi, edi, ebp],
+        }));
     }
 }

@@ -11,14 +11,17 @@
 
 /// The depth buffer cleared over the whole screen (`d3d::clear_viewport`), unless there
 /// is no 3D.
-pub fn clear_depth_buffer(scene: &crate::scene::owner::Scene) {
-    let system = crate::system::owner::system();
+pub fn clear_depth_buffer(
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+    polygons: &crate::scene::polygon_work::PolygonWork,
+) {
     let session = &system.session;
     if scene.objects.tables.d3d_drawing_on.get() == 0 {
         return;
     }
     let (width, height): (u32, u32) = (session.screen.width.get(), session.screen.height.get());
-    let own = &crate::scene::polygon_work::front_end().cleared_rectangle;
+    let own = &polygons.cleared_rectangle;
     crate::session::write_bits(own, [0, 0, width, height]);
     crate::platform_3d::clear_viewport(own);
 }

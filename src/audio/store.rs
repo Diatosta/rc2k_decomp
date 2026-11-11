@@ -9,8 +9,6 @@
 //! - `SampleRecords` (`SAMPLE_RECORDS`, 0x50A7A4 .. 0x511AE4): the 0x1CD sample records of
 //!   0x40 bytes; their pointers (to the sample names and the volume factors) are IDA
 //!   addresses at first, pointed at their homes at start (`moved::point_into_homes`);
-//! - `CommandQueue` (`COMMANDS`, 0x9566F8 .. 0x95E6F8, bss): the 0x400 commands of 0x20
-//!   bytes the game sends the audio thread (`sound::queue`).
 //!
 //! The records the core works on (`Voice`, `SampleRecord`, `MixerChannel`, `AudioStream`,
 //! `MemoryList`, `AudioOptions`, `SampleFile`) are its plain structs held in `Shared`, copied
@@ -19,8 +17,8 @@
 //! the property sets nobody asks for, A3D's registry keys and unused floats.
 //!
 //! Threads: the audio thread and the game's thread share these as the image's bytes were
-//! shared (relaxed loads and stores; the command count is added to atomically,
-//! `sound::queue`).
+//! shared (relaxed loads and stores). The commands the game sends the audio thread wait in
+//! a locked queue (`sound::queue`).
 
 use crate::audio::owner::audio;
 use crate::session::{Bytes, Dword, Float, Loose, Shared};
@@ -141,14 +139,9 @@ pub struct AudioState {
     pub stream_header: Dword,
     /// `g_streamHeaderMemory`: the header's memory (a `MemoryList`). (IDA 0x5069DC)
     pub stream_header_memory: Shared<List>,
-    /// 48 bytes the code never names (0x5069EC ..). (IDA 0x5069EC)
-    pub _gap_69ec: Bytes<48>,
-    /// `g_soundCommandCount`: commands waiting in the queue (added to atomically). (IDA 0x506A1C)
-    pub command_count: Dword,
-    /// `g_soundCommandRead`: the place the thread reads the next command at. (IDA 0x506A20)
-    pub command_read: Dword,
-    /// `g_soundCommandWrite`: the place the game writes the next command at. (IDA 0x506A24)
-    pub command_write: Dword,
+    /// 60 bytes the code never names (0x5069EC ..): the original's command counters sat in
+    /// the last twelve. (IDA 0x5069EC)
+    pub _gap_69ec: Bytes<60>,
     /// `riid`: A3D's interface id. (IDA 0x506A28)
     pub a3d_iid: Bytes<16>,
     /// 16 bytes the code never names (0x506A38 ..). (IDA 0x506A38)
@@ -409,10 +402,7 @@ impl AudioState {
                 cursor: 0x0,
                 remaining: 0x0,
             }),
-            _gap_69ec: Bytes::new([0; 48]),
-            command_count: Dword::new(0),
-            command_read: Dword::new(0),
-            command_write: Dword::new(0),
+            _gap_69ec: Bytes::new([0; 60]),
             a3d_iid: Bytes::new([
                 0x83, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb,
                 0xe5, 0x60,
@@ -744,9 +734,6 @@ const LAYOUT: &[(usize, usize)] = &[
         core::mem::offset_of!(AudioState, stream_header_memory),
         0x5069DC,
     ),
-    (core::mem::offset_of!(AudioState, command_count), 0x506A1C),
-    (core::mem::offset_of!(AudioState, command_read), 0x506A20),
-    (core::mem::offset_of!(AudioState, command_write), 0x506A24),
     (core::mem::offset_of!(AudioState, a3d_iid), 0x506A28),
     (core::mem::offset_of!(AudioState, iid_listener), 0x506A48),
     (
@@ -2354,49 +2341,6 @@ impl SampleRecords {
     }
 }
 
-pub const QUEUE_IDA: usize = 0x9566F8;
-pub const QUEUE_END: usize = 0x95E6F8;
-pub const QUEUE_RECORDS: usize = 0x400;
-
-/// One command for the audio thread: its number, then the sender's eax, ebx, ecx, edx, esi,
-/// edi and ebp (`sound::queue`).
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
-pub struct Command {
-    pub words: [Dword; 8],
-}
-
-impl Command {
-    pub fn get(&self) -> [u32; 8] {
-        std::array::from_fn(|i| self.words[i].get())
-    }
-
-    pub fn set(&self, record: [u32; 8]) {
-        for (cell, word) in self.words.iter().zip(record) {
-            cell.set(word);
-        }
-    }
-}
-
-/// The queue of commands (IDA 0x9566F8 .. 0x95E6F8, bss: zero at start).
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
-pub struct CommandQueue {
-    pub records: [Command; QUEUE_RECORDS],
-}
-
-impl CommandQueue {
-    pub const fn new() -> Self {
-        CommandQueue {
-            records: [const {
-                Command {
-                    words: [const { Dword::new(0) }; 8],
-                }
-            }; QUEUE_RECORDS],
-        }
-    }
-}
-
 /// `g_eaxEnvironment` (IDA 0x6D1DD4): the EAX environment the race asks for (the audio
 /// thread reads it, the game's own copy). Set by the game's thread from the first player's
 /// view's output (`race::draw_race_scene`), never by a drawing part.
@@ -2452,15 +2396,6 @@ mod tests {
                 .copy_from_slice(&levels[r.volume_factor as usize].to_le_bytes());
         }
         assert_eq!(mine, image_bytes(SAMPLES_IDA, SAMPLES_END - SAMPLES_IDA));
-    }
-
-    #[test]
-    fn the_queue_starts_as_the_games() {
-        assert_eq!(size_of::<CommandQueue>(), QUEUE_END - QUEUE_IDA);
-        assert_eq!(
-            bytes_of(&audio().commands, size_of::<CommandQueue>()),
-            image_bytes(QUEUE_IDA, QUEUE_END - QUEUE_IDA)
-        );
     }
 
     #[test]

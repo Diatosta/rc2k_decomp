@@ -8,13 +8,13 @@
 
 use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;
-use crate::hud::owner::Hud;
+use crate::hud::owner::{Hud, Pen};
 use crate::race::owner_frame::Frame;
 
 use rc2k_core::hud::quads;
 
 // Converted: `rc2k_core::hud::quads::quad_vertices`
-pub fn add_quad(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
+pub fn add_quad(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     let q: [u32; quads::RECORD] = hud.block.quad.words();
     let (a, b) = (hud.block.uv_scale_x.get(), hud.block.uv_scale_y.get());
     let (vertices, _, _) = quads::quad_vertices(&q, a, b);
@@ -26,8 +26,6 @@ pub fn add_quad(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
         at.u.set(v.u);
         at.v.set(v.v);
     }
-    crate::scene::polygon_work::front_end()
-        .polygon_vertex_count
-        .set(4u32);
-    crate::hud::add_polygon::add_polygon(frame, hud)
+    pen.polygons.polygon_vertex_count.set(4u32);
+    crate::hud::add_polygon::add_polygon(frame, hud, pen)
 }

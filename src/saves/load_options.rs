@@ -16,7 +16,7 @@ use crate::files::read_file::read_file_to_store;
 use crate::gfx::owner::gfx;
 use crate::menu::owner::menus;
 use crate::net::owner::net;
-use crate::pointers::{GamePtr, Store};
+use crate::pointers::{Cells, GamePtr, Store, load_cells, store_cells};
 use crate::race::owner::race;
 use crate::saves::owner::saves;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
@@ -36,7 +36,7 @@ mod path_tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(
-            &crate::saves::owner::SAVES.files.options_path,
+            &crate::saves::owner::SAVES.get().files.options_path,
             PATH_START,
             PATH_START + 12,
         );
@@ -50,6 +50,35 @@ mod path_tests {
 /// The 69 pieces' lengths together.
 pub const PIECES_LEN: usize = 0xB656;
 
+/// A field of cells that only the game's thread reaches, read and written whole by bytes.
+pub trait Held {
+    fn size(&self) -> usize;
+    fn load(&self, to: &mut [u8]) -> Result<(), BadInput>;
+    fn store(&self, from: &[u8]) -> Result<(), BadInput>;
+    /// Its first byte (the tests check where the pieces are).
+    #[cfg(test)]
+    fn first(&self) -> *const u8;
+}
+
+impl<T: Cells> Held for T {
+    fn size(&self) -> usize {
+        size_of::<T>()
+    }
+
+    fn load(&self, to: &mut [u8]) -> Result<(), BadInput> {
+        load_cells(self, 0, to)
+    }
+
+    fn store(&self, from: &[u8]) -> Result<(), BadInput> {
+        store_cells(self, 0, from)
+    }
+
+    #[cfg(test)]
+    fn first(&self) -> *const u8 {
+        std::ptr::from_ref(self).cast()
+    }
+}
+
 /// One piece of the options file: bytes of a field of the game's state, or (a slip kept) a run
 /// that goes on past its field.
 pub enum Piece<'a> {
@@ -59,6 +88,9 @@ pub enum Piece<'a> {
         offset: usize,
         len: usize,
     },
+    /// All of a field of the game's thread (a store of plain cells, which no other thread
+    /// may see: not a `Store`).
+    Held(&'a dyn Held),
     /// `len` bytes from a place that does not stop at its field's end.
     Past { place: GamePtr, len: usize },
 }
@@ -71,6 +103,11 @@ impl<'a> Piece<'a> {
             offset: 0,
             len: store.size(),
         }
+    }
+
+    /// All of a field of plain cells.
+    pub fn held(field: &'a dyn Held) -> Self {
+        Self::Held(field)
     }
 
     /// `len` bytes of a field from `offset`.
@@ -87,6 +124,7 @@ impl<'a> Piece<'a> {
     pub fn len(&self) -> usize {
         match *self {
             Self::Field { len, .. } | Self::Past { len, .. } => len,
+            Self::Held(field) => field.size(),
         }
     }
 
@@ -97,6 +135,11 @@ impl<'a> Piece<'a> {
                 store.load(offset, &mut bytes)?;
                 Ok(bytes)
             }
+            Self::Held(field) => {
+                let mut bytes = vec![0; field.size()];
+                field.load(&mut bytes)?;
+                Ok(bytes)
+            }
             Self::Past { place, len } => place.read_bytes(len, "a saved option"),
         }
     }
@@ -104,6 +147,7 @@ impl<'a> Piece<'a> {
     pub fn write(&self, bytes: &[u8]) -> Result<(), BadInput> {
         match *self {
             Self::Field { store, offset, .. } => store.store(offset, bytes),
+            Self::Held(field) => field.store(bytes),
             Self::Past { place, .. } => place.write_bytes(bytes, "an option"),
         }
     }
@@ -139,15 +183,15 @@ let menus = menus();
         Piece::whole(&net.vars.host_address),                         // the host's address (TCP/IP)
         Piece::whole(&net.vars.port),                                  // the TCP/IP port
         Piece::whole(&net.vars.saved_connection),                     // the saved connection's GUID
-        Piece::whole(&saves.save_games.kept_a),                         // a saved-games word kept in the file and read by no other code
-        Piece::whole(&saves.save_games.kept_b),                         // a saved-games word kept in the file and read by no other code
-        Piece::whole(&service().set_ups.kept),                              // a car set-ups word kept in the file and read by no other code
+        Piece::held(&saves.save_games.kept_a),                         // a saved-games word kept in the file and read by no other code
+        Piece::held(&saves.save_games.kept_b),                         // a saved-games word kept in the file and read by no other code
+        Piece::held(&service().set_ups.kept),                              // a car set-ups word kept in the file and read by no other code
         Piece::whole(&race.shared.tyre_change.record_name),                  // the tyre change record holder's name
         Piece::whole(&race.shared.tyre_change.record),                        // the tyre change record time
-        Piece::whole(&saves.files.options_kept[0]),                                   // four dwords nothing else reads
-        Piece::whole(&saves.files.options_kept[1]),
-        Piece::whole(&saves.files.options_kept[2]),
-        Piece::whole(&saves.files.options_kept[3]),
+        Piece::held(&saves.files.options_kept[0]),                                   // four dwords nothing else reads
+        Piece::held(&saves.files.options_kept[1]),
+        Piece::held(&saves.files.options_kept[2]),
+        Piece::held(&saves.files.options_kept[3]),
         Piece::whole(&menus.play.players.players[0]),                 // the four players' records
         Piece::whole(&menus.play.players.players[1]),
         Piece::whole(&menus.play.players.players[2]),
@@ -181,12 +225,12 @@ let menus = menus();
         Piece::whole(&system.records.stage_tables.events[9].records),
         Piece::whole(&system.records.stage_tables.events[10].records),
         Piece::whole(&system.records.stage_tables.events[11].records),
-        Piece::whole(&saves.rally_times.rallies[0]),                  // the six rallies' best times
-        Piece::whole(&saves.rally_times.rallies[1]),
-        Piece::whole(&saves.rally_times.rallies[2]),
-        Piece::whole(&saves.rally_times.rallies[3]),
-        Piece::whole(&saves.rally_times.rallies[4]),
-        Piece::whole(&saves.rally_times.rallies[5]),
+        Piece::held(&saves.rally_times.rallies[0]),                  // the six rallies' best times
+        Piece::held(&saves.rally_times.rallies[1]),
+        Piece::held(&saves.rally_times.rallies[2]),
+        Piece::held(&saves.rally_times.rallies[3]),
+        Piece::held(&saves.rally_times.rallies[4]),
+        Piece::held(&saves.rally_times.rallies[5]),
         names(0),                                               // the four players' names
         names(1),
         names(2),
@@ -355,6 +399,10 @@ mod tests {
                     );
                     (GamePtr::of_store(store).offset(offset as u32), len)
                 }
+                super::Piece::Held(field) => (
+                    GamePtr::new(crate::pointers::game_address(field.first())),
+                    field.size(),
+                ),
                 super::Piece::Past { place, len } => (place, len),
             };
             assert_eq!(size, len);

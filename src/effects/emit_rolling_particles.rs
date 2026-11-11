@@ -1,5 +1,5 @@
-//! `effects::emit_kind_1` (0x4CCCD7, a chunk of `effects::emit_wheel_particles` entered from
-//! it for the wheel kind 1): `effects::emit_particle_21` when the kind-1 choice is not 0,
+//! `effects::emit_rolling_particles` (0x4CCCD7, a chunk of `effects::emit_wheel_particles` entered from
+//! it for the wheel kind 1): `effects::emit_rolling_particles_rated` when the kind-1 choice is not 0,
 //! else `emit_particle_1`: one ring entry of kind 1.
 //!
 //! Takes: the wheel record, the car object
@@ -16,9 +16,9 @@
 //! spread), y plus a constant; a random spin and turn; the flags' low 6 bits; the life and
 //! fade (+0x78 fade over life, +0x74 fade); the car and its +0x88; +0x70 0x10000 and +0x60
 //! the strength times a size factor; +0x64 0. Refuses (before anything) a null wheel, a null
-//! object where read, a null car or matrix when an entry is made, and `emit_particle_21`'s.
+//! object where read, a null car or matrix when an entry is made, and `emit_rolling_particles_rated`'s.
 
-use crate::effects::emit_particle_21::emit_particle_21;
+use crate::effects::emit_rolling_particles_rated::emit_rolling_particles_rated;
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
@@ -212,7 +212,7 @@ pub fn emit_particle_1(
     Ok(())
 }
 
-pub fn emit_kind_1(
+pub fn emit_rolling_particles(
     masks: &Masks,
     particles: &Particles,
     ring: &Ring,
@@ -221,7 +221,7 @@ pub fn emit_kind_1(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     if particles.kind1_choice.choice.get() != 0 {
-        emit_particle_21(particles, ring, wheel, object, effects)
+        emit_rolling_particles_rated(particles, ring, wheel, object, effects)
     } else {
         emit_particle_1(masks, particles, ring, wheel, object, effects)
     }
@@ -230,21 +230,21 @@ pub fn emit_kind_1(
 /// The wheel kind 1's choice (IDA 0x93A1D6 .. 0x93A1DA).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
-pub struct Kind1Choice {
-    /// 0x93A1D6: `g_marksKind1Choice`: `emit_particle_21` when not 0 (`ring_frame` sets it from the rain's drops)
+pub struct RollingChoice {
+    /// 0x93A1D6: `g_marksKind1Choice`: `emit_rolling_particles_rated` when not 0 (`ring_frame` sets it from the rain's drops)
     pub choice: Dword,
 }
 
-impl Kind1Choice {
+impl RollingChoice {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
-        Kind1Choice {
+        RollingChoice {
             choice: Dword::new(0x0),
         }
     }
 }
 
-impl Kind1Choice {
+impl RollingChoice {
     pub const START: usize = 0x93A1D6;
     pub const LEN: usize = 0x4;
 }
@@ -263,15 +263,15 @@ mod kind1_choice_tests {
 
     #[test]
     fn kind1_choice_starts_as_the_games() {
-        assert_eq!(size_of::<Kind1Choice>(), Kind1Choice::LEN);
+        assert_eq!(size_of::<RollingChoice>(), RollingChoice::LEN);
         assert!(
             bytes(&crate::effects::owner::EFFECTS.particles.kind1_choice)
-                == crate::moved::image_bytes(Kind1Choice::START, Kind1Choice::LEN),
+                == crate::moved::image_bytes(RollingChoice::START, RollingChoice::LEN),
             "KIND1_CHOICE starts differently from the image"
         );
         assert_eq!(
-            offset_of!(Kind1Choice, choice),
-            0x93A1D6 - Kind1Choice::START
+            offset_of!(RollingChoice, choice),
+            0x93A1D6 - RollingChoice::START
         );
     }
 }
@@ -279,7 +279,7 @@ mod kind1_choice_tests {
 /// Kind 1's emitter variables (`emit_particle_1`) (IDA 0x93A39A .. 0x93A3D2).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
-pub struct Kind1Set {
+pub struct RollingSet {
     /// 0x93A39A: `dword_93A39A`: the side's random
     pub side_random: Dword,
     /// 0x93A39E: `flt_93A39E` .. `flt_93A3BE`: per axis (x, y, z) the factors of the first row, the third row and the side
@@ -294,10 +294,10 @@ pub struct Kind1Set {
     pub size_k: Float,
 }
 
-impl Kind1Set {
+impl RollingSet {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
-        Kind1Set {
+        RollingSet {
             side_random: Dword::new(0x0),
             motion_k: [
                 Float::new(65.536),
@@ -318,7 +318,7 @@ impl Kind1Set {
     }
 }
 
-impl Kind1Set {
+impl RollingSet {
     pub const START: usize = 0x93A39A;
     pub const LEN: usize = 0x38;
 }
@@ -337,23 +337,26 @@ mod kind1_set_tests {
 
     #[test]
     fn kind1_set_starts_as_the_games() {
-        assert_eq!(size_of::<Kind1Set>(), Kind1Set::LEN);
+        assert_eq!(size_of::<RollingSet>(), RollingSet::LEN);
         assert!(
             bytes(&crate::effects::owner::EFFECTS.particles.kind1_set)
-                == crate::moved::image_bytes(Kind1Set::START, Kind1Set::LEN),
+                == crate::moved::image_bytes(RollingSet::START, RollingSet::LEN),
             "KIND1_SET starts differently from the image"
         );
         assert_eq!(
-            offset_of!(Kind1Set, side_random),
-            0x93A39A - Kind1Set::START
+            offset_of!(RollingSet, side_random),
+            0x93A39A - RollingSet::START
         );
-        assert_eq!(offset_of!(Kind1Set, motion_k), 0x93A39E - Kind1Set::START);
-        assert_eq!(offset_of!(Kind1Set, spread), 0x93A3C2 - Kind1Set::START);
-        assert_eq!(offset_of!(Kind1Set, lift), 0x93A3C6 - Kind1Set::START);
         assert_eq!(
-            offset_of!(Kind1Set, spin_random),
-            0x93A3CA - Kind1Set::START
+            offset_of!(RollingSet, motion_k),
+            0x93A39E - RollingSet::START
         );
-        assert_eq!(offset_of!(Kind1Set, size_k), 0x93A3CE - Kind1Set::START);
+        assert_eq!(offset_of!(RollingSet, spread), 0x93A3C2 - RollingSet::START);
+        assert_eq!(offset_of!(RollingSet, lift), 0x93A3C6 - RollingSet::START);
+        assert_eq!(
+            offset_of!(RollingSet, spin_random),
+            0x93A3CA - RollingSet::START
+        );
+        assert_eq!(offset_of!(RollingSet, size_k), 0x93A3CE - RollingSet::START);
     }
 }

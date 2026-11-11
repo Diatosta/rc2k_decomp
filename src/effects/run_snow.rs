@@ -3,7 +3,7 @@
 //! `light_place`, its way (`light_source_way`) turned without the places into `light_way`;
 //! `effects::make_fade_colours`. `flakes` is the settings' +0x2760 (the flakes; none: `flag`
 //! 0 and back), held to 0x800; the settings' +0x28 .. +0x48 into `view_matrix`, +0x1C .. +0x24
-//! into `view_place`; `effects::place_view_2`, `scene::set_texture` (the snow's texture),
+//! into `view_place`; `effects::place_snow_view`, `scene::set_texture` (the snow's texture),
 //! `scene::depth_buffer_on`, `scene::depth_test_off`, render states 0x15 = 4, 0x13 = 5,
 //! 0x14 = 6, 0x1C = 0, 0x1B = 1; the four vertices' rhw (`rhw`), colour the view's light |
 //! 0xFF000000, specular 0, texture places from `uv`; the polygon's vertex count 4; 1 over
@@ -67,7 +67,7 @@ pub fn run_snow(
         for n in 0..3 {
             s.view_place[n].set(marks.listener_place[n].get());
         }
-        crate::effects::place_view_2::place_view_2(weather)?;
+        crate::effects::place_snow_view::place_snow_view(weather)?;
         crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].get());
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::depth_test_off::depth_test_off();

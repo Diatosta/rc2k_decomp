@@ -10,7 +10,7 @@ pub struct SurfaceTables {
     pub places: Bytes<17408>,
     /// 0x939B66: Not named: 16 bytes (a gap, or unreferenced data).
     pub _gap_939b66: Bytes<16>,
-    /// 0x939B76: `g_marksParticleLives`: the life by a wheel's flags' bits 6, 7 (`effects::emit_particle_6`).
+    /// 0x939B76: `g_marksParticleLives`: the life by a wheel's flags' bits 6, 7 (`effects::emit_wheel_fade_particle`).
     pub lives_by_flags: [Dword; 4],
     /// 0x939B86: `dword_939B86`: the life by the level (`effects::emit_twin`; 9 entries are allowed, the last is `dword_939BA6`, the tint).
     pub lives_by_level: [Dword; 9],

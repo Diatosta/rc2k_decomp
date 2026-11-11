@@ -1,6 +1,6 @@
 //! `effects::run_rain` (0x4C16F9): the rain's frame. `drops` is the settings' +0x2764 (the
 //! drops; none: `drawn` 0 and back), held to 0x100; the settings' +0x28 .. +0x48 into
-//! `view_matrix`, +0x1C .. +0x24 into `view_place`; `effects::place_view`,
+//! `view_matrix`, +0x1C .. +0x24 into `view_place`; `effects::place_rain_view`,
 //! `scene::depth_buffer_off`, render states 0x15 = 4, 0x13 = 5, 0x14 = 6, 0x1C = 0, 0x1B = 1,
 //! `scene::clear_texture`; the four vertices' rhw (`rhw`; loaded as a whole number there, as
 //! a float here: a fixed bug), colours 0xFFFFFF, 0, 0x28000000, 0x28FFFFFF, the rest 0, the
@@ -86,7 +86,7 @@ pub fn run_rain(
         for n in 0..3 {
             r.view_place[n].set(marks.listener_place[n].get());
         }
-        crate::effects::place_view::place_view(weather)?;
+        crate::effects::place_rain_view::place_rain_view(weather)?;
         crate::scene::depth_buffer_on::depth_buffer(false);
         for (value, state) in STATES {
             set_render_state(value, state);

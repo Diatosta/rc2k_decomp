@@ -2,7 +2,7 @@
 //! reached through `service()` by the code that does not take it as a parameter.
 
 use crate::service::read_setup_slot::{SetUps, template};
-use crate::session::Bytes;
+use crate::session::{Bytes, GameThread};
 
 /// The service's state.
 pub struct Service {
@@ -22,9 +22,9 @@ impl Service {
 }
 
 /// The one instance. Reached through `service()`; `moved` registers its stores' places.
-pub static SERVICE: Service = Service::new();
+pub static SERVICE: GameThread<Service> = GameThread::new(Service::new());
 
 /// The service's state, for a caller that does not take it as a parameter yet.
 pub fn service() -> &'static Service {
-    &SERVICE
+    SERVICE.get()
 }

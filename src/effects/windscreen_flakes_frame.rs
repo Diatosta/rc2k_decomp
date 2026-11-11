@@ -18,7 +18,7 @@ use crate::effects::cell_x87::CellX87;
 use crate::effects::mask_store::Masks;
 use crate::effects::plain::ldi_cell;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
-use crate::effects::windscreen_flakes_step::windscreen_flakes_step;
+use crate::effects::windscreen_flakes::windscreen_flakes_step;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::math::x87;

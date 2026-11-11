@@ -271,14 +271,14 @@ mod fields {
     /// routine's address (0x4078DA input, 0x409CCE audio, 0x4183C3 net receive).
     fn kind() -> usize {
         let thread = std::thread::current();
-        let name = thread.name().unwrap_or("");
+        let name = thread.name().unwrap_or("").to_ascii_lowercase();
         if name == "main" {
             0
-        } else if name.contains("0x409CCE") {
+        } else if name.contains("0x409cce") {
             1
-        } else if name.contains("0x4078DA") {
+        } else if name.contains("0x4078da") {
             2
-        } else if name.contains("0x4183C3") {
+        } else if name.contains("0x4183c3") {
             3
         } else if name.starts_with("draw ") {
             4

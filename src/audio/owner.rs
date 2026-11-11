@@ -4,7 +4,9 @@
 
 use crate::audio::levels::Levels;
 use crate::audio::names_store::SampleNames;
-use crate::audio::store::{AudioState, CommandQueue, SampleRecords};
+use crate::audio::store::{AudioState, SampleRecords};
+use rc2k_core::audio::commands::Queue;
+use std::sync::Mutex;
 
 /// The audio's state.
 pub struct Audio {
@@ -13,7 +15,7 @@ pub struct Audio {
     /// The sample records.
     pub sample_records: SampleRecords,
     /// The commands the game sends to the audio thread.
-    pub commands: CommandQueue,
+    pub commands: Mutex<Queue>,
     /// The sample files' names.
     pub sample_names: SampleNames,
     /// The volume levels shared with the menus.
@@ -25,7 +27,7 @@ pub struct Audio {
 pub static AUDIO_OWNER: Audio = Audio {
     state: AudioState::new(),
     sample_records: SampleRecords::new(),
-    commands: CommandQueue::new(),
+    commands: Mutex::new(Queue::new()),
     sample_names: SampleNames::new(),
     levels: Levels::new(),
 };

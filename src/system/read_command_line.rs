@@ -22,7 +22,7 @@
 use crate::audio::owner::audio;
 use crate::d3d::owner::d3d;
 use crate::errors::BadInput;
-use crate::session::Dword;
+use crate::session::{Cell32, Dword};
 use crate::system::owner::Start;
 
 // ---- game data ----
@@ -77,12 +77,12 @@ pub fn read_command_line(start: &Start, line: &[u8]) -> Result<Asked, BadInput> 
     let sw = rc2k_core::system::command_line::read(line)?;
     start.command_line.program_len.set(sw.program.1 as u32);
     for (on, cell) in [
-        (sw.u, &install.run.updating),
+        (sw.u, &install.run.updating as &dyn Cell32),
         (sw.installing, &install.run.installing),
         (sw.no_audio, &audio().state.no_audio),
     ] {
         if on {
-            cell.set(1u32);
+            cell.set_bits(1u32);
         }
     }
     for i in &sw.install {

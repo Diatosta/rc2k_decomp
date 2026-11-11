@@ -91,18 +91,15 @@ pub fn run() -> Result<(), crate::errors::Refused> {
     if menus.screens.event.car_page.get() != 0 {
         return Ok(());
     }
-    clear_depth_buffer(scene);
+    let scratch = crate::race::view_scratch::front_end();
+    clear_depth_buffer(scene, crate::system::owner::system(), &scratch.polygon);
     assign_kind_textures(scene)?;
     pick_pictures(menus)?;
     map_texture_places(scene);
     load_slot_textures_in_game(&race.frame, scene)?;
     scene.lights.state.draw_mode.set(0u32);
     // The front end's 3D draws on a slot of its own (frame plan F4).
-    let ctx = crate::race::view_scratch::DrawCtx::new(
-        race,
-        scene,
-        crate::race::view_scratch::front_end(),
-    );
+    let ctx = crate::race::view_scratch::DrawCtx::new(race, scene, scratch);
     let _held = ctx.view.matrices.hold(&race.frame.matrices);
     draw_shown_car(
         &race.shared,

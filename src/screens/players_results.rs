@@ -55,8 +55,11 @@ fn points_at<'a>(
 
 /// The section's first record and the stage's (`off_735512[dword_7558C8][dword_7558D0]`, +
 /// 0xA4 x `dword_7558CC`); none: 0.
-fn records(screens: &Screens) -> Result<(RecordTable, RecordRef), BadInput> {
-    let base = system().records.stage_tables.group_event_table(
+fn records(
+    screens: &Screens,
+    stages: &crate::records::stages_store::StageTables,
+) -> Result<(RecordTable, RecordRef), BadInput> {
+    let base = stages.group_event_table(
         screens.event.stage_group.get(),
         screens.event.stage_sub.get(),
     )?;
@@ -76,7 +79,11 @@ struct Prepared<'a> {
 
 /// What the page needs, checked before anything is written: the rows' players (and points),
 /// the stage line, the speeds (3 .. 0x80 characters for `draw_spaced_number`).
-fn prepare<'a>(menus: &'a Menus, layout: &Layout) -> Result<Prepared<'a>, Refused> {
+fn prepare<'a>(
+    menus: &'a Menus,
+    layout: &Layout,
+    stages: &crate::records::stages_store::StageTables,
+) -> Result<Prepared<'a>, Refused> {
     let n = rows(menus, layout);
     let players = (0..n)
         .map(|row| player(menus, row))
@@ -86,7 +93,7 @@ fn prepare<'a>(menus: &'a Menus, layout: &Layout) -> Result<Prepared<'a>, Refuse
             points_at(menus, &menus.play, row)?;
         }
     }
-    let (base, record) = records(&menus.screens)?;
+    let (base, record) = records(&menus.screens, stages)?;
     let stage = crate::screens::page_settings::stage_line_bytes(0x482, record)?;
     if stage.len() > 0x100 {
         return Err(BadInput("a stage line past the line buffer").into());
@@ -122,7 +129,7 @@ pub fn draw_players_results(
             base,
             stage,
             speeds,
-        } = prepare(menus, layout)?;
+        } = prepare(menus, layout, &system().records.stage_tables)?;
         let mut rows = Vec::new();
         for (row, (p, speed)) in players.iter().zip(speeds).enumerate() {
             rows.push(Row {

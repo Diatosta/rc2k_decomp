@@ -27,3 +27,11 @@ pub static HUD: Hud = Hud::new();
 pub fn hud() -> &'static Hud {
     &HUD
 }
+
+/// What the HUD's polygons are added through: the polygon work of the slot the HUD draws on
+/// and the system whose screen size the virtual screen is scaled to.
+#[derive(Clone, Copy)]
+pub struct Pen<'a> {
+    pub polygons: &'a crate::scene::polygon_work::PolygonWork,
+    pub system: &'a crate::system::owner::System,
+}

@@ -5,6 +5,7 @@
 //! and strength 0xB4, its direction's angles `dword_635094` = 0x6E and `dword_635098` = 0x1E;
 //! `scene::set_view_matrices`. 29 callers (the screen loops' set-up).
 use crate::race::owner::race;
+use crate::race::view_scratch::ViewScratch;
 use crate::scene::set_view_window::set_view_window;
 use crate::scene::view_matrix::set_view_matrices;
 
@@ -12,7 +13,7 @@ use crate::scene::view_matrix::set_view_matrices;
 
 // ---- Rust version ----
 
-pub fn prepare_menu_scene(scene: &crate::scene::owner::Scene) {
+pub fn prepare_menu_scene(scene: &crate::scene::owner::Scene, scratch: &ViewScratch) {
     let race = race();
     let frame = &race.frame;
     crate::session::write_bits(&race.frame.view_and_records.view_vars.view_place, [0u32; 3]);
@@ -20,28 +21,18 @@ pub fn prepare_menu_scene(scene: &crate::scene::owner::Scene) {
         &race.frame.view_and_records.view_vars.view_angles,
         &[0u32; 3],
     );
-    crate::session::write_bits(
-        &crate::scene::polygon_work::front_end().window.view_size,
-        [0x320u32, 0x258],
-    );
+    crate::session::write_bits(&scratch.polygon.window.view_size, [0x320u32, 0x258]);
     set_view_window(
         race,
         scene,
-        &crate::scene::polygon_work::front_end().window,
+        &scratch.polygon.window,
         &race.frame.view_and_records.view_vars,
     );
-    let light = &crate::race::view_scratch::front_end().light;
+    let light = &scratch.light;
     light.light_lowest.set(0x50);
     light.light_highest.set(0xFF);
     light.light_level.set(0xB4);
-    crate::race::view_scratch::front_end()
-        .object
-        .light_strength
-        .set(0xB4);
+    scratch.object.light_strength.set(0xB4);
     crate::session::write_bits(&light.light_turns, [0x6Eu32, 0x1E]);
-    set_view_matrices(
-        &race.course,
-        frame,
-        &crate::race::view_scratch::front_end().matrices,
-    );
+    set_view_matrices(&race.course, frame, &scratch.matrices);
 }

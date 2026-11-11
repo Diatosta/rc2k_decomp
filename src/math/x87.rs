@@ -1260,7 +1260,7 @@ fn matrix_turn(m: &[u32; 15], a: bh::X, b: bh::X, c: bh::X, translate: bool) -> 
     out
 }
 
-/// `effects::emit_particle_13`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m` (its
+/// `effects::emit_exhaust_smoke`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m` (its
 /// rows 0x10 apart), placed by +0x30 .. and the place taken off again; then x, y, y less
 /// `lift`, z.
 pub fn turned_place_less(

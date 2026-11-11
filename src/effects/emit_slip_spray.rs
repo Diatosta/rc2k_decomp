@@ -1,4 +1,4 @@
-//! `effects::emit_particle_5` (0x4CC15D, a chunk of `effects::emit_wheel_particles` entered
+//! `effects::emit_slip_spray` (0x4CC15D, a chunk of `effects::emit_wheel_particles` entered
 //! from it and from another chunk): one ring entry of kind 5 from a wheel whose +0x18 is not
 //! 0.
 //!
@@ -13,7 +13,7 @@
 //! set's spin factor times the sign; +0x58 the wheel's flags' low 6 bits; +0x60 the integer
 //! ((`jitter_point`'s third result >> 2) & 0xFFF) + 0x7800 (section 16); +0x74 0xFF000000; a
 //! life of 5000; +0x68 the car. Refuses (before anything) a null wheel, object, car or matrix
-//! where read. The body is shared with kind 0xB's (`JitterSet`, `emit_particle_5_with`,
+//! where read. The body is shared with kind 0xB's (`JitterSet`, `emit_slip_spray_with`,
 //! `test_with`).
 
 use crate::effects::emitters::car_with_matrix;
@@ -98,16 +98,16 @@ fn emits(set: &JitterSet, wheel: &MarkRecord) -> Result<bool, Refused> {
     })
 }
 
-pub fn emit_particle_5(
+pub fn emit_slip_spray(
     ring: &Ring,
     wheel: &MarkRecord,
     object: &'static CarEffects,
 ) -> Result<(), Refused> {
-    emit_particle_5_with(ring, &FIFTH, wheel, object)
+    emit_slip_spray_with(ring, &FIFTH, wheel, object)
 }
 
 /// The shared body, on `set`'s variables.
-pub fn emit_particle_5_with(
+pub fn emit_slip_spray_with(
     ring: &Ring,
     set: &JitterSet,
     wheel: &MarkRecord,
@@ -195,10 +195,10 @@ pub fn emit_particle_5_with(
     Ok(())
 }
 
-/// Kind 5's emitter variables (`emit_particle_5::FIFTH`) (IDA 0x93A23A .. 0x93A262).
+/// Kind 5's emitter variables (`emit_slip_spray::FIFTH`) (IDA 0x93A23A .. 0x93A262).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
-pub struct Kind5Set {
+pub struct SlipSpraySet {
     /// 0x93A23A: `dword_93A23A`: the place's random
     pub place_random: Dword,
     /// 0x93A23E: `flt_93A23E`: the motion's x factor
@@ -217,10 +217,10 @@ pub struct Kind5Set {
     pub spin: Float,
 }
 
-impl Kind5Set {
+impl SlipSpraySet {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
-        Kind5Set {
+        SlipSpraySet {
             place_random: Dword::new(0x0),
             motion_x: Float::new(10.0),
             motion_y: Float::new(10.0),
@@ -233,7 +233,7 @@ impl Kind5Set {
     }
 }
 
-impl Kind5Set {
+impl SlipSpraySet {
     pub const START: usize = 0x93A23A;
     pub const LEN: usize = 0x28;
 }
@@ -252,22 +252,43 @@ mod kind5_set_tests {
 
     #[test]
     fn kind5_set_starts_as_the_games() {
-        assert_eq!(size_of::<Kind5Set>(), Kind5Set::LEN);
+        assert_eq!(size_of::<SlipSpraySet>(), SlipSpraySet::LEN);
         assert!(
             bytes(&crate::effects::owner::EFFECTS.particles.kind5_set)
-                == crate::moved::image_bytes(Kind5Set::START, Kind5Set::LEN),
+                == crate::moved::image_bytes(SlipSpraySet::START, SlipSpraySet::LEN),
             "KIND5_SET starts differently from the image"
         );
         assert_eq!(
-            offset_of!(Kind5Set, place_random),
-            0x93A23A - Kind5Set::START
+            offset_of!(SlipSpraySet, place_random),
+            0x93A23A - SlipSpraySet::START
         );
-        assert_eq!(offset_of!(Kind5Set, motion_x), 0x93A23E - Kind5Set::START);
-        assert_eq!(offset_of!(Kind5Set, motion_y), 0x93A242 - Kind5Set::START);
-        assert_eq!(offset_of!(Kind5Set, lift), 0x93A246 - Kind5Set::START);
-        assert_eq!(offset_of!(Kind5Set, motion_z), 0x93A24A - Kind5Set::START);
-        assert_eq!(offset_of!(Kind5Set, spread), 0x93A24E - Kind5Set::START);
-        assert_eq!(offset_of!(Kind5Set, roll_k), 0x93A252 - Kind5Set::START);
-        assert_eq!(offset_of!(Kind5Set, spin), 0x93A25E - Kind5Set::START);
+        assert_eq!(
+            offset_of!(SlipSpraySet, motion_x),
+            0x93A23E - SlipSpraySet::START
+        );
+        assert_eq!(
+            offset_of!(SlipSpraySet, motion_y),
+            0x93A242 - SlipSpraySet::START
+        );
+        assert_eq!(
+            offset_of!(SlipSpraySet, lift),
+            0x93A246 - SlipSpraySet::START
+        );
+        assert_eq!(
+            offset_of!(SlipSpraySet, motion_z),
+            0x93A24A - SlipSpraySet::START
+        );
+        assert_eq!(
+            offset_of!(SlipSpraySet, spread),
+            0x93A24E - SlipSpraySet::START
+        );
+        assert_eq!(
+            offset_of!(SlipSpraySet, roll_k),
+            0x93A252 - SlipSpraySet::START
+        );
+        assert_eq!(
+            offset_of!(SlipSpraySet, spin),
+            0x93A25E - SlipSpraySet::START
+        );
     }
 }

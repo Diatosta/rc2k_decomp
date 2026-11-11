@@ -4,7 +4,7 @@
 
 use crate::errors::Refused;
 use crate::hud::draw_markers::{int_over_80, taken_off};
-use crate::hud::owner::Hud;
+use crate::hud::owner::{Hud, Pen};
 use crate::hud::store::{rect_place, texture};
 use crate::race::owner_frame::Frame;
 use rc2k_core::hud::panels;
@@ -20,8 +20,15 @@ pub fn time_digits(hud: &Hud, value: u32, base: u32) -> [u32; 6] {
 }
 
 /// A sprite: rectangle `rect` of the sprite sheet at (x, y).
-pub fn sprite(frame: &Frame, hud: &Hud, rect: u32, x: u32, y: u32) -> Result<(), Refused> {
-    crate::hud::add_sprite::add_sprite(frame, hud, x, y, rect_place(hud, rect))
+pub fn sprite(
+    frame: &Frame,
+    hud: &Hud,
+    pen: Pen,
+    rect: u32,
+    x: u32,
+    y: u32,
+) -> Result<(), Refused> {
+    crate::hud::add_sprite::add_sprite(frame, hud, pen, x, y, rect_place(hud, rect))
 }
 
 /// The sign of a time into `sign`: `plus` or `minus`.
@@ -91,12 +98,19 @@ pub fn needle_sign(hud: &Hud, field: u32) -> u32 {
 
 /// A sprite scaled 0xC0 over `uv_scale_x` both ways; the scales then taken off into
 /// `fistp_scratch`.
-pub fn scaled(frame: &Frame, hud: &Hud, rect: u32, x: u32, y: u32) -> Result<(), Refused> {
+pub fn scaled(
+    frame: &Frame,
+    hud: &Hud,
+    pen: Pen,
+    rect: u32,
+    x: u32,
+    y: u32,
+) -> Result<(), Refused> {
     let at = rect_place(hud, rect);
     let k = hud.block.uv_scale_x.bits();
     hud.block.fistp_scratch.set(0xC0);
     let v = int_over_80(0xC0, k);
-    crate::hud::add_scaled_sprite::add_scaled_sprite(frame, hud, x, y, at, [v, v])?;
+    crate::hud::add_scaled_sprite::add_scaled_sprite(frame, hud, pen, x, y, at, [v, v])?;
     hud.block.fistp_scratch.set(taken_off(v));
     Ok(())
 }
@@ -115,12 +129,12 @@ pub fn white_opaque(hud: &Hud, texture: u32) {
 }
 
 /// A black, opaque solid quad over `rect` (left, top, right, bottom): the divider of two players.
-pub fn black_divider(frame: &Frame, hud: &Hud, rect: [u32; 4]) -> Result<(), Refused> {
+pub fn black_divider(frame: &Frame, hud: &Hud, pen: Pen, rect: [u32; 4]) -> Result<(), Refused> {
     hud.block.texture.set(texture::SPRITES);
     hud.block.quad.alpha.set(0xFF);
     hud.block.quad.colour.set(0);
     hud.block.quad.set_rect(rect);
-    crate::hud::add_solid_quad::add_solid_quad(frame, hud)
+    crate::hud::add_solid_quad::add_solid_quad(frame, hud, pen)
 }
 
 /// The rectangle of the gear sprite for the gear value `gear`.

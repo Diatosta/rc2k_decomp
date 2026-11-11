@@ -215,20 +215,20 @@ pub const CARVED: &[(usize, usize)] = &[
     (0x93573C, 0x935766), // `effects::ring_store::PictureNames`
     (0x935766, 0x939DB2), // `effects::surface_store::SurfaceTables`
     (0x939DB2, 0x93A1B6), // `effects::run_ribbons::Colours257`
-    (0x93A1B6, 0x93A1D6), // `effects::emit_particle_19::TwinState`
-    (0x93A1D6, 0x93A1DA), // `effects::emit_kind_1::Kind1Choice`
+    (0x93A1B6, 0x93A1D6), // `effects::emit_twin_particle_first::TwinState`
+    (0x93A1D6, 0x93A1DA), // `effects::emit_rolling_particles::RollingChoice`
     (0x93A1DA, 0x93A21A), // `effects::set_up_surface::MaskList`
     (0x93A21A, 0x93A23A), // `effects::draw_turned_sprite::SpriteUv`
-    (0x93A23A, 0x93A262), // `effects::emit_particle_5::Kind5Set`
-    (0x93A262, 0x93A312), // `effects::emit_particle_11::Kind11Set`
-    (0x93A312, 0x93A39A), // `effects::emit_particle_21::Kind21Set`
-    (0x93A39A, 0x93A3D2), // `effects::emit_kind_1::Kind1Set`
+    (0x93A23A, 0x93A262), // `effects::emit_slip_spray::SlipSpraySet`
+    (0x93A262, 0x93A312), // `effects::emit_slip_spray_long::SlipSprayLongSet`
+    (0x93A312, 0x93A39A), // `effects::emit_rolling_particles_rated::RollingRatedSet`
+    (0x93A39A, 0x93A3D2), // `effects::emit_rolling_particles::RollingSet`
     (0x93A3D2, 0x93A3F6), // `effects::emit_bursts::FirstTuning`
-    (0x93A3F6, 0x93A41A), // `effects::emit_bursts_2::SecondTuning`
-    (0x93A41A, 0x93A462), // `effects::emit_particle_6::Kind6Set`
-    (0x93A462, 0x93A48A), // `effects::emit_particle_13::Kind13Set`
-    (0x93A48A, 0x93A4B2), // `effects::emit_particle_19::NineteenthTuning`
-    (0x93A4B2, 0x93A4DA), // `effects::emit_particle_22::TwentySecondTuning`
+    (0x93A3F6, 0x93A41A), // `effects::emit_bursts_kind_3::BurstKind3Tuning`
+    (0x93A41A, 0x93A462), // `effects::emit_wheel_fade_particle::WheelFadeSet`
+    (0x93A462, 0x93A48A), // `effects::emit_exhaust_smoke::ExhaustSet`
+    (0x93A48A, 0x93A4B2), // `effects::emit_twin_particle_first::TwinFirstTuning`
+    (0x93A4B2, 0x93A4DA), // `effects::emit_twin_particle_second::TwinSecondTuning`
     (0x93A4DA, 0x93A576), // `effects::run_ring::RingKinds`
     (0x93A580, 0x93A5F0), // `effects::blocks::RingPool`
     (0x93A5F0, 0x93A618), // `effects::run_particles::PuffWork`

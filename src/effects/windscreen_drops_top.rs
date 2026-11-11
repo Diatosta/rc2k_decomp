@@ -123,7 +123,7 @@ pub fn windscreen_drops_top(
         }
         let marks = effects.settings()?;
         if marks.windscreen_wet.get() != 0 && effects.setup.kind_floats.running.get() != 0 {
-            crate::effects::windscreen_drops_step::windscreen_drops_step(masks, drops)?;
+            crate::effects::windscreen_drops::windscreen_drops_step(masks, drops)?;
         }
     }
     crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].get());

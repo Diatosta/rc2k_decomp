@@ -4,7 +4,7 @@
 
 use crate::errors::Refused;
 use crate::hud::draw_icon::draw_icon;
-use crate::hud::owner::Hud;
+use crate::hud::owner::{Hud, Pen};
 use crate::race::owner_frame::Frame;
 
 /// One icon: the shift, the row and the view (`Panel::lights`).
@@ -61,7 +61,7 @@ pub static LAYOUT_2: IconStyle = IconStyle {
 };
 
 /// Draws `style`'s icons.
-pub fn icons(frame: &Frame, hud: &Hud, style: &IconStyle) -> Result<(), Refused> {
+pub fn icons(frame: &Frame, hud: &Hud, pen: Pen, style: &IconStyle) -> Result<(), Refused> {
     hud.block
         .icon_scale
         .set_bits(hud.block.icon_scales[style.scale].bits());
@@ -73,7 +73,7 @@ pub fn icons(frame: &Frame, hud: &Hud, style: &IconStyle) -> Result<(), Refused>
         }
         hud.block.icon_shift.set(d.shift);
         let lights = &frame.panel_and_overlay.panel.lights[d.view];
-        draw_icon(frame, hud, lights, d.row)?;
+        draw_icon(frame, hud, pen, lights, d.row)?;
     }
     Ok(())
 }

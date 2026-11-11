@@ -13,7 +13,7 @@
 //! `dword_75BF70`'s four, before anything.
 
 use crate::errors::Refused;
-use crate::hud::owner::Hud;
+use crate::hud::owner::{Hud, Pen};
 use crate::race::owner_frame::Frame;
 use crate::session::Dword;
 
@@ -22,14 +22,20 @@ pub fn set(hud: &Hud, n: usize, v: u32) {
 }
 
 /// The record's corners (left, top, right, bottom) and, with `Some`, its colour; a quad.
-pub fn quad(frame: &Frame, hud: &Hud, colour: Option<u32>, c: [u32; 4]) -> Result<(), Refused> {
+pub fn quad(
+    frame: &Frame,
+    hud: &Hud,
+    pen: Pen,
+    colour: Option<u32>,
+    c: [u32; 4],
+) -> Result<(), Refused> {
     if let Some(colour) = colour {
         set(hud, 5, colour);
     }
     for (n, v) in c.into_iter().enumerate() {
         set(hud, 1 + n, v);
     }
-    crate::hud::add_solid_quad::add_solid_quad(frame, hud)
+    crate::hud::add_solid_quad::add_solid_quad(frame, hud, pen)
 }
 
 /// The bars of `kinds`' players (each player's colour into `colour_vars`), `dy` lower
@@ -38,6 +44,7 @@ pub fn quad(frame: &Frame, hud: &Hud, colour: Option<u32>, c: [u32; 4]) -> Resul
 pub fn bars(
     frame: &Frame,
     hud: &Hud,
+    pen: Pen,
     kinds: &[&[Dword]],
     colour_vars: &[&Dword],
     dy: u32,
@@ -49,7 +56,7 @@ pub fn bars(
     })?;
     set(hud, 0, sb::SOLID);
     for (colour, c) in sb::frame(dy, kinds.len() == 2) {
-        quad(frame, hud, Some(colour), c)?;
+        quad(frame, hud, pen, Some(colour), c)?;
     }
     if count == 0 {
         return Ok(());
@@ -86,7 +93,7 @@ pub fn bars(
             if let Some(alpha) = q.alpha {
                 set(hud, 0, alpha);
             }
-            quad(frame, hud, q.colour, q.corners)?;
+            quad(frame, hud, pen, q.colour, q.corners)?;
         }
         hud.block.ends[0].set(end);
     }
@@ -94,10 +101,11 @@ pub fn bars(
 }
 
 // Converted: `rc2k_core::hud::stage_bars` (through `bars`)
-pub fn draw_stage_bar(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
+pub fn draw_stage_bar(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     bars(
         frame,
         hud,
+        pen,
         &[&frame.panel_and_overlay.overlay.overlay_part_kinds_a],
         &[&hud.block.bar_colour],
         0,

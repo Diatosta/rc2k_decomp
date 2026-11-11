@@ -10,23 +10,7 @@
 
 use crate::errors::BadInput;
 use crate::files::handle::GameFiles;
-use crate::pointers::GamePtr;
 pub use rc2k_core::files::io::ReadResult;
-
-/// Refuses what `resolve_path` refuses.
-#[track_caller]
-pub fn read_file(
-    path: &[u8],
-    to: GamePtr,
-    count: u32,
-    offset: u32,
-) -> Result<ReadResult, BadInput> {
-    // Converted: `rc2k_core::files::io::read_file`.
-    let mut into = to.read_bytes(count as usize, "a file's buffer")?;
-    let result = rc2k_core::files::io::read_file(&mut GameFiles::new(), path, &mut into, offset)?;
-    to.write_bytes(&into, "a file's buffer")?;
-    Ok(result)
-}
 
 /// `read_file` into Rust's memory: `into` holds what the file's bytes do not reach over,
 /// as the game's buffer did. Refuses what `resolve_path` refuses.

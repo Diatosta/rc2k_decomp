@@ -1,4 +1,4 @@
-//! `effects::emit_particle_6` (0x4CDC74): one ring entry of kind 6 from a wheel, when its
+//! `effects::emit_wheel_fade_particle` (0x4CDC74): one ring entry of kind 6 from a wheel, when its
 //! flags (+0x20, kept as the wheel flags) have 0xC0 and the rate gate passes
 //! (`effects/emitters.rs`, the wheel's +0xC less +0x18 by the set's rate factors).
 //!
@@ -12,7 +12,7 @@
 //! over it), +0x74 the fade constant, the object (+0x68) and its +0x88, +0x90.
 //! Callers: `effects::emit_wheel_particles`' kinds 2 .. 4, 6 .. 9, 0xC (after
 //! `effects::emit_bursts` or
-//! `effects::emit_bursts_2`). Refuses (before anything) a null wheel, object or matrix where read,
+//! `effects::emit_bursts_kind_3`). Refuses (before anything) a null wheel, object or matrix where read,
 //! and flags of 0x100 or more when an entry is made (the life read past the lives table's four).
 
 use crate::effects::emitters::car_with_matrix;
@@ -112,7 +112,7 @@ fn refusal(
     })
 }
 
-pub fn emit_particle_6(
+pub fn emit_wheel_fade_particle(
     masks: &Masks,
     particles: &Particles,
     ring: &Ring,
@@ -231,10 +231,10 @@ pub fn emit_particle_6(
     Ok(())
 }
 
-/// Kind 6's emitter variables (`emit_particle_6`) (IDA 0x93A41A .. 0x93A462).
+/// Kind 6's emitter variables (`emit_wheel_fade_particle`) (IDA 0x93A41A .. 0x93A462).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
-pub struct Kind6Set {
+pub struct WheelFadeSet {
     /// 0x93A41A: `flt_93A41A` .. `flt_93A426`: the rate's factors
     pub rate_k: [Float; 4],
     /// 0x93A42A: `dword_93A42A`: the side's random
@@ -249,10 +249,10 @@ pub struct Kind6Set {
     pub size_k: [Float; 2],
 }
 
-impl Kind6Set {
+impl WheelFadeSet {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
-        Kind6Set {
+        WheelFadeSet {
             rate_k: [
                 Float::new(65.336),
                 Float::new(0.0002),
@@ -278,7 +278,7 @@ impl Kind6Set {
     }
 }
 
-impl Kind6Set {
+impl WheelFadeSet {
     pub const START: usize = 0x93A41A;
     pub const LEN: usize = 0x48;
 }
@@ -297,23 +297,35 @@ mod kind6_set_tests {
 
     #[test]
     fn kind6_set_starts_as_the_games() {
-        assert_eq!(size_of::<Kind6Set>(), Kind6Set::LEN);
+        assert_eq!(size_of::<WheelFadeSet>(), WheelFadeSet::LEN);
         assert!(
             bytes(&crate::effects::owner::EFFECTS.particles.kind6_set)
-                == crate::moved::image_bytes(Kind6Set::START, Kind6Set::LEN),
+                == crate::moved::image_bytes(WheelFadeSet::START, WheelFadeSet::LEN),
             "KIND6_SET starts differently from the image"
         );
-        assert_eq!(offset_of!(Kind6Set, rate_k), 0x93A41A - Kind6Set::START);
         assert_eq!(
-            offset_of!(Kind6Set, side_random),
-            0x93A42A - Kind6Set::START
+            offset_of!(WheelFadeSet, rate_k),
+            0x93A41A - WheelFadeSet::START
         );
-        assert_eq!(offset_of!(Kind6Set, lift), 0x93A42E - Kind6Set::START);
-        assert_eq!(offset_of!(Kind6Set, motion_k), 0x93A432 - Kind6Set::START);
         assert_eq!(
-            offset_of!(Kind6Set, spin_random),
-            0x93A456 - Kind6Set::START
+            offset_of!(WheelFadeSet, side_random),
+            0x93A42A - WheelFadeSet::START
         );
-        assert_eq!(offset_of!(Kind6Set, size_k), 0x93A45A - Kind6Set::START);
+        assert_eq!(
+            offset_of!(WheelFadeSet, lift),
+            0x93A42E - WheelFadeSet::START
+        );
+        assert_eq!(
+            offset_of!(WheelFadeSet, motion_k),
+            0x93A432 - WheelFadeSet::START
+        );
+        assert_eq!(
+            offset_of!(WheelFadeSet, spin_random),
+            0x93A456 - WheelFadeSet::START
+        );
+        assert_eq!(
+            offset_of!(WheelFadeSet, size_k),
+            0x93A45A - WheelFadeSet::START
+        );
     }
 }

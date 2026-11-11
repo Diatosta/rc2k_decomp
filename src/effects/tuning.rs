@@ -27,7 +27,7 @@ pub struct MarksFrame {
     pub _gap_76512c: Bytes<8>,
     /// 0x765134: `flt_765134`: the share the draw took (`effects::run_frame`).
     pub draw_share: Float,
-    /// 0x765138: `dword_765138`: a particle's side / size in hand while it is emitted (`effects::emit_kind_1`, `effects::emit_bursts`; a scratch).
+    /// 0x765138: `dword_765138`: a particle's side / size in hand while it is emitted (`effects::emit_rolling_particles`, `effects::emit_bursts`; a scratch).
     pub emit_side: Dword,
     /// 0x76513C: `dword_76513C`: the frame steps counted (cleared at `effects::init_marks`).
     pub steps: Dword,
@@ -132,9 +132,9 @@ pub struct MarksFloats {
     pub twentieth: Float,
     /// 0x765160: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_765160: Bytes<4>,
-    /// 0x765164: `flt_765164`: 0.2 (`effects::emit_kind_1`).
+    /// 0x765164: `flt_765164`: 0.2 (`effects::emit_rolling_particles`).
     pub fifth: Float,
-    /// 0x765168: `flt_765168`: 0.3 (`effects::emit_kind_1`).
+    /// 0x765168: `flt_765168`: 0.3 (`effects::emit_rolling_particles`).
     pub three_tenths: Float,
     /// 0x76516C: `flt_76516C`: 1.0.
     pub one: Float,
@@ -150,7 +150,7 @@ pub struct MarksFloats {
     pub thirty_two: Float,
     /// 0x765194: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_765194: Bytes<4>,
-    /// 0x765198: `flt_765198`: 128.0 (`effects::emit_particle_18`).
+    /// 0x765198: `flt_765198`: 128.0 (`effects::emit_body_contact_particles`).
     pub hundred_twenty_eight: Float,
     /// 0x76519C: `dword_76519C`: 255.0, as bits (the particles' fade scale).
     pub two_fifty_five: Float,
@@ -170,9 +170,9 @@ pub struct MarksFloats {
     pub surface_edge: Float,
     /// 0x7651CC: `flt_7651CC`: 1/256, the surface places' pixel value (`effects::set_up_surface`'s `pixel`).
     pub surface_pixel: Float,
-    /// 0x7651D0: `flt_7651D0`: 1/32: the surface places' step (`effects::set_up_surface`), the emitters' size factor (`effects::emit_particle_18`, `effects::emit_kind_1`'s count) and the least strength.
+    /// 0x7651D0: `flt_7651D0`: 1/32: the surface places' step (`effects::set_up_surface`), the emitters' size factor (`effects::emit_body_contact_particles`, `effects::emit_rolling_particles`'s count) and the least strength.
     pub thirty_second: Float,
-    /// 0x7651D4: `flt_7651D4`: 65.536, the scale `effects::emit_particle_13` turns the spline point's place with (probably the model units to metres).
+    /// 0x7651D4: `flt_7651D4`: 65.536, the scale `effects::emit_exhaust_smoke` turns the spline point's place with (probably the model units to metres).
     pub particle_13_place_k: Float,
     /// 0x7651D8: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_7651d8: Bytes<4>,
@@ -180,17 +180,17 @@ pub struct MarksFloats {
     pub fixed_16_scale: Float,
     /// 0x7651E0: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_7651e0: Bytes<4>,
-    /// 0x7651E4: `flt_7651E4`: 700.0 (`effects::emit_particle_13`).
+    /// 0x7651E4: `flt_7651E4`: 700.0 (`effects::emit_exhaust_smoke`).
     pub seven_hundred: Float,
     /// 0x7651E8: `flt_7651E8`: 100.0.
     pub hundred: Float,
     /// 0x7651EC: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_7651ec: Bytes<4>,
-    /// 0x7651F0: `flt_7651F0`: 2000.0 (`effects::emit_kind_1`).
+    /// 0x7651F0: `flt_7651F0`: 2000.0 (`effects::emit_rolling_particles`).
     pub two_thousand: Float,
     /// 0x7651F4: Not named: 32 bytes (a gap, or unreferenced data).
     pub _gap_7651f4: Bytes<32>,
-    /// 0x765214: `flt_765214`: 1/65536 (`effects::emit_bursts`, `effects::emit_particle_13`).
+    /// 0x765214: `flt_765214`: 1/65536 (`effects::emit_bursts`, `effects::emit_exhaust_smoke`).
     pub over_65536: Float,
     /// 0x765218: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_765218: Bytes<4>,

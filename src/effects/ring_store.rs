@@ -27,9 +27,9 @@ pub struct RingWork {
     pub top: Float,
     /// 0x935674: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_935674: Bytes<4>,
-    /// 0x935678: `flt_935678`: `effects::emit_kind_1`'s fade (the strength times a factor).
+    /// 0x935678: `flt_935678`: `effects::emit_rolling_particles`'s fade (the strength times a factor).
     pub fade: Float,
-    /// 0x93567C: `dword_93567C`: `effects::emit_kind_1`'s life.
+    /// 0x93567C: `dword_93567C`: `effects::emit_rolling_particles`'s life.
     pub life: Dword,
     /// 0x935680: `dword_935680`, `dword_935684`: the box's |x| and |z| (`effects::run_ring`, `fistp`ed).
     pub extent: [Dword; 2],

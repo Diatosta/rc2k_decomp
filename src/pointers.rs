@@ -839,6 +839,9 @@ enum CellRef<'a> {
     U8(&'a AtomicU8),
     U16(&'a AtomicU16),
     U32(&'a AtomicU32),
+    /// A non-atomic dword (a `PlainDword` and the other plain cells): only the game's thread
+    /// reaches it.
+    Plain32(&'a std::cell::Cell<u32>),
 }
 
 impl CellRef<'_> {
@@ -849,6 +852,7 @@ impl CellRef<'_> {
             CellRef::U8(a) => (a.as_ptr().cast_const(), 1),
             CellRef::U16(a) => (a.as_ptr().cast::<u8>().cast_const(), 2),
             CellRef::U32(a) => (a.as_ptr().cast::<u8>().cast_const(), 4),
+            CellRef::Plain32(_) => return,
         };
         if write {
             crate::write_watch::wrote(at, len);
@@ -871,6 +875,9 @@ pub enum CellRun<'a> {
     Float(&'a [crate::session::Float]),
     Flag(&'a [crate::session::Flag]),
     Words(&'a [AtomicU32]),
+    PlainDword(&'a [crate::session::PlainDword]),
+    PlainFloat(&'a [crate::session::PlainFloat]),
+    PlainFlag(&'a [crate::session::PlainFlag]),
 }
 
 impl<'a> CellRun<'a> {
@@ -879,7 +886,13 @@ impl<'a> CellRun<'a> {
         match self {
             CellRun::Bytes(_) | CellRun::Byte(_) => 1,
             CellRun::Word(_) => 2,
-            CellRun::Dword(_) | CellRun::Float(_) | CellRun::Flag(_) | CellRun::Words(_) => 4,
+            CellRun::Dword(_)
+            | CellRun::Float(_)
+            | CellRun::Flag(_)
+            | CellRun::Words(_)
+            | CellRun::PlainDword(_)
+            | CellRun::PlainFloat(_)
+            | CellRun::PlainFlag(_) => 4,
         }
     }
 
@@ -893,6 +906,9 @@ impl<'a> CellRun<'a> {
             CellRun::Float(r) => r.len(),
             CellRun::Flag(r) => r.len(),
             CellRun::Words(r) => r.len(),
+            CellRun::PlainDword(r) => r.len(),
+            CellRun::PlainFloat(r) => r.len(),
+            CellRun::PlainFlag(r) => r.len(),
         };
         cells * self.width()
     }
@@ -908,6 +924,9 @@ impl<'a> CellRun<'a> {
             CellRun::Float(r) => r.as_ptr() as usize,
             CellRun::Flag(r) => r.as_ptr() as usize,
             CellRun::Words(r) => r.as_ptr() as usize,
+            CellRun::PlainDword(r) => r.as_ptr() as usize,
+            CellRun::PlainFloat(r) => r.as_ptr() as usize,
+            CellRun::PlainFlag(r) => r.as_ptr() as usize,
         }
     }
 
@@ -925,6 +944,9 @@ impl<'a> CellRun<'a> {
             CellRun::Float(r) => CellRun::Float(&r[i..]),
             CellRun::Flag(r) => CellRun::Flag(&r[i..]),
             CellRun::Words(r) => CellRun::Words(&r[i..]),
+            CellRun::PlainDword(r) => CellRun::PlainDword(&r[i..]),
+            CellRun::PlainFloat(r) => CellRun::PlainFloat(&r[i..]),
+            CellRun::PlainFlag(r) => CellRun::PlainFlag(&r[i..]),
         })
     }
 
@@ -938,6 +960,9 @@ impl<'a> CellRun<'a> {
             CellRun::Float(r) => CellRef::U32(r[i].atomic()),
             CellRun::Flag(r) => CellRef::U32(r[i].atomic()),
             CellRun::Words(r) => CellRef::U32(&r[i]),
+            CellRun::PlainDword(r) => CellRef::Plain32(r[i].cell()),
+            CellRun::PlainFloat(r) => CellRef::Plain32(r[i].cell()),
+            CellRun::PlainFlag(r) => CellRef::Plain32(r[i].cell()),
         }
     }
 
@@ -1050,6 +1075,111 @@ unsafe impl Cells for crate::session::Flag {
 
     fn slice_run(slice: &[Self]) -> Option<CellRun<'_>> {
         Some(CellRun::Flag(slice))
+    }
+}
+// SAFETY: one `Cell<u32>`.
+unsafe impl Cells for crate::session::PlainDword {
+    fn copy_from(&self, other: &Self) {
+        self.cell().set(other.cell().get());
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        if let Some(v) = merged!(u32, now.cell().get(), start.cell().get()) {
+            self.cell().set(v);
+        }
+    }
+
+    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
+        (0, CellRun::PlainDword(std::slice::from_ref(self)))
+    }
+
+    fn slice_run(slice: &[Self]) -> Option<CellRun<'_>> {
+        Some(CellRun::PlainDword(slice))
+    }
+}
+// SAFETY: one `Cell<u32>`.
+unsafe impl Cells for crate::session::PlainFloat {
+    fn copy_from(&self, other: &Self) {
+        self.cell().set(other.cell().get());
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        if let Some(v) = merged!(u32, now.cell().get(), start.cell().get()) {
+            self.cell().set(v);
+        }
+    }
+
+    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
+        (0, CellRun::PlainFloat(std::slice::from_ref(self)))
+    }
+
+    fn slice_run(slice: &[Self]) -> Option<CellRun<'_>> {
+        Some(CellRun::PlainFloat(slice))
+    }
+}
+// SAFETY: one `Cell<u32>`.
+unsafe impl Cells for crate::session::PlainFlag {
+    fn copy_from(&self, other: &Self) {
+        self.cell().set(other.cell().get());
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        if let Some(v) = merged!(u32, now.cell().get(), start.cell().get()) {
+            self.cell().set(v);
+        }
+    }
+
+    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
+        (0, CellRun::PlainFlag(std::slice::from_ref(self)))
+    }
+
+    fn slice_run(slice: &[Self]) -> Option<CellRun<'_>> {
+        Some(CellRun::PlainFlag(slice))
+    }
+}
+
+// SAFETY: `first` is the record's byte at the window's offset and `size` what is left of it;
+// the data is reached only after the game-thread check.
+unsafe impl<S: Cells> Store for crate::session::OnGameThread<'_, S> {
+    fn size(&self) -> usize {
+        size_of::<S>() - self.offset
+    }
+
+    fn cell_run_at(&self, offset: usize) -> Option<(usize, CellRun<'_>)> {
+        crate::session::assert_game_thread();
+        // A run that begins before the window is taken from the window's first byte, when a
+        // cell begins there.
+        let (start, run) = Cells::cell_run(self.whole, self.offset + offset);
+        match start.checked_sub(self.offset) {
+            Some(start) => Some((start, run)),
+            None => Some((0, run.skip(self.offset - start)?)),
+        }
+    }
+
+    #[cfg(any(test, feature = "write_watch"))]
+    fn field_path_at(&self, offset: usize, path: &mut String) -> Option<&'static str> {
+        Some(Cells::field_path(self.whole, self.offset + offset, path))
+    }
+
+    #[cfg(any(test, feature = "write_watch"))]
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<S>()
+    }
+
+    fn first(&self) -> *const u8 {
+        std::ptr::from_ref(self.whole)
+            .cast::<u8>()
+            .wrapping_add(self.offset)
+    }
+
+    fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
+        crate::session::assert_game_thread();
+        load_cells(self.whole, self.offset + offset, to)
+    }
+
+    fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput> {
+        crate::session::assert_game_thread();
+        store_cells(self.whole, self.offset + offset, from)
     }
 }
 // SAFETY: one `AtomicU16`.
@@ -1437,6 +1567,7 @@ fn cell_bytes(cell: CellRef) -> [u8; 4] {
         CellRef::U8(a) => bytes[0] = a.load(Relaxed),
         CellRef::U16(a) => bytes[..2].copy_from_slice(&a.load(Relaxed).to_ne_bytes()),
         CellRef::U32(a) => bytes = a.load(Relaxed).to_ne_bytes(),
+        CellRef::Plain32(c) => bytes = c.get().to_ne_bytes(),
     }
     bytes
 }
@@ -1462,6 +1593,7 @@ fn set_cell_bytes(cell: CellRef, from: usize, new: &[u8]) {
                 Some(u16::from_ne_bytes([a, b]))
             });
         }
+        CellRef::Plain32(c) => c.set(u32::from_ne_bytes(merge(c.get().to_ne_bytes()))),
         CellRef::U32(a) => {
             if new.len() == 4 {
                 a.store(u32::from_ne_bytes(merge([0; 4])), Relaxed);

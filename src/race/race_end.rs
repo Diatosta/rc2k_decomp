@@ -8,6 +8,7 @@ use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::replay_work_store::REPLAY_WORK;
+use rc2k_core::audio::commands::Command;
 
 /// Where a header setting lives in the race's variables (its first place).
 pub fn setting_cell(
@@ -123,16 +124,14 @@ fn clear_stage_flags(sound: &crate::sound::owner::Sound) {
     }
 }
 
-pub fn command(number: u32, eax: u32) {
-    let mut registers = [0; 7];
-    registers[0] = eax;
-    crate::sound::queue::send_command(number, registers);
+pub fn command(command: Command) {
+    crate::sound::queue::send_command(command);
 }
 
 /// `sound::wait_for_commands`: the queue run out (its ends of turn read no register).
 pub fn wait_for_commands() {
     use crate::sound::wait_for_commands::{Game, wait_for_commands};
-    wait_for_commands(&mut Game([0; 7]));
+    wait_for_commands(&mut Game);
 }
 
 /// `race::reset_race_sounds` (0x40D378): the sound commands waited for, command 7 (with its end of
@@ -142,8 +141,8 @@ pub fn wait_for_commands() {
 pub fn reset_race_sounds(v: &SoundVars, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let audio = crate::audio::owner::audio();
     wait_for_commands();
-    command(7, 0);
-    command(0xA, 7);
+    command(Command::StopAll);
+    crate::sound::queue::send_with_eax(Command::EndOfTurn, Some(7));
     wait_for_commands();
     crate::sound::hold_sounds_back::hold_sounds_back(audio);
     crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count(), sound);
@@ -157,7 +156,7 @@ pub fn reset_race_sounds(v: &SoundVars, sound: &crate::sound::owner::Sound) -> R
     }
     sound.race.stage.shared_count.set(0);
     crate::audio::store::ENVIRONMENT.set(0x3F80_0000u32);
-    command(2, 3);
+    command(Command::Room(3));
     sound.race.clock.started.set(0);
     Ok(())
 }

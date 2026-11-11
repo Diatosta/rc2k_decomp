@@ -14,7 +14,7 @@ use crate::menu::name_lists::NAME_LEN;
 use crate::menu::owner::Menus;
 use crate::saves::gather_savegame::gather_savegame;
 use crate::saves::owner::saves;
-use crate::session::{Bytes, Dword};
+use crate::session::{Bytes, PlainDword};
 use crate::system::packed_local_time::packed_local_time;
 
 // ---- game data ----
@@ -34,23 +34,23 @@ pub const NAME_BYTES: usize = 0x20;
 #[derive(rc2k_derive::Cells)]
 pub struct SaveGames {
     /// `dword_51EBB0`: a value the options file (`var\ral.dat`) keeps; nothing else reads it.
-    pub kept_a: Dword,
+    pub kept_a: PlainDword,
     /// `dword_51EBB4`: the saved game as it is read or written (`FILE_LEN` bytes).
     pub file: Bytes<FILE_LEN>,
     /// `byte_526BB4`: the saved games' names, 100 of 0x20 bytes (ten to a page).
     pub names: Bytes<{ SLOTS as usize * NAME_BYTES }>,
     /// `dword_527834`: a value the options file keeps; nothing else reads it.
-    pub kept_b: Dword,
+    pub kept_b: PlainDword,
 }
 
 /// The saved games' buffers; the first values are the image's (all zero).
 impl SaveGames {
     pub const fn new() -> Self {
         SaveGames {
-            kept_a: Dword::new(0),
+            kept_a: PlainDword::new(0),
             file: Bytes::new([0; FILE_LEN]),
             names: Bytes::new([0; SLOTS as usize * NAME_BYTES]),
-            kept_b: Dword::new(0),
+            kept_b: PlainDword::new(0),
         }
     }
 }
@@ -96,12 +96,12 @@ mod block_tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(
-            &crate::saves::owner::SAVES.save_games,
+            &crate::saves::owner::SAVES.get().save_games,
             START,
             START + LEN,
         );
         crate::gfx::first_values_are_the_games(
-            &crate::saves::owner::SAVES.files.savegame_template,
+            &crate::saves::owner::SAVES.get().files.savegame_template,
             TEMPLATE_START,
             TEMPLATE_START + 27,
         );

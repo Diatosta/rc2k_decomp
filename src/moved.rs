@@ -451,8 +451,8 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::install::store::InstallVars::START, // InstallVars
         len: crate::install::store::InstallVars::LEN,
-        home: Home::Store(&crate::race::store::RecordTail::new(
-            &crate::install::owner::INSTALL.vars,
+        home: Home::Store(&crate::session::OnGameThread::tail(
+            &crate::install::owner::INSTALL.unchecked().vars,
             1,
         )),
     },
@@ -464,7 +464,9 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::install::store::DriveRows::START, // DriveRows
         len: crate::install::store::DriveRows::LEN,
-        home: Home::Store(&crate::install::owner::INSTALL.drive_rows),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::install::owner::INSTALL.unchecked().drive_rows,
+        )),
     },
     Moved {
         ida: crate::net::store::NetVars::START, // NetVars
@@ -484,12 +486,16 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::saves::write_savegame_slot::START, // The saved games' file buffer and names
         len: crate::saves::write_savegame_slot::LEN,
-        home: Home::Store(&crate::saves::owner::SAVES.save_games),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::saves::owner::SAVES.unchecked().save_games,
+        )),
     },
     Moved {
         ida: crate::service::read_setup_slot::START, // The set-ups' file head and names
         len: crate::service::read_setup_slot::LEN,
-        home: Home::Store(&crate::service::owner::SERVICE.set_ups),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::service::owner::SERVICE.unchecked().set_ups,
+        )),
     },
     Moved {
         ida: crate::race::replay::START, // The replays' header and names
@@ -499,22 +505,33 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::install::installer::TEXTS_START, // The installer's texts
         len: crate::install::installer::TEXTS_LEN,
-        home: Home::Store(&crate::install::owner::INSTALL.texts),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::install::owner::INSTALL.unchecked().texts,
+        )),
     },
     Moved {
         ida: crate::saves::load_options::PATH_START, // var\ral.dat
         len: 12,
-        home: Home::Store(&crate::saves::owner::SAVES.files.options_path),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::saves::owner::SAVES.unchecked().files.options_path,
+        )),
     },
     Moved {
         ida: crate::saves::write_savegame_slot::TEMPLATE_START, // The saved game file name's template
         len: 27,
-        home: Home::Store(&crate::saves::owner::SAVES.files.savegame_template),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::saves::owner::SAVES
+                .unchecked()
+                .files
+                .savegame_template,
+        )),
     },
     Moved {
         ida: crate::service::read_setup_slot::TEMPLATE_START, // The set-up file name's template
         len: 27,
-        home: Home::Store(&crate::service::owner::SERVICE.template),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::service::owner::SERVICE.unchecked().template,
+        )),
     },
     Moved {
         ida: crate::race::find_snapshot_number::SNAPSHOT_START, // The snapshot picture's name
@@ -614,11 +631,6 @@ pub(crate) const MOVED: &[Moved] = &[
         home: Home::Store(&crate::audio::owner::AUDIO_OWNER.sample_records),
     },
     Moved {
-        ida: crate::audio::store::QUEUE_IDA,
-        len: crate::audio::store::QUEUE_END - crate::audio::store::QUEUE_IDA,
-        home: Home::Store(&crate::audio::owner::AUDIO_OWNER.commands),
-    },
-    Moved {
         ida: 0x6D1DD4, // g_eaxEnvironment
         len: 4,
         home: Home::Store(&crate::audio::store::ENVIRONMENT),
@@ -627,7 +639,9 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4F66DD, // the options file's four kept dwords and a gap (`saves::load_options::KEPT`)
         len: 0x14,
-        home: Home::Store(&crate::saves::owner::SAVES.files.options_kept),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::saves::owner::SAVES.unchecked().files.options_kept,
+        )),
     },
     Moved {
         ida: 0x4F66F1, // the wheel surfaces (`sound::store::WHEEL_SURFACES`)
@@ -724,7 +738,9 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::saves::preview_store::START,
         len: crate::saves::preview_store::END - crate::saves::preview_store::START,
-        home: Home::Store(&crate::saves::owner::SAVES.savegame_preview),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::saves::owner::SAVES.unchecked().savegame_preview,
+        )),
     },
     Moved {
         ida: crate::screens::controls_store::START,
@@ -840,12 +856,16 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::saves::best_times_store::RallyTimes::START,
         len: crate::saves::best_times_store::RallyTimes::END
             - crate::saves::best_times_store::RallyTimes::START,
-        home: Home::Store(&crate::saves::owner::SAVES.rally_times),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::saves::owner::SAVES.unchecked().rally_times,
+        )),
     },
     Moved {
         ida: crate::saves::best_times_store::START,
         len: crate::saves::best_times_store::END - crate::saves::best_times_store::START,
-        home: Home::Store(&crate::saves::owner::SAVES.best_times),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::saves::owner::SAVES.unchecked().best_times,
+        )),
     },
     Moved {
         ida: crate::menu::screen_items_store::START,
@@ -936,40 +956,40 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::install::vars::InstallerRun::START,
         len: crate::install::vars::InstallerRun::LEN,
-        home: Home::Store(&crate::race::store::RecordTail::new(
-            &crate::install::owner::INSTALL.run,
+        home: Home::Store(&crate::session::OnGameThread::tail(
+            &crate::install::owner::INSTALL.unchecked().run,
             8,
         )),
     },
     Moved {
         ida: crate::install::vars::InstallerNames::START,
         len: crate::install::vars::InstallerNames::LEN,
-        home: Home::Store(&crate::race::store::RecordTail::new(
-            &crate::install::owner::INSTALL.names,
+        home: Home::Store(&crate::session::OnGameThread::tail(
+            &crate::install::owner::INSTALL.unchecked().names,
             0,
         )),
     },
     Moved {
         ida: crate::install::vars::InstallerPages::START,
         len: crate::install::vars::InstallerPages::LEN,
-        home: Home::Store(&crate::race::store::RecordTail::new(
-            &crate::install::owner::INSTALL.pages,
+        home: Home::Store(&crate::session::OnGameThread::tail(
+            &crate::install::owner::INSTALL.unchecked().pages,
             7,
         )),
     },
     Moved {
         ida: crate::install::vars::InstallerPaths::START,
         len: crate::install::vars::InstallerPaths::LEN,
-        home: Home::Store(&crate::race::store::RecordTail::new(
-            &crate::install::owner::INSTALL.paths,
+        home: Home::Store(&crate::session::OnGameThread::tail(
+            &crate::install::owner::INSTALL.unchecked().paths,
             8,
         )),
     },
     Moved {
         ida: crate::install::vars::InstallerPalette::START,
         len: crate::install::vars::InstallerPalette::LEN,
-        home: Home::Store(&crate::race::store::RecordTail::new(
-            &crate::install::owner::INSTALL.palette,
+        home: Home::Store(&crate::session::OnGameThread::tail(
+            &crate::install::owner::INSTALL.unchecked().palette,
             4,
         )),
     },
@@ -981,7 +1001,9 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::install::read_sku::Sku::START,
         len: crate::install::read_sku::Sku::LEN,
-        home: Home::Store(&crate::install::owner::INSTALL.sku),
+        home: Home::Store(&crate::session::OnGameThread::new(
+            &crate::install::owner::INSTALL.unchecked().sku,
+        )),
     },
     Moved {
         ida: crate::strings::text_buffer::TextBuffer::START,
@@ -2028,13 +2050,13 @@ pub(crate) const MOVED: &[Moved] = &[
         home: Home::Store(&crate::effects::owner::EFFECTS.masks.surface),
     },
     Moved {
-        ida: crate::effects::emit_particle_19::TwinState::START,
-        len: crate::effects::emit_particle_19::TwinState::LEN,
+        ida: crate::effects::emit_twin_particle_first::TwinState::START,
+        len: crate::effects::emit_twin_particle_first::TwinState::LEN,
         home: Home::Store(&crate::effects::owner::EFFECTS.particles.twin_state),
     },
     Moved {
-        ida: crate::effects::emit_kind_1::Kind1Choice::START,
-        len: crate::effects::emit_kind_1::Kind1Choice::LEN,
+        ida: crate::effects::emit_rolling_particles::RollingChoice::START,
+        len: crate::effects::emit_rolling_particles::RollingChoice::LEN,
         home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind1_choice),
     },
     Moved {
@@ -2043,23 +2065,23 @@ pub(crate) const MOVED: &[Moved] = &[
         home: Home::Store(&crate::effects::owner::EFFECTS.masks.list),
     },
     Moved {
-        ida: crate::effects::emit_particle_5::Kind5Set::START,
-        len: crate::effects::emit_particle_5::Kind5Set::LEN,
+        ida: crate::effects::emit_slip_spray::SlipSpraySet::START,
+        len: crate::effects::emit_slip_spray::SlipSpraySet::LEN,
         home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind5_set),
     },
     Moved {
-        ida: crate::effects::emit_particle_11::Kind11Set::START,
-        len: crate::effects::emit_particle_11::Kind11Set::LEN,
+        ida: crate::effects::emit_slip_spray_long::SlipSprayLongSet::START,
+        len: crate::effects::emit_slip_spray_long::SlipSprayLongSet::LEN,
         home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind11_set),
     },
     Moved {
-        ida: crate::effects::emit_particle_21::Kind21Set::START,
-        len: crate::effects::emit_particle_21::Kind21Set::LEN,
+        ida: crate::effects::emit_rolling_particles_rated::RollingRatedSet::START,
+        len: crate::effects::emit_rolling_particles_rated::RollingRatedSet::LEN,
         home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind21_set),
     },
     Moved {
-        ida: crate::effects::emit_kind_1::Kind1Set::START,
-        len: crate::effects::emit_kind_1::Kind1Set::LEN,
+        ida: crate::effects::emit_rolling_particles::RollingSet::START,
+        len: crate::effects::emit_rolling_particles::RollingSet::LEN,
         home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind1_set),
     },
     Moved {
@@ -2068,28 +2090,28 @@ pub(crate) const MOVED: &[Moved] = &[
         home: Home::Store(&crate::effects::owner::EFFECTS.particles.first_tuning),
     },
     Moved {
-        ida: crate::effects::emit_bursts_2::SecondTuning::START,
-        len: crate::effects::emit_bursts_2::SecondTuning::LEN,
+        ida: crate::effects::emit_bursts_kind_3::BurstKind3Tuning::START,
+        len: crate::effects::emit_bursts_kind_3::BurstKind3Tuning::LEN,
         home: Home::Store(&crate::effects::owner::EFFECTS.particles.second_tuning),
     },
     Moved {
-        ida: crate::effects::emit_particle_6::Kind6Set::START,
-        len: crate::effects::emit_particle_6::Kind6Set::LEN,
+        ida: crate::effects::emit_wheel_fade_particle::WheelFadeSet::START,
+        len: crate::effects::emit_wheel_fade_particle::WheelFadeSet::LEN,
         home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind6_set),
     },
     Moved {
-        ida: crate::effects::emit_particle_13::Kind13Set::START,
-        len: crate::effects::emit_particle_13::Kind13Set::LEN,
+        ida: crate::effects::emit_exhaust_smoke::ExhaustSet::START,
+        len: crate::effects::emit_exhaust_smoke::ExhaustSet::LEN,
         home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind13_set),
     },
     Moved {
-        ida: crate::effects::emit_particle_19::NineteenthTuning::START,
-        len: crate::effects::emit_particle_19::NineteenthTuning::LEN,
+        ida: crate::effects::emit_twin_particle_first::TwinFirstTuning::START,
+        len: crate::effects::emit_twin_particle_first::TwinFirstTuning::LEN,
         home: Home::Store(&crate::effects::owner::EFFECTS.particles.nineteenth_tuning),
     },
     Moved {
-        ida: crate::effects::emit_particle_22::TwentySecondTuning::START,
-        len: crate::effects::emit_particle_22::TwentySecondTuning::LEN,
+        ida: crate::effects::emit_twin_particle_second::TwinSecondTuning::START,
+        len: crate::effects::emit_twin_particle_second::TwinSecondTuning::LEN,
         home: Home::Store(
             &crate::effects::owner::EFFECTS
                 .particles

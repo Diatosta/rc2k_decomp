@@ -112,11 +112,11 @@ pub struct MarkRecord {
     /// +0x0: a flag the body's emitter flips each time (bit 0 the side).
     pub flip: Dword,
     /// +0x4: the pace counter the emitters' rate gates keep (an integer count, or a float
-    /// remainder after `emit_kind_1`).
+    /// remainder after `emit_rolling_particles`).
     pub pace: Dword,
     /// +0x8: read and written by no code.
     pub unused_8: Dword,
-    /// +0xc: the driven wheels' speed (the block's `drive_speed_a` / `_b` for the front / rear pair of wheel records; `emit_kind_1`, the bursts, kind 6, kind 21); the body's is cleared.
+    /// +0xc: the driven wheels' speed (the block's `drive_speed_a` / `_b` for the front / rear pair of wheel records; `emit_rolling_particles`, the bursts, kind 6, kind 21); the body's is cleared.
     pub driven_speed: Float,
     /// +0x10: the car's local velocity x, sideways (the body's: `velocity[0]`), copied by `drive::share_car_state`; the emitters' gates test it for 0.
     pub local_velocity_x: Float,
@@ -137,7 +137,7 @@ pub struct MarkRecord {
     pub under_flags2: Dword,
     /// +0x34: the chance (a float) the surface under the wheel becomes the current one.
     pub chance: Float,
-    /// +0x38: the body's size figure (`emit_particle_18`).
+    /// +0x38: the body's size figure (`emit_body_contact_particles`).
     pub size: Float,
     /// +0x3c: the wheel's place (three floats, turned by `emit_car_particles`).
     pub place: [Float; 3],

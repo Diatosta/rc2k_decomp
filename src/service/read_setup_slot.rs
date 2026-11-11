@@ -12,7 +12,7 @@ use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::read_file::read_file_into;
 use crate::service::owner::{Service, service};
-use crate::session::{Bytes, Dword};
+use crate::session::{Bytes, PlainDword};
 
 // ---- game data ----
 
@@ -34,7 +34,7 @@ pub struct SetUps {
     /// `byte_527880`: the set-ups' names, 100 of 0x20 bytes.
     pub names: Bytes<{ SLOT_COUNT as usize * NAME_LEN }>,
     /// `dword_528500`: a value the options file keeps; nothing else reads it.
-    pub kept: Dword,
+    pub kept: PlainDword,
 }
 
 /// The set-ups' buffers; the first values are the image's (all zero).
@@ -43,7 +43,7 @@ impl SetUps {
         SetUps {
             file: Bytes::new([0; SETUP_FILE_LEN]),
             names: Bytes::new([0; SLOT_COUNT as usize * NAME_LEN]),
-            kept: Dword::new(0),
+            kept: PlainDword::new(0),
         }
     }
 }
@@ -96,12 +96,12 @@ mod block_tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(
-            &crate::service::owner::SERVICE.set_ups,
+            &crate::service::owner::SERVICE.get().set_ups,
             START,
             START + LEN,
         );
         crate::gfx::first_values_are_the_games(
-            &crate::service::owner::SERVICE.template,
+            &crate::service::owner::SERVICE.get().template,
             TEMPLATE_START,
             TEMPLATE_START + 27,
         );
@@ -113,15 +113,15 @@ mod block_tests {
         assert_eq!(offset_of!(SetUps, kept), 0x528500 - START);
         assert_eq!(
             crate::moved::place(START),
-            crate::service::owner::SERVICE.set_ups.file.addr() as usize
+            crate::service::owner::SERVICE.get().set_ups.file.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x527880),
-            crate::service::owner::SERVICE.set_ups.names.addr() as usize
+            crate::service::owner::SERVICE.get().set_ups.names.addr() as usize
         );
         assert_eq!(
             crate::moved::place(TEMPLATE_START),
-            crate::service::owner::SERVICE.template.addr() as usize
+            crate::service::owner::SERVICE.get().template.addr() as usize
         );
     }
 }

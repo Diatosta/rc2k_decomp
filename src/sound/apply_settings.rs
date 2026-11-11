@@ -21,12 +21,12 @@ pub fn run_step(
     let audio = crate::audio::owner::audio();
     match step {
         Step::StopMusic => crate::sound::stop_music::stop_music(),
-        Step::Send { command, eax } => crate::sound::senders::send(command, [eax, 0, 0, 0]),
+        Step::Send(command) => crate::sound::senders::send(command),
         Step::LoadRaceSounds => {
             crate::sound::load_race_sounds::load_race_sounds_in_game(sound, audio)?;
         }
         Step::Wait => crate::sound::wait_for_commands::wait_for_commands(
-            &mut crate::sound::wait_for_commands::Game([0; 7]),
+            &mut crate::sound::wait_for_commands::Game,
         ),
     }
     Ok(())

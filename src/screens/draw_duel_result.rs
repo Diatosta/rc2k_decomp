@@ -25,8 +25,11 @@ use crate::text::draw_text::Canvas;
 
 /// The stage's section's first record and the stage's record (the event's stage table for
 /// the chosen group and sub-group, + 0xA4 x the stage number); none: 0.
-fn records(screens: &Screens) -> Result<(RecordTable, RecordRef), BadInput> {
-    let base = system().records.stage_tables.group_event_table(
+fn records(
+    screens: &Screens,
+    stages: &crate::records::stages_store::StageTables,
+) -> Result<(RecordTable, RecordRef), BadInput> {
+    let base = stages.group_event_table(
         screens.event.stage_group.get(),
         screens.event.stage_sub.get(),
     )?;
@@ -55,7 +58,7 @@ pub fn draw_duel_result(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Re
     if p1.get().name_player().is_none() || p2.get().name_player().is_none() {
         return Err(BadInput("player 1 or 2 without a name").into());
     }
-    let (base, record) = records(screens)?;
+    let (base, record) = records(screens, &system().records.stage_tables)?;
     let stage = crate::screens::page_settings::stage_line_bytes(0x482, record)?;
     if stage.len() > 0x100 {
         return Err(BadInput("a stage line past the line buffer").into());

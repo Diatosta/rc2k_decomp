@@ -1,4 +1,4 @@
-//! `effects::emit_particle_18` (0x4CDF3A, a chunk of `effects::emit_body_particles` entered
+//! `effects::emit_body_contact_particles` (0x4CDF3A, a chunk of `effects::emit_body_particles` entered
 //! for the record's kind 1): ring entries of kind 0x12.
 //!
 //! Takes: the record (the car object's +0x1F4), the car object
@@ -45,7 +45,7 @@ fn count(
     })
 }
 
-pub fn emit_particle_18(
+pub fn emit_body_contact_particles(
     masks: &Masks,
     ring: &Ring,
     record: &MarkRecord,

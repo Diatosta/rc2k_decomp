@@ -1,5 +1,5 @@
-//! `effects::emit_particle_19` (0x4CE283): by a chance one ring entry of kind 0x13 for a
-//! car each frame; `effects::emit_particle_22` is the same code on its own
+//! `effects::emit_twin_particle_first` (0x4CE283): by a chance one ring entry of kind 0x13 for a
+//! car each frame; `effects::emit_twin_particle_second` is the same code on its own
 //! variables (`TwinSet`).
 //!
 //! Takes: the car object
@@ -40,7 +40,7 @@ pub struct TwinSet {
     pub tuning: &'static TwinTuning,
 }
 
-/// `emit_particle_19`'s.
+/// `emit_twin_particle_first`'s.
 pub static NINETEENTH: TwinSet = TwinSet {
     kind: 0x13,
     level: 0,
@@ -83,7 +83,7 @@ pub fn refusal(
     })
 }
 
-pub fn emit_particle_19(
+pub fn emit_twin_particle_first(
     masks: &Masks,
     particles: &Particles,
     ring: &Ring,
@@ -172,7 +172,7 @@ pub fn emit_twin(
     Ok(())
 }
 
-/// The twin car emitters' shared work (`emit_particle_19`, `emit_particle_22`) (IDA 0x93A1B6 .. 0x93A1D6).
+/// The twin car emitters' shared work (`emit_twin_particle_first`, `emit_twin_particle_second`) (IDA 0x93A1B6 .. 0x93A1D6).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct TwinState {
@@ -229,7 +229,7 @@ mod twin_state_tests {
     }
 }
 
-/// One twin car emitter's variables (`emit_particle_19`'s at 0x93A48A, `emit_particle_22`'s at 0x93A4B2) (IDA 0x93A48A .. 0x93A4B2).
+/// One twin car emitter's variables (`emit_twin_particle_first`'s at 0x93A48A, `emit_twin_particle_second`'s at 0x93A4B2) (IDA 0x93A48A .. 0x93A4B2).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct TwinTuning {
@@ -266,9 +266,9 @@ impl TwinTuning {
 }
 
 /// Marker for `moved::MOVED`: NINETEENTH_TUNING's place in the image.
-pub struct NineteenthTuning;
+pub struct TwinFirstTuning;
 
-impl NineteenthTuning {
+impl TwinFirstTuning {
     pub const START: usize = 0x93A48A;
     pub const LEN: usize = TwinTuning::LEN;
 }
@@ -290,32 +290,32 @@ mod nineteenth_tuning_tests {
         assert_eq!(size_of::<TwinTuning>(), TwinTuning::LEN);
         assert!(
             bytes(&crate::effects::owner::EFFECTS.particles.nineteenth_tuning)
-                == crate::moved::image_bytes(NineteenthTuning::START, TwinTuning::LEN),
+                == crate::moved::image_bytes(TwinFirstTuning::START, TwinTuning::LEN),
             "NINETEENTH_TUNING starts differently from the image"
         );
         assert_eq!(
             offset_of!(TwinTuning, chance_random),
-            0x93A48A - NineteenthTuning::START
+            0x93A48A - TwinFirstTuning::START
         );
         assert_eq!(
             offset_of!(TwinTuning, lift),
-            0x93A48E - NineteenthTuning::START
+            0x93A48E - TwinFirstTuning::START
         );
         assert_eq!(
             offset_of!(TwinTuning, row_k),
-            0x93A492 - NineteenthTuning::START
+            0x93A492 - TwinFirstTuning::START
         );
         assert_eq!(
             offset_of!(TwinTuning, spread),
-            0x93A49E - NineteenthTuning::START
+            0x93A49E - TwinFirstTuning::START
         );
         assert_eq!(
             offset_of!(TwinTuning, motion_k),
-            0x93A4A2 - NineteenthTuning::START
+            0x93A4A2 - TwinFirstTuning::START
         );
         assert_eq!(
             offset_of!(TwinTuning, spin_random),
-            0x93A4AE - NineteenthTuning::START
+            0x93A4AE - TwinFirstTuning::START
         );
     }
 }

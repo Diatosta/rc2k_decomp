@@ -11,7 +11,7 @@
 //! (`install::installer`'s `rd`/`rb`), so their tables stay byte buffers.
 
 use crate::install::page_links::PageLink;
-use crate::session::{Byte, Bytes, Dword, Loose, Word, with_runs};
+use crate::session::{Byte, Bytes, Loose, PlainDword, Word, with_runs};
 
 /// The installer's flags, counters and lists (IDA 0x51B9C8 .. 0x51BB60, the image's layout).
 #[repr(C, align(16))]
@@ -20,109 +20,109 @@ pub struct InstallerRun {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<8>,
     /// 0x51B9C8: `dword_51B9C8`: the installation is this version (`install::mark_main_page`).
-    pub same_version: Dword,
+    pub same_version: PlainDword,
     /// 0x51B9CC: `dword_51B9CC`: -u: the update run (`install::install_clio`).
-    pub updating: Dword,
+    pub updating: PlainDword,
     /// 0x51B9D0: `dword_51B9D0`: -i: the paths were given on the command line.
-    pub from_command: Dword,
+    pub from_command: PlainDword,
     /// 0x51B9D4: `g_addStartItems`: the shortcuts are added.
-    pub add_items: Dword,
+    pub add_items: PlainDword,
     /// 0x51B9D8: `g_removeStartItems`: the shortcuts are removed (`install::uninstall`).
-    pub remove_items: Dword,
+    pub remove_items: PlainDword,
     /// 0x51B9DC: `g_runDxSetup`: DirectX's set-up is run at the end.
-    pub run_dxsetup: Dword,
+    pub run_dxsetup: PlainDword,
     /// 0x51B9E0: `g_installing`: -p: installing (`install::check_at_start`).
-    pub installing: Dword,
+    pub installing: PlainDword,
     /// 0x51B9E4: `dword_51B9E4`: the registration is offered.
-    pub offer_registration: Dword,
+    pub offer_registration: PlainDword,
     /// 0x51B9E8: `g_runRegistration`: the registration program is run at the end.
-    pub run_registration: Dword,
+    pub run_registration: PlainDword,
     /// 0x51B9EC: `a4eregEregipExe`: the registration program's script: a count, "ereg\eregip.exe" from +2 (`install::run_after_exit`).
     pub ereg: Bytes<20>,
     /// 0x51BA00: `g_pathProblem`: 1 a bad folder, 2 no room.
-    pub path_problem: Dword,
+    pub path_problem: PlainDword,
     /// 0x51BA04: `g_ignoreRoom`: the lack of room is ignored.
-    pub ignore_room: Dword,
+    pub ignore_room: PlainDword,
     /// 0x51BA08: `g_givenMediaMode`: -i's first digit.
-    pub given_mode: Dword,
+    pub given_mode: PlainDword,
     /// 0x51BA0C: `g_givenLanguage`: -i's second digit.
-    pub given_language: Dword,
+    pub given_language: PlainDword,
     /// 0x51BA10: `dword_51BA10`: 26 of (found, free KB), by drive letter.
-    pub drives: [Dword; 52],
+    pub drives: [PlainDword; 52],
     /// 0x51BAE0: `g_driveCount`: the drives found.
-    pub drive_count: Dword,
+    pub drive_count: PlainDword,
     /// 0x51BAE4: `g_firstDrive`: the first letter looked at.
-    pub first_drive: Dword,
+    pub first_drive: PlainDword,
     /// 0x51BAE8: `g_filesCopied`: the files copied so far.
-    pub files_copied: Dword,
+    pub files_copied: PlainDword,
     /// 0x51BAEC: `g_filesToCopy`: the files to copy.
-    pub files_to_copy: Dword,
+    pub files_to_copy: PlainDword,
     /// 0x51BAF0: `dword_51BAF0`: `install::install_files`' spare.
-    pub copy_spare: Dword,
+    pub copy_spare: PlainDword,
     /// 0x51BAF4: Not named: 4 bytes (a gap, or data nothing reads here).
     pub _gap_51baf4: Bytes<4>,
     /// 0x51BAF8: `g_roomNeededKb`: KB needed.
-    pub room_needed: Dword,
+    pub room_needed: PlainDword,
     /// 0x51BAFC: `stru_51BAFC`: the installer's memory list (a `MemoryList` of 16 bytes, then its work).
     pub buffers: Bytes<64>,
     /// 0x51BB3C: `g_installBarGlyphs`: the progress bar's glyph table.
-    pub bar_glyphs: Dword,
+    pub bar_glyphs: PlainDword,
     /// 0x51BB40: `g_dirNames`: the folders' names (a 0x10000-byte buffer; 0 now:
     /// `install::name_tables::FOLDERS`).
-    pub dirs: Dword,
+    pub dirs: PlainDword,
     /// 0x51BB44: `g_fileNames`: the files' names (a 0x40000-byte buffer; 0 now:
     /// `install::name_tables::FILES`).
-    pub files: Dword,
+    pub files: PlainDword,
     /// 0x51BB48: `g_dirCount`: the folders listed.
-    pub dir_count: Dword,
+    pub dir_count: PlainDword,
     /// 0x51BB4C: `g_fileCount`: the files listed.
-    pub file_count: Dword,
+    pub file_count: PlainDword,
     /// 0x51BB50: `g_dirScan`: the next folder to search (its number).
-    pub dir_scan: Dword,
+    pub dir_scan: PlainDword,
     /// 0x51BB54: `g_dirCursor`: the folders' table's end (its bytes).
-    pub dir_cursor: Dword,
+    pub dir_cursor: PlainDword,
     /// 0x51BB58: `g_fileCursor`: the files' table's end (its bytes).
-    pub file_cursor: Dword,
+    pub file_cursor: PlainDword,
     /// 0x51BB5C: `phkResult`: the open registry key.
-    pub reg_key: Dword,
+    pub reg_key: PlainDword,
 }
 
 impl InstallerRun {
     pub const fn new() -> Self {
         InstallerRun {
             _lead: Bytes::new([0; 8]),
-            same_version: Dword::new(0x0),
-            updating: Dword::new(0x0),
-            from_command: Dword::new(0x0),
-            add_items: Dword::new(0x0),
-            remove_items: Dword::new(0x0),
-            run_dxsetup: Dword::new(0x0),
-            installing: Dword::new(0x0),
-            offer_registration: Dword::new(0x0),
-            run_registration: Dword::new(0x0),
+            same_version: PlainDword::new(0x0),
+            updating: PlainDword::new(0x0),
+            from_command: PlainDword::new(0x0),
+            add_items: PlainDword::new(0x0),
+            remove_items: PlainDword::new(0x0),
+            run_dxsetup: PlainDword::new(0x0),
+            installing: PlainDword::new(0x0),
+            offer_registration: PlainDword::new(0x0),
+            run_registration: PlainDword::new(0x0),
             ereg: Bytes::new(with_runs::<20>(&[(0, b";4ereg\\eregip.exe")])),
-            path_problem: Dword::new(0x0),
-            ignore_room: Dword::new(0x0),
-            given_mode: Dword::new(0x2),
-            given_language: Dword::new(0x0),
-            drives: [const { Dword::new(0x0) }; 52],
-            drive_count: Dword::new(0x0),
-            first_drive: Dword::new(0x63),
-            files_copied: Dword::new(0x0),
-            files_to_copy: Dword::new(0x0),
-            copy_spare: Dword::new(0x0),
+            path_problem: PlainDword::new(0x0),
+            ignore_room: PlainDword::new(0x0),
+            given_mode: PlainDword::new(0x2),
+            given_language: PlainDword::new(0x0),
+            drives: [const { PlainDword::new(0x0) }; 52],
+            drive_count: PlainDword::new(0x0),
+            first_drive: PlainDword::new(0x63),
+            files_copied: PlainDword::new(0x0),
+            files_to_copy: PlainDword::new(0x0),
+            copy_spare: PlainDword::new(0x0),
             _gap_51baf4: Bytes::new([0; 4]),
-            room_needed: Dword::new(0x0),
+            room_needed: PlainDword::new(0x0),
             buffers: Bytes::new([0; 64]),
-            bar_glyphs: Dword::new(0x0),
-            dirs: Dword::new(0x0),
-            files: Dword::new(0x0),
-            dir_count: Dword::new(0x0),
-            file_count: Dword::new(0x0),
-            dir_scan: Dword::new(0x0),
-            dir_cursor: Dword::new(0x0),
-            file_cursor: Dword::new(0x0),
-            reg_key: Dword::new(0x0),
+            bar_glyphs: PlainDword::new(0x0),
+            dirs: PlainDword::new(0x0),
+            files: PlainDword::new(0x0),
+            dir_count: PlainDword::new(0x0),
+            file_count: PlainDword::new(0x0),
+            dir_scan: PlainDword::new(0x0),
+            dir_cursor: PlainDword::new(0x0),
+            file_cursor: PlainDword::new(0x0),
+            reg_key: PlainDword::new(0x0),
         }
     }
 }
@@ -133,7 +133,8 @@ impl InstallerRun {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.run) + 8) as usize
+        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.get().run) + 8)
+            as usize
     }
 }
 
@@ -152,9 +153,9 @@ pub struct InstallerNames {
     /// 0x51BB8D: `g_installSource`: the folder installed from (0xFF bytes used).
     pub source: Bytes<259>,
     /// 0x51BC90: `dword_51BC90`: the size of the source folder's name.
-    pub source_size: Dword,
+    pub source_size: PlainDword,
     /// 0x51BC94: `Type`: the registry value's type.
-    pub reg_type: Dword,
+    pub reg_type: PlainDword,
     /// 0x51BC98: Not named: 176 bytes (a gap, or data nothing reads here).
     pub _gap_51bc98: Bytes<176>,
     /// 0x51BD48: `g_countScript`: the count script (`install::install_files`).
@@ -207,8 +208,8 @@ impl InstallerNames {
     source_name: Bytes::new(with_runs::<7>(&[(0, b"source")])),
     status: Byte::new(0x0),
     source: Bytes::new([0; 259]),
-    source_size: Dword::new(0x0),
-    reg_type: Dword::new(0x0),
+    source_size: PlainDword::new(0x0),
+    reg_type: PlainDword::new(0x0),
     _gap_51bc98: Bytes::new(with_runs::<176>(&[(20, b"\x18"), (44, b"PROGMAN\x00[CreateGroup(Rally Championship)]\x00[DeleteGroup(Rally Championship)]\x00[AddItem(\x00,Rally)]\x00,Uninstall Rally)]\x00,View Readme)]")])),
     script_count: Bytes::new(with_runs::<200>(&[(0, b"\x03ral.exe\x03*.txt\x03*.pdf\x08\x02\x01files\x04a\x04b\x04d\x08\x03\x04fmv\t\x01g\x04frnt\x04graphics\x08\x03\x04slides\t\x02\x04levels\x04%locale\x04m\x04maps\x08\x03\x04music\t\x04replay\x04s\x01%speech\x04m\x04f\x08\x03\x04cars\x04rally\t\x02\x02\t\x01savedata\x01carsetup\x02\x01replay\x02\x01savegame\x02\x01snapshot\x02\x02\x01var\x03ral.cfg\x02\x06\x05")])),
     script: Bytes::new(with_runs::<17>(&[(0, b"\x03*.*\x01files\x02\x04files")])),
@@ -240,7 +241,8 @@ impl InstallerNames {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::install::owner::INSTALL.names) as usize
+        crate::pointers::game_address(&raw const crate::install::owner::INSTALL.get().names)
+            as usize
     }
 }
 
@@ -291,7 +293,7 @@ pub struct InstallerPages {
     /// 0x51D4B3: `unk_51D4B3`: its frame.
     pub frame: Bytes<17>,
     /// 0x51D4C4: `dword_51D4C4`: the page's fonts (pointers).
-    pub fonts: [Dword; 25],
+    pub fonts: [PlainDword; 25],
     /// 0x51D528: `byte_51D528`: font by mark, 8 bytes a kind (`install::lay_out_pieces`, from +4).
     pub kind_fonts: Bytes<108>,
     /// 0x51D594: `off_51D594`: the pages of a normal run.
@@ -307,9 +309,9 @@ pub struct InstallerPages {
     /// 0x51D604: Not named: 292 bytes (a gap, or data nothing reads here).
     pub _gap_51d604: Bytes<292>,
     /// 0x51D728: `off_51D728`: the script's entry (`install::check_at_start`).
-    pub script_entry: Dword,
+    pub script_entry: PlainDword,
     /// 0x51D72C: `g_readInstalledRecord`: the installed record was read.
-    pub record_flag: Dword,
+    pub record_flag: PlainDword,
     /// 0x51D730: Not named: 16 bytes (a gap, or data nothing reads here).
     pub _gap_51d730: Bytes<16>,
     /// 0x51D740: `off_51D740`+0: the script entry's first byte (5; `install::check_at_start::set_script_entry`).
@@ -396,7 +398,7 @@ impl InstallerPages {
     bar_glyphs_list: Bytes::new(linked::<32>(0x51D483, with_runs::<32>(&[(0, b"\xe1\x00\x00\x00,\x01"), (12, b"t;O\x00\xa9\x01\x00\x00,\x01\x00\x00\x01\x00\x00\x00t;O")]))),
     bar: Bytes::new(with_runs::<16>(&[(0, b"\xe0\x00\x00\x00+\x01\x00\x00\x92\x01\x00\x00\x1f")])),
     frame: Bytes::new(with_runs::<17>(&[(0, b"\xdf\x00\x00\x00*\x01\x00\x00\x94\x01\x00\x00!")])),
-    fonts: [Dword::new(0x0), Dword::new(0x51e624), Dword::new(0x51e824), Dword::new(0x51e824), Dword::new(0x51ea44), Dword::new(0x51ea64), Dword::new(0x51ea24), Dword::new(0x51e9e4), Dword::new(0x51ea04), Dword::new(0x51e9c4), Dword::new(0x51e864), Dword::new(0x51e884), Dword::new(0x51e844), Dword::new(0x51e6c4), Dword::new(0x51e6e4), Dword::new(0x51e6a4), Dword::new(0x51e8c4), Dword::new(0x51e8e4), Dword::new(0x51e8a4), Dword::new(0x51e8c4), Dword::new(0x51e8e4), Dword::new(0x51e8a4), Dword::new(0x51e984), Dword::new(0x51e9a4), Dword::new(0x51e964)],
+    fonts: [PlainDword::new(0x0), PlainDword::new(0x51e624), PlainDword::new(0x51e824), PlainDword::new(0x51e824), PlainDword::new(0x51ea44), PlainDword::new(0x51ea64), PlainDword::new(0x51ea24), PlainDword::new(0x51e9e4), PlainDword::new(0x51ea04), PlainDword::new(0x51e9c4), PlainDword::new(0x51e864), PlainDword::new(0x51e884), PlainDword::new(0x51e844), PlainDword::new(0x51e6c4), PlainDword::new(0x51e6e4), PlainDword::new(0x51e6a4), PlainDword::new(0x51e8c4), PlainDword::new(0x51e8e4), PlainDword::new(0x51e8a4), PlainDword::new(0x51e8c4), PlainDword::new(0x51e8e4), PlainDword::new(0x51e8a4), PlainDword::new(0x51e984), PlainDword::new(0x51e9a4), PlainDword::new(0x51e964)],
     kind_fonts: Bytes::new(with_runs::<108>(&[(0, b"\x12\x00\t\x0c\x00\x02\x00\x1e\x17\x00\x08\x0b\x01\x02\x00\x1e\n\x00\x07\x10\x02\x02\x00\x1e"), (32, b"\x12\x00\t\x0c\x00\x02\x00\x1e"), (64, b"\x0c\x00\t\x12\x00\x02\x00\x1e\x15\x00\x15\x15\x00\x03\x00,\x0c\x00\x0c\x0c\x00\x02\x00\x1e\x12\x00\x12\x12\x00\x02\x00\x1e\x18\x00\x18\x18\x00\x02\x00\x1e\t")])),
     normal_pages: Bytes::new(linked::<44>(0x51D594, with_runs::<44>(&[(0, b"p\xd6Q"), (8, b"\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q")]))),
     _gap_51d5c0: Bytes::new(linked::<24>(0x51D5C0, with_runs::<24>(&[(0, b"(\xd7Q"), (8, b"\xe4\xd5Q\x00T\xd6Q\x00\x10\xd6Q\x00`\xd6Q")]))),
@@ -404,8 +406,8 @@ impl InstallerPages {
     _gap_51d5e4: Bytes::new(linked::<20>(0x51D5E4, with_runs::<20>(&[(0, b"\x90\xd7Q\x00\xc0\xd5Q\x00\xf8\xd5Q\x00\xf8\xd5Q\x00\xf8\xd5Q")]))),
     chosen_menu: Bytes::new(linked::<12>(0x51D5F8, with_runs::<12>(&[(0, b"\xf8\xd7Q\x00\xe4\xd5Q\x00\x04\xd6Q")]))),
     _gap_51d604: Bytes::new(linked::<292>(0x51D604, with_runs::<292>(&[(0, b"\xa0\xdbQ\x00\xf8\xd5Q\x00\x1c\xd6Q\x00\xb8\xdcQ\x00\xc0\xd5Q\x00H\xd6Q\x00\x10\xddQ\x00\x04\xd6Q"), (40, b"0\xd6Q\x00\x18\xdcQ\x00\xf8\xd5Q\x00\x1c\xd6Q\x00`\xdcQ"), (68, b"(\xddQ"), (80, b"@\xddQ"), (92, b"X\xddQ"), (104, b"\t"), (109, b"\n\x9b"), (116, b"\x99AA"), (132, b"\x01\x01+\x10"), (148, b"\x01\x02,\x10"), (164, b"\x01\x03-\x10"), (180, b"\x01\x04.\x10"), (196, b"\x01\x05/\x10"), (212, b"\x01\x060\x10"), (228, b"\x01\x071\x10"), (244, b"\x01\x082\x10"), (260, b"\x01\t3\x10"), (276, b"\x01\x00\x99")]))),
-    script_entry: Dword::new(0x950500),
-    record_flag: Dword::new(0x0),
+    script_entry: PlainDword::new(0x950500),
+    record_flag: PlainDword::new(0x0),
     _gap_51d730: Bytes::new(with_runs::<16>(&[(0, b"\xefAA")])),
     entry_kind: Byte::new(0x1),
     entry_marks: Byte::new(0x1),
@@ -465,7 +467,7 @@ impl InstallerPages {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.pages) + 7)
+        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.get().pages) + 7)
             as usize
     }
 }
@@ -513,7 +515,7 @@ impl InstallerPaths {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.paths) + 8)
+        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.get().paths) + 8)
             as usize
     }
 }
@@ -546,7 +548,7 @@ impl InstallerPalette {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.palette) + 4)
+        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.get().palette) + 4)
             as usize
     }
 }

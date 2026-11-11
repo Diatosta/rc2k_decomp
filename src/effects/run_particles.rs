@@ -26,13 +26,13 @@
 
 use crate::effects::blocks::{Particle, particle, set_particle};
 use crate::effects::emit_bursts::BurstTuning;
-use crate::effects::emit_kind_1::{Kind1Choice, Kind1Set};
-use crate::effects::emit_particle_5::Kind5Set;
-use crate::effects::emit_particle_6::Kind6Set;
-use crate::effects::emit_particle_11::Kind11Set;
-use crate::effects::emit_particle_13::Kind13Set;
-use crate::effects::emit_particle_19::{TwinState, TwinTuning};
-use crate::effects::emit_particle_21::Kind21Set;
+use crate::effects::emit_exhaust_smoke::ExhaustSet;
+use crate::effects::emit_rolling_particles::{RollingChoice, RollingSet};
+use crate::effects::emit_rolling_particles_rated::RollingRatedSet;
+use crate::effects::emit_slip_spray::SlipSpraySet;
+use crate::effects::emit_slip_spray_long::SlipSprayLongSet;
+use crate::effects::emit_twin_particle_first::{TwinState, TwinTuning};
+use crate::effects::emit_wheel_fade_particle::WheelFadeSet;
 use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
@@ -502,13 +502,13 @@ impl PuffWork {
 pub struct Particles {
     pub ring: crate::memory::owned::Owned<Vec<Particle>>,
     pub puff_work: PuffWork,
-    pub kind1_choice: Kind1Choice,
-    pub kind1_set: Kind1Set,
-    pub kind5_set: Kind5Set,
-    pub kind6_set: Kind6Set,
-    pub kind11_set: Kind11Set,
-    pub kind13_set: Kind13Set,
-    pub kind21_set: Kind21Set,
+    pub kind1_choice: RollingChoice,
+    pub kind1_set: RollingSet,
+    pub kind5_set: SlipSpraySet,
+    pub kind6_set: WheelFadeSet,
+    pub kind11_set: SlipSprayLongSet,
+    pub kind13_set: ExhaustSet,
+    pub kind21_set: RollingRatedSet,
     pub twin_state: TwinState,
     pub nineteenth_tuning: TwinTuning,
     pub twenty_second_tuning: TwinTuning,
@@ -521,13 +521,13 @@ impl Particles {
         Particles {
             ring: crate::memory::owned::Owned::new("no particle ring"),
             puff_work: PuffWork::new(),
-            kind1_choice: Kind1Choice::new(),
-            kind1_set: Kind1Set::new(),
-            kind5_set: Kind5Set::new(),
-            kind6_set: Kind6Set::new(),
-            kind11_set: Kind11Set::new(),
-            kind13_set: Kind13Set::new(),
-            kind21_set: Kind21Set::new(),
+            kind1_choice: RollingChoice::new(),
+            kind1_set: RollingSet::new(),
+            kind5_set: SlipSpraySet::new(),
+            kind6_set: WheelFadeSet::new(),
+            kind11_set: SlipSprayLongSet::new(),
+            kind13_set: ExhaustSet::new(),
+            kind21_set: RollingRatedSet::new(),
             twin_state: TwinState::new(),
             nineteenth_tuning: TwinTuning::nineteenth(),
             twenty_second_tuning: TwinTuning::twenty_second(),

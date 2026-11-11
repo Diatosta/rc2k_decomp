@@ -16,11 +16,11 @@ pub use rc2k_core::sound::set_up::{Waiting as Parts, wait_for_commands};
 
 /// The parts in the game: the queue's by the Rust functions, the window's messages by
 /// the game.
-pub struct Game(pub [u32; 7]);
+pub struct Game;
 
 impl Parts for Game {
     fn end_turn(&mut self) {
-        send_command(END_OF_TURN, self.0);
+        send_command(END_OF_TURN);
     }
 
     fn pending(&mut self) -> bool {
@@ -42,5 +42,5 @@ impl Parts for Game {
 
 /// With the game's parts: what `start` and the route call.
 pub fn wait_in_game() {
-    wait_for_commands(&mut Game([0; 7]));
+    wait_for_commands(&mut Game);
 }

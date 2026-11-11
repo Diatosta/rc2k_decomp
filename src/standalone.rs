@@ -535,6 +535,7 @@ fn shut_down(r: &Context) {
 /// directory has to be the game's. Does not come back.
 /// `frames`, if not 0: the program ends itself after that many frames were shown.
 pub fn run(log_file: &Path, frames: u32) -> ! {
+    crate::session::set_game_thread();
     crate::platform::FRAMES_TO_SHOW.store(frames, Ordering::SeqCst);
     crate::platform_timing::start_threads();
     crate::platform_input::SdlBackend::start();

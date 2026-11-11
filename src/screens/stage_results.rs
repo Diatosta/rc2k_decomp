@@ -12,8 +12,11 @@ use crate::text::draw_text::Canvas;
 
 /// The stage's record table and record (`off_735512[dword_7556F8][dword_75880E]`, + 0xA4 x
 /// `dword_758812`), none: 0.
-fn records(menus: &Menus) -> Result<(RecordTable, RecordRef), BadInput> {
-    let base = system().records.stage_tables.group_event_table(
+fn records(
+    menus: &Menus,
+    stages: &crate::records::stages_store::StageTables,
+) -> Result<(RecordTable, RecordRef), BadInput> {
+    let base = stages.group_event_table(
         menus.play.champ_view.switch_f8.get(),
         menus.tables.captions.shown_group.get(),
     )?;
@@ -27,12 +30,15 @@ fn records(menus: &Menus) -> Result<(RecordTable, RecordRef), BadInput> {
 /// variable that holds it (the list's four: `g_stageBestTimes`, `g_courseBestTimes`,
 /// `dword_7556E8`, `g_stageBestTimesAlt`; their tables are typed now,
 /// `saves::best_times`), or None. Refuses a list entry that names none of them.
-fn times_table(play: &Play) -> Result<Option<&'_ StageTable>, BadInput> {
+fn times_table<'a>(
+    play: &'a Play,
+    stages: &crate::records::stages_store::StageTables,
+) -> Result<Option<&'a StageTable>, BadInput> {
     let mut n = play.champ_view.switch_f8.get();
     if play.champ_view.switch_fc.get() == 1 {
         n += 2;
     }
-    let p = system().records.stage_tables.result_table(n)?;
+    let p = stages.result_table(n)?;
     use crate::saves::best_times as b;
     let v = &play.champ_view;
     let (_, table) = [
@@ -84,8 +90,9 @@ fn ends_within_ten(table: &StageTable, stage: usize) -> Result<bool, BadInput> {
 pub fn draw_stage_results(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let play = &menus.play;
     let menu = menus.screens.loop_flags.menu.get().ok();
-    let (base, record) = records(menus)?;
-    let table = times_table(play)?;
+    let stages = &system().records.stage_tables;
+    let (base, record) = records(menus, stages)?;
+    let table = times_table(play, stages)?;
     let (Some(table), Some(menu)) = (table, menu) else {
         return Err(BadInput("no current menu, stage records or times table").into());
     };
@@ -93,7 +100,7 @@ pub fn draw_stage_results(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), 
         (menus.play.champ_view.switch_f8.get() ^ 1) & (menus.play.champ_view.switch_fc.get() ^ 1);
     let fastest = if both_off == 1 {
         crate::records::find_stage_record::find_stage_record(
-            system().records.stage_tables.championship(),
+            stages.championship(),
             menus.tables.captions.shown_group.get(),
             menus.tables.captions.shown_stage.get(),
         )?

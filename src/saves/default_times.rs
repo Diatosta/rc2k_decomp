@@ -131,11 +131,11 @@ pub fn apply(screens: &Screens, filled: &Filled, tables: &[Target]) -> Result<()
                     Ok::<_, BadInput>(())
                 })??,
                 Target::Rally(table) => {
-                    use crate::pointers::Store;
-                    let mut bytes = vec![0; table.size()];
-                    table.load(0, &mut bytes)?;
+                    use crate::pointers::{load_cells, store_cells};
+                    let mut bytes = vec![0; size_of_val(table)];
+                    load_cells(table, 0, &mut bytes)?;
                     block.write(&mut bytes);
-                    table.store(0, &bytes)?;
+                    store_cells(table, 0, &bytes)?;
                 }
             }
         }

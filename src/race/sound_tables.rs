@@ -116,7 +116,7 @@ pub fn restart_race_sounds(sound: &crate::sound::owner::Sound) -> Result<(), Ref
 pub fn silence_race_sounds(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     use crate::race::race_end::{SoundVars, command, reset_race_sounds, wait_for_commands};
     reset_race_sounds(&SoundVars::game(), sound)?;
-    command(4, 0);
+    command(rc2k_core::audio::commands::Command::Free);
     wait_for_commands();
     Ok(())
 }

@@ -1,14 +1,14 @@
-//! `effects::emit_particle_11` (0x4CC35A, a chunk of `effects::emit_wheel_particles` entered
+//! `effects::emit_slip_spray_long` (0x4CC35A, a chunk of `effects::emit_wheel_particles` entered
 //! by `jz` from it and from 0x4CA215, left by `popa; retn`): one ring entry of kind 0xB;
-//! `effects::emit_particle_5`'s code on its own variables (`dword_93A262`, `flt_93A266` ..
+//! `effects::emit_slip_spray`'s code on its own variables (`dword_93A262`, `flt_93A266` ..
 //! `flt_93A286`), a life of 2000, and made only when the wheel's |+0x18| rounded to an
 //! integer (`fist`, the x87's rounding) is over 1 (kind 5: when it is not 0).
 //!
 //! Takes: the wheel record, the car object
 //!
-//! Refuses as `emit_particle_5`.
+//! Refuses as `emit_slip_spray`.
 
-use crate::effects::emit_particle_5::{JitterSet, emit_particle_5_with};
+use crate::effects::emit_slip_spray::{JitterSet, emit_slip_spray_with};
 use crate::effects::ring_store::Ring;
 use crate::errors::Refused;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
@@ -38,18 +38,18 @@ pub static ELEVENTH: JitterSet = JitterSet {
     life: 0x7D0,
 };
 
-pub fn emit_particle_11(
+pub fn emit_slip_spray_long(
     ring: &Ring,
     wheel: &MarkRecord,
     object: &'static CarEffects,
 ) -> Result<(), Refused> {
-    emit_particle_5_with(ring, &ELEVENTH, wheel, object)
+    emit_slip_spray_with(ring, &ELEVENTH, wheel, object)
 }
 
-/// Kind 0xB's emitter variables (`emit_particle_5::ELEVENTH`), and the constants of code that is in no function (IDA 0x93A262 .. 0x93A312).
+/// Kind 0xB's emitter variables (`emit_slip_spray::ELEVENTH`), and the constants of code that is in no function (IDA 0x93A262 .. 0x93A312).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
-pub struct Kind11Set {
+pub struct SlipSprayLongSet {
     /// 0x93A262: `dword_93A262`: the place's random
     pub place_random: Dword,
     /// 0x93A266: `flt_93A266`: the motion's x factor
@@ -70,10 +70,10 @@ pub struct Kind11Set {
     pub _gap_93a28a: Bytes<136>,
 }
 
-impl Kind11Set {
+impl SlipSprayLongSet {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
-        Kind11Set {
+        SlipSprayLongSet {
             place_random: Dword::new(0x0),
             motion_x: Float::new(10.0),
             motion_y: Float::new(10.0),
@@ -98,7 +98,7 @@ impl Kind11Set {
     }
 }
 
-impl Kind11Set {
+impl SlipSprayLongSet {
     pub const START: usize = 0x93A262;
     pub const LEN: usize = 0xB0;
 }
@@ -117,22 +117,43 @@ mod kind11_set_tests {
 
     #[test]
     fn kind11_set_starts_as_the_games() {
-        assert_eq!(size_of::<Kind11Set>(), Kind11Set::LEN);
+        assert_eq!(size_of::<SlipSprayLongSet>(), SlipSprayLongSet::LEN);
         assert!(
             bytes(&crate::effects::owner::EFFECTS.particles.kind11_set)
-                == crate::moved::image_bytes(Kind11Set::START, Kind11Set::LEN),
+                == crate::moved::image_bytes(SlipSprayLongSet::START, SlipSprayLongSet::LEN),
             "KIND11_SET starts differently from the image"
         );
         assert_eq!(
-            offset_of!(Kind11Set, place_random),
-            0x93A262 - Kind11Set::START
+            offset_of!(SlipSprayLongSet, place_random),
+            0x93A262 - SlipSprayLongSet::START
         );
-        assert_eq!(offset_of!(Kind11Set, motion_x), 0x93A266 - Kind11Set::START);
-        assert_eq!(offset_of!(Kind11Set, motion_y), 0x93A26A - Kind11Set::START);
-        assert_eq!(offset_of!(Kind11Set, lift), 0x93A26E - Kind11Set::START);
-        assert_eq!(offset_of!(Kind11Set, motion_z), 0x93A272 - Kind11Set::START);
-        assert_eq!(offset_of!(Kind11Set, spread), 0x93A276 - Kind11Set::START);
-        assert_eq!(offset_of!(Kind11Set, roll_k), 0x93A27A - Kind11Set::START);
-        assert_eq!(offset_of!(Kind11Set, spin), 0x93A286 - Kind11Set::START);
+        assert_eq!(
+            offset_of!(SlipSprayLongSet, motion_x),
+            0x93A266 - SlipSprayLongSet::START
+        );
+        assert_eq!(
+            offset_of!(SlipSprayLongSet, motion_y),
+            0x93A26A - SlipSprayLongSet::START
+        );
+        assert_eq!(
+            offset_of!(SlipSprayLongSet, lift),
+            0x93A26E - SlipSprayLongSet::START
+        );
+        assert_eq!(
+            offset_of!(SlipSprayLongSet, motion_z),
+            0x93A272 - SlipSprayLongSet::START
+        );
+        assert_eq!(
+            offset_of!(SlipSprayLongSet, spread),
+            0x93A276 - SlipSprayLongSet::START
+        );
+        assert_eq!(
+            offset_of!(SlipSprayLongSet, roll_k),
+            0x93A27A - SlipSprayLongSet::START
+        );
+        assert_eq!(
+            offset_of!(SlipSprayLongSet, spin),
+            0x93A286 - SlipSprayLongSet::START
+        );
     }
 }

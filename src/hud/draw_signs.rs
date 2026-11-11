@@ -4,7 +4,7 @@
 //! and player has a `SignStyle` for whose marks they are and the row they are drawn at.
 
 use crate::errors::Refused;
-use crate::hud::owner::Hud;
+use crate::hud::owner::{Hud, Pen};
 use crate::race::owner_frame::Frame;
 
 /// The row: `y`, or 0x20 higher with `Panel::flat` 0.
@@ -67,7 +67,7 @@ pub static LAYOUT_2B: SignStyle = SignStyle {
 
 /// Draws the four signs of `style`.
 // Converted: `rc2k_core::hud::signs::{sign, place, row}`
-pub fn draw_signs(frame: &Frame, hud: &Hud, style: &SignStyle) -> Result<(), Refused> {
+pub fn draw_signs(frame: &Frame, hud: &Hud, pen: Pen, style: &SignStyle) -> Result<(), Refused> {
     use rc2k_core::hud::signs;
     let marks = &frame.panel_and_overlay.panel.marks[style.view];
     let places = marks.base.get().wrapping_add(style.shift);
@@ -81,6 +81,7 @@ pub fn draw_signs(frame: &Frame, hud: &Hud, style: &SignStyle) -> Result<(), Ref
         crate::hud::add_sprite::add_sprite(
             frame,
             hud,
+            pen,
             sign.x,
             row_by(frame, style.y, style.lift),
             rect,

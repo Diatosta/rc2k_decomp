@@ -1,4 +1,4 @@
-//! `effects::place_view` (0x4C1CC8): the point (0, 0, 0x20000) turned by the 3 x 3 matrix at
+//! `effects::place_rain_view` (0x4C1CC8): the point (0, 0, 0x20000) turned by the 3 x 3 matrix at
 //! `dword_8BC441` (`scene::transform_int_points`, in place at `dword_8BDD71`); the place
 //! `dword_8BC435` .. less it into `dword_8BDD7D`, `dword_8BDD81`, and `flt_8C5FE1` less
 //! its z plus `dword_8BC43D` into `dword_8BDD85` (each rounded); the matrix's nine
@@ -12,7 +12,7 @@ use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::session::{Dword, Float};
 
-/// One of the two near-copies' variables (`place_view`'s and `place_view_2`'s), as addresses.
+/// One of the two near-copies' variables (`place_rain_view`'s and `place_snow_view`'s), as addresses.
 pub struct ViewPlace<'a> {
     pub point: &'a [Dword; 3],
     pub start_z: u32,
@@ -24,7 +24,7 @@ pub struct ViewPlace<'a> {
     pub matrix_copy: &'a [Float; 9],
 }
 
-/// `place_view`'s: the rain's.
+/// `place_rain_view`'s: the rain's.
 pub fn first(weather: &Weather) -> ViewPlace<'_> {
     let (rain, rules) = (&weather.rain, &weather.rain_rules);
     ViewPlace {
@@ -68,6 +68,6 @@ pub fn place_view_with(v: &ViewPlace) -> Result<(), Refused> {
 }
 
 /// Refuses as `transform_int_points` (never).
-pub fn place_view(weather: &Weather) -> Result<(), Refused> {
+pub fn place_rain_view(weather: &Weather) -> Result<(), Refused> {
     place_view_with(&first(weather))
 }

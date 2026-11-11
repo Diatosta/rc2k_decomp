@@ -1,45 +1,27 @@
 //! `audio::take_commands` (0x40A8A4): the audio thread takes the commands the game queued.
 //!
-//! Takes: carried into the commands (see below)
-//!
-//! While `g_soundCommandCount` is not 0: the record at `g_soundCommandRead` (0x20 bytes in
-//! `g_soundCommands`: the number, then the sender's eax, ebx, ecx, edx, esi, edi, ebp; see
-//! `sound/queue.rs`) in esi, its number in eax, and: 1 `audio::start_voice` (eax its eax as
-//! a signed word); 2 `g_eaxRoom` = eax; 3 `g_soundListLoaded` = eax, `audio::load_sounds`;
-//! 4 `audio::free_voices`, `g_soundListLoaded` = 0; 5 `audio::set_mode` (eax); 6
-//! `audio::command_6` (nothing); 7 `audio::stop_all_voices`; 8 `audio::volume_command`
-//! (eax); 9 `audio::stream_command` (eax, ecx, edx); 0xB `audio::music_command` (eax, ebx,
-//! ecx, edx); any other nothing. Then the count down (atomically: the senders add to it from
-//! other threads), the read place on (0 at 0x400); 0xA ends the turn's taking. The
-//! registers carry over from one command to the next: what 9 and 0xB load stays for the
-//! next ones, and `set_mode` hands ebx, ecx and edx to `audio::stop_streams` (edx its
-//! action).
-//! `set_mode` is called by the game's address (not ported). Refuses a read place past the
-//! queue.
+//! While commands wait (`sound/queue.rs`), the oldest: 1 `audio::start_voice`; 2 `g_eaxRoom`
+//! = the room; 3 `g_soundListLoaded` = the list's word, `audio::load_sounds`; 4
+//! `audio::free_voices`, `g_soundListLoaded` = 0; 5 `audio::set_mode`; 7
+//! `audio::stop_all_voices`; 8 `audio::volume_command`; 9 `audio::stream_command`; 0xB
+//! `audio::music_command`. Then it is dropped from the queue, which counts it as waiting
+//! until then; 0xA ends the turn's taking.
+//! `set_mode` hands the next stream stop the action 0 (section 16).
 
 use crate::audio::owner::Audio;
-use crate::errors::{BadInput, Refused};
-use std::sync::atomic::Ordering;
+use crate::errors::Refused;
 
-/// Converted: `rc2k_core::audio::commands::decode` and `next_place`. Plain since
-/// 2026-10-23 (phase 3): each command's call gets what it reads (`decode`); the registers
-/// the original carries from one command to the next reached only `set_mode`'s
-/// `stop_streams`, which stops with action 0 (section 16).
 pub fn take_commands(audio: &Audio) -> Result<(), Refused> {
     use crate::audio::stream_commands::{music_command, stream_command};
-    use rc2k_core::audio::commands::{Command, SoundList, decode, next_place};
+    use rc2k_core::audio::commands::{Command, SoundList};
     loop {
-        if audio.state.command_count.get() == 0 {
+        let Some(command) = crate::sound::queue::locked().front() else {
             return Ok(());
-        }
-        let place = audio.state.command_read.get();
-        let Some(command) = audio.commands.records.get(place as usize) else {
-            return Err(BadInput("a command read place past the queue").into());
         };
-        let record = command.get();
-        let command = decode(&record);
         match command {
-            Command::Start(sound) => crate::audio::start_voice::start_voice(audio, sound, &record)?,
+            Command::Start(start) => {
+                crate::audio::start_voice::start_voice(audio, start.sound(), &start)?;
+            }
             Command::Room(room) => audio.state.eax_room.set(room),
             Command::Load(list) => {
                 audio
@@ -55,7 +37,6 @@ pub fn take_commands(audio: &Audio) -> Result<(), Refused> {
             Command::Mode(mode) => {
                 crate::audio::set_mode::set_mode(audio, mode)?;
             }
-            Command::Six => {}
             Command::StopAll => crate::audio::stop_all_voices::stop_all_voices(audio)?,
             Command::Volume(volume) => {
                 crate::audio::volume_command::volume_command(&audio.state, volume, &mut |v| {
@@ -73,14 +54,9 @@ pub fn take_commands(audio: &Audio) -> Result<(), Refused> {
                 volume,
                 action,
             } => music_command(&audio.state, tune, next, volume as i32, action)?,
-            Command::EndOfTurn | Command::Other(_) => {}
+            Command::EndOfTurn => {}
         }
-        audio
-            .state
-            .command_count
-            .atomic()
-            .fetch_sub(1, Ordering::SeqCst);
-        audio.state.command_read.set(next_place(place));
+        crate::sound::queue::locked().pop();
         if command == Command::EndOfTurn {
             return Ok(());
         }

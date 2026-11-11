@@ -68,11 +68,11 @@ pub struct RainState {
     pub depth_scale: Float,
     /// 0x8BDD65: `flt_8BDD65` ..: what the drop's place is scaled by before it is turned (1.0 each).
     pub point_scale: [Float; 3],
-    /// 0x8BDD71: `dword_8BDD71` ..: the turned point's whole numbers added (`effects::place_view`).
+    /// 0x8BDD71: `dword_8BDD71` ..: the turned point's whole numbers added (`effects::place_rain_view`).
     pub point: [Dword; 3],
-    /// 0x8BDD7D: `dword_8BDD7D` ..: the view's place less the point (`effects::place_view`), drifting by `effects::drift_offsets`.
+    /// 0x8BDD7D: `dword_8BDD7D` ..: the view's place less the point (`effects::place_rain_view`), drifting by `effects::drift_offsets`.
     pub view: [Dword; 3],
-    /// 0x8BDD89: `dword_8BDD89` ..: the view matrix copied (`effects::place_view`).
+    /// 0x8BDD89: `dword_8BDD89` ..: the view matrix copied (`effects::place_rain_view`).
     pub matrix_copy: [Float; 9],
     /// 0x8BDDAD: Not named: 144 bytes (a gap, or unreferenced data).
     pub _gap_8bddad: Bytes<144>,
@@ -188,7 +188,7 @@ pub struct RainRules {
     pub target_scale: [f32; 2],
     /// 0x8C5FD9: `flt_8C5FD9`, `flt_8C5FDD`: how fast the pace follows its target (0.05).
     pub ease: [f32; 2],
-    /// 0x8C5FE1: `flt_8C5FE1`: 131072.0, the view's height (`effects::place_view`).
+    /// 0x8C5FE1: `flt_8C5FE1`: 131072.0, the view's height (`effects::place_rain_view`).
     pub height: f32,
     /// 0x8C5FE5: `flt_8C5FE5`, `flt_8C5FE9`: the streak's ends' screen scale (500.0 each).
     pub view_scale: [f32; 2],

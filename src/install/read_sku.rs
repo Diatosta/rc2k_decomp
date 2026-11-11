@@ -7,7 +7,7 @@
 //! What is not there keeps its value. One caller, `system::load_game_data`.
 
 use crate::errors::BadInput;
-use crate::session::{Byte, Bytes, Dword, with_runs};
+use crate::session::{Byte, Bytes, PlainDword, with_runs};
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 use rc2k_core::install::config;
@@ -46,11 +46,11 @@ pub fn read_sku(
 #[derive(rc2k_derive::Cells)]
 pub struct Sku {
     /// 0x5190F4: `dword_5190F4`: the edition's number.
-    pub number: Dword,
+    pub number: PlainDword,
     /// 0x5190F8: `dword_5190F8`: 1 for an OEM edition.
-    pub oem: Dword,
+    pub oem: PlainDword,
     /// 0x5190FC: `dword_5190FC`: 1 for a DVD edition.
-    pub dvd: Dword,
+    pub dvd: PlainDword,
     /// 0x519100: `byte_519100`: the sku file's third byte.
     pub third: Byte,
     /// 0x519101: `byte_519101`: its second byte.
@@ -64,9 +64,9 @@ pub struct Sku {
 impl Sku {
     pub const fn new() -> Self {
         Sku {
-            number: Dword::new(0xffffffff),
-            oem: Dword::new(0x0),
-            dvd: Dword::new(0x0),
+            number: PlainDword::new(0xffffffff),
+            oem: PlainDword::new(0x0),
+            dvd: PlainDword::new(0x0),
             third: Byte::new(0x0),
             second: Byte::new(0x0),
             path: Bytes::new(with_runs::<16>(&[(0, b"files\\d\\gfx\\sku")])),
@@ -81,7 +81,7 @@ impl Sku {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::install::owner::INSTALL.sku) as usize
+        crate::pointers::game_address(&raw const crate::install::owner::INSTALL.get().sku) as usize
     }
 }
 

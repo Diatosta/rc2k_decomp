@@ -395,7 +395,10 @@ pub fn quitting() -> bool {
 /// `scene::prepare_menu_scene` (0x46F7FD). (It leaves esi the view's turn matrix: a screen
 /// whose carousel is set up after it hands that no list of cars.)
 pub fn prepare_scene(scene: &Scene) {
-    crate::scene::prepare_menu_scene::prepare_menu_scene(scene);
+    crate::scene::prepare_menu_scene::prepare_menu_scene(
+        scene,
+        crate::race::view_scratch::front_end(),
+    );
 }
 
 /// `scene::set_up_carousel` (0x4904DD), with the list of cars menus 0xD and 0xE show.

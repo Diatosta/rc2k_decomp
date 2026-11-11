@@ -7,7 +7,7 @@
 //! Callers: the HUD's drawers (several places).
 
 use crate::errors::Refused;
-use crate::hud::owner::Hud;
+use crate::hud::owner::{Hud, Pen};
 use crate::pointers::GamePtr;
 use crate::race::owner_frame::Frame;
 use rc2k_core::hud::quads;
@@ -35,8 +35,15 @@ pub fn put_corners(hud: &Hud, x: u32, y: u32, w: u32, h: u32) {
 
 /// The sprite whose rectangle is the place `rect` with its corner at `x`, `y`.
 // Converted: `rc2k_core::hud::quads::{sprite_places, sprite_corners}`
-pub fn add_sprite(frame: &Frame, hud: &Hud, x: u32, y: u32, rect: GamePtr) -> Result<(), Refused> {
+pub fn add_sprite(
+    frame: &Frame,
+    hud: &Hud,
+    pen: Pen,
+    x: u32,
+    y: u32,
+    rect: GamePtr,
+) -> Result<(), Refused> {
     let [_, _, w, h] = put_places(hud, rect)?;
     put_corners(hud, x, y, w, h);
-    crate::hud::add_quad::add_quad(frame, hud)
+    crate::hud::add_quad::add_quad(frame, hud, pen)
 }

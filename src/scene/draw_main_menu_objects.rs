@@ -26,18 +26,15 @@ pub fn run() -> Result<(), crate::errors::Refused> {
     let scene = crate::scene::owner::scene();
     let race = race();
     let menus = menus();
-    clear_depth_buffer(scene);
+    let scratch = crate::race::view_scratch::front_end();
+    clear_depth_buffer(scene, crate::system::owner::system(), &scratch.polygon);
     assign_kind_textures(scene)?;
     choose_carousel_pictures(menus)?;
     assign_menu_textures(&menus.tables, scene)?;
     map_texture_places(scene);
     let count = load_slot_textures_in_game(&race.frame, scene)?;
     // The front end's 3D draws on a slot of its own (frame plan F4).
-    let ctx = crate::race::view_scratch::DrawCtx::new(
-        race,
-        scene,
-        crate::race::view_scratch::front_end(),
-    );
+    let ctx = crate::race::view_scratch::DrawCtx::new(race, scene, scratch);
     let _held = ctx.view.matrices.hold(&race.frame.matrices);
     draw_main_menu_carousel(menus, &ctx, count)
 }

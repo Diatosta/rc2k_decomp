@@ -14,7 +14,7 @@
 //! there between, read by nothing).
 
 use crate::errors::Refused;
-use crate::hud::owner::Hud;
+use crate::hud::owner::{Hud, Pen};
 use crate::math::x87;
 use crate::math::x87_float::{ld, to_int};
 use crate::race::owner_frame::Frame;
@@ -31,7 +31,7 @@ fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 
 }
 
 // Converted: `rc2k_core::hud::disc::{needle_turn, needle_edx, needle_corners}`
-pub fn draw_needle(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
+pub fn draw_needle(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     use rc2k_core::hud::disc::{needle_corners, needle_edx, needle_turn};
     use rc2k_core::math::extended::to_f64;
     let kind = hud.block.needle_kind.get() != 0;
@@ -63,10 +63,8 @@ pub fn draw_needle(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
         let point = [extended(y), extended(x)].map(to_f64);
         crate::hud::turned_vertex::turned_vertex(hud, vertex, angle, point);
     }
-    crate::scene::polygon_work::front_end()
-        .polygon_vertex_count
-        .set(4u32);
-    crate::hud::add_polygon::add_polygon(frame, hud)
+    pen.polygons.polygon_vertex_count.set(4u32);
+    crate::hud::add_polygon::add_polygon(frame, hud, pen)
 }
 
 // ---- the arithmetic that was x87 assembly ----

@@ -5,11 +5,11 @@
 //! Caller: `hud::overlay_pass` (0x45A8F0).
 
 use crate::errors::Refused;
-use crate::hud::owner::Hud;
+use crate::hud::owner::{Hud, Pen};
 use crate::race::owner_frame::Frame;
 
 // Converted: `rc2k_core::hud::batch::{Layout, NO_TEXTURE}`
-pub fn draw_hud(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
+pub fn draw_hud(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     use crate::hud::*;
     use rc2k_core::hud::batch;
     {
@@ -19,9 +19,9 @@ pub fn draw_hud(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
         hud.block.index_count.set(0);
         tenths::tenths(frame, hud);
         match batch::Layout::of(frame.panel_and_overlay.panel.players.get()) {
-            batch::Layout::Single => layout_0::layout_0(frame, hud)?,
-            batch::Layout::One => layout_1::layout_1(frame, hud)?,
-            batch::Layout::Two => layout_2::layout_2(frame, hud)?,
+            batch::Layout::Single => layout_0::layout_0(frame, hud, pen)?,
+            batch::Layout::One => layout_1::layout_1(frame, hud, pen)?,
+            batch::Layout::Two => layout_2::layout_2(frame, hud, pen)?,
         }
         flush_batch::flush_batch(hud);
     }

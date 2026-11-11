@@ -6,13 +6,13 @@
 //! Callers: the HUD's drawers (code at 0x4B27E1, 0x4B3BF8, 0x4B5AD0, ...).
 
 use crate::errors::Refused;
-use crate::hud::owner::Hud;
+use crate::hud::owner::{Hud, Pen};
 use crate::race::owner_frame::Frame;
 
 // Converted: `rc2k_core::hud::quads::SOLID_PLACES`
-pub fn add_solid_quad(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
+pub fn add_solid_quad(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     for (n, v) in rc2k_core::hud::quads::SOLID_PLACES {
         hud.block.quad.word(n).set(v);
     }
-    crate::hud::add_quad::add_quad(frame, hud)
+    crate::hud::add_quad::add_quad(frame, hud, pen)
 }

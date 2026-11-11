@@ -17,7 +17,7 @@ use crate::gfx::owner::gfx;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::view_scratch::ViewScratch;
-use crate::system::owner::{System, system};
+use crate::system::owner::System;
 use rc2k_core::hud::strips;
 
 /// The quad's input at byte offset `o` from `quad_colour`: its colour and see-through,
@@ -50,13 +50,13 @@ fn sizes(system: &System, v: [u32; 4]) {
 /// sizes (`strips::quad_inputs`), the texture when given, then the device's settings.
 fn quad(
     race: &Race,
+    scratch: &ViewScratch,
     left: u32,
     width: u32,
     rows: u32,
     texture: Option<u32>,
 ) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
-    let scratch = crate::race::view_scratch::front_end();
     let polygon = &scratch.polygon;
     let shared = &race.shared;
     let course = &race.course;
@@ -83,7 +83,7 @@ fn quad(
 
 /// The shared tail (0x45B9AA, see the header).
 // Converted: `rc2k_core::hud::strips::{tail_shown, TAIL}`
-pub fn overlay_tail(race: &Race) -> Result<(), Refused> {
+pub fn overlay_tail(race: &Race, scratch: &ViewScratch, system: &System) -> Result<(), Refused> {
     let frame = &race.frame;
     let (shown, players) = (
         frame.panel_and_overlay.panel.hud_flags[0].get(),
@@ -93,16 +93,28 @@ pub fn overlay_tail(race: &Race) -> Result<(), Refused> {
         return Ok(());
     }
     for (v, rows) in strips::TAIL {
-        sizes(system(), v);
+        sizes(system, v);
         let get = |n: usize| gfx().strips.sizes[n].get();
-        quad(race, get(2), get(3), rows, Some(strips::TAIL_TEXTURE))?;
+        quad(
+            race,
+            scratch,
+            get(2),
+            get(3),
+            rows,
+            Some(strips::TAIL_TEXTURE),
+        )?;
     }
     Ok(())
 }
 
 /// View `view`'s strip, then the shared tail.
 // Converted: `rc2k_core::hud::strips::{VIEWS, top_entry, sizes, quad_inputs}`
-pub fn draw_view_strip(race: &Race, view: u32) -> Result<(), Refused> {
+pub fn draw_view_strip(
+    race: &Race,
+    scratch: &ViewScratch,
+    system: &System,
+    view: u32,
+) -> Result<(), Refused> {
     let frame = &race.frame;
     let strips = &gfx().strips;
     if view >= strips::VIEWS {
@@ -112,14 +124,14 @@ pub fn draw_view_strip(race: &Race, view: u32) -> Result<(), Refused> {
         let top = strips::top_entry(view, frame.panel_and_overlay.panel.flat.get());
         let top: u32 = strips.tops[top as usize].get();
         let left: u32 = strips.lefts[view as usize].get();
-        sizes(system(), [top, strips::HEIGHT, left, strips::WIDTH]);
+        sizes(system, [top, strips::HEIGHT, left, strips::WIDTH]);
         let get = |n: usize| strips.sizes[n].get();
         let (mut left, width, mut rows) = (get(2), get(3), 0);
         for _ in 0..3 {
-            quad(race, left, width, rows, None)?;
+            quad(race, scratch, left, width, rows, None)?;
             left = left.wrapping_add(width);
             rows = rows.wrapping_add(strips::ROWS_STEP);
         }
-        overlay_tail(race)
+        overlay_tail(race, scratch, system)
     }
 }

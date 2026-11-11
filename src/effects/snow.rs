@@ -68,9 +68,9 @@ pub struct SnowState {
     pub _gap_8d2000: Bytes<48>,
     /// 0x8D2030: `xmmword_8D2030` .. `xmmword_8D20B0`: the turn's nine floats, each four times (`effects::run_snow`).
     pub wide_turn: [[Float; 4]; 9],
-    /// 0x8D20C0: `dword_8D20C0` .. `dword_8D20DC`: cleared by `effects::place_view_2`.
+    /// 0x8D20C0: `dword_8D20C0` .. `dword_8D20DC`: cleared by `effects::place_snow_view`.
     pub cleared: [Dword; 8],
-    /// 0x8D20E0: `xmmword_8D20E0`: the view point's z, four times (`effects::place_view_2`).
+    /// 0x8D20E0: `xmmword_8D20E0`: the view point's z, four times (`effects::place_snow_view`).
     pub filled: [Float; 4],
     /// 0x8D20F0: `xmmword_8D20F0`: the focal length (`flt_624088`) four times.
     pub wide_focal: [Float; 4],
@@ -114,11 +114,11 @@ pub struct SnowState {
     pub inverse: Float,
     /// 0x8D21FC: Not named: 12 bytes (a gap, or unreferenced data).
     pub _gap_8d21fc: Bytes<12>,
-    /// 0x8D2208: `dword_8D2208` ..: the point `effects::place_view_2` turns (whole numbers).
+    /// 0x8D2208: `dword_8D2208` ..: the point `effects::place_snow_view` turns (whole numbers).
     pub point: [Dword; 3],
-    /// 0x8D2214: `dword_8D2214` ..: the view's place less the point (`effects::place_view_2`).
+    /// 0x8D2214: `dword_8D2214` ..: the view's place less the point (`effects::place_snow_view`).
     pub view: [Dword; 3],
-    /// 0x8D2220: `dword_8D2220` ..: the view matrix copied (`effects::place_view_2`).
+    /// 0x8D2220: `dword_8D2220` ..: the view matrix copied (`effects::place_snow_view`).
     pub matrix_copy: [Float; 9],
     /// 0x8D2244: Not named: 144 bytes (a gap, or unreferenced data).
     pub _gap_8d2244: Bytes<144>,
@@ -338,7 +338,7 @@ pub struct SnowLight {
     pub uv: [Dword; 4],
     /// 0x8DB538: `flt_8DB538`: what the clock's step is multiplied by for the fall.
     pub fall_k: Float,
-    /// 0x8DB53C: `flt_8DB53C`: the view's height (`effects::place_view_2`).
+    /// 0x8DB53C: `flt_8DB53C`: the view's height (`effects::place_snow_view`).
     pub height: Float,
     /// 0x8DB540: Not named: 8 bytes (a gap, or unreferenced data).
     pub _gap_8db540: Bytes<8>,

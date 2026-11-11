@@ -12,18 +12,15 @@ pub const MENUS: u32 = 1;
 /// `dword_518080` after the race's.
 pub const RACE: u32 = 2;
 
-/// The commands the set-ups queue (`audio::take_commands`' numbers).
-pub const LOAD: u32 = 3;
-pub const MODE: u32 = 5;
-pub const VOLUME: u32 = 8;
+use crate::audio::commands::Command;
 
 /// A set-up's steps, in order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Step {
     /// `sound::stop_music`.
     StopMusic,
-    /// A command queued with eax (kept for the steps after it).
-    Send { command: u32, eax: u32 },
+    /// A command queued.
+    Send(Command),
     /// `sound::load_race_sounds`.
     LoadRaceSounds,
     /// `sound::wait_for_commands`.
@@ -34,18 +31,9 @@ pub enum Step {
 pub fn menus(mode: u32, list: crate::audio::commands::SoundList, volume: u32) -> [Step; 5] {
     [
         Step::StopMusic,
-        Step::Send {
-            command: MODE,
-            eax: mode,
-        },
-        Step::Send {
-            command: LOAD,
-            eax: list.word(),
-        },
-        Step::Send {
-            command: VOLUME,
-            eax: volume,
-        },
+        Step::Send(Command::Mode(mode)),
+        Step::Send(Command::Load(Some(list))),
+        Step::Send(Command::Volume(volume)),
         Step::Wait,
     ]
 }
@@ -54,10 +42,7 @@ pub fn menus(mode: u32, list: crate::audio::commands::SoundList, volume: u32) ->
 pub fn race(mode: u32) -> [Step; 4] {
     [
         Step::StopMusic,
-        Step::Send {
-            command: MODE,
-            eax: mode,
-        },
+        Step::Send(Command::Mode(mode)),
         Step::LoadRaceSounds,
         Step::Wait,
     ]
@@ -121,18 +106,9 @@ mod tests {
         assert_eq!(
             menus(1, crate::audio::commands::SoundList::Menu, 3)[1..4],
             [
-                Step::Send {
-                    command: MODE,
-                    eax: 1
-                },
-                Step::Send {
-                    command: LOAD,
-                    eax: 1
-                },
-                Step::Send {
-                    command: VOLUME,
-                    eax: 3
-                }
+                Step::Send(Command::Mode(1)),
+                Step::Send(Command::Load(Some(crate::audio::commands::SoundList::Menu))),
+                Step::Send(Command::Volume(3))
             ]
         );
         assert_eq!(race(7)[2..], [Step::LoadRaceSounds, Step::Wait]);

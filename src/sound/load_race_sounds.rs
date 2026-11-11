@@ -23,10 +23,9 @@ use crate::errors::BadInput;
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
 use crate::session::Dword;
-use crate::sound::queue::START_3;
 use crate::sound::sets_store::RaceSoundSets;
 use core::mem::offset_of;
-use rc2k_core::audio::commands::SoundList;
+use rc2k_core::audio::commands::{Command, SoundList};
 
 // ---- game data ----
 
@@ -158,7 +157,7 @@ pub fn load_race_sounds_in_game(
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), BadInput> {
     load_race_sounds(
-        &mut |list| crate::sound::senders::send(START_3, [list.word(), 0, 0, 0]),
+        &mut |list| crate::sound::senders::send(Command::Load(Some(list))),
         sound,
         audio,
     )

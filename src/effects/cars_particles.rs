@@ -10,8 +10,8 @@
 //! of length 1 (`x87::normalised3`); the second that crossed with the vector again, turned by
 //! the matrix transposed (`x87::crossed_turned`); the third the cross product of the two; two
 //! more values from the looks table by the car's +4; then `effects::emit_car_particles`
-//! (unless +0x30 counts down, by one) and `effects::emit_particle_13`, `emit_particle_19`,
-//! `emit_particle_22`.
+//! (unless +0x30 counts down, by one) and `effects::emit_exhaust_smoke`, `emit_twin_particle_first`,
+//! `emit_twin_particle_second`.
 //!
 //! Works on the effects settings.
 //!
@@ -22,7 +22,7 @@
 use crate::effects::emit_car_particles::emit_car_particles;
 use crate::effects::emitters::*;
 use crate::effects::owner::Effects;
-use crate::effects::{emit_particle_13, emit_particle_19, emit_particle_22};
+use crate::effects::{emit_exhaust_smoke, emit_twin_particle_first, emit_twin_particle_second};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
@@ -166,9 +166,9 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
         } else {
             emit_car_particles(effects, car)?;
         }
-        emit_particle_13::emit_particle_13(paths, particles, ring, car, effects)?;
-        emit_particle_19::emit_particle_19(masks, particles, ring, car)?;
-        emit_particle_22::emit_particle_22(masks, particles, ring, car)?;
+        emit_exhaust_smoke::emit_exhaust_smoke(paths, particles, ring, car, effects)?;
+        emit_twin_particle_first::emit_twin_particle_first(masks, particles, ring, car)?;
+        emit_twin_particle_second::emit_twin_particle_second(masks, particles, ring, car)?;
     }
     Ok(())
 }

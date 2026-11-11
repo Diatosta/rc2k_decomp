@@ -7,7 +7,7 @@
 
 use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;
-use crate::hud::owner::Hud;
+use crate::hud::owner::{Hud, Pen};
 use crate::race::owner_frame::Frame;
 use crate::race::panel_store::Lights;
 
@@ -15,7 +15,13 @@ use rc2k_core::hud::icons;
 
 /// The icon of `lights`, `bottom` its row.
 // Converted: `rc2k_core::hud::icons`
-pub fn draw_icon(frame: &Frame, hud: &Hud, lights: &Lights, bottom: u32) -> Result<(), Refused> {
+pub fn draw_icon(
+    frame: &Frame,
+    hud: &Hud,
+    pen: Pen,
+    lights: &Lights,
+    bottom: u32,
+) -> Result<(), Refused> {
     if !icons::shown(lights.lit.get()) {
         return Ok(());
     }
@@ -43,8 +49,6 @@ pub fn draw_icon(frame: &Frame, hud: &Hud, lights: &Lights, bottom: u32) -> Resu
         // `fild` through `fistp_scratch`: it keeps the last.
         hud.block.fistp_scratch.set(y);
     }
-    crate::scene::polygon_work::front_end()
-        .polygon_vertex_count
-        .set(4u32);
-    crate::hud::add_polygon::add_polygon(frame, hud)
+    pen.polygons.polygon_vertex_count.set(4u32);
+    crate::hud::add_polygon::add_polygon(frame, hud, pen)
 }

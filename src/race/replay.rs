@@ -177,9 +177,14 @@ fn copy_header_settings(sealed: GamePtr) -> Result<(), BadInput> {
         (
             4,
             0x719B59,
-            GamePtr::to(&shared.replays.header)
-                .offset(0xC)
-                .read::<u32>("the replay header's source")?,
+            u32::from_le_bytes(
+                shared
+                    .replays
+                    .header
+                    .read_at(0xC, 4, "the replay header's source")?
+                    .try_into()
+                    .expect("four bytes"),
+            ),
         ),
         (1, 0x719B86, settings.car_kind_current.get()),
         (1, 0x719B87, settings.stage.get()),

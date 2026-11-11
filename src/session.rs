@@ -13,7 +13,7 @@
 
 #[cfg(test)]
 use crate::system::owner::system;
-use std::cell::UnsafeCell;
+use std::cell::{Cell, UnsafeCell};
 use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
 
 /// One of the game's dwords: an atomic cell the game's threads read and write.
@@ -66,14 +66,14 @@ impl Dword {
 }
 
 /// The values of a run of dwords (a list or table of the game's, `[Dword; N]`).
-pub fn read_all<const N: usize>(cells: &[Dword; N]) -> [u32; N] {
-    std::array::from_fn(|k| cells[k].get())
+pub fn read_all<C: Cell32, const N: usize>(cells: &[C; N]) -> [u32; N] {
+    std::array::from_fn(|k| cells[k].bits())
 }
 
 /// Stores a run of dwords.
-pub fn write_all<const N: usize>(cells: &[Dword; N], values: [u32; N]) {
+pub fn write_all<C: Cell32, const N: usize>(cells: &[C; N], values: [u32; N]) {
     for (cell, value) in cells.iter().zip(values) {
-        cell.set(value);
+        cell.set_bits(value);
     }
 }
 
@@ -104,10 +104,10 @@ pub fn write_first<C: Cell32>(cells: &[C], values: &[u32]) {
 }
 
 /// Stores `values` into the first cells of a run of dwords (the rest keep their values).
-pub fn write_prefix(cells: &[Dword], values: &[u32]) {
+pub fn write_prefix<C: Cell32>(cells: &[C], values: &[u32]) {
     assert!(values.len() <= cells.len());
     for (cell, &value) in cells.iter().zip(values) {
-        cell.set(value);
+        cell.set_bits(value);
     }
 }
 
@@ -258,8 +258,8 @@ impl<T: Cell32 + ?Sized> Cell32 for &T {
 }
 
 /// The byte `n` of `cells` (a table of bytes held as dwords, little-endian), if inside.
-pub fn byte_of(cells: &[Dword], n: usize) -> Option<u8> {
-    cells.get(n / 4).map(|c| c.get().to_le_bytes()[n % 4])
+pub fn byte_of<C: Cell32>(cells: &[C], n: usize) -> Option<u8> {
+    cells.get(n / 4).map(|c| c.bits().to_le_bytes()[n % 4])
 }
 
 impl Cell32 for Dword {
@@ -509,6 +509,245 @@ const fn atomic_bytes<const N: usize>(value: [u8; N]) -> [AtomicU8; N] {
         .atomic
     })
 }
+
+/// One value only the game's thread reaches: a non-atomic cell (`!Sync`, so that a second
+/// thread's access does not compile). A store of these sits in a `GameThread`.
+#[allow(dead_code, reason = "the next stores to flip (M3) use it")]
+#[repr(transparent)]
+pub struct Plain<T: Copy>(Cell<T>);
+
+#[allow(dead_code, reason = "the next stores to flip (M3) use it")]
+impl<T: Copy> Plain<T> {
+    pub const fn new(value: T) -> Self {
+        Self(Cell::new(value))
+    }
+
+    pub fn get(&self) -> T {
+        self.0.get()
+    }
+
+    pub fn set(&self, value: T) {
+        self.0.set(value);
+    }
+
+    /// The value changed by `change`.
+    pub fn update(&self, change: impl FnOnce(T) -> T) {
+        self.0.set(change(self.0.get()));
+    }
+}
+
+/// A `Dword` only the game's thread reaches: the same four bytes and the same methods, no
+/// atomic and no write watch.
+#[repr(transparent)]
+pub struct PlainDword(Cell<u32>);
+
+#[allow(dead_code, reason = "the next stores to flip (M3) use it")]
+impl PlainDword {
+    pub const fn new(value: u32) -> Self {
+        Self(Cell::new(value))
+    }
+
+    pub fn get(&self) -> u32 {
+        self.0.get()
+    }
+
+    pub fn set(&self, value: u32) {
+        self.0.set(value);
+    }
+
+    /// Whether the cell, used as a flag, is not 0.
+    pub fn is_set(&self) -> bool {
+        self.0.get() != 0
+    }
+
+    /// Its place, for code that is handed an address (a Windows call, an `fild`).
+    pub fn as_ptr(&self) -> *mut u32 {
+        self.0.as_ptr()
+    }
+
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(self.as_ptr())
+    }
+
+    /// The cell's 32 bits (as `PlainFloat::bits`).
+    pub fn bits(&self) -> u32 {
+        self.0.get()
+    }
+
+    /// Stores the 32 bits (as `PlainFloat::set_bits`).
+    pub fn set_bits(&self, bits: u32) {
+        self.0.set(bits);
+    }
+
+    /// The cell itself (`pointers`' copies of a run).
+    pub(crate) fn cell(&self) -> &Cell<u32> {
+        &self.0
+    }
+}
+
+/// A `Float` only the game's thread reaches, holding its bits.
+#[repr(transparent)]
+pub struct PlainFloat(Cell<u32>);
+
+#[allow(dead_code, reason = "the next stores to flip (M3) use it")]
+impl PlainFloat {
+    /// A cell holding `value`.
+    pub const fn new(value: f32) -> Self {
+        Self(Cell::new(value.to_bits()))
+    }
+
+    /// From the float's bits (the image's first values are bits).
+    pub const fn from_bits(bits: u32) -> Self {
+        Self(Cell::new(bits))
+    }
+
+    pub fn get(&self) -> f32 {
+        f32::from_bits(self.0.get())
+    }
+
+    pub fn set(&self, value: f32) {
+        self.0.set(value.to_bits());
+    }
+
+    /// The cell's 32 bits (read by `x87_float::ld`).
+    pub fn bits(&self) -> u32 {
+        self.0.get()
+    }
+
+    /// Stores the 32 bits (written by `x87_float::st`).
+    pub fn set_bits(&self, bits: u32) {
+        self.0.set(bits);
+    }
+
+    /// Its place (the tests).
+    #[cfg(test)]
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(self.0.as_ptr())
+    }
+
+    /// The cell itself (`pointers`' copies of a run).
+    pub(crate) fn cell(&self) -> &Cell<u32> {
+        &self.0
+    }
+}
+
+/// A `Flag` only the game's thread reaches: 0 or 1 in four bytes.
+#[repr(transparent)]
+pub struct PlainFlag(Cell<u32>);
+
+#[allow(dead_code, reason = "the next stores to flip (M3) use it")]
+impl PlainFlag {
+    pub const fn new(value: bool) -> Self {
+        Self(Cell::new(value as u32))
+    }
+
+    pub fn is_set(&self) -> bool {
+        self.0.get() != 0
+    }
+
+    pub fn set(&self, value: bool) {
+        self.0.set(value as u32);
+    }
+
+    /// The cell itself (`pointers`' copies of a run).
+    pub(crate) fn cell(&self) -> &Cell<u32> {
+        &self.0
+    }
+}
+
+impl Cell32 for PlainDword {
+    fn bits(&self) -> u32 {
+        self.0.get()
+    }
+    fn set_bits(&self, bits: u32) {
+        self.0.set(bits);
+    }
+}
+
+impl Cell32 for PlainFloat {
+    fn bits(&self) -> u32 {
+        self.0.get()
+    }
+    fn set_bits(&self, bits: u32) {
+        self.0.set(bits);
+    }
+}
+
+static GAME_THREAD: std::sync::OnceLock<std::thread::ThreadId> = std::sync::OnceLock::new();
+
+/// Names the calling thread as the game's thread: from now on a debug build checks that a
+/// `GameThread` is reached from it only. Called once, first thing on the main thread; the
+/// tests never call it (each test runs on a thread of its own).
+pub fn set_game_thread() {
+    let _ = GAME_THREAD.set(std::thread::current().id());
+}
+
+/// Debug builds: panics when the game's thread is named and this is another one.
+#[inline]
+pub(crate) fn assert_game_thread() {
+    if cfg!(debug_assertions)
+        && let Some(game) = GAME_THREAD.get()
+    {
+        assert_eq!(
+            *game,
+            std::thread::current().id(),
+            "a state of the game's thread was reached from another thread"
+        );
+    }
+}
+
+/// A static owner of state only the game's thread reaches (cells of `Plain` kinds, which are
+/// `!Sync`).
+///
+/// The one `unsafe impl Sync` for them. The safety argument is the thread census
+/// (`notes/w10_census.md`, section 1): the stores held here (service, records, saves,
+/// install, ..) are read and written by the game's main thread alone; the audio, key,
+/// network and drawing threads reach none of them. `get` checks it in debug builds
+/// (`set_game_thread`). Anything a second thread must see stays in atomic cells, outside.
+pub struct GameThread<T>(T);
+
+// SAFETY: reached only from the game's thread (above); `get` asserts it in debug builds.
+unsafe impl<T> Sync for GameThread<T> {}
+
+impl<T> GameThread<T> {
+    pub const fn new(value: T) -> Self {
+        Self(value)
+    }
+
+    /// The state, from the game's thread.
+    pub fn get(&self) -> &T {
+        assert_game_thread();
+        &self.0
+    }
+
+    /// The state without the thread check, for the tables that name a part of it by place
+    /// (`moved::MOVED`, through `OnGameThread`, which checks at each access).
+    pub(crate) const fn unchecked(&self) -> &T {
+        &self.0
+    }
+}
+
+/// A part of a `GameThread` state registered as a store of cells: each access checks the
+/// thread (debug builds), as `GameThread::get`.
+pub struct OnGameThread<'a, S> {
+    pub(crate) whole: &'a S,
+    pub(crate) offset: usize,
+}
+
+impl<'a, S> OnGameThread<'a, S> {
+    /// The whole record.
+    pub const fn new(whole: &'a S) -> Self {
+        Self { whole, offset: 0 }
+    }
+
+    /// The record from its byte `offset` on (a moved range that starts inside a record).
+    pub const fn tail(whole: &'a S, offset: usize) -> Self {
+        Self { whole, offset }
+    }
+}
+
+// SAFETY: as `GameThread`: every access goes through the check.
+unsafe impl<S> Sync for OnGameThread<'_, S> {}
 
 /// A record the game keeps as a plain struct (a voice, a mixer channel, a stream player, a
 /// list of memory blocks, a caps record): copied out and in whole, or borrowed for the

@@ -10,6 +10,7 @@ use crate::install::store::{DriveRows, InstallVars, LobbyKeys};
 use crate::install::vars::{
     InstallerNames, InstallerPages, InstallerPalette, InstallerPaths, InstallerRun,
 };
+use crate::session::GameThread;
 
 /// The installation's state.
 pub struct Install {
@@ -27,7 +28,7 @@ pub struct Install {
 }
 
 /// The one instance. Reached through `install()`; `moved` registers its stores' places.
-pub static INSTALL: Install = Install {
+pub static INSTALL: GameThread<Install> = GameThread::new(Install {
     texts: InstallTexts::new(),
     sku: Sku::new(),
     vars: InstallVars::new(),
@@ -38,9 +39,9 @@ pub static INSTALL: Install = Install {
     paths: InstallerPaths::new(),
     palette: InstallerPalette::new(),
     lobby_keys: LobbyKeys::new(),
-};
+});
 
 /// The installation's state; pass it down where a function reaches it more than once.
 pub fn install() -> &'static Install {
-    &INSTALL
+    INSTALL.get()
 }

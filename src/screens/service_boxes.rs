@@ -19,16 +19,17 @@ pub fn set(a: &Dword, v: u32) {
 pub fn quad(x: u32, y: u32, w: u32, h: u32, colour: u32, see: u32) -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
     let q = &race().shared.vars;
-    crate::race::view_scratch::front_end().quad.corners[0].set(x);
-    crate::race::view_scratch::front_end().quad.corners[4].set(y);
-    crate::race::view_scratch::front_end().quad.corners[1].set(x.wrapping_add(w));
-    crate::race::view_scratch::front_end().quad.corners[5].set(y.wrapping_add(h));
+    let scratch = crate::race::view_scratch::front_end();
+    scratch.quad.corners[0].set(x);
+    scratch.quad.corners[4].set(y);
+    scratch.quad.corners[1].set(x.wrapping_add(w));
+    scratch.quad.corners[5].set(y.wrapping_add(h));
     q.quad_colour[0].set(colour);
     q.quad_colour[1].set(see);
     crate::scene::draw_tinted_quad::draw_tinted_quad(&crate::race::view_scratch::DrawCtx::new(
         crate::race::owner::race(),
         scene,
-        crate::race::view_scratch::front_end(),
+        scratch,
     ))
 }
 

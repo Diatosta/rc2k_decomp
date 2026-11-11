@@ -4,7 +4,7 @@
 use crate::saves::best_times_store::{BestTimes, RallyTimes};
 use crate::saves::preview_store::SavegamePreview;
 use crate::saves::write_savegame_slot::SaveGames;
-use crate::session::{Bytes, Dword};
+use crate::session::{Bytes, GameThread, PlainDword};
 
 /// The file names and kept values that belong to no larger store.
 pub struct Files {
@@ -16,7 +16,7 @@ pub struct Files {
     /// options file keeps (here and in `saves::save_options`, by address); nothing else of
     /// the game reads them (a table of the developers' variables names the first). The fifth
     /// (0x4F66ED) is a gap.
-    pub options_kept: [Dword; 5],
+    pub options_kept: [PlainDword; 5],
 }
 
 impl Files {
@@ -25,11 +25,11 @@ impl Files {
             savegame_template: Bytes::new(*b"savedata\\savegame\\svgame00\0"),
             options_path: Bytes::new(*b"var\\ral.dat\0"),
             options_kept: [
-                Dword::new(0),
-                Dword::new(0),
-                Dword::new(0xFFFF_FFFF),
-                Dword::new(0),
-                Dword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0xFFFF_FFFF),
+                PlainDword::new(0),
+                PlainDword::new(0),
             ],
         }
     }
@@ -45,15 +45,15 @@ pub struct Saves {
 }
 
 /// The one instance. Reached through `saves()`; `moved` registers its stores' places.
-pub static SAVES: Saves = Saves {
+pub static SAVES: GameThread<Saves> = GameThread::new(Saves {
     best_times: BestTimes::new(),
     rally_times: RallyTimes::new(),
     savegame_preview: SavegamePreview::new(),
     save_games: SaveGames::new(),
     files: Files::new(),
-};
+});
 
 /// The saves' state, for a caller that does not take it as a parameter yet.
 pub fn saves() -> &'static Saves {
-    &SAVES
+    SAVES.get()
 }

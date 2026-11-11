@@ -166,11 +166,12 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
     crate::files::state::BYTES_READ.set(0);
     load_log(0);
     // The course memory is a region of its own (`level_init::take_course_memory`).
-    let out = read_level_file::read_level_file(
-        &course.level_paths.cdat_src.text(),
-        crate::race::level_init::course_memory_at(course.lists.course_memory.get())?,
-        course.lists.first_part.get(),
-    )?;
+    let memory = crate::race::level_init::course_memory_at(course.lists.course_memory.get())?;
+    let mut data = memory.read_bytes(course.lists.first_part.get() as usize, "the course data")?;
+    let read = read_level_file::read_level_file(&course.level_paths.cdat_src.text(), &mut data);
+    // What the file's bytes reached stays, also when the unpacking is refused.
+    memory.write_bytes(&data, "the course data")?;
+    let out = read?;
     crate::files::state::BYTES_READ.set(out.eax);
     if out.carry {
         // The original says nothing more: the path named, for the reports.

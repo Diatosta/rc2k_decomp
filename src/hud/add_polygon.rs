@@ -14,20 +14,17 @@
 
 use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;
-use crate::hud::owner::Hud;
+use crate::hud::owner::{Hud, Pen};
 use crate::race::owner_frame::Frame;
-use crate::system::owner::system;
 
 // Converted: `rc2k_core::hud::batch::{flushes, check_polygon, polygon_indices}`,
 // `rc2k_core::hud::quads::screen_scaled`
-pub fn add_polygon(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
-    let system = system();
+pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
+    let system = pen.system;
     use rc2k_core::hud::batch::{self, MOST_VERTICES};
     use rc2k_core::hud::quads::screen_scaled;
     {
-        let count: u32 = crate::scene::polygon_work::front_end()
-            .polygon_vertex_count
-            .get();
+        let count: u32 = pen.polygons.polygon_vertex_count.get();
         let texture = hud.block.texture.get();
         let vertices = hud.block.vertex_count.get();
         let flushes = if count == 0 || count > MOST_VERTICES {

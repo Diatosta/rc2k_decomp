@@ -1,13 +1,13 @@
-//! `effects::place_view_2` (0x4C2AA5): `effects::place_view` on other variables (the point
+//! `effects::place_snow_view` (0x4C2AA5): `effects::place_rain_view` on other variables (the point
 //! (0, 0, 0x80000), the matrix at `dword_8D216C`, the place `dword_8D2160`, the height
 //! `flt_8DB53C`, out at `dword_8D2214`, the copy at `dword_8D2220`), then `dword_8D20C0`
 //! .. `dword_8D20DC` 0 and the four floats at `xmmword_8D20E0` 0x80000.
 //!
-//! See `marks/place_view.rs`; no variable shared with it. One caller, `effects::run_snow`.
+//! See `marks/place_rain_view.rs`; no variable shared with it. One caller, `effects::run_snow`.
 //!
-//! compared as `place_view`.
+//! compared as `place_rain_view`.
 
-use crate::effects::place_view::{ViewPlace, place_view_with};
+use crate::effects::place_rain_view::{ViewPlace, place_view_with};
 use crate::effects::rain::Weather;
 use crate::errors::Refused;
 use crate::math::x87;
@@ -26,7 +26,7 @@ fn second(weather: &Weather) -> ViewPlace<'_> {
     }
 }
 
-pub fn place_view_2(weather: &Weather) -> Result<(), Refused> {
+pub fn place_snow_view(weather: &Weather) -> Result<(), Refused> {
     let second = second(weather);
     let snow = &weather.snow;
     place_view_with(&second)?;

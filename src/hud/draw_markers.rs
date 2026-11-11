@@ -8,7 +8,7 @@
 //! 0x12C: `MARKER_ROWS_1`, `MARKER_ROWS_2`.
 
 use crate::errors::Refused;
-use crate::hud::owner::Hud;
+use crate::hud::owner::{Hud, Pen};
 use crate::hud::store::rect_place;
 use crate::race::owner_frame::Frame;
 use rc2k_core::hud::quads;
@@ -34,7 +34,7 @@ pub fn taken_off(v: [u8; 10]) -> u32 {
 
 /// The two players' markers at `rows` (see the header).
 // Converted: `rc2k_core::hud::quads::{marker_x, int_over}`
-pub fn draw_markers(frame: &Frame, hud: &Hud, rows: [u32; 2]) -> Result<(), Refused> {
+pub fn draw_markers(frame: &Frame, hud: &Hud, pen: Pen, rows: [u32; 2]) -> Result<(), Refused> {
     {
         let k = hud.block.uv_scale_x.bits();
         for (n, distance) in frame.panel_and_overlay.panel.distance.iter().enumerate() {
@@ -55,6 +55,7 @@ pub fn draw_markers(frame: &Frame, hud: &Hud, rows: [u32; 2]) -> Result<(), Refu
             crate::hud::add_scaled_sprite::add_scaled_sprite(
                 frame,
                 hud,
+                pen,
                 x,
                 rows[n],
                 rect,

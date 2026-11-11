@@ -17,7 +17,7 @@ use crate::pointers::GamePtr;
 use crate::race::owner::race;
 use crate::saves::owner::saves;
 use crate::scene::owner::scene;
-use crate::session::{Dword, Loose};
+use crate::session::{Cell32, Loose};
 use crate::settings::read_text::read_text;
 use crate::strings::owner::strings;
 use crate::strings::same_text::case_table;
@@ -31,7 +31,7 @@ use crate::system::owner::system;
 #[derive(Clone, Copy)]
 enum Target {
     /// A whole aligned dword of a store (`dword!`).
-    Dword(fn() -> &'static Dword),
+    Dword(fn() -> &'static dyn Cell32),
     /// A dword at an address that is not a multiple of 4 (`loose!`).
     Loose(fn() -> &'static Loose),
     /// A dword that straddles two cells of its store's untyped tail: the store's own
@@ -43,7 +43,7 @@ impl Target {
     /// The four bytes of the variable set.
     fn set(self, number: u32) {
         match self {
-            Target::Dword(cell) => cell().set(number),
+            Target::Dword(cell) => cell().set_bits(number),
             Target::Loose(cell) => cell().set(number),
             Target::Unaligned(set) => set(number),
         }
@@ -54,7 +54,7 @@ impl Target {
 macro_rules! dword {
     ($($path:tt)+) => {
         Target::Dword({
-            fn cell() -> &'static Dword {
+            fn cell() -> &'static dyn Cell32 {
                 &$($path)+
             }
             cell
@@ -488,7 +488,7 @@ mod tests {
             let name = String::from_utf8_lossy(key);
             let here = crate::moved::place(ida as usize) as u32;
             let cell = match target {
-                Target::Dword(cell) => cell().addr(),
+                Target::Dword(cell) => crate::session::address_of(cell()),
                 Target::Loose(cell) => crate::session::address_of(cell()),
                 // Their cells are bytes of a tail: checked by writing, in the test below.
                 Target::Unaligned(_) => continue,

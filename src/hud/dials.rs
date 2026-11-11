@@ -7,7 +7,7 @@
 //! HUD's three (`Panel::players`).
 
 use crate::errors::Refused;
-use crate::hud::owner::Hud;
+use crate::hud::owner::{Hud, Pen};
 use crate::hud::store::HudBlock;
 use crate::race::owner_frame::Frame;
 use crate::race::panel_store::{Loose32, Panel};
@@ -130,13 +130,13 @@ fn set_up_needle(frame: &Frame, hud: &Hud, style: &NeedleStyle) {
 }
 
 /// A disc's set-up and the disc.
-pub fn disc(frame: &Frame, hud: &Hud, style: &DiscStyle) -> Result<(), Refused> {
+pub fn disc(frame: &Frame, hud: &Hud, pen: Pen, style: &DiscStyle) -> Result<(), Refused> {
     set_up_disc(frame, hud, style);
-    crate::hud::draw_disc::draw_disc(frame, hud)
+    crate::hud::draw_disc::draw_disc(frame, hud, pen)
 }
 
 /// A needle's set-up and the needle.
-pub fn needle(frame: &Frame, hud: &Hud, style: &NeedleStyle) -> Result<(), Refused> {
+pub fn needle(frame: &Frame, hud: &Hud, pen: Pen, style: &NeedleStyle) -> Result<(), Refused> {
     set_up_needle(frame, hud, style);
-    crate::hud::draw_needle::draw_needle(frame, hud)
+    crate::hud::draw_needle::draw_needle(frame, hud, pen)
 }

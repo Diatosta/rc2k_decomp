@@ -1,4 +1,4 @@
-//! `effects::emit_particle_13` (0x4CE05E): one ring entry of kind 0xD for a car each frame,
+//! `effects::emit_exhaust_smoke` (0x4CE05E): one ring entry of kind 0xD for a car each frame,
 //! at its model's point (the looks table, 12 bytes by the car's +4).
 //!
 //! Takes: the car object
@@ -45,7 +45,7 @@ fn refusal(ring: &Ring, object: &'static CarEffects) -> Result<Option<&'static s
     })
 }
 
-pub fn emit_particle_13(
+pub fn emit_exhaust_smoke(
     paths: &Paths,
     particles: &Particles,
     ring: &Ring,
@@ -133,10 +133,10 @@ pub fn emit_particle_13(
     Ok(())
 }
 
-/// Kind 0xD's emitter variables (`emit_particle_13`) (IDA 0x93A462 .. 0x93A48A).
+/// Kind 0xD's emitter variables (`emit_exhaust_smoke`) (IDA 0x93A462 .. 0x93A48A).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
-pub struct Kind13Set {
+pub struct ExhaustSet {
     /// 0x93A462: `flt_93A462`: the place's lift
     pub lift: Float,
     /// 0x93A466: `flt_93A466`: the strength's factor
@@ -151,10 +151,10 @@ pub struct Kind13Set {
     pub size_k: [Float; 3],
 }
 
-impl Kind13Set {
+impl ExhaustSet {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
-        Kind13Set {
+        ExhaustSet {
             lift: Float::new(65536.0),
             strength_k: Float::new(0.0001),
             motion_k: [
@@ -169,7 +169,7 @@ impl Kind13Set {
     }
 }
 
-impl Kind13Set {
+impl ExhaustSet {
     pub const START: usize = 0x93A462;
     pub const LEN: usize = 0x28;
 }
@@ -188,26 +188,29 @@ mod kind13_set_tests {
 
     #[test]
     fn kind13_set_starts_as_the_games() {
-        assert_eq!(size_of::<Kind13Set>(), Kind13Set::LEN);
+        assert_eq!(size_of::<ExhaustSet>(), ExhaustSet::LEN);
         assert!(
             bytes(&crate::effects::owner::EFFECTS.particles.kind13_set)
-                == crate::moved::image_bytes(Kind13Set::START, Kind13Set::LEN),
+                == crate::moved::image_bytes(ExhaustSet::START, ExhaustSet::LEN),
             "KIND13_SET starts differently from the image"
         );
-        assert_eq!(offset_of!(Kind13Set, lift), 0x93A462 - Kind13Set::START);
+        assert_eq!(offset_of!(ExhaustSet, lift), 0x93A462 - ExhaustSet::START);
         assert_eq!(
-            offset_of!(Kind13Set, strength_k),
-            0x93A466 - Kind13Set::START
-        );
-        assert_eq!(offset_of!(Kind13Set, motion_k), 0x93A46A - Kind13Set::START);
-        assert_eq!(
-            offset_of!(Kind13Set, drift_random),
-            0x93A476 - Kind13Set::START
+            offset_of!(ExhaustSet, strength_k),
+            0x93A466 - ExhaustSet::START
         );
         assert_eq!(
-            offset_of!(Kind13Set, spin_random),
-            0x93A47A - Kind13Set::START
+            offset_of!(ExhaustSet, motion_k),
+            0x93A46A - ExhaustSet::START
         );
-        assert_eq!(offset_of!(Kind13Set, size_k), 0x93A47E - Kind13Set::START);
+        assert_eq!(
+            offset_of!(ExhaustSet, drift_random),
+            0x93A476 - ExhaustSet::START
+        );
+        assert_eq!(
+            offset_of!(ExhaustSet, spin_random),
+            0x93A47A - ExhaustSet::START
+        );
+        assert_eq!(offset_of!(ExhaustSet, size_k), 0x93A47E - ExhaustSet::START);
     }
 }

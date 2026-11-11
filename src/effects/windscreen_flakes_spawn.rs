@@ -12,8 +12,8 @@
 //! versions (under the same rounding).
 
 use crate::effects::cell_x87::CellX87;
-use crate::effects::pick_windscreen_flake::pick_windscreen_flake;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_flakes::pick_windscreen_flake;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::math::x87;

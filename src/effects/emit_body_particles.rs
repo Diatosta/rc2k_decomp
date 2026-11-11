@@ -3,7 +3,7 @@
 //! record's +4 plus 0x386A0, its +0 bit 0 flipped (`dword_935416` 2, or 3 when the bit is
 //! now clear), its +0xC 0; then `effects::emit_wheel_particles`' chance (its own random
 //! `dword_935526`) of copying the surface's kind and flags, and its switch, but for kind 1
-//! (`effects::emit_particle_18`) and kind 3 (the bursts of kind 2: section 16).
+//! (`effects::emit_body_contact_particles`) and kind 3 (the bursts of kind 2: section 16).
 //!
 //! Takes: the record, the car object
 //!

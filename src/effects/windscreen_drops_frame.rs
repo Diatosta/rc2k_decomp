@@ -13,9 +13,9 @@
 //! rounding. Refuses, before anything, null settings and a live item of a kind past 7.
 
 use crate::effects::cell_x87::CellX87;
-use crate::effects::expire_windscreen_drops::{ITEM_LEN, ITEMS};
 use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drops::{ITEM_LEN, ITEMS};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner_frame::Frame;

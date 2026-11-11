@@ -7,7 +7,7 @@
 //! Caller: layout 0's drawer (`hud::layout_0`, 0x4B1F0C).
 
 use crate::errors::Refused;
-use crate::hud::owner::Hud;
+use crate::hud::owner::{Hud, Pen};
 use crate::hud::store::rect_place;
 use crate::race::owner_frame::Frame;
 use rc2k_core::hud::quads::marker_x;
@@ -15,7 +15,7 @@ use rc2k_core::hud::quads::marker_x;
 const RECT: u32 = 0x5C;
 
 // Converted: `rc2k_core::hud::quads::marker_x`
-pub fn draw_marker(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
+pub fn draw_marker(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     hud.block.quad.colour.set(hud.block.marker_colours[0].get());
     {
         let f = f32::from_bits;
@@ -26,6 +26,6 @@ pub fn draw_marker(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
             hud.block.marker_k[1].get(),
         );
         hud.block.fistp_scratch.set(x);
-        crate::hud::add_sprite::add_sprite(frame, hud, x, 0, rect_place(hud, RECT))
+        crate::hud::add_sprite::add_sprite(frame, hud, pen, x, 0, rect_place(hud, RECT))
     }
 }

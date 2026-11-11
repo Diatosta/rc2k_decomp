@@ -16,14 +16,12 @@ pub fn set_up_lit_engine(race: &Race, scene: &crate::scene::owner::Scene) -> Res
     crate::race::find_present_courses::find_present_courses(race, scene)?;
     // `g_lightLowest`, `g_lightHighest`, `g_lightLevel`, `g_lightStrength`,
     // `dword_635094`, `dword_635098`.
-    let light = &crate::race::view_scratch::front_end().light;
+    let scratch = crate::race::view_scratch::front_end();
+    let light = &scratch.light;
     light.light_lowest.set(0x50u32);
     light.light_highest.set(0xFFu32);
     light.light_level.set(0xB4u32);
-    crate::race::view_scratch::front_end()
-        .object
-        .light_strength
-        .set(0xB4u32);
+    scratch.object.light_strength.set(0xB4u32);
     light.light_turns[0].set(0x6Eu32);
     light.light_turns[1].set(0x1Eu32);
     crate::scene::fill_light_tables::fill_light_tables(scene, race)?;

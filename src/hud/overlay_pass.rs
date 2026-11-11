@@ -11,7 +11,7 @@
 //! Caller: `race::show_frame` (0x454786). a call by address goes through `routes.rs`.
 
 use crate::errors::Refused;
-use crate::hud::owner::Hud;
+use crate::hud::owner::{Hud, Pen};
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 
@@ -51,7 +51,11 @@ pub fn overlay_pass(hud: &Hud, race: &Race) -> Result<(), Refused> {
             }
         }
     }
-    let done = crate::hud::draw_hud::draw_hud(&race.frame, hud);
+    let scratch = crate::race::view_scratch::front_end();
+    let system = crate::system::owner::system();
+    let polygons = &scratch.polygon;
+    let pen = Pen { polygons, system };
+    let done = crate::hud::draw_hud::draw_hud(&race.frame, hud, pen);
     race.frame.panel_and_overlay.panel.hud_flags[1].set(kept[1]);
     race.frame.panel_and_overlay.panel.hud_flags[0].set(kept[0]);
     done?;
@@ -59,9 +63,9 @@ pub fn overlay_pass(hud: &Hud, race: &Race) -> Result<(), Refused> {
     crate::scene::full_view_window::full_view_window(race);
     crate::scene::set_render_state::set_render_state(3, 3);
     // Read by the next frame's first view (`view_scratch::filter_input`) and the menus.
-    crate::scene::polygon_work::front_end().plain_first.set(1);
-    crate::scene::polygon_work::front_end().plain_second.set(1);
-    crate::hud::draw_view_strips::draw_view_strips(race)?;
+    polygons.plain_first.set(1);
+    polygons.plain_second.set(1);
+    crate::hud::draw_view_strips::draw_view_strips(race, scratch, system)?;
     depth_buffer(false);
     crate::scene::set_filters::set_filters();
     Ok(())

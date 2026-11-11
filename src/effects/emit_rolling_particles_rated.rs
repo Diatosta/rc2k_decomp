@@ -1,4 +1,4 @@
-//! `effects::emit_particle_21` (0x4CCA58, a chunk of `effects::emit_wheel_particles` entered
+//! `effects::emit_rolling_particles_rated` (0x4CCA58, a chunk of `effects::emit_wheel_particles` entered
 //! from the kind 1 chunk when the kind-1 choice is not 0): one ring entry of kind 0x15 for the
 //! wheel kind 1, when the rate gate passes.
 //!
@@ -72,7 +72,7 @@ fn refusal(
     })
 }
 
-pub fn emit_particle_21(
+pub fn emit_rolling_particles_rated(
     particles: &Particles,
     ring: &Ring,
     wheel: &MarkRecord,
@@ -169,10 +169,10 @@ pub fn emit_particle_21(
     Ok(())
 }
 
-/// Kind 0x15's emitter variables (`emit_particle_21`) (IDA 0x93A312 .. 0x93A39A).
+/// Kind 0x15's emitter variables (`emit_rolling_particles_rated`) (IDA 0x93A312 .. 0x93A39A).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
-pub struct Kind21Set {
+pub struct RollingRatedSet {
     /// 0x93A312: `flt_93A312` .. `flt_93A31E`: the rate's factors
     pub rate_k: [Float; 4],
     /// 0x93A322: `dword_93A322`: the side's random
@@ -189,10 +189,10 @@ pub struct Kind21Set {
     pub _gap_93a356: Bytes<68>,
 }
 
-impl Kind21Set {
+impl RollingRatedSet {
     /// The values the game starts with (the image's bytes).
     pub const fn new() -> Self {
-        Kind21Set {
+        RollingRatedSet {
             rate_k: [
                 Float::new(65.336),
                 Float::new(0.00002),
@@ -225,7 +225,7 @@ impl Kind21Set {
     }
 }
 
-impl Kind21Set {
+impl RollingRatedSet {
     pub const START: usize = 0x93A312;
     pub const LEN: usize = 0x88;
 }
@@ -244,23 +244,35 @@ mod kind21_set_tests {
 
     #[test]
     fn kind21_set_starts_as_the_games() {
-        assert_eq!(size_of::<Kind21Set>(), Kind21Set::LEN);
+        assert_eq!(size_of::<RollingRatedSet>(), RollingRatedSet::LEN);
         assert!(
             bytes(&crate::effects::owner::EFFECTS.particles.kind21_set)
-                == crate::moved::image_bytes(Kind21Set::START, Kind21Set::LEN),
+                == crate::moved::image_bytes(RollingRatedSet::START, RollingRatedSet::LEN),
             "KIND21_SET starts differently from the image"
         );
-        assert_eq!(offset_of!(Kind21Set, rate_k), 0x93A312 - Kind21Set::START);
         assert_eq!(
-            offset_of!(Kind21Set, side_random),
-            0x93A322 - Kind21Set::START
+            offset_of!(RollingRatedSet, rate_k),
+            0x93A312 - RollingRatedSet::START
         );
-        assert_eq!(offset_of!(Kind21Set, lift), 0x93A326 - Kind21Set::START);
-        assert_eq!(offset_of!(Kind21Set, motion_k), 0x93A32A - Kind21Set::START);
         assert_eq!(
-            offset_of!(Kind21Set, spin_random),
-            0x93A34E - Kind21Set::START
+            offset_of!(RollingRatedSet, side_random),
+            0x93A322 - RollingRatedSet::START
         );
-        assert_eq!(offset_of!(Kind21Set, size_k), 0x93A352 - Kind21Set::START);
+        assert_eq!(
+            offset_of!(RollingRatedSet, lift),
+            0x93A326 - RollingRatedSet::START
+        );
+        assert_eq!(
+            offset_of!(RollingRatedSet, motion_k),
+            0x93A32A - RollingRatedSet::START
+        );
+        assert_eq!(
+            offset_of!(RollingRatedSet, spin_random),
+            0x93A34E - RollingRatedSet::START
+        );
+        assert_eq!(
+            offset_of!(RollingRatedSet, size_k),
+            0x93A352 - RollingRatedSet::START
+        );
     }
 }

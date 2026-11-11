@@ -7,7 +7,7 @@
 
 use crate::errors::Refused;
 use crate::hud::draw_stage_bar::*;
-use crate::hud::owner::Hud;
+use crate::hud::owner::{Hud, Pen};
 use crate::race::owner_frame::Frame;
 
 /// How far layout 2's bars lie below layout 1's.
@@ -15,10 +15,11 @@ pub const STAGE_BARS_DROP_2: u32 = 0x11E;
 
 /// The two players' bars `dy` lower (see the header).
 // Converted: `rc2k_core::hud::stage_bars` (through `draw_stage_bar::bars`)
-pub fn draw_stage_bars(frame: &Frame, hud: &Hud, dy: u32) -> Result<(), Refused> {
+pub fn draw_stage_bars(frame: &Frame, hud: &Hud, pen: Pen, dy: u32) -> Result<(), Refused> {
     bars(
         frame,
         hud,
+        pen,
         &[
             &frame.panel_and_overlay.overlay.overlay_part_kinds_a,
             &frame.panel_and_overlay.overlay.overlay_part_kinds_b,

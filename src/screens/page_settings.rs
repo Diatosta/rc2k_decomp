@@ -69,14 +69,23 @@ fn set_item(items: &[crate::menu::menus_store::MenuItem], n: u32, v: u32) -> Res
 
 /// The stage record of the event's stage table `a`, `b` (its +0x38 the page's value), and the record + `c` x
 /// 0xA4 the line is about.
-fn stage_record(a: u32, b: u32, c: u32) -> Result<(RecordTable, RecordRef), BadInput> {
-    let base = system().records.stage_tables.group_event_table(a, b)?;
+fn stage_record(
+    stages: &crate::records::stages_store::StageTables,
+    a: u32,
+    b: u32,
+    c: u32,
+) -> Result<(RecordTable, RecordRef), BadInput> {
+    let base = stages.group_event_table(a, b)?;
     Ok((base, crate::records::stages_store::row(base, c)?))
 }
 
 /// What both stage pages read through: refused before anything.
-fn stage_refuses(a: u32, b: u32) -> Result<(), Refused> {
-    system().records.stage_tables.group_event_table(a, b)?;
+fn stage_refuses(
+    stages: &crate::records::stages_store::StageTables,
+    a: u32,
+    b: u32,
+) -> Result<(), Refused> {
+    stages.group_event_table(a, b)?;
     Ok(())
 }
 
@@ -89,14 +98,15 @@ pub fn stage_options_texts(menus: &Menus) -> Result<(), Refused> {
         menus.play.champ_view.switch_f8.get(),
         menus.tables.captions.shown_group.get(),
     );
-    stage_refuses(a, b)?;
+    let stages = &system().records.stage_tables;
+    stage_refuses(stages, a, b)?;
     // The logic is in `rc2k_core::screens::page_values` (the items and the caption).
     use rc2k_core::screens::page_values::{stage_options_caption, stage_options_items};
     let items = menus.tables.menus.view_best_times.id().items();
     let (first, second) = stage_options_items(a, menus.play.champ_view.switch_fc.get());
     set_item(items, 1, first)?;
     set_item(items, 2, second)?;
-    let (base, record) = stage_record(a, b, menus.tables.captions.shown_stage.get())?;
+    let (base, record) = stage_record(stages, a, b, menus.tables.captions.shown_stage.get())?;
     set_item(items, 3, base.title()?)?;
     stage_line(0x481, record)?;
     let mut caption = Vec::new();
@@ -121,7 +131,8 @@ pub fn stage_choice_texts(menus: &Menus) -> Result<(), Refused> {
         menus.screens.event.stage_group.get(),
         menus.screens.event.stage_sub.get(),
     );
-    stage_refuses(a, b)?;
+    let stages = &system().records.stage_tables;
+    stage_refuses(stages, a, b)?;
     // Item 1 of the "menu" the head points to (the labels: the slip in `notes/bugs.md`).
     let item_1 = crate::menu::menus_store::labels_slot(
         menus,
@@ -140,7 +151,7 @@ pub fn stage_choice_texts(menus: &Menus) -> Result<(), Refused> {
             "a group title",
         )?,
     )?;
-    let (base, record) = stage_record(a, b, menus.screens.event.stage_number.get())?;
+    let (base, record) = stage_record(stages, a, b, menus.screens.event.stage_number.get())?;
     item_1.write::<u32>(base.title()?, "a menu item")?;
     stage_line(0x482, record)
 }
