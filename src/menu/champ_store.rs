@@ -54,9 +54,9 @@ pub struct ChampView {
     /// this is 1 while it is taken (`menu::set_up_front_end`): the race's rivals dword
     /// (`RACE_STATE.settings.rivals`, `RACE_VARS.rivals`) copies it, 1 meaning the summary.
     pub summary: Dword,
-    /// `dword_7556F8`: A stage page switch (`menu::toggle_7556f8`).
+    /// `dword_7556F8`: A stage page switch (`OptionSwitch::StageRecordsSet`).
     pub switch_f8: Dword,
-    /// `dword_7556FC`: A stage page switch (`menu::toggle_7556fc`).
+    /// `dword_7556FC`: A stage page switch (`OptionSwitch::StageRecordsAlt`).
     pub switch_fc: Dword,
     /// `dword_755700`: 2 a championship's, 3 a record's (`menu::stage_choice`).
     pub stage_mode: Dword,

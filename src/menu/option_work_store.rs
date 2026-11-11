@@ -10,13 +10,13 @@ use crate::session::Dword;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct OptionWork {
-    /// `dword_755640`: A visual page switch (a copy of `dword_4F50D0`; `menu::toggle_755640`).
+    /// `dword_755640`: A visual page switch (a copy of `dword_4F50D0`; `OptionSwitch::Mipmapping`).
     pub switch_0: Dword,
     /// `dword_755644`: A visual page switch (a copy of `dword_4F50CC`).
     pub switch_1: Dword,
     /// `dword_755648`: Set when the screen mode was changed (`menu::option_steps`).
     pub mode_changed: Dword,
-    /// `dword_75564C`: The screen modes' switch (`menu::toggle_75564c`).
+    /// `dword_75564C`: The screen modes' switch (`OptionSwitch::ScreenModeCard`).
     pub modes_switch: Dword,
     /// `dword_755650`: The graphics page's lens flare option, work copy (the race's `lens_flare`).
     pub lens_flare: Dword,

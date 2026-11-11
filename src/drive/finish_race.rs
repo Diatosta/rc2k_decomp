@@ -12,9 +12,8 @@ use crate::errors::{BadInput, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::effects_settings_store::EFFECTS_SETTINGS;
 use crate::race::owner::{RACE, Race, race};
-use crate::race::settings_copy::StepOperand;
-use crate::race::settings_copy::var;
 use crate::race::view_vars_store::ViewVars;
+use crate::session::Dword;
 use rc2k_core::drive::finish_routine::{self, Set, Var};
 
 fn log_text(text: &std::ffi::CStr) {
@@ -26,30 +25,30 @@ fn log_number(v: u32) {
 }
 
 /// A variable's place.
-fn var(v: Var) -> StepOperand {
+fn var(v: Var) -> &'static Dword {
     match v {
-        Var::D60101C => var!(RACE.physics.split_tables.arcade_kind),
-        Var::D621514 => var!(crate::race::owner::RACE.shared.switches.editor_mode),
-        Var::D623854 => var!(crate::race::owner::RACE.shared.vars.direction),
-        Var::D6235FC => var!(crate::race::owner::RACE.shared.vars.car_tyres[0]),
-        Var::RaceMode => var!(crate::race::owner::RACE.shared.vars.run_kind),
-        Var::D6238A4 => var!(crate::race::owner::RACE.shared.vars.split),
-        Var::RaceCars => var!(crate::race::owner::RACE.shared.view.players),
-        Var::D63DB90 => var!(crate::race::owner::RACE.shared.view.race_cars),
-        Var::D6238A8 => var!(crate::race::owner::RACE.shared.vars.settings_words[0]),
-        Var::D6238AC => var!(crate::race::owner::RACE.shared.vars.settings_words[1]),
-        Var::D6238B0 => var!(crate::race::owner::RACE.shared.vars.settings_words[2]),
-        Var::D6238B4 => var!(crate::race::owner::RACE.shared.vars.settings_words[3]),
-        Var::D6238B8 => var!(crate::race::owner::RACE.shared.vars.settings_words[4]),
-        Var::D621890 => var!(crate::race::owner::RACE.shared.switches.view_marks_on),
-        Var::D6238CC => var!(crate::race::owner::RACE.shared.vars.race_level),
-        Var::D6238D0 => var!(crate::race::owner::RACE.shared.vars.race_stage),
-        Var::D64BB18 => StepOperand::Var(|| &race().replay.finish.no_place),
-        Var::D5C2F88 => var!(EFFECTS_SETTINGS.race_done),
+        Var::D60101C => &RACE.physics.split_tables.arcade_kind,
+        Var::D621514 => &crate::race::owner::RACE.shared.switches.editor_mode,
+        Var::D623854 => &crate::race::owner::RACE.shared.vars.direction,
+        Var::D6235FC => &crate::race::owner::RACE.shared.vars.car_tyres[0],
+        Var::RaceMode => &crate::race::owner::RACE.shared.vars.run_kind,
+        Var::D6238A4 => &crate::race::owner::RACE.shared.vars.split,
+        Var::RaceCars => &crate::race::owner::RACE.shared.view.players,
+        Var::D63DB90 => &crate::race::owner::RACE.shared.view.race_cars,
+        Var::D6238A8 => &crate::race::owner::RACE.shared.vars.settings_words[0],
+        Var::D6238AC => &crate::race::owner::RACE.shared.vars.settings_words[1],
+        Var::D6238B0 => &crate::race::owner::RACE.shared.vars.settings_words[2],
+        Var::D6238B4 => &crate::race::owner::RACE.shared.vars.settings_words[3],
+        Var::D6238B8 => &crate::race::owner::RACE.shared.vars.settings_words[4],
+        Var::D621890 => &crate::race::owner::RACE.shared.switches.view_marks_on,
+        Var::D6238CC => &crate::race::owner::RACE.shared.vars.race_level,
+        Var::D6238D0 => &crate::race::owner::RACE.shared.vars.race_stage,
+        Var::D64BB18 => &race().replay.finish.no_place,
+        Var::D5C2F88 => &EFFECTS_SETTINGS.race_done,
         // View record 6's first two angles (the finish camera's).
-        Var::D606744 => StepOperand::Var(|| &ViewVars::record(6).angles[0]),
-        Var::D606748 => StepOperand::Var(|| &ViewVars::record(6).angles[1]),
-        Var::D63DB84 => var!(crate::race::owner::RACE.shared.view.after_credits),
+        Var::D606744 => &ViewVars::record(6).angles[0],
+        Var::D606748 => &ViewVars::record(6).angles[1],
+        Var::D63DB84 => &crate::race::owner::RACE.shared.view.after_credits,
     }
 }
 

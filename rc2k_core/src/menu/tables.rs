@@ -11,6 +11,7 @@
 //! for the changeover: the screens still store the game's addresses in the game's
 //! variables, and `menu_at` / `list_at` turn such an address into its table.
 
+pub use super::item_params::{EventStart, OptionSwitch, StageCounter, VolumeKind};
 pub use super::tables_data::{ItemFn, LISTS, MENUS, MenuFont, ScreenFn};
 
 /// A menu: its labels (texts that are not items) and its items, without the -1 dwords

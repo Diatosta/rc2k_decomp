@@ -1335,14 +1335,24 @@ mod tests {
         let nobody = free("nobody");
         let _ = find_sessions("127.0.0.1", nobody, application);
         std::thread::sleep(Duration::from_millis(200));
-        let port = free("the session");
         let desc = Desc {
             application,
             instance: [0x33; 16],
             name: "found".into(),
             ..Default::default()
         };
-        let session = Session::host(desc, port, Arc::new(quiet)).expect("a hosted session");
+        // A port free a moment ago can be taken before the host binds it (other tests and
+        // programs on the machine): another port then, a few times.
+        let (session, port) = (0..10)
+            .find_map(|_| {
+                let port = free("the session");
+                match Session::host(desc.clone(), port, Arc::new(quiet)) {
+                    Ok(session) => Some((session, port)),
+                    Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => None,
+                    Err(e) => panic!("a hosted session: {e}"),
+                }
+            })
+            .expect("a hosted session on one of ten free ports");
         let mut found = Vec::new();
         for _ in 0..20 {
             found = find_sessions("127.0.0.1", port, application);

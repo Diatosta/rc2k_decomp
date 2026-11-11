@@ -14,7 +14,7 @@ pub enum Championship {
 }
 
 /// The seats: how many players, and the split screen.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Seats {
     One,
     Split,

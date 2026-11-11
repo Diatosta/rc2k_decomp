@@ -25,7 +25,7 @@ pub fn play_tune(n: u32) {
         n,
         options.music_volume.get(),
         options.race_music_volume.get(),
-        options.name_switch.get() == 1,
+        options.race_music_on.get() == 1,
     ) {
         music(m);
     }

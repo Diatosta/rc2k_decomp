@@ -1037,8 +1037,8 @@ impl SettingsApplied {
 pub struct SoundOptions {
     /// +0 (0x5180F0) `dword_5180F0`: kept in `var\ral.dat` (`saves::load_options`), 1 at start; read and written by no other code, so what it sets is unknown.
     pub unread_option_f0: Dword,
-    /// `dword_5180F4`: the driver names switch (`menu::toggle_5180f4`), kept in `var\ral.dat`.
-    pub name_switch: Dword,
+    /// `dword_5180F4`: the race music on (1) or off: tune 8, the race music, plays only while it is 1 (`sound::play_tune`); the sound page's switch (`OptionSwitch::RaceMusicOn`), kept in `var\ral.dat`.
+    pub race_music_on: Dword,
     /// `g_tuneTurn`: which of tunes 10 .. 15 the next tune 0xA is (0 .. 5), kept.
     pub tune_turn: Dword,
     /// `g_musicVolume`, kept.
@@ -1051,7 +1051,7 @@ impl SoundOptions {
     pub const fn new() -> Self {
         SoundOptions {
             unread_option_f0: Dword::new(1),
-            name_switch: Dword::new(0),
+            race_music_on: Dword::new(0),
             tune_turn: Dword::new(0),
             music_volume: Dword::new(0x20),
             race_music_volume: Dword::new(0x20),

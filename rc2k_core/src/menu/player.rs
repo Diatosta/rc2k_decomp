@@ -394,7 +394,7 @@ layout! {
 }
 
 /// A setting the players' pages change.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Setting {
     /// 0 .. 0x27, round.
     Nationality,

@@ -17,6 +17,7 @@ pub mod films;
 pub mod finish;
 pub mod flow;
 pub mod inspection;
+pub mod item_params;
 pub mod items;
 pub mod keys;
 pub mod leaving;

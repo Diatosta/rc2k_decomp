@@ -5,10 +5,8 @@ use crate::drive::replay_frames_store::ReplayFrames;
 use crate::race::groups_store::{CarsAndReplay, ViewerAndKinds};
 use crate::race::replay_path::LAST_RACE_LEN;
 use crate::race::seal_store::SealWork;
-use crate::race::settings_copy::{StepOperand, graham_to_shaun, shaun_to_graham};
 use crate::race::viewer_state_store::ReplayViewBlock;
 use crate::session::{Bytes, Dword, with_runs};
-use std::sync::LazyLock;
 
 /// The race's replay state (step 11, owned state: the stores move in as fields).
 pub struct Replay {
@@ -26,10 +24,6 @@ pub struct Replay {
     pub seal_work: SealWork,
     /// `aVarTmprpl`: the last race's replay file's name (`race::replay_path`).
     pub last_race: [u8; LAST_RACE_LEN],
-    /// `race::copy_settings_in`'s steps, made on first use (`race::settings_copy`).
-    pub graham_to_shaun: LazyLock<Vec<rc2k_core::race::settings_copy::Step<StepOperand>>>,
-    /// `race::copy_settings_out`'s steps, made on first use (`race::settings_copy`).
-    pub shaun_to_graham: LazyLock<Vec<rc2k_core::race::settings_copy::Step<StepOperand>>>,
     /// The cars' blocks and the replay's work (`race::groups_store`).
     pub cars_and_replay: CarsAndReplay,
     /// The viewer's panel .. the kinds' tables (`race::groups_store`).
@@ -46,8 +40,6 @@ impl Replay {
             seal_key: Dword::new(0),
             seal_work: SealWork::new(),
             last_race: with_runs(&[(0, b"var\\tmprpl\0")]),
-            graham_to_shaun: LazyLock::new(graham_to_shaun),
-            shaun_to_graham: LazyLock::new(shaun_to_graham),
             cars_and_replay: CarsAndReplay::new(),
             viewer_and_kinds: ViewerAndKinds::new(),
         }

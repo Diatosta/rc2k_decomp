@@ -130,7 +130,7 @@ let menus = menus();
         Piece::whole(&audio.state.race_sound_mode),                     // the race's sound mode
         Piece::whole(&audio.state.master_volume),                       // the master volume
         Piece::whole(&crate::sound::owner::sound().menu.options.unread_option_f0),                     // a sound option kept in the file and read by no other code
-        Piece::whole(&crate::sound::owner::sound().menu.options.name_switch),                 // the driver names switch
+        Piece::whole(&crate::sound::owner::sound().menu.options.race_music_on),                 // the race music switch
         Piece::whole(&crate::sound::owner::sound().menu.options.tune_turn),                   // which tune comes next
         Piece::whole(&crate::sound::owner::sound().menu.options.music_volume),                // the music volume
         Piece::whole(&crate::sound::owner::sound().menu.options.race_music_volume),           // the race music's volume

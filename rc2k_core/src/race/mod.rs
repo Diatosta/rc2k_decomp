@@ -24,7 +24,6 @@ pub mod quick_sort;
 pub mod replay;
 pub mod results;
 pub mod seal;
-pub mod settings_copy;
 pub mod shadow;
 pub mod skids;
 pub mod sound_objects;

@@ -21,7 +21,7 @@ pub fn draw_volume_settings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<()
     let id = crate::sound::owner::sound()
         .menu
         .options
-        .name_switch
+        .race_music_on
         .get()
         .wrapping_add(0x56D);
     // g_masterVolumeShown, then dword_755688 .. dword_7556A0.

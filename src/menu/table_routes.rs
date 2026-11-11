@@ -32,45 +32,12 @@ use crate::menu::learn_bindings;
 use crate::menu::load_championship_loop;
 use crate::menu::load_championship_table_loop;
 use crate::menu::lower_sensitivity;
-use crate::menu::menu_sounds_a_volume_down;
-use crate::menu::menu_sounds_a_volume_up;
-use crate::menu::menu_sounds_b_volume_down;
-use crate::menu::menu_sounds_b_volume_up;
-use crate::menu::music_volume_down;
-use crate::menu::music_volume_up;
 use crate::menu::network_rally_loop;
 use crate::menu::new_simulation_loop;
 use crate::menu::next_stage_loop;
-use crate::menu::option_items::master_volume_down;
-use crate::menu::option_items::master_volume_up;
-use crate::menu::option_items::menu_sounds_volume_down;
-use crate::menu::option_items::menu_sounds_volume_up;
-use crate::menu::option_items::next_75880e;
-use crate::menu::option_items::next_758812;
-use crate::menu::option_items::next_audio_quality;
-use crate::menu::option_items::previous_75880e;
-use crate::menu::option_items::previous_758812;
-use crate::menu::option_items::previous_audio_quality;
-use crate::menu::option_items::previous_screen_mode;
-use crate::menu::option_items::race_music_volume_down;
-use crate::menu::option_items::race_music_volume_up;
-use crate::menu::option_items::race_sounds_volume_down;
-use crate::menu::option_items::race_sounds_volume_up;
-use crate::menu::option_items::toggle_5180f4;
-use crate::menu::option_items::toggle_7556f8;
-use crate::menu::option_items::toggle_7556fc;
-use crate::menu::option_items::toggle_75564c;
-use crate::menu::option_items::toggle_75565c;
-use crate::menu::option_items::toggle_755640;
-use crate::menu::option_items::toggle_755644;
-use crate::menu::option_items::toggle_755650;
-use crate::menu::option_items::toggle_755660;
-use crate::menu::option_items::toggle_755668;
-use crate::menu::option_items::toggle_a3d;
-use crate::menu::option_items::toggle_channels;
-use crate::menu::option_items::toggle_dolby;
-use crate::menu::option_items::toggle_ds3d;
-use crate::menu::option_items::toggle_eax;
+use crate::menu::option_items::{
+    self, next_audio_quality, previous_audio_quality, previous_screen_mode,
+};
 use crate::menu::option_steps::{
     START_PICK_A, START_PICK_B, next_screen_mode, step_texture_setting,
 };
@@ -103,48 +70,18 @@ use crate::menu::replay_items;
 use crate::menu::save_championship_loop;
 use crate::menu::save_setup_loop;
 use crate::menu::simple_select_players_loop;
-use crate::menu::single_rally;
-use crate::menu::single_rally_four;
-use crate::menu::single_rally_split;
-use crate::menu::single_rally_three;
-use crate::menu::single_rally_two;
 use crate::menu::slideshow_loop;
-use crate::menu::speech_volume_down;
-use crate::menu::speech_volume_up;
 use crate::menu::stage_choice;
 use crate::menu::stage_range_caption;
 use crate::menu::stage_rows;
 use crate::menu::stage_view_steps;
-use crate::menu::start_a8_four;
-use crate::menu::start_a8_one;
-use crate::menu::start_a8_split;
-use crate::menu::start_a8_three;
-use crate::menu::start_a8_two;
-use crate::menu::start_championship_four;
-use crate::menu::start_championship_one;
-use crate::menu::start_championship_split;
-use crate::menu::start_championship_three;
-use crate::menu::start_championship_two;
+use crate::menu::start_events;
 use crate::menu::start_rally_loop;
 use crate::menu::step_carousel;
 use crate::menu::step_items;
 use crate::menu::switch_stage_group;
 use crate::menu::table_calls;
-use crate::menu::time_trial_four;
-use crate::menu::time_trial_one;
 use crate::menu::time_trial_select_players_loop;
-use crate::menu::time_trial_split;
-use crate::menu::time_trial_three;
-use crate::menu::time_trial_two;
-use crate::menu::toggle_car_info;
-use crate::menu::toggle_driver_info;
-use crate::menu::toggle_map_area;
-use crate::menu::toggle_message_display;
-use crate::menu::toggle_metric_units;
-use crate::menu::toggle_pace_notes;
-use crate::menu::toggle_progress_bar;
-use crate::menu::toggle_rear_mirror;
-use crate::menu::toggle_rev_counter;
 use crate::menu::view_best_scores_loop;
 use crate::menu::view_best_times_loop;
 use crate::menu::view_courses_loop;
@@ -226,7 +163,6 @@ use crate::service::load_setup_values;
 use crate::service::next_setup_page;
 use crate::service::toggle_repair_choice;
 use crate::text::draw_text::GameCanvas;
-use rc2k_core::menu::player::Setting;
 use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 
 /// Runs item function `f` with what the item hands it (`c`).
@@ -234,116 +170,26 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
     let race = crate::race::owner::race();
     let sound = crate::sound::owner::sound();
     match f {
-        ItemFn::NextNationality => step_items::player_setting(Setting::Nationality, true),
-        ItemFn::PreviousNationality => step_items::player_setting(Setting::Nationality, false),
-        ItemFn::NextView => step_items::player_setting(Setting::View, true),
-        ItemFn::PreviousView => step_items::player_setting(Setting::View, false),
-        ItemFn::NextSecondView => step_items::player_setting(Setting::SecondView, true),
-        ItemFn::PreviousSecondView => step_items::player_setting(Setting::SecondView, false),
+        ItemFn::StepSetting { setting, up } => step_items::player_setting(setting, up),
+        ItemFn::Toggle(setting) => step_items::player_setting(setting, true),
+        ItemFn::Volume { which, up } => option_items::volume(menus, which, up),
+        ItemFn::OptionSwitch(which) => option_items::switch(which),
+        ItemFn::StageCounter { which, up } => option_items::stage_counter(which, up),
+        ItemFn::ChooseKey(row) => {
+            choose_key::choose_key(&menus.screens, u32::from(row));
+            Ok(())
+        }
+        ItemFn::LearnBinding(button) => {
+            learn_bindings::learn_binding(u32::from(button));
+            Ok(())
+        }
+        ItemFn::PlayerCarSpecs(n) => player_actions::player_car_specs(menus, u32::from(n)),
+        ItemFn::ArcadeLevel(level) => {
+            arcade_levels::arcade_level(menus, &menus.play, u32::from(level))
+        }
+        ItemFn::StartEvent(event, seats) => start_events::start_event_item(menus, event, seats),
         ItemFn::FlipCodriver => flip_codriver::flip_codriver().map(|_| ()),
         ItemFn::BeginPlayerName => begin_player_name::begin_player_name(menus).map(|_| ()),
-        ItemFn::ToggleMapArea => toggle_map_area::toggle_map_area().map(|_| ()),
-        ItemFn::ToggleRearMirror => toggle_rear_mirror::toggle_rear_mirror().map(|_| ()),
-        ItemFn::ToggleRevCounter => toggle_rev_counter::toggle_rev_counter().map(|_| ()),
-        ItemFn::ToggleCarInfo => toggle_car_info::toggle_car_info().map(|_| ()),
-        ItemFn::ToggleMessageDisplay => {
-            toggle_message_display::toggle_message_display().map(|_| ())
-        }
-        ItemFn::ToggleProgressBar => toggle_progress_bar::toggle_progress_bar().map(|_| ()),
-        ItemFn::ToggleDriverInfo => toggle_driver_info::toggle_driver_info().map(|_| ()),
-        ItemFn::TogglePaceNotes => toggle_pace_notes::toggle_pace_notes().map(|_| ()),
-        ItemFn::ToggleMetricUnits => toggle_metric_units::toggle_metric_units().map(|_| ()),
-        ItemFn::Toggle5180f4 => toggle_5180f4::run(),
-        ItemFn::MasterVolumeDown => master_volume_down::run(),
-        ItemFn::MasterVolumeUp => master_volume_up::run(),
-        ItemFn::MusicVolumeDown => {
-            music_volume_down::run(menus);
-            Ok(())
-        }
-        ItemFn::MusicVolumeUp => {
-            music_volume_up::run(menus);
-            Ok(())
-        }
-        ItemFn::RaceMusicVolumeDown => race_music_volume_down::run(),
-        ItemFn::RaceMusicVolumeUp => race_music_volume_up::run(),
-        ItemFn::RaceSoundsVolumeDown => race_sounds_volume_down::run(),
-        ItemFn::RaceSoundsVolumeUp => race_sounds_volume_up::run(),
-        ItemFn::SpeechVolumeDown => {
-            speech_volume_down::run(menus);
-            Ok(())
-        }
-        ItemFn::SpeechVolumeUp => {
-            speech_volume_up::run(menus);
-            Ok(())
-        }
-        ItemFn::MenuSoundsAVolumeDown => {
-            menu_sounds_a_volume_down::run(menus);
-            Ok(())
-        }
-        ItemFn::MenuSoundsAVolumeUp => {
-            menu_sounds_a_volume_up::run(menus);
-            Ok(())
-        }
-        ItemFn::MenuSoundsBVolumeDown => {
-            menu_sounds_b_volume_down::run(menus);
-            Ok(())
-        }
-        ItemFn::MenuSoundsBVolumeUp => {
-            menu_sounds_b_volume_up::run(menus);
-            Ok(())
-        }
-        ItemFn::MenuSoundsVolumeDown => menu_sounds_volume_down::run(),
-        ItemFn::MenuSoundsVolumeUp => menu_sounds_volume_up::run(),
-        ItemFn::Toggle7556f8 => toggle_7556f8::run(),
-        ItemFn::Toggle7556fc => toggle_7556fc::run(),
-        ItemFn::Previous75880e => previous_75880e::run(),
-        ItemFn::Next75880e => next_75880e::run(),
-        ItemFn::Previous758812 => previous_758812::run(),
-        ItemFn::Next758812 => next_758812::run(),
-        ItemFn::ChooseKey0 => {
-            choose_key::choose_key(&menus.screens, 0);
-            Ok(())
-        }
-        ItemFn::ChooseKey1 => {
-            choose_key::choose_key(&menus.screens, 1);
-            Ok(())
-        }
-        ItemFn::ChooseKey2 => {
-            choose_key::choose_key(&menus.screens, 2);
-            Ok(())
-        }
-        ItemFn::ChooseKey3 => {
-            choose_key::choose_key(&menus.screens, 3);
-            Ok(())
-        }
-        ItemFn::ChooseKey4 => {
-            choose_key::choose_key(&menus.screens, 4);
-            Ok(())
-        }
-        ItemFn::ChooseKey5 => {
-            choose_key::choose_key(&menus.screens, 5);
-            Ok(())
-        }
-        ItemFn::ChooseKey6 => {
-            choose_key::choose_key(&menus.screens, 6);
-            Ok(())
-        }
-        ItemFn::ChooseKey7 => {
-            choose_key::choose_key(&menus.screens, 7);
-            Ok(())
-        }
-        ItemFn::ChooseKey9 => {
-            choose_key::choose_key(&menus.screens, 9);
-            Ok(())
-        }
-        ItemFn::ChooseKey10 => {
-            choose_key::choose_key(&menus.screens, 10);
-            Ok(())
-        }
-        ItemFn::ChooseKey11 => {
-            choose_key::choose_key(&menus.screens, 11);
-            Ok(())
-        }
         ItemFn::FlipGearing => Ok(flip_gearing::flip_gearing(&menus.screens)?),
         ItemFn::NextGearing => gearing_text::step_gearing(menus, true),
         ItemFn::PreviousGearing => gearing_text::step_gearing(menus, false),
@@ -362,46 +208,6 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::NextController => controller_items::next_controller().map(|_| ()),
         ItemFn::PreviousController => controller_items::previous_controller().map(|_| ()),
         ItemFn::KeepPlayerKeys => player_actions::keep_player_keys(menus),
-        ItemFn::LearnBinding1 => {
-            learn_bindings::learn_binding(1);
-            Ok(())
-        }
-        ItemFn::LearnBinding2 => {
-            learn_bindings::learn_binding(2);
-            Ok(())
-        }
-        ItemFn::LearnBinding3 => {
-            learn_bindings::learn_binding(3);
-            Ok(())
-        }
-        ItemFn::LearnBinding4 => {
-            learn_bindings::learn_binding(4);
-            Ok(())
-        }
-        ItemFn::LearnBinding5 => {
-            learn_bindings::learn_binding(5);
-            Ok(())
-        }
-        ItemFn::LearnBinding6 => {
-            learn_bindings::learn_binding(6);
-            Ok(())
-        }
-        ItemFn::LearnBinding7 => {
-            learn_bindings::learn_binding(7);
-            Ok(())
-        }
-        ItemFn::LearnBinding8 => {
-            learn_bindings::learn_binding(8);
-            Ok(())
-        }
-        ItemFn::LearnBinding9 => {
-            learn_bindings::learn_binding(9);
-            Ok(())
-        }
-        ItemFn::LearnBinding10 => {
-            learn_bindings::learn_binding(10);
-            Ok(())
-        }
         ItemFn::LowerPlayer40 => player_actions::lower_end_zone(&menus.screens),
         ItemFn::RaiseDeadZoneA => controller_items::raise_dead_zone(false),
         ItemFn::LowerPlayer44 => player_actions::lower_centre_dead_zone(&menus.screens),
@@ -472,21 +278,11 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         }
         ItemFn::PreviousStagePage => stage_view_steps::step_stage_page(menus, false, sound),
         ItemFn::NextStagePage => stage_view_steps::step_stage_page(menus, true, sound),
-        ItemFn::Player0CarSpecs => player_actions::player_car_specs(menus, 0),
-        ItemFn::Player1CarSpecs => player_actions::player_car_specs(menus, 1),
-        ItemFn::Player2CarSpecs => player_actions::player_car_specs(menus, 2),
-        ItemFn::Player3CarSpecs => player_actions::player_car_specs(menus, 3),
-        ItemFn::Toggle755640 => toggle_755640::run(),
-        ItemFn::Toggle755644 => toggle_755644::run(),
         ItemFn::PreviousScreenMode => previous_screen_mode::run(),
         ItemFn::NextScreenMode => {
             next_screen_mode(&menus.screens);
             Ok(())
         }
-        ItemFn::Toggle75564c => toggle_75564c::run(),
-        ItemFn::Toggle755650 => toggle_755650::run(),
-        ItemFn::Toggle75565c => toggle_75565c::run(),
-        ItemFn::Toggle755660 => toggle_755660::run(),
         ItemFn::PreviousTextureSetting => {
             step_texture_setting(&menus.screens, false, race);
             Ok(())
@@ -495,14 +291,8 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
             step_texture_setting(&menus.screens, true, race);
             Ok(())
         }
-        ItemFn::Toggle755668 => toggle_755668::run(),
         ItemFn::NextAudioQuality => next_audio_quality::run(),
         ItemFn::PreviousAudioQuality => previous_audio_quality::run(),
-        ItemFn::ToggleDs3d => toggle_ds3d::run(),
-        ItemFn::ToggleEax => toggle_eax::run(),
-        ItemFn::ToggleA3d => toggle_a3d::run(),
-        ItemFn::ToggleDolby => toggle_dolby::run(),
-        ItemFn::ToggleChannels => toggle_channels::run(),
         ItemFn::ViewStageDetails => item_actions::view_stage_details(menus, &menus.screens),
         ItemFn::ApplyScreenMode => apply_screen_mode::apply_screen_mode(&menus.screens),
         ItemFn::TogglePlayer3c => player_actions::toggle_controller_mode(&menus.screens),
@@ -513,8 +303,6 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
             player_actions::toggle_caption_choice(&menus.screens).map_err(Into::into)
         }
         ItemFn::ShowIntro => item_actions::show_intro(),
-        ItemFn::NextCarNumber => step_items::player_setting(Setting::RaceNumber, true),
-        ItemFn::PreviousCarNumber => step_items::player_setting(Setting::RaceNumber, false),
         ItemFn::RaiseSensitivity => raise_sensitivity::raise_sensitivity().map(|_| ()),
         ItemFn::LowerSensitivity => lower_sensitivity::lower_sensitivity().map(|_| ()),
         ItemFn::NextColourA => step_items::colour(&menus.tables, START_PICK_A, true),
@@ -587,33 +375,13 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::PreviousStageNumber => {
             stage_choice::previous_stage_number(&mut || stage_choice::draw_stage_map(menus))
         }
-        ItemFn::SingleRally => single_rally::single_rally(menus),
-        ItemFn::SingleRallySplit => single_rally_split::single_rally_split(menus),
-        ItemFn::SingleRallyTwo => single_rally_two::single_rally_two(menus),
-        ItemFn::SingleRallyThree => single_rally_three::single_rally_three(menus),
-        ItemFn::SingleRallyFour => single_rally_four::single_rally_four(menus),
         ItemFn::ArcadeSelectLevelLoop => arcade_select_level_loop::run(),
         ItemFn::StartArcade => item_actions::start_arcade(menus, &menus.play),
-        ItemFn::ArcadeLevel1 => arcade_levels::arcade_level(menus, &menus.play, 1),
-        ItemFn::ArcadeLevel2 => arcade_levels::arcade_level(menus, &menus.play, 2),
-        ItemFn::ArcadeLevel3 => arcade_levels::arcade_level(menus, &menus.play, 3),
-        ItemFn::ArcadeLevel4 => arcade_levels::arcade_level(menus, &menus.play, 4),
-        ItemFn::ArcadeLevel5 => arcade_levels::arcade_level(menus, &menus.play, 5),
-        ItemFn::TimeTrialOne => time_trial_one::time_trial_one(menus),
-        ItemFn::TimeTrialSplit => time_trial_split::time_trial_split(menus),
-        ItemFn::TimeTrialTwo => time_trial_two::time_trial_two(menus),
-        ItemFn::TimeTrialThree => time_trial_three::time_trial_three(menus),
-        ItemFn::TimeTrialFour => time_trial_four::time_trial_four(menus),
         ItemFn::TimeTrialSelectPlayersLoop => time_trial_select_players_loop::run(),
         ItemFn::InformationLoop => information_loop::run(),
         ItemFn::ViewBestTimesLoop => view_best_times_loop::run(),
         ItemFn::ViewCoursesLoop => view_courses_loop::run(),
         ItemFn::ViewBestScoresLoop => view_best_scores_loop::run(),
-        ItemFn::StartChampionshipOne => start_championship_one::start_championship_one(menus),
-        ItemFn::StartChampionshipSplit => start_championship_split::start_championship_split(menus),
-        ItemFn::StartChampionshipTwo => start_championship_two::start_championship_two(menus),
-        ItemFn::StartChampionshipThree => start_championship_three::start_championship_three(menus),
-        ItemFn::StartChampionshipFour => start_championship_four::start_championship_four(menus),
         ItemFn::PreviousStageRows => stage_rows::step_rows(menus, false, false),
         ItemFn::NextStageRows => stage_rows::step_rows(menus, false, true),
         ItemFn::PreviousStageRowsOf90 => stage_rows::step_rows(menus, true, false),
@@ -622,11 +390,6 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::ChampionshipStandings => championship_standings::championship_standings(menus),
         ItemFn::NewSimulationIfUnlocked => item_actions::new_simulation_if_unlocked(race),
         ItemFn::NewSimulationLoop => new_simulation_loop::run(),
-        ItemFn::StartA8One => start_a8_one::start_a8_one(menus),
-        ItemFn::StartA8Split => start_a8_split::start_a8_split(menus),
-        ItemFn::StartA8Two => start_a8_two::start_a8_two(menus),
-        ItemFn::StartA8Three => start_a8_three::start_a8_three(menus),
-        ItemFn::StartA8Four => start_a8_four::start_a8_four(menus),
         ItemFn::NetworkSettingsItem => settings_loop::settings_loop(),
         // (The original leaves eax the mode and the carry set: no caller reads them.)
         ItemFn::JoinNetworkGame => start_link::start_link(2),

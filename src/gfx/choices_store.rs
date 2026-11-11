@@ -17,7 +17,7 @@ pub struct ScreenChoices {
     /// 0x4F50C0: `unk_4F50C0`: 1 once the choices are made (`gfx::screen_mode_choices`).
     pub made: Dword,
     /// 0x4F50C4: `dword_4F50C4`: the video card chosen, 0 primary, 1 secondary (the page's
-    /// row 0; `menu::toggle_75564c` flips it).
+    /// row 0; `OptionSwitch::ScreenModeCard` flips it).
     pub card: Dword,
     /// 0x4F50C8: `dword_4F50C8`: the resolution chosen, its place in `list` (row 1).
     pub resolution: Dword,

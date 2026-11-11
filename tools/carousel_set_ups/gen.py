@@ -9,6 +9,9 @@ written by hand in set_up_carousel.rs.
 Historical (2026-10-25): the generated file has since been typed by hand (phase 7: `Set(&cell,
 v)`, `Run(|| &cell, v)` in place of `Store(address, v)`). Regenerating would undo that; edit
 src/scene/carousel_set_ups.rs directly.
+
+Note (2026-11-10): the Rust file was compacted by hand (`menu!` entries on `menu_ops`); this
+generator no longer matches its shape.
 """
 import json
 import sys

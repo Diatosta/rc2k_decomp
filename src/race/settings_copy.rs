@@ -1,10 +1,12 @@
 //! The race's settings copied between the front end's ("Graham's", 0x75ACxx ..) and the
 //! race's ("Shaun's") variables and car blocks, and logged: `race::copy_settings_in`
 //! (0x446EBE, "COPY GRAHAM TO SHAUN", before a race) and `race::copy_settings_out`
-//! (0x4486FB, "COPY SHAUN TO GRAHAM", after it). Both are long runs of the same few
-//! kinds of step (`Step`): the copies and logs of each of the two cars are built by loops
-//! over the gauge and setting tables, and `run` does the steps in order as the original's
-//! code does.
+//! (0x4486FB, "COPY SHAUN TO GRAHAM", after it). The original's code is two long runs of
+//! the same few kinds of step; here each is a plain function that loops over the two cars
+//! and the `GAUGES` table and does the few steps that differ by hand, in the original's
+//! order (the log's lines are in that order too). The old step-list machine is kept as a
+//! test reference (`old_machine`), against which `new_copies_match_the_machine` compares
+//! the cells written and the log text.
 
 use crate::errors::Refused;
 use crate::gfx::owner::GFX;
@@ -12,34 +14,22 @@ use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::state_store::RaceCar;
 use crate::session::{Dword, Float};
-use std::ffi::{CStr, CString};
 
-use Step::*;
-pub use rc2k_core::race::settings_copy::Kind;
-use rc2k_core::race::settings_copy::Step;
+#[cfg(test)]
+mod old_machine;
 
-/// A routine a `Call` step runs (the original's `call` at its address).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Routine {
-    /// `race::clear_player_absences` (0x449D44).
-    ClearPlayerAbsences,
-    /// `race::copy_league_table` (0x4650B7).
-    CopyLeagueTable,
-    /// `race::store_results_by_mode` (0x449957).
-    StoreResultsByMode,
-}
-
-/// An operand of the steps: one of the physics block's cells, a field of a car's block, a
-/// store's dword, or (for `Call` only) a routine.
+/// A named cell: one of the physics block's cells, a field of a car's block, or a store's
+/// dword (the front end's items and the credits race's settings name theirs by it).
 #[derive(Clone, Copy)]
 pub enum StepOperand {
-    Routine(Routine),
+    /// A cell of the physics block (the reference machine's tables).
+    #[cfg(test)]
     Cell(&'static Dword),
-    /// A float of the physics block, by its bits.
+    /// A float of the physics block, by its bits (the reference machine's tables).
+    #[cfg(test)]
     Bits(&'static Float),
     /// A dword of car block n (`CAR_BLOCKS.cars[n]`), by field (`car!`).
     CarCell(usize, fn(&Car) -> &Dword),
@@ -48,14 +38,17 @@ pub enum StepOperand {
     /// A dword of an overlay store on the race block (`var!`: `RACE_VARS.stage_number`).
     Var(fn() -> &'static Dword),
 }
-use StepOperand::{Bits, CarBits, CarCell, Cell, Var};
+#[cfg(test)]
+use StepOperand::{Bits, Cell};
+use StepOperand::{CarBits, CarCell, Var};
 
 impl StepOperand {
     /// Its dword (a float's bits).
     pub fn get(self) -> u32 {
         match self {
-            StepOperand::Routine(r) => unreachable!("{r:?} is a routine, read as a variable"),
+            #[cfg(test)]
             Cell(cell) => cell.get(),
+            #[cfg(test)]
             Bits(cell) => cell.bits(),
             CarCell(n, f) => f(&CAR_BLOCKS.cars[n]).get(),
             CarBits(n, f) => f(&CAR_BLOCKS.cars[n]).bits(),
@@ -66,8 +59,9 @@ impl StepOperand {
     /// Its dword set (a float's bits).
     pub fn set(self, v: u32) {
         match self {
-            StepOperand::Routine(r) => unreachable!("{r:?} is a routine, written as a variable"),
+            #[cfg(test)]
             Cell(cell) => cell.set(v),
+            #[cfg(test)]
             Bits(cell) => cell.set_bits(v),
             CarCell(n, f) => f(&CAR_BLOCKS.cars[n]).set(v),
             CarBits(n, f) => f(&CAR_BLOCKS.cars[n]).set_bits(v),
@@ -114,101 +108,307 @@ macro_rules! var {
 }
 pub(crate) use {car, car_bits, var};
 
-/// The game as the steps' machine: its dwords at IDA addresses, the steps' own eax and ebx
-/// (the original reads no register at entry: they start from nothing), the x87's
-/// conversions, and the logs and calls.
-struct Game<'a> {
-    race: &'a Race,
-    eax: u32,
-    ebx: u32,
+/// The effects of the copies besides moving cells: the log and the three routines the
+/// end of a copy runs. The game's is `GameEffects`; the test captures them.
+trait Effects {
+    /// A log text (`log_write`), with a line break after it if `newline`.
+    fn text(&mut self, text: &str, newline: bool);
+    /// A signed number and a line break (`log_int`).
+    fn int(&mut self, value: u32);
+    /// Eight hex digits and a line break (`log_hex8`).
+    fn hex8(&mut self, value: u32);
+    /// A float with two decimals and a line break (`log_float`).
+    fn float(&mut self, bits: u32);
+    /// `race::clear_player_absences` (0x449D44).
+    fn clear_player_absences(&mut self);
+    /// `race::copy_league_table` (0x4650B7).
+    fn copy_league_table(&mut self, race: &Race) -> Result<(), Refused>;
+    /// `race::store_results_by_mode` (0x449957).
+    fn store_results_by_mode(&mut self, race: &Race);
 }
 
-impl rc2k_core::race::settings_copy::Machine<StepOperand> for Game<'_> {
-    type Error = Refused;
-    fn get(&mut self, a: StepOperand) -> u32 {
-        a.get()
+/// The game's log and routines.
+struct GameEffects;
+
+impl Effects for GameEffects {
+    fn text(&mut self, text: &str, newline: bool) {
+        crate::logfile::log_write::log_nul(text.as_bytes(), newline, 1);
     }
-    fn set(&mut self, a: StepOperand, v: u32) {
-        a.set(v);
+    fn int(&mut self, value: u32) {
+        crate::logfile::log_int::log_int(value as i32, true, 1);
     }
-    fn eax(&self) -> u32 {
-        self.eax
+    fn hex8(&mut self, value: u32) {
+        crate::logfile::log_hex8::log_hex8(value, true, 1);
     }
-    fn set_eax(&mut self, v: u32) {
-        self.eax = v;
+    fn float(&mut self, bits: u32) {
+        crate::logfile::log_float::log_float(f32::from_bits(bits), 2, true, 1);
     }
-    fn set_ebx(&mut self, v: u32) {
-        self.ebx = v;
+    fn clear_player_absences(&mut self) {
+        crate::race::race_shell::clear_player_absences();
     }
-    fn int_to_float(&mut self, v: u32) -> u32 {
-        x87::from_int(v as i32)
+    fn copy_league_table(&mut self, race: &Race) -> Result<(), Refused> {
+        Ok(crate::race::race_shell::copy_league_table(race)?)
     }
-    fn float_to_int(&mut self, v: u32) -> u32 {
-        x87::to_int(v) as u32
+    fn store_results_by_mode(&mut self, race: &Race) {
+        crate::race::race_shell::store_results_by_mode(race);
     }
-    fn float_copy(&mut self, v: u32) -> u32 {
-        x87::loaded(v)
-    }
-    fn scaled_brake(&mut self, v: i32) -> u32 {
-        x87::int_times_to_int(v, self.race.course.numbers.brake_scale.bits()) as u32
-    }
-    fn text(&mut self, text: &'static std::ffi::CStr, nl: bool) -> Result<(), Refused> {
-        crate::logfile::log_write::log_nul(&text, nl, 1);
-        Ok(())
-    }
-    fn value(&mut self, v: u32, kind: Kind) -> Result<(), Refused> {
-        if kind == Kind::Int {
-            crate::logfile::log_int::log_int(v as i32, true, 1);
-        } else {
-            crate::logfile::log_hex8::log_hex8(v, true, 1);
+}
+
+/// `race::copy_settings_in` (0x446EBE): "COPY GRAHAM TO SHAUN".
+pub fn copy_settings_in(race: &Race) -> Result<(), Refused> {
+    copy_in(race, &mut GameEffects)
+}
+
+/// `race::copy_settings_out` (0x4486FB): "COPY SHAUN TO GRAHAM"; skipped (and logged so)
+/// while a replay is shown.
+pub fn copy_settings_out(race: &Race) -> Result<(), Refused> {
+    copy_out(race, &mut GameEffects)
+}
+
+const RULE: &str = "-------------------------------------";
+
+/// A label and its number logged on one line (`log_write`, then `log_int`).
+fn logged_int(fx: &mut impl Effects, label: &str, value: u32) {
+    fx.text(label, false);
+    fx.int(value);
+}
+
+/// Both cars' logged values `[carN.name]`: the three identity words, the 43 gauges, the
+/// eight impact marks; car 2's only when there are two players.
+fn log_cars(shared: &RaceShared, fx: &mut impl Effects) {
+    for car in 0..2 {
+        let c = &CAR_BLOCKS.cars[car];
+        let label = |name: &str| format!("[car{}.{name}]", car + 1);
+        logged_int(fx, &label("shauncarnum1"), c.car_kind.get());
+        fx.text(&label("carpartsleft"), false);
+        fx.hex8(c.parts_present.get());
+        logged_int(fx, &label("shauntyretype1"), c.tyre_kind.get());
+        for ((gauge, _), name) in GAUGES.iter().zip(GAUGE_NAMES) {
+            fx.text(&label(name), false);
+            fx.float(gauge(c).bits());
         }
-        Ok(())
+        for (n, mark) in c.impact_octant_marks.iter().enumerate() {
+            fx.text(&label(&format!("caroctdamage{n}")), false);
+            fx.float(mark.bits());
+        }
+        // The original jumps over car 2's lines unless the race has exactly two players.
+        if car == 0 && shared.view.players.get() != 2 {
+            break;
+        }
     }
-    fn float(&mut self, v: u32) -> Result<(), Refused> {
-        crate::logfile::log_float::log_float(f32::from_bits(v), 2, true, 1);
-        Ok(())
+}
+
+/// The arcade positions, logged at the end of both copies.
+fn log_arcade_positions(shared: &RaceShared, fx: &mut impl Effects) {
+    logged_int(fx, "[arcadestartposition]", shared.tables.start_place.get());
+    logged_int(
+        fx,
+        "[car1.arcadeposition]",
+        CAR_BLOCKS.cars[0].mode2_place.get(),
+    );
+    logged_int(
+        fx,
+        "[onerace.car1arcadeposition]",
+        shared.state.results.figure_000.get(),
+    );
+}
+
+/// The front end's settings into the race's (`copy_settings_in`), in the original's order.
+fn copy_in(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
+    let shared = &race.shared;
+    let (settings, results, vars, view) = (
+        &shared.state.settings,
+        &shared.state.results,
+        &shared.vars,
+        &shared.view,
+    );
+    fx.text(RULE, true);
+    fx.text("COPY GRAHAM TO SHAUN", true);
+
+    // The race's variables take the front end's settings first.
+    vars.no_replay.set(settings.no_replay.get());
+    vars.rivals.set(settings.rivals.get());
+    vars.race_car_kinds[0].set(settings.car_kind_current.get());
+    vars.race_car_kinds[1].set(settings.car_kind_first.get());
+    view.players.set(settings.race_mode.get());
+    vars.split.set(settings.kept.get());
+    vars.stage_number.set(settings.stage.get());
+    vars.direction.set(settings.direction.get());
+    vars.race_level.set(results.race_level.get());
+    vars.race_stage.set(results.race_stage.get());
+    // The race's stage counts from 0, the front end's from 1.
+    vars.race_stage.set(vars.race_stage.get().wrapping_sub(1));
+    vars.run_kind.set(settings.run_kind.get());
+    view.race_cars.set(view.players.get());
+    vars.car_tyres[0].set(settings.cars[0].tyre.get());
+    vars.car_tyres[1].set(settings.cars[1].tyre.get());
+    vars.mip_setting.set(GFX.display.choices.mipmapping.get());
+    vars.settings_words[0].set(settings.lens_flare.get());
+    vars.settings_words[1].set(settings.reflections.get());
+    vars.settings_words[2].set(settings.car_shadows.get());
+    vars.settings_words[3].set(settings.car_detail.get());
+    vars.settings_words[4].set(settings.headlights.get());
+
+    for (label, cell) in [
+        ("[shaunnumplayers]", &view.players),
+        ("[shaunsplitmode]", &vars.split),
+        ("[shauntracknum]", &vars.stage_number),
+        ("[shauncrsdirec]", &vars.direction),
+        ("[shaunrallynumber]", &vars.race_level),
+        ("[shaunstagenumber]", &vars.race_stage),
+        ("[shaungmode]", &vars.run_kind),
+        ("[shaunnumcars]", &view.race_cars),
+        ("[shaunmipmapping]", &vars.mip_setting),
+        ("[shaunlensflare]", &vars.settings_words[0]),
+        ("[shaunreflections]", &vars.settings_words[1]),
+        ("[shauncarshadow]", &vars.settings_words[2]),
+        ("[shauncardetail]", &vars.settings_words[3]),
+        ("[shaunheadlights]", &vars.settings_words[4]),
+    ] {
+        logged_int(fx, label, cell.get());
     }
-    fn call(&mut self, a: StepOperand) -> Result<(), Refused> {
-        let race = self.race;
-        let StepOperand::Routine(routine) = a else {
-            unreachable!("a call of a variable");
-        };
-        use crate::race::race_shell::{
-            clear_player_absences, copy_league_table, store_results_by_mode,
-        };
-        {
-            match routine {
-                Routine::ClearPlayerAbsences => clear_player_absences(),
-                Routine::CopyLeagueTable => copy_league_table(race)?,
-                Routine::StoreResultsByMode => store_results_by_mode(race),
+
+    // The car blocks' settings. The brake-like settings are percentages: below 0 is 0,
+    // 100 or more is 0x100 (full), else the setting x 2.56 (the x87's product, rounded).
+    let brake_scale = race.course.numbers.brake_scale.bits();
+    for car in 0..2 {
+        let c = &CAR_BLOCKS.cars[car];
+        let s = &settings.cars[car];
+        for (field, setting) in SETTING_BRAKES {
+            let held = rc2k_core::race::cars::held_brake(setting(s).get() as i32, |v| {
+                x87::int_times_to_int(v, brake_scale) as u32
+            });
+            field(c).set(held);
+        }
+        c.gear_ratio_setting.set(s.gear_ratio.get());
+    }
+    // The first car's brake balance is turned round: 0x100 less itself.
+    let balance = &CAR_BLOCKS.cars[0].brake_balance;
+    balance.set(0x100u32.wrapping_sub(balance.get()));
+    for car in 0..2 {
+        vars.car_colours[car].set(settings.cars[car].gearing.get());
+    }
+    for car in 0..2 {
+        CAR_BLOCKS.cars[car]
+            .start_slot_value
+            .set(settings.cars[car].race_number.get());
+    }
+    for car in 0..2 {
+        let c = &CAR_BLOCKS.cars[car];
+        c.camera_view.set(settings.cars[car].view.get());
+        c.camera_blend_view.set(settings.cars[car].view.get());
+    }
+
+    let hud_bits = [&results.hud_bits_current, &results.hud_bits_first];
+    logged_int(fx, "[onerace.car1overbits]", hud_bits[0].get());
+    logged_int(fx, "[onerace.car2overbits]", hud_bits[1].get());
+    // The head-up display's option bits: the results' word, unless it is -1 (all ones);
+    // then the bits are made from the player's own on/off settings.
+    for (car, hud) in hud_bits.into_iter().enumerate() {
+        let mut bits = hud.get();
+        if bits == 0xFFFF_FFFF {
+            bits = 0;
+            for (setting, bit) in OPTION_BITS {
+                if setting(&settings.cars[car]).get() != 0 {
+                    bits |= bit;
+                }
             }
         }
-        Ok(())
+        CAR_BLOCKS.cars[car].option_bits.set(bits);
+        view.player_options[car].set(bits);
     }
+
+    // The gauges: the front end keeps them as whole numbers, the cars as floats (`fild`,
+    // `fstp`: the x87's exact conversion, so large numbers round as the original's do).
+    for car in 0..2 {
+        let c = &CAR_BLOCKS.cars[car];
+        for (gauge, setting) in GAUGES {
+            gauge(c).set_bits(x87::from_int(setting(&settings.cars[car]).get() as i32));
+        }
+        for (mark, saved) in c.impact_octant_marks.iter().zip(result_marks(shared, car)) {
+            mark.set_bits(saved.get());
+        }
+    }
+
+    CAR_BLOCKS.cars[0]
+        .parts_present
+        .set(results.flags_current.get());
+    CAR_BLOCKS.cars[1]
+        .parts_present
+        .set(results.flags_first.get());
+    shared.tables.start_place.set(results.figure_000.get());
+    CAR_BLOCKS.cars[0].mode2_place.set(results.figure_000.get());
+
+    log_cars(shared, fx);
+
+    fx.clear_player_absences();
+    for car in 0..2 {
+        CAR_BLOCKS.cars[car]
+            .stop_state
+            .set(results.results[car].result.get());
+    }
+    log_arcade_positions(shared, fx);
+    fx.copy_league_table(race)?;
+    fx.text("COPY GRAHAM TO SHAUN", true);
+    fx.text(RULE, true);
+    Ok(())
 }
 
-/// The steps from the first, in the original's order.
-pub fn run(race: &Race, steps: &[Step<StepOperand>]) -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::settings_copy::run` (the x87's conversions and the
-    // brake's product kept, through `Machine`).
-    rc2k_core::race::settings_copy::run(
-        steps,
-        &mut Game {
-            race,
-            eax: 0,
-            ebx: 0,
-        },
-    )
+/// The race's settings back to the front end's (`copy_settings_out`), in the original's
+/// order; while a replay is shown (`hold_car_revs` not 0) nothing is copied.
+fn copy_out(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
+    let shared = &race.shared;
+    let (settings, results) = (&shared.state.settings, &shared.state.results);
+    fx.text(RULE, true);
+    fx.text("COPY SHAUN TO GRAHAM", true);
+    if shared.replay_file.hold_car_revs.get() != 0 {
+        fx.text("SKIPPING - REPLAY!", true);
+    } else {
+        results
+            .hud_bits_current
+            .set(CAR_BLOCKS.cars[0].option_bits.get());
+        results
+            .hud_bits_first
+            .set(CAR_BLOCKS.cars[1].option_bits.get());
+        // The gauges back to whole numbers (`fld`, `fistp`: rounded as the x87's control
+        // word says, to the nearest by default), the impact marks' bits as they are.
+        for car in 0..2 {
+            let c = &CAR_BLOCKS.cars[car];
+            for (gauge, setting) in GAUGES {
+                setting(&settings.cars[car]).set(x87::to_int(gauge(c).bits()) as u32);
+            }
+            for (mark, saved) in c.impact_octant_marks.iter().zip(result_marks(shared, car)) {
+                saved.set(mark.bits());
+            }
+        }
+        fx.store_results_by_mode(race);
+        for car in 0..2 {
+            results.results[car]
+                .result
+                .set(CAR_BLOCKS.cars[car].stop_state.get());
+        }
+        for car in 0..2 {
+            results.results[car]
+                .secs
+                .set_bits(x87::loaded(CAR_BLOCKS.cars[car].top_speed.bits()));
+        }
+        results
+            .flags_current
+            .set(CAR_BLOCKS.cars[0].parts_present.get());
+        results
+            .flags_first
+            .set(CAR_BLOCKS.cars[1].parts_present.get());
+        log_cars(shared, fx);
+        log_arcade_positions(shared, fx);
+    }
+    fx.text("COPY SHAUN TO GRAHAM", true);
+    fx.text(RULE, true);
+    Ok(())
 }
 
-/// `race::copy_settings_in` (0x446EBE): `GRAHAM_TO_SHAUN`.
-pub fn copy_settings_in(race: &Race) -> Result<(), Refused> {
-    run(race, &race.replay.graham_to_shaun)
-}
-
-/// `race::copy_settings_out` (0x4486FB): `SHAUN_TO_GRAHAM`.
-pub fn copy_settings_out(race: &Race) -> Result<(), Refused> {
-    run(race, &race.replay.shaun_to_graham)
+/// Car `car`'s eight impact marks in the results record (`results[car].impact_marks`).
+fn result_marks(shared: &RaceShared, car: usize) -> &[Dword; 8] {
+    &shared.state.results.results[car].impact_marks
 }
 
 /// A float of a car block, picked by field.
@@ -334,470 +534,166 @@ const OPTION_BITS: [(SettingWord, u32); 9] = [
     (|r| &r.pace_notes, 0x80),
 ];
 
-/// The race's settings that are logged after the copy: the log text and the variable.
-const SHAUN_LOGS: [(&CStr, StepOperand); 14] = [
-    (
-        c"[shaunnumplayers]",
-        var!(crate::race::owner::RACE.shared.view.players),
-    ),
-    (
-        c"[shaunsplitmode]",
-        var!(crate::race::owner::RACE.shared.vars.split),
-    ),
-    (
-        c"[shauntracknum]",
-        var!(crate::race::owner::RACE.shared.vars.stage_number),
-    ),
-    (
-        c"[shauncrsdirec]",
-        var!(crate::race::owner::RACE.shared.vars.direction),
-    ),
-    (
-        c"[shaunrallynumber]",
-        var!(crate::race::owner::RACE.shared.vars.race_level),
-    ),
-    (
-        c"[shaunstagenumber]",
-        var!(crate::race::owner::RACE.shared.vars.race_stage),
-    ),
-    (
-        c"[shaungmode]",
-        var!(crate::race::owner::RACE.shared.vars.run_kind),
-    ),
-    (
-        c"[shaunnumcars]",
-        var!(crate::race::owner::RACE.shared.view.race_cars),
-    ),
-    (
-        c"[shaunmipmapping]",
-        var!(crate::race::owner::RACE.shared.vars.mip_setting),
-    ),
-    (
-        c"[shaunlensflare]",
-        var!(crate::race::owner::RACE.shared.vars.settings_words[0]),
-    ),
-    (
-        c"[shaunreflections]",
-        var!(crate::race::owner::RACE.shared.vars.settings_words[1]),
-    ),
-    (
-        c"[shauncarshadow]",
-        var!(crate::race::owner::RACE.shared.vars.settings_words[2]),
-    ),
-    (
-        c"[shauncardetail]",
-        var!(crate::race::owner::RACE.shared.vars.settings_words[3]),
-    ),
-    (
-        c"[shaunheadlights]",
-        var!(crate::race::owner::RACE.shared.vars.settings_words[4]),
-    ),
-];
+#[cfg(test)]
+mod tests {
+    use super::old_machine::{self, Step};
+    use super::*;
+    use crate::race::owner::race;
 
-/// The steps in building: pushes, and jumps patched to where they land.
-struct Builder(Vec<Step<StepOperand>>);
+    /// A log and routine calls captured as text (floats by their bits).
+    #[derive(Default, PartialEq, Debug)]
+    struct Capture(Vec<String>);
 
-impl Builder {
-    fn push(&mut self, step: Step<StepOperand>) {
-        self.0.push(step);
+    impl Effects for Capture {
+        fn text(&mut self, text: &str, newline: bool) {
+            self.0.push(format!("text {text} {newline}"));
+        }
+        fn int(&mut self, value: u32) {
+            self.0.push(format!("int {}", value as i32));
+        }
+        fn hex8(&mut self, value: u32) {
+            self.0.push(format!("hex8 {value:08X}"));
+        }
+        fn float(&mut self, bits: u32) {
+            self.0.push(format!("float {bits:08X}"));
+        }
+        fn clear_player_absences(&mut self) {
+            self.0.push("call clear_player_absences".into());
+        }
+        fn copy_league_table(&mut self, _: &Race) -> Result<(), Refused> {
+            self.0.push("call copy_league_table".into());
+            Ok(())
+        }
+        fn store_results_by_mode(&mut self, _: &Race) {
+            self.0.push("call store_results_by_mode".into());
+        }
     }
 
-    /// Where the next step goes (a jump's target).
-    fn here(&self) -> usize {
-        self.0.len()
-    }
+    /// xorshift64*: a seeded generator, no crates.
+    struct Rng(u64);
 
-    /// The log text `[carN.name]` (N from 1), kept for the program's life.
-    fn car_label(car: usize, name: &str) -> &'static CStr {
-        let text = CString::new(format!("[car{}.{name}]", car + 1)).expect("no NUL in a name");
-        Box::leak(text.into_boxed_c_str())
-    }
+    impl Rng {
+        fn next(&mut self) -> u32 {
+            self.0 ^= self.0 >> 12;
+            self.0 ^= self.0 << 25;
+            self.0 ^= self.0 >> 27;
+            (self.0.wrapping_mul(0x2545_F491_4F6C_DD1D) >> 32) as u32
+        }
 
-    /// Both cars' logged values: the three identity words, the 43 gauges, the eight impact
-    /// marks; after car 1's, a jump over car 2's unless there are two players.
-    fn car_logs(&mut self) {
-        let mut skip = None;
-        for car in 0..2 {
-            self.push(Text(Self::car_label(car, "shauncarnum1"), false));
-            self.push(Value(CarCell(car, |c| &c.car_kind), Kind::Int));
-            self.push(Text(Self::car_label(car, "carpartsleft"), false));
-            self.push(Value(CarCell(car, |c| &c.parts_present), Kind::Hex8));
-            self.push(Text(Self::car_label(car, "shauntyretype1"), false));
-            self.push(Value(CarCell(car, |c| &c.tyre_kind), Kind::Int));
-            for ((field, _), name) in GAUGES.iter().zip(GAUGE_NAMES) {
-                self.push(Text(Self::car_label(car, name), false));
-                self.push(Float(CarBits(car, *field)));
-            }
-            for (mark, field) in IMPACT_MARKS.into_iter().enumerate() {
-                self.push(Text(
-                    Self::car_label(car, &format!("caroctdamage{mark}")),
-                    false,
-                ));
-                self.push(Float(CarBits(car, field)));
-            }
-            if car == 0 {
-                skip = Some(self.here());
-                self.push(JumpIfNot(
-                    var!(crate::race::owner::RACE.shared.view.players),
-                    0x2,
-                    0,
-                ));
+        /// A word the settings might hold, or the floats of the gauges: small numbers
+        /// (the 0 .. 3 the compares look at), percentages incl. out of range, -1, floats
+        /// (also huge ones and NaNs, for the conversions), anything.
+        fn word(&mut self) -> u32 {
+            let r = self.next();
+            match r % 9 {
+                0 | 7 => (r >> 8) % 4,
+                1 => 0,
+                2 => ((r >> 8) % 300).wrapping_sub(20),
+                3 => 0xFFFF_FFFF,
+                4 => (((r >> 8) % 32_000) as f32 / 100.0 - 20.0).to_bits(),
+                5 => ((r >> 8) as f32 * 700.0).to_bits(),
+                6 => self.next(),
+                _ => (((r >> 8) % 1000) as f32 + 0.5).to_bits(),
             }
         }
-        if let Some(at) = skip {
-            self.0[at] = JumpIfNot(
-                var!(crate::race::owner::RACE.shared.view.players),
-                0x2,
-                self.here(),
-            );
+    }
+
+    /// Every cell the old step lists name.
+    fn operands(steps: &[Step<StepOperand>]) -> Vec<StepOperand> {
+        let mut out = Vec::new();
+        for step in steps {
+            match *step {
+                Step::Value(a, _)
+                | Step::Float(a)
+                | Step::Dec(a)
+                | Step::BitIf(a, _)
+                | Step::Load(a)
+                | Step::Store(a)
+                | Step::SubEax(a)
+                | Step::JumpIfNot(a, ..) => out.push(a),
+                Step::Copy(a, b)
+                | Step::IntToFloat(a, b)
+                | Step::FloatToInt(a, b)
+                | Step::FloatCopy(a, b)
+                | Step::Brake(a, b) => out.extend([a, b]),
+                Step::Text(..)
+                | Step::LoadImm(_)
+                | Step::JumpIfEaxNot(..)
+                | Step::Jump(_)
+                | Step::Call(_)
+                | Step::Return => {}
+            }
         }
+        out
+    }
+
+    fn snapshot(cells: &[StepOperand]) -> Vec<u32> {
+        cells.iter().map(|c| c.get()).collect()
+    }
+
+    fn restore(cells: &[StepOperand], values: &[u32]) {
+        for (c, v) in cells.iter().zip(values) {
+            c.set(*v);
+        }
+    }
+
+    /// Both copies over randomised states: the step-list machine (`old_machine`) and the
+    /// plain functions start from the same cells and must leave the same values in every
+    /// cell the machine names, with the same log lines (floats by their bits) and
+    /// routine calls, in the same order, and return the same result.
+    #[test]
+    fn new_copies_match_the_machine() {
+        let _lock = crate::store::test_lock();
+        let race = race();
+        let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
+        let scale = &race.course.numbers.brake_scale;
+        let scale_kept = scale.bits();
+        let scales = [
+            scale_kept,
+            2.56f32.to_bits(),
+            1.0f32.to_bits(),
+            3.7f32.to_bits(),
+        ];
+        let in_steps = old_machine::graham_to_shaun();
+        let out_steps = old_machine::shaun_to_graham();
+        for (copy_in, steps) in [(true, &in_steps), (false, &out_steps)] {
+            let cells = operands(steps);
+            let kept = snapshot(&cells);
+            let mut branches = [0u32; 4];
+            for round in 0..1500 {
+                for c in &cells {
+                    c.set(rng.word());
+                }
+                scale.set_bits(scales[round % scales.len()]);
+                let start = snapshot(&cells);
+                branches[0] += u32::from(race.shared.view.players.get() == 2);
+                branches[1] += u32::from(race.shared.replay_file.hold_car_revs.get() != 0);
+
+                let mut old_log = Capture::default();
+                let old_result = old_machine::run(race, &mut old_log, steps);
+                let old_cells = snapshot(&cells);
+
+                restore(&cells, &start);
+                let mut new_log = Capture::default();
+                let new_result = if copy_in {
+                    super::copy_in(race, &mut new_log)
+                } else {
+                    super::copy_out(race, &mut new_log)
+                };
+                let new_cells = snapshot(&cells);
+
+                assert_eq!(old_result.is_ok(), new_result.is_ok());
+                assert_eq!(old_log, new_log, "log, round {round}, in: {copy_in}");
+                for (n, (o, w)) in old_cells.iter().zip(&new_cells).enumerate() {
+                    assert_eq!(o, w, "cell {n}, round {round}, in: {copy_in}");
+                }
+                restore(&cells, &start);
+            }
+            // The compares were both ways in a good share of the rounds.
+            assert!(branches[0] > 30 || copy_in, "two players");
+            assert!(branches[1] > 30 || copy_in, "a replay shown");
+            restore(&cells, &kept);
+        }
+        scale.set_bits(scale_kept);
     }
 }
-
-/// A car block's eight impact marks.
-const IMPACT_MARKS: [CarFloat; 8] = [
-    |c| &c.impact_octant_marks[0],
-    |c| &c.impact_octant_marks[1],
-    |c| &c.impact_octant_marks[2],
-    |c| &c.impact_octant_marks[3],
-    |c| &c.impact_octant_marks[4],
-    |c| &c.impact_octant_marks[5],
-    |c| &c.impact_octant_marks[6],
-    |c| &c.impact_octant_marks[7],
-];
-
-/// Car `car`'s eight impact marks in the results record (`results[car].impact_marks`).
-fn result_marks(shared: &RaceShared, car: usize) -> &[Dword; 8] {
-    &shared.state.results.results[car].impact_marks
-}
-
-/// The steps of `copy_settings_in` (the front end's settings into the race's), in the
-/// original's order.
-pub fn graham_to_shaun() -> Vec<Step<StepOperand>> {
-    let shared = &race().shared;
-    let mut b = Builder(Vec::with_capacity(446));
-    let rule = c"-------------------------------------";
-    b.push(Text(rule, true));
-    b.push(Text(c"COPY GRAHAM TO SHAUN", true));
-    for step in HEAD_IN {
-        b.push(step);
-    }
-    for (text, place) in SHAUN_LOGS {
-        b.push(Text(text, false));
-        b.push(Value(place, Kind::Int));
-    }
-    for car in 0..2 {
-        let settings = |f: fn(&RaceCar) -> &Dword| Cell(f(&shared.state.settings.cars[car]));
-        for (field, setting) in SETTING_BRAKES {
-            b.push(Brake(CarCell(car, field), settings(setting)));
-        }
-        b.push(Copy(
-            CarCell(car, |c| &c.gear_ratio_setting),
-            settings(|r| &r.gear_ratio),
-        ));
-    }
-    // The first car's brake balance is turned round: 0x100 less itself.
-    b.push(LoadImm(0x100));
-    b.push(SubEax(CarCell(0, |c| &c.brake_balance)));
-    b.push(Store(CarCell(0, |c| &c.brake_balance)));
-    for (car, colour) in CAR_COLOURS.into_iter().enumerate() {
-        b.push(Load(Cell(&shared.state.settings.cars[car].gearing)));
-        b.push(Store(Var(colour)));
-    }
-    for car in 0..2 {
-        b.push(Copy(
-            CarCell(car, |c| &c.start_slot_value),
-            Cell(&shared.state.settings.cars[car].race_number),
-        ));
-    }
-    for car in 0..2 {
-        b.push(Load(Cell(&shared.state.settings.cars[car].view)));
-        b.push(Store(CarCell(car, |c| &c.camera_view)));
-        b.push(Store(CarCell(car, |c| &c.camera_blend_view)));
-    }
-    let hud_bits = [
-        &shared.state.results.hud_bits_current,
-        &shared.state.results.hud_bits_first,
-    ];
-    b.push(Text(c"[onerace.car1overbits]", false));
-    b.push(Value(Cell(hud_bits[0]), Kind::Int));
-    b.push(Text(c"[onerace.car2overbits]", false));
-    b.push(Value(Cell(hud_bits[1]), Kind::Int));
-    // The option bits: from the player's HUD settings, or -1 (all) as the race's override.
-    for car in 0..2 {
-        b.push(Load(Cell(hud_bits[car])));
-        let jump = b.here();
-        b.push(JumpIfEaxNot(0xFFFF_FFFF, 0));
-        b.push(LoadImm(0));
-        for (field, bit) in OPTION_BITS {
-            b.push(BitIf(Cell(field(&shared.state.settings.cars[car])), bit));
-        }
-        b.0[jump] = JumpIfEaxNot(0xFFFF_FFFF, b.here());
-        b.push(Store(CarCell(car, |c| &c.option_bits)));
-        b.push(Store(Var(PLAYER_OPTIONS[car])));
-    }
-    for car in 0..2 {
-        for (field, setting) in GAUGES {
-            b.push(IntToFloat(
-                CarBits(car, field),
-                Cell(setting(&shared.state.settings.cars[car])),
-            ));
-        }
-        for (mark, cell) in IMPACT_MARKS.into_iter().zip(result_marks(shared, car)) {
-            b.push(Copy(CarBits(car, mark), Cell(cell)));
-        }
-    }
-    for step in FLAGS_IN {
-        b.push(step);
-    }
-    b.car_logs();
-    for step in TAIL_IN {
-        b.push(step);
-    }
-    b.0
-}
-
-/// The front end's settings that the race's variables overwrite first (`GRAHAM_TO_SHAUN`).
-static HEAD_IN: [Step<StepOperand>; 21] = [
-    Copy(
-        var!(crate::race::owner::RACE.shared.vars.no_replay),
-        Cell(&crate::race::owner::RACE.shared.state.settings.no_replay),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.vars.rivals),
-        Cell(&crate::race::owner::RACE.shared.state.settings.rivals),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.vars.race_car_kinds[0]),
-        Cell(
-            &crate::race::owner::RACE
-                .shared
-                .state
-                .settings
-                .car_kind_current,
-        ),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.vars.race_car_kinds[1]),
-        Cell(
-            &crate::race::owner::RACE
-                .shared
-                .state
-                .settings
-                .car_kind_first,
-        ),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.view.players),
-        Cell(&crate::race::owner::RACE.shared.state.settings.race_mode),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.vars.split),
-        Cell(&crate::race::owner::RACE.shared.state.settings.kept),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.vars.stage_number),
-        Cell(&crate::race::owner::RACE.shared.state.settings.stage),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.vars.direction),
-        Cell(&crate::race::owner::RACE.shared.state.settings.direction),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.vars.race_level),
-        Cell(&crate::race::owner::RACE.shared.state.results.race_level),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.vars.race_stage),
-        Cell(&crate::race::owner::RACE.shared.state.results.race_stage),
-    ),
-    Dec(var!(crate::race::owner::RACE.shared.vars.race_stage)),
-    Copy(
-        var!(crate::race::owner::RACE.shared.vars.run_kind),
-        Cell(&crate::race::owner::RACE.shared.state.settings.run_kind),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.view.race_cars),
-        var!(crate::race::owner::RACE.shared.view.players),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.vars.car_tyres[0]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.cars[0].tyre),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.vars.car_tyres[1]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.cars[1].tyre),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.vars.mip_setting),
-        var!(GFX.display.choices.mipmapping),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.vars.settings_words[0]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.lens_flare),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.vars.settings_words[1]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.reflections),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.vars.settings_words[2]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.car_shadows),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.vars.settings_words[3]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.car_detail),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.vars.settings_words[4]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.headlights),
-    ),
-];
-
-/// The cars' part flags and the arcade start place into the results.
-static FLAGS_IN: [Step<StepOperand>; 4] = [
-    Copy(
-        car!(0, parts_present),
-        Cell(&crate::race::owner::RACE.shared.state.results.flags_current),
-    ),
-    Copy(
-        car!(1, parts_present),
-        Cell(&crate::race::owner::RACE.shared.state.results.flags_first),
-    ),
-    Copy(
-        var!(crate::race::owner::RACE.shared.tables.start_place),
-        Cell(&crate::race::owner::RACE.shared.state.results.figure_000),
-    ),
-    Copy(
-        car!(0, mode2_place),
-        Cell(&crate::race::owner::RACE.shared.state.results.figure_000),
-    ),
-];
-
-/// The end of the copy: the players' absences cleared, the results into the cars' stop
-/// states, the arcade positions logged, the league table copied.
-static TAIL_IN: [Step<StepOperand>; 15] = [
-    Call(StepOperand::Routine(Routine::ClearPlayerAbsences)),
-    Load(Cell(
-        &crate::race::owner::RACE.shared.state.results.results[0].result,
-    )),
-    Store(car!(0, stop_state)),
-    Load(Cell(
-        &crate::race::owner::RACE.shared.state.results.results[1].result,
-    )),
-    Store(car!(1, stop_state)),
-    Text(c"[arcadestartposition]", false),
-    Value(
-        var!(crate::race::owner::RACE.shared.tables.start_place),
-        Kind::Int,
-    ),
-    Text(c"[car1.arcadeposition]", false),
-    Value(car!(0, mode2_place), Kind::Int),
-    Text(c"[onerace.car1arcadeposition]", false),
-    Value(
-        Cell(&crate::race::owner::RACE.shared.state.results.figure_000),
-        Kind::Int,
-    ),
-    Call(StepOperand::Routine(Routine::CopyLeagueTable)),
-    Text(c"COPY GRAHAM TO SHAUN", true),
-    Text(c"-------------------------------------", true),
-    Return,
-];
-
-/// The arcade positions logged at the end of the copy back.
-static TAIL_OUT: [Step<StepOperand>; 6] = [
-    Text(c"[arcadestartposition]", false),
-    Value(
-        var!(crate::race::owner::RACE.shared.tables.start_place),
-        Kind::Int,
-    ),
-    Text(c"[car1.arcadeposition]", false),
-    Value(car!(0, mode2_place), Kind::Int),
-    Text(c"[onerace.car1arcadeposition]", false),
-    Value(
-        Cell(&crate::race::owner::RACE.shared.state.results.figure_000),
-        Kind::Int,
-    ),
-];
-
-/// The steps of `copy_settings_out` (the race's settings back to the front end's), in the
-/// original's order; skipped while a replay is shown.
-pub fn shaun_to_graham() -> Vec<Step<StepOperand>> {
-    let shared = &race().shared;
-    let mut b = Builder(Vec::with_capacity(344));
-    b.push(Text(c"-------------------------------------", true));
-    b.push(Text(c"COPY SHAUN TO GRAHAM", true));
-    let skip = b.here();
-    b.push(JumpIfNot(
-        var!(crate::race::owner::RACE.shared.replay_file.hold_car_revs),
-        0x0,
-        0,
-    ));
-    b.push(Copy(
-        Cell(&shared.state.results.hud_bits_current),
-        CarCell(0, |c| &c.option_bits),
-    ));
-    b.push(Copy(
-        Cell(&shared.state.results.hud_bits_first),
-        CarCell(1, |c| &c.option_bits),
-    ));
-    for car in 0..2 {
-        for (field, setting) in GAUGES {
-            b.push(FloatToInt(
-                Cell(setting(&shared.state.settings.cars[car])),
-                CarBits(car, field),
-            ));
-        }
-        for (mark, cell) in IMPACT_MARKS.into_iter().zip(result_marks(shared, car)) {
-            b.push(Copy(Cell(cell), CarBits(car, mark)));
-        }
-    }
-    b.push(Call(StepOperand::Routine(Routine::StoreResultsByMode)));
-    for car in 0..2 {
-        b.push(Load(CarCell(car, |c| &c.stop_state)));
-        b.push(Store(Cell(
-            &crate::race::owner::RACE.shared.state.results.results[car].result,
-        )));
-    }
-    for car in 0..2 {
-        b.push(FloatCopy(
-            Bits(&crate::race::owner::RACE.shared.state.results.results[car].secs),
-            CarBits(car, |c| &c.top_speed),
-        ));
-    }
-    b.push(Copy(
-        Cell(&crate::race::owner::RACE.shared.state.results.flags_current),
-        CarCell(0, |c| &c.parts_present),
-    ));
-    b.push(Copy(
-        Cell(&crate::race::owner::RACE.shared.state.results.flags_first),
-        CarCell(1, |c| &c.parts_present),
-    ));
-    b.car_logs();
-    for step in TAIL_OUT {
-        b.push(step);
-    }
-    let over = b.here();
-    b.push(Jump(0));
-    b.0[skip] = JumpIfNot(
-        var!(crate::race::owner::RACE.shared.replay_file.hold_car_revs),
-        0x0,
-        b.here(),
-    );
-    b.push(Text(c"SKIPPING - REPLAY!", true));
-    b.0[over] = Jump(b.here());
-    b.push(Text(c"COPY SHAUN TO GRAHAM", true));
-    b.push(Text(c"-------------------------------------", true));
-    b.push(Return);
-    b.0
-}
-
-/// The race variable of each of the two cars' colours, and of each player's options.
-const CAR_COLOURS: [fn() -> &'static Dword; 2] = [
-    || &crate::race::owner::RACE.shared.vars.car_colours[0],
-    || &crate::race::owner::RACE.shared.vars.car_colours[1],
-];
-const PLAYER_OPTIONS: [fn() -> &'static Dword; 2] = [
-    || &crate::race::owner::RACE.shared.view.player_options[0],
-    || &crate::race::owner::RACE.shared.view.player_options[1],
-];
